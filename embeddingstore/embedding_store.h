@@ -8,7 +8,7 @@
 
 namespace featureform {
 
-namespace embeddings {
+namespace embedding {
 
 template <typename K, typename V>
 class EmbeddingStore {

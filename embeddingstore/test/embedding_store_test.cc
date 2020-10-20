@@ -8,9 +8,9 @@
 #include <gtest/gtest.h>
 #include "embeddingstore/embedding_store.h"
 
-namespace {
+using featureform::embedding::EmbeddingStore;
 
-using featureform::embeddings::EmbeddingStore;
+namespace {
 
 TEST(SimpleEmbeddingStore, TestPutGet) {
   const auto store =

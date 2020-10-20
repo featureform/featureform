@@ -6,7 +6,7 @@
 
 namespace featureform {
 
-namespace embeddings {
+namespace embedding {
 
 template <typename K, typename V>
 void EmbeddingStore<K, V>::set(K key, V val) {

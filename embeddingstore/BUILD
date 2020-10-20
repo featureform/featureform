@@ -1,15 +1,64 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
-# License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+# License, v.2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https:  // mozilla.org/MPL/2.0/.
+
+load("@rules_proto_grpc//cpp:defs.bzl", "cpp_grpc_library")
+
+cc_binary(
+    name = "main",
+    srcs =
+        [
+            "main.cc",
+        ],
+    deps = [
+        ":server",
+    ],
+)
+
+cc_library(
+    name = "server",
+    srcs =
+        [
+            "server.cc",
+        ],
+    hdrs =
+        [
+            "server.h",
+        ],
+    visibility = [
+        "//visibility:public",
+    ],
+    deps = [
+        ":embedding_store",
+        ":embedding_store_grpc",
+    ],
+)
+
+cpp_grpc_library(
+    name = "embedding_store_grpc",
+    deps = ["//embeddingstore:embedding_store_proto"],
+)
+
+proto_library(
+    name = "embedding_store_proto",
+    srcs = [
+        "embedding_store.proto",
+    ],
+    visibility = [
+        "//visibility:public",
+    ],
+)
 
 cc_library(
     name = "embedding_store",
-    srcs = [
-        "embedding_store_impl.h",
-    ],
-    hdrs = [
-        "embedding_store.h",
-    ],
+    srcs =
+        [
+            "embedding_store_impl.h",
+        ],
+    hdrs =
+        [
+            "embedding_store.h",
+        ],
     visibility = [
         "//visibility:public",
     ],

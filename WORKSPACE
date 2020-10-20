@@ -32,6 +32,30 @@ load("@rules_proto_grpc//cpp:repositories.bzl", rules_proto_grpc_cpp_repos = "cp
 
 rules_proto_grpc_cpp_repos()
 
+load("@rules_proto_grpc//python:repositories.bzl", rules_proto_grpc_python_repos = "python_repos")
+
+rules_proto_grpc_python_repos()
+
 load("@com_github_grpc_grpc//bazel:grpc_deps.bzl", "grpc_deps")
 
 grpc_deps()
+
+load("@rules_python//python:repositories.bzl", "py_repositories")
+
+py_repositories()
+
+load("@rules_python//python:pip.bzl", "pip_repositories")
+
+pip_repositories()
+
+load("@rules_python//python:pip.bzl", "pip_import")
+
+pip_import(
+    name = "rules_proto_grpc_py3_deps",
+    python_interpreter = "python3",
+    requirements = "@rules_proto_grpc//python:requirements.txt",
+)
+
+load("@rules_proto_grpc_py3_deps//:requirements.bzl", pip3_install = "pip_install")
+
+pip3_install()

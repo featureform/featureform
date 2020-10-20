@@ -1,0 +1,2 @@
+# We have to instrument_test_targets, but then ignore test directories for C++ templates to work.
+coverage --combined_report=lcov --coverage_report_generator="@bazel_tools//tools/test/CoverageOutputGenerator/java/com/google/devtools/coverageoutputgenerator:Main" --instrument_test_targets --instrumentation_filter="-/*/test[/:]"

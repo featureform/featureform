@@ -1,0 +1,33 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
+syntax = "proto3";
+
+package featureform.embedding.proto;
+
+service EmbeddingStore {
+  rpc Set(SetRequest) returns (SetResponse) {}
+  rpc Get(GetRequest) returns (GetResponse) {}
+}
+
+message SetRequest {
+  string key = 1;
+  Embedding embedding = 2;
+}
+
+message SetResponse {
+  // Purposely empty.
+}
+
+message GetRequest {
+  string key = 1;
+}
+
+message GetResponse {
+  Embedding embedding = 1;
+}
+
+message Embedding {
+  repeated float values = 1;
+}

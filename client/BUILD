@@ -17,10 +17,10 @@ py_binary(
 py_library(
     name = "client",
     srcs = ["client.py"],
-    deps = [":embedding_store_grpc"],
     visibility = [
         "//visibility:public",
     ],
+    deps = [":embedding_store_grpc"],
 )
 
 python_grpc_library(

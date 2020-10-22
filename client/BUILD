@@ -6,7 +6,10 @@ load("@rules_proto_grpc//python:defs.bzl", "python_grpc_library")
 
 py_binary(
     name = "repl",
-    srcs = ["client.py", "repl.py"],
+    srcs = [
+        "client.py",
+        "repl.py",
+    ],
     main = "repl.py",
     deps = [":embedding_store_grpc"],
 )

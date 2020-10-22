@@ -5,10 +5,19 @@
 load("@rules_proto_grpc//python:defs.bzl", "python_grpc_library")
 
 py_binary(
+    name = "repl",
+    srcs = ["client.py", "repl.py"],
+    main = "repl.py",
+    deps = [":embedding_store_grpc"],
+)
+
+py_library(
     name = "client",
     srcs = ["client.py"],
-    main = "client.py",
     deps = [":embedding_store_grpc"],
+    visibility = [
+        "//visibility:public",
+    ],
 )
 
 python_grpc_library(

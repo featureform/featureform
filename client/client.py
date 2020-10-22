@@ -3,7 +3,6 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import grpc
-import sys
 
 from embeddingstore import embedding_store_pb2, embedding_store_pb2_grpc
 
@@ -27,25 +26,3 @@ class EmbeddingStoreClient:
     def get(self, key):
         resp = self._stub.Get(embedding_store_pb2.GetRequest(key=key))
         return resp.embedding.values
-
-
-# When run, it takes a command per line:
-# Either:
-# get [key]
-# OR
-# set [key] [values...]
-if __name__ == '__main__':
-    client = EmbeddingStoreClient()
-    for line in sys.stdin:
-        line = line.rstrip()
-        tokens = line.split()
-        cmd = tokens[0]
-        key = tokens[1]
-        if cmd == "get":
-            print(client.get(key))
-        elif cmd == "set":
-            val = [float(tok) for tok in tokens[2:]]
-            client.set(key, val)
-            print("SUCCESS")
-        else:
-            print("UNKNOWN COMMAND")

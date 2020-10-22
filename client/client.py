@@ -15,11 +15,11 @@ class EmbeddingStoreClient:
         self._channel = grpc.insecure_channel('localhost:50051')
         self._stub = embedding_store_pb2_grpc.EmbeddingStoreStub(self._channel)
 
-    def close():
+    def close(self):
         return self._channel.close()
 
     def set(self, key, embedding):
-        req = SetRequest()
+        req = embedding_store_pb2.SetRequest()
         req.key = key
         req.embedding.values[:] = embedding
         self._stub.Set(req)

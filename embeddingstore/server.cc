@@ -15,28 +15,51 @@
 using ::grpc::Server;
 using ::grpc::ServerBuilder;
 using ::grpc::ServerContext;
+using ::grpc::ServerReader;
 using ::grpc::Status;
+using ::featureform::embedding::proto::Embedding;
+using ::featureform::embedding::proto::GetRequest;
+using ::featureform::embedding::proto::GetResponse;
+using ::featureform::embedding::proto::SetRequest;
+using ::featureform::embedding::proto::SetResponse;
+using ::featureform::embedding::proto::MultiSetRequest;
+using ::featureform::embedding::proto::MultiSetResponse;
 
 namespace featureform {
 
 namespace embedding {
 
+std::vector<float> copy_embedding_to_vector(const Embedding& embedding) {
+  auto vals = embedding.values();
+  return std::vector<float>(vals.cbegin(), vals.cend());
+}
+
 grpc::Status EmbeddingStoreService::Get(ServerContext* context,
-                                        const proto::GetRequest* request,
-                                        proto::GetResponse* resp) {
+                                        const GetRequest* request,
+                                        GetResponse* resp) {
   auto embedding = store_->get(request->key());
-  std::unique_ptr<proto::Embedding> proto_embedding(new proto::Embedding());
+  std::unique_ptr<Embedding> proto_embedding(new Embedding());
   *proto_embedding->mutable_values() = {embedding.begin(), embedding.end()};
   resp->set_allocated_embedding(proto_embedding.release());
   return Status::OK;
 }
 
 grpc::Status EmbeddingStoreService::Set(ServerContext* context,
-                                        const proto::SetRequest* request,
-                                        proto::SetResponse* resp) {
-  auto vals = request->embedding().values();
-  auto embedding = std::vector<float>(vals.cbegin(), vals.cend());
-  store_->set(request->key(), embedding);
+                                        const SetRequest* request,
+                                        SetResponse* resp) {
+  auto vec = copy_embedding_to_vector(request->embedding());
+  store_->set(request->key(), vec);
+  return Status::OK;
+}
+
+grpc::Status EmbeddingStoreService::MultiSet(
+    ServerContext* context, ServerReader<MultiSetRequest>* reader,
+    MultiSetResponse* resp) {
+  MultiSetRequest request;
+  while (reader->Read(&request)) {
+    auto vec = copy_embedding_to_vector(request.embedding());
+    store_->set(request.key(), vec);
+  }
   return Status::OK;
 }
 }

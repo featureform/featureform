@@ -18,9 +18,15 @@ class EmbeddingStoreService final : public proto::EmbeddingStore::Service {
   EmbeddingStoreService()
       : store_(std::unique_ptr<EmbeddingStore<std::string, std::vector<float>>>(
             new EmbeddingStore<std::string, std::vector<float>>)){};
+
+  grpc::Status MultiSet(grpc::ServerContext* context,
+                        grpc::ServerReader<proto::MultiSetRequest>* reader,
+                        proto::MultiSetResponse* resp) override;
+
   grpc::Status Set(grpc::ServerContext* context,
                    const proto::SetRequest* request,
                    proto::SetResponse* resp) override;
+
   grpc::Status Get(grpc::ServerContext* context,
                    const proto::GetRequest* request,
                    proto::GetResponse* resp) override;

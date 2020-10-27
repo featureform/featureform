@@ -26,3 +26,14 @@ class EmbeddingStoreClient:
     def get(self, key):
         resp = self._stub.Get(embedding_store_pb2.GetRequest(key=key))
         return resp.embedding.values
+
+    def multiset(self, embedding_dict):
+        it = self._embedding_dict_iter(embedding_dict)
+        self._stub.MultiSet(it)
+
+    def _embedding_dict_iter(self, embedding_dict):
+        for key, embedding in embedding_dict.items():
+            req = embedding_store_pb2.MultiSetRequest()
+            req.key = key
+            req.embedding.values[:] = embedding
+            yield req

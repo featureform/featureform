@@ -9,6 +9,7 @@ package featureform.embedding.proto;
 service EmbeddingStore {
   rpc Set(SetRequest) returns (SetResponse) {}
   rpc Get(GetRequest) returns (GetResponse) {}
+  rpc MultiSet(stream MultiSetRequest) returns (MultiSetResponse) {}
 }
 
 message SetRequest {
@@ -26,6 +27,15 @@ message GetRequest {
 
 message GetResponse {
   Embedding embedding = 1;
+}
+
+message MultiSetRequest {
+  string key = 1;
+  Embedding embedding = 2;
+}
+
+message MultiSetResponse {
+  // Purposely empty.
 }
 
 message Embedding {

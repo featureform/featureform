@@ -4,8 +4,10 @@
 
 # This file is used to setup external dependencies.
 
-# http_archive is used to pull external source directories.
+# http_archive and new_git_repository are used to pull external source
+# directories.
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+load("@bazel_tools//tools/build_defs/repo:git.bzl", "new_git_repository")
 
 # gtest is a testing framework for C++.
 http_archive(
@@ -62,6 +64,18 @@ load("@com_github_grpc_grpc//bazel:grpc_deps.bzl", "grpc_deps")
 
 grpc_deps()
 
+# Using git_remote instead of recommended http_archive on purpose.
+# At time of commit, hnswlib's newest release is 0.4.0 which is missing
+# certain critical commits such as:
+# https://github.com/nmslib/hnswlib/commit/40f31dad9508dac53f3201eb17fe5dcc72eb1d43
+#
+# Without these commits, the project fails to compile.
+new_git_repository(
+    name = "hnswlib",
+    build_file = "@//thirdparty/hnswlib:BUILD",
+    commit = "21b54fe9544cfbb757b2ea8f3def5542ba2435c7",
+    remote = "https://github.com/nmslib/hnswlib.git",
+)
 
 # buildifier is written in Go and hence needs rules_go to be built.
 # See https://github.com/bazelbuild/rules_go for the up to date setup instructions.

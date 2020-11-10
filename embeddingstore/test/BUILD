@@ -13,3 +13,15 @@ cc_test(
         "@gtest",
     ],
 )
+
+cc_test(
+    name = "index_test",
+    srcs = [
+        "index_test.cc",
+        "main_test.cc",
+    ],
+    deps = [
+        "//embeddingstore:index",
+        "@gtest",
+    ],
+)

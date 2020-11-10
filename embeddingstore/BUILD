@@ -37,6 +37,24 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "index",
+    srcs =
+        [
+            "index_impl.h",
+        ],
+    hdrs =
+        [
+            "index.h",
+        ],
+    visibility = [
+        "//visibility:public",
+    ],
+    deps = [
+        "@hnswlib",
+    ],
+)
+
 cpp_grpc_library(
     name = "embedding_store_grpc",
     deps = ["//embeddingstore:embedding_store_proto"],

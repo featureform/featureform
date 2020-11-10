@@ -46,4 +46,15 @@ TEST(SimpleANNIndex, TestUpdateANN) {
   std::vector<std::string> expected{"b"};
   ASSERT_EQ(nearest, expected);
 }
+
+TEST(SimpleANNIndex, TestANN0Items) {
+  auto idx = std::make_shared<ANNIndex<std::string, std::vector<float>>>(3);
+  auto a_vec = std::vector<float>{0, 1, 0};
+  idx->set("a", a_vec);
+  idx->set("b", std::vector<float>{1, 1, 0});
+  idx->set("c", std::vector<float>{1, 0, 0});
+  const auto nearest = idx->approx_nearest(a_vec, 0);
+  std::vector<std::string> expected{};
+  ASSERT_EQ(nearest, expected);
+}
 }

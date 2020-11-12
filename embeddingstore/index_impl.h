@@ -34,7 +34,7 @@ void ANNIndex<K, V>::set(K key, V value) {
 }
 
 template <typename K, typename V>
-std::vector<K> ANNIndex<K, V>::approx_nearest(V value, size_t num) {
+std::vector<K> ANNIndex<K, V>::approx_nearest(V value, size_t num) const {
   auto dist_label_pairs = nn_impl_->searchKnn(value.data(), num);
   auto nearest_keys = std::vector<K>(num);
   // hnswlib returns things in backwards order, so we have to
@@ -42,7 +42,7 @@ std::vector<K> ANNIndex<K, V>::approx_nearest(V value, size_t num) {
   // https://github.com/nmslib/hnswlib/issues/7
   for (int i = num - 1; i >= 0; i--) {
     const auto label = dist_label_pairs.top().second;
-    nearest_keys[i] = label_to_key_[label];
+    nearest_keys[i] = label_to_key_.at(label);
     dist_label_pairs.pop();
   }
   return nearest_keys;

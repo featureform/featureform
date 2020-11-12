@@ -18,7 +18,7 @@ class ANNIndex {
  public:
   ANNIndex(int dims);
   void set(K key, V value);
-  std::vector<K> approx_nearest(V value, size_t num);
+  std::vector<K> approx_nearest(V value, size_t num) const;
 
  private:
   std::unique_ptr<hnswlib::SpaceInterface<float>> space_impl_;

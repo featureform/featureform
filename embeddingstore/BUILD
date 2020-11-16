@@ -41,7 +41,7 @@ cc_library(
     name = "index",
     srcs =
         [
-            "index_impl.h",
+            "index.cc",
         ],
     hdrs =
         [

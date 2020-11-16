@@ -14,7 +14,7 @@ using featureform::embedding::ANNIndex;
 namespace {
 
 TEST(SimpleANNIndex, TestSimpleANN) {
-  auto idx = std::make_shared<ANNIndex<std::string, std::vector<float>>>(3);
+  auto idx = std::make_unique<ANNIndex>(3);
   auto a_vec = std::vector<float>{0, 1, 0};
   idx->set("a", a_vec);
   idx->set("b", std::vector<float>{1, 1, 0});
@@ -25,7 +25,7 @@ TEST(SimpleANNIndex, TestSimpleANN) {
 }
 
 TEST(SimpleANNIndex, TestMultiANN) {
-  auto idx = std::make_shared<ANNIndex<std::string, std::vector<float>>>(3);
+  auto idx = std::make_unique<ANNIndex>(3);
   auto a_vec = std::vector<float>{0, 1, 0};
   idx->set("a", a_vec);
   idx->set("b", std::vector<float>{1, 1, 0});
@@ -36,7 +36,7 @@ TEST(SimpleANNIndex, TestMultiANN) {
 }
 
 TEST(SimpleANNIndex, TestUpdateANN) {
-  auto idx = std::make_shared<ANNIndex<std::string, std::vector<float>>>(3);
+  auto idx = std::make_unique<ANNIndex>(3);
   auto a_vec = std::vector<float>{0, 1, 0};
   idx->set("a", a_vec);
   idx->set("b", std::vector<float>{1, 1, 0});
@@ -48,7 +48,7 @@ TEST(SimpleANNIndex, TestUpdateANN) {
 }
 
 TEST(SimpleANNIndex, TestANN0Items) {
-  auto idx = std::make_shared<ANNIndex<std::string, std::vector<float>>>(3);
+  auto idx = std::make_unique<ANNIndex>(3);
   auto a_vec = std::vector<float>{0, 1, 0};
   idx->set("a", a_vec);
   idx->set("b", std::vector<float>{1, 1, 0});

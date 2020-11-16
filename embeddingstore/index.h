@@ -13,21 +13,19 @@ namespace featureform {
 
 namespace embedding {
 
-template <typename K, typename V>
 class ANNIndex {
  public:
   ANNIndex(int dims);
-  void set(K key, V value);
-  std::vector<K> approx_nearest(V value, size_t num) const;
+  void set(std::string key, std::vector<float> value);
+  std::vector<std::string> approx_nearest(std::vector<float> value,
+                                          size_t num) const;
 
  private:
   std::unique_ptr<hnswlib::SpaceInterface<float>> space_impl_;
   std::unique_ptr<hnswlib::HierarchicalNSW<float>> nn_impl_;
-  std::unordered_map<K, hnswlib::labeltype> key_to_label_;
-  std::unordered_map<hnswlib::labeltype, K> label_to_key_;
+  std::unordered_map<std::string, hnswlib::labeltype> key_to_label_;
+  std::unordered_map<hnswlib::labeltype, std::string> label_to_key_;
   hnswlib::labeltype next_label_;
 };
 }
 }
-
-#include "index_impl.h"

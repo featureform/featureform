@@ -4,23 +4,29 @@
 
 #pragma once
 
+#include <memory>
+#include <optional>
 #include <unordered_map>
+
+#include "index.h"
 
 namespace featureform {
 
 namespace embedding {
 
-template <typename K, typename V>
 class EmbeddingStore {
  public:
-  EmbeddingStore() = default;
-  void set(K key, V value);
-  const V& get(const K& key) const;
+  EmbeddingStore() = delete;
+  EmbeddingStore(int dims);
+  void set(std::string key, std::vector<float> value);
+  const std::vector<float>& get(const std::string& key) const;
+  std::shared_ptr<const ANNIndex> create_ann_index();
+  std::shared_ptr<const ANNIndex> get_ann_index() const;
 
  private:
-  ::std::unordered_map<K, V> data_;
+  int dims_;
+  std::unordered_map<std::string, std::vector<float>> data_;
+  std::shared_ptr<ANNIndex> idx_;
 };
 }
 }
-
-#include "embedding_store_impl.h"

@@ -74,7 +74,7 @@ cc_library(
     name = "embedding_store",
     srcs =
         [
-            "embedding_store_impl.h",
+            "embedding_store.cc",
         ],
     hdrs =
         [
@@ -82,5 +82,8 @@ cc_library(
         ],
     visibility = [
         "//visibility:public",
+    ],
+    deps = [
+        ":index",
     ],
 )

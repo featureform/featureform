@@ -7,6 +7,7 @@
 # http_archive and new_git_repository are used to pull external source
 # directories.
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 load("@bazel_tools//tools/build_defs/repo:git.bzl", "new_git_repository")
 
 # gtest is a testing framework for C++.
@@ -64,6 +65,17 @@ load("@com_github_grpc_grpc//bazel:grpc_deps.bzl", "grpc_deps")
 
 grpc_deps()
 
+# Add rules to compile external C++ projects that use Make or CMake.
+git_repository(
+    name = "rules_foreign_cc",
+    commit = "ed95b95affecaa3ea3bf7bab3e0ab6aa847dfb06",
+    remote = "https://github.com/bazelbuild/rules_foreign_cc.git",
+)
+
+load("@rules_foreign_cc//:workspace_definitions.bzl", "rules_foreign_cc_dependencies")
+
+rules_foreign_cc_dependencies()
+
 # Using git_remote instead of recommended http_archive on purpose.
 # At time of commit, hnswlib's newest release is 0.4.0 which is missing
 # certain critical commits such as:
@@ -75,6 +87,14 @@ new_git_repository(
     build_file = "@//thirdparty/hnswlib:BUILD",
     commit = "21b54fe9544cfbb757b2ea8f3def5542ba2435c7",
     remote = "https://github.com/nmslib/hnswlib.git",
+)
+
+http_archive(
+    name = "rocksdb",
+    build_file = "@//thirdparty/rocksdb:BUILD",
+    sha256 = "fee38528108b6b49f813b9f055584b123ff0debbc3f39584d4a663c46075a6e9",
+    strip_prefix = "rocksdb-6.12.7",
+    url = "https://github.com/facebook/rocksdb/archive/v6.12.7.tar.gz",
 )
 
 # buildifier is written in Go and hence needs rules_go to be built.

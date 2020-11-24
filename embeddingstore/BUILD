@@ -55,9 +55,28 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "storage",
+    srcs =
+        [
+            "storage.cc",
+        ],
+    hdrs =
+        [
+            "storage.h",
+        ],
+    visibility = [
+        "//visibility:public",
+    ],
+    deps = [
+        ":embedding_store_grpc",
+        "@rocksdb",
+    ],
+)
+
 cpp_grpc_library(
     name = "embedding_store_grpc",
-    deps = ["//embeddingstore:embedding_store_proto"],
+    deps = [":embedding_store_proto"],
 )
 
 proto_library(
@@ -85,5 +104,6 @@ cc_library(
     ],
     deps = [
         ":index",
+        "@rocksdb",
     ],
 )

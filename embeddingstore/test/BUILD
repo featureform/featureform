@@ -25,3 +25,15 @@ cc_test(
         "@gtest",
     ],
 )
+
+cc_test(
+    name = "storage_test",
+    srcs = [
+        "main_test.cc",
+        "storage_test.cc",
+    ],
+    deps = [
+        "//embeddingstore:storage",
+        "@gtest",
+    ],
+)

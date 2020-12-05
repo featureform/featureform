@@ -11,7 +11,7 @@ namespace featureform {
 
 namespace embedding {
 
-std::unique_ptr<EmbeddingStorage> EmbeddingStorage::New(std::string path, int dims) {
+std::unique_ptr<EmbeddingStorage> EmbeddingStorage::load_or_create(std::string path, int dims) {
   rocksdb::Options options;
   options.create_if_missing = true;
   rocksdb::DB* db_ptr;

@@ -14,7 +14,7 @@ namespace embedding {
 
 class EmbeddingStorage {
  public:
-  static std::unique_ptr<EmbeddingStorage> New(std::string path, int dims);
+  static std::unique_ptr<EmbeddingStorage> load_or_create(std::string path, int dims);
   EmbeddingStorage() = delete;
   void set(std::string key, std::vector<float> value);
   std::vector<float> get(const std::string& key) const;

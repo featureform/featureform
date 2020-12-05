@@ -104,6 +104,7 @@ cc_library(
     ],
     deps = [
         ":index",
+        ":storage",
         "@rocksdb",
     ],
 )

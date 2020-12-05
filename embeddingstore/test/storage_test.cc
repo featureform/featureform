@@ -14,7 +14,7 @@ using featureform::embedding::EmbeddingStorage;
 namespace {
 
 TEST(EmbeddingStorage, TestSetGet) {
-  auto storage = EmbeddingStorage::New("test.db", 3);
+  auto storage = EmbeddingStorage::load_or_create("test.db", 3);
   auto a_key = "a";
   auto a_vec = std::vector<float>{0, 1, 0};
   storage->set(a_key, a_vec);

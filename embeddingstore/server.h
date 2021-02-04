@@ -15,9 +15,7 @@ namespace embedding {
 
 class EmbeddingStoreService final : public proto::EmbeddingStore::Service {
  public:
-  EmbeddingStoreService()
-      : store_(std::unique_ptr<EmbeddingStore<std::string, std::vector<float>>>(
-            new EmbeddingStore<std::string, std::vector<float>>)){};
+  EmbeddingStoreService(std::unique_ptr<EmbeddingStore> store) : store_(std::move(store)){};
 
   grpc::Status MultiSet(grpc::ServerContext* context,
                         grpc::ServerReader<proto::MultiSetRequest>* reader,
@@ -32,7 +30,7 @@ class EmbeddingStoreService final : public proto::EmbeddingStore::Service {
                    proto::GetResponse* resp) override;
 
  private:
-  std::unique_ptr<EmbeddingStore<std::string, std::vector<float>>> store_;
+  std::unique_ptr<EmbeddingStore> store_;
 };
 }
 }

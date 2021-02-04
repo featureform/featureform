@@ -11,6 +11,6 @@ py_test(
     main = "integration.py",
     deps = [
         requirement("pytest"),
-        "//client:client",
+        "//client",
     ],
 )

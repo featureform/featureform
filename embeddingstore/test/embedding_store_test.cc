@@ -13,7 +13,7 @@ using featureform::embedding::EmbeddingStore;
 namespace {
 
 TEST(SimpleEmbeddingStore, TestPutGet) {
-  const auto store = std::make_unique<EmbeddingStore>(3);
+  auto store = EmbeddingStore::load_or_create("test.abc", 3);
   store->set("a", std::vector<float>{1.1, 1.2, 1.3});
   std::vector<float> expected{1.1, 1.2, 1.3};
   ASSERT_EQ(store->get("a"), expected);

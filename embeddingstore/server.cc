@@ -65,9 +65,13 @@ grpc::Status EmbeddingStoreService::MultiSet(
 }
 }
 
+using featureform::embedding::EmbeddingStore;
+using featureform::embedding::EmbeddingStoreService;
+
 void RunServer() {
   std::string server_address("0.0.0.0:50051");
-  featureform::embedding::EmbeddingStoreService service;
+  auto store = EmbeddingStore::load_or_create("embedding_store.dat", 3);
+  auto service = EmbeddingStoreService(std::move(store));
 
   grpc::EnableDefaultHealthCheckService(true);
   grpc::reflection::InitProtoReflectionServerBuilderPlugin();

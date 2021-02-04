@@ -9,6 +9,7 @@
 #include <unordered_map>
 
 #include "index.h"
+#include "storage.h"
 
 namespace featureform {
 
@@ -16,14 +17,15 @@ namespace embedding {
 
 class EmbeddingStore {
  public:
-  EmbeddingStore() = delete;
-  EmbeddingStore(int dims);
+  static std::unique_ptr<EmbeddingStore> load_or_create(std::string path, int dims);
   void set(std::string key, std::vector<float> value);
   const std::vector<float>& get(const std::string& key) const;
   std::shared_ptr<const ANNIndex> create_ann_index();
   std::shared_ptr<const ANNIndex> get_ann_index() const;
 
  private:
+  EmbeddingStore(std::unique_ptr<EmbeddingStorage> storage, int dims);
+  std::unique_ptr<EmbeddingStorage> storage_;
   int dims_;
   std::unordered_map<std::string, std::vector<float>> data_;
   std::shared_ptr<ANNIndex> idx_;

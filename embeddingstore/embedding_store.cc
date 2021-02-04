@@ -4,12 +4,24 @@
 
 #include "embedding_store.h"
 
+#include <iostream>
+#include <cstdlib>
+#include <memory>
+
+#include "rocksdb/db.h"
+
 namespace featureform {
 
 namespace embedding {
 
-EmbeddingStore::EmbeddingStore(int dims)
-    : dims_(dims), data_(), idx_(nullptr) {}
+std::unique_ptr<EmbeddingStore> EmbeddingStore::load_or_create(std::string path, int dims) {
+  auto storage = EmbeddingStorage::load_or_create(path, dims);
+  return std::unique_ptr<EmbeddingStore>(new EmbeddingStore(std::move(storage), dims));
+}
+
+EmbeddingStore::EmbeddingStore(std::unique_ptr<EmbeddingStorage> storage, int dims)
+    :storage_(std::move(storage)), dims_(dims), data_(), idx_(nullptr) {
+}
 
 void EmbeddingStore::set(std::string key, std::vector<float> val) {
   if (idx_ != nullptr) {

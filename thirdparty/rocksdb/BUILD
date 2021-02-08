@@ -6,8 +6,9 @@ make(
     linkopts = [
         "-ldl",
         "-lz",
+        "-lbz2"
     ],
-    make_commands = ["make -j8 static_lib && mv librocksdb.a $INSTALLDIR/lib && cp -L -r include/rocksdb $INSTALLDIR/rocksdb/"],
+    make_commands = ["make -j8 static_lib && mkdir -p $INSTALLDIR/lib && cp librocksdb.a $INSTALLDIR/lib && cp -r include/rocksdb $INSTALLDIR/rocksdb/"],
     out_include_dir = "rocksdb",
     static_libraries = ["librocksdb.a"],
     visibility = ["//visibility:public"],

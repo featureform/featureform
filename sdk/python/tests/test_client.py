@@ -1,26 +1,23 @@
-# This Source Code Form is subject to the terms of the Mozilla Public
-# License, v.2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at https://mozilla.org/MPL/2.0/.
-
 import subprocess
 import sys
 import os
 import pytest
+import time
 
-import client.client as es
+import embeddings as es
 
 
 @pytest.fixture
 def embedding_store_proc():
-    proc = subprocess.Popen(os.environ["TEST_SRCDIR"] +
-                            "/__main__/embeddingstore/main")
+    proc = subprocess.Popen(os.path.join(os.environ["EMBEDDINGS_DIR"], 'bazel-out/darwin-fastbuild/bin/embeddingstore/main'))
+    time.sleep(0.3)
     yield proc
     proc.kill()
 
 
 @pytest.fixture
 def es_client(embedding_store_proc):
-    client = es.EmbeddingStoreClient()
+    client = es.Client()
     yield client
     client.close()
 
@@ -39,6 +36,18 @@ def test_multiset_get(es_client):
     es_client.multiset(embs)
     for key, emb in embs.items():
         assert es_client.get(key) == emb
+
+
+def test_nn(es_client):
+    embs = {
+        "a": [1.1, 1.2, 1.3],
+        "b": [1.1, 1.3, 1.3],
+        "c": [0, 0, 0],
+    }
+    es_client.multiset(embs)
+    neighbors = es_client.get_neighbors("a", 2)
+    print('neighbors: {}'.format(neighbors))
+    assert [n.key for n in neighbors] == ["b", "c"]
 
 
 if __name__ == "__main__":

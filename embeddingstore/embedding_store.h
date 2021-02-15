@@ -8,6 +8,7 @@
 #include <optional>
 #include <unordered_map>
 
+#include "embeddingstore/embedding_store.grpc.pb.h"
 #include "index.h"
 #include "storage.h"
 
@@ -17,18 +18,23 @@ namespace embedding {
 
 class EmbeddingStore {
  public:
-  static std::unique_ptr<EmbeddingStore> load_or_create(std::string path, int dims);
+  static std::unique_ptr<EmbeddingStore> load_or_create(std::string path,
+                                                        int dims);
+  static std::unique_ptr<EmbeddingStore> load_or_create_with_index(
+      std::string path, int dims);
   void set(std::string key, std::vector<float> value);
-  const std::vector<float>& get(const std::string& key) const;
-  std::shared_ptr<const ANNIndex> create_ann_index();
-  std::shared_ptr<const ANNIndex> get_ann_index() const;
+  const std::vector<float> get(const std::string& key) const;
+  const bool check_exists(const std::string& key) const;
+  std::shared_ptr<const ANNIndex> get_or_create_index();
+  std::shared_ptr<const ANNIndex> get_index() const;
+  std::vector<proto::Neighbor> get_neighbors(const std::string& key,
+                                             size_t num) const;
 
  private:
   EmbeddingStore(std::unique_ptr<EmbeddingStorage> storage, int dims);
   std::unique_ptr<EmbeddingStorage> storage_;
   int dims_;
-  std::unordered_map<std::string, std::vector<float>> data_;
   std::shared_ptr<ANNIndex> idx_;
 };
-}
-}
+}  // namespace embedding
+}  // namespace featureform

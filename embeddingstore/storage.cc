@@ -11,18 +11,19 @@ namespace featureform {
 
 namespace embedding {
 
-std::unique_ptr<EmbeddingStorage> EmbeddingStorage::load_or_create(std::string path, int dims) {
+std::unique_ptr<EmbeddingStorage> EmbeddingStorage::load_or_create(
+    std::string path, int dims) {
   rocksdb::Options options;
   options.create_if_missing = true;
   rocksdb::DB* db_ptr;
   rocksdb::Status status = rocksdb::DB::Open(options, path, &db_ptr);
   std::unique_ptr<rocksdb::DB> db(db_ptr);
-  return std::unique_ptr<EmbeddingStorage>(new EmbeddingStorage(std::move(db), dims));
+  return std::unique_ptr<EmbeddingStorage>(
+      new EmbeddingStorage(std::move(db), dims));
 }
 
 EmbeddingStorage::EmbeddingStorage(std::unique_ptr<rocksdb::DB> db, int dims)
-    : db_(std::move(db)), dims_(dims) {
-}
+    : db_(std::move(db)), dims_(dims) {}
 
 void EmbeddingStorage::set(std::string key, std::vector<float> val) {
   auto proto = proto::Embedding();
@@ -34,12 +35,29 @@ void EmbeddingStorage::set(std::string key, std::vector<float> val) {
 
 std::vector<float> EmbeddingStorage::get(const std::string& key) const {
   std::string serialized;
-  db_->Get(rocksdb::ReadOptions(), key, &serialized);
+  rocksdb::Status status = db_->Get(rocksdb::ReadOptions(), key, &serialized);
   auto proto = proto::Embedding();
   proto.ParseFromString(serialized);
   auto vals = proto.values();
   return std::vector<float>(vals.begin(), vals.end());
 }
 
+std::unordered_map<std::string, std::vector<float>> EmbeddingStorage::get_all()
+    const {
+  std::string numstr;
+  db_->GetProperty("rocksdb.estimate-num-keys", &numstr);
+  std::unordered_map<std::string, std::vector<float>> out;
+  out.reserve(std::stoi(numstr));
+  rocksdb::Iterator* it = db_->NewIterator(rocksdb::ReadOptions());
+  for (it->SeekToFirst(); it->Valid(); it->Next()) {
+    auto proto = proto::Embedding();
+    proto.ParseFromString(it->value().ToString());
+    auto vals = proto.values();
+    auto embedding = std::vector<float>(vals.begin(), vals.end());
+    out[it->key().ToString()] = embedding;
+  }
+  return out;
 }
-}
+
+}  // namespace embedding
+}  // namespace featureform

@@ -7,6 +7,7 @@
 #include <memory>
 #include <vector>
 
+#include "embeddingstore/embedding_store.grpc.pb.h"
 #include "hnswlib/hnswlib.h"
 
 namespace featureform {
@@ -17,8 +18,15 @@ class ANNIndex {
  public:
   ANNIndex(int dims);
   void set(std::string key, std::vector<float> value);
+
   std::vector<std::string> approx_nearest(std::vector<float> value,
                                           size_t num) const;
+  std::vector<std::pair<std::string, float>> approx_nearest_pairs(
+      std::vector<float> value, size_t num,
+      const std::string& exclude_key) const;
+  std::vector<proto::Neighbor> get_neighbors(
+      std::vector<float> value, size_t num,
+      const std::string& exclude_key) const;
 
  private:
   std::unique_ptr<hnswlib::SpaceInterface<float>> space_impl_;
@@ -27,5 +35,5 @@ class ANNIndex {
   std::unordered_map<hnswlib::labeltype, std::string> label_to_key_;
   hnswlib::labeltype next_label_;
 };
-}
-}
+}  // namespace embedding
+}  // namespace featureform

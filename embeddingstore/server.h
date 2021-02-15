@@ -15,24 +15,29 @@ namespace embedding {
 
 class EmbeddingStoreService final : public proto::EmbeddingStore::Service {
  public:
-  EmbeddingStoreService(std::unique_ptr<EmbeddingStore> store) : store_(std::move(store)){};
-
-  grpc::Status MultiSet(grpc::ServerContext* context,
-                        grpc::ServerReader<proto::MultiSetRequest>* reader,
-                        proto::MultiSetResponse* resp) override;
+  EmbeddingStoreService(std::unique_ptr<EmbeddingStore> store)
+      : store_(std::move(store)){};
 
   grpc::Status Set(grpc::ServerContext* context,
                    const proto::SetRequest* request,
                    proto::SetResponse* resp) override;
 
+  grpc::Status MultiSet(grpc::ServerContext* context,
+                        grpc::ServerReader<proto::MultiSetRequest>* reader,
+                        proto::MultiSetResponse* resp) override;
+
   grpc::Status Get(grpc::ServerContext* context,
                    const proto::GetRequest* request,
                    proto::GetResponse* resp) override;
 
+  grpc::Status GetNeighbors(
+      grpc::ServerContext* context, const proto::GetNeighborsRequest* request,
+      grpc::ServerWriter<proto::Neighbor>* writer) override;
+
  private:
   std::unique_ptr<EmbeddingStore> store_;
 };
-}
-}
+}  // namespace embedding
+}  // namespace featureform
 
 void RunServer();

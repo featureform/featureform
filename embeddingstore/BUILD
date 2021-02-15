@@ -15,6 +15,17 @@ cc_binary(
     ],
     deps = [
         ":server",
+        "@com_github_google_glog//:glog",
+    ],
+)
+
+proto_library(
+    name = "embedding_store_proto",
+    srcs = [
+        "embedding_store.proto",
+    ],
+    visibility = [
+        "//visibility:public",
     ],
 )
 
@@ -34,6 +45,7 @@ cc_library(
     deps = [
         ":embedding_store",
         ":embedding_store_grpc",
+        "@com_github_google_glog//:glog",
     ],
 )
 
@@ -51,7 +63,9 @@ cc_library(
         "//visibility:public",
     ],
     deps = [
+        ":embedding_store_grpc",
         "@hnswlib",
+        "@com_github_google_glog//:glog",
     ],
 )
 
@@ -77,16 +91,6 @@ cc_library(
 cpp_grpc_library(
     name = "embedding_store_grpc",
     deps = [":embedding_store_proto"],
-)
-
-proto_library(
-    name = "embedding_store_proto",
-    srcs = [
-        "embedding_store.proto",
-    ],
-    visibility = [
-        "//visibility:public",
-    ],
 )
 
 cc_library(

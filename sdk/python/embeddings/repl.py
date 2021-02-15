@@ -11,7 +11,7 @@ import client
 # OR
 # set [key] [values...]
 if __name__ == '__main__':
-    client = client.EmbeddingStoreClient()
+    client = client.Client()
     for line in sys.stdin:
         line = line.rstrip()
         tokens = line.split()

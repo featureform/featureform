@@ -4,6 +4,10 @@
 
 #include "index.h"
 
+using ::featureform::embedding::proto::Neighbor;
+
+#include <glog/logging.h>
+
 namespace featureform {
 namespace embedding {
 
@@ -16,6 +20,8 @@ ANNIndex::ANNIndex(int dims)
       label_to_key_(),
       next_label_(0) {}
 
+// Adds key-value pair to the approximate nearest neighbor index.
+// Keys are converted internally from string to hnsw label (index).
 void ANNIndex::set(std::string key, std::vector<float> value) {
   auto label_iter = key_to_label_.find(key);
   auto is_new_key = label_iter == key_to_label_.end();
@@ -45,5 +51,50 @@ std::vector<std::string> ANNIndex::approx_nearest(std::vector<float> value,
   }
   return nearest_keys;
 }
+
+std::vector<std::pair<std::string, float>> ANNIndex::approx_nearest_pairs(
+    std::vector<float> value, size_t num,
+    const std::string& exclude_key) const {
+  auto dist_label_pairs = nn_impl_->searchKnn(value.data(), num + 1);
+  auto out = std::vector<std::pair<std::string, float>>(num);
+
+  for (int i = num - 1; i >= 0; i--) {
+    const auto label = dist_label_pairs.top().second;
+    // Skip excluded key
+    if (label_to_key_.at(label) == exclude_key) {
+      dist_label_pairs.pop();
+      i++;
+      continue;
+    }
+    out[i] = std::pair<std::string, float>(label_to_key_.at(label),
+                                           dist_label_pairs.top().first);
+    dist_label_pairs.pop();
+  }
+  return out;
 }
+
+std::vector<Neighbor> ANNIndex::get_neighbors(
+    std::vector<float> value, size_t num,
+    const std::string& exclude_key) const {
+  auto dist_label_pairs = nn_impl_->searchKnn(value.data(), num + 1);
+  auto out = std::vector<Neighbor>(num);
+
+  for (int i = num - 1; i >= 0; i--) {
+    const auto label = dist_label_pairs.top().second;
+    // Skip excluded key
+    if (label_to_key_.at(label) == exclude_key) {
+      dist_label_pairs.pop();
+      i++;
+      continue;
+    }
+    Neighbor n;
+    n.set_key(label_to_key_.at(label));
+    n.set_distance(dist_label_pairs.top().first);
+    out[i] = n;
+    dist_label_pairs.pop();
+  }
+  return out;
 }
+
+}  // namespace embedding
+}  // namespace featureform

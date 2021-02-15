@@ -14,14 +14,18 @@ namespace embedding {
 
 class EmbeddingStorage {
  public:
-  static std::unique_ptr<EmbeddingStorage> load_or_create(std::string path, int dims);
+  static std::unique_ptr<EmbeddingStorage> load_or_create(std::string path,
+                                                          int dims);
   EmbeddingStorage() = delete;
   void set(std::string key, std::vector<float> value);
   std::vector<float> get(const std::string& key) const;
+  const bool check_exists(const std::string& key) const;
+  std::unordered_map<std::string, std::vector<float>> get_all() const;
+
  private:
   EmbeddingStorage(std::unique_ptr<rocksdb::DB> DB, int dims);
   std::unique_ptr<rocksdb::DB> db_;
   int dims_;
 };
-}
-}
+}  // namespace embedding
+}  // namespace featureform

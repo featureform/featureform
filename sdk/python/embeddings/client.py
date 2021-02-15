@@ -7,7 +7,7 @@ import grpc
 from embeddingstore import embedding_store_pb2, embedding_store_pb2_grpc
 
 
-class EmbeddingStoreClient:
+class Client:
 
     def __init__(self, host="localhost", port=50051):
         connection_str = "%.%".format(host, port)
@@ -37,3 +37,12 @@ class EmbeddingStoreClient:
             req.key = key
             req.embedding.values[:] = embedding
             yield req
+
+    def get_neighbors(self, key, number):
+        req = embedding_store_pb2.GetNeighborsRequest()
+        req.key = key
+        req.number = number
+        out = []
+        for n in self._stub.GetNeighbors(req):
+            out.append(n)
+        return out

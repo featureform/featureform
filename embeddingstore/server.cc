@@ -4,26 +4,30 @@
 
 #include "server.h"
 
-#include <iostream>
-#include <memory>
-#include <string>
-
+#include <glog/logging.h>
 #include <grpcpp/ext/proto_server_reflection_plugin.h>
 #include <grpcpp/grpcpp.h>
 #include <grpcpp/health_check_service_interface.h>
 
+#include <iostream>
+#include <memory>
+#include <string>
+
+using ::featureform::embedding::proto::Embedding;
+using ::featureform::embedding::proto::GetNeighborsRequest;
+using ::featureform::embedding::proto::GetRequest;
+using ::featureform::embedding::proto::GetResponse;
+using ::featureform::embedding::proto::MultiSetRequest;
+using ::featureform::embedding::proto::MultiSetResponse;
+using ::featureform::embedding::proto::Neighbor;
+using ::featureform::embedding::proto::SetRequest;
+using ::featureform::embedding::proto::SetResponse;
 using ::grpc::Server;
 using ::grpc::ServerBuilder;
 using ::grpc::ServerContext;
 using ::grpc::ServerReader;
+using ::grpc::ServerWriter;
 using ::grpc::Status;
-using ::featureform::embedding::proto::Embedding;
-using ::featureform::embedding::proto::GetRequest;
-using ::featureform::embedding::proto::GetResponse;
-using ::featureform::embedding::proto::SetRequest;
-using ::featureform::embedding::proto::SetResponse;
-using ::featureform::embedding::proto::MultiSetRequest;
-using ::featureform::embedding::proto::MultiSetResponse;
 
 namespace featureform {
 
@@ -37,6 +41,7 @@ std::vector<float> copy_embedding_to_vector(const Embedding& embedding) {
 grpc::Status EmbeddingStoreService::Get(ServerContext* context,
                                         const GetRequest* request,
                                         GetResponse* resp) {
+  DLOG(INFO) << "get key: " << request->key();
   auto embedding = store_->get(request->key());
   std::unique_ptr<Embedding> proto_embedding(new Embedding());
   *proto_embedding->mutable_values() = {embedding.begin(), embedding.end()};
@@ -62,15 +67,30 @@ grpc::Status EmbeddingStoreService::MultiSet(
   }
   return Status::OK;
 }
+
+grpc::Status EmbeddingStoreService::GetNeighbors(
+    ServerContext* context, const GetNeighborsRequest* request,
+    ServerWriter<Neighbor>* writer) {
+  DLOG(INFO) << "getting " << request->number()
+             << " neighbors for key: " << request->key() << " ...";
+  auto neighbors = store_->get_neighbors(request->key(), request->number());
+  DLOG(INFO) << "loaded neighbors";
+  for (const Neighbor& n : neighbors) {
+    writer->Write(n);
+  }
+  return Status::OK;
 }
-}
+
+}  // namespace embedding
+}  // namespace featureform
 
 using featureform::embedding::EmbeddingStore;
 using featureform::embedding::EmbeddingStoreService;
 
 void RunServer() {
   std::string server_address("0.0.0.0:50051");
-  auto store = EmbeddingStore::load_or_create("embedding_store.dat", 3);
+  auto store =
+      EmbeddingStore::load_or_create_with_index("embedding_store.dat", 3);
   auto service = EmbeddingStoreService(std::move(store));
 
   grpc::EnableDefaultHealthCheckService(true);
@@ -83,9 +103,10 @@ void RunServer() {
   builder.RegisterService(&service);
   // Finally assemble the server.
   std::unique_ptr<Server> server(builder.BuildAndStart());
-  std::cout << "Server listening on " << server_address << std::endl;
+  LOG(INFO) << "Server listening on " << server_address;
 
   // Wait for the server to shutdown. Note that some other thread must be
   // responsible for shutting down the server for this call to ever return.
   server->Wait();
+  LOG(INFO) << "Server returning";
 }

@@ -76,6 +76,7 @@ std::vector<std::pair<std::string, float>> ANNIndex::approx_nearest_pairs(
 std::vector<Neighbor> ANNIndex::get_neighbors(
     std::vector<float> value, size_t num,
     const std::string& exclude_key) const {
+  DLOG(INFO) << "getting neighbors...";
   auto dist_label_pairs = nn_impl_->searchKnn(value.data(), num + 1);
   auto out = std::vector<Neighbor>(num);
 
@@ -93,8 +94,11 @@ std::vector<Neighbor> ANNIndex::get_neighbors(
     out[i] = n;
     dist_label_pairs.pop();
   }
+  DLOG(INFO) << "returning neighbors";
   return out;
 }
+
+void ANNIndex::erase() {}
 
 }  // namespace embedding
 }  // namespace featureform

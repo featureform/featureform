@@ -27,6 +27,7 @@ class ANNIndex {
   std::vector<proto::Neighbor> get_neighbors(
       std::vector<float> value, size_t num,
       const std::string& exclude_key) const;
+  void erase();
 
  private:
   std::unique_ptr<hnswlib::SpaceInterface<float>> space_impl_;
@@ -35,5 +36,6 @@ class ANNIndex {
   std::unordered_map<hnswlib::labeltype, std::string> label_to_key_;
   hnswlib::labeltype next_label_;
 };
+
 }  // namespace embedding
 }  // namespace featureform

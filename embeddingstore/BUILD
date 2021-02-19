@@ -43,8 +43,28 @@ cc_library(
         "//visibility:public",
     ],
     deps = [
-        ":embedding_store",
+        ":controller",
         ":embedding_store_grpc",
+        "@com_github_google_glog//:glog",
+    ],
+)
+
+cc_library(
+    name = "controller",
+    srcs =
+        [
+            "controller.cc",
+        ],
+    hdrs =
+        [
+            "controller.h",
+        ],
+    visibility = [
+        "//visibility:public",
+    ],
+    deps = [
+        ":embedding_store",
+        "@rocksdb",
         "@com_github_google_glog//:glog",
     ],
 )
@@ -85,6 +105,7 @@ cc_library(
     deps = [
         ":embedding_store_grpc",
         "@rocksdb",
+        "@com_github_google_glog//:glog",
     ],
 )
 
@@ -110,5 +131,6 @@ cc_library(
         ":index",
         ":storage",
         "@rocksdb",
+        "@com_github_google_glog//:glog",
     ],
 )

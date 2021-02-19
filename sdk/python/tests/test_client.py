@@ -14,10 +14,9 @@ import embeddings as es
 @pytest.fixture
 def embedding_store_proc():
     proc = subprocess.Popen(os.path.join(os.environ["EMBEDDINGS_DIR"], 'bazel-out/darwin-fastbuild/bin/embeddingstore/main'))
-    time.sleep(0.3)
+    time.sleep(0.5)
     yield proc
     proc.kill()
-
 
 @pytest.fixture
 def es_client(embedding_store_proc):
@@ -25,33 +24,39 @@ def es_client(embedding_store_proc):
     yield client
     client.close()
 
+@pytest.fixture
+def store(es_client):
+    es_client.create_store("users", 3)
+    yield es_client.get_store("users")
 
-def test_set_get(es_client):
+
+def test_set_get(store):
+
     emb = [1, 2, 3]
-    es_client.set("a", emb)
-    assert es_client.get("a") == emb
+    store.set("a", emb)
+    assert store.get("a") == emb
 
 
-def test_multiset_get(es_client):
+def test_multiset_get(store):
     embs = {
         "a": [1, 2, 3],
         "b": [3, 2, 1],
     }
-    es_client.multiset(embs)
+    store.multiset(embs)
     for key, emb in embs.items():
-        assert es_client.get(key) == emb
+        assert store.get(key) == emb
 
 
-def test_nn(es_client):
+def test_nn(store):
     embs = {
-        "a": [1.1, 1.2, 1.3],
-        "b": [1.1, 1.3, 1.3],
-        "c": [0, 0, 0],
+        "test_nn.a": [10.1, 10.2, 10.3],
+        "test_nn.b": [10.1, 10.3, 10.3],
+        "test_nn.c": [9, 9, 9],
     }
-    es_client.multiset(embs)
-    neighbors = es_client.get_neighbors("a", 2)
+    store.multiset(embs)
+    neighbors = store.get_neighbors("test_nn.a", 2)
     print('neighbors: {}'.format(neighbors))
-    assert [n.key for n in neighbors] == ["b", "c"]
+    assert [n.key for n in neighbors] == ["test_nn.b", "test_nn.c"]
 
 
 if __name__ == "__main__":

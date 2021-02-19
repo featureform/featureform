@@ -4,8 +4,11 @@
 
 #include "storage.h"
 
+#include <glog/logging.h>
+
 #include "embeddingstore/embedding_store.grpc.pb.h"
 #include "rocksdb/db.h"
+#include "rocksdb/utilities/backupable_db.h"
 
 namespace featureform {
 
@@ -13,17 +16,19 @@ namespace embedding {
 
 std::unique_ptr<EmbeddingStorage> EmbeddingStorage::load_or_create(
     std::string path, int dims) {
+  DLOG(INFO) << "loading storage from path: " << path << " dims: " << dims;
   rocksdb::Options options;
   options.create_if_missing = true;
   rocksdb::DB* db_ptr;
   rocksdb::Status status = rocksdb::DB::Open(options, path, &db_ptr);
   std::unique_ptr<rocksdb::DB> db(db_ptr);
   return std::unique_ptr<EmbeddingStorage>(
-      new EmbeddingStorage(std::move(db), dims));
+      new EmbeddingStorage(std::move(db), path, dims));
 }
 
-EmbeddingStorage::EmbeddingStorage(std::unique_ptr<rocksdb::DB> db, int dims)
-    : db_(std::move(db)), dims_(dims) {}
+EmbeddingStorage::EmbeddingStorage(std::unique_ptr<rocksdb::DB> db,
+                                   std::string path, int dims)
+    : db_(std::move(db)), path_(path), dims_(dims) {}
 
 void EmbeddingStorage::set(std::string key, std::vector<float> val) {
   auto proto = proto::Embedding();
@@ -57,6 +62,29 @@ std::unordered_map<std::string, std::vector<float>> EmbeddingStorage::get_all()
     out[it->key().ToString()] = embedding;
   }
   return out;
+}
+
+void EmbeddingStorage::backup_to(const std::string& dst) const {
+  rocksdb::BackupEngine* backup_engine;
+  auto s = rocksdb::BackupEngine::Open(rocksdb::Env::Default(),
+                                       rocksdb::BackupableDBOptions(dst),
+                                       &backup_engine);
+  assert(s.ok());
+  s = backup_engine->CreateNewBackup(db_.get());
+  assert(s.ok());
+  delete backup_engine;
+}
+
+void EmbeddingStorage::close() {
+  db_->Close();
+  db_.reset();
+}
+
+void EmbeddingStorage::erase() {
+  db_->Close();
+  delete db_.get();
+  rocksdb::Options options;
+  rocksdb::DestroyDB(path_, options);
 }
 
 }  // namespace embedding

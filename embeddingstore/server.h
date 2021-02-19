@@ -6,8 +6,8 @@
 
 #include <memory>
 
+#include "embeddingstore/controller.h"
 #include "embeddingstore/embedding_store.grpc.pb.h"
-#include "embeddingstore/embedding_store.h"
 
 namespace featureform {
 
@@ -15,8 +15,12 @@ namespace embedding {
 
 class EmbeddingStoreService final : public proto::EmbeddingStore::Service {
  public:
-  EmbeddingStoreService(std::unique_ptr<EmbeddingStore> store)
-      : store_(std::move(store)){};
+  EmbeddingStoreService(std::unique_ptr<Controller> controller)
+      : controller_(std::move(controller)){};
+
+  grpc::Status CreateStore(grpc::ServerContext* context,
+                           const proto::CreateStoreRequest* request,
+                           proto::CreateStoreResponse* resp) override;
 
   grpc::Status Set(grpc::ServerContext* context,
                    const proto::SetRequest* request,
@@ -35,8 +39,9 @@ class EmbeddingStoreService final : public proto::EmbeddingStore::Service {
       grpc::ServerWriter<proto::Neighbor>* writer) override;
 
  private:
-  std::unique_ptr<EmbeddingStore> store_;
+  std::unique_ptr<Controller> controller_;
 };
+
 }  // namespace embedding
 }  // namespace featureform
 

@@ -13,6 +13,8 @@
 #include <memory>
 #include <string>
 
+using ::featureform::embedding::proto::CreateStoreRequest;
+using ::featureform::embedding::proto::CreateStoreResponse;
 using ::featureform::embedding::proto::Embedding;
 using ::featureform::embedding::proto::GetNeighborsRequest;
 using ::featureform::embedding::proto::GetRequest;
@@ -38,11 +40,22 @@ std::vector<float> copy_embedding_to_vector(const Embedding& embedding) {
   return std::vector<float>(vals.cbegin(), vals.cend());
 }
 
+grpc::Status EmbeddingStoreService::CreateStore(
+    ServerContext* context, const CreateStoreRequest* request,
+    CreateStoreResponse* resp) {
+  DLOG(INFO) << "create store: " << request->store_name()
+             << " dimensions: " << request->dimensions();
+  controller_->create_store(request->store_name(), request->dimensions());
+  return Status::OK;
+}
+
 grpc::Status EmbeddingStoreService::Get(ServerContext* context,
                                         const GetRequest* request,
                                         GetResponse* resp) {
-  DLOG(INFO) << "get key: " << request->key();
-  auto embedding = store_->get(request->key());
+  DLOG(INFO) << "get store: " << request->store_name()
+             << " key: " << request->key();
+  auto store = controller_->get_store(request->store_name());
+  auto embedding = store->get(request->key());
   std::unique_ptr<Embedding> proto_embedding(new Embedding());
   *proto_embedding->mutable_values() = {embedding.begin(), embedding.end()};
   resp->set_allocated_embedding(proto_embedding.release());
@@ -53,17 +66,20 @@ grpc::Status EmbeddingStoreService::Set(ServerContext* context,
                                         const SetRequest* request,
                                         SetResponse* resp) {
   auto vec = copy_embedding_to_vector(request->embedding());
-  store_->set(request->key(), vec);
+  auto store = controller_->get_store(request->store_name());
+  store->set(request->key(), vec);
   return Status::OK;
 }
 
 grpc::Status EmbeddingStoreService::MultiSet(
     ServerContext* context, ServerReader<MultiSetRequest>* reader,
     MultiSetResponse* resp) {
+  std::shared_ptr<EmbeddingStore> store;
   MultiSetRequest request;
   while (reader->Read(&request)) {
+    store = controller_->get_store(request.store_name());
     auto vec = copy_embedding_to_vector(request.embedding());
-    store_->set(request.key(), vec);
+    store->set(request.key(), vec);
   }
   return Status::OK;
 }
@@ -71,9 +87,10 @@ grpc::Status EmbeddingStoreService::MultiSet(
 grpc::Status EmbeddingStoreService::GetNeighbors(
     ServerContext* context, const GetNeighborsRequest* request,
     ServerWriter<Neighbor>* writer) {
-  DLOG(INFO) << "getting " << request->number()
+  DLOG(INFO) << "loading " << request->number()
              << " neighbors for key: " << request->key() << " ...";
-  auto neighbors = store_->get_neighbors(request->key(), request->number());
+  auto store = controller_->get_store(request->store_name());
+  auto neighbors = store->get_neighbors(request->key(), request->number());
   DLOG(INFO) << "loaded neighbors";
   for (const Neighbor& n : neighbors) {
     writer->Write(n);
@@ -84,14 +101,14 @@ grpc::Status EmbeddingStoreService::GetNeighbors(
 }  // namespace embedding
 }  // namespace featureform
 
+using featureform::embedding::Controller;
 using featureform::embedding::EmbeddingStore;
 using featureform::embedding::EmbeddingStoreService;
 
 void RunServer() {
   std::string server_address("0.0.0.0:50051");
-  auto store =
-      EmbeddingStore::load_or_create_with_index("embedding_store.dat", 3);
-  auto service = EmbeddingStoreService(std::move(store));
+  auto controller = Controller::load_or_create("embedding_store.dat");
+  auto service = EmbeddingStoreService(std::move(controller));
 
   grpc::EnableDefaultHealthCheckService(true);
   grpc::reflection::InitProtoReflectionServerBuilderPlugin();

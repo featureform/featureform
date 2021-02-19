@@ -19,9 +19,10 @@ namespace embedding {
 class EmbeddingStore {
  public:
   static std::unique_ptr<EmbeddingStore> load_or_create(std::string path,
+                                                        std::string name,
                                                         int dims);
   static std::unique_ptr<EmbeddingStore> load_or_create_with_index(
-      std::string path, int dims);
+      std::string path, std::string name, int dims);
   void set(std::string key, std::vector<float> value);
   const std::vector<float> get(const std::string& key) const;
   const bool check_exists(const std::string& key) const;
@@ -29,12 +30,17 @@ class EmbeddingStore {
   std::shared_ptr<const ANNIndex> get_index() const;
   std::vector<proto::Neighbor> get_neighbors(const std::string& key,
                                              size_t num) const;
+  void close();
+  void erase();
 
  private:
-  EmbeddingStore(std::unique_ptr<EmbeddingStorage> storage, int dims);
+  EmbeddingStore(std::unique_ptr<EmbeddingStorage> storage, std::string name,
+                 int dims);
   std::unique_ptr<EmbeddingStorage> storage_;
+  std::string name_;
   int dims_;
   std::shared_ptr<ANNIndex> idx_;
 };
+
 }  // namespace embedding
 }  // namespace featureform

@@ -6,6 +6,41 @@ import grpc
 
 from embeddingstore import embedding_store_pb2, embedding_store_pb2_grpc
 
+class Store(object):
+
+    def __init__(self, stub, name):
+        self.name = name
+        self._stub = stub
+
+    def get(self, key):
+        resp = self._stub.Get(embedding_store_pb2.GetRequest(store_name=self.name, key=key))
+        return resp.embedding.values
+
+    def set(self, key, embedding):
+        resp = self._stub.Get(embedding_store_pb2.GetRequest(store_name=self.name, key=key))
+        return resp.embedding.values
+
+    def multiset(self,  embedding_dict):
+        it = self._embedding_dict_iter(embedding_dict)
+        self._stub.MultiSet(it)
+
+    def _embedding_dict_iter(self, embedding_dict):
+        for key, embedding in embedding_dict.items():
+            req = embedding_store_pb2.MultiSetRequest()
+            req.store_name = self.name
+            req.key = key
+            req.embedding.values[:] = embedding
+            yield req
+
+    def get_neighbors(self, key, number):
+        req = embedding_store_pb2.GetNeighborsRequest()
+        req.store_name = self.name
+        req.key = key
+        req.number = number
+        out = []
+        for n in self._stub.GetNeighbors(req):
+            out.append(n)
+        return out
 
 class Client:
 
@@ -17,32 +52,46 @@ class Client:
     def close(self):
         return self._channel.close()
 
-    def set(self, key, embedding):
+    def create_store(self, name, dimensions):
+        req = embedding_store_pb2.CreateStoreRequest()
+        req.store_name = name
+        req.dimensions = dimensions
+        self._stub.CreateStore(req)
+        return Store(self._stub, name)
+
+    def get_store(self, name):
+        return Store(self._stub, name)
+
+    def set(self, store, key, embedding):
         req = embedding_store_pb2.SetRequest()
+        req.store_name = store
         req.key = key
         req.embedding.values[:] = embedding
         self._stub.Set(req)
 
-    def get(self, key):
-        resp = self._stub.Get(embedding_store_pb2.GetRequest(key=key))
+    def get(self, store, key):
+        resp = self._stub.Get(embedding_store_pb2.GetRequest(store_name=store, key=key))
         return resp.embedding.values
 
-    def multiset(self, embedding_dict):
-        it = self._embedding_dict_iter(embedding_dict)
+    def multiset(self, store, embedding_dict):
+        it = self._embedding_dict_iter(store, embedding_dict)
         self._stub.MultiSet(it)
 
-    def _embedding_dict_iter(self, embedding_dict):
+    def _embedding_dict_iter(self, store, embedding_dict):
         for key, embedding in embedding_dict.items():
             req = embedding_store_pb2.MultiSetRequest()
+            req.store_name = store
             req.key = key
             req.embedding.values[:] = embedding
             yield req
 
-    def get_neighbors(self, key, number):
+    def get_neighbors(self, store, key, number):
         req = embedding_store_pb2.GetNeighborsRequest()
+        req.store_name = store
         req.key = key
         req.number = number
         out = []
         for n in self._stub.GetNeighbors(req):
             out.append(n)
         return out
+        

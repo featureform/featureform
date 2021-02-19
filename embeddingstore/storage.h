@@ -21,11 +21,16 @@ class EmbeddingStorage {
   std::vector<float> get(const std::string& key) const;
   const bool check_exists(const std::string& key) const;
   std::unordered_map<std::string, std::vector<float>> get_all() const;
+  void backup_to(const std::string& dst) const;
+  void close();
+  void erase();
 
  private:
-  EmbeddingStorage(std::unique_ptr<rocksdb::DB> DB, int dims);
+  EmbeddingStorage(std::unique_ptr<rocksdb::DB> DB, std::string path, int dims);
   std::unique_ptr<rocksdb::DB> db_;
+  std::string path_;
   int dims_;
 };
+
 }  // namespace embedding
 }  // namespace featureform

@@ -28,10 +28,9 @@ def es_client(embedding_store_proc):
 def store(es_client):
     es_client.create_store("users", 3)
     yield es_client.get_store("users")
-
+    es_client.delete_store("users")
 
 def test_set_get(store):
-
     emb = [1, 2, 3]
     store.set("a", emb)
     assert store.get("a") == emb

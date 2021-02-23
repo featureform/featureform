@@ -17,8 +17,11 @@ class Store(object):
         return resp.embedding.values
 
     def set(self, key, embedding):
-        resp = self._stub.Get(embedding_store_pb2.GetRequest(store_name=self.name, key=key))
-        return resp.embedding.values
+        req = embedding_store_pb2.SetRequest()
+        req.store_name = self.name
+        req.key = key
+        req.embedding.values[:] = embedding
+        self._stub.Set(req)
 
     def multiset(self,  embedding_dict):
         it = self._embedding_dict_iter(embedding_dict)
@@ -59,6 +62,11 @@ class Client:
         self._stub.CreateStore(req)
         return Store(self._stub, name)
 
+    def delete_store(self, name):
+        req = embedding_store_pb2.DeleteStoreRequest()
+        req.store_name = name
+        self._stub.DeleteStore(req)
+
     def get_store(self, name):
         return Store(self._stub, name)
 
@@ -94,4 +102,3 @@ class Client:
         for n in self._stub.GetNeighbors(req):
             out.append(n)
         return out
-        

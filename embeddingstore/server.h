@@ -22,6 +22,10 @@ class EmbeddingStoreService final : public proto::EmbeddingStore::Service {
                            const proto::CreateStoreRequest* request,
                            proto::CreateStoreResponse* resp) override;
 
+  grpc::Status DeleteStore(grpc::ServerContext* context,
+                           const proto::DeleteStoreRequest* request,
+                           proto::DeleteStoreResponse* resp) override;
+
   grpc::Status Set(grpc::ServerContext* context,
                    const proto::SetRequest* request,
                    proto::SetResponse* resp) override;

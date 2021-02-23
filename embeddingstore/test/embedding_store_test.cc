@@ -46,4 +46,18 @@ TEST(SimpleEmbeddingStore, TestSearch) {
   ASSERT_EQ(out_keys, expected);
 }
 
+TEST(SimpleEmbeddingStore, TestErase) {
+  auto store =
+      EmbeddingStore::load_or_create_with_index("test.erase", "test.erase", 3);
+  store->set("a", std::vector<float>{1.1, 1.2, 1.3});
+  std::vector<float> expected{1.1, 1.2, 1.3};
+  ASSERT_EQ(store->get("a"), expected);
+
+  store->erase();
+
+  store =
+      EmbeddingStore::load_or_create_with_index("test.erase", "test.erase", 3);
+  ASSERT_NE(store->get("a"), expected);
+}
+
 }  // namespace

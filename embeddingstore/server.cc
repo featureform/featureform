@@ -15,6 +15,8 @@
 
 using ::featureform::embedding::proto::CreateStoreRequest;
 using ::featureform::embedding::proto::CreateStoreResponse;
+using ::featureform::embedding::proto::DeleteStoreRequest;
+using ::featureform::embedding::proto::DeleteStoreResponse;
 using ::featureform::embedding::proto::Embedding;
 using ::featureform::embedding::proto::GetNeighborsRequest;
 using ::featureform::embedding::proto::GetRequest;
@@ -46,6 +48,14 @@ grpc::Status EmbeddingStoreService::CreateStore(
   DLOG(INFO) << "create store: " << request->store_name()
              << " dimensions: " << request->dimensions();
   controller_->create_store(request->store_name(), request->dimensions());
+  return Status::OK;
+}
+
+grpc::Status EmbeddingStoreService::DeleteStore(
+    ServerContext* context, const DeleteStoreRequest* request,
+    DeleteStoreResponse* resp) {
+  DLOG(INFO) << "delete store: " << request->store_name();
+  controller_->delete_store(request->store_name());
   return Status::OK;
 }
 

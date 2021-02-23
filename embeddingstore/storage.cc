@@ -82,7 +82,7 @@ void EmbeddingStorage::close() {
 
 void EmbeddingStorage::erase() {
   db_->Close();
-  delete db_.get();
+  db_.reset();
   rocksdb::Options options;
   rocksdb::DestroyDB(path_, options);
 }

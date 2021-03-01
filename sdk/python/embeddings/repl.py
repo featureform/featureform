@@ -3,7 +3,7 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import sys
-import client
+import embeddings.client
 
 # When run, it takes a command per line:
 # Either:

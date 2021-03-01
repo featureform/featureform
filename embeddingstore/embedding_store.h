@@ -30,13 +30,15 @@ class EmbeddingStore {
   std::shared_ptr<const ANNIndex> get_index() const;
   std::vector<proto::Neighbor> get_neighbors(const std::string& key,
                                              size_t num) const;
+  std::string save(bool save_index);
   void close();
   void erase();
 
  private:
-  EmbeddingStore(std::unique_ptr<EmbeddingStorage> storage, std::string name,
-                 int dims);
+  EmbeddingStore(std::unique_ptr<EmbeddingStorage> storage, std::string path,
+                 std::string name, int dims);
   std::unique_ptr<EmbeddingStorage> storage_;
+  std::string path_;
   std::string name_;
   int dims_;
   std::shared_ptr<ANNIndex> idx_;

@@ -5,6 +5,10 @@
 #include "storage.h"
 
 #include <glog/logging.h>
+#include <google/protobuf/util/delimited_message_util.h>
+
+#include <fstream>
+#include <iostream>
 
 #include "embeddingstore/embedding_store.grpc.pb.h"
 #include "rocksdb/db.h"
@@ -73,6 +77,22 @@ void EmbeddingStorage::backup_to(const std::string& dst) const {
   s = backup_engine->CreateNewBackup(db_.get());
   assert(s.ok());
   delete backup_engine;
+}
+
+void EmbeddingStorage::proto_out(const std::string& dst) const {
+  DLOG(INFO) << "writing proto out to file: " << dst;
+  std::ofstream file;
+  file.open(dst, std::ios::out | std::ios::trunc | std::ios::binary);
+  rocksdb::Iterator* it = db_->NewIterator(rocksdb::ReadOptions());
+  for (it->SeekToFirst(); it->Valid(); it->Next()) {
+    auto v = proto::Embedding();
+    v.ParseFromString(it->value().ToString());
+    proto::KeyedEmbedding keyedEmbedding;
+    *keyedEmbedding.mutable_values() = v.values();
+    keyedEmbedding.set_key(it->key().ToString());
+    google::protobuf::util::SerializeDelimitedToOstream(keyedEmbedding, &file);
+  }
+  file.close();
 }
 
 void EmbeddingStorage::close() {

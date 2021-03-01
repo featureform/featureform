@@ -15,8 +15,10 @@ setup(name='embeddings',
     packages=[package for package in find_packages()
                 if package.startswith('embeddings')], 
     long_description=read('README.md'),
+    python_requires='>=3.5',
     install_requires=[
-        
+        'grpcio>=1.35.0',
+        'Faker==4.18.0',
     ],
     author='FeatureForm',
     author_email='alexi@featureform.io, simba@featureform.io')

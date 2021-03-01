@@ -9,6 +9,7 @@ package featureform.embedding.proto;
 service EmbeddingStore {
   rpc CreateStore(CreateStoreRequest) returns (CreateStoreResponse) {}
   rpc DeleteStore(DeleteStoreRequest) returns (DeleteStoreResponse) {}
+  rpc Download(DownloadRequest) returns (stream DownloadResponse) {}
   rpc Set(SetRequest) returns (SetResponse) {}
   rpc Get(GetRequest) returns (GetResponse) {}
   rpc MultiSet(stream MultiSetRequest) returns (MultiSetResponse) {}
@@ -30,6 +31,14 @@ message DeleteStoreRequest {
 
 message DeleteStoreResponse {
   // Purposely empty.
+}
+
+message DownloadRequest {
+  string store_name = 1;
+}
+
+message DownloadResponse {
+  bytes chunk = 1;
 }
 
 message SetRequest {
@@ -62,7 +71,12 @@ message MultiSetResponse {
 }
 
 message Embedding {
-  repeated float values = 1;
+  repeated double values = 1;
+}
+
+message KeyedEmbedding {
+  string key = 1;
+  repeated double values = 2;
 }
 
 message Neighbor {

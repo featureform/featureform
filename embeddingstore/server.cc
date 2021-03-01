@@ -9,6 +9,7 @@
 #include <grpcpp/grpcpp.h>
 #include <grpcpp/health_check_service_interface.h>
 
+#include <fstream>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -17,6 +18,8 @@ using ::featureform::embedding::proto::CreateStoreRequest;
 using ::featureform::embedding::proto::CreateStoreResponse;
 using ::featureform::embedding::proto::DeleteStoreRequest;
 using ::featureform::embedding::proto::DeleteStoreResponse;
+using ::featureform::embedding::proto::DownloadRequest;
+using ::featureform::embedding::proto::DownloadResponse;
 using ::featureform::embedding::proto::Embedding;
 using ::featureform::embedding::proto::GetNeighborsRequest;
 using ::featureform::embedding::proto::GetRequest;
@@ -105,6 +108,35 @@ grpc::Status EmbeddingStoreService::GetNeighbors(
   for (const Neighbor& n : neighbors) {
     writer->Write(n);
   }
+  return Status::OK;
+}
+
+grpc::Status EmbeddingStoreService::Download(
+    ServerContext* context, const DownloadRequest* request,
+    ServerWriter<DownloadResponse>* writer) {
+  DLOG(INFO) << "downloading " << request->store_name() << "...";
+  auto store = controller_->get_store(request->store_name());
+  auto filepath = store->save(false);
+  DLOG(INFO) << "streaming filepath: " << filepath;
+  int CHUNK_SIZE = 2048;
+  char* buffer = new char[CHUNK_SIZE];
+  std::ifstream file;
+  DownloadResponse resp;
+  file.open(filepath);
+  while (!file.eof()) {
+    resp.clear_chunk();
+    file.read(buffer, CHUNK_SIZE);
+    std::streamsize num = file.gcount();
+    int l = CHUNK_SIZE;
+    if (num < CHUNK_SIZE) {
+      l = num;
+    }
+    auto val = std::string(buffer, l);
+    resp.set_chunk(val);
+    writer->Write(resp);
+  }
+  file.close();
+  std::remove(filepath.c_str());
   return Status::OK;
 }
 

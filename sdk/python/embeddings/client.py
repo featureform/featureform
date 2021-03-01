@@ -1,16 +1,26 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v.2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
+import os
+import shutil
 
 import grpc
 
 from embeddingstore import embedding_store_pb2, embedding_store_pb2_grpc
+from embeddings.db import Database
+
+FILE_CACHE_PATH = './.embeddings_cache/'
 
 class Store(object):
 
-    def __init__(self, stub, name):
+    def __init__(self, name, stub):
         self.name = name
         self._stub = stub
+
+    def delete(self):
+        req = embedding_store_pb2.DeleteStoreRequest()
+        req.store_name = self.name
+        self._stub.DeleteStore(req)
 
     def get(self, key):
         resp = self._stub.Get(embedding_store_pb2.GetRequest(store_name=self.name, key=key))
@@ -45,6 +55,46 @@ class Store(object):
             out.append(n)
         return out
 
+
+class TrainingStore(Database):
+
+    def __init__(self, name, stub):
+        self.name = name
+        self._stub = stub
+
+    def download(self):
+        backup_filepath = os.path.join(FILE_CACHE_PATH, self.name, 'backup.proto')
+        dirname = os.path.dirname(backup_filepath)
+        if not os.path.exists(dirname):
+            os.makedirs(dirname)
+        with open(backup_filepath, 'wb+') as f:
+            stream = self._stub.Download(embedding_store_pb2.DownloadRequest(store_name=self.name))
+            for resp in stream:
+                f.write(resp.chunk)
+
+        Database.__init__(self, backup_filepath)
+        shutil.rmtree(dirname)
+
+    def upload(self):
+        # Save the proto file
+        filepath = os.path.join(FILE_CACHE_PATH, self.name, 'embeddings.proto')
+        Database.save(dst=filepath)
+
+        # Upload file
+        for b in stream_file_bytes(filepath):
+            # Write file chunk to stream
+            pass
+    
+    def clear_data(self):
+        Database.clear_data(self)
+
+    def delete(self):
+        self.clear_data()
+        req = embedding_store_pb2.DeleteStoreRequest()
+        req.store_name = self.name
+        self._stub.DeleteStore(req)
+
+
 class Client:
 
     def __init__(self, host="localhost", port=50051):
@@ -60,7 +110,7 @@ class Client:
         req.store_name = name
         req.dimensions = dimensions
         self._stub.CreateStore(req)
-        return Store(self._stub, name)
+        return Store(name, self._stub)
 
     def delete_store(self, name):
         req = embedding_store_pb2.DeleteStoreRequest()
@@ -68,7 +118,10 @@ class Client:
         self._stub.DeleteStore(req)
 
     def get_store(self, name):
-        return Store(self._stub, name)
+        return Store(name, self._stub)
+
+    def get_training_store(self, name):
+        return TrainingStore(name, self._stub)
 
     def set(self, store, key, embedding):
         req = embedding_store_pb2.SetRequest()

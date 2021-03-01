@@ -5,11 +5,15 @@
 import subprocess
 import sys
 import os
+import shutil
 import pytest
+import random
 import time
 
 import embeddings as es
+from embeddingstore import embedding_store_pb2
 
+from faker import Faker
 
 @pytest.fixture
 def embedding_store_proc():
@@ -17,6 +21,15 @@ def embedding_store_proc():
     time.sleep(0.5)
     yield proc
     proc.kill()
+    try:
+        shutil.rmtree('embedding_store.dat')
+    except Exception as err:
+        print('cleanup error: {}'.format(err))
+    try:
+        shutil.rmtree('./.embeddings_cache/')
+    except Exception as err:
+        print('cleanup error: {}'.format(err))
+
 
 @pytest.fixture
 def es_client(embedding_store_proc):
@@ -24,11 +37,13 @@ def es_client(embedding_store_proc):
     yield client
     client.close()
 
+
 @pytest.fixture
 def store(es_client):
     es_client.create_store("users", 3)
     yield es_client.get_store("users")
     es_client.delete_store("users")
+
 
 def test_set_get(store):
     emb = [1, 2, 3]
@@ -48,14 +63,27 @@ def test_multiset_get(store):
 
 def test_nn(store):
     embs = {
-        "test_nn.a": [10.1, 10.2, 10.3],
-        "test_nn.b": [10.1, 10.3, 10.3],
-        "test_nn.c": [9, 9, 9],
+        "a": [10.1, 10.2, 10.3],
+        "b": [10.1, 10.3, 10.3],
+        "c": [9, 9, 9],
     }
     store.multiset(embs)
-    neighbors = store.get_neighbors("test_nn.a", 2)
-    print('neighbors: {}'.format(neighbors))
-    assert [n.key for n in neighbors] == ["test_nn.b", "test_nn.c"]
+    neighbors = store.get_neighbors("a", 2)
+    assert [n.key for n in neighbors] == ["b", "c"]
+
+
+def test_training(es_client):
+    store = es_client.create_store("users", 3)
+    factory = Faker()
+    _embeddings = {factory.word(): [float(factory.pydecimal(left_digits=0, right_digits=5)) for _ in range(3)] for _ in range(40)}
+    store.multiset(_embeddings)
+    key, _ = random.choice(list(_embeddings.items()))
+    assert store.get(key) == _embeddings[key]
+
+    store = es_client.get_training_store("users")
+    store.download()
+    assert store.get(key) == _embeddings[key]
+    store.delete()
 
 
 if __name__ == "__main__":

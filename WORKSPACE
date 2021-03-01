@@ -125,6 +125,12 @@ http_archive(
     urls = ["https://github.com/google/glog/archive/d516278b1cd33cd148e8989aec488b6049a4ca0b.zip"],
 )
 
+http_archive(
+    name = "zipper",
+    sha256 = "62efeb57ff70db9ea2129a16d0f908941e355d09d6d83c9f7b18557c0a7ab59e",
+    strip_prefix = "glog-d516278b1cd33cd148e8989aec488b6049a4ca0b",
+    urls = ["https://github.com/google/glog/archive/d516278b1cd33cd148e8989aec488b6049a4ca0b.zip"],
+)
 
 # buildifier is written in Go and hence needs rules_go to be built.
 # See https://github.com/bazelbuild/rules_go for the up to date setup instructions.

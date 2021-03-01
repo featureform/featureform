@@ -22,6 +22,7 @@ class EmbeddingStorage {
   const bool check_exists(const std::string& key) const;
   std::unordered_map<std::string, std::vector<float>> get_all() const;
   void backup_to(const std::string& dst) const;
+  void proto_out(const std::string& dst) const;
   void close();
   void erase();
 

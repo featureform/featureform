@@ -23,21 +23,31 @@ std::unique_ptr<EmbeddingStore> EmbeddingStore::load_or_create(std::string path,
                                                                int dims) {
   auto storage = EmbeddingStorage::load_or_create(path, dims);
   return std::unique_ptr<EmbeddingStore>(
-      new EmbeddingStore(std::move(storage), name, dims));
+      new EmbeddingStore(std::move(storage), path, name, dims));
 }
 
 std::unique_ptr<EmbeddingStore> EmbeddingStore::load_or_create_with_index(
     std::string path, std::string name, int dims) {
   auto storage = EmbeddingStorage::load_or_create(path, dims);
   auto store = std::unique_ptr<EmbeddingStore>(
-      new EmbeddingStore(std::move(storage), name, dims));
+      new EmbeddingStore(std::move(storage), path, name, dims));
   store->get_or_create_index();
   return store;
 }
 
 EmbeddingStore::EmbeddingStore(std::unique_ptr<EmbeddingStorage> storage,
-                               std::string name, int dims)
-    : storage_(std::move(storage)), name_(name), dims_(dims), idx_(nullptr) {}
+                               std::string path, std::string name, int dims)
+    : storage_(std::move(storage)),
+      path_(path),
+      name_(name),
+      dims_(dims),
+      idx_(nullptr) {}
+
+std::string EmbeddingStore::save(bool save_index) {
+  std::string path = path_ + ".proto";
+  storage_->proto_out(path);
+  return path;
+}
 
 void EmbeddingStore::close() {
   DLOG(INFO) << "store: " << name_ << " storage closing...";

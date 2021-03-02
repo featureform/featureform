@@ -10,6 +10,7 @@ service EmbeddingStore {
   rpc CreateStore(CreateStoreRequest) returns (CreateStoreResponse) {}
   rpc DeleteStore(DeleteStoreRequest) returns (DeleteStoreResponse) {}
   rpc Download(DownloadRequest) returns (stream DownloadResponse) {}
+  rpc Upload(stream UploadRequest) returns (UploadResponse) {}
   rpc Set(SetRequest) returns (SetResponse) {}
   rpc Get(GetRequest) returns (GetResponse) {}
   rpc MultiSet(stream MultiSetRequest) returns (MultiSetResponse) {}
@@ -38,6 +39,22 @@ message DownloadRequest {
 }
 
 message DownloadResponse {
+  bytes chunk = 1;
+}
+
+message UploadRequestHeader {
+  string store_name = 1;
+  bool do_append = 2;
+}
+
+message UploadRequest {
+  oneof request {
+    UploadRequestHeader header = 1;
+    bytes chunk = 2;
+  }
+}
+
+message UploadResponse {
   bytes chunk = 1;
 }
 

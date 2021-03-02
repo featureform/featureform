@@ -13,7 +13,7 @@ import time
 import embeddings as es
 from embeddingstore import embedding_store_pb2
 
-from faker import Faker
+from data import _rand_int_emb
 
 @pytest.fixture
 def embedding_store_proc():
@@ -50,7 +50,7 @@ def test_set_get(store):
     store.set("a", emb)
     assert store.get("a") == emb
 
-
+    
 def test_multiset_get(store):
     embs = {
         "a": [1, 2, 3],
@@ -70,20 +70,31 @@ def test_nn(store):
     store.multiset(embs)
     neighbors = store.get_neighbors("a", 2)
     assert [n.key for n in neighbors] == ["b", "c"]
-
+    
 
 def test_training(es_client):
     store = es_client.create_store("users", 3)
-    factory = Faker()
-    _embeddings = {factory.word(): [float(factory.pydecimal(left_digits=0, right_digits=5)) for _ in range(3)] for _ in range(40)}
+    _embeddings = _rand_int_emb()
     store.multiset(_embeddings)
     key, _ = random.choice(list(_embeddings.items()))
     assert store.get(key) == _embeddings[key]
-
     store = es_client.get_training_store("users")
     store.download()
     assert store.get(key) == _embeddings[key]
     store.delete()
+
+
+def test_training_upload(es_client):
+    es_client.create_store("users", 3)
+    _embeddings = _rand_int_emb(dimensions=3)
+    # Test local read/writes
+    store = es_client.get_training_store("users")
+    store.multiset(_embeddings)
+    key, _ = random.choice(list(_embeddings.items()))
+    assert store.get(key) == _embeddings[key]
+    store.upload()
+    remote_store = es_client.get_store("users")
+    assert remote_store.get(key) == _embeddings[key]
 
 
 if __name__ == "__main__":

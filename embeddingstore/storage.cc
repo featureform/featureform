@@ -4,8 +4,11 @@
 
 #include "storage.h"
 
+#include <fcntl.h>
 #include <glog/logging.h>
+#include <google/protobuf/io/zero_copy_stream.h>
 #include <google/protobuf/util/delimited_message_util.h>
+#include <unistd.h>
 
 #include <fstream>
 #include <iostream>
@@ -93,6 +96,32 @@ void EmbeddingStorage::proto_out(const std::string& dst) const {
     google::protobuf::util::SerializeDelimitedToOstream(keyedEmbedding, &file);
   }
   file.close();
+}
+
+void EmbeddingStorage::proto_in(const std::string& filepath) const {
+  DLOG(INFO) << "reading proto in from file: " << filepath;
+  int file = open(filepath.c_str(), O_RDONLY);
+  DLOG(INFO) << "opened";
+  bool eof;
+  proto::KeyedEmbedding keyedEmbedding;
+  google::protobuf::io::ZeroCopyInputStream* input =
+      new google::protobuf::io::FileInputStream(file);
+  google::protobuf::util::ParseDelimitedFromZeroCopyStream(&keyedEmbedding,
+                                                           input, &eof);
+  DLOG(INFO) << "parsed eof: " << eof;
+  while (!eof) {
+    auto embedding = proto::Embedding();
+    *embedding.mutable_values() = keyedEmbedding.values();
+    std::string serialized;
+    embedding.SerializeToString(&serialized);
+    DLOG(INFO) << "serialized: " << serialized;
+    db_->Put(rocksdb::WriteOptions(), keyedEmbedding.key(), serialized);
+    keyedEmbedding.clear_values();
+    google::protobuf::util::ParseDelimitedFromZeroCopyStream(&keyedEmbedding,
+                                                             input, &eof);
+  }
+  delete input;
+  ::close(file);
 }
 
 void EmbeddingStorage::close() {

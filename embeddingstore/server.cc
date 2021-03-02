@@ -14,6 +14,8 @@
 #include <memory>
 #include <string>
 
+#include "file_handler.h"
+
 using ::featureform::embedding::proto::CreateStoreRequest;
 using ::featureform::embedding::proto::CreateStoreResponse;
 using ::featureform::embedding::proto::DeleteStoreRequest;
@@ -29,6 +31,8 @@ using ::featureform::embedding::proto::MultiSetResponse;
 using ::featureform::embedding::proto::Neighbor;
 using ::featureform::embedding::proto::SetRequest;
 using ::featureform::embedding::proto::SetResponse;
+using ::featureform::embedding::proto::UploadRequest;
+using ::featureform::embedding::proto::UploadResponse;
 using ::grpc::Server;
 using ::grpc::ServerBuilder;
 using ::grpc::ServerContext;
@@ -48,9 +52,10 @@ std::vector<float> copy_embedding_to_vector(const Embedding& embedding) {
 grpc::Status EmbeddingStoreService::CreateStore(
     ServerContext* context, const CreateStoreRequest* request,
     CreateStoreResponse* resp) {
-  DLOG(INFO) << "create store: " << request->store_name()
-             << " dimensions: " << request->dimensions();
+  DLOG(INFO) << "creating store: " << request->store_name()
+             << " dimensions: " << request->dimensions() << " ...";
   controller_->create_store(request->store_name(), request->dimensions());
+  DLOG(INFO) << "created store: " << request->store_name();
   return Status::OK;
 }
 
@@ -78,7 +83,10 @@ grpc::Status EmbeddingStoreService::Get(ServerContext* context,
 grpc::Status EmbeddingStoreService::Set(ServerContext* context,
                                         const SetRequest* request,
                                         SetResponse* resp) {
+  DLOG(INFO) << "set called on store: " << request->store_name()
+             << " key: " << request->key();
   auto vec = copy_embedding_to_vector(request->embedding());
+  DLOG(INFO) << "got vector";
   auto store = controller_->get_store(request->store_name());
   store->set(request->key(), vec);
   return Status::OK;
@@ -137,6 +145,43 @@ grpc::Status EmbeddingStoreService::Download(
   }
   file.close();
   std::remove(filepath.c_str());
+  return Status::OK;
+}
+
+grpc::Status EmbeddingStoreService::Upload(ServerContext* context,
+                                           ServerReader<UploadRequest>* reader,
+                                           UploadResponse* resp) {
+  std::shared_ptr<EmbeddingStore> store;
+  bool do_append;
+  std::string filepath;
+  std::ofstream file;
+  UploadRequest request;
+  while (reader->Read(&request)) {
+    DLOG(INFO) << "step";
+    switch (request.request_case()) {
+      case UploadRequest::REQUEST_NOT_SET:
+        DLOG(INFO) << "REQUEST_NOT_SET";
+        break;
+      case UploadRequest::kHeader:
+        store = controller_->get_store(request.header().store_name());
+        do_append = request.header().do_append();
+        filepath = get_time_versioned_filepath(store->get_path(), "proto");
+        file.open(filepath, std::ios::out | std::ios::trunc | std::ios::binary);
+        break;
+      case UploadRequest::kChunk:
+        auto* const data = request.mutable_chunk();
+        file << *data;
+        break;
+    }
+  }
+  file.close();
+
+  // Create new store version, then replace existing store
+  std::string tmp_store_name = get_time_versioned_filepath(store->get_name());
+  std::shared_ptr<EmbeddingStore> new_store =
+      controller_->create_store(tmp_store_name, store->get_dimensions());
+  new_store->import_proto(filepath);
+  controller_->hot_swap(tmp_store_name, store->get_name());
   return Status::OK;
 }
 

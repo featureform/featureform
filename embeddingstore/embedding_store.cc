@@ -43,8 +43,20 @@ EmbeddingStore::EmbeddingStore(std::unique_ptr<EmbeddingStorage> storage,
       dims_(dims),
       idx_(nullptr) {}
 
+std::string EmbeddingStore::get_path() const { return path_; }
+std::string EmbeddingStore::get_name() const { return name_; }
+void EmbeddingStore::set_name(std::string name) { name_ = name; }
+int EmbeddingStore::get_dimensions() const { return dims_; }
+
+void EmbeddingStore::import_proto(const std::string& filepath) {
+  storage_->proto_in(filepath);
+  if (idx_ != nullptr) {
+    seed_index();
+  }
+}
+
 std::string EmbeddingStore::save(bool save_index) {
-  std::string path = path_ + ".proto";
+  std::string path = path_ + "_out.proto";
   storage_->proto_out(path);
   return path;
 }
@@ -87,17 +99,21 @@ std::shared_ptr<const ANNIndex> EmbeddingStore::get_or_create_index() {
     return idx_;
   }
   idx_ = std::make_shared<ANNIndex>(dims_);
+  seed_index();
+  return idx_;
+}
+
+std::shared_ptr<const ANNIndex> EmbeddingStore::get_index() const {
+  return idx_;
+}
+
+void EmbeddingStore::seed_index() {
   auto data = storage_->get_all();
   for (const std::pair<std::string, std::vector<float>> row : data) {
     auto key = row.first;
     auto val = row.second;
     idx_->set(key, val);
   }
-  return idx_;
-}
-
-std::shared_ptr<const ANNIndex> EmbeddingStore::get_index() const {
-  return idx_;
 }
 
 std::vector<Neighbor> EmbeddingStore::get_neighbors(const std::string& key,

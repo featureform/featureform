@@ -8,6 +8,7 @@ import grpc
 
 from embeddingstore import embedding_store_pb2, embedding_store_pb2_grpc
 from embeddings.db import Database
+from embeddings.stream import stream_file_bytes
 
 FILE_CACHE_PATH = './.embeddings_cache/'
 
@@ -61,6 +62,7 @@ class TrainingStore(Database):
     def __init__(self, name, stub):
         self.name = name
         self._stub = stub
+        Database.__init__(self)
 
     def download(self):
         backup_filepath = os.path.join(FILE_CACHE_PATH, self.name, 'backup.proto')
@@ -72,18 +74,25 @@ class TrainingStore(Database):
             for resp in stream:
                 f.write(resp.chunk)
 
-        Database.__init__(self, backup_filepath)
+        Database.restore(self, backup_filepath)
         shutil.rmtree(dirname)
 
     def upload(self):
         # Save the proto file
         filepath = os.path.join(FILE_CACHE_PATH, self.name, 'embeddings.proto')
-        Database.save(dst=filepath)
-
-        # Upload file
-        for b in stream_file_bytes(filepath):
-            # Write file chunk to stream
-            pass
+        dirname = os.path.dirname(filepath)
+        if not os.path.exists(dirname):
+            os.makedirs(dirname)
+        Database.save(self, dst=filepath)
+        def __iter():
+            yield embedding_store_pb2.UploadRequest(
+                header=embedding_store_pb2.UploadRequestHeader(
+                    store_name=self.name
+                    ))
+            for b in stream_file_bytes(filepath):
+                yield embedding_store_pb2.UploadRequest(chunk=b)
+        self._stub.Upload(__iter())
+        shutil.rmtree(dirname)
     
     def clear_data(self):
         Database.clear_data(self)

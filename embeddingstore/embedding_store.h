@@ -28,8 +28,14 @@ class EmbeddingStore {
   const bool check_exists(const std::string& key) const;
   std::shared_ptr<const ANNIndex> get_or_create_index();
   std::shared_ptr<const ANNIndex> get_index() const;
+  void seed_index();
   std::vector<proto::Neighbor> get_neighbors(const std::string& key,
                                              size_t num) const;
+  std::string get_path() const;
+  std::string get_name() const;
+  void set_name(std::string name);
+  int get_dimensions() const;
+  void import_proto(const std::string& filepath);
   std::string save(bool save_index);
   void close();
   void erase();

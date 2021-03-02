@@ -46,6 +46,10 @@ class EmbeddingStoreService final : public proto::EmbeddingStore::Service {
       grpc::ServerContext* context, const proto::DownloadRequest* request,
       grpc::ServerWriter<proto::DownloadResponse>* writer) override;
 
+  grpc::Status Upload(grpc::ServerContext* context,
+                      grpc::ServerReader<proto::UploadRequest>* reader,
+                      proto::UploadResponse* resp) override;
+
  private:
   std::unique_ptr<Controller> controller_;
 };

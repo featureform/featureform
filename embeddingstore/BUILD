@@ -44,6 +44,7 @@ cc_library(
     ],
     deps = [
         ":controller",
+        ":file_handler",
         ":embedding_store_grpc",
         "@com_github_google_glog//:glog",
     ],
@@ -132,6 +133,23 @@ cc_library(
         ":storage",
         "@rocksdb",
         "@com_github_google_glog//:glog",
+    ],
+)
+
+cc_library(
+    name = "file_handler",
+    srcs =
+        [
+            "file_handler.cc",
+        ],
+    hdrs =
+        [
+            "file_handler.h",
+        ],
+    visibility = [
+        "//visibility:public",
+    ],
+    deps = [
     ],
 )
 

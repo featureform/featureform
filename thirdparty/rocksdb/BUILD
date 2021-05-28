@@ -6,6 +6,10 @@ make(
     linkopts = [
         "-ldl",
         "-lz",
+        "-lzstd",
+        "-lbz2",
+        "-llz4",
+        "-lsnappy",
     ],
     make_commands = ["make -j8 static_lib && mv librocksdb.a $INSTALLDIR/lib && cp -L -r include/rocksdb $INSTALLDIR/rocksdb/"],
     out_include_dir = "rocksdb",

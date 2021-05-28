@@ -92,9 +92,9 @@ new_git_repository(
 http_archive(
     name = "rocksdb",
     build_file = "@//thirdparty/rocksdb:BUILD",
-    sha256 = "fee38528108b6b49f813b9f055584b123ff0debbc3f39584d4a663c46075a6e9",
-    strip_prefix = "rocksdb-6.12.7",
-    url = "https://github.com/facebook/rocksdb/archive/v6.12.7.tar.gz",
+    sha256 = "c6502c7aae641b7e20fafa6c2b92273d935d2b7b2707135ebd9a67b092169dca",
+    strip_prefix = "rocksdb-6.20.3",
+    url = "https://github.com/facebook/rocksdb/archive/v6.20.3.tar.gz",
 )
 
 # buildifier is written in Go and hence needs rules_go to be built.

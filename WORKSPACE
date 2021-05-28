@@ -24,32 +24,11 @@ http_archive(
     url = "https://github.com/bazelbuild/rules_python/releases/download/0.1.0/rules_python-0.1.0.tar.gz",
 )
 
-http_archive(
-    name = "rules_proto_grpc",
-    sha256 = "d771584bbff98698e7cb3cb31c132ee206a972569f4dc8b65acbdd934d156b33",
-    strip_prefix = "rules_proto_grpc-2.0.0",
-    urls = ["https://github.com/rules-proto-grpc/rules_proto_grpc/archive/2.0.0.tar.gz"],
-)
-
-http_archive(
+git_repository(
     name = "rules_proto",
-    sha256 = "602e7161d9195e50246177e7c55b2f39950a9cf7366f74ed5f22fd45750cd208",
-    strip_prefix = "rules_proto-97d8af4dc474595af3900dd85cb3a29ad28cc313",
-    urls = [
-        "https://mirror.bazel.build/github.com/bazelbuild/rules_proto/archive/97d8af4dc474595af3900dd85cb3a29ad28cc313.tar.gz",
-        "https://github.com/bazelbuild/rules_proto/archive/97d8af4dc474595af3900dd85cb3a29ad28cc313.tar.gz",
-    ],
+    commit = "cfdc2fa31879c0aebe31ce7702b1a9c8a4be02d2",
+    remote = "https://github.com/bazelbuild/rules_proto.git",
 )
-
-load("@rules_proto_grpc//python:repositories.bzl", rules_proto_grpc_python_repos = "python_repos")
-
-rules_proto_grpc_python_repos()
-
-load("@rules_proto_grpc//:repositories.bzl", "rules_proto_grpc_repos", "rules_proto_grpc_toolchains")
-
-rules_proto_grpc_toolchains()
-
-rules_proto_grpc_repos()
 
 load("@rules_proto//proto:repositories.bzl", "rules_proto_dependencies", "rules_proto_toolchains")
 
@@ -57,13 +36,29 @@ rules_proto_dependencies()
 
 rules_proto_toolchains()
 
-load("@rules_proto_grpc//cpp:repositories.bzl", rules_proto_grpc_cpp_repos = "cpp_repos")
-
-rules_proto_grpc_cpp_repos()
+http_archive(
+    name = "com_github_grpc_grpc",
+    strip_prefix = "grpc-1.38.0",
+    urls = [
+        "https://github.com/grpc/grpc/archive/v1.38.0.tar.gz",
+    ],
+)
 
 load("@com_github_grpc_grpc//bazel:grpc_deps.bzl", "grpc_deps")
 
 grpc_deps()
+
+load("@com_github_grpc_grpc//bazel:grpc_extra_deps.bzl", "grpc_extra_deps")
+
+grpc_extra_deps()
+
+load("@com_github_grpc_grpc//bazel:grpc_extra_deps.bzl", "grpc_extra_deps")
+
+grpc_extra_deps()
+
+load("@com_github_grpc_grpc//bazel:grpc_python_deps.bzl", "grpc_python_deps")
+
+grpc_python_deps()
 
 # Add rules to compile external C++ projects that use Make or CMake.
 http_archive(

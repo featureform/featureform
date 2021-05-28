@@ -3,8 +3,9 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import grpc
-
-from embeddingstore import embedding_store_pb2, embedding_store_pb2_grpc
+import sys
+from client import embedding_store_pb2_grpc
+from client import embedding_store_pb2
 
 
 class EmbeddingStoreClient:

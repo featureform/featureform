@@ -116,9 +116,9 @@ go_register_toolchains()
 
 http_archive(
     name = "com_github_bazelbuild_buildtools",
-    sha256 = "1dbb1f39c17b1cbc011cc22394e6e88b0de13ad101eb40047c603297286c8398",
-    strip_prefix = "buildtools-master",
-    url = "https://github.com/bazelbuild/buildtools/archive/master.zip",
+	sha256 = "c28eef4d30ba1a195c6837acf6c75a4034981f5b4002dda3c5aa6e48ce023cf1",
+    strip_prefix = "buildtools-4.0.1",
+    url = "https://github.com/bazelbuild/buildtools/archive/4.0.1.tar.gz",
 )
 
 load("@rules_python//python:pip.bzl", "pip_install")

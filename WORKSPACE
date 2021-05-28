@@ -66,13 +66,14 @@ load("@com_github_grpc_grpc//bazel:grpc_deps.bzl", "grpc_deps")
 grpc_deps()
 
 # Add rules to compile external C++ projects that use Make or CMake.
-git_repository(
+http_archive(
     name = "rules_foreign_cc",
-    commit = "ed95b95affecaa3ea3bf7bab3e0ab6aa847dfb06",
-    remote = "https://github.com/bazelbuild/rules_foreign_cc.git",
+    sha256 = "d54742ffbdc6924f222d2179f0e10e911c5c659c4ae74158e9fe827aad862ac6",
+    strip_prefix = "rules_foreign_cc-0.2.0",
+    url = "https://github.com/bazelbuild/rules_foreign_cc/archive/0.2.0.tar.gz",
 )
 
-load("@rules_foreign_cc//:workspace_definitions.bzl", "rules_foreign_cc_dependencies")
+load("@rules_foreign_cc//foreign_cc:repositories.bzl", "rules_foreign_cc_dependencies")
 
 rules_foreign_cc_dependencies()
 

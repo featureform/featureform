@@ -1,4 +1,4 @@
-load("@rules_foreign_cc//tools/build_defs:make.bzl", "make")
+load("@rules_foreign_cc//foreign_cc:make.bzl", "make")
 
 make(
     name = "rocksdb",

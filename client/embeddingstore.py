@@ -3,7 +3,6 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import grpc
-import sys
 from client import embedding_store_pb2_grpc
 from client import embedding_store_pb2
 

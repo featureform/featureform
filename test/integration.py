@@ -7,7 +7,7 @@ import sys
 import os
 import pytest
 
-import client.client as es
+import client.embeddingstore as es
 
 
 @pytest.fixture

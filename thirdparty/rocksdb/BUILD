@@ -13,7 +13,7 @@ make(
     ],
     make_commands = ["make -j8 static_lib && mv librocksdb.a $INSTALLDIR/lib && cp -L -r include/rocksdb $INSTALLDIR/rocksdb/"],
     out_include_dir = "rocksdb",
-    static_libraries = ["librocksdb.a"],
+    out_static_libs = ["librocksdb.a"],
     visibility = ["//visibility:public"],
 )
 

@@ -4,6 +4,7 @@
 
 import subprocess
 import sys
+import time
 import os
 import pytest
 
@@ -14,6 +15,7 @@ import client.embeddingstore as es
 def embedding_store_proc():
     proc = subprocess.Popen(os.environ["TEST_SRCDIR"] +
                             "/__main__/embeddingstore/main")
+    time.sleep(1)
     yield proc
     proc.kill()
 

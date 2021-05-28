@@ -2,28 +2,43 @@
 # License, v.2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-load("@rules_proto_grpc//python:defs.bzl", "python_grpc_library")
+load("@com_github_grpc_grpc//bazel:python_rules.bzl", "py_grpc_library")
+load("@com_github_grpc_grpc//bazel:python_rules.bzl", "py_proto_library")
 
 py_binary(
     name = "repl",
     srcs = [
-        "client.py",
         "repl.py",
     ],
     main = "repl.py",
-    deps = [":embedding_store_grpc"],
+    deps = [
+        ":client",
+        "//client:embedding_store_grpc",
+    ],
 )
 
 py_library(
     name = "client",
-    srcs = ["client.py"],
+    srcs = ["embeddingstore.py"],
     visibility = [
         "//visibility:public",
     ],
-    deps = [":embedding_store_grpc"],
+    deps = ["//client:embedding_store_grpc"],
 )
 
-python_grpc_library(
+py_grpc_library(
     name = "embedding_store_grpc",
+    srcs = ["//embeddingstore:embedding_store_proto"],
+    visibility = [
+        "//visibility:public",
+    ],
+    deps = [":embedding_store_py_proto"],
+)
+
+py_proto_library(
+    name = "embedding_store_py_proto",
+    visibility = [
+        "//visibility:public",
+    ],
     deps = ["//embeddingstore:embedding_store_proto"],
 )

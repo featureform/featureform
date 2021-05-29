@@ -25,5 +25,8 @@ if __name__ == '__main__':
             val = [float(tok) for tok in tokens[2:]]
             client.set(key, val)
             print("SUCCESS")
+        elif cmd == "nn":
+            num = int(tokens[2])
+            print(client.nearest_neighbor(key, num))
         else:
             print("UNKNOWN COMMAND")

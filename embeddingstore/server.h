@@ -29,6 +29,10 @@ class EmbeddingStoreService final : public proto::EmbeddingStore::Service {
                    const proto::GetRequest* request,
                    proto::GetResponse* resp) override;
 
+  grpc::Status NearestNeighbor(grpc::ServerContext* context,
+							   const proto::NearestNeighborRequest* request,
+							   proto::NearestNeighborResponse* resp) override;
+
  private:
   std::unique_ptr<EmbeddingStore> store_;
 };

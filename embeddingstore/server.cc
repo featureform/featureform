@@ -4,6 +4,7 @@
 
 #include "server.h"
 
+#include <algorithm>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -24,6 +25,8 @@ using ::featureform::embedding::proto::SetRequest;
 using ::featureform::embedding::proto::SetResponse;
 using ::featureform::embedding::proto::MultiSetRequest;
 using ::featureform::embedding::proto::MultiSetResponse;
+using ::featureform::embedding::proto::NearestNeighborRequest;
+using ::featureform::embedding::proto::NearestNeighborResponse;
 
 namespace featureform {
 
@@ -32,6 +35,16 @@ namespace embedding {
 std::vector<float> copy_embedding_to_vector(const Embedding& embedding) {
   auto vals = embedding.values();
   return std::vector<float>(vals.cbegin(), vals.cend());
+}
+
+template<typename T>
+bool remove_uniq_value(std::vector<T>& vec, T val) {
+    auto pos = std::find(vec.begin(), vec.end(), val);
+    if (pos != vec.end()) {
+        vec.erase(pos);
+        return true;
+    }
+    return false;
 }
 
 grpc::Status EmbeddingStoreService::Get(ServerContext* context,
@@ -62,6 +75,19 @@ grpc::Status EmbeddingStoreService::MultiSet(
   }
   return Status::OK;
 }
+
+grpc::Status EmbeddingStoreService::NearestNeighbor(
+    ServerContext* context, const NearestNeighborRequest* request,
+    NearestNeighborResponse* resp) {
+    auto ref_key = request->key();
+    auto ref_vec = store_->get(ref_key);
+    auto nearest = store_->get_ann_index()->approx_nearest(ref_vec, request->num() + 1);
+    if(!remove_uniq_value(nearest, request->key())) {
+        nearest.pop_back();
+    }
+    *resp->mutable_keys() = {nearest.begin(), nearest.end()};
+  return Status::OK;
+}
 }
 }
 
@@ -71,6 +97,7 @@ using featureform::embedding::EmbeddingStoreService;
 void RunServer() {
   std::string server_address("0.0.0.0:50051");
   auto store = EmbeddingStore::load_or_create("embedding_store.dat", 3);
+  store->create_ann_index();
   auto service = EmbeddingStoreService(std::move(store));
 
   grpc::EnableDefaultHealthCheckService(true);

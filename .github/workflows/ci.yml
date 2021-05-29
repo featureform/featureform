@@ -6,16 +6,20 @@ jobs:
         steps:
         - uses: actions/checkout@v1
 
+        - name: Set up Python
+          uses: actions/setup-python@v2
+          with:
+            python-version: "2.7"
+
+        - name: Install deps
+          run: sudo apt-get install libsnappy-dev zlib1g-dev liblz4-dev
+            
         - name: Mount bazel cache
           uses: actions/cache@v1
           with:
               path: "/home/runner/.cache/bazel"
               key: "bazel"
 
-        - name: Set up Python
-          uses: actions/setup-python@v2
-          with:
-            python-version: "2.7"
 
         - name: Test
           run: bazel test //...

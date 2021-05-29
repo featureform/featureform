@@ -80,14 +80,14 @@ rules_foreign_cc_dependencies()
 # Without these commits, the project fails to compile.
 new_git_repository(
     name = "hnswlib",
-    build_file = "@//thirdparty/hnswlib:BUILD",
+    build_file = "@//thirdparty/hnswlib:BUILD.external",
     commit = "21b54fe9544cfbb757b2ea8f3def5542ba2435c7",
     remote = "https://github.com/nmslib/hnswlib.git",
 )
 
 http_archive(
     name = "rocksdb",
-    build_file = "@//thirdparty/rocksdb:BUILD",
+    build_file = "@//thirdparty/rocksdb:BUILD.external",
     sha256 = "c6502c7aae641b7e20fafa6c2b92273d935d2b7b2707135ebd9a67b092169dca",
     strip_prefix = "rocksdb-6.20.3",
     url = "https://github.com/facebook/rocksdb/archive/v6.20.3.tar.gz",

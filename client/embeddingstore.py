@@ -31,6 +31,10 @@ class EmbeddingStoreClient:
         it = self._embedding_dict_iter(embedding_dict)
         self._stub.MultiSet(it)
 
+    def nearest_neighbor(self, key, num):
+        req = embedding_store_pb2.NearestNeighborRequest(key=key, num=num)
+        return self._stub.NearestNeighbor(req).keys
+
     def _embedding_dict_iter(self, embedding_dict):
         for key, embedding in embedding_dict.items():
             req = embedding_store_pb2.MultiSetRequest()

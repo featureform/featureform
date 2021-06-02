@@ -86,6 +86,14 @@ new_git_repository(
 )
 
 http_archive(
+    name = "expected",
+    build_file = "@//thirdparty/expected:BUILD.external",
+    sha256 = "8f5124085a124113e75e3890b4e923e3a4de5b26a973b891b3deb40e19c03cee",
+    strip_prefix = "expected-1.0.0",
+    url = "https://github.com/TartanLlama/expected/archive/v1.0.0.tar.gz",
+)
+
+http_archive(
     name = "rocksdb",
     build_file = "@//thirdparty/rocksdb:BUILD.external",
     sha256 = "c6502c7aae641b7e20fafa6c2b92273d935d2b7b2707135ebd9a67b092169dca",

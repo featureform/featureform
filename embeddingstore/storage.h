@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 
 #include "rocksdb/db.h"
 
@@ -18,6 +19,17 @@ class EmbeddingStorage {
   EmbeddingStorage() = delete;
   void set(std::string key, std::vector<float> value);
   std::vector<float> get(const std::string& key) const;
+  
+  class Iterator {
+   public:
+    Iterator(std::shared_ptr<EmbeddingStorage> storage);
+    bool next();
+    std::string key();
+    std::vector<float> value();
+    std::optional<std::string> error();
+   private:
+    std::unique_ptr<rocksdb::Iterator> iter_;
+  };
  private:
   EmbeddingStorage(std::unique_ptr<rocksdb::DB> DB, int dims);
   std::unique_ptr<rocksdb::DB> db_;

@@ -21,4 +21,23 @@ TEST(EmbeddingStorage, TestSetGet) {
   ASSERT_EQ(storage->get(a_key), a_vec);
 }
 
+TEST(EmbeddingStorage, TestIter) {
+  std::shared_ptr storage = EmbeddingStorage::load_or_create("test.db", 3);
+  std::unordered_map<std::string, std::vector<float>> vals = {
+    {"a", std::vector<float>{0, 1, 0}},
+    {"b", std::vector<float>{1, 0, 0}},
+  };
+  for (auto args: vals) {
+      storage->set(args.first, args.second);
+  }
+  auto iter = EmbeddingStorage::Iterator(storage);
+  auto ctr = 0;
+  do {
+    auto key = iter.key();
+    ASSERT_EQ(iter.value(), vals[key]);
+    ctr++;
+  } while(iter.next());
+  ASSERT_EQ(ctr, vals.size());
+}
+
 }

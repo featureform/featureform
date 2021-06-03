@@ -11,6 +11,13 @@ namespace featureform {
 
 namespace embedding {
 
+std::vector<float> parse_rocks_value(const std::string& value) {
+  auto proto = proto::Embedding();
+  proto.ParseFromString(value);
+  auto vals = proto.values();
+  return std::vector<float>(vals.begin(), vals.end());
+}
+
 std::unique_ptr<EmbeddingStorage> EmbeddingStorage::load_or_create(std::string path, int dims) {
   rocksdb::Options options;
   options.create_if_missing = true;
@@ -35,10 +42,7 @@ void EmbeddingStorage::set(std::string key, std::vector<float> val) {
 std::vector<float> EmbeddingStorage::get(const std::string& key) const {
   std::string serialized;
   db_->Get(rocksdb::ReadOptions(), key, &serialized);
-  auto proto = proto::Embedding();
-  proto.ParseFromString(serialized);
-  auto vals = proto.values();
-  return std::vector<float>(vals.begin(), vals.end());
+  return parse_rocks_value(serialized);
 }
 
 }

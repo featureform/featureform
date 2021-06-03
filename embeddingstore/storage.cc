@@ -45,5 +45,30 @@ std::vector<float> EmbeddingStorage::get(const std::string& key) const {
   return parse_rocks_value(serialized);
 }
 
+EmbeddingStorage::Iterator::Iterator(std::shared_ptr<EmbeddingStorage> storage) :
+    iter_{storage->db_->NewIterator(rocksdb::ReadOptions())} {
+    iter_->SeekToFirst();
+}
+
+bool EmbeddingStorage::Iterator::next() {
+    iter_->Next();
+    return iter_->Valid();
+}
+
+std::string EmbeddingStorage::Iterator::key() {
+  return iter_->key().ToString();
+}
+
+std::vector<float> EmbeddingStorage::Iterator::value() {
+  return parse_rocks_value(iter_->value().ToString());
+}
+
+std::optional<std::string> EmbeddingStorage::Iterator::error() {
+  if (!iter_->status().ok()) {
+    return std::make_optional(iter_->status().ToString());
+  }
+  return std::nullopt;
+}
+
 }
 }

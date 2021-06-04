@@ -20,18 +20,18 @@ std::unique_ptr<EmbeddingStore> EmbeddingStore::load_or_create(std::string path,
 }
 
 EmbeddingStore::EmbeddingStore(std::unique_ptr<EmbeddingStorage> storage, int dims)
-    :storage_(std::move(storage)), dims_(dims), data_(), idx_(nullptr) {
+    :storage_(std::move(storage)), dims_(dims), idx_(nullptr) {
 }
 
 void EmbeddingStore::set(std::string key, std::vector<float> val) {
+  storage_->set(key, val);
   if (idx_ != nullptr) {
     idx_->set(key, val);
   }
-  data_[key] = val;
 }
 
-const std::vector<float>& EmbeddingStore::get(const std::string& key) const {
-  return data_.at(key);
+std::vector<float> EmbeddingStore::get(const std::string& key) const {
+  return storage_->get(key);
 }
 
 std::shared_ptr<const ANNIndex> EmbeddingStore::create_ann_index() {
@@ -39,11 +39,10 @@ std::shared_ptr<const ANNIndex> EmbeddingStore::create_ann_index() {
     return idx_;
   }
   idx_ = std::make_shared<ANNIndex>(dims_);
-  for (const std::pair<std::string, std::vector<float>> row : data_) {
-    auto key = row.first;
-    auto val = row.second;
-    idx_->set(key, val);
-  }
+  auto iter = EmbeddingStorage::Iterator(storage_);
+  do {
+    idx_->set(iter.key(), iter.value());
+  } while(iter.next());
   return idx_;
 }
 

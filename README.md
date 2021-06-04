@@ -4,13 +4,13 @@
 </h1>
 
 <div align="center">
-	<a href="https://github.com/featureform/embeddingstore/actions"><img src="https://img.shields.io/badge/featureform-workflow-blue" alt="Embedding Store workflow"></a>
+	<a href="https://github.com/featureform/embeddings/actions"><img src="https://img.shields.io/badge/featureform-workflow-blue?style=for-the-badge&logo=appveyor" alt="Embedding Store workflow"></a>
+    <a href="https://pypi.org/project/MindsDB/" target="_blank"><img src="https://img.shields.io/pypi/dm/mindsdb?style=for-the-badge&logo=appveyor" alt="PyPi Downloads"></a>
+    <a href="https://slack.featureform.com/" target="_blank"><img src="https://img.shields.io/badge/Join-Slack-blue?style=for-the-badge&logo=appveyor" alt="Featureform Slack"></a>
+    <br>
     <a href="https://www.python.org/downloads/" target="_blank"><img src="https://img.shields.io/badge/python-3.6%20|%203.7|%203.8-brightgreen.svg" alt="Python supported"></a>
     <a href="https://pypi.org/project/EmbeddingStore/" target="_blank"><img src="https://badge.fury.io/py/EmbeddingStore.svg" alt="PyPi Version"></a>
-    <br>
-    <a href="https://pypi.org/project/MindsDB/" target="_blank"><img src="https://img.shields.io/pypi/dm/mindsdb" alt="PyPi Downloads"></a>
-    <a href="https://www.featureform.com/"><img src="https://img.shields.io/website?url=https%3A%2F%2Fwww.featureform.com%2F" alt="featureform Website"></a>  
-    <a href="https://slack.featureform.com/" target="_blank"><img src="https://img.shields.io/badge/Join-Slack-blue" alt="Featureform Slack"></a>
+    <a href="https://www.featureform.com/"><img src="https://img.shields.io/website?url=https%3A%2F%2Fwww.featureform.com%2F?style=for-the-badge&logo=appveyor" alt="featureform Website"></a>  
     <a href="https://twitter.com/featureformML" target="_blank"><img src="https://img.shields.io/twitter/url/http/shields.io.svg?style=social" alt="Twitter"></a>
 
 
@@ -54,4 +54,4 @@ Please help us by [reporting any issues](https://github.com/featureform/embeddin
 
 ## License
 
-* [featureform License](https://github.com/featureform/embeddings/blob/main/LICENSE)
+* [Mozilla Public License Version 2.0](https://github.com/featureform/embeddings/blob/main/LICENSE)

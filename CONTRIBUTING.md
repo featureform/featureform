@@ -14,11 +14,11 @@ We love to receive contributions from the community and hear your opinions! We w
 # Code contributions
 In general, we follow the "fork-and-pull" Git workflow.
 
-1. Fork the featureform repository
+1. Fork the embeddingstore repository
 2. Clone the repository
 3. Make changes and commit them
 4. Push your local branch to your fork
-5. Submit a Pull request so that we can review your changes
+5. Submit a pull request so that we can review your changes
 6. Write a commit message
 7. Make sure that the CI tests are GREEN
 
@@ -32,4 +32,4 @@ The Pull Request reviews are done on a regular basis.
 Please, make sure you respond to our feedback/questions.
 
 # Community
-If you have additional questions or you want to chat with featureform core team, you can join our community [![Discourse posts](https://img.shields.io/badge/Community-discourse-blue)](https://featureformcommunity.slack.com/archives/C022TBTMAAZ).
+If you have additional questions or you want to chat with featureform core team, you can join our community [![Discourse posts](https://img.shields.io/badge/Community-discourse-blue)](https://communityinviter.com/apps/featureform-community/featureform-community-invite.

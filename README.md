@@ -32,21 +32,23 @@
 [Embedding Store](https://featureform.com/) is an open-source embedding management and storage solution.
 
 ## Features
-* **Operations**: With Embedding Store's standard embedding methods, you can easily run Averaging, Delta and Approximate Nearest Neighbor operations on your embeddings.
+* **Supported Operations**: Run approximate nearest neighbor lookups, average multiple embeddings, partition tables (spaces), cache locally while training, and more.
 * **Storage**: Store and index billions vectors embeddings from our storage layer.
-* **Versioning**: Assign and manage your embedding states.
-* **Access Control**: Provision and manage individual or batch embeddings.
+* **Versioning**: Create, manage, and rollback different versions of your embeddings.
+* **Access Control**: Encode different business logic and user management directly into the embedding store.
+* **Monitoring**: Keep track of how embeddings are being used, latency, throughput, and feature drift over time.
+
 
 ## Try it out
 
-* [Getting started](https://docs.featureform.com)
-* [Install Embedding Store](https://docs.featureform.com)
-* [Explore our docs](https://docs.featureform.com)
+* [Getting started](https://docs.featureform.com/getting_started)
+* [Install Embedding Store](https://docs.featureform.com/installation_guide)
+* [Explore our docs](https://docs.featureform.com/overview)
 
 ## Contributing
 
-* To contribute to Embedding Store, please check out [Contribution docs](https://docs.featureform.com).
-* Welcome to our awesome community, please check out [Community docs](https://docs.featureform.com).
+* To contribute to Embedding Store, please check out [Contribution docs](https://github.com/featureform/embeddings/blob/main/CONTRIBUTING.md).
+* Welcome to our awesome community, please join our [Slack community](https://communityinviter.com/apps/featureform-community/featureform-community-invite).
 
 ## Report Issues
 

@@ -1,12 +1,12 @@
 <h1 align="center">
-	<img width="300" src="https://github.com/featureform/embeddings/assets/featureform_logo.png?raw=true" alt="featureform">
+	<img width="300" src="https://raw.githubusercontent.com/featureform/embeddings/main/assets/featureform_logo.png" alt="featureform">
 	<br>
 </h1>
 
 <div align="center">
 	<a href="https://github.com/featureform/embeddings/actions"><img src="https://img.shields.io/badge/featureform-workflow-blue?style=for-the-badge&logo=appveyor" alt="Embedding Store workflow"></a>
-    <a href="https://pypi.org/project/MindsDB/" target="_blank"><img src="https://img.shields.io/pypi/dm/mindsdb?style=for-the-badge&logo=appveyor" alt="PyPi Downloads"></a>
-    <a href="https://slack.featureform.com/" target="_blank"><img src="https://img.shields.io/badge/Join-Slack-blue?style=for-the-badge&logo=appveyor" alt="Featureform Slack"></a>
+    <a href="https://pypi.org/project/embeddingstore/" target="_blank"><img src="https://img.shields.io/pypi/dm/embeddingstore?style=for-the-badge&logo=appveyor" alt="PyPi Downloads"></a>
+    <a href="https://communityinviter.com/apps/featureform-community/featureform-community-invite" target="_blank"><img src="https://img.shields.io/badge/Join-Slack-blue?style=for-the-badge&logo=appveyor" alt="Featureform Slack"></a>
     <br>
     <a href="https://www.python.org/downloads/" target="_blank"><img src="https://img.shields.io/badge/python-3.6%20|%203.7|%203.8-brightgreen.svg" alt="Python supported"></a>
     <a href="https://pypi.org/project/EmbeddingStore/" target="_blank"><img src="https://badge.fury.io/py/EmbeddingStore.svg" alt="PyPi Version"></a>
@@ -25,7 +25,7 @@
         <span> | </span>
         <a href="https://apidocs.featureform.com/">API Docs</a>
         <span> | </span>
-        <a href="https://community.featureform.com/">Community forum</a>
+        <a href="https://communityinviter.com/apps/featureform-community/featureform-community-invite">Community forum</a>
     </h3>
 </div>
 

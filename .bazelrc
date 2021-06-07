@@ -3,3 +3,7 @@ build --cxxopt "-std=c++17" --copt="-Wno-stringop-overflow" --copt="-Wno-array-p
 # We have to instrument_test_targets, but then ignore test directories for C++ templates to work.
 coverage --combined_report=lcov --coverage_report_generator="@bazel_tools//tools/test/CoverageOutputGenerator/java/com/google/devtools/coverageoutputgenerator:Main" --instrument_test_targets # --instrumentation_filter="-/*/test[/:]"
 
+build:debug -c dbg
+build:debug --javacopt="-g"
+build:debug --copt="-g"
+build:debug --strip="never"

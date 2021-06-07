@@ -15,7 +15,7 @@ namespace embedding {
 
 class EmbeddingStorage {
  public:
-  static std::unique_ptr<EmbeddingStorage> load_or_create(std::string path, int dims);
+  static std::shared_ptr<EmbeddingStorage> load_or_create(std::string path, int dims);
   EmbeddingStorage() = delete;
   void set(std::string key, std::vector<float> value);
   std::vector<float> get(const std::string& key) const;
@@ -23,7 +23,7 @@ class EmbeddingStorage {
   class Iterator {
    public:
     Iterator(std::shared_ptr<EmbeddingStorage> storage);
-    bool next();
+    bool scan();
     std::string key();
     std::vector<float> value();
     std::optional<std::string> error();

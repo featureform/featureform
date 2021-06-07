@@ -32,7 +32,7 @@ TEST(EmbeddingStorage, TestIter) {
   }
   auto iter = EmbeddingStorage::Iterator(storage);
   auto ctr = 0;
-  while(iter.next()) {
+  while(iter.scan()) {
     auto key = iter.key();
     ASSERT_EQ(iter.value(), vals[key]);
     ctr++;

@@ -51,7 +51,7 @@ EmbeddingStorage::Iterator::Iterator(std::shared_ptr<EmbeddingStorage> storage) 
     iter_->SeekToFirst();
 }
 
-bool EmbeddingStorage::Iterator::next() {
+bool EmbeddingStorage::Iterator::scan() {
     if (first_) {
         first_ = false;
     } else {

@@ -40,9 +40,9 @@ std::shared_ptr<const ANNIndex> EmbeddingStore::create_ann_index() {
   }
   idx_ = std::make_shared<ANNIndex>(dims_);
   auto iter = EmbeddingStorage::Iterator(storage_);
-  do {
+  while(iter.next()) {
     idx_->set(iter.key(), iter.value());
-  } while(iter.next());
+  }
   return idx_;
 }
 

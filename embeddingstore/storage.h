@@ -28,6 +28,7 @@ class EmbeddingStorage {
     std::vector<float> value();
     std::optional<std::string> error();
    private:
+    bool first_;
     std::unique_ptr<rocksdb::Iterator> iter_;
   };
  private:

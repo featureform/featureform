@@ -6,6 +6,7 @@
 
 #include "embeddingstore/embedding_store.grpc.pb.h"
 #include "rocksdb/db.h"
+#include "rocksdb/iterator.h"
 
 namespace featureform {
 
@@ -46,12 +47,16 @@ std::vector<float> EmbeddingStorage::get(const std::string& key) const {
 }
 
 EmbeddingStorage::Iterator::Iterator(std::shared_ptr<EmbeddingStorage> storage) :
-    iter_{storage->db_->NewIterator(rocksdb::ReadOptions())} {
+    first_{true}, iter_{storage->db_->NewIterator(rocksdb::ReadOptions())} {
     iter_->SeekToFirst();
 }
 
 bool EmbeddingStorage::Iterator::next() {
-    iter_->Next();
+    if (first_) {
+        first_ = false;
+    } else {
+        iter_->Next();
+    }
     return iter_->Valid();
 }
 

@@ -2,6 +2,14 @@
 # License, v.2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+"""
+repl module provides an ability to interact with the backend via command line.
+To run it, use one command per line as follows:
+    get [key]
+        or
+    set [key] [values...]
+"""
+
 import sys
 from embeddingstore import EmbeddingStoreClient
 

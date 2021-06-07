@@ -19,7 +19,7 @@ std::unique_ptr<EmbeddingStore> EmbeddingStore::load_or_create(std::string path,
   return std::unique_ptr<EmbeddingStore>(new EmbeddingStore(std::move(storage), dims));
 }
 
-EmbeddingStore::EmbeddingStore(std::unique_ptr<EmbeddingStorage> storage, int dims)
+EmbeddingStore::EmbeddingStore(std::shared_ptr<EmbeddingStorage> storage, int dims)
     :storage_(std::move(storage)), dims_(dims), idx_(nullptr) {
 }
 

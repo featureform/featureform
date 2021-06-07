@@ -19,7 +19,7 @@ std::vector<float> parse_rocks_value(const std::string& value) {
   return std::vector<float>(vals.begin(), vals.end());
 }
 
-std::unique_ptr<EmbeddingStorage> EmbeddingStorage::load_or_create(std::string path, int dims) {
+std::shared_ptr<EmbeddingStorage> EmbeddingStorage::load_or_create(std::string path, int dims) {
   rocksdb::Options options;
   options.create_if_missing = true;
   rocksdb::DB* db_ptr;

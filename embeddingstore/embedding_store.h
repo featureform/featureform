@@ -24,7 +24,7 @@ class EmbeddingStore {
   std::shared_ptr<const ANNIndex> get_ann_index() const;
 
  private:
-  EmbeddingStore(std::unique_ptr<EmbeddingStorage> storage, int dims);
+  EmbeddingStore(std::shared_ptr<EmbeddingStorage> storage, int dims);
   std::shared_ptr<EmbeddingStorage> storage_;
   int dims_;
   std::shared_ptr<ANNIndex> idx_;

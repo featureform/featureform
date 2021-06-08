@@ -99,6 +99,19 @@ cc_grpc_library(
     deps = [":embedding_store_cc_proto"],
 )
 
+proto_library(
+    name = "embedding_store_meta_proto",
+    srcs = ["embedding_store_meta.proto"],
+    visibility = [
+        "//visibility:public",
+    ],
+)
+
+cc_proto_library(
+    name = "embedding_store_meta_cc_proto",
+    deps = [":embedding_store_meta_proto"],
+)
+
 cc_library(
     name = "space",
     srcs =

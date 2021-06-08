@@ -20,19 +20,15 @@ from client import embedding_store_pb2
 
 class EmbeddingStoreClient:
 
-
     def __init__(self, host="localhost", port=50051):
-
         connection_str = "%.%".format(host, port)
         self._channel = grpc.insecure_channel('localhost:50051')
         self._stub = embedding_store_pb2_grpc.EmbeddingStoreStub(self._channel)
-
 
     def close(self):
         """Closes the connection.
         """
         return self._channel.close()
-
 
     def set(self, key, embedding):
         """Set key to embedding on the server.
@@ -63,7 +59,6 @@ class EmbeddingStoreClient:
         resp = self._stub.Get(embedding_store_pb2.GetRequest(key=key))
         return resp.embedding.values
 
-
     def multiset(self, embedding_dict):
         """Set multiple embeddings at once.
 
@@ -89,7 +84,6 @@ class EmbeddingStoreClient:
         """
         req = embedding_store_pb2.NearestNeighborRequest(key=key, num=num)
         return self._stub.NearestNeighbor(req).keys
-
 
     def _embedding_dict_iter(self, embedding_dict):
         """Create an iterator from an embedding.

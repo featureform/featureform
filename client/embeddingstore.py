@@ -86,7 +86,7 @@ class EmbeddingStoreClient:
         return self._stub.NearestNeighbor(req).keys
 
     def _embedding_dict_iter(self, embedding_dict):
-        """Create an iterator from an embedding.
+        """Create an iterator from an embedding dict.
 
         Args: 
             embedding_dict: A dictionary from key to embedding, where key is a string and 

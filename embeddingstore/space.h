@@ -15,17 +15,20 @@ namespace featureform {
 
 namespace embedding {
 
-class EmbeddingStore {
+class Space {
  public:
-  static std::unique_ptr<EmbeddingStore> load_or_create(std::string path, int dims);
+  static std::unique_ptr<Space> load_or_create(std::string path, std::string name, int dims);
   void set(std::string key, std::vector<float> value);
+  std::string name() const;
+  int dims() const;
   std::vector<float> get(const std::string& key) const;
   std::shared_ptr<const ANNIndex> create_ann_index();
   std::shared_ptr<const ANNIndex> get_ann_index() const;
 
  private:
-  EmbeddingStore(std::shared_ptr<EmbeddingStorage> storage, int dims);
+  Space(std::shared_ptr<EmbeddingStorage> storage, std::string name, int dims);
   std::shared_ptr<EmbeddingStorage> storage_;
+  std::string name_;
   int dims_;
   std::shared_ptr<ANNIndex> idx_;
 };

@@ -100,14 +100,14 @@ cc_grpc_library(
 )
 
 cc_library(
-    name = "embedding_store",
+    name = "space",
     srcs =
         [
-            "embedding_store.cc",
+            "space.cc",
         ],
     hdrs =
         [
-            "embedding_store.h",
+            "space.h",
         ],
     visibility = [
         "//visibility:public",

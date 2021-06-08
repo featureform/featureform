@@ -14,7 +14,7 @@ namespace featureform {
 
 namespace embedding {
 
-std::unique_ptr<Space> Space::load_or_create(std::string path, std::string name, int dims) {
+std::shared_ptr<Space> Space::load_or_create(std::string path, std::string name, int dims) {
   auto storage = EmbeddingStorage::load_or_create(path, dims);
   return std::unique_ptr<Space>(new Space(std::move(storage), name, dims));
 }

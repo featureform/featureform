@@ -17,7 +17,7 @@ namespace embedding {
 
 class Space {
  public:
-  static std::unique_ptr<Space> load_or_create(std::string path, std::string name, int dims);
+  static std::shared_ptr<Space> load_or_create(std::string path, std::string name, int dims);
   void set(std::string key, std::vector<float> value);
   std::string name() const;
   int dims() const;

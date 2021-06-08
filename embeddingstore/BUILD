@@ -131,3 +131,22 @@ cc_library(
         "@rocksdb",
     ],
 )
+
+cc_library(
+    name = "embedding_store",
+    srcs =
+        [
+            "embedding_store.cc",
+        ],
+    hdrs =
+        [
+            "embedding_store.h",
+        ],
+    visibility = [
+        "//visibility:public",
+    ],
+    deps = [
+        ":embedding_store_meta_cc_proto",
+        ":space",
+    ],
+)

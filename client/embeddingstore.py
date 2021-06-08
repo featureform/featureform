@@ -8,9 +8,9 @@ This module provides a client to talk to the embedding store server.
 It contains methods for setting and retrieving embeddings as well as nearest neighbor search.
 
 Example:
-    |  init("localhost", 3000)
-    |  set("catType0", [cat_breeds])
-    |  get("catType0") -> [cat_breeds]
+    |  client = EmbeddingStoreClient()
+    |  client.set("a", [1, 2, 3])
+    |  assert client.get("a") == [1, 2, 3]
 """
 
 import grpc

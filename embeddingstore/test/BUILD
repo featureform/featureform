@@ -3,13 +3,13 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 cc_test(
-    name = "embedding_store_test",
+    name = "space_test",
     srcs = [
-        "embedding_store_test.cc",
+        "space_test.cc",
         "main_test.cc",
     ],
     deps = [
-        "//embeddingstore:embedding_store",
+        "//embeddingstore:space",
         "@gtest",
     ],
 )

@@ -5,17 +5,26 @@
 #include <memory>
 #include <vector>
 
-#include <gtest/gtest.h>
-#include "embeddingstore/embedding_store.h"
+#include "embeddingstore/space.h"
 
-using featureform::embedding::EmbeddingStore;
+#include <gtest/gtest.h>
+
+using featureform::embedding::Space;
 
 namespace {
 
-TEST(SimpleEmbeddingStore, TestPutGet) {
-  auto store = EmbeddingStore::load_or_create("test.abc", 3);
+TEST(SimpleSpace, TestPutGet) {
+  auto store = Space::load_or_create("test.abc", "test", 3);
   store->set("a", std::vector<float>{1.1, 1.2, 1.3});
   std::vector<float> expected{1.1, 1.2, 1.3};
   ASSERT_EQ(store->get("a"), expected);
+}
+
+TEST(SimpleSpace, TestGetters) {
+  auto name = "test";
+  auto dims = 3;
+  auto store = Space::load_or_create("test.abc", name, dims);
+  ASSERT_EQ(store->name(), name);
+  ASSERT_EQ(store->dims(), 3);
 }
 }

@@ -21,6 +21,9 @@ class EmbeddingStoreService final : public proto::EmbeddingStore::Service {
                         grpc::ServerReader<proto::MultiSetRequest>* reader,
                         proto::MultiSetResponse* resp) override;
 
+  grpc::Status MultiGet(grpc::ServerContext* context,
+                        grpc::ServerReaderWriter<proto::MultiGetResponse, proto::MultiGetRequest>* stream) override;
+
   grpc::Status Set(grpc::ServerContext* context,
                    const proto::SetRequest* request,
                    proto::SetResponse* resp) override;

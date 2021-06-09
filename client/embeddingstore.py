@@ -71,6 +71,11 @@ class EmbeddingStoreClient:
         """
         it = self._embedding_dict_iter(embedding_dict)
         self._stub.MultiSet(it)
+    
+    def multiget(self, keys):
+        it = self._key_iter(keys)
+        return self._embedding_iter(self._stub.MultiGet(it))
+
 
     def nearest_neighbor(self, key, num):
         """Finds N nearest neighbors for a given embedding record.
@@ -97,3 +102,14 @@ class EmbeddingStoreClient:
             req.key = key
             req.embedding.values[:] = embedding
             yield req
+
+    def _key_iter(self, keys):
+        for key in keys:
+            req = embedding_store_pb2.MultiGetRequest()
+            req.key = key
+            yield req
+
+    def _embedding_iter(self, resps):
+        for resp in resps:
+            yield resp.embedding.values
+

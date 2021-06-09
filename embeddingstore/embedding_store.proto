@@ -10,6 +10,7 @@ service EmbeddingStore {
   rpc Set(SetRequest) returns (SetResponse) {}
   rpc Get(GetRequest) returns (GetResponse) {}
   rpc MultiSet(stream MultiSetRequest) returns (MultiSetResponse) {}
+  rpc MultiGet(stream MultiGetRequest) returns (stream MultiGetResponse) {}
   rpc NearestNeighbor(NearestNeighborRequest)  returns (NearestNeighborResponse) {}
 }
 
@@ -37,6 +38,14 @@ message MultiSetRequest {
 
 message MultiSetResponse {
   // Purposely empty.
+}
+
+message MultiGetRequest {
+  string key = 1;
+}
+
+message MultiGetResponse {
+  Embedding embedding = 1;
 }
 
 message NearestNeighborRequest {

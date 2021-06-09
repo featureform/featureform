@@ -42,6 +42,16 @@ def test_multiset_get(es_client):
     for key, emb in embs.items():
         assert es_client.get(key) == emb
 
+def test_multiset_multiget(es_client):
+    embs = {
+        "a": [1, 2, 3],
+        "b": [3, 2, 1],
+    }
+    es_client.multiset(embs)
+    resp_embs = es_client.multiget(embs.keys())
+    resp_emb_dict = {key: val for key, val in zip(embs.keys(), resp_embs)}
+    assert embs == resp_emb_dict
+
 
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__]))

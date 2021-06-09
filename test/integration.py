@@ -45,14 +45,29 @@ def test_multiset_get(es_client):
         assert es_client.get(space, key) == emb
 
 def test_multiset_multiget(es_client):
+    space = "test"
     embs = {
         "a": [1, 2, 3],
         "b": [3, 2, 1],
     }
-    es_client.multiset(embs)
-    resp_embs = es_client.multiget(embs.keys())
+    es_client.multiset(space, embs)
+    resp_embs = es_client.multiget(space, embs.keys())
     resp_emb_dict = {key: val for key, val in zip(embs.keys(), resp_embs)}
     assert embs == resp_emb_dict
+
+def test_multi_space(es_client):
+    key = "key"
+    embs = {
+        "a": [1, 2, 3],
+        "b": [3, 2, 1],
+    }
+    for space, emb in embs.items():
+        es_client.set(space, key, emb)
+
+    # This is purposely in two loops. One sets the entire state before
+    # querying it.
+    for space, emb in embs.items():
+        assert es_client.get(space, key) == emb
 
 
 if __name__ == "__main__":

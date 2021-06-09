@@ -45,5 +45,5 @@ std::vector<std::string> ANNIndex::approx_nearest(std::vector<float> value,
   }
   return nearest_keys;
 }
-}
-}
+}  // namespace embedding
+}  // namespace featureform

@@ -15,11 +15,12 @@ namespace embedding {
 
 class EmbeddingStorage {
  public:
-  static std::shared_ptr<EmbeddingStorage> load_or_create(std::string path, int dims);
+  static std::shared_ptr<EmbeddingStorage> load_or_create(std::string path,
+                                                          int dims);
   EmbeddingStorage() = delete;
   void set(std::string key, std::vector<float> value);
   std::vector<float> get(const std::string& key) const;
-  
+
   class Iterator {
    public:
     Iterator(std::shared_ptr<EmbeddingStorage> storage);
@@ -27,14 +28,16 @@ class EmbeddingStorage {
     std::string key();
     std::vector<float> value();
     std::optional<std::string> error();
+
    private:
     bool first_;
     std::unique_ptr<rocksdb::Iterator> iter_;
   };
+
  private:
   EmbeddingStorage(std::unique_ptr<rocksdb::DB> DB, int dims);
   std::unique_ptr<rocksdb::DB> db_;
   int dims_;
 };
-}
-}
+}  // namespace embedding
+}  // namespace featureform

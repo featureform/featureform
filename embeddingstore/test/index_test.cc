@@ -2,12 +2,13 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
+#include "embeddingstore/index.h"
+
+#include <gtest/gtest.h>
+
 #include <iostream>
 #include <memory>
 #include <vector>
-
-#include <gtest/gtest.h>
-#include "embeddingstore/index.h"
 
 using featureform::embedding::ANNIndex;
 
@@ -57,4 +58,4 @@ TEST(SimpleANNIndex, TestANN0Items) {
   std::vector<std::string> expected{};
   ASSERT_EQ(nearest, expected);
 }
-}
+}  // namespace

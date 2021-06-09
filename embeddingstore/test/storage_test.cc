@@ -2,12 +2,13 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
+#include "embeddingstore/storage.h"
+
+#include <gtest/gtest.h>
+
 #include <iostream>
 #include <memory>
 #include <vector>
-
-#include <gtest/gtest.h>
-#include "embeddingstore/storage.h"
 
 using featureform::embedding::EmbeddingStorage;
 
@@ -22,17 +23,18 @@ TEST(EmbeddingStorage, TestSetGet) {
 }
 
 TEST(EmbeddingStorage, TestIter) {
-  std::shared_ptr<EmbeddingStorage> storage = EmbeddingStorage::load_or_create("test.db", 3);
+  std::shared_ptr<EmbeddingStorage> storage =
+      EmbeddingStorage::load_or_create("test.db", 3);
   std::unordered_map<std::string, std::vector<float>> vals = {
-    {"a", std::vector<float>{0, 1, 0}},
-    {"b", std::vector<float>{1, 0, 0}},
+      {"a", std::vector<float>{0, 1, 0}},
+      {"b", std::vector<float>{1, 0, 0}},
   };
-  for (auto args: vals) {
-      storage->set(args.first, args.second);
+  for (auto args : vals) {
+    storage->set(args.first, args.second);
   }
   auto iter = EmbeddingStorage::Iterator(storage);
   auto ctr = 0;
-  while(iter.scan()) {
+  while (iter.scan()) {
     auto key = iter.key();
     ASSERT_EQ(iter.value(), vals[key]);
     ctr++;
@@ -40,4 +42,4 @@ TEST(EmbeddingStorage, TestIter) {
   ASSERT_EQ(ctr, vals.size());
 }
 
-}
+}  // namespace

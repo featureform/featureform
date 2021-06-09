@@ -2,11 +2,11 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-#include <vector>
-
 #include "embeddingstore/embedding_store.h"
 
 #include <gtest/gtest.h>
+
+#include <vector>
 
 using featureform::embedding::EmbeddingStore;
 
@@ -21,4 +21,4 @@ TEST(SimpleSpace, TestPutGet) {
   ASSERT_EQ(got_space->get("a"), expected);
 }
 
-}
+}  // namespace

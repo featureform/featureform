@@ -7,14 +7,14 @@
 #include <filesystem>
 
 #include "embeddingstore/embedding_store_meta.pb.h"
-
 #include "rocksdb/db.h"
 
 namespace featureform {
 
 namespace embedding {
 
-std::shared_ptr<EmbeddingStore> EmbeddingStore::load_or_create(std::string path) {
+std::shared_ptr<EmbeddingStore> EmbeddingStore::load_or_create(
+    std::string path) {
   std::filesystem::path metadata_path = path;
   std::filesystem::create_directories(path);
   metadata_path /= "metadata";
@@ -23,14 +23,16 @@ std::shared_ptr<EmbeddingStore> EmbeddingStore::load_or_create(std::string path)
   rocksdb::DB* db_ptr;
   rocksdb::Status status = rocksdb::DB::Open(options, metadata_path, &db_ptr);
   std::unique_ptr<rocksdb::DB> db(db_ptr);
-  return std::shared_ptr<EmbeddingStore>(new EmbeddingStore(metadata_path, std::move(db)));
+  return std::shared_ptr<EmbeddingStore>(
+      new EmbeddingStore(metadata_path, std::move(db)));
 }
 
-EmbeddingStore::EmbeddingStore(std::filesystem::path base_path, std::unique_ptr<rocksdb::DB> db)
-    : base_path_{base_path}, db_{std::move(db)}, loaded_spaces_{} {
-}
+EmbeddingStore::EmbeddingStore(std::filesystem::path base_path,
+                               std::unique_ptr<rocksdb::DB> db)
+    : base_path_{base_path}, db_{std::move(db)}, loaded_spaces_{} {}
 
-std::shared_ptr<Space> EmbeddingStore::create_space(const std::string& name, int dims) {
+std::shared_ptr<Space> EmbeddingStore::create_space(const std::string& name,
+                                                    int dims) {
   if (is_space_loaded(name)) {
     return loaded_spaces_.at(name);
   }
@@ -48,7 +50,8 @@ std::shared_ptr<Space> EmbeddingStore::create_space(const std::string& name, int
   return space;
 }
 
-std::optional<std::shared_ptr<Space>> EmbeddingStore::get_space(const std::string& name) {
+std::optional<std::shared_ptr<Space>> EmbeddingStore::get_space(
+    const std::string& name) {
   if (is_space_loaded(name)) {
     return loaded_spaces_.at(name);
   }
@@ -68,5 +71,5 @@ bool EmbeddingStore::is_space_loaded(const std::string& name) const {
   return loaded_spaces_.find(name) != loaded_spaces_.end();
 }
 
-}
-}
+}  // namespace embedding
+}  // namespace featureform

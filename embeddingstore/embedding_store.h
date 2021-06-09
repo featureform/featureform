@@ -24,11 +24,12 @@ class EmbeddingStore {
   std::shared_ptr<Space> create_space(const std::string& name, int dims);
 
  private:
-  EmbeddingStore(std::filesystem::path base_path, std::unique_ptr<rocksdb::DB> db);
+  EmbeddingStore(std::filesystem::path base_path,
+                 std::unique_ptr<rocksdb::DB> db);
   bool is_space_loaded(const std::string& name) const;
   std::filesystem::path base_path_;
   std::unique_ptr<rocksdb::DB> db_;
   std::unordered_map<std::string, std::shared_ptr<Space>> loaded_spaces_;
 };
-}
-}
+}  // namespace embedding
+}  // namespace featureform

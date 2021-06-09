@@ -4,8 +4,8 @@
 
 #include "space.h"
 
-#include <iostream>
 #include <cstdlib>
+#include <iostream>
 #include <memory>
 
 #include "rocksdb/db.h"
@@ -14,22 +14,19 @@ namespace featureform {
 
 namespace embedding {
 
-std::shared_ptr<Space> Space::load_or_create(std::string path, std::string name, int dims) {
+std::shared_ptr<Space> Space::load_or_create(std::string path, std::string name,
+                                             int dims) {
   auto storage = EmbeddingStorage::load_or_create(path, dims);
   return std::unique_ptr<Space>(new Space(std::move(storage), name, dims));
 }
 
-Space::Space(std::shared_ptr<EmbeddingStorage> storage, std::string name, int dims)
-    :storage_{std::move(storage)}, name_{name}, dims_{dims}, idx_{nullptr} {
-}
+Space::Space(std::shared_ptr<EmbeddingStorage> storage, std::string name,
+             int dims)
+    : storage_{std::move(storage)}, name_{name}, dims_{dims}, idx_{nullptr} {}
 
-std::string Space::name() const {
-    return name_;
-}
+std::string Space::name() const { return name_; }
 
-int Space::dims() const {
-    return dims_;
-}
+int Space::dims() const { return dims_; }
 
 void Space::set(std::string key, std::vector<float> val) {
   storage_->set(key, val);
@@ -48,14 +45,12 @@ std::shared_ptr<const ANNIndex> Space::create_ann_index() {
   }
   idx_ = std::make_shared<ANNIndex>(dims_);
   auto iter = EmbeddingStorage::Iterator(storage_);
-  while(iter.scan()) {
+  while (iter.scan()) {
     idx_->set(iter.key(), iter.value());
   }
   return idx_;
 }
 
-std::shared_ptr<const ANNIndex> Space::get_ann_index() const {
-  return idx_;
-}
-}
-}
+std::shared_ptr<const ANNIndex> Space::get_ann_index() const { return idx_; }
+}  // namespace embedding
+}  // namespace featureform

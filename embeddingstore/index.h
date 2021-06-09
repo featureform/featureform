@@ -27,5 +27,5 @@ class ANNIndex {
   std::unordered_map<hnswlib::labeltype, std::string> label_to_key_;
   hnswlib::labeltype next_label_;
 };
-}
-}
+}  // namespace embedding
+}  // namespace featureform

@@ -19,18 +19,19 @@ std::vector<float> parse_rocks_value(const std::string& value) {
   return std::vector<float>(vals.begin(), vals.end());
 }
 
-std::shared_ptr<EmbeddingStorage> EmbeddingStorage::load_or_create(std::string path, int dims) {
+std::shared_ptr<EmbeddingStorage> EmbeddingStorage::load_or_create(
+    std::string path, int dims) {
   rocksdb::Options options;
   options.create_if_missing = true;
   rocksdb::DB* db_ptr;
   rocksdb::Status status = rocksdb::DB::Open(options, path, &db_ptr);
   std::unique_ptr<rocksdb::DB> db(db_ptr);
-  return std::unique_ptr<EmbeddingStorage>(new EmbeddingStorage(std::move(db), dims));
+  return std::unique_ptr<EmbeddingStorage>(
+      new EmbeddingStorage(std::move(db), dims));
 }
 
 EmbeddingStorage::EmbeddingStorage(std::unique_ptr<rocksdb::DB> db, int dims)
-    : db_(std::move(db)), dims_(dims) {
-}
+    : db_(std::move(db)), dims_(dims) {}
 
 void EmbeddingStorage::set(std::string key, std::vector<float> val) {
   auto proto = proto::Embedding();
@@ -46,18 +47,18 @@ std::vector<float> EmbeddingStorage::get(const std::string& key) const {
   return parse_rocks_value(serialized);
 }
 
-EmbeddingStorage::Iterator::Iterator(std::shared_ptr<EmbeddingStorage> storage) :
-    first_{true}, iter_{storage->db_->NewIterator(rocksdb::ReadOptions())} {
-    iter_->SeekToFirst();
+EmbeddingStorage::Iterator::Iterator(std::shared_ptr<EmbeddingStorage> storage)
+    : first_{true}, iter_{storage->db_->NewIterator(rocksdb::ReadOptions())} {
+  iter_->SeekToFirst();
 }
 
 bool EmbeddingStorage::Iterator::scan() {
-    if (first_) {
-        first_ = false;
-    } else {
-        iter_->Next();
-    }
-    return iter_->Valid();
+  if (first_) {
+    first_ = false;
+  } else {
+    iter_->Next();
+  }
+  return iter_->Valid();
 }
 
 std::string EmbeddingStorage::Iterator::key() {
@@ -75,5 +76,5 @@ std::optional<std::string> EmbeddingStorage::Iterator::error() {
   return std::nullopt;
 }
 
-}
-}
+}  // namespace embedding
+}  // namespace featureform

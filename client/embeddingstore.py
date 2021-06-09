@@ -30,7 +30,7 @@ class EmbeddingStoreClient:
         """
         return self._channel.close()
 
-    def set(self, key, embedding):
+    def set(self, space, key, embedding):
         """Set key to embedding on the server.
 
         Sets an embedding record with a key.

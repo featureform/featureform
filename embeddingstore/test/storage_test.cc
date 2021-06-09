@@ -22,7 +22,7 @@ TEST(EmbeddingStorage, TestSetGet) {
 }
 
 TEST(EmbeddingStorage, TestIter) {
-  std::shared_ptr storage = EmbeddingStorage::load_or_create("test.db", 3);
+  std::shared_ptr<EmbeddingStorage> storage = EmbeddingStorage::load_or_create("test.db", 3);
   std::unordered_map<std::string, std::vector<float>> vals = {
     {"a", std::vector<float>{0, 1, 0}},
     {"b", std::vector<float>{1, 0, 0}},

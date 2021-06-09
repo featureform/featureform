@@ -17,6 +17,7 @@ using ::grpc::Server;
 using ::grpc::ServerBuilder;
 using ::grpc::ServerContext;
 using ::grpc::ServerReader;
+using ::grpc::ServerReaderWriter;
 using ::grpc::Status;
 using ::featureform::embedding::proto::Embedding;
 using ::featureform::embedding::proto::GetRequest;
@@ -25,6 +26,8 @@ using ::featureform::embedding::proto::SetRequest;
 using ::featureform::embedding::proto::SetResponse;
 using ::featureform::embedding::proto::MultiSetRequest;
 using ::featureform::embedding::proto::MultiSetResponse;
+using ::featureform::embedding::proto::MultiGetRequest;
+using ::featureform::embedding::proto::MultiGetResponse;
 using ::featureform::embedding::proto::NearestNeighborRequest;
 using ::featureform::embedding::proto::NearestNeighborResponse;
 
@@ -68,11 +71,26 @@ grpc::Status EmbeddingStoreService::Set(ServerContext* context,
 grpc::Status EmbeddingStoreService::MultiSet(
     ServerContext* context, ServerReader<MultiSetRequest>* reader,
     MultiSetResponse* resp) {
-  MultiSetRequest request;
+    MultiSetRequest request;
   while (reader->Read(&request)) {
     auto vec = copy_embedding_to_vector(request.embedding());
     store_->set(request.key(), vec);
   }
+  return Status::OK;
+}
+
+grpc::Status EmbeddingStoreService::MultiGet(ServerContext* context,
+                                    ServerReaderWriter<MultiGetResponse, MultiGetRequest>* stream) {
+  MultiGetRequest request;
+  while (stream->Read(&request)) {
+    auto embedding = store_->get(request.key());
+    std::unique_ptr<Embedding> proto_embedding(new Embedding());
+    *proto_embedding->mutable_values() = {embedding.begin(), embedding.end()};
+    MultiGetResponse resp;
+    resp.set_allocated_embedding(proto_embedding.release());
+    stream->Write(resp);
+  }
+  
   return Status::OK;
 }
 

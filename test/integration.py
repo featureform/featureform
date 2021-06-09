@@ -28,19 +28,21 @@ def es_client(embedding_store_proc):
 
 
 def test_set_get(es_client):
+    space = "test"
     emb = [1, 2, 3]
-    es_client.set("a", emb)
-    assert es_client.get("a") == emb
+    es_client.set(space, "a", emb)
+    assert es_client.get(space, "a") == emb
 
 
 def test_multiset_get(es_client):
+    space = "test"
     embs = {
         "a": [1, 2, 3],
         "b": [3, 2, 1],
     }
-    es_client.multiset(embs)
+    es_client.multiset(space, embs)
     for key, emb in embs.items():
-        assert es_client.get(key) == emb
+        assert es_client.get(space, key) == emb
 
 def test_multiset_multiget(es_client):
     embs = {

@@ -43,6 +43,7 @@ std::shared_ptr<Space> EmbeddingStore::create_space(const std::string& name, int
   entry.SerializeToString(&serialized);
   db_->Put(rocksdb::WriteOptions(), name, serialized);
   auto space = Space::load_or_create(path, name, dims);
+  space->create_ann_index();
   loaded_spaces_.emplace(name, space);
   return space;
 }

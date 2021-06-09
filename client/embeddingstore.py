@@ -76,8 +76,8 @@ class EmbeddingStoreClient:
         it = self._embedding_dict_iter(space, embedding_dict)
         self._stub.MultiSet(it)
     
-    def multiget(self, keys):
-        it = self._key_iter(keys)
+    def multiget(self, space, keys):
+        it = self._key_iter(space, keys)
         return self._embedding_iter(self._stub.MultiGet(it))
 
 
@@ -109,9 +109,10 @@ class EmbeddingStoreClient:
             req.embedding.values[:] = embedding
             yield req
 
-    def _key_iter(self, keys):
+    def _key_iter(self, space, keys):
         for key in keys:
             req = embedding_store_pb2.MultiGetRequest()
+            req.space = space
             req.key = key
             yield req
 

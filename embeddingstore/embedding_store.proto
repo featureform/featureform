@@ -45,6 +45,7 @@ message MultiSetResponse {
 
 message MultiGetRequest {
   string key = 1;
+  string space = 2;
 }
 
 message MultiGetResponse {

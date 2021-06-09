@@ -17,6 +17,7 @@ service EmbeddingStore {
 message SetRequest {
   string key = 1;
   Embedding embedding = 2;
+  string space = 3;
 }
 
 message SetResponse {
@@ -25,6 +26,7 @@ message SetResponse {
 
 message GetRequest {
   string key = 1;
+  string space = 2;
 }
 
 message GetResponse {
@@ -34,6 +36,7 @@ message GetResponse {
 message MultiSetRequest {
   string key = 1;
   Embedding embedding = 2;
+  string space = 3;
 }
 
 message MultiSetResponse {
@@ -51,6 +54,7 @@ message MultiGetResponse {
 message NearestNeighborRequest {
     string key = 1;
     int32 num = 2;
+    string space = 3;
 }
 
 message NearestNeighborResponse {

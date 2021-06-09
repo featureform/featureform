@@ -51,13 +51,12 @@ class EmbeddingStoreClient:
     def get(self, space, key):
         """Retrieves an embedding record from the server.
     
-        Args: 
+        Args:
             space: The name of the space to write to.
             key: The embedding index for retrieval.
 
         Returns:
-            A dictionary from key to embedding, where key is a string and 
-            embedding is a python list.        
+            An embedding, which is a python list of floats.
         """
         resp = self._stub.Get(embedding_store_pb2.GetRequest(space=space, key=key))
         return resp.embedding.values
@@ -68,7 +67,7 @@ class EmbeddingStoreClient:
         Take a dictionary of key embedding pairs and set them on the server.
         example: {'key': embedding_pairs}
 
-        Args: 
+        Args:
             space: The name of the space to write to.
             embedding_dict: A dictionary from key to embedding, where key is a string and 
             embedding is a python list.
@@ -77,6 +76,17 @@ class EmbeddingStoreClient:
         self._stub.MultiSet(it)
     
     def multiget(self, space, keys):
+        """Get multiple embeddings at once.
+
+        Get multiple embeddings by key in the same space.
+
+        Args:
+            space: The name of the space to get from.
+            keys: A list of embedding indices for retrieval.
+
+        Returns:
+            A list of embeddings.
+        """
         it = self._key_iter(space, keys)
         return self._embedding_iter(self._stub.MultiGet(it))
 
@@ -84,7 +94,7 @@ class EmbeddingStoreClient:
     def nearest_neighbor(self, space, key, num):
         """Finds N nearest neighbors for a given embedding record.
 
-        Args: 
+        Args:
             space: The name of the space to retrieve from.
             key: The embedding index for retrieval.
             num: The number of nearest neighbors.
@@ -96,11 +106,15 @@ class EmbeddingStoreClient:
         return self._stub.NearestNeighbor(req).keys
 
     def _embedding_dict_iter(self, space, embedding_dict):
-        """Create an iterator from an embedding dict.
+        """Create a MultiSetRequest iterator from a space and an embedding dict.
 
-        Args: 
+        Args:
+            space: The name of the space to set in the MultiSetRequests.
             embedding_dict: A dictionary from key to embedding, where key is a string and 
-            embedding is a python list.
+            embedding is a python list. These will be transformed into MutliSetRequests.
+
+        Returns:
+            An iterator of MultiSetRequest.
         """
         for key, embedding in embedding_dict.items():
             req = embedding_store_pb2.MultiSetRequest()
@@ -110,6 +124,15 @@ class EmbeddingStoreClient:
             yield req
 
     def _key_iter(self, space, keys):
+        """Create an MultiGetRequest iterator from a list of keys and a space.
+
+        Args:
+            space: The name of the space to set in the MultiGetRequests.
+            keys: A list of keys to turn into MultiGetRequests.
+
+        Returns:
+            An iterator of MultiGetRequest.
+        """
         for key in keys:
             req = embedding_store_pb2.MultiGetRequest()
             req.space = space
@@ -117,6 +140,14 @@ class EmbeddingStoreClient:
             yield req
 
     def _embedding_iter(self, resps):
+        """Unwrap an iterator of MultiGetResponse
+
+        Args:
+            resps: An iterator of MultiGetResponse
+
+        Returns:
+            An iterator of embeddings.
+        """
         for resp in resps:
             yield resp.embedding.values
 

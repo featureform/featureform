@@ -1,7 +1,6 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v.2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
-
 """ 
 This module provides a client to talk to the embedding store server. 
 
@@ -58,7 +57,8 @@ class EmbeddingStoreClient:
         Returns:
             An embedding, which is a python list of floats.
         """
-        resp = self._stub.Get(embedding_store_pb2.GetRequest(space=space, key=key))
+        resp = self._stub.Get(
+            embedding_store_pb2.GetRequest(space=space, key=key))
         return resp.embedding.values
 
     def multiset(self, space, embedding_dict):
@@ -74,7 +74,7 @@ class EmbeddingStoreClient:
         """
         it = self._embedding_dict_iter(space, embedding_dict)
         self._stub.MultiSet(it)
-    
+
     def multiget(self, space, keys):
         """Get multiple embeddings at once.
 
@@ -90,7 +90,6 @@ class EmbeddingStoreClient:
         it = self._key_iter(space, keys)
         return self._embedding_iter(self._stub.MultiGet(it))
 
-
     def nearest_neighbor(self, space, key, num):
         """Finds N nearest neighbors for a given embedding record.
 
@@ -102,7 +101,9 @@ class EmbeddingStoreClient:
         Returns:
             A num size list of embedding vectors that are closest to the provided vector embedding.
         """
-        req = embedding_store_pb2.NearestNeighborRequest(space=space, key=key, num=num)
+        req = embedding_store_pb2.NearestNeighborRequest(space=space,
+                                                         key=key,
+                                                         num=num)
         return self._stub.NearestNeighbor(req).keys
 
     def _embedding_dict_iter(self, space, embedding_dict):
@@ -150,4 +151,3 @@ class EmbeddingStoreClient:
         """
         for resp in resps:
             yield resp.embedding.values
-

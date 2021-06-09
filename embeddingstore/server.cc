@@ -83,7 +83,7 @@ grpc::Status EmbeddingStoreService::MultiGet(ServerContext* context,
                                     ServerReaderWriter<MultiGetResponse, MultiGetRequest>* stream) {
   MultiGetRequest request;
   while (stream->Read(&request)) {
-    auto embedding = store_->get(request.key());
+    auto embedding = store_->create_space(request.space(), 3)->get(request.key());
     std::unique_ptr<Embedding> proto_embedding(new Embedding());
     *proto_embedding->mutable_values() = {embedding.begin(), embedding.end()};
     MultiGetResponse resp;

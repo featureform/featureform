@@ -15,26 +15,27 @@ from embeddingstore import EmbeddingStoreClient
 
 # When run, it takes a command per line:
 # Either:
-# get [key]
+# get [space] [key]
 # OR
-# set [key] [values...]
+# set [space] [key] [values...]
 if __name__ == '__main__':
     client = EmbeddingStoreClient()
     for line in sys.stdin:
         line = line.rstrip()
         tokens = line.split()
-        if len(tokens) < 2:
+        if len(tokens) < 3:
             print("INVALID COMMAND")
         cmd = tokens[0]
-        key = tokens[1]
+        space = tokens[1]
+        key = tokens[2]
         if cmd == "get":
-            print(client.get(key))
+            print(client.get(space, key))
         elif cmd == "set":
-            val = [float(tok) for tok in tokens[2:]]
-            client.set(key, val)
+            val = [float(tok) for tok in tokens[3:]]
+            client.set(space, key, val)
             print("SUCCESS")
         elif cmd == "nn":
-            num = int(tokens[2])
-            print(client.nearest_neighbor(key, num))
+            num = int(tokens[3])
+            print(client.nearest_neighbor(space, key, num))
         else:
             print("UNKNOWN COMMAND")

@@ -53,7 +53,7 @@ bool remove_uniq_value(std::vector<T>& vec, T val) {
 grpc::Status EmbeddingStoreService::Get(ServerContext* context,
                                         const GetRequest* request,
                                         GetResponse* resp) {
-  auto embedding = store_->get(request->key());
+  auto embedding = store_->create_space(request->space(), 3)->get(request->key());
   std::unique_ptr<Embedding> proto_embedding(new Embedding());
   *proto_embedding->mutable_values() = {embedding.begin(), embedding.end()};
   resp->set_allocated_embedding(proto_embedding.release());
@@ -64,7 +64,7 @@ grpc::Status EmbeddingStoreService::Set(ServerContext* context,
                                         const SetRequest* request,
                                         SetResponse* resp) {
   auto vec = copy_embedding_to_vector(request->embedding());
-  store_->set(request->key(), vec);
+  store_->create_space(request->space(), 3)->set(request->key(), vec);
   return Status::OK;
 }
 
@@ -74,7 +74,7 @@ grpc::Status EmbeddingStoreService::MultiSet(
     MultiSetRequest request;
   while (reader->Read(&request)) {
     auto vec = copy_embedding_to_vector(request.embedding());
-    store_->set(request.key(), vec);
+    store_->create_space(request.space(), 3)->set(request.key(), vec);
   }
   return Status::OK;
 }
@@ -97,9 +97,10 @@ grpc::Status EmbeddingStoreService::MultiGet(ServerContext* context,
 grpc::Status EmbeddingStoreService::NearestNeighbor(
     ServerContext* context, const NearestNeighborRequest* request,
     NearestNeighborResponse* resp) {
+    auto space = store_->create_space(request->space(), 3);
     auto ref_key = request->key();
-    auto ref_vec = store_->get(ref_key);
-    auto nearest = store_->get_ann_index()->approx_nearest(ref_vec, request->num() + 1);
+    auto ref_vec = space->get(ref_key);
+    auto nearest = space->get_ann_index()->approx_nearest(ref_vec, request->num() + 1);
     if(!remove_uniq_value(nearest, request->key())) {
         nearest.pop_back();
     }
@@ -114,8 +115,7 @@ using featureform::embedding::EmbeddingStoreService;
 
 void RunServer() {
   std::string server_address("0.0.0.0:50051");
-  auto store = EmbeddingStore::load_or_create("embedding_store.dat", 3);
-  store->create_ann_index();
+  auto store = EmbeddingStore::load_or_create("embedding_store.dat");
   auto service = EmbeddingStoreService(std::move(store));
 
   grpc::EnableDefaultHealthCheckService(true);

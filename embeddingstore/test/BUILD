@@ -17,8 +17,8 @@ cc_test(
 cc_test(
     name = "space_test",
     srcs = [
-        "space_test.cc",
         "main_test.cc",
+        "space_test.cc",
     ],
     deps = [
         "//embeddingstore:space",

@@ -44,6 +44,7 @@ def test_multiset_get(es_client):
     for key, emb in embs.items():
         assert es_client.get(space, key) == emb
 
+
 def test_multiset_multiget(es_client):
     space = "test"
     embs = {
@@ -54,6 +55,7 @@ def test_multiset_multiget(es_client):
     resp_embs = es_client.multiget(space, embs.keys())
     resp_emb_dict = {key: val for key, val in zip(embs.keys(), resp_embs)}
     assert embs == resp_emb_dict
+
 
 def test_multi_space(es_client):
     key = "key"

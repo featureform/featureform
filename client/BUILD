@@ -45,9 +45,9 @@ py_proto_library(
 
 filegroup(
     name = "all_source_files",
-    srcs = [
+    srcs = glob([
         "BUILD",
-        glob(["*.py"]),
-    ],
+        "*.py",
+    ]),
     visibility = ["//visibility:public"],
 )

@@ -52,11 +52,11 @@ cc_test(
 
 filegroup(
     name = "all_source_files",
-    srcs = [
+    srcs = glob([
         "BUILD",
-        glob(["*.cc"]),
-        glob(["*.h"]),
-        glob(["*.proto"]),
-    ],
+        "*.cc",
+        "*.h",
+        "*.proto",
+    ]),
     visibility = ["//visibility:public"],
 )

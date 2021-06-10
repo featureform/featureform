@@ -14,3 +14,13 @@ py_test(
         "//client",
     ],
 )
+
+filegroup(
+    name = "all_source_files",
+    srcs = [
+        "BUILD",
+        glob(["*.py"]),
+        "requirements.txt",
+    ],
+    visibility = ["//visibility:public"],
+)

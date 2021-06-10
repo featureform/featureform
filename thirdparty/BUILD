@@ -6,7 +6,9 @@ filegroup(
     name = "all_source_files",
     srcs = [
         "BUILD",
-        "BUILD.bzl",
+        "expected:all_source_files",
+        "hnswlib:all_source_files",
+        "rocksdb:all_source_files",
     ],
     visibility = ["//visibility:public"],
 )

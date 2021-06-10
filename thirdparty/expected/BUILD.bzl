@@ -12,5 +12,5 @@ genrule(
     name = "header_mv",
     srcs = ["include/tl/expected.hpp"],
     outs = ["tl/expected.h"],
-    cmd  = "mkdir tl && mv $(location include/tl/expected.hpp) $(location tl/expected.h)",
+    cmd = "mkdir tl && mv $(location include/tl/expected.hpp) $(location tl/expected.h)",
 )

@@ -49,3 +49,14 @@ cc_test(
         "@gtest",
     ],
 )
+
+filegroup(
+    name = "all_source_files",
+    srcs = [
+        "BUILD",
+        glob(["*.cc"]),
+        glob(["*.h"]),
+        glob(["*.proto"]),
+    ],
+    visibility = ["//visibility:public"],
+)

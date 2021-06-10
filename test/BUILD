@@ -17,10 +17,10 @@ py_test(
 
 filegroup(
     name = "all_source_files",
-    srcs = [
+    srcs = glob([
         "BUILD",
-        glob(["*.py"]),
+        "*.py",
         "requirements.txt",
-    ],
+    ]),
     visibility = ["//visibility:public"],
 )

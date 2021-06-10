@@ -153,12 +153,12 @@ cc_library(
 
 filegroup(
     name = "all_source_files",
-    srcs = [
+    srcs = glob([
         "BUILD",
-        glob(["*.cc"]),
-        glob(["*.h"]),
-        glob(["*.proto"]),
-        "//test:all_source_files",
-    ],
+        "*.cc",
+        "*.h",
+        "*.proto",
+        "test:all_source_files",
+    ]),
     visibility = ["//visibility:public"],
 )

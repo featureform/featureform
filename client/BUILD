@@ -42,3 +42,12 @@ py_proto_library(
     ],
     deps = ["//embeddingstore:embedding_store_proto"],
 )
+
+filegroup(
+    name = "all_source_files",
+    srcs = [
+        "BUILD",
+        glob(["*.py"]),
+    ],
+    visibility = ["//visibility:public"],
+)

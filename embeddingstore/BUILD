@@ -150,3 +150,15 @@ cc_library(
         ":space",
     ],
 )
+
+filegroup(
+    name = "all_source_files",
+    srcs = [
+        "BUILD",
+        glob(["*.cc"]),
+        glob(["*.h"]),
+        glob(["*.proto"]),
+        "//test:all_source_files",
+    ],
+    visibility = ["//visibility:public"],
+)

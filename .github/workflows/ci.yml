@@ -20,6 +20,9 @@ jobs:
               path: "/home/runner/.cache/bazel"
               key: "bazel"
 
+        - name: Lint
+          run: ./lint.sh
+
         - name: Build
           run: bazel build --config linux //...
 

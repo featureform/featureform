@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then 
         sudo apt-get install libgflags-dev
         sudo apt-get install libsnappy-dev

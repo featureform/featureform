@@ -25,4 +25,3 @@ jobs:
 
         - name: Test
           run: bazel test --config linux //...
-        

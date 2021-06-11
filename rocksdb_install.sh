@@ -11,4 +11,7 @@ if [[ "$OSTYPE" == "linux-gnu"* ]]; then
         sudo apt-get install libzstd-dev
 elif [[ "$OSTYPE" == "darwin"* ]]; then
         brew install rocksdb
+else
+        echo "OS Type not supported"
+        exit 1
 fi

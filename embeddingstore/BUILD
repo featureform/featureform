@@ -151,6 +151,17 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "error",
+    hdrs =
+        [
+            "error.h",
+        ],
+    visibility = [
+        "//visibility:public",
+    ],
+);
+
 filegroup(
     name = "all_source_files",
     srcs = glob([

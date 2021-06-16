@@ -14,5 +14,25 @@ class Error {
   virtual std::string type() = 0;
 };
 
+class RocksDBError : public Error {
+ public:
+  static std::optional<RocksDBError> parse_optional(
+      const rocksdb::Status status) {
+    if (status.ok()) {
+      return std::nullopt;
+    }
+    return RocksDBError(status);
+  }
+
+  RocksDBError(const rocksdb::Status status) : status_{status} {}
+
+  std::string to_string() const { return status_.ToString(); }
+
+  std::string type() const { return "RocksDBError"; }
+
+ private:
+  rocksdb::Status status_;
+}
+
 }  // namespace embedding
 }  // namespace featureform

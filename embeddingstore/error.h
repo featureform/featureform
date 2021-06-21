@@ -4,26 +4,29 @@
 
 #pragma once
 
+#include <memory>
+
 #include "rocksdb/status.h"
 
 namespace featureform {
 
 namespace embedding {
 
-class Error {
+class ErrorBase {
  public:
+  virtual ~ErrorBase(){};
   virtual std::string to_string() const = 0;
   virtual std::string type() const = 0;
 };
 
-class RocksDBError : public Error {
+class RocksDBError : public ErrorBase {
  public:
-  static std::optional<RocksDBError> parse_optional(
+  static std::unique_ptr<RocksDBError> parse_optional(
       const rocksdb::Status status) {
     if (status.ok()) {
-      return std::nullopt;
+      return nullptr;
     }
-    return RocksDBError(status);
+    return std::make_unique<RocksDBError>(status);
   }
 
   RocksDBError(const rocksdb::Status status) : status_{status} {}
@@ -34,7 +37,9 @@ class RocksDBError : public Error {
 
  private:
   rocksdb::Status status_;
-}
+};
+
+using Error = std::unique_ptr<ErrorBase>;
 
 }  // namespace embedding
 }  // namespace featureform

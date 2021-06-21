@@ -12,8 +12,8 @@ namespace embedding {
 
 class Error {
  public:
-  virtual std::string to_string() = 0;
-  virtual std::string type() = 0;
+  virtual std::string to_string() const = 0;
+  virtual std::string type() const = 0;
 };
 
 class RocksDBError : public Error {
@@ -28,9 +28,9 @@ class RocksDBError : public Error {
 
   RocksDBError(const rocksdb::Status status) : status_{status} {}
 
-  std::string to_string() const { return status_.ToString(); }
+  std::string to_string() const override { return status_.ToString(); }
 
-  std::string type() const { return "RocksDBError"; }
+  std::string type() const override { return "RocksDBError"; }
 
  private:
   rocksdb::Status status_;

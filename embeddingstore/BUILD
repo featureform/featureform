@@ -160,7 +160,10 @@ cc_library(
     visibility = [
         "//visibility:public",
     ],
-);
+    deps = [
+        "@rocksdb",
+    ],
+)
 
 filegroup(
     name = "all_source_files",

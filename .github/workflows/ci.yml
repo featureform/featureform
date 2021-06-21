@@ -12,9 +12,7 @@ jobs:
             python-version: "2.7"
 
         - name: Install deps
-          run: |
-              sudo apt-get install libsnappy-dev libzstd-dev liblz4-dev && \
-              ./install_test_deps.sh
+          run: bash rocksdb_install.sh
         - name: Mount bazel cache
           uses: actions/cache@v1
           with:

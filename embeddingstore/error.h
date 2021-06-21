@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "rocksdb/status.h"
+
 namespace featureform {
 
 namespace embedding {

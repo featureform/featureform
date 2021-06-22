@@ -15,6 +15,18 @@ cc_test(
 )
 
 cc_test(
+    name = "metadata_test",
+    srcs = [
+        "main_test.cc",
+        "metadata_test.cc",
+    ],
+    deps = [
+        "//embeddingstore:metadata",
+        "@gtest",
+    ],
+)
+
+cc_test(
     name = "space_test",
     srcs = [
         "main_test.cc",

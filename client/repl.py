@@ -14,9 +14,10 @@ from embeddingstore import EmbeddingStoreClient
 
 # When run, it takes a command per line:
 # Either:
+# create [space] [dims]
 # get [space] [key]
-# OR
 # set [space] [key] [values...]
+# nn [space] [key] [num]
 if __name__ == '__main__':
     client = EmbeddingStoreClient()
     for line in sys.stdin:
@@ -27,7 +28,10 @@ if __name__ == '__main__':
         cmd = tokens[0]
         space = tokens[1]
         key = tokens[2]
-        if cmd == "get":
+        if cmd == "create":
+            client.create_space(space, key)
+            print("SUCCESS")
+        elif cmd == "get":
             print(client.get(space, key))
         elif cmd == "set":
             val = [float(tok) for tok in tokens[3:]]

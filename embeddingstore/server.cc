@@ -13,6 +13,8 @@
 #include <memory>
 #include <string>
 
+using ::featureform::embedding::proto::CreateSpaceRequest;
+using ::featureform::embedding::proto::CreateSpaceResponse;
 using ::featureform::embedding::proto::Embedding;
 using ::featureform::embedding::proto::GetRequest;
 using ::featureform::embedding::proto::GetResponse;
@@ -48,6 +50,13 @@ bool remove_uniq_value(std::vector<T>& vec, T val) {
     return true;
   }
   return false;
+}
+
+grpc::Status EmbeddingStoreService::CreateSpace(
+    ServerContext* context, const CreateSpaceRequest* request,
+    CreateSpaceResponse* resp) {
+  store_->create_space(request->name(), request->dims());
+  return Status::OK;
 }
 
 grpc::Status EmbeddingStoreService::Get(ServerContext* context,

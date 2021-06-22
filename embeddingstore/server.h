@@ -18,6 +18,10 @@ class EmbeddingStoreService final : public proto::EmbeddingStore::Service {
   EmbeddingStoreService(std::shared_ptr<EmbeddingStore> store)
       : store_(std::move(store)){};
 
+  grpc::Status CreateSpace(grpc::ServerContext* context,
+                           const proto::CreateSpaceRequest* request,
+                           proto::CreateSpaceResponse* resp) override;
+
   grpc::Status MultiSet(grpc::ServerContext* context,
                         grpc::ServerReader<proto::MultiSetRequest>* reader,
                         proto::MultiSetResponse* resp) override;

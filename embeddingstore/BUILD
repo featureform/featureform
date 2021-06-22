@@ -152,6 +152,27 @@ cc_library(
 )
 
 cc_library(
+    name = "metadata",
+    srcs =
+        [
+            "metadata.cc",
+        ],
+    hdrs =
+        [
+            "metadata.h",
+        ],
+    visibility = [
+        "//visibility:public",
+    ],
+    deps = [
+        ":embedding_store_meta_cc_proto",
+        ":error",
+        "@expected",
+        "@rocksdb",
+    ],
+)
+
+cc_library(
     name = "error",
     hdrs =
         [

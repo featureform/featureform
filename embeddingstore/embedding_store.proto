@@ -7,11 +7,21 @@ syntax = "proto3";
 package featureform.embedding.proto;
 
 service EmbeddingStore {
+  rpc CreateSpace(CreateSpaceRequest) returns (CreateSpaceResponse) {}
   rpc Set(SetRequest) returns (SetResponse) {}
   rpc Get(GetRequest) returns (GetResponse) {}
   rpc MultiSet(stream MultiSetRequest) returns (MultiSetResponse) {}
   rpc MultiGet(stream MultiGetRequest) returns (stream MultiGetResponse) {}
   rpc NearestNeighbor(NearestNeighborRequest)  returns (NearestNeighborResponse) {}
+}
+
+message CreateSpaceRequest {
+  string name = 1;
+  uint32 dims = 2;
+}
+
+message CreateSpaceResponse {
+  // Purposely empty.
 }
 
 message SetRequest {

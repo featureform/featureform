@@ -6,8 +6,14 @@ syntax = "proto3";
 
 package featureform.embedding.proto;
 
-message SpaceEntry {
+message SpaceMetaValue {
   string path = 1;
   string name = 2;
-  int32 dims = 3;
+}
+
+message VersionMetaValue {
+  string path = 1;
+  string space = 2;
+  string name = 3;
+  uint32 dims = 4;
 }

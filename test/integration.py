@@ -30,6 +30,7 @@ def es_client(embedding_store_proc):
 def test_set_get(es_client):
     space = "test"
     emb = [1, 2, 3]
+    es_client.create_space(space, 3)
     es_client.set(space, "a", emb)
     assert es_client.get(space, "a") == emb
 
@@ -40,6 +41,7 @@ def test_multiset_get(es_client):
         "a": [1, 2, 3],
         "b": [3, 2, 1],
     }
+    es_client.create_space(space, 3)
     es_client.multiset(space, embs)
     for key, emb in embs.items():
         assert es_client.get(space, key) == emb
@@ -51,6 +53,7 @@ def test_multiset_multiget(es_client):
         "a": [1, 2, 3],
         "b": [3, 2, 1],
     }
+    es_client.create_space(space, 3)
     es_client.multiset(space, embs)
     resp_embs = es_client.multiget(space, embs.keys())
     resp_emb_dict = {key: val for key, val in zip(embs.keys(), resp_embs)}
@@ -63,6 +66,8 @@ def test_multi_space(es_client):
         "a": [1, 2, 3],
         "b": [3, 2, 1],
     }
+    for space in embs.keys():
+        es_client.create_space(space, 3)
     for space, emb in embs.items():
         es_client.set(space, key, emb)
 

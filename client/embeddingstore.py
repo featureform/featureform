@@ -29,6 +29,23 @@ class EmbeddingStoreClient:
         """
         return self._channel.close()
 
+    def create_space(self, name, dims):
+        """Create a new space in the embedding store.
+
+        A space is essentially a table. It can contain multiple different
+        version and also be immutable. This method creates a new space with
+        the given number of dimensions.
+
+        Args:
+            space: The name of the space to create.
+            dims: The number of dimensions that an embedding in the space will
+            have.
+        """
+        req = embedding_store_pb2.CreateSpaceRequest()
+        req.name = name
+        req.dims = dims
+        self._stub.CreateSpace(req)
+
     def set(self, space, key, embedding):
         """Set key to embedding on the server.
 

@@ -13,7 +13,7 @@ jobs:
 
         - name: Install deps
           run: |
-                bash rocksdb_install.sh && \
+              bash rocksdb_install.sh && \
               ./install_test_deps.sh
         - name: Mount bazel cache
           uses: actions/cache@v1

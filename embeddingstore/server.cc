@@ -95,7 +95,11 @@ grpc::Status EmbeddingStoreService::Set(ServerContext* context,
   if (!space_opt) {
     return Status(StatusCode::NOT_FOUND, "Space not found");
   }
-  (*space_opt)->set(request->key(), vec);
+  auto err = (*space_opt)->set(request->key(), vec);
+  if (err != nullptr) {
+    return Status(StatusCode::FAILED_PRECONDITION,
+                  "Cannot write to immutable space");
+  }
   return Status::OK;
 }
 
@@ -109,7 +113,11 @@ grpc::Status EmbeddingStoreService::MultiSet(
     if (!space_opt) {
       return Status(StatusCode::NOT_FOUND, "Space not found");
     }
-    (*space_opt)->set(request.key(), vec);
+    auto err = (*space_opt)->set(request.key(), vec);
+    if (err != nullptr) {
+      return Status(StatusCode::FAILED_PRECONDITION,
+                    "Cannot write to immutable space");
+    }
   }
   return Status::OK;
 }

@@ -35,6 +35,17 @@ def test_set_get(es_client):
     assert es_client.get(space, "a") == emb
 
 
+def test_immutable_set(es_client):
+    space = "test"
+    emb = [1, 2, 3]
+    es_client.create_space(space, 3)
+    es_client.set(space, "a", emb)
+    assert es_client.get(space, "a") == emb
+    es_client.freeze_space(space)
+    with pytest.raises(TypeError):
+        es_client.set(space, "a", emb)
+
+
 def test_multiset_get(es_client):
     space = "test"
     embs = {

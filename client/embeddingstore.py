@@ -37,7 +37,7 @@ class EmbeddingStoreClient:
         the given number of dimensions.
 
         Args:
-            space: The name of the space to create.
+            name: The name of the space to create.
             dims: The number of dimensions that an embedding in the space will
             have.
         """
@@ -45,6 +45,19 @@ class EmbeddingStoreClient:
         req.name = name
         req.dims = dims
         self._stub.CreateSpace(req)
+
+    def freeze_space(self, name):
+        """Make an existing space immutable.
+
+        After this call, the space cannot be updated. This call cannot be
+        reversed.
+
+        Args:
+            name: The name of the space to freeze.
+        """
+        req = embedding_store_pb2.FreezeSpaceRequest()
+        req.name = name
+        self._stub.FreezeSpace(req)
 
     def set(self, space, key, embedding):
         """Set key to embedding on the server.
@@ -62,7 +75,12 @@ class EmbeddingStoreClient:
         req.space = space
         req.key = key
         req.embedding.values[:] = embedding
-        self._stub.Set(req)
+        try:
+            self._stub.Set(req)
+        except grpc.RpcError as e:
+            if e.code() == grpc.StatusCode.FAILED_PRECONDITION:
+                raise TypeError(e.details())
+            raise
 
     def get(self, space, key):
         """Retrieves an embedding record from the server.

@@ -14,7 +14,7 @@ using featureform::embedding::Space;
 namespace {
 
 TEST(SimpleSpace, TestPutGet) {
-  auto store = Space::load_or_create("test.abc", "test", 3);
+  auto store = Space::load_or_create("SimpleSpace_TestPutGet", "test", 3);
   auto set_err = store->set("a", std::vector<float>{1.1, 1.2, 1.3});
   ASSERT_EQ(set_err, nullptr);
   std::vector<float> expected{1.1, 1.2, 1.3};
@@ -36,7 +36,7 @@ TEST(SimpleSpace, TestImmutable) {
 TEST(SimpleSpace, TestGetters) {
   auto name = "test";
   auto dims = 3;
-  auto store = Space::load_or_create("test.abc", name, dims);
+  auto store = Space::load_or_create("SimpleSpace_TestGetters", name, dims);
   ASSERT_EQ(store->name(), name);
   ASSERT_EQ(store->dims(), 3);
 }

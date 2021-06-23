@@ -15,7 +15,8 @@ namespace {
 
 TEST(SimpleSpace, TestPutGet) {
   auto store = Space::load_or_create("test.abc", "test", 3);
-  store->set("a", std::vector<float>{1.1, 1.2, 1.3});
+  auto set_err = store->set("a", std::vector<float>{1.1, 1.2, 1.3});
+  ASSERT_EQ(set_err, nullptr);
   std::vector<float> expected{1.1, 1.2, 1.3};
   ASSERT_EQ(store->get("a"), expected);
 }

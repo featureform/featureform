@@ -8,6 +8,7 @@ package featureform.embedding.proto;
 
 service EmbeddingStore {
   rpc CreateSpace(CreateSpaceRequest) returns (CreateSpaceResponse) {}
+  rpc FreezeSpace(FreezeSpaceRequest) returns (FreezeSpaceResponse) {}
   rpc Set(SetRequest) returns (SetResponse) {}
   rpc Get(GetRequest) returns (GetResponse) {}
   rpc MultiSet(stream MultiSetRequest) returns (MultiSetResponse) {}
@@ -21,6 +22,14 @@ message CreateSpaceRequest {
 }
 
 message CreateSpaceResponse {
+  // Purposely empty.
+}
+
+message FreezeSpaceRequest {
+  string name = 1;
+}
+
+message FreezeSpaceResponse {
   // Purposely empty.
 }
 

@@ -20,6 +20,18 @@ TEST(SimpleSpace, TestPutGet) {
   ASSERT_EQ(store->get("a"), expected);
 }
 
+TEST(SimpleSpace, TestImmutable) {
+  auto store = Space::load_or_create("SimpleSpace_TestImmutable", "test", 3);
+  std::vector<float> expected{1.1, 1.2, 1.3};
+  auto set_err = store->set("a", std::vector<float>{1.1, 1.2, 1.3});
+  ASSERT_EQ(set_err, nullptr);
+  ASSERT_EQ(store->get("a"), expected);
+  store->make_immutable();
+  set_err = store->set("a", std::vector<float>{1.1, 1.2, 1.3});
+  ASSERT_NE(set_err, nullptr);
+  ASSERT_EQ(store->get("a"), expected);
+}
+
 TEST(SimpleSpace, TestGetters) {
   auto name = "test";
   auto dims = 3;

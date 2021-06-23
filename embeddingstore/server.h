@@ -22,6 +22,10 @@ class EmbeddingStoreService final : public proto::EmbeddingStore::Service {
                            const proto::CreateSpaceRequest* request,
                            proto::CreateSpaceResponse* resp) override;
 
+  grpc::Status FreezeSpace(grpc::ServerContext* context,
+                           const proto::FreezeSpaceRequest* request,
+                           proto::FreezeSpaceResponse* resp) override;
+
   grpc::Status MultiSet(grpc::ServerContext* context,
                         grpc::ServerReader<proto::MultiSetRequest>* reader,
                         proto::MultiSetResponse* resp) override;

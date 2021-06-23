@@ -16,6 +16,8 @@
 using ::featureform::embedding::proto::CreateSpaceRequest;
 using ::featureform::embedding::proto::CreateSpaceResponse;
 using ::featureform::embedding::proto::Embedding;
+using ::featureform::embedding::proto::FreezeSpaceRequest;
+using ::featureform::embedding::proto::FreezeSpaceResponse;
 using ::featureform::embedding::proto::GetRequest;
 using ::featureform::embedding::proto::GetResponse;
 using ::featureform::embedding::proto::MultiGetRequest;
@@ -57,6 +59,17 @@ grpc::Status EmbeddingStoreService::CreateSpace(
     ServerContext* context, const CreateSpaceRequest* request,
     CreateSpaceResponse* resp) {
   store_->create_space(request->name(), request->dims());
+  return Status::OK;
+}
+
+grpc::Status EmbeddingStoreService::FreezeSpace(
+    ServerContext* context, const FreezeSpaceRequest* request,
+    FreezeSpaceResponse* resp) {
+  auto space_opt = store_->get_space(request->name());
+  if (!space_opt) {
+    return Status(StatusCode::NOT_FOUND, "Space not found");
+  }
+  space_opt.value()->make_immutable();
   return Status::OK;
 }
 

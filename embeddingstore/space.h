@@ -6,8 +6,10 @@
 
 #include <memory>
 #include <optional>
+#include <sstream>
 #include <unordered_map>
 
+#include "error.h"
 #include "index.h"
 #include "storage.h"
 
@@ -18,19 +20,24 @@ namespace embedding {
 class Space {
  public:
   static std::shared_ptr<Space> load_or_create(std::string path,
-                                               std::string name, int dims);
-  void set(std::string key, std::vector<float> value);
+                                               std::string name, int dims,
+                                               bool immutable = false);
+  Error set(std::string key, std::vector<float> value);
   std::string name() const;
   int dims() const;
+  bool immutable() const;
+  void make_immutable();
   std::vector<float> get(const std::string& key) const;
   std::shared_ptr<const ANNIndex> create_ann_index();
   std::shared_ptr<const ANNIndex> get_ann_index() const;
 
  private:
-  Space(std::shared_ptr<EmbeddingStorage> storage, std::string name, int dims);
+  Space(std::shared_ptr<EmbeddingStorage> storage, std::string name, int dims,
+        bool immutable);
   std::shared_ptr<EmbeddingStorage> storage_;
   std::string name_;
   int dims_;
+  bool immutable_;
   std::shared_ptr<ANNIndex> idx_;
 };
 

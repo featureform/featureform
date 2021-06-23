@@ -126,6 +126,7 @@ cc_library(
         "//visibility:public",
     ],
     deps = [
+        ":error",
         ":index",
         ":storage",
         "@rocksdb",

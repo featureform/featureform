@@ -33,5 +33,22 @@ class Space {
   int dims_;
   std::shared_ptr<ANNIndex> idx_;
 };
+
+class UpdateImmutableSpaceError : public ErrorBase {
+ public:
+  static Error create(std::string space) {
+    return std::make_unique<UpdateImmutableSpaceError>(space);
+  }
+  UpdateImmutableSpaceError(std::string space) : space_{space} {};
+  std::string to_string() const override {
+    std::ostringstream stream;
+    stream << "Cannot update " << space_ << ": space is immutable.";
+    return stream.str();
+  };
+  std::string type() const override { return "UpdateImmutableSpaceError"; }
+
+ private:
+  std::string space_;
+};
 }  // namespace embedding
 }  // namespace featureform

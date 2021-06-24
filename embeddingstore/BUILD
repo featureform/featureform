@@ -113,14 +113,14 @@ cc_proto_library(
 )
 
 cc_library(
-    name = "space",
+    name = "version",
     srcs =
         [
-            "space.cc",
+            "version.cc",
         ],
     hdrs =
         [
-            "space.h",
+            "version.h",
         ],
     visibility = [
         "//visibility:public",

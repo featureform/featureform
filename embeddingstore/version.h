@@ -17,12 +17,14 @@ namespace featureform {
 
 namespace embedding {
 
-class Space {
+class Version {
  public:
-  static std::shared_ptr<Space> load_or_create(std::string path,
-                                               std::string name, int dims,
-                                               bool immutable = false);
+  static std::shared_ptr<Version> load_or_create(std::string path,
+                                                 std::string space,
+                                                 std::string name, int dims,
+                                                 bool immutable = false);
   Error set(std::string key, std::vector<float> value);
+  std::string space() const;
   std::string name() const;
   int dims() const;
   bool immutable() const;
@@ -32,30 +34,31 @@ class Space {
   std::shared_ptr<const ANNIndex> get_ann_index() const;
 
  private:
-  Space(std::shared_ptr<EmbeddingStorage> storage, std::string name, int dims,
-        bool immutable);
+  Version(std::shared_ptr<EmbeddingStorage> storage, std::string space,
+          std::string name, int dims, bool immutable);
   std::shared_ptr<EmbeddingStorage> storage_;
+  std::string space_;
   std::string name_;
   int dims_;
   bool immutable_;
   std::shared_ptr<ANNIndex> idx_;
 };
 
-class UpdateImmutableSpaceError : public ErrorBase {
+class UpdateImmutableVersionError : public ErrorBase {
  public:
-  static Error create(std::string space) {
-    return std::make_unique<UpdateImmutableSpaceError>(space);
+  static Error create(std::string version) {
+    return std::make_unique<UpdateImmutableVersionError>(version);
   }
-  UpdateImmutableSpaceError(std::string space) : space_{space} {};
+  UpdateImmutableVersionError(std::string version) : version_{version} {};
   std::string to_string() const override {
     std::ostringstream stream;
-    stream << "Cannot update " << space_ << ": space is immutable.";
+    stream << "Cannot update " << version_ << ": version is immutable.";
     return stream.str();
   };
-  std::string type() const override { return "UpdateImmutableSpaceError"; }
+  std::string type() const override { return "UpdateImmutableVersionError"; }
 
  private:
-  std::string space_;
+  std::string version_;
 };
 }  // namespace embedding
 }  // namespace featureform

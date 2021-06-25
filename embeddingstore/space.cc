@@ -73,5 +73,9 @@ bool Space::is_version_loaded(const std::string& name) const {
   return loaded_versions_.find(name) != loaded_versions_.end();
 }
 
+bool Space::operator==(const Space& other) const {
+  return base_path_ == other.base_path_ && name_ == other.name_;
+}
+
 }  // namespace embedding
 }  // namespace featureform

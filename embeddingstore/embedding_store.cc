@@ -31,8 +31,7 @@ EmbeddingStore::EmbeddingStore(std::filesystem::path base_path,
                                std::unique_ptr<rocksdb::DB> db)
     : base_path_{base_path}, db_{std::move(db)}, loaded_spaces_{} {}
 
-std::shared_ptr<Space> EmbeddingStore::create_space(const std::string& name,
-                                                    int dims) {
+std::shared_ptr<Space> EmbeddingStore::create_space(const std::string& name) {
   if (is_space_loaded(name)) {
     return loaded_spaces_.at(name);
   }
@@ -40,14 +39,10 @@ std::shared_ptr<Space> EmbeddingStore::create_space(const std::string& name,
   auto path = base_path_ / name;
   entry.set_path(path);
   entry.set_name(name);
-  entry.set_dims(dims);
   std::string serialized;
   entry.SerializeToString(&serialized);
   db_->Put(rocksdb::WriteOptions(), name, serialized);
-  auto space = Space::load_or_create(path, name, dims);
-  space->create_ann_index();
-  loaded_spaces_.emplace(name, space);
-  return space;
+  return Space::load_or_create(path, name);
 }
 
 std::optional<std::shared_ptr<Space>> EmbeddingStore::get_space(
@@ -62,7 +57,7 @@ std::optional<std::shared_ptr<Space>> EmbeddingStore::get_space(
   }
   auto entry = proto::SpaceEntry();
   entry.ParseFromString(serialized);
-  auto space = Space::load_or_create(entry.path(), entry.name(), entry.dims());
+  auto space = Space::load_or_create(entry.path(), entry.name());
   loaded_spaces_.emplace(name, space);
   return std::optional{space};
 }

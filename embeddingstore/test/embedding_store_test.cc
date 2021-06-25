@@ -14,11 +14,9 @@ namespace {
 
 TEST(SimpleSpace, TestPutGet) {
   auto es = EmbeddingStore::load_or_create("testdb");
-  auto space = es->create_space("test", 3);
-  auto expected = std::vector<float>{1.1, 1.2, 1.3};
-  space->set("a", expected);
+  auto space = es->create_space("test");
   auto got_space = es->get_space("test").value();
-  ASSERT_EQ(got_space->get("a"), expected);
+  ASSERT_EQ(*space, *got_space);
 }
 
 }  // namespace

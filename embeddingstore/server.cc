@@ -40,6 +40,8 @@ namespace featureform {
 
 namespace embedding {
 
+constexpr auto DEFAULT_VERSION = "initial";
+
 std::vector<float> copy_embedding_to_vector(const Embedding& embedding) {
   auto vals = embedding.values();
   return std::vector<float>(vals.cbegin(), vals.cend());
@@ -58,7 +60,8 @@ bool remove_uniq_value(std::vector<T>& vec, T val) {
 grpc::Status EmbeddingStoreService::CreateSpace(
     ServerContext* context, const CreateSpaceRequest* request,
     CreateSpaceResponse* resp) {
-  store_->create_space(request->name(), request->dims());
+  auto space = store_->create_space(request->name());
+  space->create_version(DEFAULT_VERSION, request->dims());
   return Status::OK;
 }
 
@@ -67,20 +70,23 @@ grpc::Status EmbeddingStoreService::FreezeSpace(
     FreezeSpaceResponse* resp) {
   auto space_opt = store_->get_space(request->name());
   if (!space_opt) {
-    return Status(StatusCode::NOT_FOUND, "Space not found");
   }
-  space_opt.value()->make_immutable();
+  auto version_opt = GetVersion(request->name(), DEFAULT_VERSION);
+  if (!version_opt.has_value()) {
+    return Status(StatusCode::NOT_FOUND, "Not found");
+  }
+  version_opt.value()->make_immutable();
   return Status::OK;
 }
 
 grpc::Status EmbeddingStoreService::Get(ServerContext* context,
                                         const GetRequest* request,
                                         GetResponse* resp) {
-  auto space_opt = store_->get_space(request->space());
-  if (!space_opt) {
-    return Status(StatusCode::NOT_FOUND, "Space not found");
+  auto version_opt = GetVersion(request->space(), DEFAULT_VERSION);
+  if (!version_opt.has_value()) {
+    return Status(StatusCode::NOT_FOUND, "Not found");
   }
-  auto embedding = (*space_opt)->get(request->key());
+  auto embedding = version_opt.value()->get(request->key());
   std::unique_ptr<Embedding> proto_embedding(new Embedding());
   *proto_embedding->mutable_values() = {embedding.begin(), embedding.end()};
   resp->set_allocated_embedding(proto_embedding.release());
@@ -91,11 +97,11 @@ grpc::Status EmbeddingStoreService::Set(ServerContext* context,
                                         const SetRequest* request,
                                         SetResponse* resp) {
   auto vec = copy_embedding_to_vector(request->embedding());
-  auto space_opt = store_->get_space(request->space());
-  if (!space_opt) {
-    return Status(StatusCode::NOT_FOUND, "Space not found");
+  auto version_opt = GetVersion(request->space(), DEFAULT_VERSION);
+  if (!version_opt.has_value()) {
+    return Status(StatusCode::NOT_FOUND, "Not found");
   }
-  auto err = (*space_opt)->set(request->key(), vec);
+  auto err = version_opt.value()->set(request->key(), vec);
   if (err != nullptr) {
     return Status(StatusCode::FAILED_PRECONDITION,
                   "Cannot write to immutable space");
@@ -109,11 +115,11 @@ grpc::Status EmbeddingStoreService::MultiSet(
   MultiSetRequest request;
   while (reader->Read(&request)) {
     auto vec = copy_embedding_to_vector(request.embedding());
-    auto space_opt = store_->get_space(request.space());
-    if (!space_opt) {
-      return Status(StatusCode::NOT_FOUND, "Space not found");
+    auto version_opt = GetVersion(request.space(), DEFAULT_VERSION);
+    if (!version_opt.has_value()) {
+      return Status(StatusCode::NOT_FOUND, "Not found");
     }
-    auto err = (*space_opt)->set(request.key(), vec);
+    auto err = (*version_opt)->set(request.key(), vec);
     if (err != nullptr) {
       return Status(StatusCode::FAILED_PRECONDITION,
                     "Cannot write to immutable space");
@@ -127,11 +133,11 @@ grpc::Status EmbeddingStoreService::MultiGet(
     ServerReaderWriter<MultiGetResponse, MultiGetRequest>* stream) {
   MultiGetRequest request;
   while (stream->Read(&request)) {
-    auto space_opt = store_->get_space(request.space());
-    if (!space_opt) {
-      return Status(StatusCode::NOT_FOUND, "Space not found");
+    auto version_opt = GetVersion(request.space(), DEFAULT_VERSION);
+    if (!version_opt.has_value()) {
+      return Status(StatusCode::NOT_FOUND, "Not found");
     }
-    auto embedding = (*space_opt)->get(request.key());
+    auto embedding = (*version_opt)->get(request.key());
     std::unique_ptr<Embedding> proto_embedding(new Embedding());
     *proto_embedding->mutable_values() = {embedding.begin(), embedding.end()};
     MultiGetResponse resp;
@@ -145,20 +151,29 @@ grpc::Status EmbeddingStoreService::MultiGet(
 grpc::Status EmbeddingStoreService::NearestNeighbor(
     ServerContext* context, const NearestNeighborRequest* request,
     NearestNeighborResponse* resp) {
-  auto space_opt = store_->get_space(request->space());
-  if (!space_opt) {
-    return Status(StatusCode::NOT_FOUND, "Space not found");
+  auto version_opt = GetVersion(request->space(), DEFAULT_VERSION);
+  if (!version_opt.has_value()) {
+    return Status(StatusCode::NOT_FOUND, "Not found");
   }
-  auto space = *space_opt;
+  auto version = *version_opt;
   auto ref_key = request->key();
-  auto ref_vec = space->get(ref_key);
+  auto ref_vec = version->get(ref_key);
   auto nearest =
-      space->get_ann_index()->approx_nearest(ref_vec, request->num() + 1);
+      version->get_ann_index()->approx_nearest(ref_vec, request->num() + 1);
   if (!remove_uniq_value(nearest, request->key())) {
     nearest.pop_back();
   }
   *resp->mutable_keys() = {nearest.begin(), nearest.end()};
   return Status::OK;
+}
+
+std::optional<std::shared_ptr<Version>> EmbeddingStoreService::GetVersion(
+    const std::string& space_name, const std::string& version_name) {
+  auto space_opt = store_->get_space(space_name);
+  if (!space_opt.has_value()) {
+    return std::nullopt;
+  }
+  return (*space_opt)->get_version(version_name);
 }
 }  // namespace embedding
 }  // namespace featureform

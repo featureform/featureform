@@ -21,6 +21,7 @@ class Space {
       const std::filesystem::path& path, const std::string& name);
   std::optional<std::shared_ptr<Version>> get_version(const std::string& name);
   std::shared_ptr<Version> create_version(const std::string& name, int dims);
+  bool operator==(const Space& other) const;
 
  private:
   Space(std::filesystem::path base_path, std::unique_ptr<rocksdb::DB> db);

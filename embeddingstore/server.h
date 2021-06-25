@@ -48,6 +48,8 @@ class EmbeddingStoreService final : public proto::EmbeddingStore::Service {
                                proto::NearestNeighborResponse* resp) override;
 
  private:
+  std::optional<std::shared_ptr<Version>> GetVersion(
+      const std::string& space, const std::string& version);
   std::shared_ptr<EmbeddingStore> store_;
 };
 }  // namespace embedding

@@ -21,7 +21,7 @@ class EmbeddingStore {
  public:
   static std::shared_ptr<EmbeddingStore> load_or_create(std::string path);
   std::optional<std::shared_ptr<Space>> get_space(const std::string& name);
-  std::shared_ptr<Space> create_space(const std::string& name, int dims);
+  std::shared_ptr<Space> create_space(const std::string& name);
 
  private:
   EmbeddingStore(std::filesystem::path base_path,

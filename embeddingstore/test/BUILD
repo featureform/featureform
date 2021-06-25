@@ -15,6 +15,18 @@ cc_test(
 )
 
 cc_test(
+    name = "space_test",
+    srcs = [
+        "main_test.cc",
+        "space_test.cc",
+    ],
+    deps = [
+        "//embeddingstore:space",
+        "@gtest",
+    ],
+)
+
+cc_test(
     name = "version_test",
     srcs = [
         "main_test.cc",

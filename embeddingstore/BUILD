@@ -153,6 +153,25 @@ cc_library(
 )
 
 cc_library(
+    name = "space",
+    srcs =
+        [
+            "space.cc",
+        ],
+    hdrs =
+        [
+            "space.h",
+        ],
+    visibility = [
+        "//visibility:public",
+    ],
+    deps = [
+        ":embedding_store_meta_cc_proto",
+        ":version",
+    ],
+)
+
+cc_library(
     name = "error",
     hdrs =
         [

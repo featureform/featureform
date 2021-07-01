@@ -10,7 +10,7 @@ To run it, use one command per line as follows:
 """
 
 import sys
-from embeddingstore import EmbeddingStoreClient
+from embeddinghub import EmbeddingHubClient
 
 # When run, it takes a command per line:
 # Either:
@@ -19,7 +19,7 @@ from embeddingstore import EmbeddingStoreClient
 # set [space] [key] [values...]
 # nn [space] [key] [num]
 if __name__ == '__main__':
-    client = EmbeddingStoreClient()
+    client = EmbeddingHubClient()
     for line in sys.stdin:
         line = line.rstrip()
         tokens = line.split()

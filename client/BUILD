@@ -19,7 +19,7 @@ py_binary(
 
 py_library(
     name = "client",
-    srcs = ["embeddingstore.py"],
+    srcs = ["embeddinghub.py"],
     visibility = [
         "//visibility:public",
     ],

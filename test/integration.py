@@ -8,11 +8,11 @@ import time
 import os
 import pytest
 
-import client.embeddingstore as es
+import client.embeddinghub as es
 
 
 @pytest.fixture
-def embedding_store_proc():
+def embedding_hub_proc():
     proc = subprocess.Popen(os.environ["TEST_SRCDIR"] +
                             "/__main__/embeddingstore/main")
     time.sleep(1)
@@ -21,8 +21,8 @@ def embedding_store_proc():
 
 
 @pytest.fixture
-def es_client(embedding_store_proc):
-    client = es.EmbeddingStoreClient()
+def es_client(embedding_hub_proc):
+    client = es.EmbeddingHubClient()
     yield client
     client.close()
 

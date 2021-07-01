@@ -2,12 +2,12 @@
 # License, v.2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 """ 
-This module provides a client to talk to the embedding store server. 
+This module provides a client to talk to the embedding hub server. 
 
 It contains methods for setting and retrieving embeddings as well as nearest neighbor search.
 
 Example:
-    |  client = EmbeddingStoreClient()
+    |  client = EmbeddingHubClient()
     |  client.set("a", [1, 2, 3])
     |  assert client.get("a") == [1, 2, 3]
 """
@@ -17,7 +17,7 @@ from client import embedding_store_pb2_grpc
 from client import embedding_store_pb2
 
 
-class EmbeddingStoreClient:
+class EmbeddingHubClient:
 
     def __init__(self, host="localhost", port=50051):
         connection_str = "%.%".format(host, port)
@@ -30,7 +30,7 @@ class EmbeddingStoreClient:
         return self._channel.close()
 
     def create_space(self, name, dims):
-        """Create a new space in the embedding store.
+        """Create a new space in the embedding hub.
 
         A space is essentially a table. It can contain multiple different
         version and also be immutable. This method creates a new space with

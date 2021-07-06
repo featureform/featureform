@@ -13,9 +13,9 @@ namespace featureform {
 
 namespace embedding {
 
-class EmbeddingStoreService final : public proto::EmbeddingStore::Service {
+class EmbeddingHubService final : public proto::EmbeddingStore::Service {
  public:
-  EmbeddingStoreService(std::shared_ptr<EmbeddingStore> store)
+  EmbeddingHubService(std::shared_ptr<EmbeddingHub> store)
       : store_(std::move(store)){};
 
   grpc::Status CreateSpace(grpc::ServerContext* context,
@@ -50,7 +50,7 @@ class EmbeddingStoreService final : public proto::EmbeddingStore::Service {
  private:
   std::optional<std::shared_ptr<Version>> GetVersion(
       const std::string& space, const std::string& version);
-  std::shared_ptr<EmbeddingStore> store_;
+  std::shared_ptr<EmbeddingHub> store_;
 };
 }  // namespace embedding
 }  // namespace featureform

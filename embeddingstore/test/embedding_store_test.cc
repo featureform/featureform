@@ -8,12 +8,12 @@
 
 #include <vector>
 
-using featureform::embedding::EmbeddingStore;
+using featureform::embedding::EmbeddingHub;
 
 namespace {
 
 TEST(SimpleSpace, TestPutGet) {
-  auto es = EmbeddingStore::load_or_create("testdb");
+  auto es = EmbeddingHub::load_or_create("testdb");
   auto space = es->create_space("test");
   auto got_space = es->get_space("test").value();
   ASSERT_EQ(*space, *got_space);

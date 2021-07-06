@@ -57,7 +57,7 @@ bool remove_uniq_value(std::vector<T>& vec, T val) {
   return false;
 }
 
-grpc::Status EmbeddingStoreService::CreateSpace(
+grpc::Status EmbeddingHubService::CreateSpace(
     ServerContext* context, const CreateSpaceRequest* request,
     CreateSpaceResponse* resp) {
   auto space = store_->create_space(request->name());
@@ -65,7 +65,7 @@ grpc::Status EmbeddingStoreService::CreateSpace(
   return Status::OK;
 }
 
-grpc::Status EmbeddingStoreService::FreezeSpace(
+grpc::Status EmbeddingHubService::FreezeSpace(
     ServerContext* context, const FreezeSpaceRequest* request,
     FreezeSpaceResponse* resp) {
   auto space_opt = store_->get_space(request->name());
@@ -79,7 +79,7 @@ grpc::Status EmbeddingStoreService::FreezeSpace(
   return Status::OK;
 }
 
-grpc::Status EmbeddingStoreService::Get(ServerContext* context,
+grpc::Status EmbeddingHubService::Get(ServerContext* context,
                                         const GetRequest* request,
                                         GetResponse* resp) {
   auto version_opt = GetVersion(request->space(), DEFAULT_VERSION);
@@ -93,7 +93,7 @@ grpc::Status EmbeddingStoreService::Get(ServerContext* context,
   return Status::OK;
 }
 
-grpc::Status EmbeddingStoreService::Set(ServerContext* context,
+grpc::Status EmbeddingHubService::Set(ServerContext* context,
                                         const SetRequest* request,
                                         SetResponse* resp) {
   auto vec = copy_embedding_to_vector(request->embedding());
@@ -109,7 +109,7 @@ grpc::Status EmbeddingStoreService::Set(ServerContext* context,
   return Status::OK;
 }
 
-grpc::Status EmbeddingStoreService::MultiSet(
+grpc::Status EmbeddingHubService::MultiSet(
     ServerContext* context, ServerReader<MultiSetRequest>* reader,
     MultiSetResponse* resp) {
   MultiSetRequest request;
@@ -128,7 +128,7 @@ grpc::Status EmbeddingStoreService::MultiSet(
   return Status::OK;
 }
 
-grpc::Status EmbeddingStoreService::MultiGet(
+grpc::Status EmbeddingHubService::MultiGet(
     ServerContext* context,
     ServerReaderWriter<MultiGetResponse, MultiGetRequest>* stream) {
   MultiGetRequest request;
@@ -148,7 +148,7 @@ grpc::Status EmbeddingStoreService::MultiGet(
   return Status::OK;
 }
 
-grpc::Status EmbeddingStoreService::NearestNeighbor(
+grpc::Status EmbeddingHubService::NearestNeighbor(
     ServerContext* context, const NearestNeighborRequest* request,
     NearestNeighborResponse* resp) {
   auto version_opt = GetVersion(request->space(), DEFAULT_VERSION);
@@ -167,7 +167,7 @@ grpc::Status EmbeddingStoreService::NearestNeighbor(
   return Status::OK;
 }
 
-std::optional<std::shared_ptr<Version>> EmbeddingStoreService::GetVersion(
+std::optional<std::shared_ptr<Version>> EmbeddingHubService::GetVersion(
     const std::string& space_name, const std::string& version_name) {
   auto space_opt = store_->get_space(space_name);
   if (!space_opt.has_value()) {
@@ -178,13 +178,13 @@ std::optional<std::shared_ptr<Version>> EmbeddingStoreService::GetVersion(
 }  // namespace embedding
 }  // namespace featureform
 
-using featureform::embedding::EmbeddingStore;
-using featureform::embedding::EmbeddingStoreService;
+using featureform::embedding::EmbeddingHub;
+using featureform::embedding::EmbeddingHubService;
 
 void RunServer() {
   std::string server_address("0.0.0.0:50051");
-  auto store = EmbeddingStore::load_or_create("embedding_store.dat");
-  auto service = EmbeddingStoreService(std::move(store));
+  auto store = EmbeddingHub::load_or_create("embedding_store.dat");
+  auto service = EmbeddingHubService(std::move(store));
 
   grpc::EnableDefaultHealthCheckService(true);
   grpc::reflection::InitProtoReflectionServerBuilderPlugin();

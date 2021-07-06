@@ -17,14 +17,14 @@ namespace featureform {
 
 namespace embedding {
 
-class EmbeddingStore {
+class EmbeddingHub {
  public:
-  static std::shared_ptr<EmbeddingStore> load_or_create(std::string path);
+  static std::shared_ptr<EmbeddingHub> load_or_create(std::string path);
   std::optional<std::shared_ptr<Space>> get_space(const std::string& name);
   std::shared_ptr<Space> create_space(const std::string& name);
 
  private:
-  EmbeddingStore(std::filesystem::path base_path,
+  EmbeddingHub(std::filesystem::path base_path,
                  std::unique_ptr<rocksdb::DB> db);
   bool is_space_loaded(const std::string& name) const;
   std::filesystem::path base_path_;

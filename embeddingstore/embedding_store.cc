@@ -13,8 +13,7 @@ namespace featureform {
 
 namespace embedding {
 
-std::shared_ptr<EmbeddingHub> EmbeddingHub::load_or_create(
-    std::string path) {
+std::shared_ptr<EmbeddingHub> EmbeddingHub::load_or_create(std::string path) {
   std::filesystem::path metadata_path = path;
   std::filesystem::create_directories(path);
   metadata_path /= "metadata";
@@ -28,7 +27,7 @@ std::shared_ptr<EmbeddingHub> EmbeddingHub::load_or_create(
 }
 
 EmbeddingHub::EmbeddingHub(std::filesystem::path base_path,
-                               std::unique_ptr<rocksdb::DB> db)
+                           std::unique_ptr<rocksdb::DB> db)
     : base_path_{base_path}, db_{std::move(db)}, loaded_spaces_{} {}
 
 std::shared_ptr<Space> EmbeddingHub::create_space(const std::string& name) {

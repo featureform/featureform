@@ -25,7 +25,7 @@ class EmbeddingHub {
 
  private:
   EmbeddingHub(std::filesystem::path base_path,
-                 std::unique_ptr<rocksdb::DB> db);
+               std::unique_ptr<rocksdb::DB> db);
   bool is_space_loaded(const std::string& name) const;
   std::filesystem::path base_path_;
   std::unique_ptr<rocksdb::DB> db_;

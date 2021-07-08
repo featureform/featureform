@@ -57,17 +57,17 @@ bool remove_uniq_value(std::vector<T>& vec, T val) {
   return false;
 }
 
-grpc::Status EmbeddingHubService::CreateSpace(
-    ServerContext* context, const CreateSpaceRequest* request,
-    CreateSpaceResponse* resp) {
+grpc::Status EmbeddingHubService::CreateSpace(ServerContext* context,
+                                              const CreateSpaceRequest* request,
+                                              CreateSpaceResponse* resp) {
   auto space = store_->create_space(request->name());
   space->create_version(DEFAULT_VERSION, request->dims());
   return Status::OK;
 }
 
-grpc::Status EmbeddingHubService::FreezeSpace(
-    ServerContext* context, const FreezeSpaceRequest* request,
-    FreezeSpaceResponse* resp) {
+grpc::Status EmbeddingHubService::FreezeSpace(ServerContext* context,
+                                              const FreezeSpaceRequest* request,
+                                              FreezeSpaceResponse* resp) {
   auto space_opt = store_->get_space(request->name());
   if (!space_opt) {
   }
@@ -80,8 +80,8 @@ grpc::Status EmbeddingHubService::FreezeSpace(
 }
 
 grpc::Status EmbeddingHubService::Get(ServerContext* context,
-                                        const GetRequest* request,
-                                        GetResponse* resp) {
+                                      const GetRequest* request,
+                                      GetResponse* resp) {
   auto version_opt = GetVersion(request->space(), DEFAULT_VERSION);
   if (!version_opt.has_value()) {
     return Status(StatusCode::NOT_FOUND, "Not found");
@@ -94,8 +94,8 @@ grpc::Status EmbeddingHubService::Get(ServerContext* context,
 }
 
 grpc::Status EmbeddingHubService::Set(ServerContext* context,
-                                        const SetRequest* request,
-                                        SetResponse* resp) {
+                                      const SetRequest* request,
+                                      SetResponse* resp) {
   auto vec = copy_embedding_to_vector(request->embedding());
   auto version_opt = GetVersion(request->space(), DEFAULT_VERSION);
   if (!version_opt.has_value()) {

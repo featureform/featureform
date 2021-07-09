@@ -19,9 +19,16 @@ from client import embedding_store_pb2
 
 class EmbeddingHubClient:
 
-    def __init__(self, host="localhost", port=50051):
-        connection_str = "%.%".format(host, port)
-        self._channel = grpc.insecure_channel('localhost:50051')
+    def grpc_channel(host="0.0.0.0", port=50051):
+        connection_str = "{}:{}".format(host, port)
+        return grpc.insecure_channel(connection_str,
+                                     options=(('grpc.enable_http_proxy', 0),))
+
+    def __init__(self, grpc_channel=None, host="0.0.0.0", port=50051):
+        if grpc_channel is not None:
+            self._channel = grpc_channel
+        else:
+            self._channel = EmbeddingStoreClient.grpc_channel(host, port)
         self._stub = embedding_store_pb2_grpc.EmbeddingHubStub(self._channel)
 
     def close(self):

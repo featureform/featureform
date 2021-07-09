@@ -13,7 +13,7 @@ namespace featureform {
 
 namespace embedding {
 
-class EmbeddingHubService final : public proto::EmbeddingStore::Service {
+class EmbeddingHubService final : public proto::EmbeddingHub::Service {
  public:
   EmbeddingHubService(std::shared_ptr<EmbeddingHub> store)
       : store_(std::move(store)){};

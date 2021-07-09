@@ -22,7 +22,7 @@ class EmbeddingHubClient:
     def __init__(self, host="localhost", port=50051):
         connection_str = "%.%".format(host, port)
         self._channel = grpc.insecure_channel('localhost:50051')
-        self._stub = embedding_store_pb2_grpc.EmbeddingStoreStub(self._channel)
+        self._stub = embedding_store_pb2_grpc.EmbeddingHubStub(self._channel)
 
     def close(self):
         """Closes the connection.

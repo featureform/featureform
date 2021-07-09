@@ -6,7 +6,7 @@ syntax = "proto3";
 
 package featureform.embedding.proto;
 
-service EmbeddingStore {
+service EmbeddingHub {
   rpc CreateSpace(CreateSpaceRequest) returns (CreateSpaceResponse) {}
   rpc FreezeSpace(FreezeSpaceRequest) returns (FreezeSpaceResponse) {}
   rpc Set(SetRequest) returns (SetResponse) {}

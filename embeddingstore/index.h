@@ -15,12 +15,13 @@ namespace embedding {
 
 class ANNIndex {
  public:
-  ANNIndex(int dims);
+  ANNIndex(size_t dims, size_t init_cap = 128);
   void set(std::string key, std::vector<float> value);
   std::vector<std::string> approx_nearest(std::vector<float> value,
                                           size_t num) const;
 
  private:
+  size_t capacity_;
   std::unique_ptr<hnswlib::SpaceInterface<float>> space_impl_;
   std::unique_ptr<hnswlib::HierarchicalNSW<float>> nn_impl_;
   std::unordered_map<std::string, hnswlib::labeltype> key_to_label_;

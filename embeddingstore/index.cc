@@ -7,11 +7,12 @@
 namespace featureform {
 namespace embedding {
 
-ANNIndex::ANNIndex(int dims)
-    : space_impl_(std::unique_ptr<hnswlib::SpaceInterface<float>>(
+ANNIndex::ANNIndex(size_t dims, size_t init_cap)
+    : capacity_{init_cap},
+      space_impl_(std::unique_ptr<hnswlib::SpaceInterface<float>>(
           new hnswlib::L2Space(dims))),
       nn_impl_(std::unique_ptr<hnswlib::HierarchicalNSW<float>>(
-          new hnswlib::HierarchicalNSW<float>(space_impl_.get(), 100))),
+          new hnswlib::HierarchicalNSW<float>(space_impl_.get(), capacity_))),
       key_to_label_(),
       label_to_key_(),
       next_label_(0) {}
@@ -25,6 +26,10 @@ void ANNIndex::set(std::string key, std::vector<float> value) {
     next_label_++;
     label_to_key_[label] = key;
     key_to_label_[key] = label;
+    if (next_label_ == capacity_) {
+      capacity_ *= 2;
+      nn_impl_->resizeIndex(capacity_);
+    }
   } else {
     label = label_iter->second;
   }

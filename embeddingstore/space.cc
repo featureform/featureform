@@ -65,6 +65,7 @@ std::optional<std::shared_ptr<Version>> Space::get_version(
   entry.ParseFromString(serialized);
   auto version = Version::load_or_create(entry.path(), entry.space(),
                                          entry.name(), entry.dims());
+  version->create_ann_index();
   loaded_versions_.emplace(name, version);
   return std::optional{version};
 }

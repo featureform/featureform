@@ -28,7 +28,7 @@ class EmbeddingHubClient:
         if grpc_channel is not None:
             self._channel = grpc_channel
         else:
-            self._channel = EmbeddingStoreClient.grpc_channel(host, port)
+            self._channel = EmbeddingHubClient.grpc_channel(host, port)
         self._stub = embedding_store_pb2_grpc.EmbeddingHubStub(self._channel)
 
     def close(self):

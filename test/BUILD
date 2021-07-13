@@ -22,6 +22,7 @@ py_test(
         ":glove_embeddings",
         "//embeddingstore:main",
     ],
+    size="large",
     main = "benchmark.py",
     deps = [
         "//client",

@@ -70,6 +70,7 @@ grpc::Status EmbeddingHubService::FreezeSpace(ServerContext* context,
                                               FreezeSpaceResponse* resp) {
   auto space_opt = store_->get_space(request->name());
   if (!space_opt) {
+    return Status(StatusCode::NOT_FOUND, "Not found");
   }
   auto version_opt = GetVersion(request->name(), DEFAULT_VERSION);
   if (!version_opt.has_value()) {

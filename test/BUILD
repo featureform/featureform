@@ -15,6 +15,26 @@ py_test(
     ],
 )
 
+py_test(
+    name = "benchmark",
+    srcs = ["benchmark.py"],
+    data = [
+        ":glove_embeddings",
+        "//embeddingstore:main",
+    ],
+    main = "benchmark.py",
+    deps = [
+        "//client",
+    ],
+)
+
+filegroup(
+    name = "glove_embeddings",
+    srcs = glob([
+        "glove*",
+    ]),
+)
+
 filegroup(
     name = "all_source_files",
     srcs = glob([

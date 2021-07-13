@@ -7,6 +7,7 @@ import sys
 import time
 import os
 import pytest
+import uuid
 
 import client.embeddinghub as es
 
@@ -28,7 +29,7 @@ def es_client(embedding_hub_proc):
 
 
 def test_set_get(es_client):
-    space = "test"
+    space = uuid.uuid4()
     emb = [1, 2, 3]
     es_client.create_space(space, 3)
     es_client.set(space, "a", emb)
@@ -36,7 +37,7 @@ def test_set_get(es_client):
 
 
 def test_immutable_set(es_client):
-    space = "test"
+    space = uuid.uuid4()
     emb = [1, 2, 3]
     es_client.create_space(space, 3)
     es_client.set(space, "a", emb)
@@ -47,7 +48,7 @@ def test_immutable_set(es_client):
 
 
 def test_multiset_get(es_client):
-    space = "test"
+    space = uuid.uuid4()
     embs = {
         "a": [1, 2, 3],
         "b": [3, 2, 1],
@@ -59,7 +60,7 @@ def test_multiset_get(es_client):
 
 
 def test_multiset_multiget(es_client):
-    space = "test"
+    space = uuid.uuid4()
     embs = {
         "a": [1, 2, 3],
         "b": [3, 2, 1],

@@ -28,7 +28,7 @@ class ThreadableBenchmark(Benchmark):
 
     def __init__(self):
         self.iter = self.next_args()
-        self.channel = eh.EmbeddingHubClient.grpc_channel()
+        self.channel = eh.EmbeddingHubClient.grpc_channel(port=port)
 
     def client(self):
         return eh.EmbeddingHubClient(self.channel)
@@ -276,8 +276,11 @@ class MultithreadBenchmark(Benchmark):
         return 1
 
 
-proc = subprocess.Popen(os.environ["TEST_SRCDIR"] +
-                        "/__main__/embeddingstore/main")
+port = random.randint(1000, 10000)
+proc = subprocess.Popen([
+    "{}/__main__/embeddingstore/main".format(os.environ["TEST_SRCDIR"]),
+    "0.0.0.0:{}".format(port)
+])
 time.sleep(1)
 
 benchmark_classes = [

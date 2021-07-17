@@ -56,4 +56,4 @@ class EmbeddingHubService final : public proto::EmbeddingHub::Service {
 }  // namespace embedding
 }  // namespace featureform
 
-void RunServer();
+void RunServer(const std::string& address);

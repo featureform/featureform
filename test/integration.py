@@ -5,6 +5,7 @@
 import subprocess
 import sys
 import time
+import random
 import os
 import pytest
 import uuid
@@ -13,17 +14,24 @@ import client.embeddinghub as es
 
 
 @pytest.fixture
-def embedding_hub_proc():
-    proc = subprocess.Popen(os.environ["TEST_SRCDIR"] +
-                            "/__main__/embeddingstore/main")
+def port():
+    yield random.randint(1000, 10000)
+
+
+@pytest.fixture
+def embedding_hub_proc(port):
+    proc = subprocess.Popen([
+        "{}/__main__/embeddingstore/main".format(os.environ["TEST_SRCDIR"]),
+        "0.0.0.0:{}".format(port)
+    ])
     time.sleep(1)
     yield proc
     proc.kill()
 
 
 @pytest.fixture
-def es_client(embedding_hub_proc):
-    client = es.EmbeddingHubClient()
+def es_client(embedding_hub_proc, port):
+    client = es.EmbeddingHubClient(port=port)
     yield client
     client.close()
 

@@ -17,12 +17,12 @@ py_test(
 
 py_test(
     name = "benchmark",
+    size = "large",
     srcs = ["benchmark.py"],
     data = [
         ":glove_embeddings",
         "//embeddingstore:main",
     ],
-    size="large",
     main = "benchmark.py",
     deps = [
         "//client",

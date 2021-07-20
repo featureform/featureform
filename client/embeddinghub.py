@@ -164,7 +164,7 @@ class EmbeddingHubClient:
         it = self._key_iter(space, keys)
         return self._embedding_iter(self._stub.MultiGet(it))
 
-    def nearest_neighbor(self, space, key, num, wait=False):
+    def nearest_neighbor(self, space, key, num, wait=True):
         """Finds N nearest neighbors for a given embedding record.
 
         Args:

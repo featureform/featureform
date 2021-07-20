@@ -29,7 +29,7 @@ if __name__ == '__main__':
         space = tokens[1]
         key = tokens[2]
         if cmd == "create":
-            client.create_space(space, key)
+            client.create_space(space, int(key))
             print("SUCCESS")
         elif cmd == "get":
             print(client.get(space, key))

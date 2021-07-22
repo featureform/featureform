@@ -1,31 +1,35 @@
 name: Embedding Store CI
 on: [push]
 jobs:
-    CI:
-        runs-on: ubuntu-latest
-        steps:
-        - uses: actions/checkout@v1
+  CI:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true
+      matrix:
+        os: [ubuntu-latest, macOS-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v1
 
-        - name: Set up Python
-          uses: actions/setup-python@v2
-          with:
-            python-version: "2.7"
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "2.7"
 
-        - name: Install deps
-          run: |
-              bash rocksdb_install.sh && \
-              ./install_test_deps.sh
-        - name: Mount bazel cache
-          uses: actions/cache@v1
-          with:
-              path: "/home/runner/.cache/bazel"
-              key: "bazel"
+      - name: Install deps
+        run: |
+          bash rocksdb_install.sh && \
+          ./install_test_deps.sh
+      - name: Mount bazel cache
+        uses: actions/cache@v1
+        with:
+          path: "/home/runner/.cache/bazel"
+          key: "bazel"
 
-        - name: Lint
-          run: ./lint.sh
+      - name: Lint
+        run: ./lint.sh
 
-        - name: Build
-          run: bazel build --config linux //...
+      - name: Build
+        run: bazel build --config linux //...
 
-        - name: Test
-          run: bazel test --config=linux --test_output=all //...
+      - name: Test
+        run: bazel test --config=linux --test_output=all //...

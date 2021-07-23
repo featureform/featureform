@@ -11,7 +11,7 @@ py_test(
     main = "integration.py",
     deps = [
         requirement("pytest"),
-        "//client",
+        "//sdk/python:client",
     ],
 )
 
@@ -25,7 +25,7 @@ py_test(
     ],
     main = "benchmark.py",
     deps = [
-        "//client",
+        "//sdk/python:client",
     ],
 )
 

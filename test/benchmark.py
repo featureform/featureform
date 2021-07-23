@@ -4,7 +4,7 @@ import os
 import uuid
 import random
 import gzip
-import client.embeddinghub as eh
+import sdk.python.embeddinghub as eh
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from abc import ABC, abstractmethod

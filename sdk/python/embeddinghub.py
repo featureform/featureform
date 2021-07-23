@@ -15,8 +15,8 @@ Example:
 import concurrent.futures
 import grpc
 from collections.abc import Mapping
-from client import embedding_store_pb2_grpc
-from client import embedding_store_pb2
+from sdk.python import embedding_store_pb2_grpc
+from sdk.python import embedding_store_pb2
 
 
 class EmbeddingHubClient:

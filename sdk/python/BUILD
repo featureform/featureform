@@ -13,7 +13,7 @@ py_binary(
     main = "repl.py",
     deps = [
         ":client",
-        "//client:embedding_store_grpc",
+        ":embedding_store_grpc",
     ],
 )
 
@@ -23,7 +23,7 @@ py_library(
     visibility = [
         "//visibility:public",
     ],
-    deps = ["//client:embedding_store_grpc"],
+    deps = [":embedding_store_grpc"],
 )
 
 py_grpc_library(

@@ -1,8 +1,15 @@
 name: Embedding Store CI
 on: [push]
 jobs:
-    CI:
-        runs-on: ubuntu-latest
+    build:
+        runs-on: ${{ matrix.os }}
+        strategy:
+            matrix:
+                include:
+                - os: macos-latest
+                  config: mac
+                - os: ubuntu-ltest
+                  config: linux
         steps:
         - uses: actions/checkout@v1
 
@@ -19,13 +26,13 @@ jobs:
           uses: actions/cache@v1
           with:
               path: "/home/runner/.cache/bazel"
-              key: "bazel"
+              key: ${{ runner.os }}-bazel
 
         - name: Lint
           run: ./lint.sh
 
         - name: Build
-          run: bazel build --config linux //...
+          run: bazel build --config=${{ matrix.config }} //...
 
         - name: Test
-          run: bazel test --config=linux --test_output=all //...
+          run: bazel test --config=${{ matrix.config }} --test_output=all //...

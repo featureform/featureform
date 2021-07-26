@@ -8,7 +8,7 @@ jobs:
                 include:
                 - os: macos-latest
                   config: mac
-                - os: ubuntu-ltest
+                - os: ubuntu-latest
                   config: linux
         steps:
         - uses: actions/checkout@v1

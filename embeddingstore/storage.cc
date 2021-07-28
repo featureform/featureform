@@ -4,20 +4,12 @@
 
 #include "storage.h"
 
-#include "embeddingstore/embedding_store.grpc.pb.h"
+#include "iterator.h"
 #include "rocksdb/db.h"
-#include "rocksdb/iterator.h"
 
 namespace featureform {
 
 namespace embedding {
-
-std::vector<float> parse_rocks_value(const std::string& value) {
-  auto proto = proto::Embedding();
-  proto.ParseFromString(value);
-  auto vals = proto.values();
-  return std::vector<float>(vals.begin(), vals.end());
-}
 
 std::shared_ptr<EmbeddingStorage> EmbeddingStorage::load_or_create(
     std::string path, int dims) {
@@ -31,61 +23,19 @@ std::shared_ptr<EmbeddingStorage> EmbeddingStorage::load_or_create(
 }
 
 EmbeddingStorage::EmbeddingStorage(std::shared_ptr<rocksdb::DB> db, int dims)
-    : db_(std::move(db)), dims_(dims) {}
+    : serializer_{}, db_(std::move(db)), dims_(dims) {}
 
 void EmbeddingStorage::set(std::string key, std::vector<float> val) {
-  auto proto = proto::Embedding();
-  *proto.mutable_values() = {val.begin(), val.end()};
-  std::string serialized;
-  proto.SerializeToString(&serialized);
-  db_->Put(rocksdb::WriteOptions(), key, serialized);
+  db_->Put(rocksdb::WriteOptions(), key, serializer_.serialize(val));
 }
 
 std::vector<float> EmbeddingStorage::get(const std::string& key) const {
   std::string serialized;
   db_->Get(rocksdb::ReadOptions(), key, &serialized);
-  return parse_rocks_value(serialized);
+  return serializer_.deserialize(serialized);
 }
 
-rocksdb::ReadOptions snapshot_read_opts(const rocksdb::Snapshot* snapshot) {
-  auto options = rocksdb::ReadOptions();
-  options.snapshot = snapshot;
-  return options;
-}
-
-EmbeddingStorage::Iterator::Iterator(std::shared_ptr<EmbeddingStorage> storage)
-    : first_{true},
-      db_{storage->db_},
-      snapshot_{db_->GetSnapshot()},
-      iter_{db_->NewIterator(snapshot_read_opts(snapshot_))} {
-  iter_->SeekToFirst();
-}
-
-EmbeddingStorage::Iterator::~Iterator() { db_->ReleaseSnapshot(snapshot_); }
-
-bool EmbeddingStorage::Iterator::scan() {
-  if (first_) {
-    first_ = false;
-  } else {
-    iter_->Next();
-  }
-  return iter_->Valid();
-}
-
-std::string EmbeddingStorage::Iterator::key() {
-  return iter_->key().ToString();
-}
-
-std::vector<float> EmbeddingStorage::Iterator::value() {
-  return parse_rocks_value(iter_->value().ToString());
-}
-
-std::optional<std::string> EmbeddingStorage::Iterator::error() {
-  if (!iter_->status().ok()) {
-    return std::make_optional(iter_->status().ToString());
-  }
-  return std::nullopt;
-}
+Iterator EmbeddingStorage::iterator() const { return Iterator(db_); }
 
 }  // namespace embedding
 }  // namespace featureform

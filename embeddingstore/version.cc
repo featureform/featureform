@@ -9,6 +9,7 @@
 #include <memory>
 
 #include "error.h"
+#include "iterator.h"
 #include "rocksdb/db.h"
 
 namespace featureform {
@@ -63,7 +64,7 @@ std::shared_ptr<const ANNIndex> Version::create_ann_index() {
     return idx_;
   }
   idx_ = std::make_shared<ANNIndex>(dims_);
-  auto iter = EmbeddingStorage::Iterator(storage_);
+  auto iter = storage_->iterator();
   while (iter.scan()) {
     idx_->set(iter.key(), iter.value());
   }

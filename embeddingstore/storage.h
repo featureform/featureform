@@ -7,7 +7,9 @@
 #include <memory>
 #include <optional>
 
+#include "iterator.h"
 #include "rocksdb/db.h"
+#include "serializer.h"
 
 namespace featureform {
 
@@ -20,25 +22,11 @@ class EmbeddingStorage {
   EmbeddingStorage() = delete;
   void set(std::string key, std::vector<float> value);
   std::vector<float> get(const std::string& key) const;
-
-  class Iterator {
-   public:
-    Iterator(std::shared_ptr<EmbeddingStorage> storage);
-    virtual ~Iterator();
-    bool scan();
-    std::string key();
-    std::vector<float> value();
-    std::optional<std::string> error();
-
-   private:
-    bool first_;
-    std::shared_ptr<rocksdb::DB> db_;
-    const rocksdb::Snapshot* snapshot_;
-    std::unique_ptr<rocksdb::Iterator> iter_;
-  };
+  Iterator iterator() const;
 
  private:
   EmbeddingStorage(std::shared_ptr<rocksdb::DB> DB, int dims);
+  ProtoSerializer serializer_;
   std::shared_ptr<rocksdb::DB> db_;
   int dims_;
 };

@@ -14,6 +14,7 @@ service EmbeddingHub {
   rpc MultiSet(stream MultiSetRequest) returns (MultiSetResponse) {}
   rpc MultiGet(stream MultiGetRequest) returns (stream MultiGetResponse) {}
   rpc NearestNeighbor(NearestNeighborRequest)  returns (NearestNeighborResponse) {}
+  rpc Download(DownloadRequest) returns (stream DownloadResponse) {}
 }
 
 message CreateSpaceRequest {
@@ -79,6 +80,15 @@ message NearestNeighborRequest {
 
 message NearestNeighborResponse {
     repeated string keys = 1;
+}
+
+message DownloadRequest {
+  string space = 1;
+}
+
+message DownloadResponse {
+  string key = 1;
+  Embedding embedding = 2;
 }
 
 message Embedding {

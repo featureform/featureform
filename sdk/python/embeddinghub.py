@@ -8,8 +8,9 @@ It contains methods for setting and retrieving embeddings as well as nearest nei
 
 Example:
     |  client = EmbeddingHubClient()
-    |  client.set("a", [1, 2, 3])
-    |  assert client.get("a") == [1, 2, 3]
+    |  client.create_space("space")
+    |  client.set("space", "key", [1, 2, 3])
+    |  assert client.get("space", "key") == [1, 2, 3]
 """
 
 import concurrent.futures

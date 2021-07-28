@@ -73,9 +73,44 @@ cc_library(
         "//visibility:public",
     ],
     deps = [
+        ":iterator",
+        ":serializer",
+        "@rocksdb",
+    ],
+)
+
+cc_library(
+    name = "iterator",
+    srcs =
+        [
+            "iterator.cc",
+        ],
+    hdrs =
+        [
+            "iterator.h",
+        ],
+    visibility = [
+        "//visibility:public",
+    ],
+    deps = [
+        ":serializer",
+        "@rocksdb",
+    ],
+)
+
+cc_library(
+    name = "serializer",
+    srcs =
+        [
+            "serializer.cc",
+        ],
+    hdrs =
+        [
+            "serializer.h",
+        ],
+    deps = [
         ":embedding_store_grpc",
         "@com_github_grpc_grpc//:grpc++",
-        "@rocksdb",
     ],
 )
 
@@ -128,6 +163,7 @@ cc_library(
     deps = [
         ":error",
         ":index",
+        ":iterator",
         ":storage",
         "@rocksdb",
     ],

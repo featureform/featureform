@@ -62,6 +62,19 @@ cc_test(
     ],
 )
 
+cc_test(
+    name = "iterator_test",
+    srcs = [
+        "iterator_test.cc",
+        "main_test.cc",
+    ],
+    deps = [
+        "//embeddingstore:iterator",
+        "//embeddingstore:storage",
+        "@gtest",
+    ],
+)
+
 filegroup(
     name = "all_source_files",
     srcs = glob([

@@ -24,6 +24,7 @@ class EmbeddingStorage {
   class Iterator {
    public:
     Iterator(std::shared_ptr<EmbeddingStorage> storage);
+    virtual ~Iterator();
     bool scan();
     std::string key();
     std::vector<float> value();
@@ -31,12 +32,14 @@ class EmbeddingStorage {
 
    private:
     bool first_;
+    std::shared_ptr<rocksdb::DB> db_;
+    const rocksdb::Snapshot* snapshot_;
     std::unique_ptr<rocksdb::Iterator> iter_;
   };
 
  private:
-  EmbeddingStorage(std::unique_ptr<rocksdb::DB> DB, int dims);
-  std::unique_ptr<rocksdb::DB> db_;
+  EmbeddingStorage(std::shared_ptr<rocksdb::DB> DB, int dims);
+  std::shared_ptr<rocksdb::DB> db_;
   int dims_;
 };
 }  // namespace embedding

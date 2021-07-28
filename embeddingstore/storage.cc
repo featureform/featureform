@@ -25,12 +25,12 @@ std::shared_ptr<EmbeddingStorage> EmbeddingStorage::load_or_create(
   options.create_if_missing = true;
   rocksdb::DB* db_ptr;
   rocksdb::Status status = rocksdb::DB::Open(options, path, &db_ptr);
-  std::unique_ptr<rocksdb::DB> db(db_ptr);
+  std::shared_ptr<rocksdb::DB> db(db_ptr);
   return std::unique_ptr<EmbeddingStorage>(
       new EmbeddingStorage(std::move(db), dims));
 }
 
-EmbeddingStorage::EmbeddingStorage(std::unique_ptr<rocksdb::DB> db, int dims)
+EmbeddingStorage::EmbeddingStorage(std::shared_ptr<rocksdb::DB> db, int dims)
     : db_(std::move(db)), dims_(dims) {}
 
 void EmbeddingStorage::set(std::string key, std::vector<float> val) {
@@ -47,10 +47,21 @@ std::vector<float> EmbeddingStorage::get(const std::string& key) const {
   return parse_rocks_value(serialized);
 }
 
+rocksdb::ReadOptions snapshot_read_opts(const rocksdb::Snapshot* snapshot) {
+  auto options = rocksdb::ReadOptions();
+  options.snapshot = snapshot;
+  return options;
+}
+
 EmbeddingStorage::Iterator::Iterator(std::shared_ptr<EmbeddingStorage> storage)
-    : first_{true}, iter_{storage->db_->NewIterator(rocksdb::ReadOptions())} {
+    : first_{true},
+      db_{storage->db_},
+      snapshot_{db_->GetSnapshot()},
+      iter_{db_->NewIterator(snapshot_read_opts(snapshot_))} {
   iter_->SeekToFirst();
 }
+
+EmbeddingStorage::Iterator::~Iterator() { db_->ReleaseSnapshot(snapshot_); }
 
 bool EmbeddingStorage::Iterator::scan() {
   if (first_) {

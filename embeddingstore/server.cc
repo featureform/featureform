@@ -15,6 +15,8 @@
 
 using ::featureform::embedding::proto::CreateSpaceRequest;
 using ::featureform::embedding::proto::CreateSpaceResponse;
+using ::featureform::embedding::proto::DownloadRequest;
+using ::featureform::embedding::proto::DownloadResponse;
 using ::featureform::embedding::proto::Embedding;
 using ::featureform::embedding::proto::FreezeSpaceRequest;
 using ::featureform::embedding::proto::FreezeSpaceResponse;
@@ -33,6 +35,7 @@ using ::grpc::ServerBuilder;
 using ::grpc::ServerContext;
 using ::grpc::ServerReader;
 using ::grpc::ServerReaderWriter;
+using ::grpc::ServerWriter;
 using ::grpc::Status;
 using ::grpc::StatusCode;
 
@@ -173,6 +176,29 @@ grpc::Status EmbeddingHubService::NearestNeighbor(
     nearest.pop_back();
   }
   *resp->mutable_keys() = {nearest.begin(), nearest.end()};
+  return Status::OK;
+}
+
+grpc::Status EmbeddingHubService::Download(
+    ServerContext* context, const DownloadRequest* request,
+    ServerWriter<DownloadResponse>* writer) {
+  std::unique_lock<std::mutex> lock(mtx_);
+  auto version_opt = GetVersion(request->space(), DEFAULT_VERSION);
+  if (!version_opt.has_value()) {
+    return Status(StatusCode::NOT_FOUND, "Not found");
+  }
+  auto iter = version_opt.value()->iterator();
+  while (iter.scan()) {
+    auto key = iter.key();
+    auto embedding = iter.value();
+    std::unique_ptr<Embedding> proto_embedding(new Embedding());
+    *proto_embedding->mutable_values() = {embedding.begin(), embedding.end()};
+    DownloadResponse resp;
+    resp.set_allocated_embedding(proto_embedding.release());
+    resp.set_key(key);
+    writer->Write(resp);
+  }
+
   return Status::OK;
 }
 

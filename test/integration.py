@@ -97,7 +97,7 @@ def test_multi_space(es_client):
         assert es_client.get(space, key) == emb
 
 
-def test_multiset_multiget(es_client):
+def test_multiset_download(es_client):
     space = uuid.uuid4()
     embs = {
         "a": [1, 2, 3],

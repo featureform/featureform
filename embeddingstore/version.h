@@ -11,6 +11,7 @@
 
 #include "error.h"
 #include "index.h"
+#include "iterator.h"
 #include "storage.h"
 
 namespace featureform {
@@ -30,6 +31,7 @@ class Version {
   bool immutable() const;
   void make_immutable();
   std::vector<float> get(const std::string& key) const;
+  Iterator iterator() const;
   std::shared_ptr<const ANNIndex> create_ann_index();
   std::shared_ptr<const ANNIndex> get_ann_index() const;
 

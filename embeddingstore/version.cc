@@ -59,6 +59,8 @@ std::vector<float> Version::get(const std::string& key) const {
   return storage_->get(key);
 }
 
+Iterator Version::iterator() const { return storage_->iterator(); }
+
 std::shared_ptr<const ANNIndex> Version::create_ann_index() {
   if (idx_ != nullptr) {
     return idx_;

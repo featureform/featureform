@@ -97,5 +97,18 @@ def test_multi_space(es_client):
         assert es_client.get(space, key) == emb
 
 
+def test_multiset_multiget(es_client):
+    space = uuid.uuid4()
+    embs = {
+        "a": [1, 2, 3],
+        "b": [3, 2, 1],
+    }
+    es_client.create_space(space, 3)
+    es_client.multiset(space, embs)
+    values = es_client.download(space)
+    resp_emb_dict = {key: val for key, val in values}
+    assert embs == resp_emb_dict
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__]))

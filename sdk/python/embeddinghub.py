@@ -188,6 +188,18 @@ class EmbeddingHubClient:
             return wrapped_future.result()
         return wrapped_future
 
+    def download(self, space):
+        """Get all values in the space provided.
+
+        Args:
+            space: The name of the space to retrieve from.
+
+        Returns:
+            An iterator of key-embedding pairs.
+        """
+        req = embedding_store_pb2.DownloadRequest(space=str(space))
+        return self._download_iter(self._stub.Download(req))
+
     def _embedding_tuples_iter(self, space, it):
         """Create a MultiSetRequest iterator from a space and an iterator of
         key-embedding tuples.
@@ -235,6 +247,18 @@ class EmbeddingHubClient:
         """
         for resp in resps:
             yield resp.embedding.values
+
+    def _download_iter(self, resps):
+        """Unwrap an iterator of DownloadResponse
+
+        Args:
+            resps: An iterator of DownloadResponse
+
+        Returns:
+            An iterator of key, embedding pairs.
+        """
+        for resp in resps:
+            yield (resp.key, resp.embedding.values)
 
 
 class FutureTransformWrapper:

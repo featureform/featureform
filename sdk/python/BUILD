@@ -4,6 +4,7 @@
 
 load("@com_github_grpc_grpc//bazel:python_rules.bzl", "py_grpc_library")
 load("@com_github_grpc_grpc//bazel:python_rules.bzl", "py_proto_library")
+load("@python_deps//:requirements.bzl", "requirement")
 
 py_binary(
     name = "repl",
@@ -24,6 +25,15 @@ py_library(
         "//visibility:public",
     ],
     deps = [":embedding_store_grpc"],
+)
+
+py_library(
+    name = "offlinehub",
+    srcs = ["offlinehub.py"],
+    visibility = [
+        "//visibility:public",
+    ],
+    deps = [requirement("hnswlib")],
 )
 
 py_grpc_library(

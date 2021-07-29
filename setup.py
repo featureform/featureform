@@ -17,7 +17,7 @@ setuptools.setup(
         "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)",
         "Operating System :: OS Independent",
     ],
-    package_dir={"": "client"},
-    packages=setuptools.find_packages(where="client"),
+    package_dir={"": "sdk/python"},
+    packages=setuptools.find_packages(where="sdk/python"),
     python_requires=">=3.6",
 )

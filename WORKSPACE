@@ -132,3 +132,15 @@ pip_install(
     python_interpreter = "python3",
     requirements = "//test:requirements.txt",
 )
+
+pip_install(
+    name = "python_test_deps",
+    python_interpreter = "python3",
+    requirements = "//sdk/python/test:requirements.txt",
+)
+
+pip_install(
+    name = "python_deps",
+    python_interpreter = "python3",
+    requirements = "//sdk/python:requirements.txt",
+)

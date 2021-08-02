@@ -65,5 +65,31 @@ def test_nn(init_args):
     assert index.nearest_neighbor("a", 1) == ["b"]
 
 
+def test_capacity_set():
+    index = Index([], 2)
+    for key in list(range(1025)) * 2:
+        index.set(str(key), [1, 1])
+    assert index.size() == 1025
+
+
+def test_capacity_init():
+    embs = [(key, [1, 1]) for key in list(range(1028)) * 2]
+    index = Index(embs, 2)
+    assert index.size() == 1028
+
+
+def test_capacity_multiset():
+    index = Index([], 2)
+    embs = [(key, [1, 1]) for key in list(range(1028)) * 2]
+    for emb_chunk in chunks(embs, 4):
+        index.multiset(emb_chunk)
+    assert index.size() == 1028
+
+
+def chunks(l, chunk_size):
+    for i in range(0, len(l), chunk_size):
+        yield l[i:i + chunk_size]
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__]))

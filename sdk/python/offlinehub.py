@@ -40,6 +40,8 @@ class Index:
             embedding: A python list representing the embedding vector to be
             stored.
         """
+        if key not in self._data:
+            self._size += 1
         self._data[key] = embedding
         idx = self._mapper.to_idx(key)
         self._idx.add_items([embedding], [idx])
@@ -74,6 +76,8 @@ class Index:
         for key, embedding in embedding_tuples:
             embeddings.append(embedding)
             idxs.append(self._mapper.to_idx(key))
+            if key not in self._data:
+                self._size += 1
             self._data[key] = embedding
         # add_items fails if you give it two empty arrays.
         if len(idxs) == 0:
@@ -113,6 +117,10 @@ class Index:
         return [
             self._mapper.to_key(result) for result in results if result != idx
         ]
+
+    def size(self):
+        """Returns the amount of embeddings in the index"""
+        return self._size
 
     def _add_capacity_to_fit(self, size):
         min_cap = self._size + size

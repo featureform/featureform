@@ -168,11 +168,28 @@ grpc::Status EmbeddingHubService::NearestNeighbor(
     return Status(StatusCode::NOT_FOUND, "Not found");
   }
   auto version = *version_opt;
-  auto ref_key = request->key();
-  auto ref_vec = version->get(ref_key);
+  auto has_key = request->key() != "";
+  auto has_vec = request->embedding().values_size() != 0;
+  if (has_key && has_vec) {
+    return Status(StatusCode::INVALID_ARGUMENT,
+                  "Key and embedding cannot both be set");
+  }
+
+  std::vector<float> ref_vec;
+  auto num_retrieve = request->num();
+  if (has_key) {
+    auto ref_key = request->key();
+    ref_vec = version->get(ref_key);
+    // We may retrieve the key that we're getting the nearest neighbors of.
+    // We'll remove it later.
+    num_retrieve += 1;
+  } else {
+    ref_vec = copy_embedding_to_vector(request->embedding());
+  }
   auto nearest =
-      version->get_ann_index()->approx_nearest(ref_vec, request->num() + 1);
-  if (!remove_uniq_value(nearest, request->key())) {
+      version->get_ann_index()->approx_nearest(ref_vec, num_retrieve);
+  // Remove the key we used to retrieve from the index if it exists.
+  if (has_key && !remove_uniq_value(nearest, request->key())) {
     nearest.pop_back();
   }
   *resp->mutable_keys() = {nearest.begin(), nearest.end()};

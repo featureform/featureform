@@ -73,9 +73,10 @@ message MultiGetResponse {
 }
 
 message NearestNeighborRequest {
-    string key = 1;
-    int32 num = 2;
-    string space = 3;
+    int32 num = 1;
+    string space = 2;
+    string key = 3;
+    Embedding embedding = 4;
 }
 
 message NearestNeighborResponse {

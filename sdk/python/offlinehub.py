@@ -96,7 +96,7 @@ class Index:
         """
         return [self._data[key] for key in keys]
 
-    def nearest_neighbor(self, key, num):
+    def nearest_neighbor(self, num, key=None, embedding=None):
         """Finds N nearest neighbors for a given embedding record.
 
         Args:
@@ -107,16 +107,28 @@ class Index:
             A num size list of embedding vectors that are closest to the
             provided embedding.
         """
-        idx = self._mapper.to_idx(key)
-        # knn_query expects a list of indices to work in batch.
-        idxs = [idx]
-        # knn_query returns itself, so we get one extra nearest neighbor and drop
-        # idx when mapping the indices.
-        list_results, list_distances = self._idx.knn_query(idxs, num + 1)
+        has_key = key is not None
+        if has_key:
+            embedding = self._data[key]
+            # We have to remove the key from the results later
+            num_retrieve = num + 1
+        else:
+            num_retrieve = num
+        list_results, list_distances = self._idx.knn_query(
+            embedding, num_retrieve)
         results = list_results[0]
-        return [
-            self._mapper.to_key(result) for result in results if result != idx
-        ]
+        if has_key:
+            idx = self._mapper.to_idx(key)
+            results = [
+                self._mapper.to_key(result)
+                for result in results
+                if result != idx
+            ]
+            # If the key wasn't found in the results, we still should return
+            # only num results.
+            if len(results) > num:
+                results = results[:-1]
+        return results
 
     def size(self):
         """Returns the amount of embeddings in the index"""

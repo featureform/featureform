@@ -165,7 +165,7 @@ class EmbeddingHubClient:
         it = self._key_iter(space, keys)
         return self._embedding_iter(self._stub.MultiGet(it))
 
-    def nearest_neighbor(self, space, key, num, wait=True):
+    def nearest_neighbor(self, space, num, key=None, embedding=None, wait=True):
         """Finds N nearest neighbors for a given embedding record.
 
         Args:
@@ -179,8 +179,11 @@ class EmbeddingHubClient:
             provided vector embedding. If wait is False, the value will
             be wrapped in a future.
         """
+        if (key is not None):
+            key = str(key)
         req = embedding_store_pb2.NearestNeighborRequest(space=str(space),
-                                                         key=str(key),
+                                                         key=key,
+                                                         embedding=embedding,
                                                          num=num)
         future = self._stub.NearestNeighbor.future(req)
         transform_fn = lambda res: res.keys

@@ -174,6 +174,9 @@ grpc::Status EmbeddingHubService::NearestNeighbor(
     return Status(StatusCode::INVALID_ARGUMENT,
                   "Key and embedding cannot both be set");
   }
+  if (!has_key && !has_vec) {
+    return Status(StatusCode::INVALID_ARGUMENT, "Key or embedding must be set");
+  }
 
   std::vector<float> ref_vec;
   auto num_retrieve = request->num();

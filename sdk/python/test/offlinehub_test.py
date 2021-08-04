@@ -14,16 +14,13 @@ def init_embeddings():
         ("a", [1, 0]),
         ("b", [0, 1]),
         ("c", [-1, -1]),
+        ("d", [1, 1]),
     ]
 
 
 @pytest.fixture
-def init_args():
-    return ([
-        ("a", [1, 0]),
-        ("b", [0, 1]),
-        ("c", [-1, -1]),
-    ], 2)
+def init_args(init_embeddings):
+    return (init_embeddings, 2)
 
 
 def test_set_get_index():
@@ -62,7 +59,7 @@ def test_multiset_multiget(init_args):
 
 def test_nn(init_args):
     index = Index(*init_args)
-    assert index.nearest_neighbor("a", 1) == ["b"]
+    assert index.nearest_neighbor(2, key="a") == ["d", "b"]
 
 
 def test_capacity_set():

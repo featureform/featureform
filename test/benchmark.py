@@ -247,7 +247,7 @@ class ANNBenchmark(ThreadableBenchmark):
             yield key
 
     def next_run(self, key):
-        self.client().nearest_neighbor(self.space_name, key, 20)
+        self.client().nearest_neighbor(self.space_name, 20, key=key)
 
     def num_runs(self):
         return 10000

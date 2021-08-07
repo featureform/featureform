@@ -10,7 +10,7 @@ import os
 import pytest
 import uuid
 
-import sdk.python.embeddinghub as es
+import sdk.python.client as es
 
 
 @pytest.fixture

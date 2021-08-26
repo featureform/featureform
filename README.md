@@ -21,7 +21,7 @@
     <h3 align="center">
         <a href="https://www.featureform.com/">Website</a>
         <span> | </span>
-        <a href="https://docs.featureform.com/">Docs</a>
+        <a href="https://docs.featureform.com/v/main/">Docs</a>
         <span> | </span>
         <a href="https://apidocs.featureform.com/">API Docs</a>
         <span> | </span>

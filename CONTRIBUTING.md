@@ -32,4 +32,4 @@ The Pull Request reviews are done on a regular basis.
 Please, make sure you respond to our feedback/questions.
 
 # Community
-If you have additional questions or you want to chat with featureform core team, you can join our community [![Discourse posts](https://img.shields.io/badge/Community-discourse-blue)](https://communityinviter.com/apps/featureform-community/featureform-community-invite.
+If you have additional questions or you want to chat with featureform core team, you can join our community [![Discourse posts](https://img.shields.io/badge/Community-discourse-blue)](https://featureform-community.slack.com/ssb/redirect)

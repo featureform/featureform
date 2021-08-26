@@ -25,7 +25,7 @@
         <span> | </span>
         <a href="https://apidocs.featureform.com/">API Docs</a>
         <span> | </span>
-        <a href="https://communityinviter.com/apps/featureform-community/featureform-community-invite">Community forum</a>
+        <a href="https://featureform-community.slack.com/ssb/redirect">Community forum</a>
     </h3>
 </div>
 

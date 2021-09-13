@@ -8,7 +8,7 @@ Install the Python SDK via pip
 pip install embeddinghub
 ```
 
-## Step 2 _optional_ Deploy Docker container
+## Step 2 Deploy Docker container ( _optional_ )
 The Embeddinghub client can be used without a server. This is useful when using embeddings in a research environment where a database server is not necessary. If that’s the case for you, skip ahead to the next step.
 
 Otherwise, we can use this docker command to run Embeddinghub locally and to map the container's main port to our host's port.

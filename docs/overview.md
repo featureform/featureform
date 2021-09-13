@@ -11,7 +11,7 @@ Embeddinghub is a database built for machine learning embeddings. It is built wi
 * Enable other operations like partitioning, sub-indices, and averaging
 * Manage versioning, access control, and rollbacks painlessly
 
-Prior to Embeddinghub, many organizations would use three different tools to achieve these three goals, with embedding hub you get a database that’s built from the ground up to achieve this functionality.
+Prior to Embeddinghub, many organizations would use three different tools to achieve these three goals. With Embeddinghub, you get a database that’s built from the ground up to achieve this functionality.
 
 ## Concepts
 
@@ -21,7 +21,7 @@ Embeddings are dense numerical representations of real-world objects and relatio
 
 ### Approximate Nearest Neighbor
 
-Nearest neighbor \(NN\) is often the most useful embedding operation. It finds things that are similar to the current embedding. In recommender systems, we can create a user embedding and find items that are most relevant to them. In a search engine, we can find a document that’s most similar to a search query. Nearest neighbor is a computationally expensive operation however. Performed naively it is O\(N\*K\), where N is the number of items and K is the size of each embedding. However, in most cases when we need nearest neighbors, an approximation would suffice. If we recommend five items to a user, and one is technically the sixth closest item, the user probably won’t care. Approximate nearest neighbor \(ANN\) algorithms typically drop the complexity of a lookup to O\(log\(n\)\). Embeddinghub uses the HNSW algorithm by default.
+Nearest neighbor \(NN\) is often the most useful embedding operation. It finds things that are similar to the current embedding. In recommender systems, we can create a user embedding and find items that are most relevant to them. In a search engine, we can find a document that’s most similar to a search query. Nearest neighbor is a computationally expensive operation however. Performed naively, it is O\(N\*K\), where N is the number of items and K is the size of each embedding. However, in most cases when we need nearest neighbors, an approximation would suffice. If we recommend five items to a user, and one is technically the sixth closest item, the user probably won’t care. Approximate nearest neighbor \(ANN\) algorithms typically drop the complexity of a lookup to O\(log\(n\)\). Embeddinghub uses the HNSW algorithm by default.
 
 ## Common Use Cases
 
@@ -51,5 +51,5 @@ It works by transforming the user’s text and an image into an embedding in the
 
 ## Architecture
 
-The alpha version of the embedding hub can only be deployed in a single node configuration. It uses RocksDB to durable store embeddings and metadata, and uses HNSWLib to build approximate nearest neighbor indices. The python client also has the ability to use HNSWLib to build local embeddings but does not currently handle durable storage. The server communicates via gRPC, the proto service file can be found [here](https://github.com/featureform/embeddings/blob/main/embeddingstore/embedding_store.proto). All of the metadata is also stored in serialized protobuf form as defined [here](https://github.com/featureform/embeddings/blob/main/embeddingstore/embedding_store_meta.proto).
+The alpha version of the Embeddinghub can only be deployed in a single node configuration. It uses RocksDB to durably store embeddings and metadata, and uses HNSWLib to build approximate nearest neighbor indices. The python client also has the ability to use HNSWLib to build local embeddings but does not currently handle durable storage. The server communicates via gRPC, the proto service file can be found [here](https://github.com/featureform/embeddings/blob/main/embeddingstore/embedding_store.proto). All of the metadata is also stored in serialized protobuf form as defined [here](https://github.com/featureform/embeddings/blob/main/embeddingstore/embedding_store_meta.proto).
 

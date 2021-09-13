@@ -29,13 +29,13 @@
     </h3>
 </div>
 
-[Embedding Hub](https://featureform.com/) is an open-source embedding management and storage solution.
+[Embeddinghub](https://featureform.com/) is an open-source embedding management and storage solution.
 
 ## Features
 * **Supported Operations**: Run approximate nearest neighbor lookups, average multiple embeddings, partition tables (spaces), cache locally while training, and more.
 * **Storage**: Store and index billions vectors embeddings from our storage layer.
 * **Versioning**: Create, manage, and rollback different versions of your embeddings.
-* **Access Control**: Encode different business logic and user management directly into the embedding hub.
+* **Access Control**: Encode different business logic and user management directly into Embeddinghub.
 * **Monitoring**: Keep track of how embeddings are being used, latency, throughput, and feature drift over time.
 
 
@@ -46,12 +46,12 @@
 
 ## Contributing
 
-* To contribute to Embedding Hub, please check out [Contribution docs](https://github.com/featureform/embeddings/blob/main/CONTRIBUTING.md).
+* To contribute to Embeddinghub, please check out [Contribution docs](https://github.com/featureform/embeddings/blob/main/CONTRIBUTING.md).
 * Welcome to our awesome community, please join our [Slack community](https://featureform-community.slack.com/ssb/redirect).
 
 ## Report Issues
 
-Please help us by [reporting any issues](https://github.com/featureform/embeddings/issues/new/choose) you may have while using Embedding Hub.
+Please help us by [reporting any issues](https://github.com/featureform/embeddings/issues/new/choose) you may have while using Embeddinghub.
 
 ## License
 

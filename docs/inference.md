@@ -23,7 +23,7 @@ def batch_user_recommendations(user_batch):
 
 ## Snapshots for minimal latency
 
-Most embedding hub operations require a full round trip from client to server. Using batching, this can be pipelined, and throughput can be increased. However, if your system has very low latency requirements, a local snapshot can be used.
+Most Embeddinghub operations require a full round trip from client to server. Using batching, this can be pipelined, and throughput can be increased. However, if your system has very low latency requirements, a local snapshot can be used.
 
 ```py
 user_snapshot = user_space.download_snapshot()
@@ -34,7 +34,7 @@ def user_recommendations(user):
 	return item_snapshot.nearest_neighbor(10, vector=user_vec)
 ```
 
-A snapshot refresh can be triggered either synchronously or asynchronously. This allows for fine-grained control on performance characteristics of the embedding hub.
+A snapshot refresh can be triggered either synchronously or asynchronously. This allows for fine-grained control on performance characteristics of the Embeddinghub.
 
 ```py
 user_snapshot.refresh(wait=False)

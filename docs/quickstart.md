@@ -1,6 +1,6 @@
 # Quick Start
 
-## Step 1: Install Embedding Hub client
+## Step 1: Install Embeddinghub client
 
 Install the Python SDK via pip
 
@@ -9,9 +9,9 @@ pip install embeddinghub
 ```
 
 ## Step 2 _optional_ Deploy Docker container
-The embedding hub client can be used without a server. This is useful when using embeddings in a research environment where a database server is not necessary. If that’s the case for you, skip ahead to the next step.
+The Embeddinghub client can be used without a server. This is useful when using embeddings in a research environment where a database server is not necessary. If that’s the case for you, skip ahead to the next step.
 
-Otherwise, we can use this docker command to run the embedding hub locally and to map the container's main port to our host's port.
+Otherwise, we can use this docker command to run Embeddinghub locally and to map the container's main port to our host's port.
 
 ```
 docker run featureformcom/embeddinghub -p 74622:74622
@@ -26,7 +26,7 @@ import embeddinghub as eh
 
 hub = eh.connect(eh.Config())
 ```
-Otherwise, you can use a LocalConfig to storage and index embeddings locally.
+Otherwise, you can use a LocalConfig to store and index embeddings locally.
 
 ```py
 hub = eh.connect(eh.LocalConfig())
@@ -55,7 +55,7 @@ space.multiset(embeddings)
 
 ## Step 6: Get nearest neighbors
 
-Now we can compare apples to oranges and get the nearest neighbors
+Now we can compare apples to oranges and get the nearest neighbors.
 
 ```py
 neighbors = quickstart.nearest_neighbors(key="apple", num=2)
@@ -63,6 +63,6 @@ print(neighbors)
 ```
 
 ## Next Steps
-* [Read through our guide to further explore Embedding Hub’s functionality.](overview.md)
-* [Join other Embedding Hub users and contributors in our Slack community.](https://featureform-community.slack.com/ssb/redirect)
+* [Read through our guide to further explore Embeddinghub’s functionality.](overview.md)
+* [Join other Embeddinghub users and contributors in our Slack community.](https://featureform-community.slack.com/ssb/redirect)
 

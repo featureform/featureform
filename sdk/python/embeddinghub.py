@@ -2,7 +2,7 @@
 # License, v.2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 """ 
-This module provides a client to talk to the embedding hub server. 
+This module provides a client to talk to the Embeddinghub server. 
 
 It contains methods for setting and retrieving embeddings as well as nearest neighbor search.
 
@@ -40,7 +40,7 @@ class EmbeddingHubClient:
         return self._channel.close()
 
     def create_space(self, name, dims, wait=True):
-        """Create a new space in the embedding hub.
+        """Create a new space in Embeddinghub.
 
         A space is essentially a table. It can contain multiple different
         version and also be immutable. This method creates a new space with

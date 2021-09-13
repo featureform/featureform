@@ -32,7 +32,7 @@ Today, semantic search utilizes more sophisticated embeddings like BERT and may 
 
 A recommender system predicts the preferences and ratings of users for a variety of entities/products. The two most common approaches are collaborative filtering and content-based. Collaborative filtering uses actions to train and form recommendations. Modern collaborative filtering systems almost all use embeddings. As an example, we can use the SVD method to build a recommender system. In that system, multiplying a user embedding by an item embedding generates a rating prediction. This provides a clear relationship between users and products. Similar items beget similar ratings from similar users. This attribute can also be used in downstream models. For example, Youtube’s recommender uses embeddings as inputs to a neural network that predicts watch time.
 
-![Deep Neural Network Embeddings for Recommender Systems](assets/recommender_system_deep_neural_network_embeddings.png)
+![Youtube uses deep neural networks to generate embeddings for recommendations](assets/recommender_system_deep_neural_network_embeddings.png)
 
 ### Computer Vision
 
@@ -40,11 +40,11 @@ In computer vision, embeddings are often used as a way to translate between diff
 
 Another interesting example is [the AI Art Machine](https://colab.research.google.com/drive/1n_xrgKDlGQcCF6O-eL3NOd_x4NSqAUjK#scrollTo=TnMw4FrN6JeB). It will generate an image based on user input text. For example, if we type in Nostaligia, we get the following image.
 
-![Generated Image using Embeddings from the term Nostalgia](assets/generated_art_machine_learning_embeddings.png)
+![An image generated from the term "Nostalgia"](assets/generated_art_machine_learning_embeddings.png)
 
 It works by transforming the user’s text and an image into an embedding in the same latent space. It's composed of four transformers: Image -&gt; Embedding, Text -&gt; Embedding, Embedding -&gt; Text, Image -&gt; Text. With all these, transformations we can translate text to image and visa-versa using a embedding as an intermediate representation.
 
-![Architecture used to generate images from text using embeddings](assets/generated_art_machine_learning_embeddings_architecture.png)
+![The architecture to generate an image from text](assets/generated_art_machine_learning_embeddings_architecture.png)
 
 ## Architecture
 

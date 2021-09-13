@@ -41,18 +41,17 @@
 
 ## Try it out
 
-* [Getting started](https://docs.featureform.com/getting_started)
-* [Install Embedding Store](https://docs.featureform.com/installation_guide)
-* [Explore our docs](https://docs.featureform.com/overview)
+* [Quickstart](https://docs.featureform.com/quickstart)
+* [Explore our docs](https://docs.featureform.com/)
 
 ## Contributing
 
-* To contribute to Embedding Store, please check out [Contribution docs](https://github.com/featureform/embeddings/blob/main/CONTRIBUTING.md).
-* Welcome to our awesome community, please join our [Slack community](https://communityinviter.com/apps/featureform-community/featureform-community-invite).
+* To contribute to Embedding Hub, please check out [Contribution docs](https://github.com/featureform/embeddings/blob/main/CONTRIBUTING.md).
+* Welcome to our awesome community, please join our [Slack community](https://featureform-community.slack.com/ssb/redirect).
 
 ## Report Issues
 
-Please help us by [reporting any issues](https://github.com/featureform/embeddings/issues/new/choose) you may have while using Embedding Store.
+Please help us by [reporting any issues](https://github.com/featureform/embeddings/issues/new/choose) you may have while using Embedding Hub.
 
 ## License
 

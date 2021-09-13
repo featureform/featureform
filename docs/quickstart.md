@@ -29,7 +29,7 @@ hub = eh.connect(eh.Config())
 Otherwise, you can use a LocalConfig to store and index embeddings locally.
 
 ```py
-hub = eh.connect(eh.LocalConfig())
+hub = eh.connect(eh.LocalConfig("data/"))
 ```
 
 ## Step 4: Create a Space

@@ -8,7 +8,7 @@ Install the Python SDK via pip
 pip install embeddinghub
 ```
 
-## Step 2 _optional_: Deploy Docker container
+## Step 2 _optional_ Deploy Docker container
 The embedding hub client can be used without a server. This is useful when using embeddings in a research environment where a database server is not necessary. If that’s the case for you, skip ahead to the next step.
 
 Otherwise, we can use this docker command to run the embedding hub locally and to map the container's main port to our host's port.
@@ -22,12 +22,14 @@ docker run featureformcom/embeddinghub -p 74622:74622
 If you deployed a docker container, you can initialize the python client.
 
 ```py
+import embeddinghub as eh
+
 hub = eh.EmbeddingHub(eh.Config())
 ```
 Otherwise, you can use a LocalConfig to storage and index embeddings locally.
 
 ```py
-Hub = eh.EmbeddingHub(eh.LocalConfig())
+hub = eh.EmbeddingHub(eh.LocalConfig())
 ```
 
 ## Step 4: Create a Space

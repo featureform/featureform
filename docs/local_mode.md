@@ -10,7 +10,7 @@ import embeddinghub as eh
 hub = eh.connect(LocalConfig("directory"))
 ```
 
-This version of mbedding hub works similarly to a traditional EmbeddingHub instance in that you can create and get spaces and write and read from them.
+This version of Embeddinghub works similarly to a traditional Embeddinghub instance in that you can create and get spaces and write and read from them.
 
 ```py
 item_space = hub.create_space("items", 3)

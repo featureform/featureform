@@ -1,15 +1,17 @@
 # Overview
 
-## What is Embedding Hub?
+## What is Embeddinghub?
 
-Embedding Hub is a database built for machine learning embeddings. It is built for three goals.
+![Embeddinghub makes it easy to operationalize your embeddings](assets/embeddinghub.png)
 
-* Stores their embeddings durably and with high availability
+Embeddinghub is a database built for machine learning embeddings. It is built with four goals in mind.
+
+* Store embeddings durably and with high availability
 * Allow for approximate nearest neighbor operations
 * Enable other operations like partitioning, sub-indices, and averaging
 * Manage versioning, access control, and rollbacks painlessly
 
-Prior to Embedding Hub, many organizations would use three different tools to achieve these three goals, with embedding hub you get a database that’s built from the ground up to achieve this functionality.
+Prior to Embeddinghub, many organizations would use three different tools to achieve these three goals, with embedding hub you get a database that’s built from the ground up to achieve this functionality.
 
 ## Concepts
 
@@ -19,7 +21,7 @@ Embeddings are dense numerical representations of real-world objects and relatio
 
 ### Approximate Nearest Neighbor
 
-Nearest neighbor \(NN\) is often the most useful embedding operation. It finds things that are similar to the current embedding. In recommender systems, we can create a user embedding and find items that are most relevant to them. In a search engine, we can find a document that’s most similar to a search query. Nearest neighbor is a computationally expensive operation however. Performed naively it is O\(N\*K\), where N is the number of items and K is the size of each embedding. However, in most cases when we need nearest neighbors, an approximation would suffice. If we recommend five items to a user, and one is technically the sixth closest item, the user probably won’t care. Approximate nearest neighbor \(ANN\) algorithms typically drop the complexity of a lookup to O\(log\(n\)\). Embedding Hub uses the HNSW algorithm by default.
+Nearest neighbor \(NN\) is often the most useful embedding operation. It finds things that are similar to the current embedding. In recommender systems, we can create a user embedding and find items that are most relevant to them. In a search engine, we can find a document that’s most similar to a search query. Nearest neighbor is a computationally expensive operation however. Performed naively it is O\(N\*K\), where N is the number of items and K is the size of each embedding. However, in most cases when we need nearest neighbors, an approximation would suffice. If we recommend five items to a user, and one is technically the sixth closest item, the user probably won’t care. Approximate nearest neighbor \(ANN\) algorithms typically drop the complexity of a lookup to O\(log\(n\)\). Embeddinghub uses the HNSW algorithm by default.
 
 ## Common Use Cases
 

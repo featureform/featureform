@@ -15,7 +15,7 @@ for key, label in training_samples:
 ```
 
 ## Training Embeddings
-In the case where the embeddings are actually mutable and being trained, the process looks slightly different. Local in-memory caching should be used when possible, and new embeddings can be written directly to the snapshot. At the end of training, the snapshot can be written back to the embedding hub.
+In the case where the embeddings are actually mutable and being trained, the process looks slightly different. Local in-memory caching should be used when possible, and new embeddings can be written directly to the snapshot. At the end of training, the snapshot can be written back to Embeddinghub.
 
 ```py
 snapshot = hub.get_space("items", download_snapshot=True)

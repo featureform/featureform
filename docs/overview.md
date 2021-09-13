@@ -4,9 +4,10 @@
 
 Embedding Hub is a database built for machine learning embeddings. It is built for three goals.
 
-* Provide native operations for embeddings such as approximate nearest neighbor lookup.
-* Store embeddings durably
-* Provide APIs around versioning, immutability, and more to allow for effecting embedding management.
+* Stores their embeddings durably and with high availability
+* Allow for approximate nearest neighbor operations
+* Enable other operations like partitioning, sub-indices, and averaging
+* Manage versioning, access control, and rollbacks painlessly
 
 Prior to Embedding Hub, many organizations would use three different tools to achieve these three goals, with embedding hub you get a database that’s built from the ground up to achieve this functionality.
 

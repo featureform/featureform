@@ -29,5 +29,5 @@ snapshot.write_to_space("items_v2", create=True)
 To avoid overwriting a space being used elsewhere, it’s typically preferable to write your snapshot under a new space name; however, you can choose to overwrite an existing space as well.
 
 ```py
-snapshot.overwrite_space(“items”)
+snapshot.overwrite_space("items")
 ```

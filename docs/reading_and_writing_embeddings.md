@@ -1,6 +1,6 @@
 # Reading and Writing Embeddings
 
-EmbeddingHub is made up of many user generated vector spaces. These spaces must be created and then they can be read and written to through one of the three following APIs:
+Embeddinghub is made up of many user generated vector spaces. These spaces must be created and then they can be read and written to through one of the three following APIs:
 * Key-Value
 * Snapshot
 * Nearest-Neighbor

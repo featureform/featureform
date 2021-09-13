@@ -1,0 +1,5 @@
+root: ./docs/
+structure:  
+    Overview: overview.md  
+redirects:  
+    'Join the Community!': 'https://featureform-community.slack.com/ssb/redirect'

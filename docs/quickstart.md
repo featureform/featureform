@@ -58,7 +58,7 @@ space.multiset(embeddings)
 Now we can compare apples to oranges and get the nearest neighbors
 
 ```py
-neighbors = quickstart.nearest_neighbors(key=”apple”, num=2)
+neighbors = quickstart.nearest_neighbors(key="apple", num=2)
 print(neighbors)
 ```
 

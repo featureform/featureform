@@ -16,7 +16,7 @@ space = hub.create_space("name",  3)
 It can be retrieved by name as well.
 
 ```py
-space = hub.get_space(“name”)
+space = hub.get_space("name")
 ```
 
 Once a space is created the following interfaces can be used to read and write to it.
@@ -56,7 +56,7 @@ space.delete("a")
 Or with many at once
 
 ```py
-space.multidelete([“a”, “b”, “c”])
+space.multidelete(["a", "b", "c"])
 ```
 
 A space can be completely cleared as well.
@@ -89,7 +89,7 @@ A local snapshot fulfils the nearest neighbor and key-value store interfaces to 
 For brevity you can also create a snapshot when retrieving a space.
 
 ```py
-space.get_space(“name”, download_snapshot=True)
+space.get_space("name", download_snapshot=True)
 ```
 
 ## Nearest Neighbor Interface

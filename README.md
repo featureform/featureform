@@ -29,13 +29,13 @@
     </h3>
 </div>
 
-[Embedding Store](https://featureform.com/) is an open-source embedding management and storage solution.
+[Embedding Hub](https://featureform.com/) is an open-source embedding management and storage solution.
 
 ## Features
 * **Supported Operations**: Run approximate nearest neighbor lookups, average multiple embeddings, partition tables (spaces), cache locally while training, and more.
 * **Storage**: Store and index billions vectors embeddings from our storage layer.
 * **Versioning**: Create, manage, and rollback different versions of your embeddings.
-* **Access Control**: Encode different business logic and user management directly into the embedding store.
+* **Access Control**: Encode different business logic and user management directly into the embedding hub.
 * **Monitoring**: Keep track of how embeddings are being used, latency, throughput, and feature drift over time.
 
 

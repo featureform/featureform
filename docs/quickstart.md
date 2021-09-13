@@ -24,12 +24,12 @@ If you deployed a docker container, you can initialize the python client.
 ```py
 import embeddinghub as eh
 
-hub = eh.EmbeddingHub(eh.Config())
+hub = eh.connect(eh.Config())
 ```
 Otherwise, you can use a LocalConfig to storage and index embeddings locally.
 
 ```py
-hub = eh.EmbeddingHub(eh.LocalConfig())
+hub = eh.connect(eh.LocalConfig())
 ```
 
 ## Step 4: Create a Space

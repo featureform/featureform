@@ -18,7 +18,7 @@ sys.path.insert(1, os.path.abspath('client'))
 
 # -- Project information -----------------------------------------------------
 
-project = 'Embedding Store'
+project = 'Embedding Hub'
 copyright = '2021, Shabnam Mokhtarani, Simba Khadder'
 author = 'Shabnam Mokhtarani, Simba Khadder'
 

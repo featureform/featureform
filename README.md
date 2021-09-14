@@ -62,6 +62,10 @@
 
 Embeddings are dense numerical representations of real-world objects and relationships, expressed as a vector. The vector space quantifies the semantic similarity between categories. Embedding vectors that are close to each other are considered similar. Sometimes, they are used directly for “Similar items to this” section in an e-commerce store. Other times, embeddings are passed to other models. In those cases, the model can share learnings across similar items rather than treating them as two completely unique categories, as is the case with one-hot encodings. For this reason, embeddings can be used to accurately represent sparse data like clickstreams, text, and e-commerce purchases as features to downstream models.
 
+### Further Reading
+* [Read up on common embeddings use cases, like recommender systems, nearest neighbor, and natural language processing in our docs.](overview.md)
+* [The Definitive Guide to Embeddings](https://www.featureform.com/post/the-definitive-guide-to-embeddings)
+
 <br />
 <br />
 

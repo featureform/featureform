@@ -39,10 +39,15 @@
 * Enable other operations like partitioning, sub-indices, and averaging
 * Manage versioning, access control, and rollbacks painlessly
 
+<br />
+<br />
+
 <img src="docs/assets/embeddinghub.png" alt="drawing" style="width:35em"/>
 
-Prior to Embeddinghub, many organizations would use three different tools to achieve these three goals. With Embeddinghub, you get a database that’s built from the ground up to achieve this functionality.
- 
+<br />
+<br />
+
+
 ## Features
 * **Supported Operations**: Run approximate nearest neighbor lookups, average multiple embeddings, partition tables (spaces), cache locally while training, and more.
 * **Storage**: Store and index billions vectors embeddings from our storage layer.
@@ -50,6 +55,14 @@ Prior to Embeddinghub, many organizations would use three different tools to ach
 * **Access Control**: Encode different business logic and user management directly into Embeddinghub.
 * **Monitoring**: Keep track of how embeddings are being used, latency, throughput, and feature drift over time.
 
+<br />
+
+
+## What is an Embedding?
+
+Embeddings are dense numerical representations of real-world objects and relationships, expressed as a vector. The vector space quantifies the semantic similarity between categories. Embedding vectors that are close to each other are considered similar. Sometimes, they are used directly for “Similar items to this” section in an e-commerce store. Other times, embeddings are passed to other models. In those cases, the model can share learnings across similar items rather than treating them as two completely unique categories, as is the case with one-hot encodings. For this reason, embeddings can be used to accurately represent sparse data like clickstreams, text, and e-commerce purchases as features to downstream models.
+
+<br />
 <br />
 
 # Getting Started

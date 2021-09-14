@@ -100,7 +100,7 @@ hub = eh.connect(eh.Config())
 Otherwise, you can use a LocalConfig to store and index embeddings locally.
 
 ```py
-hub = eh.connect(eh.LocalConfig())
+hub = eh.connect(eh.LocalConfig("data/"))
 ```
 
 ## Step 4: Create a Space
@@ -129,7 +129,7 @@ space.multiset(embeddings)
 Now we can compare apples to oranges and get the nearest neighbors.
 
 ```py
-neighbors = quickstart.nearest_neighbors(key="apple", num=2)
+neighbors = space.nearest_neighbors(key="apple", num=2)
 print(neighbors)
 ```
 

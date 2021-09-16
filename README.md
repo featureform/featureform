@@ -6,7 +6,7 @@
 <div align="center">
 	<a href="https://github.com/featureform/embeddings/actions"><img src="https://img.shields.io/badge/featureform-workflow-blue?style=for-the-badge&logo=appveyor" alt="Embedding Store workflow"></a>
     <a href="https://pypi.org/project/embeddinghub/" target="_blank"><img src="https://img.shields.io/pypi/dm/embeddinghub?style=for-the-badge&logo=appveyor" alt="PyPi Downloads"></a>
-    <a href="https://featureform-community.slack.com/ssb/redirect" target="_blank"><img src="https://img.shields.io/badge/Join-Slack-blue?style=for-the-badge&logo=appveyor" alt="Featureform Slack"></a>
+    <a href="https://join.slack.com/t/featureform-community/shared_invite/zt-w29e2py9-rUQEHkE59tlotxmmRkvVbQ" target="_blank"><img src="https://img.shields.io/badge/Join-Slack-blue?style=for-the-badge&logo=appveyor" alt="Featureform Slack"></a>
     <br>
     <a href="https://www.python.org/downloads/" target="_blank"><img src="https://img.shields.io/badge/python-3.6%20|%203.7|%203.8-brightgreen.svg" alt="Python supported"></a>
     <a href="https://pypi.org/project/embeddinghub/" target="_blank"><img src="https://badge.fury.io/py/embeddinghub.svg" alt="PyPi Version"></a>
@@ -141,7 +141,7 @@ print(neighbors)
 # Contributing
 
 * To contribute to Embeddinghub, please check out [Contribution docs](https://github.com/featureform/embeddings/blob/main/CONTRIBUTING.md).
-* Welcome to our awesome community, please join our [Slack community](https://featureform-community.slack.com/ssb/redirect).
+* Welcome to our awesome community, please join our [Slack community](https://join.slack.com/t/featureform-community/shared_invite/zt-w29e2py9-rUQEHkE59tlotxmmRkvVbQ).
 
 <br />
 

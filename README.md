@@ -85,7 +85,7 @@ The Embeddinghub client can be used without a server. This is useful when using 
 Otherwise, we can use this docker command to run Embeddinghub locally and to map the container's main port to our host's port.
 
 ```
-docker run featureformcom/embeddinghub -p 74622:74622
+docker run featureformcom/embeddinghub -p 7462:7462
 ```
 
 ## Step 3: Initialize Python Client

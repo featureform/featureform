@@ -22,12 +22,12 @@ from sdk.python import embedding_store_pb2
 
 class EmbeddingHubClient:
 
-    def grpc_channel(host="0.0.0.0", port=74622):
+    def grpc_channel(host="0.0.0.0", port=7462):
         connection_str = "{}:{}".format(host, port)
         return grpc.insecure_channel(connection_str,
                                      options=(('grpc.enable_http_proxy', 0),))
 
-    def __init__(self, grpc_channel=None, host="0.0.0.0", port=74622):
+    def __init__(self, grpc_channel=None, host="0.0.0.0", port=7462):
         if grpc_channel is not None:
             self._channel = grpc_channel
         else:

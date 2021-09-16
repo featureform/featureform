@@ -5,7 +5,7 @@
 #include "server.h"
 
 int main(int argc, char** argv) {
-  auto address = argc > 1 ? argv[1] : "0.0.0.0:74622";
+  auto address = argc > 1 ? argv[1] : "0.0.0.0:7462";
   RunServer(address);
 
   return 0;

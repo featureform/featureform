@@ -1,0 +1,44 @@
+{
+  "name": "LogAvgPurchasePrice",
+  "type": "Feature",
+  "default-version": "first-version",
+  "all-versions": ["first-version", "streaming-version"],
+  "versions": {
+    "first-version": {
+      "metadata": {
+        "version-name": "first-version",
+        "source": "Wine Data",
+        "entity": "wine_id",
+        "created": "August 9th, 2021",
+        "owner": "Simba Khadder",
+        "visibility": "private",
+        "revision": "August 12th, 2021",
+        "tags": ["purchase", "price", "revenue", "calculated"],
+        "description": "Logarithm of calculated average purchase price of set"
+      },
+      "data": {
+        "feature-sets": [
+          { "name": "Wine quality set", "created": "2020-08-10.39402409" }
+        ]
+      }
+    },
+    "streaming-version": {
+      "metadata": {
+        "version-name": "streaming-version",
+        "source": "Wine Data",
+        "entity": "wine_id",
+        "created": "August 9th, 2021",
+        "owner": "Simba Khadder",
+        "visibility": "private",
+        "revision": "August 12th, 2021",
+        "tags": ["purchase", "price", "revenue", "calculated"],
+        "description": "Logarithm of calculated average purchase price of set"
+      },
+      "data": {
+        "feature-sets": [
+          { "name": "Wine quality set", "created": "2020-08-10.39402409" }
+        ]
+      }
+    }
+  }
+}

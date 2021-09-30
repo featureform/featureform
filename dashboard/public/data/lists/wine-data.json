@@ -1,0 +1,259 @@
+{
+  "Feature": [
+    {
+      "name": "Non-free Sulfur Dioxide",
+      "default-version": "first-version",
+      "all-versions": ["first-version", "streaming-version"],
+      "versions": {
+        "first-version": {
+          "version-name": "first-version",
+          "source": "Wine Data",
+          "entity": "wine_id",
+          "created": "2020-08-09-0290499",
+          "owner": "Simba Khadder",
+          "visibility": "private",
+          "revision": "2020-08-10-39402409",
+          "tags": ["materialized", "calculated", "wine", "chemical", "quality"],
+          "description": "Sulfur Dioxide that is trapped",
+          "feature-sets": [
+            { "name": "wine analysis", "created": "2020-08-10.39402409" },
+            { "name": "test-feature_set", "created": "2020-08-14.293923" }
+          ]
+        },
+        "streaming-version": {
+          "version-name": "streaming-version",
+          "source": "Wine Data",
+          "entity": "wine_id",
+          "created": "2020-08-09-0290499",
+          "owner": "Simba Khadder",
+          "visibility": "private",
+          "revision": "2020-08-10-39402409",
+          "description": "Sulfur Dioxide that is trapped",
+          "tags": [
+            "materialized",
+            "calculated",
+            "wine",
+            "chemical",
+            "quality",
+            "streaming"
+          ],
+          "feature-sets": [
+            { "name": "wine analysis", "created": "2020-08-10.39402409" },
+            { "name": "test-feature_set", "created": "2020-08-14.293923" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "fixed_acidity",
+      "default-version": "first-version",
+      "all-versions": ["first-version", "normalized version"],
+      "versions": {
+        "first-version": {
+          "source": "Wine Data",
+          "entity": "wine_id",
+          "created": "2020-08-09-0290499",
+          "owner": "Simba Khadder",
+          "visibility": "private",
+          "revision": "2020-08-10-39402409",
+          "description": "acidity that is fixed",
+          "tags": ["ph", "wine", "chemical", "quality"],
+          "feature-sets": [
+            { "name": "wine analysis", "created": "2020-08-10.39402409" },
+            { "name": "test-feature_set", "created": "2020-08-14.293923" }
+          ]
+        },
+        "normalized version": {
+          "source": "Wine Data",
+          "entity": "wine_id",
+          "created": "2020-08-11-0290499",
+          "owner": "Simba Khadder",
+          "visibility": "private",
+          "revision": "2020-08-12-39402409",
+          "description": "acidity that is fixed",
+          "tags": ["ph", "wine", "chemical", "quality"],
+          "feature-sets": [
+            { "name": "wine analysis", "created": "2020-08-10.39402409" },
+            { "name": "test-feature_set", "created": "2020-08-14.293923" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "clean_density",
+      "default-version": "default version",
+      "all-versions": ["default version", "null-lost version"],
+      "versions": {
+        "default version": {
+          "source": "Wine Data",
+          "entity": "wine_id",
+          "created": "2020-08-09-0290499",
+          "owner": "Simba Khadder",
+          "visibility": "private",
+          "revision": "2020-08-10-39402409",
+          "description": "clean part of density",
+          "tags": ["wine", "weight", "quality"],
+          "feature-sets": [
+            { "name": "wine analysis", "created": "2020-08-10.39402409" },
+            { "name": "test-feature_set", "created": "2020-08-14.293923" }
+          ]
+        },
+        "null-lost version": {
+          "source": "Wine Data",
+          "entity": "wine_id",
+          "created": "2020-08-09-0290499",
+          "owner": "Simba Khadder",
+          "visibility": "private",
+          "revision": "2020-08-10-39402409",
+          "description": "clean part of density",
+          "tags": ["wine", "weight", "quality"],
+          "feature-sets": [
+            { "name": "wine analysis", "created": "2020-08-10.39402409" },
+            { "name": "test-feature_set", "created": "2020-08-14.293923" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "LogAvgPurchasePrice",
+      "default-version": "first-version",
+      "all-versions": ["first-version", "streaming-version"],
+      "versions": {
+        "first-version": {
+          "source": "Wine Data",
+          "entity": "wine_id",
+          "created": "2020-08-09-0290499",
+          "owner": "Simba Khadder",
+          "visibility": "private",
+          "revision": "2020-08-10-39402409",
+          "description": "average purchase price",
+          "tags": ["wine", "sold", "accounting"],
+          "feature-sets": [
+            { "name": "wine analysis", "created": "2020-08-10.39402409" },
+            { "name": "test-feature_set", "created": "2020-08-14.293923" }
+          ]
+        },
+        "streaming-version": {
+          "source": "Wine Data",
+          "entity": "wine_id",
+          "created": "2020-08-09-0290499",
+          "owner": "Simba Khadder",
+          "visibility": "private",
+          "revision": "2020-08-10-39402409",
+          "description": "average purchase price",
+          "tags": ["wine", "sold", "accounting", "streaming"],
+          "feature-sets": [
+            { "name": "wine analysis", "created": "2020-08-10.39402409" },
+            { "name": "test-feature_set", "created": "2020-08-14.293923" }
+          ]
+        }
+      }
+    }
+  ],
+
+  "Feature Set": [
+    {
+      "name": "Wine quality set",
+      "default-version": "first-version",
+      "all-versions": ["first-version", "streaming-version"],
+      "versions": {
+        "first-version": {
+          "description": "dataset holding information on wine quality"
+        },
+
+        "streaming-version": {
+          "description": "wine dataset from data pertinent to summer harvest"
+        }
+      }
+    }
+  ],
+  "Entity": [
+    {
+      "name": "wine_id",
+      "default-version": "first-version",
+      "all-versions": ["first-version", "second-version"],
+      "versions": {
+        "first-version": {
+          "description": "dataset holding information on wine quality"
+        },
+
+        "second-version": {
+          "description": "wine dataset from data pertinent to summer harvest"
+        }
+      }
+    }
+  ],
+  "Label": [
+    {
+      "name": "Wine quality rating",
+      "default-version": "first-version",
+      "all-versions": ["first-version", "second-version"],
+      "versions": {
+        "first-version": {
+          "description": "Aggregate wine quality rating for a given sample"
+        },
+
+        "weighted-version": {
+          "description": "rating weighted in higher favor of reviews given higher presidence"
+        }
+      }
+    },
+    {
+      "name": "Wine spoiled",
+      "default-version": "first-version",
+      "all-versions": ["first-version"],
+      "versions": {
+        "first-version": {
+          "description": "Wine was spoiled or not",
+          "entity": "wine_id",
+          "created": "2020-08-09-024",
+          "tags": ["spoiled", "quality", "outcome", "boolean"]
+        }
+      }
+    }
+  ],
+  "Model": [
+    {
+      "name": "Wine random forest",
+      "default-version": "first-version",
+      "all-versions": ["first-version", "second-version"],
+      "versions": {
+        "first-version": {
+          "description": "Model classifying wine by spoilage and quality assesment"
+        },
+        "second-version": {
+          "description": "Model classifying wine by spoilage and quality assesment"
+        }
+      }
+    }
+  ],
+  "Space": [
+    {
+      "name": "User sample preferences",
+      "default-version": "first-version",
+      "all-versions": ["first-version", "normalized version"],
+      "versions": {
+        "first-version": {
+          "version-name": "first-version",
+          "dimensions": 3,
+          "created": "2020-08-09-0290499",
+          "owner": "Simba Khadder",
+          "visibility": "private",
+          "revision": "2020-08-10-39402409",
+          "tags": ["model2vec", "compressed"],
+          "description": "Vector generated based on user preferences"
+        },
+        "normalized version": {
+          "version-name": "normalized version",
+          "dimensions": 3,
+          "created": "2020-08-09-0290499",
+          "owner": "Simba Khadder",
+          "visibility": "private",
+          "revision": "2020-08-10-39402409",
+          "tags": ["model2vec", "compressed"],
+          "description": "Vector generated based on user preferences, normalized"
+        }
+      }
+    }
+  ]
+}

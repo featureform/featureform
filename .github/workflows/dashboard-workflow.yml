@@ -1,0 +1,15 @@
+name: Dashboard CI
+on: push
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true
+      matrix:
+        os: [ubuntu-latest, macOS-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v1
+      - name: Install modules
+        run: cd dashboard && npm install
+      - name: Run tests
+        run: cd dashboard && npm test

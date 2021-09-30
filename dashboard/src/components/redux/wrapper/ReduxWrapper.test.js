@@ -28,13 +28,16 @@ describe("ReduxWrapper", () => {
 
   const ConnectedDiv = connect(mapStateToProps)(StatefulDiv);
 
-  it("Add store to context to allow connect to work", () => {
-    expect(
-      mount(
-        <ReduxWrapper store={testStore}>
-          <ConnectedDiv />
-        </ReduxWrapper>
-      )
-    ).toMatchSnapshot();
+  const reduxComponent = mount(
+    <ReduxWrapper store={testStore}>
+      <ConnectedDiv />
+    </ReduxWrapper>
+  );
+
+  it("Add store to context and test mapStateToProps", () => {
+    const divProps = reduxComponent.find("StatefulDiv").props();
+    expect(divProps).toMatchObject({
+      valueProp: 5,
+    });
   });
 });

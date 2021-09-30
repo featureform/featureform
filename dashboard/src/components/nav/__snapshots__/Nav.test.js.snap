@@ -1,0 +1,738 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Nav TopBar hasn't changed 1`] = `
+<header
+  className="MuiPaper-root MuiAppBar-root MuiAppBar-positionFixed MuiAppBar-colorPrimary mui-fixed MuiPaper-elevation4"
+>
+  <div
+    className="MuiToolbar-root MuiToolbar-regular MuiToolbar-gutters"
+  >
+    <button
+      aria-label="open drawer"
+      className="MuiButtonBase-root MuiIconButton-root MuiIconButton-colorInherit MuiIconButton-edgeStart"
+      disabled={false}
+      onBlur={[Function]}
+      onDragLeave={[Function]}
+      onFocus={[Function]}
+      onKeyDown={[Function]}
+      onKeyUp={[Function]}
+      onMouseDown={[Function]}
+      onMouseLeave={[Function]}
+      onMouseUp={[Function]}
+      onTouchEnd={[Function]}
+      onTouchMove={[Function]}
+      onTouchStart={[Function]}
+      tabIndex={0}
+      type="button"
+    >
+      <span
+        className="MuiIconButton-label"
+      >
+        <svg
+          aria-hidden={true}
+          className="MuiSvgIcon-root"
+          focusable="false"
+          viewBox="0 0 24 24"
+        >
+          <path
+            d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"
+          />
+        </svg>
+      </span>
+      <span
+        className="MuiTouchRipple-root"
+      />
+    </button>
+    <span
+      className="MuiTypography-root MuiTypography-h5"
+    >
+      FeatureForm
+    </span>
+  </div>
+</header>
+`;
+
+exports[`Nav hasn't changed 1`] = `
+<div
+  className="MuiBox-root MuiBox-root-12 makeStyles-root-1"
+>
+  <nav
+    className="makeStyles-drawerContainer-3"
+  >
+    <div
+      className="PrivateHiddenCss-smUp-17"
+    />
+    <div
+      className="PrivateHiddenCss-xsDown-15"
+    >
+      <div
+        className="MuiDrawer-root MuiDrawer-docked makeStyles-drawer-4"
+      >
+        <div
+          className="MuiPaper-root MuiDrawer-paper makeStyles-drawerPaper-5 MuiDrawer-paperAnchorLeft MuiDrawer-paperAnchorDockedLeft MuiPaper-elevation0"
+        >
+          <div
+            className="makeStyles-toolbar-7"
+          />
+          <hr
+            className="MuiDivider-root"
+          />
+          <ul
+            className="MuiList-root MuiList-padding"
+          >
+            <li
+              className="MuiListSubheader-root MuiListSubheader-sticky MuiListSubheader-gutters"
+            >
+              Resources
+            </li>
+            <a
+              aria-current={null}
+              href="/sources"
+              onClick={[Function]}
+            >
+              <div
+                aria-disabled={false}
+                className="MuiButtonBase-root MuiListItem-root MuiListItem-gutters MuiListItem-button"
+                onBlur={[Function]}
+                onDragLeave={[Function]}
+                onFocus={[Function]}
+                onKeyDown={[Function]}
+                onKeyUp={[Function]}
+                onMouseDown={[Function]}
+                onMouseLeave={[Function]}
+                onMouseUp={[Function]}
+                onTouchEnd={[Function]}
+                onTouchMove={[Function]}
+                onTouchStart={[Function]}
+                role="button"
+                tabIndex={0}
+              >
+                <div
+                  className="MuiListItemIcon-root"
+                >
+                  <span
+                    aria-hidden={true}
+                    className="material-icons MuiIcon-root fa fa-file-import"
+                    style={
+                      Object {
+                        "overflow": "visible",
+                      }
+                    }
+                  />
+                </div>
+                <div
+                  className="MuiListItemText-root"
+                >
+                  <span
+                    className="MuiTypography-root MuiListItemText-primary MuiTypography-body1 MuiTypography-displayBlock"
+                  >
+                    Data Sources
+                  </span>
+                </div>
+              </div>
+            </a>
+            <a
+              aria-current={null}
+              href="/views"
+              onClick={[Function]}
+            >
+              <div
+                aria-disabled={false}
+                className="MuiButtonBase-root MuiListItem-root MuiListItem-gutters MuiListItem-button"
+                onBlur={[Function]}
+                onDragLeave={[Function]}
+                onFocus={[Function]}
+                onKeyDown={[Function]}
+                onKeyUp={[Function]}
+                onMouseDown={[Function]}
+                onMouseLeave={[Function]}
+                onMouseUp={[Function]}
+                onTouchEnd={[Function]}
+                onTouchMove={[Function]}
+                onTouchStart={[Function]}
+                role="button"
+                tabIndex={0}
+              >
+                <div
+                  className="MuiListItemIcon-root"
+                >
+                  <span
+                    aria-hidden={true}
+                    className="material-icons MuiIcon-root fa fa-copy"
+                    style={
+                      Object {
+                        "overflow": "visible",
+                      }
+                    }
+                  />
+                </div>
+                <div
+                  className="MuiListItemText-root"
+                >
+                  <span
+                    className="MuiTypography-root MuiListItemText-primary MuiTypography-body1 MuiTypography-displayBlock"
+                  >
+                    Materialized Views
+                  </span>
+                </div>
+              </div>
+            </a>
+            <a
+              aria-current={null}
+              href="/features"
+              onClick={[Function]}
+            >
+              <div
+                aria-disabled={false}
+                className="MuiButtonBase-root MuiListItem-root MuiListItem-gutters MuiListItem-button"
+                onBlur={[Function]}
+                onDragLeave={[Function]}
+                onFocus={[Function]}
+                onKeyDown={[Function]}
+                onKeyUp={[Function]}
+                onMouseDown={[Function]}
+                onMouseLeave={[Function]}
+                onMouseUp={[Function]}
+                onTouchEnd={[Function]}
+                onTouchMove={[Function]}
+                onTouchStart={[Function]}
+                role="button"
+                tabIndex={0}
+              >
+                <div
+                  className="MuiListItemIcon-root"
+                >
+                  <span
+                    aria-hidden={true}
+                    className="material-icons MuiIcon-root fa fa-file-code"
+                    style={
+                      Object {
+                        "overflow": "visible",
+                      }
+                    }
+                  />
+                </div>
+                <div
+                  className="MuiListItemText-root"
+                >
+                  <span
+                    className="MuiTypography-root MuiListItemText-primary MuiTypography-body1 MuiTypography-displayBlock"
+                  >
+                    Features
+                  </span>
+                </div>
+              </div>
+            </a>
+            <a
+              aria-current={null}
+              href="/feature-sets"
+              onClick={[Function]}
+            >
+              <div
+                aria-disabled={false}
+                className="MuiButtonBase-root MuiListItem-root MuiListItem-gutters MuiListItem-button"
+                onBlur={[Function]}
+                onDragLeave={[Function]}
+                onFocus={[Function]}
+                onKeyDown={[Function]}
+                onKeyUp={[Function]}
+                onMouseDown={[Function]}
+                onMouseLeave={[Function]}
+                onMouseUp={[Function]}
+                onTouchEnd={[Function]}
+                onTouchMove={[Function]}
+                onTouchStart={[Function]}
+                role="button"
+                tabIndex={0}
+              >
+                <div
+                  className="MuiListItemIcon-root"
+                >
+                  <span
+                    aria-hidden={true}
+                    className="material-icons MuiIcon-root fa fa-sitemap"
+                    style={
+                      Object {
+                        "overflow": "visible",
+                      }
+                    }
+                  />
+                </div>
+                <div
+                  className="MuiListItemText-root"
+                >
+                  <span
+                    className="MuiTypography-root MuiListItemText-primary MuiTypography-body1 MuiTypography-displayBlock"
+                  >
+                    Feature Sets
+                  </span>
+                </div>
+              </div>
+            </a>
+            <a
+              aria-current={null}
+              href="/training-sets"
+              onClick={[Function]}
+            >
+              <div
+                aria-disabled={false}
+                className="MuiButtonBase-root MuiListItem-root MuiListItem-gutters MuiListItem-button"
+                onBlur={[Function]}
+                onDragLeave={[Function]}
+                onFocus={[Function]}
+                onKeyDown={[Function]}
+                onKeyUp={[Function]}
+                onMouseDown={[Function]}
+                onMouseLeave={[Function]}
+                onMouseUp={[Function]}
+                onTouchEnd={[Function]}
+                onTouchMove={[Function]}
+                onTouchStart={[Function]}
+                role="button"
+                tabIndex={0}
+              >
+                <div
+                  className="MuiListItemIcon-root"
+                >
+                  <span
+                    aria-hidden={true}
+                    className="material-icons MuiIcon-root fa fa-archive"
+                    style={
+                      Object {
+                        "overflow": "visible",
+                      }
+                    }
+                  />
+                </div>
+                <div
+                  className="MuiListItemText-root"
+                >
+                  <span
+                    className="MuiTypography-root MuiListItemText-primary MuiTypography-body1 MuiTypography-displayBlock"
+                  >
+                    Training Sets
+                  </span>
+                </div>
+              </div>
+            </a>
+          </ul>
+          <hr
+            className="MuiDivider-root"
+          />
+          <ul
+            className="MuiList-root MuiList-padding"
+          >
+            <li
+              className="MuiListSubheader-root MuiListSubheader-sticky MuiListSubheader-gutters"
+            >
+              Monitoring
+            </li>
+            <a
+              aria-current={null}
+              href="/metrics"
+              onClick={[Function]}
+            >
+              <div
+                aria-disabled={false}
+                className="MuiButtonBase-root MuiListItem-root MuiListItem-gutters MuiListItem-button"
+                onBlur={[Function]}
+                onDragLeave={[Function]}
+                onFocus={[Function]}
+                onKeyDown={[Function]}
+                onKeyUp={[Function]}
+                onMouseDown={[Function]}
+                onMouseLeave={[Function]}
+                onMouseUp={[Function]}
+                onTouchEnd={[Function]}
+                onTouchMove={[Function]}
+                onTouchStart={[Function]}
+                role="button"
+                tabIndex={0}
+              >
+                <div
+                  className="MuiListItemIcon-root"
+                >
+                  <span
+                    aria-hidden={true}
+                    className="material-icons MuiIcon-root fa fa-chart-line"
+                    style={
+                      Object {
+                        "overflow": "visible",
+                      }
+                    }
+                  />
+                </div>
+                <div
+                  className="MuiListItemText-root"
+                >
+                  <span
+                    className="MuiTypography-root MuiListItemText-primary MuiTypography-body1 MuiTypography-displayBlock"
+                  >
+                    Metrics
+                  </span>
+                </div>
+              </div>
+            </a>
+            <a
+              aria-current={null}
+              href="/deployment"
+              onClick={[Function]}
+            >
+              <div
+                aria-disabled={false}
+                className="MuiButtonBase-root MuiListItem-root MuiListItem-gutters MuiListItem-button"
+                onBlur={[Function]}
+                onDragLeave={[Function]}
+                onFocus={[Function]}
+                onKeyDown={[Function]}
+                onKeyUp={[Function]}
+                onMouseDown={[Function]}
+                onMouseLeave={[Function]}
+                onMouseUp={[Function]}
+                onTouchEnd={[Function]}
+                onTouchMove={[Function]}
+                onTouchStart={[Function]}
+                role="button"
+                tabIndex={0}
+              >
+                <div
+                  className="MuiListItemIcon-root"
+                >
+                  <span
+                    aria-hidden={true}
+                    className="material-icons MuiIcon-root fa fa-server"
+                    style={
+                      Object {
+                        "overflow": "visible",
+                      }
+                    }
+                  />
+                </div>
+                <div
+                  className="MuiListItemText-root"
+                >
+                  <span
+                    className="MuiTypography-root MuiListItemText-primary MuiTypography-body1 MuiTypography-displayBlock"
+                  >
+                    Deployment
+                  </span>
+                </div>
+              </div>
+            </a>
+          </ul>
+          <hr
+            className="MuiDivider-root"
+          />
+          <ul
+            className="MuiList-root MuiList-padding"
+          >
+            <li
+              className="MuiListSubheader-root MuiListSubheader-sticky MuiListSubheader-gutters"
+            >
+              Admin
+            </li>
+            <a
+              aria-current={null}
+              href="/users"
+              onClick={[Function]}
+            >
+              <div
+                aria-disabled={false}
+                className="MuiButtonBase-root MuiListItem-root MuiListItem-gutters MuiListItem-button"
+                onBlur={[Function]}
+                onDragLeave={[Function]}
+                onFocus={[Function]}
+                onKeyDown={[Function]}
+                onKeyUp={[Function]}
+                onMouseDown={[Function]}
+                onMouseLeave={[Function]}
+                onMouseUp={[Function]}
+                onTouchEnd={[Function]}
+                onTouchMove={[Function]}
+                onTouchStart={[Function]}
+                role="button"
+                tabIndex={0}
+              >
+                <div
+                  className="MuiListItemIcon-root"
+                >
+                  <span
+                    aria-hidden={true}
+                    className="material-icons MuiIcon-root fa fa-users"
+                    style={
+                      Object {
+                        "overflow": "visible",
+                      }
+                    }
+                  />
+                </div>
+                <div
+                  className="MuiListItemText-root"
+                >
+                  <span
+                    className="MuiTypography-root MuiListItemText-primary MuiTypography-body1 MuiTypography-displayBlock"
+                  >
+                    Users
+                  </span>
+                </div>
+              </div>
+            </a>
+            <a
+              aria-current={null}
+              href="/settings"
+              onClick={[Function]}
+            >
+              <div
+                aria-disabled={false}
+                className="MuiButtonBase-root MuiListItem-root MuiListItem-gutters MuiListItem-button"
+                onBlur={[Function]}
+                onDragLeave={[Function]}
+                onFocus={[Function]}
+                onKeyDown={[Function]}
+                onKeyUp={[Function]}
+                onMouseDown={[Function]}
+                onMouseLeave={[Function]}
+                onMouseUp={[Function]}
+                onTouchEnd={[Function]}
+                onTouchMove={[Function]}
+                onTouchStart={[Function]}
+                role="button"
+                tabIndex={0}
+              >
+                <div
+                  className="MuiListItemIcon-root"
+                >
+                  <span
+                    aria-hidden={true}
+                    className="material-icons MuiIcon-root fa fa-cogs"
+                    style={
+                      Object {
+                        "overflow": "visible",
+                      }
+                    }
+                  />
+                </div>
+                <div
+                  className="MuiListItemText-root"
+                >
+                  <span
+                    className="MuiTypography-root MuiListItemText-primary MuiTypography-body1 MuiTypography-displayBlock"
+                  >
+                    Settings
+                  </span>
+                </div>
+              </div>
+            </a>
+            <a
+              aria-current={null}
+              href="/billing"
+              onClick={[Function]}
+            >
+              <div
+                aria-disabled={false}
+                className="MuiButtonBase-root MuiListItem-root MuiListItem-gutters MuiListItem-button"
+                onBlur={[Function]}
+                onDragLeave={[Function]}
+                onFocus={[Function]}
+                onKeyDown={[Function]}
+                onKeyUp={[Function]}
+                onMouseDown={[Function]}
+                onMouseLeave={[Function]}
+                onMouseUp={[Function]}
+                onTouchEnd={[Function]}
+                onTouchMove={[Function]}
+                onTouchStart={[Function]}
+                role="button"
+                tabIndex={0}
+              >
+                <div
+                  className="MuiListItemIcon-root"
+                >
+                  <span
+                    aria-hidden={true}
+                    className="material-icons MuiIcon-root fa fa-wallet"
+                    style={
+                      Object {
+                        "overflow": "visible",
+                      }
+                    }
+                  />
+                </div>
+                <div
+                  className="MuiListItemText-root"
+                >
+                  <span
+                    className="MuiTypography-root MuiListItemText-primary MuiTypography-body1 MuiTypography-displayBlock"
+                  >
+                    Billing
+                  </span>
+                </div>
+              </div>
+            </a>
+            <a
+              href="https://docs.streamsql.io"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              <div
+                aria-disabled={false}
+                className="MuiButtonBase-root MuiListItem-root MuiListItem-gutters MuiListItem-button"
+                onBlur={[Function]}
+                onDragLeave={[Function]}
+                onFocus={[Function]}
+                onKeyDown={[Function]}
+                onKeyUp={[Function]}
+                onMouseDown={[Function]}
+                onMouseLeave={[Function]}
+                onMouseUp={[Function]}
+                onTouchEnd={[Function]}
+                onTouchMove={[Function]}
+                onTouchStart={[Function]}
+                role="button"
+                tabIndex={0}
+              >
+                <div
+                  className="MuiListItemIcon-root"
+                >
+                  <span
+                    aria-hidden={true}
+                    className="material-icons MuiIcon-root fa fa-book"
+                    style={
+                      Object {
+                        "overflow": "visible",
+                      }
+                    }
+                  />
+                </div>
+                <div
+                  className="MuiListItemText-root"
+                >
+                  <span
+                    className="MuiTypography-root MuiListItemText-primary MuiTypography-body1 MuiTypography-displayBlock"
+                  >
+                    Documentation
+                  </span>
+                </div>
+              </div>
+            </a>
+            <a
+              aria-current={null}
+              href="/help"
+              onClick={[Function]}
+            >
+              <div
+                aria-disabled={false}
+                className="MuiButtonBase-root MuiListItem-root MuiListItem-gutters MuiListItem-button"
+                onBlur={[Function]}
+                onDragLeave={[Function]}
+                onFocus={[Function]}
+                onKeyDown={[Function]}
+                onKeyUp={[Function]}
+                onMouseDown={[Function]}
+                onMouseLeave={[Function]}
+                onMouseUp={[Function]}
+                onTouchEnd={[Function]}
+                onTouchMove={[Function]}
+                onTouchStart={[Function]}
+                role="button"
+                tabIndex={0}
+              >
+                <div
+                  className="MuiListItemIcon-root"
+                >
+                  <span
+                    aria-hidden={true}
+                    className="material-icons MuiIcon-root fa fa-question"
+                    style={
+                      Object {
+                        "overflow": "visible",
+                      }
+                    }
+                  />
+                </div>
+                <div
+                  className="MuiListItemText-root"
+                >
+                  <span
+                    className="MuiTypography-root MuiListItemText-primary MuiTypography-body1 MuiTypography-displayBlock"
+                  >
+                    Help
+                  </span>
+                </div>
+              </div>
+            </a>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </nav>
+  <div
+    className="MuiBox-root MuiBox-root-28 makeStyles-container-8"
+  >
+    <header
+      className="MuiPaper-root MuiAppBar-root MuiAppBar-positionFixed MuiAppBar-colorPrimary makeStyles-appBar-2 mui-fixed MuiPaper-elevation4"
+    >
+      <div
+        className="MuiToolbar-root MuiToolbar-regular MuiToolbar-gutters"
+      >
+        <button
+          aria-label="open drawer"
+          className="MuiButtonBase-root MuiIconButton-root makeStyles-menuButton-6 MuiIconButton-colorInherit MuiIconButton-edgeStart"
+          disabled={false}
+          onBlur={[Function]}
+          onClick={[Function]}
+          onDragLeave={[Function]}
+          onFocus={[Function]}
+          onKeyDown={[Function]}
+          onKeyUp={[Function]}
+          onMouseDown={[Function]}
+          onMouseLeave={[Function]}
+          onMouseUp={[Function]}
+          onTouchEnd={[Function]}
+          onTouchMove={[Function]}
+          onTouchStart={[Function]}
+          tabIndex={0}
+          type="button"
+        >
+          <span
+            className="MuiIconButton-label"
+          >
+            <svg
+              aria-hidden={true}
+              className="MuiSvgIcon-root"
+              focusable="false"
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"
+              />
+            </svg>
+          </span>
+        </button>
+        <span
+          className="MuiTypography-root MuiTypography-h5"
+        >
+          FeatureForm
+        </span>
+      </div>
+    </header>
+    <div
+      className="MuiGrid-root makeStyles-content-9 MuiGrid-container MuiGrid-direction-xs-column"
+    >
+      <div
+        className="makeStyles-toolbar-7"
+      />
+      <main
+        className="MuiBox-root MuiBox-root-29 makeStyles-main-11"
+      >
+        <div>
+          abc
+        </div>
+        <div>
+          def
+        </div>
+      </main>
+    </div>
+  </div>
+</div>
+`;

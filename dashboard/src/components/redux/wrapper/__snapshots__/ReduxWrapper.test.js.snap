@@ -1,0 +1,38 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`ReduxWrapper Add store to context to allow connect to work 1`] = `
+<ReduxWrapper
+  store={
+    Object {
+      "dispatch": [Function],
+      "getState": [Function],
+      "replaceReducer": [Function],
+      "subscribe": [Function],
+      Symbol(observable): [Function],
+    }
+  }
+>
+  <Provider
+    store={
+      Object {
+        "dispatch": [Function],
+        "getState": [Function],
+        "replaceReducer": [Function],
+        "subscribe": [Function],
+        Symbol(observable): [Function],
+      }
+    }
+  >
+    <Connect(StatefulDiv)>
+      <StatefulDiv
+        dispatch={[Function]}
+        valueProp={5}
+      >
+        <div>
+          5
+        </div>
+      </StatefulDiv>
+    </Connect(StatefulDiv)>
+  </Provider>
+</ReduxWrapper>
+`;

@@ -1,0 +1,45 @@
+{
+  "name": "Non-free Sulfur Dioxide",
+  "type": "Feature",
+  "default-version": "first-version",
+  "all-versions": ["first-version", "streaming-version"],
+  "versions": {
+    "first-version": {
+      "metadata": {
+        "version-name": "first-version",
+        "source": "Wine Data",
+        "entity": "wine_id",
+        "created": "2020-08-09-0290499",
+        "owner": "Simba Khadder",
+        "visibility": "private",
+        "revision": "2020-08-10-39402409",
+        "tags": ["Materialized", "calculated"],
+        "description": "Sulfur Dioxide that is trapped"
+      },
+      "data": {
+        "feature-sets": [
+          { "name": "wine analysis", "created": "2020-08-10.39402409" },
+          { "name": "test-feature_set", "created": "2020-08-14.293923" }
+        ]
+      }
+    },
+    "streaming-version": {
+      "metadata": {
+        "version-name": "streaming-version",
+        "source": "Wine Data",
+        "entity": "wine_id",
+        "created": "2020-08-09-0290499",
+        "owner": "Simba Khadder",
+        "visibility": "private",
+        "revision": "2020-08-10-39402409",
+        "description": "Sulfur Dioxide that is trapped"
+      },
+      "data": {
+        "feature-sets": [
+          { "name": "wine analysis", "created": "2020-08-10.39402409" },
+          { "name": "test-feature_set", "created": "2020-08-14.293923" }
+        ]
+      }
+    }
+  }
+}

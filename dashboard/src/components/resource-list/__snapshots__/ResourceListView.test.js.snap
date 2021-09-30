@@ -1,0 +1,33 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`ResourceListView TagList renders correctly with no active tags 1`] = `
+<WithStyles(ForwardRef(Grid))
+  container={true}
+  direction="row"
+>
+  <WithStyles(ForwardRef(Chip))
+    className="class-here"
+    color="default"
+    key="a"
+    label="a"
+    onClick={[Function]}
+    variant="outlined"
+  />
+  <WithStyles(ForwardRef(Chip))
+    className="class-here"
+    color="default"
+    key="b"
+    label="b"
+    onClick={[Function]}
+    variant="outlined"
+  />
+  <WithStyles(ForwardRef(Chip))
+    className="class-here"
+    color="default"
+    key="c"
+    label="c"
+    onClick={[Function]}
+    variant="outlined"
+  />
+</WithStyles(ForwardRef(Grid))>
+`;

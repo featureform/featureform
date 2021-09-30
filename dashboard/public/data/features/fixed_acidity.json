@@ -1,0 +1,44 @@
+{
+  "name": "fixed_acidity",
+  "type": "Feature",
+  "default-version": "first-version",
+  "all-versions": ["first-version", "normalized version"],
+  "versions": {
+    "first-version": {
+      "metadata": {
+        "version-name": "first-version",
+        "source": "Wine Data",
+        "entity": "wine_id",
+        "created": "August 9th, 2021",
+        "owner": "Simba Khadder",
+        "visibility": "private",
+        "revision": "August 12th, 2021",
+        "tags": ["acid", "static", "chemical"],
+        "description": "Constant acidity of wine sample"
+      },
+      "data": {
+        "feature-sets": [
+          { "name": "Wine quality set", "created": "2020-08-10.39402409" }
+        ]
+      }
+    },
+    "normalized version": {
+      "metadata": {
+        "version-name": "normalized version",
+        "source": "Wine Data",
+        "entity": "wine_id",
+        "created": "August 9th, 2021",
+        "owner": "Simba Khadder",
+        "visibility": "private",
+        "revision": "August 12th, 2021",
+        "tags": ["acid", "static", "chemical", "streaming"],
+        "description": "Acidity updated with streaming data"
+      },
+      "data": {
+        "feature-sets": [
+          { "name": "Wine quality set", "created": "2020-08-10.39402409" }
+        ]
+      }
+    }
+  }
+}

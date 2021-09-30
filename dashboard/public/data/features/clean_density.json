@@ -1,0 +1,44 @@
+{
+  "name": "clean_density",
+  "type": "Feature",
+  "default-version": "default version",
+  "all-versions": ["default version", "null-lost version"],
+  "versions": {
+    "default version": {
+      "metadata": {
+        "version-name": "default version",
+        "source": "Wine Data",
+        "entity": "wine_id",
+        "created": "August 9th, 2021",
+        "owner": "Simba Khadder",
+        "visibility": "private",
+        "revision": "August 12th, 2021",
+        "tags": ["calculated", "measured", "wine"],
+        "description": "density of clean part of sample"
+      },
+      "data": {
+        "feature-sets": [
+          { "name": "Wine quality set", "created": "2020-08-10.39402409" }
+        ]
+      }
+    },
+    "null-lost version": {
+      "metadata": {
+        "version-name": "null-lost version",
+        "source": "Wine Data",
+        "entity": "wine_id",
+        "created": "August 9th, 2021",
+        "owner": "Simba Khadder",
+        "visibility": "private",
+        "revision": "August 12th, 2021",
+        "tags": ["calculated", "measured", "wine"],
+        "description": "null-lost corrected version"
+      },
+      "data": {
+        "feature-sets": [
+          { "name": "Wine quality set", "created": "2020-08-10.39402409" }
+        ]
+      }
+    }
+  }
+}

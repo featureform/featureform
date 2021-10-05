@@ -133,7 +133,7 @@ neighbors = space.nearest_neighbors(key="apple", num=2)
 print(neighbors)
 ```
 
-* [Read through our guide to further explore Embeddinghub’s functionality.](overview.md)
+* [Read through our guide to further explore Embeddinghub’s functionality.](https://docs.featureform.com)
 * [Explore our docs](https://docs.featureform.com/)
 
 <br />

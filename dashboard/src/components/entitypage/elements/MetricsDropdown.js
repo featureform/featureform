@@ -2,6 +2,7 @@ import React from "react";
 import LatencyGraph from "./LatencyGraph";
 import { Divider, Paper, Typography, Grid, Slider } from "@material-ui/core";
 import { makeStyles } from "@material-ui/core/styles";
+import ExponentialTimeSlider from "./ExponentialTimeSlider";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -113,15 +114,7 @@ const MetricsDropdown = () => {
           <div className={classes.timeSlider}>
             <Paper>
               <Typography variant="body2">Time range</Typography>
-              <Slider
-                aria-label="Time range"
-                defaultValue={30}
-                valueLabelDisplay="auto"
-                step={10}
-                marks
-                min={10}
-                max={110}
-              />
+              <ExponentialTimeSlider />
             </Paper>
           </div>
           <div className={classes.graph}>

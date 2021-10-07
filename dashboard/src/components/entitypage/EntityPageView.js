@@ -72,12 +72,6 @@ const useStyles = makeStyles((theme) => ({
     alignSelf: "flex-end",
   },
 
-  tabChart: {
-    "& > *": {
-      height: "250px",
-    },
-  },
-
   resourceData: {
     flexGrow: 2,
     padding: theme.spacing(2),
@@ -235,7 +229,7 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
               </TabPanel>
 
               {Object.keys(resourceData).map((key, i) => (
-                <TabPanel value={value} key={key} index={i}>
+                <TabPanel value={value} key={key} index={i + 1}>
                   <MaterialTable
                     title={capitalize(key)}
                     options={{

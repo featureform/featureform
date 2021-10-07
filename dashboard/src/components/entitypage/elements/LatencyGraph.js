@@ -4,7 +4,7 @@ import { ResponsiveLine } from "@nivo/line";
 const LatencyGraph = ({ data }) => (
   <ResponsiveLine
     data={data}
-    margin={{ top: 10, right: 110, bottom: 50, left: 60 }}
+    margin={{ top: 10, right: 110, bottom: 80, left: 60 }}
     xScale={{ format: "%Y-%m-%dT%H:%M:%S.%L%Z", type: "time" }}
     xFormat="time:%Y-%m-%dT%H:%M:%S.%L%Z"
     yScale={{

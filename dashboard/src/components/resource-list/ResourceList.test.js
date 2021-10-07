@@ -2,7 +2,7 @@ import React from "react";
 import "jest-canvas-mock";
 import ReduxWrapper from "components/redux/wrapper";
 import { configure, mount } from "enzyme";
-import Adapter from "enzyme-adapter-react-16";
+import Adapter from "@wojtekmaj/enzyme-adapter-react-17";
 import { newTestStore } from "components/redux/store";
 import { resourceTypes, testData } from "api/resources";
 import ResourceList, { makeSelectFilteredResources } from "./ResourceList.js";

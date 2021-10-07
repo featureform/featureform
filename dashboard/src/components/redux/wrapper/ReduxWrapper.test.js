@@ -1,6 +1,6 @@
 import React from "react";
 import { configure, mount } from "enzyme";
-import Adapter from "enzyme-adapter-react-16";
+import Adapter from "@wojtekmaj/enzyme-adapter-react-17";
 import { connect } from "react-redux";
 import { configureStore, createSlice } from "@reduxjs/toolkit";
 

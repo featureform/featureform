@@ -1,90 +1,73 @@
-import React from "react"
-import { ResponsiveBar } from '@nivo/bar'
+import React from "react";
+import { ResponsiveLine } from "@nivo/line";
 
-const LatencyGraph = ({latency}) => {
-
-    let data = {
-        10: {'ms':10, requests: 2},
-        20: {'ms':20, requests: 4},
-        30: {'ms':30, requests: 12},
-        40: {'ms':40, requests: 45},
-        50: {'ms':50, requests: 35},
-        60: {'ms':60, requests: 15},
-        70: {'ms':70, requests: 4},
-    }
-
-    latency.forEach(value => {
-        let tens = Math.ceil(value / 10) * 10
-        let prevReqs  = 0
-        if(data[tens] ){
-            prevReqs = data[tens]['requests']
-        }
-        data[tens] = {'ms': tens, requests: prevReqs+1}
-    })
-    
-
-    let values = Object.keys(data).map(function(key){
-        return data[key];
-    });
-
-    return (
-        <ResponsiveBar
-        data={values}
-        keys={['requests']}
-        indexBy="ms"
-        margin={{ top: 50, right: 130, bottom: 50, left: 60 }}
-        padding={0.1}
-        valueScale={{ type: 'linear' }}
-        indexScale={{ type: 'band', round: true }}
-        valueFormat={{ format: '', enabled: false }}
-        colors={{ scheme: 'nivo' }}
-        defs={[
-            {
-                id: 'dots',
-                type: 'patternDots',
-                background: 'inherit',
-                color: '#38bcb2',
-                size: 4,
-                padding: 1,
-                stagger: true
+const LatencyGraph = ({ data }) => (
+  <ResponsiveLine
+    data={data}
+    margin={{ top: 10, right: 110, bottom: 50, left: 60 }}
+    xScale={{ format: "%Y-%m-%dT%H:%M:%S.%L%Z", type: "time" }}
+    xFormat="time:%Y-%m-%dT%H:%M:%S.%L%Z"
+    yScale={{
+      type: "linear",
+      min: 0,
+      max: "auto",
+      stacked: true,
+      reverse: false,
+    }}
+    //yFormat=" >-.2f"
+    axisTop={null}
+    axisRight={null}
+    axisBottom={{
+      tickValues: "every 2 minutes",
+      tickSize: 5,
+      tickPadding: 5,
+      tickRotation: 0,
+      format: "%H:%M",
+      legendOffset: 36,
+      legendPosition: "middle",
+    }}
+    axisLeft={{
+      orient: "left",
+      tickSize: 5,
+      tickPadding: 5,
+      tickRotation: 0,
+      legend: "milliseconds",
+      legendOffset: -40,
+      legendPosition: "middle",
+    }}
+    pointSize={5}
+    pointColor={{ theme: "background" }}
+    pointBorderWidth={2}
+    pointBorderColor={{ from: "serieColor" }}
+    pointLabelYOffset={-12}
+    useMesh={true}
+    legends={[
+      {
+        anchor: "bottom-right",
+        direction: "column",
+        justify: false,
+        translateX: 100,
+        translateY: 0,
+        itemsSpacing: 0,
+        itemDirection: "left-to-right",
+        itemWidth: 80,
+        itemHeight: 20,
+        itemOpacity: 0.75,
+        symbolSize: 12,
+        symbolShape: "circle",
+        symbolBorderColor: "rgba(0, 0, 0, .5)",
+        effects: [
+          {
+            on: "hover",
+            style: {
+              itemBackground: "rgba(0, 0, 0, .03)",
+              itemOpacity: 1,
             },
-            {
-                id: 'lines',
-                type: 'patternLines',
-                background: 'inherit',
-                color: '#eed312',
-                rotation: -45,
-                lineWidth: 6,
-                spacing: 10
-            }
-        ]}
+          },
+        ],
+      },
+    ]}
+  />
+);
 
-        borderColor={{ from: 'color', modifiers: [ [ 'darker', 1.6 ] ] }}
-        axisTop={null}
-        axisRight={null}
-        axisBottom={{
-            tickSize: 5,
-            tickPadding: 5,
-            tickRotation: 0,
-            legend: 'milliseconds',
-            legendPosition: 'middle',
-            legendOffset: 32
-        }}
-        axisLeft={{
-            tickSize: 5,
-            tickPadding: 5,
-            tickRotation: 0,
-            legend: 'requests',
-            legendPosition: 'middle',
-            legendOffset: -40
-        }}
-        labelSkipWidth={12}
-        labelSkipHeight={12}
-        labelTextColor={{ from: 'color', modifiers: [ [ 'darker', 1.6 ] ] }}
-
-    />
-
-    )
-}
-    
-export default LatencyGraph
+export default LatencyGraph;

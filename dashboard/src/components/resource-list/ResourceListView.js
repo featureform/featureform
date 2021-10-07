@@ -68,7 +68,10 @@ export const ResourceListView = ({
 
   function detailRedirect(e, data) {
     //hacky way of preventing redirect when tag or version control are selected
-    if (e._dispatchInstances.length === 2) {
+    if (
+      e.target.className ===
+      "MuiTableCell-root MuiTableCell-body MuiTableCell-alignLeft"
+    ) {
       history.push(history.location.pathname + "/" + data.name);
     }
   }

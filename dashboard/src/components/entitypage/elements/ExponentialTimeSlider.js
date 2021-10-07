@@ -73,8 +73,8 @@ const scale = (value) => {
   return remainder * increment + previousMark.scaledValue;
 };
 
-function numFormatter(num) {
-  return num;
+function numFormatter(value) {
+  return value
 }
 
 export default function ExponentialTimeSlider() {
@@ -95,17 +95,15 @@ export default function ExponentialTimeSlider() {
     <div>
       <Slider
         style={{ maxWidth: 500 }}
-        defaultValue={(0, 0)}
         value={value}
         min={0}
         step={1}
         max={200}
-        valueLabelFormat={numFormatter}
+        valueLabelFormat={value => <div>{numFormatter(value)}</div>}
         marks={minutesSince}
         scale={scaleValues}
         onChange={handleChange}
         valueLabelDisplay="auto"
-        aria-labelledby="non-linear-slider"
       />
       <div className={classes.dateRangeView}>
         {scaleValues(value).map((value) => (

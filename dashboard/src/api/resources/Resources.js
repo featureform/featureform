@@ -80,7 +80,7 @@ export default class ResourcesAPI {
       .then((res) =>
         res.json().then((json_data) => {
           let delay = window.performance.now() - start;
-          return { data: json_data, latency: delay };
+          return { data: json_data, ping: delay };
         })
       )
       .catch((error) => {

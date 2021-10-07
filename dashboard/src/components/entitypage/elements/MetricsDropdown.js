@@ -1,6 +1,6 @@
 import React from "react";
 import LatencyGraph from "./LatencyGraph";
-import { Divider, Paper, Typography, Grid, Slider } from "@material-ui/core";
+import { Divider, Paper, Typography, Grid } from "@material-ui/core";
 import { makeStyles } from "@material-ui/core/styles";
 import ExponentialTimeSlider from "./ExponentialTimeSlider";
 

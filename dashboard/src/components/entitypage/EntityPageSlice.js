@@ -34,9 +34,9 @@ const entityPageSlice = createSlice({
         return;
       }
       state.resources = action.payload.data;
-      state.latency = state.latency
-        ? state.latency.concat(action.payload.latency)
-        : [action.payload.latency];
+      state.ping = state.ping
+        ? state.ping.concat(action.payload.ping)
+        : [action.payload.ping];
       state.loading = false;
       state.failed = false;
     },

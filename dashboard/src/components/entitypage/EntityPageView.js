@@ -16,7 +16,7 @@ import Icon from "@material-ui/core/Icon";
 
 import VersionControl from "./elements/VersionControl";
 import TagBox from "./elements/TagBox";
-import LatencyGraph from "./elements/LatencyGraph"
+import MetricsDropdown from "./elements/MetricsDropdown";
 import { resourceIcons } from "api/resources";
 
 function TabPanel(props) {
@@ -72,12 +72,10 @@ const useStyles = makeStyles((theme) => ({
     alignSelf: "flex-end",
   },
 
-  tabChart:{ 
+  tabChart: {
     "& > *": {
-      height: "250px"
-      }
-    
-
+      height: "250px",
+    },
   },
 
   resourceData: {
@@ -96,7 +94,6 @@ function a11yProps(index) {
 const EntityPageView = ({ entity, setVersion, activeVersions }) => {
   let history = useHistory();
   let resources = entity.resources;
-  let latency = entity.latency;
 
   const type = resources["type"];
   const name = resources["name"];
@@ -113,8 +110,6 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
   let resource = resources.versions[version];
   const metadata = resource.metadata;
   const resourceData = resource.data;
-
-  const containsData = Object.keys(resource.data).length !== 0;
 
   let allVersions = resources["all-versions"];
 
@@ -216,49 +211,49 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
               </div>
             </Paper>
           </div>
-            <div className={classes.root}>
-              <Paper>
-                <AppBar position="static">
-                  <Tabs
-                    value={value}
-                    onChange={handleChange}
-                    aria-label="simple tabs example"
-                  >
-                    <Tab label={"metrics"} {...a11yProps(0)} />
-                    {Object.keys(resourceData).map((key, i) => (
-                      <Tab label={key} {...a11yProps(i+1)} />
-                    ))}
-                  </Tabs>
-                </AppBar>
-                <TabPanel className={classes.tabChart} value={value} key={"metrics"} index={0}  >
-                <Typography variant="h6">Latency</Typography>
-                  <LatencyGraph  latency={latency}/>
-                  
-                  </TabPanel>
+          <div className={classes.root}>
+            <Paper>
+              <AppBar position="static">
+                <Tabs
+                  value={value}
+                  onChange={handleChange}
+                  aria-label="simple tabs example"
+                >
+                  <Tab label={"metrics"} {...a11yProps(0)} />
+                  {Object.keys(resourceData).map((key, i) => (
+                    <Tab label={key} {...a11yProps(i + 1)} />
+                  ))}
+                </Tabs>
+              </AppBar>
+              <TabPanel
+                className={classes.tabChart}
+                value={value}
+                key={"metrics"}
+                index={0}
+              >
+                <MetricsDropdown />
+              </TabPanel>
 
-                {Object.keys(resourceData).map((key, i) => (
-                  
-                  <TabPanel value={value} key={key} index={i}>
-                    <MaterialTable
-                      title={capitalize(key)}
-                      options={{
-                        toolbar: false,
-                      }}
-                      columns={Object.keys(resourceData[key][0]).map(
-                        (item) => ({
-                          title: capitalize(item),
-                          field: item,
-                        })
-                      )}
-                      data={resourceData[key].map((o) => ({ ...o }))}
-                      onRowClick={(event, rowData) =>
-                        history.push("/" + key + "/" + rowData.name)
-                      }
-                    />
-                  </TabPanel>
-                ))}
-              </Paper>
-            </div>
+              {Object.keys(resourceData).map((key, i) => (
+                <TabPanel value={value} key={key} index={i}>
+                  <MaterialTable
+                    title={capitalize(key)}
+                    options={{
+                      toolbar: false,
+                    }}
+                    columns={Object.keys(resourceData[key][0]).map((item) => ({
+                      title: capitalize(item),
+                      field: item,
+                    }))}
+                    data={resourceData[key].map((o) => ({ ...o }))}
+                    onRowClick={(event, rowData) =>
+                      history.push("/" + key + "/" + rowData.name)
+                    }
+                  />
+                </TabPanel>
+              ))}
+            </Paper>
+          </div>
         </Paper>
       </Container>
     </div>

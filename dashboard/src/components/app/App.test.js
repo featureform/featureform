@@ -2,7 +2,7 @@ import React from "react";
 // Necessary to get MaterialTable to work correctly.
 import "jest-canvas-mock";
 import { configure, shallow } from "enzyme";
-import Adapter from "enzyme-adapter-react-16";
+import Adapter from "@wojtekmaj/enzyme-adapter-react-17";
 import { BrowserRouter, MemoryRouter } from "react-router-dom";
 import { createBrowserHistory } from "history";
 

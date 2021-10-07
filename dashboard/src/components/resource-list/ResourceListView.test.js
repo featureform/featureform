@@ -2,7 +2,7 @@ import React from "react";
 // Necessary to get MaterialTable to work correctly.
 import "jest-canvas-mock";
 import { configure, shallow, mount } from "enzyme";
-import Adapter from "enzyme-adapter-react-16";
+import Adapter from "@wojtekmaj/enzyme-adapter-react-17";
 import Chip from "@material-ui/core/Chip";
 import produce from "immer";
 

@@ -70,13 +70,18 @@ export default class ResourcesAPI {
   }
 
   fetchEntity(type, title) {
+    let start = window.performance.now()
     const fetchAddress = "/data/" + type + "/" + title + ".json";
     return fetch(fetchAddress, {
       headers: {
         "Content-Type": "application/json",
       },
     })
-      .then((res) => res.json().then((json_data) => ({ data: json_data })))
+      .then((res) => res.json().then((json_data) => {
+        let delay = window.performance.now() - start
+        return {data: json_data,
+                latency: delay}
+      }))
       .catch((error) => {
         console.error(error);
       });

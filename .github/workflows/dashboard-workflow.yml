@@ -10,6 +10,6 @@ jobs:
     steps:
       - uses: actions/checkout@v1
       - name: Install modules
-        run: cd dashboard; yarn install
+        run: cd dashboard; npm install
       - name: Run tests
-        run: cd dashboard; yarn test
+        run: cd dashboard; npm test

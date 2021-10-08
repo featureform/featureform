@@ -34,9 +34,6 @@ const entityPageSlice = createSlice({
         return;
       }
       state.resources = action.payload.data;
-      state.ping = state.ping
-        ? state.ping.concat(action.payload.ping)
-        : [action.payload.ping];
       state.loading = false;
       state.failed = false;
     },

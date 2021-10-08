@@ -4,6 +4,14 @@ ADD . .
 RUN dos2unix ./rocksdb_install.sh
 RUN yes | ./rocksdb_install.sh
 RUN ./bazelisk build embeddingstore:main
+
+FROM ubuntu:latest
+RUN apt update && apt install -y sudo && apt-get install -y dos2unix
+ADD rocksdb_install.sh .
+RUN dos2unix ./rocksdb_install.sh
+# ENTRYPOINT /bin/bash
+RUN yes | ./rocksdb_install.sh
+COPY --from=0 ./bazel-bin/embeddingstore/main .
 ENV EMBEDDINGHUB_PORT=7462
 EXPOSE $EMBEDDINGHUB_PORT
 ENTRYPOINT /bin/bash

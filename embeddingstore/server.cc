@@ -17,6 +17,8 @@ using ::featureform::embedding::proto::CreateSpaceRequest;
 using ::featureform::embedding::proto::CreateSpaceResponse;
 using ::featureform::embedding::proto::DownloadRequest;
 using ::featureform::embedding::proto::DownloadResponse;
+using ::featureform::embedding::proto::DownloadSpacesRequest;
+using ::featureform::embedding::proto::DownloadSpacesResponse;
 using ::featureform::embedding::proto::Embedding;
 using ::featureform::embedding::proto::FreezeSpaceRequest;
 using ::featureform::embedding::proto::FreezeSpaceResponse;
@@ -219,6 +221,21 @@ grpc::Status EmbeddingHubService::Download(
     writer->Write(resp);
   }
 
+  return Status::OK;
+}
+
+grpc::Status EmbeddingHubService::DownloadSpaces(
+    ServerContext* context, const DownloadSpacesRequest* request,
+    ServerWriter<DownloadSpacesResponse>* writer) {
+  std::unique_lock<std::mutex> lock(mtx_);
+  auto iter = store_->get_space_iterator();
+  iter->SeekToFirst();
+  while(iter->Valid()){
+    DownloadSpacesResponse resp;
+    resp.set_space(iter->key().ToString());
+    writer->Write(resp);
+    iter->Next();
+  }
   return Status::OK;
 }
 

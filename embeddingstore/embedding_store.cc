@@ -65,5 +65,9 @@ bool EmbeddingHub::is_space_loaded(const std::string& name) const {
   return loaded_spaces_.find(name) != loaded_spaces_.end();
 }
 
+std::shared_ptr<rocksdb::Iterator> EmbeddingHub::get_space_iterator(){
+  return std::shared_ptr<rocksdb::Iterator>(db_->NewIterator(rocksdb::ReadOptions()));
+}
+
 }  // namespace embedding
 }  // namespace featureform

@@ -15,6 +15,7 @@ service EmbeddingHub {
   rpc MultiGet(stream MultiGetRequest) returns (stream MultiGetResponse) {}
   rpc NearestNeighbor(NearestNeighborRequest)  returns (NearestNeighborResponse) {}
   rpc Download(DownloadRequest) returns (stream DownloadResponse) {}
+  rpc DownloadSpaces(DownloadSpacesRequest) returns (stream DownloadSpacesResponse) {}
 }
 
 message CreateSpaceRequest {
@@ -90,6 +91,14 @@ message DownloadRequest {
 message DownloadResponse {
   string key = 1;
   Embedding embedding = 2;
+}
+
+message DownloadSpacesRequest {
+  // purposely empty.
+}
+
+message DownloadSpacesResponse {
+  string space = 1;
 }
 
 message Embedding {

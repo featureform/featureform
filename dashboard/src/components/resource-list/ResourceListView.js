@@ -35,7 +35,6 @@ const useStyles = makeStyles((theme) => ({
   tag: {
     margin: theme.spacing(0.1),
   },
-  versionSelector: {},
 }));
 
 export const ResourceListView = ({
@@ -106,7 +105,6 @@ export const ResourceListView = ({
             field: "versions",
             render: (row) => (
               <VersionSelector
-                className={classes.versionSelector}
                 name={row.name}
                 versions={
                   rowVersions.find((v) => v.name === row.name)["versions"]

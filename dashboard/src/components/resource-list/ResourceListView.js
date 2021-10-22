@@ -35,6 +35,7 @@ const useStyles = makeStyles((theme) => ({
   tag: {
     margin: theme.spacing(0.1),
   },
+  versionSelector: {},
 }));
 
 export const ResourceListView = ({
@@ -67,13 +68,7 @@ export const ResourceListView = ({
   });
 
   function detailRedirect(e, data) {
-    //hacky way of preventing redirect when tag or version control are selected
-    if (
-      e.target.className ===
-      "MuiTableCell-root MuiTableCell-body MuiTableCell-alignLeft"
-    ) {
-      history.push(history.location.pathname + "/" + data.name);
-    }
+    history.push(history.location.pathname + "/" + data.name);
   }
 
   let versionRes = mutableRes.map((row) => ({
@@ -111,6 +106,7 @@ export const ResourceListView = ({
             field: "versions",
             render: (row) => (
               <VersionSelector
+                className={classes.versionSelector}
                 name={row.name}
                 versions={
                   rowVersions.find((v) => v.name === row.name)["versions"]
@@ -145,7 +141,10 @@ export const TagList = ({
         key={tag}
         className={tagClass}
         color={activeTags[tag] ? "secondary" : "default"}
-        onClick={() => toggleTag(tag)}
+        onClick={(event) => {
+          toggleTag(tag);
+          event.stopPropagation();
+        }}
         variant="outlined"
         label={tag}
       />
@@ -158,6 +157,7 @@ export const VersionSelector = ({
   versions = [""],
   activeVersions = {},
   setVersion,
+  children,
 }) => (
   <FormControl>
     <Select
@@ -165,7 +165,13 @@ export const VersionSelector = ({
       onChange={(event) => setVersion(name, event.target.value)}
     >
       {versions.map((version) => (
-        <MenuItem key={version} value={version}>
+        <MenuItem
+          key={version}
+          value={version}
+          onClick={(event) => {
+            event.stopPropagation();
+          }}
+        >
           {version}
         </MenuItem>
       ))}

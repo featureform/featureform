@@ -54,7 +54,7 @@ const HomePage = ({ sections }) => {
           <div className={classes.title}>
             <Typography variant="h5"></Typography>
           </div>
-          <Paper elevation={2}>
+          <Paper elevation={1}>
             <TilePanel sections={sections["features"]} />
           </Paper>
         </div>

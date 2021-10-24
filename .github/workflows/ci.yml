@@ -1,5 +1,8 @@
 name: Embedding Store CI
-on: [push]
+on:
+  push:
+    paths:
+      - 'embeddingstore/**'
 jobs:
     CI:
         runs-on: ubuntu-latest

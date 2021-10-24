@@ -1,5 +1,8 @@
 name: Dashboard CI
-on: push
+on:
+  push:
+    paths:
+      - 'dashboard/**'
 jobs:
   build:
     runs-on: ${{ matrix.os }}

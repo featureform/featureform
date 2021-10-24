@@ -230,7 +230,7 @@ grpc::Status EmbeddingHubService::DownloadSpaces(
   std::unique_lock<std::mutex> lock(mtx_);
   auto iter = store_->get_space_iterator();
   iter->SeekToFirst();
-  while(iter->Valid()){
+  while (iter->Valid()) {
     DownloadSpacesResponse resp;
     resp.set_space(iter->key().ToString());
     writer->Write(resp);

@@ -3,6 +3,8 @@ on:
   push:
     paths:
       - 'embeddingstore/**'
+      - 'sdk/**'
+      - 'test/**'
 jobs:
     CI:
         runs-on: ubuntu-latest

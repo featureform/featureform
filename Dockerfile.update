@@ -1,0 +1,2 @@
+FROM local-eh
+COPY . /

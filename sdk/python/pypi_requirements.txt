@@ -1,0 +1,4 @@
+hnswlib==0.5.2
+numpy==1.21.1
+grpcio==1.40.0
+six==1.16.0

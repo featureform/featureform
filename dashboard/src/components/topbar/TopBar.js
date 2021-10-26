@@ -13,9 +13,14 @@ import SearchBar from "../search/SearchBar";
 const useStyles = makeStyles((theme) => ({
   root: {
     flexGrow: 1,
+    height: 4,
   },
   menuButton: {
     marginRight: theme.spacing(2),
+  },
+  appbar: {
+    background: "transparent",
+    boxShadow: "none",
   },
   title: {
     flexGrow: 1,
@@ -48,11 +53,14 @@ export default function TopBar() {
 
   return (
     <div className={classes.root}>
-      <AppBar position="static">
+      <AppBar position="static" className={classes.appbar}>
         <Toolbar>
-          <Typography variant="h6" className={classes.title}>
-            Featureform
-          </Typography>
+          <img
+            src="/Featureform_Logo_Full_Black.svg"
+            height={30}
+            //width={150}
+            alt="Featureform"
+          />
           {search && <SearchBar homePage={false} />}
           {auth && (
             <div>

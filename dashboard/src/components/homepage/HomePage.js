@@ -31,6 +31,9 @@ const useStyles = makeStyles((theme) => ({
   tilePanel: {
     padding: theme.spacing(2),
   },
+  tileBackground: {
+    opacity: 0,
+  },
 }));
 
 const HomePage = ({ sections }) => {
@@ -39,14 +42,7 @@ const HomePage = ({ sections }) => {
   return (
     <div className={classes.root}>
       <div className={classes.search}>
-        <div className={classes.searchTitle}>
-          <img
-            src="/Featureform_logo_pink.svg"
-            height={150}
-            width={150}
-            alt="Featureform"
-          />
-        </div>
+        <div className={classes.searchTitle}></div>
         <SearchBar homePage={true} />
       </div>
       <div className={classes.sections}>
@@ -54,9 +50,7 @@ const HomePage = ({ sections }) => {
           <div className={classes.title}>
             <Typography variant="h5"></Typography>
           </div>
-          <Paper elevation={1}>
-            <TilePanel sections={sections["features"]} />
-          </Paper>
+          <TilePanel sections={sections["features"]} />
         </div>
       </div>
     </div>

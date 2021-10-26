@@ -11,7 +11,7 @@ const themeSpec = {
       "@global": {
         body: {
           background:
-            "radial-gradient(circle farthest-side at 100% 55%, #E4D0FA 0%, transparent 40%), radial-gradient(circle farthest-side at 10% 140%, #F7195C 0%, transparent 40%);",
+            "radial-gradient(circle farthest-side at 100% 55%, #E4D0FA 0%, transparent 40%), radial-gradient(circle farthest-side at 0% 120%, #FCA3BE 0%, transparent 40%);",
           backgroundRepeat: "no-repeat",
           backgroundAttachment: "fixed",
         },

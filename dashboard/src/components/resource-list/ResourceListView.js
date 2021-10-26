@@ -7,19 +7,25 @@ import Chip from "@material-ui/core/Chip";
 import MenuItem from "@material-ui/core/MenuItem";
 import FormControl from "@material-ui/core/FormControl";
 import Select from "@material-ui/core/Select";
-import MaterialTable from "material-table";
+import MaterialTable, { MTableBody } from "material-table";
 import { PrismAsyncLight as SyntaxHighlighter } from "react-syntax-highlighter";
 import python from "react-syntax-highlighter/dist/cjs/languages/prism/python";
 import sql from "react-syntax-highlighter/dist/cjs/languages/prism/sql";
 import json from "react-syntax-highlighter/dist/cjs/languages/prism/json";
 import { useHistory } from "react-router-dom";
+import Container from "@material-ui/core/Container";
+import Paper from "@material-ui/core/Paper";
 
 SyntaxHighlighter.registerLanguage("python", python);
 SyntaxHighlighter.registerLanguage("sql", sql);
 SyntaxHighlighter.registerLanguage("json", json);
 
 const useStyles = makeStyles((theme) => ({
-  root: {},
+  root: {
+    borderRadius: 16,
+    background: "rgba(255, 255, 255, 0.3)",
+    border: "2px solid #F5F6F7",
+  },
   table: {
     margin: theme.spacing(4),
   },
@@ -34,6 +40,9 @@ const useStyles = makeStyles((theme) => ({
   },
   tag: {
     margin: theme.spacing(0.1),
+  },
+  tableBody: {
+    border: "2px solid #F5F6F7",
   },
 }));
 
@@ -83,6 +92,7 @@ export const ResourceListView = ({
   return (
     <Box className={classes.table}>
       <MaterialTable
+        className={classes.table}
         title={title}
         columns={[
           { title: "Name", field: "name" },
@@ -118,9 +128,23 @@ export const ResourceListView = ({
         data={versionRes}
         isLoading={initialLoad || loading || failed}
         onRowClick={detailRedirect}
+        components={{
+          Container: (props) => (
+            <Container className={classes.root} {...props} />
+          ),
+          Body: (props) => (
+            <MTableBody className={classes.tableBody} {...props} />
+          ),
+        }}
         options={{
           search: true,
           draggable: false,
+          headerStyle: {
+            backgroundColor: "#FFF",
+            color: "#F7195C",
+            //textColor: "#F7195C",
+            marginLeft: 3,
+          },
         }}
       />
     </Box>

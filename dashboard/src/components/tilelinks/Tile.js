@@ -31,6 +31,7 @@ const useStyles = makeStyles((theme, id) => ({
     border: (id) => `2px solid ${colors[id]}`,
     borderRadius: 16,
     background: "#FFFFFF",
+    minWidth: "200px",
     //borderRadius: 8
   },
 

@@ -1,5 +1,6 @@
 import React from "react";
 import { connect } from "react-redux";
+import { makeStyles } from "@material-ui/core/styles";
 import CssBaseline from "@material-ui/core/CssBaseline";
 import theme from "styles/theme";
 import { ThemeProvider } from "@material-ui/core/styles";
@@ -17,12 +18,19 @@ import NotFoundPage from "components/notfoundpage/NotFoundPage";
 
 const apiHandle = new ResourcesAPI();
 
+const useStyles = makeStyles((theme) => ({
+  root: {
+    paddingTop: theme.spacing(20),
+  },
+}));
+
 export const App = ({ ...props }) => {
+  const classes = useStyles();
   return (
     <ThemeWrapper>
       {/* <Nav sections={sections}>{routes(sections)}</Nav> */}
       <TopBar />
-      <Container maxWidth="xl">
+      <Container maxWidth="xl" classname={classes.root}>
         <BreadCrumbs />
         <Switch>
           <Route exact path="/">

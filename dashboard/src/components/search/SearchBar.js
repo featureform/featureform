@@ -16,8 +16,7 @@ const useStyles = makeStyles((theme) =>
   createStyles({
     search: {
       position: "relative",
-      marginTop: theme.spacing(10),
-      marginBottom: theme.spacing(3),
+      alignSelf: "right",
     },
     searchIcon: {
       padding: theme.spacing(0, 0),
@@ -95,9 +94,7 @@ const SearchBar = ({ input, setQuery, homePage }) => {
             }
             classes={{
               root: classes.inputRoot,
-              input: homePage
-                ? classes.inputInputHome
-                : classes.inputInputTopBar,
+              input: homePage ? classes.inputInputHome : classes.inputTopBar,
             }}
             inputProps={{ "aria-label": "search " }}
           />

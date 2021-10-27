@@ -5,8 +5,8 @@ import Tab from "@material-ui/core/Tab";
 import PropTypes from "prop-types";
 import { makeStyles } from "@material-ui/core/styles";
 import Typography from "@material-ui/core/Typography";
+import MaterialTable, { MTableBody } from "material-table";
 import Box from "@material-ui/core/Box";
-import MaterialTable from "material-table";
 import Grid from "@material-ui/core/Grid";
 import { useHistory } from "react-router-dom";
 import Container from "@material-ui/core/Container";
@@ -45,6 +45,9 @@ const useStyles = makeStyles((theme) => ({
     flexGrow: 1,
     padding: theme.spacing(0),
     backgroundColor: theme.palette.background.paper,
+  },
+  resourceMetadata: {
+    padding: theme.spacing(1),
   },
   border: {
     background: "white",
@@ -86,10 +89,19 @@ const useStyles = makeStyles((theme) => ({
   versionControl: {
     alignSelf: "flex-end",
   },
+  resourceList: {
+    borderRadius: 16,
+    background: "rgba(255, 255, 255, 0.3)",
+    border: "2px solid #F5F6F7",
+  },
+  tableBody: {
+    border: "2px solid #F5F6F7",
+  },
 
   resourceData: {
     flexGrow: 1,
-    padding: theme.spacing(0),
+    paddingLeft: theme.spacing(1),
+    borderLeft: "2px solid #5C0FAC",
   },
 }));
 
@@ -171,14 +183,15 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
           </Grid>
           <div className={classes.resourceData}>
             <Grid container spacing={0}>
-              <Grid item xs={7}>
+              <Grid item xs={7} className={classes.resourceMetadata}>
                 <Typography variant="body1" className={classes.description}>
-                  {metadata["description"]}
+                  <b>Description:</b> {metadata["description"]}
                 </Typography>
 
                 <div className={classes.titleBox}>
                   <Typography display="inline" variant="body1">
-                    Owner:{"  "}
+                    <b>Owner:</b>
+                    {"  "}
                   </Typography>
                   <Avatar
                     alt={metadata["owner"]}
@@ -196,7 +209,7 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                 )}
                 {metadata["source"] ? (
                   <Typography variant="body1">
-                    Source: {metadata["source"]}
+                    <b>Source:</b> {metadata["source"]}
                   </Typography>
                 ) : (
                   <Typography></Typography>
@@ -204,7 +217,7 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
 
                 {metadata["entity"] ? (
                   <Typography variant="body1">
-                    Entity: {metadata["entity"]}
+                    <b>Entity:</b> {metadata["entity"]}
                   </Typography>
                 ) : (
                   <Typography></Typography>
@@ -218,47 +231,53 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
           </div>
         </div>
         <div className={classes.root}>
-          <Container className={classes.data}>
-            <AppBar position="static" className={classes.appbar}>
-              <Tabs
-                value={value}
-                onChange={handleChange}
-                aria-label="simple tabs example"
-              >
-                <Tab label={"metrics"} {...a11yProps(0)} />
-                {Object.keys(resourceData).map((key, i) => (
-                  <Tab label={key} {...a11yProps(i + 1)} />
-                ))}
-              </Tabs>
-            </AppBar>
-            <TabPanel
-              className={classes.tabChart}
+          <AppBar position="static" className={classes.appbar}>
+            <Tabs
               value={value}
-              key={"metrics"}
-              index={0}
+              onChange={handleChange}
+              aria-label="simple tabs example"
             >
-              <MetricsDropdown />
-            </TabPanel>
+              <Tab label={"metrics"} {...a11yProps(0)} />
+              {Object.keys(resourceData).map((key, i) => (
+                <Tab label={key} {...a11yProps(i + 1)} />
+              ))}
+            </Tabs>
+          </AppBar>
+          <TabPanel
+            className={classes.tabChart}
+            value={value}
+            key={"metrics"}
+            index={0}
+          >
+            <MetricsDropdown />
+          </TabPanel>
 
-            {Object.keys(resourceData).map((key, i) => (
-              <TabPanel value={value} key={key} index={i + 1}>
-                <MaterialTable
-                  title={capitalize(key)}
-                  options={{
-                    toolbar: false,
-                  }}
-                  columns={Object.keys(resourceData[key][0]).map((item) => ({
-                    title: capitalize(item),
-                    field: item,
-                  }))}
-                  data={resourceData[key].map((o) => ({ ...o }))}
-                  onRowClick={(event, rowData) =>
-                    history.push("/" + key + "/" + rowData.name)
-                  }
-                />
-              </TabPanel>
-            ))}
-          </Container>
+          {Object.keys(resourceData).map((key, i) => (
+            <TabPanel value={value} key={key} index={i + 1}>
+              <MaterialTable
+                title={capitalize(key)}
+                options={{
+                  toolbar: false,
+                }}
+                columns={Object.keys(resourceData[key][0]).map((item) => ({
+                  title: capitalize(item),
+                  field: item,
+                }))}
+                data={resourceData[key].map((o) => ({ ...o }))}
+                onRowClick={(event, rowData) =>
+                  history.push("/" + key + "/" + rowData.name)
+                }
+                components={{
+                  Container: (props) => (
+                    <Container className={classes.resourceList} {...props} />
+                  ),
+                  Body: (props) => (
+                    <MTableBody className={classes.tableBody} {...props} />
+                  ),
+                }}
+              />
+            </TabPanel>
+          ))}
         </div>
       </Container>
     </div>

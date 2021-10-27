@@ -24,7 +24,7 @@ const useStyles = makeStyles((theme) => ({
   root: {
     borderRadius: 16,
     background: "rgba(255, 255, 255, 0.3)",
-    border: "2px solid #F5F6F7",
+    border: "2px solid #CDD1D9",
   },
   table: {
     borderRadius: 16,

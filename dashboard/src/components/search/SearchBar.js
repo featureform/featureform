@@ -16,7 +16,17 @@ const useStyles = makeStyles((theme) =>
   createStyles({
     search: {
       position: "relative",
-      alignSelf: "right",
+      borderRadius: theme.shape.borderRadius,
+      backgroundColor: alpha(theme.palette.common.white, 0.15),
+      "&:hover": {
+        backgroundColor: alpha(theme.palette.common.white, 0.25),
+      },
+      marginLeft: 0,
+      width: "100%",
+      [theme.breakpoints.up("sm")]: {
+        marginLeft: theme.spacing(1),
+        width: "auto",
+      },
     },
     searchIcon: {
       padding: theme.spacing(0, 0),
@@ -40,6 +50,15 @@ const useStyles = makeStyles((theme) =>
       color: "inherit",
       background: "transparent",
       boxShadow: "none",
+      paddingLeft: `calc(1em + ${theme.spacing(4)})`,
+      transition: theme.transitions.create("width"),
+      width: "100%",
+      [theme.breakpoints.up("sm")]: {
+        width: "12ch",
+        "&:focus": {
+          width: "20ch",
+        },
+      },
     },
     inputInputHome: {
       //padding: theme.spacing(1, 20, 1, 0),
@@ -56,6 +75,7 @@ const useStyles = makeStyles((theme) =>
       transition: theme.transitions.create("width"),
       background: "transparent",
       boxShadow: "none",
+      color: "black",
     },
   })
 );
@@ -76,7 +96,7 @@ const SearchBar = ({ input, setQuery, homePage }) => {
 
   return (
     <div className={classes.search}>
-      <Grid container item justifyContent="center" direction="row" lg={12}>
+      <Grid container item justifyContent="center" direction="row">
         <Container className={classes.border}>
           <div className={classes.searchIcon}>
             <SearchIcon />

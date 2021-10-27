@@ -269,7 +269,11 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                 }
                 components={{
                   Container: (props) => (
-                    <Container className={classes.resourceList} {...props} />
+                    <Container
+                      className={classes.resourceList}
+                      minWidth="xl"
+                      {...props}
+                    />
                   ),
                   Body: (props) => (
                     <MTableBody className={classes.tableBody} {...props} />

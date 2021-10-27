@@ -15,6 +15,7 @@ import ListItemText from "@material-ui/core/ListItemText";
 import { resourcePaths } from "api/resources";
 import Icon from "@material-ui/core/Icon";
 import { resourceIcons } from "api/resources";
+import Container from "@material-ui/core/Container";
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
@@ -40,9 +41,15 @@ TabPanel.propTypes = {
 
 const useStyles = makeStyles((theme) => ({
   root: {
-    flexGrow: 1,
-    padding: theme.spacing(0),
-    backgroundColor: theme.palette.background.paper,
+    borderRadius: 16,
+    background: "rgba(255, 255, 255, 1)",
+    border: "2px solid #F5F6F7",
+  },
+
+  appbar: {
+    background: "transparent",
+    boxShadow: "none",
+    color: "black",
   },
 
   searchTitle: {
@@ -77,11 +84,11 @@ const SearchResultsView = ({ results, search_query }) => {
 
   return !results.loading && !results.failed && results.resources ? (
     <div>
-      <Paper elevation={3}>
+      <Container maxWidth="xl" className={classes.root}>
         <Typography className={classes.searchTitle} variant="h5">
           Results for: <b>{search_query}</b>
         </Typography>
-        <AppBar position="static">
+        <AppBar position="static" className={classes.appbar}>
           <Tabs
             value={value}
             onChange={handleChange}
@@ -101,7 +108,7 @@ const SearchResultsView = ({ results, search_query }) => {
             />
           </TabPanel>
         ))}
-      </Paper>
+      </Container>
     </div>
   ) : (
     <div></div>

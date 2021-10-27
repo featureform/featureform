@@ -202,7 +202,7 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                 <div className={classes.owner}></div>
                 {metadata["dimensions"] ? (
                   <Typography variant="body1">
-                    Dimensions: {metadata["dimensions"]}
+                    <b>Dimensions:</b> {metadata["dimensions"]}
                   </Typography>
                 ) : (
                   <Typography></Typography>

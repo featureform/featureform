@@ -94,73 +94,75 @@ export const ResourceListView = ({
   }));
 
   return (
-    <MaterialTable
-      className={classes.table}
-      title={title}
-      columns={[
-        { title: "Name", field: "name" },
-        { title: "Description", field: "description" },
-        {
-          title: "Tags",
-          field: "tags",
-          render: (row) => (
-            <TagList
-              activeTags={activeTags}
-              tags={row.tags}
-              tagClass={classes.tag}
-              toggleTag={toggleTag}
+    <div>
+      <MaterialTable
+        className={classes.table}
+        title={title}
+        columns={[
+          { title: "Name", field: "name" },
+          { title: "Description", field: "description" },
+          {
+            title: "Tags",
+            field: "tags",
+            render: (row) => (
+              <TagList
+                activeTags={activeTags}
+                tags={row.tags}
+                tagClass={classes.tag}
+                toggleTag={toggleTag}
+              />
+            ),
+          },
+          { title: "Revision", field: "revision" },
+          {
+            title: "Version",
+            field: "versions",
+            render: (row) => (
+              <VersionSelector
+                name={row.name}
+                versions={
+                  rowVersions.find((v) => v.name === row.name)["versions"]
+                }
+                activeVersions={myVersions}
+                setVersion={setVersion}
+              />
+            ),
+          },
+        ]}
+        data={versionRes}
+        isLoading={initialLoad || loading || failed}
+        onRowClick={detailRedirect}
+        components={{
+          Container: (props) => (
+            <Container maxWidth="xl" className={classes.root} {...props} />
+          ),
+          Body: (props) => (
+            <MTableBody
+              style={{ borderRadius: 16 }}
+              className={classes.tableBody}
+              {...props}
             />
           ),
-        },
-        { title: "Revision", field: "revision" },
-        {
-          title: "Version",
-          field: "versions",
-          render: (row) => (
-            <VersionSelector
-              name={row.name}
-              versions={
-                rowVersions.find((v) => v.name === row.name)["versions"]
-              }
-              activeVersions={myVersions}
-              setVersion={setVersion}
-            />
+          Header: (props) => (
+            <MTableHeader className={classes.tableBody} {...props} />
           ),
-        },
-      ]}
-      data={versionRes}
-      isLoading={initialLoad || loading || failed}
-      onRowClick={detailRedirect}
-      components={{
-        Container: (props) => (
-          <Container maxWidth="xl" className={classes.root} {...props} />
-        ),
-        Body: (props) => (
-          <MTableBody
-            style={{ borderRadius: 16 }}
-            className={classes.tableBody}
-            {...props}
-          />
-        ),
-        Header: (props) => (
-          <MTableHeader className={classes.tableBody} {...props} />
-        ),
-      }}
-      options={{
-        search: true,
-        draggable: false,
-        headerStyle: {
-          backgroundColor: "#FFF",
-          color: "#F7195C",
-          //textColor: "#F7195C",
-          marginLeft: 3,
-        },
-        rowStyle: {
-          backgroundColor: "#FFF",
-          borderRadius: 16,
-        },
-      }}
-    />
+        }}
+        options={{
+          search: true,
+          draggable: false,
+          headerStyle: {
+            backgroundColor: "#FFF",
+            color: "#F7195C",
+            //textColor: "#F7195C",
+            marginLeft: 3,
+          },
+          rowStyle: {
+            backgroundColor: "#FFF",
+            borderRadius: 16,
+          },
+        }}
+      />
+    </div>
   );
 };
 

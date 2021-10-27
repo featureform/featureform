@@ -7,7 +7,7 @@ import Chip from "@material-ui/core/Chip";
 import MenuItem from "@material-ui/core/MenuItem";
 import FormControl from "@material-ui/core/FormControl";
 import Select from "@material-ui/core/Select";
-import MaterialTable, { MTableBody } from "material-table";
+import MaterialTable, { MTableBody, MTableHeader } from "material-table";
 import { PrismAsyncLight as SyntaxHighlighter } from "react-syntax-highlighter";
 import python from "react-syntax-highlighter/dist/cjs/languages/prism/python";
 import sql from "react-syntax-highlighter/dist/cjs/languages/prism/sql";
@@ -27,7 +27,9 @@ const useStyles = makeStyles((theme) => ({
     border: "2px solid #F5F6F7",
   },
   table: {
-    margin: theme.spacing(4),
+    borderRadius: 16,
+    background: "rgba(255, 255, 255, 1)",
+    border: "2px solid #F5F6F7",
   },
   detailPanel: {
     padding: theme.spacing(4),
@@ -43,6 +45,8 @@ const useStyles = makeStyles((theme) => ({
   },
   tableBody: {
     border: "2px solid #F5F6F7",
+    background: "white",
+    opacity: 1,
   },
 }));
 
@@ -90,64 +94,73 @@ export const ResourceListView = ({
   }));
 
   return (
-    <Box className={classes.table}>
-      <MaterialTable
-        className={classes.table}
-        title={title}
-        columns={[
-          { title: "Name", field: "name" },
-          { title: "Description", field: "description" },
-          {
-            title: "Tags",
-            field: "tags",
-            render: (row) => (
-              <TagList
-                activeTags={activeTags}
-                tags={row.tags}
-                tagClass={classes.tag}
-                toggleTag={toggleTag}
-              />
-            ),
-          },
-          { title: "Revision", field: "revision" },
-          {
-            title: "Version",
-            field: "versions",
-            render: (row) => (
-              <VersionSelector
-                name={row.name}
-                versions={
-                  rowVersions.find((v) => v.name === row.name)["versions"]
-                }
-                activeVersions={myVersions}
-                setVersion={setVersion}
-              />
-            ),
-          },
-        ]}
-        data={versionRes}
-        isLoading={initialLoad || loading || failed}
-        onRowClick={detailRedirect}
-        components={{
-          Container: (props) => (
-            <Container className={classes.root} {...props} />
+    <MaterialTable
+      className={classes.table}
+      title={title}
+      columns={[
+        { title: "Name", field: "name" },
+        { title: "Description", field: "description" },
+        {
+          title: "Tags",
+          field: "tags",
+          render: (row) => (
+            <TagList
+              activeTags={activeTags}
+              tags={row.tags}
+              tagClass={classes.tag}
+              toggleTag={toggleTag}
+            />
           ),
-          Body: (props) => (
-            <MTableBody className={classes.tableBody} {...props} />
+        },
+        { title: "Revision", field: "revision" },
+        {
+          title: "Version",
+          field: "versions",
+          render: (row) => (
+            <VersionSelector
+              name={row.name}
+              versions={
+                rowVersions.find((v) => v.name === row.name)["versions"]
+              }
+              activeVersions={myVersions}
+              setVersion={setVersion}
+            />
           ),
-        }}
-        options={{
-          search: true,
-          draggable: false,
-          headerStyle: {
-            backgroundColor: "#FFF",
-            color: "#F7195C",
-            //textColor: "#F7195C",
-            marginLeft: 3,
-          },
-        }}
-      />
-    </Box>
+        },
+      ]}
+      data={versionRes}
+      isLoading={initialLoad || loading || failed}
+      onRowClick={detailRedirect}
+      components={{
+        Container: (props) => (
+          <Container maxWidth="xl" className={classes.root} {...props} />
+        ),
+        Body: (props) => (
+          <MTableBody
+            style={{ borderRadius: 16 }}
+            className={classes.tableBody}
+            {...props}
+          />
+        ),
+        Header: (props) => (
+          <MTableHeader className={classes.tableBody} {...props} />
+        ),
+      }}
+      options={{
+        search: true,
+        draggable: false,
+        headerStyle: {
+          backgroundColor: "#FFF",
+          color: "#F7195C",
+          //textColor: "#F7195C",
+          marginLeft: 3,
+        },
+        rowStyle: {
+          backgroundColor: "#FFF",
+          borderRadius: 16,
+        },
+      }}
+    />
   );
 };
 

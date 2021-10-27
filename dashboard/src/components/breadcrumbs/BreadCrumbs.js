@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import { makeStyles } from "@material-ui/core/styles";
 import { Link } from "react-router-dom";
 import Breadcrumbs from "@material-ui/core/Breadcrumbs";
+import Icon from "@material-ui/core/Icon";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -26,14 +27,17 @@ const BreadCrumbs = () => {
   return (
     <div className={classes.root}>
       {path.length > 0 ? (
-        <Breadcrumbs aria-label="breadcrumb">
+        <Breadcrumbs
+          aria-label="breadcrumb"
+          //separator={<Icon>{"navigatenext"}</Icon>}
+        >
           <Link to="/">Home</Link>
           {path.map((ent, i) => (
             <Link
               key={`link-${i}`}
               to={"/" + path.slice(0, i + 1).reduce(pathBuilder)}
             >
-              {capitalize(ent)}
+              <b>{capitalize(ent)}</b>
             </Link>
           ))}
         </Breadcrumbs>

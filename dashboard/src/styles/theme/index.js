@@ -29,6 +29,13 @@ const themeSpec = {
       secondary: blueGrey[700],
     },
   },
+  typography: {
+    fontFamily: `"Lato", "Helvetica", "Arial", sans-serif`,
+    fontSize: 14,
+    fontWeightLight: 450,
+    fontWeightRegular: 550,
+    fontWeightMedium: 650,
+  },
 };
 
 let theme = createTheme(themeSpec);

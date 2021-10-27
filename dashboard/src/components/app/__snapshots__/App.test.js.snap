@@ -38,7 +38,17 @@ exports[`App Wrapper hasn't changed 1`] = `
           "minHeight": 56,
         },
       },
-      "overrides": Object {},
+      "overrides": Object {
+        "MuiCssBaseline": Object {
+          "@global": Object {
+            "body": Object {
+              "background": "radial-gradient(circle farthest-side at 100% 55%, #E4D0FA 0%, transparent 40%), radial-gradient(circle farthest-side at 0% 120%, #FCA3BE 0%, transparent 40%);",
+              "backgroundAttachment": "fixed",
+              "backgroundRepeat": "no-repeat",
+            },
+          },
+        },
+      },
       "palette": Object {
         "action": Object {
           "activatedOpacity": 0.12,
@@ -55,7 +65,7 @@ exports[`App Wrapper hasn't changed 1`] = `
         },
         "augmentColor": [Function],
         "background": Object {
-          "default": "#fafafa",
+          "default": "#FFFFFF",
           "paper": "#fff",
         },
         "common": Object {
@@ -179,40 +189,36 @@ exports[`App Wrapper hasn't changed 1`] = `
       },
       "typography": Object {
         "body1": Object {
-          "fontFamily": "\\"Roboto\\", \\"Helvetica\\", \\"Arial\\", sans-serif",
+          "fontFamily": "\\"Lato\\", \\"Helvetica\\", \\"Arial\\", sans-serif",
           "fontSize": "1rem",
-          "fontWeight": 400,
-          "letterSpacing": "0.00938em",
+          "fontWeight": 550,
           "lineHeight": 1.5,
         },
         "body2": Object {
-          "fontFamily": "\\"Roboto\\", \\"Helvetica\\", \\"Arial\\", sans-serif",
+          "fontFamily": "\\"Lato\\", \\"Helvetica\\", \\"Arial\\", sans-serif",
           "fontSize": "0.875rem",
-          "fontWeight": 400,
-          "letterSpacing": "0.01071em",
+          "fontWeight": 550,
           "lineHeight": 1.43,
         },
         "button": Object {
-          "fontFamily": "\\"Roboto\\", \\"Helvetica\\", \\"Arial\\", sans-serif",
+          "fontFamily": "\\"Lato\\", \\"Helvetica\\", \\"Arial\\", sans-serif",
           "fontSize": "0.875rem",
-          "fontWeight": 500,
-          "letterSpacing": "0.02857em",
+          "fontWeight": 650,
           "lineHeight": 1.75,
           "textTransform": "uppercase",
         },
         "caption": Object {
-          "fontFamily": "\\"Roboto\\", \\"Helvetica\\", \\"Arial\\", sans-serif",
+          "fontFamily": "\\"Lato\\", \\"Helvetica\\", \\"Arial\\", sans-serif",
           "fontSize": "0.75rem",
-          "fontWeight": 400,
-          "letterSpacing": "0.03333em",
+          "fontWeight": 550,
           "lineHeight": 1.66,
         },
-        "fontFamily": "\\"Roboto\\", \\"Helvetica\\", \\"Arial\\", sans-serif",
+        "fontFamily": "\\"Lato\\", \\"Helvetica\\", \\"Arial\\", sans-serif",
         "fontSize": 14,
         "fontWeightBold": 700,
-        "fontWeightLight": 300,
-        "fontWeightMedium": 500,
-        "fontWeightRegular": 400,
+        "fontWeightLight": 450,
+        "fontWeightMedium": 650,
+        "fontWeightRegular": 550,
         "h1": Object {
           "@media (min-width:1280px)": Object {
             "fontSize": "5.9983rem",
@@ -223,10 +229,9 @@ exports[`App Wrapper hasn't changed 1`] = `
           "@media (min-width:960px)": Object {
             "fontSize": "5.3556rem",
           },
-          "fontFamily": "\\"Roboto\\", \\"Helvetica\\", \\"Arial\\", sans-serif",
+          "fontFamily": "\\"Lato\\", \\"Helvetica\\", \\"Arial\\", sans-serif",
           "fontSize": "3.5rem",
-          "fontWeight": 300,
-          "letterSpacing": "-0.01562em",
+          "fontWeight": 450,
           "lineHeight": 1.167,
         },
         "h2": Object {
@@ -239,10 +244,9 @@ exports[`App Wrapper hasn't changed 1`] = `
           "@media (min-width:960px)": Object {
             "fontSize": "3.3333rem",
           },
-          "fontFamily": "\\"Roboto\\", \\"Helvetica\\", \\"Arial\\", sans-serif",
+          "fontFamily": "\\"Lato\\", \\"Helvetica\\", \\"Arial\\", sans-serif",
           "fontSize": "2.375rem",
-          "fontWeight": 300,
-          "letterSpacing": "-0.00833em",
+          "fontWeight": 450,
           "lineHeight": 1.2,
         },
         "h3": Object {
@@ -255,10 +259,9 @@ exports[`App Wrapper hasn't changed 1`] = `
           "@media (min-width:960px)": Object {
             "fontSize": "2.7849rem",
           },
-          "fontFamily": "\\"Roboto\\", \\"Helvetica\\", \\"Arial\\", sans-serif",
+          "fontFamily": "\\"Lato\\", \\"Helvetica\\", \\"Arial\\", sans-serif",
           "fontSize": "2rem",
-          "fontWeight": 400,
-          "letterSpacing": "0em",
+          "fontWeight": 550,
           "lineHeight": 1.167,
         },
         "h4": Object {
@@ -271,10 +274,9 @@ exports[`App Wrapper hasn't changed 1`] = `
           "@media (min-width:960px)": Object {
             "fontSize": "2.0243rem",
           },
-          "fontFamily": "\\"Roboto\\", \\"Helvetica\\", \\"Arial\\", sans-serif",
+          "fontFamily": "\\"Lato\\", \\"Helvetica\\", \\"Arial\\", sans-serif",
           "fontSize": "1.5625rem",
-          "fontWeight": 400,
-          "letterSpacing": "0.00735em",
+          "fontWeight": 550,
           "lineHeight": 1.235,
         },
         "h5": Object {
@@ -287,10 +289,9 @@ exports[`App Wrapper hasn't changed 1`] = `
           "@media (min-width:960px)": Object {
             "fontSize": "1.4993rem",
           },
-          "fontFamily": "\\"Roboto\\", \\"Helvetica\\", \\"Arial\\", sans-serif",
+          "fontFamily": "\\"Lato\\", \\"Helvetica\\", \\"Arial\\", sans-serif",
           "fontSize": "1.25rem",
-          "fontWeight": 400,
-          "letterSpacing": "0em",
+          "fontWeight": 550,
           "lineHeight": 1.334,
         },
         "h6": Object {
@@ -303,35 +304,31 @@ exports[`App Wrapper hasn't changed 1`] = `
           "@media (min-width:960px)": Object {
             "fontSize": "1.25rem",
           },
-          "fontFamily": "\\"Roboto\\", \\"Helvetica\\", \\"Arial\\", sans-serif",
+          "fontFamily": "\\"Lato\\", \\"Helvetica\\", \\"Arial\\", sans-serif",
           "fontSize": "1.125rem",
-          "fontWeight": 500,
-          "letterSpacing": "0.0075em",
+          "fontWeight": 650,
           "lineHeight": 1.6,
         },
         "htmlFontSize": 16,
         "overline": Object {
-          "fontFamily": "\\"Roboto\\", \\"Helvetica\\", \\"Arial\\", sans-serif",
+          "fontFamily": "\\"Lato\\", \\"Helvetica\\", \\"Arial\\", sans-serif",
           "fontSize": "0.75rem",
-          "fontWeight": 400,
-          "letterSpacing": "0.08333em",
+          "fontWeight": 550,
           "lineHeight": 2.66,
           "textTransform": "uppercase",
         },
         "pxToRem": [Function],
         "round": [Function],
         "subtitle1": Object {
-          "fontFamily": "\\"Roboto\\", \\"Helvetica\\", \\"Arial\\", sans-serif",
+          "fontFamily": "\\"Lato\\", \\"Helvetica\\", \\"Arial\\", sans-serif",
           "fontSize": "1rem",
-          "fontWeight": 400,
-          "letterSpacing": "0.00938em",
+          "fontWeight": 550,
           "lineHeight": 1.75,
         },
         "subtitle2": Object {
-          "fontFamily": "\\"Roboto\\", \\"Helvetica\\", \\"Arial\\", sans-serif",
+          "fontFamily": "\\"Lato\\", \\"Helvetica\\", \\"Arial\\", sans-serif",
           "fontSize": "0.875rem",
-          "fontWeight": 500,
-          "letterSpacing": "0.00714em",
+          "fontWeight": 650,
           "lineHeight": 1.57,
         },
       },

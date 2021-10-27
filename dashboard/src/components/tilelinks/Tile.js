@@ -94,7 +94,7 @@ const Tile = ({ detail, id }) => {
           </Icon>
 
           <Typography className={classes.title} variant="h5">
-            {detail.title}
+            <b>{detail.title}</b>
           </Typography>
         </Container>
       </ButtonBase>

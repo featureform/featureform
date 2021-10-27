@@ -164,7 +164,7 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
             </Grid>
             <Grid item xs={9} lg={8}>
               <Typography variant="h4" component="h4">
-                {resources.name}
+                <b>{resources.name}</b>
               </Typography>
               <Typography variant="subtitle1">
                 Last updated: {metadata["revision"]}

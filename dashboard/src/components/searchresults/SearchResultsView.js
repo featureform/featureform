@@ -85,8 +85,14 @@ const SearchResultsView = ({ results, search_query }) => {
   return !results.loading && !results.failed && results.resources ? (
     <div>
       <Container maxWidth="xl" className={classes.root}>
-        <Typography className={classes.searchTitle} variant="h5">
-          Results for: <b>{search_query}</b>
+        <Typography
+          className={classes.searchTitle}
+          variant="h5"
+          style={{ display: "flex" }}
+        >
+          <div style={{ color: "gray" }}>Results for:&nbsp;</div>
+
+          <b>{search_query}</b>
         </Typography>
         <AppBar position="static" className={classes.appbar}>
           <Tabs

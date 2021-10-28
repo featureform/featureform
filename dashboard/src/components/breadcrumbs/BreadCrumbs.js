@@ -4,10 +4,15 @@ import { makeStyles } from "@material-ui/core/styles";
 import { Link } from "react-router-dom";
 import Breadcrumbs from "@material-ui/core/Breadcrumbs";
 import Icon from "@material-ui/core/Icon";
+import NavigateNextIcon from "@mui/icons-material/NavigateNext";
 
 const useStyles = makeStyles((theme) => ({
   root: {
-    margin: 10,
+    margin: 5,
+  },
+  breadcrumbs: {
+    fontSize: 18,
+    //fontWeight: 550,
   },
 }));
 
@@ -28,8 +33,10 @@ const BreadCrumbs = () => {
     <div className={classes.root}>
       {path.length > 0 ? (
         <Breadcrumbs
+          className={classes.breadcrumbs}
+          style={{ margin: "3px" }}
           aria-label="breadcrumb"
-          //separator={<Icon>{"navigatenext"}</Icon>}
+          separator={<NavigateNextIcon fontSize="medium" />}
         >
           <Link to="/">Home</Link>
           {path.map((ent, i) => (

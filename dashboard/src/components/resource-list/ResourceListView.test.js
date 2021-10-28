@@ -15,11 +15,6 @@ import {
 configure({ adapter: new Adapter() });
 
 describe("ResourceListView", () => {
-  it("passes through title", () => {
-    const list = shallow(<ResourceListView title="test" title={"test"} />);
-    expect(list.children().props().title).toBe("test");
-  });
-
   it("sets resources to [] by default", () => {
     const list = shallow(<ResourceListView title="test" />);
     expect(list.children().props().data).toEqual([]);

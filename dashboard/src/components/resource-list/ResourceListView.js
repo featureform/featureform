@@ -1,20 +1,23 @@
 import React from "react";
 import PropTypes from "prop-types";
 import { makeStyles } from "@material-ui/core/styles";
-import Box from "@material-ui/core/Box";
+import Typography from "@material-ui/core/Typography";
 import Grid from "@material-ui/core/Grid";
 import Chip from "@material-ui/core/Chip";
 import MenuItem from "@material-ui/core/MenuItem";
 import FormControl from "@material-ui/core/FormControl";
 import Select from "@material-ui/core/Select";
-import MaterialTable, { MTableBody, MTableHeader } from "material-table";
+import MaterialTable, {
+  MTableBody,
+  MTableHeader,
+  MTableToolbar,
+} from "material-table";
 import { PrismAsyncLight as SyntaxHighlighter } from "react-syntax-highlighter";
 import python from "react-syntax-highlighter/dist/cjs/languages/prism/python";
 import sql from "react-syntax-highlighter/dist/cjs/languages/prism/sql";
 import json from "react-syntax-highlighter/dist/cjs/languages/prism/json";
 import { useHistory } from "react-router-dom";
 import Container from "@material-ui/core/Container";
-import Paper from "@material-ui/core/Paper";
 
 SyntaxHighlighter.registerLanguage("python", python);
 SyntaxHighlighter.registerLanguage("sql", sql);
@@ -26,7 +29,7 @@ const useStyles = makeStyles((theme) => ({
 
     //paddingLeft: "24px",
     //paddingRight: "24px",
-    border: "2px solid #CDD1D9",
+    border: "2px solid #F5F6F7",
     borderRadius: 16,
     "& > *": {
       borderRadius: 16,
@@ -52,7 +55,12 @@ const useStyles = makeStyles((theme) => ({
   tableBody: {
     border: "2px solid #F5F6F7",
     background: "white",
+    color: "white",
     opacity: 1,
+  },
+  tableToolbar: {
+    paddingTop: theme.spacing(3),
+    paddingBottom: theme.spacing(1),
   },
 }));
 
@@ -103,7 +111,11 @@ export const ResourceListView = ({
     <div>
       <MaterialTable
         className={classes.table}
-        title={title}
+        title={
+          <Typography variant="h4">
+            <b>{title}</b>
+          </Typography>
+        }
         columns={[
           { title: "Name", field: "name" },
           { title: "Description", field: "description" },
@@ -152,6 +164,11 @@ export const ResourceListView = ({
           Header: (props) => (
             <MTableHeader className={classes.tableBody} {...props} />
           ),
+          Toolbar: (props) => (
+            <div className={classes.tableToolbar}>
+              <MTableToolbar {...props} />
+            </div>
+          ),
         }}
         options={{
           search: true,
@@ -164,6 +181,7 @@ export const ResourceListView = ({
           },
           rowStyle: {
             //backgroundColor: "#FFF",
+            opacity: 1,
             borderRadius: 16,
           },
         }}

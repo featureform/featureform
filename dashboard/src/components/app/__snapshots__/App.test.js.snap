@@ -111,9 +111,9 @@ exports[`App Wrapper hasn't changed 1`] = `
         },
         "secondary": Object {
           "contrastText": "#fff",
-          "dark": "rgb(99, 47, 121)",
-          "light": "rgb(164, 105, 189)",
-          "main": "#8e44ad",
+          "dark": "rgb(85, 14, 160)",
+          "light": "rgb(148, 67, 234)",
+          "main": "#7A14E5",
         },
         "success": Object {
           "contrastText": "rgba(0, 0, 0, 0.87)",

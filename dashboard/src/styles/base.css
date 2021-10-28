@@ -8,3 +8,11 @@ a:active {
 }
 
 @import url("http://fonts.googleapis.com/css?family=Lato&subset=latin,latin-ext");
+
+@font-face {
+  font-family: "Matter";
+  src: local("Matter"),
+    url(../fonts/Matter/Matter-Regular.ttf) format("truetype");
+  /* other formats include: 'woff2', 'truetype, 'opentype',
+                            'embedded-opentype', and 'svg' */
+}

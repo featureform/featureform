@@ -1,7 +1,6 @@
 import React from "react";
 import { createStyles, alpha, makeStyles } from "@material-ui/core/styles";
 import SearchIcon from "@material-ui/icons/Search";
-import Paper from "@material-ui/core/Paper";
 import Grid from "@material-ui/core/Grid";
 import { useHistory } from "react-router-dom";
 import Container from "@material-ui/core/Container";

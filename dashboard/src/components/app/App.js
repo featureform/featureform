@@ -19,8 +19,9 @@ import NotFoundPage from "components/notfoundpage/NotFoundPage";
 const apiHandle = new ResourcesAPI();
 
 const useStyles = makeStyles((theme) => ({
-  root: {
-    paddingTop: theme.spacing(20),
+  pageContainer: {
+    paddingLeft: theme.spacing(8),
+    paddingRight: theme.spacing(8),
   },
 }));
 
@@ -29,8 +30,12 @@ export const App = ({ ...props }) => {
   return (
     <ThemeWrapper>
       {/* <Nav sections={sections}>{routes(sections)}</Nav> */}
-      <TopBar />
-      <Container maxWidth="xl" classname={classes.root}>
+      <TopBar className={classes.topbar} />
+      <Container
+        maxWidth="xl"
+        className={classes.root}
+        classes={{ maxWidthXl: classes.pageContainer }}
+      >
         <BreadCrumbs />
         <Switch>
           <Route exact path="/">

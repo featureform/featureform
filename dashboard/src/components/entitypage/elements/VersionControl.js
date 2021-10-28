@@ -57,7 +57,9 @@ const VersionControl = ({
           </MenuItem>
         ))}
       </Select>
-      <FormHelperText>{`Created ${createdDate}`}</FormHelperText>
+      <FormHelperText>
+        <b>{`Created ${createdDate}`}</b>
+      </FormHelperText>
     </FormControl>
   );
 };

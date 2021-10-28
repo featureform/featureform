@@ -1,13 +1,9 @@
 import React from "react";
 import Icon from "@material-ui/core/Icon";
-import Paper from "@material-ui/core/Paper";
 import { makeStyles } from "@material-ui/core/styles";
 import { useHistory } from "react-router-dom";
-import { CardContent } from "@material-ui/core";
 import ButtonBase from "@material-ui/core/ButtonBase";
 import Typography from "@material-ui/core/Typography";
-import Container from "@material-ui/core/Container";
-import Grid from "@material-ui/core/Grid";
 
 const colors = {
   0: "#3D0A73",

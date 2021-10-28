@@ -10,7 +10,6 @@ import Box from "@material-ui/core/Box";
 import Grid from "@material-ui/core/Grid";
 import { useHistory } from "react-router-dom";
 import Container from "@material-ui/core/Container";
-import Paper from "@material-ui/core/Paper";
 import Avatar from "@material-ui/core/Avatar";
 import Icon from "@material-ui/core/Icon";
 
@@ -49,11 +48,15 @@ const useStyles = makeStyles((theme) => ({
   },
   resourceMetadata: {
     padding: theme.spacing(1),
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "space-between",
   },
   border: {
     background: "white",
     border: "2px solid #F5F6F7",
     borderRadius: "16px",
+    //padding: theme.spacing
   },
   data: {
     background: "white",
@@ -78,14 +81,9 @@ const useStyles = makeStyles((theme) => ({
   titleBox: {
     diplay: "inline-block",
     flexDirection: "row",
-    marginBottom: 7,
   },
-  description: {
-    marginBottom: 15,
-  },
-  owner: {
-    marginBottom: 7,
-  },
+  description: {},
+
   icon: {
     marginRight: theme.spacing(2),
   },
@@ -112,16 +110,34 @@ const useStyles = makeStyles((theme) => ({
     border: "2px solid #F5F6F7",
     borderRadius: 16,
   },
+  tabChart: {
+    "& .MuiBox-root": {
+      padding: "0px",
+      margin: "0px",
+      paddingTop: "24px",
+      paddingBottom: "24px",
+    },
+  },
 
   resourceData: {
     flexGrow: 1,
     paddingLeft: theme.spacing(1),
-    borderLeft: "2px solid #5C0FAC",
+    borderLeft: "3px solid #5C0FAC",
     marginLeft: theme.spacing(2),
   },
   tableRoot: {
     border: "2px solid #F5F6F7",
     borderRadius: 16,
+  },
+  resourcesTopRow: {
+    display: "flex",
+    justifyContent: "space-between",
+  },
+  title: {
+    display: "flex",
+  },
+  titleText: {
+    paddingLeft: "12px",
   },
 }));
 
@@ -179,26 +195,28 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
             lg={12}
             justifyContent="flex-start"
           >
-            <Grid item xs={false} className={classes.icon}>
-              <Icon>{icon}</Icon>
-            </Grid>
-            <Grid item xs={9} lg={8}>
-              <Typography variant="h4" component="h4">
-                <b>{resources.name}</b>
-              </Typography>
-              <Typography variant="subtitle1">
-                Last updated: {metadata["revision"]}
-              </Typography>
-            </Grid>
-
-            <Grid item xs={2} className={classes.versionControl}>
-              <VersionControl
-                version={version}
-                versions={allVersions}
-                handleVersionChange={handleVersionChange}
-                type={type}
-                name={name}
-              />
+            <Grid item xs={false} className={classes.icon}></Grid>
+            <Grid item xs={12} lg={12}>
+              <div className={classes.resourcesTopRow}>
+                <div className={classes.title}>
+                  <Icon>{icon}</Icon>
+                  <div className={classes.titleText}>
+                    <Typography variant="h4" component="h4">
+                      <b>{resources.name}</b>
+                    </Typography>
+                    <Typography variant="subtitle1">
+                      Last updated: {metadata["revision"]}
+                    </Typography>
+                  </div>
+                </div>
+                <VersionControl
+                  version={version}
+                  versions={allVersions}
+                  handleVersionChange={handleVersionChange}
+                  type={type}
+                  name={name}
+                />
+              </div>
             </Grid>
           </Grid>
           <div className={classes.resourceData}>
@@ -219,28 +237,21 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                     className={classes.small}
                   />
                 </div>
-                <div className={classes.owner}></div>
-                {metadata["dimensions"] ? (
+                {metadata["dimensions"] && (
                   <Typography variant="body1">
                     <b>Dimensions:</b> {metadata["dimensions"]}
                   </Typography>
-                ) : (
-                  <Typography></Typography>
                 )}
-                {metadata["source"] ? (
+                {metadata["source"] && (
                   <Typography variant="body1">
                     <b>Source:</b> {metadata["source"]}
                   </Typography>
-                ) : (
-                  <Typography></Typography>
                 )}
 
-                {metadata["entity"] ? (
+                {metadata["entity"] && (
                   <Typography variant="body1">
                     <b>Entity:</b> {metadata["entity"]}
                   </Typography>
-                ) : (
-                  <Typography></Typography>
                 )}
               </Grid>
               <Grid item xs={2}></Grid>
@@ -268,12 +279,23 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
             value={value}
             key={"metrics"}
             index={0}
+            classes={{
+              root: classes.tabChart,
+            }}
           >
             <MetricsDropdown />
           </TabPanel>
 
           {Object.keys(resourceData).map((key, i) => (
-            <TabPanel value={value} key={key} index={i + 1}>
+            <TabPanel
+              className={classes.tabChart}
+              value={value}
+              key={key}
+              index={i + 1}
+              classes={{
+                root: classes.tabChart,
+              }}
+            >
               <MaterialTable
                 className={classes.tableRoot}
                 title={capitalize(key)}
@@ -296,7 +318,7 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                 }
                 components={{
                   Container: (props) => (
-                    <Container
+                    <div
                       className={classes.resourceList}
                       minWidth="xl"
                       {...props}

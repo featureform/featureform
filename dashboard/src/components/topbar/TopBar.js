@@ -2,12 +2,10 @@ import React, { useEffect } from "react";
 import { makeStyles } from "@material-ui/core/styles";
 import AppBar from "@material-ui/core/AppBar";
 import Toolbar from "@material-ui/core/Toolbar";
-import Typography from "@material-ui/core/Typography";
 import IconButton from "@material-ui/core/IconButton";
 import AccountCircle from "@material-ui/icons/AccountCircle";
 import MenuItem from "@material-ui/core/MenuItem";
 import Menu from "@material-ui/core/Menu";
-import Box from "@material-ui/core/Box";
 import { useLocation } from "react-router-dom";
 import SearchBar from "../search/SearchBar";
 
@@ -40,14 +38,18 @@ const useStyles = makeStyles((theme) => ({
   },
   title: {
     justifySelf: "flex-start",
+    paddingLeft: theme.spacing(6),
   },
   toolbarRight: {
     alignItems: "center",
     display: "flex",
+    paddingRight: theme.spacing(4),
   },
   accountButton: {
     color: "black",
     position: "relative",
+    fontSize: "48px",
+    padding: "10px",
     //marginLeft: theme.spacing(10),
     width: "auto",
     //justifyContent: "flex-end",
@@ -59,7 +61,6 @@ const useStyles = makeStyles((theme) => ({
 export default function TopBar() {
   let location = useLocation();
   const classes = useStyles();
-  const auth = true;
 
   const [search, setSearch] = React.useState(false);
   const [anchorEl, setAnchorEl] = React.useState(null);

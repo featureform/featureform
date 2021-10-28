@@ -1,13 +1,13 @@
 import React from "react";
 import LatencyGraph from "./LatencyGraph";
-import { Divider, Paper, Typography, Grid } from "@material-ui/core";
+import { Divider, Typography, Grid, Container } from "@material-ui/core";
 import { makeStyles } from "@material-ui/core/styles";
 import ExponentialTimeSlider from "./ExponentialTimeSlider";
 
 const useStyles = makeStyles((theme) => ({
   root: {
     flexGrow: 1,
-    padding: theme.spacing(1),
+    padding: theme.spacing(0),
     backgroundColor: theme.palette.background.paper,
     //display: "flex",
     flexBasis: theme.spacing(1),
@@ -17,7 +17,7 @@ const useStyles = makeStyles((theme) => ({
     },
   },
   summaryData: {
-    padding: theme.spacing(2),
+    padding: theme.spacing(0),
   },
   summaryItemDetail: {
     display: "flex",
@@ -97,9 +97,9 @@ const MetricsDropdown = () => {
   ];
   return (
     <div className={classes.root}>
-      <Grid container spacing={2}>
+      <Grid container spacing={0}>
         <Grid item xs={3}>
-          <Paper>
+          <Container>
             <div className={classes.summaryData}>
               <Typography variant="h6" className={classes.summaryTitle}>
                 Summary
@@ -108,24 +108,24 @@ const MetricsDropdown = () => {
                 <SummaryItem data={data} />
               ))}
             </div>
-          </Paper>
+          </Container>
         </Grid>
         <Grid item xs={7} height="250px">
           <div className={classes.timeSlider}>
-            <Paper>
+            <Container>
               <Typography variant="body2">Time range</Typography>
               <ExponentialTimeSlider />
-            </Paper>
+            </Container>
           </div>
           <div className={classes.graph}>
-            <Paper>
+            <Container>
               <Typography variant="h5">Latency</Typography>
               <LatencyGraph data={data} />
-            </Paper>
+            </Container>
           </div>
         </Grid>
         <Grid item xs={2}>
-          <Paper>
+          <Container>
             <div className={classes.summaryData}>
               <Typography variant="h6" className={classes.summaryTitle}>
                 Actions
@@ -134,7 +134,7 @@ const MetricsDropdown = () => {
                 <ActionItem data={data} />
               ))}
             </div>
-          </Paper>
+          </Container>
         </Grid>
       </Grid>
     </div>

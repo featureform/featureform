@@ -7,10 +7,8 @@ import { makeStyles } from "@material-ui/core/styles";
 import Typography from "@material-ui/core/Typography";
 import Box from "@material-ui/core/Box";
 import { useHistory } from "react-router-dom";
-import Paper from "@material-ui/core/Paper";
 import List from "@material-ui/core/List";
 import ListItem from "@material-ui/core/ListItem";
-import Divider from "@material-ui/core/Divider";
 import ListItemText from "@material-ui/core/ListItemText";
 import { resourcePaths } from "api/resources";
 import Icon from "@material-ui/core/Icon";
@@ -50,10 +48,14 @@ const useStyles = makeStyles((theme) => ({
     background: "transparent",
     boxShadow: "none",
     color: "black",
+    padding: theme.spacing(0),
+    paddingLeft: theme.spacing(4),
+    paddingRight: theme.spacing(4),
   },
 
   searchTitle: {
-    padding: theme.spacing(2),
+    padding: theme.spacing(1),
+    paddingTop: theme.spacing(4),
   },
 
   resultTitle: {
@@ -87,7 +89,7 @@ const SearchResultsView = ({ results, search_query }) => {
       <Container maxWidth="xl" className={classes.root}>
         <Typography
           className={classes.searchTitle}
-          variant="h5"
+          variant="h4"
           style={{ display: "flex" }}
         >
           <div style={{ color: "gray" }}>Results for:&nbsp;</div>
@@ -131,7 +133,7 @@ const SearchResultsList = ({ type, contents }) => {
           <SearchResultsItem type={type} content={content} />
         ))}
 
-        <Divider component="li" />
+        {/* <Divider component="li" /> */}
       </List>
     </div>
   );

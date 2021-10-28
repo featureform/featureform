@@ -3,7 +3,6 @@ import { useLocation } from "react-router-dom";
 import { makeStyles } from "@material-ui/core/styles";
 import { Link } from "react-router-dom";
 import Breadcrumbs from "@material-ui/core/Breadcrumbs";
-import Icon from "@material-ui/core/Icon";
 import NavigateNextIcon from "@mui/icons-material/NavigateNext";
 
 const useStyles = makeStyles((theme) => ({
@@ -13,6 +12,10 @@ const useStyles = makeStyles((theme) => ({
   breadcrumbs: {
     fontSize: 18,
     //fontWeight: 550,
+  },
+  separator: {
+    marginLeft: "2px",
+    marginRight: "2px",
   },
 }));
 
@@ -37,6 +40,9 @@ const BreadCrumbs = () => {
           style={{ margin: "3px" }}
           aria-label="breadcrumb"
           separator={<NavigateNextIcon fontSize="medium" />}
+          classes={{
+            separator: classes.separator,
+          }}
         >
           <Link to="/">Home</Link>
           {path.map((ent, i) => (
@@ -44,7 +50,11 @@ const BreadCrumbs = () => {
               key={`link-${i}`}
               to={"/" + path.slice(0, i + 1).reduce(pathBuilder)}
             >
-              <b>{capitalize(ent)}</b>
+              {i === path.length - 1 ? (
+                <b>{capitalize(ent)}</b>
+              ) : (
+                capitalize(ent)
+              )}
             </Link>
           ))}
         </Breadcrumbs>

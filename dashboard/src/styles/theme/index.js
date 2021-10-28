@@ -30,7 +30,7 @@ const themeSpec = {
     },
   },
   typography: {
-    fontFamily: `"Lato", "Helvetica", "Arial", sans-serif`,
+    fontFamily: `"Matter", "Helvetica", "Arial", sans-serif`,
     fontSize: 14,
     fontWeightLight: 450,
     fontWeightRegular: 550,

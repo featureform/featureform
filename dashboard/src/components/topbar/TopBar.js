@@ -27,6 +27,7 @@ const useStyles = makeStyles((theme) => ({
     boxShadow: "none",
     display: "flex",
     width: "100%",
+    color: "black",
     //justifyContent: "space-between",
   },
   searchBar: {
@@ -35,10 +36,14 @@ const useStyles = makeStyles((theme) => ({
   toolbar: {
     width: "100%",
     display: "flex",
-    //justifyContent: "flex-end",
+    justifyContent: "space-between",
   },
   title: {
     justifySelf: "flex-start",
+  },
+  toolbarRight: {
+    alignItems: "center",
+    display: "flex",
   },
   accountButton: {
     color: "black",
@@ -47,7 +52,7 @@ const useStyles = makeStyles((theme) => ({
     width: "auto",
     //justifyContent: "flex-end",
     //alignItems: "flex-end",
-    justifySelf: "right",
+    justifySelf: "flex-end",
   },
 }));
 
@@ -91,35 +96,40 @@ export default function TopBar() {
               sx={{ flexGrow: 1, display: { xs: "none", sm: "block" } }}
             />
           </div>
-          <SearchBar className={classes.searchBar} />
-          <IconButton
-            aria-label="account of current user"
-            aria-controls="menu-appbar"
-            aria-haspopup="true"
-            onClick={handleMenu}
-            color="inherit"
-            className={classes.accountButton}
-          >
-            <AccountCircle />
-          </IconButton>
-          <Menu
-            id="menu-appbar"
-            anchorEl={anchorEl}
-            anchorOrigin={{
-              vertical: "top",
-              horizontal: "right",
-            }}
-            keepMounted
-            transformOrigin={{
-              vertical: "top",
-              horizontal: "right",
-            }}
-            open={open}
-            onClose={handleClose}
-          >
-            <MenuItem onClick={handleClose}>Profile</MenuItem>
-            <MenuItem onClick={handleClose}>My account</MenuItem>
-          </Menu>
+
+          <div className={classes.toolbarRight}>
+            {search && (
+              <SearchBar className={classes.searchBar} homePage={false} />
+            )}
+            <IconButton
+              aria-label="account of current user"
+              aria-controls="menu-appbar"
+              aria-haspopup="true"
+              onClick={handleMenu}
+              color="inherit"
+              className={classes.accountButton}
+            >
+              <AccountCircle />
+            </IconButton>
+            <Menu
+              id="menu-appbar"
+              anchorEl={anchorEl}
+              anchorOrigin={{
+                vertical: "top",
+                horizontal: "right",
+              }}
+              keepMounted
+              transformOrigin={{
+                vertical: "top",
+                horizontal: "right",
+              }}
+              open={open}
+              onClose={handleClose}
+            >
+              <MenuItem onClick={handleClose}>Profile</MenuItem>
+              <MenuItem onClick={handleClose}>My account</MenuItem>
+            </Menu>
+          </div>
         </Toolbar>
       </AppBar>
     </div>

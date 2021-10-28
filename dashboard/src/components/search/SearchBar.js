@@ -40,7 +40,7 @@ const useStyles = makeStyles((theme) =>
     border: {
       border: `2px solid #CDD1D9`,
       borderRadius: 16,
-      width: "40%",
+      //width: "40%",
       "&:hover": {
         border: `2px solid black`,
       },
@@ -57,19 +57,22 @@ const useStyles = makeStyles((theme) =>
     inputInputHome: {
       //padding: theme.spacing(1, 20, 1, 0),
       // vertical padding + font size from searchIcon
+      //width: "40%",
       paddingLeft: theme.spacing(4),
       transition: theme.transitions.create("width"),
       background: "transparent",
       boxShadow: "none",
     },
-    inputInputTopBar: {
-      padding: theme.spacing(1, 2, 1, 0),
+    inputTopBar: {
+      padding: theme.spacing(1, 0, 0, 0),
+      width: "100%",
       // vertical padding + font size from searchIcon
-      paddingLeft: `calc(1em + ${theme.spacing(4)}px)`,
+      paddingLeft: theme.spacing(4),
       transition: theme.transitions.create("width"),
       background: "transparent",
       boxShadow: "none",
       color: "black",
+      alignSelf: "center",
     },
   })
 );

@@ -163,7 +163,7 @@ export const ResourceListView = ({
             marginLeft: 3,
           },
           rowStyle: {
-            backgroundColor: "#FFF",
+            //backgroundColor: "#FFF",
             borderRadius: 16,
           },
         }}

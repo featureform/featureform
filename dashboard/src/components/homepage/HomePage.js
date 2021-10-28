@@ -10,9 +10,12 @@ const useStyles = makeStyles((theme) => ({
   root: {
     padding: theme.spacing(0),
     alignItems: "center",
+    justifyContent: "center",
   },
   search: {
     padding: theme.spacing(2),
+    width: "40%",
+    margin: "auto",
   },
   searchTitle: {
     width: "100%",

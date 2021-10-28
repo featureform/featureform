@@ -9,12 +9,16 @@ const useStyles = makeStyles((theme) => ({
   root: {
     margin: 5,
   },
+  ol: {
+    alignItems: "inherit",
+  },
   breadcrumbs: {
     fontSize: 18,
   },
   separator: {
     marginLeft: "2px",
     marginRight: "2px",
+    alignItems: "auto",
   },
 }));
 
@@ -41,6 +45,7 @@ const BreadCrumbs = () => {
           separator={<NavigateNextIcon fontSize="medium" />}
           classes={{
             separator: classes.separator,
+            ol: classes.ol,
           }}
         >
           <Link to="/">Home</Link>

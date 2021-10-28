@@ -28,7 +28,6 @@ const useStyles = makeStyles((theme, id) => ({
     borderRadius: 16,
     background: "#FFFFFF",
     minWidth: "200px",
-    //borderRadius: 8
   },
 
   media: {

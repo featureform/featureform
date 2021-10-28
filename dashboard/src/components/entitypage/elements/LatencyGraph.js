@@ -14,7 +14,6 @@ const LatencyGraph = ({ data }) => (
       stacked: true,
       reverse: false,
     }}
-    //yFormat=" >-.2f"
     axisTop={null}
     axisRight={null}
     axisBottom={{

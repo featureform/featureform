@@ -39,7 +39,6 @@ const useStyles = makeStyles((theme) =>
     border: {
       border: `2px solid #CDD1D9`,
       borderRadius: 16,
-      //width: "40%",
       "&:hover": {
         border: `2px solid black`,
       },
@@ -49,14 +48,10 @@ const useStyles = makeStyles((theme) =>
       color: "inherit",
       background: "transparent",
       boxShadow: "none",
-      //paddingLeft: `calc(1em + ${theme.spacing(4)})`,
       transition: theme.transitions.create("width"),
       width: "100%",
     },
     inputInputHome: {
-      //padding: theme.spacing(1, 20, 1, 0),
-      // vertical padding + font size from searchIcon
-      //width: "40%",
       paddingLeft: theme.spacing(4),
       transition: theme.transitions.create("width"),
       background: "transparent",
@@ -65,7 +60,6 @@ const useStyles = makeStyles((theme) =>
     inputTopBar: {
       padding: theme.spacing(1, 0, 0, 0),
       width: "100%",
-      // vertical padding + font size from searchIcon
       paddingLeft: theme.spacing(4),
       transition: theme.transitions.create("width"),
       background: "transparent",
@@ -83,7 +77,6 @@ const SearchBar = ({ input, setQuery, homePage }) => {
   const [searchText, setSearchText] = React.useState("");
 
   function handleSearch(event) {
-    //setQuery(searchText);
     let uri = generatePath("/search?q=:query", {
       query: searchText,
     });

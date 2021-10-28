@@ -56,7 +56,6 @@ const useStyles = makeStyles((theme) => ({
     background: "white",
     border: "2px solid #F5F6F7",
     borderRadius: "16px",
-    //padding: theme.spacing
   },
   data: {
     background: "white",
@@ -91,7 +90,6 @@ const useStyles = makeStyles((theme) => ({
     alignSelf: "flex-end",
   },
   resourceList: {
-    //borderRadius: 16,
     background: "rgba(255, 255, 255, 0.3)",
 
     paddingLeft: "0px",
@@ -303,8 +301,6 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                   toolbar: false,
                   headerStyle: {
                     backgroundColor: "#F5F6F7",
-                    //color: "#F7195C",
-                    //textColor: "#F7195C",
                     marginLeft: 3,
                   },
                 }}

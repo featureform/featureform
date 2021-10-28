@@ -50,15 +50,9 @@ const useStyles = makeStyles((theme) =>
       color: "inherit",
       background: "transparent",
       boxShadow: "none",
-      paddingLeft: `calc(1em + ${theme.spacing(4)})`,
+      //paddingLeft: `calc(1em + ${theme.spacing(4)})`,
       transition: theme.transitions.create("width"),
       width: "100%",
-      [theme.breakpoints.up("sm")]: {
-        width: "12ch",
-        "&:focus": {
-          width: "20ch",
-        },
-      },
     },
     inputInputHome: {
       //padding: theme.spacing(1, 20, 1, 0),

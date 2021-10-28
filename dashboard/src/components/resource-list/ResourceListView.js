@@ -22,9 +22,15 @@ SyntaxHighlighter.registerLanguage("json", json);
 
 const useStyles = makeStyles((theme) => ({
   root: {
-    borderRadius: 16,
-    background: "rgba(255, 255, 255, 0.3)",
+    background: "rgba(255, 255, 255, 0.5)",
+
+    //paddingLeft: "24px",
+    //paddingRight: "24px",
     border: "2px solid #CDD1D9",
+    borderRadius: 16,
+    "& > *": {
+      borderRadius: 16,
+    },
   },
   table: {
     borderRadius: 16,

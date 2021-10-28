@@ -5,7 +5,7 @@ import Tab from "@material-ui/core/Tab";
 import PropTypes from "prop-types";
 import { makeStyles } from "@material-ui/core/styles";
 import Typography from "@material-ui/core/Typography";
-import MaterialTable, { MTableBody } from "material-table";
+import MaterialTable, { MTableBody, MTableHeader } from "material-table";
 import Box from "@material-ui/core/Box";
 import Grid from "@material-ui/core/Grid";
 import { useHistory } from "react-router-dom";
@@ -45,6 +45,7 @@ const useStyles = makeStyles((theme) => ({
     flexGrow: 1,
     padding: theme.spacing(0),
     backgroundColor: theme.palette.background.paper,
+    marginTop: theme.spacing(2),
   },
   resourceMetadata: {
     padding: theme.spacing(1),
@@ -56,6 +57,7 @@ const useStyles = makeStyles((theme) => ({
   },
   data: {
     background: "white",
+    marginTop: theme.spacing(2),
     border: "2px solid #F5F6F7",
     borderRadius: "16px",
   },
@@ -65,6 +67,7 @@ const useStyles = makeStyles((theme) => ({
     color: "black",
   },
   metadata: {
+    marginTop: theme.spacing(2),
     padding: theme.spacing(1),
   },
   small: {
@@ -90,18 +93,35 @@ const useStyles = makeStyles((theme) => ({
     alignSelf: "flex-end",
   },
   resourceList: {
-    borderRadius: 16,
+    //borderRadius: 16,
     background: "rgba(255, 255, 255, 0.3)",
-    border: "2px solid #F5F6F7",
+
+    paddingLeft: "0px",
+    paddingRight: "0px",
+    border: "2px solid #CDD1D9",
+    borderRadius: 16,
+    "& > *": {
+      borderRadius: 16,
+    },
   },
   tableBody: {
     border: "2px solid #F5F6F7",
+    borderRadius: 16,
+  },
+  tableHeader: {
+    border: "2px solid #F5F6F7",
+    borderRadius: 16,
   },
 
   resourceData: {
     flexGrow: 1,
     paddingLeft: theme.spacing(1),
     borderLeft: "2px solid #5C0FAC",
+    marginLeft: theme.spacing(2),
+  },
+  tableRoot: {
+    border: "2px solid #F5F6F7",
+    borderRadius: 16,
   },
 }));
 
@@ -255,9 +275,16 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
           {Object.keys(resourceData).map((key, i) => (
             <TabPanel value={value} key={key} index={i + 1}>
               <MaterialTable
+                className={classes.tableRoot}
                 title={capitalize(key)}
                 options={{
                   toolbar: false,
+                  headerStyle: {
+                    backgroundColor: "#F5F6F7",
+                    //color: "#F7195C",
+                    //textColor: "#F7195C",
+                    marginLeft: 3,
+                  },
                 }}
                 columns={Object.keys(resourceData[key][0]).map((item) => ({
                   title: capitalize(item),
@@ -277,6 +304,9 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                   ),
                   Body: (props) => (
                     <MTableBody className={classes.tableBody} {...props} />
+                  ),
+                  Header: (props) => (
+                    <MTableHeader className={classes.tableHeader} {...props} />
                   ),
                 }}
               />

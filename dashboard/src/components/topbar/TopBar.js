@@ -11,26 +11,18 @@ import SearchBar from "../search/SearchBar";
 
 const useStyles = makeStyles((theme) => ({
   root: {
-    //height: "00px",
     diplay: "flex",
     width: "100%",
-    //justifyContent: "space-between",
   },
 
-  menuButton: {
-    //marginRight: theme.spacing(2),
-  },
   appbar: {
     background: "transparent",
     boxShadow: "none",
     display: "flex",
     width: "100%",
     color: "black",
-    //justifyContent: "space-between",
   },
-  searchBar: {
-    //alignSelf: "flex-end",
-  },
+  searchBar: {},
   toolbar: {
     width: "100%",
     display: "flex",
@@ -50,10 +42,7 @@ const useStyles = makeStyles((theme) => ({
     position: "relative",
     fontSize: "48px",
     padding: "10px",
-    //marginLeft: theme.spacing(10),
     width: "auto",
-    //justifyContent: "flex-end",
-    //alignItems: "flex-end",
     justifySelf: "flex-end",
   },
 }));
@@ -90,7 +79,6 @@ export default function TopBar() {
             <img
               src="/Featureform_Logo_Full_Black.svg"
               height={30}
-              //width={150}
               alt="Featureform"
               component="div"
               nowrap

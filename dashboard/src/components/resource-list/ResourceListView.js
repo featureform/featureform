@@ -26,9 +26,6 @@ SyntaxHighlighter.registerLanguage("json", json);
 const useStyles = makeStyles((theme) => ({
   root: {
     background: "rgba(255, 255, 255, 0.5)",
-
-    //paddingLeft: "24px",
-    //paddingRight: "24px",
     border: "2px solid #F5F6F7",
     borderRadius: 16,
     "& > *": {
@@ -176,11 +173,9 @@ export const ResourceListView = ({
           headerStyle: {
             backgroundColor: "#FFF",
             color: "#F7195C",
-            //textColor: "#F7195C",
             marginLeft: 3,
           },
           rowStyle: {
-            //backgroundColor: "#FFF",
             opacity: 1,
             borderRadius: 16,
           },

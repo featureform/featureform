@@ -9,7 +9,6 @@ const useStyles = makeStyles((theme) => ({
     flexGrow: 1,
     padding: theme.spacing(0),
     backgroundColor: theme.palette.background.paper,
-    //display: "flex",
     flexBasis: theme.spacing(1),
     flexDirection: "row",
     "& > *": {

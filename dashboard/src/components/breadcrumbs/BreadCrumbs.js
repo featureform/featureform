@@ -11,7 +11,6 @@ const useStyles = makeStyles((theme) => ({
   },
   breadcrumbs: {
     fontSize: 18,
-    //fontWeight: 550,
   },
   separator: {
     marginLeft: "2px",

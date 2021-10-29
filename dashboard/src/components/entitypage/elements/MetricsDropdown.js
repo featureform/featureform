@@ -35,10 +35,10 @@ const useStyles = makeStyles((theme) => ({
     width: "60%",
   },
   graph: {
-    height: "250px",
+    height: "20em",
     alignItems: "center",
     "& > *": {
-      height: "250px",
+      height: "20em",
     },
   },
 }));
@@ -109,7 +109,7 @@ const MetricsDropdown = () => {
             </div>
           </Container>
         </Grid>
-        <Grid item xs={7} height="250px">
+        <Grid item xs={7} height="15em">
           <div className={classes.timeSlider}>
             <Container>
               <Typography variant="body2">Time range</Typography>

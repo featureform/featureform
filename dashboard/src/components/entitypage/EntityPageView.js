@@ -93,8 +93,8 @@ const useStyles = makeStyles((theme) => ({
   resourceList: {
     background: "rgba(255, 255, 255, 0.3)",
 
-    paddingLeft: "0px",
-    paddingRight: "0px",
+    paddingLeft: "0",
+    paddingRight: "0",
     border: `2px solid ${theme.palette.border.main}`,
     borderRadius: 16,
     "& > *": {
@@ -112,10 +112,10 @@ const useStyles = makeStyles((theme) => ({
   },
   tabChart: {
     "& .MuiBox-root": {
-      padding: "0px",
-      margin: "0px",
-      paddingTop: "24px",
-      paddingBottom: "24px",
+      padding: "0",
+      margin: "0",
+      paddingTop: "2em",
+      paddingBottom: "2em",
     },
   },
 
@@ -137,7 +137,7 @@ const useStyles = makeStyles((theme) => ({
     display: "flex",
   },
   titleText: {
-    paddingLeft: "12px",
+    paddingLeft: "1em",
   },
 }));
 

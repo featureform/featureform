@@ -7,7 +7,7 @@ import Typography from "@material-ui/core/Typography";
 
 const useStyles = makeStyles((theme, id) => ({
   root: {
-    padding: theme.spacing(3),
+    padding: theme.spacing(2),
     width: "100%",
     height: "100%",
   },
@@ -18,7 +18,7 @@ const useStyles = makeStyles((theme, id) => ({
     border: (id) => `2px solid ${theme.palette.ordinalColors[id]}`,
     borderRadius: 16,
     background: "white",
-    minWidth: "200px",
+    minWidth: "12em",
   },
 
   media: {
@@ -42,17 +42,15 @@ const useStyles = makeStyles((theme, id) => ({
     border: (id) => `2px solid ${theme.palette.ordinalColors[id]}`,
     borderRadius: 16,
     background: "white",
-    minWidth: "200px",
+    minWidth: "12em",
   },
   icon: {
     marginBottom: theme.spacing(1),
-    marginTop: theme.spacing(2),
     color: (id) => theme.palette.ordinalColors[id],
-    fontSize: "32px",
+    fontSize: "2em",
   },
   title: {
-    marginBottom: theme.spacing(2),
-    fontSize: "24px",
+    fontSize: "2em",
     color: (id) => theme.palette.ordinalColors[id],
   },
 }));

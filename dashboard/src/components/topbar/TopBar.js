@@ -40,8 +40,8 @@ const useStyles = makeStyles((theme) => ({
   accountButton: {
     color: "black",
     position: "relative",
-    fontSize: "48px",
-    padding: "10px",
+    fontSize: "3em",
+    padding: "1em",
     width: "auto",
     justifySelf: "flex-end",
   },

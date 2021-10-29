@@ -16,8 +16,8 @@ const useStyles = makeStyles((theme) => ({
     fontSize: 18,
   },
   separator: {
-    marginLeft: "2px",
-    marginRight: "2px",
+    marginLeft: "0.2em",
+    marginRight: "0.2em",
     alignItems: "auto",
   },
 }));
@@ -40,7 +40,7 @@ const BreadCrumbs = () => {
       {path.length > 0 ? (
         <Breadcrumbs
           className={classes.breadcrumbs}
-          style={{ margin: "3px" }}
+          style={{ margin: "0.25em" }}
           aria-label="breadcrumb"
           separator={<NavigateNextIcon fontSize="medium" />}
           classes={{

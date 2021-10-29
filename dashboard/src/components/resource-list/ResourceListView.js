@@ -18,6 +18,7 @@ import sql from "react-syntax-highlighter/dist/cjs/languages/prism/sql";
 import json from "react-syntax-highlighter/dist/cjs/languages/prism/json";
 import { useHistory } from "react-router-dom";
 import Container from "@material-ui/core/Container";
+import theme from "styles/theme/index.js";
 
 SyntaxHighlighter.registerLanguage("python", python);
 SyntaxHighlighter.registerLanguage("sql", sql);
@@ -26,7 +27,7 @@ SyntaxHighlighter.registerLanguage("json", json);
 const useStyles = makeStyles((theme) => ({
   root: {
     background: "rgba(255, 255, 255, 0.5)",
-    border: "2px solid #F5F6F7",
+    border: `2px solid ${theme.palette.border.main}`,
     borderRadius: 16,
     "& > *": {
       borderRadius: 16,
@@ -35,7 +36,7 @@ const useStyles = makeStyles((theme) => ({
   table: {
     borderRadius: 16,
     background: "rgba(255, 255, 255, 1)",
-    border: "2px solid #F5F6F7",
+    border: `2px solid ${theme.palette.border.main}`,
   },
   detailPanel: {
     padding: theme.spacing(4),
@@ -50,7 +51,7 @@ const useStyles = makeStyles((theme) => ({
     margin: theme.spacing(0.1),
   },
   tableBody: {
-    border: "2px solid #F5F6F7",
+    border: `2px solid ${theme.palette.border.main}`,
     background: "white",
     color: "white",
     opacity: 1,
@@ -171,8 +172,8 @@ export const ResourceListView = ({
           search: true,
           draggable: false,
           headerStyle: {
-            backgroundColor: "#FFF",
-            color: "#F7195C",
+            backgroundColor: "white",
+            color: theme.palette.primary.main,
             marginLeft: 3,
           },
           rowStyle: {

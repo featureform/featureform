@@ -17,6 +17,7 @@ import VersionControl from "./elements/VersionControl";
 import TagBox from "./elements/TagBox";
 import MetricsDropdown from "./elements/MetricsDropdown";
 import { resourceIcons } from "api/resources";
+import theme from "styles/theme/index.js";
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
@@ -54,13 +55,13 @@ const useStyles = makeStyles((theme) => ({
   },
   border: {
     background: "white",
-    border: "2px solid #F5F6F7",
+    border: `2px solid ${theme.palette.border.main}`,
     borderRadius: "16px",
   },
   data: {
     background: "white",
     marginTop: theme.spacing(2),
-    border: "2px solid #F5F6F7",
+    border: `2px solid ${theme.palette.border.main}`,
     borderRadius: "16px",
   },
   appbar: {
@@ -94,19 +95,20 @@ const useStyles = makeStyles((theme) => ({
 
     paddingLeft: "0px",
     paddingRight: "0px",
-    border: "2px solid #CDD1D9",
+    border: `2px solid ${theme.palette.border.main}`,
     borderRadius: 16,
     "& > *": {
       borderRadius: 16,
     },
   },
   tableBody: {
-    border: "2px solid #F5F6F7",
+    border: `2px solid ${theme.palette.border.main}`,
     borderRadius: 16,
   },
   tableHeader: {
-    border: "2px solid #F5F6F7",
+    border: `2px solid ${theme.palette.border.main}`,
     borderRadius: 16,
+    color: theme.palette.border.alternate,
   },
   tabChart: {
     "& .MuiBox-root": {
@@ -120,11 +122,11 @@ const useStyles = makeStyles((theme) => ({
   resourceData: {
     flexGrow: 1,
     paddingLeft: theme.spacing(1),
-    borderLeft: "3px solid #5C0FAC",
+    borderLeft: `3px solid ${theme.palette.secondary.main}`,
     marginLeft: theme.spacing(2),
   },
   tableRoot: {
-    border: "2px solid #F5F6F7",
+    border: `2px solid ${theme.palette.border.main}`,
     borderRadius: 16,
   },
   resourcesTopRow: {
@@ -300,7 +302,7 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                 options={{
                   toolbar: false,
                   headerStyle: {
-                    backgroundColor: "#F5F6F7",
+                    backgroundColor: theme.palette.border.main,
                     marginLeft: 3,
                   },
                 }}

@@ -5,15 +5,6 @@ import { useHistory } from "react-router-dom";
 import ButtonBase from "@material-ui/core/ButtonBase";
 import Typography from "@material-ui/core/Typography";
 
-const colors = {
-  0: "#3D0A73",
-  1: "#F7195C",
-  2: "#AF72EF",
-  3: "#F9477D",
-  4: "#061B3F",
-  5: "#7C0D2E",
-};
-
 const useStyles = makeStyles((theme, id) => ({
   root: {
     padding: theme.spacing(3),
@@ -24,9 +15,9 @@ const useStyles = makeStyles((theme, id) => ({
     padding: theme.spacing(3),
     width: "100%",
     height: "100%",
-    border: (id) => `2px solid ${colors[id]}`,
+    border: (id) => `2px solid ${theme.palette.ordinalColors[id]}`,
     borderRadius: 16,
-    background: "#FFFFFF",
+    background: "white",
     minWidth: "200px",
   },
 
@@ -48,21 +39,21 @@ const useStyles = makeStyles((theme, id) => ({
     opacity: 0.3,
     width: "100%",
     height: "100%",
-    border: (id) => `2px solid ${colors[id]}`,
+    border: (id) => `2px solid ${theme.palette.ordinalColors[id]}`,
     borderRadius: 16,
-    background: "#FFFFFF",
+    background: "white",
     minWidth: "200px",
   },
   icon: {
     marginBottom: theme.spacing(1),
     marginTop: theme.spacing(2),
-    color: (id) => colors[id],
+    color: (id) => theme.palette.ordinalColors[id],
     fontSize: "32px",
   },
   title: {
     marginBottom: theme.spacing(2),
     fontSize: "24px",
-    color: (id) => colors[id],
+    color: (id) => theme.palette.ordinalColors[id],
   },
 }));
 

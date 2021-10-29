@@ -37,7 +37,7 @@ const useStyles = makeStyles((theme) =>
       justifyContent: "center",
     },
     border: {
-      border: `2px solid #CDD1D9`,
+      border: `2px solid ${theme.palette.border.alternate}`,
       borderRadius: 16,
       "&:hover": {
         border: `2px solid black`,

@@ -41,7 +41,7 @@ const useStyles = makeStyles((theme) => ({
   root: {
     borderRadius: 16,
     background: "rgba(255, 255, 255, 1)",
-    border: "2px solid #F5F6F7",
+    border: `2px solid ${theme.palette.border.main}`,
   },
 
   appbar: {

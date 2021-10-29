@@ -15,7 +15,7 @@ const useStyles = makeStyles((theme) => ({
   tags: {
     padding: theme.spacing(2),
     borderRadius: "16px",
-    border: "1px solid #F5F6F7",
+    border: `1px solid ${theme.palette.border.main}`,
   },
   chip: {
     margin: theme.spacing(0.5),

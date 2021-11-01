@@ -68,6 +68,10 @@ exports[`App Wrapper hasn't changed 1`] = `
           "default": "#FFFFFF",
           "paper": "#fff",
         },
+        "border": Object {
+          "alternate": "#CDD1D9",
+          "main": "#F5F6F7",
+        },
         "common": Object {
           "black": "#000",
           "white": "#fff",
@@ -102,6 +106,14 @@ exports[`App Wrapper hasn't changed 1`] = `
           "dark": "#1976d2",
           "light": "#64b5f6",
           "main": "#2196f3",
+        },
+        "ordinalColors": Object {
+          "0": "#3D0A73",
+          "1": "#f7195c",
+          "2": "#AF72EF",
+          "3": "#F9477D",
+          "4": "#061B3F",
+          "5": "#7C0D2E",
         },
         "primary": Object {
           "contrastText": "#FFFFFF",
@@ -189,31 +201,31 @@ exports[`App Wrapper hasn't changed 1`] = `
       },
       "typography": Object {
         "body1": Object {
-          "fontFamily": "\\"Matter\\", \\"Helvetica\\", \\"Arial\\", sans-serif",
+          "fontFamily": "\\"Matter\\", \\"Lato\\", \\"Helvetica\\", sans-serif",
           "fontSize": "1rem",
           "fontWeight": 550,
           "lineHeight": 1.5,
         },
         "body2": Object {
-          "fontFamily": "\\"Matter\\", \\"Helvetica\\", \\"Arial\\", sans-serif",
+          "fontFamily": "\\"Matter\\", \\"Lato\\", \\"Helvetica\\", sans-serif",
           "fontSize": "0.875rem",
           "fontWeight": 550,
           "lineHeight": 1.43,
         },
         "button": Object {
-          "fontFamily": "\\"Matter\\", \\"Helvetica\\", \\"Arial\\", sans-serif",
+          "fontFamily": "\\"Matter\\", \\"Lato\\", \\"Helvetica\\", sans-serif",
           "fontSize": "0.875rem",
           "fontWeight": 650,
           "lineHeight": 1.75,
           "textTransform": "uppercase",
         },
         "caption": Object {
-          "fontFamily": "\\"Matter\\", \\"Helvetica\\", \\"Arial\\", sans-serif",
+          "fontFamily": "\\"Matter\\", \\"Lato\\", \\"Helvetica\\", sans-serif",
           "fontSize": "0.75rem",
           "fontWeight": 550,
           "lineHeight": 1.66,
         },
-        "fontFamily": "\\"Matter\\", \\"Helvetica\\", \\"Arial\\", sans-serif",
+        "fontFamily": "\\"Matter\\", \\"Lato\\", \\"Helvetica\\", sans-serif",
         "fontSize": 14,
         "fontWeightBold": 700,
         "fontWeightLight": 450,
@@ -229,7 +241,7 @@ exports[`App Wrapper hasn't changed 1`] = `
           "@media (min-width:960px)": Object {
             "fontSize": "5.3556rem",
           },
-          "fontFamily": "\\"Matter\\", \\"Helvetica\\", \\"Arial\\", sans-serif",
+          "fontFamily": "\\"Matter\\", \\"Lato\\", \\"Helvetica\\", sans-serif",
           "fontSize": "3.5rem",
           "fontWeight": 450,
           "lineHeight": 1.167,
@@ -244,7 +256,7 @@ exports[`App Wrapper hasn't changed 1`] = `
           "@media (min-width:960px)": Object {
             "fontSize": "3.3333rem",
           },
-          "fontFamily": "\\"Matter\\", \\"Helvetica\\", \\"Arial\\", sans-serif",
+          "fontFamily": "\\"Matter\\", \\"Lato\\", \\"Helvetica\\", sans-serif",
           "fontSize": "2.375rem",
           "fontWeight": 450,
           "lineHeight": 1.2,
@@ -259,7 +271,7 @@ exports[`App Wrapper hasn't changed 1`] = `
           "@media (min-width:960px)": Object {
             "fontSize": "2.7849rem",
           },
-          "fontFamily": "\\"Matter\\", \\"Helvetica\\", \\"Arial\\", sans-serif",
+          "fontFamily": "\\"Matter\\", \\"Lato\\", \\"Helvetica\\", sans-serif",
           "fontSize": "2rem",
           "fontWeight": 550,
           "lineHeight": 1.167,
@@ -274,7 +286,7 @@ exports[`App Wrapper hasn't changed 1`] = `
           "@media (min-width:960px)": Object {
             "fontSize": "2.0243rem",
           },
-          "fontFamily": "\\"Matter\\", \\"Helvetica\\", \\"Arial\\", sans-serif",
+          "fontFamily": "\\"Matter\\", \\"Lato\\", \\"Helvetica\\", sans-serif",
           "fontSize": "1.5625rem",
           "fontWeight": 550,
           "lineHeight": 1.235,
@@ -289,7 +301,7 @@ exports[`App Wrapper hasn't changed 1`] = `
           "@media (min-width:960px)": Object {
             "fontSize": "1.4993rem",
           },
-          "fontFamily": "\\"Matter\\", \\"Helvetica\\", \\"Arial\\", sans-serif",
+          "fontFamily": "\\"Matter\\", \\"Lato\\", \\"Helvetica\\", sans-serif",
           "fontSize": "1.25rem",
           "fontWeight": 550,
           "lineHeight": 1.334,
@@ -304,14 +316,14 @@ exports[`App Wrapper hasn't changed 1`] = `
           "@media (min-width:960px)": Object {
             "fontSize": "1.25rem",
           },
-          "fontFamily": "\\"Matter\\", \\"Helvetica\\", \\"Arial\\", sans-serif",
+          "fontFamily": "\\"Matter\\", \\"Lato\\", \\"Helvetica\\", sans-serif",
           "fontSize": "1.125rem",
           "fontWeight": 650,
           "lineHeight": 1.6,
         },
         "htmlFontSize": 16,
         "overline": Object {
-          "fontFamily": "\\"Matter\\", \\"Helvetica\\", \\"Arial\\", sans-serif",
+          "fontFamily": "\\"Matter\\", \\"Lato\\", \\"Helvetica\\", sans-serif",
           "fontSize": "0.75rem",
           "fontWeight": 550,
           "lineHeight": 2.66,
@@ -320,13 +332,13 @@ exports[`App Wrapper hasn't changed 1`] = `
         "pxToRem": [Function],
         "round": [Function],
         "subtitle1": Object {
-          "fontFamily": "\\"Matter\\", \\"Helvetica\\", \\"Arial\\", sans-serif",
+          "fontFamily": "\\"Matter\\", \\"Lato\\", \\"Helvetica\\", sans-serif",
           "fontSize": "1rem",
           "fontWeight": 550,
           "lineHeight": 1.75,
         },
         "subtitle2": Object {
-          "fontFamily": "\\"Matter\\", \\"Helvetica\\", \\"Arial\\", sans-serif",
+          "fontFamily": "\\"Matter\\", \\"Lato\\", \\"Helvetica\\", sans-serif",
           "fontSize": "0.875rem",
           "fontWeight": 650,
           "lineHeight": 1.57,

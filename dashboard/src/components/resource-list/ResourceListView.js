@@ -18,7 +18,7 @@ import sql from "react-syntax-highlighter/dist/cjs/languages/prism/sql";
 import json from "react-syntax-highlighter/dist/cjs/languages/prism/json";
 import { useHistory } from "react-router-dom";
 import Container from "@material-ui/core/Container";
-import theme from "styles/theme/index.js";
+import styleTheme from "styles/theme/index.js";
 
 SyntaxHighlighter.registerLanguage("python", python);
 SyntaxHighlighter.registerLanguage("sql", sql);
@@ -173,7 +173,7 @@ export const ResourceListView = ({
           draggable: false,
           headerStyle: {
             backgroundColor: "white",
-            color: theme.palette.primary.main,
+            color: styleTheme.palette.primary.main,
             marginLeft: 3,
           },
           rowStyle: {

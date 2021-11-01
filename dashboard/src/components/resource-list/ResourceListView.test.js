@@ -5,6 +5,9 @@ import { configure, shallow, mount } from "enzyme";
 import Adapter from "@wojtekmaj/enzyme-adapter-react-17";
 import Chip from "@material-ui/core/Chip";
 import produce from "immer";
+import CssBaseline from "@material-ui/core/CssBaseline";
+import TEST_THEME from "styles/theme";
+import { ThemeProvider } from "@material-ui/core/styles";
 
 import {
   ResourceListView,
@@ -14,10 +17,41 @@ import {
 
 configure({ adapter: new Adapter() });
 
+export const ThemeWrapper = ({ children }) => (
+  <ThemeProvider theme={TEST_THEME}>
+    <CssBaseline />
+    {children}
+  </ThemeProvider>
+);
+
+export function mountWithTheme(child) {
+  return mount(child, {
+    wrappingComponent: ({ children }) => (
+      <ThemeProvider theme={TEST_THEME}>{children}</ThemeProvider>
+    ),
+  });
+}
+
+export function shallowWithTheme(child) {
+  return shallow(child, {
+    wrappingComponent: ({ children }) => (
+      <ThemeProvider theme={TEST_THEME}>{children}</ThemeProvider>
+    ),
+  });
+}
+
 describe("ResourceListView", () => {
   it("sets resources to [] by default", () => {
-    const list = shallow(<ResourceListView title="test" />);
-    expect(list.children().props().data).toEqual([]);
+    const list = mount(
+      <ThemeWrapper>
+        <ResourceListView title="test" />
+      </ThemeWrapper>
+    );
+    console.log(list.children().find("ResourceListView").props());
+    console.log(list.children("ResourceListView"));
+    expect(
+      list.children().find("ResourceListView").children().props().data
+    ).toEqual([]);
   });
 
   it("passes through resources", () => {

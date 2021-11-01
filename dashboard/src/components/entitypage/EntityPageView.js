@@ -77,6 +77,7 @@ const useStyles = makeStyles((theme) => ({
     width: theme.spacing(3),
     height: theme.spacing(3),
     display: "inline-flex",
+    alignItems: "self-end",
   },
   titleBox: {
     diplay: "inline-block",

@@ -7,6 +7,7 @@ import Chip from "@material-ui/core/Chip";
 import MenuItem from "@material-ui/core/MenuItem";
 import FormControl from "@material-ui/core/FormControl";
 import Select from "@material-ui/core/Select";
+import theme from "styles/theme";
 import MaterialTable, {
   MTableBody,
   MTableHeader,
@@ -18,13 +19,12 @@ import sql from "react-syntax-highlighter/dist/cjs/languages/prism/sql";
 import json from "react-syntax-highlighter/dist/cjs/languages/prism/json";
 import { useHistory } from "react-router-dom";
 import Container from "@material-ui/core/Container";
-import styleTheme from "styles/theme/index.js";
 
 SyntaxHighlighter.registerLanguage("python", python);
 SyntaxHighlighter.registerLanguage("sql", sql);
 SyntaxHighlighter.registerLanguage("json", json);
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles(() => ({
   root: {
     background: "rgba(255, 255, 255, 0.5)",
     border: `2px solid ${theme.palette.border.main}`,
@@ -173,7 +173,7 @@ export const ResourceListView = ({
           draggable: false,
           headerStyle: {
             backgroundColor: "white",
-            color: styleTheme.palette.primary.main,
+            color: theme.palette.primary.main,
             marginLeft: 3,
           },
           rowStyle: {

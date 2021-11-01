@@ -35,23 +35,18 @@ export function mountWithTheme(child) {
 export function shallowWithTheme(child) {
   return shallow(child, {
     wrappingComponent: ({ children }) => (
-      <ThemeProvider theme={TEST_THEME}>{children}</ThemeProvider>
+      <ThemeWrapper>{children}</ThemeWrapper>
     ),
   });
 }
 
 describe("ResourceListView", () => {
   it("sets resources to [] by default", () => {
-    const list = mount(
-      <ThemeWrapper>
-        <ResourceListView title="test" />
-      </ThemeWrapper>
-    );
-    console.log(list.children().find("ResourceListView").props());
-    console.log(list.children("ResourceListView"));
-    expect(
-      list.children().find("ResourceListView").children().props().data
-    ).toEqual([]);
+    const list = shallow(<ResourceListView title="test" />);
+
+    //const list = shallowWithTheme(<ResourceListView title="test" />);
+    //console.log(list.children("ResourceListView").children().props());
+    expect(list.children().props().data).toEqual([]);
   });
 
   it("passes through resources", () => {

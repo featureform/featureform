@@ -54,23 +54,36 @@ export const testData = [
   },
 ];
 
+const API_URL = "http://localhost:8080";
+
 export default class ResourcesAPI {
+  local = false;
   fetchResources(type) {
-    return fetch("/data/lists/wine-data.json", {
+    var fetchAddress;
+    if (local) {
+      fetchAddress = `/data/lists/wine-data.json`;
+    } else {
+      fetchAddress = `${API_URL}${resourcePaths[type]}`;
+    }
+    return fetch(fetchAddress, {
       headers: {
         "Content-Type": "application/json",
       },
     })
-      .then((res) =>
-        res.json().then((json_data) => ({ data: json_data[type] }))
-      )
+      .then((res) => res.json().then((json_data) => ({ data: json_data })))
       .catch((error) => {
         console.error(error);
       });
   }
 
   fetchEntity(type, title) {
-    const fetchAddress = "/data/" + type + "/" + title + ".json";
+    var fetchAddress;
+    if (local) {
+      fetchAddress = "/data/" + type + "/" + title + ".json";
+    } else {
+      fetchAddress = `${API_URL}/${type}/${title}`;
+    }
+
     return fetch(fetchAddress, {
       headers: {
         "Content-Type": "application/json",

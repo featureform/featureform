@@ -43,9 +43,6 @@ export function shallowWithTheme(child) {
 describe("ResourceListView", () => {
   it("sets resources to [] by default", () => {
     const list = shallow(<ResourceListView title="test" />);
-
-    //const list = shallowWithTheme(<ResourceListView title="test" />);
-    //console.log(list.children("ResourceListView").children().props());
     expect(list.children().props().data).toEqual([]);
   });
 

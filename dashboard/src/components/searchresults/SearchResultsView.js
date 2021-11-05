@@ -132,8 +132,6 @@ const SearchResultsList = ({ type, contents }) => {
         {contents.map((content) => (
           <SearchResultsItem type={type} content={content} />
         ))}
-
-        {/* <Divider component="li" /> */}
       </List>
     </div>
   );

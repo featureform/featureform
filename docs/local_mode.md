@@ -1,6 +1,6 @@
 # Using Embeddinghub in Local Mode
 
-Embeddinghub can be used without a backend. If you're interested in running Embeddinghub locally via a Docker container backend check out our section on it, or head over to the [quickstart](/quickstart). If you're interested in using Embeddinghub as a better wrapper for embeddings locally, read on.
+Embeddinghub can be used without a backend. If you're interested in running Embeddinghub locally via a Docker container backend check out our section on it, or head over to the [quickstart](quickstart.md). If you're interested in using Embeddinghub as a better wrapper for embeddings locally, read on.
 
 When connecting or creating an Embeddinghub instance, a LocalConfig can be used instead.
 

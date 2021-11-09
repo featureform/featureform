@@ -1,0 +1,26 @@
+name: Link Check Deploy
+on: deployment_status
+
+jobs:
+  run:
+    name: Link Check Deploy
+    runs-on: ubuntu-latest
+    if: github.event.deployment_status.state == 'success'
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Run the link check script
+        id: check
+        uses: "iterative/link-check.action@v0.3.0"
+        with:
+          configFile: "./.linkcheckrc.json"
+          rootURL: "${{ github.event.deployment.payload.web_url }}"
+
+      - uses: LouisBrunner/checks-action@v0.1.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          name: Link Check Deploy
+          status: completed
+          conclusion: ${{ steps.check.outputs.conclusion }}
+          output: ${{ steps.check.outputs.output }}

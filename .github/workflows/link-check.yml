@@ -3,7 +3,7 @@ name: Check Markdown links
 on: push
 
 jobs:
-  markdown-link-check:
+  github-link-check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@master
@@ -11,6 +11,17 @@ jobs:
         with:
           use-quiet-mode: "yes"
           use-verbose-mode: "yes"
-          config-file: "mlc_config.json"
+          config-file: ".readme_config.json"
+          file-path: "./README.md ./CODE_OF_CONDUCT.md CONTRIBUTING.md"
+          max-depth: 2
+  docs-link-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      - uses: gaurav-nelson/github-action-markdown-link-check@v1
+        with:
+          use-quiet-mode: "yes"
+          use-verbose-mode: "yes"
+          config-file: ".docs_mlc_config.json"
           folder-path: "docs"
           max-depth: 2

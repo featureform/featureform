@@ -8,6 +8,7 @@ package featureform.embedding.proto;
 
 service EmbeddingHub {
   rpc CreateSpace(CreateSpaceRequest) returns (CreateSpaceResponse) {}
+  rpc DeleteSpace(DeleteSpaceRequest) returns (DeleteSpaceResponse) {}
   rpc FreezeSpace(FreezeSpaceRequest) returns (FreezeSpaceResponse) {}
   rpc Set(SetRequest) returns (SetResponse) {}
   rpc Get(GetRequest) returns (GetResponse) {}
@@ -15,6 +16,14 @@ service EmbeddingHub {
   rpc MultiGet(stream MultiGetRequest) returns (stream MultiGetResponse) {}
   rpc NearestNeighbor(NearestNeighborRequest)  returns (NearestNeighborResponse) {}
   rpc Download(DownloadRequest) returns (stream DownloadResponse) {}
+}
+
+message DeleteSpaceRequest {
+  string name = 1;
+}
+
+message DeleteSpaceResponse {
+  // Purposely empty.
 }
 
 message CreateSpaceRequest {

@@ -22,6 +22,10 @@ class EmbeddingHubService final : public proto::EmbeddingHub::Service {
                            const proto::CreateSpaceRequest* request,
                            proto::CreateSpaceResponse* resp) override;
 
+  grpc::Status DeleteSpace(grpc::ServerContext* context,
+                           const proto::DeleteSpaceRequest* request,
+                           proto::DeleteSpaceResponse* resp) override;
+
   grpc::Status FreezeSpace(grpc::ServerContext* context,
                            const proto::FreezeSpaceRequest* request,
                            proto::FreezeSpaceResponse* resp) override;

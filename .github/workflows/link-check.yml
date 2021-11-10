@@ -36,11 +36,11 @@ jobs:
           max-depth: 2
   website-link-checker:
     runs-on: ubuntu-latest
-    name: Check featureform website for broken links
+    name: broken-link-check
     steps:
       - name: Check for broken links
         id: link-report
-        uses: celinekurpershoek/link-checker@v1.0.1
+        uses: celinekurpershoek/link-checker@v1.0.0
         with:
           # Required:
           url: "https://www.featureform.com/"

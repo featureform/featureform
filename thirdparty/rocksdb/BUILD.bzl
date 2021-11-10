@@ -11,8 +11,11 @@ make(
         "-llz4",
         "-lsnappy",
     ],
-    make_commands = ["make -j8 static_lib && mkdir -p $INSTALLDIR/lib && mv librocksdb.a $INSTALLDIR/lib && cp -L -R include/rocksdb $INSTALLDIR/rocksdb/"],
-    out_include_dir = "rocksdb",
+    tool_prefix = "PORTABLE=1",
+    targets = ["install-static"],
+    args = ["-j8"],
+    postfix_script = "cp -L -R include $$INSTALLDIR$$/",
+    out_include_dir = "include",
     out_static_libs = ["librocksdb.a"],
     visibility = ["//visibility:public"],
 )

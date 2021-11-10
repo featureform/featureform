@@ -40,7 +40,7 @@ jobs:
     steps:
       - name: Check for broken links
         id: link-report
-        uses: celinekurpershoek/link-checker@v1.0.0
+        uses: celinekurpershoek/link-checker@master
         with:
           # Required:
           url: "https://www.featureform.com/"

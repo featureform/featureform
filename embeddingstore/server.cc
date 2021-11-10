@@ -15,6 +15,8 @@
 
 using ::featureform::embedding::proto::CreateSpaceRequest;
 using ::featureform::embedding::proto::CreateSpaceResponse;
+using ::featureform::embedding::proto::DeleteSpaceRequest;
+using ::featureform::embedding::proto::DeleteSpaceResponse;
 using ::featureform::embedding::proto::DownloadRequest;
 using ::featureform::embedding::proto::DownloadResponse;
 using ::featureform::embedding::proto::Embedding;
@@ -66,6 +68,14 @@ grpc::Status EmbeddingHubService::CreateSpace(ServerContext* context,
   std::unique_lock<std::mutex> lock(mtx_);
   auto space = store_->create_space(request->name());
   space->create_version(DEFAULT_VERSION, request->dims());
+  return Status::OK;
+}
+
+grpc::Status EmbeddingHubService::DeleteSpace(ServerContext* context,
+                                              const DeleteSpaceRequest* request,
+                                              DeleteSpaceResponse* resp) {
+  std::unique_lock<std::mutex> lock(mtx_);
+  store_->delete_space(request->name());
   return Status::OK;
 }
 

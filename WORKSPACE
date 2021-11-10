@@ -63,9 +63,8 @@ grpc_python_deps()
 # Add rules to compile external C++ projects that use Make or CMake.
 http_archive(
     name = "rules_foreign_cc",
-    sha256 = "d54742ffbdc6924f222d2179f0e10e911c5c659c4ae74158e9fe827aad862ac6",
-    strip_prefix = "rules_foreign_cc-0.2.0",
-    url = "https://github.com/bazelbuild/rules_foreign_cc/archive/0.2.0.tar.gz",
+    strip_prefix = "rules_foreign_cc-0.6.0",
+    url = "https://github.com/bazelbuild/rules_foreign_cc/archive/0.6.0.tar.gz",
 )
 
 load("@rules_foreign_cc//foreign_cc:repositories.bzl", "rules_foreign_cc_dependencies")

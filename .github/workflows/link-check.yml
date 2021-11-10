@@ -1,16 +1,18 @@
-name: Check Markdown links
+name: Check All Public Links
 
-on:
-  push:
-    branches:
-      - main
-  schedule:
-    # Run everyday at 9:00 AM (See https://pubs.opengroup.org/onlinepubs/9699919799/utilities/crontab.html#tag_20_25_07)
-    - cron: "0 9 * * *"
+on: push
+# on:
+#   push:
+#     branches:
+#       - main
+#   schedule:
+#     # Run everyday at 9:00 AM (See https://pubs.opengroup.org/onlinepubs/9699919799/utilities/crontab.html#tag_20_25_07)
+#     - cron: "0 9 * * *"
 
 jobs:
   github-link-check:
     runs-on: ubuntu-latest
+    name: Check github readme repos for broken links
     steps:
       - uses: actions/checkout@master
       - uses: gaurav-nelson/github-action-markdown-link-check@v1
@@ -22,6 +24,7 @@ jobs:
           max-depth: 2
   docs-link-check:
     runs-on: ubuntu-latest
+    name: Check docs for broken links
     steps:
       - uses: actions/checkout@master
       - uses: gaurav-nelson/github-action-markdown-link-check@v1
@@ -31,3 +34,19 @@ jobs:
           config-file: ".docs_mlc_config.json"
           folder-path: "docs"
           max-depth: 2
+  website-link-checker:
+    runs-on: ubuntu-latest
+    name: Check featureform website for broken links
+    steps:
+      - name: Check for broken links
+        id: link-report
+        uses: celinekurpershoek/link-checker@v1.0.1
+        with:
+          # Required:
+          url: "https://www.featureform.com/"
+          # optional:
+          honorRobotExclusions: false
+          ignorePatterns: "github,google"
+          recursiveLinks: true
+      - name: Print result
+        run: echo "${{steps.link-report.outputs.result}}"

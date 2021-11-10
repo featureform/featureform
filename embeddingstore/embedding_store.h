@@ -22,6 +22,7 @@ class EmbeddingHub {
   static std::shared_ptr<EmbeddingHub> load_or_create(std::string path);
   std::optional<std::shared_ptr<Space>> get_space(const std::string& name);
   std::shared_ptr<Space> create_space(const std::string& name);
+  void delete_space(const std::string& name);
 
  private:
   EmbeddingHub(std::filesystem::path base_path,

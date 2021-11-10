@@ -1,7 +1,7 @@
 {
   "ignorePatterns": [
     {
-      "pattern": "http://localhost:3000"
+      "pattern": "^http://localhost:3000"
     }
   ],
   "replacementPatterns": [

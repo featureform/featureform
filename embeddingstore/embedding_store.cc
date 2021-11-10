@@ -61,6 +61,13 @@ std::optional<std::shared_ptr<Space>> EmbeddingHub::get_space(
   return std::optional{space};
 }
 
+void EmbeddingHub::delete_space(const std::string& name) {
+  if (is_space_loaded(name)) {
+    loaded_spaces_.erase(name);
+  }
+  db_->Delete(rocksdb::WriteOptions(), name);
+}
+
 bool EmbeddingHub::is_space_loaded(const std::string& name) const {
   return loaded_spaces_.find(name) != loaded_spaces_.end();
 }

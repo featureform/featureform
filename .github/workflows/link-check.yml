@@ -46,7 +46,7 @@ jobs:
           url: "https://www.featureform.com/"
           # optional:
           honorRobotExclusions: false
-          ignorePatterns: "github,google"
+          ignorePatterns: "github,google,linkedin"
           recursiveLinks: true
       - name: Print result
         run: echo "${{steps.link-report.outputs.result}}"

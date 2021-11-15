@@ -1,6 +1,3 @@
-//http://localhost:9090/api/v1/label/__name__/values
-
-import AsyncSelect from "react-select/async";
 import {
   Select,
   MenuItem,
@@ -8,23 +5,11 @@ import {
   FormControl,
   InputLabel,
   Container,
-  Typography,
 } from "@material-ui/core/";
 
 import PrometheusGraph from "./PrometheusGraph";
-import React, { useState, useEffect } from "react";
+import React, { useEffect } from "react";
 function QueryDropdown() {
-  // handle input change event
-  //   const handleInputChange = (value) => {
-  //     setValue(value);
-  //   };
-
-  // handle selection
-  //   const handleChange = (value) => {
-  //     setSelectedValue(value);
-  //   };
-
-  // load options using API call
   const loadOptions = (inputValue) => {
     return fetch(`http://localhost:9090/api/v1/label/__name__/values`)
       .then((res) => res.json())
@@ -65,15 +50,6 @@ function QueryDropdown() {
       <Container>
         <PrometheusGraph query={age} />
       </Container>
-      {/* <AsyncSelect
-        cacheOptions
-        defaultOptions
-        value={selectedValue}
-        loadOptions={loadOptions}
-        onInputChange={handleInputChange}
-        onChange={handleChange}
-      />
-      <pre>Selected Value: {JSON.stringify(selectedValue || {}, null, 2)}</pre> */}
     </div>
   );
 }

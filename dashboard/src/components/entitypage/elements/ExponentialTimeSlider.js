@@ -2,6 +2,8 @@ import React from "react";
 import Typography from "@material-ui/core/Typography";
 import { makeStyles } from "@material-ui/core/styles";
 import Slider from "@material-ui/core/Slider";
+import { connect } from "react-redux";
+import { changeTime } from "./ExponentialTimeSliderSlice.js";
 
 const useStyles = makeStyles((theme) => ({
   dateRangeView: {},
@@ -76,8 +78,7 @@ const scale = (value) => {
 function numFormatter(value) {
   return value;
 }
-
-export default function ExponentialTimeSlider() {
+function ExponentialTimeSlider({ timeRange, changeTime }) {
   const classes = useStyles();
 
   function convToDateTime(value) {
@@ -89,6 +90,12 @@ export default function ExponentialTimeSlider() {
 
   const handleChange = (event, newValue) => {
     setValue(newValue);
+  };
+
+  const dispatchChange = (event, newValue) => {
+    setValue(newValue);
+    let newTimeRange = newValue.map((val) => val);
+    changeTime(scaleValues(newTimeRange));
   };
 
   return (
@@ -103,6 +110,7 @@ export default function ExponentialTimeSlider() {
         marks={minutesSince}
         scale={scaleValues}
         onChange={handleChange}
+        onChangeCommitted={dispatchChange}
         valueLabelDisplay="auto"
       />
       <div className={classes.dateRangeView}>
@@ -113,3 +121,20 @@ export default function ExponentialTimeSlider() {
     </div>
   );
 }
+
+function mapStateToProps(state) {
+  return {
+    timeRange: state.timeRange,
+  };
+}
+
+const mapDispatchToProps = (dispatch) => {
+  return {
+    changeTime: (timeRange) => dispatch(changeTime({ timeRange })),
+  };
+};
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(ExponentialTimeSlider);

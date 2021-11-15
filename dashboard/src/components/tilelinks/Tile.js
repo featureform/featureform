@@ -56,7 +56,6 @@ const useStyles = makeStyles((theme, id) => ({
 }));
 
 const Tile = ({ detail, id }) => {
-  console.log(id);
   let history = useHistory();
   const disabled = detail.disabled;
   const classes = useStyles(id);

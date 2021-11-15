@@ -2,6 +2,8 @@ import React from "react";
 import { useEffect } from "react";
 import { ResponsiveLine } from "@nivo/line";
 import { Chart } from "chart.js";
+import { connect } from "react-redux";
+
 import { ChartDatasourcePrometheusPlugin } from "chartjs-plugin-datasource-prometheus";
 import {
   Select,
@@ -13,7 +15,7 @@ import {
   Typography,
 } from "@material-ui/core/";
 
-const PrometheusGraph = ({ query, time }) => {
+const PrometheusGraph = ({ query, time, timeRange }) => {
   useEffect(() => {
     var myChart = new Chart(chartRef.current, {
       type: "line",
@@ -31,9 +33,9 @@ const PrometheusGraph = ({ query, time }) => {
             timeRange: {
               type: "relative",
 
-              // from 12 hours ago to now
-              start: -12 * 60 * 60 * 1000,
-              end: 0,
+              // from 1 hours ago to now
+              start: -parseInt(timeRange.timeRange[0]) * 60 * 1000,
+              end: -parseInt(timeRange.timeRange[1]) * 60 * 1000,
             },
           },
         },
@@ -43,7 +45,7 @@ const PrometheusGraph = ({ query, time }) => {
     return () => {
       myChart.destroy();
     };
-  }, [query, time]);
+  }, [query, time, timeRange]);
   const chartRef = React.useRef(null);
 
   return (
@@ -53,4 +55,10 @@ const PrometheusGraph = ({ query, time }) => {
   );
 };
 
-export default PrometheusGraph;
+function mapStateToProps(state) {
+  return {
+    timeRange: state.timeRange,
+  };
+}
+
+export default connect(mapStateToProps)(PrometheusGraph);

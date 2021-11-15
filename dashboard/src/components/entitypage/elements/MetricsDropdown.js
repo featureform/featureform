@@ -1,8 +1,9 @@
 import React from "react";
-import LatencyGraph from "./LatencyGraph";
+import PrometheusGraph from "./PrometheusGraph";
 import { Divider, Typography, Grid, Container } from "@material-ui/core";
 import { makeStyles } from "@material-ui/core/styles";
 import ExponentialTimeSlider from "./ExponentialTimeSlider";
+import QueryDropdown from "./QueryDropdown";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -111,15 +112,24 @@ const MetricsDropdown = () => {
         </Grid>
         <Grid item xs={7} height="15em">
           <div className={classes.timeSlider}>
+            {/* <Container>
+              <Typography variant="body2">Time range</Typography>
+              <ExponentialTimeSlider />
+            </Container> */}
+          </div>
+          <div className={classes.graph}>
+            {/* <Container>
+              <Typography variant="h5">Latency</Typography>
+              <PrometheusGraph />
+            </Container> */}
+            <Container minHeight={"800px"}>
+              <QueryDropdown />
+            </Container>
+          </div>
+          <div className={classes.timeSlider}>
             <Container>
               <Typography variant="body2">Time range</Typography>
               <ExponentialTimeSlider />
-            </Container>
-          </div>
-          <div className={classes.graph}>
-            <Container>
-              <Typography variant="h5">Latency</Typography>
-              <LatencyGraph data={data} />
             </Container>
           </div>
         </Grid>

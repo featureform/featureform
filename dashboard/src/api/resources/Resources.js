@@ -55,9 +55,9 @@ export const testData = [
 ];
 
 const API_URL = "http://localhost:8080";
+const local = true;
 
 export default class ResourcesAPI {
-  local = false;
   fetchResources(type) {
     var fetchAddress;
     if (local) {
@@ -70,7 +70,9 @@ export default class ResourcesAPI {
         "Content-Type": "application/json",
       },
     })
-      .then((res) => res.json().then((json_data) => ({ data: json_data })))
+      .then((res) =>
+        res.json().then((json_data) => ({ data: json_data[type] }))
+      )
       .catch((error) => {
         console.error(error);
       });

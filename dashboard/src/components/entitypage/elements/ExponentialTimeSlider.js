@@ -74,7 +74,7 @@ const scale = (value) => {
 };
 
 function numFormatter(value) {
-  return value
+  return value;
 }
 
 export default function ExponentialTimeSlider() {
@@ -99,7 +99,7 @@ export default function ExponentialTimeSlider() {
         min={0}
         step={1}
         max={200}
-        valueLabelFormat={value => <div>{numFormatter(value)}</div>}
+        valueLabelFormat={(value) => <div>{numFormatter(value)}</div>}
         marks={minutesSince}
         scale={scaleValues}
         onChange={handleChange}

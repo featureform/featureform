@@ -1,5 +1,4 @@
 import React from "react";
-import PrometheusGraph from "./PrometheusGraph";
 import { Divider, Typography, Grid, Container } from "@material-ui/core";
 import { makeStyles } from "@material-ui/core/styles";
 import ExponentialTimeSlider from "./ExponentialTimeSlider";
@@ -61,40 +60,7 @@ const MetricsDropdown = () => {
     { action: "Version Created", time: "2020-04-24T13:07:44.000+0000" },
     { action: "Revision Pushed", time: "2020-04-24T13:07:44.000+0000" },
   ];
-  const data = [
-    {
-      id: "P50",
-      color: "hsl(203, 70%, 50%)",
-      data: [
-        { x: "2020-04-24T13:07:44.000+0000", y: 18.9 },
-        { x: "2020-04-24T13:08:20.012+0000", y: 18.8 },
-        { x: "2020-04-24T13:08:50.050+0000", y: 18.2 },
-        { x: "2020-04-24T13:08:55.050+0000", y: 17.9 },
-        { x: "2020-04-24T13:09:46.050+0000", y: 17.9 },
-        { x: "2020-04-24T13:10:46.050+0000", y: 18.3 },
-        { x: "2020-04-24T13:11:46.050+0000", y: 18.5 },
-        { x: "2020-04-24T13:12:46.050+0000", y: 18.6 },
-        { x: "2020-04-24T13:13:46.050+0000", y: 18.75 },
-        { x: "2020-04-24T13:14:20.050+0000", y: 18.0 },
-      ],
-    },
-    {
-      id: "P99",
-      color: "hsl(188, 70%, 50%)",
-      data: [
-        { x: "2020-04-24T13:07:44.000+0000", y: 120 },
-        { x: "2020-04-24T13:08:20.012+0000", y: 113 },
-        { x: "2020-04-24T13:08:50.050+0000", y: 112 },
-        { x: "2020-04-24T13:08:55.050+0000", y: 60 },
-        { x: "2020-04-24T13:09:46.050+0000", y: 65 },
-        { x: "2020-04-24T13:10:46.050+0000", y: 68 },
-        { x: "2020-04-24T13:11:46.050+0000", y: 90 },
-        { x: "2020-04-24T13:12:46.050+0000", y: 111 },
-        { x: "2020-04-24T13:13:46.050+0000", y: 70 },
-        { x: "2020-04-24T13:14:20.050+0000", y: 75 },
-      ],
-    },
-  ];
+
   return (
     <div className={classes.root}>
       <Grid container spacing={0}>
@@ -111,17 +77,7 @@ const MetricsDropdown = () => {
           </Container>
         </Grid>
         <Grid item xs={7} height="15em">
-          <div className={classes.timeSlider}>
-            {/* <Container>
-              <Typography variant="body2">Time range</Typography>
-              <ExponentialTimeSlider />
-            </Container> */}
-          </div>
           <div className={classes.graph}>
-            {/* <Container>
-              <Typography variant="h5">Latency</Typography>
-              <PrometheusGraph />
-            </Container> */}
             <Container minHeight={"800px"}>
               <QueryDropdown />
             </Container>

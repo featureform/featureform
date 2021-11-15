@@ -1,19 +1,7 @@
 import React from "react";
 import { useEffect } from "react";
-import { ResponsiveLine } from "@nivo/line";
 import { Chart } from "chart.js";
 import { connect } from "react-redux";
-
-import { ChartDatasourcePrometheusPlugin } from "chartjs-plugin-datasource-prometheus";
-import {
-  Select,
-  MenuItem,
-  Box,
-  FormControl,
-  InputLabel,
-  Container,
-  Typography,
-} from "@material-ui/core/";
 
 const PrometheusGraph = ({ query, time, timeRange }) => {
   useEffect(() => {
@@ -33,7 +21,6 @@ const PrometheusGraph = ({ query, time, timeRange }) => {
             timeRange: {
               type: "relative",
 
-              // from 1 hours ago to now
               start: -parseInt(timeRange.timeRange[0]) * 60 * 1000,
               end: -parseInt(timeRange.timeRange[1]) * 60 * 1000,
             },

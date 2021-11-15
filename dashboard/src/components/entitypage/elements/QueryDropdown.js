@@ -10,6 +10,9 @@ import {
 import PrometheusGraph from "./PrometheusGraph";
 import React, { useEffect } from "react";
 function QueryDropdown() {
+  const [options, setOptions] = React.useState([""]);
+  const [selection, setSelection] = React.useState(0);
+
   const loadOptions = (inputValue) => {
     return fetch(`http://localhost:9090/api/v1/label/__name__/values`)
       .then((res) => res.json())
@@ -17,15 +20,12 @@ function QueryDropdown() {
         setOptions(data.data);
       });
   };
-  const [age, setAge] = React.useState(0);
   useEffect(() => {
     loadOptions();
-  }, [age]);
-
-  const [options, setOptions] = React.useState(["first", "second", "third"]);
+  }, [selection, options]);
 
   const handleChange = (event) => {
-    setAge(event.target.value);
+    setSelection(event.target.value);
   };
 
   return (
@@ -36,7 +36,7 @@ function QueryDropdown() {
           <Select
             labelId="demo-simple-select-label"
             id="demo-simple-select"
-            value={age}
+            value={selection}
             label="Metrics Options"
             onChange={handleChange}
           >
@@ -48,7 +48,7 @@ function QueryDropdown() {
       </Box>
 
       <Container>
-        <PrometheusGraph query={age} />
+        <PrometheusGraph query={selection} />
       </Container>
     </div>
   );

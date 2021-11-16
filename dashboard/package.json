@@ -22,7 +22,7 @@
     "deferred": "^0.7.11",
     "jest-canvas-mock": "^2.2.0",
     "material-table": "^1.66.0",
-    "moment": "^2.10.2",
+    "moment": "^2.19.3",
     "momentjs": "^2.0.0",
     "react": "^17.0.2",
     "react-chartjs-2": "^3.3.0",

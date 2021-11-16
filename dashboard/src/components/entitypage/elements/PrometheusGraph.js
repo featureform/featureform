@@ -3,11 +3,11 @@ import { useEffect } from "react";
 import { Chart } from "chart.js";
 import { connect } from "react-redux";
 
+const minutesToMilliseconds = (minutes) => {
+  return parseInt(minutes * 60 * 1000);
+};
+
 const PrometheusGraph = ({ query, time, timeRange }) => {
-  const millisecondsSinceRangeStart =
-    -parseInt(timeRange.timeRange[0]) * 60 * 1000;
-  const millisecondsSinceRangeEnd =
-    -parseInt(timeRange.timeRange[1]) * 60 * 1000;
   useEffect(() => {
     var myChart = new Chart(chartRef.current, {
       type: "line",
@@ -24,9 +24,10 @@ const PrometheusGraph = ({ query, time, timeRange }) => {
             query: `${query}`,
             timeRange: {
               type: "relative",
-
-              start: millisecondsSinceRangeStart,
-              end: millisecondsSinceRangeEnd,
+              //timestamps in miliseconds relative to current time.
+              //negative is the past, positive is the future
+              start: -minutesToMilliseconds(timeRange.timeRange[0]),
+              end: -minutesToMilliseconds(timeRange.timeRange[1]),
             },
           },
         },
@@ -36,7 +37,7 @@ const PrometheusGraph = ({ query, time, timeRange }) => {
     return () => {
       myChart.destroy();
     };
-  }, [query, time, millisecondsSinceRangeStart, millisecondsSinceRangeEnd]);
+  }, [query, time, timeRange]);
   const chartRef = React.useRef(null);
 
   return (

@@ -4,6 +4,10 @@ import { Chart } from "chart.js";
 import { connect } from "react-redux";
 
 const PrometheusGraph = ({ query, time, timeRange }) => {
+  const millisecondsSinceRangeStart =
+    -parseInt(timeRange.timeRange[0]) * 60 * 1000;
+  const millisecondsSinceRangeEnd =
+    -parseInt(timeRange.timeRange[1]) * 60 * 1000;
   useEffect(() => {
     var myChart = new Chart(chartRef.current, {
       type: "line",
@@ -21,8 +25,8 @@ const PrometheusGraph = ({ query, time, timeRange }) => {
             timeRange: {
               type: "relative",
 
-              start: -parseInt(timeRange.timeRange[0]) * 60 * 1000,
-              end: -parseInt(timeRange.timeRange[1]) * 60 * 1000,
+              start: millisecondsSinceRangeStart,
+              end: millisecondsSinceRangeEnd,
             },
           },
         },
@@ -32,7 +36,7 @@ const PrometheusGraph = ({ query, time, timeRange }) => {
     return () => {
       myChart.destroy();
     };
-  }, [query, time, timeRange]);
+  }, [query, time, millisecondsSinceRangeStart, millisecondsSinceRangeEnd]);
   const chartRef = React.useRef(null);
 
   return (

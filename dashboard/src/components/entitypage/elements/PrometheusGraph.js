@@ -7,7 +7,7 @@ const minutesToMilliseconds = (minutes) => {
   return parseInt(minutes * 60 * 1000);
 };
 
-const PrometheusGraph = ({ query, time, timeRange }) => {
+const PrometheusGraph = ({ query, time, timeRange, metricsSelect }) => {
   useEffect(() => {
     var myChart = new Chart(chartRef.current, {
       type: "line",
@@ -21,7 +21,7 @@ const PrometheusGraph = ({ query, time, timeRange }) => {
             prometheus: {
               endpoint: "http://localhost:9090",
             },
-            query: `${query}`,
+            query: `${metricsSelect.metrics}`,
             timeRange: {
               type: "relative",
               //timestamps in miliseconds relative to current time.
@@ -37,7 +37,7 @@ const PrometheusGraph = ({ query, time, timeRange }) => {
     return () => {
       myChart.destroy();
     };
-  }, [query, time, timeRange]);
+  }, [query, time, timeRange, metricsSelect.metrics]);
   const chartRef = React.useRef(null);
 
   return (
@@ -50,6 +50,7 @@ const PrometheusGraph = ({ query, time, timeRange }) => {
 function mapStateToProps(state) {
   return {
     timeRange: state.timeRange,
+    metricsSelect: state.metricsSelect,
   };
 }
 

@@ -1,7 +1,8 @@
 import React from "react";
-import { Divider, Typography, Grid, Container } from "@material-ui/core";
+import { Typography, Grid, Container } from "@material-ui/core";
 import { makeStyles } from "@material-ui/core/styles";
 import ExponentialTimeSlider from "./ExponentialTimeSlider";
+import MetricsSelect from "./MetricsSelect";
 import QueryDropdown from "./QueryDropdown";
 
 const useStyles = makeStyles((theme) => ({
@@ -46,37 +47,15 @@ const useStyles = makeStyles((theme) => ({
 const MetricsDropdown = () => {
   const classes = useStyles();
 
-  const summaryData = [
-    { name: "Total Versions", value: 3 },
-    { name: "Revision Size", value: 189, unit: "Vec." },
-    { name: "P50 Latency", value: 18.9, unit: "ms" },
-    { name: "P99 Latency", value: 113.2, unit: "ms" },
-  ];
-
-  const actionsData = [
-    { action: "Revision Pushed", time: "2020-04-24T13:07:44.000+0000" },
-    { action: "Revision Pushed", time: "2020-04-24T13:07:44.000+0000" },
-    { action: "Version Created", time: "2020-04-24T13:07:44.000+0000" },
-    { action: "Version Created", time: "2020-04-24T13:07:44.000+0000" },
-    { action: "Revision Pushed", time: "2020-04-24T13:07:44.000+0000" },
-  ];
-
   return (
     <div className={classes.root}>
       <Grid container spacing={0}>
         <Grid item xs={3}>
           <Container>
-            <div className={classes.summaryData}>
-              <Typography variant="h6" className={classes.summaryTitle}>
-                Summary
-              </Typography>
-              {summaryData.map((data) => (
-                <SummaryItem data={data} />
-              ))}
-            </div>
+            <MetricsSelect />
           </Container>
         </Grid>
-        <Grid item xs={7} height="15em">
+        <Grid item xs={9} height="15em">
           <div className={classes.graph}>
             <Container minHeight={"800px"}>
               <QueryDropdown />
@@ -89,55 +68,7 @@ const MetricsDropdown = () => {
             </Container>
           </div>
         </Grid>
-        <Grid item xs={2}>
-          <Container>
-            <div className={classes.summaryData}>
-              <Typography variant="h6" className={classes.summaryTitle}>
-                Actions
-              </Typography>
-              {actionsData.map((data) => (
-                <ActionItem data={data} />
-              ))}
-            </div>
-          </Container>
-        </Grid>
       </Grid>
-    </div>
-  );
-};
-
-const SummaryItem = ({ data }) => {
-  const classes = useStyles();
-  return (
-    <div>
-      <div className={classes.summaryItemDetail}>
-        <Typography variant="body1">{data.name}</Typography>
-        <Typography variant="body1">
-          {data.value} {data.unit ? data.unit : ""}
-        </Typography>
-      </div>
-      <div className={classes.summaryAddedDesc}>
-        <Typography variant="body2">
-          {data.detail ? data.detail : ""}
-        </Typography>
-      </div>
-      <div>
-        <Divider />
-      </div>
-    </div>
-  );
-};
-
-const ActionItem = ({ data }) => {
-  const classes = useStyles();
-
-  const rtf1 = new Intl.RelativeTimeFormat("en", { style: "narrow" });
-
-  return (
-    <div className={classes.actionItemDetail}>
-      <Typography variant="body2">{data.action}</Typography>
-      <Typography variant="body2">{rtf1.format(3, "quarter")}</Typography>
-      <Divider />
     </div>
   );
 };

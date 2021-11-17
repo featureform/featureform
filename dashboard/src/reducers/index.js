@@ -10,6 +10,7 @@ import { breadCrumbsReducer } from "components/breadcrumbs";
 import { entityPageReducer } from "components/entitypage";
 import { searchResultsReducer } from "components/searchresults";
 import { exponentialTimeSliderReducer } from "components/entitypage/elements";
+import { metricsSelectSliceReducer } from "components/entitypage/elements";
 
 export default combineReducers({
   navSections: navSectionsReducer,
@@ -21,4 +22,5 @@ export default combineReducers({
   entityPage: entityPageReducer,
   searchResults: searchResultsReducer,
   timeRange: exponentialTimeSliderReducer,
+  metricsSelect: metricsSelectSliceReducer,
 });

@@ -9,7 +9,7 @@ export default class MetricsAPI {
         "Content-Type": "application/json",
       },
     })
-      .then((res) => res.json().then((json_data) => json_data))
+      .then((res) => res.json())
       .catch((error) => {
         console.error(error);
       });
@@ -22,7 +22,7 @@ export default class MetricsAPI {
         "Content-Type": "application/json",
       },
     })
-      .then((res) => res.json().then((json_data) => json_data))
+      .then((res) => res.json())
       .catch((error) => {
         console.error(error);
       });

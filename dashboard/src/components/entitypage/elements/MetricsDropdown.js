@@ -44,7 +44,7 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const MetricsDropdown = () => {
+const MetricsDropdown = ({ type, name }) => {
   const classes = useStyles();
 
   return (
@@ -58,7 +58,7 @@ const MetricsDropdown = () => {
         <Grid item xs={9} height="15em">
           <div className={classes.graph}>
             <Container minHeight={"800px"}>
-              <QueryDropdown />
+              <QueryDropdown type={type} name={name} />
             </Container>
           </div>
           <div className={classes.timeSlider}>

@@ -7,7 +7,15 @@ const minutesToMilliseconds = (minutes) => {
   return parseInt(minutes * 60 * 1000);
 };
 
-const PrometheusGraph = ({ query, time, timeRange, metricsSelect }) => {
+const PrometheusGraph = ({
+  query,
+  time,
+  timeRange,
+  metricsSelect,
+  type,
+  name,
+}) => {
+  const query_type = "latency";
   useEffect(() => {
     var myChart = new Chart(chartRef.current, {
       type: "line",
@@ -21,7 +29,7 @@ const PrometheusGraph = ({ query, time, timeRange, metricsSelect }) => {
             prometheus: {
               endpoint: "http://localhost:9090",
             },
-            query: `${metricsSelect.metrics}`,
+            query: `http_request_${query_type}{type="${type}" name="${name}"}`,
             timeRange: {
               type: "relative",
               //timestamps in miliseconds relative to current time.
@@ -37,7 +45,7 @@ const PrometheusGraph = ({ query, time, timeRange, metricsSelect }) => {
     return () => {
       myChart.destroy();
     };
-  }, [query, time, timeRange, metricsSelect.metrics]);
+  }, [query, time, timeRange, metricsSelect.metrics, type, name]);
   const chartRef = React.useRef(null);
 
   return (

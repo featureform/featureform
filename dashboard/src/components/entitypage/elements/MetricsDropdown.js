@@ -58,7 +58,19 @@ const MetricsDropdown = ({ type, name }) => {
         <Grid item xs={9} height="15em">
           <div className={classes.graph}>
             <Container minHeight={"800px"}>
-              <QueryDropdown type={type} name={name} />
+              <QueryDropdown type={type} name={name} query_type={"latency"} />
+              <QueryDropdown
+                type={type}
+                name={name}
+                query_type={"count"}
+                add_labels={{ status: "error" }}
+              />
+              <QueryDropdown
+                type={type}
+                name={name}
+                query_type={"count"}
+                add_labels={{ status: "success" }}
+              />
             </Container>
           </div>
           <div className={classes.timeSlider}>

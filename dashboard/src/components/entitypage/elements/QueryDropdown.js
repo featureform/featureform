@@ -9,6 +9,7 @@ function QueryDropdown({ query, type, name, query_type, add_labels }) {
       query_type={query_type}
       add_labels={add_labels}
     />
+
   );
 }
 

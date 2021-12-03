@@ -32,7 +32,6 @@ const PrometheusGraph = ({
         ""
       )
     : "";
-
   useEffect(() => {
     var myChart = new Chart(chartRef.current, {
       type: "line",
@@ -47,6 +46,7 @@ const PrometheusGraph = ({
               endpoint: "http://localhost:9090",
             },
             query: `${query}${add_labels_string}`,
+
             timeRange: {
               type: "relative",
               //timestamps in miliseconds relative to current time.

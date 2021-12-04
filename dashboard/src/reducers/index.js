@@ -11,6 +11,7 @@ import { entityPageReducer } from "components/entitypage";
 import { searchResultsReducer } from "components/searchresults";
 import { exponentialTimeSliderReducer } from "components/entitypage/elements";
 import { metricsSelectSliceReducer } from "components/entitypage/elements";
+import { connectionPageSliceReducer } from "components/connectionpage";
 
 export default combineReducers({
   navSections: navSectionsReducer,
@@ -23,4 +24,5 @@ export default combineReducers({
   searchResults: searchResultsReducer,
   timeRange: exponentialTimeSliderReducer,
   metricsSelect: metricsSelectSliceReducer,
+  connectionStatus: connectionPageSliceReducer,
 });

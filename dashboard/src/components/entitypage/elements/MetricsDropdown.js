@@ -2,7 +2,7 @@ import React from "react";
 import { Typography, Grid, Container } from "@material-ui/core";
 import { makeStyles } from "@material-ui/core/styles";
 import ExponentialTimeSlider from "./ExponentialTimeSlider";
-import MetricsSelect from "./MetricsSelect";
+import TimeDropdown from "./TimeDropdown";
 import QueryDropdown from "./QueryDropdown";
 
 const useStyles = makeStyles((theme) => ({
@@ -36,10 +36,10 @@ const useStyles = makeStyles((theme) => ({
     width: "60%",
   },
   graph: {
-    height: "20em",
+    height: "30em",
     alignItems: "center",
     "& > *": {
-      height: "20em",
+      height: "30em",
     },
   },
 }));
@@ -49,34 +49,36 @@ const MetricsDropdown = ({ type, name }) => {
 
   return (
     <div className={classes.root}>
+      <div className={classes.timeSlider}>
+        <Container>
+          <TimeDropdown />
+        </Container>
+      </div>
       <Grid container spacing={0}>
-        <Grid item xs={3}>
-          <Container>
-            <MetricsSelect />
-          </Container>
-        </Grid>
-        <Grid item xs={9} height="15em">
+        <Grid item xs={12} height="15em">
           <div className={classes.graph}>
             <Container minHeight={"800px"}>
-              <QueryDropdown type={type} name={name} query_type={"latency"} />
+              <Typography>Throughput (req/min)</Typography>
               <QueryDropdown
+                query={`rate(test_counter{feature="Non-free Sulfur Dioxide",status="success"}[1m])`}
+                type={type}
+                name={name}
+                query_type={"latency"}
+              />
+              <Typography> Average Latency (ms)</Typography>
+              <QueryDropdown
+                query={`rate(test_duration_seconds_sum{feature="Non-free Sulfur Dioxide"}[1m])/rate(test_duration_seconds_count{feature="Non-free Sulfur Dioxide"}[1m])`}
                 type={type}
                 name={name}
                 query_type={"count"}
-                add_labels={{ status: "error" }}
               />
+              <Typography>Errors per minute</Typography>
               <QueryDropdown
+                query={`rate(test_counter{feature="Non-free Sulfur Dioxide",status="error"}[1m])`}
                 type={type}
                 name={name}
                 query_type={"count"}
-                add_labels={{ status: "success" }}
               />
-            </Container>
-          </div>
-          <div className={classes.timeSlider}>
-            <Container>
-              <Typography variant="body2">Time range</Typography>
-              <ExponentialTimeSlider />
             </Container>
           </div>
         </Grid>

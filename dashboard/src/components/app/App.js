@@ -15,9 +15,9 @@ import BreadCrumbs from "components/breadcrumbs/BreadCrumbs";
 import Container from "@material-ui/core/Container";
 import SearchResults from "../searchresults/SearchResults";
 import NotFoundPage from "components/notfoundpage/NotFoundPage";
+import ConnectionPage from "components/connectionpage";
 
 const apiHandle = new ResourcesAPI();
-
 const useStyles = makeStyles((theme) => ({
   pageContainer: {
     paddingLeft: theme.spacing(8),
@@ -43,6 +43,9 @@ export const App = ({ ...props }) => {
           </Route>
           <Route exact path="/search">
             <SearchResults api={apiHandle} />
+          </Route>
+          <Route exact path="/connections">
+            <ConnectionPage />
           </Route>
           <Route exact path="/:type">
             <DataPage />

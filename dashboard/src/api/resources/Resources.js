@@ -58,6 +58,20 @@ const API_URL = "http://localhost:8080";
 const local = true;
 
 export default class ResourcesAPI {
+  checkStatus() {
+    return fetch(API_URL, {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    })
+      .then((res) => {
+        res.json().then((json_data) => ({ data: json_data }));
+      })
+      .catch((error) => {
+        console.error(error);
+      });
+  }
+
   fetchResources(type) {
     var fetchAddress;
     if (local) {

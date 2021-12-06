@@ -1,8 +1,6 @@
 package main
 
 import (
-	//remote packages
-
 	"fmt"
 	"log"
 	"net/http"
@@ -11,7 +9,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-//generic interfaces exposed to the user
 type MetricsHandler interface {
 	BeginObservingFeatureServe(feature string, key string) FeatureObserver
 	ExposePort(port string)

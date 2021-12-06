@@ -8,8 +8,8 @@ RUN go mod download
 
 COPY *.go ./
 
-RUN go build -o /metrics-test-service
+RUN go build -o /metrics_service_example
 
 EXPOSE 2112
 
-CMD [ "/metrics-test-service" ]
+CMD [ "/metrics_service_example" ]

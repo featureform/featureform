@@ -5,11 +5,11 @@ const homePageSlice = createSlice({
   initialState: {
     features: [
       {
-        title: "Spaces",
+        title: "Materialized Views",
         icon: "workspaces",
-        path: "/spaces",
+        path: "/materialized-views",
         disabled: false,
-        description: "Dimensional space to store embeddings",
+        description: "Logical queries of entity data",
       },
       {
         title: "Features",
@@ -22,28 +22,28 @@ const homePageSlice = createSlice({
         title: "Entities",
         icon: "fingerprint",
         path: "/entities",
-        disabled: true,
+        disabled: false,
         description: "Not avaliable",
       },
       {
         title: "Labels",
         icon: "label",
         path: "/labels",
-        disabled: true,
+        disabled: false,
         description: "Not avaliable",
       },
       {
         title: "Feature Sets",
         icon: "account_tree",
         path: "/feature-sets",
-        disabled: true,
+        disabled: false,
         description: "Not avaliable",
       },
       {
         title: "Models",
         icon: "model_training",
         path: "/models",
-        disabled: true,
+        disabled: false,
         description: "Not avaliable",
       },
     ],

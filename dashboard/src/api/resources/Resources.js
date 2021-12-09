@@ -4,25 +4,25 @@ export const resourceTypes = Object.freeze({
   LABEL: "Label",
   ENTITY: "Entity",
   MODEL: "Model",
-  SPACE: "Space",
+  MATERIALIZED_VIEW: "Materialized View",
 });
 
 export const resourceIcons = Object.freeze({
-  Space: "workspaces",
   Feature: "description",
   Entity: "fingerprint",
   Label: "label",
   "Feature Set": "account_tree",
   Model: "model_training",
+  "Materialized View": "workspaces",
 });
 
 export const resourcePaths = Object.freeze({
-  Space: "/spaces",
   Feature: "/features",
   Entity: "/entities",
   Label: "/labels",
   "Feature Set": "/feature-sets",
   Model: "/models",
+  "Materialized View": "/materialized-views",
 });
 export const testData = [
   {
@@ -85,7 +85,9 @@ export default class ResourcesAPI {
       },
     })
       .then((res) =>
-        res.json().then((json_data) => ({ data: json_data[type] }))
+        res.json().then((json_data) => {
+          return { data: json_data[type] };
+        })
       )
       .catch((error) => {
         console.error(error);

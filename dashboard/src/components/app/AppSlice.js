@@ -20,7 +20,7 @@ const navSectionSlice = createSlice({
         {
           title: "Materialized Views",
           icon: "copy",
-          path: "/views",
+          path: "/materialized-views",
           view: views["RESOURCE_LIST"],
           viewProps: {
             type: resourceTypes["MATERIALIZED_VIEW"],

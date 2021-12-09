@@ -151,6 +151,75 @@
     }
   ],
 
+  "Materialized View": [
+    {
+      "name": "Non-free Sulfur Dioxide",
+      "default-version": "first version",
+      "all-versions": ["first version", "error-check version"],
+      "versions": {
+        "first version": {
+          "version-name": "first version",
+          "source": "Wine Data",
+          "entity": "wine_id",
+          "created": "2020-08-09-0290499",
+          "owner": "Simba Khadder",
+          "visibility": "private",
+          "revision": "2020-08-10-39402409",
+          "language": "python",
+          "config": "def nonfree_sulfur(total, free):\n  return total-free\n",
+          "tags": ["materialized", "calculated", "wine", "chemical", "quality"],
+          "description": "Sulfur Dioxide that is trapped",
+          "features": [
+            {
+              "name": "Non-free Sulfur Dioxide",
+              "created": "2020-08-10.39402409"
+            }
+          ]
+        },
+        "error-check version": {
+          "version-name": "error-check version",
+          "source": "Wine Data",
+          "entity": "wine_id",
+          "created": "2020-08-09-0290499",
+          "owner": "Simba Khadder",
+          "visibility": "private",
+          "revision": "2020-08-10-39402409",
+          "language": "python",
+          "config": "def nonfree_sulfur(total, free):\n  return total-free\n",
+          "tags": ["materialized", "calculated", "wine", "chemical", "quality"],
+          "description": "Sulfur Dioxide that is trapped",
+          "features": [
+            { "name": "wine analysis", "created": "2020-08-10.39402409" },
+            { "name": "test-feature_set", "created": "2020-08-14.293923" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "AvgPurchasePrice",
+      "default-version": "first version",
+      "all-versions": ["first version"],
+      "versions": {
+        "first version": {
+          "version-name": "first version",
+          "source": "Wine Data",
+          "entity": "wine_id",
+          "created": "2020-08-09-0290499",
+          "owner": "Simba Khadder",
+          "visibility": "private",
+          "revision": "2020-08-10-39402409",
+          "language": "SQL",
+          "config": "SELECT p.user,\n       AVG(catalog.price)\nFROM   purchases p\n       INNER JOIN catalog\n          ON p.item = catalog.id",
+          "tags": ["materialized", "calculated", "wine", "chemical", "quality"],
+          "description": "An aggregate of the average a user spends per item. It joins the purchases stream with the item catalog CSV.",
+          "features": [
+            { "name": "LogAvgPurchasePrice", "created": "2020-08-10.39402409" }
+          ]
+        }
+      }
+    }
+  ],
+
   "Feature Set": [
     {
       "name": "Wine quality set",

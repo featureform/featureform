@@ -13,11 +13,21 @@ import Container from "@material-ui/core/Container";
 import Avatar from "@material-ui/core/Avatar";
 import Icon from "@material-ui/core/Icon";
 
+import { PrismAsyncLight as SyntaxHighlighter } from "react-syntax-highlighter";
+import python from "react-syntax-highlighter/dist/cjs/languages/prism/python";
+import sql from "react-syntax-highlighter/dist/cjs/languages/prism/sql";
+import json from "react-syntax-highlighter/dist/cjs/languages/prism/json";
+import { okaidia } from "react-syntax-highlighter/dist/cjs/styles/prism";
+
 import VersionControl from "./elements/VersionControl";
 import TagBox from "./elements/TagBox";
 import MetricsDropdown from "./elements/MetricsDropdown";
 import { resourceIcons } from "api/resources";
 import theme from "styles/theme/index.js";
+
+SyntaxHighlighter.registerLanguage("python", python);
+SyntaxHighlighter.registerLanguage("sql", sql);
+SyntaxHighlighter.registerLanguage("json", json);
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
@@ -91,6 +101,10 @@ const useStyles = makeStyles((theme) => ({
   versionControl: {
     alignSelf: "flex-end",
   },
+  syntax: {
+    width: "40%",
+    paddingLeft: theme.spacing(2),
+  },
   resourceList: {
     background: "rgba(255, 255, 255, 0.3)",
 
@@ -118,6 +132,13 @@ const useStyles = makeStyles((theme) => ({
       paddingTop: "2em",
       paddingBottom: "2em",
     },
+  },
+  config: {
+    flexGrow: 1,
+    paddingLeft: theme.spacing(2),
+    marginTop: theme.spacing(2),
+    borderLeft: `3px solid ${theme.palette.secondary.main}`,
+    marginLeft: theme.spacing(2),
   },
 
   resourceData: {
@@ -261,6 +282,20 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
               </Grid>
             </Grid>
           </div>
+          {metadata["config"] && (
+            <div className={classes.config}>
+              <Typography variant="body1">
+                <b>Config:</b>
+              </Typography>
+              <SyntaxHighlighter
+                className={classes.syntax}
+                language={metadata["language"]}
+                style={okaidia}
+              >
+                {metadata["config"]}
+              </SyntaxHighlighter>
+            </div>
+          )}
         </div>
         <div className={classes.root}>
           <AppBar position="static" className={classes.appbar}>

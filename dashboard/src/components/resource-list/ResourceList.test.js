@@ -10,7 +10,7 @@ import ResourceList, { makeSelectFilteredResources } from "./ResourceList.js";
 configure({ adapter: new Adapter() });
 
 describe("ResourceList", () => {
-  const dataType = resourceTypes["SPACE"];
+  const dataType = resourceTypes["FEATURE"];
   const mockFn = jest.fn(() => wrapInPromise(testData));
   const mockApi = {
     fetchResources: mockFn,

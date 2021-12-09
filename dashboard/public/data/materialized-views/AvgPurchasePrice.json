@@ -13,7 +13,7 @@
         "owner": "Simba Khadder",
         "visibility": "private",
         "revision": "2020-08-10-39402409",
-        "language": "SQL",
+        "language": "sql",
         "config": "SELECT p.user,\n       AVG(catalog.price)\nFROM   purchases p\n       INNER JOIN catalog\n          ON p.item = catalog.id",
         "tags": ["materialized", "calculated", "wine", "chemical", "quality"],
         "description": "An aggregate of the average a user spends per item. It joins the purchases stream with the item catalog CSV."

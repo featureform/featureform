@@ -9,10 +9,10 @@ const useStyles = makeStyles((theme) => ({
     flexGrow: 1,
     padding: theme.spacing(0),
     backgroundColor: theme.palette.background.paper,
-    flexBasis: theme.spacing(1),
+    flexBasis: theme.spacing(0),
     flexDirection: "row",
     "& > *": {
-      padding: theme.spacing(1),
+      padding: theme.spacing(0),
     },
   },
   summaryData: {
@@ -32,13 +32,14 @@ const useStyles = makeStyles((theme) => ({
     paddingLeft: theme.spacing(1),
   },
   timeSlider: {
-    width: "60%",
+    width: "20%",
+    transform: "scale(0.9, 0.9)",
   },
   graph: {
-    height: "30em",
+    height: "40em",
     alignItems: "center",
     "& > *": {
-      height: "30em",
+      height: "40em",
     },
   },
 }));

@@ -175,6 +175,7 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
   let resources = entity.resources;
 
   const type = resources["type"];
+  const showMetrics = type === "Feature" || type === "Feature Set";
   const name = resources["name"];
   const icon = resourceIcons[type];
 
@@ -304,15 +305,13 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
               onChange={handleChange}
               aria-label="simple tabs example"
             >
-              {(type === "Feature" || type === "Feature Set") && (
-                <Tab label={"metrics"} {...a11yProps(0)} />
-              )}
+              {showMetrics && <Tab label={"metrics"} {...a11yProps(0)} />}
               {Object.keys(resourceData).map((key, i) => (
                 <Tab label={key} {...a11yProps(i + 1)} />
               ))}
             </Tabs>
           </AppBar>
-          {(type === "Feature" || type === "Feature Set") && (
+          {showMetrics && (
             <TabPanel
               className={classes.tabChart}
               value={value}
@@ -331,7 +330,7 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
               className={classes.tabChart}
               value={value}
               key={key}
-              index={i + (1 ? type === "Feature" || type === "Feature Set" : 0)}
+              index={i + (1 ? showMetrics : 0)}
               classes={{
                 root: classes.tabChart,
               }}

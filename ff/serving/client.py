@@ -7,6 +7,7 @@ channel = grpc.insecure_channel('localhost:8080',
 stub = proto.serving_pb2_grpc.OfflineServingStub(channel)
 
 req = proto.serving_pb2.TrainingDataRequest()
-req.id.name = "abc"
+req.id.name = "f1"
+req.id.version = "v1"
 
 print([x for x in stub.TrainingData(req)])

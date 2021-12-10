@@ -1,18 +1,11 @@
 import React from "react";
-import Typography from "@material-ui/core/Typography";
-import { makeStyles } from "@material-ui/core/styles";
-import Slider from "@material-ui/core/Slider";
 import { connect } from "react-redux";
 import { changeTime } from "./ExponentialTimeSliderSlice.js";
 import Box from "@mui/material/Box";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 import FormControl from "@mui/material/FormControl";
-import Select, { SelectChangeEvent } from "@mui/material/Select";
-
-const useStyles = makeStyles((theme) => ({
-  dateRangeView: {},
-}));
+import Select from "@mui/material/Select";
 
 const dropdownValues = [
   { label: "1m", value: 1 },
@@ -26,8 +19,6 @@ const dropdownValues = [
 ];
 
 function ExponentialTimeSlider({ timeRange, changeTime }) {
-  const classes = useStyles();
-
   const [time, setTime] = React.useState(10);
 
   const handleChange = (event) => {

@@ -1,7 +1,6 @@
 import React from "react";
 import { Typography, Grid, Container } from "@material-ui/core";
 import { makeStyles } from "@material-ui/core/styles";
-import ExponentialTimeSlider from "./ExponentialTimeSlider";
 import TimeDropdown from "./TimeDropdown";
 import QueryDropdown from "./QueryDropdown";
 

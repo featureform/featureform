@@ -4,10 +4,12 @@ import AppBar from "@material-ui/core/AppBar";
 import Toolbar from "@material-ui/core/Toolbar";
 import IconButton from "@material-ui/core/IconButton";
 import AccountCircle from "@material-ui/icons/AccountCircle";
+import Typography from "@material-ui/core/Typography";
 import MenuItem from "@material-ui/core/MenuItem";
 import Menu from "@material-ui/core/Menu";
 import { useLocation } from "react-router-dom";
 import SearchBar from "../search/SearchBar";
+import Divider from "@material-ui/core/Divider";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -32,6 +34,10 @@ const useStyles = makeStyles((theme) => ({
     justifySelf: "flex-start",
     paddingLeft: theme.spacing(6),
   },
+  instanceName: {
+    userSelect: "none",
+    opacity: "50%",
+  },
   toolbarRight: {
     alignItems: "center",
     display: "flex",
@@ -51,6 +57,8 @@ export default function TopBar() {
   let location = useLocation();
   const classes = useStyles();
   let auth = false;
+
+  const instanceName = "PayForce";
 
   const [search, setSearch] = React.useState(false);
   const [anchorEl, setAnchorEl] = React.useState(null);
@@ -91,6 +99,12 @@ export default function TopBar() {
             {search && (
               <SearchBar className={classes.searchBar} homePage={false} />
             )}
+            {search && (
+              <Divider orientation="vertical" variant="middle" flexItem />
+            )}
+            <div className={classes.instanceName}>
+              <Typography variant="h6">{instanceName}</Typography>
+            </div>
             {auth && (
               <div>
                 <IconButton

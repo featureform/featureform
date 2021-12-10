@@ -129,7 +129,7 @@ const useStyles = makeStyles((theme) => ({
     "& .MuiBox-root": {
       padding: "0",
       margin: "0",
-      paddingTop: "2em",
+      paddingTop: "1em",
       paddingBottom: "2em",
     },
   },
@@ -304,30 +304,34 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
               onChange={handleChange}
               aria-label="simple tabs example"
             >
-              <Tab label={"metrics"} {...a11yProps(0)} />
+              {(type === "Feature" || type === "Feature Set") && (
+                <Tab label={"metrics"} {...a11yProps(0)} />
+              )}
               {Object.keys(resourceData).map((key, i) => (
                 <Tab label={key} {...a11yProps(i + 1)} />
               ))}
             </Tabs>
           </AppBar>
-          <TabPanel
-            className={classes.tabChart}
-            value={value}
-            key={"metrics"}
-            index={0}
-            classes={{
-              root: classes.tabChart,
-            }}
-          >
-            <MetricsDropdown type={type} name={name} />
-          </TabPanel>
+          {(type === "Feature" || type === "Feature Set") && (
+            <TabPanel
+              className={classes.tabChart}
+              value={value}
+              key={"metrics"}
+              index={0}
+              classes={{
+                root: classes.tabChart,
+              }}
+            >
+              <MetricsDropdown type={type} name={name} />
+            </TabPanel>
+          )}
 
           {Object.keys(resourceData).map((key, i) => (
             <TabPanel
               className={classes.tabChart}
               value={value}
               key={key}
-              index={i + 1}
+              index={i + (1 ? type === "Feature" || type === "Feature Set" : 0)}
               classes={{
                 root: classes.tabChart,
               }}

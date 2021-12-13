@@ -8,23 +8,32 @@
       "metadata": {
         "version-name": "first-version",
         "source": "Wine Data",
-        "created": "August 9th, 2021",
+        "created": "2020-08-09T13:49:51.141Z",
         "owner": "Simba Khadder",
         "visibility": "private",
-        "revision": "August 12th, 2021",
+        "revision": "2020-08-12T13:49:51.141Z",
         "tags": ["wine", "SKU", "identifier"],
         "description": "Unique ID specifying the wine sample"
       },
       "data": {
         "features": [
-          { "name": "Non-free Sulfur Dioxide", "created": "2020-08-10" },
-          { "name": "fixed_acidity", "created": "2020-08-10" },
-          { "name": "clean_density", "created": "2020-08-10" },
-          { "name": "LogAvgPurchasePrice", "created": "2020-08-10" }
+          {
+            "name": "Non-free Sulfur Dioxide",
+            "created": "2020-08-10T13:49:51.141Z"
+          },
+          { "name": "fixed_acidity", "created": "2020-08-10T13:49:51.141Z" },
+          { "name": "clean_density", "created": "2020-08-10T13:49:51.141Z" },
+          {
+            "name": "LogAvgPurchasePrice",
+            "created": "2020-08-10T13:49:51.141Z"
+          }
         ],
         "labels": [
-          { "name": "Wine quality rating", "created": "2020-08-11" },
-          { "name": "Wine spoiled", "created": "2020-08-12" }
+          {
+            "name": "Wine quality rating",
+            "created": "2020-08-11T13:49:51.141Z"
+          },
+          { "name": "Wine spoiled", "created": "2020-08-12T13:49:51.141Z" }
         ]
       }
     },
@@ -33,23 +42,32 @@
         "version-name": "first-version",
         "source": "Wine Data",
         "entity": "wine_id",
-        "created": "August 9th, 2021",
+        "created": "2020-08-09T13:49:51.141Z",
         "owner": "Simba Khadder",
         "visibility": "private",
-        "revision": "August 12th, 2021",
+        "revision": "2020-08-12T13:49:51.141Z",
         "tags": ["acid", "static", "chemical", "streaming"],
         "description": "Acidity updated with streaming data"
       },
       "data": {
         "features": [
-          { "name": "Non-free Sulfur Dioxide", "created": "2020-08-10" },
-          { "name": "fixed_acidity", "created": "2020-08-10" },
-          { "name": "clean_density", "created": "2020-08-10" },
-          { "name": "LogAvgPurchasePrice", "created": "2020-08-10" }
+          {
+            "name": "Non-free Sulfur Dioxide",
+            "created": "2020-08-10T13:49:51.141Z"
+          },
+          { "name": "fixed_acidity", "created": "2020-08-10T13:49:51.141Z" },
+          { "name": "clean_density", "created": "2020-08-10T13:49:51.141Z" },
+          {
+            "name": "LogAvgPurchasePrice",
+            "created": "2020-08-10T13:49:51.141Z"
+          }
         ],
         "labels": [
-          { "name": "Wine quality rating", "created": "2020-08-11" },
-          { "name": "Wine spoiled", "created": "2020-08-12" }
+          {
+            "name": "Wine quality rating",
+            "created": "2020-08-11T13:49:51.141Z"
+          },
+          { "name": "Wine spoiled", "created": "2020-08-12T13:49:51.141Z" }
         ]
       }
     }

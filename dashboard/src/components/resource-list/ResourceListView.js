@@ -62,6 +62,10 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
+const convertTimestampToDate = (timestamp_string) => {
+  return new Date(timestamp_string).toDateString();
+};
+
 export const ResourceListView = ({
   title,
   resources,
@@ -98,6 +102,9 @@ export const ResourceListView = ({
   let versionRes = mutableRes.map((row) => ({
     ...row["versions"][myVersions[row.name]],
     name: row["name"],
+    revision: convertTimestampToDate(
+      row["versions"][myVersions[row.name]]["revision"]
+    ),
   }));
 
   let rowVersions = mutableRes.map((row) => ({

@@ -8,10 +8,10 @@
       "metadata": {
         "version-name": "first-version",
         "source": "Wine Data",
-        "created": "August 9th, 2021",
+        "created": "2020-08-09T13:49:51.141Z",
         "owner": "Simba Khadder",
         "visibility": "private",
-        "revision": "August 12th, 2021",
+        "revision": "2020-08-12T13:49:51.141Z",
         "tags": ["quality", "wine", "measurement"],
         "description": "Feature set used to make evaluations on outcomes of varying wine qualities"
       },
@@ -20,28 +20,31 @@
           {
             "name": "Non-free Sulfur Dioxide",
             "version": "first_version",
-            "created": "2020-08-10"
+            "created": "2020-08-10T13:49:51.141Z"
           },
           {
             "name": "fixed_acidity",
             "version": "first-version",
-            "created": "2020-08-10"
+            "created": "2020-08-10T13:49:51.141Z"
           },
           {
             "name": "clean_density",
             "version": "first_version",
-            "created": "2020-08-10"
+            "created": "2020-08-10T13:49:51.141Z"
           }
         ],
         "labels": [
-          { "name": "Wine quality rating", "created": "2020-08-11" },
-          { "name": "Wine spoiled", "created": "2020-08-12" }
+          {
+            "name": "Wine quality rating",
+            "created": "2020-08-11T13:49:51.141Z"
+          },
+          { "name": "Wine spoiled", "created": "2020-08-12T13:49:51.141Z" }
         ],
         "models": [
           {
             "name": "wine random forest",
             "version": "first_version",
-            "created": "2020-08-10"
+            "created": "2020-08-10T13:49:51.141Z"
           }
         ]
       }
@@ -50,10 +53,10 @@
       "metadata": {
         "version-name": "streaming-version",
         "source": "Wine Data",
-        "created": "August 9th, 2021",
+        "created": "2020-08-09T13:49:51.141Z",
         "owner": "Simba Khadder",
         "visibility": "private",
-        "revision": "August 12th, 2021",
+        "revision": "2020-08-12T13:49:51.141Z",
         "tags": ["quality", "wine", "measurement"],
         "description": "Feature set used to make evaluations on outcomes of varying wine qualities"
       },
@@ -62,28 +65,31 @@
           {
             "name": "Non-free Sulfur Dioxide",
             "version": "first_version",
-            "created": "2020-08-10"
+            "created": "2020-08-10T13:49:51.141Z"
           },
           {
             "name": "fixed_acidity",
             "version": "first-version",
-            "created": "2020-08-10"
+            "created": "2020-08-10T13:49:51.141Z"
           },
           {
             "name": "clean_density",
             "version": "first_version",
-            "created": "2020-08-10"
+            "created": "2020-08-10T13:49:51.141Z"
           }
         ],
         "labels": [
-          { "name": "Wine quality rating", "created": "2020-08-11" },
-          { "name": "Wine spoiled", "created": "2020-08-12" }
+          {
+            "name": "Wine quality rating",
+            "created": "2020-08-11T13:49:51.141Z"
+          },
+          { "name": "Wine spoiled", "created": "2020-08-12T13:49:51.141Z" }
         ],
         "models": [
           {
             "name": "wine random forest",
             "version": "first_version",
-            "created": "2020-08-10"
+            "created": "2020-08-10T13:49:51.141Z"
           }
         ]
       }

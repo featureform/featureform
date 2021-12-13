@@ -12,6 +12,7 @@ import { useHistory } from "react-router-dom";
 import Container from "@material-ui/core/Container";
 import Avatar from "@material-ui/core/Avatar";
 import Icon from "@material-ui/core/Icon";
+import Button from "@material-ui/core/Button";
 
 import { PrismAsyncLight as SyntaxHighlighter } from "react-syntax-highlighter";
 import python from "react-syntax-highlighter/dist/cjs/languages/prism/python";
@@ -22,6 +23,7 @@ import { okaidia } from "react-syntax-highlighter/dist/cjs/styles/prism";
 import VersionControl from "./elements/VersionControl";
 import TagBox from "./elements/TagBox";
 import MetricsDropdown from "./elements/MetricsDropdown";
+import StatsDropdown from "./elements/StatsDropdown";
 import { resourceIcons } from "api/resources";
 import theme from "styles/theme/index.js";
 
@@ -92,6 +94,11 @@ const useStyles = makeStyles((theme) => ({
   titleBox: {
     diplay: "inline-block",
     flexDirection: "row",
+  },
+  entityButton: {
+    justifyContent: "left",
+    padding: 0,
+    width: "30%",
   },
   description: {},
 
@@ -176,6 +183,9 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
 
   const type = resources["type"];
   const showMetrics = type === "Feature" || type === "Feature Set";
+  const showStats =
+    type === "Feature" || type === "Feature Set" || type === "Entity";
+  const tabsIndexStart = (1 ? showMetrics : 0) + (1 ? showStats : 0);
   const name = resources["name"];
   const icon = resourceIcons[type];
 
@@ -206,6 +216,10 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
 
   const capitalize = (word) => {
     return word[0].toUpperCase() + word.slice(1).toLowerCase();
+  };
+
+  const linkToEntityPage = (event) => {
+    history.push(`/entities/${metadata["entity"]}`);
   };
 
   return true || (!resources.loading && !resources.failed && resources.data) ? (
@@ -272,9 +286,14 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                 )}
 
                 {metadata["entity"] && (
-                  <Typography variant="body1">
-                    <b>Entity:</b> {metadata["entity"]}
-                  </Typography>
+                  <Button
+                    onClick={linkToEntityPage}
+                    className={classes.entityButton}
+                  >
+                    <Typography variant="body1">
+                      <b>Entity:</b> {metadata["entity"]}
+                    </Typography>
+                  </Button>
                 )}
               </Grid>
               <Grid item xs={2}></Grid>
@@ -306,8 +325,11 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
               aria-label="simple tabs example"
             >
               {showMetrics && <Tab label={"metrics"} {...a11yProps(0)} />}
+              {showStats && (
+                <Tab label={"stats"} {...a11yProps(showMetrics ? 1 : 0)} />
+              )}
               {Object.keys(resourceData).map((key, i) => (
-                <Tab label={key} {...a11yProps(i + 1)} />
+                <Tab label={key} {...a11yProps(i + tabsIndexStart)} />
               ))}
             </Tabs>
           </AppBar>
@@ -324,13 +346,26 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
               <MetricsDropdown type={type} name={name} />
             </TabPanel>
           )}
+          {showStats && (
+            <TabPanel
+              className={classes.tabChart}
+              value={value}
+              key={"stats"}
+              index={showMetrics ? 1 : 0}
+              classes={{
+                root: classes.tabChart,
+              }}
+            >
+              <StatsDropdown type={type} name={name} />
+            </TabPanel>
+          )}
 
           {Object.keys(resourceData).map((key, i) => (
             <TabPanel
               className={classes.tabChart}
               value={value}
               key={key}
-              index={i + (1 ? showMetrics : 0)}
+              index={i + tabsIndexStart}
               classes={{
                 root: classes.tabChart,
               }}

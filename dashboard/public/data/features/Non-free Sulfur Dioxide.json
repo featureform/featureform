@@ -9,17 +9,17 @@
         "version-name": "first-version",
         "source": "Wine Data",
         "entity": "wine_id",
-        "created": "2020-08-09-0290499",
+        "created": "2020-08-09",
         "owner": "Simba Khadder",
         "visibility": "private",
-        "revision": "2020-08-10-39402409",
+        "revision": "2020-08-10",
         "tags": ["Materialized", "calculated"],
         "description": "Sulfur Dioxide that is trapped"
       },
       "data": {
         "feature-sets": [
-          { "name": "wine analysis", "created": "2020-08-10.39402409" },
-          { "name": "test-feature_set", "created": "2020-08-14.293923" }
+          { "name": "wine analysis", "created": "2020-08-10" },
+          { "name": "test-feature_set", "created": "2020-08-14" }
         ]
       }
     },
@@ -28,16 +28,16 @@
         "version-name": "streaming-version",
         "source": "Wine Data",
         "entity": "wine_id",
-        "created": "2020-08-09-0290499",
+        "created": "2020-08-09",
         "owner": "Simba Khadder",
         "visibility": "private",
-        "revision": "2020-08-10-39402409",
+        "revision": "2020-08-10",
         "description": "Sulfur Dioxide that is trapped"
       },
       "data": {
         "feature-sets": [
-          { "name": "wine analysis", "created": "2020-08-10.39402409" },
-          { "name": "test-feature_set", "created": "2020-08-14.293923" }
+          { "name": "wine analysis", "created": "2020-08-10" },
+          { "name": "test-feature_set", "created": "2020-08-14" }
         ]
       }
     }

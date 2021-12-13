@@ -18,7 +18,7 @@
       },
       "data": {
         "feature-sets": [
-          { "name": "Wine quality set", "created": "2020-08-10.39402409" }
+          { "name": "Wine quality set", "created": "2020-08-10" }
         ]
       }
     },
@@ -36,7 +36,7 @@
       },
       "data": {
         "feature-sets": [
-          { "name": "Wine quality set", "created": "2020-08-10.39402409" }
+          { "name": "Wine quality set", "created": "2020-08-10" }
         ]
       }
     }

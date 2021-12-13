@@ -103,7 +103,9 @@ export const ResourceListView = ({
     ...row["versions"][myVersions[row.name]],
     name: row["name"],
     revision: convertTimestampToDate(
-      row["versions"][myVersions[row.name]]["revision"]
+      row["versions"][myVersions[row.name]]
+        ? row["versions"][myVersions[row.name]].get("revision")
+        : ""
     ),
   }));
 

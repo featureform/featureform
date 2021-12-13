@@ -9,25 +9,25 @@
           "version-name": "first-version",
           "source": "Wine Data",
           "entity": "wine_id",
-          "created": "2020-08-09-0290499",
+          "created": "2020-08-09",
           "owner": "Simba Khadder",
           "visibility": "private",
-          "revision": "2020-08-10-39402409",
+          "revision": "2020-08-10",
           "tags": ["materialized", "calculated", "wine", "chemical", "quality"],
           "description": "Sulfur Dioxide that is trapped",
           "feature-sets": [
-            { "name": "wine analysis", "created": "2020-08-10.39402409" },
-            { "name": "test-feature_set", "created": "2020-08-14.293923" }
+            { "name": "wine analysis", "created": "2020-08-10" },
+            { "name": "test-feature_set", "created": "2020-08-14" }
           ]
         },
         "streaming-version": {
           "version-name": "streaming-version",
           "source": "Wine Data",
           "entity": "wine_id",
-          "created": "2020-08-09-0290499",
+          "created": "2020-08-09",
           "owner": "Simba Khadder",
           "visibility": "private",
-          "revision": "2020-08-10-39402409",
+          "revision": "2020-08-10",
           "description": "Sulfur Dioxide that is trapped",
           "tags": [
             "materialized",
@@ -38,8 +38,8 @@
             "streaming"
           ],
           "feature-sets": [
-            { "name": "wine analysis", "created": "2020-08-10.39402409" },
-            { "name": "test-feature_set", "created": "2020-08-14.293923" }
+            { "name": "wine analysis", "created": "2020-08-10" },
+            { "name": "test-feature_set", "created": "2020-08-14" }
           ]
         }
       }
@@ -52,29 +52,29 @@
         "first-version": {
           "source": "Wine Data",
           "entity": "wine_id",
-          "created": "2020-08-09-0290499",
+          "created": "2020-08-09",
           "owner": "Simba Khadder",
           "visibility": "private",
-          "revision": "2020-08-10-39402409",
+          "revision": "2020-08-10",
           "description": "acidity that is fixed",
           "tags": ["ph", "wine", "chemical", "quality"],
           "feature-sets": [
-            { "name": "wine analysis", "created": "2020-08-10.39402409" },
-            { "name": "test-feature_set", "created": "2020-08-14.293923" }
+            { "name": "wine analysis", "created": "2020-08-10" },
+            { "name": "test-feature_set", "created": "2020-08-14" }
           ]
         },
         "normalized version": {
           "source": "Wine Data",
           "entity": "wine_id",
-          "created": "2020-08-11-0290499",
+          "created": "2020-08-11",
           "owner": "Simba Khadder",
           "visibility": "private",
           "revision": "2020-08-12-39402409",
           "description": "acidity that is fixed",
           "tags": ["ph", "wine", "chemical", "quality"],
           "feature-sets": [
-            { "name": "wine analysis", "created": "2020-08-10.39402409" },
-            { "name": "test-feature_set", "created": "2020-08-14.293923" }
+            { "name": "wine analysis", "created": "2020-08-10" },
+            { "name": "test-feature_set", "created": "2020-08-14" }
           ]
         }
       }
@@ -87,29 +87,29 @@
         "default version": {
           "source": "Wine Data",
           "entity": "wine_id",
-          "created": "2020-08-09-0290499",
+          "created": "2020-08-09",
           "owner": "Simba Khadder",
           "visibility": "private",
-          "revision": "2020-08-10-39402409",
+          "revision": "2020-08-10",
           "description": "clean part of density",
           "tags": ["wine", "weight", "quality"],
           "feature-sets": [
-            { "name": "wine analysis", "created": "2020-08-10.39402409" },
-            { "name": "test-feature_set", "created": "2020-08-14.293923" }
+            { "name": "wine analysis", "created": "2020-08-10" },
+            { "name": "test-feature_set", "created": "2020-08-14" }
           ]
         },
         "null-lost version": {
           "source": "Wine Data",
           "entity": "wine_id",
-          "created": "2020-08-09-0290499",
+          "created": "2020-08-09",
           "owner": "Simba Khadder",
           "visibility": "private",
-          "revision": "2020-08-10-39402409",
+          "revision": "2020-08-10",
           "description": "clean part of density",
           "tags": ["wine", "weight", "quality"],
           "feature-sets": [
-            { "name": "wine analysis", "created": "2020-08-10.39402409" },
-            { "name": "test-feature_set", "created": "2020-08-14.293923" }
+            { "name": "wine analysis", "created": "2020-08-10" },
+            { "name": "test-feature_set", "created": "2020-08-14" }
           ]
         }
       }
@@ -122,29 +122,29 @@
         "first-version": {
           "source": "Wine Data",
           "entity": "wine_id",
-          "created": "2020-08-09-0290499",
+          "created": "2020-08-09",
           "owner": "Simba Khadder",
           "visibility": "private",
-          "revision": "2020-08-10-39402409",
+          "revision": "2020-08-10",
           "description": "average purchase price",
           "tags": ["wine", "sold", "accounting"],
           "feature-sets": [
-            { "name": "wine analysis", "created": "2020-08-10.39402409" },
-            { "name": "test-feature_set", "created": "2020-08-14.293923" }
+            { "name": "wine analysis", "created": "2020-08-10" },
+            { "name": "test-feature_set", "created": "2020-08-14" }
           ]
         },
         "streaming-version": {
           "source": "Wine Data",
           "entity": "wine_id",
-          "created": "2020-08-09-0290499",
+          "created": "2020-08-09",
           "owner": "Simba Khadder",
           "visibility": "private",
-          "revision": "2020-08-10-39402409",
+          "revision": "2020-08-10",
           "description": "average purchase price",
           "tags": ["wine", "sold", "accounting", "streaming"],
           "feature-sets": [
-            { "name": "wine analysis", "created": "2020-08-10.39402409" },
-            { "name": "test-feature_set", "created": "2020-08-14.293923" }
+            { "name": "wine analysis", "created": "2020-08-10" },
+            { "name": "test-feature_set", "created": "2020-08-14" }
           ]
         }
       }
@@ -161,10 +161,10 @@
           "version-name": "first version",
           "source": "Wine Data",
           "entity": "wine_id",
-          "created": "2020-08-09-0290499",
+          "created": "2020-08-09",
           "owner": "Simba Khadder",
           "visibility": "private",
-          "revision": "2020-08-10-39402409",
+          "revision": "2020-08-10",
           "language": "python",
           "config": "def nonfree_sulfur(total, free):\n  return total-free\n",
           "tags": ["materialized", "calculated", "wine", "chemical", "quality"],
@@ -172,7 +172,7 @@
           "features": [
             {
               "name": "Non-free Sulfur Dioxide",
-              "created": "2020-08-10.39402409"
+              "created": "2020-08-10"
             }
           ]
         },
@@ -180,17 +180,17 @@
           "version-name": "error-check version",
           "source": "Wine Data",
           "entity": "wine_id",
-          "created": "2020-08-09-0290499",
+          "created": "2020-08-09",
           "owner": "Simba Khadder",
           "visibility": "private",
-          "revision": "2020-08-10-39402409",
+          "revision": "2020-08-10",
           "language": "python",
           "config": "def nonfree_sulfur(total, free):\n  return total-free\n",
           "tags": ["materialized", "calculated", "wine", "chemical", "quality"],
           "description": "Sulfur Dioxide that is trapped",
           "features": [
-            { "name": "wine analysis", "created": "2020-08-10.39402409" },
-            { "name": "test-feature_set", "created": "2020-08-14.293923" }
+            { "name": "wine analysis", "created": "2020-08-10" },
+            { "name": "test-feature_set", "created": "2020-08-14" }
           ]
         }
       }
@@ -204,16 +204,16 @@
           "version-name": "first version",
           "source": "Wine Data",
           "entity": "wine_id",
-          "created": "2020-08-09-0290499",
+          "created": "2020-08-09",
           "owner": "Simba Khadder",
           "visibility": "private",
-          "revision": "2020-08-10-39402409",
+          "revision": "2020-08-10",
           "language": "SQL",
           "config": "SELECT p.user,\n       AVG(catalog.price)\nFROM   purchases p\n       INNER JOIN catalog\n          ON p.item = catalog.id",
           "tags": ["materialized", "calculated", "wine", "chemical", "quality"],
           "description": "An aggregate of the average a user spends per item. It joins the purchases stream with the item catalog CSV.",
           "features": [
-            { "name": "LogAvgPurchasePrice", "created": "2020-08-10.39402409" }
+            { "name": "LogAvgPurchasePrice", "created": "2020-08-10" }
           ]
         }
       }
@@ -305,20 +305,20 @@
         "first-version": {
           "version-name": "first-version",
           "dimensions": 3,
-          "created": "2020-08-09-0290499",
+          "created": "2020-08-09",
           "owner": "Simba Khadder",
           "visibility": "private",
-          "revision": "2020-08-10-39402409",
+          "revision": "2020-08-10",
           "tags": ["model2vec", "compressed"],
           "description": "Vector generated based on user preferences"
         },
         "normalized version": {
           "version-name": "normalized version",
           "dimensions": 3,
-          "created": "2020-08-09-0290499",
+          "created": "2020-08-09",
           "owner": "Simba Khadder",
           "visibility": "private",
-          "revision": "2020-08-10-39402409",
+          "revision": "2020-08-10",
           "tags": ["model2vec", "compressed"],
           "description": "Vector generated based on user preferences, normalized"
         }

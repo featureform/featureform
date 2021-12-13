@@ -256,7 +256,7 @@
     {
       "name": "Wine quality rating",
       "default-version": "first-version",
-      "all-versions": ["first-version", "second-version"],
+      "all-versions": ["first-version", "weighted-version"],
       "versions": {
         "first-version": {
           "description": "Aggregate wine quality rating for a given sample"

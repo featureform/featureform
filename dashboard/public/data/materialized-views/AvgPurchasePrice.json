@@ -9,10 +9,10 @@
         "version-name": "first version",
         "source": "Wine Data",
         "entity": "wine_id",
-        "created": "2020-08-09",
+        "created": "2020-08-09T13:49:51.141Z",
         "owner": "Simba Khadder",
         "visibility": "private",
-        "revision": "2020-08-10",
+        "revision": "2020-08-09T13:49:51.141Z",
         "language": "sql",
         "config": "SELECT p.user,\n       AVG(catalog.price)\nFROM   purchases p\n       INNER JOIN catalog\n          ON p.item = catalog.id",
         "tags": ["materialized", "calculated", "wine", "chemical", "quality"],
@@ -20,7 +20,10 @@
       },
       "data": {
         "features": [
-          { "name": "LogAvgPurchasePrice", "created": "2020-08-10.39402409" }
+          {
+            "name": "LogAvgPurchasePrice",
+            "created": "2020-08-10T13:49:51.141Z"
+          }
         ]
       }
     }

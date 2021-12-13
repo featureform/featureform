@@ -29,6 +29,7 @@ const VersionControl = ({
   versions,
   handleVersionChange,
   entityPage,
+  convertTimestampToDate,
 }) => {
   const classes = useStyles();
   const createdDate =
@@ -58,7 +59,7 @@ const VersionControl = ({
         ))}
       </Select>
       <FormHelperText>
-        <b>{`Created ${createdDate}`}</b>
+        <b>{`Created ${convertTimestampToDate(createdDate)}`}</b>
       </FormHelperText>
     </FormControl>
   );

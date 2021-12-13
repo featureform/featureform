@@ -24,7 +24,7 @@ import VersionControl from "./elements/VersionControl";
 import TagBox from "./elements/TagBox";
 import MetricsDropdown from "./elements/MetricsDropdown";
 import StatsDropdown from "./elements/StatsDropdown";
-import { resourceIcons } from "api/resources";
+import { resourceTypes, resourceIcons } from "api/resources";
 import theme from "styles/theme/index.js";
 
 SyntaxHighlighter.registerLanguage("python", python);
@@ -182,10 +182,14 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
   let resources = entity.resources;
 
   const type = resources["type"];
-  const showMetrics = type === "Feature" || type === "Feature Set";
+  const showMetrics =
+    type === resourceTypes.FEATURE || type === resourceTypes.FEATURE_SET;
   const showStats =
-    type === "Feature" || type === "Feature Set" || type === "Entity";
-  const tabsIndexStart = (1 ? showMetrics : 0) + (1 ? showStats : 0);
+    type === resourceTypes.FEATURE ||
+    type === resourceTypes.FEATURE_SET ||
+    type === resourceTypes.ENTITY;
+  const dataTabDisplacement = (1 ? showMetrics : 0) + (1 ? showStats : 0);
+  const statsTabDisplacement = showMetrics ? 1 : 0;
   const name = resources["name"];
   const icon = resourceIcons[type];
 
@@ -200,6 +204,9 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
   let resource = resources.versions[version];
   const metadata = resource.metadata;
   const resourceData = resource.data;
+  const convertTimestampToDate = (timestamp_string) => {
+    return new Date(timestamp_string).toDateString();
+  };
 
   let allVersions = resources["all-versions"];
 
@@ -242,7 +249,8 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                       <b>{resources.name}</b>
                     </Typography>
                     <Typography variant="subtitle1">
-                      Last updated: {metadata["revision"]}
+                      Last updated:{" "}
+                      {convertTimestampToDate(metadata["revision"])}
                     </Typography>
                   </div>
                 </div>
@@ -252,6 +260,7 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                   handleVersionChange={handleVersionChange}
                   type={type}
                   name={name}
+                  convertTimestampToDate={convertTimestampToDate}
                 />
               </div>
             </Grid>
@@ -326,10 +335,10 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
             >
               {showMetrics && <Tab label={"metrics"} {...a11yProps(0)} />}
               {showStats && (
-                <Tab label={"stats"} {...a11yProps(showMetrics ? 1 : 0)} />
+                <Tab label={"stats"} {...a11yProps(statsTabDisplacement)} />
               )}
               {Object.keys(resourceData).map((key, i) => (
-                <Tab label={key} {...a11yProps(i + tabsIndexStart)} />
+                <Tab label={key} {...a11yProps(i + dataTabDisplacement)} />
               ))}
             </Tabs>
           </AppBar>
@@ -351,7 +360,7 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
               className={classes.tabChart}
               value={value}
               key={"stats"}
-              index={showMetrics ? 1 : 0}
+              index={statsTabDisplacement}
               classes={{
                 root: classes.tabChart,
               }}
@@ -365,7 +374,7 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
               className={classes.tabChart}
               value={value}
               key={key}
-              index={i + tabsIndexStart}
+              index={i + dataTabDisplacement}
               classes={{
                 root: classes.tabChart,
               }}
@@ -384,7 +393,17 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                   title: capitalize(item),
                   field: item,
                 }))}
-                data={resourceData[key].map((o) => ({ ...o }))}
+                data={resourceData[key].map((o) => {
+                  let new_object = {};
+                  Object.keys(o).forEach((key) => {
+                    if (convertTimestampToDate(o[key]) != "Invalid Date") {
+                      new_object[key] = convertTimestampToDate(o[key]);
+                    } else {
+                      new_object[key] = o[key];
+                    }
+                  });
+                  return new_object;
+                })}
                 onRowClick={(event, rowData) =>
                   history.push("/" + key + "/" + rowData.name)
                 }

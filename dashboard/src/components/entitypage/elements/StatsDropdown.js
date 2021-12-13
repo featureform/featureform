@@ -3,6 +3,17 @@ import { Typography, Grid, Container } from "@material-ui/core";
 import { makeStyles } from "@material-ui/core/styles";
 import TimeDropdown from "./TimeDropdown";
 import QueryDropdown from "./QueryDropdown";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+} from "chart.js";
+import { Bar } from "react-chartjs-2";
+import faker from "faker";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -35,6 +46,9 @@ const useStyles = makeStyles((theme) => ({
     width: "20%",
     transform: "scale(0.9, 0.9)",
   },
+  barGraph: {
+    maxWidth: "40em",
+  },
   graph: {
     height: "40em",
     alignItems: "center",
@@ -49,18 +63,59 @@ const exampleStats = {
     "Average Latency": "42ms",
     "95 Latency": "57ms",
     "99 Latency": "99ms",
-    "Error Rate": "Minimal",
+    "Mean Error Rate": "1 in 412 queries",
   },
   "Feature Set": {
     "Average Latency": "65ms",
     "95 Latency": "78ms",
     "99 Latency": "105ms",
-    "Error Rate": "Average",
+    "Mean Error Rate": "1 in 143 queries",
   },
   Entity: {
     Features: 44,
     "Primary Provider": "Snowflake",
   },
+};
+
+export const options = {
+  plugins: {
+    title: {
+      display: true,
+      text: "Chart.js Bar Chart - Stacked",
+    },
+  },
+  responsive: true,
+  scales: {
+    x: {
+      stacked: true,
+    },
+    y: {
+      stacked: true,
+    },
+  },
+};
+
+const labels = ["Last 1000 queries", "Last 7 days", "Overall"];
+
+export const data = {
+  labels,
+  datasets: [
+    {
+      label: "Read Errors",
+      data: labels.map(() => faker.datatype.number({ min: 0, max: 100 })),
+      backgroundColor: "rgb(255, 99, 132)",
+    },
+    {
+      label: "Memory Errors",
+      data: labels.map(() => faker.datatype.number({ min: 0, max: 100 })),
+      backgroundColor: "rgb(75, 192, 192)",
+    },
+    {
+      label: "Deployment Errors",
+      data: labels.map(() => faker.datatype.number({ min: 0, max: 100 })),
+      backgroundColor: "rgb(53, 162, 235)",
+    },
+  ],
 };
 
 const StatsDropdown = ({ type, name }) => {
@@ -80,6 +135,10 @@ const StatsDropdown = ({ type, name }) => {
                   {stats[key]}
                 </Typography>
               ))}
+              <Typography variant="body1">
+                <b>Error Stats:</b>
+              </Typography>
+              <Bar options={options} data={data} className={classes.barGraph} />
             </Container>
           </div>
         </Grid>

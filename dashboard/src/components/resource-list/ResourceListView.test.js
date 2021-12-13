@@ -58,7 +58,9 @@ describe("ResourceListView", () => {
         ]}
       />
     );
-    expect(list.children().props().data).toEqual([{ name: "abc" }]);
+    expect(list.children().props().data).toEqual([
+      { name: "abc", revision: "Invalid Date" },
+    ]);
   });
 
   it("makes resources mutable", () => {

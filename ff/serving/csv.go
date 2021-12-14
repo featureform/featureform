@@ -9,26 +9,35 @@ import (
 	"strconv"
 
 	pb "github.com/featureform/serving/proto"
+	"go.uber.org/zap"
 )
 
 type LocalCSVProvider struct {
+	Logger *zap.SugaredLogger
 }
 
 func (provider *LocalCSVProvider) GetDatasetReader(key map[string]string) (DatasetReader, error) {
+	logger := provider.Logger.With("Key", key)
+	logger.Debug("Finding Dataset Reader")
 	schemaJson, has := key["schema"]
 	if !has {
-		return nil, fmt.Errorf("Schema not found in key")
+		errMsg := "Schema not found in key"
+		logger.Error(errMsg)
+		return nil, fmt.Errorf(errMsg)
 	}
 	var schema CSVSchema
 	if err := json.Unmarshal([]byte(schemaJson), &schema); err != nil {
+		logger.Errorw("Invalid JSON schema", "Error", err)
 		return nil, fmt.Errorf("Invalid Schema JSON %s: %s", schemaJson, err)
 	}
 	path, has := key["path"]
 	if !has {
+		logger.Error("Path not found in schema")
 		return nil, fmt.Errorf("Path not found in schema")
 	}
 	f, err := os.Open(path)
 	if err != nil {
+		logger.Errorw("Failed to open file", "Error", err)
 		return nil, err
 	}
 	return NewCSVDataset(f, schema)
@@ -42,6 +51,7 @@ func (provider *LocalCSVProvider) ToKey(path string, schema CSVSchema) map[strin
 	}
 	key["schema"] = string(schemaJson)
 	key["path"] = path
+	logger.Debugw("Generated key from schema", "Key", key, "Schema", schema)
 	return key
 }
 

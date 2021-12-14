@@ -2,6 +2,8 @@ package main
 
 import (
 	"sync"
+
+	"go.uber.org/zap"
 )
 
 type MetadataProvider interface {
@@ -33,14 +35,17 @@ func (id DatasetId) Valid() error {
 }
 
 type LocalMemoryMetadata struct {
-	data map[DatasetId]MetadataEntry
-	mtx  *sync.RWMutex
+	Logger *zap.SugaredLogger
+	data   map[DatasetId]MetadataEntry
+	mtx    *sync.RWMutex
 }
 
-func NewLocalMemoryMetadata() (MetadataProvider, error) {
+func NewLocalMemoryMetadata(logger *zap.SugaredLogger) (MetadataProvider, error) {
+	logger.Debug("Creating new local memory metadata")
 	return &LocalMemoryMetadata{
-		data: make(map[DatasetId]MetadataEntry),
-		mtx:  &sync.RWMutex{},
+		Logger: logger,
+		data:   make(map[DatasetId]MetadataEntry),
+		mtx:    &sync.RWMutex{},
 	}, nil
 }
 
@@ -55,7 +60,10 @@ func (err *MetadataError) Error() string {
 func (provider *LocalMemoryMetadata) SetTrainingSetMetadata(name, version string, entry MetadataEntry) error {
 	provider.mtx.Lock()
 	defer provider.mtx.Unlock()
+	logger := provider.Logger.With("Name", name, "Version", version, "Entry", entry)
+	logger.Debug("Setting training metadata")
 	if err := entry.Valid(); err != nil {
+		logger.Errorw("Invalid Metadata Entry", "Error", err)
 		return err
 	}
 	provider.data[DatasetId{name, version}] = entry
@@ -65,8 +73,11 @@ func (provider *LocalMemoryMetadata) SetTrainingSetMetadata(name, version string
 func (provider *LocalMemoryMetadata) TrainingSetMetadata(name, version string) (MetadataEntry, error) {
 	provider.mtx.Lock()
 	defer provider.mtx.Unlock()
+	logger := provider.Logger.With("Name", name, "Version", version)
+	logger.Debug("Retrieving Metadata")
 	entry, has := provider.data[DatasetId{name, version}]
 	if !has {
+		logger.Error("Metadata not found")
 		return entry, &MetadataError{"Dataset not found."}
 	}
 	return entry, nil

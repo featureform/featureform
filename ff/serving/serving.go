@@ -20,8 +20,8 @@ func NewTrainingDataServer(logger *zap.SugaredLogger) (*TrainingDataServer, erro
 	logger.Debug("Creating new training data server")
 	// Manually setup metadata and providers, this will be done by user-provided config files later.
 	csvStorageId := "localCSV"
-	csvProvider := &LocalCSVProvider{}
-	metadata, err := NewLocalMemoryMetadata()
+	csvProvider := &LocalCSVProvider{logger}
+	metadata, err := NewLocalMemoryMetadata(logger)
 	if err != nil {
 		logger.Errorw("Failed to create metadata client", "Error", err)
 		return nil, err

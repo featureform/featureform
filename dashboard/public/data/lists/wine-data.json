@@ -1,4 +1,16 @@
 {
+  "Dataset": [
+    {
+      "name": "Wine Quality Dataset",
+      "default-version": "first-version",
+      "all-versions": ["first-version"],
+      "versions": {
+        "first-version": {
+          "version-name": "first-verison"
+        }
+      }
+    }
+  ],
   "Feature": [
     {
       "name": "Non-free Sulfur Dioxide",

@@ -183,7 +183,9 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
 
   const type = resources["type"];
   const showMetrics =
-    type === resourceTypes.FEATURE || type === resourceTypes.FEATURE_SET;
+    type === resourceTypes.FEATURE ||
+    type === resourceTypes.FEATURE_SET ||
+    type === resourceTypes.DATASET;
   const showStats =
     type === resourceTypes.FEATURE ||
     type === resourceTypes.FEATURE_SET ||

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/featureform/embeddinghub/metrics"
+	metrics "github.com/featureform/embeddinghub/metrics"
 	pb "github.com/featureform/serving/proto"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"

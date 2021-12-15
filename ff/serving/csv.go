@@ -45,6 +45,7 @@ func (provider *LocalCSVProvider) GetDatasetReader(key map[string]string) (Datas
 
 func (provider *LocalCSVProvider) ToKey(path string, schema CSVSchema) map[string]string {
 	key := make(map[string]string)
+	logger := provider.Logger.With("Key", key)
 	schemaJson, err := json.Marshal(schema)
 	if err != nil {
 		panic(err)

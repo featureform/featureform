@@ -57,7 +57,7 @@ func NewTrainingDataServer(logger *zap.SugaredLogger) (*TrainingDataServer, erro
 func (serv *TrainingDataServer) TrainingData(req *pb.TrainingDataRequest, stream pb.OfflineServing_TrainingDataServer) error {
 	id := req.GetId()
 	name, version := id.GetName(), id.GetVersion()
-	featureObserver := metrics.BeginObservingFeatureServe(name+" "+version, "training data")
+	featureObserver := prom_metrics.BeginObservingFeatureServe(name+" "+version, "training data")
 	defer featureObserver.Finish()
 	logger := serv.Logger.With("Name", name, "Version", version)
 	logger.Infow("Serving training data")
@@ -111,10 +111,10 @@ func main() {
 		logger.Panicw("Failed to create training server", "Err", err)
 	}
 	pb.RegisterOfflineServingServer(grpcServer, serv)
-	logger.Infow("Server starting", "Port", port)
-	serveErr := grpcServer.Serve(lis)
 	logger.Infow("Serving metrics", "Port", metrics_port)
 	go prom_metrics.ExposePort(metrics_port)
+	logger.Infow("Server starting", "Port", port)
+	serveErr := grpcServer.Serve(lis)
 	if serveErr != nil {
 		logger.Errorw("Serve failed with error", "Err", serveErr)
 	}

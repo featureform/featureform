@@ -1,6 +1,8 @@
 package main
 
 import (
+	//remote packages
+
 	"fmt"
 	"log"
 	"net/http"
@@ -9,6 +11,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+//generic interfaces exposed to the user
 type MetricsHandler interface {
 	BeginObservingFeatureServe(feature string, key string) FeatureObserver
 	ExposePort(port string)
@@ -16,6 +19,7 @@ type MetricsHandler interface {
 
 type FeatureObserver interface {
 	SetError()
+	ServeRow()
 	Finish()
 }
 
@@ -83,6 +87,10 @@ func (p PromMetricsHandler) ExposePort(port string) {
 
 func (p PromFeatureObserver) SetError() {
 	p.Timer.ObserveDuration()
+	p.Count.WithLabelValues(p.Name, p.Feature, p.Key, p.Status).Inc()
+}
+
+func (p PromFeatureObserver) ServeRow() {
 	p.Count.WithLabelValues(p.Name, p.Feature, p.Key, p.Status).Inc()
 }
 

@@ -10,7 +10,10 @@ var metrics MetricsHandler
 func testServing() {
 	go func() {
 		for {
+			serveFeature("fixed_acidity", "feature_key")
 			serveFeature("Non-free Sulfur Dioxide", "feature_key")
+			serveFeature("Wine quality set", "Feature Set")
+
 		}
 	}()
 }

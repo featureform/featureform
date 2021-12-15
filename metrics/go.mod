@@ -1,4 +1,4 @@
-module github.com/sami1309/go_metrics_service
+module github.com/featureform/embeddinghub/metrics
 
 go 1.16
 

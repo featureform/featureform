@@ -63,13 +63,13 @@ const exampleStats = {
     "Average Latency": "42ms",
     "95 Latency": "57ms",
     "99 Latency": "99ms",
-    "Mean Error Rate": "1 in 412 queries",
+    "Mean Error Rate": "0.1922%",
   },
   "Feature Set": {
     "Average Latency": "65ms",
     "95 Latency": "78ms",
     "99 Latency": "105ms",
-    "Mean Error Rate": "1 in 143 queries",
+    "Mean Error Rate": "0.1922%",
   },
   Entity: {
     Features: 44,
@@ -101,17 +101,17 @@ export const data = {
   labels,
   datasets: [
     {
-      label: "Read Errors",
+      label: "400 Errors",
       data: labels.map(() => faker.datatype.number({ min: 0, max: 100 })),
       backgroundColor: "rgb(255, 99, 132)",
     },
     {
-      label: "Memory Errors",
+      label: "500 Errors",
       data: labels.map(() => faker.datatype.number({ min: 0, max: 100 })),
       backgroundColor: "rgb(75, 192, 192)",
     },
     {
-      label: "Deployment Errors",
+      label: "Provider Errors",
       data: labels.map(() => faker.datatype.number({ min: 0, max: 100 })),
       backgroundColor: "rgb(53, 162, 235)",
     },

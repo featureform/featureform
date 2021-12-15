@@ -44,7 +44,7 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const MetricsDropdown = ({ type, name }) => {
+const MetricsDropdown = ({ type, name, version }) => {
   const classes = useStyles();
 
   return (
@@ -62,14 +62,14 @@ const MetricsDropdown = ({ type, name }) => {
                 <div>
                   <Typography>Throughput (req/min)</Typography>
                   <QueryDropdown
-                    query={`rate(test_counter{feature="${name}",status="success"}[1m])`}
+                    query={`rate(test_counter{feature="${name} ${version}",status="success"}[1m])`}
                     type={type}
                     name={name}
                     query_type={"latency"}
                   />
                   <Typography> Average Latency (ms)</Typography>
                   <QueryDropdown
-                    query={`rate(test_duration_seconds_sum{feature="${name}"}[1m])/rate(test_duration_seconds_count{feature="${name}"}[1m])`}
+                    query={`rate(test_duration_seconds_sum{feature="${name} ${version}"}[1m])/rate(test_duration_seconds_count{feature="${name} ${version}"}[1m])`}
                     type={type}
                     name={name}
                     query_type={"count"}
@@ -79,7 +79,7 @@ const MetricsDropdown = ({ type, name }) => {
                 <div>
                   <Typography>Throughput (rows/min)</Typography>
                   <QueryDropdown
-                    query={`rate(test_counter{feature="${name}",status="success"}[1m])`}
+                    query={`rate(test_counter{feature="${name} ${version}",status="success"}[1m])`}
                     type={type}
                     name={name}
                     query_type={"latency"}
@@ -89,7 +89,7 @@ const MetricsDropdown = ({ type, name }) => {
 
               <Typography>Errors per minute</Typography>
               <QueryDropdown
-                query={`rate(test_counter{feature="${name}",status="error"}[1m])`}
+                query={`rate(test_counter{feature="${name} ${version}",status="error"}[1m])`}
                 type={type}
                 name={name}
                 query_type={"count"}

@@ -91,7 +91,7 @@ func (p PromFeatureObserver) SetError() {
 }
 
 func (p PromFeatureObserver) ServeRow() {
-	p.Count.WithLabelValues(p.Name, p.Feature, p.Key, p.Status).Inc()
+	p.Count.WithLabelValues(p.Name, p.Feature, p.Key, "row serving").Inc()
 }
 
 func (p PromFeatureObserver) Finish() {

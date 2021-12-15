@@ -10,7 +10,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-var prom_metrics MetricsHandler
+var prom_metrics metrics.MetricsHandler
 
 type TrainingDataServer struct {
 	pb.UnimplementedOfflineServingServer
@@ -100,6 +100,7 @@ func main() {
 	logger := zap.NewExample().Sugar()
 	prom_metrics = metrics.NewMetrics("test")
 	port := ":8080"
+	metrics_port := ":2112"
 	lis, err := net.Listen("tcp", port)
 	if err != nil {
 		logger.Panicw("Failed to listen on port", "Err", err)
@@ -112,6 +113,8 @@ func main() {
 	pb.RegisterOfflineServingServer(grpcServer, serv)
 	logger.Infow("Server starting", "Port", port)
 	serveErr := grpcServer.Serve(lis)
+	logger.Infow("Serving metrics", "Port", metrics_port)
+	go prom_metrics.ExposePort(metrics_port)
 	if serveErr != nil {
 		logger.Errorw("Serve failed with error", "Err", serveErr)
 	}

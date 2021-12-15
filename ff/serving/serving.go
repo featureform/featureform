@@ -4,10 +4,13 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/featureform/embeddinghub/metrics"
 	pb "github.com/featureform/serving/proto"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
+
+var prom_metrics MetricsHandler
 
 type TrainingDataServer struct {
 	pb.UnimplementedOfflineServingServer
@@ -54,32 +57,40 @@ func NewTrainingDataServer(logger *zap.SugaredLogger) (*TrainingDataServer, erro
 func (serv *TrainingDataServer) TrainingData(req *pb.TrainingDataRequest, stream pb.OfflineServing_TrainingDataServer) error {
 	id := req.GetId()
 	name, version := id.GetName(), id.GetVersion()
+	featureObserver := metrics.BeginObservingFeatureServe(name+" "+version, "training data")
+	defer featureObserver.Finish()
 	logger := serv.Logger.With("Name", name, "Version", version)
 	logger.Infow("Serving training data")
 	entry, err := serv.Metadata.TrainingSetMetadata(name, version)
 	if err != nil {
 		logger.Error("Metadata lookup failed")
+		featureObserver.SetError()
 		return err
 	}
 	logger = logger.With("Entry", entry)
 	provider, has := serv.DatasetProviders[entry.StorageId]
 	if !has {
 		serv.Logger.Error("Provider not loaded on server")
+		featureObserver.SetError()
 		return fmt.Errorf("Unknown provider: %s", entry.StorageId)
 	}
 	dataset, err := provider.GetDatasetReader(entry.Key)
 	if err != nil {
 		serv.Logger.Errorw("Failed to get dataset reader", "Error", err)
+		featureObserver.SetError()
 		return err
 	}
 	for dataset.Scan() {
 		if err := stream.Send(dataset.Row().Serialized()); err != nil {
 			serv.Logger.Errorw("Failed to write to stream", "Error", err)
+			featureObserver.SetError()
 			return err
 		}
+		featureObserver.ServeRow()
 	}
 	if err := dataset.Err(); err != nil {
 		serv.Logger.Errorw("Dataset error", "Error", err)
+		featureObserver.SetError()
 		return err
 	}
 	return nil
@@ -87,6 +98,7 @@ func (serv *TrainingDataServer) TrainingData(req *pb.TrainingDataRequest, stream
 
 func main() {
 	logger := zap.NewExample().Sugar()
+	prom_metrics = metrics.NewMetrics("test")
 	port := ":8080"
 	lis, err := net.Listen("tcp", port)
 	if err != nil {

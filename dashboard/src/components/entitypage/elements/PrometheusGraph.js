@@ -40,6 +40,33 @@ const PrometheusGraph = ({
       options: {
         maintainAspectRatio: false,
         responsive: true,
+        legend: {
+          display: false,
+        },
+        tooltips: {
+          enabled: false,
+        },
+        scales: {
+          xAxes: [
+            {
+              type: "time",
+              ticks: {
+                autoSkip: true,
+                maxTicksLimit: 15,
+              },
+            },
+          ],
+          yAxes: [
+            {
+              ticks: {
+                autoSkip: true,
+                maxTicksLimit: 8,
+                beginAtZero: true,
+              },
+            },
+          ],
+        },
+
         plugins: {
           "datasource-prometheus": {
             prometheus: {
@@ -75,7 +102,10 @@ const PrometheusGraph = ({
 
   return (
     <div className={classes.graphBox}>
-      <canvas style={{ height: "100%", width: "100%" }} ref={chartRef} />
+      <canvas
+        style={{ height: "30%", maxHeight: "10em", width: "100%" }}
+        ref={chartRef}
+      />
     </div>
   );
 };

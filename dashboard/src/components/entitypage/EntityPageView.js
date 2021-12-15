@@ -354,7 +354,7 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                 root: classes.tabChart,
               }}
             >
-              <MetricsDropdown type={type} name={name} />
+              <MetricsDropdown type={type} name={name} version={version} />
             </TabPanel>
           )}
           {showStats && (

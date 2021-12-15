@@ -58,23 +58,38 @@ const MetricsDropdown = ({ type, name }) => {
         <Grid item xs={12} height="15em">
           <div className={classes.graph}>
             <Container minHeight={"800px"}>
-              <Typography>Throughput (req/min)</Typography>
-              <QueryDropdown
-                query={`rate(test_counter{feature="Non-free Sulfur Dioxide",status="success"}[1m])`}
-                type={type}
-                name={name}
-                query_type={"latency"}
-              />
-              <Typography> Average Latency (ms)</Typography>
-              <QueryDropdown
-                query={`rate(test_duration_seconds_sum{feature="Non-free Sulfur Dioxide"}[1m])/rate(test_duration_seconds_count{feature="Non-free Sulfur Dioxide"}[1m])`}
-                type={type}
-                name={name}
-                query_type={"count"}
-              />
+              {type != "Dataset" ? (
+                <div>
+                  <Typography>Throughput (req/min)</Typography>
+                  <QueryDropdown
+                    query={`rate(test_counter{feature="${name}",status="success"}[1m])`}
+                    type={type}
+                    name={name}
+                    query_type={"latency"}
+                  />
+                  <Typography> Average Latency (ms)</Typography>
+                  <QueryDropdown
+                    query={`rate(test_duration_seconds_sum{feature="${name}"}[1m])/rate(test_duration_seconds_count{feature="${name}"}[1m])`}
+                    type={type}
+                    name={name}
+                    query_type={"count"}
+                  />
+                </div>
+              ) : (
+                <div>
+                  <Typography>Throughput (rows/min)</Typography>
+                  <QueryDropdown
+                    query={`rate(test_counter{feature="${name}",status="success"}[1m])`}
+                    type={type}
+                    name={name}
+                    query_type={"latency"}
+                  />
+                </div>
+              )}
+
               <Typography>Errors per minute</Typography>
               <QueryDropdown
-                query={`rate(test_counter{feature="Non-free Sulfur Dioxide",status="error"}[1m])`}
+                query={`rate(test_counter{feature="${name}",status="error"}[1m])`}
                 type={type}
                 name={name}
                 query_type={"count"}

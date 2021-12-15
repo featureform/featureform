@@ -79,7 +79,7 @@ const MetricsDropdown = ({ type, name, version }) => {
                 <div>
                   <Typography>Throughput (rows/min)</Typography>
                   <QueryDropdown
-                    query={`rate(test_counter{feature="${name} ${version}",status="success"}[1m])`}
+                    query={`rate(test_counter{feature="${name} ${version}",status="row serving"}[1m])`}
                     type={type}
                     name={name}
                     query_type={"latency"}

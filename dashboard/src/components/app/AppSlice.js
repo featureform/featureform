@@ -36,6 +36,15 @@ const navSectionSlice = createSlice({
           },
         },
         {
+          title: "Datasets",
+          icon: "storage",
+          path: "/datasets",
+          view: views["RESOURCE_LIST"],
+          viewProps: {
+            type: resourceTypes["DATASET"],
+          },
+        },
+        {
           title: "Feature Sets",
           icon: "sitemap",
           path: "/feature-sets",

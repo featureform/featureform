@@ -5,6 +5,13 @@ const homePageSlice = createSlice({
   initialState: {
     features: [
       {
+        title: "Datasets",
+        icon: "storage",
+        path: "/datasets",
+        disabled: false,
+        description: "Training datasets",
+      },
+      {
         title: "Materialized Views",
         icon: "workspaces",
         path: "/materialized-views",
@@ -36,13 +43,6 @@ const homePageSlice = createSlice({
         title: "Feature Sets",
         icon: "account_tree",
         path: "/feature-sets",
-        disabled: false,
-        description: "Not avaliable",
-      },
-      {
-        title: "Models",
-        icon: "model_training",
-        path: "/models",
         disabled: false,
         description: "Not avaliable",
       },

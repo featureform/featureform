@@ -1,11 +1,10 @@
 package main
 
 import (
-	//remote packages
-
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -13,7 +12,8 @@ import (
 
 //generic interfaces exposed to the user
 type MetricsHandler interface {
-	BeginObservingFeatureServe(feature string, key string) FeatureObserver
+	BeginObservingOnlineServe(feature string, key string) FeatureObserver
+	BeginObservingTrainingServe(name string, version string) FeatureObserver
 	ExposePort(port string)
 }
 
@@ -36,6 +36,16 @@ type PromFeatureObserver struct {
 	Feature string
 	Key     string
 	Status  string
+}
+
+type TrainingDataObserver struct {
+	Timer     *prometheus.Timer
+	Row_Count *prometheus.CounterVec
+	Timestamp string
+	Title     string
+	Name      string
+	Version   string
+	Status    string
 }
 
 func NewMetrics(name string) PromMetricsHandler {
@@ -65,7 +75,7 @@ func NewMetrics(name string) PromMetricsHandler {
 	}
 }
 
-func (p PromMetricsHandler) BeginObservingFeatureServe(feature string, key string) FeatureObserver {
+func (p PromMetricsHandler) BeginObservingOnlineServe(feature string, key string) FeatureObserver {
 	timer := prometheus.NewTimer(prometheus.ObserverFunc(func(v float64) {
 		p.Hist.WithLabelValues(p.Name, feature, key, "error").Observe(v)
 	}))
@@ -76,6 +86,20 @@ func (p PromMetricsHandler) BeginObservingFeatureServe(feature string, key strin
 		Feature: feature,
 		Key:     key,
 		Status:  "error",
+	}
+}
+func (p PromMetricsHandler) BeginObservingTrainingServe(name string, version string) TrainingDataObserver {
+	timer := prometheus.NewTimer(prometheus.ObserverFunc(func(v float64) {
+		p.Hist.WithLabelValues(p.Name, name, version, "error").Observe(v)
+	}))
+	return TrainingDataObserver{
+		Timer:     timer,
+		Row_Count: p.Count,
+		Timestamp: time.Now().UTC().Format("20060102150405"),
+		Title:     p.Name,
+		Name:      name,
+		Version:   version,
+		Status:    "error",
 	}
 }
 
@@ -98,4 +122,18 @@ func (p PromFeatureObserver) Finish() {
 	p.Status = "success"
 	p.Timer.ObserveDuration()
 	p.Count.WithLabelValues(p.Name, p.Feature, p.Key, p.Status).Inc()
+}
+
+func (p TrainingDataObserver) SetError() {
+	p.Timer.ObserveDuration()
+	p.Row_Count.WithLabelValues(p.Title, p.Name, p.Version, p.Timestamp, "Error").Inc()
+}
+
+func (p TrainingDataObserver) ServeRow() {
+	p.Row_Count.WithLabelValues(p.Title, p.Name, p.Version, p.Timestamp).Inc()
+}
+
+func (p TrainingDataObserver) Finish() {
+	p.Status = "success"
+	p.Timer.ObserveDuration()
 }

@@ -6,7 +6,9 @@
       "all-versions": ["first-version"],
       "versions": {
         "first-version": {
-          "version-name": "first-verison"
+          "version-name": "first-verison",
+          "tags": ["calculated", "wine", "chemical", "quality"],
+          "description": "Wine quality training dataset"
         }
       }
     }

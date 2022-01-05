@@ -57,7 +57,7 @@ func NewTrainingDataServer(logger *zap.SugaredLogger) (*TrainingDataServer, erro
 func (serv *TrainingDataServer) TrainingData(req *pb.TrainingDataRequest, stream pb.OfflineServing_TrainingDataServer) error {
 	id := req.GetId()
 	name, version := id.GetName(), id.GetVersion()
-	featureObserver := prom_metrics.BeginObservingFeatureServe(name+" "+version, "training data")
+	featureObserver := prom_metrics.BeginObservingTrainingServe(name, version)
 	defer featureObserver.Finish()
 	logger := serv.Logger.With("Name", name, "Version", version)
 	logger.Infow("Serving training data")

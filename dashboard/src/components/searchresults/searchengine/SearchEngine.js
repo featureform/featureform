@@ -8,7 +8,7 @@ export default class SearchEngine {
   createFormattedStrings(matchPositions, item) {
     for (const k of Object.keys(matchPositions)) {
       if (matchPositions[k].size == 0) {
-        break;
+        continue;
       }
       let originalText;
       if (k === "name") {

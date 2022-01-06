@@ -101,12 +101,12 @@ export const data = {
   labels,
   datasets: [
     {
-      label: "400 Errors",
+      label: "Client Errors",
       data: labels.map(() => faker.datatype.number({ min: 0, max: 100 })),
       backgroundColor: "rgb(255, 99, 132)",
     },
     {
-      label: "500 Errors",
+      label: "Server Errors",
       data: labels.map(() => faker.datatype.number({ min: 0, max: 100 })),
       backgroundColor: "rgb(75, 192, 192)",
     },

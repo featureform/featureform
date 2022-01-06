@@ -7,6 +7,9 @@ export default class SearchEngine {
 
   createFormattedStrings(matchPositions, item) {
     for (const k of Object.keys(matchPositions)) {
+      if (matchPositions[k].size == 0) {
+        break;
+      }
       let originalText;
       if (k === "name") {
         originalText = item.name;
@@ -78,9 +81,9 @@ export default class SearchEngine {
       let score = 0;
       const itemData = {
         name: item.name.toLowerCase(),
-        description: item.versions[
-          item["default-version"]
-        ].description.toLowerCase(),
+        description: item.versions[item["default-version"]].description
+          ? item.versions[item["default-version"]].description.toLowerCase()
+          : "",
         tags: item.versions[item["default-version"]].tags
           ? item.versions[item["default-version"]].tags.join(" ").toLowerCase()
           : "",
@@ -108,7 +111,6 @@ export default class SearchEngine {
           }
         }
       });
-
       this.createFormattedStrings(matchPositions, item);
       maxScore = Math.max(maxScore, score);
 

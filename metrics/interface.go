@@ -66,7 +66,6 @@ func NewMetrics(name string) PromMetricsHandler {
 		[]string{"instance", "feature", "key", "status"}, //labels
 	)
 
-	fmt.Println("Registering metrics collectors")
 	prometheus.MustRegister(getFeatureCounter)
 	prometheus.MustRegister(getFeatureLatency)
 	return PromMetricsHandler{

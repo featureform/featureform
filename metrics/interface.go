@@ -88,7 +88,7 @@ func (p PromMetricsHandler) BeginObservingOnlineServe(feature string, key string
 		Status:  "error",
 	}
 }
-func (p PromMetricsHandler) BeginObservingTrainingServe(name string, version string) TrainingDataObserver {
+func (p PromMetricsHandler) BeginObservingTrainingServe(name string, version string) FeatureObserver {
 	timer := prometheus.NewTimer(prometheus.ObserverFunc(func(v float64) {
 		p.Hist.WithLabelValues(p.Name, name, version, "error").Observe(v)
 	}))

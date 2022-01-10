@@ -22,7 +22,7 @@ func init() {
 }
 
 func serveFeature(feature string, key string) {
-	featureObserver := metrics.BeginObservingFeatureServe(feature, key)
+	featureObserver := metrics.BeginObservingOnlineServe(feature, key)
 	defer featureObserver.Finish()
 	r := rand.Intn(10)
 	time.Sleep(time.Duration(r) * time.Microsecond)

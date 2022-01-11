@@ -8,7 +8,7 @@ option go_package = "github.com/featureform/serving/proto";
 
 package featureform.serving.proto;
 
-service Serving {
+service Feature {
   rpc TrainingData(TrainingDataRequest) returns (stream TrainingDataRow) {}
   rpc FeatureServe(FeatureServeRequest) returns (FeatureRow) {}
 }

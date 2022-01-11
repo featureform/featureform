@@ -27,13 +27,33 @@ class Dataset:
         self._stub = stub
         self._req = req
         self._iter = stub.TrainingData(req)
+        self._batch_size = 0
+
+    def batch(self, num):
+        if num <= 0:
+            raise ValueError("Batch must be a positive integer")
+        self._batch_size = num
+        return self
+
+    def unbatch(self):
+        self._batch_size = 0
+        return self
 
     def __iter__(self):
         return self
 
     def __next__(self):
-        return Row(next(self._iter))
-
+        if self._batch_size == 0:
+            return Row(next(self._iter))
+        rows = []
+        try:
+            for i in range(self._batch_size):
+                rows.append(Row(next(self._iter)))
+            return rows
+        except StopIteration:
+            if len(rows) == 0:
+                raise
+            return rows
 
 class Row:
 

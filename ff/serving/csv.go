@@ -8,6 +8,8 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/featureform/serving/dataset"
+
 	pb "github.com/featureform/serving/proto"
 	"go.uber.org/zap"
 )
@@ -16,7 +18,7 @@ type LocalCSVProvider struct {
 	Logger *zap.SugaredLogger
 }
 
-func (provider *LocalCSVProvider) GetDatasetReader(key map[string]string) (DatasetReader, error) {
+func (provider *LocalCSVProvider) GetDatasetReader(key map[string]string) (dataset.Reader, error) {
 	logger := provider.Logger.With("Key", key)
 	logger.Debug("Finding Dataset Reader")
 	schemaJson, has := key["schema"]
@@ -48,7 +50,7 @@ func (provider *LocalCSVProvider) ToKey(path string, schema CSVSchema) map[strin
 	logger := provider.Logger
 	schemaJson, err := json.Marshal(schema)
 	if err != nil {
-		panic(err)
+		logger.Panicw("Failed to marshal schema", "Error", err)
 	}
 	key["schema"] = string(schemaJson)
 	key["path"] = path
@@ -59,7 +61,7 @@ func (provider *LocalCSVProvider) ToKey(path string, schema CSVSchema) map[strin
 type CSVDataset struct {
 	reader     *csv.Reader
 	mapping    *csvMapping
-	scannedRow *TrainingDataRow
+	scannedRow *dataset.Row
 	curErr     error
 }
 
@@ -68,7 +70,7 @@ type CSVSchema struct {
 	Header    []string
 	Features  []string
 	Label     string
-	Types     map[string]Type
+	Types     map[string]dataset.Type
 }
 
 func (schema CSVSchema) toMapping() (*csvMapping, error) {
@@ -118,27 +120,27 @@ func (schema CSVSchema) toMapping() (*csvMapping, error) {
 
 type csvCastFn func(string) (*pb.Value, error)
 
-func getCsvCastFn(t Type) (csvCastFn, error) {
+func getCsvCastFn(t dataset.Type) (csvCastFn, error) {
 	switch t {
-	case String:
+	case dataset.String:
 		return func(str string) (*pb.Value, error) {
-			return wrapStr(str), nil
+			return dataset.WrapStr(str), nil
 		}, nil
-	case Float:
+	case dataset.Float:
 		return func(str string) (*pb.Value, error) {
 			flt, err := strconv.ParseFloat(str, 32)
 			if err != nil {
 				return nil, err
 			}
-			return wrapFloat(float32(flt)), nil
+			return dataset.WrapFloat(float32(flt)), nil
 		}, nil
-	case Int:
+	case dataset.Int:
 		return func(str string) (*pb.Value, error) {
 			num, err := strconv.ParseInt(str, 10, 32)
 			if err != nil {
 				return nil, err
 			}
-			return wrapInt(int32(num)), nil
+			return dataset.WrapInt(int32(num)), nil
 		}, nil
 	}
 	return nil, fmt.Errorf("Unknown type")
@@ -173,48 +175,48 @@ func NewCSVDataset(f io.Reader, schema CSVSchema) (*CSVDataset, error) {
 	}, nil
 }
 
-func (dataset *CSVDataset) Scan() bool {
-	row, err := dataset.reader.Read()
+func (ds *CSVDataset) Scan() bool {
+	row, err := ds.reader.Read()
 	if err != nil {
 		if err != io.EOF {
-			dataset.curErr = err
+			ds.curErr = err
 		}
 		return false
 	}
-	trainRow := NewTrainingDataRow()
-	mapping := dataset.mapping
+	trainRow := dataset.NewRow()
+	mapping := ds.mapping
 	for i, csvIdx := range mapping.FeatureIdxs {
 		castFn := mapping.FeatureCastFns[i]
 		val := row[csvIdx]
 		casted, err := castFn(val)
 		if err != nil {
-			dataset.curErr = err
+			ds.curErr = err
 			return false
 		}
 		addErr := trainRow.AddFeature(casted)
 		if addErr != nil {
-			dataset.curErr = addErr
+			ds.curErr = addErr
 			return false
 		}
 	}
 	label, err := mapping.LabelCastFn(row[mapping.LabelIdx])
 	if err != nil {
-		dataset.curErr = err
+		ds.curErr = err
 		return false
 	}
 	setErr := trainRow.SetLabel(label)
 	if setErr != nil {
-		dataset.curErr = setErr
+		ds.curErr = setErr
 		return false
 	}
-	dataset.scannedRow = trainRow
+	ds.scannedRow = trainRow
 	return true
 }
 
-func (dataset *CSVDataset) Row() *TrainingDataRow {
-	return dataset.scannedRow
+func (ds *CSVDataset) Row() *dataset.Row {
+	return ds.scannedRow
 }
 
-func (dataset *CSVDataset) Err() error {
-	return dataset.curErr
+func (ds *CSVDataset) Err() error {
+	return ds.curErr
 }

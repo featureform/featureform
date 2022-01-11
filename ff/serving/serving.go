@@ -5,6 +5,8 @@ import (
 	"net"
 
 	metrics "github.com/featureform/embeddinghub/metrics"
+	"github.com/featureform/serving/dataset"
+
 	pb "github.com/featureform/serving/proto"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -14,7 +16,7 @@ var prom_metrics metrics.MetricsHandler
 
 type TrainingDataServer struct {
 	pb.UnimplementedOfflineServingServer
-	DatasetProviders map[string]DatasetProvider
+	DatasetProviders map[string]dataset.Provider
 	Metadata         MetadataProvider
 	Logger           *zap.SugaredLogger
 }
@@ -35,9 +37,9 @@ func NewTrainingDataServer(logger *zap.SugaredLogger) (*TrainingDataServer, erro
 			HasHeader: true,
 			Features:  []string{"zip"},
 			Label:     "price",
-			Types: map[string]Type{
-				"zip":   String,
-				"price": Int,
+			Types: map[string]dataset.Type{
+				"zip":   dataset.String,
+				"price": dataset.Int,
 			},
 		}),
 	})
@@ -46,7 +48,7 @@ func NewTrainingDataServer(logger *zap.SugaredLogger) (*TrainingDataServer, erro
 		return nil, metadataErr
 	}
 	return &TrainingDataServer{
-		DatasetProviders: map[string]DatasetProvider{
+		DatasetProviders: map[string]dataset.Provider{
 			csvStorageId: csvProvider,
 		},
 		Metadata: metadata,

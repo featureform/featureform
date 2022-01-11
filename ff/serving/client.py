@@ -10,7 +10,7 @@ class Client:
         channel = grpc.insecure_channel(host,
                                         options=(('grpc.enable_http_proxy',
                                                   0),))
-        self._stub = proto.serving_pb2_grpc.ServingStub(channel)
+        self._stub = proto.serving_pb2_grpc.FeatureStub(channel)
 
     def dataset(self, name, version):
         return Dataset(self._stub, name, version)

@@ -14,14 +14,14 @@ import (
 
 var prom_metrics metrics.MetricsHandler
 
-type TrainingDataServer struct {
-	pb.UnimplementedServingServer
+type FeatureServer struct {
+	pb.UnimplementedFeatureServer
 	DatasetProviders map[string]dataset.Provider
 	Metadata         MetadataProvider
 	Logger           *zap.SugaredLogger
 }
 
-func NewTrainingDataServer(logger *zap.SugaredLogger) (*TrainingDataServer, error) {
+func NewFeatureServer(logger *zap.SugaredLogger) (*FeatureServer, error) {
 	logger.Debug("Creating new training data server")
 	// Manually setup metadata and providers, this will be done by user-provided config files later.
 	csvStorageId := "localCSV"
@@ -47,7 +47,7 @@ func NewTrainingDataServer(logger *zap.SugaredLogger) (*TrainingDataServer, erro
 		logger.Errorw("Failed to set metadata", "Error", metadataErr)
 		return nil, metadataErr
 	}
-	return &TrainingDataServer{
+	return &FeatureServer{
 		DatasetProviders: map[string]dataset.Provider{
 			csvStorageId: csvProvider,
 		},
@@ -56,7 +56,7 @@ func NewTrainingDataServer(logger *zap.SugaredLogger) (*TrainingDataServer, erro
 	}, nil
 }
 
-func (serv *TrainingDataServer) TrainingData(req *pb.TrainingDataRequest, stream pb.Serving_TrainingDataServer) error {
+func (serv *FeatureServer) TrainingData(req *pb.TrainingDataRequest, stream pb.Feature_TrainingDataServer) error {
 	id := req.GetId()
 	name, version := id.GetName(), id.GetVersion()
 	featureObserver := prom_metrics.BeginObservingTrainingServe(name, version)
@@ -108,11 +108,11 @@ func main() {
 		logger.Panicw("Failed to listen on port", "Err", err)
 	}
 	grpcServer := grpc.NewServer()
-	serv, err := NewTrainingDataServer(logger)
+	serv, err := NewFeatureServer(logger)
 	if err != nil {
 		logger.Panicw("Failed to create training server", "Err", err)
 	}
-	pb.RegisterServingServer(grpcServer, serv)
+	pb.RegisterFeatureServer(grpcServer, serv)
 	logger.Infow("Serving metrics", "Port", metrics_port)
 	go prom_metrics.ExposePort(metrics_port)
 	logger.Infow("Server starting", "Port", port)

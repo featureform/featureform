@@ -1,4 +1,5 @@
 import grpc
+import numpy as np
 import proto.serving_pb2
 import proto.serving_pb2_grpc
 
@@ -37,13 +38,18 @@ class Dataset:
 class Row:
 
     def __init__(self, proto_row):
-        self.row = proto_row
+        features = np.array([parse_proto_value(feature) for feature in proto_row.features])
+        self._label = parse_proto_value(proto_row.label)
+        self._row = np.append(features, self._label)
 
     def features(self):
-        return [parse_proto_value(feature) for feature in self.row.features]
+        return self._row[:-1]
 
     def label(self):
-        return parse_proto_value(self.row.label)
+        return self._label
+
+    def to_numpy():
+        return self._row()
 
     def __repr__(self):
         return "Features: {} , Label: {}".format(self.features(), self.label())

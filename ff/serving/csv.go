@@ -10,9 +10,66 @@ import (
 
 	"github.com/featureform/serving/dataset"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/s3"
 	pb "github.com/featureform/serving/proto"
 	"go.uber.org/zap"
 )
+
+type S3CSVProvider struct {
+	Client *s3.S3
+	Logger *zap.SugaredLogger
+}
+
+func (provider *S3CSVProvider) GetDatasetReader(key map[string]string) (dataset.Reader, error) {
+	logger := provider.Logger.With("Key", key)
+	logger.Debug("Finding S3 Dataset Reader")
+	schemaJson, has := key["schema"]
+	if !has {
+		errMsg := "Schema not found in key"
+		logger.Error(errMsg)
+		return nil, fmt.Errorf(errMsg)
+	}
+	var schema CSVSchema
+	if err := json.Unmarshal([]byte(schemaJson), &schema); err != nil {
+		logger.Errorw("Invalid JSON schema", "Error", err)
+		return nil, fmt.Errorf("Invalid Schema JSON %s: %s", schemaJson, err)
+	}
+	bucket, has := key["bucket"]
+	if !has {
+		logger.Error("bucket not found in s3 key")
+		return nil, fmt.Errorf("Invalid Key: missing bucket field")
+	}
+	path, has := key["path"]
+	if !has {
+		logger.Error("path not found in s3 key")
+		return nil, fmt.Errorf("Invalid Key: missing path field")
+	}
+
+	out, err := provider.Client.GetObject(&s3.GetObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(path),
+	})
+	if err != nil {
+		logger.Errorw("Failed to get S3 object", "Err", err)
+		return nil, err
+	}
+	return NewCSVDataset(out.Body, schema)
+}
+
+func (provider *S3CSVProvider) ToKey(bucket, path string, schema CSVSchema) map[string]string {
+	key := make(map[string]string)
+	logger := provider.Logger
+	schemaJson, err := json.Marshal(schema)
+	if err != nil {
+		logger.Panicw("Failed to marshal schema", "Error", err)
+	}
+	key["schema"] = string(schemaJson)
+	key["bucket"] = bucket
+	key["path"] = path
+	logger.Debugw("Generated key from schema", "Key", key, "Schema", schema)
+	return key
+}
 
 type LocalCSVProvider struct {
 	Logger *zap.SugaredLogger
@@ -20,7 +77,7 @@ type LocalCSVProvider struct {
 
 func (provider *LocalCSVProvider) GetDatasetReader(key map[string]string) (dataset.Reader, error) {
 	logger := provider.Logger.With("Key", key)
-	logger.Debug("Finding Dataset Reader")
+	logger.Debug("Finding Local CSV Dataset Reader")
 	schemaJson, has := key["schema"]
 	if !has {
 		errMsg := "Schema not found in key"

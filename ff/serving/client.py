@@ -10,7 +10,7 @@ class Client:
         channel = grpc.insecure_channel(host,
                                         options=(('grpc.enable_http_proxy',
                                                   0),))
-        self._stub = proto.serving_pb2_grpc.OfflineServingStub(channel)
+        self._stub = proto.serving_pb2_grpc.ServingStub(channel)
 
     def dataset(self, name, version):
         return Dataset(self._stub, name, version)
@@ -55,10 +55,12 @@ class Dataset:
                 raise
             return rows
 
+
 class Row:
 
     def __init__(self, proto_row):
-        features = np.array([parse_proto_value(feature) for feature in proto_row.features])
+        features = np.array(
+            [parse_proto_value(feature) for feature in proto_row.features])
         self._label = parse_proto_value(proto_row.label)
         self._row = np.append(features, self._label)
 

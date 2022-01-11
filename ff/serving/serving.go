@@ -15,7 +15,7 @@ import (
 var prom_metrics metrics.MetricsHandler
 
 type TrainingDataServer struct {
-	pb.UnimplementedOfflineServingServer
+	pb.UnimplementedServingServer
 	DatasetProviders map[string]dataset.Provider
 	Metadata         MetadataProvider
 	Logger           *zap.SugaredLogger
@@ -56,7 +56,7 @@ func NewTrainingDataServer(logger *zap.SugaredLogger) (*TrainingDataServer, erro
 	}, nil
 }
 
-func (serv *TrainingDataServer) TrainingData(req *pb.TrainingDataRequest, stream pb.OfflineServing_TrainingDataServer) error {
+func (serv *TrainingDataServer) TrainingData(req *pb.TrainingDataRequest, stream pb.Serving_TrainingDataServer) error {
 	id := req.GetId()
 	name, version := id.GetName(), id.GetVersion()
 	featureObserver := prom_metrics.BeginObservingTrainingServe(name, version)
@@ -112,7 +112,7 @@ func main() {
 	if err != nil {
 		logger.Panicw("Failed to create training server", "Err", err)
 	}
-	pb.RegisterOfflineServingServer(grpcServer, serv)
+	pb.RegisterServingServer(grpcServer, serv)
 	logger.Infow("Serving metrics", "Port", metrics_port)
 	go prom_metrics.ExposePort(metrics_port)
 	logger.Infow("Server starting", "Port", port)

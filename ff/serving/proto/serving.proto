@@ -8,8 +8,9 @@ option go_package = "github.com/featureform/serving/proto";
 
 package featureform.serving.proto;
 
-service OfflineServing {
+service Serving {
   rpc TrainingData(TrainingDataRequest) returns (stream TrainingDataRow) {}
+  rpc FeatureServe(FeatureServeRequest) returns (FeatureRow) {}
 }
 
 message TrainingDataRequest {
@@ -24,6 +25,26 @@ message TrainingDataID {
 message TrainingDataRow {
   repeated Value features = 1;
   Value label = 2;
+}
+
+message FeatureServeRequest {
+    repeated FeatureID features = 1;
+    repeated Entity entities = 2;
+}
+
+message FeatureRow {
+    repeated Value values = 1;
+    repeated FeatureID features = 2;
+}
+
+message FeatureID {
+    string name = 1;
+    string version = 2;
+}
+
+message Entity {
+    string name = 1;
+    Value value = 2;
 }
 
 message Value {

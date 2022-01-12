@@ -28,10 +28,13 @@ const useStyles = makeStyles((theme) => ({
     padding: theme.spacing(1),
     paddingBottom: theme.spacing(1),
     paddingTop: theme.spacing(1),
+    "& .MuiChip-labelSmall": {
+      paddingTop: "0.2em",
+    },
   },
   links: {
     padding: theme.spacing(0),
-    justifyContent: "space-between",
+    justifyContent: "space-around",
     display: "flex",
     margin: "auto",
   },

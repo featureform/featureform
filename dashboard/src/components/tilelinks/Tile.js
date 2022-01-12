@@ -41,7 +41,6 @@ const useStyles = makeStyles((theme, id) => ({
   },
   icon: {
     marginRight: theme.spacing(2),
-    //padding: theme.spacing(2),
     color: (id) => theme.palette.ordinalColors[id % 4],
     fontSize: "2em",
   },

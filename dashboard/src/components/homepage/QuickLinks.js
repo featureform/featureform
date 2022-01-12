@@ -25,14 +25,18 @@ const useStyles = makeStyles((theme) => ({
     justifyContent: "center",
   },
   chip: {
-    padding: theme.spacing(2),
+    padding: theme.spacing(1),
+    paddingBottom: theme.spacing(1),
+    paddingTop: theme.spacing(1),
   },
   links: {
     padding: theme.spacing(0),
+    justifyContent: "space-between",
     display: "flex",
+    margin: "auto",
   },
   chipbox: {
-    padding: theme.spacing(1),
+    padding: theme.spacing(0),
   },
 }));
 
@@ -49,9 +53,9 @@ const QuickLinks = ({ sections }) => {
       {links.map((link) => (
         <div className={classes.chipbox}>
           <Chip
+            size="small"
             label={link.title}
             key={link.link}
-            color="primary"
             className={classes.chip}
             onClick={() => handleClick(link)}
             variant="outlined"

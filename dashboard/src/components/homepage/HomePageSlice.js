@@ -5,14 +5,14 @@ const homePageSlice = createSlice({
   initialState: {
     features: [
       {
-        title: "Datasets",
+        title: "Training Datasets",
         icon: "storage",
         path: "/datasets",
         disabled: false,
         description: "Training datasets",
       },
       {
-        title: "Materialized Views",
+        title: "Transformations",
         icon: "workspaces",
         path: "/materialized-views",
         disabled: false,
@@ -40,9 +40,30 @@ const homePageSlice = createSlice({
         description: "Not avaliable",
       },
       {
-        title: "Feature Sets",
-        icon: "account_tree",
-        path: "/feature-sets",
+        title: "Models",
+        icon: "model_training",
+        path: "/models",
+        disabled: false,
+        description: "Not avaliable",
+      },
+      {
+        title: "Data Sources",
+        icon: "source",
+        path: "/data-sources",
+        disabled: false,
+        description: "Not avaliable",
+      },
+      {
+        title: "Providers",
+        icon: "device_hub",
+        path: "/providers",
+        disabled: false,
+        description: "Not avaliable",
+      },
+      {
+        title: "Users",
+        icon: "person",
+        path: "/users",
         disabled: false,
         description: "Not avaliable",
       },

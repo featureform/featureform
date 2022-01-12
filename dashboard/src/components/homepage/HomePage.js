@@ -26,8 +26,10 @@ const useStyles = makeStyles((theme) => ({
     marginBottom: theme.spacing(2),
   },
   clickPills: {
-    width: "60%",
+    width: "40%",
     margin: "auto",
+    maxHeight: "1em",
+    opacity: "70%",
   },
   title: {
     marginBottom: theme.spacing(1),

@@ -110,10 +110,8 @@ exports[`App Wrapper hasn't changed 1`] = `
         "ordinalColors": Object {
           "0": "#3D0A73",
           "1": "#f7195c",
-          "2": "#AF72EF",
+          "2": "#6a32a6",
           "3": "#F9477D",
-          "4": "#061B3F",
-          "5": "#7C0D2E",
         },
         "primary": Object {
           "contrastText": "#FFFFFF",

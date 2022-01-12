@@ -15,7 +15,7 @@ const useStyles = makeStyles((theme, id) => ({
     padding: theme.spacing(3),
     width: "100%",
     height: "100%",
-    border: (id) => `2px solid ${theme.palette.ordinalColors[id]}`,
+    border: (id) => `2px solid ${theme.palette.ordinalColors[id % 4]}`,
     borderRadius: 16,
     background: "white",
     minWidth: "12em",
@@ -34,7 +34,7 @@ const useStyles = makeStyles((theme, id) => ({
     opacity: 0.3,
     width: "100%",
     height: "100%",
-    border: (id) => `2px solid ${theme.palette.ordinalColors[id]}`,
+    border: (id) => `2px solid ${theme.palette.ordinalColors[id % 4]}`,
     borderRadius: 16,
     background: "white",
     minWidth: "12em",
@@ -42,12 +42,12 @@ const useStyles = makeStyles((theme, id) => ({
   icon: {
     marginRight: theme.spacing(2),
     //padding: theme.spacing(2),
-    color: (id) => theme.palette.ordinalColors[id],
+    color: (id) => theme.palette.ordinalColors[id % 4],
     fontSize: "2em",
   },
   title: {
     fontSize: "2em",
-    color: (id) => theme.palette.ordinalColors[id],
+    color: (id) => theme.palette.ordinalColors[id % 4],
   },
 
   tileContent: {

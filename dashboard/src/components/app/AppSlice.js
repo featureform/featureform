@@ -98,6 +98,15 @@ const navSectionSlice = createSlice({
             type: resourceTypes["SPACE"],
           },
         },
+        {
+          title: "Providers",
+          icon: "device_hub",
+          path: "/providers",
+          vies: views["RESOURCE_LIST"],
+          viewProps: {
+            type: resourceTypes["PROVIDER"],
+          },
+        },
       ],
     },
     {

@@ -1,0 +1,50 @@
+{
+  "name": "Sample provider",
+  "default-version": "default-version",
+  "type": "Provider",
+  "all-versions": [
+    "default-version"
+  ],
+  "versions": {
+    "default-version": {
+      "metadata": {
+        "version-name": "default-version",
+        "created": "2020-08-10T13:49:51.141Z",
+        "team": "Customer model team",
+        "software": "Redis",
+        "type": "Batch",
+        "description": "Provider for batch data"
+      },
+      "data": {
+        "features": [
+          {
+            "name": "Non-free Sulfur Dioxide",
+            "created": "2020-08-10T13:49:51.141Z"
+          },
+          {
+            "name": "fixed_acidity",
+            "created": "2020-08-10T13:49:51.141Z"
+          },
+          {
+            "name": "clean_density",
+            "created": "2020-08-10T13:49:51.141Z"
+          },
+          {
+            "name": "LogAvgPurchasePrice",
+            "created": "2020-08-10T13:49:51.141Z"
+          }
+        ],
+        "labels": [
+          {
+            "name": "Wine quality rating",
+            "created": "2020-08-11T13:49:51.141Z"
+          },
+          {
+            "name": "Wine spoiled",
+            "created": "2020-08-12T13:49:51.141Z"
+          }
+        ]
+      }
+    }
+  }
+}

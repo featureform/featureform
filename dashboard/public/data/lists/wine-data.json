@@ -368,5 +368,52 @@
         }
       }
     }
+  ],
+  "Provider": [
+    {
+      "name": "Sample batch provider",
+      "default-version": "default-version",
+      "all-versions": ["default-version"],
+      "versions": {
+        "default-version": {
+          "version-name": "default-version",
+          "created": "2020-08-10T13:49:51.141Z",
+          "team": "Customer model team",
+          "software": "BigQuery",
+          "type": "Batch",
+          "description": "Batch provider for historic data"
+        }
+      }
+    },
+    {
+      "name": "Sample online provider",
+      "default-version": "default-version",
+      "all-versions": ["default-version"],
+      "versions": {
+        "default-version": {
+          "version-name": "default-version",
+          "created": "2020-08-10T13:49:51.141Z",
+          "team": "Customer model team",
+          "software": "Redis",
+          "type": "Online",
+          "description": "Online provider"
+        }
+      }
+    },
+    {
+      "name": "Sample processor provider",
+      "default-version": "default-version",
+      "all-versions": ["default-version"],
+      "versions": {
+        "default-version": {
+          "version-name": "default-version",
+          "created": "2020-08-10T13:49:51.141Z",
+          "team": "Customer model team",
+          "software": "Apache Spark",
+          "type": "Processor",
+          "description": "Computer transform provider"
+        }
+      }
+    }
   ]
 }

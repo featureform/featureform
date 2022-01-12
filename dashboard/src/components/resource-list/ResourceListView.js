@@ -24,6 +24,10 @@ SyntaxHighlighter.registerLanguage("python", python);
 SyntaxHighlighter.registerLanguage("sql", sql);
 SyntaxHighlighter.registerLanguage("json", json);
 
+const providerLogos = {
+  Reddis: "/Redis_Logo.svg",
+};
+
 const useStyles = makeStyles(() => ({
   root: {
     background: "rgba(255, 255, 255, 0.5)",
@@ -55,6 +59,14 @@ const useStyles = makeStyles(() => ({
     background: "white",
     color: "white",
     opacity: 1,
+  },
+  providerColumn: {
+    maxWidth: "2em",
+    width: "20px",
+    height: "20px",
+  },
+  providerLogo: {
+    maxWidth: "6em",
   },
   tableToolbar: {
     paddingTop: theme.spacing(3),
@@ -114,6 +126,52 @@ export const ResourceListView = ({
     versions: row["all-versions"],
   }));
 
+  let default_columns = [
+    { title: "Name", field: "name" },
+    { title: "Description", field: "description" },
+    {
+      title: "Tags",
+      field: "tags",
+      render: (row) => (
+        <TagList
+          activeTags={activeTags}
+          tags={row.tags}
+          tagClass={classes.tag}
+          toggleTag={toggleTag}
+        />
+      ),
+    },
+    { title: "Revision", field: "revision" },
+    {
+      title: "Version",
+      field: "versions",
+      render: (row) => (
+        <VersionSelector
+          name={row.name}
+          versions={rowVersions.find((v) => v.name === row.name)["versions"]}
+          activeVersions={myVersions}
+          setVersion={setVersion}
+        />
+      ),
+    },
+  ];
+
+  let provider_columns = [
+    { title: "Name", field: "name" },
+    { title: "Description", field: "description" },
+    { title: "Type", field: "type" },
+    {
+      title: "Software",
+      field: "software",
+      render: (row) => (
+        <div className={classes.providerColumn}>
+          <img className={classes.providerLogo} src="/Redis_Logo.svg"></img>
+        </div>
+      ),
+    },
+    { title: "Team", field: "team" },
+  ];
+
   return (
     <div>
       <MaterialTable
@@ -123,37 +181,7 @@ export const ResourceListView = ({
             <b>{title}</b>
           </Typography>
         }
-        columns={[
-          { title: "Name", field: "name" },
-          { title: "Description", field: "description" },
-          {
-            title: "Tags",
-            field: "tags",
-            render: (row) => (
-              <TagList
-                activeTags={activeTags}
-                tags={row.tags}
-                tagClass={classes.tag}
-                toggleTag={toggleTag}
-              />
-            ),
-          },
-          { title: "Revision", field: "revision" },
-          {
-            title: "Version",
-            field: "versions",
-            render: (row) => (
-              <VersionSelector
-                name={row.name}
-                versions={
-                  rowVersions.find((v) => v.name === row.name)["versions"]
-                }
-                activeVersions={myVersions}
-                setVersion={setVersion}
-              />
-            ),
-          },
-        ]}
+        columns={title === "Provider" ? provider_columns : default_columns}
         data={versionRes}
         isLoading={initialLoad || loading || failed}
         onRowClick={detailRedirect}

@@ -101,8 +101,10 @@ func (serv *TrainingDataServer) TrainingData(req *pb.TrainingDataRequest, stream
 func main() {
 	logger := zap.NewExample().Sugar()
 	prom_metrics = metrics.NewMetrics("test")
+
 	port := ":8080"
 	metrics_port := ":2112"
+	metadata_port := ":8181"
 	lis, err := net.Listen("tcp", port)
 	if err != nil {
 		logger.Panicw("Failed to listen on port", "Err", err)
@@ -112,6 +114,12 @@ func main() {
 	if err != nil {
 		logger.Panicw("Failed to create training server", "Err", err)
 	}
+	metadata_server, err := NewMetadataServer(logger, serv)
+	if err != nil {
+		logger.Panicw("Failed to create metadata server", "Err", err)
+	}
+	go metadata_server.ExposePort(metadata_port)
+	logger.Infow("Metadata Server Starting", "Port", metadata_port)
 	pb.RegisterOfflineServingServer(grpcServer, serv)
 	logger.Infow("Serving metrics", "Port", metrics_port)
 	go prom_metrics.ExposePort(metrics_port)

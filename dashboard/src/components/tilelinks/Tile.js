@@ -24,12 +24,7 @@ const useStyles = makeStyles((theme, id) => ({
   media: {
     height: 200,
   },
-  text: {
-    flex: 1,
-  },
-  cardTitle: {
-    display: "flex",
-  },
+
   button: {
     width: "100%",
     height: "100%",
@@ -45,13 +40,19 @@ const useStyles = makeStyles((theme, id) => ({
     minWidth: "12em",
   },
   icon: {
-    marginBottom: theme.spacing(1),
+    marginRight: theme.spacing(2),
+    //padding: theme.spacing(2),
     color: (id) => theme.palette.ordinalColors[id],
     fontSize: "2em",
   },
   title: {
     fontSize: "2em",
     color: (id) => theme.palette.ordinalColors[id],
+  },
+
+  tileContent: {
+    display: "flex",
+    justifyContent: "space-around",
   },
 }));
 
@@ -77,14 +78,18 @@ const Tile = ({ detail, id }) => {
         onClick={handleClick}
         disabled={disabled}
       >
-        <div>
-          <Icon color="green" className={classes.icon}>
-            {detail.icon}
-          </Icon>
+        <div className={classes.tileContent}>
+          <div>
+            <Icon color="green" className={classes.icon}>
+              {detail.icon}
+            </Icon>
+          </div>
 
-          <Typography className={classes.title} variant="h5">
-            <b>{detail.title}</b>
-          </Typography>
+          <div>
+            <Typography className={classes.title} variant="h5">
+              <b>{detail.title}</b>
+            </Typography>
+          </div>
         </div>
       </ButtonBase>
     </div>

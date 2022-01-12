@@ -28,10 +28,10 @@ const useStyles = makeStyles((theme) => ({
     marginBottom: theme.spacing(1),
   },
   sections: {
-    padding: theme.spacing(0),
+    padding: theme.spacing(3),
   },
   tilePanel: {
-    padding: theme.spacing(2),
+    padding: theme.spacing(4),
   },
   tileBackground: {
     opacity: 0,

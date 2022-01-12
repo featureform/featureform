@@ -37,6 +37,7 @@ const useStyles = makeStyles((theme) => ({
   instanceName: {
     userSelect: "none",
     opacity: "50%",
+    padding: theme.spacing(1),
   },
   toolbarRight: {
     alignItems: "center",
@@ -58,7 +59,7 @@ export default function TopBar() {
   const classes = useStyles();
   let auth = false;
 
-  const instanceName = "PayForce";
+  const instanceName = "Capital One";
 
   const [search, setSearch] = React.useState(false);
   const [anchorEl, setAnchorEl] = React.useState(null);
@@ -103,7 +104,7 @@ export default function TopBar() {
               <Divider orientation="vertical" variant="middle" flexItem />
             )}
             <div className={classes.instanceName}>
-              <Typography variant="h6">{instanceName}</Typography>
+              <img src="/Capital_One_logo.svg" />
             </div>
             {auth && (
               <div>

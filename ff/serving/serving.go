@@ -13,17 +13,16 @@ import (
 	"google.golang.org/grpc"
 )
 
-var prom_metrics metrics.MetricsHandler
-
 type FeatureServer struct {
 	pb.UnimplementedFeatureServer
+	Metrics          metrics.MetricsHandler
 	DatasetProviders map[string]dataset.OfflineProvider
 	FeatureProviders map[string]dataset.OnlineProvider
 	Metadata         MetadataProvider
 	Logger           *zap.SugaredLogger
 }
 
-func NewFeatureServer(logger *zap.SugaredLogger) (*FeatureServer, error) {
+func NewFeatureServer(promMetrics metrics.MetricsHandler, logger *zap.SugaredLogger) (*FeatureServer, error) {
 	logger.Debug("Creating new training data server")
 	// Manually setup metadata and providers, this will be done by user-provided config files later.
 	csvStorageId := "localCSV"
@@ -64,6 +63,7 @@ func NewFeatureServer(logger *zap.SugaredLogger) (*FeatureServer, error) {
 		return nil, trainMetaErr
 	}
 	return &FeatureServer{
+		Metrics: promMetrics,
 		DatasetProviders: map[string]dataset.OfflineProvider{
 			csvStorageId: csvProvider,
 		},
@@ -78,7 +78,7 @@ func NewFeatureServer(logger *zap.SugaredLogger) (*FeatureServer, error) {
 func (serv *FeatureServer) TrainingData(req *pb.TrainingDataRequest, stream pb.Feature_TrainingDataServer) error {
 	id := req.GetId()
 	name, version := id.GetName(), id.GetVersion()
-	featureObserver := prom_metrics.BeginObservingTrainingServe(name, version)
+	featureObserver := serv.Metrics.BeginObservingTrainingServe(name, version)
 	defer featureObserver.Finish()
 	logger := serv.Logger.With("Name", name, "Version", version)
 	logger.Info("Serving training data")
@@ -175,7 +175,7 @@ func (serv *FeatureServer) getFeatureValue(name, version string, entities map[st
 
 func main() {
 	logger := zap.NewExample().Sugar()
-	prom_metrics = metrics.NewMetrics("test")
+	promMetrics := metrics.NewMetrics("test")
 	port := ":8080"
 	metrics_port := ":2112"
 	lis, err := net.Listen("tcp", port)
@@ -183,13 +183,13 @@ func main() {
 		logger.Panicw("Failed to listen on port", "Err", err)
 	}
 	grpcServer := grpc.NewServer()
-	serv, err := NewFeatureServer(logger)
+	serv, err := NewFeatureServer(promMetrics, logger)
 	if err != nil {
 		logger.Panicw("Failed to create training server", "Err", err)
 	}
 	pb.RegisterFeatureServer(grpcServer, serv)
 	logger.Infow("Serving metrics", "Port", metrics_port)
-	go prom_metrics.ExposePort(metrics_port)
+	go promMetrics.ExposePort(metrics_port)
 	logger.Infow("Server starting", "Port", port)
 	serveErr := grpcServer.Serve(lis)
 	if serveErr != nil {

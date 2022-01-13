@@ -344,6 +344,20 @@
       }
     }
   ],
+  "Data Source": [
+    {
+      "name": "Wine Quality Sample File",
+      "default-version": "default-version",
+      "all-versions": ["default-version"],
+      "versions": {
+        "default-version": {
+          "description": "Wine data collected from a sample of Napa Valley wines",
+          "tags": ["wine", "csv", "sample"],
+          "type": "CSV"
+        }
+      }
+    }
+  ],
   "Space": [
     {
       "name": "User sample preferences",

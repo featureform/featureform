@@ -129,6 +129,23 @@ export const ResourceListView = ({
       },
       { title: "Team", field: "team" },
     ],
+    "Data Source": [
+      { title: "Name", field: "name" },
+      { title: "Description", field: "description" },
+      {
+        title: "Tags",
+        field: "tags",
+        render: (row) => (
+          <TagList
+            activeTags={activeTags}
+            tags={row.tags}
+            tagClass={classes.tag}
+            toggleTag={toggleTag}
+          />
+        ),
+      },
+      { title: "Type", field: "type" },
+    ],
   };
   const classes = useStyles();
   let history = useHistory();

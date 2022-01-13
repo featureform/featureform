@@ -10,8 +10,8 @@ const navSectionSlice = createSlice({
       items: [
         {
           title: "Data Sources",
-          icon: "file-import",
-          path: "/sources",
+          icon: "source",
+          path: "/data-sources",
           view: views["RESOURCE_LIST"],
           viewProps: {
             type: resourceTypes["DATA_SOURCE"],

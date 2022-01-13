@@ -332,10 +332,28 @@
       "all-versions": ["first-version", "second-version"],
       "versions": {
         "first-version": {
-          "description": "Model classifying wine by spoilage and quality assesment"
+          "description": "Model classifying wine by spoilage and quality assesment",
+          "tags": ["classifier", "quality", "prediction"],
+          "revision": "2020-08-10T13:49:51.141Z"
         },
         "second-version": {
-          "description": "Model classifying wine by spoilage and quality assesment"
+          "description": "Model classifying wine by spoilage and quality assesment",
+          "tags": ["classifier", "quality", "prediction"],
+          "revision": "2020-08-10T13:49:51.141Z"
+        }
+      }
+    }
+  ],
+  "Data Source": [
+    {
+      "name": "Wine Quality Sample File",
+      "default-version": "default-version",
+      "all-versions": ["default-version"],
+      "versions": {
+        "default-version": {
+          "description": "Wine data collected from a sample of Napa Valley wines",
+          "tags": ["wine", "csv", "sample"],
+          "type": "CSV"
         }
       }
     }

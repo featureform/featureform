@@ -395,7 +395,7 @@ exports[`App hasn't changed 1`] = `
               "title": "Data Sources",
               "view": "ResourceList",
               "viewProps": Object {
-                "type": undefined,
+                "type": "Data Source",
               },
             },
             Object {

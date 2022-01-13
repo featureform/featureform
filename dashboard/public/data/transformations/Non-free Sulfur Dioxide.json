@@ -7,7 +7,6 @@
     "first version": {
       "metadata": {
         "version-name": "first version",
-        "source": "Wine Data",
         "entity": "wine_id",
         "created": "2020-08-09T13:49:51.141Z",
         "owner": "Simba Khadder",
@@ -21,16 +20,24 @@
       "data": {
         "inputs": [
           {
-            "name": "id",
-            "type": "entity"
+            "name": "total sulfur",
+            "description": "total sulfur in the sample",
+            "tags": ["chemical", "measurement", "sulfur"],
+            "type": "float"
           },
-          { "name": "total sulfur", "type": "float" },
-          { "name": "trapped sulfur", "type": "float" }
+          {
+            "name": "trapped sulfur",
+            "description": "trapped sulfur in the sample",
+            "tags": ["chemical", "measurement", "sulfur"],
+            "type": "float"
+          }
         ],
         "features": [
           {
             "name": "Non-free Sulfur Dioxide",
-            "created": "2020-08-10T13:49:51.141Z"
+            "description": "sulfur dioxide that isn't free",
+            "tags": ["chemical", "measurement", "sulfur"],
+            "type": "float"
           }
         ],
         "training-datasets": [
@@ -38,7 +45,7 @@
             "name": "Wine Quality Dataset",
             "description": "set of wine quality samples and quality ratings",
             "tags": ["wine", "batch", "quality"],
-            "variant": ["default", "error-removed"]
+            "variants": ["default", "error-removed"]
           }
         ]
       }
@@ -46,7 +53,6 @@
     "error-check version": {
       "metadata": {
         "version-name": "error-check version",
-        "source": "Wine Data",
         "entity": "wine_id",
         "created": "2020-08-09T13:49:51.141Z",
         "owner": "Simba Khadder",
@@ -77,7 +83,7 @@
             "name": "Wine Quality Dataset",
             "description": "set of wine quality samples and quality ratings",
             "tags": ["wine", "batch", "quality"],
-            "variant": ["default", "error-removed"]
+            "variants": ["default", "error-removed"]
           }
         ]
       }

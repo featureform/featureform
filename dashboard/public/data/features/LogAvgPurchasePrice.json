@@ -22,7 +22,7 @@
             "name": "Wine Quality Dataset",
             "description": "set of wine quality samples and quality ratings",
             "tags": ["wine", "batch", "quality"],
-            "variant": ["default", "error-removed"]
+            "variants": ["default", "error-removed"]
           }
         ]
       }
@@ -45,7 +45,7 @@
             "name": "Wine Quality Dataset",
             "description": "set of wine quality samples and quality ratings",
             "tags": ["wine", "batch", "quality"],
-            "variant": ["default", "error-removed"]
+            "variants": ["default", "error-removed"]
           }
         ]
       }

@@ -13,6 +13,7 @@ import Container from "@material-ui/core/Container";
 import Avatar from "@material-ui/core/Avatar";
 import Icon from "@material-ui/core/Icon";
 import Button from "@material-ui/core/Button";
+import Chip from "@material-ui/core/Chip";
 
 import { PrismAsyncLight as SyntaxHighlighter } from "react-syntax-highlighter";
 import python from "react-syntax-highlighter/dist/cjs/languages/prism/python";
@@ -250,20 +251,24 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                     <Typography variant="h4" component="h4">
                       <b>{resources.name}</b>
                     </Typography>
-                    <Typography variant="subtitle1">
-                      Last updated:{" "}
-                      {convertTimestampToDate(metadata["revision"])}
-                    </Typography>
+                    {metadata["revision"] && (
+                      <Typography variant="subtitle1">
+                        Last updated:{" "}
+                        {convertTimestampToDate(metadata["revision"])}
+                      </Typography>
+                    )}
                   </div>
                 </div>
-                <VersionControl
-                  version={version}
-                  versions={allVersions}
-                  handleVersionChange={handleVersionChange}
-                  type={type}
-                  name={name}
-                  convertTimestampToDate={convertTimestampToDate}
-                />
+                {allVersions.length > 1 && (
+                  <VersionControl
+                    version={version}
+                    versions={allVersions}
+                    handleVersionChange={handleVersionChange}
+                    type={type}
+                    name={name}
+                    convertTimestampToDate={convertTimestampToDate}
+                  />
+                )}
               </div>
             </Grid>
           </Grid>
@@ -273,21 +278,38 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                 <Typography variant="body1" className={classes.description}>
                   <b>Description:</b> {metadata["description"]}
                 </Typography>
+                {metadata["owner"] && (
+                  <div className={classes.titleBox}>
+                    <Typography display="inline" variant="body1">
+                      <b>Owner:</b>
+                      {"  "}
+                    </Typography>
+                    <Avatar
+                      alt={metadata["owner"]}
+                      src="/static/images/avatar/1.jpg"
+                      className={classes.small}
+                    />
+                  </div>
+                )}
 
-                <div className={classes.titleBox}>
-                  <Typography display="inline" variant="body1">
-                    <b>Owner:</b>
-                    {"  "}
-                  </Typography>
-                  <Avatar
-                    alt={metadata["owner"]}
-                    src="/static/images/avatar/1.jpg"
-                    className={classes.small}
-                  />
-                </div>
                 {metadata["dimensions"] && (
                   <Typography variant="body1">
                     <b>Dimensions:</b> {metadata["dimensions"]}
+                  </Typography>
+                )}
+                {metadata["type"] && (
+                  <Typography variant="body1">
+                    <b>Type:</b> {metadata["type"]}
+                  </Typography>
+                )}
+                {metadata["software"] && (
+                  <Typography variant="body1">
+                    <b>Software:</b> {metadata["software"]}
+                  </Typography>
+                )}
+                {metadata["team"] && (
+                  <Typography variant="body1">
+                    <b>Team:</b> {metadata["team"]}
                   </Typography>
                 )}
                 {metadata["source"] && (
@@ -309,7 +331,7 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
               </Grid>
               <Grid item xs={2}></Grid>
               <Grid item xs={3}>
-                <TagBox tags={metadata["tags"]} />
+                {metadata["tags"] && <TagBox tags={metadata["tags"]} />}
               </Grid>
             </Grid>
           </div>
@@ -394,6 +416,11 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                 columns={Object.keys(resourceData[key][0]).map((item) => ({
                   title: capitalize(item),
                   field: item,
+                  ...(item == "tags" && {
+                    render: (row) => (
+                      <TagList tags={row.tags} tagClass={classes.tag} />
+                    ),
+                  }),
                 }))}
                 data={resourceData[key].map((o) => {
                   let new_object = {};
@@ -434,5 +461,28 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
     <div></div>
   );
 };
+
+export const TagList = ({
+  activeTags = {},
+  tags = [],
+  tagClass,
+  toggleTag,
+}) => (
+  <Grid container direction="row">
+    {tags.map((tag) => (
+      <Chip
+        key={tag}
+        className={tagClass}
+        color={activeTags[tag] ? "secondary" : "default"}
+        onClick={(event) => {
+          toggleTag(tag);
+          event.stopPropagation();
+        }}
+        variant="outlined"
+        label={tag}
+      />
+    ))}
+  </Grid>
+);
 
 export default EntityPageView;

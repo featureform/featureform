@@ -1,5 +1,5 @@
 {
-  "name": "Sample batch provider",
+  "name": "Sample processor provider",
   "default-version": "default-version",
   "type": "Provider",
   "all-versions": ["default-version"],
@@ -9,19 +9,11 @@
         "version-name": "default-version",
         "created": "2020-08-10T13:49:51.141Z",
         "team": "Customer model team",
-        "software": "BigQuery",
-        "type": "Batch",
-        "description": "Batch provider for historic data"
+        "software": "Apache Spark",
+        "type": "Processor",
+        "description": "Provider for batch data"
       },
       "data": {
-        "training sets": [
-          {
-            "name": "Wine Quality Dataset",
-            "description": "set of wine quality samples and quality ratings",
-            "tags": ["wine", "batch", "quality"],
-            "variant": "default"
-          }
-        ],
         "transformations": [
           {
             "name": "Non-free Sulfur Dioxide",
@@ -33,14 +25,6 @@
             "name": "AvgPurchasePrice",
             "description": "Average purchase price of sample",
             "tags": ["purchase", "commerce", "payment"],
-            "variant": "default"
-          }
-        ],
-        "sources": [
-          {
-            "name": "Wine csv",
-            "description": "Comma seperated value table of wine",
-            "tags": ["wine", "batch", "sulfur"],
             "variant": "default"
           }
         ]

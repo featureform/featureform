@@ -4,4 +4,5 @@ export {
   resourceIcons,
   resourcePaths,
   testData,
+  providerLogos,
 } from "./Resources.js";

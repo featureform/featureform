@@ -60,6 +60,12 @@ export const testData = [
   },
 ];
 
+export const providerLogos = Object.freeze({
+  Redis: "/Redis_Logo.svg",
+  BigQuery: "/google_bigquery-ar21.svg",
+  "Apache Spark": "/Apache_Spark_logo.svg",
+});
+
 const API_URL = "http://localhost:8080";
 const local = true;
 

@@ -300,14 +300,18 @@
     {
       "name": "Wine quality rating",
       "default-version": "first-version",
-      "all-versions": ["first-version", "weighted-version"],
+      "all-versions": ["first-version", "second-version"],
       "versions": {
         "first-version": {
-          "description": "Aggregate wine quality rating for a given sample"
+          "description": "Aggregate wine quality rating for a given sample",
+          "tags": ["wine", "quality", "outcome", "rating"],
+          "revision": "2020-08-12T13:49:51.141Z"
         },
 
-        "weighted-version": {
-          "description": "rating weighted in higher favor of reviews given higher presidence"
+        "second-version": {
+          "description": "rating weighted in higher favor of reviews given higher presidence",
+          "tags": ["wine", "quality", "outcome", "rating"],
+          "revision": "2020-08-12T13:49:51.141Z"
         }
       }
     },
@@ -320,7 +324,8 @@
           "description": "Wine was spoiled or not",
           "entity": "wine_id",
           "created": "2020-08-09-024",
-          "tags": ["spoiled", "quality", "outcome", "boolean"]
+          "tags": ["spoiled", "quality", "outcome", "boolean"],
+          "revision": "2020-08-12T13:49:51.141Z"
         }
       }
     }

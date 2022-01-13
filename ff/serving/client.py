@@ -15,6 +15,19 @@ class Client:
     def dataset(self, name, version):
         return Dataset(self._stub, name, version)
 
+    def features(self, features, entities):
+        req = proto.serving_pb2.FeatureServeRequest()
+        for name, value in entities.items():
+            entity_proto = req.entities.add()
+            entity_proto.name = name
+            entity_proto.value = value
+        for (name, version) in features:
+            feature_id = req.features.add()
+            feature_id.name = name
+            feature_id.version = version
+        resp = self._stub.FeatureServe(req)
+        return [parse_proto_value(val) for val in resp.values]
+
 
 class Dataset:
 
@@ -86,3 +99,4 @@ def parse_proto_value(value):
 client = Client("localhost:8080")
 dataset = client.dataset("f1", "v1")
 print([r for r in dataset])
+print(client.features([("f1", "v1")], {"user": "a"}))

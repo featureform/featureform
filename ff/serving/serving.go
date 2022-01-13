@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net"
 
@@ -16,7 +17,8 @@ var prom_metrics metrics.MetricsHandler
 
 type FeatureServer struct {
 	pb.UnimplementedFeatureServer
-	DatasetProviders map[string]dataset.Provider
+	DatasetProviders map[string]dataset.OfflineProvider
+	FeatureProviders map[string]dataset.OnlineProvider
 	Metadata         MetadataProvider
 	Logger           *zap.SugaredLogger
 }
@@ -31,7 +33,7 @@ func NewFeatureServer(logger *zap.SugaredLogger) (*FeatureServer, error) {
 		logger.Errorw("Failed to create metadata client", "Error", err)
 		return nil, err
 	}
-	metadataErr := metadata.SetTrainingSetMetadata("f1", "v1", MetadataEntry{
+	trainMetaErr := metadata.SetTrainingSetMetadata("f1", "v1", TrainingSetEntry{
 		StorageId: csvStorageId,
 		Key: csvProvider.ToKey("testdata/house_price.csv", CSVSchema{
 			HasHeader: true,
@@ -43,13 +45,30 @@ func NewFeatureServer(logger *zap.SugaredLogger) (*FeatureServer, error) {
 			},
 		}),
 	})
-	if metadataErr != nil {
-		logger.Errorw("Failed to set metadata", "Error", metadataErr)
-		return nil, metadataErr
+	if trainMetaErr != nil {
+		logger.Errorw("Failed to set training set metadata", "Error", trainMetaErr)
+		return nil, trainMetaErr
+	}
+
+	onlineStorageId := "online-memory"
+	onlineProvider := NewMemoryOnlineProvider()
+	key := onlineProvider.ToKey("f1", "v1")
+	onlineProvider.SetFeature("f1", "v1", "a", 12.34)
+	featureMetaErr := metadata.SetFeatureMetadata("f1", "v1", FeatureEntry{
+		StorageId: onlineStorageId,
+		Entity:    "user",
+		Key:       key,
+	})
+	if featureMetaErr != nil {
+		logger.Errorw("Failed to set feature metadata", "Error", trainMetaErr)
+		return nil, trainMetaErr
 	}
 	return &FeatureServer{
-		DatasetProviders: map[string]dataset.Provider{
+		DatasetProviders: map[string]dataset.OfflineProvider{
 			csvStorageId: csvProvider,
+		},
+		FeatureProviders: map[string]dataset.OnlineProvider{
+			onlineStorageId: onlineProvider,
 		},
 		Metadata: metadata,
 		Logger:   logger,
@@ -62,40 +81,96 @@ func (serv *FeatureServer) TrainingData(req *pb.TrainingDataRequest, stream pb.F
 	featureObserver := prom_metrics.BeginObservingTrainingServe(name, version)
 	defer featureObserver.Finish()
 	logger := serv.Logger.With("Name", name, "Version", version)
-	logger.Infow("Serving training data")
+	logger.Info("Serving training data")
 	entry, err := serv.Metadata.TrainingSetMetadata(name, version)
 	if err != nil {
-		logger.Error("Metadata lookup failed")
+		logger.Errorw("Metadata lookup failed", "Err", err)
 		featureObserver.SetError()
 		return err
 	}
 	logger = logger.With("Entry", entry)
 	provider, has := serv.DatasetProviders[entry.StorageId]
 	if !has {
-		serv.Logger.Error("Provider not loaded on server")
+		logger.Error("Provider not loaded on server")
 		featureObserver.SetError()
 		return fmt.Errorf("Unknown provider: %s", entry.StorageId)
 	}
 	dataset, err := provider.GetDatasetReader(entry.Key)
 	if err != nil {
-		serv.Logger.Errorw("Failed to get dataset reader", "Error", err)
+		logger.Errorw("Failed to get dataset reader", "Error", err)
 		featureObserver.SetError()
 		return err
 	}
 	for dataset.Scan() {
 		if err := stream.Send(dataset.Row().Serialized()); err != nil {
-			serv.Logger.Errorw("Failed to write to stream", "Error", err)
+			logger.Errorw("Failed to write to stream", "Error", err)
 			featureObserver.SetError()
 			return err
 		}
 		featureObserver.ServeRow()
 	}
 	if err := dataset.Err(); err != nil {
-		serv.Logger.Errorw("Dataset error", "Error", err)
+		logger.Errorw("Dataset error", "Error", err)
 		featureObserver.SetError()
 		return err
 	}
 	return nil
+}
+
+func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServeRequest) (*pb.FeatureRow, error) {
+	features := req.GetFeatures()
+	vals := make([]*pb.Value, len(features))
+	entities := make(map[string]string)
+	for _, entity := range req.GetEntities() {
+		entities[entity.GetName()] = entity.GetValue()
+	}
+	for i, feature := range req.GetFeatures() {
+		name, version := feature.GetName(), feature.GetVersion()
+		serv.Logger.Infow("Serving feature", "Name", name, "Version", version, "Entities", entities)
+		val, err := serv.getFeatureValue(name, version, entities)
+		if err != nil {
+			return nil, err
+		}
+		vals[i] = val
+	}
+	return &pb.FeatureRow{
+		Values: vals,
+	}, nil
+}
+
+func (serv *FeatureServer) getFeatureValue(name, version string, entities map[string]string) (*pb.Value, error) {
+	logger := serv.Logger.With("Name", name, "Version", version, "Entities", entities)
+	logger.Debug("Getting metadata")
+	entry, err := serv.Metadata.FeatureMetadata(name, version)
+	if err != nil {
+		logger.Errorw("Metadata lookup failed", "Err", err)
+		return nil, err
+	}
+	logger = logger.With("Entry", entry)
+	entity, has := entities[entry.Entity]
+	if !has {
+		logger.Errorw("Entity not found", "Entity Name", entry.Entity)
+		return nil, fmt.Errorf("Entity not found: %s", entry.Entity)
+	}
+
+	provider, has := serv.FeatureProviders[entry.StorageId]
+	if !has {
+		logger.Error("Provider not loaded on server")
+		return nil, fmt.Errorf("Unknown provider: %s", entry.StorageId)
+	}
+
+	lookup, err := provider.GetFeatureLookup(entry.Key)
+	if err != nil {
+		logger.Errorw("Failed to get feature lookup", "Error", err)
+		return nil, err
+	}
+
+	val, err := lookup.Get(entity)
+	if err != nil {
+		logger.Errorw("Entity not found", "Error", err)
+		return nil, err
+	}
+	return val.Serialized(), nil
 }
 
 func main() {

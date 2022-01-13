@@ -146,6 +146,21 @@ export const ResourceListView = ({
       },
       { title: "Type", field: "type" },
     ],
+    User: [
+      { title: "Name", field: "name" },
+      {
+        title: "Teams",
+        field: "tags",
+        render: (row) => (
+          <TagList
+            activeTags={activeTags}
+            tags={row.tags}
+            tagClass={classes.tag}
+            toggleTag={toggleTag}
+          />
+        ),
+      },
+    ],
     Transformation: [
       { title: "Name", field: "name" },
       { title: "Description", field: "description" },

@@ -11,7 +11,7 @@ const links = [
   {
     title: "Wine Quality Dataset",
     icon: "storage",
-    link: "/datasets/Wine%20Quality%20Dataset",
+    link: "/training-datasets/Wine%20Quality%20Dataset",
   },
   { title: "Fixed Acidity", link: "/features/fixed_acidity" },
   { title: "Wine spoiled", link: "/labels/Wine%20spoiled" },

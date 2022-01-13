@@ -107,6 +107,15 @@ const navSectionSlice = createSlice({
             type: resourceTypes["PROVIDER"],
           },
         },
+        {
+          title: "Users",
+          icon: "person",
+          path: "/users",
+          vies: views["RESOURCE_LIST"],
+          viewProps: {
+            type: resourceTypes["USER"],
+          },
+        },
       ],
     },
     {

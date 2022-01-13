@@ -14,6 +14,9 @@ import Avatar from "@material-ui/core/Avatar";
 import Icon from "@material-ui/core/Icon";
 import Button from "@material-ui/core/Button";
 import Chip from "@material-ui/core/Chip";
+import FormControl from "@material-ui/core/FormControl";
+import Select from "@material-ui/core/Select";
+import MenuItem from "@material-ui/core/MenuItem";
 
 import { PrismAsyncLight as SyntaxHighlighter } from "react-syntax-highlighter";
 import python from "react-syntax-highlighter/dist/cjs/languages/prism/python";
@@ -286,9 +289,17 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
           <div className={classes.resourceData}>
             <Grid container spacing={0}>
               <Grid item xs={7} className={classes.resourceMetadata}>
-                <Typography variant="body1" className={classes.description}>
-                  <b>Description:</b> {metadata["description"]}
-                </Typography>
+                {metadata["description"] && (
+                  <Typography variant="body1" className={classes.description}>
+                    <b>Description:</b> {metadata["description"]}
+                  </Typography>
+                )}
+                {metadata["permissions"] && (
+                  <Typography variant="body1" className={classes.permissions}>
+                    <b>Permissions:</b> {metadata["permissions"]}
+                  </Typography>
+                )}
+
                 {metadata["owner"] && (
                   <div className={classes.titleBox}>
                     <Typography display="inline" variant="body1">
@@ -311,6 +322,11 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                 {metadata["type"] && (
                   <Typography variant="body1">
                     <b>Type:</b> {metadata["type"]}
+                  </Typography>
+                )}
+                {metadata["joined"] && (
+                  <Typography variant="body1">
+                    <b>Joined:</b> {convertTimestampToDate(metadata["joined"])}
                   </Typography>
                 )}
                 {metadata["software"] && (
@@ -437,6 +453,14 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                 columns={Object.keys(resourceData[key][0]).map((item) => ({
                   title: capitalize(item),
                   field: item,
+                  ...(item == "variants" && {
+                    render: (row) => (
+                      <VersionSelector
+                        name={row.name}
+                        versions={row.variants}
+                      />
+                    ),
+                  }),
                   ...(item == "tags" && {
                     render: (row) => (
                       <TagList tags={row.tags} tagClass={classes.tag} />
@@ -495,15 +519,30 @@ export const TagList = ({
         key={tag}
         className={tagClass}
         color={activeTags[tag] ? "secondary" : "default"}
-        onClick={(event) => {
-          toggleTag(tag);
-          event.stopPropagation();
-        }}
+        onClick={(event) => {}}
         variant="outlined"
         label={tag}
       />
     ))}
   </Grid>
+);
+
+export const VersionSelector = ({ name, versions = [""], children }) => (
+  <FormControl>
+    <Select value={versions[0]}>
+      {versions.map((version) => (
+        <MenuItem
+          key={version}
+          value={version}
+          onClick={(event) => {
+            event.stopPropagation();
+          }}
+        >
+          {version}
+        </MenuItem>
+      ))}
+    </Select>
+  </FormControl>
 );
 
 export default EntityPageView;

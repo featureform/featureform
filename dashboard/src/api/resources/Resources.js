@@ -7,6 +7,7 @@ export const resourceTypes = Object.freeze({
   TRANSFORMATION: "Transformation",
   TRAINING_DATASET: "Training Dataset",
   PROVIDER: "Provider",
+  USER: "User",
   DATA_SOURCE: "Data Source",
 });
 
@@ -19,6 +20,7 @@ export const resourceIcons = Object.freeze({
   Transformation: "workspaces",
   "Training Dataset": "storage",
   Provider: "device_hub",
+  User: "person",
   "Data Source": "source",
 });
 
@@ -31,6 +33,7 @@ export const resourcePaths = Object.freeze({
   Transformation: "/materialized-views",
   "Training Dataset": "/training-datasets",
   Provider: "/providers",
+  User: "/users",
   "Data Source": "/data-sources",
 });
 export const testData = [

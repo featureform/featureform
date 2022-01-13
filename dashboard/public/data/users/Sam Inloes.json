@@ -1,0 +1,72 @@
+{
+  "name": "Sam Inloes",
+  "type": "User",
+  "default-version": "default-version",
+  "all-versions": ["default-version"],
+  "versions": {
+    "default-version": {
+      "metadata": {
+        "joined": "2020-08-09T13:49:51.141Z",
+        "teams": ["Sample model team", "data orchestration"]
+      },
+      "data": {
+        "training sets": [
+          {
+            "name": "Wine Quality Dataset",
+            "description": "set of wine quality samples and quality ratings",
+            "tags": ["wine", "batch", "quality"],
+            "variants": ["default", "second"]
+          }
+        ],
+        "features": [
+          {
+            "name": "Non-free Sulfur Dioxide",
+            "description": "Total non-free sulfur in sample",
+            "tags": ["wine", "batch", "sulfur"],
+            "variants": ["default", "second"]
+          },
+          {
+            "name": "fixed_acidity",
+            "description": "fixed acidity of smaple",
+            "tags": ["wine", "batch", "sulfur"],
+            "variant": ["default", "second"]
+          },
+          {
+            "name": "clean_density",
+            "description": "Clean density of sample",
+            "tags": ["wine", "batch", "sulfur"],
+            "variant": ["default", "second"]
+          },
+          {
+            "name": "LogAvgPurchasePrice",
+            "description": "Average purchase price of sample",
+            "tags": ["purchase", "commerce", "payment"],
+            "variant": ["default", "second"]
+          }
+        ],
+        "labels": [
+          {
+            "name": "Wine quality rating",
+            "description": "Quality rating of wine sample",
+            "tags": ["wine", "batch", "sulfur"],
+            "variants": ["default", "second"]
+          },
+          {
+            "name": "Wine spoiled",
+            "description": "Whether or not wine is spoiled",
+            "tags": ["wine", "batch", "sulfur"],
+            "variant": ["default", "second"]
+          }
+        ],
+        "models": [
+          {
+            "name": "wine random forest",
+            "description": "Random forest wine classification model",
+            "tags": ["wine", "batch", "sulfur"],
+            "variants": ["default", "second"]
+          }
+        ]
+      }
+    }
+  }
+}

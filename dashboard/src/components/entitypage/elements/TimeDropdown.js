@@ -8,22 +8,17 @@ import FormControl from "@mui/material/FormControl";
 import Select from "@mui/material/Select";
 
 const dropdownValues = [
-  { label: "1m", value: 1 },
-  { label: "5m", value: 5 },
-  { label: "10m", value: 10 },
-  { label: "30m", value: 30 },
   { label: "1h", value: 60 },
-  { label: "6h", value: 360 },
   { label: "1d", value: 360 * 4 },
   { label: "1w", value: 360 * 4 * 7 },
 ];
 
 function ExponentialTimeSlider({ timeRange, changeTime }) {
-  const [time, setTime] = React.useState(10);
+  const [time, setTime] = React.useState(60);
 
   const handleChange = (event) => {
     setTime(event.target.value);
-    changeTime([time, 0]);
+    changeTime([event.target.value, 0]);
   };
 
   return (

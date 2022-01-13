@@ -1,8 +1,9 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Typography, Grid, Container } from "@material-ui/core";
 import { makeStyles } from "@material-ui/core/styles";
 import TimeDropdown from "./TimeDropdown";
 import QueryDropdown from "./QueryDropdown";
+import { connect } from "react-redux";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -36,16 +37,28 @@ const useStyles = makeStyles((theme) => ({
     transform: "scale(0.9, 0.9)",
   },
   graph: {
-    height: "40em",
+    height: "70em",
     alignItems: "center",
     "& > *": {
-      height: "40em",
+      height: "70em",
     },
   },
 }));
 
-const MetricsDropdown = ({ type, name, version }) => {
+const MetricsDropdown = ({ type, name, version, timeRange }) => {
   const classes = useStyles();
+  const [stepRange, setStepRange] = React.useState("min");
+  const [step, setStep] = React.useState("1m");
+  useEffect(() => {
+    if (timeRange.timeRange[0] > 60) {
+      setStepRange("hour");
+      setStep("1h");
+    } else if (timeRange.timeRange[0] == 60) {
+      setStepRange("min");
+      setStep("1m");
+    }
+    console.log(timeRange);
+  }, [timeRange]);
 
   return (
     <div className={classes.root}>
@@ -55,21 +68,21 @@ const MetricsDropdown = ({ type, name, version }) => {
         </Container>
       </div>
       <Grid container spacing={0}>
-        <Grid item xs={12} height="15em">
+        <Grid item xs={12} height="10em">
           <div className={classes.graph}>
-            <Container minHeight={"800px"}>
+            <Container minHeight={"1300px"}>
               {type != "Dataset" ? (
                 <div>
-                  <Typography>Throughput (req/min)</Typography>
+                  <Typography>Throughput (req/{stepRange})</Typography>
                   <QueryDropdown
-                    query={`rate(test_counter{feature="${name} ${version}",status="success"}[1m])`}
+                    query={`rate(test_counter{feature="${name} ${version}",status="success"}[${step}])`}
                     type={type}
                     name={name}
                     query_type={"latency"}
                   />
                   <Typography> Average Latency (ms)</Typography>
                   <QueryDropdown
-                    query={`rate(test_duration_seconds_sum{feature="${name} ${version}"}[1m])/rate(test_duration_seconds_count{feature="${name} ${version}"}[1m])`}
+                    query={`rate(test_duration_seconds_sum{feature="${name} ${version}"}[${step}])/rate(test_duration_seconds_count{feature="${name} ${version}"}[${step}])`}
                     type={type}
                     name={name}
                     query_type={"count"}
@@ -77,9 +90,9 @@ const MetricsDropdown = ({ type, name, version }) => {
                 </div>
               ) : (
                 <div>
-                  <Typography>Throughput (rows/min)</Typography>
+                  <Typography>Throughput (rows/{stepRange})</Typography>
                   <QueryDropdown
-                    query={`rate(test_counter{feature="${name} ${version}",status="row serving"}[1m])`}
+                    query={`rate(test_counter{feature="${name} ${version}",status="row serving"}[${step}])`}
                     type={type}
                     name={name}
                     query_type={"latency"}
@@ -87,9 +100,9 @@ const MetricsDropdown = ({ type, name, version }) => {
                 </div>
               )}
 
-              <Typography>Errors per minute</Typography>
+              <Typography>Errors per {stepRange}</Typography>
               <QueryDropdown
-                query={`rate(test_counter{feature="${name} ${version}",status="error"}[1m])`}
+                query={`rate(test_counter{feature="${name} ${version}",status="error"}[${step}])`}
                 type={type}
                 name={name}
                 query_type={"count"}
@@ -102,4 +115,11 @@ const MetricsDropdown = ({ type, name, version }) => {
   );
 };
 
-export default MetricsDropdown;
+function mapStateToProps(state) {
+  return {
+    timeRange: state.timeRange,
+    metricsSelect: state.metricsSelect,
+  };
+}
+
+export default connect(mapStateToProps)(MetricsDropdown);

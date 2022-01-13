@@ -7,7 +7,7 @@ import { connect } from "react-redux";
 
 const useStyles = makeStyles((theme) => ({
   graphBox: {
-    height: "30%",
+    height: "50%",
   },
 }));
 
@@ -25,6 +25,10 @@ const PrometheusGraph = ({
   query_type,
   add_labels,
 }) => {
+  let max = 1000;
+  if (query.includes("error")) {
+    max = 10;
+  }
   const classes = useStyles();
 
   function customReq(start, end, step) {
@@ -78,6 +82,7 @@ const PrometheusGraph = ({
                 autoSkip: true,
                 maxTicksLimit: 8,
                 beginAtZero: true,
+                max: max,
               },
             },
           ],
@@ -117,7 +122,8 @@ const PrometheusGraph = ({
   return (
     <div className={classes.graphBox}>
       <canvas
-        style={{ height: "30%", maxHeight: "10em", width: "100%" }}
+        height="300vw"
+        style={{ maxHeight: "20em", width: "100%" }}
         ref={chartRef}
       />
     </div>

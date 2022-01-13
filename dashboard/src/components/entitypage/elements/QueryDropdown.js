@@ -4,7 +4,7 @@ import { makeStyles } from "@material-ui/core/styles";
 
 const useStyles = makeStyles((theme) => ({
   root: {
-    maxHeight: "10em",
+    maxHeight: "20em",
   },
 }));
 function QueryDropdown({ query, type, name, query_type, add_labels }) {

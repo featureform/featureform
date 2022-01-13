@@ -24,6 +24,9 @@ const useStyles = makeStyles((theme) => ({
     width: "100%",
     color: "black",
   },
+  instanceLogo: {
+    height: "3em",
+  },
   searchBar: {},
   toolbar: {
     width: "100%",
@@ -104,7 +107,10 @@ export default function TopBar() {
               <Divider orientation="vertical" variant="middle" flexItem />
             )}
             <div className={classes.instanceName}>
-              <img src="/Capital_One_logo.svg" />
+              <img
+                className={classes.instanceLogo}
+                src="/Capital_One_logo.svg"
+              />
             </div>
             {auth && (
               <div>

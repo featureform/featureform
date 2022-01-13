@@ -131,7 +131,6 @@ export const ResourceListView = ({
     ],
     User: [
       { title: "Name", field: "name" },
-      { title: "Permissions", field: "permissions" },
       {
         title: "Teams",
         field: "tags",

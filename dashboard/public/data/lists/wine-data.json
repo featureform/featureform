@@ -423,8 +423,7 @@
       "all-versions": ["default-version"],
       "versions": {
         "default-version": {
-          "tags": ["Sample model team", "data orchestration"],
-          "permissions": "Admin"
+          "tags": ["Sample model team", "data orchestration"]
         }
       }
     },
@@ -434,8 +433,7 @@
       "all-versions": ["default-version"],
       "versions": {
         "default-version": {
-          "tags": ["Sample model team", "data orchestration"],
-          "permissions": "Edit"
+          "tags": ["Sample model team", "data orchestration"]
         }
       }
     },
@@ -445,8 +443,7 @@
       "all-versions": ["default-version"],
       "versions": {
         "default-version": {
-          "tags": ["Sample model team", "data orchestration"],
-          "permissions": "Read"
+          "tags": ["Sample model team", "data orchestration"]
         }
       }
     }

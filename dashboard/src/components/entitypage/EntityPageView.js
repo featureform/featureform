@@ -14,6 +14,9 @@ import Avatar from "@material-ui/core/Avatar";
 import Icon from "@material-ui/core/Icon";
 import Button from "@material-ui/core/Button";
 import Chip from "@material-ui/core/Chip";
+import FormControl from "@material-ui/core/FormControl";
+import Select from "@material-ui/core/Select";
+import MenuItem from "@material-ui/core/MenuItem";
 
 import { PrismAsyncLight as SyntaxHighlighter } from "react-syntax-highlighter";
 import python from "react-syntax-highlighter/dist/cjs/languages/prism/python";
@@ -310,6 +313,11 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                     <b>Type:</b> {metadata["type"]}
                   </Typography>
                 )}
+                {metadata["joined"] && (
+                  <Typography variant="body1">
+                    <b>Joined:</b> {convertTimestampToDate(metadata["joined"])}
+                  </Typography>
+                )}
                 {metadata["software"] && (
                   <Typography variant="body1">
                     <b>Software:</b> {metadata["software"]}
@@ -424,6 +432,14 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                 columns={Object.keys(resourceData[key][0]).map((item) => ({
                   title: capitalize(item),
                   field: item,
+                  ...(item == "variants" && {
+                    render: (row) => (
+                      <VersionSelector
+                        name={row.name}
+                        versions={row.variants}
+                      />
+                    ),
+                  }),
                   ...(item == "tags" && {
                     render: (row) => (
                       <TagList tags={row.tags} tagClass={classes.tag} />
@@ -488,6 +504,24 @@ export const TagList = ({
       />
     ))}
   </Grid>
+);
+
+export const VersionSelector = ({ name, versions = [""], children }) => (
+  <FormControl>
+    <Select value={versions[0]}>
+      {versions.map((version) => (
+        <MenuItem
+          key={version}
+          value={version}
+          onClick={(event) => {
+            event.stopPropagation();
+          }}
+        >
+          {version}
+        </MenuItem>
+      ))}
+    </Select>
+  </FormControl>
 );
 
 export default EntityPageView;

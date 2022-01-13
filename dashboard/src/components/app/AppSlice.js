@@ -18,12 +18,12 @@ const navSectionSlice = createSlice({
           },
         },
         {
-          title: "Materialized Views",
+          title: "Transformations",
           icon: "copy",
-          path: "/materialized-views",
+          path: "/transformations",
           view: views["RESOURCE_LIST"],
           viewProps: {
-            type: resourceTypes["MATERIALIZED_VIEW"],
+            type: resourceTypes["TRANSFORMATION"],
           },
         },
         {
@@ -36,12 +36,12 @@ const navSectionSlice = createSlice({
           },
         },
         {
-          title: "Datasets",
+          title: "training-datasets",
           icon: "storage",
-          path: "/datasets",
+          path: "/training-datasets",
           view: views["RESOURCE_LIST"],
           viewProps: {
-            type: resourceTypes["DATASET"],
+            type: resourceTypes["TRAINING_DATASET"],
           },
         },
         {
@@ -54,7 +54,7 @@ const navSectionSlice = createSlice({
           },
         },
         {
-          title: "Training Sets",
+          title: "training-datasets",
           icon: "archive",
           path: "/training-sets",
           view: views["RESOURCE_LIST"],

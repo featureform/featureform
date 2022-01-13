@@ -99,7 +99,7 @@ export const ResourceListView = ({
       },
       { title: "Revision", field: "revision" },
       {
-        title: "Version",
+        title: "Variants",
         field: "versions",
         render: (row) => (
           <VersionSelector
@@ -145,6 +145,34 @@ export const ResourceListView = ({
         ),
       },
       { title: "Type", field: "type" },
+    ],
+    Transformation: [
+      { title: "Name", field: "name" },
+      { title: "Description", field: "description" },
+      {
+        title: "Tags",
+        field: "tags",
+        render: (row) => (
+          <TagList
+            activeTags={activeTags}
+            tags={row.tags}
+            tagClass={classes.tag}
+            toggleTag={toggleTag}
+          />
+        ),
+      },
+      {
+        title: "Variants",
+        field: "versions",
+        render: (row) => (
+          <VersionSelector
+            name={row.name}
+            versions={rowVersions.find((v) => v.name === row.name)["versions"]}
+            activeVersions={myVersions}
+            setVersion={setVersion}
+          />
+        ),
+      },
     ],
   };
   const classes = useStyles();

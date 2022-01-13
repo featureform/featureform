@@ -42,7 +42,7 @@ const VersionControl = ({
   return (
     <FormControl className={classes.formControl}>
       <InputLabel shrink id="demo-simple-select-placeholder-label-label">
-        Version
+        Variant
       </InputLabel>
       <Select
         labelId="demo-simple-select-placeholder-label-label"

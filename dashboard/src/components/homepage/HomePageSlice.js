@@ -7,14 +7,14 @@ const homePageSlice = createSlice({
       {
         title: "Training Datasets",
         icon: "storage",
-        path: "/datasets",
+        path: "/training-datasets",
         disabled: false,
         description: "Training datasets",
       },
       {
         title: "Transformations",
         icon: "workspaces",
-        path: "/materialized-views",
+        path: "/transformations",
         disabled: false,
         description: "Logical queries of entity data",
       },

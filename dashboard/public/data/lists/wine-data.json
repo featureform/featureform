@@ -1,5 +1,5 @@
 {
-  "Dataset": [
+  "Training Dataset": [
     {
       "name": "Wine Quality Dataset",
       "default-version": "first-version",
@@ -189,7 +189,7 @@
     }
   ],
 
-  "Materialized View": [
+  "Transformation": [
     {
       "name": "Non-free Sulfur Dioxide",
       "default-version": "first version",

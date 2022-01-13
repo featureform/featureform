@@ -4,8 +4,8 @@ export const resourceTypes = Object.freeze({
   LABEL: "Label",
   ENTITY: "Entity",
   MODEL: "Model",
-  MATERIALIZED_VIEW: "Materialized View",
-  DATASET: "Dataset",
+  TRANSFORMATION: "Transformation",
+  TRAINING_DATASET: "Training Dataset",
   PROVIDER: "Provider",
   DATA_SOURCE: "Data Source",
 });
@@ -16,8 +16,8 @@ export const resourceIcons = Object.freeze({
   Label: "label",
   "Feature Set": "account_tree",
   Model: "model_training",
-  "Materialized View": "workspaces",
-  Dataset: "storage",
+  Transformation: "workspaces",
+  "Training Dataset": "storage",
   Provider: "device_hub",
   "Data Source": "source",
 });
@@ -28,8 +28,8 @@ export const resourcePaths = Object.freeze({
   Label: "/labels",
   "Feature Set": "/feature-sets",
   Model: "/models",
-  "Materialized View": "/materialized-views",
-  Dataset: "/datasets",
+  Transformation: "/materialized-views",
+  "Training Dataset": "/training-datasets",
   Provider: "/providers",
   "Data Source": "/data-sources",
 });

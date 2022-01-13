@@ -100,6 +100,13 @@ const useStyles = makeStyles((theme) => ({
     justifyContent: "left",
     padding: 0,
     width: "30%",
+    textTransform: "none",
+  },
+  transformButton: {
+    justifyContent: "left",
+    padding: 0,
+    width: "100%",
+    textTransform: "none",
   },
   description: {},
 
@@ -208,7 +215,7 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
   const metadata = resource.metadata;
   const resourceData = resource.data;
   const convertTimestampToDate = (timestamp_string) => {
-    return new Date(timestamp_string).toDateString();
+    return new Date(timestamp_string).toUTCString();
   };
 
   let allVersions = resources["all-versions"];
@@ -230,6 +237,10 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
 
   const linkToEntityPage = (event) => {
     history.push(`/entities/${metadata["entity"]}`);
+  };
+
+  const linkToTransformSource = (event) => {
+    history.push(`/transformations/${metadata["transformation source"]}`);
   };
 
   return true || (!resources.loading && !resources.failed && resources.data) ? (
@@ -317,6 +328,16 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                     <b>Source:</b> {metadata["source"]}
                   </Typography>
                 )}
+                {metadata["transformation source"] && (
+                  <Button
+                    onClick={linkToTransformSource}
+                    className={classes.transformButton}
+                  >
+                    <Typography variant="body1">
+                      <b>Source:</b> {metadata["transformation source"]}
+                    </Typography>
+                  </Button>
+                )}
 
                 {metadata["entity"] && (
                   <Button
@@ -324,7 +345,7 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                     className={classes.entityButton}
                   >
                     <Typography variant="body1">
-                      <b>Entity:</b> {metadata["entity"]}
+                      <b>Entities:</b> {metadata["entity"]}
                     </Typography>
                   </Button>
                 )}

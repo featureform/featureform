@@ -19,14 +19,11 @@ import sql from "react-syntax-highlighter/dist/cjs/languages/prism/sql";
 import json from "react-syntax-highlighter/dist/cjs/languages/prism/json";
 import { useHistory } from "react-router-dom";
 import Container from "@material-ui/core/Container";
+import { providerLogos } from "api/resources";
 
 SyntaxHighlighter.registerLanguage("python", python);
 SyntaxHighlighter.registerLanguage("sql", sql);
 SyntaxHighlighter.registerLanguage("json", json);
-
-const providerLogos = {
-  Reddis: "/Redis_Logo.svg",
-};
 
 const useStyles = makeStyles(() => ({
   root: {
@@ -60,11 +57,7 @@ const useStyles = makeStyles(() => ({
     color: "white",
     opacity: 1,
   },
-  providerColumn: {
-    maxWidth: "2em",
-    width: "20px",
-    height: "20px",
-  },
+  providerColumn: {},
   providerLogo: {
     maxWidth: "6em",
   },
@@ -88,6 +81,55 @@ export const ResourceListView = ({
   setVersion,
   toggleTag,
 }) => {
+  const columnFormats = {
+    default: [
+      { title: "Name", field: "name" },
+      { title: "Description", field: "description" },
+      {
+        title: "Tags",
+        field: "tags",
+        render: (row) => (
+          <TagList
+            activeTags={activeTags}
+            tags={row.tags}
+            tagClass={classes.tag}
+            toggleTag={toggleTag}
+          />
+        ),
+      },
+      { title: "Revision", field: "revision" },
+      {
+        title: "Version",
+        field: "versions",
+        render: (row) => (
+          <VersionSelector
+            name={row.name}
+            versions={rowVersions.find((v) => v.name === row.name)["versions"]}
+            activeVersions={myVersions}
+            setVersion={setVersion}
+          />
+        ),
+      },
+    ],
+    Provider: [
+      { title: "Name", field: "name" },
+      { title: "Description", field: "description" },
+      { title: "Type", field: "type" },
+      {
+        title: "Software",
+        field: "software",
+        render: (row) => (
+          <div className={classes.providerColumn}>
+            <img
+              className={classes.providerLogo}
+              src={providerLogos[row.software]}
+            ></img>
+          </div>
+        ),
+      },
+      { title: "Team", field: "team" },
+    ],
+  };
   const classes = useStyles();
   let history = useHistory();
   const initialLoad = resources == null && !loading;
@@ -165,7 +207,10 @@ export const ResourceListView = ({
       field: "software",
       render: (row) => (
         <div className={classes.providerColumn}>
-          <img className={classes.providerLogo} src="/Redis_Logo.svg"></img>
+          <img
+            className={classes.providerLogo}
+            src={providerLogos[row.software]}
+          ></img>
         </div>
       ),
     },
@@ -181,7 +226,11 @@ export const ResourceListView = ({
             <b>{title}</b>
           </Typography>
         }
-        columns={title === "Provider" ? provider_columns : default_columns}
+        columns={
+          Object.keys(columnFormats).includes(title)
+            ? columnFormats[title]
+            : columnFormats["default"]
+        }
         data={versionRes}
         isLoading={initialLoad || loading || failed}
         onRowClick={detailRedirect}

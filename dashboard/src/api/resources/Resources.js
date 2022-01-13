@@ -7,6 +7,7 @@ export const resourceTypes = Object.freeze({
   MATERIALIZED_VIEW: "Materialized View",
   DATASET: "Dataset",
   PROVIDER: "Provider",
+  USER: "User",
 });
 
 export const resourceIcons = Object.freeze({
@@ -18,6 +19,7 @@ export const resourceIcons = Object.freeze({
   "Materialized View": "workspaces",
   Dataset: "storage",
   Provider: "device_hub",
+  User: "person",
 });
 
 export const resourcePaths = Object.freeze({
@@ -29,6 +31,7 @@ export const resourcePaths = Object.freeze({
   "Materialized View": "/materialized-views",
   Dataset: "/datasets",
   Provider: "/providers",
+  User: "/users",
 });
 export const testData = [
   {

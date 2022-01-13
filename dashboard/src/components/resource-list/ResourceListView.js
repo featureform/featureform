@@ -129,6 +129,21 @@ export const ResourceListView = ({
       },
       { title: "Team", field: "team" },
     ],
+    User: [
+      { title: "Name", field: "name" },
+      { title: "Permissions", field: "permissions" },
+      {
+        title: "Teams",
+        field: "tags",
+        render: (row) => (
+          <TagList
+            tags={row.tags}
+            activeTags={activeTags}
+            toggleTag={toggleTag}
+          />
+        ),
+      },
+    ],
   };
   const classes = useStyles();
   let history = useHistory();
@@ -167,55 +182,6 @@ export const ResourceListView = ({
     name: row["name"],
     versions: row["all-versions"],
   }));
-
-  let default_columns = [
-    { title: "Name", field: "name" },
-    { title: "Description", field: "description" },
-    {
-      title: "Tags",
-      field: "tags",
-      render: (row) => (
-        <TagList
-          activeTags={activeTags}
-          tags={row.tags}
-          tagClass={classes.tag}
-          toggleTag={toggleTag}
-        />
-      ),
-    },
-    { title: "Revision", field: "revision" },
-    {
-      title: "Version",
-      field: "versions",
-      render: (row) => (
-        <VersionSelector
-          name={row.name}
-          versions={rowVersions.find((v) => v.name === row.name)["versions"]}
-          activeVersions={myVersions}
-          setVersion={setVersion}
-        />
-      ),
-    },
-  ];
-
-  let provider_columns = [
-    { title: "Name", field: "name" },
-    { title: "Description", field: "description" },
-    { title: "Type", field: "type" },
-    {
-      title: "Software",
-      field: "software",
-      render: (row) => (
-        <div className={classes.providerColumn}>
-          <img
-            className={classes.providerLogo}
-            src={providerLogos[row.software]}
-          ></img>
-        </div>
-      ),
-    },
-    { title: "Team", field: "team" },
-  ];
 
   return (
     <div>

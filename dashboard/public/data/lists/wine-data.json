@@ -415,5 +415,40 @@
         }
       }
     }
+  ],
+  "User": [
+    {
+      "name": "Simba Khadder",
+      "default-version": "default-version",
+      "all-versions": ["default-version"],
+      "versions": {
+        "default-version": {
+          "tags": ["Sample model team", "data orchestration"],
+          "permissions": "Admin"
+        }
+      }
+    },
+    {
+      "name": "Shabnam Mohktarani",
+      "default-version": "default-version",
+      "all-versions": ["default-version"],
+      "versions": {
+        "default-version": {
+          "tags": ["Sample model team", "data orchestration"],
+          "permissions": "Edit"
+        }
+      }
+    },
+    {
+      "name": "Sam Inloes",
+      "default-version": "default-version",
+      "all-versions": ["default-version"],
+      "versions": {
+        "default-version": {
+          "tags": ["Sample model team", "data orchestration"],
+          "permissions": "Read"
+        }
+      }
+    }
   ]
 }

@@ -275,9 +275,17 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
           <div className={classes.resourceData}>
             <Grid container spacing={0}>
               <Grid item xs={7} className={classes.resourceMetadata}>
-                <Typography variant="body1" className={classes.description}>
-                  <b>Description:</b> {metadata["description"]}
-                </Typography>
+                {metadata["description"] && (
+                  <Typography variant="body1" className={classes.description}>
+                    <b>Description:</b> {metadata["description"]}
+                  </Typography>
+                )}
+                {metadata["permissions"] && (
+                  <Typography variant="body1" className={classes.permissions}>
+                    <b>Permissions:</b> {metadata["permissions"]}
+                  </Typography>
+                )}
+
                 {metadata["owner"] && (
                   <div className={classes.titleBox}>
                     <Typography display="inline" variant="body1">
@@ -474,10 +482,7 @@ export const TagList = ({
         key={tag}
         className={tagClass}
         color={activeTags[tag] ? "secondary" : "default"}
-        onClick={(event) => {
-          toggleTag(tag);
-          event.stopPropagation();
-        }}
+        onClick={(event) => {}}
         variant="outlined"
         label={tag}
       />

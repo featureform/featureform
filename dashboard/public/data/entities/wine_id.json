@@ -9,7 +9,6 @@
         "version-name": "first-version",
         "created": "2020-08-09T13:49:51.141Z",
         "visibility": "private",
-        "tags": ["wine", "SKU", "identifier"],
         "description": "Unique ID specifying the wine sample"
       },
       "data": {

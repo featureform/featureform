@@ -67,7 +67,7 @@ const useStyles = makeStyles((theme) => ({
     padding: theme.spacing(1),
     display: "flex",
     flexDirection: "column",
-    justifyContent: "space-between",
+    justifyContent: "space-around",
   },
   border: {
     background: "white",
@@ -108,7 +108,7 @@ const useStyles = makeStyles((theme) => ({
   transformButton: {
     justifyContent: "left",
     padding: 0,
-    width: "30%",
+    //width: "30%",
     textTransform: "none",
   },
   description: {},
@@ -134,12 +134,15 @@ const useStyles = makeStyles((theme) => ({
       borderRadius: 16,
     },
   },
+  typeTitle: {
+    paddingRight: theme.spacing(1),
+  },
   tableBody: {
     border: `2px solid ${theme.palette.border.main}`,
     borderRadius: 16,
   },
   linkChip: {
-    width: "10%",
+    //width: "10%",
     "& .MuiChip-label": {
       paddingRight: theme.spacing(0),
     },
@@ -308,8 +311,8 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
 
                 {metadata["owner"] && (
                   <div className={classes.linkBox}>
-                    <Typography variant="body1">
-                      <b>Owner:</b>
+                    <Typography variant="body1" className={classes.typeTitle}>
+                      <b>Owner:</b>{" "}
                     </Typography>
                     <Chip
                       className={classes.linkChip}
@@ -353,8 +356,8 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                 )}
                 {metadata["transformation source"] && (
                   <div className={classes.linkBox}>
-                    <Typography variant="body1">
-                      <b>Transform Source:</b>
+                    <Typography variant="body1" className={classes.typeTitle}>
+                      <b>Transform Source: </b>{" "}
                     </Typography>
                     <Chip
                       className={classes.linkChip}
@@ -368,8 +371,8 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
 
                 {metadata["entity"] && (
                   <div className={classes.linkBox}>
-                    <Typography variant="body1">
-                      <b>Entity:</b>
+                    <Typography variant="body1" className={classes.typeTitle}>
+                      <b>Entity:</b>{" "}
                     </Typography>
                     <Chip
                       className={classes.linkChip}

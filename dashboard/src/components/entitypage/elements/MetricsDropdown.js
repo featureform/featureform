@@ -57,7 +57,6 @@ const MetricsDropdown = ({ type, name, version, timeRange }) => {
       setStepRange("min");
       setStep("1m");
     }
-    console.log(timeRange);
   }, [timeRange]);
 
   return (

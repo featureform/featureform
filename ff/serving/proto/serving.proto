@@ -34,7 +34,6 @@ message FeatureServeRequest {
 
 message FeatureRow {
     repeated Value values = 1;
-    repeated FeatureID features = 2;
 }
 
 message FeatureID {

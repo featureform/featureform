@@ -33,12 +33,8 @@ const PrometheusGraph = ({
     const endTimestamp = end.getTime() / 1000;
 
     const url = `http://localhost:9090/api/v1/query_range?query=${query}${add_labels_string}start=${startTimestamp}&end=${endTimestamp}&step=${step}s`;
-    const headers = { Authorization: "Bearer Ainae1Ahchiew6UhseeCh7el" };
 
     return Promise.resolve(10);
-    // return fetch(url, { headers })
-    //   .then((response) => response.json())
-    //   .then((response) => response["data"]);
   }
   const add_labels_string = add_labels
     ? Object.keys(add_labels).reduce(
@@ -89,10 +85,6 @@ const PrometheusGraph = ({
 
         plugins: {
           "datasource-prometheus": {
-            // prometheus: {
-            //   endpoint: "http://localhost:9090",
-            // },
-            //query: `${query}${add_labels_string}`,
             query: customReq,
 
             timeRange: {

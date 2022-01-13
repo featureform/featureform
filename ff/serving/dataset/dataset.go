@@ -6,14 +6,38 @@ import (
 	pb "github.com/featureform/serving/proto"
 )
 
-type Provider interface {
+type OfflineProvider interface {
 	GetDatasetReader(key map[string]string) (Reader, error)
+}
+
+type OnlineProvider interface {
+	GetFeatureLookup(key map[string]string) (Lookup, error)
 }
 
 type Reader interface {
 	Scan() bool
 	Row() *Row
 	Err() error
+}
+
+type Lookup interface {
+	Get(entity string) (*Feature, error)
+}
+
+type Feature struct {
+	serialized *pb.Value
+}
+
+func NewFeature(val interface{}) (*Feature, error) {
+	serial, err := WrapValue(val)
+	if err != nil {
+		return nil, err
+	}
+	return &Feature{serial}, nil
+}
+
+func (f *Feature) Serialized() *pb.Value {
+	return f.serialized
 }
 
 type Row struct {

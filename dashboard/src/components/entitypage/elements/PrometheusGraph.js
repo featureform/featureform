@@ -26,6 +26,20 @@ const PrometheusGraph = ({
   add_labels,
 }) => {
   const classes = useStyles();
+
+  function customReq(start, end, step) {
+    console.log(start, end, step);
+    const startTimestamp = start.getTime() / 1000;
+    const endTimestamp = end.getTime() / 1000;
+
+    const url = `http://localhost:9090/api/v1/query_range?query=${query}${add_labels_string}start=${startTimestamp}&end=${endTimestamp}&step=${step}s`;
+    const headers = { Authorization: "Bearer Ainae1Ahchiew6UhseeCh7el" };
+
+    return Promise.resolve(10);
+    // return fetch(url, { headers })
+    //   .then((response) => response.json())
+    //   .then((response) => response["data"]);
+  }
   const add_labels_string = add_labels
     ? Object.keys(add_labels).reduce(
         (acc, label) => `${acc} ${label}:"${add_labels[label]}"`,
@@ -39,6 +53,12 @@ const PrometheusGraph = ({
       plugins: [require("chartjs-plugin-datasource-prometheus")],
       options: {
         maintainAspectRatio: false,
+        fillGaps: true,
+        tension: 0,
+        fill: true,
+        animation: {
+          duration: 0,
+        },
         responsive: true,
         legend: {
           display: false,
@@ -69,10 +89,11 @@ const PrometheusGraph = ({
 
         plugins: {
           "datasource-prometheus": {
-            prometheus: {
-              endpoint: "http://localhost:9090",
-            },
-            query: `${query}${add_labels_string}`,
+            // prometheus: {
+            //   endpoint: "http://localhost:9090",
+            // },
+            //query: `${query}${add_labels_string}`,
+            query: customReq,
 
             timeRange: {
               type: "relative",
@@ -80,6 +101,7 @@ const PrometheusGraph = ({
               //negative is the past, positive is the future
               start: -minutesToMilliseconds(timeRange.timeRange[0]),
               end: -minutesToMilliseconds(timeRange.timeRange[1]),
+              msUpdateInterval: 5000,
             },
           },
         },

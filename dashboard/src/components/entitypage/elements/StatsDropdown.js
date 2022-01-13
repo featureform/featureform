@@ -39,6 +39,9 @@ const useStyles = makeStyles((theme) => ({
     justifyContent: "space-between",
     padding: theme.spacing(1),
   },
+  errorBar: {
+    width: "50%",
+  },
   summaryAddedDesc: {
     paddingLeft: theme.spacing(1),
   },
@@ -138,7 +141,13 @@ const StatsDropdown = ({ type, name }) => {
               <Typography variant="body1">
                 <b>Error Stats:</b>
               </Typography>
-              <Bar options={options} data={data} className={classes.barGraph} />
+              <div className={classes.errorBar}>
+                <Bar
+                  options={options}
+                  data={data}
+                  className={classes.barGraph}
+                />
+              </div>
             </Container>
           </div>
         </Grid>

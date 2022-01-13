@@ -1,13 +1,13 @@
 {
   "name": "fixed_acidity",
-  "type": "Feature",
+  "type": "Transformation",
   "default-version": "first-version",
   "all-versions": ["first-version", "normalized version"],
   "versions": {
     "first-version": {
       "metadata": {
         "version-name": "first-version",
-        "transformation source": "fixed_acidity",
+        "source": "Wine Data",
         "entity": "wine_id",
         "created": "2020-08-09T13:49:51.141Z",
         "owner": "Simba Khadder",
@@ -17,20 +17,15 @@
         "description": "Constant acidity of wine sample"
       },
       "data": {
-        "training-datasets": [
-          {
-            "name": "Wine Quality Dataset",
-            "description": "set of wine quality samples and quality ratings",
-            "tags": ["wine", "batch", "quality"],
-            "variant": ["default", "error-removed"]
-          }
+        "feature-sets": [
+          { "name": "Wine quality set", "created": "2020-08-10T13:49:51.141Z" }
         ]
       }
     },
     "normalized version": {
       "metadata": {
         "version-name": "normalized version",
-        "transformation source": "fixed_acidity",
+        "source": "Wine Data",
         "entity": "wine_id",
         "created": "2020-08-09T13:49:51.141Z",
         "owner": "Simba Khadder",
@@ -40,13 +35,8 @@
         "description": "Acidity updated with streaming data"
       },
       "data": {
-        "training-datasets": [
-          {
-            "name": "Wine Quality Dataset",
-            "description": "set of wine quality samples and quality ratings",
-            "tags": ["wine", "batch", "quality"],
-            "variant": ["default", "error-removed"]
-          }
+        "feature-sets": [
+          { "name": "Wine quality set", "created": "2020-08-10T13:49:51.141Z" }
         ]
       }
     }

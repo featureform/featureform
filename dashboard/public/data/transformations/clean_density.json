@@ -1,13 +1,13 @@
 {
   "name": "clean_density",
-  "type": "Feature",
+  "type": "Transformation",
   "default-version": "default version",
   "all-versions": ["default version", "null-lost version"],
   "versions": {
     "default version": {
       "metadata": {
         "version-name": "default version",
-        "transformation source": "clean_density",
+        "source": "Wine Data",
         "entity": "wine_id",
         "created": "2020-08-09T13:49:51.141Z",
         "owner": "Simba Khadder",
@@ -17,6 +17,18 @@
         "description": "density of clean part of sample"
       },
       "data": {
+        "columns": [
+          {
+            "name": "id",
+            "type": "entity"
+          },
+          { "name": "fixed_acidity", "type": "float" },
+          { "name": "clean_density", "type": "float" },
+          {
+            "name": "purchases",
+            "type": "integer"
+          }
+        ],
         "training-datasets": [
           {
             "name": "Wine Quality Dataset",
@@ -30,7 +42,7 @@
     "null-lost version": {
       "metadata": {
         "version-name": "null-lost version",
-        "transformation source": "clean_density",
+        "source": "Wine Data",
         "entity": "wine_id",
         "created": "2020-08-09T13:49:51.141Z",
         "owner": "Simba Khadder",
@@ -40,6 +52,18 @@
         "description": "null-lost corrected version"
       },
       "data": {
+        "columns": [
+          {
+            "name": "id",
+            "type": "entity"
+          },
+          { "name": "fixed_acidity", "type": "float" },
+          { "name": "clean_density", "type": "float" },
+          {
+            "name": "purchases",
+            "type": "integer"
+          }
+        ],
         "training-datasets": [
           {
             "name": "Wine Quality Dataset",

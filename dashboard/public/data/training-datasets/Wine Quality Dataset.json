@@ -1,61 +1,38 @@
 {
-  "name": "Wine random forest",
+  "name": "Wine Quality Dataset",
   "default-version": "first-version",
-  "type": "Model",
+  "type": "Training Dataset",
   "all-versions": ["first-version", "second-version"],
   "versions": {
     "first-version": {
       "metadata": {
         "version-name": "first-version",
-        "source": "Wine Data",
+        "source": "wine_data.csv",
+        "rows": 514,
         "created": "2020-08-09T13:49:51.141Z",
         "owner": "Simba Khadder",
         "visibility": "private",
         "revision": "2020-08-12T13:49:51.141Z",
-        "tags": ["wine", "model", "classifier"],
-        "description": "Model predicting quality of wine sample from given metrics"
+        "tags": ["wine", "SKU", "identifier"],
+        "description": "Dataset of wine sample observations and measured quality ratings of the wine samples"
       },
       "data": {
-        "training-datasets": [
+        "columns": [
           {
-            "name": "Wine Quality Dataset",
-            "description": "set of wine quality samples and quality ratings",
-            "tags": ["wine", "batch", "quality"],
-            "variant": "default"
+            "name": "id",
+            "type": "entity"
+          },
+          { "name": "fixed_acidity", "type": "float" },
+          { "name": "clean_density", "type": "float" },
+          {
+            "name": "purchases",
+            "type": "integer"
           }
         ],
-        "features": [
-          {
-            "name": "Non-free Sulfur Dioxide",
-            "description": "Non-free sulfur dioxide in sample",
-            "tags": ["wine", "batch", "sulfur"],
-            "variant": "default"
-          },
-          {
-            "name": "fixed_acidity",
-            "description": "fixed acidity of sample",
-            "tags": ["wine", "batch", "quality"],
-            "variant": "default"
-          },
-          {
-            "name": "clean_density",
-            "description": "clean density of sample",
-            "tags": ["wine", "batch", "quality"],
-            "variant": "default"
-          },
-          {
-            "name": "LogAvgPurchasePrice",
-            "description": "log of average purchase price of sample",
-            "tags": ["wine", "batch", "quality"],
-            "variant": "default"
-          }
-        ],
-        "label": [
+        "labels": [
           {
             "name": "Wine quality rating",
-            "description": "human curated wine quality rating from 0 to 10",
-            "tags": ["wine", "batch", "quality"],
-            "variant": "default"
+            "type": "integer"
           }
         ]
       }
@@ -88,7 +65,7 @@
         "labels": [
           {
             "name": "Wine quality rating",
-            "created": "2020-08-11T13:49:51.141Z"
+            "created": "2020-08-12T13:49:51.141Z"
           },
           { "name": "Wine spoiled", "created": "2020-08-12T13:49:51.141Z" }
         ]

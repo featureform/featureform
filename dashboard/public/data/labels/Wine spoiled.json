@@ -17,7 +17,7 @@
         "sampling": "all"
       },
       "data": {
-        "training sets": [
+        "training-datasets": [
           {
             "name": "Wine Quality Dataset",
             "description": "set of wine quality samples and quality ratings",
@@ -40,7 +40,7 @@
         "sampling": "all"
       },
       "data": {
-        "training sets": [
+        "training-datasets": [
           {
             "name": "Wine Quality Dataset",
             "description": "set of wine quality samples and quality ratings",

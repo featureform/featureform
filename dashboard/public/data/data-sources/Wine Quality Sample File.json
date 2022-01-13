@@ -13,7 +13,7 @@
         "description": "File containing measured wine sample data and human quality ratings."
       },
       "data": {
-        "training sets": [
+        "training-datasets": [
           {
             "name": "Wine Quality Dataset",
             "description": "set of wine quality samples and quality ratings",

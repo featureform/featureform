@@ -10,7 +10,7 @@
         "teams": ["Sample model team", "data orchestration"]
       },
       "data": {
-        "training sets": [
+        "training-datasets": [
           {
             "name": "Wine Quality Dataset",
             "description": "set of wine quality samples and quality ratings",
@@ -29,19 +29,19 @@
             "name": "fixed_acidity",
             "description": "fixed acidity of smaple",
             "tags": ["wine", "batch", "sulfur"],
-            "variant": ["default", "second"]
+            "variants": ["default", "second"]
           },
           {
             "name": "clean_density",
             "description": "Clean density of sample",
             "tags": ["wine", "batch", "sulfur"],
-            "variant": ["default", "second"]
+            "variants": ["default", "second"]
           },
           {
             "name": "LogAvgPurchasePrice",
             "description": "Average purchase price of sample",
             "tags": ["purchase", "commerce", "payment"],
-            "variant": ["default", "second"]
+            "variants": ["default", "second"]
           }
         ],
         "labels": [
@@ -55,7 +55,7 @@
             "name": "Wine spoiled",
             "description": "Whether or not wine is spoiled",
             "tags": ["wine", "batch", "sulfur"],
-            "variant": ["default", "second"]
+            "variants": ["default", "second"]
           }
         ],
         "models": [

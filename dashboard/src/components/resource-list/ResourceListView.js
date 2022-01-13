@@ -97,7 +97,34 @@ export const ResourceListView = ({
           />
         ),
       },
-      { title: "Revision", field: "revision" },
+      {
+        title: "Variants",
+        field: "versions",
+        render: (row) => (
+          <VersionSelector
+            name={row.name}
+            versions={rowVersions.find((v) => v.name === row.name)["versions"]}
+            activeVersions={myVersions}
+            setVersion={setVersion}
+          />
+        ),
+      },
+    ],
+    Feature: [
+      { title: "Name", field: "name" },
+      { title: "Description", field: "description" },
+      {
+        title: "Tags",
+        field: "tags",
+        render: (row) => (
+          <TagList
+            activeTags={activeTags}
+            tags={row.tags}
+            tagClass={classes.tag}
+            toggleTag={toggleTag}
+          />
+        ),
+      },
       {
         title: "Variants",
         field: "versions",
@@ -150,6 +177,25 @@ export const ResourceListView = ({
       { title: "Name", field: "name" },
       {
         title: "Teams",
+        field: "tags",
+        render: (row) => (
+          <TagList
+            activeTags={activeTags}
+            tags={row.tags}
+            tagClass={classes.tag}
+            toggleTag={toggleTag}
+          />
+        ),
+      },
+    ],
+    Entity: [
+      { title: "Name", field: "name" },
+      {
+        title: "Description",
+        field: "description",
+      },
+      {
+        title: "Tags",
         field: "tags",
         render: (row) => (
           <TagList

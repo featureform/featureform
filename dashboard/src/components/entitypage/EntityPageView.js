@@ -108,7 +108,7 @@ const useStyles = makeStyles((theme) => ({
   transformButton: {
     justifyContent: "left",
     padding: 0,
-    width: "100%",
+    width: "30%",
     textTransform: "none",
   },
   description: {},
@@ -137,6 +137,15 @@ const useStyles = makeStyles((theme) => ({
   tableBody: {
     border: `2px solid ${theme.palette.border.main}`,
     borderRadius: 16,
+  },
+  linkChip: {
+    width: "10%",
+    "& .MuiChip-label": {
+      paddingRight: theme.spacing(0),
+    },
+  },
+  linkBox: {
+    display: "flex",
   },
   tableHeader: {
     border: `2px solid ${theme.palette.border.main}`,
@@ -198,9 +207,7 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
     type === resourceTypes.FEATURE_SET ||
     type === resourceTypes.DATASET;
   const showStats =
-    type === resourceTypes.FEATURE ||
-    type === resourceTypes.FEATURE_SET ||
-    type === resourceTypes.ENTITY;
+    type === resourceTypes.FEATURE || type === resourceTypes.FEATURE_SET;
   const dataTabDisplacement = (1 ? showMetrics : 0) + (1 ? showStats : 0);
   const statsTabDisplacement = showMetrics ? 1 : 0;
   const name = resources["name"];
@@ -244,6 +251,10 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
 
   const linkToTransformSource = (event) => {
     history.push(`/transformations/${metadata["transformation source"]}`);
+  };
+
+  const linkToUserPage = (event) => {
+    history.push(`/users/${metadata["owner"]}`);
   };
 
   return true || (!resources.loading && !resources.failed && resources.data) ? (
@@ -294,23 +305,19 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                     <b>Description:</b> {metadata["description"]}
                   </Typography>
                 )}
-                {metadata["permissions"] && (
-                  <Typography variant="body1" className={classes.permissions}>
-                    <b>Permissions:</b> {metadata["permissions"]}
-                  </Typography>
-                )}
 
                 {metadata["owner"] && (
-                  <div className={classes.titleBox}>
-                    <Typography display="inline" variant="body1">
+                  <div className={classes.linkBox}>
+                    <Typography variant="body1">
                       <b>Owner:</b>
-                      {"  "}
                     </Typography>
-                    <Avatar
-                      alt={metadata["owner"]}
-                      src="/static/images/avatar/1.jpg"
-                      className={classes.small}
-                    />
+                    <Chip
+                      className={classes.linkChip}
+                      size="small"
+                      onClick={linkToUserPage}
+                      className={classes.transformButton}
+                      label={metadata["owner"]}
+                    ></Chip>
                   </div>
                 )}
 
@@ -345,25 +352,33 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                   </Typography>
                 )}
                 {metadata["transformation source"] && (
-                  <Button
-                    onClick={linkToTransformSource}
-                    className={classes.transformButton}
-                  >
+                  <div className={classes.linkBox}>
                     <Typography variant="body1">
-                      <b>Source:</b> {metadata["transformation source"]}
+                      <b>Transform Source:</b>
                     </Typography>
-                  </Button>
+                    <Chip
+                      className={classes.linkChip}
+                      size="small"
+                      onClick={linkToTransformSource}
+                      className={classes.transformButton}
+                      label={metadata["transformation source"]}
+                    ></Chip>
+                  </div>
                 )}
 
                 {metadata["entity"] && (
-                  <Button
-                    onClick={linkToEntityPage}
-                    className={classes.entityButton}
-                  >
+                  <div className={classes.linkBox}>
                     <Typography variant="body1">
-                      <b>Entities:</b> {metadata["entity"]}
+                      <b>Entity:</b>
                     </Typography>
-                  </Button>
+                    <Chip
+                      className={classes.linkChip}
+                      size="small"
+                      onClick={linkToEntityPage}
+                      className={classes.transformButton}
+                      label={metadata["entity"]}
+                    ></Chip>
+                  </div>
                 )}
               </Grid>
               <Grid item xs={2}></Grid>

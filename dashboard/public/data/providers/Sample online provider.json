@@ -19,25 +19,25 @@
             "name": "Non-free Sulfur Dioxide",
             "description": "Total non-free sulfur in sample",
             "tags": ["wine", "batch", "sulfur"],
-            "variant": "default"
+            "variants": ["default", "second"]
           },
           {
             "name": "fixed_acidity",
             "description": "fixed acidity of smaple",
             "tags": ["wine", "batch", "sulfur"],
-            "variant": "default"
+            "variants": ["default", "second"]
           },
           {
             "name": "clean_density",
             "description": "Clean density of sample",
             "tags": ["wine", "batch", "sulfur"],
-            "variant": "default"
+            "variants": ["default", "second"]
           },
           {
             "name": "LogAvgPurchasePrice",
             "description": "Average purchase price of sample",
             "tags": ["purchase", "commerce", "payment"],
-            "variant": "default"
+            "variants": ["default", "second"]
           }
         ]
       }

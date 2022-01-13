@@ -1,5 +1,5 @@
 {
-  "name": "fixed_acidity",
+  "name": "Wine quality red_val",
   "type": "Transformation",
   "default-version": "first-version",
   "all-versions": ["first-version", "normalized version"],

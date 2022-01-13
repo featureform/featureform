@@ -15,6 +15,28 @@ const minutesToMilliseconds = (minutes) => {
   return parseInt(minutes * 60 * 1000);
 };
 
+const sample_query_data = `{
+  "resultType" : "matrix",
+  "result" : [
+
+     {
+        "metric" : {
+           "__name__" : "up",
+           "job" : "node",
+           "instance" : "localhost:9091"
+        },
+        "values" : [
+          [ 1435781385.781, "0" ],
+          [ 1435781400.781, "0" ],
+          [ 1435781415.781, "0" ],
+           [ 1435781430.781, "0" ],
+           [ 1435781445.781, "0" ],
+           [ 1435781460.781, "0" ]
+        ]
+     }
+  ]
+}`;
+
 const PrometheusGraph = ({
   query,
   time,
@@ -32,13 +54,12 @@ const PrometheusGraph = ({
   const classes = useStyles();
 
   function customReq(start, end, step) {
-    console.log(start, end, step);
     const startTimestamp = start.getTime() / 1000;
     const endTimestamp = end.getTime() / 1000;
 
     const url = `http://localhost:9090/api/v1/query_range?query=${query}${add_labels_string}start=${startTimestamp}&end=${endTimestamp}&step=${step}s`;
 
-    return Promise.resolve(10);
+    return Promise.resolve(JSON.parse(sample_query_data));
   }
   const add_labels_string = add_labels
     ? Object.keys(add_labels).reduce(

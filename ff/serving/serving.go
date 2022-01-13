@@ -139,37 +139,45 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 }
 
 func (serv *FeatureServer) getFeatureValue(name, version string, entities map[string]string) (*pb.Value, error) {
+	obs := serv.Metrics.BeginObservingOnlineServe(name, version)
+	defer obs.Finish()
 	logger := serv.Logger.With("Name", name, "Version", version, "Entities", entities)
 	logger.Debug("Getting metadata")
 	entry, err := serv.Metadata.FeatureMetadata(name, version)
 	if err != nil {
 		logger.Errorw("Metadata lookup failed", "Err", err)
+		obs.SetError()
 		return nil, err
 	}
 	logger = logger.With("Entry", entry)
 	entity, has := entities[entry.Entity]
 	if !has {
 		logger.Errorw("Entity not found", "Entity Name", entry.Entity)
+		obs.SetError()
 		return nil, fmt.Errorf("Entity not found: %s", entry.Entity)
 	}
 
 	provider, has := serv.FeatureProviders[entry.StorageId]
 	if !has {
 		logger.Error("Provider not loaded on server")
+		obs.SetError()
 		return nil, fmt.Errorf("Unknown provider: %s", entry.StorageId)
 	}
 
 	lookup, err := provider.GetFeatureLookup(entry.Key)
 	if err != nil {
 		logger.Errorw("Failed to get feature lookup", "Error", err)
+		obs.SetError()
 		return nil, err
 	}
 
 	val, err := lookup.Get(entity)
 	if err != nil {
 		logger.Errorw("Entity not found", "Error", err)
+		obs.SetError()
 		return nil, err
 	}
+	obs.ServeRow()
 	return val.Serialized(), nil
 }
 

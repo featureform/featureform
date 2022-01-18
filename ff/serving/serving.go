@@ -186,18 +186,27 @@ func main() {
 	promMetrics := metrics.NewMetrics("test")
 	port := ":8080"
 	metrics_port := ":2112"
+	metadata_port := ":8181"
 	lis, err := net.Listen("tcp", port)
 	if err != nil {
 		logger.Panicw("Failed to listen on port", "Err", err)
 	}
+
 	grpcServer := grpc.NewServer()
 	serv, err := NewFeatureServer(promMetrics, logger)
 	if err != nil {
 		logger.Panicw("Failed to create training server", "Err", err)
 	}
+
 	pb.RegisterFeatureServer(grpcServer, serv)
 	logger.Infow("Serving metrics", "Port", metrics_port)
 	go promMetrics.ExposePort(metrics_port)
+	metadata_server, err := NewMetadataServer(logger, serv)
+	if err != nil {
+		logger.Panicw("Failed to create metadata server", "Err", err)
+	}
+	go metadata_server.ExposePort(metadata_port)
+	logger.Infow("Metadata Server Starting", "Port", metadata_port)
 	logger.Infow("Server starting", "Port", port)
 	serveErr := grpcServer.Serve(lis)
 	if serveErr != nil {

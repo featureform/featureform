@@ -1,12 +1,12 @@
 {
   "name": "User sample preferences",
-  "default-version": "first-version",
+  "default-variant": "first-variant",
   "type": "Space",
-  "all-versions": ["first-version", "normalized version"],
+  "all-versions": ["first-variant", "normalized variant"],
   "versions": {
-    "first-version": {
+    "first-variant": {
       "metadata": {
-        "version-name": "first-version",
+        "version-name": "first-variant",
         "dimensions": 3,
         "created": "2020-08-09-0290499",
         "owner": "Simba Khadder",
@@ -17,9 +17,9 @@
       },
       "data": {}
     },
-    "normalized version": {
+    "normalized variant": {
       "metadata": {
-        "version-name": "normalized version",
+        "version-name": "normalized variant",
         "dimensions": 3,
         "created": "2020-08-09-0290499",
         "owner": "Simba Khadder",

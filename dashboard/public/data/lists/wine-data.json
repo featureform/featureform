@@ -2,10 +2,10 @@
   "Training Dataset": [
     {
       "name": "Wine Quality Dataset",
-      "default-version": "default-version",
-      "all-versions": ["default-version"],
+      "default-variant": "default-variant",
+      "all-versions": ["default-variant"],
       "versions": {
-        "default-version": {
+        "default-variant": {
           "version-name": "default-verison",
           "tags": ["calculated", "wine", "chemical", "quality"],
           "description": "Wine quality training dataset",
@@ -17,11 +17,11 @@
   "Feature": [
     {
       "name": "Non-free Sulfur Dioxide",
-      "default-version": "first-version",
-      "all-versions": ["first-version", "streaming-version"],
+      "default-variant": "first-variant",
+      "all-versions": ["first-variant", "streaming-variant"],
       "versions": {
-        "first-version": {
-          "version-name": "first-version",
+        "first-variant": {
+          "version-name": "first-variant",
           "source": "Wine Data",
           "entity": "wine_id",
           "created": "2020-08-10T13:49:51.141Z",
@@ -38,8 +38,8 @@
             }
           ]
         },
-        "streaming-version": {
-          "version-name": "streaming-version",
+        "streaming-variant": {
+          "version-name": "streaming-variant",
           "source": "Wine Data",
           "entity": "wine_id",
           "created": "2020-08-10T13:49:51.141Z",
@@ -67,10 +67,10 @@
     },
     {
       "name": "fixed_acidity",
-      "default-version": "first-version",
-      "all-versions": ["first-version", "normalized version"],
+      "default-variant": "first-variant",
+      "all-versions": ["first-variant", "normalized variant"],
       "versions": {
-        "first-version": {
+        "first-variant": {
           "source": "Wine Data",
           "entity": "wine_id",
           "created": "2020-08-10T13:49:51.141Z",
@@ -87,7 +87,7 @@
             }
           ]
         },
-        "normalized version": {
+        "normalized variant": {
           "source": "Wine Data",
           "entity": "wine_id",
           "created": "2020-08-11",
@@ -108,10 +108,10 @@
     },
     {
       "name": "clean_density",
-      "default-version": "default version",
-      "all-versions": ["default version", "null-lost version"],
+      "default-variant": "default variant",
+      "all-versions": ["default variant", "null-lost variant"],
       "versions": {
-        "default version": {
+        "default variant": {
           "source": "Wine Data",
           "entity": "wine_id",
           "created": "2020-08-10T13:49:51.141Z",
@@ -128,7 +128,7 @@
             }
           ]
         },
-        "null-lost version": {
+        "null-lost variant": {
           "source": "Wine Data",
           "entity": "wine_id",
           "created": "2020-08-10T13:49:51.141Z",
@@ -149,10 +149,10 @@
     },
     {
       "name": "LogAvgPurchasePrice",
-      "default-version": "first-version",
-      "all-versions": ["first-version", "streaming-version"],
+      "default-variant": "first-variant",
+      "all-versions": ["first-variant", "streaming-variant"],
       "versions": {
-        "first-version": {
+        "first-variant": {
           "source": "Wine Data",
           "entity": "wine_id",
           "created": "2020-08-10T13:49:51.141Z",
@@ -169,7 +169,7 @@
             }
           ]
         },
-        "streaming-version": {
+        "streaming-variant": {
           "source": "Wine Data",
           "entity": "wine_id",
           "created": "2020-08-10T13:49:51.141Z",
@@ -193,11 +193,11 @@
   "Transformation": [
     {
       "name": "Non-free Sulfur Dioxide",
-      "default-version": "first version",
-      "all-versions": ["first version", "error-check version"],
+      "default-variant": "first variant",
+      "all-versions": ["first variant", "error-check variant"],
       "versions": {
-        "first version": {
-          "version-name": "first version",
+        "first variant": {
+          "version-name": "first variant",
           "source": "Wine Data",
           "entity": "wine_id",
           "created": "2020-08-10T13:49:51.141Z",
@@ -215,8 +215,8 @@
             }
           ]
         },
-        "error-check version": {
-          "version-name": "error-check version",
+        "error-check variant": {
+          "version-name": "error-check variant",
           "source": "Wine Data",
           "entity": "wine_id",
           "created": "2020-08-10T13:49:51.141Z",
@@ -239,11 +239,11 @@
     },
     {
       "name": "AvgPurchasePrice",
-      "default-version": "first version",
-      "all-versions": ["first version"],
+      "default-variant": "first variant",
+      "all-versions": ["first variant"],
       "versions": {
-        "first version": {
-          "version-name": "first version",
+        "first variant": {
+          "version-name": "first variant",
           "source": "Wine Data",
           "entity": "wine_id",
           "created": "2020-08-10T13:49:51.141Z",
@@ -268,14 +268,14 @@
   "Feature Set": [
     {
       "name": "Wine quality set",
-      "default-version": "first-version",
-      "all-versions": ["first-version", "streaming-version"],
+      "default-variant": "first-variant",
+      "all-versions": ["first-variant", "streaming-variant"],
       "versions": {
-        "first-version": {
+        "first-variant": {
           "description": "dataset holding information on wine quality"
         },
 
-        "streaming-version": {
+        "streaming-variant": {
           "description": "wine dataset from data pertinent to summer harvest"
         }
       }
@@ -284,10 +284,10 @@
   "Entity": [
     {
       "name": "wine_id",
-      "default-version": "default-version",
-      "all-versions": ["default-version"],
+      "default-variant": "default-variant",
+      "all-versions": ["default-variant"],
       "versions": {
-        "default-version": {
+        "default-variant": {
           "description": "dataset holding information on wine quality",
           "tags": ["wine", "quality", "data"]
         }
@@ -297,16 +297,16 @@
   "Label": [
     {
       "name": "Wine quality rating",
-      "default-version": "first-version",
-      "all-versions": ["first-version", "second-version"],
+      "default-variant": "first-variant",
+      "all-versions": ["first-variant", "second-variant"],
       "versions": {
-        "first-version": {
+        "first-variant": {
           "description": "Aggregate wine quality rating for a given sample",
           "tags": ["wine", "quality", "outcome", "rating"],
           "revision": "2020-08-12T13:49:51.141Z"
         },
 
-        "second-version": {
+        "second-variant": {
           "description": "rating weighted in higher favor of reviews given higher presidence",
           "tags": ["wine", "quality", "outcome", "rating"],
           "revision": "2020-08-12T13:49:51.141Z"
@@ -315,10 +315,10 @@
     },
     {
       "name": "Wine spoiled",
-      "default-version": "first-version",
-      "all-versions": ["first-version"],
+      "default-variant": "first-variant",
+      "all-versions": ["first-variant"],
       "versions": {
-        "first-version": {
+        "first-variant": {
           "description": "Wine was spoiled or not",
           "entity": "wine_id",
           "created": "2020-08-09-024",
@@ -331,15 +331,15 @@
   "Model": [
     {
       "name": "Wine random forest",
-      "default-version": "first-version",
-      "all-versions": ["first-version", "second-version"],
+      "default-variant": "first-variant",
+      "all-versions": ["first-variant", "second-variant"],
       "versions": {
-        "first-version": {
+        "first-variant": {
           "description": "Model classifying wine by spoilage and quality assesment",
           "tags": ["classifier", "quality", "prediction"],
           "revision": "2020-08-10T13:49:51.141Z"
         },
-        "second-version": {
+        "second-variant": {
           "description": "Model classifying wine by spoilage and quality assesment",
           "tags": ["classifier", "quality", "prediction"],
           "revision": "2020-08-10T13:49:51.141Z"
@@ -350,10 +350,10 @@
   "Data Source": [
     {
       "name": "Wine Quality Sample File",
-      "default-version": "default-version",
-      "all-versions": ["default-version"],
+      "default-variant": "default-variant",
+      "all-versions": ["default-variant"],
       "versions": {
-        "default-version": {
+        "default-variant": {
           "description": "Wine data collected from a sample of Napa Valley wines",
           "tags": ["wine", "csv", "sample"],
           "type": "CSV"
@@ -364,11 +364,11 @@
   "Space": [
     {
       "name": "User sample preferences",
-      "default-version": "first-version",
-      "all-versions": ["first-version", "normalized version"],
+      "default-variant": "first-variant",
+      "all-versions": ["first-variant", "normalized variant"],
       "versions": {
-        "first-version": {
-          "version-name": "first-version",
+        "first-variant": {
+          "version-name": "first-variant",
           "dimensions": 3,
           "created": "2020-08-10T13:49:51.141Z",
           "owner": "Simba Khadder",
@@ -377,8 +377,8 @@
           "tags": ["model2vec", "compressed"],
           "description": "Vector generated based on user preferences"
         },
-        "normalized version": {
-          "version-name": "normalized version",
+        "normalized variant": {
+          "version-name": "normalized variant",
           "dimensions": 3,
           "created": "2020-08-10T13:49:51.141Z",
           "owner": "Simba Khadder",
@@ -393,11 +393,11 @@
   "Provider": [
     {
       "name": "Sample batch provider",
-      "default-version": "default-version",
-      "all-versions": ["default-version"],
+      "default-variant": "default-variant",
+      "all-versions": ["default-variant"],
       "versions": {
-        "default-version": {
-          "version-name": "default-version",
+        "default-variant": {
+          "version-name": "default-variant",
           "created": "2020-08-10T13:49:51.141Z",
           "team": "Customer model team",
           "software": "BigQuery",
@@ -408,11 +408,11 @@
     },
     {
       "name": "Sample online provider",
-      "default-version": "default-version",
-      "all-versions": ["default-version"],
+      "default-variant": "default-variant",
+      "all-versions": ["default-variant"],
       "versions": {
-        "default-version": {
-          "version-name": "default-version",
+        "default-variant": {
+          "version-name": "default-variant",
           "created": "2020-08-10T13:49:51.141Z",
           "team": "Customer model team",
           "software": "Redis",
@@ -423,11 +423,11 @@
     },
     {
       "name": "Sample processor provider",
-      "default-version": "default-version",
-      "all-versions": ["default-version"],
+      "default-variant": "default-variant",
+      "all-versions": ["default-variant"],
       "versions": {
-        "default-version": {
-          "version-name": "default-version",
+        "default-variant": {
+          "version-name": "default-variant",
           "created": "2020-08-10T13:49:51.141Z",
           "team": "Customer model team",
           "software": "Apache Spark",
@@ -440,30 +440,30 @@
   "User": [
     {
       "name": "Simba Khadder",
-      "default-version": "default-version",
-      "all-versions": ["default-version"],
+      "default-variant": "default-variant",
+      "all-versions": ["default-variant"],
       "versions": {
-        "default-version": {
+        "default-variant": {
           "tags": ["Sample model team", "data orchestration"]
         }
       }
     },
     {
       "name": "Shabnam Mohktarani",
-      "default-version": "default-version",
-      "all-versions": ["default-version"],
+      "default-variant": "default-variant",
+      "all-versions": ["default-variant"],
       "versions": {
-        "default-version": {
+        "default-variant": {
           "tags": ["Sample model team", "data orchestration"]
         }
       }
     },
     {
       "name": "Sam Inloes",
-      "default-version": "default-version",
-      "all-versions": ["default-version"],
+      "default-variant": "default-variant",
+      "all-versions": ["default-variant"],
       "versions": {
-        "default-version": {
+        "default-variant": {
           "tags": ["Sample model team", "data orchestration"]
         }
       }

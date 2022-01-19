@@ -53,7 +53,7 @@ describe("ResourceListView", () => {
         resources={[
           {
             name: "abc",
-            versions: { "first-version": {}, "second-version": {} },
+            versions: { "first-variant": {}, "second-variant": {} },
           },
         ]}
       />
@@ -67,7 +67,7 @@ describe("ResourceListView", () => {
     const immutData = produce([], (draft) => {
       draft.push({
         name: "abc",
-        versions: { "first-version": {}, "second-version": {} },
+        versions: { "first-variant": {}, "second-variant": {} },
       });
     });
     const list = shallow(

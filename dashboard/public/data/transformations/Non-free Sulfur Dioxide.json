@@ -1,12 +1,12 @@
 {
   "name": "Non-free Sulfur Dioxide",
   "type": "Transformation",
-  "default-version": "first version",
-  "all-versions": ["first version", "error-check version"],
+  "default-variant": "first variant",
+  "all-versions": ["first variant", "error-check variant"],
   "versions": {
-    "first version": {
+    "first variant": {
       "metadata": {
-        "version-name": "first version",
+        "version-name": "first variant",
         "entity": "wine_id",
         "created": "2020-08-09T13:49:51.141Z",
         "owner": "Simba Khadder",
@@ -50,9 +50,9 @@
         ]
       }
     },
-    "error-check version": {
+    "error-check variant": {
       "metadata": {
-        "version-name": "error-check version",
+        "version-name": "error-check variant",
         "entity": "wine_id",
         "created": "2020-08-09T13:49:51.141Z",
         "owner": "Simba Khadder",

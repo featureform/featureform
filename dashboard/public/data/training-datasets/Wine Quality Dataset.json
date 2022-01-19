@@ -1,12 +1,12 @@
 {
   "name": "Wine Quality Dataset",
-  "default-version": "default-version",
+  "default-variant": "default-variant",
   "type": "Training Dataset",
-  "all-versions": ["default-version"],
+  "all-versions": ["default-variant"],
   "versions": {
-    "default-version": {
+    "default-variant": {
       "metadata": {
-        "version-name": "first-version",
+        "version-name": "first-variant",
         "rows": 514,
         "owner": "Simba Khadder",
         "visibility": "private",

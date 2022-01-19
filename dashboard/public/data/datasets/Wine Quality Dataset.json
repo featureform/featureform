@@ -1,12 +1,12 @@
 {
   "name": "Wine Quality Dataset",
-  "default-version": "first-version",
+  "default-variant": "first-variant",
   "type": "Dataset",
-  "all-versions": ["first-version", "second-version"],
+  "all-versions": ["first-variant", "second-variant"],
   "versions": {
-    "first-version": {
+    "first-variant": {
       "metadata": {
-        "version-name": "first-version",
+        "version-name": "first-variant",
         "source": "wine_data.csv",
         "rows": 514,
         "created": "2020-08-09T13:49:51.141Z",
@@ -38,9 +38,9 @@
         ]
       }
     },
-    "second-version": {
+    "second-variant": {
       "metadata": {
-        "version-name": "first-version",
+        "version-name": "first-variant",
         "source": "Wine Data",
         "entity": "wine_id",
         "created": "2020-08-09T13:49:51.141Z",

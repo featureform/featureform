@@ -8,6 +8,8 @@ import MenuItem from "@material-ui/core/MenuItem";
 import FormControl from "@material-ui/core/FormControl";
 import Select from "@material-ui/core/Select";
 import theme from "styles/theme";
+import CircleOutlinedIcon from "@mui/icons-material/CircleOutlined";
+import Rating from "@mui/material/Rating";
 import MaterialTable, {
   MTableBody,
   MTableHeader,
@@ -38,6 +40,9 @@ const useStyles = makeStyles(() => ({
     borderRadius: 16,
     background: "rgba(255, 255, 255, 1)",
     border: `2px solid ${theme.palette.border.main}`,
+  },
+  usageIcon: {
+    color: "red",
   },
   detailPanel: {
     padding: theme.spacing(4),
@@ -86,6 +91,27 @@ export const ResourceListView = ({
       { title: "Name", field: "name" },
       { title: "Description", field: "description" },
       {
+        title: "Usage",
+        field: "usage",
+        render: (row) => <UsageTab />,
+      },
+      {
+        title: "Variants",
+        field: "versions",
+        render: (row) => (
+          <VersionSelector
+            name={row.name}
+            versions={rowVersions.find((v) => v.name === row.name)["versions"]}
+            activeVersions={myVersions}
+            setVersion={setVersion}
+          />
+        ),
+      },
+    ],
+    default_tags: [
+      { title: "Name", field: "name" },
+      { title: "Description", field: "description" },
+      {
         title: "Tags",
         field: "tags",
         render: (row) => (
@@ -114,16 +140,9 @@ export const ResourceListView = ({
       { title: "Name", field: "name" },
       { title: "Description", field: "description" },
       {
-        title: "Tags",
-        field: "tags",
-        render: (row) => (
-          <TagList
-            activeTags={activeTags}
-            tags={row.tags}
-            tagClass={classes.tag}
-            toggleTag={toggleTag}
-          />
-        ),
+        title: "Usage",
+        field: "usage",
+        render: (row) => <UsageTab />,
       },
       {
         title: "Variants",
@@ -143,6 +162,11 @@ export const ResourceListView = ({
       { title: "Description", field: "description" },
       { title: "Type", field: "type" },
       {
+        title: "Usage",
+        field: "usage",
+        render: (row) => <UsageTab />,
+      },
+      {
         title: "Software",
         field: "software",
         render: (row) => (
@@ -160,21 +184,19 @@ export const ResourceListView = ({
       { title: "Name", field: "name" },
       { title: "Description", field: "description" },
       {
-        title: "Tags",
-        field: "tags",
-        render: (row) => (
-          <TagList
-            activeTags={activeTags}
-            tags={row.tags}
-            tagClass={classes.tag}
-            toggleTag={toggleTag}
-          />
-        ),
+        title: "Usage",
+        field: "usage",
+        render: (row) => <UsageTab />,
       },
       { title: "Type", field: "type" },
     ],
     User: [
       { title: "Name", field: "name" },
+      {
+        title: "Usage",
+        field: "usage",
+        render: (row) => <UsageTab />,
+      },
       {
         title: "Teams",
         field: "tags",
@@ -193,18 +215,6 @@ export const ResourceListView = ({
       {
         title: "Description",
         field: "description",
-      },
-      {
-        title: "Tags",
-        field: "tags",
-        render: (row) => (
-          <TagList
-            activeTags={activeTags}
-            tags={row.tags}
-            tagClass={classes.tag}
-            toggleTag={toggleTag}
-          />
-        ),
       },
     ],
     Transformation: [
@@ -249,7 +259,7 @@ export const ResourceListView = ({
 
   mutableRes.forEach((o) => {
     if (!activeVersions[o.name]) {
-      myVersions[o.name] = o["default-version"];
+      myVersions[o.name] = o["default-variant"];
     } else {
       myVersions[o.name] = activeVersions[o.name];
     }
@@ -427,6 +437,47 @@ export const VersionSelector = ({
     </Select>
   </FormControl>
 );
+
+const customIcons = {
+  1: {
+    icon: <CircleOutlinedIcon />,
+    label: "Unused",
+  },
+  2: {
+    icon: <CircleOutlinedIcon />,
+    label: "Dissatisfied",
+  },
+  3: {
+    icon: <CircleOutlinedIcon />,
+    label: "Neutral",
+  },
+  4: {
+    icon: <CircleOutlinedIcon />,
+    label: "Satisfied",
+  },
+  5: {
+    icon: <CircleOutlinedIcon />,
+    label: "Frequently used",
+  },
+};
+function IconContainer(props) {
+  const { value, ...other } = props;
+  return <span {...other}>{customIcons[value].icon}</span>;
+}
+
+export const UsageTab = ({ usage, children }) => {
+  const classes = useStyles();
+
+  return (
+    <Rating
+      className={classes.usageIcon}
+      name="read-only"
+      value={2}
+      IconContainerComponent={IconContainer}
+      readOnly
+    />
+  );
+};
 
 ResourceListView.propTypes = {
   title: PropTypes.string.isRequired,

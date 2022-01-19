@@ -1,10 +1,10 @@
 {
   "name": "Simba Khadder",
   "type": "User",
-  "default-version": "default-version",
-  "all-versions": ["default-version"],
+  "default-variant": "default-variant",
+  "all-versions": ["default-variant"],
   "versions": {
-    "default-version": {
+    "default-variant": {
       "metadata": {
         "joined": "2020-08-09T13:49:51.141Z",
         "teams": ["Sample model team", "data orchestration"]

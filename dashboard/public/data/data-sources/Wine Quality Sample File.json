@@ -1,12 +1,12 @@
 {
   "name": "Wine Quality Sample File",
-  "default-version": "default-version",
+  "default-variant": "default-variant",
   "type": "Data Source",
-  "all-versions": ["default-version"],
+  "all-versions": ["default-variant"],
   "versions": {
-    "default-version": {
+    "default-variant": {
       "metadata": {
-        "version-name": "default-version",
+        "version-name": "default-variant",
         "created": "2020-08-10T13:49:51.141Z",
         "path": "/capital_one/home/examples/wine_data/wine_sample_sets",
         "type": "CSV",

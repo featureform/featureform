@@ -39,11 +39,11 @@ export const resourcePaths = Object.freeze({
 export const testData = [
   {
     name: "User sample preferences",
-    "default-version": "first-version",
-    "all-versions": ["first-version", "normalized version"],
+    "default-variant": "first-variant",
+    "all-versions": ["first-variant", "normalized variant"],
     versions: {
-      "first-version": {
-        "version-name": "first-version",
+      "first-variant": {
+        "version-name": "first-variant",
         dimensions: 3,
         created: "2020-08-09-0290499",
         owner: "Simba Khadder",
@@ -52,8 +52,8 @@ export const testData = [
         tags: ["model2vec", "compressed"],
         description: "Vector generated based on user preferences",
       },
-      "normalized version": {
-        "version-name": "normalized version",
+      "normalized variant": {
+        "version-name": "normalized variant",
         dimensions: 3,
         created: "2020-08-09-0290499",
         owner: "Simba Khadder",

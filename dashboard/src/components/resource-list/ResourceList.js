@@ -31,7 +31,7 @@ export const makeSelectFilteredResources = (type) => {
       return resources.filter((resource) => {
         let activeVersionName = versions[resource.name]
           ? versions[resource.name]
-          : resource["default-version"];
+          : resource["default-variant"];
         let activeResource = resource.versions[activeVersionName];
         const resTags = activeResource.tags || [];
         const numFound = resTags.filter((itemTag) => itemTag in tags).length;

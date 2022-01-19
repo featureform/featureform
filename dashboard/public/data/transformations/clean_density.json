@@ -1,12 +1,12 @@
 {
   "name": "clean_density",
   "type": "Transformation",
-  "default-version": "default version",
-  "all-versions": ["default version", "null-lost version"],
+  "default-variant": "default variant",
+  "all-versions": ["default variant", "null-lost variant"],
   "versions": {
-    "default version": {
+    "default variant": {
       "metadata": {
-        "version-name": "default version",
+        "version-name": "default variant",
         "entity": "wine_id",
         "created": "2020-08-09T13:49:51.141Z",
         "owner": "Simba Khadder",
@@ -40,9 +40,9 @@
         ]
       }
     },
-    "null-lost version": {
+    "null-lost variant": {
       "metadata": {
-        "version-name": "null-lost version",
+        "version-name": "null-lost variant",
         "entity": "wine_id",
         "created": "2020-08-09T13:49:51.141Z",
         "owner": "Simba Khadder",

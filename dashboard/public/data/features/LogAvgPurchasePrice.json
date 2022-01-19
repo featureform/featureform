@@ -1,12 +1,12 @@
 {
   "name": "LogAvgPurchasePrice",
   "type": "Feature",
-  "default-version": "first-version",
-  "all-versions": ["first-version", "streaming-version"],
+  "default-variant": "first-variant",
+  "all-versions": ["first-variant", "streaming-variant"],
   "versions": {
-    "first-version": {
+    "first-variant": {
       "metadata": {
-        "version-name": "first-version",
+        "version-name": "first-variant",
         "transformation source": "AvgPurchasePrice",
         "entity": "wine_id",
         "created": "2020-08-09T13:49:51.141Z",
@@ -27,9 +27,9 @@
         ]
       }
     },
-    "streaming-version": {
+    "streaming-variant": {
       "metadata": {
-        "version-name": "streaming-version",
+        "version-name": "streaming-variant",
         "transformation source": "AvgPurchasePrice",
         "entity": "wine_id",
         "created": "2020-08-09T13:49:51.141Z",

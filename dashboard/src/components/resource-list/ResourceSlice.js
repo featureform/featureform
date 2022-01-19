@@ -16,8 +16,8 @@ const hasRequiredObjects = (resources) => {
   resources.forEach((resource) => {
     af &= assertAndCheck("name" in resource, "Resource has no name element");
     af &= assertAndCheck(
-      "default-version" in resource,
-      "Resource has no default version"
+      "default-variant" in resource,
+      "Resource has no default variant"
     );
     af &= assertAndCheck(
       "all-versions" in resource,
@@ -34,8 +34,8 @@ const hasRequiredObjects = (resources) => {
       );
     });
     af &= assertAndCheck(
-      Object.keys(resource["versions"]).includes(resource["default-version"]),
-      "Default version not included in resource"
+      Object.keys(resource["versions"]).includes(resource["default-variant"]),
+      "default variant not included in resource"
     );
     Object.keys(resource["versions"]).forEach((key) => {
       af &= assertAndCheck(

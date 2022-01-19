@@ -215,13 +215,14 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
   const statsTabDisplacement = showMetrics ? 1 : 0;
   const name = resources["name"];
   const icon = resourceIcons[type];
+  const enableTags = false;
 
-  let version = resources["default-version"];
+  let version = resources["default-variant"];
 
   if (activeVersions[type][name]) {
     version = activeVersions[type][name];
   } else {
-    setVersion(type, name, resources["default-version"]);
+    setVersion(type, name, resources["default-variant"]);
   }
 
   let resource = resources.versions[version];
@@ -385,9 +386,11 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                 )}
               </Grid>
               <Grid item xs={2}></Grid>
-              <Grid item xs={3}>
-                {metadata["tags"] && <TagBox tags={metadata["tags"]} />}
-              </Grid>
+              {enableTags && (
+                <Grid item xs={3}>
+                  {metadata["tags"] && <TagBox tags={metadata["tags"]} />}
+                </Grid>
+              )}
             </Grid>
           </div>
           {metadata["config"] && (

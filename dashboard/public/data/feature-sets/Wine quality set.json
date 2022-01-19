@@ -1,12 +1,12 @@
 {
   "name": "Wine quality set",
   "type": "Feature Set",
-  "default-version": "first-version",
-  "all-versions": ["first-version", "streaming-version"],
+  "default-variant": "first-variant",
+  "all-versions": ["first-variant", "streaming-variant"],
   "versions": {
-    "first-version": {
+    "first-variant": {
       "metadata": {
-        "version-name": "first-version",
+        "version-name": "first-variant",
         "source": "Wine Data",
         "created": "2020-08-09T13:49:51.141Z",
         "owner": "Simba Khadder",
@@ -24,7 +24,7 @@
           },
           {
             "name": "fixed_acidity",
-            "version": "first-version",
+            "version": "first-variant",
             "created": "2020-08-10T13:49:51.141Z"
           },
           {
@@ -49,9 +49,9 @@
         ]
       }
     },
-    "streaming-version": {
+    "streaming-variant": {
       "metadata": {
-        "version-name": "streaming-version",
+        "version-name": "streaming-variant",
         "source": "Wine Data",
         "created": "2020-08-09T13:49:51.141Z",
         "owner": "Simba Khadder",
@@ -69,7 +69,7 @@
           },
           {
             "name": "fixed_acidity",
-            "version": "first-version",
+            "version": "first-variant",
             "created": "2020-08-10T13:49:51.141Z"
           },
           {

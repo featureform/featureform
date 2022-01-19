@@ -438,31 +438,13 @@ export const VersionSelector = ({
   </FormControl>
 );
 
-const customIcons = {
-  1: {
-    icon: <CircleOutlinedIcon />,
-    label: "Unused",
-  },
-  2: {
-    icon: <CircleOutlinedIcon />,
-    label: "Dissatisfied",
-  },
-  3: {
-    icon: <CircleOutlinedIcon />,
-    label: "Neutral",
-  },
-  4: {
-    icon: <CircleOutlinedIcon />,
-    label: "Satisfied",
-  },
-  5: {
-    icon: <CircleOutlinedIcon />,
-    label: "Frequently used",
-  },
-};
 function IconContainer(props) {
   const { value, ...other } = props;
-  return <span {...other}>{customIcons[value].icon}</span>;
+  return (
+    <span {...other}>
+      <CircleOutlinedIcon />
+    </span>
+  );
 }
 
 export const UsageTab = ({ usage, children }) => {

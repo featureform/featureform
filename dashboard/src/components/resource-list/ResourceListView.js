@@ -474,7 +474,7 @@ export const VersionTable = ({
           },
           rowStyle: {
             opacity: 1,
-            borderRadius: 16,
+            borderRadius: 15,
           },
         }}
       />

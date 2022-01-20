@@ -8,7 +8,7 @@ const TilePanel = ({ sections }) => {
       <Grid container justifyContent="center" lg={12}>
         {sections.map((section, i) => {
           return (
-            <Grid item xs={4} lg={4} key={`tile-grid-${i}`}>
+            <Grid item xs={6} lg={4} key={`tile-grid-${i}`}>
               <Tile detail={section} key={`tile-${i}`} id={i} />
             </Grid>
           );

@@ -37,6 +37,7 @@ const useStyles = makeStyles((theme) => ({
     justifyContent: "space-around",
     display: "flex",
     margin: "auto",
+    width: "1px",
   },
   chipbox: {
     padding: theme.spacing(0),

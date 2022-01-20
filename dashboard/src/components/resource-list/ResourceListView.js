@@ -96,15 +96,12 @@ export const ResourceListView = ({
         render: (row) => <UsageTab />,
       },
       {
-        title: "Variants",
+        title: "Default Variant",
         field: "versions",
         render: (row) => (
-          <VersionSelector
-            name={row.name}
-            versions={rowVersions.find((v) => v.name === row.name)["versions"]}
-            activeVersions={myVersions}
-            setVersion={setVersion}
-          />
+          <Typography variant="body1">
+            {rowVersions.find((v) => v.name === row.name)["default-variant"]}
+          </Typography>
         ),
       },
     ],
@@ -124,7 +121,7 @@ export const ResourceListView = ({
         ),
       },
       {
-        title: "Variants",
+        title: "Default Variant",
         field: "versions",
         render: (row) => (
           <VersionSelector
@@ -145,15 +142,12 @@ export const ResourceListView = ({
         render: (row) => <UsageTab />,
       },
       {
-        title: "Variants",
+        title: "Default Variant",
         field: "versions",
         render: (row) => (
-          <VersionSelector
-            name={row.name}
-            versions={rowVersions.find((v) => v.name === row.name)["versions"]}
-            activeVersions={myVersions}
-            setVersion={setVersion}
-          />
+          <Typography variant="body1">
+            {rowVersions.find((v) => v.name === row.name)["default-variant"]}
+          </Typography>
         ),
       },
     ],
@@ -197,18 +191,6 @@ export const ResourceListView = ({
         field: "usage",
         render: (row) => <UsageTab />,
       },
-      {
-        title: "Teams",
-        field: "tags",
-        render: (row) => (
-          <TagList
-            activeTags={activeTags}
-            tags={row.tags}
-            tagClass={classes.tag}
-            toggleTag={toggleTag}
-          />
-        ),
-      },
     ],
     Entity: [
       { title: "Name", field: "name" },
@@ -233,15 +215,12 @@ export const ResourceListView = ({
         ),
       },
       {
-        title: "Variants",
+        title: "Default Variant",
         field: "versions",
         render: (row) => (
-          <VersionSelector
-            name={row.name}
-            versions={rowVersions.find((v) => v.name === row.name)["versions"]}
-            activeVersions={myVersions}
-            setVersion={setVersion}
-          />
+          <Typography variant="body1">
+            {rowVersions.find((v) => v.name === row.name)["default-variant"]}
+          </Typography>
         ),
       },
     ],
@@ -281,6 +260,7 @@ export const ResourceListView = ({
 
   let rowVersions = mutableRes.map((row) => ({
     name: row["name"],
+    "default-variant": row["default-variant"],
     versions: row["all-versions"],
   }));
 
@@ -336,6 +316,18 @@ export const ResourceListView = ({
   return (
     <div>
       <MaterialTable
+        detailPanel={(row) => {
+          return (
+            <VersionTable
+              name={row.name}
+              versions={
+                rowVersions.find((v) => v.name === row.name)["versions"]
+              }
+              activeVersions={myVersions}
+              setVersion={setVersion}
+            />
+          );
+        }}
         className={classes.table}
         title={
           <Typography variant="h4">
@@ -417,26 +409,78 @@ export const VersionSelector = ({
   activeVersions = {},
   setVersion,
   children,
-}) => (
-  <FormControl>
-    <Select
-      value={activeVersions[name] || versions[0]}
-      onChange={(event) => setVersion(name, event.target.value)}
-    >
-      {versions.map((version) => (
-        <MenuItem
-          key={version}
-          value={version}
-          onClick={(event) => {
-            event.stopPropagation();
-          }}
-        >
-          {version}
-        </MenuItem>
-      ))}
-    </Select>
-  </FormControl>
-);
+}) => {
+  console.log(versions);
+  return (
+    <FormControl>
+      <Select
+        value={activeVersions[name] || versions[0]}
+        onChange={(event) => setVersion(name, event.target.value)}
+      >
+        {versions.map((version) => (
+          <MenuItem
+            key={version}
+            value={version}
+            onClick={(event) => {
+              event.stopPropagation();
+            }}
+          >
+            {version}
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
+  );
+};
+
+export const VersionTable = ({
+  name,
+  versions = [""],
+  activeVersions = {},
+  setVersion,
+  children,
+}) => {
+  const classes = useStyles();
+  let history = useHistory();
+  function versionChangeRedirect(e, data) {
+    console.log(data);
+    setVersion(name, data.variant);
+    history.push(history.location.pathname + "/" + name);
+  }
+  let myVariants = [];
+  versions.forEach((version) => {
+    myVariants.push({ variant: version });
+  });
+  console.log(myVariants);
+  return (
+    <div>
+      <MaterialTable
+        className={classes.table}
+        title={
+          <Typography variant="h6">
+            <b></b>
+          </Typography>
+        }
+        onRowClick={versionChangeRedirect}
+        columns={[{ title: "Variants", field: "variant" }]}
+        data={myVariants}
+        options={{
+          search: true,
+          draggable: false,
+          headerStyle: {
+            backgroundColor: "white",
+            color: theme.palette.primary.main,
+            marginLeft: 3,
+          },
+          rowStyle: {
+            opacity: 1,
+            borderRadius: 16,
+          },
+        }}
+      />
+    </div>
+  );
+};
 
 function IconContainer(props) {
   const { value, ...other } = props;

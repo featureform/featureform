@@ -209,8 +209,7 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
     type === resourceTypes.FEATURE ||
     type === resourceTypes.FEATURE_SET ||
     type === resourceTypes.DATASET;
-  const showStats =
-    type === resourceTypes.FEATURE || type === resourceTypes.FEATURE_SET;
+  const showStats = false;
   const dataTabDisplacement = (1 ? showMetrics : 0) + (1 ? showStats : 0);
   const statsTabDisplacement = showMetrics ? 1 : 0;
   const name = resources["name"];

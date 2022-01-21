@@ -8,9 +8,10 @@ RUN go mod download
 
 COPY *.go ./
 
-RUN go build -o /metrics_service_example
+RUN go build -o /metadata_service_example
 
 EXPOSE 2112
 EXPOSE 8080
+EXPOSE 8181
 
-CMD [ "/metrics_service_example" ]
+CMD [ "/metadata_service_example" ]

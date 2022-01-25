@@ -7,6 +7,7 @@
     "first-variant": {
       "metadata": {
         "version-name": "first-variant",
+        "data source": "Wine Quality Sample File",
         "transformation source": "AvgPurchasePrice",
         "entity": "wine_id",
         "created": "2020-08-09T13:49:51.141Z",
@@ -30,6 +31,7 @@
     "streaming-variant": {
       "metadata": {
         "version-name": "streaming-variant",
+        "data source": "Wine Quality Sample File",
         "transformation source": "AvgPurchasePrice",
         "entity": "wine_id",
         "created": "2020-08-09T13:49:51.141Z",

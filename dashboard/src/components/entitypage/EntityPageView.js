@@ -256,6 +256,10 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
     history.push(`/transformations/${metadata["transformation source"]}`);
   };
 
+  const linkToDataSource = (event) => {
+    history.push(`/data-sources/${metadata["data source"]}`);
+  };
+
   const linkToUserPage = (event) => {
     history.push(`/users/${metadata["owner"]}`);
   };
@@ -354,17 +358,18 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                     <b>Source:</b> {metadata["source"]}
                   </Typography>
                 )}
-                {metadata["transformation source"] && (
+
+                {metadata["data source"] && (
                   <div className={classes.linkBox}>
                     <Typography variant="body1" className={classes.typeTitle}>
-                      <b>Transform Source: </b>{" "}
+                      <b>Data Source: </b>{" "}
                     </Typography>
                     <Chip
                       className={classes.linkChip}
                       size="small"
-                      onClick={linkToTransformSource}
+                      onClick={linkToDataSource}
                       className={classes.transformButton}
-                      label={metadata["transformation source"]}
+                      label={metadata["data source"]}
                     ></Chip>
                   </div>
                 )}

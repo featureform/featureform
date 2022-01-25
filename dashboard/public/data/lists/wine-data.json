@@ -23,6 +23,7 @@
         "first-variant": {
           "version-name": "first-variant",
           "source": "Wine Data",
+          "type": "float",
           "entity": "wine_id",
           "created": "2020-08-10T13:49:51.141Z",
           "owner": "Simba Khadder",
@@ -42,6 +43,7 @@
           "version-name": "streaming-variant",
           "source": "Wine Data",
           "entity": "wine_id",
+          "type": "float",
           "created": "2020-08-10T13:49:51.141Z",
           "owner": "Simba Khadder",
           "visibility": "private",
@@ -73,6 +75,7 @@
         "first-variant": {
           "source": "Wine Data",
           "entity": "wine_id",
+          "type": "float",
           "created": "2020-08-10T13:49:51.141Z",
           "owner": "Simba Khadder",
           "visibility": "private",
@@ -91,6 +94,7 @@
           "source": "Wine Data",
           "entity": "wine_id",
           "created": "2020-08-11",
+          "type": "float",
           "owner": "Simba Khadder",
           "visibility": "private",
           "revision": "2020-08-12-39402409",
@@ -114,6 +118,7 @@
         "default variant": {
           "source": "Wine Data",
           "entity": "wine_id",
+          "type": "float",
           "created": "2020-08-10T13:49:51.141Z",
           "owner": "Simba Khadder",
           "visibility": "private",
@@ -134,6 +139,7 @@
           "created": "2020-08-10T13:49:51.141Z",
           "owner": "Simba Khadder",
           "visibility": "private",
+          "type": "float",
           "revision": "2020-08-10T13:49:51.141Z",
           "description": "clean part of density",
           "tags": ["wine", "weight", "quality"],
@@ -155,6 +161,7 @@
         "first-variant": {
           "source": "Wine Data",
           "entity": "wine_id",
+          "type": "float",
           "created": "2020-08-10T13:49:51.141Z",
           "owner": "Simba Khadder",
           "visibility": "private",
@@ -174,6 +181,7 @@
           "entity": "wine_id",
           "created": "2020-08-10T13:49:51.141Z",
           "owner": "Simba Khadder",
+          "type": "float",
           "visibility": "private",
           "revision": "2020-08-10T13:49:51.141Z",
           "description": "average purchase price",

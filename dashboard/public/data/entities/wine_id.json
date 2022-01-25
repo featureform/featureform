@@ -12,14 +12,6 @@
         "description": "Unique ID specifying the wine sample"
       },
       "data": {
-        "training-datasets": [
-          {
-            "name": "Wine Quality Dataset",
-            "description": "set of wine quality samples and quality ratings",
-            "tags": ["wine", "batch", "quality"],
-            "variants": ["default", "second"]
-          }
-        ],
         "features": [
           {
             "name": "Non-free Sulfur Dioxide",
@@ -46,6 +38,15 @@
             "variants": ["default", "second"]
           }
         ],
+        "training-datasets": [
+          {
+            "name": "Wine Quality Dataset",
+            "description": "set of wine quality samples and quality ratings",
+            "tags": ["wine", "batch", "quality"],
+            "variants": ["default", "second"]
+          }
+        ],
+
         "labels": [
           {
             "name": "Wine quality rating",

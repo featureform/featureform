@@ -8,6 +8,7 @@
       "metadata": {
         "version-name": "first-variant",
         "transformation source": "fixed_acidity",
+        "data source": "Wine Quality Sample File",
         "entity": "wine_id",
         "created": "2020-08-09T13:49:51.141Z",
         "owner": "Simba Khadder",
@@ -32,6 +33,7 @@
         "version-name": "normalized variant",
         "transformation source": "fixed_acidity",
         "entity": "wine_id",
+        "data source": "Wine Quality Sample File",
         "created": "2020-08-09T13:49:51.141Z",
         "owner": "Simba Khadder",
         "visibility": "private",

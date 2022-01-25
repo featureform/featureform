@@ -415,7 +415,6 @@ export const VersionSelector = ({
   setVersion,
   children,
 }) => {
-  console.log(versions);
   return (
     <FormControl>
       <Select

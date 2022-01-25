@@ -2,6 +2,7 @@ import grpc
 import numpy as np
 import proto.serving_pb2
 import proto.serving_pb2_grpc
+import random
 
 
 class Client:
@@ -40,7 +41,8 @@ class Dataset:
         self._stub = stub
         self._req = req
         self._iter = stub.TrainingData(req)
-        self._batch_size = 0
+        self._batch_size = 2
+        self._retrain = False
 
     def batch(self, num):
         if num <= 0:
@@ -52,6 +54,36 @@ class Dataset:
         self._batch_size = 0
         return self
 
+    def to_numpy(self):
+    	'''
+    	NEEDS TO BE WORKED ON FURTHER
+    	Return a 2D array with the features and a 1D array with the labels
+    	'''
+    	x_array = []
+    	y_array = []
+    	try:
+    		while 1:
+    			next_row = Row(next(self._iter))
+    			x_array.append(np.array([next_row.features()]))
+    			y_array = np.append(y_array, next_row.label())
+    	except StopIteration:
+    		return np.array(x_array), y_array
+
+    def repeat(self):
+    	'''
+    	Repeat the dataset
+    	'''
+    	self._iter = self._stub.TrainingData(self._req)
+
+    def shuffle(self, retrain):
+    	'''
+    	Shuffle data in each batch
+    	1. Have a shuffle/retrain boolean which when true, shuffles the rows
+    	2. How do I want it to interact with next()? 
+    	'''
+    	self._retrain = retrain
+
+
     def __iter__(self):
         return self
 
@@ -62,22 +94,14 @@ class Dataset:
         try:
             for i in range(self._batch_size):
                 rows.append(Row(next(self._iter)))
+            if self._retrain:
+            	random.shuffle(rows)
+            	# Should I make retrain false here?
             return rows
         except StopIteration:
             if len(rows) == 0:
                 raise
             return rows
-
-    def to_numpy(self):
-    	x_array = []
-    	y_array = []
-    	try:
-    		while 1:
-    			next_row = Row(next(self._iter))
-    			x_array.append(np.array([next_row.features()]))
-    			y_array = np.append(y_array, next_row.label())
-    	except StopIteration:
-    		return np.array(x_array), y_array
     	
 
 class Row:
@@ -109,6 +133,10 @@ def parse_proto_value(value):
 
 client = Client("localhost:8080")
 dataset = client.dataset("f1", "v1")
-x_array, y_array = dataset.to_numpy()
+# x_array, y_array = dataset.to_numpy()
+# dataset.repeat()
 print([r for r in dataset])
-print(client.features([("f1", "v1")], {"user": "a"}))
+dataset.repeat()
+dataset.shuffle(True)
+print([r for r in dataset])
+# print(client.features([("f1", "v1")], {"user": "a"}))

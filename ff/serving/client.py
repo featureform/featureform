@@ -55,21 +55,6 @@ class Dataset:
         self._batch_size = 0
         return self
 
-    def to_numpy(self):
-    	'''
-    	NEEDS TO BE WORKED ON FURTHER
-    	Return a 2D array with the features and a 1D array with the labels
-    	'''
-    	x_array = []
-    	y_array = []
-    	try:
-    		while 1:
-    			next_row = Row(next(self._iter))
-    			x_array.append(np.array([next_row.features()]))
-    			y_array = np.append(y_array, next_row.label())
-    	except StopIteration:
-    		return np.array(x_array), y_array
-
     def repeat(self):
     	'''
     	Repeat the dataset
@@ -92,7 +77,6 @@ class Dataset:
 	    		sub_shuffled_data.append(Row(next(self._iter)))
     	except StopIteration:
 	    	if len(sub_shuffled_data) == 0:
-	    		# Check if it takes care of the part where the array is empty so nothing can be popped from it
 	    		raise
 
     	random.shuffle(sub_shuffled_data)
@@ -107,6 +91,7 @@ class Dataset:
         	if len(self._shuffled_data) == 0:
         		self.shuffle()
         	return self._shuffled_data.pop(0)
+
         rows = []
         for i in range(self._batch_size):
         	if len(self._shuffled_data) == 0:
@@ -148,9 +133,4 @@ client = Client("localhost:8080")
 dataset = client.dataset("f1", "v1")
 print([r for r in dataset])
 dataset.repeat()
-print([r for r in dataset])
-dataset.repeat()
-print([r for r in dataset])
-dataset.repeat()
-print([r for r in dataset])
 print(client.features([("f1", "v1")], {"user": "a"}))

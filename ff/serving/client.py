@@ -68,6 +68,17 @@ class Dataset:
                 raise
             return rows
 
+    def to_numpy(self):
+    	x_array = []
+    	y_array = []
+    	try:
+    		while 1:
+    			next_row = Row(next(self._iter))
+    			x_array.append(np.array([next_row.features()]))
+    			y_array = np.append(y_array, next_row.label())
+    	except StopIteration:
+    		return np.array(x_array), y_array
+    	
 
 class Row:
 
@@ -91,12 +102,13 @@ class Row:
 
 
 def parse_proto_value(value):
-    """ parse_proto_value is used to parse the oneof Value message
+    """ parse_proto_value is used to parse the one of Value message
     """
     return getattr(value, value.WhichOneof("value"))
 
 
 client = Client("localhost:8080")
 dataset = client.dataset("f1", "v1")
+x_array, y_array = dataset.to_numpy()
 print([r for r in dataset])
 print(client.features([("f1", "v1")], {"user": "a"}))

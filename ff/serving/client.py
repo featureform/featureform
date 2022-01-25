@@ -41,8 +41,9 @@ class Dataset:
         self._stub = stub
         self._req = req
         self._iter = stub.TrainingData(req)
-        self._batch_size = 2
-        self._retrain = False
+        self._batch_size = 3
+        self._shuffle_batch = False
+        self._shuffled_data = []
 
     def batch(self, num):
         if num <= 0:
@@ -75,13 +76,27 @@ class Dataset:
     	'''
     	self._iter = self._stub.TrainingData(self._req)
 
-    def shuffle(self, retrain):
+    def shuffle_batch(self, shuffle_batch):
     	'''
     	Shuffle data in each batch
-    	1. Have a shuffle/retrain boolean which when true, shuffles the rows
-    	2. How do I want it to interact with next()? 
     	'''
-    	self._retrain = retrain
+    	self._shuffle_batch = shuffle_batch
+
+    def shuffle(self):
+    	'''
+    	Shuffle the dataset
+    	'''
+    	sub_shuffled_data = []
+    	try:
+	    	for i in range(1000):
+	    		sub_shuffled_data.append(Row(next(self._iter)))
+    	except StopIteration:
+	    	if len(sub_shuffled_data) == 0:
+	    		# Check if it takes care of the part where the array is empty so nothing can be popped from it
+	    		raise
+
+    	random.shuffle(sub_shuffled_data)
+    	self._shuffled_data.extend(sub_shuffled_data)
 
 
     def __iter__(self):
@@ -89,19 +104,17 @@ class Dataset:
 
     def __next__(self):
         if self._batch_size == 0:
-            return Row(next(self._iter))
+        	if len(self._shuffled_data) == 0:
+        		self.shuffle()
+        	return self._shuffled_data.pop(0)
         rows = []
-        try:
-            for i in range(self._batch_size):
-                rows.append(Row(next(self._iter)))
-            if self._retrain:
-            	random.shuffle(rows)
-            	# Should I make retrain false here?
-            return rows
-        except StopIteration:
-            if len(rows) == 0:
-                raise
-            return rows
+        for i in range(self._batch_size):
+        	if len(self._shuffled_data) == 0:
+        		self.shuffle()
+        	rows.append(self._shuffled_data.pop(0))
+        if self._shuffle_batch:
+        	random.shuffle(rows)
+        return rows
     	
 
 class Row:
@@ -133,10 +146,11 @@ def parse_proto_value(value):
 
 client = Client("localhost:8080")
 dataset = client.dataset("f1", "v1")
-# x_array, y_array = dataset.to_numpy()
-# dataset.repeat()
 print([r for r in dataset])
 dataset.repeat()
-dataset.shuffle(True)
 print([r for r in dataset])
-# print(client.features([("f1", "v1")], {"user": "a"}))
+dataset.repeat()
+print([r for r in dataset])
+dataset.repeat()
+print([r for r in dataset])
+print(client.features([("f1", "v1")], {"user": "a"}))

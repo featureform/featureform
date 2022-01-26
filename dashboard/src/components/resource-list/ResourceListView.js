@@ -142,6 +142,10 @@ export const ResourceListView = ({
         render: (row) => <UsageTab />,
       },
       {
+        title: "Type",
+        field: "type",
+      },
+      {
         title: "Default Variant",
         field: "versions",
         render: (row) => (
@@ -325,6 +329,7 @@ export const ResourceListView = ({
               }
               activeVersions={myVersions}
               setVersion={setVersion}
+              mutableRes={mutableRes}
             />
           );
         }}
@@ -410,7 +415,6 @@ export const VersionSelector = ({
   setVersion,
   children,
 }) => {
-  console.log(versions);
   return (
     <FormControl>
       <Select
@@ -436,14 +440,14 @@ export const VersionSelector = ({
 export const VersionTable = ({
   name,
   versions = [""],
-  activeVersions = {},
+  activeVersions,
   setVersion,
   children,
+  mutableRes,
 }) => {
   const classes = useStyles();
   let history = useHistory();
   function versionChangeRedirect(e, data) {
-    console.log(data);
     setVersion(name, data.variant);
     history.push(history.location.pathname + "/" + name);
   }
@@ -451,7 +455,6 @@ export const VersionTable = ({
   versions.forEach((version) => {
     myVariants.push({ variant: version });
   });
-  console.log(myVariants);
   return (
     <div>
       <MaterialTable
@@ -462,7 +465,10 @@ export const VersionTable = ({
           </Typography>
         }
         onRowClick={versionChangeRedirect}
-        columns={[{ title: "Variants", field: "variant" }]}
+        columns={[
+          { title: "Variants", field: "variant" },
+          { title: "Description", field: "description" },
+        ]}
         data={myVariants}
         options={{
           search: true,

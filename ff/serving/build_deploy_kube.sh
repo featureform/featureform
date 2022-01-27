@@ -1,0 +1,1 @@
+docker build -t /feature-service Dockerfile . && kubectl apply -f deployment.yaml

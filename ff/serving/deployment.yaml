@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: feature-balancer
+spec:
+  selector:
+    app: feature-service
+  ports:
+    - name: metrics
+      port: 2112
+      targetPort: 2112
+    - name: metadata
+      port: 8181
+      targetPort: 8181
+    - name: grpc-endpoint
+      port: 8080
+      targetPort: 8080
+  selector:
+    app: app-label
+  type: NodePort
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: feature-service
+spec:
+  selector:
+    matchLabels:
+      app: feature-service
+  replicas: 5
+  template:
+    metadata:
+      labels:
+        app: feature-service
+    spec:
+      containers:
+        - name: feature-service
+          image: sami1309/feature-service
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080

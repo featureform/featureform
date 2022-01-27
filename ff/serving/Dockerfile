@@ -4,6 +4,10 @@ WORKDIR /app
 
 COPY go.mod ./
 COPY go.sum ./
+COPY proto ./proto
+COPY dataset ./dataset
+COPY testdata ./testdata
+COPY postgres ./postgres
 RUN go mod download
 
 COPY *.go ./

@@ -8,6 +8,7 @@
       "metadata": {
         "version-name": "default-variant",
         "created": "2020-08-10T13:49:51.141Z",
+        "owner": "Simba Khadder",
         "path": "/capital_one/home/examples/wine_data/wine_sample_sets",
         "type": "CSV",
         "description": "File containing measured wine sample data and human quality ratings."
@@ -51,12 +52,14 @@
           {
             "name": "Wine quality rating",
             "description": "human curated wine quality rating from 0 to 10",
+            "type": "integer",
             "tags": ["wine", "batch", "quality"],
             "variants": ["default", "second"]
           },
           {
             "name": "Wine spoiled rating",
             "description": "Determination if wine has spoiled or not",
+            "type": "boolean",
             "tags": ["wine", "batch", "quality"],
             "variants": ["default", "second"]
           }

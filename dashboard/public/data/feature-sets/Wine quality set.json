@@ -36,9 +36,14 @@
         "labels": [
           {
             "name": "Wine quality rating",
+            "type": "integer",
             "created": "2020-08-11T13:49:51.141Z"
           },
-          { "name": "Wine spoiled", "created": "2020-08-12T13:49:51.141Z" }
+          {
+            "name": "Wine spoiled",
+            "type": "boolean",
+            "created": "2020-08-12T13:49:51.141Z"
+          }
         ],
         "models": [
           {
@@ -81,9 +86,14 @@
         "labels": [
           {
             "name": "Wine quality rating",
+            "type": "integer",
             "created": "2020-08-11T13:49:51.141Z"
           },
-          { "name": "Wine spoiled", "created": "2020-08-12T13:49:51.141Z" }
+          {
+            "name": "Wine spoiled",
+            "type": "boolean",
+            "created": "2020-08-12T13:49:51.141Z"
+          }
         ],
         "models": [
           {

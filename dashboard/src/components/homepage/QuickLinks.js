@@ -26,6 +26,7 @@ const useStyles = makeStyles((theme) => ({
   },
   chip: {
     padding: theme.spacing(1),
+    margin: theme.spacing(1),
     paddingBottom: theme.spacing(1),
     paddingTop: theme.spacing(1),
     "& .MuiChip-labelSmall": {

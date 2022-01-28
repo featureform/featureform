@@ -22,20 +22,6 @@
             "variants": ["default", "second"]
           }
         ],
-        "transformations": [
-          {
-            "name": "Non-free Sulfur Dioxide",
-            "description": "Total non-free sulfur in sample",
-            "tags": ["wine", "batch", "sulfur"],
-            "variants": ["default", "second"]
-          },
-          {
-            "name": "AvgPurchasePrice",
-            "description": "Average purchase price of sample",
-            "tags": ["purchase", "commerce", "payment"],
-            "variants": ["default", "second"]
-          }
-        ],
         "sources": [
           {
             "name": "Wine csv",

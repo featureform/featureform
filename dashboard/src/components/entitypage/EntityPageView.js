@@ -209,6 +209,8 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
     type === resourceTypes.FEATURE ||
     type === resourceTypes.FEATURE_SET ||
     type === resourceTypes.DATASET;
+  const singleVariant =
+    type === resourceTypes.TRAINING_DATASET || type === resourceTypes.MODEL;
   const showStats = false;
   const dataTabDisplacement = (1 ? showMetrics : 0) + (1 ? showStats : 0);
   const statsTabDisplacement = showMetrics ? 1 : 0;
@@ -226,9 +228,12 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
 
   let resource = resources.versions[version];
   const metadata = resource.metadata;
-  const resourceData = resource.data;
+  let resourceData = resource.data;
+
   const convertTimestampToDate = (timestamp_string) => {
-    return new Date(timestamp_string).toUTCString();
+    return new Date(timestamp_string).toLocaleString("en-US", {
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    });
   };
 
   let allVersions = resources["all-versions"];
@@ -283,10 +288,9 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                     <Typography variant="h4" component="h4">
                       <b>{resources.name}</b>
                     </Typography>
-                    {metadata["revision"] && (
+                    {metadata["created"] && (
                       <Typography variant="subtitle1">
-                        Last updated:{" "}
-                        {convertTimestampToDate(metadata["revision"])}
+                        Created: {convertTimestampToDate(metadata["created"])}
                       </Typography>
                     )}
                   </div>
@@ -304,99 +308,102 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
               </div>
             </Grid>
           </Grid>
-          <div className={classes.resourceData}>
-            <Grid container spacing={0}>
-              <Grid item xs={7} className={classes.resourceMetadata}>
-                {metadata["description"] && (
-                  <Typography variant="body1" className={classes.description}>
-                    <b>Description:</b> {metadata["description"]}
-                  </Typography>
-                )}
-
-                {metadata["owner"] && (
-                  <div className={classes.linkBox}>
-                    <Typography variant="body1" className={classes.typeTitle}>
-                      <b>Owner:</b>{" "}
+          {Object.keys(metadata).length > 0 && (
+            <div className={classes.resourceData}>
+              <Grid container spacing={0}>
+                <Grid item xs={7} className={classes.resourceMetadata}>
+                  {metadata["description"] && (
+                    <Typography variant="body1" className={classes.description}>
+                      <b>Description:</b> {metadata["description"]}
                     </Typography>
-                    <Chip
-                      className={classes.linkChip}
-                      size="small"
-                      onClick={linkToUserPage}
-                      className={classes.transformButton}
-                      label={metadata["owner"]}
-                    ></Chip>
-                  </div>
-                )}
+                  )}
 
-                {metadata["dimensions"] && (
-                  <Typography variant="body1">
-                    <b>Dimensions:</b> {metadata["dimensions"]}
-                  </Typography>
-                )}
-                {metadata["type"] && (
-                  <Typography variant="body1">
-                    <b>Type:</b> {metadata["type"]}
-                  </Typography>
-                )}
-                {metadata["joined"] && (
-                  <Typography variant="body1">
-                    <b>Joined:</b> {convertTimestampToDate(metadata["joined"])}
-                  </Typography>
-                )}
-                {metadata["software"] && (
-                  <Typography variant="body1">
-                    <b>Software:</b> {metadata["software"]}
-                  </Typography>
-                )}
-                {metadata["team"] && (
-                  <Typography variant="body1">
-                    <b>Team:</b> {metadata["team"]}
-                  </Typography>
-                )}
-                {metadata["source"] && (
-                  <Typography variant="body1">
-                    <b>Source:</b> {metadata["source"]}
-                  </Typography>
-                )}
+                  {metadata["owner"] && (
+                    <div className={classes.linkBox}>
+                      <Typography variant="body1" className={classes.typeTitle}>
+                        <b>Owner:</b>{" "}
+                      </Typography>
+                      <Chip
+                        className={classes.linkChip}
+                        size="small"
+                        onClick={linkToUserPage}
+                        className={classes.transformButton}
+                        label={metadata["owner"]}
+                      ></Chip>
+                    </div>
+                  )}
 
-                {metadata["data source"] && (
-                  <div className={classes.linkBox}>
-                    <Typography variant="body1" className={classes.typeTitle}>
-                      <b>Data Source: </b>{" "}
+                  {metadata["dimensions"] && (
+                    <Typography variant="body1">
+                      <b>Dimensions:</b> {metadata["dimensions"]}
                     </Typography>
-                    <Chip
-                      className={classes.linkChip}
-                      size="small"
-                      onClick={linkToDataSource}
-                      className={classes.transformButton}
-                      label={metadata["data source"]}
-                    ></Chip>
-                  </div>
-                )}
-
-                {metadata["entity"] && (
-                  <div className={classes.linkBox}>
-                    <Typography variant="body1" className={classes.typeTitle}>
-                      <b>Entity:</b>{" "}
+                  )}
+                  {metadata["type"] && (
+                    <Typography variant="body1">
+                      <b>Type:</b> {metadata["type"]}
                     </Typography>
-                    <Chip
-                      className={classes.linkChip}
-                      size="small"
-                      onClick={linkToEntityPage}
-                      className={classes.transformButton}
-                      label={metadata["entity"]}
-                    ></Chip>
-                  </div>
+                  )}
+                  {metadata["joined"] && (
+                    <Typography variant="body1">
+                      <b>Joined:</b>{" "}
+                      {convertTimestampToDate(metadata["joined"])}
+                    </Typography>
+                  )}
+                  {metadata["software"] && (
+                    <Typography variant="body1">
+                      <b>Software:</b> {metadata["software"]}
+                    </Typography>
+                  )}
+                  {metadata["team"] && (
+                    <Typography variant="body1">
+                      <b>Team:</b> {metadata["team"]}
+                    </Typography>
+                  )}
+                  {metadata["source"] && (
+                    <Typography variant="body1">
+                      <b>Source:</b> {metadata["source"]}
+                    </Typography>
+                  )}
+
+                  {metadata["data source"] && (
+                    <div className={classes.linkBox}>
+                      <Typography variant="body1" className={classes.typeTitle}>
+                        <b>Data Source: </b>{" "}
+                      </Typography>
+                      <Chip
+                        className={classes.linkChip}
+                        size="small"
+                        onClick={linkToDataSource}
+                        className={classes.transformButton}
+                        label={metadata["data source"]}
+                      ></Chip>
+                    </div>
+                  )}
+
+                  {metadata["entity"] && (
+                    <div className={classes.linkBox}>
+                      <Typography variant="body1" className={classes.typeTitle}>
+                        <b>Entity:</b>{" "}
+                      </Typography>
+                      <Chip
+                        className={classes.linkChip}
+                        size="small"
+                        onClick={linkToEntityPage}
+                        className={classes.transformButton}
+                        label={metadata["entity"]}
+                      ></Chip>
+                    </div>
+                  )}
+                </Grid>
+                <Grid item xs={2}></Grid>
+                {enableTags && (
+                  <Grid item xs={3}>
+                    {metadata["tags"] && <TagBox tags={metadata["tags"]} />}
+                  </Grid>
                 )}
               </Grid>
-              <Grid item xs={2}></Grid>
-              {enableTags && (
-                <Grid item xs={3}>
-                  {metadata["tags"] && <TagBox tags={metadata["tags"]} />}
-                </Grid>
-              )}
-            </Grid>
-          </div>
+            </div>
+          )}
           {metadata["config"] && (
             <div className={classes.config}>
               <Typography variant="body1">
@@ -412,6 +419,7 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
             </div>
           )}
         </div>
+
         <div className={classes.root}>
           <AppBar position="static" className={classes.appbar}>
             <Tabs
@@ -467,6 +475,19 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
             >
               <MaterialTable
                 className={classes.tableRoot}
+                {...(!singleVariant
+                  ? {
+                      detailPanel: (row) => {
+                        return (
+                          <VersionTable
+                            name={row.name}
+                            versions={row.variants}
+                            setVersion={setVersion}
+                          />
+                        );
+                      },
+                    }
+                  : {})}
                 title={capitalize(key)}
                 options={{
                   toolbar: false,
@@ -475,23 +496,25 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                     marginLeft: 3,
                   },
                 }}
-                columns={Object.keys(resourceData[key][0]).map((item) => ({
-                  title: capitalize(item),
-                  field: item,
-                  ...(item == "variants" && {
-                    render: (row) => (
-                      <VersionSelector
-                        name={row.name}
-                        versions={row.variants}
-                      />
-                    ),
-                  }),
-                  ...(item == "tags" && {
-                    render: (row) => (
-                      <TagList tags={row.tags} tagClass={classes.tag} />
-                    ),
-                  }),
-                }))}
+                columns={Object.keys(resourceData[key][0])
+                  .filter((item) => item != "tags" && item != "variants")
+                  .map((item) => ({
+                    title: capitalize(item),
+                    field: item,
+                    ...(item == "variants" && {
+                      render: (row) => (
+                        <VersionSelector
+                          name={row.name}
+                          versions={row.variants}
+                        />
+                      ),
+                    }),
+                    ...(item == "tags" && {
+                      render: (row) => (
+                        <TagList tags={row.tags} tagClass={classes.tag} />
+                      ),
+                    }),
+                  }))}
                 data={resourceData[key].map((o) => {
                   let new_object = {};
                   Object.keys(o).forEach((key) => {
@@ -569,5 +592,56 @@ export const VersionSelector = ({ name, versions = [""], children }) => (
     </Select>
   </FormControl>
 );
+
+export const VersionTable = ({
+  name,
+  versions = [""],
+  activeVersions,
+  setVersion,
+  children,
+  mutableRes,
+}) => {
+  const classes = useStyles();
+  let history = useHistory();
+  function versionChangeRedirect(e, data) {
+    setVersion(name, data.variant);
+    history.push(history.location.pathname + "/" + name);
+  }
+  let myVariants = [];
+  versions.forEach((version) => {
+    myVariants.push({ variant: version });
+  });
+  return (
+    <div>
+      <MaterialTable
+        className={classes.table}
+        title={
+          <Typography variant="h6">
+            <b></b>
+          </Typography>
+        }
+        onRowClick={versionChangeRedirect}
+        columns={[
+          { title: "Variants", field: "variant" },
+          { title: "Description", field: "description" },
+        ]}
+        data={myVariants}
+        options={{
+          search: true,
+          draggable: false,
+          headerStyle: {
+            backgroundColor: "white",
+            color: theme.palette.primary.main,
+            marginLeft: 3,
+          },
+          rowStyle: {
+            opacity: 1,
+            borderRadius: 16,
+          },
+        }}
+      />
+    </div>
+  );
+};
 
 export default EntityPageView;

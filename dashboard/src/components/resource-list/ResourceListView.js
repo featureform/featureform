@@ -451,7 +451,6 @@ export const VersionTable = ({
   children,
   mutableRes,
 }) => {
-  console.log(mutableRes);
   const classes = useStyles();
   let history = useHistory();
   function versionChangeRedirect(e, data) {

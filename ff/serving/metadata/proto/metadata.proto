@@ -9,13 +9,27 @@ option go_package = "github.com/featureform/serving/metadata/proto";
 package featureform.serving.metadata.proto;
 
 service Metadata {
+    rpc ListFeatures(Empty) returns (stream Feature);
+    rpc SetFeatureVariant(FeatureVariant) returns (Empty);
+    rpc GetFeatures(stream NameLookupRequest) returns (stream Feature);
+    rpc GetFeatureVariants(stream VariantLookupRequest) returns (stream FeatureVariant);
 }
+
+message NameLookupRequest {
+    string name = 1;
+}
+
+message VariantLookupRequest {
+    string name = 1;
+    string variant = 2;
+}
+
+message Empty {}
 
 message Feature {
     string name = 1;
     string default_variant = 2;
     repeated FeatureVariant variants = 3;
-    int32 usage = 4;
 }
 
 message FeatureVariant {
@@ -34,7 +48,6 @@ message Label {
     string name = 1;
     string default_variant = 2;
     repeated LabelVariant variants = 3;
-    int32 usage = 4;
 }
 
 message LabelVariant {
@@ -54,7 +67,6 @@ message Provider {
     string type = 3;
     string software = 4;
     string team = 5;
-    int32 usage = 6;
     repeated string sources = 7;
     repeated string features = 8;
     repeated string trainingsets = 9;
@@ -66,7 +78,6 @@ message TrainingSet {
     string name = 1;
     string default_variant = 2;
     repeated TrainingSetVariant variants = 3;
-    int32 usage = 4;
 }
 
 message TrainingSetVariant {
@@ -108,7 +119,6 @@ message Source {
     string name = 1;
     string default_variant = 2;
     repeated SourceVariant variants = 3;
-    int32 usage = 4;
 }
 
 message SourceVariant {

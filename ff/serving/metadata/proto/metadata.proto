@@ -1,0 +1,123 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
+syntax = "proto3";
+
+option go_package = "github.com/featureform/serving/metadata/proto";
+
+package featureform.serving.metadata.proto;
+
+service Metadata {
+}
+
+message Feature {
+    string name = 1;
+    string default_variant = 2;
+    repeated FeatureVariant variants = 3;
+    int32 usage = 4;
+}
+
+message FeatureVariant {
+    string name = 1;
+    string variant = 2;
+    string source = 3;
+    string type = 4;
+    string entity = 5;
+    string created = 6;
+    string owner = 7;
+    string description = 8;
+    repeated string trainingsets = 9;
+}
+
+message Label {
+    string name = 1;
+    string default_variant = 2;
+    repeated LabelVariant variants = 3;
+    int32 usage = 4;
+}
+
+message LabelVariant {
+    string name = 1;
+    string variant = 2;
+    string description = 3;
+    string type = 4;
+    string entity = 5;
+    string created = 6;
+    string owner = 7;
+    repeated string trainingsets = 8;
+}
+
+message Provider {
+    string name = 1;
+    string description = 2;
+    string type = 3;
+    string software = 4;
+    string team = 5;
+    int32 usage = 6;
+    repeated string sources = 7;
+    repeated string features = 8;
+    repeated string trainingsets = 9;
+    repeated string labels = 10;
+    repeated string active_resources = 11;
+}
+
+message TrainingSet {
+    string name = 1;
+    string default_variant = 2;
+    repeated TrainingSetVariant variants = 3;
+    int32 usage = 4;
+}
+
+message TrainingSetVariant {
+    string name = 1;
+    string variant = 2;
+    string description = 3;
+    string owner = 4;
+    string created = 5;
+    repeated string features = 6;
+    repeated string labels = 7;
+}
+
+message Entity {
+    string name = 1;
+    string description = 2;
+    repeated string features = 3;
+    repeated string labels = 4;
+    repeated string trainingsets = 5;
+}
+
+message Model {
+    string name = 1;
+    string description = 2;
+    string  created = 3;
+    repeated string features = 4;
+    repeated string labels = 5;
+    repeated string trainingsets = 6;
+}
+
+message User {
+    string name = 1;
+    repeated string features = 2;
+    repeated string labels = 3;
+    repeated string trainingsets = 4;
+    repeated string sources = 5;
+}
+
+message Source {
+    string name = 1;
+    string default_variant = 2;
+    repeated SourceVariant variants = 3;
+    int32 usage = 4;
+}
+
+message SourceVariant {
+    string name = 1;
+    string variant = 2;
+    string type = 3;
+    string owner = 4;
+    string description = 5;
+    repeated string trainingsets = 6;
+    repeated string features = 7;
+    repeated string labels = 8;
+}

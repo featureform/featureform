@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import { Typography, Grid, Container } from "@material-ui/core";
 import { makeStyles } from "@material-ui/core/styles";
 import TimeDropdown from "./TimeDropdown";
+import AggregateDropdown from "./AggregateDropdown";
 import QueryDropdown from "./QueryDropdown";
 import { connect } from "react-redux";
 
@@ -18,6 +19,19 @@ const useStyles = makeStyles((theme) => ({
   },
   summaryData: {
     padding: theme.spacing(0),
+  },
+  titleBar: {
+    display: "flex",
+    justifyContent: "space-between",
+  },
+  aggDropdown: {
+    minWidth: "20em",
+    display: "flex",
+    padding: theme.spacing(1),
+  },
+  graphTitle: {
+    marginTop: "auto",
+    marginBottom: "auto",
   },
   summaryItemDetail: {
     display: "flex",
@@ -45,7 +59,7 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const MetricsDropdown = ({ type, name, version, timeRange }) => {
+const MetricsDropdown = ({ type, name, version, timeRange, aggregates }) => {
   const classes = useStyles();
   const [stepRange, setStepRange] = React.useState("min");
   const [step, setStep] = React.useState("1m");
@@ -57,54 +71,97 @@ const MetricsDropdown = ({ type, name, version, timeRange }) => {
       setStepRange("min");
       setStep("1m");
     }
-  }, [timeRange]);
+  }, [timeRange, aggregates]);
 
   return (
     <div className={classes.root}>
-      <div className={classes.timeSlider}>
-        <Container>
-          <TimeDropdown />
-        </Container>
-      </div>
       <Grid container spacing={0}>
         <Grid item xs={12} height="10em">
           <div className={classes.graph}>
             <Container minHeight={"1300px"}>
               {type != "Dataset" ? (
                 <div>
-                  <Typography>Throughput (req/{stepRange})</Typography>
+                  <div className={classes.titleBar}>
+                    <div className={classes.graphTitle}>
+                      <Typography variant="h6">
+                        Throughput (req/{stepRange})
+                      </Typography>
+                    </div>
+
+                    <div className={classes.aggDropdown}>
+                      <TimeDropdown />
+                      <AggregateDropdown graph={0} />
+                    </div>
+                  </div>
+
                   <QueryDropdown
                     query={`rate(test_counter{feature="${name} ${version}",status="success"}[${step}])`}
                     type={type}
                     name={name}
                     query_type={"latency"}
+                    aggregate={aggregates[0]}
                   />
-                  <Typography> Average Latency (ms)</Typography>
+                  <div className={classes.titleBar}>
+                    <div className={classes.graphTitle}>
+                      <Typography variant="h6">Average Latency (ms)</Typography>
+                    </div>
+
+                    <div className={classes.aggDropdown}>
+                      <TimeDropdown />
+                      <AggregateDropdown graph={1} />
+                    </div>
+                  </div>
+
                   <QueryDropdown
-                    query={`rate(test_duration_seconds_sum{feature="${name} ${version}"}[${step}])/rate(test_duration_seconds_count{feature="${name} ${version}"}[${step}])`}
+                    query={`rate(test_duration_seconds_${aggregates[0]}{feature="${name} ${version}"}[${step}])/rate(test_duration_seconds_count{feature="${name} ${version}"}[${step}])`}
                     type={type}
                     name={name}
                     query_type={"count"}
+                    aggregate={aggregates[0]}
                   />
                 </div>
               ) : (
                 <div>
-                  <Typography>Throughput (rows/{stepRange})</Typography>
+                  <div className={classes.titleBar}>
+                    <div className={classes.graphTitle}>
+                      <Typography variant="h6">
+                        Throughput (rows/{stepRange})
+                      </Typography>
+                    </div>
+
+                    <div className={classes.aggDropdown}>
+                      <TimeDropdown />
+                      <AggregateDropdown graph={1} />
+                    </div>
+                  </div>
+
                   <QueryDropdown
                     query={`rate(test_counter{feature="${name} ${version}",status="row serving"}[${step}])`}
                     type={type}
                     name={name}
                     query_type={"latency"}
+                    aggregate={aggregates[1]}
                   />
                 </div>
               )}
 
-              <Typography>Errors per {stepRange}</Typography>
+              <div className={classes.titleBar}>
+                <div className={classes.graphTitle}>
+                  <Typography variant="h6">Errors per {stepRange}</Typography>
+                </div>
+
+                <div className={classes.aggDropdown}>
+                  <TimeDropdown />
+                  <AggregateDropdown graph={2} />
+                </div>
+              </div>
+
               <QueryDropdown
                 query={`rate(test_counter{feature="${name} ${version}",status="error"}[${step}])`}
                 type={type}
                 name={name}
                 query_type={"count"}
+                aggregate={aggregates[2]}
               />
             </Container>
           </div>
@@ -118,6 +175,7 @@ function mapStateToProps(state) {
   return {
     timeRange: state.timeRange,
     metricsSelect: state.metricsSelect,
+    aggregates: state.aggregates,
   };
 }
 

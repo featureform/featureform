@@ -12,6 +12,7 @@ import { searchResultsReducer } from "components/searchresults";
 import { exponentialTimeSliderReducer } from "components/entitypage/elements";
 import { metricsSelectSliceReducer } from "components/entitypage/elements";
 import { connectionPageSliceReducer } from "components/connectionpage";
+import { aggregateDropdownSliceReducer } from "components/entitypage/elements";
 
 export default combineReducers({
   navSections: navSectionsReducer,
@@ -25,4 +26,5 @@ export default combineReducers({
   timeRange: exponentialTimeSliderReducer,
   metricsSelect: metricsSelectSliceReducer,
   connectionStatus: connectionPageSliceReducer,
+  aggregates: aggregateDropdownSliceReducer,
 });

@@ -23,11 +23,17 @@ const useStyles = makeStyles((theme) => ({
   titleBar: {
     display: "flex",
     justifyContent: "space-between",
+    "& > *": {
+      paddingBottom: "0em",
+    },
   },
   aggDropdown: {
     minWidth: "20em",
     display: "flex",
-    padding: theme.spacing(1),
+    //padding: theme.spacing(1),
+    "& > *": {
+      paddingBottom: "0em",
+    },
   },
   graphTitle: {
     marginTop: "auto",
@@ -51,7 +57,7 @@ const useStyles = makeStyles((theme) => ({
     transform: "scale(0.9, 0.9)",
   },
   graph: {
-    height: "70em",
+    height: "80em",
     alignItems: "center",
     "& > *": {
       height: "70em",

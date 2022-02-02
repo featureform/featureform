@@ -7,9 +7,6 @@ const aggregateDropdownSlice = createSlice({
   },
   reducers: {
     changeAggregate: (state, action) => {
-      console.log(action.payload);
-      console.log(state.aggregates);
-      console.log(state.aggregates[action.payload.graph]);
       state.aggregates[action.payload.graph] = action.payload.aggregate;
     },
   },

@@ -160,7 +160,7 @@ const useStyles = makeStyles((theme) => ({
       padding: "0",
       margin: "0",
       paddingTop: "1em",
-      paddingBottom: "2em",
+      paddingBottom: "0.5em",
     },
   },
   config: {

@@ -39,6 +39,7 @@
   },
   "scripts": {
     "start": "set PORT=8000 && react-scripts start",
+    "start_empty": "set REACT_APP_EMPTY_RESOURCE_VIEW=true && set PORT=8000 && react-scripts start",
     "format": "prettier --write \"./**/*.{js,jsx,json}\"",
     "build": "set PORT=8000 && react-scripts build",
     "test": "react-scripts test",

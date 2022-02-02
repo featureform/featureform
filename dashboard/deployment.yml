@@ -1,0 +1,35 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: dashboard-test
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: dashboard-test
+  template:
+    metadata:
+      labels:
+        app: dashboard-test
+    spec:
+      containers:
+        - name: dashboard-test
+          image: sami1309/dashboard-test
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+      restartPolicy: Always
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: dashboard-service
+spec:
+  type: NodePort
+  ports:
+    - port: 8000
+      targetPort: 8000
+      protocol: TCP
+      nodePort: 31000
+  selector:
+    app: dashboard-test

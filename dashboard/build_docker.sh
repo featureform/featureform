@@ -1,2 +1,2 @@
 #!/bin/bash
-docker build -t featureform-dashboard .
+docker build -t sami1309/dashboard-test .

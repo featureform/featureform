@@ -393,7 +393,9 @@ export const ResourceListView = ({
             borderRadius: 16,
           },
         }}
-        localization={{ body: { emptyDataSourceMessage: <NoDataMessage /> } }}
+        localization={{
+          body: { emptyDataSourceMessage: <NoDataMessage type={title} /> },
+        }}
       />
     </div>
   );
@@ -547,10 +549,8 @@ export const UsageTab = ({ usage, children }) => {
   );
 };
 
-export const NoDataMessage = () => {
+const NoDataMessage = ({ type }) => {
   const classes = useStyles();
-  let history = useHistory();
-  const { type } = useParams();
 
   function redirect() {
     window.location.href = "https://docs.featureform.com/quickstart";
@@ -558,9 +558,10 @@ export const NoDataMessage = () => {
   return (
     <Container>
       <div className={classes.noDataPage}>
-        <Typography variant="h4">No {type} registered</Typography>
+        <Typography variant="h4">No {type} Registered</Typography>
         <Typography variant="body1">
-          Looks like your organization hasn't registered any {type} yet.
+          Looks like your organization hasn't registered one{" "}
+          {type.toLowerCase()} yet.
         </Typography>
         <Typography vairant="body1">
           Be the first one to register one! For help, consult the docs.

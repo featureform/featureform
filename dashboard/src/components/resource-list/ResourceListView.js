@@ -105,6 +105,10 @@ export const ResourceListView = ({
         ),
       },
     ],
+    Model: [
+      { title: "Name", field: "name" },
+      { title: "Description", field: "description" },
+    ],
     default_tags: [
       { title: "Name", field: "name" },
       { title: "Description", field: "description" },
@@ -188,14 +192,7 @@ export const ResourceListView = ({
       },
       { title: "Type", field: "type" },
     ],
-    User: [
-      { title: "Name", field: "name" },
-      {
-        title: "Usage",
-        field: "usage",
-        render: (row) => <UsageTab />,
-      },
-    ],
+    User: [{ title: "Name", field: "name" }],
     Entity: [
       { title: "Name", field: "name" },
       {
@@ -234,6 +231,11 @@ export const ResourceListView = ({
   const initialLoad = resources == null && !loading;
   const initRes = resources || [];
   const copy = (res) => res.map((o) => ({ ...o }));
+  const noVariants =
+    title === "Provider" ||
+    title === "Entity" ||
+    title === "Model" ||
+    title === "User";
   // MaterialTable can't handle immutable object, we have to make a copy
   // https://github.com/mbrn/material-table/issues/666
   const mutableRes = copy(initRes);
@@ -320,19 +322,23 @@ export const ResourceListView = ({
   return (
     <div>
       <MaterialTable
-        detailPanel={(row) => {
-          return (
-            <VersionTable
-              name={row.name}
-              versions={
-                rowVersions.find((v) => v.name === row.name)["versions"]
-              }
-              activeVersions={myVersions}
-              setVersion={setVersion}
-              mutableRes={mutableRes}
-            />
-          );
-        }}
+        {...(!noVariants
+          ? {
+              detailPanel: (row) => {
+                return (
+                  <VersionTable
+                    name={row.name}
+                    versions={
+                      rowVersions.find((v) => v.name === row.name)["versions"]
+                    }
+                    activeVersions={myVersions}
+                    setVersion={setVersion}
+                    mutableRes={mutableRes}
+                  />
+                );
+              },
+            }
+          : {})}
         className={classes.table}
         title={
           <Typography variant="h4">
@@ -453,7 +459,11 @@ export const VersionTable = ({
   }
   let myVariants = [];
   versions.forEach((version) => {
-    myVariants.push({ variant: version });
+    myVariants.push({
+      variant: version,
+      description: mutableRes.find((el) => el.name == name).versions[version]
+        .description,
+    });
   });
   return (
     <div>

@@ -10,7 +10,7 @@
         "transformation source": "clean_density",
         "data source": "Wine Quality Sample File",
         "entity": "wine_id",
-        "created": "2020-08-09T13:49:51.141Z",
+
         "owner": "Simba Khadder",
         "visibility": "private",
         "revision": "2020-08-12T13:49:51.141Z",

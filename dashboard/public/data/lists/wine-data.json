@@ -48,7 +48,7 @@
           "owner": "Simba Khadder",
           "visibility": "private",
           "revision": "2020-08-10T13:49:51.141Z",
-          "description": "Sulfur Dioxide that is trapped",
+          "description": "Sulfur Dioxide that is trapped, streaming derived",
           "tags": [
             "materialized",
             "calculated",
@@ -98,7 +98,7 @@
           "owner": "Simba Khadder",
           "visibility": "private",
           "revision": "2020-08-12-39402409",
-          "description": "acidity that is fixed",
+          "description": "acidity that is fixed, normalized",
           "tags": ["ph", "wine", "chemical", "quality"],
           "feature-sets": [
             { "name": "wine analysis", "created": "2020-08-10T13:49:51.141Z" },
@@ -141,7 +141,7 @@
           "visibility": "private",
           "type": "float",
           "revision": "2020-08-10T13:49:51.141Z",
-          "description": "clean part of density",
+          "description": "null-lost clean part of density",
           "tags": ["wine", "weight", "quality"],
           "feature-sets": [
             { "name": "wine analysis", "created": "2020-08-10T13:49:51.141Z" },
@@ -184,7 +184,7 @@
           "type": "float",
           "visibility": "private",
           "revision": "2020-08-10T13:49:51.141Z",
-          "description": "average purchase price",
+          "description": "average purchase price, streaming derived",
           "tags": ["wine", "sold", "accounting", "streaming"],
           "feature-sets": [
             { "name": "wine analysis", "created": "2020-08-10T13:49:51.141Z" },
@@ -426,21 +426,6 @@
           "software": "Redis",
           "type": "Online",
           "description": "Online provider"
-        }
-      }
-    },
-    {
-      "name": "Sample processor provider",
-      "default-variant": "default-variant",
-      "all-versions": ["default-variant"],
-      "versions": {
-        "default-variant": {
-          "version-name": "default-variant",
-          "created": "2020-08-10T13:49:51.141Z",
-          "team": "Customer model team",
-          "software": "Apache Spark",
-          "type": "Processor",
-          "description": "Computer transform provider"
         }
       }
     }

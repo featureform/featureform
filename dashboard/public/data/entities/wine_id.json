@@ -52,12 +52,14 @@
             "name": "Wine quality rating",
             "description": "Quality rating of wine sample",
             "tags": ["wine", "batch", "sulfur"],
+            "type": "integer",
             "variants": ["default", "second"]
           },
           {
             "name": "Wine spoiled",
             "description": "Whether or not wine is spoiled",
             "tags": ["wine", "batch", "sulfur"],
+            "type": "boolean",
             "variants": ["default", "second"]
           }
         ]

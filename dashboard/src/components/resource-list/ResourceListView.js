@@ -8,6 +8,7 @@ import MenuItem from "@material-ui/core/MenuItem";
 import FormControl from "@material-ui/core/FormControl";
 import Select from "@material-ui/core/Select";
 import theme from "styles/theme";
+import { useParams } from "react-router-dom";
 import CircleOutlinedIcon from "@mui/icons-material/CircleOutlined";
 import Rating from "@mui/material/Rating";
 import MaterialTable, {
@@ -22,6 +23,7 @@ import json from "react-syntax-highlighter/dist/cjs/languages/prism/json";
 import { useHistory } from "react-router-dom";
 import Container from "@material-ui/core/Container";
 import { providerLogos } from "api/resources";
+import Button from "@material-ui/core/Button";
 
 SyntaxHighlighter.registerLanguage("python", python);
 SyntaxHighlighter.registerLanguage("sql", sql);
@@ -34,6 +36,11 @@ const useStyles = makeStyles(() => ({
     borderRadius: 16,
     "& > *": {
       borderRadius: 16,
+    },
+  },
+  noDataPage: {
+    "& > *": {
+      padding: theme.spacing(1),
     },
   },
   table: {
@@ -386,6 +393,7 @@ export const ResourceListView = ({
             borderRadius: 16,
           },
         }}
+        localization={{ body: { emptyDataSourceMessage: <NoDataMessage /> } }}
       />
     </div>
   );
@@ -536,6 +544,32 @@ export const UsageTab = ({ usage, children }) => {
       IconContainerComponent={IconContainer}
       readOnly
     />
+  );
+};
+
+export const NoDataMessage = () => {
+  const classes = useStyles();
+  let history = useHistory();
+  const { type } = useParams();
+
+  function redirect() {
+    window.location.href = "https://docs.featureform.com/quickstart";
+  }
+  return (
+    <Container>
+      <div className={classes.noDataPage}>
+        <Typography variant="h4">No {type} registered</Typography>
+        <Typography variant="body1">
+          Looks like your organization hasn't registered any {type} yet.
+        </Typography>
+        <Typography vairant="body1">
+          Be the first one to register one! For help, consult the docs.
+        </Typography>
+        <Button variant="outlined" onClick={redirect}>
+          FeatureForm Docs
+        </Button>
+      </div>
+    </Container>
   );
 };
 

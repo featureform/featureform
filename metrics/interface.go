@@ -30,12 +30,13 @@ type PromMetricsHandler struct {
 }
 
 type PromFeatureObserver struct {
-	Timer   *prometheus.Timer
-	Count   *prometheus.CounterVec
-	Name    string
-	Feature string
-	Key     string
-	Status  string
+	Timer     *prometheus.Timer
+	Count     *prometheus.CounterVec
+	Timestamp string
+	Name      string
+	Feature   string
+	Key       string
+	Status    string
 }
 
 type TrainingDataObserver struct {
@@ -54,16 +55,16 @@ func NewMetrics(name string) PromMetricsHandler {
 			Name: fmt.Sprintf("%s_counter", name), // metric name
 			Help: "Counter for feature serve requests, labeled by feature name, key and type",
 		},
-		[]string{"instance", "feature", "key", "status"}, // labels
+		[]string{"instance", "feature", "key", "action", "status", "start"}, // labels
 	)
 
 	var getFeatureLatency = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name:    fmt.Sprintf("%s_duration_seconds", name),
 			Help:    "Latency for feature serve requests, labeled by feature name, key and type",
-			Buckets: prometheus.LinearBuckets(0.01, 0.05, 10),
+			Buckets: prometheus.ExponentialBuckets(0.001, 2, 10),
 		},
-		[]string{"instance", "feature", "key", "status"}, //labels
+		[]string{"instance", "feature", "key", "action", "status", "start"}, //labels
 	)
 
 	prometheus.MustRegister(getFeatureCounter)
@@ -77,20 +78,21 @@ func NewMetrics(name string) PromMetricsHandler {
 
 func (p PromMetricsHandler) BeginObservingOnlineServe(feature string, key string) FeatureObserver {
 	timer := prometheus.NewTimer(prometheus.ObserverFunc(func(v float64) {
-		p.Hist.WithLabelValues(p.Name, feature, key, "error").Observe(v)
+		p.Hist.WithLabelValues(p.Name, feature, key, "success").Observe(v)
 	}))
 	return PromFeatureObserver{
-		Timer:   timer,
-		Count:   p.Count,
-		Name:    p.Name,
-		Feature: feature,
-		Key:     key,
-		Status:  "error",
+		Timer:     timer,
+		Count:     p.Count,
+		Timestamp: time.Now().UTC().Format("20060102150405"),
+		Name:      p.Name,
+		Feature:   feature,
+		Key:       key,
+		Status:    "success",
 	}
 }
 func (p PromMetricsHandler) BeginObservingTrainingServe(name string, version string) FeatureObserver {
 	timer := prometheus.NewTimer(prometheus.ObserverFunc(func(v float64) {
-		p.Hist.WithLabelValues(p.Name, name, version, "error").Observe(v)
+		p.Hist.WithLabelValues(p.Name, name, version, "success").Observe(v)
 	}))
 	return TrainingDataObserver{
 		Timer:     timer,
@@ -99,7 +101,7 @@ func (p PromMetricsHandler) BeginObservingTrainingServe(name string, version str
 		Title:     p.Name,
 		Name:      name,
 		Version:   version,
-		Status:    "error",
+		Status:    "success",
 	}
 }
 
@@ -110,30 +112,30 @@ func (p PromMetricsHandler) ExposePort(port string) {
 }
 
 func (p PromFeatureObserver) SetError() {
+	p.Status = "error"
 	p.Timer.ObserveDuration()
-	p.Count.WithLabelValues(p.Name, p.Feature, p.Key, p.Status).Inc()
+	p.Count.WithLabelValues(p.Name, p.Feature, p.Key, "feature serve", p.Status, p.Timestamp).Inc()
 }
 
 func (p PromFeatureObserver) ServeRow() {
-	p.Count.WithLabelValues(p.Name, p.Feature, p.Key, "row serving").Inc()
+	p.Count.WithLabelValues(p.Name, p.Feature, p.Key, "row serving", p.Status, p.Timestamp).Inc()
 }
 
 func (p PromFeatureObserver) Finish() {
-	p.Status = "success"
 	p.Timer.ObserveDuration()
-	p.Count.WithLabelValues(p.Name, p.Feature, p.Key, p.Status).Inc()
+	p.Count.WithLabelValues(p.Name, p.Feature, p.Key, "finish serve", p.Status, p.Timestamp).Inc()
 }
 
 func (p TrainingDataObserver) SetError() {
+	p.Status = "error"
 	p.Timer.ObserveDuration()
-	p.Row_Count.WithLabelValues(p.Title, p.Name, p.Version, p.Timestamp, "Error").Inc()
+	p.Row_Count.WithLabelValues(p.Title, p.Name, p.Version, "row serving", p.Status, p.Timestamp).Inc()
 }
 
 func (p TrainingDataObserver) ServeRow() {
-	p.Row_Count.WithLabelValues(p.Title, p.Name, p.Version, p.Timestamp).Inc()
+	p.Row_Count.WithLabelValues(p.Title, p.Name, p.Version, "row serving", p.Status, p.Timestamp).Inc()
 }
 
 func (p TrainingDataObserver) Finish() {
-	p.Status = "success"
 	p.Timer.ObserveDuration()
 }

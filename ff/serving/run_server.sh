@@ -1,0 +1,1 @@
+docker run --rm -p 8080:8080 -p 2112:2112 sami1309/feature_server

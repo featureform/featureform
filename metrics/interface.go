@@ -77,13 +77,14 @@ func NewMetrics(name string) PromMetricsHandler {
 }
 
 func (p PromMetricsHandler) BeginObservingOnlineServe(feature string, key string) FeatureObserver {
+	begin_time := time.Now().UTC().Format("20060102150405")
 	timer := prometheus.NewTimer(prometheus.ObserverFunc(func(v float64) {
-		p.Hist.WithLabelValues(p.Name, feature, key, "success").Observe(v)
+		p.Hist.WithLabelValues(p.Name, feature, key, "begin serve", "success", begin_time).Observe(v)
 	}))
 	return PromFeatureObserver{
 		Timer:     timer,
 		Count:     p.Count,
-		Timestamp: time.Now().UTC().Format("20060102150405"),
+		Timestamp: begin_time,
 		Name:      p.Name,
 		Feature:   feature,
 		Key:       key,
@@ -91,13 +92,14 @@ func (p PromMetricsHandler) BeginObservingOnlineServe(feature string, key string
 	}
 }
 func (p PromMetricsHandler) BeginObservingTrainingServe(name string, version string) FeatureObserver {
+	begin_time := time.Now().UTC().Format("20060102150405")
 	timer := prometheus.NewTimer(prometheus.ObserverFunc(func(v float64) {
-		p.Hist.WithLabelValues(p.Name, name, version, "success").Observe(v)
+		p.Hist.WithLabelValues(p.Name, name, version, "begin serve", "success", begin_time).Observe(v)
 	}))
 	return TrainingDataObserver{
 		Timer:     timer,
 		Row_Count: p.Count,
-		Timestamp: time.Now().UTC().Format("20060102150405"),
+		Timestamp: begin_time,
 		Title:     p.Name,
 		Name:      name,
 		Version:   version,

@@ -1,1 +1,0 @@
-docker build -t prometheus-service . && docker run -p 9091:9091 prometheus-service

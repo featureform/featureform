@@ -6,14 +6,16 @@ rules:
   - apiGroups: [""]
     resources:
       - nodes
+      - nodes/proxy
       - services
       - endpoints
       - pods
     verbs: ["get", "list", "watch"]
-  - apiGroups: [""]
+  - apiGroups:
+      - extensions
     resources:
-      - configmaps
-    verbs: ["get"]
+      - ingresses
+    verbs: ["get", "list", "watch"]
   - nonResourceURLs: ["/metrics"]
     verbs: ["get"]
 ---
@@ -32,5 +34,5 @@ roleRef:
   name: prometheus
 subjects:
   - kind: ServiceAccount
-    name: prometheus
-    namespace: default
+    name: default
+    namespace: test-1

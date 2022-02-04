@@ -7,7 +7,7 @@ require (
 	github.com/aws/aws-sdk-go v1.42.31 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
-	github.com/featureform/embeddinghub/metrics v0.0.0-20220110232125-393058af760c // indirect
+	github.com/featureform/embeddinghub/metrics v0.0.0-20220204162252-4645fa89dc55 // indirect
 	github.com/golang/protobuf v1.5.0 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/lib/pq v1.10.4 // indirect

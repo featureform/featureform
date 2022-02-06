@@ -3,6 +3,7 @@ import numpy as np
 import proto.serving_pb2
 import proto.serving_pb2_grpc
 import random
+import itertools
 
 
 class Client:
@@ -57,19 +58,19 @@ class Stream:
 class Repeat():
 	def __init__(self, repeat_num, stream):
 		self.repeat_num = repeat_num
-		self.stream = stream
+		self._stream = stream
 
 	def __iter__(self):
 		return self
 
 	def __next__(self):
 		try:
-			next_val = next(self.stream)
+			next_val = next(self._stream)
 		except StopIteration:
 			self.repeat_num -= 1
 			if self.repeat_num > 0:
-				self.stream.restart()
-				next_val = next(self.stream)
+				self._stream.restart()
+				next_val = next(self._stream)
 			else:
 				raise
 
@@ -80,32 +81,34 @@ class Shuffle:
 	def __init__(self, buffer_size, stream):
 		self.buffer_size = buffer_size
 		self._shuffled_data_list = []
-		self.stream = stream
-		self.setup_buffer()
+		self._stream = stream
+		self.__setup_buffer()
 
-	def setup_buffer(self):
+	def __setup_buffer(self):
 		try:
 			for _ in range(self.buffer_size):
-				self._shuffled_data_list.append(next(self.stream))
+				self._shuffled_data_list.append(next(self._stream))
 		except StopIteration:
 			if len(self._shuffled_data_list) == 0:
 				raise
+
+	def restart(self):
+		self._stream.restart()
+		self.__setup_buffer()
 
 	def __iter__(self):
 		return self
 
 	def __next__(self):
 		if len(self._shuffled_data_list) == 0:
-			# If theres nothing left in the buffer itll return None
 			raise StopIteration
 		random_index = random.randrange(len(self._shuffled_data_list))
 		next_row = self._shuffled_data_list.pop(random_index)
 
 		try:
-			self._shuffled_data_list.append(next(self.stream))
+			self._shuffled_data_list.append(next(self._stream))
 		except StopIteration:
-			# If theres stuff in the buffer but there is nothing new to add
-			return next_row
+			pass
 
 		return next_row
 
@@ -113,7 +116,10 @@ class Shuffle:
 class Batch:
 	def __init__(self, batch_size, stream):
 		self.batch_size = batch_size
-		self.stream = stream
+		self._stream = stream
+
+	def restart(self):
+		self._stream.restart()
 
 	def __iter__(self):
 		return self
@@ -122,19 +128,18 @@ class Batch:
 		rows = []
 		for _ in range(self.batch_size):
 			try:
-				next_row = next(self.stream)
+				next_row = next(self._stream)
 				rows.append(next_row)
 			except StopIteration:
 				if len(rows) == 0:
-					raise StopIteration
-				else:
-					return rows
+					raise
+				return rows
 		return rows
 		
 
 class Dataset:
 	def __init__(self, stub, name, version):
-		self.stream = Stream(stub, name, version)
+		self._stream = Stream(stub, name, version)
 		self.num_repeat = 0
 		self.shuffle_buffer_size = 0
 		self.batch_size = 0
@@ -142,32 +147,23 @@ class Dataset:
 
 
 	def repeat(self, num):
-		self.num_repeat = num
+		self._stream = Repeat(num, self._stream)
+		return self
 
 	def shuffle(self, buffer_size):
-		self.shuffle_buffer_size = buffer_size
+		self._stream = Shuffle(buffer_size, self._stream)
+		return self
 		
 	def batch(self, batch_size):
-		self.batch_size = batch_size
+		self._stream = Batch(batch_size, self._stream)
+		return self
 
 	def __iter__(self):
 		return self
 
 	def __next__(self):
-		if self.run_once:
-			self.run_once = False
-			self.define_order()
-		try:
-			next_val = next(self.stream)
-		except StopIteration:
-			raise
+		next_val = next(self._stream)
 		return next_val
-
-	def define_order(self):
-		if self.num_repeat: self.stream = Repeat(self.num_repeat, self.stream)
-		if self.shuffle_buffer_size: self.stream = Shuffle(self.shuffle_buffer_size, self.stream)
-		if self.batch_size: self.stream = Batch(self.batch_size, self.stream)
-		return
 
 
 
@@ -201,8 +197,8 @@ def parse_proto_value(value):
 
 client = Client("localhost:8080")
 dataset = client.dataset("f1", "v1")
-dataset.shuffle(15)
 dataset.batch(5)
+dataset.shuffle(7)
 dataset.repeat(3)
 for r in dataset:
 	print(r)

@@ -3,7 +3,6 @@ import numpy as np
 import proto.serving_pb2
 import proto.serving_pb2_grpc
 import random
-import itertools
 
 
 class Client:

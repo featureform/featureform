@@ -38,6 +38,7 @@
     "react-syntax-highlighter": "^13.5.1"
   },
   "scripts": {
+    "docker-start": "react-scripts start",
     "start": "set PORT=8000 && react-scripts start",
     "format": "prettier --write \"./**/*.{js,jsx,json}\"",
     "build": "set PORT=8000 && react-scripts build",

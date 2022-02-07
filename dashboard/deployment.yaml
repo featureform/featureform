@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dashboard
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: dashboard
+  template:
+    metadata:
+      labels:
+        app: dashboard
+    spec:
+      containers:
+        - name: dashboard
+          image: sami1309/featureform-dashboard
+          resources:
+            limits:
+              memory: "550Mi"
+              cpu: "500m"
+          ports:
+            - containerPort: 3001
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dashboard
+spec:
+  type: NodePort
+  selector:
+    app: dashboard
+  ports:
+    - port: 3001
+      targetPort: 3001
+      protocol: TCP
+      nodePort: 31000

@@ -15,10 +15,6 @@ spec:
       containers:
         - name: dashboard
           image: sami1309/featureform-dashboard
-          resources:
-            limits:
-              memory: "550Mi"
-              cpu: "500m"
           ports:
             - containerPort: 3001
 ---

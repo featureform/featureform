@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -41,7 +40,6 @@ type PromFeatureObserver struct {
 type TrainingDataObserver struct {
 	Timer     *prometheus.Timer
 	Row_Count *prometheus.CounterVec
-	Timestamp string
 	Title     string
 	Name      string
 	Version   string
@@ -95,7 +93,6 @@ func (p PromMetricsHandler) BeginObservingTrainingServe(name string, version str
 	return TrainingDataObserver{
 		Timer:     timer,
 		Row_Count: p.Count,
-		Timestamp: time.Now().UTC().Format("20060102150405"),
 		Title:     p.Name,
 		Name:      name,
 		Version:   version,
@@ -115,7 +112,7 @@ func (p PromFeatureObserver) SetError() {
 }
 
 func (p PromFeatureObserver) ServeRow() {
-	p.Count.WithLabelValues(p.Name, p.Feature, p.Key, "row serving").Inc()
+	p.Count.WithLabelValues(p.Name, p.Feature, p.Key, "Row serving").Inc()
 }
 
 func (p PromFeatureObserver) Finish() {
@@ -126,11 +123,11 @@ func (p PromFeatureObserver) Finish() {
 
 func (p TrainingDataObserver) SetError() {
 	p.Timer.ObserveDuration()
-	p.Row_Count.WithLabelValues(p.Title, p.Name, p.Version, p.Timestamp, "Error").Inc()
+	p.Row_Count.WithLabelValues(p.Title, p.Name, p.Version, "Error").Inc()
 }
 
 func (p TrainingDataObserver) ServeRow() {
-	p.Row_Count.WithLabelValues(p.Title, p.Name, p.Version, p.Timestamp).Inc()
+	p.Row_Count.WithLabelValues(p.Title, p.Name, p.Version, "Serve row").Inc()
 }
 
 func (p TrainingDataObserver) Finish() {

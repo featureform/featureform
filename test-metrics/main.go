@@ -29,7 +29,7 @@ func main() {
 		for {
 
 			obs := promMetrics.BeginObservingOnlineServe("Non-free Sulfur Dioxide", "first-variant")
-			time.Sleep(time.Duration(75*oscillationFactor()) * time.Millisecond)
+			time.Sleep(time.Duration(3*oscillationFactor()) * time.Millisecond)
 			obs.Finish()
 		}
 	}()
@@ -37,8 +37,10 @@ func main() {
 	go func() {
 		for {
 			featureObserver := promMetrics.BeginObservingTrainingServe("Wine Quality Dataset", "default-variant")
-
-			time.Sleep(time.Duration(75*oscillationFactor()) * time.Millisecond)
+			for i := 1; i < 100; i++ {
+				featureObserver.ServeRow()
+				time.Sleep(time.Duration(oscillationFactor()) * time.Millisecond)
+			}
 			featureObserver.Finish()
 
 		}

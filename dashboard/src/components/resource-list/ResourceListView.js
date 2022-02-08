@@ -9,6 +9,7 @@ import FormControl from "@material-ui/core/FormControl";
 import Select from "@material-ui/core/Select";
 import theme from "styles/theme";
 import { useParams } from "react-router-dom";
+import Pluralize from "react-pluralize";
 import CircleOutlinedIcon from "@mui/icons-material/CircleOutlined";
 import Rating from "@mui/material/Rating";
 import MaterialTable, {
@@ -393,9 +394,15 @@ export const ResourceListView = ({
             borderRadius: 16,
           },
         }}
-        localization={{
-          body: { emptyDataSourceMessage: <NoDataMessage type={title} /> },
-        }}
+        {...(!(initialLoad || loading || failed)
+          ? {
+              localization: {
+                body: {
+                  emptyDataSourceMessage: <NoDataMessage type={title} />,
+                },
+              },
+            }
+          : {})}
       />
     </div>
   );
@@ -558,13 +565,21 @@ const NoDataMessage = ({ type }) => {
   return (
     <Container>
       <div className={classes.noDataPage}>
-        <Typography variant="h4">No {type} Registered</Typography>
+        <Typography variant="h4">
+          No <Pluralize singular={type} count={2} showCount={false} />{" "}
+          Registered
+        </Typography>
         <Typography variant="body1">
-          Looks like your organization hasn't registered one{" "}
-          {type.toLowerCase()} yet.
+          There are no visible{" "}
+          <Pluralize
+            singular={type.toLowerCase()}
+            count={2}
+            showCount={false}
+          />{" "}
+          in your organization.
         </Typography>
         <Typography vairant="body1">
-          Be the first one to register one! For help, consult the docs.
+          Check out our docs for step by step instructions to create one.
         </Typography>
         <Button variant="outlined" onClick={redirect}>
           FeatureForm Docs

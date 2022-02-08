@@ -2,8 +2,8 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"math"
+	"math/rand"
 	"time"
 
 	metrics "github.com/featureform/embeddinghub/metrics"
@@ -12,9 +12,12 @@ import (
 func main() {
 
 	promMetrics := metrics.NewMetrics("test")
+	r := rand.New(rand.NewSource(99))
 
 	var (
-		oscillationPeriod = flag.Duration("oscillation-period", 10*time.Minute, "The duration of the rate oscillation period.")
+		oscillationPeriod        = flag.Duration("oscillation-period", 10*time.Minute, "The duration of the rate oscillation period.")
+		trainingErrorStandardDev = 2.0
+		onlineErrorStandardDev   = 2.0
 	)
 
 	flag.Parse()
@@ -30,7 +33,12 @@ func main() {
 
 			obs := promMetrics.BeginObservingOnlineServe("Non-free Sulfur Dioxide", "first-variant")
 			time.Sleep(time.Duration(3*oscillationFactor()) * time.Millisecond)
-			obs.Finish()
+			if r.NormFloat64() > onlineErrorStandardDev {
+				obs.SetError()
+			} else {
+				obs.Finish()
+			}
+
 		}
 	}()
 
@@ -38,16 +46,20 @@ func main() {
 		for {
 			featureObserver := promMetrics.BeginObservingTrainingServe("Wine Quality Dataset", "default-variant")
 			for i := 1; i < 100; i++ {
-				featureObserver.ServeRow()
+				if r.NormFloat64() > trainingErrorStandardDev {
+					featureObserver.SetError()
+				} else {
+					featureObserver.ServeRow()
+				}
 				time.Sleep(time.Duration(oscillationFactor()) * time.Millisecond)
 			}
 			featureObserver.Finish()
+			time.Sleep(10 * time.Second)
 
 		}
 	}()
 
 	metrics_port := ":2113"
-	fmt.Println("Some metrics handling")
 	promMetrics.ExposePort(metrics_port)
 
 }

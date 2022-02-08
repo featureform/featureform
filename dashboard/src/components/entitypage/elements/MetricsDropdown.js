@@ -30,7 +30,6 @@ const useStyles = makeStyles((theme) => ({
   aggDropdown: {
     minWidth: "20em",
     display: "flex",
-    //padding: theme.spacing(1),
     "& > *": {
       paddingBottom: "0em",
     },

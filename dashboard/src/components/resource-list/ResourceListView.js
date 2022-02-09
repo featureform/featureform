@@ -565,18 +565,9 @@ const NoDataMessage = ({ type }) => {
   return (
     <Container>
       <div className={classes.noDataPage}>
-        <Typography variant="h4">
-          No <Pluralize singular={type} count={2} showCount={false} />{" "}
-          Registered
-        </Typography>
+        <Typography variant="h4">No {type}s Registered</Typography>
         <Typography variant="body1">
-          There are no visible{" "}
-          <Pluralize
-            singular={type.toLowerCase()}
-            count={2}
-            showCount={false}
-          />{" "}
-          in your organization.
+          There are no visible {type.toLowerCase()}s in your organization.
         </Typography>
         <Typography vairant="body1">
           Check out our docs for step by step instructions to create one.

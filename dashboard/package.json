@@ -38,9 +38,16 @@
     "react-syntax-highlighter": "^13.5.1"
   },
   "scripts": {
-    "start": "set PORT=8000 && react-scripts start",
+    "start": "run-script-os",
+    "start:windows": "set PORT=8000 && react-scripts start",
+    "start:nix": "PORT=8000 react-scripts start",
+    "start-empty": "run-script-os",
+    "start-empty:windows": "set REACT_APP_EMPTY_RESOURCE_VIEW=true&& set PORT=8000 && react-scripts start",
+    "start-empty:nix": "REACT_APP_EMPTY_RESOURCE_VIEW=true PORT=8000 react-scripts start",
     "format": "prettier --write \"./**/*.{js,jsx,json}\"",
-    "build": "set PORT=8000 && react-scripts build",
+    "build": "run-script-os",
+    "build:windows:": "set PORT=8000 && react-scripts build",
+    "build:nix": "PORT=8000 react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
@@ -64,7 +71,8 @@
     "@wojtekmaj/enzyme-adapter-react-17": "^0.6.3",
     "enzyme-to-json": "^3.5.0",
     "prettier": "2.0.5",
-    "typescript": "^3.9.7"
+    "typescript": "^3.9.7",
+    "run-script-os": "^1.1.6"
   },
   "jest": {
     "coveragePathIgnorePatterns": [

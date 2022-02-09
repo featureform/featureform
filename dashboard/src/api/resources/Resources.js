@@ -97,6 +97,10 @@ export default class ResourcesAPI {
     } else {
       fetchAddress = `${API_URL}${resourcePaths[type]}`;
     }
+    console.log(process.env);
+    if (process.env.REACT_APP_EMPTY_RESOURCE_VIEW == "true") {
+      fetchAddress = "/data/lists/wine-data-empty.json";
+    }
     return fetch(fetchAddress, {
       headers: {
         "Content-Type": "application/json",

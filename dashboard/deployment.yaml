@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dashboard
+  namespace: test-1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: dashboard
+  template:
+    metadata:
+      namespace: test-1
+      labels:
+        app: dashboard
+    spec:
+      containers:
+        - name: dashboard
+          image: sami1309/featureform-dashboard
+          ports:
+            - containerPort: 3000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dashboard
+  namespace: test-1
+spec:
+  type: NodePort
+  selector:
+    app: dashboard
+  ports:
+    - port: 3000
+      targetPort: 3000
+      protocol: TCP
+      nodePort: 31000

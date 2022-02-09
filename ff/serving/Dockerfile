@@ -4,13 +4,17 @@ WORKDIR /app
 
 COPY go.mod ./
 COPY go.sum ./
+COPY proto ./proto
+COPY dataset ./dataset
+COPY testdata ./testdata
+COPY postgres ./postgres
 RUN go mod download
 
 COPY *.go ./
 
-RUN go build -o /metrics_service_example
+RUN go build -o /feature_server
 
 EXPOSE 2112
 EXPOSE 8080
 
-CMD [ "/metrics_service_example" ]
+CMD [ "/feature_server" ]

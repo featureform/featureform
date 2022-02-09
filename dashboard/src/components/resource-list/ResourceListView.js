@@ -116,6 +116,15 @@ export const ResourceListView = ({
       { title: "Name", field: "name" },
       { title: "Description", field: "description" },
     ],
+    Label: [
+      { title: "Name", field: "name" },
+      { title: "Description", field: "description" },
+      {
+        title: "Usage",
+        field: "usage",
+        render: (row) => <UsageTab />,
+      },
+    ],
     default_tags: [
       { title: "Name", field: "name" },
       { title: "Description", field: "description" },

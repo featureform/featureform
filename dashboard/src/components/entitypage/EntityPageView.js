@@ -210,7 +210,9 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
     type === resourceTypes.FEATURE_SET ||
     type === resourceTypes.DATASET;
   const singleVariant =
-    type === resourceTypes.TRAINING_DATASET || type === resourceTypes.MODEL;
+    type === resourceTypes.TRAINING_DATASET ||
+    type === resourceTypes.MODEL ||
+    type === resourceTypes.LABEL;
   const showStats = false;
   const dataTabDisplacement = (1 ? showMetrics : 0) + (1 ? showStats : 0);
   const statsTabDisplacement = showMetrics ? 1 : 0;
@@ -295,7 +297,7 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                     )}
                   </div>
                 </div>
-                {allVersions.length > 1 && (
+                {!(allVersions.length > 1 || singleVariant) && (
                   <VersionControl
                     version={version}
                     versions={allVersions}
@@ -365,17 +367,35 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                     </Typography>
                   )}
 
-                  {metadata["data source"] && (
+                  {metadata["data source"] &&
+                    !metadata["transformation source"] && (
+                      <div className={classes.linkBox}>
+                        <Typography
+                          variant="body1"
+                          className={classes.typeTitle}
+                        >
+                          <b>Data Source: </b>{" "}
+                        </Typography>
+                        <Chip
+                          className={classes.linkChip}
+                          size="small"
+                          onClick={linkToDataSource}
+                          className={classes.transformButton}
+                          label={metadata["data source"]}
+                        ></Chip>
+                      </div>
+                    )}
+                  {metadata["transformation source"] && (
                     <div className={classes.linkBox}>
                       <Typography variant="body1" className={classes.typeTitle}>
-                        <b>Data Source: </b>{" "}
+                        <b>Transformation Source: </b>{" "}
                       </Typography>
                       <Chip
                         className={classes.linkChip}
                         size="small"
-                        onClick={linkToDataSource}
+                        onClick={linkToTransformSource}
                         className={classes.transformButton}
-                        label={metadata["data source"]}
+                        label={metadata["transformation source"]}
                       ></Chip>
                     </div>
                   )}

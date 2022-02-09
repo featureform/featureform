@@ -212,7 +212,8 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
   const singleVariant =
     type === resourceTypes.TRAINING_DATASET ||
     type === resourceTypes.MODEL ||
-    type === resourceTypes.LABEL;
+    type === resourceTypes.LABEL ||
+    type === resourceTypes.USER;
   const showStats = false;
   const dataTabDisplacement = (1 ? showMetrics : 0) + (1 ? showStats : 0);
   const statsTabDisplacement = showMetrics ? 1 : 0;

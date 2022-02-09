@@ -46,8 +46,7 @@
           {
             "name": "Wine quality rating",
             "description": "Quality rating of wine sample",
-            "tags": ["wine", "batch", "sulfur"],
-            "variant": "default"
+            "tags": ["wine", "batch", "sulfur"]
           }
         ]
       }

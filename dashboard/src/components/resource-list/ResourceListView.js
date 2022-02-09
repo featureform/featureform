@@ -9,7 +9,6 @@ import FormControl from "@material-ui/core/FormControl";
 import Select from "@material-ui/core/Select";
 import theme from "styles/theme";
 import { useParams } from "react-router-dom";
-import Pluralize from "react-pluralize";
 import CircleOutlinedIcon from "@mui/icons-material/CircleOutlined";
 import Rating from "@mui/material/Rating";
 import MaterialTable, {

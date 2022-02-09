@@ -3,14 +3,16 @@ volumes:
   prometheus_data: {}
 
 services:
-  service:
+  feature-service:
     build:
-      context: ./metrics
+      context: ./ff/serving
       dockerfile: Dockerfile
     ports:
       - "2112:2112"
+      - "8080:8080"
     expose:
       - 2112
+      - 8080
   dashboard:
     build:
       context: ./dashboard
@@ -22,14 +24,15 @@ services:
   prometheus:
     build:
       context: ./metrics
-    image: prom/prometheus
+    image: prom/prometheus:v2.1.0
+    volumes:
+      - ./prometheus:/etc/prometheus/
+      - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
     ports:
-      - "9090:9090" 
-    volumes:
-      - ./metrics/prometheus:/etc/prometheus/
-      - prometheus_data:/prometheus
+      - 9090:9090
     expose:
       - 9090
+    restart: always

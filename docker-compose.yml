@@ -1,5 +1,6 @@
 version: "3.9"
 volumes:
+  prometheus: {}
   prometheus_data: {}
 
 services:
@@ -22,15 +23,15 @@ services:
     expose:
         - 8000
   prometheus:
+    image: prom/prometheus:v2.21.0
     build:
       context: ./metrics
-    image: prom/prometheus:v2.1.0
     volumes:
-      - ./prometheus:/etc/prometheus/
-      - prometheus_data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
+      - ./prometheus:/etc/prometheus
+      - prometheus-data:/prometheus
+    command: 
+      - --web.enable-lifecycle  
+      - --config.file=/etc/prometheus/prometheus.yml
     ports:
       - 9090:9090
     expose:

@@ -15,6 +15,8 @@ const minutesToMilliseconds = (minutes) => {
   return parseInt(minutes * 60 * 1000);
 };
 
+const PROMETHEUS_URL = process.env.REACT_APP_METRICS_IP_ADDRESS;
+
 const sample_query_data = `{
   "resultType" : "matrix",
   "result" : [
@@ -57,9 +59,18 @@ const PrometheusGraph = ({
     const startTimestamp = start.getTime() / 1000;
     const endTimestamp = end.getTime() / 1000;
 
-    const url = `http://localhost:9090/api/v1/query_range?query=${query}${add_labels_string}start=${startTimestamp}&end=${endTimestamp}&step=${step}s`;
+    const url = `http://${PROMETHEUS_URL}/api/v1/query_range?query=${query}${add_labels_string}start=${startTimestamp}&end=${endTimestamp}&step=${step}s`;
 
-    return Promise.resolve(JSON.parse(sample_query_data));
+    console.log(url);
+    fetch(url)
+      .then((response) => response.json())
+      .then((response) => response["data"])
+      .then((response) => {
+        console.log(response);
+      });
+    return fetch(url)
+      .then((response) => response.json())
+      .then((response) => response["data"]);
   }
   const add_labels_string = add_labels
     ? Object.keys(add_labels).reduce(

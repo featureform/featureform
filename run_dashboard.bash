@@ -1,0 +1,1 @@
+eval $(minikube service dashboard -n test-1)

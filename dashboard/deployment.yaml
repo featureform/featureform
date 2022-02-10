@@ -14,9 +14,11 @@ spec:
       labels:
         app: dashboard
     spec:
+      terminationGracePeriodSeconds: 30
       containers:
         - name: dashboard
           image: sami1309/featureform-dashboard
+          imagePullPolicy: "IfNotPresent"
           ports:
             - containerPort: 3000
 ---
@@ -34,3 +36,5 @@ spec:
       targetPort: 3000
       protocol: TCP
       nodePort: 31000
+---
+

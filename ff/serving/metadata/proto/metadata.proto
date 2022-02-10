@@ -10,7 +10,7 @@ package featureform.serving.metadata.proto;
 
 service Metadata {
     rpc ListFeatures(Empty) returns (stream Feature);
-    rpc SetFeatureVariant(FeatureVariant) returns (Empty);
+    rpc CreateFeatureVariant(FeatureVariant) returns (Empty);
     rpc GetFeatures(stream NameLookupRequest) returns (stream Feature);
     rpc GetFeatureVariants(stream VariantLookupRequest) returns (stream FeatureVariant);
 }

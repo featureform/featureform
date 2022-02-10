@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"io"
+    "fmt"
 	"time"
 
 	pb "github.com/featureform/serving/metadata/proto"
+    "google.golang.org/protobuf/encoding/protojson"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -22,6 +24,51 @@ func (client *Client) ListFeatures(ctx context.Context) ([]Feature, error) {
 	if err != nil {
 		return nil, err
 	}
+    return client.parseFeatureStream(stream)
+}
+
+func (client *Client) GetFeatures(ctx context.Context, features []string) ([]Feature, error) {
+    stream, err := client.grpcConn.GetFeatures(ctx)
+	if err != nil {
+		return nil, err
+	}
+    go func() {
+        for _, feature := range features {
+            stream.Send(&pb.NameLookupRequest{Name: feature})
+        }
+    }()
+    return client.parseFeatureStream(stream)
+}
+
+type FeatureDef struct {
+    Name string
+    Variant string
+    Source string
+    Type string
+    Entity string
+    Owner string
+    Description string
+}
+
+func (client *Client) CreateFeatureVariant(ctx context.Context, def FeatureDef) error {
+    serialized := &pb.FeatureVariant{
+        Name: def.Name,
+        Variant: def.Variant,
+        Source: def.Source,
+        Type: def.Type,
+        Entity: def.Entity,
+        Owner: def.Owner,
+        Description: def.Description,
+    }
+    _, err := client.grpcConn.CreateFeatureVariant(ctx, serialized)
+    return err
+}
+
+type featureStream interface {
+    Recv() (*pb.Feature, error)
+}
+
+func (client *Client) parseFeatureStream(stream featureStream) ([]Feature, error) {
 	features := make([]Feature, 0)
 	for {
 		serial, err := stream.Recv()
@@ -32,7 +79,7 @@ func (client *Client) ListFeatures(ctx context.Context) ([]Feature, error) {
 		}
 		features = append(features, wrapProtoFeature(serial))
 	}
-	return features, nil
+    return features, nil
 }
 
 type Feature struct {
@@ -67,6 +114,14 @@ func (feature *Feature) DefaultVariant() FeatureVariant {
 	return feature.defaultVariant
 }
 
+func (feature Feature) String() string {
+    bytes, err := protojson.Marshal(feature.serialized)
+    if err != nil {
+        return err.Error()
+    }
+    return string(bytes)
+}
+
 type FeatureVariant struct {
 	serialized *pb.FeatureVariant
 }
@@ -98,8 +153,12 @@ func (variant *FeatureVariant) Entity() string {
 }
 
 func (variant *FeatureVariant) Created() time.Time {
-	// TODO
-	return time.Now()
+    t, err := time.Parse(variant.serialized.GetCreated(), time.RFC1123)
+    if err != nil {
+        // This means that the time was serialized differently.
+        panic(err)
+    }
+	return t
 }
 
 func (variant *FeatureVariant) Owner() string {
@@ -113,6 +172,14 @@ func (variant *FeatureVariant) TrainingSetNames() []string {
 func (variant *FeatureVariant) TrainingSets() []TrainingSet {
 	// TODO
 	return nil
+}
+
+func (variant FeatureVariant) String() string {
+    bytes, err := protojson.Marshal(variant.serialized)
+    if err != nil {
+        return err.Error()
+    }
+    return string(bytes)
 }
 
 type TrainingSet struct {
@@ -145,6 +212,19 @@ func main() {
 	if err != nil {
 		logger.Panicw("Failed to connect", "Err", err)
 	}
+    err = client.CreateFeatureVariant(context.Background(), FeatureDef{
+        Name: "f1",
+        Variant: "v1",
+        Source: "Users",
+        Type: "int",
+        Entity: "users",
+        Owner: "simba",
+        Description: "Our first feature",
+    })
+    if err != nil {
+		logger.Panicw("Failed to create feature", "Err", err)
+    }
 	features, err := client.ListFeatures(context.Background())
+    fmt.Printf("%+v\n", features)
 	logger.Infow("Listed features", "Features", features, "Err", err)
 }

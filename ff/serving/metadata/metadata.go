@@ -41,9 +41,12 @@ func (serv *MetadataServer) ListFeatures(_ *pb.Empty, stream pb.Metadata_ListFea
 	return nil
 }
 
-func (serv *MetadataServer) SetFeatureVariant(ctx context.Context, variant *pb.FeatureVariant) (*pb.Empty, error) {
+func (serv *MetadataServer) CreateFeatureVariant(ctx context.Context, variant *pb.FeatureVariant) (*pb.Empty, error) {
 	name, variantName := variant.GetName(), variant.GetVariant()
-	serv.featureVariants[NameVariant{name, variantName}] = variant
+    variantKey := NameVariant{name, variantName}
+    if _, has := serv.featureVariants[variantKey]; has {
+        return nil, fmt.Errorf("Variant already exists")
+    }
 	feature, has := serv.features[name]
 	if has {
 		feature.Variants = append(feature.Variants, variant)
@@ -54,6 +57,7 @@ func (serv *MetadataServer) SetFeatureVariant(ctx context.Context, variant *pb.F
 			Variants:       []*pb.FeatureVariant{variant},
 		}
 	}
+	serv.featureVariants[variantKey] = variant
 	return &pb.Empty{}, nil
 }
 

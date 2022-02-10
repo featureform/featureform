@@ -87,7 +87,7 @@ message TrainingSetVariant {
     string owner = 4;
     string created = 5;
     repeated string features = 6;
-    repeated string labels = 7;
+    string label = 7;
 }
 
 message Entity {

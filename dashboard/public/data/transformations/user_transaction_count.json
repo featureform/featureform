@@ -1,0 +1,40 @@
+{
+  "name": "user_transaction_count",
+  "type": "Transformation",
+  "default-variant": "7d",
+  "all-versions": ["7d"],
+  "versions": {
+    "7d": {
+      "metadata": {
+        "version-name": "7d",
+        "entity": "user",
+        "created": "2020-02-09",
+        "owner": "Simba Khadder",
+        "visibility": "private",
+        "revision": "2020-02-09",
+        "language": "python",
+        "config": "def user_transaction_count(transactions):\n import datetime\n cutoff = datetime.datetime.now().AddDays(-7)\n recent = transactions.loc[transactions[\"timestamp\"] >= cutoff]\n return recent.groupby(\"user\").count()",
+        "tags": [],
+        "description": "Number of transactions the user performed in the last 7 days."
+      },
+      "data": {
+        "inputs": [
+          {
+            "name": "Transactions",
+            "description": "",
+            "tags": [],
+            "type": "CSV"
+          }
+        ],
+        "training-datasets": [
+          {
+            "name": "fraud_training_set",
+            "description": "",
+            "tags": [],
+            "variants": ["default"]
+          }
+        ]
+      }
+    }
+  }
+}

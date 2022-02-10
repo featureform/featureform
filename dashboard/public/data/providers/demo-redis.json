@@ -1,20 +1,19 @@
 {
-  "name": "Simba Khadder",
-  "type": "User",
-  "default-variant": "default-variant",
-  "all-versions": ["default-variant"],
+  "name": "demo-redis",
+  "default-variant": "default",
+  "type": "Provider",
+  "all-versions": ["default"],
   "versions": {
-    "default-variant": {
-      "metadata": {},
+    "default": {
+      "metadata": {
+        "version-name": "default",
+        "created": "2020-02-09",
+        "team": "",
+        "software": "Redis",
+        "type": "Online",
+        "description": ""
+      },
       "data": {
-        "training-datasets": [
-          {
-            "name": "fraud_training_set",
-            "description": "",
-            "tags": [],
-            "variants": ["default"]
-          }
-        ],
         "features": [
           {
             "name": "user_transaction_count",
@@ -57,15 +56,6 @@
             "description": "If user has 2fa",
             "tags": [],
             "variants": ["default"]
-          }
-        ],
-        "labels": [
-          {
-            "name": "is_fraud",
-            "description": "if a transaction is fraud",
-            "tags": [],
-            "type": "bool",
-            "variants": []
           }
         ]
       }

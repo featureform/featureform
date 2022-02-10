@@ -1,198 +1,157 @@
 {
   "Training Dataset": [
     {
-      "name": "Wine Quality Dataset",
-      "default-variant": "default-variant",
-      "all-versions": ["default-variant"],
+      "name": "fraud_training_set",
+      "default-variant": "default",
+      "all-versions": ["default"],
       "versions": {
-        "default-variant": {
-          "version-name": "default-verison",
-          "tags": ["calculated", "wine", "chemical", "quality"],
-          "description": "Wine quality training dataset",
-          "revision": "2020-08-10T13:49:51.141Z"
+        "default": {
+          "version-name": "default",
+          "tags": [],
+          "description": "",
+          "revision": "2020-02-09"
         }
       }
     }
   ],
   "Feature": [
     {
-      "name": "Non-free Sulfur Dioxide",
-      "default-variant": "first-variant",
-      "all-versions": ["first-variant", "streaming-variant"],
+      "name": "user_transaction_count",
+      "default-variant": "7d",
+      "all-versions": ["7d"],
       "versions": {
-        "first-variant": {
-          "version-name": "first-variant",
-          "source": "Wine Data",
-          "type": "float",
-          "entity": "wine_id",
-          "created": "2020-08-10T13:49:51.141Z",
+        "7d": {
+          "version-name": "7d",
+          "source": "user_transaction_count",
+          "type": "int",
+          "entity": "user",
+          "created": "2022-02-09",
           "owner": "Simba Khadder",
           "visibility": "private",
-          "revision": "2020-08-10T13:49:51.141Z",
-          "tags": ["materialized", "calculated", "wine", "chemical", "quality"],
-          "description": "Sulfur Dioxide that is trapped",
-          "feature-sets": [
-            { "name": "wine analysis", "created": "2020-08-10T13:49:51.141Z" },
-            {
-              "name": "test-feature_set",
-              "created": "2020-08-14T13:49:51.141Z"
-            }
-          ]
-        },
-        "streaming-variant": {
-          "version-name": "streaming-variant",
-          "source": "Wine Data",
-          "entity": "wine_id",
-          "type": "float",
-          "created": "2020-08-10T13:49:51.141Z",
-          "owner": "Simba Khadder",
-          "visibility": "private",
-          "revision": "2020-08-10T13:49:51.141Z",
-          "description": "Sulfur Dioxide that is trapped, streaming derived",
-          "tags": [
-            "materialized",
-            "calculated",
-            "wine",
-            "chemical",
-            "quality",
-            "streaming"
-          ],
-          "feature-sets": [
-            { "name": "wine analysis", "created": "2020-08-10T13:49:51.141Z" },
-            {
-              "name": "test-feature_set",
-              "created": "2020-08-14T13:49:51.141Z"
-            }
-          ]
+          "revision": "2022-02-09",
+          "tags": [],
+          "description": "Number of transactions the user performed in the last 7 days.",
+          "feature-sets": []
         }
       }
     },
     {
-      "name": "fixed_acidity",
-      "default-variant": "first-variant",
-      "all-versions": ["first-variant", "normalized variant"],
+      "name": "number_of_fraud",
+      "default-variant": "90d",
+      "all-versions": ["90d"],
       "versions": {
-        "first-variant": {
-          "source": "Wine Data",
-          "entity": "wine_id",
-          "type": "float",
-          "created": "2020-08-10T13:49:51.141Z",
+        "90d": {
+          "version-name": "90d",
+          "source": "number_of_fraud",
+          "type": "int",
+          "entity": "user",
+          "created": "2022-02-09",
           "owner": "Simba Khadder",
           "visibility": "private",
-          "revision": "2020-08-10T13:49:51.141Z",
-          "description": "acidity that is fixed",
-          "tags": ["ph", "wine", "chemical", "quality"],
-          "feature-sets": [
-            { "name": "wine analysis", "created": "2020-08-10T13:49:51.141Z" },
-            {
-              "name": "test-feature_set",
-              "created": "2020-08-14T13:49:51.141Z"
-            }
-          ]
-        },
-        "normalized variant": {
-          "source": "Wine Data",
-          "entity": "wine_id",
-          "created": "2020-08-11",
-          "type": "float",
-          "owner": "Simba Khadder",
-          "visibility": "private",
-          "revision": "2020-08-12-39402409",
-          "description": "acidity that is fixed, normalized",
-          "tags": ["ph", "wine", "chemical", "quality"],
-          "feature-sets": [
-            { "name": "wine analysis", "created": "2020-08-10T13:49:51.141Z" },
-            {
-              "name": "test-feature_set",
-              "created": "2020-08-14T13:49:51.141Z"
-            }
-          ]
+          "revision": "2022-02-09",
+          "tags": [],
+          "description": "Number of fraud transaction the user performed in the last 90 days.",
+          "feature-sets": []
         }
       }
     },
     {
-      "name": "clean_density",
-      "default-variant": "default variant",
-      "all-versions": ["default variant", "null-lost variant"],
+      "name": "amt_spent",
+      "default-variant": "30d",
+      "all-versions": ["30d"],
       "versions": {
-        "default variant": {
-          "source": "Wine Data",
-          "entity": "wine_id",
+        "30d": {
+          "version-name": "30d",
+          "source": "amt_spent",
           "type": "float",
-          "created": "2020-08-10T13:49:51.141Z",
+          "entity": "user",
+          "created": "2022-02-09",
           "owner": "Simba Khadder",
           "visibility": "private",
-          "revision": "2020-08-10T13:49:51.141Z",
-          "description": "clean part of density",
-          "tags": ["wine", "weight", "quality"],
-          "feature-sets": [
-            { "name": "wine analysis", "created": "2020-08-10T13:49:51.141Z" },
-            {
-              "name": "test-feature_set",
-              "created": "2020-08-14T13:49:51.141Z"
-            }
-          ]
-        },
-        "null-lost variant": {
-          "source": "Wine Data",
-          "entity": "wine_id",
-          "created": "2020-08-10T13:49:51.141Z",
-          "owner": "Simba Khadder",
-          "visibility": "private",
-          "type": "float",
-          "revision": "2020-08-10T13:49:51.141Z",
-          "description": "null-lost clean part of density",
-          "tags": ["wine", "weight", "quality"],
-          "feature-sets": [
-            { "name": "wine analysis", "created": "2020-08-10T13:49:51.141Z" },
-            {
-              "name": "test-feature_set",
-              "created": "2020-08-14T13:49:51.141Z"
-            }
-          ]
+          "revision": "2022-02-09",
+          "tags": [],
+          "description": "Total amount spent in the last 30 days.",
+          "feature-sets": []
         }
       }
     },
     {
-      "name": "LogAvgPurchasePrice",
-      "default-variant": "first-variant",
-      "all-versions": ["first-variant", "streaming-variant"],
+      "name": "avg_transaction_amt",
+      "default-variant": "default",
+      "all-versions": ["default"],
       "versions": {
-        "first-variant": {
-          "source": "Wine Data",
-          "entity": "wine_id",
+        "default": {
+          "version-name": "default",
+          "source": "avg_transaction_amt",
           "type": "float",
-          "created": "2020-08-10T13:49:51.141Z",
+          "entity": "user",
+          "created": "2022-02-09",
           "owner": "Simba Khadder",
           "visibility": "private",
-          "revision": "2020-08-10T13:49:51.141Z",
-          "description": "average purchase price",
-          "tags": ["wine", "sold", "accounting"],
-          "feature-sets": [
-            { "name": "wine analysis", "created": "2020-08-10T13:49:51.141Z" },
-            {
-              "name": "test-feature_set",
-              "created": "2020-08-14T13:49:51.141Z"
-            }
-          ]
-        },
-        "streaming-variant": {
-          "source": "Wine Data",
-          "entity": "wine_id",
-          "created": "2020-08-10T13:49:51.141Z",
+          "revision": "2022-02-09",
+          "tags": [],
+          "description": "Average transaction amount",
+          "feature-sets": []
+        }
+      }
+    },
+    {
+      "name": "user_account_age",
+      "default-variant": "default",
+      "all-versions": ["default"],
+      "versions": {
+        "default": {
+          "version-name": "default",
+          "source": "user_account_age",
+          "type": "int",
+          "entity": "user",
+          "created": "2022-02-09",
           "owner": "Simba Khadder",
-          "type": "float",
           "visibility": "private",
-          "revision": "2020-08-10T13:49:51.141Z",
-          "description": "average purchase price, streaming derived",
-          "tags": ["wine", "sold", "accounting", "streaming"],
-          "feature-sets": [
-            { "name": "wine analysis", "created": "2020-08-10T13:49:51.141Z" },
-            {
-              "name": "test-feature_set",
-              "created": "2020-08-14T13:49:51.141Z"
-            }
-          ]
+          "revision": "2022-02-09",
+          "tags": [],
+          "description": "Seconds since the user's account was created.",
+          "feature-sets": []
+        }
+      }
+    },
+    {
+      "name": "user_credit_score",
+      "default-variant": "default",
+      "all-versions": ["default"],
+      "versions": {
+        "default": {
+          "version-name": "default",
+          "source": "Users",
+          "type": "int",
+          "entity": "user",
+          "created": "2022-02-09",
+          "owner": "Simba Khadder",
+          "visibility": "private",
+          "revision": "2022-02-09",
+          "tags": [],
+          "description": "User's credit score",
+          "feature-sets": []
+        }
+      }
+    },
+    {
+      "name": "user_2fa",
+      "default-variant": "default",
+      "all-versions": ["default"],
+      "versions": {
+        "default": {
+          "version-name": "default",
+          "source": "Users",
+          "type": "bool",
+          "entity": "user",
+          "created": "2022-02-09",
+          "owner": "Simba Khadder",
+          "visibility": "private",
+          "revision": "2022-02-09",
+          "tags": [],
+          "description": "If user has 2fa",
+          "feature-sets": []
         }
       }
     }
@@ -200,71 +159,129 @@
 
   "Transformation": [
     {
-      "name": "Non-free Sulfur Dioxide",
-      "default-variant": "first variant",
-      "all-versions": ["first variant", "error-check variant"],
+      "name": "user_transaction_count",
+      "default-variant": "7d",
+      "all-versions": ["7d"],
       "versions": {
-        "first variant": {
-          "version-name": "first variant",
-          "source": "Wine Data",
-          "entity": "wine_id",
-          "created": "2020-08-10T13:49:51.141Z",
+        "7d": {
+          "version-name": "7d",
+          "source": "Transactions",
+          "entity": "user",
+          "created": "2020-02-09",
           "owner": "Simba Khadder",
           "visibility": "private",
-          "revision": "2020-08-10T13:49:51.141Z",
+          "revision": "2020-02-09",
           "language": "python",
-          "config": "def nonfree_sulfur(total, free):\n  return total-free\n",
-          "tags": ["materialized", "calculated", "wine", "chemical", "quality"],
-          "description": "Sulfur Dioxide that is trapped",
+          "config": "def user_transaction_count(transactions):\n  return total-free\n",
+          "tags": [],
+          "description": "Number of transactions the user performed in the last 7 days",
           "features": [
             {
-              "name": "Non-free Sulfur Dioxide",
+              "name": "",
               "created": "2020-08-10T13:49:51.141Z"
-            }
-          ]
-        },
-        "error-check variant": {
-          "version-name": "error-check variant",
-          "source": "Wine Data",
-          "entity": "wine_id",
-          "created": "2020-08-10T13:49:51.141Z",
-          "owner": "Simba Khadder",
-          "visibility": "private",
-          "revision": "2020-08-10T13:49:51.141Z",
-          "language": "python",
-          "config": "def nonfree_sulfur(total, free):\n  return total-free\n",
-          "tags": ["materialized", "calculated", "wine", "chemical", "quality"],
-          "description": "Sulfur Dioxide that is trapped",
-          "features": [
-            { "name": "wine analysis", "created": "2020-08-10T13:49:51.141Z" },
-            {
-              "name": "test-feature_set",
-              "created": "2020-08-14T13:49:51.141Z"
             }
           ]
         }
       }
     },
     {
-      "name": "AvgPurchasePrice",
-      "default-variant": "first variant",
-      "all-versions": ["first variant"],
+      "name": "number_of_fraud",
+      "default-variant": "90d",
+      "all-versions": ["90d"],
       "versions": {
-        "first variant": {
-          "version-name": "first variant",
-          "source": "Wine Data",
-          "entity": "wine_id",
-          "created": "2020-08-10T13:49:51.141Z",
+        "90d": {
+          "version-name": "90d",
+          "source": "Transactions",
+          "entity": "user",
+          "created": "2020-02-09",
           "owner": "Simba Khadder",
           "visibility": "private",
-          "revision": "2020-08-10T13:49:51.141Z",
-          "language": "SQL",
-          "config": "SELECT p.user,\n       AVG(catalog.price)\nFROM   purchases p\n       INNER JOIN catalog\n          ON p.item = catalog.id",
-          "tags": ["materialized", "calculated", "wine", "chemical", "quality"],
-          "description": "An aggregate of the average a user spends per item. It joins the purchases stream with the item catalog CSV.",
+          "revision": "2020-02-09",
+          "language": "python",
+          "config": "def user_transaction_count(transactions):\n  return total-free\n",
+          "tags": [],
+          "description": "Number of fraud transactions the suer performed in the last 90 days.",
           "features": [
             {
-              "name": "LogAvgPurchasePrice",
+              "name": "",
+              "created": "2020-08-10T13:49:51.141Z"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "amt_spent",
+      "default-variant": "30d",
+      "all-versions": ["30d"],
+      "versions": {
+        "30d": {
+          "version-name": "30d",
+          "source": "Transactions",
+          "entity": "user",
+          "created": "2020-02-09",
+          "owner": "Simba Khadder",
+          "visibility": "private",
+          "revision": "2020-02-09",
+          "language": "python",
+          "config": "def user_transaction_count(transactions):\n  return total-free\n",
+          "tags": [],
+          "description": "Total amount spent in last 30 days.",
+          "features": [
+            {
+              "name": "",
+              "created": "2020-08-10T13:49:51.141Z"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "avg_transaction_amt",
+      "default-variant": "default",
+      "all-versions": ["default"],
+      "versions": {
+        "default": {
+          "version-name": "default",
+          "source": "Transactions",
+          "entity": "user",
+          "created": "2020-02-09",
+          "owner": "Simba Khadder",
+          "visibility": "private",
+          "revision": "2020-02-09",
+          "language": "python",
+          "config": "def user_transaction_count(transactions):\n  return total-free\n",
+          "tags": [],
+          "description": "Average transaction amount",
+          "features": [
+            {
+              "name": "",
+              "created": "2020-08-10T13:49:51.141Z"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "user_account_age",
+      "default-variant": "default",
+      "all-versions": ["default"],
+      "versions": {
+        "default": {
+          "version-name": "default",
+          "source": "Users",
+          "entity": "user",
+          "created": "2020-02-09",
+          "owner": "Simba Khadder",
+          "visibility": "private",
+          "revision": "2020-02-09",
+          "language": "python",
+          "config": "def user_transaction_count(transactions):\n  return total-free\n",
+          "tags": [],
+          "description": "Seconds since the user's account was created.",
+          "features": [
+            {
+              "name": "",
               "created": "2020-08-10T13:49:51.141Z"
             }
           ]
@@ -291,79 +308,66 @@
   ],
   "Entity": [
     {
-      "name": "wine_id",
-      "default-variant": "default-variant",
-      "all-versions": ["default-variant"],
+      "name": "user",
+      "default-variant": "default",
+      "all-versions": ["default"],
       "versions": {
-        "default-variant": {
-          "description": "dataset holding information on wine quality",
-          "tags": ["wine", "quality", "data"]
+        "default": {
+          "description": "",
+          "tags": []
         }
       }
     }
   ],
   "Label": [
     {
-      "name": "Wine quality rating",
-      "default-variant": "first-variant",
-      "all-versions": ["first-variant", "second-variant"],
+      "name": "is_fraud",
+      "default-variant": "default",
+      "all-versions": ["default"],
       "versions": {
-        "first-variant": {
-          "description": "Aggregate wine quality rating for a given sample",
-          "tags": ["wine", "quality", "outcome", "rating"],
-          "revision": "2020-08-12T13:49:51.141Z"
-        },
-
-        "second-variant": {
-          "description": "rating weighted in higher favor of reviews given higher presidence",
-          "tags": ["wine", "quality", "outcome", "rating"],
-          "revision": "2020-08-12T13:49:51.141Z"
-        }
-      }
-    },
-    {
-      "name": "Wine spoiled",
-      "default-variant": "first-variant",
-      "all-versions": ["first-variant"],
-      "versions": {
-        "first-variant": {
-          "description": "Wine was spoiled or not",
-          "entity": "wine_id",
-          "created": "2020-08-09-024",
-          "tags": ["spoiled", "quality", "outcome", "boolean"],
-          "revision": "2020-08-12T13:49:51.141Z"
+        "default": {
+          "description": "If a transaction is fraud",
+          "tags": [],
+          "revision": "2020-02-09"
         }
       }
     }
   ],
   "Model": [
     {
-      "name": "Wine random forest",
-      "default-variant": "first-variant",
-      "all-versions": ["first-variant", "second-variant"],
+      "name": "fraud-random-forest",
+      "default-variant": "default",
+      "all-versions": ["default"],
       "versions": {
-        "first-variant": {
-          "description": "Model classifying wine by spoilage and quality assesment",
-          "tags": ["classifier", "quality", "prediction"],
-          "revision": "2020-08-10T13:49:51.141Z"
-        },
-        "second-variant": {
-          "description": "Model classifying wine by spoilage and quality assesment",
-          "tags": ["classifier", "quality", "prediction"],
-          "revision": "2020-08-10T13:49:51.141Z"
+        "default": {
+          "description": "",
+          "tags": [],
+          "revision": "2020-02-09"
         }
       }
     }
   ],
   "Data Source": [
     {
-      "name": "Wine Quality Sample File",
-      "default-variant": "default-variant",
-      "all-versions": ["default-variant"],
+      "name": "Transactions",
+      "default-variant": "default",
+      "all-versions": ["default"],
       "versions": {
-        "default-variant": {
-          "description": "Wine data collected from a sample of Napa Valley wines",
-          "tags": ["wine", "csv", "sample"],
+        "default": {
+          "description": "",
+          "tags": [],
+          "type": "CSV"
+        }
+      }
+    },
+    {
+      "name": "Users",
+      "default-variant": "default",
+      "all-versions": ["default"],
+      "versions": {
+        "default": {
+          "description": "",
+          "tags": [],
           "type": "CSV"
         }
       }
@@ -400,32 +404,47 @@
   ],
   "Provider": [
     {
-      "name": "Sample batch provider",
-      "default-variant": "default-variant",
-      "all-versions": ["default-variant"],
+      "name": "demo-redis",
+      "default-variant": "default",
+      "all-versions": ["default"],
       "versions": {
-        "default-variant": {
-          "version-name": "default-variant",
-          "created": "2020-08-10T13:49:51.141Z",
-          "team": "Customer model team",
-          "software": "BigQuery",
-          "type": "Batch",
-          "description": "Batch provider for historic data"
+        "default": {
+          "version-name": "default",
+          "created": "2020-02-09",
+          "team": "",
+          "software": "Redis",
+          "type": "Online",
+          "description": ""
         }
       }
     },
     {
-      "name": "Sample online provider",
-      "default-variant": "default-variant",
-      "all-versions": ["default-variant"],
+      "name": "demo-spark",
+      "default-variant": "default",
+      "all-versions": ["default"],
       "versions": {
-        "default-variant": {
-          "version-name": "default-variant",
-          "created": "2020-08-10T13:49:51.141Z",
-          "team": "Customer model team",
-          "software": "Redis",
-          "type": "Online",
-          "description": "Online provider"
+        "default": {
+          "version-name": "default",
+          "created": "2020-02-09",
+          "team": "",
+          "software": "Apache Spark",
+          "type": "Compute",
+          "description": ""
+        }
+      }
+    },
+    {
+      "name": "demo-s3",
+      "default-variant": "default",
+      "all-versions": ["default"],
+      "versions": {
+        "default": {
+          "version-name": "default",
+          "created": "2020-02-09",
+          "team": "",
+          "software": "BigQuery",
+          "type": "Batch",
+          "description": ""
         }
       }
     }
@@ -433,31 +452,11 @@
   "User": [
     {
       "name": "Simba Khadder",
-      "default-variant": "default-variant",
-      "all-versions": ["default-variant"],
+      "default-variant": "default",
+      "all-versions": ["default"],
       "versions": {
-        "default-variant": {
-          "tags": ["Sample model team", "data orchestration"]
-        }
-      }
-    },
-    {
-      "name": "Shabnam Mohktarani",
-      "default-variant": "default-variant",
-      "all-versions": ["default-variant"],
-      "versions": {
-        "default-variant": {
-          "tags": ["Sample model team", "data orchestration"]
-        }
-      }
-    },
-    {
-      "name": "Sam Inloes",
-      "default-variant": "default-variant",
-      "all-versions": ["default-variant"],
-      "versions": {
-        "default-variant": {
-          "tags": ["Sample model team", "data orchestration"]
+        "default": {
+          "tags": []
         }
       }
     }

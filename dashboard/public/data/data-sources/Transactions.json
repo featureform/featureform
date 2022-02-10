@@ -1,11 +1,18 @@
 {
-  "name": "Simba Khadder",
-  "type": "User",
-  "default-variant": "default-variant",
-  "all-versions": ["default-variant"],
+  "name": "Transactions",
+  "default-variant": "default",
+  "type": "Data Source",
+  "all-versions": ["default"],
   "versions": {
-    "default-variant": {
-      "metadata": {},
+    "default": {
+      "metadata": {
+        "version-name": "default",
+        "created": "2020-02-09",
+        "owner": "Simba Khadder",
+        "path": "s3://featureform-demo/transactions.csv",
+        "type": "CSV",
+        "description": ""
+      },
       "data": {
         "training-datasets": [
           {
@@ -37,24 +44,6 @@
           {
             "name": "avg_transaction_amt",
             "description": "Average transaction amount",
-            "tags": [],
-            "variants": ["default"]
-          },
-          {
-            "name": "user_account_age",
-            "description": "Seconds since the user's account was created.",
-            "tags": [],
-            "variants": ["default"]
-          },
-          {
-            "name": "user_credit_score",
-            "description": "User's credit score",
-            "tags": [],
-            "variants": ["default"]
-          },
-          {
-            "name": "user_2fa",
-            "description": "If user has 2fa",
             "tags": [],
             "variants": ["default"]
           }

@@ -1,20 +1,17 @@
 {
-  "name": "Simba Khadder",
-  "type": "User",
-  "default-variant": "default-variant",
-  "all-versions": ["default-variant"],
+  "name": "user",
+  "default-variant": "default",
+  "type": "Entity",
+  "all-versions": ["default"],
   "versions": {
-    "default-variant": {
-      "metadata": {},
+    "default": {
+      "metadata": {
+        "version-name": "user",
+        "created": "2020-02-09",
+        "visibility": "private",
+        "description": ""
+      },
       "data": {
-        "training-datasets": [
-          {
-            "name": "fraud_training_set",
-            "description": "",
-            "tags": [],
-            "variants": ["default"]
-          }
-        ],
         "features": [
           {
             "name": "user_transaction_count",
@@ -59,6 +56,15 @@
             "variants": ["default"]
           }
         ],
+        "training-datasets": [
+          {
+            "name": "fraud_training_set",
+            "description": "",
+            "tags": [],
+            "variants": ["default"]
+          }
+        ],
+
         "labels": [
           {
             "name": "is_fraud",

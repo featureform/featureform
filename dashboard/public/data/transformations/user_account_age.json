@@ -1,0 +1,40 @@
+{
+  "name": "user_account_age",
+  "type": "Transformation",
+  "default-variant": "default",
+  "all-versions": ["default"],
+  "versions": {
+    "default": {
+      "metadata": {
+        "version-name": "default",
+        "entity": "user",
+        "created": "2020-02-09",
+        "owner": "Simba Khadder",
+        "visibility": "private",
+        "revision": "2020-02-09",
+        "language": "python",
+        "config": "def user_account_age(users):\n return users[\"created_at\"].apply(lambda x: datetime.datetime.now() - x)",
+        "tags": [],
+        "description": "Seconds since hte user's account was created."
+      },
+      "data": {
+        "inputs": [
+          {
+            "name": "Users",
+            "description": "",
+            "tags": [],
+            "type": "CSV"
+          }
+        ],
+        "training-datasets": [
+          {
+            "name": "fraud_training_set",
+            "description": "",
+            "tags": [],
+            "variants": ["default"]
+          }
+        ]
+      }
+    }
+  }
+}

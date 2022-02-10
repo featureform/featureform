@@ -1,0 +1,32 @@
+{
+  "name": "amt_spent",
+  "type": "Feature",
+  "default-variant": "30d",
+  "all-versions": ["30d"],
+  "versions": {
+    "30d": {
+      "metadata": {
+        "version-name": "30d",
+        "transformation source": "amt_spent",
+        "data source": "Transactions",
+        "entity": "user",
+
+        "owner": "Simba Khadder",
+        "visibility": "private",
+        "revision": "2022-02-09",
+        "tags": [],
+        "description": "Total amount spent in the last 30 days."
+      },
+      "data": {
+        "training-datasets": [
+          {
+            "name": "fraud_training_set",
+            "description": "",
+            "tags": [],
+            "variants": ["default"]
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "name": "user_transaction_count",
+  "type": "Feature",
+  "default-variant": "7d",
+  "all-versions": ["7d"],
+  "versions": {
+    "7d": {
+      "metadata": {
+        "version-name": "7d",
+        "transformation source": "user_transaction_count",
+        "data source": "Transactions",
+        "entity": "user",
+
+        "owner": "Simba Khadder",
+        "visibility": "private",
+        "revision": "2022-02-09",
+        "tags": [],
+        "description": "Number of transcations the user performed in the last 7 days."
+      },
+      "data": {
+        "training-datasets": [
+          {
+            "name": "fraud_training_set",
+            "description": "",
+            "tags": [],
+            "variants": ["default"]
+          }
+        ]
+      }
+    }
+  }
+}

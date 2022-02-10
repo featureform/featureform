@@ -1,11 +1,18 @@
 {
-  "name": "Simba Khadder",
-  "type": "User",
-  "default-variant": "default-variant",
-  "all-versions": ["default-variant"],
+  "name": "fraud-random-forest",
+  "default-variant": "default",
+  "type": "Model",
+  "all-versions": ["default"],
   "versions": {
-    "default-variant": {
-      "metadata": {},
+    "default": {
+      "metadata": {
+        "version-name": "default",
+        "created": "2020-02-09",
+        "visibility": "private",
+        "revision": "2020-02-09",
+        "tags": [],
+        "description": ""
+      },
       "data": {
         "training-datasets": [
           {

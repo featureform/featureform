@@ -1,0 +1,32 @@
+{
+  "name": "is_fraud",
+  "default-variant": "default",
+  "type": "Label",
+  "all-versions": ["default"],
+  "versions": {
+    "default": {
+      "metadata": {
+        "version-name": "default",
+        "created": "2020-02-09",
+        "owner": "Simba Khadder",
+        "visibility": "private",
+        "type": "bool",
+        "transformation source": "",
+        "revision": "2020-02-09",
+        "tags": [],
+        "description": "if a transaction is fraud",
+        "sampling": "All"
+      },
+      "data": {
+        "training-datasets": [
+          {
+            "name": "fraud_training_set",
+            "description": "",
+            "tags": [],
+            "variants": ["default"]
+          }
+        ]
+      }
+    }
+  }
+}

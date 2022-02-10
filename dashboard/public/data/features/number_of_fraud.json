@@ -1,0 +1,32 @@
+{
+  "name": "number_of_fraud",
+  "type": "Feature",
+  "default-variant": "90d",
+  "all-versions": ["90d"],
+  "versions": {
+    "90d": {
+      "metadata": {
+        "version-name": "90d",
+        "transformation source": "number_of_fraud",
+        "data source": "Transactions",
+        "entity": "user",
+
+        "owner": "Simba Khadder",
+        "visibility": "private",
+        "revision": "2022-02-09",
+        "tags": [],
+        "description": "Number of fraud transactions in the last 90 days."
+      },
+      "data": {
+        "training-datasets": [
+          {
+            "name": "fraud_training_set",
+            "description": "",
+            "tags": [],
+            "variants": ["default"]
+          }
+        ]
+      }
+    }
+  }
+}

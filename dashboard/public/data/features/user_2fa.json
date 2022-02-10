@@ -1,0 +1,32 @@
+{
+  "name": "user_2fa",
+  "type": "Feature",
+  "default-variant": "default",
+  "all-versions": ["default"],
+  "versions": {
+    "default": {
+      "metadata": {
+        "version-name": "default",
+        "transformation source": "",
+        "data source": "Users",
+        "entity": "user",
+
+        "owner": "Simba Khadder",
+        "visibility": "private",
+        "revision": "2022-02-09",
+        "tags": [],
+        "description": "If user has 2fa"
+      },
+      "data": {
+        "training-datasets": [
+          {
+            "name": "fraud_training_set",
+            "description": "",
+            "tags": [],
+            "variants": ["default"]
+          }
+        ]
+      }
+    }
+  }
+}

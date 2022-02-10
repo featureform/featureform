@@ -1,20 +1,21 @@
 {
-  "name": "Simba Khadder",
-  "type": "User",
-  "default-variant": "default-variant",
-  "all-versions": ["default-variant"],
+  "name": "fraud_training_set",
+  "default-variant": "default",
+  "type": "Training Dataset",
+  "all-versions": ["default"],
   "versions": {
-    "default-variant": {
-      "metadata": {},
+    "default": {
+      "metadata": {
+        "version-name": "default",
+        "rows": 514,
+        "revision": "2020-02-09",
+        "created": "2020-02-09",
+        "owner": "Simba Khadder",
+        "visibility": "private",
+        "tags": [],
+        "description": ""
+      },
       "data": {
-        "training-datasets": [
-          {
-            "name": "fraud_training_set",
-            "description": "",
-            "tags": [],
-            "variants": ["default"]
-          }
-        ],
         "features": [
           {
             "name": "user_transaction_count",

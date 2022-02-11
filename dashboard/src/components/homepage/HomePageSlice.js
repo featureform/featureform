@@ -12,6 +12,13 @@ const homePageSlice = createSlice({
         description: "Training datasets",
       },
       {
+        title: "Transformations",
+        icon: "workspaces",
+        path: "/transformations",
+        disabled: false,
+        description: "Transformations",
+      },
+      {
         title: "Features",
         icon: "description",
         path: "/features",

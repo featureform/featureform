@@ -7,7 +7,7 @@ When connecting or creating an Embeddinghub instance, a LocalConfig can be used 
 ```py
 import embeddinghub as eh
 
-hub = eh.connect(LocalConfig("directory"))
+hub = eh.connect(eh.LocalConfig("directory"))
 ```
 
 This version of Embeddinghub works similarly to a traditional Embeddinghub instance in that you can create and get spaces and write and read from them.

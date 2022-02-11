@@ -1,0 +1,30 @@
+{
+  "name": "Customer",
+  "default-variant": "default-variant",
+  "type": "Entity",
+  "all-versions": ["default-variant"],
+  "versions": {
+    "default-variant": {
+      "metadata": {
+        "version-name": "first-variant",
+        "created": "2020-08-09T13:49:51.141Z",
+        "visibility": "private",
+        "description": "Customer ID specifying identity of transactions."
+      },
+      "data": {
+        "features": [
+          {
+            "name": "User Transaction Count",
+            "description": "Count of user transactions"
+          }
+        ],
+        "training-datasets": [
+          {
+            "name": "Fraud Detection Training Set",
+            "description": "Dataset of customer transactions and whether or not fraud was ultimately found."
+          }
+        ]
+      }
+    }
+  }
+}

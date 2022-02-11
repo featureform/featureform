@@ -1,0 +1,19 @@
+{
+  "name": "User Transaction Count",
+  "type": "Feature",
+  "default-variant": "default variant",
+  "all-versions": ["default variant"],
+  "versions": {
+    "default variant": {
+      "metadata": {
+        "version-name": "default variant",
+        "entity": "Customer",
+        "owner": "Simba Khadder",
+        "visibility": "private",
+        "revision": "2020-08-12T13:49:51.141Z",
+        "description": "Count of user transactions"
+      },
+      "data": {}
+    }
+  }
+}

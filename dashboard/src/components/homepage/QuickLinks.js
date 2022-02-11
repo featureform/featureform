@@ -9,13 +9,14 @@ import Icon from "@material-ui/core/Icon";
 
 const links = [
   {
-    title: "Wine Quality Dataset",
-    icon: "storage",
-    link: "/training-datasets/Wine%20Quality%20Dataset",
+    title: "User Transaction Count",
+    link: "/features/User%20Transaction%20Count",
   },
-  { title: "Fixed Acidity", link: "/features/fixed_acidity" },
-  { title: "Wine spoiled", link: "/labels/Wine%20spoiled" },
-  { title: "Wine id", link: "/entities/wine_id" },
+  {
+    title: "Fraud Detection Training Set",
+    link: "/training-datasets/Fraud%20Detection%20Training%20Set",
+  },
+  { title: "Customer", link: "/entities/Customer" },
 ];
 
 const useStyles = makeStyles((theme) => ({

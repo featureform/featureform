@@ -18,7 +18,7 @@ spec:
       containers:
         - name: dashboard
           image: sami1309/featureform-dashboard
-          imagePullPolicy: "IfNotPresent"
+          imagePullPolicy: "Always"
           ports:
             - containerPort: 3000
 ---

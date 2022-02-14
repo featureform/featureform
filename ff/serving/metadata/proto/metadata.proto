@@ -11,15 +11,15 @@ package featureform.serving.metadata.proto;
 service Metadata {
     rpc ListFeatures(Empty) returns (stream Feature);
     rpc CreateFeatureVariant(FeatureVariant) returns (Empty);
-    rpc GetFeatures(stream NameLookupRequest) returns (stream Feature);
-    rpc GetFeatureVariants(stream VariantLookupRequest) returns (stream FeatureVariant);
+    rpc GetFeatures(stream Name) returns (stream Feature);
+    rpc GetFeatureVariants(stream NameVariant) returns (stream FeatureVariant);
 }
 
-message NameLookupRequest {
+message Name {
     string name = 1;
 }
 
-message VariantLookupRequest {
+message NameVariant {
     string name = 1;
     string variant = 2;
 }

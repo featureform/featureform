@@ -13,6 +13,11 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+type NameVariant struct {
+    Name string
+    Variant string
+}
+
 type Client struct {
 	Logger   *zap.SugaredLogger
 	conn     *grpc.ClientConn
@@ -34,7 +39,7 @@ func (client *Client) GetFeatures(ctx context.Context, features []string) ([]Fea
 	}
     go func() {
         for _, feature := range features {
-            stream.Send(&pb.NameLookupRequest{Name: feature})
+            stream.Send(&pb.Name{Name: feature})
         }
     }()
     return client.parseFeatureStream(stream)
@@ -84,34 +89,23 @@ func (client *Client) parseFeatureStream(stream featureStream) ([]Feature, error
 
 type Feature struct {
 	serialized     *pb.Feature
-	variants       []FeatureVariant
-	defaultVariant FeatureVariant
 }
 
 func wrapProtoFeature(serialized *pb.Feature) (feature Feature) {
 	feature.serialized = serialized
-	variants := make([]FeatureVariant, len(serialized.Variants))
-	for i, serialVar := range serialized.Variants {
-		wrappedVar := wrapProtoFeatureVariant(serialVar)
-		if serialVar.GetName() == serialized.DefaultVariant {
-			feature.defaultVariant = wrappedVar
-		}
-		variants[i] = wrappedVar
-	}
-	feature.variants = variants
-	return
+    return
 }
 
 func (feature *Feature) Name() string {
 	return feature.serialized.GetName()
 }
 
-func (feature *Feature) Variants() []FeatureVariant {
-	return feature.variants
+func (feature *Feature) Variants() []string {
+	return feature.serialized.Variants
 }
 
-func (feature *Feature) DefaultVariant() FeatureVariant {
-	return feature.defaultVariant
+func (feature *Feature) Default() string {
+	return feature.serialized.DefaultVariant
 }
 
 func (feature Feature) String() string {
@@ -165,11 +159,19 @@ func (variant *FeatureVariant) Owner() string {
 	return variant.serialized.GetOwner()
 }
 
-func (variant *FeatureVariant) TrainingSetNames() []string {
-	return variant.serialized.Trainingsets
+func (variant *FeatureVariant) TrainingSets() []NameVariant {
+    serialized := variant.serialized
+    parsed := make([]NameVariant, len(serialized.Trainingsets))
+    for i, trainingSet := range serialized.Trainingsets {
+        parsed[i] = NameVariant{
+            Name: trainingSet.Name,
+            Variant: trainingSet.Variant,
+        }
+    }
+	return parsed
 }
 
-func (variant *FeatureVariant) TrainingSets() []TrainingSet {
+func (variant *FeatureVariant) FetchTrainingSets() []TrainingSet {
 	// TODO
 	return nil
 }

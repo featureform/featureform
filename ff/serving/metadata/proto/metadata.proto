@@ -29,7 +29,7 @@ message Empty {}
 message Feature {
     string name = 1;
     string default_variant = 2;
-    repeated FeatureVariant variants = 3;
+    repeated string variants = 3;
 }
 
 message FeatureVariant {
@@ -41,7 +41,7 @@ message FeatureVariant {
     string created = 6;
     string owner = 7;
     string description = 8;
-    repeated string trainingsets = 9;
+    repeated NameVariant trainingsets = 9;
 }
 
 message Label {
@@ -93,9 +93,9 @@ message TrainingSetVariant {
 message Entity {
     string name = 1;
     string description = 2;
-    repeated string features = 3;
-    repeated string labels = 4;
-    repeated string trainingsets = 5;
+    repeated NameVariant features = 3;
+    repeated NameVariant labels = 4;
+    repeated NameVariant trainingsets = 5;
 }
 
 message Model {
@@ -109,10 +109,10 @@ message Model {
 
 message User {
     string name = 1;
-    repeated string features = 2;
-    repeated string labels = 3;
-    repeated string trainingsets = 4;
-    repeated string sources = 5;
+    repeated NameVariant features = 2;
+    repeated NameVariant labels = 3;
+    repeated NameVariant trainingsets = 4;
+    repeated NameVariant sources = 5;
 }
 
 message Source {

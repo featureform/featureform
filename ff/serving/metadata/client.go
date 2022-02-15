@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 const TIME_FORMAT = time.RFC1123
@@ -151,6 +152,18 @@ func (client *Client) parseUserStream(stream userStream) ([]User, error) {
 	return users, nil
 }
 
+type protoStringer struct {
+	msg proto.Message
+}
+
+func (stringer protoStringer) String() string {
+	bytes, err := protojson.Marshal(stringer.msg)
+	if err != nil {
+		return err.Error()
+	}
+	return string(bytes)
+}
+
 type variantsDescriber interface {
 	GetName() string
 	GetDefaultVariant() string
@@ -257,12 +270,14 @@ func (fn fetchSourcesFns) FetchSources() []SourceVariant {
 type Feature struct {
 	serialized *pb.Feature
 	variantsFns
+	protoStringer
 }
 
 func wrapProtoFeature(serialized *pb.Feature) Feature {
 	return Feature{
-		serialized:  serialized,
-		variantsFns: variantsFns{serialized},
+		serialized:    serialized,
+		variantsFns:   variantsFns{serialized},
+		protoStringer: protoStringer{serialized},
 	}
 }
 
@@ -271,23 +286,17 @@ func (feature Feature) FetchVariants() []FeatureVariant {
 	return nil
 }
 
-func (feature Feature) String() string {
-	bytes, err := protojson.Marshal(feature.serialized)
-	if err != nil {
-		return err.Error()
-	}
-	return string(bytes)
-}
-
 type FeatureVariant struct {
 	serialized *pb.FeatureVariant
 	fetchTrainingSetsFns
+	protoStringer
 }
 
 func wrapProtoFeatureVariant(serialized *pb.FeatureVariant) FeatureVariant {
 	return FeatureVariant{
 		serialized:           serialized,
 		fetchTrainingSetsFns: fetchTrainingSetsFns{serialized},
+		protoStringer:        protoStringer{serialized},
 	}
 }
 
@@ -323,20 +332,13 @@ func (variant *FeatureVariant) Owner() string {
 	return variant.serialized.GetOwner()
 }
 
-func (variant FeatureVariant) String() string {
-	bytes, err := protojson.Marshal(variant.serialized)
-	if err != nil {
-		return err.Error()
-	}
-	return string(bytes)
-}
-
 type User struct {
 	serialized *pb.User
 	fetchTrainingSetsFns
 	fetchFeaturesFns
 	fetchLabelsFns
 	fetchSourcesFns
+	protoStringer
 }
 
 func wrapProtoUser(serialized *pb.User) User {
@@ -346,28 +348,12 @@ func wrapProtoUser(serialized *pb.User) User {
 		fetchFeaturesFns:     fetchFeaturesFns{serialized},
 		fetchLabelsFns:       fetchLabelsFns{serialized},
 		fetchSourcesFns:      fetchSourcesFns{serialized},
+		protoStringer:        protoStringer{serialized},
 	}
 }
 
 func (user *User) Name() string {
 	return user.serialized.GetName()
-}
-
-func (user *User) TrainingSets() []NameVariant {
-	return parseNameVariants(user.serialized.Trainingsets)
-}
-
-func (user *User) FetchTrainingSets() []TrainingSet {
-	// TODO
-	return nil
-}
-
-func (user User) String() string {
-	bytes, err := protojson.Marshal(user.serialized)
-	if err != nil {
-		return err.Error()
-	}
-	return string(bytes)
 }
 
 type TrainingSet struct {

@@ -51,6 +51,14 @@ const useStyles = makeStyles(() => ({
   usageIcon: {
     color: "red",
   },
+  versionTableContainer: {
+    marginLeft: theme.spacing(4),
+    marginRight: theme.spacing(4),
+  },
+  versionTable: {
+    background: "rgba(255, 255, 255, 1)",
+    border: `2px solid ${theme.palette.border.main}`,
+  },
   detailPanel: {
     padding: theme.spacing(4),
   },
@@ -482,22 +490,52 @@ export const VersionTable = ({
     });
   });
   return (
-    <div>
+    <div className={classes.versionTableContainer}>
       <MaterialTable
-        className={classes.table}
+        className={classes.versionTable}
         title={
           <Typography variant="h6">
             <b></b>
           </Typography>
         }
         onRowClick={versionChangeRedirect}
+        components={{
+          Container: (props) => (
+            <Container
+              maxWidth="xl"
+              className={classes.versionTable}
+              {...props}
+            />
+          ),
+          Body: (props) => (
+            <MTableBody
+              style={{ borderRadius: 16 }}
+              className={classes.tableBody}
+              {...props}
+            />
+          ),
+          Header: (props) => (
+            <MTableHeader className={classes.tableBody} {...props} />
+          ),
+          Toolbar: (props) => (
+            <div className={classes.tableToolbar}>
+              <MTableToolbar {...props} />
+            </div>
+          ),
+        }}
         columns={[
           { title: "Variants", field: "variant" },
           { title: "Description", field: "description" },
+          {
+            title: "Usage",
+            field: "usage",
+            render: (row) => <UsageTab />,
+          },
         ]}
         data={myVariants}
         options={{
           search: true,
+          toolbar: false,
           draggable: false,
           headerStyle: {
             backgroundColor: "white",

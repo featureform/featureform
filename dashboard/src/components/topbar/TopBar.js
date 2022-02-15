@@ -62,7 +62,7 @@ export default function TopBar() {
   const classes = useStyles();
   let auth = false;
 
-  const instanceName = "Capital One";
+  const instanceTheme = false;
 
   const [search, setSearch] = React.useState(false);
   const [anchorEl, setAnchorEl] = React.useState(null);
@@ -103,15 +103,17 @@ export default function TopBar() {
             {search && (
               <SearchBar className={classes.searchBar} homePage={false} />
             )}
-            {search && (
-              <Divider orientation="vertical" variant="middle" flexItem />
+            {instanceTheme && (
+              <div>
+                <Divider orientation="vertical" variant="middle" flexItem />
+                <div className={classes.instanceName}>
+                  <img
+                    className={classes.instanceLogo}
+                    src="/Capital_One_logo.svg"
+                  />
+                </div>{" "}
+              </div>
             )}
-            <div className={classes.instanceName}>
-              <img
-                className={classes.instanceLogo}
-                src="/Capital_One_logo.svg"
-              />
-            </div>
             {auth && (
               <div>
                 <IconButton

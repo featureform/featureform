@@ -50,12 +50,18 @@ const useStyles = makeStyles((theme) =>
       boxShadow: "none",
       transition: theme.transitions.create("width"),
       width: "100%",
+      display: "flex",
     },
     inputInputHome: {
       paddingLeft: theme.spacing(4),
       transition: theme.transitions.create("width"),
       background: "transparent",
       boxShadow: "none",
+      alignSelf: "center",
+      padding: theme.spacing(1, 0.75, 0.4, 0),
+      justifyContent: "center",
+      display: "flex",
+      alignSelf: "flex-end",
     },
     inputTopBar: {
       padding: theme.spacing(1, 0, 0, 0),

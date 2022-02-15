@@ -3,6 +3,7 @@ import { connect } from "react-redux";
 import { useLocation } from "react-router-dom";
 import SearchResultsView from "./SearchResultsView";
 import { fetchSearch } from "./SearchResultsSlice";
+import { setVersion } from "../resource-list/VersionSlice.js";
 
 function useQuery() {
   return new URLSearchParams(useLocation().search);
@@ -11,10 +12,13 @@ function useQuery() {
 const mapDispatchToProps = (dispatch) => {
   return {
     fetch: (api, query) => dispatch(fetchSearch({ api, query })),
+    setVersion: (type, name, version) => {
+      dispatch(setVersion({ type, name, version }));
+    },
   };
 };
 
-const SearchResults = ({ searchResults, api, ...props }) => {
+const SearchResults = ({ searchResults, api, setVersion, ...props }) => {
   let search_query = useQuery().get("q");
 
   const fetchQuery = props.fetch;
@@ -24,7 +28,11 @@ const SearchResults = ({ searchResults, api, ...props }) => {
 
   return (
     <div>
-      <SearchResultsView results={searchResults} search_query={search_query} />
+      <SearchResultsView
+        results={searchResults}
+        search_query={search_query}
+        setVersion={setVersion}
+      />
     </div>
   );
 };

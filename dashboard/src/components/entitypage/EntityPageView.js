@@ -324,6 +324,7 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                         <b>Owner:</b>{" "}
                       </Typography>
                       <Chip
+                        variant="outlined"
                         className={classes.linkChip}
                         size="small"
                         onClick={linkToUserPage}
@@ -371,6 +372,7 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                         <b>Data Source: </b>{" "}
                       </Typography>
                       <Chip
+                        variant="outlined"
                         className={classes.linkChip}
                         size="small"
                         onClick={linkToDataSource}
@@ -386,6 +388,7 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                         <b>Entity:</b>{" "}
                       </Typography>
                       <Chip
+                        variant="outlined"
                         className={classes.linkChip}
                         size="small"
                         onClick={linkToEntityPage}
@@ -628,6 +631,7 @@ export const VersionTable = ({
         data={myVariants}
         options={{
           search: true,
+          toolbar: false,
           draggable: false,
           headerStyle: {
             backgroundColor: "white",

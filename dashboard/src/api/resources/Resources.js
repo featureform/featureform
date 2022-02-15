@@ -30,7 +30,7 @@ export const resourcePaths = Object.freeze({
   Label: "/labels",
   "Feature Set": "/feature-sets",
   Model: "/models",
-  Transformation: "/materialized-views",
+  Transformation: "/transformations",
   "Training Dataset": "/training-datasets",
   Provider: "/providers",
   User: "/users",
@@ -97,7 +97,6 @@ export default class ResourcesAPI {
     } else {
       fetchAddress = `${API_URL}${resourcePaths[type]}`;
     }
-    console.log(process.env);
     if (process.env.REACT_APP_EMPTY_RESOURCE_VIEW == "true") {
       fetchAddress = "/data/lists/wine-data-empty.json";
     }
@@ -137,6 +136,20 @@ export default class ResourcesAPI {
 
   fetchSearch(query) {
     const fetchAddress = "/data/lists/wine-data.json";
+
+    return fetch(fetchAddress, {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    })
+      .then((res) => res.json().then((json_data) => ({ data: json_data })))
+      .catch((error) => {
+        console.error(error);
+      });
+  }
+
+  fetchVersionSearchStub(query) {
+    const fetchAddress = "/data/lists/search_results_example.json";
 
     return fetch(fetchAddress, {
       headers: {

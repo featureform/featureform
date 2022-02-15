@@ -9,11 +9,13 @@ import Box from "@material-ui/core/Box";
 import { useHistory } from "react-router-dom";
 import List from "@material-ui/core/List";
 import ListItem from "@material-ui/core/ListItem";
+import ListSubheader from "@material-ui/core/ListItem";
 import ListItemText from "@material-ui/core/ListItemText";
 import { resourcePaths } from "api/resources";
 import Icon from "@material-ui/core/Icon";
 import { resourceIcons } from "api/resources";
 import Container from "@material-ui/core/Container";
+import { setVersion } from "components/resource-list/VersionSlice";
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
@@ -71,7 +73,7 @@ function a11yProps(index) {
   };
 }
 
-const SearchResultsView = ({ results, search_query }) => {
+const SearchResultsView = ({ results, search_query, setVersion }) => {
   const classes = useStyles();
 
   const [value, setValue] = React.useState(0);
@@ -79,6 +81,16 @@ const SearchResultsView = ({ results, search_query }) => {
   const handleChange = (event, newValue) => {
     setValue(newValue);
   };
+
+  let myResults = results.resources;
+  let typeOrder = [
+    "Feature",
+    "Data Source",
+    "Entity",
+    "Model",
+    "Transformation",
+    "Training Dataset",
+  ];
 
   useEffect(() => {
     setValue(0);
@@ -102,17 +114,18 @@ const SearchResultsView = ({ results, search_query }) => {
             onChange={handleChange}
             aria-label="simple tabs example"
           >
-            {results.resources.typeOrder.map((type, i) => (
+            {typeOrder.map((type, i) => (
               <Tab label={type} {...a11yProps(i)} />
             ))}
           </Tabs>
         </AppBar>
 
-        {results.resources.typeOrder.map((type, i) => (
+        {typeOrder.map((type, i) => (
           <TabPanel value={value} index={i}>
             <SearchResultsList
               type={type}
-              contents={results.resources.data[type]}
+              contents={myResults[type]}
+              setVersion={setVersion}
             />
           </TabPanel>
         ))}
@@ -123,52 +136,63 @@ const SearchResultsView = ({ results, search_query }) => {
   );
 };
 
-const SearchResultsList = ({ type, contents }) => {
+const SearchResultsList = ({ type, contents, setVersion }) => {
   const classes = useStyles();
 
   return (
     <div>
       <List className={classes.root} component="nav">
         {contents.map((content) => (
-          <SearchResultsItem type={type} content={content} />
+          <SearchResultsItem
+            type={type}
+            content={content}
+            setVersion={setVersion}
+          />
         ))}
       </List>
     </div>
   );
 };
 
-const SearchResultsItem = ({ type, content }) => {
+const SearchResultsItem = ({ type, content, setVersion }) => {
   const history = useHistory();
   const classes = useStyles();
 
-  function handleClick(event) {
+  function handleClick(variant) {
+    setVersion(type, content.name, variant);
     history.push(resourcePaths[type] + "/" + content.name);
   }
 
   const name = content.formattedName;
   const description = content.formattedDescription;
   return (
-    <ListItem button alignItems="flex-start">
-      <ListItemText
-        primary={
-          <div>
-            <Icon className={classes.resultTitle}>{resourceIcons[type]}</Icon>
-            <div className={classes.resultTitle}>&nbsp;</div>
-            <Typography
-              className={classes.resultTitle}
-              variant="h6"
-              dangerouslySetInnerHTML={{ __html: name }}
-            />
-          </div>
-        }
-        onClick={handleClick}
-        secondary={
-          <React.Fragment>
-            <span dangerouslySetInnerHTML={{ __html: description }} />
-          </React.Fragment>
-        }
-      />
-    </ListItem>
+    <>
+      <ListSubheader>
+        <Icon className={classes.resultTitle}>{resourceIcons[type]}</Icon>
+        <div className={classes.resultTitle}>&nbsp;</div>
+        <Typography
+          className={classes.resultTitle}
+          variant="body1"
+          dangerouslySetInnerHTML={{ __html: content.name }}
+        ></Typography>
+      </ListSubheader>
+
+      {Object.keys(content.versions).map((variant, i) => (
+        <ListItem button alignItems="flex-start">
+          <ListItemText
+            inset
+            primary={
+              <Typography variant="body1">
+                <b>{variant}</b>
+              </Typography>
+            }
+            onClick={() => handleClick(variant)}
+            secondary={content.versions[variant].description}
+          />
+        </ListItem>
+      ))}
+      {/*  */}
+    </>
   );
 };
 

@@ -68,7 +68,11 @@ func (err *ResourceNotFound) Error() string {
 	if variant != "" {
 		errMsg += "\nVariant: " + variant
 	}
-	return status.Error(codes.NotFound, errMsg).Error()
+	return errMsg
+}
+
+func (err *ResourceNotFound) GRPCStatus() *status.Status {
+	return status.New(codes.NotFound, err.Error())
 }
 
 type ResourceExists struct {
@@ -82,7 +86,11 @@ func (err *ResourceExists) Error() string {
 	if variant != "" {
 		errMsg += "\nVariant: " + variant
 	}
-	return status.Error(codes.NotFound, errMsg).Error()
+	return errMsg
+}
+
+func (err *ResourceExists) GRPCStatus() *status.Status {
+	return status.New(codes.AlreadyExists, err.Error())
 }
 
 type Resource interface {

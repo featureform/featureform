@@ -887,7 +887,7 @@ func (serv *MetadataServer) GetUsers(stream pb.Metadata_GetUsersServer) error {
 		name := req.GetName()
 		id := ResourceID{
 			Name: name,
-			Type: FEATURE,
+			Type: USER,
 		}
 		resource, err := serv.lookup.Lookup(id)
 		if err != nil {
@@ -895,6 +895,65 @@ func (serv *MetadataServer) GetUsers(stream pb.Metadata_GetUsersServer) error {
 		}
 		user := resource.Proto().(*pb.User)
 		if err := stream.Send(user); err != nil {
+			return err
+		}
+	}
+}
+
+func (serv *MetadataServer) ListEntities(_ *pb.Empty, stream pb.Metadata_ListEntitiesServer) error {
+	ids, err := serv.lookup.List(ENTITY)
+	if err != nil {
+		return err
+	}
+	for _, id := range ids {
+		res, err := serv.lookup.Lookup(id)
+		if err != nil {
+			return err
+		}
+		entity := res.Proto().(*pb.Entity)
+		if err := stream.Send(entity); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (serv *MetadataServer) CreateEntity(ctx context.Context, entity *pb.Entity) (*pb.Empty, error) {
+	name := entity.GetName()
+	id := ResourceID{
+		Name: name,
+		Type: ENTITY,
+	}
+	if has, err := serv.lookup.Has(id); err != nil {
+		return nil, err
+	} else if has {
+		return nil, &ResourceExists{id}
+	}
+	serv.lookup.Set(id, &entityResource{entity})
+	// TODO verify dependencies, propogate change
+	return &pb.Empty{}, nil
+}
+
+func (serv *MetadataServer) GetEntities(stream pb.Metadata_GetEntitiesServer) error {
+	for {
+		req, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		name := req.GetName()
+		id := ResourceID{
+			Name: name,
+			Type: ENTITY,
+		}
+		resource, err := serv.lookup.Lookup(id)
+		if err != nil {
+			return err
+		}
+		entity := resource.Proto().(*pb.Entity)
+		if err := stream.Send(entity); err != nil {
 			return err
 		}
 	}

@@ -61,10 +61,6 @@ type ResourceNotFound struct {
 	ID ResourceID
 }
 
-func (err ResourceNotFound) WrapGRPC() error {
-	return status.Error(codes.NotFound, err.Error())
-}
-
 func (err *ResourceNotFound) Error() string {
 	id := err.ID
 	name, variant, t := id.Name, id.Variant, id.Type
@@ -72,15 +68,11 @@ func (err *ResourceNotFound) Error() string {
 	if variant != "" {
 		errMsg += "\nVariant: " + variant
 	}
-	return errMsg
+	return status.Error(codes.NotFound, errMsg).Error()
 }
 
 type ResourceExists struct {
 	ID ResourceID
-}
-
-func (err ResourceExists) WrapGRPC() error {
-	return status.Error(codes.AlreadyExists, err.Error())
 }
 
 func (err *ResourceExists) Error() string {
@@ -90,40 +82,64 @@ func (err *ResourceExists) Error() string {
 	if variant != "" {
 		errMsg += "\nVariant: " + variant
 	}
-	return errMsg
+	return status.Error(codes.NotFound, errMsg).Error()
 }
 
 type Resource interface {
-	Notify(ResourceLookup, operation, Resource)
+	Notify(ResourceLookup, operation, Resource) error
 	ID() ResourceID
-	Dependencies(ResourceLookup) ResourceLookup
+	Dependencies(ResourceLookup) (ResourceLookup, error)
 	Proto() interface{}
 }
 
-type ResourceLookup map[ResourceID]Resource
+type ResourceLookup interface {
+	Lookup(ResourceID) (Resource, error)
+	Has(ResourceID) (bool, error)
+	Set(ResourceID, Resource) error
+	Submap([]ResourceID) (ResourceLookup, error)
+	List(ResourceType) ([]ResourceID, error)
+}
 
-func (lookup ResourceLookup) Submap(ids []ResourceID) (ResourceLookup, error) {
-	resources := make(ResourceLookup, len(ids))
+type localResourceLookup map[ResourceID]Resource
+
+func (lookup localResourceLookup) Lookup(id ResourceID) (Resource, error) {
+	res, has := lookup[id]
+	if !has {
+		return nil, &ResourceNotFound{id}
+	}
+	return res, nil
+}
+
+func (lookup localResourceLookup) Has(id ResourceID) (bool, error) {
+	_, has := lookup[id]
+	return has, nil
+}
+
+func (lookup localResourceLookup) Set(id ResourceID, res Resource) error {
+	lookup[id] = res
+	return nil
+}
+
+func (lookup localResourceLookup) Submap(ids []ResourceID) (ResourceLookup, error) {
+	resources := make(localResourceLookup, len(ids))
 	for _, id := range ids {
 		resource, has := lookup[id]
 		if !has {
-			return nil, fmt.Errorf("Resource not found: %v", id)
+			return nil, &ResourceNotFound{id}
 		}
 		resources[id] = resource
 	}
 	return resources, nil
 }
 
-func (lookup ResourceLookup) LookupAll(ids []ResourceID) ([]Resource, error) {
-	resources := make([]Resource, len(ids))
-	for i, id := range ids {
-		resource, has := lookup[id]
-		if !has {
-			return nil, fmt.Errorf("Resource not found: %v", id)
+func (lookup localResourceLookup) List(t ResourceType) ([]ResourceID, error) {
+	ids := make([]ResourceID, 0)
+	for id, _ := range lookup {
+		if id.Type == t {
+			ids = append(ids, id)
 		}
-		resources[i] = resource
 	}
-	return resources, nil
+	return ids, nil
 }
 
 type sourceResource struct {
@@ -137,31 +153,36 @@ func (resource *sourceResource) ID() ResourceID {
 	}
 }
 
-func (resource *sourceResource) Dependencies(lookup ResourceLookup) ResourceLookup {
+func (resource *sourceResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
 	name := resource.serialized.Name
-	deps := make(ResourceLookup)
+	deps := make(localResourceLookup)
 	for _, variant := range resource.serialized.Variants {
 		id := ResourceID{
 			Name:    name,
 			Variant: variant,
 			Type:    SOURCE_VARIANT,
 		}
-		deps[id] = lookup[id]
+		res, err := lookup.Lookup(id)
+		if err != nil {
+			return nil, err
+		}
+		deps[id] = res
 	}
-	return deps
+	return deps, nil
 }
 
 func (resource *sourceResource) Proto() interface{} {
 	return resource.serialized
 }
 
-func (this *sourceResource) Notify(lookup ResourceLookup, op operation, that Resource) {
+func (this *sourceResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
 	otherId := that.ID()
 	isVariant := otherId.Type == SOURCE_VARIANT && otherId.Name == this.serialized.Name
 	if !isVariant {
-		return
+		return nil
 	}
 	this.serialized.Variants = append(this.serialized.Variants, otherId.Variant)
+	return nil
 }
 
 type sourceVariantResource struct {
@@ -176,7 +197,7 @@ func (resource *sourceVariantResource) ID() ResourceID {
 	}
 }
 
-func (resource *sourceVariantResource) Dependencies(lookup ResourceLookup) ResourceLookup {
+func (resource *sourceVariantResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
 	serialized := resource.serialized
 	depIds := []ResourceID{
 		{
@@ -190,16 +211,16 @@ func (resource *sourceVariantResource) Dependencies(lookup ResourceLookup) Resou
 	}
 	deps, err := lookup.Submap(depIds)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return deps
+	return deps, nil
 }
 
 func (resource *sourceVariantResource) Proto() interface{} {
 	return resource.serialized
 }
 
-func (this *sourceVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) {
+func (this *sourceVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
 	id := that.ID()
 	t := id.Type
 	key := id.Proto()
@@ -212,6 +233,7 @@ func (this *sourceVariantResource) Notify(lookup ResourceLookup, op operation, t
 	case LABEL_VARIANT:
 		serialized.Labels = append(serialized.Labels, key)
 	}
+	return nil
 }
 
 type featureResource struct {
@@ -225,31 +247,36 @@ func (resource *featureResource) ID() ResourceID {
 	}
 }
 
-func (resource *featureResource) Dependencies(lookup ResourceLookup) ResourceLookup {
+func (resource *featureResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
 	name := resource.serialized.Name
-	deps := make(ResourceLookup)
+	deps := make(localResourceLookup)
 	for _, variant := range resource.serialized.Variants {
 		id := ResourceID{
 			Name:    name,
 			Variant: variant,
 			Type:    FEATURE_VARIANT,
 		}
-		deps[id] = lookup[id]
+		res, err := lookup.Lookup(id)
+		if err != nil {
+			return nil, err
+		}
+		deps[id] = res
 	}
-	return deps
+	return deps, nil
 }
 
 func (resource *featureResource) Proto() interface{} {
 	return resource.serialized
 }
 
-func (this *featureResource) Notify(lookup ResourceLookup, op operation, that Resource) {
+func (this *featureResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
 	otherId := that.ID()
 	isVariant := otherId.Type == FEATURE_VARIANT && otherId.Name == this.serialized.Name
 	if !isVariant {
-		return
+		return nil
 	}
 	this.serialized.Variants = append(this.serialized.Variants, otherId.Variant)
+	return nil
 }
 
 type featureVariantResource struct {
@@ -264,7 +291,7 @@ func (resource *featureVariantResource) ID() ResourceID {
 	}
 }
 
-func (resource *featureVariantResource) Dependencies(lookup ResourceLookup) ResourceLookup {
+func (resource *featureVariantResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
 	serialized := resource.serialized
 	depIds := []ResourceID{
 		{
@@ -286,23 +313,24 @@ func (resource *featureVariantResource) Dependencies(lookup ResourceLookup) Reso
 	}
 	deps, err := lookup.Submap(depIds)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return deps
+	return deps, nil
 }
 
 func (resource *featureVariantResource) Proto() interface{} {
 	return resource.serialized
 }
 
-func (this *featureVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) {
+func (this *featureVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
 	id := that.ID()
 	releventOp := op == create_op && id.Type == TRAINING_SET_VARIANT
 	if !releventOp {
-		return
+		return nil
 	}
 	key := id.Proto()
 	this.serialized.Trainingsets = append(this.serialized.Trainingsets, key)
+	return nil
 }
 
 type labelResource struct {
@@ -316,31 +344,36 @@ func (resource *labelResource) ID() ResourceID {
 	}
 }
 
-func (resource *labelResource) Dependencies(lookup ResourceLookup) ResourceLookup {
+func (resource *labelResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
 	name := resource.serialized.Name
-	deps := make(ResourceLookup)
+	deps := make(localResourceLookup)
 	for _, variant := range resource.serialized.Variants {
 		id := ResourceID{
 			Name:    name,
 			Variant: variant,
 			Type:    LABEL_VARIANT,
 		}
-		deps[id] = lookup[id]
+		res, err := lookup.Lookup(id)
+		if err != nil {
+			return nil, err
+		}
+		deps[id] = res
 	}
-	return deps
+	return deps, nil
 }
 
 func (resource *labelResource) Proto() interface{} {
 	return resource.serialized
 }
 
-func (this *labelResource) Notify(lookup ResourceLookup, op operation, that Resource) {
+func (this *labelResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
 	otherId := that.ID()
 	isVariant := otherId.Type == LABEL_VARIANT && otherId.Name == this.serialized.Name
 	if !isVariant {
-		return
+		return nil
 	}
 	this.serialized.Variants = append(this.serialized.Variants, otherId.Variant)
+	return nil
 }
 
 type labelVariantResource struct {
@@ -355,7 +388,7 @@ func (resource *labelVariantResource) ID() ResourceID {
 	}
 }
 
-func (resource *labelVariantResource) Dependencies(lookup ResourceLookup) ResourceLookup {
+func (resource *labelVariantResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
 	serialized := resource.serialized
 	depIds := []ResourceID{
 		{
@@ -377,23 +410,24 @@ func (resource *labelVariantResource) Dependencies(lookup ResourceLookup) Resour
 	}
 	deps, err := lookup.Submap(depIds)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return deps
+	return deps, nil
 }
 
 func (resource *labelVariantResource) Proto() interface{} {
 	return resource.serialized
 }
 
-func (this *labelVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) {
+func (this *labelVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
 	id := that.ID()
 	releventOp := op == create_op && id.Type == TRAINING_SET_VARIANT
 	if !releventOp {
-		return
+		return nil
 	}
 	key := id.Proto()
 	this.serialized.Trainingsets = append(this.serialized.Trainingsets, key)
+	return nil
 }
 
 type trainingSetResource struct {
@@ -407,31 +441,36 @@ func (resource *trainingSetResource) ID() ResourceID {
 	}
 }
 
-func (resource *trainingSetResource) Dependencies(lookup ResourceLookup) ResourceLookup {
+func (resource *trainingSetResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
 	name := resource.serialized.Name
-	deps := make(ResourceLookup)
+	deps := make(localResourceLookup)
 	for _, variant := range resource.serialized.Variants {
 		id := ResourceID{
 			Name:    name,
 			Variant: variant,
 			Type:    TRAINING_SET_VARIANT,
 		}
-		deps[id] = lookup[id]
+		res, err := lookup.Lookup(id)
+		if err != nil {
+			return nil, err
+		}
+		deps[id] = res
 	}
-	return deps
+	return deps, nil
 }
 
 func (resource *trainingSetResource) Proto() interface{} {
 	return resource.serialized
 }
 
-func (this *trainingSetResource) Notify(lookup ResourceLookup, op operation, that Resource) {
+func (this *trainingSetResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
 	otherId := that.ID()
 	isVariant := otherId.Type == TRAINING_SET_VARIANT && otherId.Name == this.serialized.Name
 	if !isVariant {
-		return
+		return nil
 	}
 	this.serialized.Variants = append(this.serialized.Variants, otherId.Variant)
+	return nil
 }
 
 type trainingSetVariantResource struct {
@@ -446,7 +485,7 @@ func (resource *trainingSetVariantResource) ID() ResourceID {
 	}
 }
 
-func (resource *trainingSetVariantResource) Dependencies(lookup ResourceLookup) ResourceLookup {
+func (resource *trainingSetVariantResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
 	serialized := resource.serialized
 	depIds := []ResourceID{
 		{
@@ -472,17 +511,17 @@ func (resource *trainingSetVariantResource) Dependencies(lookup ResourceLookup) 
 	}
 	deps, err := lookup.Submap(depIds)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return deps
+	return deps, nil
 }
 
 func (resource *trainingSetVariantResource) Proto() interface{} {
 	return resource.serialized
 }
 
-func (this *trainingSetVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) {
-	// Purposely empty.
+func (this *trainingSetVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+	return nil
 }
 
 type modelResource struct {
@@ -496,7 +535,7 @@ func (resource *modelResource) ID() ResourceID {
 	}
 }
 
-func (resource *modelResource) Dependencies(lookup ResourceLookup) ResourceLookup {
+func (resource *modelResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
 	serialized := resource.serialized
 	depIds := make([]ResourceID, 0)
 	for _, feature := range serialized.Features {
@@ -522,17 +561,17 @@ func (resource *modelResource) Dependencies(lookup ResourceLookup) ResourceLooku
 	}
 	deps, err := lookup.Submap(depIds)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return deps
+	return deps, nil
 }
 
 func (resource *modelResource) Proto() interface{} {
 	return resource.serialized
 }
 
-func (this *modelResource) Notify(lookup ResourceLookup, op operation, that Resource) {
-	// Purposely empty.
+func (this *modelResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+	return nil
 }
 
 type userResource struct {
@@ -546,19 +585,23 @@ func (resource *userResource) ID() ResourceID {
 	}
 }
 
-func (resource *userResource) Dependencies(lookup ResourceLookup) ResourceLookup {
-	return make(ResourceLookup)
+func (resource *userResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
+	return make(localResourceLookup), nil
 }
 
 func (resource *userResource) Proto() interface{} {
 	return resource.serialized
 }
 
-func (this *userResource) Notify(lookup ResourceLookup, op operation, that Resource) {
+func (this *userResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
 	userId := this.ID()
-	_, userOwns := that.Dependencies(lookup)[userId]
-	if !userOwns {
-		return
+	deps, depsErr := that.Dependencies(lookup)
+	if depsErr != nil {
+		return depsErr
+	}
+	_, lookupErr := deps.Lookup(userId)
+	if lookupErr != nil {
+		return lookupErr
 	}
 	id := that.ID()
 	key := id.Proto()
@@ -574,6 +617,7 @@ func (this *userResource) Notify(lookup ResourceLookup, op operation, that Resou
 	case SOURCE_VARIANT:
 		serialized.Sources = append(serialized.Sources, key)
 	}
+	return nil
 }
 
 type providerResource struct {
@@ -587,19 +631,23 @@ func (resource *providerResource) ID() ResourceID {
 	}
 }
 
-func (resource *providerResource) Dependencies(lookup ResourceLookup) ResourceLookup {
-	return make(ResourceLookup)
+func (resource *providerResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
+	return make(localResourceLookup), nil
 }
 
 func (resource *providerResource) Proto() interface{} {
 	return resource.serialized
 }
 
-func (this *providerResource) Notify(lookup ResourceLookup, op operation, that Resource) {
+func (this *providerResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
 	providerId := this.ID()
-	_, providerOwns := that.Dependencies(lookup)[providerId]
-	if !providerOwns {
-		return
+	deps, depsErr := that.Dependencies(lookup)
+	if depsErr != nil {
+		return depsErr
+	}
+	_, lookupErr := deps.Lookup(providerId)
+	if lookupErr != nil {
+		return lookupErr
 	}
 	id := that.ID()
 	key := id.Proto()
@@ -615,6 +663,7 @@ func (this *providerResource) Notify(lookup ResourceLookup, op operation, that R
 	case LABEL_VARIANT:
 		serialized.Labels = append(serialized.Labels, key)
 	}
+	return nil
 }
 
 type entityResource struct {
@@ -628,19 +677,23 @@ func (resource *entityResource) ID() ResourceID {
 	}
 }
 
-func (resource *entityResource) Dependencies(lookup ResourceLookup) ResourceLookup {
-	return make(ResourceLookup)
+func (resource *entityResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
+	return make(localResourceLookup), nil
 }
 
 func (resource *entityResource) Proto() interface{} {
 	return resource.serialized
 }
 
-func (this *entityResource) Notify(lookup ResourceLookup, op operation, that Resource) {
+func (this *entityResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
 	entityId := this.ID()
-	_, hasEntity := that.Dependencies(lookup)[entityId]
-	if !hasEntity {
-		return
+	deps, depsErr := that.Dependencies(lookup)
+	if depsErr != nil {
+		return depsErr
+	}
+	_, lookupErr := deps.Lookup(entityId)
+	if lookupErr != nil {
+		return lookupErr
 	}
 	id := that.ID()
 	key := id.Proto()
@@ -654,33 +707,36 @@ func (this *entityResource) Notify(lookup ResourceLookup, op operation, that Res
 	case LABEL_VARIANT:
 		serialized.Labels = append(serialized.Labels, key)
 	}
+	return nil
 }
 
 const TIME_FORMAT = time.RFC1123
 
 type MetadataServer struct {
-	features []string
-	lookup   ResourceLookup
-	Logger   *zap.SugaredLogger
+	lookup ResourceLookup
+	Logger *zap.SugaredLogger
 	pb.UnimplementedMetadataServer
 }
 
 func NewMetadataServer(logger *zap.SugaredLogger) (*MetadataServer, error) {
 	logger.Debug("Creating new metadata server")
 	return &MetadataServer{
-		features: make([]string, 0),
-		lookup:   make(ResourceLookup),
-		Logger:   logger,
+		lookup: make(localResourceLookup),
+		Logger: logger,
 	}, nil
 }
 
 func (serv *MetadataServer) ListFeatures(_ *pb.Empty, stream pb.Metadata_ListFeaturesServer) error {
-	for _, name := range serv.features {
-		id := ResourceID{
-			Name: name,
-			Type: FEATURE,
+	ids, err := serv.lookup.List(FEATURE)
+	if err != nil {
+		return err
+	}
+	for _, id := range ids {
+		res, err := serv.lookup.Lookup(id)
+		if err != nil {
+			return err
 		}
-		feature := serv.lookup[id].Proto().(*pb.Feature)
+		feature := res.Proto().(*pb.Feature)
 		if err := stream.Send(feature); err != nil {
 			return err
 		}
@@ -695,16 +751,19 @@ func (serv *MetadataServer) CreateFeatureVariant(ctx context.Context, variant *p
 		Variant: variantName,
 		Type:    FEATURE_VARIANT,
 	}
-	if _, has := serv.lookup[id]; has {
-		return nil, ResourceExists{id}.WrapGRPC()
+	if has, err := serv.lookup.Has(id); err != nil {
+		return nil, err
+	} else if has {
+		return nil, &ResourceExists{id}
 	}
 	variant.Created = time.Now().Format(TIME_FORMAT)
 	parentId := ResourceID{
 		Name: name,
 		Type: FEATURE,
 	}
-	_, parentExists := serv.lookup[parentId]
-	if !parentExists {
+	if parentExists, err := serv.lookup.Has(parentId); err != nil {
+		return nil, err
+	} else if !parentExists {
 		feature := &pb.Feature{
 			Name:           name,
 			DefaultVariant: variantName,
@@ -712,10 +771,12 @@ func (serv *MetadataServer) CreateFeatureVariant(ctx context.Context, variant *p
 			Variants: []string{},
 		}
 		resource := &featureResource{feature}
-		serv.lookup[parentId] = resource
-		serv.features = append(serv.features, name)
+		serv.lookup.Set(parentId, resource)
 	}
-	serv.lookup[id] = &featureVariantResource{variant}
+	err := serv.lookup.Set(id, &featureVariantResource{variant})
+	if err != nil {
+		return nil, err
+	}
 	// TODO verify dependencies, propogate change
 	return &pb.Empty{}, nil
 }
@@ -734,9 +795,9 @@ func (serv *MetadataServer) GetFeatures(stream pb.Metadata_GetFeaturesServer) er
 			Name: name,
 			Type: FEATURE,
 		}
-		resource, has := serv.lookup[id]
-		if !has {
-			return ResourceNotFound{id}.WrapGRPC()
+		resource, err := serv.lookup.Lookup(id)
+		if err != nil {
+			return err
 		}
 		feature := resource.Proto().(*pb.Feature)
 		if err := stream.Send(feature); err != nil {
@@ -760,12 +821,71 @@ func (serv *MetadataServer) GetFeatureVariants(stream pb.Metadata_GetFeatureVari
 			Variant: variant,
 			Type:    FEATURE_VARIANT,
 		}
-		resource, has := serv.lookup[id]
-		if !has {
-			return ResourceNotFound{id}.WrapGRPC()
+		resource, err := serv.lookup.Lookup(id)
+		if err != nil {
+			return err
 		}
 		serialized := resource.Proto().(*pb.FeatureVariant)
 		if err := stream.Send(serialized); err != nil {
+			return err
+		}
+	}
+}
+
+func (serv *MetadataServer) ListUsers(_ *pb.Empty, stream pb.Metadata_ListUsersServer) error {
+	ids, err := serv.lookup.List(USER)
+	if err != nil {
+		return err
+	}
+	for _, id := range ids {
+		res, err := serv.lookup.Lookup(id)
+		if err != nil {
+			return err
+		}
+		user := res.Proto().(*pb.User)
+		if err := stream.Send(user); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (serv *MetadataServer) CreateUser(ctx context.Context, user *pb.User) (*pb.Empty, error) {
+	name := user.GetName()
+	id := ResourceID{
+		Name: name,
+		Type: USER,
+	}
+	if has, err := serv.lookup.Has(id); err != nil {
+		return nil, err
+	} else if has {
+		return nil, &ResourceExists{id}
+	}
+	serv.lookup.Set(id, &userResource{user})
+	// TODO verify dependencies, propogate change
+	return &pb.Empty{}, nil
+}
+
+func (serv *MetadataServer) GetUsers(stream pb.Metadata_GetUsersServer) error {
+	for {
+		req, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		name := req.GetName()
+		id := ResourceID{
+			Name: name,
+			Type: FEATURE,
+		}
+		resource, err := serv.lookup.Lookup(id)
+		if err != nil {
+			return err
+		}
+		user := resource.Proto().(*pb.User)
+		if err := stream.Send(user); err != nil {
 			return err
 		}
 	}

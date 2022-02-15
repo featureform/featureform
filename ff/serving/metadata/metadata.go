@@ -10,6 +10,8 @@ import (
 	pb "github.com/featureform/serving/metadata/proto"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type NameVariant struct {
@@ -17,31 +19,29 @@ type NameVariant struct {
 	Variant string
 }
 
-// IDEA resources interface with a notify call.
-
 type operation int
 
 const (
 	create_op operation = iota
 )
 
-type ResourceType int
+type ResourceType string
 
 const (
-	FEATURE ResourceType = iota
-	FEATURE_VARIANT
-	LABEL
-	LABEL_VARIANT
-	USER
-	ENTITY
-	TRANSFORMATION
-	TRANSFORMATION_VARIANT
-	PROVIDER
-	SOURCE
-	SOURCE_VARIANT
-	TRAINING_SET
-	TRAINING_SET_VARIANT
-	MODEL
+	FEATURE                ResourceType = "Feature"
+	FEATURE_VARIANT                     = "Feature variant"
+	LABEL                               = "Label"
+	LABEL_VARIANT                       = "Label variant"
+	USER                                = "User"
+	ENTITY                              = "Entity"
+	TRANSFORMATION                      = "Transformation"
+	TRANSFORMATION_VARIANT              = "Transformation variant"
+	PROVIDER                            = "Provider"
+	SOURCE                              = "Source"
+	SOURCE_VARIANT                      = "Source variant"
+	TRAINING_SET                        = "Training Set"
+	TRAINING_SET_VARIANT                = "Training Set variant"
+	MODEL                               = "Model"
 )
 
 type ResourceID struct {
@@ -55,6 +55,42 @@ func (id ResourceID) Proto() *pb.NameVariant {
 		Name:    id.Name,
 		Variant: id.Variant,
 	}
+}
+
+type ResourceNotFound struct {
+	ID ResourceID
+}
+
+func (err ResourceNotFound) WrapGRPC() error {
+	return status.Error(codes.NotFound, err.Error())
+}
+
+func (err *ResourceNotFound) Error() string {
+	id := err.ID
+	name, variant, t := id.Name, id.Variant, id.Type
+	errMsg := fmt.Sprintf("%s Not Found.\nName: %s", t, name)
+	if variant != "" {
+		errMsg += "\nVariant: " + variant
+	}
+	return errMsg
+}
+
+type ResourceExists struct {
+	ID ResourceID
+}
+
+func (err ResourceExists) WrapGRPC() error {
+	return status.Error(codes.AlreadyExists, err.Error())
+}
+
+func (err *ResourceExists) Error() string {
+	id := err.ID
+	name, variant, t := id.Name, id.Variant, id.Type
+	errMsg := fmt.Sprintf("%s Exists.\nName: %s", t, name)
+	if variant != "" {
+		errMsg += "\nVariant: " + variant
+	}
+	return errMsg
 }
 
 type Resource interface {
@@ -620,24 +656,31 @@ func (this *entityResource) Notify(lookup ResourceLookup, op operation, that Res
 	}
 }
 
+const TIME_FORMAT = time.RFC1123
+
 type MetadataServer struct {
-	features        map[string]*pb.Feature
-	featureVariants map[NameVariant]*pb.FeatureVariant
-	Logger          *zap.SugaredLogger
+	features []string
+	lookup   ResourceLookup
+	Logger   *zap.SugaredLogger
 	pb.UnimplementedMetadataServer
 }
 
 func NewMetadataServer(logger *zap.SugaredLogger) (*MetadataServer, error) {
 	logger.Debug("Creating new metadata server")
 	return &MetadataServer{
-		features:        make(map[string]*pb.Feature),
-		featureVariants: make(map[NameVariant]*pb.FeatureVariant),
-		Logger:          logger,
+		features: make([]string, 0),
+		lookup:   make(ResourceLookup),
+		Logger:   logger,
 	}, nil
 }
 
 func (serv *MetadataServer) ListFeatures(_ *pb.Empty, stream pb.Metadata_ListFeaturesServer) error {
-	for _, feature := range serv.features {
+	for _, name := range serv.features {
+		id := ResourceID{
+			Name: name,
+			Type: FEATURE,
+		}
+		feature := serv.lookup[id].Proto().(*pb.Feature)
 		if err := stream.Send(feature); err != nil {
 			return err
 		}
@@ -647,22 +690,33 @@ func (serv *MetadataServer) ListFeatures(_ *pb.Empty, stream pb.Metadata_ListFea
 
 func (serv *MetadataServer) CreateFeatureVariant(ctx context.Context, variant *pb.FeatureVariant) (*pb.Empty, error) {
 	name, variantName := variant.GetName(), variant.GetVariant()
-	variantKey := NameVariant{name, variantName}
-	if _, has := serv.featureVariants[variantKey]; has {
-		return nil, fmt.Errorf("Variant already exists")
+	id := ResourceID{
+		Name:    name,
+		Variant: variantName,
+		Type:    FEATURE_VARIANT,
 	}
-	feature, has := serv.features[name]
-	variant.Created = time.Now().Format(time.RFC1123)
-	if has {
-		feature.Variants = append(feature.Variants, variantName)
-	} else {
-		serv.features[name] = &pb.Feature{
+	if _, has := serv.lookup[id]; has {
+		return nil, ResourceExists{id}.WrapGRPC()
+	}
+	variant.Created = time.Now().Format(TIME_FORMAT)
+	parentId := ResourceID{
+		Name: name,
+		Type: FEATURE,
+	}
+	_, parentExists := serv.lookup[parentId]
+	if !parentExists {
+		feature := &pb.Feature{
 			Name:           name,
 			DefaultVariant: variantName,
-			Variants:       []string{variantName},
+			// This will be set when the change is propogated to dependencies.
+			Variants: []string{},
 		}
+		resource := &featureResource{feature}
+		serv.lookup[parentId] = resource
+		serv.features = append(serv.features, name)
 	}
-	serv.featureVariants[variantKey] = variant
+	serv.lookup[id] = &featureVariantResource{variant}
+	// TODO verify dependencies, propogate change
 	return &pb.Empty{}, nil
 }
 
@@ -676,10 +730,15 @@ func (serv *MetadataServer) GetFeatures(stream pb.Metadata_GetFeaturesServer) er
 			return err
 		}
 		name := req.GetName()
-		feature, has := serv.features[name]
-		if !has {
-			return fmt.Errorf("Feature %s not found", name)
+		id := ResourceID{
+			Name: name,
+			Type: FEATURE,
 		}
+		resource, has := serv.lookup[id]
+		if !has {
+			return ResourceNotFound{id}.WrapGRPC()
+		}
+		feature := resource.Proto().(*pb.Feature)
 		if err := stream.Send(feature); err != nil {
 			return err
 		}
@@ -695,13 +754,18 @@ func (serv *MetadataServer) GetFeatureVariants(stream pb.Metadata_GetFeatureVari
 		if err != nil {
 			return err
 		}
-		name, variantName := req.GetName(), req.GetVariant()
-		key := NameVariant{name, variantName}
-		variant, has := serv.featureVariants[key]
-		if !has {
-			return fmt.Errorf("FeatureVariant %s %s not found", name, variant)
+		name, variant := req.GetName(), req.GetVariant()
+		id := ResourceID{
+			Name:    name,
+			Variant: variant,
+			Type:    FEATURE_VARIANT,
 		}
-		if err := stream.Send(variant); err != nil {
+		resource, has := serv.lookup[id]
+		if !has {
+			return ResourceNotFound{id}.WrapGRPC()
+		}
+		serialized := resource.Proto().(*pb.FeatureVariant)
+		if err := stream.Send(serialized); err != nil {
 			return err
 		}
 	}

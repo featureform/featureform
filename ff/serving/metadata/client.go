@@ -151,30 +151,72 @@ func (client *Client) parseUserStream(stream userStream) ([]User, error) {
 	return users, nil
 }
 
-type trainingSetGetter interface {
+type trainingSetsGetter interface {
 	GetTrainingsets() []*pb.NameVariant
 }
 
 type fetchTrainingSetsFns struct {
-	getter trainingSetGetter
+	getter trainingSetsGetter
 }
 
 func (fn fetchTrainingSetsFns) TrainingSets() []NameVariant {
 	return parseNameVariants(fn.getter.GetTrainingsets())
 }
 
-func (fn fetchTrainingSetsFns) FetchTrainingSets() []TrainingSet {
+func (fn fetchTrainingSetsFns) FetchTrainingSets() []TrainingSetVariant {
 	// TODO
 	return nil
 }
 
-type labelFuncProvider struct {
+type labelsGetter interface {
+	GetLabels() []*pb.NameVariant
 }
 
-type featureFuncProvider struct {
+type fetchLabelsFns struct {
+	getter labelsGetter
 }
 
-type sourceFuncProvider struct {
+func (fn fetchLabelsFns) Labels() []NameVariant {
+	return parseNameVariants(fn.getter.GetLabels())
+}
+
+func (fn fetchLabelsFns) FetchLabels() []LabelVariant {
+	// TODO
+	return nil
+}
+
+type featuresGetter interface {
+	GetFeatures() []*pb.NameVariant
+}
+
+type fetchFeaturesFns struct {
+	getter featuresGetter
+}
+
+func (fn fetchFeaturesFns) Features() []NameVariant {
+	return parseNameVariants(fn.getter.GetFeatures())
+}
+
+func (fn fetchFeaturesFns) FetchFeatures() []FeatureVariant {
+	// TODO
+	return nil
+}
+
+type sourcesGetter interface {
+	GetSources() []*pb.NameVariant
+}
+
+type fetchSourcesFns struct {
+	getter sourcesGetter
+}
+
+func (fn fetchSourcesFns) Sources() []NameVariant {
+	return parseNameVariants(fn.getter.GetSources())
+}
+
+func (fn fetchSourcesFns) FetchSources() []SourceVariant {
+	// TODO
+	return nil
 }
 
 type Feature struct {
@@ -261,12 +303,18 @@ func (variant FeatureVariant) String() string {
 type User struct {
 	serialized *pb.User
 	fetchTrainingSetsFns
+	fetchFeaturesFns
+	fetchLabelsFns
+	fetchSourcesFns
 }
 
 func wrapProtoUser(serialized *pb.User) User {
 	return User{
 		serialized:           serialized,
 		fetchTrainingSetsFns: fetchTrainingSetsFns{serialized},
+		fetchFeaturesFns:     fetchFeaturesFns{serialized},
+		fetchLabelsFns:       fetchLabelsFns{serialized},
+		fetchSourcesFns:      fetchSourcesFns{serialized},
 	}
 }
 
@@ -292,6 +340,10 @@ func (user User) String() string {
 }
 
 type TrainingSet struct {
+	// TODO
+}
+
+type TrainingSetVariant struct {
 	// TODO
 }
 

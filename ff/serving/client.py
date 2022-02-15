@@ -52,7 +52,7 @@ class Stream:
         self._iter = self._stub.TrainingData(self._req)
 
 
-class Repeat():
+class Repeat:
 
     def __init__(self, repeat_num, stream):
         self.repeat_num = repeat_num
@@ -66,7 +66,7 @@ class Repeat():
             next_val = next(self._stream)
         except StopIteration:
             self.repeat_num -= 1
-            if self.repeat_num > 0:
+            if self.repeat_num >= 0:
                 self._stream.restart()
                 next_val = next(self._stream)
             else:
@@ -88,8 +88,7 @@ class Shuffle:
             for _ in range(self.buffer_size):
                 self._shuffled_data_list.append(next(self._stream))
         except StopIteration:
-            if len(self._shuffled_data_list) == 0:
-                raise
+            pass
 
     def restart(self):
         self._stream.restart()
@@ -141,20 +140,22 @@ class Dataset:
 
     def __init__(self, stub, name, version):
         self._stream = Stream(stub, name, version)
-        self.num_repeat = 0
-        self.shuffle_buffer_size = 0
-        self.batch_size = 0
-        self.run_once = True
 
     def repeat(self, num):
+        if buffer_size <= 0:
+            raise Exception("Must repeat 1 or more times")
         self._stream = Repeat(num, self._stream)
         return self
 
     def shuffle(self, buffer_size):
+        if buffer_size <= 0:
+            raise Exception("Buffer size must be greater than or equal to 1")
         self._stream = Shuffle(buffer_size, self._stream)
         return self
 
     def batch(self, batch_size):
+        if batch_size <= 0:
+            raise Exception("Batch size must be greater than or equal to 1")
         self._stream = Batch(batch_size, self._stream)
         return self
 

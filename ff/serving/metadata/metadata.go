@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 )
 
 type NameVariant struct {
@@ -97,7 +98,7 @@ type Resource interface {
 	Notify(ResourceLookup, operation, Resource) error
 	ID() ResourceID
 	Dependencies(ResourceLookup) (ResourceLookup, error)
-	Proto() interface{}
+	Proto() proto.Message
 }
 
 type ResourceLookup interface {
@@ -179,7 +180,7 @@ func (resource *sourceResource) Dependencies(lookup ResourceLookup) (ResourceLoo
 	return deps, nil
 }
 
-func (resource *sourceResource) Proto() interface{} {
+func (resource *sourceResource) Proto() proto.Message {
 	return resource.serialized
 }
 
@@ -224,7 +225,7 @@ func (resource *sourceVariantResource) Dependencies(lookup ResourceLookup) (Reso
 	return deps, nil
 }
 
-func (resource *sourceVariantResource) Proto() interface{} {
+func (resource *sourceVariantResource) Proto() proto.Message {
 	return resource.serialized
 }
 
@@ -273,7 +274,7 @@ func (resource *featureResource) Dependencies(lookup ResourceLookup) (ResourceLo
 	return deps, nil
 }
 
-func (resource *featureResource) Proto() interface{} {
+func (resource *featureResource) Proto() proto.Message {
 	return resource.serialized
 }
 
@@ -326,7 +327,7 @@ func (resource *featureVariantResource) Dependencies(lookup ResourceLookup) (Res
 	return deps, nil
 }
 
-func (resource *featureVariantResource) Proto() interface{} {
+func (resource *featureVariantResource) Proto() proto.Message {
 	return resource.serialized
 }
 
@@ -370,7 +371,7 @@ func (resource *labelResource) Dependencies(lookup ResourceLookup) (ResourceLook
 	return deps, nil
 }
 
-func (resource *labelResource) Proto() interface{} {
+func (resource *labelResource) Proto() proto.Message {
 	return resource.serialized
 }
 
@@ -423,7 +424,7 @@ func (resource *labelVariantResource) Dependencies(lookup ResourceLookup) (Resou
 	return deps, nil
 }
 
-func (resource *labelVariantResource) Proto() interface{} {
+func (resource *labelVariantResource) Proto() proto.Message {
 	return resource.serialized
 }
 
@@ -467,7 +468,7 @@ func (resource *trainingSetResource) Dependencies(lookup ResourceLookup) (Resour
 	return deps, nil
 }
 
-func (resource *trainingSetResource) Proto() interface{} {
+func (resource *trainingSetResource) Proto() proto.Message {
 	return resource.serialized
 }
 
@@ -524,7 +525,7 @@ func (resource *trainingSetVariantResource) Dependencies(lookup ResourceLookup) 
 	return deps, nil
 }
 
-func (resource *trainingSetVariantResource) Proto() interface{} {
+func (resource *trainingSetVariantResource) Proto() proto.Message {
 	return resource.serialized
 }
 
@@ -574,7 +575,7 @@ func (resource *modelResource) Dependencies(lookup ResourceLookup) (ResourceLook
 	return deps, nil
 }
 
-func (resource *modelResource) Proto() interface{} {
+func (resource *modelResource) Proto() proto.Message {
 	return resource.serialized
 }
 
@@ -597,7 +598,7 @@ func (resource *userResource) Dependencies(lookup ResourceLookup) (ResourceLooku
 	return make(localResourceLookup), nil
 }
 
-func (resource *userResource) Proto() interface{} {
+func (resource *userResource) Proto() proto.Message {
 	return resource.serialized
 }
 
@@ -643,7 +644,7 @@ func (resource *providerResource) Dependencies(lookup ResourceLookup) (ResourceL
 	return make(localResourceLookup), nil
 }
 
-func (resource *providerResource) Proto() interface{} {
+func (resource *providerResource) Proto() proto.Message {
 	return resource.serialized
 }
 
@@ -689,7 +690,7 @@ func (resource *entityResource) Dependencies(lookup ResourceLookup) (ResourceLoo
 	return make(localResourceLookup), nil
 }
 
-func (resource *entityResource) Proto() interface{} {
+func (resource *entityResource) Proto() proto.Message {
 	return resource.serialized
 }
 

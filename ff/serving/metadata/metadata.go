@@ -41,6 +41,7 @@ const (
 	SOURCE_VARIANT
 	TRAINING_SET
 	TRAINING_SET_VARIANT
+	MODEL
 )
 
 type ResourceID struct {
@@ -445,6 +446,56 @@ func (resource *trainingSetVariantResource) Proto() interface{} {
 }
 
 func (this *trainingSetVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) {
+	// Purposely empty.
+}
+
+type modelResource struct {
+	serialized *pb.Model
+}
+
+func (resource *modelResource) ID() ResourceID {
+	return ResourceID{
+		Name: resource.serialized.Name,
+		Type: MODEL,
+	}
+}
+
+func (resource *modelResource) Dependencies(lookup ResourceLookup) ResourceLookup {
+	serialized := resource.serialized
+	depIds := make([]ResourceID, 0)
+	for _, feature := range serialized.Features {
+		depIds = append(depIds, ResourceID{
+			Name:    feature.Name,
+			Variant: feature.Variant,
+			Type:    FEATURE_VARIANT,
+		})
+	}
+	for _, label := range serialized.Labels {
+		depIds = append(depIds, ResourceID{
+			Name:    label.Name,
+			Variant: label.Variant,
+			Type:    LABEL_VARIANT,
+		})
+	}
+	for _, ts := range serialized.Trainingsets {
+		depIds = append(depIds, ResourceID{
+			Name:    ts.Name,
+			Variant: ts.Variant,
+			Type:    TRAINING_SET_VARIANT,
+		})
+	}
+	deps, err := lookup.Submap(depIds)
+	if err != nil {
+		panic(err)
+	}
+	return deps
+}
+
+func (resource *modelResource) Proto() interface{} {
+	return resource.serialized
+}
+
+func (this *modelResource) Notify(lookup ResourceLookup, op operation, that Resource) {
 	// Purposely empty.
 }
 

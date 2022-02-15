@@ -41,7 +41,8 @@ message FeatureVariant {
     string created = 6;
     string owner = 7;
     string description = 8;
-    repeated NameVariant trainingsets = 9;
+    string provider = 9;
+    repeated NameVariant trainingsets = 10;
 }
 
 message Label {
@@ -58,7 +59,8 @@ message LabelVariant {
     string entity = 5;
     string created = 6;
     string owner = 7;
-    repeated string trainingsets = 8;
+    string provider = 8;
+    repeated string trainingsets = 9;
 }
 
 message Provider {
@@ -71,7 +73,6 @@ message Provider {
     repeated string features = 8;
     repeated string trainingsets = 9;
     repeated string labels = 10;
-    repeated string active_resources = 11;
 }
 
 message TrainingSet {
@@ -86,8 +87,9 @@ message TrainingSetVariant {
     string description = 3;
     string owner = 4;
     string created = 5;
-    repeated string features = 6;
-    string label = 7;
+    string provider = 6;
+    repeated string features = 7;
+    string label = 8;
 }
 
 message Entity {
@@ -127,7 +129,8 @@ message SourceVariant {
     string type = 3;
     string owner = 4;
     string description = 5;
-    repeated NameVariant trainingsets = 6;
-    repeated NameVariant features = 7;
-    repeated NameVariant labels = 8;
+    string provider = 6;
+    repeated NameVariant trainingsets = 7;
+    repeated NameVariant features = 8;
+    repeated NameVariant labels = 9;
 }

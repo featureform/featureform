@@ -118,7 +118,7 @@ message User {
 message Source {
     string name = 1;
     string default_variant = 2;
-    repeated SourceVariant variants = 3;
+    repeated string variants = 3;
 }
 
 message SourceVariant {
@@ -127,7 +127,7 @@ message SourceVariant {
     string type = 3;
     string owner = 4;
     string description = 5;
-    repeated string trainingsets = 6;
-    repeated string features = 7;
-    repeated string labels = 8;
+    repeated NameVariant trainingsets = 6;
+    repeated NameVariant features = 7;
+    repeated NameVariant labels = 8;
 }

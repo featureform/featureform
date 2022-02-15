@@ -36,7 +36,7 @@ const (
 	ENTITY
 	TRANSFORMATION
 	TRANSFORMATION_VARIANT
-	PROIVIDER
+	PROVIDER
 	SOURCE
 	SOURCE_VARIANT
 	TRAINING_SET
@@ -259,6 +259,97 @@ func (resource *featureVariantResource) Proto() interface{} {
 }
 
 func (this *featureVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) {
+	id := that.ID()
+	releventOp := op == create_op && id.Type == TRAINING_SET_VARIANT
+	if !releventOp {
+		return
+	}
+	key := id.Proto()
+	this.serialized.Trainingsets = append(this.serialized.Trainingsets, key)
+}
+
+type labelResource struct {
+	serialized *pb.Label
+}
+
+func (resource *labelResource) ID() ResourceID {
+	return ResourceID{
+		Name: resource.serialized.Name,
+		Type: LABEL,
+	}
+}
+
+func (resource *labelResource) Dependencies(lookup ResourceLookup) ResourceLookup {
+	name := resource.serialized.Name
+	deps := make(ResourceLookup)
+	for _, variant := range resource.serialized.Variants {
+		id := ResourceID{
+			Name:    name,
+			Variant: variant,
+			Type:    LABEL_VARIANT,
+		}
+		deps[id] = lookup[id]
+	}
+	return deps
+}
+
+func (resource *labelResource) Proto() interface{} {
+	return resource.serialized
+}
+
+func (this *labelResource) Notify(lookup ResourceLookup, op operation, that Resource) {
+	otherId := that.ID()
+	isVariant := otherId.Type == LABEL_VARIANT && otherId.Name == this.serialized.Name
+	if !isVariant {
+		return
+	}
+	this.serialized.Variants = append(this.serialized.Variants, otherId.Variant)
+}
+
+type labelVariantResource struct {
+	serialized *pb.LabelVariant
+}
+
+func (resource *labelVariantResource) ID() ResourceID {
+	return ResourceID{
+		Name:    resource.serialized.Name,
+		Variant: resource.serialized.Variant,
+		Type:    LABEL_VARIANT,
+	}
+}
+
+func (resource *labelVariantResource) Dependencies(lookup ResourceLookup) ResourceLookup {
+	serialized := resource.serialized
+	depIds := []ResourceID{
+		{
+			Name: serialized.Source,
+			Type: SOURCE_VARIANT,
+		},
+		{
+			Name: serialized.Entity,
+			Type: ENTITY,
+		},
+		{
+			Name: serialized.Owner,
+			Type: USER,
+		},
+		{
+			Name: serialized.Provider,
+			Type: PROVIDER,
+		},
+	}
+	deps, err := lookup.Submap(depIds)
+	if err != nil {
+		panic(err)
+	}
+	return deps
+}
+
+func (resource *labelVariantResource) Proto() interface{} {
+	return resource.serialized
+}
+
+func (this *labelVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) {
 	id := that.ID()
 	releventOp := op == create_op && id.Type == TRAINING_SET_VARIANT
 	if !releventOp {

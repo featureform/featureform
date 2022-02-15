@@ -106,7 +106,7 @@ type ResourceLookup interface {
 	Has(ResourceID) (bool, error)
 	Set(ResourceID, Resource) error
 	Submap([]ResourceID) (ResourceLookup, error)
-	List(ResourceType) ([]ResourceID, error)
+	List(ResourceType) ([]Resource, error)
 }
 
 type localResourceLookup map[ResourceID]Resource
@@ -141,14 +141,14 @@ func (lookup localResourceLookup) Submap(ids []ResourceID) (ResourceLookup, erro
 	return resources, nil
 }
 
-func (lookup localResourceLookup) List(t ResourceType) ([]ResourceID, error) {
-	ids := make([]ResourceID, 0)
-	for id, _ := range lookup {
+func (lookup localResourceLookup) List(t ResourceType) ([]Resource, error) {
+	resources := make([]Resource, 0)
+	for id, res := range lookup {
 		if id.Type == t {
-			ids = append(ids, id)
+			resources = append(resources, res)
 		}
 	}
-	return ids, nil
+	return resources, nil
 }
 
 type sourceResource struct {
@@ -736,15 +736,11 @@ func NewMetadataServer(logger *zap.SugaredLogger) (*MetadataServer, error) {
 }
 
 func (serv *MetadataServer) ListFeatures(_ *pb.Empty, stream pb.Metadata_ListFeaturesServer) error {
-	ids, err := serv.lookup.List(FEATURE)
+	resources, err := serv.lookup.List(FEATURE)
 	if err != nil {
 		return err
 	}
-	for _, id := range ids {
-		res, err := serv.lookup.Lookup(id)
-		if err != nil {
-			return err
-		}
+	for _, res := range resources {
 		feature := res.Proto().(*pb.Feature)
 		if err := stream.Send(feature); err != nil {
 			return err
@@ -842,15 +838,11 @@ func (serv *MetadataServer) GetFeatureVariants(stream pb.Metadata_GetFeatureVari
 }
 
 func (serv *MetadataServer) ListUsers(_ *pb.Empty, stream pb.Metadata_ListUsersServer) error {
-	ids, err := serv.lookup.List(USER)
+	resources, err := serv.lookup.List(USER)
 	if err != nil {
 		return err
 	}
-	for _, id := range ids {
-		res, err := serv.lookup.Lookup(id)
-		if err != nil {
-			return err
-		}
+	for _, res := range resources {
 		user := res.Proto().(*pb.User)
 		if err := stream.Send(user); err != nil {
 			return err
@@ -901,15 +893,11 @@ func (serv *MetadataServer) GetUsers(stream pb.Metadata_GetUsersServer) error {
 }
 
 func (serv *MetadataServer) ListEntities(_ *pb.Empty, stream pb.Metadata_ListEntitiesServer) error {
-	ids, err := serv.lookup.List(ENTITY)
+	resources, err := serv.lookup.List(ENTITY)
 	if err != nil {
 		return err
 	}
-	for _, id := range ids {
-		res, err := serv.lookup.Lookup(id)
-		if err != nil {
-			return err
-		}
+	for _, res := range resources {
 		entity := res.Proto().(*pb.Entity)
 		if err := stream.Send(entity); err != nil {
 			return err

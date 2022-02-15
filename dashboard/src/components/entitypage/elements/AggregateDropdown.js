@@ -17,7 +17,6 @@ const dropdownValues = [
 function AggregateDropdwon({ graph, aggregates, changeAggregate }) {
   const [agg, setAgg] = React.useState(aggregates.aggregates[graph]);
 
-  console.log(aggregates);
   const handleChange = (event) => {
     setAgg(event.target.value);
     changeAggregate(0, event.target.value);

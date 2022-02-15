@@ -152,6 +152,59 @@ func (client *Client) parseUserStream(stream userStream) ([]User, error) {
 	return users, nil
 }
 
+func (client *Client) ListEntities(ctx context.Context) ([]Entity, error) {
+	stream, err := client.grpcConn.ListEntities(ctx, &pb.Empty{})
+	if err != nil {
+		return nil, err
+	}
+	return client.parseEntityStream(stream)
+}
+
+func (client *Client) GetEntities(ctx context.Context, entities []string) ([]Entity, error) {
+	stream, err := client.grpcConn.GetEntities(ctx)
+	if err != nil {
+		return nil, err
+	}
+	go func() {
+		for _, entity := range entities {
+			stream.Send(&pb.Name{Name: entity})
+		}
+	}()
+	return client.parseEntityStream(stream)
+}
+
+type EntityDef struct {
+	Name        string
+	Description string
+}
+
+func (client *Client) CreateEntity(ctx context.Context, def EntityDef) error {
+	serialized := &pb.Entity{
+		Name:        def.Name,
+		Description: def.Description,
+	}
+	_, err := client.grpcConn.CreateEntity(ctx, serialized)
+	return err
+}
+
+type entityStream interface {
+	Recv() (*pb.Entity, error)
+}
+
+func (client *Client) parseEntityStream(stream entityStream) ([]Entity, error) {
+	entities := make([]Entity, 0)
+	for {
+		serial, err := stream.Recv()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return nil, err
+		}
+		entities = append(entities, wrapProtoEntity(serial))
+	}
+	return entities, nil
+}
+
 type protoStringer struct {
 	msg proto.Message
 }
@@ -380,6 +433,32 @@ type SourceVariant struct {
 	// TODO
 }
 
+type Entity struct {
+	serialized *pb.Entity
+	fetchTrainingSetsFns
+	fetchFeaturesFns
+	fetchLabelsFns
+	protoStringer
+}
+
+func wrapProtoEntity(serialized *pb.Entity) Entity {
+	return Entity{
+		serialized:           serialized,
+		fetchTrainingSetsFns: fetchTrainingSetsFns{serialized},
+		fetchFeaturesFns:     fetchFeaturesFns{serialized},
+		fetchLabelsFns:       fetchLabelsFns{serialized},
+		protoStringer:        protoStringer{serialized},
+	}
+}
+
+func (entity *Entity) Name() string {
+	return entity.serialized.GetName()
+}
+
+func (entity *Entity) Description() string {
+	return entity.serialized.GetDescription()
+}
+
 func NewClient(host string, logger *zap.SugaredLogger) (*Client, error) {
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -406,6 +485,16 @@ func main() {
 	if err != nil {
 		logger.Panicw("Failed to connect", "Err", err)
 	}
+	err = client.CreateEntity(context.Background(), EntityDef{
+		Name:        "f1",
+		Description: "desc",
+	})
+	if err != nil {
+		logger.Panicw("Failed to create entity", "Err", err)
+	}
+	entities, err := client.ListEntities(context.Background())
+	fmt.Printf("%+v\n", entities)
+	logger.Infow("Listed Entities", "Entities", entities, "Err", err)
 	err = client.CreateUser(context.Background(), UserDef{
 		Name: "f1",
 	})

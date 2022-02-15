@@ -146,6 +146,10 @@ func (resource *sourceVariantResource) Dependencies(lookup ResourceLookup) Resou
 			Name: serialized.Owner,
 			Type: USER,
 		},
+		{
+			Name: serialized.Provider,
+			Type: PROVIDER,
+		},
 	}
 	deps, err := lookup.Submap(depIds)
 	if err != nil {
@@ -224,7 +228,30 @@ func (resource *featureVariantResource) ID() ResourceID {
 }
 
 func (resource *featureVariantResource) Dependencies(lookup ResourceLookup) ResourceLookup {
-	return nil
+	serialized := resource.serialized
+	depIds := []ResourceID{
+		{
+			Name: serialized.Source,
+			Type: SOURCE_VARIANT,
+		},
+		{
+			Name: serialized.Entity,
+			Type: ENTITY,
+		},
+		{
+			Name: serialized.Owner,
+			Type: USER,
+		},
+		{
+			Name: serialized.Provider,
+			Type: PROVIDER,
+		},
+	}
+	deps, err := lookup.Submap(depIds)
+	if err != nil {
+		panic(err)
+	}
+	return deps
 }
 
 func (resource *featureVariantResource) Proto() interface{} {
@@ -277,8 +304,49 @@ func (this *userResource) Notify(lookup ResourceLookup, op operation, that Resou
 		serialized.Features = append(serialized.Features, key)
 	case LABEL_VARIANT:
 		serialized.Labels = append(serialized.Labels, key)
-	case SOURCE:
+	case SOURCE_VARIANT:
 		serialized.Sources = append(serialized.Sources, key)
+	}
+}
+
+type providerResource struct {
+	serialized *pb.Provider
+}
+
+func (resource *providerResource) ID() ResourceID {
+	return ResourceID{
+		Name: resource.serialized.Name,
+		Type: PROVIDER,
+	}
+}
+
+func (resource *providerResource) Dependencies(lookup ResourceLookup) ResourceLookup {
+	return make(ResourceLookup)
+}
+
+func (resource *providerResource) Proto() interface{} {
+	return resource.serialized
+}
+
+func (this *providerResource) Notify(lookup ResourceLookup, op operation, that Resource) {
+	providerId := this.ID()
+	_, providerOwns := that.Dependencies(lookup)[providerId]
+	if !providerOwns {
+		return
+	}
+	id := that.ID()
+	key := id.Proto()
+	t := id.Type
+	serialized := this.serialized
+	switch t {
+	case SOURCE_VARIANT:
+		serialized.Sources = append(serialized.Sources, key)
+	case FEATURE_VARIANT:
+		serialized.Features = append(serialized.Features, key)
+	case TRAINING_SET_VARIANT:
+		serialized.Trainingsets = append(serialized.Trainingsets, key)
+	case LABEL_VARIANT:
+		serialized.Labels = append(serialized.Labels, key)
 	}
 }
 

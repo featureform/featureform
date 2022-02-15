@@ -359,6 +359,95 @@ func (this *labelVariantResource) Notify(lookup ResourceLookup, op operation, th
 	this.serialized.Trainingsets = append(this.serialized.Trainingsets, key)
 }
 
+type trainingSetResource struct {
+	serialized *pb.TrainingSet
+}
+
+func (resource *trainingSetResource) ID() ResourceID {
+	return ResourceID{
+		Name: resource.serialized.Name,
+		Type: TRAINING_SET,
+	}
+}
+
+func (resource *trainingSetResource) Dependencies(lookup ResourceLookup) ResourceLookup {
+	name := resource.serialized.Name
+	deps := make(ResourceLookup)
+	for _, variant := range resource.serialized.Variants {
+		id := ResourceID{
+			Name:    name,
+			Variant: variant,
+			Type:    TRAINING_SET_VARIANT,
+		}
+		deps[id] = lookup[id]
+	}
+	return deps
+}
+
+func (resource *trainingSetResource) Proto() interface{} {
+	return resource.serialized
+}
+
+func (this *trainingSetResource) Notify(lookup ResourceLookup, op operation, that Resource) {
+	otherId := that.ID()
+	isVariant := otherId.Type == TRAINING_SET_VARIANT && otherId.Name == this.serialized.Name
+	if !isVariant {
+		return
+	}
+	this.serialized.Variants = append(this.serialized.Variants, otherId.Variant)
+}
+
+type trainingSetVariantResource struct {
+	serialized *pb.TrainingSetVariant
+}
+
+func (resource *trainingSetVariantResource) ID() ResourceID {
+	return ResourceID{
+		Name:    resource.serialized.Name,
+		Variant: resource.serialized.Variant,
+		Type:    TRAINING_SET_VARIANT,
+	}
+}
+
+func (resource *trainingSetVariantResource) Dependencies(lookup ResourceLookup) ResourceLookup {
+	serialized := resource.serialized
+	depIds := []ResourceID{
+		{
+			Name: serialized.Owner,
+			Type: USER,
+		},
+		{
+			Name: serialized.Provider,
+			Type: PROVIDER,
+		},
+		{
+			Name:    serialized.Label.Name,
+			Variant: serialized.Label.Variant,
+			Type:    LABEL_VARIANT,
+		},
+	}
+	for _, feature := range serialized.Features {
+		depIds = append(depIds, ResourceID{
+			Name:    feature.Name,
+			Variant: feature.Variant,
+			Type:    FEATURE_VARIANT,
+		})
+	}
+	deps, err := lookup.Submap(depIds)
+	if err != nil {
+		panic(err)
+	}
+	return deps
+}
+
+func (resource *trainingSetVariantResource) Proto() interface{} {
+	return resource.serialized
+}
+
+func (this *trainingSetVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) {
+	// Purposely empty.
+}
+
 type userResource struct {
 	serialized *pb.User
 }

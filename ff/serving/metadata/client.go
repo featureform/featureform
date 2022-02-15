@@ -151,6 +151,41 @@ func (client *Client) parseUserStream(stream userStream) ([]User, error) {
 	return users, nil
 }
 
+type variantsDescriber interface {
+	GetName() string
+	GetDefaultVariant() string
+	GetVariants() []string
+}
+
+type variantsFns struct {
+	getter variantsDescriber
+}
+
+func (fns variantsFns) Name() string {
+	return fns.getter.GetName()
+}
+
+func (fns variantsFns) DefaultVariant() string {
+	return fns.getter.GetDefaultVariant()
+}
+
+func (fns variantsFns) Variants() []string {
+	return fns.getter.GetVariants()
+}
+
+func (fns variantsFns) NameVariants() []NameVariant {
+	name := fns.getter.GetName()
+	variants := fns.getter.GetVariants()
+	nameVariants := make([]NameVariant, len(variants))
+	for i, variant := range variants {
+		nameVariants[i] = NameVariant{
+			Name:    name,
+			Variant: variant,
+		}
+	}
+	return nameVariants
+}
+
 type trainingSetsGetter interface {
 	GetTrainingsets() []*pb.NameVariant
 }
@@ -221,23 +256,19 @@ func (fn fetchSourcesFns) FetchSources() []SourceVariant {
 
 type Feature struct {
 	serialized *pb.Feature
+	variantsFns
 }
 
-func wrapProtoFeature(serialized *pb.Feature) (feature Feature) {
-	feature.serialized = serialized
-	return
+func wrapProtoFeature(serialized *pb.Feature) Feature {
+	return Feature{
+		serialized:  serialized,
+		variantsFns: variantsFns{serialized},
+	}
 }
 
-func (feature *Feature) Name() string {
-	return feature.serialized.GetName()
-}
-
-func (feature *Feature) Variants() []string {
-	return feature.serialized.Variants
-}
-
-func (feature *Feature) Default() string {
-	return feature.serialized.DefaultVariant
+func (feature Feature) FetchVariants() []FeatureVariant {
+	// TODO
+	return nil
 }
 
 func (feature Feature) String() string {

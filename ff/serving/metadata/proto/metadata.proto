@@ -13,6 +13,9 @@ service Metadata {
     rpc CreateFeatureVariant(FeatureVariant) returns (Empty);
     rpc GetFeatures(stream Name) returns (stream Feature);
     rpc GetFeatureVariants(stream NameVariant) returns (stream FeatureVariant);
+    rpc ListUsers(Empty) returns (stream User);
+    rpc CreateUser(User) returns (Empty);
+    rpc GetUsers(stream Name) returns (stream User);
 }
 
 message Name {

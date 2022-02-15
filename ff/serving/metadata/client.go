@@ -13,9 +13,22 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
+const TIME_FORMAT = time.RFC1123
+
 type NameVariant struct {
 	Name    string
 	Variant string
+}
+
+func parseNameVariants(protos []*pb.NameVariant) []NameVariant {
+	parsed := make([]NameVariant, len(protos))
+	for i, serialized := range protos {
+		parsed[i] = NameVariant{
+			Name:    serialized.Name,
+			Variant: serialized.Variant,
+		}
+	}
+	return parsed
 }
 
 type Client struct {
@@ -87,6 +100,83 @@ func (client *Client) parseFeatureStream(stream featureStream) ([]Feature, error
 	return features, nil
 }
 
+func (client *Client) ListUsers(ctx context.Context) ([]User, error) {
+	stream, err := client.grpcConn.ListUsers(ctx, &pb.Empty{})
+	if err != nil {
+		return nil, err
+	}
+	return client.parseUserStream(stream)
+}
+
+func (client *Client) GetUsers(ctx context.Context, users []string) ([]User, error) {
+	stream, err := client.grpcConn.GetUsers(ctx)
+	if err != nil {
+		return nil, err
+	}
+	go func() {
+		for _, user := range users {
+			stream.Send(&pb.Name{Name: user})
+		}
+	}()
+	return client.parseUserStream(stream)
+}
+
+type UserDef struct {
+	Name string
+}
+
+func (client *Client) CreateUser(ctx context.Context, def UserDef) error {
+	serialized := &pb.User{
+		Name: def.Name,
+	}
+	_, err := client.grpcConn.CreateUser(ctx, serialized)
+	return err
+}
+
+type userStream interface {
+	Recv() (*pb.User, error)
+}
+
+func (client *Client) parseUserStream(stream userStream) ([]User, error) {
+	users := make([]User, 0)
+	for {
+		serial, err := stream.Recv()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return nil, err
+		}
+		users = append(users, wrapProtoUser(serial))
+	}
+	return users, nil
+}
+
+type trainingSetGetter interface {
+	GetTrainingsets() []*pb.NameVariant
+}
+
+type fetchTrainingSetsFns struct {
+	getter trainingSetGetter
+}
+
+func (fn fetchTrainingSetsFns) TrainingSets() []NameVariant {
+	return parseNameVariants(fn.getter.GetTrainingsets())
+}
+
+func (fn fetchTrainingSetsFns) FetchTrainingSets() []TrainingSet {
+	// TODO
+	return nil
+}
+
+type labelFuncProvider struct {
+}
+
+type featureFuncProvider struct {
+}
+
+type sourceFuncProvider struct {
+}
+
 type Feature struct {
 	serialized *pb.Feature
 }
@@ -118,11 +208,13 @@ func (feature Feature) String() string {
 
 type FeatureVariant struct {
 	serialized *pb.FeatureVariant
+	fetchTrainingSetsFns
 }
 
 func wrapProtoFeatureVariant(serialized *pb.FeatureVariant) FeatureVariant {
 	return FeatureVariant{
-		serialized: serialized,
+		serialized:           serialized,
+		fetchTrainingSetsFns: fetchTrainingSetsFns{serialized},
 	}
 }
 
@@ -147,9 +239,8 @@ func (variant *FeatureVariant) Entity() string {
 }
 
 func (variant *FeatureVariant) Created() time.Time {
-	t, err := time.Parse(variant.serialized.GetCreated(), time.RFC1123)
+	t, err := time.Parse(variant.serialized.GetCreated(), TIME_FORMAT)
 	if err != nil {
-		// This means that the time was serialized differently.
 		panic(err)
 	}
 	return t
@@ -157,23 +248,6 @@ func (variant *FeatureVariant) Created() time.Time {
 
 func (variant *FeatureVariant) Owner() string {
 	return variant.serialized.GetOwner()
-}
-
-func (variant *FeatureVariant) TrainingSets() []NameVariant {
-	serialized := variant.serialized
-	parsed := make([]NameVariant, len(serialized.Trainingsets))
-	for i, trainingSet := range serialized.Trainingsets {
-		parsed[i] = NameVariant{
-			Name:    trainingSet.Name,
-			Variant: trainingSet.Variant,
-		}
-	}
-	return parsed
-}
-
-func (variant *FeatureVariant) FetchTrainingSets() []TrainingSet {
-	// TODO
-	return nil
 }
 
 func (variant FeatureVariant) String() string {
@@ -184,7 +258,56 @@ func (variant FeatureVariant) String() string {
 	return string(bytes)
 }
 
+type User struct {
+	serialized *pb.User
+	fetchTrainingSetsFns
+}
+
+func wrapProtoUser(serialized *pb.User) User {
+	return User{
+		serialized:           serialized,
+		fetchTrainingSetsFns: fetchTrainingSetsFns{serialized},
+	}
+}
+
+func (user *User) Name() string {
+	return user.serialized.GetName()
+}
+
+func (user *User) TrainingSets() []NameVariant {
+	return parseNameVariants(user.serialized.Trainingsets)
+}
+
+func (user *User) FetchTrainingSets() []TrainingSet {
+	// TODO
+	return nil
+}
+
+func (user User) String() string {
+	bytes, err := protojson.Marshal(user.serialized)
+	if err != nil {
+		return err.Error()
+	}
+	return string(bytes)
+}
+
 type TrainingSet struct {
+	// TODO
+}
+
+type Label struct {
+	// TODO
+}
+
+type LabelVariant struct {
+	// TODO
+}
+
+type Source struct {
+	// TODO
+}
+
+type SourceVariant struct {
 	// TODO
 }
 
@@ -214,6 +337,15 @@ func main() {
 	if err != nil {
 		logger.Panicw("Failed to connect", "Err", err)
 	}
+	err = client.CreateUser(context.Background(), UserDef{
+		Name: "f1",
+	})
+	if err != nil {
+		logger.Panicw("Failed to create user", "Err", err)
+	}
+	users, err := client.ListUsers(context.Background())
+	fmt.Printf("%+v\n", users)
+	logger.Infow("Listed Users", "Users", users, "Err", err)
 	err = client.CreateFeatureVariant(context.Background(), FeatureDef{
 		Name:        "f1",
 		Variant:     "v1",

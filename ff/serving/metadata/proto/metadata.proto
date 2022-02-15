@@ -79,7 +79,7 @@ message Provider {
 message TrainingSet {
     string name = 1;
     string default_variant = 2;
-    repeated TrainingSetVariant variants = 3;
+    repeated string variants = 3;
 }
 
 message TrainingSetVariant {
@@ -89,8 +89,8 @@ message TrainingSetVariant {
     string owner = 4;
     string created = 5;
     string provider = 6;
-    repeated string features = 7;
-    string label = 8;
+    repeated NameVariant features = 7;
+    NameVariant label = 8;
 }
 
 message Entity {

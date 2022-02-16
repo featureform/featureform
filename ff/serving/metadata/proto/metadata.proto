@@ -17,6 +17,10 @@ service Metadata {
     rpc CreateLabelVariant(LabelVariant) returns (Empty);
     rpc GetLabels(stream Name) returns (stream Label);
     rpc GetLabelVariants(stream NameVariant) returns (stream LabelVariant);
+    rpc ListTrainingSets(Empty) returns (stream TrainingSet);
+    rpc CreateTrainingSetVariant(TrainingSetVariant) returns (Empty);
+    rpc GetTrainingSets(stream Name) returns (stream TrainingSet);
+    rpc GetTrainingSetVariants(stream NameVariant) returns (stream TrainingSetVariant);
     rpc ListUsers(Empty) returns (stream User);
     rpc CreateUser(User) returns (Empty);
     rpc GetUsers(stream Name) returns (stream User);

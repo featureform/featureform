@@ -8,7 +8,7 @@
       "metadata": {
         "version-name": "default variant",
         "transformation source": "clean_density",
-        "data source": "Wine Quality Sample File",
+        "primary data": "Wine Quality Sample File",
         "entity": "wine_id",
 
         "owner": "Simba Khadder",
@@ -32,7 +32,7 @@
       "metadata": {
         "version-name": "null-lost variant",
         "transformation source": "clean_density",
-        "data source": "Wine Quality Sample File",
+        "primary data": "Wine Quality Sample File",
         "entity": "wine_id",
         "created": "2020-08-09T13:49:51.141Z",
         "owner": "Simba Khadder",

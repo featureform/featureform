@@ -9,12 +9,12 @@ const navSectionSlice = createSlice({
       name: "Resources",
       items: [
         {
-          title: "Data Sources",
+          title: "Primary Data",
           icon: "source",
-          path: "/data-sources",
+          path: "/primary-data",
           view: views["RESOURCE_LIST"],
           viewProps: {
-            type: resourceTypes["DATA_SOURCE"],
+            type: resourceTypes["PRIMARY_DATA"],
           },
         },
         {

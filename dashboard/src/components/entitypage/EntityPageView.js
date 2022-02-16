@@ -28,7 +28,7 @@ import VersionControl from "./elements/VersionControl";
 import TagBox from "./elements/TagBox";
 import MetricsDropdown from "./elements/MetricsDropdown";
 import StatsDropdown from "./elements/StatsDropdown";
-import { resourceTypes, resourceIcons } from "api/resources";
+import { resourceTypes, resourceIcons, resourcePaths } from "api/resources";
 import theme from "styles/theme/index.js";
 
 SyntaxHighlighter.registerLanguage("python", python);
@@ -262,7 +262,7 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
   };
 
   const linkToDataSource = (event) => {
-    history.push(`/data-sources/${metadata["data source"]}`);
+    history.push(`/primary-data/${metadata["primary data"]}`);
   };
 
   const linkToUserPage = (event) => {
@@ -366,10 +366,10 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                     </Typography>
                   )}
 
-                  {metadata["data source"] && (
+                  {metadata["primary data"] && (
                     <div className={classes.linkBox}>
                       <Typography variant="body1" className={classes.typeTitle}>
-                        <b>Data Source: </b>{" "}
+                        <b>Primary Data: </b>{" "}
                       </Typography>
                       <Chip
                         variant="outlined"
@@ -377,7 +377,7 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                         size="small"
                         onClick={linkToDataSource}
                         className={classes.transformButton}
-                        label={metadata["data source"]}
+                        label={metadata["primary data"]}
                       ></Chip>
                     </div>
                   )}
@@ -483,6 +483,7 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                       detailPanel: (row) => {
                         return (
                           <VersionTable
+                            type={key}
                             name={row.name}
                             versions={row.variants}
                             setVersion={setVersion}
@@ -599,6 +600,7 @@ export const VersionSelector = ({ name, versions = [""], children }) => (
 export const VersionTable = ({
   name,
   versions = [""],
+  type,
   activeVersions,
   setVersion,
   children,
@@ -607,8 +609,11 @@ export const VersionTable = ({
   const classes = useStyles();
   let history = useHistory();
   function versionChangeRedirect(e, data) {
-    setVersion(name, data.variant);
-    history.push(history.location.pathname + "/" + name);
+    console.log(type, name, data.variant);
+    console.log(history.location.pathname, "/", name);
+    setVersion(type, name, data.variant);
+    //history.push(history.location.pathname + "/" + name);
+    history.push(resourcePaths[type] + "/" + name);
   }
   let myVariants = [];
   versions.forEach((version) => {

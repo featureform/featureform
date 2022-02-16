@@ -23,11 +23,11 @@ describe("App", () => {
       name: "Resources",
       items: [
         {
-          title: "Data Sources",
+          title: "Primary Data",
           icon: "file-import",
           path: "/sources",
           view: views.RESOURCE_LIST,
-          viewProps: { type: resourceTypes.DATA_SOURCE },
+          viewProps: { type: resourceTypes.PRIMARY_DATA },
         },
         {
           title: "Materialized Views",
@@ -83,10 +83,10 @@ describe("App", () => {
     it("parses correctly", () => {
       const expected = [
         {
-          title: "Data Sources",
+          title: "Primary Data",
           path: "/sources",
           view: views.RESOURCE_LIST,
-          viewProps: { type: resourceTypes.DATA_SOURCE },
+          viewProps: { type: resourceTypes.PRIMARY_DATA },
         },
         {
           title: "Materialized Views",

@@ -1,7 +1,7 @@
 {
   "name": "Wine Quality Sample File",
   "default-variant": "default-variant",
-  "type": "Data Source",
+  "type": "Primary Data",
   "all-versions": ["default-variant"],
   "versions": {
     "default-variant": {

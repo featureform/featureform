@@ -894,6 +894,22 @@ func (serv *MetadataServer) GetUsers(stream pb.Metadata_GetUsersServer) error {
 	})
 }
 
+func (serv *MetadataServer) ListProviders(_ *pb.Empty, stream pb.Metadata_ListProvidersServer) error {
+	return serv.genericList(PROVIDER, func(msg proto.Message) error {
+		return stream.Send(msg.(*pb.Provider))
+	})
+}
+
+func (serv *MetadataServer) CreateProvider(ctx context.Context, provider *pb.Provider) (*pb.Empty, error) {
+	return serv.genericCreate(ctx, &providerResource{provider}, nil)
+}
+
+func (serv *MetadataServer) GetProviders(stream pb.Metadata_GetProvidersServer) error {
+	return serv.genericGet(stream, PROVIDER, func(msg proto.Message) error {
+		return stream.Send(msg.(*pb.Provider))
+	})
+}
+
 func (serv *MetadataServer) ListEntities(_ *pb.Empty, stream pb.Metadata_ListEntitiesServer) error {
 	return serv.genericList(ENTITY, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Entity))

@@ -847,6 +847,37 @@ func (serv *MetadataServer) GetTrainingSetVariants(stream pb.Metadata_GetTrainin
 	})
 }
 
+func (serv *MetadataServer) ListSources(_ *pb.Empty, stream pb.Metadata_ListSourcesServer) error {
+	return serv.genericList(SOURCE, func(msg proto.Message) error {
+		return stream.Send(msg.(*pb.Source))
+	})
+}
+
+func (serv *MetadataServer) CreateSourceVariant(ctx context.Context, variant *pb.SourceVariant) (*pb.Empty, error) {
+	return serv.genericCreate(ctx, &sourceVariantResource{variant}, func(name, variant string) Resource {
+		return &sourceResource{
+			&pb.Source{
+				Name:           name,
+				DefaultVariant: variant,
+				// This will be set when the change is propogated to dependencies.
+				Variants: []string{},
+			},
+		}
+	})
+}
+
+func (serv *MetadataServer) GetSources(stream pb.Metadata_GetSourcesServer) error {
+	return serv.genericGet(stream, SOURCE, func(msg proto.Message) error {
+		return stream.Send(msg.(*pb.Source))
+	})
+}
+
+func (serv *MetadataServer) GetSourceVariants(stream pb.Metadata_GetSourceVariantsServer) error {
+	return serv.genericGet(stream, SOURCE_VARIANT, func(msg proto.Message) error {
+		return stream.Send(msg.(*pb.SourceVariant))
+	})
+}
+
 func (serv *MetadataServer) ListUsers(_ *pb.Empty, stream pb.Metadata_ListUsersServer) error {
 	return serv.genericList(USER, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.User))

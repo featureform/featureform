@@ -67,6 +67,7 @@ type FeatureDef struct {
 	Entity      string
 	Owner       string
 	Description string
+	Provider    string
 }
 
 func (client *Client) CreateFeatureVariant(ctx context.Context, def FeatureDef) error {
@@ -78,6 +79,7 @@ func (client *Client) CreateFeatureVariant(ctx context.Context, def FeatureDef) 
 		Entity:      def.Entity,
 		Owner:       def.Owner,
 		Description: def.Description,
+		Provider:    def.Provider,
 	}
 	_, err := client.grpcConn.CreateFeatureVariant(ctx, serialized)
 	return err
@@ -99,6 +101,71 @@ func (client *Client) parseFeatureStream(stream featureStream) ([]Feature, error
 		features = append(features, wrapProtoFeature(serial))
 	}
 	return features, nil
+}
+
+func (client *Client) ListLabels(ctx context.Context) ([]Label, error) {
+	stream, err := client.grpcConn.ListLabels(ctx, &pb.Empty{})
+	if err != nil {
+		return nil, err
+	}
+	return client.parseLabelStream(stream)
+}
+
+func (client *Client) GetLabels(ctx context.Context, labels []string) ([]Label, error) {
+	stream, err := client.grpcConn.GetLabels(ctx)
+	if err != nil {
+		return nil, err
+	}
+	go func() {
+		for _, label := range labels {
+			stream.Send(&pb.Name{Name: label})
+		}
+	}()
+	return client.parseLabelStream(stream)
+}
+
+type LabelDef struct {
+	Name        string
+	Variant     string
+	Description string
+	Type        string
+	Source      string
+	Entity      string
+	Owner       string
+	Provider    string
+}
+
+func (client *Client) CreateLabelVariant(ctx context.Context, def LabelDef) error {
+	serialized := &pb.LabelVariant{
+		Name:        def.Name,
+		Variant:     def.Variant,
+		Description: def.Description,
+		Type:        def.Type,
+		Source:      def.Source,
+		Entity:      def.Entity,
+		Owner:       def.Owner,
+		Provider:    def.Provider,
+	}
+	_, err := client.grpcConn.CreateLabelVariant(ctx, serialized)
+	return err
+}
+
+type labelStream interface {
+	Recv() (*pb.Label, error)
+}
+
+func (client *Client) parseLabelStream(stream labelStream) ([]Label, error) {
+	labels := make([]Label, 0)
+	for {
+		serial, err := stream.Recv()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return nil, err
+		}
+		labels = append(labels, wrapProtoLabel(serial))
+	}
+	return labels, nil
 }
 
 func (client *Client) ListUsers(ctx context.Context) ([]User, error) {
@@ -215,6 +282,22 @@ func (stringer protoStringer) String() string {
 		return err.Error()
 	}
 	return string(bytes)
+}
+
+type createdGetter interface {
+	GetCreated() string
+}
+
+type createdFn struct {
+	getter createdGetter
+}
+
+func (fn createdFn) Created() string {
+	t, err := time.Parse(variant.serialized.GetCreated(), TIME_FORMAT)
+	if err != nil {
+		panic(err)
+	}
+	return t
 }
 
 type variantsDescriber interface {
@@ -342,6 +425,7 @@ func (feature Feature) FetchVariants() []FeatureVariant {
 type FeatureVariant struct {
 	serialized *pb.FeatureVariant
 	fetchTrainingSetsFns
+	createdFn
 	protoStringer
 }
 
@@ -349,6 +433,7 @@ func wrapProtoFeatureVariant(serialized *pb.FeatureVariant) FeatureVariant {
 	return FeatureVariant{
 		serialized:           serialized,
 		fetchTrainingSetsFns: fetchTrainingSetsFns{serialized},
+		createdFn:            createdFn{serialized},
 		protoStringer:        protoStringer{serialized},
 	}
 }
@@ -371,14 +456,6 @@ func (variant *FeatureVariant) Type() string {
 
 func (variant *FeatureVariant) Entity() string {
 	return variant.serialized.GetEntity()
-}
-
-func (variant *FeatureVariant) Created() time.Time {
-	t, err := time.Parse(variant.serialized.GetCreated(), TIME_FORMAT)
-	if err != nil {
-		panic(err)
-	}
-	return t
 }
 
 func (variant *FeatureVariant) Owner() string {
@@ -409,19 +486,74 @@ func (user *User) Name() string {
 	return user.serialized.GetName()
 }
 
+type Label struct {
+	serialized *pb.Label
+	variantsFns
+	protoStringer
+}
+
+func wrapProtoLabel(serialized *pb.Label) Label {
+	return Label{
+		serialized:    serialized,
+		variantsFns:   variantsFns{serialized},
+		protoStringer: protoStringer{serialized},
+	}
+}
+
+func (label Label) FetchVariants() []LabelVariant {
+	// TODO
+	return nil
+}
+
+type LabelVariant struct {
+	serialized *pb.LabelVariant
+	fetchTrainingSetsFns
+	createdFn
+	protoStringer
+}
+
+func wrapProtoLabelVariant(serialized *pb.LabelVariant) LabelVariant {
+	return LabelVariant{
+		serialized:           serialized,
+		fetchTrainingSetsFns: fetchTrainingSetsFns{serialized},
+		createdFn:            createdFn{serialized},
+		protoStringer:        protoStringer{serialized},
+	}
+}
+
+func (variant *LabelVariant) Name() string {
+	return variant.serialized.GetName()
+}
+
+func (variant *LabelVariant) Description() string {
+	return variant.serialized.GetDescription()
+}
+
+func (variant *LabelVariant) Variant() string {
+	return variant.serialized.GetVariant()
+}
+
+func (variant *LabelVariant) Source() string {
+	return variant.serialized.GetSource()
+}
+
+func (variant *LabelVariant) Type() string {
+	return variant.serialized.GetType()
+}
+
+func (variant *LabelVariant) Entity() string {
+	return variant.serialized.GetEntity()
+}
+
+func (variant *LabelVariant) Owner() string {
+	return variant.serialized.GetOwner()
+}
+
 type TrainingSet struct {
 	// TODO
 }
 
 type TrainingSetVariant struct {
-	// TODO
-}
-
-type Label struct {
-	// TODO
-}
-
-type LabelVariant struct {
 	// TODO
 }
 

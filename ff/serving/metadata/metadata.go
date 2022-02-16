@@ -736,17 +736,9 @@ func NewMetadataServer(logger *zap.SugaredLogger) (*MetadataServer, error) {
 }
 
 func (serv *MetadataServer) ListFeatures(_ *pb.Empty, stream pb.Metadata_ListFeaturesServer) error {
-	resources, err := serv.lookup.List(FEATURE)
-	if err != nil {
-		return err
-	}
-	for _, res := range resources {
-		feature := res.Proto().(*pb.Feature)
-		if err := stream.Send(feature); err != nil {
-			return err
-		}
-	}
-	return nil
+	return serv.genericList(FEATURE, func(msg proto.Message) error {
+		return stream.Send(msg.(*pb.Feature))
+	})
 }
 
 func (serv *MetadataServer) CreateFeatureVariant(ctx context.Context, variant *pb.FeatureVariant) (*pb.Empty, error) {
@@ -838,17 +830,9 @@ func (serv *MetadataServer) GetFeatureVariants(stream pb.Metadata_GetFeatureVari
 }
 
 func (serv *MetadataServer) ListUsers(_ *pb.Empty, stream pb.Metadata_ListUsersServer) error {
-	resources, err := serv.lookup.List(USER)
-	if err != nil {
-		return err
-	}
-	for _, res := range resources {
-		user := res.Proto().(*pb.User)
-		if err := stream.Send(user); err != nil {
-			return err
-		}
-	}
-	return nil
+	return serv.genericList(USER, func(msg proto.Message) error {
+		return stream.Send(msg.(*pb.User))
+	})
 }
 
 func (serv *MetadataServer) CreateUser(ctx context.Context, user *pb.User) (*pb.Empty, error) {
@@ -893,17 +877,9 @@ func (serv *MetadataServer) GetUsers(stream pb.Metadata_GetUsersServer) error {
 }
 
 func (serv *MetadataServer) ListEntities(_ *pb.Empty, stream pb.Metadata_ListEntitiesServer) error {
-	resources, err := serv.lookup.List(ENTITY)
-	if err != nil {
-		return err
-	}
-	for _, res := range resources {
-		entity := res.Proto().(*pb.Entity)
-		if err := stream.Send(entity); err != nil {
-			return err
-		}
-	}
-	return nil
+	return serv.genericList(ENTITY, func(msg proto.Message) error {
+		return stream.Send(msg.(*pb.Entity))
+	})
 }
 
 func (serv *MetadataServer) CreateEntity(ctx context.Context, entity *pb.Entity) (*pb.Empty, error) {
@@ -945,6 +921,20 @@ func (serv *MetadataServer) GetEntities(stream pb.Metadata_GetEntitiesServer) er
 			return err
 		}
 	}
+}
+
+func (serv *MetadataServer) genericList(t ResourceType, send sendFn) error {
+	resources, err := serv.lookup.List(t)
+	if err != nil {
+		return err
+	}
+	for _, res := range resources {
+		serialized := res.Proto()
+		if err := send(serialized); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func main() {

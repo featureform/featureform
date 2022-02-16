@@ -392,10 +392,10 @@ exports[`App hasn't changed 1`] = `
             Object {
               "icon": "file-import",
               "path": "/sources",
-              "title": "Data Sources",
+              "title": "Primary Data",
               "view": "ResourceList",
               "viewProps": Object {
-                "type": "Data Source",
+                "type": "Primary Data",
               },
             },
             Object {

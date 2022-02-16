@@ -355,7 +355,7 @@
       }
     }
   ],
-  "Data Source": [
+  "Primary Data": [
     {
       "name": "Wine Quality Sample File",
       "default-variant": "default-variant",

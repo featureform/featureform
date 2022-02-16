@@ -18,6 +18,8 @@ const versionSlice = createSlice({
   reducers: {
     set: (state, action) => {
       const { type, name, version } = action.payload;
+      console.log(type, name, version);
+      console.log(state);
       state[type][name] = version;
     },
   },

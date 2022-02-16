@@ -85,7 +85,7 @@ const SearchResultsView = ({ results, search_query, setVersion }) => {
   let myResults = results.resources;
   let typeOrder = [
     "Feature",
-    "Data Source",
+    "Primary Data",
     "Entity",
     "Model",
     "Transformation",

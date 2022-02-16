@@ -12,12 +12,12 @@
         "description": "Unique ID specifying the wine sample"
       },
       "data": {
-        "features": [
+        "Feature": [
           {
             "name": "Non-free Sulfur Dioxide",
             "description": "Total non-free sulfur in sample",
             "tags": ["wine", "batch", "sulfur"],
-            "variants": ["default", "second"]
+            "variants": ["first-variant", "streaming-variant"]
           },
           {
             "name": "fixed_acidity",

@@ -779,54 +779,15 @@ func (serv *MetadataServer) CreateFeatureVariant(ctx context.Context, variant *p
 }
 
 func (serv *MetadataServer) GetFeatures(stream pb.Metadata_GetFeaturesServer) error {
-	for {
-		req, err := stream.Recv()
-		if err == io.EOF {
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-		name := req.GetName()
-		id := ResourceID{
-			Name: name,
-			Type: FEATURE,
-		}
-		resource, err := serv.lookup.Lookup(id)
-		if err != nil {
-			return err
-		}
-		feature := resource.Proto().(*pb.Feature)
-		if err := stream.Send(feature); err != nil {
-			return err
-		}
-	}
+	return serv.genericGet(stream, FEATURE, func(msg proto.Message) error {
+		return stream.Send(msg.(*pb.Feature))
+	})
 }
 
 func (serv *MetadataServer) GetFeatureVariants(stream pb.Metadata_GetFeatureVariantsServer) error {
-	for {
-		req, err := stream.Recv()
-		if err == io.EOF {
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-		name, variant := req.GetName(), req.GetVariant()
-		id := ResourceID{
-			Name:    name,
-			Variant: variant,
-			Type:    FEATURE_VARIANT,
-		}
-		resource, err := serv.lookup.Lookup(id)
-		if err != nil {
-			return err
-		}
-		serialized := resource.Proto().(*pb.FeatureVariant)
-		if err := stream.Send(serialized); err != nil {
-			return err
-		}
-	}
+	return serv.genericGet(stream, FEATURE_VARIANT, func(msg proto.Message) error {
+		return stream.Send(msg.(*pb.FeatureVariant))
+	})
 }
 
 func (serv *MetadataServer) ListUsers(_ *pb.Empty, stream pb.Metadata_ListUsersServer) error {
@@ -852,28 +813,9 @@ func (serv *MetadataServer) CreateUser(ctx context.Context, user *pb.User) (*pb.
 }
 
 func (serv *MetadataServer) GetUsers(stream pb.Metadata_GetUsersServer) error {
-	for {
-		req, err := stream.Recv()
-		if err == io.EOF {
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-		name := req.GetName()
-		id := ResourceID{
-			Name: name,
-			Type: USER,
-		}
-		resource, err := serv.lookup.Lookup(id)
-		if err != nil {
-			return err
-		}
-		user := resource.Proto().(*pb.User)
-		if err := stream.Send(user); err != nil {
-			return err
-		}
-	}
+	return serv.genericGet(stream, USER, func(msg proto.Message) error {
+		return stream.Send(msg.(*pb.User))
+	})
 }
 
 func (serv *MetadataServer) ListEntities(_ *pb.Empty, stream pb.Metadata_ListEntitiesServer) error {
@@ -899,25 +841,56 @@ func (serv *MetadataServer) CreateEntity(ctx context.Context, entity *pb.Entity)
 }
 
 func (serv *MetadataServer) GetEntities(stream pb.Metadata_GetEntitiesServer) error {
+	return serv.genericGet(stream, ENTITY, func(msg proto.Message) error {
+		return stream.Send(msg.(*pb.Entity))
+	})
+}
+
+type nameStream interface {
+	Recv() (*pb.Name, error)
+}
+
+type variantStream interface {
+	Recv() (*pb.NameVariant, error)
+}
+
+type sendFn func(proto.Message) error
+
+func (serv *MetadataServer) genericGet(stream interface{}, t ResourceType, send sendFn) error {
 	for {
-		req, err := stream.Recv()
-		if err == io.EOF {
+		var recvErr error
+		var id ResourceID
+		switch casted := stream.(type) {
+		case nameStream:
+			req, err := casted.Recv()
+			recvErr = err
+			id = ResourceID{
+				Name: req.GetName(),
+				Type: t,
+			}
+		case variantStream:
+			req, err := casted.Recv()
+			recvErr = err
+			id = ResourceID{
+				Name:    req.GetName(),
+				Variant: req.GetVariant(),
+				Type:    t,
+			}
+		default:
+			return fmt.Errorf("Invalid Stream for Get: %T", casted)
+		}
+		if recvErr == io.EOF {
 			return nil
 		}
-		if err != nil {
-			return err
-		}
-		name := req.GetName()
-		id := ResourceID{
-			Name: name,
-			Type: ENTITY,
+		if recvErr != nil {
+			return recvErr
 		}
 		resource, err := serv.lookup.Lookup(id)
 		if err != nil {
 			return err
 		}
-		entity := resource.Proto().(*pb.Entity)
-		if err := stream.Send(entity); err != nil {
+		serialized := resource.Proto()
+		if err := send(serialized); err != nil {
 			return err
 		}
 	}

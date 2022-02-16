@@ -13,6 +13,10 @@ service Metadata {
     rpc CreateFeatureVariant(FeatureVariant) returns (Empty);
     rpc GetFeatures(stream Name) returns (stream Feature);
     rpc GetFeatureVariants(stream NameVariant) returns (stream FeatureVariant);
+    rpc ListLabels(Empty) returns (stream Label);
+    rpc CreateLabelVariant(LabelVariant) returns (Empty);
+    rpc GetLabels(stream Name) returns (stream Label);
+    rpc GetLabelVariants(stream NameVariant) returns (stream LabelVariant);
     rpc ListUsers(Empty) returns (stream User);
     rpc CreateUser(User) returns (Empty);
     rpc GetUsers(stream Name) returns (stream User);

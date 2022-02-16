@@ -34,6 +34,9 @@ service Metadata {
     rpc ListEntities(Empty) returns (stream Entity);
     rpc CreateEntity(Entity) returns (Empty);
     rpc GetEntities(stream Name) returns (stream Entity);
+    rpc ListModels(Empty) returns (stream Model);
+    rpc CreateModel(Model) returns (Empty);
+    rpc GetModels(stream Name) returns (stream Model);
 }
 
 message Name {

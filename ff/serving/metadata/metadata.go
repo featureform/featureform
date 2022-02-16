@@ -785,6 +785,37 @@ func (serv *MetadataServer) GetFeatureVariants(stream pb.Metadata_GetFeatureVari
 	})
 }
 
+func (serv *MetadataServer) ListLabels(_ *pb.Empty, stream pb.Metadata_ListLabelsServer) error {
+	return serv.genericList(LABEL, func(msg proto.Message) error {
+		return stream.Send(msg.(*pb.Label))
+	})
+}
+
+func (serv *MetadataServer) CreateLabelVariant(ctx context.Context, variant *pb.LabelVariant) (*pb.Empty, error) {
+	return serv.genericCreate(ctx, &labelVariantResource{variant}, func(name, variant string) Resource {
+		return &labelResource{
+			&pb.Label{
+				Name:           name,
+				DefaultVariant: variant,
+				// This will be set when the change is propogated to dependencies.
+				Variants: []string{},
+			},
+		}
+	})
+}
+
+func (serv *MetadataServer) GetLabels(stream pb.Metadata_GetLabelsServer) error {
+	return serv.genericGet(stream, LABEL, func(msg proto.Message) error {
+		return stream.Send(msg.(*pb.Label))
+	})
+}
+
+func (serv *MetadataServer) GetLabelVariants(stream pb.Metadata_GetLabelVariantsServer) error {
+	return serv.genericGet(stream, LABEL_VARIANT, func(msg proto.Message) error {
+		return stream.Send(msg.(*pb.LabelVariant))
+	})
+}
+
 func (serv *MetadataServer) ListUsers(_ *pb.Empty, stream pb.Metadata_ListUsersServer) error {
 	return serv.genericList(USER, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.User))

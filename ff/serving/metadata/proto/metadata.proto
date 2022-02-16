@@ -28,6 +28,9 @@ service Metadata {
     rpc ListUsers(Empty) returns (stream User);
     rpc CreateUser(User) returns (Empty);
     rpc GetUsers(stream Name) returns (stream User);
+    rpc ListProviders(Empty) returns (stream Provider);
+    rpc CreateProvider(Provider) returns (Empty);
+    rpc GetProviders(stream Name) returns (stream Provider);
     rpc ListEntities(Empty) returns (stream Entity);
     rpc CreateEntity(Entity) returns (Empty);
     rpc GetEntities(stream Name) returns (stream Entity);

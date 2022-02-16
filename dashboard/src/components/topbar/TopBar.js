@@ -103,17 +103,6 @@ export default function TopBar() {
             {search && (
               <SearchBar className={classes.searchBar} homePage={false} />
             )}
-            {instanceTheme && (
-              <div>
-                <Divider orientation="vertical" variant="middle" flexItem />
-                <div className={classes.instanceName}>
-                  <img
-                    className={classes.instanceLogo}
-                    src="/Capital_One_logo.svg"
-                  />
-                </div>{" "}
-              </div>
-            )}
             {auth && (
               <div>
                 <IconButton

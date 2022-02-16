@@ -6,9 +6,7 @@ const searchEngine = new SearchEngine();
 export const fetchSearch = createAsyncThunk(
   "searchResults/fetchSearch",
   async ({ api, query }, { signal }) => {
-    //const response = await api.fetchSearch(query, signal);
     const response = await api.fetchVersionSearchStub(query, signal);
-    //const filteredResults = searchEngine.filterSearch(query, response.data);
     return response.data;
   },
   {

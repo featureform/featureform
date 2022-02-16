@@ -926,6 +926,22 @@ func (serv *MetadataServer) GetEntities(stream pb.Metadata_GetEntitiesServer) er
 	})
 }
 
+func (serv *MetadataServer) ListModels(_ *pb.Empty, stream pb.Metadata_ListModelsServer) error {
+	return serv.genericList(MODEL, func(msg proto.Message) error {
+		return stream.Send(msg.(*pb.Model))
+	})
+}
+
+func (serv *MetadataServer) CreateModel(ctx context.Context, model *pb.Model) (*pb.Empty, error) {
+	return serv.genericCreate(ctx, &modelResource{model}, nil)
+}
+
+func (serv *MetadataServer) GetModels(stream pb.Metadata_GetModelsServer) error {
+	return serv.genericGet(stream, MODEL, func(msg proto.Message) error {
+		return stream.Send(msg.(*pb.Model))
+	})
+}
+
 type nameStream interface {
 	Recv() (*pb.Name, error)
 }

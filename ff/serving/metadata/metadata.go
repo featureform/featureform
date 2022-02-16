@@ -45,6 +45,14 @@ const (
 	MODEL                               = "Model"
 )
 
+var parentMapping = map[ResourceType]ResourceType{
+	FEATURE_VARIANT:        FEATURE,
+	LABEL_VARIANT:          LABEL,
+	TRANSFORMATION_VARIANT: TRANSFORMATION,
+	SOURCE_VARIANT:         SOURCE,
+	TRAINING_SET_VARIANT:   TRAINING_SET,
+}
+
 type ResourceID struct {
 	Name    string
 	Variant string
@@ -56,6 +64,17 @@ func (id ResourceID) Proto() *pb.NameVariant {
 		Name:    id.Name,
 		Variant: id.Variant,
 	}
+}
+
+func (id ResourceID) Parent() (ResourceID, bool) {
+	parentType, has := parentMapping[id.Type]
+	if !has {
+		return ResourceID{}, false
+	}
+	return ResourceID{
+		Name: id.Name,
+		Type: parentType,
+	}, true
 }
 
 type ResourceNotFound struct {
@@ -742,40 +761,16 @@ func (serv *MetadataServer) ListFeatures(_ *pb.Empty, stream pb.Metadata_ListFea
 }
 
 func (serv *MetadataServer) CreateFeatureVariant(ctx context.Context, variant *pb.FeatureVariant) (*pb.Empty, error) {
-	name, variantName := variant.GetName(), variant.GetVariant()
-	id := ResourceID{
-		Name:    name,
-		Variant: variantName,
-		Type:    FEATURE_VARIANT,
-	}
-	if has, err := serv.lookup.Has(id); err != nil {
-		return nil, err
-	} else if has {
-		return nil, &ResourceExists{id}
-	}
-	variant.Created = time.Now().Format(TIME_FORMAT)
-	parentId := ResourceID{
-		Name: name,
-		Type: FEATURE,
-	}
-	if parentExists, err := serv.lookup.Has(parentId); err != nil {
-		return nil, err
-	} else if !parentExists {
-		feature := &pb.Feature{
-			Name:           name,
-			DefaultVariant: variantName,
-			// This will be set when the change is propogated to dependencies.
-			Variants: []string{},
+	return serv.genericCreate(ctx, &featureVariantResource{variant}, func(name, variant string) Resource {
+		return &featureResource{
+			&pb.Feature{
+				Name:           name,
+				DefaultVariant: variant,
+				// This will be set when the change is propogated to dependencies.
+				Variants: []string{},
+			},
 		}
-		resource := &featureResource{feature}
-		serv.lookup.Set(parentId, resource)
-	}
-	err := serv.lookup.Set(id, &featureVariantResource{variant})
-	if err != nil {
-		return nil, err
-	}
-	// TODO verify dependencies, propogate change
-	return &pb.Empty{}, nil
+	})
 }
 
 func (serv *MetadataServer) GetFeatures(stream pb.Metadata_GetFeaturesServer) error {
@@ -797,19 +792,7 @@ func (serv *MetadataServer) ListUsers(_ *pb.Empty, stream pb.Metadata_ListUsersS
 }
 
 func (serv *MetadataServer) CreateUser(ctx context.Context, user *pb.User) (*pb.Empty, error) {
-	name := user.GetName()
-	id := ResourceID{
-		Name: name,
-		Type: USER,
-	}
-	if has, err := serv.lookup.Has(id); err != nil {
-		return nil, err
-	} else if has {
-		return nil, &ResourceExists{id}
-	}
-	serv.lookup.Set(id, &userResource{user})
-	// TODO verify dependencies, propogate change
-	return &pb.Empty{}, nil
+	return serv.genericCreate(ctx, &userResource{user}, nil)
 }
 
 func (serv *MetadataServer) GetUsers(stream pb.Metadata_GetUsersServer) error {
@@ -825,19 +808,7 @@ func (serv *MetadataServer) ListEntities(_ *pb.Empty, stream pb.Metadata_ListEnt
 }
 
 func (serv *MetadataServer) CreateEntity(ctx context.Context, entity *pb.Entity) (*pb.Empty, error) {
-	name := entity.GetName()
-	id := ResourceID{
-		Name: name,
-		Type: ENTITY,
-	}
-	if has, err := serv.lookup.Has(id); err != nil {
-		return nil, err
-	} else if has {
-		return nil, &ResourceExists{id}
-	}
-	serv.lookup.Set(id, &entityResource{entity})
-	// TODO verify dependencies, propogate change
-	return &pb.Empty{}, nil
+	return serv.genericCreate(ctx, &entityResource{entity}, nil)
 }
 
 func (serv *MetadataServer) GetEntities(stream pb.Metadata_GetEntitiesServer) error {
@@ -855,6 +826,33 @@ type variantStream interface {
 }
 
 type sendFn func(proto.Message) error
+
+type initParentFn func(name, variant string) Resource
+
+func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, init initParentFn) (*pb.Empty, error) {
+	id := res.ID()
+	if has, err := serv.lookup.Has(id); err != nil {
+		return nil, err
+	} else if has {
+		return nil, &ResourceExists{id}
+	}
+	if err := serv.lookup.Set(id, res); err != nil {
+		return nil, err
+	}
+	parentId, hasParent := id.Parent()
+	if hasParent {
+		if parentExists, err := serv.lookup.Has(parentId); err != nil {
+			return nil, err
+		} else if !parentExists {
+			parent := init(id.Name, id.Variant)
+			if err := serv.lookup.Set(parentId, parent); err != nil {
+				return nil, err
+			}
+		}
+	}
+	// TODO verify dependencies, propogate change
+	return &pb.Empty{}, nil
+}
 
 func (serv *MetadataServer) genericGet(stream interface{}, t ResourceType, send sendFn) error {
 	for {

@@ -292,8 +292,8 @@ type createdFn struct {
 	getter createdGetter
 }
 
-func (fn createdFn) Created() string {
-	t, err := time.Parse(variant.serialized.GetCreated(), TIME_FORMAT)
+func (fn createdFn) Created() time.Time {
+	t, err := time.Parse(fn.getter.GetCreated(), TIME_FORMAT)
 	if err != nil {
 		panic(err)
 	}

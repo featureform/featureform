@@ -857,6 +857,7 @@ func (serv *MetadataServer) ListSources(_ *pb.Empty, stream pb.Metadata_ListSour
 }
 
 func (serv *MetadataServer) CreateSourceVariant(ctx context.Context, variant *pb.SourceVariant) (*pb.Empty, error) {
+	variant.Created = time.Now().Format(TIME_FORMAT)
 	return serv.genericCreate(ctx, &sourceVariantResource{variant}, func(name, variant string) Resource {
 		return &sourceResource{
 			&pb.Source{

@@ -128,7 +128,6 @@ message Entity {
 message Model {
     string name = 1;
     string description = 2;
-    string  created = 3;
     repeated NameVariant features = 4;
     repeated NameVariant labels = 5;
     repeated NameVariant trainingsets = 6;
@@ -155,7 +154,8 @@ message SourceVariant {
     string owner = 4;
     string description = 5;
     string provider = 6;
-    repeated NameVariant trainingsets = 7;
-    repeated NameVariant features = 8;
-    repeated NameVariant labels = 9;
+    string created = 7;
+    repeated NameVariant trainingsets = 8;
+    repeated NameVariant features = 9;
+    repeated NameVariant labels = 10;
 }

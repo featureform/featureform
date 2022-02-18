@@ -1,0 +1,17 @@
+{
+  "dependencies": {
+    "@babel/runtime": "^7.17.2",
+    "bulma": "^0.9.3",
+    "typesense": "^1.1.3"
+  },
+  "name": "typesensegoinstant",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": ""
+}

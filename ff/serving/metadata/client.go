@@ -1,8 +1,7 @@
-package main
+package metadata
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"time"
 
@@ -13,8 +12,6 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
-
-const TIME_FORMAT = time.RFC1123
 
 type NameVariant struct {
 	Name    string
@@ -100,10 +97,10 @@ func (client *Client) GetFeatureVariant(ctx context.Context, id NameVariant) (*F
 	}
 	go stream.Send(id.Serialize())
 	variants, err := client.parseFeatureVariantStream(stream)
-    if err != nil {
-        return nil, err
-    }
-    return variants[0], nil
+	if err != nil {
+		return nil, err
+	}
+	return variants[0], nil
 }
 
 type FeatureDef struct {
@@ -235,10 +232,10 @@ func (client *Client) GetLabelVariant(ctx context.Context, id NameVariant) (*Lab
 	}
 	go stream.Send(id.Serialize())
 	variants, err := client.parseLabelVariantStream(stream)
-    if err != nil {
-        return nil, err
-    }
-    return variants[0], nil
+	if err != nil {
+		return nil, err
+	}
+	return variants[0], nil
 }
 
 type labelStream interface {
@@ -434,10 +431,10 @@ func (client *Client) GetSourceVariant(ctx context.Context, id NameVariant) (*So
 	}
 	go stream.Send(id.Serialize())
 	variants, err := client.parseSourceVariantStream(stream)
-    if err != nil {
-        return nil, err
-    }
-    return variants[0], nil
+	if err != nil {
+		return nil, err
+	}
+	return variants[0], nil
 }
 
 type sourceStream interface {
@@ -768,7 +765,7 @@ func (fn fetchTrainingSetsFns) TrainingSets() []NameVariant {
 }
 
 func (fn fetchTrainingSetsFns) FetchTrainingSets(client *Client, ctx context.Context) ([]*TrainingSetVariant, error) {
-    return client.GetTrainingSetVariants(ctx, fn.TrainingSets())
+	return client.GetTrainingSetVariants(ctx, fn.TrainingSets())
 }
 
 type labelsGetter interface {
@@ -784,7 +781,7 @@ func (fn fetchLabelsFns) Labels() []NameVariant {
 }
 
 func (fn fetchLabelsFns) FetchLabels(client *Client, ctx context.Context) ([]*LabelVariant, error) {
-    return client.GetLabelVariants(ctx, fn.Labels())
+	return client.GetLabelVariants(ctx, fn.Labels())
 }
 
 type featuresGetter interface {
@@ -800,7 +797,7 @@ func (fn fetchFeaturesFns) Features() []NameVariant {
 }
 
 func (fn fetchFeaturesFns) FetchFeatures(client *Client, ctx context.Context) ([]*FeatureVariant, error) {
-    return client.GetFeatureVariants(ctx, fn.Features())
+	return client.GetFeatureVariants(ctx, fn.Features())
 }
 
 type sourcesGetter interface {
@@ -816,7 +813,7 @@ func (fn fetchSourcesFns) Sources() []NameVariant {
 }
 
 func (fn fetchSourcesFns) FetchSources(client *Client, ctx context.Context) ([]*SourceVariant, error) {
-    return client.GetSourceVariants(ctx, fn.Sources())
+	return client.GetSourceVariants(ctx, fn.Sources())
 }
 
 type sourceGetter interface {
@@ -832,7 +829,7 @@ func (fn fetchSourceFns) Source() NameVariant {
 }
 
 func (fn fetchSourceFns) FetchSource(client *Client, ctx context.Context) (*SourceVariant, error) {
-    return client.GetSourceVariant(ctx, fn.Source())
+	return client.GetSourceVariant(ctx, fn.Source())
 }
 
 type Feature struct {
@@ -850,7 +847,7 @@ func wrapProtoFeature(serialized *pb.Feature) *Feature {
 }
 
 func (feature Feature) FetchVariants(client *Client, ctx context.Context) ([]*FeatureVariant, error) {
-    return client.GetFeatureVariants(ctx, feature.NameVariants())
+	return client.GetFeatureVariants(ctx, feature.NameVariants())
 }
 
 type FeatureVariant struct {
@@ -998,7 +995,7 @@ func wrapProtoLabel(serialized *pb.Label) *Label {
 }
 
 func (label Label) FetchVariants(client *Client, ctx context.Context) ([]*LabelVariant, error) {
-    return client.GetLabelVariants(ctx, label.NameVariants())
+	return client.GetLabelVariants(ctx, label.NameVariants())
 }
 
 type LabelVariant struct {
@@ -1060,7 +1057,7 @@ func wrapProtoTrainingSet(serialized *pb.TrainingSet) *TrainingSet {
 }
 
 func (trainingSet TrainingSet) FetchVariants(client *Client, ctx context.Context) ([]*TrainingSetVariant, error) {
-    return client.GetTrainingSetVariants(ctx, trainingSet.NameVariants())
+	return client.GetTrainingSetVariants(ctx, trainingSet.NameVariants())
 }
 
 type TrainingSetVariant struct {
@@ -1104,11 +1101,11 @@ func (variant *TrainingSetVariant) Label() NameVariant {
 }
 
 func (variant *TrainingSetVariant) FetchLabel(client *Client, ctx context.Context) (*LabelVariant, error) {
-    labelList, err := client.GetLabelVariants(ctx, []NameVariant{variant.Label()})
-    if err != nil {
-        return nil, err
-    }
-    return labelList[0], nil
+	labelList, err := client.GetLabelVariants(ctx, []NameVariant{variant.Label()})
+	if err != nil {
+		return nil, err
+	}
+	return labelList[0], nil
 }
 
 type Source struct {
@@ -1126,7 +1123,7 @@ func wrapProtoSource(serialized *pb.Source) *Source {
 }
 
 func (source Source) FetchVariants(client *Client, ctx context.Context) ([]*SourceVariant, error) {
-    return client.GetSourceVariants(ctx, source.NameVariants())
+	return client.GetSourceVariants(ctx, source.NameVariants())
 }
 
 type SourceVariant struct {
@@ -1217,46 +1214,4 @@ func NewClient(host string, logger *zap.SugaredLogger) (*Client, error) {
 
 func (client *Client) Close() {
 	client.conn.Close()
-}
-
-func main() {
-	logger := zap.NewExample().Sugar()
-	client, err := NewClient("localhost:8080", logger)
-	if err != nil {
-		logger.Panicw("Failed to connect", "Err", err)
-	}
-	err = client.CreateEntity(context.Background(), EntityDef{
-		Name:        "f1",
-		Description: "desc",
-	})
-	if err != nil {
-		logger.Panicw("Failed to create entity", "Err", err)
-	}
-	entities, err := client.ListEntities(context.Background())
-	fmt.Printf("%+v\n", entities)
-	logger.Infow("Listed Entities", "Entities", entities, "Err", err)
-	err = client.CreateUser(context.Background(), UserDef{
-		Name: "f1",
-	})
-	if err != nil {
-		logger.Panicw("Failed to create user", "Err", err)
-	}
-	users, err := client.ListUsers(context.Background())
-	fmt.Printf("%+v\n", users)
-	logger.Infow("Listed Users", "Users", users, "Err", err)
-	err = client.CreateFeatureVariant(context.Background(), FeatureDef{
-		Name:        "f1",
-		Variant:     "v1",
-		Source:      "Users",
-		Type:        "int",
-		Entity:      "users",
-		Owner:       "simba",
-		Description: "Our first feature",
-	})
-	if err != nil {
-		logger.Panicw("Failed to create feature", "Err", err)
-	}
-	features, err := client.ListFeatures(context.Background())
-	fmt.Printf("%+v\n", features)
-	logger.Infow("Listed features", "Features", features, "Err", err)
 }

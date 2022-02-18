@@ -120,7 +120,8 @@ type ResourceLookup interface {
 	Has(ResourceID) (bool, error)
 	Set(ResourceID, Resource) error
 	Submap([]ResourceID) (ResourceLookup, error)
-	List(ResourceType) ([]Resource, error)
+	ListForType(ResourceType) ([]Resource, error)
+	List() ([]Resource, error)
 }
 
 type localResourceLookup map[ResourceID]Resource
@@ -155,12 +156,20 @@ func (lookup localResourceLookup) Submap(ids []ResourceID) (ResourceLookup, erro
 	return resources, nil
 }
 
-func (lookup localResourceLookup) List(t ResourceType) ([]Resource, error) {
+func (lookup localResourceLookup) ListForType(t ResourceType) ([]Resource, error) {
 	resources := make([]Resource, 0)
 	for id, res := range lookup {
 		if id.Type == t {
 			resources = append(resources, res)
 		}
+	}
+	return resources, nil
+}
+
+func (lookup localResourceLookup) List() ([]Resource, error) {
+	resources := make([]Resource, 0, len(lookup))
+	for _, res := range lookup {
+		resources = append(resources, res)
 	}
 	return resources, nil
 }
@@ -974,8 +983,41 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 			}
 		}
 	}
-	// TODO verify dependencies, propogate change
+	if err := serv.propogateChange(res); err != nil {
+		return nil, err
+	}
 	return &pb.Empty{}, nil
+}
+
+func (serv *MetadataServer) propogateChange(newRes Resource) error {
+	visited := make(map[ResourceID]struct{})
+	// We have to make it a var so that the anonymous function can call itself.
+	var propogateChange func(parent Resource) error
+	propogateChange = func(parent Resource) error {
+		deps, err := parent.Dependencies(serv.lookup)
+		if err != nil {
+			return err
+		}
+		depList, err := deps.List()
+		if err != nil {
+			return err
+		}
+		for _, res := range depList {
+			id := res.ID()
+			if _, has := visited[id]; has {
+				continue
+			}
+			visited[id] = struct{}{}
+			if err := res.Notify(serv.lookup, create_op, newRes); err != nil {
+				return err
+			}
+			if err := propogateChange(res); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	return propogateChange(newRes)
 }
 
 func (serv *MetadataServer) genericGet(stream interface{}, t ResourceType, send sendFn) error {
@@ -1019,7 +1061,7 @@ func (serv *MetadataServer) genericGet(stream interface{}, t ResourceType, send 
 }
 
 func (serv *MetadataServer) genericList(t ResourceType, send sendFn) error {
-	resources, err := serv.lookup.List(t)
+	resources, err := serv.lookup.ListForType(t)
 	if err != nil {
 		return err
 	}

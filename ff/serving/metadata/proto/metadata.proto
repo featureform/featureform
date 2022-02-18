@@ -59,7 +59,7 @@ message Feature {
 message FeatureVariant {
     string name = 1;
     string variant = 2;
-    string source = 3;
+    NameVariant source = 3;
     string type = 4;
     string entity = 5;
     string created = 6;
@@ -80,7 +80,7 @@ message LabelVariant {
     string variant = 2;
     string description = 3;
     string type = 4;
-    string source = 5;
+    NameVariant source = 5;
     string entity = 6;
     string created = 7;
     string owner = 8;

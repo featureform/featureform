@@ -36,7 +36,7 @@ func main() {
 	err = client.CreateFeatureVariant(context.Background(), metadata.FeatureDef{
 		Name:        "f1",
 		Variant:     "v1",
-		Source:      "Users",
+		Source:      metadata.NameVariant{"Users", "V1"},
 		Type:        "int",
 		Entity:      "users",
 		Owner:       "simba",

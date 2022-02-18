@@ -1,24 +1,19 @@
-package main
+package metadata
 
 import (
 	"context"
 	"fmt"
 	"io"
-	"net"
 	"time"
 
 	pb "github.com/featureform/serving/metadata/proto"
 	"go.uber.org/zap"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 )
 
-type NameVariant struct {
-	Name    string
-	Variant string
-}
+const TIME_FORMAT = time.RFC1123
 
 type operation int
 
@@ -323,8 +318,9 @@ func (resource *featureVariantResource) Dependencies(lookup ResourceLookup) (Res
 	serialized := resource.serialized
 	depIds := []ResourceID{
 		{
-			Name: serialized.Source,
-			Type: SOURCE_VARIANT,
+			Name:    serialized.Source.Name,
+			Variant: serialized.Source.Variant,
+			Type:    SOURCE_VARIANT,
 		},
 		{
 			Name: serialized.Entity,
@@ -420,8 +416,9 @@ func (resource *labelVariantResource) Dependencies(lookup ResourceLookup) (Resou
 	serialized := resource.serialized
 	depIds := []ResourceID{
 		{
-			Name: serialized.Source,
-			Type: SOURCE_VARIANT,
+			Name:    serialized.Source.Name,
+			Variant: serialized.Source.Variant,
+			Type:    SOURCE_VARIANT,
 		},
 		{
 			Name: serialized.Entity,
@@ -738,8 +735,6 @@ func (this *entityResource) Notify(lookup ResourceLookup, op operation, that Res
 	return nil
 }
 
-const TIME_FORMAT = time.RFC1123
-
 type MetadataServer struct {
 	lookup ResourceLookup
 	Logger *zap.SugaredLogger
@@ -1035,24 +1030,4 @@ func (serv *MetadataServer) genericList(t ResourceType, send sendFn) error {
 		}
 	}
 	return nil
-}
-
-func main() {
-	logger := zap.NewExample().Sugar()
-	port := ":8080"
-	lis, err := net.Listen("tcp", port)
-	if err != nil {
-		logger.Panicw("Failed to listen on port", "Err", err)
-	}
-	grpcServer := grpc.NewServer()
-	serv, err := NewMetadataServer(logger)
-	if err != nil {
-		logger.Panicw("Failed to create metadata server", "Err", err)
-	}
-	pb.RegisterMetadataServer(grpcServer, serv)
-	logger.Infow("Server starting", "Port", port)
-	serveErr := grpcServer.Serve(lis)
-	if serveErr != nil {
-		logger.Errorw("Serve failed with error", "Err", serveErr)
-	}
 }

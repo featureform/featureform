@@ -106,7 +106,7 @@ func (client *Client) GetFeatureVariant(ctx context.Context, id NameVariant) (*F
 type FeatureDef struct {
 	Name        string
 	Variant     string
-	Source      string
+	Source      NameVariant
 	Type        string
 	Entity      string
 	Owner       string
@@ -118,7 +118,7 @@ func (client *Client) CreateFeatureVariant(ctx context.Context, def FeatureDef) 
 	serialized := &pb.FeatureVariant{
 		Name:        def.Name,
 		Variant:     def.Variant,
-		Source:      def.Source,
+		Source:      def.Source.Serialize(),
 		Type:        def.Type,
 		Entity:      def.Entity,
 		Owner:       def.Owner,
@@ -191,7 +191,7 @@ type LabelDef struct {
 	Variant     string
 	Description string
 	Type        string
-	Source      string
+	Source      NameVariant
 	Entity      string
 	Owner       string
 	Provider    string
@@ -203,7 +203,7 @@ func (client *Client) CreateLabelVariant(ctx context.Context, def LabelDef) erro
 		Variant:     def.Variant,
 		Description: def.Description,
 		Type:        def.Type,
-		Source:      def.Source,
+		Source:      def.Source.Serialize(),
 		Entity:      def.Entity,
 		Owner:       def.Owner,
 		Provider:    def.Provider,
@@ -874,8 +874,8 @@ func (variant *FeatureVariant) Variant() string {
 	return variant.serialized.GetVariant()
 }
 
-func (variant *FeatureVariant) Source() string {
-	return variant.serialized.GetSource()
+func (variant *FeatureVariant) Source() NameVariant {
+	return parseNameVariant(variant.serialized.GetSource())
 }
 
 func (variant *FeatureVariant) Type() string {
@@ -1026,8 +1026,8 @@ func (variant *LabelVariant) Variant() string {
 	return variant.serialized.GetVariant()
 }
 
-func (variant *LabelVariant) Source() string {
-	return variant.serialized.GetSource()
+func (variant *LabelVariant) Source() NameVariant {
+	return parseNameVariant(variant.serialized.GetSource())
 }
 
 func (variant *LabelVariant) Type() string {

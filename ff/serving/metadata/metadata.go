@@ -240,6 +240,10 @@ func (resource *sourceVariantResource) Dependencies(lookup ResourceLookup) (Reso
 			Name: serialized.Provider,
 			Type: PROVIDER,
 		},
+		{
+			Name: serialized.Name,
+			Type: SOURCE,
+		},
 	}
 	deps, err := lookup.Submap(depIds)
 	if err != nil {
@@ -343,6 +347,10 @@ func (resource *featureVariantResource) Dependencies(lookup ResourceLookup) (Res
 			Name: serialized.Provider,
 			Type: PROVIDER,
 		},
+		{
+			Name: serialized.Name,
+			Type: FEATURE,
+		},
 	}
 	deps, err := lookup.Submap(depIds)
 	if err != nil {
@@ -441,6 +449,10 @@ func (resource *labelVariantResource) Dependencies(lookup ResourceLookup) (Resou
 			Name: serialized.Provider,
 			Type: PROVIDER,
 		},
+		{
+			Name: serialized.Name,
+			Type: LABEL,
+		},
 	}
 	deps, err := lookup.Submap(depIds)
 	if err != nil {
@@ -534,6 +546,10 @@ func (resource *trainingSetVariantResource) Dependencies(lookup ResourceLookup) 
 			Name:    serialized.Label.Name,
 			Variant: serialized.Label.Variant,
 			Type:    LABEL_VARIANT,
+		},
+		{
+			Name: serialized.Name,
+			Type: TRAINING_SET,
 		},
 	}
 	for _, feature := range serialized.Features {

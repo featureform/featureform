@@ -93,6 +93,19 @@ func (client *Client) GetFeatureVariants(ctx context.Context, ids []NameVariant)
 	return client.parseFeatureVariantStream(stream)
 }
 
+func (client *Client) GetFeatureVariant(ctx context.Context, id NameVariant) (*FeatureVariant, error) {
+	stream, err := client.grpcConn.GetFeatureVariants(ctx)
+	if err != nil {
+		return nil, err
+	}
+	go stream.Send(id.Serialize())
+	variants, err := client.parseFeatureVariantStream(stream)
+    if err != nil {
+        return nil, err
+    }
+    return variants[0], nil
+}
+
 type FeatureDef struct {
 	Name        string
 	Variant     string
@@ -213,6 +226,19 @@ func (client *Client) GetLabelVariants(ctx context.Context, ids []NameVariant) (
 		}
 	}()
 	return client.parseLabelVariantStream(stream)
+}
+
+func (client *Client) GetLabelVariant(ctx context.Context, id NameVariant) (*LabelVariant, error) {
+	stream, err := client.grpcConn.GetLabelVariants(ctx)
+	if err != nil {
+		return nil, err
+	}
+	go stream.Send(id.Serialize())
+	variants, err := client.parseLabelVariantStream(stream)
+    if err != nil {
+        return nil, err
+    }
+    return variants[0], nil
 }
 
 type labelStream interface {
@@ -399,6 +425,19 @@ func (client *Client) GetSourceVariants(ctx context.Context, ids []NameVariant) 
 		}
 	}()
 	return client.parseSourceVariantStream(stream)
+}
+
+func (client *Client) GetSourceVariant(ctx context.Context, id NameVariant) (*SourceVariant, error) {
+	stream, err := client.grpcConn.GetSourceVariants(ctx)
+	if err != nil {
+		return nil, err
+	}
+	go stream.Send(id.Serialize())
+	variants, err := client.parseSourceVariantStream(stream)
+    if err != nil {
+        return nil, err
+    }
+    return variants[0], nil
 }
 
 type sourceStream interface {
@@ -728,9 +767,8 @@ func (fn fetchTrainingSetsFns) TrainingSets() []NameVariant {
 	return parseNameVariants(fn.getter.GetTrainingsets())
 }
 
-func (fn fetchTrainingSetsFns) FetchTrainingSets() []*TrainingSetVariant {
-	// TODO
-	return nil
+func (fn fetchTrainingSetsFns) FetchTrainingSets(client *Client, ctx context.Context) ([]*TrainingSetVariant, error) {
+    return client.GetTrainingSetVariants(ctx, fn.TrainingSets())
 }
 
 type labelsGetter interface {
@@ -745,9 +783,8 @@ func (fn fetchLabelsFns) Labels() []NameVariant {
 	return parseNameVariants(fn.getter.GetLabels())
 }
 
-func (fn fetchLabelsFns) FetchLabels() []*LabelVariant {
-	// TODO
-	return nil
+func (fn fetchLabelsFns) FetchLabels(client *Client, ctx context.Context) ([]*LabelVariant, error) {
+    return client.GetLabelVariants(ctx, fn.Labels())
 }
 
 type featuresGetter interface {
@@ -762,9 +799,8 @@ func (fn fetchFeaturesFns) Features() []NameVariant {
 	return parseNameVariants(fn.getter.GetFeatures())
 }
 
-func (fn fetchFeaturesFns) FetchFeatures() []*FeatureVariant {
-	// TODO
-	return nil
+func (fn fetchFeaturesFns) FetchFeatures(client *Client, ctx context.Context) ([]*FeatureVariant, error) {
+    return client.GetFeatureVariants(ctx, fn.Features())
 }
 
 type sourcesGetter interface {
@@ -779,9 +815,24 @@ func (fn fetchSourcesFns) Sources() []NameVariant {
 	return parseNameVariants(fn.getter.GetSources())
 }
 
-func (fn fetchSourcesFns) FetchSources() []*SourceVariant {
-	// TODO
-	return nil
+func (fn fetchSourcesFns) FetchSources(client *Client, ctx context.Context) ([]*SourceVariant, error) {
+    return client.GetSourceVariants(ctx, fn.Sources())
+}
+
+type sourceGetter interface {
+	GetSource() *pb.NameVariant
+}
+
+type fetchSourceFns struct {
+	getter sourceGetter
+}
+
+func (fn fetchSourceFns) Source() NameVariant {
+	return parseNameVariant(fn.getter.GetSource())
+}
+
+func (fn fetchSourceFns) FetchSource(client *Client, ctx context.Context) (*SourceVariant, error) {
+    return client.GetSourceVariant(ctx, fn.Source())
 }
 
 type Feature struct {
@@ -798,9 +849,8 @@ func wrapProtoFeature(serialized *pb.Feature) *Feature {
 	}
 }
 
-func (feature Feature) FetchVariants() []*FeatureVariant {
-	// TODO
-	return nil
+func (feature Feature) FetchVariants(client *Client, ctx context.Context) ([]*FeatureVariant, error) {
+    return client.GetFeatureVariants(ctx, feature.NameVariants())
 }
 
 type FeatureVariant struct {
@@ -947,9 +997,8 @@ func wrapProtoLabel(serialized *pb.Label) *Label {
 	}
 }
 
-func (label Label) FetchVariants() []*LabelVariant {
-	// TODO
-	return nil
+func (label Label) FetchVariants(client *Client, ctx context.Context) ([]*LabelVariant, error) {
+    return client.GetLabelVariants(ctx, label.NameVariants())
 }
 
 type LabelVariant struct {
@@ -1010,9 +1059,8 @@ func wrapProtoTrainingSet(serialized *pb.TrainingSet) *TrainingSet {
 	}
 }
 
-func (trainingSet TrainingSet) FetchVariants() []*TrainingSetVariant {
-	// TODO
-	return nil
+func (trainingSet TrainingSet) FetchVariants(client *Client, ctx context.Context) ([]*TrainingSetVariant, error) {
+    return client.GetTrainingSetVariants(ctx, trainingSet.NameVariants())
 }
 
 type TrainingSetVariant struct {
@@ -1055,9 +1103,12 @@ func (variant *TrainingSetVariant) Label() NameVariant {
 	return parseNameVariant(variant.serialized.GetLabel())
 }
 
-func (variant *TrainingSetVariant) FetchLabel() *Label {
-	// TODO
-	return nil
+func (variant *TrainingSetVariant) FetchLabel(client *Client, ctx context.Context) (*LabelVariant, error) {
+    labelList, err := client.GetLabelVariants(ctx, []NameVariant{variant.Label()})
+    if err != nil {
+        return nil, err
+    }
+    return labelList[0], nil
 }
 
 type Source struct {
@@ -1074,9 +1125,8 @@ func wrapProtoSource(serialized *pb.Source) *Source {
 	}
 }
 
-func (source Source) FetchVariants() []*SourceVariant {
-	// TODO
-	return nil
+func (source Source) FetchVariants(client *Client, ctx context.Context) ([]*SourceVariant, error) {
+    return client.GetSourceVariants(ctx, source.NameVariants())
 }
 
 type SourceVariant struct {

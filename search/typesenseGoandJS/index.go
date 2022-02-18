@@ -39,12 +39,10 @@ func main() {
 			{
 				Name: "variant",
 				Type: "string",
-				//Facet: true,
 			},
 			{
 				Name: "description",
 				Type: "string",
-				//Facet: true,
 			},
 			{
 				Name: "type",
@@ -79,12 +77,4 @@ func main() {
 		finalresourceIDs = append(finalresourceIDs, resource)
 	}
 	client.Collection("featuredata").Documents().Import(finalresourceIDs, params)
-	// 	searchParameters := &api.SearchCollectionParams{
-	// 		Q:       "smple",
-	// 		QueryBy: "name",
-	// 	}
-	// 	l, _ := client.Collection("featuredata").Documents().Search(searchParameters)
-	// 	g, _ := json.Marshal(l)
-	// 	//file, _ := json.MarshalIndent(l, "", " ")
-	// 	_ = ioutil.WriteFile("test2.json", g, 0644)
 }

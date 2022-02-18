@@ -1,0 +1,466 @@
+
+{
+  "Training Dataset": [
+    {
+      "name": "Wine Quality Dataset",
+      "default-variant": "default-variant",
+      "all-versions": ["default-variant"],
+      "versions": {
+        "default-variant": {
+          "version-name": "default-verison",
+          "tags": ["calculated", "wine", "chemical", "quality"],
+          "description": "Wine quality training dataset",
+          "revision": "2020-08-10T13:49:51.141Z"
+        }
+      }
+    }
+  ],
+  "Feature": [
+    {
+      "name": "Non-free Sulfur Dioxide",
+      "default-variant": "first-variant",
+      "all-versions": ["first-variant", "streaming-variant"],
+      "versions": {
+        "first-variant": {
+          "version-name": "first-variant",
+          "source": "Wine Data",
+          "type": "float",
+          "entity": "wine_id",
+          "created": "2020-08-10T13:49:51.141Z",
+          "owner": "Simba Khadder",
+          "visibility": "private",
+          "revision": "2020-08-10T13:49:51.141Z",
+          "tags": ["materialized", "calculated", "wine", "chemical", "quality"],
+          "description": "Sulfur Dioxide that is trapped",
+          "feature-sets": [
+            { "name": "wine analysis", "created": "2020-08-10T13:49:51.141Z" },
+            {
+              "name": "test-feature_set",
+              "created": "2020-08-14T13:49:51.141Z"
+            }
+          ]
+        },
+        "streaming-variant": {
+          "version-name": "streaming-variant",
+          "source": "Wine Data",
+          "entity": "wine_id",
+          "type": "float",
+          "created": "2020-08-10T13:49:51.141Z",
+          "owner": "Simba Khadder",
+          "visibility": "private",
+          "revision": "2020-08-10T13:49:51.141Z",
+          "description": "Sulfur Dioxide that is trapped, streaming derived",
+          "tags": [
+            "materialized",
+            "calculated",
+            "wine",
+            "chemical",
+            "quality",
+            "streaming"
+          ],
+          "feature-sets": [
+            { "name": "wine analysis", "created": "2020-08-10T13:49:51.141Z" },
+            {
+              "name": "test-feature_set",
+              "created": "2020-08-14T13:49:51.141Z"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "fixed_acidity",
+      "default-variant": "first-variant",
+      "all-versions": ["first-variant", "normalized variant"],
+      "versions": {
+        "first-variant": {
+          "source": "Wine Data",
+          "entity": "wine_id",
+          "type": "float",
+          "created": "2020-08-10T13:49:51.141Z",
+          "owner": "Simba Khadder",
+          "visibility": "private",
+          "revision": "2020-08-10T13:49:51.141Z",
+          "description": "acidity that is fixed",
+          "tags": ["ph", "wine", "chemical", "quality"],
+          "feature-sets": [
+            { "name": "wine analysis", "created": "2020-08-10T13:49:51.141Z" },
+            {
+              "name": "test-feature_set",
+              "created": "2020-08-14T13:49:51.141Z"
+            }
+          ]
+        },
+        "normalized variant": {
+          "source": "Wine Data",
+          "entity": "wine_id",
+          "created": "2020-08-11",
+          "type": "float",
+          "owner": "Simba Khadder",
+          "visibility": "private",
+          "revision": "2020-08-12-39402409",
+          "description": "acidity that is fixed, normalized",
+          "tags": ["ph", "wine", "chemical", "quality"],
+          "feature-sets": [
+            { "name": "wine analysis", "created": "2020-08-10T13:49:51.141Z" },
+            {
+              "name": "test-feature_set",
+              "created": "2020-08-14T13:49:51.141Z"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "clean_density",
+      "default-variant": "default variant",
+      "all-versions": ["default variant", "null-lost variant"],
+      "versions": {
+        "default variant": {
+          "source": "Wine Data",
+          "entity": "wine_id",
+          "type": "float",
+          "created": "2020-08-10T13:49:51.141Z",
+          "owner": "Simba Khadder",
+          "visibility": "private",
+          "revision": "2020-08-10T13:49:51.141Z",
+          "description": "clean part of density",
+          "tags": ["wine", "weight", "quality"],
+          "feature-sets": [
+            { "name": "wine analysis", "created": "2020-08-10T13:49:51.141Z" },
+            {
+              "name": "test-feature_set",
+              "created": "2020-08-14T13:49:51.141Z"
+            }
+          ]
+        },
+        "null-lost variant": {
+          "source": "Wine Data",
+          "entity": "wine_id",
+          "created": "2020-08-10T13:49:51.141Z",
+          "owner": "Simba Khadder",
+          "visibility": "private",
+          "type": "float",
+          "revision": "2020-08-10T13:49:51.141Z",
+          "description": "null-lost clean part of density",
+          "tags": ["wine", "weight", "quality"],
+          "feature-sets": [
+            { "name": "wine analysis", "created": "2020-08-10T13:49:51.141Z" },
+            {
+              "name": "test-feature_set",
+              "created": "2020-08-14T13:49:51.141Z"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "LogAvgPurchasePrice",
+      "default-variant": "first-variant",
+      "all-versions": ["first-variant", "streaming-variant"],
+      "versions": {
+        "first-variant": {
+          "source": "Wine Data",
+          "entity": "wine_id",
+          "type": "float",
+          "created": "2020-08-10T13:49:51.141Z",
+          "owner": "Simba Khadder",
+          "visibility": "private",
+          "revision": "2020-08-10T13:49:51.141Z",
+          "description": "average purchase price",
+          "tags": ["wine", "sold", "accounting"],
+          "feature-sets": [
+            { "name": "wine analysis", "created": "2020-08-10T13:49:51.141Z" },
+            {
+              "name": "test-feature_set",
+              "created": "2020-08-14T13:49:51.141Z"
+            }
+          ]
+        },
+        "streaming-variant": {
+          "source": "Wine Data",
+          "entity": "wine_id",
+          "created": "2020-08-10T13:49:51.141Z",
+          "owner": "Simba Khadder",
+          "type": "float",
+          "visibility": "private",
+          "revision": "2020-08-10T13:49:51.141Z",
+          "description": "average purchase price, streaming derived",
+          "tags": ["wine", "sold", "accounting", "streaming"],
+          "feature-sets": [
+            { "name": "wine analysis", "created": "2020-08-10T13:49:51.141Z" },
+            {
+              "name": "test-feature_set",
+              "created": "2020-08-14T13:49:51.141Z"
+            }
+          ]
+        }
+      }
+    }
+  ],
+
+  "Transformation": [
+    {
+      "name": "Non-free Sulfur Dioxide",
+      "default-variant": "first variant",
+      "all-versions": ["first variant", "error-check variant"],
+      "versions": {
+        "first variant": {
+          "version-name": "first variant",
+          "source": "Wine Data",
+          "entity": "wine_id",
+          "created": "2020-08-10T13:49:51.141Z",
+          "owner": "Simba Khadder",
+          "visibility": "private",
+          "revision": "2020-08-10T13:49:51.141Z",
+          "language": "python",
+          "config": "def nonfree_sulfur(total, free):\n  return total-free\n",
+          "tags": ["materialized", "calculated", "wine", "chemical", "quality"],
+          "description": "Sulfur Dioxide that is trapped",
+          "features": [
+            {
+              "name": "Non-free Sulfur Dioxide",
+              "created": "2020-08-10T13:49:51.141Z"
+            }
+          ]
+        },
+        "error-check variant": {
+          "version-name": "error-check variant",
+          "source": "Wine Data",
+          "entity": "wine_id",
+          "created": "2020-08-10T13:49:51.141Z",
+          "owner": "Simba Khadder",
+          "visibility": "private",
+          "revision": "2020-08-10T13:49:51.141Z",
+          "language": "python",
+          "config": "def nonfree_sulfur(total, free):\n  return total-free\n",
+          "tags": ["materialized", "calculated", "wine", "chemical", "quality"],
+          "description": "Sulfur Dioxide that is trapped",
+          "features": [
+            { "name": "wine analysis", "created": "2020-08-10T13:49:51.141Z" },
+            {
+              "name": "test-feature_set",
+              "created": "2020-08-14T13:49:51.141Z"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "AvgPurchasePrice",
+      "default-variant": "first variant",
+      "all-versions": ["first variant"],
+      "versions": {
+        "first variant": {
+          "version-name": "first variant",
+          "source": "Wine Data",
+          "entity": "wine_id",
+          "created": "2020-08-10T13:49:51.141Z",
+          "owner": "Simba Khadder",
+          "visibility": "private",
+          "revision": "2020-08-10T13:49:51.141Z",
+          "language": "SQL",
+          "config": "SELECT p.user,\n       AVG(catalog.price)\nFROM   purchases p\n       INNER JOIN catalog\n          ON p.item = catalog.id",
+          "tags": ["materialized", "calculated", "wine", "chemical", "quality"],
+          "description": "An aggregate of the average a user spends per item. It joins the purchases stream with the item catalog CSV.",
+          "features": [
+            {
+              "name": "LogAvgPurchasePrice",
+              "created": "2020-08-10T13:49:51.141Z"
+            }
+          ]
+        }
+      }
+    }
+  ],
+
+  "Feature Set": [
+    {
+      "name": "Wine quality set",
+      "default-variant": "first-variant",
+      "all-versions": ["first-variant", "streaming-variant"],
+      "versions": {
+        "first-variant": {
+          "description": "dataset holding information on wine quality"
+        },
+
+        "streaming-variant": {
+          "description": "wine dataset from data pertinent to summer harvest"
+        }
+      }
+    }
+  ],
+  "Entity": [
+    {
+      "name": "wine_id",
+      "default-variant": "default-variant",
+      "all-versions": ["default-variant"],
+      "versions": {
+        "default-variant": {
+          "description": "dataset holding information on wine quality",
+          "tags": ["wine", "quality", "data"]
+        }
+      }
+    }
+  ],
+  "Label": [
+    {
+      "name": "Wine quality rating",
+      "default-variant": "first-variant",
+      "all-versions": ["first-variant", "second-variant"],
+      "versions": {
+        "first-variant": {
+          "description": "Aggregate wine quality rating for a given sample",
+          "tags": ["wine", "quality", "outcome", "rating"],
+          "revision": "2020-08-12T13:49:51.141Z"
+        },
+
+        "second-variant": {
+          "description": "rating weighted in higher favor of reviews given higher presidence",
+          "tags": ["wine", "quality", "outcome", "rating"],
+          "revision": "2020-08-12T13:49:51.141Z"
+        }
+      }
+    },
+    {
+      "name": "Wine spoiled",
+      "default-variant": "first-variant",
+      "all-versions": ["first-variant"],
+      "versions": {
+        "first-variant": {
+          "description": "Wine was spoiled or not",
+          "entity": "wine_id",
+          "created": "2020-08-09-024",
+          "tags": ["spoiled", "quality", "outcome", "boolean"],
+          "revision": "2020-08-12T13:49:51.141Z"
+        }
+      }
+    }
+  ],
+  "Model": [
+    {
+      "name": "Wine random forest",
+      "default-variant": "first-variant",
+      "all-versions": ["first-variant", "second-variant"],
+      "versions": {
+        "first-variant": {
+          "description": "Model classifying wine by spoilage and quality assesment",
+          "tags": ["classifier", "quality", "prediction"],
+          "revision": "2020-08-10T13:49:51.141Z"
+        },
+        "second-variant": {
+          "description": "Model classifying wine by spoilage and quality assesment",
+          "tags": ["classifier", "quality", "prediction"],
+          "revision": "2020-08-10T13:49:51.141Z"
+        }
+      }
+    }
+  ],
+  "Data Source": [
+    {
+      "name": "Wine Quality Sample File",
+      "default-variant": "default-variant",
+      "all-versions": ["default-variant"],
+      "versions": {
+        "default-variant": {
+          "description": "Wine data collected from a sample of Napa Valley wines",
+          "tags": ["wine", "csv", "sample"],
+          "type": "CSV"
+        }
+      }
+    }
+  ],
+  "Space": [
+    {
+      "name": "User sample preferences",
+      "default-variant": "first-variant",
+      "all-versions": ["first-variant", "normalized variant"],
+      "versions": {
+        "first-variant": {
+          "version-name": "first-variant",
+          "dimensions": 3,
+          "created": "2020-08-10T13:49:51.141Z",
+          "owner": "Simba Khadder",
+          "visibility": "private",
+          "revision": "2020-08-10T13:49:51.141Z",
+          "tags": ["model2vec", "compressed"],
+          "description": "Vector generated based on user preferences"
+        },
+        "normalized variant": {
+          "version-name": "normalized variant",
+          "dimensions": 3,
+          "created": "2020-08-10T13:49:51.141Z",
+          "owner": "Simba Khadder",
+          "visibility": "private",
+          "revision": "2020-08-10T13:49:51.141Z",
+          "tags": ["model2vec", "compressed"],
+          "description": "Vector generated based on user preferences, normalized"
+        }
+      }
+    }
+  ],
+  "Provider": [
+    {
+      "name": "Sample batch provider",
+      "default-variant": "default-variant",
+      "all-versions": ["default-variant"],
+      "versions": {
+        "default-variant": {
+          "version-name": "default-variant",
+          "created": "2020-08-10T13:49:51.141Z",
+          "team": "Customer model team",
+          "software": "BigQuery",
+          "type": "Batch",
+          "description": "Batch provider for historic data"
+        }
+      }
+    },
+    {
+      "name": "Sample online provider",
+      "default-variant": "default-variant",
+      "all-versions": ["default-variant"],
+      "versions": {
+        "default-variant": {
+          "version-name": "default-variant",
+          "created": "2020-08-10T13:49:51.141Z",
+          "team": "Customer model team",
+          "software": "Redis",
+          "type": "Online",
+          "description": "Online provider"
+        }
+      }
+    }
+  ],
+  "User": [
+    {
+      "name": "Simba Khadder",
+      "default-variant": "default-variant",
+      "all-versions": ["default-variant"],
+      "versions": {
+        "default-variant": {
+          "tags": ["Sample model team", "data orchestration"]
+        }
+      }
+    },
+    {
+      "name": "Shabnam Mohktarani",
+      "default-variant": "default-variant",
+      "all-versions": ["default-variant"],
+      "versions": {
+        "default-variant": {
+          "tags": ["Sample model team", "data orchestration"]
+        }
+      }
+    },
+    {
+      "name": "Sam Inloes",
+      "default-variant": "default-variant",
+      "all-versions": ["default-variant"],
+      "versions": {
+        "default-variant": {
+          "tags": ["Sample model team", "data orchestration"]
+        }
+      }
+    }
+  ]
+}

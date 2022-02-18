@@ -1,1 +1,0 @@
-{"version":3,"file":"Health.js","sourceRoot":"","sources":["../../src/Typesense/Health.ts"],"names":[],"mappings":";;AAEA,MAAM,YAAY,GAAG,SAAS,CAAA;AAM9B,MAAqB,MAAM;IACzB,YAAoB,OAAgB;QAAhB,YAAO,GAAP,OAAO,CAAS;IAAG,CAAC;IAExC,KAAK,CAAC,QAAQ;QACZ,OAAO,MAAM,IAAI,CAAC,OAAO,CAAC,GAAG,CAAiB,YAAY,CAAC,CAAA;IAC7D,CAAC;CACF;AAND,yBAMC"}

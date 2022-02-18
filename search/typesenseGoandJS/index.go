@@ -17,9 +17,7 @@ type ResourceID struct {
 }
 
 type Resource struct {
-	Name string `json:"name"`
-	//DefaultVariant string   `json:"default-variant"`
-	//AllVersions    []string `json:"all-versions"`
+	Name    string              `json:"name"`
 	Version map[string]Versions `json:"versions"`
 }
 type Versions struct {

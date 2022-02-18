@@ -73,6 +73,10 @@ func (client *Client) GetFeatures(ctx context.Context, features []string) ([]*Fe
 		for _, feature := range features {
 			stream.Send(&pb.Name{Name: feature})
 		}
+		err := stream.CloseSend()
+		if err != nil {
+			client.Logger.Errorw("Failed to close send", "Err", err)
+		}
 	}()
 	return client.parseFeatureStream(stream)
 }
@@ -85,6 +89,10 @@ func (client *Client) GetFeatureVariants(ctx context.Context, ids []NameVariant)
 	go func() {
 		for _, id := range ids {
 			stream.Send(&pb.NameVariant{Name: id.Name, Variant: id.Variant})
+		}
+		err := stream.CloseSend()
+		if err != nil {
+			client.Logger.Errorw("Failed to close send", "Err", err)
 		}
 	}()
 	return client.parseFeatureVariantStream(stream)
@@ -182,6 +190,10 @@ func (client *Client) GetLabels(ctx context.Context, labels []string) ([]*Label,
 		for _, label := range labels {
 			stream.Send(&pb.Name{Name: label})
 		}
+		err := stream.CloseSend()
+		if err != nil {
+			client.Logger.Errorw("Failed to close send", "Err", err)
+		}
 	}()
 	return client.parseLabelStream(stream)
 }
@@ -220,6 +232,10 @@ func (client *Client) GetLabelVariants(ctx context.Context, ids []NameVariant) (
 	go func() {
 		for _, id := range ids {
 			stream.Send(&pb.NameVariant{Name: id.Name, Variant: id.Variant})
+		}
+		err := stream.CloseSend()
+		if err != nil {
+			client.Logger.Errorw("Failed to close send", "Err", err)
 		}
 	}()
 	return client.parseLabelVariantStream(stream)
@@ -291,6 +307,10 @@ func (client *Client) GetTrainingSets(ctx context.Context, trainingSets []string
 		for _, trainingSet := range trainingSets {
 			stream.Send(&pb.Name{Name: trainingSet})
 		}
+		err := stream.CloseSend()
+		if err != nil {
+			client.Logger.Errorw("Failed to close send", "Err", err)
+		}
 	}()
 	return client.parseTrainingSetStream(stream)
 }
@@ -327,6 +347,10 @@ func (client *Client) GetTrainingSetVariants(ctx context.Context, ids []NameVari
 	go func() {
 		for _, id := range ids {
 			stream.Send(&pb.NameVariant{Name: id.Name, Variant: id.Variant})
+		}
+		err := stream.CloseSend()
+		if err != nil {
+			client.Logger.Errorw("Failed to close send", "Err", err)
 		}
 	}()
 	return client.parseTrainingSetVariantStream(stream)
@@ -385,6 +409,10 @@ func (client *Client) GetSources(ctx context.Context, sources []string) ([]*Sour
 		for _, source := range sources {
 			stream.Send(&pb.Name{Name: source})
 		}
+		err := stream.CloseSend()
+		if err != nil {
+			client.Logger.Errorw("Failed to close send", "Err", err)
+		}
 	}()
 	return client.parseSourceStream(stream)
 }
@@ -419,6 +447,10 @@ func (client *Client) GetSourceVariants(ctx context.Context, ids []NameVariant) 
 	go func() {
 		for _, id := range ids {
 			stream.Send(&pb.NameVariant{Name: id.Name, Variant: id.Variant})
+		}
+		err := stream.CloseSend()
+		if err != nil {
+			client.Logger.Errorw("Failed to close send", "Err", err)
 		}
 	}()
 	return client.parseSourceVariantStream(stream)
@@ -490,6 +522,10 @@ func (client *Client) GetUsers(ctx context.Context, users []string) ([]*User, er
 		for _, user := range users {
 			stream.Send(&pb.Name{Name: user})
 		}
+		err := stream.CloseSend()
+		if err != nil {
+			client.Logger.Errorw("Failed to close send", "Err", err)
+		}
 	}()
 	return client.parseUserStream(stream)
 }
@@ -540,6 +576,10 @@ func (client *Client) GetProviders(ctx context.Context, providers []string) ([]*
 	go func() {
 		for _, provider := range providers {
 			stream.Send(&pb.Name{Name: provider})
+		}
+		err := stream.CloseSend()
+		if err != nil {
+			client.Logger.Errorw("Failed to close send", "Err", err)
 		}
 	}()
 	return client.parseProviderStream(stream)
@@ -600,6 +640,10 @@ func (client *Client) GetEntities(ctx context.Context, entities []string) ([]*En
 		for _, entity := range entities {
 			stream.Send(&pb.Name{Name: entity})
 		}
+		err := stream.CloseSend()
+		if err != nil {
+			client.Logger.Errorw("Failed to close send", "Err", err)
+		}
 	}()
 	return client.parseEntityStream(stream)
 }
@@ -652,6 +696,10 @@ func (client *Client) GetModels(ctx context.Context, models []string) ([]*Model,
 	go func() {
 		for _, model := range models {
 			stream.Send(&pb.Name{Name: model})
+		}
+		err := stream.CloseSend()
+		if err != nil {
+			client.Logger.Errorw("Failed to close send", "Err", err)
 		}
 	}()
 	return client.parseModelStream(stream)

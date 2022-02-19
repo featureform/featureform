@@ -56,6 +56,10 @@ type Client struct {
 	grpcConn pb.MetadataClient
 }
 
+type ResourceDef interface {
+    ResourceType() ResourceType
+}
+
 func (client *Client) ListFeatures(ctx context.Context) ([]*Feature, error) {
 	stream, err := client.grpcConn.ListFeatures(ctx, &pb.Empty{})
 	if err != nil {
@@ -120,6 +124,10 @@ type FeatureDef struct {
 	Owner       string
 	Description string
 	Provider    string
+}
+
+func (def FeatureDef) ResourceType() ResourceType {
+    return FEATURE_VARIANT
 }
 
 func (client *Client) CreateFeatureVariant(ctx context.Context, def FeatureDef) error {
@@ -207,6 +215,10 @@ type LabelDef struct {
 	Entity      string
 	Owner       string
 	Provider    string
+}
+
+func (def LabelDef) ResourceType() ResourceType {
+    return LABEL_VARIANT
 }
 
 func (client *Client) CreateLabelVariant(ctx context.Context, def LabelDef) error {
@@ -325,6 +337,10 @@ type TrainingSetDef struct {
 	Features    NameVariants
 }
 
+func (def TrainingSetDef) ResourceType() ResourceType {
+    return TRAINING_SET_VARIANT
+}
+
 func (client *Client) CreateTrainingSetVariant(ctx context.Context, def TrainingSetDef) error {
 	serialized := &pb.TrainingSetVariant{
 		Name:        def.Name,
@@ -424,6 +440,10 @@ type SourceDef struct {
 	Type        string
 	Owner       string
 	Provider    string
+}
+
+func (def SourceDef) ResourceType() ResourceType {
+    return SOURCE_VARIANT
 }
 
 func (client *Client) CreateSourceVariant(ctx context.Context, def SourceDef) error {
@@ -534,6 +554,10 @@ type UserDef struct {
 	Name string
 }
 
+func (def UserDef) ResourceType() ResourceType {
+    return USER
+}
+
 func (client *Client) CreateUser(ctx context.Context, def UserDef) error {
 	serialized := &pb.User{
 		Name: def.Name,
@@ -591,6 +615,10 @@ type ProviderDef struct {
 	Type        string
 	Software    string
 	Team        string
+}
+
+func (def ProviderDef) ResourceType() ResourceType {
+    return PROVIDER
 }
 
 func (client *Client) CreateProvider(ctx context.Context, def ProviderDef) error {
@@ -653,6 +681,10 @@ type EntityDef struct {
 	Description string
 }
 
+func (def EntityDef) ResourceType() ResourceType {
+    return ENTITY
+}
+
 func (client *Client) CreateEntity(ctx context.Context, def EntityDef) error {
 	serialized := &pb.Entity{
 		Name:        def.Name,
@@ -708,6 +740,10 @@ func (client *Client) GetModels(ctx context.Context, models []string) ([]*Model,
 type ModelDef struct {
 	Name        string
 	Description string
+}
+
+func (def ModelDef) ResourceType() ResourceType {
+    return MODEL
 }
 
 func (client *Client) CreateModel(ctx context.Context, def ModelDef) error {

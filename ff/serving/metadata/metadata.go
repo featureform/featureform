@@ -695,9 +695,12 @@ func (this *providerResource) Notify(lookup ResourceLookup, op operation, that R
 	if depsErr != nil {
 		return depsErr
 	}
-	_, lookupErr := deps.Lookup(providerId)
-	if lookupErr != nil {
-		return lookupErr
+	isDirectProvider, hasErr := deps.Has(providerId)
+	if hasErr != nil {
+		return hasErr
+	} else if !isDirectProvider {
+		// Providers only affect resources that directly depend on them.
+		return nil
 	}
 	id := that.ID()
 	key := id.Proto()

@@ -50,8 +50,13 @@ func main() {
 			},
 		},
 	}
-	client.Collection("featuredata").Delete()
-	client.Collections().Create(schema)
+	_, err := client.Collection("featuredata").Delete()
+	if err != nil {
+		panic(err)
+	}
+	if _, err := client.Collections().Create(schema); err != nil {
+		panic(err)
+	}
 	action := "create"
 	batchnum := 40
 	params := &api.ImportDocumentsParams{
@@ -84,5 +89,7 @@ func main() {
 		}
 		finalresourceIDs = append(finalresourceIDs, resource)
 	}
-	client.Collection("featuredata").Documents().Import(finalresourceIDs, params)
+	if _, err := client.Collection("featuredata").Documents().Import(finalresourceIDs, params); err != nil {
+		panic(err)
+	}
 }

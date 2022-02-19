@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"io/ioutil"
 	"os"
 
@@ -59,13 +58,13 @@ func main() {
 		Action:    &action,
 		BatchSize: &batchnum,
 	}
-	featurejson, err1 := os.Open("wine-data.json")
-	if err1 != nil {
-		errors.New("Failure to Open Data")
+	featurejson, error := os.Open("wine-data.json")
+	if error != nil {
+		panic(error)
 	}
-	byteValue, err2 := ioutil.ReadAll(featurejson)
-	if err2 != nil {
-		errors.New("Error Reading Data")
+	byteValue, error := ioutil.ReadAll(featurejson)
+	if error != nil {
+		panic(error)
 	}
 	var unmarshalledjson map[string][]Resource
 	json.Unmarshal(byteValue, &unmarshalledjson)

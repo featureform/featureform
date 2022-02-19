@@ -115,6 +115,15 @@ type Resource interface {
 	Proto() proto.Message
 }
 
+func isDirectDependency(lookup ResourceLookup, dependency, parent Resource) (bool, error) {
+	depId := dependency.ID()
+	deps, depsErr := parent.Dependencies(lookup)
+	if depsErr != nil {
+		return false, depsErr
+	}
+	return deps.Has(depId)
+}
+
 type ResourceLookup interface {
 	Lookup(ResourceID) (Resource, error)
 	Has(ResourceID) (bool, error)
@@ -690,16 +699,9 @@ func (resource *providerResource) Proto() proto.Message {
 }
 
 func (this *providerResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
-	providerId := this.ID()
-	deps, depsErr := that.Dependencies(lookup)
-	if depsErr != nil {
-		return depsErr
-	}
-	isDirectProvider, hasErr := deps.Has(providerId)
-	if hasErr != nil {
-		return hasErr
-	} else if !isDirectProvider {
-		// Providers only affect resources that directly depend on them.
+	if isDep, err := isDirectDependency(lookup, this, that); err != nil {
+		return err
+	} else if !isDep {
 		return nil
 	}
 	id := that.ID()
@@ -739,14 +741,10 @@ func (resource *entityResource) Proto() proto.Message {
 }
 
 func (this *entityResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
-	entityId := this.ID()
-	deps, depsErr := that.Dependencies(lookup)
-	if depsErr != nil {
-		return depsErr
-	}
-	_, lookupErr := deps.Lookup(entityId)
-	if lookupErr != nil {
-		return lookupErr
+	if isDep, err := isDirectDependency(lookup, this, that); err != nil {
+		return err
+	} else if !isDep {
+		return nil
 	}
 	id := that.ID()
 	key := id.Proto()

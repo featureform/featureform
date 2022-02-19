@@ -58,16 +58,18 @@ func main() {
 		Action:    &action,
 		BatchSize: &batchnum,
 	}
-	featurejson, error := os.Open("wine-data.json")
-	if error != nil {
-		panic(error)
+	featurejson, err := os.Open("wine-data.json")
+	if err != nil {
+		panic(err)
 	}
-	byteValue, error := ioutil.ReadAll(featurejson)
-	if error != nil {
-		panic(error)
+	byteValue, err := ioutil.ReadAll(featurejson)
+	if err != nil {
+		panic(err)
 	}
 	var unmarshalledjson map[string][]Resource
-	json.Unmarshal(byteValue, &unmarshalledjson)
+	if err := json.Unmarshal(byteValue, &unmarshalledjson); err != nil {
+		panic(err)
+	}
 	var finalresourceIDs []interface{}
 	for t := range unmarshalledjson {
 		var resource ResourceID

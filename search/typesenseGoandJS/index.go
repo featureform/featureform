@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"os"
 
@@ -58,15 +59,21 @@ func main() {
 		Action:    &action,
 		BatchSize: &batchnum,
 	}
-	featurejson, _ := os.Open("wine-data.json")
-	byteValue, _ := ioutil.ReadAll(featurejson)
+	featurejson, err1 := os.Open("wine-data.json")
+	if err1 != nil {
+		errors.New("Failure to Open Data")
+	}
+	byteValue, err2 := ioutil.ReadAll(featurejson)
+	if err2 != nil {
+		errors.New("Error Reading Data")
+	}
 	var unmarshalledjson map[string][]Resource
-	json.Unmarshal((byteValue), &unmarshalledjson)
+	json.Unmarshal(byteValue, &unmarshalledjson)
 	var finalresourceIDs []interface{}
-	for type_ := range unmarshalledjson {
+	for t := range unmarshalledjson {
 		var resource ResourceID
-		resource.Type = type_
-		for _, resourcename := range unmarshalledjson[type_] {
+		resource.Type = t
+		for _, resourcename := range unmarshalledjson[t] {
 			resource.Name = resourcename.Name
 			dictofversions := resourcename.Version
 			for name, versionmeta := range dictofversions {

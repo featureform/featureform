@@ -72,8 +72,8 @@ export const providerLogos = Object.freeze({
   "Apache Spark": "/Apache_Spark_logo.svg",
 });
 
-const API_URL = "http://localhost:8080";
-const local = true;
+const API_URL = "http://localhost:8181";
+const local = false;
 
 export default class ResourcesAPI {
   checkStatus() {
@@ -107,7 +107,12 @@ export default class ResourcesAPI {
     })
       .then((res) =>
         res.json().then((json_data) => {
-          return { data: json_data[type] };
+          console.log(json_data);
+          if (local) {
+            return { data: json_data[type] };
+          } else {
+            return { data: json_data };
+          }
         })
       )
       .catch((error) => {

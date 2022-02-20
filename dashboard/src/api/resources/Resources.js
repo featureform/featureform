@@ -107,7 +107,6 @@ export default class ResourcesAPI {
     })
       .then((res) =>
         res.json().then((json_data) => {
-          console.log(json_data);
           if (local) {
             return { data: json_data[type] };
           } else {

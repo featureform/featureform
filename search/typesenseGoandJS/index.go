@@ -50,10 +50,6 @@ func main() {
 			},
 		},
 	}
-	_, err := client.Collection("featuredata").Delete()
-	if err != nil {
-		panic(err)
-	}
 	if _, err := client.Collections().Create(schema); err != nil {
 		panic(err)
 	}

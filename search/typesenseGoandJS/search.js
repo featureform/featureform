@@ -58,3 +58,5 @@ class TypesenseClient {
         })
     }
 }
+
+module.exports = TypesenseClient

@@ -50,6 +50,9 @@ func main() {
 			},
 		},
 	}
+	// j, err := client.Collections().Retrieve()
+	// j.
+	client.Collection("companies").Delete()
 	if _, err := client.Collections().Create(schema); err != nil {
 		panic(err)
 	}

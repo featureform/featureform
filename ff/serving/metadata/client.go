@@ -1098,6 +1098,10 @@ func (variant *LabelVariant) Owner() string {
 	return variant.serialized.GetOwner()
 }
 
+func (variant *LabelVariant) Provider() string {
+	return variant.serialized.GetProvider()
+}
+
 type TrainingSet struct {
 	serialized *pb.TrainingSet
 	variantsFns

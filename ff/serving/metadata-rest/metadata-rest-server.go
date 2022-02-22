@@ -40,7 +40,7 @@ type NameVariant struct {
 	Variant string `json:"variant"`
 }
 
-type FeatureVariantResourceDeep struct {
+type FeatureVariantResource struct {
 	Created      time.Time     `json:"created"`
 	Description  string        `json:"description"`
 	Entity       string        `json:"entity"`
@@ -53,31 +53,14 @@ type FeatureVariantResourceDeep struct {
 	TrainingSets []NameVariant `json:"trainingsets"`
 }
 
-type FeatureResourceDeep struct {
+type FeatureResource struct {
 	AllVariants    []string                              `json:"all-versions"`
 	DefaultVariant string                                `json:"default-variant"`
 	Name           string                                `json:"name"`
 	Variants       map[string]FeatureVariantResourceDeep `json:"versions"`
 }
 
-type FeatureVariantResourceShallow struct {
-	Created     time.Time   `json:"created"`
-	Description string      `json:"description"`
-	Entity      string      `json:"entity"`
-	Name        string      `json:"name"`
-	Owner       string      `json:"owner"`
-	Provider    string      `json:"provider"`
-	Type        string      `json:"type"`
-	Variant     string      `json:"variant"`
-	Source      NameVariant `json:"source"`
-}
 
-type FeatureResourceShallow struct {
-	AllVariants    []string                                 `json:"all-versions"`
-	DefaultVariant string                                   `json:"default-variant"`
-	Name           string                                   `json:"name"`
-	Variants       map[string]FeatureVariantResourceShallow `json:"versions"`
-}
 
 func (m MetadataServer) GetMetadataList(c *gin.Context) {
 
@@ -96,7 +79,7 @@ func (m MetadataServer) GetMetadataList(c *gin.Context) {
 			c.JSON(500, gin.H{"Error": "Failed to fetch features"})
 			return
 		}
-		featureList := make([]FeatureResourceShallow, len(features))
+		featureList := make([]FeatureResource, len(features))
 		for i, feature := range features {
 
 			variants, err := m.client.GetFeatureVariants(context.Background(), feature.NameVariants())
@@ -105,9 +88,9 @@ func (m MetadataServer) GetMetadataList(c *gin.Context) {
 				c.JSON(500, gin.H{"Error": "Failed to fetch variants"})
 				return
 			}
-			variantMap := make(map[string]FeatureVariantResourceShallow)
+			variantMap := make(map[string]FeatureVariantResource)
 			for _, variant := range variants {
-				variantMap[variant.Name()] = FeatureVariantResourceShallow{
+				variantMap[variant.Name()] = FeatureVariantResource{
 					Created:     variant.Created(),
 					Description: variant.Description(),
 					Entity:      variant.Entity(),
@@ -122,7 +105,7 @@ func (m MetadataServer) GetMetadataList(c *gin.Context) {
 					},
 				}
 			}
-			featureList[i] = FeatureResourceShallow{
+			featureList[i] = FeatureResource{
 				AllVariants:    feature.Variants(),
 				DefaultVariant: feature.DefaultVariant(),
 				Name:           feature.Name(),

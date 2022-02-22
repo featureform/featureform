@@ -2,99 +2,135 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"github.com/featureform/serving/metadata"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"net/http"
-	"reflect"
+	"time"
 )
 
-type MetaServer interface {
-	ExposePort(port string)
-	GetMetadata(c *gin.Context)
-}
-
 type MetadataServer struct {
-	param_convert map[string]string
-	client        *metadata.Client
-	logger        *zap.SugaredLogger
+	validTypes map[string]bool
+	client     *metadata.Client
+	logger     *zap.SugaredLogger
 }
 
 func NewMetadataServer(logger *zap.SugaredLogger, client *metadata.Client) (*MetadataServer, error) {
 	logger.Debug("Creating new metadata server")
-	Param_convert := map[string]string{
-		"features":          "Feature",
-		"training-datasets": "Training Dataset",
-		"entities":          "Entity",
-		"labels":            "Label",
-		"models":            "Model",
-		"data-sources":      "Data Source",
-		"providers":         "Provider",
-		"users":             "User",
+	validTypes := map[string]bool{
+		"features":          true,
+		"training-datasets": true,
+		"entities":          true,
+		"labels":            true,
+		"models":            true,
+		"data-sources":      true,
+		"providers":         true,
+		"users":             true,
 	}
 	return &MetadataServer{
-		param_convert: Param_convert,
-		client:        client,
-		logger:        logger,
+		validTypes: validTypes,
+		client:     client,
+		logger:     logger,
 	}, nil
+}
+
+type NameVariant struct {
+	Name    string `json:"name"`
+	Variant string `json:"variant"`
+}
+
+type FeatureVariantResourceDeep struct {
+	Created      time.Time     `json:"created"`
+	Description  string        `json:"description"`
+	Entity       string        `json:"entity"`
+	Name         string        `json:"name"`
+	Owner        string        `json:"owner"`
+	Provider     string        `json:"provider"`
+	Type         string        `json:"type"`
+	Variant      string        `json:"variant"`
+	Source       NameVariant   `json:"source"`
+	TrainingSets []NameVariant `json:"trainingsets"`
+}
+
+type FeatureResourceDeep struct {
+	AllVariants    []string                              `json:"all-versions"`
+	DefaultVariant string                                `json:"default-variant"`
+	Name           string                                `json:"name"`
+	Variants       map[string]FeatureVariantResourceDeep `json:"versions"`
+}
+
+type FeatureVariantResourceShallow struct {
+	Created     time.Time   `json:"created"`
+	Description string      `json:"description"`
+	Entity      string      `json:"entity"`
+	Name        string      `json:"name"`
+	Owner       string      `json:"owner"`
+	Provider    string      `json:"provider"`
+	Type        string      `json:"type"`
+	Variant     string      `json:"variant"`
+	Source      NameVariant `json:"source"`
+}
+
+type FeatureResourceShallow struct {
+	AllVariants    []string                                 `json:"all-versions"`
+	DefaultVariant string                                   `json:"default-variant"`
+	Name           string                                   `json:"name"`
+	Variants       map[string]FeatureVariantResourceShallow `json:"versions"`
 }
 
 func (m MetadataServer) GetMetadataList(c *gin.Context) {
 
-	data_type, err := m.param_convert[c.Param("type")]
-	if !err {
-		c.JSON(400, gin.H{"Error": "Type does not exist"})
+	dataType, err := m.validTypes[c.Param("type")]
+	if !err || dataType == false {
+		m.logger.Errorw("Not a valid data type", "Error", err)
+		c.JSON(400, gin.H{"Error": "Not a valid data type"})
 		return
 	}
 
-	switch data_type {
-	case "Feature":
+	switch c.Param("type") {
+	case "features":
 		features, err := m.client.ListFeatures(context.Background())
 		if err != nil {
-			c.JSON(400, gin.H{"Error": "Failed to fetch features"})
+			m.logger.Errorw("Failed to fetch features", "Error", err)
+			c.JSON(500, gin.H{"Error": "Failed to fetch features"})
 			return
 		}
-		feature_list := make([]map[string]interface{}, reflect.ValueOf(features).Len())
-		for i, s := range features {
-			var feature map[string]interface{}
-			err := json.Unmarshal([]byte(s.String()), &feature)
-			if err != nil {
-				c.JSON(400, gin.H{"Error": "Error unmarshaling json"})
-				return
-			}
-			feature["all-versions"] = feature["variants"]
-			variant_list := reflect.ValueOf(feature["variants"])
-			versionNameVariants := make([]metadata.NameVariant, variant_list.Len())
-			for i := 0; i < variant_list.Len(); i++ {
-				variant_name := variant_list.Index(i).Interface().(string)
-				versionNameVariants[i] = metadata.NameVariant{feature["name"].(string), variant_name}
-			}
-			variants, err := m.client.GetFeatureVariants(context.Background(), versionNameVariants)
-			if err != nil {
-				c.JSON(400, gin.H{"Error": "Error fetching variants"})
-				return
-			}
+		featureList := make([]FeatureResourceShallow, len(features))
+		for i, feature := range features {
 
-			feature["versions"] = map[string]interface{}{}
-			for _, s := range variants {
-				var variant_details map[string]interface{}
-				err := json.Unmarshal([]byte(s.String()), &variant_details)
-				if err != nil {
-					c.JSON(400, gin.H{"Error": "Error unmarshaling json"})
-					return
+			variants, err := m.client.GetFeatureVariants(context.Background(), feature.NameVariants())
+			if err != nil {
+				m.logger.Errorw("Failed to fetch variants", "Error", err)
+				c.JSON(500, gin.H{"Error": "Failed to fetch variants"})
+				return
+			}
+			variantMap := make(map[string]FeatureVariantResourceShallow)
+			for _, variant := range variants {
+				variantMap[variant.Name()] = FeatureVariantResourceShallow{
+					Created:     variant.Created(),
+					Description: variant.Description(),
+					Entity:      variant.Entity(),
+					Name:        variant.Name(),
+					Type:        variant.Type(),
+					Variant:     variant.Name(),
+					Owner:       variant.Owner(),
+					Provider:    variant.Provider(),
+					Source: NameVariant{
+						Name:    variant.Source().Name,
+						Variant: variant.Source().Variant,
+					},
 				}
-				feature["versions"].(map[string]interface{})[variant_details["variant"].(string)] = variant_details
 			}
-
-			feature["default-variant"] = feature["defaultVariant"]
-			feature_list[i] = feature
+			featureList[i] = FeatureResourceShallow{
+				AllVariants:    feature.Variants(),
+				DefaultVariant: feature.DefaultVariant(),
+				Name:           feature.Name(),
+				Variants:       variantMap,
+			}
 		}
-		c.JSON(http.StatusOK, feature_list)
-
+		c.JSON(http.StatusOK, featureList)
 	}
-
 }
 
 func (m MetadataServer) ExposePort(port string) {

@@ -758,7 +758,7 @@ type createdFn struct {
 }
 
 func (fn createdFn) Created() time.Time {
-	t, err := time.Parse(fn.getter.GetCreated(), TIME_FORMAT)
+	t, err := time.Parse(TIME_FORMAT, fn.getter.GetCreated())
 	if err != nil {
 		panic(err)
 	}
@@ -916,6 +916,14 @@ func wrapProtoFeatureVariant(serialized *pb.FeatureVariant) *FeatureVariant {
 
 func (variant *FeatureVariant) Name() string {
 	return variant.serialized.GetName()
+}
+
+func (variant *FeatureVariant) Provider() string {
+	return variant.serialized.GetProvider()
+}
+
+func (variant *FeatureVariant) Description() string {
+	return variant.serialized.GetDescription()
 }
 
 func (variant *FeatureVariant) Variant() string {

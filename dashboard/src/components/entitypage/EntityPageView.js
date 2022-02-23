@@ -262,7 +262,7 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
   };
 
   const linkToDataSource = (event) => {
-    history.push(`/primary-data/${metadata["primary data"]}`);
+    history.push(`/sources/${metadata["primary data"]}`);
   };
 
   const linkToUserPage = (event) => {

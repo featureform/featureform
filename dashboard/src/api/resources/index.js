@@ -1,6 +1,7 @@
 export {
   default,
   resourceTypes,
+  resourceVersions,
   resourceIcons,
   resourcePaths,
   testData,

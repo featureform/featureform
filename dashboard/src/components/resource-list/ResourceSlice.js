@@ -1,49 +1,57 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import { resourceTypes } from "api/resources";
+import { resourceTypes, resourceVersions } from "api/resources";
 
 const assertAndCheck = (assertion, errorMessage) => {
   console.assert(assertion, { errorMsg: errorMessage });
   return assertion;
 };
 
-const hasRequiredObjects = (resources) => {
+const hasRequiredObjects = (resources, hasVersions) => {
+  console.log(resources);
   let af = true;
   af &= assertAndCheck(
     Array.isArray(resources),
     "Resource list fetch not an array"
   );
 
-  resources.forEach((resource) => {
-    af &= assertAndCheck("name" in resource, "Resource has no name element");
-    af &= assertAndCheck(
-      "default-variant" in resource,
-      "Resource has no default variant"
-    );
-    af &= assertAndCheck(
-      "all-versions" in resource,
-      "Resource has no versions list"
-    );
-    af &= assertAndCheck(
-      "versions" in resource,
-      "Resource has no versions object"
-    );
-    resource["all-versions"].forEach((version) => {
+  if (hasVersions) {
+    resources.forEach((resource) => {
+      af &= assertAndCheck("name" in resource, "Resource has no name element");
       af &= assertAndCheck(
-        Object.keys(resource["versions"]).includes(version),
-        "Element of version list not in versions"
+        "default-variant" in resource,
+        "Resource has no default variant"
       );
-    });
-    af &= assertAndCheck(
-      Object.keys(resource["versions"]).includes(resource["default-variant"]),
-      "default variant not included in resource"
-    );
-    Object.keys(resource["versions"]).forEach((key) => {
       af &= assertAndCheck(
-        resource["all-versions"].includes(key),
-        "Version in version object not in version list"
+        "all-versions" in resource,
+        "Resource has no versions list"
       );
+      af &= assertAndCheck(
+        "versions" in resource,
+        "Resource has no versions object"
+      );
+      resource["all-versions"].forEach((version) => {
+        af &= assertAndCheck(
+          Object.keys(resource["versions"]).includes(version),
+          "Element of version list not in versions"
+        );
+      });
+      af &= assertAndCheck(
+        Object.keys(resource["versions"]).includes(resource["default-variant"]),
+        "default variant not included in resource"
+      );
+      Object.keys(resource["versions"]).forEach((key) => {
+        af &= assertAndCheck(
+          resource["all-versions"].includes(key),
+          "Version in version object not in version list"
+        );
+      });
     });
-  });
+  } else {
+    resources.forEach((resource) => {
+      af &= assertAndCheck("name" in resource, "Resource has no name element");
+    });
+  }
+
   return af;
 };
 
@@ -93,7 +101,11 @@ const resourceSlice = createSlice({
       if (requestId !== state[type].requestId) {
         return;
       }
-      const hasRequired = hasRequiredObjects(action.payload);
+
+      console.log(type);
+      const hasVersions = resourceVersions[type];
+      const hasRequired = hasRequiredObjects(action.payload, hasVersions);
+
       if (hasRequired) {
         state[type].resources = action.payload;
         state[type].loading = false;

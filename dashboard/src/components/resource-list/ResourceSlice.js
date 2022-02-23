@@ -7,7 +7,6 @@ const assertAndCheck = (assertion, errorMessage) => {
 };
 
 const hasRequiredObjects = (resources, hasVersions) => {
-  console.log(resources);
   let af = true;
   af &= assertAndCheck(
     Array.isArray(resources),
@@ -102,7 +101,6 @@ const resourceSlice = createSlice({
         return;
       }
 
-      console.log(type);
       const hasVersions = resourceVersions[type];
       const hasRequired = hasRequiredObjects(action.payload, hasVersions);
 

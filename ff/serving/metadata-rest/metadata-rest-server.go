@@ -150,7 +150,7 @@ func (m MetadataServer) readFromFeature(feature *metadata.Feature) (map[string]F
 		return variantMap, err
 	}
 	for _, variant := range variants {
-		variantMap[variant.Name()] = FeatureVariantResource{
+		variantMap[variant.Variant()] = FeatureVariantResource{
 			Created:     variant.Created(),
 			Description: variant.Description(),
 			Entity:      variant.Entity(),
@@ -176,7 +176,7 @@ func (m MetadataServer) readFromTrainingSet(trainingSet *metadata.TrainingSet) (
 		return variantMap, err
 	}
 	for _, variant := range variants {
-		variantMap[variant.Name()] = TrainingSetVariantResource{
+		variantMap[variant.Variant()] = TrainingSetVariantResource{
 			Created:     variant.Created(),
 			Description: variant.Description(),
 			Name:        variant.Name(),
@@ -200,7 +200,7 @@ func (m MetadataServer) readFromSource(source *metadata.Source) (map[string]Sour
 		return variantMap, err
 	}
 	for _, variant := range variants {
-		variantMap[variant.Name()] = SourceVariantResource{
+		variantMap[variant.Variant()] = SourceVariantResource{
 			Created:     variant.Created(),
 			Description: variant.Description(),
 			Name:        variant.Name(),
@@ -221,7 +221,7 @@ func (m MetadataServer) readFromLabel(label *metadata.Label) (map[string]LabelVa
 		return variantMap, err
 	}
 	for _, variant := range variants {
-		variantMap[variant.Name()] = LabelVariantResource{
+		variantMap[variant.Variant()] = LabelVariantResource{
 			Created:     variant.Created(),
 			Description: variant.Description(),
 			Entity:      variant.Entity(),

@@ -2,7 +2,7 @@ package metadata
 
 import (
 	"context"
-    "fmt"
+	"fmt"
 	"io"
 	"time"
 
@@ -58,39 +58,39 @@ type Client struct {
 }
 
 type ResourceDef interface {
-    ResourceType() ResourceType
+	ResourceType() ResourceType
 }
 
 func (client *Client) CreateAll(ctx context.Context, defs []ResourceDef) error {
-    for _, def := range defs {
-        if err := client.Create(ctx, def); err != nil {
-            return err
-        }
-    }
-    return nil
+	for _, def := range defs {
+		if err := client.Create(ctx, def); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (client *Client) Create(ctx context.Context, def ResourceDef) error {
-    switch casted := def.(type) {
-    case FeatureDef:
-        return client.CreateFeatureVariant(ctx, casted)
-    case LabelDef:
-        return client.CreateLabelVariant(ctx, casted)
-    case TrainingSetDef:
-        return client.CreateTrainingSetVariant(ctx, casted)
-    case SourceDef:
-        return client.CreateSourceVariant(ctx, casted)
-    case UserDef:
-        return client.CreateUser(ctx, casted)
-    case ProviderDef:
-        return client.CreateProvider(ctx, casted)
-    case EntityDef:
-        return client.CreateEntity(ctx, casted)
-    case ModelDef:
-        return client.CreateModel(ctx, casted)
-    default:
-        panic(fmt.Sprintf("%T not implemented in Created.", casted))
-    }
+	switch casted := def.(type) {
+	case FeatureDef:
+		return client.CreateFeatureVariant(ctx, casted)
+	case LabelDef:
+		return client.CreateLabelVariant(ctx, casted)
+	case TrainingSetDef:
+		return client.CreateTrainingSetVariant(ctx, casted)
+	case SourceDef:
+		return client.CreateSourceVariant(ctx, casted)
+	case UserDef:
+		return client.CreateUser(ctx, casted)
+	case ProviderDef:
+		return client.CreateProvider(ctx, casted)
+	case EntityDef:
+		return client.CreateEntity(ctx, casted)
+	case ModelDef:
+		return client.CreateModel(ctx, casted)
+	default:
+		panic(fmt.Sprintf("%T not implemented in Created.", casted))
+	}
 }
 
 func (client *Client) ListFeatures(ctx context.Context) ([]*Feature, error) {
@@ -160,7 +160,7 @@ type FeatureDef struct {
 }
 
 func (def FeatureDef) ResourceType() ResourceType {
-    return FEATURE_VARIANT
+	return FEATURE_VARIANT
 }
 
 func (client *Client) CreateFeatureVariant(ctx context.Context, def FeatureDef) error {
@@ -251,7 +251,7 @@ type LabelDef struct {
 }
 
 func (def LabelDef) ResourceType() ResourceType {
-    return LABEL_VARIANT
+	return LABEL_VARIANT
 }
 
 func (client *Client) CreateLabelVariant(ctx context.Context, def LabelDef) error {
@@ -371,7 +371,7 @@ type TrainingSetDef struct {
 }
 
 func (def TrainingSetDef) ResourceType() ResourceType {
-    return TRAINING_SET_VARIANT
+	return TRAINING_SET_VARIANT
 }
 
 func (client *Client) CreateTrainingSetVariant(ctx context.Context, def TrainingSetDef) error {
@@ -476,7 +476,7 @@ type SourceDef struct {
 }
 
 func (def SourceDef) ResourceType() ResourceType {
-    return SOURCE_VARIANT
+	return SOURCE_VARIANT
 }
 
 func (client *Client) CreateSourceVariant(ctx context.Context, def SourceDef) error {
@@ -588,7 +588,7 @@ type UserDef struct {
 }
 
 func (def UserDef) ResourceType() ResourceType {
-    return USER
+	return USER
 }
 
 func (client *Client) CreateUser(ctx context.Context, def UserDef) error {
@@ -651,7 +651,7 @@ type ProviderDef struct {
 }
 
 func (def ProviderDef) ResourceType() ResourceType {
-    return PROVIDER
+	return PROVIDER
 }
 
 func (client *Client) CreateProvider(ctx context.Context, def ProviderDef) error {
@@ -715,7 +715,7 @@ type EntityDef struct {
 }
 
 func (def EntityDef) ResourceType() ResourceType {
-    return ENTITY
+	return ENTITY
 }
 
 func (client *Client) CreateEntity(ctx context.Context, def EntityDef) error {
@@ -776,7 +776,7 @@ type ModelDef struct {
 }
 
 func (def ModelDef) ResourceType() ResourceType {
-    return MODEL
+	return MODEL
 }
 
 func (client *Client) CreateModel(ctx context.Context, def ModelDef) error {

@@ -45,7 +45,7 @@ type FeatureResource struct {
 	AllVariants    []string                           `json:"all-versions"`
 	DefaultVariant string                             `json:"default-variant"`
 	Name           string                             `json:"name"`
-	Variants       *map[string]FeatureVariantResource `json:"versions"`
+	Variants       map[string]FeatureVariantResource `json:"versions"`
 }
 
 type TrainingSetVariantResource struct {
@@ -63,7 +63,7 @@ type TrainingSetResource struct {
 	AllVariants    []string                           `json:"all-versions"`
 	DefaultVariant string                             `json:"default-variant"`
 	Name           string                             `json:"name"`
-	Variants       *map[string]FeatureVariantResource `json:"versions"`
+	Variants       map[string]TrainingSetVariantResource `json:"versions"`
 }
 
 type SourceVariantResource struct {
@@ -83,7 +83,7 @@ type SourceResource struct {
 	AllVariants    []string                          `json:"all-versions"`
 	DefaultVariant string                            `json:"default-variant"`
 	Name           string                            `json:"name"`
-	Variants       *map[string]SourceVariantResource `json:"versions"`
+	Variants       map[string]SourceVariantResource `json:"versions"`
 }
 
 type LabelVariantResource struct {
@@ -103,7 +103,7 @@ type LabelResource struct {
 	AllVariants    []string                         `json:"all-versions"`
 	DefaultVariant string                           `json:"default-variant"`
 	Name           string                           `json:"name"`
-	Variants       *map[string]LabelVariantResource `json:"versions"`
+	Variants       map[string]LabelVariantResource `json:"versions"`
 }
 
 type EntityResource struct {
@@ -142,17 +142,7 @@ type ProviderResource struct {
 	TrainingSets []NameVariant `json:"trainingsets"`
 }
 
-// type FetchError struct{
-// 	StatusCode int
-// 	Err error
-// 	Message string
-// }
-
-// func (m *FetchError) Error() string {
-// 	return fmt.Sprintf("status %d: err %v\n%v", r.StatusCode, r.Err, r.Message)
-// }
-
-func (m MetadataServer) readFromFeature(feature *metadata.Feature) (map[string]FeatureVariantResource, err) {
+func (m MetadataServer) readFromFeature(feature *metadata.Feature) (map[string]FeatureVariantResource, error) {
 	variantMap := make(map[string]FeatureVariantResource)
 	variants, err := feature.FetchVariants(m.client, context.Background())
 	if err != nil {
@@ -178,7 +168,7 @@ func (m MetadataServer) readFromFeature(feature *metadata.Feature) (map[string]F
 	return variantMap, nil
 }
 
-func (m MetadataServer) readFromTrainingSet(trainingSet *metadata.TrainingSet) (map[string]TrainingSetVariantResource, err) {
+func (m MetadataServer) readFromTrainingSet(trainingSet *metadata.TrainingSet) (map[string]TrainingSetVariantResource, error) {
 	variantMap := make(map[string]TrainingSetVariantResource)
 	variants, err := trainingSet.FetchVariants(m.client, context.Background())
 	if err != nil {
@@ -202,7 +192,7 @@ func (m MetadataServer) readFromTrainingSet(trainingSet *metadata.TrainingSet) (
 	return variantMap, nil
 }
 
-func (m MetadataServer) readFromSource(source *metadata.Source) (map[string]SourceVariantResource, err) {
+func (m MetadataServer) readFromSource(source *metadata.Source) (map[string]SourceVariantResource, error) {
 	variantMap := make(map[string]SourceVariantResource)
 	variants, err := source.FetchVariants(m.client, context.Background())
 	if err != nil {
@@ -223,7 +213,7 @@ func (m MetadataServer) readFromSource(source *metadata.Source) (map[string]Sour
 	return variantMap, nil
 }
 
-func (m MetadataServer) readFromLabel(label *metadata.Label) (map[string]LabelVariantResource, err) {
+func (m MetadataServer) readFromLabel(label *metadata.Label) (map[string]LabelVariantResource, error) {
 	variantMap := make(map[string]LabelVariantResource)
 	variants, err := label.FetchVariants(m.client, context.Background())
 	if err != nil {

@@ -11,6 +11,19 @@ export const resourceTypes = Object.freeze({
   PRIMARY_DATA: "Primary Data",
 });
 
+export const resourceVersions = Object.freeze({
+  Feature: true,
+  "Feature Set": true,
+  Label: true,
+  Entity: false,
+  Model: false,
+  Transformation: true,
+  "Training Dataset": true,
+  Provider: false,
+  User: false,
+  "Primary Data": true,
+});
+
 export const resourceIcons = Object.freeze({
   Feature: "description",
   Entity: "fingerprint",
@@ -31,10 +44,10 @@ export const resourcePaths = Object.freeze({
   "Feature Set": "/feature-sets",
   Model: "/models",
   Transformation: "/transformations",
-  "Training Dataset": "/training-datasets",
+  "Training Dataset": "/training-sets",
   Provider: "/providers",
   User: "/users",
-  "Primary Data": "/primary-data",
+  "Primary Data": "/sources",
 });
 export const testData = [
   {

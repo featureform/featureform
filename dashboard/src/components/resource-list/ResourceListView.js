@@ -110,15 +110,15 @@ export const ResourceListView = ({
         field: "usage",
         render: (row) => <UsageTab />,
       },
-      {
-        title: "Default Variant",
-        field: "versions",
-        render: (row) => (
-          <Typography variant="body1">
-            {rowVersions.find((v) => v.name === row.name)["default-variant"]}
-          </Typography>
-        ),
-      },
+      // {
+      //   title: "Default Variant",
+      //   field: "versions",
+      //   render: (row) => (
+      //     <Typography variant="body1">
+      //       {rowVersions.find((v) => v.name === row.name)["default-variant"]}
+      //     </Typography>
+      //   ),
+      // },
     ],
     Model: [
       { title: "Name", field: "name" },
@@ -195,7 +195,6 @@ export const ResourceListView = ({
           </div>
         ),
       },
-      { title: "Team", field: "team" },
     ],
     "Data Source": [
       { title: "Name", field: "name" },
@@ -269,21 +268,26 @@ export const ResourceListView = ({
     history.push(history.location.pathname + "/" + data.name);
   }
 
-  let versionRes = mutableRes.map((row) => ({
-    ...row["versions"][myVersions[row.name]],
-    name: row["name"],
-    revision: convertTimestampToDate(
-      row["versions"][myVersions[row.name]]
-        ? row["versions"][myVersions[row.name]]["revision"]
-        : ""
-    ),
-  }));
-
-  let rowVersions = mutableRes.map((row) => ({
-    name: row["name"],
-    "default-variant": row["default-variant"],
-    versions: row["all-versions"],
-  }));
+  let versionRes = {};
+  let rowVersions = {};
+  if (noVariants) {
+    versionRes = mutableRes;
+  } else {
+    versionRes = mutableRes.map((row) => ({
+      ...row["versions"][myVersions[row.name]],
+      name: row["name"],
+      revision: convertTimestampToDate(
+        row["versions"][myVersions[row.name]]
+          ? row["versions"][myVersions[row.name]]["revision"]
+          : ""
+      ),
+    }));
+    rowVersions = mutableRes.map((row) => ({
+      name: row["name"],
+      "default-variant": row["default-variant"],
+      versions: row["all-versions"],
+    }));
+  }
 
   let default_columns = [
     { title: "Name", field: "name" },

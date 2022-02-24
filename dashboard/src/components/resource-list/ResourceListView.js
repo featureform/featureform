@@ -110,15 +110,6 @@ export const ResourceListView = ({
         field: "usage",
         render: (row) => <UsageTab />,
       },
-      // {
-      //   title: "Default Variant",
-      //   field: "versions",
-      //   render: (row) => (
-      //     <Typography variant="body1">
-      //       {rowVersions.find((v) => v.name === row.name)["default-variant"]}
-      //     </Typography>
-      //   ),
-      // },
     ],
     Model: [
       { title: "Name", field: "name" },

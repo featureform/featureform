@@ -38,7 +38,7 @@ type FeatureVariantResource struct {
 	Provider     string                 `json:"provider"`
 	Type         string                 `json:"type"`
 	Variant      string                 `json:"variant"`
-	Source       NameVariant            `json:"source"`
+	Source       metadata.NameVariant   `json:"source"`
 	TrainingSets []metadata.NameVariant `json:"trainingsets"`
 }
 
@@ -56,7 +56,7 @@ type TrainingSetVariantResource struct {
 	Owner       string                 `json:"owner"`
 	Provider    string                 `json:"provider"`
 	Variant     string                 `json:"variant"`
-	Label       NameVariant            `json:"label"`
+	Label       metadata.NameVariant   `json:"label"`
 	Features    []metadata.NameVariant `json:"features"`
 }
 
@@ -96,7 +96,7 @@ type LabelVariantResource struct {
 	Provider     string                 `json:"provider"`
 	Type         string                 `json:"type"`
 	Variant      string                 `json:"variant"`
-	Source       NameVariant            `json:"source"`
+	Source       metadata.NameVariant   `json:"source"`
 	TrainingSets []metadata.NameVariant `json:"trainingsets"`
 }
 
@@ -163,18 +163,15 @@ func (m MetadataServer) readFromFeature(feature *metadata.Feature) (map[string]F
 	for _, variant := range variants {
 
 		variantMap[variant.Variant()] = FeatureVariantResource{
-			Created:     variant.Created(),
-			Description: variant.Description(),
-			Entity:      variant.Entity(),
-			Name:        variant.Name(),
-			Type:        variant.Type(),
-			Variant:     variant.Name(),
-			Owner:       variant.Owner(),
-			Provider:    variant.Provider(),
-			Source: NameVariant{
-				Name:    variant.Source().Name,
-				Variant: variant.Source().Variant,
-			},
+			Created:      variant.Created(),
+			Description:  variant.Description(),
+			Entity:       variant.Entity(),
+			Name:         variant.Name(),
+			Type:         variant.Type(),
+			Variant:      variant.Name(),
+			Owner:        variant.Owner(),
+			Provider:     variant.Provider(),
+			Source:       variant.Source(),
 			TrainingSets: variant.TrainingSets(),
 		}
 	}
@@ -197,11 +194,8 @@ func (m MetadataServer) readFromTrainingSet(trainingSet *metadata.TrainingSet) (
 			Variant:     variant.Name(),
 			Owner:       variant.Owner(),
 			Provider:    variant.Provider(),
-			Label: NameVariant{
-				Name:    variant.Label().Name,
-				Variant: variant.Label().Variant,
-			},
-			Features: variant.Features(),
+			Label:       variant.Label(),
+			Features:    variant.Features(),
 		}
 	}
 	return variantMap, nil
@@ -242,18 +236,15 @@ func (m MetadataServer) readFromLabel(label *metadata.Label) (map[string]LabelVa
 	}
 	for _, variant := range variants {
 		variantMap[variant.Variant()] = LabelVariantResource{
-			Created:     variant.Created(),
-			Description: variant.Description(),
-			Entity:      variant.Entity(),
-			Name:        variant.Name(),
-			Type:        variant.Type(),
-			Variant:     variant.Name(),
-			Owner:       variant.Owner(),
-			Provider:    variant.Provider(),
-			Source: NameVariant{
-				Name:    variant.Source().Name,
-				Variant: variant.Source().Variant,
-			},
+			Created:      variant.Created(),
+			Description:  variant.Description(),
+			Entity:       variant.Entity(),
+			Name:         variant.Name(),
+			Type:         variant.Type(),
+			Variant:      variant.Name(),
+			Owner:        variant.Owner(),
+			Provider:     variant.Provider(),
+			Source:       variant.Source(),
 			TrainingSets: variant.TrainingSets(),
 		}
 	}

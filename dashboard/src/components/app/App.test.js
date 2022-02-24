@@ -110,7 +110,7 @@ describe("App", () => {
   describe("indexPath", () => {
     it("choses first path", () => {
       const content = parseContentProps(example_sections);
-      expect(indexPath(content)).toEqual("/sources");
+      expect(indexPath(content)).toEqual("/primary-data");
     });
 
     it("throws on empty content", () => {

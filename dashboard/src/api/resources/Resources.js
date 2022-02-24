@@ -47,7 +47,7 @@ export const resourcePaths = Object.freeze({
   "Training Dataset": "/training-sets",
   Provider: "/providers",
   User: "/users",
-  "Primary Data": "/sources",
+  "Primary Data": "/primary-data",
 });
 export const testData = [
   {
@@ -145,7 +145,12 @@ export default class ResourcesAPI {
         "Content-Type": "application/json",
       },
     })
-      .then((res) => res.json().then((json_data) => ({ data: json_data })))
+      .then((res) =>
+        res.json().then((json_data) => {
+          console.log(JSON.stringify(json_data));
+          return { data: json_data };
+        })
+      )
       .catch((error) => {
         console.error(error);
       });

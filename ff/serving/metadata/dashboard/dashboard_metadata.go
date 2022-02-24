@@ -24,11 +24,6 @@ func NewMetadataServer(logger *zap.SugaredLogger, client *metadata.Client) (*Met
 	}, nil
 }
 
-type NameVariant struct {
-	Name    string `json:"name"`
-	Variant string `json:"variant"`
-}
-
 type FeatureVariantResource struct {
 	Created      time.Time              `json:"created"`
 	Description  string                 `json:"description"`
@@ -152,13 +147,13 @@ func (m *FetchError) Error() string {
 	return fmt.Sprintf("Error %d: Failed to fetch %s", m.StatusCode, m.Type)
 }
 
-func (m MetadataServer) readFromFeature(feature *metadata.Feature) (map[string]FeatureVariantResource, *FetchError) {
+func (m *MetadataServer) readFromFeature(feature *metadata.Feature) (map[string]FeatureVariantResource, *FetchError) {
 	variantMap := make(map[string]FeatureVariantResource)
 	variants, err := feature.FetchVariants(m.client, context.Background())
 	if err != nil {
 		fetchError := &FetchError{StatusCode: 500, Type: "feature variants"}
 		m.logger.Errorw("Failed to fetch variants", "Error", err)
-		return variantMap, fetchError
+		return nil, fetchError
 	}
 	for _, variant := range variants {
 
@@ -178,13 +173,13 @@ func (m MetadataServer) readFromFeature(feature *metadata.Feature) (map[string]F
 	return variantMap, nil
 }
 
-func (m MetadataServer) readFromTrainingSet(trainingSet *metadata.TrainingSet) (map[string]TrainingSetVariantResource, *FetchError) {
+func (m *MetadataServer) readFromTrainingSet(trainingSet *metadata.TrainingSet) (map[string]TrainingSetVariantResource, *FetchError) {
 	variantMap := make(map[string]TrainingSetVariantResource)
 	variants, err := trainingSet.FetchVariants(m.client, context.Background())
 	if err != nil {
 		fetchError := &FetchError{StatusCode: 500, Type: "training set variants"}
 		m.logger.Errorw("Failed to fetch variants", "Error", err)
-		return variantMap, fetchError
+		return nil, fetchError
 	}
 	for _, variant := range variants {
 		variantMap[variant.Variant()] = TrainingSetVariantResource{
@@ -201,13 +196,13 @@ func (m MetadataServer) readFromTrainingSet(trainingSet *metadata.TrainingSet) (
 	return variantMap, nil
 }
 
-func (m MetadataServer) readFromSource(source *metadata.Source) (map[string]SourceVariantResource, *FetchError) {
+func (m *MetadataServer) readFromSource(source *metadata.Source) (map[string]SourceVariantResource, *FetchError) {
 	variantMap := make(map[string]SourceVariantResource)
 	variants, err := source.FetchVariants(m.client, context.Background())
 	if err != nil {
 		fetchError := &FetchError{StatusCode: 500, Type: "source variants"}
 		m.logger.Errorw("Failed to fetch variants", "Error", err)
-		return variantMap, fetchError
+		return nil, fetchError
 	}
 	for _, variant := range variants {
 		variantMap[variant.Variant()] = SourceVariantResource{
@@ -226,13 +221,13 @@ func (m MetadataServer) readFromSource(source *metadata.Source) (map[string]Sour
 	return variantMap, nil
 }
 
-func (m MetadataServer) readFromLabel(label *metadata.Label) (map[string]LabelVariantResource, *FetchError) {
+func (m *MetadataServer) readFromLabel(label *metadata.Label) (map[string]LabelVariantResource, *FetchError) {
 	variantMap := make(map[string]LabelVariantResource)
 	variants, err := label.FetchVariants(m.client, context.Background())
 	if err != nil {
 		fetchError := &FetchError{StatusCode: 500, Type: "label variants"}
 		m.logger.Errorw("Failed to fetch variants", "Error", err)
-		return variantMap, fetchError
+		return nil, fetchError
 	}
 	for _, variant := range variants {
 		variantMap[variant.Variant()] = LabelVariantResource{
@@ -251,7 +246,7 @@ func (m MetadataServer) readFromLabel(label *metadata.Label) (map[string]LabelVa
 	return variantMap, nil
 }
 
-func (m MetadataServer) GetMetadata(c *gin.Context) {
+func (m *MetadataServer) GetMetadata(c *gin.Context) {
 	switch c.Param("type") {
 	case "features":
 		features, err := m.client.GetFeatures(context.Background(), []string{c.Param("resource")})
@@ -316,7 +311,7 @@ func (m MetadataServer) GetMetadata(c *gin.Context) {
 			Name:           trainingSet.Name(),
 			Variants:       variantList,
 		})
-	case "sources":
+	case "primary-data":
 		sources, err := m.client.GetSources(context.Background(), []string{c.Param("resource")})
 		if err != nil {
 			fetchError := &FetchError{StatusCode: 500, Type: "source"}
@@ -408,7 +403,7 @@ func (m MetadataServer) GetMetadata(c *gin.Context) {
 	}
 }
 
-func (m MetadataServer) GetMetadataList(c *gin.Context) {
+func (m *MetadataServer) GetMetadataList(c *gin.Context) {
 
 	switch c.Param("type") {
 	case "features":
@@ -459,7 +454,7 @@ func (m MetadataServer) GetMetadataList(c *gin.Context) {
 			}
 		}
 		c.JSON(http.StatusOK, trainingSetList)
-	case "sources":
+	case "primary-data":
 		sources, err := m.client.ListSources(context.Background())
 		if err != nil {
 			fetchError := &FetchError{StatusCode: 500, Type: "sources"}
@@ -587,7 +582,7 @@ func (m MetadataServer) GetMetadataList(c *gin.Context) {
 
 }
 
-func (m MetadataServer) Start(port string) {
+func (m *MetadataServer) Start(port string) {
 	router := gin.Default()
 	router.Use(cors.Default())
 

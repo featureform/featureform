@@ -262,7 +262,7 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
   };
 
   const linkToDataSource = (event) => {
-    history.push(`/sources/${metadata["primary data"]}`);
+    history.push(`/primary-data/${metadata["primary data"]}`);
   };
 
   const linkToUserPage = (event) => {
@@ -609,10 +609,7 @@ export const VersionTable = ({
   const classes = useStyles();
   let history = useHistory();
   function versionChangeRedirect(e, data) {
-    console.log(type, name, data.variant);
-    console.log(history.location.pathname, "/", name);
     setVersion(type, name, data.variant);
-    //history.push(history.location.pathname + "/" + name);
     history.push(resourcePaths[type] + "/" + name);
   }
   let myVariants = [];

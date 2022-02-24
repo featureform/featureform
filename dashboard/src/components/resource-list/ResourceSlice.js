@@ -6,7 +6,7 @@ const assertAndCheck = (assertion, errorMessage) => {
   return assertion;
 };
 
-const hasRequiredObjects = (resources, hasVersions) => {
+const isValidResponse = (resources, hasVersions) => {
   let af = true;
   af &= assertAndCheck(
     Array.isArray(resources),
@@ -102,7 +102,7 @@ const resourceSlice = createSlice({
       }
 
       const hasVersions = resourceVersions[type];
-      const hasRequired = hasRequiredObjects(action.payload, hasVersions);
+      const hasRequired = isValidResponse(action.payload, hasVersions);
 
       if (hasRequired) {
         state[type].resources = action.payload;

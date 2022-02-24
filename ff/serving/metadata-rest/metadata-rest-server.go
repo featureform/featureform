@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"context"
 	"github.com/featureform/serving/metadata"
 	"github.com/gin-contrib/cors"
@@ -38,13 +39,13 @@ type FeatureVariantResource struct {
 	Type         string        `json:"type"`
 	Variant      string        `json:"variant"`
 	Source       NameVariant   `json:"source"`
-	TrainingSets []NameVariant `json:"trainingsets"`
+	TrainingSets []metadata.NameVariant `json:"trainingsets"`
 }
 
 type FeatureResource struct {
-	AllVariants    []string                           `json:"all-versions"`
-	DefaultVariant string                             `json:"default-variant"`
-	Name           string                             `json:"name"`
+	AllVariants    []string                          `json:"all-versions"`
+	DefaultVariant string                            `json:"default-variant"`
+	Name           string                            `json:"name"`
 	Variants       map[string]FeatureVariantResource `json:"versions"`
 }
 
@@ -56,13 +57,13 @@ type TrainingSetVariantResource struct {
 	Provider    string        `json:"provider"`
 	Variant     string        `json:"variant"`
 	Label       NameVariant   `json:"label"`
-	Features    []NameVariant `json:"features"`
+	Features    []metadata.NameVariant `json:"features"`
 }
 
 type TrainingSetResource struct {
-	AllVariants    []string                           `json:"all-versions"`
-	DefaultVariant string                             `json:"default-variant"`
-	Name           string                             `json:"name"`
+	AllVariants    []string                              `json:"all-versions"`
+	DefaultVariant string                                `json:"default-variant"`
+	Name           string                                `json:"name"`
 	Variants       map[string]TrainingSetVariantResource `json:"versions"`
 }
 
@@ -74,15 +75,15 @@ type SourceVariantResource struct {
 	Owner        string        `json:"owner"`
 	Provider     string        `json:"provider"`
 	Variant      string        `json:"variant"`
-	Label        []NameVariant `json:"labels"`
-	Features     []NameVariant `json:"features"`
-	TrainingSets []NameVariant `json:"trainingsets"`
+	Labels        []metadata.NameVariant `json:"labels"`
+	Features     []metadata.NameVariant `json:"features"`
+	TrainingSets []metadata.NameVariant `json:"trainingsets"`
 }
 
 type SourceResource struct {
-	AllVariants    []string                          `json:"all-versions"`
-	DefaultVariant string                            `json:"default-variant"`
-	Name           string                            `json:"name"`
+	AllVariants    []string                         `json:"all-versions"`
+	DefaultVariant string                           `json:"default-variant"`
+	Name           string                           `json:"name"`
 	Variants       map[string]SourceVariantResource `json:"versions"`
 }
 
@@ -96,38 +97,38 @@ type LabelVariantResource struct {
 	Type         string        `json:"type"`
 	Variant      string        `json:"variant"`
 	Source       NameVariant   `json:"source"`
-	TrainingSets []NameVariant `json:"trainingsets"`
+	TrainingSets []metadata.NameVariant `json:"trainingsets"`
 }
 
 type LabelResource struct {
-	AllVariants    []string                         `json:"all-versions"`
-	DefaultVariant string                           `json:"default-variant"`
-	Name           string                           `json:"name"`
+	AllVariants    []string                        `json:"all-versions"`
+	DefaultVariant string                          `json:"default-variant"`
+	Name           string                          `json:"name"`
 	Variants       map[string]LabelVariantResource `json:"versions"`
 }
 
 type EntityResource struct {
 	Name         string        `json:"name"`
 	Description  string        `json:"description"`
-	Features     []NameVariant `json:"features"`
-	Labels       []NameVariant `json:"labels"`
-	TrainingSets []NameVariant `json:"trainingsets"`
+	Features     []metadata.NameVariant `json:"features"`
+	Labels       []metadata.NameVariant `json:"labels"`
+	TrainingSets []metadata.NameVariant `json:"trainingsets"`
 }
 
 type UserResource struct {
 	Name         string        `json:"name"`
-	Features     []NameVariant `json:"features"`
-	Labels       []NameVariant `json:"labels"`
-	TrainingSets []NameVariant `json:"trainingsets"`
-	Sources      []NameVariant `json:"sources"`
+	Features     []metadata.NameVariant `json:"features"`
+	Labels       []metadata.NameVariant `json:"labels"`
+	TrainingSets []metadata.NameVariant `json:"trainingsets"`
+	Sources      []metadata.NameVariant `json:"sources"`
 }
 
 type ModelResource struct {
 	Name         string        `json:"name"`
 	Description  string        `json:"description"`
-	Features     []NameVariant `json:"features"`
-	Labels       []NameVariant `json:"labels"`
-	TrainingSets []NameVariant `json:"trainingsets"`
+	Features     []metadata.NameVariant `json:"features"`
+	Labels       []metadata.NameVariant `json:"labels"`
+	TrainingSets []metadata.NameVariant `json:"trainingsets"`
 }
 
 type ProviderResource struct {
@@ -136,20 +137,31 @@ type ProviderResource struct {
 	Type         string        `json:"type"`
 	Software     string        `json:"software"`
 	Team         string        `json:"team"`
-	Sources      []NameVariant `json:"sources"`
-	Features     []NameVariant `json:"features"`
-	Labels       []NameVariant `json:"labels"`
-	TrainingSets []NameVariant `json:"trainingsets"`
+	Sources      []metadata.NameVariant `json:"sources"`
+	Features     []metadata.NameVariant `json:"features"`
+	Labels       []metadata.NameVariant `json:"labels"`
+	TrainingSets []metadata.NameVariant `json:"trainingsets"`
+}
+
+type FetchError struct{
+	StatusCode int
+	Type string
+}
+
+func (m *FetchError) Error() string {
+	return fmt.Sprintf("Error %d: Failed to fetch %s", m.StatusCode, m.Type)
 }
 
 func (m MetadataServer) readFromFeature(feature *metadata.Feature) (map[string]FeatureVariantResource, error) {
 	variantMap := make(map[string]FeatureVariantResource)
 	variants, err := feature.FetchVariants(m.client, context.Background())
 	if err != nil {
-		m.logger.Errorw("Failed to fetch variants", "Error", err)
-		return variantMap, err
+		fetchError := &FetchError{StatusCode: 500, Type: "feature variants"}
+		m.logger.Errorw(fetchError.Error())
+		return variantMap, fetchError
 	}
 	for _, variant := range variants {
+
 		variantMap[variant.Variant()] = FeatureVariantResource{
 			Created:     variant.Created(),
 			Description: variant.Description(),
@@ -163,6 +175,7 @@ func (m MetadataServer) readFromFeature(feature *metadata.Feature) (map[string]F
 				Name:    variant.Source().Name,
 				Variant: variant.Source().Variant,
 			},
+			TrainingSets: variant.TrainingSets(),
 		}
 	}
 	return variantMap, nil
@@ -187,6 +200,7 @@ func (m MetadataServer) readFromTrainingSet(trainingSet *metadata.TrainingSet) (
 				Name:    variant.Label().Name,
 				Variant: variant.Label().Variant,
 			},
+			Features: variant.Features(),
 		}
 	}
 	return variantMap, nil
@@ -208,6 +222,9 @@ func (m MetadataServer) readFromSource(source *metadata.Source) (map[string]Sour
 			Variant:     variant.Name(),
 			Owner:       variant.Owner(),
 			Provider:    variant.Provider(),
+			Labels: variant.Labels(),
+			Features: variant.Features(),
+			TrainingSets: variant.TrainingSets(),
 		}
 	}
 	return variantMap, nil
@@ -234,9 +251,160 @@ func (m MetadataServer) readFromLabel(label *metadata.Label) (map[string]LabelVa
 				Name:    variant.Source().Name,
 				Variant: variant.Source().Variant,
 			},
+			TrainingSets: variant.TrainingSets(),
 		}
 	}
 	return variantMap, nil
+}
+
+func (m MetadataServer) GetMetadata(c *gin.Context) {
+	switch c.Param("type") {
+	case "features":
+		features, err := m.client.GetFeatures(context.Background(), []string{c.Param("resource")})
+		if err != nil {
+			fetchError := &FetchError{StatusCode: 500, Type: "feature"}
+			m.logger.Errorw(fetchError.Error())
+			c.JSON(500, fetchError.Error())
+			return
+		}
+		feature := features[0]
+		variantList, err := m.readFromFeature(feature)
+		if err != nil {
+			m.logger.Errorw(err.Error())
+			c.JSON(500, err.Error())
+			return
+		}
+		c.JSON(http.StatusOK, FeatureResource{
+			AllVariants:    feature.Variants(),
+			DefaultVariant: feature.DefaultVariant(),
+			Name:           feature.Name(),
+			Variants:       variantList,
+		})
+	case "labels":
+		labels, err := m.client.GetLabels(context.Background(), []string{c.Param("resource")})
+		if err != nil {
+			m.logger.Errorw("Failed to fetch label", "Error", err)
+			c.JSON(500, gin.H{"Error": "Failed to fetch label"})
+			return
+		}
+		label := labels[0]
+		variantList, err := m.readFromLabel(label)
+		if err != nil {
+			m.logger.Errorw("Failed to fetch variants", "Error", err)
+			c.JSON(500, gin.H{"Error": "Failed to fetch variants"})
+			return
+		}
+		c.JSON(http.StatusOK, LabelResource{
+			AllVariants:    label.Variants(),
+			DefaultVariant: label.DefaultVariant(),
+			Name:           label.Name(),
+			Variants:       variantList,
+		})
+	case "training-sets":
+		trainingSets, err := m.client.GetTrainingSets(context.Background(), []string{c.Param("resource")})
+		if err != nil {
+			m.logger.Errorw("Failed to fetch training set", "Error", err)
+			c.JSON(500, gin.H{"Error": "Failed to fetch training set"})
+			return
+		}
+		trainingSet := trainingSets[0]
+		variantList, err := m.readFromTrainingSet(trainingSet)
+		if err != nil {
+			m.logger.Errorw("Failed to fetch variants", "Error", err)
+			c.JSON(500, gin.H{"Error": "Failed to fetch variants"})
+			return
+		}
+		c.JSON(http.StatusOK, TrainingSetResource{
+			AllVariants:    trainingSet.Variants(),
+			DefaultVariant: trainingSet.DefaultVariant(),
+			Name:           trainingSet.Name(),
+			Variants:       variantList,
+		})
+	case "sources":
+		sources, err := m.client.GetSources(context.Background(), []string{c.Param("resource")})
+		if err != nil {
+			m.logger.Errorw("Failed to fetch source", "Error", err)
+			c.JSON(500, gin.H{"Error": "Failed to fetch source"})
+			return
+		}
+		source := sources[0]
+		variantList, err := m.readFromSource(source)
+		if err != nil {
+			m.logger.Errorw("Failed to fetch variants", "Error", err)
+			c.JSON(500, gin.H{"Error": "Failed to fetch variants"})
+			return
+		}
+		c.JSON(http.StatusOK, SourceResource{
+			AllVariants:    source.Variants(),
+			DefaultVariant: source.DefaultVariant(),
+			Name:           source.Name(),
+			Variants:       variantList,
+		})
+	case "entities":
+		entities, err := m.client.GetEntities(context.Background(), []string{c.Param("resource")})
+		if err != nil {
+			m.logger.Errorw("Failed to fetch entity", "Error", err)
+			c.JSON(500, gin.H{"Error": "Failed to fetch entity"})
+			return
+		}
+		entity := entities[0]
+		c.JSON(http.StatusOK, EntityResource{
+			Name:           entity.Name(),
+			Description: entity.Description(),
+			Features: entity.Features(),
+			Labels: entity.Labels(),
+			TrainingSets: entity.TrainingSets(),
+		})
+	case "users":
+		users, err := m.client.GetUsers(context.Background(), []string{c.Param("resource")})
+		if err != nil {
+			m.logger.Errorw("Failed to fetch user", "Error", err)
+			c.JSON(500, gin.H{"Error": "Failed to fetch user"})
+			return
+		}
+		user := users[0]
+		c.JSON(http.StatusOK, UserResource{
+			Name: user.Name(),
+			Features: user.Features(),
+			Labels: user.Labels(),
+			TrainingSets: user.TrainingSets(),
+			Sources: user.Sources(),
+		})
+	case "models":
+		models, err := m.client.GetModels(context.Background(), []string{c.Param("resource")})
+		if err != nil {
+			m.logger.Errorw("Failed to fetch model", "Error", err)
+			c.JSON(500, gin.H{"Error": "Failed to fetch model"})
+			return
+		}
+		model := models[0]
+		c.JSON(http.StatusOK, ModelResource{
+			Name: model.Name(),
+			Description: model.Description(),
+			Features:        model.Features(),
+			Labels: model.Labels(),
+			TrainingSets: model.TrainingSets(),
+		})
+	case "providers":
+		providers, err := m.client.GetProviders(context.Background(), []string{c.Param("resource")})
+		if err != nil {
+			m.logger.Errorw("Failed to fetch provider", "Error", err)
+			c.JSON(500, gin.H{"Error": "Failed to fetch provider"})
+			return
+		}
+		provider := providers[0]
+		c.JSON(http.StatusOK, ProviderResource{
+			Name:		provider.Name(),
+			Description:        provider.Description(),
+			Type:        provider.Type(),
+			Software:        provider.Software(),
+			Team:        provider.Team(),
+			Sources:        provider.Sources(),
+			Features:        provider.Features(),
+			Labels:        provider.Labels(),
+			TrainingSets:        provider.TrainingSets(),
+		})		
+	}
 }
 
 func (m MetadataServer) GetMetadataList(c *gin.Context) {
@@ -409,11 +577,12 @@ func (m MetadataServer) GetMetadataList(c *gin.Context) {
 
 }
 
-func (m MetadataServer) ExposePort(port string) {
+func (m MetadataServer) Start(port string) {
 	router := gin.Default()
 	router.Use(cors.Default())
 
 	router.GET("/:type", m.GetMetadataList)
+	router.GET("/:type/:resource", m.GetMetadata)
 
 	router.Run(port)
 }
@@ -428,5 +597,5 @@ func main() {
 
 	metadata_server, err := NewMetadataServer(logger, client)
 	metadata_port := ":8181"
-	metadata_server.ExposePort(metadata_port)
+	metadata_server.Start(metadata_port)
 }

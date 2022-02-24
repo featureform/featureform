@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"context"
+	"fmt"
 	"github.com/featureform/serving/metadata"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -30,15 +30,15 @@ type NameVariant struct {
 }
 
 type FeatureVariantResource struct {
-	Created      time.Time     `json:"created"`
-	Description  string        `json:"description"`
-	Entity       string        `json:"entity"`
-	Name         string        `json:"name"`
-	Owner        string        `json:"owner"`
-	Provider     string        `json:"provider"`
-	Type         string        `json:"type"`
-	Variant      string        `json:"variant"`
-	Source       NameVariant   `json:"source"`
+	Created      time.Time              `json:"created"`
+	Description  string                 `json:"description"`
+	Entity       string                 `json:"entity"`
+	Name         string                 `json:"name"`
+	Owner        string                 `json:"owner"`
+	Provider     string                 `json:"provider"`
+	Type         string                 `json:"type"`
+	Variant      string                 `json:"variant"`
+	Source       NameVariant            `json:"source"`
 	TrainingSets []metadata.NameVariant `json:"trainingsets"`
 }
 
@@ -50,13 +50,13 @@ type FeatureResource struct {
 }
 
 type TrainingSetVariantResource struct {
-	Created     time.Time     `json:"created"`
-	Description string        `json:"description"`
-	Name        string        `json:"name"`
-	Owner       string        `json:"owner"`
-	Provider    string        `json:"provider"`
-	Variant     string        `json:"variant"`
-	Label       NameVariant   `json:"label"`
+	Created     time.Time              `json:"created"`
+	Description string                 `json:"description"`
+	Name        string                 `json:"name"`
+	Owner       string                 `json:"owner"`
+	Provider    string                 `json:"provider"`
+	Variant     string                 `json:"variant"`
+	Label       NameVariant            `json:"label"`
 	Features    []metadata.NameVariant `json:"features"`
 }
 
@@ -68,14 +68,14 @@ type TrainingSetResource struct {
 }
 
 type SourceVariantResource struct {
-	Created      time.Time     `json:"created"`
-	Description  string        `json:"description"`
-	Name         string        `json:"name"`
-	Type         string        `json:"type"`
-	Owner        string        `json:"owner"`
-	Provider     string        `json:"provider"`
-	Variant      string        `json:"variant"`
-	Labels        []metadata.NameVariant `json:"labels"`
+	Created      time.Time              `json:"created"`
+	Description  string                 `json:"description"`
+	Name         string                 `json:"name"`
+	Type         string                 `json:"type"`
+	Owner        string                 `json:"owner"`
+	Provider     string                 `json:"provider"`
+	Variant      string                 `json:"variant"`
+	Labels       []metadata.NameVariant `json:"labels"`
 	Features     []metadata.NameVariant `json:"features"`
 	TrainingSets []metadata.NameVariant `json:"trainingsets"`
 }
@@ -88,15 +88,15 @@ type SourceResource struct {
 }
 
 type LabelVariantResource struct {
-	Created      time.Time     `json:"created"`
-	Description  string        `json:"description"`
-	Entity       string        `json:"entity"`
-	Name         string        `json:"name"`
-	Owner        string        `json:"owner"`
-	Provider     string        `json:"provider"`
-	Type         string        `json:"type"`
-	Variant      string        `json:"variant"`
-	Source       NameVariant   `json:"source"`
+	Created      time.Time              `json:"created"`
+	Description  string                 `json:"description"`
+	Entity       string                 `json:"entity"`
+	Name         string                 `json:"name"`
+	Owner        string                 `json:"owner"`
+	Provider     string                 `json:"provider"`
+	Type         string                 `json:"type"`
+	Variant      string                 `json:"variant"`
+	Source       NameVariant            `json:"source"`
 	TrainingSets []metadata.NameVariant `json:"trainingsets"`
 }
 
@@ -108,15 +108,15 @@ type LabelResource struct {
 }
 
 type EntityResource struct {
-	Name         string        `json:"name"`
-	Description  string        `json:"description"`
+	Name         string                 `json:"name"`
+	Description  string                 `json:"description"`
 	Features     []metadata.NameVariant `json:"features"`
 	Labels       []metadata.NameVariant `json:"labels"`
 	TrainingSets []metadata.NameVariant `json:"trainingsets"`
 }
 
 type UserResource struct {
-	Name         string        `json:"name"`
+	Name         string                 `json:"name"`
 	Features     []metadata.NameVariant `json:"features"`
 	Labels       []metadata.NameVariant `json:"labels"`
 	TrainingSets []metadata.NameVariant `json:"trainingsets"`
@@ -124,40 +124,40 @@ type UserResource struct {
 }
 
 type ModelResource struct {
-	Name         string        `json:"name"`
-	Description  string        `json:"description"`
+	Name         string                 `json:"name"`
+	Description  string                 `json:"description"`
 	Features     []metadata.NameVariant `json:"features"`
 	Labels       []metadata.NameVariant `json:"labels"`
 	TrainingSets []metadata.NameVariant `json:"trainingsets"`
 }
 
 type ProviderResource struct {
-	Name         string        `json:"name"`
-	Description  string        `json:"description"`
-	Type         string        `json:"type"`
-	Software     string        `json:"software"`
-	Team         string        `json:"team"`
+	Name         string                 `json:"name"`
+	Description  string                 `json:"description"`
+	Type         string                 `json:"type"`
+	Software     string                 `json:"software"`
+	Team         string                 `json:"team"`
 	Sources      []metadata.NameVariant `json:"sources"`
 	Features     []metadata.NameVariant `json:"features"`
 	Labels       []metadata.NameVariant `json:"labels"`
 	TrainingSets []metadata.NameVariant `json:"trainingsets"`
 }
 
-type FetchError struct{
+type FetchError struct {
 	StatusCode int
-	Type string
+	Type       string
 }
 
 func (m *FetchError) Error() string {
 	return fmt.Sprintf("Error %d: Failed to fetch %s", m.StatusCode, m.Type)
 }
 
-func (m MetadataServer) readFromFeature(feature *metadata.Feature) (map[string]FeatureVariantResource, error) {
+func (m MetadataServer) readFromFeature(feature *metadata.Feature) (map[string]FeatureVariantResource, *FetchError) {
 	variantMap := make(map[string]FeatureVariantResource)
 	variants, err := feature.FetchVariants(m.client, context.Background())
 	if err != nil {
 		fetchError := &FetchError{StatusCode: 500, Type: "feature variants"}
-		m.logger.Errorw(fetchError.Error())
+		m.logger.Errorw("Failed to fetch variants", "Error", err)
 		return variantMap, fetchError
 	}
 	for _, variant := range variants {
@@ -181,12 +181,13 @@ func (m MetadataServer) readFromFeature(feature *metadata.Feature) (map[string]F
 	return variantMap, nil
 }
 
-func (m MetadataServer) readFromTrainingSet(trainingSet *metadata.TrainingSet) (map[string]TrainingSetVariantResource, error) {
+func (m MetadataServer) readFromTrainingSet(trainingSet *metadata.TrainingSet) (map[string]TrainingSetVariantResource, *FetchError) {
 	variantMap := make(map[string]TrainingSetVariantResource)
 	variants, err := trainingSet.FetchVariants(m.client, context.Background())
 	if err != nil {
+		fetchError := &FetchError{StatusCode: 500, Type: "training set variants"}
 		m.logger.Errorw("Failed to fetch variants", "Error", err)
-		return variantMap, err
+		return variantMap, fetchError
 	}
 	for _, variant := range variants {
 		variantMap[variant.Variant()] = TrainingSetVariantResource{
@@ -206,36 +207,38 @@ func (m MetadataServer) readFromTrainingSet(trainingSet *metadata.TrainingSet) (
 	return variantMap, nil
 }
 
-func (m MetadataServer) readFromSource(source *metadata.Source) (map[string]SourceVariantResource, error) {
+func (m MetadataServer) readFromSource(source *metadata.Source) (map[string]SourceVariantResource, *FetchError) {
 	variantMap := make(map[string]SourceVariantResource)
 	variants, err := source.FetchVariants(m.client, context.Background())
 	if err != nil {
+		fetchError := &FetchError{StatusCode: 500, Type: "source variants"}
 		m.logger.Errorw("Failed to fetch variants", "Error", err)
-		return variantMap, err
+		return variantMap, fetchError
 	}
 	for _, variant := range variants {
 		variantMap[variant.Variant()] = SourceVariantResource{
-			Created:     variant.Created(),
-			Description: variant.Description(),
-			Name:        variant.Name(),
-			Type:        variant.Type(),
-			Variant:     variant.Name(),
-			Owner:       variant.Owner(),
-			Provider:    variant.Provider(),
-			Labels: variant.Labels(),
-			Features: variant.Features(),
+			Created:      variant.Created(),
+			Description:  variant.Description(),
+			Name:         variant.Name(),
+			Type:         variant.Type(),
+			Variant:      variant.Name(),
+			Owner:        variant.Owner(),
+			Provider:     variant.Provider(),
+			Labels:       variant.Labels(),
+			Features:     variant.Features(),
 			TrainingSets: variant.TrainingSets(),
 		}
 	}
 	return variantMap, nil
 }
 
-func (m MetadataServer) readFromLabel(label *metadata.Label) (map[string]LabelVariantResource, error) {
+func (m MetadataServer) readFromLabel(label *metadata.Label) (map[string]LabelVariantResource, *FetchError) {
 	variantMap := make(map[string]LabelVariantResource)
 	variants, err := label.FetchVariants(m.client, context.Background())
 	if err != nil {
+		fetchError := &FetchError{StatusCode: 500, Type: "label variants"}
 		m.logger.Errorw("Failed to fetch variants", "Error", err)
-		return variantMap, err
+		return variantMap, fetchError
 	}
 	for _, variant := range variants {
 		variantMap[variant.Variant()] = LabelVariantResource{
@@ -263,15 +266,15 @@ func (m MetadataServer) GetMetadata(c *gin.Context) {
 		features, err := m.client.GetFeatures(context.Background(), []string{c.Param("resource")})
 		if err != nil {
 			fetchError := &FetchError{StatusCode: 500, Type: "feature"}
-			m.logger.Errorw(fetchError.Error())
-			c.JSON(500, fetchError.Error())
+			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
+			c.JSON(fetchError.StatusCode, fetchError.Error())
 			return
 		}
 		feature := features[0]
-		variantList, err := m.readFromFeature(feature)
-		if err != nil {
-			m.logger.Errorw(err.Error())
-			c.JSON(500, err.Error())
+		variantList, fetchError := m.readFromFeature(feature)
+		if fetchError != nil {
+			m.logger.Errorw(fetchError.Error())
+			c.JSON(fetchError.StatusCode, fetchError.Error())
 			return
 		}
 		c.JSON(http.StatusOK, FeatureResource{
@@ -283,15 +286,16 @@ func (m MetadataServer) GetMetadata(c *gin.Context) {
 	case "labels":
 		labels, err := m.client.GetLabels(context.Background(), []string{c.Param("resource")})
 		if err != nil {
-			m.logger.Errorw("Failed to fetch label", "Error", err)
-			c.JSON(500, gin.H{"Error": "Failed to fetch label"})
+			fetchError := &FetchError{StatusCode: 500, Type: "label"}
+			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
+			c.JSON(fetchError.StatusCode, fetchError.Error())
 			return
 		}
 		label := labels[0]
-		variantList, err := m.readFromLabel(label)
-		if err != nil {
-			m.logger.Errorw("Failed to fetch variants", "Error", err)
-			c.JSON(500, gin.H{"Error": "Failed to fetch variants"})
+		variantList, fetchError := m.readFromLabel(label)
+		if fetchError != nil {
+			m.logger.Errorw(fetchError.Error())
+			c.JSON(fetchError.StatusCode, fetchError.Error())
 			return
 		}
 		c.JSON(http.StatusOK, LabelResource{
@@ -303,15 +307,16 @@ func (m MetadataServer) GetMetadata(c *gin.Context) {
 	case "training-sets":
 		trainingSets, err := m.client.GetTrainingSets(context.Background(), []string{c.Param("resource")})
 		if err != nil {
-			m.logger.Errorw("Failed to fetch training set", "Error", err)
-			c.JSON(500, gin.H{"Error": "Failed to fetch training set"})
+			fetchError := &FetchError{StatusCode: 500, Type: "training set"}
+			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
+			c.JSON(fetchError.StatusCode, fetchError.Error())
 			return
 		}
 		trainingSet := trainingSets[0]
-		variantList, err := m.readFromTrainingSet(trainingSet)
-		if err != nil {
-			m.logger.Errorw("Failed to fetch variants", "Error", err)
-			c.JSON(500, gin.H{"Error": "Failed to fetch variants"})
+		variantList, fetchError := m.readFromTrainingSet(trainingSet)
+		if fetchError != nil {
+			m.logger.Errorw(fetchError.Error())
+			c.JSON(fetchError.StatusCode, fetchError.Error())
 			return
 		}
 		c.JSON(http.StatusOK, TrainingSetResource{
@@ -323,15 +328,16 @@ func (m MetadataServer) GetMetadata(c *gin.Context) {
 	case "sources":
 		sources, err := m.client.GetSources(context.Background(), []string{c.Param("resource")})
 		if err != nil {
-			m.logger.Errorw("Failed to fetch source", "Error", err)
-			c.JSON(500, gin.H{"Error": "Failed to fetch source"})
+			fetchError := &FetchError{StatusCode: 500, Type: "source"}
+			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
+			c.JSON(fetchError.StatusCode, fetchError.Error())
 			return
 		}
 		source := sources[0]
-		variantList, err := m.readFromSource(source)
-		if err != nil {
-			m.logger.Errorw("Failed to fetch variants", "Error", err)
-			c.JSON(500, gin.H{"Error": "Failed to fetch variants"})
+		variantList, fetchError := m.readFromSource(source)
+		if fetchError != nil {
+			m.logger.Errorw(fetchError.Error())
+			c.JSON(fetchError.StatusCode, fetchError.Error())
 			return
 		}
 		c.JSON(http.StatusOK, SourceResource{
@@ -343,67 +349,71 @@ func (m MetadataServer) GetMetadata(c *gin.Context) {
 	case "entities":
 		entities, err := m.client.GetEntities(context.Background(), []string{c.Param("resource")})
 		if err != nil {
-			m.logger.Errorw("Failed to fetch entity", "Error", err)
-			c.JSON(500, gin.H{"Error": "Failed to fetch entity"})
+			fetchError := &FetchError{StatusCode: 500, Type: "entity"}
+			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
+			c.JSON(fetchError.StatusCode, fetchError.Error())
 			return
 		}
 		entity := entities[0]
 		c.JSON(http.StatusOK, EntityResource{
-			Name:           entity.Name(),
-			Description: entity.Description(),
-			Features: entity.Features(),
-			Labels: entity.Labels(),
+			Name:         entity.Name(),
+			Description:  entity.Description(),
+			Features:     entity.Features(),
+			Labels:       entity.Labels(),
 			TrainingSets: entity.TrainingSets(),
 		})
 	case "users":
 		users, err := m.client.GetUsers(context.Background(), []string{c.Param("resource")})
 		if err != nil {
-			m.logger.Errorw("Failed to fetch user", "Error", err)
-			c.JSON(500, gin.H{"Error": "Failed to fetch user"})
+			fetchError := &FetchError{StatusCode: 500, Type: "user"}
+			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
+			c.JSON(fetchError.StatusCode, fetchError.Error())
 			return
 		}
 		user := users[0]
 		c.JSON(http.StatusOK, UserResource{
-			Name: user.Name(),
-			Features: user.Features(),
-			Labels: user.Labels(),
+			Name:         user.Name(),
+			Features:     user.Features(),
+			Labels:       user.Labels(),
 			TrainingSets: user.TrainingSets(),
-			Sources: user.Sources(),
+			Sources:      user.Sources(),
 		})
 	case "models":
 		models, err := m.client.GetModels(context.Background(), []string{c.Param("resource")})
 		if err != nil {
-			m.logger.Errorw("Failed to fetch model", "Error", err)
-			c.JSON(500, gin.H{"Error": "Failed to fetch model"})
+			fetchError := &FetchError{StatusCode: 500, Type: "model"}
+			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
+			c.JSON(fetchError.StatusCode, fetchError.Error())
 			return
 		}
 		model := models[0]
 		c.JSON(http.StatusOK, ModelResource{
-			Name: model.Name(),
-			Description: model.Description(),
-			Features:        model.Features(),
-			Labels: model.Labels(),
+			Name:         model.Name(),
+			Description:  model.Description(),
+			Features:     model.Features(),
+			Labels:       model.Labels(),
 			TrainingSets: model.TrainingSets(),
 		})
 	case "providers":
 		providers, err := m.client.GetProviders(context.Background(), []string{c.Param("resource")})
 		if err != nil {
-			m.logger.Errorw("Failed to fetch provider", "Error", err)
-			c.JSON(500, gin.H{"Error": "Failed to fetch provider"})
+			fetchError := &FetchError{StatusCode: 500, Type: "provider"}
+			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
+			c.JSON(fetchError.StatusCode, fetchError.Error())
 			return
 		}
 		provider := providers[0]
 		c.JSON(http.StatusOK, ProviderResource{
-			Name:		provider.Name(),
-			Description:        provider.Description(),
-			Type:        provider.Type(),
-			Software:        provider.Software(),
-			Team:        provider.Team(),
-			Sources:        provider.Sources(),
-			Features:        provider.Features(),
-			Labels:        provider.Labels(),
-			TrainingSets:        provider.TrainingSets(),
-		})		
+			Name:         provider.Name(),
+			Description:  provider.Description(),
+			Type:         provider.Type(),
+			Software:     provider.Software(),
+			Team:         provider.Team(),
+			Sources:      provider.Sources(),
+			Features:     provider.Features(),
+			Labels:       provider.Labels(),
+			TrainingSets: provider.TrainingSets(),
+		})
 	}
 }
 
@@ -413,16 +423,17 @@ func (m MetadataServer) GetMetadataList(c *gin.Context) {
 	case "features":
 		features, err := m.client.ListFeatures(context.Background())
 		if err != nil {
-			m.logger.Errorw("Failed to fetch features", "Error", err)
-			c.JSON(500, gin.H{"Error": "Failed to fetch features"})
+			fetchError := &FetchError{StatusCode: 500, Type: "features"}
+			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
+			c.JSON(fetchError.StatusCode, fetchError.Error())
 			return
 		}
 		featureList := make([]FeatureResource, len(features))
 		for i, feature := range features {
-			variantList, err := m.readFromFeature(feature)
-			if err != nil {
-				m.logger.Errorw("Failed to fetch variants", "Error", err)
-				c.JSON(500, gin.H{"Error": "Failed to fetch variants"})
+			variantList, fetchError := m.readFromFeature(feature)
+			if fetchError != nil {
+				m.logger.Errorw(fetchError.Error())
+				c.JSON(fetchError.StatusCode, fetchError.Error())
 				return
 			}
 			featureList[i] = FeatureResource{
@@ -436,16 +447,17 @@ func (m MetadataServer) GetMetadataList(c *gin.Context) {
 	case "training-sets":
 		trainingSets, err := m.client.ListTrainingSets(context.Background())
 		if err != nil {
-			m.logger.Errorw("Failed to fetch training sets", "Error", err)
-			c.JSON(500, gin.H{"Error": "Failed to fetch training sets"})
+			fetchError := &FetchError{StatusCode: 500, Type: "training sets"}
+			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
+			c.JSON(fetchError.StatusCode, fetchError.Error())
 			return
 		}
 		trainingSetList := make([]TrainingSetResource, len(trainingSets))
 		for i, trainingSet := range trainingSets {
-			variantList, err := m.readFromTrainingSet(trainingSet)
-			if err != nil {
-				m.logger.Errorw("Failed to fetch variants", "Error", err)
-				c.JSON(500, gin.H{"Error": "Failed to fetch variants"})
+			variantList, fetchError := m.readFromTrainingSet(trainingSet)
+			if fetchError != nil {
+				m.logger.Errorw(fetchError.Error())
+				c.JSON(fetchError.StatusCode, fetchError.Error())
 				return
 			}
 			trainingSetList[i] = TrainingSetResource{
@@ -459,16 +471,17 @@ func (m MetadataServer) GetMetadataList(c *gin.Context) {
 	case "sources":
 		sources, err := m.client.ListSources(context.Background())
 		if err != nil {
-			m.logger.Errorw("Failed to fetch sources", "Error", err)
-			c.JSON(500, gin.H{"Error": "Failed to fetch sources"})
+			fetchError := &FetchError{StatusCode: 500, Type: "sources"}
+			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
+			c.JSON(fetchError.StatusCode, fetchError.Error())
 			return
 		}
 		sourceList := make([]SourceResource, len(sources))
 		for i, source := range sources {
-			variantList, err := m.readFromSource(source)
-			if err != nil {
-				m.logger.Errorw("Failed to fetch variants", "Error", err)
-				c.JSON(500, gin.H{"Error": "Failed to fetch variants"})
+			variantList, fetchError := m.readFromSource(source)
+			if fetchError != nil {
+				m.logger.Errorw(fetchError.Error())
+				c.JSON(fetchError.StatusCode, fetchError.Error())
 				return
 			}
 			sourceList[i] = SourceResource{
@@ -482,17 +495,18 @@ func (m MetadataServer) GetMetadataList(c *gin.Context) {
 	case "labels":
 		labels, err := m.client.ListLabels(context.Background())
 		if err != nil {
-			m.logger.Errorw("Failed to fetch labels", "Error", err)
-			c.JSON(500, gin.H{"Error": "Failed to fetch labels"})
+			fetchError := &FetchError{StatusCode: 500, Type: "labels"}
+			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
+			c.JSON(fetchError.StatusCode, fetchError.Error())
 			return
 		}
 		labelList := make([]LabelResource, len(labels))
 
 		for i, label := range labels {
-			variantList, err := m.readFromLabel(label)
-			if err != nil {
-				m.logger.Errorw("Failed to fetch variants", "Error", err)
-				c.JSON(500, gin.H{"Error": "Failed to fetch variants"})
+			variantList, fetchError := m.readFromLabel(label)
+			if fetchError != nil {
+				m.logger.Errorw(fetchError.Error())
+				c.JSON(fetchError.StatusCode, fetchError.Error())
 				return
 			}
 			labelList[i] = LabelResource{
@@ -506,8 +520,9 @@ func (m MetadataServer) GetMetadataList(c *gin.Context) {
 	case "entities":
 		entities, err := m.client.ListEntities(context.Background())
 		if err != nil {
-			m.logger.Errorw("Failed to fetch entities", "Error", err)
-			c.JSON(500, gin.H{"Error": "Failed to fetch entities"})
+			fetchError := &FetchError{StatusCode: 500, Type: "entities"}
+			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
+			c.JSON(fetchError.StatusCode, fetchError.Error())
 			return
 		}
 		entityList := make([]EntityResource, len(entities))
@@ -522,8 +537,9 @@ func (m MetadataServer) GetMetadataList(c *gin.Context) {
 	case "models":
 		models, err := m.client.ListModels(context.Background())
 		if err != nil {
-			m.logger.Errorw("Failed to fetch models", "Error", err)
-			c.JSON(500, gin.H{"Error": "Failed to fetch models"})
+			fetchError := &FetchError{StatusCode: 500, Type: "models"}
+			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
+			c.JSON(fetchError.StatusCode, fetchError.Error())
 			return
 		}
 		modelList := make([]ModelResource, len(models))
@@ -538,8 +554,9 @@ func (m MetadataServer) GetMetadataList(c *gin.Context) {
 	case "users":
 		users, err := m.client.ListUsers(context.Background())
 		if err != nil {
-			m.logger.Errorw("Failed to fetch users", "Error", err)
-			c.JSON(500, gin.H{"Error": "Failed to fetch users"})
+			fetchError := &FetchError{StatusCode: 500, Type: "users"}
+			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
+			c.JSON(fetchError.StatusCode, fetchError.Error())
 			return
 		}
 		userList := make([]UserResource, len(users))
@@ -553,8 +570,9 @@ func (m MetadataServer) GetMetadataList(c *gin.Context) {
 	case "providers":
 		providers, err := m.client.ListProviders(context.Background())
 		if err != nil {
-			m.logger.Errorw("Failed to fetch providers", "Error", err)
-			c.JSON(500, gin.H{"Error": "Failed to fetch providers"})
+			fetchError := &FetchError{StatusCode: 500, Type: "providers"}
+			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
+			c.JSON(fetchError.StatusCode, fetchError.Error())
 			return
 		}
 		providerList := make([]ProviderResource, len(providers))
@@ -571,7 +589,8 @@ func (m MetadataServer) GetMetadataList(c *gin.Context) {
 
 	default:
 		m.logger.Errorw("Not a valid data type", "Error", c.Param("type"))
-		c.JSON(400, gin.H{"Error": "Not a valid data type", "Type": c.Param("type")})
+		fetchError := &FetchError{StatusCode: 400, Type: c.Param("type")}
+		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
 

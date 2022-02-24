@@ -25,7 +25,7 @@ describe("App", () => {
         {
           title: "Primary Data",
           icon: "file-import",
-          path: "/sources",
+          path: "/primary-data",
           view: views.RESOURCE_LIST,
           viewProps: { type: resourceTypes.PRIMARY_DATA },
         },
@@ -84,7 +84,7 @@ describe("App", () => {
       const expected = [
         {
           title: "Primary Data",
-          path: "/sources",
+          path: "/primary-data",
           view: views.RESOURCE_LIST,
           viewProps: { type: resourceTypes.PRIMARY_DATA },
         },

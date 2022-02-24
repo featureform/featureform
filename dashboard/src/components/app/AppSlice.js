@@ -11,7 +11,7 @@ const navSectionSlice = createSlice({
         {
           title: "Primary Data",
           icon: "source",
-          path: "/sources",
+          path: "/primary-data",
           view: views["RESOURCE_LIST"],
           viewProps: {
             type: resourceTypes["PRIMARY_DATA"],

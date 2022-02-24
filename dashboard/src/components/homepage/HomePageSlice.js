@@ -49,7 +49,7 @@ const homePageSlice = createSlice({
       {
         title: "Primary Data",
         icon: "source",
-        path: "/sources",
+        path: "/primary-data",
         disabled: false,
         description: "Not avaliable",
       },

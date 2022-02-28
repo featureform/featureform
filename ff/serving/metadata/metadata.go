@@ -793,7 +793,7 @@ func NewMetadataServer(logger *zap.SugaredLogger) (*MetadataServer, error) {
 	}, nil
 }
 
-func NewMetadataTypesenseServer(logger *zap.SugaredLogger, port string, host string, apiKey string) (*MetadataServer, error) {
+func NewMetadataTypesenseServer(logger *zap.SugaredLogger, host string, port string, apiKey string) (*MetadataServer, error) {
 	logger.Debug("Creating new metadata server")
 	client := typesense.NewClient(
 		typesense.WithServer(fmt.Sprintf("http://%s:%s", host, port)),

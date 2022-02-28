@@ -798,7 +798,7 @@ func NewMetadataTypesenseServer(logger *zap.SugaredLogger, host string, port str
 	client := typesense.NewClient(
 		typesense.WithServer(fmt.Sprintf("http://%s:%s", host, port)),
 		typesense.WithAPIKey(apiKey))
-	logger.Debug("Creating typsense client on http://%s:%s with apiKey %s", host, port, apiKey)
+	logger.Debugf("Creating typsense client on http://%s:%s with apiKey %s", host, port, apiKey)
 	schema := &api.CollectionSchema{
 		Name: "resource",
 		Fields: []api.Field{

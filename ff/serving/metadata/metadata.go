@@ -4,9 +4,12 @@ import (
 	"context"
 	"fmt"
 	"io"
+
 	"time"
 
 	pb "github.com/featureform/serving/metadata/proto"
+	"github.com/typesense/typesense-go/typesense"
+	"github.com/typesense/typesense-go/typesense/api"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -131,6 +134,21 @@ type ResourceLookup interface {
 	Submap([]ResourceID) (ResourceLookup, error)
 	ListForType(ResourceType) ([]Resource, error)
 	List() ([]Resource, error)
+}
+
+type TypesenseWrapper struct {
+	Client *typesense.Client
+	ResourceLookup
+}
+
+func (wrapper TypesenseWrapper) Set(id ResourceID, res Resource) error {
+	err := wrapper.ResourceLookup.Set(id, res)
+	if err != nil {
+		return err
+	}
+	client := wrapper.Client
+	client.Collection("feature").Documents().Upsert(id)
+	return nil
 }
 
 type localResourceLookup map[ResourceID]Resource
@@ -770,7 +788,50 @@ type MetadataServer struct {
 func NewMetadataServer(logger *zap.SugaredLogger) (*MetadataServer, error) {
 	logger.Debug("Creating new metadata server")
 	return &MetadataServer{
-		lookup: make(localResourceLookup),
+		lookup: TypesenseWrapper{
+			ResourceLookup: make(localResourceLookup),
+		},
+		Logger: logger,
+	}, nil
+}
+
+func NewMetadataTypesenseServer(logger *zap.SugaredLogger, port string, host string, apiKey string) (*MetadataServer, error) { //todo
+	logger.Debug("Creating new metadata server")
+	client := typesense.NewClient(
+		typesense.WithServer("http://"+host+":"+port),
+		typesense.WithAPIKey(apiKey))
+	schema := &api.CollectionSchema{
+		Name: "feature",
+		Fields: []api.Field{
+			{
+				Name: "Name",
+				Type: "string",
+			},
+			{
+				Name: "Variant",
+				Type: "string",
+			},
+			{
+				Name: "Type",
+				Type: "string",
+			},
+		},
+	}
+	//client.Collection("feature").Delete()
+	client.Collections().Create(schema)
+	var resourceinitial []interface{}
+	action := "create"
+	batchnum := 40
+	params := &api.ImportDocumentsParams{
+		Action:    &action,
+		BatchSize: &batchnum,
+	}
+	client.Collection("feature").Documents().Import(resourceinitial, params)
+	return &MetadataServer{
+		lookup: TypesenseWrapper{
+			Client:         client,
+			ResourceLookup: make(localResourceLookup),
+		},
 		Logger: logger,
 	}, nil
 }

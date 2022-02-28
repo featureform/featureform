@@ -17,11 +17,12 @@ func main() {
 		logger.Panicw("Failed to listen on port", "Err", err)
 	}
 	grpcServer := grpc.NewServer()
-	serv, err := metadata.NewMetadataServer(logger)
+	server, err := metadata.NewMetadataTypesenseServer(logger, "localhost", "8181", "xyz")
 	if err != nil {
 		logger.Panicw("Failed to create metadata server", "Err", err)
 	}
-	pb.RegisterMetadataServer(grpcServer, serv)
+	pb.RegisterMetadataServer(grpcServer, server)
+
 	logger.Infow("Server starting", "Port", port)
 	serveErr := grpcServer.Serve(lis)
 	if serveErr != nil {

@@ -147,7 +147,7 @@ func (wrapper TypesenseWrapper) Set(id ResourceID, res Resource) error {
 		return err
 	}
 	client := wrapper.Client
-	client.Collection("feature").Documents().Upsert(id)
+	client.Collection("resource").Documents().Upsert(id)
 	return nil
 }
 
@@ -788,9 +788,7 @@ type MetadataServer struct {
 func NewMetadataServer(logger *zap.SugaredLogger) (*MetadataServer, error) {
 	logger.Debug("Creating new metadata server")
 	return &MetadataServer{
-		lookup: TypesenseWrapper{
-			ResourceLookup: make(localResourceLookup),
-		},
+		lookup: make(localResourceLookup),
 		Logger: logger,
 	}, nil
 }
@@ -798,10 +796,11 @@ func NewMetadataServer(logger *zap.SugaredLogger) (*MetadataServer, error) {
 func NewMetadataTypesenseServer(logger *zap.SugaredLogger, port string, host string, apiKey string) (*MetadataServer, error) {
 	logger.Debug("Creating new metadata server")
 	client := typesense.NewClient(
-		typesense.WithServer("http://"+host+":"+port),
+		typesense.WithServer(fmt.Sprintf("http://%s:%s", host, port)),
 		typesense.WithAPIKey(apiKey))
+	logger.Debug("Creating typsense client on " + fmt.Sprintf("http://%s:%s", host, port) + "and apikey:" + apiKey)
 	schema := &api.CollectionSchema{
-		Name: "feature",
+		Name: "resource",
 		Fields: []api.Field{
 			{
 				Name: "Name",
@@ -825,7 +824,7 @@ func NewMetadataTypesenseServer(logger *zap.SugaredLogger, port string, host str
 		Action:    &action,
 		BatchSize: &batchnum,
 	}
-	client.Collection("feature").Documents().Import(resourceinitial, params)
+	client.Collection("resource").Documents().Import(resourceinitial, params)
 	return &MetadataServer{
 		lookup: TypesenseWrapper{
 			Client:         client,

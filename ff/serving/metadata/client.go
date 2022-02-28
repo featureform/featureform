@@ -64,6 +64,14 @@ func (client *Client) ListFeatures(ctx context.Context) ([]*Feature, error) {
 	return client.parseFeatureStream(stream)
 }
 
+func (client *Client) GetFeature(ctx context.Context, feature string) (*Feature, error) {
+	featureList, err := client.GetFeatures(ctx, []string{feature})
+	if err != nil {
+		return nil, err
+	}
+	return featureList[0], nil
+}
+
 func (client *Client) GetFeatures(ctx context.Context, features []string) ([]*Feature, error) {
 	stream, err := client.grpcConn.GetFeatures(ctx)
 	if err != nil {
@@ -179,6 +187,14 @@ func (client *Client) ListLabels(ctx context.Context) ([]*Label, error) {
 		return nil, err
 	}
 	return client.parseLabelStream(stream)
+}
+
+func (client *Client) GetLabel(ctx context.Context, label string) (*Label, error) {
+	labelList, err := client.GetLabels(ctx, []string{label})
+	if err != nil {
+		return nil, err
+	}
+	return labelList[0], nil
 }
 
 func (client *Client) GetLabels(ctx context.Context, labels []string) ([]*Label, error) {
@@ -298,6 +314,14 @@ func (client *Client) ListTrainingSets(ctx context.Context) ([]*TrainingSet, err
 	return client.parseTrainingSetStream(stream)
 }
 
+func (client *Client) GetTrainingSet(ctx context.Context, trainingSet string) (*TrainingSet, error) {
+	trainingSetList, err := client.GetTrainingSets(ctx, []string{trainingSet})
+	if err != nil {
+		return nil, err
+	}
+	return trainingSetList[0], nil
+}
+
 func (client *Client) GetTrainingSets(ctx context.Context, trainingSets []string) ([]*TrainingSet, error) {
 	stream, err := client.grpcConn.GetTrainingSets(ctx)
 	if err != nil {
@@ -337,6 +361,19 @@ func (client *Client) CreateTrainingSetVariant(ctx context.Context, def Training
 	}
 	_, err := client.grpcConn.CreateTrainingSetVariant(ctx, serialized)
 	return err
+}
+
+func (client *Client) GetTrainingSetVariant(ctx context.Context, id NameVariant) (*TrainingSetVariant, error) {
+	stream, err := client.grpcConn.GetTrainingSetVariants(ctx)
+	if err != nil {
+		return nil, err
+	}
+	go stream.Send(id.Serialize())
+	variants, err := client.parseTrainingSetVariantStream(stream)
+	if err != nil {
+		return nil, err
+	}
+	return variants[0], nil
 }
 
 func (client *Client) GetTrainingSetVariants(ctx context.Context, ids []NameVariant) ([]*TrainingSetVariant, error) {
@@ -398,6 +435,14 @@ func (client *Client) ListSources(ctx context.Context) ([]*Source, error) {
 		return nil, err
 	}
 	return client.parseSourceStream(stream)
+}
+
+func (client *Client) GetSource(ctx context.Context, source string) (*Source, error) {
+	sourceList, err := client.GetSources(ctx, []string{source})
+	if err != nil {
+		return nil, err
+	}
+	return sourceList[0], nil
 }
 
 func (client *Client) GetSources(ctx context.Context, sources []string) ([]*Source, error) {
@@ -513,6 +558,14 @@ func (client *Client) ListUsers(ctx context.Context) ([]*User, error) {
 	return client.parseUserStream(stream)
 }
 
+func (client *Client) GetUser(ctx context.Context, user string) (*User, error) {
+	userList, err := client.GetUsers(ctx, []string{user})
+	if err != nil {
+		return nil, err
+	}
+	return userList[0], nil
+}
+
 func (client *Client) GetUsers(ctx context.Context, users []string) ([]*User, error) {
 	stream, err := client.grpcConn.GetUsers(ctx)
 	if err != nil {
@@ -566,6 +619,14 @@ func (client *Client) ListProviders(ctx context.Context) ([]*Provider, error) {
 		return nil, err
 	}
 	return client.parseProviderStream(stream)
+}
+
+func (client *Client) GetProvider(ctx context.Context, provider string) (*Provider, error) {
+	providerList, err := client.GetProviders(ctx, []string{provider})
+	if err != nil {
+		return nil, err
+	}
+	return providerList[0], nil
 }
 
 func (client *Client) GetProviders(ctx context.Context, providers []string) ([]*Provider, error) {
@@ -631,6 +692,14 @@ func (client *Client) ListEntities(ctx context.Context) ([]*Entity, error) {
 	return client.parseEntityStream(stream)
 }
 
+func (client *Client) GetEntity(ctx context.Context, entity string) (*Entity, error) {
+	entityList, err := client.GetEntities(ctx, []string{entity})
+	if err != nil {
+		return nil, err
+	}
+	return entityList[0], nil
+}
+
 func (client *Client) GetEntities(ctx context.Context, entities []string) ([]*Entity, error) {
 	stream, err := client.grpcConn.GetEntities(ctx)
 	if err != nil {
@@ -686,6 +755,14 @@ func (client *Client) ListModels(ctx context.Context) ([]*Model, error) {
 		return nil, err
 	}
 	return client.parseModelStream(stream)
+}
+
+func (client *Client) GetModel(ctx context.Context, model string) (*Model, error) {
+	modelList, err := client.GetModels(ctx, []string{model})
+	if err != nil {
+		return nil, err
+	}
+	return modelList[0], nil
 }
 
 func (client *Client) GetModels(ctx context.Context, models []string) ([]*Model, error) {

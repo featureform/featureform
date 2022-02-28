@@ -795,7 +795,7 @@ func NewMetadataServer(logger *zap.SugaredLogger) (*MetadataServer, error) {
 	}, nil
 }
 
-func NewMetadataTypesenseServer(logger *zap.SugaredLogger, port string, host string, apiKey string) (*MetadataServer, error) { //todo
+func NewMetadataTypesenseServer(logger *zap.SugaredLogger, port string, host string, apiKey string) (*MetadataServer, error) {
 	logger.Debug("Creating new metadata server")
 	client := typesense.NewClient(
 		typesense.WithServer("http://"+host+":"+port),
@@ -817,7 +817,6 @@ func NewMetadataTypesenseServer(logger *zap.SugaredLogger, port string, host str
 			},
 		},
 	}
-	//client.Collection("feature").Delete()
 	client.Collections().Create(schema)
 	var resourceinitial []interface{}
 	action := "create"

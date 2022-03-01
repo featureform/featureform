@@ -7,7 +7,7 @@ const homePageSlice = createSlice({
       {
         title: "Training Datasets",
         icon: "storage",
-        path: "/training-datasets",
+        path: "/training-sets",
         disabled: false,
         description: "Training datasets",
       },

@@ -28,7 +28,15 @@ import VersionControl from "./elements/VersionControl";
 import TagBox from "./elements/TagBox";
 import MetricsDropdown from "./elements/MetricsDropdown";
 import StatsDropdown from "./elements/StatsDropdown";
-import { resourceTypes, resourceIcons, resourcePaths } from "api/resources";
+import {
+  resourceTypes,
+  resourceIcons,
+  resourcePaths,
+  resourceVersions,
+  dependencyLabels,
+  pathToType,
+  local,
+} from "api/resources";
 import theme from "styles/theme/index.js";
 
 SyntaxHighlighter.registerLanguage("python", python);
@@ -200,11 +208,10 @@ function a11yProps(index) {
   };
 }
 
-const EntityPageView = ({ entity, setVersion, activeVersions }) => {
+const EntityPageView = ({ entity, setVersion, activeVersions, typePath }) => {
   let history = useHistory();
   let resources = entity.resources;
-
-  const type = resources["type"];
+  let type = pathToType[typePath];
   const showMetrics =
     type === resourceTypes.FEATURE ||
     type === resourceTypes.FEATURE_SET ||
@@ -226,9 +233,30 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
     setVersion(type, name, resources["default-variant"]);
   }
 
-  let resource = resources.versions[version];
-  const metadata = resource.metadata;
-  let resourceData = resource.data;
+  let resource;
+  if (resourceVersions[type]) {
+    resource = resources.versions[version];
+  } else {
+    resource = resources;
+  }
+  let metadata = {};
+  let resourceData = {};
+  if (local) {
+    metadata = resource.metadata;
+    resourceData = resource.data;
+  } else {
+    Object.keys(resource).forEach((key) => {
+      if (dependencyLabels[key]) {
+        resourceData[dependencyLabels[key]] = resource[key];
+      } else {
+        metadata[key] = resource[key];
+      }
+    });
+    if (metadata["source"]) {
+      metadata["source"] = metadata["source"].Name;
+      metadata["source-variant"] = metadata["source"].Variant;
+    }
+  }
 
   const convertTimestampToDate = (timestamp_string) => {
     return new Date(timestamp_string).toLocaleString("en-US", {
@@ -295,13 +323,14 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                     )}
                   </div>
                 </div>
-                {allVersions.length > 1 && (
+                {allVersions && allVersions.length > 1 && (
                   <VersionControl
                     version={version}
                     versions={allVersions}
                     handleVersionChange={handleVersionChange}
                     type={type}
                     name={name}
+                    local={local}
                     convertTimestampToDate={convertTimestampToDate}
                   />
                 )}
@@ -500,25 +529,29 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                     marginLeft: 3,
                   },
                 }}
-                columns={Object.keys(resourceData[key][0])
-                  .filter((item) => item != "tags" && item != "variants")
-                  .map((item) => ({
-                    title: capitalize(item),
-                    field: item,
-                    ...(item == "variants" && {
-                      render: (row) => (
-                        <VersionSelector
-                          name={row.name}
-                          versions={row.variants}
-                        />
-                      ),
-                    }),
-                    ...(item == "tags" && {
-                      render: (row) => (
-                        <TagList tags={row.tags} tagClass={classes.tag} />
-                      ),
-                    }),
-                  }))}
+                {...(Object.keys(resourceData[key]).length > 0
+                  ? {
+                      columns: Object.keys(resourceData[key][0])
+                        .filter((item) => item != "tags" && item != "variants")
+                        .map((item) => ({
+                          title: capitalize(item),
+                          field: item,
+                          ...(item == "variants" && {
+                            render: (row) => (
+                              <VersionSelector
+                                name={row.name}
+                                versions={row.variants}
+                              />
+                            ),
+                          }),
+                          ...(item == "tags" && {
+                            render: (row) => (
+                              <TagList tags={row.tags} tagClass={classes.tag} />
+                            ),
+                          }),
+                        })),
+                    }
+                  : {})}
                 data={resourceData[key].map((o) => {
                   let new_object = {};
                   Object.keys(o).forEach((key) => {
@@ -531,7 +564,7 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                   return new_object;
                 })}
                 onRowClick={(event, rowData) =>
-                  history.push("/" + key + "/" + rowData.name)
+                  history.push(resourcePaths[key] + "/" + rowData.Name)
                 }
                 components={{
                   Container: (props) => (

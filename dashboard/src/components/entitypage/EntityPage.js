@@ -61,6 +61,7 @@ const EntityPage = ({ api, entityPage, activeVersions, ...props }) => {
             entity={entityPage}
             setVersion={props.setVersion}
             activeVersions={activeVersions}
+            typePath={type}
           />
         )}
       </div>

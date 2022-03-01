@@ -147,7 +147,10 @@ func (wrapper TypesenseWrapper) Set(id ResourceID, res Resource) error {
 		return err
 	}
 	client := wrapper.Client
-	client.Collection("resource").Documents().Upsert(id)
+	_, errUpsert := client.Collection("resource").Documents().Upsert(id)
+	if errUpsert != nil {
+		return errUpsert
+	}
 	return nil
 }
 
@@ -785,53 +788,74 @@ type MetadataServer struct {
 	pb.UnimplementedMetadataServer
 }
 
-func NewMetadataServer(logger *zap.SugaredLogger) (*MetadataServer, error) {
-	logger.Debug("Creating new metadata server")
-	return &MetadataServer{
-		lookup: make(localResourceLookup),
-		Logger: logger,
-	}, nil
+func NewMetadataServer(server MetadataServerParams) (*MetadataServer, error) {
+	server.Logger.Debug("Creating new metadata server")
+	if server.Params == nil {
+		return &MetadataServer{
+			lookup: make(localResourceLookup),
+			Logger: server.Logger,
+		}, nil
+	} else {
+		server.Logger.Debug("Creating new typesense metadata server")
+		client := typesense.NewClient(
+			typesense.WithServer(fmt.Sprintf("http://%s:%s", server.Params.host, server.Params.port)),
+			typesense.WithAPIKey(server.Params.apiKey))
+		server.Logger.Debugf("Creating typsense client on http://%s:%s with apiKey %s", server.Params.host, server.Params.port, server.Params.apiKey)
+		collections, err := client.Collections().Retrieve()
+		if err != nil {
+			return nil, err
+		}
+		if collections == nil {
+			schema := &api.CollectionSchema{
+				Name: "resource",
+				Fields: []api.Field{
+					{
+						Name: "Name",
+						Type: "string",
+					},
+					{
+						Name: "Variant",
+						Type: "string",
+					},
+					{
+						Name: "Type",
+						Type: "string",
+					},
+				},
+			}
+			client.Collections().Create(schema)
+			server.Logger.Debug("Creating typsense schema")
+		}
+		var resourceinitial []interface{}
+		action := "create"
+		batchnum := 40
+		params := &api.ImportDocumentsParams{
+			Action:    &action,
+			BatchSize: &batchnum,
+		}
+		//initializing resource collection with empty struct so we can use upsert function in set without throwing an error
+		client.Collection("resource").Documents().Import(resourceinitial, params)
+		return &MetadataServer{
+			lookup: TypesenseWrapper{
+				Client:         client,
+				ResourceLookup: make(localResourceLookup),
+			},
+			Logger: server.Logger,
+		}, nil
+
+	}
+
 }
 
-func NewMetadataTypesenseServer(logger *zap.SugaredLogger, host string, port string, apiKey string) (*MetadataServer, error) {
-	logger.Debug("Creating new metadata server")
-	client := typesense.NewClient(
-		typesense.WithServer(fmt.Sprintf("http://%s:%s", host, port)),
-		typesense.WithAPIKey(apiKey))
-	logger.Debugf("Creating typsense client on http://%s:%s with apiKey %s", host, port, apiKey)
-	schema := &api.CollectionSchema{
-		Name: "resource",
-		Fields: []api.Field{
-			{
-				Name: "Name",
-				Type: "string",
-			},
-			{
-				Name: "Variant",
-				Type: "string",
-			},
-			{
-				Name: "Type",
-				Type: "string",
-			},
-		},
-	}
-	client.Collections().Create(schema)
-	var resourceinitial []interface{}
-	action := "create"
-	batchnum := 40
-	params := &api.ImportDocumentsParams{
-		Action:    &action,
-		BatchSize: &batchnum,
-	}
-	client.Collection("resource").Documents().Import(resourceinitial, params)
-	return &MetadataServer{
-		lookup: TypesenseWrapper{
-			Client:         client,
-			ResourceLookup: make(localResourceLookup),
-		},
-		Logger: logger,
-	}, nil
+type TypeSenseParams struct {
+	host   string
+	port   string
+	apiKey string
+}
+
+type MetadataServerParams struct {
+	Logger *zap.SugaredLogger
+	Params *TypeSenseParams
 }
 
 func (serv *MetadataServer) ListFeatures(_ *pb.Empty, stream pb.Metadata_ListFeaturesServer) error {

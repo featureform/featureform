@@ -30,10 +30,16 @@ const VersionControl = ({
   handleVersionChange,
   entityPage,
   convertTimestampToDate,
+  local,
 }) => {
   const classes = useStyles();
-  const createdDate =
-    entityPage.resources["versions"][version]["metadata"]["created"];
+  let createdDate;
+  if (local) {
+    createdDate =
+      entityPage.resources["versions"][version]["metadata"]["created"];
+  } else {
+    createdDate = entityPage.resources["versions"][version]["created"];
+  }
 
   const handleChange = (event) => {
     handleVersionChange(event);

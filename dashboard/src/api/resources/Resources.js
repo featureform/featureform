@@ -11,19 +11,6 @@ export const resourceTypes = Object.freeze({
   PRIMARY_DATA: "Primary Data",
 });
 
-export const resourceVersions = Object.freeze({
-  Feature: true,
-  "Feature Set": true,
-  Label: true,
-  Entity: false,
-  Model: false,
-  Transformation: true,
-  "Training Dataset": true,
-  Provider: false,
-  User: false,
-  "Primary Data": true,
-});
-
 export const resourceIcons = Object.freeze({
   Feature: "description",
   Entity: "fingerprint",
@@ -39,16 +26,68 @@ export const resourceIcons = Object.freeze({
 
 export const resourcePaths = Object.freeze({
   Feature: "/features",
+  Features: "/features",
   Entity: "/entities",
+  Entities: "/entities",
   Label: "/labels",
+  Labels: "/labels",
   "Feature Set": "/feature-sets",
   Model: "/models",
+  Models: "/models",
   Transformation: "/transformations",
   "Training Dataset": "/training-sets",
+  "Training Datasets": "/training-sets",
+  "Training Sets": "/training-sets",
   Provider: "/providers",
+  Providers: "/providers",
   User: "/users",
+  Users: "/users",
   "Primary Data": "/primary-data",
 });
+
+export const resourceVersions = Object.freeze({
+  Feature: true,
+  Entity: false,
+  Label: true,
+  "Feature Set": true,
+  Model: false,
+  Transformation: true,
+  "Training Dataset": true,
+  Provider: false,
+  User: false,
+  "Primary Data": true,
+});
+
+export const dependencyLabels = Object.freeze({
+  trainingsets: "Training Sets",
+  labels: "Labels",
+  features: "Features",
+  providers: "Providers",
+  sources: "Primary Data",
+});
+
+export const pathToType = Object.freeze({
+  features: "Feature",
+  labels: "Label",
+  "primary-data": "Primary Data",
+  entities: "Entity",
+  models: "Model",
+  providers: "Provider",
+  users: "User",
+  "training-sets": "Training Dataset",
+});
+
+export const typeToPath = Object.freeze({
+  features: "Feature",
+  labels: "Label",
+  "primary-data": "Primary Data",
+  entities: "Entity",
+  models: "Model",
+  providers: "Provider",
+  users: "User",
+  "training-sets": "Training Dataset",
+});
+
 export const testData = [
   {
     name: "User sample preferences",
@@ -86,7 +125,7 @@ export const providerLogos = Object.freeze({
 });
 
 const API_URL = "http://localhost:8181";
-const local = false;
+export const local = false;
 
 export default class ResourcesAPI {
   checkStatus() {
@@ -147,7 +186,6 @@ export default class ResourcesAPI {
     })
       .then((res) =>
         res.json().then((json_data) => {
-          console.log(JSON.stringify(json_data));
           return { data: json_data };
         })
       )

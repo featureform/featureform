@@ -14,7 +14,7 @@ const links = [
   },
   {
     title: "Fraud Detection Training Set",
-    link: "/training-datasets/Fraud%20Detection%20Training%20Set",
+    link: "/training-sets/Fraud%20Detection%20Training%20Set",
   },
   { title: "Customer", link: "/entities/Customer" },
 ];

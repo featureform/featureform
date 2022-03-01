@@ -36,9 +36,9 @@ const navSectionSlice = createSlice({
           },
         },
         {
-          title: "training-datasets",
+          title: "training-sets",
           icon: "storage",
-          path: "/training-datasets",
+          path: "/training-sets",
           view: views["RESOURCE_LIST"],
           viewProps: {
             type: resourceTypes["TRAINING_DATASET"],
@@ -54,7 +54,7 @@ const navSectionSlice = createSlice({
           },
         },
         {
-          title: "training-datasets",
+          title: "training-sets",
           icon: "archive",
           path: "/training-sets",
           view: views["RESOURCE_LIST"],

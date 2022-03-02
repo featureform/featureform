@@ -1,5 +1,4 @@
 import { combineReducers } from "redux";
-import { navSectionsReducer } from "components/app";
 import {
   resourceReducer,
   versionReducer,
@@ -15,7 +14,6 @@ import { connectionPageSliceReducer } from "components/connectionpage";
 import { aggregateDropdownSliceReducer } from "components/entitypage/elements";
 
 export default combineReducers({
-  navSections: navSectionsReducer,
   resourceList: resourceReducer,
   selectedVersion: versionReducer,
   selectedTags: tagReducer,

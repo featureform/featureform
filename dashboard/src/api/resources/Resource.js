@@ -1,93 +1,97 @@
 export default class Resource {
-  static pathToType = {
-    features: "Feature",
-    labels: "Label",
-    "training-sets": "TrainingSet",
-    "primary-data": "PrimaryData",
-    entities: "Entity",
-    models: "Model",
-    providers: "Provider",
-    users: "User",
-  };
-  static Feature = new Resource(
-    "Feature",
-    "Features",
-    "/features",
-    true,
-    "description",
-    true
-  );
-  static Label = new Resource(
-    "Label",
-    "Labels",
-    "/labels",
-    true,
-    "label",
-    false
-  );
-  static TrainingSet = new Resource(
-    "Training Set",
-    "Training Sets",
-    "/training-sets",
-    true,
-    "storage",
-    true
-  );
-  static PrimaryData = new Resource(
-    "Primary Data",
-    "Primary Data",
-    "/primary-data",
-    true,
-    "source",
-    false
-  );
-  static Entity = new Resource(
-    "Entity",
-    "Entities",
-    "/entities",
-    false,
-    "fingerprint",
-    false
-  );
-  static Model = new Resource(
-    "Model",
-    "Models",
-    "/models",
-    false,
-    "model_training",
-    false
-  );
-  static Provider = new Resource(
-    "Provider",
-    "Providers",
-    "/providers",
-    false,
-    "device_hub",
-    false
-  );
-  static User = new Resource("User", "Users", "/users", false, "person");
-  constructor(
-    type,
-    typePlural,
-    urlPath,
-    hasVariants,
-    materialIcon,
-    hasMetrics
-  ) {
-    this._type = type;
-    this._typePlural = typePlural;
-    this._urlPath = urlPath;
-    this._hasVariants = hasVariants;
-    this._materialIcon = materialIcon;
-    this._hasMetrics = hasMetrics;
+  static Feature = new Resource({
+    type: "Feature",
+    typePlural: "Features",
+    urlPath: "features",
+    hasVariants: true,
+    materialIcon: "description",
+    hasMetrics: true,
+  });
+
+  static Label = new Resource({
+    type: "Label",
+    typePlural: "Labels",
+    urlPath: "labels",
+    hasVariants: true,
+    materialIcon: "label",
+    hasMetrics: false,
+  });
+  static TrainingSet = new Resource({
+    type: "Training Set",
+    typePlural: "Training Sets",
+    urlPath: "training-sets",
+    hasVariants: true,
+    materialIcon: "storage",
+    hasMetrics: true,
+  });
+  static PrimaryData = new Resource({
+    type: "Primary Data",
+    typePlural: "Primary Data",
+    urlPath: "primary-data",
+    hasVariants: true,
+    materialIcon: "source",
+    hasMetrics: false,
+  });
+  static Entity = new Resource({
+    type: "Entity",
+    typePlural: "Entities",
+    urlPath: "entities",
+    hasVariants: false,
+    materialIcon: "fingerprint",
+    hasMetrics: false,
+  });
+  static Model = new Resource({
+    type: "Model",
+    typePlural: "Models",
+    urlPath: "models",
+    hasVariants: false,
+    materialIcon: "model_training",
+    hasMetrics: false,
+  });
+  static Provider = new Resource({
+    type: "Provider",
+    typePlural: "Providers",
+    urlPath: "providers",
+    hasVariants: false,
+    materialIcon: "device_hub",
+    hasMetrics: false,
+  });
+  static User = new Resource({
+    type: "User",
+    typePlural: "Users",
+    urlPath: "users",
+    hasVariants: false,
+    materialIcon: "person",
+    hasMetrics: false,
+  });
+
+  static _generatePaths() {
+    let _pathToType = {};
+    Object.entries(Resource).forEach((res) => {
+      if (res[1] instanceof Resource) {
+        _pathToType[res[1]._urlPath] = res[0];
+      }
+    });
+    return _pathToType;
+  }
+
+  static pathToType = this._generatePaths();
+
+  constructor(config) {
+    this._type = config.type;
+    this._typePlural = config.typePlural;
+    this._urlPath = config.urlPath;
+    this._hasVariants = config.hasVariants;
+    this._materialIcon = config.materialIcon;
+    this._hasMetrics = config.hasMetrics;
   }
 
   get urlPath() {
-    return this._urlPath;
+    return "/" + this._urlPath;
   }
 
   urlPathResource(name) {
-    return this._urlPath + "/" + name;
+    return "/" + this._urlPath + "/" + name;
   }
 
   get hasVariants() {

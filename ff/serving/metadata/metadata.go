@@ -141,7 +141,7 @@ type TypesenseWrapper struct {
 	ResourceLookup
 }
 
-func (wrapper TypesenseWrapper) Set(id ResourceID, res Resource) error {
+func (wrapper TypesenseWrapper) Set(id ResourceID, res Resource) error { //tolook
 	err := wrapper.ResourceLookup.Set(id, res)
 	if err != nil {
 		return err
@@ -151,6 +151,7 @@ func (wrapper TypesenseWrapper) Set(id ResourceID, res Resource) error {
 	if errUpsert != nil {
 		return errUpsert
 	}
+	//client.Collection("resource").Documents().Upsert(id)
 	return nil
 }
 
@@ -788,7 +789,7 @@ type MetadataServer struct {
 	pb.UnimplementedMetadataServer
 }
 
-func NewMetadataServer(server MetadataServerParams) (*MetadataServer, error) {
+func NewMetadataServer(server *MetadataServerParams) (*MetadataServer, error) { //tolook
 	server.Logger.Debug("Creating new metadata server")
 	if server.Params == nil {
 		return &MetadataServer{
@@ -798,14 +799,11 @@ func NewMetadataServer(server MetadataServerParams) (*MetadataServer, error) {
 	} else {
 		server.Logger.Debug("Creating new typesense metadata server")
 		client := typesense.NewClient(
-			typesense.WithServer(fmt.Sprintf("http://%s:%s", server.Params.host, server.Params.port)),
-			typesense.WithAPIKey(server.Params.apiKey))
-		server.Logger.Debugf("Creating typsense client on http://%s:%s with apiKey %s", server.Params.host, server.Params.port, server.Params.apiKey)
-		collections, err := client.Collections().Retrieve()
-		if err != nil {
-			return nil, err
-		}
-		if collections == nil {
+			typesense.WithServer(fmt.Sprintf("http://%s:%s", server.Params.Host, server.Params.Port)),
+			typesense.WithAPIKey(server.Params.ApiKey))
+		server.Logger.Debugf("Creating typsense client on http://%s:%s with apiKey %s", server.Params.Host, server.Params.Port, server.Params.ApiKey)
+		_, err3 := client.Collection("resource").Retrieve()
+		if err3 != nil {
 			schema := &api.CollectionSchema{
 				Name: "resource",
 				Fields: []api.Field{
@@ -823,10 +821,51 @@ func NewMetadataServer(server MetadataServerParams) (*MetadataServer, error) {
 					},
 				},
 			}
-			client.Collections().Create(schema)
+			//_, err2 := client.Collection("resource").Delete()
+			server.Logger.Debug("deleted")
+			// if err2 != nil {
+			// 	return nil, err2
+			// }
+			server.Logger.Debug("not deleted yay")
+			//client.Collections().Create(schema)
+			_, err1 := client.Collections().Create(schema)
+			if err1 != nil {
+				return nil, err1
+			}
 			server.Logger.Debug("Creating typsense schema")
 		}
+		// schema := &api.CollectionSchema{
+		// 	Name: "resource",
+		// 	Fields: []api.Field{
+		// 		{
+		// 			Name: "Name",
+		// 			Type: "string",
+		// 		},
+		// 		{
+		// 			Name: "Variant",
+		// 			Type: "string",
+		// 		},
+		// 		{
+		// 			Name: "Type",
+		// 			Type: "string",
+		// 		},
+		// 	},
+		// }
+		// // _, err2 := client.Collection("resource").Delete()
+		// // server.Logger.Debug("deleted")
+		// // if err2 != nil {
+		// // 	return nil, err2
+		// // }
+		// server.Logger.Debug("deleted")
+		// //client.Collections().Create(schema)
+		// _, err1 := client.Collections().Create(schema)
+		// if err1 != nil {
+		// 	return nil, err1
+		// }
+		// server.Logger.Debug("Creating typsense schema")
 		var resourceinitial []interface{}
+		var resourceempty ResourceID
+		resourceinitial = append(resourceinitial, resourceempty)
 		action := "create"
 		batchnum := 40
 		params := &api.ImportDocumentsParams{
@@ -834,7 +873,10 @@ func NewMetadataServer(server MetadataServerParams) (*MetadataServer, error) {
 			BatchSize: &batchnum,
 		}
 		//initializing resource collection with empty struct so we can use upsert function in set without throwing an error
-		client.Collection("resource").Documents().Import(resourceinitial, params)
+		_, err5 := client.Collection("resource").Documents().Import(resourceinitial, params)
+		if err5 != nil {
+			return nil, err5
+		}
 		return &MetadataServer{
 			lookup: TypesenseWrapper{
 				Client:         client,
@@ -848,9 +890,9 @@ func NewMetadataServer(server MetadataServerParams) (*MetadataServer, error) {
 }
 
 type TypeSenseParams struct {
-	host   string
-	port   string
-	apiKey string
+	Host   string
+	Port   string
+	ApiKey string
 }
 
 type MetadataServerParams struct {

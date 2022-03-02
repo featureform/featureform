@@ -13,11 +13,19 @@ func main() {
 	logger := zap.NewExample().Sugar()
 	port := ":8080"
 	lis, err := net.Listen("tcp", port)
+	metaparams := &metadata.MetadataServerParams{
+		Logger: logger,
+		Params: &metadata.TypeSenseParams{
+			Port:   "8108",
+			Host:   "localhost",
+			ApiKey: "xyz",
+		},
+	}
 	if err != nil {
 		logger.Panicw("Failed to listen on port", "Err", err)
 	}
 	grpcServer := grpc.NewServer()
-	server, err := metadata.NewMetadataTypesenseServer(logger, "localhost", "8181", "xyz")
+	server, err := metadata.NewMetadataServer(metaparams)
 	if err != nil {
 		logger.Panicw("Failed to create metadata server", "Err", err)
 	}

@@ -85,7 +85,8 @@ class ResourceList extends React.Component {
   render() {
     // Only pass down props required for the view.
     // sends down props resources, loading, and failed
-    const { api, fetch, type, ...viewProps } = this.props;
+    const { api, fetch, ...viewProps } = this.props;
+    console.log(viewProps);
     return viewProps.failed ? (
       <ServerErrorPage />
     ) : (

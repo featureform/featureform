@@ -63,7 +63,7 @@ export default class ResourcesAPI {
     } else {
       fetchAddress = `${API_URL}${resourceType.urlPath}`;
     }
-    if (process.env.REACT_APP_EMPTY_RESOURCE_VIEW == "true") {
+    if (process.env.REACT_APP_EMPTY_RESOURCE_VIEW === "true") {
       fetchAddress = "/data/lists/wine-data-empty.json";
     }
     return fetch(fetchAddress, {

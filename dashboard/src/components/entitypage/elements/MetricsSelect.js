@@ -65,7 +65,9 @@ function MetricsSelect({ metricsSelect, modifyMetrics, fetchMetrics }) {
               onChange={handleChange}
             >
               {metrics.map((option) => (
-                <MenuItem value={option}>{option}</MenuItem>
+                <MenuItem key={option} value={option}>
+                  {option}
+                </MenuItem>
               ))}
             </Select>
             <Typography>{metricsDesc}</Typography>

@@ -1,7 +1,4 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import SearchEngine from "./searchengine/SearchEngine";
-
-const searchEngine = new SearchEngine();
 
 export const fetchSearch = createAsyncThunk(
   "searchResults/fetchSearch",

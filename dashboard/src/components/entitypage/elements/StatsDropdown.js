@@ -1,17 +1,6 @@
 import React from "react";
 import { Typography, Grid, Container } from "@material-ui/core";
 import { makeStyles } from "@material-ui/core/styles";
-import TimeDropdown from "./TimeDropdown";
-import QueryDropdown from "./QueryDropdown";
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-} from "chart.js";
 import { Bar } from "react-chartjs-2";
 import faker from "faker";
 
@@ -131,7 +120,7 @@ const StatsDropdown = ({ type, name }) => {
       <Grid container spacing={0}>
         <Grid item xs={12} height="15em">
           <div className={classes.graph}>
-            <Container minHeight={"800px"}>
+            <Container minheight={"800px"}>
               {Object.keys(stats).map((key, i) => (
                 <Typography variant="body1">
                   <b>{key}: </b>

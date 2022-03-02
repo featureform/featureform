@@ -6,14 +6,11 @@ import PropTypes from "prop-types";
 import { makeStyles } from "@material-ui/core/styles";
 import Typography from "@material-ui/core/Typography";
 import Box from "@material-ui/core/Box";
-import { useHistory } from "react-router-dom";
 import List from "@material-ui/core/List";
 import ListItem from "@material-ui/core/ListItem";
 import ListSubheader from "@material-ui/core/ListItem";
 import ListItemText from "@material-ui/core/ListItemText";
-import Icon from "@material-ui/core/Icon";
 import Container from "@material-ui/core/Container";
-import { setVariant } from "components/resource-list/VariantSlice";
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
@@ -153,15 +150,12 @@ const SearchResultsList = ({ type, contents, setVariant }) => {
 };
 
 const SearchResultsItem = ({ type, content, setVariant }) => {
-  const history = useHistory();
   const classes = useStyles();
 
   function handleClick(variant) {
     setVariant(type, content.name, variant);
   }
 
-  const name = content.formattedName;
-  const description = content.formattedDescription;
   return (
     <>
       <ListSubheader>

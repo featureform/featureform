@@ -24,7 +24,7 @@ import sql from "react-syntax-highlighter/dist/cjs/languages/prism/sql";
 import json from "react-syntax-highlighter/dist/cjs/languages/prism/json";
 import { okaidia } from "react-syntax-highlighter/dist/cjs/styles/prism";
 
-import VersionControl from "./elements/VersionControl";
+import VariantControl from "./elements/VariantControl";
 import TagBox from "./elements/TagBox";
 import MetricsDropdown from "./elements/MetricsDropdown";
 import StatsDropdown from "./elements/StatsDropdown";
@@ -117,7 +117,7 @@ const useStyles = makeStyles((theme) => ({
   icon: {
     marginRight: theme.spacing(2),
   },
-  versionControl: {
+  variantControl: {
     alignSelf: "flex-end",
   },
   syntax: {
@@ -201,7 +201,7 @@ function a11yProps(index) {
   };
 }
 
-const EntityPageView = ({ entity, setVersion, activeVersions }) => {
+const EntityPageView = ({ entity, setVariant, activeVariants }) => {
   let history = useHistory();
   let resources = entity.resources;
   let resourceType = Resource[entity.resources.type];
@@ -215,17 +215,17 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
   const icon = resourceType.materialIcon;
   const enableTags = false;
 
-  let version = resources["default-variant"];
+  let variant = resources["default-variant"];
 
-  if (activeVersions[entity.resources.type][name]) {
-    version = activeVersions[entity.resources.type][name];
+  if (activeVariants[entity.resources.type][name]) {
+    variant = activeVariants[entity.resources.type][name];
   } else {
-    setVersion(entity.resources.type, name, resources["default-variant"]);
+    setVariant(entity.resources.type, name, resources["default-variant"]);
   }
 
   let resource;
   if (resourceType.hasVariants) {
-    resource = resources.versions[version];
+    resource = resources.variants[variant];
   } else {
     resource = resources;
   }
@@ -250,13 +250,13 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
     });
   };
 
-  let allVersions = resources["all-versions"];
+  let allVariants = resources["all-variants"];
 
   const classes = useStyles();
   const [value, setValue] = React.useState(0);
 
-  const handleVersionChange = (event) => {
-    setVersion(type, name, event.target.value);
+  const handleVariantChange = (event) => {
+    setVariant(type, name, event.target.value);
   };
 
   const handleChange = (event, newValue) => {
@@ -309,11 +309,11 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                     )}
                   </div>
                 </div>
-                {allVersions && allVersions.length > 1 && (
-                  <VersionControl
-                    version={version}
-                    versions={allVersions}
-                    handleVersionChange={handleVersionChange}
+                {allVariants && allVariants.length > 1 && (
+                  <VariantControl
+                    variant={variant}
+                    variants={allVariants}
+                    handleVariantChange={handleVariantChange}
                     type={type}
                     name={name}
                     local={local}
@@ -467,7 +467,7 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                 root: classes.tabChart,
               }}
             >
-              <MetricsDropdown type={type} name={name} version={version} />
+              <MetricsDropdown type={type} name={name} variant={variant} />
             </TabPanel>
           )}
           {showStats && (
@@ -500,11 +500,11 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                   ? {
                       detailPanel: (row) => {
                         return (
-                          <VersionTable
+                          <VariantTable
                             type={key}
                             name={row.name}
-                            versions={row.variants}
-                            setVersion={setVersion}
+                            variants={row.variants}
+                            setVariant={setVariant}
                           />
                         );
                       },
@@ -527,9 +527,9 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                           field: item,
                           ...(item == "variants" && {
                             render: (row) => (
-                              <VersionSelector
+                              <VariantSelector
                                 name={row.name}
-                                versions={row.variants}
+                                variants={row.variants}
                               />
                             ),
                           }),
@@ -601,42 +601,42 @@ export const TagList = ({
   </Grid>
 );
 
-export const VersionSelector = ({ name, versions = [""], children }) => (
+export const VariantSelector = ({ name, variants = [""], children }) => (
   <FormControl>
-    <Select value={versions[0]}>
-      {versions.map((version) => (
+    <Select value={variants[0]}>
+      {variants.map((variant) => (
         <MenuItem
-          key={version}
-          value={version}
+          key={variant}
+          value={variant}
           onClick={(event) => {
             event.stopPropagation();
           }}
         >
-          {version}
+          {variant}
         </MenuItem>
       ))}
     </Select>
   </FormControl>
 );
 
-export const VersionTable = ({
+export const VariantTable = ({
   name,
-  versions = [""],
+  variants = [""],
   type,
-  activeVersions,
-  setVersion,
+  activeVariants,
+  setVariant,
   children,
   mutableRes,
 }) => {
   const classes = useStyles();
   let history = useHistory();
-  function versionChangeRedirect(e, data) {
-    setVersion(type, name, data.variant);
+  function variantChangeRedirect(e, data) {
+    setVariant(type, name, data.variant);
     history.push(Resource[type].urlPathResource(name));
   }
   let myVariants = [];
-  versions.forEach((version) => {
-    myVariants.push({ variant: version });
+  variants.forEach((variant) => {
+    myVariants.push({ variant: variant });
   });
   return (
     <div>
@@ -647,7 +647,7 @@ export const VersionTable = ({
             <b></b>
           </Typography>
         }
-        onRowClick={versionChangeRedirect}
+        onRowClick={variantChangeRedirect}
         columns={[
           { title: "Variants", field: "variant" },
           { title: "Description", field: "description" },

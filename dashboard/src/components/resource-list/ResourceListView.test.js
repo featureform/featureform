@@ -12,7 +12,7 @@ import { ThemeProvider } from "@material-ui/core/styles";
 import {
   ResourceListView,
   TagList,
-  VersionSelector,
+  VariantSelector,
 } from "./ResourceListView.js";
 
 configure({ adapter: new Adapter() });
@@ -56,7 +56,7 @@ describe("ResourceListView", () => {
         resources={[
           {
             name: "abc",
-            versions: { "first-variant": {}, "second-variant": {} },
+            variants: { "first-variant": {}, "second-variant": {} },
           },
         ]}
       />
@@ -70,7 +70,7 @@ describe("ResourceListView", () => {
     const immutData = produce([], (draft) => {
       draft.push({
         name: "abc",
-        versions: { "first-variant": {}, "second-variant": {} },
+        variants: { "first-variant": {}, "second-variant": {} },
       });
     });
     const list = shallow(
@@ -110,21 +110,21 @@ describe("ResourceListView", () => {
     expect(list.children().props().isLoading).toEqual(true);
   });
 
-  describe("VersionSelector", () => {
-    it("sets default active version", () => {
-      const sel = shallow(<VersionSelector name="abc" versions={["1", "2"]} />);
+  describe("VariantSelector", () => {
+    it("sets default active variant", () => {
+      const sel = shallow(<VariantSelector name="abc" variants={["1", "2"]} />);
       expect(sel.children().props().value).toBe("1");
     });
 
-    it("onChange calls setVersion", () => {
+    it("onChange calls setVariant", () => {
       const onChange = jest.fn();
       const name = "abc";
       const clickVal = "2";
       const sel = shallow(
-        <VersionSelector
+        <VariantSelector
           name={name}
-          versions={["1", "2"]}
-          setVersion={onChange}
+          variants={["1", "2"]}
+          setVariant={onChange}
         />
       );
       sel.children().prop("onChange")({ target: { value: clickVal } });

@@ -14,7 +14,7 @@ export default class SearchEngine {
       if (k === "name") {
         originalText = item.name;
       } else if (k === "description") {
-        originalText = item.versions[item["default-variant"]].description;
+        originalText = item.variants[item["default-variant"]].description;
       }
 
       let formattedString = "";
@@ -81,11 +81,11 @@ export default class SearchEngine {
       let score = 0;
       const itemData = {
         name: item.name.toLowerCase(),
-        description: item.versions[item["default-variant"]].description
-          ? item.versions[item["default-variant"]].description.toLowerCase()
+        description: item.variants[item["default-variant"]].description
+          ? item.variants[item["default-variant"]].description.toLowerCase()
           : "",
-        tags: item.versions[item["default-variant"]].tags
-          ? item.versions[item["default-variant"]].tags.join(" ").toLowerCase()
+        tags: item.variants[item["default-variant"]].tags
+          ? item.variants[item["default-variant"]].tags.join(" ").toLowerCase()
           : "",
       };
 

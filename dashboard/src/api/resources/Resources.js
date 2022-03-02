@@ -5,10 +5,10 @@ export const testData = [
     name: "User sample preferences",
     "default-variant": "first-variant",
     type: "Feature",
-    "all-versions": ["first-variant", "normalized variant"],
-    versions: {
+    "all-variants": ["first-variant", "normalized variant"],
+    variants: {
       "first-variant": {
-        "version-name": "first-variant",
+        "variant-name": "first-variant",
         dimensions: 3,
         created: "2020-08-09-0290499",
         owner: "Simba Khadder",
@@ -18,7 +18,7 @@ export const testData = [
         description: "Vector generated based on user preferences",
       },
       "normalized variant": {
-        "version-name": "normalized variant",
+        "variant-name": "normalized variant",
         dimensions: 3,
         created: "2020-08-09-0290499",
         owner: "Simba Khadder",
@@ -122,7 +122,7 @@ export default class ResourcesAPI {
       });
   }
 
-  fetchVersionSearchStub(query) {
+  fetchVariantSearchStub(query) {
     const fetchAddress = "/data/lists/search_results_example.json";
 
     return fetch(fetchAddress, {

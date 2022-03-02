@@ -1,7 +1,7 @@
 import { combineReducers } from "redux";
 import {
   resourceReducer,
-  versionReducer,
+  variantReducer,
   tagReducer,
 } from "components/resource-list";
 import { homePageReducer } from "components/homepage";
@@ -15,7 +15,7 @@ import { aggregateDropdownSliceReducer } from "components/entitypage/elements";
 
 export default combineReducers({
   resourceList: resourceReducer,
-  selectedVersion: versionReducer,
+  selectedVariant: variantReducer,
   selectedTags: tagReducer,
   homePageSections: homePageReducer,
   breadCrumbs: breadCrumbsReducer,

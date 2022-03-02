@@ -20,23 +20,23 @@ const useStyles = makeStyles((theme) => ({
 function mapStateToProps(state) {
   return {
     entityPage: state.entityPage,
-    activeVersions: state.selectedVersion,
+    activeVariants: state.selectedVariant,
   };
 }
 
-const VersionControl = ({
-  version,
-  versions,
-  handleVersionChange,
+const VariantControl = ({
+  variant,
+  variants,
+  handleVariantChange,
   entityPage,
   convertTimestampToDate,
   local,
 }) => {
   const classes = useStyles();
-  let createdDate = entityPage.resources["versions"][version]["created"];
+  let createdDate = entityPage.resources["variants"][variant]["created"];
 
   const handleChange = (event) => {
-    handleVersionChange(event);
+    handleVariantChange(event);
   };
 
   return (
@@ -47,14 +47,14 @@ const VersionControl = ({
       <Select
         labelId="demo-simple-select-placeholder-label-label"
         id="demo-simple-select-placeholder-label"
-        value={version}
+        value={variant}
         onChange={handleChange}
         displayEmpty
         className={classes.selectEmpty}
       >
-        {versions.map((version) => (
-          <MenuItem key={version} value={version}>
-            {version}
+        {variants.map((variant) => (
+          <MenuItem key={variant} value={variant}>
+            {variant}
           </MenuItem>
         ))}
       </Select>
@@ -65,4 +65,4 @@ const VersionControl = ({
   );
 };
 
-export default connect(mapStateToProps)(VersionControl);
+export default connect(mapStateToProps)(VariantControl);

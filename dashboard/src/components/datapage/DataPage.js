@@ -8,17 +8,12 @@ import Resource from "api/resources/Resource.js";
 const apiHandle = new ResourcesAPI();
 
 const DataPage = ({ ...props }) => {
-  const { type } = useParams();
-  let resourceType = Resource.pathToType[type];
-  //let typeProp = { type: resourceType };
+  const { paramType } = useParams();
+  let type = Resource.pathToType[paramType];
 
   return (
     <div>
-      {resourceType ? (
-        <ResourceList api={apiHandle} type={resourceType} />
-      ) : (
-        <NotFoundPage />
-      )}
+      {type ? <ResourceList api={apiHandle} type={type} /> : <NotFoundPage />}
     </div>
   );
 };

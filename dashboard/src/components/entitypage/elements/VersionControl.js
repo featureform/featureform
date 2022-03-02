@@ -33,13 +33,7 @@ const VersionControl = ({
   local,
 }) => {
   const classes = useStyles();
-  let createdDate;
-  if (local) {
-    createdDate =
-      entityPage.resources["versions"][version]["metadata"]["created"];
-  } else {
-    createdDate = entityPage.resources["versions"][version]["created"];
-  }
+  let createdDate = entityPage.resources["versions"][version]["created"];
 
   const handleChange = (event) => {
     handleVersionChange(event);

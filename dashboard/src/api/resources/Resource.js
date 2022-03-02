@@ -77,6 +77,12 @@ export default class Resource {
 
   static pathToType = this._generatePaths();
 
+  static get resourceTypes() {
+    return Object.entries(Resource)
+      .filter((res) => res[1] instanceof Resource)
+      .map((res) => res[0]);
+  }
+
   constructor(config) {
     this._type = config.type;
     this._typePlural = config.typePlural;

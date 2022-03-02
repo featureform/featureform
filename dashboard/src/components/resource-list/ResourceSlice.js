@@ -1,5 +1,4 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import { resourceTypes } from "api/resources";
 import Resource from "api/resources/Resource.js";
 
 const assertAndCheck = (assertion, errorMessage) => {
@@ -7,14 +6,14 @@ const assertAndCheck = (assertion, errorMessage) => {
   return assertion;
 };
 
-const isValidResponse = (resources, hasVersions) => {
+const isValidResponse = (resources, hasVariants) => {
   let af = true;
   af &= assertAndCheck(
     Array.isArray(resources),
     "Resource list fetch not an array"
   );
 
-  if (hasVersions) {
+  if (hasVariants) {
     resources.forEach((resource) => {
       af &= assertAndCheck("name" in resource, "Resource has no name element");
       af &= assertAndCheck(
@@ -77,7 +76,7 @@ const reduceFn = (map, type) => {
   return map;
 };
 const reduceFnInitial = {};
-export const initialState = Object.values(resourceTypes).reduce(
+export const initialState = Resource.resourceTypes.reduce(
   reduceFn,
   reduceFnInitial
 );
@@ -105,8 +104,8 @@ const resourceSlice = createSlice({
       let hasRequired = false;
       if (action.payload.length > 0) {
         const resourceType = action.payload[0].type;
-        const hasVersions = resourceType.hasVersions;
-        hasRequired = isValidResponse(action.payload, hasVersions);
+        const hasVariants = resourceType.hasVariants;
+        hasRequired = isValidResponse(action.payload, hasVariants);
       }
 
       if (hasRequired) {

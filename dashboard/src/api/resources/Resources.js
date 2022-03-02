@@ -1,22 +1,10 @@
 import Resource from "api/resources/Resource.js";
 
-export const resourceTypes = Object.freeze({
-  FEATURE: "Feature",
-  FEATURE_SET: "FeatureSet",
-  LABEL: "Label",
-  ENTITY: "Entity",
-  MODEL: "Model",
-  TRANSFORMATION: "Transformation",
-  TRAINING_DATASET: "TrainingSet",
-  PROVIDER: "Provider",
-  USER: "User",
-  PRIMARY_DATA: "PrimaryData",
-});
-
 export const testData = [
   {
     name: "User sample preferences",
     "default-variant": "first-variant",
+    type: "Feature",
     "all-versions": ["first-variant", "normalized variant"],
     versions: {
       "first-variant": {

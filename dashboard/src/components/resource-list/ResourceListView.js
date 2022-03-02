@@ -8,7 +8,6 @@ import MenuItem from "@material-ui/core/MenuItem";
 import FormControl from "@material-ui/core/FormControl";
 import Select from "@material-ui/core/Select";
 import theme from "styles/theme";
-import { useParams } from "react-router-dom";
 import CircleOutlinedIcon from "@mui/icons-material/CircleOutlined";
 import Rating from "@mui/material/Rating";
 import MaterialTable, {
@@ -182,6 +181,7 @@ export const ResourceListView = ({
         render: (row) => (
           <div className={classes.providerColumn}>
             <img
+              alt={row.software}
               className={classes.providerLogo}
               src={providerLogos[row.software]}
             ></img>
@@ -277,55 +277,6 @@ export const ResourceListView = ({
       variants: row["all-variants"],
     }));
   }
-
-  let default_columns = [
-    { title: "Name", field: "name" },
-    { title: "Description", field: "description" },
-    {
-      title: "Tags",
-      field: "tags",
-      render: (row) => (
-        <TagList
-          activeTags={activeTags}
-          tags={row.tags}
-          tagClass={classes.tag}
-          toggleTag={toggleTag}
-        />
-      ),
-    },
-    { title: "Revision", field: "revision" },
-    {
-      title: "Variant",
-      field: "variants",
-      render: (row) => (
-        <VariantSelector
-          name={row.name}
-          variants={rowVariants.find((v) => v.name === row.name)["variants"]}
-          activeVariants={myVariants}
-          setVariant={setVariant}
-        />
-      ),
-    },
-  ];
-
-  let provider_columns = [
-    { title: "Name", field: "name" },
-    { title: "Description", field: "description" },
-    { title: "Type", field: "type" },
-    {
-      title: "Software",
-      field: "software",
-      render: (row) => (
-        <div className={classes.providerColumn}>
-          <img
-            className={classes.providerLogo}
-            src={providerLogos[row.software]}
-          ></img>
-        </div>
-      ),
-    },
-    { title: "Team", field: "team" },
-  ];
 
   return (
     <div>
@@ -478,7 +429,7 @@ export const VariantTable = ({
   variants.forEach((variant) => {
     myVariants.push({
       variant: variant,
-      description: mutableRes.find((el) => el.name == name).variants[variant]
+      description: mutableRes.find((el) => el.name === name).variants[variant]
         .description,
     });
   });

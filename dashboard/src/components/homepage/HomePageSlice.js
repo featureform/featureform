@@ -1,5 +1,4 @@
 import { createSlice } from "@reduxjs/toolkit";
-import Resource from "api/resources/Resource.js";
 
 const homePageSlice = createSlice({
   name: "homePageSections",

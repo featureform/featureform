@@ -78,7 +78,7 @@ const scale = (value) => {
 function numFormatter(value) {
   return value;
 }
-function ExponentialTimeSlider({ timeRange, changeTime }) {
+function ExponentialTimeSlider({ changeTime }) {
   const classes = useStyles();
 
   function convToDateTime(value) {
@@ -114,8 +114,10 @@ function ExponentialTimeSlider({ timeRange, changeTime }) {
         valueLabelDisplay="auto"
       />
       <div className={classes.dateRangeView}>
-        {scaleValues(value).map((value) => (
-          <Typography variant="body2">{convToDateTime(value)}</Typography>
+        {scaleValues(value).map((value, i) => (
+          <Typography key={i} variant="body2">
+            {convToDateTime(value)}
+          </Typography>
         ))}
       </div>
     </div>

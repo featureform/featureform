@@ -38,7 +38,9 @@ function AggregateDropdwon({ graph, aggregates, changeAggregate }) {
           >
             {/* {Object.keys(resourceData).map((key, i) => ( */}
             {dropdownValues.map((item) => (
-              <MenuItem value={item.value}>{item.label}</MenuItem>
+              <MenuItem key={item.label} value={item.value}>
+                {item.label}
+              </MenuItem>
             ))}
           </Select>
         </FormControl>

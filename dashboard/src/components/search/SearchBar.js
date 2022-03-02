@@ -57,7 +57,6 @@ const useStyles = makeStyles((theme) =>
       transition: theme.transitions.create("width"),
       background: "transparent",
       boxShadow: "none",
-      alignSelf: "center",
       padding: theme.spacing(1, 0.75, 0.4, 0),
       justifyContent: "center",
       display: "flex",

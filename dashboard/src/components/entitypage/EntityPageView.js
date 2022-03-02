@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import AppBar from "@material-ui/core/AppBar";
 import Tabs from "@material-ui/core/Tabs";
 import Tab from "@material-ui/core/Tab";
@@ -10,9 +10,7 @@ import Box from "@material-ui/core/Box";
 import Grid from "@material-ui/core/Grid";
 import { useHistory } from "react-router-dom";
 import Container from "@material-ui/core/Container";
-import Avatar from "@material-ui/core/Avatar";
 import Icon from "@material-ui/core/Icon";
-import Button from "@material-ui/core/Button";
 import Chip from "@material-ui/core/Chip";
 import FormControl from "@material-ui/core/FormControl";
 import Select from "@material-ui/core/Select";
@@ -270,10 +268,6 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
     history.push(`/entities/${metadata["entity"]}`);
   };
 
-  const linkToTransformSource = (event) => {
-    history.push(`/transformations/${metadata["transformation source"]}`);
-  };
-
   const linkToDataSource = (event) => {
     history.push(`/primary-data/${metadata["primary data"]}`);
   };
@@ -289,7 +283,6 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
           <Grid
             container
             className={classes.topContainer}
-            lg={12}
             justifyContent="flex-start"
           >
             <Grid item xs={false} className={classes.icon}></Grid>
@@ -341,7 +334,6 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                         className={classes.linkChip}
                         size="small"
                         onClick={linkToUserPage}
-                        className={classes.transformButton}
                         label={metadata["owner"]}
                       ></Chip>
                     </div>
@@ -389,7 +381,6 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                         className={classes.linkChip}
                         size="small"
                         onClick={linkToDataSource}
-                        className={classes.transformButton}
                         label={metadata["primary data"]}
                       ></Chip>
                     </div>
@@ -405,7 +396,6 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                         className={classes.linkChip}
                         size="small"
                         onClick={linkToEntityPage}
-                        className={classes.transformButton}
                         label={metadata["entity"]}
                       ></Chip>
                     </div>
@@ -449,6 +439,7 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
               )}
               {Object.keys(resourceData).map((key, i) => (
                 <Tab
+                  key={i}
                   label={Resource[key].typePlural}
                   {...a11yProps(i + dataTabDisplacement)}
                 />
@@ -519,11 +510,13 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                 {...(Object.keys(resourceData[key]).length > 0
                   ? {
                       columns: Object.keys(resourceData[key][0])
-                        .filter((item) => item != "tags" && item != "variants")
+                        .filter(
+                          (item) => item !== "tags" && item !== "variants"
+                        )
                         .map((item) => ({
                           title: capitalize(item),
                           field: item,
-                          ...(item == "variants" && {
+                          ...(item === "variants" && {
                             render: (row) => (
                               <VariantSelector
                                 name={row.name}
@@ -531,7 +524,7 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                               />
                             ),
                           }),
-                          ...(item == "tags" && {
+                          ...(item === "tags" && {
                             render: (row) => (
                               <TagList tags={row.tags} tagClass={classes.tag} />
                             ),
@@ -542,7 +535,7 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                 data={resourceData[key].map((o) => {
                   let new_object = {};
                   Object.keys(o).forEach((key) => {
-                    if (convertTimestampToDate(o[key]) != "Invalid Date") {
+                    if (convertTimestampToDate(o[key]) !== "Invalid Date") {
                       new_object[key] = convertTimestampToDate(o[key]);
                     } else {
                       new_object[key] = o[key];
@@ -557,7 +550,7 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                   Container: (props) => (
                     <div
                       className={classes.resourceList}
-                      minWidth="xl"
+                      minwidth="xl"
                       {...props}
                     />
                   ),

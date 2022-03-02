@@ -7,7 +7,7 @@ export default class SearchEngine {
 
   createFormattedStrings(matchPositions, item) {
     for (const k of Object.keys(matchPositions)) {
-      if (matchPositions[k].size == 0) {
+      if (matchPositions[k].size === 0) {
         continue;
       }
       let originalText;

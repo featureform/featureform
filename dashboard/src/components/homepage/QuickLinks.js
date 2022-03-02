@@ -1,11 +1,7 @@
 import React from "react";
-import { createStyles, alpha, makeStyles } from "@material-ui/core/styles";
-import SearchIcon from "@material-ui/icons/Search";
-import Grid from "@material-ui/core/Grid";
+import { makeStyles } from "@material-ui/core/styles";
 import { useHistory } from "react-router-dom";
-import Container from "@material-ui/core/Container";
 import Chip from "@material-ui/core/Chip";
-import Icon from "@material-ui/core/Icon";
 
 const links = [
   {
@@ -57,7 +53,7 @@ const QuickLinks = () => {
   return (
     <div className={classes.links}>
       {links.map((link) => (
-        <div className={classes.chipbox}>
+        <div className={classes.chipbox} key={link.title}>
           <Chip
             size="small"
             label={link.title}

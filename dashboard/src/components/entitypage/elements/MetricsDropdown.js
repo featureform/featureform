@@ -72,7 +72,7 @@ const MetricsDropdown = ({ type, name, variant, timeRange, aggregates }) => {
     if (timeRange.timeRange[0] > 60) {
       setStepRange("hour");
       setStep("1h");
-    } else if (timeRange.timeRange[0] == 60) {
+    } else if (timeRange.timeRange[0] === 60) {
       setStepRange("min");
       setStep("1m");
     }
@@ -83,8 +83,8 @@ const MetricsDropdown = ({ type, name, variant, timeRange, aggregates }) => {
       <Grid container spacing={0}>
         <Grid item xs={12} height="10em">
           <div className={classes.graph}>
-            <Container minHeight={"1300px"}>
-              {type != "Dataset" ? (
+            <Container minheight={"1300px"}>
+              {type !== +"Dataset" ? (
                 <div>
                   <div className={classes.titleBar}>
                     <div className={classes.graphTitle}>

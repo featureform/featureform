@@ -1,71 +1,41 @@
 import { createSlice } from "@reduxjs/toolkit";
+import Resource from "api/resources/Resource.js";
 
 const homePageSlice = createSlice({
   name: "homePageSections",
   initialState: {
     features: [
       {
-        title: "Training Datasets",
-        icon: "storage",
-        path: "/training-sets",
+        type: Resource.TrainingSet,
         disabled: false,
-        description: "Training datasets",
       },
       {
-        title: "Transformations",
-        icon: "workspaces",
-        path: "/transformations",
+        type: Resource.Feature,
         disabled: false,
-        description: "Transformations",
       },
       {
-        title: "Features",
-        icon: "description",
-        path: "/features",
+        type: Resource.Entity,
         disabled: false,
-        description: "Historical feature repository",
       },
       {
-        title: "Entities",
-        icon: "fingerprint",
-        path: "/entities",
+        type: Resource.Label,
         disabled: false,
-        description: "Not avaliable",
       },
       {
-        title: "Labels",
-        icon: "label",
-        path: "/labels",
+        type: Resource.Model,
         disabled: false,
-        description: "Not avaliable",
       },
       {
-        title: "Models",
-        icon: "model_training",
-        path: "/models",
+        type: Resource.PrimaryData,
         disabled: false,
-        description: "Not avaliable",
       },
       {
-        title: "Primary Data",
-        icon: "source",
-        path: "/primary-data",
+        type: Resource.Provider,
         disabled: false,
-        description: "Not avaliable",
       },
       {
-        title: "Providers",
-        icon: "device_hub",
-        path: "/providers",
+        type: Resource.User,
         disabled: false,
-        description: "Not avaliable",
-      },
-      {
-        title: "Users",
-        icon: "person",
-        path: "/users",
-        disabled: false,
-        description: "Not avaliable",
       },
     ],
   },

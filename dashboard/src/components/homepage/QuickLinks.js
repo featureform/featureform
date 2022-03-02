@@ -46,7 +46,7 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const QuickLinks = ({ sections }) => {
+const QuickLinks = () => {
   const history = useHistory();
   const classes = useStyles();
 
@@ -71,9 +71,5 @@ const QuickLinks = ({ sections }) => {
     </div>
   );
 };
-
-const mapStateToProps = (state) => ({
-  sections: state.homePageSections,
-});
 
 export default QuickLinks;

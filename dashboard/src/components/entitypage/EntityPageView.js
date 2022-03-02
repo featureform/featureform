@@ -28,15 +28,8 @@ import VersionControl from "./elements/VersionControl";
 import TagBox from "./elements/TagBox";
 import MetricsDropdown from "./elements/MetricsDropdown";
 import StatsDropdown from "./elements/StatsDropdown";
-import {
-  resourceTypes,
-  resourceIcons,
-  resourcePaths,
-  resourceVersions,
-  dependencyLabels,
-  pathToType,
-  local,
-} from "api/resources";
+import { local } from "api/resources";
+import Resource from "api/resources/Resource.js";
 import theme from "styles/theme/index.js";
 
 SyntaxHighlighter.registerLanguage("python", python);
@@ -208,33 +201,30 @@ function a11yProps(index) {
   };
 }
 
-const EntityPageView = ({ entity, setVersion, activeVersions, typePath }) => {
+const EntityPageView = ({ entity, setVersion, activeVersions }) => {
   let history = useHistory();
   let resources = entity.resources;
-  let type = pathToType[typePath];
-  const showMetrics =
-    type === resourceTypes.FEATURE ||
-    type === resourceTypes.FEATURE_SET ||
-    type === resourceTypes.DATASET;
-  const singleVariant =
-    type === resourceTypes.TRAINING_DATASET || type === resourceTypes.MODEL;
+  let resourceType = Resource[entity.resources.type];
+  let type = resourceType.type;
+  const showMetrics = resourceType.hasMetrics;
+  const singleVariant = !resourceType.hasVariants;
   const showStats = false;
   const dataTabDisplacement = (1 ? showMetrics : 0) + (1 ? showStats : 0);
   const statsTabDisplacement = showMetrics ? 1 : 0;
   const name = resources["name"];
-  const icon = resourceIcons[type];
+  const icon = resourceType.materialIcon;
   const enableTags = false;
 
   let version = resources["default-variant"];
 
-  if (activeVersions[type][name]) {
-    version = activeVersions[type][name];
+  if (activeVersions[entity.resources.type][name]) {
+    version = activeVersions[entity.resources.type][name];
   } else {
-    setVersion(type, name, resources["default-variant"]);
+    setVersion(entity.resources.type, name, resources["default-variant"]);
   }
 
   let resource;
-  if (resourceVersions[type]) {
+  if (resourceType.hasVariants) {
     resource = resources.versions[version];
   } else {
     resource = resources;
@@ -246,8 +236,8 @@ const EntityPageView = ({ entity, setVersion, activeVersions, typePath }) => {
     resourceData = resource.data;
   } else {
     Object.keys(resource).forEach((key) => {
-      if (dependencyLabels[key]) {
-        resourceData[dependencyLabels[key]] = resource[key];
+      if (Resource.pathToType[key]) {
+        resourceData[Resource.pathToType[key]] = resource[key];
       } else {
         metadata[key] = resource[key];
       }
@@ -464,7 +454,10 @@ const EntityPageView = ({ entity, setVersion, activeVersions, typePath }) => {
                 <Tab label={"stats"} {...a11yProps(statsTabDisplacement)} />
               )}
               {Object.keys(resourceData).map((key, i) => (
-                <Tab label={key} {...a11yProps(i + dataTabDisplacement)} />
+                <Tab
+                  label={Resource[key].typePlural}
+                  {...a11yProps(i + dataTabDisplacement)}
+                />
               ))}
             </Tabs>
           </AppBar>
@@ -564,7 +557,7 @@ const EntityPageView = ({ entity, setVersion, activeVersions, typePath }) => {
                   return new_object;
                 })}
                 onRowClick={(event, rowData) =>
-                  history.push(resourcePaths[key] + "/" + rowData.Name)
+                  history.push(Resource[key].urlPathResource(rowData.Name))
                 }
                 components={{
                   Container: (props) => (
@@ -643,7 +636,7 @@ export const VersionTable = ({
   let history = useHistory();
   function versionChangeRedirect(e, data) {
     setVersion(type, name, data.variant);
-    history.push(resourcePaths[type] + "/" + name);
+    history.push(Resource[type].urlPathResource(name));
   }
   let myVariants = [];
   versions.forEach((version) => {

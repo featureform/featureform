@@ -34,11 +34,12 @@ type FeatureVariantResource struct {
 	Type         string                 `json:"type"`
 	Variant      string                 `json:"variant"`
 	Source       metadata.NameVariant   `json:"source"`
-	TrainingSets []metadata.NameVariant `json:"trainingsets"`
+	TrainingSets []metadata.NameVariant `json:"training-sets"`
 }
 
 type FeatureResource struct {
 	AllVariants    []string                          `json:"all-versions"`
+	Type           string                            `json:"type"`
 	DefaultVariant string                            `json:"default-variant"`
 	Name           string                            `json:"name"`
 	Variants       map[string]FeatureVariantResource `json:"versions"`
@@ -57,6 +58,7 @@ type TrainingSetVariantResource struct {
 
 type TrainingSetResource struct {
 	AllVariants    []string                              `json:"all-versions"`
+	Type           string                                `json:"type"`
 	DefaultVariant string                                `json:"default-variant"`
 	Name           string                                `json:"name"`
 	Variants       map[string]TrainingSetVariantResource `json:"versions"`
@@ -72,11 +74,12 @@ type SourceVariantResource struct {
 	Variant      string                 `json:"variant"`
 	Labels       []metadata.NameVariant `json:"labels"`
 	Features     []metadata.NameVariant `json:"features"`
-	TrainingSets []metadata.NameVariant `json:"trainingsets"`
+	TrainingSets []metadata.NameVariant `json:"training-sets"`
 }
 
 type SourceResource struct {
 	AllVariants    []string                         `json:"all-versions"`
+	Type           string                           `json:"type"`
 	DefaultVariant string                           `json:"default-variant"`
 	Name           string                           `json:"name"`
 	Variants       map[string]SourceVariantResource `json:"versions"`
@@ -92,11 +95,12 @@ type LabelVariantResource struct {
 	Type         string                 `json:"type"`
 	Variant      string                 `json:"variant"`
 	Source       metadata.NameVariant   `json:"source"`
-	TrainingSets []metadata.NameVariant `json:"trainingsets"`
+	TrainingSets []metadata.NameVariant `json:"training-sets"`
 }
 
 type LabelResource struct {
 	AllVariants    []string                        `json:"all-versions"`
+	Type           string                          `json:"type"`
 	DefaultVariant string                          `json:"default-variant"`
 	Name           string                          `json:"name"`
 	Variants       map[string]LabelVariantResource `json:"versions"`
@@ -104,22 +108,25 @@ type LabelResource struct {
 
 type EntityResource struct {
 	Name         string                 `json:"name"`
+	Type         string                 `json:"type"`
 	Description  string                 `json:"description"`
 	Features     []metadata.NameVariant `json:"features"`
 	Labels       []metadata.NameVariant `json:"labels"`
-	TrainingSets []metadata.NameVariant `json:"trainingsets"`
+	TrainingSets []metadata.NameVariant `json:"training-sets"`
 }
 
 type UserResource struct {
 	Name         string                 `json:"name"`
+	Type         string                 `json:"type"`
 	Features     []metadata.NameVariant `json:"features"`
 	Labels       []metadata.NameVariant `json:"labels"`
-	TrainingSets []metadata.NameVariant `json:"trainingsets"`
-	Sources      []metadata.NameVariant `json:"sources"`
+	TrainingSets []metadata.NameVariant `json:"training-sets"`
+	Sources      []metadata.NameVariant `json:"primary-data"`
 }
 
 type ModelResource struct {
 	Name         string                 `json:"name"`
+	Type         string                 `json:"type"`
 	Description  string                 `json:"description"`
 	Features     []metadata.NameVariant `json:"features"`
 	Labels       []metadata.NameVariant `json:"labels"`
@@ -128,11 +135,12 @@ type ModelResource struct {
 
 type ProviderResource struct {
 	Name         string                 `json:"name"`
-	Description  string                 `json:"description"`
 	Type         string                 `json:"type"`
+	Description  string                 `json:"description"`
+	ProviderType string                 `json:"provider-type"`
 	Software     string                 `json:"software"`
 	Team         string                 `json:"team"`
-	Sources      []metadata.NameVariant `json:"sources"`
+	Sources      []metadata.NameVariant `json:"primary-data"`
 	Features     []metadata.NameVariant `json:"features"`
 	Labels       []metadata.NameVariant `json:"labels"`
 	TrainingSets []metadata.NameVariant `json:"trainingsets"`
@@ -263,6 +271,7 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 		}
 		c.JSON(http.StatusOK, FeatureResource{
 			AllVariants:    feature.Variants(),
+			Type:           "Feature",
 			DefaultVariant: feature.DefaultVariant(),
 			Name:           feature.Name(),
 			Variants:       variantList,
@@ -282,6 +291,7 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 		}
 		c.JSON(http.StatusOK, LabelResource{
 			AllVariants:    label.Variants(),
+			Type:           "Label",
 			DefaultVariant: label.DefaultVariant(),
 			Name:           label.Name(),
 			Variants:       variantList,
@@ -301,6 +311,7 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 		}
 		c.JSON(http.StatusOK, TrainingSetResource{
 			AllVariants:    trainingSet.Variants(),
+			Type:           "TrainingSet",
 			DefaultVariant: trainingSet.DefaultVariant(),
 			Name:           trainingSet.Name(),
 			Variants:       variantList,
@@ -320,6 +331,7 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 		}
 		c.JSON(http.StatusOK, SourceResource{
 			AllVariants:    source.Variants(),
+			Type:           "PrimaryData",
 			DefaultVariant: source.DefaultVariant(),
 			Name:           source.Name(),
 			Variants:       variantList,
@@ -334,6 +346,7 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 		}
 		c.JSON(http.StatusOK, EntityResource{
 			Name:         entity.Name(),
+			Type:         "Entity",
 			Description:  entity.Description(),
 			Features:     entity.Features(),
 			Labels:       entity.Labels(),
@@ -349,6 +362,7 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 		}
 		c.JSON(http.StatusOK, UserResource{
 			Name:         user.Name(),
+			Type:         "User",
 			Features:     user.Features(),
 			Labels:       user.Labels(),
 			TrainingSets: user.TrainingSets(),
@@ -364,6 +378,7 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 		}
 		c.JSON(http.StatusOK, ModelResource{
 			Name:         model.Name(),
+			Type:         "Model",
 			Description:  model.Description(),
 			Features:     model.Features(),
 			Labels:       model.Labels(),
@@ -379,8 +394,9 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 		}
 		c.JSON(http.StatusOK, ProviderResource{
 			Name:         provider.Name(),
+			Type:         "Provider",
 			Description:  provider.Description(),
-			Type:         provider.Type(),
+			ProviderType: provider.Type(),
 			Software:     provider.Software(),
 			Team:         provider.Team(),
 			Sources:      provider.Sources(),
@@ -412,6 +428,7 @@ func (m *MetadataServer) GetMetadataList(c *gin.Context) {
 			}
 			featureList[i] = FeatureResource{
 				AllVariants:    feature.Variants(),
+				Type:           "Feature",
 				DefaultVariant: feature.DefaultVariant(),
 				Name:           feature.Name(),
 				Variants:       variantList,
@@ -436,6 +453,7 @@ func (m *MetadataServer) GetMetadataList(c *gin.Context) {
 			}
 			trainingSetList[i] = TrainingSetResource{
 				AllVariants:    trainingSet.Variants(),
+				Type:           "TrainingSet",
 				DefaultVariant: trainingSet.DefaultVariant(),
 				Name:           trainingSet.Name(),
 				Variants:       variantList,
@@ -460,6 +478,7 @@ func (m *MetadataServer) GetMetadataList(c *gin.Context) {
 			}
 			sourceList[i] = SourceResource{
 				AllVariants:    source.Variants(),
+				Type:           "PrimaryData",
 				DefaultVariant: source.DefaultVariant(),
 				Name:           source.Name(),
 				Variants:       variantList,
@@ -485,6 +504,7 @@ func (m *MetadataServer) GetMetadataList(c *gin.Context) {
 			}
 			labelList[i] = LabelResource{
 				AllVariants:    label.Variants(),
+				Type:           "Label",
 				DefaultVariant: label.DefaultVariant(),
 				Name:           label.Name(),
 				Variants:       variantList,
@@ -503,6 +523,7 @@ func (m *MetadataServer) GetMetadataList(c *gin.Context) {
 		for i, entity := range entities {
 			entityList[i] = EntityResource{
 				Name:        entity.Name(),
+				Type:        "Entity",
 				Description: entity.Description(),
 			}
 		}
@@ -520,6 +541,7 @@ func (m *MetadataServer) GetMetadataList(c *gin.Context) {
 		for i, model := range models {
 			modelList[i] = ModelResource{
 				Name:        model.Name(),
+				Type:        "Model",
 				Description: model.Description(),
 			}
 		}
@@ -537,6 +559,7 @@ func (m *MetadataServer) GetMetadataList(c *gin.Context) {
 		for i, user := range users {
 			userList[i] = UserResource{
 				Name: user.Name(),
+				Type: "User",
 			}
 		}
 		c.JSON(http.StatusOK, userList)
@@ -552,11 +575,12 @@ func (m *MetadataServer) GetMetadataList(c *gin.Context) {
 		providerList := make([]ProviderResource, len(providers))
 		for i, provider := range providers {
 			providerList[i] = ProviderResource{
-				Name:        provider.Name(),
-				Description: provider.Description(),
-				Software:    provider.Software(),
-				Team:        provider.Team(),
-				Type:        provider.Type(),
+				Name:         provider.Name(),
+				Type:         "Provider",
+				Description:  provider.Description(),
+				Software:     provider.Software(),
+				Team:         provider.Team(),
+				ProviderType: provider.Type(),
 			}
 		}
 		c.JSON(http.StatusOK, providerList)

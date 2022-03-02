@@ -96,6 +96,7 @@ export const ResourceListView = ({
   resources,
   loading,
   failed,
+  resourceType,
   activeTags,
   activeVersions = {},
   setVersion,
@@ -352,7 +353,7 @@ export const ResourceListView = ({
         className={classes.table}
         title={
           <Typography variant="h4">
-            <b>{title}</b>
+            <b>{resourceType.typePlural}</b>
           </Typography>
         }
         columns={

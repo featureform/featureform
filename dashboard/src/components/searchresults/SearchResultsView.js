@@ -13,7 +13,7 @@ import ListSubheader from "@material-ui/core/ListItem";
 import ListItemText from "@material-ui/core/ListItemText";
 import Icon from "@material-ui/core/Icon";
 import Container from "@material-ui/core/Container";
-import { setVersion } from "components/resource-list/VersionSlice";
+import { setVariant } from "components/resource-list/VariantSlice";
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
@@ -71,7 +71,7 @@ function a11yProps(index) {
   };
 }
 
-const SearchResultsView = ({ results, search_query, setVersion }) => {
+const SearchResultsView = ({ results, search_query, setVariant }) => {
   const classes = useStyles();
 
   const [value, setValue] = React.useState(0);
@@ -123,7 +123,7 @@ const SearchResultsView = ({ results, search_query, setVersion }) => {
             <SearchResultsList
               type={type}
               contents={myResults[type]}
-              setVersion={setVersion}
+              setVariant={setVariant}
             />
           </TabPanel>
         ))}
@@ -134,7 +134,7 @@ const SearchResultsView = ({ results, search_query, setVersion }) => {
   );
 };
 
-const SearchResultsList = ({ type, contents, setVersion }) => {
+const SearchResultsList = ({ type, contents, setVariant }) => {
   const classes = useStyles();
 
   return (
@@ -144,7 +144,7 @@ const SearchResultsList = ({ type, contents, setVersion }) => {
           <SearchResultsItem
             type={type}
             content={content}
-            setVersion={setVersion}
+            setVariant={setVariant}
           />
         ))}
       </List>
@@ -152,12 +152,12 @@ const SearchResultsList = ({ type, contents, setVersion }) => {
   );
 };
 
-const SearchResultsItem = ({ type, content, setVersion }) => {
+const SearchResultsItem = ({ type, content, setVariant }) => {
   const history = useHistory();
   const classes = useStyles();
 
   function handleClick(variant) {
-    setVersion(type, content.name, variant);
+    setVariant(type, content.name, variant);
   }
 
   const name = content.formattedName;
@@ -173,7 +173,7 @@ const SearchResultsItem = ({ type, content, setVersion }) => {
         ></Typography>
       </ListSubheader>
 
-      {Object.keys(content.versions).map((variant, i) => (
+      {Object.keys(content.variants).map((variant, i) => (
         <ListItem button alignItems="flex-start">
           <ListItemText
             inset
@@ -183,7 +183,7 @@ const SearchResultsItem = ({ type, content, setVersion }) => {
               </Typography>
             }
             onClick={() => handleClick(variant)}
-            secondary={content.versions[variant].description}
+            secondary={content.variants[variant].description}
           />
         </ListItem>
       ))}

@@ -30,7 +30,7 @@ describe("ResourceList", () => {
   it("correctly maps inital props from state.", () => {
     const viewProps = component.find("ResourceListView").props();
     expect(viewProps).toMatchObject({
-      activeVersions: {},
+      activeVariants: {},
       title: dataType,
       resources: null,
       loading: true,
@@ -38,13 +38,13 @@ describe("ResourceList", () => {
     });
     const expKeys = [
       "activeTags",
-      "activeVersions",
+      "activeVariants",
       "title",
       "resources",
       "loading",
       "resourceType",
       "failed",
-      "setVersion",
+      "setVariant",
       "toggleTag",
     ];
     expect(Object.keys(viewProps).sort()).toEqual(expKeys.sort());
@@ -55,7 +55,7 @@ describe("ResourceList", () => {
       const state = {
         resourceList: { [dataType]: [] },
         selectedTags: { [dataType]: {} },
-        selectedVersion: { [dataType]: {} },
+        selectedVariant: { [dataType]: {} },
       };
       const selector = makeSelectFilteredResources(dataType);
       expect(selector(state)).toBeNull();
@@ -66,7 +66,7 @@ describe("ResourceList", () => {
       const state = {
         resourceList: { [dataType]: { resources: resList } },
         selectedTags: { [dataType]: {} },
-        selectedVersion: { [dataType]: {} },
+        selectedVariant: { [dataType]: {} },
       };
       const selector = makeSelectFilteredResources(dataType);
       expect(selector(state)).toEqual(resList);
@@ -74,15 +74,15 @@ describe("ResourceList", () => {
 
     it("filters using tag", () => {
       const resList = [
-        { name: "a", versions: { a1: { tags: ["1", "2"] } } },
-        { name: "b", versions: { b1: { tags: [] } } },
-        { name: "c", versions: { c1: { tags: ["1"] } } },
-        { name: "d", versions: { d1: { tags: ["2"] } } },
+        { name: "a", variants: { a1: { tags: ["1", "2"] } } },
+        { name: "b", variants: { b1: { tags: [] } } },
+        { name: "c", variants: { c1: { tags: ["1"] } } },
+        { name: "d", variants: { d1: { tags: ["2"] } } },
       ];
       const state = {
         resourceList: { [dataType]: { resources: resList } },
         selectedTags: { [dataType]: { "1": true } },
-        selectedVersion: { [dataType]: { a: "a1", b: "b1", c: "c1", d: "d1" } },
+        selectedVariant: { [dataType]: { a: "a1", b: "b1", c: "c1", d: "d1" } },
       };
       const selector = makeSelectFilteredResources(dataType);
       const expected = [0, 2].map((idx) => resList[idx]);
@@ -91,15 +91,15 @@ describe("ResourceList", () => {
 
     it("filters using multiple tags", () => {
       const resList = [
-        { name: "a", versions: { a1: { tags: ["1", "2"] } } },
-        { name: "b", versions: { b1: { tags: [] } } },
-        { name: "c", versions: { c1: { tags: ["1"] } } },
-        { name: "d", versions: { d1: { tags: ["2"] } } },
+        { name: "a", variants: { a1: { tags: ["1", "2"] } } },
+        { name: "b", variants: { b1: { tags: [] } } },
+        { name: "c", variants: { c1: { tags: ["1"] } } },
+        { name: "d", variants: { d1: { tags: ["2"] } } },
       ];
       const state = {
         resourceList: { [dataType]: { resources: resList } },
         selectedTags: { [dataType]: { "1": true, "2": true } },
-        selectedVersion: { [dataType]: { a: "a1", b: "b1", c: "c1", d: "d1" } },
+        selectedVariant: { [dataType]: { a: "a1", b: "b1", c: "c1", d: "d1" } },
       };
       const selector = makeSelectFilteredResources(dataType);
       const expected = [0].map((idx) => resList[idx]);

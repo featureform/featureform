@@ -10,18 +10,18 @@ export const initialState = Resource.resourceTypes.reduce(
   reduceFnInitial
 );
 
-const versionSlice = createSlice({
-  name: "resourceVersion",
+const variantSlice = createSlice({
+  name: "resourceVariant",
   // initialState is a map between each resource type to an empty object.
   initialState: initialState,
   reducers: {
     set: (state, action) => {
-      const { type, name, version } = action.payload;
-      state[type][name] = version;
+      const { type, name, variant } = action.payload;
+      state[type][name] = variant;
     },
   },
 });
 
-export const setVersion = versionSlice.actions.set;
+export const setVariant = variantSlice.actions.set;
 
-export default versionSlice.reducer;
+export default variantSlice.reducer;

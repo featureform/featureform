@@ -38,11 +38,11 @@ type FeatureVariantResource struct {
 }
 
 type FeatureResource struct {
-	AllVariants    []string                          `json:"all-versions"`
+	AllVariants    []string                          `json:"all-variants"`
 	Type           string                            `json:"type"`
 	DefaultVariant string                            `json:"default-variant"`
 	Name           string                            `json:"name"`
-	Variants       map[string]FeatureVariantResource `json:"versions"`
+	Variants       map[string]FeatureVariantResource `json:"variants"`
 }
 
 type TrainingSetVariantResource struct {
@@ -57,11 +57,11 @@ type TrainingSetVariantResource struct {
 }
 
 type TrainingSetResource struct {
-	AllVariants    []string                              `json:"all-versions"`
+	AllVariants    []string                              `json:"all-variants"`
 	Type           string                                `json:"type"`
 	DefaultVariant string                                `json:"default-variant"`
 	Name           string                                `json:"name"`
-	Variants       map[string]TrainingSetVariantResource `json:"versions"`
+	Variants       map[string]TrainingSetVariantResource `json:"variants"`
 }
 
 type SourceVariantResource struct {
@@ -78,11 +78,11 @@ type SourceVariantResource struct {
 }
 
 type SourceResource struct {
-	AllVariants    []string                         `json:"all-versions"`
+	AllVariants    []string                         `json:"all-variants"`
 	Type           string                           `json:"type"`
 	DefaultVariant string                           `json:"default-variant"`
 	Name           string                           `json:"name"`
-	Variants       map[string]SourceVariantResource `json:"versions"`
+	Variants       map[string]SourceVariantResource `json:"variants"`
 }
 
 type LabelVariantResource struct {
@@ -99,11 +99,11 @@ type LabelVariantResource struct {
 }
 
 type LabelResource struct {
-	AllVariants    []string                        `json:"all-versions"`
+	AllVariants    []string                        `json:"all-variants"`
 	Type           string                          `json:"type"`
 	DefaultVariant string                          `json:"default-variant"`
 	Name           string                          `json:"name"`
-	Variants       map[string]LabelVariantResource `json:"versions"`
+	Variants       map[string]LabelVariantResource `json:"variants"`
 }
 
 type EntityResource struct {

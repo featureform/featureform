@@ -21,27 +21,27 @@ const isValidResponse = (resources, hasVariants) => {
         "Resource has no default variant"
       );
       af &= assertAndCheck(
-        "all-versions" in resource,
-        "Resource has no versions list"
+        "all-variants" in resource,
+        "Resource has no variants list"
       );
       af &= assertAndCheck(
-        "versions" in resource,
-        "Resource has no versions object"
+        "variants" in resource,
+        "Resource has no variants object"
       );
-      resource["all-versions"].forEach((version) => {
+      resource["all-variants"].forEach((variant) => {
         af &= assertAndCheck(
-          Object.keys(resource["versions"]).includes(version),
-          "Element of version list not in versions"
+          Object.keys(resource["variants"]).includes(variant),
+          "Element of variant list not in variants"
         );
       });
       af &= assertAndCheck(
-        Object.keys(resource["versions"]).includes(resource["default-variant"]),
+        Object.keys(resource["variants"]).includes(resource["default-variant"]),
         "default variant not included in resource"
       );
-      Object.keys(resource["versions"]).forEach((key) => {
+      Object.keys(resource["variants"]).forEach((key) => {
         af &= assertAndCheck(
-          resource["all-versions"].includes(key),
-          "Version in version object not in version list"
+          resource["all-variants"].includes(key),
+          "Variant in variant object not in variant list"
         );
       });
     });

@@ -52,11 +52,11 @@ const useStyles = makeStyles(() => ({
   usageIcon: {
     color: "red",
   },
-  versionTableContainer: {
+  variantTableContainer: {
     marginLeft: theme.spacing(4),
     marginRight: theme.spacing(4),
   },
-  versionTable: {
+  variantTable: {
     background: "rgba(255, 255, 255, 1)",
     border: `2px solid ${theme.palette.border.main}`,
   },
@@ -99,8 +99,8 @@ export const ResourceListView = ({
   failed,
   resourceType,
   activeTags,
-  activeVersions = {},
-  setVersion,
+  activeVariants = {},
+  setVariant,
   toggleTag,
 }) => {
   const columnFormats = {
@@ -134,13 +134,13 @@ export const ResourceListView = ({
       },
       {
         title: "Default Variant",
-        field: "versions",
+        field: "variants",
         render: (row) => (
-          <VersionSelector
+          <VariantSelector
             name={row.name}
-            versions={rowVersions.find((v) => v.name === row.name)["versions"]}
-            activeVersions={myVersions}
-            setVersion={setVersion}
+            variants={rowVariants.find((v) => v.name === row.name)["variants"]}
+            activeVariants={myVariants}
+            setVariant={setVariant}
           />
         ),
       },
@@ -159,10 +159,10 @@ export const ResourceListView = ({
       },
       {
         title: "Default Variant",
-        field: "versions",
+        field: "variants",
         render: (row) => (
           <Typography variant="body1">
-            {rowVersions.find((v) => v.name === row.name)["default-variant"]}
+            {rowVariants.find((v) => v.name === row.name)["default-variant"]}
           </Typography>
         ),
       },
@@ -224,10 +224,10 @@ export const ResourceListView = ({
       },
       {
         title: "Default Variant",
-        field: "versions",
+        field: "variants",
         render: (row) => (
           <Typography variant="body1">
-            {rowVersions.find((v) => v.name === row.name)["default-variant"]}
+            {rowVariants.find((v) => v.name === row.name)["default-variant"]}
           </Typography>
         ),
       },
@@ -243,13 +243,13 @@ export const ResourceListView = ({
   // https://github.com/mbrn/material-table/issues/666
   const mutableRes = copy(initRes);
 
-  let myVersions = {};
+  let myVariants = {};
 
   mutableRes.forEach((o) => {
-    if (!activeVersions[o.name]) {
-      myVersions[o.name] = o["default-variant"];
+    if (!activeVariants[o.name]) {
+      myVariants[o.name] = o["default-variant"];
     } else {
-      myVersions[o.name] = activeVersions[o.name];
+      myVariants[o.name] = activeVariants[o.name];
     }
   });
 
@@ -257,24 +257,24 @@ export const ResourceListView = ({
     history.push(history.location.pathname + "/" + data.name);
   }
 
-  let versionRes = {};
-  let rowVersions = {};
+  let variantRes = {};
+  let rowVariants = {};
   if (noVariants) {
-    versionRes = mutableRes;
+    variantRes = mutableRes;
   } else {
-    versionRes = mutableRes.map((row) => ({
-      ...row["versions"][myVersions[row.name]],
+    variantRes = mutableRes.map((row) => ({
+      ...row["variants"][myVariants[row.name]],
       name: row["name"],
       revision: convertTimestampToDate(
-        row["versions"][myVersions[row.name]]
-          ? row["versions"][myVersions[row.name]]["revision"]
+        row["variants"][myVariants[row.name]]
+          ? row["variants"][myVariants[row.name]]["revision"]
           : ""
       ),
     }));
-    rowVersions = mutableRes.map((row) => ({
+    rowVariants = mutableRes.map((row) => ({
       name: row["name"],
       "default-variant": row["default-variant"],
-      versions: row["all-versions"],
+      variants: row["all-variants"],
     }));
   }
 
@@ -295,14 +295,14 @@ export const ResourceListView = ({
     },
     { title: "Revision", field: "revision" },
     {
-      title: "Version",
-      field: "versions",
+      title: "Variant",
+      field: "variants",
       render: (row) => (
-        <VersionSelector
+        <VariantSelector
           name={row.name}
-          versions={rowVersions.find((v) => v.name === row.name)["versions"]}
-          activeVersions={myVersions}
-          setVersion={setVersion}
+          variants={rowVariants.find((v) => v.name === row.name)["variants"]}
+          activeVariants={myVariants}
+          setVariant={setVariant}
         />
       ),
     },
@@ -334,13 +334,13 @@ export const ResourceListView = ({
           ? {
               detailPanel: (row) => {
                 return (
-                  <VersionTable
+                  <VariantTable
                     name={row.name}
-                    versions={
-                      rowVersions.find((v) => v.name === row.name)["versions"]
+                    variants={
+                      rowVariants.find((v) => v.name === row.name)["variants"]
                     }
-                    activeVersions={myVersions}
-                    setVersion={setVersion}
+                    activeVariants={myVariants}
+                    setVariant={setVariant}
                     mutableRes={mutableRes}
                   />
                 );
@@ -358,7 +358,7 @@ export const ResourceListView = ({
             ? columnFormats[title]
             : columnFormats["default"]
         }
-        data={versionRes}
+        data={variantRes}
         isLoading={initialLoad || loading || failed}
         onRowClick={detailRedirect}
         components={{
@@ -431,28 +431,28 @@ export const TagList = ({
   </Grid>
 );
 
-export const VersionSelector = ({
+export const VariantSelector = ({
   name,
-  versions = [""],
-  activeVersions = {},
-  setVersion,
+  variants = [""],
+  activeVariants = {},
+  setVariant,
   children,
 }) => {
   return (
     <FormControl>
       <Select
-        value={activeVersions[name] || versions[0]}
-        onChange={(event) => setVersion(name, event.target.value)}
+        value={activeVariants[name] || variants[0]}
+        onChange={(event) => setVariant(name, event.target.value)}
       >
-        {versions.map((version) => (
+        {variants.map((variant) => (
           <MenuItem
-            key={version}
-            value={version}
+            key={variant}
+            value={variant}
             onClick={(event) => {
               event.stopPropagation();
             }}
           >
-            {version}
+            {variant}
           </MenuItem>
         ))}
       </Select>
@@ -460,43 +460,43 @@ export const VersionSelector = ({
   );
 };
 
-export const VersionTable = ({
+export const VariantTable = ({
   name,
-  versions = [""],
-  activeVersions,
-  setVersion,
+  variants = [""],
+  activeVariants,
+  setVariant,
   children,
   mutableRes,
 }) => {
   const classes = useStyles();
   let history = useHistory();
-  function versionChangeRedirect(e, data) {
-    setVersion(name, data.variant);
+  function variantChangeRedirect(e, data) {
+    setVariant(name, data.variant);
     history.push(history.location.pathname + "/" + name);
   }
   let myVariants = [];
-  versions.forEach((version) => {
+  variants.forEach((variant) => {
     myVariants.push({
-      variant: version,
-      description: mutableRes.find((el) => el.name == name).versions[version]
+      variant: variant,
+      description: mutableRes.find((el) => el.name == name).variants[variant]
         .description,
     });
   });
   return (
-    <div className={classes.versionTableContainer}>
+    <div className={classes.variantTableContainer}>
       <MaterialTable
-        className={classes.versionTable}
+        className={classes.variantTable}
         title={
           <Typography variant="h6">
             <b></b>
           </Typography>
         }
-        onRowClick={versionChangeRedirect}
+        onRowClick={variantChangeRedirect}
         components={{
           Container: (props) => (
             <Container
               maxWidth="xl"
-              className={classes.versionTable}
+              className={classes.variantTable}
               {...props}
             />
           ),
@@ -615,8 +615,8 @@ ResourceListView.propTypes = {
   resources: PropTypes.array,
   loading: PropTypes.bool,
   failed: PropTypes.bool,
-  activeVersions: PropTypes.object,
-  setVersion: PropTypes.func,
+  activeVariants: PropTypes.object,
+  setVariant: PropTypes.func,
 };
 
 export default ResourceListView;

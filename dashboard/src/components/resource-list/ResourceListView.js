@@ -103,7 +103,6 @@ export const ResourceListView = ({
   setVariant,
   toggleTag,
 }) => {
-  console.log(type);
   const columnFormats = {
     default: [
       { title: "Name", field: "name" },

@@ -84,7 +84,7 @@ const MetricsDropdown = ({ type, name, variant, timeRange, aggregates }) => {
         <Grid item xs={12} height="10em">
           <div className={classes.graph}>
             <Container minheight={"1300px"}>
-              {type !== +"Dataset" ? (
+              {type !== "TrainingSet" ? (
                 <div>
                   <div className={classes.titleBar}>
                     <div className={classes.graphTitle}>

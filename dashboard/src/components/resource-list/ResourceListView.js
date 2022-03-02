@@ -24,6 +24,7 @@ import { useHistory } from "react-router-dom";
 import Container from "@material-ui/core/Container";
 import { providerLogos } from "api/resources";
 import Button from "@material-ui/core/Button";
+import Resource from "api/resources/Resource.js";
 
 SyntaxHighlighter.registerLanguage("python", python);
 SyntaxHighlighter.registerLanguage("sql", sql);
@@ -237,11 +238,7 @@ export const ResourceListView = ({
   const initialLoad = resources == null && !loading;
   const initRes = resources || [];
   const copy = (res) => res.map((o) => ({ ...o }));
-  const noVariants =
-    title === "Provider" ||
-    title === "Entity" ||
-    title === "Model" ||
-    title === "User";
+  const noVariants = !Resource[resourceType].hasVariants;
   // MaterialTable can't handle immutable object, we have to make a copy
   // https://github.com/mbrn/material-table/issues/666
   const mutableRes = copy(initRes);
@@ -353,7 +350,7 @@ export const ResourceListView = ({
         className={classes.table}
         title={
           <Typography variant="h4">
-            <b>{resourceType.typePlural}</b>
+            <b>{Resource[resourceType].typePlural}</b>
           </Typography>
         }
         columns={

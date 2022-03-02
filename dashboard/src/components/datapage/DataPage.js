@@ -9,18 +9,16 @@ const apiHandle = new ResourcesAPI();
 
 const DataPage = ({ ...props }) => {
   const { type } = useParams();
-  let resourceType = Resource[Resource.pathToType[type]];
-  let currentSection = props.sections[0].items.find(
-    (section) => section.path === "/" + type
-  );
+  let resourceType = Resource.pathToType[type];
+  let typeProp = { type: resourceType };
 
   return (
     <div>
-      {currentSection ? (
+      {typeProp ? (
         <ResourceList
           api={apiHandle}
           resourceType={resourceType}
-          {...currentSection.viewProps}
+          {...typeProp}
         />
       ) : (
         <NotFoundPage />
@@ -29,8 +27,4 @@ const DataPage = ({ ...props }) => {
   );
 };
 
-const mapStateToProps = (state) => ({
-  sections: state.navSections,
-});
-
-export default connect(mapStateToProps)(DataPage);
+export default DataPage;

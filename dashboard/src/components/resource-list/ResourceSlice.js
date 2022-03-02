@@ -102,9 +102,12 @@ const resourceSlice = createSlice({
         return;
       }
 
-      const resourceType = action.payload[0].type;
-      const hasVersions = resourceType.hasVersions;
-      const hasRequired = isValidResponse(action.payload, hasVersions);
+      let hasRequired = false;
+      if (action.payload.length > 0) {
+        const resourceType = action.payload[0].type;
+        const hasVersions = resourceType.hasVersions;
+        hasRequired = isValidResponse(action.payload, hasVersions);
+      }
 
       if (hasRequired) {
         state[type].resources = action.payload;

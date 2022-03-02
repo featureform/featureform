@@ -141,7 +141,7 @@ type TypesenseWrapper struct {
 	ResourceLookup
 }
 
-func (wrapper TypesenseWrapper) Set(id ResourceID, res Resource) error { //tolook
+func (wrapper TypesenseWrapper) Set(id ResourceID, res Resource) error {
 	err := wrapper.ResourceLookup.Set(id, res)
 	if err != nil {
 		return err
@@ -151,7 +151,6 @@ func (wrapper TypesenseWrapper) Set(id ResourceID, res Resource) error { //toloo
 	if errUpsert != nil {
 		return errUpsert
 	}
-	//client.Collection("resource").Documents().Upsert(id)
 	return nil
 }
 
@@ -789,7 +788,7 @@ type MetadataServer struct {
 	pb.UnimplementedMetadataServer
 }
 
-func NewMetadataServer(server *MetadataServerParams) (*MetadataServer, error) { //tolook
+func NewMetadataServer(server *MetadataServerParams) (*MetadataServer, error) {
 	server.Logger.Debug("Creating new metadata server")
 	if server.Params == nil {
 		return &MetadataServer{
@@ -821,48 +820,12 @@ func NewMetadataServer(server *MetadataServerParams) (*MetadataServer, error) { 
 					},
 				},
 			}
-			//_, err2 := client.Collection("resource").Delete()
-			server.Logger.Debug("deleted")
-			// if err2 != nil {
-			// 	return nil, err2
-			// }
-			server.Logger.Debug("not deleted yay")
-			//client.Collections().Create(schema)
 			_, err1 := client.Collections().Create(schema)
 			if err1 != nil {
 				return nil, err1
 			}
 			server.Logger.Debug("Creating typsense schema")
 		}
-		// schema := &api.CollectionSchema{
-		// 	Name: "resource",
-		// 	Fields: []api.Field{
-		// 		{
-		// 			Name: "Name",
-		// 			Type: "string",
-		// 		},
-		// 		{
-		// 			Name: "Variant",
-		// 			Type: "string",
-		// 		},
-		// 		{
-		// 			Name: "Type",
-		// 			Type: "string",
-		// 		},
-		// 	},
-		// }
-		// // _, err2 := client.Collection("resource").Delete()
-		// // server.Logger.Debug("deleted")
-		// // if err2 != nil {
-		// // 	return nil, err2
-		// // }
-		// server.Logger.Debug("deleted")
-		// //client.Collections().Create(schema)
-		// _, err1 := client.Collections().Create(schema)
-		// if err1 != nil {
-		// 	return nil, err1
-		// }
-		// server.Logger.Debug("Creating typsense schema")
 		var resourceinitial []interface{}
 		var resourceempty ResourceID
 		resourceinitial = append(resourceinitial, resourceempty)
@@ -884,9 +847,7 @@ func NewMetadataServer(server *MetadataServerParams) (*MetadataServer, error) { 
 			},
 			Logger: server.Logger,
 		}, nil
-
 	}
-
 }
 
 type TypeSenseParams struct {

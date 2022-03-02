@@ -97,12 +97,13 @@ export const ResourceListView = ({
   resources,
   loading,
   failed,
-  resourceType,
+  type,
   activeTags,
   activeVariants = {},
   setVariant,
   toggleTag,
 }) => {
+  console.log(type);
   const columnFormats = {
     default: [
       { title: "Name", field: "name" },
@@ -238,7 +239,7 @@ export const ResourceListView = ({
   const initialLoad = resources == null && !loading;
   const initRes = resources || [];
   const copy = (res) => res.map((o) => ({ ...o }));
-  const noVariants = !Resource[resourceType].hasVariants;
+  const noVariants = !Resource[type].hasVariants;
   // MaterialTable can't handle immutable object, we have to make a copy
   // https://github.com/mbrn/material-table/issues/666
   const mutableRes = copy(initRes);
@@ -350,7 +351,7 @@ export const ResourceListView = ({
         className={classes.table}
         title={
           <Typography variant="h4">
-            <b>{Resource[resourceType].typePlural}</b>
+            <b>{Resource[type].typePlural}</b>
           </Typography>
         }
         columns={

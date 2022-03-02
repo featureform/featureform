@@ -10,16 +10,12 @@ const apiHandle = new ResourcesAPI();
 const DataPage = ({ ...props }) => {
   const { type } = useParams();
   let resourceType = Resource.pathToType[type];
-  let typeProp = { type: resourceType };
+  //let typeProp = { type: resourceType };
 
   return (
     <div>
-      {typeProp ? (
-        <ResourceList
-          api={apiHandle}
-          resourceType={resourceType}
-          {...typeProp}
-        />
+      {resourceType ? (
+        <ResourceList api={apiHandle} type={resourceType} />
       ) : (
         <NotFoundPage />
       )}

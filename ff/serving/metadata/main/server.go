@@ -13,7 +13,7 @@ func main() {
 	logger := zap.NewExample().Sugar()
 	port := ":8080"
 	lis, err := net.Listen("tcp", port)
-	metaparams := &metadata.MetadataServerParams{
+	metaparams := &metadata.TypeSense{
 		Logger: logger,
 		Params: &metadata.TypeSenseParams{
 			Port:   "8108",

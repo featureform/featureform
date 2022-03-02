@@ -1,6 +1,7 @@
 import { createSlice } from "@reduxjs/toolkit";
 import { resourceTypes } from "api/resources";
 import { views } from "./App.js";
+import Resource from "api/resources/Resource.js";
 
 const navSectionSlice = createSlice({
   name: "navSections",
@@ -9,6 +10,7 @@ const navSectionSlice = createSlice({
       name: "Resources",
       items: [
         {
+          type: Resource.PrimaryData,
           title: "Primary Data",
           icon: "source",
           path: "/primary-data",
@@ -18,15 +20,7 @@ const navSectionSlice = createSlice({
           },
         },
         {
-          title: "Transformations",
-          icon: "copy",
-          path: "/transformations",
-          view: views["RESOURCE_LIST"],
-          viewProps: {
-            type: resourceTypes["TRANSFORMATION"],
-          },
-        },
-        {
+          type: Resource.Feature,
           title: "Features",
           icon: "file-code",
           path: "/features",
@@ -36,6 +30,7 @@ const navSectionSlice = createSlice({
           },
         },
         {
+          type: Resource.TrainingSet,
           title: "training-sets",
           icon: "storage",
           path: "/training-sets",
@@ -45,24 +40,7 @@ const navSectionSlice = createSlice({
           },
         },
         {
-          title: "Feature Sets",
-          icon: "sitemap",
-          path: "/feature-sets",
-          view: views["RESOURCE_LIST"],
-          viewProps: {
-            type: resourceTypes["FEATURE_SET"],
-          },
-        },
-        {
-          title: "training-sets",
-          icon: "archive",
-          path: "/training-sets",
-          view: views["RESOURCE_LIST"],
-          viewProps: {
-            type: resourceTypes["TRAINING_SET"],
-          },
-        },
-        {
+          type: Resource.Entity,
           title: "Entities",
           icon: "archive",
           path: "/entities",
@@ -72,6 +50,7 @@ const navSectionSlice = createSlice({
           },
         },
         {
+          type: Resource.Label,
           title: "Labels",
           icon: "archive",
           path: "/labels",
@@ -81,6 +60,7 @@ const navSectionSlice = createSlice({
           },
         },
         {
+          type: Resource.Model,
           title: "Models",
           icon: "archive",
           path: "/models",
@@ -90,15 +70,7 @@ const navSectionSlice = createSlice({
           },
         },
         {
-          title: "Spaces",
-          icon: "spaces",
-          path: "/spaces",
-          vies: views["RESOURCE_LIST"],
-          viewProps: {
-            type: resourceTypes["SPACE"],
-          },
-        },
-        {
+          type: Resource.Provider,
           title: "Providers",
           icon: "device_hub",
           path: "/providers",
@@ -108,6 +80,7 @@ const navSectionSlice = createSlice({
           },
         },
         {
+          type: Resource.User,
           title: "Users",
           icon: "person",
           path: "/users",

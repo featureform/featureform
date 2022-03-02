@@ -1,91 +1,16 @@
+import Resource from "api/resources/Resource.js";
+
 export const resourceTypes = Object.freeze({
   FEATURE: "Feature",
-  FEATURE_SET: "Feature Set",
+  FEATURE_SET: "FeatureSet",
   LABEL: "Label",
   ENTITY: "Entity",
   MODEL: "Model",
   TRANSFORMATION: "Transformation",
-  TRAINING_DATASET: "Training Dataset",
+  TRAINING_DATASET: "TrainingSet",
   PROVIDER: "Provider",
   USER: "User",
-  PRIMARY_DATA: "Primary Data",
-});
-
-export const resourceIcons = Object.freeze({
-  Feature: "description",
-  Entity: "fingerprint",
-  Label: "label",
-  "Feature Set": "account_tree",
-  Model: "model_training",
-  Transformation: "workspaces",
-  "Training Dataset": "storage",
-  Provider: "device_hub",
-  User: "person",
-  "Primary Data": "source",
-});
-
-export const resourcePaths = Object.freeze({
-  Feature: "/features",
-  Features: "/features",
-  Entity: "/entities",
-  Entities: "/entities",
-  Label: "/labels",
-  Labels: "/labels",
-  "Feature Set": "/feature-sets",
-  Model: "/models",
-  Models: "/models",
-  Transformation: "/transformations",
-  "Training Dataset": "/training-sets",
-  "Training Datasets": "/training-sets",
-  "Training Sets": "/training-sets",
-  Provider: "/providers",
-  Providers: "/providers",
-  User: "/users",
-  Users: "/users",
-  "Primary Data": "/primary-data",
-});
-
-export const resourceVersions = Object.freeze({
-  Feature: true,
-  Entity: false,
-  Label: true,
-  "Feature Set": true,
-  Model: false,
-  Transformation: true,
-  "Training Dataset": true,
-  Provider: false,
-  User: false,
-  "Primary Data": true,
-});
-
-export const dependencyLabels = Object.freeze({
-  trainingsets: "Training Sets",
-  labels: "Labels",
-  features: "Features",
-  providers: "Providers",
-  sources: "Primary Data",
-});
-
-export const pathToType = Object.freeze({
-  features: "Feature",
-  labels: "Label",
-  "primary-data": "Primary Data",
-  entities: "Entity",
-  models: "Model",
-  providers: "Provider",
-  users: "User",
-  "training-sets": "Training Dataset",
-});
-
-export const typeToPath = Object.freeze({
-  features: "Feature",
-  labels: "Label",
-  "primary-data": "Primary Data",
-  entities: "Entity",
-  models: "Model",
-  providers: "Provider",
-  users: "User",
-  "training-sets": "Training Dataset",
+  PRIMARY_DATA: "PrimaryData",
 });
 
 export const testData = [
@@ -144,10 +69,11 @@ export default class ResourcesAPI {
 
   fetchResources(type) {
     var fetchAddress;
+    let resourceType = Resource[type];
     if (local) {
       fetchAddress = `/data/lists/wine-data.json`;
     } else {
-      fetchAddress = `${API_URL}${resourcePaths[type]}`;
+      fetchAddress = `${API_URL}${resourceType.urlPath}`;
     }
     if (process.env.REACT_APP_EMPTY_RESOURCE_VIEW == "true") {
       fetchAddress = "/data/lists/wine-data-empty.json";

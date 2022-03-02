@@ -71,7 +71,7 @@ const Tile = ({ detail, id }) => {
   }
 
   const handleClick = (event) => {
-    history.push(detail.path);
+    history.push(detail.type.urlPath);
   };
 
   return (
@@ -87,13 +87,13 @@ const Tile = ({ detail, id }) => {
           <div className={classes.tileContent}>
             <div>
               <Icon color="green" className={classes.icon}>
-                {detail.icon}
+                {detail.type.materialIcon}
               </Icon>
             </div>
 
             <div>
               <Typography className={classes.title} variant="h5">
-                <b>{detail.title}</b>
+                <b>{detail.type.typePlural}</b>
               </Typography>
             </div>
           </div>

@@ -11,9 +11,7 @@ import List from "@material-ui/core/List";
 import ListItem from "@material-ui/core/ListItem";
 import ListSubheader from "@material-ui/core/ListItem";
 import ListItemText from "@material-ui/core/ListItemText";
-import { resourcePaths } from "api/resources";
 import Icon from "@material-ui/core/Icon";
-import { resourceIcons } from "api/resources";
 import Container from "@material-ui/core/Container";
 import { setVersion } from "components/resource-list/VersionSlice";
 
@@ -160,7 +158,6 @@ const SearchResultsItem = ({ type, content, setVersion }) => {
 
   function handleClick(variant) {
     setVersion(type, content.name, variant);
-    history.push(resourcePaths[type] + "/" + content.name);
   }
 
   const name = content.formattedName;
@@ -168,7 +165,6 @@ const SearchResultsItem = ({ type, content, setVersion }) => {
   return (
     <>
       <ListSubheader>
-        <Icon className={classes.resultTitle}>{resourceIcons[type]}</Icon>
         <div className={classes.resultTitle}>&nbsp;</div>
         <Typography
           className={classes.resultTitle}

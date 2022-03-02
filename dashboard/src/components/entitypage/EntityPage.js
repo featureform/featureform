@@ -8,6 +8,7 @@ import Container from "@material-ui/core/Container";
 import Paper from "@material-ui/core/Paper";
 import { setVersion } from "../resource-list/VersionSlice.js";
 import NotFoundPage from "../notfoundpage/NotFoundPage";
+import Resource from "api/resources/Resource.js";
 
 const mapDispatchToProps = (dispatch) => {
   return {
@@ -43,6 +44,8 @@ const checkIfEmpty = (object) => {
 const EntityPage = ({ api, entityPage, activeVersions, ...props }) => {
   const { type, entity } = useParams();
 
+  let resourceType = Resource[Resource.pathToType[type]];
+
   const fetchEntity = props.fetch;
 
   useEffect(() => {
@@ -62,6 +65,7 @@ const EntityPage = ({ api, entityPage, activeVersions, ...props }) => {
             setVersion={props.setVersion}
             activeVersions={activeVersions}
             typePath={type}
+            resourceType={resourceType}
           />
         )}
       </div>

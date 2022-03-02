@@ -1,5 +1,6 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import { resourceTypes, resourceVersions } from "api/resources";
+import { resourceTypes } from "api/resources";
+import Resource from "api/resources/Resource.js";
 
 const assertAndCheck = (assertion, errorMessage) => {
   console.assert(assertion, { errorMsg: errorMessage });
@@ -101,7 +102,8 @@ const resourceSlice = createSlice({
         return;
       }
 
-      const hasVersions = resourceVersions[type];
+      const resourceType = action.payload[0].type;
+      const hasVersions = resourceType.hasVersions;
       const hasRequired = isValidResponse(action.payload, hasVersions);
 
       if (hasRequired) {

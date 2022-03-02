@@ -1,12 +1,12 @@
 import { createSlice } from "@reduxjs/toolkit";
-import { resourceTypes } from "api/resources";
+import Resource from "api/resources/Resource.js";
 
 const reduceFn = (map, type) => {
   map[type] = {};
   return map;
 };
 const reduceFnInitial = {};
-export const initialState = Object.values(resourceTypes).reduce(
+export const initialState = Resource.resourceTypes.reduce(
   reduceFn,
   reduceFnInitial
 );

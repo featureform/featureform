@@ -42,7 +42,9 @@ export function shallowWithTheme(child) {
 
 describe("ResourceListView", () => {
   it("sets resources to [] by default", () => {
-    const list = shallow(<ResourceListView title="test" />);
+    const list = shallow(
+      <ResourceListView title="test" resourceType="Feature" />
+    );
     expect(list.children().props().data).toEqual([]);
   });
 
@@ -50,6 +52,7 @@ describe("ResourceListView", () => {
     const list = shallow(
       <ResourceListView
         title="test"
+        resourceType="Feature"
         resources={[
           {
             name: "abc",
@@ -71,25 +74,38 @@ describe("ResourceListView", () => {
       });
     });
     const list = shallow(
-      <ResourceListView title="test" resources={immutData} />
+      <ResourceListView
+        title="test"
+        resources={immutData}
+        resourceType="Feature"
+      />
     );
     expect(Object.isFrozen(immutData)).toBe(true);
     expect(Object.isFrozen(list.children().props().data)).toBe(false);
   });
 
   it("sets isLoading when resources isn't set", () => {
-    const list = shallow(<ResourceListView title="test" />);
+    const list = shallow(
+      <ResourceListView title="test" resourceType="Feature" />
+    );
     expect(list.children().props().isLoading).toEqual(true);
   });
 
   it("sets isLoading when loading", () => {
-    const list = shallow(<ResourceListView title="test" loading={true} />);
+    const list = shallow(
+      <ResourceListView title="test" loading={true} resourceType="Feature" />
+    );
     expect(list.children().props().isLoading).toEqual(true);
   });
 
   it("sets isLoading when failed", () => {
     const list = shallow(
-      <ResourceListView title="test" loading={false} failed={true} />
+      <ResourceListView
+        title="test"
+        loading={false}
+        failed={true}
+        resourceType="Feature"
+      />
     );
     expect(list.children().props().isLoading).toEqual(true);
   });

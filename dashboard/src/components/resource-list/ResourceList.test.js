@@ -4,13 +4,13 @@ import ReduxWrapper from "components/redux/wrapper";
 import { configure, mount } from "enzyme";
 import Adapter from "@wojtekmaj/enzyme-adapter-react-17";
 import { newTestStore } from "components/redux/store";
-import { resourceTypes, testData } from "api/resources";
+import { testData } from "api/resources";
 import ResourceList, { makeSelectFilteredResources } from "./ResourceList.js";
 
 configure({ adapter: new Adapter() });
 
 describe("ResourceList", () => {
-  const dataType = resourceTypes["FEATURE"];
+  const dataType = "Feature";
   const mockFn = jest.fn(() => wrapInPromise(testData));
   const mockApi = {
     fetchResources: mockFn,
@@ -18,7 +18,7 @@ describe("ResourceList", () => {
 
   const component = mount(
     <ReduxWrapper store={newTestStore()}>
-      <ResourceList api={mockApi} type={dataType} />
+      <ResourceList api={mockApi} type={dataType} resourceType={dataType} />
     </ReduxWrapper>
   );
 
@@ -42,6 +42,7 @@ describe("ResourceList", () => {
       "title",
       "resources",
       "loading",
+      "resourceType",
       "failed",
       "setVersion",
       "toggleTag",

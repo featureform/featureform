@@ -1,9 +1,8 @@
 import { default as reducer, setVersion } from "./VersionSlice.js";
-import { resourceTypes } from "api/resources";
 
 describe("VersionSlice", () => {
   it("sets version", () => {
-    const type = resourceTypes["FEATURE"];
+    const type = "Feature";
     const name = "abc";
     const version = "v1";
     const payload = { type, name, version };

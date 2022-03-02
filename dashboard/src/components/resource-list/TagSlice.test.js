@@ -1,8 +1,7 @@
 import { default as reducer, toggleTag } from "./TagSlice.js";
-import { resourceTypes } from "api/resources";
 
 describe("TagSlice ", () => {
-  const type = resourceTypes["FEATURE"];
+  const type = "Feature";
   it("toggle on tag", () => {
     const tag = "abc";
     const payload = { type, tag };

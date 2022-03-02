@@ -7,9 +7,9 @@ import {
   fetchResources,
   default as resourceReducer,
 } from "./ResourceSlice.js";
-import { resourceTypes, testData } from "api/resources";
+import { testData } from "api/resources";
 
-const dataType = resourceTypes["FEATURE"];
+const dataType = "Feature";
 
 describe("fetchResourcesThunk", () => {
   const wrapInPromise = (arr) => Promise.resolve({ data: arr });

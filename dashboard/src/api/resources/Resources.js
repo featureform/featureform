@@ -38,7 +38,7 @@ export const providerLogos = Object.freeze({
 });
 
 const API_URL = "http://localhost:8181";
-export const local = false;
+const local = false;
 
 export default class ResourcesAPI {
   checkStatus() {

@@ -18,7 +18,7 @@ describe("ResourceList", () => {
 
   const component = mount(
     <ReduxWrapper store={newTestStore()}>
-      <ResourceList api={mockApi} type={dataType} resourceType={dataType} />
+      <ResourceList api={mockApi} type={dataType} type={dataType} />
     </ReduxWrapper>
   );
 
@@ -42,7 +42,7 @@ describe("ResourceList", () => {
       "title",
       "resources",
       "loading",
-      "resourceType",
+      "type",
       "failed",
       "setVariant",
       "toggleTag",

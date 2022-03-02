@@ -28,7 +28,6 @@ import VariantControl from "./elements/VariantControl";
 import TagBox from "./elements/TagBox";
 import MetricsDropdown from "./elements/MetricsDropdown";
 import StatsDropdown from "./elements/StatsDropdown";
-import { local } from "api/resources";
 import Resource from "api/resources/Resource.js";
 import theme from "styles/theme/index.js";
 
@@ -316,7 +315,6 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                     handleVariantChange={handleVariantChange}
                     type={type}
                     name={name}
-                    local={local}
                     convertTimestampToDate={convertTimestampToDate}
                   />
                 )}

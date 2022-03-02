@@ -231,21 +231,17 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
   }
   let metadata = {};
   let resourceData = {};
-  if (local) {
-    metadata = resource.metadata;
-    resourceData = resource.data;
-  } else {
-    Object.keys(resource).forEach((key) => {
-      if (Resource.pathToType[key]) {
-        resourceData[Resource.pathToType[key]] = resource[key];
-      } else {
-        metadata[key] = resource[key];
-      }
-    });
-    if (metadata["source"]) {
-      metadata["source"] = metadata["source"].Name;
-      metadata["source-variant"] = metadata["source"].Variant;
+
+  Object.keys(resource).forEach((key) => {
+    if (Resource.pathToType[key]) {
+      resourceData[Resource.pathToType[key]] = resource[key];
+    } else {
+      metadata[key] = resource[key];
     }
+  });
+  if (metadata["source"]) {
+    metadata["source"] = metadata["source"].Name;
+    metadata["source-variant"] = metadata["source"].Variant;
   }
 
   const convertTimestampToDate = (timestamp_string) => {

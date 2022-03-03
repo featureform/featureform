@@ -15,6 +15,7 @@ import Chip from "@material-ui/core/Chip";
 import FormControl from "@material-ui/core/FormControl";
 import Select from "@material-ui/core/Select";
 import MenuItem from "@material-ui/core/MenuItem";
+import { VariantTable } from "../resource-list/ResourceListView.js";
 
 import { PrismAsyncLight as SyntaxHighlighter } from "react-syntax-highlighter";
 import python from "react-syntax-highlighter/dist/cjs/languages/prism/python";
@@ -609,63 +610,5 @@ export const VariantSelector = ({ name, variants = [""], children }) => (
     </Select>
   </FormControl>
 );
-
-export const VariantTable = ({
-  name,
-  variants,
-  type,
-  activeVariants,
-  setVariant,
-  children,
-  mutableRes,
-}) => {
-  const classes = useStyles();
-  let history = useHistory();
-  function variantChangeRedirect(e, data) {
-    setVariant(type, name, data.variant);
-    history.push(Resource[type].urlPathResource(name));
-  }
-  let myVariants = [];
-  const MAX_ROW_SHOW = 5;
-  const ROW_HEIGHT = 5;
-  variants.forEach((variant) => {
-    myVariants.push({ variant: variant });
-  });
-  return (
-    <div>
-      <MaterialTable
-        className={classes.table}
-        title={
-          <Typography variant="h6">
-            <b></b>
-          </Typography>
-        }
-        onRowClick={variantChangeRedirect}
-        columns={[
-          { title: "Variants", field: "variant" },
-          { title: "Description", field: "description" },
-        ]}
-        data={myVariants}
-        options={{
-          search: true,
-          pageSize: myVariants.length,
-          maxHeight: `${MAX_ROW_SHOW * ROW_HEIGHT}em`,
-          toolbar: false,
-          draggable: false,
-          headerStyle: {
-            backgroundColor: "white",
-            color: theme.palette.primary.main,
-            marginLeft: 3,
-          },
-          rowStyle: {
-            opacity: 1,
-            borderRadius: 16,
-            height: `${ROW_HEIGHT}em`,
-          },
-        }}
-      />
-    </div>
-  );
-};
 
 export default EntityPageView;

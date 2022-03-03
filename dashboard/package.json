@@ -35,7 +35,8 @@
     "react-scripts": "^3.4.3",
     "react-select": "^5.2.1",
     "react-slidedown": "^2.4.5",
-    "react-syntax-highlighter": "^13.5.1"
+    "react-syntax-highlighter": "^13.5.1",
+    "react-virtualized-auto-sizer": "^1.0.6"
   },
   "scripts": {
     "start": "run-script-os",

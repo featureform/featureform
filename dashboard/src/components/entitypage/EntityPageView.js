@@ -626,6 +626,8 @@ export const VariantTable = ({
     history.push(Resource[type].urlPathResource(name));
   }
   let myVariants = [];
+  const MAX_ROW_SHOW = 5;
+  const ROW_HEIGHT = 5;
   variants.forEach((variant) => {
     myVariants.push({ variant: variant });
   });
@@ -647,7 +649,7 @@ export const VariantTable = ({
         options={{
           search: true,
           pageSize: myVariants.length,
-          maxHeight: "25em",
+          maxHeight: `${MAX_ROW_SHOW * ROW_HEIGHT}em`,
           toolbar: false,
           draggable: false,
           headerStyle: {
@@ -658,7 +660,7 @@ export const VariantTable = ({
           rowStyle: {
             opacity: 1,
             borderRadius: 16,
-            height: "5em",
+            height: `${ROW_HEIGHT}em`,
           },
         }}
       />

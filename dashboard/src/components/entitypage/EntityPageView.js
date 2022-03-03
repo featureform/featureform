@@ -612,7 +612,7 @@ export const VariantSelector = ({ name, variants = [""], children }) => (
 
 export const VariantTable = ({
   name,
-  variants = [""],
+  variants,
   type,
   activeVariants,
   setVariant,
@@ -646,6 +646,8 @@ export const VariantTable = ({
         data={myVariants}
         options={{
           search: true,
+          pageSize: myVariants.length,
+          maxHeight: "25em",
           toolbar: false,
           draggable: false,
           headerStyle: {
@@ -656,6 +658,7 @@ export const VariantTable = ({
           rowStyle: {
             opacity: 1,
             borderRadius: 16,
+            height: "5em",
           },
         }}
       />

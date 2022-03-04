@@ -789,12 +789,8 @@ type MetadataServer struct {
 
 func NewMetadataServer(server *Config) (*MetadataServer, error) {
 	server.Logger.Debug("Creating new metadata server")
-	if server.TypeSenseParams == nil {
-		return &MetadataServer{
-			lookup: make(localResourceLookup),
-			Logger: server.Logger,
-		}, nil
-	} else {
+	var lookup ResourceLookup = make(localResourceLookup)
+	if server.TypeSenseParams != nil {
 		server.Logger.Debug("Creating new typesense metadata server")
 		client := typesense.NewClient(
 			typesense.WithServer(fmt.Sprintf("http://%s:%s", server.TypeSenseParams.Host, server.TypeSenseParams.Port)),
@@ -812,14 +808,15 @@ func NewMetadataServer(server *Config) (*MetadataServer, error) {
 		if errInit != nil {
 			return nil, errInit
 		}
-		return &MetadataServer{
-			lookup: TypesenseWrapper{
-				Client:         client,
-				ResourceLookup: make(localResourceLookup),
-			},
-			Logger: server.Logger,
-		}, nil
+		lookup = &TypesenseWrapper{
+			Client:         client,
+			ResourceLookup: lookup,
+		}
 	}
+	return &MetadataServer{
+		lookup: lookup,
+		Logger: server.Logger,
+	}, nil
 }
 
 type TypeSenseParams struct {

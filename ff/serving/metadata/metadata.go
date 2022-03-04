@@ -787,9 +787,9 @@ type MetadataServer struct {
 	pb.UnimplementedMetadataServer
 }
 
-func NewMetadataServer(server *TypeSense) (*MetadataServer, error) {
+func NewMetadataServer(server *Config) (*MetadataServer, error) {
 	server.Logger.Debug("Creating new metadata server")
-	if server.Params == nil {
+	if server.TypeSenseParams == nil {
 		return &MetadataServer{
 			lookup: make(localResourceLookup),
 			Logger: server.Logger,
@@ -797,9 +797,9 @@ func NewMetadataServer(server *TypeSense) (*MetadataServer, error) {
 	} else {
 		server.Logger.Debug("Creating new typesense metadata server")
 		client := typesense.NewClient(
-			typesense.WithServer(fmt.Sprintf("http://%s:%s", server.Params.Host, server.Params.Port)),
-			typesense.WithAPIKey(server.Params.ApiKey))
-		server.Logger.Debugf("Creating typsense client on http://%s:%s with apiKey %s", server.Params.Host, server.Params.Port, server.Params.ApiKey)
+			typesense.WithServer(fmt.Sprintf("http://%s:%s", server.TypeSenseParams.Host, server.TypeSenseParams.Port)),
+			typesense.WithAPIKey(server.TypeSenseParams.ApiKey))
+		server.Logger.Debugf("Creating typsense client on http://%s:%s with apiKey %s", server.TypeSenseParams.Host, server.TypeSenseParams.Port, server.TypeSenseParams.ApiKey)
 		_, err3 := client.Collection("resource").Retrieve()
 		if err3 != nil {
 			errsch := search.MakeSchema(client)
@@ -828,9 +828,9 @@ type TypeSenseParams struct {
 	ApiKey string
 }
 
-type TypeSense struct {
-	Logger *zap.SugaredLogger
-	Params *TypeSenseParams
+type Config struct {
+	Logger          *zap.SugaredLogger
+	TypeSenseParams *TypeSenseParams
 }
 
 func (serv *MetadataServer) ListFeatures(_ *pb.Empty, stream pb.Metadata_ListFeaturesServer) error {

@@ -13,9 +13,9 @@ func main() {
 	logger := zap.NewExample().Sugar()
 	port := ":8080"
 	lis, err := net.Listen("tcp", port)
-	config := &metadata.TypeSense{
+	config := &metadata.Config{
 		Logger: logger,
-		Params: &metadata.TypeSenseParams{
+		TypeSenseParams: &metadata.TypeSenseParams{
 			Port:   "8108",
 			Host:   "localhost",
 			ApiKey: "xyz",

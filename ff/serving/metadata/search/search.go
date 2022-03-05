@@ -1,25 +1,57 @@
 package search
 
 import (
+	"fmt"
+
 	"github.com/typesense/typesense-go/typesense"
 	"github.com/typesense/typesense-go/typesense/api"
 )
 
-type SearchImpl interface {
-	CreateTable(name string, schema string) error
-	Upsert(key string, value string) error
-	Search(table string, q string) ([]string, error)
+type Searcher interface {
+	Upsert(ResourceDoc) error
+	RunSearch(q string) ([]ResourceDoc, error)
 }
+
+type TypeSenseParams struct {
+	Host   string
+	Port   string
+	ApiKey string
+}
+
 type Search struct {
 	Client *typesense.Client
 }
 
-type ResourceID struct {
-	Name    string
-	Variant string
+//type ResourceType string ask
+
+func NewTypesenseSearch(params *TypeSenseParams) (Searcher, error) {
+	client := typesense.NewClient(
+		typesense.WithServer(fmt.Sprintf("http://%s:%s", params.Host, params.Port)),
+		typesense.WithAPIKey(params.ApiKey))
+	_, err3 := client.Collection("resource").Retrieve()
+	if err3 != nil {
+		errmakeSchema := makeSchema(client)
+		if errmakeSchema != nil {
+			return nil, errmakeSchema
+		}
+	}
+
+	errinitcollection := initializeCollection(client)
+	if errinitcollection != nil {
+		return nil, errinitcollection
+	}
+	return &Search{
+		Client: client,
+	}, nil //ask
 }
 
-func MakeSchema(client *typesense.Client) error {
+type ResourceDoc struct {
+	Name    string
+	Variant string
+	Type    string
+}
+
+func makeSchema(client *typesense.Client) error {
 	schema := &api.CollectionSchema{
 		Name: "resource",
 		Fields: []api.Field{
@@ -44,9 +76,9 @@ func MakeSchema(client *typesense.Client) error {
 	return nil
 }
 
-func InitializeCollection(client *typesense.Client) error {
+func initializeCollection(client *typesense.Client) error {
 	var resourceinitial []interface{}
-	var resourceempty ResourceID
+	var resourceempty ResourceDoc
 	resourceinitial = append(resourceinitial, resourceempty)
 	action := "create"
 	batchnum := 40
@@ -62,10 +94,28 @@ func InitializeCollection(client *typesense.Client) error {
 	return nil
 }
 
-func RunSearch(searchParameters *api.SearchCollectionParams, client *typesense.Client) (*api.SearchResult, error) {
-	results, err2 := client.Collection("feat").Documents().Search(searchParameters)
+func (s Search) Upsert(doc ResourceDoc) error {
+	_, err := s.Client.Collection("resource").Documents().Upsert(doc)
+	return err
+}
+
+func (s Search) RunSearch(q string) ([]ResourceDoc, error) {
+	searchParameters := &api.SearchCollectionParams{
+		Q:       q,
+		QueryBy: "Name",
+	}
+	results, err2 := s.Client.Collection("resource").Documents().Search(searchParameters)
 	if err2 != nil {
 		return nil, err2
 	}
-	return results, nil
+	var searchresults []ResourceDoc
+	for _, hit := range *results.Hits {
+		doc := *hit.Document
+		searchresults = append(searchresults, ResourceDoc{
+			Name:    doc["name"].(string),
+			Type:    doc["type"].(string),
+			Variant: doc["variant"].(string),
+		})
+	}
+	return searchresults, nil
 }

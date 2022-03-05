@@ -8,7 +8,6 @@ import (
 
 	pb "github.com/featureform/serving/metadata/proto"
 	"github.com/featureform/serving/metadata/search"
-	"github.com/typesense/typesense-go/typesense"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -135,22 +134,22 @@ type ResourceLookup interface {
 	List() ([]Resource, error)
 }
 
-type TypesenseWrapper struct {
-	Client *typesense.Client
+type TypeSenseWrapper struct {
+	Searcher search.Searcher
 	ResourceLookup
 }
 
-func (wrapper TypesenseWrapper) Set(id ResourceID, res Resource) error {
-	err := wrapper.ResourceLookup.Set(id, res)
-	if err != nil {
+func (wrapper TypeSenseWrapper) Set(id ResourceID, res Resource) error {
+	if err := wrapper.ResourceLookup.Set(id, res); err != nil {
 		return err
 	}
-	client := wrapper.Client
-	_, errUpsert := client.Collection("resource").Documents().Upsert(id)
-	if errUpsert != nil {
-		return errUpsert
+	doc := search.ResourceDoc{
+		Name:    id.Name,
+		Type:    string(id.Type),
+		Variant: id.Variant,
 	}
-	return nil
+	err := wrapper.Searcher.Upsert(doc)
+	return err
 }
 
 type localResourceLookup map[ResourceID]Resource
@@ -791,25 +790,12 @@ func NewMetadataServer(server *Config) (*MetadataServer, error) {
 	server.Logger.Debug("Creating new metadata server")
 	var lookup ResourceLookup = make(localResourceLookup)
 	if server.TypeSenseParams != nil {
-		server.Logger.Debug("Creating new typesense metadata server")
-		client := typesense.NewClient(
-			typesense.WithServer(fmt.Sprintf("http://%s:%s", server.TypeSenseParams.Host, server.TypeSenseParams.Port)),
-			typesense.WithAPIKey(server.TypeSenseParams.ApiKey))
-		server.Logger.Debugf("Creating typsense client on http://%s:%s with apiKey %s", server.TypeSenseParams.Host, server.TypeSenseParams.Port, server.TypeSenseParams.ApiKey)
-		_, err3 := client.Collection("resource").Retrieve()
-		if err3 != nil {
-			errsch := search.MakeSchema(client)
-			if errsch != nil {
-				return nil, errsch
-			}
-			server.Logger.Debug("Creating typsense schema")
+		searcher, errInitializeSearch := search.NewTypesenseSearch(server.TypeSenseParams)
+		if errInitializeSearch != nil {
+			return nil, errInitializeSearch
 		}
-		errInit := search.InitializeCollection(client)
-		if errInit != nil {
-			return nil, errInit
-		}
-		lookup = &TypesenseWrapper{
-			Client:         client,
+		lookup = &TypeSenseWrapper{
+			Searcher:       searcher,
 			ResourceLookup: lookup,
 		}
 	}
@@ -819,15 +805,9 @@ func NewMetadataServer(server *Config) (*MetadataServer, error) {
 	}, nil
 }
 
-type TypeSenseParams struct {
-	Host   string
-	Port   string
-	ApiKey string
-}
-
 type Config struct {
 	Logger          *zap.SugaredLogger
-	TypeSenseParams *TypeSenseParams
+	TypeSenseParams *search.TypeSenseParams
 }
 
 func (serv *MetadataServer) ListFeatures(_ *pb.Empty, stream pb.Metadata_ListFeaturesServer) error {

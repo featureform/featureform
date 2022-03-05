@@ -5,6 +5,7 @@ import (
 
 	"github.com/featureform/serving/metadata"
 	pb "github.com/featureform/serving/metadata/proto"
+	"github.com/featureform/serving/metadata/search"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
@@ -15,7 +16,7 @@ func main() {
 	lis, err := net.Listen("tcp", port)
 	config := &metadata.Config{
 		Logger: logger,
-		TypeSenseParams: &metadata.TypeSenseParams{
+		TypeSenseParams: &search.TypeSenseParams{
 			Port:   "8108",
 			Host:   "localhost",
 			ApiKey: "xyz",

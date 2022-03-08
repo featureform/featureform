@@ -38,3 +38,26 @@ func TestUploadSearch(t *testing.T) {
 		t.Fatalf("Failed to UploadSearch: without values %s", err)
 	}
 }
+
+func TestFullSearch(t *testing.T) {
+	var params TypeSenseParams
+	params.Host = "localhost"
+	params.Port = "8108"
+	params.ApiKey = "xyz"
+	searcher, err := NewTypesenseSearch(&params)
+	if err != nil {
+		t.Fatalf("Failed to Initialize Search %s", err)
+	}
+	var resourcetoadd ResourceDoc
+	resourcetoadd.Name = "name"
+	resourcetoadd.Variant = "default"
+	resourcetoadd.Type = "string"
+	errUpsert := searcher.Upsert(resourcetoadd)
+	if errUpsert != nil {
+		t.Fatalf("Failed to Upsert %s", errUpsert)
+	}
+	_, errRunsearch := searcher.RunSearch("default")
+	if errRunsearch != nil {
+		t.Fatalf("Failed to start search %s", errRunsearch)
+	}
+}

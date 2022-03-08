@@ -31,8 +31,8 @@ func NewTypesenseSearch(params *TypeSenseParams) (Searcher, error) {
 			return nil, err
 		}
 	}
-	errinitcollection := initializeCollection(client)
-	if errinitcollection != nil {
+
+	if errinitcollection := initializeCollection(client); errinitcollection != nil {
 		return nil, errinitcollection
 	}
 	return &Search{

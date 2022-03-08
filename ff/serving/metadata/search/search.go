@@ -22,27 +22,22 @@ type Search struct {
 	Client *typesense.Client
 }
 
-//type ResourceType string ask
-
 func NewTypesenseSearch(params *TypeSenseParams) (Searcher, error) {
 	client := typesense.NewClient(
 		typesense.WithServer(fmt.Sprintf("http://%s:%s", params.Host, params.Port)),
 		typesense.WithAPIKey(params.ApiKey))
-	_, err3 := client.Collection("resource").Retrieve()
-	if err3 != nil {
-		errmakeSchema := makeSchema(client)
-		if errmakeSchema != nil {
-			return nil, errmakeSchema
+	if _, errSchemaNotFound := client.Collection("resource").Retrieve(); errSchemaNotFound != nil {
+		if err := makeSchema(client); err != nil {
+			return nil, err
 		}
 	}
-
 	errinitcollection := initializeCollection(client)
 	if errinitcollection != nil {
 		return nil, errinitcollection
 	}
 	return &Search{
 		Client: client,
-	}, nil //ask
+	}, nil
 }
 
 type ResourceDoc struct {
@@ -69,11 +64,8 @@ func makeSchema(client *typesense.Client) error {
 			},
 		},
 	}
-	_, err1 := client.Collections().Create(schema)
-	if err1 != nil {
-		return err1
-	}
-	return nil
+	_, err := client.Collections().Create(schema)
+	return err
 }
 
 func initializeCollection(client *typesense.Client) error {
@@ -87,11 +79,8 @@ func initializeCollection(client *typesense.Client) error {
 		BatchSize: &batchnum,
 	}
 	//initializing resource collection with empty struct so we can use upsert function
-	_, err5 := client.Collection("resource").Documents().Import(resourceinitial, params)
-	if err5 != nil {
-		return err5
-	}
-	return nil
+	_, err := client.Collection("resource").Documents().Import(resourceinitial, params)
+	return err
 }
 
 func (s Search) Upsert(doc ResourceDoc) error {
@@ -104,9 +93,9 @@ func (s Search) RunSearch(q string) ([]ResourceDoc, error) {
 		Q:       q,
 		QueryBy: "Name",
 	}
-	results, err2 := s.Client.Collection("resource").Documents().Search(searchParameters)
-	if err2 != nil {
-		return nil, err2
+	results, errGetResults := s.Client.Collection("resource").Documents().Search(searchParameters)
+	if errGetResults != nil {
+		return nil, errGetResults
 	}
 	var searchresults []ResourceDoc
 	for _, hit := range *results.Hits {

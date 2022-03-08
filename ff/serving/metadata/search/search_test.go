@@ -2,7 +2,6 @@ package search
 
 import (
 	"github.com/typesense/typesense-go/typesense"
-	"github.com/typesense/typesense-go/typesense/api"
 	"testing"
 )
 
@@ -13,11 +12,11 @@ func TestCreateGetTable(t *testing.T) {
 			typesense.WithAPIKey("xyz")),
 	}
 	s.Client.Collection("resource").Delete()
-	err := MakeSchema(s.Client)
+	err := makeSchema(s.Client)
 	if err != nil {
 		t.Fatalf("Failed to Make Schema %s", err)
 	}
-	err2 := InitializeCollection(s.Client)
+	err2 := initializeCollection(s.Client)
 	if err2 != nil {
 		t.Fatalf("Failed to Create Collection: %s", err)
 	}
@@ -33,11 +32,8 @@ func TestUploadSearch(t *testing.T) {
 			typesense.WithServer("http://localhost:8108"),
 			typesense.WithAPIKey("xyz")),
 	}
-	searchParameters := &api.SearchCollectionParams{
-		Q:       "user",
-		QueryBy: "Name",
-	}
-	_, err := RunSearch(searchParameters, s.Client)
+	searchParameters := "user"
+	_, err := s.RunSearch(searchParameters)
 	if err != nil {
 		t.Fatalf("Failed to UploadSearch: without values %s", err)
 	}

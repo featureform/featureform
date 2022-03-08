@@ -148,8 +148,7 @@ func (wrapper TypeSenseWrapper) Set(id ResourceID, res Resource) error {
 		Type:    string(id.Type),
 		Variant: id.Variant,
 	}
-	err := wrapper.Searcher.Upsert(doc)
-	return err
+	return wrapper.Searcher.Upsert(doc)
 }
 
 type localResourceLookup map[ResourceID]Resource

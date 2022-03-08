@@ -88,6 +88,17 @@ func (s Search) Upsert(doc ResourceDoc) error {
 	return err
 }
 
+func Reset(params *TypeSenseParams) (Searcher, error) {
+	client := typesense.NewClient(
+		typesense.WithServer(fmt.Sprintf("http://%s:%s", params.Host, params.Port)),
+		typesense.WithAPIKey(params.ApiKey))
+	_, err := client.Collection("resource").Delete()
+	if err != nil {
+		return nil, err
+	}
+	return NewTypesenseSearch(params)
+}
+
 func (s Search) RunSearch(q string) ([]ResourceDoc, error) {
 	searchParameters := &api.SearchCollectionParams{
 		Q:       q,
@@ -101,7 +112,7 @@ func (s Search) RunSearch(q string) ([]ResourceDoc, error) {
 	for _, hit := range *results.Hits {
 		doc := *hit.Document
 		searchresults = append(searchresults, ResourceDoc{
-			Name:    doc["name"].(string),
+			Name:    doc["name"].(string), //panic
 			Type:    doc["type"].(string),
 			Variant: doc["variant"].(string),
 		})

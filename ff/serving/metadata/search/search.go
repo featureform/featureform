@@ -112,9 +112,9 @@ func (s Search) RunSearch(q string) ([]ResourceDoc, error) {
 	for _, hit := range *results.Hits {
 		doc := *hit.Document
 		searchresults = append(searchresults, ResourceDoc{
-			Name:    doc["name"].(string), //panic
-			Type:    doc["type"].(string),
-			Variant: doc["variant"].(string),
+			Name:    doc["Name"].(string), //panic
+			Type:    doc["Type"].(string),
+			Variant: doc["Variant"].(string),
 		})
 	}
 	return searchresults, nil

@@ -16,13 +16,13 @@ func TestCreateGetTable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to Make Schema %s", err)
 	}
-	err2 := initializeCollection(s.Client)
-	if err2 != nil {
-		t.Fatalf("Failed to Create Collection: %s", err)
+	errInit := initializeCollection(s.Client)
+	if errInit != nil {
+		t.Fatalf("Failed to Create Collection: %s", errInit)
 	}
-	_, err3 := s.Client.Collection("resource").Retrieve()
-	if err3 != nil {
-		t.Fatalf("Failed to Get Collection: %s", err)
+	_, errInitRetrieve := s.Client.Collection("resource").Retrieve()
+	if errInitRetrieve != nil {
+		t.Fatalf("Failed to Get Collection: %s", errInitRetrieve)
 	}
 }
 
@@ -67,9 +67,9 @@ func TestReset(t *testing.T) {
 	params.Host = "localhost"
 	params.Port = "8108"
 	params.ApiKey = "xyz"
-	searcher, err1 := Reset(&params)
-	if err1 != nil {
-		t.Fatalf("Failed to reset %s", err1)
+	searcher, errReset := Reset(&params)
+	if errReset != nil {
+		t.Fatalf("Failed to reset %s", errReset)
 	}
 	var resourcetoadd ResourceDoc
 	resourcetoadd.Name = "name"
@@ -90,9 +90,9 @@ func TestOrder(t *testing.T) {
 	params.Host = "localhost"
 	params.Port = "8108"
 	params.ApiKey = "xyz"
-	searcher, err1 := Reset(&params)
-	if err1 != nil {
-		t.Fatalf("Failed to reset %s", err1)
+	searcher, errReset := Reset(&params)
+	if errReset != nil {
+		t.Fatalf("Failed to reset %s", errReset)
 	}
 	var resourcetoadd ResourceDoc
 	resourcetoadd.Name = "heroic"

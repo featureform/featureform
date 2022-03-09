@@ -6,16 +6,11 @@ import PropTypes from "prop-types";
 import { makeStyles } from "@material-ui/core/styles";
 import Typography from "@material-ui/core/Typography";
 import Box from "@material-ui/core/Box";
-import { useHistory } from "react-router-dom";
 import List from "@material-ui/core/List";
 import ListItem from "@material-ui/core/ListItem";
 import ListSubheader from "@material-ui/core/ListItem";
 import ListItemText from "@material-ui/core/ListItemText";
-import { resourcePaths } from "api/resources";
-import Icon from "@material-ui/core/Icon";
-import { resourceIcons } from "api/resources";
 import Container from "@material-ui/core/Container";
-import { setVersion } from "components/resource-list/VersionSlice";
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
@@ -73,7 +68,7 @@ function a11yProps(index) {
   };
 }
 
-const SearchResultsView = ({ results, search_query, setVersion }) => {
+const SearchResultsView = ({ results, search_query, setVariant }) => {
   const classes = useStyles();
 
   const [value, setValue] = React.useState(0);
@@ -125,7 +120,7 @@ const SearchResultsView = ({ results, search_query, setVersion }) => {
             <SearchResultsList
               type={type}
               contents={myResults[type]}
-              setVersion={setVersion}
+              setVariant={setVariant}
             />
           </TabPanel>
         ))}
@@ -136,7 +131,7 @@ const SearchResultsView = ({ results, search_query, setVersion }) => {
   );
 };
 
-const SearchResultsList = ({ type, contents, setVersion }) => {
+const SearchResultsList = ({ type, contents, setVariant }) => {
   const classes = useStyles();
 
   return (
@@ -146,7 +141,7 @@ const SearchResultsList = ({ type, contents, setVersion }) => {
           <SearchResultsItem
             type={type}
             content={content}
-            setVersion={setVersion}
+            setVariant={setVariant}
           />
         ))}
       </List>
@@ -154,21 +149,16 @@ const SearchResultsList = ({ type, contents, setVersion }) => {
   );
 };
 
-const SearchResultsItem = ({ type, content, setVersion }) => {
-  const history = useHistory();
+const SearchResultsItem = ({ type, content, setVariant }) => {
   const classes = useStyles();
 
   function handleClick(variant) {
-    setVersion(type, content.name, variant);
-    history.push(resourcePaths[type] + "/" + content.name);
+    setVariant(type, content.name, variant);
   }
 
-  const name = content.formattedName;
-  const description = content.formattedDescription;
   return (
     <>
       <ListSubheader>
-        <Icon className={classes.resultTitle}>{resourceIcons[type]}</Icon>
         <div className={classes.resultTitle}>&nbsp;</div>
         <Typography
           className={classes.resultTitle}
@@ -177,7 +167,7 @@ const SearchResultsItem = ({ type, content, setVersion }) => {
         ></Typography>
       </ListSubheader>
 
-      {Object.keys(content.versions).map((variant, i) => (
+      {Object.keys(content.variants).map((variant, i) => (
         <ListItem button alignItems="flex-start">
           <ListItemText
             inset
@@ -187,7 +177,7 @@ const SearchResultsItem = ({ type, content, setVersion }) => {
               </Typography>
             }
             onClick={() => handleClick(variant)}
-            secondary={content.versions[variant].description}
+            secondary={content.variants[variant].description}
           />
         </ListItem>
       ))}

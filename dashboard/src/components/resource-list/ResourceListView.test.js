@@ -12,7 +12,7 @@ import { ThemeProvider } from "@material-ui/core/styles";
 import {
   ResourceListView,
   TagList,
-  VersionSelector,
+  VariantSelector,
 } from "./ResourceListView.js";
 
 configure({ adapter: new Adapter() });
@@ -42,7 +42,7 @@ export function shallowWithTheme(child) {
 
 describe("ResourceListView", () => {
   it("sets resources to [] by default", () => {
-    const list = shallow(<ResourceListView title="test" />);
+    const list = shallow(<ResourceListView title="test" type="Feature" />);
     expect(list.children().props().data).toEqual([]);
   });
 
@@ -50,10 +50,11 @@ describe("ResourceListView", () => {
     const list = shallow(
       <ResourceListView
         title="test"
+        type="Feature"
         resources={[
           {
             name: "abc",
-            versions: { "first-variant": {}, "second-variant": {} },
+            variants: { "first-variant": {}, "second-variant": {} },
           },
         ]}
       />
@@ -67,48 +68,55 @@ describe("ResourceListView", () => {
     const immutData = produce([], (draft) => {
       draft.push({
         name: "abc",
-        versions: { "first-variant": {}, "second-variant": {} },
+        variants: { "first-variant": {}, "second-variant": {} },
       });
     });
     const list = shallow(
-      <ResourceListView title="test" resources={immutData} />
+      <ResourceListView title="test" resources={immutData} type="Feature" />
     );
     expect(Object.isFrozen(immutData)).toBe(true);
     expect(Object.isFrozen(list.children().props().data)).toBe(false);
   });
 
   it("sets isLoading when resources isn't set", () => {
-    const list = shallow(<ResourceListView title="test" />);
+    const list = shallow(<ResourceListView title="test" type="Feature" />);
     expect(list.children().props().isLoading).toEqual(true);
   });
 
   it("sets isLoading when loading", () => {
-    const list = shallow(<ResourceListView title="test" loading={true} />);
+    const list = shallow(
+      <ResourceListView title="test" loading={true} type="Feature" />
+    );
     expect(list.children().props().isLoading).toEqual(true);
   });
 
   it("sets isLoading when failed", () => {
     const list = shallow(
-      <ResourceListView title="test" loading={false} failed={true} />
+      <ResourceListView
+        title="test"
+        loading={false}
+        failed={true}
+        type="Feature"
+      />
     );
     expect(list.children().props().isLoading).toEqual(true);
   });
 
-  describe("VersionSelector", () => {
-    it("sets default active version", () => {
-      const sel = shallow(<VersionSelector name="abc" versions={["1", "2"]} />);
+  describe("VariantSelector", () => {
+    it("sets default active variant", () => {
+      const sel = shallow(<VariantSelector name="abc" variants={["1", "2"]} />);
       expect(sel.children().props().value).toBe("1");
     });
 
-    it("onChange calls setVersion", () => {
+    it("onChange calls setVariant", () => {
       const onChange = jest.fn();
       const name = "abc";
       const clickVal = "2";
       const sel = shallow(
-        <VersionSelector
+        <VariantSelector
           name={name}
-          versions={["1", "2"]}
-          setVersion={onChange}
+          variants={["1", "2"]}
+          setVariant={onChange}
         />
       );
       sel.children().prop("onChange")({ target: { value: clickVal } });

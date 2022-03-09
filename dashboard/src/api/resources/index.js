@@ -1,8 +1,1 @@
-export {
-  default,
-  resourceTypes,
-  resourceIcons,
-  resourcePaths,
-  testData,
-  providerLogos,
-} from "./Resources.js";
+export { default, testData, providerLogos } from "./Resources.js";

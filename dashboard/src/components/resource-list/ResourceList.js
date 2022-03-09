@@ -4,19 +4,19 @@ import { connect } from "react-redux";
 import { createSelector } from "@reduxjs/toolkit";
 import { fetchResources } from "./ResourceSlice.js";
 import ResourceListView from "./ResourceListView.js";
-import { setVersion } from "./VersionSlice.js";
+import { setVariant } from "./VariantSlice.js";
 import { toggleTag } from "./TagSlice.js";
 import ServerErrorPage from "../servererror/ServerErrorPage";
 
 export const makeSelectFilteredResources = (type) => {
   const selectResources = (state) => state.resourceList[type].resources;
   const selectTags = (state) => state.selectedTags[type];
-  const activeVersions = (state) => state.selectedVersion[type];
+  const activeVariants = (state) => state.selectedVariant[type];
   return createSelector(
     selectResources,
     selectTags,
-    activeVersions,
-    (resources, tags, versions) => {
+    activeVariants,
+    (resources, tags, variants) => {
       const isLoading = !resources;
 
       if (isLoading) {
@@ -29,10 +29,10 @@ export const makeSelectFilteredResources = (type) => {
         return resources;
       }
       return resources.filter((resource) => {
-        let activeVersionName = versions[resource.name]
-          ? versions[resource.name]
+        let activeVariantName = variants[resource.name]
+          ? variants[resource.name]
           : resource["default-variant"];
-        let activeResource = resource.versions[activeVersionName];
+        let activeResource = resource.variants[activeVariantName];
         const resTags = activeResource.tags || [];
         const numFound = resTags.filter((itemTag) => itemTag in tags).length;
         const hasAllTags = numFound === numActiveTags;
@@ -47,14 +47,14 @@ const makeMapStateToProps = (initState, initProps) => {
   return (state) => {
     const selector = makeSelectFilteredResources(type);
     const item = state.resourceList[type];
-    const activeVersions = state.selectedVersion[type];
+    const activeVariants = state.selectedVariant[type];
     const activeTags = state.selectedTags[type];
     return {
       title: type,
       resources: selector(state),
       loading: item.loading,
       failed: item.failed,
-      activeVersions: activeVersions,
+      activeVariants: activeVariants,
       activeTags: activeTags,
     };
   };
@@ -66,9 +66,9 @@ const makeMapDispatchToProps = (ignore, initProps) => {
       const { type, api } = initProps;
       dispatch(fetchResources({ api, type }));
     },
-    setVersion: (name, version) => {
+    setVariant: (name, variant) => {
       const { type } = initProps;
-      dispatch(setVersion({ type, name, version }));
+      dispatch(setVariant({ type, name, variant }));
     },
     toggleTag: (tag) => {
       const { type } = initProps;
@@ -85,7 +85,7 @@ class ResourceList extends React.Component {
   render() {
     // Only pass down props required for the view.
     // sends down props resources, loading, and failed
-    const { api, fetch, type, ...viewProps } = this.props;
+    const { api, fetch, ...viewProps } = this.props;
     return viewProps.failed ? (
       <ServerErrorPage />
     ) : (

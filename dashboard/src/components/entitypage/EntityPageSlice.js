@@ -7,12 +7,7 @@ export const fetchEntity = createAsyncThunk(
     return response;
   },
   {
-    condition: ({ api, type, title }, { getState }) => {
-      const { loading } = getState().entityPage;
-      if (loading) {
-        return false;
-      }
-    },
+    condition: ({ api, type, title }, { getState }) => {},
   }
 );
 

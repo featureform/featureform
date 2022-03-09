@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import AppBar from "@material-ui/core/AppBar";
 import Tabs from "@material-ui/core/Tabs";
 import Tab from "@material-ui/core/Tab";
@@ -10,13 +10,12 @@ import Box from "@material-ui/core/Box";
 import Grid from "@material-ui/core/Grid";
 import { useHistory } from "react-router-dom";
 import Container from "@material-ui/core/Container";
-import Avatar from "@material-ui/core/Avatar";
 import Icon from "@material-ui/core/Icon";
-import Button from "@material-ui/core/Button";
 import Chip from "@material-ui/core/Chip";
 import FormControl from "@material-ui/core/FormControl";
 import Select from "@material-ui/core/Select";
 import MenuItem from "@material-ui/core/MenuItem";
+import { VariantTable } from "../resource-list/ResourceListView.js";
 
 import { PrismAsyncLight as SyntaxHighlighter } from "react-syntax-highlighter";
 import python from "react-syntax-highlighter/dist/cjs/languages/prism/python";
@@ -24,11 +23,11 @@ import sql from "react-syntax-highlighter/dist/cjs/languages/prism/sql";
 import json from "react-syntax-highlighter/dist/cjs/languages/prism/json";
 import { okaidia } from "react-syntax-highlighter/dist/cjs/styles/prism";
 
-import VersionControl from "./elements/VersionControl";
+import VariantControl from "./elements/VariantControl";
 import TagBox from "./elements/TagBox";
 import MetricsDropdown from "./elements/MetricsDropdown";
 import StatsDropdown from "./elements/StatsDropdown";
-import { resourceTypes, resourceIcons, resourcePaths } from "api/resources";
+import Resource from "api/resources/Resource.js";
 import theme from "styles/theme/index.js";
 
 SyntaxHighlighter.registerLanguage("python", python);
@@ -116,7 +115,7 @@ const useStyles = makeStyles((theme) => ({
   icon: {
     marginRight: theme.spacing(2),
   },
-  versionControl: {
+  variantControl: {
     alignSelf: "flex-end",
   },
   syntax: {
@@ -200,35 +199,48 @@ function a11yProps(index) {
   };
 }
 
-const EntityPageView = ({ entity, setVersion, activeVersions }) => {
+const EntityPageView = ({ entity, setVariant, activeVariants }) => {
   let history = useHistory();
   let resources = entity.resources;
-
-  const type = resources["type"];
-  const showMetrics =
-    type === resourceTypes.FEATURE ||
-    type === resourceTypes.FEATURE_SET ||
-    type === resourceTypes.DATASET;
-  const singleVariant =
-    type === resourceTypes.TRAINING_DATASET || type === resourceTypes.MODEL;
+  let resourceType = Resource[entity.resources.type];
+  let type = resourceType.type;
+  const showMetrics = resourceType.hasMetrics;
+  const singleVariant = !resourceType.hasVariants;
   const showStats = false;
   const dataTabDisplacement = (1 ? showMetrics : 0) + (1 ? showStats : 0);
   const statsTabDisplacement = showMetrics ? 1 : 0;
   const name = resources["name"];
-  const icon = resourceIcons[type];
+  const icon = resourceType.materialIcon;
   const enableTags = false;
 
-  let version = resources["default-variant"];
+  let variant = resources["default-variant"];
 
-  if (activeVersions[type][name]) {
-    version = activeVersions[type][name];
+  if (activeVariants[entity.resources.type][name]) {
+    variant = activeVariants[entity.resources.type][name];
   } else {
-    setVersion(type, name, resources["default-variant"]);
+    setVariant(entity.resources.type, name, resources["default-variant"]);
   }
 
-  let resource = resources.versions[version];
-  const metadata = resource.metadata;
-  let resourceData = resource.data;
+  let resource;
+  if (resourceType.hasVariants) {
+    resource = resources.variants[variant];
+  } else {
+    resource = resources;
+  }
+  let metadata = {};
+  let resourceData = {};
+
+  Object.keys(resource).forEach((key) => {
+    if (Resource.pathToType[key]) {
+      resourceData[Resource.pathToType[key]] = resource[key];
+    } else {
+      metadata[key] = resource[key];
+    }
+  });
+  if (metadata["source"]) {
+    metadata["source"] = metadata["source"].Name;
+    metadata["source-variant"] = metadata["source"].Variant;
+  }
 
   const convertTimestampToDate = (timestamp_string) => {
     return new Date(timestamp_string).toLocaleString("en-US", {
@@ -236,13 +248,13 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
     });
   };
 
-  let allVersions = resources["all-versions"];
+  let allVariants = resources["all-variants"];
 
   const classes = useStyles();
   const [value, setValue] = React.useState(0);
 
-  const handleVersionChange = (event) => {
-    setVersion(type, name, event.target.value);
+  const handleVariantChange = (event) => {
+    setVariant(type, name, event.target.value);
   };
 
   const handleChange = (event, newValue) => {
@@ -255,10 +267,6 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
 
   const linkToEntityPage = (event) => {
     history.push(`/entities/${metadata["entity"]}`);
-  };
-
-  const linkToTransformSource = (event) => {
-    history.push(`/transformations/${metadata["transformation source"]}`);
   };
 
   const linkToDataSource = (event) => {
@@ -276,7 +284,6 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
           <Grid
             container
             className={classes.topContainer}
-            lg={12}
             justifyContent="flex-start"
           >
             <Grid item xs={false} className={classes.icon}></Grid>
@@ -295,11 +302,11 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                     )}
                   </div>
                 </div>
-                {allVersions.length > 1 && (
-                  <VersionControl
-                    version={version}
-                    versions={allVersions}
-                    handleVersionChange={handleVersionChange}
+                {allVariants && allVariants.length > 1 && (
+                  <VariantControl
+                    variant={variant}
+                    variants={allVariants}
+                    handleVariantChange={handleVariantChange}
                     type={type}
                     name={name}
                     convertTimestampToDate={convertTimestampToDate}
@@ -328,7 +335,6 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                         className={classes.linkChip}
                         size="small"
                         onClick={linkToUserPage}
-                        className={classes.transformButton}
                         label={metadata["owner"]}
                       ></Chip>
                     </div>
@@ -376,7 +382,6 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                         className={classes.linkChip}
                         size="small"
                         onClick={linkToDataSource}
-                        className={classes.transformButton}
                         label={metadata["primary data"]}
                       ></Chip>
                     </div>
@@ -392,7 +397,6 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                         className={classes.linkChip}
                         size="small"
                         onClick={linkToEntityPage}
-                        className={classes.transformButton}
                         label={metadata["entity"]}
                       ></Chip>
                     </div>
@@ -435,7 +439,11 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                 <Tab label={"stats"} {...a11yProps(statsTabDisplacement)} />
               )}
               {Object.keys(resourceData).map((key, i) => (
-                <Tab label={key} {...a11yProps(i + dataTabDisplacement)} />
+                <Tab
+                  key={i}
+                  label={Resource[key].typePlural}
+                  {...a11yProps(i + dataTabDisplacement)}
+                />
               ))}
             </Tabs>
           </AppBar>
@@ -449,7 +457,7 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                 root: classes.tabChart,
               }}
             >
-              <MetricsDropdown type={type} name={name} version={version} />
+              <MetricsDropdown type={type} name={name} variant={variant} />
             </TabPanel>
           )}
           {showStats && (
@@ -482,11 +490,11 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                   ? {
                       detailPanel: (row) => {
                         return (
-                          <VersionTable
+                          <VariantTable
                             type={key}
                             name={row.name}
-                            versions={row.variants}
-                            setVersion={setVersion}
+                            variants={row.variants}
+                            setVariant={setVariant}
                           />
                         );
                       },
@@ -500,29 +508,35 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                     marginLeft: 3,
                   },
                 }}
-                columns={Object.keys(resourceData[key][0])
-                  .filter((item) => item != "tags" && item != "variants")
-                  .map((item) => ({
-                    title: capitalize(item),
-                    field: item,
-                    ...(item == "variants" && {
-                      render: (row) => (
-                        <VersionSelector
-                          name={row.name}
-                          versions={row.variants}
-                        />
-                      ),
-                    }),
-                    ...(item == "tags" && {
-                      render: (row) => (
-                        <TagList tags={row.tags} tagClass={classes.tag} />
-                      ),
-                    }),
-                  }))}
+                {...(Object.keys(resourceData[key]).length > 0
+                  ? {
+                      columns: Object.keys(resourceData[key][0])
+                        .filter(
+                          (item) => item !== "tags" && item !== "variants"
+                        )
+                        .map((item) => ({
+                          title: capitalize(item),
+                          field: item,
+                          ...(item === "variants" && {
+                            render: (row) => (
+                              <VariantSelector
+                                name={row.name}
+                                variants={row.variants}
+                              />
+                            ),
+                          }),
+                          ...(item === "tags" && {
+                            render: (row) => (
+                              <TagList tags={row.tags} tagClass={classes.tag} />
+                            ),
+                          }),
+                        })),
+                    }
+                  : {})}
                 data={resourceData[key].map((o) => {
                   let new_object = {};
                   Object.keys(o).forEach((key) => {
-                    if (convertTimestampToDate(o[key]) != "Invalid Date") {
+                    if (convertTimestampToDate(o[key]) !== "Invalid Date") {
                       new_object[key] = convertTimestampToDate(o[key]);
                     } else {
                       new_object[key] = o[key];
@@ -531,13 +545,13 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                   return new_object;
                 })}
                 onRowClick={(event, rowData) =>
-                  history.push("/" + key + "/" + rowData.name)
+                  history.push(Resource[key].urlPathResource(rowData.Name))
                 }
                 components={{
                   Container: (props) => (
                     <div
                       className={classes.resourceList}
-                      minWidth="xl"
+                      minwidth="xl"
                       {...props}
                     />
                   ),
@@ -579,78 +593,22 @@ export const TagList = ({
   </Grid>
 );
 
-export const VersionSelector = ({ name, versions = [""], children }) => (
+export const VariantSelector = ({ name, variants = [""], children }) => (
   <FormControl>
-    <Select value={versions[0]}>
-      {versions.map((version) => (
+    <Select value={variants[0]}>
+      {variants.map((variant) => (
         <MenuItem
-          key={version}
-          value={version}
+          key={variant}
+          value={variant}
           onClick={(event) => {
             event.stopPropagation();
           }}
         >
-          {version}
+          {variant}
         </MenuItem>
       ))}
     </Select>
   </FormControl>
 );
-
-export const VersionTable = ({
-  name,
-  versions = [""],
-  type,
-  activeVersions,
-  setVersion,
-  children,
-  mutableRes,
-}) => {
-  const classes = useStyles();
-  let history = useHistory();
-  function versionChangeRedirect(e, data) {
-    console.log(type, name, data.variant);
-    console.log(history.location.pathname, "/", name);
-    setVersion(type, name, data.variant);
-    //history.push(history.location.pathname + "/" + name);
-    history.push(resourcePaths[type] + "/" + name);
-  }
-  let myVariants = [];
-  versions.forEach((version) => {
-    myVariants.push({ variant: version });
-  });
-  return (
-    <div>
-      <MaterialTable
-        className={classes.table}
-        title={
-          <Typography variant="h6">
-            <b></b>
-          </Typography>
-        }
-        onRowClick={versionChangeRedirect}
-        columns={[
-          { title: "Variants", field: "variant" },
-          { title: "Description", field: "description" },
-        ]}
-        data={myVariants}
-        options={{
-          search: true,
-          toolbar: false,
-          draggable: false,
-          headerStyle: {
-            backgroundColor: "white",
-            color: theme.palette.primary.main,
-            marginLeft: 3,
-          },
-          rowStyle: {
-            opacity: 1,
-            borderRadius: 16,
-          },
-        }}
-      />
-    </div>
-  );
-};
 
 export default EntityPageView;

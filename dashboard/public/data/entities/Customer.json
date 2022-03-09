@@ -18,7 +18,7 @@
             "description": "Count of user transactions"
           }
         ],
-        "training-datasets": [
+        "training-sets": [
           {
             "name": "Fraud Detection Training Set",
             "description": "Dataset of customer transactions and whether or not fraud was ultimately found."

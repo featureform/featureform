@@ -2,10 +2,10 @@ import React from "react";
 import Icon from "@material-ui/core/Icon";
 import { makeStyles } from "@material-ui/core/styles";
 import { useHistory } from "react-router-dom";
-import ButtonBase from "@material-ui/core/ButtonBase";
 import Button from "@material-ui/core/Button";
 import Box from "@material-ui/core/Box";
 import Typography from "@material-ui/core/Typography";
+import Resource from "api/resources/Resource.js";
 
 const useStyles = makeStyles((theme, id) => ({
   root: {
@@ -61,6 +61,7 @@ const useStyles = makeStyles((theme, id) => ({
 
 const Tile = ({ detail, id }) => {
   let history = useHistory();
+  let resourceType = Resource[detail.type];
   const disabled = detail.disabled;
   const classes = useStyles(id);
 
@@ -71,7 +72,7 @@ const Tile = ({ detail, id }) => {
   }
 
   const handleClick = (event) => {
-    history.push(detail.path);
+    history.push(resourceType.urlPath);
   };
 
   return (
@@ -86,14 +87,12 @@ const Tile = ({ detail, id }) => {
         >
           <div className={classes.tileContent}>
             <div>
-              <Icon color="green" className={classes.icon}>
-                {detail.icon}
-              </Icon>
+              <Icon className={classes.icon}>{resourceType.materialIcon}</Icon>
             </div>
 
             <div>
               <Typography className={classes.title} variant="h5">
-                <b>{detail.title}</b>
+                <b>{resourceType.typePlural}</b>
               </Typography>
             </div>
           </div>

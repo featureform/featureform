@@ -1,49 +1,14 @@
-export const resourceTypes = Object.freeze({
-  FEATURE: "Feature",
-  FEATURE_SET: "Feature Set",
-  LABEL: "Label",
-  ENTITY: "Entity",
-  MODEL: "Model",
-  TRANSFORMATION: "Transformation",
-  TRAINING_DATASET: "Training Dataset",
-  PROVIDER: "Provider",
-  USER: "User",
-  PRIMARY_DATA: "Primary Data",
-});
+import Resource from "api/resources/Resource.js";
 
-export const resourceIcons = Object.freeze({
-  Feature: "description",
-  Entity: "fingerprint",
-  Label: "label",
-  "Feature Set": "account_tree",
-  Model: "model_training",
-  Transformation: "workspaces",
-  "Training Dataset": "storage",
-  Provider: "device_hub",
-  User: "person",
-  "Primary Data": "source",
-});
-
-export const resourcePaths = Object.freeze({
-  Feature: "/features",
-  Entity: "/entities",
-  Label: "/labels",
-  "Feature Set": "/feature-sets",
-  Model: "/models",
-  Transformation: "/transformations",
-  "Training Dataset": "/training-datasets",
-  Provider: "/providers",
-  User: "/users",
-  "Primary Data": "/primary-data",
-});
 export const testData = [
   {
     name: "User sample preferences",
     "default-variant": "first-variant",
-    "all-versions": ["first-variant", "normalized variant"],
-    versions: {
+    type: "Feature",
+    "all-variants": ["first-variant", "normalized variant"],
+    variants: {
       "first-variant": {
-        "version-name": "first-variant",
+        "variant-name": "first-variant",
         dimensions: 3,
         created: "2020-08-09-0290499",
         owner: "Simba Khadder",
@@ -53,7 +18,7 @@ export const testData = [
         description: "Vector generated based on user preferences",
       },
       "normalized variant": {
-        "version-name": "normalized variant",
+        "variant-name": "normalized variant",
         dimensions: 3,
         created: "2020-08-09-0290499",
         owner: "Simba Khadder",
@@ -72,8 +37,8 @@ export const providerLogos = Object.freeze({
   "Apache Spark": "/Apache_Spark_logo.svg",
 });
 
-const API_URL = "http://localhost:8080";
-const local = true;
+const API_URL = "http://localhost:8181";
+const local = false;
 
 export default class ResourcesAPI {
   checkStatus() {
@@ -92,12 +57,13 @@ export default class ResourcesAPI {
 
   fetchResources(type) {
     var fetchAddress;
+    let resourceType = Resource[type];
     if (local) {
       fetchAddress = `/data/lists/wine-data.json`;
     } else {
-      fetchAddress = `${API_URL}${resourcePaths[type]}`;
+      fetchAddress = `${API_URL}${resourceType.urlPath}`;
     }
-    if (process.env.REACT_APP_EMPTY_RESOURCE_VIEW == "true") {
+    if (process.env.REACT_APP_EMPTY_RESOURCE_VIEW === "true") {
       fetchAddress = "/data/lists/wine-data-empty.json";
     }
     return fetch(fetchAddress, {
@@ -107,7 +73,11 @@ export default class ResourcesAPI {
     })
       .then((res) =>
         res.json().then((json_data) => {
-          return { data: json_data[type] };
+          if (local) {
+            return { data: json_data[type] };
+          } else {
+            return { data: json_data };
+          }
         })
       )
       .catch((error) => {
@@ -128,7 +98,11 @@ export default class ResourcesAPI {
         "Content-Type": "application/json",
       },
     })
-      .then((res) => res.json().then((json_data) => ({ data: json_data })))
+      .then((res) =>
+        res.json().then((json_data) => {
+          return { data: json_data };
+        })
+      )
       .catch((error) => {
         console.error(error);
       });
@@ -148,7 +122,7 @@ export default class ResourcesAPI {
       });
   }
 
-  fetchVersionSearchStub(query) {
+  fetchVariantSearchStub(query) {
     const fetchAddress = "/data/lists/search_results_example.json";
 
     return fetch(fetchAddress, {

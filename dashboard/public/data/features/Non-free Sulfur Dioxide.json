@@ -18,7 +18,7 @@
         "description": "Sulfur Dioxide that is trapped"
       },
       "data": {
-        "training-datasets": [
+        "training-sets": [
           {
             "name": "Wine Quality Dataset",
             "description": "set of wine quality samples and quality ratings",
@@ -41,7 +41,7 @@
         "description": "Sulfur Dioxide that is trapped"
       },
       "data": {
-        "training-datasets": [
+        "training-sets": [
           {
             "name": "Wine Quality Dataset",
             "description": "set of wine quality samples and quality ratings",

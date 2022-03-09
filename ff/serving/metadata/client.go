@@ -2,6 +2,7 @@ package metadata
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"time"
 
@@ -56,12 +57,56 @@ type Client struct {
 	grpcConn pb.MetadataClient
 }
 
+type ResourceDef interface {
+	ResourceType() ResourceType
+}
+
+func (client *Client) CreateAll(ctx context.Context, defs []ResourceDef) error {
+	for _, def := range defs {
+		if err := client.Create(ctx, def); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (client *Client) Create(ctx context.Context, def ResourceDef) error {
+	switch casted := def.(type) {
+	case FeatureDef:
+		return client.CreateFeatureVariant(ctx, casted)
+	case LabelDef:
+		return client.CreateLabelVariant(ctx, casted)
+	case TrainingSetDef:
+		return client.CreateTrainingSetVariant(ctx, casted)
+	case SourceDef:
+		return client.CreateSourceVariant(ctx, casted)
+	case UserDef:
+		return client.CreateUser(ctx, casted)
+	case ProviderDef:
+		return client.CreateProvider(ctx, casted)
+	case EntityDef:
+		return client.CreateEntity(ctx, casted)
+	case ModelDef:
+		return client.CreateModel(ctx, casted)
+	default:
+		panic(fmt.Sprintf("%T not implemented in Created.", casted))
+	}
+}
+
 func (client *Client) ListFeatures(ctx context.Context) ([]*Feature, error) {
 	stream, err := client.grpcConn.ListFeatures(ctx, &pb.Empty{})
 	if err != nil {
 		return nil, err
 	}
 	return client.parseFeatureStream(stream)
+}
+
+func (client *Client) GetFeature(ctx context.Context, feature string) (*Feature, error) {
+	featureList, err := client.GetFeatures(ctx, []string{feature})
+	if err != nil {
+		return nil, err
+	}
+	return featureList[0], nil
 }
 
 func (client *Client) GetFeatures(ctx context.Context, features []string) ([]*Feature, error) {
@@ -120,6 +165,10 @@ type FeatureDef struct {
 	Owner       string
 	Description string
 	Provider    string
+}
+
+func (def FeatureDef) ResourceType() ResourceType {
+	return FEATURE_VARIANT
 }
 
 func (client *Client) CreateFeatureVariant(ctx context.Context, def FeatureDef) error {
@@ -181,6 +230,14 @@ func (client *Client) ListLabels(ctx context.Context) ([]*Label, error) {
 	return client.parseLabelStream(stream)
 }
 
+func (client *Client) GetLabel(ctx context.Context, label string) (*Label, error) {
+	labelList, err := client.GetLabels(ctx, []string{label})
+	if err != nil {
+		return nil, err
+	}
+	return labelList[0], nil
+}
+
 func (client *Client) GetLabels(ctx context.Context, labels []string) ([]*Label, error) {
 	stream, err := client.grpcConn.GetLabels(ctx)
 	if err != nil {
@@ -207,6 +264,10 @@ type LabelDef struct {
 	Entity      string
 	Owner       string
 	Provider    string
+}
+
+func (def LabelDef) ResourceType() ResourceType {
+	return LABEL_VARIANT
 }
 
 func (client *Client) CreateLabelVariant(ctx context.Context, def LabelDef) error {
@@ -298,6 +359,14 @@ func (client *Client) ListTrainingSets(ctx context.Context) ([]*TrainingSet, err
 	return client.parseTrainingSetStream(stream)
 }
 
+func (client *Client) GetTrainingSet(ctx context.Context, trainingSet string) (*TrainingSet, error) {
+	trainingSetList, err := client.GetTrainingSets(ctx, []string{trainingSet})
+	if err != nil {
+		return nil, err
+	}
+	return trainingSetList[0], nil
+}
+
 func (client *Client) GetTrainingSets(ctx context.Context, trainingSets []string) ([]*TrainingSet, error) {
 	stream, err := client.grpcConn.GetTrainingSets(ctx)
 	if err != nil {
@@ -325,6 +394,10 @@ type TrainingSetDef struct {
 	Features    NameVariants
 }
 
+func (def TrainingSetDef) ResourceType() ResourceType {
+	return TRAINING_SET_VARIANT
+}
+
 func (client *Client) CreateTrainingSetVariant(ctx context.Context, def TrainingSetDef) error {
 	serialized := &pb.TrainingSetVariant{
 		Name:        def.Name,
@@ -337,6 +410,19 @@ func (client *Client) CreateTrainingSetVariant(ctx context.Context, def Training
 	}
 	_, err := client.grpcConn.CreateTrainingSetVariant(ctx, serialized)
 	return err
+}
+
+func (client *Client) GetTrainingSetVariant(ctx context.Context, id NameVariant) (*TrainingSetVariant, error) {
+	stream, err := client.grpcConn.GetTrainingSetVariants(ctx)
+	if err != nil {
+		return nil, err
+	}
+	go stream.Send(id.Serialize())
+	variants, err := client.parseTrainingSetVariantStream(stream)
+	if err != nil {
+		return nil, err
+	}
+	return variants[0], nil
 }
 
 func (client *Client) GetTrainingSetVariants(ctx context.Context, ids []NameVariant) ([]*TrainingSetVariant, error) {
@@ -400,6 +486,14 @@ func (client *Client) ListSources(ctx context.Context) ([]*Source, error) {
 	return client.parseSourceStream(stream)
 }
 
+func (client *Client) GetSource(ctx context.Context, source string) (*Source, error) {
+	sourceList, err := client.GetSources(ctx, []string{source})
+	if err != nil {
+		return nil, err
+	}
+	return sourceList[0], nil
+}
+
 func (client *Client) GetSources(ctx context.Context, sources []string) ([]*Source, error) {
 	stream, err := client.grpcConn.GetSources(ctx)
 	if err != nil {
@@ -424,6 +518,10 @@ type SourceDef struct {
 	Type        string
 	Owner       string
 	Provider    string
+}
+
+func (def SourceDef) ResourceType() ResourceType {
+	return SOURCE_VARIANT
 }
 
 func (client *Client) CreateSourceVariant(ctx context.Context, def SourceDef) error {
@@ -513,6 +611,14 @@ func (client *Client) ListUsers(ctx context.Context) ([]*User, error) {
 	return client.parseUserStream(stream)
 }
 
+func (client *Client) GetUser(ctx context.Context, user string) (*User, error) {
+	userList, err := client.GetUsers(ctx, []string{user})
+	if err != nil {
+		return nil, err
+	}
+	return userList[0], nil
+}
+
 func (client *Client) GetUsers(ctx context.Context, users []string) ([]*User, error) {
 	stream, err := client.grpcConn.GetUsers(ctx)
 	if err != nil {
@@ -532,6 +638,10 @@ func (client *Client) GetUsers(ctx context.Context, users []string) ([]*User, er
 
 type UserDef struct {
 	Name string
+}
+
+func (def UserDef) ResourceType() ResourceType {
+	return USER
 }
 
 func (client *Client) CreateUser(ctx context.Context, def UserDef) error {
@@ -568,6 +678,14 @@ func (client *Client) ListProviders(ctx context.Context) ([]*Provider, error) {
 	return client.parseProviderStream(stream)
 }
 
+func (client *Client) GetProvider(ctx context.Context, provider string) (*Provider, error) {
+	providerList, err := client.GetProviders(ctx, []string{provider})
+	if err != nil {
+		return nil, err
+	}
+	return providerList[0], nil
+}
+
 func (client *Client) GetProviders(ctx context.Context, providers []string) ([]*Provider, error) {
 	stream, err := client.grpcConn.GetProviders(ctx)
 	if err != nil {
@@ -591,6 +709,10 @@ type ProviderDef struct {
 	Type        string
 	Software    string
 	Team        string
+}
+
+func (def ProviderDef) ResourceType() ResourceType {
+	return PROVIDER
 }
 
 func (client *Client) CreateProvider(ctx context.Context, def ProviderDef) error {
@@ -631,6 +753,14 @@ func (client *Client) ListEntities(ctx context.Context) ([]*Entity, error) {
 	return client.parseEntityStream(stream)
 }
 
+func (client *Client) GetEntity(ctx context.Context, entity string) (*Entity, error) {
+	entityList, err := client.GetEntities(ctx, []string{entity})
+	if err != nil {
+		return nil, err
+	}
+	return entityList[0], nil
+}
+
 func (client *Client) GetEntities(ctx context.Context, entities []string) ([]*Entity, error) {
 	stream, err := client.grpcConn.GetEntities(ctx)
 	if err != nil {
@@ -651,6 +781,10 @@ func (client *Client) GetEntities(ctx context.Context, entities []string) ([]*En
 type EntityDef struct {
 	Name        string
 	Description string
+}
+
+func (def EntityDef) ResourceType() ResourceType {
+	return ENTITY
 }
 
 func (client *Client) CreateEntity(ctx context.Context, def EntityDef) error {
@@ -688,6 +822,14 @@ func (client *Client) ListModels(ctx context.Context) ([]*Model, error) {
 	return client.parseModelStream(stream)
 }
 
+func (client *Client) GetModel(ctx context.Context, model string) (*Model, error) {
+	modelList, err := client.GetModels(ctx, []string{model})
+	if err != nil {
+		return nil, err
+	}
+	return modelList[0], nil
+}
+
 func (client *Client) GetModels(ctx context.Context, models []string) ([]*Model, error) {
 	stream, err := client.grpcConn.GetModels(ctx)
 	if err != nil {
@@ -708,6 +850,10 @@ func (client *Client) GetModels(ctx context.Context, models []string) ([]*Model,
 type ModelDef struct {
 	Name        string
 	Description string
+}
+
+func (def ModelDef) ResourceType() ResourceType {
+	return MODEL
 }
 
 func (client *Client) CreateModel(ctx context.Context, def ModelDef) error {
@@ -758,7 +904,7 @@ type createdFn struct {
 }
 
 func (fn createdFn) Created() time.Time {
-	t, err := time.Parse(fn.getter.GetCreated(), TIME_FORMAT)
+	t, err := time.Parse(TIME_FORMAT, fn.getter.GetCreated())
 	if err != nil {
 		panic(err)
 	}
@@ -916,6 +1062,14 @@ func wrapProtoFeatureVariant(serialized *pb.FeatureVariant) *FeatureVariant {
 
 func (variant *FeatureVariant) Name() string {
 	return variant.serialized.GetName()
+}
+
+func (variant *FeatureVariant) Provider() string {
+	return variant.serialized.GetProvider()
+}
+
+func (variant *FeatureVariant) Description() string {
+	return variant.serialized.GetDescription()
 }
 
 func (variant *FeatureVariant) Variant() string {
@@ -1088,6 +1242,10 @@ func (variant *LabelVariant) Entity() string {
 
 func (variant *LabelVariant) Owner() string {
 	return variant.serialized.GetOwner()
+}
+
+func (variant *LabelVariant) Provider() string {
+	return variant.serialized.GetProvider()
 }
 
 type TrainingSet struct {

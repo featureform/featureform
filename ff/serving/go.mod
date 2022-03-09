@@ -9,6 +9,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
 	github.com/deepmap/oapi-codegen v1.9.0 // indirect
 	github.com/featureform/embeddinghub/metrics v0.0.0-20220110232125-393058af760c // indirect
+	github.com/gin-contrib/cors v1.3.1 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/lib/pq v1.10.4 // indirect

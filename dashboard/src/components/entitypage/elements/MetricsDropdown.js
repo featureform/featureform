@@ -64,7 +64,7 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const MetricsDropdown = ({ type, name, version, timeRange, aggregates }) => {
+const MetricsDropdown = ({ type, name, variant, timeRange, aggregates }) => {
   const classes = useStyles();
   const [stepRange, setStepRange] = React.useState("min");
   const [step, setStep] = React.useState("1m");
@@ -72,7 +72,7 @@ const MetricsDropdown = ({ type, name, version, timeRange, aggregates }) => {
     if (timeRange.timeRange[0] > 60) {
       setStepRange("hour");
       setStep("1h");
-    } else if (timeRange.timeRange[0] == 60) {
+    } else if (timeRange.timeRange[0] === 60) {
       setStepRange("min");
       setStep("1m");
     }
@@ -83,8 +83,8 @@ const MetricsDropdown = ({ type, name, version, timeRange, aggregates }) => {
       <Grid container spacing={0}>
         <Grid item xs={12} height="10em">
           <div className={classes.graph}>
-            <Container minHeight={"1300px"}>
-              {type != "Dataset" ? (
+            <Container minheight={"1300px"}>
+              {type !== "TrainingSet" ? (
                 <div>
                   <div className={classes.titleBar}>
                     <div className={classes.graphTitle}>
@@ -100,7 +100,7 @@ const MetricsDropdown = ({ type, name, version, timeRange, aggregates }) => {
                   </div>
 
                   <QueryDropdown
-                    query={`rate(test_counter{feature="${name} ${version}",status="success"}[${step}])`}
+                    query={`rate(test_counter{feature="${name} ${variant}",status="success"}[${step}])`}
                     type={type}
                     name={name}
                     query_type={"latency"}
@@ -118,7 +118,7 @@ const MetricsDropdown = ({ type, name, version, timeRange, aggregates }) => {
                   </div>
 
                   <QueryDropdown
-                    query={`rate(test_duration_seconds_${aggregates[0]}{feature="${name} ${version}"}[${step}])/rate(test_duration_seconds_count{feature="${name} ${version}"}[${step}])`}
+                    query={`rate(test_duration_seconds_${aggregates[0]}{feature="${name} ${variant}"}[${step}])/rate(test_duration_seconds_count{feature="${name} ${variant}"}[${step}])`}
                     type={type}
                     name={name}
                     query_type={"count"}
@@ -141,7 +141,7 @@ const MetricsDropdown = ({ type, name, version, timeRange, aggregates }) => {
                   </div>
 
                   <QueryDropdown
-                    query={`rate(test_counter{feature="${name} ${version}",status="row serving"}[${step}])`}
+                    query={`rate(test_counter{feature="${name} ${variant}",status="row serving"}[${step}])`}
                     type={type}
                     name={name}
                     query_type={"latency"}
@@ -162,7 +162,7 @@ const MetricsDropdown = ({ type, name, version, timeRange, aggregates }) => {
               </div>
 
               <QueryDropdown
-                query={`rate(test_counter{feature="${name} ${version}",status="error"}[${step}])`}
+                query={`rate(test_counter{feature="${name} ${variant}",status="error"}[${step}])`}
                 type={type}
                 name={name}
                 query_type={"count"}

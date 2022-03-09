@@ -1,11 +1,7 @@
 import React from "react";
-import { createStyles, alpha, makeStyles } from "@material-ui/core/styles";
-import SearchIcon from "@material-ui/icons/Search";
-import Grid from "@material-ui/core/Grid";
+import { makeStyles } from "@material-ui/core/styles";
 import { useHistory } from "react-router-dom";
-import Container from "@material-ui/core/Container";
 import Chip from "@material-ui/core/Chip";
-import Icon from "@material-ui/core/Icon";
 
 const links = [
   {
@@ -14,7 +10,7 @@ const links = [
   },
   {
     title: "Fraud Detection Training Set",
-    link: "/training-datasets/Fraud%20Detection%20Training%20Set",
+    link: "/training-sets/Fraud%20Detection%20Training%20Set",
   },
   { title: "Customer", link: "/entities/Customer" },
 ];
@@ -46,7 +42,7 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const QuickLinks = ({ sections }) => {
+const QuickLinks = () => {
   const history = useHistory();
   const classes = useStyles();
 
@@ -57,7 +53,7 @@ const QuickLinks = ({ sections }) => {
   return (
     <div className={classes.links}>
       {links.map((link) => (
-        <div className={classes.chipbox}>
+        <div className={classes.chipbox} key={link.title}>
           <Chip
             size="small"
             label={link.title}
@@ -71,9 +67,5 @@ const QuickLinks = ({ sections }) => {
     </div>
   );
 };
-
-const mapStateToProps = (state) => ({
-  sections: state.homePageSections,
-});
 
 export default QuickLinks;

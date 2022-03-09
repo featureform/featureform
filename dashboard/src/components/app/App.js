@@ -1,5 +1,4 @@
 import React from "react";
-import { connect } from "react-redux";
 import { makeStyles } from "@material-ui/core/styles";
 import CssBaseline from "@material-ui/core/CssBaseline";
 import theme from "styles/theme";
@@ -29,7 +28,6 @@ export const App = ({ ...props }) => {
   const classes = useStyles();
   return (
     <ThemeWrapper>
-      {/* <Nav sections={sections}>{routes(sections)}</Nav> */}
       <TopBar className={classes.topbar} />
       <Container
         maxWidth="xl"
@@ -65,27 +63,6 @@ export const views = {
   EMPTY: "Empty",
 };
 
-export const indexPath = (content) => {
-  if (content.length === 0) {
-    throw TypeError("Nav cannot be empty");
-  }
-  return content[0].path;
-};
-
-export function parseContentProps(sections) {
-  return sections
-    .flatMap((section) => section.items)
-    .filter((item) => !item.external)
-    .map(parseItem);
-}
-
-const parseItem = (item) => ({
-  title: item.title,
-  view: item.view || views.EMPTY,
-  viewProps: item.viewProps || {},
-  path: item.path,
-});
-
 export const ThemeWrapper = ({ children }) => (
   <ThemeProvider theme={theme}>
     <CssBaseline />
@@ -93,8 +70,4 @@ export const ThemeWrapper = ({ children }) => (
   </ThemeProvider>
 );
 
-const mapStateToProps = (state) => ({
-  sections: state.navSections,
-});
-
-export default connect(mapStateToProps)(App);
+export default App;

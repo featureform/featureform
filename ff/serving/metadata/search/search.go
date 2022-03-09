@@ -27,9 +27,15 @@ func NewTypesenseSearch(params *TypeSenseParams) (Searcher, error) {
 	client := typesense.NewClient(
 		typesense.WithServer(fmt.Sprintf("http://%s:%s", params.Host, params.Port)),
 		typesense.WithAPIKey(params.ApiKey))
-	if _, errSchemaNotFound := client.Collection("resource").Retrieve(); errSchemaNotFound != nil {
-		if err := makeSchema(client); err != nil {
-			return nil, err
+	if _, errRetr := client.Collection("resource").Retrieve(); errRetr != nil {
+		errHttp, isHttpErr := errRetr.(*typesense.HTTPError)
+		schemaNotFound := isHttpErr && errHttp.Status == 404
+		if schemaNotFound {
+			if err := makeSchema(client); err != nil {
+				return nil, err
+			}
+		} else {
+			return nil, errRetr
 		}
 	}
 	if err := initializeCollection(client); err != nil {

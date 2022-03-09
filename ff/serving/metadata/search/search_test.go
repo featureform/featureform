@@ -14,12 +14,12 @@ func TestFullSearch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to Initialize Search %s", err)
 	}
-	resourcetoadd := ResourceDoc{
+	res := ResourceDoc{
 		Name:    "name",
 		Variant: "default",
 		Type:    "string",
 	}
-	if err := searcher.Upsert(resourcetoadd); err != nil {
+	if err := searcher.Upsert(res); err != nil {
 		t.Fatalf("Failed to Upsert %s", err)
 	}
 	if _, err := searcher.RunSearch("name"); err != nil {
@@ -40,33 +40,30 @@ func TestOrder(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to initialize %s", err)
 	}
-	var toupsert []ResourceDoc
-	toupsert = append(toupsert, ResourceDoc{
-		Name:    "heroic",
-		Variant: "default",
-		Type:    "string",
-	})
-	toupsert = append(toupsert, ResourceDoc{
-		Name:    "wine",
-		Variant: "second",
-		Type:    "general",
-	})
-	toupsert = append(toupsert, ResourceDoc{
-		Name:    "hero",
-		Variant: "default-1",
-		Type:    "string",
-	})
-	toupsert = append(toupsert, ResourceDoc{
-		Name:    "Hero",
-		Variant: "second",
-		Type:    "Entity",
-	})
-	toupsert = append(toupsert, ResourceDoc{
-		Name:    "her o",
-		Variant: "third",
-		Type:    "Feature",
-	})
-	for _, resource := range toupsert {
+	resources := []ResourceDoc{
+		{
+			Name:    "heroic",
+			Variant: "default",
+			Type:    "string",
+		}, {
+			Name:    "wine",
+			Variant: "second",
+			Type:    "general",
+		}, {
+			Name:    "hero",
+			Variant: "default-1",
+			Type:    "string",
+		}, {
+			Name:    "Hero",
+			Variant: "second",
+			Type:    "Entity",
+		}, {
+			Name:    "her o",
+			Variant: "third",
+			Type:    "Feature",
+		},
+	}
+	for _, resource := range resources {
 		if err := searcher.Upsert(resource); err != nil {
 			t.Fatalf("Failed to Upsert %s", err)
 		}

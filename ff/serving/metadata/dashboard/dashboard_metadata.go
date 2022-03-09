@@ -207,7 +207,7 @@ func sourceShallowMap(variant *metadata.SourceVariant) SourceVariantResource {
 	}
 }
 
-func (m *MetadataServer) nameVariantToTrainingSetList(nameVariants []metadata.NameVariant) (*[]TrainingSetResource, error) {
+func (m *MetadataServer) nameVariantToTrainingSetList(nameVariants []metadata.NameVariant) ([]TrainingSetResource, error) {
 	trainingSetMap := make(map[string]TrainingSetResource)
 	trainingSetVariants, err := m.client.GetTrainingSetVariants(context.Background(), nameVariants)
 	if err != nil {
@@ -235,11 +235,10 @@ func (m *MetadataServer) nameVariantToTrainingSetList(nameVariants []metadata.Na
 	for _, value := range trainingSetMap {
 		trainingSetList = append(trainingSetList, value)
 	}
-	return &trainingSetList, nil
+	return trainingSetList, nil
 }
 
-//TODO basically copy logic as above to these
-func (m *MetadataServer) nameVariantToFeatureList(nameVariants []metadata.NameVariant) (*[]FeatureResource, error) {
+func (m *MetadataServer) nameVariantToFeatureList(nameVariants []metadata.NameVariant) ([]FeatureResource, error) {
 	featureMap := make(map[string]FeatureResource)
 	featureVariants, err := m.client.GetFeatureVariants(context.Background(), nameVariants)
 	if err != nil {
@@ -267,10 +266,10 @@ func (m *MetadataServer) nameVariantToFeatureList(nameVariants []metadata.NameVa
 	for _, value := range featureMap {
 		featureList = append(featureList, value)
 	}
-	return &featureList, nil
+	return featureList, nil
 }
 
-func (m *MetadataServer) nameVariantToLabelList(nameVariants []metadata.NameVariant) (*[]LabelResource, error) {
+func (m *MetadataServer) nameVariantToLabelList(nameVariants []metadata.NameVariant) ([]LabelResource, error) {
 	labelMap := make(map[string]LabelResource)
 	labelVariants, err := m.client.GetLabelVariants(context.Background(), nameVariants)
 	if err != nil {
@@ -298,10 +297,10 @@ func (m *MetadataServer) nameVariantToLabelList(nameVariants []metadata.NameVari
 	for _, value := range labelMap {
 		labelList = append(labelList, value)
 	}
-	return &labelList, nil
+	return labelList, nil
 }
 
-func (m *MetadataServer) nameVariantToSourceList(nameVariants []metadata.NameVariant) (*[]SourceResource, error) {
+func (m *MetadataServer) nameVariantToSourceList(nameVariants []metadata.NameVariant) ([]SourceResource, error) {
 	sourceMap := make(map[string]SourceResource)
 	sourceVariants, err := m.client.GetSourceVariants(context.Background(), nameVariants)
 	if err != nil {
@@ -329,10 +328,10 @@ func (m *MetadataServer) nameVariantToSourceList(nameVariants []metadata.NameVar
 	for _, value := range sourceMap {
 		sourceList = append(sourceList, value)
 	}
-	return &sourceList, nil
+	return sourceList, nil
 }
 
-func (m *MetadataServer) readFromFeature(feature *metadata.Feature, singleResource bool) (map[string]FeatureVariantResource, *FetchError) {
+func (m *MetadataServer) readFromFeature(feature *metadata.Feature, deepCopy bool) (map[string]FeatureVariantResource, *FetchError) {
 	variantMap := make(map[string]FeatureVariantResource)
 	variants, err := feature.FetchVariants(m.client, context.Background())
 	if err != nil {
@@ -343,12 +342,12 @@ func (m *MetadataServer) readFromFeature(feature *metadata.Feature, singleResour
 	for _, variant := range variants {
 
 		featResource := featureShallowMap(variant)
-		if singleResource {
+		if deepCopy {
 			ts, err := m.nameVariantToTrainingSetList(variant.TrainingSets())
 			if err != nil {
 				return nil, &FetchError{StatusCode: 500, Type: "Cannot get information from training sets"}
 			}
-			featResource.TrainingSets = *ts
+			featResource.TrainingSets = ts
 		}
 		variantMap[variant.Variant()] = featResource
 
@@ -356,7 +355,7 @@ func (m *MetadataServer) readFromFeature(feature *metadata.Feature, singleResour
 	return variantMap, nil
 }
 
-func (m *MetadataServer) readFromTrainingSet(trainingSet *metadata.TrainingSet, singleResource bool) (map[string]TrainingSetVariantResource, *FetchError) {
+func (m *MetadataServer) readFromTrainingSet(trainingSet *metadata.TrainingSet, deepCopy bool) (map[string]TrainingSetVariantResource, *FetchError) {
 	variantMap := make(map[string]TrainingSetVariantResource)
 	variants, err := trainingSet.FetchVariants(m.client, context.Background())
 	if err != nil {
@@ -367,12 +366,12 @@ func (m *MetadataServer) readFromTrainingSet(trainingSet *metadata.TrainingSet, 
 	for _, variant := range variants {
 
 		trainingResource := trainingSetShallowMap(variant)
-		if singleResource {
+		if deepCopy {
 			f, err := m.nameVariantToFeatureList(variant.Features())
 			if err != nil {
 				return nil, &FetchError{StatusCode: 500, Type: "Cannot get information from features"}
 			}
-			trainingResource.Features = *f
+			trainingResource.Features = f
 		}
 		variantMap[variant.Variant()] = trainingResource
 
@@ -380,7 +379,7 @@ func (m *MetadataServer) readFromTrainingSet(trainingSet *metadata.TrainingSet, 
 	return variantMap, nil
 }
 
-func (m *MetadataServer) readFromSource(source *metadata.Source, singleResource bool) (map[string]SourceVariantResource, *FetchError) {
+func (m *MetadataServer) readFromSource(source *metadata.Source, deepCopy bool) (map[string]SourceVariantResource, *FetchError) {
 	variantMap := make(map[string]SourceVariantResource)
 	variants, err := source.FetchVariants(m.client, context.Background())
 	if err != nil {
@@ -391,24 +390,45 @@ func (m *MetadataServer) readFromSource(source *metadata.Source, singleResource 
 	for _, variant := range variants {
 
 		sourceResource := sourceShallowMap(variant)
-		if singleResource {
-			//TODO make these channels so they don't wait for each other to finish to send their requests
-			f, err := m.nameVariantToFeatureList(variant.Features())
-			if err != nil {
-				return nil, &FetchError{StatusCode: 500, Type: "Cannot get information from features"}
+		if deepCopy {
+			errChan := make(chan *FetchError)
+			go func() {
+				f, err := m.nameVariantToFeatureList(variant.Features())
+				if err != nil {
+					errChan <- &FetchError{StatusCode: 500, Type: "Cannot get information from features"}
+					return
+				}
+				sourceResource.Features = f
+				errChan <- nil
+			}()
+			go func() {
+				l, err := m.nameVariantToLabelList(variant.Labels())
+				if err != nil {
+					errChan <- &FetchError{StatusCode: 500, Type: "Cannot get information from labels"}
+					return
+				}
+				sourceResource.Labels = l
+				errChan <- nil
+			}()
+			go func() {
+				ts, err := m.nameVariantToTrainingSetList(variant.TrainingSets())
+				if err != nil {
+					errChan <- &FetchError{StatusCode: 500, Type: "Cannot get information from training sets"}
+					return
+				}
+				sourceResource.TrainingSets = ts
+				errChan <- nil
+				
+			}()
+			for i := 0; i < 3; i++ {
+				err := <-errChan
+				if err != nil {
+					close(errChan)
+					return nil, err
+				}
 			}
-			l, err := m.nameVariantToLabelList(variant.Labels())
-			if err != nil {
-				return nil, &FetchError{StatusCode: 500, Type: "Cannot get information from labels"}
-			}
-			ts, err := m.nameVariantToTrainingSetList(variant.TrainingSets())
-			if err != nil {
-				return nil, &FetchError{StatusCode: 500, Type: "Cannot get information from training sets"}
-			}
-
-			sourceResource.Labels = *l
-			sourceResource.Features = *f
-			sourceResource.TrainingSets = *ts
+			
+			
 		}
 		variantMap[variant.Variant()] = sourceResource
 
@@ -416,7 +436,7 @@ func (m *MetadataServer) readFromSource(source *metadata.Source, singleResource 
 	return variantMap, nil
 }
 
-func (m *MetadataServer) readFromLabel(label *metadata.Label, singleResource bool) (map[string]LabelVariantResource, *FetchError) {
+func (m *MetadataServer) readFromLabel(label *metadata.Label, deepCopy bool) (map[string]LabelVariantResource, *FetchError) {
 	variantMap := make(map[string]LabelVariantResource)
 	variants, err := label.FetchVariants(m.client, context.Background())
 	if err != nil {
@@ -426,12 +446,12 @@ func (m *MetadataServer) readFromLabel(label *metadata.Label, singleResource boo
 	}
 	for _, variant := range variants {
 		labelResource := labelShallowMap(variant)
-		if singleResource {
+		if deepCopy {
 			ts, err := m.nameVariantToTrainingSetList(variant.TrainingSets())
 			if err != nil {
 				return nil, &FetchError{StatusCode: 500, Type: "Cannot get information from training sets"}
 			}
-			labelResource.TrainingSets = *ts
+			labelResource.TrainingSets = ts
 		}
 		variantMap[variant.Variant()] = labelResource
 	}
@@ -528,37 +548,47 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 			c.JSON(fetchError.StatusCode, fetchError.Error())
 			return
 		}
-		//TODO make these channels so they don't wait for each other to finish to send their requests
-		f, err := m.nameVariantToFeatureList(entity.Features())
-		if err != nil {
-			fetchError := &FetchError{StatusCode: 500, Type: "feature"}
-			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
-			c.JSON(fetchError.StatusCode, fetchError.Error())
-			return
-		}
-		l, err := m.nameVariantToLabelList(entity.Labels())
-		if err != nil {
-			fetchError := &FetchError{StatusCode: 500, Type: "label"}
-			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
-			c.JSON(fetchError.StatusCode, fetchError.Error())
-			return
-		}
-		ts, err := m.nameVariantToTrainingSetList(entity.TrainingSets())
-		if err != nil {
-			fetchError := &FetchError{StatusCode: 500, Type: "training set"}
-			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
-			c.JSON(fetchError.StatusCode, fetchError.Error())
-			return
-		}
-
-		c.JSON(http.StatusOK, EntityResource{
+		entityResource := EntityResource{
 			Name:         entity.Name(),
 			Type:         "Entity",
 			Description:  entity.Description(),
-			Features:     *f,
-			Labels:       *l,
-			TrainingSets: *ts,
-		})
+		}
+		errChan := make(chan *FetchError)
+		go func() {
+			f, err := m.nameVariantToFeatureList(entity.Features())
+			if err != nil {
+				errChan <- &FetchError{StatusCode: 500, Type: "feature"}
+			}
+			entityResource.Features = f
+			errChan <- nil
+		}()
+		go func() {
+			l, err := m.nameVariantToLabelList(entity.Labels())
+			if err != nil {
+				errChan <- &FetchError{StatusCode: 500, Type: "label"}
+			}
+			entityResource.Labels = l
+			errChan <- nil
+		}()
+		go func() {
+			ts, err := m.nameVariantToTrainingSetList(entity.TrainingSets())
+			if err != nil {
+				errChan <- &FetchError{StatusCode: 500, Type: "training set"}
+			}
+			entityResource.TrainingSets = ts
+			errChan <- nil
+		}()
+
+		for i := 0; i < 3; i++ {
+			err := <-errChan
+			if err != nil {
+				close(errChan)
+				m.logger.Errorw(err.Error(), "Metadata error", err)
+				c.JSON(err.StatusCode, err.Error())
+				return
+			}
+		}
+		c.JSON(http.StatusOK, entityResource)
 	case "users":
 		user, err := m.client.GetUser(context.Background(), c.Param("resource"))
 		if err != nil {
@@ -567,44 +597,53 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 			c.JSON(fetchError.StatusCode, fetchError.Error())
 			return
 		}
-		//TODO make these channels so they don't wait for each other to finish to send their requests
-		f, err := m.nameVariantToFeatureList(user.Features())
-		if err != nil {
-			fetchError := &FetchError{StatusCode: 500, Type: "feature"}
-			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
-			c.JSON(fetchError.StatusCode, fetchError.Error())
-			return
-		}
-		l, err := m.nameVariantToLabelList(user.Labels())
-		if err != nil {
-			fetchError := &FetchError{StatusCode: 500, Type: "label"}
-			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
-			c.JSON(fetchError.StatusCode, fetchError.Error())
-			return
-		}
-		ts, err := m.nameVariantToTrainingSetList(user.TrainingSets())
-		if err != nil {
-			fetchError := &FetchError{StatusCode: 500, Type: "training set"}
-			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
-			c.JSON(fetchError.StatusCode, fetchError.Error())
-			return
-		}
-		s, err := m.nameVariantToSourceList(user.Sources())
-		if err != nil {
-			fetchError := &FetchError{StatusCode: 500, Type: "source"}
-			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
-			c.JSON(fetchError.StatusCode, fetchError.Error())
-			return
-		}
-
-		c.JSON(http.StatusOK, UserResource{
+		userResource := &UserResource{
 			Name:         user.Name(),
 			Type:         "User",
-			Features:     *f,
-			Labels:       *l,
-			TrainingSets: *ts,
-			Sources:      *s,
-		})
+		}
+		errChan := make(chan *FetchError)
+		go func() {
+			f, err := m.nameVariantToFeatureList(user.Features())
+			if err != nil {
+				errChan <- &FetchError{StatusCode: 500, Type: "feature"}
+			}
+			userResource.Features = f
+			errChan <- nil
+		}()
+		go func() {
+			l, err := m.nameVariantToLabelList(user.Labels())
+			if err != nil {
+				errChan <- &FetchError{StatusCode: 500, Type: "label"}
+			}
+			userResource.Labels = l
+			errChan <- nil
+		}()
+		go func() {
+			ts, err := m.nameVariantToTrainingSetList(user.TrainingSets())
+			if err != nil {
+				errChan <- &FetchError{StatusCode: 500, Type: "training set"}
+			}
+			userResource.TrainingSets = ts
+			errChan <- nil
+		}()
+		go func() {
+			s, err := m.nameVariantToSourceList(user.Sources())
+			if err != nil {
+				errChan <- &FetchError{StatusCode: 500, Type: "source"}
+			}
+			userResource.Sources = s
+			errChan <- nil
+		}()
+		for i := 0; i < 4; i++ {
+			err := <-errChan
+			if err != nil {
+				close(errChan)
+				m.logger.Errorw(err.Error(), "Metadata error", err)
+				c.JSON(err.StatusCode, err.Error())
+				return
+			}
+		}
+		c.JSON(http.StatusOK, userResource)
 	case "models":
 		model, err := m.client.GetModel(context.Background(), c.Param("resource"))
 		if err != nil {
@@ -613,37 +652,46 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 			c.JSON(fetchError.StatusCode, fetchError.Error())
 			return
 		}
-		//TODO make these channels so they don't wait for each other to finish to send their requests
-		f, err := m.nameVariantToFeatureList(model.Features())
-		if err != nil {
-			fetchError := &FetchError{StatusCode: 500, Type: "feature"}
-			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
-			c.JSON(fetchError.StatusCode, fetchError.Error())
-			return
-		}
-		l, err := m.nameVariantToLabelList(model.Labels())
-		if err != nil {
-			fetchError := &FetchError{StatusCode: 500, Type: "label"}
-			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
-			c.JSON(fetchError.StatusCode, fetchError.Error())
-			return
-		}
-		ts, err := m.nameVariantToTrainingSetList(model.TrainingSets())
-		if err != nil {
-			fetchError := &FetchError{StatusCode: 500, Type: "training set"}
-			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
-			c.JSON(fetchError.StatusCode, fetchError.Error())
-			return
-		}
-
-		c.JSON(http.StatusOK, ModelResource{
+		modelResource := &ModelResource{
 			Name:         model.Name(),
 			Type:         "Model",
 			Description:  model.Description(),
-			Features:     *f,
-			Labels:       *l,
-			TrainingSets: *ts,
-		})
+		}
+		errChan := make(chan *FetchError)
+		go func() {
+			f, err := m.nameVariantToFeatureList(model.Features())
+			if err != nil {
+				errChan <- &FetchError{StatusCode: 500, Type: "feature"}
+			}
+			modelResource.Features = f
+			errChan <- nil
+		}()
+		go func() {
+			l, err := m.nameVariantToLabelList(model.Labels())
+			if err != nil {
+				errChan <- &FetchError{StatusCode: 500, Type: "label"}
+			}
+			modelResource.Labels = l
+			errChan <- nil
+		}()
+		go func() {
+			ts, err := m.nameVariantToTrainingSetList(model.TrainingSets())
+			if err != nil {
+				errChan <- &FetchError{StatusCode: 500, Type: "training set"}
+			}
+			modelResource.TrainingSets = ts
+			errChan <- nil
+		}()
+		for i := 0; i < 3; i++ {
+			err := <-errChan
+			if err != nil {
+				close(errChan)
+				m.logger.Errorw(err.Error(), "Metadata error", err)
+				c.JSON(err.StatusCode, err.Error())
+				return
+			}
+		}
+		c.JSON(http.StatusOK, modelResource)
 	case "providers":
 		provider, err := m.client.GetProvider(context.Background(), c.Param("resource"))
 		if err != nil {
@@ -652,47 +700,57 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 			c.JSON(fetchError.StatusCode, fetchError.Error())
 			return
 		}
-		//TODO make these channels so they don't wait for each other to finish to send their requests
-		f, err := m.nameVariantToFeatureList(provider.Features())
-		if err != nil {
-			fetchError := &FetchError{StatusCode: 500, Type: "feature"}
-			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
-			c.JSON(fetchError.StatusCode, fetchError.Error())
-			return
-		}
-		l, err := m.nameVariantToLabelList(provider.Labels())
-		if err != nil {
-			fetchError := &FetchError{StatusCode: 500, Type: "label"}
-			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
-			c.JSON(fetchError.StatusCode, fetchError.Error())
-			return
-		}
-		ts, err := m.nameVariantToTrainingSetList(provider.TrainingSets())
-		if err != nil {
-			fetchError := &FetchError{StatusCode: 500, Type: "training set"}
-			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
-			c.JSON(fetchError.StatusCode, fetchError.Error())
-			return
-		}
-		s, err := m.nameVariantToSourceList(provider.Sources())
-		if err != nil {
-			fetchError := &FetchError{StatusCode: 500, Type: "source"}
-			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
-			c.JSON(fetchError.StatusCode, fetchError.Error())
-			return
-		}
-		c.JSON(http.StatusOK, ProviderResource{
+		providerResource := &ProviderResource{
 			Name:         provider.Name(),
 			Type:         "Provider",
 			Description:  provider.Description(),
 			ProviderType: provider.Type(),
 			Software:     provider.Software(),
 			Team:         provider.Team(),
-			Sources:      *s,
-			Features:     *f,
-			Labels:       *l,
-			TrainingSets: *ts,
-		})
+		}
+		errChan := make(chan *FetchError)
+		go func() {
+			f, err := m.nameVariantToFeatureList(provider.Features())
+			if err != nil {
+				errChan <- &FetchError{StatusCode: 500, Type: "feature"}
+			}
+			providerResource.Features = f
+			errChan <- nil
+		}()
+		go func() {
+			l, err := m.nameVariantToLabelList(provider.Labels())
+			if err != nil {
+				errChan <- &FetchError{StatusCode: 500, Type: "label"}
+			}
+			providerResource.Labels = l
+			errChan <- nil
+		}()
+		go func() {
+			ts, err := m.nameVariantToTrainingSetList(provider.TrainingSets())
+			if err != nil {
+				errChan <- &FetchError{StatusCode: 500, Type: "training set"}
+			}
+			providerResource.TrainingSets = ts
+			errChan <- nil
+		}()
+		go func() {
+			s, err := m.nameVariantToSourceList(provider.Sources())
+			if err != nil {
+				errChan <- &FetchError{StatusCode: 500, Type: "source"}
+			}
+			providerResource.Sources = s
+			errChan <- nil
+		}()
+		for i := 0; i < 4; i++ {
+			err := <-errChan
+			if err != nil {
+				close(errChan)
+				m.logger.Errorw(err.Error(), "Metadata error", err)
+				c.JSON(err.StatusCode, err.Error())
+				return
+			}
+		}
+		c.JSON(http.StatusOK, providerResource)
 	}
 }
 

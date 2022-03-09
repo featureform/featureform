@@ -19,7 +19,7 @@ class TypeSenseResults{
                 dictionary[type].push(results[i])
             }
             else {
-                dictionary[type]=results[i]
+                dictionary[type]=[results[i]]
             }
         }
         this._resultsByType=dictionary

@@ -82,7 +82,7 @@ func TestOrder(t *testing.T) {
 	}
 	for i, hit := range results {
 		if hit.Name != names[i] {
-			t.Fatalf("Failed to get correct order %s", errRunsearch)
+			t.Fatalf("Failed to get correct order %s")
 		}
 	}
 }

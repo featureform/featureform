@@ -1,132 +1,81 @@
 package search
 
 import (
-	"github.com/typesense/typesense-go/typesense"
 	"testing"
 )
 
-func TestCreateGetTable(t *testing.T) {
-	s := Search{
-		Client: typesense.NewClient(
-			typesense.WithServer("http://localhost:8108"),
-			typesense.WithAPIKey("xyz")),
-	}
-	s.Client.Collection("resource").Delete()
-	err := makeSchema(s.Client)
-	if err != nil {
-		t.Fatalf("Failed to Make Schema %s", err)
-	}
-	errInit := initializeCollection(s.Client)
-	if errInit != nil {
-		t.Fatalf("Failed to Create Collection: %s", errInit)
-	}
-	_, errInitRetrieve := s.Client.Collection("resource").Retrieve()
-	if errInitRetrieve != nil {
-		t.Fatalf("Failed to Get Collection: %s", errInitRetrieve)
-	}
-}
-
-func TestUploadSearch(t *testing.T) {
-	s := Search{
-		Client: typesense.NewClient(
-			typesense.WithServer("http://localhost:8108"),
-			typesense.WithAPIKey("xyz")),
-	}
-	searchParameters := "user"
-	_, err := s.RunSearch(searchParameters)
-	if err != nil {
-		t.Fatalf("Failed to UploadSearch: without values %s", err)
-	}
-}
-
 func TestFullSearch(t *testing.T) {
-	var params TypeSenseParams
-	params.Host = "localhost"
-	params.Port = "8108"
-	params.ApiKey = "xyz"
+	params := TypeSenseParams{
+		Host:   "localhost",
+		Port:   "8108",
+		ApiKey: "xyz",
+	}
 	searcher, err := NewTypesenseSearch(&params)
 	if err != nil {
 		t.Fatalf("Failed to Initialize Search %s", err)
 	}
-	var resourcetoadd ResourceDoc
-	resourcetoadd.Name = "name"
-	resourcetoadd.Variant = "default"
-	resourcetoadd.Type = "string"
-	errUpsert := searcher.Upsert(resourcetoadd)
-	if errUpsert != nil {
-		t.Fatalf("Failed to Upsert %s", errUpsert)
+	resourcetoadd := ResourceDoc{
+		Name:    "name",
+		Variant: "default",
+		Type:    "string",
 	}
-	_, errRunsearch := searcher.RunSearch("name")
-	if errRunsearch != nil {
-		t.Fatalf("Failed to start search %s", errRunsearch)
+	if err := searcher.Upsert(resourcetoadd); err != nil {
+		t.Fatalf("Failed to Upsert %s", err)
 	}
-}
-
-func TestReset(t *testing.T) {
-	var params TypeSenseParams
-	params.Host = "localhost"
-	params.Port = "8108"
-	params.ApiKey = "xyz"
-	searcher, errReset := Reset(&params)
-	if errReset != nil {
-		t.Fatalf("Failed to reset %s", errReset)
+	if _, err := searcher.RunSearch("name"); err != nil {
+		t.Fatalf("Failed to start search %s", err)
 	}
-	var resourcetoadd ResourceDoc
-	resourcetoadd.Name = "name"
-	resourcetoadd.Variant = "default"
-	resourcetoadd.Type = "string"
-	errUpsert := searcher.Upsert(resourcetoadd)
-	if errUpsert != nil {
-		t.Fatalf("Failed to Upsert %s", errUpsert)
-	}
-	_, errRunsearch := searcher.RunSearch("name")
-	if errRunsearch != nil {
-		t.Fatalf("Failed to start search %s", errRunsearch)
+	if err := searcher.DeleteAll(); err != nil {
+		t.Fatalf("Failed to reset %s", err)
 	}
 }
 
 func TestOrder(t *testing.T) {
-	var params TypeSenseParams
-	params.Host = "localhost"
-	params.Port = "8108"
-	params.ApiKey = "xyz"
-	searcher, errReset := Reset(&params)
-	if errReset != nil {
-		t.Fatalf("Failed to reset %s", errReset)
+	params := TypeSenseParams{
+		Host:   "localhost",
+		Port:   "8108",
+		ApiKey: "xyz",
 	}
-	var resourcetoadd ResourceDoc
-	resourcetoadd.Name = "heroic"
-	resourcetoadd.Variant = "default"
-	resourcetoadd.Type = "string"
-	var resourcetoadd2 ResourceDoc
-	resourcetoadd2.Name = "wine"
-	resourcetoadd2.Variant = "second"
-	resourcetoadd2.Type = "general"
-	var resourcetoadd3 ResourceDoc
-	resourcetoadd3.Name = "hero"
-	resourcetoadd3.Variant = "default-1"
-	resourcetoadd3.Type = "string"
-	var resourcetoadd4 ResourceDoc
-	resourcetoadd4.Name = "Hero"
-	resourcetoadd4.Variant = "second"
-	resourcetoadd4.Type = "Entity"
-	var resourcetoadd5 ResourceDoc
-	resourcetoadd5.Name = "her o"
-	resourcetoadd5.Variant = "third"
-	resourcetoadd5.Type = "Feature"
-	errUpsert := searcher.Upsert(resourcetoadd)
-	if errUpsert != nil {
-		t.Fatalf("Failed to Upsert %s", errUpsert)
+	searcher, err := NewTypesenseSearch(&params)
+	if err != nil {
+		t.Fatalf("Failed to initialize %s", err)
 	}
-	searcher.Upsert(resourcetoadd2)
-	searcher.Upsert(resourcetoadd3)
-	searcher.Upsert(resourcetoadd4)
-	searcher.Upsert(resourcetoadd5)
+	var toupsert []ResourceDoc
+	toupsert = append(toupsert, ResourceDoc{
+		Name:    "heroic",
+		Variant: "default",
+		Type:    "string",
+	})
+	toupsert = append(toupsert, ResourceDoc{
+		Name:    "wine",
+		Variant: "second",
+		Type:    "general",
+	})
+	toupsert = append(toupsert, ResourceDoc{
+		Name:    "hero",
+		Variant: "default-1",
+		Type:    "string",
+	})
+	toupsert = append(toupsert, ResourceDoc{
+		Name:    "Hero",
+		Variant: "second",
+		Type:    "Entity",
+	})
+	toupsert = append(toupsert, ResourceDoc{
+		Name:    "her o",
+		Variant: "third",
+		Type:    "Feature",
+	})
+	for _, resource := range toupsert {
+		if err := searcher.Upsert(resource); err != nil {
+			t.Fatalf("Failed to Upsert %s", err)
+		}
+	}
 	results, errRunsearch := searcher.RunSearch("hero")
 	if errRunsearch != nil {
 		t.Fatalf("Failed to start search %s", errRunsearch)
 	}
-	names := [3]string{
+	names := []string{
 		"Hero",
 		"hero",
 		"heroic",

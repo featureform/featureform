@@ -10,6 +10,7 @@ import (
 type Searcher interface {
 	Upsert(ResourceDoc) error
 	RunSearch(q string) ([]ResourceDoc, error)
+	DeleteAll() error
 }
 
 type TypeSenseParams struct {
@@ -19,7 +20,7 @@ type TypeSenseParams struct {
 }
 
 type Search struct {
-	Client *typesense.Client
+	client *typesense.Client
 }
 
 func NewTypesenseSearch(params *TypeSenseParams) (Searcher, error) {
@@ -31,12 +32,11 @@ func NewTypesenseSearch(params *TypeSenseParams) (Searcher, error) {
 			return nil, err
 		}
 	}
-
-	if errinitcollection := initializeCollection(client); errinitcollection != nil {
-		return nil, errinitcollection
+	if err := initializeCollection(client); err != nil {
+		return nil, err
 	}
 	return &Search{
-		Client: client,
+		client: client,
 	}, nil
 }
 
@@ -84,19 +84,13 @@ func initializeCollection(client *typesense.Client) error {
 }
 
 func (s Search) Upsert(doc ResourceDoc) error {
-	_, err := s.Client.Collection("resource").Documents().Upsert(doc)
+	_, err := s.client.Collection("resource").Documents().Upsert(doc)
 	return err
 }
 
-func Reset(params *TypeSenseParams) (Searcher, error) {
-	client := typesense.NewClient(
-		typesense.WithServer(fmt.Sprintf("http://%s:%s", params.Host, params.Port)),
-		typesense.WithAPIKey(params.ApiKey))
-	_, err := client.Collection("resource").Delete()
-	if err != nil {
-		return nil, err
-	}
-	return NewTypesenseSearch(params)
+func (s Search) DeleteAll() error {
+	_, err := s.client.Collection("resource").Delete()
+	return err
 }
 
 func (s Search) RunSearch(q string) ([]ResourceDoc, error) {
@@ -104,7 +98,7 @@ func (s Search) RunSearch(q string) ([]ResourceDoc, error) {
 		Q:       q,
 		QueryBy: "Name",
 	}
-	results, errGetResults := s.Client.Collection("resource").Documents().Search(searchParameters)
+	results, errGetResults := s.client.Collection("resource").Documents().Search(searchParameters)
 	if errGetResults != nil {
 		return nil, errGetResults
 	}
@@ -112,7 +106,7 @@ func (s Search) RunSearch(q string) ([]ResourceDoc, error) {
 	for _, hit := range *results.Hits {
 		doc := *hit.Document
 		searchresults = append(searchresults, ResourceDoc{
-			Name:    doc["Name"].(string), //panic
+			Name:    doc["Name"].(string),
 			Type:    doc["Type"].(string),
 			Variant: doc["Variant"].(string),
 		})

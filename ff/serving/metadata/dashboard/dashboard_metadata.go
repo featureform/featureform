@@ -214,7 +214,7 @@ func (m *MetadataServer) nameVariantToTrainingSetList(nameVariants []metadata.Na
 		return nil, err
 	}
 	for _, variant := range trainingSetVariants {
-		
+
 		if trainingSetResource, has := trainingSetMap[variant.Name()]; has {
 			trainingSetResource.AllVariants = append(trainingSetMap[variant.Name()].AllVariants, variant.Variant())
 			trainingSetResource.Variants[variant.Variant()] = trainingSetShallowMap(variant)
@@ -225,7 +225,7 @@ func (m *MetadataServer) nameVariantToTrainingSetList(nameVariants []metadata.Na
 			trainingSetMap[variant.Name()] = TrainingSetResource{
 				AllVariants:    []string{variant.Variant()},
 				Type:           "TrainingSet",
-				DefaultVariant: "", //if empty frontend should ignore it
+				DefaultVariant: "",
 				Name:           variant.Name(),
 				Variants:       trainingSetVariantMap,
 			}
@@ -245,7 +245,7 @@ func (m *MetadataServer) nameVariantToFeatureList(nameVariants []metadata.NameVa
 		return nil, err
 	}
 	for _, variant := range featureVariants {
-		
+
 		if featureResource, has := featureMap[variant.Name()]; has {
 			featureResource.AllVariants = append(featureMap[variant.Name()].AllVariants, variant.Variant())
 			featureResource.Variants[variant.Variant()] = featureShallowMap(variant)
@@ -256,7 +256,7 @@ func (m *MetadataServer) nameVariantToFeatureList(nameVariants []metadata.NameVa
 			featureMap[variant.Name()] = FeatureResource{
 				AllVariants:    []string{variant.Variant()},
 				Type:           "Feature",
-				DefaultVariant: "", //if empty frontend should ignore it
+				DefaultVariant: "",
 				Name:           variant.Name(),
 				Variants:       featureVariantMap,
 			}
@@ -276,7 +276,7 @@ func (m *MetadataServer) nameVariantToLabelList(nameVariants []metadata.NameVari
 		return nil, err
 	}
 	for _, variant := range labelVariants {
-		
+
 		if labelResource, has := labelMap[variant.Name()]; has {
 			labelResource.AllVariants = append(labelMap[variant.Name()].AllVariants, variant.Variant())
 			labelResource.Variants[variant.Variant()] = labelShallowMap(variant)
@@ -287,7 +287,7 @@ func (m *MetadataServer) nameVariantToLabelList(nameVariants []metadata.NameVari
 			labelMap[variant.Name()] = LabelResource{
 				AllVariants:    []string{variant.Variant()},
 				Type:           "Label",
-				DefaultVariant: "", //if empty frontend should ignore it
+				DefaultVariant: "",
 				Name:           variant.Name(),
 				Variants:       labelVariantMap,
 			}
@@ -307,7 +307,7 @@ func (m *MetadataServer) nameVariantToSourceList(nameVariants []metadata.NameVar
 		return nil, err
 	}
 	for _, variant := range sourceVariants {
-		
+
 		if sourceResource, has := sourceMap[variant.Name()]; has {
 			sourceResource.AllVariants = append(sourceMap[variant.Name()].AllVariants, variant.Variant())
 			sourceResource.Variants[variant.Variant()] = sourceShallowMap(variant)
@@ -318,7 +318,7 @@ func (m *MetadataServer) nameVariantToSourceList(nameVariants []metadata.NameVar
 			sourceMap[variant.Name()] = SourceResource{
 				AllVariants:    []string{variant.Variant()},
 				Type:           "PrimaryData",
-				DefaultVariant: "", //if empty frontend should ignore it
+				DefaultVariant: "",
 				Name:           variant.Name(),
 				Variants:       sourceVariantMap,
 			}
@@ -418,7 +418,7 @@ func (m *MetadataServer) readFromSource(source *metadata.Source, deepCopy bool) 
 				}
 				sourceResource.TrainingSets = ts
 				errChan <- nil
-				
+
 			}()
 			for i := 0; i < 3; i++ {
 				err := <-errChan
@@ -427,8 +427,7 @@ func (m *MetadataServer) readFromSource(source *metadata.Source, deepCopy bool) 
 					return nil, err
 				}
 			}
-			
-			
+
 		}
 		variantMap[variant.Variant()] = sourceResource
 
@@ -549,9 +548,9 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 			return
 		}
 		entityResource := EntityResource{
-			Name:         entity.Name(),
-			Type:         "Entity",
-			Description:  entity.Description(),
+			Name:        entity.Name(),
+			Type:        "Entity",
+			Description: entity.Description(),
 		}
 		errChan := make(chan *FetchError)
 		go func() {
@@ -598,8 +597,8 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 			return
 		}
 		userResource := &UserResource{
-			Name:         user.Name(),
-			Type:         "User",
+			Name: user.Name(),
+			Type: "User",
 		}
 		errChan := make(chan *FetchError)
 		go func() {
@@ -653,9 +652,9 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 			return
 		}
 		modelResource := &ModelResource{
-			Name:         model.Name(),
-			Type:         "Model",
-			Description:  model.Description(),
+			Name:        model.Name(),
+			Type:        "Model",
+			Description: model.Description(),
 		}
 		errChan := make(chan *FetchError)
 		go func() {

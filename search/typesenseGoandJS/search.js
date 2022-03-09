@@ -14,8 +14,13 @@ class TypeSenseResults{
         let results = this._listofresults
         let dictionary={}
         for (let i=0; i<results.length;i++){
-            let type = results[i]["type"]
-            dictionary[type]=results[i]
+            let type = results[i]["Type"]
+            if (dictionary[type]) {
+                dictionary[type].push(results[i])
+            }
+            else {
+                dictionary[type]=results[i]
+            }
         }
         this._resultsByType=dictionary
     }

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	pb "github.com/featureform/serving/metadata/proto"
+	"github.com/featureform/serving/metadata/search"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -131,6 +132,23 @@ type ResourceLookup interface {
 	Submap([]ResourceID) (ResourceLookup, error)
 	ListForType(ResourceType) ([]Resource, error)
 	List() ([]Resource, error)
+}
+
+type TypeSenseWrapper struct {
+	Searcher search.Searcher
+	ResourceLookup
+}
+
+func (wrapper TypeSenseWrapper) Set(id ResourceID, res Resource) error {
+	if err := wrapper.ResourceLookup.Set(id, res); err != nil {
+		return err
+	}
+	doc := search.ResourceDoc{
+		Name:    id.Name,
+		Type:    string(id.Type),
+		Variant: id.Variant,
+	}
+	return wrapper.Searcher.Upsert(doc)
 }
 
 type localResourceLookup map[ResourceID]Resource
@@ -767,12 +785,28 @@ type MetadataServer struct {
 	pb.UnimplementedMetadataServer
 }
 
-func NewMetadataServer(logger *zap.SugaredLogger) (*MetadataServer, error) {
-	logger.Debug("Creating new metadata server")
+func NewMetadataServer(server *Config) (*MetadataServer, error) {
+	server.Logger.Debug("Creating new metadata server")
+	var lookup ResourceLookup = make(localResourceLookup)
+	if server.TypeSenseParams != nil {
+		searcher, errInitializeSearch := search.NewTypesenseSearch(server.TypeSenseParams)
+		if errInitializeSearch != nil {
+			return nil, errInitializeSearch
+		}
+		lookup = &TypeSenseWrapper{
+			Searcher:       searcher,
+			ResourceLookup: lookup,
+		}
+	}
 	return &MetadataServer{
-		lookup: make(localResourceLookup),
-		Logger: logger,
+		lookup: lookup,
+		Logger: server.Logger,
 	}, nil
+}
+
+type Config struct {
+	Logger          *zap.SugaredLogger
+	TypeSenseParams *search.TypeSenseParams
 }
 
 func (serv *MetadataServer) ListFeatures(_ *pb.Empty, stream pb.Metadata_ListFeaturesServer) error {

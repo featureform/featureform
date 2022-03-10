@@ -247,7 +247,6 @@ export const ResourceListView = ({
                     row={row}
                     type={type}
                     setVariant={setVariant}
-                    mutableRes={mutableRes}
                   />
                 );
               },
@@ -265,14 +264,14 @@ export const ResourceListView = ({
             : columnFormats["default"]
         }
         data={mutableRes.map((row) => {
-          let rowVariant;
-          if (!activeVariants[row.name]) {
-            rowVariant = row["default-variant"];
-          } else {
-            rowVariant = activeVariants[row.name];
-          }
           let rowData = {};
           if (row.variants) {
+            let rowVariant;
+            if (!activeVariants[row.name]) {
+              rowVariant = row["default-variant"];
+            } else {
+              rowVariant = activeVariants[row.name];
+            }
             Object.entries(row.variants[rowVariant]).forEach((entry) => {
               rowData[entry[0]] = entry[1];
             });

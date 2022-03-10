@@ -170,7 +170,7 @@ const useStyles = makeStyles((theme) => ({
     marginLeft: theme.spacing(2),
   },
 
-  resourceData: {
+  resourcesData: {
     flexGrow: 1,
     paddingLeft: theme.spacing(1),
     borderLeft: `3px solid ${theme.palette.secondary.main}`,
@@ -228,11 +228,11 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
     resource = resources;
   }
   let metadata = {};
-  let resourceData = {};
+  let resourcesData = {};
 
   Object.keys(resource).forEach((key) => {
     if (Resource.pathToType[key]) {
-      resourceData[Resource.pathToType[key]] = resource[key];
+      resourcesData[Resource.pathToType[key]] = resource[key];
     } else {
       metadata[key] = resource[key];
     }
@@ -317,7 +317,7 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
             </Grid>
           </Grid>
           {Object.keys(metadata).length > 0 && (
-            <div className={classes.resourceData}>
+            <div className={classes.resourcesData}>
               <Grid container spacing={0}>
                 <Grid item xs={7} className={classes.resourceMetadata}>
                   {metadata["description"] && (
@@ -439,7 +439,7 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
               {showStats && (
                 <Tab label={"stats"} {...a11yProps(statsTabDisplacement)} />
               )}
-              {Object.keys(resourceData).map((key, i) => (
+              {Object.keys(resourcesData).map((key, i) => (
                 <Tab
                   key={i}
                   label={Resource[key].typePlural}
@@ -475,11 +475,11 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
             </TabPanel>
           )}
 
-          {Object.keys(resourceData).map((key, i) => (
+          {Object.keys(resourcesData).map((resourceType, i) => (
             <TabPanel
               className={classes.tabChart}
               value={value}
-              key={key}
+              key={resourceType}
               index={i + dataTabDisplacement}
               classes={{
                 root: classes.tabChart,
@@ -492,7 +492,7 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                       detailPanel: (row) => {
                         return (
                           <VariantTable
-                            type={key}
+                            type={resourceType}
                             name={row.name}
                             row={row}
                             variants={row.variants}
@@ -502,7 +502,7 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                       },
                     }
                   : {})}
-                title={capitalize(key)}
+                title={capitalize(resourceType)}
                 options={{
                   toolbar: false,
                   headerStyle: {
@@ -510,7 +510,7 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                     marginLeft: 3,
                   },
                 }}
-                {...(Object.keys(resourceData[key]).length > 0
+                {...(Object.keys(resourcesData[resourceType]).length > 0
                   ? {
                       columns: ["name", "variant"].map((item) => ({
                         title: capitalize(item),
@@ -518,20 +518,25 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                       })),
                     }
                   : {})}
-                data={Object.keys(resourceData[key]).map((o) => {
-                  let newObject = {};
-                  newObject["name"] = o;
-                  if (resourceData[key][o].length == 1) {
-                    newObject["variant"] = resourceData[key][o][0].variant;
-                  } else {
-                    newObject["variant"] = "...";
+                data={Object.keys(resourcesData[resourceType]).map(
+                  (resource) => {
+                    let rowData = { name: resource };
+                    if (resourcesData[resourceType][resource].length == 1) {
+                      rowData["variant"] =
+                        resourcesData[resourceType][resource][0].variant;
+                    } else {
+                      rowData["variant"] = "...";
+                    }
+                    rowData["variants"] = Object.values(
+                      resourcesData[resourceType][resource]
+                    );
+                    return rowData;
                   }
-
-                  newObject["variants"] = Object.values(resourceData[key][o]);
-                  return newObject;
-                })}
+                )}
                 onRowClick={(event, rowData) =>
-                  history.push(Resource[key].urlPathResource(rowData.name))
+                  history.push(
+                    Resource[resourceType].urlPathResource(rowData.name)
+                  )
                 }
                 components={{
                   Container: (props) => (

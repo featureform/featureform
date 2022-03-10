@@ -495,7 +495,6 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                             type={resourceType}
                             name={row.name}
                             row={row}
-                            variants={row.variants}
                             setVariant={setVariant}
                           />
                         );
@@ -518,18 +517,17 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                       })),
                     }
                   : {})}
-                data={Object.keys(resourcesData[resourceType]).map(
-                  (resource) => {
-                    let rowData = { name: resource };
-                    if (resourcesData[resourceType][resource].length == 1) {
-                      rowData["variant"] =
-                        resourcesData[resourceType][resource][0].variant;
+                data={Object.entries(resourcesData[resourceType]).map(
+                  (resourceEntry) => {
+                    const resourceName = resourceEntry[0];
+                    const resourceVariants = resourceEntry[1];
+                    let rowData = { name: resourceName };
+                    if (resourceVariants.length == 1) {
+                      rowData["variant"] = resourceVariants[0].variant;
                     } else {
                       rowData["variant"] = "...";
                     }
-                    rowData["variants"] = Object.values(
-                      resourcesData[resourceType][resource]
-                    );
+                    rowData["variants"] = Object.values(resourceVariants);
                     return rowData;
                   }
                 )}

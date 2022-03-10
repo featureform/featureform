@@ -487,7 +487,7 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
             >
               <MaterialTable
                 className={classes.tableRoot}
-                {...(true
+                {...(!singleVariant
                   ? {
                       detailPanel: (row) => {
                         return (

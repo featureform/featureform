@@ -356,20 +356,14 @@ export const TagList = ({
   </Grid>
 );
 
-export const VariantTable = ({
-  name,
-  variants = [""],
-  setVariant,
-  children,
-  type,
-  row,
-}) => {
+export const VariantTable = ({ name, setVariant, type, row }) => {
   const classes = useStyles();
   let history = useHistory();
   function variantChangeRedirect(e, data) {
     setVariant(type, name, data.variant);
     history.push(Resource[type].urlPathResource(name));
   }
+
   let myVariants = [];
   row.variants.forEach((variant) => {
     myVariants.push({
@@ -426,7 +420,7 @@ export const VariantTable = ({
         data={myVariants}
         options={{
           search: true,
-          pageSize: variants.length,
+          pageSize: row.variants.length,
           maxHeight: `${MAX_ROW_SHOW * ROW_HEIGHT}em`,
           toolbar: false,
           draggable: false,

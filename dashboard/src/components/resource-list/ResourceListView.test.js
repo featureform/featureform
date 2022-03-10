@@ -54,13 +54,18 @@ describe("ResourceListView", () => {
         resources={[
           {
             name: "abc",
-            variants: { "first-variant": {}, "second-variant": {} },
+            revision: "Invalid Date",
+            "default-variant": "first-variant",
           },
         ]}
       />
     );
     expect(list.children().props().data).toEqual([
-      { name: "abc", revision: "Invalid Date" },
+      {
+        name: "abc",
+        revision: "Invalid Date",
+        "default-variant": "first-variant",
+      },
     ]);
   });
 
@@ -68,6 +73,7 @@ describe("ResourceListView", () => {
     const immutData = produce([], (draft) => {
       draft.push({
         name: "abc",
+        "default-variant": "first-variant",
         variants: { "first-variant": {}, "second-variant": {} },
       });
     });
@@ -100,28 +106,6 @@ describe("ResourceListView", () => {
       />
     );
     expect(list.children().props().isLoading).toEqual(true);
-  });
-
-  describe("VariantSelector", () => {
-    it("sets default active variant", () => {
-      const sel = shallow(<VariantSelector name="abc" variants={["1", "2"]} />);
-      expect(sel.children().props().value).toBe("1");
-    });
-
-    it("onChange calls setVariant", () => {
-      const onChange = jest.fn();
-      const name = "abc";
-      const clickVal = "2";
-      const sel = shallow(
-        <VariantSelector
-          name={name}
-          variants={["1", "2"]}
-          setVariant={onChange}
-        />
-      );
-      sel.children().prop("onChange")({ target: { value: clickVal } });
-      expect(onChange).toHaveBeenCalledWith(name, clickVal);
-    });
   });
 
   describe("TagList", () => {

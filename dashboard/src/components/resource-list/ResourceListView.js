@@ -131,18 +131,6 @@ export const ResourceListView = ({
           />
         ),
       },
-      {
-        title: "Default Variant",
-        field: "variants",
-        render: (row) => (
-          <VariantSelector
-            name={row.name}
-            variants={rowVariants.find((v) => v.name === row.name)["variants"]}
-            activeVariants={myVariants}
-            setVariant={setVariant}
-          />
-        ),
-      },
     ],
     Feature: [
       { title: "Name", field: "name" },
@@ -160,9 +148,7 @@ export const ResourceListView = ({
         title: "Default Variant",
         field: "variants",
         render: (row) => (
-          <Typography variant="body1">
-            {rowVariants.find((v) => v.name === row.name)["default-variant"]}
-          </Typography>
+          <Typography variant="body1">{row["default-variant"]}</Typography>
         ),
       },
     ],
@@ -243,40 +229,11 @@ export const ResourceListView = ({
   // https://github.com/mbrn/material-table/issues/666
   const mutableRes = copy(initRes);
 
-  let myVariants = {};
-
-  mutableRes.forEach((o) => {
-    if (!activeVariants[o.name]) {
-      myVariants[o.name] = o["default-variant"];
-    } else {
-      myVariants[o.name] = activeVariants[o.name];
-    }
-  });
-
   function detailRedirect(e, data) {
     history.push(history.location.pathname + "/" + data.name);
   }
 
-  let variantRes = {};
   let rowVariants = {};
-  if (noVariants) {
-    variantRes = mutableRes;
-  } else {
-    variantRes = mutableRes.map((row) => ({
-      ...row["variants"][myVariants[row.name]],
-      name: row["name"],
-      revision: convertTimestampToDate(
-        row["variants"][myVariants[row.name]]
-          ? row["variants"][myVariants[row.name]]["revision"]
-          : ""
-      ),
-    }));
-    rowVariants = mutableRes.map((row) => ({
-      name: row["name"],
-      "default-variant": row["default-variant"],
-      variants: row["all-variants"],
-    }));
-  }
 
   return (
     <div>
@@ -287,11 +244,9 @@ export const ResourceListView = ({
                 return (
                   <VariantTable
                     name={row.name}
-                    variants={
-                      rowVariants.find((v) => v.name === row.name)["variants"]
-                    }
+                    variants={row.variants}
+                    row={row}
                     type={type}
-                    activeVariants={myVariants}
                     setVariant={setVariant}
                     mutableRes={mutableRes}
                   />
@@ -310,7 +265,25 @@ export const ResourceListView = ({
             ? columnFormats[title]
             : columnFormats["default"]
         }
-        data={variantRes}
+        data={mutableRes.map((row) => {
+          let rowVariant;
+          if (!activeVariants[row.name]) {
+            rowVariant = row["default-variant"];
+          } else {
+            rowVariant = activeVariants[row.name];
+          }
+          let rowData = {};
+          Object.entries(row.variants[rowVariant]).forEach((entry) => {
+            rowData[entry[0]] = entry[1];
+          });
+          let variantList = [];
+          Object.values(row.variants).forEach((variantValue) => {
+            variantList.push(variantValue);
+          });
+          rowData["variants"] = variantList;
+          rowData["default-variant"] = row["default-variant"];
+          return rowData;
+        })}
         isLoading={initialLoad || loading || failed}
         onRowClick={detailRedirect}
         components={{
@@ -383,43 +356,12 @@ export const TagList = ({
   </Grid>
 );
 
-export const VariantSelector = ({
-  name,
-  variants = [""],
-  activeVariants = {},
-  setVariant,
-  children,
-}) => {
-  return (
-    <FormControl>
-      <Select
-        value={activeVariants[name] || variants[0]}
-        onChange={(event) => setVariant(name, event.target.value)}
-      >
-        {variants.map((variant) => (
-          <MenuItem
-            key={variant}
-            value={variant}
-            onClick={(event) => {
-              event.stopPropagation();
-            }}
-          >
-            {variant}
-          </MenuItem>
-        ))}
-      </Select>
-    </FormControl>
-  );
-};
-
 export const VariantTable = ({
   name,
   variants = [""],
-  activeVariants,
   setVariant,
   children,
   type,
-  mutableRes,
   row,
 }) => {
   const classes = useStyles();
@@ -429,23 +371,12 @@ export const VariantTable = ({
     history.push(Resource[type].urlPathResource(name));
   }
   let myVariants = [];
-
-  if (mutableRes) {
-    variants.forEach((variant) => {
-      myVariants.push({
-        variant: variant,
-        description: mutableRes.find((el) => el.name === name).variants[variant]
-          .description,
-      });
+  row.variants.forEach((variant) => {
+    myVariants.push({
+      variant: variant.variant,
+      description: variant.description,
     });
-  } else {
-    row.variants.forEach((variant) => {
-      myVariants.push({
-        variant: variant.variant,
-        description: variant.description,
-      });
-    });
-  }
+  });
 
   const MAX_ROW_SHOW = 5;
   const ROW_HEIGHT = 5;

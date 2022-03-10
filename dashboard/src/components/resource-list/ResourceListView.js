@@ -265,27 +265,27 @@ export const ResourceListView = ({
         }
         data={mutableRes.map((row) => {
           let rowData = {};
-          if (row.variants) {
-            let rowVariant;
-            if (!activeVariants[row.name]) {
-              rowVariant = row["default-variant"];
-            } else {
-              rowVariant = activeVariants[row.name];
+          if (!row.variants) {
+            for (const [key, data] of Object.entries(row)) {
+              rowData[key] = data;
             }
-            Object.entries(row.variants[rowVariant]).forEach((entry) => {
-              rowData[entry[0]] = entry[1];
-            });
-            let variantList = [];
-            Object.values(row.variants).forEach((variantValue) => {
-              variantList.push(variantValue);
-            });
-            rowData["variants"] = variantList;
-            rowData["default-variant"] = row["default-variant"];
-          } else {
-            Object.entries(row).forEach((entry) => {
-              rowData[entry[0]] = entry[1];
-            });
+            return rowData;
           }
+          let rowVariant;
+          if (!activeVariants[row.name]) {
+            rowVariant = row["default-variant"];
+          } else {
+            rowVariant = activeVariants[row.name];
+          }
+          for (const [key, data] of Object.entries(row.variants[rowVariant])) {
+            rowData[key] = data;
+          }
+          let variantList = [];
+          Object.values(row.variants).forEach((variantValue) => {
+            variantList.push(variantValue);
+          });
+          rowData["variants"] = variantList;
+          rowData["default-variant"] = row["default-variant"];
           return rowData;
         })}
         isLoading={initialLoad || loading || failed}

@@ -244,7 +244,6 @@ export const ResourceListView = ({
                 return (
                   <VariantTable
                     name={row.name}
-                    variants={row.variants}
                     row={row}
                     type={type}
                     setVariant={setVariant}

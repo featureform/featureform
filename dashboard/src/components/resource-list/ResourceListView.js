@@ -264,6 +264,15 @@ export const ResourceListView = ({
             : columnFormats["default"]
         }
         data={mutableRes.map((row) => {
+          //mapping each row to have the same object format
+          //whether or not resource type has variants
+          //Expected format for resource without variants: {"name": <name>, "description": <description> }
+          //Expected format for resource with variants:
+          ///    {
+          //  "default-variant": <default variant>
+          // ...data pertaining to active variant (default variant by default)
+          //  "variants": <data for all variants> (used in variant dropdown view)
+          //}
           let rowData = {};
           if (!row.variants) {
             for (const [key, data] of Object.entries(row)) {

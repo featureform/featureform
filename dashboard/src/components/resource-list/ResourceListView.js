@@ -272,15 +272,21 @@ export const ResourceListView = ({
             rowVariant = activeVariants[row.name];
           }
           let rowData = {};
-          Object.entries(row.variants[rowVariant]).forEach((entry) => {
-            rowData[entry[0]] = entry[1];
-          });
-          let variantList = [];
-          Object.values(row.variants).forEach((variantValue) => {
-            variantList.push(variantValue);
-          });
-          rowData["variants"] = variantList;
-          rowData["default-variant"] = row["default-variant"];
+          if (row.variants) {
+            Object.entries(row.variants[rowVariant]).forEach((entry) => {
+              rowData[entry[0]] = entry[1];
+            });
+            let variantList = [];
+            Object.values(row.variants).forEach((variantValue) => {
+              variantList.push(variantValue);
+            });
+            rowData["variants"] = variantList;
+            rowData["default-variant"] = row["default-variant"];
+          } else {
+            Object.entries(row).forEach((entry) => {
+              rowData[entry[0]] = entry[1];
+            });
+          }
           return rowData;
         })}
         isLoading={initialLoad || loading || failed}

@@ -290,6 +290,7 @@ export const ResourceListView = ({
                     variants={
                       rowVariants.find((v) => v.name === row.name)["variants"]
                     }
+                    type={type}
                     activeVariants={myVariants}
                     setVariant={setVariant}
                     mutableRes={mutableRes}
@@ -417,22 +418,34 @@ export const VariantTable = ({
   activeVariants,
   setVariant,
   children,
+  type,
   mutableRes,
+  row,
 }) => {
   const classes = useStyles();
   let history = useHistory();
   function variantChangeRedirect(e, data) {
-    setVariant(name, data.variant);
-    history.push(history.location.pathname + "/" + name);
+    setVariant(type, name, data.variant);
+    history.push(Resource[type].urlPathResource(name));
   }
   let myVariants = [];
-  variants.forEach((variant) => {
-    myVariants.push({
-      variant: variant,
-      description: mutableRes.find((el) => el.name === name).variants[variant]
-        .description,
+
+  if (mutableRes) {
+    variants.forEach((variant) => {
+      myVariants.push({
+        variant: variant,
+        description: mutableRes.find((el) => el.name === name).variants[variant]
+          .description,
+      });
     });
-  });
+  } else {
+    row.variants.forEach((variant) => {
+      myVariants.push({
+        variant: variant.variant,
+        description: variant.description,
+      });
+    });
+  }
 
   const MAX_ROW_SHOW = 5;
   const ROW_HEIGHT = 5;
@@ -482,7 +495,7 @@ export const VariantTable = ({
         data={myVariants}
         options={{
           search: true,
-          pageSize: myVariants.length,
+          pageSize: variants.length,
           maxHeight: `${MAX_ROW_SHOW * ROW_HEIGHT}em`,
           toolbar: false,
           draggable: false,

@@ -66,8 +66,7 @@ const makeMapDispatchToProps = (ignore, initProps) => {
       const { type, api } = initProps;
       dispatch(fetchResources({ api, type }));
     },
-    setVariant: (name, variant) => {
-      const { type } = initProps;
+    setVariant: (type, name, variant) => {
       dispatch(setVariant({ type, name, variant }));
     },
     toggleTag: (tag) => {

@@ -237,6 +237,7 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
       metadata[key] = resource[key];
     }
   });
+
   if (metadata["source"]) {
     metadata["source"] = metadata["source"].Name;
     metadata["source-variant"] = metadata["source"].Variant;
@@ -486,13 +487,14 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
             >
               <MaterialTable
                 className={classes.tableRoot}
-                {...(!singleVariant
+                {...(true
                   ? {
                       detailPanel: (row) => {
                         return (
                           <VariantTable
                             type={key}
                             name={row.name}
+                            row={row}
                             variants={row.variants}
                             setVariant={setVariant}
                           />
@@ -510,42 +512,26 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                 }}
                 {...(Object.keys(resourceData[key]).length > 0
                   ? {
-                      columns: Object.keys(resourceData[key][0])
-                        .filter(
-                          (item) => item !== "tags" && item !== "variants"
-                        )
-                        .map((item) => ({
-                          title: capitalize(item),
-                          field: item,
-                          ...(item === "variants" && {
-                            render: (row) => (
-                              <VariantSelector
-                                name={row.name}
-                                variants={row.variants}
-                              />
-                            ),
-                          }),
-                          ...(item === "tags" && {
-                            render: (row) => (
-                              <TagList tags={row.tags} tagClass={classes.tag} />
-                            ),
-                          }),
-                        })),
+                      columns: ["name", "variant"].map((item) => ({
+                        title: capitalize(item),
+                        field: item,
+                      })),
                     }
                   : {})}
-                data={resourceData[key].map((o) => {
-                  let new_object = {};
-                  Object.keys(o).forEach((key) => {
-                    if (convertTimestampToDate(o[key]) !== "Invalid Date") {
-                      new_object[key] = convertTimestampToDate(o[key]);
-                    } else {
-                      new_object[key] = o[key];
-                    }
-                  });
-                  return new_object;
+                data={Object.keys(resourceData[key]).map((o) => {
+                  let newObject = {};
+                  newObject["name"] = o;
+                  if (resourceData[key][o].length == 1) {
+                    newObject["variant"] = resourceData[key][o][0].variant;
+                  } else {
+                    newObject["variant"] = "...";
+                  }
+
+                  newObject["variants"] = Object.values(resourceData[key][o]);
+                  return newObject;
                 })}
                 onRowClick={(event, rowData) =>
-                  history.push(Resource[key].urlPathResource(rowData.Name))
+                  history.push(Resource[key].urlPathResource(rowData.name))
                 }
                 components={{
                   Container: (props) => (

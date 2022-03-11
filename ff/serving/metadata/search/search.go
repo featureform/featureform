@@ -99,8 +99,10 @@ func (s Search) Upsert(doc ResourceDoc) error {
 }
 
 func (s Search) DeleteAll() error {
-	_, err := s.client.Collection("resource").Delete()
-	return err
+	if _, err := s.client.Collection("resource").Delete(); err != nil {
+		return err
+	}
+	return makeSchema(s.client)
 }
 
 func (s Search) RunSearch(q string) ([]ResourceDoc, error) {

@@ -36,16 +36,12 @@ func TestCharacters(t *testing.T) {
 		Port:   "8108",
 		ApiKey: "xyz",
 	}
-	oldsearcher, err := NewTypesenseSearch(&params)
-	if err != nil {
-		t.Fatalf("Failed to initialize pre deletion %s", err)
-	}
-	if err := oldsearcher.DeleteAll(); err != nil {
-		t.Fatalf("Failed to Delete %s", err)
-	}
 	searcher, errSearcher := NewTypesenseSearch(&params)
 	if errSearcher != nil {
-		t.Fatalf("Failed to initialize post deletion %s", errSearcher)
+		t.Fatalf("Failed to initialize %s", errSearcher)
+	}
+	if err := searcher.DeleteAll(); err != nil {
+		t.Fatalf("Failed to Delete %s", err)
 	}
 	resources := []ResourceDoc{
 		{

@@ -1,4 +1,5 @@
 import Resource from "api/resources/Resource.js";
+const TypesenseClient = require("./Search.js");
 
 export const testData = [
   {
@@ -38,9 +39,20 @@ export const providerLogos = Object.freeze({
 });
 
 const API_URL = "http://localhost:8181";
+const TYPESENSE_URL = {
+  port: "8108",
+  host: "localhost",
+  apiKey: "xyz",
+};
+
 const local = false;
 
 export default class ResourcesAPI {
+  static typeSenseClient = new TypesenseClient(
+    TYPESENSE_URL.port,
+    TYPESENSE_URL.host,
+    TYPESENSE_URL.apiKey
+  );
   checkStatus() {
     return fetch(API_URL, {
       headers: {
@@ -109,14 +121,8 @@ export default class ResourcesAPI {
   }
 
   fetchSearch(query) {
-    const TypesenseClient = require("./Search.js");
-    const myTypesenseClient = new TypesenseClient("8108", "localhost", "xyz");
-    const myResults = myTypesenseClient.search(
-      { q: query, query_by: "Name" },
-      "resource"
-    );
-
-    return myResults.then((results) => {
+    let typeSenseResults = this.constructor.typeSenseClient.search(query);
+    return typeSenseResults.then((results) => {
       return results.results();
     });
   }

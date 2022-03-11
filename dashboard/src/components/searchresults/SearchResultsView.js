@@ -70,7 +70,7 @@ const searchTypeMap = {
   "Label variant": "Label",
   "Training Set variant": "TrainingSet",
   Model: "Model",
-  "Source variant": "Source",
+  "Source variant": "PrimaryData",
   User: "User",
   Provider: "Provider",
 };
@@ -103,22 +103,14 @@ const SearchResultsView = ({ results, search_query, setVariant }) => {
           variant="h4"
           style={{ display: "flex" }}
         >
-          <div style={{ color: "gray" }}>Results for:&nbsp;</div>
+          {results.length > 0 ? (
+            <div style={{ color: "gray" }}>Results for:&nbsp;</div>
+          ) : (
+            <div style={{ color: "gray" }}>No results for:&nbsp;</div>
+          )}
 
           <b>{search_query}</b>
         </Typography>
-        {/* <AppBar position="static" className={classes.appbar}>
-          <Tabs
-            value={value}
-            onChange={handleChange}
-            aria-label="simple tabs example"
-          >
-            {typeOrder.map((type, i) => (
-              <Tab label={type} {...a11yProps(i)} />
-            ))}
-          </Tabs>
-        </AppBar> */}
-
         <SearchResultsList contents={results} setVariant={setVariant} />
       </Container>
     </div>
@@ -156,7 +148,6 @@ const SearchResultsItem = ({ type, content, setVariant }) => {
     if (resourceType.hasVariants) {
       setVariant(searchTypeMap[content.Type], content.Name, content.Variant);
     }
-
     history.push(resourceType.urlPathResource(content.Name));
   }
 

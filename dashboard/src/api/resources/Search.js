@@ -44,7 +44,8 @@ module.exports = class TypesenseClient {
     this._host = host;
     this._apikey = apikey;
   }
-  search(searchParameters, collection_name) {
+  search(query) {
+    let searchParams = { q: query, query_by: "Name" };
     let client = new Typesense.Client({
       nodes: [
         {
@@ -57,9 +58,9 @@ module.exports = class TypesenseClient {
       connectionTimeoutSeconds: 2,
     });
     let response = client
-      .collections(collection_name)
+      .collections("resource")
       .documents()
-      .search(searchParameters);
+      .search(searchParams);
     return response.then(function (jsonResp) {
       return new TypeSenseResults(jsonResp);
     });

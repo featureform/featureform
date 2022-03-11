@@ -69,6 +69,10 @@ func makeSchema(client *typesense.Client) error {
 				Type: "string",
 			},
 		},
+		TokenSeparators: &[]string{
+			"-",
+			"_",
+		},
 	}
 	_, err := client.Collections().Create(schema)
 	return err

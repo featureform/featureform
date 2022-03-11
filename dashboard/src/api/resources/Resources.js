@@ -109,17 +109,16 @@ export default class ResourcesAPI {
   }
 
   fetchSearch(query) {
-    const fetchAddress = "/data/lists/wine-data.json";
+    const TypesenseClient = require("./Search.js");
+    const myTypesenseClient = new TypesenseClient("8108", "localhost", "xyz");
+    const myResults = myTypesenseClient.search(
+      { q: query, query_by: "Name" },
+      "resource"
+    );
 
-    return fetch(fetchAddress, {
-      headers: {
-        "Content-Type": "application/json",
-      },
-    })
-      .then((res) => res.json().then((json_data) => ({ data: json_data })))
-      .catch((error) => {
-        console.error(error);
-      });
+    return myResults.then((results) => {
+      return results.results();
+    });
   }
 
   fetchVariantSearchStub(query) {

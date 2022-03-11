@@ -28,11 +28,15 @@ const SearchResults = ({ searchResults, api, setVariant, ...props }) => {
 
   return (
     <div>
-      <SearchResultsView
-        results={searchResults}
-        search_query={search_query}
-        setVariant={setVariant}
-      />
+      {searchResults.resources ? (
+        <SearchResultsView
+          results={searchResults.resources}
+          search_query={search_query}
+          setVariant={setVariant}
+        />
+      ) : (
+        <div></div>
+      )}
     </div>
   );
 };

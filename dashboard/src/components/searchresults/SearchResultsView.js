@@ -11,7 +11,10 @@ import ListItem from "@material-ui/core/ListItem";
 import ListSubheader from "@material-ui/core/ListItem";
 import ListItemText from "@material-ui/core/ListItemText";
 import Container from "@material-ui/core/Container";
+import Icon from "@material-ui/core/Icon";
+import { useHistory } from "react-router-dom";
 
+import Resource from "api/resources/Resource.js";
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
 
@@ -56,10 +59,21 @@ const useStyles = makeStyles((theme) => ({
   },
 
   resultTitle: {
-    display: "inline-block",
+    display: "inline",
     lineHeight: 1.2,
   },
 }));
+
+const searchTypeMap = {
+  "Feature variant": "Feature",
+  Entity: "Entity",
+  "Label variant": "Label",
+  "Training Set variant": "TrainingSet",
+  Model: "Model",
+  "Source variant": "Source",
+  User: "User",
+  Provider: "Provider",
+};
 
 function a11yProps(index) {
   return {
@@ -77,21 +91,11 @@ const SearchResultsView = ({ results, search_query, setVariant }) => {
     setValue(newValue);
   };
 
-  let myResults = results.resources;
-  let typeOrder = [
-    "Feature",
-    "Primary Data",
-    "Entity",
-    "Model",
-    "Transformation",
-    "Training Dataset",
-  ];
-
   useEffect(() => {
     setValue(0);
   }, [search_query]);
 
-  return !results.loading && !results.failed && results.resources ? (
+  return (
     <div>
       <Container maxWidth="xl" className={classes.root}>
         <Typography
@@ -103,7 +107,7 @@ const SearchResultsView = ({ results, search_query, setVariant }) => {
 
           <b>{search_query}</b>
         </Typography>
-        <AppBar position="static" className={classes.appbar}>
+        {/* <AppBar position="static" className={classes.appbar}>
           <Tabs
             value={value}
             onChange={handleChange}
@@ -113,31 +117,24 @@ const SearchResultsView = ({ results, search_query, setVariant }) => {
               <Tab label={type} {...a11yProps(i)} />
             ))}
           </Tabs>
-        </AppBar>
+        </AppBar> */}
 
-        {typeOrder.map((type, i) => (
-          <TabPanel value={value} index={i}>
-            <SearchResultsList
-              type={type}
-              contents={myResults[type]}
-              setVariant={setVariant}
-            />
-          </TabPanel>
-        ))}
+        <SearchResultsList contents={results} setVariant={setVariant} />
       </Container>
     </div>
-  ) : (
-    <div></div>
   );
 };
 
 const SearchResultsList = ({ type, contents, setVariant }) => {
   const classes = useStyles();
 
+  let filteredContents = contents.filter(
+    (content) => searchTypeMap[content.Type]
+  );
   return (
     <div>
       <List className={classes.root} component="nav">
-        {contents.map((content) => (
+        {filteredContents.map((content) => (
           <SearchResultsItem
             type={type}
             content={content}
@@ -151,38 +148,46 @@ const SearchResultsList = ({ type, contents, setVariant }) => {
 
 const SearchResultsItem = ({ type, content, setVariant }) => {
   const classes = useStyles();
+  let history = useHistory();
 
-  function handleClick(variant) {
-    setVariant(type, content.name, variant);
+  const resourceType = Resource[searchTypeMap[content.Type]];
+  const resourceIcon = resourceType.materialIcon;
+  function handleClick(content) {
+    if (resourceType.hasVariants) {
+      setVariant(searchTypeMap[content.Type], content.Name, content.Variant);
+    }
+
+    history.push(resourceType.urlPathResource(content.Name));
   }
 
   return (
-    <>
-      <ListSubheader>
-        <div className={classes.resultTitle}>&nbsp;</div>
-        <Typography
-          className={classes.resultTitle}
-          variant="body1"
-          dangerouslySetInnerHTML={{ __html: content.name }}
-        ></Typography>
-      </ListSubheader>
-
-      {Object.keys(content.variants).map((variant, i) => (
-        <ListItem button alignItems="flex-start">
-          <ListItemText
-            inset
-            primary={
-              <Typography variant="body1">
-                <b>{variant}</b>
+    <div>
+      <ListItem button alignItems="flex-start">
+        <ListItemText
+          primary={
+            <div>
+              <div>
+                <div className={classes.resultTitle}>
+                  <Icon>{resourceIcon}</Icon>
+                </div>
+                <Typography className={classes.resultTitle} variant="h6">
+                  {content.Name}
+                </Typography>{" "}
+              </div>
+              <div style={{ width: "0.5em" }}>{"   "}</div>
+              <Typography
+                style={{ opacity: 0.5 }}
+                className={classes.resultTitle}
+                variant="body1"
+              >
+                {content.Variant}
               </Typography>
-            }
-            onClick={() => handleClick(variant)}
-            secondary={content.variants[variant].description}
-          />
-        </ListItem>
-      ))}
-      {/*  */}
-    </>
+            </div>
+          }
+          onClick={() => handleClick(content)}
+        />
+      </ListItem>
+    </div>
   );
 };
 

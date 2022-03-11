@@ -3,16 +3,8 @@ import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 export const fetchSearch = createAsyncThunk(
   "searchResults/fetchSearch",
   async ({ api, query }, { signal }) => {
-    const response = await api.fetchVariantSearchStub(query, signal);
-    return response.data;
-  },
-  {
-    condition: ({ api, query }, { getState }) => {
-      const { loading } = getState().searchResults;
-      if (loading) {
-        return false;
-      }
-    },
+    const response = await api.fetchSearch(query, signal);
+    return response;
   }
 );
 

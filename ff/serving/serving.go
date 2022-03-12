@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net"
 
-	metrics "github.com/featureform/embeddinghub/metrics"
+	metrics "github.com/featureform/serving/metrics"
 	"github.com/featureform/serving/dataset"
 
 	pb "github.com/featureform/serving/proto"

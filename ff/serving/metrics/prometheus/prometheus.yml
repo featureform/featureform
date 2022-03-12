@@ -1,0 +1,11 @@
+scrape_configs:
+  - job_name: myapp
+    scrape_interval: 10s
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          [
+            "host.docker.internal:2112",
+            "localhost:2112",
+            "docker.for.mac.host.internal:2112",
+          ]

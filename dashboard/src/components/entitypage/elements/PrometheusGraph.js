@@ -50,6 +50,10 @@ const PrometheusGraph = ({
   let max = 1000;
   if (query.includes("error")) {
     max = 10;
+  } else if (query_type === "latency" && type === "Training Set") {
+    max = 10;
+  } else if (query_type === "latency" && type === "Feature") {
+    max = 0.1;
   }
   const classes = useStyles();
 
@@ -64,10 +68,10 @@ const PrometheusGraph = ({
     (start, end, step, stub) => {
       const startTimestamp = start.getTime() / 1000;
       const endTimestamp = end.getTime() / 1000;
-      const url = `http://localhost:9090/api/v1/query_range?query=${query}${add_labels_string}start=${startTimestamp}&end=${endTimestamp}&step=${step}s`;
-      if (!stub) {
-        return Promise.resolve(JSON.parse(sample_query_data));
-      }
+      const url = `http://localhost:9090/api/v1/query_range?query=${query}${add_labels_string}&start=${startTimestamp}&end=${endTimestamp}&step=${step}s`;
+      // if (!stub) {
+      //   return Promise.resolve(JSON.parse(sample_query_data));
+      // }
       return fetch(url)
         .then((response) => response.json())
         .then((response) => response["data"]);

@@ -68,7 +68,6 @@ const MetricsDropdown = ({ type, name, variant, timeRange, aggregates }) => {
   const classes = useStyles();
   const [stepRange, setStepRange] = React.useState("min");
   const [step, setStep] = React.useState("1m");
-  console.log(type);
   useEffect(() => {
     if (timeRange.timeRange[0] > 60) {
       setStepRange("hour");

@@ -12,6 +12,10 @@ jobs:
         with:
           go-version: 1.16
 
+      - name: Setup Proto
+        working-directory: ./ff/serving
+        run: ./gen_grpc.sh
+
       - name: Build
         working-directory: ./ff/serving
         run: go test -coverprofile cover.out ./...

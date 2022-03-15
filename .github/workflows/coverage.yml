@@ -16,6 +16,10 @@ jobs:
         working-directory: ./ff/serving
         run: pip install grpcio-tools
 
+      - name: Install Protobuf
+        working-directory: ./ff/serving
+        run: apt install protobuf-compiler
+
       - name: Setup Proto
         working-directory: ./ff/serving
         run: ./gen_grpc.sh

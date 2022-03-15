@@ -26,4 +26,8 @@ jobs:
 
       - name: Build
         working-directory: ./ff/serving
+        run: go build
+
+      - name: Coverage Test
+        working-directory: ./ff/serving
         run: go test -coverprofile cover.out ./...

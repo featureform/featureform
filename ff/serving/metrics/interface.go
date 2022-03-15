@@ -85,7 +85,7 @@ func (p PromMetricsHandler) BeginObservingOnlineServe(feature string, key string
 		Name:    p.Name,
 		Feature: feature,
 		Key:     key,
-		Status:  "error",
+		Status:  "running",
 	}
 }
 func (p PromMetricsHandler) BeginObservingTrainingServe(name string, version string) FeatureObserver {
@@ -100,7 +100,7 @@ func (p PromMetricsHandler) BeginObservingTrainingServe(name string, version str
 		Title:     p.Name,
 		Name:      name,
 		Version:   version,
-		Status:    "error",
+		Status:    "running",
 	}
 }
 
@@ -111,6 +111,7 @@ func (p PromMetricsHandler) ExposePort(port string) {
 }
 
 func (p PromFeatureObserver) SetError() {
+	p.Status="error"
 	p.Timer.ObserveDuration()
 	p.Count.WithLabelValues(p.Name, p.Feature, p.Key, "error").Inc()
 }
@@ -120,11 +121,13 @@ func (p PromFeatureObserver) ServeRow() {
 }
 
 func (p PromFeatureObserver) Finish() {
+	p.Status = "success"
 	p.Timer.ObserveDuration()
 	p.Count.WithLabelValues(p.Name, p.Feature, p.Key, "success").Inc()
 }
 
 func (p TrainingDataObserver) SetError() {
+	p.Status="error"
 	p.Timer.ObserveDuration()
 	p.Row_Count.WithLabelValues(p.Title, p.Name, p.Version, "error").Inc()
 }
@@ -134,5 +137,6 @@ func (p TrainingDataObserver) ServeRow() {
 }
 
 func (p TrainingDataObserver) Finish() {
+	p.Status = "success"
 	p.Timer.ObserveDuration()
 }

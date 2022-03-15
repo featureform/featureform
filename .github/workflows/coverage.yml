@@ -18,7 +18,7 @@ jobs:
 
       - name: Install Protobuf
         working-directory: ./ff/serving
-        run: apt install protobuf-compiler
+        run: snap install protobuf --classic
 
       - name: Setup Proto
         working-directory: ./ff/serving

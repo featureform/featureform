@@ -46,6 +46,7 @@ const PrometheusGraph = ({
   name,
   query_type,
   add_labels,
+  remote,
 }) => {
   let max = 1000;
   if (query.includes("error")) {
@@ -56,6 +57,7 @@ const PrometheusGraph = ({
     max = 0.1;
   }
   const classes = useStyles();
+  console.log(remote);
 
   const add_labels_string = add_labels
     ? Object.keys(add_labels).reduce(
@@ -69,14 +71,18 @@ const PrometheusGraph = ({
       const startTimestamp = start.getTime() / 1000;
       const endTimestamp = end.getTime() / 1000;
       const url = `http://localhost:9090/api/v1/query_range?query=${query}${add_labels_string}&start=${startTimestamp}&end=${endTimestamp}&step=${step}s`;
-      // if (!stub) {
-      //   return Promise.resolve(JSON.parse(sample_query_data));
-      // }
+      console.log(remote);
+      if (!remote) {
+        return Promise.resolve(JSON.parse(sample_query_data));
+      }
       return fetch(url)
         .then((response) => response.json())
-        .then((response) => response["data"]);
+        .then((response) => response["data"])
+        .catch((error) => {
+          console.log("Prometheus not running", error);
+        });
     },
-    [query, add_labels_string]
+    [query, add_labels_string, remote]
   );
 
   useEffect(() => {

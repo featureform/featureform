@@ -7,8 +7,9 @@ const useStyles = makeStyles((theme) => ({
     maxHeight: "20em",
   },
 }));
-function QueryDropdown({ query, type, name, query_type, add_labels }) {
+function QueryDropdown({ query, type, name, query_type, add_labels, remote }) {
   const classes = useStyles();
+  console.log(remote);
 
   return (
     <div className={classes.root}>
@@ -18,6 +19,7 @@ function QueryDropdown({ query, type, name, query_type, add_labels }) {
         name={name}
         query_type={query_type}
         add_labels={add_labels}
+        remote={remote}
       />
     </div>
   );

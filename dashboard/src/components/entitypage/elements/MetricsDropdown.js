@@ -5,6 +5,7 @@ import TimeDropdown from "./TimeDropdown";
 import AggregateDropdown from "./AggregateDropdown";
 import QueryDropdown from "./QueryDropdown";
 import { connect } from "react-redux";
+import Chip from "@material-ui/core/Chip";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -16,6 +17,9 @@ const useStyles = makeStyles((theme) => ({
     "& > *": {
       padding: theme.spacing(0),
     },
+  },
+  linkPromChip: {
+    paddingLeft: theme.spacing(2),
   },
   summaryData: {
     padding: theme.spacing(0),
@@ -64,11 +68,21 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
+const prometheusAPI = "http://localhost:9090/api/v1/labels";
+
 const MetricsDropdown = ({ type, name, variant, timeRange, aggregates }) => {
   const classes = useStyles();
   const [stepRange, setStepRange] = React.useState("min");
+  const [apiConnected, setAPIConnected] = React.useState(false);
   const [step, setStep] = React.useState("1m");
+  console.log(apiConnected);
   useEffect(() => {
+    fetch(prometheusAPI)
+      .then((response) => response.json())
+      .then((response) => setAPIConnected(true))
+      .catch((error) => {
+        setAPIConnected(false);
+      });
     if (timeRange.timeRange[0] > 60) {
       setStepRange("hour");
       setStep("1h");
@@ -78,8 +92,25 @@ const MetricsDropdown = ({ type, name, variant, timeRange, aggregates }) => {
     }
   }, [timeRange, aggregates]);
 
+  const linkToPrometheus = () => {
+    if (apiConnected) {
+      window.location.href = prometheusAPI;
+    }
+  };
   return (
     <div className={classes.root}>
+      <Typography variant="body1" className={classes.linkPromChip}>
+        Source:{" "}
+        <Chip
+          variant="outlined"
+          clickable={apiConnected}
+          className={classes.linkChip}
+          size="small"
+          color={apiConnected ? "secondary" : "error"}
+          onClick={linkToPrometheus}
+          label={"Prometheus"}
+        ></Chip>
+      </Typography>
       <Grid container spacing={0}>
         <Grid item xs={12} height="10em">
           <div className={classes.graph}>
@@ -105,6 +136,7 @@ const MetricsDropdown = ({ type, name, variant, timeRange, aggregates }) => {
                     name={name}
                     query_type={"count"}
                     aggregate={aggregates[0]}
+                    remote={apiConnected}
                   />
                   <div className={classes.titleBar}>
                     <div className={classes.graphTitle}>
@@ -123,6 +155,7 @@ const MetricsDropdown = ({ type, name, variant, timeRange, aggregates }) => {
                     name={name}
                     query_type={"latency"}
                     aggregate={aggregates[0]}
+                    remote={apiConnected}
                   />
                 </div>
               ) : (
@@ -146,6 +179,7 @@ const MetricsDropdown = ({ type, name, variant, timeRange, aggregates }) => {
                     name={name}
                     query_type={"latency"}
                     aggregate={aggregates[1]}
+                    remote={apiConnected}
                   />
                 </div>
               )}
@@ -167,6 +201,7 @@ const MetricsDropdown = ({ type, name, variant, timeRange, aggregates }) => {
                 name={name}
                 query_type={"count"}
                 aggregate={aggregates[2]}
+                remote={apiConnected}
               />
             </Container>
           </div>

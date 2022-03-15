@@ -12,6 +12,10 @@ jobs:
         with:
           go-version: 1.16
 
+      - name: Install grpc_tools
+        working-directory: ./ff/serving
+        run: pip install grpcio-tools
+
       - name: Setup Proto
         working-directory: ./ff/serving
         run: ./gen_grpc.sh

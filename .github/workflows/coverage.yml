@@ -32,3 +32,9 @@ jobs:
         working-directory: ./ff/serving
         continue-on-error: true
         run: go test -coverprofile cover.out ./...
+
+      - name: Archive code coverage results
+        uses: actions/upload-artifact@v3
+        with:
+          name: code-coverage-report
+          path: ./ff/serving/cover.out

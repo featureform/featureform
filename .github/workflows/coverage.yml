@@ -30,4 +30,5 @@ jobs:
 
       - name: Coverage Test
         working-directory: ./ff/serving
+        continue-on-error: true
         run: go test -coverprofile cover.out ./...

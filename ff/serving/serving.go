@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net"
 
-	metrics "github.com/featureform/serving/metrics"
 	"github.com/featureform/serving/dataset"
+	metrics "github.com/featureform/serving/metrics"
 
 	pb "github.com/featureform/serving/proto"
 	"go.uber.org/zap"

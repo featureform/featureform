@@ -35,8 +35,6 @@ func main() {
 	logger.Infow("Server starting", "Port", port)
 	serveErr := grpcServer.Serve(lis)
 	if serveErr != nil {
-		logger.Errorw("Serve failed with error",
-			
-			"Err", serveErr)
+		logger.Errorw("Serve failed with error", "Err", serveErr)
 	}
 }

@@ -32,14 +32,14 @@ jobs:
         continue-on-error: true
         run: go test -coverprofile cover.out ./...
 
-      - name: Convert Coverage Test Results
-        run: go tool cover -html=cover.out -o cover.html
-
       - uses: codecov/codecov-action@v2
         with:
-          files: ./cover.out
+          files: ./ff/serving/cover.out
           name: coverage-upload # optional
           verbose: true # optional (default = false)
+
+      - name: Convert Coverage Test Results
+        run: go tool cover -html=cover.out -o cover.html
 
       - name: Archive code coverage results
         uses: actions/upload-artifact@v3

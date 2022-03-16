@@ -1,9 +1,9 @@
 package main
 
 import (
+	"github.com/featureform/serving/metrics"
 	"math/rand"
 	"time"
-	"github.com/featureform/serving/metrics"
 )
 
 var metricsHandler metrics.MetricsHandler

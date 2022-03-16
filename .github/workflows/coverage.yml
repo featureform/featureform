@@ -53,6 +53,23 @@ jobs:
     steps:
       - uses: actions/setup-go@v2
       - uses: actions/checkout@v2
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
+
+      - name: Install grpc_tools
+        run: pip install grpcio-tools
+
+      - name: Install Protobuf
+        run: sudo snap install protobuf --classic
+
+      - name: Setup Proto
+        run: ./gen_grpc.sh
+
+      - name: Build
+        run: go build
+        
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v2
         with:

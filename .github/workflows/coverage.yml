@@ -34,8 +34,8 @@ jobs:
         run: go test -coverprofile cover.out ./...
 
       - name: Convert Coverage Test Results
-          working-directory: ./ff/serving
-          run: go tool cover -html=cover.out -o cover.html
+        working-directory: ./ff/serving
+        run: go tool cover -html=cover.out -o cover.html
 
       - name: Archive code coverage results
         uses: actions/upload-artifact@v3

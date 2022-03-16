@@ -6,6 +6,7 @@ import AggregateDropdown from "./AggregateDropdown";
 import QueryDropdown from "./QueryDropdown";
 import { connect } from "react-redux";
 import Chip from "@material-ui/core/Chip";
+import { Link } from "react-router";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -128,11 +129,8 @@ const MetricsDropdown = ({ type, name, variant, timeRange, aggregates }) => {
 
   useEffect(() => {
     fetch(prometheusAPI)
-      .then((response) => response.json())
-      .then((response) => setAPIConnected(true))
-      .catch((error) => {
-        setAPIConnected(false);
-      });
+      .then((_) => setAPIConnected(true))
+      .catch((_) => setAPIConnected(false));
     if (timeRange.timeRange[0] > 60) {
       setStepRange("hour");
       setStep("1h");

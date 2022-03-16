@@ -5,10 +5,11 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="57a2ecbe-b9fb-48ea-9b31-58e8a8263e4c" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/ff/serving/metadata/main/server.go" beforeDir="false" afterPath="$PROJECT_DIR$/ff/serving/metadata/main/server.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ff/serving/metrics/interface.go" beforeDir="false" afterPath="$PROJECT_DIR$/ff/serving/metrics/interface.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ff/serving/metrics/test/metrics_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/ff/serving/metrics/test/metrics_test.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ff/serving/serving.go" beforeDir="false" afterPath="$PROJECT_DIR$/ff/serving/serving.go" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.github/workflows/coverage.yml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ff/serving/serving" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ff/serving/metadata/main/client.go" beforeDir="false" afterPath="$PROJECT_DIR$/ff/serving/metadata/client/client.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ff/serving/metadata/main/server.go" beforeDir="false" afterPath="$PROJECT_DIR$/ff/serving/metadata/server/server.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -34,6 +35,7 @@
     <option name="stateVersion" value="1" />
   </component>
   <component name="ProjectId" id="26QwDIOXVbduq4IVnFDtA2GjisV" />
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
@@ -62,6 +64,17 @@
     </key>
   </component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="92de7c54-c3f0-4d5a-a552-e70f652f589f" name="Changes" comment="" />
+      <created>1647459676935</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1647459676935</updated>
+      <workItem from="1647459680940" duration="38000" />
+    </task>
+    <servers />
+  </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
   </component>

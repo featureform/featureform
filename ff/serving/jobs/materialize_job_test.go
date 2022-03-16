@@ -38,11 +38,10 @@ type MockMaterializedJobCompletionStatus struct {
 }
 
 func (m MockMaterializedJobCompletionStatus) PercentComplete() float32 {
-	return float32(m.RowsComplete / m.TotalRows)
+	return float32(m.RowsComplete) / float32(m.TotalRows)
 }
 
 func (m MockMaterializedJobCompletionStatus) String() string {
-
 	return fmt.Sprintf("%d out of %d rows completed.", m.RowsComplete, m.TotalRows)
 }
 
@@ -104,8 +103,6 @@ func TestMockRunner(t *testing.T) {
 		Rows: []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
 	}
 
-	fmt.Println(materialized.NumRows())
-
 	table := &MockOnlineTable{
 		DataTable: make(map[string]int),
 	}
@@ -126,8 +123,6 @@ func TestMockRunner(t *testing.T) {
 	}
 	fmt.Println(completionStatus.PercentComplete())
 	fmt.Println(completionStatus.String())
-	fmt.Println(table.Get("entity"))
-
 	time.Sleep(time.Millisecond * 30)
 	fmt.Println(completionStatus.String())
 	fmt.Println(completionStatus.PercentComplete())

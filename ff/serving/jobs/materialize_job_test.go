@@ -5,33 +5,57 @@ import (
 	"fmt"
 	"testing"
 	"errors"
+	"time"
 )
 
 func (m *MaterializedChunkRunner) Run() (CompletionStatus, error) {
-	return &MockMaterializedJobCompletionStatus{
-		Done: true,
-	}, nil
+	var numComplete = new(int)
+	*numComplete = 0
+	completionStatus := &MockMaterializedJobCompletionStatus{
+		RowsComplete: numComplete,
+		TotalRows: m.ChunkSize,
+		Done: false,
+	}
+	go func() {
+		it, err := m.Materialized.IterateSegment(m.ChunkIdx, m.ChunkIdx + m.ChunkSize)
+		if err != nil {
+			panic(err)
+		}
+		for ok := true; ok; ok = it.Next() { 
+			value, err := it.Value()
+			if err != nil {
+				panic(err)
+			}
+			m.Table.Set("entity",value)
+			*numComplete += 1
+			time.Sleep(time.Millisecond*10)
+			
+		}
+		completionStatus.Done = true
+	}()
+
+	return completionStatus, nil
 }
 
 
 type MockMaterializedJobCompletionStatus struct {
+	RowsComplete *int
+	TotalRows int
 	Done bool
 }
 
-func (m *MockMaterializedJobCompletionStatus) PercentComplete() float32 {
-	if m.Done{
+func (m MockMaterializedJobCompletionStatus) PercentComplete() float32 {
+	if m.Done {
 		return 1.0
-	} else{
-		return 0.0
 	}
+	return float32(*(m.RowsComplete)/m.TotalRows)
 }
 
-func (m *MockMaterializedJobCompletionStatus) String() string {
-	if m.Done{
-		return "Job is completed"
-	} else{
-		return "Job is not yet completed"
+func (m MockMaterializedJobCompletionStatus) String() string {
+	if m.Done {
+		return fmt.Sprintf("%d out of %d rows completed.",m.TotalRows,m.TotalRows)
 	}
+	return fmt.Sprintf("%d out of %d rows completed.",*(m.RowsComplete),m.TotalRows)
 }
 
 type MockMaterializedFeatures struct {
@@ -102,34 +126,27 @@ func TestMockRunner(t *testing.T) {
 	chunkSize := 10
 	chunkIdx := 0
 
-	mockChunkJob := MaterializedChunkRunner{
+	mockChunkJob := &MaterializedChunkRunner{
 		Materialized: materialized,
 		Table: table,
 		ChunkSize: chunkSize,
 		ChunkIdx: chunkIdx,
 	}
-
-	it, err := mockChunkJob.Materialized.IterateSegment(mockChunkJob.ChunkIdx, mockChunkJob.ChunkIdx + mockChunkJob.ChunkSize)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(it.Err())
-	for it.Next() {
-		value, err := it.Value()
-		if err != nil {
-			panic(err)
-		}
-		mockChunkJob.Table.Set("entity",value)
-	}
+	
 
 
 	completionStatus, err := mockChunkJob.Run()
 	if err != nil {
 		return
 	}
-
+	fmt.Println(completionStatus.PercentComplete())
+	fmt.Println(completionStatus.String())
+	fmt.Println(table.Get("entity"))
+	
+	time.Sleep(time.Millisecond*30)
 	fmt.Println(completionStatus.String())
 	fmt.Println(completionStatus.PercentComplete())
-
-	fmt.Println(table.Get("entity"))
+	time.Sleep(time.Second*1)
+	fmt.Println(completionStatus.String())
+	fmt.Println(completionStatus.PercentComplete())
 }

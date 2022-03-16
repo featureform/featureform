@@ -26,7 +26,7 @@ jobs:
         run: ./gen_grpc.sh
 
       - name: Build
-        run: go build; exit 1
+        run: go build
 
       - name: Coverage Test
         continue-on-error: true

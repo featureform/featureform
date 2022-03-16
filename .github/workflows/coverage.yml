@@ -49,6 +49,9 @@ jobs:
 
   golangci:
     name: Go Linter
+    defaults:
+      run:
+        working-directory: ./ff/serving
     runs-on: ubuntu-latest
     steps:
       - uses: actions/setup-go@v2
@@ -69,7 +72,7 @@ jobs:
 
       - name: Build
         run: go build
-        
+
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v2
         with:

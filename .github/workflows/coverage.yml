@@ -39,4 +39,4 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: code-coverage-report
-          path: ./cover.html
+          path: ./ff/serving/cover.html

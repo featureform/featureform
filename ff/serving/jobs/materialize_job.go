@@ -1,8 +1,6 @@
 package jobs
 
-import (
-
-)
+import ()
 
 type Runner interface {
 	Run() (CompletionStatus, error)
@@ -10,9 +8,9 @@ type Runner interface {
 
 type MaterializedChunkRunner struct {
 	Materialized MaterializedFeatures
-	Table OnlineTable
-	ChunkSize int
-	ChunkIdx int
+	Table        OnlineTable
+	ChunkSize    int
+	ChunkIdx     int
 }
 
 type CompletionStatus interface {

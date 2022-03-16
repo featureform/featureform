@@ -7,46 +7,8 @@ import (
 	"time"
 )
 
-func (m *MaterializedChunkRunner) Run() (CompletionStatus, error) {
-
-	completionStatus := &MockMaterializedJobCompletionStatus{
-		RowsComplete: 0,
-		TotalRows:    m.ChunkSize,
-	}
-	go func() {
-		it, err := m.Materialized.IterateSegment(m.ChunkIdx, m.ChunkIdx+m.ChunkSize)
-		if err != nil {
-			panic(err)
-		}
-		for ok := true; ok; ok = it.Next() {
-			value, err := it.Value()
-			if err != nil {
-				panic(err)
-			}
-			m.Table.Set("entity", value)
-			completionStatus.RowsComplete += 1
-			time.Sleep(time.Millisecond * 10)
-		}
-	}()
-
-	return completionStatus, nil
-}
-
-type MockMaterializedJobCompletionStatus struct {
-	RowsComplete int
-	TotalRows    int
-}
-
-func (m MockMaterializedJobCompletionStatus) PercentComplete() float32 {
-	return float32(m.RowsComplete) / float32(m.TotalRows)
-}
-
-func (m MockMaterializedJobCompletionStatus) String() string {
-	return fmt.Sprintf("%d out of %d rows completed.", m.RowsComplete, m.TotalRows)
-}
-
 type MockMaterializedFeatures struct {
-	Rows []int
+	Rows [][]interface{}
 }
 
 func (m *MockMaterializedFeatures) NumRows() (int, error) {
@@ -79,7 +41,7 @@ func (m *MockOnlineTable) Get(entity string) (interface{}, error) {
 
 type MockFeatureIterator struct {
 	CurrentIndex int
-	Slice        []int
+	Slice        [][]interface{}
 }
 
 func (m *MockFeatureIterator) Next() bool {
@@ -92,22 +54,27 @@ func (m *MockFeatureIterator) Err() error {
 	return nil
 }
 
-func (m *MockFeatureIterator) Value() (interface{}, error) {
-	value := m.Slice[m.CurrentIndex]
-	return value, nil
+func (m *MockFeatureIterator) Entity() string {
+	entity := m.Slice[m.CurrentIndex][0]
+	return entity.(string)
+}
+
+func (m *MockFeatureIterator) Value() interface{} {
+	value := m.Slice[m.CurrentIndex][1]
+	return value
 }
 
 func TestMockRunner(t *testing.T) {
 
 	materialized := &MockMaterializedFeatures{
-		Rows: []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
+		Rows: [][]interface{}{{"entity_1",1}, {"entity_2",2}, {"entity_3",3}, {"entity_4",4}, {"entity_5",5}},
 	}
 
 	table := &MockOnlineTable{
 		DataTable: make(map[string]int),
 	}
 
-	chunkSize := 10
+	chunkSize := 5
 	chunkIdx := 0
 
 	mockChunkJob := &MaterializedChunkRunner{
@@ -121,12 +88,13 @@ func TestMockRunner(t *testing.T) {
 	if err != nil {
 		return
 	}
-	fmt.Println(completionStatus.PercentComplete())
+
 	fmt.Println(completionStatus.String())
-	time.Sleep(time.Millisecond * 30)
+	time.Sleep(time.Second)
 	fmt.Println(completionStatus.String())
-	fmt.Println(completionStatus.PercentComplete())
-	time.Sleep(time.Second * 1)
-	fmt.Println(completionStatus.String())
-	fmt.Println(completionStatus.PercentComplete())
+
+	fmt.Println(materialized.NumRows())
+	fmt.Print(table.Get("entity_1"))
+	fmt.Print(table.Get("entity_6"))
+
 }

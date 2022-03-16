@@ -7,8 +7,6 @@
     <list default="true" id="57a2ecbe-b9fb-48ea-9b31-58e8a8263e4c" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.github/workflows/link-check.yml" beforeDir="false" afterPath="$PROJECT_DIR$/.github/workflows/link-check.yml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Dockerfile" beforeDir="false" afterPath="$PROJECT_DIR$/Dockerfile" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ff/serving/metadata/main/client.go" beforeDir="false" afterPath="$PROJECT_DIR$/ff/serving/metadata/client/client.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ff/serving/metadata/main/server.go" beforeDir="false" afterPath="$PROJECT_DIR$/ff/serving/metadata/server/server.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

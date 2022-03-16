@@ -77,4 +77,4 @@ jobs:
         uses: golangci/golangci-lint-action@v2
         with:
           version: v1.29
-          working-directory: ./ff/serving/
+          working-directory: ./...

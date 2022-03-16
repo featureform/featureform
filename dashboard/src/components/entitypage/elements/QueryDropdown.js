@@ -9,7 +9,6 @@ const useStyles = makeStyles((theme) => ({
 }));
 function QueryDropdown({ query, type, name, query_type, add_labels, remote }) {
   const classes = useStyles();
-  console.log(remote);
 
   return (
     <div className={classes.root}>

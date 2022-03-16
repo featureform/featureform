@@ -68,6 +68,43 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
+const queryFormats = {
+  Feature: {
+    Throughput: {
+      query: function (name, variant, step) {
+        return `rate(test_counter{feature="${name}",status="success",key="${variant}"}[${step}])`;
+      },
+      type: "count",
+    },
+    Latency: {
+      query: function (name, variant, step) {
+        return `rate(test_duration_seconds_sum{feature="${name}",status="",key="${variant}"}[${step}])/rate(test_duration_seconds_count{feature="${name}",key="${variant}",status=""}[${step}])`;
+      },
+      type: "latency",
+    },
+    Errors: {
+      query: function (name, variant, step) {
+        return `rate(test_counter{feature="${name}",key="${variant}",status="error"}[${step}])`;
+      },
+      type: "count",
+    },
+  },
+  "Training Set": {
+    Throughput: {
+      query: function (name, variant, step) {
+        return `rate(test_counter{feature="${name}",key="${variant}",status="row serve"}[${step}])`;
+      },
+      type: "count",
+    },
+    Errors: {
+      query: function (name, variant, step) {
+        return `rate(test_counter{feature="${name}",key="${variant}",status="error"}[${step}])`;
+      },
+      type: "count",
+    },
+  },
+};
+
 const prometheusAPI = "http://localhost:9090/api/v1/labels";
 
 const MetricsDropdown = ({ type, name, variant, timeRange, aggregates }) => {
@@ -75,7 +112,20 @@ const MetricsDropdown = ({ type, name, variant, timeRange, aggregates }) => {
   const [stepRange, setStepRange] = React.useState("min");
   const [apiConnected, setAPIConnected] = React.useState(false);
   const [step, setStep] = React.useState("1m");
-  console.log(apiConnected);
+
+  const createPromUrl = () => {
+    let urlPrefix = "http://localhost:9090/graph?";
+    let urlParamPart = Object.entries(queryFormats[type])
+      .map(([query_name, query_data], i) => {
+        return `g${i}.expr=${encodeURIComponent(
+          query_data.query(name, variant, step)
+        )} &g${i}.tab=0&g${i}.stacked=0&g${i}.show_exemplars=0&g${i}.range_input=1h`;
+      })
+      .join("&");
+    let url = urlPrefix + urlParamPart;
+    return url;
+  };
+
   useEffect(() => {
     fetch(prometheusAPI)
       .then((response) => response.json())
@@ -94,7 +144,7 @@ const MetricsDropdown = ({ type, name, variant, timeRange, aggregates }) => {
 
   const linkToPrometheus = () => {
     if (apiConnected) {
-      window.location.href = prometheusAPI;
+      window.location.href = createPromUrl();
     }
   };
   return (
@@ -115,94 +165,31 @@ const MetricsDropdown = ({ type, name, variant, timeRange, aggregates }) => {
         <Grid item xs={12} height="10em">
           <div className={classes.graph}>
             <Container minheight={"1300px"}>
-              {type !== "Training Set" ? (
-                <div>
-                  <div className={classes.titleBar}>
-                    <div className={classes.graphTitle}>
-                      <Typography variant="h6">
-                        Throughput (req/{stepRange})
-                      </Typography>
+              {Object.entries(queryFormats[type]).map(
+                ([query_name, query_data], i) => {
+                  return (
+                    <div>
+                      <div className={classes.titleBar}>
+                        <div className={classes.graphTitle}>
+                          <Typography variant="h6">{query_name}</Typography>
+                        </div>
+                        <div className={classes.aggDropdown}>
+                          <TimeDropdown />
+                          <AggregateDropdown graph={i} />
+                        </div>
+                      </div>
+                      <QueryDropdown
+                        query={query_data.query(name, variant, step)}
+                        type={type}
+                        name={name}
+                        query_type={query_data.type}
+                        aggregate={aggregates[i]}
+                        remote={apiConnected}
+                      />
                     </div>
-
-                    <div className={classes.aggDropdown}>
-                      <TimeDropdown />
-                      <AggregateDropdown graph={0} />
-                    </div>
-                  </div>
-
-                  <QueryDropdown
-                    query={`rate(test_counter{feature="${name}",status="success",key="${variant}"}[${step}])`}
-                    type={type}
-                    name={name}
-                    query_type={"count"}
-                    aggregate={aggregates[0]}
-                    remote={apiConnected}
-                  />
-                  <div className={classes.titleBar}>
-                    <div className={classes.graphTitle}>
-                      <Typography variant="h6">Average Latency (ms)</Typography>
-                    </div>
-
-                    <div className={classes.aggDropdown}>
-                      <TimeDropdown />
-                      <AggregateDropdown graph={1} />
-                    </div>
-                  </div>
-
-                  <QueryDropdown
-                    query={`rate(test_duration_seconds_sum{feature="${name}",status="",key="${variant}"}[${step}])/rate(test_duration_seconds_count{feature="${name}",key="${variant}",status=""}[${step}])`}
-                    type={type}
-                    name={name}
-                    query_type={"latency"}
-                    aggregate={aggregates[0]}
-                    remote={apiConnected}
-                  />
-                </div>
-              ) : (
-                <div>
-                  <div className={classes.titleBar}>
-                    <div className={classes.graphTitle}>
-                      <Typography variant="h6">
-                        Throughput (rows/{stepRange})
-                      </Typography>
-                    </div>
-
-                    <div className={classes.aggDropdown}>
-                      <TimeDropdown />
-                      <AggregateDropdown graph={1} />
-                    </div>
-                  </div>
-
-                  <QueryDropdown
-                    query={`rate(test_counter{feature="${name}",key="${variant}",status="row serve"}[${step}])`}
-                    type={type}
-                    name={name}
-                    query_type={"latency"}
-                    aggregate={aggregates[1]}
-                    remote={apiConnected}
-                  />
-                </div>
+                  );
+                }
               )}
-
-              <div className={classes.titleBar}>
-                <div className={classes.graphTitle}>
-                  <Typography variant="h6">Errors per {stepRange}</Typography>
-                </div>
-
-                <div className={classes.aggDropdown}>
-                  <TimeDropdown />
-                  <AggregateDropdown graph={2} />
-                </div>
-              </div>
-
-              <QueryDropdown
-                query={`rate(test_counter{feature="${name}",key="${variant}",status="error"}[${step}])`}
-                type={type}
-                name={name}
-                query_type={"count"}
-                aggregate={aggregates[2]}
-                remote={apiConnected}
-              />
             </Container>
           </div>
         </Grid>

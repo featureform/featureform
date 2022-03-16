@@ -57,7 +57,6 @@ const PrometheusGraph = ({
     max = 0.1;
   }
   const classes = useStyles();
-  console.log(remote);
 
   const add_labels_string = add_labels
     ? Object.keys(add_labels).reduce(
@@ -70,8 +69,8 @@ const PrometheusGraph = ({
     (start, end, step, stub) => {
       const startTimestamp = start.getTime() / 1000;
       const endTimestamp = end.getTime() / 1000;
+      step = 5;
       const url = `http://localhost:9090/api/v1/query_range?query=${query}${add_labels_string}&start=${startTimestamp}&end=${endTimestamp}&step=${step}s`;
-      console.log(remote);
       if (!remote) {
         return Promise.resolve(JSON.parse(sample_query_data));
       }

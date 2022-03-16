@@ -6,6 +6,7 @@
   <component name="ChangeListManager">
     <list default="true" id="57a2ecbe-b9fb-48ea-9b31-58e8a8263e4c" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.github/workflows/coverage.yml" beforeDir="false" afterPath="$PROJECT_DIR$/.github/workflows/coverage.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -67,7 +68,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1647459676935</updated>
-      <workItem from="1647459680940" duration="38000" />
+      <workItem from="1647459680940" duration="637000" />
     </task>
     <servers />
   </component>

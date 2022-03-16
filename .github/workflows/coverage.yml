@@ -5,7 +5,8 @@ jobs:
   go_coverage:
     name: Go Coverage Test
     defaults:
-      working-directory: ./ff/serving
+      run:
+        working-directory: ./ff/serving
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2

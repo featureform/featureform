@@ -36,8 +36,7 @@ func main() {
 	serveErr := grpcServer.Serve(lis)
 	if serveErr != nil {
 		logger.Errorw("Serve failed with error",
-
-
+			
 			"Err", serveErr)
 	}
 }

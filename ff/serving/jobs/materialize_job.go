@@ -52,6 +52,9 @@ func (m *MaterializedChunkRunner) Run() (CompletionStatus, error) {
 			entity := it.Entity()
 			m.Table.Set(entity, value)
 		}
+		if err = it.Err(); err != nil {
+			panic(err)
+		}
 
 		done <- true
 	}()

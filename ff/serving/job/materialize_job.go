@@ -1,8 +1,7 @@
-package jobs
+package job
 
 import (
 	"fmt"
-	"math"
 )
 
 type Runner interface {
@@ -17,8 +16,9 @@ type MaterializedChunkRunner struct {
 }
 
 type CompletionStatus interface {
-	PercentComplete() float32
+	Complete() bool
 	String() string
+	Wait() error
 	Err() error
 }
 
@@ -40,12 +40,10 @@ type FeatureIterator interface {
 }
 
 func (m *MaterializedChunkRunner) Run() (CompletionStatus, error) {
-
-	done := make(chan bool, 1)
 	errorChan := make(chan error, 1)
 	go func() {
 		if m.ChunkSize == 0 {
-			done <- true
+			errorChan <- nil
 			return
 		}
 		numRows, err := m.Materialized.NumRows()
@@ -53,7 +51,12 @@ func (m *MaterializedChunkRunner) Run() (CompletionStatus, error) {
 			errorChan <- err
 			return
 		}
-		chunkEnd := int(math.Min(float64((m.ChunkIdx+1)*m.ChunkSize), float64(numRows)))
+		var chunkEnd int
+		if (m.ChunkIdx+1)*m.ChunkSize < numRows {
+			chunkEnd = (m.ChunkIdx + 1) * m.ChunkSize
+		} else {
+			chunkEnd = numRows
+		}
 		it, err := m.Materialized.IterateSegment(m.ChunkIdx*m.ChunkSize, chunkEnd)
 		if err != nil {
 			errorChan <- err
@@ -72,24 +75,17 @@ func (m *MaterializedChunkRunner) Run() (CompletionStatus, error) {
 			errorChan <- err
 			return
 		}
-
-		done <- true
 		errorChan <- nil
 	}()
-
 	return &MaterializeChunkJobCompletionStatus{
-		Completed:     false,
-		CompletedChan: done,
-		ErrorChan:     errorChan,
-		Error:         nil,
+		ErrorChan: errorChan,
+		Error:     nil,
 	}, nil
 }
 
 type MaterializeChunkJobCompletionStatus struct {
-	Completed     bool
-	CompletedChan chan bool
-	ErrorChan     chan error
-	Error         error
+	Error     error
+	ErrorChan chan error
 }
 
 func (m *MaterializeChunkJobCompletionStatus) Err() error {
@@ -99,6 +95,7 @@ func (m *MaterializeChunkJobCompletionStatus) Err() error {
 	select {
 	case err := <-m.ErrorChan:
 		close(m.ErrorChan)
+		m.ErrorChan = nil
 		m.Error = err
 		return err
 	default:
@@ -106,26 +103,29 @@ func (m *MaterializeChunkJobCompletionStatus) Err() error {
 	}
 }
 
-func (m *MaterializeChunkJobCompletionStatus) PercentComplete() float32 {
-	if m.Completed {
-		return 1.0
+func (m *MaterializeChunkJobCompletionStatus) Wait() error {
+	err := <-m.ErrorChan
+	close(m.ErrorChan)
+	m.ErrorChan = nil
+	if err != nil {
+		m.Error = err
 	}
-	select {
-	case <-m.CompletedChan:
-		close(m.CompletedChan)
-		m.Completed = true
-		return 1.0
-	default:
-		return 0.0
+	return err
+}
+
+func (m *MaterializeChunkJobCompletionStatus) Complete() bool {
+	if m.Err() != nil || m.ErrorChan != nil {
+		return true
 	}
+	return false
 }
 
 func (m *MaterializeChunkJobCompletionStatus) String() string {
+	if !m.Complete() {
+		return "Job still running."
+	}
 	if m.Err() != nil {
 		return fmt.Sprintf("Job failed with error %v", m.Error)
-	}
-	if m.PercentComplete() != 1.0 {
-		return "Job still running."
 	}
 	return "Job completed succesfully."
 }

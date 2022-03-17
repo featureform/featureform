@@ -104,6 +104,9 @@ func (m *MaterializeChunkJobCompletionStatus) Err() error {
 }
 
 func (m *MaterializeChunkJobCompletionStatus) Wait() error {
+	if m.ErrorChan == nil {
+		return m.Error
+	}
 	err := <-m.ErrorChan
 	close(m.ErrorChan)
 	m.ErrorChan = nil

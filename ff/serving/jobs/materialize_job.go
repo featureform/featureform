@@ -40,7 +40,7 @@ func (m *MaterializedChunkRunner) Run() (CompletionStatus, error) {
 
 	success := make(chan bool, 1)
 	go func() {
-		if(m.ChunkSize == 0){
+		if m.ChunkSize == 0 {
 			success <- true
 			return
 		}
@@ -61,15 +61,15 @@ func (m *MaterializedChunkRunner) Run() (CompletionStatus, error) {
 	}()
 
 	return &MaterializeChunkJobCompletionStatus{
-		Success:     success,
-		Complete: false,
+		Success:   success,
+		Complete:  false,
 		JobFailed: false,
 	}, nil
 }
 
 type MaterializeChunkJobCompletionStatus struct {
-	Success     chan bool
-	Complete bool
+	Success   chan bool
+	Complete  bool
 	JobFailed bool
 }
 

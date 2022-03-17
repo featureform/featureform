@@ -3,7 +3,6 @@ package jobs
 import (
 	"errors"
 	"testing"
-
 )
 
 type MockMaterializedFeatures struct {
@@ -57,13 +56,13 @@ func (m *MockFeatureIterator) Entity() string {
 	return m.Slice[m.CurrentIndex].Entity
 }
 
-func (m *MockFeatureIterator) Value() interface{} { 
+func (m *MockFeatureIterator) Value() interface{} {
 	return m.Slice[m.CurrentIndex].Row
 }
 
 type FeatureRow struct {
 	Entity string
-	Row interface{}
+	Row    interface{}
 }
 
 func TestRunnerOverlap(t *testing.T) {
@@ -71,15 +70,15 @@ func TestRunnerOverlap(t *testing.T) {
 		Rows: []FeatureRow{
 			FeatureRow{
 				Entity: "entity_1",
-				Row: 1,
+				Row:    1,
 			},
 			FeatureRow{
 				Entity: "entity_2",
-				Row: 2,
+				Row:    2,
 			},
 			FeatureRow{
 				Entity: "entity_3",
-				Row: 3,
+				Row:    3,
 			},
 		},
 	}
@@ -111,8 +110,10 @@ func TestRunnerOverlap(t *testing.T) {
 		t.Fatalf("Chunk copy job 2 failed: %v", err)
 	}
 
-	for completionStatus1.PercentComplete() < 1.0 {}
-	for completionStatus2.PercentComplete() < 1.0 {}
+	for completionStatus1.PercentComplete() < 1.0 {
+	}
+	for completionStatus2.PercentComplete() < 1.0 {
+	}
 
 	if completionStatus1.Failed() {
 		t.Fatalf("Chunk copy job 1 failed")
@@ -139,15 +140,15 @@ func TestRunnerChunks(t *testing.T) {
 		Rows: []FeatureRow{
 			FeatureRow{
 				Entity: "entity_1",
-				Row: 1,
+				Row:    1,
 			},
 			FeatureRow{
 				Entity: "entity_2",
-				Row: 2,
+				Row:    2,
 			},
 			FeatureRow{
 				Entity: "entity_3",
-				Row: 3,
+				Row:    3,
 			},
 		},
 	}
@@ -190,9 +191,12 @@ func TestRunnerChunks(t *testing.T) {
 		t.Fatalf("Chunk copy job 3 failed: %v", err)
 	}
 
-	for completionStatus1.PercentComplete() < 1.0 {}
-	for completionStatus2.PercentComplete() < 1.0 {}
-	for completionStatus3.PercentComplete() < 1.0 {}
+	for completionStatus1.PercentComplete() < 1.0 {
+	}
+	for completionStatus2.PercentComplete() < 1.0 {
+	}
+	for completionStatus3.PercentComplete() < 1.0 {
+	}
 
 	if completionStatus1.Failed() {
 		t.Fatalf("Chunk copy job 1 failed")
@@ -224,9 +228,9 @@ func TestRunnerEmpty(t *testing.T) {
 
 	mockChunkJobEmpty := &MaterializedChunkRunner{
 		Materialized: &MockMaterializedFeatures{},
-		Table: tableEmpty,
-		ChunkSize: 0,
-		ChunkIdx: 0,
+		Table:        tableEmpty,
+		ChunkSize:    0,
+		ChunkIdx:     0,
 	}
 
 	completionStatusEmpty, err := mockChunkJobEmpty.Run()
@@ -234,7 +238,8 @@ func TestRunnerEmpty(t *testing.T) {
 		t.Fatalf("Chunk copy job failed: %v", err)
 	}
 
-	for completionStatusEmpty.PercentComplete() < 1.0 {}
+	for completionStatusEmpty.PercentComplete() < 1.0 {
+	}
 
 	if len(tableEmpty.DataTable) != 0 {
 		t.Fatalf("Empty features somehow copied to table: %v", err)
@@ -247,15 +252,15 @@ func TestRunner(t *testing.T) {
 		Rows: []FeatureRow{
 			FeatureRow{
 				Entity: "entity_1",
-				Row: 1,
+				Row:    1,
 			},
 			FeatureRow{
 				Entity: "entity_2",
-				Row: 2,
+				Row:    2,
 			},
 			FeatureRow{
 				Entity: "entity_3",
-				Row: 3,
+				Row:    3,
 			},
 		},
 	}
@@ -276,7 +281,8 @@ func TestRunner(t *testing.T) {
 		t.Fatalf("Chunk copy job failed: %v", err)
 	}
 
-	for completionStatus.PercentComplete() < 1.0 {}
+	for completionStatus.PercentComplete() < 1.0 {
+	}
 
 	if completionStatus.Failed() {
 		t.Fatalf("Chunk copy job failed")

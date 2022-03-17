@@ -131,6 +131,11 @@ func TestJobs(t *testing.T) {
 			ChunkIdx:         0,
 		},
 		&JobTestParams{
+			FeatureTableData: []interface{}{1, 2, 3, 4, 5, 6},
+			ChunkSize:        2,
+			ChunkIdx:         0,
+		},
+		&JobTestParams{
 			FeatureTableData: []interface{}{1, 2, 3, 4, 5},
 			ChunkSize:        6,
 			ChunkIdx:         0,
@@ -162,6 +167,16 @@ func TestJobs(t *testing.T) {
 		},
 		&JobTestParams{
 			FeatureTableData: []interface{}{1, "two", 3.0, 'f', false},
+			ChunkSize:        5,
+			ChunkIdx:         0,
+		},
+		&JobTestParams{
+			FeatureTableData: []interface{}{[]int{1, 2, 3}, []int{2, 3, 4}, []int{3, 4, 5}},
+			ChunkSize:        5,
+			ChunkIdx:         0,
+		},
+		&JobTestParams{
+			FeatureTableData: []interface{}{[]int{1, 2, 3}, []string{"two", "three", "four"}, []float64{3.0, 4.0, 5.0}},
 			ChunkSize:        5,
 			ChunkIdx:         0,
 		},

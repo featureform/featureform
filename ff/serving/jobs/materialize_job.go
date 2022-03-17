@@ -1,7 +1,6 @@
 package jobs
 
-import (
-)
+import ()
 
 type Runner interface {
 	Run() (CompletionStatus, error)
@@ -17,6 +16,7 @@ type MaterializedChunkRunner struct {
 type CompletionStatus interface {
 	PercentComplete() float32
 	String() string
+	Failed() bool
 }
 
 type MaterializedFeatures interface {
@@ -38,48 +38,55 @@ type FeatureIterator interface {
 
 func (m *MaterializedChunkRunner) Run() (CompletionStatus, error) {
 
-	done := make(chan bool, 1)	
+	success := make(chan bool, 1)
 	go func() {
+		if(m.ChunkSize == 0){
+			success <- true
+			return
+		}
 		it, err := m.Materialized.IterateSegment(m.ChunkIdx, m.ChunkIdx+m.ChunkSize)
 		if err != nil {
-			panic(err)
+			success <- false
 		}
 		for ok := true; ok; ok = it.Next() {
 			value := it.Value()
-			if err != nil {
-				panic(err)
-			}
 			entity := it.Entity()
 			m.Table.Set(entity, value)
 		}
 		if err = it.Err(); err != nil {
-			panic(err)
+			success <- false
 		}
 
-		done <- true
+		success <- true
 	}()
 
 	return &MaterializeChunkJobCompletionStatus{
-		Done: done,
+		Success:     success,
 		Complete: false,
+		JobFailed: false,
 	}, nil
 }
 
 type MaterializeChunkJobCompletionStatus struct {
-	Done chan bool
+	Success     chan bool
 	Complete bool
+	JobFailed bool
 }
 
 func (m *MaterializeChunkJobCompletionStatus) PercentComplete() float32 {
-	if m.Complete{
+	if m.Complete {
 		return 1.0
 	}
 	select {
-	case <-m.Done:
+	case outcome := <-m.Success:
 		m.Complete = true
-		close(m.Done)
+		if !outcome {
+			m.JobFailed = true
+			return 1.0
+		}
+		close(m.Success)
 		return 1.0
-	default :
+	default:
 		return 0.0
 	}
 }
@@ -89,4 +96,8 @@ func (m *MaterializeChunkJobCompletionStatus) String() string {
 		return "Job not complete."
 	}
 	return "Job complete"
+}
+
+func (m *MaterializeChunkJobCompletionStatus) Failed() bool {
+	return m.JobFailed
 }

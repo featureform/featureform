@@ -166,7 +166,7 @@ func TestEmpty(t *testing.T) {
 
 	testParams := &JobTestParams{
 		FeatureTableData: []interface{}{},
-		NumJobs:          0,
+		NumJobs:          1,
 	}
 
 	err := testFollowingParams(testParams)

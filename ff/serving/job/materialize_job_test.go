@@ -83,35 +83,28 @@ type FeatureRow struct {
 }
 
 func testParams(params *JobTestParams) error {
-
 	featureRows := make([]FeatureRow, len(params.FeatureTableData))
 	for i, row := range params.FeatureTableData {
 		featureRows[i] = FeatureRow{Entity: fmt.Sprintf("entity_%d", i), Row: row}
 	}
-
 	materialized := &MockMaterializedFeatures{Rows: featureRows}
-
 	table := &MockOnlineTable{
 		DataTable: make(map[string]interface{}),
 	}
-
 	job := &MaterializedChunkRunner{
 		Materialized: materialized,
 		Table:        table,
 		ChunkSize:    params.ChunkSize,
 		ChunkIdx:     params.ChunkIdx,
 	}
-
 	completionStatus, err := job.Run()
 	if err != nil {
 		return &TestError{Outcome: "Job failed to start.", Err: err}
 	}
-
 	err = completionStatus.Wait()
 	if err != nil {
 		return &TestError{Outcome: "Job failed while running.", Err: err}
 	}
-
 	var chunkEnd int
 	if (params.ChunkIdx+1)*params.ChunkSize < len(featureRows) {
 		chunkEnd = (params.ChunkIdx + 1) * params.ChunkSize
@@ -119,7 +112,6 @@ func testParams(params *JobTestParams) error {
 		chunkEnd = len(featureRows)
 	}
 	for i := params.ChunkIdx * params.ChunkSize; i < chunkEnd; i++ {
-
 		tableValue, err := table.Get(featureRows[i].Entity)
 		if err != nil {
 			return &TestError{Outcome: fmt.Sprintf("Cannot fetch table value for entity %v", featureRows[i].Entity), Err: err}
@@ -128,12 +120,10 @@ func testParams(params *JobTestParams) error {
 			return &TestError{Outcome: fmt.Sprintf("%v becomes %v in table copy", featureRows[i].Row, tableValue), Err: nil}
 		}
 	}
-
 	return nil
 }
 
 func TestSingleRunJob(t *testing.T) {
-
 	testJobs := []*JobTestParams{
 		&JobTestParams{
 			FeatureTableData: []interface{}{1, 2, 3, 4, 5},
@@ -166,12 +156,10 @@ func TestSingleRunJob(t *testing.T) {
 			ChunkIdx:         0,
 		},
 	}
-
 	for i, param := range testJobs {
 		err := testParams(param)
 		if err != nil {
 			t.Fatalf("Test Job %d Failed: %v", i, err)
 		}
 	}
-
 }

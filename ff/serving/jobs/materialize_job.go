@@ -55,7 +55,11 @@ func (m *MaterializedChunkRunner) Run() (CompletionStatus, error) {
 		for ok := true; ok; ok = it.Next() {
 			value := it.Value()
 			entity := it.Entity()
-			m.Table.Set(entity, value)
+			err := m.Table.Set(entity, value)
+			if err != nil {
+				errorChan <- err
+				return
+			}
 		}
 		if err = it.Err(); err != nil {
 			errorChan <- err
@@ -63,6 +67,7 @@ func (m *MaterializedChunkRunner) Run() (CompletionStatus, error) {
 		}
 
 		done <- true
+		errorChan <- nil
 	}()
 
 	return &MaterializeChunkJobCompletionStatus{
@@ -86,8 +91,8 @@ func (m *MaterializeChunkJobCompletionStatus) Err() error {
 	}
 	select {
 	case err := <-m.ErrorChan:
-		m.Error = err
 		close(m.ErrorChan)
+		m.Error = err
 		return err
 	default:
 		return nil
@@ -100,8 +105,8 @@ func (m *MaterializeChunkJobCompletionStatus) PercentComplete() float32 {
 	}
 	select {
 	case <-m.CompletedChan:
-		m.Completed = true
 		close(m.CompletedChan)
+		m.Completed = true
 		return 1.0
 	default:
 		return 0.0

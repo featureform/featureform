@@ -155,6 +155,26 @@ func TestJobs(t *testing.T) {
 			ChunkSize:        0,
 			ChunkIdx:         0,
 		},
+		&JobTestParams{
+			FeatureTableData: []interface{}{"one", "two", "three", "four", "five"},
+			ChunkSize:        5,
+			ChunkIdx:         0,
+		},
+		&JobTestParams{
+			FeatureTableData: []interface{}{1, "two", 3.0, 'f', false},
+			ChunkSize:        5,
+			ChunkIdx:         0,
+		},
+		&JobTestParams{
+			FeatureTableData: []interface{}{},
+			ChunkSize:        1,
+			ChunkIdx:         0,
+		},
+		&JobTestParams{
+			FeatureTableData: []interface{}{},
+			ChunkSize:        0,
+			ChunkIdx:         0,
+		},
 	}
 	for i, param := range testJobs {
 		err := testParams(param)

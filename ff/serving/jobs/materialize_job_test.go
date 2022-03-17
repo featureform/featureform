@@ -33,7 +33,7 @@ func (m *MockMaterializedFeatures) NumRows() (int, error) {
 func (m *MockMaterializedFeatures) IterateSegment(begin int, end int) (FeatureIterator, error) {
 	return &MockFeatureIterator{
 		CurrentIndex: 0,
-		Slice:        m.Rows[begin:int(math.Min(float64(end), float64(len(m.Rows))))],
+		Slice:        m.Rows[begin:end],
 	}, nil
 }
 

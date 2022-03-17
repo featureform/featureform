@@ -2,6 +2,7 @@ package jobs
 
 import (
 	"fmt"
+	"math"
 )
 
 type Runner interface {
@@ -47,7 +48,13 @@ func (m *MaterializedChunkRunner) Run() (CompletionStatus, error) {
 			done <- true
 			return
 		}
-		it, err := m.Materialized.IterateSegment(m.ChunkIdx*m.ChunkSize, (m.ChunkIdx+1)*m.ChunkSize)
+		numRows, err := m.Materialized.NumRows()
+		if err != nil {
+			errorChan <- err
+			return
+		}
+		chunkEnd := int(math.Min(float64((m.ChunkIdx+1)*m.ChunkSize), float64(numRows)))
+		it, err := m.Materialized.IterateSegment(m.ChunkIdx*m.ChunkSize, chunkEnd)
 		if err != nil {
 			errorChan <- err
 			return

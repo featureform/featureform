@@ -2,11 +2,28 @@ package jobs
 
 import (
 	"errors"
+	"fmt"
+	"golang.org/x/sync/errgroup"
+	"math"
 	"testing"
 )
 
 type MockMaterializedFeatures struct {
 	Rows []FeatureRow
+}
+
+type JobTestParams struct {
+	FeatureTableData []interface{}
+	NumJobs          int
+}
+
+type TestError struct {
+	Outcome string
+	Err     error
+}
+
+func (m *TestError) Error() string {
+	return fmt.Sprintf("%v: %s", m.Err, m.Outcome)
 }
 
 func (m *MockMaterializedFeatures) NumRows() (int, error) {
@@ -16,7 +33,7 @@ func (m *MockMaterializedFeatures) NumRows() (int, error) {
 func (m *MockMaterializedFeatures) IterateSegment(begin int, end int) (FeatureIterator, error) {
 	return &MockFeatureIterator{
 		CurrentIndex: 0,
-		Slice:        m.Rows[begin:end],
+		Slice:        m.Rows[begin:int(math.Min(float64(end), float64(len(m.Rows))))],
 	}, nil
 }
 
@@ -65,238 +82,124 @@ type FeatureRow struct {
 	Row    interface{}
 }
 
-func TestRunnerOverlap(t *testing.T) {
-	materialized := &MockMaterializedFeatures{
-		Rows: []FeatureRow{
-			FeatureRow{
-				Entity: "entity_1",
-				Row:    1,
-			},
-			FeatureRow{
-				Entity: "entity_2",
-				Row:    2,
-			},
-			FeatureRow{
-				Entity: "entity_3",
-				Row:    3,
-			},
-		},
+func testFollowingParams(params *JobTestParams) error {
+
+	featureRows := make([]FeatureRow, len(params.FeatureTableData))
+	for i, row := range params.FeatureTableData {
+		featureRows[i] = FeatureRow{Entity: fmt.Sprintf("entity_%d", i), Row: row}
 	}
+
+	materialized := &MockMaterializedFeatures{Rows: featureRows}
 
 	table := &MockOnlineTable{
 		DataTable: make(map[string]interface{}),
 	}
 
-	mockChunkJob1 := &MaterializedChunkRunner{
-		Materialized: materialized,
-		Table:        table,
-		ChunkSize:    1,
-		ChunkIdx:     0,
+	jobList := make([]*MaterializedChunkRunner, params.NumJobs)
+
+	var chunkSize int
+	if params.NumJobs == 0 {
+		chunkSize = 0
+	} else {
+		chunkSize = int(math.Ceil(float64(len(params.FeatureTableData)) / float64(params.NumJobs)))
 	}
 
-	mockChunkJob2 := &MaterializedChunkRunner{
-		Materialized: materialized,
-		Table:        table,
-		ChunkSize:    2,
-		ChunkIdx:     1,
+	for i := 0; i < params.NumJobs; i++ {
+		jobList[i] = &MaterializedChunkRunner{
+			Materialized: materialized,
+			Table:        table,
+			ChunkSize:    chunkSize,
+			ChunkIdx:     i,
+		}
 	}
 
-	completionStatus1, err := mockChunkJob1.Run()
-	if err != nil {
-		t.Fatalf("Chunk copy job 1 failed: %v", err)
-	}
-	completionStatus2, err := mockChunkJob2.Run()
-	if err != nil {
-		t.Fatalf("Chunk copy job 2 failed: %v", err)
+	jobGroup := new(errgroup.Group)
+	for i := range jobList {
+		i := i
+		jobGroup.Go(func() error {
+			completionStatus, err := jobList[i].Run()
+			if err != nil {
+				return err
+			}
+			for completionStatus.PercentComplete() < 1.0 && completionStatus.Err() == nil {
+			}
+			if completionStatus.Err() != nil {
+				return completionStatus.Err()
+			}
+			return nil
+		})
 	}
 
-	for completionStatus1.PercentComplete() < 1.0 {
-	}
-	for completionStatus2.PercentComplete() < 1.0 {
-	}
-
-	if completionStatus1.Failed() {
-		t.Fatalf("Chunk copy job 1 failed")
-	}
-	if completionStatus2.Failed() {
-		t.Fatalf("Chunk copy job 2 failed")
+	if err := jobGroup.Wait(); err != nil {
+		return &TestError{Outcome: "Job failed to run.", Err: err}
 	}
 
 	for _, row := range materialized.Rows {
 
 		tableValue, err := table.Get(row.Entity)
 		if err != nil {
-			t.Fatalf("Cannot fetch table value for entity %v: %v", row.Entity, err)
+			return &TestError{Outcome: fmt.Sprintf("Cannot fetch table value for entity %v", row.Entity), Err: err}
 		}
 		if tableValue != row.Row {
-			t.Fatalf("%v becomes %v in table copy", row.Row, tableValue)
+			return &TestError{Outcome: fmt.Sprintf("%v becomes %v in table copy", row.Row, tableValue), Err: nil}
 		}
 	}
 
+	return nil
 }
 
-func TestRunnerChunks(t *testing.T) {
-	materialized := &MockMaterializedFeatures{
-		Rows: []FeatureRow{
-			FeatureRow{
-				Entity: "entity_1",
-				Row:    1,
-			},
-			FeatureRow{
-				Entity: "entity_2",
-				Row:    2,
-			},
-			FeatureRow{
-				Entity: "entity_3",
-				Row:    3,
-			},
-		},
+func TestSingleRunJob(t *testing.T) {
+
+	testParams := &JobTestParams{
+		FeatureTableData: []interface{}{1, 2, 3, 4, 5},
+		NumJobs:          1,
 	}
 
-	table := &MockOnlineTable{
-		DataTable: make(map[string]interface{}),
-	}
+	err := testFollowingParams(testParams)
 
-	mockChunkJob1 := &MaterializedChunkRunner{
-		Materialized: materialized,
-		Table:        table,
-		ChunkSize:    1,
-		ChunkIdx:     0,
-	}
-
-	mockChunkJob2 := &MaterializedChunkRunner{
-		Materialized: materialized,
-		Table:        table,
-		ChunkSize:    1,
-		ChunkIdx:     1,
-	}
-
-	mockChunkJob3 := &MaterializedChunkRunner{
-		Materialized: materialized,
-		Table:        table,
-		ChunkSize:    1,
-		ChunkIdx:     2,
-	}
-
-	completionStatus1, err := mockChunkJob1.Run()
 	if err != nil {
-		t.Fatalf("Chunk copy job 1 failed: %v", err)
-	}
-	completionStatus2, err := mockChunkJob2.Run()
-	if err != nil {
-		t.Fatalf("Chunk copy job 2 failed: %v", err)
-	}
-	completionStatus3, err := mockChunkJob3.Run()
-	if err != nil {
-		t.Fatalf("Chunk copy job 3 failed: %v", err)
-	}
-
-	for completionStatus1.PercentComplete() < 1.0 {
-	}
-	for completionStatus2.PercentComplete() < 1.0 {
-	}
-	for completionStatus3.PercentComplete() < 1.0 {
-	}
-
-	if completionStatus1.Failed() {
-		t.Fatalf("Chunk copy job 1 failed")
-	}
-	if completionStatus2.Failed() {
-		t.Fatalf("Chunk copy job 2 failed")
-	}
-	if completionStatus3.Failed() {
-		t.Fatalf("Chunk copy job 3 failed")
-	}
-
-	for _, row := range materialized.Rows {
-
-		tableValue, err := table.Get(row.Entity)
-		if err != nil {
-			t.Fatalf("Cannot fetch table value for entity %v: %v", row.Entity, err)
-		}
-		if tableValue != row.Row {
-			t.Fatalf("%v becomes %v in table copy", row.Row, tableValue)
-		}
+		t.Fatalf("Test Single Run Job Failed: %v", err)
 	}
 }
 
-func TestRunnerEmpty(t *testing.T) {
+func TestEmpty(t *testing.T) {
 
-	tableEmpty := &MockOnlineTable{
-		DataTable: make(map[string]interface{}),
+	testParams := &JobTestParams{
+		FeatureTableData: []interface{}{},
+		NumJobs:          0,
 	}
 
-	mockChunkJobEmpty := &MaterializedChunkRunner{
-		Materialized: &MockMaterializedFeatures{},
-		Table:        tableEmpty,
-		ChunkSize:    0,
-		ChunkIdx:     0,
-	}
+	err := testFollowingParams(testParams)
 
-	completionStatusEmpty, err := mockChunkJobEmpty.Run()
 	if err != nil {
-		t.Fatalf("Chunk copy job failed: %v", err)
+		t.Fatalf("Test Emtpy Failed: %v", err)
 	}
-
-	for completionStatusEmpty.PercentComplete() < 1.0 {
-	}
-
-	if len(tableEmpty.DataTable) != 0 {
-		t.Fatalf("Empty features somehow copied to table: %v", err)
-	}
-
 }
-func TestRunner(t *testing.T) {
 
-	materialized := &MockMaterializedFeatures{
-		Rows: []FeatureRow{
-			FeatureRow{
-				Entity: "entity_1",
-				Row:    1,
-			},
-			FeatureRow{
-				Entity: "entity_2",
-				Row:    2,
-			},
-			FeatureRow{
-				Entity: "entity_3",
-				Row:    3,
-			},
-		},
+func TestMultipleJobs(t *testing.T) {
+
+	testParams := &JobTestParams{
+		FeatureTableData: []interface{}{1, 2, 3, 4, 5},
+		NumJobs:          5,
 	}
 
-	table := &MockOnlineTable{
-		DataTable: make(map[string]interface{}),
-	}
+	err := testFollowingParams(testParams)
 
-	mockChunkJobFull := &MaterializedChunkRunner{
-		Materialized: materialized,
-		Table:        table,
-		ChunkSize:    len(materialized.Rows),
-		ChunkIdx:     0,
-	}
-
-	completionStatus, err := mockChunkJobFull.Run()
 	if err != nil {
-		t.Fatalf("Chunk copy job failed: %v", err)
+		t.Fatalf("Test Multiple Jobs Failed: %v", err)
+	}
+}
+
+func TestJobsDifferentRowAllotments(t *testing.T) {
+
+	testParams := &JobTestParams{
+		FeatureTableData: []interface{}{1, 2, 3, 4, 5},
+		NumJobs:          2,
 	}
 
-	for completionStatus.PercentComplete() < 1.0 {
+	err := testFollowingParams(testParams)
+
+	if err != nil {
+		t.Fatalf("Test Multiple Jobs Failed: %v", err)
 	}
-
-	if completionStatus.Failed() {
-		t.Fatalf("Chunk copy job failed")
-	}
-
-	for _, row := range materialized.Rows {
-
-		tableValue, err := table.Get(row.Entity)
-		if err != nil {
-			t.Fatalf("Cannot fetch table value for entity %v: %v", row.Entity, err)
-		}
-		if tableValue != row.Row {
-			t.Fatalf("%v becomes %v in table copy", row.Row, tableValue)
-		}
-	}
-
 }

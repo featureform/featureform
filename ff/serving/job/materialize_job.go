@@ -127,7 +127,7 @@ func (m *MaterializeChunkJobCompletionStatus) String() string {
 	if !m.Complete() {
 		return "Job still running."
 	}
-	if m.Err() != nil {
+	if m.Error != nil {
 		return fmt.Sprintf("Job failed with error %v", m.Error)
 	}
 	return "Job completed succesfully."

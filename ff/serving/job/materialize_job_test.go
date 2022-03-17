@@ -123,7 +123,7 @@ func testParams(params *JobTestParams) error {
 	return nil
 }
 
-func TestSingleRunJob(t *testing.T) {
+func TestJobs(t *testing.T) {
 	testJobs := []*JobTestParams{
 		&JobTestParams{
 			FeatureTableData: []interface{}{1, 2, 3, 4, 5},

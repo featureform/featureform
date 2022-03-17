@@ -51,6 +51,10 @@ func (m *MaterializedChunkRunner) Run() (CompletionStatus, error) {
 			errorChan <- err
 			return
 		}
+		if numRows == 0 {
+			errorChan <- nil
+			return
+		}
 		var chunkEnd int
 		if (m.ChunkIdx+1)*m.ChunkSize < numRows {
 			chunkEnd = (m.ChunkIdx + 1) * m.ChunkSize
@@ -128,7 +132,7 @@ func (m *MaterializeChunkJobCompletionStatus) String() string {
 		return "Job still running."
 	}
 	if m.Error != nil {
-		return fmt.Sprintf("Job failed with error %v", m.Error)
+		return fmt.Sprintf("Job failed with error: %v", m.Error)
 	}
 	return "Job completed succesfully."
 }

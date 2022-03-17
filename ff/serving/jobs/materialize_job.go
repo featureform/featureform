@@ -1,6 +1,8 @@
 package jobs
 
-import ()
+import (
+	"fmt"
+)
 
 type Runner interface {
 	Run() (CompletionStatus, error)
@@ -16,7 +18,7 @@ type MaterializedChunkRunner struct {
 type CompletionStatus interface {
 	PercentComplete() float32
 	String() string
-	Failed() bool
+	Err() error
 }
 
 type MaterializedFeatures interface {
@@ -38,15 +40,17 @@ type FeatureIterator interface {
 
 func (m *MaterializedChunkRunner) Run() (CompletionStatus, error) {
 
-	success := make(chan bool, 1)
+	done := make(chan bool, 1)
+	errorChan := make(chan error, 1)
 	go func() {
 		if m.ChunkSize == 0 {
-			success <- true
+			done <- true
 			return
 		}
-		it, err := m.Materialized.IterateSegment(m.ChunkIdx, m.ChunkIdx+m.ChunkSize)
+		it, err := m.Materialized.IterateSegment(m.ChunkIdx*m.ChunkSize, (m.ChunkIdx+1)*m.ChunkSize)
 		if err != nil {
-			success <- false
+			errorChan <- err
+			return
 		}
 		for ok := true; ok; ok = it.Next() {
 			value := it.Value()
@@ -54,37 +58,50 @@ func (m *MaterializedChunkRunner) Run() (CompletionStatus, error) {
 			m.Table.Set(entity, value)
 		}
 		if err = it.Err(); err != nil {
-			success <- false
+			errorChan <- err
+			return
 		}
 
-		success <- true
+		done <- true
 	}()
 
 	return &MaterializeChunkJobCompletionStatus{
-		Success:   success,
-		Complete:  false,
-		JobFailed: false,
+		Completed:     false,
+		CompletedChan: done,
+		ErrorChan:     errorChan,
+		Error:         nil,
 	}, nil
 }
 
 type MaterializeChunkJobCompletionStatus struct {
-	Success   chan bool
-	Complete  bool
-	JobFailed bool
+	Completed     bool
+	CompletedChan chan bool
+	ErrorChan     chan error
+	Error         error
+}
+
+func (m *MaterializeChunkJobCompletionStatus) Err() error {
+	if m.Error != nil {
+		return m.Error
+	}
+	select {
+	case err := <-m.ErrorChan:
+		m.Error = err
+		close(m.ErrorChan)
+		return err
+	default:
+		return nil
+	}
 }
 
 func (m *MaterializeChunkJobCompletionStatus) PercentComplete() float32 {
-	if m.Complete {
+	if m.Completed {
 		return 1.0
 	}
 	select {
-	case outcome := <-m.Success:
-		m.Complete = true
-		if !outcome {
-			m.JobFailed = true
-			return 1.0
-		}
-		close(m.Success)
+	case <-m.CompletedChan:
+		m.Completed = true
+		close(m.CompletedChan)
 		return 1.0
 	default:
 		return 0.0
@@ -92,12 +109,11 @@ func (m *MaterializeChunkJobCompletionStatus) PercentComplete() float32 {
 }
 
 func (m *MaterializeChunkJobCompletionStatus) String() string {
-	if m.PercentComplete() == 0 {
-		return "Job not complete."
+	if m.Err() != nil {
+		return fmt.Sprintf("Job failed with error %v", m.Error)
 	}
-	return "Job complete"
-}
-
-func (m *MaterializeChunkJobCompletionStatus) Failed() bool {
-	return m.JobFailed
+	if m.PercentComplete() != 1.0 {
+		return "Job still running."
+	}
+	return "Job completed succesfully."
 }

@@ -77,7 +77,7 @@ func (m *MaterializedChunkRunner) Run() (CompletionStatus, error) {
 			jobWatcher.EndWatch(err)
 			return
 		}
-		for ok := true; ok; ok = it.Next() {
+		for it.Next() {
 			value := it.Value()
 			entity := it.Entity()
 			err := m.Table.Set(entity, value)

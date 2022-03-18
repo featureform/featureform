@@ -33,7 +33,7 @@ func (m *MockMaterializedFeatures) NumRows() (int, error) {
 
 func (m *MockMaterializedFeatures) IterateSegment(begin int, end int) (FeatureIterator, error) {
 	return &MockFeatureIterator{
-		CurrentIndex: 0,
+		CurrentIndex: -1,
 		Slice:        m.Rows[begin:end],
 	}, nil
 }
@@ -236,8 +236,7 @@ func TestJobs(t *testing.T) {
 		},
 	}
 	for _, param := range testJobs {
-		err := testParams(param)
-		if err != nil {
+		if err := testParams(param); err != nil {
 			t.Fatalf("Test Job Failed: %s, %v\n", param.TestName, err)
 		}
 	}

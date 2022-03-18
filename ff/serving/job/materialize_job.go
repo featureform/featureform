@@ -40,36 +40,41 @@ type FeatureIterator interface {
 	Value() interface{}
 }
 
+type ResultSync struct {
+	err  error
+	done bool
+	mu   sync.RWMutex
+}
+
 func (m *MaterializedChunkRunner) Run() (CompletionStatus, error) {
 	done := make(chan interface{})
-	resultSync := &ResultSync{}
+	jobWatcher := &CopyCompletionWatcher{
+		ResultSync:  &ResultSync{},
+		DoneChannel: done,
+	}
 	go func() {
 		if m.ChunkSize == 0 {
-			resultSync.DoneWithError(nil)
-			close(done)
+			jobWatcher.EndWatch(nil)
 			return
 		}
 		numRows, err := m.Materialized.NumRows()
 		if err != nil {
-			resultSync.DoneWithError(err)
-			close(done)
+			jobWatcher.EndWatch(err)
 			return
 		}
 		if numRows == 0 {
-			resultSync.DoneWithError(nil)
-			close(done)
+			jobWatcher.EndWatch(nil)
 			return
 		}
-		var chunkEnd int
-		if (m.ChunkIdx+1)*m.ChunkSize < numRows {
-			chunkEnd = (m.ChunkIdx + 1) * m.ChunkSize
-		} else {
-			chunkEnd = numRows
+
+		rowStart := m.ChunkIdx * m.ChunkSize
+		rowEnd := rowStart + m.ChunkSize
+		if rowEnd > numRows {
+			rowEnd = numRows
 		}
-		it, err := m.Materialized.IterateSegment(m.ChunkIdx*m.ChunkSize, chunkEnd)
+		it, err := m.Materialized.IterateSegment(rowStart, rowEnd)
 		if err != nil {
-			resultSync.DoneWithError(err)
-			close(done)
+			jobWatcher.EndWatch(err)
 			return
 		}
 		for ok := true; ok; ok = it.Next() {
@@ -77,35 +82,34 @@ func (m *MaterializedChunkRunner) Run() (CompletionStatus, error) {
 			entity := it.Entity()
 			err := m.Table.Set(entity, value)
 			if err != nil {
-				resultSync.DoneWithError(err)
-				close(done)
+				jobWatcher.EndWatch(err)
 				return
 			}
 		}
 		if err = it.Err(); err != nil {
-			resultSync.DoneWithError(err)
-			close(done)
+			jobWatcher.EndWatch(err)
 			return
 		}
-		resultSync.DoneWithError(nil)
-		close(done)
+		jobWatcher.EndWatch(nil)
 	}()
-	return &CopyCompletionWatcher{
-		ResultSync:  resultSync,
-		DoneChannel: done,
-	}, nil
+	return jobWatcher, nil
 }
 
-type ResultSync struct {
-	err  error
-	done bool
-	mu   sync.RWMutex
+func (c *CopyCompletionWatcher) EndWatch(err error) {
+	c.ResultSync.DoneWithError(err)
+	close(c.DoneChannel)
 }
 
-func (r *ResultSync) Get() (bool, error) {
+func (r *ResultSync) Done() bool {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	return r.done, r.err
+	return r.done
+}
+
+func (r *ResultSync) Err() error {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.err
 }
 
 func (r *ResultSync) DoneWithError(err error) {
@@ -121,23 +125,21 @@ type CopyCompletionWatcher struct {
 }
 
 func (m *CopyCompletionWatcher) Err() error {
-	_, err := m.ResultSync.Get()
-	return err
+	return m.ResultSync.Err()
 }
 
 func (m *CopyCompletionWatcher) Wait() error {
 	<-m.DoneChannel
-	_, err := m.ResultSync.Get()
-	return err
+	return m.ResultSync.Err()
 }
 
 func (m *CopyCompletionWatcher) Complete() bool {
-	done, _ := m.ResultSync.Get()
-	return done
+	return m.ResultSync.Done()
 }
 
 func (m *CopyCompletionWatcher) String() string {
-	done, err := m.ResultSync.Get()
+	done := m.ResultSync.Done()
+	err := m.ResultSync.Err()
 	if err != nil {
 		return fmt.Sprintf("Job failed with error: %v", err)
 	}

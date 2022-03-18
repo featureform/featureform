@@ -12,6 +12,7 @@ type MockMaterializedFeatures struct {
 }
 
 type JobTestParams struct {
+	TestName         string
 	FeatureTableData []interface{}
 	ChunkSize        int
 	ChunkIdx         int
@@ -82,7 +83,7 @@ type FeatureRow struct {
 	Row    interface{}
 }
 
-func testParams(params *JobTestParams) error {
+func testParams(params JobTestParams) error {
 	featureRows := make([]FeatureRow, len(params.FeatureTableData))
 	for i, row := range params.FeatureTableData {
 		featureRows[i] = FeatureRow{Entity: fmt.Sprintf("entity_%d", i), Row: row}
@@ -123,78 +124,116 @@ func testParams(params *JobTestParams) error {
 	return nil
 }
 
+type CopyTestData struct {
+	Rows []interface{}
+}
+
 func TestJobs(t *testing.T) {
-	testJobs := []*JobTestParams{
-		&JobTestParams{
-			FeatureTableData: []interface{}{1, 2, 3, 4, 5},
+	emptyList := CopyTestData{
+		Rows: []interface{}{},
+	}
+	basicNumList := CopyTestData{
+		Rows: []interface{}{1, 2, 3, 4, 5},
+	}
+
+	stringNumList := CopyTestData{
+		Rows: []interface{}{"one", "two", "three", "four", "five"},
+	}
+	multipleTypesList := CopyTestData{
+		Rows: []interface{}{1, "two", 3.0, 'f', false},
+	}
+
+	numListofLists := CopyTestData{
+		Rows: []interface{}{[]int{1, 2, 3}, []int{2, 3, 4}, []int{3, 4, 5}},
+	}
+
+	differentTypeLists := CopyTestData{
+		Rows: []interface{}{[]int{1, 2, 3}, []string{"two", "three", "four"}, []float64{3.0, 4.0, 5.0}},
+	}
+	testJobs := []JobTestParams{
+		JobTestParams{
+			TestName:         "Basic copy test",
+			FeatureTableData: basicNumList.Rows,
 			ChunkSize:        5,
 			ChunkIdx:         0,
 		},
-		&JobTestParams{
-			FeatureTableData: []interface{}{1, 2, 3, 4, 5, 6},
+		JobTestParams{
+			TestName:         "Partial copy test",
+			FeatureTableData: basicNumList.Rows,
 			ChunkSize:        2,
 			ChunkIdx:         0,
 		},
-		&JobTestParams{
-			FeatureTableData: []interface{}{1, 2, 3, 4, 5},
+		JobTestParams{
+			TestName:         "Chunk size overflow test",
+			FeatureTableData: basicNumList.Rows,
 			ChunkSize:        6,
 			ChunkIdx:         0,
 		},
-		&JobTestParams{
-			FeatureTableData: []interface{}{1, 2, 3, 4, 5},
+		JobTestParams{
+			TestName:         "Single copy test",
+			FeatureTableData: basicNumList.Rows,
 			ChunkSize:        1,
 			ChunkIdx:         0,
 		},
-		&JobTestParams{
-			FeatureTableData: []interface{}{1, 2, 3, 4, 5},
+		JobTestParams{
+			TestName:         "Final index copy test",
+			FeatureTableData: basicNumList.Rows,
 			ChunkSize:        1,
 			ChunkIdx:         4,
 		},
-		&JobTestParams{
-			FeatureTableData: []interface{}{1, 2, 3, 4, 5},
+		JobTestParams{
+			TestName:         "Last overlap chunk test",
+			FeatureTableData: basicNumList.Rows,
 			ChunkSize:        2,
 			ChunkIdx:         2,
 		},
-		&JobTestParams{
-			FeatureTableData: []interface{}{1, 2, 3, 4, 5},
+		JobTestParams{
+			TestName:         "Zero chunk size copy test",
+			FeatureTableData: basicNumList.Rows,
 			ChunkSize:        0,
 			ChunkIdx:         0,
 		},
-		&JobTestParams{
-			FeatureTableData: []interface{}{"one", "two", "three", "four", "five"},
+		JobTestParams{
+			TestName:         "String list copy test",
+			FeatureTableData: stringNumList.Rows,
 			ChunkSize:        5,
 			ChunkIdx:         0,
 		},
-		&JobTestParams{
-			FeatureTableData: []interface{}{1, "two", 3.0, 'f', false},
+		JobTestParams{
+			TestName:         "Different types copy test",
+			FeatureTableData: multipleTypesList.Rows,
 			ChunkSize:        5,
 			ChunkIdx:         0,
 		},
-		&JobTestParams{
-			FeatureTableData: []interface{}{[]int{1, 2, 3}, []int{2, 3, 4}, []int{3, 4, 5}},
+		JobTestParams{
+			TestName:         "List features test",
+			FeatureTableData: numListofLists.Rows,
 			ChunkSize:        5,
 			ChunkIdx:         0,
 		},
-		&JobTestParams{
-			FeatureTableData: []interface{}{[]int{1, 2, 3}, []string{"two", "three", "four"}, []float64{3.0, 4.0, 5.0}},
+		JobTestParams{
+			TestName:         "List features different types",
+			FeatureTableData: differentTypeLists.Rows,
 			ChunkSize:        5,
 			ChunkIdx:         0,
 		},
-		&JobTestParams{
-			FeatureTableData: []interface{}{},
+		JobTestParams{
+			TestName:         "No rows test",
+			FeatureTableData: emptyList.Rows,
 			ChunkSize:        1,
 			ChunkIdx:         0,
 		},
-		&JobTestParams{
-			FeatureTableData: []interface{}{},
+		JobTestParams{
+			TestName:         "No rows/zero chunk size test",
+			FeatureTableData: emptyList.Rows,
 			ChunkSize:        0,
 			ChunkIdx:         0,
 		},
 	}
-	for i, param := range testJobs {
+	for _, param := range testJobs {
 		err := testParams(param)
 		if err != nil {
-			t.Fatalf("Test Job %d Failed: %v", i, err)
+			t.Fatalf("Test Job Failed: %s, %v\n", param.TestName, err)
 		}
 	}
 }

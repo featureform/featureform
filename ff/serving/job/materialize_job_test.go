@@ -12,10 +12,10 @@ type MockMaterializedFeatures struct {
 }
 
 type JobTestParams struct {
-	TestName         string
-	FeatureTableData []interface{}
-	ChunkSize        int
-	ChunkIdx         int
+	TestName     string
+	Materialized MockMaterializedFeatures
+	ChunkSize    int
+	ChunkIdx     int
 }
 
 type TestError struct {
@@ -84,16 +84,13 @@ type FeatureRow struct {
 }
 
 func testParams(params JobTestParams) error {
-	featureRows := make([]FeatureRow, len(params.FeatureTableData))
-	for i, row := range params.FeatureTableData {
-		featureRows[i] = FeatureRow{Entity: fmt.Sprintf("entity_%d", i), Row: row}
-	}
-	materialized := &MockMaterializedFeatures{Rows: featureRows}
+
 	table := &MockOnlineTable{
 		DataTable: make(map[string]interface{}),
 	}
+	featureRows := params.Materialized.Rows
 	job := &MaterializedChunkRunner{
-		Materialized: materialized,
+		Materialized: &params.Materialized,
 		Table:        table,
 		ChunkSize:    params.ChunkSize,
 		ChunkIdx:     params.ChunkIdx,
@@ -128,6 +125,14 @@ type CopyTestData struct {
 	Rows []interface{}
 }
 
+func CreateMockFeatureRows(data []interface{}) MockMaterializedFeatures {
+	featureRows := make([]FeatureRow, len(data))
+	for i, row := range data {
+		featureRows[i] = FeatureRow{Entity: fmt.Sprintf("entity_%d", i), Row: row}
+	}
+	return MockMaterializedFeatures{Rows: featureRows}
+}
+
 func TestJobs(t *testing.T) {
 	emptyList := CopyTestData{
 		Rows: []interface{}{},
@@ -152,82 +157,82 @@ func TestJobs(t *testing.T) {
 	}
 	testJobs := []JobTestParams{
 		JobTestParams{
-			TestName:         "Basic copy test",
-			FeatureTableData: basicNumList.Rows,
-			ChunkSize:        5,
-			ChunkIdx:         0,
+			TestName:     "Basic copy test",
+			Materialized: CreateMockFeatureRows(basicNumList.Rows),
+			ChunkSize:    5,
+			ChunkIdx:     0,
 		},
 		JobTestParams{
-			TestName:         "Partial copy test",
-			FeatureTableData: basicNumList.Rows,
-			ChunkSize:        2,
-			ChunkIdx:         0,
+			TestName:     "Partial copy test",
+			Materialized: CreateMockFeatureRows(basicNumList.Rows),
+			ChunkSize:    2,
+			ChunkIdx:     0,
 		},
 		JobTestParams{
-			TestName:         "Chunk size overflow test",
-			FeatureTableData: basicNumList.Rows,
-			ChunkSize:        6,
-			ChunkIdx:         0,
+			TestName:     "Chunk size overflow test",
+			Materialized: CreateMockFeatureRows(basicNumList.Rows),
+			ChunkSize:    6,
+			ChunkIdx:     0,
 		},
 		JobTestParams{
-			TestName:         "Single copy test",
-			FeatureTableData: basicNumList.Rows,
-			ChunkSize:        1,
-			ChunkIdx:         0,
+			TestName:     "Single copy test",
+			Materialized: CreateMockFeatureRows(basicNumList.Rows),
+			ChunkSize:    1,
+			ChunkIdx:     0,
 		},
 		JobTestParams{
-			TestName:         "Final index copy test",
-			FeatureTableData: basicNumList.Rows,
-			ChunkSize:        1,
-			ChunkIdx:         4,
+			TestName:     "Final index copy test",
+			Materialized: CreateMockFeatureRows(basicNumList.Rows),
+			ChunkSize:    1,
+			ChunkIdx:     4,
 		},
 		JobTestParams{
-			TestName:         "Last overlap chunk test",
-			FeatureTableData: basicNumList.Rows,
-			ChunkSize:        2,
-			ChunkIdx:         2,
+			TestName:     "Last overlap chunk test",
+			Materialized: CreateMockFeatureRows(basicNumList.Rows),
+			ChunkSize:    2,
+			ChunkIdx:     2,
 		},
 		JobTestParams{
-			TestName:         "Zero chunk size copy test",
-			FeatureTableData: basicNumList.Rows,
-			ChunkSize:        0,
-			ChunkIdx:         0,
+			TestName:     "Zero chunk size copy test",
+			Materialized: CreateMockFeatureRows(basicNumList.Rows),
+			ChunkSize:    0,
+			ChunkIdx:     0,
 		},
 		JobTestParams{
-			TestName:         "String list copy test",
-			FeatureTableData: stringNumList.Rows,
-			ChunkSize:        5,
-			ChunkIdx:         0,
+			TestName:     "String list copy test",
+			Materialized: CreateMockFeatureRows(stringNumList.Rows),
+			ChunkSize:    5,
+			ChunkIdx:     0,
 		},
 		JobTestParams{
-			TestName:         "Different types copy test",
-			FeatureTableData: multipleTypesList.Rows,
-			ChunkSize:        5,
-			ChunkIdx:         0,
+			TestName:     "Different types copy test",
+			Materialized: CreateMockFeatureRows(multipleTypesList.Rows),
+			ChunkSize:    5,
+			ChunkIdx:     0,
 		},
 		JobTestParams{
-			TestName:         "List features test",
-			FeatureTableData: numListofLists.Rows,
-			ChunkSize:        5,
-			ChunkIdx:         0,
+			TestName:     "List features test",
+			Materialized: CreateMockFeatureRows(numListofLists.Rows),
+			ChunkSize:    5,
+			ChunkIdx:     0,
 		},
 		JobTestParams{
-			TestName:         "List features different types",
-			FeatureTableData: differentTypeLists.Rows,
-			ChunkSize:        5,
-			ChunkIdx:         0,
+			TestName:     "List features different types",
+			Materialized: CreateMockFeatureRows(differentTypeLists.Rows),
+			ChunkSize:    5,
+			ChunkIdx:     0,
 		},
 		JobTestParams{
-			TestName:         "No rows test",
-			FeatureTableData: emptyList.Rows,
-			ChunkSize:        1,
-			ChunkIdx:         0,
+			TestName:     "No rows test",
+			Materialized: CreateMockFeatureRows(emptyList.Rows),
+			ChunkSize:    1,
+			ChunkIdx:     0,
 		},
 		JobTestParams{
-			TestName:         "No rows/zero chunk size test",
-			FeatureTableData: emptyList.Rows,
-			ChunkSize:        0,
-			ChunkIdx:         0,
+			TestName:     "No rows/zero chunk size test",
+			Materialized: CreateMockFeatureRows(emptyList.Rows),
+			ChunkSize:    0,
+			ChunkIdx:     0,
 		},
 	}
 	for _, param := range testJobs {

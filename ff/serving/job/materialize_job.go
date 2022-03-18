@@ -2,6 +2,7 @@ package job
 
 import (
 	"fmt"
+	"sync"
 )
 
 type Runner interface {
@@ -40,19 +41,23 @@ type FeatureIterator interface {
 }
 
 func (m *MaterializedChunkRunner) Run() (CompletionStatus, error) {
-	errorChan := make(chan error, 1)
+	done := make(chan interface{})
+	errorSync := &ErrorSync{done: false}
 	go func() {
 		if m.ChunkSize == 0 {
-			errorChan <- nil
+			errorSync.Set(nil)
+			close(done)
 			return
 		}
 		numRows, err := m.Materialized.NumRows()
 		if err != nil {
-			errorChan <- err
+			errorSync.Set(err)
+			close(done)
 			return
 		}
 		if numRows == 0 {
-			errorChan <- nil
+			errorSync.Set(nil)
+			close(done)
 			return
 		}
 		var chunkEnd int
@@ -63,7 +68,8 @@ func (m *MaterializedChunkRunner) Run() (CompletionStatus, error) {
 		}
 		it, err := m.Materialized.IterateSegment(m.ChunkIdx*m.ChunkSize, chunkEnd)
 		if err != nil {
-			errorChan <- err
+			errorSync.Set(err)
+			close(done)
 			return
 		}
 		for ok := true; ok; ok = it.Next() {
@@ -71,68 +77,72 @@ func (m *MaterializedChunkRunner) Run() (CompletionStatus, error) {
 			entity := it.Entity()
 			err := m.Table.Set(entity, value)
 			if err != nil {
-				errorChan <- err
+				errorSync.Set(err)
+				close(done)
 				return
 			}
 		}
 		if err = it.Err(); err != nil {
-			errorChan <- err
+			errorSync.Set(err)
+			close(done)
 			return
 		}
-		errorChan <- nil
+		errorSync.Set(nil)
+		close(done)
 	}()
 	return &MaterializeChunkJobCompletionStatus{
-		ErrorChan: errorChan,
-		Error:     nil,
+		ErrorSync: errorSync,
+		Done:      done,
 	}, nil
 }
 
+type ErrorSync struct {
+	err  error
+	done bool
+	mu   sync.Mutex
+}
+
+func (e *ErrorSync) Get() (bool, error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.done, e.err
+}
+
+func (e *ErrorSync) Set(err error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.err = err
+	e.done = true
+}
+
 type MaterializeChunkJobCompletionStatus struct {
-	Error     error
-	ErrorChan chan error
+	ErrorSync *ErrorSync
+	Done      chan interface{}
 }
 
 func (m *MaterializeChunkJobCompletionStatus) Err() error {
-	if m.Error != nil {
-		return m.Error
-	}
-	select {
-	case err := <-m.ErrorChan:
-		close(m.ErrorChan)
-		m.ErrorChan = nil
-		m.Error = err
-		return err
-	default:
-		return nil
-	}
+	_, err := m.ErrorSync.Get()
+	return err
 }
 
 func (m *MaterializeChunkJobCompletionStatus) Wait() error {
-	if m.ErrorChan == nil {
-		return m.Error
-	}
-	err := <-m.ErrorChan
-	close(m.ErrorChan)
-	m.ErrorChan = nil
-	if err != nil {
-		m.Error = err
-	}
+	<-m.Done
+	_, err := m.ErrorSync.Get()
 	return err
 }
 
 func (m *MaterializeChunkJobCompletionStatus) Complete() bool {
-	if m.Err() != nil || m.ErrorChan != nil {
-		return true
-	}
-	return false
+	done, _ := m.ErrorSync.Get()
+	return done
 }
 
 func (m *MaterializeChunkJobCompletionStatus) String() string {
-	if !m.Complete() {
-		return "Job still running."
+	done, err := m.ErrorSync.Get()
+	if err != nil {
+		return fmt.Sprintf("Job failed with error: %v", err)
 	}
-	if m.Error != nil {
-		return fmt.Sprintf("Job failed with error: %v", m.Error)
+	if !done {
+		return "Job still running."
 	}
 	return "Job completed succesfully."
 }

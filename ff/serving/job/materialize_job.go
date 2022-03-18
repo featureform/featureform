@@ -42,21 +42,21 @@ type FeatureIterator interface {
 
 func (m *MaterializedChunkRunner) Run() (CompletionStatus, error) {
 	done := make(chan interface{})
-	errorSync := &ErrorSync{done: false}
+	resultSync := &ResultSync{}
 	go func() {
 		if m.ChunkSize == 0 {
-			errorSync.Set(nil)
+			resultSync.DoneWithError(nil)
 			close(done)
 			return
 		}
 		numRows, err := m.Materialized.NumRows()
 		if err != nil {
-			errorSync.Set(err)
+			resultSync.DoneWithError(err)
 			close(done)
 			return
 		}
 		if numRows == 0 {
-			errorSync.Set(nil)
+			resultSync.DoneWithError(nil)
 			close(done)
 			return
 		}
@@ -68,7 +68,7 @@ func (m *MaterializedChunkRunner) Run() (CompletionStatus, error) {
 		}
 		it, err := m.Materialized.IterateSegment(m.ChunkIdx*m.ChunkSize, chunkEnd)
 		if err != nil {
-			errorSync.Set(err)
+			resultSync.DoneWithError(err)
 			close(done)
 			return
 		}
@@ -77,67 +77,67 @@ func (m *MaterializedChunkRunner) Run() (CompletionStatus, error) {
 			entity := it.Entity()
 			err := m.Table.Set(entity, value)
 			if err != nil {
-				errorSync.Set(err)
+				resultSync.DoneWithError(err)
 				close(done)
 				return
 			}
 		}
 		if err = it.Err(); err != nil {
-			errorSync.Set(err)
+			resultSync.DoneWithError(err)
 			close(done)
 			return
 		}
-		errorSync.Set(nil)
+		resultSync.DoneWithError(nil)
 		close(done)
 	}()
-	return &MaterializeChunkJobCompletionStatus{
-		ErrorSync: errorSync,
-		Done:      done,
+	return &CopyCompletionWatcher{
+		ResultSync:  resultSync,
+		DoneChannel: done,
 	}, nil
 }
 
-type ErrorSync struct {
+type ResultSync struct {
 	err  error
 	done bool
-	mu   sync.Mutex
+	mu   sync.RWMutex
 }
 
-func (e *ErrorSync) Get() (bool, error) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	return e.done, e.err
+func (r *ResultSync) Get() (bool, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.done, r.err
 }
 
-func (e *ErrorSync) Set(err error) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	e.err = err
-	e.done = true
+func (r *ResultSync) DoneWithError(err error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.err = err
+	r.done = true
 }
 
-type MaterializeChunkJobCompletionStatus struct {
-	ErrorSync *ErrorSync
-	Done      chan interface{}
+type CopyCompletionWatcher struct {
+	ResultSync  *ResultSync
+	DoneChannel chan interface{}
 }
 
-func (m *MaterializeChunkJobCompletionStatus) Err() error {
-	_, err := m.ErrorSync.Get()
+func (m *CopyCompletionWatcher) Err() error {
+	_, err := m.ResultSync.Get()
 	return err
 }
 
-func (m *MaterializeChunkJobCompletionStatus) Wait() error {
-	<-m.Done
-	_, err := m.ErrorSync.Get()
+func (m *CopyCompletionWatcher) Wait() error {
+	<-m.DoneChannel
+	_, err := m.ResultSync.Get()
 	return err
 }
 
-func (m *MaterializeChunkJobCompletionStatus) Complete() bool {
-	done, _ := m.ErrorSync.Get()
+func (m *CopyCompletionWatcher) Complete() bool {
+	done, _ := m.ResultSync.Get()
 	return done
 }
 
-func (m *MaterializeChunkJobCompletionStatus) String() string {
-	done, err := m.ErrorSync.Get()
+func (m *CopyCompletionWatcher) String() string {
+	done, err := m.ResultSync.Get()
 	if err != nil {
 		return fmt.Sprintf("Job failed with error: %v", err)
 	}

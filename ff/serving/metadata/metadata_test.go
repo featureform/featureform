@@ -1,26 +1,18 @@
 package metadata
 
 import (
-	"github.com/featureform/serving/metadata/search"
+	pb "github.com/featureform/serving/metadata/proto"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
 	"testing"
 )
-
-// type ResourceLookup interface {
-// 	Lookup(ResourceID) (Resource, error)
-// 	Has(ResourceID) (bool, error)
-// 	Set(ResourceID, Resource) error
-// 	Submap([]ResourceID) (ResourceLookup, error)
-// 	ListForType(ResourceType) ([]Resource, error)
-// 	List() ([]Resource, error)
 
 func TestMethodsEmpty(t *testing.T) {
 	lookup := make(localResourceLookup)
 	testId := ResourceID{
 		Name:    "Fraud",
 		Variant: "default",
-		Type:    ResourceType("CSV"),
+		Type:    ENTITY,
 	}
 	if _, err := lookup.Lookup(testId); err == nil {
 		t.Fatalf("Failed to return a Lookup error because %s", err)
@@ -37,15 +29,14 @@ func TestMethodsEmpty(t *testing.T) {
 		t.Fatalf("Failed to list all resources prior to setting a resource %s", err)
 	}
 	if len(listAll) > 0 {
-		t.Fatalf("Failed to get the correct number of results = 0")
+		t.Fatalf("Failed to get the correct number of results %d instead of 0", len(listAll))
 	}
-	var resourceType ResourceType = "CSV"
-	listByType, errListForType := lookup.ListForType(resourceType)
+	listByType, errListForType := lookup.ListForType(ENTITY)
 	if errListForType != nil {
 		t.Fatalf("Failed to list resources (by type) prior to setting a resource %s", errListForType)
 	}
 	if len(listByType) > 0 {
-		t.Fatalf("Failed to get the correct number of results (0)")
+		t.Fatalf("Failed to get the correct number of results %d instead of 0", len(listByType))
 	}
 }
 
@@ -74,7 +65,7 @@ func TestMethodsOneResource(t *testing.T) {
 	testId := ResourceID{
 		Name:    "Fraud",
 		Variant: "default",
-		Type:    ResourceType("CSV"),
+		Type:    SOURCE,
 	}
 	v := mockResource{
 		id: testId,
@@ -97,15 +88,14 @@ func TestMethodsOneResource(t *testing.T) {
 		t.Fatalf("Failed to list all resources for the 1 resource case %s", err)
 	}
 	if len(listAll) != 1 {
-		t.Fatalf("Failed to get the correct number of results = 1")
+		t.Fatalf("Failed to get the correct number of results %d instead of 1", len(listAll))
 	}
-	var resourceType ResourceType = "CSV"
-	listByType, errListForType := lookup.ListForType(resourceType)
+	listByType, errListForType := lookup.ListForType(SOURCE)
 	if errListForType != nil {
 		t.Fatalf("Failed to list resources (by type) for the 1 resource case %s", errListForType)
 	}
 	if len(listByType) != 1 {
-		t.Fatalf("Failed to get the correct number of results (1)")
+		t.Fatalf("Failed to get the correct number of results, %d instead of 1", len(listByType))
 	}
 
 }
@@ -116,15 +106,15 @@ func TestMethodsThreeResource(t *testing.T) {
 		{
 			Name:    "Fraud",
 			Variant: "default",
-			Type:    ResourceType("CSV"),
+			Type:    PROVIDER,
 		}, {
 			Name:    "Time",
 			Variant: "second",
-			Type:    ResourceType("Feature"),
+			Type:    FEATURE,
 		}, {
 			Name:    "Ice-Cream",
 			Variant: "third-variant",
-			Type:    ResourceType("user"),
+			Type:    MODEL,
 		},
 	}
 	for _, resource := range testIds {
@@ -147,15 +137,14 @@ func TestMethodsThreeResource(t *testing.T) {
 		t.Fatalf("Failed to list all resources for the 3 resource case %s", err)
 	}
 	if len(listAll) != 3 {
-		t.Fatalf("Failed to get the correct number of results = 3")
+		t.Fatalf("Failed to get the correct number of results, %d instead of 3", len(listAll))
 	}
-	var resourceType ResourceType = "CSV"
-	listByType, errListForType := lookup.ListForType(resourceType)
+	listByType, errListForType := lookup.ListForType(FEATURE)
 	if errListForType != nil {
 		t.Fatalf("Failed to list resources (by type) for the 1 resource case %s", errListForType)
 	}
 	if len(listByType) != 1 {
-		t.Fatalf("Failed to get the correct number of results (1)")
+		t.Fatalf("Failed to get the correct number of results %d instead of 1", len(listByType))
 	}
 	res, errSubmap := lookup.Submap(testIds)
 	if errSubmap != nil {
@@ -166,13 +155,13 @@ func TestMethodsThreeResource(t *testing.T) {
 		t.Fatalf("Failed to get list of submap %s", errList)
 	}
 	if len(listsubmap) != 3 {
-		t.Fatalf("Failed to return a corrects submap")
+		t.Fatalf("Failed to return a correct len of submap, %d instead of 3", len(listsubmap))
 	}
 	resNotContain, errSubmapNotContain := lookup.Submap([]ResourceID{
 		{
 			Name:    "Banking",
 			Variant: "Secondary",
-			Type:    ResourceType("provider"),
+			Type:    TRANSFORMATION_VARIANT,
 		},
 	})
 	if errSubmapNotContain == nil && resNotContain != nil {
@@ -180,54 +169,52 @@ func TestMethodsThreeResource(t *testing.T) {
 	}
 }
 
-func TestMethodsTypesense(t *testing.T) {
+func TestFeatureVariant(t *testing.T) {
 	sugar := zap.NewExample().Sugar()
 	server := Config{
 		Logger: sugar,
-		TypeSenseParams: &search.TypeSenseParams{
-			Host:   "localhost",
-			Port:   "8108",
-			ApiKey: "xyz",
-		},
 	}
-	testIds := []ResourceID{
-		{
-			Name:    "Fraud",
-			Variant: "default",
-			Type:    ResourceType("CSV"),
-		}, {
-			Name:    "Time",
-			Variant: "second",
-			Type:    ResourceType("Feature"),
-		}, {
-			Name:    "Ice-Cream",
-			Variant: "third-variant",
-			Type:    ResourceType("user"),
-		},
-	}
-	metaTypeServer, err := NewMetadataServer(&server)
+	metadataServer, err := NewMetadataServer(&server)
 	if err != nil {
-		t.Fatalf("Failed to set up typesense %s", err)
+		t.Fatalf("Failed to set up metadataserver %s", err)
 	}
-	for _, resource := range testIds {
-		if err := metaTypeServer.lookup.Set(resource, &mockResource{id: resource}); err != nil {
-			t.Fatalf("Failed to Set %s", err)
-		}
+	var r pb.Metadata_ListFeaturesServer
+	var g pb.Empty
+	if err := metadataServer.ListFeatures(&g, r); err != nil {
+		t.Fatalf("Failed to list features (metadataserver) %s", err)
 	}
 }
 
-func TestMethodsTypesenseError(t *testing.T) {
-	sugar := zap.NewExample().Sugar()
-	server := Config{
-		Logger: sugar,
-		TypeSenseParams: &search.TypeSenseParams{
-			Host:   "localhost",
-			Port:   "8118",
-			ApiKey: "xyz",
-		},
+func TestResourceIDmethods(t *testing.T) {
+	resourceId := ResourceID{
+		Name:    "Fraud",
+		Variant: "default",
+		Type:    TRAINING_SET_VARIANT,
 	}
-	_, err := NewMetadataServer(&server)
-	if err == nil {
-		t.Fatalf("Failed to set up typesense %s", err)
+	resourceProto := resourceId.Proto()
+	if resourceProto.Name != resourceId.Name {
+		t.Fatalf("Failed to correctly complete resourceId.Proto (mismatch name)")
+	}
+	if resourceProto.Variant != resourceId.Variant {
+		t.Fatalf("Failed to correctly complete resourceId.Proto (mismatch variant)")
+	}
+	_, hasParent := resourceId.Parent()
+	if hasParent != false {
+		t.Fatalf("Failed to correctly set boolean (false) for resourceId.Parent()")
+	}
+}
+
+func TestResourceIDmethodsParent(t *testing.T) {
+	resourceId := ResourceID{
+		Name:    "Fraud",
+		Variant: "default",
+		Type:    TRAINING_SET_VARIANT,
+	}
+	parentResourceID, hasParent := resourceId.Parent()
+	if hasParent != true {
+		t.Fatalf("Failed to correctly set boolean (true) for resourceId.Parent()")
+	}
+	if parentResourceID.Name != resourceId.Name {
+		t.Fatalf("Failed to correctly set resource (Name field) for resourceId.Parent()")
 	}
 }

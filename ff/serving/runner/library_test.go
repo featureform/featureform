@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"errors"
 	"testing"
 )
 
@@ -34,24 +35,29 @@ func TestRegisterAndCreate(t *testing.T) {
 	mockFactory := func(config Config) (Runner, error) {
 		return mockRunner, nil
 	}
-
-	err := RegisterFactory("mock", mockFactory)
-	if err != nil {
+	if err := RegisterFactory("mock", mockFactory); err != nil {
 		t.Fatalf("Error registering factory: %v", err)
 	}
-
-	_, err = Create("mock", mockConfig)
-	if err != nil {
+	if _, err := Create("mock", mockConfig); err != nil {
 		t.Fatalf("Error creating runner: %v", err)
 	}
-
-	err = RegisterFactory("mock", mockFactory)
-	if err == nil {
+	if err := RegisterFactory("mock", mockFactory); err == nil {
 		t.Fatalf("Register factory allowed duplicate registration")
 	}
-
-	_, err = Create("doesNotExist", mockConfig)
-	if err == nil {
+	if _, err := Create("doesNotExist", mockConfig); err == nil {
 		t.Fatalf("Created unregistered runner")
+	}
+}
+
+func TestCreateRunnerError(t *testing.T) {
+	errorFactory := func(config Config) (Runner, error) {
+		return nil, errors.New("creating runner triggered error")
+	}
+	mockConfig := []byte{}
+	if err := RegisterFactory("error", errorFactory); err != nil {
+		t.Fatalf("Error registering factory: %v", err)
+	}
+	if _, err := Create("error", mockConfig); err == nil {
+		t.Fatalf("Failed to record error creating runner")
 	}
 }

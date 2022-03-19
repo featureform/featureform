@@ -4,8 +4,40 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"sync"
 	"testing"
 )
+
+type MaterializedFeaturesNumRowsBroken struct {
+}
+
+func (m *MaterializedFeaturesNumRowsBroken) NumRows() (int, error) {
+	return 0, errors.New("cannot fetch number of rows")
+}
+
+func (m *MaterializedFeaturesNumRowsBroken) IterateSegment(begin int, end int) (FeatureIterator, error) {
+	return nil, nil
+}
+
+type MaterializedFeaturesIterateBroken struct{}
+
+func (m *MaterializedFeaturesIterateBroken) NumRows() (int, error) {
+	return 1, nil
+}
+
+func (m *MaterializedFeaturesIterateBroken) IterateSegment(begin int, end int) (FeatureIterator, error) {
+	return nil, errors.New("cannot create feature iterator")
+}
+
+type MaterializedFeaturesIterateRunBroken struct{}
+
+func (m *MaterializedFeaturesIterateRunBroken) NumRows() (int, error) {
+	return 1, nil
+}
+
+func (m *MaterializedFeaturesIterateRunBroken) IterateSegment(begin int, end int) (FeatureIterator, error) {
+	return &BrokenFeatureIterator{}, nil
+}
 
 type MockMaterializedFeatures struct {
 	Rows []FeatureRow
@@ -55,6 +87,17 @@ func (m *MockOnlineTable) Get(entity string) (interface{}, error) {
 	return value, nil
 }
 
+type BrokenOnlineTable struct {
+}
+
+func (m *BrokenOnlineTable) Set(entity string, value interface{}) error {
+	return errors.New("cannot set feature value")
+}
+
+func (m *BrokenOnlineTable) Get(entity string) (interface{}, error) {
+	return nil, errors.New("cannot get feature value")
+}
+
 type MockFeatureIterator struct {
 	CurrentIndex int
 	Slice        []FeatureRow
@@ -76,6 +119,24 @@ func (m *MockFeatureIterator) Entity() string {
 
 func (m *MockFeatureIterator) Value() interface{} {
 	return m.Slice[m.CurrentIndex].Row
+}
+
+type BrokenFeatureIterator struct{}
+
+func (m *BrokenFeatureIterator) Next() bool {
+	return false
+}
+
+func (m *BrokenFeatureIterator) Err() error {
+	return errors.New("error iterating over features")
+}
+
+func (m *BrokenFeatureIterator) Entity() string {
+	return ""
+}
+
+func (m *BrokenFeatureIterator) Value() interface{} {
+	return nil
 }
 
 type FeatureRow struct {
@@ -103,13 +164,17 @@ func testParams(params JobTestParams) error {
 	if err != nil {
 		return &TestError{Outcome: "Job failed while running.", Err: err}
 	}
-	var chunkEnd int
-	if (params.ChunkIdx+1)*params.ChunkSize < len(featureRows) {
-		chunkEnd = (params.ChunkIdx + 1) * params.ChunkSize
-	} else {
-		chunkEnd = len(featureRows)
+	complete := completionStatus.Complete()
+	if !complete {
+		return &TestError{Outcome: "Job failed to set flag complete.", Err: nil}
 	}
-	for i := params.ChunkIdx * params.ChunkSize; i < chunkEnd; i++ {
+	completionStatus.String() //for coverage (completed)
+	rowStart := params.ChunkIdx * params.ChunkSize
+	rowEnd := rowStart + params.ChunkSize
+	if rowEnd > len(featureRows) {
+		rowEnd = len(featureRows)
+	}
+	for i := rowStart; i < rowEnd; i++ {
 		tableValue, err := table.Get(featureRows[i].Entity)
 		if err != nil {
 			return &TestError{Outcome: fmt.Sprintf("Cannot fetch table value for entity %v", featureRows[i].Entity), Err: err}
@@ -131,6 +196,73 @@ func CreateMockFeatureRows(data []interface{}) MockMaterializedFeatures {
 		featureRows[i] = FeatureRow{Entity: fmt.Sprintf("entity_%d", i), Row: row}
 	}
 	return MockMaterializedFeatures{Rows: featureRows}
+}
+
+type ErrorJobTestParams struct {
+	ErrorName    string
+	Materialized MaterializedFeatures
+	Table        OnlineTable
+	ChunkSize    int
+	ChunkIdx     int
+}
+
+func testBreakingParams(params ErrorJobTestParams) error {
+	job := &MaterializedChunkRunner{
+		Materialized: params.Materialized,
+		Table:        params.Table,
+		ChunkSize:    params.ChunkSize,
+		ChunkIdx:     params.ChunkIdx,
+	}
+	completionStatus, err := job.Run()
+	if err != nil {
+		return &TestError{Outcome: "Job failed to start.", Err: err}
+	}
+	if err = completionStatus.Wait(); err == nil {
+		return fmt.Errorf("Failed to catch %s", params.ErrorName)
+	}
+	completionStatus.String()
+	return nil
+}
+
+func TestErrorCoverage(t *testing.T) {
+	minimalMockFeatureRows := CreateMockFeatureRows([]interface{}{1})
+	errorJobs := []ErrorJobTestParams{
+		ErrorJobTestParams{
+			ErrorName:    "iterator run error",
+			Materialized: &MaterializedFeaturesIterateRunBroken{},
+			Table:        &BrokenOnlineTable{},
+			ChunkSize:    1,
+			ChunkIdx:     0,
+		},
+		ErrorJobTestParams{
+			ErrorName:    "table set error",
+			Materialized: &minimalMockFeatureRows,
+			Table:        &BrokenOnlineTable{},
+			ChunkSize:    1,
+			ChunkIdx:     0,
+		},
+		ErrorJobTestParams{
+			ErrorName:    "create iterator error",
+			Materialized: &MaterializedFeaturesIterateBroken{},
+			Table:        &BrokenOnlineTable{},
+			ChunkSize:    1,
+			ChunkIdx:     0,
+		},
+		ErrorJobTestParams{
+			ErrorName:    "get num rows error",
+			Materialized: &MaterializedFeaturesNumRowsBroken{},
+			Table:        &BrokenOnlineTable{},
+			ChunkSize:    1,
+			ChunkIdx:     0,
+		},
+	}
+
+	for _, param := range errorJobs {
+		if err := testBreakingParams(param); err != nil {
+			t.Fatalf("Error Test Job Failed: %s, %v\n", param.ErrorName, err)
+		}
+	}
+
 }
 
 func TestJobs(t *testing.T) {
@@ -240,4 +372,30 @@ func TestJobs(t *testing.T) {
 			t.Fatalf("Test Job Failed: %s, %v\n", param.TestName, err)
 		}
 	}
+}
+
+func TestJobIncompleteStatus(t *testing.T) {
+	var mu sync.Mutex
+	mu.Lock()
+	materialized := MaterializedFeaturesNumRowsBroken{}
+	table := &BrokenOnlineTable{}
+	job := &MaterializedChunkRunner{
+		Materialized: &materialized,
+		Table:        table,
+		ChunkSize:    0,
+		ChunkIdx:     0,
+	}
+	completionStatus, err := job.Run()
+	if err != nil {
+		t.Fatalf("Job failed to run")
+	}
+	if complete := completionStatus.Complete(); complete {
+		t.Fatalf("Job reports completed while not complete")
+	}
+	completionStatus.String()
+	mu.Unlock()
+	if err = completionStatus.Wait(); err != nil {
+		t.Fatalf("Job failed to cancel at 0 chunk size")
+	}
+
 }

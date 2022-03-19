@@ -8,6 +8,21 @@ import (
 	"testing"
 )
 
+type MockMaterializedFeatures struct {
+	Rows []FeatureRow
+}
+
+func (m *MockMaterializedFeatures) NumRows() (int, error) {
+	return len(m.Rows), nil
+}
+
+func (m *MockMaterializedFeatures) IterateSegment(begin int, end int) (FeatureIterator, error) {
+	return &MockFeatureIterator{
+		CurrentIndex: -1,
+		Slice:        m.Rows[begin:end],
+	}, nil
+}
+
 type MaterializedFeaturesNumRowsBroken struct {
 }
 
@@ -37,37 +52,6 @@ func (m *MaterializedFeaturesIterateRunBroken) NumRows() (int, error) {
 
 func (m *MaterializedFeaturesIterateRunBroken) IterateSegment(begin int, end int) (FeatureIterator, error) {
 	return &BrokenFeatureIterator{}, nil
-}
-
-type MockMaterializedFeatures struct {
-	Rows []FeatureRow
-}
-
-type JobTestParams struct {
-	TestName     string
-	Materialized MockMaterializedFeatures
-	ChunkSize    int
-	ChunkIdx     int
-}
-
-type TestError struct {
-	Outcome string
-	Err     error
-}
-
-func (m *TestError) Error() string {
-	return fmt.Sprintf("%v: %s", m.Err, m.Outcome)
-}
-
-func (m *MockMaterializedFeatures) NumRows() (int, error) {
-	return len(m.Rows), nil
-}
-
-func (m *MockMaterializedFeatures) IterateSegment(begin int, end int) (FeatureIterator, error) {
-	return &MockFeatureIterator{
-		CurrentIndex: -1,
-		Slice:        m.Rows[begin:end],
-	}, nil
 }
 
 type MockOnlineTable struct {
@@ -144,8 +128,31 @@ type FeatureRow struct {
 	Row    interface{}
 }
 
-func testParams(params JobTestParams) error {
+type TestError struct {
+	Outcome string
+	Err     error
+}
 
+func (m *TestError) Error() string {
+	return fmt.Sprintf("%v: %s", m.Err, m.Outcome)
+}
+
+type JobTestParams struct {
+	TestName     string
+	Materialized MockMaterializedFeatures
+	ChunkSize    int
+	ChunkIdx     int
+}
+
+type ErrorJobTestParams struct {
+	ErrorName    string
+	Materialized MaterializedFeatures
+	Table        OnlineTable
+	ChunkSize    int
+	ChunkIdx     int
+}
+
+func testParams(params JobTestParams) error {
 	table := &MockOnlineTable{
 		DataTable: make(map[string]interface{}),
 	}
@@ -186,26 +193,6 @@ func testParams(params JobTestParams) error {
 	return nil
 }
 
-type CopyTestData struct {
-	Rows []interface{}
-}
-
-func CreateMockFeatureRows(data []interface{}) MockMaterializedFeatures {
-	featureRows := make([]FeatureRow, len(data))
-	for i, row := range data {
-		featureRows[i] = FeatureRow{Entity: fmt.Sprintf("entity_%d", i), Row: row}
-	}
-	return MockMaterializedFeatures{Rows: featureRows}
-}
-
-type ErrorJobTestParams struct {
-	ErrorName    string
-	Materialized MaterializedFeatures
-	Table        OnlineTable
-	ChunkSize    int
-	ChunkIdx     int
-}
-
 func testBreakingParams(params ErrorJobTestParams) error {
 	job := &MaterializedChunkRunner{
 		Materialized: params.Materialized,
@@ -225,6 +212,18 @@ func testBreakingParams(params ErrorJobTestParams) error {
 	}
 	completionStatus.String()
 	return nil
+}
+
+type CopyTestData struct {
+	Rows []interface{}
+}
+
+func CreateMockFeatureRows(data []interface{}) MockMaterializedFeatures {
+	featureRows := make([]FeatureRow, len(data))
+	for i, row := range data {
+		featureRows[i] = FeatureRow{Entity: fmt.Sprintf("entity_%d", i), Row: row}
+	}
+	return MockMaterializedFeatures{Rows: featureRows}
 }
 
 func TestErrorCoverage(t *testing.T) {

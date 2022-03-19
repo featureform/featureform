@@ -220,6 +220,9 @@ func testBreakingParams(params ErrorJobTestParams) error {
 	if err = completionStatus.Wait(); err == nil {
 		return fmt.Errorf("Failed to catch %s", params.ErrorName)
 	}
+	if err = completionStatus.Err(); err == nil {
+		return fmt.Errorf("Failed to set error")
+	}
 	completionStatus.String()
 	return nil
 }

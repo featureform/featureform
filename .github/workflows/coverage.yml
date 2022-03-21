@@ -76,6 +76,4 @@ jobs:
       - name: Run Linter
         run: golangci-lint run ./...
 
-      - name: Test Warning Message
-        run: echo "::warning::Warning message test."
 

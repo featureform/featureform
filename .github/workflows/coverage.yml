@@ -61,6 +61,13 @@ jobs:
         with:
           go-version: 1.17
 
+      - name: Lint Go Code
+        run: |
+        #  export PATH=$PATH:$(go env GOPATH)/bin # temporary fix. See https://github.com/actions/setup-go/issues/14
+          go get -u golang.org/x/lint/golint
+          go vet ./...
+          golint -set_exit_status $(go list ./...)
+
 #      - name: Install grpc_tools
 #        run: pip install grpcio-tools
 #
@@ -72,10 +79,10 @@ jobs:
 #
 #      - name: Build
 #        run: go build
-
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v2
-        with:
-          version: v1.29
-          args: run ./ff/serving/...
+#
+#      - name: golangci-lint
+#        uses: golangci/golangci-lint-action@v2
+#        with:
+#          version: v1.29
+#          args: run ./ff/serving/...
           #working-directory: ./ff/serving/

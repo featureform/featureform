@@ -61,21 +61,29 @@ jobs:
         with:
           go-version: 1.17
 
-      - name: Lint Go Code
-        run: |
-          export PATH=$PATH:$(go env GOPATH)/bin # temporary fix. See https://github.com/actions/setup-go/issues/14
-          go get -u golang.org/x/lint/golint
-          go vet ./...
-          golint -set_exit_status $(go list ./...)
+      - name: Install grpc_tools
+        run: pip install grpcio-tools
 
-#      - name: Install grpc_tools
-#        run: pip install grpcio-tools
-#
-#      - name: Install Protobuf
-#        run: sudo snap install protobuf --classic
-#
-#      - name: Setup Proto
-#        run: ./gen_grpc.sh
+      - name: Install Protobuf
+        run: sudo snap install protobuf --classic
+
+      - name: Setup Proto
+        run: ./gen_grpc.sh
+
+      - name: Install golangci-lint
+        run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.45.0
+
+      - name: Run Linter
+        run: golangci-lint run ./...
+
+#      - name: Lint Go Code
+#        run: |
+#          export PATH=$PATH:$(go env GOPATH)/bin # temporary fix. See https://github.com/actions/setup-go/issues/14
+#          go get -u golang.org/x/lint/golint
+#          go vet ./...
+#          golint -set_exit_status $(go list ./...)
+
+
 #
 #      - name: Build
 #        run: go build

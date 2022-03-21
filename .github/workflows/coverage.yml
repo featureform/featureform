@@ -73,8 +73,12 @@ jobs:
       - name: Build
         run: go build
 
+      - uses: actions-contrib/golangci-lint@master
+        with:
+          args: run ./ff/serving/...
+
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v2
         with:
           version: v1.29
-          working-directory: ./ff/serving/...
+          working-directory: ./ff/serving/

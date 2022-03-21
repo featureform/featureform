@@ -54,8 +54,8 @@ jobs:
         working-directory: ./ff/serving
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/setup-go@v2
       - uses: actions/checkout@v2
+        
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
@@ -76,21 +76,3 @@ jobs:
       - name: Run Linter
         run: golangci-lint run ./...
 
-#      - name: Lint Go Code
-#        run: |
-#          export PATH=$PATH:$(go env GOPATH)/bin # temporary fix. See https://github.com/actions/setup-go/issues/14
-#          go get -u golang.org/x/lint/golint
-#          go vet ./...
-#          golint -set_exit_status $(go list ./...)
-
-
-#
-#      - name: Build
-#        run: go build
-#
-#      - name: golangci-lint
-#        uses: golangci/golangci-lint-action@v2
-#        with:
-#          version: v1.29
-#          args: run ./ff/serving/...
-          #working-directory: ./ff/serving/

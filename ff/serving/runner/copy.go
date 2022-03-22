@@ -6,7 +6,7 @@ import (
 )
 
 type Runner interface {
-	Run() (CompletionStatus, error)
+	Run() (CompletionWatcher, error)
 }
 
 type MaterializedChunkRunner struct {
@@ -16,7 +16,7 @@ type MaterializedChunkRunner struct {
 	ChunkIdx     int
 }
 
-type CompletionStatus interface {
+type CompletionWatcher interface {
 	Complete() bool
 	String() string
 	Wait() error
@@ -46,7 +46,7 @@ type ResultSync struct {
 	mu   sync.RWMutex
 }
 
-func (m *MaterializedChunkRunner) Run() (CompletionStatus, error) {
+func (m *MaterializedChunkRunner) Run() (CompletionWatcher, error) {
 	done := make(chan interface{})
 	jobWatcher := &CopyCompletionWatcher{
 		ResultSync:  &ResultSync{},

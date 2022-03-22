@@ -7,25 +7,25 @@ import (
 
 type MockRunner struct{}
 
-type MockCompletionStatus struct{}
+type MockCompletionWatcher struct{}
 
-func (m *MockRunner) Run() (CompletionStatus, error) {
-	return &MockCompletionStatus{}, nil
+func (m *MockRunner) Run() (CompletionWatcher, error) {
+	return &MockCompletionWatcher{}, nil
 }
 
-func (m *MockCompletionStatus) Complete() bool {
+func (m *MockCompletionWatcher) Complete() bool {
 	return false
 }
 
-func (m *MockCompletionStatus) String() string {
+func (m *MockCompletionWatcher) String() string {
 	return ""
 }
 
-func (m *MockCompletionStatus) Wait() error {
+func (m *MockCompletionWatcher) Wait() error {
 	return nil
 }
 
-func (m *MockCompletionStatus) Err() error {
+func (m *MockCompletionWatcher) Err() error {
 	return nil
 }
 

@@ -163,19 +163,19 @@ func testParams(params JobTestParams) error {
 		ChunkSize:    params.ChunkSize,
 		ChunkIdx:     params.ChunkIdx,
 	}
-	completionStatus, err := job.Run()
+	competionWatcher, err := job.Run()
 	if err != nil {
 		return &TestError{Outcome: "Job failed to start.", Err: err}
 	}
-	err = completionStatus.Wait()
+	err = competionWatcher.Wait()
 	if err != nil {
 		return &TestError{Outcome: "Job failed while running.", Err: err}
 	}
-	complete := completionStatus.Complete()
+	complete := competionWatcher.Complete()
 	if !complete {
 		return &TestError{Outcome: "Job failed to set flag complete.", Err: nil}
 	}
-	completionStatus.String() //for coverage (completed)
+	competionWatcher.String() //for coverage (completed)
 	rowStart := params.ChunkIdx * params.ChunkSize
 	rowEnd := rowStart + params.ChunkSize
 	if rowEnd > len(featureRows) {
@@ -200,17 +200,17 @@ func testBreakingParams(params ErrorJobTestParams) error {
 		ChunkSize:    params.ChunkSize,
 		ChunkIdx:     params.ChunkIdx,
 	}
-	completionStatus, err := job.Run()
+	competionWatcher, err := job.Run()
 	if err != nil {
 		return &TestError{Outcome: "Job failed to start.", Err: err}
 	}
-	if err = completionStatus.Wait(); err == nil {
+	if err = competionWatcher.Wait(); err == nil {
 		return fmt.Errorf("Failed to catch %s", params.ErrorName)
 	}
-	if err = completionStatus.Err(); err == nil {
+	if err = competionWatcher.Err(); err == nil {
 		return fmt.Errorf("Failed to set error")
 	}
-	completionStatus.String()
+	competionWatcher.String()
 	return nil
 }
 
@@ -387,16 +387,16 @@ func TestJobIncompleteStatus(t *testing.T) {
 		ChunkSize:    0,
 		ChunkIdx:     0,
 	}
-	completionStatus, err := job.Run()
+	competionWatcher, err := job.Run()
 	if err != nil {
 		t.Fatalf("Job failed to run")
 	}
-	if complete := completionStatus.Complete(); complete {
+	if complete := competionWatcher.Complete(); complete {
 		t.Fatalf("Job reports completed while not complete")
 	}
-	completionStatus.String()
+	competionWatcher.String()
 	mu.Unlock()
-	if err = completionStatus.Wait(); err != nil {
+	if err = competionWatcher.Wait(); err != nil {
 		t.Fatalf("Job failed to cancel at 0 chunk size")
 	}
 

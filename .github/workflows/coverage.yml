@@ -73,14 +73,16 @@ jobs:
       - name: Gofmt
         run: gofmt -w ./..
 
-      - name: Git Add
-        run: git add .
+      - name: Setup Git Config
+        run: |
+            git config user.name "GitHub Actions Bot"
+            git config user.email "<>"
 
-      - name: Git commit
-        run: git commit -m "gofmt"
-
-      - name: Git Push
-        run: git push
+      - name: Git Commit and Push
+        run: |
+          git add .
+          git commit -m "gofmt"
+          git push
 
       - name: Install golangci-lint
         run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.45.0

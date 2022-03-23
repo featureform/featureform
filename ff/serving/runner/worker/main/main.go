@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	worker "github.com/featureform/serving/runner/worker"
 )
 

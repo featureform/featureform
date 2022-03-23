@@ -1,13 +1,38 @@
-package runner
+package worker
 
 import (
 	"errors"
 	"testing"
+	runner "github.com/featureform/serving/runner"
 )
+
+type MockRunner struct{}
+
+type MockCompletionWatcher struct{}
+
+func (m *MockRunner) Run() (runner.CompletionWatcher, error) {
+	return &MockCompletionWatcher{}, nil
+}
+
+func (m *MockCompletionWatcher) Complete() bool {
+	return false
+}
+
+func (m *MockCompletionWatcher) String() string {
+	return ""
+}
+
+func (m *MockCompletionWatcher) Wait() error {
+	return nil
+}
+
+func (m *MockCompletionWatcher) Err() error {
+	return nil
+}
 
 type RunnerWithFailingWatcher struct{}
 
-func (r *RunnerWithFailingWatcher) Run() (CompletionWatcher, error) {
+func (r *RunnerWithFailingWatcher) Run() (runner.CompletionWatcher, error) {
 	return &FailingWatcher{}, nil
 }
 
@@ -28,16 +53,16 @@ func (f *FailingWatcher) Err() error {
 
 type FailingRunner struct{}
 
-func (f *FailingRunner) Run() (CompletionWatcher, error) {
+func (f *FailingRunner) Run() (runner.CompletionWatcher, error) {
 	return nil, errors.New("Failed to run runner")
 }
 
 func registerMockRunnerFactoryFailingWatcher() error {
 	mockRunnerFailingWatcher := &RunnerWithFailingWatcher{}
-	mockFactory := func(config Config) (Runner, error) {
+	mockFactory := func(config runner.Config) (runner.Runner, error) {
 		return mockRunnerFailingWatcher, nil
 	}
-	if err := RegisterFactory("test", mockFactory); err != nil {
+	if err := runner.RegisterFactory("test", mockFactory); err != nil {
 		return err
 	}
 	return nil
@@ -45,10 +70,10 @@ func registerMockRunnerFactoryFailingWatcher() error {
 
 func registerMockFailRunnerFactory() error {
 	failRunner := &FailingRunner{}
-	failRunnerFactory := func(config Config) (Runner, error) {
+	failRunnerFactory := func(config runner.Config) (runner.Runner, error) {
 		return failRunner, nil
 	}
-	if err := RegisterFactory("test", failRunnerFactory); err != nil {
+	if err := runner.RegisterFactory("test", failRunnerFactory); err != nil {
 		return err
 	}
 	return nil
@@ -56,83 +81,83 @@ func registerMockFailRunnerFactory() error {
 
 func registerMockRunnerFactory() error {
 	mockRunner := &MockRunner{}
-	mockFactory := func(config Config) (Runner, error) {
+	mockFactory := func(config runner.Config) (runner.Runner, error) {
 		return mockRunner, nil
 	}
-	if err := RegisterFactory("test", mockFactory); err != nil {
+	if err := runner.RegisterFactory("test", mockFactory); err != nil {
 		return err
 	}
 	return nil
 }
 
 func TestBasicRunner(t *testing.T) {
-	factoryMap = make(map[string]RunnerFactory)
+	runner.ResetFactoryMap()
 	if err := registerMockRunnerFactory(); err != nil {
 		t.Fatalf("Error registering mock runner factory: %v", err)
 	}
-	config := Config{}
+	config := runner.Config{}
 	t.Setenv("CONFIG", string(config))
 	t.Setenv("NAME", "test")
-	if err := createAndRun(); err != nil {
+	if err := CreateAndRun(); err != nil {
 		t.Fatalf("Error running mock runner: %v", err)
 	}
 }
 
 func TestRunnerNoConfig(t *testing.T) {
-	factoryMap = make(map[string]RunnerFactory)
+	runner.ResetFactoryMap()
 	if err := registerMockRunnerFactory(); err != nil {
 		t.Fatalf("Error registering mock runner factory: %v", err)
 	}
 	t.Setenv("NAME", "test")
-	if err := createAndRun(); err == nil {
+	if err := CreateAndRun(); err == nil {
 		t.Fatalf("Failed to call error on missing config envvar")
 	}
 }
 
 func TestRunnerNoName(t *testing.T) {
-	factoryMap = make(map[string]RunnerFactory)
+	runner.ResetFactoryMap()
 	if err := registerMockRunnerFactory(); err != nil {
 		t.Fatalf("Error registering mock runner factory: %v", err)
 	}
-	config := Config{}
+	config := runner.Config{}
 	t.Setenv("CONFIG", string(config))
-	if err := createAndRun(); err == nil {
+	if err := CreateAndRun(); err == nil {
 		t.Fatalf("Failed to call error on missing name envvar")
 	}
 }
 
 func TestRunnerNoFactory(t *testing.T) {
-	factoryMap = make(map[string]RunnerFactory)
-	config := Config{}
+	runner.ResetFactoryMap()
+	config := runner.Config{}
 	t.Setenv("CONFIG", string(config))
 	t.Setenv("NAME", "test")
-	if err := createAndRun(); err == nil {
+	if err := CreateAndRun(); err == nil {
 		t.Fatalf("Failed to call error on missing runner factory")
 	}
 }
 
 func TestRunnerCreateFail(t *testing.T) {
-	factoryMap = make(map[string]RunnerFactory)
+	runner.ResetFactoryMap()
 	if err := registerMockFailRunnerFactory(); err != nil {
 		t.Fatalf("Error registering mock runner factory: %v", err)
 	}
-	config := Config{}
+	config := runner.Config{}
 	t.Setenv("CONFIG", string(config))
 	t.Setenv("NAME", "test")
-	if err := createAndRun(); err == nil {
+	if err := CreateAndRun(); err == nil {
 		t.Fatalf("Broken runner doesn't fail when run")
 	}
 }
 
 func TestRunnerRunFail(t *testing.T) {
-	factoryMap = make(map[string]RunnerFactory)
+	runner.ResetFactoryMap()
 	if err := registerMockRunnerFactoryFailingWatcher(); err != nil {
 		t.Fatalf("Error registering mock runner factory: %v", err)
 	}
-	config := Config{}
+	config := runner.Config{}
 	t.Setenv("CONFIG", string(config))
 	t.Setenv("NAME", "test")
-	if err := createAndRun(); err == nil {
+	if err := CreateAndRun(); err == nil {
 		t.Fatalf("Broken watcher does not return error")
 	}
 }

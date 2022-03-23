@@ -79,6 +79,7 @@ jobs:
             git config user.email "<>"
 
       - name: Git Commit and Push
+        continue-on-error: true
         run: |
           git add .
           git commit -m "gofmt"

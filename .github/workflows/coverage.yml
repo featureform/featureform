@@ -86,6 +86,7 @@ jobs:
         run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.45.0
 
       - name: Run Linter
+        continue-on-error: true
         run: golangci-lint run ./...
 
 

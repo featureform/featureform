@@ -12,6 +12,8 @@ import (
 	rest "k8s.io/client-go/rest"
 )
 
+var namespace string = "default"
+
 func generateKubernetesEnvVars(envVars map[string]string) []v1.EnvVar {
 	kubeEnvVars := make([]v1.EnvVar, len(envVars))
 	i := 0
@@ -113,19 +115,15 @@ func (k KubernetesCompletionWatcher) Err() error {
 }
 
 func (k KubernetesRunner) Run() (CompletionWatcher, error) {
-	_, err := k.jobClient.Create(k.jobSpec)
-	if err != nil {
+	if _, err := k.jobClient.Create(k.jobSpec); err != nil {
 		return nil, err
 	}
 	return KubernetesCompletionWatcher{jobClient: k.jobClient}, nil
 }
 
-//Nothing below can be run without a Kubernetes cluster
-
 func NewKubernetesRunner(config KubernetesRunnerConfig) (Runner, error) {
 	jobSpec := newJobSpec(config)
 	jobName := uuid.New().String()
-	namespace := "default"
 	jobClient, err := NewKubernetesJobClient(jobName, namespace)
 	if err != nil {
 		return nil, err

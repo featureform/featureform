@@ -15,6 +15,10 @@ type RunnerFactory func(config Config) (Runner, error)
 
 var factoryMap = make(map[string]RunnerFactory)
 
+func ResetFactoryMap() {
+	factoryMap = make(map[string]RunnerFactory)
+}
+
 func RegisterFactory(name string, runnerFactory RunnerFactory) error {
 	if _, exists := factoryMap[name]; exists {
 		return fmt.Errorf("factory %s already registered", name)

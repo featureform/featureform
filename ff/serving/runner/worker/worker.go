@@ -1,12 +1,12 @@
-package runner
+package worker
 
 import (
 	"errors"
-	"log"
+	runner "github.com/featureform/serving/runner"
 	"os"
 )
 
-func createAndRun() error {
+func CreateAndRun() error {
 	config, ok := os.LookupEnv("CONFIG")
 	if !ok {
 		return errors.New("CONFIG not set")
@@ -15,7 +15,7 @@ func createAndRun() error {
 	if !ok {
 		return errors.New("NAME not set")
 	}
-	runner, err := Create(name, []byte(config))
+	runner, err := runner.Create(name, []byte(config))
 	if err != nil {
 		return err
 	}
@@ -29,8 +29,3 @@ func createAndRun() error {
 	return nil
 }
 
-func main() {
-	if err := createAndRun(); err != nil {
-		log.Fatalln(err)
-	}
-}

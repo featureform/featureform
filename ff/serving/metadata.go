@@ -7,12 +7,11 @@ import (
 )
 
 type MetadataProvider interface {
-			TrainingSetMetadata(name, version string) (TrainingSetEntry, error)
-
+	TrainingSetMetadata(name, version string) (TrainingSetEntry, error)
 
 	SetTrainingSetMetadata(name, version string, entry TrainingSetEntry) error
-FeatureMetadata(name, version string) (FeatureEntry, error)
-			SetFeatureMetadata(name, version string, entry FeatureEntry) error
+	FeatureMetadata(name, version string) (FeatureEntry, error)
+	SetFeatureMetadata(name, version string, entry FeatureEntry) error
 }
 
 type FeatureEntry struct {

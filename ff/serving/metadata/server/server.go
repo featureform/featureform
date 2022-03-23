@@ -5,7 +5,6 @@ import (
 
 	"github.com/featureform/serving/metadata"
 	pb "github.com/featureform/serving/metadata/proto"
-	"github.com/featureform/serving/metadata/search"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
@@ -16,11 +15,11 @@ func main() {
 	lis, err := net.Listen("tcp", port)
 	config := &metadata.Config{
 		Logger: logger,
-		TypeSenseParams: &search.TypeSenseParams{
-			Port:   "8108",
-			Host:   "localhost",
-			ApiKey: "xyz",
-		},
+		//TypeSenseParams: &search.TypeSenseParams{
+		//	Port:   "8108",
+		//	Host:   "localhost",
+		//	ApiKey: "xyz",
+		//},
 	}
 	if err != nil {
 		logger.Panicw("Failed to listen on port", "Err", err)

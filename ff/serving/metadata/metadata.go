@@ -2,16 +2,18 @@ package metadata
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"io"
-	"time"
-
 	pb "github.com/featureform/serving/metadata/proto"
 	"github.com/featureform/serving/metadata/search"
+	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
+	"io"
+	"log"
+	"time"
 )
 
 const TIME_FORMAT = time.RFC1123
@@ -53,6 +55,11 @@ type ResourceID struct {
 	Name    string
 	Variant string
 	Type    ResourceType
+}
+
+type ResourceStore struct {
+	Type ResourceType
+	Body string
 }
 
 func (id ResourceID) Proto() *pb.NameVariant {
@@ -197,6 +204,237 @@ func (lookup localResourceLookup) List() ([]Resource, error) {
 	resources := make([]Resource, 0, len(lookup))
 	for _, res := range lookup {
 		resources = append(resources, res)
+	}
+	return resources, nil
+}
+
+//Create Resource Lookup Using ETCD
+type etcdResourceLookup struct {
+	Etcd *clientv3.Client
+}
+
+type etcdStorage struct {
+	Type    ResourceType
+	Message []byte
+}
+
+func (lookup etcdResourceLookup) findType(t ResourceType) (Resource, error) {
+	var resource Resource
+	switch t {
+	case FEATURE:
+		resource = &featureResource{&pb.Feature{}}
+		break
+	case FEATURE_VARIANT:
+		resource = &featureVariantResource{&pb.FeatureVariant{}}
+		break
+	case LABEL:
+		resource = &labelResource{&pb.Label{}}
+		break
+	case LABEL_VARIANT:
+		resource = &labelVariantResource{&pb.LabelVariant{}}
+		break
+	case USER:
+		resource = &userResource{&pb.User{}}
+		break
+	case ENTITY:
+		resource = &entityResource{&pb.Entity{}}
+		break
+		// Transformation Not Included
+	//case TRANSFORMATION:
+	//	resource = &transformation{&pb.FeatureVariant{}}
+	//	break
+	//case TRANSFORMATION_VARIANT :
+	//	resource = &featureVariantResource{&pb.FeatureVariant{}}
+	//	break
+	case PROVIDER:
+		resource = &providerResource{&pb.Provider{}}
+		break
+	case SOURCE:
+		resource = &sourceResource{&pb.Source{}}
+		break
+	case SOURCE_VARIANT:
+		resource = &sourceVariantResource{&pb.SourceVariant{}}
+		break
+	case TRAINING_SET:
+		resource = &trainingSetResource{&pb.TrainingSet{}}
+		break
+	case TRAINING_SET_VARIANT:
+		resource = &trainingSetVariantResource{&pb.TrainingSetVariant{}}
+		break
+	case MODEL:
+		resource = &modelResource{&pb.Model{}}
+		break
+	default:
+		return nil, fmt.Errorf("Invalid Type\n")
+	}
+	return resource, nil
+}
+
+func (lookup etcdResourceLookup) Lookup(id ResourceID) (Resource, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+	name := id.Name
+	resp, err := lookup.Etcd.Get(ctx, name)
+	cancel()
+	if err != nil {
+		return nil, &ResourceNotFound{id}
+	}
+	var msg etcdStorage
+	value := resp.Kvs[0].Value
+	if err := json.Unmarshal(value, &msg); err != nil {
+		log.Fatalln("Failed To Parse Resource", err)
+	}
+	resource, err := lookup.findType(msg.Type)
+	if err != nil {
+		return nil, err
+	}
+	if err := proto.Unmarshal(msg.Message, resource.Proto()); err != nil {
+		log.Fatalln("Failed to parse address book:", err)
+	}
+
+	return resource, nil
+}
+
+func (lookup etcdResourceLookup) Has(id ResourceID) (bool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+	name := id.Name
+	resp, err := lookup.Etcd.Get(ctx, name)
+	cancel()
+	if err != nil {
+		return false, err
+	}
+	if resp.Count == 0 {
+		return false, nil
+	}
+	return true, nil
+}
+
+func (lookup etcdResourceLookup) Set(id ResourceID, res Resource) error {
+	var err error
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer lookup.Etcd.Close()
+
+	name := id.Name
+
+	p, _ := proto.Marshal(res.Proto())
+	msg := etcdStorage{
+		Type:    id.Type,
+		Message: p,
+	}
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	strmsg, err := json.Marshal(msg)
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+	_, err = lookup.Etcd.Put(ctx, name, string(strmsg))
+	cancel()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (lookup etcdResourceLookup) Submap(ids []ResourceID) (ResourceLookup, error) {
+	ctx, _ := context.WithTimeout(context.Background(), time.Second*1)
+	resources := make(localResourceLookup, len(ids))
+
+	for _, id := range ids {
+		var value []byte
+
+		if resp, err := lookup.Etcd.Do(ctx, clientv3.OpGet(id.Name)); err != nil || resp.Get().Count == 0 {
+			return nil, &ResourceNotFound{id}
+		} else {
+			fmt.Println(resp.Get().Count)
+			value = resp.Get().Kvs[0].Value
+			fmt.Println("GOT HERE")
+		}
+
+		var resource Resource
+		var msg etcdStorage
+		if err := json.Unmarshal(value, &msg); err != nil {
+			log.Fatalln("Failed To Parse Resource", err)
+		}
+		resource, err := lookup.findType(msg.Type)
+		if err != nil {
+			return nil, err
+		}
+		if err := proto.Unmarshal(msg.Message, resource.Proto()); err != nil {
+			log.Fatalln("Failed to parse address book:", err)
+		}
+		resources[id] = resource
+	}
+	return resources, nil
+}
+
+func (lookup etcdResourceLookup) ListForType(t ResourceType) ([]Resource, error) {
+	resources := make([]Resource, 0)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+	resp, err := lookup.Etcd.Get(ctx, "", clientv3.WithPrefix())
+	if err != nil {
+		return nil, err
+	}
+	cancel()
+	for i, res := range resp.Kvs {
+		//if i
+		var msg etcdStorage
+		fmt.Printf("Values: %s\n", res.Value)
+		if err := json.Unmarshal(res.Value, &msg); err != nil {
+			fmt.Printf("Value fail: %d %d %s\n", i, resp.Count, res.Value)
+			log.Printf("error decoding sakura response: %v", err)
+			if e, ok := err.(*json.SyntaxError); ok {
+				log.Printf("syntax error at byte offset %d", e.Offset)
+			}
+			log.Printf("sakura response: %q", res.Value)
+		}
+		resource, err := lookup.findType(msg.Type)
+		if err != nil {
+			return nil, err
+		}
+		if err := proto.Unmarshal(msg.Message, resource.Proto()); err != nil {
+			log.Fatalln("Failed to parse address book:", err)
+		}
+		if resource.ID().Type == t {
+			resources = append(resources, resource)
+		}
+	}
+	return resources, nil
+}
+
+func (lookup etcdResourceLookup) List() ([]Resource, error) {
+	resources := make([]Resource, 0)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+	resp, err := lookup.Etcd.Get(ctx, "", clientv3.WithPrefix())
+	cancel()
+	if err != nil {
+		return nil, err
+	}
+
+	for i, res := range resp.Kvs {
+		//if i
+		var msg etcdStorage
+		fmt.Printf("Values: %s\n", res.Value)
+		if err := json.Unmarshal(res.Value, &msg); err != nil {
+			fmt.Printf("Value fail: %d %d %s\n", i, resp.Count, res.Value)
+			log.Printf("error decoding sakura response: %v", err)
+			if e, ok := err.(*json.SyntaxError); ok {
+				log.Printf("syntax error at byte offset %d", e.Offset)
+			}
+			log.Printf("sakura response: %q", res.Value)
+		}
+		resource, err := lookup.findType(msg.Type)
+		if err != nil {
+			return nil, err
+		}
+		if err := proto.Unmarshal(msg.Message, resource.Proto()); err != nil {
+			log.Fatalln("Failed to parse address book:", err)
+		}
+		resources = append(resources, resource)
+
 	}
 	return resources, nil
 }

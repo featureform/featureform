@@ -2,7 +2,6 @@ package runner
 
 import (
 	"context"
-	// "encoding/json"
 	"fmt"
 	"github.com/google/uuid"
 	batchv1 "k8s.io/api/batch/v1"
@@ -12,22 +11,6 @@ import (
 	kubernetes "k8s.io/client-go/kubernetes"
 	rest "k8s.io/client-go/rest"
 )
-
-// func (k *KubernetesRunnerConfig) Serialize() (Config, error) {
-// 	serialized, err := json.Marshal(k)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	return serialized, nil
-// }
-
-// func (k *KubernetesRunnerConfig) Deserialize(config Config) error {
-// 	err := json.Unmarshal([]byte(config), k)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	return nil
-// }
 
 func generateKubernetesEnvVars(envVars map[string]string) []v1.EnvVar {
 	kubeEnvVars := make([]v1.EnvVar, len(envVars))
@@ -137,7 +120,7 @@ func (k KubernetesRunner) Run() (CompletionWatcher, error) {
 	return KubernetesCompletionWatcher{jobClient: k.jobClient}, nil
 }
 
-//Everything below cannot be run unless inside Kubernetes cluster
+//Nothing below can be run without a Kubernetes cluster
 
 func NewKubernetesRunner(config KubernetesRunnerConfig) (Runner, error) {
 	jobSpec := newJobSpec(config)

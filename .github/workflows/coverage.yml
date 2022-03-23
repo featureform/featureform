@@ -71,7 +71,7 @@ jobs:
         run: ./gen_grpc.sh
 
       - name: Gofmt
-        run: gofmt -w ./...
+        run: gofmt -w ./..
 
       - name: Git Add
         run: git add .

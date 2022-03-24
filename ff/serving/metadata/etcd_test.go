@@ -8,6 +8,7 @@ import (
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/protobuf/proto"
 	"log"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -558,4 +559,230 @@ func Test_etcdResourceLookup_Submap(t *testing.T) {
 	connect := Etcd{}
 	connect.init()
 	t.Cleanup(connect.clearDatabase)
+}
+
+func Test_etcdResourceLookup_findResourceType(t *testing.T) {
+	type fields struct {
+		connection EtcdConfig
+	}
+	type args struct {
+		t ResourceType
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    Resource
+		wantErr bool
+	}{
+		{"Test Feature", fields{}, args{FEATURE}, &featureResource{&pb.Feature{}}, false},
+		{"Test Feature Variant", fields{}, args{FEATURE_VARIANT}, &featureVariantResource{&pb.FeatureVariant{}}, false},
+		{"Test Label", fields{}, args{LABEL}, &labelResource{&pb.Label{}}, false},
+		{"Test Label Variant", fields{}, args{LABEL_VARIANT}, &labelVariantResource{&pb.LabelVariant{}}, false},
+		{"Test User", fields{}, args{USER}, &userResource{&pb.User{}}, false},
+		{"Test Entity", fields{}, args{ENTITY}, &entityResource{&pb.Entity{}}, false},
+		{"Test Provider", fields{}, args{PROVIDER}, &providerResource{&pb.Provider{}}, false},
+		{"Test Source", fields{}, args{SOURCE}, &sourceResource{&pb.Source{}}, false},
+		{"Test Source Variant", fields{}, args{SOURCE_VARIANT}, &sourceVariantResource{&pb.SourceVariant{}}, false},
+		{"Test Training Set", fields{}, args{TRAINING_SET}, &trainingSetResource{&pb.TrainingSet{}}, false},
+		{"Test Training Set Variant", fields{}, args{TRAINING_SET_VARIANT}, &trainingSetVariantResource{&pb.TrainingSetVariant{}}, false},
+		{"Test Model", fields{}, args{MODEL}, &modelResource{&pb.Model{}}, false},
+		{"Test Feature", fields{}, args{TRANSFORMATION}, nil, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			lookup := etcdResourceLookup{
+				connection: tt.fields.connection,
+			}
+			got, err := lookup.findResourceType(tt.args.t)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("findResourceType() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("findResourceType() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestEtcdConfig_Put(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+	type fields struct {
+		Host string
+		Port string
+	}
+	type args struct {
+		key   string
+		value string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{"Test Put Error", fields{"localhost", ""}, args{key: "", value: ""}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := EtcdConfig{
+				Host: tt.fields.Host,
+				Port: tt.fields.Port,
+			}
+			if err := config.Put(tt.args.key, tt.args.value); (err != nil) != tt.wantErr {
+				t.Errorf("Put() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestEtcdConfig_Get(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+	type fields struct {
+		Host string
+		Port string
+	}
+	type args struct {
+		key string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    []byte
+		wantErr bool
+	}{
+		{"Test Invalid Server", fields{"localhost", ""}, args{key: ""}, nil, true},
+		{"Test Invalid Key", fields{"localhost", "2379"}, args{key: "testkey"}, nil, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := EtcdConfig{
+				Host: tt.fields.Host,
+				Port: tt.fields.Port,
+			}
+			got, err := config.Get(tt.args.key)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Get() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Get() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestEtcdConfig_GetWithPrefix(t *testing.T) {
+	type fields struct {
+		Host string
+		Port string
+	}
+	type args struct {
+		key string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    [][]byte
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := EtcdConfig{
+				Host: tt.fields.Host,
+				Port: tt.fields.Port,
+			}
+			got, err := config.GetWithPrefix(tt.args.key)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetWithPrefix() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("GetWithPrefix() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestEtcdConfig_GetCountWithPrefix(t *testing.T) {
+	type fields struct {
+		Host string
+		Port string
+	}
+	type args struct {
+		key string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    int64
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := EtcdConfig{
+				Host: tt.fields.Host,
+				Port: tt.fields.Port,
+			}
+			got, err := config.GetCountWithPrefix(tt.args.key)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetCountWithPrefix() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("GetCountWithPrefix() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestEtcdConfig_ParseResource(t *testing.T) {
+	type fields struct {
+		Host string
+		Port string
+	}
+	type args struct {
+		res     EtcdStorage
+		resType Resource
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    Resource
+		wantErr bool
+	}{
+		{"Test Invalid Type", fields{Host: "", Port: ""}, args{EtcdStorage{StorageType: JOB}, &featureResource{}}, nil, true},
+		{"Test Nil Message", fields{Host: "", Port: ""}, args{EtcdStorage{StorageType: RESOURCE, Message: nil}, &featureResource{}}, nil, true},
+		{"Test Failed Message", fields{Host: "", Port: ""}, args{EtcdStorage{StorageType: RESOURCE}, &featureResource{}}, nil, true},
+		{"Test Failed Resource", fields{Host: "", Port: ""}, args{EtcdStorage{StorageType: RESOURCE, Message: []byte("test")}, &featureResource{&pb.Feature{}}}, nil, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := EtcdConfig{
+				Host: tt.fields.Host,
+				Port: tt.fields.Port,
+			}
+			got, err := config.ParseResource(tt.args.res, tt.args.resType)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseResource() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ParseResource() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

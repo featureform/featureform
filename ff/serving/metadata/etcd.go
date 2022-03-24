@@ -135,9 +135,19 @@ func (config EtcdConfig) ParseResource(res EtcdStorage, resType Resource) (Resou
 	if res.StorageType != RESOURCE {
 		return nil, fmt.Errorf("payload is not resource type")
 	}
+
+	if !resType.Proto().ProtoReflect().IsValid() {
+		return nil, fmt.Errorf("cannot parse to invalid resource")
+	}
+
+	if res.Message == nil {
+		return nil, fmt.Errorf("cannot parse invalid message")
+	}
+
 	if err := proto.Unmarshal(res.Message, resType.Proto()); err != nil {
 		return nil, err
 	}
+
 	return resType, nil
 }
 

@@ -35,12 +35,7 @@ type EtcdStorage struct {
 	Message      []byte       //Contents to be stored
 }
 
-func (config EtcdConfig) MakeAddress() string {
-	return fmt.Sprintf("%s:%s", config.Host, config.Port)
-}
-
-//Puts K/V into ETCD
-func (config EtcdConfig) Put(key string, value string) error {
+func (config EtcdConfig) openClient() (*clientv3.Client, context.Context, error) {
 	address := config.MakeAddress()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 	client, err := clientv3.New(clientv3.Config{
@@ -48,6 +43,16 @@ func (config EtcdConfig) Put(key string, value string) error {
 		DialTimeout: time.Second * 1,
 	})
 	defer cancel()
+	return client, ctx, err
+}
+
+func (config EtcdConfig) MakeAddress() string {
+	return fmt.Sprintf("%s:%s", config.Host, config.Port)
+}
+
+//Puts K/V into ETCD
+func (config EtcdConfig) Put(key string, value string) error {
+	client, ctx, err := config.openClient()
 	if err != nil {
 		return err
 	}
@@ -58,24 +63,31 @@ func (config EtcdConfig) Put(key string, value string) error {
 	return nil
 }
 
-//Gets value from ETCD using a key
-func (config EtcdConfig) Get(key string) ([]byte, error) {
-	address := config.MakeAddress()
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
-	client, err := clientv3.New(clientv3.Config{
-		Endpoints:   []string{address},
-		DialTimeout: time.Second * 1,
-	})
-	defer cancel()
+func (config EtcdConfig) genericGet(key string, withPrefix bool) (*clientv3.GetResponse, error) {
+	client, ctx, err := config.openClient()
 	if err != nil {
 		return nil, err
 	}
-	resp, err := client.Get(ctx, key)
+	var resp *clientv3.GetResponse
+	if withPrefix {
+		resp, err = client.Get(ctx, key, clientv3.WithPrefix())
+	} else {
+		resp, err = client.Get(ctx, key)
+	}
 	if err != nil {
 		return nil, err
 	}
 	if resp.Count == 0 {
 		return nil, fmt.Errorf("no keys found")
+	}
+	return resp, nil
+}
+
+//Gets value from ETCD using a key
+func (config EtcdConfig) Get(key string) ([]byte, error) {
+	resp, err := config.genericGet(key, false)
+	if err != nil {
+		return nil, err
 	}
 	return resp.Kvs[0].Value, nil
 }
@@ -84,22 +96,9 @@ func (config EtcdConfig) Get(key string) ([]byte, error) {
 //Any value with a key starting with the 'key' argument will be queried.
 //All stored values can be retrieved using an empty string as the 'key'
 func (config EtcdConfig) GetWithPrefix(key string) ([][]byte, error) {
-	address := config.MakeAddress()
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
-	client, err := clientv3.New(clientv3.Config{
-		Endpoints:   []string{address},
-		DialTimeout: time.Second * 1,
-	})
-	defer cancel()
+	resp, err := config.genericGet(key, true)
 	if err != nil {
 		return nil, err
-	}
-	resp, err := client.Get(ctx, key, clientv3.WithPrefix())
-	if err != nil {
-		return nil, err
-	}
-	if resp.Count == 0 {
-		return nil, fmt.Errorf("no keys found")
 	}
 	response := make([][]byte, resp.Count)
 	for i, res := range resp.Kvs {
@@ -111,13 +110,7 @@ func (config EtcdConfig) GetWithPrefix(key string) ([][]byte, error) {
 //Returns number of keys that match key prefix
 //See GetWithPrefix for more details on prefix
 func (config EtcdConfig) GetCountWithPrefix(key string) (int64, error) {
-	address := config.MakeAddress()
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
-	client, err := clientv3.New(clientv3.Config{
-		Endpoints:   []string{address},
-		DialTimeout: time.Second * 1,
-	})
-	defer cancel()
+	client, ctx, err := config.openClient()
 	if err != nil {
 		return 0, err
 	}

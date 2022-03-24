@@ -61,11 +61,6 @@ type ResourceID struct {
 	Type    ResourceType
 }
 
-type ResourceStore struct {
-	Type ResourceType
-	Body string
-}
-
 func (id ResourceID) Proto() *pb.NameVariant {
 	return &pb.NameVariant{
 		Name:    id.Name,
@@ -118,10 +113,6 @@ func (err *ResourceExists) Error() string {
 
 func (err *ResourceExists) GRPCStatus() *status.Status {
 	return status.New(codes.AlreadyExists, err.Error())
-}
-
-type StorageProviderConfig struct {
-	Provider StorageProvider
 }
 
 type Resource interface {

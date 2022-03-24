@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/featureform/serving/metadata/search"
 	"net"
 
 	"github.com/featureform/serving/metadata"
@@ -15,11 +16,11 @@ func main() {
 	lis, err := net.Listen("tcp", port)
 	config := &metadata.Config{
 		Logger: logger,
-		//TypeSenseParams: &search.TypeSenseParams{
-		//	Port:   "8108",
-		//	Host:   "localhost",
-		//	ApiKey: "xyz",
-		//},
+		TypeSenseParams: &search.TypeSenseParams{
+			Port:   "8108",
+			Host:   "localhost",
+			ApiKey: "xyz",
+		},
 		StorageProvider: metadata.ETCD,
 		ETCD: metadata.EtcdConfig{
 			Host: "localhost",

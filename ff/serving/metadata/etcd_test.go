@@ -100,7 +100,7 @@ func Test_etcdResourceLookup_Set(t *testing.T) {
 				log.Fatalln("Failed To Parse Resource", err)
 			}
 			if err := proto.Unmarshal(msg.Message, resource.Proto()); err != nil {
-				log.Fatalln("Failed to parse address book:", err)
+				log.Fatalln("Failed to parse:", err)
 			}
 			if !proto.Equal(args1.res.Proto(), resource.Proto()) {
 				t.Errorf("Set() Expected: %v, Received: %v", args1.res.Proto(), resource.Proto())

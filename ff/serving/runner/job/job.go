@@ -71,7 +71,7 @@ func (e ExampleJob) String() string {
 }
 
 func (e ExampleJob) Serialized() []byte {
-	return e.Config.Serialized()
+	return json.Marshal(e)
 }
 
 func PutJob(job Job) error {

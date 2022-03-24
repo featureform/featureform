@@ -141,12 +141,14 @@ func (config EtcdConfig) ParseResource(res EtcdStorage, resType Resource) (Resou
 	return resType, nil
 }
 
-//func (config Etcd) ParseJob(res EtcdStorage) ([][]byte, error) {
-//
-//}
+//Can be implemented to unmarshal EtcdStorage Object into format used by Jobs
+//Like ParseResource Above
+func (config EtcdConfig) ParseJob(res EtcdStorage) ([]byte, error) {
+	return nil, nil
+}
 
 //Returns an empty Resource Object of the given type to unmarshal etcd value into
-func (lookup etcdResourceLookup) findType(t ResourceType) (Resource, error) {
+func (lookup etcdResourceLookup) findResourceType(t ResourceType) (Resource, error) {
 	var resource Resource
 	switch t {
 	case FEATURE:
@@ -232,7 +234,7 @@ func (lookup etcdResourceLookup) Lookup(id ResourceID) (Resource, error) {
 	if err != nil {
 		return nil, err
 	}
-	resType, err := lookup.findType(msg.ResourceType)
+	resType, err := lookup.findResourceType(msg.ResourceType)
 	if err != nil {
 		return nil, err
 	}
@@ -279,13 +281,15 @@ func (lookup etcdResourceLookup) Submap(ids []ResourceID) (ResourceLookup, error
 			return nil, err
 		}
 
-		resource, err := lookup.findType(etcdStore.ResourceType)
+		resource, err := lookup.findResourceType(etcdStore.ResourceType)
 		if err != nil {
 			return nil, err
 		}
 
 		res, err := lookup.connection.ParseResource(etcdStore, resource)
-
+		if err != nil {
+			return nil, err
+		}
 		resources[id] = res
 	}
 	return resources, nil
@@ -302,7 +306,7 @@ func (lookup etcdResourceLookup) ListForType(t ResourceType) ([]Resource, error)
 		if err != nil {
 			return nil, err
 		}
-		resource, err := lookup.findType(etcdStore.ResourceType)
+		resource, err := lookup.findResourceType(etcdStore.ResourceType)
 		if err != nil {
 			return nil, err
 		}
@@ -325,7 +329,7 @@ func (lookup etcdResourceLookup) List() ([]Resource, error) {
 		if err != nil {
 			return nil, err
 		}
-		resource, err := lookup.findType(etcdStore.ResourceType)
+		resource, err := lookup.findResourceType(etcdStore.ResourceType)
 		if err != nil {
 			return nil, err
 		}

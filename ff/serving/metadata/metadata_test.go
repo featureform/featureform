@@ -42,6 +42,9 @@ func (etcd *Etcd) clearDatabase() {
 }
 
 func Test_etcdResourceLookup_Set(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	type fields struct {
 		Etcd EtcdConfig
 	}
@@ -53,7 +56,7 @@ func Test_etcdResourceLookup_Set(t *testing.T) {
 	args1 := args{
 		ResourceID{Name: "test", Variant: FEATURE_VARIANT, Type: FEATURE},
 		&featureVariantResource{&pb.FeatureVariant{
-			Name:    "testname",
+			Name:    "featureVariantResource",
 			Type:    FEATURE_VARIANT,
 			Created: time.Now().String(),
 		}},
@@ -64,7 +67,7 @@ func Test_etcdResourceLookup_Set(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-		{"test", fields{EtcdConfig{Host: "localhost", Port: "2379"}}, args1, false},
+		{"Successful Set", fields{EtcdConfig{Host: "localhost", Port: "2379"}}, args1, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -110,9 +113,11 @@ func Test_etcdResourceLookup_Set(t *testing.T) {
 }
 
 func Test_etcdResourceLookup_Lookup(t *testing.T) {
-
+	if testing.Short() {
+		t.Skip()
+	}
 	doWant := &featureVariantResource{&pb.FeatureVariant{
-		Name:    "testname2",
+		Name:    "featureVariant",
 		Type:    FEATURE_VARIANT,
 		Created: time.Now().String(),
 	}}
@@ -132,7 +137,7 @@ func Test_etcdResourceLookup_Lookup(t *testing.T) {
 		want    Resource
 		wantErr bool
 	}{
-		{"First Test", fields{EtcdConfig{Host: "localhost", Port: "2379"}}, args{args1}, doWant, false},
+		{"Successful Lookup", fields{EtcdConfig{Host: "localhost", Port: "2379"}}, args{args1}, doWant, false},
 	}
 	for _, tt := range tests {
 		newclient, err := clientv3.New(clientv3.Config{
@@ -168,7 +173,7 @@ func Test_etcdResourceLookup_Lookup(t *testing.T) {
 				connection: tt.fields.Etcd,
 			}
 			got, err := lookup.Lookup(tt.args.id)
-			fmt.Printf("Vals: %s\n", got.Proto())
+
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Lookup() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -184,7 +189,9 @@ func Test_etcdResourceLookup_Lookup(t *testing.T) {
 }
 
 func Test_etcdResourceLookup_Has(t *testing.T) {
-
+	if testing.Short() {
+		t.Skip()
+	}
 	type fields struct {
 		Etcd EtcdConfig
 	}
@@ -192,19 +199,19 @@ func Test_etcdResourceLookup_Has(t *testing.T) {
 		id ResourceID
 	}
 	doWant := &featureVariantResource{&pb.FeatureVariant{
-		Name:    "testname2",
+		Name:    "resource1",
 		Type:    FEATURE_VARIANT,
 		Created: time.Now().String(),
 	}}
 	args1 := args{
 		ResourceID{
-			Name: "testfail",
+			Name: "resource1",
 			Type: FEATURE,
 		},
 	}
 	args2 := args{
 		ResourceID{
-			Name: "testpass",
+			Name: "resource2",
 			Type: FEATURE,
 		},
 	}
@@ -216,8 +223,8 @@ func Test_etcdResourceLookup_Has(t *testing.T) {
 		want    bool
 		wantErr bool
 	}{
-		{"Has Test Fail", fields{EtcdConfig{Host: "localhost", Port: "2379"}}, args1, false, true},
-		{"Has Test Pass", fields{EtcdConfig{Host: "localhost", Port: "2379"}}, args2, true, false},
+		{"Failed Has", fields{EtcdConfig{Host: "localhost", Port: "2379"}}, args1, false, true},
+		{"Successful Has", fields{EtcdConfig{Host: "localhost", Port: "2379"}}, args2, true, false},
 	}
 	for _, tt := range tests {
 		if tt.want {
@@ -269,6 +276,9 @@ func Test_etcdResourceLookup_Has(t *testing.T) {
 }
 
 func Test_etcdResourceLookup_ListForType(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	type fields struct {
 		Etcd EtcdConfig
 	}
@@ -301,7 +311,7 @@ func Test_etcdResourceLookup_ListForType(t *testing.T) {
 		want    []Resource
 		wantErr bool
 	}{
-		{"Type Test", fields{EtcdConfig{Host: "localhost", Port: "2379"}}, args{FEATURE}, featureResources, false},
+		{"Successful ListForType", fields{EtcdConfig{Host: "localhost", Port: "2379"}}, args{FEATURE}, featureResources, false},
 	}
 	newclient, err := clientv3.New(clientv3.Config{
 		Endpoints:   []string{"localhost:2379"},
@@ -355,6 +365,9 @@ func Test_etcdResourceLookup_ListForType(t *testing.T) {
 }
 
 func Test_etcdResourceLookup_List(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	newclient, err := clientv3.New(clientv3.Config{
 		Endpoints:   []string{"localhost:2379"},
 		DialTimeout: time.Second * 1,
@@ -390,7 +403,7 @@ func Test_etcdResourceLookup_List(t *testing.T) {
 		want    []Resource
 		wantErr bool
 	}{
-		{"Test List", fields{EtcdConfig{Host: "localhost", Port: "2379"}}, featureResources, false},
+		{"Successful List", fields{EtcdConfig{Host: "localhost", Port: "2379"}}, featureResources, false},
 	}
 	for _, res := range featureResources {
 		p, _ := proto.Marshal(res.Proto())
@@ -434,7 +447,9 @@ func Test_etcdResourceLookup_List(t *testing.T) {
 }
 
 func Test_etcdResourceLookup_Submap(t *testing.T) {
-	t.Skip("skipping submap testing")
+	if testing.Short() {
+		t.Skip()
+	}
 	client, err := clientv3.New(clientv3.Config{
 		Endpoints:   []string{"localhost:2379"},
 		DialTimeout: time.Second * 1,
@@ -485,7 +500,7 @@ func Test_etcdResourceLookup_Submap(t *testing.T) {
 		want    ResourceLookup
 		wantErr bool
 	}{
-		{"Submap test", fields{EtcdConfig{Host: "localhost", Port: "2379"}}, args{ids: ids}, resources, false},
+		{"Successful Submap", fields{EtcdConfig{Host: "localhost", Port: "2379"}}, args{ids: ids}, resources, false},
 	}
 	for _, res := range featureResources {
 		p, _ := proto.Marshal(res.Proto())
@@ -509,7 +524,6 @@ func Test_etcdResourceLookup_Submap(t *testing.T) {
 			log.Fatal(err)
 		}
 	}
-
 	for _, tt := range tests {
 
 		t.Run(tt.name, func(t *testing.T) {
@@ -529,20 +543,15 @@ func Test_etcdResourceLookup_Submap(t *testing.T) {
 				log.Fatal(err)
 			}
 
-			for _, res := range elem {
-				elements, err := got.List()
-				for _, g := range elements {
-					fmt.Printf("lookup %s\n", g.ID().Proto())
-					fmt.Printf("id %s\n", res.ID().Proto())
-				}
-				lookupRes, err := got.Lookup(res.ID())
+			for i, res := range elem {
 				if err != nil {
 					t.Errorf("%s\n", err)
 					t.Errorf("Submap(): Error with lookup:  %v\n", res.Proto())
 				}
-				if !proto.Equal(res.Proto(), lookupRes.Proto()) {
-					t.Errorf("Submap():\ngot:  %v\nwant: %v", res.Proto(), lookupRes.Proto())
+				if !proto.Equal(res.Proto(), featureResources[i].Proto()) {
+					t.Errorf("Submap():\ngot:  %v\nwant: %v", res.Proto(), featureResources[i].Proto())
 				}
+
 			}
 		})
 	}

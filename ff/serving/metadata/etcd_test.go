@@ -86,16 +86,20 @@ func Test_etcdResourceLookup_Set(t *testing.T) {
 			if err != nil {
 				fmt.Println(err)
 			}
+
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
-			resp, err := newclient.Get(ctx, tt.args.id.Name)
+			fmt.Printf("GETTING KEY: %s\n", CreateKey(RESOURCE, tt.args.id.Name))
+			resp, err := newclient.Get(ctx, CreateKey(RESOURCE, tt.args.id.Name))
 			if err != nil {
 				log.Fatal(err)
 			}
+			fmt.Println("HERE")
 			cancel()
 			value := resp.Kvs[0].Value
 			resource := featureVariantResource{
 				&pb.FeatureVariant{},
 			}
+
 			var msg EtcdStorage
 			if err := json.Unmarshal(value, &msg); err != nil {
 				log.Fatalln("Failed To Parse Resource", err)
@@ -163,7 +167,7 @@ func Test_etcdResourceLookup_Lookup(t *testing.T) {
 			log.Fatal(err)
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
-		_, err = newclient.Put(ctx, args1.Name, string(strmsg))
+		_, err = newclient.Put(ctx, CreateKey(RESOURCE, args1.Name), string(strmsg))
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -251,7 +255,7 @@ func Test_etcdResourceLookup_Has(t *testing.T) {
 				log.Fatal(err)
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
-			_, err = newclient.Put(ctx, tt.args.id.Name, string(strmsg))
+			_, err = newclient.Put(ctx, CreateKey(RESOURCE, tt.args.id.Name), string(strmsg))
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -336,7 +340,7 @@ func Test_etcdResourceLookup_ListForType(t *testing.T) {
 			log.Fatal(err)
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
-		_, err = newclient.Put(ctx, res.ID().Name, string(strmsg))
+		_, err = newclient.Put(ctx, CreateKey(RESOURCE, res.ID().Name), string(strmsg))
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -418,7 +422,7 @@ func Test_etcdResourceLookup_List(t *testing.T) {
 			log.Fatal(err)
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
-		_, err = newclient.Put(ctx, res.ID().Name, string(strmsg))
+		_, err = newclient.Put(ctx, CreateKey(RESOURCE, res.ID().Name), string(strmsg))
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -519,7 +523,7 @@ func Test_etcdResourceLookup_Submap(t *testing.T) {
 			log.Fatal(err)
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
-		_, err = client.Put(ctx, res.ID().Name, string(strmsg))
+		_, err = client.Put(ctx, CreateKey(RESOURCE, res.ID().Name), string(strmsg))
 		cancel()
 		if err != nil {
 			log.Fatal(err)
@@ -632,7 +636,7 @@ func TestEtcdConfig_Put(t *testing.T) {
 				Host: tt.fields.Host,
 				Port: tt.fields.Port,
 			}
-			if err := config.Put(tt.args.key, tt.args.value); (err != nil) != tt.wantErr {
+			if err := config.Put(tt.args.key, tt.args.value, RESOURCE); (err != nil) != tt.wantErr {
 				t.Errorf("Put() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -666,7 +670,7 @@ func TestEtcdConfig_Get(t *testing.T) {
 				Host: tt.fields.Host,
 				Port: tt.fields.Port,
 			}
-			got, err := config.Get(tt.args.key)
+			got, err := config.Get(tt.args.key, RESOURCE)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Get() error = %v, wantErr %v", err, tt.wantErr)
 				return

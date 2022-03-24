@@ -35,7 +35,19 @@ type EtcdStorage struct {
 	Message      []byte       //Contents to be stored
 }
 
-func (config EtcdConfig) openClient() (*clientv3.Client, context.Context, error) {
+func (config EtcdConfig) MakeAddress() string {
+	return fmt.Sprintf("%s:%s", config.Host, config.Port)
+}
+
+//Uses Storage Type as prefix so Resources and Jobs can be queried more easily
+func CreateKey(t StorageType, key string) string {
+	return fmt.Sprintf("%s_%s", t, key)
+}
+
+//Puts K/V into ETCD
+func (config EtcdConfig) Put(key string, value string, t StorageType) error {
+	k := CreateKey(t, key)
+	fmt.Printf("PUTTING KEY: %s\n", k)
 	address := config.MakeAddress()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 	client, err := clientv3.New(clientv3.Config{
@@ -43,20 +55,10 @@ func (config EtcdConfig) openClient() (*clientv3.Client, context.Context, error)
 		DialTimeout: time.Second * 1,
 	})
 	defer cancel()
-	return client, ctx, err
-}
-
-func (config EtcdConfig) MakeAddress() string {
-	return fmt.Sprintf("%s:%s", config.Host, config.Port)
-}
-
-//Puts K/V into ETCD
-func (config EtcdConfig) Put(key string, value string) error {
-	client, ctx, err := config.openClient()
 	if err != nil {
 		return err
 	}
-	_, err = client.Put(ctx, key, value)
+	_, err = client.Put(ctx, k, value)
 	if err != nil {
 		return err
 	}
@@ -64,7 +66,13 @@ func (config EtcdConfig) Put(key string, value string) error {
 }
 
 func (config EtcdConfig) genericGet(key string, withPrefix bool) (*clientv3.GetResponse, error) {
-	client, ctx, err := config.openClient()
+	address := config.MakeAddress()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+	client, err := clientv3.New(clientv3.Config{
+		Endpoints:   []string{address},
+		DialTimeout: time.Second * 1,
+	})
+	defer cancel()
 	if err != nil {
 		return nil, err
 	}
@@ -84,8 +92,10 @@ func (config EtcdConfig) genericGet(key string, withPrefix bool) (*clientv3.GetR
 }
 
 //Gets value from ETCD using a key
-func (config EtcdConfig) Get(key string) ([]byte, error) {
-	resp, err := config.genericGet(key, false)
+func (config EtcdConfig) Get(key string, t StorageType) ([]byte, error) {
+	k := CreateKey(t, key)
+	fmt.Printf("GETTING KEY2: %s\n", k)
+	resp, err := config.genericGet(k, false)
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +120,13 @@ func (config EtcdConfig) GetWithPrefix(key string) ([][]byte, error) {
 //Returns number of keys that match key prefix
 //See GetWithPrefix for more details on prefix
 func (config EtcdConfig) GetCountWithPrefix(key string) (int64, error) {
-	client, ctx, err := config.openClient()
+	address := config.MakeAddress()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+	client, err := clientv3.New(clientv3.Config{
+		Endpoints:   []string{address},
+		DialTimeout: time.Second * 1,
+	})
+	defer cancel()
 	if err != nil {
 		return 0, err
 	}
@@ -228,8 +244,7 @@ func (lookup etcdResourceLookup) deserialize(value []byte) (EtcdStorage, error) 
 }
 
 func (lookup etcdResourceLookup) Lookup(id ResourceID) (Resource, error) {
-	name := id.Name
-	resp, err := lookup.connection.Get(name)
+	resp, err := lookup.connection.Get(id.Name, RESOURCE)
 	if err != nil {
 		return nil, &ResourceNotFound{id}
 	}
@@ -249,8 +264,7 @@ func (lookup etcdResourceLookup) Lookup(id ResourceID) (Resource, error) {
 }
 
 func (lookup etcdResourceLookup) Has(id ResourceID) (bool, error) {
-	name := id.Name
-	count, err := lookup.connection.GetCountWithPrefix(name)
+	count, err := lookup.connection.GetCountWithPrefix(id.Name)
 	if err != nil {
 		return false, err
 	}
@@ -261,9 +275,8 @@ func (lookup etcdResourceLookup) Has(id ResourceID) (bool, error) {
 }
 
 func (lookup etcdResourceLookup) Set(id ResourceID, res Resource) error {
-	name := id.Name
 	serRes, err := lookup.serializeResource(res)
-	err = lookup.connection.Put(name, string(serRes))
+	err = lookup.connection.Put(id.Name, string(serRes), RESOURCE)
 	if err != nil {
 		return err
 	}
@@ -275,7 +288,7 @@ func (lookup etcdResourceLookup) Submap(ids []ResourceID) (ResourceLookup, error
 
 	for _, id := range ids {
 
-		value, err := lookup.connection.Get(id.Name)
+		value, err := lookup.connection.Get(id.Name, RESOURCE)
 		if err != nil {
 			return nil, &ResourceNotFound{id}
 		}
@@ -300,7 +313,7 @@ func (lookup etcdResourceLookup) Submap(ids []ResourceID) (ResourceLookup, error
 
 func (lookup etcdResourceLookup) ListForType(t ResourceType) ([]Resource, error) {
 	resources := make([]Resource, 0)
-	resp, err := lookup.connection.GetWithPrefix("")
+	resp, err := lookup.connection.GetWithPrefix(string(RESOURCE))
 	if err != nil {
 		return nil, err
 	}
@@ -323,7 +336,7 @@ func (lookup etcdResourceLookup) ListForType(t ResourceType) ([]Resource, error)
 
 func (lookup etcdResourceLookup) List() ([]Resource, error) {
 	resources := make([]Resource, 0)
-	resp, err := lookup.connection.GetWithPrefix("")
+	resp, err := lookup.connection.GetWithPrefix(string(RESOURCE))
 	if err != nil {
 		return nil, err
 	}

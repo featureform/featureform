@@ -43,7 +43,7 @@ func (etcd *Etcd) clearDatabase() {
 
 func Test_etcdResourceLookup_Set(t *testing.T) {
 	type fields struct {
-		Etcd *clientv3.Client
+		Etcd EtcdConfig
 	}
 	type args struct {
 		id  ResourceID
@@ -58,25 +58,18 @@ func Test_etcdResourceLookup_Set(t *testing.T) {
 			Created: time.Now().String(),
 		}},
 	}
-	client, err := clientv3.New(clientv3.Config{
-		Endpoints:   []string{"localhost:2379"},
-		DialTimeout: time.Second * 1,
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
 	tests := []struct {
 		name    string
 		fields  fields
 		args    args
 		wantErr bool
 	}{
-		{"test", fields{Etcd: client}, args1, false},
+		{"test", fields{EtcdConfig{Host: "localhost", Port: "2379"}}, args1, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			lookup := etcdResourceLookup{
-				Etcd: tt.fields.Etcd,
+				connection: tt.fields.Etcd,
 			}
 			if err := lookup.Set(tt.args.id, tt.args.res); (err != nil) != tt.wantErr {
 				t.Errorf("Set() error = %v, wantErr %v", err, tt.wantErr)
@@ -99,7 +92,7 @@ func Test_etcdResourceLookup_Set(t *testing.T) {
 			resource := featureVariantResource{
 				&pb.FeatureVariant{},
 			}
-			var msg etcdStorage
+			var msg EtcdStorage
 			if err := json.Unmarshal(value, &msg); err != nil {
 				log.Fatalln("Failed To Parse Resource", err)
 			}
@@ -117,13 +110,7 @@ func Test_etcdResourceLookup_Set(t *testing.T) {
 }
 
 func Test_etcdResourceLookup_Lookup(t *testing.T) {
-	client, err := clientv3.New(clientv3.Config{
-		Endpoints:   []string{"localhost:2379"},
-		DialTimeout: time.Second * 1,
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
+
 	doWant := &featureVariantResource{&pb.FeatureVariant{
 		Name:    "testname2",
 		Type:    FEATURE_VARIANT,
@@ -133,7 +120,7 @@ func Test_etcdResourceLookup_Lookup(t *testing.T) {
 	args1 := ResourceID{Name: "test2", Type: FEATURE}
 
 	type fields struct {
-		Etcd *clientv3.Client
+		Etcd EtcdConfig
 	}
 	type args struct {
 		id ResourceID
@@ -145,7 +132,7 @@ func Test_etcdResourceLookup_Lookup(t *testing.T) {
 		want    Resource
 		wantErr bool
 	}{
-		{"First Test", fields{Etcd: client}, args{args1}, doWant, false},
+		{"First Test", fields{EtcdConfig{Host: "localhost", Port: "2379"}}, args{args1}, doWant, false},
 	}
 	for _, tt := range tests {
 		newclient, err := clientv3.New(clientv3.Config{
@@ -156,9 +143,10 @@ func Test_etcdResourceLookup_Lookup(t *testing.T) {
 			fmt.Println(err)
 		}
 		p, _ := proto.Marshal(doWant.Proto())
-		msg := etcdStorage{
-			Type:    args1.Type,
-			Message: p,
+		msg := EtcdStorage{
+			ResourceType: args1.Type,
+			Message:      p,
+			StorageType:  RESOURCE,
 		}
 		if err != nil {
 			log.Fatal(err)
@@ -177,9 +165,10 @@ func Test_etcdResourceLookup_Lookup(t *testing.T) {
 
 		t.Run(tt.name, func(t *testing.T) {
 			lookup := etcdResourceLookup{
-				Etcd: tt.fields.Etcd,
+				connection: tt.fields.Etcd,
 			}
 			got, err := lookup.Lookup(tt.args.id)
+			fmt.Printf("Vals: %s\n", got.Proto())
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Lookup() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -187,7 +176,6 @@ func Test_etcdResourceLookup_Lookup(t *testing.T) {
 			if proto.Equal(got.Proto(), tt.want.Proto()) {
 				t.Errorf("Lookup() got = %v, want %v", got.Proto(), tt.want.Proto())
 			}
-			fmt.Printf("Results: %v, %v\n", got.Proto(), tt.want.Proto())
 		})
 	}
 	connect := Etcd{}
@@ -196,16 +184,9 @@ func Test_etcdResourceLookup_Lookup(t *testing.T) {
 }
 
 func Test_etcdResourceLookup_Has(t *testing.T) {
-	client, err := clientv3.New(clientv3.Config{
-		Endpoints:   []string{"localhost:2379"},
-		DialTimeout: time.Second * 1,
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	type fields struct {
-		Etcd *clientv3.Client
+		Etcd EtcdConfig
 	}
 	type args struct {
 		id ResourceID
@@ -235,8 +216,8 @@ func Test_etcdResourceLookup_Has(t *testing.T) {
 		want    bool
 		wantErr bool
 	}{
-		{"Has Test Fail", fields{Etcd: client}, args1, false, false},
-		{"Has Test Pass", fields{Etcd: client}, args2, true, false},
+		{"Has Test Fail", fields{EtcdConfig{Host: "localhost", Port: "2379"}}, args1, false, true},
+		{"Has Test Pass", fields{EtcdConfig{Host: "localhost", Port: "2379"}}, args2, true, false},
 	}
 	for _, tt := range tests {
 		if tt.want {
@@ -248,9 +229,10 @@ func Test_etcdResourceLookup_Has(t *testing.T) {
 				fmt.Println(err)
 			}
 			p, _ := proto.Marshal(doWant.Proto())
-			msg := etcdStorage{
-				Type:    tt.args.id.Type,
-				Message: p,
+			msg := EtcdStorage{
+				ResourceType: tt.args.id.Type,
+				Message:      p,
+				StorageType:  RESOURCE,
 			}
 			if err != nil {
 				log.Fatal(err)
@@ -269,7 +251,7 @@ func Test_etcdResourceLookup_Has(t *testing.T) {
 		}
 		t.Run(tt.name, func(t *testing.T) {
 			lookup := etcdResourceLookup{
-				Etcd: tt.fields.Etcd,
+				connection: tt.fields.Etcd,
 			}
 			got, err := lookup.Has(tt.args.id)
 			if (err != nil) != tt.wantErr {
@@ -287,15 +269,8 @@ func Test_etcdResourceLookup_Has(t *testing.T) {
 }
 
 func Test_etcdResourceLookup_ListForType(t *testing.T) {
-	client, err := clientv3.New(clientv3.Config{
-		Endpoints:   []string{"localhost:2379"},
-		DialTimeout: time.Second * 1,
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
 	type fields struct {
-		Etcd *clientv3.Client
+		Etcd EtcdConfig
 	}
 	type args struct {
 		t ResourceType
@@ -326,7 +301,7 @@ func Test_etcdResourceLookup_ListForType(t *testing.T) {
 		want    []Resource
 		wantErr bool
 	}{
-		{"Type Test", fields{Etcd: client}, args{FEATURE}, featureResources, false},
+		{"Type Test", fields{EtcdConfig{Host: "localhost", Port: "2379"}}, args{FEATURE}, featureResources, false},
 	}
 	newclient, err := clientv3.New(clientv3.Config{
 		Endpoints:   []string{"localhost:2379"},
@@ -337,9 +312,10 @@ func Test_etcdResourceLookup_ListForType(t *testing.T) {
 	}
 	for _, res := range featureResources {
 		p, _ := proto.Marshal(res.Proto())
-		msg := etcdStorage{
-			Type:    res.ID().Type,
-			Message: p,
+		msg := EtcdStorage{
+			ResourceType: res.ID().Type,
+			Message:      p,
+			StorageType:  RESOURCE,
 		}
 		if err != nil {
 			log.Fatal(err)
@@ -359,7 +335,7 @@ func Test_etcdResourceLookup_ListForType(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			lookup := etcdResourceLookup{
-				Etcd: tt.fields.Etcd,
+				connection: tt.fields.Etcd,
 			}
 			got, err := lookup.ListForType(tt.args.t)
 			if (err != nil) != tt.wantErr {
@@ -379,16 +355,15 @@ func Test_etcdResourceLookup_ListForType(t *testing.T) {
 }
 
 func Test_etcdResourceLookup_List(t *testing.T) {
-	client, err := clientv3.New(clientv3.Config{
+	newclient, err := clientv3.New(clientv3.Config{
 		Endpoints:   []string{"localhost:2379"},
 		DialTimeout: time.Second * 1,
 	})
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	type fields struct {
-		Etcd *clientv3.Client
+		Etcd EtcdConfig
 	}
 
 	featureResources := []Resource{
@@ -415,12 +390,31 @@ func Test_etcdResourceLookup_List(t *testing.T) {
 		want    []Resource
 		wantErr bool
 	}{
-		{"Test List", fields{Etcd: client}, featureResources, false},
+		{"Test List", fields{EtcdConfig{Host: "localhost", Port: "2379"}}, featureResources, false},
 	}
+	for _, res := range featureResources {
+		p, _ := proto.Marshal(res.Proto())
+		msg := EtcdStorage{
+			ResourceType: res.ID().Type,
+			Message:      p,
+			StorageType:  RESOURCE,
+		}
+		strmsg, err := json.Marshal(msg)
+		if err != nil {
+			log.Fatal(err)
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+		_, err = newclient.Put(ctx, res.ID().Name, string(strmsg))
+		if err != nil {
+			log.Fatal(err)
+		}
+		cancel()
+	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			lookup := etcdResourceLookup{
-				Etcd: tt.fields.Etcd,
+				connection: tt.fields.Etcd,
 			}
 			got, err := lookup.List()
 			if (err != nil) != tt.wantErr {
@@ -440,6 +434,7 @@ func Test_etcdResourceLookup_List(t *testing.T) {
 }
 
 func Test_etcdResourceLookup_Submap(t *testing.T) {
+	t.Skip("skipping submap testing")
 	client, err := clientv3.New(clientv3.Config{
 		Endpoints:   []string{"localhost:2379"},
 		DialTimeout: time.Second * 1,
@@ -448,7 +443,7 @@ func Test_etcdResourceLookup_Submap(t *testing.T) {
 		log.Fatal(err)
 	}
 	type fields struct {
-		Etcd *clientv3.Client
+		Etcd EtcdConfig
 	}
 	type args struct {
 		ids []ResourceID
@@ -490,13 +485,37 @@ func Test_etcdResourceLookup_Submap(t *testing.T) {
 		want    ResourceLookup
 		wantErr bool
 	}{
-		{"Submap test", fields{Etcd: client}, args{ids: ids}, resources, false},
+		{"Submap test", fields{EtcdConfig{Host: "localhost", Port: "2379"}}, args{ids: ids}, resources, false},
 	}
+	for _, res := range featureResources {
+		p, _ := proto.Marshal(res.Proto())
+		msg := EtcdStorage{
+			ResourceType: res.ID().Type,
+			Message:      p,
+			StorageType:  RESOURCE,
+		}
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		strmsg, err := json.Marshal(msg)
+		if err != nil {
+			log.Fatal(err)
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+		_, err = client.Put(ctx, res.ID().Name, string(strmsg))
+		cancel()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
 	for _, tt := range tests {
 
 		t.Run(tt.name, func(t *testing.T) {
+
 			lookup := etcdResourceLookup{
-				Etcd: tt.fields.Etcd,
+				connection: tt.fields.Etcd,
 			}
 
 			got, err := lookup.Submap(tt.args.ids)
@@ -509,13 +528,20 @@ func Test_etcdResourceLookup_Submap(t *testing.T) {
 			if err != nil {
 				log.Fatal(err)
 			}
-			wantelem, err := tt.want.List()
-			if err != nil {
-				log.Fatal(err)
-			}
-			for i, res := range elem {
-				if proto.Equal(res.Proto(), wantelem[i].Proto()) {
-					t.Errorf("Submap() got = %v, want %v", res.Proto(), wantelem[i].Proto())
+
+			for _, res := range elem {
+				elements, err := got.List()
+				for _, g := range elements {
+					fmt.Printf("lookup %s\n", g.ID().Proto())
+					fmt.Printf("id %s\n", res.ID().Proto())
+				}
+				lookupRes, err := got.Lookup(res.ID())
+				if err != nil {
+					t.Errorf("%s\n", err)
+					t.Errorf("Submap(): Error with lookup:  %v\n", res.Proto())
+				}
+				if !proto.Equal(res.Proto(), lookupRes.Proto()) {
+					t.Errorf("Submap():\ngot:  %v\nwant: %v", res.Proto(), lookupRes.Proto())
 				}
 			}
 		})

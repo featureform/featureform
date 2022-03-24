@@ -20,6 +20,11 @@ func main() {
 		//	Host:   "localhost",
 		//	ApiKey: "xyz",
 		//},
+		StorageProvider: metadata.ETCD,
+		ETCD: metadata.EtcdConfig{
+			Host: "localhost",
+			Port: "2379",
+		},
 	}
 	if err != nil {
 		logger.Panicw("Failed to listen on port", "Err", err)

@@ -17,10 +17,14 @@ const (
 	JOB                  = "Job"
 )
 
+type EtcdNode struct {
+	Host string
+	Port string
+}
+
 //Configuration For ETCD Cluster
 type EtcdConfig struct {
-	Host string //localhost
-	Port string //2379
+	Nodes []EtcdNode
 }
 
 //Create Resource Lookup Using ETCD
@@ -35,8 +39,12 @@ type EtcdStorage struct {
 	Message      []byte       //Contents to be stored
 }
 
-func (config EtcdConfig) MakeAddress() string {
-	return fmt.Sprintf("%s:%s", config.Host, config.Port)
+func (config EtcdConfig) MakeAddresses() []string {
+	addresses := make([]string, len(config.Nodes))
+	for i, node := range config.Nodes {
+		addresses[i] = fmt.Sprintf("%s:%s", node.Host, node.Port)
+	}
+	return addresses
 }
 
 //Uses Storage Type as prefix so Resources and Jobs can be queried more easily
@@ -47,11 +55,10 @@ func CreateKey(t StorageType, key string) string {
 //Puts K/V into ETCD
 func (config EtcdConfig) Put(key string, value string, t StorageType) error {
 	k := CreateKey(t, key)
-	fmt.Printf("PUTTING KEY: %s\n", k)
-	address := config.MakeAddress()
+	addresses := config.MakeAddresses()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 	client, err := clientv3.New(clientv3.Config{
-		Endpoints:   []string{address},
+		Endpoints:   addresses,
 		DialTimeout: time.Second * 1,
 	})
 	defer cancel()
@@ -66,10 +73,10 @@ func (config EtcdConfig) Put(key string, value string, t StorageType) error {
 }
 
 func (config EtcdConfig) genericGet(key string, withPrefix bool) (*clientv3.GetResponse, error) {
-	address := config.MakeAddress()
+	addresses := config.MakeAddresses()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 	client, err := clientv3.New(clientv3.Config{
-		Endpoints:   []string{address},
+		Endpoints:   addresses,
 		DialTimeout: time.Second * 1,
 	})
 	defer cancel()
@@ -94,7 +101,6 @@ func (config EtcdConfig) genericGet(key string, withPrefix bool) (*clientv3.GetR
 //Gets value from ETCD using a key
 func (config EtcdConfig) Get(key string, t StorageType) ([]byte, error) {
 	k := CreateKey(t, key)
-	fmt.Printf("GETTING KEY2: %s\n", k)
 	resp, err := config.genericGet(k, false)
 	if err != nil {
 		return nil, err
@@ -120,10 +126,10 @@ func (config EtcdConfig) GetWithPrefix(key string) ([][]byte, error) {
 //Returns number of keys that match key prefix
 //See GetWithPrefix for more details on prefix
 func (config EtcdConfig) GetCountWithPrefix(key string) (int64, error) {
-	address := config.MakeAddress()
+	addresses := config.MakeAddresses()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 	client, err := clientv3.New(clientv3.Config{
-		Endpoints:   []string{address},
+		Endpoints:   addresses,
 		DialTimeout: time.Second * 1,
 	})
 	defer cancel()

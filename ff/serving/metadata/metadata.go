@@ -828,8 +828,7 @@ func (c Config) GetStorageProvider() ResourceLookup {
 	case ETCD:
 		lookup = etcdResourceLookup{
 			connection: EtcdConfig{
-				Host: c.ETCD.Host,
-				Port: c.ETCD.Port,
+				Nodes: c.ETCD.Nodes,
 			},
 		}
 		break

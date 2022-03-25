@@ -68,7 +68,7 @@ func Test_etcdResourceLookup_Set(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-		{"Successful Set", fields{EtcdConfig{Host: "localhost", Port: "2379"}}, args1, false},
+		{"Successful Set", fields{EtcdConfig{[]EtcdNode{{Host: "localhost", Port: "2379"}}}}, args1, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -88,12 +88,10 @@ func Test_etcdResourceLookup_Set(t *testing.T) {
 			}
 
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
-			fmt.Printf("GETTING KEY: %s\n", CreateKey(RESOURCE, tt.args.id.Name))
 			resp, err := newclient.Get(ctx, CreateKey(RESOURCE, tt.args.id.Name))
 			if err != nil {
 				log.Fatal(err)
 			}
-			fmt.Println("HERE")
 			cancel()
 			value := resp.Kvs[0].Value
 			resource := featureVariantResource{
@@ -142,7 +140,7 @@ func Test_etcdResourceLookup_Lookup(t *testing.T) {
 		want    Resource
 		wantErr bool
 	}{
-		{"Successful Lookup", fields{EtcdConfig{Host: "localhost", Port: "2379"}}, args{args1}, doWant, false},
+		{"Successful Lookup", fields{EtcdConfig{[]EtcdNode{{Host: "localhost", Port: "2379"}}}}, args{args1}, doWant, false},
 	}
 	for _, tt := range tests {
 		newclient, err := clientv3.New(clientv3.Config{
@@ -228,8 +226,8 @@ func Test_etcdResourceLookup_Has(t *testing.T) {
 		want    bool
 		wantErr bool
 	}{
-		{"Failed Has", fields{EtcdConfig{Host: "localhost", Port: "2379"}}, args1, false, true},
-		{"Successful Has", fields{EtcdConfig{Host: "localhost", Port: "2379"}}, args2, true, false},
+		{"Failed Has", fields{EtcdConfig{[]EtcdNode{{Host: "localhost", Port: "2379"}}}}, args1, false, true},
+		{"Successful Has", fields{EtcdConfig{[]EtcdNode{{Host: "localhost", Port: "2379"}}}}, args2, true, false},
 	}
 	for _, tt := range tests {
 		if tt.want {
@@ -316,7 +314,7 @@ func Test_etcdResourceLookup_ListForType(t *testing.T) {
 		want    []Resource
 		wantErr bool
 	}{
-		{"Successful ListForType", fields{EtcdConfig{Host: "localhost", Port: "2379"}}, args{FEATURE}, featureResources, false},
+		{"Successful ListForType", fields{EtcdConfig{[]EtcdNode{{Host: "localhost", Port: "2379"}}}}, args{FEATURE}, featureResources, false},
 	}
 	newclient, err := clientv3.New(clientv3.Config{
 		Endpoints:   []string{"localhost:2379"},
@@ -408,7 +406,7 @@ func Test_etcdResourceLookup_List(t *testing.T) {
 		want    []Resource
 		wantErr bool
 	}{
-		{"Successful List", fields{EtcdConfig{Host: "localhost", Port: "2379"}}, featureResources, false},
+		{"Successful List", fields{EtcdConfig{[]EtcdNode{{Host: "localhost", Port: "2379"}}}}, featureResources, false},
 	}
 	for _, res := range featureResources {
 		p, _ := proto.Marshal(res.Proto())
@@ -505,7 +503,7 @@ func Test_etcdResourceLookup_Submap(t *testing.T) {
 		want    ResourceLookup
 		wantErr bool
 	}{
-		{"Successful Submap", fields{EtcdConfig{Host: "localhost", Port: "2379"}}, args{ids: ids}, resources, false},
+		{"Successful Submap", fields{EtcdConfig{[]EtcdNode{{Host: "localhost", Port: "2379"}}}}, args{ids: ids}, resources, false},
 	}
 	for _, res := range featureResources {
 		p, _ := proto.Marshal(res.Proto())
@@ -632,10 +630,7 @@ func TestEtcdConfig_Put(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config := EtcdConfig{
-				Host: tt.fields.Host,
-				Port: tt.fields.Port,
-			}
+			config := EtcdConfig{[]EtcdNode{{Host: "localhost", Port: "2379"}}}
 			if err := config.Put(tt.args.key, tt.args.value, RESOURCE); (err != nil) != tt.wantErr {
 				t.Errorf("Put() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -666,10 +661,7 @@ func TestEtcdConfig_Get(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config := EtcdConfig{
-				Host: tt.fields.Host,
-				Port: tt.fields.Port,
-			}
+			config := EtcdConfig{[]EtcdNode{{Host: "localhost", Port: "2379"}}}
 			got, err := config.Get(tt.args.key, RESOURCE)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Get() error = %v, wantErr %v", err, tt.wantErr)
@@ -701,10 +693,7 @@ func TestEtcdConfig_GetWithPrefix(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config := EtcdConfig{
-				Host: tt.fields.Host,
-				Port: tt.fields.Port,
-			}
+			config := EtcdConfig{[]EtcdNode{{Host: "localhost", Port: "2379"}}}
 			got, err := config.GetWithPrefix(tt.args.key)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetWithPrefix() error = %v, wantErr %v", err, tt.wantErr)
@@ -736,10 +725,7 @@ func TestEtcdConfig_GetCountWithPrefix(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config := EtcdConfig{
-				Host: tt.fields.Host,
-				Port: tt.fields.Port,
-			}
+			config := EtcdConfig{[]EtcdNode{{Host: "localhost", Port: "2379"}}}
 			got, err := config.GetCountWithPrefix(tt.args.key)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetCountWithPrefix() error = %v, wantErr %v", err, tt.wantErr)
@@ -775,10 +761,7 @@ func TestEtcdConfig_ParseResource(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config := EtcdConfig{
-				Host: tt.fields.Host,
-				Port: tt.fields.Port,
-			}
+			config := EtcdConfig{[]EtcdNode{{Host: "localhost", Port: "2379"}}}
 			got, err := config.ParseResource(tt.args.res, tt.args.resType)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseResource() error = %v, wantErr %v", err, tt.wantErr)

@@ -23,8 +23,11 @@ func main() {
 		},
 		StorageProvider: metadata.ETCD,
 		ETCD: metadata.EtcdConfig{
-			Host: "localhost",
-			Port: "2379",
+			Nodes: []metadata.EtcdNode{{
+				Host: "localhost",
+				Port: "2379",
+			},
+			},
 		},
 	}
 	if err != nil {

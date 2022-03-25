@@ -7,6 +7,7 @@ import (
 type SerializedConfig []byte
 
 type Provider interface {
+	AsOnlineStore() (OnlineStore, error)
 }
 
 type Factory func(SerializedConfig) (Provider, error)

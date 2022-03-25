@@ -14,6 +14,7 @@ jobs:
       - name: Merge Into Target Branch
         run: |
           git fetch
+          git checkout ${{ github.head_ref }}
           git pull
           git checkout ${{ github.base_ref }}
           git pull

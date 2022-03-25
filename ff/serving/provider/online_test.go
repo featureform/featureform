@@ -60,8 +60,10 @@ func testTableAlreadyExists(t *testing.T, store OnlineStore) {
 	}
 	if _, err := store.CreateTable(mockFeature, mockVariant); err == nil {
 		t.Fatalf("Succeeded in creating table twice")
-	} else if _, valid := err.(*TableAlreadyExists); !valid {
+	} else if casted, valid := err.(*TableAlreadyExists); !valid {
 		t.Fatalf("Wrong error for table already exists: %T", err)
+	} else if casted.Error() == "" {
+		t.Fatalf("TableAlreadyExists has empty error message")
 	}
 }
 
@@ -69,8 +71,10 @@ func testTableNotFound(t *testing.T, store OnlineStore) {
 	mockFeature, mockVariant := "f", "v"
 	if _, err := store.GetTable(mockFeature, mockVariant); err == nil {
 		t.Fatalf("Succeeded in getting non-existant table")
-	} else if _, valid := err.(*TableNotFound); !valid {
+	} else if casted, valid := err.(*TableNotFound); !valid {
 		t.Fatalf("Wrong error for table not found: %T", err)
+	} else if casted.Error() == "" {
+		t.Fatalf("TableNotFound has empty error message")
 	}
 }
 
@@ -102,7 +106,9 @@ func testEntityNotFound(t *testing.T, store OnlineStore) {
 	}
 	if _, err := tab.Get(entity); err == nil {
 		t.Fatalf("succeeded in getting non-existant entity")
-	} else if _, valid := err.(*EntityNotFound); !valid {
+	} else if casted, valid := err.(*EntityNotFound); !valid {
 		t.Fatalf("Wrong error for entity not found: %T", err)
+	} else if casted.Error() == "" {
+		t.Fatalf("EntityNotFound has empty error message")
 	}
 }

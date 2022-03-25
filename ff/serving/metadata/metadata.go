@@ -1074,17 +1074,6 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 	return &pb.Empty{}, nil
 }
 
-//Stores new values for resource after modified by notify
-func WrapNotify(lookup ResourceLookup, op operation, newRes Resource, res Resource) error {
-	if err := res.Notify(lookup, op, newRes); err != nil {
-		return err
-	}
-	if err := lookup.Set(res.ID(), res); err != nil {
-		return nil
-	}
-	return nil
-}
-
 func (serv *MetadataServer) propogateChange(newRes Resource) error {
 	visited := make(map[ResourceID]struct{})
 	// We have to make it a var so that the anonymous function can call itself.
@@ -1104,8 +1093,11 @@ func (serv *MetadataServer) propogateChange(newRes Resource) error {
 				continue
 			}
 			visited[id] = struct{}{}
-			if err := WrapNotify(serv.lookup, create_op, newRes, res); err != nil {
+			if err := res.Notify(serv.lookup, create_op, newRes); err != nil {
 				return err
+			}
+			if err := serv.lookup.Set(res.ID(), res); err != nil {
+				return nil
 			}
 			if err := propogateChange(res); err != nil {
 				return err

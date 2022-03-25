@@ -8,7 +8,7 @@ import (
 type SerializedConfig []byte
 
 type RedisConfig struct {
-	Prefix   string `default:"featureform_table__"`
+	Prefix   string
 	Addr     string
 	Password string
 	DB       int

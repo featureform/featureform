@@ -22,7 +22,7 @@ func main() {
 			ApiKey: "xyz",
 		},
 		StorageProvider: metadata.ETCD,
-		ETCD: metadata.EtcdConfig{
+		Etcd: metadata.EtcdConfig{
 			Nodes: []metadata.EtcdNode{{
 				Host: "localhost",
 				Port: "2379",

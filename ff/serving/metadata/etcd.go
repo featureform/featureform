@@ -27,9 +27,25 @@ type EtcdConfig struct {
 	Nodes []EtcdNode
 }
 
+func (c EtcdConfig) initClient() (*clientv3.Client, error) {
+	addresses := c.MakeAddresses()
+	client, err := clientv3.New(clientv3.Config{
+		Endpoints:   addresses,
+		DialTimeout: time.Second * 1,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return client, nil
+}
+
+type EtcdStorage struct {
+	Client *clientv3.Client
+}
+
 //Create Resource Lookup Using ETCD
 type etcdResourceLookup struct {
-	connection EtcdConfig
+	connection EtcdStorage
 }
 
 //Wrapper around Resource/Job messages. Allows top level storage for info about saved value
@@ -48,46 +64,31 @@ func (config EtcdConfig) MakeAddresses() []string {
 }
 
 //Uses Storage Type as prefix so Resources and Jobs can be queried more easily
-func CreateKey(t StorageType, key string) string {
+func createKey(t StorageType, key string) string {
 	return fmt.Sprintf("%s_%s", t, key)
 }
 
 //Puts K/V into ETCD
-func (config EtcdConfig) Put(key string, value string, t StorageType) error {
-	k := CreateKey(t, key)
-	addresses := config.MakeAddresses()
+func (s EtcdStorage) Put(key string, value string, t StorageType) error {
+	k := createKey(t, key)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
-	client, err := clientv3.New(clientv3.Config{
-		Endpoints:   addresses,
-		DialTimeout: time.Second * 1,
-	})
 	defer cancel()
-	if err != nil {
-		return err
-	}
-	_, err = client.Put(ctx, k, value)
+	_, err := s.Client.Put(ctx, k, value)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (config EtcdConfig) genericGet(key string, withPrefix bool) (*clientv3.GetResponse, error) {
-	addresses := config.MakeAddresses()
+func (s EtcdStorage) genericGet(key string, withPrefix bool) (*clientv3.GetResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
-	client, err := clientv3.New(clientv3.Config{
-		Endpoints:   addresses,
-		DialTimeout: time.Second * 1,
-	})
 	defer cancel()
-	if err != nil {
-		return nil, err
-	}
 	var resp *clientv3.GetResponse
+	var err error
 	if withPrefix {
-		resp, err = client.Get(ctx, key, clientv3.WithPrefix())
+		resp, err = s.Client.Get(ctx, key, clientv3.WithPrefix())
 	} else {
-		resp, err = client.Get(ctx, key)
+		resp, err = s.Client.Get(ctx, key)
 	}
 	if err != nil {
 		return nil, err
@@ -99,9 +100,9 @@ func (config EtcdConfig) genericGet(key string, withPrefix bool) (*clientv3.GetR
 }
 
 //Gets value from ETCD using a key
-func (config EtcdConfig) Get(key string, t StorageType) ([]byte, error) {
-	k := CreateKey(t, key)
-	resp, err := config.genericGet(k, false)
+func (s EtcdStorage) Get(key string, t StorageType) ([]byte, error) {
+	k := createKey(t, key)
+	resp, err := s.genericGet(k, false)
 	if err != nil {
 		return nil, err
 	}
@@ -111,8 +112,8 @@ func (config EtcdConfig) Get(key string, t StorageType) ([]byte, error) {
 //Gets values from ETCD using a prefix key.
 //Any value with a key starting with the 'key' argument will be queried.
 //All stored values can be retrieved using an empty string as the 'key'
-func (config EtcdConfig) GetWithPrefix(key string) ([][]byte, error) {
-	resp, err := config.genericGet(key, true)
+func (s EtcdStorage) GetWithPrefix(key string) ([][]byte, error) {
+	resp, err := s.genericGet(key, true)
 	if err != nil {
 		return nil, err
 	}
@@ -125,18 +126,10 @@ func (config EtcdConfig) GetWithPrefix(key string) ([][]byte, error) {
 
 //Returns number of keys that match key prefix
 //See GetWithPrefix for more details on prefix
-func (config EtcdConfig) GetCountWithPrefix(key string) (int64, error) {
-	addresses := config.MakeAddresses()
+func (s EtcdStorage) GetCountWithPrefix(key string) (int64, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
-	client, err := clientv3.New(clientv3.Config{
-		Endpoints:   addresses,
-		DialTimeout: time.Second * 1,
-	})
 	defer cancel()
-	if err != nil {
-		return 0, err
-	}
-	resp, err := client.Get(ctx, key, clientv3.WithPrefix())
+	resp, err := s.Client.Get(ctx, key, clientv3.WithPrefix())
 	if err != nil {
 		return 0, err
 	}
@@ -146,7 +139,7 @@ func (config EtcdConfig) GetCountWithPrefix(key string) (int64, error) {
 //Takes a populated ETCD storage struct and a resource
 //Checks to make sure the given ETCD Storage Object contains a Resource, not job
 //Deserializes Resource value into the provided Resource object
-func (config EtcdConfig) ParseResource(res EtcdRow, resType Resource) (Resource, error) {
+func (s EtcdStorage) ParseResource(res EtcdRow, resType Resource) (Resource, error) {
 	if res.StorageType != RESOURCE {
 		return nil, fmt.Errorf("payload is not resource type")
 	}
@@ -168,7 +161,7 @@ func (config EtcdConfig) ParseResource(res EtcdRow, resType Resource) (Resource,
 
 //Can be implemented to unmarshal EtcdRow Object into format used by Jobs
 //Like ParseResource Above
-func (config EtcdConfig) ParseJob(res EtcdRow) ([]byte, error) {
+func (s EtcdStorage) ParseJob(res EtcdRow) ([]byte, error) {
 	return nil, nil
 }
 
@@ -227,17 +220,20 @@ func (lookup etcdResourceLookup) findResourceType(t ResourceType) (Resource, err
 
 //Serializes the entire ETCD Storage Object to be put into ETCD
 func (lookup etcdResourceLookup) serializeResource(res Resource) ([]byte, error) {
-	p, _ := proto.Marshal(res.Proto())
+	p, err := proto.Marshal(res.Proto())
+	if err != nil {
+		return nil, err
+	}
 	msg := EtcdRow{
 		ResourceType: res.ID().Type,
 		Message:      p,
 		StorageType:  RESOURCE,
 	}
-	strmsg, err := json.Marshal(msg)
+	serialMsg, err := json.Marshal(msg)
 	if err != nil {
-		return strmsg, err
+		return nil, err
 	}
-	return strmsg, nil
+	return serialMsg, nil
 }
 
 //Deserializes object into ETCD Storage Object

@@ -10,7 +10,6 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"io"
-	"log"
 	"time"
 )
 
@@ -789,12 +788,15 @@ type MetadataServer struct {
 	lookup ResourceLookup
 	Logger *zap.SugaredLogger
 	pb.UnimplementedMetadataServer
-	etcd EtcdConfig
+	etcd EtcdStorage
 }
 
 func NewMetadataServer(server *Config) (*MetadataServer, error) {
 	server.Logger.Debug("Creating new metadata server")
-	lookup := server.GetStorageProvider()
+	lookup, err := server.GetStorageProvider()
+	if err != nil {
+		return nil, err
+	}
 	if server.TypeSenseParams != nil {
 		searcher, errInitializeSearch := search.NewTypesenseSearch(server.TypeSenseParams)
 		if errInitializeSearch != nil {
@@ -808,7 +810,6 @@ func NewMetadataServer(server *Config) (*MetadataServer, error) {
 	return &MetadataServer{
 		lookup: lookup,
 		Logger: server.Logger,
-		etcd:   server.ETCD,
 	}, nil
 }
 
@@ -816,27 +817,30 @@ type Config struct {
 	Logger          *zap.SugaredLogger
 	TypeSenseParams *search.TypeSenseParams
 	StorageProvider StorageProvider
-	ETCD            EtcdConfig
+	Etcd            EtcdConfig
 }
 
-func (c Config) GetStorageProvider() ResourceLookup {
+func (c Config) GetStorageProvider() (ResourceLookup, error) {
 	var lookup ResourceLookup
 	switch c.StorageProvider {
 	case LOCAL:
 		lookup = make(localResourceLookup)
 		break
 	case ETCD:
+		client, err := c.Etcd.initClient()
+		if err != nil {
+			return nil, err
+		}
 		lookup = etcdResourceLookup{
-			connection: EtcdConfig{
-				Nodes: c.ETCD.Nodes,
+			connection: EtcdStorage{
+				Client: client,
 			},
 		}
 		break
 	default:
-		log.Fatalln("Invalid Storage Provider")
-		return nil
+		return nil, fmt.Errorf("invalid Storage Provider")
 	}
-	return lookup
+	return lookup, nil
 }
 
 func (serv *MetadataServer) ListFeatures(_ *pb.Empty, stream pb.Metadata_ListFeaturesServer) error {

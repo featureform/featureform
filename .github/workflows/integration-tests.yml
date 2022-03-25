@@ -15,7 +15,7 @@ jobs:
 #      volumes:
 #        - /tmp/typesense-data:/data
     steps:
-      -
+    
       - name: check os version
         run: cat /etc/os-release
       - name: install container

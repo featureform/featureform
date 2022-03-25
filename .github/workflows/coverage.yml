@@ -64,12 +64,6 @@ jobs:
       - name: Install grpc_tools
         run: pip install grpcio-tools
 
-      - name: Install Protobuf
-        run: sudo snap install protobuf --classic
-
-      - name: Setup Proto
-        run: ./gen_grpc.sh
-
       - name: Gofmt
         run: gofmt -w ./..
 

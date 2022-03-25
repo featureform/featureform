@@ -14,6 +14,10 @@ jobs:
       volumes:
         - /tmp/typesense-data:/data
     steps:
+      - name: Install Curl
+        run: |
+          sudo apt update
+          sudo apt install curl
       - name: Health Check
         run: curl http://localhost:8108/health
 

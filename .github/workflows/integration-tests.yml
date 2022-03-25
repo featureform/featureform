@@ -3,6 +3,7 @@ on: push
 
 jobs:
   typesense:
+    name: Typesense Integration Test
     runs-on: ubuntu-latest
     container:
       image: typesense/typesense:0.22.2
@@ -14,6 +15,8 @@ jobs:
       volumes:
         - /tmp/typesense-data:/data
     steps:
+      - name: check os version
+        run: cat /etc/os-release
       - name: Install Curl
         run: |
           sudo apt update

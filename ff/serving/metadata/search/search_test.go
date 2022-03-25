@@ -5,6 +5,9 @@ import (
 )
 
 func TestFullSearch(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	params := TypeSenseParams{
 		Host:   "localhost",
 		Port:   "8108",
@@ -31,6 +34,9 @@ func TestFullSearch(t *testing.T) {
 }
 
 func TestCharacters(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	params := TypeSenseParams{
 		Host:   "localhost",
 		Port:   "8108",
@@ -105,6 +111,9 @@ func TestCharacters(t *testing.T) {
 }
 
 func TestOrder(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	params := TypeSenseParams{
 		Host:   "localhost",
 		Port:   "8108",

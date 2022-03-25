@@ -4,11 +4,29 @@ on: push
 jobs:
   typesense:
     name: Start Typesense
+    defaults:
+      run:
+        working-directory: ./ff/serving/metadata/search
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v2
 
-      - name: check os version
-        run: cat /etc/os-release
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
+      - name: Install grpc_tools
+        run: pip install grpcio-tools
+
+      - name: Install Protobuf
+        run: sudo snap install protobuf --classic
+
+      - name: Setup Proto
+        run: ./gen_grpc.sh
+
+      - name: Build
+        run: go build   
+        
       - name: install container
         run: docker pull typesense/typesense:0.22.2
       - name: Start Typesense
@@ -17,14 +35,13 @@ jobs:
           mkdir /tmp/typesense-data
           docker run -d -p 8108:8108 -v/tmp/typesense-data:/data typesense/typesense:0.22.2 \
           --data-dir /data --api-key=$TYPESENSE_API_KEY --enable-cors
+
       - name: Health Check
         run: |
           sleep 10
           curl http://localhost:8108/health
-      
 
-#  integration_test:
-#    needs: typesense
-#    name: Test Typesense
-#    runs-on: ubuntu-latest
-#    steps:
+      - name: Coverage Test
+        continue-on-error: true
+        run: go test -v
+      

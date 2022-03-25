@@ -131,7 +131,7 @@ func (store *localOnlineStore) CreateTable(feature, variant string) (OnlineStore
 
 func (store *redisOnlineStore) GetTable(feature, variant string) (OnlineStoreTable, error) {
 	key := tableKey{store.prefix, feature, variant}
-	exists, err := store.client.HExists(ctx, "tables", key.String()).Result()
+	exists, err := store.client.HExists(ctx, fmt.Sprintf("%s__tables", store.prefix), key.String()).Result()
 	if err != nil {
 		return nil, err
 	}
@@ -144,14 +144,14 @@ func (store *redisOnlineStore) GetTable(feature, variant string) (OnlineStoreTab
 
 func (store *redisOnlineStore) CreateTable(feature, variant string) (OnlineStoreTable, error) {
 	key := tableKey{store.prefix, feature, variant}
-	exists, err := store.client.HExists(ctx, "tables", key.String()).Result()
+	exists, err := store.client.HExists(ctx, fmt.Sprintf("%s__tables", store.prefix), key.String()).Result()
 	if err != nil {
 		return nil, err
 	}
 	if exists {
 		return nil, &TableAlreadyExists{feature, variant}
 	}
-	if err := store.client.HSet(ctx, "tables", key.String(), 1).Err(); err != nil {
+	if err := store.client.HSet(ctx, fmt.Sprintf("%s__tables", store.prefix), key.String(), 1).Err(); err != nil {
 		return nil, err
 	}
 	table := &redisOnlineTable{client: store.client, key: key}

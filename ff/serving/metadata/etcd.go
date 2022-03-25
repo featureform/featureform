@@ -187,13 +187,6 @@ func (lookup etcdResourceLookup) createEmptyResource(t ResourceType) (Resource, 
 	case ENTITY:
 		resource = &entityResource{&pb.Entity{}}
 		break
-		// Transformation Not Included, Uncomment Later
-	//case TRANSFORMATION:
-	//	resource = &transformationResource{&pb.Transformation{}}
-	//	break
-	//case TRANSFORMATION_VARIANT :
-	//	resource = &TransformationVariantResource{&pb.TransformationVariant{}}
-	//	break
 	case PROVIDER:
 		resource = &providerResource{&pb.Provider{}}
 		break

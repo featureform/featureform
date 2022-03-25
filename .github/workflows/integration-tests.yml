@@ -6,7 +6,7 @@ jobs:
     name: Start Typesense
     defaults:
       run:
-        working-directory: ./ff/serving/metadata/search
+        working-directory: ./ff/serving
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -42,6 +42,6 @@ jobs:
           curl http://localhost:8108/health
 
       - name: Coverage Test
+        working-directory: ./ff/serving/metadata/search
         continue-on-error: true
         run: go test -v
-      

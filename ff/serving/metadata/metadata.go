@@ -22,7 +22,6 @@ const (
 )
 
 type ResourceType string
-type StorageProvider string
 
 const (
 	FEATURE                ResourceType = "Feature"
@@ -39,11 +38,6 @@ const (
 	TRAINING_SET                        = "Training Set"
 	TRAINING_SET_VARIANT                = "Training Set variant"
 	MODEL                               = "Model"
-)
-
-const (
-	LOCAL StorageProvider = "LOCAL"
-	ETCD                  = "ETCD"
 )
 
 var parentMapping = map[ResourceType]ResourceType{
@@ -788,12 +782,11 @@ type MetadataServer struct {
 	lookup ResourceLookup
 	Logger *zap.SugaredLogger
 	pb.UnimplementedMetadataServer
-	etcd EtcdStorage
 }
 
 func NewMetadataServer(server *Config) (*MetadataServer, error) {
 	server.Logger.Debug("Creating new metadata server")
-	lookup, err := server.GetStorageProvider()
+	lookup, err := server.StorageProvider.GetResourceLookup()
 	if err != nil {
 		return nil, err
 	}
@@ -813,34 +806,40 @@ func NewMetadataServer(server *Config) (*MetadataServer, error) {
 	}, nil
 }
 
+type StorageProvider interface {
+	GetResourceLookup() (ResourceLookup, error)
+}
+
+type LocalStorageProvider struct {
+}
+
+func (sp LocalStorageProvider) GetResourceLookup() (ResourceLookup, error) {
+	lookup := make(localResourceLookup)
+	return lookup, nil
+}
+
+type EtcdStorageProvider struct {
+	Config EtcdConfig
+}
+
+func (sp EtcdStorageProvider) GetResourceLookup() (ResourceLookup, error) {
+	client, err := sp.Config.initClient()
+	if err != nil {
+		return nil, err
+	}
+	lookup := etcdResourceLookup{
+		connection: EtcdStorage{
+			Client: client,
+		},
+	}
+	return lookup, nil
+}
+
 type Config struct {
 	Logger          *zap.SugaredLogger
 	TypeSenseParams *search.TypeSenseParams
 	StorageProvider StorageProvider
 	Etcd            EtcdConfig
-}
-
-func (c Config) GetStorageProvider() (ResourceLookup, error) {
-	var lookup ResourceLookup
-	switch c.StorageProvider {
-	case LOCAL:
-		lookup = make(localResourceLookup)
-		break
-	case ETCD:
-		client, err := c.Etcd.initClient()
-		if err != nil {
-			return nil, err
-		}
-		lookup = etcdResourceLookup{
-			connection: EtcdStorage{
-				Client: client,
-			},
-		}
-		break
-	default:
-		return nil, fmt.Errorf("invalid Storage Provider")
-	}
-	return lookup, nil
 }
 
 func (serv *MetadataServer) ListFeatures(_ *pb.Empty, stream pb.Metadata_ListFeaturesServer) error {

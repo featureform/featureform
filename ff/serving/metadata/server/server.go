@@ -14,6 +14,13 @@ func main() {
 	logger := zap.NewExample().Sugar()
 	port := ":8080"
 	lis, err := net.Listen("tcp", port)
+	storageProvider := metadata.EtcdStorageProvider{
+		metadata.EtcdConfig{
+			Nodes: []metadata.EtcdNode{
+				{"localhost", "2379"},
+			},
+		},
+	}
 	config := &metadata.Config{
 		Logger: logger,
 		TypeSenseParams: &search.TypeSenseParams{
@@ -21,14 +28,7 @@ func main() {
 			Host:   "localhost",
 			ApiKey: "xyz",
 		},
-		StorageProvider: metadata.ETCD,
-		Etcd: metadata.EtcdConfig{
-			Nodes: []metadata.EtcdNode{{
-				Host: "localhost",
-				Port: "2379",
-			},
-			},
-		},
+		StorageProvider: storageProvider,
 	}
 	if err != nil {
 		logger.Panicw("Failed to listen on port", "Err", err)

@@ -5,20 +5,23 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/go-redis/redis/v8"
-	"github.com/google/uuid"
 )
 
-func init() {
-	if err := RegisterFactory(LocalOnline, localOnlineStoreFactory); err != nil {
-		panic(err)
-	}
-	if err := RegisterFactory(RedisOnline, redisOnlineStoreFactory); err != nil {
-		panic(err)
-	}
-}
 
 const LocalOnline Type = "LOCAL_ONLINE"
 const RedisOnline Type = "REDIS_ONLINE"
+
+func init() {
+	unregisteredFactories := map[Type]Factory{
+		LocalOnline: localOnlineStoreFactory,
+		RedisOnline: redisOnlineStoreFactory,
+	}
+	for name, factory := range unregisteredFactories {
+		if err := RegisterFactory(name, factory); err != nil {
+			panic(err)
+		}
+	}
+}
 
 var ctx = context.Background()
 
@@ -57,10 +60,14 @@ func (err *EntityNotFound) Error() string {
 }
 
 type tableKey struct {
+	feature, variant string
+}
+
+type redisTableKey struct {
 	Prefix, Feature, Variant string
 }
 
-func (t tableKey) String() string {
+func (t redisTableKey) String() string {
 	marshalled, _ := json.Marshal(t)
 	return string(marshalled)
 }
@@ -90,7 +97,7 @@ func redisOnlineStoreFactory(serialized SerializedConfig) (Provider, error) {
 		return nil, err
 	}
 	if redisConfig.Prefix == "" {
-		redisConfig.Prefix = fmt.Sprintf("%s__", uuid.NewString())
+		redisConfig.Prefix = "Featureform_table__"
 	}
 	return NewRedisOnlineStore(redisConfig), nil
 }
@@ -112,7 +119,7 @@ func (store *redisOnlineStore) AsOnlineStore() (OnlineStore, error) {
 }
 
 func (store *localOnlineStore) GetTable(feature, variant string) (OnlineStoreTable, error) {
-	table, has := store.tables[tableKey{Feature: feature, Variant: variant}]
+	table, has := store.tables[tableKey{feature, variant}]
 	if !has {
 		return nil, &TableNotFound{feature, variant}
 	}
@@ -120,7 +127,7 @@ func (store *localOnlineStore) GetTable(feature, variant string) (OnlineStoreTab
 }
 
 func (store *localOnlineStore) CreateTable(feature, variant string) (OnlineStoreTable, error) {
-	key := tableKey{Feature: feature, Variant: variant}
+	key := tableKey{feature, variant}
 	if _, has := store.tables[key]; has {
 		return nil, &TableAlreadyExists{feature, variant}
 	}
@@ -130,7 +137,7 @@ func (store *localOnlineStore) CreateTable(feature, variant string) (OnlineStore
 }
 
 func (store *redisOnlineStore) GetTable(feature, variant string) (OnlineStoreTable, error) {
-	key := tableKey{store.prefix, feature, variant}
+	key := redisTableKey{store.prefix, feature, variant}
 	exists, err := store.client.HExists(ctx, fmt.Sprintf("%s__tables", store.prefix), key.String()).Result()
 	if err != nil {
 		return nil, err
@@ -143,7 +150,7 @@ func (store *redisOnlineStore) GetTable(feature, variant string) (OnlineStoreTab
 }
 
 func (store *redisOnlineStore) CreateTable(feature, variant string) (OnlineStoreTable, error) {
-	key := tableKey{store.prefix, feature, variant}
+	key := redisTableKey{store.prefix, feature, variant}
 	exists, err := store.client.HExists(ctx, fmt.Sprintf("%s__tables", store.prefix), key.String()).Result()
 	if err != nil {
 		return nil, err
@@ -162,7 +169,7 @@ type localOnlineTable map[string]interface{}
 
 type redisOnlineTable struct {
 	client *redis.Client
-	key    tableKey
+	key    redisTableKey
 }
 
 func (table localOnlineTable) Set(entity string, value interface{}) error {

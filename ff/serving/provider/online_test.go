@@ -2,10 +2,18 @@ package provider
 
 import (
 	"fmt"
+	"github.com/alicebob/miniredis"
 	"reflect"
 	"testing"
 )
 
+func mockRedis() *miniredis.Miniredis {
+	s, err := miniredis.Run()
+	if err != nil {
+		panic(err)
+	}
+	return s
+}
 func TestOnlineStores(t *testing.T) {
 	testFns := map[string]func(*testing.T, OnlineStore){
 		"CreateGetTable":     testCreateGetTable,
@@ -14,12 +22,17 @@ func TestOnlineStores(t *testing.T) {
 		"SetGetEntity":       testSetGetEntity,
 		"EntityNotFound":     testEntityNotFound,
 	}
+	mockRedisAddr := mockRedis().Addr()
+	redisMockConfig := &RedisConfig{
+		Addr: mockRedisAddr,
+	}
 	testList := []struct {
 		t               Type
 		c               SerializedConfig
 		integrationTest bool
 	}{
 		{LocalOnline, []byte{}, false},
+		{RedisOnline, redisMockConfig.Serialized(), false},
 	}
 	for _, testItem := range testList {
 		if testing.Short() && testItem.integrationTest {

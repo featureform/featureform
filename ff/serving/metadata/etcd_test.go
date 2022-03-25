@@ -641,18 +641,18 @@ func Test_etcdResourceLookup_findResourceType(t *testing.T) {
 				Client: client,
 			}
 			if err != nil {
-				t.Errorf("findResourceType() could not initialize client: %s", err)
+				t.Errorf("createEmptyResource() could not initialize client: %s", err)
 			}
 			lookup := etcdResourceLookup{
 				connection: store,
 			}
-			got, err := lookup.findResourceType(tt.args.t)
+			got, err := lookup.createEmptyResource(tt.args.t)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("findResourceType() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("createEmptyResource() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("findResourceType() got = %v, want %v", got, tt.want)
+				t.Errorf("createEmptyResource() got = %v, want %v", got, tt.want)
 			}
 		})
 	}

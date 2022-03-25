@@ -166,7 +166,7 @@ func (s EtcdStorage) ParseJob(res EtcdRow) ([]byte, error) {
 }
 
 //Returns an empty Resource Object of the given type to unmarshal etcd value into
-func (lookup etcdResourceLookup) findResourceType(t ResourceType) (Resource, error) {
+func (lookup etcdResourceLookup) createEmptyResource(t ResourceType) (Resource, error) {
 	var resource Resource
 	switch t {
 	case FEATURE:
@@ -254,7 +254,7 @@ func (lookup etcdResourceLookup) Lookup(id ResourceID) (Resource, error) {
 	if err != nil {
 		return nil, err
 	}
-	resType, err := lookup.findResourceType(msg.ResourceType)
+	resType, err := lookup.createEmptyResource(msg.ResourceType)
 	if err != nil {
 		return nil, err
 	}
@@ -299,7 +299,7 @@ func (lookup etcdResourceLookup) Submap(ids []ResourceID) (ResourceLookup, error
 			return nil, err
 		}
 
-		resource, err := lookup.findResourceType(etcdStore.ResourceType)
+		resource, err := lookup.createEmptyResource(etcdStore.ResourceType)
 		if err != nil {
 			return nil, err
 		}
@@ -324,7 +324,7 @@ func (lookup etcdResourceLookup) ListForType(t ResourceType) ([]Resource, error)
 		if err != nil {
 			return nil, err
 		}
-		resource, err := lookup.findResourceType(etcdStore.ResourceType)
+		resource, err := lookup.createEmptyResource(etcdStore.ResourceType)
 		if err != nil {
 			return nil, err
 		}
@@ -347,7 +347,7 @@ func (lookup etcdResourceLookup) List() ([]Resource, error) {
 		if err != nil {
 			return nil, err
 		}
-		resource, err := lookup.findResourceType(etcdStore.ResourceType)
+		resource, err := lookup.createEmptyResource(etcdStore.ResourceType)
 		if err != nil {
 			return nil, err
 		}

@@ -5,18 +5,21 @@ jobs:
   typesense:
     name: Typesense Integration Test
     runs-on: ubuntu-latest
-    container:
-      image: typesense/typesense:0.22.2
-      env:
-        TYPESENSE_API_KEY: xyz
-        TYPESENSE_DATA_DIR: /data
-      ports:
-        - 8108
-      volumes:
-        - /tmp/typesense-data:/data
+#    container:
+#      image: typesense/typesense:0.22.2
+#      env:
+#        TYPESENSE_API_KEY: xyz
+#        TYPESENSE_DATA_DIR: /data
+#      ports:
+#        - 8108
+#      volumes:
+#        - /tmp/typesense-data:/data
     steps:
+      -
       - name: check os version
         run: cat /etc/os-release
+      - name: install container
+        run: docker pull typesense/typesense:0.22.2
       - name: Install Curl
         run: |
           sudo apt update

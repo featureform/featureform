@@ -2,17 +2,18 @@ package provider
 
 import (
 	"fmt"
-	"github.com/alicebob/miniredis"
 	"reflect"
 	"testing"
+	"github.com/alicebob/miniredis"
+	"github.com/google/uuid"
 )
 
 func mockRedis() *miniredis.Miniredis {
-	s, err := miniredis.Run()
-	if err != nil {
+    s, err := miniredis.Run()
+    if err != nil {
 		panic(err)
-	}
-	return s
+    }
+    return s
 }
 func TestOnlineStores(t *testing.T) {
 	testFns := map[string]func(*testing.T, OnlineStore){
@@ -22,7 +23,9 @@ func TestOnlineStores(t *testing.T) {
 		"SetGetEntity":       testSetGetEntity,
 		"EntityNotFound":     testEntityNotFound,
 	}
-	mockRedisAddr := mockRedis().Addr()
+	miniRedis := mockRedis()
+	defer miniRedis.Close()
+	mockRedisAddr := miniRedis.Addr()
 	redisMockConfig := &RedisConfig{
 		Addr: mockRedisAddr,
 	}
@@ -57,7 +60,8 @@ func TestOnlineStores(t *testing.T) {
 }
 
 func testCreateGetTable(t *testing.T, store OnlineStore) {
-	mockFeature, mockVariant := "f", "v"
+	randomPrefix := uuid.NewString()
+	mockFeature, mockVariant := fmt.Sprintf("%s__f",randomPrefix), "v"
 	if tab, err := store.CreateTable(mockFeature, mockVariant); tab == nil || err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
@@ -67,7 +71,8 @@ func testCreateGetTable(t *testing.T, store OnlineStore) {
 }
 
 func testTableAlreadyExists(t *testing.T, store OnlineStore) {
-	mockFeature, mockVariant := "f", "v"
+	randomPrefix := uuid.NewString()
+	mockFeature, mockVariant := fmt.Sprintf("%s__f",randomPrefix), "v"
 	if _, err := store.CreateTable(mockFeature, mockVariant); err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
@@ -81,7 +86,8 @@ func testTableAlreadyExists(t *testing.T, store OnlineStore) {
 }
 
 func testTableNotFound(t *testing.T, store OnlineStore) {
-	mockFeature, mockVariant := "f", "v"
+	randomPrefix := uuid.NewString()
+	mockFeature, mockVariant := fmt.Sprintf("%s__f",randomPrefix), "v"
 	if _, err := store.GetTable(mockFeature, mockVariant); err == nil {
 		t.Fatalf("Succeeded in getting non-existant table")
 	} else if casted, valid := err.(*TableNotFound); !valid {
@@ -92,7 +98,8 @@ func testTableNotFound(t *testing.T, store OnlineStore) {
 }
 
 func testSetGetEntity(t *testing.T, store OnlineStore) {
-	mockFeature, mockVariant := "f", "v"
+	randomPrefix := uuid.NewString()
+	mockFeature, mockVariant := fmt.Sprintf("%s__f",randomPrefix), "v"
 	entity, val := "e", "val"
 	tab, err := store.CreateTable(mockFeature, mockVariant)
 	if err != nil {
@@ -111,7 +118,8 @@ func testSetGetEntity(t *testing.T, store OnlineStore) {
 }
 
 func testEntityNotFound(t *testing.T, store OnlineStore) {
-	mockFeature, mockVariant := "f", "v"
+	randomPrefix := uuid.NewString()
+	mockFeature, mockVariant := fmt.Sprintf("%s__f",randomPrefix), "v"
 	entity := "e"
 	tab, err := store.CreateTable(mockFeature, mockVariant)
 	if err != nil {

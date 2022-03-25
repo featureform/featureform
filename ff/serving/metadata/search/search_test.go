@@ -108,6 +108,9 @@ func TestCharacters(t *testing.T) {
 			t.Fatalf("Failed to return correct search for 'sonoma'")
 		}
 	}
+	if err := searcher.DeleteAll(); err != nil {
+		t.Fatalf("Failed to Delete %s", err)
+	}
 }
 
 func TestOrder(t *testing.T) {
@@ -162,7 +165,11 @@ func TestOrder(t *testing.T) {
 	}
 	for i, hit := range results {
 		if hit.Name != names[i] {
-			t.Fatalf("Failed to return correct search")
+			t.Fatalf("Failed to return correct search\n"+
+				"Expected: %s, Got: %s\n", names[i], hit.Name)
 		}
+	}
+	if err := searcher.DeleteAll(); err != nil {
+		t.Fatalf("Failed to Delete %s", err)
 	}
 }

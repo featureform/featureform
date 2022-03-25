@@ -41,7 +41,6 @@ jobs:
           sleep 10
           curl http://localhost:8108/health
 
-      - name: Coverage Test
+      - name: Integration Test
         working-directory: ./ff/serving/metadata/search
-        continue-on-error: true
         run: go test -v

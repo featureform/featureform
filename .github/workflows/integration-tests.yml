@@ -13,4 +13,7 @@ jobs:
         - 8108
       volumes:
         - /tmp/typesense-data:/data
+    steps:
+      - name: Health Check
+        run: curl http://localhost:8108/health
 

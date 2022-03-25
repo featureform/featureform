@@ -15,15 +15,18 @@ jobs:
 #      volumes:
 #        - /tmp/typesense-data:/data
     steps:
-    
+
       - name: check os version
         run: cat /etc/os-release
       - name: install container
         run: docker pull typesense/typesense:0.22.2
-      - name: Install Curl
+      - name: Start Typesense
         run: |
-          sudo apt update
-          sudo apt install curl
+          export TYPESENSE_API_KEY=xyz
+          mkdir /tmp/typesense-data
+          docker run -p 8108:8108 -v/tmp/typesense-data:/data typesense/typesense:0.22.2 \
+          --data-dir /data --api-key=$TYPESENSE_API_KEY --enable-cors
+
       - name: Health Check
         run: curl http://localhost:8108/health
 

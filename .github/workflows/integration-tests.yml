@@ -3,7 +3,7 @@ on: pull_request
 
 jobs:
   typesense:
-    name: Start Typesense
+    name: Typesense Integration Test
     defaults:
       run:
         working-directory: ./ff/serving
@@ -24,6 +24,7 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: 1.17
+
       - name: Install grpc_tools
         run: pip install grpcio-tools
 
@@ -36,7 +37,7 @@ jobs:
       - name: Build
         run: go build   
         
-      - name: install container
+      - name: Install Typesense Container
         run: docker pull typesense/typesense:0.22.2
 
       - name: Start Typesense

@@ -33,7 +33,7 @@ type etcdResourceLookup struct {
 }
 
 //Wrapper around Resource/Job messages. Allows top level storage for info about saved value
-type EtcdStorage struct {
+type EtcdRow struct {
 	ResourceType ResourceType //Resource Type. For use when getting stored keys
 	StorageType  StorageType  //Type of storage. Resource or Job
 	Message      []byte       //Contents to be stored
@@ -146,7 +146,7 @@ func (config EtcdConfig) GetCountWithPrefix(key string) (int64, error) {
 //Takes a populated ETCD storage struct and a resource
 //Checks to make sure the given ETCD Storage Object contains a Resource, not job
 //Deserializes Resource value into the provided Resource object
-func (config EtcdConfig) ParseResource(res EtcdStorage, resType Resource) (Resource, error) {
+func (config EtcdConfig) ParseResource(res EtcdRow, resType Resource) (Resource, error) {
 	if res.StorageType != RESOURCE {
 		return nil, fmt.Errorf("payload is not resource type")
 	}
@@ -166,9 +166,9 @@ func (config EtcdConfig) ParseResource(res EtcdStorage, resType Resource) (Resou
 	return resType, nil
 }
 
-//Can be implemented to unmarshal EtcdStorage Object into format used by Jobs
+//Can be implemented to unmarshal EtcdRow Object into format used by Jobs
 //Like ParseResource Above
-func (config EtcdConfig) ParseJob(res EtcdStorage) ([]byte, error) {
+func (config EtcdConfig) ParseJob(res EtcdRow) ([]byte, error) {
 	return nil, nil
 }
 
@@ -228,7 +228,7 @@ func (lookup etcdResourceLookup) findResourceType(t ResourceType) (Resource, err
 //Serializes the entire ETCD Storage Object to be put into ETCD
 func (lookup etcdResourceLookup) serializeResource(res Resource) ([]byte, error) {
 	p, _ := proto.Marshal(res.Proto())
-	msg := EtcdStorage{
+	msg := EtcdRow{
 		ResourceType: res.ID().Type,
 		Message:      p,
 		StorageType:  RESOURCE,
@@ -241,8 +241,8 @@ func (lookup etcdResourceLookup) serializeResource(res Resource) ([]byte, error)
 }
 
 //Deserializes object into ETCD Storage Object
-func (lookup etcdResourceLookup) deserialize(value []byte) (EtcdStorage, error) {
-	var msg EtcdStorage
+func (lookup etcdResourceLookup) deserialize(value []byte) (EtcdRow, error) {
+	var msg EtcdRow
 	if err := json.Unmarshal(value, &msg); err != nil {
 		return msg, fmt.Errorf("failed To Parse Resource: %s", err)
 	}

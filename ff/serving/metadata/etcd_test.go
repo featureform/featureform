@@ -98,7 +98,7 @@ func Test_etcdResourceLookup_Set(t *testing.T) {
 				&pb.FeatureVariant{},
 			}
 
-			var msg EtcdStorage
+			var msg EtcdRow
 			if err := json.Unmarshal(value, &msg); err != nil {
 				log.Fatalln("Failed To Parse Resource", err)
 			}
@@ -151,7 +151,7 @@ func Test_etcdResourceLookup_Lookup(t *testing.T) {
 			fmt.Println(err)
 		}
 		p, _ := proto.Marshal(doWant.Proto())
-		msg := EtcdStorage{
+		msg := EtcdRow{
 			ResourceType: args1.Type,
 			Message:      p,
 			StorageType:  RESOURCE,
@@ -239,7 +239,7 @@ func Test_etcdResourceLookup_Has(t *testing.T) {
 				fmt.Println(err)
 			}
 			p, _ := proto.Marshal(doWant.Proto())
-			msg := EtcdStorage{
+			msg := EtcdRow{
 				ResourceType: tt.args.id.Type,
 				Message:      p,
 				StorageType:  RESOURCE,
@@ -325,7 +325,7 @@ func Test_etcdResourceLookup_ListForType(t *testing.T) {
 	}
 	for _, res := range featureResources {
 		p, _ := proto.Marshal(res.Proto())
-		msg := EtcdStorage{
+		msg := EtcdRow{
 			ResourceType: res.ID().Type,
 			Message:      p,
 			StorageType:  RESOURCE,
@@ -410,7 +410,7 @@ func Test_etcdResourceLookup_List(t *testing.T) {
 	}
 	for _, res := range featureResources {
 		p, _ := proto.Marshal(res.Proto())
-		msg := EtcdStorage{
+		msg := EtcdRow{
 			ResourceType: res.ID().Type,
 			Message:      p,
 			StorageType:  RESOURCE,
@@ -507,7 +507,7 @@ func Test_etcdResourceLookup_Submap(t *testing.T) {
 	}
 	for _, res := range featureResources {
 		p, _ := proto.Marshal(res.Proto())
-		msg := EtcdStorage{
+		msg := EtcdRow{
 			ResourceType: res.ID().Type,
 			Message:      p,
 			StorageType:  RESOURCE,
@@ -744,7 +744,7 @@ func TestEtcdConfig_ParseResource(t *testing.T) {
 		Port string
 	}
 	type args struct {
-		res     EtcdStorage
+		res     EtcdRow
 		resType Resource
 	}
 	tests := []struct {
@@ -754,10 +754,10 @@ func TestEtcdConfig_ParseResource(t *testing.T) {
 		want    Resource
 		wantErr bool
 	}{
-		{"Test Invalid Type", fields{Host: "", Port: ""}, args{EtcdStorage{StorageType: JOB}, &featureResource{}}, nil, true},
-		{"Test Nil Message", fields{Host: "", Port: ""}, args{EtcdStorage{StorageType: RESOURCE, Message: nil}, &featureResource{}}, nil, true},
-		{"Test Failed Message", fields{Host: "", Port: ""}, args{EtcdStorage{StorageType: RESOURCE}, &featureResource{}}, nil, true},
-		{"Test Failed Resource", fields{Host: "", Port: ""}, args{EtcdStorage{StorageType: RESOURCE, Message: []byte("test")}, &featureResource{&pb.Feature{}}}, nil, true},
+		{"Test Invalid Type", fields{Host: "", Port: ""}, args{EtcdRow{StorageType: JOB}, &featureResource{}}, nil, true},
+		{"Test Nil Message", fields{Host: "", Port: ""}, args{EtcdRow{StorageType: RESOURCE, Message: nil}, &featureResource{}}, nil, true},
+		{"Test Failed Message", fields{Host: "", Port: ""}, args{EtcdRow{StorageType: RESOURCE}, &featureResource{}}, nil, true},
+		{"Test Failed Resource", fields{Host: "", Port: ""}, args{EtcdRow{StorageType: RESOURCE, Message: []byte("test")}, &featureResource{&pb.Feature{}}}, nil, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

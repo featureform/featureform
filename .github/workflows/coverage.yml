@@ -61,9 +61,6 @@ jobs:
         with:
           go-version: 1.17
 
-      - name: Install grpc_tools
-        run: pip install grpcio-tools
-
       - name: Gofmt
         run: gofmt -w ./..
 

@@ -34,6 +34,7 @@ jobs:
         
       - name: install container
         run: docker pull typesense/typesense:0.22.2
+        
       - name: Start Typesense
         run: |
           export TYPESENSE_API_KEY=xyz

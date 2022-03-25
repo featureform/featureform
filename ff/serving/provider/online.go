@@ -7,7 +7,6 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
-
 const LocalOnline Type = "LOCAL_ONLINE"
 const RedisOnline Type = "REDIS_ONLINE"
 

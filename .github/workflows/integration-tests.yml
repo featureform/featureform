@@ -13,6 +13,7 @@ jobs:
 
       - name: Merge Into Target Branch
         run: |
+          git fetch
           git checkout ${{ github.base_ref }}
           git merge ${{ github.head_ref }}
 
@@ -34,7 +35,7 @@ jobs:
         
       - name: install container
         run: docker pull typesense/typesense:0.22.2
-        
+
       - name: Start Typesense
         run: |
           export TYPESENSE_API_KEY=xyz

@@ -1,5 +1,5 @@
 name: Integration Testing
-on: push
+on: pull_request
 
 jobs:
   typesense:
@@ -10,6 +10,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+
+      - name: Merge Into Target Branch
+        run: |
+          git checkout ${{ github.base_ref }}
+          git merge ${{ github.head_ref }}
 
       - name: Set up Go
         uses: actions/setup-go@v2

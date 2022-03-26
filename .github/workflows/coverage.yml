@@ -61,6 +61,7 @@ jobs:
         with:
           go-version: 1.17
 
+        # Dependencies required for when golangci-lint checks imports
       - name: Install grpc_tools
         run: pip install grpcio-tools
 

@@ -6,9 +6,18 @@ import (
 
 type Config []byte
 
+type RunnerConfig interface {
+	Serialize() (Config, error)
+	Deserialize(Config) error
+}
+
 type RunnerFactory func(config Config) (Runner, error)
 
 var factoryMap = make(map[string]RunnerFactory)
+
+func ResetFactoryMap() {
+	factoryMap = make(map[string]RunnerFactory)
+}
 
 func RegisterFactory(name string, runnerFactory RunnerFactory) error {
 	if _, exists := factoryMap[name]; exists {

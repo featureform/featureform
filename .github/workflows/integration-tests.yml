@@ -1,0 +1,54 @@
+name: Integration Testing
+on: pull_request
+
+jobs:
+  typesense:
+    name: Typesense Integration Test
+    defaults:
+      run:
+        working-directory: ./ff/serving
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Merge Into Target Branch
+        run: |
+          git fetch
+          git checkout ${{ github.head_ref }}
+          git pull
+          git checkout ${{ github.base_ref }}
+          git pull
+          git merge ${{ github.head_ref }}
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
+
+      - name: Install grpc_tools
+        run: pip install grpcio-tools
+
+      - name: Install Protobuf
+        run: sudo snap install protobuf --classic
+
+      - name: Setup Proto
+        run: ./gen_grpc.sh
+
+      - name: Build
+        run: go build
+
+      - name: Install Typesense Container
+        run: docker pull typesense/typesense:0.22.2
+
+      - name: Start Typesense
+        run: |
+          export TYPESENSE_API_KEY=xyz
+          mkdir /tmp/typesense-data
+          docker run -d -p 8108:8108 -v/tmp/typesense-data:/data typesense/typesense:0.22.2 \
+          --data-dir /data --api-key=$TYPESENSE_API_KEY --enable-cors
+      - name: Health Check
+        run: |
+          sleep 10
+          curl http://localhost:8108/health
+      - name: Integration Test
+        working-directory: ./ff/serving/metadata/search
+        run: go test -v

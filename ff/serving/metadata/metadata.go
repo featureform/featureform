@@ -3,15 +3,14 @@ package metadata
 import (
 	"context"
 	"fmt"
-	"io"
-	"time"
-
 	pb "github.com/featureform/serving/metadata/proto"
 	"github.com/featureform/serving/metadata/search"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
+	"io"
+	"time"
 )
 
 const TIME_FORMAT = time.RFC1123
@@ -787,7 +786,10 @@ type MetadataServer struct {
 
 func NewMetadataServer(server *Config) (*MetadataServer, error) {
 	server.Logger.Debug("Creating new metadata server")
-	var lookup ResourceLookup = make(localResourceLookup)
+	lookup, err := server.StorageProvider.GetResourceLookup()
+	if err != nil {
+		return nil, err
+	}
 	if server.TypeSenseParams != nil {
 		searcher, errInitializeSearch := search.NewTypesenseSearch(server.TypeSenseParams)
 		if errInitializeSearch != nil {
@@ -804,9 +806,40 @@ func NewMetadataServer(server *Config) (*MetadataServer, error) {
 	}, nil
 }
 
+type StorageProvider interface {
+	GetResourceLookup() (ResourceLookup, error)
+}
+
+type LocalStorageProvider struct {
+}
+
+func (sp LocalStorageProvider) GetResourceLookup() (ResourceLookup, error) {
+	lookup := make(localResourceLookup)
+	return lookup, nil
+}
+
+type EtcdStorageProvider struct {
+	Config EtcdConfig
+}
+
+func (sp EtcdStorageProvider) GetResourceLookup() (ResourceLookup, error) {
+	client, err := sp.Config.initClient()
+	if err != nil {
+		return nil, err
+	}
+	lookup := etcdResourceLookup{
+		connection: EtcdStorage{
+			Client: client,
+		},
+	}
+	return lookup, nil
+}
+
 type Config struct {
 	Logger          *zap.SugaredLogger
 	TypeSenseParams *search.TypeSenseParams
+	StorageProvider StorageProvider
+	Etcd            EtcdConfig
 }
 
 func (serv *MetadataServer) ListFeatures(_ *pb.Empty, stream pb.Metadata_ListFeaturesServer) error {
@@ -1061,6 +1094,9 @@ func (serv *MetadataServer) propogateChange(newRes Resource) error {
 			visited[id] = struct{}{}
 			if err := res.Notify(serv.lookup, create_op, newRes); err != nil {
 				return err
+			}
+			if err := serv.lookup.Set(res.ID(), res); err != nil {
+				return nil
 			}
 			if err := propogateChange(res); err != nil {
 				return err

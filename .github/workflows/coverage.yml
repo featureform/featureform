@@ -30,7 +30,7 @@ jobs:
 
       - name: Coverage Test
         continue-on-error: true
-        run: go test -coverpkg=./... -coverprofile cover.out ./...
+        run: go test -v -short -coverpkg=./... -coverprofile cover.out ./...
 
       - uses: codecov/codecov-action@v2
         with:

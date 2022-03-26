@@ -1,11 +1,11 @@
 package main
 
 import (
+	"github.com/featureform/serving/metadata/search"
 	"net"
 
 	"github.com/featureform/serving/metadata"
 	pb "github.com/featureform/serving/metadata/proto"
-	"github.com/featureform/serving/metadata/search"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
@@ -14,6 +14,13 @@ func main() {
 	logger := zap.NewExample().Sugar()
 	port := ":8080"
 	lis, err := net.Listen("tcp", port)
+	storageProvider := metadata.EtcdStorageProvider{
+		metadata.EtcdConfig{
+			Nodes: []metadata.EtcdNode{
+				{"localhost", "2379"},
+			},
+		},
+	}
 	config := &metadata.Config{
 		Logger: logger,
 		TypeSenseParams: &search.TypeSenseParams{
@@ -21,6 +28,7 @@ func main() {
 			Host:   "localhost",
 			ApiKey: "xyz",
 		},
+		StorageProvider: storageProvider,
 	}
 	if err != nil {
 		logger.Panicw("Failed to listen on port", "Err", err)

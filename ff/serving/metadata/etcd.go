@@ -264,7 +264,7 @@ func (lookup etcdResourceLookup) Has(id ResourceID) (bool, error) {
 		return false, err
 	}
 	if count == 0 {
-		return false, &ResourceNotFound{id}
+		return false, nil
 	}
 	return true, nil
 }

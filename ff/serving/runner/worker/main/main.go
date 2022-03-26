@@ -1,10 +1,9 @@
 package main
 
 import (
-	"log"
 	worker "github.com/featureform/serving/runner/worker"
+	"log"
 )
-
 
 func main() {
 	if err := worker.CreateAndRun(); err != nil {

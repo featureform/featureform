@@ -218,8 +218,6 @@ func testBreakingParams(params ErrorJobTestParams) error {
 	return nil
 }
 
-
-
 type CopyTestData struct {
 	Rows []interface{}
 }

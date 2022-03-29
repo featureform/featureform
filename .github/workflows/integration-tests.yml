@@ -66,5 +66,5 @@ jobs:
           --data-dir /data --api-key=$TYPESENSE_API_KEY --enable-cors
 
       - name: Integration Test
-        working-directory: ./
+        working-directory: ./metadata/search
         run: go test -v

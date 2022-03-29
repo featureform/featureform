@@ -111,7 +111,7 @@ func (p PromMetricsHandler) ExposePort(port string) {
 }
 
 func (p PromFeatureObserver) SetError() {
-	p.Status="error"
+	p.Status = "error"
 	p.Timer.ObserveDuration()
 	p.Count.WithLabelValues(p.Name, p.Feature, p.Key, "error").Inc()
 }
@@ -127,13 +127,13 @@ func (p PromFeatureObserver) Finish() {
 }
 
 func (p TrainingDataObserver) SetError() {
-	p.Status="error"
+	p.Status = "error"
 	p.Timer.ObserveDuration()
 	p.Row_Count.WithLabelValues(p.Title, p.Name, p.Version, "error").Inc()
 }
 
 func (p TrainingDataObserver) ServeRow() {
-	p.Row_Count.WithLabelValues(p.Title, p.Name, p.Version,"row serve").Inc()
+	p.Row_Count.WithLabelValues(p.Title, p.Name, p.Version, "row serve").Inc()
 }
 
 func (p TrainingDataObserver) Finish() {

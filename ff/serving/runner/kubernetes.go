@@ -14,6 +14,11 @@ import (
 
 var namespace string = "default"
 
+type CronRunner interface {
+	Runner
+	Schedule(schedule string) error
+}
+
 func generateKubernetesEnvVars(envVars map[string]string) []v1.EnvVar {
 	kubeEnvVars := make([]v1.EnvVar, len(envVars))
 	i := 0
@@ -55,22 +60,25 @@ type KubernetesRunnerConfig struct {
 }
 
 type JobClient interface {
-	Get() (*batchv1.Job, error)
-	Watch() (watch.Interface, error)
-	Create(jobSpec *batchv1.JobSpec) (*batchv1.Job, error)
+	Get(name string) (*batchv1.Job, error)
+	Watch(name string) (watch.Interface, error)
+	Create(name string, jobSpec *batchv1.JobSpec) error
+	Schedule(name string, schedule string, jobSpec *batchv1.JobSpec) error
 }
 
 type KubernetesRunner struct {
 	jobClient JobClient
+	name string
 	jobSpec   *batchv1.JobSpec
 }
 
 type KubernetesCompletionWatcher struct {
 	jobClient JobClient
+	name string
 }
 
 func (k KubernetesCompletionWatcher) Complete() bool {
-	job, err := k.jobClient.Get()
+	job, err := k.jobClient.Get(k.name)
 	if err != nil {
 		return false
 	}
@@ -81,7 +89,7 @@ func (k KubernetesCompletionWatcher) Complete() bool {
 }
 
 func (k KubernetesCompletionWatcher) String() string {
-	job, err := k.jobClient.Get()
+	job, err := k.jobClient.Get(k.name)
 	if err != nil {
 		return "Could not fetch job."
 	}
@@ -89,7 +97,7 @@ func (k KubernetesCompletionWatcher) String() string {
 }
 
 func (k KubernetesCompletionWatcher) Wait() error {
-	watcher, err := k.jobClient.Watch()
+	watcher, err := k.jobClient.Watch(k.name)
 	if err != nil {
 		return err
 	}
@@ -104,7 +112,7 @@ func (k KubernetesCompletionWatcher) Wait() error {
 }
 
 func (k KubernetesCompletionWatcher) Err() error {
-	job, err := k.jobClient.Get()
+	job, err := k.jobClient.Get(k.name)
 	if err != nil {
 		return err
 	}
@@ -115,45 +123,67 @@ func (k KubernetesCompletionWatcher) Err() error {
 }
 
 func (k KubernetesRunner) Run() (CompletionWatcher, error) {
-	if _, err := k.jobClient.Create(k.jobSpec); err != nil {
+	if err := k.jobClient.Create(k.name, k.jobSpec); err != nil {
 		return nil, err
 	}
-	return KubernetesCompletionWatcher{jobClient: k.jobClient}, nil
+	return KubernetesCompletionWatcher{jobClient: k.jobClient, name: k.name}, nil
 }
 
-func NewKubernetesRunner(config KubernetesRunnerConfig) (Runner, error) {
+func (k KubernetesRunner) Schedule(schedule string) error {
+	if err := k.jobClient.Schedule(k.name, schedule, k.jobSpec); err != nil {
+		return err
+	}
+	return nil
+}
+
+func NewKubernetesRunner(config KubernetesRunnerConfig) (CronRunner, error) {
 	jobSpec := newJobSpec(config)
 	jobName := uuid.New().String()
-	jobClient, err := NewKubernetesJobClient(jobName, namespace)
+	jobClient, err := NewKubernetesJobClient(namespace)
 	if err != nil {
 		return nil, err
 	}
 	return KubernetesRunner{
 		jobClient: jobClient,
+		name: jobName,
 		jobSpec:   &jobSpec,
 	}, nil
 }
 
 type KubernetesJobClient struct {
 	Clientset *kubernetes.Clientset
-	JobName   string
 	Namespace string
 }
 
-func (k KubernetesJobClient) Get() (*batchv1.Job, error) {
-	return k.Clientset.BatchV1().Jobs(k.Namespace).Get(context.TODO(), k.JobName, metav1.GetOptions{})
+func (k KubernetesJobClient) Get(name string) (*batchv1.Job, error) {
+	return k.Clientset.BatchV1().Jobs(k.Namespace).Get(context.TODO(), name, metav1.GetOptions{})
 }
 
-func (k KubernetesJobClient) Watch() (watch.Interface, error) {
-	return k.Clientset.BatchV1().Jobs(k.Namespace).Watch(context.TODO(), metav1.ListOptions{FieldSelector: fmt.Sprintf("metadata.name=%s", k.JobName)})
+func (k KubernetesJobClient) Watch(name string) (watch.Interface, error) {
+	return k.Clientset.BatchV1().Jobs(k.Namespace).Watch(context.TODO(), metav1.ListOptions{FieldSelector: fmt.Sprintf("metadata.name=%s", name)})
 }
 
-func (k KubernetesJobClient) Create(jobSpec *batchv1.JobSpec) (*batchv1.Job, error) {
-	job := &batchv1.Job{ObjectMeta: metav1.ObjectMeta{Name: k.JobName, Namespace: k.Namespace}, Spec: *jobSpec}
-	return k.Clientset.BatchV1().Jobs(k.Namespace).Create(context.TODO(), job, metav1.CreateOptions{})
+func (k KubernetesJobClient) Create(name string, jobSpec *batchv1.JobSpec) error {
+	job := &batchv1.Job{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: k.Namespace}, Spec: *jobSpec}
+	if _, err := k.Clientset.BatchV1().Jobs(k.Namespace).Create(context.TODO(), job, metav1.CreateOptions{}); err != nil {
+		return err
+	}
+	return nil
 }
 
-func NewKubernetesJobClient(name string, namespace string) (*KubernetesJobClient, error) {
+func (k KubernetesJobClient) Schedule(name string, schedule string, jobSpec *batchv1.JobSpec) error {
+	cronJobSpec := batchv1.CronJobSpec{
+		Schedule: schedule,
+		JobTemplate: batchv1.JobTemplateSpec{
+			Spec: *jobSpec,
+		},
+	}
+	cronJob := &batchv1.CronJob{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: k.Namespace}, Spec: cronJobSpec}
+	_, err := k.Clientset.BatchV1().CronJobs(k.Namespace).Create(context.TODO(), cronJob, metav1.CreateOptions{})
+	return err
+}
+
+func NewKubernetesJobClient(namespace string) (*KubernetesJobClient, error) {
 	kubeConfig, err := rest.InClusterConfig()
 	if err != nil {
 		return nil, err
@@ -162,5 +192,5 @@ func NewKubernetesJobClient(name string, namespace string) (*KubernetesJobClient
 	if err != nil {
 		return nil, err
 	}
-	return &KubernetesJobClient{Clientset: clientset, JobName: name, Namespace: namespace}, nil
+	return &KubernetesJobClient{Clientset: clientset, Namespace: namespace}, nil
 }

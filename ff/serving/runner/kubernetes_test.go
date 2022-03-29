@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func NewMockKubernetesRunner(config KubernetesRunnerConfig) (Runner, error) {
+func NewMockKubernetesRunner(config KubernetesRunnerConfig) (CronRunner, error) {
 	jobSpec := newJobSpec(config)
 	jobName := uuid.New().String()
 	namespace := "default"
@@ -162,4 +162,25 @@ func TestPodFailure(t *testing.T) {
 		t.Fatalf("Failed to read failure job on Err()")
 	}
 	completionWatcher.String()
+}
+
+func TestScheduleJob(t *testing.T) {
+	//create jobrunner
+	//schedule it
+	//see get the scheduled job
+	//create another one
+	//list the scheduled jobs
+	//test all the cronjob.go functions for one of them
+	//delete the jobs
+	//check that they no longer exist
+
+	//use returned client and test get, delete, list
+	runner, err := NewMockKubernetesRunner(KubernetesRunnerConfig{envVars: map[string]string{"test": "envVar"}, image: "test", numTasks: 1})
+	if err != nil {
+		t.Fatalf("Failed to create Kubernetes runner")
+	}
+	_, err = runner.Schedule("* * * *")
+	if err != nil {
+		t.Fatalf("Failed to schedule kubernetes job")
+	}
 }

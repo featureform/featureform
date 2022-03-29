@@ -1,14 +1,32 @@
 package search
 
 import (
+	"os"
 	"testing"
 )
 
+func getPort() string {
+	if value, ok := os.LookupEnv("TYPESENSE_PORT"); ok {
+		return value
+	}
+	return "8108"
+}
+
+func getApikey() string {
+	if value, ok := os.LookupEnv("TYPESENSE_API_KEY"); ok {
+		return value
+	}
+	return "xyz"
+}
+
 func TestFullSearch(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	params := TypeSenseParams{
 		Host:   "localhost",
-		Port:   "8108",
-		ApiKey: "xyz",
+		Port:   getPort(),
+		ApiKey: getApikey(),
 	}
 	searcher, err := NewTypesenseSearch(&params)
 	if err != nil {
@@ -31,10 +49,13 @@ func TestFullSearch(t *testing.T) {
 }
 
 func TestCharacters(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	params := TypeSenseParams{
 		Host:   "localhost",
-		Port:   "8108",
-		ApiKey: "xyz",
+		Port:   getPort(),
+		ApiKey: getApikey(),
 	}
 	searcher, errSearcher := NewTypesenseSearch(&params)
 	if errSearcher != nil {
@@ -102,13 +123,19 @@ func TestCharacters(t *testing.T) {
 			t.Fatalf("Failed to return correct search for 'sonoma'")
 		}
 	}
+	if err := searcher.DeleteAll(); err != nil {
+		t.Fatalf("Failed to Delete %s", err)
+	}
 }
 
 func TestOrder(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	params := TypeSenseParams{
 		Host:   "localhost",
-		Port:   "8108",
-		ApiKey: "xyz",
+		Port:   getPort(),
+		ApiKey: getApikey(),
 	}
 	searcher, err := NewTypesenseSearch(&params)
 	if err != nil {
@@ -153,7 +180,11 @@ func TestOrder(t *testing.T) {
 	}
 	for i, hit := range results {
 		if hit.Name != names[i] {
-			t.Fatalf("Failed to return correct search")
+			t.Fatalf("Failed to return correct search\n"+
+				"Expected: %s, Got: %s\n", names[i], hit.Name)
 		}
+	}
+	if err := searcher.DeleteAll(); err != nil {
+		t.Fatalf("Failed to Delete %s", err)
 	}
 }

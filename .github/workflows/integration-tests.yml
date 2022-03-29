@@ -39,15 +39,12 @@ jobs:
       - uses: actions/upload-artifact@v3
         with:
           name: compiled-workdir
-          path: ./
+          path: ./ff/serving/
           retention-days: 1
 
   typesense:
     name: Typesense Integration Test
     needs: setup
-    defaults:
-      run:
-        working-directory: ./ff/serving
     runs-on: ubuntu-latest
     steps:
       - name: Download Working Compiled Directories
@@ -70,5 +67,5 @@ jobs:
           sleep 10
           curl http://localhost:8108/health
       - name: Integration Test
-        working-directory: ./ff/serving/metadata/search
+        working-directory: ./
         run: go test -v

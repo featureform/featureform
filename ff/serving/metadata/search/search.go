@@ -33,17 +33,19 @@ func NewTypesenseSearch(params *TypeSenseParams) (Searcher, error) {
 	// it stops attempting, otherwise uses a backoff delay and retries.
 	err := re.Do(
 		func() error {
-			_, errRetr := client.Collection("resource").Retrieve()
-			errHttp, isHttpErr := errRetr.(*typesense.HTTPError)
-			schemaNotFound := isHttpErr && errHttp.Status == 404
-			if schemaNotFound {
-				if err := makeSchema(client); err != nil {
-					return re.Unrecoverable(err)
+			if _, errRetr := client.Collection("resource").Retrieve(); errRetr != nil {
+				errHttp, isHttpErr := errRetr.(*typesense.HTTPError)
+				schemaNotFound := isHttpErr && errHttp.Status == 404
+				if schemaNotFound {
+					if err := makeSchema(client); err != nil {
+						return re.Unrecoverable(err)
+					}
+				} else {
+					fmt.Printf("could not connect to typesense. retrying...\n")
 				}
-			} else {
-				fmt.Printf("could not connect to typesense. retrying...\n")
+				return errRetr
 			}
-			return errRetr
+			return nil
 		},
 		re.DelayType(func(n uint, err error, config *re.Config) time.Duration {
 			return re.BackOffDelay(n, err, config)

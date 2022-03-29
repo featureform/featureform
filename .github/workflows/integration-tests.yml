@@ -44,6 +44,7 @@ jobs:
 
   typesense:
     name: Typesense Integration Test
+    needs: setup
     defaults:
       run:
         working-directory: ./ff/serving
@@ -63,7 +64,7 @@ jobs:
           mkdir /tmp/typesense-data
           docker run -d -p 8108:8108 -v/tmp/typesense-data:/data typesense/typesense:0.22.2 \
           --data-dir /data --api-key=$TYPESENSE_API_KEY --enable-cors
-          
+
       - name: Health Check
         run: |
           sleep 10

@@ -46,6 +46,9 @@ jobs:
     name: Typesense Integration Test
     needs: setup
     runs-on: ubuntu-latest
+    env:
+      TYPESENSE_PORT: "8108"
+      TYPESENSE_API_KEY: "xyz"
     steps:
       - name: Download Working Compiled Directories
         uses: actions/download-artifact@v3
@@ -60,9 +63,8 @@ jobs:
 
       - name: Start Typesense
         run: |
-          export TYPESENSE_API_KEY=xyz
           mkdir /tmp/typesense-data
-          docker run -d -p 8108:8108 -v/tmp/typesense-data:/data typesense/typesense:0.22.2 \
+          docker run -d -p $TYPESENSE_PORT:8108 -v/tmp/typesense-data:/data typesense/typesense:0.22.2 \
           --data-dir /data --api-key=$TYPESENSE_API_KEY --enable-cors
 
       - name: Integration Test

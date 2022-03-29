@@ -1,8 +1,23 @@
 package search
 
 import (
+	"os"
 	"testing"
 )
+
+func getPort() string {
+	if value, ok := os.LookupEnv("TYPESENSE_PORT"); ok {
+		return value
+	}
+	return "8108"
+}
+
+func getApikey() string {
+	if value, ok := os.LookupEnv("TYPESENSE_API_KEY"); ok {
+		return value
+	}
+	return "xyz"
+}
 
 func TestFullSearch(t *testing.T) {
 	if testing.Short() {
@@ -10,8 +25,8 @@ func TestFullSearch(t *testing.T) {
 	}
 	params := TypeSenseParams{
 		Host:   "localhost",
-		Port:   "8108",
-		ApiKey: "xyz",
+		Port:   getPort(),
+		ApiKey: getApikey(),
 	}
 	searcher, err := NewTypesenseSearch(&params)
 	if err != nil {
@@ -39,8 +54,8 @@ func TestCharacters(t *testing.T) {
 	}
 	params := TypeSenseParams{
 		Host:   "localhost",
-		Port:   "8108",
-		ApiKey: "xyz",
+		Port:   getPort(),
+		ApiKey: getApikey(),
 	}
 	searcher, errSearcher := NewTypesenseSearch(&params)
 	if errSearcher != nil {
@@ -119,8 +134,8 @@ func TestOrder(t *testing.T) {
 	}
 	params := TypeSenseParams{
 		Host:   "localhost",
-		Port:   "8108",
-		ApiKey: "xyz",
+		Port:   getPort(),
+		ApiKey: getApikey(),
 	}
 	searcher, err := NewTypesenseSearch(&params)
 	if err != nil {

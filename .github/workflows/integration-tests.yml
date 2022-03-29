@@ -2,15 +2,14 @@ name: Integration Testing
 on: pull_request
 
 jobs:
-  typesense:
-    name: Typesense Integration Test
+  setup:
+    name: Setup Integration Test Dependencies
     defaults:
       run:
         working-directory: ./ff/serving
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-
       - name: Merge Into Target Branch
         run: |
           git fetch
@@ -19,6 +18,7 @@ jobs:
           git checkout ${{ github.base_ref }}
           git pull
           git merge ${{ github.head_ref }}
+
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
@@ -36,6 +36,24 @@ jobs:
       - name: Build
         run: go build
 
+      - uses: actions/upload-artifact@v3
+        with:
+          name: compiled-workdir
+          path: ./
+          retention-days: 1
+
+  typesense:
+    name: Typesense Integration Test
+    defaults:
+      run:
+        working-directory: ./ff/serving
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Working Compiled Directories
+        uses: actions/download-artifact@v3
+        with:
+          name: compiled-workdir
+
       - name: Install Typesense Container
         run: docker pull typesense/typesense:0.22.2
 
@@ -45,6 +63,7 @@ jobs:
           mkdir /tmp/typesense-data
           docker run -d -p 8108:8108 -v/tmp/typesense-data:/data typesense/typesense:0.22.2 \
           --data-dir /data --api-key=$TYPESENSE_API_KEY --enable-cors
+          
       - name: Health Check
         run: |
           sleep 10

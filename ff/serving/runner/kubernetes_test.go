@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func NewMockKubernetesRunner(config KubernetesRunnerConfig) (Runner, error) {
+func NewMockKubernetesRunner(config KubernetesRunnerConfig) (CronRunner, error) {
 	jobSpec := newJobSpec(config)
 	jobName := uuid.New().String()
 	namespace := "default"
@@ -37,6 +37,10 @@ func (m MockJobClient) Watch() (watch.Interface, error) {
 
 func (m MockJobClient) Create(jobSpec *batchv1.JobSpec) (*batchv1.Job, error) {
 	return &batchv1.Job{}, nil
+}
+
+func (m MockJobClient) Schedule(schedule string, jobSpec *batchv1.JobSpec) error {
+	return nil
 }
 func TestKubernetesRunnerCreate(t *testing.T) {
 	runner, err := NewMockKubernetesRunner(KubernetesRunnerConfig{envVars: map[string]string{"test": "envVar"}, image: "test", numTasks: 1})
@@ -73,6 +77,10 @@ func (m MockJobClientBroken) Watch() (watch.Interface, error) {
 	return nil, errors.New("cannot get watcher")
 }
 
+func (m MockJobClientBroken) Schedule(schedule string, jobSpec *batchv1.JobSpec) error {
+	return errors.New("cannot schedule job")
+}
+
 func TestJobClientCreateFail(t *testing.T) {
 	runner := KubernetesRunner{
 		jobClient: MockJobClientBroken{},
@@ -95,6 +103,10 @@ func (m MockJobClientRunBroken) Get() (*batchv1.Job, error) {
 
 func (m MockJobClientRunBroken) Watch() (watch.Interface, error) {
 	return nil, errors.New("cannot get watcher")
+}
+
+func (m MockJobClientRunBroken) Schedule(schedule string, jobSpec *batchv1.JobSpec) error {
+	return errors.New("cannot schedule job")
 }
 
 func TestJobClientRunFail(t *testing.T) {
@@ -143,6 +155,10 @@ func (m MockJobClientFailChannel) Watch() (watch.Interface, error) {
 	return MockWatch{}, nil
 }
 
+func (m MockJobClientFailChannel) Schedule(schedule string, jobSpec *batchv1.JobSpec) error {
+	return errors.New("cannot schedule job")
+}
+
 func TestPodFailure(t *testing.T) {
 	runner := KubernetesRunner{
 		jobClient: MockJobClientFailChannel{},
@@ -162,4 +178,24 @@ func TestPodFailure(t *testing.T) {
 		t.Fatalf("Failed to read failure job on Err()")
 	}
 	completionWatcher.String()
+}
+
+func TestKubernetesRunnerSchedule(t *testing.T) {
+	runner, err := NewMockKubernetesRunner(KubernetesRunnerConfig{envVars: map[string]string{"test": "envVar"}, image: "test", numTasks: 1})
+	if err != nil {
+		t.Fatalf("Failed to create Kubernetes runner")
+	}
+	if err = runner.Schedule("* * * * *"); err != nil {
+		t.Fatalf("Failed to schedule kubernetes job")
+	}
+}
+
+func TestKubernetesRunnerScheduleFail(t *testing.T) {
+	runner := KubernetesRunner{
+		jobClient: MockJobClientBroken{},
+		jobSpec:   &batchv1.JobSpec{},
+	}
+	if err := runner.Schedule("* * * * *"); err == nil {
+		t.Fatalf("Failed to report error scheduling Kubernetes job")
+	}
 }

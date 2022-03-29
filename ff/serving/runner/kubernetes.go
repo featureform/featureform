@@ -14,6 +14,11 @@ import (
 
 var namespace string = "default"
 
+type CronRunner interface {
+	Runner
+	Schedule(schedule string) error
+}
+
 func generateKubernetesEnvVars(envVars map[string]string) []v1.EnvVar {
 	kubeEnvVars := make([]v1.EnvVar, len(envVars))
 	i := 0
@@ -58,6 +63,7 @@ type JobClient interface {
 	Get() (*batchv1.Job, error)
 	Watch() (watch.Interface, error)
 	Create(jobSpec *batchv1.JobSpec) (*batchv1.Job, error)
+	Schedule(schedule string, jobSpec *batchv1.JobSpec) error
 }
 
 type KubernetesRunner struct {
@@ -121,7 +127,14 @@ func (k KubernetesRunner) Run() (CompletionWatcher, error) {
 	return KubernetesCompletionWatcher{jobClient: k.jobClient}, nil
 }
 
-func NewKubernetesRunner(config KubernetesRunnerConfig) (Runner, error) {
+func (k KubernetesRunner) Schedule(schedule string) error {
+	if err := k.jobClient.Schedule(schedule, k.jobSpec); err != nil {
+		return err
+	}
+	return nil
+}
+
+func NewKubernetesRunner(config KubernetesRunnerConfig) (CronRunner, error) {
 	jobSpec := newJobSpec(config)
 	jobName := uuid.New().String()
 	jobClient, err := NewKubernetesJobClient(jobName, namespace)
@@ -151,6 +164,14 @@ func (k KubernetesJobClient) Watch() (watch.Interface, error) {
 func (k KubernetesJobClient) Create(jobSpec *batchv1.JobSpec) (*batchv1.Job, error) {
 	job := &batchv1.Job{ObjectMeta: metav1.ObjectMeta{Name: k.JobName, Namespace: k.Namespace}, Spec: *jobSpec}
 	return k.Clientset.BatchV1().Jobs(k.Namespace).Create(context.TODO(), job, metav1.CreateOptions{})
+}
+
+func (k KubernetesJobClient) Schedule(schedule string, jobSpec *batchv1.JobSpec) error {
+	cronJob := &batchv1.CronJob{ObjectMeta: metav1.ObjectMeta{Name: k.JobName, Namespace: k.Namespace}, Spec: batchv1.CronJobSpec{Schedule: schedule, JobTemplate: batchv1.JobTemplateSpec{Spec: *jobSpec}}}
+	if _, err := k.Clientset.BatchV1().CronJobs(k.Namespace).Create(context.TODO(), cronJob, metav1.CreateOptions{}); err != nil {
+		return err
+	}
+	return nil
 }
 
 func NewKubernetesJobClient(name string, namespace string) (*KubernetesJobClient, error) {

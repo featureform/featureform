@@ -52,6 +52,9 @@ jobs:
         with:
           name: compiled-workdir
 
+      # Installing Typesense manually b/c the base container uses input arguments that
+      # Github Actions currently doesn't support (e.g. --data-dir, --api-key, --enable-cores).
+      # Can create a custom Typesense container in the future if desired
       - name: Install Typesense Container
         run: docker pull typesense/typesense:0.22.2
 
@@ -62,10 +65,6 @@ jobs:
           docker run -d -p 8108:8108 -v/tmp/typesense-data:/data typesense/typesense:0.22.2 \
           --data-dir /data --api-key=$TYPESENSE_API_KEY --enable-cors
 
-      - name: Health Check
-        run: |
-          sleep 10
-          curl http://localhost:8108/health
       - name: Integration Test
         working-directory: ./
         run: go test -v

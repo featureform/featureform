@@ -40,7 +40,10 @@ type OfflineStore interface {
 type ResourceRecord struct {
 	Entity string
 	Value  interface{}
-	TS     time.Time
+	// Defaults to 00:00 on 01-01-0001, technically if a user sets a time
+	// in a BC year for some reason, our default time would not be the
+	// earliest time in the feature store.
+	TS time.Time
 }
 
 func (rec ResourceRecord) Check() error {
@@ -108,6 +111,13 @@ func (table *memoryOfflineTable) Write(rec ResourceRecord) error {
 		return err
 	}
 	if recs, has := table.entityMap[rec.Entity]; has {
+		// Replace any record with the same timestamp/entity pair.
+		for i, existingRec := range recs {
+			if existingRec.TS == rec.TS {
+				recs[i] = rec
+				return nil
+			}
+		}
 		table.entityMap[rec.Entity] = append(recs, rec)
 	} else {
 		table.entityMap[rec.Entity] = []ResourceRecord{rec}

@@ -7,20 +7,10 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
-const LocalOnline Type = "LOCAL_ONLINE"
-const RedisOnline Type = "REDIS_ONLINE"
-
-func init() {
-	unregisteredFactories := map[Type]Factory{
-		LocalOnline: localOnlineStoreFactory,
-		RedisOnline: redisOnlineStoreFactory,
-	}
-	for name, factory := range unregisteredFactories {
-		if err := RegisterFactory(name, factory); err != nil {
-			panic(err)
-		}
-	}
-}
+const (
+	LocalOnline Type = "LOCAL_ONLINE"
+	RedisOnline      = "REDIS_ONLINE"
+)
 
 var ctx = context.Background()
 
@@ -39,7 +29,7 @@ type TableNotFound struct {
 }
 
 func (err *TableNotFound) Error() string {
-	return fmt.Sprintf("Feature %s Variant %s not found.", err.Feature, err.Variant)
+	return fmt.Sprintf("Table %s Variant %s not found.", err.Feature, err.Variant)
 }
 
 type TableAlreadyExists struct {
@@ -47,7 +37,7 @@ type TableAlreadyExists struct {
 }
 
 func (err *TableAlreadyExists) Error() string {
-	return fmt.Sprintf("Feature %s Variant %s already exists.", err.Feature, err.Variant)
+	return fmt.Sprintf("Table %s Variant %s already exists.", err.Feature, err.Variant)
 }
 
 type EntityNotFound struct {
@@ -77,11 +67,13 @@ func localOnlineStoreFactory(SerializedConfig) (Provider, error) {
 
 type localOnlineStore struct {
 	tables map[tableKey]localOnlineTable
+	BaseProvider
 }
 
 type redisOnlineStore struct {
 	client *redis.Client
 	prefix string
+	BaseProvider
 }
 
 func NewLocalOnlineStore() *localOnlineStore {

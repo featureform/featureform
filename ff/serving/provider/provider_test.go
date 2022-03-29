@@ -41,3 +41,17 @@ func TestFactoryDoesntExists(t *testing.T) {
 		t.Fatalf("Succeeded in getting unregistered provider: %v", provider)
 	}
 }
+
+func TestBaseProvider(t *testing.T) {
+	type MockProvider struct {
+		BaseProvider
+	}
+
+	var mock Provider = &MockProvider{}
+	if _, err := mock.AsOnlineStore(); err == nil {
+		t.Fatalf("BaseProvider succeeded in OnlineStore cast")
+	}
+	if _, err := mock.AsOfflineStore(); err == nil {
+		t.Fatalf("BaseProvider succeeded in OfflineStore cast")
+	}
+}

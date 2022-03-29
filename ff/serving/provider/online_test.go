@@ -59,9 +59,12 @@ func TestOnlineStores(t *testing.T) {
 	}
 }
 
+func randomFeatureVariant() (string, string) {
+	return uuid.NewString(), uuid.NewString()
+}
+
 func testCreateGetTable(t *testing.T, store OnlineStore) {
-	randomPrefix := uuid.NewString()
-	mockFeature, mockVariant := fmt.Sprintf("%s__f", randomPrefix), "v"
+	mockFeature, mockVariant := randomFeatureVariant()
 	if tab, err := store.CreateTable(mockFeature, mockVariant); tab == nil || err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
@@ -71,8 +74,7 @@ func testCreateGetTable(t *testing.T, store OnlineStore) {
 }
 
 func testTableAlreadyExists(t *testing.T, store OnlineStore) {
-	randomPrefix := uuid.NewString()
-	mockFeature, mockVariant := fmt.Sprintf("%s__f", randomPrefix), "v"
+	mockFeature, mockVariant := randomFeatureVariant()
 	if _, err := store.CreateTable(mockFeature, mockVariant); err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
@@ -86,8 +88,7 @@ func testTableAlreadyExists(t *testing.T, store OnlineStore) {
 }
 
 func testTableNotFound(t *testing.T, store OnlineStore) {
-	randomPrefix := uuid.NewString()
-	mockFeature, mockVariant := fmt.Sprintf("%s__f", randomPrefix), "v"
+	mockFeature, mockVariant := randomFeatureVariant()
 	if _, err := store.GetTable(mockFeature, mockVariant); err == nil {
 		t.Fatalf("Succeeded in getting non-existant table")
 	} else if casted, valid := err.(*TableNotFound); !valid {
@@ -98,8 +99,7 @@ func testTableNotFound(t *testing.T, store OnlineStore) {
 }
 
 func testSetGetEntity(t *testing.T, store OnlineStore) {
-	randomPrefix := uuid.NewString()
-	mockFeature, mockVariant := fmt.Sprintf("%s__f", randomPrefix), "v"
+	mockFeature, mockVariant := randomFeatureVariant()
 	entity, val := "e", "val"
 	tab, err := store.CreateTable(mockFeature, mockVariant)
 	if err != nil {
@@ -118,8 +118,7 @@ func testSetGetEntity(t *testing.T, store OnlineStore) {
 }
 
 func testEntityNotFound(t *testing.T, store OnlineStore) {
-	randomPrefix := uuid.NewString()
-	mockFeature, mockVariant := fmt.Sprintf("%s__f", randomPrefix), "v"
+	mockFeature, mockVariant := uuid.NewString(), "v"
 	entity := "e"
 	tab, err := store.CreateTable(mockFeature, mockVariant)
 	if err != nil {

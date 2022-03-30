@@ -2,8 +2,8 @@ package worker
 
 import (
 	"errors"
-	"testing"
 	runner "github.com/featureform/serving/runner"
+	"testing"
 )
 
 type MockRunner struct{}

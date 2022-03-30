@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/alicebob/miniredis"
 	"github.com/google/uuid"
+	"os"
 	"reflect"
 	"testing"
 )
@@ -30,8 +31,10 @@ func TestOnlineStores(t *testing.T) {
 	redisMockConfig := &RedisConfig{
 		Addr: mockRedisAddr,
 	}
+	redisPort := os.Getenv("REDIS_PORT")
+	liveAddr := fmt.Sprintf("%s:%s", "localhost", redisPort)
 	redisLiveConfig := &RedisConfig{
-		Addr: "localhost:6379",
+		Addr: liveAddr,
 	}
 	testList := []struct {
 		t               Type

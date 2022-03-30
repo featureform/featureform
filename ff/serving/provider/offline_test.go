@@ -52,34 +52,24 @@ func TestOfflineStores(t *testing.T) {
 	}
 }
 
-func randomResourceID() ResourceID {
-	possibleTypes := []OfflineResourceType{Label, Feature}
-	randType := possibleTypes[rand.Intn(2)]
-	return ResourceID{
-		Name:    uuid.NewString(),
-		Variant: uuid.NewString(),
-		Type:    randType,
+func randomID(types ...OfflineResourceType) ResourceID {
+	var t OfflineResourceType
+	if len(types) == 0 {
+		t = NoType
+	} else if len(types) == 1 {
+		t = types[0]
+	} else {
+		t = types[rand.Intn(len(types))]
 	}
-}
-
-func randomFeatureID() ResourceID {
 	return ResourceID{
 		Name:    uuid.NewString(),
 		Variant: uuid.NewString(),
-		Type:    Feature,
-	}
-}
-
-func randomLabelID() ResourceID {
-	return ResourceID{
-		Name:    uuid.NewString(),
-		Variant: uuid.NewString(),
-		Type:    Label,
+		Type:    t,
 	}
 }
 
 func testCreateGetOfflineTable(t *testing.T, store OfflineStore) {
-	id := randomResourceID()
+	id := randomID(Feature, Label)
 	if tab, err := store.CreateResourceTable(id); tab == nil || err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
@@ -89,7 +79,7 @@ func testCreateGetOfflineTable(t *testing.T, store OfflineStore) {
 }
 
 func testOfflineTableAlreadyExists(t *testing.T, store OfflineStore) {
-	id := randomResourceID()
+	id := randomID(Feature, Label)
 	if _, err := store.CreateResourceTable(id); err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
@@ -103,7 +93,7 @@ func testOfflineTableAlreadyExists(t *testing.T, store OfflineStore) {
 }
 
 func testOfflineTableNotFound(t *testing.T, store OfflineStore) {
-	id := randomResourceID()
+	id := randomID(Feature, Label)
 	if _, err := store.GetResourceTable(id); err == nil {
 		t.Fatalf("Succeeded in getting non-existant table")
 	} else if casted, valid := err.(*TableNotFound); !valid {
@@ -251,7 +241,7 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 		}
 	}
 	runTestCase := func(t *testing.T, test TestCase) {
-		id := randomFeatureID()
+		id := randomID(Feature)
 		table, err := store.CreateResourceTable(id)
 		if err != nil {
 			t.Fatalf("Failed to create table: %s", err)
@@ -280,7 +270,7 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 }
 
 func testWriteInvalidResourceRecord(t *testing.T, store OfflineStore) {
-	id := randomFeatureID()
+	id := randomID(Feature)
 	table, err := store.CreateResourceTable(id)
 	if err != nil {
 		t.Fatalf("Failed to create table: %s", err)
@@ -291,7 +281,7 @@ func testWriteInvalidResourceRecord(t *testing.T, store OfflineStore) {
 }
 
 func testInvalidMaterialization(t *testing.T, store OfflineStore) {
-	id := randomLabelID()
+	id := randomID(Label)
 	if _, err := store.CreateResourceTable(id); err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
@@ -301,7 +291,7 @@ func testInvalidMaterialization(t *testing.T, store OfflineStore) {
 }
 
 func testMaterializeUnknown(t *testing.T, store OfflineStore) {
-	id := randomFeatureID()
+	id := randomID(Feature)
 	if _, err := store.CreateMaterialization(id); err == nil {
 		t.Fatalf("Succeeded in materializing uninitialized resource")
 	}

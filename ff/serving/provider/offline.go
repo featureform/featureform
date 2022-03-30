@@ -139,7 +139,7 @@ func (recs materializedRecords) Swap(i, j int) {
 
 func (store *memoryOfflineStore) CreateMaterialization(id ResourceID) (Materialization, error) {
 	if id.Type != Feature {
-		return nil, errors.New("Only features can be materialized")
+		return nil, errors.New("only features can be materialized")
 	}
 	table, err := store.getMemoryResourceTable(id)
 	if err != nil {

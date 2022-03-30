@@ -22,6 +22,7 @@ func TestOfflineStores(t *testing.T) {
 		"InvalidMaterialization":  testInvalidMaterialization,
 		"MaterializeUnknown":      testMaterializeUnknown,
 		"MaterializationNotFound": testMaterializationNotFound,
+		"TrainingSets":            testTrainingSet,
 	}
 	testList := []struct {
 		t               Type
@@ -321,5 +322,146 @@ func testInvalidResourceIDs(t *testing.T, store OfflineStore) {
 		if _, err := store.CreateResourceTable(id); err == nil {
 			t.Fatalf("Succeeded in creating invalid ResourceID: %v", id)
 		}
+	}
+}
+
+func testTrainingSet(t *testing.T, store OfflineStore) {
+	type expectedTrainingRow struct {
+		Features []interface{}
+		Label    interface{}
+	}
+	type TestCase struct {
+		FeatureRecords [][]ResourceRecord
+		LabelRecords   []ResourceRecord
+		ExpectedRows   []expectedTrainingRow
+	}
+	tests := map[string]TestCase{
+		"Empty": {
+			FeatureRecords: [][]ResourceRecord{
+				// One feature with no records.
+				{},
+			},
+			LabelRecords: []ResourceRecord{},
+			// No rows expected
+			ExpectedRows: []expectedTrainingRow{},
+		},
+		"SimpleJoin": {
+			FeatureRecords: [][]ResourceRecord{
+				{
+					{Entity: "a", Value: 1},
+					{Entity: "b", Value: 2},
+					{Entity: "c", Value: 3},
+				},
+				{
+					{Entity: "a", Value: "red"},
+					{Entity: "b", Value: "green"},
+					{Entity: "c", Value: "blue"},
+				},
+			},
+			LabelRecords: []ResourceRecord{
+				{Entity: "a", Value: true},
+				{Entity: "b", Value: false},
+				{Entity: "c", Value: true},
+			},
+			ExpectedRows: []expectedTrainingRow{
+				{
+					Features: []interface{}{
+						1,
+						"red",
+					},
+					Label: true,
+				},
+				{
+					Features: []interface{}{
+						2,
+						"green",
+					},
+					Label: false,
+				},
+				{
+					Features: []interface{}{
+						3,
+						"blue",
+					},
+					Label: true,
+				},
+			},
+		},
+	}
+	runTestCase := func(t *testing.T, test TestCase) {
+		featureIDs := make([]ResourceID, len(test.FeatureRecords))
+		for i, recs := range test.FeatureRecords {
+			id := randomID(Feature)
+			featureIDs[i] = id
+			table, err := store.CreateResourceTable(id)
+			if err != nil {
+				t.Fatalf("Failed to create table: %s", err)
+			}
+			for _, rec := range recs {
+				if err := table.Write(rec); err != nil {
+					t.Fatalf("Failed to write record %v", rec)
+				}
+			}
+		}
+		labelID := randomID(Label)
+		labelTable, err := store.CreateResourceTable(labelID)
+		if err != nil {
+			t.Fatalf("Failed to create table: %s", err)
+		}
+		for _, rec := range test.LabelRecords {
+			if err := labelTable.Write(rec); err != nil {
+				t.Fatalf("Failed to write record %v", rec)
+			}
+		}
+		def := TrainingSetDef{
+			ID:       randomID(TrainingSet),
+			Label:    labelID,
+			Features: featureIDs,
+		}
+		if err := store.CreateTrainingSet(def); err != nil {
+			t.Fatalf("Failed to create training set: %s", err)
+		}
+		iter, err := store.GetTrainingSet(def.ID)
+		if err != nil {
+			t.Fatalf("Failed to get training set: %s", err)
+		}
+		i := 0
+		expectedRows := test.ExpectedRows
+		for iter.Next() {
+			realRow := expectedTrainingRow{
+				Features: iter.Features(),
+				Label:    iter.Label(),
+			}
+			// Row order isn't guaranteed, we make sure one row is equivalent
+			// then we delete that row. This is ineffecient, but these test
+			// cases should all be small enough not to matter.
+			found := false
+			for i, expRow := range expectedRows {
+				if reflect.DeepEqual(realRow, expRow) {
+					found = true
+					lastIdx := len(expectedRows) - 1
+					// Swap the record that we've found to the end, then shrink the slice to not include it.
+					// This is essentially a delete operation expect that it re-orders the slice.
+					expectedRows[i], expectedRows[lastIdx] = expectedRows[lastIdx], expectedRows[i]
+					expectedRows = expectedRows[:lastIdx]
+					break
+				}
+			}
+			if !found {
+				t.Fatalf("Unexpected training row: %v", realRow)
+			}
+			i++
+		}
+		if err := iter.Err(); err != nil {
+			t.Fatalf("Failed to iterate training set: %s", err)
+		}
+		if len(test.ExpectedRows) != i {
+			t.Fatalf("Training set has different number of rows %d %d", len(test.ExpectedRows), i)
+		}
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			runTestCase(t, test)
+		})
 	}
 }

@@ -27,19 +27,17 @@ type ResourceID struct {
 	Type          OfflineResourceType
 }
 
-func (id *ResourceID) Check(expectedType ...OfflineResourceType) error {
+func (id *ResourceID) Check(expectedType OfflineResourceType, otherTypes ...OfflineResourceType) error {
 	if id.Name == "" {
 		return errors.New("ResourceID must have Name set")
 	}
-	if len(expectedType) == 0 {
-		return nil
-	}
 	// If there is one expected type, we will default to it.
-	if id.Type == NoType && len(expectedType) == 1 {
-		id.Type = expectedType[0]
+	if id.Type == NoType && len(otherTypes) == 0 {
+		id.Type = expectedType
 		return nil
 	}
-	for _, t := range expectedType {
+	possibleTypes := append(otherTypes, expectedType)
+	for _, t := range possibleTypes {
 		if id.Type == t {
 			return nil
 		}

@@ -71,8 +71,8 @@ jobs:
         working-directory: ./metadata/search
         run: go test -v
 
-  redis_online_store:
-    name: Typesense Integration Test
+  provider:
+    name: Provider Integration Tests
     needs: setup
     runs-on: ubuntu-latest
     env:
@@ -89,6 +89,6 @@ jobs:
         with:
           name: compiled-workdir
 
-      - name: Provider Integration Test
+      - name: Integration Test
         working-directory: ./metadata/search/provider
         run: go test -v

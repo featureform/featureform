@@ -98,5 +98,5 @@ jobs:
           name: compiled-workdir
 
       - name: Integration Test
-        working-directory: ./metadata/search/provider
+        working-directory: ./provider
         run: go test -v

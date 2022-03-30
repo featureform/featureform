@@ -185,7 +185,8 @@ func TestKubernetesRunnerSchedule(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create Kubernetes runner")
 	}
-	if err = runner.Schedule("* * * * *"); err != nil {
+	schedule := Schedule{"* * * * *"}
+	if err = runner.Schedule(schedule); err != nil {
 		t.Fatalf("Failed to schedule kubernetes job")
 	}
 }
@@ -195,7 +196,8 @@ func TestKubernetesRunnerScheduleFail(t *testing.T) {
 		jobClient: MockJobClientBroken{},
 		jobSpec:   &batchv1.JobSpec{},
 	}
-	if err := runner.Schedule("* * * * *"); err == nil {
+	schedule := Schedule{"* * * * *"}
+	if err := runner.Schedule(schedule); err == nil {
 		t.Fatalf("Failed to report error scheduling Kubernetes job")
 	}
 }

@@ -14,9 +14,13 @@ import (
 
 var namespace string = "default"
 
+type Schedule struct {
+	spec string
+}
+
 type CronRunner interface {
 	Runner
-	Schedule(schedule string) error
+	Schedule(schedule Schedule) error
 }
 
 func generateKubernetesEnvVars(envVars map[string]string) []v1.EnvVar {
@@ -127,8 +131,8 @@ func (k KubernetesRunner) Run() (CompletionWatcher, error) {
 	return KubernetesCompletionWatcher{jobClient: k.jobClient}, nil
 }
 
-func (k KubernetesRunner) Schedule(schedule string) error {
-	if err := k.jobClient.Schedule(schedule, k.jobSpec); err != nil {
+func (k KubernetesRunner) Schedule(schedule Schedule) error {
+	if err := k.jobClient.Schedule(schedule.spec, k.jobSpec); err != nil {
 		return err
 	}
 	return nil

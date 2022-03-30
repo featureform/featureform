@@ -255,7 +255,7 @@ func (store *memoryOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
 	if err != nil {
 		return err
 	}
-	features := make([]*memoryOfflineTable, 0, len(def.Features))
+	features := make([]*memoryOfflineTable, len(def.Features))
 	for i, id := range def.Features {
 		feature, err := store.getMemoryResourceTable(id)
 		if err != nil {
@@ -368,6 +368,7 @@ func (table *memoryOfflineTable) getLastValueBefore(entity string, ts time.Time)
 	}
 	sortedRecs := ResourceRecords(recs)
 	sort.Sort(sortedRecs)
+	lastIdx := len(sortedRecs) - 1
 	for i, rec := range sortedRecs {
 		if rec.TS.After(ts) {
 			// Entity was not yet set at timestamp.
@@ -375,9 +376,12 @@ func (table *memoryOfflineTable) getLastValueBefore(entity string, ts time.Time)
 				return ResourceRecord{Entity: entity, Value: nil}
 			}
 			return sortedRecs[i-1]
+		} else if i == lastIdx {
+			// Every record happened before the label.
+			return rec
 		}
 	}
-	panic("Unable to getLabelValue before timestamp")
+	panic("Unable to getLastValue before timestamp")
 }
 
 func (table *memoryOfflineTable) Write(rec ResourceRecord) error {

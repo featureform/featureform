@@ -246,8 +246,7 @@ func newMemoryFeatureIterator(recs []ResourceRecord) FeatureIterator {
 }
 
 func (iter *memoryFeatureIterator) Next() bool {
-	isLastIdx := iter.idx == int64(len(iter.data)-1)
-	if isLastIdx {
+	if isLastIdx := iter.idx == int64(len(iter.data)-1); isLastIdx {
 		return false
 	}
 	iter.idx++

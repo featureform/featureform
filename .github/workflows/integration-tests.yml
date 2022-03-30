@@ -1,6 +1,12 @@
 name: Integration Testing
 on: pull_request
 
+env:
+  TYPESENSE_PORT: 8108
+  TYPESENSE_API_KEY: "xyz"
+  REDIS_PORT: 6379
+
+
 jobs:
   setup:
     name: Setup Integration Test Dependencies
@@ -52,9 +58,6 @@ jobs:
     name: Typesense Integration Test
     needs: setup
     runs-on: ubuntu-latest
-    env:
-      TYPESENSE_PORT: "8108"
-      TYPESENSE_API_KEY: "xyz"
     steps:
       - name: Download Working Compiled Directories
         uses: actions/download-artifact@v3
@@ -81,8 +84,6 @@ jobs:
     name: Provider Integration Tests
     needs: setup
     runs-on: ubuntu-latest
-    env:
-      REDIS_PORT: 6379
     services:
       redis:
         image: redis

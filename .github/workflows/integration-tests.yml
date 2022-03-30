@@ -87,7 +87,7 @@ jobs:
       redis:
         image: redis
         ports:
-          - $REDIS_PORT:6379
+          - ${{ REDIS_PORT }}:6379
 
     steps:
       - name: Download Working Compiled Directories

@@ -4,6 +4,7 @@ on: pull_request
 env:
   TYPESENSE_PORT: 8108
   TYPESENSE_API_KEY: "xyz"
+  REDIS_PORT: 6379
 
 
 jobs:

@@ -70,3 +70,18 @@ jobs:
       - name: Integration Test
         working-directory: ./metadata/search
         run: go test -v
+
+  redis_online_store:
+    name: Typesense Integration Test
+    needs: setup
+    runs-on: ubuntu-latest
+    services:
+
+    env:
+      TYPESENSE_PORT: "8108"
+      TYPESENSE_API_KEY: "xyz"
+    steps:
+      - name: Download Working Compiled Directories
+        uses: actions/download-artifact@v3
+        with:
+          name: compiled-workdir

@@ -23,11 +23,15 @@ func TestOnlineStores(t *testing.T) {
 		"SetGetEntity":       testSetGetEntity,
 		"EntityNotFound":     testEntityNotFound,
 	}
+
 	miniRedis := mockRedis()
 	defer miniRedis.Close()
 	mockRedisAddr := miniRedis.Addr()
 	redisMockConfig := &RedisConfig{
 		Addr: mockRedisAddr,
+	}
+	redisLiveConfig := &RedisConfig{
+		Addr: "localhost:6379",
 	}
 	testList := []struct {
 		t               Type
@@ -36,6 +40,7 @@ func TestOnlineStores(t *testing.T) {
 	}{
 		{LocalOnline, []byte{}, false},
 		{RedisOnline, redisMockConfig.Serialized(), false},
+		{RedisOnline, redisLiveConfig.Serialized(), true},
 	}
 	for _, testItem := range testList {
 		if testing.Short() && testItem.integrationTest {
@@ -51,7 +56,13 @@ func TestOnlineStores(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to use provider %s as OfflineStore: %s", testItem.t, err)
 			}
-			testName := fmt.Sprintf("%s_%s", testItem.t, name)
+			var prefix string
+			if testItem.integrationTest {
+				prefix = "INTEGRATION"
+			} else {
+				prefix = "UNIT"
+			}
+			testName := fmt.Sprintf("%s_%s_%s", testItem.t, prefix, name)
 			t.Run(testName, func(t *testing.T) {
 				fn(t, store)
 			})

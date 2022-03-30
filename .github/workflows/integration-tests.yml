@@ -4,7 +4,6 @@ on: pull_request
 env:
   TYPESENSE_PORT: 8108
   TYPESENSE_API_KEY: "xyz"
-  REDIS_PORT: 6379
 
 
 jobs:
@@ -87,8 +86,10 @@ jobs:
     services:
       redis:
         image: redis
+        # Hard coded port because environment variables not currently
+        # supported for use outside of 'steps'
         ports:
-          - ${{ env.REDIS_PORT }}:6379
+          -  6379:6379
 
     steps:
       - name: Download Working Compiled Directories

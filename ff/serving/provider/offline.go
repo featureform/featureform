@@ -27,7 +27,7 @@ type ResourceID struct {
 	Type          OfflineResourceType
 }
 
-func (id *ResourceID) Check(expectedType OfflineResourceType, otherTypes ...OfflineResourceType) error {
+func (id *ResourceID) check(expectedType OfflineResourceType, otherTypes ...OfflineResourceType) error {
 	if id.Name == "" {
 		return errors.New("ResourceID must have Name set")
 	}
@@ -51,18 +51,18 @@ type TrainingSetDef struct {
 	Features []ResourceID
 }
 
-func (def *TrainingSetDef) Check() error {
-	if err := def.ID.Check(TrainingSet); err != nil {
+func (def *TrainingSetDef) check() error {
+	if err := def.ID.check(TrainingSet); err != nil {
 		return err
 	}
-	if err := def.Label.Check(Label); err != nil {
+	if err := def.Label.check(Label); err != nil {
 		return err
 	}
 	if len(def.Features) == 0 {
 		return errors.New("training set must have atleast one feature")
 	}
 	for _, feature := range def.Features {
-		if err := feature.Check(Feature); err != nil {
+		if err := feature.check(Feature); err != nil {
 			return err
 		}
 	}
@@ -123,7 +123,7 @@ type ResourceRecord struct {
 	TS time.Time
 }
 
-func (rec ResourceRecord) Check() error {
+func (rec ResourceRecord) check() error {
 	if rec.Entity == "" {
 		return errors.New("ResourceRecord must have Entity set.")
 	}
@@ -158,7 +158,7 @@ func (store *memoryOfflineStore) AsOfflineStore() (OfflineStore, error) {
 }
 
 func (store *memoryOfflineStore) CreateResourceTable(id ResourceID) (OfflineTable, error) {
-	if err := id.Check(Feature, Label); err != nil {
+	if err := id.check(Feature, Label); err != nil {
 		return nil, err
 	}
 	if _, has := store.tables[id]; has {
@@ -246,7 +246,7 @@ func latestRecord(recs []ResourceRecord) ResourceRecord {
 }
 
 func (store *memoryOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
-	if err := def.Check(); err != nil {
+	if err := def.check(); err != nil {
 		return err
 	}
 	label, err := store.getMemoryResourceTable(def.Label)
@@ -279,7 +279,7 @@ func (store *memoryOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
 }
 
 func (store *memoryOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
-	if err := id.Check(TrainingSet); err != nil {
+	if err := id.check(TrainingSet); err != nil {
 		return nil, err
 	}
 	data, has := store.trainingSets[id]
@@ -383,7 +383,7 @@ func (table *memoryOfflineTable) getLastValueBefore(entity string, ts time.Time)
 }
 
 func (table *memoryOfflineTable) Write(rec ResourceRecord) error {
-	if err := rec.Check(); err != nil {
+	if err := rec.check(); err != nil {
 		return err
 	}
 	if recs, has := table.entityMap[rec.Entity]; has {

@@ -361,10 +361,10 @@ func (table *memoryOfflineTable) records() []ResourceRecord {
 	return allRecs
 }
 
-func (table *memoryOfflineTable) getLastValueBefore(entity string, ts time.Time) ResourceRecord {
+func (table *memoryOfflineTable) getLastValueBefore(entity string, ts time.Time) interface{} {
 	recs, has := table.entityMap[entity]
 	if !has {
-		return ResourceRecord{Entity: entity, Value: nil}
+		return nil
 	}
 	sortedRecs := ResourceRecords(recs)
 	sort.Sort(sortedRecs)
@@ -373,12 +373,12 @@ func (table *memoryOfflineTable) getLastValueBefore(entity string, ts time.Time)
 		if rec.TS.After(ts) {
 			// Entity was not yet set at timestamp.
 			if i == 0 {
-				return ResourceRecord{Entity: entity, Value: nil}
+				return nil
 			}
-			return sortedRecs[i-1]
+			return sortedRecs[i-1].Value
 		} else if i == lastIdx {
 			// Every record happened before the label.
-			return rec
+			return rec.Value
 		}
 	}
 	panic("Unable to getLastValue before timestamp")

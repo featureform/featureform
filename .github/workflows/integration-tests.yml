@@ -1,6 +1,12 @@
 name: Integration Testing
 on: pull_request
 
+env:
+  TYPESENSE_PORT: 8108
+  TYPESENSE_API_KEY: "xyz"
+  REDIS_PORT: 6379
+
+
 jobs:
   setup:
     name: Setup Integration Test Dependencies
@@ -10,6 +16,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+
+      - name: Setup Git Config
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "<>"          
+
       - name: Merge Into Target Branch
         run: |
           git fetch
@@ -46,9 +58,6 @@ jobs:
     name: Typesense Integration Test
     needs: setup
     runs-on: ubuntu-latest
-    env:
-      TYPESENSE_PORT: "8108"
-      TYPESENSE_API_KEY: "xyz"
     steps:
       - name: Download Working Compiled Directories
         uses: actions/download-artifact@v3
@@ -69,4 +78,26 @@ jobs:
 
       - name: Integration Test
         working-directory: ./metadata/search
+        run: go test -v
+
+  provider:
+    name: Provider Integration Tests
+    needs: setup
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis
+        # Hard coded port because environment variables not currently
+        # supported for use outside of 'steps'
+        ports:
+          -  6379:6379
+
+    steps:
+      - name: Download Working Compiled Directories
+        uses: actions/download-artifact@v3
+        with:
+          name: compiled-workdir
+
+      - name: Integration Test
+        working-directory: ./provider
         run: go test -v

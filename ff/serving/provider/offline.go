@@ -60,6 +60,9 @@ func (def *TrainingSetDef) Check() error {
 	if err := def.Label.Check(Label); err != nil {
 		return err
 	}
+	if len(def.Features) == 0 {
+		return errors.New("training set must have atleast one feature")
+	}
 	for _, feature := range def.Features {
 		if err := feature.Check(Feature); err != nil {
 			return err

@@ -3,15 +3,93 @@ package runner
 import (
 	"fmt"
 	"sync"
+	provider "github.com/featureform/serving/provider"
 )
+
+type MaterializedChunkRunnerConfig struct {
+	OnlineType provider.Type
+	OfflineType provider.Type
+	OnlineConfig provider.SerializedConfig
+	OfflineConfig provider.SerializedConfig
+	MaterializedID provider.MaterializationID
+	ResourceID provider.ResourceID
+	ChunkSize int
+	ChunkIdx int
+}
+
+func (m MaterializedChunkRunnerConfig) Serialize() (Config, error) {
+	config, err := json.Marshal(m)
+	if err != nil {
+		return nil, err
+	}
+	return config, nil
+}
+
+func (m MaterializedChunkRunnerConfig) Deserialize(Config) error {
+	err := json.Unmarshal(config, m)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func MaterializedChunkRunnerFactory(config Config) (Runner, error) {
+	mConf := &MaterializedChunkRunnerConfig{}
+	if err := materializedConfig.Deserialize(config); err != nil {
+		return nil, fmt.Errorf("failed to deserialize materialize chunk runner config: %v", err)
+	}
+	onlineProvider, err := provider.Get(mConf.OnlineType, mConf.OnlineConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to configure online provider: %v", err)
+	}
+	offlineProvider, err := provider.Get(mConf.OfflineType, mConf.OfflineConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to configure offline provider: %v", err)
+	}
+	onlineStore, err := onlineProvider.AsOnlineStore()
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert provider to online store: %v", err)
+	}
+	offlineStore, err := offlineProvider.AsOfflineStore()
+	if err != nil {
+		return nil, fmt.Errorf("%T cannot be used as an OfflineStore", provider)
+	}
+	materialization, err := offlineStore.GetMaterialization(mConf.MaterializedID)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get materialization: %v", err)
+	}
+	if mConf.ChunkSize*mConf.ChunkIdx > materialization.NumRows() {
+		return nil, fmt.Errorf("chunk runner starts after end of materialization rows")
+	}
+	table, err := offlineStore.GetTable(mConf.ResourceID.Name, mConf.ResourceID.Variant)
+	if err == &provider.TableNotFound{mConf.ResourceID.Name, mConf.ResourceID.Variant} {
+		table, err := onlineStore.CreateTable(mConf.ResourceID.Name, mConf.ResourceID.Variant)
+		if err != nil {
+			return nil, fmt.Errorf("error creating online table: %v", err)
+		}
+	} else if err != nil {
+		return nil, fmt.Errorf("error getting online table: %v", err)
+	}
+
+	return &MaterializedChunkRunner{
+		Materialized: materialization,
+		Table: table,
+		ChunkSize: mConf.ChunkSize,
+		ChunkIdx: mConf.ChunkIdx,
+	}
+}
+
+func init() {
+	RegisterFactory("COPY", MaterializedChunkRunnerFactory)
+}
 
 type Runner interface {
 	Run() (CompletionWatcher, error)
 }
 
 type MaterializedChunkRunner struct {
-	Materialized MaterializedFeatures
-	Table        OnlineTable
+	Materialized provider.Materialization
+	Table        provider.OnlineStoreTable
 	ChunkSize    int
 	ChunkIdx     int
 }

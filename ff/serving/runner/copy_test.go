@@ -3,20 +3,27 @@ package runner
 import (
 	"errors"
 	"fmt"
+	provider "github.com/featureform/serving/provider"
+	"github.com/google/uuid"
 	"reflect"
 	"sync"
 	"testing"
 )
 
 type MockMaterializedFeatures struct {
-	Rows []FeatureRow
+	id   provider.MaterializationID
+	Rows []provider.ResourceRecord
 }
 
-func (m *MockMaterializedFeatures) NumRows() (int, error) {
-	return len(m.Rows), nil
+func (m *MockMaterializedFeatures) ID() provider.MaterializationID {
+	return m.id
 }
 
-func (m *MockMaterializedFeatures) IterateSegment(begin int, end int) (FeatureIterator, error) {
+func (m *MockMaterializedFeatures) NumRows() (int64, error) {
+	return int64(len(m.Rows)), nil
+}
+
+func (m *MockMaterializedFeatures) IterateSegment(begin int64, end int64) (provider.FeatureIterator, error) {
 	return &MockFeatureIterator{
 		CurrentIndex: -1,
 		Slice:        m.Rows[begin:end],
@@ -24,33 +31,50 @@ func (m *MockMaterializedFeatures) IterateSegment(begin int, end int) (FeatureIt
 }
 
 type MaterializedFeaturesNumRowsBroken struct {
+	id provider.MaterializationID
 }
 
-func (m *MaterializedFeaturesNumRowsBroken) NumRows() (int, error) {
+func (m *MaterializedFeaturesNumRowsBroken) ID() provider.MaterializationID {
+	return m.id
+}
+
+func (m *MaterializedFeaturesNumRowsBroken) NumRows() (int64, error) {
 	return 0, errors.New("cannot fetch number of rows")
 }
 
-func (m *MaterializedFeaturesNumRowsBroken) IterateSegment(begin int, end int) (FeatureIterator, error) {
+func (m *MaterializedFeaturesNumRowsBroken) IterateSegment(begin int64, end int64) (provider.FeatureIterator, error) {
 	return nil, nil
 }
 
-type MaterializedFeaturesIterateBroken struct{}
+type MaterializedFeaturesIterateBroken struct {
+	id provider.MaterializationID
+}
 
-func (m *MaterializedFeaturesIterateBroken) NumRows() (int, error) {
+func (m *MaterializedFeaturesIterateBroken) ID() provider.MaterializationID {
+	return m.id
+}
+
+func (m *MaterializedFeaturesIterateBroken) NumRows() (int64, error) {
 	return 1, nil
 }
 
-func (m *MaterializedFeaturesIterateBroken) IterateSegment(begin int, end int) (FeatureIterator, error) {
+func (m *MaterializedFeaturesIterateBroken) IterateSegment(begin int64, end int64) (provider.FeatureIterator, error) {
 	return nil, errors.New("cannot create feature iterator")
 }
 
-type MaterializedFeaturesIterateRunBroken struct{}
+type MaterializedFeaturesIterateRunBroken struct {
+	id provider.MaterializationID
+}
 
-func (m *MaterializedFeaturesIterateRunBroken) NumRows() (int, error) {
+func (m *MaterializedFeaturesIterateRunBroken) ID() provider.MaterializationID {
+	return m.id
+}
+
+func (m *MaterializedFeaturesIterateRunBroken) NumRows() (int64, error) {
 	return 1, nil
 }
 
-func (m *MaterializedFeaturesIterateRunBroken) IterateSegment(begin int, end int) (FeatureIterator, error) {
+func (m *MaterializedFeaturesIterateRunBroken) IterateSegment(begin int64, end int64) (provider.FeatureIterator, error) {
 	return &BrokenFeatureIterator{}, nil
 }
 
@@ -84,7 +108,7 @@ func (m *BrokenOnlineTable) Get(entity string) (interface{}, error) {
 
 type MockFeatureIterator struct {
 	CurrentIndex int
-	Slice        []FeatureRow
+	Slice        []provider.ResourceRecord
 }
 
 func (m *MockFeatureIterator) Next() bool {
@@ -97,12 +121,8 @@ func (m *MockFeatureIterator) Err() error {
 	return nil
 }
 
-func (m *MockFeatureIterator) Entity() string {
-	return m.Slice[m.CurrentIndex].Entity
-}
-
-func (m *MockFeatureIterator) Value() interface{} {
-	return m.Slice[m.CurrentIndex].Row
+func (m *MockFeatureIterator) Value() provider.ResourceRecord {
+	return m.Slice[m.CurrentIndex]
 }
 
 type BrokenFeatureIterator struct{}
@@ -115,17 +135,8 @@ func (m *BrokenFeatureIterator) Err() error {
 	return errors.New("error iterating over features")
 }
 
-func (m *BrokenFeatureIterator) Entity() string {
-	return ""
-}
-
-func (m *BrokenFeatureIterator) Value() interface{} {
-	return nil
-}
-
-type FeatureRow struct {
-	Entity string
-	Row    interface{}
+func (m *BrokenFeatureIterator) Value() provider.ResourceRecord {
+	return provider.ResourceRecord{}
 }
 
 type TestError struct {
@@ -140,16 +151,16 @@ func (m *TestError) Error() string {
 type JobTestParams struct {
 	TestName     string
 	Materialized MockMaterializedFeatures
-	ChunkSize    int
-	ChunkIdx     int
+	ChunkSize    int64
+	ChunkIdx     int64
 }
 
 type ErrorJobTestParams struct {
 	ErrorName    string
-	Materialized MaterializedFeatures
-	Table        OnlineTable
-	ChunkSize    int
-	ChunkIdx     int
+	Materialized provider.Materialization
+	Table        provider.OnlineStoreTable
+	ChunkSize    int64
+	ChunkIdx     int64
 }
 
 func testParams(params JobTestParams) error {
@@ -180,16 +191,16 @@ func testParams(params JobTestParams) error {
 	}
 	rowStart := params.ChunkIdx * params.ChunkSize
 	rowEnd := rowStart + params.ChunkSize
-	if rowEnd > len(featureRows) {
-		rowEnd = len(featureRows)
+	if rowEnd > int64(len(featureRows)) {
+		rowEnd = int64(len(featureRows))
 	}
 	for i := rowStart; i < rowEnd; i++ {
 		tableValue, err := table.Get(featureRows[i].Entity)
 		if err != nil {
-			return &TestError{Outcome: fmt.Sprintf("Cannot fetch table value for entity %v", featureRows[i].Entity), Err: err}
+			return &TestError{Outcome: fmt.Sprintf("Cannot fetch table value for entity %v", featureRows[i].Value), Err: err}
 		}
-		if !reflect.DeepEqual(tableValue, featureRows[i].Row) {
-			return &TestError{Outcome: fmt.Sprintf("%v becomes %v in table copy", featureRows[i].Row, tableValue), Err: nil}
+		if !reflect.DeepEqual(tableValue, featureRows[i].Value) {
+			return &TestError{Outcome: fmt.Sprintf("%v becomes %v in table copy", featureRows[i].Value, tableValue), Err: nil}
 		}
 	}
 	return nil
@@ -223,11 +234,11 @@ type CopyTestData struct {
 }
 
 func CreateMockFeatureRows(data []interface{}) MockMaterializedFeatures {
-	featureRows := make([]FeatureRow, len(data))
+	featureRows := make([]provider.ResourceRecord, len(data))
 	for i, row := range data {
-		featureRows[i] = FeatureRow{Entity: fmt.Sprintf("entity_%d", i), Row: row}
+		featureRows[i] = provider.ResourceRecord{Entity: fmt.Sprintf("entity_%d", i), Value: row}
 	}
-	return MockMaterializedFeatures{Rows: featureRows}
+	return MockMaterializedFeatures{id: provider.MaterializationID(uuid.NewString()), Rows: featureRows}
 }
 
 func TestErrorCoverage(t *testing.T) {
@@ -235,7 +246,7 @@ func TestErrorCoverage(t *testing.T) {
 	errorJobs := []ErrorJobTestParams{
 		ErrorJobTestParams{
 			ErrorName:    "iterator run error",
-			Materialized: &MaterializedFeaturesIterateRunBroken{},
+			Materialized: &MaterializedFeaturesIterateRunBroken{provider.MaterializationID(uuid.NewString())},
 			Table:        &BrokenOnlineTable{},
 			ChunkSize:    1,
 			ChunkIdx:     0,
@@ -249,14 +260,14 @@ func TestErrorCoverage(t *testing.T) {
 		},
 		ErrorJobTestParams{
 			ErrorName:    "create iterator error",
-			Materialized: &MaterializedFeaturesIterateBroken{},
+			Materialized: &MaterializedFeaturesIterateBroken{provider.MaterializationID(uuid.NewString())},
 			Table:        &BrokenOnlineTable{},
 			ChunkSize:    1,
 			ChunkIdx:     0,
 		},
 		ErrorJobTestParams{
 			ErrorName:    "get num rows error",
-			Materialized: &MaterializedFeaturesNumRowsBroken{},
+			Materialized: &MaterializedFeaturesNumRowsBroken{provider.MaterializationID(uuid.NewString())},
 			Table:        &BrokenOnlineTable{},
 			ChunkSize:    1,
 			ChunkIdx:     0,

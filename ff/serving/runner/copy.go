@@ -2,6 +2,7 @@ package runner
 
 import (
 	"fmt"
+	provider "github.com/featureform/serving/provider"
 	"sync"
 )
 
@@ -10,10 +11,10 @@ type Runner interface {
 }
 
 type MaterializedChunkRunner struct {
-	Materialized MaterializedFeatures
-	Table        OnlineTable
-	ChunkSize    int
-	ChunkIdx     int
+	Materialized provider.Materialization
+	Table        provider.OnlineStoreTable
+	ChunkSize    int64
+	ChunkIdx     int64
 }
 
 type CompletionWatcher interface {
@@ -23,21 +24,9 @@ type CompletionWatcher interface {
 	Err() error
 }
 
-type MaterializedFeatures interface {
-	NumRows() (int, error)
-	IterateSegment(begin int, end int) (FeatureIterator, error)
-}
-
 type OnlineTable interface {
 	Set(entity string, value interface{}) error
 	Get(entity string) (interface{}, error)
-}
-
-type FeatureIterator interface {
-	Next() bool
-	Err() error
-	Entity() string
-	Value() interface{}
 }
 
 type ResultSync struct {
@@ -78,8 +67,8 @@ func (m *MaterializedChunkRunner) Run() (CompletionWatcher, error) {
 			return
 		}
 		for it.Next() {
-			value := it.Value()
-			entity := it.Entity()
+			value := it.Value().Value
+			entity := it.Value().Entity
 			err := m.Table.Set(entity, value)
 			if err != nil {
 				jobWatcher.EndWatch(err)

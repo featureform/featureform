@@ -171,7 +171,17 @@ func (k KubernetesJobClient) Create(jobSpec *batchv1.JobSpec) (*batchv1.Job, err
 }
 
 func (k KubernetesJobClient) Schedule(schedule string, jobSpec *batchv1.JobSpec) error {
-	cronJob := &batchv1.CronJob{ObjectMeta: metav1.ObjectMeta{Name: k.JobName, Namespace: k.Namespace}, Spec: batchv1.CronJobSpec{Schedule: schedule, JobTemplate: batchv1.JobTemplateSpec{Spec: *jobSpec}}}
+	cronJob := &batchv1.CronJob{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      k.JobName,
+			Namespace: k.Namespace},
+		Spec: batchv1.CronJobSpec{
+			Schedule: schedule,
+			JobTemplate: batchv1.JobTemplateSpec{
+				Spec: *jobSpec,
+			},
+		},
+	}
 	if _, err := k.Clientset.BatchV1().CronJobs(k.Namespace).Create(context.TODO(), cronJob, metav1.CreateOptions{}); err != nil {
 		return err
 	}

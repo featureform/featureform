@@ -1,0 +1,103 @@
+name: Integration Testing
+on: pull_request
+
+env:
+  TYPESENSE_PORT: 8108
+  TYPESENSE_API_KEY: "xyz"
+  REDIS_PORT: 6379
+
+
+jobs:
+  setup:
+    name: Setup Integration Test Dependencies
+    defaults:
+      run:
+        working-directory: ./ff/serving
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Setup Git Config
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "<>"          
+
+      - name: Merge Into Target Branch
+        run: |
+          git fetch
+          git checkout ${{ github.head_ref }}
+          git pull
+          git checkout ${{ github.base_ref }}
+          git pull
+          git merge ${{ github.head_ref }}
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
+
+      - name: Install grpc_tools
+        run: pip install grpcio-tools
+
+      - name: Install Protobuf
+        run: sudo snap install protobuf --classic
+
+      - name: Setup Proto
+        run: ./gen_grpc.sh
+
+      - name: Build
+        run: go build
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: compiled-workdir
+          path: ./ff/serving/
+          retention-days: 1
+
+  typesense:
+    name: Typesense Integration Test
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Working Compiled Directories
+        uses: actions/download-artifact@v3
+        with:
+          name: compiled-workdir
+
+      # Installing Typesense manually b/c the base container uses input arguments that
+      # Github Actions currently doesn't support (e.g. --data-dir, --api-key, --enable-cores).
+      # Can create a custom Typesense container in the future if desired
+      - name: Install Typesense Container
+        run: docker pull typesense/typesense:0.22.2
+
+      - name: Start Typesense
+        run: |
+          mkdir /tmp/typesense-data
+          docker run -d -p $TYPESENSE_PORT:8108 -v/tmp/typesense-data:/data typesense/typesense:0.22.2 \
+          --data-dir /data --api-key=$TYPESENSE_API_KEY --enable-cors
+
+      - name: Integration Test
+        working-directory: ./metadata/search
+        run: go test -v
+
+  provider:
+    name: Provider Integration Tests
+    needs: setup
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis
+        # Hard coded port because environment variables not currently
+        # supported for use outside of 'steps'
+        ports:
+          -  6379:6379
+
+    steps:
+      - name: Download Working Compiled Directories
+        uses: actions/download-artifact@v3
+        with:
+          name: compiled-workdir
+
+      - name: Integration Test
+        working-directory: ./provider
+        run: go test -v

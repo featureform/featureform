@@ -33,6 +33,7 @@ func (m MaterializedChunkRunnerConfig) Deserialize(Config) error {
 	return nil
 }
 
+
 func MaterializedChunkRunnerFactory(config Config) (Runner, error) {
 	mConf := &MaterializedChunkRunnerConfig{}
 	if err := materializedConfig.Deserialize(config); err != nil {
@@ -75,8 +76,11 @@ func MaterializedChunkRunnerFactory(config Config) (Runner, error) {
 		Materialized: materialization,
 		Table: table,
 		ChunkSize: mConf.ChunkSize,
-		ChunkIdx: mConf.ChunkIdx,
 	}
+}
+
+func (provider BaseProvider) AsOfflineStore() (OfflineStore, error) {
+	return nil, fmt.Errorf("%T cannot be used as an OfflineStore", provider)
 }
 
 func init() {
@@ -85,6 +89,16 @@ func init() {
 
 type Runner interface {
 	Run() (CompletionWatcher, error)
+}
+
+type IndexedRunner interface {
+	Runner
+	SetIndex(index int) error
+}
+
+func (m *MaterializedChunkRunner) SetIndex(index int) error {
+	m.ChunkIdx = index
+	return nil
 }
 
 type MaterializedChunkRunner struct {
@@ -123,6 +137,8 @@ type ResultSync struct {
 	done bool
 	mu   sync.RWMutex
 }
+
+
 
 func (m *MaterializedChunkRunner) Run() (CompletionWatcher, error) {
 	done := make(chan interface{})

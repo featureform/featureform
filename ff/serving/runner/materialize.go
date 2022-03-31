@@ -5,11 +5,12 @@ import (
 	provider "github.com/featureform/serving/provider"
 )
 
+const MAXIMUM_CHUNK_ROWS = 1024
+
 type MemoryMaterializeRunner struct {
 	Online provider.OnlineStore
 	Offline provider.OfflineStore
 	ID provider.ResourceID
-	NumChunks int
 }
 
 type MemoryMaterializeCompletionWatcher struct {
@@ -20,7 +21,6 @@ type KubernetesMaterializeRunner struct {
 	Online provider.OnlineStore
 	Offline provider.OfflineStore
 	ID provider.ResourceID
-	NumChunks int
 }
 
 func (m MemoryMaterializeRunner) Run() (CompletionWatcher, error) {
@@ -38,18 +38,21 @@ func (m MemoryMaterializeRunner) Run() (CompletionWatcher, error) {
 	}
 	onlineType := m.Online.Type()
 	offlineType := m.Offline.Type()
-	chunkSize := materialization.NumRows() / m.NumChunks
-	watchers := make([]CopyCompletionWatcher, m.NumChunks)
-	for i := range m.NumChunks {
+	chunkSize := MAXIMUM_CHUNK_ROWS
+	if materialization.NumRows() < MAXIMUM_CHUNK_ROWS {
+		chunkSize = materialization.NumRows()
+	}
+	numChunks := math.Ceil(materialization.NumRows() / chunkSize)
+	watchers := make([]CopyCompletionWatcher, numChunks)
+	for i := range numChunks {
 		config := &MaterializedChunkRunnerConfig{
 			OnlineType: onlineType,
 			OfflineType: offlineType,
 			OnlineConfig: onlineConfig,
-			OfflineConfig, offlineConfig,
+			OfflineConfig: offlineConfig,
 			MaterializedID: materialization.ID(),
 			ResourceID: m.ID,
 			ChunkSize: chunkSize,
-			ChunkIdx: i
 		}
 		serialConfig, err := config.Serialize()
 		if err != nil {
@@ -59,6 +62,7 @@ func (m MemoryMaterializeRunner) Run() (CompletionWatcher, error) {
 		if err != nil {
 			return err
 		}
+		copyRunner.SetIndex(i)
 		watcher, err := copyRunner.Run()
 		if err != nil {
 			return err
@@ -83,7 +87,7 @@ func (m *MemoryMaterializeCompletionWatcher) String() string {
 		if watcher.Complete() {
 			numComplete += 1
 		}
-		if watcher.Err() {
+		if watcher.Err() != nil {
 			numErr += 1
 		}
 	}

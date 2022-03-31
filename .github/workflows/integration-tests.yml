@@ -17,20 +17,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Setup Git Config
-        run: |
-          git config user.name "GitHub Actions Bot"
-          git config user.email "<>"          
-
-      - name: Merge Into Target Branch
-        run: |
-          git fetch
-          git checkout ${{ github.head_ref }}
-          git pull
-          git checkout ${{ github.base_ref }}
-          git pull
-          git merge ${{ github.head_ref }}
-
       - name: Set up Go
         uses: actions/setup-go@v2
         with:

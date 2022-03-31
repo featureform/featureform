@@ -55,6 +55,11 @@ jobs:
         with:
           name: compiled-workdir
 
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
+
       # Installing Typesense manually b/c the base container uses input arguments that
       # Github Actions currently doesn't support (e.g. --data-dir, --api-key, --enable-cores).
       # Can create a custom Typesense container in the future if desired

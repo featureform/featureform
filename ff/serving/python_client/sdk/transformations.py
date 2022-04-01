@@ -19,7 +19,6 @@ def transformation(*args, **kwargs):
         transformation = Transformations(kwargs['feature'], definition_func.__name__ ,
                                             kwargs['variant'], kwargs['inputs'], 
                                             kwargs['entity'], kwargs['fn_type'], kwargs['executor'],  kwargs['frequency'], kwargs['ft_type'])
-        definition_func()
         transformations_to_register.append(transformation)
     return add_transformation
 

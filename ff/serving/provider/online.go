@@ -80,8 +80,8 @@ func NewLocalOnlineStore() *localOnlineStore {
 	return &localOnlineStore{
 		make(map[tableKey]localOnlineTable),
 		BaseProvider{
-			providerType:   LocalOnline,
-			providerConfig: []byte{},
+			ProviderType:   LocalOnline,
+			ProviderConfig: []byte{},
 		},
 	}
 }
@@ -103,8 +103,8 @@ func NewRedisOnlineStore(options *RedisConfig) *redisOnlineStore {
 	}
 	redisClient := redis.NewClient(redisOptions)
 	return &redisOnlineStore{redisClient, options.Prefix, BaseProvider{
-		providerType:   RedisOnline,
-		providerConfig: options.Serialized(),
+		ProviderType:   RedisOnline,
+		ProviderConfig: options.Serialized(),
 	},
 	}
 }

@@ -49,8 +49,8 @@ func TestBaseProvider(t *testing.T) {
 	mockType := Type("mock")
 	var mock Provider = &MockProvider{
 		BaseProvider{
-			providerType:   mockType,
-			providerConfig: mockConfig,
+			ProviderType:   mockType,
+			ProviderConfig: mockConfig,
 		},
 	}
 	if _, err := mock.AsOnlineStore(); err == nil {

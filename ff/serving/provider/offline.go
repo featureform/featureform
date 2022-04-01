@@ -83,7 +83,7 @@ type memoryOfflineStore struct {
 	BaseProvider
 }
 
-func memoryOfflineStoreFactory(SerializedConfig) (Provider, error) {
+func memoryOfflineStoreFactory(serializedConfig SerializedConfig) (Provider, error) {
 	return NewMemoryOfflineStore(), nil
 }
 
@@ -92,8 +92,8 @@ func NewMemoryOfflineStore() *memoryOfflineStore {
 		make(map[ResourceID]*memoryOfflineTable),
 		make(map[MaterializationID]*memoryMaterialization),
 		BaseProvider{
-			providerType:   MemoryOffline,
-			providerConfig: []byte{},
+			ProviderType:   MemoryOffline,
+			ProviderConfig: []byte{},
 		},
 	}
 }

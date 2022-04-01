@@ -27,6 +27,27 @@ type RedisConfig struct {
 	DB       int
 }
 
+type MemoryOfflineConfig struct {
+	OfflinePointer string
+}
+
+func (m *MemoryOfflineConfig) Serialized() SerializedConfig {
+	config, err := json.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	return config
+}
+
+func (m *MemoryOfflineConfig) Deserialize(config SerializedConfig) error {
+	err := json.Unmarshal(config, m)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+	
+
 func (r RedisConfig) Serialized() SerializedConfig {
 	config, err := json.Marshal(r)
 	if err != nil {
@@ -51,8 +72,8 @@ type Provider interface {
 }
 
 type BaseProvider struct {
-	providerType   Type
-	providerConfig SerializedConfig
+	ProviderType   Type
+	ProviderConfig SerializedConfig
 }
 
 func (provider BaseProvider) AsOnlineStore() (OnlineStore, error) {
@@ -64,11 +85,11 @@ func (provider BaseProvider) AsOfflineStore() (OfflineStore, error) {
 }
 
 func (provider BaseProvider) Type() Type {
-	return provider.providerType
+	return provider.ProviderType
 }
 
 func (provider BaseProvider) Config() SerializedConfig {
-	return provider.providerConfig
+	return provider.ProviderConfig
 }
 
 type Factory func(SerializedConfig) (Provider, error)

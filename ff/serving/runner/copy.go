@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"encoding/json"
 	"fmt"
 	provider "github.com/featureform/serving/provider"
 	"sync"
@@ -27,11 +28,6 @@ type CompletionWatcher interface {
 	String() string
 	Wait() error
 	Err() error
-}
-
-type OnlineTable interface {
-	Set(entity string, value interface{}) error
-	Get(entity string) (interface{}, error)
 }
 
 type ResultSync struct {
@@ -146,4 +142,75 @@ func (m *CopyCompletionWatcher) String() string {
 		return "Job still running."
 	}
 	return "Job completed succesfully."
+}
+
+type MaterializedChunkRunnerConfig struct {
+	OnlineType     provider.Type
+	OfflineType    provider.Type
+	OnlineConfig   provider.SerializedConfig
+	OfflineConfig  provider.SerializedConfig
+	MaterializedID provider.MaterializationID
+	ResourceID     provider.ResourceID
+	ChunkSize      int64
+	ChunkIdx       int64
+}
+
+func (m *MaterializedChunkRunnerConfig) Serialize() (Config, error) {
+	config, err := json.Marshal(m)
+	if err != nil {
+		return nil, err
+	}
+	return config, nil
+}
+
+func (m *MaterializedChunkRunnerConfig) Deserialize(config Config) error {
+	err := json.Unmarshal(config, m)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func MaterializedChunkRunnerFactory(config Config) (Runner, error) {
+	runnerConfig := &MaterializedChunkRunnerConfig{}
+	if err := runnerConfig.Deserialize(config); err != nil {
+		return nil, fmt.Errorf("failed to deserialize materialize chunk runner config: %v", err)
+	}
+	onlineProvider, err := provider.Get(runnerConfig.OnlineType, runnerConfig.OnlineConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to configure online provider: %v", err)
+	}
+	offlineProvider, err := provider.Get(runnerConfig.OfflineType, runnerConfig.OfflineConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to configure offline provider: %v", err)
+	}
+	onlineStore, err := onlineProvider.AsOnlineStore()
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert provider to online store: %v", err)
+	}
+	offlineStore, err := offlineProvider.AsOfflineStore()
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert provider to offline store: %v", err)
+	}
+	materialization, err := offlineStore.GetMaterialization(runnerConfig.MaterializedID)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get materialization: %v", err)
+	}
+	numRows, err := materialization.NumRows()
+	if err != nil {
+		return nil, fmt.Errorf("cannot get materialization num rows: %v", err)
+	}
+	if runnerConfig.ChunkSize*runnerConfig.ChunkIdx > numRows {
+		return nil, fmt.Errorf("chunk runner starts after end of materialization rows")
+	}
+	table, err := onlineStore.GetTable(runnerConfig.ResourceID.Name, runnerConfig.ResourceID.Variant)
+	if err != nil {
+		return nil, fmt.Errorf("error getting online table: %v", err)
+	}
+	return &MaterializedChunkRunner{
+		Materialized: materialization,
+		Table:        table,
+		ChunkSize:    runnerConfig.ChunkSize,
+		ChunkIdx:     runnerConfig.ChunkIdx,
+	}, nil
 }

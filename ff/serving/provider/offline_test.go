@@ -22,6 +22,12 @@ func TestOfflineStores(t *testing.T) {
 		"InvalidMaterialization":  testInvalidMaterialization,
 		"MaterializeUnknown":      testMaterializeUnknown,
 		"MaterializationNotFound": testMaterializationNotFound,
+		"TrainingSets":            testTrainingSet,
+		"TrainingSetInvalidID":    testGetTrainingSetInvalidResourceID,
+		"GetUnknownTrainingSet":   testGetUnkonwnTrainingSet,
+		"InvalidTrainingSetDefs":  testInvalidTrainingSetDefs,
+		"LabelTableNotFound":      testLabelTableNotFound,
+		"FeatureTableNotFound":    testFeatureTableNotFound,
 	}
 	testList := []struct {
 		t               Type
@@ -52,13 +58,19 @@ func TestOfflineStores(t *testing.T) {
 	}
 }
 
-func randomResourceID() ResourceID {
-	possibleTypes := []OfflineResourceType{Label, Feature}
-	randType := possibleTypes[rand.Intn(2)]
+func randomID(types ...OfflineResourceType) ResourceID {
+	var t OfflineResourceType
+	if len(types) == 0 {
+		t = NoType
+	} else if len(types) == 1 {
+		t = types[0]
+	} else {
+		t = types[rand.Intn(len(types))]
+	}
 	return ResourceID{
 		Name:    uuid.NewString(),
 		Variant: uuid.NewString(),
-		Type:    randType,
+		Type:    t,
 	}
 }
 
@@ -79,7 +91,7 @@ func randomLabelID() ResourceID {
 }
 
 func testCreateGetOfflineTable(t *testing.T, store OfflineStore) {
-	id := randomResourceID()
+	id := randomID(Feature, Label)
 	if tab, err := store.CreateResourceTable(id); tab == nil || err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
@@ -89,7 +101,7 @@ func testCreateGetOfflineTable(t *testing.T, store OfflineStore) {
 }
 
 func testOfflineTableAlreadyExists(t *testing.T, store OfflineStore) {
-	id := randomResourceID()
+	id := randomID(Feature, Label)
 	if _, err := store.CreateResourceTable(id); err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
@@ -103,7 +115,7 @@ func testOfflineTableAlreadyExists(t *testing.T, store OfflineStore) {
 }
 
 func testOfflineTableNotFound(t *testing.T, store OfflineStore) {
-	id := randomResourceID()
+	id := randomID(Feature, Label)
 	if _, err := store.GetResourceTable(id); err == nil {
 		t.Fatalf("Succeeded in getting non-existant table")
 	} else if casted, valid := err.(*TableNotFound); !valid {
@@ -251,7 +263,7 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 		}
 	}
 	runTestCase := func(t *testing.T, test TestCase) {
-		id := randomFeatureID()
+		id := randomID(Feature)
 		table, err := store.CreateResourceTable(id)
 		if err != nil {
 			t.Fatalf("Failed to create table: %s", err)
@@ -280,7 +292,7 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 }
 
 func testWriteInvalidResourceRecord(t *testing.T, store OfflineStore) {
-	id := randomFeatureID()
+	id := randomID(Feature)
 	table, err := store.CreateResourceTable(id)
 	if err != nil {
 		t.Fatalf("Failed to create table: %s", err)
@@ -291,7 +303,7 @@ func testWriteInvalidResourceRecord(t *testing.T, store OfflineStore) {
 }
 
 func testInvalidMaterialization(t *testing.T, store OfflineStore) {
-	id := randomLabelID()
+	id := randomID(Label)
 	if _, err := store.CreateResourceTable(id); err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
@@ -301,7 +313,7 @@ func testInvalidMaterialization(t *testing.T, store OfflineStore) {
 }
 
 func testMaterializeUnknown(t *testing.T, store OfflineStore) {
-	id := randomFeatureID()
+	id := randomID(Feature)
 	if _, err := store.CreateMaterialization(id); err == nil {
 		t.Fatalf("Succeeded in materializing uninitialized resource")
 	}
@@ -331,5 +343,304 @@ func testInvalidResourceIDs(t *testing.T, store OfflineStore) {
 		if _, err := store.CreateResourceTable(id); err == nil {
 			t.Fatalf("Succeeded in creating invalid ResourceID: %v", id)
 		}
+	}
+}
+
+func testTrainingSet(t *testing.T, store OfflineStore) {
+	type expectedTrainingRow struct {
+		Features []interface{}
+		Label    interface{}
+	}
+	type TestCase struct {
+		FeatureRecords [][]ResourceRecord
+		LabelRecords   []ResourceRecord
+		ExpectedRows   []expectedTrainingRow
+	}
+	tests := map[string]TestCase{
+		"Empty": {
+			FeatureRecords: [][]ResourceRecord{
+				// One feature with no records.
+				{},
+			},
+			LabelRecords: []ResourceRecord{},
+			// No rows expected
+			ExpectedRows: []expectedTrainingRow{},
+		},
+		"SimpleJoin": {
+			FeatureRecords: [][]ResourceRecord{
+				{
+					{Entity: "a", Value: 1},
+					{Entity: "b", Value: 2},
+					{Entity: "c", Value: 3},
+				},
+				{
+					{Entity: "a", Value: "red"},
+					{Entity: "b", Value: "green"},
+					{Entity: "c", Value: "blue"},
+				},
+			},
+			LabelRecords: []ResourceRecord{
+				{Entity: "a", Value: true},
+				{Entity: "b", Value: false},
+				{Entity: "c", Value: true},
+			},
+			ExpectedRows: []expectedTrainingRow{
+				{
+					Features: []interface{}{
+						1,
+						"red",
+					},
+					Label: true,
+				},
+				{
+					Features: []interface{}{
+						2,
+						"green",
+					},
+					Label: false,
+				},
+				{
+					Features: []interface{}{
+						3,
+						"blue",
+					},
+					Label: true,
+				},
+			},
+		},
+		"ComplexJoin": {
+			FeatureRecords: [][]ResourceRecord{
+				// Overwritten feature.
+				{
+					{Entity: "a", Value: 1},
+					{Entity: "b", Value: 2},
+					{Entity: "c", Value: 3},
+					{Entity: "a", Value: 4},
+				},
+				// Feature didn't exist before label
+				{
+					{Entity: "a", Value: "doesnt exist", TS: time.UnixMilli(11)},
+				},
+				// Feature didn't change after label
+				{
+					{Entity: "c", Value: "real value first", TS: time.UnixMilli(5)},
+					{Entity: "c", Value: "real value second", TS: time.UnixMilli(5)},
+					{Entity: "c", Value: "overwritten", TS: time.UnixMilli(4)},
+				},
+				// Different feature values for different TS.
+				{
+					{Entity: "b", Value: "first", TS: time.UnixMilli(3)},
+					{Entity: "b", Value: "second", TS: time.UnixMilli(4)},
+					{Entity: "b", Value: "third", TS: time.UnixMilli(8)},
+				},
+				// Empty feature.
+				{},
+			},
+			LabelRecords: []ResourceRecord{
+				{Entity: "a", Value: 1, TS: time.UnixMilli(10)},
+				{Entity: "b", Value: 9, TS: time.UnixMilli(3)},
+				{Entity: "b", Value: 5, TS: time.UnixMilli(5)},
+				{Entity: "c", Value: 3, TS: time.UnixMilli(7)},
+			},
+			ExpectedRows: []expectedTrainingRow{
+				{
+					Features: []interface{}{
+						4, nil, nil, nil, nil,
+					},
+					Label: 1,
+				},
+				{
+					Features: []interface{}{
+						2, nil, nil, "first", nil,
+					},
+					Label: 9,
+				},
+				{
+					Features: []interface{}{
+						2, nil, nil, "second", nil,
+					},
+					Label: 5,
+				},
+				{
+					Features: []interface{}{
+						3, nil, "real value second", nil, nil,
+					},
+					Label: 3,
+				},
+			},
+		},
+	}
+	runTestCase := func(t *testing.T, test TestCase) {
+		featureIDs := make([]ResourceID, len(test.FeatureRecords))
+		for i, recs := range test.FeatureRecords {
+			id := randomID(Feature)
+			featureIDs[i] = id
+			table, err := store.CreateResourceTable(id)
+			if err != nil {
+				t.Fatalf("Failed to create table: %s", err)
+			}
+			for _, rec := range recs {
+				if err := table.Write(rec); err != nil {
+					t.Fatalf("Failed to write record %v", rec)
+				}
+			}
+		}
+		labelID := randomID(Label)
+		labelTable, err := store.CreateResourceTable(labelID)
+		if err != nil {
+			t.Fatalf("Failed to create table: %s", err)
+		}
+		for _, rec := range test.LabelRecords {
+			if err := labelTable.Write(rec); err != nil {
+				t.Fatalf("Failed to write record %v", rec)
+			}
+		}
+		def := TrainingSetDef{
+			ID:       randomID(TrainingSet),
+			Label:    labelID,
+			Features: featureIDs,
+		}
+		if err := store.CreateTrainingSet(def); err != nil {
+			t.Fatalf("Failed to create training set: %s", err)
+		}
+		iter, err := store.GetTrainingSet(def.ID)
+		if err != nil {
+			t.Fatalf("Failed to get training set: %s", err)
+		}
+		i := 0
+		expectedRows := test.ExpectedRows
+		for iter.Next() {
+			realRow := expectedTrainingRow{
+				Features: iter.Features(),
+				Label:    iter.Label(),
+			}
+			// Row order isn't guaranteed, we make sure one row is equivalent
+			// then we delete that row. This is ineffecient, but these test
+			// cases should all be small enough not to matter.
+			found := false
+			for i, expRow := range expectedRows {
+				if reflect.DeepEqual(realRow, expRow) {
+					found = true
+					lastIdx := len(expectedRows) - 1
+					// Swap the record that we've found to the end, then shrink the slice to not include it.
+					// This is essentially a delete operation expect that it re-orders the slice.
+					expectedRows[i], expectedRows[lastIdx] = expectedRows[lastIdx], expectedRows[i]
+					expectedRows = expectedRows[:lastIdx]
+					break
+				}
+			}
+			if !found {
+				t.Fatalf("Unexpected training row: %v", realRow)
+			}
+			i++
+		}
+		if err := iter.Err(); err != nil {
+			t.Fatalf("Failed to iterate training set: %s", err)
+		}
+		if len(test.ExpectedRows) != i {
+			t.Fatalf("Training set has different number of rows %d %d", len(test.ExpectedRows), i)
+		}
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			runTestCase(t, test)
+		})
+	}
+}
+
+func testGetTrainingSetInvalidResourceID(t *testing.T, store OfflineStore) {
+	id := randomID(Feature)
+	if _, err := store.GetTrainingSet(id); err == nil {
+		t.Fatalf("Succeeded in getting invalid training set ResourceID")
+	}
+}
+
+func testGetUnkonwnTrainingSet(t *testing.T, store OfflineStore) {
+	// This should default to TrainingSet
+	id := randomID(NoType)
+	if _, err := store.GetTrainingSet(id); err == nil {
+		t.Fatalf("Succeeded in getting unknown training set ResourceID")
+	} else if _, valid := err.(*TrainingSetNotFound); !valid {
+		t.Fatalf("Wrong error for training set not found: %T", err)
+	} else if err.Error() == "" {
+		t.Fatalf("Training set not found error msg not set")
+	}
+}
+
+func testInvalidTrainingSetDefs(t *testing.T, store OfflineStore) {
+	invalidDefs := map[string]TrainingSetDef{
+		"WrongTSType": TrainingSetDef{
+			ID:    randomID(Feature),
+			Label: randomID(Label),
+			Features: []ResourceID{
+				randomID(Feature),
+				randomID(Feature),
+				randomID(Feature),
+			},
+		},
+		"WrongLabelType": TrainingSetDef{
+			ID:    randomID(TrainingSet),
+			Label: randomID(Feature),
+			Features: []ResourceID{
+				randomID(Feature),
+				randomID(Feature),
+				randomID(Feature),
+			},
+		},
+		"WrongFeatureType": TrainingSetDef{
+			ID:    randomID(TrainingSet),
+			Label: randomID(Label),
+			Features: []ResourceID{
+				randomID(Feature),
+				randomID(Label),
+				randomID(Feature),
+			},
+		},
+		"NoFeatures": TrainingSetDef{
+			ID:       randomID(TrainingSet),
+			Label:    randomID(Label),
+			Features: []ResourceID{},
+		},
+	}
+	for name, def := range invalidDefs {
+		t.Run(name, func(t *testing.T) {
+			if err := store.CreateTrainingSet(def); err == nil {
+				t.Fatalf("Succeeded to create invalid def")
+			}
+		})
+	}
+}
+
+func testLabelTableNotFound(t *testing.T, store OfflineStore) {
+	featureID := randomID(Feature)
+	if _, err := store.CreateResourceTable(featureID); err != nil {
+		t.Fatalf("Failed to create table: %s", err)
+	}
+	def := TrainingSetDef{
+		ID:    randomID(TrainingSet),
+		Label: randomID(Label),
+		Features: []ResourceID{
+			featureID,
+		},
+	}
+	if err := store.CreateTrainingSet(def); err == nil {
+		t.Fatalf("Succeeded in creating training set with unknown label")
+	}
+}
+
+func testFeatureTableNotFound(t *testing.T, store OfflineStore) {
+	labelID := randomID(Label)
+	if _, err := store.CreateResourceTable(labelID); err != nil {
+		t.Fatalf("Failed to create table: %s", err)
+	}
+	def := TrainingSetDef{
+		ID:    randomID(TrainingSet),
+		Label: labelID,
+		Features: []ResourceID{
+			randomID(Feature),
+		},
+	}
+	if err := store.CreateTrainingSet(def); err == nil {
+		t.Fatalf("Succeeded in creating training set with unknown feature")
 	}
 }

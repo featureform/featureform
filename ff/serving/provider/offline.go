@@ -16,9 +16,10 @@ const (
 type OfflineResourceType int
 
 const (
-	None OfflineResourceType = iota
+	NoType OfflineResourceType = iota
 	Label
 	Feature
+	TrainingSet
 )
 
 type ResourceID struct {
@@ -26,12 +27,44 @@ type ResourceID struct {
 	Type          OfflineResourceType
 }
 
-func (id ResourceID) Check() error {
+func (id *ResourceID) check(expectedType OfflineResourceType, otherTypes ...OfflineResourceType) error {
 	if id.Name == "" {
 		return errors.New("ResourceID must have Name set")
 	}
-	if id.Type != Label && id.Type != Feature {
-		return errors.New("Invalid ResourceID Type")
+	// If there is one expected type, we will default to it.
+	if id.Type == NoType && len(otherTypes) == 0 {
+		id.Type = expectedType
+		return nil
+	}
+	possibleTypes := append(otherTypes, expectedType)
+	for _, t := range possibleTypes {
+		if id.Type == t {
+			return nil
+		}
+	}
+	return fmt.Errorf("Unexpected ResourceID Type")
+}
+
+type TrainingSetDef struct {
+	ID       ResourceID
+	Label    ResourceID
+	Features []ResourceID
+}
+
+func (def *TrainingSetDef) check() error {
+	if err := def.ID.check(TrainingSet); err != nil {
+		return err
+	}
+	if err := def.Label.check(Label); err != nil {
+		return err
+	}
+	if len(def.Features) == 0 {
+		return errors.New("training set must have atleast one feature")
+	}
+	for _, feature := range def.Features {
+		if err := feature.check(Feature); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -41,9 +74,18 @@ type OfflineStore interface {
 	GetResourceTable(id ResourceID) (OfflineTable, error)
 	CreateMaterialization(id ResourceID) (Materialization, error)
 	GetMaterialization(id MaterializationID) (Materialization, error)
+	CreateTrainingSet(TrainingSetDef) error
+	GetTrainingSet(id ResourceID) (TrainingSetIterator, error)
 }
 
 type MaterializationID string
+
+type TrainingSetIterator interface {
+	Next() bool
+	Features() []interface{}
+	Label() interface{}
+	Err() error
+}
 
 type Materialization interface {
 	ID() MaterializationID
@@ -57,6 +99,21 @@ type FeatureIterator interface {
 	Err() error
 }
 
+// Used to implement sort.Interface
+type ResourceRecords []ResourceRecord
+
+func (recs ResourceRecords) Swap(i, j int) {
+	recs[i], recs[j] = recs[j], recs[i]
+}
+
+func (recs ResourceRecords) Less(i, j int) bool {
+	return recs[j].TS.After(recs[i].TS)
+}
+
+func (recs ResourceRecords) Len() int {
+	return len(recs)
+}
+
 type ResourceRecord struct {
 	Entity string
 	Value  interface{}
@@ -66,7 +123,7 @@ type ResourceRecord struct {
 	TS time.Time
 }
 
-func (rec ResourceRecord) Check() error {
+func (rec ResourceRecord) check() error {
 	if rec.Entity == "" {
 		return errors.New("ResourceRecord must have Entity set.")
 	}
@@ -80,6 +137,7 @@ type OfflineTable interface {
 type memoryOfflineStore struct {
 	tables           map[ResourceID]*memoryOfflineTable
 	materializations map[MaterializationID]*memoryMaterialization
+	trainingSets     map[ResourceID]trainingRows
 	BaseProvider
 }
 
@@ -91,6 +149,7 @@ func NewMemoryOfflineStore() *memoryOfflineStore {
 	return &memoryOfflineStore{
 		tables:           make(map[ResourceID]*memoryOfflineTable),
 		materializations: make(map[MaterializationID]*memoryMaterialization),
+		trainingSets:     make(map[ResourceID]trainingRows),
 	}
 }
 
@@ -99,7 +158,7 @@ func (store *memoryOfflineStore) AsOfflineStore() (OfflineStore, error) {
 }
 
 func (store *memoryOfflineStore) CreateResourceTable(id ResourceID) (OfflineTable, error) {
-	if err := id.Check(); err != nil {
+	if err := id.check(Feature, Label); err != nil {
 		return nil, err
 	}
 	if _, has := store.tables[id]; has {
@@ -186,6 +245,102 @@ func latestRecord(recs []ResourceRecord) ResourceRecord {
 	return latest
 }
 
+func (store *memoryOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
+	if err := def.check(); err != nil {
+		return err
+	}
+	label, err := store.getMemoryResourceTable(def.Label)
+	if err != nil {
+		return err
+	}
+	features := make([]*memoryOfflineTable, len(def.Features))
+	for i, id := range def.Features {
+		feature, err := store.getMemoryResourceTable(id)
+		if err != nil {
+			return err
+		}
+		features[i] = feature
+	}
+	labelRecs := label.records()
+	trainingData := make([]trainingRow, len(labelRecs))
+	for i, rec := range labelRecs {
+		featureVals := make([]interface{}, len(features))
+		for i, feature := range features {
+			featureVals[i] = feature.getLastValueBefore(rec.Entity, rec.TS)
+		}
+		labelVal := rec.Value
+		trainingData[i] = trainingRow{
+			Features: featureVals,
+			Label:    labelVal,
+		}
+	}
+	store.trainingSets[def.ID] = trainingData
+	return nil
+}
+
+func (store *memoryOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
+	if err := id.check(TrainingSet); err != nil {
+		return nil, err
+	}
+	data, has := store.trainingSets[id]
+	if !has {
+		return nil, &TrainingSetNotFound{id}
+	}
+	return data.Iterator(), nil
+}
+
+type TrainingSetNotFound struct {
+	ID ResourceID
+}
+
+func (err *TrainingSetNotFound) Error() string {
+	return fmt.Sprintf("TrainingSet with ID %v not found", err.ID)
+}
+
+type trainingRows []trainingRow
+
+func (rows trainingRows) Iterator() TrainingSetIterator {
+	return newMemoryTrainingSetIterator(rows)
+}
+
+type trainingRow struct {
+	Features []interface{}
+	Label    interface{}
+}
+
+type memoryTrainingRowsIterator struct {
+	data trainingRows
+	idx  int
+}
+
+func newMemoryTrainingSetIterator(data trainingRows) TrainingSetIterator {
+	return &memoryTrainingRowsIterator{
+		data: data,
+		idx:  -1,
+	}
+}
+
+func (it *memoryTrainingRowsIterator) Next() bool {
+	lastIdx := len(it.data) - 1
+	if it.idx == lastIdx {
+		return false
+	}
+	it.idx++
+	return true
+}
+
+func (it *memoryTrainingRowsIterator) Err() error {
+	return nil
+}
+
+func (it *memoryTrainingRowsIterator) Features() []interface{} {
+	return it.data[it.idx].Features
+}
+
+func (it *memoryTrainingRowsIterator) Label() interface{} {
+	return it.data[it.idx].Label
+}
+
 type memoryOfflineTable struct {
 	entityMap map[string][]ResourceRecord
 }
@@ -196,8 +351,41 @@ func newMemoryOfflineTable() *memoryOfflineTable {
 	}
 }
 
+func (table *memoryOfflineTable) records() []ResourceRecord {
+	allRecs := make([]ResourceRecord, 0)
+	for _, recs := range table.entityMap {
+		allRecs = append(allRecs, recs...)
+	}
+	return allRecs
+}
+
+func (table *memoryOfflineTable) getLastValueBefore(entity string, ts time.Time) interface{} {
+	recs, has := table.entityMap[entity]
+	if !has {
+		return nil
+	}
+	sortedRecs := ResourceRecords(recs)
+	sort.Sort(sortedRecs)
+	lastIdx := len(sortedRecs) - 1
+	for i, rec := range sortedRecs {
+		if rec.TS.After(ts) {
+			// Entity was not yet set at timestamp, don't return a record.
+			if i == 0 {
+				return nil
+			}
+			// Use the record before this, since it would have been before TS.
+			return sortedRecs[i-1].Value
+		} else if i == lastIdx {
+			// Every record happened before the TS, use the last record.
+			return rec.Value
+		}
+	}
+	// This line should never be able to be reached.
+	panic("Unable to getLastValue before timestamp")
+}
+
 func (table *memoryOfflineTable) Write(rec ResourceRecord) error {
-	if err := rec.Check(); err != nil {
+	if err := rec.check(); err != nil {
 		return err
 	}
 	if recs, has := table.entityMap[rec.Entity]; has {

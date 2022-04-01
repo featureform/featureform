@@ -7,7 +7,7 @@ import (
 	"fmt"
 )
 
-type postgresTables struct {
+type postgresResourceTables struct {
 	conn *pgx.Conn
 	ctx  context.Context
 }
@@ -15,26 +15,14 @@ type postgresTables struct {
 type postgresOfflineStore struct {
 	conn   *pgx.Conn
 	ctx    context.Context
-	tables postgresTables
+	tables postgresResourceTables
 	BaseProvider
 }
 
 // create() creates an index that tracks currently
 // active resource tables.
-func (table postgresTables) create() error {
+func (table postgresResourceTables) create() error {
 	return errors.New("create() not implemented")
-}
-
-// get() takes a ResourceID and returns an OfflineTable.
-// Returns nil if the table is not found and returns an error
-// if there is an error fetching the table.
-func (table postgresTables) get(id ResourceID) (OfflineTable, error) {
-	return nil, errors.New("get() not implemented")
-}
-
-// set() adds the table to
-func (table postgresTables) set(t OfflineTable) error {
-	return errors.New("set() not implemented")
 }
 
 type PostgresConfig struct {
@@ -72,7 +60,7 @@ func NewPostgresOfflineStore(pg PostgresConfig) (*postgresOfflineStore, error) {
 		return nil, err
 	}
 	defer conn.Close(context.Background())
-	tables := postgresTables{
+	tables := postgresResourceTables{
 		conn: conn,
 		ctx:  ctx,
 	}
@@ -84,6 +72,21 @@ func NewPostgresOfflineStore(pg PostgresConfig) (*postgresOfflineStore, error) {
 		ctx:    ctx,
 		tables: tables,
 	}, nil
+}
+
+func (store *postgresOfflineStore) getTableName(id ResourceID) string {
+	return fmt.Sprintf("resource_%s", id.Name)
+}
+
+func (store *postgresOfflineStore) tableExists(id ResourceID) (bool, error) {
+	var n int64
+	err := store.conn.QueryRow(store.ctx, "select 1 from information_schema.tables where table_name=$1", store.getTableName(id)).Scan(&n)
+	if err == pgx.ErrNoRows {
+		return false, nil
+	} else if err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // Clarify what this method should return
@@ -98,32 +101,32 @@ func (store *postgresOfflineStore) CreateResourceTable(id ResourceID) (OfflineTa
 	if err := id.Check(); err != nil { // modify this after rebasing
 		return nil, err
 	}
-	var n int64
-	// Can replace this to use the resource table index
-	err := store.conn.QueryRow(store.ctx, "select 1 from information_schema.tables where table_name=$1", id.Name).Scan(&n)
-	if err == nil {
+
+	if exists, err := store.tableExists(id); err != nil {
+		return nil, err
+	} else if exists {
 		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}
 	//check if ctx is needed
-	table, err := newPostgresOfflineTable(store.conn, store.ctx, id.Name)
+	tableName := store.getTableName(id)
+	table, err := newPostgresOfflineTable(store.conn, store.ctx, tableName)
 	if err != nil {
-		return nil, err
-	}
-	if err := store.tables.set(table); err != nil {
 		return nil, err
 	}
 	return table, nil
 }
 
 func (store *postgresOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, error) {
-	table, err := store.tables.get(id)
-	if err != nil {
+	if exists, err := store.tableExists(id); err != nil {
 		return nil, err
-	}
-	if table == nil {
+	} else if !exists {
 		return nil, &TableNotFound{id.Name, id.Variant}
 	}
-	return table, nil
+	return &postgresOfflineTable{
+		conn: store.conn,
+		ctx:  store.ctx,
+		name: store.getTableName(id),
+	}, nil
 }
 
 type postgresOfflineTable struct {
@@ -133,10 +136,11 @@ type postgresOfflineTable struct {
 }
 
 func newPostgresOfflineTable(conn *pgx.Conn, ctx context.Context, name string) (*postgresOfflineTable, error) {
-	_, err := conn.Query(ctx, "CREATE TABLE $1 ("+
-		"Entity VARCHAR ( 255 ) PRIMARY KEY,"+
-		"Value JSON NOT NULL,"+
-		"TS TIMESTAMP NOT NULL,)")
+	_, err := conn.Query(ctx, ""+
+		"CREATE TABLE $1 ("+
+		"entity VARCHAR ( 255 ) PRIMARY KEY,"+
+		"value JSON NOT NULL,"+
+		"TS TIMESTAMP NOT NULL)")
 	if err != nil {
 		return nil, err
 	}
@@ -146,32 +150,38 @@ func newPostgresOfflineTable(conn *pgx.Conn, ctx context.Context, name string) (
 	}, nil
 }
 
+// Check logic on this one
 func (table *postgresOfflineTable) Write(rec ResourceRecord) error {
 	if err := rec.Check(); err != nil {
 		return err
 	}
-	rows, err := table.conn.Query(table.ctx, "SELECT * FROM $1 WHERE Entity=$2 AND TS=$3", table.name, rec.Entity, rec.TS)
+	_, err := table.conn.Query(table.ctx, ""+
+		"IF EXISTS (SELECT * FROM $1 WHERE entity=$2 AND TS=$3)"+
+		"BEGIN"+
+		"UPDATE $1 SET value=$4 WHERE Entity=$2 AND TS=$3"+
+		"END"+
+		"ELSE"+
+		"BEGIN"+
+		"INSERT INTO $1 VALUES ($2, $4, $3)"+
+		"END", table.name, rec.Entity, rec.TS, rec.Value)
 	if err != nil {
 		return err
-	}
-	for rows.Next() {
-
 	}
 	return nil
 }
 
-func (table *postgresOfflineTable) serialize(rec ResourceRecord) ([]byte, error) {
-	msg, err := json.Marshal(rec)
-	if err != nil {
-		return nil, err
-	}
-	return msg, nil
-}
-
-func (table *postgresOfflineTable) deserialize(msg []byte) (ResourceRecord, error) {
-	rec := ResourceRecord{}
-	if err := json.Unmarshal(msg, &rec); err != nil {
-		return ResourceRecord{}, err
-	}
-	return rec, nil
-}
+//func (table *postgresOfflineTable) serialize(rec ResourceRecord) ([]byte, error) {
+//	msg, err := json.Marshal(rec)
+//	if err != nil {
+//		return nil, err
+//	}
+//	return msg, nil
+//}
+//
+//func (table *postgresOfflineTable) deserialize(msg []byte) (ResourceRecord, error) {
+//	rec := ResourceRecord{}
+//	if err := json.Unmarshal(msg, &rec); err != nil {
+//		return ResourceRecord{}, err
+//	}
+//	return rec, nil
+//}

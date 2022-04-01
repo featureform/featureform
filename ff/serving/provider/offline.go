@@ -300,7 +300,7 @@ func (err *TrainingSetNotFound) Error() string {
 type trainingRows []trainingRow
 
 func (rows trainingRows) Iterator() TrainingSetIterator {
-	return newTrainingRowsIterator(rows)
+	return newMemoryTrainingSetIterator(rows)
 }
 
 type trainingRow struct {
@@ -308,19 +308,19 @@ type trainingRow struct {
 	Label    interface{}
 }
 
-type trainingRowsIterator struct {
+type memoryTrainingRowsIterator struct {
 	data trainingRows
 	idx  int
 }
 
-func newTrainingRowsIterator(data trainingRows) TrainingSetIterator {
-	return &trainingRowsIterator{
+func newMemoryTrainingSetIterator(data trainingRows) TrainingSetIterator {
+	return &memoryTrainingRowsIterator{
 		data: data,
 		idx:  -1,
 	}
 }
 
-func (it *trainingRowsIterator) Next() bool {
+func (it *memoryTrainingRowsIterator) Next() bool {
 	lastIdx := len(it.data) - 1
 	if it.idx == lastIdx {
 		return false
@@ -329,15 +329,15 @@ func (it *trainingRowsIterator) Next() bool {
 	return true
 }
 
-func (it *trainingRowsIterator) Err() error {
+func (it *memoryTrainingRowsIterator) Err() error {
 	return nil
 }
 
-func (it *trainingRowsIterator) Features() []interface{} {
+func (it *memoryTrainingRowsIterator) Features() []interface{} {
 	return it.data[it.idx].Features
 }
 
-func (it *trainingRowsIterator) Label() interface{} {
+func (it *memoryTrainingRowsIterator) Label() interface{} {
 	return it.data[it.idx].Label
 }
 

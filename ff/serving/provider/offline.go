@@ -373,14 +373,14 @@ func (table *memoryOfflineTable) getLastValueBefore(entity string, ts time.Time)
 			if i == 0 {
 				return nil
 			}
-            // Use the record before this, since it would have been before TS.
+			// Use the record before this, since it would have been before TS.
 			return sortedRecs[i-1].Value
 		} else if i == lastIdx {
 			// Every record happened before the TS, use the last record.
 			return rec.Value
 		}
 	}
-    // This line should never be able to be reached.
+	// This line should never be able to be reached.
 	panic("Unable to getLastValue before timestamp")
 }
 

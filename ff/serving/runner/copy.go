@@ -10,6 +10,11 @@ type Runner interface {
 	Run() (CompletionWatcher, error)
 }
 
+type IndexRunner interface {
+	Runner
+	SetIndex(index int) error
+}
+
 type MaterializedChunkRunner struct {
 	Materialized provider.Materialization
 	Table        provider.OnlineStoreTable
@@ -82,6 +87,11 @@ func (m *MaterializedChunkRunner) Run() (CompletionWatcher, error) {
 		jobWatcher.EndWatch(nil)
 	}()
 	return jobWatcher, nil
+}
+
+func (m *MaterializedChunkRunner) SetIndex(index int) error {
+	m.ChunkIdx = int64(index)
+	return nil
 }
 
 func (c *CopyCompletionWatcher) EndWatch(err error) {

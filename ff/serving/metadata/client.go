@@ -704,11 +704,12 @@ func (client *Client) GetProviders(ctx context.Context, providers []string) ([]*
 }
 
 type ProviderDef struct {
-	Name        string
-	Description string
-	Type        string
-	Software    string
-	Team        string
+	Name             string
+	Description      string
+	Type             string
+	Software         string
+	Team             string
+	SerializedConfig []byte
 }
 
 func (def ProviderDef) ResourceType() ResourceType {
@@ -717,11 +718,12 @@ func (def ProviderDef) ResourceType() ResourceType {
 
 func (client *Client) CreateProvider(ctx context.Context, def ProviderDef) error {
 	serialized := &pb.Provider{
-		Name:        def.Name,
-		Description: def.Description,
-		Type:        def.Type,
-		Software:    def.Software,
-		Team:        def.Team,
+		Name:             def.Name,
+		Description:      def.Description,
+		Type:             def.Type,
+		Software:         def.Software,
+		Team:             def.Team,
+		SerializedConfig: def.SerializedConfig,
 	}
 	_, err := client.grpcConn.CreateProvider(ctx, serialized)
 	return err
@@ -1154,6 +1156,10 @@ func (provider *Provider) Software() string {
 
 func (provider *Provider) Team() string {
 	return provider.serialized.GetTeam()
+}
+
+func (provider *Provider) SerializedConfig() []byte {
+	return provider.serialized.GetSerializedConfig()
 }
 
 type Model struct {

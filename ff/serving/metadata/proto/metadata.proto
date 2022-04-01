@@ -94,6 +94,7 @@ message Provider {
     string type = 3;
     string software = 4;
     string team = 5;
+    bytes serialized_config = 6;
     repeated NameVariant sources = 7;
     repeated NameVariant features = 8;
     repeated NameVariant trainingsets = 9;

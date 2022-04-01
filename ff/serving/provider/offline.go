@@ -369,16 +369,18 @@ func (table *memoryOfflineTable) getLastValueBefore(entity string, ts time.Time)
 	lastIdx := len(sortedRecs) - 1
 	for i, rec := range sortedRecs {
 		if rec.TS.After(ts) {
-			// Entity was not yet set at timestamp.
+			// Entity was not yet set at timestamp, don't return a record.
 			if i == 0 {
 				return nil
 			}
+            // Use the record before this, since it would have been before TS.
 			return sortedRecs[i-1].Value
 		} else if i == lastIdx {
-			// Every record happened before the label.
+			// Every record happened before the TS, use the last record.
 			return rec.Value
 		}
 	}
+    // This line should never be able to be reached.
 	panic("Unable to getLastValue before timestamp")
 }
 

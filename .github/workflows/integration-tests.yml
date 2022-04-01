@@ -1,6 +1,12 @@
 name: Integration Testing
 on: pull_request
 
+env:
+  TYPESENSE_PORT: 8108
+  TYPESENSE_API_KEY: "xyz"
+  REDIS_PORT: 6379
+
+
 jobs:
   setup:
     name: Setup Integration Test Dependencies
@@ -10,14 +16,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Merge Into Target Branch
-        run: |
-          git fetch
-          git checkout ${{ github.head_ref }}
-          git pull
-          git checkout ${{ github.base_ref }}
-          git pull
-          git merge ${{ github.head_ref }}
 
       - name: Set up Go
         uses: actions/setup-go@v2
@@ -46,14 +44,16 @@ jobs:
     name: Typesense Integration Test
     needs: setup
     runs-on: ubuntu-latest
-    env:
-      TYPESENSE_PORT: "8108"
-      TYPESENSE_API_KEY: "xyz"
     steps:
       - name: Download Working Compiled Directories
         uses: actions/download-artifact@v3
         with:
           name: compiled-workdir
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
 
       # Installing Typesense manually b/c the base container uses input arguments that
       # Github Actions currently doesn't support (e.g. --data-dir, --api-key, --enable-cores).
@@ -69,4 +69,31 @@ jobs:
 
       - name: Integration Test
         working-directory: ./metadata/search
+        run: go test -v
+
+  provider:
+    name: Provider Integration Tests
+    needs: setup
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis
+        # Hard coded port because environment variables not currently
+        # supported for use outside of 'steps'
+        ports:
+          -  6379:6379
+
+    steps:
+      - name: Download Working Compiled Directories
+        uses: actions/download-artifact@v3
+        with:
+          name: compiled-workdir
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
+
+      - name: Integration Test
+        working-directory: ./provider
         run: go test -v

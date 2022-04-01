@@ -74,6 +74,22 @@ func randomID(types ...OfflineResourceType) ResourceID {
 	}
 }
 
+func randomFeatureID() ResourceID {
+	return ResourceID{
+		Name:    uuid.NewString(),
+		Variant: uuid.NewString(),
+		Type:    Feature,
+	}
+}
+
+func randomLabelID() ResourceID {
+	return ResourceID{
+		Name:    uuid.NewString(),
+		Variant: uuid.NewString(),
+		Type:    Label,
+	}
+}
+
 func testCreateGetOfflineTable(t *testing.T, store OfflineStore) {
 	id := randomID(Feature, Label)
 	if tab, err := store.CreateResourceTable(id); tab == nil || err != nil {

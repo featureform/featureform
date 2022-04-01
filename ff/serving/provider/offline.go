@@ -89,8 +89,12 @@ func memoryOfflineStoreFactory(SerializedConfig) (Provider, error) {
 
 func NewMemoryOfflineStore() *memoryOfflineStore {
 	return &memoryOfflineStore{
-		tables:           make(map[ResourceID]*memoryOfflineTable),
-		materializations: make(map[MaterializationID]*memoryMaterialization),
+		make(map[ResourceID]*memoryOfflineTable),
+		make(map[MaterializationID]*memoryMaterialization),
+		BaseProvider{
+			providerType:   MemoryOffline,
+			providerConfig: []byte{},
+		},
 	}
 }
 

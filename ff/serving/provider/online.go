@@ -78,7 +78,11 @@ type redisOnlineStore struct {
 
 func NewLocalOnlineStore() *localOnlineStore {
 	return &localOnlineStore{
-		tables: make(map[tableKey]localOnlineTable),
+		make(map[tableKey]localOnlineTable),
+		BaseProvider{
+			providerType:   LocalOnline,
+			providerConfig: []byte{},
+		},
 	}
 }
 
@@ -98,7 +102,11 @@ func NewRedisOnlineStore(options *RedisConfig) *redisOnlineStore {
 		Addr: options.Addr,
 	}
 	redisClient := redis.NewClient(redisOptions)
-	return &redisOnlineStore{client: redisClient, prefix: options.Prefix}
+	return &redisOnlineStore{redisClient, options.Prefix, BaseProvider{
+		providerType:   RedisOnline,
+		providerConfig: options.Serialized(),
+	},
+	}
 }
 
 func (store *localOnlineStore) AsOnlineStore() (OnlineStore, error) {

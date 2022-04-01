@@ -46,12 +46,23 @@ func TestBaseProvider(t *testing.T) {
 	type MockProvider struct {
 		BaseProvider
 	}
-
-	var mock Provider = &MockProvider{}
+	mockType := Type("mock")
+	var mock Provider = &MockProvider{
+		BaseProvider{
+			providerType:   mockType,
+			providerConfig: mockConfig,
+		},
+	}
 	if _, err := mock.AsOnlineStore(); err == nil {
 		t.Fatalf("BaseProvider succeeded in OnlineStore cast")
 	}
 	if _, err := mock.AsOfflineStore(); err == nil {
 		t.Fatalf("BaseProvider succeeded in OfflineStore cast")
+	}
+	if !reflect.DeepEqual(mock.Type(), mockType) {
+		t.Fatalf("Type not passed down to provider")
+	}
+	if !reflect.DeepEqual(mock.Config(), mockConfig) {
+		t.Fatalf("Config not passed down to provider")
 	}
 }

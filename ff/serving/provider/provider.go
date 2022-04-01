@@ -46,9 +46,13 @@ func (r *RedisConfig) Deserialize(config SerializedConfig) error {
 type Provider interface {
 	AsOnlineStore() (OnlineStore, error)
 	AsOfflineStore() (OfflineStore, error)
+	Type() Type
+	Config() SerializedConfig
 }
 
 type BaseProvider struct {
+	providerType   Type
+	providerConfig SerializedConfig
 }
 
 func (provider BaseProvider) AsOnlineStore() (OnlineStore, error) {
@@ -57,6 +61,14 @@ func (provider BaseProvider) AsOnlineStore() (OnlineStore, error) {
 
 func (provider BaseProvider) AsOfflineStore() (OfflineStore, error) {
 	return nil, fmt.Errorf("%T cannot be used as an OfflineStore", provider)
+}
+
+func (provider BaseProvider) Type() Type {
+	return provider.providerType
+}
+
+func (provider BaseProvider) Config() SerializedConfig {
+	return provider.providerConfig
 }
 
 type Factory func(SerializedConfig) (Provider, error)

@@ -46,7 +46,6 @@ func (m *MemoryOfflineConfig) Deserialize(config SerializedConfig) error {
 	}
 	return nil
 }
-	
 
 func (r RedisConfig) Serialized() SerializedConfig {
 	config, err := json.Marshal(r)

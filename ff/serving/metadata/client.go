@@ -948,6 +948,22 @@ func (fns variantsFns) NameVariants() []NameVariant {
 	return nameVariants
 }
 
+type providerGetter interface {
+	GetProvider() string
+}
+
+type fetchProviderFns struct {
+	getter providerGetter
+}
+
+func (fn fetchProviderFns) Provider() string {
+	return fn.getter.GetProvider()
+}
+
+func (fn fetchProviderFns) FetchProvider(client *Client, ctx context.Context) (*Provider, error) {
+	return client.GetProvider(ctx, fn.Provider())
+}
+
 type trainingSetsGetter interface {
 	GetTrainingsets() []*pb.NameVariant
 }
@@ -1049,6 +1065,7 @@ func (feature Feature) FetchVariants(client *Client, ctx context.Context) ([]*Fe
 type FeatureVariant struct {
 	serialized *pb.FeatureVariant
 	fetchTrainingSetsFns
+	fetchProviderFns
 	createdFn
 	protoStringer
 }
@@ -1057,6 +1074,7 @@ func wrapProtoFeatureVariant(serialized *pb.FeatureVariant) *FeatureVariant {
 	return &FeatureVariant{
 		serialized:           serialized,
 		fetchTrainingSetsFns: fetchTrainingSetsFns{serialized},
+		fetchProviderFns:     fetchProviderFns{serialized},
 		createdFn:            createdFn{serialized},
 		protoStringer:        protoStringer{serialized},
 	}
@@ -1064,10 +1082,6 @@ func wrapProtoFeatureVariant(serialized *pb.FeatureVariant) *FeatureVariant {
 
 func (variant *FeatureVariant) Name() string {
 	return variant.serialized.GetName()
-}
-
-func (variant *FeatureVariant) Provider() string {
-	return variant.serialized.GetProvider()
 }
 
 func (variant *FeatureVariant) Description() string {
@@ -1209,6 +1223,7 @@ func (label Label) FetchVariants(client *Client, ctx context.Context) ([]*LabelV
 type LabelVariant struct {
 	serialized *pb.LabelVariant
 	fetchTrainingSetsFns
+	fetchProviderFns
 	createdFn
 	protoStringer
 }
@@ -1217,6 +1232,7 @@ func wrapProtoLabelVariant(serialized *pb.LabelVariant) *LabelVariant {
 	return &LabelVariant{
 		serialized:           serialized,
 		fetchTrainingSetsFns: fetchTrainingSetsFns{serialized},
+		fetchProviderFns:     fetchProviderFns{serialized},
 		createdFn:            createdFn{serialized},
 		protoStringer:        protoStringer{serialized},
 	}
@@ -1250,10 +1266,6 @@ func (variant *LabelVariant) Owner() string {
 	return variant.serialized.GetOwner()
 }
 
-func (variant *LabelVariant) Provider() string {
-	return variant.serialized.GetProvider()
-}
-
 type TrainingSet struct {
 	serialized *pb.TrainingSet
 	variantsFns
@@ -1275,6 +1287,7 @@ func (trainingSet TrainingSet) FetchVariants(client *Client, ctx context.Context
 type TrainingSetVariant struct {
 	serialized *pb.TrainingSetVariant
 	fetchFeaturesFns
+	fetchProviderFns
 	createdFn
 	protoStringer
 }
@@ -1283,6 +1296,7 @@ func wrapProtoTrainingSetVariant(serialized *pb.TrainingSetVariant) *TrainingSet
 	return &TrainingSetVariant{
 		serialized:       serialized,
 		fetchFeaturesFns: fetchFeaturesFns{serialized},
+		fetchProviderFns: fetchProviderFns{serialized},
 		createdFn:        createdFn{serialized},
 		protoStringer:    protoStringer{serialized},
 	}
@@ -1298,10 +1312,6 @@ func (variant *TrainingSetVariant) Description() string {
 
 func (variant *TrainingSetVariant) Variant() string {
 	return variant.serialized.GetVariant()
-}
-
-func (variant *TrainingSetVariant) Provider() string {
-	return variant.serialized.GetProvider()
 }
 
 func (variant *TrainingSetVariant) Owner() string {
@@ -1343,6 +1353,7 @@ type SourceVariant struct {
 	fetchTrainingSetsFns
 	fetchFeaturesFns
 	fetchLabelsFns
+	fetchProviderFns
 	createdFn
 	protoStringer
 }
@@ -1353,6 +1364,7 @@ func wrapProtoSourceVariant(serialized *pb.SourceVariant) *SourceVariant {
 		fetchTrainingSetsFns: fetchTrainingSetsFns{serialized},
 		fetchFeaturesFns:     fetchFeaturesFns{serialized},
 		fetchLabelsFns:       fetchLabelsFns{serialized},
+		fetchProviderFns:     fetchProviderFns{serialized},
 		createdFn:            createdFn{serialized},
 		protoStringer:        protoStringer{serialized},
 	}
@@ -1372,10 +1384,6 @@ func (variant *SourceVariant) Description() string {
 
 func (variant *SourceVariant) Type() string {
 	return variant.serialized.GetType()
-}
-
-func (variant *SourceVariant) Provider() string {
-	return variant.serialized.GetProvider()
 }
 
 func (variant *SourceVariant) Owner() string {

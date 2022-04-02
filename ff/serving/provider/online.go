@@ -17,6 +17,7 @@ var ctx = context.Background()
 type OnlineStore interface {
 	GetTable(feature, variant string) (OnlineStoreTable, error)
 	CreateTable(feature, variant string) (OnlineStoreTable, error)
+	Provider
 }
 
 type OnlineStoreTable interface {

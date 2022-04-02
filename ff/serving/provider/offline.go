@@ -31,7 +31,7 @@ func (id ResourceID) Check() error {
 		return errors.New("ResourceID must have Name set")
 	}
 	if id.Type != Label && id.Type != Feature {
-		return errors.New("Invalid ResourceID Type")
+		return errors.New("invalid ResourceID Type")
 	}
 	return nil
 }
@@ -41,6 +41,7 @@ type OfflineStore interface {
 	GetResourceTable(id ResourceID) (OfflineTable, error)
 	CreateMaterialization(id ResourceID) (Materialization, error)
 	GetMaterialization(id MaterializationID) (Materialization, error)
+	Provider
 }
 
 type MaterializationID string
@@ -68,7 +69,7 @@ type ResourceRecord struct {
 
 func (rec ResourceRecord) Check() error {
 	if rec.Entity == "" {
-		return errors.New("ResourceRecord must have Entity set.")
+		return errors.New("resourceRecord must have Entity set.")
 	}
 	return nil
 }

@@ -16,10 +16,10 @@ const (
 )
 
 type MaterializeRunner struct {
-	Online provider.OnlineStore
+	Online  provider.OnlineStore
 	Offline provider.OfflineStore
-	ID provider.ResourceID
-	Cloud JobCloud
+	ID      provider.ResourceID
+	Cloud   JobCloud
 }
 
 func (m MaterializeRunner) Run() (CompletionWatcher, error) {
@@ -37,13 +37,13 @@ func (m MaterializeRunner) Run() (CompletionWatcher, error) {
 	}
 	numChunks := int64(math.Ceil(float64(numRows) / float64(chunkSize)))
 	config := &MaterializedChunkRunnerConfig{
-		OnlineType: m.Online.Type(),
-		OfflineType: m.Offline.Type(),
-		OnlineConfig: m.Online.Config(),
-		OfflineConfig: m.Offline.Config(),
+		OnlineType:     m.Online.Type(),
+		OfflineType:    m.Offline.Type(),
+		OnlineConfig:   m.Online.Config(),
+		OfflineConfig:  m.Offline.Config(),
 		MaterializedID: materialization.ID(),
-		ResourceID: m.ID,
-		ChunkSize: chunkSize,
+		ResourceID:     m.ID,
+		ChunkSize:      chunkSize,
 	}
 	serializedConfig, err := config.Serialize()
 	if err != nil {
@@ -53,8 +53,8 @@ func (m MaterializeRunner) Run() (CompletionWatcher, error) {
 	if m.Cloud == Kubernetes {
 		envVars := map[string]string{"NAME": "COPY", "CONFIG": string(serializedConfig)}
 		kubernetesConfig := KubernetesRunnerConfig{
-			envVars: envVars,
-			image: WORKER_IMAGE,
+			envVars:  envVars,
+			image:    WORKER_IMAGE,
 			numTasks: int32(numChunks),
 		}
 		kubernetesRunner, err := NewKubernetesRunner(kubernetesConfig)
@@ -65,4 +65,3 @@ func (m MaterializeRunner) Run() (CompletionWatcher, error) {
 	}
 	return nil, fmt.Errorf("no valid job cloud set")
 }
-

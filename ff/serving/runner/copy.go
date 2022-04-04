@@ -38,7 +38,7 @@ type ResultSync struct {
 
 func (m *MaterializedChunkRunner) Run() (CompletionWatcher, error) {
 	done := make(chan interface{})
-	jobWatcher := &CopyCompletionWatcher{
+	jobWatcher := &SyncWatcher{
 		ResultSync:  &ResultSync{},
 		DoneChannel: done,
 	}
@@ -90,7 +90,7 @@ func (m *MaterializedChunkRunner) SetIndex(index int) error {
 	return nil
 }
 
-func (c *CopyCompletionWatcher) EndWatch(err error) {
+func (c *SyncWatcher) EndWatch(err error) {
 	c.ResultSync.DoneWithError(err)
 	close(c.DoneChannel)
 }
@@ -114,25 +114,25 @@ func (r *ResultSync) DoneWithError(err error) {
 	r.done = true
 }
 
-type CopyCompletionWatcher struct {
+type SyncWatcher struct {
 	ResultSync  *ResultSync
 	DoneChannel chan interface{}
 }
 
-func (m *CopyCompletionWatcher) Err() error {
+func (m *SyncWatcher) Err() error {
 	return m.ResultSync.Err()
 }
 
-func (m *CopyCompletionWatcher) Wait() error {
+func (m *SyncWatcher) Wait() error {
 	<-m.DoneChannel
 	return m.ResultSync.Err()
 }
 
-func (m *CopyCompletionWatcher) Complete() bool {
+func (m *SyncWatcher) Complete() bool {
 	return m.ResultSync.Done()
 }
 
-func (m *CopyCompletionWatcher) String() string {
+func (m *SyncWatcher) String() string {
 	done := m.ResultSync.Done()
 	err := m.ResultSync.Err()
 	if err != nil {

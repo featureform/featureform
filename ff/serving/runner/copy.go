@@ -214,7 +214,3 @@ func MaterializedChunkRunnerFactory(config Config) (Runner, error) {
 		ChunkIdx:     runnerConfig.ChunkIdx,
 	}, nil
 }
-
-func init() {
-	RegisterFactory("COPY", MaterializedChunkRunnerFactory)
-}

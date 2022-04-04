@@ -485,6 +485,10 @@ func (m MockOfflineStore) GetMaterialization(id provider.MaterializationID) (pro
 	return MockMaterialization{}, nil
 }
 
+func (m MockOfflineStore) DeleteMaterialization(id provider.MaterializationID) error {
+	return nil
+}
+
 type MockOfflineTable struct{}
 
 func (m MockOfflineTable) Write(provider.ResourceRecord) error {

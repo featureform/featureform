@@ -77,7 +77,7 @@ func (m MaterializeRunner) Run() (CompletionWatcher, error) {
 		numChunks = 0
 	} else if numRows > chunkSize {
 		numChunks = numRows / chunkSize
-		if chunkSize*numChunks > numRows {
+		if chunkSize*numChunks < numRows {
 			numChunks += 1
 		}
 	}

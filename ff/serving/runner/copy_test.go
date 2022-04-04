@@ -429,7 +429,7 @@ func (m MockOnlineStore) AsOnlineStore() (provider.OnlineStore, error) {
 	return m, nil
 }
 
-func (m *MockOfflineStore) AsOfflineStore() (provider.OfflineStore, error) {
+func (m MockOfflineStore) AsOfflineStore() (provider.OfflineStore, error) {
 	return m, nil
 }
 
@@ -487,6 +487,14 @@ func (m MockOfflineStore) GetMaterialization(id provider.MaterializationID) (pro
 
 func (m MockOfflineStore) DeleteMaterialization(id provider.MaterializationID) error {
 	return nil
+}
+
+func (m MockOfflineStore) CreateTrainingSet(provider.TrainingSetDef) error {
+	return nil
+}
+
+func (m MockOfflineStore) GetTrainingSet(id provider.ResourceID) (provider.TrainingSetIterator, error) {
+	return nil, nil
 }
 
 type MockOfflineTable struct{}

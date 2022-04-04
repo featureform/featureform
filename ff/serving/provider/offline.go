@@ -77,7 +77,7 @@ type OfflineStore interface {
 	DeleteMaterialization(id MaterializationID) error
 	CreateTrainingSet(TrainingSetDef) error
 	GetTrainingSet(id ResourceID) (TrainingSetIterator, error)
-  Provider
+	Provider
 }
 
 type MaterializationID string
@@ -149,10 +149,10 @@ func memoryOfflineStoreFactory(serializedConfig SerializedConfig) (Provider, err
 
 func NewMemoryOfflineStore() *memoryOfflineStore {
 	return &memoryOfflineStore{
-    tables: make(map[ResourceID]*memoryOfflineTable),
-    materializations: make(map[MaterializationID]*memoryMaterialization),
-    trainingSets:     make(map[ResourceID]trainingRows),
-    BaseProvider: BaseProvider{
+		tables:           make(map[ResourceID]*memoryOfflineTable),
+		materializations: make(map[MaterializationID]*memoryMaterialization),
+		trainingSets:     make(map[ResourceID]trainingRows),
+		BaseProvider: BaseProvider{
 			ProviderType:   MemoryOffline,
 			ProviderConfig: []byte{},
 		},

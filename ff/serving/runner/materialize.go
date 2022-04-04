@@ -86,5 +86,4 @@ func (m MaterializeRunner) Run() (CompletionWatcher, error) {
 		materializeWatcher.EndWatch(nil)
 	}()
 	return materializeWatcher, nil
-
 }

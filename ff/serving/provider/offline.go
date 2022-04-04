@@ -41,6 +41,7 @@ type OfflineStore interface {
 	GetResourceTable(id ResourceID) (OfflineTable, error)
 	CreateMaterialization(id ResourceID) (Materialization, error)
 	GetMaterialization(id MaterializationID) (Materialization, error)
+	DeleteMaterialization(id MaterializationID) error
 	Provider
 }
 
@@ -179,6 +180,14 @@ func (store *memoryOfflineStore) GetMaterialization(id MaterializationID) (Mater
 		return nil, &MaterializationNotFound{id}
 	}
 	return mat, nil
+}
+
+func (store *memoryOfflineStore) DeleteMaterialization(id MaterializationID) error {
+	if _, has := store.materializations[id]; !has {
+		return &MaterializationNotFound{id}
+	}
+	delete(store.materializations, id)
+	return nil
 }
 
 func latestRecord(recs []ResourceRecord) ResourceRecord {

@@ -3,7 +3,6 @@ package runner
 import (
 	"fmt"
 	provider "github.com/featureform/serving/provider"
-	"math"
 )
 
 const MAXIMUM_CHUNK_ROWS int64 = 1024
@@ -66,14 +65,22 @@ func (m MaterializeRunner) Run() (CompletionWatcher, error) {
 		return nil, err
 	}
 	chunkSize := MAXIMUM_CHUNK_ROWS
+	var numChunks int64
 	numRows, err := materialization.NumRows()
 	if err != nil {
 		return nil, err
 	}
-	if numRows < MAXIMUM_CHUNK_ROWS {
+	if numRows <= MAXIMUM_CHUNK_ROWS {
 		chunkSize = numRows
+		numChunks = 1
+	} else if chunkSize == 0 {
+		numChunks = 0
+	} else if numRows > chunkSize {
+		numChunks = numRows / chunkSize
+		if chunkSize*numChunks > numRows {
+			numChunks += 1
+		}
 	}
-	numChunks := int64(math.Ceil(float64(numRows) / float64(chunkSize)))
 	config := &MaterializedChunkRunnerConfig{
 		OnlineType:     m.Online.Type(),
 		OfflineType:    m.Offline.Type(),
@@ -105,7 +112,8 @@ func (m MaterializeRunner) Run() (CompletionWatcher, error) {
 			return nil, err
 		}
 	case Local:
-		completionList := make([]CompletionWatcher, numChunks)
+		fmt.Println(numChunks)
+		completionList := make([]CompletionWatcher, int(numChunks))
 		for i := 0; i < int(numChunks); i++ {
 			localRunner, err := Create("COPY", serializedConfig)
 			if err != nil {

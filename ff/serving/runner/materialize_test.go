@@ -33,7 +33,7 @@ func mockChunkRunnerFactory(config Config) (Runner, error) {
 	return &mockChunkRunner{}, nil
 }
 
-func MockMaterialize(t *testing.T) {
+func TestMockMaterializeRunner(t *testing.T) {
 	materializeRunner := MaterializeRunner{
 		Online:  MockOnlineStore{},
 		Offline: MockOfflineStore{},
@@ -44,6 +44,7 @@ func MockMaterialize(t *testing.T) {
 		},
 		Cloud: Local,
 	}
+	delete(factoryMap, "COPY")
 	if err := RegisterFactory("COPY", mockChunkRunnerFactory); err != nil {
 		t.Fatalf("Failed to register factory: %v", err)
 	}

@@ -33,7 +33,7 @@ func TestOfflineStores(t *testing.T) {
 		Host:     "localhost",
 		Port:     "5432",
 		Database: "default",
-		Username: "sdreyer",
+		Username: "username",
 		Password: "",
 	}
 	serialPGConfig, err := postgresConfig.Serialize()

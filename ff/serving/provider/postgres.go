@@ -257,24 +257,6 @@ func (store *postgresOfflineStore) deserialize(v []byte) (postgresTableItem, err
 	return item, nil
 }
 
-// Complete this
-func (store *postgresOfflineStore) getType(v postgresTableItem) interface{} {
-	switch v.ItemType {
-	case "int":
-		return int(v.Value.(float64))
-	case "int32":
-		return int32(v.Value.(float64))
-	case "int64":
-		return int64(v.Value.(float64))
-	case "string":
-		return v.Value.(string)
-	case "bool":
-		return v.Value.(bool)
-	default:
-		return 1
-	}
-
-}
 func (store *postgresOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
 	if err := id.check(TrainingSet); err != nil {
 		return nil, err
@@ -332,14 +314,14 @@ func (store *postgresOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIte
 					Value:    v["value"],
 					ItemType: v["type"].(string),
 				}
-				featureVals[i] = store.getType(item)
+				featureVals[i] = castTableItemType(item)
 			} else {
 				v := value.(map[string]interface{})
 				item := postgresTableItem{
 					Value:    v["value"],
 					ItemType: v["type"].(string),
 				}
-				label = store.getType(item)
+				label = castTableItemType(item)
 			}
 		}
 		trainingData = append(trainingData, trainingRow{
@@ -462,7 +444,7 @@ func (mat *postgresMaterialization) deserialize(v []byte) (postgresTableItem, er
 }
 
 // castTableItemType returns the value casted as its original type
-func (mat *postgresMaterialization) castTableItemType(v postgresTableItem) interface{} {
+func castTableItemType(v postgresTableItem) interface{} {
 	switch v.ItemType {
 	case "int":
 		return int(v.Value.(float64))
@@ -485,7 +467,6 @@ func (mat *postgresMaterialization) castTableItemType(v postgresTableItem) inter
 	default:
 		return v.Value
 	}
-
 }
 
 func (mat *postgresMaterialization) IterateSegment(start, end int64) (FeatureIterator, error) {
@@ -511,7 +492,7 @@ func (mat *postgresMaterialization) IterateSegment(start, end int64) (FeatureIte
 		if err != nil {
 			return nil, err
 		}
-		rec.Value = mat.castTableItemType(val)
+		rec.Value = castTableItemType(val)
 		rec.TS = ts.UTC()
 		data = append(data, rec)
 	}

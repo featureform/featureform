@@ -753,17 +753,91 @@ func (m *SourceStreamMock) RecvToClient() (*pb.Source, error) {
 	return response, nil
 }
 
-func TestCreateMetadataserverMethods(t *testing.T) {
+func initializeCreate() (*MetadataServer, error) {
 	sugar := zap.NewExample().Sugar()
 	server := Config{
 		Logger: sugar,
 	}
 	metadataServer, err := NewMetadataServer(&server)
 	if err != nil {
-		t.Fatalf("Failed to set up metadataserver %s", err)
+		return nil, err
 	}
 	if _, err := metadataServer.CreateUser(context.Background(), &pb.User{Name: "Simba Khadder"}); err != nil {
-		t.Fatalf("Failed to create user%s", err)
+		return nil, err
+	}
+	if _, err := metadataServer.CreateProvider(context.Background(), &pb.Provider{
+		Name:        "demo-s3",
+		Description: "local S3 deployment",
+		Type:        "Batch",
+		Software:    "BigQuery",
+		Team:        "",
+	}); err != nil {
+		return nil, err
+	}
+	if _, err := metadataServer.CreateEntity(context.Background(), &pb.Entity{
+		Name:        "user",
+		Description: "user description",
+	}); err != nil {
+		return nil, err
+	}
+	if _, err := metadataServer.CreateSourceVariant(context.Background(), &pb.SourceVariant{
+		Name:        "Transactions",
+		Variant:     "default",
+		Description: "Source of user transactions",
+		Type:        "CSV",
+		Owner:       "Simba Khadder",
+		Provider:    "demo-s3",
+	}); err != nil {
+		return nil, err
+	}
+	if _, err := metadataServer.CreateLabelVariant(context.Background(), &pb.LabelVariant{
+		Name:        "is_fraud",
+		Variant:     "default",
+		Description: "if a transaction is fraud",
+		Type:        "boolean",
+		Source:      &pb.NameVariant{Name: "Transactions", Variant: "default"},
+		Entity:      "user",
+		Owner:       "Simba Khadder",
+		Provider:    "demo-s3",
+	}); err != nil {
+		return nil, err
+	}
+	if _, err := metadataServer.CreateFeatureVariant(context.Background(), &pb.FeatureVariant{
+		Name:        "user_credit_score",
+		Variant:     "default",
+		Source:      &pb.NameVariant{Name: "Transactions", Variant: "default"},
+		Type:        "int",
+		Entity:      "user",
+		Owner:       "Simba Khadder",
+		Description: "User's credit score",
+		Provider:    "demo-s3",
+	}); err != nil {
+		return nil, err
+	}
+	if _, err := metadataServer.CreateModel(context.Background(), &pb.Model{
+		Name:        "user_fraud_random_forest",
+		Description: "Classifier on whether user commited fraud",
+	}); err != nil {
+		return nil, err
+	}
+	if _, err := metadataServer.CreateTrainingSetVariant(context.Background(), &pb.TrainingSetVariant{
+		Name:        "is_fraud",
+		Variant:     "default",
+		Description: "if a transaction is fraud",
+		Owner:       "Simba Khadder",
+		Provider:    "demo-s3",
+		Label:       &pb.NameVariant{Name: "is_fraud", Variant: "default"},
+		Features:    []*pb.NameVariant{{Name: "user_credit_score", Variant: "default"}},
+	}); err != nil {
+		return nil, err
+	}
+	return metadataServer, nil
+}
+
+func TestGetListUserMethods(t *testing.T) {
+	metadataServer, err := initializeCreate()
+	if err != nil {
+		t.Fatalf("Failed to set up metadata server and create  %s", err)
 	}
 	stream := makeStreamMock()
 	if err := stream.SendFromClient(&pb.Name{Name: "Simba Khadder"}); err != nil {
@@ -780,20 +854,16 @@ func TestCreateMetadataserverMethods(t *testing.T) {
 			t.Fatalf("Failed to list users%s", err)
 		}
 	}()
-	_, err2 := stream.RecvToClient()
-	if err2 != nil {
-		t.Fatalf("failed to rec")
+	if _, err := stream.RecvToClient(); err != nil {
+		t.Fatalf("failed to recieve")
 	}
-	if _, err := metadataServer.CreateProvider(context.Background(), &pb.Provider{
-		Name:        "demo-s3",
-		Description: "local S3 deployment",
-		Type:        "Batch",
-		Software:    "BigQuery",
-		Team:        "",
-	}); err != nil {
-		t.Fatalf("Failed to create provider %s", err)
-	}
+}
 
+func TestProviderMethodsGetList(t *testing.T) {
+	metadataServer, err := initializeCreate()
+	if err != nil {
+		t.Fatalf("Failed to set up metadata server and create  %s", err)
+	}
 	str := makeStreamMockProvider()
 	if err := str.SendFromClient(&pb.Name{
 		Name: "demo-s3",
@@ -815,12 +885,12 @@ func TestCreateMetadataserverMethods(t *testing.T) {
 	if errRec != nil {
 		t.Fatalf("failed to rec")
 	}
+}
 
-	if _, err := metadataServer.CreateEntity(context.Background(), &pb.Entity{
-		Name:        "user",
-		Description: "user description",
-	}); err != nil {
-		t.Fatalf("Failed to create entity %s", err)
+func TestEntityMethodsGetList(t *testing.T) {
+	metadataServer, err := initializeCreate()
+	if err != nil {
+		t.Fatalf("Failed to set up metadata server and create  %s", err)
 	}
 	streamEntity := makeStreamMockEntity()
 	if err := streamEntity.SendFromClient(&pb.Name{
@@ -843,15 +913,12 @@ func TestCreateMetadataserverMethods(t *testing.T) {
 	if errRecieveEntity != nil {
 		t.Fatalf("failed to recieve")
 	}
-	if _, err := metadataServer.CreateSourceVariant(context.Background(), &pb.SourceVariant{
-		Name:        "Transactions",
-		Variant:     "default",
-		Description: "Source of user transactions",
-		Type:        "CSV",
-		Owner:       "Simba Khadder",
-		Provider:    "demo-s3",
-	}); err != nil {
-		t.Fatalf("Failed to create source var %s", err)
+}
+
+func TestSourceVarMethodsGetList(t *testing.T) {
+	metadataServer, err := initializeCreate()
+	if err != nil {
+		t.Fatalf("Failed to set up metadata server and create  %s", err)
 	}
 	streamSourceVar := makeStreamMockSourceVar()
 	if err := streamSourceVar.SendFromClient(&pb.NameVariant{
@@ -868,6 +935,13 @@ func TestCreateMetadataserverMethods(t *testing.T) {
 	_, errRecieveSourceVariant := streamSourceVar.RecvToClient()
 	if errRecieveSourceVariant != nil {
 		t.Fatalf("failed to recieve")
+	}
+}
+
+func TestSourceMethodsGetList(t *testing.T) {
+	metadataServer, err := initializeCreate()
+	if err != nil {
+		t.Fatalf("Failed to set up metadata server and create  %s", err)
 	}
 	streamSource := makeStreamMockSource()
 	if err := streamSource.SendFromClient(&pb.Name{
@@ -890,18 +964,14 @@ func TestCreateMetadataserverMethods(t *testing.T) {
 	if errRecieveSource != nil {
 		t.Fatalf("failed to recieve label")
 	}
-	if _, err := metadataServer.CreateLabelVariant(context.Background(), &pb.LabelVariant{
-		Name:        "is_fraud",
-		Variant:     "default",
-		Description: "if a transaction is fraud",
-		Type:        "boolean",
-		Source:      &pb.NameVariant{Name: "Transactions", Variant: "default"},
-		Entity:      "user",
-		Owner:       "Simba Khadder",
-		Provider:    "demo-s3",
-	}); err != nil {
-		t.Fatalf("Failed to label variant %s", err)
+}
+
+func TestLabelVarMethodsGetList(t *testing.T) {
+	metadataServer, err := initializeCreate()
+	if err != nil {
+		t.Fatalf("Failed to set up metadata server and create  %s", err)
 	}
+
 	streamLabelVar := makeStreamMockLabelVar()
 	if err := streamLabelVar.SendFromClient(&pb.NameVariant{
 		Name:    "is_fraud",
@@ -917,6 +987,13 @@ func TestCreateMetadataserverMethods(t *testing.T) {
 	_, errRecieveLabelVar := streamLabelVar.RecvToClient()
 	if errRecieveLabelVar != nil {
 		t.Fatalf("failed to recieve")
+	}
+}
+
+func TestLabelMethodsGetList(t *testing.T) {
+	metadataServer, err := initializeCreate()
+	if err != nil {
+		t.Fatalf("Failed to set up metadata server and create  %s", err)
 	}
 	streamLabel := makeStreamMockLabel()
 	if err := streamLabel.SendFromClient(&pb.Name{
@@ -939,60 +1016,12 @@ func TestCreateMetadataserverMethods(t *testing.T) {
 	if errRecieveLabel != nil {
 		t.Fatalf("failed to recieve label")
 	}
-	if _, err := metadataServer.CreateFeatureVariant(context.Background(), &pb.FeatureVariant{
-		Name:        "user_credit_score",
-		Variant:     "default",
-		Source:      &pb.NameVariant{Name: "Transactions", Variant: "default"},
-		Type:        "int",
-		Entity:      "user",
-		Owner:       "Simba Khadder",
-		Description: "User's credit score",
-		Provider:    "demo-s3",
-	}); err != nil {
-		t.Fatalf("Failed to create feature variant %s", err)
-	}
-	streamFeatureVariant := makeStreamMockFeaturesVar()
-	if err := streamFeatureVariant.SendFromClient(&pb.NameVariant{
-		Name:    "user_credit_score",
-		Variant: "default",
-	}); err != nil {
-		t.Fatalf("Failed to send from client 'featur' var%s", err)
-	}
-	go func() {
-		if err := metadataServer.GetFeatureVariants(streamFeatureVariant); err != nil {
-			t.Fatalf("Failed to get feature var%s", err)
-		}
-	}()
-	_, errRecieveFeatureVariant := streamFeatureVariant.RecvToClient()
-	if errRecieveFeatureVariant != nil {
-		t.Fatalf("failed to recieve feature var")
-	}
-	streamfeatures := makeStreamMockFeaturesNonEmpty()
-	if err := streamfeatures.SendFromClient(&pb.Name{
-		Name: "user_credit_score",
-	}); err != nil {
-		t.Fatalf("Failed to send from client 'Features'%s", err)
-	}
-	go func() {
-		if err := metadataServer.GetFeatures(streamfeatures); err != nil {
-			t.Fatalf("Failed to get feature%s", err)
-		}
-	}()
-	go func() {
-		var v pb.Empty
-		if err := metadataServer.ListFeatures(&v, streamfeatures); err != nil {
-			t.Fatalf("Failed to get features%s", err)
-		}
-	}()
-	_, errRecieveFeature := streamfeatures.RecvToClient()
-	if errRecieveFeature != nil {
-		t.Fatalf("failed to recieve features")
-	}
-	if _, err := metadataServer.CreateModel(context.Background(), &pb.Model{
-		Name:        "user_fraud_random_forest",
-		Description: "Classifier on whether user commited fraud",
-	}); err != nil {
-		t.Fatalf("Failed to create model %s", err)
+}
+
+func TestModelMethodsGetList(t *testing.T) {
+	metadataServer, err := initializeCreate()
+	if err != nil {
+		t.Fatalf("Failed to set up metadata server and create  %s", err)
 	}
 	streamModel := makeStreamMockModel()
 	if err := streamModel.SendFromClient(&pb.Name{
@@ -1015,16 +1044,53 @@ func TestCreateMetadataserverMethods(t *testing.T) {
 	if errRecieveModel != nil {
 		t.Fatalf("failed to recieve model")
 	}
-	if _, err := metadataServer.CreateTrainingSetVariant(context.Background(), &pb.TrainingSetVariant{
-		Name:        "is_fraud",
-		Variant:     "default",
-		Description: "if a transaction is fraud",
-		Owner:       "Simba Khadder",
-		Provider:    "demo-s3",
-		Label:       &pb.NameVariant{Name: "is_fraud", Variant: "default"},
-	}); err != nil {
-		t.Fatalf("Failed to create training set var%s", err)
+}
+
+func TestFeaturesMethodsGetList(t *testing.T) {
+	metadataServer, err := initializeCreate()
+	if err != nil {
+		t.Fatalf("Failed to set up metadata server and create  %s", err)
 	}
+	streamfeatures := makeStreamMockFeaturesNonEmpty()
+	if err := streamfeatures.SendFromClient(&pb.Name{
+		Name: "user_credit_score",
+	}); err != nil {
+		t.Fatalf("Failed to send from client 'Features'%s", err)
+	}
+	go func() {
+		if err := metadataServer.GetFeatures(streamfeatures); err != nil {
+			t.Fatalf("Failed to get feature%s", err)
+		}
+	}()
+	go func() {
+		var v pb.Empty
+		if err := metadataServer.ListFeatures(&v, streamfeatures); err != nil {
+			t.Fatalf("Failed to get features%s", err)
+		}
+	}()
+	_, errRecieveFeature := streamfeatures.RecvToClient()
+	if errRecieveFeature != nil {
+		t.Fatalf("failed to recieve features")
+	}
+}
+
+func TestFeatureVarAndTrainingSetMethods(t *testing.T) {
+	metadataServer, err := initializeCreate()
+	if err != nil {
+		t.Fatalf("Failed to set up metadata server and create  %s", err)
+	}
+	streamFeatureVariant := makeStreamMockFeaturesVar()
+	if err := streamFeatureVariant.SendFromClient(&pb.NameVariant{
+		Name:    "user_credit_score",
+		Variant: "default",
+	}); err != nil {
+		t.Fatalf("Failed to send from client 'feature' var%s", err)
+	}
+	go func() {
+		if err := metadataServer.GetFeatureVariants(streamFeatureVariant); err != nil {
+			t.Fatalf("Failed to get feature var%s", err)
+		}
+	}()
 	streamTrainingSetVar := makeStreamMockTrainingSetVar()
 	if err := streamTrainingSetVar.SendFromClient(&pb.NameVariant{
 		Name:    "is_fraud",
@@ -1040,6 +1106,26 @@ func TestCreateMetadataserverMethods(t *testing.T) {
 	_, errRecieveTrainingSetVar := streamTrainingSetVar.RecvToClient()
 	if errRecieveTrainingSetVar != nil {
 		t.Fatalf("failed to recieve")
+	}
+	featureVariant, errRecieveFeatureVariant := streamFeatureVariant.RecvToClient()
+	if errRecieveFeatureVariant != nil {
+		t.Fatalf("failed to recieve feature var")
+	}
+	var containsTrainingset bool = false
+	for _, feature := range featureVariant.Trainingsets {
+		if feature.Name == "is_fraud" && feature.Variant == "default" {
+			containsTrainingset = true
+		}
+	}
+	if !containsTrainingset {
+		t.Fatalf("failed to recieve correct training set")
+	}
+}
+
+func TestTrainingSetGetListMethods(t *testing.T) {
+	metadataServer, err := initializeCreate()
+	if err != nil {
+		t.Fatalf("Failed to set up metadata server and create  %s", err)
 	}
 	streamTrainingSet := makeStreamMockTrainingSet()
 	if err := streamTrainingSet.SendFromClient(&pb.Name{
@@ -1065,7 +1151,7 @@ func TestCreateMetadataserverMethods(t *testing.T) {
 
 }
 
-func TestCreateMetadataserverFeaturesCorrect(t *testing.T) {
+func TestCreateMetadataserverFeaturesError(t *testing.T) {
 	sugar := zap.NewExample().Sugar()
 	server := Config{
 		Logger: sugar,

@@ -66,3 +66,21 @@ func TestMockMaterializeRunner(t *testing.T) {
 		t.Fatalf("Failed to return string on completion status")
 	}
 }
+
+func TestWatcherMultiplex(t *testing.T) {
+	watcherList := make([]CompletionWatcher, 1)
+	watcherList[0] = &mockCompletionWatcher{}
+	multiplex := WatcherMultiplex{watcherList}
+	if err := multiplex.Wait(); err != nil {
+		t.Fatalf("Multiplex failed: %v", err)
+	}
+	if err := multiplex.Err(); err != nil {
+		t.Fatalf("Multiplex failed: %v", err)
+	}
+	if complete := multiplex.Complete(); !complete {
+		t.Fatalf("Multiplex failed to complete")
+	}
+	if result := multiplex.String(); len(result) == 0 {
+		t.Fatalf("Failed to return multiplexer string")
+	}
+}

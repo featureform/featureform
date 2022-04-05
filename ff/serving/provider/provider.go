@@ -28,7 +28,10 @@ type RedisConfig struct {
 }
 
 func (r RedisConfig) Serialized() SerializedConfig {
-	config, _ := json.Marshal(r)
+	config, err := json.Marshal(r)
+	if err != nil {
+		panic(err)
+	}
 	return config
 }
 

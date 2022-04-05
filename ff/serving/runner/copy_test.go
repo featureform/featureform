@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	provider "github.com/featureform/serving/provider"
@@ -39,7 +40,7 @@ func (m *MaterializedFeaturesNumRowsBroken) ID() provider.MaterializationID {
 }
 
 func (m *MaterializedFeaturesNumRowsBroken) NumRows() (int64, error) {
-	return 0, errors.New("cannot fetch number of rows")
+	return 0, fmt.Errorf("cannot fetch number of rows")
 }
 
 func (m *MaterializedFeaturesNumRowsBroken) IterateSegment(begin int64, end int64) (provider.FeatureIterator, error) {
@@ -280,6 +281,177 @@ func TestErrorCoverage(t *testing.T) {
 		}
 	}
 
+}
+
+type ErrorChunkRunnerFactoryConfigs struct {
+	ErrorType   string
+	ErrorConfig Config
+}
+
+func serialize(config MaterializedChunkRunnerConfig) Config {
+	serializedConfig, _ := json.Marshal(config)
+	return serializedConfig
+}
+
+func testErrorConfigsFactory(config Config) error {
+	_, err := Create("COPY", config)
+	return err
+}
+
+func brokenNumRowsOfflineFactory(provider.SerializedConfig) (provider.Provider, error) {
+	return &BrokenNumRowsOfflineStore{}, nil
+}
+
+func brokenGetTableOnlineFactory(provider.SerializedConfig) (provider.Provider, error) {
+	return &BrokenGetTableOnlineStore{}, nil
+}
+
+type BrokenNumRowsOfflineStore struct {
+	provider.BaseProvider
+}
+
+func (store *BrokenNumRowsOfflineStore) AsOfflineStore() (provider.OfflineStore, error) {
+	return store, nil
+}
+
+func (b BrokenNumRowsOfflineStore) CreateResourceTable(id provider.ResourceID) (provider.OfflineTable, error) {
+	return nil, nil
+}
+func (b BrokenNumRowsOfflineStore) GetResourceTable(id provider.ResourceID) (provider.OfflineTable, error) {
+	return nil, nil
+}
+func (b BrokenNumRowsOfflineStore) CreateMaterialization(id provider.ResourceID) (provider.Materialization, error) {
+	return nil, nil
+}
+func (b BrokenNumRowsOfflineStore) GetMaterialization(id provider.MaterializationID) (provider.Materialization, error) {
+	return &MaterializedFeaturesNumRowsBroken{""}, nil
+}
+func (b BrokenNumRowsOfflineStore) DeleteMaterialization(id provider.MaterializationID) error {
+	return nil
+}
+func (b BrokenNumRowsOfflineStore) CreateTrainingSet(provider.TrainingSetDef) error {
+	return nil
+}
+func (b BrokenNumRowsOfflineStore) GetTrainingSet(id provider.ResourceID) (provider.TrainingSetIterator, error) {
+	return nil, nil
+}
+
+type BrokenGetTableOnlineStore struct {
+	provider.BaseProvider
+}
+
+func (store *BrokenGetTableOnlineStore) AsOnlineStore() (provider.OnlineStore, error) {
+	return store, nil
+}
+
+func (b BrokenGetTableOnlineStore) GetTable(feature, variant string) (provider.OnlineStoreTable, error) {
+	return nil, errors.New("failed to get table")
+}
+func (b BrokenGetTableOnlineStore) CreateTable(feature, variant string) (provider.OnlineStoreTable, error) {
+	return nil, nil
+}
+
+func TestMaterializeRunnerFactoryErrorCoverage(t *testing.T) {
+	err := provider.RegisterFactory("MOCK_OFFLINE_BROKEN_NUMROWS", brokenNumRowsOfflineFactory)
+	if err != nil {
+		t.Fatalf("Could not register broken offline provider factory: %v", err)
+	}
+	provider.RegisterFactory("MOCK_ONLINE_BROKEN_GET_TABLE", brokenGetTableOnlineFactory)
+	if err != nil {
+		t.Fatalf("Could not register broken offline table factory: %v", err)
+	}
+	errorConfigs := []ErrorChunkRunnerFactoryConfigs{
+		ErrorChunkRunnerFactoryConfigs{
+			ErrorType:   "cannot deserialize config",
+			ErrorConfig: []byte{},
+		},
+		ErrorChunkRunnerFactoryConfigs{
+			ErrorType: "cannot configure online provider",
+			ErrorConfig: serialize(MaterializedChunkRunnerConfig{
+				OnlineType: "Invalid_Online_type",
+			}),
+		},
+		ErrorChunkRunnerFactoryConfigs{
+			ErrorType: "cannot configure offline provider",
+			ErrorConfig: serialize(MaterializedChunkRunnerConfig{
+				OnlineType:   provider.LocalOnline,
+				OnlineConfig: []byte{},
+				OfflineType:  "Invalid_Offline_type",
+			}),
+		},
+		ErrorChunkRunnerFactoryConfigs{
+			ErrorType: "cannot convert online provider to online store",
+			ErrorConfig: serialize(MaterializedChunkRunnerConfig{
+				OnlineType:    provider.MemoryOffline,
+				OnlineConfig:  []byte{},
+				OfflineType:   provider.MemoryOffline,
+				OfflineConfig: []byte{},
+			}),
+		},
+		ErrorChunkRunnerFactoryConfigs{
+			ErrorType: "cannot convert offline provider to offline store",
+			ErrorConfig: serialize(MaterializedChunkRunnerConfig{
+				OnlineType:    provider.LocalOnline,
+				OnlineConfig:  []byte{},
+				OfflineType:   provider.LocalOnline,
+				OfflineConfig: []byte{},
+			}),
+		},
+		ErrorChunkRunnerFactoryConfigs{
+			ErrorType: "cannot get materialization",
+			ErrorConfig: serialize(MaterializedChunkRunnerConfig{
+				OnlineType:     provider.LocalOnline,
+				OnlineConfig:   []byte{},
+				OfflineType:    provider.MemoryOffline,
+				OfflineConfig:  []byte{},
+				MaterializedID: "",
+			}),
+		},
+		ErrorChunkRunnerFactoryConfigs{
+			ErrorType: "cannot get num rows",
+			ErrorConfig: serialize(MaterializedChunkRunnerConfig{
+				OnlineType:     "MOCK_ONLINE",
+				OnlineConfig:   []byte{},
+				OfflineType:    "MOCK_OFFLINE_BROKEN_NUMROWS",
+				OfflineConfig:  []byte{},
+				MaterializedID: "",
+			}),
+		},
+		ErrorChunkRunnerFactoryConfigs{
+			ErrorType: "cannot get table",
+			ErrorConfig: serialize(MaterializedChunkRunnerConfig{
+				OnlineType:     "MOCK_ONLINE_BROKEN_GET_TABLE",
+				OnlineConfig:   []byte{},
+				OfflineType:    "MOCK_OFFLINE",
+				OfflineConfig:  []byte{},
+				MaterializedID: "",
+			}),
+		},
+		ErrorChunkRunnerFactoryConfigs{
+			ErrorType: "chunk runner starts after end of rows",
+			ErrorConfig: serialize(MaterializedChunkRunnerConfig{
+				OnlineType:     "MOCK_ONLINE",
+				OnlineConfig:   []byte{},
+				OfflineType:    "MOCK_OFFLINE",
+				OfflineConfig:  []byte{},
+				MaterializedID: "",
+				ChunkSize:      1,
+				ChunkIdx:       1,
+			}),
+		},
+	}
+	err = RegisterFactory("COPY", MaterializedChunkRunnerFactory)
+	if err != nil {
+		t.Fatalf("Could not register chunk runner factory: %v", err)
+	}
+	for _, config := range errorConfigs {
+		if err := testErrorConfigsFactory(config.ErrorConfig); err == nil {
+			t.Fatalf("Test Job Failed to catch error: %s", config.ErrorType)
+		}
+	}
+	delete(factoryMap, "COPY")
+	delete(factoryMap, "MOCK_OFFLINE_BROKEN_NUMROWS")
+	delete(factoryMap, "MOCK_OFFLINE_BROKEN_GET_TABLE")
 }
 
 func TestJobs(t *testing.T) {
@@ -576,10 +748,10 @@ func TestChunkRunnerFactory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create new chunk runner config: %v", err)
 	}
+	delete(factoryMap, "COPY")
 	if err := RegisterFactory("COPY", MaterializedChunkRunnerFactory); err != nil {
 		t.Fatalf("Failed to register factory: %v", err)
 	}
-	fmt.Println()
 	serializedConfig, err := chunkRunnerConfig.Serialize()
 	if err != nil {
 		t.Fatalf("Failed to serialize chunk runner config: %v", err)

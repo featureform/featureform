@@ -127,7 +127,7 @@ type ResourceRecord struct {
 
 func (rec ResourceRecord) check() error {
 	if rec.Entity == "" {
-		return errors.New("resourceRecord must have Entity set.")
+		return errors.New("ResourceRecord must have Entity set.")
 	}
 	return nil
 }

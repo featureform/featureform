@@ -42,7 +42,7 @@ func TestMockMaterializeRunner(t *testing.T) {
 			Variant: "test",
 			Type:    provider.Feature,
 		},
-		Cloud: Local,
+		Cloud: LocalMaterializeRunner,
 	}
 	delete(factoryMap, "COPY")
 	if err := RegisterFactory("COPY", mockChunkRunnerFactory); err != nil {

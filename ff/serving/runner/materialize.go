@@ -11,8 +11,8 @@ const WORKER_IMAGE string = "featureform/worker"
 type JobCloud string
 
 const (
-	Kubernetes JobCloud = "KUBERNETES"
-	Local      JobCloud = "LOCAL"
+	KubernetesMaterializeRunner JobCloud = "KUBERNETES"
+	LocalMaterializeRunner      JobCloud = "LOCAL"
 )
 
 type MaterializeRunner struct {
@@ -96,7 +96,7 @@ func (m MaterializeRunner) Run() (CompletionWatcher, error) {
 	}
 	var cloudWatcher CompletionWatcher
 	switch m.Cloud {
-	case Kubernetes:
+	case KubernetesMaterializeRunner:
 		envVars := map[string]string{"NAME": "COPY", "CONFIG": string(serializedConfig)}
 		kubernetesConfig := KubernetesRunnerConfig{
 			envVars:  envVars,
@@ -111,7 +111,7 @@ func (m MaterializeRunner) Run() (CompletionWatcher, error) {
 		if err != nil {
 			return nil, err
 		}
-	case Local:
+	case LocalMaterializeRunner:
 		completionList := make([]CompletionWatcher, int(numChunks))
 		for i := 0; i < int(numChunks); i++ {
 			localRunner, err := Create("COPY", serializedConfig)

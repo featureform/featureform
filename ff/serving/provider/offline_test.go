@@ -328,6 +328,10 @@ func testMaterializationNotFound(t *testing.T, store OfflineStore) {
 	if err == nil {
 		t.Fatalf("Succeeded in getting uninitialized materialization")
 	}
+	err = store.DeleteMaterialization(id)
+	if err == nil {
+		t.Fatalf("Succeeded in deleting uninitialized materialization")
+	}
 	var notFoundErr *MaterializationNotFound
 	if validCast := errors.As(err, &notFoundErr); !validCast {
 		t.Fatalf("Wrong Error type for materialization not found: %T", err)

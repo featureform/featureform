@@ -195,12 +195,14 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 				{Entity: "c", Value: 3},
 			},
 		},
+		// Added .UTC() b/c DeepEqual checks the timezone field of time.Time which can vary, resulting in false failures
+		// during tests even if time is correct
 		"SimpleChanges": {
 			WriteRecords: []ResourceRecord{
-				{Entity: "a", Value: 1, TS: time.UnixMilli(0).UTC()}, // Added .UTC() b/c DeepEqual checks the
-				{Entity: "b", Value: 2, TS: time.UnixMilli(0).UTC()}, // timezone field of time.Time which can
-				{Entity: "c", Value: 3, TS: time.UnixMilli(0).UTC()}, // vary, resulting in false failures
-				{Entity: "a", Value: 4, TS: time.UnixMilli(1).UTC()}, // during tests even if time is correct
+				{Entity: "a", Value: 1, TS: time.UnixMilli(0).UTC()},
+				{Entity: "b", Value: 2, TS: time.UnixMilli(0).UTC()},
+				{Entity: "c", Value: 3, TS: time.UnixMilli(0).UTC()},
+				{Entity: "a", Value: 4, TS: time.UnixMilli(1).UTC()},
 			},
 			ExpectedRows: 3,
 			SegmentStart: 0,

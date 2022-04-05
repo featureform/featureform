@@ -19,10 +19,8 @@ type postgresTableItem struct {
 }
 
 type postgresOfflineStore struct {
-	conn             *pgxpool.Pool
-	ctx              context.Context
-	materializations map[MaterializationID]*memoryMaterialization //Are these used?
-	trainingSets     map[ResourceID]trainingRows
+	conn *pgxpool.Pool
+	ctx  context.Context
 	BaseProvider
 }
 
@@ -83,15 +81,15 @@ func NewPostgresOfflineStore(pg PostgresConfig) (*postgresOfflineStore, error) {
 }
 
 func (store *postgresOfflineStore) getResourceTableName(id ResourceID) string {
-	return fmt.Sprintf("resource_%s", id.Name)
+	return fmt.Sprintf("featureform_resource_%s", id.Name)
 }
 
 func (store *postgresOfflineStore) getMaterializationTableName(ftID MaterializationID) string {
-	return fmt.Sprintf("materialization_%s", ftID)
+	return fmt.Sprintf("featureform_materialization_%s", ftID)
 }
 
 func (store *postgresOfflineStore) getTrainingSetName(id ResourceID) string {
-	return fmt.Sprintf("trainingset_%s", id.Name)
+	return fmt.Sprintf("featureform_trainingset_%s", id.Name)
 }
 
 func (store *postgresOfflineStore) tableExists(id ResourceID) (bool, error) {
@@ -193,8 +191,8 @@ func (store *postgresOfflineStore) CreateMaterialization(id ResourceID) (Materia
 
 }
 func (store *postgresOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
-	getMatQry := fmt.Sprintf("SELECT DISTINCT (table_name) FROM information_schema.tables WHERE table_name LIKE 'materialization_%s%%'", string(id))
-	rows, err := store.conn.Query(context.Background(), getMatQry)
+	getMatQry := fmt.Sprintf("SELECT DISTINCT (table_name) FROM information_schema.tables WHERE table_name=$1")
+	rows, err := store.conn.Query(context.Background(), getMatQry, store.getMaterializationTableName(id))
 	defer rows.Close()
 	if err != nil {
 		return nil, err
@@ -339,7 +337,7 @@ type postgresOfflineTable struct {
 }
 
 func newPostgresOfflineTable(conn *pgxpool.Pool, name string) (*postgresOfflineTable, error) {
-	tableCreateQry := fmt.Sprintf("CREATE TABLE %s (entity VARCHAR, value JSONB, ts timestamptz)", sanitize(name))
+	tableCreateQry := fmt.Sprintf("CREATE TABLE %s (entity VARCHAR, value JSONB, ts timestamptz, UNIQUE (entity, ts))", sanitize(name))
 	_, err := conn.Exec(context.Background(), tableCreateQry)
 	if err != nil {
 		return nil, err
@@ -366,30 +364,22 @@ func (table *postgresOfflineTable) deserialize(v []byte) (interface{}, error) {
 	return item.Value, nil
 }
 
-// Check logic on this one
 func (table *postgresOfflineTable) Write(rec ResourceRecord) error {
 	tb := sanitize(table.name)
-
 	if err := rec.check(); err != nil {
 		return err
 	}
-
 	value, err := table.serialize(rec.Value)
 	if err != nil {
 		return err
 	}
-	if exists, err := table.resourceExists(rec); err != nil {
+	upsertQuery := fmt.Sprintf(""+
+		"INSERT INTO %s (entity, value, ts) "+
+		"VALUES ($1, $2, $3) "+
+		"ON CONFLICT (entity, ts)"+
+		"DO UPDATE SET value=$2 WHERE excluded.entity=$1 AND excluded.ts=$3", tb)
+	if _, err := table.conn.Exec(context.Background(), upsertQuery, rec.Entity, value, rec.TS); err != nil {
 		return err
-	} else if !exists {
-		query := fmt.Sprintf("INSERT INTO %s (entity, value, ts) VALUES ($1, $2, $3) RETURNING entity, value, ts", tb)
-		if _, err := table.conn.Exec(context.Background(), query, rec.Entity, value, rec.TS); err != nil {
-			return err
-		}
-	} else if exists {
-		query := fmt.Sprintf("UPDATE %s SET value=$3 WHERE Entity=$1 AND ts=$2 RETURNING entity, value, ts", tb)
-		if _, err := table.conn.Exec(context.Background(), query, rec.Entity, rec.TS, value); err != nil {
-			return err
-		}
 	}
 
 	return nil

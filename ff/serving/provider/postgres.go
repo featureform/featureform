@@ -100,7 +100,7 @@ func (store *postgresOfflineStore) tableExists(id ResourceID) (bool, error) {
 	} else if id.check(TrainingSet) == nil {
 		tableName = store.getTrainingSetName(id)
 	}
-	err := store.conn.QueryRow(context.Background(), "select 1 from information_schema.tables where table_name=$1", tableName).Scan(&n)
+	err := store.conn.QueryRow(context.Background(), "SELECT 1 FROM information_schema.tables WHERE table_name=$1", tableName).Scan(&n)
 	if err == db.ErrNoRows {
 		return false, nil
 	} else if err != nil {
@@ -224,7 +224,7 @@ func (store *postgresOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
 	tableName := store.getTrainingSetName(def.ID)
 
 	columns := make([]string, 0)
-	query := fmt.Sprintf(" (SELECT entity, value, ts from %s ) l ", sanitize(label.name))
+	query := fmt.Sprintf(" (SELECT entity, value , ts from %s ) l ", sanitize(label.name))
 	for i, feature := range def.Features {
 		resourceTableName := sanitize(store.getResourceTableName(feature))
 		tableJoinAlias := fmt.Sprintf("t%d", i)
@@ -236,7 +236,7 @@ func (store *postgresOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
 		}
 	}
 	columnStr := strings.Join(columns, ", ")
-	fullQuery := fmt.Sprintf("CREATE TABLE %s AS (SELECT %s, l.value  FROM %s ", sanitize(tableName), columnStr, query)
+	fullQuery := fmt.Sprintf("CREATE TABLE %s AS (SELECT %s, l.value as label FROM %s ", sanitize(tableName), columnStr, query)
 
 	if _, err := store.conn.Exec(context.Background(), fullQuery); err != nil {
 		return err
@@ -277,14 +277,11 @@ func (store *postgresOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIte
 		if err := rows.Scan(&column); err != nil {
 			return nil, err
 		}
-		if column != "label" {
-			features = append(features, sanitize(column))
-		}
+		features = append(features, sanitize(column))
 	}
 	columns := strings.Join(features[:], ", ")
 
 	trainingSetQry := fmt.Sprintf("SELECT %s FROM %s", columns, sanitize(trainingSetName))
-
 	rows, err = store.conn.Query(context.Background(), trainingSetQry)
 	defer rows.Close()
 	if err != nil {

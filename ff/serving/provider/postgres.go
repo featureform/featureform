@@ -44,12 +44,12 @@ func (pg *PostgresConfig) Deserialize(config SerializedConfig) error {
 	return nil
 }
 
-func (pg *PostgresConfig) Serialize() ([]byte, error) {
+func (pg *PostgresConfig) Serialize() []byte {
 	conf, err := json.Marshal(pg)
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
-	return conf, nil
+	return conf
 }
 
 func postgresOfflineStoreFactory(config SerializedConfig) (Provider, error) {
@@ -191,18 +191,15 @@ func (store *postgresOfflineStore) CreateMaterialization(id ResourceID) (Materia
 
 }
 func (store *postgresOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
+	tableName := store.getMaterializationTableName(id)
 	getMatQry := fmt.Sprintf("SELECT DISTINCT (table_name) FROM information_schema.tables WHERE table_name=$1")
-	rows, err := store.conn.Query(context.Background(), getMatQry, store.getMaterializationTableName(id))
+	rows, err := store.conn.Query(context.Background(), getMatQry, tableName)
 	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
 	rowCount := 0
-	var tableName string
-	for rows.Next() {
-		if err := rows.Scan(&tableName); err != nil {
-			return nil, err
-		}
+	if rows.Next() {
 		rowCount++
 	}
 	if rowCount == 0 {
@@ -247,12 +244,13 @@ func (store *postgresOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
 	return nil
 }
 
-func (store *postgresOfflineStore) deserialize(v []byte) (postgresTableItem, error) {
-	item := postgresTableItem{}
-	if err := json.Unmarshal(v, &item); err != nil {
-		return postgresTableItem{}, err
+func (store *postgresOfflineStore) parseTableValue(value interface{}) interface{} {
+	v := value.(map[string]interface{})
+	item := postgresTableItem{
+		Value:    v["value"],
+		ItemType: v["type"].(string),
 	}
-	return item, nil
+	return castTableItemType(item)
 }
 
 func (store *postgresOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
@@ -295,31 +293,26 @@ func (store *postgresOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIte
 
 	trainingData := make([]trainingRow, 0)
 	for rows.Next() {
-
 		var label interface{}
 		values, err := rows.Values()
 		if err != nil {
 			return nil, err
 		}
-		// Clean this up more
-		featureVals := make([]interface{}, len(values)-1)
+		numFeatures := len(values) - 1
+		featureVals := make([]interface{}, numFeatures)
 		for i, value := range values {
-			if value == nil {
-				featureVals[i] = value
-			} else if i < len(values)-1 {
-				v := value.(map[string]interface{})
-				item := postgresTableItem{
-					Value:    v["value"],
-					ItemType: v["type"].(string),
+			if i < numFeatures {
+				if value == nil {
+					featureVals[i] = value
+				} else {
+					featureVals[i] = store.parseTableValue(value)
 				}
-				featureVals[i] = castTableItemType(item)
 			} else {
-				v := value.(map[string]interface{})
-				item := postgresTableItem{
-					Value:    v["value"],
-					ItemType: v["type"].(string),
+				if value == nil {
+					label = value
+				} else {
+					label = store.parseTableValue(value)
 				}
-				label = castTableItemType(item)
 			}
 		}
 		trainingData = append(trainingData, trainingRow{
@@ -328,6 +321,14 @@ func (store *postgresOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIte
 		})
 	}
 	return newTrainingRowsIterator(trainingData), nil
+}
+
+func (store *postgresOfflineStore) deserialize(v []byte) (postgresTableItem, error) {
+	item := postgresTableItem{}
+	if err := json.Unmarshal(v, &item); err != nil {
+		return postgresTableItem{}, err
+	}
+	return item, nil
 }
 
 type postgresOfflineTable struct {
@@ -346,22 +347,6 @@ func newPostgresOfflineTable(conn *pgxpool.Pool, name string) (*postgresOfflineT
 		conn: conn,
 		name: name,
 	}, nil
-}
-
-func (table *postgresOfflineTable) serialize(v interface{}) ([]byte, error) {
-	item := postgresTableItem{
-		Value:    v,
-		ItemType: fmt.Sprintf("%T", v),
-	}
-	return json.Marshal(item)
-}
-
-func (table *postgresOfflineTable) deserialize(v []byte) (interface{}, error) {
-	item := postgresTableItem{}
-	if err := json.Unmarshal(v, &item); err != nil {
-		return nil, err
-	}
-	return item.Value, nil
 }
 
 func (table *postgresOfflineTable) Write(rec ResourceRecord) error {
@@ -402,6 +387,22 @@ func (table *postgresOfflineTable) resourceExists(rec ResourceRecord) (bool, err
 	return true, nil
 }
 
+func (table *postgresOfflineTable) serialize(v interface{}) ([]byte, error) {
+	item := postgresTableItem{
+		Value:    v,
+		ItemType: fmt.Sprintf("%T", v),
+	}
+	return json.Marshal(item)
+}
+
+func (table *postgresOfflineTable) deserialize(v []byte) (interface{}, error) {
+	item := postgresTableItem{}
+	if err := json.Unmarshal(v, &item); err != nil {
+		return nil, err
+	}
+	return item.Value, nil
+}
+
 type postgresMaterialization struct {
 	id        MaterializationID
 	conn      *pgxpool.Pool
@@ -425,7 +426,79 @@ func (mat *postgresMaterialization) NumRows() (int64, error) {
 	return n, nil
 }
 
+func (mat *postgresMaterialization) IterateSegment(start, end int64) (FeatureIterator, error) {
+	query := fmt.Sprintf(""+
+		"SELECT entity, value, ts::timestamptz FROM "+
+		"( SELECT * FROM "+
+		"( SELECT *, row_number() over() FROM %s )t1 WHERE row_number=$1 )t2", sanitize(mat.tableName))
+
+	return newPostgresFeatureIterator(mat.conn, query, start, end), nil
+}
+
 func (mat *postgresMaterialization) deserialize(v []byte) (postgresTableItem, error) {
+	item := postgresTableItem{}
+	if err := json.Unmarshal(v, &item); err != nil {
+		return postgresTableItem{}, err
+	}
+	return item, nil
+}
+
+type postgresFeatureIterator struct {
+	conn  *pgxpool.Pool
+	idx   int64
+	query string
+	start int64
+	end   int64
+	err   error
+}
+
+func newPostgresFeatureIterator(pool *pgxpool.Pool, query string, start, end int64) FeatureIterator {
+	return &postgresFeatureIterator{
+		conn:  pool,
+		idx:   start,
+		query: query,
+		end:   end,
+		err:   nil,
+	}
+}
+
+func (iter *postgresFeatureIterator) Next() bool {
+	isLastIdx := iter.idx == iter.end
+	if isLastIdx {
+		return false
+	}
+	iter.idx++
+	return true
+}
+
+func (iter *postgresFeatureIterator) Value() ResourceRecord {
+	var rec ResourceRecord
+	var value []byte
+	var ts time.Time
+	if err := iter.conn.QueryRow(context.Background(), iter.query, iter.idx).Scan(&rec.Entity, &value, &ts); err != nil {
+		iter.idx = iter.end
+		iter.err = err
+	}
+
+	val, err := iter.deserialize(value)
+	if err != nil {
+		iter.idx = iter.end
+		iter.err = err
+	}
+	rec.Value = castTableItemType(val)
+	rec.TS = ts.UTC()
+
+	return rec
+}
+
+func (iter *postgresFeatureIterator) Err() error {
+	if iter.err != nil {
+		return iter.err
+	}
+	return nil
+}
+
+func (iter *postgresFeatureIterator) deserialize(v []byte) (postgresTableItem, error) {
 	item := postgresTableItem{}
 	if err := json.Unmarshal(v, &item); err != nil {
 		return postgresTableItem{}, err
@@ -457,35 +530,4 @@ func castTableItemType(v postgresTableItem) interface{} {
 	default:
 		return v.Value
 	}
-}
-
-func (mat *postgresMaterialization) IterateSegment(start, end int64) (FeatureIterator, error) {
-	query := fmt.Sprintf(""+
-		"SELECT entity, value, ts::timestamptz FROM "+
-		"( SELECT * FROM "+
-		"( SELECT *, row_number() over() FROM %s )t1 WHERE row_number>$1 AND row_number<=$2)t2", sanitize(mat.tableName))
-	rows, err := mat.conn.Query(context.Background(), query, start, end)
-	defer rows.Close()
-	if err != nil {
-		return nil, err
-	}
-
-	data := make([]ResourceRecord, 0)
-	for rows.Next() {
-		var rec ResourceRecord
-		var value []byte
-		var ts time.Time
-		if err := rows.Scan(&rec.Entity, &value, &ts); err != nil {
-			return nil, err
-		}
-		val, err := mat.deserialize(value)
-		if err != nil {
-			return nil, err
-		}
-		rec.Value = castTableItemType(val)
-		rec.TS = ts.UTC()
-		data = append(data, rec)
-	}
-
-	return newMemoryFeatureIterator(data), nil
 }

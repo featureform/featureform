@@ -283,6 +283,9 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 			t.Fatalf("Failed to get materialization: %s", err)
 		}
 		testMaterialization(t, getMat, test)
+		if err := store.DeleteMaterialization(mat.ID()); err != nil {
+			t.Fatalf("Failed to delete materialization: %s", err)
+		}
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {

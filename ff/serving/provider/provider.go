@@ -27,31 +27,8 @@ type RedisConfig struct {
 	DB       int
 }
 
-type MemoryOfflineConfig struct {
-	OfflinePointer string
-}
-
-func (m *MemoryOfflineConfig) Serialized() SerializedConfig {
-	config, err := json.Marshal(m)
-	if err != nil {
-		panic(err)
-	}
-	return config
-}
-
-func (m *MemoryOfflineConfig) Deserialize(config SerializedConfig) error {
-	err := json.Unmarshal(config, m)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 func (r RedisConfig) Serialized() SerializedConfig {
-	config, err := json.Marshal(r)
-	if err != nil {
-		panic(err)
-	}
+	config, _ := json.Marshal(r)
 	return config
 }
 

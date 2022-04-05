@@ -56,4 +56,13 @@ func TestMockMaterializeRunner(t *testing.T) {
 	if err := watcher.Wait(); err != nil {
 		t.Fatalf("Failed to run materialize runner: %v", err)
 	}
+	if err := watcher.Err(); err != nil {
+		t.Fatalf("Failed to run materialize runner: %v", err)
+	}
+	if complete := watcher.Complete(); !complete {
+		t.Fatalf("Runner failed to complete")
+	}
+	if result := watcher.String(); len(result) == 0 {
+		t.Fatalf("Failed to return string on completion status")
+	}
 }

@@ -603,3 +603,11 @@ func TestChunkRunnerFactory(t *testing.T) {
 		t.Fatalf("runner failed while running: %v", err)
 	}
 }
+
+func TestRunnerConfigDeserializeFails(t *testing.T) {
+	failConfig := []byte("this should fail when attempted to be deserialized")
+	config := &MaterializedChunkRunnerConfig{}
+	if err := config.Deserialize(failConfig); err == nil {
+		t.Fatalf("Failed to report error deserializing config")
+	}
+}

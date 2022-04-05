@@ -112,7 +112,6 @@ func (m MaterializeRunner) Run() (CompletionWatcher, error) {
 			return nil, err
 		}
 	case Local:
-		fmt.Println(numChunks)
 		completionList := make([]CompletionWatcher, int(numChunks))
 		for i := 0; i < int(numChunks); i++ {
 			localRunner, err := Create("COPY", serializedConfig)

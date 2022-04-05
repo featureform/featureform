@@ -156,10 +156,7 @@ type MaterializedChunkRunnerConfig struct {
 }
 
 func (m *MaterializedChunkRunnerConfig) Serialize() (Config, error) {
-	config, err := json.Marshal(m)
-	if err != nil {
-		return nil, err
-	}
+	config, _ := json.Marshal(m)
 	return config, nil
 }
 

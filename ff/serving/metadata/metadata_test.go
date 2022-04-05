@@ -219,8 +219,8 @@ func TestResourceIDmethods(t *testing.T) {
 		t.Fatalf("Failed to correctly complete resourceId.Proto (mismatch variant)")
 	}
 	_, hasParent := resourceId.Parent()
-	if hasParent != false {
-		t.Fatalf("Failed to correctly set boolean (false) for resourceId.Parent()")
+	if hasParent != true {
+		t.Fatalf("Failed to correctly set boolean (true) for resourceId.Parent()")
 	}
 }
 
@@ -532,6 +532,227 @@ func (m *TrainingSetVarStreamMock) RecvToClient() (*pb.TrainingSetVariant, error
 	return response, nil
 }
 
+func makeStreamMockFeaturesNonEmpty() *FeaturesStreamMockNonEmpty {
+	rec := make(chan *pb.Name, 10)
+	sent := make(chan *pb.Feature, 10)
+	return &FeaturesStreamMockNonEmpty{
+		ctx:            context.Background(),
+		recvToServer:   rec,
+		sentFromServer: sent,
+	}
+
+}
+
+type FeaturesStreamMockNonEmpty struct {
+	grpc.ServerStream
+	ctx            context.Context
+	recvToServer   chan *pb.Name
+	sentFromServer chan *pb.Feature
+}
+
+func (m *FeaturesStreamMockNonEmpty) Context() context.Context {
+	return m.ctx
+}
+func (m *FeaturesStreamMockNonEmpty) Send(resp *pb.Feature) error {
+	m.sentFromServer <- resp
+	return nil
+}
+func (m *FeaturesStreamMockNonEmpty) Recv() (*pb.Name, error) {
+	req, more := <-m.recvToServer
+	if !more {
+		return nil, errors.New("no more to recieve")
+	}
+	return req, nil
+}
+
+func (m *FeaturesStreamMockNonEmpty) SendFromClient(req *pb.Name) error {
+	m.recvToServer <- req
+	return nil
+}
+func (m *FeaturesStreamMockNonEmpty) RecvToClient() (*pb.Feature, error) {
+	response, more := <-m.sentFromServer
+	if !more {
+		return nil, errors.New("no more to recieve")
+	}
+	return response, nil
+}
+
+func makeStreamMockFeaturesVar() *FeaturesVariantStreamMock {
+	rec := make(chan *pb.NameVariant, 10)
+	sent := make(chan *pb.FeatureVariant, 10)
+	return &FeaturesVariantStreamMock{
+		ctx:            context.Background(),
+		recvToServer:   rec,
+		sentFromServer: sent,
+	}
+}
+
+type FeaturesVariantStreamMock struct {
+	grpc.ServerStream
+	ctx            context.Context
+	recvToServer   chan *pb.NameVariant
+	sentFromServer chan *pb.FeatureVariant
+}
+
+func (m *FeaturesVariantStreamMock) Context() context.Context {
+	return m.ctx
+}
+func (m *FeaturesVariantStreamMock) Send(resp *pb.FeatureVariant) error {
+	m.sentFromServer <- resp
+	return nil
+}
+func (m *FeaturesVariantStreamMock) Recv() (*pb.NameVariant, error) {
+	req, more := <-m.recvToServer
+	if !more {
+		return nil, errors.New("no more to recieve")
+	}
+	return req, nil
+}
+
+func (m *FeaturesVariantStreamMock) SendFromClient(req *pb.NameVariant) error {
+	m.recvToServer <- req
+	return nil
+}
+func (m *FeaturesVariantStreamMock) RecvToClient() (*pb.FeatureVariant, error) {
+	response, more := <-m.sentFromServer
+	if !more {
+		return nil, errors.New("no more to recieve")
+	}
+	return response, nil
+}
+
+func makeStreamMockTrainingSet() *TrainingSetStreamMock {
+	rec := make(chan *pb.Name, 10)
+	sent := make(chan *pb.TrainingSet, 10)
+	return &TrainingSetStreamMock{
+		ctx:            context.Background(),
+		recvToServer:   rec,
+		sentFromServer: sent,
+	}
+}
+
+type TrainingSetStreamMock struct {
+	grpc.ServerStream
+	ctx            context.Context
+	recvToServer   chan *pb.Name
+	sentFromServer chan *pb.TrainingSet
+}
+
+func (m *TrainingSetStreamMock) Context() context.Context {
+	return m.ctx
+}
+func (m *TrainingSetStreamMock) Send(resp *pb.TrainingSet) error {
+	m.sentFromServer <- resp
+	return nil
+}
+func (m *TrainingSetStreamMock) Recv() (*pb.Name, error) {
+	req, more := <-m.recvToServer
+	if !more {
+		return nil, errors.New("no more to recieve")
+	}
+	return req, nil
+}
+
+func (m *TrainingSetStreamMock) SendFromClient(req *pb.Name) error {
+	m.recvToServer <- req
+	return nil
+}
+func (m *TrainingSetStreamMock) RecvToClient() (*pb.TrainingSet, error) {
+	response, more := <-m.sentFromServer
+	if !more {
+		return nil, errors.New("no more to recieve")
+	}
+	return response, nil
+}
+
+func makeStreamMockLabel() *LabelStreamMock {
+	rec := make(chan *pb.Name, 10)
+	sent := make(chan *pb.Label, 10)
+	return &LabelStreamMock{
+		ctx:            context.Background(),
+		recvToServer:   rec,
+		sentFromServer: sent,
+	}
+}
+
+type LabelStreamMock struct {
+	grpc.ServerStream
+	ctx            context.Context
+	recvToServer   chan *pb.Name
+	sentFromServer chan *pb.Label
+}
+
+func (m *LabelStreamMock) Context() context.Context {
+	return m.ctx
+}
+func (m *LabelStreamMock) Send(resp *pb.Label) error {
+	m.sentFromServer <- resp
+	return nil
+}
+func (m *LabelStreamMock) Recv() (*pb.Name, error) {
+	req, more := <-m.recvToServer
+	if !more {
+		return nil, errors.New("no more to recieve")
+	}
+	return req, nil
+}
+
+func (m *LabelStreamMock) SendFromClient(req *pb.Name) error {
+	m.recvToServer <- req
+	return nil
+}
+func (m *LabelStreamMock) RecvToClient() (*pb.Label, error) {
+	response, more := <-m.sentFromServer
+	if !more {
+		return nil, errors.New("no more to recieve")
+	}
+	return response, nil
+}
+
+func makeStreamMockSource() *SourceStreamMock {
+	rec := make(chan *pb.Name, 10)
+	sent := make(chan *pb.Source, 10)
+	return &SourceStreamMock{
+		ctx:            context.Background(),
+		recvToServer:   rec,
+		sentFromServer: sent,
+	}
+}
+
+type SourceStreamMock struct {
+	grpc.ServerStream
+	ctx            context.Context
+	recvToServer   chan *pb.Name
+	sentFromServer chan *pb.Source
+}
+
+func (m *SourceStreamMock) Context() context.Context {
+	return m.ctx
+}
+func (m *SourceStreamMock) Send(resp *pb.Source) error {
+	m.sentFromServer <- resp
+	return nil
+}
+func (m *SourceStreamMock) Recv() (*pb.Name, error) {
+	req, more := <-m.recvToServer
+	if !more {
+		return nil, errors.New("no more to recieve")
+	}
+	return req, nil
+}
+
+func (m *SourceStreamMock) SendFromClient(req *pb.Name) error {
+	m.recvToServer <- req
+	return nil
+}
+func (m *SourceStreamMock) RecvToClient() (*pb.Source, error) {
+	response, more := <-m.sentFromServer
+	if !more {
+		return nil, errors.New("no more to recieve")
+	}
+	return response, nil
+}
+
 func TestCreateMetadataserverMethods(t *testing.T) {
 	sugar := zap.NewExample().Sugar()
 	server := Config{
@@ -648,7 +869,27 @@ func TestCreateMetadataserverMethods(t *testing.T) {
 	if errRecieveSourceVariant != nil {
 		t.Fatalf("failed to recieve")
 	}
-
+	streamSource := makeStreamMockSource()
+	if err := streamSource.SendFromClient(&pb.Name{
+		Name: "Transactions",
+	}); err != nil {
+		t.Fatalf("Failed to send from client 'Entity'%s", err)
+	}
+	go func() {
+		if err := metadataServer.GetSources(streamSource); err != nil {
+			t.Fatalf("Failed to get label%s", err)
+		}
+	}()
+	go func() {
+		var v pb.Empty
+		if err := metadataServer.ListSources(&v, streamSource); err != nil {
+			t.Fatalf("Failed to list label%s", err)
+		}
+	}()
+	_, errRecieveSource := streamSource.RecvToClient()
+	if errRecieveSource != nil {
+		t.Fatalf("failed to recieve label")
+	}
 	if _, err := metadataServer.CreateLabelVariant(context.Background(), &pb.LabelVariant{
 		Name:        "is_fraud",
 		Variant:     "default",
@@ -666,7 +907,7 @@ func TestCreateMetadataserverMethods(t *testing.T) {
 		Name:    "is_fraud",
 		Variant: "default",
 	}); err != nil {
-		t.Fatalf("Failed to send from client 'NameVariant'%s", err)
+		t.Fatalf("Failed to send from client 'label Variant'%s", err)
 	}
 	go func() {
 		if err := metadataServer.GetLabelVariants(streamLabelVar); err != nil {
@@ -676,6 +917,76 @@ func TestCreateMetadataserverMethods(t *testing.T) {
 	_, errRecieveLabelVar := streamLabelVar.RecvToClient()
 	if errRecieveLabelVar != nil {
 		t.Fatalf("failed to recieve")
+	}
+	streamLabel := makeStreamMockLabel()
+	if err := streamLabel.SendFromClient(&pb.Name{
+		Name: "is_fraud",
+	}); err != nil {
+		t.Fatalf("Failed to send from client 'label'%s", err)
+	}
+	go func() {
+		if err := metadataServer.GetLabels(streamLabel); err != nil {
+			t.Fatalf("Failed to get label%s", err)
+		}
+	}()
+	go func() {
+		var v pb.Empty
+		if err := metadataServer.ListLabels(&v, streamLabel); err != nil {
+			t.Fatalf("Failed to list label%s", err)
+		}
+	}()
+	_, errRecieveLabel := streamLabel.RecvToClient()
+	if errRecieveLabel != nil {
+		t.Fatalf("failed to recieve label")
+	}
+	if _, err := metadataServer.CreateFeatureVariant(context.Background(), &pb.FeatureVariant{
+		Name:        "user_credit_score",
+		Variant:     "default",
+		Source:      &pb.NameVariant{Name: "Transactions", Variant: "default"},
+		Type:        "int",
+		Entity:      "user",
+		Owner:       "Simba Khadder",
+		Description: "User's credit score",
+		Provider:    "demo-s3",
+	}); err != nil {
+		t.Fatalf("Failed to create feature variant %s", err)
+	}
+	streamFeatureVariant := makeStreamMockFeaturesVar()
+	if err := streamFeatureVariant.SendFromClient(&pb.NameVariant{
+		Name:    "user_credit_score",
+		Variant: "default",
+	}); err != nil {
+		t.Fatalf("Failed to send from client 'featur' var%s", err)
+	}
+	go func() {
+		if err := metadataServer.GetFeatureVariants(streamFeatureVariant); err != nil {
+			t.Fatalf("Failed to get feature var%s", err)
+		}
+	}()
+	_, errRecieveFeatureVariant := streamFeatureVariant.RecvToClient()
+	if errRecieveFeatureVariant != nil {
+		t.Fatalf("failed to recieve feature var")
+	}
+	streamfeatures := makeStreamMockFeaturesNonEmpty()
+	if err := streamfeatures.SendFromClient(&pb.Name{
+		Name: "user_credit_score",
+	}); err != nil {
+		t.Fatalf("Failed to send from client 'Features'%s", err)
+	}
+	go func() {
+		if err := metadataServer.GetFeatures(streamfeatures); err != nil {
+			t.Fatalf("Failed to get feature%s", err)
+		}
+	}()
+	go func() {
+		var v pb.Empty
+		if err := metadataServer.ListFeatures(&v, streamfeatures); err != nil {
+			t.Fatalf("Failed to get features%s", err)
+		}
+	}()
+	_, errRecieveFeature := streamfeatures.RecvToClient()
+	if errRecieveFeature != nil {
+		t.Fatalf("failed to recieve features")
 	}
 	if _, err := metadataServer.CreateModel(context.Background(), &pb.Model{
 		Name:        "user_fraud_random_forest",
@@ -712,7 +1023,7 @@ func TestCreateMetadataserverMethods(t *testing.T) {
 		Provider:    "demo-s3",
 		Label:       &pb.NameVariant{Name: "is_fraud", Variant: "default"},
 	}); err != nil {
-		t.Fatalf("Failed to create trainingset %s", err)
+		t.Fatalf("Failed to create training set var%s", err)
 	}
 	streamTrainingSetVar := makeStreamMockTrainingSetVar()
 	if err := streamTrainingSetVar.SendFromClient(&pb.NameVariant{
@@ -723,11 +1034,72 @@ func TestCreateMetadataserverMethods(t *testing.T) {
 	}
 	go func() {
 		if err := metadataServer.GetTrainingSetVariants(streamTrainingSetVar); err != nil {
-			t.Fatalf("Failed to get trainingset variants%s", err)
+			t.Fatalf("Failed to get training set variants%s", err)
 		}
 	}()
 	_, errRecieveTrainingSetVar := streamTrainingSetVar.RecvToClient()
 	if errRecieveTrainingSetVar != nil {
+		t.Fatalf("failed to recieve")
+	}
+	streamTrainingSet := makeStreamMockTrainingSet()
+	if err := streamTrainingSet.SendFromClient(&pb.Name{
+		Name: "is_fraud",
+	}); err != nil {
+		t.Fatalf("Failed to send from client 'Train set'%s", err)
+	}
+	go func() {
+		if err := metadataServer.GetTrainingSets(streamTrainingSet); err != nil {
+			t.Fatalf("Failed to get training set%s", err)
+		}
+	}()
+	go func() {
+		var v pb.Empty
+		if err := metadataServer.ListTrainingSets(&v, streamTrainingSet); err != nil {
+			t.Fatalf("Failed to list training set%s", err)
+		}
+	}()
+	_, errRecievesTrainingSet := streamTrainingSet.RecvToClient()
+	if errRecievesTrainingSet != nil {
+		t.Fatalf("failed to recieve training set")
+	}
+
+}
+
+func TestCreateMetadataserverFeaturesCorrect(t *testing.T) {
+	sugar := zap.NewExample().Sugar()
+	server := Config{
+		Logger: sugar,
+	}
+	metadataServer, err := NewMetadataServer(&server)
+	if err != nil {
+		t.Fatalf("Failed to set up metadataserver %s", err)
+	}
+	streamMockFeatures := makeStreamMockFeaturesNonEmpty()
+	if err := streamMockFeatures.Send(&pb.Feature{
+		Name:           "user_transaction_count",
+		DefaultVariant: "30d",
+		Variants:       []string{},
+	}); err != nil {
+		t.Fatalf("Failed to send from client 'Feature'%s", err)
+	}
+	if err := streamMockFeatures.SendFromClient(&pb.Name{
+		Name: "user_transaction_countt",
+	}); err != nil {
+		t.Fatalf("Failed to send from client 'Feature'%s", err)
+	}
+	go func() {
+		if err := metadataServer.GetFeatures(streamMockFeatures); err == nil {
+			t.Fatalf("Failed to catch error get %s", err)
+		}
+	}()
+	go func() {
+		var v pb.Empty
+		if err := metadataServer.ListFeatures(&v, streamMockFeatures); err != nil {
+			t.Fatalf("Failed to list features%s", err)
+		}
+	}()
+	_, errRecieveLabelVar := streamMockFeatures.RecvToClient()
+	if errRecieveLabelVar != nil {
 		t.Fatalf("failed to recieve")
 	}
 }

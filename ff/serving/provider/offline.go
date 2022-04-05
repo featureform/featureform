@@ -10,7 +10,8 @@ import (
 )
 
 const (
-	MemoryOffline Type = "MEMORY_OFFLINE"
+	MemoryOffline   Type = "MEMORY_OFFLINE"
+	PostgresOffline      = "POSTGRES_OFFLINE"
 )
 
 type OfflineResourceType int

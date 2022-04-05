@@ -7,9 +7,10 @@ import (
 
 func init() {
 	unregisteredFactories := map[Type]Factory{
-		LocalOnline:   localOnlineStoreFactory,
-		RedisOnline:   redisOnlineStoreFactory,
-		MemoryOffline: memoryOfflineStoreFactory,
+		LocalOnline:     localOnlineStoreFactory,
+		RedisOnline:     redisOnlineStoreFactory,
+		MemoryOffline:   memoryOfflineStoreFactory,
+		PostgresOffline: postgresOfflineStoreFactory,
 	}
 	for name, factory := range unregisteredFactories {
 		if err := RegisterFactory(name, factory); err != nil {

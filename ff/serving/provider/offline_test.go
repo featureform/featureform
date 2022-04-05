@@ -29,12 +29,24 @@ func TestOfflineStores(t *testing.T) {
 		"LabelTableNotFound":      testLabelTableNotFound,
 		"FeatureTableNotFound":    testFeatureTableNotFound,
 	}
+	var postgresConfig = PostgresConfig{
+		Host:     "localhost",
+		Port:     "5432",
+		Database: "default",
+		Username: "sdreyer",
+		Password: "",
+	}
+	serialPGConfig, err := postgresConfig.Serialize()
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
 	testList := []struct {
 		t               Type
 		c               SerializedConfig
 		integrationTest bool
 	}{
 		{MemoryOffline, []byte{}, false},
+		{PostgresOffline, serialPGConfig, true},
 	}
 	for _, testItem := range testList {
 		if testing.Short() && testItem.integrationTest {
@@ -185,54 +197,54 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 		},
 		"SimpleChanges": {
 			WriteRecords: []ResourceRecord{
-				{Entity: "a", Value: 1, TS: time.UnixMilli(0)},
-				{Entity: "b", Value: 2, TS: time.UnixMilli(0)},
-				{Entity: "c", Value: 3, TS: time.UnixMilli(0)},
-				{Entity: "a", Value: 4, TS: time.UnixMilli(1)},
+				{Entity: "a", Value: 1, TS: time.UnixMilli(0).UTC()}, // Added .UTC() b/c DeepEqual checks the
+				{Entity: "b", Value: 2, TS: time.UnixMilli(0).UTC()}, // timezone field of time.Time which can
+				{Entity: "c", Value: 3, TS: time.UnixMilli(0).UTC()}, // vary, resulting in false failures
+				{Entity: "a", Value: 4, TS: time.UnixMilli(1).UTC()}, // during tests even if time is correct
 			},
 			ExpectedRows: 3,
 			SegmentStart: 0,
 			SegmentEnd:   3,
 			ExpectedSegment: []ResourceRecord{
-				{Entity: "a", Value: 4, TS: time.UnixMilli(1)},
-				{Entity: "b", Value: 2, TS: time.UnixMilli(0)},
-				{Entity: "c", Value: 3, TS: time.UnixMilli(0)},
+				{Entity: "a", Value: 4, TS: time.UnixMilli(1).UTC()},
+				{Entity: "b", Value: 2, TS: time.UnixMilli(0).UTC()},
+				{Entity: "c", Value: 3, TS: time.UnixMilli(0).UTC()},
 			},
 		},
 		"OutOfOrderWrites": {
 			WriteRecords: []ResourceRecord{
-				{Entity: "a", Value: 1, TS: time.UnixMilli(10)},
-				{Entity: "b", Value: 2, TS: time.UnixMilli(3)},
-				{Entity: "c", Value: 3, TS: time.UnixMilli(7)},
-				{Entity: "c", Value: 9, TS: time.UnixMilli(5)},
-				{Entity: "a", Value: 4, TS: time.UnixMilli(1)},
+				{Entity: "a", Value: 1, TS: time.UnixMilli(10).UTC()},
+				{Entity: "b", Value: 2, TS: time.UnixMilli(3).UTC()},
+				{Entity: "c", Value: 3, TS: time.UnixMilli(7).UTC()},
+				{Entity: "c", Value: 9, TS: time.UnixMilli(5).UTC()},
+				{Entity: "a", Value: 4, TS: time.UnixMilli(1).UTC()},
 			},
 			ExpectedRows: 3,
 			SegmentStart: 0,
 			SegmentEnd:   3,
 			ExpectedSegment: []ResourceRecord{
-				{Entity: "a", Value: 1, TS: time.UnixMilli(10)},
-				{Entity: "b", Value: 2, TS: time.UnixMilli(3)},
-				{Entity: "c", Value: 3, TS: time.UnixMilli(7)},
+				{Entity: "a", Value: 1, TS: time.UnixMilli(10).UTC()},
+				{Entity: "b", Value: 2, TS: time.UnixMilli(3).UTC()},
+				{Entity: "c", Value: 3, TS: time.UnixMilli(7).UTC()},
 			},
 		},
 		"OutOfOrderOverwrites": {
 			WriteRecords: []ResourceRecord{
-				{Entity: "a", Value: 1, TS: time.UnixMilli(10)},
-				{Entity: "b", Value: 2, TS: time.UnixMilli(3)},
-				{Entity: "c", Value: 3, TS: time.UnixMilli(7)},
-				{Entity: "c", Value: 9, TS: time.UnixMilli(5)},
-				{Entity: "b", Value: 12, TS: time.UnixMilli(2)},
-				{Entity: "a", Value: 4, TS: time.UnixMilli(1)},
-				{Entity: "b", Value: 9, TS: time.UnixMilli(3)},
+				{Entity: "a", Value: 1, TS: time.UnixMilli(10).UTC()},
+				{Entity: "b", Value: 2, TS: time.UnixMilli(3).UTC()},
+				{Entity: "c", Value: 3, TS: time.UnixMilli(7).UTC()},
+				{Entity: "c", Value: 9, TS: time.UnixMilli(5).UTC()},
+				{Entity: "b", Value: 12, TS: time.UnixMilli(2).UTC()},
+				{Entity: "a", Value: 4, TS: time.UnixMilli(1).UTC()},
+				{Entity: "b", Value: 9, TS: time.UnixMilli(3).UTC()},
 			},
 			ExpectedRows: 3,
 			SegmentStart: 0,
 			SegmentEnd:   3,
 			ExpectedSegment: []ResourceRecord{
-				{Entity: "a", Value: 1, TS: time.UnixMilli(10)},
-				{Entity: "b", Value: 9, TS: time.UnixMilli(3)},
-				{Entity: "c", Value: 3, TS: time.UnixMilli(7)},
+				{Entity: "a", Value: 1, TS: time.UnixMilli(10).UTC()},
+				{Entity: "b", Value: 9, TS: time.UnixMilli(3).UTC()},
+				{Entity: "c", Value: 3, TS: time.UnixMilli(7).UTC()},
 			},
 		},
 	}
@@ -270,7 +282,7 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 		}
 		for _, rec := range test.WriteRecords {
 			if err := table.Write(rec); err != nil {
-				t.Fatalf("Failed to write record %v", rec)
+				t.Fatalf("Failed to write record %v: %s", rec, err)
 			}
 		}
 		mat, err := store.CreateMaterialization(id)
@@ -289,6 +301,7 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 			runTestCase(t, test)
 		})
 	}
+
 }
 
 func testWriteInvalidResourceRecord(t *testing.T, store OfflineStore) {
@@ -320,6 +333,7 @@ func testMaterializeUnknown(t *testing.T, store OfflineStore) {
 }
 
 func testMaterializationNotFound(t *testing.T, store OfflineStore) {
+
 	id := MaterializationID(uuid.NewString())
 	_, err := store.GetMaterialization(id)
 	if err == nil {
@@ -530,7 +544,7 @@ func testTrainingSet(t *testing.T, store OfflineStore) {
 				}
 			}
 			if !found {
-				t.Fatalf("Unexpected training row: %v", realRow)
+				t.Fatalf("Unexpected training row: %v, expected %v", realRow, expectedRows)
 			}
 			i++
 		}

@@ -81,7 +81,13 @@ func NewPostgresOfflineStore(pg PostgresConfig) (*postgresOfflineStore, error) {
 }
 
 func (store *postgresOfflineStore) getResourceTableName(id ResourceID) string {
-	return fmt.Sprintf("featureform_resource_%s", id.Name)
+	var idType string
+	if id.Type == Feature {
+		idType = "feature"
+	} else {
+		idType = "label"
+	}
+	return fmt.Sprintf("featureform_resource_%s_%s_%s", idType, id.Name, id.Variant)
 }
 
 func (store *postgresOfflineStore) getMaterializationTableName(ftID MaterializationID) string {
@@ -89,7 +95,7 @@ func (store *postgresOfflineStore) getMaterializationTableName(ftID Materializat
 }
 
 func (store *postgresOfflineStore) getTrainingSetName(id ResourceID) string {
-	return fmt.Sprintf("featureform_trainingset_%s", id.Name)
+	return fmt.Sprintf("featureform_trainingset_%s_%s", id.Name, id.Variant)
 }
 
 func (store *postgresOfflineStore) tableExists(id ResourceID) (bool, error) {

@@ -70,7 +70,7 @@ func postgresOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 func NewPostgresOfflineStore(pg PostgresConfig) (*postgresOfflineStore, error) {
 	url := fmt.Sprintf("postgres://%s:%s@%s:%s/%s", pg.Username, pg.Password, pg.Host, pg.Port, pg.Database)
 	ctx := context.Background()
-	conn, err := pgxpool.Connect(ctx, url) //Change this
+	conn, err := pgxpool.Connect(ctx, url)
 	if err != nil {
 		return nil, err
 	}
@@ -132,7 +132,6 @@ func (store *postgresOfflineStore) CreateResourceTable(id ResourceID) (OfflineTa
 	} else if exists {
 		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}
-	//check if ctx is needed
 	tableName := store.getResourceTableName(id)
 	table, err := newPostgresOfflineTable(store.conn, tableName)
 	if err != nil {
@@ -162,7 +161,7 @@ func (store *postgresOfflineStore) CreateMaterialization(id ResourceID) (Materia
 	if id.Type != Feature {
 		return nil, errors.New("only features can be materialized")
 	}
-	resTable, err := store.getPostgresResourceTable(id) // Need to clarify names
+	resTable, err := store.getPostgresResourceTable(id)
 	if err != nil {
 		return nil, err
 	}
@@ -174,7 +173,7 @@ func (store *postgresOfflineStore) CreateMaterialization(id ResourceID) (Materia
 	tableCreateQry := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s AS (SELECT entity, value, ts FROM %s WHERE 1=2)", sanitizedTableName, resTableName)
 
 	_, err = store.conn.Exec(
-		context.Background(), tableCreateQry) // Set correct types
+		context.Background(), tableCreateQry)
 	if err != nil {
 		return nil, err
 	}

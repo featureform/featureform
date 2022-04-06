@@ -1,22 +1,30 @@
 package runner
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	provider "github.com/featureform/serving/provider"
+	"github.com/google/uuid"
 	"reflect"
 	"sync"
 	"testing"
 )
 
 type MockMaterializedFeatures struct {
-	Rows []FeatureRow
+	id   provider.MaterializationID
+	Rows []provider.ResourceRecord
 }
 
-func (m *MockMaterializedFeatures) NumRows() (int, error) {
-	return len(m.Rows), nil
+func (m *MockMaterializedFeatures) ID() provider.MaterializationID {
+	return m.id
 }
 
-func (m *MockMaterializedFeatures) IterateSegment(begin int, end int) (FeatureIterator, error) {
+func (m *MockMaterializedFeatures) NumRows() (int64, error) {
+	return int64(len(m.Rows)), nil
+}
+
+func (m *MockMaterializedFeatures) IterateSegment(begin int64, end int64) (provider.FeatureIterator, error) {
 	return &MockFeatureIterator{
 		CurrentIndex: -1,
 		Slice:        m.Rows[begin:end],
@@ -24,33 +32,50 @@ func (m *MockMaterializedFeatures) IterateSegment(begin int, end int) (FeatureIt
 }
 
 type MaterializedFeaturesNumRowsBroken struct {
+	id provider.MaterializationID
 }
 
-func (m *MaterializedFeaturesNumRowsBroken) NumRows() (int, error) {
-	return 0, errors.New("cannot fetch number of rows")
+func (m *MaterializedFeaturesNumRowsBroken) ID() provider.MaterializationID {
+	return m.id
 }
 
-func (m *MaterializedFeaturesNumRowsBroken) IterateSegment(begin int, end int) (FeatureIterator, error) {
+func (m *MaterializedFeaturesNumRowsBroken) NumRows() (int64, error) {
+	return 0, fmt.Errorf("cannot fetch number of rows")
+}
+
+func (m *MaterializedFeaturesNumRowsBroken) IterateSegment(begin int64, end int64) (provider.FeatureIterator, error) {
 	return nil, nil
 }
 
-type MaterializedFeaturesIterateBroken struct{}
+type MaterializedFeaturesIterateBroken struct {
+	id provider.MaterializationID
+}
 
-func (m *MaterializedFeaturesIterateBroken) NumRows() (int, error) {
+func (m *MaterializedFeaturesIterateBroken) ID() provider.MaterializationID {
+	return m.id
+}
+
+func (m *MaterializedFeaturesIterateBroken) NumRows() (int64, error) {
 	return 1, nil
 }
 
-func (m *MaterializedFeaturesIterateBroken) IterateSegment(begin int, end int) (FeatureIterator, error) {
+func (m *MaterializedFeaturesIterateBroken) IterateSegment(begin int64, end int64) (provider.FeatureIterator, error) {
 	return nil, errors.New("cannot create feature iterator")
 }
 
-type MaterializedFeaturesIterateRunBroken struct{}
+type MaterializedFeaturesIterateRunBroken struct {
+	id provider.MaterializationID
+}
 
-func (m *MaterializedFeaturesIterateRunBroken) NumRows() (int, error) {
+func (m *MaterializedFeaturesIterateRunBroken) ID() provider.MaterializationID {
+	return m.id
+}
+
+func (m *MaterializedFeaturesIterateRunBroken) NumRows() (int64, error) {
 	return 1, nil
 }
 
-func (m *MaterializedFeaturesIterateRunBroken) IterateSegment(begin int, end int) (FeatureIterator, error) {
+func (m *MaterializedFeaturesIterateRunBroken) IterateSegment(begin int64, end int64) (provider.FeatureIterator, error) {
 	return &BrokenFeatureIterator{}, nil
 }
 
@@ -84,7 +109,7 @@ func (m *BrokenOnlineTable) Get(entity string) (interface{}, error) {
 
 type MockFeatureIterator struct {
 	CurrentIndex int
-	Slice        []FeatureRow
+	Slice        []provider.ResourceRecord
 }
 
 func (m *MockFeatureIterator) Next() bool {
@@ -97,12 +122,8 @@ func (m *MockFeatureIterator) Err() error {
 	return nil
 }
 
-func (m *MockFeatureIterator) Entity() string {
-	return m.Slice[m.CurrentIndex].Entity
-}
-
-func (m *MockFeatureIterator) Value() interface{} {
-	return m.Slice[m.CurrentIndex].Row
+func (m *MockFeatureIterator) Value() provider.ResourceRecord {
+	return m.Slice[m.CurrentIndex]
 }
 
 type BrokenFeatureIterator struct{}
@@ -115,17 +136,8 @@ func (m *BrokenFeatureIterator) Err() error {
 	return errors.New("error iterating over features")
 }
 
-func (m *BrokenFeatureIterator) Entity() string {
-	return ""
-}
-
-func (m *BrokenFeatureIterator) Value() interface{} {
-	return nil
-}
-
-type FeatureRow struct {
-	Entity string
-	Row    interface{}
+func (m *BrokenFeatureIterator) Value() provider.ResourceRecord {
+	return provider.ResourceRecord{}
 }
 
 type TestError struct {
@@ -140,16 +152,16 @@ func (m *TestError) Error() string {
 type JobTestParams struct {
 	TestName     string
 	Materialized MockMaterializedFeatures
-	ChunkSize    int
-	ChunkIdx     int
+	ChunkSize    int64
+	ChunkIdx     int64
 }
 
 type ErrorJobTestParams struct {
 	ErrorName    string
-	Materialized MaterializedFeatures
-	Table        OnlineTable
-	ChunkSize    int
-	ChunkIdx     int
+	Materialized provider.Materialization
+	Table        provider.OnlineStoreTable
+	ChunkSize    int64
+	ChunkIdx     int64
 }
 
 func testParams(params JobTestParams) error {
@@ -180,16 +192,16 @@ func testParams(params JobTestParams) error {
 	}
 	rowStart := params.ChunkIdx * params.ChunkSize
 	rowEnd := rowStart + params.ChunkSize
-	if rowEnd > len(featureRows) {
-		rowEnd = len(featureRows)
+	if rowEnd > int64(len(featureRows)) {
+		rowEnd = int64(len(featureRows))
 	}
 	for i := rowStart; i < rowEnd; i++ {
 		tableValue, err := table.Get(featureRows[i].Entity)
 		if err != nil {
-			return &TestError{Outcome: fmt.Sprintf("Cannot fetch table value for entity %v", featureRows[i].Entity), Err: err}
+			return &TestError{Outcome: fmt.Sprintf("Cannot fetch table value for entity %v", featureRows[i].Value), Err: err}
 		}
-		if !reflect.DeepEqual(tableValue, featureRows[i].Row) {
-			return &TestError{Outcome: fmt.Sprintf("%v becomes %v in table copy", featureRows[i].Row, tableValue), Err: nil}
+		if !reflect.DeepEqual(tableValue, featureRows[i].Value) {
+			return &TestError{Outcome: fmt.Sprintf("%v becomes %v in table copy", featureRows[i].Value, tableValue), Err: nil}
 		}
 	}
 	return nil
@@ -223,11 +235,11 @@ type CopyTestData struct {
 }
 
 func CreateMockFeatureRows(data []interface{}) MockMaterializedFeatures {
-	featureRows := make([]FeatureRow, len(data))
+	featureRows := make([]provider.ResourceRecord, len(data))
 	for i, row := range data {
-		featureRows[i] = FeatureRow{Entity: fmt.Sprintf("entity_%d", i), Row: row}
+		featureRows[i] = provider.ResourceRecord{Entity: fmt.Sprintf("entity_%d", i), Value: row}
 	}
-	return MockMaterializedFeatures{Rows: featureRows}
+	return MockMaterializedFeatures{id: provider.MaterializationID(uuid.NewString()), Rows: featureRows}
 }
 
 func TestErrorCoverage(t *testing.T) {
@@ -235,7 +247,7 @@ func TestErrorCoverage(t *testing.T) {
 	errorJobs := []ErrorJobTestParams{
 		ErrorJobTestParams{
 			ErrorName:    "iterator run error",
-			Materialized: &MaterializedFeaturesIterateRunBroken{},
+			Materialized: &MaterializedFeaturesIterateRunBroken{provider.MaterializationID(uuid.NewString())},
 			Table:        &BrokenOnlineTable{},
 			ChunkSize:    1,
 			ChunkIdx:     0,
@@ -249,14 +261,14 @@ func TestErrorCoverage(t *testing.T) {
 		},
 		ErrorJobTestParams{
 			ErrorName:    "create iterator error",
-			Materialized: &MaterializedFeaturesIterateBroken{},
+			Materialized: &MaterializedFeaturesIterateBroken{provider.MaterializationID(uuid.NewString())},
 			Table:        &BrokenOnlineTable{},
 			ChunkSize:    1,
 			ChunkIdx:     0,
 		},
 		ErrorJobTestParams{
 			ErrorName:    "get num rows error",
-			Materialized: &MaterializedFeaturesNumRowsBroken{},
+			Materialized: &MaterializedFeaturesNumRowsBroken{provider.MaterializationID(uuid.NewString())},
 			Table:        &BrokenOnlineTable{},
 			ChunkSize:    1,
 			ChunkIdx:     0,
@@ -269,6 +281,175 @@ func TestErrorCoverage(t *testing.T) {
 		}
 	}
 
+}
+
+type ErrorChunkRunnerFactoryConfigs struct {
+	ErrorType   string
+	ErrorConfig Config
+}
+
+func serialize(config MaterializedChunkRunnerConfig) Config {
+	serializedConfig, _ := json.Marshal(config)
+	return serializedConfig
+}
+
+func testErrorConfigsFactory(config Config) error {
+	_, err := Create("COPY", config)
+	return err
+}
+
+func brokenNumRowsOfflineFactory(provider.SerializedConfig) (provider.Provider, error) {
+	return &BrokenNumRowsOfflineStore{}, nil
+}
+
+func brokenGetTableOnlineFactory(provider.SerializedConfig) (provider.Provider, error) {
+	return &BrokenGetTableOnlineStore{}, nil
+}
+
+type BrokenNumRowsOfflineStore struct {
+	provider.BaseProvider
+}
+
+func (store *BrokenNumRowsOfflineStore) AsOfflineStore() (provider.OfflineStore, error) {
+	return store, nil
+}
+
+func (b BrokenNumRowsOfflineStore) CreateResourceTable(id provider.ResourceID) (provider.OfflineTable, error) {
+	return nil, nil
+}
+func (b BrokenNumRowsOfflineStore) GetResourceTable(id provider.ResourceID) (provider.OfflineTable, error) {
+	return nil, nil
+}
+func (b BrokenNumRowsOfflineStore) CreateMaterialization(id provider.ResourceID) (provider.Materialization, error) {
+	return nil, nil
+}
+func (b BrokenNumRowsOfflineStore) GetMaterialization(id provider.MaterializationID) (provider.Materialization, error) {
+	return &MaterializedFeaturesNumRowsBroken{""}, nil
+}
+func (b BrokenNumRowsOfflineStore) DeleteMaterialization(id provider.MaterializationID) error {
+	return nil
+}
+func (b BrokenNumRowsOfflineStore) CreateTrainingSet(provider.TrainingSetDef) error {
+	return nil
+}
+func (b BrokenNumRowsOfflineStore) GetTrainingSet(id provider.ResourceID) (provider.TrainingSetIterator, error) {
+	return nil, nil
+}
+
+type BrokenGetTableOnlineStore struct {
+	provider.BaseProvider
+}
+
+func (store *BrokenGetTableOnlineStore) AsOnlineStore() (provider.OnlineStore, error) {
+	return store, nil
+}
+
+func (b BrokenGetTableOnlineStore) GetTable(feature, variant string) (provider.OnlineStoreTable, error) {
+	return nil, errors.New("failed to get table")
+}
+func (b BrokenGetTableOnlineStore) CreateTable(feature, variant string) (provider.OnlineStoreTable, error) {
+	return nil, nil
+}
+
+func TestMaterializeRunnerFactoryErrorCoverage(t *testing.T) {
+	err := provider.RegisterFactory("MOCK_OFFLINE_BROKEN_NUMROWS", brokenNumRowsOfflineFactory)
+	if err != nil {
+		t.Fatalf("Could not register broken offline provider factory: %v", err)
+	}
+	provider.RegisterFactory("MOCK_ONLINE_BROKEN_GET_TABLE", brokenGetTableOnlineFactory)
+	if err != nil {
+		t.Fatalf("Could not register broken offline table factory: %v", err)
+	}
+	errorConfigs := []ErrorChunkRunnerFactoryConfigs{
+		ErrorChunkRunnerFactoryConfigs{
+			ErrorType:   "cannot deserialize config",
+			ErrorConfig: []byte{},
+		},
+		ErrorChunkRunnerFactoryConfigs{
+			ErrorType: "cannot configure online provider",
+			ErrorConfig: serialize(MaterializedChunkRunnerConfig{
+				OnlineType: "Invalid_Online_type",
+			}),
+		},
+		ErrorChunkRunnerFactoryConfigs{
+			ErrorType: "cannot configure offline provider",
+			ErrorConfig: serialize(MaterializedChunkRunnerConfig{
+				OnlineType:   provider.LocalOnline,
+				OnlineConfig: []byte{},
+				OfflineType:  "Invalid_Offline_type",
+			}),
+		},
+		ErrorChunkRunnerFactoryConfigs{
+			ErrorType: "cannot convert online provider to online store",
+			ErrorConfig: serialize(MaterializedChunkRunnerConfig{
+				OnlineType:    provider.MemoryOffline,
+				OnlineConfig:  []byte{},
+				OfflineType:   provider.MemoryOffline,
+				OfflineConfig: []byte{},
+			}),
+		},
+		ErrorChunkRunnerFactoryConfigs{
+			ErrorType: "cannot convert offline provider to offline store",
+			ErrorConfig: serialize(MaterializedChunkRunnerConfig{
+				OnlineType:    provider.LocalOnline,
+				OnlineConfig:  []byte{},
+				OfflineType:   provider.LocalOnline,
+				OfflineConfig: []byte{},
+			}),
+		},
+		ErrorChunkRunnerFactoryConfigs{
+			ErrorType: "cannot get materialization",
+			ErrorConfig: serialize(MaterializedChunkRunnerConfig{
+				OnlineType:     provider.LocalOnline,
+				OnlineConfig:   []byte{},
+				OfflineType:    provider.MemoryOffline,
+				OfflineConfig:  []byte{},
+				MaterializedID: "",
+			}),
+		},
+		ErrorChunkRunnerFactoryConfigs{
+			ErrorType: "cannot get num rows",
+			ErrorConfig: serialize(MaterializedChunkRunnerConfig{
+				OnlineType:     "MOCK_ONLINE",
+				OnlineConfig:   []byte{},
+				OfflineType:    "MOCK_OFFLINE_BROKEN_NUMROWS",
+				OfflineConfig:  []byte{},
+				MaterializedID: "",
+			}),
+		},
+		ErrorChunkRunnerFactoryConfigs{
+			ErrorType: "cannot get table",
+			ErrorConfig: serialize(MaterializedChunkRunnerConfig{
+				OnlineType:     "MOCK_ONLINE_BROKEN_GET_TABLE",
+				OnlineConfig:   []byte{},
+				OfflineType:    "MOCK_OFFLINE",
+				OfflineConfig:  []byte{},
+				MaterializedID: "",
+			}),
+		},
+		ErrorChunkRunnerFactoryConfigs{
+			ErrorType: "chunk runner starts after end of rows",
+			ErrorConfig: serialize(MaterializedChunkRunnerConfig{
+				OnlineType:     "MOCK_ONLINE",
+				OnlineConfig:   []byte{},
+				OfflineType:    "MOCK_OFFLINE",
+				OfflineConfig:  []byte{},
+				MaterializedID: "",
+				ChunkSize:      1,
+				ChunkIdx:       1,
+			}),
+		},
+	}
+	err = RegisterFactory("COPY", MaterializedChunkRunnerFactory)
+	if err != nil {
+		t.Fatalf("Could not register chunk runner factory: %v", err)
+	}
+	for _, config := range errorConfigs {
+		if err := testErrorConfigsFactory(config.ErrorConfig); err == nil {
+			t.Fatalf("Test Job Failed to catch error: %s", config.ErrorType)
+		}
+	}
+	delete(factoryMap, "COPY")
 }
 
 func TestJobs(t *testing.T) {
@@ -404,4 +585,199 @@ func TestJobIncompleteStatus(t *testing.T) {
 		t.Fatalf("Job failed to cancel at 0 chunk size")
 	}
 
+}
+
+type MockOnlineStore struct {
+	provider.BaseProvider
+}
+
+type MockOfflineStore struct {
+	provider.BaseProvider
+}
+
+func (m MockOnlineStore) AsOnlineStore() (provider.OnlineStore, error) {
+	return m, nil
+}
+
+func (m MockOfflineStore) AsOfflineStore() (provider.OfflineStore, error) {
+	return m, nil
+}
+
+type MockOnlineStoreTable struct{}
+
+func NewMockOnlineStore() *MockOnlineStore {
+	return &MockOnlineStore{
+		BaseProvider: provider.BaseProvider{
+			ProviderType:   "MOCK_ONLINE",
+			ProviderConfig: []byte{},
+		},
+	}
+}
+
+func (m MockOnlineStore) GetTable(feature, variant string) (provider.OnlineStoreTable, error) {
+	return &MockOnlineStoreTable{}, nil
+}
+
+func (m MockOnlineStore) CreateTable(feature, variant string) (provider.OnlineStoreTable, error) {
+	return &MockOnlineStoreTable{}, nil
+}
+
+func (m MockOnlineStoreTable) Set(entity string, value interface{}) error {
+	return nil
+}
+
+func (m MockOnlineStoreTable) Get(entity string) (interface{}, error) {
+	return nil, nil
+}
+
+func NewMockOfflineStore() *MockOfflineStore {
+	return &MockOfflineStore{
+		BaseProvider: provider.BaseProvider{
+			ProviderType:   "MOCK_OFFLINE",
+			ProviderConfig: []byte{},
+		},
+	}
+}
+
+func (m MockOfflineStore) CreateResourceTable(id provider.ResourceID) (provider.OfflineTable, error) {
+	return MockOfflineTable{}, nil
+}
+
+func (m MockOfflineStore) GetResourceTable(id provider.ResourceID) (provider.OfflineTable, error) {
+	return MockOfflineTable{}, nil
+}
+
+func (m MockOfflineStore) CreateMaterialization(id provider.ResourceID) (provider.Materialization, error) {
+	return MockMaterialization{}, nil
+}
+
+func (m MockOfflineStore) GetMaterialization(id provider.MaterializationID) (provider.Materialization, error) {
+	return MockMaterialization{}, nil
+}
+
+func (m MockOfflineStore) DeleteMaterialization(id provider.MaterializationID) error {
+	return nil
+}
+
+func (m MockOfflineStore) CreateTrainingSet(provider.TrainingSetDef) error {
+	return nil
+}
+
+func (m MockOfflineStore) GetTrainingSet(id provider.ResourceID) (provider.TrainingSetIterator, error) {
+	return nil, nil
+}
+
+type MockOfflineTable struct{}
+
+func (m MockOfflineTable) Write(provider.ResourceRecord) error {
+	return nil
+}
+
+type MockMaterialization struct{}
+
+func (m MockMaterialization) ID() provider.MaterializationID {
+	return ""
+}
+
+func (m MockMaterialization) NumRows() (int64, error) {
+	return 0, nil
+}
+
+func (m MockMaterialization) IterateSegment(begin, end int64) (provider.FeatureIterator, error) {
+	return MockIterator{}, nil
+}
+
+type MockIterator struct{}
+
+func (m MockIterator) Next() bool {
+	return false
+}
+
+func (m MockIterator) Value() provider.ResourceRecord {
+	return provider.ResourceRecord{}
+}
+
+func (m MockIterator) Err() error {
+	return nil
+}
+
+func mockOnlineStoreFactory(provider.SerializedConfig) (provider.Provider, error) {
+	return NewMockOnlineStore(), nil
+}
+
+func mockOfflineStoreFactory(provider.SerializedConfig) (provider.Provider, error) {
+	return NewMockOfflineStore(), nil
+}
+
+func init() {
+	if err := provider.RegisterFactory("MOCK_ONLINE", mockOnlineStoreFactory); err != nil {
+		panic(err)
+	}
+	if err := provider.RegisterFactory("MOCK_OFFLINE", mockOfflineStoreFactory); err != nil {
+		panic(err)
+	}
+}
+func TestChunkRunnerFactory(t *testing.T) {
+
+	offline := NewMockOfflineStore()
+	online := NewMockOnlineStore()
+	resourceID := provider.ResourceID{
+		"test_name", "test_variant", provider.Feature,
+	}
+	if _, err := online.CreateTable(resourceID.Name, resourceID.Variant); err != nil {
+		t.Fatalf("Failed to create online resource table: %v", err)
+	}
+	if _, err := offline.CreateResourceTable(resourceID); err != nil {
+		t.Fatalf("Failed to create offline resource table: %v", err)
+	}
+	materialization, err := offline.CreateMaterialization(resourceID)
+	if err != nil {
+		t.Fatalf("Failed to create materialization: %v", err)
+	}
+	chunkRunnerConfig := MaterializedChunkRunnerConfig{
+		OnlineType:     "MOCK_ONLINE",
+		OfflineType:    "MOCK_OFFLINE",
+		OnlineConfig:   []byte{},
+		OfflineConfig:  []byte{},
+		MaterializedID: materialization.ID(),
+		ResourceID:     resourceID,
+		ChunkSize:      0,
+	}
+	if err != nil {
+		t.Fatalf("Failed to create new chunk runner config: %v", err)
+	}
+	delete(factoryMap, "COPY")
+	if err := RegisterFactory("COPY", MaterializedChunkRunnerFactory); err != nil {
+		t.Fatalf("Failed to register factory: %v", err)
+	}
+	serializedConfig, err := chunkRunnerConfig.Serialize()
+	if err != nil {
+		t.Fatalf("Failed to serialize chunk runner config: %v", err)
+	}
+	runner, err := Create("COPY", serializedConfig)
+	if err != nil {
+		t.Fatalf("Failed to create materialized chunk runner: %v", err)
+	}
+	indexRunner, ok := runner.(IndexRunner)
+	if !ok {
+		t.Fatalf("Cannot convert runner to index runner")
+	}
+	if err := indexRunner.SetIndex(0); err != nil {
+		t.Fatalf("Failed to set index: %v", err)
+	}
+	watcher, err := indexRunner.Run()
+	if err != nil {
+		t.Fatalf("runner failed to run: %v", err)
+	}
+	if err := watcher.Wait(); err != nil {
+		t.Fatalf("runner failed while running: %v", err)
+	}
+}
+
+func TestRunnerConfigDeserializeFails(t *testing.T) {
+	failConfig := []byte("this should fail when attempted to be deserialized")
+	config := &MaterializedChunkRunnerConfig{}
+	if err := config.Deserialize(failConfig); err == nil {
+		t.Fatalf("Failed to report error deserializing config")
+	}
 }

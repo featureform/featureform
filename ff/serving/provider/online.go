@@ -17,6 +17,7 @@ var ctx = context.Background()
 type OnlineStore interface {
 	GetTable(feature, variant string) (OnlineStoreTable, error)
 	CreateTable(feature, variant string) (OnlineStoreTable, error)
+	Provider
 }
 
 type OnlineStoreTable interface {
@@ -78,7 +79,11 @@ type redisOnlineStore struct {
 
 func NewLocalOnlineStore() *localOnlineStore {
 	return &localOnlineStore{
-		tables: make(map[tableKey]localOnlineTable),
+		make(map[tableKey]localOnlineTable),
+		BaseProvider{
+			ProviderType:   LocalOnline,
+			ProviderConfig: []byte{},
+		},
 	}
 }
 
@@ -98,7 +103,11 @@ func NewRedisOnlineStore(options *RedisConfig) *redisOnlineStore {
 		Addr: options.Addr,
 	}
 	redisClient := redis.NewClient(redisOptions)
-	return &redisOnlineStore{client: redisClient, prefix: options.Prefix}
+	return &redisOnlineStore{redisClient, options.Prefix, BaseProvider{
+		ProviderType:   RedisOnline,
+		ProviderConfig: options.Serialized(),
+	},
+	}
 }
 
 func (store *localOnlineStore) AsOnlineStore() (OnlineStore, error) {

@@ -8,7 +8,7 @@ type Config []byte
 
 type RunnerConfig interface {
 	Serialize() (Config, error)
-	Deserialize(Config) error
+	Deserialize(config Config) error
 }
 
 type RunnerFactory func(config Config) (Runner, error)

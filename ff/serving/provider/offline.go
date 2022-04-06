@@ -74,8 +74,10 @@ type OfflineStore interface {
 	GetResourceTable(id ResourceID) (OfflineTable, error)
 	CreateMaterialization(id ResourceID) (Materialization, error)
 	GetMaterialization(id MaterializationID) (Materialization, error)
+	DeleteMaterialization(id MaterializationID) error
 	CreateTrainingSet(TrainingSetDef) error
 	GetTrainingSet(id ResourceID) (TrainingSetIterator, error)
+	Provider
 }
 
 type MaterializationID string
@@ -141,7 +143,7 @@ type memoryOfflineStore struct {
 	BaseProvider
 }
 
-func memoryOfflineStoreFactory(SerializedConfig) (Provider, error) {
+func memoryOfflineStoreFactory(serializedConfig SerializedConfig) (Provider, error) {
 	return NewMemoryOfflineStore(), nil
 }
 
@@ -150,6 +152,10 @@ func NewMemoryOfflineStore() *memoryOfflineStore {
 		tables:           make(map[ResourceID]*memoryOfflineTable),
 		materializations: make(map[MaterializationID]*memoryMaterialization),
 		trainingSets:     make(map[ResourceID]trainingRows),
+		BaseProvider: BaseProvider{
+			ProviderType:   MemoryOffline,
+			ProviderConfig: []byte{},
+		},
 	}
 }
 
@@ -233,6 +239,14 @@ func (store *memoryOfflineStore) GetMaterialization(id MaterializationID) (Mater
 		return nil, &MaterializationNotFound{id}
 	}
 	return mat, nil
+}
+
+func (store *memoryOfflineStore) DeleteMaterialization(id MaterializationID) error {
+	if _, has := store.materializations[id]; !has {
+		return &MaterializationNotFound{id}
+	}
+	delete(store.materializations, id)
+	return nil
 }
 
 func latestRecord(recs []ResourceRecord) ResourceRecord {

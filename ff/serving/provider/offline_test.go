@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -32,8 +33,8 @@ func TestOfflineStores(t *testing.T) {
 	var postgresConfig = PostgresConfig{
 		Host:     "localhost",
 		Port:     "5432",
-		Database: "default",
-		Username: "username",
+		Database: os.Getenv("POSTGRES_DB"),
+		Username: os.Getenv("POSTGRES_USER"),
 		Password: "",
 	}
 	serialPGConfig := postgresConfig.Serialize()

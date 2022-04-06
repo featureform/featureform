@@ -5,6 +5,8 @@ env:
   TYPESENSE_PORT: 8108
   TYPESENSE_API_KEY: "xyz"
   REDIS_PORT: 6379
+  POSTGRES_USER: "username"
+  POSTGRES_DB: "default"
 
 
 jobs:
@@ -82,6 +84,14 @@ jobs:
         # supported for use outside of 'steps'
         ports:
           -  6379:6379
+
+      postgres:
+        image: postgres
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_DB:  ${{ env.POSTGRES_DB }}
 
     steps:
       - name: Download Working Compiled Directories

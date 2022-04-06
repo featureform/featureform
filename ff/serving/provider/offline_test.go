@@ -36,10 +36,7 @@ func TestOfflineStores(t *testing.T) {
 		Username: "username",
 		Password: "",
 	}
-	serialPGConfig, err := postgresConfig.Serialize()
-	if err != nil {
-		t.Fatalf("%s", err)
-	}
+	serialPGConfig := postgresConfig.Serialize()
 	testList := []struct {
 		t               Type
 		c               SerializedConfig

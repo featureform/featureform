@@ -249,15 +249,6 @@ func (store *postgresOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
 	return nil
 }
 
-func (store *postgresOfflineStore) parseTableValue(value interface{}) interface{} {
-	v := value.(map[string]interface{})
-	item := postgresTableItem{
-		Value:    v["value"],
-		ItemType: v["type"].(string),
-	}
-	return castTableItemType(item)
-}
-
 func (store *postgresOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
 	if err := id.check(TrainingSet); err != nil {
 		return nil, err
@@ -288,41 +279,81 @@ func (store *postgresOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIte
 
 	trainingSetQry := fmt.Sprintf("SELECT %s FROM %s", columns, sanitize(trainingSetName))
 	rows, err = store.conn.Query(context.Background(), trainingSetQry)
-	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
+	
+	return newPostgresTrainingSetIterator(rows), nil
+}
 
-	trainingData := make([]trainingRow, 0)
-	for rows.Next() {
-		var label interface{}
-		values, err := rows.Values()
-		if err != nil {
-			return nil, err
-		}
-		numFeatures := len(values) - 1
-		featureVals := make([]interface{}, numFeatures)
-		for i, value := range values {
-			if i < numFeatures {
-				if value == nil {
-					featureVals[i] = value
-				} else {
-					featureVals[i] = store.parseTableValue(value)
-				}
+type postgresTrainingRowsIterator struct {
+	rows            db.Rows
+	currentFeatures []interface{}
+	currentLabel    interface{}
+	err             error
+}
+
+func newPostgresTrainingSetIterator(rows db.Rows) TrainingSetIterator {
+	return &postgresTrainingRowsIterator{
+		rows:            rows,
+		currentFeatures: nil,
+		currentLabel:    nil,
+		err:             nil,
+	}
+}
+
+func (it *postgresTrainingRowsIterator) Next() bool {
+	if !it.rows.Next() {
+		it.rows.Close()
+		return false
+	}
+	var label interface{}
+	values, err := it.rows.Values()
+	if err != nil {
+		it.err = err
+		return false
+	}
+	numFeatures := len(values) - 1
+	featureVals := make([]interface{}, numFeatures)
+	for i, value := range values {
+		if i < numFeatures {
+			if value == nil {
+				featureVals[i] = value
 			} else {
-				if value == nil {
-					label = value
-				} else {
-					label = store.parseTableValue(value)
-				}
+				featureVals[i] = it.parseTableValue(value)
+			}
+		} else {
+			if value == nil {
+				label = value
+			} else {
+				label = it.parseTableValue(value)
 			}
 		}
-		trainingData = append(trainingData, trainingRow{
-			Features: featureVals,
-			Label:    label,
-		})
 	}
-	return newTrainingRowsIterator(trainingData), nil
+	it.currentFeatures = featureVals
+	it.currentLabel = label
+	return true
+}
+
+func (it *postgresTrainingRowsIterator) Err() error {
+	return it.err
+}
+
+func (it *postgresTrainingRowsIterator) Features() []interface{} {
+	return it.currentFeatures
+}
+
+func (it *postgresTrainingRowsIterator) Label() interface{} {
+	return it.currentLabel
+}
+
+func (it *postgresTrainingRowsIterator) parseTableValue(value interface{}) interface{} {
+	v := value.(map[string]interface{})
+	item := postgresTableItem{
+		Value:    v["value"],
+		ItemType: v["type"].(string),
+	}
+	return castTableItemType(item)
 }
 
 func (store *postgresOfflineStore) deserialize(v []byte) (postgresTableItem, error) {

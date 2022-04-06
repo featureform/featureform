@@ -3,13 +3,12 @@ package provider
 import (
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	"math/rand"
 	"os"
 	"reflect"
 	"testing"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 func TestOfflineStores(t *testing.T) {
@@ -35,7 +34,7 @@ func TestOfflineStores(t *testing.T) {
 		Port:     "5432",
 		Database: os.Getenv("POSTGRES_DB"),
 		Username: os.Getenv("POSTGRES_USER"),
-		Password: "",
+		Password: os.Getenv("POSTGRES_PASSWORD"),
 	}
 	serialPGConfig := postgresConfig.Serialize()
 	testList := []struct {

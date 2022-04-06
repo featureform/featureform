@@ -7,6 +7,7 @@ env:
   REDIS_PORT: 6379
   POSTGRES_USER: "username"
   POSTGRES_DB: "default"
+  POSTGRES_PASSWORD: "password"
 
 
 jobs:
@@ -92,6 +93,7 @@ jobs:
         env:
           POSTGRES_USER: ${{ env.POSTGRES_USER }}
           POSTGRES_DB:  ${{ env.POSTGRES_DB }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
 
     steps:
       - name: Download Working Compiled Directories

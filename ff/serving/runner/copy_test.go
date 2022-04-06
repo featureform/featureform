@@ -450,8 +450,6 @@ func TestMaterializeRunnerFactoryErrorCoverage(t *testing.T) {
 		}
 	}
 	delete(factoryMap, "COPY")
-	delete(factoryMap, "MOCK_OFFLINE_BROKEN_NUMROWS")
-	delete(factoryMap, "MOCK_OFFLINE_BROKEN_GET_TABLE")
 }
 
 func TestJobs(t *testing.T) {

@@ -282,7 +282,7 @@ func (store *postgresOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIte
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return newPostgresTrainingSetIterator(rows), nil
 }
 
@@ -310,6 +310,7 @@ func (it *postgresTrainingRowsIterator) Next() bool {
 	var label interface{}
 	values, err := it.rows.Values()
 	if err != nil {
+		it.rows.Close()
 		it.err = err
 		return false
 	}
@@ -463,71 +464,59 @@ func (mat *postgresMaterialization) IterateSegment(start, end int64) (FeatureIte
 	query := fmt.Sprintf(""+
 		"SELECT entity, value, ts::timestamptz FROM "+
 		"( SELECT * FROM "+
-		"( SELECT *, row_number() over() FROM %s )t1 WHERE row_number=$1 )t2", sanitize(mat.tableName))
-
-	return newPostgresFeatureIterator(mat.conn, query, start, end), nil
-}
-
-func (mat *postgresMaterialization) deserialize(v []byte) (postgresTableItem, error) {
-	item := postgresTableItem{}
-	if err := json.Unmarshal(v, &item); err != nil {
-		return postgresTableItem{}, err
+		"( SELECT *, row_number() over() FROM %s )t1 WHERE row_number>$1 AND row_number<=$2)t2", sanitize(mat.tableName))
+	rows, err := mat.conn.Query(context.Background(), query, start, end)
+	if err != nil {
+		return nil, err
 	}
-	return item, nil
+
+	return newPostgresFeatureIterator(rows), nil
 }
 
 type postgresFeatureIterator struct {
-	conn  *pgxpool.Pool
-	idx   int64
-	query string
-	start int64
-	end   int64
-	err   error
+	rows         db.Rows
+	err          error
+	currentValue ResourceRecord
 }
 
-func newPostgresFeatureIterator(pool *pgxpool.Pool, query string, start, end int64) FeatureIterator {
+func newPostgresFeatureIterator(rows db.Rows) FeatureIterator {
 	return &postgresFeatureIterator{
-		conn:  pool,
-		idx:   start,
-		query: query,
-		end:   end,
-		err:   nil,
+		rows:         rows,
+		err:          nil,
+		currentValue: ResourceRecord{},
 	}
 }
 
 func (iter *postgresFeatureIterator) Next() bool {
-	isLastIdx := iter.idx == iter.end
-	if isLastIdx {
+	if !iter.rows.Next() {
+		iter.rows.Close()
 		return false
 	}
-	iter.idx++
+	var rec ResourceRecord
+	var value []byte
+	var ts time.Time
+	if err := iter.rows.Scan(&rec.Entity, &value, &ts); err != nil {
+		iter.rows.Close()
+		iter.err = err
+		return false
+	}
+	val, err := iter.deserialize(value)
+	if err != nil {
+		iter.rows.Close()
+		iter.err = err
+		return false
+	}
+	rec.Value = castTableItemType(val)
+	rec.TS = ts.UTC()
+	iter.currentValue = rec
 	return true
 }
 
 func (iter *postgresFeatureIterator) Value() ResourceRecord {
-	var rec ResourceRecord
-	var value []byte
-	var ts time.Time
-	if err := iter.conn.QueryRow(context.Background(), iter.query, iter.idx).Scan(&rec.Entity, &value, &ts); err != nil {
-		iter.idx = iter.end
-		iter.err = err
-	}
-
-	val, err := iter.deserialize(value)
-	if err != nil {
-		iter.idx = iter.end
-		iter.err = err
-	}
-	rec.Value = castTableItemType(val)
-	rec.TS = ts.UTC()
-
-	return rec
+	return iter.currentValue
 }
 
 func (iter *postgresFeatureIterator) Err() error {
-	if iter.err != nil {
-		return iter.err
-	}
 	return nil
 }
 

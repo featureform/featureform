@@ -12,22 +12,20 @@ class File:
         self.index = index
         self.storage = storage
 
-def register_file(*args, **kwargs):
-    newFile = File(args, kwargs['name'], kwargs['index'], kwargs['storage'])
+def register_file(path, name = "", index = "", storage = ""):
+    newFile = File(path, name, index, storage)
     files_to_register.append(newFile)
-    return newFile
 
 class Entity:
     def __init__(self, key = str):
         self.key = key
 
-def register_entity(name):
+def register_entity(name = ""):
     entity = Entity(name)
     entities_to_register.append(entity)
-    return entity
 
 class Feature:
-    def __init__(self, name, description, src, column, entity, executor, cast, frequency):
+    def __init__(self, name : str, description : str, src : str, column : str, entity : str, executor : str, cast :str, frequency: str):
         self.name = name
         self.description = description
         self.src = src
@@ -37,14 +35,13 @@ class Feature:
         self.cast = cast
         self.frequency = frequency
 
-def register_feature_from_source(*args, **kwargs):
-    feature = Feature(kwargs['name'], kwargs['description'], kwargs['src'], kwargs['column'], 
-                        kwargs['entity'], kwargs['executor'], kwargs['cast'], kwargs['frequency'])
+def register_feature_from_source(name = "", description = "", src = "", column = "", entity = "", executor = "", cast = "", frequency = ""):
+    feature = Feature(name, description, src, column, entity, executor, cast, frequency)
     features_to_register.append(feature)
     return feature
 
 class Label:
-    def __init__(self, name, description, src, column, entities, cast, frequency):
+    def __init__(self : str, name : str, description : str, src : str, column : str, entities : str, cast : str, frequency : str):
         self.name = name
         self.description = description
         self.src = src
@@ -53,11 +50,9 @@ class Label:
         self.cast = cast
         self.frequency = frequency
 
-def register_label_from_source(*args, **kwargs):
-    label = Label(kwargs['name'], kwargs['description'], kwargs['src'], kwargs['column'], 
-                    kwargs['entities'], kwargs['cast'], kwargs['frequency'])
+def register_label_from_source(name = "", description = "", src = "", column = "", entities = "", cast = "", frequency = ""):
+    label = Label(name, description, src, column, entities, cast, frequency)
     labels_to_register.append(label)
-    return label
 
 class TrainingSet:
     def __init__(self, name, label, features, sampling):
@@ -66,10 +61,9 @@ class TrainingSet:
         self.features = features
         self.sampling = sampling
 
-def register_training_set(*args, **kwargs):
-    training_set = TrainingSet(kwargs['name'], kwargs['label'], kwargs['features'], kwargs['sampling'])
+def register_training_set(name = "", label = "", features = "", sampling = ""):
+    training_set = TrainingSet(name, label, features, sampling)
     training_set_to_register.append(training_set)
-    return training_set
 
 
 

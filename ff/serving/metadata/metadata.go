@@ -839,7 +839,6 @@ type Config struct {
 	Logger          *zap.SugaredLogger
 	TypeSenseParams *search.TypeSenseParams
 	StorageProvider StorageProvider
-	Etcd            EtcdConfig
 }
 
 func (serv *MetadataServer) ListFeatures(_ *pb.Empty, stream pb.Metadata_ListFeaturesServer) error {

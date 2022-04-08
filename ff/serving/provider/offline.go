@@ -10,7 +10,23 @@ import (
 )
 
 const (
-	MemoryOffline Type = "MEMORY_OFFLINE"
+	MemoryOffline   Type = "MEMORY_OFFLINE"
+	PostgresOffline      = "POSTGRES_OFFLINE"
+)
+
+type ValueType string
+
+const (
+	NilType ValueType = ""
+	Int               = "int"
+	Int8              = "int8"
+	Int16             = "int16"
+	Int32             = "int32"
+	Int64             = "int64"
+	Float32           = "float32"
+	Float64           = "float64"
+	String            = "string"
+	Bool              = "bool"
 )
 
 type OfflineResourceType int
@@ -70,7 +86,7 @@ func (def *TrainingSetDef) check() error {
 }
 
 type OfflineStore interface {
-	CreateResourceTable(id ResourceID) (OfflineTable, error)
+	CreateResourceTable(id ResourceID, schema SerializedTableSchema) (OfflineTable, error)
 	GetResourceTable(id ResourceID) (OfflineTable, error)
 	CreateMaterialization(id ResourceID) (Materialization, error)
 	GetMaterialization(id MaterializationID) (Materialization, error)
@@ -163,7 +179,7 @@ func (store *memoryOfflineStore) AsOfflineStore() (OfflineStore, error) {
 	return store, nil
 }
 
-func (store *memoryOfflineStore) CreateResourceTable(id ResourceID) (OfflineTable, error) {
+func (store *memoryOfflineStore) CreateResourceTable(id ResourceID, schema SerializedTableSchema) (OfflineTable, error) {
 	if err := id.check(Feature, Label); err != nil {
 		return nil, err
 	}

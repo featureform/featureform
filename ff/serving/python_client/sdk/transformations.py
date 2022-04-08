@@ -58,9 +58,6 @@ def user_transaction_count():
     """
 
     cutoff = "datetime.datetime.now().AddDays(-7)"
-    i = [1, 2, 3]
-    for e in i:
-        print("o")
     recent = transactions.loc[transactions["timestamp"] >= cutoff]
     return recent.groupby("user").count()
 

@@ -1,9 +1,10 @@
-
-files_to_register = []
-entities_to_register = []
-features_to_register = []
-labels_to_register = []
-training_set_to_register = []
+unregistered_resources = {
+    "files" : [],
+    "entities" : [],
+    "features" : [],
+    "labels" : [],
+    "training_sets" : []
+}
 
 class File:
     def __init__(self, path = str, name = str, index = str, storage = str):
@@ -14,7 +15,7 @@ class File:
 
 def register_file(path, name = "", index = "", storage = ""):
     newFile = File(path, name, index, storage)
-    files_to_register.append(newFile)
+    unregistered_resources['files'].append(newFile)
 
 class Entity:
     def __init__(self, key = str):
@@ -22,7 +23,7 @@ class Entity:
 
 def register_entity(name = ""):
     entity = Entity(name)
-    entities_to_register.append(entity)
+    unregistered_resources["entities"].append(entity)
 
 class Feature:
     def __init__(self, name : str, description : str, src : str, column : str, entity : str, executor : str, cast :str, frequency: str):
@@ -37,8 +38,7 @@ class Feature:
 
 def register_feature_from_source(name = "", description = "", src = "", column = "", entity = "", executor = "", cast = "", frequency = ""):
     feature = Feature(name, description, src, column, entity, executor, cast, frequency)
-    features_to_register.append(feature)
-    return feature
+    unregistered_resources["features"].append(feature)
 
 class Label:
     def __init__(self : str, name : str, description : str, src : str, column : str, entities : str, cast : str, frequency : str):
@@ -52,7 +52,7 @@ class Label:
 
 def register_label_from_source(name = "", description = "", src = "", column = "", entities = "", cast = "", frequency = ""):
     label = Label(name, description, src, column, entities, cast, frequency)
-    labels_to_register.append(label)
+    unregistered_resources["labels"].append(label)
 
 class TrainingSet:
     def __init__(self, name, label, features, sampling):
@@ -63,7 +63,7 @@ class TrainingSet:
 
 def register_training_set(name = "", label = "", features = "", sampling = ""):
     training_set = TrainingSet(name, label, features, sampling)
-    training_set_to_register.append(training_set)
+    unregistered_resources["training_sets"].append(training_set)
 
 
 
@@ -106,4 +106,3 @@ register_training_set(
     ],
     sampling="",
 )
-

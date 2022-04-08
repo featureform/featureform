@@ -288,7 +288,7 @@ type ErrorChunkRunnerFactoryConfigs struct {
 	ErrorConfig Config
 }
 
-func serialize(config MaterializedChunkRunnerConfig) Config {
+func copySerialize(config MaterializedChunkRunnerConfig) Config {
 	serializedConfig, _ := json.Marshal(config)
 	return serializedConfig
 }
@@ -367,13 +367,13 @@ func TestMaterializeRunnerFactoryErrorCoverage(t *testing.T) {
 		},
 		ErrorChunkRunnerFactoryConfigs{
 			ErrorType: "cannot configure online provider",
-			ErrorConfig: serialize(MaterializedChunkRunnerConfig{
+			ErrorConfig: copySerialize(MaterializedChunkRunnerConfig{
 				OnlineType: "Invalid_Online_type",
 			}),
 		},
 		ErrorChunkRunnerFactoryConfigs{
 			ErrorType: "cannot configure offline provider",
-			ErrorConfig: serialize(MaterializedChunkRunnerConfig{
+			ErrorConfig: copySerialize(MaterializedChunkRunnerConfig{
 				OnlineType:   provider.LocalOnline,
 				OnlineConfig: []byte{},
 				OfflineType:  "Invalid_Offline_type",
@@ -381,7 +381,7 @@ func TestMaterializeRunnerFactoryErrorCoverage(t *testing.T) {
 		},
 		ErrorChunkRunnerFactoryConfigs{
 			ErrorType: "cannot convert online provider to online store",
-			ErrorConfig: serialize(MaterializedChunkRunnerConfig{
+			ErrorConfig: copySerialize(MaterializedChunkRunnerConfig{
 				OnlineType:    provider.MemoryOffline,
 				OnlineConfig:  []byte{},
 				OfflineType:   provider.MemoryOffline,
@@ -390,7 +390,7 @@ func TestMaterializeRunnerFactoryErrorCoverage(t *testing.T) {
 		},
 		ErrorChunkRunnerFactoryConfigs{
 			ErrorType: "cannot convert offline provider to offline store",
-			ErrorConfig: serialize(MaterializedChunkRunnerConfig{
+			ErrorConfig: copySerialize(MaterializedChunkRunnerConfig{
 				OnlineType:    provider.LocalOnline,
 				OnlineConfig:  []byte{},
 				OfflineType:   provider.LocalOnline,
@@ -399,7 +399,7 @@ func TestMaterializeRunnerFactoryErrorCoverage(t *testing.T) {
 		},
 		ErrorChunkRunnerFactoryConfigs{
 			ErrorType: "cannot get materialization",
-			ErrorConfig: serialize(MaterializedChunkRunnerConfig{
+			ErrorConfig: copySerialize(MaterializedChunkRunnerConfig{
 				OnlineType:     provider.LocalOnline,
 				OnlineConfig:   []byte{},
 				OfflineType:    provider.MemoryOffline,
@@ -409,7 +409,7 @@ func TestMaterializeRunnerFactoryErrorCoverage(t *testing.T) {
 		},
 		ErrorChunkRunnerFactoryConfigs{
 			ErrorType: "cannot get num rows",
-			ErrorConfig: serialize(MaterializedChunkRunnerConfig{
+			ErrorConfig: copySerialize(MaterializedChunkRunnerConfig{
 				OnlineType:     "MOCK_ONLINE",
 				OnlineConfig:   []byte{},
 				OfflineType:    "MOCK_OFFLINE_BROKEN_NUMROWS",
@@ -419,7 +419,7 @@ func TestMaterializeRunnerFactoryErrorCoverage(t *testing.T) {
 		},
 		ErrorChunkRunnerFactoryConfigs{
 			ErrorType: "cannot get table",
-			ErrorConfig: serialize(MaterializedChunkRunnerConfig{
+			ErrorConfig: copySerialize(MaterializedChunkRunnerConfig{
 				OnlineType:     "MOCK_ONLINE_BROKEN_GET_TABLE",
 				OnlineConfig:   []byte{},
 				OfflineType:    "MOCK_OFFLINE",
@@ -429,7 +429,7 @@ func TestMaterializeRunnerFactoryErrorCoverage(t *testing.T) {
 		},
 		ErrorChunkRunnerFactoryConfigs{
 			ErrorType: "chunk runner starts after end of rows",
-			ErrorConfig: serialize(MaterializedChunkRunnerConfig{
+			ErrorConfig: copySerialize(MaterializedChunkRunnerConfig{
 				OnlineType:     "MOCK_ONLINE",
 				OnlineConfig:   []byte{},
 				OfflineType:    "MOCK_OFFLINE",

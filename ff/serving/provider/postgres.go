@@ -11,11 +11,34 @@ import (
 	"time"
 )
 
-// postgresTableItem stores the value of a resource and its type.
-// Allows storage of any type and simpler table creation
-type postgresTableItem struct {
-	Value    interface{} `json:"value"`
-	ItemType string      `json:"type"`
+// postgresColumnType is used to specify the column type of a resource value.
+type postgresColumnType string
+
+const (
+	PGInt    postgresColumnType = "integer"
+	PGFloat                     = "float8"
+	PGString                    = "varchar"
+	PGBool                      = "boolean"
+)
+
+type PostgresSchema struct {
+	ValueType
+}
+
+func (ps *PostgresSchema) Serialize() []byte {
+	schema, err := json.Marshal(ps)
+	if err != nil {
+		panic(err)
+	}
+	return schema
+}
+
+func (ps *PostgresSchema) Deserialize(schema SerializedSchema) error {
+	err := json.Unmarshal(schema, ps)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 type postgresOfflineStore struct {
@@ -122,7 +145,11 @@ func (store *postgresOfflineStore) AsOfflineStore() (OfflineStore, error) {
 // CreateResourceTable creates a new Resource table.
 // Returns a table if it does not already exist and stores the table ID in the resource index table.
 // Returns an error if the table already exists or if table is the wrong type.
-func (store *postgresOfflineStore) CreateResourceTable(id ResourceID) (OfflineTable, error) {
+func (store *postgresOfflineStore) CreateResourceTable(id ResourceID, schema SerializedSchema) (OfflineTable, error) {
+	psSchema := PostgresSchema{}
+	if err := psSchema.Deserialize(schema); err != nil {
+		return nil, err
+	}
 	if err := id.check(Feature, Label); err != nil {
 		return nil, err
 	}
@@ -133,7 +160,7 @@ func (store *postgresOfflineStore) CreateResourceTable(id ResourceID) (OfflineTa
 		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}
 	tableName := store.getResourceTableName(id)
-	table, err := newPostgresOfflineTable(store.conn, tableName)
+	table, err := newPostgresOfflineTable(store.conn, tableName, psSchema.ValueType)
 	if err != nil {
 		return nil, err
 	}
@@ -276,14 +303,38 @@ func (store *postgresOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIte
 		features = append(features, sanitize(column))
 	}
 	columns := strings.Join(features[:], ", ")
-
 	trainingSetQry := fmt.Sprintf("SELECT %s FROM %s", columns, sanitize(trainingSetName))
 	rows, err = store.conn.Query(context.Background(), trainingSetQry)
 	if err != nil {
 		return nil, err
 	}
+	colTypes, err := store.getValueColumnTypes(trainingSetName)
+	if err != nil {
+		return nil, err
+	}
+	return newPostgresTrainingSetIterator(rows, colTypes), nil
+}
 
-	return newPostgresTrainingSetIterator(rows), nil
+// getValueColumnTypes returns a list of column types. Columns consist of feature and label values
+// within a training set.
+func (store *postgresOfflineStore) getValueColumnTypes(table string) ([]postgresColumnType, error) {
+	rows, err := store.conn.Query(context.Background(),
+		"select data_type from (select column_name, data_type from information_schema.columns where table_name = $1 order by ordinal_position) t",
+		table)
+	if err != nil {
+		return nil, err
+	}
+	colTypes := make([]postgresColumnType, 0)
+	for rows.Next() {
+		if types, err := rows.Values(); err != nil {
+			return nil, err
+		} else {
+			for _, t := range types {
+				colTypes = append(colTypes, postgresColumnType(t.(string)))
+			}
+		}
+	}
+	return colTypes, nil
 }
 
 type postgresTrainingRowsIterator struct {
@@ -291,14 +342,16 @@ type postgresTrainingRowsIterator struct {
 	currentFeatures []interface{}
 	currentLabel    interface{}
 	err             error
+	columnTypes     []postgresColumnType
 }
 
-func newPostgresTrainingSetIterator(rows db.Rows) TrainingSetIterator {
+func newPostgresTrainingSetIterator(rows db.Rows, columnTypes []postgresColumnType) TrainingSetIterator {
 	return &postgresTrainingRowsIterator{
 		rows:            rows,
 		currentFeatures: nil,
 		currentLabel:    nil,
 		err:             nil,
+		columnTypes:     columnTypes,
 	}
 }
 
@@ -318,17 +371,9 @@ func (it *postgresTrainingRowsIterator) Next() bool {
 	featureVals := make([]interface{}, numFeatures)
 	for i, value := range values {
 		if i < numFeatures {
-			if value == nil {
-				featureVals[i] = value
-			} else {
-				featureVals[i] = it.parseTableValue(value)
-			}
+			featureVals[i] = castTableItemType(value, it.columnTypes[i])
 		} else {
-			if value == nil {
-				label = value
-			} else {
-				label = it.parseTableValue(value)
-			}
+			label = castTableItemType(value, it.columnTypes[i])
 		}
 	}
 	it.currentFeatures = featureVals
@@ -348,32 +393,37 @@ func (it *postgresTrainingRowsIterator) Label() interface{} {
 	return it.currentLabel
 }
 
-func (it *postgresTrainingRowsIterator) parseTableValue(value interface{}) interface{} {
-	v := value.(map[string]interface{})
-	item := postgresTableItem{
-		Value:    v["value"],
-		ItemType: v["type"].(string),
-	}
-	return castTableItemType(item)
-}
-
-func (store *postgresOfflineStore) deserialize(v []byte) (postgresTableItem, error) {
-	item := postgresTableItem{}
-	if err := json.Unmarshal(v, &item); err != nil {
-		return postgresTableItem{}, err
-	}
-	return item, nil
-}
-
 type postgresOfflineTable struct {
 	conn *pgxpool.Pool
 	ctx  context.Context
 	name string
 }
 
-func newPostgresOfflineTable(conn *pgxpool.Pool, name string) (*postgresOfflineTable, error) {
-	tableCreateQry := fmt.Sprintf("CREATE TABLE %s (entity VARCHAR, value JSONB, ts timestamptz, UNIQUE (entity, ts))", sanitize(name))
-	_, err := conn.Exec(context.Background(), tableCreateQry)
+// determineColumnType returns an acceptable Postgres column Type to use for the given value
+func determineColumnType(valueType ValueType) (string, error) {
+	switch valueType {
+	case Int, Int8, Int16, Int32, Int64:
+		return "INT", nil
+	case Float32, Float64:
+		return "FLOAT8", nil
+	case String:
+		return "VARCHAR", nil
+	case Bool:
+		return "BOOL", nil
+	case NilType:
+		return "JSON", nil
+	default:
+		return "", fmt.Errorf("cannot find column type for value type: %s", valueType)
+	}
+}
+
+func newPostgresOfflineTable(conn *pgxpool.Pool, name string, valueType ValueType) (*postgresOfflineTable, error) {
+	columnType, err := determineColumnType(valueType)
+	if err != nil {
+		return nil, err
+	}
+	tableCreateQry := fmt.Sprintf("CREATE TABLE %s (entity VARCHAR, value %s, ts TIMESTAMPTZ, UNIQUE (entity, ts))", sanitize(name), columnType)
+	_, err = conn.Exec(context.Background(), tableCreateQry)
 	if err != nil {
 		return nil, err
 	}
@@ -388,16 +438,13 @@ func (table *postgresOfflineTable) Write(rec ResourceRecord) error {
 	if err := rec.check(); err != nil {
 		return err
 	}
-	value, err := table.serialize(rec.Value)
-	if err != nil {
-		return err
-	}
+
 	upsertQuery := fmt.Sprintf(""+
 		"INSERT INTO %s (entity, value, ts) "+
 		"VALUES ($1, $2, $3) "+
 		"ON CONFLICT (entity, ts)"+
 		"DO UPDATE SET value=$2 WHERE excluded.entity=$1 AND excluded.ts=$3", tb)
-	if _, err := table.conn.Exec(context.Background(), upsertQuery, rec.Entity, value, rec.TS); err != nil {
+	if _, err := table.conn.Exec(context.Background(), upsertQuery, rec.Entity, rec.Value, rec.TS); err != nil {
 		return err
 	}
 
@@ -421,28 +468,11 @@ func (table *postgresOfflineTable) resourceExists(rec ResourceRecord) (bool, err
 	return true, nil
 }
 
-func (table *postgresOfflineTable) serialize(v interface{}) ([]byte, error) {
-	item := postgresTableItem{
-		Value:    v,
-		ItemType: fmt.Sprintf("%T", v),
-	}
-	return json.Marshal(item)
-}
-
-func (table *postgresOfflineTable) deserialize(v []byte) (interface{}, error) {
-	item := postgresTableItem{}
-	if err := json.Unmarshal(v, &item); err != nil {
-		return nil, err
-	}
-	return item.Value, nil
-}
-
 type postgresMaterialization struct {
 	id        MaterializationID
 	conn      *pgxpool.Pool
 	ctx       context.Context
 	tableName string
-	data      []ResourceRecord
 }
 
 func (mat *postgresMaterialization) ID() MaterializationID {
@@ -469,21 +499,40 @@ func (mat *postgresMaterialization) IterateSegment(start, end int64) (FeatureIte
 	if err != nil {
 		return nil, err
 	}
+	colType, err := mat.getValueColumnType()
+	if err != nil {
+		return nil, err
+	}
+	return newPostgresFeatureIterator(rows, colType), nil
+}
 
-	return newPostgresFeatureIterator(rows), nil
+// getValueColumnType gets the column type for the value of a resource.
+// Used to cast the value to the proper type after it is queried
+func (mat *postgresMaterialization) getValueColumnType() (postgresColumnType, error) {
+	var name, colType string
+	err := mat.conn.QueryRow(context.Background(),
+		"select column_name, data_type from information_schema.columns where table_name = $1 AND column_name = 'value'",
+		mat.tableName).Scan(&name, &colType)
+	if err != nil || colType == "" {
+		return "", err
+	}
+	t := postgresColumnType(colType)
+	return t, nil
 }
 
 type postgresFeatureIterator struct {
 	rows         db.Rows
 	err          error
 	currentValue ResourceRecord
+	columnType   postgresColumnType
 }
 
-func newPostgresFeatureIterator(rows db.Rows) FeatureIterator {
+func newPostgresFeatureIterator(rows db.Rows, columnType postgresColumnType) FeatureIterator {
 	return &postgresFeatureIterator{
 		rows:         rows,
 		err:          nil,
 		currentValue: ResourceRecord{},
+		columnType:   columnType,
 	}
 }
 
@@ -493,20 +542,14 @@ func (iter *postgresFeatureIterator) Next() bool {
 		return false
 	}
 	var rec ResourceRecord
-	var value []byte
+	var value interface{}
 	var ts time.Time
 	if err := iter.rows.Scan(&rec.Entity, &value, &ts); err != nil {
 		iter.rows.Close()
 		iter.err = err
 		return false
 	}
-	val, err := iter.deserialize(value)
-	if err != nil {
-		iter.rows.Close()
-		iter.err = err
-		return false
-	}
-	rec.Value = castTableItemType(val)
+	rec.Value = castTableItemType(value, iter.columnType)
 	rec.TS = ts.UTC()
 	iter.currentValue = rec
 	return true
@@ -520,36 +563,18 @@ func (iter *postgresFeatureIterator) Err() error {
 	return nil
 }
 
-func (iter *postgresFeatureIterator) deserialize(v []byte) (postgresTableItem, error) {
-	item := postgresTableItem{}
-	if err := json.Unmarshal(v, &item); err != nil {
-		return postgresTableItem{}, err
-	}
-	return item, nil
-}
-
 // castTableItemType returns the value casted as its original type
-func castTableItemType(v postgresTableItem) interface{} {
-	switch v.ItemType {
-	case "int":
-		return int(v.Value.(float64))
-	case "int8":
-		return int8(v.Value.(float64))
-	case "int16":
-		return int16(v.Value.(float64))
-	case "int32":
-		return int32(v.Value.(float64))
-	case "int64":
-		return int64(v.Value.(float64))
-	case "float32":
-		return float32(v.Value.(float64))
-	case "float64":
-		return v.Value
-	case "string":
-		return v.Value.(string)
-	case "bool":
-		return v.Value.(bool)
+func castTableItemType(v interface{}, t postgresColumnType) interface{} {
+	switch t {
+	case PGInt:
+		return int(v.(int32))
+	case PGFloat:
+		return v.(float64)
+	case PGString:
+		return v.(string)
+	case PGBool:
+		return v.(bool)
 	default:
-		return v.Value
+		return v
 	}
 }

@@ -21,6 +21,8 @@ func init() {
 
 type SerializedConfig []byte
 
+type SerializedSchema []byte
+
 type RedisConfig struct {
 	Prefix   string
 	Addr     string

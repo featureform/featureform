@@ -21,11 +21,11 @@ const (
 	PGBool                      = "boolean"
 )
 
-type PostgresSchema struct {
+type PostgresTableSchema struct {
 	ValueType
 }
 
-func (ps *PostgresSchema) Serialize() []byte {
+func (ps *PostgresTableSchema) Serialize() []byte {
 	schema, err := json.Marshal(ps)
 	if err != nil {
 		panic(err)
@@ -33,7 +33,7 @@ func (ps *PostgresSchema) Serialize() []byte {
 	return schema
 }
 
-func (ps *PostgresSchema) Deserialize(schema SerializedSchema) error {
+func (ps *PostgresTableSchema) Deserialize(schema SerializedTableSchema) error {
 	err := json.Unmarshal(schema, ps)
 	if err != nil {
 		return err
@@ -145,8 +145,8 @@ func (store *postgresOfflineStore) AsOfflineStore() (OfflineStore, error) {
 // CreateResourceTable creates a new Resource table.
 // Returns a table if it does not already exist and stores the table ID in the resource index table.
 // Returns an error if the table already exists or if table is the wrong type.
-func (store *postgresOfflineStore) CreateResourceTable(id ResourceID, schema SerializedSchema) (OfflineTable, error) {
-	psSchema := PostgresSchema{}
+func (store *postgresOfflineStore) CreateResourceTable(id ResourceID, schema SerializedTableSchema) (OfflineTable, error) {
+	psSchema := PostgresTableSchema{}
 	if err := psSchema.Deserialize(schema); err != nil {
 		return nil, err
 	}

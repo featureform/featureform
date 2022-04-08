@@ -86,7 +86,7 @@ func (def *TrainingSetDef) check() error {
 }
 
 type OfflineStore interface {
-	CreateResourceTable(id ResourceID, schema SerializedSchema) (OfflineTable, error)
+	CreateResourceTable(id ResourceID, schema SerializedTableSchema) (OfflineTable, error)
 	GetResourceTable(id ResourceID) (OfflineTable, error)
 	CreateMaterialization(id ResourceID) (Materialization, error)
 	GetMaterialization(id MaterializationID) (Materialization, error)
@@ -173,7 +173,7 @@ func (store *memoryOfflineStore) AsOfflineStore() (OfflineStore, error) {
 	return store, nil
 }
 
-func (store *memoryOfflineStore) CreateResourceTable(id ResourceID, schema SerializedSchema) (OfflineTable, error) {
+func (store *memoryOfflineStore) CreateResourceTable(id ResourceID, schema SerializedTableSchema) (OfflineTable, error) {
 	if err := id.check(Feature, Label); err != nil {
 		return nil, err
 	}

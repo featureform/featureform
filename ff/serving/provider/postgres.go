@@ -224,17 +224,9 @@ func (store *postgresOfflineStore) CreateMaterialization(id ResourceID) (Materia
 }
 func (store *postgresOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
 	tableName := store.getMaterializationTableName(id)
-	getMatQry := fmt.Sprintf("SELECT DISTINCT (table_name) FROM information_schema.tables WHERE table_name=$1")
-	rows, err := store.conn.Query(context.Background(), getMatQry, tableName)
-	defer rows.Close()
-	if err != nil {
+	if exists, err := store.materializationExists(id); err != nil {
 		return nil, err
-	}
-	rowCount := 0
-	if rows.Next() {
-		rowCount++
-	}
-	if rowCount == 0 {
+	} else if !exists {
 		return nil, &MaterializationNotFound{id}
 	}
 	return &postgresMaterialization{
@@ -242,7 +234,39 @@ func (store *postgresOfflineStore) GetMaterialization(id MaterializationID) (Mat
 		conn:      store.conn,
 		ctx:       store.ctx,
 		tableName: tableName,
-	}, err
+	}, nil
+}
+
+func (store *postgresOfflineStore) DeleteMaterialization(id MaterializationID) error {
+	tableName := store.getMaterializationTableName(id)
+	if exists, err := store.materializationExists(id); err != nil {
+		return err
+	} else if !exists {
+		return &MaterializationNotFound{id}
+	}
+	query := fmt.Sprintf("DROP TABLE %s", sanitize(tableName))
+	if _, err := store.conn.Exec(context.Background(), query); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (store *postgresOfflineStore) materializationExists(id MaterializationID) (bool, error) {
+	tableName := store.getMaterializationTableName(id)
+	getMatQry := fmt.Sprintf("SELECT DISTINCT (table_name) FROM information_schema.tables WHERE table_name=$1")
+	rows, err := store.conn.Query(context.Background(), getMatQry, tableName)
+	defer rows.Close()
+	if err != nil {
+		return false, err
+	}
+	rowCount := 0
+	if rows.Next() {
+		rowCount++
+	}
+	if rowCount == 0 {
+		return false, nil
+	}
+	return true, nil
 }
 
 func (store *postgresOfflineStore) CreateTrainingSet(def TrainingSetDef) error {

@@ -101,7 +101,7 @@ func randomLabelID() ResourceID {
 
 func testCreateGetOfflineTable(t *testing.T, store OfflineStore) {
 	id := randomID(Feature, Label)
-	schema := PostgresSchema{Int}
+	schema := PostgresTableSchema{Int}
 	if tab, err := store.CreateResourceTable(id, schema.Serialize()); tab == nil || err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
@@ -112,7 +112,7 @@ func testCreateGetOfflineTable(t *testing.T, store OfflineStore) {
 
 func testOfflineTableAlreadyExists(t *testing.T, store OfflineStore) {
 	id := randomID(Feature, Label)
-	schema := PostgresSchema{Int}
+	schema := PostgresTableSchema{Int}
 	if _, err := store.CreateResourceTable(id, schema.Serialize()); err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
@@ -139,12 +139,12 @@ func testOfflineTableNotFound(t *testing.T, store OfflineStore) {
 func testMaterializations(t *testing.T, store OfflineStore) {
 	type TestCase struct {
 		WriteRecords             []ResourceRecord
-		ValueType                SerializedSchema
+		ValueType                SerializedTableSchema
 		ExpectedRows             int64
 		SegmentStart, SegmentEnd int64
 		ExpectedSegment          []ResourceRecord
 	}
-	schemaInt := PostgresSchema{Int}
+	schemaInt := PostgresTableSchema{Int}
 	tests := map[string]TestCase{
 		"Empty": {
 			WriteRecords:    []ResourceRecord{},
@@ -319,7 +319,7 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 
 func testWriteInvalidResourceRecord(t *testing.T, store OfflineStore) {
 	id := randomID(Feature)
-	schema := PostgresSchema{Int}
+	schema := PostgresTableSchema{Int}
 	table, err := store.CreateResourceTable(id, schema.Serialize())
 	if err != nil {
 		t.Fatalf("Failed to create table: %s", err)
@@ -331,7 +331,7 @@ func testWriteInvalidResourceRecord(t *testing.T, store OfflineStore) {
 
 func testInvalidMaterialization(t *testing.T, store OfflineStore) {
 	id := randomID(Label)
-	schema := PostgresSchema{Int}
+	schema := PostgresTableSchema{Int}
 	if _, err := store.CreateResourceTable(id, schema.Serialize()); err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
@@ -368,7 +368,7 @@ func testMaterializationNotFound(t *testing.T, store OfflineStore) {
 }
 
 func testInvalidResourceIDs(t *testing.T, store OfflineStore) {
-	schema := PostgresSchema{Int}
+	schema := PostgresTableSchema{Int}
 	invalidIds := []ResourceID{
 		{Type: Feature},
 		{Name: uuid.NewString()},
@@ -392,13 +392,13 @@ func testTrainingSet(t *testing.T, store OfflineStore) {
 		FeatureSchema  [][]byte
 		LabelSchema    []byte
 	}
-	schemaNil := PostgresSchema{NilType}
+	schemaNil := PostgresTableSchema{NilType}
 	nilByte := schemaNil.Serialize()
-	schemaInt := PostgresSchema{Int}
+	schemaInt := PostgresTableSchema{Int}
 	intByte := schemaInt.Serialize()
-	schemaString := PostgresSchema{String}
+	schemaString := PostgresTableSchema{String}
 	stringByte := schemaString.Serialize()
-	schemaBool := PostgresSchema{Bool}
+	schemaBool := PostgresTableSchema{Bool}
 	boolByte := schemaBool.Serialize()
 	tests := map[string]TestCase{
 		"Empty": {
@@ -663,7 +663,7 @@ func testInvalidTrainingSetDefs(t *testing.T, store OfflineStore) {
 
 func testLabelTableNotFound(t *testing.T, store OfflineStore) {
 	featureID := randomID(Feature)
-	schema := PostgresSchema{Int}
+	schema := PostgresTableSchema{Int}
 	if _, err := store.CreateResourceTable(featureID, schema.Serialize()); err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
@@ -681,7 +681,7 @@ func testLabelTableNotFound(t *testing.T, store OfflineStore) {
 
 func testFeatureTableNotFound(t *testing.T, store OfflineStore) {
 	labelID := randomID(Label)
-	schema := PostgresSchema{Int}
+	schema := PostgresTableSchema{Int}
 	if _, err := store.CreateResourceTable(labelID, schema.Serialize()); err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}

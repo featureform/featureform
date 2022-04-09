@@ -245,6 +245,15 @@ func (store *postgresOfflineStore) GetMaterialization(id MaterializationID) (Mat
 	}, err
 }
 
+func (store *postgresOfflineStore) DeleteMaterialization(id MaterializationID) error {
+	tableName := store.getMaterializationTableName(id)
+	query := fmt.Sprintf("DROP TABLE IF EXISTS %s", sanitize(tableName))
+	if _, err := store.conn.Exec(context.Background(), query); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (store *postgresOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
 	if err := def.check(); err != nil {
 		return err

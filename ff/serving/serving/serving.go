@@ -42,9 +42,9 @@ func (serv *FeatureServer) TrainingData(req *pb.TrainingDataRequest, stream pb.F
 	}
 	for iter.Next() {
 		sRow, err := serializedRow(iter.Features(), iter.Label)
-        if err != nil {
-            return err
-        }
+		if err != nil {
+			return err
+		}
 		if err := stream.Send(sRow); err != nil {
 			logger.Errorw("Failed to write to stream", "Error", err)
 			featureObserver.SetError()
@@ -76,8 +76,8 @@ func (serv *FeatureServer) getTrainingSetIterator(name, variant string) (provide
 	}
 	store, err := p.AsOfflineStore()
 	if err != nil {
-        // This means that the provider of the training set isn't an offline store.
-        // That shouldn't be possible.
+		// This means that the provider of the training set isn't an offline store.
+		// That shouldn't be possible.
 		panic("TrainingSet is not stored in an offline store.")
 	}
 	return store.GetTrainingSet(provider.ResourceID{Name: name, Variant: variant})
@@ -85,7 +85,7 @@ func (serv *FeatureServer) getTrainingSetIterator(name, variant string) (provide
 
 func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServeRequest) (*pb.FeatureRow, error) {
 	features := req.GetFeatures()
-    entities := req.GetEntities()
+	entities := req.GetEntities()
 	vals := make([]*pb.Value, len(features))
 	for i, feature := range req.GetFeatures() {
 		name, variant, entity := feature.GetName(), feature.GetVersion(), entities[i].GetValue()
@@ -106,12 +106,12 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant, e
 	defer obs.Finish()
 	logger := serv.Logger.With("Name", name, "Variant", variant)
 	logger.Debug("Getting metadata")
-    meta, err := serv.Metadata.GetFeatureVariant(ctx, metadata.NameVariant{name, variant})
-    if err != nil {
+	meta, err := serv.Metadata.GetFeatureVariant(ctx, metadata.NameVariant{name, variant})
+	if err != nil {
 		logger.Errorw("metadata lookup failed", "Err", err)
 		obs.SetError()
-        return nil, err
-    }
+		return nil, err
+	}
 	providerEntry, err := meta.FetchProvider(serv.Metadata, ctx)
 	if err != nil {
 		logger.Errorw("fetching provider metadata failed", "Error", err)
@@ -128,28 +128,28 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant, e
 	if err != nil {
 		logger.Errorw("failed to use provider as onlinestore for feature", "Error", err)
 		obs.SetError()
-        // This means that the provider of the feature isn't an online store.
-        // That shouldn't be possible.
+		// This means that the provider of the feature isn't an online store.
+		// That shouldn't be possible.
 		panic("Feature is not stored in an online store.")
 	}
-    table, err := store.GetTable(name, variant)
-    if err != nil {
+	table, err := store.GetTable(name, variant)
+	if err != nil {
 		logger.Errorw("feature not found", "Error", err)
 		obs.SetError()
 		return nil, err
-    }
-    val, err := table.Get(entity)
-    if err != nil {
+	}
+	val, err := table.Get(entity)
+	if err != nil {
 		logger.Errorw("entity not found", "Error", err)
 		obs.SetError()
 		return nil, err
-    }
-    f, err := newFeature(val)
-    if err != nil {
+	}
+	f, err := newFeature(val)
+	if err != nil {
 		logger.Errorw("invalid feature type", "Error", err)
 		obs.SetError()
-        panic("invalid feature type")
-    }
+		panic("invalid feature type")
+	}
 	obs.ServeRow()
 	return f.Serialized(), nil
 }

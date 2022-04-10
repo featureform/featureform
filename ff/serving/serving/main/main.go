@@ -24,7 +24,7 @@ func main() {
 	promMetrics := metrics.NewMetrics("test")
 	metrics_port := ":2112"
 
-    meta, err := metadata.NewClient("localhost:8081", logger)
+	meta, err := metadata.NewClient("localhost:8081", logger)
 	if err != nil {
 		logger.Panicw("Failed to connect to metadata", "Err", err)
 	}

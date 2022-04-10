@@ -144,12 +144,7 @@ func (client *Client) GetFeatureVariants(ctx context.Context, ids []NameVariant)
 }
 
 func (client *Client) GetFeatureVariant(ctx context.Context, id NameVariant) (*FeatureVariant, error) {
-	stream, err := client.grpcConn.GetFeatureVariants(ctx)
-	if err != nil {
-		return nil, err
-	}
-	go stream.Send(id.Serialize())
-	variants, err := client.parseFeatureVariantStream(stream)
+	variants, err := client.GetFeatureVariants(ctx, []NameVariant{id})
 	if err != nil {
 		return nil, err
 	}
@@ -303,12 +298,7 @@ func (client *Client) GetLabelVariants(ctx context.Context, ids []NameVariant) (
 }
 
 func (client *Client) GetLabelVariant(ctx context.Context, id NameVariant) (*LabelVariant, error) {
-	stream, err := client.grpcConn.GetLabelVariants(ctx)
-	if err != nil {
-		return nil, err
-	}
-	go stream.Send(id.Serialize())
-	variants, err := client.parseLabelVariantStream(stream)
+	variants, err := client.GetLabelVariants(ctx, []NameVariant{id})
 	if err != nil {
 		return nil, err
 	}
@@ -413,12 +403,7 @@ func (client *Client) CreateTrainingSetVariant(ctx context.Context, def Training
 }
 
 func (client *Client) GetTrainingSetVariant(ctx context.Context, id NameVariant) (*TrainingSetVariant, error) {
-	stream, err := client.grpcConn.GetTrainingSetVariants(ctx)
-	if err != nil {
-		return nil, err
-	}
-	go stream.Send(id.Serialize())
-	variants, err := client.parseTrainingSetVariantStream(stream)
+	variants, err := client.GetTrainingSetVariants(ctx, []NameVariant{id})
 	if err != nil {
 		return nil, err
 	}
@@ -555,12 +540,7 @@ func (client *Client) GetSourceVariants(ctx context.Context, ids []NameVariant) 
 }
 
 func (client *Client) GetSourceVariant(ctx context.Context, id NameVariant) (*SourceVariant, error) {
-	stream, err := client.grpcConn.GetSourceVariants(ctx)
-	if err != nil {
-		return nil, err
-	}
-	go stream.Send(id.Serialize())
-	variants, err := client.parseSourceVariantStream(stream)
+	variants, err := client.GetSourceVariants(ctx, []NameVariant{id})
 	if err != nil {
 		return nil, err
 	}

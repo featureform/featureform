@@ -33,24 +33,24 @@ func emptyRow() *row {
 }
 
 func serializedRow(features []interface{}, label interface{}) (*pb.TrainingDataRow, error) {
-    r, err := newRow(features, label)
-    if err != nil {
-        return nil, err
-    }
-    return r.Serialized(), nil
+	r, err := newRow(features, label)
+	if err != nil {
+		return nil, err
+	}
+	return r.Serialized(), nil
 }
 
 func newRow(features []interface{}, label interface{}) (*row, error) {
-    r := emptyRow()
-    for _, f := range features {
-        if err := r.AddFeature(f); err != nil {
-            return nil, err
-        }
-    }
-    if err := r.SetLabel(label); err != nil {
-        return nil, err
-    }
-    return r, nil
+	r := emptyRow()
+	for _, f := range features {
+		if err := r.AddFeature(f); err != nil {
+			return nil, err
+		}
+	}
+	if err := r.SetLabel(label); err != nil {
+		return nil, err
+	}
+	return r, nil
 }
 
 func (row *row) Serialized() *pb.TrainingDataRow {

@@ -78,7 +78,7 @@ func (serv *FeatureServer) getTrainingSetIterator(name, variant string) (provide
 	if err != nil {
 		// This means that the provider of the training set isn't an offline store.
 		// That shouldn't be possible.
-		panic("TrainingSet is not stored in an offline store.")
+		return nil, err
 	}
 	return store.GetTrainingSet(provider.ResourceID{Name: name, Variant: variant})
 }
@@ -130,7 +130,7 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant, e
 		obs.SetError()
 		// This means that the provider of the feature isn't an online store.
 		// That shouldn't be possible.
-		panic("Feature is not stored in an online store.")
+		return nil, err
 	}
 	table, err := store.GetTable(name, variant)
 	if err != nil {
@@ -148,7 +148,7 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant, e
 	if err != nil {
 		logger.Errorw("invalid feature type", "Error", err)
 		obs.SetError()
-		panic("invalid feature type")
+		return nil, err
 	}
 	obs.ServeRow()
 	return f.Serialized(), nil

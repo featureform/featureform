@@ -3,14 +3,17 @@ package metadata
 import (
 	"context"
 	"fmt"
+	"io"
+	"net"
+	"time"
+
 	pb "github.com/featureform/serving/metadata/proto"
 	"github.com/featureform/serving/metadata/search"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
-	"io"
-	"time"
 )
 
 const TIME_FORMAT = time.RFC1123
@@ -779,19 +782,21 @@ func (this *entityResource) Notify(lookup ResourceLookup, op operation, that Res
 }
 
 type MetadataServer struct {
-	lookup ResourceLookup
-	Logger *zap.SugaredLogger
+	Logger     *zap.SugaredLogger
+	lookup     ResourceLookup
+	address    string
+	grpcServer *grpc.Server
 	pb.UnimplementedMetadataServer
 }
 
-func NewMetadataServer(server *Config) (*MetadataServer, error) {
-	server.Logger.Debug("Creating new metadata server")
-	lookup, err := server.StorageProvider.GetResourceLookup()
+func NewMetadataServer(config *Config) (*MetadataServer, error) {
+	config.Logger.Debug("Creating new metadata server")
+	lookup, err := config.StorageProvider.GetResourceLookup()
 	if err != nil {
 		return nil, err
 	}
-	if server.TypeSenseParams != nil {
-		searcher, errInitializeSearch := search.NewTypesenseSearch(server.TypeSenseParams)
+	if config.TypeSenseParams != nil {
+		searcher, errInitializeSearch := search.NewTypesenseSearch(config.TypeSenseParams)
 		if errInitializeSearch != nil {
 			return nil, errInitializeSearch
 		}
@@ -801,9 +806,35 @@ func NewMetadataServer(server *Config) (*MetadataServer, error) {
 		}
 	}
 	return &MetadataServer{
-		lookup: lookup,
-		Logger: server.Logger,
+		lookup:  lookup,
+		address: config.Address,
+		Logger:  config.Logger,
 	}, nil
+}
+
+func (serv *MetadataServer) Serve() error {
+	if serv.grpcServer != nil {
+		return fmt.Errorf("Server already running")
+	}
+	lis, err := net.Listen("tcp", serv.address)
+	if err != nil {
+		return err
+	}
+	grpcServer := grpc.NewServer()
+	pb.RegisterMetadataServer(grpcServer, serv)
+	serv.grpcServer = grpcServer
+	serv.Logger.Infow("Server starting", "Address", serv.address)
+	return grpcServer.Serve(lis)
+}
+
+func (serv *MetadataServer) GracefulStop() {
+	serv.grpcServer.GracefulStop()
+	serv.grpcServer = nil
+}
+
+func (serv *MetadataServer) Stop() {
+	serv.grpcServer.Stop()
+	serv.grpcServer = nil
 }
 
 type StorageProvider interface {
@@ -839,6 +870,7 @@ type Config struct {
 	Logger          *zap.SugaredLogger
 	TypeSenseParams *search.TypeSenseParams
 	StorageProvider StorageProvider
+	Address         string
 }
 
 func (serv *MetadataServer) ListFeatures(_ *pb.Empty, stream pb.Metadata_ListFeaturesServer) error {

@@ -127,20 +127,20 @@ func (p PromFeatureObserver) Finish() {
 	p.Count.WithLabelValues(p.Name, p.Feature, p.Key, "success").Inc()
 }
 
-func (p PromFeatureObserver) GetObservedRowCount() (float64, error) {
+func (p PromFeatureObserver) GetObservedRowCount() (int, error) {
 	var m = &dto.Metric{}
 	if err := p.Count.WithLabelValues(p.Name, p.Feature, p.Key, "row serving").Write(m); err != nil {
-		return 0.0, err
+		return 0, err
 	}
-	return m.Counter.GetValue(), nil
+	return int(m.Counter.GetValue()), nil
 }
 
-func (p PromFeatureObserver) GetObservedErrorCount() (float64, error) {
+func (p PromFeatureObserver) GetObservedErrorCount() (int, error) {
 	var m = &dto.Metric{}
 	if err := p.Count.WithLabelValues(p.Name, p.Feature, p.Key, "error").Write(m); err != nil {
-		return 0.0, err
+		return 0, err
 	}
-	return m.Counter.GetValue(), nil
+	return int(m.Counter.GetValue()), nil
 }
 
 func (p TrainingDataObserver) SetError() {
@@ -153,20 +153,20 @@ func (p TrainingDataObserver) ServeRow() {
 	p.Row_Count.WithLabelValues(p.Title, p.Name, p.Version, "row serve").Inc()
 }
 
-func (p TrainingDataObserver) GetObservedRowCount() (float64, error) {
+func (p TrainingDataObserver) GetObservedRowCount() (int, error) {
 	var m = &dto.Metric{}
 	if err := p.Row_Count.WithLabelValues(p.Title, p.Name, p.Version, "row serve").Write(m); err != nil {
-		return 0.0, err
+		return 0, err
 	}
-	return m.Counter.GetValue(), nil
+	return int(m.Counter.GetValue()), nil
 }
 
-func (p TrainingDataObserver) GetObservedErrorCount() (float64, error) {
+func (p TrainingDataObserver) GetObservedErrorCount() (int, error) {
 	var m = &dto.Metric{}
 	if err := p.Row_Count.WithLabelValues(p.Title, p.Name, p.Version, "error").Write(m); err != nil {
-		return 0.0, err
+		return 0, err
 	}
-	return m.Counter.GetValue(), nil
+	return int(m.Counter.GetValue()), nil
 }
 
 func (p TrainingDataObserver) Finish() {

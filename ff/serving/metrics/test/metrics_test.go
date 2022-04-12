@@ -75,41 +75,41 @@ func TestMetrics(t *testing.T) {
 		fmt.Println("error", err)
 	}
 	assert.Equal(t, int(servingCounterValue), servingNum, "5 feature rows should be served")
-	servingCounterValue, err = servingObserver.GetObservedRowCount()
+	servingCounterValueInt, err := servingObserver.GetObservedRowCount()
 	if err != nil {
 		fmt.Println("error", err)
 	}
-	assert.Equal(t, int(servingCounterValue), servingNum, "5 feature rows should be served")
+	assert.Equal(t, servingCounterValueInt, servingNum, "5 feature rows should be served")
 	servingErrorCounterValue, err := GetCounterValue(servingObserver.Count, instanceName, featureName, featureVariant, "error")
 	if err != nil {
 		fmt.Println("error", err)
 	}
 	assert.Equal(t, int(servingErrorCounterValue), servingErrorNum, "5 feature error rows should be recorded")
-	servingErrorCounterValue, err = servingObserver.GetObservedErrorCount()
+	servingErrorCounterValueInt, err := servingObserver.GetObservedErrorCount()
 	if err != nil {
 		fmt.Println("error", err)
 	}
-	assert.Equal(t, int(servingErrorCounterValue), servingNum, "5 feature error rows should be recorded")
+	assert.Equal(t, servingErrorCounterValueInt, servingNum, "5 feature error rows should be recorded")
 	trainingCounterValue, err := GetCounterValue(trainingObserver.Row_Count, instanceName, trainingDatasetName, trainingDatasetVariant, "row serve")
 	if err != nil {
 		fmt.Println("error", err)
 	}
 	assert.Equal(t, int(trainingCounterValue), trainingNum, "5 training data rows should be recorded")
-	trainingCounterValue, err = trainingObserver.GetObservedRowCount()
+	trainingCounterValueInt, err := trainingObserver.GetObservedRowCount()
 	if err != nil {
 		fmt.Println("error", err)
 	}
-	assert.Equal(t, int(trainingCounterValue), trainingNum, "5 training data rows should be recorded")
+	assert.Equal(t, trainingCounterValueInt, trainingNum, "5 training data rows should be recorded")
 	trainingErrorCounterValue, err := GetCounterValue(trainingObserver.Row_Count, instanceName, trainingDatasetName, trainingDatasetVariant, "error")
 	if err != nil {
 		fmt.Println("error", err)
 	}
 	assert.Equal(t, int(trainingErrorCounterValue), trainingErrorNum, "5 training data errors should be recorded")
-	trainingErrorCounterValue, err = trainingObserver.GetObservedErrorCount()
+	trainingErrorCounterValueInt, err := trainingObserver.GetObservedErrorCount()
 	if err != nil {
 		fmt.Println("error", err)
 	}
-	assert.Equal(t, int(trainingErrorCounterValue), trainingNum, "5 training data errors should be recorded")
+	assert.Equal(t, trainingErrorCounterValueInt, trainingNum, "5 training data errors should be recorded")
 	latencyCounterValue, err := GetHistogramValue(promMetrics.Hist, instanceName, featureName, featureVariant, "")
 	if err != nil {
 		fmt.Println("error", err)

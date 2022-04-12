@@ -91,10 +91,14 @@ func wrapValue(value interface{}) (proto *pb.Value, err error) {
 		proto = wrapFloat(typed)
 	case float64:
 		proto = wrapDouble(typed)
-	case int32:
+	case int:
 		proto = wrapInt(typed)
+	case int32:
+		proto = wrapInt32(typed)
 	case int64:
 		proto = wrapInt64(typed)
+	case bool:
+		proto = wrapBool(typed)
 	case *pb.Value:
 		proto = typed
 	default:
@@ -121,14 +125,26 @@ func wrapStr(val string) *pb.Value {
 	}
 }
 
-func wrapInt(val int32) *pb.Value {
+func wrapInt(val int) *pb.Value {
 	return &pb.Value{
-		Value: &pb.Value_IntValue{val},
+		Value: &pb.Value_IntValue{int32(val)},
+	}
+}
+
+func wrapInt32(val int32) *pb.Value {
+	return &pb.Value{
+		Value: &pb.Value_Int32Value{val},
 	}
 }
 
 func wrapInt64(val int64) *pb.Value {
 	return &pb.Value{
 		Value: &pb.Value_Int64Value{val},
+	}
+}
+
+func wrapBool(val bool) *pb.Value {
+	return &pb.Value{
+		Value: &pb.Value_BoolValue{val},
 	}
 }

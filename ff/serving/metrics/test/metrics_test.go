@@ -120,6 +120,5 @@ func TestMetrics(t *testing.T) {
 		fmt.Println("error", err)
 	}
 	assert.Equal(t, int(latencyTrainingCounterValue), latencyTrainingCount, "Training latency records 6 events")
-	
 
 }

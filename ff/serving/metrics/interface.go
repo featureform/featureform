@@ -153,14 +153,6 @@ func (p TrainingDataObserver) GetObservedRowCount() (float64, error) {
 	return m.Counter.GetValue(), nil
 }
 
-func (p PromMetricsHandler) GetObservedLatencyRecords() (uint64, error) {
-	var m = &dto.Metric{}
-	if err := metric.WithLabelValues(labelValues...).(prometheus.Histogram).Write(m); err != nil {
-		return 0.0, err
-	}
-	return m.GetHistogram().GetSampleCount(), nil
-}
-
 func (p TrainingDataObserver) Finish() {
 	p.Status = "success"
 	p.Timer.ObserveDuration()

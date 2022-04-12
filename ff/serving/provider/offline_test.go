@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/google/uuid"
+	"github.com/joho/godotenv"
 	"math/rand"
 	"os"
 	"reflect"
@@ -14,6 +15,10 @@ import (
 )
 
 func TestOfflineStores(t *testing.T) {
+	err := godotenv.Load(".env")
+	if err != nil {
+		fmt.Println(err)
+	}
 	var postgresConfig = PostgresConfig{
 		Host:     "localhost",
 		Port:     "5432",

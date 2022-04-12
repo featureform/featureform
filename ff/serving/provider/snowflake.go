@@ -34,7 +34,7 @@ func (ps *SnowflakeSchema) Serialize() []byte {
 	return schema
 }
 
-func (ps *SnowflakeSchema) Deserialize(schema SerializedSchema) error {
+func (ps *SnowflakeSchema) Deserialize(schema SerializedTableSchema) error {
 	err := json.Unmarshal(schema, ps)
 	if err != nil {
 		return err
@@ -87,7 +87,6 @@ func snowflakeOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 // NewSnowflakeOfflineStore creates a connection to a snowflake database
 // and initializes a table to track currently active Resource tables.
 func NewSnowflakeOfflineStore(sc SnowflakeConfig) (*snowflakeOfflineStore, error) {
-
 	url := fmt.Sprintf("%s:%s@%s-%s/%s/PUBLIC", sc.Username, sc.Password, sc.Organization, sc.Account, sc.Database)
 	db, err := sql.Open("snowflake", url)
 	if err != nil {
@@ -140,8 +139,8 @@ func (store *snowflakeOfflineStore) AsOfflineStore() (OfflineStore, error) {
 // CreateResourceTable creates a new Resource table.
 // Returns a table if it does not already exist and stores the table ID in the resource index table.
 // Returns an error if the table already exists or if table is the wrong type.
-func (store *snowflakeOfflineStore) CreateResourceTable(id ResourceID, schema SerializedSchema) (OfflineTable, error) {
-	psSchema := PostgresSchema{}
+func (store *snowflakeOfflineStore) CreateResourceTable(id ResourceID, schema SerializedTableSchema) (OfflineTable, error) {
+	psSchema := SnowflakeSchema{}
 	if err := psSchema.Deserialize(schema); err != nil {
 		return nil, err
 	}
@@ -349,6 +348,38 @@ func (store *snowflakeOfflineStore) GetMaterialization(id MaterializationID) (Ma
 	}, err
 }
 
+func (store *snowflakeOfflineStore) DeleteMaterialization(id MaterializationID) error {
+	tableName := store.getMaterializationTableName(id)
+	if exists, err := store.materializationExists(id); err != nil {
+		return err
+	} else if !exists {
+		return &MaterializationNotFound{id}
+	}
+	query := fmt.Sprintf("DROP TABLE %s", sanitize(tableName))
+	if _, err := store.db.Exec(query); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (store *snowflakeOfflineStore) materializationExists(id MaterializationID) (bool, error) {
+	tableName := store.getMaterializationTableName(id)
+	getMatQry := fmt.Sprintf("SELECT DISTINCT (table_name) FROM information_schema.tables WHERE table_name=?")
+	rows, err := store.db.Query(getMatQry, tableName)
+	defer rows.Close()
+	if err != nil {
+		return false, err
+	}
+	rowCount := 0
+	if rows.Next() {
+		rowCount++
+	}
+	if rowCount == 0 {
+		return false, nil
+	}
+	return true, nil
+}
+
 func (store *snowflakeOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
 	if err := def.check(); err != nil {
 		return err
@@ -434,12 +465,10 @@ func (store *snowflakeOfflineStore) getValueColumnTypes(table string) ([]snowfla
 
 	for rows.Next() {
 		var colString string
-
 		if err := rows.Scan(&colString); err != nil {
 			return nil, err
 		}
 		colTypes = append(colTypes, snowflakeColumnType(colString))
-
 	}
 	return colTypes, nil
 }
@@ -480,7 +509,6 @@ func (it *snowflakeTrainingRowsIterator) Next() bool {
 		it.rows.Close()
 		return false
 	}
-
 	values := make([]interface{}, len(columnNames))
 	pointers := make([]interface{}, len(columnNames))
 	for i, _ := range values {
@@ -500,10 +528,8 @@ func (it *snowflakeTrainingRowsIterator) Next() bool {
 		}
 		if i < numFeatures {
 			featureVals[i] = castSnowflakeTableItemType(value, it.columnTypes[i])
-
 		} else {
 			label = castSnowflakeTableItemType(value, it.columnTypes[i])
-
 		}
 	}
 	it.currentFeatures = featureVals

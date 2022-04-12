@@ -42,7 +42,7 @@ func (serv *FeatureServer) TrainingData(req *pb.TrainingDataRequest, stream pb.F
 		return err
 	}
 	for iter.Next() {
-		sRow, err := serializedRow(iter.Features(), iter.Label)
+		sRow, err := serializedRow(iter.Features(), iter.Label())
 		if err != nil {
 			return err
 		}

@@ -10,8 +10,9 @@ import (
 )
 
 const (
-	MemoryOffline   Type = "MEMORY_OFFLINE"
-	PostgresOffline      = "POSTGRES_OFFLINE"
+	MemoryOffline    Type = "MEMORY_OFFLINE"
+	PostgresOffline       = "POSTGRES_OFFLINE"
+	SnowflakeOffline      = "SNOWFLAKE_OFFLINE"
 )
 
 type ValueType string

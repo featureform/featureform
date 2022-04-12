@@ -8,6 +8,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	dto "github.com/prometheus/client_model/go"
 )
 
 //generic interfaces exposed to the user
@@ -126,6 +127,14 @@ func (p PromFeatureObserver) Finish() {
 	p.Count.WithLabelValues(p.Name, p.Feature, p.Key, "success").Inc()
 }
 
+func (p PromFeatureObserver) GetObservedRowCount() (float64, error) {
+	var m = &dto.Metric{}
+	if err := p.Count.WithLabelValues(p.Name, p.Feature, p.Key, "row serving").Write(m); err != nil {
+		return 0.0, err
+	}
+	return m.Counter.GetValue(), nil
+}
+
 func (p TrainingDataObserver) SetError() {
 	p.Status = "error"
 	p.Timer.ObserveDuration()
@@ -134,6 +143,22 @@ func (p TrainingDataObserver) SetError() {
 
 func (p TrainingDataObserver) ServeRow() {
 	p.Row_Count.WithLabelValues(p.Title, p.Name, p.Version, "row serve").Inc()
+}
+
+func (p TrainingDataObserver) GetObservedRowCount() (float64, error) {
+	var m = &dto.Metric{}
+	if err := p.Row_Count.WithLabelValues(p.Title, p.Name, p.Version, "row serving").Write(m); err != nil {
+		return 0.0, err
+	}
+	return m.Counter.GetValue(), nil
+}
+
+func (p PromMetricsHandler) GetObservedLatencyRecords() (uint64, error) {
+	var m = &dto.Metric{}
+	if err := metric.WithLabelValues(labelValues...).(prometheus.Histogram).Write(m); err != nil {
+		return 0.0, err
+	}
+	return m.GetHistogram().GetSampleCount(), nil
 }
 
 func (p TrainingDataObserver) Finish() {

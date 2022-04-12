@@ -2,6 +2,7 @@ package serving
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/featureform/serving/metadata"
 	"github.com/featureform/serving/metrics"
@@ -86,11 +87,15 @@ func (serv *FeatureServer) getTrainingSetIterator(name, variant string) (provide
 func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServeRequest) (*pb.FeatureRow, error) {
 	features := req.GetFeatures()
 	entities := req.GetEntities()
+	entityMap := make(map[string]string)
+	for _, entity := range entities {
+		entityMap[entity.GetName()] = entity.GetValue()
+	}
 	vals := make([]*pb.Value, len(features))
 	for i, feature := range req.GetFeatures() {
-		name, variant, entity := feature.GetName(), feature.GetVersion(), entities[i].GetValue()
-		serv.Logger.Infow("Serving feature", "Name", name, "Variant", variant, "Entity", entity)
-		val, err := serv.getFeatureValue(ctx, name, variant, entity)
+		name, variant := feature.GetName(), feature.GetVersion()
+		serv.Logger.Infow("Serving feature", "Name", name, "Variant", variant)
+		val, err := serv.getFeatureValue(ctx, name, variant, entityMap)
 		if err != nil {
 			return nil, err
 		}
@@ -101,7 +106,7 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 	}, nil
 }
 
-func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant, entity string) (*pb.Value, error) {
+func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant string, entityMap map[string]string) (*pb.Value, error) {
 	obs := serv.Metrics.BeginObservingOnlineServe(name, variant)
 	defer obs.Finish()
 	logger := serv.Logger.With("Name", name, "Variant", variant)
@@ -111,6 +116,12 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant, e
 		logger.Errorw("metadata lookup failed", "Err", err)
 		obs.SetError()
 		return nil, err
+	}
+	entity, has := entityMap[meta.Entity()]
+	if !has {
+		logger.Errorw("Entity not found", "Entity", meta.Entity())
+		obs.SetError()
+		return nil, fmt.Errorf("No value for entity %s", meta.Entity())
 	}
 	providerEntry, err := meta.FetchProvider(serv.Metadata, ctx)
 	if err != nil {

@@ -77,8 +77,10 @@ func (def *TrainingSetDef) check() error {
 	if len(def.Features) == 0 {
 		return errors.New("training set must have atleast one feature")
 	}
-	for _, feature := range def.Features {
-		if err := feature.check(Feature); err != nil {
+	for i := range def.Features {
+		// We use features[i] to make sure that the Type value is updated to
+		// Feature if it's unset.
+		if err := def.Features[i].check(Feature); err != nil {
 			return err
 		}
 	}

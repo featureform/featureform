@@ -28,6 +28,7 @@ func TestOfflineStores(t *testing.T) {
 		"InvalidTrainingSetDefs":  testInvalidTrainingSetDefs,
 		"LabelTableNotFound":      testLabelTableNotFound,
 		"FeatureTableNotFound":    testFeatureTableNotFound,
+		"TrainingDefShorthand":    testTrainingSetDefShorthand,
 	}
 	var postgresConfig = PostgresConfig{
 		Host:     "localhost",
@@ -694,5 +695,33 @@ func testFeatureTableNotFound(t *testing.T, store OfflineStore) {
 	}
 	if err := store.CreateTrainingSet(def); err == nil {
 		t.Fatalf("Succeeded in creating training set with unknown feature")
+	}
+}
+
+func testTrainingSetDefShorthand(t *testing.T, store OfflineStore) {
+	schema := (&PostgresTableSchema{String}).Serialize()
+	fId := randomID(Feature)
+	fTable, err := store.CreateResourceTable(fId, schema)
+	if err != nil {
+		t.Fatalf("Failed to create table: %s", err)
+	}
+	fTable.Write(ResourceRecord{Entity: "a", Value: "feature"})
+	lId := randomID(Label)
+	lTable, err := store.CreateResourceTable(lId, schema)
+	if err != nil {
+		t.Fatalf("Failed to create table: %s", err)
+	}
+	lTable.Write(ResourceRecord{Entity: "a", Value: "label"})
+	// TrainingSetDef can be done in shorthand without types. Their types should
+	// be set automatically by the check() function.
+	lId.Type = NoType
+	fId.Type = NoType
+	def := TrainingSetDef{
+		ID:       randomID(NoType),
+		Label:    lId,
+		Features: []ResourceID{fId},
+	}
+	if err := store.CreateTrainingSet(def); err != nil {
+		t.Fatalf("Failed to create training set: %s", err)
 	}
 }

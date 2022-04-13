@@ -35,7 +35,7 @@ jobs:
         run: ./gen_grpc.sh
 
       - name: Build
-        run: go build
+        run: go build -o main
 
       - uses: actions/upload-artifact@v3
         with:

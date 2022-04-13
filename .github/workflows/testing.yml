@@ -181,7 +181,7 @@ jobs:
           ./build
           export PATH="$PATH:`pwd`/bin"
           etcd --version
-          etcd --logger=zap
+          etcd --logger=zap &
 
       - name: Testing
         working-directory: ./metadata

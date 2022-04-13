@@ -131,7 +131,7 @@ jobs:
         run: go test -v -coverpkg=./... -coverprofile coverage/cover.out ./...
 
       - name: Convert Coverage Test Results
-        working-directory: ./provider
+        working-directory: ./provider/coverage
         run: go tool cover -html=cover.out -o cover.html
 
       - name: Archive code coverage results
@@ -203,7 +203,7 @@ jobs:
         run: go test ./... -v -coverpkg=./... -coverprofile coverage/cover.out ./...
 
       - name: Convert Coverage Test Results
-        working-directory: ./metrics
+        working-directory: ./metrics/coverage
         run: go tool cover -html=cover.out -o cover.html
 
       - name: Archive code coverage results
@@ -237,7 +237,7 @@ jobs:
         run: go test ./... -v -coverpkg=./... -coverprofile coverage/cover.out ./...
 
       - name: Convert Coverage Test Results
-        working-directory: ./runner
+        working-directory: ./runner/coverage
         run: go tool cover -html=cover.out -o cover.html
 
       - name: Archive code coverage results

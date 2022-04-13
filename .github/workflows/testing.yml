@@ -158,43 +158,47 @@ jobs:
           name: provider-coverage-reports
           path: ./provider/coverage
 
-# TODO
-#  etcd:
-#    name: ETCD Testing
-#    needs: setup
-#    runs-on: ubuntu-latest
-#    services:
-#      redis:
-#        image: redis
-#        # Hard coded port because environment variables not currently
-#        # supported for use outside of 'steps'
-#        ports:
-#          -  6379:6379
-#
-#    steps:
-#      - name: Download Working Compiled Directories
-#        uses: actions/download-artifact@v3
-#        with:
-#          name: compiled-workdir
-#
-#      - name: Set up Go
-#        uses: actions/setup-go@v2
-#        with:
-#          go-version: 1.17
-#
-#      - name: Testing
-#        working-directory: ./metadata
-#        run: go test -v -coverpkg=./... -coverprofile cover.out ./...
-#
-#      - name: Convert Coverage Test Results
-#        working-directory: ./metadata
-#        run: go tool cover -html=cover.out -o cover.html
-#
-#      - name: Archive code coverage results
-#        uses: actions/upload-artifact@v3
-#        with:
-#          name: etcd-code-coverage-report
-#          path: ./metadata/cover.html
+  etcd:
+    name: ETCD Testing
+    needs: setup
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download Working Compiled Directories
+        uses: actions/download-artifact@v3
+        with:
+          name: compiled-workdir
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
+
+      - name: Install ETCD
+        run: |
+          git clone -b v3.4.16 https://github.com/etcd-io/etcd.git
+          cd etcd
+          ./build
+          export PATH="$PATH:`pwd`/bin"
+          etcd --version
+          etcd --logger=zap
+
+      - name: Testing
+        working-directory: ./metadata
+        run: go test -v -coverpkg=./... -coverprofile coverage/cover.out ./...
+
+      - name: Convert Coverage Test Results
+        if: always()
+        working-directory: ./metadata/coverage
+        run: go tool cover -html=cover.out -o cover.html
+
+      - uses: codecov/codecov-action@v2
+        if: always()
+        with:
+          root_dir: ./
+          files: ./metadata/coverage/cover.out
+          name: etcd-coverage
+          verbose: true
 
   metrics:
     name: Metrics Testing

@@ -76,14 +76,15 @@ jobs:
 
       - name: Testing
         working-directory: ./metadata/search
-        continue-on-error: true
         run: go test -v -coverpkg=./... -coverprofile coverage/cover.out ./...
 
       - name: Convert Coverage Test Results
+        if: always()
         working-directory: ./metadata/search/coverage
         run: go tool cover -html=cover.out -o cover.html
 
       - name: Archive code coverage results
+        if: always()
         uses: actions/upload-artifact@v3
         with:
           name: typesense-coverage-reports
@@ -127,14 +128,15 @@ jobs:
 
       - name: Testing
         working-directory: ./provider
-        continue-on-error: true
         run: go test -v -coverpkg=./... -coverprofile coverage/cover.out ./...
 
       - name: Convert Coverage Test Results
+        if: always()
         working-directory: ./provider/coverage
         run: go tool cover -html=cover.out -o cover.html
 
       - name: Archive code coverage results
+        if: always()
         uses: actions/upload-artifact@v3
         with:
           name: provider-coverage-reports
@@ -199,14 +201,15 @@ jobs:
 
       - name: Testing
         working-directory: ./metrics
-        continue-on-error: true
         run: go test ./... -v -coverpkg=./... -coverprofile coverage/cover.out ./...
 
       - name: Convert Coverage Test Results
+        if: always()
         working-directory: ./metrics/coverage
         run: go tool cover -html=cover.out -o cover.html
 
       - name: Archive code coverage results
+        if: always()
         uses: actions/upload-artifact@v3
         with:
           name: metrics-coverage-reports
@@ -233,20 +236,22 @@ jobs:
 
       - name: Testing
         working-directory: ./runner
-        continue-on-error: true
         run: go test ./... -v -coverpkg=./... -coverprofile coverage/cover.out ./...
 
       - name: Convert Coverage Test Results
+        if: always()
         working-directory: ./runner/coverage
         run: go tool cover -html=cover.out -o cover.html
 
       - name: Archive code coverage results
+        if: always()
         uses: actions/upload-artifact@v3
         with:
           name: runner-coverage-reports
           path: ./runner/coverage
 
   coverage:
+    if: always()
     name: Upload Coverage
     needs: [typesense, provider, metrics, runner]
     defaults:
@@ -267,7 +272,4 @@ jobs:
           files: ./metrics-coverage-reports/cover.out,./provider-coverage-reports/cover.out,./runner-coverage-reports/cover.out,./typesense-coverage-reports/cover.out
           name: coverage-upload
           verbose: true
-
-      - name: Convert Coverage Test Results
-        run: go tool cover -html=cover.out -o cover.html
 

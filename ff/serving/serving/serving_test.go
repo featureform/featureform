@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"net"
 	"reflect"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -18,8 +18,6 @@ import (
 	pb "github.com/featureform/serving/proto"
 	"github.com/featureform/serving/provider"
 )
-
-const metadataAddr string = ":8989"
 
 var serv *metadata.MetadataServer
 
@@ -311,18 +309,19 @@ type resourceDefsFn func(providerType string) []metadata.ResourceDef
 type onlineTestContext struct {
 	ResourceDefsFn resourceDefsFn
 	FactoryFn      provider.Factory
+	metaServ       *metadata.MetadataServer
 }
 
-func (ctx onlineTestContext) Create(t *testing.T) *FeatureServer {
-	startMetadata()
-	time.Sleep(time.Second)
+func (ctx *onlineTestContext) Create(t *testing.T) *FeatureServer {
+	var addr string
+	ctx.metaServ, addr = startMetadata()
 	providerType := uuid.NewString()
 	if ctx.FactoryFn != nil {
 		if err := provider.RegisterFactory(provider.Type(providerType), ctx.FactoryFn); err != nil {
 			t.Fatalf("Failed to register factory: %s", err)
 		}
 	}
-	meta := metadataClient(t)
+	meta := metadataClient(t, addr)
 	if ctx.ResourceDefsFn != nil {
 		defs := ctx.ResourceDefsFn(providerType)
 		if err := meta.CreateAll(context.Background(), defs); err != nil {
@@ -337,8 +336,8 @@ func (ctx onlineTestContext) Create(t *testing.T) *FeatureServer {
 	return serv
 }
 
-func (ctx onlineTestContext) Destroy() {
-	stopMetadata()
+func (ctx *onlineTestContext) Destroy() {
+	ctx.metaServ.Stop()
 }
 
 // Metrics can't have numbers in it, so we can't just use a UUID.
@@ -400,34 +399,35 @@ func onlineStoreNoTables(cfg provider.SerializedConfig) (provider.Provider, erro
 	return store, nil
 }
 
-func startMetadata() {
+func startMetadata() (*metadata.MetadataServer, string) {
 	logger, err := zap.NewDevelopment()
 	if err != nil {
 		panic(err)
 	}
 	config := &metadata.Config{
 		Logger:          logger.Sugar(),
-		Address:         metadataAddr,
 		StorageProvider: metadata.LocalStorageProvider{},
 	}
 	serv, err = metadata.NewMetadataServer(config)
 	if err != nil {
 		panic(err)
 	}
+	// listen on a random port
+	lis, err := net.Listen("tcp", ":0")
+	if err != nil {
+		panic(err)
+	}
 	go func() {
-		if err := serv.Serve(); err != nil {
+		if err := serv.ServeOnListener(lis); err != nil {
 			panic(err)
 		}
 	}()
+	return serv, lis.Addr().String()
 }
 
-func stopMetadata() {
-	serv.Stop()
-}
-
-func metadataClient(t *testing.T) *metadata.Client {
+func metadataClient(t *testing.T, addr string) *metadata.Client {
 	logger := zaptest.NewLogger(t).Sugar()
-	client, err := metadata.NewClient(metadataAddr, logger)
+	client, err := metadata.NewClient(addr, logger)
 	if err != nil {
 		t.Fatalf("Failed to create client: %s", err)
 	}

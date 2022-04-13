@@ -127,5 +127,101 @@ jobs:
       - name: Archive code coverage results
         uses: actions/upload-artifact@v3
         with:
-          name: typesense-code-coverage-report
+          name: provider-code-coverage-report
           path: ./provider/cover.html
+
+# TODO
+#  etcd:
+#    name: ETCD Testing
+#    needs: setup
+#    runs-on: ubuntu-latest
+#    services:
+#      redis:
+#        image: redis
+#        # Hard coded port because environment variables not currently
+#        # supported for use outside of 'steps'
+#        ports:
+#          -  6379:6379
+#
+#    steps:
+#      - name: Download Working Compiled Directories
+#        uses: actions/download-artifact@v3
+#        with:
+#          name: compiled-workdir
+#
+#      - name: Set up Go
+#        uses: actions/setup-go@v2
+#        with:
+#          go-version: 1.17
+#
+#      - name: Testing
+#        working-directory: ./metadata
+#        run: go test -v -coverpkg=./... -coverprofile cover.out ./...
+#
+#      - name: Convert Coverage Test Results
+#        working-directory: ./metadata
+#        run: go tool cover -html=cover.out -o cover.html
+#
+#      - name: Archive code coverage results
+#        uses: actions/upload-artifact@v3
+#        with:
+#          name: etcd-code-coverage-report
+#          path: ./metadata/cover.html
+
+  metrics:
+    name: Metrics Testing
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Working Compiled Directories
+        uses: actions/download-artifact@v3
+        with:
+          name: compiled-workdir
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
+
+      - name: Testing
+        working-directory: ./metrics
+        run: go test ./... -v -coverpkg=./... -coverprofile cover.out ./...
+
+      - name: Convert Coverage Test Results
+        working-directory: ./metrics
+        run: go tool cover -html=cover.out -o cover.html
+
+      - name: Archive code coverage results
+        uses: actions/upload-artifact@v3
+        with:
+          name: metrics-code-coverage-report
+          path: ./metrics/cover.html
+
+  runner:
+    name: Runner Testing
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Working Compiled Directories
+        uses: actions/download-artifact@v3
+        with:
+          name: compiled-workdir
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
+
+      - name: Testing
+        working-directory: ./runner
+        run: go test ./... -v -coverpkg=./... -coverprofile cover.out ./...
+
+      - name: Convert Coverage Test Results
+        working-directory: ./runner
+        run: go tool cover -html=cover.out -o cover.html
+
+      - name: Archive code coverage results
+        uses: actions/upload-artifact@v3
+        with:
+          name: runner-code-coverage-report
+          path: ./runner/cover.html

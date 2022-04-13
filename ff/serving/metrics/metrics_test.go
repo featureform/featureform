@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	metrics "github.com/featureform/serving/metrics"
 	prometheus "github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/assert"
@@ -26,7 +25,7 @@ func GetHistogramValue(metric *prometheus.HistogramVec, labelValues ...string) (
 	return m.GetHistogram().GetSampleCount(), nil
 }
 
-func training(obs metrics.TrainingDataObserver, promMetrics metrics.PromMetricsHandler, start time.Time, num int, errors int) {
+func training(obs TrainingDataObserver, promMetrics PromMetricsHandler, start time.Time, num int, errors int) {
 	for i := 0; i < errors; i++ {
 		obs.SetError()
 	}
@@ -38,7 +37,7 @@ func training(obs metrics.TrainingDataObserver, promMetrics metrics.PromMetricsH
 	obs.Finish()
 }
 
-func serving(obs metrics.PromFeatureObserver, promMetrics metrics.PromMetricsHandler, start time.Time, num int, errors int) {
+func serving(obs PromFeatureObserver, promMetrics PromMetricsHandler, start time.Time, num int, errors int) {
 	for i := 0; i < errors; i++ {
 		obs.SetError()
 	}
@@ -51,7 +50,7 @@ func serving(obs metrics.PromFeatureObserver, promMetrics metrics.PromMetricsHan
 func TestMetrics(t *testing.T) {
 	start := time.Now()
 	instanceName := "test"
-	promMetrics := metrics.NewMetrics(instanceName)
+	promMetrics := NewMetrics(instanceName)
 	featureName := "example_feature"
 	featureVariant := "example_variant"
 	trainingDatasetName := "example_dataset"
@@ -64,12 +63,12 @@ func TestMetrics(t *testing.T) {
 	latencyServingCount := servingNum + 1
 	latencyTrainingCount := trainingNum + 1
 
-	servingObserver := promMetrics.BeginObservingOnlineServe(featureName, featureVariant).(metrics.PromFeatureObserver)
-	trainingObserver := promMetrics.BeginObservingTrainingServe(trainingDatasetName, trainingDatasetVariant).(metrics.TrainingDataObserver)
+	servingObserver := promMetrics.BeginObservingOnlineServe(featureName, featureVariant).(PromFeatureObserver)
+	trainingObserver := promMetrics.BeginObservingTrainingServe(trainingDatasetName, trainingDatasetVariant).(TrainingDataObserver)
 	serving(servingObserver, promMetrics, start, servingNum, servingErrorNum)
 	training(trainingObserver, promMetrics, start, trainingNum, trainingErrorNum)
 
-	servingCounterValue, err := GetCounterValue(servingObserver.Count, instanceName, featureName, featureVariant, string(metrics.ONLINE_ROW_SERVE))
+	servingCounterValue, err := GetCounterValue(servingObserver.Count, instanceName, featureName, featureVariant, string(ONLINE_ROW_SERVE))
 	if err != nil {
 		t.Fatalf("Could not fetch value: %v", err)
 	}
@@ -79,7 +78,7 @@ func TestMetrics(t *testing.T) {
 		t.Fatalf("Could not fetch value: %v", err)
 	}
 	assert.Equal(t, servingCounterValueInt, servingNum, "5 feature rows should be served")
-	servingErrorCounterValue, err := GetCounterValue(servingObserver.Count, instanceName, featureName, featureVariant, string(metrics.ERROR))
+	servingErrorCounterValue, err := GetCounterValue(servingObserver.Count, instanceName, featureName, featureVariant, string(ERROR))
 	if err != nil {
 		t.Fatalf("Could not fetch value: %v", err)
 	}
@@ -89,7 +88,7 @@ func TestMetrics(t *testing.T) {
 		t.Fatalf("Could not fetch value: %v", err)
 	}
 	assert.Equal(t, servingErrorCounterValueInt, servingNum, "5 feature error rows should be recorded")
-	trainingCounterValue, err := GetCounterValue(trainingObserver.Row_Count, instanceName, trainingDatasetName, trainingDatasetVariant, string(metrics.TRAINING_ROW_SERVE))
+	trainingCounterValue, err := GetCounterValue(trainingObserver.Row_Count, instanceName, trainingDatasetName, trainingDatasetVariant, string(TRAINING_ROW_SERVE))
 	if err != nil {
 		t.Fatalf("Could not fetch value: %v", err)
 	}
@@ -99,7 +98,7 @@ func TestMetrics(t *testing.T) {
 		t.Fatalf("Could not fetch value: %v", err)
 	}
 	assert.Equal(t, trainingCounterValueInt, trainingNum, "5 training data rows should be recorded")
-	trainingErrorCounterValue, err := GetCounterValue(trainingObserver.Row_Count, instanceName, trainingDatasetName, trainingDatasetVariant, string(metrics.ERROR))
+	trainingErrorCounterValue, err := GetCounterValue(trainingObserver.Row_Count, instanceName, trainingDatasetName, trainingDatasetVariant, string(ERROR))
 	if err != nil {
 		t.Fatalf("Could not fetch value: %v", err)
 	}

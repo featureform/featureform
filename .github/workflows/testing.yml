@@ -75,6 +75,7 @@ jobs:
         run: go test -v -coverpkg=./... -coverprofile cover.out ./...
 
       - name: Convert Coverage Test Results
+        working-directory: ./metadata/search
         run: go tool cover -html=cover.out -o cover.html
 
       - name: Archive code coverage results
@@ -120,6 +121,7 @@ jobs:
         run: go test -v -coverpkg=./... -coverprofile cover.out ./...
 
       - name: Convert Coverage Test Results
+        working-directory: ./provider
         run: go tool cover -html=cover.out -o cover.html
 
       - name: Archive code coverage results

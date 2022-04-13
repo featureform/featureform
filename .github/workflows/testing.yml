@@ -70,8 +70,13 @@ jobs:
           docker run -d -p $TYPESENSE_PORT:8108 -v/tmp/typesense-data:/data typesense/typesense:0.22.2 \
           --data-dir /data --api-key=$TYPESENSE_API_KEY --enable-cors
 
-      - name: Test
+      - name: Make Coverage Directory
         working-directory: ./metadata/search
+        run: mkdir coverage
+
+      - name: Testing
+        working-directory: ./metadata/search
+        continue-on-error: true
         run: go test -v -coverpkg=./... -coverprofile coverage/cover.out ./...
 
       - name: Convert Coverage Test Results
@@ -118,6 +123,7 @@ jobs:
 
       - name: Testing
         working-directory: ./provider
+        continue-on-error: true
         run: go test -v -coverpkg=./... -coverprofile cover.out ./...
 
       - name: Convert Coverage Test Results
@@ -185,6 +191,7 @@ jobs:
 
       - name: Testing
         working-directory: ./metrics
+        continue-on-error: true
         run: go test ./... -v -coverpkg=./... -coverprofile cover.out ./...
 
       - name: Convert Coverage Test Results
@@ -214,6 +221,7 @@ jobs:
 
       - name: Testing
         working-directory: ./runner
+        continue-on-error: true
         run: go test ./... -v -coverpkg=./... -coverprofile cover.out ./...
 
       - name: Convert Coverage Test Results

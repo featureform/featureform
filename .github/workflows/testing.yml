@@ -225,3 +225,28 @@ jobs:
         with:
           name: runner-code-coverage-report
           path: ./runner/cover.html
+
+  coverage:
+    name: Upload Coverage
+    defaults:
+      run:
+        working-directory: ./
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Working Compiled Directories
+        uses: actions/download-artifact@v3
+        with:
+          path: ./
+
+      - name: Display structure of downloaded files
+        run: ls -R
+
+#      - uses: codecov/codecov-action@v2
+#        with:
+#          files: ./ff/serving/cover.out
+#          name: coverage-upload
+#          verbose: true
+#
+#      - name: Convert Coverage Test Results
+#        run: go tool cover -html=cover.out -o cover.html
+

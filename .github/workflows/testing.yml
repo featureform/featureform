@@ -259,16 +259,20 @@ jobs:
         working-directory: ./
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v2
+
       - name: Download Working Compiled Directories
         uses: actions/download-artifact@v3
         with:
-          path: ./
+          name: metrics-coverage-reports,provider-coverage-reports,runner-coverage-reports,typesense-coverage-reports
+          path: ./ff/serving
 
       - name: Display structure of downloaded files
         run: ls -R
 
       - uses: codecov/codecov-action@v2
         with:
+          root_dir: ./ff/serving/
           files: ./metrics-coverage-reports/cover.out,./provider-coverage-reports/cover.out,./runner-coverage-reports/cover.out,./typesense-coverage-reports/cover.out
           name: coverage-upload
           verbose: true

@@ -6,9 +6,9 @@ import (
 
 	"github.com/featureform/serving/metadata"
 	"github.com/featureform/serving/metrics"
+	pb "github.com/featureform/serving/proto"
 	"github.com/featureform/serving/provider"
 
-	pb "github.com/featureform/serving/proto"
 	"go.uber.org/zap"
 )
 

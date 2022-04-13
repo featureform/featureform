@@ -81,10 +81,10 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: typesense-code-coverage-report
-          path: ./ff/serving/cover.html
+          path: ./metadata/search/cover.html
 
   provider:
-    name: Provider Integration Tests
+    name: Provider Testing
     needs: setup
     runs-on: ubuntu-latest
     services:
@@ -115,7 +115,7 @@ jobs:
         with:
           go-version: 1.17
 
-      - name: Integration Test
+      - name: Testing
         working-directory: ./provider
         run: go test -v -coverpkg=./... -coverprofile cover.out ./...
 
@@ -126,4 +126,4 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: typesense-code-coverage-report
-          path: ./ff/serving/cover.html
+          path: ./provider/cover.html

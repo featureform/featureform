@@ -86,7 +86,7 @@ jobs:
       - name: Archive code coverage results
         uses: actions/upload-artifact@v3
         with:
-          name: typesense-code-coverage-reports
+          name: typesense-coverage-reports
           path: ./metadata/search/coverage
 
   provider:
@@ -121,10 +121,14 @@ jobs:
         with:
           go-version: 1.17
 
+      - name: Make Coverage Directory
+        working-directory: ./provider
+        run: mkdir coverage
+
       - name: Testing
         working-directory: ./provider
         continue-on-error: true
-        run: go test -v -coverpkg=./... -coverprofile cover.out ./...
+        run: go test -v -coverpkg=./... -coverprofile coverage/cover.out ./...
 
       - name: Convert Coverage Test Results
         working-directory: ./provider
@@ -133,8 +137,8 @@ jobs:
       - name: Archive code coverage results
         uses: actions/upload-artifact@v3
         with:
-          name: provider-code-coverage-report
-          path: ./provider/cover.html
+          name: provider-coverage-reports
+          path: ./provider/coverage
 
 # TODO
 #  etcd:
@@ -189,10 +193,14 @@ jobs:
         with:
           go-version: 1.17
 
+      - name: Make Coverage Directory
+        working-directory: ./metrics
+        run: mkdir coverage
+
       - name: Testing
         working-directory: ./metrics
         continue-on-error: true
-        run: go test ./... -v -coverpkg=./... -coverprofile cover.out ./...
+        run: go test ./... -v -coverpkg=./... -coverprofile coverage/cover.out ./...
 
       - name: Convert Coverage Test Results
         working-directory: ./metrics
@@ -201,8 +209,8 @@ jobs:
       - name: Archive code coverage results
         uses: actions/upload-artifact@v3
         with:
-          name: metrics-code-coverage-report
-          path: ./metrics/cover.html
+          name: metrics-coverage-reports
+          path: ./metrics/coverage
 
   runner:
     name: Runner Testing
@@ -219,10 +227,14 @@ jobs:
         with:
           go-version: 1.17
 
+      - name: Make Coverage Directory
+        working-directory: ./runner
+        run: mkdir coverage
+
       - name: Testing
         working-directory: ./runner
         continue-on-error: true
-        run: go test ./... -v -coverpkg=./... -coverprofile cover.out ./...
+        run: go test ./... -v -coverpkg=./... -coverprofile coverage/cover.out ./...
 
       - name: Convert Coverage Test Results
         working-directory: ./runner
@@ -231,8 +243,8 @@ jobs:
       - name: Archive code coverage results
         uses: actions/upload-artifact@v3
         with:
-          name: runner-code-coverage-report
-          path: ./runner/cover.html
+          name: runner-coverage-reports
+          path: ./runner/coverage
 
   coverage:
     name: Upload Coverage
@@ -250,12 +262,12 @@ jobs:
       - name: Display structure of downloaded files
         run: ls -R
 
-#      - uses: codecov/codecov-action@v2
-#        with:
-#          files: ./ff/serving/cover.out
-#          name: coverage-upload
-#          verbose: true
-#
-#      - name: Convert Coverage Test Results
-#        run: go tool cover -html=cover.out -o cover.html
+      - uses: codecov/codecov-action@v2
+        with:
+          files: ./metrics-coverage-reports/cover.out,./provider-coverage-reports/cover.out,./runner-coverage-reports/cover.out,./typesense-coverage-reports/cover.out
+          name: coverage-upload
+          verbose: true
+
+      - name: Convert Coverage Test Results
+        run: go tool cover -html=cover.out -o cover.html
 

@@ -228,7 +228,7 @@ jobs:
 
   coverage:
     name: Upload Coverage
-    needs: [typsense, provider, metrics, runner]
+    needs: [typesense, provider, metrics, runner]
     defaults:
       run:
         working-directory: ./

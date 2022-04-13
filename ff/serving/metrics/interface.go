@@ -11,6 +11,15 @@ import (
 	dto "github.com/prometheus/client_model/go"
 )
 
+type Observation string
+
+const (
+	TRAINING_ROW_SERVE Observation = "training_row_serve"
+	ONLINE_ROW_SERVE = "online_row_serve"
+	ERROR = "error"
+	SUCCESS = "success"
+)
+
 //generic interfaces exposed to the user
 type MetricsHandler interface {
 	BeginObservingOnlineServe(feature string, key string) FeatureObserver
@@ -112,24 +121,24 @@ func (p PromMetricsHandler) ExposePort(port string) {
 }
 
 func (p PromFeatureObserver) SetError() {
-	p.Status = "error"
+	p.Status = string(ERROR)
 	p.Timer.ObserveDuration()
-	p.Count.WithLabelValues(p.Name, p.Feature, p.Key, "error").Inc()
+	p.Count.WithLabelValues(p.Name, p.Feature, p.Key, string(ERROR)).Inc()
 }
 
 func (p PromFeatureObserver) ServeRow() {
-	p.Count.WithLabelValues(p.Name, p.Feature, p.Key, "row serving").Inc()
+	p.Count.WithLabelValues(p.Name, p.Feature, p.Key, string(ONLINE_ROW_SERVE)).Inc()
 }
 
 func (p PromFeatureObserver) Finish() {
-	p.Status = "success"
+	p.Status = string(SUCCESS)
 	p.Timer.ObserveDuration()
-	p.Count.WithLabelValues(p.Name, p.Feature, p.Key, "success").Inc()
+	p.Count.WithLabelValues(p.Name, p.Feature, p.Key, string(SUCCESS)).Inc()
 }
 
 func (p PromFeatureObserver) GetObservedRowCount() (int, error) {
 	var m = &dto.Metric{}
-	if err := p.Count.WithLabelValues(p.Name, p.Feature, p.Key, "row serving").Write(m); err != nil {
+	if err := p.Count.WithLabelValues(p.Name, p.Feature, p.Key, string(ONLINE_ROW_SERVE)).Write(m); err != nil {
 		return 0, err
 	}
 	return int(m.Counter.GetValue()), nil
@@ -137,25 +146,25 @@ func (p PromFeatureObserver) GetObservedRowCount() (int, error) {
 
 func (p PromFeatureObserver) GetObservedErrorCount() (int, error) {
 	var m = &dto.Metric{}
-	if err := p.Count.WithLabelValues(p.Name, p.Feature, p.Key, "error").Write(m); err != nil {
+	if err := p.Count.WithLabelValues(p.Name, p.Feature, p.Key, string(ERROR)).Write(m); err != nil {
 		return 0, err
 	}
 	return int(m.Counter.GetValue()), nil
 }
 
 func (p TrainingDataObserver) SetError() {
-	p.Status = "error"
+	p.Status = string(ERROR)
 	p.Timer.ObserveDuration()
-	p.Row_Count.WithLabelValues(p.Title, p.Name, p.Version, "error").Inc()
+	p.Row_Count.WithLabelValues(p.Title, p.Name, p.Version, string(ERROR)).Inc()
 }
 
 func (p TrainingDataObserver) ServeRow() {
-	p.Row_Count.WithLabelValues(p.Title, p.Name, p.Version, "row serve").Inc()
+	p.Row_Count.WithLabelValues(p.Title, p.Name, p.Version, string(TRAINING_ROW_SERVE)).Inc()
 }
 
 func (p TrainingDataObserver) GetObservedRowCount() (int, error) {
 	var m = &dto.Metric{}
-	if err := p.Row_Count.WithLabelValues(p.Title, p.Name, p.Version, "row serve").Write(m); err != nil {
+	if err := p.Row_Count.WithLabelValues(p.Title, p.Name, p.Version, string(TRAINING_ROW_SERVE)).Write(m); err != nil {
 		return 0, err
 	}
 	return int(m.Counter.GetValue()), nil
@@ -163,13 +172,13 @@ func (p TrainingDataObserver) GetObservedRowCount() (int, error) {
 
 func (p TrainingDataObserver) GetObservedErrorCount() (int, error) {
 	var m = &dto.Metric{}
-	if err := p.Row_Count.WithLabelValues(p.Title, p.Name, p.Version, "error").Write(m); err != nil {
+	if err := p.Row_Count.WithLabelValues(p.Title, p.Name, p.Version, string(ERROR)).Write(m); err != nil {
 		return 0, err
 	}
 	return int(m.Counter.GetValue()), nil
 }
 
 func (p TrainingDataObserver) Finish() {
-	p.Status = "success"
+	p.Status = string(SUCCESS)
 	p.Timer.ObserveDuration()
 }

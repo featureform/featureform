@@ -4,18 +4,19 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"reflect"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
+	grpcmeta "google.golang.org/grpc/metadata"
 
 	"github.com/featureform/serving/metadata"
 	"github.com/featureform/serving/metrics"
 	pb "github.com/featureform/serving/proto"
 	"github.com/featureform/serving/provider"
-	grpcmeta "google.golang.org/grpc/metadata"
 )
 
 const metadataAddr string = ":8989"
@@ -40,6 +41,52 @@ func simpleFeatureRecords() map[provider.ResourceID][]provider.ResourceRecord {
 	labelRecs := []provider.ResourceRecord{
 		{Entity: "a", Value: true},
 		{Entity: "b", Value: false},
+	}
+	return map[provider.ResourceID][]provider.ResourceRecord{
+		featureId: featureRecs,
+		labelId:   labelRecs,
+	}
+}
+
+func invalidFeatureRecords() map[provider.ResourceID][]provider.ResourceRecord {
+	featureId := provider.ResourceID{
+		Name:    "feature",
+		Variant: "variant",
+		Type:    provider.Feature,
+	}
+	featureRecs := []provider.ResourceRecord{
+		{Entity: "a", Value: make([]string, 0)},
+	}
+	labelId := provider.ResourceID{
+		Name:    "label",
+		Variant: "variant",
+		Type:    provider.Label,
+	}
+	labelRecs := []provider.ResourceRecord{
+		{Entity: "a", Value: true},
+	}
+	return map[provider.ResourceID][]provider.ResourceRecord{
+		featureId: featureRecs,
+		labelId:   labelRecs,
+	}
+}
+
+func invalidLabelRecords() map[provider.ResourceID][]provider.ResourceRecord {
+	featureId := provider.ResourceID{
+		Name:    "feature",
+		Variant: "variant",
+		Type:    provider.Feature,
+	}
+	featureRecs := []provider.ResourceRecord{
+		{Entity: "a", Value: 12.5},
+	}
+	labelId := provider.ResourceID{
+		Name:    "label",
+		Variant: "variant",
+		Type:    provider.Label,
+	}
+	labelRecs := []provider.ResourceRecord{
+		{Entity: "a", Value: make([]string, 0)},
 	}
 	return map[provider.ResourceID][]provider.ResourceRecord{
 		featureId: featureRecs,
@@ -693,14 +740,20 @@ func TestAllFeatureTypes(t *testing.T) {
 }
 
 type mockTrainingStream struct {
-	RowChan chan *pb.TrainingDataRow
+	RowChan    chan *pb.TrainingDataRow
+	ShouldFail bool
 }
 
 func newMockTrainingStream() *mockTrainingStream {
-	return &mockTrainingStream{make(chan *pb.TrainingDataRow)}
+	return &mockTrainingStream{
+		RowChan: make(chan *pb.TrainingDataRow),
+	}
 }
 
 func (stream *mockTrainingStream) Send(row *pb.TrainingDataRow) error {
+	if stream.ShouldFail {
+		return fmt.Errorf("Mock Failure")
+	}
 	stream.RowChan <- row
 	return nil
 }
@@ -749,10 +802,193 @@ func TestSimpleTrainingSetServe(t *testing.T) {
 		}
 		close(errChan)
 	}()
-	select {
-	case row := <-stream.RowChan:
-		fmt.Println(row)
-	case err := <-errChan:
-		t.Fatalf("Failed to get training data: %s", err)
+	type Row struct {
+		Feature interface{}
+		Label   interface{}
+	}
+	// We use a map since the order is not guaranteed.
+	expectedRows := map[Row]bool{
+		{12.5, true}:   true,
+		{"def", false}: true,
+	}
+	actualRows := make(map[Row]bool)
+	moreVals := true
+	for moreVals {
+		select {
+		case row := <-stream.RowChan:
+			if len(row.Features) != 1 {
+				t.Fatalf("Row has too many features: %v", row)
+			}
+			actualRows[Row{
+				Feature: unwrapVal(row.Features[0]),
+				Label:   unwrapVal(row.Label),
+			}] = true
+		case err := <-errChan:
+			if err != nil {
+				t.Fatalf("Failed to get training data: %s", err)
+			}
+			moreVals = false
+		}
+	}
+	if !reflect.DeepEqual(expectedRows, actualRows) {
+		t.Fatalf("Rows arent equal: %v\n%v", expectedRows, actualRows)
+	}
+}
+
+func TestTrainingSetNotFound(t *testing.T) {
+	ctx := onlineTestContext{
+		ResourceDefsFn: simpleResourceDefsFn,
+		FactoryFn:      createMockOfflineStoreFactory(simpleFeatureRecords(), simpleTrainingSetDefs()),
+	}
+	serv := ctx.Create(t)
+	defer ctx.Destroy()
+	req := &pb.TrainingDataRequest{
+		Id: &pb.TrainingDataID{
+			Name:    "nonexistant-training-set",
+			Version: "variant",
+		},
+	}
+	stream := newMockTrainingStream()
+	errChan := make(chan error)
+	go func() {
+		if err := serv.TrainingData(req, stream); err != nil {
+			errChan <- err
+		}
+		close(errChan)
+	}()
+	if err := <-errChan; err == nil {
+		t.Fatalf("Succeeded in serving non-existant training data: %s", err)
+	}
+}
+
+func TestTrainingSetNoProviderFactory(t *testing.T) {
+	ctx := onlineTestContext{
+		ResourceDefsFn: simpleResourceDefsFn,
+		FactoryFn:      nil,
+	}
+	serv := ctx.Create(t)
+	defer ctx.Destroy()
+	req := &pb.TrainingDataRequest{
+		Id: &pb.TrainingDataID{
+			Name:    "training-set",
+			Version: "variant",
+		},
+	}
+	stream := newMockTrainingStream()
+	errChan := make(chan error)
+	go func() {
+		if err := serv.TrainingData(req, stream); err != nil {
+			errChan <- err
+		}
+		close(errChan)
+	}()
+	if err := <-errChan; err == nil {
+		t.Fatalf("Succeeded in serving with no provider: %s", err)
+	}
+}
+
+func TestTrainingSetInOnlineStore(t *testing.T) {
+	ctx := onlineTestContext{
+		ResourceDefsFn: simpleResourceDefsFn,
+		FactoryFn:      createMockOnlineStoreFactory(simpleFeatureRecords()),
+	}
+	serv := ctx.Create(t)
+	defer ctx.Destroy()
+	req := &pb.TrainingDataRequest{
+		Id: &pb.TrainingDataID{
+			Name:    "training-set",
+			Version: "variant",
+		},
+	}
+	stream := newMockTrainingStream()
+	errChan := make(chan error)
+	go func() {
+		if err := serv.TrainingData(req, stream); err != nil {
+			errChan <- err
+		}
+		close(errChan)
+	}()
+	if err := <-errChan; err == nil {
+		t.Fatalf("Succeeded in serving with online store provider: %s", err)
+	}
+}
+
+func TestTrainingSetStreamFailure(t *testing.T) {
+	ctx := onlineTestContext{
+		ResourceDefsFn: simpleResourceDefsFn,
+		FactoryFn:      createMockOfflineStoreFactory(simpleFeatureRecords(), simpleTrainingSetDefs()),
+	}
+	serv := ctx.Create(t)
+	defer ctx.Destroy()
+	req := &pb.TrainingDataRequest{
+		Id: &pb.TrainingDataID{
+			Name:    "training-set",
+			Version: "variant",
+		},
+	}
+	stream := newMockTrainingStream()
+	stream.ShouldFail = true
+	errChan := make(chan error)
+	go func() {
+		if err := serv.TrainingData(req, stream); err != nil {
+			errChan <- err
+		}
+		close(errChan)
+	}()
+	if err := <-errChan; err == nil {
+		t.Fatalf("Succeeded in serving on broken stream: %s", err)
+	}
+}
+
+func TestTrainingSetInvalidLabel(t *testing.T) {
+	ctx := onlineTestContext{
+		ResourceDefsFn: simpleResourceDefsFn,
+		FactoryFn:      createMockOfflineStoreFactory(invalidLabelRecords(), simpleTrainingSetDefs()),
+	}
+	serv := ctx.Create(t)
+	defer ctx.Destroy()
+	req := &pb.TrainingDataRequest{
+		Id: &pb.TrainingDataID{
+			Name:    "training-set",
+			Version: "variant",
+		},
+	}
+	stream := newMockTrainingStream()
+	stream.ShouldFail = true
+	errChan := make(chan error)
+	go func() {
+		if err := serv.TrainingData(req, stream); err != nil {
+			errChan <- err
+		}
+		close(errChan)
+	}()
+	if err := <-errChan; err == nil {
+		t.Fatalf("Succeeded in serving invalid label: %s", err)
+	}
+}
+
+func TestTrainingSetInvalidFeature(t *testing.T) {
+	ctx := onlineTestContext{
+		ResourceDefsFn: simpleResourceDefsFn,
+		FactoryFn:      createMockOfflineStoreFactory(invalidFeatureRecords(), simpleTrainingSetDefs()),
+	}
+	serv := ctx.Create(t)
+	defer ctx.Destroy()
+	req := &pb.TrainingDataRequest{
+		Id: &pb.TrainingDataID{
+			Name:    "training-set",
+			Version: "variant",
+		},
+	}
+	stream := newMockTrainingStream()
+	errChan := make(chan error)
+	go func() {
+		if err := serv.TrainingData(req, stream); err != nil {
+			errChan <- err
+		}
+		close(errChan)
+	}()
+	if err := <-errChan; err == nil {
+		t.Fatalf("Succeeded in serving invalid feature: %s", err)
 	}
 }

@@ -2,50 +2,50 @@ name: Coverage Testing
 on: push
 
 jobs:
-  go_coverage:
-    name: Go Coverage Test
-    defaults:
-      run:
-        working-directory: ./ff/serving
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.17
-
-      - name: Install grpc_tools
-        run: pip install grpcio-tools
-
-      - name: Install Protobuf
-        run: sudo snap install protobuf --classic
-
-      - name: Setup Proto
-        run: ./gen_grpc.sh
-
-      - name: Build
-        run: go build
-
-      - name: Coverage Test
-        continue-on-error: true
-        run: go test -v -short -coverpkg=./... -coverprofile cover.out ./...
-
-      - uses: codecov/codecov-action@v2
-        with:
-          files: ./ff/serving/cover.out
-          name: coverage-upload 
-          verbose: true
-
-      - name: Convert Coverage Test Results
-        run: go tool cover -html=cover.out -o cover.html
-
-      - name: Archive code coverage results
-        uses: actions/upload-artifact@v3
-        with:
-          name: code-coverage-report
-          path: ./ff/serving/cover.html
+#  go_coverage:
+#    name: Go Coverage Test
+#    defaults:
+#      run:
+#        working-directory: ./ff/serving
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v2
+#
+#      - name: Set up Go
+#        uses: actions/setup-go@v2
+#        with:
+#          go-version: 1.17
+#
+#      - name: Install grpc_tools
+#        run: pip install grpcio-tools
+#
+#      - name: Install Protobuf
+#        run: sudo snap install protobuf --classic
+#
+#      - name: Setup Proto
+#        run: ./gen_grpc.sh
+#
+#      - name: Build
+#        run: go build
+#
+#      - name: Coverage Test
+#        continue-on-error: true
+#        run: go test -v -short -coverpkg=./... -coverprofile cover.out ./...
+#
+#      - uses: codecov/codecov-action@v2
+#        with:
+#          files: ./ff/serving/cover.out
+#          name: coverage-upload
+#          verbose: true
+#
+#      - name: Convert Coverage Test Results
+#        run: go tool cover -html=cover.out -o cover.html
+#
+#      - name: Archive code coverage results
+#        uses: actions/upload-artifact@v3
+#        with:
+#          name: code-coverage-report
+#          path: ./ff/serving/cover.html
 
   golangci:
     name: Go Linter

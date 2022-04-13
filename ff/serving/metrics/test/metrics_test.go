@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -70,54 +69,54 @@ func TestMetrics(t *testing.T) {
 	serving(servingObserver, promMetrics, start, servingNum, servingErrorNum)
 	training(trainingObserver, promMetrics, start, trainingNum, trainingErrorNum)
 
-	servingCounterValue, err := GetCounterValue(servingObserver.Count, instanceName, featureName, featureVariant, "row serving")
+	servingCounterValue, err := GetCounterValue(servingObserver.Count, instanceName, featureName, featureVariant, string(metrics.ONLINE_ROW_SERVE))
 	if err != nil {
-		fmt.Println("error", err)
+		t.Fatalf("Could not fetch value: %v", err)
 	}
 	assert.Equal(t, int(servingCounterValue), servingNum, "5 feature rows should be served")
 	servingCounterValueInt, err := servingObserver.GetObservedRowCount()
 	if err != nil {
-		fmt.Println("error", err)
+		t.Fatalf("Could not fetch value: %v", err)
 	}
 	assert.Equal(t, servingCounterValueInt, servingNum, "5 feature rows should be served")
-	servingErrorCounterValue, err := GetCounterValue(servingObserver.Count, instanceName, featureName, featureVariant, "error")
+	servingErrorCounterValue, err := GetCounterValue(servingObserver.Count, instanceName, featureName, featureVariant, string(metrics.ERROR))
 	if err != nil {
-		fmt.Println("error", err)
+		t.Fatalf("Could not fetch value: %v", err)
 	}
 	assert.Equal(t, int(servingErrorCounterValue), servingErrorNum, "5 feature error rows should be recorded")
 	servingErrorCounterValueInt, err := servingObserver.GetObservedErrorCount()
 	if err != nil {
-		fmt.Println("error", err)
+		t.Fatalf("Could not fetch value: %v", err)
 	}
 	assert.Equal(t, servingErrorCounterValueInt, servingNum, "5 feature error rows should be recorded")
-	trainingCounterValue, err := GetCounterValue(trainingObserver.Row_Count, instanceName, trainingDatasetName, trainingDatasetVariant, "row serve")
+	trainingCounterValue, err := GetCounterValue(trainingObserver.Row_Count, instanceName, trainingDatasetName, trainingDatasetVariant, string(metrics.TRAINING_ROW_SERVE))
 	if err != nil {
-		fmt.Println("error", err)
+		t.Fatalf("Could not fetch value: %v", err)
 	}
 	assert.Equal(t, int(trainingCounterValue), trainingNum, "5 training data rows should be recorded")
 	trainingCounterValueInt, err := trainingObserver.GetObservedRowCount()
 	if err != nil {
-		fmt.Println("error", err)
+		t.Fatalf("Could not fetch value: %v", err)
 	}
 	assert.Equal(t, trainingCounterValueInt, trainingNum, "5 training data rows should be recorded")
-	trainingErrorCounterValue, err := GetCounterValue(trainingObserver.Row_Count, instanceName, trainingDatasetName, trainingDatasetVariant, "error")
+	trainingErrorCounterValue, err := GetCounterValue(trainingObserver.Row_Count, instanceName, trainingDatasetName, trainingDatasetVariant, string(metrics.ERROR))
 	if err != nil {
-		fmt.Println("error", err)
+		t.Fatalf("Could not fetch value: %v", err)
 	}
 	assert.Equal(t, int(trainingErrorCounterValue), trainingErrorNum, "5 training data errors should be recorded")
 	trainingErrorCounterValueInt, err := trainingObserver.GetObservedErrorCount()
 	if err != nil {
-		fmt.Println("error", err)
+		t.Fatalf("Could not fetch value: %v", err)
 	}
 	assert.Equal(t, trainingErrorCounterValueInt, trainingNum, "5 training data errors should be recorded")
 	latencyCounterValue, err := GetHistogramValue(promMetrics.Hist, instanceName, featureName, featureVariant, "")
 	if err != nil {
-		fmt.Println("error", err)
+		t.Fatalf("Could not fetch value: %v", err)
 	}
 	assert.Equal(t, int(latencyCounterValue), latencyServingCount, "Feature latency records 6 events")
 	latencyTrainingCounterValue, err := GetHistogramValue(promMetrics.Hist, instanceName, trainingDatasetName, trainingDatasetVariant, "")
 	if err != nil {
-		fmt.Println("error", err)
+		t.Fatalf("Could not fetch value: %v", err)
 	}
 	assert.Equal(t, int(latencyTrainingCounterValue), latencyTrainingCount, "Training latency records 6 events")
 

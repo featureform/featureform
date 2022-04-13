@@ -1,5 +1,5 @@
-name: Integration Testing
-on: pull_request
+name: Testing
+on: [push, pull_request]
 
 env:
   TYPESENSE_PORT: 8108
@@ -12,7 +12,7 @@ env:
 
 jobs:
   setup:
-    name: Setup Integration Test Dependencies
+    name: Setup Test Dependencies
     defaults:
       run:
         working-directory: ./ff/serving
@@ -44,7 +44,7 @@ jobs:
           retention-days: 1
 
   typesense:
-    name: Typesense Integration Test
+    name: Typesense Testing
     needs: setup
     runs-on: ubuntu-latest
     steps:
@@ -70,9 +70,18 @@ jobs:
           docker run -d -p $TYPESENSE_PORT:8108 -v/tmp/typesense-data:/data typesense/typesense:0.22.2 \
           --data-dir /data --api-key=$TYPESENSE_API_KEY --enable-cors
 
-      - name: Integration Test
+      - name: Test
         working-directory: ./metadata/search
-        run: go test -v
+        run: go test -v -coverpkg=./... -coverprofile cover.out ./...
+
+      - name: Convert Coverage Test Results
+        run: go tool cover -html=cover.out -o cover.html
+
+      - name: Archive code coverage results
+        uses: actions/upload-artifact@v3
+        with:
+          name: typesense-code-coverage-report
+          path: ./ff/serving/cover.html
 
   provider:
     name: Provider Integration Tests
@@ -108,4 +117,13 @@ jobs:
 
       - name: Integration Test
         working-directory: ./provider
-        run: go test -v
+        run: go test -v -coverpkg=./... -coverprofile cover.out ./...
+
+      - name: Convert Coverage Test Results
+        run: go tool cover -html=cover.out -o cover.html
+
+      - name: Archive code coverage results
+        uses: actions/upload-artifact@v3
+        with:
+          name: typesense-code-coverage-report
+          path: ./ff/serving/cover.html

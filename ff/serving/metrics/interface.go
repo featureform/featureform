@@ -15,9 +15,9 @@ type Observation string
 
 const (
 	TRAINING_ROW_SERVE Observation = "training_row_serve"
-	ONLINE_ROW_SERVE = "online_row_serve"
-	ERROR = "error"
-	SUCCESS = "success"
+	ONLINE_ROW_SERVE               = "online_row_serve"
+	ERROR                          = "error"
+	SUCCESS                        = "success"
 )
 
 //generic interfaces exposed to the user

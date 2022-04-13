@@ -83,6 +83,14 @@ jobs:
         working-directory: ./metadata/search/coverage
         run: go tool cover -html=cover.out -o cover.html
 
+      - uses: codecov/codecov-action@v2
+        if: always()
+        with:
+          root_dir: ./
+          files: ./metadata/search/coverage/cover.out
+          name: typesense-coverage
+          verbose: true
+
       - name: Archive code coverage results
         if: always()
         uses: actions/upload-artifact@v3
@@ -134,6 +142,14 @@ jobs:
         if: always()
         working-directory: ./provider/coverage
         run: go tool cover -html=cover.out -o cover.html
+
+      - uses: codecov/codecov-action@v2
+        if: always()
+        with:
+          root_dir: ./
+          files: ./provider/coverage/cover.out
+          name: provider-coverage
+          verbose: true
 
       - name: Archive code coverage results
         if: always()
@@ -208,6 +224,14 @@ jobs:
         working-directory: ./metrics/coverage
         run: go tool cover -html=cover.out -o cover.html
 
+      - uses: codecov/codecov-action@v2
+        if: always()
+        with:
+          root_dir: ./
+          files: ./metrics/coverage/cover.out
+          name: metrics-coverage
+          verbose: true
+
       - name: Archive code coverage results
         if: always()
         uses: actions/upload-artifact@v3
@@ -243,6 +267,14 @@ jobs:
         working-directory: ./runner/coverage
         run: go tool cover -html=cover.out -o cover.html
 
+      - uses: codecov/codecov-action@v2
+        if: always()
+        with:
+          root_dir: ./
+          files: ./runner/coverage/cover.out
+          name: runner-coverage
+          verbose: true
+
       - name: Archive code coverage results
         if: always()
         uses: actions/upload-artifact@v3
@@ -250,30 +282,30 @@ jobs:
           name: runner-coverage-reports
           path: ./runner/coverage
 
-  coverage:
-    if: always()
-    name: Upload Coverage
-    needs: [typesense, provider, metrics, runner]
-    defaults:
-      run:
-        working-directory: ./
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Download Working Compiled Directories
-        uses: actions/download-artifact@v3
-        with:
-          name: metrics-coverage-reports,provider-coverage-reports,runner-coverage-reports,typesense-coverage-reports
-          path: ./ff/serving
-
-      - name: Display structure of downloaded files
-        run: ls -R
-
-      - uses: codecov/codecov-action@v2
-        with:
-          root_dir: ./ff/serving/
-          files: ./metrics-coverage-reports/cover.out,./provider-coverage-reports/cover.out,./runner-coverage-reports/cover.out,./typesense-coverage-reports/cover.out
-          name: coverage-upload
-          verbose: true
+#  coverage:
+#    if: always()
+#    name: Upload Coverage
+#    needs: [typesense, provider, metrics, runner]
+#    defaults:
+#      run:
+#        working-directory: ./
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v2
+#
+#      - name: Download Working Compiled Directories
+#        uses: actions/download-artifact@v3
+#        with:
+#          name: metrics-coverage-reports,provider-coverage-reports,runner-coverage-reports,typesense-coverage-reports
+#          path: ./ff/serving
+#
+#      - name: Display structure of downloaded files
+#        run: ls -R
+#
+#      - uses: codecov/codecov-action@v2
+#        with:
+#          root_dir: ./ff/serving/
+#          files: ./metrics-coverage-reports/cover.out,./provider-coverage-reports/cover.out,./runner-coverage-reports/cover.out,./typesense-coverage-reports/cover.out
+#          name: coverage-upload
+#          verbose: true
 

@@ -183,6 +183,10 @@ jobs:
           etcd --version
           etcd --logger=zap &
 
+      - name: Make Coverage Directory
+        working-directory: ./metadata
+        run: mkdir coverage
+
       - name: Testing
         working-directory: ./metadata
         run: go test -v -coverpkg=./... -coverprofile coverage/cover.out ./...

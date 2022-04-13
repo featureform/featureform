@@ -72,17 +72,17 @@ jobs:
 
       - name: Test
         working-directory: ./metadata/search
-        run: go test -v -coverpkg=./... -coverprofile cover.out ./...
+        run: go test -v -coverpkg=./... -coverprofile coverage/cover.out ./...
 
       - name: Convert Coverage Test Results
-        working-directory: ./metadata/search
+        working-directory: ./metadata/search/coverage
         run: go tool cover -html=cover.out -o cover.html
 
       - name: Archive code coverage results
         uses: actions/upload-artifact@v3
         with:
-          name: typesense-code-coverage-report
-          path: ./metadata/search/cover.html
+          name: typesense-code-coverage-reports
+          path: ./metadata/search/coverage
 
   provider:
     name: Provider Testing
@@ -228,6 +228,7 @@ jobs:
 
   coverage:
     name: Upload Coverage
+    needs: [typsense, provider, metrics, runner]
     defaults:
       run:
         working-directory: ./

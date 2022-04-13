@@ -65,7 +65,7 @@ func (config EtcdConfig) MakeAddresses() []string {
 
 //Uses Storage Type as prefix so Resources and Jobs can be queried more easily
 func createKey(id ResourceID) string {
-	return fmt.Sprintf("%s_%s_%s", id.Name, id.Variant, id.Type)
+	return fmt.Sprintf("%s_%s_%s", id.Type, id.Name, id.Variant)
 }
 
 //Puts K/V into ETCD
@@ -309,7 +309,7 @@ func (lookup etcdResourceLookup) Submap(ids []ResourceID) (ResourceLookup, error
 
 func (lookup etcdResourceLookup) ListForType(t ResourceType) ([]Resource, error) {
 	resources := make([]Resource, 0)
-	resp, err := lookup.connection.GetWithPrefix(string(RESOURCE))
+	resp, err := lookup.connection.GetWithPrefix(string(t))
 	if err != nil {
 		return nil, err
 	}
@@ -332,7 +332,7 @@ func (lookup etcdResourceLookup) ListForType(t ResourceType) ([]Resource, error)
 
 func (lookup etcdResourceLookup) List() ([]Resource, error) {
 	resources := make([]Resource, 0)
-	resp, err := lookup.connection.GetWithPrefix(string(RESOURCE))
+	resp, err := lookup.connection.GetWithPrefix("")
 	if err != nil {
 		return nil, err
 	}

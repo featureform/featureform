@@ -335,7 +335,7 @@ func Test_etcdResourceLookup_ListForType(t *testing.T) {
 		want    []Resource
 		wantErr bool
 	}{
-		{"Successful ListForType", fields{EtcdConfig{[]EtcdNode{{Host: "localhost", Port: "2379"}}}}, args{FEATURE}, featureResources, false},
+		{"Successful ListForType", fields{EtcdConfig{[]EtcdNode{{Host: "localhost", Port: "2379"}}}}, args{FEATURE_VARIANT}, featureResources, false},
 	}
 	newclient, err := clientv3.New(clientv3.Config{
 		Endpoints:   []string{"localhost:2379"},
@@ -503,9 +503,9 @@ func Test_etcdResourceLookup_Submap(t *testing.T) {
 	}
 
 	ids := []ResourceID{
-		{Name: "feature1", Type: FEATURE},
-		{Name: "feature2", Type: FEATURE},
-		{Name: "feature3", Type: FEATURE},
+		{Name: "feature1", Type: FEATURE_VARIANT},
+		{Name: "feature2", Type: FEATURE_VARIANT},
+		{Name: "feature3", Type: FEATURE_VARIANT},
 	}
 
 	featureResources := []Resource{
@@ -588,21 +588,28 @@ func Test_etcdResourceLookup_Submap(t *testing.T) {
 				log.Fatal(err)
 			}
 
-			for i, res := range elem {
+			for _, res := range elem {
 				if err != nil {
 					t.Errorf("%s\n", err)
 					t.Errorf("Submap(): Error with lookup:  %v\n", res.Proto())
 				}
-				if !proto.Equal(res.Proto(), featureResources[i].Proto()) {
-					t.Errorf("Submap():\ngot:  %v\nwant: %v", res.Proto(), featureResources[i].Proto())
+				has := false
+				for _, expected := range featureResources {
+					if proto.Equal(res.Proto(), expected.Proto()) {
+						has = true
+						break
+					}
+				}
+				if !has {
+					t.Errorf("Submap() item not in expected list:\ngot:  %v\n ", res.Proto())
 				}
 
 			}
 		})
 	}
-	connect := Etcd{}
-	connect.init()
-	t.Cleanup(connect.clearDatabase)
+	//connect := Etcd{}
+	//connect.init()
+	//t.Cleanup(connect.clearDatabase)
 }
 
 func Test_etcdResourceLookup_findResourceType(t *testing.T) {
@@ -676,7 +683,7 @@ func TestEtcdConfig_Put(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-		{"Test Put Success", fields{"localhost", "2379"}, args{key: "", value: ""}, false},
+		{"Test Put Success", fields{"localhost", "2379"}, args{key: "key", value: "value"}, false},
 		{"Test Put Error", fields{"localhost", ""}, args{key: "", value: ""}, true},
 	}
 	for _, tt := range tests {

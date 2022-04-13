@@ -5,7 +5,7 @@ import (
 
 	"github.com/featureform/serving/metadata"
 	"github.com/featureform/serving/metrics"
-	"github.com/featureform/serving/serving"
+	"github.com/featureform/serving/newserving"
 
 	pb "github.com/featureform/serving/proto"
 	"go.uber.org/zap"
@@ -29,7 +29,7 @@ func main() {
 		logger.Panicw("Failed to connect to metadata", "Err", err)
 	}
 
-	serv, err := serving.NewFeatureServer(meta, promMetrics, logger)
+	serv, err := newserving.NewFeatureServer(meta, promMetrics, logger)
 
 	grpcServer := grpc.NewServer()
 	if err != nil {

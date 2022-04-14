@@ -607,9 +607,9 @@ func Test_etcdResourceLookup_Submap(t *testing.T) {
 			}
 		})
 	}
-	//connect := Etcd{}
-	//connect.init()
-	//t.Cleanup(connect.clearDatabase)
+	connect := Etcd{}
+	connect.init()
+	t.Cleanup(connect.clearDatabase)
 }
 
 func Test_etcdResourceLookup_findResourceType(t *testing.T) {

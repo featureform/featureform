@@ -314,7 +314,7 @@ jobs:
 
       - name: Testing
         working-directory: ./newserving
-        run: go test ./... -v -coverpkg=./... -coverprofile coverage/cover.out ./...
+        run: go test ./... -v -coverpkg=../... -coverprofile coverage/cover.out ./...
 
       - name: Convert Coverage Test Results
         if: always()

@@ -724,7 +724,6 @@ func TestChunkRunnerFactory(t *testing.T) {
 	resourceID := provider.ResourceID{
 		"test_name", "test_variant", provider.Feature,
 	}
-	mockSchema := []byte{}
 	if _, err := online.CreateTable(resourceID.Name, resourceID.Variant); err != nil {
 		t.Fatalf("Failed to create online resource table: %v", err)
 	}

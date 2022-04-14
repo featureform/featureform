@@ -293,3 +293,46 @@ jobs:
           name: runner-coverage-reports
           path: ./runner/coverage
 
+  serving:
+    name: Serving Testing
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Working Compiled Directories
+        uses: actions/download-artifact@v3
+        with:
+          name: compiled-workdir
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
+
+      - name: Make Coverage Directory
+        working-directory: ./newserving
+        run: mkdir coverage
+
+      - name: Testing
+        working-directory: ./newserving
+        run: go test ./... -v -coverpkg=./... -coverprofile coverage/cover.out ./...
+
+      - name: Convert Coverage Test Results
+        if: always()
+        working-directory: ./newserving/coverage
+        run: go tool cover -html=cover.out -o cover.html
+
+      - uses: codecov/codecov-action@v2
+        if: always()
+        with:
+          root_dir: ./
+          files: ./newserving/coverage/cover.out
+          name: newserving-coverage
+          verbose: true
+
+      - name: Archive code coverage results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: serving-coverage-reports
+          path: ./newserving/coverage
+

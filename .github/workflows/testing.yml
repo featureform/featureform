@@ -228,7 +228,7 @@ jobs:
 
       - name: Testing
         working-directory: ./
-        run: go test ./... -v -coverpkg=./... -coverprofile coverage/cover.out ./metrics/...
+        run: go test -v -coverpkg=./... -coverprofile coverage/cover.out ./metrics/...
 
       - name: Convert Coverage Test Results
         if: always()
@@ -271,7 +271,7 @@ jobs:
 
       - name: Testing
         working-directory: ./
-        run: go test ./... -v -coverpkg=./... -coverprofile coverage/cover.out ./runner/...
+        run: go test -v -coverpkg=./... -coverprofile coverage/cover.out ./runner/...
 
       - name: Convert Coverage Test Results
         if: always()
@@ -314,7 +314,7 @@ jobs:
 
       - name: Testing
         working-directory: ./
-        run: go test ./... -v -coverpkg=./... -coverprofile coverage/cover.out ./newserving/...
+        run: go test -v -coverpkg=./... -coverprofile coverage/cover.out ./newserving/...
 
       - name: Convert Coverage Test Results
         if: always()

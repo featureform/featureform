@@ -65,6 +65,7 @@ require (
 	github.com/prometheus/common v0.32.1 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
 	github.com/sony/gobreaker v0.5.0 // indirect
+	github.com/stoicperlman/fls v0.0.0-20171222144224-f073b7a01081 // indirect
 	github.com/ugorji/go/codec v1.2.6 // indirect
 	github.com/yuin/gopher-lua v0.0.0-20210529063254-f4c35e4016d9 // indirect
 	go.etcd.io/etcd/api/v3 v3.5.2 // indirect

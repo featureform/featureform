@@ -158,8 +158,8 @@ jobs:
           name: provider-coverage-reports
           path: ./provider/coverage
 
-  etcd:
-    name: ETCD Testing
+  metadata:
+    name: Metadata Testing (Excluding Search)
     needs: setup
     runs-on: ubuntu-latest
 
@@ -189,7 +189,7 @@ jobs:
 
       - name: Testing
         working-directory: ./metadata
-        run: go test -v -coverpkg=. -coverprofile coverage/cover.out
+        run: go test -v -coverpkg=.,./server/,./dashboard/,./client/ -coverprofile coverage/cover.out
 
       - name: Convert Coverage Test Results
         if: always()
@@ -201,7 +201,7 @@ jobs:
         with:
           root_dir: ./
           files: ./metadata/coverage/cover.out
-          name: etcd-coverage
+          name: metadata-coverage
           verbose: true
 
   metrics:

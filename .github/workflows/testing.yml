@@ -71,23 +71,25 @@ jobs:
           --data-dir /data --api-key=$TYPESENSE_API_KEY --enable-cors
 
       - name: Make Coverage Directory
-        working-directory: ./metadata/search
+        working-directory: ./
         run: mkdir coverage
 
       - name: Testing
-        working-directory: ./metadata/search
-        run: go test -v -coverpkg=./... -coverprofile coverage/cover.out ./...
+        working-directory: ./
+        run: go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./metadata/search/...
 
       - name: Convert Coverage Test Results
         if: always()
-        working-directory: ./metadata/search/coverage
-        run: go tool cover -html=cover.out -o cover.html
+        working-directory: ./coverage
+        run: |
+          cat cover.out.tmp | grep -v "proto" > cover.out
+          go tool cover -html=cover.out -o cover.html
 
       - uses: codecov/codecov-action@v2
         if: always()
         with:
           root_dir: ./
-          files: ./metadata/search/coverage/cover.out
+          files: ./coverage/cover.out
           name: typesense-coverage
           verbose: true
 
@@ -96,7 +98,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: typesense-coverage-reports
-          path: ./metadata/search/coverage
+          path: ./coverage
 
   provider:
     name: Provider Testing
@@ -131,23 +133,25 @@ jobs:
           go-version: 1.17
 
       - name: Make Coverage Directory
-        working-directory: ./provider
+        working-directory: ./
         run: mkdir coverage
 
       - name: Testing
-        working-directory: ./provider
-        run: go test -v -coverpkg=./... -coverprofile coverage/cover.out ./...
+        working-directory: ./
+        run: go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/...
 
       - name: Convert Coverage Test Results
         if: always()
-        working-directory: ./provider/coverage
-        run: go tool cover -html=cover.out -o cover.html
+        working-directory: ./coverage
+        run: |
+          cat cover.out.tmp | grep -v "proto" > cover.out
+          go tool cover -html=cover.out -o cover.html
 
       - uses: codecov/codecov-action@v2
         if: always()
         with:
           root_dir: ./
-          files: ./provider/coverage/cover.out
+          files: ./coverage/cover.out
           name: provider-coverage
           verbose: true
 
@@ -156,7 +160,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: provider-coverage-reports
-          path: ./provider/coverage
+          path: ./coverage
 
   metadata:
     name: Metadata Testing (Excluding Typesense)
@@ -187,23 +191,25 @@ jobs:
           etcd --logger=zap &
 
       - name: Make Coverage Directory
-        working-directory: ./metadata
+        working-directory: ./
         run: mkdir coverage
 
       - name: Testing
-        working-directory: ./metadata
-        run: go test -v -coverpkg=.,./server/,./dashboard/,./client/ -coverprofile coverage/cover.out
+        working-directory: ./
+        run: go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./metadata/
 
       - name: Convert Coverage Test Results
         if: always()
-        working-directory: ./metadata/coverage
-        run: go tool cover -html=cover.out -o cover.html
+        working-directory: ./coverage
+        run: |
+          cat cover.out.tmp | grep -v "proto" > cover.out
+          go tool cover -html=cover.out -o cover.html
 
       - uses: codecov/codecov-action@v2
         if: always()
         with:
           root_dir: ./
-          files: ./metadata/coverage/cover.out
+          files: ./coverage/cover.out
           name: metadata-coverage
           verbose: true
 
@@ -223,23 +229,25 @@ jobs:
           go-version: 1.17
 
       - name: Make Coverage Directory
-        working-directory: ./metrics
+        working-directory: ./
         run: mkdir coverage
 
       - name: Testing
-        working-directory: ./metrics
-        run: go test ./... -v -coverpkg=./... -coverprofile coverage/cover.out ./...
+        working-directory: ./
+        run: go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./metrics/...
 
       - name: Convert Coverage Test Results
         if: always()
-        working-directory: ./metrics/coverage
-        run: go tool cover -html=cover.out -o cover.html
+        working-directory: ./coverage
+        run: |
+          cat cover.out.tmp | grep -v "proto" > cover.out
+          go tool cover -html=cover.out -o cover.html
 
       - uses: codecov/codecov-action@v2
         if: always()
         with:
           root_dir: ./
-          files: ./metrics/coverage/cover.out
+          files: ./coverage/cover.out
           name: metrics-coverage
           verbose: true
 
@@ -248,7 +256,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: metrics-coverage-reports
-          path: ./metrics/coverage
+          path: ./coverage
 
   runner:
     name: Runner Testing
@@ -266,23 +274,25 @@ jobs:
           go-version: 1.17
 
       - name: Make Coverage Directory
-        working-directory: ./runner
+        working-directory: ./
         run: mkdir coverage
 
       - name: Testing
-        working-directory: ./runner
-        run: go test ./... -v -coverpkg=./... -coverprofile coverage/cover.out ./...
+        working-directory: ./
+        run: go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./runner/...
 
       - name: Convert Coverage Test Results
         if: always()
-        working-directory: ./runner/coverage
-        run: go tool cover -html=cover.out -o cover.html
+        working-directory: ./coverage
+        run: |
+          cat cover.out.tmp | grep -v "proto" > cover.out
+          go tool cover -html=cover.out -o cover.html
 
       - uses: codecov/codecov-action@v2
         if: always()
         with:
           root_dir: ./
-          files: ./runner/coverage/cover.out
+          files: ./coverage/cover.out
           name: runner-coverage
           verbose: true
 
@@ -291,5 +301,50 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: runner-coverage-reports
-          path: ./runner/coverage
+          path: ./coverage
+
+  serving:
+    name: Serving Testing
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Working Compiled Directories
+        uses: actions/download-artifact@v3
+        with:
+          name: compiled-workdir
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
+
+      - name: Make Coverage Directory
+        working-directory: ./
+        run: mkdir coverage
+
+      - name: Testing
+        working-directory: ./
+        run: go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./newserving/...
+
+      - name: Convert Coverage Test Results
+        if: always()
+        working-directory: ./coverage
+        run: |
+          cat cover.out.tmp | grep -v "proto" > cover.out
+          go tool cover -html=cover.out -o cover.html
+
+      - uses: codecov/codecov-action@v2
+        if: always()
+        with:
+          root_dir: ./
+          files: ./coverage/cover.out
+          name: newserving-coverage
+          verbose: true
+
+      - name: Archive code coverage results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: serving-coverage-reports
+          path: ./coverage
 

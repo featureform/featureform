@@ -455,6 +455,7 @@ func newPostgresOfflineTable(conn *pgxpool.Pool, name string, valueType ValueTyp
 }
 
 func (table *postgresOfflineTable) Write(rec ResourceRecord) error {
+	rec = checkTimestamp(rec)
 	tb := sanitize(table.name)
 	if err := rec.check(); err != nil {
 		return err
@@ -472,6 +473,7 @@ func (table *postgresOfflineTable) Write(rec ResourceRecord) error {
 }
 
 func (table *postgresOfflineTable) resourceExists(rec ResourceRecord) (bool, error) {
+	rec = checkTimestamp(rec)
 	query := fmt.Sprintf("SELECT entity, value, ts FROM %s WHERE entity=$1 AND ts=$2 ", sanitize(table.name))
 	rows, err := table.conn.Query(context.Background(), query, rec.Entity, rec.TS)
 	defer rows.Close()

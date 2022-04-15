@@ -37,9 +37,11 @@ func TestOfflineStores(t *testing.T) {
 		Database:     snowFlakeDatabase,
 	}
 	serialSFConfig := snowflakeConfig.Serialize()
-	if err := createSnowFlakeDatabase(snowflakeConfig); err != nil {
+	if err := createSnowflakeDatabase(snowflakeConfig); err != nil {
 		t.Fatalf("%v", err)
 	}
+	defer destroySnowflakeDatabase(snowflakeConfig)
+
 	testFns := map[string]func(*testing.T, OfflineStore){
 		"CreateGetTable":          testCreateGetOfflineTable,
 		"TableAlreadyExists":      testOfflineTableAlreadyExists,
@@ -87,12 +89,9 @@ func TestOfflineStores(t *testing.T) {
 			})
 		}
 	}
-	if err := destroySnowFlakeDatabase(snowflakeConfig); err != nil {
-		t.Fatalf("%v", err)
-	}
 }
 
-func createSnowFlakeDatabase(c SnowflakeConfig) error {
+func createSnowflakeDatabase(c SnowflakeConfig) error {
 	url := fmt.Sprintf("%s:%s@%s-%s", c.Username, c.Password, c.Organization, c.Account)
 	db, err := sql.Open("snowflake", url)
 	if err != nil {
@@ -102,22 +101,10 @@ func createSnowFlakeDatabase(c SnowflakeConfig) error {
 	if _, err := db.Exec(databaseQuery); err != nil {
 		return err
 	}
-	retries := 10
-	for retries > 0 {
-		query := fmt.Sprintf("SHOW DATABASES LIKE '%s'", c.Database)
-		if rows, err := db.Query(query); err != nil {
-			return err
-		} else {
-			if rows.Next() {
-				return nil
-			}
-		}
-		retries--
-	}
-	return errors.New("testing database not detected. out of retries")
+	return nil
 }
 
-func destroySnowFlakeDatabase(c SnowflakeConfig) error {
+func destroySnowflakeDatabase(c SnowflakeConfig) error {
 	url := fmt.Sprintf("%s:%s@%s-%s", c.Username, c.Password, c.Organization, c.Account)
 	db, err := sql.Open("snowflake", url)
 	if err != nil {
@@ -218,9 +205,9 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 		},
 		"NoOverlap": {
 			WriteRecords: []ResourceRecord{
-				{Entity: "a", Value: 1, TS: time.UnixMilli(0).UTC()},
-				{Entity: "b", Value: 2, TS: time.UnixMilli(0).UTC()},
-				{Entity: "c", Value: 3, TS: time.UnixMilli(0).UTC()},
+				{Entity: "a", Value: 1},
+				{Entity: "b", Value: 2},
+				{Entity: "c", Value: 3},
 			},
 			ValueType:    schemaInt.Serialize(),
 			ExpectedRows: 3,
@@ -234,9 +221,9 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 		},
 		"SubSegmentNoOverlap": {
 			WriteRecords: []ResourceRecord{
-				{Entity: "a", Value: 1, TS: time.UnixMilli(0).UTC()},
-				{Entity: "b", Value: 2, TS: time.UnixMilli(0).UTC()},
-				{Entity: "c", Value: 3, TS: time.UnixMilli(0).UTC()},
+				{Entity: "a", Value: 1},
+				{Entity: "b", Value: 2},
+				{Entity: "c", Value: 3},
 			},
 			ValueType:    schemaInt.Serialize(),
 			ExpectedRows: 3,
@@ -248,10 +235,10 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 		},
 		"SimpleOverwrite": {
 			WriteRecords: []ResourceRecord{
-				{Entity: "a", Value: 1, TS: time.UnixMilli(0).UTC()},
-				{Entity: "b", Value: 2, TS: time.UnixMilli(0).UTC()},
-				{Entity: "c", Value: 3, TS: time.UnixMilli(0).UTC()},
-				{Entity: "a", Value: 4, TS: time.UnixMilli(0).UTC()},
+				{Entity: "a", Value: 1},
+				{Entity: "b", Value: 2},
+				{Entity: "c", Value: 3},
+				{Entity: "a", Value: 4},
 			},
 			ValueType:    schemaInt.Serialize(),
 			ExpectedRows: 3,
@@ -336,7 +323,7 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 			actual := seg.Value()
 			expected := test.ExpectedSegment[i]
 			if !reflect.DeepEqual(actual, expected) {
-				t.Fatalf("Value not equal in materialization: %v %v", actual.TS, expected.TS)
+				t.Fatalf("Value not equal in materialization: %v %v", actual, expected)
 			}
 			i++
 		}
@@ -478,21 +465,21 @@ func testTrainingSet(t *testing.T, store OfflineStore) {
 		"SimpleJoin": {
 			FeatureRecords: [][]ResourceRecord{
 				{
-					{Entity: "a", Value: 1, TS: time.UnixMilli(0).UTC()},
-					{Entity: "b", Value: 2, TS: time.UnixMilli(0).UTC()},
-					{Entity: "c", Value: 3, TS: time.UnixMilli(0).UTC()},
+					{Entity: "a", Value: 1},
+					{Entity: "b", Value: 2},
+					{Entity: "c", Value: 3},
 				},
 				{
-					{Entity: "a", Value: "red", TS: time.UnixMilli(0).UTC()},
-					{Entity: "b", Value: "green", TS: time.UnixMilli(0).UTC()},
-					{Entity: "c", Value: "blue", TS: time.UnixMilli(0).UTC()},
+					{Entity: "a", Value: "red"},
+					{Entity: "b", Value: "green"},
+					{Entity: "c", Value: "blue"},
 				},
 			},
 			FeatureSchema: [][]byte{intByte, stringByte},
 			LabelRecords: []ResourceRecord{
-				{Entity: "a", Value: true, TS: time.UnixMilli(0).UTC()},
-				{Entity: "b", Value: false, TS: time.UnixMilli(0).UTC()},
-				{Entity: "c", Value: true, TS: time.UnixMilli(0).UTC()},
+				{Entity: "a", Value: true},
+				{Entity: "b", Value: false},
+				{Entity: "c", Value: true},
 			},
 			LabelSchema: boolByte,
 			ExpectedRows: []expectedTrainingRow{
@@ -523,10 +510,10 @@ func testTrainingSet(t *testing.T, store OfflineStore) {
 			FeatureRecords: [][]ResourceRecord{
 				// Overwritten feature.
 				{
-					{Entity: "a", Value: 1, TS: time.UnixMilli(0).UTC()},
-					{Entity: "b", Value: 2, TS: time.UnixMilli(0).UTC()},
-					{Entity: "c", Value: 3, TS: time.UnixMilli(0).UTC()},
-					{Entity: "a", Value: 4, TS: time.UnixMilli(0).UTC()},
+					{Entity: "a", Value: 1},
+					{Entity: "b", Value: 2},
+					{Entity: "c", Value: 3},
+					{Entity: "a", Value: 4},
 				},
 				// Feature didn't exist before label
 				{
@@ -643,7 +630,6 @@ func testTrainingSet(t *testing.T, store OfflineStore) {
 				}
 			}
 			if !found {
-
 				t.Fatalf("Unexpected training row: %v, expected %v", realRow, expectedRows)
 			}
 			i++
@@ -786,5 +772,30 @@ func testTrainingSetDefShorthand(t *testing.T, store OfflineStore) {
 	}
 	if err := store.CreateTrainingSet(def); err != nil {
 		t.Fatalf("Failed to create training set: %s", err)
+	}
+}
+func Test_snowflakeOfflineTable_checkTimestamp(t *testing.T) {
+	type fields struct {
+		db   *sql.DB
+		name string
+	}
+	type args struct {
+		rec ResourceRecord
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   ResourceRecord
+	}{
+		{"Nil TimeStamp", fields{nil, ""}, args{rec: ResourceRecord{}}, ResourceRecord{TS: time.UnixMilli(0)}},
+		{"Non Nil TimeStamp", fields{nil, ""}, args{rec: ResourceRecord{TS: time.UnixMilli(10)}}, ResourceRecord{TS: time.UnixMilli(10)}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := checkTimestamp(tt.args.rec); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("checkTimestamp() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }

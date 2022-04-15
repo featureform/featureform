@@ -175,22 +175,31 @@ func (mat *snowflakeMaterialization) ID() MaterializationID {
 	return mat.id
 }
 
+// NumRows checks for the max row number to return as the number of rows.
+// If there are no rows in the table, the interface n is checked for Nil,
+// otherwise the interface is converted from a string to an int64
 func (mat *snowflakeMaterialization) NumRows() (int64, error) {
-	n := int64(0)
-	query := fmt.Sprintf("SELECT COUNT(*) FROM %s", sanitize(mat.tableName))
+	var n interface{}
+	query := fmt.Sprintf("SELECT MAX(row_number) FROM %s", sanitize(mat.tableName))
 	rows := mat.db.QueryRow(query)
 	err := rows.Scan(&n)
 	if err != nil {
 		return 0, err
 	}
-	return n, nil
+	if n == nil {
+		return 0, nil
+	}
+	if intVar, err := strconv.Atoi(n.(string)); err != nil {
+		return 0, err
+	} else {
+		return int64(intVar), nil
+	}
 }
 
 func (mat *snowflakeMaterialization) IterateSegment(start, end int64) (FeatureIterator, error) {
 	query := fmt.Sprintf(""+
-		"SELECT entity, value, ts FROM "+
-		"( SELECT * FROM "+
-		"( SELECT *, row_number() over(ORDER BY (SELECT NULL)) as row_number FROM %s )t1 WHERE row_number>? AND row_number<=?)t2", sanitize(mat.tableName))
+		"SELECT entity, value, ts FROM ( SELECT * FROM %s WHERE row_number>? AND row_number<=?)", sanitize(mat.tableName))
+
 	rows, err := mat.db.Query(query, start, end)
 	if err != nil {
 		return nil, err
@@ -302,17 +311,11 @@ func (store *snowflakeOfflineStore) CreateMaterialization(id ResourceID) (Materi
 	matTableName := store.getMaterializationTableName(matID)
 	sanitizedTableName := sanitize(matTableName)
 	resTableName := sanitize(resTable.name)
-	tableCreateQry := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s AS (SELECT entity, value, ts FROM %s WHERE 1=2)", sanitizedTableName, resTableName)
-
-	_, err = store.db.Exec(tableCreateQry)
-	if err != nil {
-		return nil, err
-	}
 
 	materializeQry := fmt.Sprintf(
-		"INSERT INTO %s SELECT entity, value, ts FROM "+
+		"CREATE TABLE IF NOT EXISTS %s AS (SELECT entity, value, ts, row_number() over(ORDER BY (SELECT NULL)) as row_number FROM "+
 			"(SELECT entity, ts, value, row_number() OVER (PARTITION BY entity ORDER BY ts desc) "+
-			"AS rn FROM %s) t WHERE rn=1", sanitizedTableName, resTableName)
+			"AS rn FROM %s) t WHERE rn=1)", sanitizedTableName, resTableName)
 
 	_, err = store.db.Exec(materializeQry)
 	if err != nil {
@@ -584,6 +587,7 @@ func newSnowflakeOfflineTable(db *sql.DB, name string, valueType ValueType) (*sn
 }
 
 func (table *snowflakeOfflineTable) Write(rec ResourceRecord) error {
+	rec = checkTimestamp(rec)
 	tb := sanitize(table.name)
 	if err := rec.check(); err != nil {
 		return err
@@ -609,6 +613,7 @@ func (table *snowflakeOfflineTable) Write(rec ResourceRecord) error {
 }
 
 func (table *snowflakeOfflineTable) resourceExists(rec ResourceRecord) (bool, error) {
+	rec = checkTimestamp(rec)
 	query := fmt.Sprintf("SELECT entity, value, ts FROM %s WHERE entity=? AND ts=? ", sanitize(table.name))
 	rows, err := table.db.Query(query, rec.Entity, rec.TS)
 	defer rows.Close()

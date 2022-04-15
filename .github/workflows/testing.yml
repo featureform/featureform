@@ -102,6 +102,7 @@ jobs:
 
   provider:
     name: Provider Testing
+    environment: Integration testing
     needs: setup
     runs-on: ubuntu-latest
     services:

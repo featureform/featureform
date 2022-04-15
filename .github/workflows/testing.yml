@@ -102,8 +102,7 @@ jobs:
 
   provider:
     name: Provider Testing
-    environment:
-      name: Integration testing
+    environment: Integration testing
     needs: setup
     runs-on: ubuntu-latest
     services:
@@ -139,6 +138,11 @@ jobs:
         run: mkdir coverage
 
       - name: Testing
+        env:
+          SNOWFLAKE_USERNAME: ${{ secrets.SNOWFLAKE_USERNAME }}
+          SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+          SNOWFLAKE_ORG: ${{ secrets.SNOWFLAKE_ORG }}
+          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
         working-directory: ./
         run: go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/...
 

@@ -788,7 +788,7 @@ func Test_snowflakeOfflineTable_checkTimestamp(t *testing.T) {
 		args   args
 		want   ResourceRecord
 	}{
-		{"Nil TimeStamp", fields{nil, ""}, args{rec: ResourceRecord{}}, ResourceRecord{TS: time.UnixMilli(0)}},
+		{"Nil TimeStamp", fields{nil, ""}, args{rec: ResourceRecord{}}, ResourceRecord{TS: time.UnixMilli(0).UTC()}},
 		{"Non Nil TimeStamp", fields{nil, ""}, args{rec: ResourceRecord{TS: time.UnixMilli(10)}}, ResourceRecord{TS: time.UnixMilli(10)}},
 	}
 	for _, tt := range tests {

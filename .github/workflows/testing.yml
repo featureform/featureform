@@ -82,7 +82,7 @@ jobs:
         if: always()
         working-directory: ./coverage
         run: |
-          cat cover.out.tmp | grep -v "proto" | grep -v "main" | grep -v "metadata/client.go" > cover.out
+          cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
           go tool cover -html=cover.out -o cover.html
 
       - uses: codecov/codecov-action@v2
@@ -144,7 +144,7 @@ jobs:
         if: always()
         working-directory: ./coverage
         run: |
-          cat cover.out.tmp | grep -v "proto" | grep -v "main" | grep -v "metadata/client.go" > cover.out
+          cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
           go tool cover -html=cover.out -o cover.html
 
       - uses: codecov/codecov-action@v2
@@ -202,7 +202,7 @@ jobs:
         if: always()
         working-directory: ./coverage
         run: |
-          cat cover.out.tmp | grep -v "proto" | grep -v "main" | grep -v "metadata/client.go" > cover.out
+          cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
           go tool cover -html=cover.out -o cover.html
 
       - uses: codecov/codecov-action@v2
@@ -240,7 +240,7 @@ jobs:
         if: always()
         working-directory: ./coverage
         run: |
-          cat cover.out.tmp | grep -v "proto" | grep -v "main" | grep -v "metadata/client.go" > cover.out
+          cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
           go tool cover -html=cover.out -o cover.html
 
       - uses: codecov/codecov-action@v2
@@ -285,7 +285,7 @@ jobs:
         if: always()
         working-directory: ./coverage
         run: |
-          cat cover.out.tmp | grep -v "proto" | grep -v "main" | grep -v "metadata/client.go" > cover.out
+          cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
           go tool cover -html=cover.out -o cover.html
 
       - uses: codecov/codecov-action@v2
@@ -330,7 +330,7 @@ jobs:
         if: always()
         working-directory: ./coverage
         run: |
-          cat cover.out.tmp | grep -v "proto" | grep -v "main" | grep -v "metadata/client.go" > cover.out
+          cat cover.out.tmp | grep -v "proto" | grep -v "main" > cover.out
           go tool cover -html=cover.out -o cover.html
 
       - uses: codecov/codecov-action@v2

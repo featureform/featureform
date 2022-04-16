@@ -72,23 +72,22 @@ jobs:
 
       - name: Make Coverage Directory
         working-directory: ./
-        run: mkdir coverage
+        run: mkdir ./coverage
 
       - name: Testing
         working-directory: ./
-        run: go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./metadata/search/...
+        run: go test -v -coverpkg=./... -coverprofile ./coverage/cover.out.tmp ./metadata/search/...
 
       - name: Convert Coverage Test Results
         if: always()
         working-directory: ./coverage
         run: |
-          cat cover.out.tmp | grep -v "proto" > cover.out
+          cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
           go tool cover -html=cover.out -o cover.html
 
       - uses: codecov/codecov-action@v2
         if: always()
         with:
-          root_dir: ./
           files: ./coverage/cover.out
           name: typesense-coverage
           verbose: true
@@ -144,7 +143,7 @@ jobs:
         if: always()
         working-directory: ./coverage
         run: |
-          cat cover.out.tmp | grep -v "proto" > cover.out
+          cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
           go tool cover -html=cover.out -o cover.html
 
       - uses: codecov/codecov-action@v2
@@ -202,7 +201,7 @@ jobs:
         if: always()
         working-directory: ./coverage
         run: |
-          cat cover.out.tmp | grep -v "proto" > cover.out
+          cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
           go tool cover -html=cover.out -o cover.html
 
       - uses: codecov/codecov-action@v2
@@ -240,7 +239,7 @@ jobs:
         if: always()
         working-directory: ./coverage
         run: |
-          cat cover.out.tmp | grep -v "proto" > cover.out
+          cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
           go tool cover -html=cover.out -o cover.html
 
       - uses: codecov/codecov-action@v2
@@ -285,7 +284,7 @@ jobs:
         if: always()
         working-directory: ./coverage
         run: |
-          cat cover.out.tmp | grep -v "proto" > cover.out
+          cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
           go tool cover -html=cover.out -o cover.html
 
       - uses: codecov/codecov-action@v2
@@ -330,7 +329,7 @@ jobs:
         if: always()
         working-directory: ./coverage
         run: |
-          cat cover.out.tmp | grep -v "proto" > cover.out
+          cat cover.out.tmp | grep -v "proto" | grep -v "main" > cover.out
           go tool cover -html=cover.out -o cover.html
 
       - uses: codecov/codecov-action@v2

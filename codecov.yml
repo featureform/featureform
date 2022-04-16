@@ -6,4 +6,4 @@ coverage:
         target: 0
 
 fixes:
-  - "::/embeddinghub/ff/serving"
+  - "::ff/serving"

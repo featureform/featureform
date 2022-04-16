@@ -5,5 +5,5 @@ coverage:
       default:
         target: 0
 
-codecov:
-  disable_default_path_fixes: yes
+fixes:
+  - "::/embeddinghub"

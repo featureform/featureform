@@ -88,7 +88,7 @@ jobs:
       - uses: codecov/codecov-action@v2
         if: always()
         with:
-          root_dir: ./
+          root_dir: ./metadata/search/
           files: ./coverage/cover.out
           name: typesense-coverage
           verbose: true

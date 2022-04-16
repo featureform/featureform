@@ -213,6 +213,8 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 			ExpectedRows: 3,
 			SegmentStart: 0,
 			SegmentEnd:   3,
+			// Have to expect time.UnixMilli(0).UTC() as it is the default value
+			// if a resource does not have a set timestamp
 			ExpectedSegment: []ResourceRecord{
 				{Entity: "a", Value: 1, TS: time.UnixMilli(0).UTC()},
 				{Entity: "b", Value: 2, TS: time.UnixMilli(0).UTC()},

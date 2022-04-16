@@ -72,15 +72,15 @@ jobs:
 
       - name: Make Coverage Directory
         working-directory: ./
-        run: mkdir coverage
+        run: mkdir ./metadata/search/coverage
 
       - name: Testing
         working-directory: ./
-        run: go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./metadata/search/...
+        run: go test -v -coverpkg=./... -coverprofile ./metadata/search/coverage/cover.out.tmp ./metadata/search/...
 
       - name: Convert Coverage Test Results
         if: always()
-        working-directory: ./coverage
+        working-directory: ./metadata/search/coverage
         run: |
           cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
           go tool cover -html=cover.out -o cover.html
@@ -88,8 +88,7 @@ jobs:
       - uses: codecov/codecov-action@v2
         if: always()
         with:
-          root_dir: ./metadata/search/
-          files: ./coverage/cover.out
+          files: ./metadata/search/coverage/cover.out
           name: typesense-coverage
           verbose: true
 
@@ -98,7 +97,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: typesense-coverage-reports
-          path: ./coverage
+          path: ./metadata/search/coverage
 
   provider:
     name: Provider Testing

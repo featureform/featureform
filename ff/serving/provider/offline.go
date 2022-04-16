@@ -10,8 +10,9 @@ import (
 )
 
 const (
-	MemoryOffline   Type = "MEMORY_OFFLINE"
-	PostgresOffline      = "POSTGRES_OFFLINE"
+	MemoryOffline    Type = "MEMORY_OFFLINE"
+	PostgresOffline       = "POSTGRES_OFFLINE"
+	SnowflakeOffline      = "SNOWFLAKE_OFFLINE"
 )
 
 type ValueType string
@@ -417,6 +418,7 @@ func (table *memoryOfflineTable) getLastValueBefore(entity string, ts time.Time)
 }
 
 func (table *memoryOfflineTable) Write(rec ResourceRecord) error {
+	rec = checkTimestamp(rec)
 	if err := rec.check(); err != nil {
 		return err
 	}
@@ -479,4 +481,15 @@ func (iter *memoryFeatureIterator) Value() ResourceRecord {
 
 func (iter *memoryFeatureIterator) Err() error {
 	return nil
+}
+
+// checkTimestamp checks the timestamp of a record.
+// If the record has the default initialization value of 0001-01-01 00:00:00 +0000 UTC, it is changed
+// to the start of unix epoch time, since snowflake cannot handle values before 1582
+func checkTimestamp(rec ResourceRecord) ResourceRecord {
+	checkRecord := ResourceRecord{}
+	if rec.TS == checkRecord.TS {
+		rec.TS = time.UnixMilli(0).UTC()
+	}
+	return rec
 }

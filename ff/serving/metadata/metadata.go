@@ -617,14 +617,10 @@ func (resource *userResource) Proto() proto.Message {
 }
 
 func (this *userResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
-	userId := this.ID()
-	deps, depsErr := that.Dependencies(lookup)
-	if depsErr != nil {
-		return depsErr
-	}
-	_, lookupErr := deps.Lookup(userId)
-	if lookupErr != nil {
-		return lookupErr
+	if isDep, err := isDirectDependency(lookup, this, that); err != nil {
+		return err
+	} else if !isDep {
+		return nil
 	}
 	id := that.ID()
 	key := id.Proto()

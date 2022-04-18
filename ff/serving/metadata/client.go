@@ -97,7 +97,7 @@ func (client *Client) Create(ctx context.Context, def ResourceDef) error {
 	case ModelDef:
 		return client.CreateModel(ctx, casted)
 	default:
-		panic(fmt.Sprintf("%T not implemented in Created.", casted))
+		return fmt.Errorf("%T not implemented in Create.", casted)
 	}
 }
 

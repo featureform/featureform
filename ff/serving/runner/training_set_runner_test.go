@@ -10,7 +10,7 @@ type MockOfflineCreateTrainingSetFail struct {
 	provider.BaseProvider
 }
 
-func (m MockOfflineCreateTrainingSetFail) CreateResourceTable(id provider.ResourceID) (provider.OfflineTable, error) {
+func (m MockOfflineCreateTrainingSetFail) CreateResourceTable(provider.ResourceID, provider.SerializedTableSchema) (provider.OfflineTable, error) {
 	return nil, nil
 }
 func (m MockOfflineCreateTrainingSetFail) GetResourceTable(id provider.ResourceID) (provider.OfflineTable, error) {

@@ -701,11 +701,6 @@ func (resource *entityResource) Proto() proto.Message {
 }
 
 func (this *entityResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
-	if isDep, err := isDirectDependency(lookup, this, that); err != nil {
-		return err
-	} else if !isDep {
-		return nil
-	}
 	id := that.ID()
 	key := id.Proto()
 	t := id.Type

@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
 )
@@ -223,14 +224,14 @@ type testContext struct {
 	client *Client
 }
 
-func (ctx *testContext) Create(t *testing.T) *Client {
+func (ctx *testContext) Create(t *testing.T) (*Client, error) {
 	var addr string
 	ctx.serv, addr = startServ()
 	ctx.client = client(t, addr)
 	if err := ctx.client.CreateAll(context.Background(), ctx.Defs); err != nil {
-		t.Fatalf("Failed to create: %s", err)
+		return nil, err
 	}
-	return ctx.client
+	return ctx.client, nil
 }
 
 func (ctx *testContext) Destroy() {
@@ -277,7 +278,28 @@ func TestCreate(t *testing.T) {
 	ctx := testContext{
 		Defs: filledResourceDefs(),
 	}
-	ctx.Create(t)
+	_, err := ctx.Create(t)
+	if err != nil {
+		t.Fatalf("Failed to create resources: %s", err)
+	}
+	defer ctx.Destroy()
+}
+
+type UnknownResource struct{}
+
+func (t UnknownResource) ResourceType() ResourceType {
+	return ResourceType("UNKNOWN")
+}
+
+func TestUnknownResource(t *testing.T) {
+	ctx := testContext{
+		Defs: []ResourceDef{
+			UnknownResource{},
+		},
+	}
+	if _, err := ctx.Create(t); err == nil {
+		t.Fatalf("Created unknown resource")
+	}
 	defer ctx.Destroy()
 }
 
@@ -935,8 +957,11 @@ func testGetResources(t *testing.T, typ ResourceType, tests ResourceTests) {
 	ctx := testContext{
 		Defs: filledResourceDefs(),
 	}
-	client := ctx.Create(t)
+	client, err := ctx.Create(t)
 	defer ctx.Destroy()
+	if err != nil {
+		t.Fatalf("Failed to create resources: %s", err)
+	}
 	names := tests.NameVariants()
 	resources, err := getAll(client, typ, names)
 	if err != nil {
@@ -957,14 +982,21 @@ func testGetResources(t *testing.T, typ ResourceType, tests ResourceTests) {
 	if reflect.ValueOf(noResources).Len() != 0 {
 		t.Fatalf("Got resources when expected none: %+v", noResources)
 	}
+
+	if res, err := get(client, typ, NameVariant{uuid.NewString(), uuid.NewString()}); err == nil {
+		t.Fatalf("Succeeded in getting random resource: %+v", res)
+	}
 }
 
 func testListResources(t *testing.T, typ ResourceType, tests ResourceTests) {
 	ctx := testContext{
 		Defs: filledResourceDefs(),
 	}
-	client := ctx.Create(t)
+	client, err := ctx.Create(t)
 	defer ctx.Destroy()
+	if err != nil {
+		t.Fatalf("Failed to create resources: %s", err)
+	}
 	resources, err := list(client, typ)
 	if err != nil {
 		t.Fatalf("Failed to list resources: %v", resources)

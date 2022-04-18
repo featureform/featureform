@@ -215,21 +215,7 @@ func (resource *sourceResource) ID() ResourceID {
 }
 
 func (resource *sourceResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
-	name := resource.serialized.Name
-	deps := make(localResourceLookup)
-	for _, variant := range resource.serialized.Variants {
-		id := ResourceID{
-			Name:    name,
-			Variant: variant,
-			Type:    SOURCE_VARIANT,
-		}
-		res, err := lookup.Lookup(id)
-		if err != nil {
-			return nil, err
-		}
-		deps[id] = res
-	}
-	return deps, nil
+	return make(localResourceLookup), nil
 }
 
 func (resource *sourceResource) Proto() proto.Message {
@@ -313,21 +299,7 @@ func (resource *featureResource) ID() ResourceID {
 }
 
 func (resource *featureResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
-	name := resource.serialized.Name
-	deps := make(localResourceLookup)
-	for _, variant := range resource.serialized.Variants {
-		id := ResourceID{
-			Name:    name,
-			Variant: variant,
-			Type:    FEATURE_VARIANT,
-		}
-		res, err := lookup.Lookup(id)
-		if err != nil {
-			return nil, err
-		}
-		deps[id] = res
-	}
-	return deps, nil
+	return make(localResourceLookup), nil
 }
 
 func (resource *featureResource) Proto() proto.Message {
@@ -415,21 +387,7 @@ func (resource *labelResource) ID() ResourceID {
 }
 
 func (resource *labelResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
-	name := resource.serialized.Name
-	deps := make(localResourceLookup)
-	for _, variant := range resource.serialized.Variants {
-		id := ResourceID{
-			Name:    name,
-			Variant: variant,
-			Type:    LABEL_VARIANT,
-		}
-		res, err := lookup.Lookup(id)
-		if err != nil {
-			return nil, err
-		}
-		deps[id] = res
-	}
-	return deps, nil
+	return make(localResourceLookup), nil
 }
 
 func (resource *labelResource) Proto() proto.Message {
@@ -517,21 +475,7 @@ func (resource *trainingSetResource) ID() ResourceID {
 }
 
 func (resource *trainingSetResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
-	name := resource.serialized.Name
-	deps := make(localResourceLookup)
-	for _, variant := range resource.serialized.Variants {
-		id := ResourceID{
-			Name:    name,
-			Variant: variant,
-			Type:    TRAINING_SET_VARIANT,
-		}
-		res, err := lookup.Lookup(id)
-		if err != nil {
-			return nil, err
-		}
-		deps[id] = res
-	}
-	return deps, nil
+	return make(localResourceLookup), nil
 }
 
 func (resource *trainingSetResource) Proto() proto.Message {

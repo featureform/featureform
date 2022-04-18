@@ -111,6 +111,10 @@ func NewPostgresOfflineStore(pg PostgresConfig) (*postgresOfflineStore, error) {
 	}, nil
 }
 
+func (store *postgresOfflineStore) getPrimaryTableName(id ResourceID) string {
+	return fmt.Sprintf("featureform_primary_%s_%s", id.Name, id.Variant)
+}
+
 func (store *postgresOfflineStore) getResourceTableName(id ResourceID) string {
 	var idType string
 	if id.Type == Feature {
@@ -136,6 +140,8 @@ func (store *postgresOfflineStore) tableExists(id ResourceID) (bool, error) {
 		tableName = store.getResourceTableName(id)
 	} else if id.check(TrainingSet) == nil {
 		tableName = store.getTrainingSetName(id)
+	} else if id.check(Primary) == nil {
+		tableName = store.getPrimaryTableName(id)
 	}
 	err := store.conn.QueryRow(context.Background(), "SELECT 1 FROM information_schema.tables WHERE table_name=$1", tableName).Scan(&n)
 	if err == db.ErrNoRows {
@@ -150,14 +156,31 @@ func (store *postgresOfflineStore) AsOfflineStore() (OfflineStore, error) {
 	return store, nil
 }
 
+func (store *postgresOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error) {
+	if err := id.check(Primary); err != nil {
+		return nil, err
+	}
+	if exists, err := store.tableExists(id); err != nil {
+		return nil, err
+	} else if exists {
+		return nil, &TableAlreadyExists{id.Name, id.Variant}
+	}
+	tableName := store.getPrimaryTableName(id)
+	table, err := newPostgresPrimaryTable(store.conn, tableName, schema)
+	if err != nil {
+		return nil, err
+	}
+	return table, nil
+}
+
 // CreateResourceTable creates a new Resource table.
 // Returns a table if it does not already exist and stores the table ID in the resource index table.
 // Returns an error if the table already exists or if table is the wrong type.
-func (store *postgresOfflineStore) CreateResourceTable(id ResourceID, schema SerializedTableSchema) (OfflineTable, error) {
-	psSchema := PostgresTableSchema{}
-	if err := psSchema.Deserialize(schema); err != nil {
-		return nil, err
-	}
+func (store *postgresOfflineStore) CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error) {
+	//psSchema := PostgresTableSchema{}
+	//if err := psSchema.Deserialize(schema); err != nil {
+	//	return nil, err
+	//}
 	if err := id.check(Feature, Label); err != nil {
 		return nil, err
 	}
@@ -168,7 +191,7 @@ func (store *postgresOfflineStore) CreateResourceTable(id ResourceID, schema Ser
 		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}
 	tableName := store.getResourceTableName(id)
-	table, err := newPostgresOfflineTable(store.conn, tableName, psSchema.ValueType)
+	table, err := newPostgresOfflineTable(store.conn, tableName, schema.Columns[1].ValueType)
 	if err != nil {
 		return nil, err
 	}
@@ -428,6 +451,12 @@ type postgresOfflineTable struct {
 	name string
 }
 
+type postgresPrimaryTable struct {
+	conn   *pgxpool.Pool
+	name   string
+	schema TableSchema
+}
+
 // determineColumnType returns an acceptable Postgres column Type to use for the given value
 func determineColumnType(valueType ValueType) (string, error) {
 	switch valueType {
@@ -480,6 +509,35 @@ func (table *postgresOfflineTable) Write(rec ResourceRecord) error {
 	return nil
 }
 
+func newPostgresPrimaryTable(conn *pgxpool.Pool, name string, schema TableSchema) (*postgresPrimaryTable, error) {
+	query, err := createPrimaryTableQuery(name, schema)
+	_, err = conn.Exec(context.Background(), query)
+	if err != nil {
+		return nil, err
+	}
+	return &postgresPrimaryTable{
+		conn:   conn,
+		name:   name,
+		schema: schema,
+	}, nil
+}
+
+// createPrimaryTableQuery creates a query for table creation based on the
+// specified TableSchema. Returns the query if successful. Returns an error
+// if there is an invalid column type.
+func createPrimaryTableQuery(name string, schema TableSchema) (string, error) {
+	columns := make([]string, 0)
+	for _, column := range schema.Columns {
+		columnType, err := determineColumnType(column.ValueType)
+		if err != nil {
+			return "", err
+		}
+		columns = append(columns, fmt.Sprintf("%s %s", column.Name, columnType))
+	}
+	columnString := strings.Join(columns, ", ")
+	return fmt.Sprintf("CREATE TABLE %s ( %s )", sanitize(name), columnString), nil
+}
+
 func (table *postgresOfflineTable) resourceExists(rec ResourceRecord) (bool, error) {
 	rec = checkTimestamp(rec)
 	query := fmt.Sprintf("SELECT entity, value, ts FROM %s WHERE entity=$1 AND ts=$2 ", sanitize(table.name))
@@ -496,6 +554,36 @@ func (table *postgresOfflineTable) resourceExists(rec ResourceRecord) (bool, err
 		return false, nil
 	}
 	return true, nil
+}
+
+func (table *postgresPrimaryTable) Write(rec GenericRecord) error {
+	tb := sanitize(table.name)
+	columns := table.getColumnNameString()
+	placeholder := table.createValuePlaceholderString()
+	upsertQuery := fmt.Sprintf(""+
+		"INSERT INTO %s ( %s ) "+
+		"VALUES ( %s ) ", tb, columns, placeholder)
+	if _, err := table.conn.Exec(context.Background(), upsertQuery, rec.Values...); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (table *postgresPrimaryTable) createValuePlaceholderString() string {
+	placeholders := make([]string, 0)
+	for i := range table.schema.Columns {
+		placeholders = append(placeholders, fmt.Sprintf("$%d", i+1))
+	}
+	return strings.Join(placeholders, ", ")
+}
+
+func (table *postgresPrimaryTable) getColumnNameString() string {
+	columns := make([]string, 0)
+	for _, column := range table.schema.Columns {
+		columns = append(columns, column.Name)
+	}
+	return strings.Join(columns, ", ")
 }
 
 type postgresMaterialization struct {
@@ -606,4 +694,86 @@ func castPostgresTableItemType(v interface{}, t postgresColumnType) interface{} 
 	default:
 		return v
 	}
+}
+
+func (store *postgresOfflineStore) CreateTransformation(config TransformationConfig) error {
+	name, err := createTransformationName(config.Name, config.Variation, config.ResourceType)
+	if err != nil {
+		return err
+	}
+	var query string
+	// Let this fail if the table exists?
+	// Need a way to determine what columns are which if its a resource table
+	if config.ResourceType == Transformation {
+		query = fmt.Sprintf("CREATE TABLE %s AS %s ", sanitize(name), config.Query)
+	} else if config.ResourceType == Feature || config.ResourceType == Label {
+		columnMap, err := mapColumns(config.ColumnMapping, config.Query)
+		if err != nil {
+			return err
+		}
+		query = fmt.Sprintf("CREATE TABLE %s AS %s ", sanitize(name), columnMap)
+	}
+
+	store.conn.Exec(context.Background(), query)
+	return nil
+}
+
+func createTransformationName(name, variation string, t OfflineResourceType) (string, error) {
+	var resourceType string
+	// Better if this is just a string
+	switch t {
+	case Label:
+		resourceType = "label"
+	case Feature:
+		resourceType = "feature"
+	case TrainingSet:
+		return "", TransformationTypeError{"Invalid Transformation Type"}
+	case Transformation:
+		resourceType = "transformation"
+	default:
+		return "", TransformationTypeError{"Invalid Transformation Type"}
+	}
+	return fmt.Sprintf("%s_%s_%s", resourceType, name, variation), nil
+}
+
+func mapColumns(columns []ColumnMapping, query string) (string, error) {
+	if len(columns) != 3 {
+		return "", errors.New(fmt.Sprintf("was expecting 3 columns, received %d", len(columns)))
+	}
+	var entity, value, ts string
+	for _, column := range columns {
+		if column.valueType == "Entity" {
+			entity = column.name
+		} else if column.valueType == "Value" {
+			value = column.name
+		} else if column.valueType == "TS" {
+			ts = column.name
+		}
+	}
+	if entity == "" {
+		return "", errors.New("missing entity column")
+	}
+	if value == "" {
+		return "", errors.New("missing entity column")
+	}
+	if ts == "" {
+		return "", errors.New("missing entity column")
+	}
+	return fmt.Sprintf("( SELECT %s as entity, %s as value, %s as timestamp FROM ( %s ) ) ", entity, value, ts, query), nil
+}
+
+type SQLError struct {
+	error string
+}
+
+func (e SQLError) Error() string {
+	return e.error
+}
+
+type TransformationTypeError struct {
+	error string
+}
+
+func (e TransformationTypeError) Error() string {
+	return e.error
 }

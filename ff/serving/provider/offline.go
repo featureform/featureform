@@ -41,6 +41,8 @@ const (
 	Label
 	Feature
 	TrainingSet
+	Primary
+	Transformation
 )
 
 type ResourceID struct {
@@ -92,8 +94,31 @@ func (def *TrainingSetDef) check() error {
 	return nil
 }
 
+type TransformationType string
+
+const (
+	SQL TransformationType = "SQL"
+)
+
+type ColumnMapping struct {
+	name      string
+	valueType string
+}
+
+type TransformationConfig struct {
+	Name          string
+	Variation     string
+	Type          TransformationType
+	Provider      Type
+	Query         string
+	ResourceType  OfflineResourceType
+	ColumnMapping []ColumnMapping
+}
+
 type OfflineStore interface {
-	CreateResourceTable(id ResourceID, schema SerializedTableSchema) (OfflineTable, error)
+	// Should this be PrimaryTable or maybe GenericTable?
+	CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error)
+	CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error)
 	GetResourceTable(id ResourceID) (OfflineTable, error)
 	CreateMaterialization(id ResourceID) (Materialization, error)
 	GetMaterialization(id MaterializationID) (Materialization, error)
@@ -101,6 +126,11 @@ type OfflineStore interface {
 	CreateTrainingSet(TrainingSetDef) error
 	GetTrainingSet(id ResourceID) (TrainingSetIterator, error)
 	Provider
+}
+
+type SQLOfflineStore interface {
+	CreateTransformation(config TransformationConfig) error
+	OfflineStore
 }
 
 type MaterializationID string
@@ -148,6 +178,10 @@ type ResourceRecord struct {
 	TS time.Time
 }
 
+type GenericRecord struct {
+	Values []interface{}
+}
+
 func (rec ResourceRecord) check() error {
 	if rec.Entity == "" {
 		return errors.New("ResourceRecord must have Entity set.")
@@ -157,6 +191,19 @@ func (rec ResourceRecord) check() error {
 
 type OfflineTable interface {
 	Write(ResourceRecord) error
+}
+
+type PrimaryTable interface {
+	Write(GenericRecord) error
+}
+
+type TableSchema struct {
+	Columns []TableColumn
+}
+
+type TableColumn struct {
+	Name string
+	ValueType
 }
 
 type memoryOfflineStore struct {
@@ -186,7 +233,11 @@ func (store *memoryOfflineStore) AsOfflineStore() (OfflineStore, error) {
 	return store, nil
 }
 
-func (store *memoryOfflineStore) CreateResourceTable(id ResourceID, schema SerializedTableSchema) (OfflineTable, error) {
+func (store *memoryOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error) {
+	return nil, errors.New("primary table unsupported for this provider")
+}
+
+func (store *memoryOfflineStore) CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error) {
 	if err := id.check(Feature, Label); err != nil {
 		return nil, err
 	}

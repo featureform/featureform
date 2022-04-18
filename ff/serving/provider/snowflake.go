@@ -140,14 +140,14 @@ func (store *snowflakeOfflineStore) AsOfflineStore() (OfflineStore, error) {
 	return store, nil
 }
 
+func (store *snowflakeOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error) {
+	return nil, errors.New("snowflake create primary table not implemented")
+}
+
 // CreateResourceTable creates a new Resource table.
 // Returns a table if it does not already exist and stores the table ID in the resource index table.
 // Returns an error if the table already exists or if table is the wrong type.
-func (store *snowflakeOfflineStore) CreateResourceTable(id ResourceID, schema SerializedTableSchema) (OfflineTable, error) {
-	psSchema := SnowflakeSchema{}
-	if err := psSchema.Deserialize(schema); err != nil {
-		return nil, err
-	}
+func (store *snowflakeOfflineStore) CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error) {
 	if err := id.check(Feature, Label); err != nil {
 		return nil, err
 	}
@@ -158,7 +158,7 @@ func (store *snowflakeOfflineStore) CreateResourceTable(id ResourceID, schema Se
 		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}
 	tableName := store.getResourceTableName(id)
-	table, err := newSnowflakeOfflineTable(store.db, tableName, psSchema.ValueType)
+	table, err := newSnowflakeOfflineTable(store.db, tableName, schema.Columns[1].ValueType)
 	if err != nil {
 		return nil, err
 	}
@@ -632,4 +632,7 @@ func (table *snowflakeOfflineTable) resourceExists(rec ResourceRecord) (bool, er
 		return false, nil
 	}
 	return true, nil
+}
+func (store *snowflakeOfflineStore) CreateTransformation(config TransformationConfig) error {
+	return errors.New("transformation not implemented for memory store")
 }

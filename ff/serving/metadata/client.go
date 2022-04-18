@@ -923,7 +923,7 @@ func (fns variantsFns) Variants() []string {
 	return fns.getter.GetVariants()
 }
 
-func (fns variantsFns) NameVariants() []NameVariant {
+func (fns variantsFns) NameVariants() NameVariants {
 	name := fns.getter.GetName()
 	variants := fns.getter.GetVariants()
 	nameVariants := make([]NameVariant, len(variants))
@@ -960,7 +960,7 @@ type fetchTrainingSetsFns struct {
 	getter trainingSetsGetter
 }
 
-func (fn fetchTrainingSetsFns) TrainingSets() []NameVariant {
+func (fn fetchTrainingSetsFns) TrainingSets() NameVariants {
 	return parseNameVariants(fn.getter.GetTrainingsets())
 }
 
@@ -976,7 +976,7 @@ type fetchLabelsFns struct {
 	getter labelsGetter
 }
 
-func (fn fetchLabelsFns) Labels() []NameVariant {
+func (fn fetchLabelsFns) Labels() NameVariants {
 	return parseNameVariants(fn.getter.GetLabels())
 }
 
@@ -992,7 +992,7 @@ type fetchFeaturesFns struct {
 	getter featuresGetter
 }
 
-func (fn fetchFeaturesFns) Features() []NameVariant {
+func (fn fetchFeaturesFns) Features() NameVariants {
 	return parseNameVariants(fn.getter.GetFeatures())
 }
 
@@ -1008,7 +1008,7 @@ type fetchSourcesFns struct {
 	getter sourcesGetter
 }
 
-func (fn fetchSourcesFns) Sources() []NameVariant {
+func (fn fetchSourcesFns) Sources() NameVariants {
 	return parseNameVariants(fn.getter.GetSources())
 }
 

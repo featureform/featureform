@@ -890,12 +890,18 @@ func (test ParentResourceTest) Test(t *testing.T, client *Client, resource inter
 	type ParentResource interface {
 		Name() string
 		Variants() []string
+		NameVariants() NameVariants
 		DefaultVariant() string
 	}
 	parentRes := resource.(ParentResource)
 	assertEqual(t, parentRes.Name(), test.Name)
 	assertEqual(t, parentRes.Variants(), test.Variants)
 	assertEqual(t, parentRes.DefaultVariant(), test.Default)
+	nameVars := make(NameVariants, len(test.Variants))
+	for i, variant := range test.Variants {
+		nameVars[i] = NameVariant{test.Name, variant}
+	}
+	assertEqual(t, parentRes.NameVariants(), nameVars)
 }
 
 type ResourceTest interface {

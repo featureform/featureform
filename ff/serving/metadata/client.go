@@ -51,6 +51,14 @@ func parseNameVariants(protos []*pb.NameVariant) NameVariants {
 	return parsed
 }
 
+func (variants NameVariants) Names() []string {
+	names := make([]string, len(variants))
+	for i, variant := range variants {
+		names[i] = variant.Name
+	}
+	return names
+}
+
 type Client struct {
 	Logger   *zap.SugaredLogger
 	conn     *grpc.ClientConn

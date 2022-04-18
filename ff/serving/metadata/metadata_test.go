@@ -129,6 +129,94 @@ func filledResourceDefs() []ResourceDef {
 	}
 }
 
+func list(client *Client, t ResourceType) (interface{}, error) {
+	ctx := context.Background()
+	switch t {
+	case FEATURE:
+		return client.ListFeatures(ctx)
+	case LABEL:
+		return client.ListLabels(ctx)
+	case SOURCE:
+		return client.ListSources(ctx)
+	case TRAINING_SET:
+		return client.ListTrainingSets(ctx)
+	case USER:
+		return client.ListUsers(ctx)
+	case ENTITY:
+		return client.ListEntities(ctx)
+	case MODEL:
+		return client.ListModels(ctx)
+	case PROVIDER:
+		return client.ListProviders(ctx)
+	default:
+		panic("ResourceType not handled")
+	}
+}
+
+func getAll(client *Client, t ResourceType, nameVars NameVariants) (interface{}, error) {
+	ctx := context.Background()
+	switch t {
+	case FEATURE:
+		return client.GetFeatures(ctx, nameVars.Names())
+	case FEATURE_VARIANT:
+		return client.GetFeatureVariants(ctx, nameVars)
+	case LABEL:
+		return client.GetLabels(ctx, nameVars.Names())
+	case LABEL_VARIANT:
+		return client.GetLabelVariants(ctx, nameVars)
+	case SOURCE:
+		return client.GetSources(ctx, nameVars.Names())
+	case SOURCE_VARIANT:
+		return client.GetSourceVariants(ctx, nameVars)
+	case TRAINING_SET:
+		return client.GetTrainingSets(ctx, nameVars.Names())
+	case TRAINING_SET_VARIANT:
+		return client.GetTrainingSetVariants(ctx, nameVars)
+	case USER:
+		return client.GetUsers(ctx, nameVars.Names())
+	case ENTITY:
+		return client.GetEntities(ctx, nameVars.Names())
+	case MODEL:
+		return client.GetModels(ctx, nameVars.Names())
+	case PROVIDER:
+		return client.GetProviders(ctx, nameVars.Names())
+	default:
+		panic("ResourceType not handled")
+	}
+}
+
+func get(client *Client, t ResourceType, nameVar NameVariant) (interface{}, error) {
+	ctx := context.Background()
+	switch t {
+	case FEATURE:
+		return client.GetFeature(ctx, nameVar.Name)
+	case FEATURE_VARIANT:
+		return client.GetFeatureVariant(ctx, nameVar)
+	case LABEL:
+		return client.GetLabel(ctx, nameVar.Name)
+	case LABEL_VARIANT:
+		return client.GetLabelVariant(ctx, nameVar)
+	case SOURCE:
+		return client.GetSource(ctx, nameVar.Name)
+	case SOURCE_VARIANT:
+		return client.GetSourceVariant(ctx, nameVar)
+	case TRAINING_SET:
+		return client.GetTrainingSet(ctx, nameVar.Name)
+	case TRAINING_SET_VARIANT:
+		return client.GetTrainingSetVariant(ctx, nameVar)
+	case USER:
+		return client.GetUser(ctx, nameVar.Name)
+	case ENTITY:
+		return client.GetEntity(ctx, nameVar.Name)
+	case MODEL:
+		return client.GetModel(ctx, nameVar.Name)
+	case PROVIDER:
+		return client.GetProvider(ctx, nameVar.Name)
+	default:
+		panic("ResourceType not handled")
+	}
+}
+
 type testContext struct {
 	Defs   []ResourceDef
 	serv   *MetadataServer
@@ -216,30 +304,6 @@ func assertEquivalentNameVariants(t *testing.T, this, that []NameVariant) {
 	}
 }
 
-type UserTests []UserTest
-
-func (tests UserTests) Test(t *testing.T, client *Client, users []*User) {
-	testMap := make(map[string]UserTest)
-	for _, test := range tests {
-		testMap[test.Name] = test
-	}
-	for _, user := range users {
-		test, has := testMap[user.Name()]
-		if !has {
-			t.Fatalf("No test for User %s", user.Name())
-		}
-		test.Test(t, client, user)
-		delete(testMap, test.Name)
-	}
-	if len(testMap) != 0 {
-		names := make([]string, 0, len(testMap))
-		for _, test := range testMap {
-			names = append(names, test.Name)
-		}
-		t.Fatalf("Users not found %+v", names)
-	}
-}
-
 type UserTest struct {
 	Name         string
 	Features     []NameVariant
@@ -248,7 +312,12 @@ type UserTest struct {
 	Sources      []NameVariant
 }
 
-func (test UserTest) Test(t *testing.T, client *Client, user *User) {
+func (test UserTest) NameVariant() NameVariant {
+	return NameVariant{Name: test.Name}
+}
+
+func (test UserTest) Test(t *testing.T, client *Client, res interface{}) {
+	user := res.(*User)
 	assertEqual(t, user.Name(), test.Name)
 	assertEquivalentNameVariants(t, user.Features(), test.Features)
 	assertEquivalentNameVariants(t, user.Labels(), test.Labels)
@@ -256,9 +325,9 @@ func (test UserTest) Test(t *testing.T, client *Client, user *User) {
 	assertEquivalentNameVariants(t, user.Sources(), test.Sources)
 }
 
-func expectedUsers() UserTests {
-	return UserTests{
-		{
+func expectedUsers() ResourceTests {
+	return ResourceTests{
+		UserTest{
 			Name:   "Featureform",
 			Labels: []NameVariant{},
 			Features: []NameVariant{
@@ -274,7 +343,7 @@ func expectedUsers() UserTests {
 				{"training-set", "variant2"},
 			},
 		},
-		{
+		UserTest{
 			Name: "Other",
 			Labels: []NameVariant{
 				{"label", "variant"},
@@ -288,73 +357,9 @@ func expectedUsers() UserTests {
 	}
 }
 
-func TestListUsers(t *testing.T) {
-	ctx := testContext{
-		Defs: filledResourceDefs(),
-	}
-	client := ctx.Create(t)
-	defer ctx.Destroy()
-	users, err := client.ListUsers(context.Background())
-	if err != nil {
-		t.Fatalf("Failed to list users: %v", users)
-	}
-	expectedUsers().Test(t, client, users)
-}
-
-func TestGetUsers(t *testing.T) {
-	ctx := testContext{
-		Defs: filledResourceDefs(),
-	}
-	client := ctx.Create(t)
-	defer ctx.Destroy()
-	exp := expectedUsers()
-	names := make([]string, len(exp))
-	for i, e := range exp {
-		names[i] = e.Name
-	}
-	users, err := client.GetUsers(context.Background(), names)
-	if err != nil {
-		t.Fatalf("Failed to get users: %v", names)
-	}
-	exp.Test(t, client, users)
-
-	user, err := client.GetUser(context.Background(), names[0])
-	if err != nil {
-		t.Fatalf("Failed to get user: %v", names[0])
-	}
-	exp[0].Test(t, client, user)
-
-	noUsers, err := client.GetUsers(context.Background(), []string{})
-	if err != nil {
-		t.Fatalf("Failed to get no users")
-	}
-	if len(noUsers) != 0 {
-		t.Fatalf("Got users when expected none: %+v", noUsers)
-	}
-}
-
-type ProviderTests []ProviderTest
-
-func (tests ProviderTests) Test(t *testing.T, client *Client, providers []*Provider) {
-	testMap := make(map[string]ProviderTest)
-	for _, test := range tests {
-		testMap[test.Name] = test
-	}
-	for _, provider := range providers {
-		test, has := testMap[provider.Name()]
-		if !has {
-			t.Fatalf("No test for Provider %s", provider.Name())
-		}
-		test.Test(t, client, provider)
-		delete(testMap, test.Name)
-	}
-	if len(testMap) != 0 {
-		names := make([]string, 0, len(testMap))
-		for _, test := range testMap {
-			names = append(names, test.Name)
-		}
-		t.Fatalf("Providers not found %+v", names)
-	}
+func TestUser(t *testing.T) {
+	testListResources(t, USER, expectedUsers())
+	testGetResources(t, USER, expectedUsers())
 }
 
 type ProviderTest struct {
@@ -370,7 +375,12 @@ type ProviderTest struct {
 	Sources          []NameVariant
 }
 
-func (test ProviderTest) Test(t *testing.T, client *Client, provider *Provider) {
+func (test ProviderTest) NameVariant() NameVariant {
+	return NameVariant{Name: test.Name}
+}
+
+func (test ProviderTest) Test(t *testing.T, client *Client, res interface{}) {
+	provider := res.(*Provider)
 	assertEqual(t, provider.Name(), test.Name)
 	assertEqual(t, provider.Team(), test.Team)
 	assertEqual(t, provider.Type(), test.Type)
@@ -383,9 +393,9 @@ func (test ProviderTest) Test(t *testing.T, client *Client, provider *Provider) 
 	assertEquivalentNameVariants(t, provider.Sources(), test.Sources)
 }
 
-func expectedProviders() ProviderTests {
-	return ProviderTests{
-		{
+func expectedProviders() ResourceTests {
+	return ResourceTests{
+		ProviderTest{
 			Name:             "mockOnline",
 			Description:      "A mock online provider",
 			Type:             "REDIS-ONLINE",
@@ -401,7 +411,7 @@ func expectedProviders() ProviderTests {
 			Sources:      []NameVariant{},
 			TrainingSets: []NameVariant{},
 		},
-		{
+		ProviderTest{
 			Name:             "mockOffline",
 			Description:      "A mock offline provider",
 			Type:             "SNOWFLAKE-OFFLINE",
@@ -424,73 +434,9 @@ func expectedProviders() ProviderTests {
 	}
 }
 
-func TestListProviders(t *testing.T) {
-	ctx := testContext{
-		Defs: filledResourceDefs(),
-	}
-	client := ctx.Create(t)
-	defer ctx.Destroy()
-	providers, err := client.ListProviders(context.Background())
-	if err != nil {
-		t.Fatalf("Failed to list providers: %v", providers)
-	}
-	expectedProviders().Test(t, client, providers)
-}
-
-func TestGetProviders(t *testing.T) {
-	ctx := testContext{
-		Defs: filledResourceDefs(),
-	}
-	client := ctx.Create(t)
-	defer ctx.Destroy()
-	exp := expectedProviders()
-	names := make([]string, len(exp))
-	for i, e := range exp {
-		names[i] = e.Name
-	}
-	providers, err := client.GetProviders(context.Background(), names)
-	if err != nil {
-		t.Fatalf("Failed to get providers: %v", names)
-	}
-	exp.Test(t, client, providers)
-
-	provider, err := client.GetProvider(context.Background(), names[0])
-	if err != nil {
-		t.Fatalf("Failed to get provider: %v", names[0])
-	}
-	exp[0].Test(t, client, provider)
-
-	noProviders, err := client.GetProviders(context.Background(), []string{})
-	if err != nil {
-		t.Fatalf("Failed to get no providers")
-	}
-	if len(noProviders) != 0 {
-		t.Fatalf("Got providers when expected none: %+v", noProviders)
-	}
-}
-
-type EntityTests []EntityTest
-
-func (tests EntityTests) Test(t *testing.T, client *Client, entities []*Entity) {
-	testMap := make(map[string]EntityTest)
-	for _, test := range tests {
-		testMap[test.Name] = test
-	}
-	for _, entity := range entities {
-		test, has := testMap[entity.Name()]
-		if !has {
-			t.Fatalf("No test for Entity %s", entity.Name())
-		}
-		test.Test(t, client, entity)
-		delete(testMap, test.Name)
-	}
-	if len(testMap) != 0 {
-		names := make([]string, 0, len(testMap))
-		for _, test := range testMap {
-			names = append(names, test.Name)
-		}
-		t.Fatalf("Entities not found %+v", names)
-	}
+func TestProvider(t *testing.T) {
+	testListResources(t, PROVIDER, expectedProviders())
+	testGetResources(t, PROVIDER, expectedProviders())
 }
 
 type EntityTest struct {
@@ -502,8 +448,13 @@ type EntityTest struct {
 	Sources      []NameVariant
 }
 
-func (test EntityTest) Test(t *testing.T, client *Client, entity *Entity) {
+func (test EntityTest) NameVariant() NameVariant {
+	return NameVariant{Name: test.Name}
+}
+
+func (test EntityTest) Test(t *testing.T, client *Client, res interface{}) {
 	t.Logf("Testing entity: %s", test.Name)
+	entity := res.(*Entity)
 	assertEqual(t, entity.Name(), test.Name)
 	assertEqual(t, entity.Description(), test.Description)
 	assertEquivalentNameVariants(t, entity.Features(), test.Features)
@@ -511,9 +462,9 @@ func (test EntityTest) Test(t *testing.T, client *Client, entity *Entity) {
 	assertEquivalentNameVariants(t, entity.TrainingSets(), test.TrainingSets)
 }
 
-func expectedEntities() EntityTests {
-	return EntityTests{
-		{
+func expectedEntities() ResourceTests {
+	return ResourceTests{
+		EntityTest{
 			Name:        "user",
 			Description: "A user entity",
 			Labels: []NameVariant{
@@ -529,7 +480,7 @@ func expectedEntities() EntityTests {
 				{"training-set", "variant2"},
 			},
 		},
-		{
+		EntityTest{
 			Name:         "item",
 			Description:  "An item entity",
 			Labels:       []NameVariant{},
@@ -539,120 +490,9 @@ func expectedEntities() EntityTests {
 	}
 }
 
-func TestListEntities(t *testing.T) {
-	ctx := testContext{
-		Defs: filledResourceDefs(),
-	}
-	client := ctx.Create(t)
-	defer ctx.Destroy()
-	entities, err := client.ListEntities(context.Background())
-	if err != nil {
-		t.Fatalf("Failed to list entities: %v", entities)
-	}
-	expectedEntities().Test(t, client, entities)
-}
-
-func TestGetEntities(t *testing.T) {
-	ctx := testContext{
-		Defs: filledResourceDefs(),
-	}
-	client := ctx.Create(t)
-	defer ctx.Destroy()
-	exp := expectedEntities()
-	names := make([]string, len(exp))
-	for i, e := range exp {
-		names[i] = e.Name
-	}
-	entities, err := client.GetEntities(context.Background(), names)
-	if err != nil {
-		t.Fatalf("Failed to get entities: %v", names)
-	}
-	exp.Test(t, client, entities)
-
-	entity, err := client.GetEntity(context.Background(), names[0])
-	if err != nil {
-		t.Fatalf("Failed to get entity: %v", names[0])
-	}
-	exp[0].Test(t, client, entity)
-
-	noEntities, err := client.GetEntities(context.Background(), []string{})
-	if err != nil {
-		t.Fatalf("Failed to get no entities")
-	}
-	if len(noEntities) != 0 {
-		t.Fatalf("Got entities when expected none: %+v", noEntities)
-	}
-}
-
-type SourceTests []SourceTest
-
-func (tests SourceTests) Test(t *testing.T, client *Client, sources []*Source) {
-	testMap := make(map[string]SourceTest)
-	for _, test := range tests {
-		testMap[test.Name] = test
-	}
-	for _, source := range sources {
-		test, has := testMap[source.Name()]
-		if !has {
-			t.Fatalf("No test for Source %s", source.Name())
-		}
-		test.Test(t, client, source)
-		delete(testMap, test.Name)
-	}
-	if len(testMap) != 0 {
-		names := make([]string, 0, len(testMap))
-		for _, test := range testMap {
-			names = append(names, test.Name)
-		}
-		t.Fatalf("Sources not found %+v", names)
-	}
-}
-
-type SourceTest struct {
-	Name     string
-	Variants []string
-	Default  string
-}
-
-func (test SourceTest) Test(t *testing.T, client *Client, source *Source) {
-	t.Logf("Testing source: %s", test.Name)
-	assertEqual(t, source.Name(), test.Name)
-	assertEqual(t, source.Variants(), test.Variants)
-	assertEqual(t, source.DefaultVariant(), test.Default)
-}
-
-func expectedSources() SourceTests {
-	return SourceTests{
-		{
-			Name:     "mockSource",
-			Variants: []string{"var", "var2"},
-			Default:  "var",
-		},
-	}
-}
-
-type SourceVariantTests []SourceVariantTest
-
-func (tests SourceVariantTests) Test(t *testing.T, client *Client, sources []*SourceVariant) {
-	testMap := make(map[NameVariant]SourceVariantTest)
-	for _, test := range tests {
-		testMap[NameVariant{test.Name, test.Variant}] = test
-	}
-	for _, source := range sources {
-		test, has := testMap[NameVariant{source.Name(), source.Variant()}]
-		if !has {
-			t.Fatalf("No test for SourceVariant %s %s", source.Name(), source.Variant())
-		}
-		test.Test(t, client, source)
-		delete(testMap, NameVariant{test.Name, test.Variant})
-	}
-	if len(testMap) != 0 {
-		names := make([]NameVariant, 0, len(testMap))
-		for _, test := range testMap {
-			names = append(names, NameVariant{test.Name, test.Variant})
-		}
-		t.Fatalf("SourceVariants not found %+v", names)
-	}
+func TestEntity(t *testing.T) {
+	testListResources(t, ENTITY, expectedEntities())
+	testGetResources(t, ENTITY, expectedEntities())
 }
 
 type SourceVariantTest struct {
@@ -667,8 +507,13 @@ type SourceVariantTest struct {
 	TrainingSets []NameVariant
 }
 
-func (test SourceVariantTest) Test(t *testing.T, client *Client, source *SourceVariant) {
+func (test SourceVariantTest) NameVariant() NameVariant {
+	return NameVariant{test.Name, test.Variant}
+}
+
+func (test SourceVariantTest) Test(t *testing.T, client *Client, res interface{}) {
 	t.Logf("Testing source: %s %s", test.Name, test.Variant)
+	source := res.(*SourceVariant)
 	assertEqual(t, source.Name(), test.Name)
 	assertEqual(t, source.Variant(), test.Variant)
 	assertEqual(t, source.Description(), test.Description)
@@ -680,9 +525,19 @@ func (test SourceVariantTest) Test(t *testing.T, client *Client, source *SourceV
 	assertEquivalentNameVariants(t, source.TrainingSets(), test.TrainingSets)
 }
 
-func expectedSourceVariants() SourceVariantTests {
-	return SourceVariantTests{
-		{
+func expectedSources() ResourceTests {
+	return ResourceTests{
+		ParentResourceTest{
+			Name:     "mockSource",
+			Variants: []string{"var", "var2"},
+			Default:  "var",
+		},
+	}
+}
+
+func expectedSourceVariants() ResourceTests {
+	return ResourceTests{
+		SourceVariantTest{
 			Name:        "mockSource",
 			Variant:     "var",
 			Description: "A CSV source",
@@ -701,7 +556,7 @@ func expectedSourceVariants() SourceVariantTests {
 				{"training-set", "variant2"},
 			},
 		},
-		{
+		SourceVariantTest{
 			Name:        "mockSource",
 			Variant:     "var2",
 			Description: "A CSV source but different",
@@ -720,156 +575,24 @@ func expectedSourceVariants() SourceVariantTests {
 	}
 }
 
-func TestListSourceVariants(t *testing.T) {
-	ctx := testContext{
-		Defs: filledResourceDefs(),
-	}
-	client := ctx.Create(t)
-	defer ctx.Destroy()
-	sources, err := client.ListSources(context.Background())
-	if err != nil {
-		t.Fatalf("Failed to list sources: %v", sources)
-	}
-	expectedSources().Test(t, client, sources)
+func TestSource(t *testing.T) {
+	testListResources(t, SOURCE, expectedSources())
+	testGetResources(t, SOURCE, expectedSources())
+	testGetResources(t, SOURCE_VARIANT, expectedSourceVariants())
 }
 
-func TestGetSources(t *testing.T) {
-	ctx := testContext{
-		Defs: filledResourceDefs(),
-	}
-	client := ctx.Create(t)
-	defer ctx.Destroy()
-	exp := expectedSources()
-	names := make([]string, len(exp))
-	for i, e := range exp {
-		names[i] = e.Name
-	}
-	sources, err := client.GetSources(context.Background(), names)
-	if err != nil {
-		t.Fatalf("Failed to get sources: %v", names)
-	}
-	exp.Test(t, client, sources)
-
-	source, err := client.GetSource(context.Background(), names[0])
-	if err != nil {
-		t.Fatalf("Failed to get source: %v", names[0])
-	}
-	exp[0].Test(t, client, source)
-
-	noSources, err := client.GetSources(context.Background(), []string{})
-	if err != nil {
-		t.Fatalf("Failed to get no sources")
-	}
-	if len(noSources) != 0 {
-		t.Fatalf("Got sources when expected none: %+v", noSources)
-	}
-}
-
-func TestGetSourceVariants(t *testing.T) {
-	ctx := testContext{
-		Defs: filledResourceDefs(),
-	}
-	client := ctx.Create(t)
-	defer ctx.Destroy()
-	exp := expectedSourceVariants()
-	names := make([]NameVariant, len(exp))
-	for i, e := range exp {
-		names[i] = NameVariant{e.Name, e.Variant}
-	}
-	sources, err := client.GetSourceVariants(context.Background(), names)
-	if err != nil {
-		t.Fatalf("Failed to get sources: %v", names)
-	}
-	exp.Test(t, client, sources)
-
-	source, err := client.GetSourceVariant(context.Background(), names[0])
-	if err != nil {
-		t.Fatalf("Failed to get source: %v", names[0])
-	}
-	exp[0].Test(t, client, source)
-
-	noSourceVariants, err := client.GetSourceVariants(context.Background(), []NameVariant{})
-	if err != nil {
-		t.Fatalf("Failed to get no sources")
-	}
-	if len(noSourceVariants) != 0 {
-		t.Fatalf("Got sources when expected none: %+v", noSourceVariants)
-	}
-}
-
-type FeatureTests []FeatureTest
-
-func (tests FeatureTests) Test(t *testing.T, client *Client, features []*Feature) {
-	testMap := make(map[string]FeatureTest)
-	for _, test := range tests {
-		testMap[test.Name] = test
-	}
-	for _, feature := range features {
-		test, has := testMap[feature.Name()]
-		if !has {
-			t.Fatalf("No test for Feature %s", feature.Name())
-		}
-		test.Test(t, client, feature)
-		delete(testMap, test.Name)
-	}
-	if len(testMap) != 0 {
-		names := make([]string, 0, len(testMap))
-		for _, test := range testMap {
-			names = append(names, test.Name)
-		}
-		t.Fatalf("Features not found %+v", names)
-	}
-}
-
-type FeatureTest struct {
-	Name     string
-	Variants []string
-	Default  string
-}
-
-func (test FeatureTest) Test(t *testing.T, client *Client, feature *Feature) {
-	t.Logf("Testing feature: %s", test.Name)
-	assertEqual(t, feature.Name(), test.Name)
-	assertEqual(t, feature.Variants(), test.Variants)
-	assertEqual(t, feature.DefaultVariant(), test.Default)
-}
-
-func expectedFeatures() FeatureTests {
-	return FeatureTests{
-		{
+func expectedFeatures() ResourceTests {
+	return ResourceTests{
+		ParentResourceTest{
 			Name:     "feature",
 			Variants: []string{"variant", "variant2"},
 			Default:  "variant",
 		},
-		{
+		ParentResourceTest{
 			Name:     "feature2",
 			Variants: []string{"variant"},
 			Default:  "variant",
 		},
-	}
-}
-
-type FeatureVariantTests []FeatureVariantTest
-
-func (tests FeatureVariantTests) Test(t *testing.T, client *Client, features []*FeatureVariant) {
-	testMap := make(map[NameVariant]FeatureVariantTest)
-	for _, test := range tests {
-		testMap[NameVariant{test.Name, test.Variant}] = test
-	}
-	for _, feature := range features {
-		test, has := testMap[NameVariant{feature.Name(), feature.Variant()}]
-		if !has {
-			t.Fatalf("No test for FeatureVariant %s %s", feature.Name(), feature.Variant())
-		}
-		test.Test(t, client, feature)
-		delete(testMap, NameVariant{test.Name, test.Variant})
-	}
-	if len(testMap) != 0 {
-		names := make([]NameVariant, 0, len(testMap))
-		for _, test := range testMap {
-			names = append(names, NameVariant{test.Name, test.Variant})
-		}
-		t.Fatalf("FeatureVariants not found %+v", names)
 	}
 }
 
@@ -885,8 +608,13 @@ type FeatureVariantTest struct {
 	TrainingSets []NameVariant
 }
 
-func (test FeatureVariantTest) Test(t *testing.T, client *Client, feature *FeatureVariant) {
+func (test FeatureVariantTest) NameVariant() NameVariant {
+	return NameVariant{test.Name, test.Variant}
+}
+
+func (test FeatureVariantTest) Test(t *testing.T, client *Client, res interface{}) {
 	t.Logf("Testing feature: %s %s", test.Name, test.Variant)
+	feature := res.(*FeatureVariant)
 	assertEqual(t, feature.Name(), test.Name)
 	assertEqual(t, feature.Variant(), test.Variant)
 	assertEqual(t, feature.Description(), test.Description)
@@ -898,9 +626,9 @@ func (test FeatureVariantTest) Test(t *testing.T, client *Client, feature *Featu
 	assertEquivalentNameVariants(t, feature.TrainingSets(), test.TrainingSets)
 }
 
-func expectedFeatureVariants() FeatureVariantTests {
-	return FeatureVariantTests{
-		{
+func expectedFeatureVariants() ResourceTests {
+	return ResourceTests{
+		FeatureVariantTest{
 			Name:        "feature",
 			Variant:     "variant",
 			Provider:    "mockOnline",
@@ -913,7 +641,7 @@ func expectedFeatureVariants() FeatureVariantTests {
 				{"training-set", "variant"},
 			},
 		},
-		{
+		FeatureVariantTest{
 			Name:        "feature",
 			Variant:     "variant2",
 			Provider:    "mockOnline",
@@ -927,7 +655,7 @@ func expectedFeatureVariants() FeatureVariantTests {
 				{"training-set", "variant2"},
 			},
 		},
-		{
+		FeatureVariantTest{
 			Name:        "feature2",
 			Variant:     "variant",
 			Provider:    "mockOnline",
@@ -943,151 +671,19 @@ func expectedFeatureVariants() FeatureVariantTests {
 	}
 }
 
-func TestListFeatureVariants(t *testing.T) {
-	ctx := testContext{
-		Defs: filledResourceDefs(),
-	}
-	client := ctx.Create(t)
-	defer ctx.Destroy()
-	features, err := client.ListFeatures(context.Background())
-	if err != nil {
-		t.Fatalf("Failed to list features: %v", features)
-	}
-	expectedFeatures().Test(t, client, features)
+func TestFeature(t *testing.T) {
+	testListResources(t, FEATURE, expectedFeatures())
+	testGetResources(t, FEATURE, expectedFeatures())
+	testGetResources(t, FEATURE_VARIANT, expectedFeatureVariants())
 }
 
-func TestGetFeatures(t *testing.T) {
-	ctx := testContext{
-		Defs: filledResourceDefs(),
-	}
-	client := ctx.Create(t)
-	defer ctx.Destroy()
-	exp := expectedFeatures()
-	names := make([]string, len(exp))
-	for i, e := range exp {
-		names[i] = e.Name
-	}
-	features, err := client.GetFeatures(context.Background(), names)
-	if err != nil {
-		t.Fatalf("Failed to get features: %v", names)
-	}
-	exp.Test(t, client, features)
-
-	feature, err := client.GetFeature(context.Background(), names[0])
-	if err != nil {
-		t.Fatalf("Failed to get feature: %v", names[0])
-	}
-	exp[0].Test(t, client, feature)
-
-	noFeatures, err := client.GetFeatures(context.Background(), []string{})
-	if err != nil {
-		t.Fatalf("Failed to get no features")
-	}
-	if len(noFeatures) != 0 {
-		t.Fatalf("Got features when expected none: %+v", noFeatures)
-	}
-}
-
-func TestGetFeatureVariants(t *testing.T) {
-	ctx := testContext{
-		Defs: filledResourceDefs(),
-	}
-	client := ctx.Create(t)
-	defer ctx.Destroy()
-	exp := expectedFeatureVariants()
-	names := make([]NameVariant, len(exp))
-	for i, e := range exp {
-		names[i] = NameVariant{e.Name, e.Variant}
-	}
-	features, err := client.GetFeatureVariants(context.Background(), names)
-	if err != nil {
-		t.Fatalf("Failed to get features: %v", names)
-	}
-	exp.Test(t, client, features)
-
-	feature, err := client.GetFeatureVariant(context.Background(), names[0])
-	if err != nil {
-		t.Fatalf("Failed to get feature: %v", names[0])
-	}
-	exp[0].Test(t, client, feature)
-
-	noFeatureVariants, err := client.GetFeatureVariants(context.Background(), []NameVariant{})
-	if err != nil {
-		t.Fatalf("Failed to get no features")
-	}
-	if len(noFeatureVariants) != 0 {
-		t.Fatalf("Got features when expected none: %+v", noFeatureVariants)
-	}
-}
-
-type LabelTests []LabelTest
-
-func (tests LabelTests) Test(t *testing.T, client *Client, labels []*Label) {
-	testMap := make(map[string]LabelTest)
-	for _, test := range tests {
-		testMap[test.Name] = test
-	}
-	for _, label := range labels {
-		test, has := testMap[label.Name()]
-		if !has {
-			t.Fatalf("No test for Label %s", label.Name())
-		}
-		test.Test(t, client, label)
-		delete(testMap, test.Name)
-	}
-	if len(testMap) != 0 {
-		names := make([]string, 0, len(testMap))
-		for _, test := range testMap {
-			names = append(names, test.Name)
-		}
-		t.Fatalf("Labels not found %+v", names)
-	}
-}
-
-type LabelTest struct {
-	Name     string
-	Variants []string
-	Default  string
-}
-
-func (test LabelTest) Test(t *testing.T, client *Client, label *Label) {
-	t.Logf("Testing label: %s", test.Name)
-	assertEqual(t, label.Name(), test.Name)
-	assertEqual(t, label.Variants(), test.Variants)
-	assertEqual(t, label.DefaultVariant(), test.Default)
-}
-
-func expectedLabels() LabelTests {
-	return LabelTests{
-		{
+func expectedLabels() ResourceTests {
+	return ResourceTests{
+		ParentResourceTest{
 			Name:     "label",
 			Variants: []string{"variant"},
 			Default:  "variant",
 		},
-	}
-}
-
-type LabelVariantTests []LabelVariantTest
-
-func (tests LabelVariantTests) Test(t *testing.T, client *Client, labels []*LabelVariant) {
-	testMap := make(map[NameVariant]LabelVariantTest)
-	for _, test := range tests {
-		testMap[NameVariant{test.Name, test.Variant}] = test
-	}
-	for _, label := range labels {
-		test, has := testMap[NameVariant{label.Name(), label.Variant()}]
-		if !has {
-			t.Fatalf("No test for LabelVariant %s %s", label.Name(), label.Variant())
-		}
-		test.Test(t, client, label)
-		delete(testMap, NameVariant{test.Name, test.Variant})
-	}
-	if len(testMap) != 0 {
-		names := make([]NameVariant, 0, len(testMap))
-		for _, test := range testMap {
-			names = append(names, NameVariant{test.Name, test.Variant})
-		}
-		t.Fatalf("LabelVariants not found %+v", names)
 	}
 }
 
@@ -1103,8 +699,13 @@ type LabelVariantTest struct {
 	TrainingSets []NameVariant
 }
 
-func (test LabelVariantTest) Test(t *testing.T, client *Client, label *LabelVariant) {
+func (test LabelVariantTest) NameVariant() NameVariant {
+	return NameVariant{test.Name, test.Variant}
+}
+
+func (test LabelVariantTest) Test(t *testing.T, client *Client, res interface{}) {
 	t.Logf("Testing label: %s %s", test.Name, test.Variant)
+	label := res.(*LabelVariant)
 	assertEqual(t, label.Name(), test.Name)
 	assertEqual(t, label.Variant(), test.Variant)
 	assertEqual(t, label.Description(), test.Description)
@@ -1116,9 +717,9 @@ func (test LabelVariantTest) Test(t *testing.T, client *Client, label *LabelVari
 	assertEquivalentNameVariants(t, label.TrainingSets(), test.TrainingSets)
 }
 
-func expectedLabelVariants() LabelVariantTests {
-	return LabelVariantTests{
-		{
+func expectedLabelVariants() ResourceTests {
+	return ResourceTests{
+		LabelVariantTest{
 			Name:        "label",
 			Variant:     "variant",
 			Type:        "int64",
@@ -1135,151 +736,19 @@ func expectedLabelVariants() LabelVariantTests {
 	}
 }
 
-func TestListLabelVariants(t *testing.T) {
-	ctx := testContext{
-		Defs: filledResourceDefs(),
-	}
-	client := ctx.Create(t)
-	defer ctx.Destroy()
-	labels, err := client.ListLabels(context.Background())
-	if err != nil {
-		t.Fatalf("Failed to list labels: %v", labels)
-	}
-	expectedLabels().Test(t, client, labels)
+func TestLabel(t *testing.T) {
+	testListResources(t, LABEL, expectedLabels())
+	testGetResources(t, LABEL, expectedLabels())
+	testGetResources(t, LABEL_VARIANT, expectedLabelVariants())
 }
 
-func TestGetLabels(t *testing.T) {
-	ctx := testContext{
-		Defs: filledResourceDefs(),
-	}
-	client := ctx.Create(t)
-	defer ctx.Destroy()
-	exp := expectedLabels()
-	names := make([]string, len(exp))
-	for i, e := range exp {
-		names[i] = e.Name
-	}
-	labels, err := client.GetLabels(context.Background(), names)
-	if err != nil {
-		t.Fatalf("Failed to get labels: %v", names)
-	}
-	exp.Test(t, client, labels)
-
-	label, err := client.GetLabel(context.Background(), names[0])
-	if err != nil {
-		t.Fatalf("Failed to get label: %v", names[0])
-	}
-	exp[0].Test(t, client, label)
-
-	noLabels, err := client.GetLabels(context.Background(), []string{})
-	if err != nil {
-		t.Fatalf("Failed to get no labels")
-	}
-	if len(noLabels) != 0 {
-		t.Fatalf("Got labels when expected none: %+v", noLabels)
-	}
-}
-
-func TestGetLabelVariants(t *testing.T) {
-	ctx := testContext{
-		Defs: filledResourceDefs(),
-	}
-	client := ctx.Create(t)
-	defer ctx.Destroy()
-	exp := expectedLabelVariants()
-	names := make([]NameVariant, len(exp))
-	for i, e := range exp {
-		names[i] = NameVariant{e.Name, e.Variant}
-	}
-	labels, err := client.GetLabelVariants(context.Background(), names)
-	if err != nil {
-		t.Fatalf("Failed to get labels: %v", names)
-	}
-	exp.Test(t, client, labels)
-
-	label, err := client.GetLabelVariant(context.Background(), names[0])
-	if err != nil {
-		t.Fatalf("Failed to get label: %v", names[0])
-	}
-	exp[0].Test(t, client, label)
-
-	noLabelVariants, err := client.GetLabelVariants(context.Background(), []NameVariant{})
-	if err != nil {
-		t.Fatalf("Failed to get no labels")
-	}
-	if len(noLabelVariants) != 0 {
-		t.Fatalf("Got labels when expected none: %+v", noLabelVariants)
-	}
-}
-
-type TrainingSetTests []TrainingSetTest
-
-func (tests TrainingSetTests) Test(t *testing.T, client *Client, trainingSets []*TrainingSet) {
-	testMap := make(map[string]TrainingSetTest)
-	for _, test := range tests {
-		testMap[test.Name] = test
-	}
-	for _, trainingSet := range trainingSets {
-		test, has := testMap[trainingSet.Name()]
-		if !has {
-			t.Fatalf("No test for TrainingSet %s", trainingSet.Name())
-		}
-		test.Test(t, client, trainingSet)
-		delete(testMap, test.Name)
-	}
-	if len(testMap) != 0 {
-		names := make([]string, 0, len(testMap))
-		for _, test := range testMap {
-			names = append(names, test.Name)
-		}
-		t.Fatalf("TrainingSets not found %+v", names)
-	}
-}
-
-type TrainingSetTest struct {
-	Name     string
-	Variants []string
-	Default  string
-}
-
-func (test TrainingSetTest) Test(t *testing.T, client *Client, trainingSet *TrainingSet) {
-	t.Logf("Testing trainingSet: %s", test.Name)
-	assertEqual(t, trainingSet.Name(), test.Name)
-	assertEqual(t, trainingSet.Variants(), test.Variants)
-	assertEqual(t, trainingSet.DefaultVariant(), test.Default)
-}
-
-func expectedTrainingSets() TrainingSetTests {
-	return TrainingSetTests{
-		{
+func expectedTrainingSets() ResourceTests {
+	return ResourceTests{
+		ParentResourceTest{
 			Name:     "training-set",
 			Variants: []string{"variant", "variant2"},
 			Default:  "variant",
 		},
-	}
-}
-
-type TrainingSetVariantTests []TrainingSetVariantTest
-
-func (tests TrainingSetVariantTests) Test(t *testing.T, client *Client, trainingSets []*TrainingSetVariant) {
-	testMap := make(map[NameVariant]TrainingSetVariantTest)
-	for _, test := range tests {
-		testMap[NameVariant{test.Name, test.Variant}] = test
-	}
-	for _, trainingSet := range trainingSets {
-		test, has := testMap[NameVariant{trainingSet.Name(), trainingSet.Variant()}]
-		if !has {
-			t.Fatalf("No test for TrainingSetVariant %s %s", trainingSet.Name(), trainingSet.Variant())
-		}
-		test.Test(t, client, trainingSet)
-		delete(testMap, NameVariant{test.Name, test.Variant})
-	}
-	if len(testMap) != 0 {
-		names := make([]NameVariant, 0, len(testMap))
-		for _, test := range testMap {
-			names = append(names, NameVariant{test.Name, test.Variant})
-		}
-		t.Fatalf("TrainingSetVariants not found %+v", names)
 	}
 }
 
@@ -1293,8 +762,13 @@ type TrainingSetVariantTest struct {
 	Features    []NameVariant
 }
 
-func (test TrainingSetVariantTest) Test(t *testing.T, client *Client, trainingSet *TrainingSetVariant) {
+func (test TrainingSetVariantTest) NameVariant() NameVariant {
+	return NameVariant{test.Name, test.Variant}
+}
+
+func (test TrainingSetVariantTest) Test(t *testing.T, client *Client, resource interface{}) {
 	t.Logf("Testing trainingSet: %s %s", test.Name, test.Variant)
+	trainingSet := resource.(*TrainingSetVariant)
 	assertEqual(t, trainingSet.Name(), test.Name)
 	assertEqual(t, trainingSet.Variant(), test.Variant)
 	assertEqual(t, trainingSet.Description(), test.Description)
@@ -1304,9 +778,9 @@ func (test TrainingSetVariantTest) Test(t *testing.T, client *Client, trainingSe
 	assertEquivalentNameVariants(t, trainingSet.Features(), test.Features)
 }
 
-func expectedTrainingSetVariants() TrainingSetVariantTests {
-	return TrainingSetVariantTests{
-		{
+func expectedTrainingSetVariants() ResourceTests {
+	return ResourceTests{
+		TrainingSetVariantTest{
 			Name:        "training-set",
 			Variant:     "variant",
 			Provider:    "mockOffline",
@@ -1318,7 +792,7 @@ func expectedTrainingSetVariants() TrainingSetVariantTests {
 			},
 			Owner: "Other",
 		},
-		{
+		TrainingSetVariantTest{
 			Name:        "training-set",
 			Variant:     "variant2",
 			Provider:    "mockOffline",
@@ -1333,105 +807,10 @@ func expectedTrainingSetVariants() TrainingSetVariantTests {
 	}
 }
 
-func TestListTrainingSetVariants(t *testing.T) {
-	ctx := testContext{
-		Defs: filledResourceDefs(),
-	}
-	client := ctx.Create(t)
-	defer ctx.Destroy()
-	trainingSets, err := client.ListTrainingSets(context.Background())
-	if err != nil {
-		t.Fatalf("Failed to list trainingSets: %v", trainingSets)
-	}
-	expectedTrainingSets().Test(t, client, trainingSets)
-}
-
-func TestGetTrainingSets(t *testing.T) {
-	ctx := testContext{
-		Defs: filledResourceDefs(),
-	}
-	client := ctx.Create(t)
-	defer ctx.Destroy()
-	exp := expectedTrainingSets()
-	names := make([]string, len(exp))
-	for i, e := range exp {
-		names[i] = e.Name
-	}
-	trainingSets, err := client.GetTrainingSets(context.Background(), names)
-	if err != nil {
-		t.Fatalf("Failed to get trainingSets: %v", names)
-	}
-	exp.Test(t, client, trainingSets)
-
-	trainingSet, err := client.GetTrainingSet(context.Background(), names[0])
-	if err != nil {
-		t.Fatalf("Failed to get trainingSet: %v", names[0])
-	}
-	exp[0].Test(t, client, trainingSet)
-
-	noTrainingSets, err := client.GetTrainingSets(context.Background(), []string{})
-	if err != nil {
-		t.Fatalf("Failed to get no trainingSets")
-	}
-	if len(noTrainingSets) != 0 {
-		t.Fatalf("Got trainingSets when expected none: %+v", noTrainingSets)
-	}
-}
-
-func TestGetTrainingSetVariants(t *testing.T) {
-	ctx := testContext{
-		Defs: filledResourceDefs(),
-	}
-	client := ctx.Create(t)
-	defer ctx.Destroy()
-	exp := expectedTrainingSetVariants()
-	names := make([]NameVariant, len(exp))
-	for i, e := range exp {
-		names[i] = NameVariant{e.Name, e.Variant}
-	}
-	trainingSets, err := client.GetTrainingSetVariants(context.Background(), names)
-	if err != nil {
-		t.Fatalf("Failed to get trainingSets: %v", names)
-	}
-	exp.Test(t, client, trainingSets)
-
-	trainingSet, err := client.GetTrainingSetVariant(context.Background(), names[0])
-	if err != nil {
-		t.Fatalf("Failed to get trainingSet: %v", names[0])
-	}
-	exp[0].Test(t, client, trainingSet)
-
-	noTrainingSetVariants, err := client.GetTrainingSetVariants(context.Background(), []NameVariant{})
-	if err != nil {
-		t.Fatalf("Failed to get no trainingSets")
-	}
-	if len(noTrainingSetVariants) != 0 {
-		t.Fatalf("Got trainingSets when expected none: %+v", noTrainingSetVariants)
-	}
-}
-
-type ModelTests []ModelTest
-
-func (tests ModelTests) Test(t *testing.T, client *Client, models []*Model) {
-	testMap := make(map[string]ModelTest)
-	for _, test := range tests {
-		testMap[test.Name] = test
-	}
-	for _, model := range models {
-		test, has := testMap[model.Name()]
-		if !has {
-			t.Fatalf("No test for Model %s", model.Name())
-		}
-		test.Test(t, client, model)
-		delete(testMap, test.Name)
-	}
-	if len(testMap) != 0 {
-		names := make([]string, 0, len(testMap))
-		for _, test := range testMap {
-			names = append(names, test.Name)
-		}
-		t.Fatalf("Models not found %+v", names)
-	}
+func TestTrainingSet(t *testing.T) {
+	testListResources(t, TRAINING_SET, expectedTrainingSets())
+	testGetResources(t, TRAINING_SET, expectedTrainingSets())
+	testGetResources(t, TRAINING_SET_VARIANT, expectedTrainingSetVariants())
 }
 
 type ModelTest struct {
@@ -1443,8 +822,13 @@ type ModelTest struct {
 	Sources      []NameVariant
 }
 
-func (test ModelTest) Test(t *testing.T, client *Client, model *Model) {
+func (test ModelTest) NameVariant() NameVariant {
+	return NameVariant{Name: test.Name}
+}
+
+func (test ModelTest) Test(t *testing.T, client *Client, resource interface{}) {
 	t.Logf("Testing model: %s", test.Name)
+	model := resource.(*Model)
 	assertEqual(t, model.Name(), test.Name)
 	assertEqual(t, model.Description(), test.Description)
 	assertEquivalentNameVariants(t, model.Features(), test.Features)
@@ -1452,9 +836,9 @@ func (test ModelTest) Test(t *testing.T, client *Client, model *Model) {
 	assertEquivalentNameVariants(t, model.TrainingSets(), test.TrainingSets)
 }
 
-func expectedModels() ModelTests {
-	return ModelTests{
-		{
+func expectedModels() ResourceTests {
+	return ResourceTests{
+		ModelTest{
 			Name:         "fraud",
 			Description:  "fraud model",
 			Labels:       []NameVariant{},
@@ -1464,47 +848,126 @@ func expectedModels() ModelTests {
 	}
 }
 
-func TestListModels(t *testing.T) {
-	ctx := testContext{
-		Defs: filledResourceDefs(),
-	}
-	client := ctx.Create(t)
-	defer ctx.Destroy()
-	models, err := client.ListModels(context.Background())
-	if err != nil {
-		t.Fatalf("Failed to list models: %v", models)
-	}
-	expectedModels().Test(t, client, models)
+func TestModel(t *testing.T) {
+	testListResources(t, MODEL, expectedModels())
+	testGetResources(t, MODEL, expectedModels())
 }
 
-func TestGetModels(t *testing.T) {
+type ParentResourceTest struct {
+	Name     string
+	Variants []string
+	Default  string
+}
+
+func (test ParentResourceTest) NameVariant() NameVariant {
+	return NameVariant{Name: test.Name}
+}
+
+func (test ParentResourceTest) Test(t *testing.T, client *Client, resource interface{}) {
+	t.Logf("Testing ParentResource: %s", test.Name)
+	type ParentResource interface {
+		Name() string
+		Variants() []string
+		DefaultVariant() string
+	}
+	parentRes := resource.(ParentResource)
+	assertEqual(t, parentRes.Name(), test.Name)
+	assertEqual(t, parentRes.Variants(), test.Variants)
+	assertEqual(t, parentRes.DefaultVariant(), test.Default)
+}
+
+type ResourceTest interface {
+	NameVariant() NameVariant
+	Test(t *testing.T, client *Client, resources interface{})
+}
+
+type ResourceTests []ResourceTest
+
+func (tests ResourceTests) NameVariants() NameVariants {
+	nameVars := make(NameVariants, len(tests))
+	for i, test := range tests {
+		nameVars[i] = test.NameVariant()
+	}
+	return nameVars
+}
+
+func (tests ResourceTests) Test(t *testing.T, client *Client, resources interface{}) {
+	testMap := make(map[NameVariant]ResourceTest)
+	for _, test := range tests {
+		testMap[test.NameVariant()] = test
+	}
+	type NameAndVariant interface {
+		Name() string
+		Variant() string
+	}
+	type NameOnly interface {
+		Name() string
+	}
+	reflected := reflect.ValueOf(resources)
+	for i := 0; i < reflected.Len(); i++ {
+		var key NameVariant
+		res := reflected.Index(i).Interface()
+		switch casted := res.(type) {
+		case NameAndVariant:
+			key = NameVariant{casted.Name(), casted.Variant()}
+		case NameOnly:
+			key = NameVariant{Name: casted.Name()}
+		default:
+			panic("Resource doesn't implement Name()")
+		}
+		test, has := testMap[key]
+		if !has {
+			t.Fatalf("No test for Resource %v", key)
+		}
+		test.Test(t, client, res)
+		delete(testMap, key)
+	}
+	if len(testMap) != 0 {
+		names := make([]NameVariant, 0, len(testMap))
+		for _, test := range testMap {
+			names = append(names, test.NameVariant())
+		}
+		t.Fatalf("Resources not found %+v", names)
+	}
+}
+
+func testGetResources(t *testing.T, typ ResourceType, tests ResourceTests) {
 	ctx := testContext{
 		Defs: filledResourceDefs(),
 	}
 	client := ctx.Create(t)
 	defer ctx.Destroy()
-	exp := expectedModels()
-	names := make([]string, len(exp))
-	for i, e := range exp {
-		names[i] = e.Name
-	}
-	models, err := client.GetModels(context.Background(), names)
+	names := tests.NameVariants()
+	resources, err := getAll(client, typ, names)
 	if err != nil {
-		t.Fatalf("Failed to get models: %v", names)
+		t.Fatalf("Failed to get resources: %v", names)
 	}
-	exp.Test(t, client, models)
+	tests.Test(t, client, resources)
 
-	model, err := client.GetModel(context.Background(), names[0])
+	resource, err := get(client, typ, names[0])
 	if err != nil {
-		t.Fatalf("Failed to get model: %v", names[0])
+		t.Fatalf("Failed to get resource: %v", names[0])
 	}
-	exp[0].Test(t, client, model)
+	tests[0].Test(t, client, resource)
 
-	noModels, err := client.GetModels(context.Background(), []string{})
+	noResources, err := getAll(client, typ, NameVariants{})
 	if err != nil {
-		t.Fatalf("Failed to get no models")
+		t.Fatalf("Failed to get no resources")
 	}
-	if len(noModels) != 0 {
-		t.Fatalf("Got models when expected none: %+v", noModels)
+	if reflect.ValueOf(noResources).Len() != 0 {
+		t.Fatalf("Got resources when expected none: %+v", noResources)
 	}
+}
+
+func testListResources(t *testing.T, typ ResourceType, tests ResourceTests) {
+	ctx := testContext{
+		Defs: filledResourceDefs(),
+	}
+	client := ctx.Create(t)
+	defer ctx.Destroy()
+	resources, err := list(client, typ)
+	if err != nil {
+		t.Fatalf("Failed to list resources: %v", resources)
+	}
+	tests.Test(t, client, resources)
 }

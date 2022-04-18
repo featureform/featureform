@@ -95,7 +95,7 @@ func Test_etcdResourceLookup_Set(t *testing.T) {
 			}
 
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
-			resp, err := newclient.Get(ctx, createKey(RESOURCE, tt.args.id.Name))
+			resp, err := newclient.Get(ctx, createKey(tt.args.id))
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -172,7 +172,7 @@ func Test_etcdResourceLookup_Lookup(t *testing.T) {
 			log.Fatal(err)
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
-		_, err = newclient.Put(ctx, createKey(RESOURCE, args1.Name), string(strmsg))
+		_, err = newclient.Put(ctx, createKey(args1), string(strmsg))
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -228,8 +228,8 @@ func Test_etcdResourceLookup_Has(t *testing.T) {
 	}
 	args2 := args{
 		ResourceID{
-			Name: "resource2",
-			Type: FEATURE,
+			Name: "resource1",
+			Type: FEATURE_VARIANT,
 		},
 	}
 
@@ -240,7 +240,7 @@ func Test_etcdResourceLookup_Has(t *testing.T) {
 		want    bool
 		wantErr bool
 	}{
-		{"Failed Has", fields{EtcdConfig{[]EtcdNode{{Host: "localhost", Port: "2379"}}}}, args1, false, true},
+		{"Does not have", fields{EtcdConfig{[]EtcdNode{{Host: "localhost", Port: "2379"}}}}, args1, false, false},
 		{"Successful Has", fields{EtcdConfig{[]EtcdNode{{Host: "localhost", Port: "2379"}}}}, args2, true, false},
 	}
 	for _, tt := range tests {
@@ -267,7 +267,7 @@ func Test_etcdResourceLookup_Has(t *testing.T) {
 				log.Fatal(err)
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
-			_, err = newclient.Put(ctx, createKey(RESOURCE, tt.args.id.Name), string(strmsg))
+			_, err = newclient.Put(ctx, createKey(tt.args.id), string(strmsg))
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -335,7 +335,7 @@ func Test_etcdResourceLookup_ListForType(t *testing.T) {
 		want    []Resource
 		wantErr bool
 	}{
-		{"Successful ListForType", fields{EtcdConfig{[]EtcdNode{{Host: "localhost", Port: "2379"}}}}, args{FEATURE}, featureResources, false},
+		{"Successful ListForType", fields{EtcdConfig{[]EtcdNode{{Host: "localhost", Port: "2379"}}}}, args{FEATURE_VARIANT}, featureResources, false},
 	}
 	newclient, err := clientv3.New(clientv3.Config{
 		Endpoints:   []string{"localhost:2379"},
@@ -359,7 +359,7 @@ func Test_etcdResourceLookup_ListForType(t *testing.T) {
 			log.Fatal(err)
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
-		_, err = newclient.Put(ctx, createKey(RESOURCE, res.ID().Name), string(strmsg))
+		_, err = newclient.Put(ctx, createKey(res.ID()), string(strmsg))
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -448,7 +448,7 @@ func Test_etcdResourceLookup_List(t *testing.T) {
 			log.Fatal(err)
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
-		_, err = newclient.Put(ctx, createKey(RESOURCE, res.ID().Name), string(strmsg))
+		_, err = newclient.Put(ctx, createKey(res.ID()), string(strmsg))
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -503,9 +503,9 @@ func Test_etcdResourceLookup_Submap(t *testing.T) {
 	}
 
 	ids := []ResourceID{
-		{Name: "feature1", Type: FEATURE},
-		{Name: "feature2", Type: FEATURE},
-		{Name: "feature3", Type: FEATURE},
+		{Name: "feature1", Type: FEATURE_VARIANT},
+		{Name: "feature2", Type: FEATURE_VARIANT},
+		{Name: "feature3", Type: FEATURE_VARIANT},
 	}
 
 	featureResources := []Resource{
@@ -556,7 +556,7 @@ func Test_etcdResourceLookup_Submap(t *testing.T) {
 			log.Fatal(err)
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
-		_, err = client.Put(ctx, createKey(RESOURCE, res.ID().Name), string(strmsg))
+		_, err = client.Put(ctx, createKey(res.ID()), string(strmsg))
 		cancel()
 		if err != nil {
 			log.Fatal(err)
@@ -588,13 +588,20 @@ func Test_etcdResourceLookup_Submap(t *testing.T) {
 				log.Fatal(err)
 			}
 
-			for i, res := range elem {
+			for _, res := range elem {
 				if err != nil {
 					t.Errorf("%s\n", err)
 					t.Errorf("Submap(): Error with lookup:  %v\n", res.Proto())
 				}
-				if !proto.Equal(res.Proto(), featureResources[i].Proto()) {
-					t.Errorf("Submap():\ngot:  %v\nwant: %v", res.Proto(), featureResources[i].Proto())
+				has := false
+				for _, expected := range featureResources {
+					if proto.Equal(res.Proto(), expected.Proto()) {
+						has = true
+						break
+					}
+				}
+				if !has {
+					t.Errorf("Submap() item not in expected list:\ngot:  %v\n ", res.Proto())
 				}
 
 			}
@@ -676,17 +683,18 @@ func TestEtcdConfig_Put(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
+		{"Test Put Success", fields{"localhost", "2379"}, args{key: "key", value: "value"}, false},
 		{"Test Put Error", fields{"localhost", ""}, args{key: "", value: ""}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config := EtcdConfig{[]EtcdNode{{Host: "localhost", Port: "2379"}}}
+			config := EtcdConfig{[]EtcdNode{{Host: tt.fields.Host, Port: tt.fields.Port}}}
 			c, err := config.initClient()
 			if err != nil {
 				t.Errorf("Put() could not initialize client: %s", err)
 			}
 			client := EtcdStorage{c}
-			if err := client.Put(tt.args.key, tt.args.value, RESOURCE); (err != nil) != tt.wantErr {
+			if err := client.Put(tt.args.key, tt.args.value); (err != nil) != tt.wantErr {
 				t.Errorf("Put() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -716,13 +724,13 @@ func TestEtcdConfig_Get(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config := EtcdConfig{[]EtcdNode{{Host: "localhost", Port: "2379"}}}
+			config := EtcdConfig{[]EtcdNode{{Host: tt.fields.Host, Port: tt.fields.Port}}}
 			c, err := config.initClient()
 			if err != nil {
 				t.Errorf("Get() could not initialize client: %s", err)
 			}
 			client := EtcdStorage{c}
-			got, err := client.Get(tt.args.key, RESOURCE)
+			got, err := client.Get(tt.args.key)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Get() error = %v, wantErr %v", err, tt.wantErr)
 				return

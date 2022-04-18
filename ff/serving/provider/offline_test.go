@@ -1,17 +1,47 @@
 package provider
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"github.com/google/uuid"
+	"github.com/joho/godotenv"
 	"math/rand"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
 
 func TestOfflineStores(t *testing.T) {
+	err := godotenv.Load(".env")
+	if err != nil {
+		fmt.Println(err)
+	}
+	var postgresConfig = PostgresConfig{
+		Host:     "localhost",
+		Port:     "5432",
+		Database: os.Getenv("POSTGRES_DB"),
+		Username: os.Getenv("POSTGRES_USER"),
+		Password: os.Getenv("POSTGRES_PASSWORD"),
+	}
+	serialPGConfig := postgresConfig.Serialize()
+	os.Setenv("TZ", "UTC")
+	snowFlakeDatabase := strings.ToUpper(uuid.NewString())
+	var snowflakeConfig = SnowflakeConfig{
+		Username:     os.Getenv("SNOWFLAKE_USERNAME"),
+		Password:     os.Getenv("SNOWFLAKE_PASSWORD"),
+		Organization: os.Getenv("SNOWFLAKE_ORG"),
+		Account:      os.Getenv("SNOWFLAKE_ACCOUNT"),
+		Database:     snowFlakeDatabase,
+	}
+	serialSFConfig := snowflakeConfig.Serialize()
+	if err := createSnowflakeDatabase(snowflakeConfig); err != nil {
+		t.Fatalf("%v", err)
+	}
+	defer destroySnowflakeDatabase(snowflakeConfig)
+
 	testFns := map[string]func(*testing.T, OfflineStore){
 		"CreateGetTable":          testCreateGetOfflineTable,
 		"TableAlreadyExists":      testOfflineTableAlreadyExists,
@@ -30,14 +60,6 @@ func TestOfflineStores(t *testing.T) {
 		"FeatureTableNotFound":    testFeatureTableNotFound,
 		"TrainingDefShorthand":    testTrainingSetDefShorthand,
 	}
-	var postgresConfig = PostgresConfig{
-		Host:     "localhost",
-		Port:     "5432",
-		Database: os.Getenv("POSTGRES_DB"),
-		Username: os.Getenv("POSTGRES_USER"),
-		Password: os.Getenv("POSTGRES_PASSWORD"),
-	}
-	serialPGConfig := postgresConfig.Serialize()
 	testList := []struct {
 		t               Type
 		c               SerializedConfig
@@ -45,6 +67,7 @@ func TestOfflineStores(t *testing.T) {
 	}{
 		{MemoryOffline, []byte{}, false},
 		{PostgresOffline, serialPGConfig, true},
+		{SnowflakeOffline, serialSFConfig, true},
 	}
 	for _, testItem := range testList {
 		if testing.Short() && testItem.integrationTest {
@@ -66,6 +89,32 @@ func TestOfflineStores(t *testing.T) {
 			})
 		}
 	}
+}
+
+func createSnowflakeDatabase(c SnowflakeConfig) error {
+	url := fmt.Sprintf("%s:%s@%s-%s", c.Username, c.Password, c.Organization, c.Account)
+	db, err := sql.Open("snowflake", url)
+	if err != nil {
+		return err
+	}
+	databaseQuery := fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s", sanitize(c.Database))
+	if _, err := db.Exec(databaseQuery); err != nil {
+		return err
+	}
+	return nil
+}
+
+func destroySnowflakeDatabase(c SnowflakeConfig) error {
+	url := fmt.Sprintf("%s:%s@%s-%s", c.Username, c.Password, c.Organization, c.Account)
+	db, err := sql.Open("snowflake", url)
+	if err != nil {
+		return err
+	}
+	databaseQuery := fmt.Sprintf("DROP DATABASE IF EXISTS %s", sanitize(c.Database))
+	if _, err := db.Exec(databaseQuery); err != nil {
+		return err
+	}
+	return nil
 }
 
 func randomID(types ...OfflineResourceType) ResourceID {
@@ -164,10 +213,12 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 			ExpectedRows: 3,
 			SegmentStart: 0,
 			SegmentEnd:   3,
+			// Have to expect time.UnixMilli(0).UTC() as it is the default value
+			// if a resource does not have a set timestamp
 			ExpectedSegment: []ResourceRecord{
-				{Entity: "a", Value: 1},
-				{Entity: "b", Value: 2},
-				{Entity: "c", Value: 3},
+				{Entity: "a", Value: 1, TS: time.UnixMilli(0).UTC()},
+				{Entity: "b", Value: 2, TS: time.UnixMilli(0).UTC()},
+				{Entity: "c", Value: 3, TS: time.UnixMilli(0).UTC()},
 			},
 		},
 		"SubSegmentNoOverlap": {
@@ -181,7 +232,7 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 			SegmentStart: 1,
 			SegmentEnd:   2,
 			ExpectedSegment: []ResourceRecord{
-				{Entity: "b", Value: 2},
+				{Entity: "b", Value: 2, TS: time.UnixMilli(0).UTC()},
 			},
 		},
 		"SimpleOverwrite": {
@@ -196,9 +247,9 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 			SegmentStart: 0,
 			SegmentEnd:   3,
 			ExpectedSegment: []ResourceRecord{
-				{Entity: "a", Value: 4},
-				{Entity: "b", Value: 2},
-				{Entity: "c", Value: 3},
+				{Entity: "a", Value: 4, TS: time.UnixMilli(0).UTC()},
+				{Entity: "b", Value: 2, TS: time.UnixMilli(0).UTC()},
+				{Entity: "c", Value: 3, TS: time.UnixMilli(0).UTC()},
 			},
 		},
 		// Added .UTC() b/c DeepEqual checks the timezone field of time.Time which can vary, resulting in false failures
@@ -723,5 +774,30 @@ func testTrainingSetDefShorthand(t *testing.T, store OfflineStore) {
 	}
 	if err := store.CreateTrainingSet(def); err != nil {
 		t.Fatalf("Failed to create training set: %s", err)
+	}
+}
+func Test_snowflakeOfflineTable_checkTimestamp(t *testing.T) {
+	type fields struct {
+		db   *sql.DB
+		name string
+	}
+	type args struct {
+		rec ResourceRecord
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   ResourceRecord
+	}{
+		{"Nil TimeStamp", fields{nil, ""}, args{rec: ResourceRecord{}}, ResourceRecord{TS: time.UnixMilli(0).UTC()}},
+		{"Non Nil TimeStamp", fields{nil, ""}, args{rec: ResourceRecord{TS: time.UnixMilli(10)}}, ResourceRecord{TS: time.UnixMilli(10)}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := checkTimestamp(tt.args.rec); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("checkTimestamp() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }

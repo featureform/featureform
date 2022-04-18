@@ -179,7 +179,6 @@ func (store *postgresOfflineStore) getPostgresResourceTable(id ResourceID) (*pos
 	}
 	return &postgresOfflineTable{
 		conn: store.conn,
-		ctx:  store.ctx,
 		name: store.getResourceTableName(id),
 	}, nil
 }
@@ -232,7 +231,6 @@ func (store *postgresOfflineStore) GetMaterialization(id MaterializationID) (Mat
 	return &postgresMaterialization{
 		id:        id,
 		conn:      store.conn,
-		ctx:       store.ctx,
 		tableName: tableName,
 	}, nil
 }
@@ -395,9 +393,9 @@ func (it *postgresTrainingRowsIterator) Next() bool {
 	featureVals := make([]interface{}, numFeatures)
 	for i, value := range values {
 		if i < numFeatures {
-			featureVals[i] = castTableItemType(value, it.columnTypes[i])
+			featureVals[i] = castPostgresTableItemType(value, it.columnTypes[i])
 		} else {
-			label = castTableItemType(value, it.columnTypes[i])
+			label = castPostgresTableItemType(value, it.columnTypes[i])
 		}
 	}
 	it.currentFeatures = featureVals
@@ -419,7 +417,6 @@ func (it *postgresTrainingRowsIterator) Label() interface{} {
 
 type postgresOfflineTable struct {
 	conn *pgxpool.Pool
-	ctx  context.Context
 	name string
 }
 
@@ -433,9 +430,9 @@ func determineColumnType(valueType ValueType) (string, error) {
 	case String:
 		return "VARCHAR", nil
 	case Bool:
-		return "BOOL", nil
+		return "BOOLEAN", nil
 	case NilType:
-		return "JSON", nil
+		return "VARCHAR", nil
 	default:
 		return "", fmt.Errorf("cannot find column type for value type: %s", valueType)
 	}
@@ -458,11 +455,11 @@ func newPostgresOfflineTable(conn *pgxpool.Pool, name string, valueType ValueTyp
 }
 
 func (table *postgresOfflineTable) Write(rec ResourceRecord) error {
+	rec = checkTimestamp(rec)
 	tb := sanitize(table.name)
 	if err := rec.check(); err != nil {
 		return err
 	}
-
 	upsertQuery := fmt.Sprintf(""+
 		"INSERT INTO %s (entity, value, ts) "+
 		"VALUES ($1, $2, $3) "+
@@ -476,6 +473,7 @@ func (table *postgresOfflineTable) Write(rec ResourceRecord) error {
 }
 
 func (table *postgresOfflineTable) resourceExists(rec ResourceRecord) (bool, error) {
+	rec = checkTimestamp(rec)
 	query := fmt.Sprintf("SELECT entity, value, ts FROM %s WHERE entity=$1 AND ts=$2 ", sanitize(table.name))
 	rows, err := table.conn.Query(context.Background(), query, rec.Entity, rec.TS)
 	defer rows.Close()
@@ -495,7 +493,6 @@ func (table *postgresOfflineTable) resourceExists(rec ResourceRecord) (bool, err
 type postgresMaterialization struct {
 	id        MaterializationID
 	conn      *pgxpool.Pool
-	ctx       context.Context
 	tableName string
 }
 
@@ -573,7 +570,7 @@ func (iter *postgresFeatureIterator) Next() bool {
 		iter.err = err
 		return false
 	}
-	rec.Value = castTableItemType(value, iter.columnType)
+	rec.Value = castPostgresTableItemType(value, iter.columnType)
 	rec.TS = ts.UTC()
 	iter.currentValue = rec
 	return true
@@ -588,7 +585,7 @@ func (iter *postgresFeatureIterator) Err() error {
 }
 
 // castTableItemType returns the value casted as its original type
-func castTableItemType(v interface{}, t postgresColumnType) interface{} {
+func castPostgresTableItemType(v interface{}, t postgresColumnType) interface{} {
 	switch t {
 	case PGInt:
 		return int(v.(int32))

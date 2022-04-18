@@ -16,7 +16,7 @@ type IndexRunner interface {
 	SetIndex(index int) error
 }
 
-type MaterializedChunkRunner struct {
+type MaterializedChunkRunner struct { //make a more generic version where materialized is any sort of source, table is any dest
 	Materialized provider.Materialization
 	Table        provider.OnlineStoreTable
 	ChunkSize    int64

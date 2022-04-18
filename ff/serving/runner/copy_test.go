@@ -1,7 +1,6 @@
 package runner
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	provider "github.com/featureform/serving/provider"
@@ -245,28 +244,28 @@ func CreateMockFeatureRows(data []interface{}) MockMaterializedFeatures {
 func TestErrorCoverage(t *testing.T) {
 	minimalMockFeatureRows := CreateMockFeatureRows([]interface{}{1})
 	errorJobs := []ErrorJobTestParams{
-		ErrorJobTestParams{
+		{
 			ErrorName:    "iterator run error",
 			Materialized: &MaterializedFeaturesIterateRunBroken{provider.MaterializationID(uuid.NewString())},
 			Table:        &BrokenOnlineTable{},
 			ChunkSize:    1,
 			ChunkIdx:     0,
 		},
-		ErrorJobTestParams{
+		{
 			ErrorName:    "table set error",
 			Materialized: &minimalMockFeatureRows,
 			Table:        &BrokenOnlineTable{},
 			ChunkSize:    1,
 			ChunkIdx:     0,
 		},
-		ErrorJobTestParams{
+		{
 			ErrorName:    "create iterator error",
 			Materialized: &MaterializedFeaturesIterateBroken{provider.MaterializationID(uuid.NewString())},
 			Table:        &BrokenOnlineTable{},
 			ChunkSize:    1,
 			ChunkIdx:     0,
 		},
-		ErrorJobTestParams{
+		{
 			ErrorName:    "get num rows error",
 			Materialized: &MaterializedFeaturesNumRowsBroken{provider.MaterializationID(uuid.NewString())},
 			Table:        &BrokenOnlineTable{},
@@ -284,13 +283,8 @@ func TestErrorCoverage(t *testing.T) {
 }
 
 type ErrorChunkRunnerFactoryConfigs struct {
-	ErrorType   string
+	Name        string
 	ErrorConfig Config
-}
-
-func copySerialize(config MaterializedChunkRunnerConfig) Config {
-	serializedConfig, _ := json.Marshal(config)
-	return serializedConfig
 }
 
 func testErrorConfigsFactory(config Config) error {
@@ -360,46 +354,53 @@ func TestMaterializeRunnerFactoryErrorCoverage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not register broken offline table factory: %v", err)
 	}
+	serializeMaterializeConfig := func(m MaterializedChunkRunnerConfig) Config {
+		config, err := m.Serialize()
+		if err != nil {
+			t.Fatalf("error serializing materialized chunk runner config: %v", err)
+		}
+		return config
+	}
 	errorConfigs := []ErrorChunkRunnerFactoryConfigs{
-		ErrorChunkRunnerFactoryConfigs{
-			ErrorType:   "cannot deserialize config",
+		{
+			Name:        "cannot deserialize config",
 			ErrorConfig: []byte{},
 		},
-		ErrorChunkRunnerFactoryConfigs{
-			ErrorType: "cannot configure online provider",
-			ErrorConfig: copySerialize(MaterializedChunkRunnerConfig{
+		{
+			Name: "cannot configure online provider",
+			ErrorConfig: serializeMaterializeConfig(MaterializedChunkRunnerConfig{
 				OnlineType: "Invalid_Online_type",
 			}),
 		},
-		ErrorChunkRunnerFactoryConfigs{
-			ErrorType: "cannot configure offline provider",
-			ErrorConfig: copySerialize(MaterializedChunkRunnerConfig{
+		{
+			Name: "cannot configure offline provider",
+			ErrorConfig: serializeMaterializeConfig(MaterializedChunkRunnerConfig{
 				OnlineType:   provider.LocalOnline,
 				OnlineConfig: []byte{},
 				OfflineType:  "Invalid_Offline_type",
 			}),
 		},
-		ErrorChunkRunnerFactoryConfigs{
-			ErrorType: "cannot convert online provider to online store",
-			ErrorConfig: copySerialize(MaterializedChunkRunnerConfig{
+		{
+			Name: "cannot convert online provider to online store",
+			ErrorConfig: serializeMaterializeConfig(MaterializedChunkRunnerConfig{
 				OnlineType:    provider.MemoryOffline,
 				OnlineConfig:  []byte{},
 				OfflineType:   provider.MemoryOffline,
 				OfflineConfig: []byte{},
 			}),
 		},
-		ErrorChunkRunnerFactoryConfigs{
-			ErrorType: "cannot convert offline provider to offline store",
-			ErrorConfig: copySerialize(MaterializedChunkRunnerConfig{
+		{
+			Name: "cannot convert offline provider to offline store",
+			ErrorConfig: serializeMaterializeConfig(MaterializedChunkRunnerConfig{
 				OnlineType:    provider.LocalOnline,
 				OnlineConfig:  []byte{},
 				OfflineType:   provider.LocalOnline,
 				OfflineConfig: []byte{},
 			}),
 		},
-		ErrorChunkRunnerFactoryConfigs{
-			ErrorType: "cannot get materialization",
-			ErrorConfig: copySerialize(MaterializedChunkRunnerConfig{
+		{
+			Name: "cannot get materialization",
+			ErrorConfig: serializeMaterializeConfig(MaterializedChunkRunnerConfig{
 				OnlineType:     provider.LocalOnline,
 				OnlineConfig:   []byte{},
 				OfflineType:    provider.MemoryOffline,
@@ -407,9 +408,9 @@ func TestMaterializeRunnerFactoryErrorCoverage(t *testing.T) {
 				MaterializedID: "",
 			}),
 		},
-		ErrorChunkRunnerFactoryConfigs{
-			ErrorType: "cannot get num rows",
-			ErrorConfig: copySerialize(MaterializedChunkRunnerConfig{
+		{
+			Name: "cannot get num rows",
+			ErrorConfig: serializeMaterializeConfig(MaterializedChunkRunnerConfig{
 				OnlineType:     "MOCK_ONLINE",
 				OnlineConfig:   []byte{},
 				OfflineType:    "MOCK_OFFLINE_BROKEN_NUMROWS",
@@ -417,9 +418,9 @@ func TestMaterializeRunnerFactoryErrorCoverage(t *testing.T) {
 				MaterializedID: "",
 			}),
 		},
-		ErrorChunkRunnerFactoryConfigs{
-			ErrorType: "cannot get table",
-			ErrorConfig: copySerialize(MaterializedChunkRunnerConfig{
+		{
+			Name: "cannot get table",
+			ErrorConfig: serializeMaterializeConfig(MaterializedChunkRunnerConfig{
 				OnlineType:     "MOCK_ONLINE_BROKEN_GET_TABLE",
 				OnlineConfig:   []byte{},
 				OfflineType:    "MOCK_OFFLINE",
@@ -427,9 +428,9 @@ func TestMaterializeRunnerFactoryErrorCoverage(t *testing.T) {
 				MaterializedID: "",
 			}),
 		},
-		ErrorChunkRunnerFactoryConfigs{
-			ErrorType: "chunk runner starts after end of rows",
-			ErrorConfig: copySerialize(MaterializedChunkRunnerConfig{
+		{
+			Name: "chunk runner starts after end of rows",
+			ErrorConfig: serializeMaterializeConfig(MaterializedChunkRunnerConfig{
 				OnlineType:     "MOCK_ONLINE",
 				OnlineConfig:   []byte{},
 				OfflineType:    "MOCK_OFFLINE",
@@ -446,7 +447,7 @@ func TestMaterializeRunnerFactoryErrorCoverage(t *testing.T) {
 	}
 	for _, config := range errorConfigs {
 		if err := testErrorConfigsFactory(config.ErrorConfig); err == nil {
-			t.Fatalf("Test Job Failed to catch error: %s", config.ErrorType)
+			t.Fatalf("Test Job Failed to catch error: %s", config.Name)
 		}
 	}
 	delete(factoryMap, "COPY")
@@ -475,79 +476,79 @@ func TestJobs(t *testing.T) {
 		Rows: []interface{}{[]int{1, 2, 3}, []string{"two", "three", "four"}, []float64{3.0, 4.0, 5.0}},
 	}
 	testJobs := []JobTestParams{
-		JobTestParams{
+		{
 			TestName:     "Basic copy test",
 			Materialized: CreateMockFeatureRows(basicNumList.Rows),
 			ChunkSize:    5,
 			ChunkIdx:     0,
 		},
-		JobTestParams{
+		{
 			TestName:     "Partial copy test",
 			Materialized: CreateMockFeatureRows(basicNumList.Rows),
 			ChunkSize:    2,
 			ChunkIdx:     0,
 		},
-		JobTestParams{
+		{
 			TestName:     "Chunk size overflow test",
 			Materialized: CreateMockFeatureRows(basicNumList.Rows),
 			ChunkSize:    6,
 			ChunkIdx:     0,
 		},
-		JobTestParams{
+		{
 			TestName:     "Single copy test",
 			Materialized: CreateMockFeatureRows(basicNumList.Rows),
 			ChunkSize:    1,
 			ChunkIdx:     0,
 		},
-		JobTestParams{
+		{
 			TestName:     "Final index copy test",
 			Materialized: CreateMockFeatureRows(basicNumList.Rows),
 			ChunkSize:    1,
 			ChunkIdx:     4,
 		},
-		JobTestParams{
+		{
 			TestName:     "Last overlap chunk test",
 			Materialized: CreateMockFeatureRows(basicNumList.Rows),
 			ChunkSize:    2,
 			ChunkIdx:     2,
 		},
-		JobTestParams{
+		{
 			TestName:     "Zero chunk size copy test",
 			Materialized: CreateMockFeatureRows(basicNumList.Rows),
 			ChunkSize:    0,
 			ChunkIdx:     0,
 		},
-		JobTestParams{
+		{
 			TestName:     "String list copy test",
 			Materialized: CreateMockFeatureRows(stringNumList.Rows),
 			ChunkSize:    5,
 			ChunkIdx:     0,
 		},
-		JobTestParams{
+		{
 			TestName:     "Different types copy test",
 			Materialized: CreateMockFeatureRows(multipleTypesList.Rows),
 			ChunkSize:    5,
 			ChunkIdx:     0,
 		},
-		JobTestParams{
+		{
 			TestName:     "List features test",
 			Materialized: CreateMockFeatureRows(numListofLists.Rows),
 			ChunkSize:    5,
 			ChunkIdx:     0,
 		},
-		JobTestParams{
+		{
 			TestName:     "List features different types",
 			Materialized: CreateMockFeatureRows(differentTypeLists.Rows),
 			ChunkSize:    5,
 			ChunkIdx:     0,
 		},
-		JobTestParams{
+		{
 			TestName:     "No rows test",
 			Materialized: CreateMockFeatureRows(emptyList.Rows),
 			ChunkSize:    1,
 			ChunkIdx:     0,
 		},
-		JobTestParams{
+		{
 			TestName:     "No rows/zero chunk size test",
 			Materialized: CreateMockFeatureRows(emptyList.Rows),
 			ChunkSize:    0,

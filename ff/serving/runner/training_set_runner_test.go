@@ -1,7 +1,6 @@
 package runner
 
 import (
-	"encoding/json"
 	"fmt"
 	provider "github.com/featureform/serving/provider"
 	"testing"
@@ -61,55 +60,64 @@ func TestFail(t *testing.T) {
 	}
 }
 
-func trainingSetSerialize(config CreateTrainingSetRunnerConfig) Config {
-	serializedConfig, _ := json.Marshal(config)
-	return serializedConfig
-}
-
 func testTrainingSetErrorConfigsFactory(config Config) error {
 	_, err := Create("CREATE_TRAINING_SET", config)
 	return err
 }
 
 type ErrorTrainingSetFactoryConfigs struct {
-	ErrorType   string
+	Name        string
 	ErrorConfig Config
 }
 
 func TestTrainingSetRunnerFactoryErrorCoverage(t *testing.T) {
+	trainingSetSerialize := func(ts TrainingSetRunnerConfig) Config {
+		config, err := ts.Serialize()
+		if err != nil {
+			t.Fatalf("error serializing training set runner config: %v", err)
+		}
+		return config
+	}
 	errorConfigs := []ErrorTrainingSetFactoryConfigs{
-		ErrorTrainingSetFactoryConfigs{
-			ErrorType:   "cannot deserialize config",
+		{
+			Name:        "cannot deserialize config",
 			ErrorConfig: []byte{},
 		},
-		ErrorTrainingSetFactoryConfigs{
-			ErrorType: "cannot configure offline provider",
-			ErrorConfig: trainingSetSerialize(CreateTrainingSetRunnerConfig{
+		{
+			Name: "cannot configure offline provider",
+			ErrorConfig: trainingSetSerialize(TrainingSetRunnerConfig{
 				OfflineType: "Invalid_Offline_type",
 			}),
 		},
-		ErrorTrainingSetFactoryConfigs{
-			ErrorType: "cannot convert offline provider to offline store",
-			ErrorConfig: trainingSetSerialize(CreateTrainingSetRunnerConfig{
+		{
+			Name: "cannot convert offline provider to offline store",
+			ErrorConfig: trainingSetSerialize(TrainingSetRunnerConfig{
 				OfflineType:   provider.LocalOnline,
 				OfflineConfig: []byte{},
 			}),
 		},
 	}
-	err := RegisterFactory("CREATE_TRAINING_SET", CreateTrainingSetRunnerFactory)
+	err := RegisterFactory("CREATE_TRAINING_SET", TrainingSetRunnerFactory)
 	if err != nil {
 		t.Fatalf("Could not register training set factory: %v", err)
 	}
 	for _, config := range errorConfigs {
 		if err := testTrainingSetErrorConfigsFactory(config.ErrorConfig); err == nil {
-			t.Fatalf("Test Job Failed to catch error: %s", config.ErrorType)
+			t.Fatalf("Test Job Failed to catch error: %s", config.Name)
 		}
 	}
 	delete(factoryMap, "CREATE_TRAINING_SET")
 }
 
-func TestCreateTrainingSetFactory(t *testing.T) {
-	serializedConfig := trainingSetSerialize(CreateTrainingSetRunnerConfig{
+func TestTrainingSetFactory(t *testing.T) {
+	trainingSetSerialize := func(ts TrainingSetRunnerConfig) Config {
+		config, err := ts.Serialize()
+		if err != nil {
+			t.Fatalf("error serializing training set runner config: %v", err)
+		}
+		return config
+	}
+	serializedConfig := trainingSetSerialize(TrainingSetRunnerConfig{
 		OfflineType:   "MOCK_OFFLINE",
 		OfflineConfig: []byte{},
 		Def: provider.TrainingSetDef{
@@ -118,7 +126,7 @@ func TestCreateTrainingSetFactory(t *testing.T) {
 			Features: []provider.ResourceID{},
 		},
 	})
-	err := RegisterFactory("CREATE_TRAINING_SET", CreateTrainingSetRunnerFactory)
+	err := RegisterFactory("CREATE_TRAINING_SET", TrainingSetRunnerFactory)
 	if err != nil {
 		t.Fatalf("Could not register training set factory: %v", err)
 	}

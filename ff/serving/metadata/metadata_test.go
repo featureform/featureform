@@ -2,14 +2,33 @@ package metadata
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
-	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
 )
+
+func TestResourceTypes(t *testing.T) {
+	typeMapping := map[ResourceType]ResourceDef{
+		USER:                 UserDef{},
+		PROVIDER:             ProviderDef{},
+		ENTITY:               EntityDef{},
+		SOURCE_VARIANT:       SourceDef{},
+		FEATURE_VARIANT:      FeatureDef{},
+		LABEL_VARIANT:        LabelDef{},
+		TRAINING_SET_VARIANT: TrainingSetDef{},
+		MODEL:                ModelDef{},
+	}
+	for typ, def := range typeMapping {
+		if def.ResourceType() != typ {
+			t.Fatalf("Expected %T ResourceType to be %s found %s", def, typ, def.ResourceType())
+		}
+	}
+}
 
 func filledResourceDefs() []ResourceDef {
 	return []ResourceDef{
@@ -226,7 +245,7 @@ type testContext struct {
 
 func (ctx *testContext) Create(t *testing.T) (*Client, error) {
 	var addr string
-	ctx.serv, addr = startServ()
+	ctx.serv, addr = startServ(t)
 	ctx.client = client(t, addr)
 	if err := ctx.client.CreateAll(context.Background(), ctx.Defs); err != nil {
 		return nil, err
@@ -239,11 +258,8 @@ func (ctx *testContext) Destroy() {
 	ctx.client.Close()
 }
 
-func startServ() (*MetadataServer, string) {
-	logger, err := zap.NewDevelopment()
-	if err != nil {
-		panic(err)
-	}
+func startServ(t *testing.T) (*MetadataServer, string) {
+	logger := zaptest.NewLogger(t)
 	config := &Config{
 		Logger:          logger.Sugar(),
 		StorageProvider: LocalStorageProvider{},
@@ -265,6 +281,29 @@ func startServ() (*MetadataServer, string) {
 	return serv, lis.Addr().String()
 }
 
+func startServNoPanic(t *testing.T) (*MetadataServer, string) {
+	logger := zaptest.NewLogger(t)
+	config := &Config{
+		Logger:          logger.Sugar(),
+		StorageProvider: LocalStorageProvider{},
+	}
+	serv, err := NewMetadataServer(config)
+	if err != nil {
+		panic(err)
+	}
+	// listen on a random port
+	lis, err := net.Listen("tcp", ":0")
+	if err != nil {
+		panic(err)
+	}
+	go func() {
+		if err := serv.ServeOnListener(lis); err != nil {
+			t.Logf("Server error: %s", err)
+		}
+	}()
+	return serv, lis.Addr().String()
+}
+
 func client(t *testing.T, addr string) *Client {
 	logger := zaptest.NewLogger(t).Sugar()
 	client, err := NewClient(addr, logger)
@@ -272,6 +311,80 @@ func client(t *testing.T, addr string) *Client {
 		t.Fatalf("Failed to create client: %s", err)
 	}
 	return client
+}
+
+func TestClosedServer(t *testing.T) {
+	serv, addr := startServNoPanic(t)
+	client := client(t, addr)
+	for {
+		if serv.Stop() == nil {
+			break
+		}
+	}
+	listTypes := []ResourceType{
+		FEATURE,
+		LABEL,
+		SOURCE,
+		TRAINING_SET,
+		USER,
+		ENTITY,
+		MODEL,
+		PROVIDER,
+	}
+	for _, typ := range listTypes {
+		if _, err := list(client, typ); err == nil {
+			t.Fatalf("Succeded in listing from closed server")
+		}
+	}
+	types := []ResourceType{
+		FEATURE,
+		FEATURE_VARIANT,
+		LABEL,
+		LABEL_VARIANT,
+		SOURCE,
+		SOURCE_VARIANT,
+		TRAINING_SET,
+		TRAINING_SET_VARIANT,
+		USER,
+		ENTITY,
+		MODEL,
+		PROVIDER,
+	}
+	for _, typ := range types {
+		if _, err := getAll(client, typ, []NameVariant{}); err == nil {
+			t.Fatalf("Succeded in getting all from closed server")
+		}
+		if _, err := get(client, typ, NameVariant{}); err == nil {
+			t.Fatalf("Succeded in getting from closed server")
+		}
+	}
+}
+
+func TestServeGracefulStop(t *testing.T) {
+	logger := zaptest.NewLogger(t)
+	config := &Config{
+		Logger:          logger.Sugar(),
+		StorageProvider: LocalStorageProvider{},
+		Address:         ":0",
+	}
+	serv, err := NewMetadataServer(config)
+	if err != nil {
+		t.Fatalf("Failed to create metadat server: %s", err)
+	}
+	errChan := make(chan error)
+	go func() {
+		errChan <- serv.Serve()
+	}()
+	for {
+		if err := serv.GracefulStop(); err == nil {
+			break
+		}
+	}
+	select {
+	case <-errChan:
+	case <-time.After(5 * time.Second):
+		t.Fatalf("GracefulStop did not work")
+	}
 }
 
 func TestCreate(t *testing.T) {
@@ -299,6 +412,43 @@ func TestUnknownResource(t *testing.T) {
 	}
 	if _, err := ctx.Create(t); err == nil {
 		t.Fatalf("Created unknown resource")
+	}
+	defer ctx.Destroy()
+}
+func TestResourceExists(t *testing.T) {
+	ctx := testContext{
+		Defs: []ResourceDef{
+			UserDef{
+				Name: "Featureform",
+			},
+			ProviderDef{
+				Name:             "mockOffline",
+				Description:      "A mock offline provider",
+				Type:             "SNOWFLAKE-OFFLINE",
+				Software:         "snowflake",
+				Team:             "recommendations",
+				SerializedConfig: []byte("OFFLINE CONFIG"),
+			},
+			SourceDef{
+				Name:        "mockSource",
+				Variant:     "var",
+				Description: "A CSV source",
+				Type:        "csv",
+				Owner:       "Featureform",
+				Provider:    "mockOffline",
+			},
+			SourceDef{
+				Name:        "mockSource",
+				Variant:     "var",
+				Description: "Different",
+				Type:        "notcsv",
+				Owner:       "Featureform",
+				Provider:    "mockOffline",
+			},
+		},
+	}
+	if _, err := ctx.Create(t); err == nil {
+		t.Fatalf("Created same resource twice")
 	}
 	defer ctx.Destroy()
 }
@@ -338,13 +488,19 @@ func (test UserTest) NameVariant() NameVariant {
 	return NameVariant{Name: test.Name}
 }
 
-func (test UserTest) Test(t *testing.T, client *Client, res interface{}) {
+func (test UserTest) Test(t *testing.T, client *Client, res interface{}, shouldFetch bool) {
 	user := res.(*User)
 	assertEqual(t, user.Name(), test.Name)
 	assertEquivalentNameVariants(t, user.Features(), test.Features)
 	assertEquivalentNameVariants(t, user.Labels(), test.Labels)
 	assertEquivalentNameVariants(t, user.TrainingSets(), test.TrainingSets)
 	assertEquivalentNameVariants(t, user.Sources(), test.Sources)
+	if shouldFetch {
+		testFetchTrainingSets(t, client, user)
+		testFetchLabels(t, client, user)
+		testFetchFeatures(t, client, user)
+		testFetchSources(t, client, user)
+	}
 }
 
 func expectedUsers() ResourceTests {
@@ -401,7 +557,7 @@ func (test ProviderTest) NameVariant() NameVariant {
 	return NameVariant{Name: test.Name}
 }
 
-func (test ProviderTest) Test(t *testing.T, client *Client, res interface{}) {
+func (test ProviderTest) Test(t *testing.T, client *Client, res interface{}, shouldFetch bool) {
 	provider := res.(*Provider)
 	assertEqual(t, provider.Name(), test.Name)
 	assertEqual(t, provider.Team(), test.Team)
@@ -413,6 +569,12 @@ func (test ProviderTest) Test(t *testing.T, client *Client, res interface{}) {
 	assertEquivalentNameVariants(t, provider.Labels(), test.Labels)
 	assertEquivalentNameVariants(t, provider.TrainingSets(), test.TrainingSets)
 	assertEquivalentNameVariants(t, provider.Sources(), test.Sources)
+	if shouldFetch {
+		testFetchFeatures(t, client, provider)
+		testFetchLabels(t, client, provider)
+		testFetchTrainingSets(t, client, provider)
+		testFetchSources(t, client, provider)
+	}
 }
 
 func expectedProviders() ResourceTests {
@@ -474,7 +636,7 @@ func (test EntityTest) NameVariant() NameVariant {
 	return NameVariant{Name: test.Name}
 }
 
-func (test EntityTest) Test(t *testing.T, client *Client, res interface{}) {
+func (test EntityTest) Test(t *testing.T, client *Client, res interface{}, shouldFetch bool) {
 	t.Logf("Testing entity: %s", test.Name)
 	entity := res.(*Entity)
 	assertEqual(t, entity.Name(), test.Name)
@@ -482,6 +644,11 @@ func (test EntityTest) Test(t *testing.T, client *Client, res interface{}) {
 	assertEquivalentNameVariants(t, entity.Features(), test.Features)
 	assertEquivalentNameVariants(t, entity.Labels(), test.Labels)
 	assertEquivalentNameVariants(t, entity.TrainingSets(), test.TrainingSets)
+	if shouldFetch {
+		testFetchLabels(t, client, entity)
+		testFetchFeatures(t, client, entity)
+		testFetchTrainingSets(t, client, entity)
+	}
 }
 
 func expectedEntities() ResourceTests {
@@ -533,7 +700,7 @@ func (test SourceVariantTest) NameVariant() NameVariant {
 	return NameVariant{test.Name, test.Variant}
 }
 
-func (test SourceVariantTest) Test(t *testing.T, client *Client, res interface{}) {
+func (test SourceVariantTest) Test(t *testing.T, client *Client, res interface{}, shouldFetch bool) {
 	t.Logf("Testing source: %s %s", test.Name, test.Variant)
 	source := res.(*SourceVariant)
 	assertEqual(t, source.Name(), test.Name)
@@ -545,11 +712,40 @@ func (test SourceVariantTest) Test(t *testing.T, client *Client, res interface{}
 	assertEquivalentNameVariants(t, source.Features(), test.Features)
 	assertEquivalentNameVariants(t, source.Labels(), test.Labels)
 	assertEquivalentNameVariants(t, source.TrainingSets(), test.TrainingSets)
+	if shouldFetch {
+		testFetchProvider(t, client, source)
+		testFetchFeatures(t, client, source)
+		testFetchLabels(t, client, source)
+		testFetchTrainingSets(t, client, source)
+	}
+}
+
+type SourceTest ParentResourceTest
+
+func (test SourceTest) NameVariant() NameVariant {
+	return ParentResourceTest(test).NameVariant()
+}
+
+func (test SourceTest) Test(t *testing.T, client *Client, res interface{}, shouldFetch bool) {
+	ParentResourceTest(test).Test(t, client, res, shouldFetch)
+	if shouldFetch {
+		source := res.(*Source)
+		variants, err := source.FetchVariants(client, context.Background())
+		if err != nil {
+			t.Fatalf("Failed to fetch variants: %s", err)
+		}
+		tests, err := expectedSourceVariants().Subset(source.NameVariants())
+		if err != nil {
+			t.Fatalf("Subset failed: %s", err)
+		}
+		// Don't fetch within a fetch to avoid an infinite loop.
+		tests.Test(t, client, variants, false)
+	}
 }
 
 func expectedSources() ResourceTests {
 	return ResourceTests{
-		ParentResourceTest{
+		SourceTest{
 			Name:     "mockSource",
 			Variants: []string{"var", "var2"},
 			Default:  "var",
@@ -603,14 +799,37 @@ func TestSource(t *testing.T) {
 	testGetResources(t, SOURCE_VARIANT, expectedSourceVariants())
 }
 
+type FeatureTest ParentResourceTest
+
+func (test FeatureTest) NameVariant() NameVariant {
+	return ParentResourceTest(test).NameVariant()
+}
+
+func (test FeatureTest) Test(t *testing.T, client *Client, res interface{}, shouldFetch bool) {
+	ParentResourceTest(test).Test(t, client, res, shouldFetch)
+	if shouldFetch {
+		feature := res.(*Feature)
+		variants, err := feature.FetchVariants(client, context.Background())
+		if err != nil {
+			t.Fatalf("Failed to fetch variants: %s", err)
+		}
+		tests, err := expectedFeatureVariants().Subset(feature.NameVariants())
+		if err != nil {
+			t.Fatalf("Subset failed: %s", err)
+		}
+		// Don't fetch within a fetch to avoid an infinite loop.
+		tests.Test(t, client, variants, false)
+	}
+}
+
 func expectedFeatures() ResourceTests {
 	return ResourceTests{
-		ParentResourceTest{
+		FeatureTest{
 			Name:     "feature",
 			Variants: []string{"variant", "variant2"},
 			Default:  "variant",
 		},
-		ParentResourceTest{
+		FeatureTest{
 			Name:     "feature2",
 			Variants: []string{"variant"},
 			Default:  "variant",
@@ -634,7 +853,7 @@ func (test FeatureVariantTest) NameVariant() NameVariant {
 	return NameVariant{test.Name, test.Variant}
 }
 
-func (test FeatureVariantTest) Test(t *testing.T, client *Client, res interface{}) {
+func (test FeatureVariantTest) Test(t *testing.T, client *Client, res interface{}, shouldFetch bool) {
 	t.Logf("Testing feature: %s %s", test.Name, test.Variant)
 	feature := res.(*FeatureVariant)
 	assertEqual(t, feature.Name(), test.Name)
@@ -646,6 +865,14 @@ func (test FeatureVariantTest) Test(t *testing.T, client *Client, res interface{
 	assertEqual(t, feature.Source(), test.Source)
 	assertEqual(t, feature.Entity(), test.Entity)
 	assertEquivalentNameVariants(t, feature.TrainingSets(), test.TrainingSets)
+	if shouldFetch {
+		testFetchProvider(t, client, feature)
+		testFetchSource(t, client, feature)
+		testFetchTrainingSets(t, client, feature)
+	}
+	if tm := feature.Created(); tm == (time.Time{}) {
+		t.Fatalf("Created time not set")
+	}
 }
 
 func expectedFeatureVariants() ResourceTests {
@@ -699,9 +926,32 @@ func TestFeature(t *testing.T) {
 	testGetResources(t, FEATURE_VARIANT, expectedFeatureVariants())
 }
 
+type LabelTest ParentResourceTest
+
+func (test LabelTest) NameVariant() NameVariant {
+	return ParentResourceTest(test).NameVariant()
+}
+
+func (test LabelTest) Test(t *testing.T, client *Client, res interface{}, shouldFetch bool) {
+	ParentResourceTest(test).Test(t, client, res, shouldFetch)
+	if shouldFetch {
+		label := res.(*Label)
+		variants, err := label.FetchVariants(client, context.Background())
+		if err != nil {
+			t.Fatalf("Failed to fetch variants: %s", err)
+		}
+		tests, err := expectedLabelVariants().Subset(label.NameVariants())
+		if err != nil {
+			t.Fatalf("Subset failed: %s", err)
+		}
+		// Don't fetch within a fetch to avoid an infinite loop.
+		tests.Test(t, client, variants, false)
+	}
+}
+
 func expectedLabels() ResourceTests {
 	return ResourceTests{
-		ParentResourceTest{
+		LabelTest{
 			Name:     "label",
 			Variants: []string{"variant"},
 			Default:  "variant",
@@ -725,7 +975,7 @@ func (test LabelVariantTest) NameVariant() NameVariant {
 	return NameVariant{test.Name, test.Variant}
 }
 
-func (test LabelVariantTest) Test(t *testing.T, client *Client, res interface{}) {
+func (test LabelVariantTest) Test(t *testing.T, client *Client, res interface{}, shouldFetch bool) {
 	t.Logf("Testing label: %s %s", test.Name, test.Variant)
 	label := res.(*LabelVariant)
 	assertEqual(t, label.Name(), test.Name)
@@ -737,6 +987,11 @@ func (test LabelVariantTest) Test(t *testing.T, client *Client, res interface{})
 	assertEqual(t, label.Source(), test.Source)
 	assertEqual(t, label.Entity(), test.Entity)
 	assertEquivalentNameVariants(t, label.TrainingSets(), test.TrainingSets)
+	if shouldFetch {
+		testFetchTrainingSets(t, client, label)
+		testFetchSource(t, client, label)
+		testFetchProvider(t, client, label)
+	}
 }
 
 func expectedLabelVariants() ResourceTests {
@@ -764,9 +1019,32 @@ func TestLabel(t *testing.T) {
 	testGetResources(t, LABEL_VARIANT, expectedLabelVariants())
 }
 
+type TrainingSetTest ParentResourceTest
+
+func (test TrainingSetTest) NameVariant() NameVariant {
+	return ParentResourceTest(test).NameVariant()
+}
+
+func (test TrainingSetTest) Test(t *testing.T, client *Client, res interface{}, shouldFetch bool) {
+	ParentResourceTest(test).Test(t, client, res, shouldFetch)
+	if shouldFetch {
+		trainingSet := res.(*TrainingSet)
+		variants, err := trainingSet.FetchVariants(client, context.Background())
+		if err != nil {
+			t.Fatalf("Failed to fetch variants: %s", err)
+		}
+		tests, err := expectedTrainingSetVariants().Subset(trainingSet.NameVariants())
+		if err != nil {
+			t.Fatalf("Subset failed: %s", err)
+		}
+		// Don't fetch within a fetch to avoid an infinite loop.
+		tests.Test(t, client, variants, false)
+	}
+}
+
 func expectedTrainingSets() ResourceTests {
 	return ResourceTests{
-		ParentResourceTest{
+		TrainingSetTest{
 			Name:     "training-set",
 			Variants: []string{"variant", "variant2"},
 			Default:  "variant",
@@ -788,7 +1066,7 @@ func (test TrainingSetVariantTest) NameVariant() NameVariant {
 	return NameVariant{test.Name, test.Variant}
 }
 
-func (test TrainingSetVariantTest) Test(t *testing.T, client *Client, resource interface{}) {
+func (test TrainingSetVariantTest) Test(t *testing.T, client *Client, resource interface{}, shouldFetch bool) {
 	t.Logf("Testing trainingSet: %s %s", test.Name, test.Variant)
 	trainingSet := resource.(*TrainingSetVariant)
 	assertEqual(t, trainingSet.Name(), test.Name)
@@ -798,6 +1076,11 @@ func (test TrainingSetVariantTest) Test(t *testing.T, client *Client, resource i
 	assertEqual(t, trainingSet.Provider(), test.Provider)
 	assertEqual(t, trainingSet.Label(), test.Label)
 	assertEquivalentNameVariants(t, trainingSet.Features(), test.Features)
+	if shouldFetch {
+		testFetchProvider(t, client, trainingSet)
+		testFetchLabel(t, client, trainingSet)
+		testFetchFeatures(t, client, trainingSet)
+	}
 }
 
 func expectedTrainingSetVariants() ResourceTests {
@@ -848,7 +1131,7 @@ func (test ModelTest) NameVariant() NameVariant {
 	return NameVariant{Name: test.Name}
 }
 
-func (test ModelTest) Test(t *testing.T, client *Client, resource interface{}) {
+func (test ModelTest) Test(t *testing.T, client *Client, resource interface{}, shouldFetch bool) {
 	t.Logf("Testing model: %s", test.Name)
 	model := resource.(*Model)
 	assertEqual(t, model.Name(), test.Name)
@@ -856,6 +1139,14 @@ func (test ModelTest) Test(t *testing.T, client *Client, resource interface{}) {
 	assertEquivalentNameVariants(t, model.Features(), test.Features)
 	assertEquivalentNameVariants(t, model.Labels(), test.Labels)
 	assertEquivalentNameVariants(t, model.TrainingSets(), test.TrainingSets)
+	if shouldFetch {
+		testFetchTrainingSets(t, client, model)
+		testFetchLabels(t, client, model)
+		testFetchFeatures(t, client, model)
+	}
+	if str := model.String(); str == "" {
+		t.Fatalf("Invalid Model string: %s", str)
+	}
 }
 
 func expectedModels() ResourceTests {
@@ -885,7 +1176,7 @@ func (test ParentResourceTest) NameVariant() NameVariant {
 	return NameVariant{Name: test.Name}
 }
 
-func (test ParentResourceTest) Test(t *testing.T, client *Client, resource interface{}) {
+func (test ParentResourceTest) Test(t *testing.T, client *Client, resource interface{}, shouldFetch bool) {
 	t.Logf("Testing ParentResource: %s", test.Name)
 	type ParentResource interface {
 		Name() string
@@ -906,7 +1197,7 @@ func (test ParentResourceTest) Test(t *testing.T, client *Client, resource inter
 
 type ResourceTest interface {
 	NameVariant() NameVariant
-	Test(t *testing.T, client *Client, resources interface{})
+	Test(t *testing.T, client *Client, resources interface{}, shouldFetch bool)
 }
 
 type ResourceTests []ResourceTest
@@ -919,11 +1210,29 @@ func (tests ResourceTests) NameVariants() NameVariants {
 	return nameVars
 }
 
-func (tests ResourceTests) Test(t *testing.T, client *Client, resources interface{}) {
+func (tests ResourceTests) Subset(nameVars []NameVariant) (ResourceTests, error) {
+	testMap := tests.testMap()
+	subset := make(ResourceTests, len(nameVars))
+	for i, nameVar := range nameVars {
+		var has bool
+		subset[i], has = testMap[nameVar]
+		if !has {
+			return nil, fmt.Errorf("%+v not found in %+v", nameVar, testMap)
+		}
+	}
+	return subset, nil
+}
+
+func (tests ResourceTests) testMap() map[NameVariant]ResourceTest {
 	testMap := make(map[NameVariant]ResourceTest)
 	for _, test := range tests {
 		testMap[test.NameVariant()] = test
 	}
+	return testMap
+}
+
+func (tests ResourceTests) Test(t *testing.T, client *Client, resources interface{}, shouldFetch bool) {
+	testMap := tests.testMap()
 	type NameAndVariant interface {
 		Name() string
 		Variant() string
@@ -947,7 +1256,7 @@ func (tests ResourceTests) Test(t *testing.T, client *Client, resources interfac
 		if !has {
 			t.Fatalf("No test for Resource %v", key)
 		}
-		test.Test(t, client, res)
+		test.Test(t, client, res, shouldFetch)
 		delete(testMap, key)
 	}
 	if len(testMap) != 0 {
@@ -973,13 +1282,13 @@ func testGetResources(t *testing.T, typ ResourceType, tests ResourceTests) {
 	if err != nil {
 		t.Fatalf("Failed to get resources: %v", names)
 	}
-	tests.Test(t, client, resources)
+	tests.Test(t, client, resources, true)
 
 	resource, err := get(client, typ, names[0])
 	if err != nil {
 		t.Fatalf("Failed to get resource: %v", names[0])
 	}
-	tests[0].Test(t, client, resource)
+	tests[0].Test(t, client, resource, true)
 
 	noResources, err := getAll(client, typ, NameVariants{})
 	if err != nil {
@@ -1007,5 +1316,131 @@ func testListResources(t *testing.T, typ ResourceType, tests ResourceTests) {
 	if err != nil {
 		t.Fatalf("Failed to list resources: %v", resources)
 	}
-	tests.Test(t, client, resources)
+	tests.Test(t, client, resources, true)
+}
+
+type featuresFetcher interface {
+	Features() NameVariants
+	FetchFeatures(*Client, context.Context) ([]*FeatureVariant, error)
+}
+
+func testFetchFeatures(t *testing.T, client *Client, fetcher featuresFetcher) {
+	tests, err := expectedFeatureVariants().Subset(fetcher.Features())
+	if err != nil {
+		t.Fatalf("Failed to get subset: %s", err)
+	}
+	features, err := fetcher.FetchFeatures(client, context.Background())
+	if err != nil {
+		t.Fatalf("Failed to fetch features: %s", err)
+	}
+	// Don't fetch when testing, otherwise we'll get an infinite loop of fetches
+	tests.Test(t, client, features, false)
+}
+
+type labelsFetcher interface {
+	Labels() NameVariants
+	FetchLabels(*Client, context.Context) ([]*LabelVariant, error)
+}
+
+func testFetchLabels(t *testing.T, client *Client, fetcher labelsFetcher) {
+	tests, err := expectedLabelVariants().Subset(fetcher.Labels())
+	if err != nil {
+		t.Fatalf("Failed to get subset: %s", err)
+	}
+	labels, err := fetcher.FetchLabels(client, context.Background())
+	if err != nil {
+		t.Fatalf("Failed to fetch labels: %s", err)
+	}
+	// Don't fetch when testing, otherwise we'll get an infinite loop of fetches
+	tests.Test(t, client, labels, false)
+}
+
+type sourcesFetcher interface {
+	Sources() NameVariants
+	FetchSources(*Client, context.Context) ([]*SourceVariant, error)
+}
+
+func testFetchSources(t *testing.T, client *Client, fetcher sourcesFetcher) {
+	tests, err := expectedSourceVariants().Subset(fetcher.Sources())
+	if err != nil {
+		t.Fatalf("Failed to get subset: %s", err)
+	}
+	sources, err := fetcher.FetchSources(client, context.Background())
+	if err != nil {
+		t.Fatalf("Failed to fetch sources: %s", err)
+	}
+	// Don't fetch when testing, otherwise we'll get an infinite loop of fetches
+	tests.Test(t, client, sources, false)
+}
+
+type trainingSetsFetcher interface {
+	TrainingSets() NameVariants
+	FetchTrainingSets(*Client, context.Context) ([]*TrainingSetVariant, error)
+}
+
+func testFetchTrainingSets(t *testing.T, client *Client, fetcher trainingSetsFetcher) {
+	tests, err := expectedTrainingSetVariants().Subset(fetcher.TrainingSets())
+	if err != nil {
+		t.Fatalf("Failed to get subset: %s", err)
+	}
+	trainingSets, err := fetcher.FetchTrainingSets(client, context.Background())
+	if err != nil {
+		t.Fatalf("Failed to fetch training sets: %s", err)
+	}
+	// Don't fetch when testing, otherwise we'll get an infinite loop of fetches
+	tests.Test(t, client, trainingSets, false)
+}
+
+type labelFetcher interface {
+	Label() NameVariant
+	FetchLabel(*Client, context.Context) (*LabelVariant, error)
+}
+
+func testFetchLabel(t *testing.T, client *Client, fetcher labelFetcher) {
+	tests, err := expectedLabelVariants().Subset(NameVariants{fetcher.Label()})
+	if err != nil {
+		t.Fatalf("Failed to get subset: %s", err)
+	}
+	label, err := fetcher.FetchLabel(client, context.Background())
+	if err != nil {
+		t.Fatalf("Failed to fetch label: %s", err)
+	}
+	// Don't fetch when testing, otherwise we'll get an infinite loop of fetches
+	tests.Test(t, client, []*LabelVariant{label}, false)
+}
+
+type sourceFetcher interface {
+	Source() NameVariant
+	FetchSource(*Client, context.Context) (*SourceVariant, error)
+}
+
+func testFetchSource(t *testing.T, client *Client, fetcher sourceFetcher) {
+	tests, err := expectedSourceVariants().Subset(NameVariants{fetcher.Source()})
+	if err != nil {
+		t.Fatalf("Failed to get subset: %s", err)
+	}
+	source, err := fetcher.FetchSource(client, context.Background())
+	if err != nil {
+		t.Fatalf("Failed to fetch source: %s", err)
+	}
+	// Don't fetch when testing, otherwise we'll get an infinite loop of fetches
+	tests.Test(t, client, []*SourceVariant{source}, false)
+}
+
+type providerFetcher interface {
+	Provider() string
+	FetchProvider(*Client, context.Context) (*Provider, error)
+}
+
+func testFetchProvider(t *testing.T, client *Client, fetcher providerFetcher) {
+	tests, err := expectedProviders().Subset(NameVariants{{Name: fetcher.Provider()}})
+	if err != nil {
+		t.Fatalf("Failed to get subset: %s", err)
+	}
+	provider, err := fetcher.FetchProvider(client, context.Background())
+	if err != nil {
+		t.Fatalf("Failed to fetch provider: %s", err)
+	}
+	// Don't fetch when testing, otherwise we'll get an infinite loop of fetches
+	tests.Test(t, client, []*Provider{provider}, false)
 }

@@ -140,8 +140,16 @@ func (store *snowflakeOfflineStore) AsOfflineStore() (OfflineStore, error) {
 	return store, nil
 }
 
+func (store *snowflakeOfflineStore) AsSQLOfflineStore() (SQLOfflineStore, error) {
+	return store, nil
+}
+
 func (store *snowflakeOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error) {
 	return nil, errors.New("snowflake create primary table not implemented")
+}
+
+func (store *snowflakeOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error) {
+	return nil, errors.New("snowflake get primary table not implemented")
 }
 
 // CreateResourceTable creates a new Resource table.

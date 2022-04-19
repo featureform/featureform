@@ -22,16 +22,17 @@ const (
 type ValueType string
 
 const (
-	NilType ValueType = ""
-	Int               = "int"
-	Int8              = "int8"
-	Int16             = "int16"
-	Int32             = "int32"
-	Int64             = "int64"
-	Float32           = "float32"
-	Float64           = "float64"
-	String            = "string"
-	Bool              = "bool"
+	NilType   ValueType = ""
+	Int                 = "int"
+	Int8                = "int8"
+	Int16               = "int16"
+	Int32               = "int32"
+	Int64               = "int64"
+	Float32             = "float32"
+	Float64             = "float64"
+	String              = "string"
+	Bool                = "bool"
+	Timestamp           = "time.Time"
 )
 
 type OfflineResourceType int
@@ -42,7 +43,6 @@ const (
 	Feature
 	TrainingSet
 	Primary
-	Transformation
 )
 
 type ResourceID struct {
@@ -101,23 +101,22 @@ const (
 )
 
 type ColumnMapping struct {
-	name      string
-	valueType string
+	sourceColumn   string
+	resourceColumn string
 }
 
 type TransformationConfig struct {
-	Name          string
-	Variation     string
+	TargetTableID ResourceID
 	Type          TransformationType
 	Provider      Type
 	Query         string
-	ResourceType  OfflineResourceType
 	ColumnMapping []ColumnMapping
 }
 
 type OfflineStore interface {
 	// Should this be PrimaryTable or maybe GenericTable?
 	CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error)
+	GetPrimaryTable(id ResourceID) (PrimaryTable, error)
 	CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error)
 	GetResourceTable(id ResourceID) (OfflineTable, error)
 	CreateMaterialization(id ResourceID) (Materialization, error)
@@ -139,6 +138,13 @@ type TrainingSetIterator interface {
 	Next() bool
 	Features() []interface{}
 	Label() interface{}
+	Err() error
+}
+
+type GenericTableIterator interface {
+	Next() bool
+	Values() GenericRecord
+	Columns() []string
 	Err() error
 }
 
@@ -178,9 +184,7 @@ type ResourceRecord struct {
 	TS time.Time
 }
 
-type GenericRecord struct {
-	Values []interface{}
-}
+type GenericRecord []interface{}
 
 func (rec ResourceRecord) check() error {
 	if rec.Entity == "" {
@@ -195,6 +199,9 @@ type OfflineTable interface {
 
 type PrimaryTable interface {
 	Write(GenericRecord) error
+	GetName() string
+	IterateSegment(begin, end int64) (GenericTableIterator, error)
+	NumRows() (int64, error)
 }
 
 type TableSchema struct {
@@ -233,7 +240,15 @@ func (store *memoryOfflineStore) AsOfflineStore() (OfflineStore, error) {
 	return store, nil
 }
 
+func (store *memoryOfflineStore) AsSQLOfflineStore() (SQLOfflineStore, error) {
+	return nil, fmt.Errorf("cannot use Memory Offline Store as SQLOfflineStore")
+}
+
 func (store *memoryOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error) {
+	return nil, errors.New("primary table unsupported for this provider")
+}
+
+func (store *memoryOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error) {
 	return nil, errors.New("primary table unsupported for this provider")
 }
 

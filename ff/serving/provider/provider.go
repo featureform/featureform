@@ -54,6 +54,7 @@ func (r *RedisConfig) Deserialize(config SerializedConfig) error {
 type Provider interface {
 	AsOnlineStore() (OnlineStore, error)
 	AsOfflineStore() (OfflineStore, error)
+	AsSQLOfflineStore() (SQLOfflineStore, error)
 	Type() Type
 	Config() SerializedConfig
 }
@@ -69,6 +70,10 @@ func (provider BaseProvider) AsOnlineStore() (OnlineStore, error) {
 
 func (provider BaseProvider) AsOfflineStore() (OfflineStore, error) {
 	return nil, fmt.Errorf("%T cannot be used as an OfflineStore", provider)
+}
+
+func (provider BaseProvider) AsSQLOfflineStore() (SQLOfflineStore, error) {
+	return nil, fmt.Errorf("%T cannot be used as an SQLOfflineStore", provider)
 }
 
 func (provider BaseProvider) Type() Type {

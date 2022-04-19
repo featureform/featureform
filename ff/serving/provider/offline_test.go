@@ -13,6 +13,7 @@ import (
 	"math/rand"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -49,32 +50,38 @@ func TestOfflineStores(t *testing.T) {
 	//defer destroySnowflakeDatabase(snowflakeConfig)
 
 	testFns := map[string]func(*testing.T, OfflineStore){
-		//"CreateGetTable":          testCreateGetOfflineTable,
-		//"TableAlreadyExists":      testOfflineTableAlreadyExists,
-		//"TableNotFound":           testOfflineTableNotFound,
-		//"InvalidResourceIDs":      testInvalidResourceIDs,
-		//"Materializations":        testMaterializations,
-		//"InvalidResourceRecord":   testWriteInvalidResourceRecord,
-		//"InvalidMaterialization":  testInvalidMaterialization,
-		//"MaterializeUnknown":      testMaterializeUnknown,
-		//"MaterializationNotFound": testMaterializationNotFound,
-		//"TrainingSets":            testTrainingSet,
-		//"TrainingSetInvalidID":    testGetTrainingSetInvalidResourceID,
-		//"GetUnknownTrainingSet":   testGetUnkonwnTrainingSet,
-		//"InvalidTrainingSetDefs":  testInvalidTrainingSetDefs,
-		//"LabelTableNotFound":      testLabelTableNotFound,
-		//"FeatureTableNotFound":    testFeatureTableNotFound,
-		//"TrainingDefShorthand":    testTrainingSetDefShorthand,
-		"PrimaryTable": testPrimaryTable,
+		"CreateGetTable":          testCreateGetOfflineTable,
+		"TableAlreadyExists":      testOfflineTableAlreadyExists,
+		"TableNotFound":           testOfflineTableNotFound,
+		"InvalidResourceIDs":      testInvalidResourceIDs,
+		"Materializations":        testMaterializations,
+		"InvalidResourceRecord":   testWriteInvalidResourceRecord,
+		"InvalidMaterialization":  testInvalidMaterialization,
+		"MaterializeUnknown":      testMaterializeUnknown,
+		"MaterializationNotFound": testMaterializationNotFound,
+		"TrainingSets":            testTrainingSet,
+		"TrainingSetInvalidID":    testGetTrainingSetInvalidResourceID,
+		"GetUnknownTrainingSet":   testGetUnkonwnTrainingSet,
+		"InvalidTrainingSetDefs":  testInvalidTrainingSetDefs,
+		"LabelTableNotFound":      testLabelTableNotFound,
+		"FeatureTableNotFound":    testFeatureTableNotFound,
+		"TrainingDefShorthand":    testTrainingSetDefShorthand,
+		"PrimaryTableCreate":      testPrimaryCreateTable,
+		"PrimaryTableWrite":       testPrimaryTableWrite,
+	}
+	testSQLFns := map[string]func(*testing.T, SQLOfflineStore){
+		"Transformation":     testTransform,
+		"TransformToFeature": testTransformCreateFeature,
 	}
 	testList := []struct {
 		t               Type
 		c               SerializedConfig
 		integrationTest bool
+		sql             bool
 	}{
-		//	{MemoryOffline, []byte{}, false},
-		{PostgresOffline, serialPGConfig, true},
-		//	{SnowflakeOffline, serialSFConfig, true},
+		//	{MemoryOffline, []byte{}, false, false},
+		{PostgresOffline, serialPGConfig, true, true},
+		//	{SnowflakeOffline, serialSFConfig, true, true},
 	}
 	for _, testItem := range testList {
 		if testing.Short() && testItem.integrationTest {
@@ -89,6 +96,21 @@ func TestOfflineStores(t *testing.T) {
 			store, err := provider.AsOfflineStore()
 			if err != nil {
 				t.Fatalf("Failed to use provider %s as OfflineStore: %s", testItem.t, err)
+			}
+			testName := fmt.Sprintf("%s_%s", testItem.t, name)
+			t.Run(testName, func(t *testing.T) {
+				fn(t, store)
+			})
+		}
+		for name, fn := range testSQLFns {
+			provider, err := Get(testItem.t, testItem.c)
+			if err != nil {
+				t.Fatalf("Failed to get provider %s: %s", testItem.t, err)
+			}
+			store, err := provider.AsSQLOfflineStore()
+			if err != nil {
+				t.Fatalf("Failed to use provider %s as OfflineStore: %s", testItem.t, err)
+				continue
 			}
 			testName := fmt.Sprintf("%s_%s", testItem.t, name)
 			t.Run(testName, func(t *testing.T) {
@@ -158,8 +180,14 @@ func randomLabelID() ResourceID {
 
 func testCreateGetOfflineTable(t *testing.T, store OfflineStore) {
 	id := randomID(Feature, Label)
-	schema := PostgresTableSchema{Int}
-	if tab, err := store.CreateResourceTable(id, schema.Serialize()); tab == nil || err != nil {
+	schema := TableSchema{
+		Columns: []TableColumn{
+			{Name: "entity", ValueType: String},
+			{Name: "value", ValueType: Int},
+			{Name: "ts", ValueType: Timestamp},
+		},
+	}
+	if tab, err := store.CreateResourceTable(id, schema); tab == nil || err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
 	if tab, err := store.GetResourceTable(id); tab == nil || err != nil {
@@ -169,11 +197,17 @@ func testCreateGetOfflineTable(t *testing.T, store OfflineStore) {
 
 func testOfflineTableAlreadyExists(t *testing.T, store OfflineStore) {
 	id := randomID(Feature, Label)
-	schema := PostgresTableSchema{Int}
-	if _, err := store.CreateResourceTable(id, schema.Serialize()); err != nil {
+	schema := TableSchema{
+		Columns: []TableColumn{
+			{Name: "", ValueType: String},
+			{Name: "", ValueType: Int},
+			{Name: "", ValueType: Timestamp},
+		},
+	}
+	if _, err := store.CreateResourceTable(id, schema); err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
-	if _, err := store.CreateResourceTable(id, schema.Serialize()); err == nil {
+	if _, err := store.CreateResourceTable(id, schema); err == nil {
 		t.Fatalf("Succeeded in creating table twice")
 	} else if casted, valid := err.(*TableAlreadyExists); !valid {
 		t.Fatalf("Wrong error for table already exists: %T", err)
@@ -196,16 +230,23 @@ func testOfflineTableNotFound(t *testing.T, store OfflineStore) {
 func testMaterializations(t *testing.T, store OfflineStore) {
 	type TestCase struct {
 		WriteRecords             []ResourceRecord
-		ValueType                SerializedTableSchema
+		Schema                   TableSchema
 		ExpectedRows             int64
 		SegmentStart, SegmentEnd int64
 		ExpectedSegment          []ResourceRecord
 	}
-	schemaInt := PostgresTableSchema{Int}
+
+	schemaInt := TableSchema{
+		Columns: []TableColumn{
+			{Name: "entity", ValueType: String},
+			{Name: "value", ValueType: Int},
+			{Name: "ts", ValueType: Timestamp},
+		},
+	}
 	tests := map[string]TestCase{
 		"Empty": {
 			WriteRecords:    []ResourceRecord{},
-			ValueType:       schemaInt.Serialize(),
+			Schema:          schemaInt,
 			SegmentStart:    0,
 			SegmentEnd:      0,
 			ExpectedSegment: []ResourceRecord{},
@@ -216,7 +257,7 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 				{Entity: "b", Value: 2},
 				{Entity: "c", Value: 3},
 			},
-			ValueType:    schemaInt.Serialize(),
+			Schema:       schemaInt,
 			ExpectedRows: 3,
 			SegmentStart: 0,
 			SegmentEnd:   3,
@@ -234,7 +275,7 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 				{Entity: "b", Value: 2},
 				{Entity: "c", Value: 3},
 			},
-			ValueType:    schemaInt.Serialize(),
+			Schema:       schemaInt,
 			ExpectedRows: 3,
 			SegmentStart: 1,
 			SegmentEnd:   2,
@@ -249,7 +290,7 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 				{Entity: "c", Value: 3},
 				{Entity: "a", Value: 4},
 			},
-			ValueType:    schemaInt.Serialize(),
+			Schema:       schemaInt,
 			ExpectedRows: 3,
 			SegmentStart: 0,
 			SegmentEnd:   3,
@@ -268,7 +309,7 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 				{Entity: "c", Value: 3, TS: time.UnixMilli(0).UTC()},
 				{Entity: "a", Value: 4, TS: time.UnixMilli(1).UTC()},
 			},
-			ValueType:    schemaInt.Serialize(),
+			Schema:       schemaInt,
 			ExpectedRows: 3,
 			SegmentStart: 0,
 			SegmentEnd:   3,
@@ -286,7 +327,7 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 				{Entity: "c", Value: 9, TS: time.UnixMilli(5).UTC()},
 				{Entity: "a", Value: 4, TS: time.UnixMilli(1).UTC()},
 			},
-			ValueType:    schemaInt.Serialize(),
+			Schema:       schemaInt,
 			ExpectedRows: 3,
 			SegmentStart: 0,
 			SegmentEnd:   3,
@@ -306,7 +347,7 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 				{Entity: "a", Value: 4, TS: time.UnixMilli(1).UTC()},
 				{Entity: "b", Value: 9, TS: time.UnixMilli(3).UTC()},
 			},
-			ValueType:    schemaInt.Serialize(),
+			Schema:       schemaInt,
 			ExpectedRows: 3,
 			SegmentStart: 0,
 			SegmentEnd:   3,
@@ -345,7 +386,7 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 	}
 	runTestCase := func(t *testing.T, test TestCase) {
 		id := randomID(Feature)
-		table, err := store.CreateResourceTable(id, test.ValueType)
+		table, err := store.CreateResourceTable(id, test.Schema)
 		if err != nil {
 			t.Fatalf("Failed to create table: %s", err)
 		}
@@ -378,8 +419,14 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 
 func testWriteInvalidResourceRecord(t *testing.T, store OfflineStore) {
 	id := randomID(Feature)
-	schema := PostgresTableSchema{Int}
-	table, err := store.CreateResourceTable(id, schema.Serialize())
+	schema := TableSchema{
+		Columns: []TableColumn{
+			{Name: "entity", ValueType: String},
+			{Name: "value", ValueType: Int},
+			{Name: "ts", ValueType: Timestamp},
+		},
+	}
+	table, err := store.CreateResourceTable(id, schema)
 	if err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
@@ -390,8 +437,14 @@ func testWriteInvalidResourceRecord(t *testing.T, store OfflineStore) {
 
 func testInvalidMaterialization(t *testing.T, store OfflineStore) {
 	id := randomID(Label)
-	schema := PostgresTableSchema{Int}
-	if _, err := store.CreateResourceTable(id, schema.Serialize()); err != nil {
+	schema := TableSchema{
+		Columns: []TableColumn{
+			{Name: "entity", ValueType: String},
+			{Name: "value", ValueType: Int},
+			{Name: "ts", ValueType: Timestamp},
+		},
+	}
+	if _, err := store.CreateResourceTable(id, schema); err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
 	if _, err := store.CreateMaterialization(id); err == nil {
@@ -427,13 +480,19 @@ func testMaterializationNotFound(t *testing.T, store OfflineStore) {
 }
 
 func testInvalidResourceIDs(t *testing.T, store OfflineStore) {
-	schema := PostgresTableSchema{Int}
+	schema := TableSchema{
+		Columns: []TableColumn{
+			{Name: "entity", ValueType: String},
+			{Name: "value", ValueType: Int},
+			{Name: "ts", ValueType: Timestamp},
+		},
+	}
 	invalidIds := []ResourceID{
 		{Type: Feature},
 		{Name: uuid.NewString()},
 	}
 	for _, id := range invalidIds {
-		if _, err := store.CreateResourceTable(id, schema.Serialize()); err == nil {
+		if _, err := store.CreateResourceTable(id, schema); err == nil {
 			t.Fatalf("Succeeded in creating invalid ResourceID: %v", id)
 		}
 	}
@@ -448,17 +507,10 @@ func testTrainingSet(t *testing.T, store OfflineStore) {
 		FeatureRecords [][]ResourceRecord
 		LabelRecords   []ResourceRecord
 		ExpectedRows   []expectedTrainingRow
-		FeatureSchema  [][]byte
-		LabelSchema    []byte
+		FeatureSchema  []TableSchema
+		LabelSchema    TableSchema
 	}
-	schemaNil := PostgresTableSchema{NilType}
-	nilByte := schemaNil.Serialize()
-	schemaInt := PostgresTableSchema{Int}
-	intByte := schemaInt.Serialize()
-	schemaString := PostgresTableSchema{String}
-	stringByte := schemaString.Serialize()
-	schemaBool := PostgresTableSchema{Bool}
-	boolByte := schemaBool.Serialize()
+
 	tests := map[string]TestCase{
 		"Empty": {
 			FeatureRecords: [][]ResourceRecord{
@@ -466,8 +518,7 @@ func testTrainingSet(t *testing.T, store OfflineStore) {
 				{},
 			},
 			LabelRecords:  []ResourceRecord{},
-			FeatureSchema: [][]byte{nilByte},
-			LabelSchema:   nilByte,
+			FeatureSchema: []TableSchema{{}},
 			// No rows expected
 			ExpectedRows: []expectedTrainingRow{},
 		},
@@ -484,13 +535,33 @@ func testTrainingSet(t *testing.T, store OfflineStore) {
 					{Entity: "c", Value: "blue"},
 				},
 			},
-			FeatureSchema: [][]byte{intByte, stringByte},
+			FeatureSchema: []TableSchema{
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: Int},
+						{Name: "label", ValueType: Bool},
+					},
+				},
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: String},
+						{Name: "label", ValueType: Bool},
+					},
+				},
+			},
 			LabelRecords: []ResourceRecord{
 				{Entity: "a", Value: true},
 				{Entity: "b", Value: false},
 				{Entity: "c", Value: true},
 			},
-			LabelSchema: boolByte,
+			LabelSchema: TableSchema{
+				Columns: []TableColumn{
+					{Name: "entity", ValueType: String},
+					{Name: "value", ValueType: Bool},
+				},
+			},
 			ExpectedRows: []expectedTrainingRow{
 				{
 					Features: []interface{}{
@@ -543,14 +614,49 @@ func testTrainingSet(t *testing.T, store OfflineStore) {
 				// Empty feature.
 				{},
 			},
-			FeatureSchema: [][]byte{intByte, stringByte, stringByte, stringByte, nilByte},
+			FeatureSchema: []TableSchema{
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: Int},
+					},
+				},
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: String},
+					},
+				},
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: String},
+					},
+				},
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: String},
+					},
+				},
+				{
+					Columns: []TableColumn{
+						{},
+					},
+				},
+			},
 			LabelRecords: []ResourceRecord{
 				{Entity: "a", Value: 1, TS: time.UnixMilli(10)},
 				{Entity: "b", Value: 9, TS: time.UnixMilli(3)},
 				{Entity: "b", Value: 5, TS: time.UnixMilli(5)},
 				{Entity: "c", Value: 3, TS: time.UnixMilli(7)},
 			},
-			LabelSchema: intByte,
+			LabelSchema: TableSchema{
+				Columns: []TableColumn{
+					{Name: "entity", ValueType: String},
+					{Name: "value", ValueType: Int},
+				},
+			},
 			ExpectedRows: []expectedTrainingRow{
 				{
 					Features: []interface{}{
@@ -590,7 +696,7 @@ func testTrainingSet(t *testing.T, store OfflineStore) {
 			}
 			for _, rec := range recs {
 				if err := table.Write(rec); err != nil {
-					t.Fatalf("Failed to write record %v", rec)
+					t.Fatalf("Failed to write record %v: %v", rec, err)
 				}
 			}
 		}
@@ -722,8 +828,14 @@ func testInvalidTrainingSetDefs(t *testing.T, store OfflineStore) {
 
 func testLabelTableNotFound(t *testing.T, store OfflineStore) {
 	featureID := randomID(Feature)
-	schema := PostgresTableSchema{Int}
-	if _, err := store.CreateResourceTable(featureID, schema.Serialize()); err != nil {
+	schema := TableSchema{
+		Columns: []TableColumn{
+			{Name: "entity", ValueType: String},
+			{Name: "value", ValueType: Int},
+			{Name: "ts", ValueType: Timestamp},
+		},
+	}
+	if _, err := store.CreateResourceTable(featureID, schema); err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
 	def := TrainingSetDef{
@@ -740,8 +852,14 @@ func testLabelTableNotFound(t *testing.T, store OfflineStore) {
 
 func testFeatureTableNotFound(t *testing.T, store OfflineStore) {
 	labelID := randomID(Label)
-	schema := PostgresTableSchema{Int}
-	if _, err := store.CreateResourceTable(labelID, schema.Serialize()); err != nil {
+	schema := TableSchema{
+		Columns: []TableColumn{
+			{Name: "entity", ValueType: String},
+			{Name: "value", ValueType: Int},
+			{Name: "ts", ValueType: Timestamp},
+		},
+	}
+	if _, err := store.CreateResourceTable(labelID, schema); err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
 	def := TrainingSetDef{
@@ -757,7 +875,13 @@ func testFeatureTableNotFound(t *testing.T, store OfflineStore) {
 }
 
 func testTrainingSetDefShorthand(t *testing.T, store OfflineStore) {
-	schema := (&PostgresTableSchema{String}).Serialize()
+	schema := TableSchema{
+		Columns: []TableColumn{
+			{Name: "entity", ValueType: String},
+			{Name: "value", ValueType: String},
+			{Name: "ts", ValueType: Timestamp},
+		},
+	}
 	fId := randomID(Feature)
 	fTable, err := store.CreateResourceTable(fId, schema)
 	if err != nil {
@@ -784,7 +908,7 @@ func testTrainingSetDefShorthand(t *testing.T, store OfflineStore) {
 	}
 }
 
-func testPrimaryTable(t *testing.T, store OfflineStore) {
+func testPrimaryCreateTable(t *testing.T, store OfflineStore) {
 	type TestCreateCase struct {
 		Rec         ResourceID
 		Schema      TableSchema
@@ -838,53 +962,10 @@ func testPrimaryTable(t *testing.T, store OfflineStore) {
 		},
 	}
 
-	type TestRecords struct {
-		Records     []GenericRecord
-		Expected    []GenericRecord
-		ExpectError bool
-	}
-	testRecords := map[string]TestRecords{
-		"EmptyRecords": {
-			Records: []GenericRecord{
-				{},
-			},
-			Expected: []GenericRecord{
-				{},
-			},
-			ExpectError: true,
-		},
-		"MismatchSchema": {
-			Records: []GenericRecord{
-				{
-					Values: []interface{}{1},
-				},
-			},
-			Expected: []GenericRecord{
-				{},
-			},
-			ExpectError: false,
-		},
-	}
-	testWrite := func(t *testing.T, test TestRecords, table PrimaryTable) {
-		for _, rec := range test.Records {
-			err := table.Write(rec)
-			if err != nil && test.ExpectError == false {
-				t.Fatalf("error writing %v", rec)
-			}
-		}
-	}
-
 	testPrimary := func(t *testing.T, c TestCreateCase, store OfflineStore) {
-		table, err := store.CreatePrimaryTable(c.Rec, c.Schema)
+		_, err := store.CreatePrimaryTable(c.Rec, c.Schema)
 		if err != nil && c.ExpectError == false {
 			t.Fatalf("Did not expected error, received: %v", err)
-		}
-		if table != nil {
-			for name, test := range testRecords {
-				t.Run(name, func(t *testing.T) {
-					testWrite(t, test, table)
-				})
-			}
 		}
 	}
 	for name, test := range testCreate {
@@ -892,6 +973,311 @@ func testPrimaryTable(t *testing.T, store OfflineStore) {
 			testPrimary(t, test, store)
 		})
 	}
+}
+
+func testPrimaryTableWrite(t *testing.T, store OfflineStore) {
+	type TestCase struct {
+		Rec         ResourceID
+		Schema      TableSchema
+		Records     []GenericRecord
+		ExpectError bool
+		Expected    []GenericRecord
+	}
+
+	tests := map[string]TestCase{
+		"NoColumnEmpty": {
+			Rec: ResourceID{
+				Name: uuid.NewString(),
+				Type: Primary,
+			},
+			Schema: TableSchema{
+				Columns: []TableColumn{},
+			},
+			Records:     []GenericRecord{},
+			ExpectError: false,
+			Expected:    []GenericRecord{},
+		},
+		"SimpleColumnEmpty": {
+			Rec: ResourceID{
+				Name: uuid.NewString(),
+				Type: Primary,
+			},
+			Schema: TableSchema{
+				Columns: []TableColumn{
+					{Name: "entity", ValueType: String},
+					{Name: "value", ValueType: Int},
+					{Name: "timestamp", ValueType: Timestamp},
+				},
+			},
+			Records:     []GenericRecord{},
+			ExpectError: false,
+			Expected:    []GenericRecord{},
+		},
+		"SimpleWrite": {
+			Rec: ResourceID{
+				Name: uuid.NewString(),
+				Type: Primary,
+			},
+			Schema: TableSchema{
+				Columns: []TableColumn{
+					{Name: "entity", ValueType: String},
+					{Name: "value", ValueType: Int},
+					{Name: "timestamp", ValueType: Timestamp},
+				},
+			},
+			Records: []GenericRecord{
+				[]interface{}{"a", 1, time.UnixMilli(0)},
+				[]interface{}{"b", 2, time.UnixMilli(0)},
+				[]interface{}{"c", 3, time.UnixMilli(0)},
+			},
+			ExpectError: false,
+			Expected:    []GenericRecord{},
+		},
+	}
+
+	testTableWrite := func(t *testing.T, test TestCase) {
+		table, err := store.CreatePrimaryTable(test.Rec, test.Schema)
+		if err != nil {
+			t.Fatalf("Could not create table: %v", err)
+		}
+		_, err = store.GetPrimaryTable(test.Rec) // Need To Fix Schema Here
+		if err != nil {
+			t.Fatalf("Could not get Primary table: %v", err)
+		}
+		for _, record := range test.Records {
+			if err := table.Write(record); err != nil {
+				t.Fatalf("Could not write: %v", err)
+			}
+		}
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			testTableWrite(t, test)
+		})
+	}
+
+}
+
+func testTransform(t *testing.T, store SQLOfflineStore) {
+
+	type TransformTest struct {
+		PrimaryTable ResourceID
+		Schema       TableSchema
+		Records      []GenericRecord
+		Config       TransformationConfig
+		Expected     []GenericRecord
+	}
+
+	tests := map[string]TransformTest{
+		"Simple": {
+			PrimaryTable: ResourceID{
+				Name: uuid.NewString(),
+				Type: Primary,
+			},
+			Schema: TableSchema{
+				Columns: []TableColumn{
+					{Name: "entity", ValueType: String},
+					{Name: "int", ValueType: Int},
+					{Name: "flt", ValueType: Float64},
+					{Name: "str", ValueType: String},
+					{Name: "bool", ValueType: Bool},
+					{Name: "ts", ValueType: Timestamp},
+				},
+			},
+			Records: []GenericRecord{
+				[]interface{}{"a", 1, 1.1, "test string", true, time.UnixMilli(0)},
+				[]interface{}{"b", 2, 1.2, "second string", false, time.UnixMilli(0)},
+				[]interface{}{"c", 3, 1.3, "third string", nil, time.UnixMilli(0)},
+				[]interface{}{"d", 4, 1.4, "fourth string", false, time.UnixMilli(0)},
+				[]interface{}{"e", 5, 1.5, "fifth string", true, time.UnixMilli(0)},
+			},
+			Config: TransformationConfig{
+				TargetTableID: ResourceID{
+					Name: uuid.NewString(),
+					Type: Primary,
+				},
+				Query: "SELECT * FROM tb",
+			},
+			Expected: []GenericRecord{
+				[]interface{}{"a", 1, 1.1, "test string", true, time.UnixMilli(0)},
+				[]interface{}{"b", 2, 1.2, "second string", false, time.UnixMilli(0)},
+				[]interface{}{"c", 3, 1.3, "third string", nil, time.UnixMilli(0)},
+				[]interface{}{"d", 4, 1.4, "fourth string", false, time.UnixMilli(0)},
+				[]interface{}{"e", 5, 1.5, "fifth string", true, time.UnixMilli(0)},
+			},
+		},
+		"Count": {
+			PrimaryTable: ResourceID{
+				Name: uuid.NewString(),
+				Type: Primary,
+			},
+			Schema: TableSchema{
+				Columns: []TableColumn{
+					{Name: "entity", ValueType: String},
+					{Name: "int", ValueType: Int},
+					{Name: "str", ValueType: String},
+					{Name: "bool", ValueType: Bool},
+					{Name: "ts", ValueType: Timestamp},
+				},
+			},
+			Records: []GenericRecord{
+				[]interface{}{"a", 1, "test string", true, time.UnixMilli(0)},
+				[]interface{}{"b", 2, "second string", false, time.UnixMilli(0)},
+				[]interface{}{"c", 3, "third string", nil, time.UnixMilli(0)},
+				[]interface{}{"d", 4, "fourth string", false, time.UnixMilli(0)},
+				[]interface{}{"e", 5, "fifth string", true, time.UnixMilli(0)},
+			},
+			Config: TransformationConfig{
+				TargetTableID: ResourceID{
+					Name: uuid.NewString(),
+					Type: Primary,
+				},
+				Query: "SELECT COUNT(*) FROM tb",
+			},
+			Expected: []GenericRecord{
+				[]interface{}{5},
+			},
+		},
+	}
+
+	testTransform := func(t *testing.T, test TransformTest) {
+		table, err := store.CreatePrimaryTable(test.PrimaryTable, test.Schema)
+		if err != nil {
+			t.Fatalf("Could not initialize table: %v", err)
+		}
+		for _, value := range test.Records {
+			if err := table.Write(value); err != nil {
+				t.Fatalf("Could not write value: %v: %v", err, value)
+			}
+		}
+		test.Config.Query = strings.Replace(test.Config.Query, "tb", sanitize(table.GetName()), 1)
+		if err := store.CreateTransformation(test.Config); err != nil {
+			t.Fatalf("Could not create transformation: %v", err)
+		}
+		rows, err := table.NumRows()
+		if err != nil {
+			t.Fatalf("could not get NumRows of table: %v", err)
+		}
+		if int(rows) != len(test.Records) {
+			t.Fatalf("NumRows do not match. Expected: %d, Got: %d", len(test.Records), rows)
+		}
+		table, err = store.GetPrimaryTable(test.Config.TargetTableID)
+		if err != nil {
+			t.Errorf("Could not get transformation table: %v", err)
+		}
+		iterator, err := table.IterateSegment(0, 100)
+		if err != nil {
+			t.Fatalf("Could not get generic iterator: %v", err)
+		}
+		i := 0
+		for iterator.Next() {
+			if !reflect.DeepEqual(iterator.Values(), test.Expected[i]) {
+				t.Fatalf("Expected: %v, Received %v", test.Expected[i], iterator.Values())
+			}
+			i++
+		}
+
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			testTransform(t, test)
+		})
+	}
+
+}
+
+func testTransformCreateFeature(t *testing.T, store SQLOfflineStore) {
+
+	type TransformTest struct {
+		PrimaryTable ResourceID
+		Schema       TableSchema
+		Records      []GenericRecord
+		Config       TransformationConfig
+		Expected     []GenericRecord
+	}
+
+	tests := map[string]TransformTest{
+		"Simple": {
+			PrimaryTable: ResourceID{
+				Name: uuid.NewString(),
+				Type: Primary,
+			},
+			Schema: TableSchema{
+				Columns: []TableColumn{
+					{Name: "entity", ValueType: String},
+					{Name: "int", ValueType: Int},
+					{Name: "flt", ValueType: Float64},
+					{Name: "str", ValueType: String},
+					{Name: "bool", ValueType: Bool},
+					{Name: "ts", ValueType: Timestamp},
+				},
+			},
+			Records: []GenericRecord{
+				[]interface{}{"a", 1, 1.1, "test string", true, time.UnixMilli(0)},
+				[]interface{}{"b", 2, 1.2, "second string", false, time.UnixMilli(0)},
+				[]interface{}{"c", 3, 1.3, "third string", nil, time.UnixMilli(0)},
+				[]interface{}{"d", 4, 1.4, "fourth string", false, time.UnixMilli(0)},
+				[]interface{}{"e", 5, 1.5, "fifth string", true, time.UnixMilli(0)},
+			},
+			Config: TransformationConfig{
+				TargetTableID: ResourceID{
+					Name: uuid.NewString(),
+					Type: Feature,
+				},
+				Query: "SELECT entity, int, ts FROM tb",
+				ColumnMapping: []ColumnMapping{
+					{sourceColumn: "entity", resourceColumn: "entity"},
+					{sourceColumn: "int", resourceColumn: "value"},
+					{sourceColumn: "ts", resourceColumn: "ts"},
+				},
+			},
+			Expected: []GenericRecord{
+				[]interface{}{"a", 1, 1.1, "test string", true, time.UnixMilli(0)},
+				[]interface{}{"b", 2, 1.2, "second string", false, time.UnixMilli(0)},
+				[]interface{}{"c", 3, 1.3, "third string", nil, time.UnixMilli(0)},
+				[]interface{}{"d", 4, 1.4, "fourth string", false, time.UnixMilli(0)},
+				[]interface{}{"e", 5, 1.5, "fifth string", true, time.UnixMilli(0)},
+			},
+		},
+	}
+
+	testTransform := func(t *testing.T, test TransformTest) {
+		table, err := store.CreatePrimaryTable(test.PrimaryTable, test.Schema)
+		if err != nil {
+			t.Fatalf("Could not initialize table: %v", err)
+		}
+		for _, value := range test.Records {
+			if err := table.Write(value); err != nil {
+				t.Fatalf("Could not write value: %v: %v", err, value)
+			}
+		}
+		test.Config.Query = strings.Replace(test.Config.Query, "tb", sanitize(table.GetName()), 1)
+		if err := store.CreateTransformation(test.Config); err != nil {
+			t.Fatalf("Could not create transformation: %v", err)
+		}
+		rows, err := table.NumRows()
+		if err != nil {
+			t.Fatalf("could not get NumRows of table: %v", err)
+		}
+		if int(rows) != len(test.Records) {
+			t.Fatalf("NumRows do not match. Expected: %d, Got: %d", len(test.Records), rows)
+		}
+		_, err = store.GetResourceTable(test.Config.TargetTableID)
+		if err != nil {
+			t.Errorf("Could not get transformation table: %v", err)
+			return
+		}
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			testTransform(t, test)
+		})
+	}
+	// Test if can materialized a transformed table
+
 }
 
 func Test_snowflakeOfflineTable_checkTimestamp(t *testing.T) {

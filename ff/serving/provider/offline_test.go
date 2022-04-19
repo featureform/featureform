@@ -78,11 +78,10 @@ func TestOfflineStores(t *testing.T) {
 		t               Type
 		c               SerializedConfig
 		integrationTest bool
-		sql             bool
 	}{
-		{MemoryOffline, []byte{}, false, false},
-		{PostgresOffline, serialPGConfig, true, true},
-		{SnowflakeOffline, serialSFConfig, true, true},
+		{MemoryOffline, []byte{}, false},
+		{PostgresOffline, serialPGConfig, true},
+		{SnowflakeOffline, serialSFConfig, true},
 	}
 	for _, testItem := range testList {
 		if testing.Short() && testItem.integrationTest {

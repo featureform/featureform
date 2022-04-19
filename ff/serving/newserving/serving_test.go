@@ -19,8 +19,6 @@ import (
 	"github.com/featureform/serving/provider"
 )
 
-var serv *metadata.MetadataServer
-
 func simpleFeatureRecords() map[provider.ResourceID][]provider.ResourceRecord {
 	featureId := provider.ResourceID{
 		Name:    "feature",
@@ -408,7 +406,7 @@ func startMetadata() (*metadata.MetadataServer, string) {
 		Logger:          logger.Sugar(),
 		StorageProvider: metadata.LocalStorageProvider{},
 	}
-	serv, err = metadata.NewMetadataServer(config)
+	serv, err := metadata.NewMetadataServer(config)
 	if err != nil {
 		panic(err)
 	}

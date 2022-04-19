@@ -391,7 +391,8 @@ func castSnowflakeTableItemType(v interface{}, t snowflakeColumnType) interface{
 	case SFBool:
 		return v.(bool)
 	case "TIMESTAMP_NTZ":
-		return v.(time.Time).UTC()
+		ts := v.(time.Time).UTC()
+		return ts
 	default:
 		return v
 	}

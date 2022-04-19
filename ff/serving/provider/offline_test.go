@@ -1195,10 +1195,7 @@ func testTransform(t *testing.T, store SQLOfflineStore) {
 		i := 0
 		for iterator.Next() {
 			if !reflect.DeepEqual(iterator.Values(), test.Expected[i]) {
-				//for j, val := range iterator.Values() {
-				//	t.Logf("Expected Value: %v, Type: %T, Recieved Value: %v, Type: %T, Equals: %v", test.Expected[i][j], test.Expected[i][j], val, val, reflect.DeepEqual(test.Expected[i][j], val))
-				//}
-				t.Fatalf("Expected: %v, Received %v", test.Expected[i], iterator.Values())
+				t.Fatalf("Expected: %#v, Received %#v", test.Expected[i], iterator.Values())
 			}
 			i++
 		}

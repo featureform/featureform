@@ -693,6 +693,9 @@ func castPostgresTableItemType(v interface{}, t postgresColumnType) interface{} 
 		return v.(string)
 	case PGBool:
 		return v.(bool)
+	case "timestamp with time zone":
+		ts := v.(time.Time).UTC()
+		return ts
 	default:
 		return v
 	}
@@ -719,7 +722,6 @@ func (store *postgresOfflineStore) CreateTransformation(config TransformationCon
 		}
 		constraintName := uuid.NewString()
 		query = fmt.Sprintf("CREATE TABLE %s AS %s ; ALTER TABLE %s ADD CONSTRAINT  %s  UNIQUE (entity, ts)", sanitize(name), columnMap, sanitize(name), sanitize(constraintName))
-		fmt.Println(query)
 	}
 
 	if _, err := store.conn.Exec(context.Background(), query); err != nil {

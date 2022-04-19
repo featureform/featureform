@@ -48,7 +48,7 @@ func TestOfflineStores(t *testing.T) {
 	if err := createSnowflakeDatabase(snowflakeConfig); err != nil {
 		t.Fatalf("%v", err)
 	}
-	//	defer destroySnowflakeDatabase(snowflakeConfig)
+	defer destroySnowflakeDatabase(snowflakeConfig)
 
 	testFns := map[string]func(*testing.T, OfflineStore){
 		"CreateGetTable":          testCreateGetOfflineTable,
@@ -80,7 +80,7 @@ func TestOfflineStores(t *testing.T) {
 		integrationTest bool
 		sql             bool
 	}{
-		//	{MemoryOffline, []byte{}, false, false},
+		{MemoryOffline, []byte{}, false, false},
 		{PostgresOffline, serialPGConfig, true, true},
 		{SnowflakeOffline, serialSFConfig, true, true},
 	}

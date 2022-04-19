@@ -1054,6 +1054,7 @@ type FeatureVariant struct {
 	serialized *pb.FeatureVariant
 	fetchTrainingSetsFns
 	fetchProviderFns
+	fetchSourceFns
 	createdFn
 	protoStringer
 }
@@ -1063,6 +1064,7 @@ func wrapProtoFeatureVariant(serialized *pb.FeatureVariant) *FeatureVariant {
 		serialized:           serialized,
 		fetchTrainingSetsFns: fetchTrainingSetsFns{serialized},
 		fetchProviderFns:     fetchProviderFns{serialized},
+		fetchSourceFns:       fetchSourceFns{serialized},
 		createdFn:            createdFn{serialized},
 		protoStringer:        protoStringer{serialized},
 	}
@@ -1078,10 +1080,6 @@ func (variant *FeatureVariant) Description() string {
 
 func (variant *FeatureVariant) Variant() string {
 	return variant.serialized.GetVariant()
-}
-
-func (variant *FeatureVariant) Source() NameVariant {
-	return parseNameVariant(variant.serialized.GetSource())
 }
 
 func (variant *FeatureVariant) Type() string {
@@ -1212,6 +1210,7 @@ type LabelVariant struct {
 	serialized *pb.LabelVariant
 	fetchTrainingSetsFns
 	fetchProviderFns
+	fetchSourceFns
 	createdFn
 	protoStringer
 }
@@ -1221,6 +1220,7 @@ func wrapProtoLabelVariant(serialized *pb.LabelVariant) *LabelVariant {
 		serialized:           serialized,
 		fetchTrainingSetsFns: fetchTrainingSetsFns{serialized},
 		fetchProviderFns:     fetchProviderFns{serialized},
+		fetchSourceFns:       fetchSourceFns{serialized},
 		createdFn:            createdFn{serialized},
 		protoStringer:        protoStringer{serialized},
 	}
@@ -1236,10 +1236,6 @@ func (variant *LabelVariant) Description() string {
 
 func (variant *LabelVariant) Variant() string {
 	return variant.serialized.GetVariant()
-}
-
-func (variant *LabelVariant) Source() NameVariant {
-	return parseNameVariant(variant.serialized.GetSource())
 }
 
 func (variant *LabelVariant) Type() string {

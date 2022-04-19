@@ -94,12 +94,6 @@ func (def *TrainingSetDef) check() error {
 	return nil
 }
 
-type TransformationType string
-
-const (
-	SQL TransformationType = "SQL"
-)
-
 type ColumnMapping struct {
 	sourceColumn   string
 	resourceColumn string
@@ -107,7 +101,6 @@ type ColumnMapping struct {
 
 type TransformationConfig struct {
 	TargetTableID ResourceID
-	Type          TransformationType
 	Provider      Type
 	Query         string
 	ColumnMapping []ColumnMapping

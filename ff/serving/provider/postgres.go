@@ -154,6 +154,9 @@ func (store *postgresOfflineStore) CreatePrimaryTable(id ResourceID, schema Tabl
 	} else if exists {
 		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}
+	if len(schema.Columns) == 0 {
+		return nil, fmt.Errorf("cannot create primary table without columns")
+	}
 	tableName := store.getPrimaryTableName(id)
 	table, err := newPostgresPrimaryTable(store.conn, tableName, schema)
 	if err != nil {
@@ -516,6 +519,7 @@ func (table *postgresOfflineTable) Write(rec ResourceRecord) error {
 
 func newPostgresPrimaryTable(conn *pgxpool.Pool, name string, schema TableSchema) (*postgresPrimaryTable, error) {
 	query, err := createPrimaryTableQuery(name, schema)
+	fmt.Println(query)
 	if err != nil {
 		return nil, err
 	}
@@ -810,8 +814,8 @@ func (pt *postgresPrimaryTable) IterateSegment(start, end int64) (GenericTableIt
 		columnNames = append(columnNames, sanitize(column))
 	}
 	columns := strings.Join(columnNames[:], ", ")
-	trainingSetQry := fmt.Sprintf("SELECT %s FROM %s", columns, sanitize(pt.name))
-	rows, err = pt.conn.Query(context.Background(), trainingSetQry)
+	query := fmt.Sprintf("SELECT %s FROM %s", columns, sanitize(pt.name))
+	rows, err = pt.conn.Query(context.Background(), query)
 	if err != nil {
 		return nil, err
 	}

@@ -35,19 +35,20 @@ func TestOfflineStores(t *testing.T) {
 	}
 	serialPGConfig := postgresConfig.Serialize()
 	os.Setenv("TZ", "UTC")
-	//snowFlakeDatabase := strings.ToUpper(uuid.NewString())
-	//var snowflakeConfig = SnowflakeConfig{
-	//	Username:     os.Getenv("SNOWFLAKE_USERNAME"),
-	//	Password:     os.Getenv("SNOWFLAKE_PASSWORD"),
-	//	Organization: os.Getenv("SNOWFLAKE_ORG"),
-	//	Account:      os.Getenv("SNOWFLAKE_ACCOUNT"),
-	//	Database:     snowFlakeDatabase,
-	//}
-	//serialSFConfig := snowflakeConfig.Serialize()
-	//if err := createSnowflakeDatabase(snowflakeConfig); err != nil {
-	//	t.Fatalf("%v", err)
-	//}
-	//defer destroySnowflakeDatabase(snowflakeConfig)
+	snowFlakeDatabase := strings.ToUpper(uuid.NewString())
+	t.Log("Snowflake Database: ", snowFlakeDatabase)
+	var snowflakeConfig = SnowflakeConfig{
+		Username:     os.Getenv("SNOWFLAKE_USERNAME"),
+		Password:     os.Getenv("SNOWFLAKE_PASSWORD"),
+		Organization: os.Getenv("SNOWFLAKE_ORG"),
+		Account:      os.Getenv("SNOWFLAKE_ACCOUNT"),
+		Database:     snowFlakeDatabase,
+	}
+	serialSFConfig := snowflakeConfig.Serialize()
+	if err := createSnowflakeDatabase(snowflakeConfig); err != nil {
+		t.Fatalf("%v", err)
+	}
+	//	defer destroySnowflakeDatabase(snowflakeConfig)
 
 	testFns := map[string]func(*testing.T, OfflineStore){
 		"CreateGetTable":          testCreateGetOfflineTable,
@@ -81,7 +82,7 @@ func TestOfflineStores(t *testing.T) {
 	}{
 		//	{MemoryOffline, []byte{}, false, false},
 		{PostgresOffline, serialPGConfig, true, true},
-		//	{SnowflakeOffline, serialSFConfig, true, true},
+		{SnowflakeOffline, serialSFConfig, true, true},
 	}
 	for _, testItem := range testList {
 		if testing.Short() && testItem.integrationTest {
@@ -949,13 +950,30 @@ func testPrimaryCreateTable(t *testing.T, store OfflineStore) {
 			ExpectError: true,
 			ExpectValue: nil,
 		},
-		"ValidPrimaryResource": {
+		"InvalidColumns": {
 			Rec: ResourceID{
 				Name: uuid.NewString(),
 				Type: Primary,
 			},
 			Schema: TableSchema{
 				Columns: []TableColumn{},
+			},
+			ExpectError: true,
+			ExpectValue: nil,
+		},
+		"ValidPrimaryTable": {
+			Rec: ResourceID{
+				Name: uuid.NewString(),
+				Type: Primary,
+			},
+			Schema: TableSchema{
+				Columns: []TableColumn{
+					{Name: "entity", ValueType: String},
+					{Name: "int", ValueType: Int},
+					{Name: "bool", ValueType: Bool},
+					{Name: "string", ValueType: String},
+					{Name: "float", ValueType: Float32},
+				},
 			},
 			ExpectError: false,
 			ExpectValue: nil,
@@ -991,7 +1009,11 @@ func testPrimaryTableWrite(t *testing.T, store OfflineStore) {
 				Type: Primary,
 			},
 			Schema: TableSchema{
-				Columns: []TableColumn{},
+				Columns: []TableColumn{
+					{Name: "entity", ValueType: String},
+					{Name: "value", ValueType: Int},
+					{Name: "timestamp", ValueType: Timestamp},
+				},
 			},
 			Records:     []GenericRecord{},
 			ExpectError: false,
@@ -1100,11 +1122,11 @@ func testTransform(t *testing.T, store SQLOfflineStore) {
 				Query: "SELECT * FROM tb",
 			},
 			Expected: []GenericRecord{
-				[]interface{}{"a", 1, 1.1, "test string", true, time.UnixMilli(0)},
-				[]interface{}{"b", 2, 1.2, "second string", false, time.UnixMilli(0)},
-				[]interface{}{"c", 3, 1.3, "third string", nil, time.UnixMilli(0)},
-				[]interface{}{"d", 4, 1.4, "fourth string", false, time.UnixMilli(0)},
-				[]interface{}{"e", 5, 1.5, "fifth string", true, time.UnixMilli(0)},
+				[]interface{}{"a", 1, 1.1, "test string", true, time.UnixMilli(0).UTC()},
+				[]interface{}{"b", 2, 1.2, "second string", false, time.UnixMilli(0).UTC()},
+				[]interface{}{"c", 3, 1.3, "third string", nil, time.UnixMilli(0).UTC()},
+				[]interface{}{"d", 4, 1.4, "fourth string", false, time.UnixMilli(0).UTC()},
+				[]interface{}{"e", 5, 1.5, "fifth string", true, time.UnixMilli(0).UTC()},
 			},
 		},
 		"Count": {
@@ -1173,6 +1195,9 @@ func testTransform(t *testing.T, store SQLOfflineStore) {
 		i := 0
 		for iterator.Next() {
 			if !reflect.DeepEqual(iterator.Values(), test.Expected[i]) {
+				//for j, val := range iterator.Values() {
+				//	t.Logf("Expected Value: %v, Type: %T, Recieved Value: %v, Type: %T, Equals: %v", test.Expected[i][j], test.Expected[i][j], val, val, reflect.DeepEqual(test.Expected[i][j], val))
+				//}
 				t.Fatalf("Expected: %v, Received %v", test.Expected[i], iterator.Values())
 			}
 			i++
@@ -1234,11 +1259,11 @@ func testTransformCreateFeature(t *testing.T, store SQLOfflineStore) {
 				},
 			},
 			Expected: []GenericRecord{
-				[]interface{}{"a", 1, 1.1, "test string", true, time.UnixMilli(0)},
-				[]interface{}{"b", 2, 1.2, "second string", false, time.UnixMilli(0)},
-				[]interface{}{"c", 3, 1.3, "third string", nil, time.UnixMilli(0)},
-				[]interface{}{"d", 4, 1.4, "fourth string", false, time.UnixMilli(0)},
-				[]interface{}{"e", 5, 1.5, "fifth string", true, time.UnixMilli(0)},
+				[]interface{}{"a", 1, 1.1, "test string", true, time.UnixMilli(0).UTC()},
+				[]interface{}{"b", 2, 1.2, "second string", false, time.UnixMilli(0).UTC()},
+				[]interface{}{"c", 3, 1.3, "third string", nil, time.UnixMilli(0).UTC()},
+				[]interface{}{"d", 4, 1.4, "fourth string", false, time.UnixMilli(0).UTC()},
+				[]interface{}{"e", 5, 1.5, "fifth string", true, time.UnixMilli(0).UTC()},
 			},
 		},
 	}

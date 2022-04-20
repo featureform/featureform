@@ -320,7 +320,7 @@ func (store *BrokenNumRowsOfflineStore) GetPrimaryTable(id provider.ResourceID) 
 	return nil, nil
 }
 
-func (b BrokenNumRowsOfflineStore) CreateResourceTable(id provider.ResourceID, schema provider.SerializedTableSchema) (provider.OfflineTable, error) {
+func (b BrokenNumRowsOfflineStore) CreateResourceTable(id provider.ResourceID, schema provider.TableSchema) (provider.OfflineTable, error) {
 	return nil, nil
 }
 func (b BrokenNumRowsOfflineStore) GetResourceTable(id provider.ResourceID) (provider.OfflineTable, error) {
@@ -659,7 +659,7 @@ func NewMockOfflineStore() *MockOfflineStore {
 	}
 }
 
-func (m MockOfflineStore) CreateResourceTable(id provider.ResourceID, schema provider.SerializedTableSchema) (provider.OfflineTable, error) {
+func (m MockOfflineStore) CreateResourceTable(id provider.ResourceID, schema provider.TableSchema) (provider.OfflineTable, error) {
 	return MockOfflineTable{}, nil
 }
 
@@ -747,7 +747,7 @@ func TestChunkRunnerFactory(t *testing.T) {
 	if _, err := online.CreateTable(resourceID.Name, resourceID.Variant, provider.String); err != nil {
 		t.Fatalf("Failed to create online resource table: %v", err)
 	}
-	if _, err := offline.CreateResourceTable(resourceID, provider.SerializedTableSchema{}); err != nil {
+	if _, err := offline.CreateResourceTable(resourceID, provider.TableSchema{}); err != nil {
 		t.Fatalf("Failed to create offline resource table: %v", err)
 	}
 	materialization, err := offline.CreateMaterialization(resourceID)

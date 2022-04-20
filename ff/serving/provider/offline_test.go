@@ -109,7 +109,7 @@ func TestOfflineStores(t *testing.T) {
 			}
 			store, err := provider.AsSQLOfflineStore()
 			if err != nil {
-				t.Fatalf("Failed to use provider %s as OfflineStore: %s", testItem.t, err)
+				t.Logf("Cannot use provider %s as SQLOfflineStore: %s", testItem.t, err)
 				continue
 			}
 			testName := fmt.Sprintf("%s_%s", testItem.t, name)

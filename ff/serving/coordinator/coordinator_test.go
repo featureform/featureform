@@ -6,7 +6,6 @@ import (
 )
 
 func createTrainingSetWithProvider(client *metadata.Client, config provider.SerializedConfig) {
-
 	defs := []metadata.ResourceDef{
 		metadata.UserDef{
 			Name: "Simba Khadder",
@@ -35,7 +34,7 @@ func createTrainingSetWithProvider(client *metadata.Client, config provider.Seri
 			Name:        "is_fraud",
 			Variant:     "default",
 			Description: "",
-			Type:        "",
+			Type:        "int",
 			Source:      metadata.NameVariant{"Transactions", "default"},
 			Entity:      "user",
 			Owner:       "",
@@ -47,15 +46,15 @@ func createTrainingSetWithProvider(client *metadata.Client, config provider.Seri
 			Source:      metadata.NameVariant{"Transactions", "default"},
 			Type:        "int",
 			Entity:      "user",
-			Owner:       "Simba Khadder",
-			Description: "Number of transcations the user performed in the last 7 days.",
-			Provider:    "demo-s3",
+			Owner:       "",
+			Description: "",
+			Provider:    "test_provider",
 		},
 		metadata.TrainingSetDef{
 			Name:        "is_fraud",
 			Variant:     "default",
-			Description: "if a transaction is fraud",
-			Owner:       "Simba Khadder",
+			Description: "",
+			Owner:       "",
 			Provider:    "test_provider",
 			Label:       metadata.NameVariant{"is_fraud", "default"},
 			Features:    []metadata.NameVariant{{"user_transaction_count", "7d"}},
@@ -89,6 +88,22 @@ func TestCoordinatorTrainingSet(t *testing.T) {
 	}
 	serialPGConfig := postgresConfig.Serialize()
 	//populate actual training set data here
+	my_provider, err := provider.Get(Provider.PostgresOffline, serialPGConfig)
+	if err != nil {
+		t.Fatalf("could not get provider: %v", err)
+	}
+	my_offline, err := my_provider.AsOfflineStore()
+	if err != nil {
+		t.Fatalf("could not get provider as offline store: %v", err)
+	}
+	offline_feature := provider.ResourceID{Name: "user_transaction_count", Variant: "7d", Type: provider.OfflineResourceType.Feature}
+	if _, err := my_offline.CreateResourceTable(offline_feature, provider.PostgresTableSchema{Int}); err != nil {
+		t.Fatalf("could not create feature table: %v", err)
+	}
+	offline_label := provider.ResourceID{Name: "is_fraud", Variant: "default", Type: provider.OfflineResourceType.Label}
+	if _, err := my_offline.CreateResourceTable(offline_label, provider.PostgresTableSchema{Int}); err != nil {
+		t.Fatalf("could not create label table: %v", err)
+	}
 	if err := createTrainingSetWithProvider(client, serialPGConfig); err != nil {
 		return err
 	}

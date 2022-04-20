@@ -21,7 +21,7 @@ jobs:
         run: |
           helm repo add jenkins https://charts.jenkins.io
           helm repo update
-          helm install jenkins/jenkins
+          helm install jenkins-is-the-best jenkins/jenkins
 
       - name: Test service URLs
         run: |

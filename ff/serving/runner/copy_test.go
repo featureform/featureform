@@ -312,6 +312,14 @@ func (store *BrokenNumRowsOfflineStore) AsOfflineStore() (provider.OfflineStore,
 	return store, nil
 }
 
+func (store *BrokenNumRowsOfflineStore) CreatePrimaryTable(id provider.ResourceID, schema provider.TableSchema) (provider.PrimaryTable, error) {
+	return nil, nil
+}
+
+func (store *BrokenNumRowsOfflineStore) GetPrimaryTable(id provider.ResourceID) (provider.PrimaryTable, error) {
+	return nil, nil
+}
+
 func (b BrokenNumRowsOfflineStore) CreateResourceTable(id provider.ResourceID, schema provider.SerializedTableSchema) (provider.OfflineTable, error) {
 	return nil, nil
 }
@@ -606,6 +614,13 @@ func (m MockOnlineStore) AsOnlineStore() (provider.OnlineStore, error) {
 
 func (m MockOfflineStore) AsOfflineStore() (provider.OfflineStore, error) {
 	return m, nil
+}
+
+func (m MockOfflineStore) CreatePrimaryTable(id provider.ResourceID, schema provider.TableSchema) (provider.PrimaryTable, error) {
+	return nil, nil
+}
+func (m MockOfflineStore) GetPrimaryTable(id provider.ResourceID) (provider.PrimaryTable, error) {
+	return nil, nil
 }
 
 type MockOnlineStoreTable struct{}

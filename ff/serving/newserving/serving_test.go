@@ -377,7 +377,7 @@ func createMockOfflineStoreFactory(recsMap map[provider.ResourceID][]provider.Re
 	return func(cfg provider.SerializedConfig) (provider.Provider, error) {
 		store := provider.NewMemoryOfflineStore()
 		for id, recs := range recsMap {
-			table, err := store.CreateResourceTable(id, nil)
+			table, err := store.CreateResourceTable(id, provider.TableSchema{})
 			if err != nil {
 				panic(err)
 			}

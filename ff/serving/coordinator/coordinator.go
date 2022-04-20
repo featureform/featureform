@@ -7,25 +7,25 @@ import (
 	"log"
 	"time"
 
-	clientv3 "go.etcd.io/etcd/client/v3"
+	"github.com/featureform/serving/metadata"
 	provider "github.com/featureform/serving/provider"
 	runner "github.com/featureform/serving/runner"
-	"github.com/featureform/serving/metadata"
+	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/client/v3/concurrency"
 )
 
 type Coordinator struct {
-	Metadata *metadata.Client
-	Logger   *zap.SugaredLogger
+	Metadata    *metadata.Client
+	Logger      *zap.SugaredLogger
 	ETCD_Client *clientv3.Client
-	Spawner JobSpawner
+	Spawner     JobSpawner
 }
 
 func NewCoordinator(meta *metadata.Client, logger *zap.SugaredLogger, cli *clientv3.Client) (*Coordinator, error) {
 	logger.Debug("Creating new coordinator")
 	return &FeatureServer{
-		Metadata: meta,
-		Logger:   logger,
+		Metadata:   meta,
+		Logger:     logger,
 		ETCDClient: cli,
 	}, nil
 }
@@ -34,24 +34,24 @@ const MAX_ATTEMPTS = 10
 
 const (
 	Created ResourceStatus = "CREATED"
-	Pending = "PENDING"
-	Failed = "FAILED"
-	Ready = "READY"
+	Pending                = "PENDING"
+	Failed                 = "FAILED"
+	Ready                  = "READY"
 )
 
 const (
 	Kubernetes JobSpawner = "Kubernetes"
-	Memory = "Memory"
+	Memory                = "Memory"
 )
 
 type CoordinatorJob struct {
 	Attempts int
-	Type metadata.ResourceType
-	Name string
-	Variant string
+	Type     metadata.ResourceType
+	Name     string
+	Variant  string
 }
 
-func (c *CoordinatorJob) Serialize() []byte, error {
+func (c *CoordinatorJob) Serialize() ([]byte, error) {
 	serialized, err := json.Marshal(c)
 	if err != nil {
 		return nil, err
@@ -73,9 +73,8 @@ func (c *Coordinator) StartTimedJobWatcher() error {
 		return err
 	}
 	defer s.Close()
-	ctx := context.Background()
 	for {
-		getResp, err := kvc.Get(ctx, "JOB", clientv3.WithPrefix())
+		getResp, err := kvc.Get(context.Background(), "JOB", clientv3.WithPrefix())
 		if err != nil {
 			return err
 		}
@@ -86,21 +85,39 @@ func (c *Coordinator) StartTimedJobWatcher() error {
 	}
 }
 
+func (c *Coordinator) StartJobWatcher() error {
+	s, err := concurrency.NewSession(c.cli, concurrency.WithTTL(10))
+	if err != nil {
+		return err
+	}
+	defer s.Close()
+	for {
+		rch := cli.Watch(context.Background(), "JOB", clientv3.WithPrefix())
+		for wresp := range rch {
+			for _, ev := range wresp.Events {
+				if ev.Type == 0 {
+					go syncHandleJob(string(ev.Kv.Key), s)
+				}
+
+			}
+		}
+	}
+}
+
 func (c *Coordinator) SetResourceStatus(resType metadata.ResourceType, name string, variant string, status string) error {
 	ctx := context.Background()
 	if _, err := c.Metadata.SetStatus(ctx, metadata.NameVariant{name, variant}, status); err != nil {
 		return err
 	}
 	return nil
-	
 }
 
 func (c *Coordinator) GetJobRunner(jobName string, config runner.Config) (runner.Runner, error) {
 	switch c.Spawner {
 	case Kubernetes:
 		kubeConfig := runner.KubernetesRunnerConfig{
-			EnvVars: map[string]string{"NAME": "CREATE_TRAINING_SET", "CONFIG": string(getResp)},
-			Image: "featureform/worker",
+			EnvVars:  map[string]string{"NAME": "CREATE_TRAINING_SET", "CONFIG": string(getResp)},
+			Image:    "featureform/worker",
 			NumTasks: 1,
 		}
 		jobRunner, err := runner.NewKubernetesRunner(kubeConfig)
@@ -156,14 +173,14 @@ func (c *Coordinator) runTrainingSetJob(name string, variant string) error {
 		return err
 	}
 	training_set_def := provider.TrainingSetDef{
-		ID: provider.ResourceID{Name: name, Variant: variant},
-		Label: provider.ResourceID{Name: label.GetName(), Variant: label.GetVariant()},
+		ID:       provider.ResourceID{Name: name, Variant: variant},
+		Label:    provider.ResourceID{Name: label.GetName(), Variant: label.GetVariant()},
 		Features: featureList,
 	}
 	ts_runner_config := runner.TrainingSetRunnerConfig{
-		OfflineType: providerEntry.GetType(),
+		OfflineType:   providerEntry.GetType(),
 		OfflineConfig: providerEntry.GetSerializedConfig(),
-		Def: training_set_def,
+		Def:           training_set_def,
 	}
 	jobRunner, err := c.GetJobRunner("CREATE_TRAINING_SET", ts_runner_config)
 	if err != nil {
@@ -190,7 +207,7 @@ func (c *Coordinator) syncHandleJob(job_key string, s *concurrency.Session) erro
 	if err := l.Lock(ctx); err != nil {
 		return err
 	}
-	unlockAndExit := func() error{
+	unlockAndExit := func() error {
 		if err := l.Unlock(ctx); err != nil {
 			return err
 		}
@@ -204,7 +221,7 @@ func (c *Coordinator) syncHandleJob(job_key string, s *concurrency.Session) erro
 		return fmt.Errorf("transaction did not succeed. %v", unlockAndExit())
 	}
 	var getResp []byte
-	if len(get_job_data_txn_resp.Responses[0].GetResponseRange().GetKvs()) > 0{
+	if len(get_job_data_txn_resp.Responses[0].GetResponseRange().GetKvs()) > 0 {
 		getResp = get_job_data_txn_resp.Responses[0].GetResponseRange().GetKvs()[0].Value
 	} else {
 		return fmt.Errorf("Coordinator job does not exist. %v", unlockAndExit())
@@ -212,7 +229,7 @@ func (c *Coordinator) syncHandleJob(job_key string, s *concurrency.Session) erro
 	c_job := &CoordinatorJob{}
 	err := c_job.Deserialize(getResp)
 	if err != nil {
-		return fmt.Errorf("Could not deserialize coordinator job: %v. %v", err unlockAndExit())
+		return fmt.Errorf("Could not deserialize coordinator job: %v. %v", err, unlockAndExit())
 	}
 	if c_job.Attempts > MAX_ATTEMPTS {
 		if err := c.SetResourceStatus(c_job.Type, c_job.Name, c_job.Variant, ResourceStatus.Failed); err != nil {
@@ -226,7 +243,7 @@ func (c *Coordinator) syncHandleJob(job_key string, s *concurrency.Session) erro
 		return fmt.Errorf("Could not serialize coordinator job. %v", unlockAndExit())
 	}
 	set_new_attempts_txn := (kvc).Txn(ctx)
-	set_new_attempts_txn_resp, err := set_new_attempts_txn.If(l.IsOwner()).Then(clientv3.OpPut(job_key,serialized)).Commit()
+	set_new_attempts_txn_resp, err := set_new_attempts_txn.If(l.IsOwner()).Then(clientv3.OpPut(job_key, serialized)).Commit()
 	if err != nil {
 		return fmt.Errorf("Could not set iterated coordinator job. %v", unlockAndExit())
 	}
@@ -236,7 +253,7 @@ func (c *Coordinator) syncHandleJob(job_key string, s *concurrency.Session) erro
 	}
 	switch c_job.Type {
 	case metadata.TRAINING_SET_VARIANT:
-		if err := runTrainingSetJob(c_job.Name c_job.Variant); err != nil {
+		if err := runTrainingSetJob(c_job.Name, c_job.Variant); err != nil {
 			return fmt.Errorf("Training set job failed: %v. %v", err, unlockAndExit())
 		}
 	}
@@ -254,4 +271,3 @@ func (c *Coordinator) syncHandleJob(job_key string, s *concurrency.Session) erro
 	}
 	return unlockAndExit()
 }
-

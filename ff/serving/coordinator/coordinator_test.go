@@ -1,22 +1,22 @@
 package coordinator
 
 import (
-	"testing"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
-func createTrainingSetWithProvider(client *metadata.Client, config provider.SerializedConfig)
+func createTrainingSetWithProvider(client *metadata.Client, config provider.SerializedConfig) {
 
 	defs := []metadata.ResourceDef{
 		metadata.UserDef{
 			Name: "Simba Khadder",
 		},
 		metadata.ProviderDef{
-			Name:        "test_provider",
-			Description: "",
-			Type:        "",
-			Software:    "",
-			Team:        "",
+			Name:             "test_provider",
+			Description:      "",
+			Type:             "",
+			Software:         "",
+			Team:             "",
 			SerializedConfig: config,
 		},
 		metadata.EntityDef{
@@ -105,14 +105,13 @@ func TestCoordinatorTrainingSet(t *testing.T) {
 	if err != nil {
 		return err
 	}
-	job_key := fmt.Sprintf("JOB_%s",ts_id)
+	job_key := fmt.Sprintf("JOB_%s", ts_id)
 	go coord.syncHandleJob(job_key, s)
 	ts_pending := client.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: "is_fraud", Variant: "default"})
 	assert.Equal(t, ts_pending.GetStatus(), ResourceStatus.Pending, "Training set should be set to pending once coordinator spawns")
-	for job, err := client.GetJob(job_key); err != nil {
+	for job, err := client.GetJob(job_key); err != nil; {
 		time.Sleep(1 * time.Second)
 	}
 	ts_complete := client.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: "is_fraud", Variant: "default"})
 	assert.Equal(t, ts_complete.GetStatus(), ResourceStatus.Ready, "Training set should be set to ready once job completes")
 }
-

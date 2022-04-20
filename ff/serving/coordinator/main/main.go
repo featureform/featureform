@@ -14,29 +14,24 @@ import (
 
 func main() {
 	cli, err := clientv3.New(clientv3.Config{Endpoints: []string{"localhost:2379"}})
+	logger := zap.NewExample().Sugar()
+	client, err := metadata.NewClient("localhost:8080", logger)
 	if err != nil {
-		log.Fatal(err)
+		logger.Errorw("Failed to connect: %v", err)
 	}
-	defer cli.Close()
-	s, _ := concurrency.NewSession(cli, concurrency.WithTTL(10))
-	defer s.Close()
-
-	go func() { //watcher
-		for {
-			fmt.Println("watching client")
-			rch := cli.Watch(context.Background(), "JOB", clientv3.WithPrefix())
-			for wresp := range rch {
-				for _, ev := range wresp.Events {
-					// fmt.Printf("%s %q : %q\n", ev.Type, ev.Kv.Key, ev.Kv.Value)
-					// fmt.Println(ev)
-					if ev.Type == 0 { //Put type
-						go syncHandleJob(string(ev.Kv.Key), s)
-					}
-
-				}
-			}
+	coord, err := NewCoordinator(client, logger, cli)
+	if err != nil {
+		logger.Errorw("Failed to set up coordinator: %v", err)
+	}
+	go func() {
+		if err := coord.StartJobWatcher(); err != nil {
+			return err
 		}
 	}()
-
-	go startTimedJobWatcher()
+	go func() {
+		if err := coord.startTimedJobWatcher(); err != nil {
+			return err
+		}
+	}()
+	
 }

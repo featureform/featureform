@@ -88,20 +88,11 @@ func (c *Coordinator) StartTimedJobWatcher() error {
 
 func (c *Coordinator) SetResourceStatus(resType metadata.ResourceType, name string, variant string, status string) error {
 	ctx := context.Background()
-	ts, err := c.Metadata.GetTrainingSetVariant(ctx, metadata.NameVariant{name, variant})
-	err := c.Metadata.CreateTrainingSetVariant(ctx, )
-	func (serv *MetadataServer) mutateResource(ctx context.Context, res Resource) (*pb.Empty, error) {
-		id := res.ID()
-		if has, err := serv.lookup.Has(id); err != nil {
-			return nil, err
-		} else if !has {
-			return nil, &ResourceNotFound{id}
-		}
-		if err := serv.lookup.Set(id, res); err != nil {
-			return nil, err
-		}
-		return &pb.Empty{}, nil
+	if _, err := c.Metadata.SetStatus(ctx, metadata.NameVariant{name, variant}, status); err != nil {
+		return err
 	}
+	return nil
+	
 }
 
 func (c *Coordinator) GetJobRunner(jobName string, config runner.Config) (runner.Runner, error) {

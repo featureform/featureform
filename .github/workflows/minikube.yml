@@ -10,19 +10,22 @@ jobs:
         uses: medyagh/setup-minikube@master
       - name: Try the cluster !
         run: kubectl get pods -A
-      - name: Build image
+
+      - name: Install Helm
         run: |
-          export SHELL=/bin/bash
-          eval $(minikube -p minikube docker-env)
-          docker build -f ./Dockerfile -t local/example .
-          echo -n "verifying images:"
-          docker images
-      - name: Deploy to minikube
-        run:
-          kubectl apply -f deploy-to-minikube.yaml
+          curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+          chmod 700 get_helm.sh
+          ./get_helm.sh
+
+      - name: helm install
+        run: |
+          helm repo add jenkins https://charts.jenkins.io
+          helm repo update
+          helm install jenkins/jenkins
+
       - name: Test service URLs
         run: |
           minikube service list
           minikube service example --url
           echo "------------------opening the service------------------"
-          curl $(minikube service example --url)
+          curl $(minikube service example --url) 

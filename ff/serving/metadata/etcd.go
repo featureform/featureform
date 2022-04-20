@@ -269,6 +269,39 @@ func (lookup etcdResourceLookup) Has(id ResourceID) (bool, error) {
 	return true, nil
 }
 
+func (lookup etcdResourceLookup) HasJob(id ResourceID) (bool, error) {
+	job_key := fmt.Sprintf("JOB_%s", createKey(id))
+	value, err := lookup.connection.GetCountWithPrefix(job_key)
+	if err != nil {
+		return false, err
+	}
+	if count == 0 {
+		return false, nil
+	}
+	return true, nil
+}
+
+func (lookup etcdResourceLookup) SetJob(id ResourceID) error {
+	if jobAlreadySet, _ := lookup.HasJob(id); jobAlreadySet {
+		return fmt.Errorf("Job already set")
+	}
+	coordinatorJob := coordinator.CoordinatorJob{
+		Attempts: 0,
+		Type: id.Type,
+		Name: id.Name,
+		Variant: id.Variant,
+	}
+	serialized, err := coordinatorJob.Serialize()
+	if err != nil {
+		return err
+	}
+	job_key := fmt.Sprintf("JOB_%s", createKey(id))
+	if err := lookup.connection.Put(job_key, string(serialized)); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (lookup etcdResourceLookup) Set(id ResourceID, res Resource) error {
 	serRes, err := lookup.serializeResource(res)
 	key := createKey(id)

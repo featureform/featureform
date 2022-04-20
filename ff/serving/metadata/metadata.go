@@ -134,6 +134,11 @@ type ResourceLookup interface {
 	Submap([]ResourceID) (ResourceLookup, error)
 	ListForType(ResourceType) ([]Resource, error)
 	List() ([]Resource, error)
+	HasJob(ResourceID) (bool, error)
+	SetJob(ResourceID) error
+	LookupJob(ResourceID) (Job, error)
+	ListJobs() ([]Job, error)
+	SetStatus(ResourceID, coordinator.Status) error
 }
 
 type TypeSenseWrapper struct {
@@ -172,6 +177,15 @@ func (lookup localResourceLookup) Set(id ResourceID, res Resource) error {
 	lookup[id] = res
 	return nil
 }
+
+func (lookup localResourceLookup) SetJob(id ResourceID) error {
+	lookup[fmt.Sprintf("JOB_%s", id)] = true
+	return nil
+}
+
+func (lookup localResourceLookup) HasJob(id ResourceID) (bool, error) {
+	_, has := lookup[fmt.Sprintf("JOB_%s", id)]
+	return has, nil
 
 func (lookup localResourceLookup) Submap(ids []ResourceID) (ResourceLookup, error) {
 	resources := make(localResourceLookup, len(ids))
@@ -786,13 +800,14 @@ type MetadataServer struct {
 	lookup     ResourceLookup
 	address    string
 	grpcServer *grpc.Server
-	listener   net.Listener
+	coordConn *grpc.ClientConn
 	pb.UnimplementedMetadataServer
 }
 
 func NewMetadataServer(config *Config) (*MetadataServer, error) {
 	config.Logger.Debug("Creating new metadata server")
 	lookup, err := config.StorageProvider.GetResourceLookup()
+
 	if err != nil {
 		return nil, err
 	}
@@ -821,36 +836,21 @@ func (serv *MetadataServer) Serve() error {
 	if err != nil {
 		return err
 	}
-	return serv.ServeOnListener(lis)
-}
-
-func (serv *MetadataServer) ServeOnListener(lis net.Listener) error {
-	serv.listener = lis
 	grpcServer := grpc.NewServer()
 	pb.RegisterMetadataServer(grpcServer, serv)
 	serv.grpcServer = grpcServer
-	serv.Logger.Infow("Server starting", "Address", serv.listener.Addr().String())
+	serv.Logger.Infow("Server starting", "Address", serv.address)
 	return grpcServer.Serve(lis)
 }
 
-func (serv *MetadataServer) GracefulStop() error {
-	if serv.grpcServer == nil {
-		return fmt.Errorf("Server not running")
-	}
+func (serv *MetadataServer) GracefulStop() {
 	serv.grpcServer.GracefulStop()
 	serv.grpcServer = nil
-	serv.listener = nil
-	return nil
 }
 
-func (serv *MetadataServer) Stop() error {
-	if serv.grpcServer == nil {
-		return fmt.Errorf("Server not running")
-	}
+func (serv *MetadataServer) Stop() {
 	serv.grpcServer.Stop()
 	serv.grpcServer = nil
-	serv.listener = nil
-	return nil
 }
 
 type StorageProvider interface {
@@ -879,6 +879,7 @@ func (sp EtcdStorageProvider) GetResourceLookup() (ResourceLookup, error) {
 			Client: client,
 		},
 	}
+	
 	return lookup, nil
 }
 
@@ -1102,6 +1103,11 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 	}
 	if err := serv.lookup.Set(id, res); err != nil {
 		return nil, err
+	}
+	if needsJobSet(res.ID().Type) {
+		if err := serv.lookup.SetJob(id); err != nil {
+			return nil, err
+		}
 	}
 	parentId, hasParent := id.Parent()
 	if hasParent {

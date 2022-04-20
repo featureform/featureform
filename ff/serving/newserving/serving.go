@@ -67,6 +67,10 @@ func (serv *FeatureServer) getTrainingSetIterator(name, variant string) (provide
 	if err != nil {
 		return nil, err
 	}
+	status := ts.GetStatus()
+	if status != "Ready" {
+		return nil, fmt.Errorf("Training set not yet materialized")
+	}
 	providerEntry, err := ts.FetchProvider(serv.Metadata, ctx)
 	if err != nil {
 		return nil, err

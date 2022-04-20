@@ -395,6 +395,7 @@ func (client *Client) CreateTrainingSetVariant(ctx context.Context, def Training
 		Description: def.Description,
 		Owner:       def.Owner,
 		Provider:    def.Provider,
+		Status: "Created",
 		Label:       def.Label.Serialize(),
 		Features:    def.Features.Serialize(),
 	}
@@ -1296,6 +1297,10 @@ func (variant *TrainingSetVariant) Variant() string {
 
 func (variant *TrainingSetVariant) Owner() string {
 	return variant.serialized.GetOwner()
+}
+
+func (variant *TrainingSetVariant) Status() string {
+	return variant.serialized.GetStatus()
 }
 
 func (variant *TrainingSetVariant) Label() NameVariant {

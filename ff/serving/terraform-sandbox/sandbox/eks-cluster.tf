@@ -15,7 +15,7 @@ module "eks" {
   worker_groups = [
     {
       name                          = "${local.cluster_name}-worker-group"
-      instance_type                 = "t2.small"
+      instance_type                 = "t2.medium"
       additional_security_group_ids = [aws_security_group.all_worker_mgmt.id]
       asg_desired_capacity          = 2
     },

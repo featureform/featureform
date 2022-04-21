@@ -9,7 +9,7 @@ resource "aws_db_subnet_group" "private_subnet_group" {
 
 resource "aws_db_instance" "postgres" {
   identifier             = local.cluster_name
-  instance_class         = "db.t3.micro"
+  instance_class         = "db.t3.medium"
   allocated_storage      = 5
   engine                 = "postgres"
   engine_version         = "13.4"

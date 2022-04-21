@@ -30,7 +30,8 @@ const themeSpec = {
       default: "#FFFFFF",
     },
     primary: { main: FEATUREFORM_RED, contrastText: "#FFFFFF" },
-    secondary: { main: FEATUREFORM_PURPLE },
+    secondary: { main: FEATUREFORM_RED },
+    error: { main: FEATUREFORM_RED },
     border: { main: FEATUREFORM_LIGHT_GRAY, alternate: FEATUREFORM_DARK_GRAY },
     text: {
       primary: blueGrey[900],
@@ -41,6 +42,10 @@ const themeSpec = {
       1: FEATUREFORM_RED,
       2: FEATUREFORM_LIGHT_PURPLE,
       3: FEATUREFORM_LIGHT_RED,
+    },
+    hoverColors: {
+      0: "#CBC3E3",
+      1: "#FFCCCB",
     },
   },
   typography: {

@@ -11,7 +11,6 @@ export const FEATUREFORM_LIGHT_GRAY = "#F5F6F7";
 export const FEATUREFORM_DARK_GRAY = "#CDD1D9";
 export const FEATUREFORM_LIGHT_BLACK = "#061B3F";
 export const FEATUREFORM_RED_BROWN = "#7C0D2E";
-// at 100% 55%
 const themeSpec = {
   overrides: {
     MuiCssBaseline: {

@@ -1,5 +1,5 @@
 resource "aws_elasticache_subnet_group" "ec_subnet_grp" {
-  name       = "tf-test-cache-subnet"
+  name       = "${local.cluster_name}-cache-subnet"
   subnet_ids = module.vpc.public_subnets
 }
 

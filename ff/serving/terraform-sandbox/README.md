@@ -1,4 +1,15 @@
-# Learn Terraform - Provision an EKS Cluster
+##Sandbox instructions
 
-This repo is a companion repo to the [Provision an EKS Cluster learn guide](https://learn.hashicorp.com/terraform/kubernetes/provision-eks-cluster), containing
-Terraform configuration files to provision an EKS cluster on AWS.
+1. Open main.tf
+2. Adjust number of sandboxes if necessary. To add a new sandbox, add an additional module block. 
+To remove, delete the module block.
+
+```
+module "<NAME>"  {
+   source = "./sandbox"
+   sandbox_name = "<NAME>"
+}
+```
+3. Run ``terraform init``
+4. Run ``terraform plan``
+5. Run ``terraform apply`` then type ``yes`` when prompted

@@ -1,4 +1,11 @@
+resource "aws_db_subnet_group" "private_subnet_group" {
+  name       =  "${local.cluster_name}-sb-subnet"
+  subnet_ids = module.vpc.public_subnets
 
+  tags = {
+    Name = local.cluster_name
+  }
+}
 
 resource "aws_db_instance" "postgres" {
   identifier             = local.cluster_name

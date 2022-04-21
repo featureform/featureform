@@ -270,12 +270,20 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
     history.push(`/entities/${metadata["entity"]}`);
   };
 
-  const linkToDataSource = (event) => {
-    history.push(`/primary-data/${metadata["primary data"]}`);
+  const linkToPrimaryData = (event) => {
+    history.push(`/primary-data/${metadata["source"]}`);
+  };
+
+  const linkToLabel = (event) => {
+    history.push(`/labels/${metadata["label"].Name}`);
   };
 
   const linkToUserPage = (event) => {
     history.push(`/users/${metadata["owner"]}`);
+  };
+
+  const linkToProviderPage = (event) => {
+    history.push(`/providers/${metadata["provider"]}`);
   };
 
   return true || (!resources.loading && !resources.failed && resources.data) ? (
@@ -303,7 +311,7 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                     )}
                   </div>
                 </div>
-                {allVariants && allVariants.length > 1 && (
+                {allVariants && (
                   <VariantControl
                     variant={variant}
                     variants={allVariants}
@@ -341,14 +349,29 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                     </div>
                   )}
 
+                  {metadata["provider"] && (
+                    <div className={classes.linkBox}>
+                      <Typography variant="body1" className={classes.typeTitle}>
+                        <b>Provider:</b>{" "}
+                      </Typography>
+                      <Chip
+                        variant="outlined"
+                        className={classes.linkChip}
+                        size="small"
+                        onClick={linkToProviderPage}
+                        label={metadata["provider"]}
+                      ></Chip>
+                    </div>
+                  )}
+
                   {metadata["dimensions"] && (
                     <Typography variant="body1">
                       <b>Dimensions:</b> {metadata["dimensions"]}
                     </Typography>
                   )}
-                  {metadata["type"] && (
+                  {metadata["data-type"] && (
                     <Typography variant="body1">
-                      <b>Type:</b> {metadata["type"]}
+                      <b>Data Type:</b> {metadata["data-type"]}
                     </Typography>
                   )}
                   {metadata["joined"] && (
@@ -362,18 +385,32 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                       <b>Software:</b> {metadata["software"]}
                     </Typography>
                   )}
+                  {metadata["label"] && (
+                    <div className={classes.linkBox}>
+                      <Typography variant="body1" className={classes.typeTitle}>
+                        <b>Label: </b>{" "}
+                      </Typography>
+                      <Chip
+                        variant="outlined"
+                        className={classes.linkChip}
+                        size="small"
+                        onClick={linkToLabel}
+                        label={metadata["label"].Name}
+                      ></Chip>
+                    </div>
+                  )}
+                  {metadata["provider-type"] && (
+                    <Typography variant="body1">
+                      <b>Provider Type:</b> {metadata["provider-type"]}
+                    </Typography>
+                  )}
                   {metadata["team"] && (
                     <Typography variant="body1">
                       <b>Team:</b> {metadata["team"]}
                     </Typography>
                   )}
-                  {metadata["source"] && (
-                    <Typography variant="body1">
-                      <b>Source:</b> {metadata["source"]}
-                    </Typography>
-                  )}
 
-                  {metadata["primary data"] && (
+                  {metadata["source"] && (
                     <div className={classes.linkBox}>
                       <Typography variant="body1" className={classes.typeTitle}>
                         <b>Primary Data: </b>{" "}
@@ -382,8 +419,8 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                         variant="outlined"
                         className={classes.linkChip}
                         size="small"
-                        onClick={linkToDataSource}
-                        label={metadata["primary data"]}
+                        onClick={linkToPrimaryData}
+                        label={metadata["source"]}
                       ></Chip>
                     </div>
                   )}

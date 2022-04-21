@@ -23,21 +23,11 @@ resource "random_string" "suffix" {
   special = false
 }
 
-
-resource "aws_db_subnet_group" "private_subnet_group" {
-  name       = local.cluster_name
-  subnet_ids = module.vpc.public_subnets
-
-  tags = {
-    Name = local.cluster_name
-  }
-}
-
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
   version = "3.2.0"
 
-  name                 = "education-vpc"
+  name                 = "${local.cluster_name}-vpc"
   cidr                 = "10.0.0.0/16"
   azs                  = data.aws_availability_zones.available.names
   private_subnets      = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]

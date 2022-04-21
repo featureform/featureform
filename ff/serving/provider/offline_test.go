@@ -1494,6 +1494,97 @@ func testChainTransform(t *testing.T, store SQLOfflineStore) {
 
 }
 
+func testTransformToMaterialize(t *testing.T, store SQLOfflineStore) {
+
+	type TransformTest struct {
+		PrimaryTable ResourceID
+		Schema       TableSchema
+		Records      []GenericRecord
+		Config       TransformationConfig
+		Expected     []GenericRecord
+	}
+
+	firstTransformName := uuid.NewString()
+	tests := map[string]TransformTest{
+		"First": {
+			PrimaryTable: ResourceID{
+				Name: uuid.NewString(),
+				Type: Feature,
+			},
+			Schema: TableSchema{
+				Columns: []TableColumn{
+					{Name: "entity", ValueType: String},
+					{Name: "value", ValueType: Int},
+					{Name: "ts", ValueType: Timestamp},
+				},
+			},
+			Records: []GenericRecord{
+				[]interface{}{"a", 1, time.UnixMilli(0)},
+				[]interface{}{"b", 2, time.UnixMilli(0)},
+				[]interface{}{"c", 3, time.UnixMilli(0)},
+				[]interface{}{"d", 4, time.UnixMilli(0)},
+				[]interface{}{"e", 5, time.UnixMilli(0)},
+			},
+			Config: TransformationConfig{
+				TargetTableID: ResourceID{
+					Name: firstTransformName,
+					Type: Primary,
+				},
+				Query: "SELECT entity, int, flt, str FROM tb",
+			},
+			Expected: []GenericRecord{
+				[]interface{}{"a", 1, time.UnixMilli(0)},
+				[]interface{}{"b", 2, time.UnixMilli(0)},
+				[]interface{}{"c", 3, time.UnixMilli(0)},
+				[]interface{}{"d", 4, time.UnixMilli(0)},
+				[]interface{}{"e", 5, time.UnixMilli(0)},
+			},
+		},
+	}
+
+	table, err := store.CreatePrimaryTable(tests["First"].PrimaryTable, tests["First"].Schema)
+	if err != nil {
+		t.Fatalf("Could not initialize table: %v", err)
+	}
+	for _, value := range tests["First"].Records {
+		if err := table.Write(value); err != nil {
+			t.Fatalf("Could not write value: %v: %v", err, value)
+		}
+	}
+	config := TransformationConfig{
+		TargetTableID: ResourceID{
+			Name: firstTransformName,
+			Type: Primary,
+		},
+		Query: fmt.Sprintf("SELECT entity, int, flt, str FROM %s", sanitize(table.GetName())),
+	}
+	if err := store.CreateTransformation(config); err != nil {
+		t.Fatalf("Could not create transformation: %v", err)
+	}
+	rows, err := table.NumRows()
+	if err != nil {
+		t.Fatalf("could not get NumRows of table: %v", err)
+	}
+	if int(rows) != len(tests["First"].Records) {
+		t.Fatalf("NumRows do not match. Expected: %d, Got: %d", len(tests["First"].Records), rows)
+	}
+	mat, err := store.CreateMaterialization(tests["First"].Config.TargetTableID)
+	if err != nil {
+		t.Fatalf("Could not create materialization: %v", err)
+	}
+	iterator, err := mat.IterateSegment(0, 10)
+	if err != nil {
+		t.Fatalf("Could not get iterator: %v", err)
+	}
+	i := 0
+	for iterator.Next() {
+		if !reflect.DeepEqual(iterator.Value(), tests["First"].Expected[i]) {
+			t.Fatalf("Expected: %#v, Got: %#v", tests["First"].Expected[i], iterator.Value())
+		}
+		i++
+	}
+}
+
 func Test_mapColumns(t *testing.T) {
 	type mappingItem struct {
 		Columns   []ColumnMapping

@@ -61,6 +61,10 @@ type ResourceDef interface {
 	ResourceType() ResourceType
 }
 
+func (client *Client) SetStatus(ctx context.Context, resID ResourceID, status ResourceStatus) error {
+	return nil
+}
+
 func (client *Client) CreateAll(ctx context.Context, defs []ResourceDef) error {
 	for _, def := range defs {
 		if err := client.Create(ctx, def); err != nil {
@@ -386,6 +390,13 @@ type TrainingSetDef struct {
 
 func (def TrainingSetDef) ResourceType() ResourceType {
 	return TRAINING_SET_VARIANT
+}
+
+
+func (client *Client) SetStatus(ctx context.Context, id NameVariant, status string) error {
+	return nil
+
+
 }
 
 func (client *Client) CreateTrainingSetVariant(ctx context.Context, def TrainingSetDef) error {

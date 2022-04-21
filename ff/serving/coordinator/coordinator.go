@@ -15,10 +15,10 @@ import (
 )
 
 type Coordinator struct {
-	Metadata    *metadata.Client
-	Logger      *zap.SugaredLogger
+	Metadata   *metadata.Client
+	Logger     *zap.SugaredLogger
 	ETCDClient *clientv3.Client
-	Spawner     JobSpawner
+	Spawner    JobSpawner
 }
 
 func NewCoordinator(meta *metadata.Client, logger *zap.SugaredLogger, cli *clientv3.Client) (*Coordinator, error) {
@@ -31,13 +31,6 @@ func NewCoordinator(meta *metadata.Client, logger *zap.SugaredLogger, cli *clien
 }
 
 const MAX_ATTEMPTS = 10
-
-const (
-	Created ResourceStatus = "CREATED"
-	Pending                = "PENDING"
-	Failed                 = "FAILED"
-	Ready                  = "READY"
-)
 
 const (
 	Kubernetes JobSpawner = "Kubernetes"
@@ -72,7 +65,7 @@ func (c *Coordinator) StartTimedJobWatcher() error {
 	}
 	defer s.Close()
 	for {
-		getResp, err := keyValueClient.Get(context.Background(), "JOB", clientv3.WithPrefix())
+		getResp, err := keyValueClient.Get(context.Background(), "JOB_", clientv3.WithPrefix())
 		if err != nil {
 			return err
 		}
@@ -90,7 +83,7 @@ func (c *Coordinator) StartJobWatcher() error {
 	}
 	defer s.Close()
 	for {
-		rch := cli.Watch(context.Background(), "JOB", clientv3.WithPrefix())
+		rch := cli.Watch(context.Background(), "JOB_", clientv3.WithPrefix())
 		for wresp := range rch {
 			for _, ev := range wresp.Events {
 				if ev.Type == 0 {
@@ -100,14 +93,6 @@ func (c *Coordinator) StartJobWatcher() error {
 			}
 		}
 	}
-}
-
-func (c *Coordinator) SetResourceStatus(resType metadata.ResourceType, name string, variant string, status string) error {
-	ctx := context.Background()
-	if _, err := c.Metadata.SetStatus(ctx, metadata.NameVariant{name, variant}, status); err != nil {
-		return err
-	}
-	return nil
 }
 
 func (c *Coordinator) GetJobRunner(jobName string, config runner.Config) (runner.Runner, error) {
@@ -133,16 +118,16 @@ func (c *Coordinator) GetJobRunner(jobName string, config runner.Config) (runner
 	}
 }
 
-func (c *Coordinator) runTrainingSetJob(name string, variant string) error {
-	ts, err := c.Metadata.GetTrainingSetVariant(context.Background(), metadata.NameVariant{name, variant})
+func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID) error {
+	ts, err := c.Metadata.GetTrainingSetVariant(context.Background(), metadata.NameVariant{resID.Name, resID.Variant})
 	if err != nil {
 		return nil, err
 	}
 	status := ts.GetStatus()
-	if status == ResourceStatus.Ready || status == ResourceStatus.Failed {
+	if status == metadata.ResourceStatus.Ready || status == metadata.ResourceStatus.Failed {
 		return fmt.Errorf("Training Set already set to %s", status)
 	}
-	if err := c.SetResourceStatus("TRAINING_SET_VARIANT", name, variant, ResourceStatus.Pending); err != nil {
+	if err := c.Metadata.SetStatus(context.Background(), resID, status); err != nil {
 		return err
 	}
 	providerEntry, err := ts.FetchProvider(c.Metadata, context.Background())
@@ -157,7 +142,8 @@ func (c *Coordinator) runTrainingSetJob(name string, variant string) error {
 	if err != nil {
 		return err
 	}
-	if _, err := store.GetTrainingSet(provider.ResourceID{Name: name, Variant: variant}); err == nil {
+	providerResID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant}
+	if _, err := store.GetTrainingSet(providerResID); err == nil {
 		return fmt.Errorf("Training set already exists")
 	}
 	features := ts.Features()
@@ -170,7 +156,7 @@ func (c *Coordinator) runTrainingSetJob(name string, variant string) error {
 		return err
 	}
 	trainingSetDef := provider.TrainingSetDef{
-		ID:       provider.ResourceID{Name: name, Variant: variant},
+		ID:       providerResID,
 		Label:    provider.ResourceID{Name: label.GetName(), Variant: label.GetVariant()},
 		Features: featureList,
 	}
@@ -190,13 +176,13 @@ func (c *Coordinator) runTrainingSetJob(name string, variant string) error {
 	if err := completionWatcher.Wait(); err != nil {
 		return err
 	}
-	if err := c.SetResourceStatus(metadata.TRAINING_SET_VARIANT, name, variant, ResourceStatus.Ready); err != nil {
+	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.ResourceStatus.Ready); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (c *Coordinator) getJobIfOwner(mtx *concurrency.Mutex, jobKey string) (CoordinatorJob, error) {
+func (c *Coordinator) safeGet(mtx *concurrency.Mutex, key string) ([]byte, error) {
 	keyValueClient := clientv3.NewKV(c.ETCDClient)
 	txn := (keyValueClient).Txn(context.Background())
 	response, err := txn.If(mtx.IsOwner()).Then(clientv3.OpGet(jobKey)).Commit()
@@ -212,16 +198,11 @@ func (c *Coordinator) getJobIfOwner(mtx *concurrency.Mutex, jobKey string) (Coor
 	} else {
 		return nil, fmt.Errorf("Coordinator job does not exist. %v")
 	}
-	job := &CoordinatorJob{}
-	err := job.Deserialize(responseData)
-	if err != nil {
-		return nil, fmt.Errorf("Could not deserialize coordinator job: %v", err)
-	}
-	return *job, nil
+	return responseData, nil
 
 }
 
-func (c *Coordinator) incrementJobAttempts(mtx *concurrency.Mutex, job CoordinatorJob, jobKey string) error {
+func (c *Coordinator) incrementJobInETCD(mtx *concurrency.Mutex, job CoordinatorJob, jobKey string) error {
 	job.Attempts += 1
 	serializedJob, err := job.Serialize()
 	if err != nil {
@@ -235,7 +216,7 @@ func (c *Coordinator) incrementJobAttempts(mtx *concurrency.Mutex, job Coordinat
 	return nil
 }
 
-func (c *Coordinator) deleteJob(mtx *concurrency.Mutex, jobKey string) error {
+func (c *Coordinator) safeDelete(mtx *concurrency.Mutex, key string) error {
 	keyValueClient := clientv3.NewKV(c.ETCDClient)
 	txn = (keyValueClient).Txn(context.Background())
 	response, err := txn.If(mtx.IsOwner()).Then(clientv3.OpDelete(jobKey)).Commit()
@@ -262,26 +243,28 @@ func (c *Coordinator) syncHandleJob(jobKey string, s *concurrency.Session) error
 			panic(err)
 		}
 	}()
-	job, err := c.getJobIfOwner(mtx, jobKey)
+	value, err := c.safeGet(mtx, jobKey)
+	job := &CoordinatorJob{}
+	err := job.Deserialize(responseData)
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("Could not deserialize coordinator job: %v", err)
 	}
 	if job.Attempts > MAX_ATTEMPTS {
-		if err := c.SetResourceStatus(job.Resource, ResourceStatus.Failed); err != nil {
+		if err := c.SetResourceStatus(job.Resource, metadata.ResourceStatus.Failed); err != nil {
 			return fmt.Errorf("Could not set job status to failed: %v", err)
 		}
 		return nil
 	}
-	if err := c.incrementJobAttempts(mtx, job, jobKey); err != nil {
+	if err := c.incrementJobInETCD(mtx, job, jobKey); err != nil {
 		return err
 	}
 	switch job.Resource.Type {
 	case metadata.TRAINING_SET_VARIANT:
-		if err := c.runTrainingSetJob(job.Resource.Name, job.Resource.Variant); err != nil {
+		if err := c.runTrainingSetJob(job.Resource); err != nil {
 			return fmt.Errorf("Training set job failed: %v", err)
 		}
 	}
-	if err := c.deleteJob(mtx, jobKey); err != nil {
+	if err := c.safeDelete(mtx, jobKey); err != nil {
 		return err
 	}
 	return nil

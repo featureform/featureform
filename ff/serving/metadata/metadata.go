@@ -43,6 +43,13 @@ const (
 	MODEL                               = "Model"
 )
 
+const (
+	Created ResourceStatus = "CREATED"
+	Pending                = "PENDING"
+	Failed                 = "FAILED"
+	Ready                  = "READY"
+)
+
 var parentMapping = map[ResourceType]ResourceType{
 	FEATURE_VARIANT:        FEATURE,
 	LABEL_VARIANT:          LABEL,
@@ -138,7 +145,7 @@ type ResourceLookup interface {
 	SetJob(ResourceID) error
 	LookupJob(ResourceID) (Job, error)
 	ListJobs() ([]Job, error)
-	SetStatus(ResourceID, coordinator.Status) error
+	SetStatus(ResourceID, ResourceStatus) error
 }
 
 type TypeSenseWrapper struct {

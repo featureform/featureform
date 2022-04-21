@@ -87,7 +87,6 @@ func TestCoordinatorTrainingSet(t *testing.T) {
 		Password: os.Getenv("POSTGRES_PASSWORD"),
 	}
 	serialPGConfig := postgresConfig.Serialize()
-	//populate actual training set data here
 	my_provider, err := provider.Get(Provider.PostgresOffline, serialPGConfig)
 	if err != nil {
 		t.Fatalf("could not get provider: %v", err)
@@ -97,20 +96,28 @@ func TestCoordinatorTrainingSet(t *testing.T) {
 		t.Fatalf("could not get provider as offline store: %v", err)
 	}
 	offline_feature := provider.ResourceID{Name: "user_transaction_count", Variant: "7d", Type: provider.OfflineResourceType.Feature}
-	if _, err := my_offline.CreateResourceTable(offline_feature, provider.PostgresTableSchema{Int}); err != nil {
+	featureTable, err := my_offline.CreateResourceTable(offline_feature, provider.PostgresTableSchema{Int})
+	if err != nil {
 		t.Fatalf("could not create feature table: %v", err)
 	}
+	if err := featureTable.Write(provider.ResourceRecord{Entity: "a", Value: 1, TS: time.UnixMilli(0).UTC()}); err != nil {
+		t.Fatalf("could not write to feature table")
+	}
 	offline_label := provider.ResourceID{Name: "is_fraud", Variant: "default", Type: provider.OfflineResourceType.Label}
-	if _, err := my_offline.CreateResourceTable(offline_label, provider.PostgresTableSchema{Int}); err != nil {
+	labelTable, err := my_offline.CreateResourceTable(offline_label, provider.PostgresTableSchema{Int})
+	if err != nil {
 		t.Fatalf("could not create label table: %v", err)
+	}
+	if err := labelTable.Write(provider.ResourceRecord{Entity: "a", Value: 1, TS: time.UnixMilli(0).UTC()}); err != nil {
+		t.Fatalf("could not write to label table")
 	}
 	if err := createTrainingSetWithProvider(client, serialPGConfig); err != nil {
 		return err
 	}
 	ctx := context.Background()
-	ts_id := metadata.ResourceID{Name: "is_fraud", Variant: "default", Type: metadata.ResourceType.TRAINING_SET_VARIANT}
-	ts_created := client.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: "is_fraud", Variant: "default"})
-	ts_created.GetStatus()
+	tsID := metadata.ResourceID{Name: "is_fraud", Variant: "default", Type: metadata.ResourceType.TRAINING_SET_VARIANT}
+	tsCreated := client.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: "is_fraud", Variant: "default"})
+	tsCreated.GetStatus()
 	assert.Equal(t, ts_created.GetStatus(), ResourceStatus.Created, "Training set should be set to created with no coordinator running")
 	coord, err := NewCoordinator(client, logger, cli)
 	if err != nil {
@@ -120,7 +127,7 @@ func TestCoordinatorTrainingSet(t *testing.T) {
 	if err != nil {
 		return err
 	}
-	job_key := fmt.Sprintf("JOB_%s", ts_id)
+	job_key := fmt.Sprintf("JOB_%s", tsID)
 	go coord.syncHandleJob(job_key, s)
 	ts_pending := client.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: "is_fraud", Variant: "default"})
 	assert.Equal(t, ts_pending.GetStatus(), ResourceStatus.Pending, "Training set should be set to pending once coordinator spawns")
@@ -129,4 +136,12 @@ func TestCoordinatorTrainingSet(t *testing.T) {
 	}
 	ts_complete := client.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: "is_fraud", Variant: "default"})
 	assert.Equal(t, ts_complete.GetStatus(), ResourceStatus.Ready, "Training set should be set to ready once job completes")
+	tsIterator, err := my_offline.GetTrainingSet(tsID)
+	if err != nil {
+		t.Fatalf("Coordinator did not create training set")
+	}
+	retrievedFeatures := tsIterator.Features()
+	retrievedLabel := tsIterator.Label()
+	assert.Equal(t, retrievedFeatures, []interface{}{1})
+	assert.Equal(t, retrievedLabel, 1)
 }

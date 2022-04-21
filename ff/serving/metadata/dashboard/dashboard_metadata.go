@@ -36,7 +36,7 @@ type FeatureVariantResource struct {
 	Name         string                                  `json:"name"`
 	Owner        string                                  `json:"owner"`
 	Provider     string                                  `json:"provider"`
-	Type         string                                  `json:"type"`
+	DataType     string                                  `json:"data-type"`
 	Variant      string                                  `json:"variant"`
 	Source       metadata.NameVariant                    `json:"source"`
 	TrainingSets map[string][]TrainingSetVariantResource `json:"training-sets"`
@@ -73,7 +73,7 @@ type SourceVariantResource struct {
 	Created      time.Time                               `json:"created"`
 	Description  string                                  `json:"description"`
 	Name         string                                  `json:"name"`
-	Type         string                                  `json:"type"`
+	DataType     string                                  `json:"data-type"`
 	Owner        string                                  `json:"owner"`
 	Provider     string                                  `json:"provider"`
 	Variant      string                                  `json:"variant"`
@@ -97,7 +97,7 @@ type LabelVariantResource struct {
 	Name         string                                  `json:"name"`
 	Owner        string                                  `json:"owner"`
 	Provider     string                                  `json:"provider"`
-	Type         string                                  `json:"type"`
+	DataType     string                                  `json:"data-type"`
 	Variant      string                                  `json:"variant"`
 	Source       metadata.NameVariant                    `json:"source"`
 	TrainingSets map[string][]TrainingSetVariantResource `json:"training-sets"`
@@ -135,7 +135,7 @@ type ModelResource struct {
 	Description  string                                  `json:"description"`
 	Features     map[string][]FeatureVariantResource     `json:"features"`
 	Labels       map[string][]LabelVariantResource       `json:"labels"`
-	TrainingSets map[string][]TrainingSetVariantResource `json:"trainingsets"`
+	TrainingSets map[string][]TrainingSetVariantResource `json:"training-sets"`
 }
 
 type ProviderResource struct {
@@ -148,7 +148,7 @@ type ProviderResource struct {
 	Sources      map[string][]SourceVariantResource      `json:"primary-data"`
 	Features     map[string][]FeatureVariantResource     `json:"features"`
 	Labels       map[string][]LabelVariantResource       `json:"labels"`
-	TrainingSets map[string][]TrainingSetVariantResource `json:"trainingsets"`
+	TrainingSets map[string][]TrainingSetVariantResource `json:"training-sets"`
 }
 
 type FetchError struct {
@@ -166,7 +166,7 @@ func featureShallowMap(variant *metadata.FeatureVariant) FeatureVariantResource 
 		Description: variant.Description(),
 		Entity:      variant.Entity(),
 		Name:        variant.Name(),
-		Type:        variant.Type(),
+		DataType:    variant.Type(),
 		Variant:     variant.Variant(),
 		Owner:       variant.Owner(),
 		Provider:    variant.Provider(),
@@ -180,7 +180,7 @@ func labelShallowMap(variant *metadata.LabelVariant) LabelVariantResource {
 		Description: variant.Description(),
 		Entity:      variant.Entity(),
 		Name:        variant.Name(),
-		Type:        variant.Type(),
+		DataType:    variant.Type(),
 		Variant:     variant.Variant(),
 		Owner:       variant.Owner(),
 		Provider:    variant.Provider(),
@@ -205,7 +205,7 @@ func sourceShallowMap(variant *metadata.SourceVariant) SourceVariantResource {
 		Created:     variant.Created(),
 		Description: variant.Description(),
 		Name:        variant.Name(),
-		Type:        variant.Type(),
+		DataType:    variant.Type(),
 		Variant:     variant.Variant(),
 		Owner:       variant.Owner(),
 		Provider:    variant.Provider(),

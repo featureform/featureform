@@ -28,14 +28,14 @@ func main() {
 			Description: "local S3 deployment",
 			Type:        "Batch",
 			Software:    "BigQuery",
-			Team:        "",
+			Team:        "Fraud detection",
 		},
 		metadata.ProviderDef{
 			Name:        "demo-redis",
 			Description: "Bitnami redis deployment",
 			Type:        "Online",
 			Software:    "Redis",
-			Team:        "",
+			Team:        "Fraud detection",
 		},
 		metadata.EntityDef{
 			Name:        "user",

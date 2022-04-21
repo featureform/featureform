@@ -11,14 +11,14 @@ export const FEATUREFORM_LIGHT_GRAY = "#F5F6F7";
 export const FEATUREFORM_DARK_GRAY = "#CDD1D9";
 export const FEATUREFORM_LIGHT_BLACK = "#061B3F";
 export const FEATUREFORM_RED_BROWN = "#7C0D2E";
-
+// at 100% 55%
 const themeSpec = {
   overrides: {
     MuiCssBaseline: {
       "@global": {
         body: {
           background:
-            "radial-gradient(circle farthest-side at 100% 55%, #E4D0FA 0%, transparent 40%), radial-gradient(circle farthest-side at 0% 120%, #FCA3BE 0%, transparent 40%);",
+            "radial-gradient(circle farthest-side, #E4D0FA 0%, rgba(255, 0, 0, 0) 40%) top left/200% 100%, radial-gradient(circle farthest-side, #FCA3BE 0%, rgba(255, 0, 0, 0) 40%) top right/180% 150%;",
           backgroundRepeat: "no-repeat",
           backgroundAttachment: "fixed",
         },

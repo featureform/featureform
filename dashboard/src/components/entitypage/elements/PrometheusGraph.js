@@ -69,12 +69,10 @@ const PrometheusGraph = ({
       const startTimestamp = start.getTime() / 1000;
       const endTimestamp = end.getTime() / 1000;
       const url = `http://localhost:9090/api/v1/query_range?query=${query}${add_labels_string}&start=${startTimestamp}&end=${endTimestamp}&step=${step}s`;
-      // if (!stub) {
-      //   return Promise.resolve(JSON.parse(sample_query_data));
-      // }
-      return fetch(url)
-        .then((response) => response.json())
-        .then((response) => response["data"]);
+      return Promise.resolve(JSON.parse(sample_query_data));
+      // return fetch(url)
+      //   .then((response) => response.json())
+      //   .then((response) => response["data"]);
     },
     [query, add_labels_string]
   );

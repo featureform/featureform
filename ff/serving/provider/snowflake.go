@@ -210,7 +210,7 @@ func determineSnowflakeColumnType(valueType ValueType) (string, error) {
 		return "VARCHAR", nil
 	case Bool:
 		return "BOOLEAN", nil
-	case "time.Time":
+	case Timestamp:
 		return "TIMESTAMP_NTZ", nil
 	case NilType:
 		return "VARCHAR", nil
@@ -230,9 +230,25 @@ func (store *snowflakeOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable
 	} else if !exists {
 		return nil, &TableNotFound{id.Name, id.Variant}
 	}
+	rows, err := store.db.Query(
+		"SELECT column_name FROM information_schema.columns WHERE table_name = ? order by ordinal_position",
+		name)
+	defer rows.Close()
+	if err != nil {
+		return nil, err
+	}
+	columnNames := make([]TableColumn, 0)
+	for rows.Next() {
+		var column string
+		if err := rows.Scan(&column); err != nil {
+			return nil, err
+		}
+		columnNames = append(columnNames, TableColumn{Name: column})
+	}
 	return &snowflakePrimaryTable{
-		db:   store.db,
-		name: name, // Add columns
+		db:     store.db,
+		name:   name,
+		schema: TableSchema{Columns: columnNames},
 	}, nil
 }
 
@@ -725,7 +741,7 @@ func (table *snowflakePrimaryTable) createValuePlaceholderString() string {
 	return strings.Join(placeholders, ", ")
 }
 
-func (pt *snowflakePrimaryTable) IterateSegment(start, end int64) (GenericTableIterator, error) {
+func (pt *snowflakePrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) {
 	rows, err := pt.db.Query(
 		"SELECT column_name FROM information_schema.columns WHERE table_name = ? order by ordinal_position",
 		pt.name)
@@ -742,7 +758,7 @@ func (pt *snowflakePrimaryTable) IterateSegment(start, end int64) (GenericTableI
 		columnNames = append(columnNames, sanitize(column))
 	}
 	columns := strings.Join(columnNames[:], ", ")
-	query := fmt.Sprintf("SELECT %s FROM %s", columns, sanitize(pt.name))
+	query := fmt.Sprintf("SELECT %s FROM %s LIMIT %d", columns, sanitize(pt.name), n)
 	rows, err = pt.db.Query(query)
 	if err != nil {
 		return nil, err
@@ -849,13 +865,12 @@ func (store *snowflakeOfflineStore) CreateTransformation(config TransformationCo
 	if err != nil {
 		return err
 	}
+	// Only allow transformations to be run with SELECT queries
 	splitQuery := strings.Split(config.Query, " ")
 	if strings.ToUpper(splitQuery[0]) != "SELECT" {
-		return fmt.Errorf("query invalid. must start with SELECT: %s", config.Query)
+		return InvalidQueryError{fmt.Sprintf("query invalid. must start with SELECT: %s", config.Query)}
 	}
 	var query string
-	// Let this fail if the table exists?
-	// Need a way to determine what columns are which if its a resource table
 	if config.TargetTableID.Type == Primary {
 		query = fmt.Sprintf("CREATE TABLE %s AS SELECT * FROM ( %s )", sanitize(name), config.Query)
 		if _, err := store.db.Exec(query); err != nil {

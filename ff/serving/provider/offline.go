@@ -45,6 +45,14 @@ const (
 	Primary
 )
 
+type FeatureLabelColumnType string
+
+const (
+	Entity FeatureLabelColumnType = "entity"
+	Value                         = "value"
+	TS                            = "ts"
+)
+
 type ResourceID struct {
 	Name, Variant string
 	Type          OfflineResourceType
@@ -96,7 +104,7 @@ func (def *TrainingSetDef) check() error {
 
 type ColumnMapping struct {
 	sourceColumn   string
-	resourceColumn string
+	resourceColumn FeatureLabelColumnType
 }
 
 type TransformationConfig struct {
@@ -107,7 +115,6 @@ type TransformationConfig struct {
 }
 
 type OfflineStore interface {
-	// Should this be PrimaryTable or maybe GenericTable?
 	CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error)
 	GetPrimaryTable(id ResourceID) (PrimaryTable, error)
 	CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error)
@@ -193,7 +200,7 @@ type OfflineTable interface {
 type PrimaryTable interface {
 	Write(GenericRecord) error
 	GetName() string
-	IterateSegment(begin, end int64) (GenericTableIterator, error)
+	IterateSegment(n int64) (GenericTableIterator, error)
 	NumRows() (int64, error)
 }
 

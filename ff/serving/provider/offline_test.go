@@ -69,10 +69,13 @@ func TestOfflineStores(t *testing.T) {
 		"TrainingDefShorthand":    testTrainingSetDefShorthand,
 	}
 	testSQLFns := map[string]func(*testing.T, SQLOfflineStore){
-		"PrimaryTableCreate": testPrimaryCreateTable,
-		"PrimaryTableWrite":  testPrimaryTableWrite,
-		"Transformation":     testTransform,
-		"TransformToFeature": testTransformCreateFeature,
+		"PrimaryTableCreate":          testPrimaryCreateTable,
+		"PrimaryTableWrite":           testPrimaryTableWrite,
+		"Transformation":              testTransform,
+		"TransformToFeature":          testTransformCreateFeature,
+		"SQLValidity":                 testSQLValidity,
+		"CreateDuplicatePrimaryTable": testCreateDuplicatePrimaryTable,
+		"ChainTransformations":        testChainTransform,
 	}
 	testList := []struct {
 		t               Type
@@ -1187,7 +1190,7 @@ func testTransform(t *testing.T, store SQLOfflineStore) {
 		if err != nil {
 			t.Errorf("Could not get transformation table: %v", err)
 		}
-		iterator, err := table.IterateSegment(0, 100)
+		iterator, err := table.IterateSegment(100)
 		if err != nil {
 			t.Fatalf("Could not get generic iterator: %v", err)
 		}
@@ -1210,7 +1213,6 @@ func testTransform(t *testing.T, store SQLOfflineStore) {
 }
 
 func testTransformCreateFeature(t *testing.T, store SQLOfflineStore) {
-
 	type TransformTest struct {
 		PrimaryTable ResourceID
 		Schema       TableSchema
@@ -1298,6 +1300,269 @@ func testTransformCreateFeature(t *testing.T, store SQLOfflineStore) {
 		})
 	}
 	// Test if can materialized a transformed table
+}
+
+func testSQLValidity(t *testing.T, store SQLOfflineStore) {
+	config := TransformationConfig{
+		TargetTableID: ResourceID{
+			Name: "dummyTransformation",
+			Type: Primary,
+		},
+		Query: "CREATE TABLE test (t INT)",
+	}
+	if err := store.CreateTransformation(config); err == nil || reflect.TypeOf(err) != reflect.TypeOf(InvalidQueryError{}) {
+		t.Fatalf("Successfully created invalid query")
+	}
+	config = TransformationConfig{
+		TargetTableID: ResourceID{
+			Name: "dummyTransformation",
+			Type: Primary,
+		},
+		Query: "INSERT INTO test values (1)",
+	}
+	if err := store.CreateTransformation(config); err == nil || reflect.TypeOf(err) != reflect.TypeOf(InvalidQueryError{}) {
+		t.Fatalf("Successfully created invalid query")
+	}
+}
+
+func testCreateDuplicatePrimaryTable(t *testing.T, store SQLOfflineStore) {
+	table := uuid.NewString()
+	rec := ResourceID{
+		Name: table,
+		Type: Primary,
+	}
+	schema := TableSchema{
+		Columns: []TableColumn{
+			{
+				Name:      "entity",
+				ValueType: Int,
+			},
+		},
+	}
+	_, err := store.CreatePrimaryTable(rec, schema)
+	if err != nil {
+		t.Fatalf("Could not create initial table: %v", err)
+	}
+	_, err = store.CreatePrimaryTable(rec, schema)
+	if err == nil {
+		t.Fatalf("Successfully create duplicate tables")
+	}
+}
+
+func testChainTransform(t *testing.T, store SQLOfflineStore) {
+
+	type TransformTest struct {
+		PrimaryTable ResourceID
+		Schema       TableSchema
+		Records      []GenericRecord
+		Config       TransformationConfig
+		Expected     []GenericRecord
+	}
+
+	firstTransformName := uuid.NewString()
+	tests := map[string]TransformTest{
+		"First": {
+			PrimaryTable: ResourceID{
+				Name: uuid.NewString(),
+				Type: Primary,
+			},
+			Schema: TableSchema{
+				Columns: []TableColumn{
+					{Name: "entity", ValueType: String},
+					{Name: "int", ValueType: Int},
+					{Name: "flt", ValueType: Float64},
+					{Name: "str", ValueType: String},
+					{Name: "bool", ValueType: Bool},
+					{Name: "ts", ValueType: Timestamp},
+				},
+			},
+			Records: []GenericRecord{
+				[]interface{}{"a", 1, 1.1, "test string", true, time.UnixMilli(0)},
+				[]interface{}{"b", 2, 1.2, "second string", false, time.UnixMilli(0)},
+				[]interface{}{"c", 3, 1.3, "third string", nil, time.UnixMilli(0)},
+				[]interface{}{"d", 4, 1.4, "fourth string", false, time.UnixMilli(0)},
+				[]interface{}{"e", 5, 1.5, "fifth string", true, time.UnixMilli(0)},
+			},
+			Config: TransformationConfig{
+				TargetTableID: ResourceID{
+					Name: firstTransformName,
+					Type: Primary,
+				},
+				Query: "SELECT entity, int, flt, str FROM tb",
+			},
+			Expected: []GenericRecord{
+				[]interface{}{"a", 1, 1.1, "test string"},
+				[]interface{}{"b", 2, 1.2, "second string"},
+				[]interface{}{"c", 3, 1.3, "third string"},
+				[]interface{}{"d", 4, 1.4, "fourth string"},
+				[]interface{}{"e", 5, 1.5, "fifth string"},
+			},
+		},
+		"Second": {
+			PrimaryTable: ResourceID{
+				Name: firstTransformName,
+				Type: Primary,
+			},
+			Schema: TableSchema{
+				Columns: []TableColumn{
+					{Name: "entity", ValueType: String},
+					{Name: "int", ValueType: Int},
+					{Name: "str", ValueType: String},
+				},
+			},
+			Config: TransformationConfig{
+				TargetTableID: ResourceID{
+					Name: uuid.NewString(),
+					Type: Primary,
+				},
+				Query: "SELECT COUNT(*) FROM tb",
+			},
+			Expected: []GenericRecord{
+				[]interface{}{5},
+			},
+		},
+	}
+
+	table, err := store.CreatePrimaryTable(tests["First"].PrimaryTable, tests["First"].Schema)
+	if err != nil {
+		t.Fatalf("Could not initialize table: %v", err)
+	}
+	for _, value := range tests["First"].Records {
+		if err := table.Write(value); err != nil {
+			t.Fatalf("Could not write value: %v: %v", err, value)
+		}
+	}
+	config := TransformationConfig{
+		TargetTableID: ResourceID{
+			Name: firstTransformName,
+			Type: Primary,
+		},
+		Query: fmt.Sprintf("SELECT entity, int, flt, str FROM %s", sanitize(table.GetName())),
+	}
+	if err := store.CreateTransformation(config); err != nil {
+		t.Fatalf("Could not create transformation: %v", err)
+	}
+	rows, err := table.NumRows()
+	if err != nil {
+		t.Fatalf("could not get NumRows of table: %v", err)
+	}
+	if int(rows) != len(tests["First"].Records) {
+		t.Fatalf("NumRows do not match. Expected: %d, Got: %d", len(tests["First"].Records), rows)
+	}
+	table, err = store.GetPrimaryTable(tests["First"].Config.TargetTableID)
+	if err != nil {
+		t.Errorf("Could not get transformation table: %v", err)
+	}
+	iterator, err := table.IterateSegment(100)
+	if err != nil {
+		t.Fatalf("Could not get generic iterator: %v", err)
+	}
+	i := 0
+	for iterator.Next() {
+		if !reflect.DeepEqual(iterator.Values(), tests["First"].Expected[i]) {
+			t.Fatalf("Expected: %#v, Received %#v", tests["First"].Expected[i], iterator.Values())
+		}
+		i++
+	}
+	secondTransformName := uuid.NewString()
+	config = TransformationConfig{
+		TargetTableID: ResourceID{
+			Name: secondTransformName,
+			Type: Primary,
+		},
+		Query: fmt.Sprintf("SELECT Count(*) FROM %s", sanitize(table.GetName())),
+	}
+	if err := store.CreateTransformation(config); err != nil {
+		t.Fatalf("Could not create transformation: %v", err)
+	}
+
+	table, err = store.GetPrimaryTable(config.TargetTableID)
+	if err != nil {
+		t.Errorf("Could not get transformation table: %v", err)
+	}
+	iterator, err = table.IterateSegment(100)
+	if err != nil {
+		t.Fatalf("Could not get generic iterator: %v", err)
+	}
+	i = 0
+	for iterator.Next() {
+		if !reflect.DeepEqual(iterator.Values(), tests["Second"].Expected[i]) {
+			t.Fatalf("Expected: %#v, Received %#v", tests["Second"].Expected[i], iterator.Values())
+		}
+		i++
+	}
+
+}
+
+func Test_mapColumns(t *testing.T) {
+	type mappingItem struct {
+		Columns   []ColumnMapping
+		Query     string
+		Result    string
+		ShouldErr bool
+	}
+	tests := map[string]mappingItem{
+		"InvalidNumberOfColumns": {
+			Columns: []ColumnMapping{
+				{sourceColumn: "source", resourceColumn: Entity},
+			},
+			Query:     "SELECT * FROM null",
+			Result:    fmt.Sprintf("( SELECT %s as entity, %s as value, %s as ts FROM ( %s )t  )", "source", "", "", "SELECT * FROM null"),
+			ShouldErr: true,
+		},
+		"MissingValueColumn": {
+			Columns: []ColumnMapping{
+				{sourceColumn: "e", resourceColumn: Entity},
+				{sourceColumn: "t", resourceColumn: Entity},
+				{sourceColumn: "v", resourceColumn: TS},
+			},
+			Query:     "SELECT * FROM null",
+			Result:    fmt.Sprintf("( SELECT %s as entity, %s as value, %s as ts FROM ( %s )t  )", "source", "", "", "SELECT * FROM null"),
+			ShouldErr: true,
+		},
+		"MissingEntityColumn": {
+			Columns: []ColumnMapping{
+				{sourceColumn: "e", resourceColumn: Value},
+				{sourceColumn: "t", resourceColumn: Value},
+				{sourceColumn: "v", resourceColumn: TS},
+			},
+			Query:     "SELECT * FROM null",
+			Result:    fmt.Sprintf("( SELECT %s as entity, %s as value, %s as ts FROM ( %s )t  )", "source", "", "", "SELECT * FROM null"),
+			ShouldErr: true,
+		},
+		"MissingTSColumn": {
+			Columns: []ColumnMapping{
+				{sourceColumn: "e", resourceColumn: Entity},
+				{sourceColumn: "t", resourceColumn: Value},
+				{sourceColumn: "v", resourceColumn: Value},
+			},
+			Query:     "SELECT * FROM null",
+			Result:    fmt.Sprintf("( SELECT %s as entity, %s as value, %s as ts FROM ( %s )t  )", "source", "", "", "SELECT * FROM null"),
+			ShouldErr: true,
+		},
+		"SimpleSuccess": {
+			Columns: []ColumnMapping{
+				{sourceColumn: "e", resourceColumn: Entity},
+				{sourceColumn: "t", resourceColumn: Value},
+				{sourceColumn: "v", resourceColumn: TS},
+			},
+			Query:     "SELECT * FROM null",
+			Result:    fmt.Sprintf("( SELECT %s as entity, %s as value, %s as ts FROM ( %s )t  )", "e", "t", "v", "SELECT * FROM null"),
+			ShouldErr: true,
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			query, err := mapColumns(tt.Columns, tt.Query)
+			if err != nil && !tt.ShouldErr {
+				t.Fatalf("Unexpected Error: %v", err)
+			} else if err != nil && tt.ShouldErr {
+				return
+			} else if tt.Result != query {
+				t.Fatalf("Expected: %s\nRecieved: %s", tt.Result, query)
+			}
+		})
+	}
 
 }
 

@@ -42,6 +42,10 @@ const themeSpec = {
       2: FEATUREFORM_LIGHT_PURPLE,
       3: FEATUREFORM_LIGHT_RED,
     },
+    hoverColors: {
+      0: "#CBC3E3",
+      1: "#FFCCCB",
+    },
   },
   typography: {
     fontFamily: `"Matter", "Lato", "Helvetica", sans-serif`,

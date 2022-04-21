@@ -22,6 +22,10 @@ const useStyles = makeStyles((theme, id) => ({
     background: "white",
     minWidth: "12em",
     textTransform: "none",
+    "&:hover": {
+      backgroundColor: (id) => `${theme.palette.hoverColors[id % 2]}`,
+      color: `${theme.palette.ordinalColors[id % 4]}`,
+    },
   },
 
   media: {

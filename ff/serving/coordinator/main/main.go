@@ -19,17 +19,12 @@ func main() {
 	if err != nil {
 		logger.Errorw("Failed to connect: %v", err)
 	}
-	coord, err := NewCoordinator(client, logger, cli)
+	coord, err := NewCoordinator(client, logger, cli, coordinator.KubernetesJobSpawner{})
 	if err != nil {
 		logger.Errorw("Failed to set up coordinator: %v", err)
 	}
 	go func() {
-		if err := coord.StartJobWatcher(); err != nil {
-			return err
-		}
-	}()
-	go func() {
-		if err := coord.startTimedJobWatcher(); err != nil {
+		if err := coord.WatchForNewJobs(); err != nil {
 			return err
 		}
 	}()

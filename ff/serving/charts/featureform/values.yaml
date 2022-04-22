@@ -80,3 +80,8 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
+
+etcd:
+  auth:
+    rbac:
+      rootPassword: "secretpassword"

@@ -2,10 +2,9 @@ package coordinator
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"log"
-	"time"
+
+	"go.uber.org/zap"
 
 	"github.com/featureform/serving/metadata"
 	provider "github.com/featureform/serving/provider"
@@ -30,9 +29,13 @@ type KubernetesJobSpawner struct{}
 
 type MemoryJobSpawner struct{}
 
+func GetLockKey(jobKey string) string {
+	return fmt.Sprintf("LOCK_%s", jobKey)
+}
+
 func (k *KubernetesJobSpawner) GetJobRunner(jobName string, config runner.Config) (runner.Runner, error) {
 	kubeConfig := runner.KubernetesRunnerConfig{
-		EnvVars:  map[string]string{"NAME": "CREATE_TRAINING_SET", "CONFIG": string(getResp)},
+		EnvVars:  map[string]string{"NAME": runner.CREATE_TRAINING_SET, "CONFIG": string(config)},
 		Image:    "featureform/worker",
 		NumTasks: 1,
 	}
@@ -54,54 +57,36 @@ func (k *MemoryJobSpawner) GetJobRunner(jobName string, config runner.Config) (r
 func NewCoordinator(meta *metadata.Client, logger *zap.SugaredLogger, cli *clientv3.Client, spawner JobSpawner) (*Coordinator, error) {
 	logger.Debug("Creating new coordinator")
 	kvc := clientv3.NewKV(cli)
-	return &FeatureServer{
+	return &Coordinator{
 		Metadata:   meta,
 		Logger:     logger,
-		ETCDClient: cli,
-		KVClient:   kvc,
+		EtcdClient: cli,
+		KVClient:   &kvc,
 		Spawner:    spawner,
 	}, nil
 }
 
 const MAX_ATTEMPTS = 10
 
-type CoordinatorJob struct {
-	Attempts int
-	Resource metadata.ResourceID
-}
-
-func (c *CoordinatorJob) Serialize() ([]byte, error) {
-	serialized, err := json.Marshal(c)
-	if err != nil {
-		return nil, err
-	}
-	return serialized, nil
-}
-
-func (c *CoordinatorJob) Deserialize(serialized []byte) error {
-	err := json.Unmarshal(serialized, c)
+func (c *Coordinator) WatchForNewJobs() error {
+	s, err := concurrency.NewSession(c.EtcdClient, concurrency.WithTTL(10))
 	if err != nil {
 		return err
 	}
-	return nil
-}
-
-func (c *Coordinator) WatchForNewJobs() error {
-	s, err := concurrency.NewSession(c.cli, concurrency.WithTTL(10))
 	defer s.Close()
-	getResp, err := c.KVClient.Get(context.Background(), "JOB_", clientv3.WithPrefix())
+	getResp, err := (*c.KVClient).Get(context.Background(), metadata.GetJobKey(metadata.ResourceID{}), clientv3.WithPrefix())
 	if err != nil {
 		return err
 	}
 	for _, kv := range getResp.Kvs {
-		go executeJob(string(kv.Key), s)
+		go c.executeJob(string(kv.Key), s)
 	}
 	for {
-		rch := c.EtcdClient.Watch(context.Background(), "JOB_", clientv3.WithPrefix())
+		rch := c.EtcdClient.Watch(context.Background(), metadata.GetJobKey(metadata.ResourceID{}), clientv3.WithPrefix())
 		for wresp := range rch {
 			for _, ev := range wresp.Events {
 				if ev.Type == 0 {
-					go executeJob(string(ev.Kv.Key), s)
+					go c.executeJob(string(ev.Kv.Key), s)
 				}
 
 			}
@@ -112,13 +97,13 @@ func (c *Coordinator) WatchForNewJobs() error {
 func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID) error {
 	ts, err := c.Metadata.GetTrainingSetVariant(context.Background(), metadata.NameVariant{resID.Name, resID.Variant})
 	if err != nil {
-		return nil, err
+		return err
 	}
-	status := ts.GetStatus()
-	if status == metadata.ResourceStatus.Ready || status == metadata.ResourceStatus.Failed {
-		return fmt.Errorf("Training Set already set to %s", status)
+	status := ts.Status()
+	if status == metadata.READY || status == metadata.FAILED {
+		return fmt.Errorf("training Set already set to %s", metadata.ResourceStatus(status))
 	}
-	if err := c.Metadata.SetStatus(context.Background(), resID, status); err != nil {
+	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.ResourceStatus(status)); err != nil {
 		return err
 	}
 	providerEntry, err := ts.FetchProvider(c.Metadata, context.Background())
@@ -133,30 +118,34 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID) error {
 	if err != nil {
 		return err
 	}
-	providerResID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.OfflineResourceType.TrainingSet}
+	providerResID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.TrainingSet}
 	if _, err := store.GetTrainingSet(providerResID); err == nil {
-		return fmt.Errorf("Training set already exists")
+		return fmt.Errorf("training set already exists")
 	}
 	features := ts.Features()
 	featureList := make([]provider.ResourceID, len(features))
 	for i, feature := range features {
-		featureList[i] = provider.ResourceID{Name: feature.Name, Variant: feature.Variant, Type: provider.OfflineResourceType.Feature}
+		featureList[i] = provider.ResourceID{Name: feature.Name, Variant: feature.Variant, Type: provider.Feature}
 	}
-	label, err := ts.FetchLabel()
+	label, err := ts.FetchLabel(c.Metadata, context.Background())
 	if err != nil {
 		return err
 	}
 	trainingSetDef := provider.TrainingSetDef{
 		ID:       providerResID,
-		Label:    provider.ResourceID{Name: label.GetName(), Variant: label.GetVariant(), Type: provider.OfflineResourceType.Label},
+		Label:    provider.ResourceID{Name: label.Name(), Variant: label.Variant(), Type: provider.Label},
 		Features: featureList,
 	}
 	tsRunnerConfig := runner.TrainingSetRunnerConfig{
-		OfflineType:   providerEntry.GetType(),
-		OfflineConfig: providerEntry.GetSerializedConfig(),
+		OfflineType:   provider.Type(providerEntry.Type()),
+		OfflineConfig: providerEntry.SerializedConfig(),
 		Def:           trainingSetDef,
 	}
-	jobRunner, err := c.Spawner.GetJobRunner("CREATE_TRAINING_SET", tsRunnerConfig)
+	serialized, err := tsRunnerConfig.Serialize()
+	if err != nil {
+		return err
+	}
+	jobRunner, err := c.Spawner.GetJobRunner(runner.CREATE_TRAINING_SET, serialized)
 	if err != nil {
 		return err
 	}
@@ -167,90 +156,100 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID) error {
 	if err := completionWatcher.Wait(); err != nil {
 		return err
 	}
-	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.ResourceStatus.Ready); err != nil {
+	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (c *Coordinator) getJob(mtx *concurrency.Mutex, key string) (CoordinatorJob, error) {
-	txn := c.KVClient.Txn(context.Background())
-	response, err := txn.If(mtx.IsOwner()).Then(clientv3.OpGet(jobKey)).Commit()
+func (c *Coordinator) getJob(mtx *concurrency.Mutex, key string) (*metadata.CoordinatorJob, error) {
+	txn := (*c.KVClient).Txn(context.Background())
+	response, err := txn.If(mtx.IsOwner()).Then(clientv3.OpGet(key)).Commit()
 	if err != nil {
 		return nil, fmt.Errorf("transaction did not succeed: %v", err)
 	}
 	isOwner := response.Succeeded //response.Succeeded sets true if transaction "if" statement true
 	if !isOwner {
-		return fmt.Errorf("Was not owner of lock")
+		return nil, fmt.Errorf("was not owner of lock")
 	}
-	var responseData []byte
 	responseData := response.Responses[0]
 	responseKVs := responseData.GetResponseRange().GetKvs()
 	if len(responseKVs) == 0 {
-		return nil, fmt.Errorf("Coordinator job does not exist. %v")
+		return nil, fmt.Errorf("coordinator job does not exist")
 	}
-	responseValue = responseKVs[0].Value //Only single response for single key
-	job := &CoordinatorJob{}
-	err := job.Deserialize(responseValue)
-	if err != nil {
-		return nil, fmt.Errorf("Could not deserialize coordinator job: %v", err)
+	responseValue := responseKVs[0].Value //Only single response for single key
+	job := &metadata.CoordinatorJob{}
+	if err := job.Deserialize(responseValue); err != nil {
+		return nil, fmt.Errorf("could not deserialize coordinator job: %v", err)
 	}
-	return *job
+	return job, nil
 }
 
-func (c *Coordinator) incrementJobAttempts(mtx *concurrency.Mutex, job CoordinatorJob, jobKey string) error {
+func (c *Coordinator) incrementJobAttempts(mtx *concurrency.Mutex, job *metadata.CoordinatorJob, jobKey string) error {
 	job.Attempts += 1
 	serializedJob, err := job.Serialize()
 	if err != nil {
-		return fmt.Errorf("Could not serialize coordinator job. %v", err)
+		return fmt.Errorf("could not serialize coordinator job. %v", err)
 	}
-	txn := c.KVClient.Txn(context.Background())
-	response, err := txn.If(mtx.IsOwner()).Then(clientv3.OpPut(jobKey, serialized)).Commit()
+	txn := (*c.KVClient).Txn(context.Background())
+	response, err := txn.If(mtx.IsOwner()).Then(clientv3.OpPut(jobKey, string(serializedJob))).Commit()
 	if err != nil {
-		return fmt.Errorf("Could not set iterated coordinator job. %v", err)
+		return fmt.Errorf("could not set iterated coordinator job. %v", err)
 	}
 	isOwner := response.Succeeded //response.Succeeded sets true if transaction "if" statement true
 	if !isOwner {
-		return fmt.Errorf("Was not owner of lock")
+		return fmt.Errorf("was not owner of lock")
 	}
 	return nil
 }
 
 func (c *Coordinator) deleteJob(mtx *concurrency.Mutex, key string) error {
-	txn := c.KVClient.Txn(context.Background())
-	response, err := txn.If(mtx.IsOwner()).Then(clientv3.OpDelete(jobKey)).Commit()
+	txn := (*c.KVClient).Txn(context.Background())
+	response, err := txn.If(mtx.IsOwner()).Then(clientv3.OpDelete(key)).Commit()
 	if err != nil {
-		return fmt.Errorf("Delete job transaction failed: %v", err)
+		return fmt.Errorf("delete job transaction failed: %v", err)
 	}
 	isOwner := response.Succeeded //response.Succeeded sets true if transaction "if" statement true
 	if !isOwner {
-		return fmt.Errorf("Was not owner of lock")
+		return fmt.Errorf("was not owner of lock")
 	}
 	responseData := response.Responses[0] //OpDelete always returns single response
 	numDeleted := responseData.GetResponseDeleteRange().Deleted
 	if numDeleted != 1 { //returns 0 if delete key did not exist
-		return fmt.Errorf("Job Already deleted")
+		return fmt.Errorf("job Already deleted")
 	}
 	return nil
 }
 
-func (c *Coordinator) createJobLock() (*concurrency.Mutex, err) {
-	mtx := concurrency.NewMutex(s, fmt.Sprintf("LOCK_%s", jobKey))
+func (c *Coordinator) hasJob(id metadata.ResourceID) (bool, error) {
+	getResp, err := (*c.KVClient).Get(context.Background(), metadata.GetJobKey(id), clientv3.WithPrefix())
+	if err != nil {
+		return false, err
+	}
+	responseLength := len(getResp.Kvs)
+	if responseLength > 0 {
+		return true, nil
+	}
+	return false, nil
+}
+
+func (c *Coordinator) createJobLock(jobKey string, s *concurrency.Session) (*concurrency.Mutex, error) {
+	mtx := concurrency.NewMutex(s, GetLockKey(jobKey))
 	if err := mtx.Lock(context.Background()); err != nil {
 		return nil, err
 	}
 	return mtx, nil
 }
 
-func (c *Coordinator) markJobFailed(job CoordinatorJob) error {
-	if err := c.SetResourceStatus(job.Resource, metadata.ResourceStatus.Failed); err != nil {
-		return fmt.Errorf("Could not set job status to failed: %v", err)
+func (c *Coordinator) markJobFailed(job *metadata.CoordinatorJob) error {
+	if err := c.Metadata.SetStatus(context.Background(), job.Resource, metadata.FAILED); err != nil {
+		return fmt.Errorf("could not set job status to failed: %v", err)
 	}
 	return nil
 }
 
 func (c *Coordinator) executeJob(jobKey string, s *concurrency.Session) error {
-	mtx, err := c.createJobLock(s, jobKey)
+	mtx, err := c.createJobLock(jobKey, s)
 	if err != nil {
 		return err
 	}
@@ -260,6 +259,9 @@ func (c *Coordinator) executeJob(jobKey string, s *concurrency.Session) error {
 		}
 	}()
 	job, err := c.getJob(mtx, jobKey)
+	if err != nil {
+		return err
+	}
 	if job.Attempts > MAX_ATTEMPTS {
 		return c.markJobFailed(job)
 	}
@@ -269,7 +271,7 @@ func (c *Coordinator) executeJob(jobKey string, s *concurrency.Session) error {
 	switch job.Resource.Type {
 	case metadata.TRAINING_SET_VARIANT:
 		if err := c.runTrainingSetJob(job.Resource); err != nil {
-			return fmt.Errorf("Training set job failed: %v", err)
+			return fmt.Errorf("training set job failed: %v", err)
 		}
 	}
 	if err := c.deleteJob(mtx, jobKey); err != nil {

@@ -44,8 +44,8 @@ func TestMockMaterializeRunner(t *testing.T) {
 		},
 		Cloud: LocalMaterializeRunner,
 	}
-	delete(factoryMap, "COPY")
-	if err := RegisterFactory("COPY", mockChunkRunnerFactory); err != nil {
+	delete(factoryMap, string(COPY_TO_ONLINE))
+	if err := RegisterFactory(string(COPY_TO_ONLINE), mockChunkRunnerFactory); err != nil {
 		t.Fatalf("Failed to register factory: %v", err)
 	}
 

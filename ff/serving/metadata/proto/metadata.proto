@@ -37,10 +37,17 @@ service Metadata {
     rpc ListModels(Empty) returns (stream Model);
     rpc CreateModel(Model) returns (Empty);
     rpc GetModels(stream Name) returns (stream Model);
+    rpc SetResourceStatus(StatusRequest) returns (Empty);
 }
 
 message Name {
     string name = 1;
+}
+
+message StatusRequest {
+    NameVariant resource = 1;
+    string type = 2;
+    string status = 3;
 }
 
 message NameVariant {
@@ -52,8 +59,9 @@ message Empty {}
 
 message Feature {
     string name = 1;
-    string default_variant = 2;
-    repeated string variants = 3;
+    string status = 2;
+    string default_variant = 3;
+    repeated string variants = 4;
 }
 
 message FeatureVariant {
@@ -66,13 +74,15 @@ message FeatureVariant {
     string owner = 7;
     string description = 8;
     string provider = 9;
+    string status = 10;
     repeated NameVariant trainingsets = 11;
 }
 
 message Label {
     string name = 1;
-    string default_variant = 2;
-    repeated string variants = 3;
+    string status = 2;
+    string default_variant = 3;
+    repeated string variants = 4;
 }
 
 message LabelVariant {
@@ -85,6 +95,7 @@ message LabelVariant {
     string created = 7;
     string owner = 8;
     string provider = 9;
+    string status = 10;
     repeated NameVariant trainingsets = 11;
 }
 
@@ -95,16 +106,18 @@ message Provider {
     string software = 4;
     string team = 5;
     bytes serialized_config = 6;
-    repeated NameVariant sources = 7;
-    repeated NameVariant features = 8;
-    repeated NameVariant trainingsets = 9;
-    repeated NameVariant labels = 10;
+    string status = 7;
+    repeated NameVariant sources = 8;
+    repeated NameVariant features = 9;
+    repeated NameVariant trainingsets = 10;
+    repeated NameVariant labels = 11;
 }
 
 message TrainingSet {
     string name = 1;
-    string default_variant = 2;
-    repeated string variants = 3;
+    string status = 2;
+    string default_variant = 3;
+    repeated string variants = 4;
 }
 
 message TrainingSetVariant {
@@ -122,14 +135,16 @@ message TrainingSetVariant {
 message Entity {
     string name = 1;
     string description = 2;
-    repeated NameVariant features = 3;
-    repeated NameVariant labels = 4;
-    repeated NameVariant trainingsets = 5;
+    string status = 3;
+    repeated NameVariant features = 4;
+    repeated NameVariant labels = 5;
+    repeated NameVariant trainingsets = 6;
 }
 
 message Model {
     string name = 1;
     string description = 2;
+    string status = 3;
     repeated NameVariant features = 4;
     repeated NameVariant labels = 5;
     repeated NameVariant trainingsets = 6;
@@ -137,16 +152,18 @@ message Model {
 
 message User {
     string name = 1;
-    repeated NameVariant features = 2;
-    repeated NameVariant labels = 3;
-    repeated NameVariant trainingsets = 4;
-    repeated NameVariant sources = 5;
+    string status = 2;
+    repeated NameVariant features = 3;
+    repeated NameVariant labels = 4;
+    repeated NameVariant trainingsets = 5;
+    repeated NameVariant sources = 6;
 }
 
 message Source {
     string name = 1;
-    string default_variant = 2;
-    repeated string variants = 3;
+    string status = 2;
+    string default_variant = 3;
+    repeated string variants = 4;
 }
 
 message SourceVariant {
@@ -157,7 +174,8 @@ message SourceVariant {
     string description = 5;
     string provider = 6;
     string created = 7;
-    repeated NameVariant trainingsets = 8;
-    repeated NameVariant features = 9;
-    repeated NameVariant labels = 10;
+    string status = 8;
+    repeated NameVariant trainingsets = 9;
+    repeated NameVariant features = 10;
+    repeated NameVariant labels = 11;
 }

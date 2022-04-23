@@ -1,68 +1,84 @@
 package coordinator
 
 import (
+	"context"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"log"
 	"testing"
+	"time"
+
+	"go.uber.org/zap"
+
+	"github.com/featureform/serving/metadata"
+	provider "github.com/featureform/serving/provider"
+	clientv3 "go.etcd.io/etcd/client/v3"
+	"go.etcd.io/etcd/client/v3/concurrency"
 )
 
-func createTrainingSetWithProvider(client *metadata.Client, config provider.SerializedConfig) {
+func createTrainingSetWithProvider(client *metadata.Client, config provider.SerializedConfig, featureName string, labelName string, tsName string) error {
+	providerName := uuid.New().String()
+	userName := uuid.New().String()
+	sourceName := uuid.New().String()
+	entityName := uuid.New().String()
 	defs := []metadata.ResourceDef{
 		metadata.UserDef{
-			Name: "Simba Khadder",
+			Name: userName,
 		},
 		metadata.ProviderDef{
-			Name:             "test_provider",
+			Name:             providerName,
 			Description:      "",
-			Type:             "",
+			Type:             "POSTGRES_OFFLINE",
 			Software:         "",
 			Team:             "",
 			SerializedConfig: config,
 		},
 		metadata.EntityDef{
-			Name:        "user",
+			Name:        entityName,
 			Description: "",
 		},
 		metadata.SourceDef{
-			Name:        "Transactions",
-			Variant:     "default",
+			Name:        sourceName,
+			Variant:     "",
 			Description: "",
 			Type:        "",
-			Owner:       "",
-			Provider:    "",
+			Owner:       userName,
+			Provider:    providerName,
 		},
 		metadata.LabelDef{
-			Name:        "is_fraud",
-			Variant:     "default",
+			Name:        labelName,
+			Variant:     "",
 			Description: "",
 			Type:        "int",
-			Source:      metadata.NameVariant{"Transactions", "default"},
-			Entity:      "user",
-			Owner:       "",
-			Provider:    "test_provider",
+			Source:      metadata.NameVariant{sourceName, ""},
+			Entity:      entityName,
+			Owner:       userName,
+			Provider:    providerName,
 		},
 		metadata.FeatureDef{
-			Name:        "user_transaction_count",
-			Variant:     "7d",
-			Source:      metadata.NameVariant{"Transactions", "default"},
+			Name:        featureName,
+			Variant:     "",
+			Source:      metadata.NameVariant{sourceName, ""},
 			Type:        "int",
-			Entity:      "user",
-			Owner:       "",
+			Entity:      entityName,
+			Owner:       userName,
 			Description: "",
-			Provider:    "test_provider",
+			Provider:    providerName,
 		},
 		metadata.TrainingSetDef{
-			Name:        "is_fraud",
-			Variant:     "default",
+			Name:        tsName,
+			Variant:     "",
 			Description: "",
-			Owner:       "",
-			Provider:    "test_provider",
-			Label:       metadata.NameVariant{"is_fraud", "default"},
-			Features:    []metadata.NameVariant{{"user_transaction_count", "7d"}},
+			Owner:       userName,
+			Provider:    providerName,
+			Label:       metadata.NameVariant{labelName, ""},
+			Features:    []metadata.NameVariant{{featureName, ""}},
 		},
 	}
 	if err := client.CreateAll(context.Background(), defs); err != nil {
 		return err
 	}
+	return nil
 }
 
 func TestCoordinatorTrainingSet(t *testing.T) {
@@ -79,15 +95,19 @@ func TestCoordinatorTrainingSet(t *testing.T) {
 		log.Fatal(err)
 	}
 	defer cli.Close()
-	var postgresConfig = PostgresConfig{
+	var postgresConfig = provider.PostgresConfig{
 		Host:     "localhost",
 		Port:     "5432",
 		Database: os.Getenv("POSTGRES_DB"),
 		Username: os.Getenv("POSTGRES_USER"),
 		Password: os.Getenv("POSTGRES_PASSWORD"),
 	}
+	featureName := uuid.New().String()
+	labelName := uuid.New().String()
+	tsName := uuid.New().String()
+
 	serialPGConfig := postgresConfig.Serialize()
-	my_provider, err := provider.Get(Provider.PostgresOffline, serialPGConfig)
+	my_provider, err := provider.Get(provider.PostgresOffline, serialPGConfig)
 	if err != nil {
 		t.Fatalf("could not get provider: %v", err)
 	}
@@ -95,53 +115,60 @@ func TestCoordinatorTrainingSet(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not get provider as offline store: %v", err)
 	}
-	offline_feature := provider.ResourceID{Name: "user_transaction_count", Variant: "7d", Type: provider.OfflineResourceType.Feature}
-	featureTable, err := my_offline.CreateResourceTable(offline_feature, provider.PostgresTableSchema{Int})
+	offline_feature := provider.ResourceID{Name: featureName, Variant: "", Type: provider.Feature}
+	postGresIntSchema := provider.PostgresTableSchema{provider.Int}
+	serializedPostgresSchema := postGresIntSchema.Serialize()
+	featureTable, err := my_offline.CreateResourceTable(offline_feature, serializedPostgresSchema)
 	if err != nil {
 		t.Fatalf("could not create feature table: %v", err)
 	}
 	if err := featureTable.Write(provider.ResourceRecord{Entity: "a", Value: 1, TS: time.UnixMilli(0).UTC()}); err != nil {
 		t.Fatalf("could not write to feature table")
 	}
-	offline_label := provider.ResourceID{Name: "is_fraud", Variant: "default", Type: provider.OfflineResourceType.Label}
-	labelTable, err := my_offline.CreateResourceTable(offline_label, provider.PostgresTableSchema{Int})
+	offline_label := provider.ResourceID{Name: labelName, Variant: "", Type: provider.Label}
+	labelTable, err := my_offline.CreateResourceTable(offline_label, serializedPostgresSchema)
 	if err != nil {
 		t.Fatalf("could not create label table: %v", err)
 	}
 	if err := labelTable.Write(provider.ResourceRecord{Entity: "a", Value: 1, TS: time.UnixMilli(0).UTC()}); err != nil {
 		t.Fatalf("could not write to label table")
 	}
-	if err := createTrainingSetWithProvider(client, serialPGConfig); err != nil {
-		return err
+	if err := createTrainingSetWithProvider(client, serialPGConfig, featureName, labelName, tsName); err != nil {
+		t.Fatalf("could not create training set %v", err)
 	}
 	ctx := context.Background()
-	tsID := metadata.ResourceID{Name: "is_fraud", Variant: "default", Type: metadata.ResourceType.TRAINING_SET_VARIANT}
-	tsCreated := client.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: "is_fraud", Variant: "default"})
-	tsCreated.GetStatus()
-	assert.Equal(t, ts_created.GetStatus(), ResourceStatus.Created, "Training set should be set to created with no coordinator running")
-	coord, err := NewCoordinator(client, logger, cli)
+	tsID := metadata.ResourceID{Name: tsName, Variant: "", Type: metadata.TRAINING_SET_VARIANT}
+	tsCreated, err := client.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: tsName, Variant: ""})
+	if err != nil {
+		t.Fatalf("could not get training set")
+	}
+	assert.Equal(t, tsCreated.Status(), metadata.CREATED, "Training set should be set to created with no coordinator running")
+	memJobSpawner := MemoryJobSpawner{}
+	coord, err := NewCoordinator(client, logger, cli, &memJobSpawner)
 	if err != nil {
 		t.Fatalf("Failed to set up coordinator")
 	}
 	s, err := concurrency.NewSession(cli, concurrency.WithTTL(10))
 	if err != nil {
-		return err
+		t.Fatalf("could not create new session")
 	}
-	job_key := fmt.Sprintf("JOB_%s", tsID)
-	go coord.syncHandleJob(job_key, s)
-	ts_pending := client.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: "is_fraud", Variant: "default"})
-	assert.Equal(t, ts_pending.GetStatus(), ResourceStatus.Pending, "Training set should be set to pending once coordinator spawns")
-	for job, err := client.GetJob(job_key); err != nil; {
+	go coord.executeJob(metadata.GetJobKey(tsID), s)
+	for has, _ := coord.hasJob(tsID); has; has, _ = coord.hasJob(tsID) {
 		time.Sleep(1 * time.Second)
 	}
-	ts_complete := client.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: "is_fraud", Variant: "default"})
-	assert.Equal(t, ts_complete.GetStatus(), ResourceStatus.Ready, "Training set should be set to ready once job completes")
-	tsIterator, err := my_offline.GetTrainingSet(tsID)
+	ts_complete, err := client.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: tsName, Variant: ""})
+	if err != nil {
+		t.Fatalf("could not get training set variant")
+	}
+	assert.Equal(t, metadata.READY, ts_complete.Status(), "Training set should be set to ready once job completes")
+	providerTsID := provider.ResourceID{Name: tsID.Name, Variant: tsID.Variant, Type: provider.TrainingSet}
+	tsIterator, err := my_offline.GetTrainingSet(providerTsID)
 	if err != nil {
 		t.Fatalf("Coordinator did not create training set")
 	}
+	tsIterator.Next()
 	retrievedFeatures := tsIterator.Features()
 	retrievedLabel := tsIterator.Label()
-	assert.Equal(t, retrievedFeatures, []interface{}{1})
-	assert.Equal(t, retrievedLabel, 1)
+	assert.Equal(t, []interface{}{1}, retrievedFeatures, "Features should be copied into training set")
+	assert.Equal(t, 1, retrievedLabel, "Label should be copied into training set")
 }

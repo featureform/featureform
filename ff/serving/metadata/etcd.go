@@ -14,7 +14,6 @@ type StorageType string
 
 const (
 	RESOURCE StorageType = "Resource"
-	JOB                  = "Job"
 )
 
 type EtcdNode struct {
@@ -25,6 +24,27 @@ type EtcdNode struct {
 //Configuration For ETCD Cluster
 type EtcdConfig struct {
 	Nodes []EtcdNode
+}
+
+type CoordinatorJob struct {
+	Attempts int
+	Resource ResourceID
+}
+
+func (c *CoordinatorJob) Serialize() ([]byte, error) {
+	serialized, err := json.Marshal(c)
+	if err != nil {
+		return nil, err
+	}
+	return serialized, nil
+}
+
+func (c *CoordinatorJob) Deserialize(serialized []byte) error {
+	err := json.Unmarshal(serialized, c)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (c EtcdConfig) initClient() (*clientv3.Client, error) {
@@ -157,12 +177,6 @@ func (s EtcdStorage) ParseResource(res EtcdRow, resType Resource) (Resource, err
 	return resType, nil
 }
 
-//Can be implemented to unmarshal EtcdRow Object into format used by Jobs
-//Like ParseResource Above
-func (s EtcdStorage) ParseJob(res EtcdRow) ([]byte, error) {
-	return nil, nil
-}
-
 //Returns an empty Resource Object of the given type to unmarshal etcd value into
 func (lookup etcdResourceLookup) createEmptyResource(t ResourceType) (Resource, error) {
 	var resource Resource
@@ -269,9 +283,13 @@ func (lookup etcdResourceLookup) Has(id ResourceID) (bool, error) {
 	return true, nil
 }
 
+func GetJobKey(id ResourceID) string {
+	return fmt.Sprintf("JOB_%s_%s_%s", id.Type, id.Name, id.Variant)
+}
+
 func (lookup etcdResourceLookup) HasJob(id ResourceID) (bool, error) {
-	job_key := fmt.Sprintf("JOB_%s", createKey(id))
-	value, err := lookup.connection.GetCountWithPrefix(job_key)
+	job_key := GetJobKey(id)
+	count, err := lookup.connection.GetCountWithPrefix(job_key)
 	if err != nil {
 		return false, err
 	}
@@ -285,18 +303,16 @@ func (lookup etcdResourceLookup) SetJob(id ResourceID) error {
 	if jobAlreadySet, _ := lookup.HasJob(id); jobAlreadySet {
 		return fmt.Errorf("Job already set")
 	}
-	coordinatorJob := coordinator.CoordinatorJob{
+	coordinatorJob := CoordinatorJob{
 		Attempts: 0,
-		Type: id.Type,
-		Name: id.Name,
-		Variant: id.Variant,
+		Resource: id,
 	}
 	serialized, err := coordinatorJob.Serialize()
 	if err != nil {
 		return err
 	}
-	job_key := fmt.Sprintf("JOB_%s", createKey(id))
-	if err := lookup.connection.Put(job_key, string(serialized)); err != nil {
+	jobKey := GetJobKey(id)
+	if err := lookup.connection.Put(jobKey, string(serialized)); err != nil {
 		return err
 	}
 	return nil
@@ -382,4 +398,18 @@ func (lookup etcdResourceLookup) List() ([]Resource, error) {
 		resources = append(resources, resource)
 	}
 	return resources, nil
+}
+
+func (lookup etcdResourceLookup) SetStatus(id ResourceID, status ResourceStatus) error {
+	res, err := lookup.Lookup(id)
+	if err != nil {
+		return err
+	}
+	if err := res.UpdateStatus(status); err != nil {
+		return err
+	}
+	if err := lookup.Set(id, res); err != nil {
+		return err
+	}
+	return nil
 }

@@ -43,11 +43,14 @@ const (
 	MODEL                               = "Model"
 )
 
+type ResourceStatus string
+
 const (
-	Created ResourceStatus = "CREATED"
-	Pending                = "PENDING"
-	Failed                 = "FAILED"
-	Ready                  = "READY"
+	NO_STATUS ResourceStatus = "No Status"
+	CREATED                  = "Created"
+	PENDING                  = "Pending"
+	FAILED                   = "Failed"
+	READY                    = "Ready"
 )
 
 var parentMapping = map[ResourceType]ResourceType{
@@ -56,6 +59,10 @@ var parentMapping = map[ResourceType]ResourceType{
 	TRANSFORMATION_VARIANT: TRANSFORMATION,
 	SOURCE_VARIANT:         SOURCE,
 	TRAINING_SET_VARIANT:   TRAINING_SET,
+}
+
+var needsJob = map[ResourceType]bool{
+	TRAINING_SET_VARIANT: true,
 }
 
 type ResourceID struct {
@@ -123,6 +130,7 @@ type Resource interface {
 	ID() ResourceID
 	Dependencies(ResourceLookup) (ResourceLookup, error)
 	Proto() proto.Message
+	UpdateStatus(ResourceStatus) error
 }
 
 func isDirectDependency(lookup ResourceLookup, dependency, parent Resource) (bool, error) {
@@ -143,8 +151,6 @@ type ResourceLookup interface {
 	List() ([]Resource, error)
 	HasJob(ResourceID) (bool, error)
 	SetJob(ResourceID) error
-	LookupJob(ResourceID) (Job, error)
-	ListJobs() ([]Job, error)
 	SetStatus(ResourceID, ResourceStatus) error
 }
 
@@ -185,15 +191,6 @@ func (lookup localResourceLookup) Set(id ResourceID, res Resource) error {
 	return nil
 }
 
-func (lookup localResourceLookup) SetJob(id ResourceID) error {
-	lookup[fmt.Sprintf("JOB_%s", id)] = true
-	return nil
-}
-
-func (lookup localResourceLookup) HasJob(id ResourceID) (bool, error) {
-	_, has := lookup[fmt.Sprintf("JOB_%s", id)]
-	return has, nil
-
 func (lookup localResourceLookup) Submap(ids []ResourceID) (ResourceLookup, error) {
 	resources := make(localResourceLookup, len(ids))
 	for _, id := range ids {
@@ -222,6 +219,26 @@ func (lookup localResourceLookup) List() ([]Resource, error) {
 		resources = append(resources, res)
 	}
 	return resources, nil
+}
+
+func (lookup localResourceLookup) SetStatus(id ResourceID, status ResourceStatus) error {
+	res, has := lookup[id]
+	if !has {
+		return &ResourceNotFound{id}
+	}
+	if err := res.UpdateStatus(status); err != nil {
+		return err
+	}
+	lookup[id] = res
+	return nil
+}
+
+func (lookup localResourceLookup) SetJob(id ResourceID) error {
+	return nil
+}
+
+func (lookup localResourceLookup) HasJob(id ResourceID) (bool, error) {
+	return false, nil
 }
 
 type sourceResource struct {
@@ -264,6 +281,11 @@ func (this *sourceResource) Notify(lookup ResourceLookup, op operation, that Res
 		return nil
 	}
 	this.serialized.Variants = append(this.serialized.Variants, otherId.Variant)
+	return nil
+}
+
+func (resource *sourceResource) UpdateStatus(status ResourceStatus) error {
+	resource.serialized.Status = string(status)
 	return nil
 }
 
@@ -322,6 +344,11 @@ func (this *sourceVariantResource) Notify(lookup ResourceLookup, op operation, t
 	return nil
 }
 
+func (resource *sourceVariantResource) UpdateStatus(status ResourceStatus) error {
+	resource.serialized.Status = string(status)
+	return nil
+}
+
 type featureResource struct {
 	serialized *pb.Feature
 }
@@ -362,6 +389,11 @@ func (this *featureResource) Notify(lookup ResourceLookup, op operation, that Re
 		return nil
 	}
 	this.serialized.Variants = append(this.serialized.Variants, otherId.Variant)
+	return nil
+}
+
+func (resource *featureResource) UpdateStatus(status ResourceStatus) error {
+	resource.serialized.Status = string(status)
 	return nil
 }
 
@@ -424,6 +456,11 @@ func (this *featureVariantResource) Notify(lookup ResourceLookup, op operation, 
 	return nil
 }
 
+func (resource *featureVariantResource) UpdateStatus(status ResourceStatus) error {
+	resource.serialized.Status = string(status)
+	return nil
+}
+
 type labelResource struct {
 	serialized *pb.Label
 }
@@ -464,6 +501,11 @@ func (this *labelResource) Notify(lookup ResourceLookup, op operation, that Reso
 		return nil
 	}
 	this.serialized.Variants = append(this.serialized.Variants, otherId.Variant)
+	return nil
+}
+
+func (resource *labelResource) UpdateStatus(status ResourceStatus) error {
+	resource.serialized.Status = string(status)
 	return nil
 }
 
@@ -526,6 +568,11 @@ func (this *labelVariantResource) Notify(lookup ResourceLookup, op operation, th
 	return nil
 }
 
+func (resource *labelVariantResource) UpdateStatus(status ResourceStatus) error {
+	resource.serialized.Status = string(status)
+	return nil
+}
+
 type trainingSetResource struct {
 	serialized *pb.TrainingSet
 }
@@ -566,6 +613,11 @@ func (this *trainingSetResource) Notify(lookup ResourceLookup, op operation, tha
 		return nil
 	}
 	this.serialized.Variants = append(this.serialized.Variants, otherId.Variant)
+	return nil
+}
+
+func (resource *trainingSetResource) UpdateStatus(status ResourceStatus) error {
+	resource.serialized.Status = string(status)
 	return nil
 }
 
@@ -624,6 +676,11 @@ func (this *trainingSetVariantResource) Notify(lookup ResourceLookup, op operati
 	return nil
 }
 
+func (resource *trainingSetVariantResource) UpdateStatus(status ResourceStatus) error {
+	resource.serialized.Status = string(status)
+	return nil
+}
+
 type modelResource struct {
 	serialized *pb.Model
 }
@@ -674,6 +731,11 @@ func (this *modelResource) Notify(lookup ResourceLookup, op operation, that Reso
 	return nil
 }
 
+func (resource *modelResource) UpdateStatus(status ResourceStatus) error {
+	resource.serialized.Status = string(status)
+	return nil
+}
+
 type userResource struct {
 	serialized *pb.User
 }
@@ -720,6 +782,11 @@ func (this *userResource) Notify(lookup ResourceLookup, op operation, that Resou
 	return nil
 }
 
+func (resource *userResource) UpdateStatus(status ResourceStatus) error {
+	resource.serialized.Status = string(status)
+	return nil
+}
+
 type providerResource struct {
 	serialized *pb.Provider
 }
@@ -759,6 +826,11 @@ func (this *providerResource) Notify(lookup ResourceLookup, op operation, that R
 	case LABEL_VARIANT:
 		serialized.Labels = append(serialized.Labels, key)
 	}
+	return nil
+}
+
+func (resource *providerResource) UpdateStatus(status ResourceStatus) error {
+	resource.serialized.Status = string(status)
 	return nil
 }
 
@@ -802,12 +874,17 @@ func (this *entityResource) Notify(lookup ResourceLookup, op operation, that Res
 	return nil
 }
 
+func (resource *entityResource) UpdateStatus(status ResourceStatus) error {
+	resource.serialized.Status = string(status)
+	return nil
+}
+
 type MetadataServer struct {
 	Logger     *zap.SugaredLogger
 	lookup     ResourceLookup
 	address    string
 	grpcServer *grpc.Server
-	coordConn *grpc.ClientConn
+	coordConn  *grpc.ClientConn
 	pb.UnimplementedMetadataServer
 }
 
@@ -837,7 +914,7 @@ func NewMetadataServer(config *Config) (*MetadataServer, error) {
 
 func (serv *MetadataServer) Serve() error {
 	if serv.grpcServer != nil {
-		return fmt.Errorf("Server already running")
+		return fmt.Errorf("server already running")
 	}
 	lis, err := net.Listen("tcp", serv.address)
 	if err != nil {
@@ -886,7 +963,7 @@ func (sp EtcdStorageProvider) GetResourceLookup() (ResourceLookup, error) {
 			Client: client,
 		},
 	}
-	
+
 	return lookup, nil
 }
 
@@ -895,6 +972,12 @@ type Config struct {
 	TypeSenseParams *search.TypeSenseParams
 	StorageProvider StorageProvider
 	Address         string
+}
+
+func (serv *MetadataServer) SetResourceStatus(ctx context.Context, req *pb.StatusRequest) (*pb.Empty, error) {
+	resID := ResourceID{Name: req.Resource.Name, Variant: req.Resource.Variant, Type: ResourceType(req.Type)}
+	err := serv.lookup.SetStatus(resID, ResourceStatus(req.Status))
+	return &pb.Empty{}, err
 }
 
 func (serv *MetadataServer) ListFeatures(_ *pb.Empty, stream pb.Metadata_ListFeaturesServer) error {
@@ -1111,7 +1194,7 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 	if err := serv.lookup.Set(id, res); err != nil {
 		return nil, err
 	}
-	if needsJobSet(res.ID().Type) {
+	if _, has := needsJob[id.Type]; has != false {
 		if err := serv.lookup.SetJob(id); err != nil {
 			return nil, err
 		}

@@ -101,6 +101,10 @@ func (store *postgresOfflineStore) getPrimaryTableName(id ResourceID) string {
 	return fmt.Sprintf("featureform_primary_%s_%s", id.Name, id.Variant)
 }
 
+func (store *postgresOfflineStore) getTransformationName(id ResourceID) string {
+	return fmt.Sprintf("featureform_transformation_%s_%s", id.Name, id.Variant)
+}
+
 func (store *postgresOfflineStore) getResourceTableName(id ResourceID) string {
 	var idType string
 	if id.Type == Feature {
@@ -128,6 +132,8 @@ func (store *postgresOfflineStore) tableExists(id ResourceID) (bool, error) {
 		tableName = store.getTrainingSetName(id)
 	} else if id.check(Primary) == nil {
 		tableName = store.getPrimaryTableName(id)
+	} else if id.check(Transformation) == nil {
+		tableName = store.getTransformationName(id)
 	}
 	err := store.conn.QueryRow(context.Background(), "SELECT 1 FROM information_schema.tables WHERE table_name=$1", tableName).Scan(&n)
 	if err == db.ErrNoRows {
@@ -142,8 +148,66 @@ func (store *postgresOfflineStore) AsOfflineStore() (OfflineStore, error) {
 	return store, nil
 }
 
-func (store *postgresOfflineStore) AsSQLOfflineStore() (SQLOfflineStore, error) {
-	return store, nil
+func (store *postgresOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error) {
+	if err := id.check(Feature, Label); err != nil {
+		return nil, err
+	}
+	if exists, err := store.tableExists(id); err != nil {
+		return nil, err
+	} else if exists {
+		return nil, &TableAlreadyExists{id.Name, id.Variant}
+	}
+	if schema.Entity == "" || schema.Value == "" {
+		return nil, fmt.Errorf("non-empty entity and value columns required")
+	}
+	tableName := store.getResourceTableName(id)
+	if schema.TS == "" {
+		query := fmt.Sprintf("CREATE TABLE %s AS SELECT %s as entity, %s as value, null::TIMESTAMPTZ as ts FROM %s; ALTER TABLE %s ADD CONSTRAINT  %s  UNIQUE (entity, ts)", sanitize(tableName),
+			sanitize(schema.Entity), sanitize(schema.Value), sanitize(schema.SourceTable), sanitize(tableName), sanitize(uuid.NewString()))
+		if _, err := store.conn.Exec(context.Background(), query); err != nil {
+			fmt.Println("IF", err)
+			return nil, err
+		}
+		// Populates empty column with timestamp
+		update := fmt.Sprintf("UPDATE %s SET ts = $1", sanitize(tableName))
+		if _, err := store.conn.Exec(context.Background(), update, time.UnixMilli(0).UTC()); err != nil {
+			return nil, err
+		}
+	} else {
+		query := fmt.Sprintf("CREATE TABLE %s AS SELECT %s as entity, %s as value, %s as ts FROM %s; ALTER TABLE %s ADD CONSTRAINT  %s  UNIQUE (entity, ts)", sanitize(tableName),
+			sanitize(schema.Entity), sanitize(schema.Value), sanitize(schema.TS), sanitize(schema.SourceTable), sanitize(tableName), sanitize(uuid.NewString()))
+		if _, err := store.conn.Exec(context.Background(), query); err != nil {
+			fmt.Println(query)
+			fmt.Println("ELSE", err)
+			return nil, err
+		}
+	}
+
+	return &postgresOfflineTable{
+		conn: store.conn,
+		name: tableName,
+	}, nil
+}
+
+func (store *postgresOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error) {
+	if err := id.check(Primary); err != nil {
+		return nil, err
+	}
+	if exists, err := store.tableExists(id); err != nil {
+		return nil, err
+	} else if exists {
+		return nil, &TableAlreadyExists{id.Name, id.Variant}
+	}
+	tableName := store.getPrimaryTableName(id)
+	fmt.Println(tableName)
+	query := fmt.Sprintf("CREATE TABLE %s AS SELECT * FROM %s", sanitize(tableName), sanitize(sourceName))
+	if _, err := store.conn.Exec(context.Background(), query); err != nil {
+		return nil, err
+	}
+	return &postgresPrimaryTable{
+		conn: store.conn,
+		name: tableName,
+	}, nil
 }
 
 // CreatePrimaryTable creates a generic SQL table based on the given TableSchema.
@@ -466,6 +530,12 @@ type postgresPrimaryTable struct {
 	schema TableSchema
 }
 
+type postgresTransformationTable struct {
+	conn   *pgxpool.Pool
+	name   string
+	schema TableSchema
+}
+
 // determineColumnType returns an acceptable Postgres column Type to use for the given value.
 func determineColumnType(valueType ValueType) (string, error) {
 	switch valueType {
@@ -718,7 +788,7 @@ func (store *postgresOfflineStore) CreateTransformation(config TransformationCon
 		return InvalidQueryError{fmt.Sprintf("query invalid. must start with SELECT: %s", config.Query)}
 	}
 	var query string
-	if config.TargetTableID.Type == Primary {
+	if config.TargetTableID.Type == Transformation {
 		query = fmt.Sprintf("CREATE TABLE %s AS %s ", sanitize(name), config.Query)
 	} else if config.TargetTableID.Type == Feature || config.TargetTableID.Type == Label {
 		columnMap, err := mapColumns(config.ColumnMapping, config.Query)
@@ -739,10 +809,12 @@ func (store *postgresOfflineStore) createTransformationName(id ResourceID) (stri
 	switch id.Type {
 	case Label, Feature:
 		return store.getResourceTableName(id), nil
-	case Primary:
-		return store.getPrimaryTableName(id), nil
+	case Transformation:
+		return store.getTransformationName(id), nil
 	case TrainingSet:
 		return "", TransformationTypeError{"Invalid Transformation Type: Training Set"}
+	case Primary:
+		return "", TransformationTypeError{"Invalid Transformation Type: Primary"}
 	default:
 		return "", TransformationTypeError{"Invalid Transformation Type"}
 	}
@@ -801,6 +873,41 @@ func (store *postgresOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable,
 		}
 		columnNames = append(columnNames, TableColumn{Name: column})
 	}
+	return &postgresPrimaryTable{
+		conn: store.conn,
+		name: name,
+		schema: TableSchema{
+			Columns: columnNames,
+		},
+	}, nil
+}
+
+func (store *postgresOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
+	name := store.getTransformationName(id)
+
+	if exists, err := store.tableExists(id); err != nil {
+		return nil, err
+	} else if !exists {
+		return nil, &TableNotFound{name, id.Variant}
+	}
+
+	rows, err := store.conn.Query(
+		context.Background(),
+		"SELECT column_name FROM information_schema.columns WHERE table_name = $1 order by ordinal_position",
+		name)
+	defer rows.Close()
+	if err != nil {
+		return nil, err
+	}
+	columnNames := make([]TableColumn, 0)
+	for rows.Next() {
+		var column string
+		if err := rows.Scan(&column); err != nil {
+			return nil, err
+		}
+		columnNames = append(columnNames, TableColumn{Name: column})
+	}
+	// Transformation table is an extension of Primary Table
 	return &postgresPrimaryTable{
 		conn: store.conn,
 		name: name,

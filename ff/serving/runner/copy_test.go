@@ -320,6 +320,20 @@ func (store *BrokenNumRowsOfflineStore) GetPrimaryTable(id provider.ResourceID) 
 	return nil, nil
 }
 
+func (store *BrokenNumRowsOfflineStore) RegisterResourceFromSourceTable(id provider.ResourceID, schema provider.ResourceSchema) (provider.OfflineTable, error) {
+	return nil, nil
+}
+func (store *BrokenNumRowsOfflineStore) RegisterPrimaryFromSourceTable(id provider.ResourceID, sourceName string) (provider.PrimaryTable, error) {
+	return nil, nil
+}
+func (store *BrokenNumRowsOfflineStore) CreateTransformation(config provider.TransformationConfig) error {
+	return nil
+}
+
+func (store *BrokenNumRowsOfflineStore) GetTransformationTable(id provider.ResourceID) (provider.TransformationTable, error) {
+	return nil, nil
+}
+
 func (b BrokenNumRowsOfflineStore) CreateResourceTable(id provider.ResourceID, schema provider.TableSchema) (provider.OfflineTable, error) {
 	return nil, nil
 }
@@ -620,6 +634,20 @@ func (m MockOfflineStore) CreatePrimaryTable(id provider.ResourceID, schema prov
 	return nil, nil
 }
 func (m MockOfflineStore) GetPrimaryTable(id provider.ResourceID) (provider.PrimaryTable, error) {
+	return nil, nil
+}
+
+func (m MockOfflineStore) RegisterResourceFromSourceTable(id provider.ResourceID, schema provider.ResourceSchema) (provider.OfflineTable, error) {
+	return nil, nil
+}
+func (m MockOfflineStore) RegisterPrimaryFromSourceTable(id provider.ResourceID, sourceName string) (provider.PrimaryTable, error) {
+	return nil, nil
+}
+func (m MockOfflineStore) CreateTransformation(config provider.TransformationConfig) error {
+	return nil
+}
+
+func (m MockOfflineStore) GetTransformationTable(id provider.ResourceID) (provider.TransformationTable, error) {
 	return nil, nil
 }
 

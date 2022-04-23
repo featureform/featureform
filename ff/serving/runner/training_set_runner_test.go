@@ -43,6 +43,22 @@ func (m MockOfflineCreateTrainingSetFail) GetPrimaryTable(id provider.ResourceID
 	return nil, nil
 }
 
+func (m MockOfflineCreateTrainingSetFail) RegisterResourceFromSourceTable(id provider.ResourceID, schema provider.ResourceSchema) (provider.OfflineTable, error) {
+	return nil, nil
+}
+
+func (m MockOfflineCreateTrainingSetFail) RegisterPrimaryFromSourceTable(id provider.ResourceID, sourceName string) (provider.PrimaryTable, error) {
+	return nil, nil
+}
+
+func (m MockOfflineCreateTrainingSetFail) CreateTransformation(config provider.TransformationConfig) error {
+	return nil
+}
+
+func (m MockOfflineCreateTrainingSetFail) GetTransformationTable(id provider.ResourceID) (provider.TransformationTable, error) {
+	return nil, nil
+}
+
 func TestRun(t *testing.T) {
 	runner := TrainingSetRunner{
 		MockOfflineStore{},

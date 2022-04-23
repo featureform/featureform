@@ -68,7 +68,7 @@ func TestOfflineStores(t *testing.T) {
 		"FeatureTableNotFound":    testFeatureTableNotFound,
 		"TrainingDefShorthand":    testTrainingSetDefShorthand,
 	}
-	testSQLFns := map[string]func(*testing.T, SQLOfflineStore){
+	testSQLFns := map[string]func(*testing.T, OfflineStore){
 		"PrimaryTableCreate":          testPrimaryCreateTable,
 		"PrimaryTableWrite":           testPrimaryTableWrite,
 		"Transformation":              testTransform,
@@ -106,11 +106,14 @@ func TestOfflineStores(t *testing.T) {
 			})
 		}
 		for name, fn := range testSQLFns {
+			if testItem.t == MemoryOffline {
+				continue
+			}
 			provider, err := Get(testItem.t, testItem.c)
 			if err != nil {
 				t.Fatalf("Failed to get provider %s: %s", testItem.t, err)
 			}
-			store, err := provider.AsSQLOfflineStore()
+			store, err := provider.AsOfflineStore()
 			if err != nil {
 				t.Logf("Cannot use provider %s as SQLOfflineStore: %s", testItem.t, err)
 				continue
@@ -911,7 +914,7 @@ func testTrainingSetDefShorthand(t *testing.T, store OfflineStore) {
 	}
 }
 
-func testPrimaryCreateTable(t *testing.T, store SQLOfflineStore) {
+func testPrimaryCreateTable(t *testing.T, store OfflineStore) {
 	type TestCreateCase struct {
 		Rec         ResourceID
 		Schema      TableSchema
@@ -995,7 +998,7 @@ func testPrimaryCreateTable(t *testing.T, store SQLOfflineStore) {
 	}
 }
 
-func testPrimaryTableWrite(t *testing.T, store SQLOfflineStore) {
+func testPrimaryTableWrite(t *testing.T, store OfflineStore) {
 	type TestCase struct {
 		Rec         ResourceID
 		Schema      TableSchema
@@ -1083,7 +1086,7 @@ func testPrimaryTableWrite(t *testing.T, store SQLOfflineStore) {
 
 }
 
-func testTransform(t *testing.T, store SQLOfflineStore) {
+func testTransform(t *testing.T, store OfflineStore) {
 
 	type TransformTest struct {
 		PrimaryTable ResourceID
@@ -1119,7 +1122,7 @@ func testTransform(t *testing.T, store SQLOfflineStore) {
 			Config: TransformationConfig{
 				TargetTableID: ResourceID{
 					Name: uuid.NewString(),
-					Type: Primary,
+					Type: Transformation,
 				},
 				Query: "SELECT * FROM tb",
 			},
@@ -1155,7 +1158,7 @@ func testTransform(t *testing.T, store SQLOfflineStore) {
 			Config: TransformationConfig{
 				TargetTableID: ResourceID{
 					Name: uuid.NewString(),
-					Type: Primary,
+					Type: Transformation,
 				},
 				Query: "SELECT COUNT(*) FROM tb",
 			},
@@ -1186,7 +1189,7 @@ func testTransform(t *testing.T, store SQLOfflineStore) {
 		if int(rows) != len(test.Records) {
 			t.Fatalf("NumRows do not match. Expected: %d, Got: %d", len(test.Records), rows)
 		}
-		table, err = store.GetPrimaryTable(test.Config.TargetTableID)
+		table, err = store.GetTransformationTable(test.Config.TargetTableID)
 		if err != nil {
 			t.Errorf("Could not get transformation table: %v", err)
 		}
@@ -1212,7 +1215,7 @@ func testTransform(t *testing.T, store SQLOfflineStore) {
 
 }
 
-func testTransformCreateFeature(t *testing.T, store SQLOfflineStore) {
+func testTransformCreateFeature(t *testing.T, store OfflineStore) {
 	type TransformTest struct {
 		PrimaryTable ResourceID
 		Schema       TableSchema
@@ -1302,11 +1305,11 @@ func testTransformCreateFeature(t *testing.T, store SQLOfflineStore) {
 	// Test if can materialized a transformed table
 }
 
-func testSQLValidity(t *testing.T, store SQLOfflineStore) {
+func testSQLValidity(t *testing.T, store OfflineStore) {
 	config := TransformationConfig{
 		TargetTableID: ResourceID{
 			Name: "dummyTransformation",
-			Type: Primary,
+			Type: Transformation,
 		},
 		Query: "CREATE TABLE test (t INT)",
 	}
@@ -1316,7 +1319,7 @@ func testSQLValidity(t *testing.T, store SQLOfflineStore) {
 	config = TransformationConfig{
 		TargetTableID: ResourceID{
 			Name: "dummyTransformation",
-			Type: Primary,
+			Type: Transformation,
 		},
 		Query: "INSERT INTO test values (1)",
 	}
@@ -1325,7 +1328,7 @@ func testSQLValidity(t *testing.T, store SQLOfflineStore) {
 	}
 }
 
-func testCreateDuplicatePrimaryTable(t *testing.T, store SQLOfflineStore) {
+func testCreateDuplicatePrimaryTable(t *testing.T, store OfflineStore) {
 	table := uuid.NewString()
 	rec := ResourceID{
 		Name: table,
@@ -1349,7 +1352,7 @@ func testCreateDuplicatePrimaryTable(t *testing.T, store SQLOfflineStore) {
 	}
 }
 
-func testChainTransform(t *testing.T, store SQLOfflineStore) {
+func testChainTransform(t *testing.T, store OfflineStore) {
 
 	type TransformTest struct {
 		PrimaryTable ResourceID
@@ -1386,7 +1389,7 @@ func testChainTransform(t *testing.T, store SQLOfflineStore) {
 			Config: TransformationConfig{
 				TargetTableID: ResourceID{
 					Name: firstTransformName,
-					Type: Primary,
+					Type: Transformation,
 				},
 				Query: "SELECT entity, int, flt, str FROM tb",
 			},
@@ -1413,7 +1416,7 @@ func testChainTransform(t *testing.T, store SQLOfflineStore) {
 			Config: TransformationConfig{
 				TargetTableID: ResourceID{
 					Name: uuid.NewString(),
-					Type: Primary,
+					Type: Transformation,
 				},
 				Query: "SELECT COUNT(*) FROM tb",
 			},
@@ -1435,7 +1438,7 @@ func testChainTransform(t *testing.T, store SQLOfflineStore) {
 	config := TransformationConfig{
 		TargetTableID: ResourceID{
 			Name: firstTransformName,
-			Type: Primary,
+			Type: Transformation,
 		},
 		Query: fmt.Sprintf("SELECT entity, int, flt, str FROM %s", sanitize(table.GetName())),
 	}
@@ -1449,7 +1452,7 @@ func testChainTransform(t *testing.T, store SQLOfflineStore) {
 	if int(rows) != len(tests["First"].Records) {
 		t.Fatalf("NumRows do not match. Expected: %d, Got: %d", len(tests["First"].Records), rows)
 	}
-	table, err = store.GetPrimaryTable(tests["First"].Config.TargetTableID)
+	table, err = store.GetTransformationTable(tests["First"].Config.TargetTableID)
 	if err != nil {
 		t.Errorf("Could not get transformation table: %v", err)
 	}
@@ -1468,7 +1471,7 @@ func testChainTransform(t *testing.T, store SQLOfflineStore) {
 	config = TransformationConfig{
 		TargetTableID: ResourceID{
 			Name: secondTransformName,
-			Type: Primary,
+			Type: Transformation,
 		},
 		Query: fmt.Sprintf("SELECT Count(*) FROM %s", sanitize(table.GetName())),
 	}
@@ -1476,7 +1479,7 @@ func testChainTransform(t *testing.T, store SQLOfflineStore) {
 		t.Fatalf("Could not create transformation: %v", err)
 	}
 
-	table, err = store.GetPrimaryTable(config.TargetTableID)
+	table, err = store.GetTransformationTable(config.TargetTableID)
 	if err != nil {
 		t.Errorf("Could not get transformation table: %v", err)
 	}
@@ -1494,7 +1497,7 @@ func testChainTransform(t *testing.T, store SQLOfflineStore) {
 
 }
 
-func testTransformToMaterialize(t *testing.T, store SQLOfflineStore) {
+func testTransformToMaterialize(t *testing.T, store OfflineStore) {
 
 	type TransformTest struct {
 		PrimaryTable ResourceID
@@ -1528,7 +1531,7 @@ func testTransformToMaterialize(t *testing.T, store SQLOfflineStore) {
 			Config: TransformationConfig{
 				TargetTableID: ResourceID{
 					Name: firstTransformName,
-					Type: Primary,
+					Type: Transformation,
 				},
 				Query: "SELECT entity, int, flt, str FROM tb",
 			},
@@ -1554,7 +1557,7 @@ func testTransformToMaterialize(t *testing.T, store SQLOfflineStore) {
 	config := TransformationConfig{
 		TargetTableID: ResourceID{
 			Name: firstTransformName,
-			Type: Primary,
+			Type: Transformation,
 		},
 		Query: fmt.Sprintf("SELECT entity, int, flt, str FROM %s", sanitize(table.GetName())),
 	}
@@ -1655,6 +1658,275 @@ func Test_mapColumns(t *testing.T) {
 		})
 	}
 
+}
+
+func Test_createResourceFromSource(t *testing.T) {
+	err := godotenv.Load(".env")
+	if err != nil {
+		fmt.Println(err)
+	}
+	var postgresConfig = PostgresConfig{
+		Host:     "localhost",
+		Port:     "5432",
+		Database: os.Getenv("POSTGRES_DB"),
+		Username: os.Getenv("POSTGRES_USER"),
+		Password: os.Getenv("POSTGRES_PASSWORD"),
+	}
+	serialPGConfig := postgresConfig.Serialize()
+	os.Setenv("TZ", "UTC")
+	pgProvider, err := Get(PostgresOffline, serialPGConfig)
+	if err != nil {
+		t.Fatal("Failed to get postgres provider")
+	}
+	snowFlakeDatabase := strings.ToUpper(uuid.NewString())
+	t.Log("Snowflake Database: ", snowFlakeDatabase)
+	var snowflakeConfig = SnowflakeConfig{
+		Username:     os.Getenv("SNOWFLAKE_USERNAME"),
+		Password:     os.Getenv("SNOWFLAKE_PASSWORD"),
+		Organization: os.Getenv("SNOWFLAKE_ORG"),
+		Account:      os.Getenv("SNOWFLAKE_ACCOUNT"),
+		Database:     snowFlakeDatabase,
+	}
+	serialSFConfig := snowflakeConfig.Serialize()
+	if err := createSnowflakeDatabase(snowflakeConfig); err != nil {
+		t.Fatalf("%v", err)
+	}
+	defer destroySnowflakeDatabase(snowflakeConfig)
+	sfProvider, err := Get(SnowflakeOffline, serialSFConfig)
+	if err != nil {
+		t.Fatal("Failed to get postgres provider")
+	}
+
+	for name, provider := range map[string]Provider{"POSTGRES": pgProvider, "SNOWFLAKE": sfProvider} {
+		t.Run(name, func(t *testing.T) {
+
+			store, err := provider.AsOfflineStore()
+			// Create a generic table to test with
+			primaryID := ResourceID{
+				Name: uuid.NewString(),
+				Type: Primary,
+			}
+			schema := TableSchema{
+				Columns: []TableColumn{
+					{Name: "col1", ValueType: String},
+					{Name: "col2", ValueType: Int},
+					{Name: "col3", ValueType: String},
+					{Name: "col4", ValueType: Timestamp},
+				},
+			}
+			table, err := store.CreatePrimaryTable(primaryID, schema)
+			if err != nil {
+				t.Fatalf("Could not create primary table: %v", err)
+			}
+			records := []GenericRecord{
+				{"a", 1, "one", time.UnixMilli(0)},
+				{"b", 2, "two", time.UnixMilli(1)},
+				{"c", 3, "three", time.UnixMilli(2)},
+				{"d", 4, "four", time.UnixMilli(3)},
+				{"e", 5, "five", time.UnixMilli(4)},
+			}
+			for _, record := range records {
+				if err := table.Write(record); err != nil {
+					t.Fatalf("Could not write record: %v", err)
+				}
+			}
+			featureID := ResourceID{
+				Name: uuid.NewString(),
+				Type: Feature,
+			}
+			recSchema := ResourceSchema{
+				Entity:      "col1",
+				Value:       "col2",
+				TS:          "col4",
+				SourceTable: table.GetName(),
+			}
+			t.Log("Resource Name: ", featureID.Name)
+			_, err = store.RegisterResourceFromSourceTable(featureID, recSchema)
+			if err != nil {
+				t.Fatalf("Could not register from Primary Table: %s", err)
+			}
+			_, err = store.GetResourceTable(featureID)
+			if err != nil {
+				t.Fatalf("Could not get resource table: %v", err)
+			}
+		})
+	}
+}
+
+func Test_createResourceFromSourceNoTS(t *testing.T) {
+	err := godotenv.Load(".env")
+	if err != nil {
+		fmt.Println(err)
+	}
+	var postgresConfig = PostgresConfig{
+		Host:     "localhost",
+		Port:     "5432",
+		Database: os.Getenv("POSTGRES_DB"),
+		Username: os.Getenv("POSTGRES_USER"),
+		Password: os.Getenv("POSTGRES_PASSWORD"),
+	}
+	serialPGConfig := postgresConfig.Serialize()
+	os.Setenv("TZ", "UTC")
+	pgProvider, err := Get(PostgresOffline, serialPGConfig)
+	if err != nil {
+		t.Fatal("Failed to get postgres provider")
+	}
+	snowFlakeDatabase := strings.ToUpper(uuid.NewString())
+	t.Log("Snowflake Database: ", snowFlakeDatabase)
+	var snowflakeConfig = SnowflakeConfig{
+		Username:     os.Getenv("SNOWFLAKE_USERNAME"),
+		Password:     os.Getenv("SNOWFLAKE_PASSWORD"),
+		Organization: os.Getenv("SNOWFLAKE_ORG"),
+		Account:      os.Getenv("SNOWFLAKE_ACCOUNT"),
+		Database:     snowFlakeDatabase,
+	}
+	serialSFConfig := snowflakeConfig.Serialize()
+	if err := createSnowflakeDatabase(snowflakeConfig); err != nil {
+		t.Fatalf("%v", err)
+	}
+	defer destroySnowflakeDatabase(snowflakeConfig)
+	sfProvider, err := Get(SnowflakeOffline, serialSFConfig)
+	if err != nil {
+		t.Fatal("Failed to get postgres provider")
+	}
+	for name, provider := range map[string]Provider{"POSTGRES": pgProvider, "SNOWFLAKE": sfProvider} {
+		t.Run(name, func(t *testing.T) {
+
+			store, err := provider.AsOfflineStore()
+			// Create a generic table to test with
+			primaryID := ResourceID{
+				Name: uuid.NewString(),
+				Type: Primary,
+			}
+			schema := TableSchema{
+				Columns: []TableColumn{
+					{Name: "col1", ValueType: String},
+					{Name: "col2", ValueType: Int},
+					{Name: "col3", ValueType: String},
+				},
+			}
+			table, err := store.CreatePrimaryTable(primaryID, schema)
+			if err != nil {
+				t.Fatalf("Could not create primary table: %v", err)
+			}
+			records := []GenericRecord{
+				{"a", 1, "one"},
+				{"b", 2, "two"},
+				{"c", 3, "three"},
+				{"d", 4, "four"},
+				{"e", 5, "five"},
+			}
+			for _, record := range records {
+				if err := table.Write(record); err != nil {
+					t.Fatalf("Could not write record: %v", err)
+				}
+			}
+			featureID := ResourceID{
+				Name: uuid.NewString(),
+				Type: Feature,
+			}
+			recSchema := ResourceSchema{
+				Entity:      "col1",
+				Value:       "col2",
+				SourceTable: table.GetName(),
+			}
+			t.Log("Resource Name: ", featureID.Name)
+			_, err = store.RegisterResourceFromSourceTable(featureID, recSchema)
+			if err != nil {
+				t.Fatalf("Could not register from Source Table: %s", err)
+			}
+			_, err = store.GetResourceTable(featureID)
+			if err != nil {
+				t.Fatalf("Could not get resource table: %v", err)
+			}
+		})
+	}
+}
+
+func Test_createPrimaryFromSource(t *testing.T) {
+	err := godotenv.Load(".env")
+	if err != nil {
+		fmt.Println(err)
+	}
+	var postgresConfig = PostgresConfig{
+		Host:     "localhost",
+		Port:     "5432",
+		Database: os.Getenv("POSTGRES_DB"),
+		Username: os.Getenv("POSTGRES_USER"),
+		Password: os.Getenv("POSTGRES_PASSWORD"),
+	}
+	serialPGConfig := postgresConfig.Serialize()
+	os.Setenv("TZ", "UTC")
+	pgProvider, err := Get(PostgresOffline, serialPGConfig)
+	if err != nil {
+		t.Fatal("Failed to get postgres provider")
+	}
+	snowFlakeDatabase := strings.ToUpper(uuid.NewString())
+	t.Log("Snowflake Database: ", snowFlakeDatabase)
+	var snowflakeConfig = SnowflakeConfig{
+		Username:     os.Getenv("SNOWFLAKE_USERNAME"),
+		Password:     os.Getenv("SNOWFLAKE_PASSWORD"),
+		Organization: os.Getenv("SNOWFLAKE_ORG"),
+		Account:      os.Getenv("SNOWFLAKE_ACCOUNT"),
+		Database:     snowFlakeDatabase,
+	}
+	serialSFConfig := snowflakeConfig.Serialize()
+	if err := createSnowflakeDatabase(snowflakeConfig); err != nil {
+		t.Fatalf("%v", err)
+	}
+	defer destroySnowflakeDatabase(snowflakeConfig)
+	sfProvider, err := Get(SnowflakeOffline, serialSFConfig)
+	if err != nil {
+		t.Fatal("Failed to get postgres provider")
+	}
+	for name, provider := range map[string]Provider{"POSTGRES": pgProvider, "SNOWFLAKE": sfProvider} {
+		t.Run(name, func(t *testing.T) {
+			store, err := provider.AsOfflineStore()
+			// Create a generic table to test with
+			primaryID := ResourceID{
+				Name: uuid.NewString(),
+				Type: Primary,
+			}
+			schema := TableSchema{
+				Columns: []TableColumn{
+					{Name: "col1", ValueType: String},
+					{Name: "col2", ValueType: Int},
+					{Name: "col3", ValueType: String},
+					{Name: "col4", ValueType: Timestamp},
+				},
+			}
+			table, err := store.CreatePrimaryTable(primaryID, schema)
+			if err != nil {
+				t.Fatalf("Could not create primary table: %v", err)
+			}
+			records := []GenericRecord{
+				{"a", 1, "one", time.UnixMilli(0)},
+				{"b", 2, "two", time.UnixMilli(1)},
+				{"c", 3, "three", time.UnixMilli(2)},
+				{"d", 4, "four", time.UnixMilli(3)},
+				{"e", 5, "five", time.UnixMilli(4)},
+			}
+			for _, record := range records {
+				if err := table.Write(record); err != nil {
+					t.Fatalf("Could not write record: %v", err)
+				}
+			}
+			primaryCopyID := ResourceID{
+				Name: uuid.NewString(),
+				Type: Primary,
+			}
+
+			t.Log("Primary Name: ", primaryCopyID.Name)
+			_, err = store.RegisterPrimaryFromSourceTable(primaryCopyID, table.GetName())
+			if err != nil {
+				t.Fatalf("Could not register from Source Table: %s", err)
+			}
+			_, err = store.GetPrimaryTable(primaryCopyID)
+			if err != nil {
+				t.Fatalf("Could not get primary table: %v", err)
+			}
+		})
+	}
 }
 
 func Test_snowflakeOfflineTable_checkTimestamp(t *testing.T) {

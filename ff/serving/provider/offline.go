@@ -43,6 +43,7 @@ const (
 	Feature
 	TrainingSet
 	Primary
+	Transformation
 )
 
 type FeatureLabelColumnType string
@@ -115,6 +116,10 @@ type TransformationConfig struct {
 }
 
 type OfflineStore interface {
+	RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error)
+	RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error)
+	CreateTransformation(config TransformationConfig) error
+	GetTransformationTable(id ResourceID) (TransformationTable, error)
 	CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error)
 	GetPrimaryTable(id ResourceID) (PrimaryTable, error)
 	CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error)
@@ -125,11 +130,6 @@ type OfflineStore interface {
 	CreateTrainingSet(TrainingSetDef) error
 	GetTrainingSet(id ResourceID) (TrainingSetIterator, error)
 	Provider
-}
-
-type SQLOfflineStore interface {
-	CreateTransformation(config TransformationConfig) error
-	OfflineStore
 }
 
 type MaterializationID string
@@ -204,6 +204,17 @@ type PrimaryTable interface {
 	NumRows() (int64, error)
 }
 
+type TransformationTable interface {
+	PrimaryTable
+}
+
+type ResourceSchema struct {
+	Entity      string
+	Value       string
+	TS          string
+	SourceTable string
+}
+
 type TableSchema struct {
 	Columns []TableColumn
 }
@@ -240,8 +251,12 @@ func (store *memoryOfflineStore) AsOfflineStore() (OfflineStore, error) {
 	return store, nil
 }
 
-func (store *memoryOfflineStore) AsSQLOfflineStore() (SQLOfflineStore, error) {
-	return nil, fmt.Errorf("cannot use Memory Offline Store as SQLOfflineStore")
+func (store *memoryOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error) {
+	return nil, fmt.Errorf("Snowflake RegisterResourceFromSourceTable not implemented")
+}
+
+func (store *memoryOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error) {
+	return nil, fmt.Errorf("Snowflake RegisterPrimaryFromSourceTable not implemented")
 }
 
 func (store *memoryOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error) {
@@ -250,6 +265,14 @@ func (store *memoryOfflineStore) CreatePrimaryTable(id ResourceID, schema TableS
 
 func (store *memoryOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error) {
 	return nil, errors.New("primary table unsupported for this provider")
+}
+
+func (store *memoryOfflineStore) CreateTransformation(config TransformationConfig) error {
+	return errors.New("CreateTransformation unsupported for this provider")
+}
+
+func (store *memoryOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
+	return nil, errors.New("GetTransformationTable unsupported for this provider")
 }
 
 func (store *memoryOfflineStore) CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error) {

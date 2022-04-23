@@ -5,6 +5,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"log"
+	"os"
 	"testing"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 
 	"github.com/featureform/serving/metadata"
 	provider "github.com/featureform/serving/provider"
+	runner "github.com/featureform/serving/runner"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/client/v3/concurrency"
 )
@@ -84,6 +86,9 @@ func createTrainingSetWithProvider(client *metadata.Client, config provider.Seri
 func TestCoordinatorTrainingSet(t *testing.T) {
 	if testing.Short() {
 		return
+	}
+	if err := runner.RegisterFactory(string(runner.CREATE_TRAINING_SET), runner.TrainingSetRunnerFactory); err != nil {
+		t.Fatalf("Failed to register training set runner factory: %v", err)
 	}
 	logger := zap.NewExample().Sugar()
 	client, err := metadata.NewClient("localhost:8080", logger)

@@ -11,19 +11,6 @@ const (
 	CREATE_TRAINING_SET            = "Create training set"
 )
 
-// func init() {
-// 	// dont run these while performing tests
-// 	unregisteredFactories := map[RunnerName]RunnerFactory{
-// 		COPY_TO_ONLINE:      MaterializedChunkRunnerFactory,
-// 		CREATE_TRAINING_SET: TrainingSetRunnerFactory,
-// 	}
-// 	for name, factory := range unregisteredFactories {
-// 		if err := RegisterFactory(string(name), factory); err != nil {
-// 			panic(err)
-// 		}
-// 	}
-// }
-
 type Config []byte
 
 type RunnerConfig interface {

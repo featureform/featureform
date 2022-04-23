@@ -94,6 +94,70 @@ func (c *Coordinator) WatchForNewJobs() error {
 	}
 }
 
+func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID) error {
+	feature, err := c.Metadata.GetFeatureVariant(context.Background(), metadata.NameVariant{resID.Name, resID.Variant})
+	if err != nil {
+		return err
+	}
+	status := feature.Status()
+	if status == metadata.READY || status == metadata.FAILED {
+		return fmt.Errorf("feature already set to %s", metadata.ResourceStatus(status))
+	}
+	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.PENDING); err != nil {
+		return err
+	}
+	sourceNameVariant := feature.Source()
+	source, err := c.Metadata.GetSourceVariant(context.Background(), sourceNameVariant)
+	if err != nil {
+		return err
+	}
+	sourceStatus := source.Status()
+	if sourceStatus != metadata.READY {
+		return fmt.Errorf("source of feature not ready")
+	}
+	sourceProvider, err := source.FetchProvider(c.Metadata, context.Background())
+	if err != nil {
+		return err
+	}
+	p, err := provider.Get(provider.Type(sourceProvider.Type()), sourceProvider.SerializedConfig())
+	if err != nil {
+		return err
+	}
+	sourceStore, err := p.AsOfflineStore()
+	if err != nil {
+		return err
+	}
+	featureProvider, err := feature.FetchProvider(c.Metadata, context.Background())
+	if err != nil {
+		return err
+	}
+	p, err = provider.Get(provider.Type(featureProvider.Type()), featureProvider.SerializedConfig())
+	if err != nil {
+		return err
+	}
+	featureStore, err := p.AsOnlineStore()
+	if err != nil {
+		return err
+	}
+	materializeRunner := runner.MaterializeRunner{
+		Online:  featureStore,
+		Offline: sourceStore,
+		ID:      provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Feature},
+		Cloud:   "LOCAL",
+	}
+	completionWatcher, err := materializeRunner.Run()
+	if err != nil {
+		return err
+	}
+	if err := completionWatcher.Wait(); err != nil {
+		return err
+	}
+	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID) error {
 	ts, err := c.Metadata.GetTrainingSetVariant(context.Background(), metadata.NameVariant{resID.Name, resID.Variant})
 	if err != nil {
@@ -103,7 +167,7 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID) error {
 	if status == metadata.READY || status == metadata.FAILED {
 		return fmt.Errorf("training Set already set to %s", metadata.ResourceStatus(status))
 	}
-	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.ResourceStatus(status)); err != nil {
+	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.PENDING); err != nil {
 		return err
 	}
 	providerEntry, err := ts.FetchProvider(c.Metadata, context.Background())
@@ -272,6 +336,10 @@ func (c *Coordinator) executeJob(jobKey string, s *concurrency.Session) error {
 	case metadata.TRAINING_SET_VARIANT:
 		if err := c.runTrainingSetJob(job.Resource); err != nil {
 			return fmt.Errorf("training set job failed: %v", err)
+		}
+	case metadata.FEATURE_VARIANT:
+		if err := c.runFeatureMaterializeJob(job.Resource); err != nil {
+			return fmt.Errorf("feature materialize job failed: %v", err)
 		}
 	}
 	if err := c.deleteJob(mtx, jobKey); err != nil {

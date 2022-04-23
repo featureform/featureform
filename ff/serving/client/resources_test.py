@@ -4,7 +4,7 @@
 
 #
 import pytest
-from resources import ResourceRedefinedError, ResourceState, Provider, RedisConfig, SnowflakeConfig, PostgresConfig, ResourceType, User, Provider, Entity, Feature, Label, TrainingSet, PrimaryData
+from resources import ResourceRedefinedError, ResourceState, Provider, RedisConfig, SnowflakeConfig, PostgresConfig, ResourceType, User, Provider, Entity, Feature, Label, TrainingSet, PrimaryData, Table
 
 
 @pytest.fixture
@@ -81,7 +81,7 @@ def all_resources_set(redis_provider):
         Entity(name="user", description="A user"),
         PrimaryData(name="primary",
                     variant="abc",
-                    t="type",
+                    location=Table("table"),
                     owner="someone",
                     description="desc",
                     provider="redis-name"),

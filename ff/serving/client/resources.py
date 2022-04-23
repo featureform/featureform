@@ -56,12 +56,8 @@ Config = RedisConfig | SnowflakeConfig | PostgresConfig
 class Provider:
 
     @typechecked
-    def __init__(self,
-                 name: str,
-                 function: str,
-                 config: Config,
-                 description: str = "",
-                 team: str = ""):
+    def __init__(self, name: str, function: str, config: Config,
+                 description: str, team: str):
         self.name = name
         self.description = description
         self.function = function
@@ -85,26 +81,31 @@ class User:
         return "user"
 
 
+class Table:
+
+    @typechecked
+    def __init__(self, name: str):
+        self.name = name
+
+
+Location = Table
+
+
 class PrimaryData:
 
     @typechecked
-    def __init__(self,
-                 name: str,
-                 variant: str,
-                 t: str,
-                 owner: str,
-                 provider: str,
-                 description: str = ""):
+    def __init__(self, name: str, variant: str, location: Location, owner: str,
+                 provider: str, description: str):
         self.name = name
         self.variant = variant
-        self.t = t
+        self.location = location
         self.owner = owner
         self.description = description
         self.provider = provider
 
     @staticmethod
     def type() -> str:
-        return "source"
+        return "primary-data"
 
 
 class Entity:

@@ -884,7 +884,7 @@ type MetadataServer struct {
 	lookup     ResourceLookup
 	address    string
 	grpcServer *grpc.Server
-	coordConn  *grpc.ClientConn
+	listener   net.Listener
 	pb.UnimplementedMetadataServer
 }
 
@@ -914,27 +914,42 @@ func NewMetadataServer(config *Config) (*MetadataServer, error) {
 
 func (serv *MetadataServer) Serve() error {
 	if serv.grpcServer != nil {
-		return fmt.Errorf("server already running")
+		return fmt.Errorf("Server already running")
 	}
 	lis, err := net.Listen("tcp", serv.address)
 	if err != nil {
 		return err
 	}
+	return serv.ServeOnListener(lis)
+}
+
+func (serv *MetadataServer) ServeOnListener(lis net.Listener) error {
+	serv.listener = lis
 	grpcServer := grpc.NewServer()
 	pb.RegisterMetadataServer(grpcServer, serv)
 	serv.grpcServer = grpcServer
-	serv.Logger.Infow("Server starting", "Address", serv.address)
+	serv.Logger.Infow("Server starting", "Address", serv.listener.Addr().String())
 	return grpcServer.Serve(lis)
 }
 
-func (serv *MetadataServer) GracefulStop() {
+func (serv *MetadataServer) GracefulStop() error {
+	if serv.grpcServer == nil {
+		return fmt.Errorf("Server not running")
+	}
 	serv.grpcServer.GracefulStop()
 	serv.grpcServer = nil
+	serv.listener = nil
+	return nil
 }
 
-func (serv *MetadataServer) Stop() {
+func (serv *MetadataServer) Stop() error {
+	if serv.grpcServer == nil {
+		return fmt.Errorf("Server not running")
+	}
 	serv.grpcServer.Stop()
 	serv.grpcServer = nil
+	serv.listener = nil
+	return nil
 }
 
 type StorageProvider interface {

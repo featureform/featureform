@@ -787,17 +787,8 @@ func (store *postgresOfflineStore) CreateTransformation(config TransformationCon
 	if strings.ToUpper(splitQuery[0]) != "SELECT" {
 		return InvalidQueryError{fmt.Sprintf("query invalid. must start with SELECT: %s", config.Query)}
 	}
-	var query string
-	if config.TargetTableID.Type == Transformation {
-		query = fmt.Sprintf("CREATE TABLE %s AS %s ", sanitize(name), config.Query)
-	} else if config.TargetTableID.Type == Feature || config.TargetTableID.Type == Label {
-		columnMap, err := mapColumns(config.ColumnMapping, config.Query)
-		if err != nil {
-			return err
-		}
-		constraintName := uuid.NewString()
-		query = fmt.Sprintf("CREATE TABLE %s AS %s ; ALTER TABLE %s ADD CONSTRAINT  %s  UNIQUE (entity, ts)", sanitize(name), columnMap, sanitize(name), sanitize(constraintName))
-	}
+
+	query := fmt.Sprintf("CREATE TABLE %s AS %s ", sanitize(name), config.Query)
 
 	if _, err := store.conn.Exec(context.Background(), query); err != nil {
 		return SQLError{err}

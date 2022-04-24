@@ -44,8 +44,8 @@ type Schema struct {
 	SourceTable string
 }
 
-func (s Schema) Serialize() *pb.Schema {
-	return &pb.Schema{
+func (s Schema) Serialize() *pb.Table {
+	return &pb.Table{
 		Entity: s.Entity,
 		Value:  s.Value,
 		Ts:     s.TS,
@@ -53,7 +53,7 @@ func (s Schema) Serialize() *pb.Schema {
 	}
 }
 
-func parseSchema(serialized *pb.Schema) Schema {
+func parseSchema(serialized *pb.Table) Schema {
 	return Schema{
 		Entity:      serialized.Entity,
 		Value:       serialized.Value,
@@ -195,6 +195,10 @@ func (client *Client) GetFeatureVariant(ctx context.Context, id NameVariant) (*F
 	return variants[0], nil
 }
 
+type FeaturePrimaryData interface {
+	isFeaturePrimaryData() bool
+}
+
 type FeatureDef struct {
 	Name        string
 	Variant     string
@@ -204,7 +208,7 @@ type FeatureDef struct {
 	Owner       string
 	Description string
 	Provider    string
-	Schema      Schema
+	Primary     interface{}
 }
 
 func (def FeatureDef) ResourceType() ResourceType {
@@ -222,7 +226,14 @@ func (client *Client) CreateFeatureVariant(ctx context.Context, def FeatureDef) 
 		Description: def.Description,
 		Status:      string(CREATED),
 		Provider:    def.Provider,
-		Schema:      def.Schema.Serialize(),
+	}
+	switch x := def.Primary.(type) {
+	case pb.FeatureVariant_Table:
+		serialized.Location = def.Primary.(*pb.FeatureVariant_Table)
+	case nil:
+		return fmt.Errorf("FeatureDef Primary not set")
+	default:
+		return fmt.Errorf("FeatureDef Primary has unexpected type %T", x)
 	}
 	_, err := client.grpcConn.CreateFeatureVariant(ctx, serialized)
 	return err
@@ -306,7 +317,7 @@ type LabelDef struct {
 	Entity      string
 	Owner       string
 	Provider    string
-	Schema      Schema
+	Primary     interface{}
 }
 
 func (def LabelDef) ResourceType() ResourceType {
@@ -324,7 +335,14 @@ func (client *Client) CreateLabelVariant(ctx context.Context, def LabelDef) erro
 		Owner:       def.Owner,
 		Status:      string(NO_STATUS),
 		Provider:    def.Provider,
-		Schema:      def.Schema.Serialize(),
+	}
+	switch x := def.Primary.(type) {
+	case pb.LabelVariant_Table:
+		serialized.Location = def.Primary.(*pb.LabelVariant_Table)
+	case nil:
+		return fmt.Errorf("LabelDef Primary not set")
+	default:
+		return fmt.Errorf("LabelDef Primary has unexpected type %T", x)
 	}
 	_, err := client.grpcConn.CreateLabelVariant(ctx, serialized)
 	return err
@@ -551,7 +569,7 @@ type SourceDef struct {
 	Name        string
 	Variant     string
 	Description string
-	Type        string
+	Type        interface{}
 	Owner       string
 	Provider    string
 }
@@ -565,11 +583,21 @@ func (client *Client) CreateSourceVariant(ctx context.Context, def SourceDef) er
 		Name:        def.Name,
 		Variant:     def.Variant,
 		Description: def.Description,
-		Type:        def.Type,
 		Owner:       def.Owner,
 		Status:      string(NO_STATUS),
 		Provider:    def.Provider,
 	}
+	switch x := def.Type.(type) {
+	case pb.SourceVariant_Primarytable:
+		serialized.Type = def.Type.(*pb.SourceVariant_Primarytable)
+	case pb.SourceVariant_Transformation:
+		serialized.Type = def.Type.(*pb.SourceVariant_Transformation)
+	case nil:
+		return fmt.Errorf("SourceDef Type not set")
+	default:
+		return fmt.Errorf("SourceDef Type has unexpected type %T", x)
+	}
+
 	_, err := client.grpcConn.CreateSourceVariant(ctx, serialized)
 	return err
 }
@@ -1437,7 +1465,7 @@ func (variant *SourceVariant) Description() string {
 	return variant.serialized.GetDescription()
 }
 
-func (variant *SourceVariant) Type() string {
+func (variant *SourceVariant) Type() interface{} {
 	return variant.serialized.GetType()
 }
 

@@ -64,7 +64,7 @@ message Feature {
     repeated string variants = 4;
 }
 
-message Schema {
+message Table {
     string entity = 1;
     string value = 2;
     string ts = 3;
@@ -83,7 +83,9 @@ message FeatureVariant {
     string provider = 9;
     string status = 10;
     repeated NameVariant trainingsets = 11;
-    Schema schema = 12;
+    oneof location {
+        Table table = 12;
+    }
 }
 
 message Label {
@@ -105,7 +107,9 @@ message LabelVariant {
     string provider = 9;
     string status = 10;
     repeated NameVariant trainingsets = 11;
-    Schema schema = 12;
+    oneof location {
+        Table table = 12;
+    }
 }
 
 message Provider {
@@ -178,7 +182,10 @@ message Source {
 message SourceVariant {
     string name = 1;
     string variant = 2;
-    string type = 3;
+    oneof type {
+        Transformation transformation = 14;
+        PrimaryTable primaryTable = 15;
+    }
     string owner = 4;
     string description = 5;
     string provider = 6;
@@ -188,4 +195,14 @@ message SourceVariant {
     repeated NameVariant trainingsets = 10;
     repeated NameVariant features = 11;
     repeated NameVariant labels = 12;
+}
+
+message Transformation {
+    string name = 1;
+    string query = 2;
+    string primaryTable = 3;
+}
+
+message PrimaryTable {
+    string name = 1;
 }

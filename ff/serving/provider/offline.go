@@ -110,7 +110,6 @@ type ColumnMapping struct {
 
 type TransformationConfig struct {
 	TargetTableID ResourceID
-	Provider      Type
 	Query         string
 	ColumnMapping []ColumnMapping
 }

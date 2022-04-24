@@ -20,11 +20,12 @@ import (
 type snowflakeColumnType string
 
 const (
-	SFInt    snowflakeColumnType = "integer"
-	SFNumber                     = "NUMBER"
-	SFFloat                      = "float8"
-	SFString                     = "varchar"
-	SFBool                       = "BOOLEAN"
+	SFInt       snowflakeColumnType = "integer"
+	SFNumber                        = "NUMBER"
+	SFFloat                         = "float8"
+	SFString                        = "varchar"
+	SFBool                          = "BOOLEAN"
+	SFTimestamp                     = "TIMESTAMP_NTZ"
 )
 
 type SnowflakeSchema struct {
@@ -525,7 +526,7 @@ func castSnowflakeTableItemType(v interface{}, t snowflakeColumnType) interface{
 		return v.(string)
 	case SFBool:
 		return v.(bool)
-	case "TIMESTAMP_NTZ":
+	case SFTimestamp:
 		ts := v.(time.Time).UTC()
 		return ts
 	default:
@@ -989,26 +990,9 @@ func (store *snowflakeOfflineStore) CreateTransformation(config TransformationCo
 	if strings.ToUpper(splitQuery[0]) != "SELECT" {
 		return InvalidQueryError{fmt.Sprintf("query invalid. must start with SELECT: %s", config.Query)}
 	}
-	var query string
-	if config.TargetTableID.Type == Transformation {
-		query = fmt.Sprintf("CREATE TABLE %s AS SELECT * FROM ( %s )", sanitize(name), config.Query)
-		if _, err := store.db.Exec(query); err != nil {
-			return err
-		}
-	} else if config.TargetTableID.Type == Feature || config.TargetTableID.Type == Label {
-		columnMap, err := mapColumns(config.ColumnMapping, config.Query)
-		if err != nil {
-			return err
-		}
-		constraintName := uuid.NewString()
-		query = fmt.Sprintf("CREATE TABLE %s AS SELECT * FROM  %s  ", sanitize(name), columnMap)
-		if _, err := store.db.Exec(query); err != nil {
-			return err
-		}
-		query = fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT  %s  UNIQUE (entity, ts)", sanitize(name), sanitize(constraintName))
-		if _, err := store.db.Exec(query); err != nil {
-			return err
-		}
+	query := fmt.Sprintf("CREATE TABLE %s AS SELECT * FROM ( %s )", sanitize(name), config.Query)
+	if _, err := store.db.Exec(query); err != nil {
+		return err
 	}
 
 	return nil

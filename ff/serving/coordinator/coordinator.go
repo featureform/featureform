@@ -94,6 +94,11 @@ func (c *Coordinator) WatchForNewJobs() error {
 	}
 }
 
+func (c *Coordinator) runTransformationJob(resID metadata.ResourceID) error {
+	//it's morphin time
+	return nil
+}
+//should only be triggered when we are registering an ONLINE feature, not an offline one
 func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID) error {
 	feature, err := c.Metadata.GetFeatureVariant(context.Background(), metadata.NameVariant{resID.Name, resID.Variant})
 	if err != nil {
@@ -341,6 +346,12 @@ func (c *Coordinator) executeJob(jobKey string, s *concurrency.Session) error {
 		if err := c.runFeatureMaterializeJob(job.Resource); err != nil {
 			return fmt.Errorf("feature materialize job failed: %v", err)
 		}
+	case metadata.TRANSFORMATION:
+		if err := c.runTransformationJob(job.Resource); err != nil {
+			return fmt.Errorf("transformation job failed: %v", err)
+		}
+	default:
+		return fmt.Errorf("Not a valid resource type for running jobs")
 	}
 	if err := c.deleteJob(mtx, jobKey); err != nil {
 		return err

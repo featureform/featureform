@@ -61,8 +61,11 @@ var parentMapping = map[ResourceType]ResourceType{
 	TRAINING_SET_VARIANT:   TRAINING_SET,
 }
 
-var needsJob = map[ResourceType]bool{
-	TRAINING_SET_VARIANT: true,
+func (serv *MetadataServer) needsJob(res Resource) bool {
+	if res.ID().Type == TRAINING_SET_VARIANT || res.ID().Type == FEATURE_VARIANT {
+		return true
+	}
+	return false
 }
 
 type ResourceID struct {
@@ -1209,7 +1212,7 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 	if err := serv.lookup.Set(id, res); err != nil {
 		return nil, err
 	}
-	if _, has := needsJob[id.Type]; has != false {
+	if serv.needsJob(res) {
 		if err := serv.lookup.SetJob(id); err != nil {
 			return nil, err
 		}

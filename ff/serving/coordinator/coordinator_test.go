@@ -390,6 +390,7 @@ func testCoordinatorTrainingSet() error {
 	if err != nil {
 		return fmt.Errorf("Coordinator did not create training set")
 	}
+
 	for i := 0; tsIterator.Next(); i++ {
 		retrievedFeatures := tsIterator.Features()
 		retrievedLabel := tsIterator.Label()

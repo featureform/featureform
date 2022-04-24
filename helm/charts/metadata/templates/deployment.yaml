@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    run: {{ .Release.Name }}-metadata-server
+  name: {{ .Release.Name }}-metadata-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: {{ .Release.Name }}-metadata-server
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        run: {{ .Release.Name }}-metadata-server
+    spec:
+      containers:
+        - image: {{ .Values.image.repository }}
+          name: {{ .Release.Name }}-metadata-server
+          ports:
+            - containerPort: 8081
+          resources: {}
+status: {}

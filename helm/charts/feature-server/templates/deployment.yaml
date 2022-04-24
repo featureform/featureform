@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    run: {{ .Release.Name }}-feature-server
+  name: {{ .Release.Name }}-feature-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: {{ .Release.Name }}-feature-server
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        run: {{ .Release.Name }}-feature-server
+    spec:
+      containers:
+        - image: {{ .Values.image.repository }}
+          name: {{ .Release.Name }}-feature-server
+          ports:
+            - containerPort: 8080
+            - containerPort: 2112
+          resources: {}
+status: {}

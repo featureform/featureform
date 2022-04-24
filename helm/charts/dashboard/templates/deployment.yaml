@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-dashboard
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-dashboard
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-dashboard
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: {{ .Release.Name }}-dashboard
+          image: {{ .Values.image.repository }}
+          imagePullPolicy: "Always"
+          ports:
+            - containerPort: 3000

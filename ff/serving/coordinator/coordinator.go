@@ -98,6 +98,7 @@ func (c *Coordinator) runTransformationJob(resID metadata.ResourceID) error {
 	//it's morphin time
 	return nil
 }
+
 //should only be triggered when we are registering an ONLINE feature, not an offline one
 func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID) error {
 	feature, err := c.Metadata.GetFeatureVariant(context.Background(), metadata.NameVariant{resID.Name, resID.Variant})

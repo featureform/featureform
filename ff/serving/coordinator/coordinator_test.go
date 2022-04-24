@@ -4,10 +4,10 @@ import (
 	"context"
 	"github.com/google/uuid"
 	//"os"
-	"testing"
-	"time"
 	"fmt"
 	"reflect"
+	"testing"
+	"time"
 
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
@@ -19,7 +19,7 @@ import (
 	"go.etcd.io/etcd/client/v3/concurrency"
 )
 
-func setupMetadataServer() ( error) {
+func setupMetadataServer() error {
 	logger := zap.NewExample().Sugar()
 	addr := ":8080"
 	storageProvider := metadata.EtcdStorageProvider{
@@ -30,8 +30,8 @@ func setupMetadataServer() ( error) {
 		},
 	}
 	config := &metadata.Config{
-		Logger:  logger,
-		Address: addr,
+		Logger:          logger,
+		Address:         addr,
 		StorageProvider: storageProvider,
 	}
 	server, err := metadata.NewMetadataServer(config)
@@ -287,10 +287,10 @@ func testCoordinatorTrainingSet() error {
 	tsIterator.Next()
 	retrievedFeatures := tsIterator.Features()
 	retrievedLabel := tsIterator.Label()
-	if !reflect.DeepEqual(retrievedFeatures,[]interface{}{1}) {
+	if !reflect.DeepEqual(retrievedFeatures, []interface{}{1}) {
 		return fmt.Errorf("Features not copied into training set")
 	}
-	if !reflect.DeepEqual(retrievedLabel,1) {
+	if !reflect.DeepEqual(retrievedLabel, 1) {
 		return fmt.Errorf("Label not copied into training set")
 	}
 	return nil
@@ -351,4 +351,3 @@ func testCoordinatorMaterializeFeature() error {
 
 	return nil
 }
-

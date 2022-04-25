@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/google/uuid"
-	//"os"
+	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -15,7 +15,6 @@ import (
 	provider "github.com/featureform/serving/provider"
 	runner "github.com/featureform/serving/runner"
 	clientv3 "go.etcd.io/etcd/client/v3"
-	// "go.etcd.io/etcd/client/v3/concurrency"
 )
 
 var testOfflineTableValues = [...]provider.ResourceRecord{
@@ -216,12 +215,9 @@ func testCoordinatorTrainingSet() error {
 	var postgresConfig = provider.PostgresConfig{
 		Host:     "localhost",
 		Port:     "5432",
-		Database: "testdatabase",
-		Username: "postgres",
-		Password: "Fdhfjdhfj9",
-		// Database: os.Getenv("POSTGRES_DB"),
-		// Username: os.Getenv("POSTGRES_USER"),
-		// Password: os.Getenv("POSTGRES_PASSWORD"),
+		Database: os.Getenv("POSTGRES_DB"),
+		Username: os.Getenv("POSTGRES_USER"),
+		Password: os.Getenv("POSTGRES_PASSWORD"),
 	}
 	featureName := uuid.New().String()
 	labelName := uuid.New().String()
@@ -325,12 +321,9 @@ func testCoordinatorMaterializeFeature() error {
 	var postgresConfig = provider.PostgresConfig{
 		Host:     "localhost",
 		Port:     "5432",
-		Database: "testdatabase",
-		Username: "postgres",
-		Password: "Fdhfjdhfj9",
-		// Database: os.Getenv("POSTGRES_DB"),
-		// Username: os.Getenv("POSTGRES_USER"),
-		// Password: os.Getenv("POSTGRES_PASSWORD"),
+		Database: os.Getenv("POSTGRES_DB"),
+		Username: os.Getenv("POSTGRES_USER"),
+		Password: os.Getenv("POSTGRES_PASSWORD"),
 	}
 	serialPGConfig := postgresConfig.Serialize()
 	offlineProvider, err := provider.Get(provider.PostgresOffline, serialPGConfig)
@@ -341,8 +334,7 @@ func testCoordinatorMaterializeFeature() error {
 	if err != nil {
 		return fmt.Errorf("could not get provider as offline store: %v", err)
 	}
-	//redisPort := os.Getenv("REDIS_PORT")
-	redisPort := "6379"
+	redisPort := os.Getenv("REDIS_PORT")
 	redisHost := "localhost"
 	liveAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
 	redisConfig := &provider.RedisConfig{

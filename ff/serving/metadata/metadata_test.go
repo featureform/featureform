@@ -66,18 +66,12 @@ func filledResourceDefs() []ResourceDef {
 			Name:        "mockSource",
 			Variant:     "var",
 			Description: "A CSV source",
-			Definition: TransformationSourceDef{
-				Def: Transformation{
-					Type: SQLTransformation{
-						Def: SQLTransformationDefinition{
-							Query: "SELECT * FROM dummy",
-							Source: []NameVariant{
-								{
-									Name:    "mockName",
-									Variant: "mockVariant",
-								},
-							},
-						},
+			Definition: TransformationSource{
+				TransformationType: SQLTransformationType{
+					Query: "SELECT * FROM dummy",
+					Sources: []NameVariant{{
+						Name:    "mockName",
+						Variant: "mockVariant"},
 					},
 				},
 			},
@@ -88,13 +82,9 @@ func filledResourceDefs() []ResourceDef {
 			Name:        "mockSource",
 			Variant:     "var2",
 			Description: "A CSV source but different",
-			Definition: PrimaryDataSourceDef{
-				Location: PrimaryDataLocation{
-					Type: PrimaryDataType{
-						Type: PrimaryDataTable{
-							name: "mockPrimary",
-						},
-					},
+			Definition: PrimaryDataSource{
+				Location: SQLTable{
+					Name: "mockPrimary",
 				},
 			},
 			Owner:    "Featureform",
@@ -479,18 +469,12 @@ func TestResourceExists(t *testing.T) {
 				Name:        "mockSource",
 				Variant:     "var",
 				Description: "A CSV source",
-				Definition: TransformationSourceDef{
-					Transformation{
-						SQLTransformation{
-							SQLTransformationDefinition{
-								Query: "SELECT * FROM dummy",
-								Source: []NameVariant{
-									{
-										Name:    "mockName",
-										Variant: "mockVariant",
-									},
-								},
-							},
+				Definition: TransformationSource{
+					TransformationType: SQLTransformationType{
+						Query: "SELECT * FROM dummy",
+						Sources: []NameVariant{{
+							Name:    "mockName",
+							Variant: "mockVariant"},
 						},
 					},
 				},
@@ -501,13 +485,9 @@ func TestResourceExists(t *testing.T) {
 				Name:        "mockSource",
 				Variant:     "var",
 				Description: "Different",
-				Definition: PrimaryDataSourceDef{
-					Location: PrimaryDataLocation{
-						Type: PrimaryDataType{
-							Type: PrimaryDataTable{
-								name: "mockPrimary",
-							},
-						},
+				Definition: PrimaryDataSource{
+					Location: SQLTable{
+						Name: "mockPrimary",
 					},
 				},
 				Owner:    "Featureform",

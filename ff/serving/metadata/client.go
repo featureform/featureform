@@ -576,146 +576,89 @@ type SourceDef struct {
 	Description string
 	Owner       string
 	Provider    string
-	Definition  interface{}
+	Definition  SourceType
+}
+
+type SourceType interface {
+	isSourceType()
+}
+
+func (t TransformationSource) isSourceType() {}
+func (t PrimaryDataSource) isSourceType()    {}
+
+func (t SQLTransformationType) isTransformationType() {}
+func (t SQLTable) isPrimaryData()                     {}
+
+type TransformationSource struct {
+	TransformationType TransformationType
+}
+
+type TransformationType interface {
+	isTransformationType()
+}
+
+type SQLTransformationType struct {
+	Query   string
+	Sources NameVariants
+}
+
+type PrimaryDataSource struct {
+	Location PrimaryDataLocationType
+}
+
+type PrimaryDataLocationType interface {
+	isPrimaryData()
+}
+
+type SQLTable struct {
+	Name string
 }
 
 type TransformationSourceDef struct {
 	Def interface{}
 }
 
-func (s TransformationSourceDef) Serialize() (*pb.SourceVariant_Transformation, error) {
+func (s TransformationSource) Serialize() (*pb.SourceVariant_Transformation, error) {
 	var transformation *pb.Transformation
-	var err error
-	switch x := s.Def.(type) {
-	case Transformation:
-		transformation, err = s.Def.(Transformation).Serialize()
+	switch x := s.TransformationType.(type) {
+	case SQLTransformationType:
+		transformation = &pb.Transformation{
+			Type: &pb.Transformation_SQLTransformation{
+				SQLTransformation: &pb.SQLTransformation{
+					Query:  s.TransformationType.(SQLTransformationType).Query,
+					Source: s.TransformationType.(SQLTransformationType).Sources.Serialize(),
+				},
+			},
+		}
 	case nil:
 		return nil, fmt.Errorf("TransformationSource Type not set")
 	default:
 		return nil, fmt.Errorf("TransformationSource Type has unexpected type %T", x)
-	}
-	if err != nil {
-		return nil, err
 	}
 	return &pb.SourceVariant_Transformation{
 		Transformation: transformation,
 	}, nil
 }
 
-type Transformation struct {
-	Type interface{}
-}
-
-func (s Transformation) Serialize() (*pb.Transformation, error) {
-	var transformationType *pb.Transformation_SQLTransformation
-	var err error
-	switch x := s.Type.(type) {
-	case SQLTransformation:
-		transformationType, err = s.Type.(SQLTransformation).Serialize()
-	case nil:
-		return nil, fmt.Errorf("Transformation Type not set")
-	default:
-		return nil, fmt.Errorf("Transformation Type has unexpected type %T", x)
-	}
-	if err != nil {
-		return nil, err
-	}
-	return &pb.Transformation{
-		Type: transformationType,
-	}, nil
-}
-
-type SQLTransformation struct {
-	Def interface{}
-}
-
-func (s SQLTransformation) Serialize() (*pb.Transformation_SQLTransformation, error) {
-	var sqlTransformation *pb.SQLTransformation
-	switch x := s.Def.(type) {
-	case SQLTransformationDefinition:
-		sqlTransformation = s.Def.(SQLTransformationDefinition).Serialize()
-	case nil:
-		return nil, fmt.Errorf("SQLTransformation Definition not set")
-	default:
-		return nil, fmt.Errorf("SQLTransformation Definition has unexpected type %T", x)
-	}
-	return &pb.Transformation_SQLTransformation{
-		SQLTransformation: sqlTransformation,
-	}, nil
-}
-
-type SQLTransformationDefinition struct {
-	Query  string
-	Source []NameVariant
-}
-
-func (s SQLTransformationDefinition) Serialize() *pb.SQLTransformation {
-	var sources []*pb.NameVariant
-	for _, v := range s.Source {
-		sources = append(sources, v.Serialize())
-	}
-	return &pb.SQLTransformation{
-		Query:  s.Query,
-		Source: sources,
-	}
-}
-
-type PrimaryDataSourceDef struct {
-	Location interface{}
-}
-
-func (s PrimaryDataSourceDef) Serialize() (*pb.SourceVariant_PrimaryData, error) {
-	svPrimaryData := pb.SourceVariant_PrimaryData{}
-	var err error
+func (s PrimaryDataSource) Serialize() (*pb.SourceVariant_PrimaryData, error) {
+	var primaryData *pb.PrimaryData
 	switch x := s.Location.(type) {
-	case PrimaryDataLocation:
-		svPrimaryData.PrimaryData, err = s.Location.(PrimaryDataLocation).Serialize()
+	case SQLTable:
+		primaryData = &pb.PrimaryData{
+			Location: &pb.PrimaryData_Table{
+				Table: &pb.SQLTable{
+					Name: s.Location.(SQLTable).Name,
+				},
+			},
+		}
 	case nil:
 		return nil, fmt.Errorf("PrimaryDataSource Type not set")
 	default:
 		return nil, fmt.Errorf("PrimaryDataSource Type has unexpected type %T", x)
 	}
-	if err != nil {
-		return nil, err
-	}
-	return &svPrimaryData, nil
-}
-
-type PrimaryDataLocation struct {
-	Type interface{}
-}
-
-func (s PrimaryDataLocation) Serialize() (*pb.PrimaryData, error) {
-	primaryData := pb.PrimaryData{}
-	switch x := s.Type.(type) {
-	case PrimaryDataType:
-		primaryData.Location = s.Type.(PrimaryDataType).Serialize()
-	case nil:
-		return nil, fmt.Errorf("PrimaryDataLocation Type not set")
-	default:
-		return nil, fmt.Errorf("PrimaryDataLocation Type has unexpected type %T", x)
-	}
-	return &primaryData, nil
-}
-
-type PrimaryDataType struct {
-	Type interface{}
-}
-
-func (s PrimaryDataType) Serialize() *pb.PrimaryData_Table {
-	return &pb.PrimaryData_Table{
-		Table: s.Type.(PrimaryDataTable).Serialize(),
-	}
-}
-
-type PrimaryDataTable struct {
-	name string
-}
-
-func (s PrimaryDataTable) Serialize() *pb.SQLTable {
-	return &pb.SQLTable{
-		Name: s.name,
-	}
+	return &pb.SourceVariant_PrimaryData{
+		PrimaryData: primaryData,
+	}, nil
 }
 
 func (def SourceDef) ResourceType() ResourceType {
@@ -733,10 +676,10 @@ func (client *Client) CreateSourceVariant(ctx context.Context, def SourceDef) er
 	}
 	var err error
 	switch x := def.Definition.(type) {
-	case TransformationSourceDef:
-		serialized.Definition, err = def.Definition.(TransformationSourceDef).Serialize()
-	case PrimaryDataSourceDef:
-		serialized.Definition, err = def.Definition.(PrimaryDataSourceDef).Serialize()
+	case TransformationSource:
+		serialized.Definition, err = def.Definition.(TransformationSource).Serialize()
+	case PrimaryDataSource:
+		serialized.Definition, err = def.Definition.(PrimaryDataSource).Serialize()
 	case nil:
 		return fmt.Errorf("SourceDef Definition not set")
 	default:

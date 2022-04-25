@@ -124,6 +124,11 @@ func materializeFeatureWithProvider(client *metadata.Client, offlineConfig provi
 			Owner:       userName,
 			Description: "",
 			Provider:    onlineProviderName,
+			Location: metadata.ResourceVariantColumns{
+				Entity: "col1",
+				Value:  "col2",
+				TS:     "col3",
+			},
 		},
 	}
 	if err := client.CreateAll(context.Background(), defs); err != nil {
@@ -174,6 +179,11 @@ func createTrainingSetWithProvider(client *metadata.Client, config provider.Seri
 			Entity:      entityName,
 			Owner:       userName,
 			Provider:    providerName,
+			Location: metadata.ResourceVariantColumns{
+				Entity: "col1",
+				Value:  "col2",
+				TS:     "col3",
+			},
 		},
 		metadata.FeatureDef{
 			Name:        featureName,
@@ -184,6 +194,11 @@ func createTrainingSetWithProvider(client *metadata.Client, config provider.Seri
 			Owner:       userName,
 			Description: "",
 			Provider:    providerName,
+			Location: metadata.ResourceVariantColumns{
+				Entity: "col1",
+				Value:  "col2",
+				TS:     "col3",
+			},
 		},
 		metadata.TrainingSetDef{
 			Name:        tsName,

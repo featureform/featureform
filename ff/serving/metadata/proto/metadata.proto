@@ -68,7 +68,6 @@ message Columns {
     string entity = 1;
     string value = 2;
     string ts = 3;
-    string source = 4;
 }
 
 message FeatureVariant {

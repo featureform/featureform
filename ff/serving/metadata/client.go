@@ -200,7 +200,6 @@ func (c ResourceVariantColumns) SerializeFeatureColumns() *pb.FeatureVariant_Col
 			Entity: c.Entity,
 			Value:  c.Value,
 			Ts:     c.TS,
-			Source: c.Source,
 		},
 	}
 }
@@ -211,7 +210,6 @@ func (c ResourceVariantColumns) SerializeLabelColumns() *pb.LabelVariant_Columns
 			Entity: c.Entity,
 			Value:  c.Value,
 			Ts:     c.TS,
-			Source: c.Source,
 		},
 	}
 }
@@ -1277,7 +1275,6 @@ func (variant *FeatureVariant) LocationColumns() interface{} {
 		Entity: src.Entity,
 		Value:  src.Value,
 		TS:     src.Ts,
-		Source: src.Source,
 	}
 	return columns
 
@@ -1469,7 +1466,6 @@ func (variant *LabelVariant) LocationColumns() interface{} {
 		Entity: src.Entity,
 		Value:  src.Value,
 		TS:     src.Ts,
-		Source: src.Source,
 	}
 	return columns
 }

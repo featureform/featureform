@@ -103,7 +103,6 @@ func filledResourceDefs() []ResourceDef {
 				Entity: "col1",
 				Value:  "col2",
 				TS:     "col3",
-				Source: "mockSource",
 			},
 		},
 		FeatureDef{
@@ -119,7 +118,6 @@ func filledResourceDefs() []ResourceDef {
 				Entity: "col1",
 				Value:  "col2",
 				TS:     "col3",
-				Source: "mockSource",
 			},
 		},
 		FeatureDef{
@@ -135,7 +133,6 @@ func filledResourceDefs() []ResourceDef {
 				Entity: "col1",
 				Value:  "col2",
 				TS:     "col3",
-				Source: "mockSource",
 			},
 		},
 		LabelDef{
@@ -151,7 +148,6 @@ func filledResourceDefs() []ResourceDef {
 				Entity: "col1",
 				Value:  "col2",
 				TS:     "col3",
-				Source: "mockSource",
 			},
 		},
 		TrainingSetDef{
@@ -968,7 +964,6 @@ func expectedFeatureVariants() ResourceTests {
 				Entity: "col1",
 				Value:  "col2",
 				TS:     "col3",
-				Source: "mockSource",
 			},
 			IsTable: true,
 		},
@@ -989,7 +984,6 @@ func expectedFeatureVariants() ResourceTests {
 				Entity: "col1",
 				Value:  "col2",
 				TS:     "col3",
-				Source: "mockSource",
 			},
 			IsTable: true,
 		},
@@ -1009,7 +1003,6 @@ func expectedFeatureVariants() ResourceTests {
 				Entity: "col1",
 				Value:  "col2",
 				TS:     "col3",
-				Source: "mockSource",
 			},
 			IsTable: true,
 		},
@@ -1113,7 +1106,6 @@ func expectedLabelVariants() ResourceTests {
 				Entity: "col1",
 				Value:  "col2",
 				TS:     "col3",
-				Source: "mockSource",
 			},
 			IsTable: true,
 		},

@@ -14,6 +14,7 @@ type StorageType string
 
 const (
 	RESOURCE StorageType = "Resource"
+	JOB                  = "Job"
 )
 
 type EtcdNode struct {

@@ -357,7 +357,7 @@ func createMockOnlineStoreFactory(recsMap map[provider.ResourceID][]provider.Res
 			if id.Type != provider.Feature {
 				continue
 			}
-			table, err := store.CreateTable(id.Name, id.Variant)
+			table, err := store.CreateTable(id.Name, id.Variant, provider.String)
 			if err != nil {
 				panic(err)
 			}

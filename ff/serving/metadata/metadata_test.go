@@ -66,17 +66,39 @@ func filledResourceDefs() []ResourceDef {
 			Name:        "mockSource",
 			Variant:     "var",
 			Description: "A CSV source",
-			Type:        "csv",
-			Owner:       "Featureform",
-			Provider:    "mockOffline",
+			Definition: TransformationSourceDef{
+				Def: Transformation{
+					Type: SQLTransformation{
+						Def: SQLTransformationDefinition{
+							Query: "SELECT * FROM dummy",
+							Source: []NameVariant{
+								{
+									Name:    "mockName",
+									Variant: "mockVariant",
+								},
+							},
+						},
+					},
+				},
+			},
+			Owner:    "Featureform",
+			Provider: "mockOffline",
 		},
 		SourceDef{
 			Name:        "mockSource",
 			Variant:     "var2",
 			Description: "A CSV source but different",
-			Type:        "csv",
-			Owner:       "Featureform",
-			Provider:    "mockOffline",
+			Definition: PrimaryDataSourceDef{
+				Location: PrimaryDataLocation{
+					Type: PrimaryDataType{
+						Type: PrimaryDataTable{
+							name: "mockPrimary",
+						},
+					},
+				},
+			},
+			Owner:    "Featureform",
+			Provider: "mockOffline",
 		},
 		FeatureDef{
 			Name:        "feature",
@@ -87,6 +109,12 @@ func filledResourceDefs() []ResourceDef {
 			Description: "Feature variant",
 			Source:      NameVariant{"mockSource", "var"},
 			Owner:       "Featureform",
+			Location: ResourceVariantColumns{
+				Entity: "col1",
+				Value:  "col2",
+				TS:     "col3",
+				Source: "mockSource",
+			},
 		},
 		FeatureDef{
 			Name:        "feature",
@@ -97,6 +125,12 @@ func filledResourceDefs() []ResourceDef {
 			Description: "Feature variant2",
 			Source:      NameVariant{"mockSource", "var2"},
 			Owner:       "Featureform",
+			Location: ResourceVariantColumns{
+				Entity: "col1",
+				Value:  "col2",
+				TS:     "col3",
+				Source: "mockSource",
+			},
 		},
 		FeatureDef{
 			Name:        "feature2",
@@ -107,6 +141,12 @@ func filledResourceDefs() []ResourceDef {
 			Description: "Feature2 variant",
 			Source:      NameVariant{"mockSource", "var"},
 			Owner:       "Featureform",
+			Location: ResourceVariantColumns{
+				Entity: "col1",
+				Value:  "col2",
+				TS:     "col3",
+				Source: "mockSource",
+			},
 		},
 		LabelDef{
 			Name:        "label",
@@ -117,6 +157,12 @@ func filledResourceDefs() []ResourceDef {
 			Entity:      "user",
 			Source:      NameVariant{"mockSource", "var"},
 			Owner:       "Other",
+			Location: ResourceVariantColumns{
+				Entity: "col1",
+				Value:  "col2",
+				TS:     "col3",
+				Source: "mockSource",
+			},
 		},
 		TrainingSetDef{
 			Name:        "training-set",
@@ -433,17 +479,39 @@ func TestResourceExists(t *testing.T) {
 				Name:        "mockSource",
 				Variant:     "var",
 				Description: "A CSV source",
-				Type:        "csv",
-				Owner:       "Featureform",
-				Provider:    "mockOffline",
+				Definition: TransformationSourceDef{
+					Transformation{
+						SQLTransformation{
+							SQLTransformationDefinition{
+								Query: "SELECT * FROM dummy",
+								Source: []NameVariant{
+									{
+										Name:    "mockName",
+										Variant: "mockVariant",
+									},
+								},
+							},
+						},
+					},
+				},
+				Owner:    "Featureform",
+				Provider: "mockOffline",
 			},
 			SourceDef{
 				Name:        "mockSource",
 				Variant:     "var",
 				Description: "Different",
-				Type:        "notcsv",
-				Owner:       "Featureform",
-				Provider:    "mockOffline",
+				Definition: PrimaryDataSourceDef{
+					Location: PrimaryDataLocation{
+						Type: PrimaryDataType{
+							Type: PrimaryDataTable{
+								name: "mockPrimary",
+							},
+						},
+					},
+				},
+				Owner:    "Featureform",
+				Provider: "mockOffline",
 			},
 		},
 	}
@@ -456,7 +524,7 @@ func TestResourceExists(t *testing.T) {
 func assertEqual(t *testing.T, this, that interface{}) {
 	t.Helper()
 	if !reflect.DeepEqual(this, that) {
-		t.Fatalf("Values not equal\nActual: %+v\nExpected: %+v", this, that)
+		t.Fatalf("Values not equal\nActual: %#v\nExpected: %#v", this, that)
 	}
 }
 
@@ -685,15 +753,20 @@ func TestEntity(t *testing.T) {
 }
 
 type SourceVariantTest struct {
-	Name         string
-	Variant      string
-	Description  string
-	Type         string
-	Owner        string
-	Provider     string
-	Features     []NameVariant
-	Labels       []NameVariant
-	TrainingSets []NameVariant
+	Name                     string
+	Variant                  string
+	Description              string
+	Owner                    string
+	Provider                 string
+	Features                 []NameVariant
+	Labels                   []NameVariant
+	TrainingSets             []NameVariant
+	IsTransformation         bool
+	IsSQLTransformation      bool
+	IsPrimaryData            bool
+	IsPrimaryDataSQLTable    bool
+	PrimaryDataSQLTableName  string
+	SQLTransformationSources []NameVariant
 }
 
 func (test SourceVariantTest) NameVariant() NameVariant {
@@ -706,12 +779,17 @@ func (test SourceVariantTest) Test(t *testing.T, client *Client, res interface{}
 	assertEqual(t, source.Name(), test.Name)
 	assertEqual(t, source.Variant(), test.Variant)
 	assertEqual(t, source.Description(), test.Description)
-	assertEqual(t, source.Type(), test.Type)
 	assertEqual(t, source.Owner(), test.Owner)
 	assertEqual(t, source.Provider(), test.Provider)
 	assertEquivalentNameVariants(t, source.Features(), test.Features)
 	assertEquivalentNameVariants(t, source.Labels(), test.Labels)
 	assertEquivalentNameVariants(t, source.TrainingSets(), test.TrainingSets)
+	assertEqual(t, source.isTransformation(), test.IsTransformation)
+	assertEqual(t, source.isSQLTransformation(), test.IsSQLTransformation)
+	assertEqual(t, source.SQLTransformationSources(), test.SQLTransformationSources)
+	assertEqual(t, source.isPrimaryData(), test.IsPrimaryData)
+	assertEqual(t, source.isPrimaryDataSQLTable(), test.IsPrimaryDataSQLTable)
+	assertEqual(t, source.PrimaryDataSQLTableName(), test.PrimaryDataSQLTableName)
 	if shouldFetch {
 		testFetchProvider(t, client, source)
 		testFetchFeatures(t, client, source)
@@ -759,7 +837,6 @@ func expectedSourceVariants() ResourceTests {
 			Name:        "mockSource",
 			Variant:     "var",
 			Description: "A CSV source",
-			Type:        "csv",
 			Owner:       "Featureform",
 			Provider:    "mockOffline",
 			Labels: []NameVariant{
@@ -773,18 +850,32 @@ func expectedSourceVariants() ResourceTests {
 				{"training-set", "variant"},
 				{"training-set", "variant2"},
 			},
+			IsTransformation:        true,
+			IsSQLTransformation:     true,
+			IsPrimaryData:           false,
+			IsPrimaryDataSQLTable:   false,
+			PrimaryDataSQLTableName: "",
+			SQLTransformationSources: []NameVariant{{
+				Name:    "mockName",
+				Variant: "mockVariant",
+			}},
 		},
 		SourceVariantTest{
 			Name:        "mockSource",
 			Variant:     "var2",
 			Description: "A CSV source but different",
-			Type:        "csv",
 			Owner:       "Featureform",
 			Provider:    "mockOffline",
 			Labels:      []NameVariant{},
 			Features: []NameVariant{
 				{"feature", "variant2"},
 			},
+			IsTransformation:         false,
+			IsSQLTransformation:      false,
+			IsPrimaryData:            true,
+			IsPrimaryDataSQLTable:    true,
+			PrimaryDataSQLTableName:  "mockPrimary",
+			SQLTransformationSources: nil,
 			TrainingSets: []NameVariant{
 				{"training-set", "variant"},
 				{"training-set", "variant2"},
@@ -847,6 +938,8 @@ type FeatureVariantTest struct {
 	Provider     string
 	Source       NameVariant
 	TrainingSets []NameVariant
+	Location     ResourceVariantColumns
+	IsTable      bool
 }
 
 func (test FeatureVariantTest) NameVariant() NameVariant {
@@ -864,6 +957,8 @@ func (test FeatureVariantTest) Test(t *testing.T, client *Client, res interface{
 	assertEqual(t, feature.Provider(), test.Provider)
 	assertEqual(t, feature.Source(), test.Source)
 	assertEqual(t, feature.Entity(), test.Entity)
+	assertEqual(t, feature.LocationColumns(), test.Location)
+	assertEqual(t, feature.isTable(), test.IsTable)
 	assertEquivalentNameVariants(t, feature.TrainingSets(), test.TrainingSets)
 	if shouldFetch {
 		testFetchProvider(t, client, feature)
@@ -889,6 +984,13 @@ func expectedFeatureVariants() ResourceTests {
 			TrainingSets: []NameVariant{
 				{"training-set", "variant"},
 			},
+			Location: ResourceVariantColumns{
+				Entity: "col1",
+				Value:  "col2",
+				TS:     "col3",
+				Source: "mockSource",
+			},
+			IsTable: true,
 		},
 		FeatureVariantTest{
 			Name:        "feature",
@@ -903,6 +1005,13 @@ func expectedFeatureVariants() ResourceTests {
 				{"training-set", "variant"},
 				{"training-set", "variant2"},
 			},
+			Location: ResourceVariantColumns{
+				Entity: "col1",
+				Value:  "col2",
+				TS:     "col3",
+				Source: "mockSource",
+			},
+			IsTable: true,
 		},
 		FeatureVariantTest{
 			Name:        "feature2",
@@ -916,6 +1025,13 @@ func expectedFeatureVariants() ResourceTests {
 			TrainingSets: []NameVariant{
 				{"training-set", "variant2"},
 			},
+			Location: ResourceVariantColumns{
+				Entity: "col1",
+				Value:  "col2",
+				TS:     "col3",
+				Source: "mockSource",
+			},
+			IsTable: true,
 		},
 	}
 }
@@ -969,6 +1085,8 @@ type LabelVariantTest struct {
 	Provider     string
 	Source       NameVariant
 	TrainingSets []NameVariant
+	Location     ResourceVariantColumns
+	IsTable      bool
 }
 
 func (test LabelVariantTest) NameVariant() NameVariant {
@@ -986,6 +1104,8 @@ func (test LabelVariantTest) Test(t *testing.T, client *Client, res interface{},
 	assertEqual(t, label.Provider(), test.Provider)
 	assertEqual(t, label.Source(), test.Source)
 	assertEqual(t, label.Entity(), test.Entity)
+	assertEqual(t, label.isTable(), test.IsTable)
+	assertEquivalentNameVariants(t, label.TrainingSets(), test.TrainingSets)
 	assertEquivalentNameVariants(t, label.TrainingSets(), test.TrainingSets)
 	if shouldFetch {
 		testFetchTrainingSets(t, client, label)
@@ -1009,6 +1129,13 @@ func expectedLabelVariants() ResourceTests {
 				{"training-set", "variant"},
 				{"training-set", "variant2"},
 			},
+			Location: ResourceVariantColumns{
+				Entity: "col1",
+				Value:  "col2",
+				TS:     "col3",
+				Source: "mockSource",
+			},
+			IsTable: true,
 		},
 	}
 }

@@ -2,9 +2,9 @@ package coordinator
 
 import (
 	"context"
-	"github.com/google/uuid"
-	//"os"
 	"fmt"
+	"github.com/google/uuid"
+	"os"
 	"reflect"
 	"testing"
 	"time"

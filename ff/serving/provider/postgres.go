@@ -20,11 +20,12 @@ import (
 type postgresColumnType string
 
 const (
-	PGInt       postgresColumnType = "integer"
-	PGFloat                        = "float8"
-	PGString                       = "varchar"
-	PGBool                         = "boolean"
-	PGTimestamp                    = "timestamp with time zone"
+	pgInt       postgresColumnType = "integer"
+	pgBigInt                       = "bigint"
+	pgFloat                        = "float8"
+	pgString                       = "varchar"
+	pgBool                         = "boolean"
+	pgTimestamp                    = "timestamp with time zone"
 )
 
 type PostgresTableSchema struct {
@@ -539,7 +540,7 @@ type postgresTransformationTable struct {
 // determineColumnType returns an acceptable Postgres column Type to use for the given value.
 func determineColumnType(valueType ValueType) (string, error) {
 	switch valueType {
-	case Int, Int8, Int16, Int32, Int64:
+	case Int, Int32, Int64:
 		return "INT", nil
 	case Float32, Float64:
 		return "FLOAT8", nil
@@ -755,17 +756,17 @@ func castPostgresTableItemType(v interface{}, t postgresColumnType) interface{} 
 		return v
 	}
 	switch t {
-	case PGInt:
+	case pgInt:
 		return int(v.(int32))
-	case "bigint":
+	case pgBigInt:
 		return int(v.(int64))
-	case PGFloat:
+	case pgFloat:
 		return v.(float64)
-	case PGString:
+	case pgString:
 		return v.(string)
-	case PGBool:
+	case pgBool:
 		return v.(bool)
-	case PGTimestamp:
+	case pgTimestamp:
 		return v.(time.Time).UTC()
 	default:
 		return v
@@ -781,11 +782,6 @@ func (store *postgresOfflineStore) CreateTransformation(config TransformationCon
 	name, err := store.createTransformationName(config.TargetTableID)
 	if err != nil {
 		return err
-	}
-	// Only allow transformations to be run with SELECT queries
-	splitQuery := strings.Split(config.Query, " ")
-	if strings.ToUpper(splitQuery[0]) != "SELECT" {
-		return InvalidQueryError{fmt.Sprintf("query invalid. must start with SELECT: %s", config.Query)}
 	}
 
 	query := fmt.Sprintf("CREATE TABLE %s AS %s ", sanitize(name), config.Query)

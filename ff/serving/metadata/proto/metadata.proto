@@ -210,10 +210,10 @@ message SQLTransformation {
 
 message PrimaryData {
     oneof location {
-        SQLTable table = 1;
+        PrimarySQLTable table = 1;
     }
 }
 
-message SQLTable {
+message PrimarySQLTable {
     string name = 1;
 }

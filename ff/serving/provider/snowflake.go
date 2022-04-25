@@ -20,12 +20,12 @@ import (
 type snowflakeColumnType string
 
 const (
-	SFInt       snowflakeColumnType = "integer"
-	SFNumber                        = "NUMBER"
-	SFFloat                         = "float8"
-	SFString                        = "varchar"
-	SFBool                          = "BOOLEAN"
-	SFTimestamp                     = "TIMESTAMP_NTZ"
+	sfInt       snowflakeColumnType = "integer"
+	sfNumber                        = "NUMBER"
+	sfFloat                         = "FLOAT"
+	sfString                        = "varchar"
+	sfBool                          = "BOOLEAN"
+	sfTimestamp                     = "TIMESTAMP_NTZ"
 )
 
 type SnowflakeSchema struct {
@@ -289,7 +289,7 @@ func createSnowflakePrimaryTableQuery(name string, schema TableSchema) (string, 
 // determineColumnType returns an acceptable Postgres column Type to use for the given value
 func determineSnowflakeColumnType(valueType ValueType) (string, error) {
 	switch valueType {
-	case Int, Int8, Int16, Int32, Int64:
+	case Int, Int32, Int64:
 		return "INT", nil
 	case Float32, Float64:
 		return "FLOAT8", nil
@@ -510,23 +510,23 @@ func (iter *snowflakeFeatureIterator) Err() error {
 // castTableItemType returns the value casted as its original type
 func castSnowflakeTableItemType(v interface{}, t snowflakeColumnType) interface{} {
 	switch t {
-	case SFInt, SFNumber:
+	case sfInt, sfNumber:
 		if intVar, err := strconv.Atoi(v.(string)); err != nil {
 			return v
 		} else {
 			return intVar
 		}
-	case SFFloat, "FLOAT":
+	case sfFloat:
 		if s, err := strconv.ParseFloat(v.(string), 64); err != nil {
 			return v
 		} else {
 			return s
 		}
-	case SFString:
+	case sfString:
 		return v.(string)
-	case SFBool:
+	case sfBool:
 		return v.(bool)
-	case SFTimestamp:
+	case sfTimestamp:
 		ts := v.(time.Time).UTC()
 		return ts
 	default:
@@ -539,15 +539,15 @@ func castSnowflakeTableItemType(v interface{}, t snowflakeColumnType) interface{
 func (mat *snowflakeMaterialization) getValueColumnType(t *sql.ColumnType) snowflakeColumnType {
 	switch t.ScanType().String() {
 	case "string":
-		return SFString
+		return sfString
 	case "int64":
-		return SFInt
+		return sfInt
 	case "float32", "float64":
-		return SFFloat
+		return sfFloat
 	case "boolean":
-		return SFBool
+		return sfBool
 	}
-	return SFString
+	return sfString
 }
 
 func (store *snowflakeOfflineStore) CreateMaterialization(id ResourceID) (Materialization, error) {
@@ -986,10 +986,7 @@ func (store *snowflakeOfflineStore) CreateTransformation(config TransformationCo
 		return err
 	}
 	// Only allow transformations to be run with SELECT queries
-	splitQuery := strings.Split(config.Query, " ")
-	if strings.ToUpper(splitQuery[0]) != "SELECT" {
-		return InvalidQueryError{fmt.Sprintf("query invalid. must start with SELECT: %s", config.Query)}
-	}
+
 	query := fmt.Sprintf("CREATE TABLE %s AS SELECT * FROM ( %s )", sanitize(name), config.Query)
 	if _, err := store.db.Exec(query); err != nil {
 		return err

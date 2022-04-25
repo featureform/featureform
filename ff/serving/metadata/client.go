@@ -646,7 +646,7 @@ func (s PrimaryDataSource) Serialize() (*pb.SourceVariant_PrimaryData, error) {
 	case SQLTable:
 		primaryData = &pb.PrimaryData{
 			Location: &pb.PrimaryData_Table{
-				Table: &pb.SQLTable{
+				Table: &pb.PrimarySQLTable{
 					Name: s.Location.(SQLTable).Name,
 				},
 			},

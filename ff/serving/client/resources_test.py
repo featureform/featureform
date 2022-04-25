@@ -4,7 +4,7 @@
 
 #
 import pytest
-from resources import ResourceRedefinedError, ResourceState, Provider, RedisConfig, SnowflakeConfig, PostgresConfig, ResourceType, User, Provider, Entity, Feature, Label, TrainingSet, PrimaryData, Table
+from resources import ResourceRedefinedError, ResourceState, Provider, RedisConfig, SnowflakeConfig, PostgresConfig, User, Provider, Entity, Feature, Label, TrainingSet, PrimaryData, SQLTable, Source
 
 
 @pytest.fixture
@@ -79,12 +79,12 @@ def all_resources_set(redis_provider):
         redis_provider,
         User(name="Featureform"),
         Entity(name="user", description="A user"),
-        PrimaryData(name="primary",
-                    variant="abc",
-                    location=Table("table"),
-                    owner="someone",
-                    description="desc",
-                    provider="redis-name"),
+        Source(name="primary",
+               variant="abc",
+               definition=PrimaryData(location=SQLTable("table")),
+               owner="someone",
+               description="desc",
+               provider="redis-name"),
         Feature(name="feature",
                 variant="v1",
                 description="feature",
@@ -106,6 +106,42 @@ def all_resources_set(redis_provider):
                     provider="redis-name",
                     label=("label", "var"),
                     features=[("f1", "var")]),
+    ]
+
+
+@pytest.fixture
+def all_resources_strange_order(redis_provider):
+    return [
+        TrainingSet(name="training-set",
+                    variant="v1",
+                    description="desc",
+                    owner="featureform",
+                    provider="redis-name",
+                    label=("label", "var"),
+                    features=[("f1", "var")]),
+        Label(name="label",
+              variant="v1",
+              description="feature",
+              t="float32",
+              entity="user",
+              owner="Owner",
+              provider="redis-name"),
+        Feature(name="feature",
+                variant="v1",
+                description="feature",
+                t="float32",
+                entity="user",
+                owner="Owner",
+                provider="redis-name"),
+        Entity(name="user", description="A user"),
+        Source(name="primary",
+               variant="abc",
+               definition=PrimaryData(location=SQLTable("table")),
+               owner="someone",
+               description="desc",
+               provider="redis-name"),
+        redis_provider,
+        User(name="Featureform"),
     ]
 
 
@@ -140,10 +176,48 @@ def test_redefine_provider(redis_config, snowflake_config):
         state.add(providers[1])
 
 
-def test_add_all_resource_types(all_resources_set):
+def test_add_all_resource_types(all_resources_strange_order, redis_config):
     state = ResourceState()
-    for resource in all_resources_set:
+    for resource in all_resources_strange_order:
         state.add(resource)
+    assert state.sorted_list() == [
+        User(name="Featureform"),
+        Provider(
+            name="redis",
+            description="desc3",
+            function="fn3",
+            team="team3",
+            config=redis_config,
+        ),
+        Source(name="primary",
+               variant="abc",
+               definition=PrimaryData(location=SQLTable("table")),
+               owner="someone",
+               description="desc",
+               provider="redis-name"),
+        Entity(name="user", description="A user"),
+        Feature(name="feature",
+                variant="v1",
+                description="feature",
+                t="float32",
+                entity="user",
+                owner="Owner",
+                provider="redis-name"),
+        Label(name="label",
+              variant="v1",
+              description="feature",
+              t="float32",
+              entity="user",
+              owner="Owner",
+              provider="redis-name"),
+        TrainingSet(name="training-set",
+                    variant="v1",
+                    description="desc",
+                    owner="featureform",
+                    provider="redis-name",
+                    label=("label", "var"),
+                    features=[("f1", "var")]),
+    ]
 
 
 def test_resource_types_differ(all_resources_set):
@@ -193,8 +267,9 @@ def test_invalid_users():
         "variant": "var",
         "owner": "featureform",
         "provider": "offline_store",
+        "description": "abc",
         "label": ("var"),
-        "features": [("a", "var")]
+        "features": [("a", "var")],
     },
     {
         "name": "name",
@@ -202,7 +277,8 @@ def test_invalid_users():
         "owner": "featureform",
         "provider": "offline_store",
         "label": ("", "var"),
-        "features": [("a", "var")]
+        "description": "abc",
+        "features": [("a", "var")],
     },
     {
         "name": "name",
@@ -210,7 +286,8 @@ def test_invalid_users():
         "owner": "featureform",
         "provider": "offline_store",
         "label": ("a", "var"),
-        "features": []
+        "features": [],
+        "description": "abc",
     },
     {
         "name": "name",
@@ -218,7 +295,8 @@ def test_invalid_users():
         "owner": "featureform",
         "provider": "offline_store",
         "label": ("a", "var"),
-        "features": [("a", "var"), ("var")]
+        "features": [("a", "var"), ("var")],
+        "description": "abc",
     },
     {
         "name": "name",
@@ -226,7 +304,8 @@ def test_invalid_users():
         "owner": "featureform",
         "provider": "offline_store",
         "label": ("a", "var"),
-        "features": [("a", "var"), ("", "var")]
+        "features": [("a", "var"), ("", "var")],
+        "description": "abc",
     },
     {
         "name": "name",
@@ -234,9 +313,10 @@ def test_invalid_users():
         "owner": "featureform",
         "provider": "offline_store",
         "label": ("a", "var"),
-        "features": [("a", "var"), ("b", "")]
+        "features": [("a", "var"), ("b", "")],
+        "description": "abc",
     },
 ])
 def test_invalid_training_set(args):
     with pytest.raises((ValueError, TypeError)):
-        print(TrainingSet(**args))
+        TrainingSet(**args)

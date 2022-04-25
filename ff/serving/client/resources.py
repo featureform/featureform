@@ -4,48 +4,51 @@
 
 from typing import List, Tuple
 from typeguard import typechecked
+from dataclasses import dataclass
+
+NameVariant = Tuple[str, str]
 
 
+@typechecked
+def valid_name_variant(nvar: NameVariant) -> bool:
+    return nvar[0] != "" and nvar[1] != ""
+
+
+@typechecked
+@dataclass
 class RedisConfig:
+    host: str
+    port: int
+    password: str
+    db: int
 
-    @typechecked
-    def __init__(self, host: str, port: int, password: str, db: int):
-        pass
-
-    @typechecked
     def software(self) -> str:
         return "redis"
 
 
+@typechecked
+@dataclass
 class SnowflakeConfig:
+    account: str
+    database: str
+    organization: str
+    username: str
+    password: str
+    schema: str
 
-    @typechecked
-    def __init__(self, account: str, database: str, organization: str,
-                 username: str, password: str, schema: str):
-        self.account = account
-        self.database = database
-        self.organization = organization
-        self.username = username
-        self.password = password
-        self.schema = schema
-
-    @typechecked
     def software(self) -> str:
         return "snowflake"
 
 
+@typechecked
+@dataclass
 class PostgresConfig:
+    host: str
+    port: int
+    database: str
+    user: str
+    password: str
 
-    @typechecked
-    def __init__(self, host: str, port: int, database: str, user: str,
-                 password: str):
-        self.host = host
-        self.port = port
-        self.database = database
-        self.user = user
-        self.password = password
-
-    @typechecked
     def software(self) -> str:
         return "postgres"
 
@@ -53,163 +56,153 @@ class PostgresConfig:
 Config = RedisConfig | SnowflakeConfig | PostgresConfig
 
 
+@typechecked
+@dataclass
 class Provider:
+    name: str
+    function: str
+    config: Config
+    description: str
+    team: str
 
-    @typechecked
-    def __init__(self, name: str, function: str, config: Config,
-                 description: str, team: str):
-        self.name = name
-        self.description = description
-        self.function = function
-        self.software = config.software()
-        self.team = team
-        self.config = config
+    def __post_init__(self):
+        self.software = self.config.software()
 
     @staticmethod
     def type() -> str:
         return "provider"
 
 
+@typechecked
+@dataclass
 class User:
+    name: str
 
-    @typechecked
-    def __init__(self, name: str):
-        self.name = name
-
-    @typechecked
     def type(self) -> str:
         return "user"
 
 
-class Table:
-
-    @typechecked
-    def __init__(self, name: str):
-        self.name = name
-
-
-Location = Table
+@typechecked
+@dataclass
+class SQLTable:
+    name: str
 
 
+Location = SQLTable
+
+
+@typechecked
+@dataclass
 class PrimaryData:
+    location: Location
 
-    @typechecked
-    def __init__(self, name: str, variant: str, location: Location, owner: str,
-                 provider: str, description: str):
-        self.name = name
-        self.variant = variant
-        self.location = location
-        self.owner = owner
-        self.description = description
-        self.provider = provider
+
+class Transformation:
+    pass
+
+
+@typechecked
+@dataclass
+class SQLTransformation(Transformation):
+    query: str
+
+    def type():
+        "SQL"
+
+
+SourceDefinition = PrimaryData | Transformation
+
+
+@typechecked
+@dataclass
+class Source:
+    name: str
+    variant: str
+    definition: SourceDefinition
+    owner: str
+    provider: str
+    description: str
 
     @staticmethod
     def type() -> str:
-        return "primary-data"
+        return "source"
 
 
+@typechecked
+@dataclass
 class Entity:
-
-    @typechecked
-    def __init__(self, name: str, description: str):
-        self.name = name
-        self.description = description
+    name: str
+    description: str
 
     @staticmethod
     def type() -> str:
         return "entity"
 
 
+@typechecked
+@dataclass
 class Feature:
-
-    @typechecked
-    def __init__(self,
-                 name: str,
-                 variant: str,
-                 t: str,
-                 entity: str,
-                 owner: str,
-                 provider: str,
-                 description: str = ""):
-        self.name = name
-        self.variant = variant
-        self.description = description
-        self.t = t
-        self.entity = entity
-        self.owner = owner
-        self.provider = provider
+    name: str
+    variant: str
+    t: str
+    entity: str
+    owner: str
+    provider: str
+    description: str
 
     @staticmethod
     def type() -> str:
         return "feature"
 
 
+@typechecked
+@dataclass
 class Label:
-
-    @typechecked
-    def __init__(self,
-                 name: str,
-                 variant: str,
-                 t: str,
-                 entity: str,
-                 owner: str,
-                 provider: str,
-                 description: str = ""):
-        self.name = name
-        self.variant = variant
-        self.description = description
-        self.t = t
-        self.entity = entity
-        self.owner = owner
-        self.provider = provider
+    name: str
+    variant: str
+    t: str
+    entity: str
+    owner: str
+    provider: str
+    description: str
 
     @staticmethod
     def type() -> str:
         return "label"
 
 
-NameVariant = Tuple[str, str]
-
-
+@typechecked
+@dataclass
 class TrainingSet:
+    name: str
+    variant: str
+    owner: str
+    provider: str
+    label: NameVariant
+    features: List[NameVariant]
+    description: str
 
-    @typechecked
-    def __init__(self,
-                 name: str,
-                 variant: str,
-                 owner: str,
-                 provider: str,
-                 label: NameVariant,
-                 features: List[NameVariant],
-                 description: str = ""):
-        valid_name_variant = lambda t: t[0] != "" and t[1] != ""
-        if not valid_name_variant(label):
+    def __post_init__(self):
+        if not valid_name_variant(self.label):
             raise ValueError("Label must be set")
-        if len(features) == 0:
+        if len(self.features) == 0:
             raise ValueError("A training-set must have atleast one feature")
-        for feature in features:
+        for feature in self.features:
             if not valid_name_variant(feature):
                 raise ValueError("Invalid Feature")
-        self.name = name
-        self.variant = variant
-        self.description = description
-        self.owner = owner
-        self.provider = provider
-        self.label = label
-        self.features = features
 
     @staticmethod
     def type() -> str:
         return "training-set"
 
 
-ResourceType = PrimaryData | Provider | Entity | User | Feature | Label | TrainingSet
+Resource = PrimaryData | Provider | Entity | User | Feature | Label | TrainingSet
 
 
 class ResourceRedefinedError(Exception):
 
     @typechecked
-    def __init__(self, resource: ResourceType):
+    def __init__(self, resource: Resource):
         variantStr = f" variant {resource.variant}" if hasattr(
             resource, 'variant') else ""
         resourceId = f"{resource.name}{variantStr}"
@@ -224,8 +217,26 @@ class ResourceState:
         self.__state = {}
 
     @typechecked
-    def add(self, resource: ResourceType) -> None:
+    def add(self, resource: Resource) -> None:
         key = (resource.type(), resource.name)
         if key in self.__state:
             raise ResourceRedefinedError(resource)
         self.__state[key] = resource
+
+    def sorted_list(self) -> List[Resource]:
+        resource_order = {
+            "user": 0,
+            "provider": 1,
+            "source": 2,
+            "entity": 3,
+            "feature": 4,
+            "label": 5,
+            "training-set": 6,
+        }
+
+        def to_sort_key(res):
+            resource_num = resource_order[res.type()]
+            variant = res.variant if hasattr(res, "variant") else ""
+            return (resource_num, res.name, variant)
+
+        return sorted(self.__state.values(), key=to_sort_key)

@@ -2,7 +2,11 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-from resources import ResourceState, Provider, RedisConfig, PostgresConfig, SnowflakeConfig, User, Location, PrimaryData, Table
+from resources import ResourceState, Provider, RedisConfig, PostgresConfig, SnowflakeConfig, User, Location, Source, PrimaryData, SQLTable, SQLTransformation
+from typing import Tuple, Callable
+from typeguard import typechecked
+
+NameVariant = Tuple[str, str]
 
 
 class UserRegistrar:
@@ -13,6 +17,9 @@ class UserRegistrar:
 
     def name(self) -> str:
         return self.__user.name
+
+    def make_default_owner(self):
+        self.__registrar.set_default_owner(self.name())
 
 
 class OfflineProvider:
@@ -36,25 +43,82 @@ class OfflineSQLProvider(OfflineProvider):
                        name: str,
                        variant: str,
                        table: str,
-                       owner: str | UserRegistrar,
+                       owner: str | UserRegistrar = "",
                        description: str = ""):
         self.__registrar.register_primary_data(name=name,
                                                variant=variant,
-                                               location=Table(table),
+                                               location=SQLTable(table),
                                                owner=owner,
                                                provider=self.name(),
                                                description=description)
+
+    def sql_transformation(self,
+                           variant: str,
+                           owner: str | UserRegistrar = "",
+                           name: str = "",
+                           description: str = ""):
+        return self.__registrar.sql_transformation(name=name,
+                                                   variant=variant,
+                                                   owner=owner,
+                                                   provider=self.name(),
+                                                   description=description)
+
+
+class SQLTransformationDecorator:
+
+    def __init__(self,
+                 variant: str,
+                 owner: str,
+                 provider: str,
+                 name: str = "",
+                 description: str = ""):
+        self.name = name
+        self.variant = variant
+        self.owner = owner
+        self.provider = provider
+        self.description = description
+
+    def __call__(self, fn: Callable[[], str]):
+        if self.description == "":
+            self.description = fn.__doc__
+        if self.name == "":
+            self.name = fn.__name__
+        self.__set_query(fn())
+
+    @typechecked
+    def __set_query(self, query: str):
+        if query == "":
+            raise ValueError("Query cannot be an empty string")
+        self.query = query
+
+    def to_source(self) -> Source:
+        return Source(
+            name=self.name,
+            variant=self.variant,
+            definition=SQLTransformation(self.query),
+            owner=self.owner,
+            provider=self.provider,
+            description=self.description,
+        )
 
 
 class Registrar:
 
     def __init__(self):
         self.__state = ResourceState()
+        self.__decorators = []
+        self.__default_user = ""
 
     def register_user(self, name: str) -> UserRegistrar:
         user = User(name)
         self.__state.add(user)
         return UserRegistrar(self, user)
+
+    def set_default_owner(self, user: str):
+        self.__default_user = user
+
+    def default_user(self) -> str:
+        return self.__default_user
 
     def register_redis(self,
                        name: str,
@@ -124,20 +188,74 @@ class Registrar:
                               name: str,
                               variant: str,
                               location: Location,
-                              owner: str | UserRegistrar,
                               provider: str | OfflineProvider,
+                              owner: str | UserRegistrar = "",
                               description: str = ""):
         if not isinstance(owner, str):
             owner = owner.name()
+        if owner == "":
+            owner = self.default_user()
         if not isinstance(provider, str):
             provider = provider.name()
-        primary_data = PrimaryData(name=name,
-                                   variant=variant,
-                                   location=location,
-                                   owner=owner,
-                                   provider=provider,
-                                   description=description)
-        self.__state.add(primary_data)
+        source = Source(name=name,
+                        variant=variant,
+                        definition=PrimaryData(location=location),
+                        owner=owner,
+                        provider=provider,
+                        description=description)
+        self.__state.add(source)
+
+    def register_sql_transformation(self,
+                                    name: str,
+                                    variant: str,
+                                    query: str,
+                                    provider: str | OfflineProvider,
+                                    owner: str | UserRegistrar = "",
+                                    description: str = ""):
+        if not isinstance(owner, str):
+            owner = owner.name()
+        if owner == "":
+            owner = self.default_user()
+        if not isinstance(provider, str):
+            provider = provider.name()
+        self.__state.add(
+            Source(
+                name=name,
+                variant=variant,
+                definition=SQLTransformation(query),
+                owner=owner,
+                provider=provider,
+                description=description,
+            ))
+
+    def sql_transformation(self,
+                           variant: str,
+                           owner: str | UserRegistrar,
+                           provider: str | OfflineProvider,
+                           name: str = "",
+                           query: str = "",
+                           description: str = ""):
+        if not isinstance(owner, str):
+            owner = owner.name()
+        if owner == "":
+            owner = self.default_user()
+        if not isinstance(provider, str):
+            provider = provider.name()
+        decorator = SQLTransformationDecorator(
+            name=name,
+            variant=variant,
+            provider=provider,
+            owner=owner,
+            description=description,
+        )
+        self.__decorators.append(decorator)
+        return decorator
+
+    def state(self):
+        while len(self.__decorators) > 0:
+            decorator = self.__decorators.pop()
+            self.__state.add(decorator.to_source())
+        return self.__state
 
 
 global_registrar = Registrar()

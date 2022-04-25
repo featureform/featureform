@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	sf "github.com/snowflakedb/gosnowflake"
 	"strconv"
 	"strings"
@@ -19,11 +20,12 @@ import (
 type snowflakeColumnType string
 
 const (
-	SFInt    snowflakeColumnType = "integer"
-	SFNumber                     = "NUMBER"
-	SFFloat                      = "float8"
-	SFString                     = "varchar"
-	SFBool                       = "BOOLEAN"
+	sfInt       snowflakeColumnType = "integer"
+	sfNumber                        = "NUMBER"
+	sfFloat                         = "FLOAT"
+	sfString                        = "varchar"
+	sfBool                          = "BOOLEAN"
+	sfTimestamp                     = "TIMESTAMP_NTZ"
 )
 
 type SnowflakeSchema struct {
@@ -126,6 +128,10 @@ func (store *snowflakeOfflineStore) tableExists(id ResourceID) (bool, error) {
 		tableName = store.getResourceTableName(id)
 	} else if id.check(TrainingSet) == nil {
 		tableName = store.getTrainingSetName(id)
+	} else if id.check(Primary) == nil {
+		tableName = store.getPrimaryTableName(id)
+	} else if id.check(Transformation) == nil {
+		tableName = store.getTransformationName(id)
 	}
 	err := store.db.QueryRow(`SELECT COUNT(*) FROM information_schema.tables WHERE table_name = ?`, tableName).Scan(&n)
 	if n == 0 {
@@ -140,14 +146,236 @@ func (store *snowflakeOfflineStore) AsOfflineStore() (OfflineStore, error) {
 	return store, nil
 }
 
+func (store *snowflakeOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error) {
+	if err := id.check(Feature, Label); err != nil {
+		return nil, err
+	}
+	if exists, err := store.tableExists(id); err != nil {
+		return nil, err
+	} else if exists {
+		return nil, &TableAlreadyExists{id.Name, id.Variant}
+	}
+	if schema.Entity == "" || schema.Value == "" {
+		return nil, fmt.Errorf("non-empty entity and value columns required")
+	}
+	tableName := store.getResourceTableName(id)
+	if schema.TS == "" {
+		query := fmt.Sprintf("CREATE TABLE %s AS SELECT IDENTIFIER('%s') as entity, IDENTIFIER('%s') as value, null::TIMESTAMP_NTZ as ts FROM %s", sanitize(tableName),
+			schema.Entity, schema.Value, sanitize(schema.SourceTable))
+		if _, err := store.db.Exec(query); err != nil {
+			fmt.Println("1:", err)
+			return nil, err
+		}
+		query = fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT  %s  UNIQUE (entity, ts)", sanitize(tableName), sanitize(uuid.NewString()))
+		if _, err := store.db.Exec(query); err != nil {
+			fmt.Println("2:", err)
+			return nil, err
+		}
+		// Populates empty column with timestamp
+		update := fmt.Sprintf("UPDATE %s SET ts = ?", sanitize(tableName))
+		if _, err := store.db.Exec(update, time.UnixMilli(0).UTC()); err != nil {
+			fmt.Println("3:", err)
+			return nil, err
+		}
+	} else {
+		query := fmt.Sprintf("CREATE TABLE %s AS SELECT IDENTIFIER('%s') as entity,  IDENTIFIER('%s') as value,  IDENTIFIER('%s') as ts FROM %s", sanitize(tableName),
+			schema.Entity, schema.Value, schema.TS, sanitize(schema.SourceTable))
+		if _, err := store.db.Exec(query); err != nil {
+			fmt.Println("4:", err)
+			return nil, err
+		}
+		query = fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT  %s  UNIQUE (entity, ts)", sanitize(tableName), sanitize(uuid.NewString()))
+		if _, err := store.db.Exec(query); err != nil {
+			fmt.Println("5:", err)
+			return nil, err
+		}
+	}
+
+	return &snowflakeOfflineTable{
+		db:   store.db,
+		name: tableName,
+	}, nil
+}
+
+func (store *snowflakeOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error) {
+	if err := id.check(Primary); err != nil {
+		return nil, err
+	}
+	if exists, err := store.tableExists(id); err != nil {
+		return nil, err
+	} else if exists {
+		return nil, &TableAlreadyExists{id.Name, id.Variant}
+	}
+	tableName := store.getPrimaryTableName(id)
+	fmt.Println(tableName)
+	query := fmt.Sprintf("CREATE TABLE %s AS SELECT * FROM %s", sanitize(tableName), sanitize(sourceName))
+	if _, err := store.db.Exec(query); err != nil {
+		return nil, err
+	}
+	rows, err := store.db.Query(
+		"SELECT column_name FROM information_schema.columns WHERE table_name = ? order by ordinal_position",
+		tableName)
+	defer rows.Close()
+	if err != nil {
+		return nil, err
+	}
+	columnNames := make([]TableColumn, 0)
+	for rows.Next() {
+		var column string
+		if err := rows.Scan(&column); err != nil {
+			return nil, err
+		}
+		columnNames = append(columnNames, TableColumn{Name: column})
+	}
+	return &snowflakePrimaryTable{
+		db:     store.db,
+		name:   tableName,
+		schema: TableSchema{Columns: columnNames},
+	}, nil
+}
+
+func (store *snowflakeOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error) {
+	if err := id.check(Primary); err != nil {
+		return nil, err
+	}
+	if exists, err := store.tableExists(id); err != nil {
+		return nil, err
+	} else if exists {
+		return nil, &TableAlreadyExists{id.Name, id.Variant}
+	}
+	if len(schema.Columns) == 0 {
+		return nil, fmt.Errorf("cannot create primary table without columns")
+	}
+	tableName := store.getPrimaryTableName(id)
+	table, err := newSnowflakePrimaryTable(store.db, tableName, schema)
+	if err != nil {
+		return nil, err
+	}
+	return table, nil
+}
+
+func newSnowflakePrimaryTable(db *sql.DB, name string, schema TableSchema) (*snowflakePrimaryTable, error) {
+	query, err := createSnowflakePrimaryTableQuery(name, schema)
+	if err != nil {
+		return nil, err
+	}
+	_, err = db.Exec(query)
+	if err != nil {
+		return nil, err
+	}
+	return &snowflakePrimaryTable{
+		db:     db,
+		name:   name,
+		schema: schema,
+	}, nil
+}
+
+// createPrimaryTableQuery creates a query for table creation based on the
+// specified TableSchema. Returns the query if successful. Returns an error
+// if there is an invalid column type.
+func createSnowflakePrimaryTableQuery(name string, schema TableSchema) (string, error) {
+	columns := make([]string, 0)
+	for _, column := range schema.Columns {
+		columnType, err := determineSnowflakeColumnType(column.ValueType)
+		if err != nil {
+			return "", err
+		}
+		columns = append(columns, fmt.Sprintf("%s %s", column.Name, columnType))
+	}
+	columnString := strings.Join(columns, ", ")
+	return fmt.Sprintf("CREATE TABLE %s ( %s )", sanitize(name), columnString), nil
+}
+
+// determineColumnType returns an acceptable Postgres column Type to use for the given value
+func determineSnowflakeColumnType(valueType ValueType) (string, error) {
+	switch valueType {
+	case Int, Int32, Int64:
+		return "INT", nil
+	case Float32, Float64:
+		return "FLOAT8", nil
+	case String:
+		return "VARCHAR", nil
+	case Bool:
+		return "BOOLEAN", nil
+	case Timestamp:
+		return "TIMESTAMP_NTZ", nil
+	case NilType:
+		return "VARCHAR", nil
+	default:
+		return "", fmt.Errorf("cannot find column type for value type: %s", valueType)
+	}
+}
+
+func (store *snowflakeOfflineStore) getPrimaryTableName(id ResourceID) string {
+	return fmt.Sprintf("featureform_primary_%s_%s", id.Name, id.Variant)
+}
+
+func (store *snowflakeOfflineStore) getTransformationName(id ResourceID) string {
+	return fmt.Sprintf("featureform_transformation_%s_%s", id.Name, id.Variant)
+}
+
+func (store *snowflakeOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error) {
+	name := store.getPrimaryTableName(id)
+	if exists, err := store.tableExists(id); err != nil {
+		return nil, err
+	} else if !exists {
+		return nil, &TableNotFound{id.Name, id.Variant}
+	}
+	rows, err := store.db.Query(
+		"SELECT column_name FROM information_schema.columns WHERE table_name = ? order by ordinal_position",
+		name)
+	defer rows.Close()
+	if err != nil {
+		return nil, err
+	}
+	columnNames := make([]TableColumn, 0)
+	for rows.Next() {
+		var column string
+		if err := rows.Scan(&column); err != nil {
+			return nil, err
+		}
+		columnNames = append(columnNames, TableColumn{Name: column})
+	}
+	return &snowflakePrimaryTable{
+		db:     store.db,
+		name:   name,
+		schema: TableSchema{Columns: columnNames},
+	}, nil
+}
+
+func (store *snowflakeOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
+	name := store.getTransformationName(id)
+	if exists, err := store.tableExists(id); err != nil {
+		return nil, err
+	} else if !exists {
+		return nil, &TableNotFound{id.Name, id.Variant}
+	}
+	rows, err := store.db.Query(
+		"SELECT column_name FROM information_schema.columns WHERE table_name = ? order by ordinal_position",
+		name)
+	defer rows.Close()
+	if err != nil {
+		return nil, err
+	}
+	columnNames := make([]TableColumn, 0)
+	for rows.Next() {
+		var column string
+		if err := rows.Scan(&column); err != nil {
+			return nil, err
+		}
+		columnNames = append(columnNames, TableColumn{Name: column})
+	}
+	return &snowflakePrimaryTable{
+		db:     store.db,
+		name:   name,
+		schema: TableSchema{Columns: columnNames},
+	}, nil
+}
+
 // CreateResourceTable creates a new Resource table.
 // Returns a table if it does not already exist and stores the table ID in the resource index table.
 // Returns an error if the table already exists or if table is the wrong type.
-func (store *snowflakeOfflineStore) CreateResourceTable(id ResourceID, schema SerializedTableSchema) (OfflineTable, error) {
-	psSchema := SnowflakeSchema{}
-	if err := psSchema.Deserialize(schema); err != nil {
-		return nil, err
-	}
+func (store *snowflakeOfflineStore) CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error) {
 	if err := id.check(Feature, Label); err != nil {
 		return nil, err
 	}
@@ -158,11 +386,28 @@ func (store *snowflakeOfflineStore) CreateResourceTable(id ResourceID, schema Se
 		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}
 	tableName := store.getResourceTableName(id)
-	table, err := newSnowflakeOfflineTable(store.db, tableName, psSchema.ValueType)
+	var valueType ValueType
+	if valueIndex := store.getValueIndex(schema.Columns); valueIndex > 0 {
+		valueType = schema.Columns[valueIndex].ValueType
+	} else {
+		valueType = NilType
+	}
+	table, err := newSnowflakeOfflineTable(store.db, tableName, valueType)
 	if err != nil {
 		return nil, err
 	}
 	return table, nil
+}
+
+// getValueIndex returns the index of the value column in the schema.
+// Returns -1 if an entity column is not found
+func (store *snowflakeOfflineStore) getValueIndex(columns []TableColumn) int {
+	for i, column := range columns {
+		if column.Name == "value" {
+			return i
+		}
+	}
+	return -1
 }
 
 func (store *snowflakeOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, error) {
@@ -249,7 +494,7 @@ func (iter *snowflakeFeatureIterator) Next() bool {
 		return false
 	}
 	rec.Value = castSnowflakeTableItemType(value, iter.columnType)
-	rec.TS = ts.UTC()
+	rec.TS = ts
 	iter.currentValue = rec
 	return true
 }
@@ -265,22 +510,25 @@ func (iter *snowflakeFeatureIterator) Err() error {
 // castTableItemType returns the value casted as its original type
 func castSnowflakeTableItemType(v interface{}, t snowflakeColumnType) interface{} {
 	switch t {
-	case SFInt, SFNumber:
+	case sfInt, sfNumber:
 		if intVar, err := strconv.Atoi(v.(string)); err != nil {
 			return v
 		} else {
 			return intVar
 		}
-	case SFFloat:
-		if s, err := strconv.ParseFloat(v.(string), 64); err == nil {
+	case sfFloat:
+		if s, err := strconv.ParseFloat(v.(string), 64); err != nil {
 			return v
 		} else {
 			return s
 		}
-	case SFString:
+	case sfString:
 		return v.(string)
-	case SFBool:
+	case sfBool:
 		return v.(bool)
+	case sfTimestamp:
+		ts := v.(time.Time).UTC()
+		return ts
 	default:
 		return v
 	}
@@ -291,15 +539,15 @@ func castSnowflakeTableItemType(v interface{}, t snowflakeColumnType) interface{
 func (mat *snowflakeMaterialization) getValueColumnType(t *sql.ColumnType) snowflakeColumnType {
 	switch t.ScanType().String() {
 	case "string":
-		return SFString
+		return sfString
 	case "int64":
-		return SFInt
+		return sfInt
 	case "float32", "float64":
-		return SFFloat
+		return sfFloat
 	case "boolean":
-		return SFBool
+		return sfBool
 	}
-	return SFString
+	return sfString
 }
 
 func (store *snowflakeOfflineStore) CreateMaterialization(id ResourceID) (Materialization, error) {
@@ -574,6 +822,104 @@ type snowflakeOfflineTable struct {
 	name string
 }
 
+type snowflakePrimaryTable struct {
+	db     *sql.DB
+	name   string
+	schema TableSchema
+}
+
+func (table *snowflakePrimaryTable) GetName() string {
+	return table.name
+}
+
+func (table *snowflakePrimaryTable) Write(rec GenericRecord) error {
+	tb := sanitize(table.name)
+	columns := table.getColumnNameString()
+	placeholder := table.createValuePlaceholderString()
+	upsertQuery := fmt.Sprintf(""+
+		"INSERT INTO %s ( %s ) "+
+		"VALUES ( %s ) ", tb, columns, placeholder)
+	if _, err := table.db.Exec(upsertQuery, rec...); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (table *snowflakePrimaryTable) getColumnNameString() string {
+	columns := make([]string, 0)
+	for _, column := range table.schema.Columns {
+		columns = append(columns, column.Name)
+	}
+	return strings.Join(columns, ", ")
+}
+
+func (table *snowflakePrimaryTable) createValuePlaceholderString() string {
+	placeholders := make([]string, 0)
+	for _ = range table.schema.Columns {
+		placeholders = append(placeholders, fmt.Sprintf("?"))
+	}
+	return strings.Join(placeholders, ", ")
+}
+
+func (pt *snowflakePrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) {
+	rows, err := pt.db.Query(
+		"SELECT column_name FROM information_schema.columns WHERE table_name = ? order by ordinal_position",
+		pt.name)
+	defer rows.Close()
+	if err != nil {
+		return nil, err
+	}
+	columnNames := make([]string, 0)
+	for rows.Next() {
+		var column string
+		if err := rows.Scan(&column); err != nil {
+			return nil, err
+		}
+		columnNames = append(columnNames, sanitize(column))
+	}
+	columns := strings.Join(columnNames[:], ", ")
+	query := fmt.Sprintf("SELECT %s FROM %s LIMIT %d", columns, sanitize(pt.name), n)
+	rows, err = pt.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	colTypes, err := pt.getValueColumnTypes(pt.name)
+	if err != nil {
+		return nil, err
+	}
+	return newSnowflakeGenericTableIterator(rows, colTypes, columnNames), nil
+}
+
+func (pt *snowflakePrimaryTable) getValueColumnTypes(table string) ([]snowflakeColumnType, error) {
+	rows, err := pt.db.Query(
+		"select data_type from (select column_name, data_type from information_schema.columns where table_name = ? order by ordinal_position) t",
+		table)
+	if err != nil {
+		return nil, err
+	}
+	colTypes := make([]snowflakeColumnType, 0)
+
+	for rows.Next() {
+		var colString string
+		if err := rows.Scan(&colString); err != nil {
+			return nil, err
+		}
+		colTypes = append(colTypes, snowflakeColumnType(colString))
+	}
+	return colTypes, nil
+}
+
+func (pt *snowflakePrimaryTable) NumRows() (int64, error) {
+	n := int64(0)
+	query := fmt.Sprintf("SELECT COUNT(*) FROM %s", sanitize(pt.name))
+	rows := pt.db.QueryRow(query)
+	err := rows.Scan(&n)
+	if err != nil {
+		return 0, err
+	}
+	return n, nil
+}
+
 func newSnowflakeOfflineTable(db *sql.DB, name string, valueType ValueType) (*snowflakeOfflineTable, error) {
 	columnType, err := determineColumnType(valueType)
 	if err != nil {
@@ -632,4 +978,102 @@ func (table *snowflakeOfflineTable) resourceExists(rec ResourceRecord) (bool, er
 		return false, nil
 	}
 	return true, nil
+}
+
+func (store *snowflakeOfflineStore) CreateTransformation(config TransformationConfig) error {
+	name, err := store.createTransformationName(config.TargetTableID)
+	if err != nil {
+		return err
+	}
+	// Only allow transformations to be run with SELECT queries
+
+	query := fmt.Sprintf("CREATE TABLE %s AS SELECT * FROM ( %s )", sanitize(name), config.Query)
+	if _, err := store.db.Exec(query); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (store *snowflakeOfflineStore) createTransformationName(id ResourceID) (string, error) {
+	switch id.Type {
+	case Label, Feature:
+		return store.getResourceTableName(id), nil
+	case Transformation:
+		return store.getTransformationName(id), nil
+	case TrainingSet:
+		return "", TransformationTypeError{"Invalid Transformation Type: Training Set"}
+	case Primary:
+		return "", TransformationTypeError{"Invalid Transformation Type: Primary"}
+	default:
+		return "", TransformationTypeError{"Invalid Transformation Type"}
+	}
+}
+
+type snowflakeGenericTableIterator struct {
+	rows          *sql.Rows
+	currentValues GenericRecord
+	err           error
+	columnTypes   []snowflakeColumnType
+	columnNames   []string
+}
+
+func newSnowflakeGenericTableIterator(rows *sql.Rows, columnTypes []snowflakeColumnType, columnNames []string) GenericTableIterator {
+	return &snowflakeGenericTableIterator{
+		rows:          rows,
+		currentValues: nil,
+		err:           nil,
+		columnTypes:   columnTypes,
+		columnNames:   columnNames,
+	}
+}
+
+func (it *snowflakeGenericTableIterator) Next() bool {
+	if !it.rows.Next() {
+		it.rows.Close()
+		return false
+	}
+	columnNames, err := it.rows.Columns()
+	if err != nil {
+		it.rows.Close()
+		it.err = err
+		return false
+	}
+	if err != nil {
+		it.err = err
+		it.rows.Close()
+		return false
+	}
+	values := make([]interface{}, len(columnNames))
+	pointers := make([]interface{}, len(columnNames))
+	for i, _ := range values {
+		pointers[i] = &values[i]
+	}
+	if err := it.rows.Scan(pointers...); err != nil {
+		it.rows.Close()
+		it.err = err
+		return false
+	}
+
+	rowValues := make(GenericRecord, len(columnNames))
+	for i, value := range values {
+		if value == nil {
+			continue
+		}
+		rowValues[i] = castSnowflakeTableItemType(value, it.columnTypes[i])
+	}
+	it.currentValues = rowValues
+	return true
+}
+
+func (it *snowflakeGenericTableIterator) Values() GenericRecord {
+	return it.currentValues
+}
+
+func (it *snowflakeGenericTableIterator) Columns() []string {
+	return it.columnNames
+}
+
+func (it *snowflakeGenericTableIterator) Err() error {
+	return it.err
 }

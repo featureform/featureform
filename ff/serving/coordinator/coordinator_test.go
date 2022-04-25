@@ -107,9 +107,13 @@ func materializeFeatureWithProvider(client *metadata.Client, offlineConfig provi
 			Name:        sourceName,
 			Variant:     "",
 			Description: "",
-			Type:        "",
 			Owner:       userName,
 			Provider:    offlineProviderName,
+			Definition: metadata.PrimaryDataSource{
+				Location: metadata.SQLTable{
+					Name: "mockPrimary",
+				},
+			},
 		},
 		metadata.FeatureDef{
 			Name:        featureName,
@@ -120,6 +124,11 @@ func materializeFeatureWithProvider(client *metadata.Client, offlineConfig provi
 			Owner:       userName,
 			Description: "",
 			Provider:    onlineProviderName,
+			Location: metadata.ResourceVariantColumns{
+				Entity: "col1",
+				Value:  "col2",
+				TS:     "col3",
+			},
 		},
 	}
 	if err := client.CreateAll(context.Background(), defs); err != nil {
@@ -153,9 +162,13 @@ func createTrainingSetWithProvider(client *metadata.Client, config provider.Seri
 			Name:        sourceName,
 			Variant:     "",
 			Description: "",
-			Type:        "",
 			Owner:       userName,
 			Provider:    providerName,
+			Definition: metadata.PrimaryDataSource{
+				Location: metadata.SQLTable{
+					Name: "mockPrimary",
+				},
+			},
 		},
 		metadata.LabelDef{
 			Name:        labelName,
@@ -166,6 +179,11 @@ func createTrainingSetWithProvider(client *metadata.Client, config provider.Seri
 			Entity:      entityName,
 			Owner:       userName,
 			Provider:    providerName,
+			Location: metadata.ResourceVariantColumns{
+				Entity: "col1",
+				Value:  "col2",
+				TS:     "col3",
+			},
 		},
 		metadata.FeatureDef{
 			Name:        featureName,
@@ -176,6 +194,11 @@ func createTrainingSetWithProvider(client *metadata.Client, config provider.Seri
 			Owner:       userName,
 			Description: "",
 			Provider:    providerName,
+			Location: metadata.ResourceVariantColumns{
+				Entity: "col1",
+				Value:  "col2",
+				TS:     "col3",
+			},
 		},
 		metadata.TrainingSetDef{
 			Name:        tsName,
@@ -232,9 +255,14 @@ func testCoordinatorTrainingSet() error {
 		return fmt.Errorf("could not get provider as offline store: %v", err)
 	}
 	offline_feature := provider.ResourceID{Name: featureName, Variant: "", Type: provider.Feature}
-	postGresIntSchema := provider.PostgresTableSchema{provider.Int}
-	serializedPostgresSchema := postGresIntSchema.Serialize()
-	featureTable, err := my_offline.CreateResourceTable(offline_feature, serializedPostgresSchema)
+	schemaInt := provider.TableSchema{
+		Columns: []provider.TableColumn{
+			{Name: "entity", ValueType: provider.String},
+			{Name: "value", ValueType: provider.Int},
+			{Name: "ts", ValueType: provider.Timestamp},
+		},
+	}
+	featureTable, err := my_offline.CreateResourceTable(offline_feature, schemaInt)
 	if err != nil {
 		return fmt.Errorf("could not create feature table: %v", err)
 	}
@@ -244,7 +272,7 @@ func testCoordinatorTrainingSet() error {
 		}
 	}
 	offline_label := provider.ResourceID{Name: labelName, Variant: "", Type: provider.Label}
-	labelTable, err := my_offline.CreateResourceTable(offline_label, serializedPostgresSchema)
+	labelTable, err := my_offline.CreateResourceTable(offline_label, schemaInt)
 	if err != nil {
 		return fmt.Errorf("could not create label table: %v", err)
 	}
@@ -349,12 +377,17 @@ func testCoordinatorMaterializeFeature() error {
 	if err != nil {
 		return fmt.Errorf("could not get provider as online store")
 	}
-	postGresIntSchema := provider.PostgresTableSchema{provider.Int}
-	serializedPostgresSchema := postGresIntSchema.Serialize()
+	schemaInt := provider.TableSchema{
+		Columns: []provider.TableColumn{
+			{Name: "entity", ValueType: provider.String},
+			{Name: "value", ValueType: provider.Int},
+			{Name: "ts", ValueType: provider.Timestamp},
+		},
+	}
 	featureName := uuid.New().String()
 	sourceName := uuid.New().String()
 	offlineFeature := provider.ResourceID{Name: featureName, Variant: "", Type: provider.Feature}
-	featureTable, err := offlineStore.CreateResourceTable(offlineFeature, serializedPostgresSchema)
+	featureTable, err := offlineStore.CreateResourceTable(offlineFeature, schemaInt)
 	if err != nil {
 		return fmt.Errorf("could not create feature table: %v", err)
 	}

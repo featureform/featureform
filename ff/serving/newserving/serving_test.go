@@ -172,6 +172,11 @@ func allTypesResourceDefsFn(providerType string) []metadata.ResourceDef {
 			Variant:  "var",
 			Owner:    "Featureform",
 			Provider: "mockOnline",
+			Definition: metadata.PrimaryDataSource{
+				Location: metadata.SQLTable{
+					Name: "mockPrimary",
+				},
+			},
 		},
 		metadata.FeatureDef{
 			Name:     "feature",
@@ -180,6 +185,11 @@ func allTypesResourceDefsFn(providerType string) []metadata.ResourceDef {
 			Entity:   "mockEntity",
 			Source:   metadata.NameVariant{"mockSource", "var"},
 			Owner:    "Featureform",
+			Location: metadata.ResourceVariantColumns{
+				Entity: "col1",
+				Value:  "col2",
+				TS:     "col3",
+			},
 		},
 		metadata.FeatureDef{
 			Name:     "feature",
@@ -188,6 +198,11 @@ func allTypesResourceDefsFn(providerType string) []metadata.ResourceDef {
 			Entity:   "mockEntity",
 			Source:   metadata.NameVariant{"mockSource", "var"},
 			Owner:    "Featureform",
+			Location: metadata.ResourceVariantColumns{
+				Entity: "col1",
+				Value:  "col2",
+				TS:     "col3",
+			},
 		},
 		metadata.FeatureDef{
 			Name:     "feature",
@@ -196,6 +211,11 @@ func allTypesResourceDefsFn(providerType string) []metadata.ResourceDef {
 			Entity:   "mockEntity",
 			Source:   metadata.NameVariant{"mockSource", "var"},
 			Owner:    "Featureform",
+			Location: metadata.ResourceVariantColumns{
+				Entity: "col1",
+				Value:  "col2",
+				TS:     "col3",
+			},
 		},
 		metadata.FeatureDef{
 			Name:     "feature",
@@ -204,6 +224,11 @@ func allTypesResourceDefsFn(providerType string) []metadata.ResourceDef {
 			Entity:   "mockEntity",
 			Source:   metadata.NameVariant{"mockSource", "var"},
 			Owner:    "Featureform",
+			Location: metadata.ResourceVariantColumns{
+				Entity: "col1",
+				Value:  "col2",
+				TS:     "col3",
+			},
 		},
 		metadata.FeatureDef{
 			Name:     "feature",
@@ -212,6 +237,11 @@ func allTypesResourceDefsFn(providerType string) []metadata.ResourceDef {
 			Entity:   "mockEntity",
 			Source:   metadata.NameVariant{"mockSource", "var"},
 			Owner:    "Featureform",
+			Location: metadata.ResourceVariantColumns{
+				Entity: "col1",
+				Value:  "col2",
+				TS:     "col3",
+			},
 		},
 		metadata.FeatureDef{
 			Name:     "feature",
@@ -220,6 +250,11 @@ func allTypesResourceDefsFn(providerType string) []metadata.ResourceDef {
 			Entity:   "mockEntity",
 			Source:   metadata.NameVariant{"mockSource", "var"},
 			Owner:    "Featureform",
+			Location: metadata.ResourceVariantColumns{
+				Entity: "col1",
+				Value:  "col2",
+				TS:     "col3",
+			},
 		},
 		metadata.FeatureDef{
 			Name:     "feature",
@@ -228,6 +263,11 @@ func allTypesResourceDefsFn(providerType string) []metadata.ResourceDef {
 			Entity:   "mockEntity",
 			Source:   metadata.NameVariant{"mockSource", "var"},
 			Owner:    "Featureform",
+			Location: metadata.ResourceVariantColumns{
+				Entity: "col1",
+				Value:  "col2",
+				TS:     "col3",
+			},
 		},
 		metadata.FeatureDef{
 			Name:     "feature",
@@ -236,6 +276,11 @@ func allTypesResourceDefsFn(providerType string) []metadata.ResourceDef {
 			Entity:   "mockEntity",
 			Source:   metadata.NameVariant{"mockSource", "var"},
 			Owner:    "Featureform",
+			Location: metadata.ResourceVariantColumns{
+				Entity: "col1",
+				Value:  "col2",
+				TS:     "col3",
+			},
 		},
 	}
 }
@@ -257,6 +302,11 @@ func simpleResourceDefsFn(providerType string) []metadata.ResourceDef {
 			Variant:  "var",
 			Owner:    "Featureform",
 			Provider: "mockOnline",
+			Definition: metadata.PrimaryDataSource{
+				Location: metadata.SQLTable{
+					Name: "mockPrimary",
+				},
+			},
 		},
 		metadata.FeatureDef{
 			Name:     "feature",
@@ -265,6 +315,11 @@ func simpleResourceDefsFn(providerType string) []metadata.ResourceDef {
 			Entity:   "mockEntity",
 			Source:   metadata.NameVariant{"mockSource", "var"},
 			Owner:    "Featureform",
+			Location: metadata.ResourceVariantColumns{
+				Entity: "col1",
+				Value:  "col2",
+				TS:     "col3",
+			},
 		},
 		metadata.LabelDef{
 			Name:     "label",
@@ -273,6 +328,11 @@ func simpleResourceDefsFn(providerType string) []metadata.ResourceDef {
 			Entity:   "mockEntity",
 			Source:   metadata.NameVariant{"mockSource", "var"},
 			Owner:    "Featureform",
+			Location: metadata.ResourceVariantColumns{
+				Entity: "col1",
+				Value:  "col2",
+				TS:     "col3",
+			},
 		},
 		metadata.TrainingSetDef{
 			Name:     "training-set",
@@ -377,7 +437,7 @@ func createMockOfflineStoreFactory(recsMap map[provider.ResourceID][]provider.Re
 	return func(cfg provider.SerializedConfig) (provider.Provider, error) {
 		store := provider.NewMemoryOfflineStore()
 		for id, recs := range recsMap {
-			table, err := store.CreateResourceTable(id, nil)
+			table, err := store.CreateResourceTable(id, provider.TableSchema{})
 			if err != nil {
 				panic(err)
 			}

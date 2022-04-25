@@ -64,6 +64,12 @@ message Feature {
     repeated string variants = 4;
 }
 
+message Columns {
+    string entity = 1;
+    string value = 2;
+    string ts = 3;
+}
+
 message FeatureVariant {
     string name = 1;
     string variant = 2;
@@ -76,6 +82,9 @@ message FeatureVariant {
     string provider = 9;
     string status = 10;
     repeated NameVariant trainingsets = 11;
+    oneof location {
+        Columns columns = 12;
+    }
 }
 
 message Label {
@@ -97,6 +106,9 @@ message LabelVariant {
     string provider = 9;
     string status = 10;
     repeated NameVariant trainingsets = 11;
+    oneof location {
+        Columns columns = 12;
+    }
 }
 
 message Provider {
@@ -169,13 +181,38 @@ message Source {
 message SourceVariant {
     string name = 1;
     string variant = 2;
-    string type = 3;
+    oneof definition {
+        Transformation transformation = 14;
+        PrimaryData primaryData = 15;
+    }
     string owner = 4;
     string description = 5;
     string provider = 6;
     string created = 7;
     string status = 8;
-    repeated NameVariant trainingsets = 9;
-    repeated NameVariant features = 10;
-    repeated NameVariant labels = 11;
+    string table = 9;
+    repeated NameVariant trainingsets = 10;
+    repeated NameVariant features = 11;
+    repeated NameVariant labels = 12;
+}
+
+message Transformation {
+    oneof type {
+        SQLTransformation SQLTransformation= 1;
+    }
+}
+
+message SQLTransformation {
+    string query = 1;
+    repeated NameVariant source = 2;
+}
+
+message PrimaryData {
+    oneof location {
+        PrimarySQLTable table = 1;
+    }
+}
+
+message PrimarySQLTable {
+    string name = 1;
 }

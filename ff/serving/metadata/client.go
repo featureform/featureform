@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"reflect"
 	"time"
 
 	pb "github.com/featureform/serving/metadata/proto"
@@ -170,6 +171,10 @@ func (client *Client) GetFeatureVariant(ctx context.Context, id NameVariant) (*F
 	return variants[0], nil
 }
 
+type FeaturePrimaryData interface {
+	isFeaturePrimaryData() bool
+}
+
 type FeatureDef struct {
 	Name        string
 	Variant     string
@@ -179,6 +184,34 @@ type FeatureDef struct {
 	Owner       string
 	Description string
 	Provider    string
+	Location    interface{}
+}
+
+type ResourceVariantColumns struct {
+	Entity string
+	Value  string
+	TS     string
+	Source string
+}
+
+func (c ResourceVariantColumns) SerializeFeatureColumns() *pb.FeatureVariant_Columns {
+	return &pb.FeatureVariant_Columns{
+		Columns: &pb.Columns{
+			Entity: c.Entity,
+			Value:  c.Value,
+			Ts:     c.TS,
+		},
+	}
+}
+
+func (c ResourceVariantColumns) SerializeLabelColumns() *pb.LabelVariant_Columns {
+	return &pb.LabelVariant_Columns{
+		Columns: &pb.Columns{
+			Entity: c.Entity,
+			Value:  c.Value,
+			Ts:     c.TS,
+		},
+	}
 }
 
 func (def FeatureDef) ResourceType() ResourceType {
@@ -196,6 +229,14 @@ func (client *Client) CreateFeatureVariant(ctx context.Context, def FeatureDef) 
 		Description: def.Description,
 		Status:      string(CREATED),
 		Provider:    def.Provider,
+	}
+	switch x := def.Location.(type) {
+	case ResourceVariantColumns:
+		serialized.Location = def.Location.(ResourceVariantColumns).SerializeFeatureColumns()
+	case nil:
+		return fmt.Errorf("FeatureDef Columns not set")
+	default:
+		return fmt.Errorf("FeatureDef Columns has unexpected type %T", x)
 	}
 	_, err := client.grpcConn.CreateFeatureVariant(ctx, serialized)
 	return err
@@ -279,6 +320,7 @@ type LabelDef struct {
 	Entity      string
 	Owner       string
 	Provider    string
+	Location    interface{}
 }
 
 func (def LabelDef) ResourceType() ResourceType {
@@ -296,6 +338,14 @@ func (client *Client) CreateLabelVariant(ctx context.Context, def LabelDef) erro
 		Owner:       def.Owner,
 		Status:      string(NO_STATUS),
 		Provider:    def.Provider,
+	}
+	switch x := def.Location.(type) {
+	case ResourceVariantColumns:
+		serialized.Location = def.Location.(ResourceVariantColumns).SerializeLabelColumns()
+	case nil:
+		return fmt.Errorf("LabelDef Primary not set")
+	default:
+		return fmt.Errorf("LabelDef Primary has unexpected type %T", x)
 	}
 	_, err := client.grpcConn.CreateLabelVariant(ctx, serialized)
 	return err
@@ -522,9 +572,91 @@ type SourceDef struct {
 	Name        string
 	Variant     string
 	Description string
-	Type        string
 	Owner       string
 	Provider    string
+	Definition  SourceType
+}
+
+type SourceType interface {
+	isSourceType()
+}
+
+func (t TransformationSource) isSourceType() {}
+func (t PrimaryDataSource) isSourceType()    {}
+
+func (t SQLTransformationType) isTransformationType() {}
+func (t SQLTable) isPrimaryData()                     {}
+
+type TransformationSource struct {
+	TransformationType TransformationType
+}
+
+type TransformationType interface {
+	isTransformationType()
+}
+
+type SQLTransformationType struct {
+	Query   string
+	Sources NameVariants
+}
+
+type PrimaryDataSource struct {
+	Location PrimaryDataLocationType
+}
+
+type PrimaryDataLocationType interface {
+	isPrimaryData()
+}
+
+type SQLTable struct {
+	Name string
+}
+
+type TransformationSourceDef struct {
+	Def interface{}
+}
+
+func (s TransformationSource) Serialize() (*pb.SourceVariant_Transformation, error) {
+	var transformation *pb.Transformation
+	switch x := s.TransformationType.(type) {
+	case SQLTransformationType:
+		transformation = &pb.Transformation{
+			Type: &pb.Transformation_SQLTransformation{
+				SQLTransformation: &pb.SQLTransformation{
+					Query:  s.TransformationType.(SQLTransformationType).Query,
+					Source: s.TransformationType.(SQLTransformationType).Sources.Serialize(),
+				},
+			},
+		}
+	case nil:
+		return nil, fmt.Errorf("TransformationSource Type not set")
+	default:
+		return nil, fmt.Errorf("TransformationSource Type has unexpected type %T", x)
+	}
+	return &pb.SourceVariant_Transformation{
+		Transformation: transformation,
+	}, nil
+}
+
+func (s PrimaryDataSource) Serialize() (*pb.SourceVariant_PrimaryData, error) {
+	var primaryData *pb.PrimaryData
+	switch x := s.Location.(type) {
+	case SQLTable:
+		primaryData = &pb.PrimaryData{
+			Location: &pb.PrimaryData_Table{
+				Table: &pb.PrimarySQLTable{
+					Name: s.Location.(SQLTable).Name,
+				},
+			},
+		}
+	case nil:
+		return nil, fmt.Errorf("PrimaryDataSource Type not set")
+	default:
+		return nil, fmt.Errorf("PrimaryDataSource Type has unexpected type %T", x)
+	}
+	return &pb.SourceVariant_PrimaryData{
+		PrimaryData: primaryData,
+	}, nil
 }
 
 func (def SourceDef) ResourceType() ResourceType {
@@ -536,12 +668,25 @@ func (client *Client) CreateSourceVariant(ctx context.Context, def SourceDef) er
 		Name:        def.Name,
 		Variant:     def.Variant,
 		Description: def.Description,
-		Type:        def.Type,
 		Owner:       def.Owner,
 		Status:      string(NO_STATUS),
 		Provider:    def.Provider,
 	}
-	_, err := client.grpcConn.CreateSourceVariant(ctx, serialized)
+	var err error
+	switch x := def.Definition.(type) {
+	case TransformationSource:
+		serialized.Definition, err = def.Definition.(TransformationSource).Serialize()
+	case PrimaryDataSource:
+		serialized.Definition, err = def.Definition.(PrimaryDataSource).Serialize()
+	case nil:
+		return fmt.Errorf("SourceDef Definition not set")
+	default:
+		return fmt.Errorf("SourceDef Definition has unexpected type %T", x)
+	}
+	if err != nil {
+		return err
+	}
+	_, err = client.grpcConn.CreateSourceVariant(ctx, serialized)
 	return err
 }
 
@@ -1116,6 +1261,25 @@ func (variant *FeatureVariant) Status() string {
 	return variant.serialized.GetStatus()
 }
 
+func (variant *FeatureVariant) Location() interface{} {
+	return variant.serialized.GetLocation()
+}
+
+func (variant *FeatureVariant) isTable() bool {
+	return reflect.TypeOf(variant.serialized.GetLocation()) == reflect.TypeOf(&pb.FeatureVariant_Columns{})
+}
+
+func (variant *FeatureVariant) LocationColumns() interface{} {
+	src := variant.serialized.GetColumns()
+	columns := ResourceVariantColumns{
+		Entity: src.Entity,
+		Value:  src.Value,
+		TS:     src.Ts,
+	}
+	return columns
+
+}
+
 type User struct {
 	serialized *pb.User
 	fetchTrainingSetsFns
@@ -1288,6 +1452,24 @@ func (variant *LabelVariant) Status() string {
 	return variant.serialized.GetStatus()
 }
 
+func (variant *LabelVariant) Location() interface{} {
+	return variant.serialized.GetLocation()
+}
+
+func (variant *LabelVariant) isTable() bool {
+	return reflect.TypeOf(variant.serialized.GetLocation()) == reflect.TypeOf(&pb.LabelVariant_Columns{})
+}
+
+func (variant *LabelVariant) LocationColumns() interface{} {
+	src := variant.serialized.GetColumns()
+	columns := ResourceVariantColumns{
+		Entity: src.Entity,
+		Value:  src.Value,
+		TS:     src.Ts,
+	}
+	return columns
+}
+
 type TrainingSet struct {
 	serialized *pb.TrainingSet
 	variantsFns
@@ -1408,8 +1590,8 @@ func (variant *SourceVariant) Description() string {
 	return variant.serialized.GetDescription()
 }
 
-func (variant *SourceVariant) Type() string {
-	return variant.serialized.GetType()
+func (variant *SourceVariant) Definition() interface{} {
+	return variant.serialized.GetDefinition()
 }
 
 func (variant *SourceVariant) Owner() string {
@@ -1418,6 +1600,54 @@ func (variant *SourceVariant) Owner() string {
 
 func (variant *SourceVariant) Status() string {
 	return variant.serialized.GetStatus()
+}
+
+func (variant *SourceVariant) isTransformation() bool {
+	return reflect.TypeOf(variant.serialized.GetDefinition()) == reflect.TypeOf(&pb.SourceVariant_Transformation{})
+}
+
+func (variant *SourceVariant) isSQLTransformation() bool {
+	if !variant.isTransformation() {
+		return false
+	}
+	return reflect.TypeOf(variant.serialized.GetTransformation().Type) == reflect.TypeOf(&pb.Transformation_SQLTransformation{})
+}
+
+func (variant *SourceVariant) SQLTransformationQuery() string {
+	if !variant.isSQLTransformation() {
+		return ""
+	}
+	return variant.serialized.GetTransformation().GetSQLTransformation().GetQuery()
+}
+
+func (variant *SourceVariant) SQLTransformationSources() []NameVariant {
+	if !variant.isSQLTransformation() {
+		return nil
+	}
+	nameVariants := variant.serialized.GetTransformation().GetSQLTransformation().GetSource()
+	var variants []NameVariant
+	for _, nv := range nameVariants {
+		variants = append(variants, NameVariant{Name: nv.Name, Variant: nv.Variant})
+	}
+	return variants
+}
+
+func (variant *SourceVariant) isPrimaryData() bool {
+	return reflect.TypeOf(variant.serialized.GetDefinition()) == reflect.TypeOf(&pb.SourceVariant_PrimaryData{})
+}
+
+func (variant *SourceVariant) isPrimaryDataSQLTable() bool {
+	if !variant.isPrimaryData() {
+		return false
+	}
+	return reflect.TypeOf(variant.serialized.GetPrimaryData().GetLocation()) == reflect.TypeOf(&pb.PrimaryData_Table{})
+}
+
+func (variant *SourceVariant) PrimaryDataSQLTableName() string {
+	if !variant.isPrimaryDataSQLTable() {
+		return ""
+	}
+	return variant.serialized.GetPrimaryData().GetTable().GetName()
 }
 
 type Entity struct {

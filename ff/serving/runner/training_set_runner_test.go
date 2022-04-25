@@ -14,7 +14,7 @@ type MockOfflineCreateTrainingSetFail struct {
 	provider.BaseProvider
 }
 
-func (m MockOfflineCreateTrainingSetFail) CreateResourceTable(provider.ResourceID, provider.SerializedTableSchema) (provider.OfflineTable, error) {
+func (m MockOfflineCreateTrainingSetFail) CreateResourceTable(provider.ResourceID, provider.TableSchema) (provider.OfflineTable, error) {
 	return nil, nil
 }
 func (m MockOfflineCreateTrainingSetFail) GetResourceTable(id provider.ResourceID) (provider.OfflineTable, error) {
@@ -33,6 +33,29 @@ func (m MockOfflineCreateTrainingSetFail) CreateTrainingSet(provider.TrainingSet
 	return fmt.Errorf("could not create training set")
 }
 func (m MockOfflineCreateTrainingSetFail) GetTrainingSet(id provider.ResourceID) (provider.TrainingSetIterator, error) {
+	return nil, nil
+}
+
+func (m MockOfflineCreateTrainingSetFail) CreatePrimaryTable(id provider.ResourceID, schema provider.TableSchema) (provider.PrimaryTable, error) {
+	return nil, nil
+}
+func (m MockOfflineCreateTrainingSetFail) GetPrimaryTable(id provider.ResourceID) (provider.PrimaryTable, error) {
+	return nil, nil
+}
+
+func (m MockOfflineCreateTrainingSetFail) RegisterResourceFromSourceTable(id provider.ResourceID, schema provider.ResourceSchema) (provider.OfflineTable, error) {
+	return nil, nil
+}
+
+func (m MockOfflineCreateTrainingSetFail) RegisterPrimaryFromSourceTable(id provider.ResourceID, sourceName string) (provider.PrimaryTable, error) {
+	return nil, nil
+}
+
+func (m MockOfflineCreateTrainingSetFail) CreateTransformation(config provider.TransformationConfig) error {
+	return nil
+}
+
+func (m MockOfflineCreateTrainingSetFail) GetTransformationTable(id provider.ResourceID) (provider.TransformationTable, error) {
 	return nil, nil
 }
 

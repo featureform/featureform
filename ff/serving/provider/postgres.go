@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	db "github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"strings"
@@ -19,30 +20,16 @@ import (
 type postgresColumnType string
 
 const (
-	PGInt    postgresColumnType = "integer"
-	PGFloat                     = "float8"
-	PGString                    = "varchar"
-	PGBool                      = "boolean"
+	pgInt       postgresColumnType = "integer"
+	pgBigInt                       = "bigint"
+	pgFloat                        = "float8"
+	pgString                       = "varchar"
+	pgBool                         = "boolean"
+	pgTimestamp                    = "timestamp with time zone"
 )
 
 type PostgresTableSchema struct {
 	ValueType
-}
-
-func (ps *PostgresTableSchema) Serialize() []byte {
-	schema, err := json.Marshal(ps)
-	if err != nil {
-		panic(err)
-	}
-	return schema
-}
-
-func (ps *PostgresTableSchema) Deserialize(schema SerializedTableSchema) error {
-	err := json.Unmarshal(schema, ps)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 type postgresOfflineStore struct {
@@ -111,6 +98,14 @@ func NewPostgresOfflineStore(pg PostgresConfig) (*postgresOfflineStore, error) {
 	}, nil
 }
 
+func (store *postgresOfflineStore) getPrimaryTableName(id ResourceID) string {
+	return fmt.Sprintf("featureform_primary_%s_%s", id.Name, id.Variant)
+}
+
+func (store *postgresOfflineStore) getTransformationName(id ResourceID) string {
+	return fmt.Sprintf("featureform_transformation_%s_%s", id.Name, id.Variant)
+}
+
 func (store *postgresOfflineStore) getResourceTableName(id ResourceID) string {
 	var idType string
 	if id.Type == Feature {
@@ -136,6 +131,10 @@ func (store *postgresOfflineStore) tableExists(id ResourceID) (bool, error) {
 		tableName = store.getResourceTableName(id)
 	} else if id.check(TrainingSet) == nil {
 		tableName = store.getTrainingSetName(id)
+	} else if id.check(Primary) == nil {
+		tableName = store.getPrimaryTableName(id)
+	} else if id.check(Transformation) == nil {
+		tableName = store.getTransformationName(id)
 	}
 	err := store.conn.QueryRow(context.Background(), "SELECT 1 FROM information_schema.tables WHERE table_name=$1", tableName).Scan(&n)
 	if err == db.ErrNoRows {
@@ -150,14 +149,94 @@ func (store *postgresOfflineStore) AsOfflineStore() (OfflineStore, error) {
 	return store, nil
 }
 
+func (store *postgresOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error) {
+	if err := id.check(Feature, Label); err != nil {
+		return nil, err
+	}
+	if exists, err := store.tableExists(id); err != nil {
+		return nil, err
+	} else if exists {
+		return nil, &TableAlreadyExists{id.Name, id.Variant}
+	}
+	if schema.Entity == "" || schema.Value == "" {
+		return nil, fmt.Errorf("non-empty entity and value columns required")
+	}
+	tableName := store.getResourceTableName(id)
+	if schema.TS == "" {
+		query := fmt.Sprintf("CREATE TABLE %s AS SELECT %s as entity, %s as value, null::TIMESTAMPTZ as ts FROM %s; ALTER TABLE %s ADD CONSTRAINT  %s  UNIQUE (entity, ts)", sanitize(tableName),
+			sanitize(schema.Entity), sanitize(schema.Value), sanitize(schema.SourceTable), sanitize(tableName), sanitize(uuid.NewString()))
+		if _, err := store.conn.Exec(context.Background(), query); err != nil {
+			fmt.Println("IF", err)
+			return nil, err
+		}
+		// Populates empty column with timestamp
+		update := fmt.Sprintf("UPDATE %s SET ts = $1", sanitize(tableName))
+		if _, err := store.conn.Exec(context.Background(), update, time.UnixMilli(0).UTC()); err != nil {
+			return nil, err
+		}
+	} else {
+		query := fmt.Sprintf("CREATE TABLE %s AS SELECT %s as entity, %s as value, %s as ts FROM %s; ALTER TABLE %s ADD CONSTRAINT  %s  UNIQUE (entity, ts)", sanitize(tableName),
+			sanitize(schema.Entity), sanitize(schema.Value), sanitize(schema.TS), sanitize(schema.SourceTable), sanitize(tableName), sanitize(uuid.NewString()))
+		if _, err := store.conn.Exec(context.Background(), query); err != nil {
+			fmt.Println(query)
+			fmt.Println("ELSE", err)
+			return nil, err
+		}
+	}
+
+	return &postgresOfflineTable{
+		conn: store.conn,
+		name: tableName,
+	}, nil
+}
+
+func (store *postgresOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error) {
+	if err := id.check(Primary); err != nil {
+		return nil, err
+	}
+	if exists, err := store.tableExists(id); err != nil {
+		return nil, err
+	} else if exists {
+		return nil, &TableAlreadyExists{id.Name, id.Variant}
+	}
+	tableName := store.getPrimaryTableName(id)
+	fmt.Println(tableName)
+	query := fmt.Sprintf("CREATE TABLE %s AS SELECT * FROM %s", sanitize(tableName), sanitize(sourceName))
+	if _, err := store.conn.Exec(context.Background(), query); err != nil {
+		return nil, err
+	}
+	return &postgresPrimaryTable{
+		conn: store.conn,
+		name: tableName,
+	}, nil
+}
+
+// CreatePrimaryTable creates a generic SQL table based on the given TableSchema.
+// It returns the table on success.
+func (store *postgresOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error) {
+	if err := id.check(Primary); err != nil {
+		return nil, err
+	}
+	if exists, err := store.tableExists(id); err != nil {
+		return nil, err
+	} else if exists {
+		return nil, &TableAlreadyExists{id.Name, id.Variant}
+	}
+	if len(schema.Columns) == 0 {
+		return nil, fmt.Errorf("cannot create primary table without columns")
+	}
+	tableName := store.getPrimaryTableName(id)
+	table, err := newPostgresPrimaryTable(store.conn, tableName, schema)
+	if err != nil {
+		return nil, err
+	}
+	return table, nil
+}
+
 // CreateResourceTable creates a new Resource table.
 // Returns a table if it does not already exist and stores the table ID in the resource index table.
 // Returns an error if the table already exists or if table is the wrong type.
-func (store *postgresOfflineStore) CreateResourceTable(id ResourceID, schema SerializedTableSchema) (OfflineTable, error) {
-	psSchema := PostgresTableSchema{}
-	if err := psSchema.Deserialize(schema); err != nil {
-		return nil, err
-	}
+func (store *postgresOfflineStore) CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error) {
 	if err := id.check(Feature, Label); err != nil {
 		return nil, err
 	}
@@ -168,11 +247,29 @@ func (store *postgresOfflineStore) CreateResourceTable(id ResourceID, schema Ser
 		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}
 	tableName := store.getResourceTableName(id)
-	table, err := newPostgresOfflineTable(store.conn, tableName, psSchema.ValueType)
+
+	var valueType ValueType
+	if valueIndex := store.getValueIndex(schema.Columns); valueIndex > 0 {
+		valueType = schema.Columns[valueIndex].ValueType
+	} else {
+		valueType = NilType
+	}
+	table, err := newPostgresOfflineTable(store.conn, tableName, valueType)
 	if err != nil {
 		return nil, err
 	}
 	return table, nil
+}
+
+// getValueIndex returns the index of the value column in the schema.
+// Returns -1 if an value column is not found
+func (store *postgresOfflineStore) getValueIndex(columns []TableColumn) int {
+	for i, column := range columns {
+		if column.Name == "value" {
+			return i
+		}
+	}
+	return -1
 }
 
 func (store *postgresOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, error) {
@@ -428,10 +525,22 @@ type postgresOfflineTable struct {
 	name string
 }
 
-// determineColumnType returns an acceptable Postgres column Type to use for the given value
+type postgresPrimaryTable struct {
+	conn   *pgxpool.Pool
+	name   string
+	schema TableSchema
+}
+
+type postgresTransformationTable struct {
+	conn   *pgxpool.Pool
+	name   string
+	schema TableSchema
+}
+
+// determineColumnType returns an acceptable Postgres column Type to use for the given value.
 func determineColumnType(valueType ValueType) (string, error) {
 	switch valueType {
-	case Int, Int8, Int16, Int32, Int64:
+	case Int, Int32, Int64:
 		return "INT", nil
 	case Float32, Float64:
 		return "FLOAT8", nil
@@ -439,6 +548,8 @@ func determineColumnType(valueType ValueType) (string, error) {
 		return "VARCHAR", nil
 	case Bool:
 		return "BOOLEAN", nil
+	case Timestamp:
+		return "TIMESTAMPTZ", nil
 	case NilType:
 		return "VARCHAR", nil
 	default:
@@ -480,22 +591,69 @@ func (table *postgresOfflineTable) Write(rec ResourceRecord) error {
 	return nil
 }
 
-func (table *postgresOfflineTable) resourceExists(rec ResourceRecord) (bool, error) {
-	rec = checkTimestamp(rec)
-	query := fmt.Sprintf("SELECT entity, value, ts FROM %s WHERE entity=$1 AND ts=$2 ", sanitize(table.name))
-	rows, err := table.conn.Query(context.Background(), query, rec.Entity, rec.TS)
-	defer rows.Close()
+func newPostgresPrimaryTable(conn *pgxpool.Pool, name string, schema TableSchema) (*postgresPrimaryTable, error) {
+	query, err := createPrimaryTableQuery(name, schema)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
-	rowCount := 0
-	for rows.Next() {
-		rowCount++
+	_, err = conn.Exec(context.Background(), query)
+	if err != nil {
+		return nil, err
 	}
-	if rowCount == 0 {
-		return false, nil
+	return &postgresPrimaryTable{
+		conn:   conn,
+		name:   name,
+		schema: schema,
+	}, nil
+}
+
+// createPrimaryTableQuery creates a query for table creation based on the
+// specified TableSchema. It iterates through the table schema and builds the SQL column definitions.
+// Returns the query if successful. Returns an error if there is an invalid column type.
+func createPrimaryTableQuery(name string, schema TableSchema) (string, error) {
+	columns := make([]string, 0)
+	for _, column := range schema.Columns {
+		columnType, err := determineColumnType(column.ValueType)
+		if err != nil {
+			return "", err
+		}
+		columns = append(columns, fmt.Sprintf("%s %s", column.Name, columnType))
 	}
-	return true, nil
+	columnString := strings.Join(columns, ", ")
+	return fmt.Sprintf("CREATE TABLE %s ( %s )", sanitize(name), columnString), nil
+}
+
+func (table *postgresPrimaryTable) Write(rec GenericRecord) error {
+	tb := sanitize(table.name)
+	columns := table.getColumnNameString()
+	placeholder := table.createValuePlaceholderString()
+	upsertQuery := fmt.Sprintf(""+
+		"INSERT INTO %s ( %s ) "+
+		"VALUES ( %s ) ", tb, columns, placeholder)
+	if _, err := table.conn.Exec(context.Background(), upsertQuery, rec...); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (table *postgresPrimaryTable) GetName() string {
+	return table.name
+}
+func (table *postgresPrimaryTable) createValuePlaceholderString() string {
+	placeholders := make([]string, 0)
+	for i := range table.schema.Columns {
+		placeholders = append(placeholders, fmt.Sprintf("$%d", i+1))
+	}
+	return strings.Join(placeholders, ", ")
+}
+
+func (table *postgresPrimaryTable) getColumnNameString() string {
+	columns := make([]string, 0)
+	for _, column := range table.schema.Columns {
+		columns = append(columns, column.Name)
+	}
+	return strings.Join(columns, ", ")
 }
 
 type postgresMaterialization struct {
@@ -594,16 +752,265 @@ func (iter *postgresFeatureIterator) Err() error {
 
 // castTableItemType returns the value casted as its original type
 func castPostgresTableItemType(v interface{}, t postgresColumnType) interface{} {
+	if v == nil {
+		return v
+	}
 	switch t {
-	case PGInt:
+	case pgInt:
 		return int(v.(int32))
-	case PGFloat:
+	case pgBigInt:
+		return int(v.(int64))
+	case pgFloat:
 		return v.(float64)
-	case PGString:
+	case pgString:
 		return v.(string)
-	case PGBool:
+	case pgBool:
 		return v.(bool)
+	case pgTimestamp:
+		return v.(time.Time).UTC()
 	default:
 		return v
 	}
+}
+
+// CreateTransformation starts a transformation query that saves into the specified output table.
+// If a generic query is specified, the output is stored back into a new Primary Table.
+// If a Feature or Label query is specified, it stores the output into a Feature or Label
+// Resource table and maps the columns to fit the Label or Feature table schema. It also
+// adds a unique constraint to make it possible to materialize the Label or Feature.
+func (store *postgresOfflineStore) CreateTransformation(config TransformationConfig) error {
+	name, err := store.createTransformationName(config.TargetTableID)
+	if err != nil {
+		return err
+	}
+
+	query := fmt.Sprintf("CREATE TABLE %s AS %s ", sanitize(name), config.Query)
+
+	if _, err := store.conn.Exec(context.Background(), query); err != nil {
+		return SQLError{err}
+	}
+	return nil
+}
+
+func (store *postgresOfflineStore) createTransformationName(id ResourceID) (string, error) {
+	switch id.Type {
+	case Label, Feature:
+		return store.getResourceTableName(id), nil
+	case Transformation:
+		return store.getTransformationName(id), nil
+	case TrainingSet:
+		return "", TransformationTypeError{"Invalid Transformation Type: Training Set"}
+	case Primary:
+		return "", TransformationTypeError{"Invalid Transformation Type: Primary"}
+	default:
+		return "", TransformationTypeError{"Invalid Transformation Type"}
+	}
+}
+
+// mapColumns maps the primary table columns to fit a Label or Feature table.
+// The mapping must contain an entity, value, and ts column.
+func mapColumns(columns []ColumnMapping, query string) (string, error) {
+	if len(columns) != 3 {
+		return "", errors.New(fmt.Sprintf("was expecting 3 columns from ColumnMapping, received %d", len(columns)))
+	}
+	var entity, value, ts string
+	for _, column := range columns {
+		if column.resourceColumn == Entity {
+			entity = column.sourceColumn
+		} else if column.resourceColumn == Value {
+			value = column.sourceColumn
+		} else if column.resourceColumn == TS {
+			ts = column.sourceColumn
+		}
+	}
+	if entity == "" {
+		return "", errors.New("missing entity column")
+	}
+	if value == "" {
+		return "", errors.New("missing entity column")
+	}
+	if ts == "" {
+		return "", errors.New("missing entity column")
+	}
+	return fmt.Sprintf("( SELECT %s as entity, %s as value, %s as ts FROM ( %s )t  )", entity, value, ts, query), nil
+}
+
+func (store *postgresOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error) {
+	name := store.getPrimaryTableName(id)
+
+	if exists, err := store.tableExists(id); err != nil {
+		return nil, err
+	} else if !exists {
+		return nil, &TableNotFound{name, id.Variant}
+	}
+
+	rows, err := store.conn.Query(
+		context.Background(),
+		"SELECT column_name FROM information_schema.columns WHERE table_name = $1 order by ordinal_position",
+		name)
+	defer rows.Close()
+	if err != nil {
+		return nil, err
+	}
+	columnNames := make([]TableColumn, 0)
+	for rows.Next() {
+		var column string
+		if err := rows.Scan(&column); err != nil {
+			return nil, err
+		}
+		columnNames = append(columnNames, TableColumn{Name: column})
+	}
+	return &postgresPrimaryTable{
+		conn: store.conn,
+		name: name,
+		schema: TableSchema{
+			Columns: columnNames,
+		},
+	}, nil
+}
+
+func (store *postgresOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
+	name := store.getTransformationName(id)
+
+	if exists, err := store.tableExists(id); err != nil {
+		return nil, err
+	} else if !exists {
+		return nil, &TableNotFound{name, id.Variant}
+	}
+
+	rows, err := store.conn.Query(
+		context.Background(),
+		"SELECT column_name FROM information_schema.columns WHERE table_name = $1 order by ordinal_position",
+		name)
+	defer rows.Close()
+	if err != nil {
+		return nil, err
+	}
+	columnNames := make([]TableColumn, 0)
+	for rows.Next() {
+		var column string
+		if err := rows.Scan(&column); err != nil {
+			return nil, err
+		}
+		columnNames = append(columnNames, TableColumn{Name: column})
+	}
+	// Transformation table is an extension of Primary Table
+	return &postgresPrimaryTable{
+		conn: store.conn,
+		name: name,
+		schema: TableSchema{
+			Columns: columnNames,
+		},
+	}, nil
+}
+
+// IterateSegment returns an iterator for the first n elements in a table
+func (pt *postgresPrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) {
+	rows, err := pt.conn.Query(
+		context.Background(),
+		"SELECT column_name FROM information_schema.columns WHERE table_name = $1 order by ordinal_position",
+		pt.name)
+	defer rows.Close()
+	if err != nil {
+		return nil, err
+	}
+	columnNames := make([]string, 0)
+	for rows.Next() {
+		var column string
+		if err := rows.Scan(&column); err != nil {
+			return nil, err
+		}
+		columnNames = append(columnNames, sanitize(column))
+	}
+	columns := strings.Join(columnNames[:], ", ")
+	query := fmt.Sprintf("SELECT %s FROM %s LIMIT $1", columns, sanitize(pt.name))
+	rows, err = pt.conn.Query(context.Background(), query, n)
+	if err != nil {
+		return nil, err
+	}
+	colTypes, err := pt.getValueColumnTypes(pt.name)
+	if err != nil {
+		return nil, err
+	}
+	return newPostgresGenericTableIterator(rows, colTypes, columnNames), nil
+}
+
+func (pt *postgresPrimaryTable) NumRows() (int64, error) {
+	n := int64(0)
+	query := fmt.Sprintf("SELECT COUNT(*) FROM %s", sanitize(pt.name))
+	rows := pt.conn.QueryRow(context.Background(), query)
+	err := rows.Scan(&n)
+	if err != nil {
+		return 0, err
+	}
+	return n, nil
+}
+
+type postgresGenericTableIterator struct {
+	rows          db.Rows
+	currentValues GenericRecord
+	err           error
+	columnTypes   []postgresColumnType
+	columnNames   []string
+}
+
+func newPostgresGenericTableIterator(rows db.Rows, columnTypes []postgresColumnType, columnNames []string) GenericTableIterator {
+	return &postgresGenericTableIterator{
+		rows:          rows,
+		currentValues: nil,
+		err:           nil,
+		columnTypes:   columnTypes,
+		columnNames:   columnNames,
+	}
+}
+
+func (it *postgresGenericTableIterator) Next() bool {
+	if !it.rows.Next() {
+		it.rows.Close()
+		return false
+	}
+	values, err := it.rows.Values()
+	if err != nil {
+		it.rows.Close()
+		it.err = err
+		return false
+	}
+	currentValues := make([]interface{}, len(values))
+	for i, value := range values {
+		currentValues[i] = castPostgresTableItemType(value, it.columnTypes[i])
+	}
+	it.currentValues = currentValues
+	return true
+}
+
+func (it *postgresGenericTableIterator) Values() GenericRecord {
+	return it.currentValues
+}
+
+func (it *postgresGenericTableIterator) Columns() []string {
+	return it.columnNames
+}
+
+func (it *postgresGenericTableIterator) Err() error {
+	return it.err
+}
+
+func (pt *postgresPrimaryTable) getValueColumnTypes(table string) ([]postgresColumnType, error) {
+	rows, err := pt.conn.Query(context.Background(),
+		"select data_type from (select column_name, data_type from information_schema.columns where table_name = $1 order by ordinal_position) t",
+		table)
+	if err != nil {
+		return nil, err
+	}
+	colTypes := make([]postgresColumnType, 0)
+	for rows.Next() {
+		if types, err := rows.Values(); err != nil {
+			return nil, err
+		} else {
+			for _, t := range types {
+				colTypes = append(colTypes, postgresColumnType(t.(string)))
+			}
+		}
+	}
+	return colTypes, nil
 }

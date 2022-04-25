@@ -18,7 +18,6 @@ import (
 	// "go.etcd.io/etcd/client/v3/concurrency"
 )
 
-<<<<<<< HEAD
 var testOfflineTableValues = [...]provider.ResourceRecord{
 	provider.ResourceRecord{Entity: "a", Value: 1, TS: time.UnixMilli(0).UTC()},
 	provider.ResourceRecord{Entity: "b", Value: 2, TS: time.UnixMilli(0).UTC()},
@@ -27,8 +26,6 @@ var testOfflineTableValues = [...]provider.ResourceRecord{
 	provider.ResourceRecord{Entity: "e", Value: 5, TS: time.UnixMilli(0).UTC()},
 }
 
-=======
->>>>>>> 94703258b0aeec9e1c06bfea8e33af0de09554d0
 func setupMetadataServer() error {
 	logger := zap.NewExample().Sugar()
 	addr := ":8080"

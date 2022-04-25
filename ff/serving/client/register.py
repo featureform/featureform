@@ -2,11 +2,21 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-from resources import ResourceState, Provider, RedisConfig, PostgresConfig, SnowflakeConfig, User, Location, Source, PrimaryData, SQLTable, SQLTransformation
-from typing import Tuple, Callable
+from resources import ResourceState, Provider, RedisConfig, PostgresConfig, SnowflakeConfig, User, Location, Source, PrimaryData, SQLTable, SQLTransformation, Entity
+from typing import Tuple, Callable, TypedDict, List
 from typeguard import typechecked
 
 NameVariant = Tuple[str, str]
+
+
+class EntityRegistrar:
+
+    def __init__(self, registrar, entity):
+        self.__registrar = registrar
+        self.__entity = entity
+
+    def name() -> str:
+        return self.__entity.name
 
 
 class UserRegistrar:
@@ -64,6 +74,16 @@ class OfflineSQLProvider(OfflineProvider):
                                                    description=description)
 
 
+class OnlineProvider:
+
+    def __init__(self, registrar, provider):
+        self.__registrar = registrar
+        self.__provider = provider
+
+    def name(self) -> str:
+        return self.__provider.name
+
+
 class SQLTransformationDecorator:
 
     def __init__(self,
@@ -102,6 +122,22 @@ class SQLTransformationDecorator:
         )
 
 
+class SourceRegistrar:
+
+    def __init__(self, registrar, source):
+        self.__registrar = registrar
+        self.__source = source
+
+    def id() -> NameVariant:
+        return (self.__source.name, self.__source.variant)
+
+
+class ColumnMapping(TypedDict):
+    name: str
+    variant: str
+    column: str
+
+
 class Registrar:
 
     def __init__(self):
@@ -135,6 +171,7 @@ class Registrar:
                             team=team,
                             config=config)
         self.__state.add(provider)
+        return OnlineProvider(self, provider)
 
     def register_snowflake(
         self,
@@ -204,6 +241,7 @@ class Registrar:
                         provider=provider,
                         description=description)
         self.__state.add(source)
+        return SourceRegistrar(self, source)
 
     def register_sql_transformation(self,
                                     name: str,
@@ -218,22 +256,22 @@ class Registrar:
             owner = self.default_user()
         if not isinstance(provider, str):
             provider = provider.name()
-        self.__state.add(
-            Source(
-                name=name,
-                variant=variant,
-                definition=SQLTransformation(query),
-                owner=owner,
-                provider=provider,
-                description=description,
-            ))
+        source = Source(
+            name=name,
+            variant=variant,
+            definition=SQLTransformation(query),
+            owner=owner,
+            provider=provider,
+            description=description,
+        )
+        self.__state.add(source)
+        return SourceRegistrar(self, source)
 
     def sql_transformation(self,
                            variant: str,
                            owner: str | UserRegistrar,
                            provider: str | OfflineProvider,
                            name: str = "",
-                           query: str = "",
                            description: str = ""):
         if not isinstance(owner, str):
             owner = owner.name()
@@ -256,6 +294,24 @@ class Registrar:
             decorator = self.__decorators.pop()
             self.__state.add(decorator.to_source())
         return self.__state
+
+    def register_entity(self, name: str, description: str = ""):
+        entity = Entity(name=name, description=description)
+        self.__state.add(entity)
+        return EntityRegistrar(self, entity)
+
+    def register_resources(
+        self,
+        name: str,
+        source: NameVariant | SourceRegistrar | SQLTransformationDecorator,
+        entity: str | EntityRegistrar,
+        entity_column: str,
+        features: List[ColumnMapping],
+        labels: List[ColumnMapping],
+        timestamp_column: str,
+        inference_store: str | OnlineProvider,
+    ):
+        pass
 
 
 global_registrar = Registrar()

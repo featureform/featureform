@@ -1,7 +1,7 @@
 import pytest
 
 from register import Registrar
-from resources import SQLTable, SQLTransformation, Source, User, PrimaryData
+from resources import SQLTable, SQLTransformation, Source, User, PrimaryData, Entity
 
 
 @pytest.fixture
@@ -289,3 +289,23 @@ def test_register_sql_transformation_default_owner(registrar):
         provider=postgres,
         description="doc string",
     )
+
+
+@pytest.mark.parametrize("args, expected", [
+    ({
+        "name": "user",
+    }, Entity(
+        name="user",
+        description="",
+    )),
+    ({
+        "name": "user",
+        "description": "desc",
+    }, Entity(
+        name="user",
+        description="desc",
+    )),
+])
+def test_register_entity(registrar, args, expected):
+    registrar.register_entity(**args)
+    assert registrar.state().sorted_list() == [expected]

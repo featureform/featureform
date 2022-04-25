@@ -19,6 +19,7 @@ type MaterializeRunner struct {
 	Online  provider.OnlineStore
 	Offline provider.OfflineStore
 	ID      provider.ResourceID
+	VType provider.ValueType
 	Cloud   JobCloud
 }
 
@@ -64,6 +65,12 @@ func (m MaterializeRunner) Run() (CompletionWatcher, error) {
 	if err != nil {
 		return nil, err
 	}
+	_, err = m.Online.CreateTable(m.ID.Name, m.ID.Variant, m.VType)
+	_, exists := err.(*provider.TableAlreadyExists)
+	if err != nil && !exists {
+		return nil, err
+	}
+	
 	chunkSize := MAXIMUM_CHUNK_ROWS
 	var numChunks int64
 	numRows, err := materialization.NumRows()

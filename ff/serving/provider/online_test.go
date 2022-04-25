@@ -79,7 +79,7 @@ func randomFeatureVariant() (string, string) {
 
 func testCreateGetTable(t *testing.T, store OnlineStore) {
 	mockFeature, mockVariant := randomFeatureVariant()
-	if tab, err := store.CreateTable(mockFeature, mockVariant); tab == nil || err != nil {
+	if tab, err := store.CreateTable(mockFeature, mockVariant, String); tab == nil || err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
 	if tab, err := store.GetTable(mockFeature, mockVariant); tab == nil || err != nil {
@@ -89,10 +89,10 @@ func testCreateGetTable(t *testing.T, store OnlineStore) {
 
 func testTableAlreadyExists(t *testing.T, store OnlineStore) {
 	mockFeature, mockVariant := randomFeatureVariant()
-	if _, err := store.CreateTable(mockFeature, mockVariant); err != nil {
+	if _, err := store.CreateTable(mockFeature, mockVariant, String); err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
-	if _, err := store.CreateTable(mockFeature, mockVariant); err == nil {
+	if _, err := store.CreateTable(mockFeature, mockVariant, String); err == nil {
 		t.Fatalf("Succeeded in creating table twice")
 	} else if casted, valid := err.(*TableAlreadyExists); !valid {
 		t.Fatalf("Wrong error for table already exists: %T", err)
@@ -115,7 +115,7 @@ func testTableNotFound(t *testing.T, store OnlineStore) {
 func testSetGetEntity(t *testing.T, store OnlineStore) {
 	mockFeature, mockVariant := randomFeatureVariant()
 	entity, val := "e", "val"
-	tab, err := store.CreateTable(mockFeature, mockVariant)
+	tab, err := store.CreateTable(mockFeature, mockVariant, String)
 	if err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
@@ -134,7 +134,7 @@ func testSetGetEntity(t *testing.T, store OnlineStore) {
 func testEntityNotFound(t *testing.T, store OnlineStore) {
 	mockFeature, mockVariant := uuid.NewString(), "v"
 	entity := "e"
-	tab, err := store.CreateTable(mockFeature, mockVariant)
+	tab, err := store.CreateTable(mockFeature, mockVariant, String)
 	if err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}

@@ -100,6 +100,10 @@ func NewPostgresOfflineStore(pg PostgresConfig) (*postgresOfflineStore, error) {
 	return &postgresOfflineStore{
 		conn: conn,
 		ctx:  ctx,
+		BaseProvider: BaseProvider{
+			ProviderType:   PostgresOffline,
+			ProviderConfig: pg.Serialize(),
+		},
 	}, nil
 }
 

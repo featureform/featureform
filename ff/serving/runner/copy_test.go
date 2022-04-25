@@ -341,7 +341,7 @@ func (store *BrokenGetTableOnlineStore) AsOnlineStore() (provider.OnlineStore, e
 func (b BrokenGetTableOnlineStore) GetTable(feature, variant string) (provider.OnlineStoreTable, error) {
 	return nil, errors.New("failed to get table")
 }
-func (b BrokenGetTableOnlineStore) CreateTable(feature, variant string) (provider.OnlineStoreTable, error) {
+func (b BrokenGetTableOnlineStore) CreateTable(feature, variant string, valueType provider.ValueType) (provider.OnlineStoreTable, error) {
 	return nil, nil
 }
 
@@ -619,7 +619,7 @@ func (m MockOnlineStore) GetTable(feature, variant string) (provider.OnlineStore
 	return &MockOnlineStoreTable{}, nil
 }
 
-func (m MockOnlineStore) CreateTable(feature, variant string) (provider.OnlineStoreTable, error) {
+func (m MockOnlineStore) CreateTable(feature, variant string, valueType provider.ValueType) (provider.OnlineStoreTable, error) {
 	return &MockOnlineStoreTable{}, nil
 }
 
@@ -725,7 +725,7 @@ func TestChunkRunnerFactory(t *testing.T) {
 	resourceID := provider.ResourceID{
 		"test_name", "test_variant", provider.Feature,
 	}
-	if _, err := online.CreateTable(resourceID.Name, resourceID.Variant); err != nil {
+	if _, err := online.CreateTable(resourceID.Name, resourceID.Variant, provider.String); err != nil {
 		t.Fatalf("Failed to create online resource table: %v", err)
 	}
 	if _, err := offline.CreateResourceTable(resourceID, provider.SerializedTableSchema{}); err != nil {

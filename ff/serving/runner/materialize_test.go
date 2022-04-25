@@ -42,6 +42,7 @@ func TestMockMaterializeRunner(t *testing.T) {
 			Variant: "test",
 			Type:    provider.Feature,
 		},
+		VType: provider.String,
 		Cloud: LocalMaterializeRunner,
 	}
 	delete(factoryMap, string(COPY_TO_ONLINE))

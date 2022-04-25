@@ -182,7 +182,7 @@ func (client *Client) CreateFeatureVariant(ctx context.Context, def FeatureDef) 
 		Entity:      def.Entity,
 		Owner:       def.Owner,
 		Description: def.Description,
-		Status:      string(NO_STATUS),
+		Status:      string(CREATED),
 		Provider:    def.Provider,
 	}
 	_, err := client.grpcConn.CreateFeatureVariant(ctx, serialized)

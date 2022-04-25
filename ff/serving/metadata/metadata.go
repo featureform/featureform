@@ -62,7 +62,10 @@ var parentMapping = map[ResourceType]ResourceType{
 }
 
 func (serv *MetadataServer) needsJob(res Resource) bool {
-	if res.ID().Type == TRAINING_SET_VARIANT || res.ID().Type == FEATURE_VARIANT {
+	if res.ID().Type == TRAINING_SET_VARIANT ||
+		res.ID().Type == FEATURE_VARIANT ||
+		res.ID().Type == TRANSFORMATION_VARIANT ||
+		res.ID().Type == SOURCE_VARIANT {
 		return true
 	}
 	return false

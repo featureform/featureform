@@ -4,22 +4,29 @@ import (
 	"context"
 	"github.com/google/uuid"
 	//"os"
-	"testing"
-	"time"
 	"fmt"
 	"reflect"
+	"testing"
+	"time"
 
 	"go.uber.org/zap"
-	"golang.org/x/sync/errgroup"
 
 	"github.com/featureform/serving/metadata"
 	provider "github.com/featureform/serving/provider"
 	runner "github.com/featureform/serving/runner"
 	clientv3 "go.etcd.io/etcd/client/v3"
-	"go.etcd.io/etcd/client/v3/concurrency"
+	// "go.etcd.io/etcd/client/v3/concurrency"
 )
 
-func setupMetadataServer() ( error) {
+var testOfflineTableValues = [...]provider.ResourceRecord{
+	provider.ResourceRecord{Entity: "a", Value: 1, TS: time.UnixMilli(0).UTC()},
+	provider.ResourceRecord{Entity: "b", Value: 2, TS: time.UnixMilli(0).UTC()},
+	provider.ResourceRecord{Entity: "c", Value: 3, TS: time.UnixMilli(0).UTC()},
+	provider.ResourceRecord{Entity: "d", Value: 4, TS: time.UnixMilli(0).UTC()},
+	provider.ResourceRecord{Entity: "e", Value: 5, TS: time.UnixMilli(0).UTC()},
+}
+
+func setupMetadataServer() error {
 	logger := zap.NewExample().Sugar()
 	addr := ":8080"
 	storageProvider := metadata.EtcdStorageProvider{
@@ -30,8 +37,8 @@ func setupMetadataServer() ( error) {
 		},
 	}
 	config := &metadata.Config{
-		Logger:  logger,
-		Address: addr,
+		Logger:          logger,
+		Address:         addr,
 		StorageProvider: storageProvider,
 	}
 	server, err := metadata.NewMetadataServer(config)
@@ -55,24 +62,23 @@ func TestCoordinatorCalls(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not set up metadata client: %v", err)
 	}
-	g := new(errgroup.Group)
-	g.Go(testCoordinatorMaterializeFeature)
-	g.Go(testCoordinatorTrainingSet)
-	g.Go(testCoordinatorCreateTransformation)
-	if err := g.Wait(); err != nil {
-		t.Fatalf("Coordinator failed to complete jobs: %v", err)
+	if err := testCoordinatorMaterializeFeature(); err != nil {
+		t.Fatalf("coordinator could not materialize feature: %v", err)
 	}
+	if err := testCoordinatorTrainingSet(); err != nil {
+		t.Fatalf("coordinator could not create training set: %v", err)
+	}
+	//g.Go(testCoordinatorCreateTransformation)
 }
 
-func createTransformationWithProvider(client *metadata.Client, config provider.SerializedConfig, tsName string) {
+// func createTransformationWithProvider(client *metadata.Client, config provider.SerializedConfig, tsName string) {
 
-}
+// }
 
-func materializeFeatureWithProvider(client *metadata.Client, offlineConfig provider.SerializedConfig, onlineConfig provider.SerializedConfig, featureName string) error {
+func materializeFeatureWithProvider(client *metadata.Client, offlineConfig provider.SerializedConfig, onlineConfig provider.SerializedConfig, featureName string, sourceName string) error {
 	offlineProviderName := uuid.New().String()
 	onlineProviderName := uuid.New().String()
 	userName := uuid.New().String()
-	sourceName := uuid.New().String()
 	entityName := uuid.New().String()
 	defs := []metadata.ResourceDef{
 		metadata.UserDef{
@@ -110,7 +116,7 @@ func materializeFeatureWithProvider(client *metadata.Client, offlineConfig provi
 			Name:        featureName,
 			Variant:     "",
 			Source:      metadata.NameVariant{sourceName, ""},
-			Type:        "int",
+			Type:        string(provider.Int),
 			Entity:      entityName,
 			Owner:       userName,
 			Description: "",
@@ -156,7 +162,7 @@ func createTrainingSetWithProvider(client *metadata.Client, config provider.Seri
 			Name:        labelName,
 			Variant:     "",
 			Description: "",
-			Type:        "int",
+			Type:        string(provider.Int),
 			Source:      metadata.NameVariant{sourceName, ""},
 			Entity:      entityName,
 			Owner:       userName,
@@ -166,7 +172,7 @@ func createTrainingSetWithProvider(client *metadata.Client, config provider.Seri
 			Name:        featureName,
 			Variant:     "",
 			Source:      metadata.NameVariant{sourceName, ""},
-			Type:        "int",
+			Type:        string(provider.Int),
 			Entity:      entityName,
 			Owner:       userName,
 			Description: "",
@@ -188,9 +194,10 @@ func createTrainingSetWithProvider(client *metadata.Client, config provider.Seri
 	return nil
 }
 
-func testCoordinatorCreateTransformation() error {
-	return nil
-}
+// func testCoordinatorCreateTransformation() error {
+//it's morphin time
+// 	return nil
+// }
 
 func testCoordinatorTrainingSet() error {
 	if err := runner.RegisterFactory(string(runner.CREATE_TRAINING_SET), runner.TrainingSetRunnerFactory); err != nil {
@@ -209,12 +216,9 @@ func testCoordinatorTrainingSet() error {
 	var postgresConfig = provider.PostgresConfig{
 		Host:     "localhost",
 		Port:     "5432",
-		Database: "testdatabase",
-		Username: "postgres",
-		Password: "Fdhfjdhfj9",
-		// Database: os.Getenv("POSTGRES_DB"),
-		// Username: os.Getenv("POSTGRES_USER"),
-		// Password: os.Getenv("POSTGRES_PASSWORD"),
+		Database: os.Getenv("POSTGRES_DB"),
+		Username: os.Getenv("POSTGRES_USER"),
+		Password: os.Getenv("POSTGRES_PASSWORD"),
 	}
 	featureName := uuid.New().String()
 	labelName := uuid.New().String()
@@ -236,16 +240,20 @@ func testCoordinatorTrainingSet() error {
 	if err != nil {
 		return fmt.Errorf("could not create feature table: %v", err)
 	}
-	if err := featureTable.Write(provider.ResourceRecord{Entity: "a", Value: 1, TS: time.UnixMilli(0).UTC()}); err != nil {
-		return fmt.Errorf("could not write to feature table")
+	for _, value := range testOfflineTableValues {
+		if err := featureTable.Write(value); err != nil {
+			return fmt.Errorf("could not write to offline feature table")
+		}
 	}
 	offline_label := provider.ResourceID{Name: labelName, Variant: "", Type: provider.Label}
 	labelTable, err := my_offline.CreateResourceTable(offline_label, serializedPostgresSchema)
 	if err != nil {
 		return fmt.Errorf("could not create label table: %v", err)
 	}
-	if err := labelTable.Write(provider.ResourceRecord{Entity: "a", Value: 1, TS: time.UnixMilli(0).UTC()}); err != nil {
-		return fmt.Errorf("could not write to label table")
+	for _, value := range testOfflineTableValues {
+		if err := labelTable.Write(value); err != nil {
+			return fmt.Errorf("could not write to offline label table")
+		}
 	}
 	if err := createTrainingSetWithProvider(client, serialPGConfig, featureName, labelName, tsName); err != nil {
 		return fmt.Errorf("could not create training set %v", err)
@@ -264,11 +272,11 @@ func testCoordinatorTrainingSet() error {
 	if err != nil {
 		return fmt.Errorf("Failed to set up coordinator")
 	}
-	s, err := concurrency.NewSession(cli, concurrency.WithTTL(10))
-	if err != nil {
-		return fmt.Errorf("could not create new session")
-	}
-	go coord.executeJob(metadata.GetJobKey(tsID), s)
+	go func() {
+		if err := coord.WatchForNewJobs(); err != nil {
+			panic(err)
+		}
+	}()
 	for has, _ := coord.hasJob(tsID); has; has, _ = coord.hasJob(tsID) {
 		time.Sleep(1 * time.Second)
 	}
@@ -284,14 +292,15 @@ func testCoordinatorTrainingSet() error {
 	if err != nil {
 		return fmt.Errorf("Coordinator did not create training set")
 	}
-	tsIterator.Next()
-	retrievedFeatures := tsIterator.Features()
-	retrievedLabel := tsIterator.Label()
-	if !reflect.DeepEqual(retrievedFeatures,[]interface{}{1}) {
-		return fmt.Errorf("Features not copied into training set")
-	}
-	if !reflect.DeepEqual(retrievedLabel,1) {
-		return fmt.Errorf("Label not copied into training set")
+	for i := 0; tsIterator.Next(); i++ {
+		retrievedFeatures := tsIterator.Features()
+		retrievedLabel := tsIterator.Label()
+		if !reflect.DeepEqual(retrievedFeatures[0], testOfflineTableValues[i].Value) {
+			return fmt.Errorf("Features not copied into training set")
+		}
+		if !reflect.DeepEqual(retrievedLabel, testOfflineTableValues[i].Value) {
+			return fmt.Errorf("Label not copied into training set")
+		}
 	}
 	return nil
 }
@@ -301,7 +310,7 @@ func testCoordinatorMaterializeFeature() error {
 		return fmt.Errorf("Failed to register training set runner factory: %v", err)
 	}
 	logger := zap.NewExample().Sugar()
-	_, err := metadata.NewClient("localhost:8080", logger)
+	client, err := metadata.NewClient("localhost:8080", logger)
 	if err != nil {
 		return fmt.Errorf("Failed to connect: %v", err)
 	}
@@ -313,25 +322,21 @@ func testCoordinatorMaterializeFeature() error {
 	var postgresConfig = provider.PostgresConfig{
 		Host:     "localhost",
 		Port:     "5432",
-		Database: "testdatabase",
-		Username: "postgres",
-		Password: "Fdhfjdhfj9",
-		// Database: os.Getenv("POSTGRES_DB"),
-		// Username: os.Getenv("POSTGRES_USER"),
-		// Password: os.Getenv("POSTGRES_PASSWORD"),
+		Database: os.Getenv("POSTGRES_DB"),
+		Username: os.Getenv("POSTGRES_USER"),
+		Password: os.Getenv("POSTGRES_PASSWORD"),
 	}
 	serialPGConfig := postgresConfig.Serialize()
-	my_provider, err := provider.Get(provider.PostgresOffline, serialPGConfig)
+	offlineProvider, err := provider.Get(provider.PostgresOffline, serialPGConfig)
 	if err != nil {
 		return fmt.Errorf("could not get offline provider: %v", err)
 	}
-	_, err = my_provider.AsOfflineStore()
+	offlineStore, err := offlineProvider.AsOfflineStore()
 	if err != nil {
 		return fmt.Errorf("could not get provider as offline store: %v", err)
 	}
-	//redisPort := os.Getenv("REDIS_PORT")
-	redisPort := "6379"
-	redisHost := "localhost" //127.0.0.1?
+	redisPort := os.Getenv("REDIS_PORT")
+	redisHost := "localhost"
 	liveAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
 	redisConfig := &provider.RedisConfig{
 		Addr: liveAddr,
@@ -341,14 +346,70 @@ func testCoordinatorMaterializeFeature() error {
 	if err != nil {
 		return fmt.Errorf("could not get online provider: %v", err)
 	}
-	_, err = p.AsOnlineStore()
+	onlineStore, err := p.AsOnlineStore()
 	if err != nil {
 		return fmt.Errorf("could not get provider as online store")
 	}
-	//write shit to offline table
-	//register the feature with online store
-	//it should materialize and all dat sheet
-
+	postGresIntSchema := provider.PostgresTableSchema{provider.Int}
+	serializedPostgresSchema := postGresIntSchema.Serialize()
+	featureName := uuid.New().String()
+	sourceName := uuid.New().String()
+	offlineFeature := provider.ResourceID{Name: featureName, Variant: "", Type: provider.Feature}
+	featureTable, err := offlineStore.CreateResourceTable(offlineFeature, serializedPostgresSchema)
+	if err != nil {
+		return fmt.Errorf("could not create feature table: %v", err)
+	}
+	for _, value := range testOfflineTableValues {
+		if err := featureTable.Write(value); err != nil {
+			return fmt.Errorf("could not write to offline feature table")
+		}
+	}
+	if err := materializeFeatureWithProvider(client, serialPGConfig, serialRedisConfig, featureName, sourceName); err != nil {
+		return fmt.Errorf("could not create online feature in metadata: %v", err)
+	}
+	if err := client.SetStatus(context.Background(), metadata.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}, metadata.READY); err != nil {
+		return err
+	}
+	featureID := metadata.ResourceID{Name: featureName, Variant: "", Type: metadata.FEATURE_VARIANT}
+	featureCreated, err := client.GetFeatureVariant(context.Background(), metadata.NameVariant{Name: featureName, Variant: ""})
+	if err != nil {
+		return fmt.Errorf("could not get feature: %v", err)
+	}
+	if featureCreated.Status() != metadata.CREATED {
+		return fmt.Errorf("Feature not set to created with no coordinator running")
+	}
+	memJobSpawner := MemoryJobSpawner{}
+	coord, err := NewCoordinator(client, logger, cli, &memJobSpawner)
+	if err != nil {
+		return fmt.Errorf("Failed to set up coordinator")
+	}
+	go func() {
+		if err := coord.WatchForNewJobs(); err != nil {
+			panic(err)
+		}
+	}()
+	for has, _ := coord.hasJob(featureID); has; has, _ = coord.hasJob(featureID) {
+		time.Sleep(1 * time.Second)
+	}
+	featureComplete, err := client.GetFeatureVariant(context.Background(), metadata.NameVariant{Name: featureName, Variant: ""})
+	if err != nil {
+		return fmt.Errorf("could not get feature variant")
+	}
+	if metadata.READY != featureComplete.Status() {
+		return fmt.Errorf("Feature not set to ready once job completes")
+	}
+	resourceTable, err := onlineStore.GetTable(featureName, "")
+	if err != nil {
+		return err
+	}
+	for _, record := range testOfflineTableValues {
+		value, err := resourceTable.Get(record.Entity)
+		if err != nil {
+			return err
+		}
+		if !reflect.DeepEqual(value, record.Value) {
+			return fmt.Errorf("Feature value did not materialize")
+		}
+	}
 	return nil
 }
-

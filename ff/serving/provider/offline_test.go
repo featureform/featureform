@@ -15,6 +15,9 @@ import (
 )
 
 func TestOfflineStores(t *testing.T) {
+	if testing.Short() {
+		return
+	}
 	err := godotenv.Load(".env")
 	if err != nil {
 		fmt.Println(err)

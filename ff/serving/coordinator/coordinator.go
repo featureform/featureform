@@ -69,35 +69,40 @@ func NewCoordinator(meta *metadata.Client, logger *zap.SugaredLogger, cli *clien
 const MAX_ATTEMPTS = 10
 
 func (c *Coordinator) WatchForNewJobs() error {
-	s, err := concurrency.NewSession(c.EtcdClient, concurrency.WithTTL(10))
-	if err != nil {
-		return err
-	}
-	defer s.Close()
-	getResp, err := (*c.KVClient).Get(context.Background(), metadata.GetJobKey(metadata.ResourceID{}), clientv3.WithPrefix())
+	getResp, err := (*c.KVClient).Get(context.Background(), "JOB_", clientv3.WithPrefix())
 	if err != nil {
 		return err
 	}
 	for _, kv := range getResp.Kvs {
-		go c.executeJob(string(kv.Key), s)
+		go c.executeJob(string(kv.Key))
 	}
 	for {
-		rch := c.EtcdClient.Watch(context.Background(), metadata.GetJobKey(metadata.ResourceID{}), clientv3.WithPrefix())
+		rch := c.EtcdClient.Watch(context.Background(), "JOB_", clientv3.WithPrefix())
 		for wresp := range rch {
 			for _, ev := range wresp.Events {
 				if ev.Type == 0 {
-					go c.executeJob(string(ev.Kv.Key), s)
+					go c.executeJob(string(ev.Kv.Key))
 				}
 
 			}
 		}
 	}
+	return nil
+}
+
+func (c *Coordinator) runRegisterSourceJob(resID metadata.ResourceID) error {
+	//the idea is that we register a csv or a postgres table
+	//and via that provider we should be able to "get" any of those offline tables from here on out
+	//and if a feature declares a source in its definition, the training set job should be able to go
+	//and get the namevariant shit
+	return nil
 }
 
 func (c *Coordinator) runTransformationJob(resID metadata.ResourceID) error {
 	//it's morphin time
 	return nil
 }
+
 //should only be triggered when we are registering an ONLINE feature, not an offline one
 func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID) error {
 	feature, err := c.Metadata.GetFeatureVariant(context.Background(), metadata.NameVariant{resID.Name, resID.Variant})
@@ -105,6 +110,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID) error 
 		return err
 	}
 	status := feature.Status()
+	featureType := feature.Type()
 	if status == metadata.READY || status == metadata.FAILED {
 		return fmt.Errorf("feature already set to %s", metadata.ResourceStatus(status))
 	}
@@ -148,7 +154,8 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID) error 
 		Online:  featureStore,
 		Offline: sourceStore,
 		ID:      provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Feature},
-		Cloud:   "LOCAL",
+		VType:   provider.ValueType(featureType),
+		Cloud:   runner.LocalMaterializeRunner,
 	}
 	completionWatcher, err := materializeRunner.Run()
 	if err != nil {
@@ -317,7 +324,12 @@ func (c *Coordinator) markJobFailed(job *metadata.CoordinatorJob) error {
 	return nil
 }
 
-func (c *Coordinator) executeJob(jobKey string, s *concurrency.Session) error {
+func (c *Coordinator) executeJob(jobKey string) error {
+	s, err := concurrency.NewSession(c.EtcdClient, concurrency.WithTTL(1))
+	if err != nil {
+		return err
+	}
+	defer s.Close()
 	mtx, err := c.createJobLock(jobKey, s)
 	if err != nil {
 		return err
@@ -346,12 +358,16 @@ func (c *Coordinator) executeJob(jobKey string, s *concurrency.Session) error {
 		if err := c.runFeatureMaterializeJob(job.Resource); err != nil {
 			return fmt.Errorf("feature materialize job failed: %v", err)
 		}
-	case metadata.TRANSFORMATION:
+	case metadata.TRANSFORMATION_VARIANT:
 		if err := c.runTransformationJob(job.Resource); err != nil {
 			return fmt.Errorf("transformation job failed: %v", err)
 		}
+	case metadata.SOURCE_VARIANT:
+		if err := c.runRegisterSourceJob(job.Resource); err != nil {
+			return fmt.Errorf("source register job failed: %v", err)
+		}
 	default:
-		return fmt.Errorf("Not a valid resource type for running jobs")
+		return fmt.Errorf("not a valid resource type for running jobs")
 	}
 	if err := c.deleteJob(mtx, jobKey); err != nil {
 		return err

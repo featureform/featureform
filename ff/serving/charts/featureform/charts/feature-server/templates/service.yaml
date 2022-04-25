@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: null
+  name: {{ .Release.Name }}-feature-server
+spec:
+  ports:
+    - name: grpc
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+    - name: metrics
+      port: 2112
+      protocol: TCP
+      targetPort: 2112
+  selector:
+    run: {{ .Release.Name }}-feature-server
+status:
+  loadBalancer: {}

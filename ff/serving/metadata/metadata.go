@@ -995,8 +995,8 @@ type Config struct {
 	Address         string
 }
 
-func (serv *MetadataServer) SetResourceStatus(ctx context.Context, req *pb.StatusRequest) (*pb.Empty, error) {
-	resID := ResourceID{Name: req.Resource.Name, Variant: req.Resource.Variant, Type: ResourceType(req.Type)}
+func (serv *MetadataServer) SetResourceStatus(ctx context.Context, req *pb.SetStatusRequest) (*pb.Empty, error) {
+	resID := ResourceID{Name: req.Resource.Name, Variant: req.Resource.Variant, Type: ResourceType(req.ResourceType)}
 	err := serv.lookup.SetStatus(resID, ResourceStatus(req.Status))
 	return &pb.Empty{}, err
 }

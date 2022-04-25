@@ -16,6 +16,13 @@ func mockRedis() *miniredis.Miniredis {
 	}
 	return s
 }
+
+type OnlineResource struct {
+	Entity string
+	Value  interface{}
+	Type   ValueType
+}
+
 func TestOnlineStores(t *testing.T) {
 	testFns := map[string]func(*testing.T, OnlineStore){
 		"CreateGetTable":     testCreateGetTable,
@@ -23,6 +30,7 @@ func TestOnlineStores(t *testing.T) {
 		"TableNotFound":      testTableNotFound,
 		"SetGetEntity":       testSetGetEntity,
 		"EntityNotFound":     testEntityNotFound,
+		"TypeCasting":        testTypeCasting,
 	}
 
 	miniRedis := mockRedis()
@@ -144,5 +152,57 @@ func testEntityNotFound(t *testing.T, store OnlineStore) {
 		t.Fatalf("Wrong error for entity not found: %T", err)
 	} else if casted.Error() == "" {
 		t.Fatalf("EntityNotFound has empty error message")
+	}
+}
+
+func testTypeCasting(t *testing.T, store OnlineStore) {
+	onlineResources := []OnlineResource{
+		{
+			Entity: "a",
+			Value:  int(1),
+			Type:   Int,
+		},
+		{
+			Entity: "b",
+			Value:  int64(1),
+			Type:   Int64,
+		},
+		{
+			Entity: "c",
+			Value:  float32(1.0),
+			Type:   Float32,
+		},
+		{
+			Entity: "d",
+			Value:  float64(1.0),
+			Type:   Float64,
+		},
+		{
+			Entity: "e",
+			Value:  "1.0",
+			Type:   String,
+		},
+		{
+			Entity: "f",
+			Value:  false,
+			Type:   Bool,
+		},
+	}
+	for _, resource := range onlineResources {
+		featureName := uuid.New().String()
+		tab, err := store.CreateTable(featureName, "", resource.Type)
+		if err != nil {
+			t.Fatalf("Failed to create table: %s", err)
+		}
+		if err := tab.Set(resource.Entity, resource.Value); err != nil {
+			t.Fatalf("Failed to set entity: %s", err)
+		}
+		gotVal, err := tab.Get(resource.Entity)
+		if err != nil {
+			t.Fatalf("Failed to get entity: %s", err)
+		}
+		if !reflect.DeepEqual(resource.Value, gotVal) {
+			t.Fatalf("Values are not the same %v, type %T. %v, type %T", resource.Value, resource.Value, gotVal, gotVal)
+		}
 	}
 }

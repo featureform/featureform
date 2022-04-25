@@ -63,7 +63,7 @@ type ResourceDef interface {
 
 func (client *Client) SetStatus(ctx context.Context, resID ResourceID, status ResourceStatus) error {
 	nameVariant := pb.NameVariant{Name: resID.Name, Variant: resID.Variant}
-	statusRequest := pb.StatusRequest{Resource: &nameVariant, Type: string(resID.Type), Status: string(status)}
+	statusRequest := pb.SetStatusRequest{Resource: &nameVariant, ResourceType: string(resID.Type), Status: string(status)}
 	_, err := client.grpcConn.SetResourceStatus(ctx, &statusRequest)
 	return err
 }

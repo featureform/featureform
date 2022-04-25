@@ -37,16 +37,16 @@ service Metadata {
     rpc ListModels(Empty) returns (stream Model);
     rpc CreateModel(Model) returns (Empty);
     rpc GetModels(stream Name) returns (stream Model);
-    rpc SetResourceStatus(StatusRequest) returns (Empty);
+    rpc SetResourceStatus(SetStatusRequest) returns (Empty);
 }
 
 message Name {
     string name = 1;
 }
 
-message StatusRequest {
+message SetStatusRequest {
     NameVariant resource = 1;
-    string type = 2;
+    string resource_type = 2;
     string status = 3;
 }
 

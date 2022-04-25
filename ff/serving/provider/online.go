@@ -201,7 +201,7 @@ func (table redisOnlineTable) Get(entity string) (interface{}, error) {
 	switch table.valueType {
 	case NilType, String:
 		result, err = val.Result()
-	case Int, Int8, Int16, Int32:
+	case Int:
 		result, err = val.Int()
 	case Int64:
 		result, err = val.Int64()

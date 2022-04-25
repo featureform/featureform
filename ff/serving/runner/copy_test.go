@@ -292,7 +292,7 @@ type ErrorChunkRunnerFactoryConfigs struct {
 }
 
 func testErrorConfigsFactory(config Config) error {
-	_, err := Create("COPY", config)
+	_, err := Create(string(COPY_TO_ONLINE), config)
 	return err
 }
 
@@ -345,7 +345,7 @@ func (store *BrokenGetTableOnlineStore) AsOnlineStore() (provider.OnlineStore, e
 func (b BrokenGetTableOnlineStore) GetTable(feature, variant string) (provider.OnlineStoreTable, error) {
 	return nil, errors.New("failed to get table")
 }
-func (b BrokenGetTableOnlineStore) CreateTable(feature, variant string) (provider.OnlineStoreTable, error) {
+func (b BrokenGetTableOnlineStore) CreateTable(feature, variant string, valueType provider.ValueType) (provider.OnlineStoreTable, error) {
 	return nil, nil
 }
 
@@ -445,7 +445,7 @@ func TestMaterializeRunnerFactoryErrorCoverage(t *testing.T) {
 			}),
 		},
 	}
-	err = RegisterFactory("COPY", MaterializedChunkRunnerFactory)
+	err = RegisterFactory(string(COPY_TO_ONLINE), MaterializedChunkRunnerFactory)
 	if err != nil {
 		t.Fatalf("Could not register chunk runner factory: %v", err)
 	}
@@ -454,7 +454,7 @@ func TestMaterializeRunnerFactoryErrorCoverage(t *testing.T) {
 			t.Fatalf("Test Job Failed to catch error: %s", config.Name)
 		}
 	}
-	delete(factoryMap, "COPY")
+	delete(factoryMap, string(COPY_TO_ONLINE))
 }
 
 func TestJobs(t *testing.T) {
@@ -623,7 +623,7 @@ func (m MockOnlineStore) GetTable(feature, variant string) (provider.OnlineStore
 	return &MockOnlineStoreTable{}, nil
 }
 
-func (m MockOnlineStore) CreateTable(feature, variant string) (provider.OnlineStoreTable, error) {
+func (m MockOnlineStore) CreateTable(feature, variant string, valueType provider.ValueType) (provider.OnlineStoreTable, error) {
 	return &MockOnlineStoreTable{}, nil
 }
 
@@ -729,7 +729,7 @@ func TestChunkRunnerFactory(t *testing.T) {
 	resourceID := provider.ResourceID{
 		"test_name", "test_variant", provider.Feature,
 	}
-	if _, err := online.CreateTable(resourceID.Name, resourceID.Variant); err != nil {
+	if _, err := online.CreateTable(resourceID.Name, resourceID.Variant, provider.String); err != nil {
 		t.Fatalf("Failed to create online resource table: %v", err)
 	}
 	if _, err := offline.CreateResourceTable(resourceID, provider.SerializedTableSchema{}); err != nil {
@@ -751,15 +751,15 @@ func TestChunkRunnerFactory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create new chunk runner config: %v", err)
 	}
-	delete(factoryMap, "COPY")
-	if err := RegisterFactory("COPY", MaterializedChunkRunnerFactory); err != nil {
+	delete(factoryMap, string(COPY_TO_ONLINE))
+	if err := RegisterFactory(string(COPY_TO_ONLINE), MaterializedChunkRunnerFactory); err != nil {
 		t.Fatalf("Failed to register factory: %v", err)
 	}
 	serializedConfig, err := chunkRunnerConfig.Serialize()
 	if err != nil {
 		t.Fatalf("Failed to serialize chunk runner config: %v", err)
 	}
-	runner, err := Create("COPY", serializedConfig)
+	runner, err := Create(string(COPY_TO_ONLINE), serializedConfig)
 	if err != nil {
 		t.Fatalf("Failed to create materialized chunk runner: %v", err)
 	}

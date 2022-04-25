@@ -43,7 +43,7 @@ func (m MockJobClient) Create(jobSpec *batchv1.JobSpec) (*batchv1.Job, error) {
 	return &batchv1.Job{}, nil
 }
 func TestKubernetesRunnerCreate(t *testing.T) {
-	runner, err := NewMockKubernetesRunner(KubernetesRunnerConfig{envVars: map[string]string{"test": "envVar"}, image: "test", numTasks: 1})
+	runner, err := NewMockKubernetesRunner(KubernetesRunnerConfig{EnvVars: map[string]string{"test": "envVar"}, Image: "test", NumTasks: 1})
 	if err != nil {
 		t.Fatalf("Failed to create Kubernetes runner")
 	}

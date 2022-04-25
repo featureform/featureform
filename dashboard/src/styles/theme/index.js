@@ -29,7 +29,8 @@ const themeSpec = {
       default: "#FFFFFF",
     },
     primary: { main: FEATUREFORM_RED, contrastText: "#FFFFFF" },
-    secondary: { main: FEATUREFORM_PURPLE },
+    secondary: { main: FEATUREFORM_RED },
+    error: { main: FEATUREFORM_RED },
     border: { main: FEATUREFORM_LIGHT_GRAY, alternate: FEATUREFORM_DARK_GRAY },
     text: {
       primary: blueGrey[900],

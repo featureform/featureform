@@ -30,18 +30,18 @@ func generateKubernetesEnvVars(envVars map[string]string) []v1.EnvVar {
 
 func newJobSpec(config KubernetesRunnerConfig) batchv1.JobSpec {
 	containerID := uuid.New().String()
-	envVars := generateKubernetesEnvVars(config.envVars)
+	envVars := generateKubernetesEnvVars(config.EnvVars)
 	completionMode := batchv1.IndexedCompletion
 	return batchv1.JobSpec{
-		Completions:    &config.numTasks,
-		Parallelism:    &config.numTasks,
+		Completions:    &config.NumTasks,
+		Parallelism:    &config.NumTasks,
 		CompletionMode: &completionMode,
 		Template: v1.PodTemplateSpec{
 			Spec: v1.PodSpec{
 				Containers: []v1.Container{
 					{
 						Name:  containerID,
-						Image: config.image,
+						Image: config.Image,
 						Env:   envVars,
 					},
 				},
@@ -53,9 +53,9 @@ func newJobSpec(config KubernetesRunnerConfig) batchv1.JobSpec {
 }
 
 type KubernetesRunnerConfig struct {
-	envVars  map[string]string
-	image    string
-	numTasks int32
+	EnvVars  map[string]string
+	Image    string
+	NumTasks int32
 }
 
 type JobClient interface {

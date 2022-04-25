@@ -8,6 +8,13 @@ import (
 	"fmt"
 )
 
+type RunnerName string
+
+const (
+	COPY_TO_ONLINE      RunnerName = "Copy to online"
+	CREATE_TRAINING_SET            = "Create training set"
+)
+
 type Config []byte
 
 type RunnerConfig interface {

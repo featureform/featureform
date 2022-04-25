@@ -9,7 +9,6 @@ env:
   POSTGRES_DB: "default"
   POSTGRES_PASSWORD: "password"
 
-
 jobs:
   setup:
     name: Setup Test Dependencies
@@ -110,7 +109,7 @@ jobs:
         # Hard coded port because environment variables not currently
         # supported for use outside of 'steps'
         ports:
-          -  6379:6379
+          - 6379:6379
 
       postgres:
         image: postgres
@@ -118,7 +117,7 @@ jobs:
           - 5432:5432
         env:
           POSTGRES_USER: ${{ env.POSTGRES_USER }}
-          POSTGRES_DB:  ${{ env.POSTGRES_DB }}
+          POSTGRES_DB: ${{ env.POSTGRES_DB }}
           POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
 
     steps:
@@ -352,4 +351,79 @@ jobs:
         with:
           name: serving-coverage-reports
           path: ./coverage
+  coordinator:
+    name: Coordinator Testing
+    environment: Integration testing
+    needs: setup
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis
+        # Hard coded port because environment variables not currently
+        # supported for use outside of 'steps'
+        ports:
+          - 6379:6379
 
+      postgres:
+        image: postgres
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_DB: ${{ env.POSTGRES_DB }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+    steps:
+      - name: Download Working Compiled Directories
+        uses: actions/download-artifact@v3
+        with:
+          name: compiled-workdir
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
+
+      # Already installed in metadata tests, how to preserve it so we don't repeat?
+      - name: Install ETCD
+        run: |
+          git clone -b v3.4.16 https://github.com/etcd-io/etcd.git
+          cd etcd
+          ./build
+          export PATH="$PATH:`pwd`/bin"
+          etcd --version
+          etcd --logger=zap &
+
+      - name: Make Coverage Directory
+        working-directory: ./
+        run: mkdir coverage
+
+      - name: Testing
+        env:
+          SNOWFLAKE_USERNAME: ${{ secrets.SNOWFLAKE_USERNAME }}
+          SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+          SNOWFLAKE_ORG: ${{ secrets.SNOWFLAKE_ORG }}
+          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+        working-directory: ./
+        run: go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./coordinator/...
+
+      - name: Convert Coverage Test Results
+        if: always()
+        working-directory: ./coverage
+        run: |
+          cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
+          go tool cover -html=cover.out -o cover.html
+
+      - uses: codecov/codecov-action@v2
+        if: always()
+        with:
+          root_dir: ./
+          files: ./coverage/cover.out
+          name: coordinator-coverage
+          verbose: true
+
+      - name: Archive code coverage results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: coordinator-coverage-reports
+          path: ./coverage

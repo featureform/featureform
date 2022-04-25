@@ -73,6 +73,13 @@ type ResourceDef interface {
 	ResourceType() ResourceType
 }
 
+func (client *Client) SetStatus(ctx context.Context, resID ResourceID, status ResourceStatus) error {
+	nameVariant := pb.NameVariant{Name: resID.Name, Variant: resID.Variant}
+	statusRequest := pb.SetStatusRequest{Resource: &nameVariant, ResourceType: string(resID.Type), Status: string(status)}
+	_, err := client.grpcConn.SetResourceStatus(ctx, &statusRequest)
+	return err
+}
+
 func (client *Client) CreateAll(ctx context.Context, defs []ResourceDef) error {
 	for _, def := range defs {
 		if err := client.Create(ctx, def); err != nil {
@@ -187,6 +194,7 @@ func (client *Client) CreateFeatureVariant(ctx context.Context, def FeatureDef) 
 		Entity:      def.Entity,
 		Owner:       def.Owner,
 		Description: def.Description,
+		Status:      string(CREATED),
 		Provider:    def.Provider,
 	}
 	_, err := client.grpcConn.CreateFeatureVariant(ctx, serialized)
@@ -286,6 +294,7 @@ func (client *Client) CreateLabelVariant(ctx context.Context, def LabelDef) erro
 		Source:      def.Source.Serialize(),
 		Entity:      def.Entity,
 		Owner:       def.Owner,
+		Status:      string(NO_STATUS),
 		Provider:    def.Provider,
 	}
 	_, err := client.grpcConn.CreateLabelVariant(ctx, serialized)
@@ -407,6 +416,7 @@ func (client *Client) CreateTrainingSetVariant(ctx context.Context, def Training
 		Description: def.Description,
 		Owner:       def.Owner,
 		Provider:    def.Provider,
+		Status:      string(CREATED),
 		Label:       def.Label.Serialize(),
 		Features:    def.Features.Serialize(),
 	}
@@ -528,6 +538,7 @@ func (client *Client) CreateSourceVariant(ctx context.Context, def SourceDef) er
 		Description: def.Description,
 		Type:        def.Type,
 		Owner:       def.Owner,
+		Status:      string(NO_STATUS),
 		Provider:    def.Provider,
 	}
 	_, err := client.grpcConn.CreateSourceVariant(ctx, serialized)
@@ -715,6 +726,7 @@ func (client *Client) CreateProvider(ctx context.Context, def ProviderDef) error
 		Type:             def.Type,
 		Software:         def.Software,
 		Team:             def.Team,
+		Status:           string(NO_STATUS),
 		SerializedConfig: def.SerializedConfig,
 	}
 	_, err := client.grpcConn.CreateProvider(ctx, serialized)
@@ -784,6 +796,7 @@ func (def EntityDef) ResourceType() ResourceType {
 func (client *Client) CreateEntity(ctx context.Context, def EntityDef) error {
 	serialized := &pb.Entity{
 		Name:        def.Name,
+		Status:      string(NO_STATUS),
 		Description: def.Description,
 	}
 	_, err := client.grpcConn.CreateEntity(ctx, serialized)
@@ -853,6 +866,7 @@ func (def ModelDef) ResourceType() ResourceType {
 func (client *Client) CreateModel(ctx context.Context, def ModelDef) error {
 	serialized := &pb.Model{
 		Name:        def.Name,
+		Status:      string(NO_STATUS),
 		Description: def.Description,
 	}
 	_, err := client.grpcConn.CreateModel(ctx, serialized)
@@ -1098,6 +1112,10 @@ func (variant *FeatureVariant) Owner() string {
 	return variant.serialized.GetOwner()
 }
 
+func (variant *FeatureVariant) Status() string {
+	return variant.serialized.GetStatus()
+}
+
 type User struct {
 	serialized *pb.User
 	fetchTrainingSetsFns
@@ -1120,6 +1138,10 @@ func wrapProtoUser(serialized *pb.User) *User {
 
 func (user *User) Name() string {
 	return user.serialized.GetName()
+}
+
+func (user *User) Status() string {
+	return user.serialized.GetStatus()
 }
 
 type Provider struct {
@@ -1166,6 +1188,10 @@ func (provider *Provider) SerializedConfig() []byte {
 	return provider.serialized.GetSerializedConfig()
 }
 
+func (provider *Provider) Status() string {
+	return provider.serialized.GetStatus()
+}
+
 type Model struct {
 	serialized *pb.Model
 	fetchTrainingSetsFns
@@ -1190,6 +1216,10 @@ func (model *Model) Name() string {
 
 func (model *Model) Description() string {
 	return model.serialized.GetDescription()
+}
+
+func (model *Model) Status() string {
+	return model.serialized.GetStatus()
 }
 
 type Label struct {
@@ -1254,6 +1284,10 @@ func (variant *LabelVariant) Owner() string {
 	return variant.serialized.GetOwner()
 }
 
+func (variant *LabelVariant) Status() string {
+	return variant.serialized.GetStatus()
+}
+
 type TrainingSet struct {
 	serialized *pb.TrainingSet
 	variantsFns
@@ -1304,6 +1338,10 @@ func (variant *TrainingSetVariant) Variant() string {
 
 func (variant *TrainingSetVariant) Owner() string {
 	return variant.serialized.GetOwner()
+}
+
+func (variant *TrainingSetVariant) Status() string {
+	return variant.serialized.GetStatus()
 }
 
 func (variant *TrainingSetVariant) Label() NameVariant {
@@ -1378,6 +1416,10 @@ func (variant *SourceVariant) Owner() string {
 	return variant.serialized.GetOwner()
 }
 
+func (variant *SourceVariant) Status() string {
+	return variant.serialized.GetStatus()
+}
+
 type Entity struct {
 	serialized *pb.Entity
 	fetchTrainingSetsFns
@@ -1402,6 +1444,10 @@ func (entity *Entity) Name() string {
 
 func (entity *Entity) Description() string {
 	return entity.serialized.GetDescription()
+}
+
+func (entity *Entity) Status() string {
+	return entity.serialized.GetStatus()
 }
 
 func NewClient(host string, logger *zap.SugaredLogger) (*Client, error) {

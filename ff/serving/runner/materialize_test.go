@@ -46,10 +46,11 @@ func TestMockMaterializeRunner(t *testing.T) {
 			Variant: "test",
 			Type:    provider.Feature,
 		},
+		VType: provider.String,
 		Cloud: LocalMaterializeRunner,
 	}
-	delete(factoryMap, "COPY")
-	if err := RegisterFactory("COPY", mockChunkRunnerFactory); err != nil {
+	delete(factoryMap, string(COPY_TO_ONLINE))
+	if err := RegisterFactory(string(COPY_TO_ONLINE), mockChunkRunnerFactory); err != nil {
 		t.Fatalf("Failed to register factory: %v", err)
 	}
 

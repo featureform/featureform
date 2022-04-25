@@ -20,6 +20,13 @@ func mockRedis() *miniredis.Miniredis {
 	}
 	return s
 }
+
+type OnlineResource struct {
+	Entity string
+	Value  interface{}
+	Type   ValueType
+}
+
 func TestOnlineStores(t *testing.T) {
 	testFns := map[string]func(*testing.T, OnlineStore){
 		"CreateGetTable":     testCreateGetTable,
@@ -27,6 +34,7 @@ func TestOnlineStores(t *testing.T) {
 		"TableNotFound":      testTableNotFound,
 		"SetGetEntity":       testSetGetEntity,
 		"EntityNotFound":     testEntityNotFound,
+		"TypeCasting":        testTypeCasting,
 	}
 
 	miniRedis := mockRedis()
@@ -83,7 +91,7 @@ func randomFeatureVariant() (string, string) {
 
 func testCreateGetTable(t *testing.T, store OnlineStore) {
 	mockFeature, mockVariant := randomFeatureVariant()
-	if tab, err := store.CreateTable(mockFeature, mockVariant); tab == nil || err != nil {
+	if tab, err := store.CreateTable(mockFeature, mockVariant, String); tab == nil || err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
 	if tab, err := store.GetTable(mockFeature, mockVariant); tab == nil || err != nil {
@@ -93,10 +101,10 @@ func testCreateGetTable(t *testing.T, store OnlineStore) {
 
 func testTableAlreadyExists(t *testing.T, store OnlineStore) {
 	mockFeature, mockVariant := randomFeatureVariant()
-	if _, err := store.CreateTable(mockFeature, mockVariant); err != nil {
+	if _, err := store.CreateTable(mockFeature, mockVariant, String); err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
-	if _, err := store.CreateTable(mockFeature, mockVariant); err == nil {
+	if _, err := store.CreateTable(mockFeature, mockVariant, String); err == nil {
 		t.Fatalf("Succeeded in creating table twice")
 	} else if casted, valid := err.(*TableAlreadyExists); !valid {
 		t.Fatalf("Wrong error for table already exists: %T", err)
@@ -119,7 +127,7 @@ func testTableNotFound(t *testing.T, store OnlineStore) {
 func testSetGetEntity(t *testing.T, store OnlineStore) {
 	mockFeature, mockVariant := randomFeatureVariant()
 	entity, val := "e", "val"
-	tab, err := store.CreateTable(mockFeature, mockVariant)
+	tab, err := store.CreateTable(mockFeature, mockVariant, String)
 	if err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
@@ -138,7 +146,7 @@ func testSetGetEntity(t *testing.T, store OnlineStore) {
 func testEntityNotFound(t *testing.T, store OnlineStore) {
 	mockFeature, mockVariant := uuid.NewString(), "v"
 	entity := "e"
-	tab, err := store.CreateTable(mockFeature, mockVariant)
+	tab, err := store.CreateTable(mockFeature, mockVariant, String)
 	if err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
@@ -148,5 +156,57 @@ func testEntityNotFound(t *testing.T, store OnlineStore) {
 		t.Fatalf("Wrong error for entity not found: %T", err)
 	} else if casted.Error() == "" {
 		t.Fatalf("EntityNotFound has empty error message")
+	}
+}
+
+func testTypeCasting(t *testing.T, store OnlineStore) {
+	onlineResources := []OnlineResource{
+		{
+			Entity: "a",
+			Value:  int(1),
+			Type:   Int,
+		},
+		{
+			Entity: "b",
+			Value:  int64(1),
+			Type:   Int64,
+		},
+		{
+			Entity: "c",
+			Value:  float32(1.0),
+			Type:   Float32,
+		},
+		{
+			Entity: "d",
+			Value:  float64(1.0),
+			Type:   Float64,
+		},
+		{
+			Entity: "e",
+			Value:  "1.0",
+			Type:   String,
+		},
+		{
+			Entity: "f",
+			Value:  false,
+			Type:   Bool,
+		},
+	}
+	for _, resource := range onlineResources {
+		featureName := uuid.New().String()
+		tab, err := store.CreateTable(featureName, "", resource.Type)
+		if err != nil {
+			t.Fatalf("Failed to create table: %s", err)
+		}
+		if err := tab.Set(resource.Entity, resource.Value); err != nil {
+			t.Fatalf("Failed to set entity: %s", err)
+		}
+		gotVal, err := tab.Get(resource.Entity)
+		if err != nil {
+			t.Fatalf("Failed to get entity: %s", err)
+		}
+		if !reflect.DeepEqual(resource.Value, gotVal) {
+			t.Fatalf("Values are not the same %v, type %T. %v, type %T", resource.Value, resource.Value, gotVal, gotVal)
+		}
 	}
 }

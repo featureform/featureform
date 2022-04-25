@@ -23,6 +23,7 @@ type MaterializeRunner struct {
 	Online  provider.OnlineStore
 	Offline provider.OfflineStore
 	ID      provider.ResourceID
+	VType   provider.ValueType
 	Cloud   JobCloud
 }
 
@@ -68,6 +69,12 @@ func (m MaterializeRunner) Run() (CompletionWatcher, error) {
 	if err != nil {
 		return nil, err
 	}
+	_, err = m.Online.CreateTable(m.ID.Name, m.ID.Variant, m.VType)
+	_, exists := err.(*provider.TableAlreadyExists)
+	if err != nil && !exists {
+		return nil, err
+	}
+
 	chunkSize := MAXIMUM_CHUNK_ROWS
 	var numChunks int64
 	numRows, err := materialization.NumRows()
@@ -101,11 +108,11 @@ func (m MaterializeRunner) Run() (CompletionWatcher, error) {
 	var cloudWatcher CompletionWatcher
 	switch m.Cloud {
 	case KubernetesMaterializeRunner:
-		envVars := map[string]string{"NAME": "COPY", "CONFIG": string(serializedConfig)}
+		envVars := map[string]string{"NAME": string(COPY_TO_ONLINE), "CONFIG": string(serializedConfig)}
 		kubernetesConfig := KubernetesRunnerConfig{
-			envVars:  envVars,
-			image:    WORKER_IMAGE,
-			numTasks: int32(numChunks),
+			EnvVars:  envVars,
+			Image:    WORKER_IMAGE,
+			NumTasks: int32(numChunks),
 		}
 		kubernetesRunner, err := NewKubernetesRunner(kubernetesConfig)
 		if err != nil {
@@ -118,7 +125,7 @@ func (m MaterializeRunner) Run() (CompletionWatcher, error) {
 	case LocalMaterializeRunner:
 		completionList := make([]CompletionWatcher, int(numChunks))
 		for i := 0; i < int(numChunks); i++ {
-			localRunner, err := Create("COPY", serializedConfig)
+			localRunner, err := Create(string(COPY_TO_ONLINE), serializedConfig)
 			if err != nil {
 				return nil, err
 			}

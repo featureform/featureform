@@ -1305,29 +1305,6 @@ func testTransformCreateFeature(t *testing.T, store OfflineStore) {
 	// Test if can materialized a transformed table
 }
 
-func testSQLValidity(t *testing.T, store OfflineStore) {
-	config := TransformationConfig{
-		TargetTableID: ResourceID{
-			Name: "dummyTransformation",
-			Type: Transformation,
-		},
-		Query: "CREATE TABLE test (t INT)",
-	}
-	if err := store.CreateTransformation(config); err == nil || reflect.TypeOf(err) != reflect.TypeOf(InvalidQueryError{}) {
-		t.Fatalf("Successfully created invalid query")
-	}
-	config = TransformationConfig{
-		TargetTableID: ResourceID{
-			Name: "dummyTransformation",
-			Type: Transformation,
-		},
-		Query: "INSERT INTO test values (1)",
-	}
-	if err := store.CreateTransformation(config); err == nil || reflect.TypeOf(err) != reflect.TypeOf(InvalidQueryError{}) {
-		t.Fatalf("Successfully created invalid query")
-	}
-}
-
 func testCreateDuplicatePrimaryTable(t *testing.T, store OfflineStore) {
 	table := uuid.NewString()
 	rec := ResourceID{

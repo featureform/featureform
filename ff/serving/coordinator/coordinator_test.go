@@ -109,6 +109,11 @@ func materializeFeatureWithProvider(client *metadata.Client, offlineConfig provi
 			Description: "",
 			Owner:       userName,
 			Provider:    offlineProviderName,
+			Definition: metadata.PrimaryDataSource{
+				Location: metadata.SQLTable{
+					Name: "mockPrimary",
+				},
+			},
 		},
 		metadata.FeatureDef{
 			Name:        featureName,
@@ -154,6 +159,11 @@ func createTrainingSetWithProvider(client *metadata.Client, config provider.Seri
 			Description: "",
 			Owner:       userName,
 			Provider:    providerName,
+			Definition: metadata.PrimaryDataSource{
+				Location: metadata.SQLTable{
+					Name: "mockPrimary",
+				},
+			},
 		},
 		metadata.LabelDef{
 			Name:        labelName,

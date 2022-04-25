@@ -172,6 +172,11 @@ func allTypesResourceDefsFn(providerType string) []metadata.ResourceDef {
 			Variant:  "var",
 			Owner:    "Featureform",
 			Provider: "mockOnline",
+			Definition: metadata.PrimaryDataSource{
+				Location: metadata.SQLTable{
+					Name: "mockPrimary",
+				},
+			},
 		},
 		metadata.FeatureDef{
 			Name:     "feature",
@@ -257,6 +262,11 @@ func simpleResourceDefsFn(providerType string) []metadata.ResourceDef {
 			Variant:  "var",
 			Owner:    "Featureform",
 			Provider: "mockOnline",
+			Definition: metadata.PrimaryDataSource{
+				Location: metadata.SQLTable{
+					Name: "mockPrimary",
+				},
+			},
 		},
 		metadata.FeatureDef{
 			Name:     "feature",

@@ -15,6 +15,8 @@ const minutesToMilliseconds = (minutes) => {
   return parseInt(minutes * 60 * 1000);
 };
 
+const PROMETHEUS_URL = "http://localhost:9090/";
+
 const sample_query_data = `{
   "resultType" : "matrix",
   "result" : [
@@ -68,8 +70,11 @@ const PrometheusGraph = ({
     (start, end, step, stub) => {
       const startTimestamp = start.getTime() / 1000;
       const endTimestamp = end.getTime() / 1000;
-      const url = `http://localhost:9090/api/v1/query_range?query=${query}${add_labels_string}&start=${startTimestamp}&end=${endTimestamp}&step=${step}s`;
-      return Promise.resolve(JSON.parse(sample_query_data));
+      const url = `${PROMETHEUS_URL}api/v1/query_range?query=${query}${add_labels_string}&start=${startTimestamp}&end=${endTimestamp}&step=${step}s`;
+      return fetch(url)
+        .then((response) => response.json())
+        .then((response) => response["data"])
+        .catch((err) => console.error(err));
     },
     [query, add_labels_string]
   );

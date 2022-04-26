@@ -4,9 +4,6 @@ import { makeStyles } from "@material-ui/core/styles";
 import Typography from "@material-ui/core/Typography";
 import Grid from "@material-ui/core/Grid";
 import Chip from "@material-ui/core/Chip";
-import MenuItem from "@material-ui/core/MenuItem";
-import FormControl from "@material-ui/core/FormControl";
-import Select from "@material-ui/core/Select";
 import theme from "styles/theme";
 import CircleOutlinedIcon from "@mui/icons-material/CircleOutlined";
 import Rating from "@mui/material/Rating";
@@ -86,10 +83,6 @@ const useStyles = makeStyles(() => ({
     paddingBottom: theme.spacing(1),
   },
 }));
-
-const convertTimestampToDate = (timestamp_string) => {
-  return new Date(timestamp_string).toDateString();
-};
 
 export const ResourceListView = ({
   title,

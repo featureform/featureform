@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 import AppBar from "@material-ui/core/AppBar";
 import Tabs from "@material-ui/core/Tabs";
 import Tab from "@material-ui/core/Tab";
@@ -559,7 +559,7 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                     const resourceName = resourceEntry[0];
                     const resourceVariants = resourceEntry[1];
                     let rowData = { name: resourceName };
-                    if (resourceVariants.length == 1) {
+                    if (resourceVariants.length === 1) {
                       rowData["variant"] = resourceVariants[0].variant;
                     } else {
                       rowData["variant"] = "...";

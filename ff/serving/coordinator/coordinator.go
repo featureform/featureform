@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"go.uber.org/zap"
-	//"github.com/alexkappa/mustache"
 	db "github.com/jackc/pgx/v4"
+	"go.uber.org/zap"
 
 	"github.com/featureform/serving/metadata"
 	provider "github.com/featureform/serving/provider"
@@ -22,8 +21,8 @@ func templateReplace(template string, replacements map[string]string) string {
 	for i := 0; i < numEscapes; i++ {
 		split := strings.SplitN(template, "{{", 2)
 		afterSplit := strings.SplitN(split[1], "}}", 2)
-		keyFob := strings.TrimSpace(afterSplit[0])
-		formattedString += fmt.Sprintf("%s%s", split[0], replacements[keyFob])
+		key := strings.TrimSpace(afterSplit[0])
+		formattedString += fmt.Sprintf("%s%s", split[0], replacements[key])
 		template = afterSplit[1]
 	}
 	formattedString += template
@@ -150,19 +149,15 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 		return err
 	}
 	return nil
-	//do we set this in metadata?
-	//GetTransformationTable(id ResourceID) (TransformationTable, error)
-
 }
 
 func (c *Coordinator) runPrimaryTableJob(transformSource *metadata.SourceVariant, resID metadata.ResourceID, offlineStore provider.OfflineStore) error {
 	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant}
 	sourceName := transformSource.PrimaryDataSQLTableName()
 	if sourceName == "" {
-		return fmt.Errorf("creating blank source not implemented")
+		return fmt.Errorf("no source name set")
 	}
 	if _, err := offlineStore.RegisterPrimaryFromSourceTable(providerResourceID, sourceName); err != nil {
-		fmt.Println(err)
 		return err
 	}
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY); err != nil {

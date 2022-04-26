@@ -3,8 +3,11 @@ package coordinator
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"go.uber.org/zap"
+	//"github.com/alexkappa/mustache"
+	db "github.com/jackc/pgx/v4"
 
 	"github.com/featureform/serving/metadata"
 	provider "github.com/featureform/serving/provider"
@@ -12,6 +15,20 @@ import (
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/client/v3/concurrency"
 )
+
+func templateReplace(template string, replacements map[string]string) string {
+	formattedString := ""
+	numEscapes := strings.Count(template, "{{")
+	for i := 0; i < numEscapes; i++ {
+		split := strings.SplitN(template, "{{", 2)
+		afterSplit := strings.SplitN(split[1], "}}", 2)
+		keyFob := strings.TrimSpace(afterSplit[0])
+		formattedString += fmt.Sprintf("%s%s", split[0], replacements[keyFob])
+		template = afterSplit[1]
+	}
+	formattedString += template
+	return formattedString
+}
 
 type Coordinator struct {
 	Metadata   *metadata.Client
@@ -90,17 +107,94 @@ func (c *Coordinator) WatchForNewJobs() error {
 	return nil
 }
 
-func (c *Coordinator) runRegisterSourceJob(resID metadata.ResourceID) error {
-	//the idea is that we register a csv or a postgres table
-	//and via that provider we should be able to "get" any of those offline tables from here on out
-	//and if a feature declares a source in its definition, the training set job should be able to go
-	//and get the namevariant shit
+func (c *Coordinator) mapNameVariantsToTables(sources []metadata.NameVariant) (map[string]string, error) {
+	sourceMap := make(map[string]string)
+	for _, nameVariant := range sources {
+		var tableName string
+		source, err := c.Metadata.GetSourceVariant(context.Background(), nameVariant)
+		if err != nil {
+			return nil, err
+		}
+		if source.Status() != metadata.READY {
+			return nil, fmt.Errorf("source in query not ready")
+		}
+		providerResourceID := provider.ResourceID{Name: source.Name(), Variant: source.Variant()}
+		if source.IsSQLTransformation() {
+			tableName = provider.GetTransformationName(providerResourceID)
+		} else if source.IsPrimaryDataSQLTable() {
+			tableName = provider.GetPrimaryTableName(providerResourceID)
+		}
+		sourceMap[fmt.Sprintf("%s.%s", nameVariant.Name, nameVariant.Variant)] = tableName
+	}
+	return sourceMap, nil
+}
+
+func sanitize(ident string) string {
+	return db.Identifier{ident}.Sanitize()
+}
+
+func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVariant, resID metadata.ResourceID, offlineStore provider.OfflineStore) error {
+	templateString := transformSource.SQLTransformationQuery()
+	sources := transformSource.SQLTransformationSources()
+	sourceMap, err := c.mapNameVariantsToTables(sources)
+	if err != nil {
+		return err
+	}
+	query := templateReplace(templateString, sourceMap)
+	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Transformation}
+	transformationConfig := provider.TransformationConfig{TargetTableID: providerResourceID, Query: query}
+	if err := offlineStore.CreateTransformation(transformationConfig); err != nil {
+		return err
+	}
+	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY); err != nil {
+		return err
+	}
+	return nil
+	//do we set this in metadata?
+	//GetTransformationTable(id ResourceID) (TransformationTable, error)
+
+}
+
+func (c *Coordinator) runPrimaryTableJob(transformSource *metadata.SourceVariant, resID metadata.ResourceID, offlineStore provider.OfflineStore) error {
+	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant}
+	sourceName := transformSource.PrimaryDataSQLTableName()
+	if sourceName == "" {
+		return fmt.Errorf("creating blank source not implemented")
+	}
+	if _, err := offlineStore.RegisterPrimaryFromSourceTable(providerResourceID, sourceName); err != nil {
+		fmt.Println(err)
+		return err
+	}
+	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY); err != nil {
+		return err
+	}
 	return nil
 }
 
-func (c *Coordinator) runTransformationJob(resID metadata.ResourceID) error {
-	//it's morphin time
-	return nil
+func (c *Coordinator) runRegisterSourceJob(resID metadata.ResourceID) error {
+	source, err := c.Metadata.GetSourceVariant(context.Background(), metadata.NameVariant{resID.Name, resID.Variant})
+	if err != nil {
+		return err
+	}
+	sourceProvider, err := source.FetchProvider(c.Metadata, context.Background())
+	if err != nil {
+		return err
+	}
+	p, err := provider.Get(provider.Type(sourceProvider.Type()), sourceProvider.SerializedConfig())
+	if err != nil {
+		return err
+	}
+	sourceStore, err := p.AsOfflineStore()
+	if err != nil {
+		return err
+	}
+	if source.IsSQLTransformation() {
+		return c.runSQLTransformationJob(source, resID, sourceStore)
+	} else if source.IsPrimaryDataSQLTable() {
+		return c.runPrimaryTableJob(source, resID, sourceStore)
+	} else {
+		return fmt.Errorf("source type not implemented")
+	}
 }
 
 //should only be triggered when we are registering an ONLINE feature, not an offline one
@@ -357,10 +451,6 @@ func (c *Coordinator) executeJob(jobKey string) error {
 	case metadata.FEATURE_VARIANT:
 		if err := c.runFeatureMaterializeJob(job.Resource); err != nil {
 			return fmt.Errorf("feature materialize job failed: %v", err)
-		}
-	case metadata.TRANSFORMATION_VARIANT:
-		if err := c.runTransformationJob(job.Resource); err != nil {
-			return fmt.Errorf("transformation job failed: %v", err)
 		}
 	case metadata.SOURCE_VARIANT:
 		if err := c.runRegisterSourceJob(job.Resource); err != nil {

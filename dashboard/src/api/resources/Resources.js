@@ -1,5 +1,6 @@
 import Resource from "api/resources/Resource.js";
-const TypesenseClient = require("./Search.js");
+//const TypesenseClient = require("./Search.js");
+import TypesenseClient from "./Search.js";
 
 export const testData = [
   {

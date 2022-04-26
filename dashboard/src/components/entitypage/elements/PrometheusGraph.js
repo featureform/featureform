@@ -66,9 +66,10 @@ const PrometheusGraph = ({
 
   const customReq = useCallback(
     (start, end, step, stub) => {
-      const startTimestamp = start.getTime() / 1000;
-      const endTimestamp = end.getTime() / 1000;
-      const url = `http://localhost:9090/api/v1/query_range?query=${query}${add_labels_string}&start=${startTimestamp}&end=${endTimestamp}&step=${step}s`;
+      // const startTimestamp = start.getTime() / 1000;
+      // const endTimestamp = end.getTime() / 1000;
+      //Needs prometheus to be running to work. Should be set to environment variable of prometheus url
+      //const url = `http://localhost:9090/api/v1/query_range?query=${query}${add_labels_string}&start=${startTimestamp}&end=${endTimestamp}&step=${step}s`;
       return Promise.resolve(JSON.parse(sample_query_data));
     },
     [query, add_labels_string]

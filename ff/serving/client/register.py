@@ -2,9 +2,9 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-from resources import ResourceState, Provider, RedisConfig, PostgresConfig, SnowflakeConfig, User, Location, Source, PrimaryData, SQLTable, SQLTransformation, Entity
+from resources import ResourceState, Provider, RedisConfig, PostgresConfig, SnowflakeConfig, User, Location, Source, PrimaryData, SQLTable, SQLTransformation, Entity, Feature, Label, ResourceColumnMapping
 from typing import Tuple, Callable, TypedDict, List
-from typeguard import typechecked
+from typeguard import typechecked, check_type
 
 NameVariant = Tuple[str, str]
 
@@ -15,7 +15,7 @@ class EntityRegistrar:
         self.__registrar = registrar
         self.__entity = entity
 
-    def name() -> str:
+    def name(self) -> str:
         return self.__entity.name
 
 
@@ -128,14 +128,44 @@ class SourceRegistrar:
         self.__registrar = registrar
         self.__source = source
 
-    def id() -> NameVariant:
+    def id(self) -> NameVariant:
         return (self.__source.name, self.__source.variant)
+
+    def registrar(self):
+        return self.__registrar
 
 
 class ColumnMapping(TypedDict):
     name: str
     variant: str
     column: str
+    resource_type: str
+
+
+class ColumnSourceRegistrar(SourceRegistrar):
+
+    def register_resources(
+        self,
+        entity: str | EntityRegistrar,
+        entity_column: str,
+        owner: str | UserRegistrar = "",
+        inference_store: str | OnlineProvider = "",
+        features: List[ColumnMapping] = None,
+        labels: List[ColumnMapping] = None,
+        timestamp_column: str = "",
+        description: str = "",
+    ):
+        self.registrar().register_column_resources(
+            source=self,
+            entity=entity,
+            entity_column=entity_column,
+            owner=owner,
+            inference_store=inference_store,
+            features=features,
+            labels=labels,
+            timestamp_column=timestamp_column,
+            description=description,
+        )
 
 
 class Registrar:
@@ -143,7 +173,7 @@ class Registrar:
     def __init__(self):
         self.__state = ResourceState()
         self.__decorators = []
-        self.__default_user = ""
+        self.__default_owner = ""
 
     def register_user(self, name: str) -> UserRegistrar:
         user = User(name)
@@ -151,10 +181,17 @@ class Registrar:
         return UserRegistrar(self, user)
 
     def set_default_owner(self, user: str):
-        self.__default_user = user
+        self.__default_owner = user
 
-    def default_user(self) -> str:
-        return self.__default_user
+    def default_owner(self) -> str:
+        return self.__default_owner
+
+    def must_get_default_owner(self) -> str:
+        owner = self.default_owner()
+        if owner == "":
+            raise ValueError(
+                "Owner must be set or a default owner must be specified.")
+        return owner
 
     def register_redis(self,
                        name: str,
@@ -231,7 +268,7 @@ class Registrar:
         if not isinstance(owner, str):
             owner = owner.name()
         if owner == "":
-            owner = self.default_user()
+            owner = self.must_get_default_owner()
         if not isinstance(provider, str):
             provider = provider.name()
         source = Source(name=name,
@@ -241,7 +278,7 @@ class Registrar:
                         provider=provider,
                         description=description)
         self.__state.add(source)
-        return SourceRegistrar(self, source)
+        return ColumnSourceRegistrar(self, source)
 
     def register_sql_transformation(self,
                                     name: str,
@@ -253,7 +290,7 @@ class Registrar:
         if not isinstance(owner, str):
             owner = owner.name()
         if owner == "":
-            owner = self.default_user()
+            owner = self.must_get_default_owner()
         if not isinstance(provider, str):
             provider = provider.name()
         source = Source(
@@ -265,18 +302,18 @@ class Registrar:
             description=description,
         )
         self.__state.add(source)
-        return SourceRegistrar(self, source)
+        return ColumnSourceRegistrar(self, source)
 
     def sql_transformation(self,
                            variant: str,
-                           owner: str | UserRegistrar,
                            provider: str | OfflineProvider,
                            name: str = "",
+                           owner: str | UserRegistrar = "",
                            description: str = ""):
         if not isinstance(owner, str):
             owner = owner.name()
         if owner == "":
-            owner = self.default_user()
+            owner = self.must_get_default_owner()
         if not isinstance(provider, str):
             provider = provider.name()
         decorator = SQLTransformationDecorator(
@@ -300,18 +337,68 @@ class Registrar:
         self.__state.add(entity)
         return EntityRegistrar(self, entity)
 
-    def register_resources(
+    def register_column_resources(
         self,
-        name: str,
         source: NameVariant | SourceRegistrar | SQLTransformationDecorator,
         entity: str | EntityRegistrar,
         entity_column: str,
-        features: List[ColumnMapping],
-        labels: List[ColumnMapping],
-        timestamp_column: str,
-        inference_store: str | OnlineProvider,
+        owner: str | UserRegistrar = "",
+        inference_store: str | OnlineProvider = "",
+        features: List[ColumnMapping] = None,
+        labels: List[ColumnMapping] = None,
+        timestamp_column: str = "",
+        description: str = "",
     ):
-        pass
+        if features is None:
+            features = []
+        if labels is None:
+            labels = []
+        if len(features) == 0 and len(labels) == 0:
+            raise ValueError("No features or labels set")
+        if not isinstance(source, tuple):
+            source = source.id()
+        if not isinstance(entity, str):
+            entity = entity.name()
+        if not isinstance(owner, str):
+            owner = owner.name()
+        if not isinstance(inference_store, str):
+            inference_store = inference_store.name()
+        if len(features) > 0 and inference_store == "":
+            raise ValueError(
+                "Inference store must be set when defining features")
+        if owner == "":
+            owner = self.must_get_default_owner()
+        for feature in features:
+            resource = Feature(
+                name=feature["name"],
+                variant=feature["variant"],
+                value_type=feature["type"],
+                entity=entity,
+                owner=owner,
+                provider=inference_store,
+                description=description,
+                location=ResourceColumnMapping(
+                    entity=entity_column,
+                    value=feature["column"],
+                    timestamp=timestamp_column,
+                ),
+            )
+            self.__state.add(resource)
+        for label in labels:
+            resource = Label(
+                name=label["name"],
+                variant=label["variant"],
+                value_type=label["type"],
+                entity=entity,
+                owner=owner,
+                description=description,
+                location=ResourceColumnMapping(
+                    entity=entity_column,
+                    value=label["column"],
+                    timestamp=timestamp_column,
+                ),
+            )
+            self.__state.add(resource)
 
 
 global_registrar = Registrar()

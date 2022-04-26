@@ -84,10 +84,6 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-// const convertTimestampToDate = (timestamp_string) => {
-//   return new Date(timestamp_string).toDateString();
-// };
-
 export const ResourceListView = ({
   title,
   resources,

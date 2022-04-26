@@ -99,3 +99,4 @@ etcd:
   auth:
     rbac:
       rootPassword: "secretpassword"
+  replicaCount: 3

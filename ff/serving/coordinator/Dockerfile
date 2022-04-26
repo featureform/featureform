@@ -19,5 +19,12 @@ COPY ./metadata/ ./metadata/
 COPY ./runner/ ./runner/
 COPY ./coordinator/main/main.go ./coordinator/main/main.go
 
+RUN go build ./coordinator/main/main.go
+RUN ls
+
+FROM golang:1.17-alpine
+
+COPY --from=0 ./app/main ./main
+
 EXPOSE 8080
-ENTRYPOINT ["go", "run", "./coordinator/main/main.go"]
+ENTRYPOINT ["./main"]

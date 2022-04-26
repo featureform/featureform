@@ -94,13 +94,18 @@ func (c *Coordinator) WatchForNewJobs() error {
 		return err
 	}
 	for _, kv := range getResp.Kvs {
+		fmt.Println("FOUND:", kv)
 		go c.executeJob(string(kv.Key))
 	}
 	for {
+		fmt.Println("WATCHING")
 		rch := c.EtcdClient.Watch(context.Background(), "JOB_", clientv3.WithPrefix())
 		for wresp := range rch {
+			fmt.Println("FOUND:", wresp)
 			for _, ev := range wresp.Events {
+				fmt.Println("FOUND:", ev)
 				if ev.Type == 0 {
+					fmt.Println("EXECUTING:", ev.Kv.Key)
 					go c.executeJob(string(ev.Kv.Key))
 				}
 

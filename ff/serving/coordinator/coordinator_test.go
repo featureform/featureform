@@ -420,6 +420,7 @@ func testCoordinatorMaterializeFeature() error {
 	}
 	defer cli.Close()
 	serialPGConfig := postgresConfig.Serialize()
+	fmt.Println(serialPGConfig)
 	offlineProvider, err := provider.Get(provider.PostgresOffline, serialPGConfig)
 	if err != nil {
 		return fmt.Errorf("could not get offline provider: %v", err)

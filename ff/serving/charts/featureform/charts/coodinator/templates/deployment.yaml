@@ -35,22 +35,25 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
             - name: ETCD_PORT
-              value: "2397"
+              value: "2379"
             - name: ETCD_HOST
               value: sandbox-etcd
-
+            - name: METADATA_PORT
+              value: "8000"
+            - name: METADATA_HOST
+              value: sandbox-metadata-server
           ports:
             - name: http
               containerPort: 80
               protocol: TCP
-          livenessProbe:
-            httpGet:
-              path: /
-              port: http
-          readinessProbe:
-            httpGet:
-              path: /
-              port: http
+#          livenessProbe:
+#            httpGet:
+#              path: /
+#              port: http
+#          readinessProbe:
+#            httpGet:
+#              path: /
+#              port: http
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}

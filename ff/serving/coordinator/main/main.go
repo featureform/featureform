@@ -7,6 +7,7 @@ import (
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.uber.org/zap"
 	"os"
+	"time"
 )
 
 func main() {
@@ -14,25 +15,36 @@ func main() {
 	etcdPort := os.Getenv("ETCD_PORT")
 	etcdUrl := fmt.Sprintf("%s:%s", etcdHost, etcdPort)
 	metadataHost := os.Getenv("METADATA_HOST")
-	metadataPort := os.Getenv("METADATA_HOST")
+	metadataPort := os.Getenv("METADATA_PORT")
 	metadataUrl := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
-	fmt.Println("connecting to etcd: %s\n", etcdUrl)
+	fmt.Printf("connecting to etcd: %s\n", etcdUrl)
+	fmt.Printf("connecting to metadata: %s\n", metadataUrl)
 	cli, err := clientv3.New(clientv3.Config{
-		Endpoints: []string{etcdUrl},
-		Username:  "root",
-		Password:  "secretpassword",
+		Endpoints:   []string{etcdUrl},
+		Username:    "root",
+		Password:    "secretpassword",
+		DialTimeout: time.Second * 1,
 	})
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("connected to etcd")
 	logger := zap.NewExample().Sugar()
+	logger.Debug("Connected to ETCD")
 	client, err := metadata.NewClient(metadataUrl, logger)
 	if err != nil {
 		logger.Errorw("Failed to connect: %v", err)
+		panic(err)
 	}
+	logger.Debug("Connected to Metadata")
 	coord, err := coordinator.NewCoordinator(client, logger, cli, &coordinator.KubernetesJobSpawner{})
 	if err != nil {
 		logger.Errorw("Failed to set up coordinator: %v", err)
+		panic(err)
 	}
-
+	logger.Debug("Begin Job Watch")
 	if err := coord.WatchForNewJobs(); err != nil {
+		logger.Errorw(err.Error())
 		panic(err)
 		return
 	}

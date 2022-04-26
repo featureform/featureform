@@ -18,4 +18,4 @@ spec:
           image: {{ .Values.image.repository }}
           imagePullPolicy: "Always"
           ports:
-            - containerPort: 3000
+            - containerPort: 8000

@@ -21,6 +21,17 @@ spec:
         - image: {{ .Values.image.repository }}
           name: {{ .Release.Name }}-metadata-server
           ports:
-            - containerPort: 8081
+            - containerPort: 8080
           resources: {}
+          env:
+            - name: TYPESENSE_PORT
+              value: "80"
+            - name: TYPESENSE_HOST
+              value: sandbox-typesense
+            - name: TYPESENSE_APIKEY
+              value: password
+            - name: ETCD_HOST
+              value: sandbox-etcd
+            - name: ETCD_PORT
+              value: "2379"
 status: {}

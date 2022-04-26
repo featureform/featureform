@@ -5,7 +5,7 @@
 replicaCount: 1
 
 image:
-  repository: sami1309/metadata
+  repository: featureformcom/metadata:latest
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
@@ -41,6 +41,17 @@ securityContext:
 service:
   type: ClusterIP
   port: 80
+
+grpc:
+  port: 8080
+
+#typesense:
+#  host: {{ .Release.Name }}-typesense
+#  port: 80
+#
+#etcd:
+#  host: {{ .Release.Name }}-etcd
+#  port: 2397
 
 ingress:
   enabled: false

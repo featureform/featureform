@@ -5,10 +5,10 @@
 replicaCount: 1
 
 image:
-  repository: sami1309/coordinator
+  repository: featureformcom/coordinator
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: ""
+  tag: "latest"
 
 imagePullSecrets: []
 nameOverride: ""

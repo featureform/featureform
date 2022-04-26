@@ -7,7 +7,7 @@ spec:
   selector:
     app: {{ .Release.Name }}-dashboard
   ports:
-    - port: {{ .Values.global.port }}
-      targetPort: 3000
+    - port: {{ .Values.dashboard.port }}
+      targetPort: 8000
       protocol: TCP
-      nodePort: 31001
+     # nodePort: 31001

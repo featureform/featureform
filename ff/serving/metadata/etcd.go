@@ -57,6 +57,8 @@ func (c EtcdConfig) initClient() (*clientv3.Client, error) {
 	client, err := clientv3.New(clientv3.Config{
 		Endpoints:   addresses,
 		DialTimeout: time.Second * 1,
+		Username:    "root",
+		Password:    "secretpassword",
 	})
 	if err != nil {
 		return nil, err

@@ -2,7 +2,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: prometheus-ingress
-  namespace: test-1
+
   annotations:
     kubernetes.io/ingress.class: nginx
 spec:
@@ -23,4 +23,4 @@ spec:
               service:
                 name: dashboard
                 port:
-                  number: 3000
+                  number: 8000

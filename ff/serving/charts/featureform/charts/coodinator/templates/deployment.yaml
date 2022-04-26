@@ -33,6 +33,12 @@ spec:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: ETCD_PORT
+              value: "2397"
+            - name: ETCD_HOST
+              value: sandbox-etcd
+
           ports:
             - name: http
               containerPort: 80

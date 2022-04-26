@@ -1,61 +1,75 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "typesense.fullname" . }}
-  labels:
-    {{- include "typesense.labels" . | nindent 4 }}
+  name: {{ template "typesense.fullname" . }}
+  labels: {{- include "typesense.labels" . | nindent 4 }}
 spec:
-  {{- if not .Values.autoscaling.enabled }}
-  replicas: {{ .Values.replicaCount }}
-  {{- end }}
   selector:
-    matchLabels:
-      {{- include "typesense.selectorLabels" . | nindent 6 }}
+    matchLabels: {{- include "typesense.matchLabels" . | nindent 6 }}
+  replicas: {{ .Values.replicas }}
   template:
     metadata:
-      {{- with .Values.podAnnotations }}
-      annotations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      labels:
-        {{- include "typesense.selectorLabels" . | nindent 8 }}
+      labels: {{- include "typesense.labels" . | nindent 8 }}
     spec:
-      {{- with .Values.imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
+{{- include "typesense.imagePullSecrets" . | nindent 6 }}
+      {{- if .Values.affinity }}
+      affinity: {{- include "typesense.tplValue" (dict "value" .Values.affinity "context" $) | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ include "typesense.serviceAccountName" . }}
+      {{- if .Values.nodeSelector }}
+      nodeSelector: {{- include "typesense.tplValue" (dict "value" .Values.nodeSelector "context" $) | nindent 8 }}
+      {{- end }}
+      {{- if .Values.tolerations }}
+      tolerations: {{- include "typesense.tplValue" (dict "value" .Values.tolerations "context" $) | nindent 8 }}
+      {{- end }}
+      {{- if .Values.securityContext.enabled }}
       securityContext:
-        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+        fsGroup: {{ .Values.securityContext.fsGroup }}
+        runAsUser: {{ .Values.securityContext.runAsUser }}
+      {{- end }}
       containers:
-        - name: {{ .Chart.Name }}
-          securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+        - name: typesense
+          image: {{ template "typesense.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy | quote }}
+          {{- if .Values.envFrom }}
+          envFrom: {{- toYaml .Values.envFrom | nindent 12 }}
+          {{- end }}
+          env:
+            - name: TYPESENSE_DATA_DIR
+              value: {{ .Values.persistence.path }}
+            - name: TYPESENSE_API_KEY
+              value: password
+            {{- if .Values.extraEnv }}
+            {{- toYaml .Values.extraEnv | nindent 12 }}
+            {{- end }}
+          workingDir: /opt
           ports:
             - name: http
-              containerPort: 80
-              protocol: TCP
+              containerPort: {{ .Values.applicationPort }}
           livenessProbe:
             httpGet:
-              path: /
+              path: /health
               port: http
+            initialDelaySeconds: 60
+            timeoutSeconds: 5
+            failureThreshold: 6
           readinessProbe:
             httpGet:
-              path: /
+              path: /health
               port: http
-          resources:
-            {{- toYaml .Values.resources | nindent 12 }}
-      {{- with .Values.nodeSelector }}
-      nodeSelector:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.affinity }}
-      affinity:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.tolerations }}
-      tolerations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+            initialDelaySeconds: 10
+            timeoutSeconds: 3
+            periodSeconds: 5
+          {{- if .Values.resources }}
+          resources: {{- toYaml .Values.resources | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: data
+              mountPath: {{ .Values.persistence.path }}
+      volumes:
+        - name: data
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ template "typesense.fullname" . }}-binding
+          {{- else }}
+          emptyDir: {}
+          {{- end }}

@@ -1,7 +1,7 @@
 import pytest
 
 from register import Registrar
-from resources import SQLTable, SQLTransformation, Source, User, PrimaryData, Entity
+from resources import SQLTable, SQLTransformation, Source, User, PrimaryData, Entity, Feature, Label, ResourceColumnMapping
 
 
 @pytest.fixture
@@ -309,3 +309,205 @@ def test_register_sql_transformation_default_owner(registrar):
 def test_register_entity(registrar, args, expected):
     registrar.register_entity(**args)
     assert registrar.state().sorted_list() == [expected]
+
+
+def test_register_column_resources(registrar):
+    registrar.register_column_resources(
+        source=("name", "variant"),
+        entity="user",
+        entity_column="user_clm",
+        inference_store="redis",
+        features=[{
+            "name": "f1",
+            "variant": "v1",
+            "column": "value",
+            "type": "float32"
+        }],
+        labels=[{
+            "name": "l1",
+            "variant": "lv1",
+            "column": "label",
+            "type": "string"
+        }],
+        owner="user",
+        timestamp_column="date",
+    )
+    expected = [
+        Feature(name="f1",
+                variant="v1",
+                value_type="float32",
+                entity="user",
+                owner="user",
+                provider="redis",
+                description="",
+                location=ResourceColumnMapping(entity="user_clm",
+                                               value="value",
+                                               timestamp="date")),
+        Label(name="l1",
+              variant="lv1",
+              value_type="string",
+              entity="user",
+              owner="user",
+              description="",
+              location=ResourceColumnMapping(entity="user_clm",
+                                             value="label",
+                                             timestamp="date")),
+    ]
+    assert registrar.state().sorted_list() == expected
+
+
+def test_register_column_features(registrar):
+    registrar.register_column_resources(
+        source=("name", "variant"),
+        entity="user",
+        entity_column="user_clm",
+        inference_store="redis",
+        features=[{
+            "name": "f1",
+            "variant": "v1",
+            "column": "value",
+            "type": "float32"
+        }],
+        owner="user",
+        timestamp_column="date",
+    )
+    expected = [
+        Feature(name="f1",
+                variant="v1",
+                value_type="float32",
+                entity="user",
+                owner="user",
+                provider="redis",
+                description="",
+                location=ResourceColumnMapping(entity="user_clm",
+                                               value="value",
+                                               timestamp="date")),
+    ]
+    assert registrar.state().sorted_list() == expected
+
+
+def test_register_column_labels(registrar):
+    registrar.register_column_resources(
+        source=("name", "variant"),
+        entity="user",
+        entity_column="user_clm",
+        labels=[{
+            "name": "l1",
+            "variant": "lv1",
+            "column": "label",
+            "type": "string"
+        }],
+        owner="user",
+        timestamp_column="date",
+    )
+    expected = [
+        Label(name="l1",
+              variant="lv1",
+              value_type="string",
+              entity="user",
+              owner="user",
+              description="",
+              location=ResourceColumnMapping(entity="user_clm",
+                                             value="label",
+                                             timestamp="date")),
+    ]
+    assert registrar.state().sorted_list() == expected
+
+
+def test_register_column_no_resources_error(registrar):
+    with pytest.raises(ValueError):
+        registrar.register_column_resources(
+            source=("name", "variant"),
+            entity="user",
+            entity_column="user_clm",
+            owner="user",
+            timestamp_column="date",
+        )
+
+
+def test_register_column_no_inference_store_error(registrar):
+    with pytest.raises(ValueError):
+        registrar.register_column_resources(
+            source=("name", "variant"),
+            entity="user",
+            entity_column="user_clm",
+            owner="user",
+            features=[{
+                "name": "f1",
+                "variant": "v1",
+                "column": "value",
+                "type": "float32"
+            }],
+            timestamp_column="date",
+        )
+
+
+def test_register_column_no_owner_error(registrar):
+    with pytest.raises(ValueError):
+        registrar.register_column_resources(
+            source=("name", "variant"),
+            entity="user",
+            entity_column="user_clm",
+            inference_store="redis",
+            features=[{
+                "name": "f1",
+                "variant": "v1",
+                "column": "value",
+                "type": "float32"
+            }],
+            timestamp_column="date",
+        )
+
+
+def test_register_column_resources_with_registrar(registrar):
+    entity = registrar.register_entity("user")
+    redis = registrar.register_redis("redis")
+    user = registrar.register_user("person")
+    source = registrar.register_primary_data(
+        name="name",
+        variant="variant",
+        location=SQLTable("name"),
+        owner="user",
+        provider="snowflake",
+    )
+    source.register_resources(
+        entity=entity,
+        entity_column="user_clm",
+        inference_store=redis,
+        features=[{
+            "name": "f1",
+            "variant": "v1",
+            "column": "value",
+            "type": "float32"
+        }],
+        labels=[{
+            "name": "l1",
+            "variant": "lv1",
+            "column": "label",
+            "type": "string"
+        }],
+        owner=user,
+        timestamp_column="date",
+    )
+    expected = [
+        Feature(name="f1",
+                variant="v1",
+                value_type="float32",
+                entity="user",
+                owner="person",
+                provider="redis",
+                description="",
+                location=ResourceColumnMapping(entity="user_clm",
+                                               value="value",
+                                               timestamp="date")),
+        Label(name="l1",
+              variant="lv1",
+              value_type="string",
+              entity="user",
+              owner="person",
+              description="",
+              location=ResourceColumnMapping(entity="user_clm",
+                                             value="label",
+                                             timestamp="date")),
+    ]
+    assert registrar.state().sorted_list()[-2:] == expected

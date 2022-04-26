@@ -141,14 +141,26 @@ class Entity:
 
 @typechecked
 @dataclass
+class ResourceColumnMapping:
+    entity: str
+    value: str
+    timestamp: str
+
+
+ResourceLocation = ResourceColumnMapping
+
+
+@typechecked
+@dataclass
 class Feature:
     name: str
     variant: str
-    t: str
+    value_type: str
     entity: str
     owner: str
     provider: str
     description: str
+    location: ResourceLocation
 
     @staticmethod
     def type() -> str:
@@ -160,11 +172,11 @@ class Feature:
 class Label:
     name: str
     variant: str
-    t: str
+    value_type: str
     entity: str
     owner: str
-    provider: str
     description: str
+    location: ResourceLocation
 
     @staticmethod
     def type() -> str:

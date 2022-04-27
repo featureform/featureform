@@ -14,20 +14,21 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: prometheus-deployment
+                name: sandbox-prometheus-deployment
                 port:
                   number: 9090
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: dashboard
-                port:
-                  number: 3000
-          - path: /
+          - path: /api
             pathType: Prefix
             backend:
               service:
                 name: sandbox-api-server
                 port:
                   number: 7878
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: sandbox-dashboard
+                port:
+                  number: 3000
+

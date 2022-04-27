@@ -8,6 +8,6 @@ spec:
     app: {{ .Release.Name }}-dashboard
   ports:
     - port: {{ .Values.dashboard.port }}
-      targetPort: 8000
+      targetPort: 3000
       protocol: TCP
       nodePort: 31001

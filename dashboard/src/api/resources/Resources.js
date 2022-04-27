@@ -36,6 +36,8 @@ export const providerLogos = Object.freeze({
   Redis: "/Redis_Logo.svg",
   BigQuery: "/google_bigquery-ar21.svg",
   "Apache Spark": "/Apache_Spark_logo.svg",
+  PostgreSQL: "Postgresql_elephant.svg",
+  Snowflake: "Snowflake_Logo.svg",
 });
 
 const API_URL = "http://localhost:8181";

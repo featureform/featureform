@@ -77,6 +77,7 @@ type SourceVariantResource struct {
 	Created      time.Time                               `json:"created"`
 	Description  string                                  `json:"description"`
 	Name         string                                  `json:"name"`
+	SourceType   string                                  `json:"source-type"`
 	Owner        string                                  `json:"owner"`
 	Provider     string                                  `json:"provider"`
 	Variant      string                                  `json:"variant"`
@@ -227,16 +228,25 @@ func trainingSetShallowMap(variant *metadata.TrainingSetVariant) TrainingSetVari
 }
 
 func sourceShallowMap(variant *metadata.SourceVariant) SourceVariantResource {
-
+	var sourceType string
+	var sourceString string
+	if variant.PrimaryDataSQLTableName() == "" {
+		sourceType = "Transformation"
+		sourceString = variant.SQLTransformationQuery()
+	} else {
+		sourceType = "Primary Table"
+		sourceString = variant.PrimaryDataSQLTableName()
+	}
 	return SourceVariantResource{
 		Created:     variant.Created(),
 		Description: variant.Description(),
 		Name:        variant.Name(),
+		SourceType:  sourceType,
 		Variant:     variant.Variant(),
 		Owner:       variant.Owner(),
 		Provider:    variant.Provider(),
 		Status:      variant.Status(),
-		Definition:  fmt.Sprintf("%s%s", variant.PrimaryDataSQLTableName(), variant.SQLTransformationQuery()),
+		Definition:  sourceString,
 	}
 }
 

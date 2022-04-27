@@ -15,14 +15,18 @@ import (
 	"go.etcd.io/etcd/client/v3/concurrency"
 )
 
-func templateReplace(template string, replacements map[string]string) string {
+func templateReplace(template string, replacements map[string]string) (string, error) {
 	formattedString := ""
 	numEscapes := strings.Count(template, "{{")
 	for i := 0; i < numEscapes; i++ {
 		split := strings.SplitN(template, "{{", 2)
 		afterSplit := strings.SplitN(split[1], "}}", 2)
 		key := strings.TrimSpace(afterSplit[0])
-		formattedString += fmt.Sprintf("%s%s", split[0], replacements[key])
+		replacement, has := replacements[key]
+		if !has {
+			return err
+		}
+		formattedString += fmt.Sprintf("%s%s", split[0], replacement)
 		template = afterSplit[1]
 	}
 	formattedString += template
@@ -163,7 +167,10 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 	if err != nil {
 		return err
 	}
-	query := templateReplace(templateString, sourceMap)
+	query, err := templateReplace(templateString, sourceMap)
+	if err != nil {
+		return err
+	}
 	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Transformation}
 	transformationConfig := provider.TransformationConfig{TargetTableID: providerResourceID, Query: query}
 	if err := offlineStore.CreateTransformation(transformationConfig); err != nil {

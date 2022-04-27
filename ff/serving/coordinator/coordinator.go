@@ -24,13 +24,13 @@ func templateReplace(template string, replacements map[string]string) (string, e
 		key := strings.TrimSpace(afterSplit[0])
 		replacement, has := replacements[key]
 		if !has {
-			return err
+			return "", fmt.Errorf("No key set")
 		}
 		formattedString += fmt.Sprintf("%s%s", split[0], replacement)
 		template = afterSplit[1]
 	}
 	formattedString += template
-	return formattedString
+	return formattedString, nil
 }
 
 type Coordinator struct {

@@ -335,6 +335,7 @@ def test_register_column_resources(registrar):
     expected = [
         Feature(name="f1",
                 variant="v1",
+                source=("name", "variant"),
                 value_type="float32",
                 entity="user",
                 owner="user",
@@ -345,6 +346,7 @@ def test_register_column_resources(registrar):
                                                timestamp="date")),
         Label(name="l1",
               variant="lv1",
+              source=("name", "variant"),
               value_type="string",
               entity="user",
               owner="user",
@@ -374,6 +376,7 @@ def test_register_column_features(registrar):
     expected = [
         Feature(name="f1",
                 variant="v1",
+                source=("name", "variant"),
                 value_type="float32",
                 entity="user",
                 owner="user",
@@ -403,6 +406,7 @@ def test_register_column_labels(registrar):
     expected = [
         Label(name="l1",
               variant="lv1",
+              source=("name", "variant"),
               value_type="string",
               entity="user",
               owner="user",
@@ -492,6 +496,7 @@ def test_register_column_resources_with_registrar(registrar):
     expected = [
         Feature(name="f1",
                 variant="v1",
+                source=("name", "variant"),
                 value_type="float32",
                 entity="user",
                 owner="person",
@@ -502,6 +507,7 @@ def test_register_column_resources_with_registrar(registrar):
                                                timestamp="date")),
         Label(name="l1",
               variant="lv1",
+              source=("name", "variant"),
               value_type="string",
               entity="user",
               owner="person",

@@ -417,6 +417,7 @@ class Registrar:
             resource = Feature(
                 name=feature["name"],
                 variant=feature["variant"],
+                source=source,
                 value_type=feature["type"],
                 entity=entity,
                 owner=owner,
@@ -435,6 +436,7 @@ class Registrar:
             resource = Label(
                 name=label["name"],
                 variant=label["variant"],
+                source=source,
                 value_type=label["type"],
                 entity=entity,
                 owner=owner,

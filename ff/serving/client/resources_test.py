@@ -86,6 +86,7 @@ def all_resources_set(redis_provider):
                provider="redis-name"),
         Feature(name="feature",
                 variant="v1",
+                source=("a", "b"),
                 description="feature",
                 value_type="float32",
                 entity="user",
@@ -99,6 +100,7 @@ def all_resources_set(redis_provider):
         Label(
             name="label",
             variant="v1",
+            source=("a", "b"),
             description="feature",
             value_type="float32",
             location=ResourceColumnMapping(
@@ -130,6 +132,7 @@ def all_resources_strange_order(redis_provider):
         Label(
             name="label",
             variant="v1",
+            source=("a", "b"),
             description="feature",
             location=ResourceColumnMapping(
                 entity="abc",
@@ -142,6 +145,7 @@ def all_resources_strange_order(redis_provider):
         ),
         Feature(name="feature",
                 variant="v1",
+                source=("a", "b"),
                 description="feature",
                 value_type="float32",
                 entity="user",
@@ -217,6 +221,7 @@ def test_add_all_resource_types(all_resources_strange_order, redis_config):
         Entity(name="user", description="A user"),
         Feature(name="feature",
                 variant="v1",
+                source=("a", "b"),
                 description="feature",
                 value_type="float32",
                 location=ResourceColumnMapping(
@@ -230,6 +235,7 @@ def test_add_all_resource_types(all_resources_strange_order, redis_config):
         Label(
             name="label",
             variant="v1",
+            source=("a", "b"),
             description="feature",
             value_type="float32",
             location=ResourceColumnMapping(

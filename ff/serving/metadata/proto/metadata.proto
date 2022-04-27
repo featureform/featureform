@@ -44,6 +44,7 @@ service Api {
     rpc CreateUser(User) returns (Empty);
     rpc CreateProvider(Provider) returns (Empty);
     rpc CreateSourceVariant(SourceVariant) returns (Empty);
+    rpc CreateEntity(Entity) returns (Empty);
 }
 
 message Name {

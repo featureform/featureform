@@ -37,6 +37,10 @@ func (serv *ApiServer) CreateProvider(ctx context.Context, provider *pb.Provider
 	return serv.meta.CreateProvider(ctx, provider)
 }
 
+func (serv *ApiServer) CreateSourceVariant(ctx context.Context, source *pb.SourceVariant) (*pb.Empty, error) {
+	return serv.meta.CreateSourceVariant(ctx, source)
+}
+
 func (serv *ApiServer) Serve() error {
 	if serv.grpcServer != nil {
 		return fmt.Errorf("Server already running")

@@ -112,7 +112,7 @@ func (c *Coordinator) WatchForNewJobs() error {
 
 func (c *Coordinator) mapNameVariantsToTables(sources []metadata.NameVariant) (map[string]string, error) {
 	sourceMap := make(map[string]string)
-	c.Logger.Debug(fmt.Sprintf("%v",sources))
+	c.Logger.Debug(fmt.Sprintf("%v", sources))
 	for _, nameVariant := range sources {
 		var tableName string
 		source, err := c.Metadata.GetSourceVariant(context.Background(), nameVariant)
@@ -130,6 +130,7 @@ func (c *Coordinator) mapNameVariantsToTables(sources []metadata.NameVariant) (m
 		}
 		c.Logger.Debug("mapping name variants to table names")
 		c.Logger.Debug(fmt.Sprintf("%v",nameVariant))
+
 		c.Logger.Debug(tableName)
 		sourceMap[fmt.Sprintf("%s.%s", nameVariant.Name, nameVariant.Variant)] = tableName
 	}
@@ -144,7 +145,7 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 	templateString := transformSource.SQLTransformationQuery()
 	sources := transformSource.SQLTransformationSources()
 	c.Logger.Debug("retrieved sources from metadata")
-	c.Logger.Debug(fmt.Sprintf("%v",sources))
+	c.Logger.Debug(fmt.Sprintf("%v", sources))
 	allReady := false
 	for sourceVariants, err := c.Metadata.GetSourceVariants(context.Background(), sources); !allReady; sourceVariants, err = c.Metadata.GetSourceVariants(context.Background(), sources) {
 		if err != nil {

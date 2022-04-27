@@ -5,7 +5,6 @@
 package main
 
 import (
-
 	"github.com/featureform/serving/metadata"
 	"go.uber.org/zap"
 )
@@ -14,8 +13,8 @@ func main() {
 	logger := zap.NewExample().Sugar()
 	addr := ":8888"
 	config := &metadata.Config{
-		Logger:  logger,
-		Address: addr,
+		Logger:          logger,
+		Address:         addr,
 		StorageProvider: metadata.LocalStorageProvider{},
 	}
 	server, err := metadata.NewMetadataServer(config)

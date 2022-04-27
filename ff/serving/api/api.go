@@ -1,22 +1,21 @@
 package main
 
 import (
-    "context"
+	"context"
 	"fmt"
 	"net"
 
 	pb "github.com/featureform/serving/metadata/proto"
-	"google.golang.org/grpc/credentials/insecure"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 type ApiServer struct {
 	Logger     *zap.SugaredLogger
 	address    string
-    metaAddr string
-    meta pb.MetadataClient
+	metaAddr   string
+	meta       pb.MetadataClient
 	grpcServer *grpc.Server
 	listener   net.Listener
 	pb.UnimplementedApiServer
@@ -24,18 +23,18 @@ type ApiServer struct {
 
 func NewApiServer(logger *zap.SugaredLogger, address string, metaAddr string) (*ApiServer, error) {
 	return &ApiServer{
-		Logger:  logger,
-		address: address,
-        metaAddr: metaAddr,
+		Logger:   logger,
+		address:  address,
+		metaAddr: metaAddr,
 	}, nil
 }
 
 func (serv *ApiServer) CreateUser(ctx context.Context, user *pb.User) (*pb.Empty, error) {
-   return serv.meta.CreateUser(ctx, user)
+	return serv.meta.CreateUser(ctx, user)
 }
 
 func (serv *ApiServer) CreateProvider(ctx context.Context, provider *pb.Provider) (*pb.Empty, error) {
-   return serv.meta.CreateProvider(ctx, provider)
+	return serv.meta.CreateProvider(ctx, provider)
 }
 
 func (serv *ApiServer) Serve() error {
@@ -53,7 +52,7 @@ func (serv *ApiServer) Serve() error {
 	if err != nil {
 		return err
 	}
-    serv.meta = pb.NewMetadataClient(conn)
+	serv.meta = pb.NewMetadataClient(conn)
 	return serv.ServeOnListener(lis)
 }
 
@@ -77,11 +76,11 @@ func (serv *ApiServer) GracefulStop() error {
 }
 
 func main() {
-    logger := zap.NewExample().Sugar()
-    serv, err := NewApiServer(logger, "0.0.0.0:7878", "0.0.0.0:8888")
-    if err != nil {
-        fmt.Println(err)
-        return
-    }
-    fmt.Println(serv.Serve())
+	logger := zap.NewExample().Sugar()
+	serv, err := NewApiServer(logger, "0.0.0.0:7878", "0.0.0.0:8888")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Println(serv.Serve())
 }

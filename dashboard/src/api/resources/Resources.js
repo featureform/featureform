@@ -40,18 +40,13 @@ export const providerLogos = Object.freeze({
   Snowflake: "Snowflake_Logo.svg",
 });
 
-//replace these with environment variables
-//environment variables MUST begin with REACT_APP_
-//example: process.env.REACT_APP_API_URL
-//Sterling replace the things on the right with process.env.REACT_APP_...
+const API_URL = process.env.REACT_APP_API_URL.trim();
+export const PROMETHEUS_URL = process.env.REACT_APP_PROMETHEUS_URL.trim();
+const TYPESENSE_PORT = process.env.REACT_APP_TYPESENSE_PORT.trim();
+const TYPESENSE_URL = process.env.REACT_APP_TYPESENSE_URL.trim();
+const TYPESENSE_API_KEY = process.env.REACT_APP_TYPESENSE_API_KEY.trim();
 
-//these all have to be exposed externally via ingress or a node port
-const API_URL = "http://localhost:8181";
-export const PROMETHEUS_URL = "http://localhost:9090/";
-const TYPESENSE_PORT = "8108";
-const TYPESENSE_URL = "localhost";
-const TYPESENSE_API_KEY = "xyz";
-
+console.log(API_URL);
 const local = false;
 
 export default class ResourcesAPI {
@@ -85,6 +80,7 @@ export default class ResourcesAPI {
     if (process.env.REACT_APP_EMPTY_RESOURCE_VIEW === "true") {
       fetchAddress = "/data/lists/wine-data-empty.json";
     }
+    console.log(fetchAddress);
     return fetch(fetchAddress, {
       headers: {
         "Content-Type": "application/json",

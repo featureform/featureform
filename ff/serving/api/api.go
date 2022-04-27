@@ -116,7 +116,7 @@ func (serv *ApiServer) GracefulStop() error {
 
 func main() {
 	logger := zap.NewExample().Sugar()
-	serv, err := NewApiServer(logger, "0.0.0.0:7878", "0.0.0.0:8888")
+	serv, err := NewApiServer(logger, "0.0.0.0:7878", "sandbox-metadata-server:8080")
 	if err != nil {
 		fmt.Println(err)
 		return

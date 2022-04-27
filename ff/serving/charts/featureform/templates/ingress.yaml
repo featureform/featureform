@@ -23,3 +23,10 @@ spec:
                 name: {{ .Release.Name }}-dashboard
                 port:
                   number: {{ .Values.global.port }}
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: sandbox-api-server
+                port:
+                  number: 8000

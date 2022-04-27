@@ -1146,11 +1146,13 @@ type sendFn func(proto.Message) error
 type initParentFn func(name, variant string) Resource
 
 func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, init initParentFn) (*pb.Empty, error) {
-	fmt.Println("generic Create", res)
+	fmt.Printf("generic Create %#v\n", res)
 	id := res.ID()
 	if has, err := serv.lookup.Has(id); err != nil {
+		fmt.Printf("HAS err %#v\n", id)
 		return nil, err
 	} else if has {
+		fmt.Printf("HAS %#v\n", id)
 		return nil, &ResourceExists{id}
 	}
 	if err := serv.lookup.Set(id, res); err != nil {

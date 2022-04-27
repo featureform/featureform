@@ -25,7 +25,7 @@ const homePageSlice = createSlice({
         disabled: false,
       },
       {
-        type: "PrimaryData",
+        type: "Source",
         disabled: false,
       },
       {

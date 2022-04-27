@@ -2,7 +2,6 @@ import React from "react";
 import { makeStyles } from "@material-ui/core/styles";
 import { connect } from "react-redux";
 import SearchBar from "../search/SearchBar";
-import QuickLinks from "./QuickLinks";
 import TilePanel from "../tilelinks/TilePanel";
 import Typography from "@material-ui/core/Typography";
 
@@ -53,9 +52,6 @@ const HomePage = ({ sections }) => {
       <div className={classes.search}>
         <div className={classes.searchTitle}></div>
         <SearchBar homePage={true} />
-      </div>
-      <div className={classes.clickPills}>
-        <QuickLinks />
       </div>
       <div className={classes.sections}>
         <div className={classes.tilePanel}>

@@ -28,7 +28,7 @@ const useStyles = makeStyles((theme) => ({
     },
   },
   aggDropdown: {
-    minWidth: "20em",
+    minWidth: "0em",
     display: "flex",
     "& > *": {
       paddingBottom: "0em",
@@ -95,7 +95,6 @@ const MetricsDropdown = ({ type, name, variant, timeRange, aggregates }) => {
 
                     <div className={classes.aggDropdown}>
                       <TimeDropdown />
-                      <AggregateDropdown graph={0} />
                     </div>
                   </div>
 
@@ -113,7 +112,6 @@ const MetricsDropdown = ({ type, name, variant, timeRange, aggregates }) => {
 
                     <div className={classes.aggDropdown}>
                       <TimeDropdown />
-                      <AggregateDropdown graph={1} />
                     </div>
                   </div>
 
@@ -136,7 +134,6 @@ const MetricsDropdown = ({ type, name, variant, timeRange, aggregates }) => {
 
                     <div className={classes.aggDropdown}>
                       <TimeDropdown />
-                      <AggregateDropdown graph={1} />
                     </div>
                   </div>
 
@@ -157,7 +154,6 @@ const MetricsDropdown = ({ type, name, variant, timeRange, aggregates }) => {
 
                 <div className={classes.aggDropdown}>
                   <TimeDropdown />
-                  <AggregateDropdown graph={2} />
                 </div>
               </div>
 

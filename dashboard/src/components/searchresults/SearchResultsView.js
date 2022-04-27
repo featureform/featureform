@@ -112,10 +112,19 @@ const SearchResultsList = ({ type, contents, setVariant }) => {
   let filteredContents = contents.filter(
     (content) => searchTypeMap[content.Type]
   );
+  let filteredContentHits = {};
+  let moreFilteredContents = filteredContents.filter((content) => {
+    if (content.Name + "." + content.Variant in filteredContentHits) {
+      return false;
+    }
+    filteredContentHits[content.Name + "." + content.Variant] = content.Variant;
+    return true;
+  });
+
   return (
     <div>
       <List className={classes.root} component="nav">
-        {filteredContents.map((content) => (
+        {moreFilteredContents.map((content) => (
           <SearchResultsItem
             type={type}
             content={content}

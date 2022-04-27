@@ -119,7 +119,7 @@ const useStyles = makeStyles((theme) => ({
     alignSelf: "flex-end",
   },
   syntax: {
-    width: "40%",
+    width: "50%",
     paddingLeft: theme.spacing(2),
   },
   resourceList: {
@@ -143,7 +143,7 @@ const useStyles = makeStyles((theme) => ({
   linkChip: {
     //width: "10%",
     "& .MuiChip-label": {
-      paddingRight: theme.spacing(0),
+      paddingRight: theme.spacing(1),
     },
   },
   linkBox: {
@@ -414,10 +414,30 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                       <b>Status:</b> {metadata["status"]}
                     </Typography>
                   )}
-                  {metadata["definition"] && (
+                  {metadata["source-type"] && (
                     <Typography variant="body1">
-                      <b>Definition:</b> {metadata["definition"]}
+                      <b>Source Type:</b> {metadata["source-type"]}
                     </Typography>
+                  )}
+                  {metadata["definition"] && (
+                    <div>
+                      <Typography variant="body1">
+                        <b>Origin:</b>
+                      </Typography>
+                      {metadata["source-type"] === "Transformation" ? (
+                        <SyntaxHighlighter
+                          className={classes.syntax}
+                          language={"sql"}
+                          style={okaidia}
+                        >
+                          {metadata["definition"]}
+                        </SyntaxHighlighter>
+                      ) : (
+                        <Typography variant="h7">
+                          <b>{metadata["definition"]}</b>
+                        </Typography>
+                      )}
+                    </div>
                   )}
                   {metadata["serialized-config"] && (
                     <Typography variant="body1">
@@ -552,20 +572,16 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
             >
               <MaterialTable
                 className={classes.tableRoot}
-                {...(!singleVariant
-                  ? {
-                      detailPanel: (row) => {
-                        return (
-                          <VariantTable
-                            type={resourceType}
-                            name={row.name}
-                            row={row}
-                            setVariant={setVariant}
-                          />
-                        );
-                      },
-                    }
-                  : {})}
+                detailPanel={(row) => {
+                  return (
+                    <VariantTable
+                      type={resourceType}
+                      name={row.name}
+                      row={row}
+                      setVariant={setVariant}
+                    />
+                  );
+                }}
                 title={capitalize(resourceType)}
                 options={{
                   toolbar: false,

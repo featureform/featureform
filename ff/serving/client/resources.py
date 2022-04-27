@@ -366,5 +366,6 @@ class ResourceState:
             try:
                 print("Creating", resource.name)
                 resource._create(stub)
-            except grpc._channel._InactiveRpcError as e:
-                print(resource.name, "already exists.")
+            except grpc.RpcError as e:
+                if e.code() == grpc.StatusCode.ALREADY_EXISTS:
+                    print(resource.name, "already exists.")

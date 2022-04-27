@@ -1,5 +1,5 @@
 
 module "sandbox"  {
   source = "./sandbox"
-  sandbox_name = "test-1"
+  sandbox_name = "scribd"
 }

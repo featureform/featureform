@@ -1,4 +1,4 @@
-resource "aws_db_subnet_group" "private_subnet_group" {
+resource "aws_db_subnet_group" "public_subnet_group" {
   name       =  "${local.cluster_name}-sb-subnet"
   subnet_ids = module.vpc.public_subnets
 
@@ -15,7 +15,7 @@ resource "aws_db_instance" "postgres" {
   engine_version         = "13.4"
   username               = "username"
   password               = "password"
-  db_subnet_group_name   = aws_db_subnet_group.private_subnet_group.name
+  db_subnet_group_name   = aws_db_subnet_group.public_subnet_group.name
   publicly_accessible    = true
   skip_final_snapshot    = true
 }

@@ -2,6 +2,14 @@ resource "aws_elasticache_subnet_group" "ec_subnet_grp" {
   name       = "${local.cluster_name}-cache-subnet"
   subnet_ids = module.vpc.public_subnets
 }
+#
+#resource "aws_elasticache_user" "user" {
+#  user_id       = "ff_user"
+#  user_name     = "ff_user"
+#  access_string = "on ~app::* -@all +@read +@hash +@bitmap +@geo -setbit -bitfield -hset -hsetnx -hmset -hincrby -hincrbyfloat -hdel -bitop -geoadd -georadius -georadiusbymember"
+#  engine        = "REDIS"
+#  passwords     = ["password"]
+#}
 
 resource "aws_elasticache_cluster" "cluster" {
   cluster_id           = local.cluster_name

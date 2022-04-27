@@ -129,7 +129,7 @@ func (c *Coordinator) mapNameVariantsToTables(sources []metadata.NameVariant) (m
 			tableName = provider.GetPrimaryTableName(providerResourceID)
 		}
 		c.Logger.Debug("mapping name variants to table names")
-		c.Logger.Debug(fmt.Sprintf("%v",nameVariant))
+		c.Logger.Debug(fmt.Sprintf("%v", nameVariant))
 
 		c.Logger.Debug(tableName)
 		sourceMap[fmt.Sprintf("%s.%s", nameVariant.Name, nameVariant.Variant)] = tableName
@@ -175,7 +175,7 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 	}
 	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Transformation}
 	transformationConfig := provider.TransformationConfig{TargetTableID: providerResourceID, Query: query}
-	c.Logger.Debug(fmt.Sprintf("%v",transformationConfig))
+	c.Logger.Debug(fmt.Sprintf("%v", transformationConfig))
 	if err := offlineStore.CreateTransformation(transformationConfig); err != nil {
 		return err
 	}

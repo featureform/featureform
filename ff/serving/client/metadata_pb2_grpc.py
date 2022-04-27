@@ -1019,6 +1019,21 @@ class ApiStub(object):
                 request_serializer=metadata__pb2.Entity.SerializeToString,
                 response_deserializer=metadata__pb2.Empty.FromString,
                 )
+        self.CreateFeatureVariant = channel.unary_unary(
+                '/featureform.serving.metadata.proto.Api/CreateFeatureVariant',
+                request_serializer=metadata__pb2.FeatureVariant.SerializeToString,
+                response_deserializer=metadata__pb2.Empty.FromString,
+                )
+        self.CreateLabelVariant = channel.unary_unary(
+                '/featureform.serving.metadata.proto.Api/CreateLabelVariant',
+                request_serializer=metadata__pb2.LabelVariant.SerializeToString,
+                response_deserializer=metadata__pb2.Empty.FromString,
+                )
+        self.CreateTrainingSetVariant = channel.unary_unary(
+                '/featureform.serving.metadata.proto.Api/CreateTrainingSetVariant',
+                request_serializer=metadata__pb2.TrainingSetVariant.SerializeToString,
+                response_deserializer=metadata__pb2.Empty.FromString,
+                )
 
 
 class ApiServicer(object):
@@ -1048,6 +1063,24 @@ class ApiServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def CreateFeatureVariant(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def CreateLabelVariant(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def CreateTrainingSetVariant(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_ApiServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -1069,6 +1102,21 @@ def add_ApiServicer_to_server(servicer, server):
             'CreateEntity': grpc.unary_unary_rpc_method_handler(
                     servicer.CreateEntity,
                     request_deserializer=metadata__pb2.Entity.FromString,
+                    response_serializer=metadata__pb2.Empty.SerializeToString,
+            ),
+            'CreateFeatureVariant': grpc.unary_unary_rpc_method_handler(
+                    servicer.CreateFeatureVariant,
+                    request_deserializer=metadata__pb2.FeatureVariant.FromString,
+                    response_serializer=metadata__pb2.Empty.SerializeToString,
+            ),
+            'CreateLabelVariant': grpc.unary_unary_rpc_method_handler(
+                    servicer.CreateLabelVariant,
+                    request_deserializer=metadata__pb2.LabelVariant.FromString,
+                    response_serializer=metadata__pb2.Empty.SerializeToString,
+            ),
+            'CreateTrainingSetVariant': grpc.unary_unary_rpc_method_handler(
+                    servicer.CreateTrainingSetVariant,
+                    request_deserializer=metadata__pb2.TrainingSetVariant.FromString,
                     response_serializer=metadata__pb2.Empty.SerializeToString,
             ),
     }
@@ -1145,6 +1193,57 @@ class Api(object):
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/featureform.serving.metadata.proto.Api/CreateEntity',
             metadata__pb2.Entity.SerializeToString,
+            metadata__pb2.Empty.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def CreateFeatureVariant(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/featureform.serving.metadata.proto.Api/CreateFeatureVariant',
+            metadata__pb2.FeatureVariant.SerializeToString,
+            metadata__pb2.Empty.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def CreateLabelVariant(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/featureform.serving.metadata.proto.Api/CreateLabelVariant',
+            metadata__pb2.LabelVariant.SerializeToString,
+            metadata__pb2.Empty.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def CreateTrainingSetVariant(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/featureform.serving.metadata.proto.Api/CreateTrainingSetVariant',
+            metadata__pb2.TrainingSetVariant.SerializeToString,
             metadata__pb2.Empty.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

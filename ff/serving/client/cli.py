@@ -37,30 +37,30 @@ def cli():
     pass
 
 
-@cli.command()
-@click.argument("resource_type")
-def list(resource_type):
-    """list resources of a given type.
-    """
-    pass
-
-
-@cli.command()
-@click.argument("resource_type",
-                type=click.Choice(resource_types, case_sensitive=False))
-@click.argument("resources", nargs=-1, required=True)
-def get(resource_type, resoruces):
-    """get resources of a given type.
-    """
-    pass
-
-
-@cli.command()
-@click.argument("files", nargs=-1, required=True, type=click.Path(exists=True))
-def plan(files):
-    """print out resources that would be changed by applying these files.
-    """
-    pass
+# @cli.command()
+# @click.argument("resource_type")
+# def list(resource_type):
+#     """list resources of a given type.
+#     """
+#     pass
+# 
+# 
+# @cli.command()
+# @click.argument("resource_type",
+#                 type=click.Choice(resource_types, case_sensitive=False))
+# @click.argument("resources", nargs=-1, required=True)
+# def get(resource_type, resoruces):
+#     """get resources of a given type.
+#     """
+#     pass
+# 
+# 
+# @cli.command()
+# @click.argument("files", nargs=-1, required=True, type=click.Path(exists=True))
+# def plan(files):
+#     """print out resources that would be changed by applying these files.
+#     """
+#     pass
 
 
 @cli.command()

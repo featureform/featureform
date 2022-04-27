@@ -2,7 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-from resources import ResourceState, Provider, RedisConfig, PostgresConfig, SnowflakeConfig, User, Location, Source, PrimaryData, SQLTable, SQLTransformation, Entity, Feature, Label, ResourceColumnMapping
+from resources import ResourceState, Provider, RedisConfig, PostgresConfig, SnowflakeConfig, User, Location, Source, PrimaryData, SQLTable, SQLTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet
 from typing import Tuple, Callable, TypedDict, List, Union
 from typeguard import typechecked, check_type
 
@@ -84,44 +84,6 @@ class OnlineProvider:
         return self.__provider.name
 
 
-class SQLTransformationDecorator:
-
-    def __init__(self,
-                 variant: str,
-                 owner: str,
-                 provider: str,
-                 name: str = "",
-                 description: str = ""):
-        self.name = name
-        self.variant = variant
-        self.owner = owner
-        self.provider = provider
-        self.description = description
-
-    def __call__(self, fn: Callable[[], str]):
-        if self.description == "":
-            self.description = fn.__doc__
-        if self.name == "":
-            self.name = fn.__name__
-        self.__set_query(fn())
-
-    @typechecked
-    def __set_query(self, query: str):
-        if query == "":
-            raise ValueError("Query cannot be an empty string")
-        self.query = query
-
-    def to_source(self) -> Source:
-        return Source(
-            name=self.name,
-            variant=self.variant,
-            definition=SQLTransformation(self.query),
-            owner=self.owner,
-            provider=self.provider,
-            description=self.description,
-        )
-
-
 class SourceRegistrar:
 
     def __init__(self, registrar, source):
@@ -142,6 +104,71 @@ class ColumnMapping(TypedDict):
     resource_type: str
 
 
+class SQLTransformationDecorator:
+
+    def __init__(self,
+                 registrar,
+                 variant: str,
+                 owner: str,
+                 provider: str,
+                 name: str = "",
+                 description: str = ""):
+        self.registrar = registrar,
+        self.name = name
+        self.variant = variant
+        self.owner = owner
+        self.provider = provider
+        self.description = description
+
+    def __call__(self, fn: Callable[[], str]):
+        if self.description == "":
+            self.description = fn.__doc__
+        if self.name == "":
+            self.name = fn.__name__
+        self.__set_query(fn())
+        fn.register_resources = self.register_resources
+        return fn
+
+    @typechecked
+    def __set_query(self, query: str):
+        if query == "":
+            raise ValueError("Query cannot be an empty string")
+        self.query = query
+
+    def to_source(self) -> Source:
+        return Source(
+            name=self.name,
+            variant=self.variant,
+            definition=SQLTransformation(self.query),
+            owner=self.owner,
+            provider=self.provider,
+            description=self.description,
+        )
+
+    def register_resources(
+        self,
+        entity: Union[str, EntityRegistrar],
+        entity_column: str,
+        owner: Union[str, UserRegistrar] = "",
+        inference_store: Union[str, OnlineProvider] = "",
+        features: List[ColumnMapping] = None,
+        labels: List[ColumnMapping] = None,
+        timestamp_column: str = "",
+        description: str = "",
+    ):
+        return self.registrar[0].register_column_resources(
+            source=(self.name, self.variant),
+            entity=entity,
+            entity_column=entity_column,
+            owner=owner,
+            inference_store=inference_store,
+            features=features,
+            labels=labels,
+            timestamp_column=timestamp_column,
+            description=description,
+        )
+
+
 class ColumnSourceRegistrar(SourceRegistrar):
 
     def register_resources(
@@ -155,7 +182,7 @@ class ColumnSourceRegistrar(SourceRegistrar):
         timestamp_column: str = "",
         description: str = "",
     ):
-        self.registrar().register_column_resources(
+        return self.registrar().register_column_resources(
             source=self,
             entity=entity,
             entity_column=entity_column,
@@ -190,18 +217,23 @@ class ResourceRegistrar():
             raise ValueError(
                 "Only one label may be specified in a TrainingSet.")
         if features is not None:
-            featureSet = set(self.__features)
+            featureSet = set([(feature["name"], feature["variant"])
+                              for feature in self.__features])
             for feature in features:
                 if feature not in featureSet:
                     raise ValueError(f"Feature {feature} not found.")
         else:
-            features = self.__features
-        labelSet = set(self.__labels)
-        if label not in labelSet:
-            raise ValueError(f"Label {label} not found.")
+            features = [(feature["name"], feature["variant"])
+                        for feature in self.__features]
+        if label is None:
+            label = (self.__labels[0]["name"], self.__labels[0]["variant"])
         else:
-            label = self.__labels[0]
-        return registrar.register_training_set(
+            labelSet = set([
+                (label["name"], label["variant"]) for label in self.__labels
+            ])
+            if label not in labelSet:
+                raise ValueError(f"Label {label} not found.")
+        return self.__registrar.register_training_set(
             name=name,
             variant=variant,
             label=label,
@@ -215,12 +247,12 @@ class Registrar:
 
     def __init__(self):
         self.__state = ResourceState()
-        self.__decorators = []
+        self.__resources = []
         self.__default_owner = ""
 
     def register_user(self, name: str) -> UserRegistrar:
         user = User(name)
-        self.__state.add(user)
+        self.__resources.append(user)
         return UserRegistrar(self, user)
 
     def set_default_owner(self, user: str):
@@ -250,7 +282,7 @@ class Registrar:
                             description=description,
                             team=team,
                             config=config)
-        self.__state.add(provider)
+        self.__resources.append(provider)
         return OnlineProvider(self, provider)
 
     def register_snowflake(
@@ -276,7 +308,7 @@ class Registrar:
                             description=description,
                             team=team,
                             config=config)
-        self.__state.add(provider)
+        self.__resources.append(provider)
         return OfflineSQLProvider(self, provider)
 
     def register_postgres(self,
@@ -298,7 +330,7 @@ class Registrar:
                             description=description,
                             team=team,
                             config=config)
-        self.__state.add(provider)
+        self.__resources.append(provider)
         return OfflineSQLProvider(self, provider)
 
     def register_primary_data(self,
@@ -320,7 +352,7 @@ class Registrar:
                         owner=owner,
                         provider=provider,
                         description=description)
-        self.__state.add(source)
+        self.__resources.append(source)
         return ColumnSourceRegistrar(self, source)
 
     def register_sql_transformation(self,
@@ -344,7 +376,7 @@ class Registrar:
             provider=provider,
             description=description,
         )
-        self.__state.add(source)
+        self.__resources.append(source)
         return ColumnSourceRegistrar(self, source)
 
     def sql_transformation(self,
@@ -360,24 +392,27 @@ class Registrar:
         if not isinstance(provider, str):
             provider = provider.name()
         decorator = SQLTransformationDecorator(
+            registrar=self,
             name=name,
             variant=variant,
             provider=provider,
             owner=owner,
             description=description,
         )
-        self.__decorators.append(decorator)
+        self.__resources.append(decorator)
         return decorator
 
     def state(self):
-        while len(self.__decorators) > 0:
-            decorator = self.__decorators.pop()
-            self.__state.add(decorator.to_source())
+        for resource in self.__resources:
+            if isinstance(resource, SQLTransformationDecorator):
+                resource = resource.to_source()
+            self.__state.add(resource)
+        self.__resources = []
         return self.__state
 
     def register_entity(self, name: str, description: str = ""):
         entity = Entity(name=name, description=description)
-        self.__state.add(entity)
+        self.__resources.append(entity)
         return EntityRegistrar(self, entity)
 
     def register_column_resources(
@@ -429,7 +464,7 @@ class Registrar:
                     timestamp=timestamp_column,
                 ),
             )
-            self.__state.add(resource)
+            self.__resources.append(resource)
             feature_resources.append(resource)
 
         for label in labels:
@@ -447,7 +482,7 @@ class Registrar:
                     timestamp=timestamp_column,
                 ),
             )
-            self.__state.add(resource)
+            self.__resources.append(resource)
             label_resources.append(resource)
         return ResourceRegistrar(self, features, labels)
 
@@ -470,7 +505,7 @@ class Registrar:
             label=label,
             features=features,
         )
-        self.__state.add(resource)
+        self.__resources.append(resource)
 
 
 global_registrar = Registrar()
@@ -479,3 +514,8 @@ register_user = global_registrar.register_user
 register_redis = global_registrar.register_redis
 register_snowflake = global_registrar.register_snowflake
 register_postgres = global_registrar.register_postgres
+register_entity = global_registrar.register_entity
+register_column_resources = global_registrar.register_column_resources
+register_training_set = global_registrar.register_training_set
+sql_transformation = global_registrar.sql_transformation
+register_sql_transformation = global_registrar.register_sql_transformation

@@ -27,3 +27,27 @@ def transform():
     """ Get all transactions over $500
     """
     return "SELECT * FROM {{transactions.final}} WHERE amount > 500"
+
+entity = ff.register_entity("user")
+redis = ff.register_redis(
+    name="redis",
+    host="localhost",
+    port=1234,
+    password="pass",
+    db=0,
+)
+
+resources = transform.register_resources(
+    entity=entity,
+    entity_column="abc",
+    inference_store=redis,
+    features=[
+        {"name": "a", "variant": "b", "column": "c", "type": "float32"},
+    ],
+    labels=[
+        {"name": "la", "variant": "lb", "column": "lc", "type": "float32"},
+    ],
+    timestamp_column="ts",
+)
+
+resources.create_training_set(name="ts", variant="v1")

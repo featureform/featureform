@@ -28,6 +28,17 @@ class RedisConfig:
     def software(self) -> str:
         return "redis"
 
+    def type(self) -> str:
+        return "REDIS_ONLINE"
+
+    def serialize(self) -> bytes:
+        config = {
+            "Addr": f"{self.host}:{self.port}",
+            "Password": self.password,
+            "DB": self.db,
+        }
+        return bytes(json.dumps(config), "utf-8")
+
 
 @typechecked
 @dataclass
@@ -211,7 +222,7 @@ class ResourceColumnMapping:
     timestamp: str
 
     def proto(self) -> pb.Columns:
-        return pb.Column(
+        return pb.Columns(
             entity=self.entity,
             value=self.value,
             ts=self.timestamp,
@@ -243,8 +254,8 @@ class Feature:
             name=self.name,
             variant=self.variant,
             source=pb.NameVariant(
-                name=source[0],
-                variant=source[1],
+                name=self.source[0],
+                variant=self.source[1],
             ),
             type=self.value_type,
             entity=self.entity,
@@ -277,8 +288,8 @@ class Label:
             name=self.name,
             variant=self.variant,
             source=pb.NameVariant(
-                name=source[0],
-                variant=source[1],
+                name=self.source[0],
+                variant=self.source[1],
             ),
             type=self.value_type,
             entity=self.entity,
@@ -311,6 +322,19 @@ class TrainingSet:
     @staticmethod
     def type() -> str:
         return "training-set"
+
+    def _create(self, stub) -> None:
+        serialized = pb.TrainingSetVariant(
+            name=self.name,
+            variant=self.variant,
+            description=self.description,
+            owner=self.owner,
+            features=[
+                pb.NameVariant(name=v[0], variant=v[1]) for v in self.features
+            ],
+            label=pb.NameVariant(name=self.label[0], variant=self.label[1]),
+        )
+        stub.CreateTrainingSetVariant(serialized)
 
 
 Resource = Union[PrimaryData, Provider, Entity, User, Feature, Label,
@@ -369,3 +393,5 @@ class ResourceState:
             except grpc.RpcError as e:
                 if e.code() == grpc.StatusCode.ALREADY_EXISTS:
                     print(resource.name, "already exists.")
+                    continue
+                raise

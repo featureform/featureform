@@ -83,9 +83,11 @@ func postgresOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 // and initializes a table to track currently active Resource tables.
 func NewPostgresOfflineStore(pg PostgresConfig) (*postgresOfflineStore, error) {
 	url := fmt.Sprintf("postgres://%s:%s@%s:%s/%s", pg.Username, pg.Password, pg.Host, pg.Port, pg.Database)
+	fmt.Println(url)
 	ctx := context.Background()
 	conn, err := pgxpool.Connect(ctx, url)
 	if err != nil {
+		fmt.Println("PGERROR", err)
 		return nil, err
 	}
 	return &postgresOfflineStore{

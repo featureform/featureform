@@ -66,6 +66,7 @@ var parentMapping = map[ResourceType]ResourceType{
 }
 
 func (serv *MetadataServer) needsJob(res Resource) bool {
+	fmt.Printf("Type: %s\n", res.ID().Type)
 	if res.ID().Type == TRAINING_SET_VARIANT ||
 		res.ID().Type == FEATURE_VARIANT ||
 		res.ID().Type == TRANSFORMATION_VARIANT ||
@@ -1145,6 +1146,7 @@ type sendFn func(proto.Message) error
 type initParentFn func(name, variant string) Resource
 
 func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, init initParentFn) (*pb.Empty, error) {
+	fmt.Println("generic Create", res)
 	id := res.ID()
 	if has, err := serv.lookup.Has(id); err != nil {
 		return nil, err
@@ -1155,6 +1157,7 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		return nil, err
 	}
 	if serv.needsJob(res) {
+		fmt.Println("Needs Job")
 		if err := serv.lookup.SetJob(id); err != nil {
 			return nil, err
 		}

@@ -326,8 +326,13 @@ func (lookup etcdResourceLookup) SetJob(id ResourceID) error {
 }
 
 func (lookup etcdResourceLookup) Set(id ResourceID, res Resource) error {
+
 	serRes, err := lookup.serializeResource(res)
+	if err != nil {
+		return err
+	}
 	key := createKey(id)
+	fmt.Printf("Setting: %v\n", key)
 	err = lookup.connection.Put(key, string(serRes))
 	if err != nil {
 		return err

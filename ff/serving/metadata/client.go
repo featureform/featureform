@@ -91,6 +91,7 @@ func (client *Client) CreateAll(ctx context.Context, defs []ResourceDef) error {
 }
 
 func (client *Client) Create(ctx context.Context, def ResourceDef) error {
+	fmt.Printf("%#v\n", def)
 	switch casted := def.(type) {
 	case FeatureDef:
 		return client.CreateFeatureVariant(ctx, casted)

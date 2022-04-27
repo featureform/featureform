@@ -23,4 +23,4 @@ spec:
               service:
                 name: dashboard
                 port:
-                  number: 8000
+                  number: 3000

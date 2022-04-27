@@ -95,7 +95,12 @@ func (c *Coordinator) WatchForNewJobs() error {
 	}
 	for _, kv := range getResp.Kvs {
 		fmt.Println("FOUND:", kv)
-		go c.executeJob(string(kv.Key))
+		go func() {
+			err := c.executeJob(string(kv.Key))
+			if err != nil {
+				fmt.Println(err)
+			}
+		}()
 	}
 	for {
 		fmt.Println("WATCHING")
@@ -106,7 +111,12 @@ func (c *Coordinator) WatchForNewJobs() error {
 				fmt.Println("FOUND:", ev)
 				if ev.Type == 0 {
 					fmt.Println("EXECUTING:", ev.Kv.Key)
-					go c.executeJob(string(ev.Kv.Key))
+					go func() {
+						err := c.executeJob(string(ev.Kv.Key))
+						if err != nil {
+							fmt.Println(err)
+						}
+					}()
 				}
 
 			}
@@ -208,18 +218,22 @@ func (c *Coordinator) runPrimaryTableJob(transformSource *metadata.SourceVariant
 func (c *Coordinator) runRegisterSourceJob(resID metadata.ResourceID) error {
 	source, err := c.Metadata.GetSourceVariant(context.Background(), metadata.NameVariant{resID.Name, resID.Variant})
 	if err != nil {
+		fmt.Println(err)
 		return err
 	}
 	sourceProvider, err := source.FetchProvider(c.Metadata, context.Background())
 	if err != nil {
+		fmt.Println(err)
 		return err
 	}
 	p, err := provider.Get(provider.Type(sourceProvider.Type()), sourceProvider.SerializedConfig())
 	if err != nil {
+		fmt.Println(err)
 		return err
 	}
 	sourceStore, err := p.AsOfflineStore()
 	if err != nil {
+		fmt.Println(err)
 		return err
 	}
 	if source.IsSQLTransformation() {
@@ -248,6 +262,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID) error 
 	sourceNameVariant := feature.Source()
 	source, err := c.Metadata.GetSourceVariant(context.Background(), sourceNameVariant)
 	if err != nil {
+		fmt.Println(err)
 		return err
 	}
 	sourceStatus := source.Status()
@@ -256,26 +271,32 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID) error 
 	}
 	sourceProvider, err := source.FetchProvider(c.Metadata, context.Background())
 	if err != nil {
+		fmt.Println(err)
 		return err
 	}
 	p, err := provider.Get(provider.Type(sourceProvider.Type()), sourceProvider.SerializedConfig())
 	if err != nil {
+		fmt.Println(err)
 		return err
 	}
 	sourceStore, err := p.AsOfflineStore()
 	if err != nil {
+		fmt.Println(err)
 		return err
 	}
 	featureProvider, err := feature.FetchProvider(c.Metadata, context.Background())
 	if err != nil {
+		fmt.Println(err)
 		return err
 	}
 	p, err = provider.Get(provider.Type(featureProvider.Type()), featureProvider.SerializedConfig())
 	if err != nil {
+		fmt.Println(err)
 		return err
 	}
 	featureStore, err := p.AsOnlineStore()
 	if err != nil {
+		fmt.Println(err)
 		return err
 	}
 	materializeRunner := runner.MaterializeRunner{
@@ -287,6 +308,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID) error 
 	}
 	completionWatcher, err := materializeRunner.Run()
 	if err != nil {
+		fmt.Println(err)
 		return err
 	}
 	if err := completionWatcher.Wait(); err != nil {
@@ -301,6 +323,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID) error 
 func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID) error {
 	ts, err := c.Metadata.GetTrainingSetVariant(context.Background(), metadata.NameVariant{resID.Name, resID.Variant})
 	if err != nil {
+		fmt.Println(err)
 		return err
 	}
 	status := ts.Status()
@@ -312,14 +335,17 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID) error {
 	}
 	providerEntry, err := ts.FetchProvider(c.Metadata, context.Background())
 	if err != nil {
+		fmt.Println(err)
 		return err
 	}
 	p, err := provider.Get(provider.Type(providerEntry.Type()), providerEntry.SerializedConfig())
 	if err != nil {
+		fmt.Println(err)
 		return err
 	}
 	store, err := p.AsOfflineStore()
 	if err != nil {
+		fmt.Println(err)
 		return err
 	}
 	providerResID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.TrainingSet}
@@ -333,6 +359,7 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID) error {
 	}
 	label, err := ts.FetchLabel(c.Metadata, context.Background())
 	if err != nil {
+		fmt.Println(err)
 		return err
 	}
 	trainingSetDef := provider.TrainingSetDef{
@@ -347,17 +374,21 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID) error {
 	}
 	serialized, err := tsRunnerConfig.Serialize()
 	if err != nil {
+		fmt.Println(err)
 		return err
 	}
 	jobRunner, err := c.Spawner.GetJobRunner(runner.CREATE_TRAINING_SET, serialized)
 	if err != nil {
+		fmt.Println(err)
 		return err
 	}
 	completionWatcher, err := jobRunner.Run()
 	if err != nil {
+		fmt.Println(err)
 		return err
 	}
 	if err := completionWatcher.Wait(); err != nil {
+		fmt.Println(err)
 		return err
 	}
 	if err := c.Metadata.SetStatus(context.Background(), resID, string(metadata.READY)); err != nil {
@@ -455,6 +486,7 @@ func (c *Coordinator) markJobFailed(job *metadata.CoordinatorJob) error {
 func (c *Coordinator) executeJob(jobKey string) error {
 	s, err := concurrency.NewSession(c.EtcdClient, concurrency.WithTTL(1))
 	if err != nil {
+
 		return err
 	}
 	defer s.Close()
@@ -464,6 +496,7 @@ func (c *Coordinator) executeJob(jobKey string) error {
 	}
 	defer func() {
 		if err := mtx.Unlock(context.Background()); err != nil {
+			fmt.Println(err)
 			panic(err)
 		}
 	}()
@@ -481,22 +514,26 @@ func (c *Coordinator) executeJob(jobKey string) error {
 	case metadata.TRAINING_SET_VARIANT:
 		if err := c.runTrainingSetJob(job.Resource); err != nil {
 			statusErr := c.Metadata.SetStatus(context.Background(), job.Resource, fmt.Sprintf("%v", err))
+			fmt.Println(err)
 			return fmt.Errorf("training set job failed: %v", fmt.Sprintf("%v: %v", err, statusErr))
 		}
 	case metadata.FEATURE_VARIANT:
 		if err := c.runFeatureMaterializeJob(job.Resource); err != nil {
 			statusErr := c.Metadata.SetStatus(context.Background(), job.Resource, fmt.Sprintf("%v", err))
+			fmt.Println(err)
 			return fmt.Errorf("feature variant job failed: %v", fmt.Sprintf("%v: %v", err, statusErr))
 		}
 	case metadata.SOURCE_VARIANT:
 		if err := c.runRegisterSourceJob(job.Resource); err != nil {
 			statusErr := c.Metadata.SetStatus(context.Background(), job.Resource, fmt.Sprintf("%v", err))
+			fmt.Println(err)
 			return fmt.Errorf("source variant job failed: %v", fmt.Sprintf("%v: %v", err, statusErr))
 		}
 	default:
 		return fmt.Errorf("not a valid resource type for running jobs")
 	}
 	if err := c.deleteJob(mtx, jobKey); err != nil {
+		fmt.Println(err)
 		return err
 	}
 	return nil

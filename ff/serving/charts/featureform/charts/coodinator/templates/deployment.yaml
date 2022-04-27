@@ -39,7 +39,7 @@ spec:
             - name: ETCD_HOST
               value: sandbox-etcd
             - name: METADATA_PORT
-              value: "8000"
+              value: "8080"
             - name: METADATA_HOST
               value: sandbox-metadata-server
           ports:

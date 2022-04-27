@@ -92,7 +92,7 @@ func main() {
 				Value:  "is_fraud",
 				TS:     "ts",
 			},
-			Provider: "demo-postgres"
+			Provider: "demo-postgres",
 		},
 		metadata.FeatureDef{
 			Name:        "number_of_fraud",
@@ -152,7 +152,7 @@ func main() {
 				Value:  "user_credit_score",
 				TS:     "ts",
 			},
-			Provider:    "demo-s3",
+			Provider:    "demo-redis",
 		},
 		metadata.FeatureDef{
 			Name:        "user_transaction_count",
@@ -221,11 +221,11 @@ func main() {
 			Owner:       "Simba Khadder",
 			Label:       metadata.NameVariant{"is_fraud", "default"},
 			Features:    []metadata.NameVariant{{"user_transaction_count", "7d"}, {"number_of_fraud", "90d"}, {"amt_spent", "30d"}, {"avg_transaction_amt", "default"}, {"user_account_age", "default"}, {"user_credit_score", "default"}, {"user_2fa", "default"}},
+			Provider: "demo-postgres",
 		},
 		metadata.ModelDef{
 			Name:        "user_fraud_random_forest",
 			Description: "Classifier on whether user commited fraud",
-			Provider: "demo-postgres"
 		},
 	}
 	if err := client.CreateAll(context.Background(), defs); err != nil {

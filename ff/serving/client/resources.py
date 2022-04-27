@@ -195,6 +195,13 @@ class Entity:
     def type() -> str:
         return "entity"
 
+    def _create(self, stub) -> None:
+        serialized = pb.Entity(
+            name=self.name,
+            description=self.description,
+        )
+        stub.CreateEntity(serialized)
+
 
 @typechecked
 @dataclass
@@ -202,6 +209,13 @@ class ResourceColumnMapping:
     entity: str
     value: str
     timestamp: str
+
+    def proto(self) -> pb.Columns:
+        return pb.Column(
+            entity=self.entity,
+            value=self.value,
+            ts=self.timestamp,
+        )
 
 
 ResourceLocation = ResourceColumnMapping
@@ -212,6 +226,7 @@ ResourceLocation = ResourceColumnMapping
 class Feature:
     name: str
     variant: str
+    source: NameVariant
     value_type: str
     entity: str
     owner: str
@@ -223,12 +238,30 @@ class Feature:
     def type() -> str:
         return "feature"
 
+    def _create(self, stub) -> None:
+        serialized = pb.FeatureVariant(
+            name=self.name,
+            variant=self.variant,
+            source=pb.NameVariant(
+                name=source[0],
+                variant=source[1],
+            ),
+            type=self.value_type,
+            entity=self.entity,
+            owner=self.owner,
+            description=self.description,
+            provider=self.provider,
+            columns=self.location.proto(),
+        )
+        stub.CreateFeatureVariant(serialized)
+
 
 @typechecked
 @dataclass
 class Label:
     name: str
     variant: str
+    source: NameVariant
     value_type: str
     entity: str
     owner: str
@@ -238,6 +271,22 @@ class Label:
     @staticmethod
     def type() -> str:
         return "label"
+
+    def _create(self, stub) -> None:
+        serialized = pb.LabelVariant(
+            name=self.name,
+            variant=self.variant,
+            source=pb.NameVariant(
+                name=source[0],
+                variant=source[1],
+            ),
+            type=self.value_type,
+            entity=self.entity,
+            owner=self.owner,
+            description=self.description,
+            columns=self.location.proto(),
+        )
+        stub.CreateLabelVariant(serialized)
 
 
 @typechecked
@@ -315,7 +364,7 @@ class ResourceState:
     def create_all(self, stub) -> None:
         for resource in self.__create_list:
             try:
-                print("Creating ", resource.name)
+                print("Creating", resource.name)
                 resource._create(stub)
             except grpc._channel._InactiveRpcError as e:
-                print(resource.name, " already exists.")
+                print(resource.name, "already exists.")

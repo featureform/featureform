@@ -524,7 +524,7 @@ func CreateOriginalPostgresTable(tableName string) error {
 	if err != nil {
 		return err
 	}
-	createTableQuery := fmt.Sprintf("CREATE TABLE %s (entity VARCHAR, value INT, ts TIMESTAMPTZ)", (tableName))
+	createTableQuery := fmt.Sprintf("CREATE TABLE %s (entity VARCHAR, value INT, ts TIMESTAMPTZ)", sanitize(tableName))
 	if _, err := conn.Exec(context.Background(), createTableQuery); err != nil {
 		return err
 	}

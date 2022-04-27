@@ -2,7 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-from typing import List, Tuple
+from typing import List, Tuple, Union
 from typeguard import typechecked
 from dataclasses import dataclass
 import metadata_pb2 as pb
@@ -69,7 +69,7 @@ class PostgresConfig:
         return "postgres"
 
 
-Config = RedisConfig | SnowflakeConfig | PostgresConfig
+Config = Union[RedisConfig, SnowflakeConfig, PostgresConfig]
 
 
 @typechecked
@@ -155,7 +155,7 @@ class SQLTransformation(Transformation):
         }
 
 
-SourceDefinition = PrimaryData | Transformation
+SourceDefinition = Union[PrimaryData, Transformation]
 
 
 @typechecked
@@ -264,7 +264,8 @@ class TrainingSet:
         return "training-set"
 
 
-Resource = PrimaryData | Provider | Entity | User | Feature | Label | TrainingSet
+Resource = Union[PrimaryData, Provider, Entity, User, Feature, Label,
+                 TrainingSet, Source]
 
 
 class ResourceRedefinedError(Exception):
@@ -314,6 +315,7 @@ class ResourceState:
     def create_all(self, stub) -> None:
         for resource in self.__create_list:
             try:
+                print("Creating ", resource.name)
                 resource._create(stub)
             except grpc._channel._InactiveRpcError as e:
-                print("Already exists", resource.name)
+                print(resource.name, " already exists.")

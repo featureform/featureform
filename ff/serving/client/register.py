@@ -3,7 +3,7 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 from resources import ResourceState, Provider, RedisConfig, PostgresConfig, SnowflakeConfig, User, Location, Source, PrimaryData, SQLTable, SQLTransformation, Entity, Feature, Label, ResourceColumnMapping
-from typing import Tuple, Callable, TypedDict, List
+from typing import Tuple, Callable, TypedDict, List, Union
 from typeguard import typechecked, check_type
 
 NameVariant = Tuple[str, str]
@@ -53,7 +53,7 @@ class OfflineSQLProvider(OfflineProvider):
                        name: str,
                        variant: str,
                        table: str,
-                       owner: str | UserRegistrar = "",
+                       owner: Union[str, UserRegistrar] = "",
                        description: str = ""):
         return self.__registrar.register_primary_data(name=name,
                                                       variant=variant,
@@ -64,7 +64,7 @@ class OfflineSQLProvider(OfflineProvider):
 
     def sql_transformation(self,
                            variant: str,
-                           owner: str | UserRegistrar = "",
+                           owner: Union[str, UserRegistrar] = "",
                            name: str = "",
                            description: str = ""):
         return self.__registrar.sql_transformation(name=name,
@@ -146,10 +146,10 @@ class ColumnSourceRegistrar(SourceRegistrar):
 
     def register_resources(
         self,
-        entity: str | EntityRegistrar,
+        entity: Union[str, EntityRegistrar],
         entity_column: str,
-        owner: str | UserRegistrar = "",
-        inference_store: str | OnlineProvider = "",
+        owner: Union[str, UserRegistrar] = "",
+        inference_store: Union[str, OnlineProvider] = "",
         features: List[ColumnMapping] = None,
         labels: List[ColumnMapping] = None,
         timestamp_column: str = "",
@@ -180,7 +180,7 @@ class ResourceRegistrar():
                             variant: str,
                             label: NameVariant = None,
                             features: List[NameVariant] = None,
-                            owner: str | UserRegistrar = "",
+                            owner: Union[str, UserRegistrar] = "",
                             description: str = ""):
         if len(self.__labels) == 0:
             raise ValueError("A label must be included in a training set")
@@ -305,8 +305,8 @@ class Registrar:
                               name: str,
                               variant: str,
                               location: Location,
-                              provider: str | OfflineProvider,
-                              owner: str | UserRegistrar = "",
+                              provider: Union[str, OfflineProvider],
+                              owner: Union[str, UserRegistrar] = "",
                               description: str = ""):
         if not isinstance(owner, str):
             owner = owner.name()
@@ -327,8 +327,8 @@ class Registrar:
                                     name: str,
                                     variant: str,
                                     query: str,
-                                    provider: str | OfflineProvider,
-                                    owner: str | UserRegistrar = "",
+                                    provider: Union[str, OfflineProvider],
+                                    owner: Union[str, UserRegistrar] = "",
                                     description: str = ""):
         if not isinstance(owner, str):
             owner = owner.name()
@@ -349,9 +349,9 @@ class Registrar:
 
     def sql_transformation(self,
                            variant: str,
-                           provider: str | OfflineProvider,
+                           provider: Union[str, OfflineProvider],
                            name: str = "",
-                           owner: str | UserRegistrar = "",
+                           owner: Union[str, UserRegistrar] = "",
                            description: str = ""):
         if not isinstance(owner, str):
             owner = owner.name()
@@ -382,11 +382,11 @@ class Registrar:
 
     def register_column_resources(
         self,
-        source: NameVariant | SourceRegistrar | SQLTransformationDecorator,
-        entity: str | EntityRegistrar,
+        source: Union[NameVariant, SourceRegistrar, SQLTransformationDecorator],
+        entity: Union[str, EntityRegistrar],
         entity_column: str,
-        owner: str | UserRegistrar = "",
-        inference_store: str | OnlineProvider = "",
+        owner: Union[str, UserRegistrar] = "",
+        inference_store: Union[str, OnlineProvider] = "",
         features: List[ColumnMapping] = None,
         labels: List[ColumnMapping] = None,
         timestamp_column: str = "",
@@ -454,7 +454,7 @@ class Registrar:
                               variant: str,
                               label: NameVariant,
                               features: List[NameVariant],
-                              owner: str | UserRegistrar = "",
+                              owner: Union[str, UserRegistrar] = "",
                               description: str = ""):
         if not isinstance(owner, str):
             owner = owner.name()

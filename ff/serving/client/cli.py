@@ -3,6 +3,7 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import click
+import register
 
 resource_types = [
     "feature",
@@ -15,6 +16,7 @@ resource_types = [
 ]
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
+
 
 @click.group(context_settings=CONTEXT_SETTINGS)
 def cli():
@@ -31,6 +33,7 @@ def cli():
     """
     pass
 
+
 @cli.command()
 @click.argument("resource_type")
 def list(resource_type):
@@ -38,13 +41,16 @@ def list(resource_type):
     """
     pass
 
+
 @cli.command()
-@click.argument("resource_type", type=click.Choice(resource_types, case_sensitive=False))
+@click.argument("resource_type",
+                type=click.Choice(resource_types, case_sensitive=False))
 @click.argument("resources", nargs=-1, required=True)
 def get(resource_type, resoruces):
     """get resources of a given type.
     """
     pass
+
 
 @cli.command()
 @click.argument("files", nargs=-1, required=True, type=click.Path(exists=True))
@@ -53,12 +59,17 @@ def plan(files):
     """
     pass
 
+
 @cli.command()
 @click.argument("files", nargs=-1, required=True, type=click.Path(exists=True))
 def apply(files):
     """apply changes to featureform
     """
-    pass
+    for file in files:
+        with open(file, "r") as py:
+            exec(py.read())
+    print(register.state().sorted_list())
+
 
 if __name__ == '__main__':
     cli()

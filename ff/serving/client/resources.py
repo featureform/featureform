@@ -189,7 +189,6 @@ class TrainingSet:
     name: str
     variant: str
     owner: str
-    provider: str
     label: NameVariant
     features: List[NameVariant]
     description: str

@@ -40,20 +40,25 @@ export const providerLogos = Object.freeze({
   Snowflake: "Snowflake_Logo.svg",
 });
 
+//replace these with environment variables
+//environment variables MUST begin with REACT_APP_
+//example: process.env.REACT_APP_API_URL
+//Sterling replace the things on the right with process.env.REACT_APP_...
+
+//these all have to be exposed externally via ingress or a node port
 const API_URL = "http://localhost:8181";
-const TYPESENSE_URL = {
-  port: "8108",
-  host: "localhost",
-  apiKey: "xyz",
-};
+export const PROMETHEUS_URL = "http://localhost:9090/";
+const TYPESENSE_PORT = "8108";
+const TYPESENSE_URL = "localhost";
+const TYPESENSE_API_KEY = "xyz";
 
 const local = false;
 
 export default class ResourcesAPI {
   static typeSenseClient = new TypesenseClient(
-    TYPESENSE_URL.port,
-    TYPESENSE_URL.host,
-    TYPESENSE_URL.apiKey
+    TYPESENSE_PORT,
+    TYPESENSE_URL,
+    TYPESENSE_API_KEY
   );
   checkStatus() {
     return fetch(API_URL, {

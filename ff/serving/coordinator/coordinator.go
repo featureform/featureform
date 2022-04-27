@@ -82,7 +82,7 @@ func NewCoordinator(meta *metadata.Client, logger *zap.SugaredLogger, cli *clien
 	}, nil
 }
 
-const MAX_ATTEMPTS = 10
+const MAX_ATTEMPTS = 1
 
 func (c *Coordinator) WatchForNewJobs() error {
 	getResp, err := (*c.KVClient).Get(context.Background(), "JOB_", clientv3.WithPrefix())

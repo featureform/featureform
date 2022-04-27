@@ -40,13 +40,27 @@ export const providerLogos = Object.freeze({
   Snowflake: "Snowflake_Logo.svg",
 });
 
-const API_URL = process.env.REACT_APP_API_URL.trim();
-export const PROMETHEUS_URL = process.env.REACT_APP_PROMETHEUS_URL.trim();
-const TYPESENSE_PORT = process.env.REACT_APP_TYPESENSE_PORT.trim();
-const TYPESENSE_URL = process.env.REACT_APP_TYPESENSE_URL.trim();
-const TYPESENSE_API_KEY = process.env.REACT_APP_TYPESENSE_API_KEY.trim();
+var API_URL = "http:localhost:8181";
+if (typeof process.env.REACT_APP_API_URL != "undefined") {
+  API_URL = process.env.REACT_APP_API_URL.trim();
+}
+export var PROMETHEUS_URL = "http:localhost:9090";
+if (typeof process.env.REACT_APP_PROMETHEUS_URL != "undefined") {
+  PROMETHEUS_URL = process.env.REACT_APP_PROMETHEUS_URL.trim();
+}
+var TYPESENSE_PORT = "8108";
+if (typeof process.env.REACT_APP_TYPESENSE_PORT != "undefined") {
+  TYPESENSE_PORT = process.env.REACT_APP_TYPESENSE_PORT.trim();
+}
+var TYPESENSE_URL = "localhost";
+if (typeof process.env.REACT_APP_TYPESENSE_URL != "undefined") {
+  TYPESENSE_URL = process.env.REACT_APP_TYPESENSE_URL.trim();
+}
+var TYPESENSE_API_KEY = "xyz";
+if (typeof process.env.REACT_APP_TYPESENSE_API_KEY != "undefined") {
+  TYPESENSE_API_KEY = process.env.REACT_APP_TYPESENSE_API_KEY.trim();
+}
 
-console.log(API_URL);
 const local = false;
 
 export default class ResourcesAPI {

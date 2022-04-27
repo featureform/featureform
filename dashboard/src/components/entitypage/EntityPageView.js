@@ -271,7 +271,7 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
   };
 
   const linkToPrimaryData = (event) => {
-    history.push(`/primary-data/${metadata["source"]}`);
+    history.push(`/sources/${metadata["source"]}`);
   };
 
   const linkToLabel = (event) => {
@@ -409,11 +409,26 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                       <b>Team:</b> {metadata["team"]}
                     </Typography>
                   )}
+                  {metadata["status"] && metadata["status"] !== "No Status" && (
+                    <Typography variant="body1">
+                      <b>Status:</b> {metadata["status"]}
+                    </Typography>
+                  )}
+                  {metadata["definition"] && (
+                    <Typography variant="body1">
+                      <b>Definition:</b> {metadata["definition"]}
+                    </Typography>
+                  )}
+                  {metadata["serialized-config"] && (
+                    <Typography variant="body1">
+                      <b>Serialized Config:</b> {metadata["serialized-config"]}
+                    </Typography>
+                  )}
 
                   {metadata["source"] && (
                     <div className={classes.linkBox}>
                       <Typography variant="body1" className={classes.typeTitle}>
-                        <b>Primary Data: </b>{" "}
+                        <b>Source: </b>{" "}
                       </Typography>
                       <Chip
                         variant="outlined"
@@ -437,6 +452,19 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                         onClick={linkToEntityPage}
                         label={metadata["entity"]}
                       ></Chip>
+                    </div>
+                  )}
+
+                  {metadata["location"] && (
+                    <div className={classes.linkBox}>
+                      <Typography variant="body1" className={classes.typeTitle}>
+                        <b>Columns:</b>{" "}
+                      </Typography>
+                      <Typography variant="body2">
+                        &nbsp;<b>Entity:</b> {metadata["location"].Entity}
+                        &nbsp;<b>Value:</b> {metadata["location"].Value}
+                        &nbsp;<b>Timestamp:</b> {metadata["location"].TS}
+                      </Typography>
                     </div>
                   )}
                 </Grid>

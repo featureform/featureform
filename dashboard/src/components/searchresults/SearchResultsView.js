@@ -66,7 +66,7 @@ const searchTypeMap = {
   "Label variant": "Label",
   "Training Set variant": "TrainingSet",
   Model: "Model",
-  "Source variant": "PrimaryData",
+  "Source variant": "Source",
   User: "User",
   Provider: "Provider",
 };

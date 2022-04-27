@@ -134,7 +134,7 @@ type UserResource struct {
 	Features     map[string][]FeatureVariantResource     `json:"features"`
 	Labels       map[string][]LabelVariantResource       `json:"labels"`
 	TrainingSets map[string][]TrainingSetVariantResource `json:"training-sets"`
-	Sources      map[string][]SourceVariantResource      `json:"primary-data"`
+	Sources      map[string][]SourceVariantResource      `json:"sources"`
 	Status       string                                  `json:"status"`
 }
 
@@ -155,12 +155,12 @@ type ProviderResource struct {
 	ProviderType     string                                  `json:"provider-type"`
 	Software         string                                  `json:"software"`
 	Team             string                                  `json:"team"`
-	Sources          map[string][]SourceVariantResource      `json:"primary-data"`
+	Sources          map[string][]SourceVariantResource      `json:"sources"`
 	Features         map[string][]FeatureVariantResource     `json:"features"`
 	Labels           map[string][]LabelVariantResource       `json:"labels"`
 	TrainingSets     map[string][]TrainingSetVariantResource `json:"training-sets"`
 	Status           string                                  `json:"status"`
-	SerializedConfig []byte                                  `json:"serialized-config"`
+	SerializedConfig string                                  `json:"serialized-config"`
 }
 
 type FetchError struct {
@@ -485,7 +485,7 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 			Name:           trainingSet.Name(),
 			Variants:       variantList,
 		})
-	case "primary-data":
+	case "sources":
 		source, err := m.client.GetSource(context.Background(), c.Param("resource"))
 		if err != nil {
 			fetchError := &FetchError{StatusCode: 500, Type: "source"}
@@ -500,7 +500,7 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 		}
 		c.JSON(http.StatusOK, SourceResource{
 			AllVariants:    source.Variants(),
-			Type:           "PrimaryData",
+			Type:           "Source",
 			DefaultVariant: source.DefaultVariant(),
 			Name:           source.Name(),
 			Variants:       variantList,
@@ -667,7 +667,7 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 			Software:         provider.Software(),
 			Team:             provider.Team(),
 			Status:           provider.Status(),
-			SerializedConfig: provider.SerializedConfig(),
+			SerializedConfig: string(provider.SerializedConfig()),
 		}
 		fetchGroup := new(errgroup.Group)
 		fetchGroup.Go(func() error {
@@ -766,7 +766,7 @@ func (m *MetadataServer) GetMetadataList(c *gin.Context) {
 			}
 		}
 		c.JSON(http.StatusOK, trainingSetList)
-	case "primary-data":
+	case "sources":
 		sources, err := m.client.ListSources(context.Background())
 		if err != nil {
 			fetchError := &FetchError{StatusCode: 500, Type: "sources"}
@@ -784,7 +784,7 @@ func (m *MetadataServer) GetMetadataList(c *gin.Context) {
 			}
 			sourceList[i] = SourceResource{
 				AllVariants:    source.Variants(),
-				Type:           "PrimaryData",
+				Type:           "Source",
 				DefaultVariant: source.DefaultVariant(),
 				Name:           source.Name(),
 				Variants:       variantList,
@@ -891,7 +891,7 @@ func (m *MetadataServer) GetMetadataList(c *gin.Context) {
 				Team:             provider.Team(),
 				ProviderType:     provider.Type(),
 				Status:           provider.Status(),
-				SerializedConfig: provider.SerializedConfig(),
+				SerializedConfig: string(provider.SerializedConfig()),
 			}
 		}
 		c.JSON(http.StatusOK, providerList)

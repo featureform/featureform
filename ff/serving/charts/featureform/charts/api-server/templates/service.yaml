@@ -14,3 +14,17 @@ spec:
 status:
   loadBalancer: {}
 
+#apiVersion: v1
+#kind: Service
+#metadata:
+#  name: {{ .Release.Name }}-api-server
+#
+#
+#spec:
+#  selector:
+#    app: {{ .Release.Name }}-api-server
+#  type: NodePort
+#  ports:
+#    - port: 7979
+#      targetPort: 7979
+#      nodePort: 30005

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strings"
 
 	"github.com/featureform/serving/metadata"
 	pb "github.com/featureform/serving/metadata/proto"
@@ -40,6 +41,22 @@ func (serv *ApiServer) CreateProvider(ctx context.Context, provider *pb.Provider
 }
 
 func (serv *ApiServer) CreateSourceVariant(ctx context.Context, source *pb.SourceVariant) (*pb.Empty, error) {
+	switch casted := source.Definition.(type) {
+	case *pb.SourceVariant_Transformation:
+		transformation := casted.Transformation.Type.(*pb.Transformation_SQLTransformation).SQLTransformation
+		qry := transformation.Query
+		numEscapes := strings.Count(qry, "{{")
+		sources := make([]*pb.NameVariant, numEscapes)
+		for i := 0; i < numEscapes; i++ {
+			split := strings.SplitN(qry, "{{", 2)
+			afterSplit := strings.SplitN(split[1], "}}", 2)
+			key := strings.TrimSpace(afterSplit[0])
+			nameVariant := strings.SplitN(key, ".", 2)
+			sources[i] = &pb.NameVariant{Name: nameVariant[0], Variant: nameVariant[1]}
+			qry = afterSplit[1]
+		}
+		source.Definition.(*pb.SourceVariant_Transformation).Transformation.Type.(*pb.Transformation_SQLTransformation).SQLTransformation.Source = sources
+	}
 	return serv.meta.CreateSourceVariant(ctx, source)
 }
 

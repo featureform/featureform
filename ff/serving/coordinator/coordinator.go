@@ -16,6 +16,7 @@ import (
 )
 
 func templateReplace(template string, replacements map[string]string) (string, error) {
+	fmt.Println("Template", template)
 	formattedString := ""
 	numEscapes := strings.Count(template, "{{")
 	for i := 0; i < numEscapes; i++ {
@@ -33,6 +34,7 @@ func templateReplace(template string, replacements map[string]string) (string, e
 		template = afterSplit[1]
 	}
 	formattedString += template
+	fmt.Println("Formatted", formattedString)
 	return formattedString, nil
 }
 

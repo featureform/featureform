@@ -6,6 +6,7 @@ import (
 	"net"
 
 	pb "github.com/featureform/serving/metadata/proto"
+	"github.com/featureform/serving/metadata"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -16,6 +17,7 @@ type ApiServer struct {
 	address    string
 	metaAddr   string
 	meta       pb.MetadataClient
+    metaClient *metadata.Client
 	grpcServer *grpc.Server
 	listener   net.Listener
 	pb.UnimplementedApiServer
@@ -41,6 +43,34 @@ func (serv *ApiServer) CreateSourceVariant(ctx context.Context, source *pb.Sourc
 	return serv.meta.CreateSourceVariant(ctx, source)
 }
 
+func (serv *ApiServer) CreateEntity(ctx context.Context, entity *pb.Entity) (*pb.Empty, error) {
+	return serv.meta.CreateEntity(ctx, entity)
+}
+
+func (serv *ApiServer) CreateFeatureVariant(ctx context.Context, feature *pb.FeatureVariant) (*pb.Empty, error) {
+	return serv.meta.CreateFeatureVariant(ctx, feature)
+}
+
+func (serv *ApiServer) CreateLabelVariant(ctx context.Context, label *pb.LabelVariant) (*pb.Empty, error) {
+    protoSource := label.Source
+    source, err := serv.metaClient.GetSourceVariant(ctx, metadata.NameVariant{protoSource.Name, protoSource.Variant})
+    if err != nil {
+        return nil, err
+    }
+    label.Provider = source.Provider()
+	return serv.meta.CreateLabelVariant(ctx, label)
+}
+
+func (serv *ApiServer) CreateTrainingSetVariant(ctx context.Context, train *pb.TrainingSetVariant) (*pb.Empty, error) {
+    protoLabel := train.Label
+    label, err := serv.metaClient.GetLabelVariant(ctx, metadata.NameVariant{protoLabel.Name, protoLabel.Variant})
+    if err != nil {
+        return nil, err
+    }
+    train.Provider = label.Provider()
+	return serv.meta.CreateTrainingSetVariant(ctx, train)
+}
+
 func (serv *ApiServer) Serve() error {
 	if serv.grpcServer != nil {
 		return fmt.Errorf("Server already running")
@@ -57,6 +87,11 @@ func (serv *ApiServer) Serve() error {
 		return err
 	}
 	serv.meta = pb.NewMetadataClient(conn)
+    client, err := metadata.NewClient(serv.metaAddr, serv.Logger)
+    if err != nil {
+        return err
+    }
+    serv.metaClient = client
 	return serv.ServeOnListener(lis)
 }
 

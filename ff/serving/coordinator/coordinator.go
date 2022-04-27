@@ -135,6 +135,30 @@ func sanitize(ident string) string {
 func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVariant, resID metadata.ResourceID, offlineStore provider.OfflineStore) error {
 	templateString := transformSource.SQLTransformationQuery()
 	sources := transformSource.SQLTransformationSources()
+	allReady := false
+	for sourceVariants, err := c.Metadata.GetSourceVariants(context.Background(), sources); !allReady; sourceVariants, err := c.Metadata.GetSourceVariants(context.Background(), sources) {
+		if err != nil {
+			return err
+		}
+		total := len(sourceVariants)
+		totalReady := 0
+		for _, sourceVariant := range sourceVariants {
+			if sourceVariant.Status() == metadata.READY {
+				totalReady += 1
+			}
+			if sourceVariant.Status() == metadata.FAILED {
+				return err
+			}
+		}
+		if total == totalReady {
+			allReady = true
+		}
+	}
+	feature, err := c.Metadata.GetFeatureVariant(context.Background(), metadata.NameVariant{resID.Name, resID.Variant})
+	if err != nil {
+		return err
+	}
+	status := feature.Status()
 	sourceMap, err := c.mapNameVariantsToTables(sources)
 	if err != nil {
 		return err

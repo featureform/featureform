@@ -55,12 +55,12 @@ class OfflineSQLProvider(OfflineProvider):
                        table: str,
                        owner: str | UserRegistrar = "",
                        description: str = ""):
-        self.__registrar.register_primary_data(name=name,
-                                               variant=variant,
-                                               location=SQLTable(table),
-                                               owner=owner,
-                                               provider=self.name(),
-                                               description=description)
+        return self.__registrar.register_primary_data(name=name,
+                                                      variant=variant,
+                                                      location=SQLTable(table),
+                                                      owner=owner,
+                                                      provider=self.name(),
+                                                      description=description)
 
     def sql_transformation(self,
                            variant: str,
@@ -164,6 +164,49 @@ class ColumnSourceRegistrar(SourceRegistrar):
             features=features,
             labels=labels,
             timestamp_column=timestamp_column,
+            description=description,
+        )
+
+
+class ResourceRegistrar():
+
+    def __init__(self, registrar, features, labels):
+        self.__registrar = registrar
+        self.__features = features
+        self.__labels = labels
+
+    def create_training_set(self,
+                            name: str,
+                            variant: str,
+                            label: NameVariant = None,
+                            features: List[NameVariant] = None,
+                            owner: str | UserRegistrar = "",
+                            description: str = ""):
+        if len(self.__labels) == 0:
+            raise ValueError("A label must be included in a training set")
+        if len(self.__features) == 0:
+            raise ValueError("A feature must be included in a training set")
+        if len(self.__labels) > 1 and label == None:
+            raise ValueError(
+                "Only one label may be specified in a TrainingSet.")
+        if features is not None:
+            featureSet = set(self.__features)
+            for feature in features:
+                if feature not in featureSet:
+                    raise ValueError(f"Feature {feature} not found.")
+        else:
+            features = self.__features
+        labelSet = set(self.__labels)
+        if label not in labelSet:
+            raise ValueError(f"Label {label} not found.")
+        else:
+            label = self.__labels[0]
+        return registrar.register_training_set(
+            name=name,
+            variant=variant,
+            label=label,
+            features=features,
+            owner=owner,
             description=description,
         )
 
@@ -359,15 +402,17 @@ class Registrar:
             source = source.id()
         if not isinstance(entity, str):
             entity = entity.name()
-        if not isinstance(owner, str):
-            owner = owner.name()
         if not isinstance(inference_store, str):
             inference_store = inference_store.name()
         if len(features) > 0 and inference_store == "":
             raise ValueError(
                 "Inference store must be set when defining features")
+        if not isinstance(owner, str):
+            owner = owner.name()
         if owner == "":
             owner = self.must_get_default_owner()
+        feature_resources = []
+        label_resources = []
         for feature in features:
             resource = Feature(
                 name=feature["name"],
@@ -384,6 +429,8 @@ class Registrar:
                 ),
             )
             self.__state.add(resource)
+            feature_resources.append(resource)
+
         for label in labels:
             resource = Label(
                 name=label["name"],
@@ -399,9 +446,33 @@ class Registrar:
                 ),
             )
             self.__state.add(resource)
+            label_resources.append(resource)
+        return ResourceRegistrar(self, features, labels)
+
+    def register_training_set(self,
+                              name: str,
+                              variant: str,
+                              label: NameVariant,
+                              features: List[NameVariant],
+                              owner: str | UserRegistrar = "",
+                              description: str = ""):
+        if not isinstance(owner, str):
+            owner = owner.name()
+        if owner == "":
+            owner = self.must_get_default_owner()
+        resource = TrainingSet(
+            name=name,
+            variant=variant,
+            description=description,
+            owner=owner,
+            label=label,
+            features=features,
+        )
+        self.__state.add(resource)
 
 
 global_registrar = Registrar()
+state = global_registrar.state
 register_user = global_registrar.register_user
 register_redis = global_registrar.register_redis
 register_snowflake = global_registrar.register_snowflake

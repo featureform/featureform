@@ -132,7 +132,9 @@ func (c *Coordinator) WatchForNewJobs() error {
 
 func (c *Coordinator) mapNameVariantsToTables(sources []metadata.NameVariant) (map[string]string, error) {
 	sourceMap := make(map[string]string)
+
 	c.Logger.Debug(fmt.Sprintf("%v", sources))
+
 	for _, nameVariant := range sources {
 		var tableName string
 		source, err := c.Metadata.GetSourceVariant(context.Background(), nameVariant)
@@ -148,10 +150,12 @@ func (c *Coordinator) mapNameVariantsToTables(sources []metadata.NameVariant) (m
 		} else if source.IsPrimaryDataSQLTable() {
 			tableName = provider.GetPrimaryTableName(providerResourceID)
 		}
+
 		c.Logger.Debug("mapping name variants to table names")
 		c.Logger.Debug(fmt.Sprintf("%v", nameVariant))
 
 		c.Logger.Debug(tableName)
+
 		sourceMap[fmt.Sprintf("%s.%s", nameVariant.Name, nameVariant.Variant)] = tableName
 	}
 	return sourceMap, nil
@@ -185,6 +189,7 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 			allReady = true
 		}
 	}
+
 	sourceMap, err := c.mapNameVariantsToTables(sources)
 	if err != nil {
 		return err

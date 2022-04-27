@@ -10,4 +10,4 @@ spec:
     - port: {{ .Values.dashboard.port }}
       targetPort: 8000
       protocol: TCP
-     # nodePort: 31001
+      nodePort: 31001

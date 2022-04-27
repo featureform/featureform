@@ -1014,6 +1014,11 @@ class ApiStub(object):
                 request_serializer=metadata__pb2.SourceVariant.SerializeToString,
                 response_deserializer=metadata__pb2.Empty.FromString,
                 )
+        self.CreateEntity = channel.unary_unary(
+                '/featureform.serving.metadata.proto.Api/CreateEntity',
+                request_serializer=metadata__pb2.Entity.SerializeToString,
+                response_deserializer=metadata__pb2.Empty.FromString,
+                )
 
 
 class ApiServicer(object):
@@ -1037,6 +1042,12 @@ class ApiServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def CreateEntity(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_ApiServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -1053,6 +1064,11 @@ def add_ApiServicer_to_server(servicer, server):
             'CreateSourceVariant': grpc.unary_unary_rpc_method_handler(
                     servicer.CreateSourceVariant,
                     request_deserializer=metadata__pb2.SourceVariant.FromString,
+                    response_serializer=metadata__pb2.Empty.SerializeToString,
+            ),
+            'CreateEntity': grpc.unary_unary_rpc_method_handler(
+                    servicer.CreateEntity,
+                    request_deserializer=metadata__pb2.Entity.FromString,
                     response_serializer=metadata__pb2.Empty.SerializeToString,
             ),
     }
@@ -1112,6 +1128,23 @@ class Api(object):
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/featureform.serving.metadata.proto.Api/CreateSourceVariant',
             metadata__pb2.SourceVariant.SerializeToString,
+            metadata__pb2.Empty.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def CreateEntity(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/featureform.serving.metadata.proto.Api/CreateEntity',
+            metadata__pb2.Entity.SerializeToString,
             metadata__pb2.Empty.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

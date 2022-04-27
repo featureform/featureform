@@ -5,6 +5,8 @@ import { makeStyles } from "@material-ui/core/styles";
 
 import { connect } from "react-redux";
 
+import { PROMETHEUS_URL } from "api/resources";
+
 const useStyles = makeStyles((theme) => ({
   graphBox: {
     height: "50%",
@@ -14,8 +16,6 @@ const useStyles = makeStyles((theme) => ({
 const minutesToMilliseconds = (minutes) => {
   return parseInt(minutes * 60 * 1000);
 };
-
-const PROMETHEUS_URL = "http://localhost:9090/";
 
 const sample_query_data = `{
   "resultType" : "matrix",

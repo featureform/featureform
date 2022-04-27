@@ -160,8 +160,8 @@ func (store *snowflakeOfflineStore) RegisterResourceFromSourceTable(id ResourceI
 	}
 	tableName := store.getResourceTableName(id)
 	if schema.TS == "" {
-		query := fmt.Sprintf("CREATE TABLE %s AS SELECT IDENTIFIER('%s') as entity, IDENTIFIER('%s') as value, null::TIMESTAMP_NTZ as ts FROM %s", sanitize(tableName),
-			schema.Entity, schema.Value, sanitize(schema.SourceTable))
+		query := fmt.Sprintf("CREATE TABLE %s AS SELECT IDENTIFIER('%s') as entity, IDENTIFIER('%s') as value, null::TIMESTAMP_NTZ as ts FROM TABLE('%s')", sanitize(tableName),
+			schema.Entity, schema.Value, schema.SourceTable)
 		if _, err := store.db.Exec(query); err != nil {
 			fmt.Println("1:", err)
 			return nil, err
@@ -178,8 +178,8 @@ func (store *snowflakeOfflineStore) RegisterResourceFromSourceTable(id ResourceI
 			return nil, err
 		}
 	} else {
-		query := fmt.Sprintf("CREATE TABLE %s AS SELECT IDENTIFIER('%s') as entity,  IDENTIFIER('%s') as value,  IDENTIFIER('%s') as ts FROM %s", sanitize(tableName),
-			schema.Entity, schema.Value, schema.TS, sanitize(schema.SourceTable))
+		query := fmt.Sprintf("CREATE TABLE %s AS SELECT IDENTIFIER('%s') as entity,  IDENTIFIER('%s') as value,  IDENTIFIER('%s') as ts FROM TABLE('%s')", sanitize(tableName),
+			schema.Entity, schema.Value, schema.TS, schema.SourceTable)
 		if _, err := store.db.Exec(query); err != nil {
 			fmt.Println("4:", err)
 			return nil, err
@@ -207,7 +207,7 @@ func (store *snowflakeOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID
 		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}
 	tableName := GetPrimaryTableName(id)
-	query := fmt.Sprintf("CREATE TABLE %s AS SELECT * FROM %s", sanitize(tableName), sanitize(sourceName))
+	query := fmt.Sprintf("CREATE TABLE %s AS SELECT * FROM TABLE('%s')", sanitize(tableName), sourceName)
 	if _, err := store.db.Exec(query); err != nil {
 		return nil, err
 	}

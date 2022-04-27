@@ -145,7 +145,7 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 	if err := offlineStore.CreateTransformation(transformationConfig); err != nil {
 		return err
 	}
-	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY); err != nil {
+	if err := c.Metadata.SetStatus(context.Background(), resID, string(metadata.READY)); err != nil {
 		return err
 	}
 	return nil
@@ -160,7 +160,7 @@ func (c *Coordinator) runPrimaryTableJob(transformSource *metadata.SourceVariant
 	if _, err := offlineStore.RegisterPrimaryFromSourceTable(providerResourceID, sourceName); err != nil {
 		return err
 	}
-	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY); err != nil {
+	if err := c.Metadata.SetStatus(context.Background(), resID, string(metadata.READY)); err != nil {
 		return err
 	}
 	return nil
@@ -203,7 +203,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID) error 
 	if status == metadata.READY || status == metadata.FAILED {
 		return fmt.Errorf("feature already set to %s", metadata.ResourceStatus(status))
 	}
-	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.PENDING); err != nil {
+	if err := c.Metadata.SetStatus(context.Background(), resID, string(metadata.PENDING)); err != nil {
 		return err
 	}
 	sourceNameVariant := feature.Source()
@@ -253,7 +253,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID) error 
 	if err := completionWatcher.Wait(); err != nil {
 		return err
 	}
-	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY); err != nil {
+	if err := c.Metadata.SetStatus(context.Background(), resID, string(metadata.READY)); err != nil {
 		return err
 	}
 	return nil
@@ -268,7 +268,7 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID) error {
 	if status == metadata.READY || status == metadata.FAILED {
 		return fmt.Errorf("training Set already set to %s", metadata.ResourceStatus(status))
 	}
-	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.PENDING); err != nil {
+	if err := c.Metadata.SetStatus(context.Background(), resID, string(metadata.PENDING)); err != nil {
 		return err
 	}
 	providerEntry, err := ts.FetchProvider(c.Metadata, context.Background())
@@ -321,7 +321,7 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID) error {
 	if err := completionWatcher.Wait(); err != nil {
 		return err
 	}
-	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY); err != nil {
+	if err := c.Metadata.SetStatus(context.Background(), resID, string(metadata.READY)); err != nil {
 		return err
 	}
 	return nil
@@ -407,7 +407,7 @@ func (c *Coordinator) createJobLock(jobKey string, s *concurrency.Session) (*con
 }
 
 func (c *Coordinator) markJobFailed(job *metadata.CoordinatorJob) error {
-	if err := c.Metadata.SetStatus(context.Background(), job.Resource, metadata.FAILED); err != nil {
+	if err := c.Metadata.SetStatus(context.Background(), job.Resource, string(metadata.FAILED)); err != nil {
 		return fmt.Errorf("could not set job status to failed: %v", err)
 	}
 	return nil
@@ -441,15 +441,18 @@ func (c *Coordinator) executeJob(jobKey string) error {
 	switch job.Resource.Type {
 	case metadata.TRAINING_SET_VARIANT:
 		if err := c.runTrainingSetJob(job.Resource); err != nil {
-			return fmt.Errorf("training set job failed: %v", err)
+			statusErr := c.Metadata.SetStatus(context.Background(), job.Resource, fmt.Sprintf("%v", err))
+			return fmt.Errorf("training set job failed: %v", fmt.Sprintf("%v: %v", err, statusErr))
 		}
 	case metadata.FEATURE_VARIANT:
 		if err := c.runFeatureMaterializeJob(job.Resource); err != nil {
-			return fmt.Errorf("feature materialize job failed: %v", err)
+			statusErr := c.Metadata.SetStatus(context.Background(), job.Resource, fmt.Sprintf("%v", err))
+			return fmt.Errorf("feature variant job failed: %v", fmt.Sprintf("%v: %v", err, statusErr))
 		}
 	case metadata.SOURCE_VARIANT:
 		if err := c.runRegisterSourceJob(job.Resource); err != nil {
-			return fmt.Errorf("source register job failed: %v", err)
+			statusErr := c.Metadata.SetStatus(context.Background(), job.Resource, fmt.Sprintf("%v", err))
+			return fmt.Errorf("source variant job failed: %v", fmt.Sprintf("%v: %v", err, statusErr))
 		}
 	default:
 		return fmt.Errorf("not a valid resource type for running jobs")

@@ -140,7 +140,7 @@ type Resource interface {
 	ID() ResourceID
 	Dependencies(ResourceLookup) (ResourceLookup, error)
 	Proto() proto.Message
-	UpdateStatus(ResourceStatus) error
+	UpdateStatus(string) error
 }
 
 func isDirectDependency(lookup ResourceLookup, dependency, parent Resource) (bool, error) {
@@ -161,7 +161,7 @@ type ResourceLookup interface {
 	List() ([]Resource, error)
 	HasJob(ResourceID) (bool, error)
 	SetJob(ResourceID) error
-	SetStatus(ResourceID, ResourceStatus) error
+	SetStatus(ResourceID, string) error
 }
 
 type TypeSenseWrapper struct {
@@ -231,7 +231,7 @@ func (lookup localResourceLookup) List() ([]Resource, error) {
 	return resources, nil
 }
 
-func (lookup localResourceLookup) SetStatus(id ResourceID, status ResourceStatus) error {
+func (lookup localResourceLookup) SetStatus(id ResourceID, status string) error {
 	res, has := lookup[id]
 	if !has {
 		return &ResourceNotFound{id}
@@ -280,7 +280,7 @@ func (this *sourceResource) Notify(lookup ResourceLookup, op operation, that Res
 	return nil
 }
 
-func (resource *sourceResource) UpdateStatus(status ResourceStatus) error {
+func (resource *sourceResource) UpdateStatus(status string) error {
 	resource.serialized.Status = string(status)
 	return nil
 }
@@ -340,7 +340,7 @@ func (this *sourceVariantResource) Notify(lookup ResourceLookup, op operation, t
 	return nil
 }
 
-func (resource *sourceVariantResource) UpdateStatus(status ResourceStatus) error {
+func (resource *sourceVariantResource) UpdateStatus(status string) error {
 	resource.serialized.Status = string(status)
 	return nil
 }
@@ -374,7 +374,7 @@ func (this *featureResource) Notify(lookup ResourceLookup, op operation, that Re
 	return nil
 }
 
-func (resource *featureResource) UpdateStatus(status ResourceStatus) error {
+func (resource *featureResource) UpdateStatus(status string) error {
 	resource.serialized.Status = string(status)
 	return nil
 }
@@ -438,7 +438,7 @@ func (this *featureVariantResource) Notify(lookup ResourceLookup, op operation, 
 	return nil
 }
 
-func (resource *featureVariantResource) UpdateStatus(status ResourceStatus) error {
+func (resource *featureVariantResource) UpdateStatus(status string) error {
 	resource.serialized.Status = string(status)
 	return nil
 }
@@ -472,7 +472,7 @@ func (this *labelResource) Notify(lookup ResourceLookup, op operation, that Reso
 	return nil
 }
 
-func (resource *labelResource) UpdateStatus(status ResourceStatus) error {
+func (resource *labelResource) UpdateStatus(status string) error {
 	resource.serialized.Status = string(status)
 	return nil
 }
@@ -536,7 +536,7 @@ func (this *labelVariantResource) Notify(lookup ResourceLookup, op operation, th
 	return nil
 }
 
-func (resource *labelVariantResource) UpdateStatus(status ResourceStatus) error {
+func (resource *labelVariantResource) UpdateStatus(status string) error {
 	resource.serialized.Status = string(status)
 	return nil
 }
@@ -570,7 +570,7 @@ func (this *trainingSetResource) Notify(lookup ResourceLookup, op operation, tha
 	return nil
 }
 
-func (resource *trainingSetResource) UpdateStatus(status ResourceStatus) error {
+func (resource *trainingSetResource) UpdateStatus(status string) error {
 	resource.serialized.Status = string(status)
 	return nil
 }
@@ -630,7 +630,7 @@ func (this *trainingSetVariantResource) Notify(lookup ResourceLookup, op operati
 	return nil
 }
 
-func (resource *trainingSetVariantResource) UpdateStatus(status ResourceStatus) error {
+func (resource *trainingSetVariantResource) UpdateStatus(status string) error {
 	resource.serialized.Status = string(status)
 	return nil
 }
@@ -685,7 +685,7 @@ func (this *modelResource) Notify(lookup ResourceLookup, op operation, that Reso
 	return nil
 }
 
-func (resource *modelResource) UpdateStatus(status ResourceStatus) error {
+func (resource *modelResource) UpdateStatus(status string) error {
 	resource.serialized.Status = string(status)
 	return nil
 }
@@ -732,7 +732,7 @@ func (this *userResource) Notify(lookup ResourceLookup, op operation, that Resou
 	return nil
 }
 
-func (resource *userResource) UpdateStatus(status ResourceStatus) error {
+func (resource *userResource) UpdateStatus(status string) error {
 	resource.serialized.Status = string(status)
 	return nil
 }
@@ -779,7 +779,7 @@ func (this *providerResource) Notify(lookup ResourceLookup, op operation, that R
 	return nil
 }
 
-func (resource *providerResource) UpdateStatus(status ResourceStatus) error {
+func (resource *providerResource) UpdateStatus(status string) error {
 	resource.serialized.Status = string(status)
 	return nil
 }
@@ -819,7 +819,7 @@ func (this *entityResource) Notify(lookup ResourceLookup, op operation, that Res
 	return nil
 }
 
-func (resource *entityResource) UpdateStatus(status ResourceStatus) error {
+func (resource *entityResource) UpdateStatus(status string) error {
 	resource.serialized.Status = string(status)
 	return nil
 }
@@ -936,7 +936,7 @@ type Config struct {
 
 func (serv *MetadataServer) SetResourceStatus(ctx context.Context, req *pb.SetStatusRequest) (*pb.Empty, error) {
 	resID := ResourceID{Name: req.Resource.Name, Variant: req.Resource.Variant, Type: ResourceType(req.ResourceType)}
-	err := serv.lookup.SetStatus(resID, ResourceStatus(req.Status))
+	err := serv.lookup.SetStatus(resID, req.Status)
 	return &pb.Empty{}, err
 }
 

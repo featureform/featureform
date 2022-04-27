@@ -405,7 +405,7 @@ func (lookup etcdResourceLookup) List() ([]Resource, error) {
 	return resources, nil
 }
 
-func (lookup etcdResourceLookup) SetStatus(id ResourceID, status ResourceStatus) error {
+func (lookup etcdResourceLookup) SetStatus(id ResourceID, status string) error {
 	res, err := lookup.Lookup(id)
 	if err != nil {
 		return err

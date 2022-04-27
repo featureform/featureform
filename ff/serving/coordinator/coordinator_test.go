@@ -468,7 +468,7 @@ func testCoordinatorMaterializeFeature() error {
 	if err := materializeFeatureWithProvider(client, serialPGConfig, serialRedisConfig, featureName, sourceName, originalTableName); err != nil {
 		return fmt.Errorf("could not create online feature in metadata: %v", err)
 	}
-	if err := client.SetStatus(context.Background(), metadata.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}, metadata.READY); err != nil {
+	if err := client.SetStatus(context.Background(), metadata.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}, string(metadata.READY)); err != nil {
 		return err
 	}
 	featureID := metadata.ResourceID{Name: featureName, Variant: "", Type: metadata.FEATURE_VARIANT}
@@ -524,7 +524,7 @@ func CreateOriginalPostgresTable(tableName string) error {
 	if err != nil {
 		return err
 	}
-	createTableQuery := fmt.Sprintf("CREATE TABLE %s (entity VARCHAR, value INT, ts TIMESTAMPTZ)", sanitize(tableName))
+	createTableQuery := fmt.Sprintf("CREATE TABLE %s (entity VARCHAR, value INT, ts TIMESTAMPTZ)", (tableName))
 	if _, err := conn.Exec(context.Background(), createTableQuery); err != nil {
 		return err
 	}

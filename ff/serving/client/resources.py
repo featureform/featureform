@@ -5,6 +5,9 @@
 from typing import List, Tuple
 from typeguard import typechecked
 from dataclasses import dataclass
+import metadata_pb2 as pb
+import grpc
+import json
 
 NameVariant = Tuple[str, str]
 
@@ -37,7 +40,20 @@ class SnowflakeConfig:
     schema: str
 
     def software(self) -> str:
-        return "snowflake"
+        return "Snowflake"
+
+    def type(self) -> str:
+        return "SNOWFLAKE_OFFLINE"
+
+    def serialize(self) -> bytes:
+        config = {
+            "Username": self.username,
+            "Password": self.password,
+            "Organization": self.organization,
+            "Account": self.account,
+            "Database": self.database,
+        }
+        return bytes(json.dumps(config), "utf-8")
 
 
 @typechecked
@@ -72,6 +88,17 @@ class Provider:
     def type() -> str:
         return "provider"
 
+    def _create(self, stub) -> None:
+        serialized = pb.Provider(
+            name=self.name,
+            description=self.description,
+            type=self.config.type(),
+            software=self.config.software(),
+            team=self.team,
+            serialized_config=self.config.serialize(),
+        )
+        stub.CreateProvider(serialized)
+
 
 @typechecked
 @dataclass
@@ -80,6 +107,10 @@ class User:
 
     def type(self) -> str:
         return "user"
+
+    def _create(self, stub) -> None:
+        serialized = pb.User(name=self.name)
+        stub.CreateUser(serialized)
 
 
 @typechecked
@@ -96,6 +127,13 @@ Location = SQLTable
 class PrimaryData:
     location: Location
 
+    def kwargs(self):
+        return {
+            "primaryData":
+                pb.PrimaryData(table=pb.PrimarySQLTable(
+                    name=self.location.name,),),
+        }
+
 
 class Transformation:
     pass
@@ -108,6 +146,13 @@ class SQLTransformation(Transformation):
 
     def type():
         "SQL"
+
+    def kwargs(self):
+        return {
+            "transformation":
+                pb.Transformation(SQLTransformation=pb.SQLTransformation(
+                    query=self.query,),),
+        }
 
 
 SourceDefinition = PrimaryData | Transformation
@@ -126,6 +171,18 @@ class Source:
     @staticmethod
     def type() -> str:
         return "source"
+
+    def _create(self, stub) -> None:
+        defArgs = self.definition.kwargs()
+        serialized = pb.SourceVariant(
+            name=self.name,
+            variant=self.variant,
+            owner=self.owner,
+            description=self.description,
+            provider=self.provider,
+            **defArgs,
+        )
+        stub.CreateSourceVariant(serialized)
 
 
 @typechecked
@@ -226,6 +283,7 @@ class ResourceState:
 
     def __init__(self):
         self.__state = {}
+        self.__create_list = []
 
     @typechecked
     def add(self, resource: Resource) -> None:
@@ -233,6 +291,7 @@ class ResourceState:
         if key in self.__state:
             raise ResourceRedefinedError(resource)
         self.__state[key] = resource
+        self.__create_list.append(resource)
 
     def sorted_list(self) -> List[Resource]:
         resource_order = {
@@ -251,3 +310,10 @@ class ResourceState:
             return (resource_num, res.name, variant)
 
         return sorted(self.__state.values(), key=to_sort_key)
+
+    def create_all(self, stub) -> None:
+        for resource in self.__create_list:
+            try:
+                resource._create(stub)
+            except grpc._channel._InactiveRpcError as e:
+                print("Already exists", resource.name)

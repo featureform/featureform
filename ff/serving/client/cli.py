@@ -4,6 +4,9 @@
 
 import click
 import register
+import grpc
+import metadata_pb2_grpc as ff_grpc
+import metadata_pb2 as ff_proto
 
 resource_types = [
     "feature",
@@ -62,13 +65,21 @@ def plan(files):
 
 @cli.command()
 @click.argument("files", nargs=-1, required=True, type=click.Path(exists=True))
-def apply(files):
+@click.option("--host",
+              "host",
+              required=True,
+              help="The host address of the API server to connect to")
+def apply(host, files):
     """apply changes to featureform
     """
+    channel = grpc.insecure_channel(host,
+                                    options=(('grpc.enable_http_proxy', 0),))
+    stub = ff_grpc.ApiStub(channel)
     for file in files:
         with open(file, "r") as py:
             exec(py.read())
     print(register.state().sorted_list())
+    register.state().create_all(stub)
 
 
 if __name__ == '__main__':

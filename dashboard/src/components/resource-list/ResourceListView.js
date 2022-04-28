@@ -77,6 +77,7 @@ const useStyles = makeStyles(() => ({
   providerColumn: {},
   providerLogo: {
     maxWidth: "6em",
+    maxHeight: "2.5em",
   },
   tableToolbar: {
     paddingTop: theme.spacing(3),
@@ -147,7 +148,7 @@ export const ResourceListView = ({
             <img
               alt={row.software}
               className={classes.providerLogo}
-              src={providerLogos[row.software]}
+              src={providerLogos[row.software.toUpperCase()]}
             ></img>
           </div>
         ),

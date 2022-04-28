@@ -471,7 +471,9 @@ const NoDataMessage = ({ type }) => {
   return (
     <Container>
       <div className={classes.noDataPage}>
-        <Typography variant="h4">No {type}s Registered</Typography>
+        <Typography variant="h4">
+          No {Resource[type].typePlural} Registered
+        </Typography>
         <Typography variant="body1">
           There are no visible {type.toLowerCase()}s in your organization.
         </Typography>

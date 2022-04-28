@@ -43,8 +43,8 @@ def cli():
 #     """list resources of a given type.
 #     """
 #     pass
-# 
-# 
+#
+#
 # @cli.command()
 # @click.argument("resource_type",
 #                 type=click.Choice(resource_types, case_sensitive=False))
@@ -53,8 +53,8 @@ def cli():
 #     """get resources of a given type.
 #     """
 #     pass
-# 
-# 
+#
+#
 # @cli.command()
 # @click.argument("files", nargs=-1, required=True, type=click.Path(exists=True))
 # def plan(files):
@@ -78,7 +78,6 @@ def apply(host, files):
     for file in files:
         with open(file, "r") as py:
             exec(py.read())
-    print(register.state().sorted_list())
     register.state().create_all(stub)
 
 

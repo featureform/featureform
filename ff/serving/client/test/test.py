@@ -39,15 +39,15 @@ redis = ff.register_redis(
 
 resources = transform.register_resources(
     entity=entity,
-    entity_column="abc",
+    entity_column="user",
     inference_store=redis,
     features=[
-        {"name": "a", "variant": "b", "column": "c", "type": "float32"},
+        {"name": "transaction_count", "variant": "90d", "column": "tcount_90d", "type": "int"},
     ],
     labels=[
-        {"name": "la", "variant": "lb", "column": "lc", "type": "float32"},
+        {"name": "is_fraud", "variant": "handlabel-fiverr", "column": "fraud", "type": "bool"},
     ],
     timestamp_column="ts",
 )
 
-resources.create_training_set(name="ts", variant="v1")
+resources.create_training_set(name="fraud_dataset", variant="v1")

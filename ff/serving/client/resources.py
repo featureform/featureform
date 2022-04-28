@@ -26,7 +26,7 @@ class RedisConfig:
     db: int
 
     def software(self) -> str:
-        return "redis"
+        return "Redis"
 
     def type(self) -> str:
         return "REDIS_ONLINE"

@@ -58,6 +58,7 @@ export const fetchResources = createAsyncThunk(
   "resourceList/fetchByType",
   async ({ api, type }, { signal }) => {
     const response = await api.fetchResources(type, signal);
+    console.log(response.data);
     return response.data;
   },
   {
@@ -101,12 +102,14 @@ const resourceSlice = createSlice({
         return;
       }
 
-      let hasRequired = false;
+      let hasRequired = true;
       if (action.payload.length > 0) {
+        hasRequired = false;
         const resourceType = action.payload[0].type;
         const hasVariants = resourceType.hasVariants;
         hasRequired = isValidResponse(action.payload, hasVariants);
       }
+      console.log(action.payload);
 
       if (hasRequired) {
         state[type].resources = action.payload;
@@ -119,6 +122,7 @@ const resourceSlice = createSlice({
       }
     },
     [fetchResources.rejected]: (state, action) => {
+      console.log("rejected");
       const type = action.meta.arg.type;
       const requestId = action.meta.requestId;
       if (requestId !== state[type].requestId) {

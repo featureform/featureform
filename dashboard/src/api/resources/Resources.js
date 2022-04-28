@@ -40,11 +40,11 @@ export const providerLogos = Object.freeze({
   Snowflake: "Snowflake_Logo.svg",
 });
 
-var API_URL = "http:localhost:8181";
+var API_URL = "http://localhost:8181";
 if (typeof process.env.REACT_APP_API_URL != "undefined") {
   API_URL = process.env.REACT_APP_API_URL.trim();
 }
-export var PROMETHEUS_URL = "http:localhost:9090";
+export var PROMETHEUS_URL = "http://localhost:9090";
 if (typeof process.env.REACT_APP_PROMETHEUS_URL != "undefined") {
   PROMETHEUS_URL = process.env.REACT_APP_PROMETHEUS_URL.trim();
 }

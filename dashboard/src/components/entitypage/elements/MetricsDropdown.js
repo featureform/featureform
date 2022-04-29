@@ -2,7 +2,6 @@ import React, { useEffect } from "react";
 import { Typography, Grid, Container } from "@material-ui/core";
 import { makeStyles } from "@material-ui/core/styles";
 import TimeDropdown from "./TimeDropdown";
-import AggregateDropdown from "./AggregateDropdown";
 import QueryDropdown from "./QueryDropdown";
 import { connect } from "react-redux";
 

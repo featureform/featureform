@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: {{ .Release.Name }}-dashboard
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: {{ .Release.Name }}-dashboard
@@ -16,6 +16,23 @@ spec:
       containers:
         - name: {{ .Release.Name }}-dashboard
           image: {{ .Values.image.repository }}
+#          volumeMounts:
+#            — mountPath: /usr/share/nginx/html/config
+#              name: config-files
           imagePullPolicy: "Always"
           ports:
             - containerPort: 3000
+          env:
+            - name: REACT_APP_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: REACT_APP_API_URL
+                  name: sandbox-env
+#      volumes:
+#        - configMap:
+#            defaultMode: 420
+#            name: sandbox-env
+#            optional: true
+#          name: config-files
+
+

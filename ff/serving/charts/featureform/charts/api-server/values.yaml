@@ -40,7 +40,7 @@ securityContext:
 
 service:
   type: ClusterIP
-  port: 80
+  port: 7878
 
 grpc:
   port: 7878

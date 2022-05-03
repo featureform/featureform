@@ -1113,6 +1113,7 @@ func (fn fetchProviderFns) Provider() string {
 }
 
 func (fn fetchProviderFns) FetchProvider(client *Client, ctx context.Context) (*Provider, error) {
+	fmt.Println("Fetching provider")
 	return client.GetProvider(ctx, fn.Provider())
 }
 

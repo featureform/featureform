@@ -9,13 +9,13 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      run: {{ .Release.Name }}-api-server
+      app: {{ .Release.Name }}-api-server
   strategy: {}
   template:
     metadata:
       creationTimestamp: null
       labels:
-        run: {{ .Release.Name }}-api-server
+        app: {{ .Release.Name }}-api-server
     spec:
       containers:
         - image: {{ .Values.image.repository }}
@@ -34,4 +34,8 @@ spec:
               value: sandbox-etcd
             - name: ETCD_PORT
               value: "2379"
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
 status: {}

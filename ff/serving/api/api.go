@@ -3,14 +3,17 @@ package main
 import (
 	"context"
 	"fmt"
+	"google.golang.org/grpc/credentials/insecure"
+	"io"
 	"net"
+	"net/http"
 	"strings"
+	"time"
 
 	"github.com/featureform/serving/metadata"
 	pb "github.com/featureform/serving/metadata/proto"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 type ApiServer struct {
@@ -131,8 +134,65 @@ func (serv *ApiServer) GracefulStop() error {
 	return nil
 }
 
+func handleHealthCheck(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
+	w.WriteHeader(http.StatusOK)
+
+	_, err := io.WriteString(w, "OK")
+	if err != nil {
+		fmt.Printf("health check write response error: %+v", err)
+	}
+
+	// Log for debugging purposes so we can see in the container's logs
+	// if the health checks are called.
+	fmt.Printf("health check: %+v", r)
+}
+
+func handleIndex(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+
+	_, err := io.WriteString(w, `<html><body>Welcome to gRPC on GKE example</body></html>`)
+	if err != nil {
+		fmt.Printf("index / write response error: %+v", err)
+	}
+
+	fmt.Printf("index: %+v", r)
+}
+
+func startHttpsServer(port string) error {
+	mux := &http.ServeMux{}
+
+	// Health check endpoint will handle all /_ah/* requests
+	// e.g. /_ah/live, /_ah/ready and /_ah/lb
+	// Create separate routes for specific health requests as needed.
+	mux.HandleFunc("/_ah/", handleHealthCheck)
+	mux.HandleFunc("/", handleIndex)
+	// Add more routes as needed.
+
+	// Set timeouts so that a slow or malicious client doesn't hold resources forever.
+	httpsSrv := &http.Server{
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 5 * time.Second,
+		IdleTimeout:  60 * time.Second,
+		Handler:      mux,
+		Addr:         port,
+	}
+
+	fmt.Printf("starting HTTP server on port %s", port)
+
+	return httpsSrv.ListenAndServe()
+}
+
 func main() {
 	logger := zap.NewExample().Sugar()
+	go func() {
+		err := startHttpsServer(":8443")
+		if err != nil && err != http.ErrServerClosed {
+			panic(fmt.Sprintf("health check HTTP server failed: %+v", err))
+		}
+	}()
 	serv, err := NewApiServer(logger, "0.0.0.0:7878", "sandbox-metadata-server:8080")
 	if err != nil {
 		fmt.Println(err)

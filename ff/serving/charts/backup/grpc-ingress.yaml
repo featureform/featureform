@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/backend-protocol: "GRPC"
+  name: featureform-grpc-ingress
+  namespace: default
+spec:
+  ingressClassName: nginx
+  rules:
+     - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: sandbox-api-server
+                port:
+                  number: 7878
+  tls:
+    - hosts:
+        - sandbox.featureform.com
+      secretName: tls-secret

@@ -13,6 +13,7 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 	"net/http"
+	"os"
 	"reflect"
 	"time"
 )
@@ -919,16 +920,19 @@ func (m *MetadataServer) Start(port string) {
 	router := gin.Default()
 	router.Use(cors.Default())
 
-	router.GET("/:type", m.GetMetadataList)
-	router.GET("/:type/:resource", m.GetMetadata)
+	router.GET("/data/:type", m.GetMetadataList)
+	router.GET("/data/:type/:resource", m.GetMetadata)
 
 	router.Run(port)
 }
 
 func main() {
-
+	metadataHost := os.Getenv("METADATA_HOST")
+	metadataPort := os.Getenv("METADATA_PORT")
+	metadataAddress := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
+	fmt.Println("Looking for metadata at: ", metadataAddress)
 	logger := zap.NewExample().Sugar()
-	client, err := metadata.NewClient("localhost:8080", logger)
+	client, err := metadata.NewClient(metadataAddress, logger)
 	if err != nil {
 		logger.Panicw("Failed to connect", "Err", err)
 	}
@@ -937,6 +941,8 @@ func main() {
 	if err != nil {
 		logger.Panicw("Failed to create server", "Err", err)
 	}
-	metadata_port := ":8181"
-	metadata_server.Start(metadata_port)
+	metadataHTTPPort := os.Getenv("METADATA_HTTP_PORT")
+	metadataServingPort := fmt.Sprintf(":%s", metadataHTTPPort)
+	fmt.Sprintf("Serving HTTP Metadata on port: %s", metadataServingPort)
+	metadata_server.Start(metadataServingPort)
 }

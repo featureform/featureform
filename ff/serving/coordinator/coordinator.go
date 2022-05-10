@@ -15,10 +15,8 @@ import (
 	"go.etcd.io/etcd/client/v3/concurrency"
 )
 
-func (c *Coordinator) templateReplace(template string, replacements map[string]string) (string, error) {
+func templateReplace(template string, replacements map[string]string) (string, error) {
 	formattedString := ""
-	c.Logger.Debug("Replacements map: %v", replacements)
-	c.Logger.Debug("Template: %s", template)
 	numEscapes := strings.Count(template, "{{")
 	for i := 0; i < numEscapes; i++ {
 		split := strings.SplitN(template, "{{", 2)
@@ -172,7 +170,7 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 	if err != nil {
 		return err
 	}
-	query, err := c.templateReplace(templateString, sourceMap)
+	query, err := templateReplace(templateString, sourceMap)
 	if err != nil {
 		return err
 	}

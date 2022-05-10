@@ -60,6 +60,208 @@ func setupMetadataServer() error {
 	return nil
 }
 
+func createNewCoordinator() (*Coordinator, error) {
+	logger := zap.NewExample().Sugar()
+	client, err := metadata.NewClient("localhost:8080", logger)
+	if err != nil {
+		return nil, err
+	}
+	cli, err := clientv3.New(clientv3.Config{Endpoints: []string{"localhost:2379"}})
+	if err != nil {
+		return nil, err
+	}
+	memJobSpawner := MemoryJobSpawner{}
+	return NewCoordinator(client, logger, cli, &memJobSpawner)
+}
+
+func TestMapNameVariantsToTablesError(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+	go setupMetadataServer()
+	coord, err := createNewCoordinator()
+	if err != nil {
+		t.Fatalf("could not create new basic coordinator")
+	}
+
+	//1 Can't get source variant from metadata
+	ghostResourceName := uuid.New().String()
+	ghostNameVariants := []metadata.NameVariant{{ghostResourceName, ""}}
+	if _, err := coord.mapNameVariantsToTables(ghostNameVariants); err == nil {
+		t.Fatalf("did not catch error creating map from nonexistent resource")
+	}
+	//2 Source variant exists, but not set to ready
+	sourceNotReady := uuid.New().String()
+	providerName := uuid.New().String()
+	tableName := uuid.New().String()
+	userName := uuid.New().String()
+	defs := []metadata.ResourceDef{
+		metadata.UserDef{
+			Name: userName,
+		},
+		metadata.ProviderDef{
+			Name:             providerName,
+			Description:      "",
+			Type:             "POSTGRES_OFFLINE",
+			Software:         "",
+			Team:             "",
+			SerializedConfig: []byte{},
+		},
+		metadata.SourceDef{
+			Name:        sourceNotReady,
+			Variant:     "",
+			Description: "",
+			Owner:       userName,
+			Provider:    providerName,
+			Definition: metadata.PrimaryDataSource{
+				Location: metadata.SQLTable{
+					Name: tableName,
+				},
+			},
+		},
+	}
+	if err := coord.Metadata.CreateAll(context.Background(), defs); err != nil {
+		t.Fatalf("could not create test metadata entries")
+	}
+	notReadyNameVariants := []metadata.NameVariant{{sourceNotReady, ""}}
+	if _, err := coord.mapNameVariantsToTables(notReadyNameVariants); err == nil {
+		t.Fatalf("did not catch error creating map from not ready resource")
+	}
+}
+
+func TestRegisterSourceJobErrors(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+	go setupMetadataServer()
+	coord, err := createNewCoordinator()
+	if err != nil {
+		t.Fatalf("could not create new basic coordinator")
+	}
+	//1 fail getting source variant
+	ghostResourceName := uuid.New().String()
+	ghostResourceID := metadata.ResourceID{ghostResourceName, "", metadata.SOURCE_VARIANT}
+	if err := coord.runRegisterSourceJob(ghostResourceID); err == nil {
+		t.Fatalf("did not catch error registering nonexistent resource")
+	}
+	//2 pass 1, fail fetching provider (can't be done as metadata asserts all added sources must have providers?)
+	//3 pass 1,2, fail getting provider
+	sourceWithoutProvider := uuid.New().String()
+	ghostProviderName := uuid.New().String()
+	ghostTableName := uuid.New().String()
+	userName := uuid.New().String()
+	providerErrorDefs := []metadata.ResourceDef{
+		metadata.UserDef{
+			Name: userName,
+		},
+		metadata.ProviderDef{
+			Name:             ghostProviderName,
+			Description:      "",
+			Type:             "GHOST_PROVIDER",
+			Software:         "",
+			Team:             "",
+			SerializedConfig: []byte{},
+		},
+		metadata.SourceDef{
+			Name:        sourceWithoutProvider,
+			Variant:     "",
+			Description: "",
+			Owner:       userName,
+			Provider:    ghostProviderName,
+			Definition: metadata.PrimaryDataSource{
+				Location: metadata.SQLTable{
+					Name: ghostTableName,
+				},
+			},
+		},
+	}
+	if err := coord.Metadata.CreateAll(context.Background(), providerErrorDefs); err != nil {
+		t.Fatalf("could not create test metadata entries")
+	}
+	sourceWithoutProviderResourceID := metadata.ResourceID{sourceWithoutProvider, "", metadata.SOURCE_VARIANT}
+	if err := coord.runRegisterSourceJob(sourceWithoutProviderResourceID); err == nil {
+		t.Fatalf("did not catch error registering registering resource without provider in offline store")
+	}
+	//4 pass 1,2,3, provider can't be offline store
+	sourceWithoutOfflineProvider := uuid.New().String()
+	onlineProviderName := uuid.New().String()
+	newTableName := uuid.New().String()
+	newUserName := uuid.New().String()
+	redisPort := os.Getenv("REDIS_PORT")
+	redisHost := "localhost"
+	liveAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
+	redisConfig := &provider.RedisConfig{
+		Addr: liveAddr,
+	}
+	serialRedisConfig := redisConfig.Serialized()
+	onlineErrorDefs := []metadata.ResourceDef{
+		metadata.UserDef{
+			Name: newUserName,
+		},
+		metadata.ProviderDef{
+			Name:             onlineProviderName,
+			Description:      "",
+			Type:             "REDIS_ONLINE",
+			Software:         "",
+			Team:             "",
+			SerializedConfig: serialRedisConfig,
+		},
+		metadata.SourceDef{
+			Name:        sourceWithoutOfflineProvider,
+			Variant:     "",
+			Description: "",
+			Owner:       newUserName,
+			Provider:    onlineProviderName,
+			Definition: metadata.PrimaryDataSource{
+				Location: metadata.SQLTable{
+					Name: newTableName,
+				},
+			},
+		},
+	}
+	if err := coord.Metadata.CreateAll(context.Background(), onlineErrorDefs); err != nil {
+		t.Fatalf("could not create test metadata entries")
+	}
+	sourceWithOnlineProvider := metadata.ResourceID{sourceWithoutOfflineProvider, "", metadata.SOURCE_VARIANT}
+	if err := coord.runRegisterSourceJob(sourceWithOnlineProvider); err == nil {
+		t.Fatalf("did not catch error registering registering resource with online provider")
+	}
+	//5 pass all, source type not implemented (can't be done because metadata proto asserts oneof?)
+
+}
+
+func TestTemplateReplace(t *testing.T) {
+	templateString := "Some example text {{name1.variant1}} and more {{name2.variant2}}"
+	replacements := map[string]string{"name1.variant1": "replacement1", "name2.variant2": "replacement2"}
+	correctString := "Some example text replacement1 and more replacement2"
+	result, err := templateReplace(templateString, replacements)
+	if err != nil {
+		t.Fatalf("template replace did not run correctly: %v", err)
+	}
+	if result != correctString {
+		t.Fatalf("template replace did not replace values correctly")
+	}
+
+}
+
+func TestTemplateReplaceError(t *testing.T) {
+	templateString := "Some example text {{name1.variant1}} and more {{name2.variant2}}"
+	wrongReplacements := map[string]string{"name1.variant1": "replacement1", "name3.variant3": "replacement2"}
+	_, err := templateReplace(templateString, wrongReplacements)
+	if err == nil {
+		t.Fatalf("template replace did not catch error: %v", err)
+	}
+}
+
+func TestMapNameVariants(t *testing.T) {
+	//Just a normal unit test, but needs a working coordinator and metadata
+}
+
+func TestMapNameVariantsError(t *testing.T) {
+	//have it so the source variant doesn't exist (metadata not set up)
+	//and also have it so it is set up, but not set to ready
+}
+
 func TestCoordinatorCalls(t *testing.T) {
 	//needs etcd and providers set up to run
 	if testing.Short() {

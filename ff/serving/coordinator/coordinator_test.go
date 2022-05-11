@@ -911,8 +911,19 @@ func testRegisterPrimaryTableFromSource() error {
 	if err := CreateOriginalPostgresTable(tableName); err != nil {
 		return fmt.Errorf("Could not create non-featureform source table: %v", err)
 	}
+	memJobSpawner := MemoryJobSpawner{}
+	coord, err := NewCoordinator(client, logger, cli, &memJobSpawner)
+	if err != nil {
+		return fmt.Errorf("Failed to set up coordinator")
+	}
+	go func() {
+		if err := coord.WatchForNewJobs(); err != nil {
+			panic(err)
+		}
+	}()
 	//use the postgres/whatever to make a blank agnostic table "sammy's table",
 	sourceName := uuid.New().String()
+
 	if err := createSourceWithProvider(client, serialPGConfig, sourceName, tableName); err != nil {
 		return fmt.Errorf("could not register source in metadata: %v", err)
 	}
@@ -925,16 +936,7 @@ func testRegisterPrimaryTableFromSource() error {
 	}
 	//now we set up the coordinator and actually do shit
 	sourceID := metadata.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}
-	memJobSpawner := MemoryJobSpawner{}
-	coord, err := NewCoordinator(client, logger, cli, &memJobSpawner)
-	if err != nil {
-		return fmt.Errorf("Failed to set up coordinator")
-	}
-	go func() {
-		if err := coord.WatchForNewJobs(); err != nil {
-			panic(err)
-		}
-	}()
+
 	for has, _ := coord.hasJob(sourceID); has; has, _ = coord.hasJob(sourceID) {
 		time.Sleep(1 * time.Second)
 	}

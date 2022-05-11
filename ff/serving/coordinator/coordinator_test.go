@@ -165,7 +165,7 @@ func TestRunPrimaryTableJobError(t *testing.T) {
 	newUserName := uuid.New().String()
 	newDefs := []metadata.ResourceDef{
 		metadata.UserDef{
-			Name: userName,
+			Name: newUserName,
 		},
 		metadata.ProviderDef{
 			Name:             newProviderName,
@@ -189,7 +189,7 @@ func TestRunPrimaryTableJobError(t *testing.T) {
 		},
 	}
 	if err := coord.Metadata.CreateAll(context.Background(), newDefs); err != nil {
-		t.Fatalf("could not create test metadata entries")
+		t.Fatalf("could not create test metadata entries: %v", err)
 	}
 	newTransformSource, err := coord.Metadata.GetSourceVariant(context.Background(), metadata.NameVariant{sourceNoActualPrimaryTable, ""})
 	if err != nil {

@@ -24,7 +24,7 @@ func templateReplace(template string, replacements map[string]string) (string, e
 		key := strings.TrimSpace(afterSplit[0])
 		replacement, has := replacements[key]
 		if !has {
-			return "", fmt.Errorf("No key set")
+			return "", fmt.Errorf("no key set")
 		}
 
 		formattedString += fmt.Sprintf("%s%s", split[0], replacement)
@@ -90,6 +90,7 @@ func NewCoordinator(meta *metadata.Client, logger *zap.SugaredLogger, cli *clien
 const MAX_ATTEMPTS = 1
 
 func (c *Coordinator) WatchForNewJobs() error {
+	c.Logger.Debug("Watching for new jobs")
 	getResp, err := (*c.KVClient).Get(context.Background(), "JOB_", clientv3.WithPrefix())
 	if err != nil {
 		return err
@@ -113,7 +114,6 @@ func (c *Coordinator) WatchForNewJobs() error {
 
 func (c *Coordinator) mapNameVariantsToTables(sources []metadata.NameVariant) (map[string]string, error) {
 	sourceMap := make(map[string]string)
-	c.Logger.Debug(fmt.Sprintf("%v", sources))
 	for _, nameVariant := range sources {
 		var tableName string
 		source, err := c.Metadata.GetSourceVariant(context.Background(), nameVariant)
@@ -129,10 +129,6 @@ func (c *Coordinator) mapNameVariantsToTables(sources []metadata.NameVariant) (m
 		} else if source.IsPrimaryDataSQLTable() {
 			tableName = provider.GetPrimaryTableName(providerResourceID)
 		}
-		c.Logger.Debug("mapping name variants to table names")
-		c.Logger.Debug(fmt.Sprintf("%v", nameVariant))
-
-		c.Logger.Debug(tableName)
 		sourceMap[fmt.Sprintf("%s.%s", nameVariant.Name, nameVariant.Variant)] = tableName
 	}
 	return sourceMap, nil
@@ -143,10 +139,9 @@ func sanitize(ident string) string {
 }
 
 func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVariant, resID metadata.ResourceID, offlineStore provider.OfflineStore) error {
+	c.Logger.Debug("Running SQL transformation job on resource : %v", resID)
 	templateString := transformSource.SQLTransformationQuery()
 	sources := transformSource.SQLTransformationSources()
-	c.Logger.Debug("retrieved sources from metadata")
-	c.Logger.Debug(fmt.Sprintf("%v", sources))
 	allReady := false
 	for sourceVariants, err := c.Metadata.GetSourceVariants(context.Background(), sources); !allReady; sourceVariants, err = c.Metadata.GetSourceVariants(context.Background(), sources) {
 		if err != nil {
@@ -176,7 +171,6 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 	}
 	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Transformation}
 	transformationConfig := provider.TransformationConfig{TargetTableID: providerResourceID, Query: query}
-	c.Logger.Debug(fmt.Sprintf("Transformation config: %v", transformationConfig))
 	if err := offlineStore.CreateTransformation(transformationConfig); err != nil {
 		return err
 	}
@@ -187,9 +181,9 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 }
 
 func (c *Coordinator) runPrimaryTableJob(transformSource *metadata.SourceVariant, resID metadata.ResourceID, offlineStore provider.OfflineStore) error {
+	c.Logger.Debug("Running primary table job on resource : %v", resID)
 	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant}
 	sourceName := transformSource.PrimaryDataSQLTableName()
-	c.Logger.Debug(fmt.Sprintf("Source name: %s", sourceName))
 	if sourceName == "" {
 		return fmt.Errorf("no source name set")
 	}
@@ -203,6 +197,7 @@ func (c *Coordinator) runPrimaryTableJob(transformSource *metadata.SourceVariant
 }
 
 func (c *Coordinator) runRegisterSourceJob(resID metadata.ResourceID) error {
+	c.Logger.Debug("Running register source job on resource : %v", resID)
 	source, err := c.Metadata.GetSourceVariant(context.Background(), metadata.NameVariant{resID.Name, resID.Variant})
 	if err != nil {
 		return err
@@ -230,6 +225,7 @@ func (c *Coordinator) runRegisterSourceJob(resID metadata.ResourceID) error {
 
 //should only be triggered when we are registering an ONLINE feature, not an offline one
 func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID) error {
+	c.Logger.Debug("Running feature materialization job on resource : %v", resID)
 	feature, err := c.Metadata.GetFeatureVariant(context.Background(), metadata.NameVariant{resID.Name, resID.Variant})
 	if err != nil {
 		return err
@@ -296,6 +292,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID) error 
 }
 
 func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID) error {
+	c.Logger.Debug("Running training set job on resource : %v", resID)
 	ts, err := c.Metadata.GetTrainingSetVariant(context.Background(), metadata.NameVariant{resID.Name, resID.Variant})
 	if err != nil {
 		return err
@@ -405,6 +402,7 @@ func (c *Coordinator) incrementJobAttempts(mtx *concurrency.Mutex, job *metadata
 }
 
 func (c *Coordinator) deleteJob(mtx *concurrency.Mutex, key string) error {
+	c.Logger.Debug("Deleting job with key: %s", key)
 	txn := (*c.KVClient).Txn(context.Background())
 	response, err := txn.If(mtx.IsOwner()).Then(clientv3.OpDelete(key)).Commit()
 	if err != nil {
@@ -419,6 +417,7 @@ func (c *Coordinator) deleteJob(mtx *concurrency.Mutex, key string) error {
 	if numDeleted != 1 { //returns 0 if delete key did not exist
 		return fmt.Errorf("job Already deleted")
 	}
+	c.Logger.Debug("Succesfully deleted job with key: %s", key)
 	return nil
 }
 
@@ -450,6 +449,7 @@ func (c *Coordinator) markJobFailed(job *metadata.CoordinatorJob) error {
 }
 
 func (c *Coordinator) executeJob(jobKey string) error {
+	c.Logger.Debug("Executing new job with key %s", jobKey)
 	s, err := concurrency.NewSession(c.EtcdClient, concurrency.WithTTL(1))
 	if err != nil {
 		return err
@@ -468,6 +468,7 @@ func (c *Coordinator) executeJob(jobKey string) error {
 	if err != nil {
 		return err
 	}
+	c.Logger.Debug("Job %s is on attempt %d", jobKey, job.Attempts)
 	if job.Attempts > MAX_ATTEMPTS {
 		return c.markJobFailed(job)
 	}
@@ -493,6 +494,7 @@ func (c *Coordinator) executeJob(jobKey string) error {
 	default:
 		return fmt.Errorf("not a valid resource type for running jobs")
 	}
+	c.Logger.Debug("Succesfully executed job with key: %s", jobKey)
 	if err := c.deleteJob(mtx, jobKey); err != nil {
 		return err
 	}

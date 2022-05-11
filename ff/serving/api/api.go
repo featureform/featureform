@@ -36,14 +36,17 @@ func NewApiServer(logger *zap.SugaredLogger, address string, metaAddr string) (*
 }
 
 func (serv *ApiServer) CreateUser(ctx context.Context, user *pb.User) (*pb.Empty, error) {
+	serv.Logger.Infow("Creating User", "User", user.Name)
 	return serv.meta.CreateUser(ctx, user)
 }
 
 func (serv *ApiServer) CreateProvider(ctx context.Context, provider *pb.Provider) (*pb.Empty, error) {
+	serv.Logger.Infow("Creating Provider", "Provider", provider.Name)
 	return serv.meta.CreateProvider(ctx, provider)
 }
 
 func (serv *ApiServer) CreateSourceVariant(ctx context.Context, source *pb.SourceVariant) (*pb.Empty, error) {
+	serv.Logger.Infow("Creating Source Variant", "Source Variant", source.Name)
 	switch casted := source.Definition.(type) {
 	case *pb.SourceVariant_Transformation:
 		transformation := casted.Transformation.Type.(*pb.Transformation_SQLTransformation).SQLTransformation
@@ -64,14 +67,17 @@ func (serv *ApiServer) CreateSourceVariant(ctx context.Context, source *pb.Sourc
 }
 
 func (serv *ApiServer) CreateEntity(ctx context.Context, entity *pb.Entity) (*pb.Empty, error) {
+	serv.Logger.Infow("Creating Entity", "Entity", entity.Name)
 	return serv.meta.CreateEntity(ctx, entity)
 }
 
 func (serv *ApiServer) CreateFeatureVariant(ctx context.Context, feature *pb.FeatureVariant) (*pb.Empty, error) {
+	serv.Logger.Infow("Creating Feature Variant", "Feature Variant", feature.Name)
 	return serv.meta.CreateFeatureVariant(ctx, feature)
 }
 
 func (serv *ApiServer) CreateLabelVariant(ctx context.Context, label *pb.LabelVariant) (*pb.Empty, error) {
+	serv.Logger.Infow("Creating Label Variant", "Label Variant", label.Name)
 	protoSource := label.Source
 	source, err := serv.metaClient.GetSourceVariant(ctx, metadata.NameVariant{protoSource.Name, protoSource.Variant})
 	if err != nil {
@@ -82,6 +88,7 @@ func (serv *ApiServer) CreateLabelVariant(ctx context.Context, label *pb.LabelVa
 }
 
 func (serv *ApiServer) CreateTrainingSetVariant(ctx context.Context, train *pb.TrainingSetVariant) (*pb.Empty, error) {
+	serv.Logger.Infow("Creating Training Set Variant", "Training Set Variant", train.Name)
 	protoLabel := train.Label
 	label, err := serv.metaClient.GetLabelVariant(ctx, metadata.NameVariant{protoLabel.Name, protoLabel.Variant})
 	if err != nil {
@@ -143,9 +150,6 @@ func handleHealthCheck(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("health check write response error: %+v", err)
 	}
 
-	// Log for debugging purposes so we can see in the container's logs
-	// if the health checks are called.
-	fmt.Printf("health check: %+v", r)
 }
 
 func handleIndex(w http.ResponseWriter, r *http.Request) {
@@ -158,7 +162,6 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("index / write response error: %+v", err)
 	}
 
-	fmt.Printf("index: %+v", r)
 }
 
 func startHttpsServer(port string) error {

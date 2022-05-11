@@ -47,7 +47,7 @@ Selector labels
 */}}
 {{- define "feature-server.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "feature-server.name" . }}
-app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/instance: sandbox
 {{- end }}
 
 {{/*

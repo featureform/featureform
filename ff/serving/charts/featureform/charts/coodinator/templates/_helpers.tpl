@@ -47,7 +47,7 @@ Selector labels
 */}}
 {{- define "coodinator.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "coodinator.name" . }}
-app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/instance: sandbox
 {{- end }}
 
 {{/*

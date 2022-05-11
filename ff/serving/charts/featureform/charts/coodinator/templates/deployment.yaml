@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "coodinator.fullname" . }}
+  name: sandbox-coordinator
   labels:
     {{- include "coodinator.labels" . | nindent 4 }}
 spec:

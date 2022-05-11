@@ -69,11 +69,21 @@ def cli():
               "host",
               required=True,
               help="The host address of the API server to connect to")
-def apply(host, files):
+@click.option("--insecure",
+              is_flag=True,
+              help="Disables TLS verification")
+def apply(host, insecure, files):
     """apply changes to featureform
     """
-    channel = grpc.insecure_channel(host,
-                                    options=(('grpc.enable_http_proxy', 0),))
+    if insecure:
+        channel = grpc.insecure_channel(host, options=(('grpc.enable_http_proxy', 0),))
+    else:
+        with open('../charts/cert/server.crt', 'rb') as f:
+            trusted_certs = f.read()
+
+        credentials = grpc.ssl_channel_credentials(root_certificates=trusted_certs)
+
+        channel = grpc.secure_channel(host, credentials)
     stub = ff_grpc.ApiStub(channel)
     for file in files:
         with open(file, "r") as py:

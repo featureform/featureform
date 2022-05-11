@@ -1,14 +1,14 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Release.Name }}-prometheus-service
+  name: sandbox-prometheus-service
   annotations:
     prometheus.io/scrape: "true"
     prometheus.io/port: "9090"
 
 spec:
   selector:
-    app: {{ .Release.Name }}-prometheus-server
+    app: sandbox-prometheus-server
   type: NodePort
   ports:
     - port: 9090

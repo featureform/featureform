@@ -96,7 +96,8 @@ metadata:
 
 
 etcd:
+  fullnameOverride: sandbox-etcd
   auth:
     rbac:
       rootPassword: "secretpassword"
-  replicaCount: 1
+  replicaCount: 3

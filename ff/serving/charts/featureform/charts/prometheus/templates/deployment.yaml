@@ -1,21 +1,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}-prometheus-deployment
+  name: sandbox-prometheus-deployment
   labels:
-    app: {{ .Release.Name }}-prometheus-server
+    app: sandbox-prometheus-server
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: {{ .Release.Name }}-prometheus-server
+      app: sandbox-prometheus-server
   template:
     metadata:
       labels:
-        app: {{ .Release.Name }}-prometheus-server
+        app: sandbox-prometheus-server
     spec:
       containers:
-        - name: {{ .Release.Name }}-prometheus
+        - name: sandbox-prometheus
           image: {{ .Values.image.repository }}
           args:
             - "--config.file=/etc/prometheus/prometheus.yml"
@@ -25,15 +25,15 @@ spec:
           ports:
             - containerPort: 9090
           volumeMounts:
-            - name: {{ .Release.Name }}-prometheus-config-volume
+            - name: sandbox-prometheus-config-volume
               mountPath: /etc/prometheus/
-            - name: {{ .Release.Name }}-prometheus-storage-volume
+            - name: sandbox-prometheus-storage-volume
               mountPath: /prometheus/
       volumes:
-        - name: {{ .Release.Name }}-prometheus-config-volume
+        - name: sandbox-prometheus-config-volume
           configMap:
             defaultMode: 420
-            name: {{ .Release.Name }}-prometheus-server-conf
+            name: sandbox-prometheus-server-conf
 
-        - name: {{ .Release.Name }}-prometheus-storage-volume
+        - name: sandbox-prometheus-storage-volume
           emptyDir: {}

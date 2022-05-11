@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   creationTimestamp: null
-  name: {{ .Release.Name }}-metadata-server
+  name: sandbox-metadata-server
 spec:
   ports:
     - name: grpc
@@ -10,6 +10,6 @@ spec:
       protocol: TCP
       targetPort: 8080
   selector:
-    run: {{ .Release.Name }}-metadata-server
+    run: sandbox-metadata-server
 status:
   loadBalancer: {}

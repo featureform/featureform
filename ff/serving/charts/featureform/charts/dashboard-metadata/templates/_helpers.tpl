@@ -47,7 +47,7 @@ Selector labels
 */}}
 {{- define "dashboard-metadata.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "dashboard-metadata.name" . }}
-app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/instance: sandbox
 {{- end }}
 
 {{/*

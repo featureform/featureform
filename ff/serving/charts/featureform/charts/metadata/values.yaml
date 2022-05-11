@@ -46,11 +46,11 @@ grpc:
   port: 8080
 
 #typesense:
-#  host: {{ .Release.Name }}-typesense
+#  host: sandbox-typesense
 #  port: 80
 #
 #etcd:
-#  host: {{ .Release.Name }}-etcd
+#  host: sandbox-etcd
 #  port: 2397
 
 ingress:

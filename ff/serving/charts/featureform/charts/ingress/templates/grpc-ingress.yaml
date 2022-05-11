@@ -1,0 +1,47 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    allowed-values: CN=client
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/auth-tls-pass-certificate-to-upstream: "false"
+    nginx.ingress.kubernetes.io/auth-tls-secret: default/tls-secret
+    nginx.ingress.kubernetes.io/auth-tls-verify-client: "on"
+    nginx.ingress.kubernetes.io/auth-tls-verify-depth: "1"
+    nginx.ingress.kubernetes.io/backend-protocol: GRPC
+    nginx.ingress.kubernetes.io/proxy-body-size: 64ms
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+  name: grpc-ingress
+  namespace: default
+spec:
+  rules:
+    - host: {{ .Release.Name }}-sandbox.featureform.com
+      http:
+        paths:
+          - path: /featureform.serving.metadata.proto.Api/
+            pathType: Prefix
+            backend:
+              service:
+                name: sandbox-api-server
+                port:
+                  number: 7878
+
+          - path: /featureform.serving.proto.Feature/
+            pathType: Prefix
+            backend:
+              service:
+                name: sandbox-feature-server
+                port:
+                  number: 8080
+
+
+
+  tls:
+    - hosts:
+        - tls-secret
+      secretName: tls-secret
+status:
+  loadBalancer:
+    ingress:
+      - hostname: {{ .Release.Name }}-sandbox.featureform.com
+

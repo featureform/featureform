@@ -66,7 +66,7 @@ Common labels
 {{- define "typesense.labels" -}}
 app: {{ include "typesense.name" . }}
 chart: {{ include "typesense.chart" . }}
-release: {{ .Release.Name }}
+release: sandbox
 heritage: {{ .Release.Service }}
 {{- end -}}
 
@@ -75,7 +75,7 @@ Labels to use on deploy.spec.selector.matchLabels and svc.spec.selector
 */}}
 {{- define "typesense.matchLabels" -}}
 app: {{ include "typesense.name" . }}
-release: {{ .Release.Name }}
+release: sandbox
 {{- end -}}
 
 {{/*

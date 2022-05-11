@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ template "typesense.fullname" . }}
+  name: sandbox-typesense
   labels: {{- include "typesense.labels" . | nindent 4 }}
 spec:
   selector:
@@ -37,7 +37,7 @@ spec:
             - name: TYPESENSE_DATA_DIR
               value: {{ .Values.persistence.path }}
             - name: TYPESENSE_API_KEY
-              value: password
+              value: xyz
             {{- if .Values.extraEnv }}
             {{- toYaml .Values.extraEnv | nindent 12 }}
             {{- end }}

@@ -3,23 +3,23 @@ kind: Deployment
 metadata:
   creationTimestamp: null
   labels:
-    run: {{ .Release.Name }}-metadata-server
-  name: {{ .Release.Name }}-metadata-server
+    run: sandbox-metadata-server
+  name: sandbox-metadata-server
 spec:
   replicas: 1
   selector:
     matchLabels:
-      run: {{ .Release.Name }}-metadata-server
+      run: sandbox-metadata-server
   strategy: {}
   template:
     metadata:
       creationTimestamp: null
       labels:
-        run: {{ .Release.Name }}-metadata-server
+        run: sandbox-metadata-server
     spec:
       containers:
         - image: {{ .Values.image.repository }}
-          name: {{ .Release.Name }}-metadata-server
+          name: sandbox-metadata-server
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - containerPort: 8080
@@ -30,7 +30,7 @@ spec:
             - name: TYPESENSE_HOST
               value: sandbox-typesense
             - name: TYPESENSE_APIKEY
-              value: password
+              value: xyz
             - name: ETCD_HOST
               value: sandbox-etcd
             - name: ETCD_PORT

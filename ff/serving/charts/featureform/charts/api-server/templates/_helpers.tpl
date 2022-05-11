@@ -47,7 +47,7 @@ Selector labels
 */}}
 {{- define "api-server.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "api-server.name" . }}
-app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/instance: sandbox
 {{- end }}
 
 {{/*

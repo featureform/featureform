@@ -52,11 +52,12 @@ export var PROMETHEUS_URL = "http://"+ window.location.hostname+"";
 if (typeof process.env.REACT_APP_PROMETHEUS_URL != "undefined") {
   PROMETHEUS_URL = process.env.REACT_APP_PROMETHEUS_URL.trim();
 }
-var TYPESENSE_PORT = "8108";
+var TYPESENSE_PORT = "80";
 if (typeof process.env.REACT_APP_TYPESENSE_PORT != "undefined") {
   TYPESENSE_PORT = process.env.REACT_APP_TYPESENSE_PORT.trim();
 }
-var TYPESENSE_URL = "localhost";
+//var TYPESENSE_URL = "localhost";
+var TYPESENSE_URL = window.location.hostname
 if (typeof process.env.REACT_APP_TYPESENSE_URL != "undefined") {
   TYPESENSE_URL = process.env.REACT_APP_TYPESENSE_URL.trim();
 }

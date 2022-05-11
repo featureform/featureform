@@ -1,24 +1,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}-dashboard
+  name: sandbox-dashboard
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: {{ .Release.Name }}-dashboard
+      app: sandbox-dashboard
   template:
     metadata:
       labels:
-        app: {{ .Release.Name }}-dashboard
+        app: sandbox-dashboard
     spec:
       terminationGracePeriodSeconds: 30
       containers:
-        - name: {{ .Release.Name }}-dashboard
+        - name: sandbox-dashboard
           image: {{ .Values.image.repository }}
-#          volumeMounts:
-#            — mountPath: /usr/share/nginx/html/config
-#              name: config-files
           imagePullPolicy: "Always"
           ports:
             - containerPort: 3000
@@ -28,11 +25,4 @@ spec:
                 configMapKeyRef:
                   key: REACT_APP_API_URL
                   name: sandbox-env
-#      volumes:
-#        - configMap:
-#            defaultMode: 420
-#            name: sandbox-env
-#            optional: true
-#          name: config-files
-
 

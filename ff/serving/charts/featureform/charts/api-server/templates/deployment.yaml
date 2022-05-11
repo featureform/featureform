@@ -3,25 +3,26 @@ kind: Deployment
 metadata:
   creationTimestamp: null
   labels:
-    run: {{ .Release.Name }}-api-server
-  name: {{ .Release.Name }}-api-server
+    run: sandbox-api-server
+  name: sandbox-api-server
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: {{ .Release.Name }}-api-server
+      app: sandbox-api-server
   strategy: {}
   template:
     metadata:
       creationTimestamp: null
       labels:
-        app: {{ .Release.Name }}-api-server
+        app: sandbox-api-server
     spec:
       containers:
         - image: {{ .Values.image.repository }}
-          name: {{ .Release.Name }}-api-server
+          name: sandbox-api-server
           ports:
             - containerPort: 7878
+              protocol: TCP
           resources: {}
           env:
             - name: TYPESENSE_PORT
@@ -38,4 +39,10 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
+          livenessProbe:
+            httpGet:
+              path: /_ah/
+              port: 8443
+            initialDelaySeconds: 20
+            periodSeconds: 3
 status: {}

@@ -1,7 +1,7 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ .Release.Name }}-prometheus
+  name: sandbox-prometheus
 rules:
   - apiGroups: [""]
     resources:
@@ -22,16 +22,16 @@ rules:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: {{ .Release.Name }}-prometheus
+  name: sandbox-prometheus
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ .Release.Name }}-prometheus
+  name: sandbox-prometheus
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: {{ .Release.Name }}-prometheus
+  name: sandbox-prometheus
 subjects:
   - kind: ServiceAccount
     name: default

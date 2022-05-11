@@ -438,70 +438,70 @@ func TestRunSQLTransformationJobError(t *testing.T) {
 		t.Fatalf("did not catch error trying to create primary table when no source table exists in database")
 	}
 
-	//2 1 source variant set to failed
-	sourceWithFailedDependency := uuid.New().String()
-	newProviderName = uuid.New().String()
-	newUserName = uuid.New().String()
-	failedSourceName := uuid.New().String()
-	newDefs = []metadata.ResourceDef{
-		metadata.UserDef{
-			Name: newUserName,
-		},
-		metadata.ProviderDef{
-			Name:             newProviderName,
-			Description:      "",
-			Type:             "POSTGRES_OFFLINE",
-			Software:         "",
-			Team:             "",
-			SerializedConfig: postgresConfig.Serialize(),
-		},
-		metadata.SourceDef{
-			Name:        failedSourceName,
-			Variant:     "",
-			Description: "",
-			Owner:       newUserName,
-			Provider:    newProviderName,
-			Definition: metadata.PrimaryDataSource{
-				Location: metadata.SQLTable{
-					Name: "",
-				},
-			},
-		},
-		metadata.SourceDef{
-			Name:        sourceWithFailedDependency,
-			Variant:     "",
-			Description: "",
-			Owner:       newUserName,
-			Provider:    newProviderName,
-			Definition: metadata.TransformationSource{
-				TransformationType: metadata.SQLTransformationType{
-					Query:   "",
-					Sources: []metadata.NameVariant{{failedSourceName, ""}},
-				},
-			},
-		},
-	}
-	if err := coord.Metadata.CreateAll(context.Background(), newDefs); err != nil {
-		t.Fatalf("could not create test metadata entries: %v", err)
-	}
-	if err := coord.Metadata.SetStatus(context.Background(), metadata.ResourceID{failedSourceName, "", metadata.SOURCE_VARIANT}, string(metadata.FAILED)); err != nil {
-		t.Fatalf("could not set status of designated failed resource to failed")
-	}
-	failedSource, err := coord.Metadata.GetSourceVariant(context.Background(), metadata.NameVariant{failedSourceName, ""})
-	if err != nil {
-		t.Fatalf("could not get source variant")
-	}
-	if failedSource.Status() != metadata.FAILED {
-		t.Fatalf("Source set to %v, not failed", failedSource.Status())
-	}
-	newTransformSource, err = coord.Metadata.GetSourceVariant(context.Background(), metadata.NameVariant{sourceWithFailedDependency, ""})
-	if err != nil {
-		t.Fatalf("could not fetch created source variant: %v", err)
-	}
-	newSourceResourceID = metadata.ResourceID{sourceWithFailedDependency, "", metadata.SOURCE_VARIANT}
-	if err := coord.runSQLTransformationJob(newTransformSource, newSourceResourceID, offlineProvider); err == nil {
-		t.Fatalf("did not catch error trying to create transformation when one dependency is set to failed")
-	}
+	// //2 1 source variant set to failed
+	// sourceWithFailedDependency := uuid.New().String()
+	// newProviderName = uuid.New().String()
+	// newUserName = uuid.New().String()
+	// failedSourceName := uuid.New().String()
+	// newDefs = []metadata.ResourceDef{
+	// 	metadata.UserDef{
+	// 		Name: newUserName,
+	// 	},
+	// 	metadata.ProviderDef{
+	// 		Name:             newProviderName,
+	// 		Description:      "",
+	// 		Type:             "POSTGRES_OFFLINE",
+	// 		Software:         "",
+	// 		Team:             "",
+	// 		SerializedConfig: postgresConfig.Serialize(),
+	// 	},
+	// 	metadata.SourceDef{
+	// 		Name:        failedSourceName,
+	// 		Variant:     "",
+	// 		Description: "",
+	// 		Owner:       newUserName,
+	// 		Provider:    newProviderName,
+	// 		Definition: metadata.PrimaryDataSource{
+	// 			Location: metadata.SQLTable{
+	// 				Name: "",
+	// 			},
+	// 		},
+	// 	},
+	// 	metadata.SourceDef{
+	// 		Name:        sourceWithFailedDependency,
+	// 		Variant:     "",
+	// 		Description: "",
+	// 		Owner:       newUserName,
+	// 		Provider:    newProviderName,
+	// 		Definition: metadata.TransformationSource{
+	// 			TransformationType: metadata.SQLTransformationType{
+	// 				Query:   "",
+	// 				Sources: []metadata.NameVariant{{failedSourceName, ""}},
+	// 			},
+	// 		},
+	// 	},
+	// }
+	// if err := coord.Metadata.CreateAll(context.Background(), newDefs); err != nil {
+	// 	t.Fatalf("could not create test metadata entries: %v", err)
+	// }
+	// if err := coord.Metadata.SetStatus(context.Background(), metadata.ResourceID{failedSourceName, "", metadata.SOURCE_VARIANT}, string(metadata.FAILED)); err != nil {
+	// 	t.Fatalf("could not set status of designated failed resource to failed")
+	// }
+	// failedSource, err := coord.Metadata.GetSourceVariant(context.Background(), metadata.NameVariant{failedSourceName, ""})
+	// if err != nil {
+	// 	t.Fatalf("could not get source variant")
+	// }
+	// if failedSource.Status() != metadata.FAILED {
+	// 	t.Fatalf("Source set to %v, not failed", failedSource.Status())
+	// }
+	// newTransformSource, err = coord.Metadata.GetSourceVariant(context.Background(), metadata.NameVariant{sourceWithFailedDependency, ""})
+	// if err != nil {
+	// 	t.Fatalf("could not fetch created source variant: %v", err)
+	// }
+	// newSourceResourceID = metadata.ResourceID{sourceWithFailedDependency, "", metadata.SOURCE_VARIANT}
+	// if err := coord.runSQLTransformationJob(newTransformSource, newSourceResourceID, offlineProvider); err == nil {
+	// 	t.Fatalf("did not catch error trying to create transformation when one dependency is set to failed")
+	// }
 
 }
 

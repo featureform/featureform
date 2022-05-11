@@ -89,17 +89,39 @@ func TestMemoryJobRunnerError(t *testing.T) {
 }
 
 func TestFeatureMaterializeJobError(t *testing.T) {
-	// if testing.Short() {
-	// 	return
-	// }
-	// go setupMetadataServer()
-	// coord, err := createNewCoordinator()
-	// if err != nil {
-	// 	t.Fatalf("could not create new basic coordinator")
-	// }
+	if testing.Short() {
+		return
+	}
+	go setupMetadataServer()
+	coord, err := createNewCoordinator()
+	if err != nil {
+		t.Fatalf("could not create new basic coordinator")
+	}
 	//1 can't get feature variant from metadata
+	if err := coord.runFeatureMaterializeJob(metadata.ResourceID{"ghost_resource", "", metadata.FEATURE_VARIANT}); err == nil {
+		t.Fatalf("did not catch error when trying to materialize nonexistent feature")
+	}
 	//2 feature set to ready or failed
+	redisPort := os.Getenv("REDIS_PORT")
+	redisHost := "localhost"
+	liveAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
+	redisConfig := &provider.RedisConfig{
+		Addr: liveAddr,
+	}
+	featureName := uuid.New().String()
+	sourceName := uuid.New().String()
+	originalTableName := uuid.New().String()
+	if err := materializeFeatureWithProvider(coord.Metadata, postgresConfig.Serialize(), redisConfig.Serialized(), featureName, sourceName, originalTableName); err != nil {
+		t.Fatalf("could not create example feature")
+	}
+	if err := coord.Metadata.SetStatus(context.Background(), metadata.ResourceID{featureName, "", metadata.FEATURE_VARIANT}, string(metadata.READY)); err != nil {
+		t.Fatalf("could not set feature to ready")
+	}
+	if err := coord.runFeatureMaterializeJob(metadata.ResourceID{featureName, "", metadata.FEATURE_VARIANT}); err == nil {
+		t.Fatalf("did not catch error when trying to materialize feature already set to ready")
+	}
 	//3 cannot get feature source
+
 	//4 source provider not registered
 	//5 source store cannot be offline store
 	//6 feature provider cannot be fetched
@@ -109,12 +131,195 @@ func TestFeatureMaterializeJobError(t *testing.T) {
 
 //3 out of 15 done
 func TestTrainingSetJobError(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+	go setupMetadataServer()
+	coord, err := createNewCoordinator()
+	if err != nil {
+		t.Fatalf("could not create new basic coordinator")
+	}
 	//can get 6 here
 	//1 can't get training set variant from metadata
+	if err := coord.runTrainingSetJob(metadata.ResourceID{"ghost_training_set", "", metadata.TRAINING_SET_VARIANT}); err == nil {
+		t.Fatalf("did not trigger error trying to run job for nonexistent training set")
+	}
+
 	//2 cannot get provider from provider pacakge
+	providerName := uuid.New().String()
+	userName := uuid.New().String()
+	sourceName := uuid.New().String()
+	entityName := uuid.New().String()
+	labelName := uuid.New().String()
+	originalTableName := uuid.New().String()
+	featureName := uuid.New().String()
+	tsName := uuid.New().String()
+	defs := []metadata.ResourceDef{
+		metadata.UserDef{
+			Name: userName,
+		},
+		metadata.ProviderDef{
+			Name:             providerName,
+			Description:      "",
+			Type:             "INVALID_PROVIDER",
+			Software:         "",
+			Team:             "",
+			SerializedConfig: []byte{},
+		},
+		metadata.EntityDef{
+			Name:        entityName,
+			Description: "",
+		},
+		metadata.SourceDef{
+			Name:        sourceName,
+			Variant:     "",
+			Description: "",
+			Owner:       userName,
+			Provider:    providerName,
+			Definition: metadata.PrimaryDataSource{
+				Location: metadata.SQLTable{
+					Name: originalTableName,
+				},
+			},
+		},
+		metadata.LabelDef{
+			Name:        labelName,
+			Variant:     "",
+			Description: "",
+			Type:        string(provider.Int),
+			Source:      metadata.NameVariant{sourceName, ""},
+			Entity:      entityName,
+			Owner:       userName,
+			Provider:    providerName,
+			Location: metadata.ResourceVariantColumns{
+				Entity: "entity",
+				Value:  "value",
+				TS:     "ts",
+			},
+		},
+		metadata.FeatureDef{
+			Name:        featureName,
+			Variant:     "",
+			Source:      metadata.NameVariant{sourceName, ""},
+			Type:        string(provider.Int),
+			Entity:      entityName,
+			Owner:       userName,
+			Description: "",
+			Provider:    providerName,
+			Location: metadata.ResourceVariantColumns{
+				Entity: "entity",
+				Value:  "value",
+				TS:     "ts",
+			},
+		},
+		metadata.TrainingSetDef{
+			Name:        tsName,
+			Variant:     "",
+			Description: "",
+			Owner:       userName,
+			Provider:    providerName,
+			Label:       metadata.NameVariant{labelName, ""},
+			Features:    []metadata.NameVariant{{featureName, ""}},
+		},
+	}
+	if err := coord.Metadata.CreateAll(context.Background(), defs); err != nil {
+		t.Fatalf("could not create metadata entries: %v", err)
+	}
+	if err := coord.runTrainingSetJob(metadata.ResourceID{tsName, "", metadata.TRAINING_SET_VARIANT}); err == nil {
+		t.Fatalf("did not trigger error trying to run job with nonexistent provider")
+	}
 	//3 cannot make provider offline store
+	providerName = uuid.New().String()
+	userName = uuid.New().String()
+	sourceName = uuid.New().String()
+	entityName = uuid.New().String()
+	labelName = uuid.New().String()
+	originalTableName = uuid.New().String()
+	featureName = uuid.New().String()
+	tsName = uuid.New().String()
+	redisPort := os.Getenv("REDIS_PORT")
+	redisHost := "localhost"
+	liveAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
+	redisConfig := &provider.RedisConfig{
+		Addr: liveAddr,
+	}
+	defs = []metadata.ResourceDef{
+		metadata.UserDef{
+			Name: userName,
+		},
+		metadata.ProviderDef{
+			Name:             providerName,
+			Description:      "",
+			Type:             "REDIS_ONLINE",
+			Software:         "",
+			Team:             "",
+			SerializedConfig: redisConfig.Serialized(),
+		},
+		metadata.EntityDef{
+			Name:        entityName,
+			Description: "",
+		},
+		metadata.SourceDef{
+			Name:        sourceName,
+			Variant:     "",
+			Description: "",
+			Owner:       userName,
+			Provider:    providerName,
+			Definition: metadata.PrimaryDataSource{
+				Location: metadata.SQLTable{
+					Name: originalTableName,
+				},
+			},
+		},
+		metadata.LabelDef{
+			Name:        labelName,
+			Variant:     "",
+			Description: "",
+			Type:        string(provider.Int),
+			Source:      metadata.NameVariant{sourceName, ""},
+			Entity:      entityName,
+			Owner:       userName,
+			Provider:    providerName,
+			Location: metadata.ResourceVariantColumns{
+				Entity: "entity",
+				Value:  "value",
+				TS:     "ts",
+			},
+		},
+		metadata.FeatureDef{
+			Name:        featureName,
+			Variant:     "",
+			Source:      metadata.NameVariant{sourceName, ""},
+			Type:        string(provider.Int),
+			Entity:      entityName,
+			Owner:       userName,
+			Description: "",
+			Provider:    providerName,
+			Location: metadata.ResourceVariantColumns{
+				Entity: "entity",
+				Value:  "value",
+				TS:     "ts",
+			},
+		},
+		metadata.TrainingSetDef{
+			Name:        tsName,
+			Variant:     "",
+			Description: "",
+			Owner:       userName,
+			Provider:    providerName,
+			Label:       metadata.NameVariant{labelName, ""},
+			Features:    []metadata.NameVariant{{featureName, ""}},
+		},
+	}
+	if err := coord.Metadata.CreateAll(context.Background(), defs); err != nil {
+		t.Fatalf("could not create metadata entries: %v", err)
+	}
+	if err := coord.runTrainingSetJob(metadata.ResourceID{tsName, "", metadata.TRAINING_SET_VARIANT}); err == nil {
+		t.Fatalf("did not trigger error trying to convert online provider to offline")
+	}
 	//4 training set already exists in offline store
-	//5 cannot serialize ts runner config
+
+	
 	//6 spawner cannot get job runner
 	//7 jobrunner.run retuns error
 }
@@ -234,7 +439,7 @@ func TestRunSQLTransformationJobError(t *testing.T) {
 	}
 	newSourceResourceID := metadata.ResourceID{sourceWithFailedDependency, "", metadata.SOURCE_VARIANT}
 	if err := coord.runSQLTransformationJob(newTransformSource, newSourceResourceID, offlineProvider); err == nil {
-		t.Fatalf("did not catch error trying to create primary table when no source table exists in database")
+		t.Fatalf("did not catch error trying to create transformation when one dependency is set to failed")
 	}
 	//template replace messes up (invalid template)
 	sourceWithInvalidTemplate := uuid.New().String()

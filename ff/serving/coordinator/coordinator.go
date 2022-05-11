@@ -339,10 +339,7 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID) error {
 		OfflineConfig: providerEntry.SerializedConfig(),
 		Def:           trainingSetDef,
 	}
-	serialized, err := tsRunnerConfig.Serialize()
-	if err != nil {
-		return err
-	}
+	serialized, _ := tsRunnerConfig.Serialize()
 	jobRunner, err := c.Spawner.GetJobRunner(runner.CREATE_TRAINING_SET, serialized)
 	if err != nil {
 		return err

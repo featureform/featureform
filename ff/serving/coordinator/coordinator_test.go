@@ -74,6 +74,154 @@ func createNewCoordinator() (*Coordinator, error) {
 	return NewCoordinator(client, logger, cli, &memJobSpawner)
 }
 
+// func createNewFailingCoordinator() (*Coordinator, error) {
+// 	logger := zap.NewExample().Sugar()
+// 	client, err := metadata.NewClient("localhost:8080", logger)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	cli, err := clientv3.New(clientv3.Config{Endpoints: []string{"localhost:2379"}})
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	memJobSpawner := MemoryJobSpawner{}
+// 	lookup = &TypeSenseWrapper{
+// 		Searcher:       searcher,
+// 		ResourceLookup: lookup,
+// 	}
+// 	return NewCoordinator(client, logger, cli, &memJobSpawner)
+// }
+// type FailingCoordinatorWrapper struct {
+// 	Coordinator
+// }
+
+func TestSwitchJobErrorReturn(t *testing.T) {
+	//basically here we test the execute job and make sure it returns an error in
+	//each case when trying to run each job fails
+	//to accomplish this we will create a new type of coordinator that inherents execute job but we
+	//overwrite everything else with FAIL
+}
+
+func TestRunPrimaryTableJobError(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+	go setupMetadataServer()
+	coord, err := createNewCoordinator()
+	if err != nil {
+		t.Fatalf("could not create new basic coordinator")
+	}
+	//1 source name not set
+	sourceNoPrimaryNameSet := uuid.New().String()
+	providerName := uuid.New().String()
+	userName := uuid.New().String()
+	defs := []metadata.ResourceDef{
+		metadata.UserDef{
+			Name: userName,
+		},
+		metadata.ProviderDef{
+			Name:             providerName,
+			Description:      "",
+			Type:             "POSTGRES_OFFLINE",
+			Software:         "",
+			Team:             "",
+			SerializedConfig: postgresConfig.Serialize(),
+		},
+		metadata.SourceDef{
+			Name:        sourceNoPrimaryNameSet,
+			Variant:     "",
+			Description: "",
+			Owner:       userName,
+			Provider:    providerName,
+			Definition: metadata.PrimaryDataSource{
+				Location: metadata.SQLTable{
+					Name: "",
+				},
+			},
+		},
+	}
+	if err := coord.Metadata.CreateAll(context.Background(), defs); err != nil {
+		t.Fatalf("could not create test metadata entries")
+	}
+	transformSource, err := coord.Metadata.GetSourceVariant(context.Background(), metadata.NameVariant{sourceNoPrimaryNameSet, ""})
+	if err != nil {
+		t.Fatalf("could not fetch created source variant: %v", err)
+	}
+	provider, err := provider.Get(provider.PostgresOffline, postgresConfig.Serialize())
+	if err != nil {
+		t.Fatalf("could not get provider: %v", err)
+	}
+	offlineProvider, err := provider.AsOfflineStore()
+	if err != nil {
+		t.Fatalf("could not get provider as offline store: %v", err)
+	}
+	sourceResourceID := metadata.ResourceID{sourceNoPrimaryNameSet, "", metadata.SOURCE_VARIANT}
+	if err := coord.runPrimaryTableJob(transformSource, sourceResourceID, offlineProvider); err == nil {
+		t.Fatalf("did not catch error trying to run primary table job with no source table set")
+	}
+	//2 offline store cannot register primary from source table (easy, just have source table not exist)
+	sourceNoActualPrimaryTable := uuid.New().String()
+	newProviderName := uuid.New().String()
+	newUserName := uuid.New().String()
+	newDefs := []metadata.ResourceDef{
+		metadata.UserDef{
+			Name: userName,
+		},
+		metadata.ProviderDef{
+			Name:             newProviderName,
+			Description:      "",
+			Type:             "POSTGRES_OFFLINE",
+			Software:         "",
+			Team:             "",
+			SerializedConfig: postgresConfig.Serialize(),
+		},
+		metadata.SourceDef{
+			Name:        sourceNoActualPrimaryTable,
+			Variant:     "",
+			Description: "",
+			Owner:       newUserName,
+			Provider:    newProviderName,
+			Definition: metadata.PrimaryDataSource{
+				Location: metadata.SQLTable{
+					Name: "ghost_primary_table",
+				},
+			},
+		},
+	}
+	if err := coord.Metadata.CreateAll(context.Background(), newDefs); err != nil {
+		t.Fatalf("could not create test metadata entries")
+	}
+	newTransformSource, err := coord.Metadata.GetSourceVariant(context.Background(), metadata.NameVariant{sourceNoActualPrimaryTable, ""})
+	if err != nil {
+		t.Fatalf("could not fetch created source variant: %v", err)
+	}
+	newSourceResourceID := metadata.ResourceID{sourceNoActualPrimaryTable, "", metadata.SOURCE_VARIANT}
+	if err := coord.runPrimaryTableJob(newTransformSource, newSourceResourceID, offlineProvider); err == nil {
+		t.Fatalf("did not catch error trying to create primary table when no source table exists in database")
+	}
+
+}
+
+func TestRunSQLTransformationJobError(t *testing.T) {
+	// if testing.Short() {
+	// 	return
+	// }
+	// go setupMetadataServer()
+	// coord, err := createNewCoordinator()
+	// if err != nil {
+	// 	t.Fatalf("could not create new basic coordinator")
+	// }
+
+	//1 source variants don't exist
+
+	// func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVariant, resID metadata.ResourceID, offlineStore provider.OfflineStore) error {
+	//2 1 source variant set to failed
+	//3 can't map variants to tables
+	//4 can't template replace
+	//5 offline store can't create transformation
+	//6 can't set metadata status
+}
+
 func TestMapNameVariantsToTablesError(t *testing.T) {
 	if testing.Short() {
 		return

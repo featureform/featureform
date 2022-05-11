@@ -89,14 +89,14 @@ func TestMemoryJobRunnerError(t *testing.T) {
 }
 
 func TestFeatureMaterializeJobError(t *testing.T) {
-	if testing.Short() {
-		return
-	}
-	go setupMetadataServer()
-	coord, err := createNewCoordinator()
-	if err != nil {
-		t.Fatalf("could not create new basic coordinator")
-	}
+	// if testing.Short() {
+	// 	return
+	// }
+	// go setupMetadataServer()
+	// coord, err := createNewCoordinator()
+	// if err != nil {
+	// 	t.Fatalf("could not create new basic coordinator")
+	// }
 	//1 can't get feature variant from metadata
 	//2 feature set to ready or failed
 	//3 cannot get feature source
@@ -179,7 +179,6 @@ func TestRunSQLTransformationJobError(t *testing.T) {
 		t.Fatalf("did not catch error trying to run primary table job with no source table set")
 	}
 
-	// func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVariant, resID metadata.ResourceID, offlineStore provider.OfflineStore) error {
 	//2 1 source variant set to failed
 	sourceWithFailedDependency := uuid.New().String()
 	newProviderName := uuid.New().String()
@@ -226,7 +225,7 @@ func TestRunSQLTransformationJobError(t *testing.T) {
 	if err := coord.Metadata.CreateAll(context.Background(), newDefs); err != nil {
 		t.Fatalf("could not create test metadata entries: %v", err)
 	}
-	coord.Metadata.SetStatus(context.Background(), metadata.ResurceID{failedSourceName, "", metadata.SOURCE_VARIANT}, string(metadata.FAILED))
+	coord.Metadata.SetStatus(context.Background(), metadata.ResourceID{failedSourceName, "", metadata.SOURCE_VARIANT}, string(metadata.FAILED))
 	newTransformSource, err := coord.Metadata.GetSourceVariant(context.Background(), metadata.NameVariant{sourceWithFailedDependency, ""})
 	if err != nil {
 		t.Fatalf("could not fetch created source variant: %v", err)

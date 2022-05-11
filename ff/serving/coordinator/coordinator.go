@@ -150,10 +150,10 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 		total := len(sourceVariants)
 		totalReady := 0
 		for _, sourceVariant := range sourceVariants {
-			if sourceVariant.Status() == metadata.READY {
+			if sourceVariant.Status() == string(metadata.READY) {
 				totalReady += 1
 			}
-			if sourceVariant.Status() == metadata.FAILED {
+			if sourceVariant.Status() == string(metadata.FAILED) {
 				return err
 			}
 		}

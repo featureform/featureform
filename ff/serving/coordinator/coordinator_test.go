@@ -385,10 +385,10 @@ func TestRunSQLTransformationJobError(t *testing.T) {
 
 	////////////////////////////////
 	sourceWithInvalidTemplate := uuid.New().String()
-	newProviderName = uuid.New().String()
-	newUserName = uuid.New().String()
+	newProviderName := uuid.New().String()
+	newUserName := uuid.New().String()
 	sourceName := uuid.New().String()
-	newDefs = []metadata.ResourceDef{
+	newDefs := []metadata.ResourceDef{
 		metadata.UserDef{
 			Name: newUserName,
 		},
@@ -429,21 +429,21 @@ func TestRunSQLTransformationJobError(t *testing.T) {
 	if err := coord.Metadata.CreateAll(context.Background(), newDefs); err != nil {
 		t.Fatalf("could not create test metadata entries: %v", err)
 	}
-	newTransformSource, err = coord.Metadata.GetSourceVariant(context.Background(), metadata.NameVariant{sourceWithInvalidTemplate, ""})
+	newTransformSource, err := coord.Metadata.GetSourceVariant(context.Background(), metadata.NameVariant{sourceWithInvalidTemplate, ""})
 	if err != nil {
 		t.Fatalf("could not fetch created source variant: %v", err)
 	}
-	newSourceResourceID = metadata.ResourceID{sourceWithInvalidTemplate, "", metadata.SOURCE_VARIANT}
+	newSourceResourceID := metadata.ResourceID{sourceWithInvalidTemplate, "", metadata.SOURCE_VARIANT}
 	if err := coord.runSQLTransformationJob(newTransformSource, newSourceResourceID, offlineProvider); err == nil {
 		t.Fatalf("did not catch error trying to create primary table when no source table exists in database")
 	}
 
 	//2 1 source variant set to failed
 	sourceWithFailedDependency := uuid.New().String()
-	newProviderName := uuid.New().String()
-	newUserName := uuid.New().String()
+	newProviderName = uuid.New().String()
+	newUserName = uuid.New().String()
 	failedSourceName := uuid.New().String()
-	newDefs := []metadata.ResourceDef{
+	newDefs = []metadata.ResourceDef{
 		metadata.UserDef{
 			Name: newUserName,
 		},
@@ -494,15 +494,14 @@ func TestRunSQLTransformationJobError(t *testing.T) {
 	if failedSource.Status() != metadata.FAILED {
 		t.Fatalf("Source set to %v, not failed", failedSource.Status())
 	}
-	newTransformSource, err := coord.Metadata.GetSourceVariant(context.Background(), metadata.NameVariant{sourceWithFailedDependency, ""})
+	newTransformSource, err = coord.Metadata.GetSourceVariant(context.Background(), metadata.NameVariant{sourceWithFailedDependency, ""})
 	if err != nil {
 		t.Fatalf("could not fetch created source variant: %v", err)
 	}
-	newSourceResourceID := metadata.ResourceID{sourceWithFailedDependency, "", metadata.SOURCE_VARIANT}
+	newSourceResourceID = metadata.ResourceID{sourceWithFailedDependency, "", metadata.SOURCE_VARIANT}
 	if err := coord.runSQLTransformationJob(newTransformSource, newSourceResourceID, offlineProvider); err == nil {
 		t.Fatalf("did not catch error trying to create transformation when one dependency is set to failed")
 	}
-	//template replace messes up (invalid template)
 
 }
 

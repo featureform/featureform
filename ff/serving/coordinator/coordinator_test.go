@@ -319,7 +319,6 @@ func TestTrainingSetJobError(t *testing.T) {
 	}
 	//4 training set already exists in offline store
 
-	
 	//6 spawner cannot get job runner
 	//7 jobrunner.run retuns error
 }

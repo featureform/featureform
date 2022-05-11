@@ -74,6 +74,50 @@ func createNewCoordinator() (*Coordinator, error) {
 	return NewCoordinator(client, logger, cli, &memJobSpawner)
 }
 
+func TestKubernetesJobRunnerError(t *testing.T) {
+	kubeJobSpawner := KubernetesJobSpawner{}
+	if _, err := kubeJobSpawner.GetJobRunner("ghost_job", []byte{}); err == nil {
+		t.Fatalf("did not trigger error getting nonexistent runner")
+	}
+}
+
+func TestMemoryJobRunnerError(t *testing.T) {
+	memJobSpawner := MemoryJobSpawner{}
+	if _, err := memJobSpawner.GetJobRunner("ghost_job", []byte{}); err == nil {
+		t.Fatalf("did not trigger error getting nonexistent runner")
+	}
+}
+
+//run feature materializejobError
+func TestFeatureMaterializeJobError(t *testing.T) {
+	//1 can't get source variant
+	//for source: 2 can't get provider from package provider
+	//3 provider can't be offline store
+	//4 for feature: can't get provider from package provider, can't be online store
+}
+
+func TestTrainingSetJobError(t *testing.T) {
+	//1 can't get training set variant from metadata
+	//2 cannot get provider from provider pacakge
+	//3 cannot make provider offline store
+	//4 training set already exists in offline store
+	//5 cannot serialize ts runner config
+	//6 spawner cannot get job runner
+	//7 jobrunner.run retuns error
+}
+
+//get job but was not owner of lock
+
+//increment jobattempts errors
+//delete job errors
+//default on execute job switch
+//execute job increent and delete job return errors (not owner is the easiest method)
+
+//get job runner from kubernetes job spawner
+
+//test increment job attempts fail
+//test delete job fail
+
 // func createNewFailingCoordinator() (*Coordinator, error) {
 // 	logger := zap.NewExample().Sugar()
 // 	client, err := metadata.NewClient("localhost:8080", logger)

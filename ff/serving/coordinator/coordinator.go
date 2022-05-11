@@ -56,7 +56,7 @@ func GetLockKey(jobKey string) string {
 
 func (k *KubernetesJobSpawner) GetJobRunner(jobName string, config runner.Config) (runner.Runner, error) {
 	kubeConfig := runner.KubernetesRunnerConfig{
-		EnvVars:  map[string]string{"NAME": runner.CREATE_TRAINING_SET, "CONFIG": string(config)},
+		EnvVars:  map[string]string{"NAME": jobName, "CONFIG": string(config)},
 		Image:    "featureform/worker",
 		NumTasks: 1,
 	}

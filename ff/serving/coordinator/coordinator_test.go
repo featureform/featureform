@@ -317,8 +317,6 @@ func TestTrainingSetJobError(t *testing.T) {
 	if err := coord.runTrainingSetJob(metadata.ResourceID{tsName, "", metadata.TRAINING_SET_VARIANT}); err == nil {
 		t.Fatalf("did not trigger error trying to convert online provider to offline")
 	}
-	//4 training set already exists in offline store
-
 	//6 spawner cannot get job runner
 	//7 jobrunner.run retuns error
 }
@@ -1117,6 +1115,9 @@ func testCoordinatorTrainingSet() error {
 	}
 	if metadata.READY != ts_complete.Status() {
 		return fmt.Errorf("Training set not set to ready once job completes")
+	}
+	if err := coord.runTrainingSetJob(tsID); err == nil {
+		return fmt.Errorf("run training set job did not trigger error when tried to create training set that already exists")
 	}
 	providerTsID := provider.ResourceID{Name: tsID.Name, Variant: tsID.Variant, Type: provider.TrainingSet}
 	tsIterator, err := my_offline.GetTrainingSet(providerTsID)

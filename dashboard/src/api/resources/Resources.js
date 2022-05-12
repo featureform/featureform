@@ -42,17 +42,17 @@ export const providerLogos = Object.freeze({
 
 //var API_URL = "http:localhost:8080";
 
-var API_URL = "http://"+ window.location.hostname+"/data"
+var API_URL = "//"+ window.location.hostname+"/data"
 //var API_URL = "http://a57f7235b9e0e49cf97d9ba661188650-73543dde19a3fca9.elb.us-east-1.amazonaws.com/data"
 if (typeof process.env.REACT_APP_API_URL != "undefined") {
   API_URL = process.env.REACT_APP_API_URL.trim();
 }
 //export var PROMETHEUS_URL = "http:localhost:9090";
-export var PROMETHEUS_URL = "http://"+ window.location.hostname+"";
+export var PROMETHEUS_URL = "//"+ window.location.hostname+"";
 if (typeof process.env.REACT_APP_PROMETHEUS_URL != "undefined") {
   PROMETHEUS_URL = process.env.REACT_APP_PROMETHEUS_URL.trim();
 }
-var TYPESENSE_PORT = "80";
+var TYPESENSE_PORT = "443";
 if (typeof process.env.REACT_APP_TYPESENSE_PORT != "undefined") {
   TYPESENSE_PORT = process.env.REACT_APP_TYPESENSE_PORT.trim();
 }

@@ -6,6 +6,7 @@ import click
 import register
 import grpc
 import metadata_pb2_grpc as ff_grpc
+import os
 import metadata_pb2 as ff_proto
 
 resource_types = [
@@ -78,11 +79,7 @@ def apply(host, insecure, files):
     if insecure:
         channel = grpc.insecure_channel(host, options=(('grpc.enable_http_proxy', 0),))
     else:
-        with open('../charts/cert/server.crt', 'rb') as f:
-            trusted_certs = f.read()
-
-        credentials = grpc.ssl_channel_credentials(root_certificates=trusted_certs)
-
+        credentials = grpc.ssl_channel_credentials()
         channel = grpc.secure_channel(host, credentials)
     stub = ff_grpc.ApiStub(channel)
     for file in files:

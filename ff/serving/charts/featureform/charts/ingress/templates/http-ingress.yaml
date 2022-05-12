@@ -5,12 +5,9 @@ metadata:
     allowed-values: CN=client
     kubernetes.io/ingress.class: nginx
     nginx.ingress.kubernetes.io/auth-tls-pass-certificate-to-upstream: "false"
-    nginx.ingress.kubernetes.io/auth-tls-secret: default/tls-secret
-    nginx.ingress.kubernetes.io/auth-tls-verify-client: "on"
-    nginx.ingress.kubernetes.io/auth-tls-verify-depth: "1"
     nginx.ingress.kubernetes.io/backend-protocol: HTTP
     nginx.ingress.kubernetes.io/proxy-body-size: 64ms
-    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
   name: http-ingress
   namespace: default
 spec:
@@ -47,12 +44,5 @@ spec:
                 port:
                   number: 3000
 
-  tls:
-    - hosts:
-        - tls-secret
-      secretName: tls-secret
-status:
-  loadBalancer:
-    ingress:
-      - hostname: {{ .Release.Name }}-sandbox.featureform.com
+
 

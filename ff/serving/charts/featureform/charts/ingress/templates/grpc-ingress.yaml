@@ -5,12 +5,12 @@ metadata:
     allowed-values: CN=client
     kubernetes.io/ingress.class: nginx
     nginx.ingress.kubernetes.io/auth-tls-pass-certificate-to-upstream: "false"
-    nginx.ingress.kubernetes.io/auth-tls-secret: default/tls-secret
     nginx.ingress.kubernetes.io/auth-tls-verify-client: "on"
     nginx.ingress.kubernetes.io/auth-tls-verify-depth: "1"
     nginx.ingress.kubernetes.io/backend-protocol: GRPC
     nginx.ingress.kubernetes.io/proxy-body-size: 64ms
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    cert-manager.io/issuer: "letsencrypt-prod"
   name: grpc-ingress
   namespace: default
 spec:
@@ -38,10 +38,6 @@ spec:
 
   tls:
     - hosts:
-        - tls-secret
-      secretName: tls-secret
-status:
-  loadBalancer:
-    ingress:
-      - hostname: {{ .Release.Name }}-sandbox.featureform.com
+        - {{ .Release.Name }}-sandbox.featureform.com
+      secretName: {{ .Release.Name }}-sandbox-prod-certificate
 

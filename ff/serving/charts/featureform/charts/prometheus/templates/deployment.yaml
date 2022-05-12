@@ -21,7 +21,7 @@ spec:
             - "--config.file=/etc/prometheus/prometheus.yml"
             - "--storage.tsdb.path=/prometheus/"
             - "--web.route-prefix=/prometheus"
-            - "--web.external-url=http://my.featureform.com/prometheus"
+            - "--web.external-url=http://{{ .Release.Name }}-sandbox.featureform.com/prometheus"
           ports:
             - containerPort: 9090
           volumeMounts:

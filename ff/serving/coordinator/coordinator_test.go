@@ -122,7 +122,7 @@ func TestRunSQLJobError(t *testing.T) {
 			Provider:    providerName,
 			Definition: metadata.TransformationSource{
 				TransformationType: metadata.SQLTransformationType{
-					Query:   "",
+					Query:   "{{ghost_source.}}",
 					Sources: []metadata.NameVariant{{"ghost_source", ""}},
 				},
 			},
@@ -147,61 +147,61 @@ func TestRunSQLJobError(t *testing.T) {
 	if err := coord.runSQLTransformationJob(transformSource, sourceResourceID, offlineProvider); err == nil {
 		t.Fatalf("did not catch error trying to run primary table job with no source table set")
 	}
-	// }
-	// //invalid template
-	// sourceWithInvalidTemplate := uuid.New().String()
-	// newProviderName := uuid.New().String()
-	// newUserName := uuid.New().String()
-	// sourceName := uuid.New().String()
-	// newDefs := []metadata.ResourceDef{
-	// 	metadata.UserDef{
-	// 		Name: newUserName,
-	// 	},
-	// 	metadata.ProviderDef{
-	// 		Name:             newProviderName,
-	// 		Description:      "",
-	// 		Type:             "POSTGRES_OFFLINE",
-	// 		Software:         "",
-	// 		Team:             "",
-	// 		SerializedConfig: postgresConfig.Serialize(),
-	// 	},
-	// 	metadata.SourceDef{
-	// 		Name:        sourceName,
-	// 		Variant:     "",
-	// 		Description: "",
-	// 		Owner:       newUserName,
-	// 		Provider:    newProviderName,
-	// 		Definition: metadata.PrimaryDataSource{
-	// 			Location: metadata.SQLTable{
-	// 				Name: "",
-	// 			},
-	// 		},
-	// 	},
-	// 	metadata.SourceDef{
-	// 		Name:        sourceWithInvalidTemplate,
-	// 		Variant:     "",
-	// 		Description: "",
-	// 		Owner:       newUserName,
-	// 		Provider:    newProviderName,
-	// 		Definition: metadata.TransformationSource{
-	// 			TransformationType: metadata.SQLTransformationType{
-	// 				Query:   "an invalidQuery {{invalid_key.fail}}",
-	// 				Sources: []metadata.NameVariant{{sourceName, ""}},
-	// 			},
-	// 		},
-	// 	},
-	// }
-	// if err := coord.Metadata.CreateAll(context.Background(), newDefs); err != nil {
-	// 	t.Fatalf("could not create test metadata entries: %v", err)
-	// }
-	// newTransformSource, err := coord.Metadata.GetSourceVariant(context.Background(), metadata.NameVariant{sourceWithInvalidTemplate, ""})
-	// if err != nil {
-	// 	t.Fatalf("could not fetch created source variant: %v", err)
-	// }
-	// newSourceResourceID := metadata.ResourceID{sourceWithInvalidTemplate, "", metadata.SOURCE_VARIANT}
-	// if err := coord.runSQLTransformationJob(newTransformSource, newSourceResourceID, offlineProvider); err == nil {
-	// 	t.Fatalf("did not catch error trying to create primary table when no source table exists in database")
-	// }
+
+	//invalid template
+	sourceWithInvalidTemplate := uuid.New().String()
+	newProviderName := uuid.New().String()
+	newUserName := uuid.New().String()
+	sourceName := uuid.New().String()
+	newDefs := []metadata.ResourceDef{
+		metadata.UserDef{
+			Name: newUserName,
+		},
+		metadata.ProviderDef{
+			Name:             newProviderName,
+			Description:      "",
+			Type:             "POSTGRES_OFFLINE",
+			Software:         "",
+			Team:             "",
+			SerializedConfig: postgresConfig.Serialize(),
+		},
+		metadata.SourceDef{
+			Name:        sourceName,
+			Variant:     "",
+			Description: "",
+			Owner:       newUserName,
+			Provider:    newProviderName,
+			Definition: metadata.PrimaryDataSource{
+				Location: metadata.SQLTable{
+					Name: "",
+				},
+			},
+		},
+		metadata.SourceDef{
+			Name:        sourceWithInvalidTemplate,
+			Variant:     "",
+			Description: "",
+			Owner:       newUserName,
+			Provider:    newProviderName,
+			Definition: metadata.TransformationSource{
+				TransformationType: metadata.SQLTransformationType{
+					Query:   "an invalidQuery {{invalid_key.fail}}",
+					Sources: []metadata.NameVariant{{sourceName, ""}},
+				},
+			},
+		},
+	}
+	if err := coord.Metadata.CreateAll(context.Background(), newDefs); err != nil {
+		t.Fatalf("could not create test metadata entries: %v", err)
+	}
+	newTransformSource, err := coord.Metadata.GetSourceVariant(context.Background(), metadata.NameVariant{sourceWithInvalidTemplate, ""})
+	if err != nil {
+		t.Fatalf("could not fetch created source variant: %v", err)
+	}
+	newSourceResourceID := metadata.ResourceID{sourceWithInvalidTemplate, "", metadata.SOURCE_VARIANT}
+	if err := coord.runSQLTransformationJob(newTransformSource, newSourceResourceID, offlineProvider); err == nil {
+		t.Fatalf("did not catch error trying to create primary table when no source table exists in database")
+	}
 
 	// //2 1 source variant set to failed
 	// sourceWithFailedDependency := uuid.New().String()

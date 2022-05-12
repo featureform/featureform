@@ -358,6 +358,9 @@ func TestFeatureMaterializeJobError(t *testing.T) {
 	if err := coord.Metadata.CreateAll(context.Background(), defs); err != nil {
 		t.Fatalf("could not create metadata entries: %v", err)
 	}
+	if err := coord.Metadata.SetStatus(context.Background(), metadata.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}, string(metadata.READY)); err != nil {
+		t.Fatalf("could not set source variant to ready")
+	}
 	if err := coord.runFeatureMaterializeJob(metadata.ResourceID{featureName, "", metadata.FEATURE_VARIANT}); err == nil {
 		t.Fatalf("did not trigger error trying to run job with nonexistent provider")
 	}
@@ -414,6 +417,9 @@ func TestFeatureMaterializeJobError(t *testing.T) {
 	}
 	if err := coord.Metadata.CreateAll(context.Background(), defs); err != nil {
 		t.Fatalf("could not create metadata entries: %v", err)
+	}
+	if err := coord.Metadata.SetStatus(context.Background(), metadata.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}, string(metadata.READY)); err != nil {
+		t.Fatalf("could not set source variant to ready")
 	}
 	if err := coord.runFeatureMaterializeJob(metadata.ResourceID{featureName, "", metadata.FEATURE_VARIANT}); err == nil {
 		t.Fatalf("did not trigger error trying to use online store as offline store")
@@ -480,6 +486,9 @@ func TestFeatureMaterializeJobError(t *testing.T) {
 	}
 	if err := coord.Metadata.CreateAll(context.Background(), defs); err != nil {
 		t.Fatalf("could not create metadata entries: %v", err)
+	}
+	if err := coord.Metadata.SetStatus(context.Background(), metadata.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}, string(metadata.READY)); err != nil {
+		t.Fatalf("could not set source variant to ready")
 	}
 	if err := coord.runFeatureMaterializeJob(metadata.ResourceID{featureName, "", metadata.FEATURE_VARIANT}); err == nil {
 		t.Fatalf("did not trigger error trying to get invalid feature provider")

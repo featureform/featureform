@@ -694,8 +694,10 @@ func TestEtcdConfig_Put(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			config := EtcdConfig{[]EtcdNode{{Host: tt.fields.Host, Port: tt.fields.Port}}}
 			c, err := config.initClient()
-			if err != nil {
-				t.Log("Put() could not initialize client")
+			if err != nil && !tt.wantErr {
+				t.Errorf("Put() could not initialize client: %v", err)
+			} else if err != nil && tt.wantErr {
+				return
 			}
 			client := EtcdStorage{c}
 			if err := client.Put(tt.args.key, tt.args.value); (err != nil) != tt.wantErr {

@@ -54,10 +54,14 @@ func setupMetadataServer() error {
 	if err != nil {
 		return err
 	}
-	if err := server.Serve(); err != nil {
-		return err
-	}
-	return nil
+
+	go func() {
+		err = server.Serve()
+		if err != nil {
+			return
+		}
+	}()
+	return err
 }
 
 func TestCoordinatorCalls(t *testing.T) {
@@ -65,9 +69,12 @@ func TestCoordinatorCalls(t *testing.T) {
 	if testing.Short() {
 		return
 	}
-	go setupMetadataServer()
+	err := setupMetadataServer()
+	if err != nil {
+		t.Fatal(err)
+	}
 	logger := zap.NewExample().Sugar()
-	_, err := metadata.NewClient("localhost:8080", logger)
+	_, err = metadata.NewClient("localhost:8080", logger)
 	if err != nil {
 		t.Fatalf("could not set up metadata client: %v", err)
 	}

@@ -1641,16 +1641,16 @@ func Test_createResourceFromSource(t *testing.T) {
 	if err != nil {
 		fmt.Println(err)
 	}
-	var postgresConfig = PostgresConfig{
-		Host:     "localhost",
-		Port:     "5432",
-		Database: os.Getenv("POSTGRES_DB"),
-		Username: os.Getenv("POSTGRES_USER"),
-		Password: os.Getenv("POSTGRES_PASSWORD"),
-	}
-	serialPGConfig := postgresConfig.Serialize()
+	//var postgresConfig = PostgresConfig{
+	//	Host:     "localhost",
+	//	Port:     "5432",
+	//	Database: os.Getenv("POSTGRES_DB"),
+	//	Username: os.Getenv("POSTGRES_USER"),
+	//	Password: os.Getenv("POSTGRES_PASSWORD"),
+	//}
+	//	serialPGConfig := postgresConfig.Serialize()
 	os.Setenv("TZ", "UTC")
-	pgProvider, err := Get(PostgresOffline, serialPGConfig)
+	//pgProvider, err := Get(PostgresOffline, serialPGConfig)
 	if err != nil {
 		t.Fatal("Failed to get postgres provider")
 	}
@@ -1673,7 +1673,7 @@ func Test_createResourceFromSource(t *testing.T) {
 		t.Fatal("Failed to get postgres provider")
 	}
 
-	for name, provider := range map[string]Provider{"POSTGRES": pgProvider, "SNOWFLAKE": sfProvider} {
+	for name, provider := range map[string]Provider{ /*"POSTGRES": pgProvider, */ "SNOWFLAKE": sfProvider} {
 		t.Run(name, func(t *testing.T) {
 
 			store, err := provider.AsOfflineStore()

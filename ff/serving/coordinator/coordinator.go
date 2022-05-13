@@ -27,9 +27,6 @@ func templateReplace(template string, replacements map[string]string) (string, e
 		if !has {
 			return "", fmt.Errorf("No key set")
 		}
-		fmt.Printf("KEY", key)
-		fmt.Printf("VALUE", replacements[key])
-		fmt.Printf("MAP", replacements)
 		formattedString += fmt.Sprintf("%s%s", split[0], replacement)
 		template = afterSplit[1]
 	}

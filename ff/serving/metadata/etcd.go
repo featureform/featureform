@@ -57,6 +57,8 @@ func (c EtcdConfig) initClient() (*clientv3.Client, error) {
 	client, err := clientv3.New(clientv3.Config{
 		Endpoints:   addresses,
 		DialTimeout: time.Second * 1,
+		Username:    "root",
+		Password:    "secretpassword",
 	})
 	if err != nil {
 		return nil, err
@@ -324,8 +326,13 @@ func (lookup etcdResourceLookup) SetJob(id ResourceID) error {
 }
 
 func (lookup etcdResourceLookup) Set(id ResourceID, res Resource) error {
+
 	serRes, err := lookup.serializeResource(res)
+	if err != nil {
+		return err
+	}
 	key := createKey(id)
+	fmt.Printf("Setting: %v\n", key)
 	err = lookup.connection.Put(key, string(serRes))
 	if err != nil {
 		return err
@@ -405,7 +412,7 @@ func (lookup etcdResourceLookup) List() ([]Resource, error) {
 	return resources, nil
 }
 
-func (lookup etcdResourceLookup) SetStatus(id ResourceID, status ResourceStatus) error {
+func (lookup etcdResourceLookup) SetStatus(id ResourceID, status string) error {
 	res, err := lookup.Lookup(id)
 	if err != nil {
 		return err

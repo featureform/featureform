@@ -119,7 +119,7 @@ const useStyles = makeStyles((theme) => ({
     alignSelf: "flex-end",
   },
   syntax: {
-    width: "40%",
+    width: "50%",
     paddingLeft: theme.spacing(2),
   },
   resourceList: {
@@ -143,7 +143,7 @@ const useStyles = makeStyles((theme) => ({
   linkChip: {
     //width: "10%",
     "& .MuiChip-label": {
-      paddingRight: theme.spacing(0),
+      paddingRight: theme.spacing(1),
     },
   },
   linkBox: {
@@ -271,7 +271,7 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
   };
 
   const linkToPrimaryData = (event) => {
-    history.push(`/primary-data/${metadata["source"]}`);
+    history.push(`/sources/${metadata["source"]}`);
   };
 
   const linkToLabel = (event) => {
@@ -409,11 +409,46 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                       <b>Team:</b> {metadata["team"]}
                     </Typography>
                   )}
+                  {metadata["status"] && metadata["status"] !== "No Status" && (
+                    <Typography variant="body1">
+                      <b>Status:</b> {metadata["status"]}
+                    </Typography>
+                  )}
+                  {metadata["source-type"] && (
+                    <Typography variant="body1">
+                      <b>Source Type:</b> {metadata["source-type"]}
+                    </Typography>
+                  )}
+                  {metadata["definition"] && (
+                    <div>
+                      <Typography variant="body1">
+                        <b>Origin:</b>
+                      </Typography>
+                      {metadata["source-type"] === "Transformation" ? (
+                        <SyntaxHighlighter
+                          className={classes.syntax}
+                          language={"sql"}
+                          style={okaidia}
+                        >
+                          {metadata["definition"]}
+                        </SyntaxHighlighter>
+                      ) : (
+                        <Typography variant="h7">
+                          <b>{metadata["definition"]}</b>
+                        </Typography>
+                      )}
+                    </div>
+                  )}
+                  {metadata["serialized-config"] && (
+                    <Typography variant="body1">
+                      <b>Serialized Config:</b> {metadata["serialized-config"]}
+                    </Typography>
+                  )}
 
                   {metadata["source"] && (
                     <div className={classes.linkBox}>
                       <Typography variant="body1" className={classes.typeTitle}>
-                        <b>Primary Data: </b>{" "}
+                        <b>Source: </b>{" "}
                       </Typography>
                       <Chip
                         variant="outlined"
@@ -437,6 +472,19 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                         onClick={linkToEntityPage}
                         label={metadata["entity"]}
                       ></Chip>
+                    </div>
+                  )}
+
+                  {metadata["location"] && (
+                    <div className={classes.linkBox}>
+                      <Typography variant="body1" className={classes.typeTitle}>
+                        <b>Columns:</b>{" "}
+                      </Typography>
+                      <Typography variant="body2">
+                        &nbsp;<b>Entity:</b> {metadata["location"].Entity}
+                        &nbsp;<b>Value:</b> {metadata["location"].Value}
+                        &nbsp;<b>Timestamp:</b> {metadata["location"].TS}
+                      </Typography>
                     </div>
                   )}
                 </Grid>
@@ -524,20 +572,16 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
             >
               <MaterialTable
                 className={classes.tableRoot}
-                {...(!singleVariant
-                  ? {
-                      detailPanel: (row) => {
-                        return (
-                          <VariantTable
-                            type={resourceType}
-                            name={row.name}
-                            row={row}
-                            setVariant={setVariant}
-                          />
-                        );
-                      },
-                    }
-                  : {})}
+                detailPanel={(row) => {
+                  return (
+                    <VariantTable
+                      type={resourceType}
+                      name={row.name}
+                      row={row}
+                      setVariant={setVariant}
+                    />
+                  );
+                }}
                 title={capitalize(resourceType)}
                 options={{
                   toolbar: false,

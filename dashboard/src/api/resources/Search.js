@@ -51,7 +51,7 @@ export default class TypesenseClient {
         {
           host: this._host,
           port: this._port,
-          protocol: "http",
+          protocol: "https",
         },
       ],
       apiKey: this._apikey,

@@ -74,9 +74,9 @@ type ResourceDef interface {
 	ResourceType() ResourceType
 }
 
-func (client *Client) SetStatus(ctx context.Context, resID ResourceID, status ResourceStatus) error {
+func (client *Client) SetStatus(ctx context.Context, resID ResourceID, status string) error {
 	nameVariant := pb.NameVariant{Name: resID.Name, Variant: resID.Variant}
-	statusRequest := pb.SetStatusRequest{Resource: &nameVariant, ResourceType: string(resID.Type), Status: string(status)}
+	statusRequest := pb.SetStatusRequest{Resource: &nameVariant, ResourceType: string(resID.Type), Status: status}
 	_, err := client.grpcConn.SetResourceStatus(ctx, &statusRequest)
 	return err
 }
@@ -91,6 +91,7 @@ func (client *Client) CreateAll(ctx context.Context, defs []ResourceDef) error {
 }
 
 func (client *Client) Create(ctx context.Context, def ResourceDef) error {
+	fmt.Printf("%#v\n", def)
 	switch casted := def.(type) {
 	case FeatureDef:
 		return client.CreateFeatureVariant(ctx, casted)
@@ -584,7 +585,7 @@ type SourceType interface {
 func (t TransformationSource) isSourceType() {}
 func (t PrimaryDataSource) isSourceType()    {}
 
-func (t SQLTransformationType) isTransformationType() {}
+func (t SQLTransformationType) IsTransformationType() {}
 func (t SQLTable) isPrimaryData()                     {}
 
 type TransformationSource struct {
@@ -592,7 +593,7 @@ type TransformationSource struct {
 }
 
 type TransformationType interface {
-	isTransformationType()
+	IsTransformationType()
 }
 
 type SQLTransformationType struct {
@@ -669,7 +670,7 @@ func (client *Client) CreateSourceVariant(ctx context.Context, def SourceDef) er
 		Variant:     def.Variant,
 		Description: def.Description,
 		Owner:       def.Owner,
-		Status:      string(NO_STATUS),
+		Status:      string(CREATED),
 		Provider:    def.Provider,
 	}
 	var err error
@@ -1112,6 +1113,7 @@ func (fn fetchProviderFns) Provider() string {
 }
 
 func (fn fetchProviderFns) FetchProvider(client *Client, ctx context.Context) (*Provider, error) {
+	fmt.Println("Fetching provider")
 	return client.GetProvider(ctx, fn.Provider())
 }
 
@@ -1602,26 +1604,26 @@ func (variant *SourceVariant) Status() string {
 	return variant.serialized.GetStatus()
 }
 
-func (variant *SourceVariant) isTransformation() bool {
+func (variant *SourceVariant) IsTransformation() bool {
 	return reflect.TypeOf(variant.serialized.GetDefinition()) == reflect.TypeOf(&pb.SourceVariant_Transformation{})
 }
 
-func (variant *SourceVariant) isSQLTransformation() bool {
-	if !variant.isTransformation() {
+func (variant *SourceVariant) IsSQLTransformation() bool {
+	if !variant.IsTransformation() {
 		return false
 	}
 	return reflect.TypeOf(variant.serialized.GetTransformation().Type) == reflect.TypeOf(&pb.Transformation_SQLTransformation{})
 }
 
 func (variant *SourceVariant) SQLTransformationQuery() string {
-	if !variant.isSQLTransformation() {
+	if !variant.IsSQLTransformation() {
 		return ""
 	}
 	return variant.serialized.GetTransformation().GetSQLTransformation().GetQuery()
 }
 
 func (variant *SourceVariant) SQLTransformationSources() []NameVariant {
-	if !variant.isSQLTransformation() {
+	if !variant.IsSQLTransformation() {
 		return nil
 	}
 	nameVariants := variant.serialized.GetTransformation().GetSQLTransformation().GetSource()
@@ -1636,7 +1638,7 @@ func (variant *SourceVariant) isPrimaryData() bool {
 	return reflect.TypeOf(variant.serialized.GetDefinition()) == reflect.TypeOf(&pb.SourceVariant_PrimaryData{})
 }
 
-func (variant *SourceVariant) isPrimaryDataSQLTable() bool {
+func (variant *SourceVariant) IsPrimaryDataSQLTable() bool {
 	if !variant.isPrimaryData() {
 		return false
 	}
@@ -1644,7 +1646,7 @@ func (variant *SourceVariant) isPrimaryDataSQLTable() bool {
 }
 
 func (variant *SourceVariant) PrimaryDataSQLTableName() string {
-	if !variant.isPrimaryDataSQLTable() {
+	if !variant.IsPrimaryDataSQLTable() {
 		return ""
 	}
 	return variant.serialized.GetPrimaryData().GetTable().GetName()

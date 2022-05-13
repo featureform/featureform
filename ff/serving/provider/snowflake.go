@@ -129,9 +129,9 @@ func (store *snowflakeOfflineStore) tableExists(id ResourceID) (bool, error) {
 	} else if id.check(TrainingSet) == nil {
 		tableName = store.getTrainingSetName(id)
 	} else if id.check(Primary) == nil {
-		tableName = store.getPrimaryTableName(id)
+		tableName = GetPrimaryTableName(id)
 	} else if id.check(Transformation) == nil {
-		tableName = store.getTransformationName(id)
+		tableName = GetTransformationName(id)
 	}
 	err := store.db.QueryRow(`SELECT COUNT(*) FROM information_schema.tables WHERE table_name = ?`, tableName).Scan(&n)
 	if n == 0 {
@@ -160,7 +160,7 @@ func (store *snowflakeOfflineStore) RegisterResourceFromSourceTable(id ResourceI
 	}
 	tableName := store.getResourceTableName(id)
 	if schema.TS == "" {
-		query := fmt.Sprintf("CREATE TABLE %s AS SELECT IDENTIFIER('%s') as entity, IDENTIFIER('%s') as value, null::TIMESTAMP_NTZ as ts FROM %s", sanitize(tableName),
+		query := fmt.Sprintf("CREATE TABLE %s AS SELECT IDENTIFIER('%s') as entity, IDENTIFIER('%s') as value, null::TIMESTAMP_NTZ as ts FROM TABLE('%s')", sanitize(tableName),
 			schema.Entity, schema.Value, sanitize(schema.SourceTable))
 		if _, err := store.db.Exec(query); err != nil {
 			fmt.Println("1:", err)
@@ -178,7 +178,7 @@ func (store *snowflakeOfflineStore) RegisterResourceFromSourceTable(id ResourceI
 			return nil, err
 		}
 	} else {
-		query := fmt.Sprintf("CREATE TABLE %s AS SELECT IDENTIFIER('%s') as entity,  IDENTIFIER('%s') as value,  IDENTIFIER('%s') as ts FROM %s", sanitize(tableName),
+		query := fmt.Sprintf("CREATE TABLE %s AS SELECT IDENTIFIER('%s') as entity,  IDENTIFIER('%s') as value,  IDENTIFIER('%s') as ts FROM TABLE('%s')", sanitize(tableName),
 			schema.Entity, schema.Value, schema.TS, sanitize(schema.SourceTable))
 		if _, err := store.db.Exec(query); err != nil {
 			fmt.Println("4:", err)
@@ -206,9 +206,8 @@ func (store *snowflakeOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID
 	} else if exists {
 		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}
-	tableName := store.getPrimaryTableName(id)
-	fmt.Println(tableName)
-	query := fmt.Sprintf("CREATE TABLE %s AS SELECT * FROM %s", sanitize(tableName), sanitize(sourceName))
+	tableName := GetPrimaryTableName(id)
+	query := fmt.Sprintf("CREATE TABLE %s AS SELECT * FROM TABLE('%s')", sanitize(tableName), sanitize(sourceName))
 	if _, err := store.db.Exec(query); err != nil {
 		return nil, err
 	}
@@ -246,7 +245,7 @@ func (store *snowflakeOfflineStore) CreatePrimaryTable(id ResourceID, schema Tab
 	if len(schema.Columns) == 0 {
 		return nil, fmt.Errorf("cannot create primary table without columns")
 	}
-	tableName := store.getPrimaryTableName(id)
+	tableName := GetPrimaryTableName(id)
 	table, err := newSnowflakePrimaryTable(store.db, tableName, schema)
 	if err != nil {
 		return nil, err
@@ -306,16 +305,12 @@ func determineSnowflakeColumnType(valueType ValueType) (string, error) {
 	}
 }
 
-func (store *snowflakeOfflineStore) getPrimaryTableName(id ResourceID) string {
+func GetPrimaryTableName(id ResourceID) string {
 	return fmt.Sprintf("featureform_primary_%s_%s", id.Name, id.Variant)
 }
 
-func (store *snowflakeOfflineStore) getTransformationName(id ResourceID) string {
-	return fmt.Sprintf("featureform_transformation_%s_%s", id.Name, id.Variant)
-}
-
 func (store *snowflakeOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error) {
-	name := store.getPrimaryTableName(id)
+	name := GetPrimaryTableName(id)
 	if exists, err := store.tableExists(id); err != nil {
 		return nil, err
 	} else if !exists {
@@ -344,7 +339,7 @@ func (store *snowflakeOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable
 }
 
 func (store *snowflakeOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
-	name := store.getTransformationName(id)
+	name := GetTransformationName(id)
 	if exists, err := store.tableExists(id); err != nil {
 		return nil, err
 	} else if !exists {
@@ -1000,7 +995,7 @@ func (store *snowflakeOfflineStore) createTransformationName(id ResourceID) (str
 	case Label, Feature:
 		return store.getResourceTableName(id), nil
 	case Transformation:
-		return store.getTransformationName(id), nil
+		return GetTransformationName(id), nil
 	case TrainingSet:
 		return "", TransformationTypeError{"Invalid Transformation Type: Training Set"}
 	case Primary:

@@ -83,9 +83,11 @@ func postgresOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 // and initializes a table to track currently active Resource tables.
 func NewPostgresOfflineStore(pg PostgresConfig) (*postgresOfflineStore, error) {
 	url := fmt.Sprintf("postgres://%s:%s@%s:%s/%s", pg.Username, pg.Password, pg.Host, pg.Port, pg.Database)
+	fmt.Println(url)
 	ctx := context.Background()
 	conn, err := pgxpool.Connect(ctx, url)
 	if err != nil {
+		fmt.Println("PGERROR", err)
 		return nil, err
 	}
 	return &postgresOfflineStore{
@@ -98,11 +100,7 @@ func NewPostgresOfflineStore(pg PostgresConfig) (*postgresOfflineStore, error) {
 	}, nil
 }
 
-func (store *postgresOfflineStore) getPrimaryTableName(id ResourceID) string {
-	return fmt.Sprintf("featureform_primary_%s_%s", id.Name, id.Variant)
-}
-
-func (store *postgresOfflineStore) getTransformationName(id ResourceID) string {
+func GetTransformationName(id ResourceID) string {
 	return fmt.Sprintf("featureform_transformation_%s_%s", id.Name, id.Variant)
 }
 
@@ -132,9 +130,9 @@ func (store *postgresOfflineStore) tableExists(id ResourceID) (bool, error) {
 	} else if id.check(TrainingSet) == nil {
 		tableName = store.getTrainingSetName(id)
 	} else if id.check(Primary) == nil {
-		tableName = store.getPrimaryTableName(id)
+		tableName = GetPrimaryTableName(id)
 	} else if id.check(Transformation) == nil {
-		tableName = store.getTransformationName(id)
+		tableName = GetTransformationName(id)
 	}
 	err := store.conn.QueryRow(context.Background(), "SELECT 1 FROM information_schema.tables WHERE table_name=$1", tableName).Scan(&n)
 	if err == db.ErrNoRows {
@@ -199,8 +197,7 @@ func (store *postgresOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID,
 	} else if exists {
 		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}
-	tableName := store.getPrimaryTableName(id)
-	fmt.Println(tableName)
+	tableName := GetPrimaryTableName(id)
 	query := fmt.Sprintf("CREATE TABLE %s AS SELECT * FROM %s", sanitize(tableName), sanitize(sourceName))
 	if _, err := store.conn.Exec(context.Background(), query); err != nil {
 		return nil, err
@@ -225,7 +222,7 @@ func (store *postgresOfflineStore) CreatePrimaryTable(id ResourceID, schema Tabl
 	if len(schema.Columns) == 0 {
 		return nil, fmt.Errorf("cannot create primary table without columns")
 	}
-	tableName := store.getPrimaryTableName(id)
+	tableName := GetPrimaryTableName(id)
 	table, err := newPostgresPrimaryTable(store.conn, tableName, schema)
 	if err != nil {
 		return nil, err
@@ -797,7 +794,7 @@ func (store *postgresOfflineStore) createTransformationName(id ResourceID) (stri
 	case Label, Feature:
 		return store.getResourceTableName(id), nil
 	case Transformation:
-		return store.getTransformationName(id), nil
+		return GetTransformationName(id), nil
 	case TrainingSet:
 		return "", TransformationTypeError{"Invalid Transformation Type: Training Set"}
 	case Primary:
@@ -836,7 +833,7 @@ func mapColumns(columns []ColumnMapping, query string) (string, error) {
 }
 
 func (store *postgresOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error) {
-	name := store.getPrimaryTableName(id)
+	name := GetPrimaryTableName(id)
 
 	if exists, err := store.tableExists(id); err != nil {
 		return nil, err
@@ -870,7 +867,7 @@ func (store *postgresOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable,
 }
 
 func (store *postgresOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
-	name := store.getTransformationName(id)
+	name := GetTransformationName(id)
 
 	if exists, err := store.tableExists(id); err != nil {
 		return nil, err

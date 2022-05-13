@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestSourceVariant_isTransformation(t *testing.T) {
+func TestSourceVariant_IsTransformation(t *testing.T) {
 	type fields struct {
 		serialized           *pb.SourceVariant
 		fetchTrainingSetsFns fetchTrainingSetsFns
@@ -40,8 +40,8 @@ func TestSourceVariant_isTransformation(t *testing.T) {
 				createdFn:            tt.fields.createdFn,
 				protoStringer:        tt.fields.protoStringer,
 			}
-			if got := variant.isTransformation(); got != tt.want {
-				t.Errorf("isTransformation() = %v, want %v", got, tt.want)
+			if got := variant.IsTransformation(); got != tt.want {
+				t.Errorf("IsTransformation() = %v, want %v", got, tt.want)
 			}
 		})
 	}

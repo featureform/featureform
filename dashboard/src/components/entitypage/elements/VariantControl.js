@@ -58,9 +58,6 @@ const VariantControl = ({
           </MenuItem>
         ))}
       </Select>
-      <FormHelperText>
-        <b>{`Created ${convertTimestampToDate(createdDate)}`}</b>
-      </FormHelperText>
     </FormControl>
   );
 };

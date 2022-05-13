@@ -8,6 +8,8 @@ env:
   POSTGRES_USER: "username"
   POSTGRES_DB: "default"
   POSTGRES_PASSWORD: "password"
+  ETCD_HOST: "localhost"
+  ETCD_PORT: 2379
 
 jobs:
   setup:
@@ -199,6 +201,9 @@ jobs:
         run: mkdir coverage
 
       - name: Testing
+        env:
+          ETCD_HOST: ${{ env.ETCD_HOST }}
+          ETCD_PORT: ${{ env.ETCD_PORT }}
         working-directory: ./
         run: go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./metadata/
 
@@ -403,6 +408,8 @@ jobs:
           SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
           SNOWFLAKE_ORG: ${{ secrets.SNOWFLAKE_ORG }}
           SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          ETCD_HOST: ${{ env.ETCD_HOST }}
+          ETCD_PORT: ${{ env.ETCD_PORT }}
         working-directory: ./
         run: go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./coordinator/...
 

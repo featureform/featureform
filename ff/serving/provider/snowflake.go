@@ -207,7 +207,7 @@ func (store *snowflakeOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID
 		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}
 	tableName := GetPrimaryTableName(id)
-	query := fmt.Sprintf("CREATE TABLE %s AS SELECT * FROM TABLE('%s')", sanitize(tableName), sourceName)
+	query := fmt.Sprintf("CREATE TABLE %s AS SELECT * FROM TABLE('%s')", sanitize(tableName), sanitize(sourceName))
 	if _, err := store.db.Exec(query); err != nil {
 		return nil, err
 	}

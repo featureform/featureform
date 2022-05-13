@@ -835,7 +835,7 @@ type MetadataServer struct {
 }
 
 func NewMetadataServer(config *Config) (*MetadataServer, error) {
-	config.Logger.Debug("Creating new metadata server")
+	config.Logger.Debug("Creating new metadata server", "Address:", config.Address)
 	lookup, err := config.StorageProvider.GetResourceLookup()
 
 	if err != nil {

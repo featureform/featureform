@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	db "github.com/jackc/pgx/v4"
 	"go.uber.org/zap"
 
 	"github.com/featureform/serving/metadata"
+	pb "github.com/featureform/serving/metadata/proto"
 	provider "github.com/featureform/serving/provider"
 	runner "github.com/featureform/serving/runner"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -40,6 +42,28 @@ type Coordinator struct {
 	EtcdClient *clientv3.Client
 	KVClient   *clientv3.KV
 	Spawner    JobSpawner
+}
+
+func (c *Coordinator) AwaitPendingSource(sourceNameVariant metadata.NameVariant, timeout int32) (*metadata.SourceVariant, error) {
+	sourceStatus := pb.ResourceStatus_PENDING
+	start := time.Now()
+	elapsed := time.Since(start)
+	for sourceStatus != pb.ResourceStatus_READY && elapsed < time.Duration(timeout)*time.Second {
+		source, err := c.Metadata.GetSourceVariant(context.Background(), sourceNameVariant)
+		if err != nil {
+			return nil, err
+		}
+		sourceStatus := source.Status()
+		if sourceStatus.Status == pb.ResourceStatus_FAILED {
+			return nil, fmt.Errorf("source of feature not ready")
+		}
+		if sourceStatus.Status == pb.ResourceStatus_READY {
+			return source, nil
+		}
+		elapsed = time.Since(start)
+		time.Sleep(1 * time.Second)
+	}
+	return nil, fmt.Errorf("waited too long for source to become ready")
 }
 
 type JobSpawner interface {
@@ -120,7 +144,7 @@ func (c *Coordinator) mapNameVariantsToTables(sources []metadata.NameVariant) (m
 		if err != nil {
 			return nil, err
 		}
-		if source.Status() != metadata.READY {
+		if source.Status().Status != pb.ResourceStatus_READY {
 			return nil, fmt.Errorf("source in query not ready")
 		}
 		providerResourceID := provider.ResourceID{Name: source.Name(), Variant: source.Variant()}
@@ -129,7 +153,7 @@ func (c *Coordinator) mapNameVariantsToTables(sources []metadata.NameVariant) (m
 		} else if source.IsPrimaryDataSQLTable() {
 			tableName = provider.GetPrimaryTableName(providerResourceID)
 		}
-		sourceMap[fmt.Sprintf("%s.%s", nameVariant.Name, nameVariant.Variant)] = tableName
+		sourceMap[nameVariant.ClientString()] = tableName
 	}
 	return sourceMap, nil
 }
@@ -143,23 +167,22 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 	templateString := transformSource.SQLTransformationQuery()
 	sources := transformSource.SQLTransformationSources()
 	allReady := false
-	for sourceVariants, err := c.Metadata.GetSourceVariants(context.Background(), sources); !allReady; sourceVariants, err = c.Metadata.GetSourceVariants(context.Background(), sources) {
+	for !allReady {
+		sourceVariants, err := c.Metadata.GetSourceVariants(context.Background(), sources)
 		if err != nil {
 			return err
 		}
 		total := len(sourceVariants)
 		totalReady := 0
 		for _, sourceVariant := range sourceVariants {
-			if sourceVariant.Status() == string(metadata.READY) {
+			if sourceVariant.Status().Status == pb.ResourceStatus_READY {
 				totalReady += 1
 			}
-			if sourceVariant.Status() == string(metadata.FAILED) {
+			if sourceVariant.Status().Status == pb.ResourceStatus_FAILED {
 				return err
 			}
 		}
-		if total == totalReady {
-			allReady = true
-		}
+		allReady = total == totalReady
 	}
 	sourceMap, err := c.mapNameVariantsToTables(sources)
 	if err != nil {
@@ -174,7 +197,7 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 	if err := offlineStore.CreateTransformation(transformationConfig); err != nil {
 		return err
 	}
-	if err := c.Metadata.SetStatus(context.Background(), resID, string(metadata.READY)); err != nil {
+	if err := c.Metadata.SetStatus(context.Background(), resID, pb.ResourceStatus{Status: pb.ResourceStatus_READY}); err != nil {
 		return err
 	}
 	return nil
@@ -190,7 +213,7 @@ func (c *Coordinator) runPrimaryTableJob(transformSource *metadata.SourceVariant
 	if _, err := offlineStore.RegisterPrimaryFromSourceTable(providerResourceID, sourceName); err != nil {
 		return err
 	}
-	if err := c.Metadata.SetStatus(context.Background(), resID, string(metadata.READY)); err != nil {
+	if err := c.Metadata.SetStatus(context.Background(), resID, pb.ResourceStatus{Status: pb.ResourceStatus_READY}); err != nil {
 		return err
 	}
 	return nil
@@ -232,20 +255,16 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID) error 
 	}
 	status := feature.Status()
 	featureType := feature.Type()
-	if status == metadata.READY || status == metadata.FAILED {
-		return fmt.Errorf("feature already set to %s", metadata.ResourceStatus(status))
+	if status.Status == pb.ResourceStatus_READY || status.Status == pb.ResourceStatus_FAILED {
+		return fmt.Errorf("feature already set to %s", metadata.ResourceStatus(status.Status))
 	}
-	if err := c.Metadata.SetStatus(context.Background(), resID, string(metadata.PENDING)); err != nil {
+	if err := c.Metadata.SetStatus(context.Background(), resID, pb.ResourceStatus{Status: pb.ResourceStatus_PENDING}); err != nil {
 		return err
 	}
 	sourceNameVariant := feature.Source()
-	source, err := c.Metadata.GetSourceVariant(context.Background(), sourceNameVariant)
+	source, err := c.AwaitPendingSource(sourceNameVariant, 30) //second argument is seconds to wait for source to become ready
 	if err != nil {
-		return err
-	}
-	sourceStatus := source.Status()
-	if sourceStatus != metadata.READY {
-		return fmt.Errorf("source of feature not ready")
+		return fmt.Errorf("source of could not complete job: %v", err)
 	}
 	sourceProvider, err := source.FetchProvider(c.Metadata, context.Background())
 	if err != nil {
@@ -285,7 +304,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID) error 
 	if err := completionWatcher.Wait(); err != nil {
 		return err
 	}
-	if err := c.Metadata.SetStatus(context.Background(), resID, string(metadata.READY)); err != nil {
+	if err := c.Metadata.SetStatus(context.Background(), resID, pb.ResourceStatus{Status: pb.ResourceStatus_READY}); err != nil {
 		return err
 	}
 	return nil
@@ -298,10 +317,10 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID) error {
 		return err
 	}
 	status := ts.Status()
-	if status == metadata.READY || status == metadata.FAILED {
-		return fmt.Errorf("training Set already set to %s", metadata.ResourceStatus(status))
+	if status.Status == pb.ResourceStatus_READY || status.Status == pb.ResourceStatus_FAILED {
+		return fmt.Errorf("training Set already set to %s", metadata.ResourceStatus(status.Status))
 	}
-	if err := c.Metadata.SetStatus(context.Background(), resID, string(metadata.PENDING)); err != nil {
+	if err := c.Metadata.SetStatus(context.Background(), resID, pb.ResourceStatus{Status: pb.ResourceStatus_PENDING}); err != nil {
 		return err
 	}
 	providerEntry, err := ts.FetchProvider(c.Metadata, context.Background())
@@ -324,10 +343,24 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID) error {
 	featureList := make([]provider.ResourceID, len(features))
 	for i, feature := range features {
 		featureList[i] = provider.ResourceID{Name: feature.Name, Variant: feature.Variant, Type: provider.Feature}
+		featureResource, err := c.Metadata.GetFeatureVariant(context.Background(), feature)
+		if err != nil {
+			return fmt.Errorf("failed to get fetch dependent feature")
+		}
+		sourceNameVariant := featureResource.Source()
+		_, err = c.AwaitPendingSource(sourceNameVariant, 5) //second argument is seconds to wait for source to become ready
+		if err != nil {
+			return fmt.Errorf("source of feature could not complete job: %v", err)
+		}
 	}
 	label, err := ts.FetchLabel(c.Metadata, context.Background())
 	if err != nil {
 		return err
+	}
+	labelSourceNameVariant := label.Source()
+	_, err = c.AwaitPendingSource(labelSourceNameVariant, 5) //second argument is seconds to wait for source to become ready
+	if err != nil {
+		return fmt.Errorf("source of label could not complete job: %v", err)
 	}
 	trainingSetDef := provider.TrainingSetDef{
 		ID:       providerResID,
@@ -351,7 +384,7 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID) error {
 	if err := completionWatcher.Wait(); err != nil {
 		return err
 	}
-	if err := c.Metadata.SetStatus(context.Background(), resID, string(metadata.READY)); err != nil {
+	if err := c.Metadata.SetStatus(context.Background(), resID, pb.ResourceStatus{Status: pb.ResourceStatus_READY}); err != nil {
 		return err
 	}
 	return nil
@@ -439,7 +472,7 @@ func (c *Coordinator) createJobLock(jobKey string, s *concurrency.Session) (*con
 }
 
 func (c *Coordinator) markJobFailed(job *metadata.CoordinatorJob) error {
-	if err := c.Metadata.SetStatus(context.Background(), job.Resource, string(metadata.FAILED)); err != nil {
+	if err := c.Metadata.SetStatus(context.Background(), job.Resource, pb.ResourceStatus{Status: pb.ResourceStatus_FAILED}); err != nil {
 		return fmt.Errorf("could not set job status to failed: %v", err)
 	}
 	return nil
@@ -475,18 +508,18 @@ func (c *Coordinator) executeJob(jobKey string) error {
 	switch job.Resource.Type {
 	case metadata.TRAINING_SET_VARIANT:
 		if err := c.runTrainingSetJob(job.Resource); err != nil {
-			statusErr := c.Metadata.SetStatus(context.Background(), job.Resource, fmt.Sprintf("%v", err))
-			return fmt.Errorf("training set job failed: %v", fmt.Sprintf("%v: %v", err, statusErr))
+			statusErr := c.Metadata.SetStatus(context.Background(), job.Resource, pb.ResourceStatus{Status: pb.ResourceStatus_FAILED, ErrorMessage: err.Error()})
+			return fmt.Errorf("training set job failed: %v: %v", err, statusErr)
 		}
 	case metadata.FEATURE_VARIANT:
 		if err := c.runFeatureMaterializeJob(job.Resource); err != nil {
-			statusErr := c.Metadata.SetStatus(context.Background(), job.Resource, fmt.Sprintf("%v", err))
-			return fmt.Errorf("feature variant job failed: %v", fmt.Sprintf("%v: %v", err, statusErr))
+			statusErr := c.Metadata.SetStatus(context.Background(), job.Resource, pb.ResourceStatus{Status: pb.ResourceStatus_FAILED, ErrorMessage: err.Error()})
+			return fmt.Errorf("feature variant job failed: %v: %v", err, statusErr)
 		}
 	case metadata.SOURCE_VARIANT:
 		if err := c.runRegisterSourceJob(job.Resource); err != nil {
-			statusErr := c.Metadata.SetStatus(context.Background(), job.Resource, fmt.Sprintf("%v", err))
-			return fmt.Errorf("source variant job failed: %v", fmt.Sprintf("%v: %v", err, statusErr))
+			statusErr := c.Metadata.SetStatus(context.Background(), job.Resource, pb.ResourceStatus{Status: pb.ResourceStatus_FAILED, ErrorMessage: err.Error()})
+			return fmt.Errorf("source variant job failed: %v: %v", err, statusErr)
 		}
 	default:
 		return fmt.Errorf("not a valid resource type for running jobs")

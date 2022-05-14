@@ -59,10 +59,10 @@ func Test_etcdResourceLookup_Set(t *testing.T) {
 	}
 
 	args1 := args{
-		ResourceID{Name: "test", Variant: FEATURE_VARIANT, Type: FEATURE},
+		ResourceID{Name: "test", Variant: FEATURE_VARIANT.String(), Type: FEATURE},
 		&featureVariantResource{&pb.FeatureVariant{
 			Name:    "featureVariantResource",
-			Type:    FEATURE_VARIANT,
+			Type:    FEATURE_VARIANT.String(),
 			Created: time.Now().String(),
 		}},
 	}
@@ -132,7 +132,7 @@ func Test_etcdResourceLookup_Lookup(t *testing.T) {
 	}
 	doWant := &featureVariantResource{&pb.FeatureVariant{
 		Name:    "featureVariant",
-		Type:    FEATURE_VARIANT,
+		Type:    FEATURE_VARIANT.String(),
 		Created: time.Now().String(),
 	}}
 
@@ -221,7 +221,7 @@ func Test_etcdResourceLookup_Has(t *testing.T) {
 	}
 	doWant := &featureVariantResource{&pb.FeatureVariant{
 		Name:    "resource1",
-		Type:    FEATURE_VARIANT,
+		Type:    FEATURE_VARIANT.String(),
 		Created: time.Now().String(),
 	}}
 	args1 := args{
@@ -317,17 +317,17 @@ func Test_etcdResourceLookup_ListForType(t *testing.T) {
 	featureResources := []Resource{
 		&featureVariantResource{&pb.FeatureVariant{
 			Name:    "feature1",
-			Type:    FEATURE_VARIANT,
+			Type:    FEATURE_VARIANT.String(),
 			Created: time.Now().String(),
 		}},
 		&featureVariantResource{&pb.FeatureVariant{
 			Name:    "feature2",
-			Type:    FEATURE_VARIANT,
+			Type:    FEATURE_VARIANT.String(),
 			Created: time.Now().String(),
 		}},
 		&featureVariantResource{&pb.FeatureVariant{
 			Name:    "feature3",
-			Type:    FEATURE_VARIANT,
+			Type:    FEATURE_VARIANT.String(),
 			Created: time.Now().String(),
 		}},
 	}
@@ -417,17 +417,17 @@ func Test_etcdResourceLookup_List(t *testing.T) {
 	featureResources := []Resource{
 		&featureVariantResource{&pb.FeatureVariant{
 			Name:    "feature1",
-			Type:    FEATURE_VARIANT,
+			Type:    FEATURE_VARIANT.String(),
 			Created: time.Now().String(),
 		}},
 		&featureVariantResource{&pb.FeatureVariant{
 			Name:    "feature2",
-			Type:    FEATURE_VARIANT,
+			Type:    FEATURE_VARIANT.String(),
 			Created: time.Now().String(),
 		}},
 		&featureVariantResource{&pb.FeatureVariant{
 			Name:    "feature3",
-			Type:    FEATURE_VARIANT,
+			Type:    FEATURE_VARIANT.String(),
 			Created: time.Now().String(),
 		}},
 	}
@@ -515,17 +515,17 @@ func Test_etcdResourceLookup_Submap(t *testing.T) {
 	featureResources := []Resource{
 		&featureVariantResource{&pb.FeatureVariant{
 			Name:    "feature1",
-			Type:    FEATURE_VARIANT,
+			Type:    FEATURE_VARIANT.String(),
 			Created: time.Now().String(),
 		}},
 		&featureVariantResource{&pb.FeatureVariant{
 			Name:    "feature2",
-			Type:    FEATURE_VARIANT,
+			Type:    FEATURE_VARIANT.String(),
 			Created: time.Now().String(),
 		}},
 		&featureVariantResource{&pb.FeatureVariant{
 			Name:    "feature3",
-			Type:    FEATURE_VARIANT,
+			Type:    FEATURE_VARIANT.String(),
 			Created: time.Now().String(),
 		}}}
 
@@ -642,7 +642,6 @@ func Test_etcdResourceLookup_findResourceType(t *testing.T) {
 		{"Test Training Set", fields{}, args{TRAINING_SET}, &trainingSetResource{&pb.TrainingSet{}}, false},
 		{"Test Training Set Variant", fields{}, args{TRAINING_SET_VARIANT}, &trainingSetVariantResource{&pb.TrainingSetVariant{}}, false},
 		{"Test Model", fields{}, args{MODEL}, &modelResource{&pb.Model{}}, false},
-		{"Test Feature", fields{}, args{TRANSFORMATION}, nil, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

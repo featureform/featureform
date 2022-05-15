@@ -417,17 +417,14 @@ func Test_etcdResourceLookup_List(t *testing.T) {
 	featureResources := []Resource{
 		&featureVariantResource{&pb.FeatureVariant{
 			Name:    "feature1",
-			Type:    FEATURE_VARIANT.String(),
 			Created: time.Now().String(),
 		}},
 		&featureVariantResource{&pb.FeatureVariant{
 			Name:    "feature2",
-			Type:    FEATURE_VARIANT.String(),
 			Created: time.Now().String(),
 		}},
 		&featureVariantResource{&pb.FeatureVariant{
 			Name:    "feature3",
-			Type:    FEATURE_VARIANT.String(),
 			Created: time.Now().String(),
 		}},
 	}
@@ -507,25 +504,22 @@ func Test_etcdResourceLookup_Submap(t *testing.T) {
 	}
 
 	ids := []ResourceID{
-		{Name: "feature1", Type: "int"},
-		{Name: "feature2", Type: "int"},
-		{Name: "feature3", Type: "int"},
+		{Name: "feature1", Type: FEATURE_VARIANT},
+		{Name: "feature2", Type: FEATURE_VARIANT},
+		{Name: "feature3", Type: FEATURE_VARIANT},
 	}
 
 	featureResources := []Resource{
 		&featureVariantResource{&pb.FeatureVariant{
 			Name:    "feature1",
-			Type:    "int",
 			Created: time.Now().String(),
 		}},
 		&featureVariantResource{&pb.FeatureVariant{
 			Name:    "feature2",
-			Type:    "int",
 			Created: time.Now().String(),
 		}},
 		&featureVariantResource{&pb.FeatureVariant{
 			Name:    "feature3",
-			Type:    "int",
 			Created: time.Now().String(),
 		}}}
 

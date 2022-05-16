@@ -505,25 +505,41 @@ func (c *Coordinator) executeJob(jobKey string) error {
 	if err := c.incrementJobAttempts(mtx, job, jobKey); err != nil {
 		return err
 	}
-	switch job.Resource.Type {
-	case metadata.TRAINING_SET_VARIANT:
-		if err := c.runTrainingSetJob(job.Resource); err != nil {
-			statusErr := c.Metadata.SetStatus(context.Background(), job.Resource, pb.ResourceStatus{Status: pb.ResourceStatus_FAILED, ErrorMessage: err.Error()})
-			return fmt.Errorf("training set job failed: %v: %v", err, statusErr)
-		}
-	case metadata.FEATURE_VARIANT:
-		if err := c.runFeatureMaterializeJob(job.Resource); err != nil {
-			statusErr := c.Metadata.SetStatus(context.Background(), job.Resource, pb.ResourceStatus{Status: pb.ResourceStatus_FAILED, ErrorMessage: err.Error()})
-			return fmt.Errorf("feature variant job failed: %v: %v", err, statusErr)
-		}
-	case metadata.SOURCE_VARIANT:
-		if err := c.runRegisterSourceJob(job.Resource); err != nil {
-			statusErr := c.Metadata.SetStatus(context.Background(), job.Resource, pb.ResourceStatus{Status: pb.ResourceStatus_FAILED, ErrorMessage: err.Error()})
-			return fmt.Errorf("source variant job failed: %v: %v", err, statusErr)
-		}
-	default:
+
+	type jobFunction func(metadata.ResourceID) error
+
+	fns := map[metadata.ResourceType]jobFunction{
+		metadata.TRAINING_SET_VARIANT: c.runTrainingSetJob,
+		metadata.FEATURE_VARIANT:      c.runFeatureMaterializeJob,
+		metadata.SOURCE_VARIANT:       c.runRegisterSourceJob,
+	}
+	jobFunc, has := fns[job.Resource.Type]
+	if !has {
 		return fmt.Errorf("not a valid resource type for running jobs")
 	}
+	if err := jobFunc(job.Resource); err != nil {
+		statusErr := c.Metadata.SetStatus(context.Background(), job.Resource, pb.ResourceStatus{Status: pb.ResourceStatus_FAILED, ErrorMessage: err.Error()})
+		return fmt.Errorf("%s job failed: %v: %v", job.Resource.Type, err, statusErr)
+	}
+	// switch job.Resource.Type {
+	// case metadata.TRAINING_SET_VARIANT:
+	// 	if err := c.runTrainingSetJob(job.Resource); err != nil {
+	// 		statusErr := c.Metadata.SetStatus(context.Background(), job.Resource, pb.ResourceStatus{Status: pb.ResourceStatus_FAILED, ErrorMessage: err.Error()})
+	// 		return fmt.Errorf("training set job failed: %v: %v", err, statusErr)
+	// 	}
+	// case metadata.FEATURE_VARIANT:
+	// 	if err := c.runFeatureMaterializeJob(job.Resource); err != nil {
+	// 		statusErr := c.Metadata.SetStatus(context.Background(), job.Resource, pb.ResourceStatus{Status: pb.ResourceStatus_FAILED, ErrorMessage: err.Error()})
+	// 		return fmt.Errorf("feature variant job failed: %v: %v", err, statusErr)
+	// 	}
+	// case metadata.SOURCE_VARIANT:
+	// 	if err := c.runRegisterSourceJob(job.Resource); err != nil {
+	// 		statusErr := c.Metadata.SetStatus(context.Background(), job.Resource, pb.ResourceStatus{Status: pb.ResourceStatus_FAILED, ErrorMessage: err.Error()})
+	// 		return fmt.Errorf("source variant job failed: %v: %v", err, statusErr)
+	// 	}
+	// default:
+	// 	return fmt.Errorf("not a valid resource type for running jobs")
+	// }
 	c.Logger.Debug("Succesfully executed job with key: ", jobKey)
 	if err := c.deleteJob(mtx, jobKey); err != nil {
 		return err

@@ -491,7 +491,7 @@ func (c *Coordinator) executeJob(jobKey string) error {
 	}
 	defer func() {
 		if err := mtx.Unlock(context.Background()); err != nil {
-			panic(err)
+			fmt.Println(err)
 		}
 	}()
 	job, err := c.getJob(mtx, jobKey)

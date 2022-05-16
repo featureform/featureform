@@ -32,7 +32,7 @@ func (etcd *Etcd) init() {
 		DialTimeout: time.Second * 1,
 	})
 	if err != nil {
-		log.Fatal(err)
+		t.Errorf(err)
 	}
 	etcd.client = client
 }
@@ -42,7 +42,7 @@ func (etcd *Etcd) clearDatabase() {
 	_, err := etcd.client.Delete(ctx, "", clientv3.WithPrefix())
 	cancel()
 	if err != nil {
-		log.Fatal(err)
+		t.Errorf(err)
 	}
 }
 
@@ -101,7 +101,7 @@ func Test_etcdResourceLookup_Set(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 			resp, err := newclient.Get(ctx, createKey(tt.args.id))
 			if err != nil {
-				log.Fatal(err)
+				t.Errorf(err)
 			}
 			cancel()
 			value := resp.Kvs[0].Value
@@ -168,17 +168,17 @@ func Test_etcdResourceLookup_Lookup(t *testing.T) {
 			StorageType:  RESOURCE,
 		}
 		if err != nil {
-			log.Fatal(err)
+			t.Errorf(err)
 		}
 
 		strmsg, err := json.Marshal(msg)
 		if err != nil {
-			log.Fatal(err)
+			t.Errorf(err)
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 		_, err = newclient.Put(ctx, createKey(args1), string(strmsg))
 		if err != nil {
-			log.Fatal(err)
+			t.Errorf(err)
 		}
 		cancel()
 
@@ -263,17 +263,17 @@ func Test_etcdResourceLookup_Has(t *testing.T) {
 				StorageType:  RESOURCE,
 			}
 			if err != nil {
-				log.Fatal(err)
+				t.Errorf(err)
 			}
 
 			strmsg, err := json.Marshal(msg)
 			if err != nil {
-				log.Fatal(err)
+				t.Errorf(err)
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 			_, err = newclient.Put(ctx, createKey(tt.args.id), string(strmsg))
 			if err != nil {
-				log.Fatal(err)
+				t.Errorf(err)
 			}
 			cancel()
 		}
@@ -317,17 +317,14 @@ func Test_etcdResourceLookup_ListForType(t *testing.T) {
 	featureResources := []Resource{
 		&featureVariantResource{&pb.FeatureVariant{
 			Name:    "feature1",
-			Type:    "int",
 			Created: time.Now().String(),
 		}},
 		&featureVariantResource{&pb.FeatureVariant{
 			Name:    "feature2",
-			Type:    "int",
 			Created: time.Now().String(),
 		}},
 		&featureVariantResource{&pb.FeatureVariant{
 			Name:    "feature3",
-			Type:    "int",
 			Created: time.Now().String(),
 		}},
 	}
@@ -356,16 +353,16 @@ func Test_etcdResourceLookup_ListForType(t *testing.T) {
 			StorageType:  RESOURCE,
 		}
 		if err != nil {
-			log.Fatal(err)
+			t.Errorf(err)
 		}
 		strmsg, err := json.Marshal(msg)
 		if err != nil {
-			log.Fatal(err)
+			t.Errorf(err)
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 		_, err = newclient.Put(ctx, createKey(res.ID()), string(strmsg))
 		if err != nil {
-			log.Fatal(err)
+			t.Errorf(err)
 		}
 		cancel()
 	}
@@ -408,7 +405,7 @@ func Test_etcdResourceLookup_List(t *testing.T) {
 		DialTimeout: time.Second * 1,
 	})
 	if err != nil {
-		log.Fatal(err)
+		t.Errorf(err)
 	}
 	type fields struct {
 		Etcd EtcdConfig
@@ -446,12 +443,12 @@ func Test_etcdResourceLookup_List(t *testing.T) {
 		}
 		strmsg, err := json.Marshal(msg)
 		if err != nil {
-			log.Fatal(err)
+			t.Errorf(err)
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 		_, err = newclient.Put(ctx, createKey(res.ID()), string(strmsg))
 		if err != nil {
-			log.Fatal(err)
+			t.Errorf(err)
 		}
 		cancel()
 	}
@@ -494,7 +491,7 @@ func Test_etcdResourceLookup_Submap(t *testing.T) {
 		DialTimeout: time.Second * 1,
 	})
 	if err != nil {
-		log.Fatal(err)
+		t.Errorf(err)
 	}
 	type fields struct {
 		Etcd EtcdConfig
@@ -546,18 +543,18 @@ func Test_etcdResourceLookup_Submap(t *testing.T) {
 			StorageType:  RESOURCE,
 		}
 		if err != nil {
-			log.Fatal(err)
+			t.Errorf(err)
 		}
 
 		strmsg, err := json.Marshal(msg)
 		if err != nil {
-			log.Fatal(err)
+			t.Errorf(err)
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 		_, err = client.Put(ctx, createKey(res.ID()), string(strmsg))
 		cancel()
 		if err != nil {
-			log.Fatal(err)
+			t.Errorf(err)
 		}
 	}
 	for _, tt := range tests {
@@ -583,7 +580,7 @@ func Test_etcdResourceLookup_Submap(t *testing.T) {
 
 			elem, err := got.List()
 			if err != nil {
-				log.Fatal(err)
+				t.Errorf(err)
 			}
 
 			for _, res := range elem {

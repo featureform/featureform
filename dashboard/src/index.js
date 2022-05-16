@@ -13,7 +13,7 @@ const history = createBrowserHistory();
 ReactDOM.render(
   <React.StrictMode>
     <ReduxWrapper store={ReduxStore}>
-      <Router history={history}>
+      <Router basename="/" history={history}>
         <App />,
       </Router>
     </ReduxWrapper>

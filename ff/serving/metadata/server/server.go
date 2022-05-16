@@ -5,29 +5,34 @@
 package main
 
 import (
+	"fmt"
 	"github.com/featureform/serving/metadata/search"
+	"os"
 
 	"github.com/featureform/serving/metadata"
 	"go.uber.org/zap"
 )
 
 func main() {
+	etcdHost := os.Getenv("ETCD_HOST")
+	etcdPort := os.Getenv("ETCD_PORT")
 	logger := zap.NewExample().Sugar()
 	addr := ":8080"
 	storageProvider := metadata.EtcdStorageProvider{
 		metadata.EtcdConfig{
 			Nodes: []metadata.EtcdNode{
-				{"localhost", "2379"},
+				{etcdHost, etcdPort},
 			},
 		},
 	}
+	fmt.Println("TS Port", os.Getenv("TYPESENSE_PORT"), "TS HOST", os.Getenv("TYPESENSE_HOST"), "TS KEY", os.Getenv("TYPESENSE_APIKEY"))
 	config := &metadata.Config{
 		Logger:  logger,
 		Address: addr,
 		TypeSenseParams: &search.TypeSenseParams{
-			Port:   "8108",
-			Host:   "localhost",
-			ApiKey: "xyz",
+			Port:   os.Getenv("TYPESENSE_PORT"),
+			Host:   os.Getenv("TYPESENSE_HOST"),
+			ApiKey: os.Getenv("TYPESENSE_APIKEY"),
 		},
 		StorageProvider: storageProvider,
 	}

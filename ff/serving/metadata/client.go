@@ -95,6 +95,7 @@ func (client *Client) CreateAll(ctx context.Context, defs []ResourceDef) error {
 }
 
 func (client *Client) Create(ctx context.Context, def ResourceDef) error {
+	fmt.Printf("%#v\n", def)
 	switch casted := def.(type) {
 	case FeatureDef:
 		return client.CreateFeatureVariant(ctx, casted)
@@ -1124,6 +1125,7 @@ func (fn fetchProviderFns) Provider() string {
 }
 
 func (fn fetchProviderFns) FetchProvider(client *Client, ctx context.Context) (*Provider, error) {
+	fmt.Println("Fetching provider")
 	return client.GetProvider(ctx, fn.Provider())
 }
 

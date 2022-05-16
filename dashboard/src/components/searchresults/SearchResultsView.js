@@ -1,14 +1,10 @@
 import React, { useEffect } from "react";
-import AppBar from "@material-ui/core/AppBar";
-import Tabs from "@material-ui/core/Tabs";
-import Tab from "@material-ui/core/Tab";
 import PropTypes from "prop-types";
 import { makeStyles } from "@material-ui/core/styles";
 import Typography from "@material-ui/core/Typography";
 import Box from "@material-ui/core/Box";
 import List from "@material-ui/core/List";
 import ListItem from "@material-ui/core/ListItem";
-import ListSubheader from "@material-ui/core/ListItem";
 import ListItemText from "@material-ui/core/ListItemText";
 import Container from "@material-ui/core/Container";
 import Icon from "@material-ui/core/Icon";
@@ -70,17 +66,10 @@ const searchTypeMap = {
   "Label variant": "Label",
   "Training Set variant": "TrainingSet",
   Model: "Model",
-  "Source variant": "PrimaryData",
+  "Source variant": "Source",
   User: "User",
   Provider: "Provider",
 };
-
-function a11yProps(index) {
-  return {
-    id: `simple-tab-${index}`,
-    "aria-controls": `simple-tabpanel-${index}`,
-  };
-}
 
 const SearchResultsView = ({ results, search_query, setVariant }) => {
   const classes = useStyles();
@@ -123,10 +112,19 @@ const SearchResultsList = ({ type, contents, setVariant }) => {
   let filteredContents = contents.filter(
     (content) => searchTypeMap[content.Type]
   );
+  let filteredContentHits = {};
+  let moreFilteredContents = filteredContents.filter((content) => {
+    if (content.Name + "." + content.Variant in filteredContentHits) {
+      return false;
+    }
+    filteredContentHits[content.Name + "." + content.Variant] = content.Variant;
+    return true;
+  });
+
   return (
     <div>
       <List className={classes.root} component="nav">
-        {filteredContents.map((content) => (
+        {moreFilteredContents.map((content) => (
           <SearchResultsItem
             type={type}
             content={content}

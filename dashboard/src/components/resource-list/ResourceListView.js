@@ -4,9 +4,6 @@ import { makeStyles } from "@material-ui/core/styles";
 import Typography from "@material-ui/core/Typography";
 import Grid from "@material-ui/core/Grid";
 import Chip from "@material-ui/core/Chip";
-import MenuItem from "@material-ui/core/MenuItem";
-import FormControl from "@material-ui/core/FormControl";
-import Select from "@material-ui/core/Select";
 import theme from "styles/theme";
 import CircleOutlinedIcon from "@mui/icons-material/CircleOutlined";
 import Rating from "@mui/material/Rating";
@@ -87,10 +84,6 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const convertTimestampToDate = (timestamp_string) => {
-  return new Date(timestamp_string).toDateString();
-};
-
 export const ResourceListView = ({
   title,
   resources,
@@ -106,11 +99,6 @@ export const ResourceListView = ({
     default: [
       { title: "Name", field: "name" },
       { title: "Description", field: "description" },
-      {
-        title: "Usage",
-        field: "usage",
-        render: (row) => <UsageTab />,
-      },
     ],
     Model: [
       { title: "Name", field: "name" },
@@ -136,13 +124,8 @@ export const ResourceListView = ({
       { title: "Name", field: "name" },
       { title: "Description", field: "description" },
       {
-        title: "Usage",
-        field: "usage",
-        render: (row) => <UsageTab />,
-      },
-      {
         title: "Type",
-        field: "type",
+        field: "data-type",
       },
       {
         title: "Default Variant",
@@ -156,11 +139,6 @@ export const ResourceListView = ({
       { title: "Name", field: "name" },
       { title: "Description", field: "description" },
       { title: "Type", field: "type" },
-      {
-        title: "Usage",
-        field: "usage",
-        render: (row) => <UsageTab />,
-      },
       {
         title: "Software",
         field: "software",
@@ -178,11 +156,6 @@ export const ResourceListView = ({
     "Data Source": [
       { title: "Name", field: "name" },
       { title: "Description", field: "description" },
-      {
-        title: "Usage",
-        field: "usage",
-        render: (row) => <UsageTab />,
-      },
       { title: "Type", field: "type" },
     ],
     User: [{ title: "Name", field: "name" }],
@@ -424,11 +397,6 @@ export const VariantTable = ({ name, setVariant, type, row }) => {
         columns={[
           { title: "Variants", field: "variant" },
           { title: "Description", field: "description" },
-          {
-            title: "Usage",
-            field: "usage",
-            render: (row) => <UsageTab />,
-          },
         ]}
         data={myVariants}
         options={{

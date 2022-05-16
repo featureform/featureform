@@ -816,15 +816,19 @@ func TestTemplateReplaceError(t *testing.T) {
 	if err == nil {
 		t.Fatalf("template replace did not catch error: %v", err)
 	}
+
 }
 
 func TestCoordinatorCalls(t *testing.T) {
 	if testing.Short() {
 		return
 	}
-	go setupMetadataServer()
+	err := setupMetadataServer()
+	if err != nil {
+		t.Fatal(err)
+	}
 	logger := zap.NewExample().Sugar()
-	_, err := metadata.NewClient("localhost:8080", logger)
+	_, err = metadata.NewClient("localhost:8080", logger)
 	if err != nil {
 		t.Fatalf("could not set up metadata client: %v", err)
 	}
@@ -1150,6 +1154,7 @@ func testCoordinatorTrainingSet() error {
 	if err != nil {
 		return fmt.Errorf("Coordinator did not create training set")
 	}
+
 	for i := 0; tsIterator.Next(); i++ {
 		retrievedFeatures := tsIterator.Features()
 		retrievedLabel := tsIterator.Label()
@@ -1179,6 +1184,7 @@ func testCoordinatorMaterializeFeature() error {
 	}
 	defer cli.Close()
 	serialPGConfig := postgresConfig.Serialize()
+	fmt.Println(serialPGConfig)
 	offlineProvider, err := provider.Get(provider.PostgresOffline, serialPGConfig)
 	if err != nil {
 		return fmt.Errorf("could not get offline provider: %v", err)
@@ -1323,7 +1329,6 @@ func testRegisterPrimaryTableFromSource() error {
 	}
 	//use the postgres/whatever to make a blank agnostic table "sammy's table",
 	sourceName := uuid.New().String()
-
 	if err := createSourceWithProvider(client, serialPGConfig, sourceName, tableName); err != nil {
 		return fmt.Errorf("could not register source in metadata: %v", err)
 	}
@@ -1569,21 +1574,3 @@ func testRegisterTransformationFromSource() error {
 
 	return nil
 }
-
-// func TestRegisterTransformationFromSource(t *testing.T) {
-// 	tableName := uuid.New().String()
-// 	if err := CreateOriginalPostgresTable(tableName); err != nil {
-// 		t.Fatalf("Could not create non-featureform source table")
-// 	}
-// 	//basically the same but we add a sql query or sometin
-// 	//we make two sources, one a source, one a transformation form that source
-// 	//then we make a transformation with two sources, one the original source and one the transformation
-// }
-
-//RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error)
-//here we do the The Rock thing
-//this is how we reconcile the new definition
-//current materialize and training set job assumes resource tables exist in offline store... but do they?
-//whether they do should be defined in metadata, though it works so far at least
-
-//also create primary table..... if there is no primarySQLtable name (so it's just a blank table)

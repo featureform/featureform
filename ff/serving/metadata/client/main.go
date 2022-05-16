@@ -24,18 +24,28 @@ func main() {
 			Name: "Simba Khadder",
 		},
 		metadata.ProviderDef{
-			Name:        "demo-s3",
-			Description: "local S3 deployment",
-			Type:        "Batch",
-			Software:    "BigQuery",
-			Team:        "Fraud detection",
+			Name:             "demo-s3",
+			Description:      "local S3 deployment",
+			Type:             "Batch",
+			Software:         "BigQuery",
+			SerializedConfig: []byte("OFFLINE CONFIG"),
+			Team:             "Fraud detection",
 		},
 		metadata.ProviderDef{
-			Name:        "demo-redis",
-			Description: "Bitnami redis deployment",
-			Type:        "Online",
-			Software:    "Redis",
-			Team:        "Fraud detection",
+			Name:             "demo-redis",
+			Description:      "Bitnami redis deployment",
+			Type:             "Online",
+			Software:         "Redis",
+			SerializedConfig: []byte("ONLINE CONFIG"),
+			Team:             "Fraud detection",
+		},
+		metadata.ProviderDef{
+			Name:             "demo-postgres",
+			Description:      "Postgres deployment",
+			Type:             "Offline",
+			Software:         "PostgreSQL",
+			SerializedConfig: []byte("OFFLINE CONFIG"),
+			Team:             "Fraud detection",
 		},
 		metadata.EntityDef{
 			Name:        "user",
@@ -45,9 +55,29 @@ func main() {
 			Name:        "Transactions",
 			Variant:     "default",
 			Description: "Source of user transactions",
-			Type:        "CSV",
-			Owner:       "Simba Khadder",
-			Provider:    "demo-redis",
+			Definition: metadata.PrimaryDataSource{
+				Location: metadata.SQLTable{
+					Name: "transactions_table",
+				},
+			},
+			Owner:    "Simba Khadder",
+			Provider: "demo-postgres",
+		},
+		metadata.SourceDef{
+			Name:        "Transactions",
+			Variant:     "transformation",
+			Description: "user transactions transformation",
+			Definition: metadata.TransformationSource{
+				TransformationType: metadata.SQLTransformationType{
+					Query: "SELECT * FROM {{Transactions.default}}",
+					Sources: []metadata.NameVariant{{
+						Name:    "Transactions",
+						Variant: "default"},
+					},
+				},
+			},
+			Owner:    "Simba Khadder",
+			Provider: "demo-postgres",
 		},
 		metadata.LabelDef{
 			Name:        "is_fraud",
@@ -57,7 +87,12 @@ func main() {
 			Source:      metadata.NameVariant{"Transactions", "default"},
 			Entity:      "user",
 			Owner:       "Simba Khadder",
-			Provider:    "demo-redis",
+			Location: metadata.ResourceVariantColumns{
+				Entity: "entity",
+				Value:  "is_fraud",
+				TS:     "ts",
+			},
+			Provider: "demo-postgres",
 		},
 		metadata.FeatureDef{
 			Name:        "number_of_fraud",
@@ -67,7 +102,12 @@ func main() {
 			Entity:      "user",
 			Owner:       "Simba Khadder",
 			Description: "Number of fraud transactions in the last 90 days.",
-			Provider:    "demo-redis",
+			Location: metadata.ResourceVariantColumns{
+				Entity: "entity",
+				Value:  "number_of_fraud",
+				TS:     "ts",
+			},
+			Provider: "demo-redis",
 		},
 		metadata.FeatureDef{
 			Name:        "user_2fa",
@@ -77,7 +117,12 @@ func main() {
 			Entity:      "user",
 			Owner:       "Simba Khadder",
 			Description: "If user has 2fa",
-			Provider:    "demo-redis",
+			Location: metadata.ResourceVariantColumns{
+				Entity: "entity",
+				Value:  "user_2fa",
+				TS:     "ts",
+			},
+			Provider: "demo-redis",
 		},
 		metadata.FeatureDef{
 			Name:        "user_account_age",
@@ -87,7 +132,12 @@ func main() {
 			Entity:      "user",
 			Owner:       "Simba Khadder",
 			Description: "Seconds since the user's account was created.",
-			Provider:    "demo-redis",
+			Location: metadata.ResourceVariantColumns{
+				Entity: "entity",
+				Value:  "user_account_age",
+				TS:     "ts",
+			},
+			Provider: "demo-redis",
 		},
 		metadata.FeatureDef{
 			Name:        "user_credit_score",
@@ -97,7 +147,12 @@ func main() {
 			Entity:      "user",
 			Owner:       "Simba Khadder",
 			Description: "User's credit score",
-			Provider:    "demo-s3",
+			Location: metadata.ResourceVariantColumns{
+				Entity: "entity",
+				Value:  "user_credit_score",
+				TS:     "ts",
+			},
+			Provider: "demo-redis",
 		},
 		metadata.FeatureDef{
 			Name:        "user_transaction_count",
@@ -107,7 +162,12 @@ func main() {
 			Entity:      "user",
 			Owner:       "Simba Khadder",
 			Description: "Number of transcations the user performed in the last 30 days.",
-			Provider:    "demo-redis",
+			Location: metadata.ResourceVariantColumns{
+				Entity: "entity",
+				Value:  "user_transaction_count",
+				TS:     "ts",
+			},
+			Provider: "demo-redis",
 		},
 		metadata.FeatureDef{
 			Name:        "avg_transaction_amt",
@@ -117,7 +177,12 @@ func main() {
 			Entity:      "user",
 			Owner:       "Simba Khadder",
 			Description: "Average transaction amount",
-			Provider:    "demo-redis",
+			Location: metadata.ResourceVariantColumns{
+				Entity: "entity",
+				Value:  "avg_transaction_amt",
+				TS:     "ts",
+			},
+			Provider: "demo-redis",
 		},
 		metadata.FeatureDef{
 			Name:        "amt_spent",
@@ -127,7 +192,12 @@ func main() {
 			Entity:      "user",
 			Owner:       "Simba Khadder",
 			Description: "Total amount spent in the last 30 days.",
-			Provider:    "demo-redis",
+			Location: metadata.ResourceVariantColumns{
+				Entity: "entity",
+				Value:  "amt_spent",
+				TS:     "ts",
+			},
+			Provider: "demo-redis",
 		},
 		metadata.FeatureDef{
 			Name:        "user_transaction_count",
@@ -137,16 +207,21 @@ func main() {
 			Entity:      "user",
 			Owner:       "Simba Khadder",
 			Description: "Number of transcations the user performed in the last 7 days.",
-			Provider:    "demo-s3",
+			Location: metadata.ResourceVariantColumns{
+				Entity: "entity",
+				Value:  "user_transaction_count",
+				TS:     "ts",
+			},
+			Provider: "demo-redis",
 		},
 		metadata.TrainingSetDef{
 			Name:        "is_fraud",
 			Variant:     "default",
 			Description: "if a transaction is fraud",
 			Owner:       "Simba Khadder",
-			Provider:    "demo-s3",
 			Label:       metadata.NameVariant{"is_fraud", "default"},
 			Features:    []metadata.NameVariant{{"user_transaction_count", "7d"}, {"number_of_fraud", "90d"}, {"amt_spent", "30d"}, {"avg_transaction_amt", "default"}, {"user_account_age", "default"}, {"user_credit_score", "default"}, {"user_2fa", "default"}},
+			Provider:    "demo-postgres",
 		},
 		metadata.ModelDef{
 			Name:        "user_fraud_random_forest",

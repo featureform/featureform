@@ -1,0 +1,8 @@
+Dashboard is available at:
+{{ .Release.Name }}-sandbox.featureform.com
+
+Dashboard Backend is available at:
+{{ .Release.Name }}-sandbox.featureform.com/data/
+
+CLI can be connected with host flag:
+--host {{ .Release.Name }}-sandbox.featureform.com:443

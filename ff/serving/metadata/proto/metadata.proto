@@ -40,6 +40,16 @@ service Metadata {
     rpc SetResourceStatus(SetStatusRequest) returns (Empty);
 }
 
+service Api {
+    rpc CreateUser(User) returns (Empty);
+    rpc CreateProvider(Provider) returns (Empty);
+    rpc CreateSourceVariant(SourceVariant) returns (Empty);
+    rpc CreateEntity(Entity) returns (Empty);
+    rpc CreateFeatureVariant(FeatureVariant) returns (Empty);
+    rpc CreateLabelVariant(LabelVariant) returns (Empty);
+    rpc CreateTrainingSetVariant(TrainingSetVariant) returns (Empty);
+}
+
 message Name {
     string name = 1;
 }

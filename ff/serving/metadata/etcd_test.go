@@ -744,11 +744,11 @@ func TestEtcdConfig_GetWithPrefix(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			config := EtcdConfig{[]EtcdNode{{Host: "localhost", Port: "2379"}}}
 			client, err := config.initClient()
+      if err != nil {
+				t.Fatalf("GetWithPrefix() could not initialize client: %s", err)
+			}
 			store := EtcdStorage{
 				Client: client,
-			}
-			if err != nil {
-				t.Fatalf("GetWithPrefix() could not initialize client: %s", err)
 			}
 			got, err := store.GetWithPrefix(tt.args.key)
 			if (err != nil) != tt.wantErr {
@@ -783,11 +783,11 @@ func TestEtcdConfig_GetCountWithPrefix(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			config := EtcdConfig{[]EtcdNode{{Host: "localhost", Port: "2379"}}}
 			client, err := config.initClient()
+      if err != nil {
+				t.Fatalf("GetCountWithPrefix() could not initialize client: %s", err)
+			}
 			store := EtcdStorage{
 				Client: client,
-			}
-			if err != nil {
-				t.Fatalf("GetCountWithPrefix() could not initialize client: %s", err)
 			}
 			got, err := store.GetCountWithPrefix(tt.args.key)
 			if (err != nil) != tt.wantErr {
@@ -826,11 +826,11 @@ func TestEtcdConfig_ParseResource(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			config := EtcdConfig{[]EtcdNode{{Host: "localhost", Port: "2379"}}}
 			client, err := config.initClient()
+      if err != nil {
+				t.Fatalf("ParseResource() could not initialize client: %s", err)
+			}
 			store := EtcdStorage{
 				Client: client,
-			}
-			if err != nil {
-				t.Fatalf("ParseResource() could not initialize client: %s", err)
 			}
 			got, err := store.ParseResource(tt.args.res, tt.args.resType)
 			if (err != nil) != tt.wantErr {

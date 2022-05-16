@@ -81,13 +81,13 @@ func Test_etcdResourceLookup_Set(t *testing.T) {
 				Client: client,
 			}
 			if err != nil {
-				t.Errorf("Set() could not initialize client: %s", err)
+				t.Fatalf("Set() could not initialize client: %s", err)
 			}
 			lookup := etcdResourceLookup{
 				connection: store,
 			}
 			if err := lookup.Set(tt.args.id, tt.args.res); (err != nil) != tt.wantErr {
-				t.Errorf("Set() error = %v, wantErr %v", err, tt.wantErr)
+				t.Fatalf("Set() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
 			newclient, err := clientv3.New(clientv3.Config{
@@ -101,7 +101,7 @@ func Test_etcdResourceLookup_Set(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 			resp, err := newclient.Get(ctx, createKey(tt.args.id))
 			if err != nil {
-				t.Errorf("Could not get from client: %v", err)
+				t.Fatalf("Could not get from client: %v", err)
 			}
 			cancel()
 			value := resp.Kvs[0].Value
@@ -117,7 +117,7 @@ func Test_etcdResourceLookup_Set(t *testing.T) {
 				log.Fatalln("Failed to parse:", err)
 			}
 			if !proto.Equal(args1.res.Proto(), resource.Proto()) {
-				t.Errorf("Set() Expected: %v, Received: %v", args1.res.Proto(), resource.Proto())
+				t.Fatalf("Set() Expected: %v, Received: %v", args1.res.Proto(), resource.Proto())
 			}
 		})
 	}
@@ -159,7 +159,7 @@ func Test_etcdResourceLookup_Lookup(t *testing.T) {
 			DialTimeout: time.Second * 1,
 		})
 		if err != nil {
-			t.Errorf("Could not create new etcd client: %v", err)
+			t.Fatalf("Could not create new etcd client: %v", err)
 		}
 		p, _ := proto.Marshal(doWant.Proto())
 		msg := EtcdRow{
@@ -170,12 +170,12 @@ func Test_etcdResourceLookup_Lookup(t *testing.T) {
 
 		strmsg, err := json.Marshal(msg)
 		if err != nil {
-			t.Errorf("Could not marshall string message: %v", err)
+			t.Fatalf("Could not marshall string message: %v", err)
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 		_, err = newclient.Put(ctx, createKey(args1), string(strmsg))
 		if err != nil {
-			t.Errorf("Could not put key: %v", err)
+			t.Fatalf("Could not put key: %v", err)
 		}
 		cancel()
 
@@ -185,7 +185,7 @@ func Test_etcdResourceLookup_Lookup(t *testing.T) {
 				Client: client,
 			}
 			if err != nil {
-				t.Errorf("Lookup() could not initialize client: %s", err)
+				t.Fatalf("Lookup() could not initialize client: %s", err)
 			}
 			lookup := etcdResourceLookup{
 				connection: store,
@@ -193,11 +193,11 @@ func Test_etcdResourceLookup_Lookup(t *testing.T) {
 			got, err := lookup.Lookup(tt.args.id)
 
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Lookup() error = %v, wantErr %v", err, tt.wantErr)
+				t.Fatalf("Lookup() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if proto.Equal(got.Proto(), tt.want.Proto()) {
-				t.Errorf("Lookup() got = %v, want %v", got.Proto(), tt.want.Proto())
+				t.Fatalf("Lookup() got = %v, want %v", got.Proto(), tt.want.Proto())
 			}
 		})
 	}
@@ -251,7 +251,7 @@ func Test_etcdResourceLookup_Has(t *testing.T) {
 				DialTimeout: time.Second * 1,
 			})
 			if err != nil {
-				t.Errorf("Could not connect to client: %v", err)
+				t.Fatalf("Could not connect to client: %v", err)
 			}
 			p, _ := proto.Marshal(doWant.Proto())
 			msg := EtcdRow{
@@ -262,12 +262,12 @@ func Test_etcdResourceLookup_Has(t *testing.T) {
 
 			strmsg, err := json.Marshal(msg)
 			if err != nil {
-				t.Errorf("Could not marshal string message: %v", err)
+				t.Fatalf("Could not marshal string message: %v", err)
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 			_, err = newclient.Put(ctx, createKey(tt.args.id), string(strmsg))
 			if err != nil {
-				t.Errorf("Could not put key: %v", err)
+				t.Fatalf("Could not put key: %v", err)
 			}
 			cancel()
 		}
@@ -277,18 +277,18 @@ func Test_etcdResourceLookup_Has(t *testing.T) {
 				Client: client,
 			}
 			if err != nil {
-				t.Errorf("Has() could not initialize client: %s", err)
+				t.Fatalf("Has() could not initialize client: %s", err)
 			}
 			lookup := etcdResourceLookup{
 				connection: store,
 			}
 			got, err := lookup.Has(tt.args.id)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Has() error = %v, wantErr %v", err, tt.wantErr)
+				t.Fatalf("Has() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("Has() got = %v, want %v", got, tt.want)
+				t.Fatalf("Has() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -337,7 +337,7 @@ func Test_etcdResourceLookup_ListForType(t *testing.T) {
 		DialTimeout: time.Second * 1,
 	})
 	if err != nil {
-		t.Errorf("Could not create new client: %v", err)
+		t.Fatalf("Could not create new client: %v", err)
 	}
 	for _, res := range featureResources {
 		p, _ := proto.Marshal(res.Proto())
@@ -348,12 +348,12 @@ func Test_etcdResourceLookup_ListForType(t *testing.T) {
 		}
 		strmsg, err := json.Marshal(msg)
 		if err != nil {
-			t.Errorf("Could not marshal string message: %v", err)
+			t.Fatalf("Could not marshal string message: %v", err)
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 		_, err = newclient.Put(ctx, createKey(res.ID()), string(strmsg))
 		if err != nil {
-			t.Errorf("Could not put key: %v", err)
+			t.Fatalf("Could not put key: %v", err)
 		}
 		cancel()
 	}
@@ -365,19 +365,19 @@ func Test_etcdResourceLookup_ListForType(t *testing.T) {
 				Client: client,
 			}
 			if err != nil {
-				t.Errorf("ListForType() could not initialize client: %s", err)
+				t.Fatalf("ListForType() could not initialize client: %s", err)
 			}
 			lookup := etcdResourceLookup{
 				connection: store,
 			}
 			got, err := lookup.ListForType(tt.args.t)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("ListForType() error = %v, wantErr %v", err, tt.wantErr)
+				t.Fatalf("ListForType() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			for i, r := range got {
 				if !proto.Equal(r.Proto(), tt.want[i].Proto()) {
-					t.Errorf("ListForType() got = %v, want %v", r.Proto(), tt.want[i].Proto())
+					t.Fatalf("ListForType() got = %v, want %v", r.Proto(), tt.want[i].Proto())
 				}
 			}
 		})
@@ -396,7 +396,7 @@ func Test_etcdResourceLookup_List(t *testing.T) {
 		DialTimeout: time.Second * 1,
 	})
 	if err != nil {
-		t.Errorf("Could not create new client: %v", err)
+		t.Fatalf("Could not create new client: %v", err)
 	}
 	type fields struct {
 		Etcd EtcdConfig
@@ -434,12 +434,12 @@ func Test_etcdResourceLookup_List(t *testing.T) {
 		}
 		strmsg, err := json.Marshal(msg)
 		if err != nil {
-			t.Errorf("Could not marshal string message: %v", err)
+			t.Fatalf("Could not marshal string message: %v", err)
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 		_, err = newclient.Put(ctx, createKey(res.ID()), string(strmsg))
 		if err != nil {
-			t.Errorf("Could not put key: %v", err)
+			t.Fatalf("Could not put key: %v", err)
 		}
 		cancel()
 	}
@@ -451,19 +451,19 @@ func Test_etcdResourceLookup_List(t *testing.T) {
 				Client: client,
 			}
 			if err != nil {
-				t.Errorf("List() could not initialize client: %s", err)
+				t.Fatalf("List() could not initialize client: %s", err)
 			}
 			lookup := etcdResourceLookup{
 				connection: store,
 			}
 			got, err := lookup.List()
 			if (err != nil) != tt.wantErr {
-				t.Errorf("List() error = %v, wantErr %v", err, tt.wantErr)
+				t.Fatalf("List() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			for i, r := range got {
 				if !proto.Equal(r.Proto(), tt.want[i].Proto()) {
-					t.Errorf("List() got = %v, want %v", r.Proto(), tt.want[i].Proto())
+					t.Fatalf("List() got = %v, want %v", r.Proto(), tt.want[i].Proto())
 				}
 			}
 		})
@@ -482,7 +482,7 @@ func Test_etcdResourceLookup_Submap(t *testing.T) {
 		DialTimeout: time.Second * 1,
 	})
 	if err != nil {
-		t.Errorf("Could not connect to client: %v", err)
+		t.Fatalf("Could not connect to client: %v", err)
 	}
 	type fields struct {
 		Etcd EtcdConfig
@@ -535,13 +535,13 @@ func Test_etcdResourceLookup_Submap(t *testing.T) {
 		}
 		strmsg, err := json.Marshal(msg)
 		if err != nil {
-			t.Errorf("Could not marshal string message %v", err)
+			t.Fatalf("Could not marshal string message %v", err)
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 		_, err = client.Put(ctx, createKey(res.ID()), string(strmsg))
 		cancel()
 		if err != nil {
-			t.Errorf("Could not put key: %v", err)
+			t.Fatalf("Could not put key: %v", err)
 		}
 	}
 	for _, tt := range tests {
@@ -553,7 +553,7 @@ func Test_etcdResourceLookup_Submap(t *testing.T) {
 				Client: client,
 			}
 			if err != nil {
-				t.Errorf("Submap() could not initialize client: %s", err)
+				t.Fatalf("Submap() could not initialize client: %s", err)
 			}
 			lookup := etcdResourceLookup{
 				connection: store,
@@ -561,19 +561,19 @@ func Test_etcdResourceLookup_Submap(t *testing.T) {
 
 			got, err := lookup.Submap(tt.args.ids)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Submap() error = %v, wantErr %v", err, tt.wantErr)
+				t.Fatalf("Submap() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 
 			elem, err := got.List()
 			if err != nil {
-				t.Errorf("Could not get list from submap: %v", err)
+				t.Fatalf("Could not get list from submap: %v", err)
 			}
 
 			for _, res := range elem {
 				if err != nil {
-					t.Errorf("%s\n", err)
-					t.Errorf("Submap(): Error with lookup:  %v\n", res.Proto())
+					t.Fatalf("%s\n", err)
+					t.Fatalf("Submap(): Error with lookup:  %v\n", res.Proto())
 				}
 				has := false
 				for _, expected := range featureResources {
@@ -583,7 +583,7 @@ func Test_etcdResourceLookup_Submap(t *testing.T) {
 					}
 				}
 				if !has {
-					t.Errorf("Submap() item not in expected list:\ngot:  %v\n ", res.Proto())
+					t.Fatalf("Submap() item not in expected list:\ngot:  %v\n ", res.Proto())
 				}
 
 			}
@@ -629,18 +629,18 @@ func Test_etcdResourceLookup_findResourceType(t *testing.T) {
 				Client: client,
 			}
 			if err != nil {
-				t.Errorf("createEmptyResource() could not initialize client: %s", err)
+				t.Fatalf("createEmptyResource() could not initialize client: %s", err)
 			}
 			lookup := etcdResourceLookup{
 				connection: store,
 			}
 			got, err := lookup.createEmptyResource(tt.args.t)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("createEmptyResource() error = %v, wantErr %v", err, tt.wantErr)
+				t.Fatalf("createEmptyResource() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("createEmptyResource() got = %v, want %v", got, tt.want)
+				t.Fatalf("createEmptyResource() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -672,11 +672,11 @@ func TestEtcdConfig_Put(t *testing.T) {
 			config := EtcdConfig{[]EtcdNode{{Host: tt.fields.Host, Port: tt.fields.Port}}}
 			c, err := config.initClient()
 			if err != nil {
-				t.Errorf("Put() could not initialize client: %s", err)
+				t.Fatalf("Put() could not initialize client: %s", err)
 			}
 			client := EtcdStorage{c}
 			if err := client.Put(tt.args.key, tt.args.value); (err != nil) != tt.wantErr {
-				t.Errorf("Put() error = %v, wantErr %v", err, tt.wantErr)
+				t.Fatalf("Put() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
@@ -708,16 +708,16 @@ func TestEtcdConfig_Get(t *testing.T) {
 			config := EtcdConfig{[]EtcdNode{{Host: tt.fields.Host, Port: tt.fields.Port}}}
 			c, err := config.initClient()
 			if err != nil {
-				t.Errorf("Get() could not initialize client: %s", err)
+				t.Fatalf("Get() could not initialize client: %s", err)
 			}
 			client := EtcdStorage{c}
 			got, err := client.Get(tt.args.key)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Get() error = %v, wantErr %v", err, tt.wantErr)
+				t.Fatalf("Get() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Get() got = %v, want %v", got, tt.want)
+				t.Fatalf("Get() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -748,15 +748,15 @@ func TestEtcdConfig_GetWithPrefix(t *testing.T) {
 				Client: client,
 			}
 			if err != nil {
-				t.Errorf("GetWithPrefix() could not initialize client: %s", err)
+				t.Fatalf("GetWithPrefix() could not initialize client: %s", err)
 			}
 			got, err := store.GetWithPrefix(tt.args.key)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("GetWithPrefix() error = %v, wantErr %v", err, tt.wantErr)
+				t.Fatalf("GetWithPrefix() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("GetWithPrefix() got = %v, want %v", got, tt.want)
+				t.Fatalf("GetWithPrefix() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -787,15 +787,15 @@ func TestEtcdConfig_GetCountWithPrefix(t *testing.T) {
 				Client: client,
 			}
 			if err != nil {
-				t.Errorf("GetCountWithPrefix() could not initialize client: %s", err)
+				t.Fatalf("GetCountWithPrefix() could not initialize client: %s", err)
 			}
 			got, err := store.GetCountWithPrefix(tt.args.key)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("GetCountWithPrefix() error = %v, wantErr %v", err, tt.wantErr)
+				t.Fatalf("GetCountWithPrefix() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("GetCountWithPrefix() got = %v, want %v", got, tt.want)
+				t.Fatalf("GetCountWithPrefix() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -830,15 +830,15 @@ func TestEtcdConfig_ParseResource(t *testing.T) {
 				Client: client,
 			}
 			if err != nil {
-				t.Errorf("ParseResource() could not initialize client: %s", err)
+				t.Fatalf("ParseResource() could not initialize client: %s", err)
 			}
 			got, err := store.ParseResource(tt.args.res, tt.args.resType)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("ParseResource() error = %v, wantErr %v", err, tt.wantErr)
+				t.Fatalf("ParseResource() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ParseResource() got = %v, want %v", got, tt.want)
+				t.Fatalf("ParseResource() got = %v, want %v", got, tt.want)
 			}
 		})
 	}

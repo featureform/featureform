@@ -351,7 +351,6 @@ func Test_etcdResourceLookup_ListForType(t *testing.T) {
 			t.Fatalf("Could not marshal string message: %v", err)
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
-		fmt.Println(createKey(res.ID()))
 		_, err = newclient.Put(ctx, createKey(res.ID()), string(strmsg))
 		if err != nil {
 			t.Fatalf("Could not put key: %v", err)

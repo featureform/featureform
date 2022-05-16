@@ -49,7 +49,9 @@ func (r ResourceType) String() string {
 	return pb.MetadataResourceType_name[int32(r)]
 }
 
-type ResourceStatus string
+func (r ResourceType) Serialized() pb.MetadataResourceType {
+	return pb.MetadataResourceType(r)
+}
 
 var parentMapping = map[ResourceType]ResourceType{
 	FEATURE_VARIANT:      FEATURE,

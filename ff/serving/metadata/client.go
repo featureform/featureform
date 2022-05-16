@@ -582,7 +582,7 @@ type SourceDef struct {
 }
 
 type SourceType interface {
-	isSourceType()
+	isSourceType() bool
 }
 
 func (t TransformationSource) isSourceType() bool {
@@ -604,7 +604,7 @@ type TransformationSource struct {
 }
 
 type TransformationType interface {
-	IsTransformationType()
+	IsTransformationType() bool
 }
 
 type SQLTransformationType struct {
@@ -617,7 +617,7 @@ type PrimaryDataSource struct {
 }
 
 type PrimaryDataLocationType interface {
-	isPrimaryData()
+	isPrimaryData() bool
 }
 
 type SQLTable struct {

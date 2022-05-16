@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-
 	db "github.com/jackc/pgx/v4"
 	"go.uber.org/zap"
 

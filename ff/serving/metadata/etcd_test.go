@@ -32,7 +32,7 @@ func (etcd *Etcd) init() {
 		DialTimeout: time.Second * 1,
 	})
 	if err != nil {
-		t.Errorf(err)
+		log.Fatalf("Could not connect to etcd client: %v", err)
 	}
 	etcd.client = client
 }
@@ -42,7 +42,7 @@ func (etcd *Etcd) clearDatabase() {
 	_, err := etcd.client.Delete(ctx, "", clientv3.WithPrefix())
 	cancel()
 	if err != nil {
-		t.Errorf(err)
+		log.Fatalf("Could not clear database: %v", err)
 	}
 }
 
@@ -101,7 +101,7 @@ func Test_etcdResourceLookup_Set(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 			resp, err := newclient.Get(ctx, createKey(tt.args.id))
 			if err != nil {
-				t.Errorf(err)
+				t.Errorf("Could not get from client: %v", err)
 			}
 			cancel()
 			value := resp.Kvs[0].Value
@@ -159,7 +159,7 @@ func Test_etcdResourceLookup_Lookup(t *testing.T) {
 			DialTimeout: time.Second * 1,
 		})
 		if err != nil {
-			fmt.Println(err)
+			t.Errorf("Could not create new etcd client: %v", err)
 		}
 		p, _ := proto.Marshal(doWant.Proto())
 		msg := EtcdRow{
@@ -167,18 +167,15 @@ func Test_etcdResourceLookup_Lookup(t *testing.T) {
 			Message:      p,
 			StorageType:  RESOURCE,
 		}
-		if err != nil {
-			t.Errorf(err)
-		}
 
 		strmsg, err := json.Marshal(msg)
 		if err != nil {
-			t.Errorf(err)
+			t.Errorf("Could not marshall string message: %v", err)
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 		_, err = newclient.Put(ctx, createKey(args1), string(strmsg))
 		if err != nil {
-			t.Errorf(err)
+			t.Errorf("Could not put key: %v", err)
 		}
 		cancel()
 
@@ -254,7 +251,7 @@ func Test_etcdResourceLookup_Has(t *testing.T) {
 				DialTimeout: time.Second * 1,
 			})
 			if err != nil {
-				fmt.Println(err)
+				t.Errorf("Could not connect to client: %v", err)
 			}
 			p, _ := proto.Marshal(doWant.Proto())
 			msg := EtcdRow{
@@ -262,18 +259,15 @@ func Test_etcdResourceLookup_Has(t *testing.T) {
 				Message:      p,
 				StorageType:  RESOURCE,
 			}
-			if err != nil {
-				t.Errorf(err)
-			}
 
 			strmsg, err := json.Marshal(msg)
 			if err != nil {
-				t.Errorf(err)
+				t.Errorf("Could not marshal string message: %v", err)
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 			_, err = newclient.Put(ctx, createKey(tt.args.id), string(strmsg))
 			if err != nil {
-				t.Errorf(err)
+				t.Errorf("Could not put key: %v", err)
 			}
 			cancel()
 		}
@@ -343,7 +337,7 @@ func Test_etcdResourceLookup_ListForType(t *testing.T) {
 		DialTimeout: time.Second * 1,
 	})
 	if err != nil {
-		fmt.Println(err)
+		t.Errorf("Could not create new client: %v", err)
 	}
 	for _, res := range featureResources {
 		p, _ := proto.Marshal(res.Proto())
@@ -352,17 +346,14 @@ func Test_etcdResourceLookup_ListForType(t *testing.T) {
 			Message:      p,
 			StorageType:  RESOURCE,
 		}
-		if err != nil {
-			t.Errorf(err)
-		}
 		strmsg, err := json.Marshal(msg)
 		if err != nil {
-			t.Errorf(err)
+			t.Errorf("Could not marshal string message: %v", err)
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 		_, err = newclient.Put(ctx, createKey(res.ID()), string(strmsg))
 		if err != nil {
-			t.Errorf(err)
+			t.Errorf("Could not put key: %v", err)
 		}
 		cancel()
 	}
@@ -405,7 +396,7 @@ func Test_etcdResourceLookup_List(t *testing.T) {
 		DialTimeout: time.Second * 1,
 	})
 	if err != nil {
-		t.Errorf(err)
+		t.Errorf("Could not create new client: %v", err)
 	}
 	type fields struct {
 		Etcd EtcdConfig
@@ -443,12 +434,12 @@ func Test_etcdResourceLookup_List(t *testing.T) {
 		}
 		strmsg, err := json.Marshal(msg)
 		if err != nil {
-			t.Errorf(err)
+			t.Errorf("Could not marshal string message: %v", err)
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 		_, err = newclient.Put(ctx, createKey(res.ID()), string(strmsg))
 		if err != nil {
-			t.Errorf(err)
+			t.Errorf("Could not put key: %v", err)
 		}
 		cancel()
 	}
@@ -491,7 +482,7 @@ func Test_etcdResourceLookup_Submap(t *testing.T) {
 		DialTimeout: time.Second * 1,
 	})
 	if err != nil {
-		t.Errorf(err)
+		t.Errorf("Could not connect to client: %v", err)
 	}
 	type fields struct {
 		Etcd EtcdConfig
@@ -542,19 +533,15 @@ func Test_etcdResourceLookup_Submap(t *testing.T) {
 			Message:      p,
 			StorageType:  RESOURCE,
 		}
-		if err != nil {
-			t.Errorf(err)
-		}
-
 		strmsg, err := json.Marshal(msg)
 		if err != nil {
-			t.Errorf(err)
+			t.Errorf("Could not marshal string message %v", err)
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 		_, err = client.Put(ctx, createKey(res.ID()), string(strmsg))
 		cancel()
 		if err != nil {
-			t.Errorf(err)
+			t.Errorf("Could not put key: %v", err)
 		}
 	}
 	for _, tt := range tests {
@@ -580,7 +567,7 @@ func Test_etcdResourceLookup_Submap(t *testing.T) {
 
 			elem, err := got.List()
 			if err != nil {
-				t.Errorf(err)
+				t.Errorf("Could not get list from submap: %v", err)
 			}
 
 			for _, res := range elem {

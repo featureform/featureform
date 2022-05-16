@@ -585,11 +585,19 @@ type SourceType interface {
 	isSourceType()
 }
 
-func (t TransformationSource) isSourceType() {}
-func (t PrimaryDataSource) isSourceType()    {}
+func (t TransformationSource) isSourceType() bool {
+	return true
+}
+func (t PrimaryDataSource) isSourceType() bool {
+	return true
+}
 
-func (t SQLTransformationType) IsTransformationType() {}
-func (t SQLTable) isPrimaryData()                     {}
+func (t SQLTransformationType) IsTransformationType() bool {
+	return true
+}
+func (t SQLTable) isPrimaryData() bool {
+	return true
+}
 
 type TransformationSource struct {
 	TransformationType TransformationType

@@ -363,7 +363,7 @@ func (lookup etcdResourceLookup) Submap(ids []ResourceID) (ResourceLookup, error
 
 func (lookup etcdResourceLookup) ListForType(t ResourceType) ([]Resource, error) {
 	resources := make([]Resource, 0)
-	resp, err := lookup.connection.GetWithPrefix(string(t))
+	resp, err := lookup.connection.GetWithPrefix(t.String())
 	if err != nil {
 		return nil, err
 	}

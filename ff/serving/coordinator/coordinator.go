@@ -53,10 +53,10 @@ func (c *Coordinator) AwaitPendingSource(sourceNameVariant metadata.NameVariant,
 			return nil, err
 		}
 		sourceStatus := source.Status()
-		if sourceStatus.Status == pb.ResourceStatus_FAILED {
+		if sourceStatus == metadata.FAILED {
 			return nil, fmt.Errorf("source of feature not ready")
 		}
-		if sourceStatus.Status == pb.ResourceStatus_READY {
+		if sourceStatus == metadata.READY {
 			return source, nil
 		}
 		elapsed = time.Since(start)
@@ -158,7 +158,7 @@ func (c *Coordinator) mapNameVariantsToTables(sources []metadata.NameVariant) (m
 		if err != nil {
 			return nil, err
 		}
-		if source.Status().Status != pb.ResourceStatus_READY {
+		if source.Status() != metadata.READY {
 			return nil, fmt.Errorf("source in query not ready")
 		}
 		providerResourceID := provider.ResourceID{Name: source.Name(), Variant: source.Variant()}
@@ -189,10 +189,10 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 		total := len(sourceVariants)
 		totalReady := 0
 		for _, sourceVariant := range sourceVariants {
-			if sourceVariant.Status().Status == pb.ResourceStatus_READY {
+			if sourceVariant.Status() == metadata.READY {
 				totalReady += 1
 			}
-			if sourceVariant.Status().Status == pb.ResourceStatus_FAILED {
+			if sourceVariant.Status() == metadata.FAILED {
 				return err
 			}
 		}
@@ -269,8 +269,8 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID) error 
 	}
 	status := feature.Status()
 	featureType := feature.Type()
-	if status.Status == pb.ResourceStatus_READY || status.Status == pb.ResourceStatus_FAILED {
-		return fmt.Errorf("feature already set to %s", metadata.ResourceStatus(status.Status))
+	if status == metadata.READY || status == metadata.FAILED {
+		return fmt.Errorf("feature already set to %s", status.String())
 	}
 	if err := c.Metadata.SetStatus(context.Background(), resID, pb.ResourceStatus{Status: pb.ResourceStatus_PENDING}); err != nil {
 		return err
@@ -339,8 +339,8 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID) error {
 		return err
 	}
 	status := ts.Status()
-	if status.Status == pb.ResourceStatus_READY || status.Status == pb.ResourceStatus_FAILED {
-		return fmt.Errorf("training Set already set to %s", metadata.ResourceStatus(status.Status))
+	if status == metadata.READY || status == metadata.FAILED {
+		return fmt.Errorf("training Set already set to %s", status.String())
 	}
 	if err := c.Metadata.SetStatus(context.Background(), resID, pb.ResourceStatus{Status: pb.ResourceStatus_PENDING}); err != nil {
 		return err

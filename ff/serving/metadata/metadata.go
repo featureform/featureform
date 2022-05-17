@@ -64,7 +64,7 @@ const (
 )
 
 func (r ResourceStatus) String() string {
-	return pb.MetadataResourceType_name[int32(r)]
+	return pb.ResourceStatus_Status_name[int32(r)]
 }
 
 func (r ResourceStatus) Serialized() pb.ResourceStatus_Status {

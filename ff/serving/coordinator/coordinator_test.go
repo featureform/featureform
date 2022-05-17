@@ -886,16 +886,16 @@ func TestCoordinatorCalls(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not set up metadata client: %v", err)
 	}
-	if err := testCoordinatorMaterializeFeature(); err != nil {
+	if err := testCoordinatorMaterializeFeature(addr); err != nil {
 		t.Fatalf("coordinator could not materialize feature: %v", err)
 	}
-	if err := testCoordinatorTrainingSet(); err != nil {
+	if err := testCoordinatorTrainingSet(addr); err != nil {
 		t.Fatalf("coordinator could not create training set: %v", err)
 	}
-	if err := testRegisterPrimaryTableFromSource(); err != nil {
+	if err := testRegisterPrimaryTableFromSource(addr); err != nil {
 		t.Fatalf("coordinator could not register primary table from source: %v", err)
 	}
-	if err := testRegisterTransformationFromSource(); err != nil {
+	if err := testRegisterTransformationFromSource(addr); err != nil {
 		t.Fatalf("coordinator could not register transformation from source and transformation: %v", err)
 	}
 	serv.Stop()
@@ -1112,12 +1112,12 @@ func createTrainingSetWithProvider(client *metadata.Client, config provider.Seri
 	return nil
 }
 
-func testCoordinatorTrainingSet() error {
+func testCoordinatorTrainingSet(addr string) error {
 	if err := runner.RegisterFactory(string(runner.CREATE_TRAINING_SET), runner.TrainingSetRunnerFactory); err != nil {
 		return fmt.Errorf("Failed to register training set runner factory: %v", err)
 	}
 	logger := zap.NewExample().Sugar()
-	client, err := metadata.NewClient("localhost:8080", logger)
+	client, err := metadata.NewClient(addr, logger)
 	if err != nil {
 		return fmt.Errorf("Failed to connect: %v", err)
 	}
@@ -1224,12 +1224,12 @@ func testCoordinatorTrainingSet() error {
 	return nil
 }
 
-func testCoordinatorMaterializeFeature() error {
+func testCoordinatorMaterializeFeature(addr string) error {
 	if err := runner.RegisterFactory(string(runner.COPY_TO_ONLINE), runner.MaterializedChunkRunnerFactory); err != nil {
 		return fmt.Errorf("Failed to register training set runner factory: %v", err)
 	}
 	logger := zap.NewExample().Sugar()
-	client, err := metadata.NewClient("localhost:8080", logger)
+	client, err := metadata.NewClient(addr, logger)
 	if err != nil {
 		return fmt.Errorf("Failed to connect: %v", err)
 	}
@@ -1358,9 +1358,9 @@ func CreateOriginalPostgresTable(tableName string) error {
 	return nil
 }
 
-func testRegisterPrimaryTableFromSource() error {
+func testRegisterPrimaryTableFromSource(addr string) error {
 	logger := zap.NewExample().Sugar()
-	client, err := metadata.NewClient("localhost:8080", logger)
+	client, err := metadata.NewClient(addr, logger)
 	if err != nil {
 		return fmt.Errorf("Failed to connect: %v", err)
 	}
@@ -1454,10 +1454,10 @@ func testRegisterPrimaryTableFromSource() error {
 	return nil
 }
 
-func testRegisterTransformationFromSource() error {
+func testRegisterTransformationFromSource(addr string) error {
 	/////////// this code is copied from the above, make into its own function
 	logger := zap.NewExample().Sugar()
-	client, err := metadata.NewClient("localhost:8080", logger)
+	client, err := metadata.NewClient(addr, logger)
 	if err != nil {
 		return fmt.Errorf("Failed to connect: %v", err)
 	}

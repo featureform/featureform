@@ -106,20 +106,6 @@ func (sf *sqlConfig) Serialize() []byte {
 	return conf
 }
 
-//
-//func sqlOfflineStoreFactory(config SerializedConfig) (Provider, error) {
-//	sc := sqlConfig{}
-//	if err := sc.Deserialize(config); err != nil {
-//		return nil, errors.New("invalid sql config")
-//	}
-//
-//	store, err := NewSQLOfflineStore(sc)
-//	if err != nil {
-//		return nil, err
-//	}
-//	return store, nil
-//}
-
 // NewPostgresOfflineStore creates a connection to a postgres database
 // and initializes a table to track currently active Resource tables.
 func NewSQLOfflineStore(config SQLOfflineStore) (*sqlOfflineStore, error) {
@@ -178,7 +164,6 @@ func (store *sqlOfflineStore) tableExists(id ResourceID) (bool, error) {
 		tableName = GetTransformationName(id)
 	}
 	query := store.query.tableExists()
-	//err := store.db.QueryRow(`SELECT COUNT(*) FROM information_schema.tables WHERE table_name = ?`, tableName).Scan(&n)
 	err := store.db.QueryRow(query, tableName).Scan(&n)
 	if n == 0 {
 		return false, nil
@@ -210,38 +195,10 @@ func (store *sqlOfflineStore) RegisterResourceFromSourceTable(id ResourceID, sch
 		if err := store.query.registerResourcesFromSourceTableNoTS(store.db, tableName, schema); err != nil {
 			return nil, err
 		}
-		//query := fmt.Sprintf("CREATE TABLE %s AS SELECT IDENTIFIER('%s') as entity, IDENTIFIER('%s') as value, null::TIMESTAMP_NTZ as ts FROM TABLE('%s')", sanitize(tableName),
-		//	schema.Entity, schema.Value, sanitize(schema.SourceTable))
-		//if _, err := store.db.Exec(query); err != nil {
-		//	fmt.Println("1:", err)
-		//	return nil, err
-		//}
-		//query = fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT  %s  UNIQUE (entity, ts)", sanitize(tableName), sanitize(uuid.NewString()))
-		//if _, err := store.db.Exec(query); err != nil {
-		//	fmt.Println("2:", err)
-		//	return nil, err
-		//}
-		//// Populates empty column with timestamp
-		//update := fmt.Sprintf("UPDATE %s SET ts = ?", sanitize(tableName))
-		//if _, err := store.db.Exec(update, time.UnixMilli(0).UTC()); err != nil {
-		//	fmt.Println("3:", err)
-		//	return nil, err
-		//}
 	} else {
 		if err := store.query.registerResourcesFromSourceTableWithTS(store.db, tableName, schema); err != nil {
 			return nil, err
 		}
-		//query := fmt.Sprintf("CREATE TABLE %s AS SELECT IDENTIFIER('%s') as entity,  IDENTIFIER('%s') as value,  IDENTIFIER('%s') as ts FROM TABLE('%s')", sanitize(tableName),
-		//	schema.Entity, schema.Value, schema.TS, sanitize(schema.SourceTable))
-		//if _, err := store.db.Exec(query); err != nil {
-		//	fmt.Println("4:", err)
-		//	return nil, err
-		//}
-		//query = fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT  %s  UNIQUE (entity, ts)", sanitize(tableName), sanitize(uuid.NewString()))
-		//if _, err := store.db.Exec(query); err != nil {
-		//	fmt.Println("5:", err)
-		//	return nil, err
-		//}
 	}
 
 	return &sqlOfflineTable{
@@ -262,14 +219,10 @@ func (store *sqlOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sour
 	}
 	tableName := GetPrimaryTableName(id)
 	query := store.query.createPrimaryFromSourceTableQuery(tableName, sourceName)
-	//query := fmt.Sprintf("CREATE TABLE %s AS SELECT * FROM TABLE('%s')", sanitize(tableName), sanitize(sourceName))
 	if _, err := store.db.Exec(query); err != nil {
 		return nil, err
 	}
 	columnQuery := store.query.getColumnNames()
-	//rows, err := store.db.Query(
-	//	"SELECT column_name FROM information_schema.columns WHERE table_name = ? order by ordinal_position",
-	//	tableName)
 	rows, err := store.db.Query(columnQuery, tableName)
 	defer rows.Close()
 	if err != nil {
@@ -345,30 +298,6 @@ func (store *sqlOfflineStore) createsqlPrimaryTableQuery(name string, schema Tab
 	//return fmt.Sprintf("CREATE TABLE %s ( %s )", sanitize(name), columnString), nil
 }
 
-// determineColumnType returns an acceptable Postgres column Type to use for the given value
-//func determinesqlColumnType(valueType ValueType) (string, error) {
-//	switch valueType {
-//	case Int, Int32, Int64:
-//		return "INT", nil
-//	case Float32, Float64:
-//		return "FLOAT8", nil
-//	case String:
-//		return "VARCHAR", nil
-//	case Bool:
-//		return "BOOLEAN", nil
-//	case Timestamp:
-//		return "TIMESTAMP_NTZ", nil
-//	case NilType:
-//		return "VARCHAR", nil
-//	default:
-//		return "", fmt.Errorf("cannot find column type for value type: %s", valueType)
-//	}
-//}
-
-//func GetPrimaryTableName(id ResourceID) string {
-//	return fmt.Sprintf("featureform_primary_%s_%s", id.Name, id.Variant)
-//}
-
 func (store *sqlOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error) {
 	name := GetPrimaryTableName(id)
 	if exists, err := store.tableExists(id); err != nil {
@@ -378,9 +307,6 @@ func (store *sqlOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, erro
 	}
 	columnQuery := store.query.getColumnNames()
 	rows, err := store.db.Query(columnQuery, name)
-	//rows, err := store.db.Query(
-	//	"SELECT column_name FROM information_schema.columns WHERE table_name = ? order by ordinal_position",
-	//	name)
 	defer rows.Close()
 	if err != nil {
 		return nil, err
@@ -410,9 +336,6 @@ func (store *sqlOfflineStore) GetTransformationTable(id ResourceID) (Transformat
 	}
 	columnQuery := store.query.getColumnNames()
 	rows, err := store.db.Query(columnQuery, name)
-	//rows, err := store.db.Query(
-	//	"SELECT column_name FROM information_schema.columns WHERE table_name = ? order by ordinal_position",
-	//	name)
 	defer rows.Close()
 	if err != nil {
 		return nil, err
@@ -505,17 +428,11 @@ func (mat *sqlMaterialization) NumRows() (int64, error) {
 		return 0, nil
 	}
 	return intVar, nil
-	//if intVar, err := strconv.Atoi(n.(string)); err != nil {
-	//	return 0, err
-	//} else {
-	//	return int64(intVar), nil
-	//}
+
 }
 
 func (mat *sqlMaterialization) IterateSegment(start, end int64) (FeatureIterator, error) {
 	query := mat.query.materializationIterateSegment(mat.tableName)
-	//query := fmt.Sprintf(""+
-	//	"SELECT entity, value, ts FROM ( SELECT * FROM %s WHERE row_number>? AND row_number<=?)", sanitize(mat.tableName))
 
 	rows, err := mat.db.Query(query, start, end)
 	if err != nil {

@@ -1123,7 +1123,7 @@ func testCoordinatorTrainingSet() error {
 	if err != nil {
 		return fmt.Errorf("could not get training set")
 	}
-	if tsCreated.Status().Status != pb.ResourceStatus_CREATED {
+	if tsCreated.Status() != metadata.CREATED {
 		return fmt.Errorf("Training set not set to created with no coordinator running")
 	}
 	memJobSpawner := MemoryJobSpawner{}
@@ -1143,7 +1143,7 @@ func testCoordinatorTrainingSet() error {
 	if err != nil {
 		return fmt.Errorf("could not get training set variant")
 	}
-	if pb.ResourceStatus_READY != ts_complete.Status().Status {
+	if metadata.READY != ts_complete.Status() {
 		return fmt.Errorf("Training set not set to ready once job completes")
 	}
 	if err := coord.runTrainingSetJob(tsID); err == nil {
@@ -1242,7 +1242,7 @@ func testCoordinatorMaterializeFeature() error {
 	if err != nil {
 		return fmt.Errorf("could not get feature: %v", err)
 	}
-	if featureCreated.Status().Status != pb.ResourceStatus_CREATED {
+	if featureCreated.Status() != metadata.CREATED {
 		return fmt.Errorf("Feature not set to created with no coordinator running")
 	}
 	memJobSpawner := MemoryJobSpawner{}
@@ -1262,7 +1262,7 @@ func testCoordinatorMaterializeFeature() error {
 	if err != nil {
 		return fmt.Errorf("could not get feature variant")
 	}
-	if pb.ResourceStatus_READY != featureComplete.Status().Status {
+	if metadata.READY != featureComplete.Status() {
 		return fmt.Errorf("Feature not set to ready once job completes")
 	}
 	resourceTable, err := onlineStore.GetTable(featureName, "")
@@ -1336,7 +1336,7 @@ func testRegisterPrimaryTableFromSource() error {
 	if err != nil {
 		return fmt.Errorf("could not get source: %v", err)
 	}
-	if sourceCreated.Status().Status != pb.ResourceStatus_CREATED {
+	if sourceCreated.Status() != metadata.CREATED {
 		return fmt.Errorf("Source not set to created with no coordinator running")
 	}
 	//now we set up the coordinator and actually do shit
@@ -1358,7 +1358,7 @@ func testRegisterPrimaryTableFromSource() error {
 	if err != nil {
 		return fmt.Errorf("could not get source variant")
 	}
-	if pb.ResourceStatus_READY != sourceComplete.Status().Status {
+	if metadata.READY != sourceComplete.Status() {
 		return fmt.Errorf("source variant not set to ready once job completes")
 	}
 	providerSourceID := provider.ResourceID{Name: sourceName, Variant: "", Type: provider.Primary}
@@ -1432,7 +1432,7 @@ func testRegisterTransformationFromSource() error {
 	if err != nil {
 		return fmt.Errorf("could not get source: %v", err)
 	}
-	if sourceCreated.Status().Status != pb.ResourceStatus_CREATED {
+	if sourceCreated.Status() != metadata.CREATED {
 		return fmt.Errorf("Source not set to created with no coordinator running")
 	}
 	sourceID := metadata.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}
@@ -1448,7 +1448,7 @@ func testRegisterTransformationFromSource() error {
 	if err != nil {
 		return fmt.Errorf("could not get source variant")
 	}
-	if pb.ResourceStatus_READY != sourceComplete.Status().Status {
+	if metadata.READY != sourceComplete.Status() {
 		return fmt.Errorf("source variant not set to ready once job completes")
 	}
 	transformationQuery := fmt.Sprintf("SELECT * FROM {{%s.}}", sourceName)
@@ -1462,7 +1462,7 @@ func testRegisterTransformationFromSource() error {
 	if err != nil {
 		return fmt.Errorf("could not get transformation: %v", err)
 	}
-	if transformationCreated.Status().Status != pb.ResourceStatus_CREATED {
+	if transformationCreated.Status() != metadata.CREATED {
 		return fmt.Errorf("Transformation not set to created with no coordinator running")
 	}
 	if err := coord.executeJob(metadata.GetJobKey(transformationID)); err != nil {
@@ -1472,7 +1472,7 @@ func testRegisterTransformationFromSource() error {
 	if err != nil {
 		return fmt.Errorf("could not get source variant")
 	}
-	if pb.ResourceStatus_READY != transformationComplete.Status().Status {
+	if metadata.READY != transformationComplete.Status() {
 		return fmt.Errorf("transformation variant not set to ready once job completes")
 	}
 	providerTransformationID := provider.ResourceID{Name: transformationName, Variant: "", Type: provider.Transformation}
@@ -1522,7 +1522,7 @@ func testRegisterTransformationFromSource() error {
 	if err != nil {
 		return fmt.Errorf("could not get transformation: %v", err)
 	}
-	if joinTransformationCreated.Status().Status != pb.ResourceStatus_CREATED {
+	if joinTransformationCreated.Status() != metadata.CREATED {
 		return fmt.Errorf("Transformation not set to created with no coordinator running")
 	}
 
@@ -1533,7 +1533,7 @@ func testRegisterTransformationFromSource() error {
 	if err != nil {
 		return fmt.Errorf("could not get source variant")
 	}
-	if pb.ResourceStatus_READY != joinTransformationComplete.Status().Status {
+	if metadata.READY != joinTransformationComplete.Status() {
 		return fmt.Errorf("transformation variant not set to ready once job completes")
 	}
 	providerJoinTransformationID := provider.ResourceID{Name: transformationName, Variant: "", Type: provider.Transformation}

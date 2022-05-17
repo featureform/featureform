@@ -55,11 +55,12 @@ func postgresOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 		return nil, errors.New("invalid snowflake config")
 	}
 	sgConfig := postgresSQLConfig{
-		Username: sc.Username,
-		Password: sc.Password,
-		Host:     sc.Host,
-		Port:     sc.Port,
-		Database: sc.Database,
+		Username:   sc.Username,
+		Password:   sc.Password,
+		Host:       sc.Host,
+		Port:       sc.Port,
+		Database:   sc.Database,
+		serialized: config,
 	}
 
 	store, err := NewSQLOfflineStore(sgConfig)
@@ -70,18 +71,19 @@ func postgresOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 }
 
 type postgresSQLConfig struct {
-	Host     string
-	Port     string
-	Username string
-	Password string
-	Database string
+	Host       string
+	Port       string
+	Username   string
+	Password   string
+	Database   string
+	serialized SerializedConfig
 }
 
-func (c postgresSQLConfig) IsSQLOfflineStore() bool {
-	return true
+func (c postgresSQLConfig) getSerialized() SerializedConfig {
+	return c.serialized
 }
 
-func (c postgresSQLConfig) IsSQLProvider() bool {
+func (c postgresSQLConfig) isSQLOfflineStore() bool {
 	return true
 }
 

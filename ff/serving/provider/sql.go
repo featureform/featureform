@@ -6,7 +6,6 @@ package provider
 
 import (
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	db "github.com/jackc/pgx/v4"
@@ -19,8 +18,8 @@ func sanitize(ident string) string {
 }
 
 type SQLOfflineStore interface {
-	IsSQLOfflineStore() bool
-	IsSQLProvider() bool
+	getSerialized() SerializedConfig
+	isSQLOfflineStore() bool
 	getConnectionUrl() string
 	getDriver() string
 	getProviderType() Type
@@ -62,30 +61,6 @@ type sqlOfflineStore struct {
 	BaseProvider
 }
 
-type sqlConfig struct {
-	Username     string
-	Password     string
-	Organization string
-	Account      string
-	Database     string
-}
-
-func (sf *sqlConfig) Deserialize(config SerializedConfig) error {
-	err := json.Unmarshal(config, sf)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (sf *sqlConfig) Serialize() []byte {
-	conf, err := json.Marshal(sf)
-	if err != nil {
-		panic(err)
-	}
-	return conf
-}
-
 // NewPostgresOfflineStore creates a connection to a postgres database
 // and initializes a table to track currently active Resource tables.
 func NewSQLOfflineStore(config SQLOfflineStore) (*sqlOfflineStore, error) {
@@ -99,8 +74,8 @@ func NewSQLOfflineStore(config SQLOfflineStore) (*sqlOfflineStore, error) {
 		parent: config,
 		query:  config.getQueries(),
 		BaseProvider: BaseProvider{
-			ProviderType: config.getProviderType(),
-			//ProviderConfig: config, // Change this later
+			ProviderType:   config.getProviderType(),
+			ProviderConfig: config.getSerialized(),
 		},
 	}, nil
 }

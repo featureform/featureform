@@ -56,12 +56,13 @@ func snowflakeOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	if err := sc.Deserialize(config); err != nil {
 		return nil, errors.New("invalid snowflake config")
 	}
-	sgConfig := snowFlakeSQLConfig{
+	sgConfig := snowflakeSQLConfig{
 		Username:     sc.Username,
 		Password:     sc.Password,
 		Organization: sc.Organization,
 		Account:      sc.Account,
 		Database:     sc.Database,
+		serialized:   config,
 	}
 
 	store, err := NewSQLOfflineStore(sgConfig)
@@ -71,35 +72,36 @@ func snowflakeOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	return store, nil
 }
 
-type snowFlakeSQLConfig struct {
+type snowflakeSQLConfig struct {
 	Username     string
 	Password     string
 	Organization string
 	Account      string
 	Database     string
+	serialized   SerializedConfig
 }
 
-func (c snowFlakeSQLConfig) IsSQLOfflineStore() bool {
+func (c snowflakeSQLConfig) getSerialized() SerializedConfig {
+	return c.serialized
+}
+
+func (c snowflakeSQLConfig) isSQLOfflineStore() bool {
 	return true
 }
 
-func (c snowFlakeSQLConfig) IsSQLProvider() bool {
-	return true
-}
-
-func (c snowFlakeSQLConfig) getConnectionUrl() string {
+func (c snowflakeSQLConfig) getConnectionUrl() string {
 	return fmt.Sprintf("%s:%s@%s-%s/%s/PUBLIC", c.Username, c.Password, c.Organization, c.Account, c.Database)
 }
 
-func (c snowFlakeSQLConfig) getDriver() string {
+func (c snowflakeSQLConfig) getDriver() string {
 	return "snowflake"
 }
 
-func (c snowFlakeSQLConfig) getProviderType() Type {
+func (c snowflakeSQLConfig) getProviderType() Type {
 	return SnowflakeOffline
 }
 
-func (c snowFlakeSQLConfig) getQueries() OfflineTableQueries {
+func (c snowflakeSQLConfig) getQueries() OfflineTableQueries {
 	return snowFlakeSQLQueries{}
 }
 

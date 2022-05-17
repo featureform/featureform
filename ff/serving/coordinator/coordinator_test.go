@@ -128,7 +128,7 @@ func TestRunSQLJobError(t *testing.T) {
 		},
 	}
 	if err := coord.Metadata.CreateAll(context.Background(), defs); err != nil {
-		t.Fatalf("could not create test metadata entries")
+		t.Fatalf("could not create test metadata entries: %v", err)
 	}
 	transformSource, err := coord.Metadata.GetSourceVariant(context.Background(), metadata.NameVariant{sourceGhostDependency, ""})
 	if err != nil {
@@ -170,7 +170,7 @@ func TestFeatureMaterializeJobError(t *testing.T) {
 	sourceName := uuid.New().String()
 	originalTableName := uuid.New().String()
 	if err := materializeFeatureWithProvider(coord.Metadata, postgresConfig.Serialize(), redisConfig.Serialized(), featureName, sourceName, originalTableName); err != nil {
-		t.Fatalf("could not create example feature")
+		t.Fatalf("could not create example feature, %v", err)
 	}
 	if err := coord.Metadata.SetStatus(context.Background(), metadata.ResourceID{featureName, "", metadata.FEATURE_VARIANT}, pb.ResourceStatus{Status: pb.ResourceStatus_READY}); err != nil {
 		t.Fatalf("could not set feature to ready")

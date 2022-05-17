@@ -94,6 +94,7 @@ func TestRunSQLJobError(t *testing.T) {
 		return
 	}
 	go setupMetadataServer()
+	time.Sleep(time.Second)
 	coord, err := createNewCoordinator()
 	if err != nil {
 		t.Fatalf("could not create new basic coordinator")
@@ -153,6 +154,7 @@ func TestFeatureMaterializeJobError(t *testing.T) {
 		return
 	}
 	go setupMetadataServer()
+	time.Sleep(time.Second)
 	coord, err := createNewCoordinator()
 	if err != nil {
 		t.Fatalf("could not create new basic coordinator")

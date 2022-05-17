@@ -24,62 +24,42 @@ type SQLOfflineStore interface {
 	getConnectionUrl() string
 	getDriver() string
 	getProviderType() Type
-	getQueries() SQLQuery
+	getQueries() OfflineTableQueries
 }
 
-type SQLQuery interface {
+type OfflineTableQueries interface {
 	tableExists() string
-	registerResourcesFromSourceTableNoTS(db *sql.DB, tableName string, schema ResourceSchema) error
-	registerResourcesFromSourceTableWithTS(db *sql.DB, tableName string, schema ResourceSchema) error
-	createPrimaryFromSourceTableQuery(tableName string, sourceName string) string
+	resourceExists(tableName string) string
+	registerResourcesWithoutTS(db *sql.DB, tableName string, schema ResourceSchema) error
+	registerResourcesWithTS(db *sql.DB, tableName string, schema ResourceSchema) error
+	primaryTableFromTable(tableName string, sourceName string) string
+	primaryTableCreate(name string, columnString string) string
 	getColumnNames() string
-	createPrimaryTableQuery(name string, columnString string) string
-	createMaterialization(tableName string, resultName string) string
-	getMaterialization() string
-	deleteMaterializaion(tableName string) string
-	checkIfMaterializationExists() string
-	selectTrainingRows(columns string, trainingSetName string) string
 	getValueColumnTypes(tableName string) string
 	determineColumnType(valueType ValueType) (string, error)
-	newSQLOfflineTable(name string, columnType string) string
-	resourceExists(tableName string) string
-	writeUpdateQuery(table string) string
-	writeInsertsQuery(table string) string
-	writeExistsQuery(table string) string
+	materializationCreate(tableName string, resultName string) string
+	materializationGet() string
+	materializationDelete(tableName string) string
+	materializationExists() string
 	materializationIterateSegment(tableName string) string
+	newSQLOfflineTable(name string, columnType string) string
+	writeUpdate(table string) string
+	writeInserts(table string) string
+	writeExists(table string) string
 	createValuePlaceholderString(columns []TableColumn) string
-	createTrainingSet(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string) error
+	trainingSetCreate(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string) error
+	trainingRowSelect(columns string, trainingSetName string) string
 	castTableItemType(v interface{}, t interface{}) interface{}
 	getValueColumnType(t *sql.ColumnType) interface{}
 	numRows(n interface{}) (int64, error)
-	createTransformation(name string, query string) string
+	transformationCreate(name string, query string) string
 }
 
 type sqlOfflineStore struct {
 	db     *sql.DB
 	parent SQLOfflineStore
-	query  SQLQuery
+	query  OfflineTableQueries
 	BaseProvider
-}
-
-type sqlSchema struct {
-	ValueType
-}
-
-func (ps *sqlSchema) Serialize() []byte {
-	schema, err := json.Marshal(ps)
-	if err != nil {
-		panic(err)
-	}
-	return schema
-}
-
-func (ps *sqlSchema) Deserialize(schema SerializedTableSchema) error {
-	err := json.Unmarshal(schema, ps)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 type sqlConfig struct {
@@ -192,11 +172,11 @@ func (store *sqlOfflineStore) RegisterResourceFromSourceTable(id ResourceID, sch
 	tableName := store.getResourceTableName(id)
 
 	if schema.TS == "" {
-		if err := store.query.registerResourcesFromSourceTableNoTS(store.db, tableName, schema); err != nil {
+		if err := store.query.registerResourcesWithoutTS(store.db, tableName, schema); err != nil {
 			return nil, err
 		}
 	} else {
-		if err := store.query.registerResourcesFromSourceTableWithTS(store.db, tableName, schema); err != nil {
+		if err := store.query.registerResourcesWithTS(store.db, tableName, schema); err != nil {
 			return nil, err
 		}
 	}
@@ -218,7 +198,7 @@ func (store *sqlOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sour
 		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}
 	tableName := GetPrimaryTableName(id)
-	query := store.query.createPrimaryFromSourceTableQuery(tableName, sourceName)
+	query := store.query.primaryTableFromTable(tableName, sourceName)
 	if _, err := store.db.Exec(query); err != nil {
 		return nil, err
 	}
@@ -281,7 +261,7 @@ func (store *sqlOfflineStore) newsqlPrimaryTable(db *sql.DB, name string, schema
 	}, nil
 }
 
-// createPrimaryTableQuery creates a query for table creation based on the
+// primaryTableCreate creates a query for table creation based on the
 // specified TableSchema. Returns the query if successful. Returns an error
 // if there is an invalid column type.
 func (store *sqlOfflineStore) createsqlPrimaryTableQuery(name string, schema TableSchema) (string, error) {
@@ -294,7 +274,7 @@ func (store *sqlOfflineStore) createsqlPrimaryTableQuery(name string, schema Tab
 		columns = append(columns, fmt.Sprintf("%s %s", column.Name, columnType))
 	}
 	columnString := strings.Join(columns, ", ")
-	return store.query.createPrimaryTableQuery(name, columnString), nil
+	return store.query.primaryTableCreate(name, columnString), nil
 	//return fmt.Sprintf("CREATE TABLE %s ( %s )", sanitize(name), columnString), nil
 }
 
@@ -402,7 +382,7 @@ type sqlMaterialization struct {
 	id        MaterializationID
 	db        *sql.DB
 	tableName string
-	query     SQLQuery
+	query     OfflineTableQueries
 }
 
 func (mat *sqlMaterialization) ID() MaterializationID {
@@ -454,10 +434,10 @@ type sqlFeatureIterator struct {
 	err          error
 	currentValue ResourceRecord
 	columnType   interface{}
-	query        SQLQuery
+	query        OfflineTableQueries
 }
 
-func newsqlFeatureIterator(rows *sql.Rows, columnType interface{}, query SQLQuery) FeatureIterator {
+func newsqlFeatureIterator(rows *sql.Rows, columnType interface{}, query OfflineTableQueries) FeatureIterator {
 	return &sqlFeatureIterator{
 		rows:         rows,
 		err:          nil,
@@ -505,7 +485,7 @@ func (store *sqlOfflineStore) CreateMaterialization(id ResourceID) (Materializat
 
 	matID := MaterializationID(id.Name)
 	matTableName := store.getMaterializationTableName(matID)
-	materializeQry := store.query.createMaterialization(matTableName, resTable.name)
+	materializeQry := store.query.materializationCreate(matTableName, resTable.name)
 
 	_, err = store.db.Exec(materializeQry)
 	if err != nil {
@@ -523,7 +503,7 @@ func (store *sqlOfflineStore) CreateMaterialization(id ResourceID) (Materializat
 func (store *sqlOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
 	tableName := store.getMaterializationTableName(id)
 
-	getMatQry := store.query.getMaterialization()
+	getMatQry := store.query.materializationGet()
 
 	rows, err := store.db.Query(getMatQry, tableName)
 	defer rows.Close()
@@ -552,7 +532,7 @@ func (store *sqlOfflineStore) DeleteMaterialization(id MaterializationID) error 
 	} else if !exists {
 		return &MaterializationNotFound{id}
 	}
-	query := store.query.deleteMaterializaion(tableName)
+	query := store.query.materializationDelete(tableName)
 	if _, err := store.db.Exec(query); err != nil {
 		return err
 	}
@@ -561,7 +541,7 @@ func (store *sqlOfflineStore) DeleteMaterialization(id MaterializationID) error 
 
 func (store *sqlOfflineStore) materializationExists(id MaterializationID) (bool, error) {
 	tableName := store.getMaterializationTableName(id)
-	getMatQry := store.query.checkIfMaterializationExists()
+	getMatQry := store.query.materializationExists()
 	rows, err := store.db.Query(getMatQry, tableName)
 	defer rows.Close()
 	if err != nil {
@@ -586,7 +566,7 @@ func (store *sqlOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
 		return err
 	}
 	tableName := store.getTrainingSetName(def.ID)
-	if err := store.query.createTrainingSet(store, def, tableName, label.name); err != nil {
+	if err := store.query.trainingSetCreate(store, def, tableName, label.name); err != nil {
 		return err
 	}
 
@@ -619,7 +599,7 @@ func (store *sqlOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator
 		features = append(features, sanitize(column))
 	}
 	columns := strings.Join(features[:], ", ")
-	trainingSetQry := store.query.selectTrainingRows(columns, trainingSetName)
+	trainingSetQry := store.query.trainingRowSelect(columns, trainingSetName)
 
 	rows, err = store.db.Query(trainingSetQry)
 	if err != nil {
@@ -663,7 +643,7 @@ type sqlTrainingRowsIterator struct {
 	err             error
 	columnTypes     []interface{}
 	isHeaderRow     bool
-	query           SQLQuery
+	query           OfflineTableQueries
 }
 
 func (store *sqlOfflineStore) newsqlTrainingSetIterator(rows *sql.Rows, columnTypes []interface{}) TrainingSetIterator {
@@ -750,14 +730,14 @@ func (store *sqlOfflineStore) getsqlResourceTable(id ResourceID) (*sqlOfflineTab
 
 type sqlOfflineTable struct {
 	db    *sql.DB
-	query SQLQuery
+	query OfflineTableQueries
 	name  string
 }
 
 type sqlPrimaryTable struct {
 	db     *sql.DB
 	name   string
-	query  SQLQuery
+	query  OfflineTableQueries
 	schema TableSchema
 }
 
@@ -895,19 +875,19 @@ func (table *sqlOfflineTable) Write(rec ResourceRecord) error {
 	}
 
 	n := -1
-	existsQuery := table.query.writeExistsQuery(tb)
+	existsQuery := table.query.writeExists(tb)
 
 	if err := table.db.QueryRow(existsQuery, rec.Entity, rec.TS).Scan(&n); err != nil {
 		return err
 	}
 	if n == 0 {
-		insertQuery := table.query.writeInsertsQuery(tb)
+		insertQuery := table.query.writeInserts(tb)
 
 		if _, err := table.db.Exec(insertQuery, rec.Entity, rec.Value, rec.TS); err != nil {
 			return err
 		}
 	} else if n > 0 {
-		updateQuery := table.query.writeUpdateQuery(tb)
+		updateQuery := table.query.writeUpdate(tb)
 
 		if _, err := table.db.Exec(updateQuery, rec.Value, rec.Entity, rec.TS); err != nil {
 			return err
@@ -942,7 +922,7 @@ func (store *sqlOfflineStore) CreateTransformation(config TransformationConfig) 
 	}
 	// Only allow transformations to be run with SELECT queries
 
-	query := store.query.createTransformation(name, config.Query)
+	query := store.query.transformationCreate(name, config.Query)
 	if _, err := store.db.Exec(query); err != nil {
 		return err
 	}
@@ -971,10 +951,10 @@ type sqlGenericTableIterator struct {
 	err           error
 	columnTypes   []interface{}
 	columnNames   []string
-	query         SQLQuery
+	query         OfflineTableQueries
 }
 
-func newsqlGenericTableIterator(rows *sql.Rows, columnTypes []interface{}, columnNames []string, query SQLQuery) GenericTableIterator {
+func newsqlGenericTableIterator(rows *sql.Rows, columnTypes []interface{}, columnNames []string, query OfflineTableQueries) GenericTableIterator {
 	return &sqlGenericTableIterator{
 		rows:          rows,
 		currentValues: nil,

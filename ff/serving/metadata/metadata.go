@@ -53,6 +53,24 @@ func (r ResourceType) Serialized() pb.MetadataResourceType {
 	return pb.MetadataResourceType(r)
 }
 
+type ResourceStatus int32
+
+const (
+	NO_STATUS ResourceStatus = ResourceStatus(pb.ResourceStatus_NO_STATUS)
+	CREATED                  = ResourceStatus(pb.ResourceStatus_CREATED)
+	PENDING                  = ResourceStatus(pb.ResourceStatus_PENDING)
+	READY                    = ResourceStatus(pb.ResourceStatus_READY)
+	FAILED                   = ResourceStatus(pb.ResourceStatus_FAILED)
+)
+
+func (r ResourceStatus) String() string {
+	return pb.MetadataResourceType_name[int32(r)]
+}
+
+func (r ResourceStatus) Serialized() pb.ResourceStatus_Status {
+	return pb.ResourceStatus_Status(r)
+}
+
 var parentMapping = map[ResourceType]ResourceType{
 	FEATURE_VARIANT:      FEATURE,
 	LABEL_VARIANT:        LABEL,

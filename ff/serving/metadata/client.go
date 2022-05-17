@@ -1271,8 +1271,12 @@ func (variant *FeatureVariant) Owner() string {
 	return variant.serialized.GetOwner()
 }
 
-func (variant *FeatureVariant) Status() *pb.ResourceStatus {
-	return variant.serialized.GetStatus()
+func (variant *FeatureVariant) Status() ResourceStatus {
+	return ResourceStatus(variant.serialized.GetStatus().Status)
+}
+
+func (variant *FeatureVariant) Error() string {
+	return variant.serialized.GetStatus().ErrorMessage
 }
 
 func (variant *FeatureVariant) Location() interface{} {
@@ -1318,8 +1322,12 @@ func (user *User) Name() string {
 	return user.serialized.GetName()
 }
 
-func (user *User) Status() *pb.ResourceStatus {
-	return user.serialized.GetStatus()
+func (user *User) Status() ResourceStatus {
+	return ResourceStatus(user.serialized.GetStatus().Status)
+}
+
+func (user *User) Error() string {
+	return user.serialized.GetStatus().ErrorMessage
 }
 
 type Provider struct {
@@ -1366,8 +1374,12 @@ func (provider *Provider) SerializedConfig() []byte {
 	return provider.serialized.GetSerializedConfig()
 }
 
-func (provider *Provider) Status() *pb.ResourceStatus {
-	return provider.serialized.GetStatus()
+func (provider *Provider) Status() ResourceStatus {
+	return ResourceStatus(provider.serialized.GetStatus().Status)
+}
+
+func (provider *Provider) Error() string {
+	return provider.serialized.GetStatus().ErrorMessage
 }
 
 type Model struct {
@@ -1396,8 +1408,12 @@ func (model *Model) Description() string {
 	return model.serialized.GetDescription()
 }
 
-func (model *Model) Status() *pb.ResourceStatus {
-	return model.serialized.GetStatus()
+func (model *Model) Status() ResourceStatus {
+	return ResourceStatus(model.serialized.GetStatus().Status)
+}
+
+func (model *Model) Error() string {
+	return model.serialized.GetStatus().ErrorMessage
 }
 
 type Label struct {
@@ -1462,8 +1478,12 @@ func (variant *LabelVariant) Owner() string {
 	return variant.serialized.GetOwner()
 }
 
-func (variant *LabelVariant) Status() *pb.ResourceStatus {
-	return variant.serialized.GetStatus()
+func (variant *LabelVariant) Status() ResourceStatus {
+	return ResourceStatus(variant.serialized.GetStatus().Status)
+}
+
+func (variant *LabelVariant) Error() string {
+	return variant.serialized.GetStatus().ErrorMessage
 }
 
 func (variant *LabelVariant) Location() interface{} {
@@ -1536,8 +1556,12 @@ func (variant *TrainingSetVariant) Owner() string {
 	return variant.serialized.GetOwner()
 }
 
-func (variant *TrainingSetVariant) Status() *pb.ResourceStatus {
-	return variant.serialized.GetStatus()
+func (variant *TrainingSetVariant) Status() ResourceStatus {
+	return ResourceStatus(variant.serialized.GetStatus().Status)
+}
+
+func (variant *TrainingSetVariant) Error() string {
+	return variant.serialized.GetStatus().ErrorMessage
 }
 
 func (variant *TrainingSetVariant) Label() NameVariant {
@@ -1612,8 +1636,12 @@ func (variant *SourceVariant) Owner() string {
 	return variant.serialized.GetOwner()
 }
 
-func (variant *SourceVariant) Status() *pb.ResourceStatus {
-	return variant.serialized.GetStatus()
+func (variant *SourceVariant) Status() ResourceStatus {
+	return ResourceStatus(variant.serialized.GetStatus().Status)
+}
+
+func (variant *SourceVariant) Error() string {
+	return variant.serialized.GetStatus().ErrorMessage
 }
 
 func (variant *SourceVariant) IsTransformation() bool {
@@ -1690,8 +1718,12 @@ func (entity *Entity) Description() string {
 	return entity.serialized.GetDescription()
 }
 
-func (entity *Entity) Status() *pb.ResourceStatus {
-	return entity.serialized.GetStatus()
+func (entity *Entity) Status() ResourceStatus {
+	return ResourceStatus(entity.serialized.GetStatus().Status)
+}
+
+func (entity *Entity) Error() string {
+	return entity.serialized.GetStatus().ErrorMessage
 }
 
 func NewClient(host string, logger *zap.SugaredLogger) (*Client, error) {

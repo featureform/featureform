@@ -113,6 +113,7 @@ func createNewCoordinator(addr string) (*Coordinator, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer client.Close()
 	cli, err := clientv3.New(clientv3.Config{Endpoints: []string{"localhost:2379"}})
 	if err != nil {
 		return nil, err
@@ -140,7 +141,7 @@ func TestRunSQLJobError(t *testing.T) {
 		return
 	}
 	serv, addr := startServ(t)
-	time.Sleep(time.Second)
+	defer serv.Stop()
 	coord, err := createNewCoordinator(addr)
 	if err != nil {
 		t.Fatalf("could not create new basic coordinator")
@@ -193,7 +194,6 @@ func TestRunSQLJobError(t *testing.T) {
 	if err := coord.runSQLTransformationJob(transformSource, sourceResourceID, offlineProvider); err == nil {
 		t.Fatalf("did not catch error trying to run primary table job with no source table set")
 	}
-	serv.Stop()
 }
 
 func TestFeatureMaterializeJobError(t *testing.T) {
@@ -201,7 +201,7 @@ func TestFeatureMaterializeJobError(t *testing.T) {
 		return
 	}
 	serv, addr := startServ(t)
-	time.Sleep(time.Second)
+	defer serv.Stop()
 	coord, err := createNewCoordinator(addr)
 	if err != nil {
 		t.Fatalf("could not create new basic coordinator")
@@ -413,7 +413,6 @@ func TestFeatureMaterializeJobError(t *testing.T) {
 	if err := coord.runFeatureMaterializeJob(metadata.ResourceID{featureName, "", metadata.FEATURE_VARIANT}); err == nil {
 		t.Fatalf("did not trigger error trying to get invalid feature provider")
 	}
-	serv.Stop()
 }
 
 func TestTrainingSetJobError(t *testing.T) {
@@ -421,7 +420,7 @@ func TestTrainingSetJobError(t *testing.T) {
 		return
 	}
 	serv, addr := startServ(t)
-	time.Sleep(time.Second)
+	defer serv.Stop()
 	coord, err := createNewCoordinator(addr)
 	if err != nil {
 		t.Fatalf("could not create new basic coordinator")
@@ -599,7 +598,6 @@ func TestTrainingSetJobError(t *testing.T) {
 	if err := coord.runTrainingSetJob(metadata.ResourceID{tsName, "", metadata.TRAINING_SET_VARIANT}); err == nil {
 		t.Fatalf("did not trigger error trying to convert online provider to offline")
 	}
-	serv.Stop()
 }
 
 func TestRunPrimaryTableJobError(t *testing.T) {
@@ -607,7 +605,7 @@ func TestRunPrimaryTableJobError(t *testing.T) {
 		return
 	}
 	serv, addr := startServ(t)
-	time.Sleep(time.Second)
+	defer serv.Stop()
 	coord, err := createNewCoordinator(addr)
 	if err != nil {
 		t.Fatalf("could not create new basic coordinator")
@@ -698,7 +696,6 @@ func TestRunPrimaryTableJobError(t *testing.T) {
 	if err := coord.runPrimaryTableJob(newTransformSource, newSourceResourceID, offlineProvider); err == nil {
 		t.Fatalf("did not catch error trying to create primary table when no source table exists in database")
 	}
-	serv.Stop()
 }
 
 func TestMapNameVariantsToTablesError(t *testing.T) {
@@ -706,7 +703,7 @@ func TestMapNameVariantsToTablesError(t *testing.T) {
 		return
 	}
 	serv, addr := startServ(t)
-	time.Sleep(time.Second)
+	defer serv.Stop()
 	coord, err := createNewCoordinator(addr)
 	if err != nil {
 		t.Fatalf("could not create new basic coordinator")
@@ -752,7 +749,6 @@ func TestMapNameVariantsToTablesError(t *testing.T) {
 	if _, err := coord.mapNameVariantsToTables(notReadyNameVariants); err == nil {
 		t.Fatalf("did not catch error creating map from not ready resource")
 	}
-	serv.Stop()
 }
 
 func TestRegisterSourceJobErrors(t *testing.T) {
@@ -760,7 +756,7 @@ func TestRegisterSourceJobErrors(t *testing.T) {
 		return
 	}
 	serv, addr := startServ(t)
-	time.Sleep(time.Second)
+	defer serv.Stop()
 	coord, err := createNewCoordinator(addr)
 	if err != nil {
 		t.Fatalf("could not create new basic coordinator")
@@ -849,7 +845,6 @@ func TestRegisterSourceJobErrors(t *testing.T) {
 	if err := coord.runRegisterSourceJob(sourceWithOnlineProvider); err == nil {
 		t.Fatalf("did not catch error registering registering resource with online provider")
 	}
-	serv.Stop()
 }
 
 func TestTemplateReplace(t *testing.T) {
@@ -881,11 +876,13 @@ func TestCoordinatorCalls(t *testing.T) {
 		return
 	}
 	serv, addr := startServ(t)
+	defer serv.Stop()
 	logger := zap.NewExample().Sugar()
-	_, err := metadata.NewClient(addr, logger)
+	client, err := metadata.NewClient(addr, logger)
 	if err != nil {
 		t.Fatalf("could not set up metadata client: %v", err)
 	}
+	defer client.Close()
 	if err := testCoordinatorMaterializeFeature(addr); err != nil {
 		t.Fatalf("coordinator could not materialize feature: %v", err)
 	}
@@ -898,7 +895,6 @@ func TestCoordinatorCalls(t *testing.T) {
 	if err := testRegisterTransformationFromSource(addr); err != nil {
 		t.Fatalf("coordinator could not register transformation from source and transformation: %v", err)
 	}
-	serv.Stop()
 }
 
 func materializeFeatureWithProvider(client *metadata.Client, offlineConfig provider.SerializedConfig, onlineConfig provider.SerializedConfig, featureName string, sourceName string, originalTableName string) error {
@@ -1121,6 +1117,7 @@ func testCoordinatorTrainingSet(addr string) error {
 	if err != nil {
 		return fmt.Errorf("Failed to connect: %v", err)
 	}
+	defer client.Close()
 	cli, err := clientv3.New(clientv3.Config{Endpoints: []string{"localhost:2379"}})
 	if err != nil {
 		return err
@@ -1233,6 +1230,7 @@ func testCoordinatorMaterializeFeature(addr string) error {
 	if err != nil {
 		return fmt.Errorf("Failed to connect: %v", err)
 	}
+	defer client.Close()
 	cli, err := clientv3.New(clientv3.Config{Endpoints: []string{"localhost:2379"}})
 	if err != nil {
 		return err
@@ -1364,6 +1362,7 @@ func testRegisterPrimaryTableFromSource(addr string) error {
 	if err != nil {
 		return fmt.Errorf("Failed to connect: %v", err)
 	}
+	defer client.Close()
 	cli, err := clientv3.New(clientv3.Config{Endpoints: []string{"localhost:2379"}})
 	if err != nil {
 		return err
@@ -1461,6 +1460,7 @@ func testRegisterTransformationFromSource(addr string) error {
 	if err != nil {
 		return fmt.Errorf("Failed to connect: %v", err)
 	}
+	defer client.Close()
 	cli, err := clientv3.New(clientv3.Config{Endpoints: []string{"localhost:2379"}})
 	if err != nil {
 		return err

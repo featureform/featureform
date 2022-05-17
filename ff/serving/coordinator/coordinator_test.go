@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/google/uuid"
+	"net"
 	"os"
 	"reflect"
 	"strings"
@@ -36,9 +37,33 @@ var postgresConfig = provider.PostgresConfig{
 	Password: os.Getenv("POSTGRES_PASSWORD"),
 }
 
-func setupMetadataServer() error {
+// func setupMetadataServer() error {
+// 	logger := zap.NewExample().Sugar()
+// 	addr := ":8080"
+// 	storageProvider := metadata.EtcdStorageProvider{
+// 		metadata.EtcdConfig{
+// 			Nodes: []metadata.EtcdNode{
+// 				{"localhost", "2379"},
+// 			},
+// 		},
+// 	}
+// 	config := &metadata.Config{
+// 		Logger:          logger,
+// 		Address:         addr,
+// 		StorageProvider: storageProvider,
+// 	}
+// 	server, err := metadata.NewMetadataServer(config)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	if err := server.Serve(); err != nil {
+// 		return err
+// 	}
+// 	return nil
+// }
+
+func startServ(t *testing.T) (*metadata.MetadataServer, string) {
 	logger := zap.NewExample().Sugar()
-	addr := ":8080"
 	storageProvider := metadata.EtcdStorageProvider{
 		metadata.EtcdConfig{
 			Nodes: []metadata.EtcdNode{
@@ -48,22 +73,43 @@ func setupMetadataServer() error {
 	}
 	config := &metadata.Config{
 		Logger:          logger,
-		Address:         addr,
 		StorageProvider: storageProvider,
 	}
-	server, err := metadata.NewMetadataServer(config)
+	serv, err := metadata.NewMetadataServer(config)
 	if err != nil {
-		return err
+		panic(err)
 	}
-	if err := server.Serve(); err != nil {
-		return err
+	// listen on a random port
+	lis, err := net.Listen("tcp", ":0")
+	if err != nil {
+		panic(err)
 	}
-	return nil
+	go func() {
+		if err := serv.ServeOnListener(lis); err != nil {
+			panic(err)
+		}
+	}()
+	return serv, lis.Addr().String()
 }
 
-func createNewCoordinator() (*Coordinator, error) {
+// func (ctx *testContext) Create(t *testing.T) (*Client, error) {
+// 	var addr string
+// 	ctx.serv, addr = startServ(t)
+// 	ctx.client = client(t, addr)
+// 	if err := ctx.client.CreateAll(context.Background(), ctx.Defs); err != nil {
+// 		return nil, err
+// 	}
+// 	return ctx.client, nil
+// }
+
+// func (ctx *testContext) Destroy() {
+// 	ctx.serv.Stop()
+// 	ctx.client.Close()
+// }
+
+func createNewCoordinator(addr string) (*Coordinator, error) {
 	logger := zap.NewExample().Sugar()
-	client, err := metadata.NewClient("localhost:8080", logger)
+	client, err := metadata.NewClient(addr, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -93,9 +139,9 @@ func TestRunSQLJobError(t *testing.T) {
 	if testing.Short() {
 		return
 	}
-	go setupMetadataServer()
+	serv, addr := startServ(t)
 	time.Sleep(time.Second)
-	coord, err := createNewCoordinator()
+	coord, err := createNewCoordinator(addr)
 	if err != nil {
 		t.Fatalf("could not create new basic coordinator")
 	}
@@ -147,15 +193,16 @@ func TestRunSQLJobError(t *testing.T) {
 	if err := coord.runSQLTransformationJob(transformSource, sourceResourceID, offlineProvider); err == nil {
 		t.Fatalf("did not catch error trying to run primary table job with no source table set")
 	}
+	serv.Stop()
 }
 
 func TestFeatureMaterializeJobError(t *testing.T) {
 	if testing.Short() {
 		return
 	}
-	go setupMetadataServer()
+	serv, addr := startServ(t)
 	time.Sleep(time.Second)
-	coord, err := createNewCoordinator()
+	coord, err := createNewCoordinator(addr)
 	if err != nil {
 		t.Fatalf("could not create new basic coordinator")
 	}
@@ -366,14 +413,16 @@ func TestFeatureMaterializeJobError(t *testing.T) {
 	if err := coord.runFeatureMaterializeJob(metadata.ResourceID{featureName, "", metadata.FEATURE_VARIANT}); err == nil {
 		t.Fatalf("did not trigger error trying to get invalid feature provider")
 	}
+	serv.Stop()
 }
 
 func TestTrainingSetJobError(t *testing.T) {
 	if testing.Short() {
 		return
 	}
-	go setupMetadataServer()
-	coord, err := createNewCoordinator()
+	serv, addr := startServ(t)
+	time.Sleep(time.Second)
+	coord, err := createNewCoordinator(addr)
 	if err != nil {
 		t.Fatalf("could not create new basic coordinator")
 	}
@@ -550,14 +599,16 @@ func TestTrainingSetJobError(t *testing.T) {
 	if err := coord.runTrainingSetJob(metadata.ResourceID{tsName, "", metadata.TRAINING_SET_VARIANT}); err == nil {
 		t.Fatalf("did not trigger error trying to convert online provider to offline")
 	}
+	serv.Stop()
 }
 
 func TestRunPrimaryTableJobError(t *testing.T) {
 	if testing.Short() {
 		return
 	}
-	go setupMetadataServer()
-	coord, err := createNewCoordinator()
+	serv, addr := startServ(t)
+	time.Sleep(time.Second)
+	coord, err := createNewCoordinator(addr)
 	if err != nil {
 		t.Fatalf("could not create new basic coordinator")
 	}
@@ -647,15 +698,16 @@ func TestRunPrimaryTableJobError(t *testing.T) {
 	if err := coord.runPrimaryTableJob(newTransformSource, newSourceResourceID, offlineProvider); err == nil {
 		t.Fatalf("did not catch error trying to create primary table when no source table exists in database")
 	}
-
+	serv.Stop()
 }
 
 func TestMapNameVariantsToTablesError(t *testing.T) {
 	if testing.Short() {
 		return
 	}
-	go setupMetadataServer()
-	coord, err := createNewCoordinator()
+	serv, addr := startServ(t)
+	time.Sleep(time.Second)
+	coord, err := createNewCoordinator(addr)
 	if err != nil {
 		t.Fatalf("could not create new basic coordinator")
 	}
@@ -700,14 +752,16 @@ func TestMapNameVariantsToTablesError(t *testing.T) {
 	if _, err := coord.mapNameVariantsToTables(notReadyNameVariants); err == nil {
 		t.Fatalf("did not catch error creating map from not ready resource")
 	}
+	serv.Stop()
 }
 
 func TestRegisterSourceJobErrors(t *testing.T) {
 	if testing.Short() {
 		return
 	}
-	go setupMetadataServer()
-	coord, err := createNewCoordinator()
+	serv, addr := startServ(t)
+	time.Sleep(time.Second)
+	coord, err := createNewCoordinator(addr)
 	if err != nil {
 		t.Fatalf("could not create new basic coordinator")
 	}
@@ -795,6 +849,7 @@ func TestRegisterSourceJobErrors(t *testing.T) {
 	if err := coord.runRegisterSourceJob(sourceWithOnlineProvider); err == nil {
 		t.Fatalf("did not catch error registering registering resource with online provider")
 	}
+	serv.Stop()
 }
 
 func TestTemplateReplace(t *testing.T) {
@@ -825,12 +880,9 @@ func TestCoordinatorCalls(t *testing.T) {
 	if testing.Short() {
 		return
 	}
-	err := setupMetadataServer()
-	if err != nil {
-		t.Fatal(err)
-	}
+	serv, addr := startServ(t)
 	logger := zap.NewExample().Sugar()
-	_, err = metadata.NewClient("localhost:8080", logger)
+	_, err := metadata.NewClient(addr, logger)
 	if err != nil {
 		t.Fatalf("could not set up metadata client: %v", err)
 	}
@@ -846,6 +898,7 @@ func TestCoordinatorCalls(t *testing.T) {
 	if err := testRegisterTransformationFromSource(); err != nil {
 		t.Fatalf("coordinator could not register transformation from source and transformation: %v", err)
 	}
+	serv.Stop()
 }
 
 func materializeFeatureWithProvider(client *metadata.Client, offlineConfig provider.SerializedConfig, onlineConfig provider.SerializedConfig, featureName string, sourceName string, originalTableName string) error {

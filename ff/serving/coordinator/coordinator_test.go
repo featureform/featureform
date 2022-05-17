@@ -1194,9 +1194,15 @@ func testCoordinatorTrainingSet(addr string) error {
 			panic(err)
 		}
 	}()
-	for has, _ := coord.hasJob(tsID); has; has, _ = coord.hasJob(tsID) {
+	startWaitDelete := time.Now()
+	elapsed := time.Since(startWaitDelete)
+	for has, _ := coord.hasJob(tsID); has && elapsed < time.Duration(10)*time.Second; has, _ = coord.hasJob(tsID) {
 		time.Sleep(1 * time.Second)
-		fmt.Println("waiting for job to be deleted")
+		elapsed = time.Since(startWaitDelete)
+		fmt.Printf("waiting for job %v to be deleted\n", tsID)
+	}
+	if elapsed >= time.Duration(10)*time.Second {
+		return fmt.Errorf("timed out waiting for job to delete")
 	}
 	ts_complete, err := client.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: tsName, Variant: ""})
 	if err != nil {
@@ -1315,10 +1321,15 @@ func testCoordinatorMaterializeFeature(addr string) error {
 			panic(err)
 		}
 	}()
-	for has, _ := coord.hasJob(featureID); has; has, _ = coord.hasJob(featureID) {
+	startWaitDelete := time.Now()
+	elapsed := time.Since(startWaitDelete)
+	for has, _ := coord.hasJob(featureID); has && elapsed < time.Duration(10)*time.Second; has, _ = coord.hasJob(featureID) {
 		time.Sleep(1 * time.Second)
-		fmt.Println("waiting for job to be deleted")
-
+		elapsed = time.Since(startWaitDelete)
+		fmt.Printf("waiting for job %v to be deleted\n", featureID)
+	}
+	if elapsed >= time.Duration(10)*time.Second {
+		return fmt.Errorf("timed out waiting for job to delete")
 	}
 	featureComplete, err := client.GetFeatureVariant(context.Background(), metadata.NameVariant{Name: featureName, Variant: ""})
 	if err != nil {
@@ -1414,10 +1425,15 @@ func testRegisterPrimaryTableFromSource(addr string) error {
 			panic(err)
 		}
 	}()
-	for has, _ := coord.hasJob(sourceID); has; has, _ = coord.hasJob(sourceID) {
+	startWaitDelete := time.Now()
+	elapsed := time.Since(startWaitDelete)
+	for has, _ := coord.hasJob(sourceID); has && elapsed < time.Duration(10)*time.Second; has, _ = coord.hasJob(sourceID) {
 		time.Sleep(1 * time.Second)
-		fmt.Println("waiting for job to be deleted")
-
+		elapsed = time.Since(startWaitDelete)
+		fmt.Printf("waiting for job %v to be deleted\n", sourceID)
+	}
+	if elapsed >= time.Duration(10)*time.Second {
+		return fmt.Errorf("timed out waiting for job to delete")
 	}
 	sourceComplete, err := client.GetSourceVariant(context.Background(), metadata.NameVariant{Name: sourceName, Variant: ""})
 	if err != nil {

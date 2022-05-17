@@ -143,10 +143,10 @@ func TestRunSQLJobError(t *testing.T) {
 	serv, addr := startServ(t)
 	defer serv.Stop()
 	coord, err := createNewCoordinator(addr)
-	defer coord.Metadata.Close()
 	if err != nil {
 		t.Fatalf("could not create new basic coordinator")
 	}
+	defer coord.Metadata.Close()
 	sourceGhostDependency := uuid.New().String()
 	providerName := uuid.New().String()
 	userName := uuid.New().String()
@@ -204,10 +204,10 @@ func TestFeatureMaterializeJobError(t *testing.T) {
 	serv, addr := startServ(t)
 	defer serv.Stop()
 	coord, err := createNewCoordinator(addr)
-	defer coord.Metadata.Close()
 	if err != nil {
 		t.Fatalf("could not create new basic coordinator")
 	}
+	defer coord.Metadata.Close()
 	if err := coord.runFeatureMaterializeJob(metadata.ResourceID{"ghost_resource", "", metadata.FEATURE_VARIANT}); err == nil {
 		t.Fatalf("did not catch error when trying to materialize nonexistent feature")
 	}
@@ -424,10 +424,10 @@ func TestTrainingSetJobError(t *testing.T) {
 	serv, addr := startServ(t)
 	defer serv.Stop()
 	coord, err := createNewCoordinator(addr)
-	defer coord.Metadata.Close()
 	if err != nil {
 		t.Fatalf("could not create new basic coordinator")
 	}
+	defer coord.Metadata.Close()
 	if err := coord.runTrainingSetJob(metadata.ResourceID{"ghost_training_set", "", metadata.TRAINING_SET_VARIANT}); err == nil {
 		t.Fatalf("did not trigger error trying to run job for nonexistent training set")
 	}
@@ -610,10 +610,10 @@ func TestRunPrimaryTableJobError(t *testing.T) {
 	serv, addr := startServ(t)
 	defer serv.Stop()
 	coord, err := createNewCoordinator(addr)
-	defer coord.Metadata.Close()
 	if err != nil {
 		t.Fatalf("could not create new basic coordinator")
 	}
+	defer coord.Metadata.Close()
 	sourceNoPrimaryNameSet := uuid.New().String()
 	providerName := uuid.New().String()
 	userName := uuid.New().String()
@@ -709,10 +709,10 @@ func TestMapNameVariantsToTablesError(t *testing.T) {
 	serv, addr := startServ(t)
 	defer serv.Stop()
 	coord, err := createNewCoordinator(addr)
-	defer coord.Metadata.Close()
 	if err != nil {
 		t.Fatalf("could not create new basic coordinator")
 	}
+	defer coord.Metadata.Close()
 	ghostResourceName := uuid.New().String()
 	ghostNameVariants := []metadata.NameVariant{{ghostResourceName, ""}}
 	if _, err := coord.mapNameVariantsToTables(ghostNameVariants); err == nil {
@@ -763,10 +763,10 @@ func TestRegisterSourceJobErrors(t *testing.T) {
 	serv, addr := startServ(t)
 	defer serv.Stop()
 	coord, err := createNewCoordinator(addr)
-	defer coord.Metadata.Close()
 	if err != nil {
 		t.Fatalf("could not create new basic coordinator")
 	}
+	defer coord.Metadata.Close()
 	ghostResourceName := uuid.New().String()
 	ghostResourceID := metadata.ResourceID{ghostResourceName, "", metadata.SOURCE_VARIANT}
 	if err := coord.runRegisterSourceJob(ghostResourceID); err == nil {
@@ -1196,6 +1196,7 @@ func testCoordinatorTrainingSet(addr string) error {
 	}()
 	for has, _ := coord.hasJob(tsID); has; has, _ = coord.hasJob(tsID) {
 		time.Sleep(1 * time.Second)
+		fmt.Println("waiting for job to be deleted")
 	}
 	ts_complete, err := client.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: tsName, Variant: ""})
 	if err != nil {
@@ -1316,6 +1317,8 @@ func testCoordinatorMaterializeFeature(addr string) error {
 	}()
 	for has, _ := coord.hasJob(featureID); has; has, _ = coord.hasJob(featureID) {
 		time.Sleep(1 * time.Second)
+		fmt.Println("waiting for job to be deleted")
+
 	}
 	featureComplete, err := client.GetFeatureVariant(context.Background(), metadata.NameVariant{Name: featureName, Variant: ""})
 	if err != nil {
@@ -1413,6 +1416,8 @@ func testRegisterPrimaryTableFromSource(addr string) error {
 	}()
 	for has, _ := coord.hasJob(sourceID); has; has, _ = coord.hasJob(sourceID) {
 		time.Sleep(1 * time.Second)
+		fmt.Println("waiting for job to be deleted")
+
 	}
 	sourceComplete, err := client.GetSourceVariant(context.Background(), metadata.NameVariant{Name: sourceName, Variant: ""})
 	if err != nil {

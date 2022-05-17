@@ -114,7 +114,6 @@ func createNewCoordinator(addr string) (*Coordinator, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer client.Close()
 	cli, err := clientv3.New(clientv3.Config{Endpoints: []string{"localhost:2379"}})
 	if err != nil {
 		return nil, err
@@ -144,6 +143,7 @@ func TestRunSQLJobError(t *testing.T) {
 	serv, addr := startServ(t)
 	defer serv.Stop()
 	coord, err := createNewCoordinator(addr)
+	defer coord.Metadata.Close()
 	if err != nil {
 		t.Fatalf("could not create new basic coordinator")
 	}
@@ -204,6 +204,7 @@ func TestFeatureMaterializeJobError(t *testing.T) {
 	serv, addr := startServ(t)
 	defer serv.Stop()
 	coord, err := createNewCoordinator(addr)
+	defer coord.Metadata.Close()
 	if err != nil {
 		t.Fatalf("could not create new basic coordinator")
 	}
@@ -423,6 +424,7 @@ func TestTrainingSetJobError(t *testing.T) {
 	serv, addr := startServ(t)
 	defer serv.Stop()
 	coord, err := createNewCoordinator(addr)
+	defer coord.Metadata.Close()
 	if err != nil {
 		t.Fatalf("could not create new basic coordinator")
 	}
@@ -608,6 +610,7 @@ func TestRunPrimaryTableJobError(t *testing.T) {
 	serv, addr := startServ(t)
 	defer serv.Stop()
 	coord, err := createNewCoordinator(addr)
+	defer coord.Metadata.Close()
 	if err != nil {
 		t.Fatalf("could not create new basic coordinator")
 	}
@@ -706,6 +709,7 @@ func TestMapNameVariantsToTablesError(t *testing.T) {
 	serv, addr := startServ(t)
 	defer serv.Stop()
 	coord, err := createNewCoordinator(addr)
+	defer coord.Metadata.Close()
 	if err != nil {
 		t.Fatalf("could not create new basic coordinator")
 	}
@@ -759,6 +763,7 @@ func TestRegisterSourceJobErrors(t *testing.T) {
 	serv, addr := startServ(t)
 	defer serv.Stop()
 	coord, err := createNewCoordinator(addr)
+	defer coord.Metadata.Close()
 	if err != nil {
 		t.Fatalf("could not create new basic coordinator")
 	}

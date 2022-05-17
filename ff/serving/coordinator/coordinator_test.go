@@ -109,6 +109,7 @@ func startServ(t *testing.T) (*metadata.MetadataServer, string) {
 
 func createNewCoordinator(addr string) (*Coordinator, error) {
 	logger := zap.NewExample().Sugar()
+	fmt.Println(addr)
 	client, err := metadata.NewClient(addr, logger)
 	if err != nil {
 		return nil, err

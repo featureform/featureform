@@ -103,9 +103,9 @@ func searchRecord(w http.ResponseWriter, r *http.Request) {
 	}
 	r.Body.Close()
 	tableName := string(byts)
-
+	fmt.Println("Does it even reach here")
 	// The second argument that goes into createMetric decides what kind of data is being sent
-	createMetric(tableName, QuantitativeGraph, w)
+	createMetric(tableName, UniqueCategoriesList, w)
 }
 
 // Method with switch statements, parses that data in the correct format based on METRICTYPE
@@ -161,7 +161,7 @@ func findGraphData(tableName string) []byte {
 		}
 		featureTable = append(featureTable, featurerow)
 	}
-
+	fmt.Println("bar")
 	meta := Metadata{Metric: "bar"}
 	graphStruct := FeatureStruct{Metadata: meta, ChartData: featureTable}
 	table_json, _ := json.Marshal(graphStruct)
@@ -176,6 +176,7 @@ func findNumUniqueCategories(tableName string) []byte {
 		fmt.Println("Database querying error")
 		panic("Database querying error")
 	}
+	fmt.Println("count")
 	meta := Metadata{Metric: "count"}
 	for rows.Next() {
 		countrow := CountStruct{}
@@ -208,6 +209,7 @@ func findUniqueCategoriesList(tableName string) []byte {
 		}
 		categoryList = append(categoryList, categoryRow)
 	}
+	fmt.Println("categoryList")
 	meta := Metadata{Metric: "categoryList"}
 	categoryListStruct := CategoryListStruct{Metadata: meta, Categories: categoryList}
 	table_json, _ := json.Marshal(categoryListStruct)
@@ -231,6 +233,7 @@ func findPercentageOfEachCategory(tableName string) []byte {
 		}
 		percentTable = append(percentTable, percentrow)
 	}
+	fmt.Println("percent")
 	meta := Metadata{Metric: "percent"}
 	percentStruct := FeatureStruct{Metadata: meta, ChartData: percentTable}
 	table_json, _ := json.Marshal(percentStruct)
@@ -244,6 +247,7 @@ func findPercentileForEachCategory(tableName string) []byte {
 		fmt.Println("Database querying error")
 		panic("Database querying error")
 	}
+	fmt.Println("percentile")
 	meta := Metadata{Metric: "percentile"}
 	for rows.Next() {
 		percentiledata := PercentileStruct{}

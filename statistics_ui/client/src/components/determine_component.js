@@ -48,7 +48,6 @@ function Metrics() {
       });
   },[columnname, metadata]);
 
-
   if (alldata == 0) {
     return <div></div>
   } else if (metadata == "percentile") {

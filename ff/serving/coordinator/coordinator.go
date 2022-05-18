@@ -121,6 +121,7 @@ func (c *Coordinator) WatchForNewJobs() error {
 	}
 	for _, kv := range getResp.Kvs {
 		go func() {
+			fmt.Println("found job", string(kv.Key))
 			err := c.executeJob(string(kv.Key))
 			if err != nil {
 				fmt.Println(err)
@@ -133,6 +134,7 @@ func (c *Coordinator) WatchForNewJobs() error {
 			for _, ev := range wresp.Events {
 				if ev.Type == 0 {
 					go func() {
+						fmt.Println("found job", string(ev.Kv.Key))
 						err := c.executeJob(string(ev.Kv.Key))
 						if err != nil {
 							fmt.Println(err)

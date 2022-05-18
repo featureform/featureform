@@ -307,7 +307,7 @@ func (lookup etcdResourceLookup) HasJob(id ResourceID) (bool, error) {
 }
 
 func (lookup etcdResourceLookup) SetJob(id ResourceID) error {
-	fmt.Printf("setting job for %v\n", id)
+	fmt.Printf("setting job for %v", id)
 	if jobAlreadySet, _ := lookup.HasJob(id); jobAlreadySet {
 		return fmt.Errorf("Job already set")
 	}
@@ -320,6 +320,7 @@ func (lookup etcdResourceLookup) SetJob(id ResourceID) error {
 		return err
 	}
 	jobKey := GetJobKey(id)
+	fmt.Printf(": setting job with key %s\n", jobKey)
 	if err := lookup.connection.Put(jobKey, string(serialized)); err != nil {
 		return err
 	}

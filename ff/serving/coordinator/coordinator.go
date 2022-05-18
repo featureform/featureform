@@ -416,6 +416,7 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID) error {
 }
 
 func (c *Coordinator) getJob(mtx *concurrency.Mutex, key string) (*metadata.CoordinatorJob, error) {
+	fmt.Printf("Checking existence of job with key %s\n", key)
 	txn := (*c.KVClient).Txn(context.Background())
 	response, err := txn.If(mtx.IsOwner()).Then(clientv3.OpGet(key)).Commit()
 	if err != nil {
@@ -428,7 +429,7 @@ func (c *Coordinator) getJob(mtx *concurrency.Mutex, key string) (*metadata.Coor
 	responseData := response.Responses[0]
 	responseKVs := responseData.GetResponseRange().GetKvs()
 	if len(responseKVs) == 0 {
-		return nil, fmt.Errorf("coordinator job does not exist")
+		return nil, fmt.Errorf("coordinator job %s does not exist", key)
 	}
 	responseValue := responseKVs[0].Value //Only single response for single key
 	job := &metadata.CoordinatorJob{}

@@ -1326,12 +1326,15 @@ func testCoordinatorMaterializeFeature(addr string) error {
 	if err != nil {
 		return fmt.Errorf("Failed to set up coordinator")
 	}
-	sourceID := metadata.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}
-	if err := coord.executeJob(metadata.GetJobKey(sourceID)); err != nil {
-		return err
-	}
-	if err := coord.executeJob(metadata.GetJobKey(featureID)); err != nil {
-		return err
+	// sourceID := metadata.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}
+	// if err := coord.executeJob(metadata.GetJobKey(sourceID)); err != nil {
+	// 	return err
+	// }
+	// if err := coord.executeJob(metadata.GetJobKey(featureID)); err != nil {
+	// 	return err
+	// }
+	if err := coord.WatchForNewJobs; err != nil {
+		return fmt.Errorf("Error watching for new jobs: %v", err)
 	}
 	startWaitDelete := time.Now()
 	elapsed := time.Since(startWaitDelete)

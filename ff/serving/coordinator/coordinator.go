@@ -9,11 +9,11 @@ import (
 	db "github.com/jackc/pgx/v4"
 	"go.uber.org/zap"
 
-	mvccpb "github.com/coreos/etcd/mvcc/mvccpb"
 	"github.com/featureform/serving/metadata"
 	pb "github.com/featureform/serving/metadata/proto"
 	provider "github.com/featureform/serving/provider"
 	runner "github.com/featureform/serving/runner"
+	mvccpb "go.etcd.io/etcd/api/v3/mvccpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/client/v3/concurrency"
 )
@@ -135,7 +135,7 @@ func (c *Coordinator) WatchForNewJobs() error {
 		for wresp := range rch {
 			for _, ev := range wresp.Events {
 				if ev.Type == 0 {
-					go func(ev mvccpb.Event) {
+					go func(ev *clientv3.Event) {
 						fmt.Println("found job with watcher", string(ev.Kv.Key))
 						err := c.executeJob(string(ev.Kv.Key))
 						if err != nil {

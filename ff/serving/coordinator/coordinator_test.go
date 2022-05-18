@@ -1189,11 +1189,9 @@ func testCoordinatorTrainingSet(addr string) error {
 	if err != nil {
 		return fmt.Errorf("Failed to set up coordinator")
 	}
-	go func() {
-		if err := coord.WatchForNewJobs(); err != nil {
-			panic(err)
-		}
-	}()
+	if err := coord.executeJob(metadata.GetJobKey(tsID)); err != nil {
+		return err
+	}
 	startWaitDelete := time.Now()
 	elapsed := time.Since(startWaitDelete)
 	for has, _ := coord.hasJob(tsID); has && elapsed < time.Duration(10)*time.Second; has, _ = coord.hasJob(tsID) {
@@ -1316,11 +1314,9 @@ func testCoordinatorMaterializeFeature(addr string) error {
 	if err != nil {
 		return fmt.Errorf("Failed to set up coordinator")
 	}
-	go func() {
-		if err := coord.WatchForNewJobs(); err != nil {
-			panic(err)
-		}
-	}()
+	if err := coord.executeJob(metadata.GetJobKey(featureID)); err != nil {
+		return err
+	}
 	startWaitDelete := time.Now()
 	elapsed := time.Since(startWaitDelete)
 	for has, _ := coord.hasJob(featureID); has && elapsed < time.Duration(10)*time.Second; has, _ = coord.hasJob(featureID) {
@@ -1413,18 +1409,15 @@ func testRegisterPrimaryTableFromSource(addr string) error {
 	if sourceCreated.Status() != metadata.CREATED {
 		return fmt.Errorf("Source not set to created with no coordinator running")
 	}
-	//now we set up the coordinator and actually do shit
 	sourceID := metadata.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}
 	memJobSpawner := MemoryJobSpawner{}
 	coord, err := NewCoordinator(client, logger, cli, &memJobSpawner)
 	if err != nil {
 		return fmt.Errorf("Failed to set up coordinator")
 	}
-	go func() {
-		if err := coord.WatchForNewJobs(); err != nil {
-			panic(err)
-		}
-	}()
+	if err := coord.executeJob(metadata.GetJobKey(sourceID)); err != nil {
+		return err
+	}
 	startWaitDelete := time.Now()
 	elapsed := time.Since(startWaitDelete)
 	for has, _ := coord.hasJob(sourceID); has && elapsed < time.Duration(10)*time.Second; has, _ = coord.hasJob(sourceID) {

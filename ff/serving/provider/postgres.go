@@ -145,11 +145,15 @@ func (q postgresSQLQueries) trainingSetCreate(store *sqlOfflineStore, def Traini
 	columns := make([]string, 0)
 	query := fmt.Sprintf(" (SELECT entity, value , ts from %s ) l ", sanitize(labelName))
 	for i, feature := range def.Features {
-		resourceTableName := sanitize(store.getResourceTableName(feature))
+		tableName, err := store.getResourceTableName(feature)
+		if err != nil {
+			return err
+		}
+		santizedName := sanitize(tableName)
 		tableJoinAlias := fmt.Sprintf("t%d", i)
-		columns = append(columns, resourceTableName)
+		columns = append(columns, santizedName)
 		query = fmt.Sprintf("%s LEFT JOIN LATERAL (SELECT entity , value as %s, ts  FROM %s WHERE entity=l.entity and ts <= l.ts ORDER BY ts desc LIMIT 1) %s on %s.entity=l.entity ",
-			query, resourceTableName, resourceTableName, tableJoinAlias, tableJoinAlias)
+			query, santizedName, santizedName, tableJoinAlias, tableJoinAlias)
 		if i == len(def.Features)-1 {
 			query = fmt.Sprintf("%s )", query)
 		}

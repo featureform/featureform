@@ -72,7 +72,6 @@ func TestOfflineStores(t *testing.T) {
 		"PrimaryTableCreate":          testPrimaryCreateTable,
 		"PrimaryTableWrite":           testPrimaryTableWrite,
 		"Transformation":              testTransform,
-		"TransformToFeature":          testTransformCreateFeature,
 		"CreateDuplicatePrimaryTable": testCreateDuplicatePrimaryTable,
 		"ChainTransformations":        testChainTransform,
 	}

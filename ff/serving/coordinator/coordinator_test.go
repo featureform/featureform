@@ -1035,10 +1035,9 @@ func createTransformationWithProvider(client *metadata.Client, config provider.S
 	return nil
 }
 
-func createTrainingSetWithProvider(client *metadata.Client, config provider.SerializedConfig, featureName string, labelName string, tsName string, originalTableName string) error {
+func createTrainingSetWithProvider(client *metadata.Client, config provider.SerializedConfig, sourceName string, featureName string, labelName string, tsName string, originalTableName string) error {
 	providerName := uuid.New().String()
 	userName := uuid.New().String()
-	sourceName := uuid.New().String()
 	entityName := uuid.New().String()
 	defs := []metadata.ResourceDef{
 		metadata.UserDef{
@@ -1172,7 +1171,8 @@ func testCoordinatorTrainingSet(addr string) error {
 	if err := CreateOriginalPostgresTable(originalTableName); err != nil {
 		return err
 	}
-	if err := createTrainingSetWithProvider(client, serialPGConfig, featureName, labelName, tsName, originalTableName); err != nil {
+	sourceName := uuid.New().String()
+	if err := createTrainingSetWithProvider(client, serialPGConfig, sourceName, featureName, labelName, tsName, originalTableName); err != nil {
 		return fmt.Errorf("could not create training set %v", err)
 	}
 	ctx := context.Background()
@@ -1188,6 +1188,18 @@ func testCoordinatorTrainingSet(addr string) error {
 	coord, err := NewCoordinator(client, logger, cli, &memJobSpawner)
 	if err != nil {
 		return fmt.Errorf("Failed to set up coordinator")
+	}
+	sourceID := metadata.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}
+	if err := coord.executeJob(metadata.GetJobKey(sourceID)); err != nil {
+		return err
+	}
+	featureID := metadata.ResourceID{Name: featureName, Variant: "", Type: metadata.FEATURE_VARIANT}
+	if err := coord.executeJob(metadata.GetJobKey(featureID)); err != nil {
+		return err
+	}
+	labelID := metadata.ResourceID{Name: labelName, Variant: "", Type: metadata.LABEL_VARIANT}
+	if err := coord.executeJob(metadata.GetJobKey(labelID)); err != nil {
+		return err
 	}
 	if err := coord.executeJob(metadata.GetJobKey(tsID)); err != nil {
 		return err
@@ -1313,6 +1325,10 @@ func testCoordinatorMaterializeFeature(addr string) error {
 	coord, err := NewCoordinator(client, logger, cli, &memJobSpawner)
 	if err != nil {
 		return fmt.Errorf("Failed to set up coordinator")
+	}
+	sourceID := metadata.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}
+	if err := coord.executeJob(metadata.GetJobKey(sourceID)); err != nil {
+		return err
 	}
 	if err := coord.executeJob(metadata.GetJobKey(featureID)); err != nil {
 		return err

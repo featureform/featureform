@@ -1333,7 +1333,7 @@ func testCoordinatorMaterializeFeature(addr string) error {
 	// if err := coord.executeJob(metadata.GetJobKey(featureID)); err != nil {
 	// 	return err
 	// }
-	if err := coord.WatchForNewJobs; err != nil {
+	if err := coord.WatchForNewJobs(); err != nil {
 		return fmt.Errorf("Error watching for new jobs: %v", err)
 	}
 	startWaitDelete := time.Now()

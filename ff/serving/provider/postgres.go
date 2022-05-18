@@ -49,18 +49,14 @@ func (pg *PostgresConfig) Serialize() []byte {
 func postgresOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	sc := PostgresConfig{}
 	if err := sc.Deserialize(config); err != nil {
-		return nil, errors.New("invalid sql config")
-	}
-	if err := sc.Deserialize(config); err != nil {
 		return nil, errors.New("invalid snowflake config")
 	}
-	sgConfig := postgresSQLConfig{
-		Username:   sc.Username,
-		Password:   sc.Password,
-		Host:       sc.Host,
-		Port:       sc.Port,
-		Database:   sc.Database,
-		serialized: config,
+	sgConfig := SQLOfflineStoreConfig{
+		Config:        config,
+		ConnectionURL: fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", sc.Username, sc.Password, sc.Host, sc.Port, sc.Database),
+		Driver:        "postgres",
+		ProviderType:  PostgresOffline,
+		QueryImpl:     postgresSQLQueries{},
 	}
 
 	store, err := NewSQLOfflineStore(sgConfig)
@@ -79,58 +75,35 @@ type postgresSQLConfig struct {
 	serialized SerializedConfig
 }
 
-func (c postgresSQLConfig) getSerialized() SerializedConfig {
-	return c.serialized
-}
-
-func (c postgresSQLConfig) isSQLOfflineStore() bool {
-	return true
-}
-
-func (c postgresSQLConfig) getConnectionUrl() string {
-	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", c.Username, c.Password, c.Host, c.Port, c.Database)
-}
-
-func (c postgresSQLConfig) getDriver() string {
-	return "postgres"
-}
-
-func (c postgresSQLConfig) getProviderType() Type {
-	return SnowflakeOffline
-}
-
-func (c postgresSQLConfig) getQueries() OfflineTableQueries {
-	return postgresSQLQueries{}
-}
-
 type postgresSQLQueries struct{}
 
 func (q postgresSQLQueries) tableExists() string {
 	return "SELECT COUNT(*) FROM pg_tables WHERE  tablename  = $1"
-	//"SELECT 1 FROM information_schema.tables WHERE table_name= $1"
 }
 
-func (q postgresSQLQueries) registerResourcesWithoutTS(db *sql.DB, tableName string, schema ResourceSchema) error {
-	query := fmt.Sprintf("CREATE TABLE %s AS SELECT %s as entity, %s as value, null::TIMESTAMPTZ as ts FROM %s; ALTER TABLE %s ADD CONSTRAINT  %s  UNIQUE (entity, ts)", sanitize(tableName),
-		sanitize(schema.Entity), sanitize(schema.Value), sanitize(schema.SourceTable), sanitize(tableName), sanitize(uuid.NewString()))
+func (q postgresSQLQueries) registerResources(db *sql.DB, tableName string, schema ResourceSchema, timestamp bool) error {
+	var query string
+	if timestamp {
+		query = fmt.Sprintf("CREATE TABLE %s AS SELECT %s as entity, %s as value, %s as ts FROM %s; ALTER TABLE %s ADD CONSTRAINT  %s  UNIQUE (entity, ts)", sanitize(tableName),
+			sanitize(schema.Entity), sanitize(schema.Value), sanitize(schema.TS), sanitize(schema.SourceTable), sanitize(tableName), sanitize(uuid.NewString()))
+	} else {
+		query = fmt.Sprintf("CREATE TABLE %s AS SELECT %s as entity, %s as value, null::TIMESTAMPTZ as ts FROM %s; ALTER TABLE %s ADD CONSTRAINT  %s  UNIQUE (entity, ts)", sanitize(tableName),
+			sanitize(schema.Entity), sanitize(schema.Value), sanitize(schema.SourceTable), sanitize(tableName), sanitize(uuid.NewString()))
+	}
+
 	if _, err := db.Exec(query); err != nil {
 		return err
 	}
-	// Populates empty column with timestamp
-	update := fmt.Sprintf("UPDATE %s SET ts = $1", sanitize(tableName))
-	if _, err := db.Exec(update, time.UnixMilli(0).UTC()); err != nil {
-		return err
+	if !timestamp {
+		// Populates empty column with timestamp
+		update := fmt.Sprintf("UPDATE %s SET ts = $1", sanitize(tableName))
+		if _, err := db.Exec(update, time.UnixMilli(0).UTC()); err != nil {
+			return err
+		}
 	}
 	return nil
 }
-func (q postgresSQLQueries) registerResourcesWithTS(db *sql.DB, tableName string, schema ResourceSchema) error {
-	query := fmt.Sprintf("CREATE TABLE %s AS SELECT %s as entity, %s as value, %s as ts FROM %s; ALTER TABLE %s ADD CONSTRAINT  %s  UNIQUE (entity, ts)", sanitize(tableName),
-		sanitize(schema.Entity), sanitize(schema.Value), sanitize(schema.TS), sanitize(schema.SourceTable), sanitize(tableName), sanitize(uuid.NewString()))
-	if _, err := db.Exec(query); err != nil {
-		return err
-	}
-	return nil
-}
+
 func (q postgresSQLQueries) primaryTableFromTable(tableName string, sourceName string) string {
 	return fmt.Sprintf("CREATE TABLE %s AS SELECT * FROM %s", sanitize(tableName), sanitize(sourceName))
 }
@@ -146,16 +119,12 @@ func (q postgresSQLQueries) materializationCreate(tableName string, resultName s
 			"(SELECT entity, ts, value, row_number() OVER (PARTITION BY entity ORDER BY ts desc) "+
 			"AS rn FROM %s) t WHERE rn=1)", sanitize(tableName), sanitize(resultName))
 }
-func (q postgresSQLQueries) materializationGet() string {
+func (q postgresSQLQueries) getTable() string {
 	return "SELECT DISTINCT (table_name) FROM information_schema.tables WHERE table_name= $1"
 }
 
-func (q postgresSQLQueries) materializationDelete(tableName string) string {
+func (q postgresSQLQueries) dropTable(tableName string) string {
 	return fmt.Sprintf("DROP TABLE %s", sanitize(tableName))
-}
-
-func (q postgresSQLQueries) materializationExists() string {
-	return "SELECT DISTINCT (table_name) FROM information_schema.tables WHERE table_name= $1"
 }
 
 func (q postgresSQLQueries) trainingRowSelect(columns string, trainingSetName string) string {

@@ -17,29 +17,27 @@ func sanitize(ident string) string {
 	return db.Identifier{ident}.Sanitize()
 }
 
-type SQLOfflineStore interface {
-	getSerialized() SerializedConfig
-	isSQLOfflineStore() bool
-	getConnectionUrl() string
-	getDriver() string
-	getProviderType() Type
-	getQueries() OfflineTableQueries
+//Change to struct
+type SQLOfflineStoreConfig struct {
+	Config        SerializedConfig
+	ConnectionURL string
+	Driver        string
+	ProviderType  Type
+	QueryImpl     OfflineTableQueries
 }
 
 type OfflineTableQueries interface {
 	tableExists() string
 	resourceExists(tableName string) string
-	registerResourcesWithoutTS(db *sql.DB, tableName string, schema ResourceSchema) error
-	registerResourcesWithTS(db *sql.DB, tableName string, schema ResourceSchema) error
+	registerResources(db *sql.DB, tableName string, schema ResourceSchema, timestamp bool) error
 	primaryTableFromTable(tableName string, sourceName string) string
 	primaryTableCreate(name string, columnString string) string
 	getColumnNames() string
 	getValueColumnTypes(tableName string) string
 	determineColumnType(valueType ValueType) (string, error)
 	materializationCreate(tableName string, resultName string) string
-	materializationGet() string
-	materializationDelete(tableName string) string
-	materializationExists() string
+	getTable() string
+	dropTable(tableName string) string
 	materializationIterateSegment(tableName string) string
 	newSQLOfflineTable(name string, columnType string) string
 	writeUpdate(table string) string
@@ -56,26 +54,26 @@ type OfflineTableQueries interface {
 
 type sqlOfflineStore struct {
 	db     *sql.DB
-	parent SQLOfflineStore
+	parent SQLOfflineStoreConfig
 	query  OfflineTableQueries
 	BaseProvider
 }
 
 // NewPostgresOfflineStore creates a connection to a postgres database
 // and initializes a table to track currently active Resource tables.
-func NewSQLOfflineStore(config SQLOfflineStore) (*sqlOfflineStore, error) {
-	url := config.getConnectionUrl()
-	db, err := sql.Open(config.getDriver(), url)
+func NewSQLOfflineStore(config SQLOfflineStoreConfig) (*sqlOfflineStore, error) {
+	url := config.ConnectionURL
+	db, err := sql.Open(config.Driver, url)
 	if err != nil {
 		return nil, err
 	}
 	return &sqlOfflineStore{
 		db:     db,
 		parent: config,
-		query:  config.getQueries(),
+		query:  config.QueryImpl,
 		BaseProvider: BaseProvider{
-			ProviderType:   config.getProviderType(),
-			ProviderConfig: config.getSerialized(),
+			ProviderType:   config.ProviderType,
+			ProviderConfig: config.Config,
 		},
 	}, nil
 }
@@ -147,11 +145,11 @@ func (store *sqlOfflineStore) RegisterResourceFromSourceTable(id ResourceID, sch
 	tableName := store.getResourceTableName(id)
 
 	if schema.TS == "" {
-		if err := store.query.registerResourcesWithoutTS(store.db, tableName, schema); err != nil {
+		if err := store.query.registerResources(store.db, tableName, schema, false); err != nil {
 			return nil, err
 		}
 	} else {
-		if err := store.query.registerResourcesWithTS(store.db, tableName, schema); err != nil {
+		if err := store.query.registerResources(store.db, tableName, schema, true); err != nil {
 			return nil, err
 		}
 	}
@@ -478,7 +476,7 @@ func (store *sqlOfflineStore) CreateMaterialization(id ResourceID) (Materializat
 func (store *sqlOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
 	tableName := store.getMaterializationTableName(id)
 
-	getMatQry := store.query.materializationGet()
+	getMatQry := store.query.getTable()
 
 	rows, err := store.db.Query(getMatQry, tableName)
 	defer rows.Close()
@@ -507,7 +505,7 @@ func (store *sqlOfflineStore) DeleteMaterialization(id MaterializationID) error 
 	} else if !exists {
 		return &MaterializationNotFound{id}
 	}
-	query := store.query.materializationDelete(tableName)
+	query := store.query.dropTable(tableName)
 	if _, err := store.db.Exec(query); err != nil {
 		return err
 	}
@@ -516,7 +514,7 @@ func (store *sqlOfflineStore) DeleteMaterialization(id MaterializationID) error 
 
 func (store *sqlOfflineStore) materializationExists(id MaterializationID) (bool, error) {
 	tableName := store.getMaterializationTableName(id)
-	getMatQry := store.query.materializationExists()
+	getMatQry := store.query.getTable()
 	rows, err := store.db.Query(getMatQry, tableName)
 	defer rows.Close()
 	if err != nil {

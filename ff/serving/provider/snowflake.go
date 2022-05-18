@@ -51,18 +51,14 @@ func (sf *SnowflakeConfig) Serialize() []byte {
 func snowflakeOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	sc := SnowflakeConfig{}
 	if err := sc.Deserialize(config); err != nil {
-		return nil, errors.New("invalid sql config")
-	}
-	if err := sc.Deserialize(config); err != nil {
 		return nil, errors.New("invalid snowflake config")
 	}
-	sgConfig := snowflakeSQLConfig{
-		Username:     sc.Username,
-		Password:     sc.Password,
-		Organization: sc.Organization,
-		Account:      sc.Account,
-		Database:     sc.Database,
-		serialized:   config,
+	sgConfig := SQLOfflineStoreConfig{
+		Config:        config,
+		ConnectionURL: fmt.Sprintf("%s:%s@%s-%s/%s/PUBLIC", sc.Username, sc.Password, sc.Organization, sc.Account, sc.Database),
+		Driver:        "snowflake",
+		ProviderType:  SnowflakeOffline,
+		QueryImpl:     snowflakeSQLQueries{},
 	}
 
 	store, err := NewSQLOfflineStore(sgConfig)
@@ -72,115 +68,70 @@ func snowflakeOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	return store, nil
 }
 
-type snowflakeSQLConfig struct {
-	Username     string
-	Password     string
-	Organization string
-	Account      string
-	Database     string
-	serialized   SerializedConfig
-}
+type snowflakeSQLQueries struct{}
 
-func (c snowflakeSQLConfig) getSerialized() SerializedConfig {
-	return c.serialized
-}
-
-func (c snowflakeSQLConfig) isSQLOfflineStore() bool {
-	return true
-}
-
-func (c snowflakeSQLConfig) getConnectionUrl() string {
-	return fmt.Sprintf("%s:%s@%s-%s/%s/PUBLIC", c.Username, c.Password, c.Organization, c.Account, c.Database)
-}
-
-func (c snowflakeSQLConfig) getDriver() string {
-	return "snowflake"
-}
-
-func (c snowflakeSQLConfig) getProviderType() Type {
-	return SnowflakeOffline
-}
-
-func (c snowflakeSQLConfig) getQueries() OfflineTableQueries {
-	return snowFlakeSQLQueries{}
-}
-
-type snowFlakeSQLQueries struct{}
-
-func (q snowFlakeSQLQueries) tableExists() string {
+func (q snowflakeSQLQueries) tableExists() string {
 	return `SELECT COUNT(*) FROM information_schema.tables WHERE table_name = ?`
 }
 
-func (q snowFlakeSQLQueries) registerResourcesWithoutTS(db *sql.DB, tableName string, schema ResourceSchema) error {
-	query := fmt.Sprintf("CREATE TABLE %s AS SELECT IDENTIFIER('%s') as entity, IDENTIFIER('%s') as value, null::TIMESTAMP_NTZ as ts FROM TABLE('%s')", sanitize(tableName),
-		schema.Entity, schema.Value, sanitize(schema.SourceTable))
+func (q snowflakeSQLQueries) registerResources(db *sql.DB, tableName string, schema ResourceSchema, timestamp bool) error {
+	var query string
+	if timestamp {
+		query = fmt.Sprintf("CREATE TABLE %s AS SELECT IDENTIFIER('%s') as entity,  IDENTIFIER('%s') as value,  IDENTIFIER('%s') as ts FROM TABLE('%s')", sanitize(tableName),
+			schema.Entity, schema.Value, schema.TS, sanitize(schema.SourceTable))
+	} else {
+		query = fmt.Sprintf("CREATE TABLE %s AS SELECT IDENTIFIER('%s') as entity, IDENTIFIER('%s') as value, null::TIMESTAMP_NTZ as ts FROM TABLE('%s')", sanitize(tableName),
+			schema.Entity, schema.Value, sanitize(schema.SourceTable))
+	}
 	if _, err := db.Exec(query); err != nil {
-		fmt.Println("1:", err)
 		return err
 	}
 	query = fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT  %s  UNIQUE (entity, ts)", sanitize(tableName), sanitize(uuid.NewString()))
 	if _, err := db.Exec(query); err != nil {
-		fmt.Println("2:", err)
 		return err
 	}
-	// Populates empty column with timestamp
-	update := fmt.Sprintf("UPDATE %s SET ts = ?", sanitize(tableName))
-	if _, err := db.Exec(update, time.UnixMilli(0).UTC()); err != nil {
-		fmt.Println("3:", err)
-		return err
-	}
-	return nil
-}
-func (q snowFlakeSQLQueries) registerResourcesWithTS(db *sql.DB, tableName string, schema ResourceSchema) error {
-	query := fmt.Sprintf("CREATE TABLE %s AS SELECT IDENTIFIER('%s') as entity,  IDENTIFIER('%s') as value,  IDENTIFIER('%s') as ts FROM TABLE('%s')", sanitize(tableName),
-		schema.Entity, schema.Value, schema.TS, sanitize(schema.SourceTable))
-	if _, err := db.Exec(query); err != nil {
-		fmt.Println("4:", err)
-		return err
-	}
-	query = fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT  %s  UNIQUE (entity, ts)", sanitize(tableName), sanitize(uuid.NewString()))
-	if _, err := db.Exec(query); err != nil {
-		fmt.Println("5:", err)
-		return err
+	if !timestamp {
+		// Populates empty column with timestamp
+		update := fmt.Sprintf("UPDATE %s SET ts = ?", sanitize(tableName))
+		if _, err := db.Exec(update, time.UnixMilli(0).UTC()); err != nil {
+			return err
+		}
 	}
 	return nil
 }
-func (q snowFlakeSQLQueries) primaryTableFromTable(tableName string, sourceName string) string {
+
+func (q snowflakeSQLQueries) primaryTableFromTable(tableName string, sourceName string) string {
 	return fmt.Sprintf("CREATE TABLE %s AS SELECT * FROM TABLE('%s')", sanitize(tableName), sanitize(sourceName))
 }
-func (q snowFlakeSQLQueries) getColumnNames() string {
+func (q snowflakeSQLQueries) getColumnNames() string {
 	return "SELECT column_name FROM information_schema.columns WHERE table_name = ? order by ordinal_position"
 }
-func (q snowFlakeSQLQueries) primaryTableCreate(name string, columnString string) string {
+func (q snowflakeSQLQueries) primaryTableCreate(name string, columnString string) string {
 	return fmt.Sprintf("CREATE TABLE %s ( %s )", sanitize(name), columnString)
 }
-func (q snowFlakeSQLQueries) materializationCreate(tableName string, resultName string) string {
+func (q snowflakeSQLQueries) materializationCreate(tableName string, resultName string) string {
 	return fmt.Sprintf(
 		"CREATE TABLE IF NOT EXISTS %s AS (SELECT entity, value, ts, row_number() over(ORDER BY (SELECT NULL)) as row_number FROM "+
 			"(SELECT entity, ts, value, row_number() OVER (PARTITION BY entity ORDER BY ts desc) "+
 			"AS rn FROM %s) t WHERE rn=1)", sanitize(tableName), sanitize(resultName))
 }
-func (q snowFlakeSQLQueries) materializationGet() string {
+func (q snowflakeSQLQueries) getTable() string {
 	return "SELECT DISTINCT (table_name) FROM information_schema.tables WHERE table_name=?"
 }
 
-func (q snowFlakeSQLQueries) materializationDelete(tableName string) string {
+func (q snowflakeSQLQueries) dropTable(tableName string) string {
 	return fmt.Sprintf("DROP TABLE %s", sanitize(tableName))
 }
 
-func (q snowFlakeSQLQueries) materializationExists() string {
-	return "SELECT DISTINCT (table_name) FROM information_schema.tables WHERE table_name=?"
-}
-
-func (q snowFlakeSQLQueries) trainingRowSelect(columns string, trainingSetName string) string {
+func (q snowflakeSQLQueries) trainingRowSelect(columns string, trainingSetName string) string {
 	return fmt.Sprintf("SELECT %s FROM %s", columns, sanitize(trainingSetName))
 }
 
-func (q snowFlakeSQLQueries) getValueColumnTypes(tableName string) string {
+func (q snowflakeSQLQueries) getValueColumnTypes(tableName string) string {
 	return fmt.Sprintf("SELECT * FROM %s", sanitize(tableName)) //"select data_type from (select column_name, data_type from information_schema.columns where table_name = ? order by ordinal_position) t"
 }
 
-func (q snowFlakeSQLQueries) determineColumnType(valueType ValueType) (string, error) {
+func (q snowflakeSQLQueries) determineColumnType(valueType ValueType) (string, error) {
 	switch valueType {
 	case Int, Int32, Int64:
 		return "INT", nil
@@ -199,28 +150,28 @@ func (q snowFlakeSQLQueries) determineColumnType(valueType ValueType) (string, e
 	}
 }
 
-func (q snowFlakeSQLQueries) newSQLOfflineTable(name string, columnType string) string {
+func (q snowflakeSQLQueries) newSQLOfflineTable(name string, columnType string) string {
 	return fmt.Sprintf("CREATE TABLE %s (entity VARCHAR, value %s, ts TIMESTAMP_NTZ, UNIQUE (entity, ts))", sanitize(name), columnType)
 }
 
-func (q snowFlakeSQLQueries) resourceExists(tableName string) string {
+func (q snowflakeSQLQueries) resourceExists(tableName string) string {
 	return fmt.Sprintf("SELECT entity, value, ts FROM %s WHERE entity=? AND ts=? ", sanitize(tableName))
 }
-func (q snowFlakeSQLQueries) writeUpdate(table string) string {
+func (q snowflakeSQLQueries) writeUpdate(table string) string {
 	return fmt.Sprintf("UPDATE %s SET value=? WHERE entity=? AND ts=? ", table)
 }
-func (q snowFlakeSQLQueries) writeInserts(table string) string {
+func (q snowflakeSQLQueries) writeInserts(table string) string {
 	return fmt.Sprintf("INSERT INTO %s (entity, value, ts) VALUES (?, ?, ?)", table)
 }
-func (q snowFlakeSQLQueries) writeExists(table string) string {
+func (q snowflakeSQLQueries) writeExists(table string) string {
 	return fmt.Sprintf("SELECT COUNT (*) FROM %s WHERE entity=? AND ts=?", table)
 }
 
-func (q snowFlakeSQLQueries) materializationIterateSegment(tableName string) string {
+func (q snowflakeSQLQueries) materializationIterateSegment(tableName string) string {
 	return fmt.Sprintf("SELECT entity, value, ts FROM ( SELECT * FROM %s WHERE row_number>? AND row_number<=?)", sanitize(tableName))
 }
 
-func (q snowFlakeSQLQueries) createValuePlaceholderString(columns []TableColumn) string {
+func (q snowflakeSQLQueries) createValuePlaceholderString(columns []TableColumn) string {
 	placeholders := make([]string, 0)
 	for _ = range columns {
 		placeholders = append(placeholders, fmt.Sprintf("?"))
@@ -228,7 +179,7 @@ func (q snowFlakeSQLQueries) createValuePlaceholderString(columns []TableColumn)
 	return strings.Join(placeholders, ", ")
 }
 
-func (q snowFlakeSQLQueries) trainingSetCreate(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string) error {
+func (q snowflakeSQLQueries) trainingSetCreate(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string) error {
 	columns := make([]string, 0)
 	query := ""
 	for i, feature := range def.Features {
@@ -253,7 +204,7 @@ func (q snowFlakeSQLQueries) trainingSetCreate(store *sqlOfflineStore, def Train
 	return nil
 }
 
-func (q snowFlakeSQLQueries) castTableItemType(v interface{}, t interface{}) interface{} {
+func (q snowflakeSQLQueries) castTableItemType(v interface{}, t interface{}) interface{} {
 	switch t {
 	case sfInt, sfNumber:
 		if intVar, err := strconv.Atoi(v.(string)); err != nil {
@@ -279,7 +230,7 @@ func (q snowFlakeSQLQueries) castTableItemType(v interface{}, t interface{}) int
 	}
 }
 
-func (q snowFlakeSQLQueries) getValueColumnType(t *sql.ColumnType) interface{} {
+func (q snowflakeSQLQueries) getValueColumnType(t *sql.ColumnType) interface{} {
 	switch t.ScanType().String() {
 	case "string":
 		return sfString
@@ -295,7 +246,7 @@ func (q snowFlakeSQLQueries) getValueColumnType(t *sql.ColumnType) interface{} {
 	return sfString
 }
 
-func (q snowFlakeSQLQueries) numRows(n interface{}) (int64, error) {
+func (q snowflakeSQLQueries) numRows(n interface{}) (int64, error) {
 	if intVar, err := strconv.Atoi(n.(string)); err != nil {
 		return 0, err
 	} else {
@@ -303,6 +254,6 @@ func (q snowFlakeSQLQueries) numRows(n interface{}) (int64, error) {
 	}
 }
 
-func (q snowFlakeSQLQueries) transformationCreate(name string, query string) string {
+func (q snowflakeSQLQueries) transformationCreate(name string, query string) string {
 	return fmt.Sprintf("CREATE TABLE %s AS SELECT * FROM ( %s )", sanitize(name), query)
 }

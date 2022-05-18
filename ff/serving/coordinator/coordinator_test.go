@@ -1326,7 +1326,7 @@ func testCoordinatorMaterializeFeature(addr string) error {
 	if err != nil {
 		return fmt.Errorf("Failed to set up coordinator")
 	}
-	go func(){
+	go func() {
 		if err := coord.WatchForNewJobs(); err != nil {
 			logger.Errorf("Error watching for new jobs: %v", err)
 		}

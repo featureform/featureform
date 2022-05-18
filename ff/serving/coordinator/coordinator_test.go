@@ -609,7 +609,11 @@ func testRegisterPrimaryTableFromSource() error {
 	if err != nil {
 		return fmt.Errorf("Coordinator did not create primary table")
 	}
-	if primaryTable.GetName() != provider.GetPrimaryTableName(providerSourceID) {
+	primaryTableName, err := provider.GetPrimaryTableName(providerSourceID)
+	if err != nil {
+		return fmt.Errorf("invalid table name: %v", err)
+	}
+	if primaryTable.GetName() != primaryTableName {
 		return fmt.Errorf("Primary table did not copy name")
 	}
 	numRows, err := primaryTable.NumRows()
@@ -723,7 +727,11 @@ func testRegisterTransformationFromSource() error {
 	if err != nil {
 		return err
 	}
-	if transformationTable.GetName() != provider.GetTransformationName(providerTransformationID) {
+	transformationTableName, err := provider.GetTransformationName(providerTransformationID)
+	if err != nil {
+		return fmt.Errorf("invalid transformation table name: %v", err)
+	}
+	if transformationTable.GetName() != transformationTableName {
 		return fmt.Errorf("Transformation table did not copy name")
 	}
 	numRows, err := transformationTable.NumRows()
@@ -784,7 +792,11 @@ func testRegisterTransformationFromSource() error {
 	if err != nil {
 		return err
 	}
-	if joinTransformationTable.GetName() != provider.GetTransformationName(providerJoinTransformationID) {
+	transformationJoinName, err := provider.GetTransformationName(providerJoinTransformationID)
+	if err != nil {
+		return fmt.Errorf("invalid transformation table name: %v", err)
+	}
+	if joinTransformationTable.GetName() != transformationJoinName {
 		return fmt.Errorf("Transformation table did not copy name")
 	}
 	numRows, err = joinTransformationTable.NumRows()

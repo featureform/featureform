@@ -9,6 +9,7 @@ import (
 	db "github.com/jackc/pgx/v4"
 	"go.uber.org/zap"
 
+	mvccpb "github.com/coreos/etcd/mvcc/mvccpb"
 	"github.com/featureform/serving/metadata"
 	pb "github.com/featureform/serving/metadata/proto"
 	provider "github.com/featureform/serving/provider"
@@ -121,26 +122,26 @@ func (c *Coordinator) WatchForNewJobs() error {
 	}
 	fmt.Println("get response contents", getResp.Kvs)
 	for _, kv := range getResp.Kvs {
-		go func() {
+		go func(kv *mvccpb.KeyValue) {
 			fmt.Println("found job", string(kv.Key))
 			err := c.executeJob(string(kv.Key))
 			if err != nil {
 				fmt.Println(err)
 			}
-		}()
+		}(kv)
 	}
 	for {
 		rch := c.EtcdClient.Watch(context.Background(), "JOB_", clientv3.WithPrefix())
 		for wresp := range rch {
 			for _, ev := range wresp.Events {
 				if ev.Type == 0 {
-					go func() {
+					go func(ev mvccpb.Event) {
 						fmt.Println("found job with watcher", string(ev.Kv.Key))
 						err := c.executeJob(string(ev.Kv.Key))
 						if err != nil {
 							fmt.Println(err)
 						}
-					}()
+					}(ev)
 				}
 
 			}

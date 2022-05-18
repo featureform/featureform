@@ -44,15 +44,16 @@ type Coordinator struct {
 }
 
 func (c *Coordinator) AwaitPendingSource(sourceNameVariant metadata.NameVariant, timeout int32) (*metadata.SourceVariant, error) {
-	sourceStatus := pb.ResourceStatus_PENDING
+	sourceStatus := metadata.PENDING
 	start := time.Now()
 	elapsed := time.Since(start)
-	for sourceStatus != pb.ResourceStatus_READY && elapsed < time.Duration(timeout)*time.Second {
+	for sourceStatus != metadata.READY && elapsed < time.Duration(timeout)*time.Second {
 		source, err := c.Metadata.GetSourceVariant(context.Background(), sourceNameVariant)
 		if err != nil {
 			return nil, err
 		}
 		sourceStatus := source.Status()
+		fmt.Println(source)
 		if sourceStatus == metadata.FAILED {
 			return nil, fmt.Errorf("source of feature not ready")
 		}

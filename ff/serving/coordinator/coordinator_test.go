@@ -1193,10 +1193,10 @@ func testCoordinatorTrainingSet(addr string) error {
 	if err := coord.executeJob(metadata.GetJobKey(sourceID)); err != nil {
 		return err
 	}
-	featureID := metadata.ResourceID{Name: featureName, Variant: "", Type: metadata.FEATURE_VARIANT}
-	if err := coord.executeJob(metadata.GetJobKey(featureID)); err != nil {
-		return err
-	}
+	// featureID := metadata.ResourceID{Name: featureName, Variant: "", Type: metadata.FEATURE_VARIANT}
+	// if err := coord.executeJob(metadata.GetJobKey(featureID)); err != nil {
+	// 	return err
+	// }
 	labelID := metadata.ResourceID{Name: labelName, Variant: "", Type: metadata.LABEL_VARIANT}
 	if err := coord.executeJob(metadata.GetJobKey(labelID)); err != nil {
 		return err

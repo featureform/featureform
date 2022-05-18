@@ -33,7 +33,7 @@ type OfflineTableQueries interface {
 	tableExists() string
 	resourceExists(tableName string) string
 	registerResources(db *sql.DB, tableName string, schema ResourceSchema, timestamp bool) error
-	primaryTableFromTable(tableName string, sourceName string) string
+	primaryTableRegister(tableName string, sourceName string) string
 	primaryTableCreate(name string, columnString string) string
 	getColumnNames() string
 	getValueColumnTypes(tableName string) string
@@ -175,7 +175,7 @@ func (store *sqlOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sour
 		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}
 	tableName := GetPrimaryTableName(id)
-	query := store.query.primaryTableFromTable(tableName, sourceName)
+	query := store.query.primaryTableRegister(tableName, sourceName)
 	if _, err := store.db.Exec(query); err != nil {
 		return nil, err
 	}
@@ -1057,7 +1057,7 @@ func (q defaultOfflineSQLQueries) registerResources(db *sql.DB, tableName string
 	return nil
 }
 
-func (q defaultOfflineSQLQueries) primaryTableFromTable(tableName string, sourceName string) string {
+func (q defaultOfflineSQLQueries) primaryTableRegister(tableName string, sourceName string) string {
 	return fmt.Sprintf("CREATE TABLE %s AS SELECT * FROM TABLE('%s')", sanitize(tableName), sanitize(sourceName))
 }
 func (q defaultOfflineSQLQueries) getColumnNames() string {

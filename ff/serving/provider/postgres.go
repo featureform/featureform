@@ -99,7 +99,7 @@ func (q postgresSQLQueries) registerResources(db *sql.DB, tableName string, sche
 	return nil
 }
 
-func (q postgresSQLQueries) primaryTableFromTable(tableName string, sourceName string) string {
+func (q postgresSQLQueries) primaryTableRegister(tableName string, sourceName string) string {
 	return fmt.Sprintf("CREATE TABLE %s AS SELECT * FROM %s", sanitize(tableName), sanitize(sourceName))
 }
 

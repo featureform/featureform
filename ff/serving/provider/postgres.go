@@ -51,12 +51,14 @@ func postgresOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	if err := sc.Deserialize(config); err != nil {
 		return nil, errors.New("invalid snowflake config")
 	}
+	queries := postgresSQLQueries{}
+	queries.setVariableBinding(PostgresBindingStyle)
 	sgConfig := SQLOfflineStoreConfig{
 		Config:        config,
 		ConnectionURL: fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", sc.Username, sc.Password, sc.Host, sc.Port, sc.Database),
 		Driver:        "postgres",
 		ProviderType:  PostgresOffline,
-		QueryImpl:     postgresSQLQueries{},
+		QueryImpl:     &queries,
 	}
 
 	store, err := NewSQLOfflineStore(sgConfig)
@@ -66,16 +68,9 @@ func postgresOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	return store, nil
 }
 
-type postgresSQLConfig struct {
-	Host       string
-	Port       string
-	Username   string
-	Password   string
-	Database   string
-	serialized SerializedConfig
+type postgresSQLQueries struct {
+	defaultOfflineSQLQueries
 }
-
-type postgresSQLQueries struct{}
 
 func (q postgresSQLQueries) tableExists() string {
 	return "SELECT COUNT(*) FROM pg_tables WHERE  tablename  = $1"
@@ -107,32 +102,12 @@ func (q postgresSQLQueries) registerResources(db *sql.DB, tableName string, sche
 func (q postgresSQLQueries) primaryTableFromTable(tableName string, sourceName string) string {
 	return fmt.Sprintf("CREATE TABLE %s AS SELECT * FROM %s", sanitize(tableName), sanitize(sourceName))
 }
-func (q postgresSQLQueries) getColumnNames() string {
-	return "SELECT column_name FROM information_schema.columns WHERE table_name = $1 order by ordinal_position"
-}
-func (q postgresSQLQueries) primaryTableCreate(name string, columnString string) string {
-	return fmt.Sprintf("CREATE TABLE %s ( %s )", sanitize(name), columnString)
-}
+
 func (q postgresSQLQueries) materializationCreate(tableName string, resultName string) string {
 	return fmt.Sprintf(
 		"CREATE TABLE IF NOT EXISTS %s AS (SELECT entity, value, ts, row_number() over(ORDER BY (SELECT NULL)) as row_number FROM "+
 			"(SELECT entity, ts, value, row_number() OVER (PARTITION BY entity ORDER BY ts desc) "+
 			"AS rn FROM %s) t WHERE rn=1)", sanitize(tableName), sanitize(resultName))
-}
-func (q postgresSQLQueries) getTable() string {
-	return "SELECT DISTINCT (table_name) FROM information_schema.tables WHERE table_name= $1"
-}
-
-func (q postgresSQLQueries) dropTable(tableName string) string {
-	return fmt.Sprintf("DROP TABLE %s", sanitize(tableName))
-}
-
-func (q postgresSQLQueries) trainingRowSelect(columns string, trainingSetName string) string {
-	return fmt.Sprintf("SELECT %s FROM %s", columns, sanitize(trainingSetName))
-}
-
-func (q postgresSQLQueries) getValueColumnTypes(tableName string) string {
-	return fmt.Sprintf("SELECT * FROM %s", sanitize(tableName))
 }
 
 func (q postgresSQLQueries) determineColumnType(valueType ValueType) (string, error) {
@@ -156,23 +131,6 @@ func (q postgresSQLQueries) determineColumnType(valueType ValueType) (string, er
 
 func (q postgresSQLQueries) newSQLOfflineTable(name string, columnType string) string {
 	return fmt.Sprintf("CREATE TABLE %s (entity VARCHAR, value %s, ts TIMESTAMPTZ, UNIQUE (entity, ts))", sanitize(name), columnType)
-}
-
-func (q postgresSQLQueries) resourceExists(tableName string) string {
-	return fmt.Sprintf("SELECT entity, value, ts FROM %s WHERE entity= $1 AND ts= $2 ", sanitize(tableName))
-}
-func (q postgresSQLQueries) writeUpdate(table string) string {
-	return fmt.Sprintf("UPDATE %s SET value=$1 WHERE entity=$2 AND ts=$3 ", table)
-}
-func (q postgresSQLQueries) writeInserts(table string) string {
-	return fmt.Sprintf("INSERT INTO %s (entity, value, ts) VALUES ($1, $2, $3)", table)
-}
-func (q postgresSQLQueries) writeExists(table string) string {
-	return fmt.Sprintf("SELECT COUNT (*) FROM %s WHERE entity=$1 AND ts=$2", table)
-}
-
-func (q postgresSQLQueries) materializationIterateSegment(tableName string) string {
-	return fmt.Sprintf("SELECT entity, value, ts FROM ( SELECT * FROM %s WHERE row_number>$1 AND row_number<=$2)t1", sanitize(tableName))
 }
 
 func (q postgresSQLQueries) createValuePlaceholderString(columns []TableColumn) string {

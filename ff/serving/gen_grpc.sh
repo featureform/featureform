@@ -6,4 +6,6 @@ protoc --go_out=. --go_opt=paths=source_relative     --go-grpc_out=. --go-grpc_o
 python -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. ./proto/serving.proto
 
 protoc --go_out=. --go_opt=paths=source_relative     --go-grpc_out=. --go-grpc_opt=paths=source_relative     ./metadata/proto/metadata.proto
-python -m grpc_tools.protoc -I./metadata/proto --python_out=client --grpc_python_out=client metadata.proto
+python -m grpc_tools.protoc -I./metadata/proto --python_out=client/src/featureform --grpc_python_out=client/src/featureform metadata.proto
+pip install 2to3
+2to3 ./client/src/featureform/metadata_pb2_grpc.py -w

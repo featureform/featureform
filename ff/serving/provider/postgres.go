@@ -100,9 +100,17 @@ func (q postgresSQLQueries) primaryTableRegister(tableName string, sourceName st
 
 func (q postgresSQLQueries) materializationCreate(tableName string, resultName string) string {
 	return fmt.Sprintf(
-		"CREATE TABLE IF NOT EXISTS %s AS (SELECT entity, value, ts, row_number() over(ORDER BY (SELECT NULL)) as row_number FROM "+
+		"CREATE MATERIALIZED VIEW IF NOT EXISTS %s AS (SELECT entity, value, ts, row_number() over(ORDER BY (SELECT NULL)) as row_number FROM "+
 			"(SELECT entity, ts, value, row_number() OVER (PARTITION BY entity ORDER BY ts desc) "+
 			"AS rn FROM %s) t WHERE rn=1)", sanitize(tableName), sanitize(resultName))
+}
+
+func (q postgresSQLQueries) materializationUpdate(tableName string) string {
+	return fmt.Sprintf("REFRESH MATERIALIZED VIEW %s", sanitize(tableName))
+}
+
+func (q postgresSQLQueries) materializationExists() string {
+	return fmt.Sprintf("SELECT * FROM pg_matviews WHERE matviewname = $1")
 }
 
 func (q postgresSQLQueries) determineColumnType(valueType ValueType) (string, error) {

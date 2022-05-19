@@ -123,6 +123,7 @@ type OfflineStore interface {
 	GetResourceTable(id ResourceID) (OfflineTable, error)
 	CreateMaterialization(id ResourceID) (Materialization, error)
 	GetMaterialization(id MaterializationID) (Materialization, error)
+	UpdateMaterialization(id ResourceID) (Materialization, error)
 	DeleteMaterialization(id MaterializationID) error
 	CreateTrainingSet(TrainingSetDef) error
 	GetTrainingSet(id ResourceID) (TrainingSetIterator, error)
@@ -348,6 +349,10 @@ func (store *memoryOfflineStore) GetMaterialization(id MaterializationID) (Mater
 		return nil, &MaterializationNotFound{id}
 	}
 	return mat, nil
+}
+
+func (store *memoryOfflineStore) UpdateMaterialization(id ResourceID) (Materialization, error) {
+	return store.CreateMaterialization(id)
 }
 
 func (store *memoryOfflineStore) DeleteMaterialization(id MaterializationID) error {

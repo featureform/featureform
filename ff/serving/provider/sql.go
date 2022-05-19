@@ -38,6 +38,9 @@ type OfflineTableQueries interface {
 	getValueColumnTypes(tableName string) string
 	determineColumnType(valueType ValueType) (string, error)
 	materializationCreate(tableName string, resultName string) string
+	materializationUpdate(tableName string) string
+	materializationExists() string
+	materializationDrop(tableName string) string
 	getTable() string
 	dropTable(tableName string) string
 	materializationIterateSegment(tableName string) string
@@ -526,7 +529,7 @@ func (store *sqlOfflineStore) CreateMaterialization(id ResourceID) (Materializat
 func (store *sqlOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
 	tableName := store.getMaterializationTableName(id)
 
-	getMatQry := store.query.getTable()
+	getMatQry := store.query.materializationExists()
 
 	rows, err := store.db.Query(getMatQry, tableName)
 	defer rows.Close()
@@ -548,6 +551,35 @@ func (store *sqlOfflineStore) GetMaterialization(id MaterializationID) (Material
 	}, err
 }
 
+func (store *sqlOfflineStore) UpdateMaterialization(id ResourceID) (Materialization, error) {
+	matID := MaterializationID(id.Name)
+	tableName := store.getMaterializationTableName(matID)
+	getMatQry := store.query.materializationExists()
+
+	rows, err := store.db.Query(getMatQry, tableName)
+	defer rows.Close()
+	if err != nil {
+		return nil, err
+	}
+	rowCount := 0
+	if rows.Next() {
+		rowCount++
+	}
+	if rowCount == 0 {
+		return nil, &MaterializationNotFound{matID}
+	}
+	updateQuery := store.query.materializationUpdate(tableName)
+	if _, err := store.db.Exec(updateQuery); err != nil {
+		return nil, err
+	}
+	return &sqlMaterialization{
+		id:        matID,
+		db:        store.db,
+		tableName: tableName,
+		query:     store.query,
+	}, err
+}
+
 func (store *sqlOfflineStore) DeleteMaterialization(id MaterializationID) error {
 	tableName := store.getMaterializationTableName(id)
 	if exists, err := store.materializationExists(id); err != nil {
@@ -555,7 +587,7 @@ func (store *sqlOfflineStore) DeleteMaterialization(id MaterializationID) error 
 	} else if !exists {
 		return &MaterializationNotFound{id}
 	}
-	query := store.query.dropTable(tableName)
+	query := store.query.materializationDrop(tableName)
 	if _, err := store.db.Exec(query); err != nil {
 		return err
 	}
@@ -564,7 +596,7 @@ func (store *sqlOfflineStore) DeleteMaterialization(id MaterializationID) error 
 
 func (store *sqlOfflineStore) materializationExists(id MaterializationID) (bool, error) {
 	tableName := store.getMaterializationTableName(id)
-	getMatQry := store.query.getTable()
+	getMatQry := store.query.materializationExists()
 	rows, err := store.db.Query(getMatQry, tableName)
 	defer rows.Close()
 	if err != nil {
@@ -1123,9 +1155,23 @@ func (q defaultOfflineSQLQueries) materializationCreate(tableName string, result
 			"(SELECT entity, ts, value, row_number() OVER (PARTITION BY entity ORDER BY ts desc) "+
 			"AS rn FROM %s) t WHERE rn=1)", sanitize(tableName), sanitize(resultName))
 }
+
+func (q defaultOfflineSQLQueries) materializationUpdate(tableName string) string {
+	return fmt.Sprintf("REFRESH MATERIALIZED VIEW CONCURRENTLY %s", sanitize(tableName))
+}
+
 func (q defaultOfflineSQLQueries) getTable() string {
 	bind := q.newVariableBindingIterator()
 	return fmt.Sprintf("SELECT DISTINCT (table_name) FROM information_schema.tables WHERE table_name=%s", bind.Next())
+}
+
+func (q defaultOfflineSQLQueries) materializationExists() string {
+	bind := q.newVariableBindingIterator()
+	return fmt.Sprintf("SELECT DISTINCT (table_name) FROM information_schema.tables WHERE table_name=%s", bind.Next())
+}
+
+func (q defaultOfflineSQLQueries) materializationDrop(tableName string) string {
+	return fmt.Sprintf("DROP MATERIALIZED VIEW %s", sanitize(tableName))
 }
 
 func (q defaultOfflineSQLQueries) dropTable(tableName string) string {

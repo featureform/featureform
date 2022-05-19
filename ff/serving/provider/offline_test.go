@@ -56,6 +56,7 @@ func TestOfflineStores(t *testing.T) {
 		"TableNotFound":           testOfflineTableNotFound,
 		"InvalidResourceIDs":      testInvalidResourceIDs,
 		"Materializations":        testMaterializations,
+		"MaterializationUpdate":   testMaterializationUpdate,
 		"InvalidResourceRecord":   testWriteInvalidResourceRecord,
 		"InvalidMaterialization":  testInvalidMaterialization,
 		"MaterializeUnknown":      testMaterializeUnknown,
@@ -410,6 +411,285 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 			t.Fatalf("Failed to get materialization: %s", err)
 		}
 		testMaterialization(t, getMat, test)
+		if err := store.DeleteMaterialization(mat.ID()); err != nil {
+			t.Fatalf("Failed to delete materialization: %s", err)
+		}
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			runTestCase(t, test)
+		})
+	}
+
+}
+
+func testMaterializationUpdate(t *testing.T, store OfflineStore) {
+	type TestCase struct {
+		WriteRecords                           []ResourceRecord
+		UpdateRecords                          []ResourceRecord
+		Schema                                 TableSchema
+		ExpectedRows                           int64
+		UpdatedRows                            int64
+		SegmentStart, SegmentEnd               int64
+		UpdatedSegmentStart, UpdatedSegmentEnd int64
+		ExpectedSegment                        []ResourceRecord
+		ExpectedUpdate                         []ResourceRecord
+	}
+
+	schemaInt := TableSchema{
+		Columns: []TableColumn{
+			{Name: "entity", ValueType: String},
+			{Name: "value", ValueType: Int},
+			{Name: "ts", ValueType: Timestamp},
+		},
+	}
+	tests := map[string]TestCase{
+		"Empty": {
+			WriteRecords:    []ResourceRecord{},
+			UpdateRecords:   []ResourceRecord{},
+			Schema:          schemaInt,
+			SegmentStart:    0,
+			SegmentEnd:      0,
+			UpdatedRows:     0,
+			ExpectedSegment: []ResourceRecord{},
+			ExpectedUpdate:  []ResourceRecord{},
+		},
+		"NoOverlap": {
+			WriteRecords: []ResourceRecord{
+				{Entity: "a", Value: 1},
+				{Entity: "b", Value: 2},
+				{Entity: "c", Value: 3},
+			},
+			UpdateRecords: []ResourceRecord{
+				{Entity: "d", Value: 4},
+			},
+			Schema:              schemaInt,
+			ExpectedRows:        3,
+			SegmentStart:        0,
+			SegmentEnd:          3,
+			UpdatedSegmentStart: 0,
+			UpdatedSegmentEnd:   4,
+			UpdatedRows:         4,
+			// Have to expect time.UnixMilli(0).UTC() as it is the default value
+			// if a resource does not have a set timestamp
+			ExpectedSegment: []ResourceRecord{
+				{Entity: "a", Value: 1, TS: time.UnixMilli(0).UTC()},
+				{Entity: "b", Value: 2, TS: time.UnixMilli(0).UTC()},
+				{Entity: "c", Value: 3, TS: time.UnixMilli(0).UTC()},
+			},
+			ExpectedUpdate: []ResourceRecord{
+				{Entity: "a", Value: 1, TS: time.UnixMilli(0).UTC()},
+				{Entity: "b", Value: 2, TS: time.UnixMilli(0).UTC()},
+				{Entity: "c", Value: 3, TS: time.UnixMilli(0).UTC()},
+				{Entity: "d", Value: 4, TS: time.UnixMilli(0).UTC()},
+			},
+		},
+		"SimpleOverwrite": {
+			WriteRecords: []ResourceRecord{
+				{Entity: "a", Value: 1},
+				{Entity: "b", Value: 2},
+				{Entity: "c", Value: 3},
+				{Entity: "a", Value: 4},
+			},
+			UpdateRecords: []ResourceRecord{
+				{Entity: "a", Value: 3},
+				{Entity: "b", Value: 4},
+			},
+			Schema:              schemaInt,
+			ExpectedRows:        3,
+			SegmentStart:        0,
+			SegmentEnd:          3,
+			UpdatedSegmentStart: 0,
+			UpdatedSegmentEnd:   3,
+			UpdatedRows:         3,
+			ExpectedSegment: []ResourceRecord{
+				{Entity: "a", Value: 4, TS: time.UnixMilli(0).UTC()},
+				{Entity: "b", Value: 2, TS: time.UnixMilli(0).UTC()},
+				{Entity: "c", Value: 3, TS: time.UnixMilli(0).UTC()},
+			},
+			ExpectedUpdate: []ResourceRecord{
+				{Entity: "a", Value: 3, TS: time.UnixMilli(0).UTC()},
+				{Entity: "b", Value: 4, TS: time.UnixMilli(0).UTC()},
+				{Entity: "c", Value: 3, TS: time.UnixMilli(0).UTC()},
+			},
+		},
+		// Added .UTC() b/c DeepEqual checks the timezone field of time.Time which can vary, resulting in false failures
+		// during tests even if time is correct
+		"SimpleChanges": {
+			WriteRecords: []ResourceRecord{
+				{Entity: "a", Value: 1, TS: time.UnixMilli(0).UTC()},
+				{Entity: "b", Value: 2, TS: time.UnixMilli(0).UTC()},
+				{Entity: "c", Value: 3, TS: time.UnixMilli(0).UTC()},
+				{Entity: "a", Value: 4, TS: time.UnixMilli(1).UTC()},
+			},
+			UpdateRecords: []ResourceRecord{
+				{Entity: "a", Value: 4, TS: time.UnixMilli(4).UTC()},
+			},
+			Schema:              schemaInt,
+			ExpectedRows:        3,
+			SegmentStart:        0,
+			SegmentEnd:          3,
+			UpdatedSegmentStart: 0,
+			UpdatedSegmentEnd:   3,
+			UpdatedRows:         3,
+			ExpectedSegment: []ResourceRecord{
+				{Entity: "a", Value: 4, TS: time.UnixMilli(1).UTC()},
+				{Entity: "b", Value: 2, TS: time.UnixMilli(0).UTC()},
+				{Entity: "c", Value: 3, TS: time.UnixMilli(0).UTC()},
+			},
+			ExpectedUpdate: []ResourceRecord{
+				{Entity: "a", Value: 4, TS: time.UnixMilli(4).UTC()},
+				{Entity: "b", Value: 2, TS: time.UnixMilli(0).UTC()},
+				{Entity: "c", Value: 3, TS: time.UnixMilli(0).UTC()},
+			},
+		},
+		"OutOfOrderWrites": {
+			WriteRecords: []ResourceRecord{
+				{Entity: "a", Value: 1, TS: time.UnixMilli(10).UTC()},
+				{Entity: "b", Value: 2, TS: time.UnixMilli(3).UTC()},
+				{Entity: "c", Value: 3, TS: time.UnixMilli(7).UTC()},
+				{Entity: "c", Value: 9, TS: time.UnixMilli(5).UTC()},
+				{Entity: "a", Value: 4, TS: time.UnixMilli(1).UTC()},
+			},
+			UpdateRecords: []ResourceRecord{
+				{Entity: "c", Value: 9, TS: time.UnixMilli(11).UTC()},
+				{Entity: "a", Value: 4, TS: time.UnixMilli(12).UTC()},
+			},
+			Schema:              schemaInt,
+			ExpectedRows:        3,
+			SegmentStart:        0,
+			SegmentEnd:          3,
+			UpdatedSegmentStart: 0,
+			UpdatedSegmentEnd:   3,
+			UpdatedRows:         3,
+			ExpectedSegment: []ResourceRecord{
+				{Entity: "a", Value: 1, TS: time.UnixMilli(10).UTC()},
+				{Entity: "b", Value: 2, TS: time.UnixMilli(3).UTC()},
+				{Entity: "c", Value: 3, TS: time.UnixMilli(7).UTC()},
+			},
+			ExpectedUpdate: []ResourceRecord{
+				{Entity: "a", Value: 4, TS: time.UnixMilli(12).UTC()},
+				{Entity: "b", Value: 2, TS: time.UnixMilli(3).UTC()},
+				{Entity: "c", Value: 9, TS: time.UnixMilli(11).UTC()},
+			},
+		},
+		"OutOfOrderOverwrites": {
+			WriteRecords: []ResourceRecord{
+				{Entity: "a", Value: 1, TS: time.UnixMilli(10).UTC()},
+				{Entity: "b", Value: 2, TS: time.UnixMilli(3).UTC()},
+				{Entity: "c", Value: 3, TS: time.UnixMilli(7).UTC()},
+				{Entity: "c", Value: 9, TS: time.UnixMilli(5).UTC()},
+				{Entity: "b", Value: 12, TS: time.UnixMilli(2).UTC()},
+				{Entity: "a", Value: 4, TS: time.UnixMilli(1).UTC()},
+				{Entity: "b", Value: 9, TS: time.UnixMilli(3).UTC()},
+			},
+			UpdateRecords: []ResourceRecord{
+				{Entity: "a", Value: 5, TS: time.UnixMilli(20).UTC()},
+				{Entity: "b", Value: 2, TS: time.UnixMilli(4).UTC()},
+			},
+			Schema:              schemaInt,
+			ExpectedRows:        3,
+			SegmentStart:        0,
+			SegmentEnd:          3,
+			UpdatedSegmentStart: 0,
+			UpdatedSegmentEnd:   3,
+			UpdatedRows:         3,
+			ExpectedSegment: []ResourceRecord{
+				{Entity: "a", Value: 1, TS: time.UnixMilli(10).UTC()},
+				{Entity: "b", Value: 9, TS: time.UnixMilli(3).UTC()},
+				{Entity: "c", Value: 3, TS: time.UnixMilli(7).UTC()},
+			},
+			ExpectedUpdate: []ResourceRecord{
+				{Entity: "a", Value: 5, TS: time.UnixMilli(20).UTC()},
+				{Entity: "b", Value: 2, TS: time.UnixMilli(4).UTC()},
+				{Entity: "c", Value: 3, TS: time.UnixMilli(7).UTC()},
+			},
+		},
+	}
+	testMaterialization := func(t *testing.T, mat Materialization, test TestCase) {
+		if numRows, err := mat.NumRows(); err != nil {
+			t.Fatalf("Failed to get num rows: %s", err)
+		} else if numRows != test.ExpectedRows {
+			t.Fatalf("Num rows not equal %d %d", numRows, test.ExpectedRows)
+		}
+		seg, err := mat.IterateSegment(test.SegmentStart, test.SegmentEnd)
+		if err != nil {
+			t.Fatalf("Failed to create segment: %s", err)
+		}
+		i := 0
+		for seg.Next() {
+			actual := seg.Value()
+			expected := test.ExpectedSegment[i]
+			if !reflect.DeepEqual(actual, expected) {
+				t.Fatalf("Value not equal in materialization: %v %v\n"+
+					"%T:%T %T:%T %T:%T\n", actual, expected, actual.Entity, expected.Entity, actual.Value, expected.Value, actual.TS, expected.TS)
+			}
+			i++
+		}
+		if err := seg.Err(); err != nil {
+			t.Fatalf("Iteration failed: %s", err)
+		}
+		if i < len(test.ExpectedSegment) {
+			t.Fatalf("Segment is too small: %d", i)
+		}
+	}
+	testUpdate := func(t *testing.T, mat Materialization, test TestCase) {
+		if numRows, err := mat.NumRows(); err != nil {
+			t.Fatalf("Failed to get num rows: %s", err)
+		} else if numRows != test.UpdatedRows {
+			t.Fatalf("Num rows not equal %d %d", numRows, test.UpdatedRows)
+		}
+		seg, err := mat.IterateSegment(test.UpdatedSegmentStart, test.UpdatedSegmentEnd)
+		if err != nil {
+			t.Fatalf("Failed to create segment: %s", err)
+		}
+		i := 0
+		for seg.Next() {
+			actual := seg.Value()
+			expected := test.ExpectedUpdate[i]
+			if !reflect.DeepEqual(actual, expected) {
+				t.Fatalf("Value not equal in materialization: %v %v\n"+
+					"%T:%T %T:%T %T:%T\n", actual, expected, actual.Entity, expected.Entity, actual.Value, expected.Value, actual.TS, expected.TS)
+			}
+			i++
+		}
+		if err := seg.Err(); err != nil {
+			t.Fatalf("Iteration failed: %s", err)
+		}
+		if i < len(test.ExpectedSegment) {
+			t.Fatalf("Segment is too small: %d", i)
+		}
+	}
+	runTestCase := func(t *testing.T, test TestCase) {
+		id := randomID(Feature)
+		table, err := store.CreateResourceTable(id, test.Schema)
+		if err != nil {
+			t.Fatalf("Failed to create table: %s", err)
+		}
+		for _, rec := range test.WriteRecords {
+			if err := table.Write(rec); err != nil {
+				t.Fatalf("Failed to write record %v: %s", rec, err)
+			}
+		}
+		mat, err := store.CreateMaterialization(id)
+		if err != nil {
+			t.Fatalf("Failed to create materialization: %s", err)
+		}
+		testMaterialization(t, mat, test)
+
+		if err != nil {
+			t.Fatalf("Failed to get materialization: %s", err)
+		}
+		for _, rec := range test.UpdateRecords {
+			if err := table.Write(rec); err != nil {
+				t.Fatalf("Failed to write record %v: %s", rec, err)
+			}
+		}
+		mat, err = store.UpdateMaterialization(id)
+		if err != nil {
+			t.Fatalf("Failed to update materialization: %s", err)
+		}
+		testUpdate(t, mat, test)
 		if err := store.DeleteMaterialization(mat.ID()); err != nil {
 			t.Fatalf("Failed to delete materialization: %s", err)
 		}

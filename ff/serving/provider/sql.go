@@ -83,10 +83,6 @@ func NewSQLOfflineStore(config SQLOfflineStoreConfig) (*sqlOfflineStore, error) 
 }
 
 func checkName(id ResourceID) error {
-	if strings.HasPrefix(id.Name, "_") || strings.HasSuffix(id.Name, "_") ||
-		strings.HasPrefix(id.Variant, "_") || strings.HasSuffix(id.Variant, "_") {
-		return fmt.Errorf("names cannot start or end with '_': %s", id.Name)
-	}
 	if strings.Contains(id.Name, "__") || strings.Contains(id.Variant, "__") {
 		return fmt.Errorf("names cannot contain double underscores '__': %s", id.Name)
 	}

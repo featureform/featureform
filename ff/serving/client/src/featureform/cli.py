@@ -5,7 +5,7 @@
 import click
 import featureform.register as register
 import grpc
-import featureform.metadata_pb2_grpc as ff_grpc
+from featureform.proto import metadata_pb2_grpc as ff_grpc
 
 resource_types = [
     "feature",
@@ -86,8 +86,6 @@ def apply(host, insecure, files):
     print(register.state().sorted_list())
     register.state().create_all(stub)
 
-print("above cli")
-print(__name__)
+
 if __name__ == '__main__':
-    print("in cli")
     cli()

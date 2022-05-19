@@ -1,4 +1,6 @@
 #!/bin/bash
 
 ./gen_grpc.sh
-python3 -m twine upload --repository featureform dist/*
+rm ./client/dist/*
+python3 -m build ./client/
+python3 -m twine upload -r pypi client/dist/*

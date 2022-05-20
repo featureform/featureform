@@ -3,6 +3,7 @@ package coordinator
 import (
 	"context"
 	"fmt"
+	"go.etcd.io/etcd/api/v3/mvccpb"
 	"strings"
 
 	db "github.com/jackc/pgx/v4"
@@ -97,12 +98,12 @@ func (c *Coordinator) WatchForNewJobs() error {
 	}
 	for _, kv := range getResp.Kvs {
 		fmt.Println("FOUND:", kv)
-		go func() {
+		go func(kv *mvccpb.KeyValue) {
 			err := c.executeJob(string(kv.Key))
 			if err != nil {
 				fmt.Println(err)
 			}
-		}()
+		}(kv)
 	}
 	for {
 		fmt.Println("WATCHING")
@@ -113,12 +114,12 @@ func (c *Coordinator) WatchForNewJobs() error {
 				fmt.Println("FOUND:", ev)
 				if ev.Type == 0 {
 					fmt.Println("EXECUTING:", ev.Kv.Key)
-					go func() {
+					go func(ev *clientv3.Event) {
 						err := c.executeJob(string(ev.Kv.Key))
 						if err != nil {
 							fmt.Println(err)
 						}
-					}()
+					}(ev)
 				}
 
 			}

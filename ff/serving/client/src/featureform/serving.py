@@ -4,24 +4,26 @@
 
 import grpc
 import numpy as np
-import proto.serving_pb2
-import proto.serving_pb2_grpc
+from .proto import serving_pb2
+from .proto import serving_pb2_grpc
 import random
 
 
 class Client:
 
-    def __init__(self, host):
-        channel = grpc.insecure_channel(host,
-                                        options=(('grpc.enable_http_proxy',
-                                                  0), ))
-        self._stub = proto.serving_pb2_grpc.FeatureStub(channel)
+    def __init__(self, host, tls_verify=False):
+        if tls_verify:
+            credentials = grpc.ssl_channel_credentials()
+            channel = grpc.secure_channel(host, credentials)
+        else:
+            channel = grpc.insecure_channel(host, options=(('grpc.enable_http_proxy', 0),))
+        self._stub = serving_pb2_grpc.FeatureStub(channel)
 
     def dataset(self, name, version):
         return Dataset(self._stub, name, version)
 
     def features(self, features, entities):
-        req = proto.serving_pb2.FeatureServeRequest()
+        req = serving_pb2.FeatureServeRequest()
         for name, value in entities.items():
             entity_proto = req.entities.add()
             entity_proto.name = name
@@ -37,7 +39,7 @@ class Client:
 class Stream:
 
     def __init__(self, stub, name, version):
-        req = proto.serving_pb2.TrainingDataRequest()
+        req = serving_pb2.TrainingDataRequest()
         req.id.name = name
         req.id.version = version
         self.name = name
@@ -146,7 +148,7 @@ class Dataset:
         self._stream = Stream(stub, name, version)
 
     def repeat(self, num):
-        if buffer_size <= 0:
+        if num <= 0:
             raise Exception("Must repeat 1 or more times")
         self._stream = Repeat(num, self._stream)
         return self
@@ -196,13 +198,3 @@ def parse_proto_value(value):
     """ parse_proto_value is used to parse the one of Value message
 	"""
     return getattr(value, value.WhichOneof("value"))
-
-
-client = Client("localhost:8080")
-dataset = client.dataset("f1", "v1")
-dataset.batch(5)
-dataset.shuffle(7)
-dataset.repeat(3)
-for r in dataset:
-    print(r)
-print(client.features([("f1", "v1")], {"user": "a"}))

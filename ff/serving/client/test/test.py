@@ -1,4 +1,4 @@
-import register as ff
+import featureform.register as ff
 
 user = ff.register_user("test")
 user.make_default_owner()

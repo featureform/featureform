@@ -1,4 +1,6 @@
-import featureform.register as ff
+from featureform import ResourceClient
+
+ff = ResourceClient("localhost:8000")
 
 user = ff.register_user("test")
 user.make_default_owner()

@@ -144,9 +144,15 @@ func (c *Coordinator) mapNameVariantsToTables(sources []metadata.NameVariant) (m
 		}
 		providerResourceID := provider.ResourceID{Name: source.Name(), Variant: source.Variant()}
 		if source.IsSQLTransformation() {
-			tableName = provider.GetTransformationName(providerResourceID)
+			tableName, err = provider.GetTransformationName(providerResourceID)
+			if err != nil {
+				return nil, err
+			}
 		} else if source.IsPrimaryDataSQLTable() {
-			tableName = provider.GetPrimaryTableName(providerResourceID)
+			tableName, err = provider.GetPrimaryTableName(providerResourceID)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		c.Logger.Debug("mapping name variants to table names")

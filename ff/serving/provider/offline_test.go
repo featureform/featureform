@@ -72,7 +72,6 @@ func TestOfflineStores(t *testing.T) {
 		"PrimaryTableCreate":          testPrimaryCreateTable,
 		"PrimaryTableWrite":           testPrimaryTableWrite,
 		"Transformation":              testTransform,
-		"TransformToFeature":          testTransformCreateFeature,
 		"CreateDuplicatePrimaryTable": testCreateDuplicatePrimaryTable,
 		"ChainTransformations":        testChainTransform,
 	}
@@ -378,7 +377,8 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 			actual := seg.Value()
 			expected := test.ExpectedSegment[i]
 			if !reflect.DeepEqual(actual, expected) {
-				t.Fatalf("Value not equal in materialization: %v %v", actual, expected)
+				t.Fatalf("Value not equal in materialization: %v %v\n"+
+					"%T:%T %T:%T %T:%T\n", actual, expected, actual.Entity, expected.Entity, actual.Value, expected.Value, actual.TS, expected.TS)
 			}
 			i++
 		}
@@ -465,9 +465,10 @@ func testMaterializeUnknown(t *testing.T, store OfflineStore) {
 }
 
 func testMaterializationNotFound(t *testing.T, store OfflineStore) {
-
 	id := MaterializationID(uuid.NewString())
+
 	_, err := store.GetMaterialization(id)
+
 	if err == nil {
 		t.Fatalf("Succeeded in getting uninitialized materialization")
 	}
@@ -750,6 +751,9 @@ func testTrainingSet(t *testing.T, store OfflineStore) {
 				}
 			}
 			if !found {
+				for i, v := range realRow.Features {
+					fmt.Printf("Got %T Expected %T\n", v, expectedRows[0].Features[i])
+				}
 				t.Fatalf("Unexpected training row: %v, expected %v", realRow, expectedRows)
 			}
 			i++
@@ -1199,6 +1203,9 @@ func testTransform(t *testing.T, store OfflineStore) {
 		i := 0
 		for iterator.Next() {
 			if !reflect.DeepEqual(iterator.Values(), test.Expected[i]) {
+				for j, v := range iterator.Values() {
+					fmt.Printf("Got: %T Expected: %T\n", v, test.Expected[i][j])
+				}
 				t.Fatalf("Expected: %#v, Received %#v", test.Expected[i], iterator.Values())
 			}
 			i++
@@ -1562,78 +1569,6 @@ func testTransformToMaterialize(t *testing.T, store OfflineStore) {
 		}
 		i++
 	}
-}
-
-func Test_mapColumns(t *testing.T) {
-	type mappingItem struct {
-		Columns   []ColumnMapping
-		Query     string
-		Result    string
-		ShouldErr bool
-	}
-	tests := map[string]mappingItem{
-		"InvalidNumberOfColumns": {
-			Columns: []ColumnMapping{
-				{sourceColumn: "source", resourceColumn: Entity},
-			},
-			Query:     "SELECT * FROM null",
-			Result:    fmt.Sprintf("( SELECT %s as entity, %s as value, %s as ts FROM ( %s )t  )", "source", "", "", "SELECT * FROM null"),
-			ShouldErr: true,
-		},
-		"MissingValueColumn": {
-			Columns: []ColumnMapping{
-				{sourceColumn: "e", resourceColumn: Entity},
-				{sourceColumn: "t", resourceColumn: Entity},
-				{sourceColumn: "v", resourceColumn: TS},
-			},
-			Query:     "SELECT * FROM null",
-			Result:    fmt.Sprintf("( SELECT %s as entity, %s as value, %s as ts FROM ( %s )t  )", "source", "", "", "SELECT * FROM null"),
-			ShouldErr: true,
-		},
-		"MissingEntityColumn": {
-			Columns: []ColumnMapping{
-				{sourceColumn: "e", resourceColumn: Value},
-				{sourceColumn: "t", resourceColumn: Value},
-				{sourceColumn: "v", resourceColumn: TS},
-			},
-			Query:     "SELECT * FROM null",
-			Result:    fmt.Sprintf("( SELECT %s as entity, %s as value, %s as ts FROM ( %s )t  )", "source", "", "", "SELECT * FROM null"),
-			ShouldErr: true,
-		},
-		"MissingTSColumn": {
-			Columns: []ColumnMapping{
-				{sourceColumn: "e", resourceColumn: Entity},
-				{sourceColumn: "t", resourceColumn: Value},
-				{sourceColumn: "v", resourceColumn: Value},
-			},
-			Query:     "SELECT * FROM null",
-			Result:    fmt.Sprintf("( SELECT %s as entity, %s as value, %s as ts FROM ( %s )t  )", "source", "", "", "SELECT * FROM null"),
-			ShouldErr: true,
-		},
-		"SimpleSuccess": {
-			Columns: []ColumnMapping{
-				{sourceColumn: "e", resourceColumn: Entity},
-				{sourceColumn: "t", resourceColumn: Value},
-				{sourceColumn: "v", resourceColumn: TS},
-			},
-			Query:     "SELECT * FROM null",
-			Result:    fmt.Sprintf("( SELECT %s as entity, %s as value, %s as ts FROM ( %s )t  )", "e", "t", "v", "SELECT * FROM null"),
-			ShouldErr: true,
-		},
-	}
-	for name, tt := range tests {
-		t.Run(name, func(t *testing.T) {
-			query, err := mapColumns(tt.Columns, tt.Query)
-			if err != nil && !tt.ShouldErr {
-				t.Fatalf("Unexpected Error: %v", err)
-			} else if err != nil && tt.ShouldErr {
-				return
-			} else if tt.Result != query {
-				t.Fatalf("Expected: %s\nRecieved: %s", tt.Result, query)
-			}
-		})
-	}
-
 }
 
 func Test_createResourceFromSource(t *testing.T) {

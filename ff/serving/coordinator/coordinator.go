@@ -3,6 +3,7 @@ package coordinator
 import (
 	"context"
 	"fmt"
+	"go.etcd.io/etcd/api/v3/mvccpb"
 	"strings"
 
 	db "github.com/jackc/pgx/v4"

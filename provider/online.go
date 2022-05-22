@@ -8,12 +8,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	redis "github.com/go-redis/redis/v8"
+	"strconv"
+
+	"github.com/go-redis/redis/v8"
+	"github.com/gocql/gocql"
+	sn "github.com/mrz1836/go-sanitize"
 )
 
 const (
-	LocalOnline Type = "LOCAL_ONLINE"
-	RedisOnline      = "REDIS_ONLINE"
+	LocalOnline     Type = "LOCAL_ONLINE"
+	RedisOnline          = "REDIS_ONLINE"
+	CassandraOnline      = "CASSANDRA_ONLINE"
 )
 
 var ctx = context.Background()
@@ -61,7 +66,16 @@ type redisTableKey struct {
 	Prefix, Feature, Variant string
 }
 
+type cassandraTableKey struct {
+	Keyspace, Feature, Variant string
+}
+
 func (t redisTableKey) String() string {
+	marshalled, _ := json.Marshal(t)
+	return string(marshalled)
+}
+
+func (t cassandraTableKey) String() string {
 	marshalled, _ := json.Marshal(t)
 	return string(marshalled)
 }
@@ -78,6 +92,13 @@ type localOnlineStore struct {
 type redisOnlineStore struct {
 	client *redis.Client
 	prefix string
+	BaseProvider
+}
+
+type cassandraOnlineStore struct {
+	cluster  *gocql.ClusterConfig
+	session  *gocql.Session
+	keyspace string
 	BaseProvider
 }
 
@@ -102,6 +123,18 @@ func redisOnlineStoreFactory(serialized SerializedConfig) (Provider, error) {
 	return NewRedisOnlineStore(redisConfig), nil
 }
 
+func cassandraOnlineStoreFactory(serialized SerializedConfig) (Provider, error) {
+	cassandraConfig := &CassandraConfig{} //-> An empty struct
+	if err := cassandraConfig.Deserialize(serialized); err != nil {
+		return nil, fmt.Errorf("DESERIALISE!! %s", err)
+	}
+	if cassandraConfig.keyspace == "" {
+		cassandraConfig.keyspace = "Featureform_table__"
+	}
+
+	return NewCassandraOnlineStore(cassandraConfig)
+}
+
 func NewRedisOnlineStore(options *RedisConfig) *redisOnlineStore {
 	redisOptions := &redis.Options{
 		Addr: options.Addr,
@@ -114,11 +147,43 @@ func NewRedisOnlineStore(options *RedisConfig) *redisOnlineStore {
 	}
 }
 
+func NewCassandraOnlineStore(options *CassandraConfig) (*cassandraOnlineStore, error) {
+
+	//Create cluster and session
+	cassandraCluster := gocql.NewCluster(options.Addr)
+	var newSession *gocql.Session
+	newSession, err := cassandraCluster.CreateSession()
+	if err != nil {
+		panic(err)
+	}
+
+	//Create keyspace
+	Query := fmt.Sprintf("CREATE KEYSPACE IF NOT EXISTS %s WITH replication = {'class' : 'SimpleStrategy','replication_factor' : 1}", options.keyspace)
+	err = newSession.Query(Query).WithContext(ctx).Exec()
+	if err != nil {
+		return nil, fmt.Errorf("KEYSPACE CREATION!! %s", err)
+	}
+
+	//Assign keyspace to cluster and use it
+	cassandraCluster.Keyspace = options.keyspace
+
+	// Store the above entities into an Online Store struct
+	return &cassandraOnlineStore{cassandraCluster, newSession, options.keyspace, BaseProvider{
+		ProviderType:   CassandraOnline,
+		ProviderConfig: options.Serialized(),
+	},
+	}, nil
+}
+
 func (store *localOnlineStore) AsOnlineStore() (OnlineStore, error) {
 	return store, nil
 }
 
 func (store *redisOnlineStore) AsOnlineStore() (OnlineStore, error) {
+	return store, nil
+}
+
+func (store *cassandraOnlineStore) AsOnlineStore() (OnlineStore, error) {
 	return store, nil
 }
 
@@ -143,6 +208,7 @@ func (store *localOnlineStore) CreateTable(feature, variant string, valueType Va
 func (store *redisOnlineStore) GetTable(feature, variant string) (OnlineStoreTable, error) {
 	key := redisTableKey{store.prefix, feature, variant}
 	vType, err := store.client.HGet(ctx, fmt.Sprintf("%s__tables", store.prefix), key.String()).Result()
+
 	if err != nil {
 		return nil, &TableNotFound{feature, variant}
 	}
@@ -151,7 +217,6 @@ func (store *redisOnlineStore) GetTable(feature, variant string) (OnlineStoreTab
 }
 
 func (store *redisOnlineStore) CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error) {
-	fmt.Printf("Creating Redis Table")
 	key := redisTableKey{store.prefix, feature, variant}
 	exists, err := store.client.HExists(ctx, fmt.Sprintf("%s__tables", store.prefix), key.String()).Result()
 	if err != nil {
@@ -164,7 +229,69 @@ func (store *redisOnlineStore) CreateTable(feature, variant string, valueType Va
 		return nil, err
 	}
 	table := &redisOnlineTable{client: store.client, key: key, valueType: valueType}
-	fmt.Printf("Redis Table Created")
+	return table, nil
+
+}
+
+// CASSANDRA CREATE TABLE
+func (store *cassandraOnlineStore) CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error) {
+
+	//Create table Name
+	var tableName string
+	tableName = fmt.Sprintf("%s.table%s", store.keyspace, sn.Custom(feature, "[^a-zA-Z0-9_]"))
+
+	//Create table key
+	var keyName string
+	key := cassandraTableKey{store.keyspace, feature, variant}
+	keyName = sn.Custom(key.String(), "[^a-zA-Z0-9_]")
+
+	// Create Table
+	query := fmt.Sprintf("CREATE TABLE %s (%s text PRIMARY KEY, %s text)", tableName, keyName, string(valueType))
+	err := store.session.Query(query).WithContext(ctx).Exec()
+	if err != nil {
+		return nil, &TableAlreadyExists{feature, variant}
+	}
+
+	//return the table
+	table := &cassandraOnlineTable{
+		cluster:   store.cluster,
+		session:   store.session,
+		key:       key,
+		valueType: valueType,
+	}
+
+	return table, nil
+
+}
+
+// CASSANDRA GET TABLE
+
+func (store *cassandraOnlineStore) GetTable(feature, variant string) (OnlineStoreTable, error) {
+
+	store.session.SetConsistency(gocql.One)
+
+	//Get table name
+	var vType string
+	var tableName string = fmt.Sprintf("%s.table%s", store.keyspace, sn.Custom(feature, "[^a-zA-Z0-9_]"))
+
+	//Check if table existsss
+	query := fmt.Sprintf("SELECT * FROM %s", tableName)
+	scanner := store.session.Query(query).WithContext(ctx).Iter().Scanner()
+	if scanner.Err() != nil {
+		return nil, &TableNotFound{feature, variant}
+	}
+
+	//Get table key
+	key := cassandraTableKey{store.keyspace, feature, variant}
+	var keyName string = sn.Custom(key.String(), "[^a-zA-Z0-9_]")
+
+	table := &cassandraOnlineTable{
+		cluster:   store.cluster,
+		session:   store.session,
+		key:       key,
+		valueType: ValueType(vType),
+	}
+
 	return table, nil
 }
 
@@ -173,6 +300,13 @@ type localOnlineTable map[string]interface{}
 type redisOnlineTable struct {
 	client    *redis.Client
 	key       redisTableKey
+	valueType ValueType
+}
+
+type cassandraOnlineTable struct {
+	cluster   *gocql.ClusterConfig
+	session   *gocql.Session
+	key       cassandraTableKey
 	valueType ValueType
 }
 
@@ -190,7 +324,6 @@ func (table localOnlineTable) Get(entity string) (interface{}, error) {
 }
 
 func (table redisOnlineTable) Set(entity string, value interface{}) error {
-	fmt.Printf("Setting Table: %s, Entity: %s, Value: %v\n", table.key.String(), entity, value)
 	val := table.client.HSet(ctx, table.key.String(), entity, value)
 	if val.Err() != nil {
 		return val.Err()
@@ -223,4 +356,76 @@ func (table redisOnlineTable) Get(entity string) (interface{}, error) {
 		return nil, err
 	}
 	return result, nil
+}
+
+// CASSANDRA SET ENTITY
+func (table cassandraOnlineTable) Set(entity string, value interface{}) error {
+
+	table.session.SetConsistency(gocql.One)
+
+	//Get table key
+	key := table.key
+	var keyName string
+	keyName = sn.Custom(key.String(), "[^a-zA-Z0-9_]")
+
+	//Get table Name
+	var tableName string
+	tableName = fmt.Sprintf("%s.table%s", key.Keyspace, sn.Custom(key.Feature, "[^a-zA-Z0-9_]"))
+
+	//Set entity
+	val := fmt.Sprintf("%v", value)
+	query := fmt.Sprintf("INSERT INTO %s (%s, %s) VALUES (?, ?)", tableName, keyName, string(table.valueType))
+	err := table.session.Query(query, entity, val).WithContext(ctx).Exec()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// CASSANDRA GET ENTITY
+func (table cassandraOnlineTable) Get(entity string) (interface{}, error) {
+
+	//Get table key
+	key := table.key
+	var keyName string
+	keyName = sn.Custom(key.String(), "[^a-zA-Z0-9_]")
+
+	//Get table Name
+	var tableName string
+	tableName = fmt.Sprintf("%s.table%s", key.Keyspace, sn.Custom(key.Feature, "[^a-zA-Z0-9_]"))
+
+	//Get table value type
+	var valName string
+	valName = string(table.valueType)
+
+	//Get value
+	var val string
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE %s = '%s'", valName, tableName, keyName, entity)
+	err := table.session.Query(query).WithContext(ctx).Scan(&val)
+	if err != nil {
+		return nil, &EntityNotFound{entity}
+	}
+
+	switch table.valueType {
+	case Int:
+		return strconv.Atoi(val)
+	case Int64:
+		return strconv.ParseInt(val, 10, 64)
+	// Set float 32 as strconv only outputs float 64
+	case Float32:
+		var result64 float64
+		var result32 float32
+		var err error
+		result64, err = strconv.ParseFloat(val, 32)
+		result32 = float32(result64)
+		return result32, err
+	case Float64:
+		return strconv.ParseFloat(val, 64)
+	case Bool:
+		return strconv.ParseBool(val)
+	}
+
+	return val, nil
+
 }

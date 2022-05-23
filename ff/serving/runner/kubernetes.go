@@ -3,7 +3,6 @@ package runner
 import (
 	"context"
 	"fmt"
-	"strings"
 	"github.com/google/uuid"
 	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
@@ -11,15 +10,16 @@ import (
 	watch "k8s.io/apimachinery/pkg/watch"
 	kubernetes "k8s.io/client-go/kubernetes"
 	rest "k8s.io/client-go/rest"
+	"strings"
 )
 
 var namespace string = "default"
 
 type Schedule struct {
-	Minute string //0-59 or * for every one
-	Hour string //0-23 or *
-	Day string //1-31 or *
-	Month string //1-12 or *
+	Minute  string //0-59 or * for every one
+	Hour    string //0-23 or *
+	Day     string //1-31 or *
+	Month   string //1-12 or *
 	Weekday string //0-7 or *
 }
 

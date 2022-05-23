@@ -39,9 +39,14 @@ func (m MockJobClient) Create(jobSpec *batchv1.JobSpec) (*batchv1.Job, error) {
 	return &batchv1.Job{}, nil
 }
 
-func (m MockJobClient) Schedule(schedule string, jobSpec *batchv1.JobSpec) error {
+func (m MockJobClient) SetJobSchedule(schedule Schedule, jobSpec *batchv1.JobSpec) error {
 	return nil
 }
+
+func (m MockJobClient) GetJobSchedule(jobName string) (Schedule, error) {
+	return Schedule{}, nil
+}
+
 func TestKubernetesRunnerCreate(t *testing.T) {
 	runner, err := NewMockKubernetesRunner(KubernetesRunnerConfig{envVars: map[string]string{"test": "envVar"}, image: "test", numTasks: 1})
 	if err != nil {
@@ -77,8 +82,12 @@ func (m MockJobClientBroken) Watch() (watch.Interface, error) {
 	return nil, errors.New("cannot get watcher")
 }
 
-func (m MockJobClientBroken) Schedule(schedule string, jobSpec *batchv1.JobSpec) error {
+func (m MockJobClientBroken) SetJobSchedule(schedule Schedule, jobSpec *batchv1.JobSpec) error {
 	return errors.New("cannot schedule job")
+}
+
+func (m MockJobClientBroken) GetJobSchedule(jobName string) (Schedule, error) {
+	return Schedule{}, errors.New("cannot get job schedule")
 }
 
 func TestJobClientCreateFail(t *testing.T) {
@@ -105,10 +114,13 @@ func (m MockJobClientRunBroken) Watch() (watch.Interface, error) {
 	return nil, errors.New("cannot get watcher")
 }
 
-func (m MockJobClientRunBroken) Schedule(schedule string, jobSpec *batchv1.JobSpec) error {
-	return errors.New("cannot schedule job")
+func (m MockJobClientRunBroken) SetJobSchedule(schedule Schedule, jobSpec *batchv1.JobSpec) error {
+	return errors.New("cannot set job schedule")
 }
 
+func (m MockJobClientRunBroken) GetJobSchedule(jobName string) (Schedule, error) {
+	return Schedule{}, errors.New("cannot get job schedule")
+}
 func TestJobClientRunFail(t *testing.T) {
 	runner := KubernetesRunner{
 		jobClient: MockJobClientRunBroken{},
@@ -155,8 +167,12 @@ func (m MockJobClientFailChannel) Watch() (watch.Interface, error) {
 	return MockWatch{}, nil
 }
 
-func (m MockJobClientFailChannel) Schedule(schedule string, jobSpec *batchv1.JobSpec) error {
-	return errors.New("cannot schedule job")
+func (m MockJobClientFailChannel) SetJobSchedule(schedule Schedule, jobSpec *batchv1.JobSpec) error {
+	return nil
+}
+
+func (m MockJobClientFailChannel) GetJobSchedule(jobName string) (Schedule, error) {
+	return Schedule{}, nil
 }
 
 func TestPodFailure(t *testing.T) {
@@ -185,8 +201,9 @@ func TestKubernetesRunnerSchedule(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create Kubernetes runner")
 	}
-	schedule := Schedule{"* * * * *"}
-	if err = runner.Schedule(schedule); err != nil {
+	schedule := Schedule{}
+	schedule.ParseString("* * * * *")
+	if err = runner.ScheduleJob(schedule); err != nil {
 		t.Fatalf("Failed to schedule kubernetes job")
 	}
 }
@@ -196,8 +213,9 @@ func TestKubernetesRunnerScheduleFail(t *testing.T) {
 		jobClient: MockJobClientBroken{},
 		jobSpec:   &batchv1.JobSpec{},
 	}
-	schedule := Schedule{"* * * * *"}
-	if err := runner.Schedule(schedule); err == nil {
+	schedule := Schedule{}
+	schedule.ParseString("* * * * *")
+	if err := runner.ScheduleJob(schedule); err == nil {
 		t.Fatalf("Failed to report error scheduling Kubernetes job")
 	}
 }

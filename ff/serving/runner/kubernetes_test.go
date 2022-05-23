@@ -219,3 +219,20 @@ func TestKubernetesRunnerScheduleFail(t *testing.T) {
 		t.Fatalf("Failed to report error scheduling Kubernetes job")
 	}
 }
+
+func TestScheduleParseString(t *testing.T) {
+	scheduleString := "20 10 * 4 0" //20th minute, 10th hour, every day of the month on the fourth month and on Sunday
+	schedule := Schedule{}
+	schedule.ParseString(scheduleString)
+	if schedule.Minute != "20" || schedule.Hour != "10" || schedule.Day != "*" || schedule.Month != "4" || schedule.Weekday != "0" {
+		t.Fatalf("Could not properly parse schedule string")
+	}
+}
+
+func TestScheduleGetString(t *testing.T) {
+	schedule := Schedule{"20", "10", "*", "4", "0"}
+	scheduleString := schedule.GetString()
+	if scheduleString != "20 10 * 4 0" {
+		t.Fatalf("Could not create proper schedule string")
+	}
+}

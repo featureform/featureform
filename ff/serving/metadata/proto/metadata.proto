@@ -66,7 +66,7 @@ message ResourceStatus {
     string error_message = 2;
 }
 
-enum MetadataResourceType {
+enum ResourceType {
     FEATURE = 0;
     LABEL = 1;
     TRAINING_SET = 2;
@@ -83,7 +83,7 @@ enum MetadataResourceType {
 
 message SetStatusRequest {
     NameVariant resource = 1;
-    MetadataResourceType resource_type = 2;
+    ResourceType resource_type = 2;
     ResourceStatus status = 3;
 }
 

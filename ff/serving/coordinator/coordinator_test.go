@@ -36,31 +36,6 @@ var postgresConfig = provider.PostgresConfig{
 	Password: os.Getenv("POSTGRES_PASSWORD"),
 }
 
-// func setupMetadataServer() error {
-// 	logger := zap.NewExample().Sugar()
-// 	addr := ":8080"
-// 	storageProvider := metadata.EtcdStorageProvider{
-// 		metadata.EtcdConfig{
-// 			Nodes: []metadata.EtcdNode{
-// 				{"localhost", "2379"},
-// 			},
-// 		},
-// 	}
-// 	config := &metadata.Config{
-// 		Logger:          logger,
-// 		Address:         addr,
-// 		StorageProvider: storageProvider,
-// 	}
-// 	server, err := metadata.NewMetadataServer(config)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	if err := server.Serve(); err != nil {
-// 		return err
-// 	}
-// 	return nil
-// }
-
 func startServ(t *testing.T) (*metadata.MetadataServer, string) {
 	logger := zap.NewExample().Sugar()
 	storageProvider := metadata.EtcdStorageProvider{
@@ -90,21 +65,6 @@ func startServ(t *testing.T) (*metadata.MetadataServer, string) {
 	}()
 	return serv, lis.Addr().String()
 }
-
-// func (ctx *testContext) Create(t *testing.T) (*Client, error) {
-// 	var addr string
-// 	ctx.serv, addr = startServ(t)
-// 	ctx.client = client(t, addr)
-// 	if err := ctx.client.CreateAll(context.Background(), ctx.Defs); err != nil {
-// 		return nil, err
-// 	}
-// 	return ctx.client, nil
-// }
-
-// func (ctx *testContext) Destroy() {
-// 	ctx.serv.Stop()
-// 	ctx.client.Close()
-// }
 
 func createNewCoordinator(addr string) (*Coordinator, error) {
 	logger := zap.NewExample().Sugar()

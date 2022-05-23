@@ -31,26 +31,26 @@ const (
 type ResourceType int32
 
 const (
-	FEATURE              ResourceType = ResourceType(pb.MetadataResourceType_FEATURE)
-	FEATURE_VARIANT                   = ResourceType(pb.MetadataResourceType_FEATURE_VARIANT)
-	LABEL                             = ResourceType(pb.MetadataResourceType_LABEL)
-	LABEL_VARIANT                     = ResourceType(pb.MetadataResourceType_LABEL_VARIANT)
-	USER                              = ResourceType(pb.MetadataResourceType_USER)
-	ENTITY                            = ResourceType(pb.MetadataResourceType_ENTITY)
-	PROVIDER                          = ResourceType(pb.MetadataResourceType_PROVIDER)
-	SOURCE                            = ResourceType(pb.MetadataResourceType_SOURCE)
-	SOURCE_VARIANT                    = ResourceType(pb.MetadataResourceType_SOURCE_VARIANT)
-	TRAINING_SET                      = ResourceType(pb.MetadataResourceType_TRAINING_SET)
-	TRAINING_SET_VARIANT              = ResourceType(pb.MetadataResourceType_TRAINING_SET_VARIANT)
-	MODEL                             = ResourceType(pb.MetadataResourceType_MODEL)
+	FEATURE              ResourceType = ResourceType(pb.ResourceType_FEATURE)
+	FEATURE_VARIANT                   = ResourceType(pb.ResourceType_FEATURE_VARIANT)
+	LABEL                             = ResourceType(pb.ResourceType_LABEL)
+	LABEL_VARIANT                     = ResourceType(pb.ResourceType_LABEL_VARIANT)
+	USER                              = ResourceType(pb.ResourceType_USER)
+	ENTITY                            = ResourceType(pb.ResourceType_ENTITY)
+	PROVIDER                          = ResourceType(pb.ResourceType_PROVIDER)
+	SOURCE                            = ResourceType(pb.ResourceType_SOURCE)
+	SOURCE_VARIANT                    = ResourceType(pb.ResourceType_SOURCE_VARIANT)
+	TRAINING_SET                      = ResourceType(pb.ResourceType_TRAINING_SET)
+	TRAINING_SET_VARIANT              = ResourceType(pb.ResourceType_TRAINING_SET_VARIANT)
+	MODEL                             = ResourceType(pb.ResourceType_MODEL)
 )
 
 func (r ResourceType) String() string {
-	return pb.MetadataResourceType_name[int32(r)]
+	return pb.ResourceType_name[int32(r)]
 }
 
-func (r ResourceType) Serialized() pb.MetadataResourceType {
-	return pb.MetadataResourceType(r)
+func (r ResourceType) Serialized() pb.ResourceType {
+	return pb.ResourceType(r)
 }
 
 type ResourceStatus int32

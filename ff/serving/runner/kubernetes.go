@@ -10,39 +10,31 @@ import (
 	watch "k8s.io/apimachinery/pkg/watch"
 	kubernetes "k8s.io/client-go/kubernetes"
 	rest "k8s.io/client-go/rest"
-	"strings"
 )
 
 var namespace string = "default"
 
-type Schedule struct {
-	Minute  string //0-59 or * for every one
-	Hour    string //0-23 or *
-	Day     string //1-31 or *
-	Month   string //1-12 or *
-	Weekday string //0-7 or *
+type CronSchedule string
+
+func MonthlySchedule(minute int, hour int, day int) CronSchedule {
+	return CronSchedule(fmt.Sprintf("%d %d %d * *", minute, hour, day))
 }
 
-func (s Schedule) GetString() string {
-	return fmt.Sprintf("%s %s %s %s %s", s.Minute, s.Hour, s.Day, s.Month, s.Weekday)
+func WeeklySchedule(minute int, hour int, weekday int) CronSchedule {
+	return CronSchedule(fmt.Sprintf("%d %d * * %d", minute, hour, weekday))
 }
 
-func (s *Schedule) ParseString(schedule string) error {
-	parts := strings.Split(schedule, " ")
-	if len(parts) != 5 {
-		return fmt.Errorf("invalid schedule")
-	}
-	s.Minute = parts[0]
-	s.Hour = parts[1]
-	s.Day = parts[2]
-	s.Month = parts[3]
-	s.Weekday = parts[4]
-	return nil
+func DailySchedule(minute int, hour int) CronSchedule {
+	return CronSchedule(fmt.Sprintf("%d %d * * *", minute, hour))
+}
+
+func HourlySchedule(minute int) CronSchedule {
+	return CronSchedule(fmt.Sprintf("%d * * * *", minute))
 }
 
 type CronRunner interface {
 	Runner
-	ScheduleJob(schedule Schedule) error
+	ScheduleJob(schedule CronSchedule) error
 }
 
 func generateKubernetesEnvVars(envVars map[string]string) []v1.EnvVar {
@@ -89,8 +81,8 @@ type JobClient interface {
 	Get() (*batchv1.Job, error)
 	Watch() (watch.Interface, error)
 	Create(jobSpec *batchv1.JobSpec) (*batchv1.Job, error)
-	SetJobSchedule(schedule Schedule, jobSpec *batchv1.JobSpec) error
-	GetJobSchedule(jobName string) (Schedule, error)
+	SetJobSchedule(schedule CronSchedule, jobSpec *batchv1.JobSpec) error
+	GetJobSchedule(jobName string) (CronSchedule, error)
 }
 
 type KubernetesRunner struct {
@@ -154,7 +146,7 @@ func (k KubernetesRunner) Run() (CompletionWatcher, error) {
 	return KubernetesCompletionWatcher{jobClient: k.jobClient}, nil
 }
 
-func (k KubernetesRunner) ScheduleJob(schedule Schedule) error {
+func (k KubernetesRunner) ScheduleJob(schedule CronSchedule) error {
 	if err := k.jobClient.SetJobSchedule(schedule, k.jobSpec); err != nil {
 		return err
 	}
@@ -193,13 +185,13 @@ func (k KubernetesJobClient) Create(jobSpec *batchv1.JobSpec) (*batchv1.Job, err
 	return k.Clientset.BatchV1().Jobs(k.Namespace).Create(context.TODO(), job, metav1.CreateOptions{})
 }
 
-func (k KubernetesJobClient) SetJobSchedule(schedule Schedule, jobSpec *batchv1.JobSpec) error {
+func (k KubernetesJobClient) SetJobSchedule(schedule CronSchedule, jobSpec *batchv1.JobSpec) error {
 	cronJob := &batchv1.CronJob{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      k.JobName,
 			Namespace: k.Namespace},
 		Spec: batchv1.CronJobSpec{
-			Schedule: schedule.GetString(),
+			Schedule: string(schedule),
 			JobTemplate: batchv1.JobTemplateSpec{
 				Spec: *jobSpec,
 			},
@@ -211,18 +203,13 @@ func (k KubernetesJobClient) SetJobSchedule(schedule Schedule, jobSpec *batchv1.
 	return nil
 }
 
-func (k KubernetesJobClient) GetJobSchedule(jobName string) (Schedule, error) {
+func (k KubernetesJobClient) GetJobSchedule(jobName string) (CronSchedule, error) {
 
 	job, err := k.Clientset.BatchV1().CronJobs(k.Namespace).Get(context.TODO(), jobName, metav1.GetOptions{})
 	if err != nil {
-		return Schedule{}, err
+		return "", err
 	}
-	scheduleString := job.Spec.Schedule
-	formattedSchedule := Schedule{}
-	if err := formattedSchedule.ParseString(scheduleString); err != nil {
-		return Schedule{}, err
-	}
-	return formattedSchedule, nil
+	return CronSchedule(job.Spec.Schedule), nil
 }
 
 func NewKubernetesJobClient(name string, namespace string) (*KubernetesJobClient, error) {

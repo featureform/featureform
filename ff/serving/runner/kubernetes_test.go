@@ -39,12 +39,12 @@ func (m MockJobClient) Create(jobSpec *batchv1.JobSpec) (*batchv1.Job, error) {
 	return &batchv1.Job{}, nil
 }
 
-func (m MockJobClient) SetJobSchedule(schedule Schedule, jobSpec *batchv1.JobSpec) error {
+func (m MockJobClient) SetJobSchedule(schedule CronSchedule, jobSpec *batchv1.JobSpec) error {
 	return nil
 }
 
-func (m MockJobClient) GetJobSchedule(jobName string) (Schedule, error) {
-	return Schedule{}, nil
+func (m MockJobClient) GetJobSchedule(jobName string) (CronSchedule, error) {
+	return CronSchedule("* * * * *"), nil
 }
 
 func TestKubernetesRunnerCreate(t *testing.T) {
@@ -82,12 +82,12 @@ func (m MockJobClientBroken) Watch() (watch.Interface, error) {
 	return nil, errors.New("cannot get watcher")
 }
 
-func (m MockJobClientBroken) SetJobSchedule(schedule Schedule, jobSpec *batchv1.JobSpec) error {
+func (m MockJobClientBroken) SetJobSchedule(schedule CronSchedule, jobSpec *batchv1.JobSpec) error {
 	return errors.New("cannot schedule job")
 }
 
-func (m MockJobClientBroken) GetJobSchedule(jobName string) (Schedule, error) {
-	return Schedule{}, errors.New("cannot get job schedule")
+func (m MockJobClientBroken) GetJobSchedule(jobName string) (CronSchedule, error) {
+	return CronSchedule(""), errors.New("cannot get job schedule")
 }
 
 func TestJobClientCreateFail(t *testing.T) {
@@ -114,12 +114,12 @@ func (m MockJobClientRunBroken) Watch() (watch.Interface, error) {
 	return nil, errors.New("cannot get watcher")
 }
 
-func (m MockJobClientRunBroken) SetJobSchedule(schedule Schedule, jobSpec *batchv1.JobSpec) error {
+func (m MockJobClientRunBroken) SetJobSchedule(schedule CronSchedule, jobSpec *batchv1.JobSpec) error {
 	return errors.New("cannot set job schedule")
 }
 
-func (m MockJobClientRunBroken) GetJobSchedule(jobName string) (Schedule, error) {
-	return Schedule{}, errors.New("cannot get job schedule")
+func (m MockJobClientRunBroken) GetJobSchedule(jobName string) (CronSchedule, error) {
+	return CronSchedule(""), errors.New("cannot get job schedule")
 }
 func TestJobClientRunFail(t *testing.T) {
 	runner := KubernetesRunner{
@@ -167,12 +167,12 @@ func (m MockJobClientFailChannel) Watch() (watch.Interface, error) {
 	return MockWatch{}, nil
 }
 
-func (m MockJobClientFailChannel) SetJobSchedule(schedule Schedule, jobSpec *batchv1.JobSpec) error {
+func (m MockJobClientFailChannel) SetJobSchedule(schedule CronSchedule, jobSpec *batchv1.JobSpec) error {
 	return nil
 }
 
-func (m MockJobClientFailChannel) GetJobSchedule(jobName string) (Schedule, error) {
-	return Schedule{}, nil
+func (m MockJobClientFailChannel) GetJobSchedule(jobName string) (CronSchedule, error) {
+	return CronSchedule(""), nil
 }
 
 func TestPodFailure(t *testing.T) {
@@ -201,8 +201,7 @@ func TestKubernetesRunnerSchedule(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create Kubernetes runner")
 	}
-	schedule := Schedule{}
-	schedule.ParseString("* * * * *")
+	schedule := CronSchedule("* * * * *")
 	if err = runner.ScheduleJob(schedule); err != nil {
 		t.Fatalf("Failed to schedule kubernetes job")
 	}
@@ -213,26 +212,36 @@ func TestKubernetesRunnerScheduleFail(t *testing.T) {
 		jobClient: MockJobClientBroken{},
 		jobSpec:   &batchv1.JobSpec{},
 	}
-	schedule := Schedule{}
-	schedule.ParseString("* * * * *")
+	schedule := CronSchedule("* * * * *")
 	if err := runner.ScheduleJob(schedule); err == nil {
 		t.Fatalf("Failed to report error scheduling Kubernetes job")
 	}
 }
 
-func TestScheduleParseString(t *testing.T) {
-	scheduleString := "20 10 * 4 0" //20th minute, 10th hour, every day of the month on the fourth month and on Sunday
-	schedule := Schedule{}
-	schedule.ParseString(scheduleString)
-	if schedule.Minute != "20" || schedule.Hour != "10" || schedule.Day != "*" || schedule.Month != "4" || schedule.Weekday != "0" {
-		t.Fatalf("Could not properly parse schedule string")
+func TestMonthlySchedule(t *testing.T) {
+	schedule := MonthlySchedule(1, 2, 3)
+	if schedule != CronSchedule("1 2 3 * *") {
+		t.Fatalf("Failed to create proper monthly cron schedule")
 	}
 }
 
-func TestScheduleGetString(t *testing.T) {
-	schedule := Schedule{"20", "10", "*", "4", "0"}
-	scheduleString := schedule.GetString()
-	if scheduleString != "20 10 * 4 0" {
-		t.Fatalf("Could not create proper schedule string")
+func TestWeeklySchedule(t *testing.T) {
+	schedule := WeeklySchedule(1, 2, 3)
+	if schedule != CronSchedule("1 2 * * 3") {
+		t.Fatalf("Failed to create proper weekly cron schedule")
+	}
+}
+
+func TestDailySchedule(t *testing.T) {
+	schedule := DailySchedule(1, 2)
+	if schedule != CronSchedule("1 2 * * *") {
+		t.Fatalf("Failed to create proper daily cron schedule")
+	}
+}
+
+func TestHourlySchedule(t *testing.T) {
+	schedule := HourlySchedule(1)
+	if schedule != CronSchedule("1 * * * *") {
+		t.Fatalf("Failed to create proper hourly cron schedule")
 	}
 }

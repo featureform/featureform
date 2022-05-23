@@ -273,7 +273,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID) error 
 		return err
 	}
 	sourceNameVariant := feature.Source()
-	source, err := c.AwaitPendingSource(sourceNameVariant) //second argument is seconds to wait for source to become ready
+	source, err := c.AwaitPendingSource(sourceNameVariant)
 	if err != nil {
 		return fmt.Errorf("source of could not complete job: %v", err)
 	}
@@ -359,7 +359,7 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID) error {
 			return fmt.Errorf("failed to get fetch dependent feature")
 		}
 		sourceNameVariant := featureResource.Source()
-		_, err = c.AwaitPendingSource(sourceNameVariant) //second argument is seconds to wait for source to become ready
+		_, err = c.AwaitPendingSource(sourceNameVariant)
 		if err != nil {
 			return fmt.Errorf("source of feature could not complete job: %v", err)
 		}
@@ -369,7 +369,7 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID) error {
 		return err
 	}
 	labelSourceNameVariant := label.Source()
-	_, err = c.AwaitPendingSource(labelSourceNameVariant) //second argument is seconds to wait for source to become ready
+	_, err = c.AwaitPendingSource(labelSourceNameVariant)
 	if err != nil {
 		return fmt.Errorf("source of label could not complete job: %v", err)
 	}

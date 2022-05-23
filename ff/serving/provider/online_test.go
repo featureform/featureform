@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/alicebob/miniredis"
 	"github.com/google/uuid"
+	"os"
 	"reflect"
 	"testing"
 )
@@ -23,11 +24,17 @@ func TestOnlineStores(t *testing.T) {
 		"SetGetEntity":       testSetGetEntity,
 		"EntityNotFound":     testEntityNotFound,
 	}
+
 	miniRedis := mockRedis()
 	defer miniRedis.Close()
 	mockRedisAddr := miniRedis.Addr()
 	redisMockConfig := &RedisConfig{
 		Addr: mockRedisAddr,
+	}
+	redisPort := os.Getenv("REDIS_PORT")
+	liveAddr := fmt.Sprintf("%s:%s", "localhost", redisPort)
+	redisLiveConfig := &RedisConfig{
+		Addr: liveAddr,
 	}
 	testList := []struct {
 		t               Type
@@ -36,6 +43,7 @@ func TestOnlineStores(t *testing.T) {
 	}{
 		{LocalOnline, []byte{}, false},
 		{RedisOnline, redisMockConfig.Serialized(), false},
+		{RedisOnline, redisLiveConfig.Serialized(), true},
 	}
 	for _, testItem := range testList {
 		if testing.Short() && testItem.integrationTest {
@@ -51,7 +59,13 @@ func TestOnlineStores(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to use provider %s as OfflineStore: %s", testItem.t, err)
 			}
-			testName := fmt.Sprintf("%s_%s", testItem.t, name)
+			var prefix string
+			if testItem.integrationTest {
+				prefix = "INTEGRATION"
+			} else {
+				prefix = "UNIT"
+			}
+			testName := fmt.Sprintf("%s_%s_%s", testItem.t, prefix, name)
 			t.Run(testName, func(t *testing.T) {
 				fn(t, store)
 			})
@@ -59,9 +73,12 @@ func TestOnlineStores(t *testing.T) {
 	}
 }
 
+func randomFeatureVariant() (string, string) {
+	return uuid.NewString(), uuid.NewString()
+}
+
 func testCreateGetTable(t *testing.T, store OnlineStore) {
-	randomPrefix := uuid.NewString()
-	mockFeature, mockVariant := fmt.Sprintf("%s__f", randomPrefix), "v"
+	mockFeature, mockVariant := randomFeatureVariant()
 	if tab, err := store.CreateTable(mockFeature, mockVariant); tab == nil || err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
@@ -71,8 +88,7 @@ func testCreateGetTable(t *testing.T, store OnlineStore) {
 }
 
 func testTableAlreadyExists(t *testing.T, store OnlineStore) {
-	randomPrefix := uuid.NewString()
-	mockFeature, mockVariant := fmt.Sprintf("%s__f", randomPrefix), "v"
+	mockFeature, mockVariant := randomFeatureVariant()
 	if _, err := store.CreateTable(mockFeature, mockVariant); err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
@@ -86,8 +102,7 @@ func testTableAlreadyExists(t *testing.T, store OnlineStore) {
 }
 
 func testTableNotFound(t *testing.T, store OnlineStore) {
-	randomPrefix := uuid.NewString()
-	mockFeature, mockVariant := fmt.Sprintf("%s__f", randomPrefix), "v"
+	mockFeature, mockVariant := randomFeatureVariant()
 	if _, err := store.GetTable(mockFeature, mockVariant); err == nil {
 		t.Fatalf("Succeeded in getting non-existant table")
 	} else if casted, valid := err.(*TableNotFound); !valid {
@@ -98,8 +113,7 @@ func testTableNotFound(t *testing.T, store OnlineStore) {
 }
 
 func testSetGetEntity(t *testing.T, store OnlineStore) {
-	randomPrefix := uuid.NewString()
-	mockFeature, mockVariant := fmt.Sprintf("%s__f", randomPrefix), "v"
+	mockFeature, mockVariant := randomFeatureVariant()
 	entity, val := "e", "val"
 	tab, err := store.CreateTable(mockFeature, mockVariant)
 	if err != nil {
@@ -118,8 +132,7 @@ func testSetGetEntity(t *testing.T, store OnlineStore) {
 }
 
 func testEntityNotFound(t *testing.T, store OnlineStore) {
-	randomPrefix := uuid.NewString()
-	mockFeature, mockVariant := fmt.Sprintf("%s__f", randomPrefix), "v"
+	mockFeature, mockVariant := uuid.NewString(), "v"
 	entity := "e"
 	tab, err := store.CreateTable(mockFeature, mockVariant)
 	if err != nil {

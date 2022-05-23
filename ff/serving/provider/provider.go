@@ -5,6 +5,19 @@ import (
 	"fmt"
 )
 
+func init() {
+	unregisteredFactories := map[Type]Factory{
+		LocalOnline:   localOnlineStoreFactory,
+		RedisOnline:   redisOnlineStoreFactory,
+		MemoryOffline: memoryOfflineStoreFactory,
+	}
+	for name, factory := range unregisteredFactories {
+		if err := RegisterFactory(name, factory); err != nil {
+			panic(err)
+		}
+	}
+}
+
 type SerializedConfig []byte
 
 type RedisConfig struct {
@@ -32,6 +45,18 @@ func (r *RedisConfig) Deserialize(config SerializedConfig) error {
 
 type Provider interface {
 	AsOnlineStore() (OnlineStore, error)
+	AsOfflineStore() (OfflineStore, error)
+}
+
+type BaseProvider struct {
+}
+
+func (provider BaseProvider) AsOnlineStore() (OnlineStore, error) {
+	return nil, fmt.Errorf("%T cannot be used as an OnlineStore", provider)
+}
+
+func (provider BaseProvider) AsOfflineStore() (OfflineStore, error) {
+	return nil, fmt.Errorf("%T cannot be used as an OfflineStore", provider)
 }
 
 type Factory func(SerializedConfig) (Provider, error)

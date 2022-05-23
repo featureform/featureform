@@ -41,13 +41,14 @@ type Coordinator struct {
 	EtcdClient *clientv3.Client
 	KVClient   *clientv3.KV
 	Spawner    JobSpawner
+	Timeout    int32
 }
 
-func (c *Coordinator) AwaitPendingSource(sourceNameVariant metadata.NameVariant, timeout int32) (*metadata.SourceVariant, error) {
+func (c *Coordinator) AwaitPendingSource(sourceNameVariant metadata.NameVariant) (*metadata.SourceVariant, error) {
 	sourceStatus := metadata.PENDING
 	start := time.Now()
 	elapsed := time.Since(start)
-	for sourceStatus != metadata.READY && elapsed < time.Duration(timeout)*time.Second {
+	for sourceStatus != metadata.READY && elapsed < time.Duration(c.Timeout)*time.Second {
 		source, err := c.Metadata.GetSourceVariant(context.Background(), sourceNameVariant)
 		if err != nil {
 			return nil, err
@@ -107,6 +108,7 @@ func NewCoordinator(meta *metadata.Client, logger *zap.SugaredLogger, cli *clien
 		EtcdClient: cli,
 		KVClient:   &kvc,
 		Spawner:    spawner,
+		Timeout:    5,
 	}, nil
 }
 
@@ -271,7 +273,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID) error 
 		return err
 	}
 	sourceNameVariant := feature.Source()
-	source, err := c.AwaitPendingSource(sourceNameVariant, 30) //second argument is seconds to wait for source to become ready
+	source, err := c.AwaitPendingSource(sourceNameVariant) //second argument is seconds to wait for source to become ready
 	if err != nil {
 		return fmt.Errorf("source of could not complete job: %v", err)
 	}
@@ -357,7 +359,7 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID) error {
 			return fmt.Errorf("failed to get fetch dependent feature")
 		}
 		sourceNameVariant := featureResource.Source()
-		_, err = c.AwaitPendingSource(sourceNameVariant, 5) //second argument is seconds to wait for source to become ready
+		_, err = c.AwaitPendingSource(sourceNameVariant) //second argument is seconds to wait for source to become ready
 		if err != nil {
 			return fmt.Errorf("source of feature could not complete job: %v", err)
 		}
@@ -367,7 +369,7 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID) error {
 		return err
 	}
 	labelSourceNameVariant := label.Source()
-	_, err = c.AwaitPendingSource(labelSourceNameVariant, 5) //second argument is seconds to wait for source to become ready
+	_, err = c.AwaitPendingSource(labelSourceNameVariant) //second argument is seconds to wait for source to become ready
 	if err != nil {
 		return fmt.Errorf("source of label could not complete job: %v", err)
 	}

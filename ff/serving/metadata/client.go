@@ -78,9 +78,10 @@ type ResourceDef interface {
 	ResourceType() ResourceType
 }
 
-func (client *Client) SetStatus(ctx context.Context, resID ResourceID, status pb.ResourceStatus) error {
+func (client *Client) SetStatus(ctx context.Context, resID ResourceID, status ResourceStatus, errorMessage string) error {
 	nameVariant := pb.NameVariant{Name: resID.Name, Variant: resID.Variant}
-	statusRequest := pb.SetStatusRequest{Resource: &nameVariant, ResourceType: resID.Type.Serialized(), Status: &status}
+	resourceStatus := pb.ResourceStatus{Status: pb.ResourceStatus_Status(status), ErrorMessage: errorMessage}
+	statusRequest := pb.SetStatusRequest{Resource: &nameVariant, ResourceType: resID.Type.Serialized(), Status: &resourceStatus}
 	_, err := client.grpcConn.SetResourceStatus(ctx, &statusRequest)
 	return err
 }

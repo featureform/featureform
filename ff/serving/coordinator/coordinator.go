@@ -10,7 +10,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/featureform/serving/metadata"
-	pb "github.com/featureform/serving/metadata/proto"
 	provider "github.com/featureform/serving/provider"
 	runner "github.com/featureform/serving/runner"
 	mvccpb "go.etcd.io/etcd/api/v3/mvccpb"
@@ -123,7 +122,7 @@ func (c *Coordinator) WatchForNewJobs() error {
 		go func(kv *mvccpb.KeyValue) {
 			err := c.executeJob(string(kv.Key))
 			if err != nil {
-				c.Logger.Errorf("Error executing job: %v", err)
+				c.Logger.Debugw("Error executing job", "error", err)
 			}
 		}(kv)
 	}
@@ -135,7 +134,7 @@ func (c *Coordinator) WatchForNewJobs() error {
 					go func(ev *clientv3.Event) {
 						err := c.executeJob(string(ev.Kv.Key))
 						if err != nil {
-							c.Logger.Errorf("Error executing job: %v", err)
+							c.Logger.Debugw("Error executing job", "error", err)
 						}
 					}(ev)
 				}
@@ -207,7 +206,7 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 	if err := offlineStore.CreateTransformation(transformationConfig); err != nil {
 		return err
 	}
-	if err := c.Metadata.SetStatus(context.Background(), resID, pb.ResourceStatus{Status: pb.ResourceStatus_READY}); err != nil {
+	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
 		return err
 	}
 	return nil
@@ -223,7 +222,7 @@ func (c *Coordinator) runPrimaryTableJob(transformSource *metadata.SourceVariant
 	if _, err := offlineStore.RegisterPrimaryFromSourceTable(providerResourceID, sourceName); err != nil {
 		return err
 	}
-	if err := c.Metadata.SetStatus(context.Background(), resID, pb.ResourceStatus{Status: pb.ResourceStatus_READY}); err != nil {
+	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
 		return err
 	}
 	return nil
@@ -268,7 +267,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID) error 
 	if status == metadata.READY || status == metadata.FAILED {
 		return fmt.Errorf("feature already set to %s", status.String())
 	}
-	if err := c.Metadata.SetStatus(context.Background(), resID, pb.ResourceStatus{Status: pb.ResourceStatus_PENDING}); err != nil {
+	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.PENDING, ""); err != nil {
 		return err
 	}
 	sourceNameVariant := feature.Source()
@@ -314,7 +313,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID) error 
 	if err := completionWatcher.Wait(); err != nil {
 		return err
 	}
-	if err := c.Metadata.SetStatus(context.Background(), resID, pb.ResourceStatus{Status: pb.ResourceStatus_READY}); err != nil {
+	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
 		return err
 	}
 	return nil
@@ -330,7 +329,7 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID) error {
 	if status == metadata.READY || status == metadata.FAILED {
 		return fmt.Errorf("training Set already set to %s", status.String())
 	}
-	if err := c.Metadata.SetStatus(context.Background(), resID, pb.ResourceStatus{Status: pb.ResourceStatus_PENDING}); err != nil {
+	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.PENDING, ""); err != nil {
 		return err
 	}
 	providerEntry, err := ts.FetchProvider(c.Metadata, context.Background())
@@ -394,7 +393,7 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID) error {
 	if err := completionWatcher.Wait(); err != nil {
 		return err
 	}
-	if err := c.Metadata.SetStatus(context.Background(), resID, pb.ResourceStatus{Status: pb.ResourceStatus_READY}); err != nil {
+	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
 		return err
 	}
 	return nil
@@ -483,7 +482,7 @@ func (c *Coordinator) createJobLock(jobKey string, s *concurrency.Session) (*con
 }
 
 func (c *Coordinator) markJobFailed(job *metadata.CoordinatorJob) error {
-	if err := c.Metadata.SetStatus(context.Background(), job.Resource, pb.ResourceStatus{Status: pb.ResourceStatus_FAILED}); err != nil {
+	if err := c.Metadata.SetStatus(context.Background(), job.Resource, metadata.FAILED, ""); err != nil {
 		return fmt.Errorf("could not set job status to failed: %v", err)
 	}
 	return nil
@@ -503,7 +502,7 @@ func (c *Coordinator) executeJob(jobKey string) error {
 	}
 	defer func() {
 		if err := mtx.Unlock(context.Background()); err != nil {
-			c.Logger.Errorf("Error unlocking mutex: %v", err)
+			c.Logger.Debugw("Error unlocking mutex:", "error", err)
 		}
 	}()
 	job, err := c.getJob(mtx, jobKey)
@@ -528,12 +527,12 @@ func (c *Coordinator) executeJob(jobKey string) error {
 		return fmt.Errorf("not a valid resource type for running jobs")
 	}
 	if err := jobFunc(job.Resource); err != nil {
-		statusErr := c.Metadata.SetStatus(context.Background(), job.Resource, pb.ResourceStatus{Status: pb.ResourceStatus_FAILED, ErrorMessage: err.Error()})
+		statusErr := c.Metadata.SetStatus(context.Background(), job.Resource, metadata.FAILED, err.Error())
 		return fmt.Errorf("%s job failed: %v: %v", job.Resource.Type, err, statusErr)
 	}
 	c.Logger.Debug("Succesfully executed job with key: ", jobKey)
 	if err := c.deleteJob(mtx, jobKey); err != nil {
-		c.Logger.Errorf("Error deleting job: %v", err)
+		c.Logger.Debugw("Error deleting job", "error", err)
 		return err
 	}
 	return nil

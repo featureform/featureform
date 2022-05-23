@@ -15,7 +15,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/featureform/serving/metadata"
-	pb "github.com/featureform/serving/metadata/proto"
 	provider "github.com/featureform/serving/provider"
 	runner "github.com/featureform/serving/runner"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -223,7 +222,7 @@ func TestFeatureMaterializeJobError(t *testing.T) {
 	if err := materializeFeatureWithProvider(coord.Metadata, postgresConfig.Serialize(), redisConfig.Serialized(), featureName, sourceName, originalTableName); err != nil {
 		t.Fatalf("could not create example feature, %v", err)
 	}
-	if err := coord.Metadata.SetStatus(context.Background(), metadata.ResourceID{featureName, "", metadata.FEATURE_VARIANT}, pb.ResourceStatus{Status: pb.ResourceStatus_READY}); err != nil {
+	if err := coord.Metadata.SetStatus(context.Background(), metadata.ResourceID{featureName, "", metadata.FEATURE_VARIANT}, metadata.READY, ""); err != nil {
 		t.Fatalf("could not set feature to ready")
 	}
 	if err := coord.runFeatureMaterializeJob(metadata.ResourceID{featureName, "", metadata.FEATURE_VARIANT}); err == nil {
@@ -282,7 +281,7 @@ func TestFeatureMaterializeJobError(t *testing.T) {
 	if err := coord.Metadata.CreateAll(context.Background(), defs); err != nil {
 		t.Fatalf("could not create metadata entries: %v", err)
 	}
-	if err := coord.Metadata.SetStatus(context.Background(), metadata.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}, pb.ResourceStatus{Status: pb.ResourceStatus_READY}); err != nil {
+	if err := coord.Metadata.SetStatus(context.Background(), metadata.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}, metadata.READY, ""); err != nil {
 		t.Fatalf("could not set source variant to ready")
 	}
 	if err := coord.runFeatureMaterializeJob(metadata.ResourceID{featureName, "", metadata.FEATURE_VARIANT}); err == nil {
@@ -341,7 +340,7 @@ func TestFeatureMaterializeJobError(t *testing.T) {
 	if err := coord.Metadata.CreateAll(context.Background(), defs); err != nil {
 		t.Fatalf("could not create metadata entries: %v", err)
 	}
-	if err := coord.Metadata.SetStatus(context.Background(), metadata.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}, pb.ResourceStatus{Status: pb.ResourceStatus_READY}); err != nil {
+	if err := coord.Metadata.SetStatus(context.Background(), metadata.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}, metadata.READY, ""); err != nil {
 		t.Fatalf("could not set source variant to ready")
 	}
 	if err := coord.runFeatureMaterializeJob(metadata.ResourceID{featureName, "", metadata.FEATURE_VARIANT}); err == nil {
@@ -409,7 +408,7 @@ func TestFeatureMaterializeJobError(t *testing.T) {
 	if err := coord.Metadata.CreateAll(context.Background(), defs); err != nil {
 		t.Fatalf("could not create metadata entries: %v", err)
 	}
-	if err := coord.Metadata.SetStatus(context.Background(), metadata.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}, pb.ResourceStatus{Status: pb.ResourceStatus_READY}); err != nil {
+	if err := coord.Metadata.SetStatus(context.Background(), metadata.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}, metadata.READY, ""); err != nil {
 		t.Fatalf("could not set source variant to ready")
 	}
 	if err := coord.runFeatureMaterializeJob(metadata.ResourceID{featureName, "", metadata.FEATURE_VARIANT}); err == nil {
@@ -1310,7 +1309,7 @@ func testCoordinatorMaterializeFeature(addr string) error {
 	if err := materializeFeatureWithProvider(client, serialPGConfig, serialRedisConfig, featureName, sourceName, originalTableName); err != nil {
 		return fmt.Errorf("could not create online feature in metadata: %v", err)
 	}
-	if err := client.SetStatus(context.Background(), metadata.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}, pb.ResourceStatus{Status: pb.ResourceStatus_READY}); err != nil {
+	if err := client.SetStatus(context.Background(), metadata.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}, metadata.READY, ""); err != nil {
 		return err
 	}
 	featureID := metadata.ResourceID{Name: featureName, Variant: "", Type: metadata.FEATURE_VARIANT}

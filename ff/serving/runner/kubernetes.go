@@ -16,20 +16,36 @@ var namespace string = "default"
 
 type CronSchedule string
 
-func MonthlySchedule(minute int, hour int, day int) CronSchedule {
-	return CronSchedule(fmt.Sprintf("%d %d %d * *", minute, hour, day))
+func MonthlySchedule(day, minute, hour int) CronSchedule {
+	return CronSchedule(fmt.Sprintf("%d %d %d * *", day, minute, hour))
 }
 
-func WeeklySchedule(minute int, hour int, weekday int) CronSchedule {
-	return CronSchedule(fmt.Sprintf("%d %d * * %d", minute, hour, weekday))
+func WeeklySchedule(weekday, hour, minute int) CronSchedule {
+	return CronSchedule(fmt.Sprintf("%d %d * * %d", weekday, hour, minute))
 }
 
-func DailySchedule(minute int, hour int) CronSchedule {
-	return CronSchedule(fmt.Sprintf("%d %d * * *", minute, hour))
+func DailySchedule(hour, minute int) CronSchedule {
+	return CronSchedule(fmt.Sprintf("%d %d * * *", hour, minute))
 }
 
 func HourlySchedule(minute int) CronSchedule {
 	return CronSchedule(fmt.Sprintf("%d * * * *", minute))
+}
+
+func EveryNMinutes(minutes int) CronSchedule {
+	return CronSchedule(fmt.Sprintf("*/%d * * * *", minutes))
+}
+
+func EveryNHours(hours int) CronSchedule {
+	return CronSchedule(fmt.Sprintf("* */%d * * *", hours))
+}
+
+func EveryNDays(days int) CronSchedule {
+	return CronSchedule(fmt.Sprintf("* * */%d * *", days))
+}
+
+func EveryNMonths(months int) CronSchedule {
+	return CronSchedule(fmt.Sprintf("* * * */%d *", months))
 }
 
 type CronRunner interface {

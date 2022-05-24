@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: sandbox-api-server
+  labels:
+    run: sandbox-api-server
+spec:
+  # bypass kube-proxy
+  ports:
+    - port: 7878
+      protocol: TCP
+      targetPort: 7878
+  type: ClusterIP
+  selector:
+    app: sandbox-api-server

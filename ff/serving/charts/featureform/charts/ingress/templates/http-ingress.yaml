@@ -1,0 +1,48 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    allowed-values: CN=client
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/auth-tls-pass-certificate-to-upstream: "false"
+    nginx.ingress.kubernetes.io/backend-protocol: HTTP
+    nginx.ingress.kubernetes.io/proxy-body-size: 64ms
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+  name: http-ingress
+  namespace: default
+spec:
+  rules:
+    - host: {{ .Release.Name }}-sandbox.featureform.com
+      http:
+        paths:
+          - path: /collections/
+            pathType: Prefix
+            backend:
+              service:
+                name: sandbox-typesense
+                port:
+                  number: 80
+          - path: /data/
+            pathType: Prefix
+            backend:
+              service:
+                name: sandbox-dashboard-metadata
+                port:
+                  number: 8080
+          - path: /prometheus/
+            pathType: Prefix
+            backend:
+              service:
+                name: sandbox-prometheus-service
+                port:
+                  number: 9090
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: sandbox-dashboard
+                port:
+                  number: 3000
+
+
+

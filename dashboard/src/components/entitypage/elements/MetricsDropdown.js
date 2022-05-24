@@ -33,7 +33,7 @@ const useStyles = makeStyles((theme) => ({
     },
   },
   aggDropdown: {
-    minWidth: "20em",
+    minWidth: "0em",
     display: "flex",
     "& > *": {
       paddingBottom: "0em",

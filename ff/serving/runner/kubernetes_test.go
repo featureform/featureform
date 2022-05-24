@@ -219,29 +219,92 @@ func TestKubernetesRunnerScheduleFail(t *testing.T) {
 }
 
 func TestMonthlySchedule(t *testing.T) {
-	schedule := MonthlySchedule(1, 2, 3)
-	if schedule != CronSchedule("1 2 3 * *") {
+	schedule, err := MonthlySchedule(1, 2, 3)
+	if err != nil {
+		t.Fatalf("triggered error on proper cron job parameters")
+	}
+	if *schedule != CronSchedule("1 2 3 * *") {
 		t.Fatalf("Failed to create proper monthly cron schedule")
+	}
+	if _, err := MonthlySchedule(99, 99, 99); err == nil {
+		t.Fatalf("Failed to trigger error on invalid monthly schedule")
 	}
 }
 
 func TestWeeklySchedule(t *testing.T) {
-	schedule := WeeklySchedule(1, 2, 3)
-	if schedule != CronSchedule("1 2 * * 3") {
+	schedule, err := WeeklySchedule(1, 2, 3)
+	if err != nil {
+		t.Fatalf("triggered error on proper cron job parameters")
+	}
+	if *schedule != CronSchedule("1 2 * * 3") {
 		t.Fatalf("Failed to create proper weekly cron schedule")
+	}
+	if _, err := WeeklySchedule(99, 99, 99); err == nil {
+		t.Fatalf("Failed to trigger error on invalid weekly schedule")
 	}
 }
 
 func TestDailySchedule(t *testing.T) {
-	schedule := DailySchedule(1, 2)
-	if schedule != CronSchedule("1 2 * * *") {
+	schedule, err := DailySchedule(1, 2)
+	if err != nil {
+		t.Fatalf("triggered error on proper cron job parameters")
+	}
+	if *schedule != CronSchedule("1 2 * * *") {
 		t.Fatalf("Failed to create proper daily cron schedule")
+	}
+	if _, err := DailySchedule(99, 99); err == nil {
+		t.Fatalf("Failed to trigger error on invalid daily schedule")
 	}
 }
 
 func TestHourlySchedule(t *testing.T) {
-	schedule := HourlySchedule(1)
-	if schedule != CronSchedule("1 * * * *") {
+	schedule, err := HourlySchedule(1)
+	if err != nil {
+		t.Fatalf("triggered error on proper cron job parameters")
+	}
+	if *schedule != CronSchedule("1 * * * *") {
 		t.Fatalf("Failed to create proper hourly cron schedule")
+	}
+	if _, err := HourlySchedule(99); err == nil {
+		t.Fatalf("Failed to trigger error on invalid hourly schedule")
+	}
+}
+
+func TestEveryNMinutes(t *testing.T) {
+	schedule, err := EveryNMinutes(1)
+	if err != nil {
+		t.Fatalf("triggered error on proper cron job parameters")
+	}
+	if *schedule != CronSchedule("*/1 * * * *") {
+		t.Fatalf("Failed to create proper every n minutes cron schedule")
+	}
+	if _, err := EveryNMinutes(99); err == nil {
+		t.Fatalf("Failed to trigger error on invalid every n minutes schedule")
+	}
+}
+
+func TestEveryNHours(t *testing.T) {
+	schedule, err := EveryNHours(1)
+	if err != nil {
+		t.Fatalf("triggered error on proper cron job parameters")
+	}
+	if *schedule != CronSchedule("* */1 * * *") {
+		t.Fatalf("Failed to create proper every n minutes cron schedule")
+	}
+	if _, err := EveryNHours(99); err == nil {
+		t.Fatalf("Failed to trigger error on invalid every n hours schedule")
+	}
+}
+
+func TestEveryNDays(t *testing.T) {
+	schedule, err := EveryNDays(1)
+	if err != nil {
+		t.Fatalf("triggered error on proper cron job parameters")
+	}
+	if *schedule != CronSchedule("* * */1 * *") {
+		t.Fatalf("Failed to create proper every n minutes cron schedule")
+	}
+	if _, err := EveryNDays(99); err == nil {
+		t.Fatalf("Failed to trigger error on invalid every n days schedule")
 	}
 }

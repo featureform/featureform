@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/google/uuid"
+	"github.com/gorhill/cronexpr"
 	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,36 +17,45 @@ var namespace string = "default"
 
 type CronSchedule string
 
-func MonthlySchedule(day, minute, hour int) CronSchedule {
-	return CronSchedule(fmt.Sprintf("%d %d %d * *", day, minute, hour))
+func makeCronSchedule(schedule string) (*CronSchedule, error) {
+	if _, err := cronexpr.Parse(schedule); err != nil {
+		return nil, fmt.Errorf("invalid cron expression: %v", err)
+	}
+	cronSchedule := CronSchedule(schedule)
+	return &cronSchedule, nil
 }
 
-func WeeklySchedule(weekday, hour, minute int) CronSchedule {
-	return CronSchedule(fmt.Sprintf("%d %d * * %d", weekday, hour, minute))
+func MonthlySchedule(day, minute, hour int) (*CronSchedule, error) {
+	return makeCronSchedule(fmt.Sprintf("%d %d %d * *", day, minute, hour))
 }
 
-func DailySchedule(hour, minute int) CronSchedule {
-	return CronSchedule(fmt.Sprintf("%d %d * * *", hour, minute))
+func WeeklySchedule(weekday, hour, minute int) (*CronSchedule, error) {
+	return makeCronSchedule(fmt.Sprintf("%d %d * * %d", weekday, hour, minute))
 }
 
-func HourlySchedule(minute int) CronSchedule {
-	return CronSchedule(fmt.Sprintf("%d * * * *", minute))
+func DailySchedule(hour, minute int) (*CronSchedule, error) {
+	return makeCronSchedule(fmt.Sprintf("%d %d * * *", hour, minute))
 }
 
-func EveryNMinutes(minutes int) CronSchedule {
-	return CronSchedule(fmt.Sprintf("*/%d * * * *", minutes))
+func HourlySchedule(minute int) (*CronSchedule, error) {
+	return makeCronSchedule(fmt.Sprintf("%d * * * *", minute))
 }
 
-func EveryNHours(hours int) CronSchedule {
-	return CronSchedule(fmt.Sprintf("* */%d * * *", hours))
+func EveryNMinutes(minutes int) (*CronSchedule, error) {
+	return makeCronSchedule(fmt.Sprintf("*/%d * * * *", minutes))
 }
 
-func EveryNDays(days int) CronSchedule {
-	return CronSchedule(fmt.Sprintf("* * */%d * *", days))
+func EveryNHours(hours int) (*CronSchedule, error) {
+	return makeCronSchedule(fmt.Sprintf("* */%d * * *", hours))
 }
 
-func EveryNMonths(months int) CronSchedule {
-	return CronSchedule(fmt.Sprintf("* * * */%d *", months))
+func EveryNDays(days int) (*CronSchedule, error) {
+	return makeCronSchedule(fmt.Sprintf("* * */%d * *", days))
+
+}
+
+func EveryNMonths(months int) (*CronSchedule, error) {
+	return makeCronSchedule(fmt.Sprintf("* * * */%d *", months))
 }
 
 type CronRunner interface {

@@ -1,1 +1,6 @@
-export { default, testData, providerLogos } from "./Resources.js";
+export {
+  default,
+  testData,
+  providerLogos,
+  PROMETHEUS_URL,
+} from "./Resources.js";

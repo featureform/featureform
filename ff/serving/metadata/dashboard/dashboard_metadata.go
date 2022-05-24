@@ -1,3 +1,7 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 package main
 
 import (
@@ -9,6 +13,8 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 	"net/http"
+	"os"
+	"reflect"
 	"time"
 )
 
@@ -32,8 +38,10 @@ type FeatureVariantResource struct {
 	Name         string                                  `json:"name"`
 	Owner        string                                  `json:"owner"`
 	Provider     string                                  `json:"provider"`
-	Type         string                                  `json:"type"`
+	DataType     string                                  `json:"data-type"`
 	Variant      string                                  `json:"variant"`
+	Status       string                                  `json:"status"`
+	Location     map[string]string                       `json:"location"`
 	Source       metadata.NameVariant                    `json:"source"`
 	TrainingSets map[string][]TrainingSetVariantResource `json:"training-sets"`
 }
@@ -55,6 +63,7 @@ type TrainingSetVariantResource struct {
 	Variant     string                              `json:"variant"`
 	Label       metadata.NameVariant                `json:"label"`
 	Features    map[string][]FeatureVariantResource `json:"features"`
+	Status      string                              `json:"status"`
 }
 
 type TrainingSetResource struct {
@@ -69,13 +78,15 @@ type SourceVariantResource struct {
 	Created      time.Time                               `json:"created"`
 	Description  string                                  `json:"description"`
 	Name         string                                  `json:"name"`
-	Type         string                                  `json:"type"`
+	SourceType   string                                  `json:"source-type"`
 	Owner        string                                  `json:"owner"`
 	Provider     string                                  `json:"provider"`
 	Variant      string                                  `json:"variant"`
 	Labels       map[string][]LabelVariantResource       `json:"labels"`
 	Features     map[string][]FeatureVariantResource     `json:"features"`
 	TrainingSets map[string][]TrainingSetVariantResource `json:"training-sets"`
+	Status       string                                  `json:"status"`
+	Definition   string                                  `json:"definition"`
 }
 
 type SourceResource struct {
@@ -93,10 +104,12 @@ type LabelVariantResource struct {
 	Name         string                                  `json:"name"`
 	Owner        string                                  `json:"owner"`
 	Provider     string                                  `json:"provider"`
-	Type         string                                  `json:"type"`
+	DataType     string                                  `json:"data-type"`
 	Variant      string                                  `json:"variant"`
+	Location     map[string]string                       `json:"location"`
 	Source       metadata.NameVariant                    `json:"source"`
 	TrainingSets map[string][]TrainingSetVariantResource `json:"training-sets"`
+	Status       string                                  `json:"status"`
 }
 
 type LabelResource struct {
@@ -114,6 +127,7 @@ type EntityResource struct {
 	Features     map[string][]FeatureVariantResource     `json:"features"`
 	Labels       map[string][]LabelVariantResource       `json:"labels"`
 	TrainingSets map[string][]TrainingSetVariantResource `json:"training-sets"`
+	Status       string                                  `json:"status"`
 }
 
 type UserResource struct {
@@ -122,7 +136,8 @@ type UserResource struct {
 	Features     map[string][]FeatureVariantResource     `json:"features"`
 	Labels       map[string][]LabelVariantResource       `json:"labels"`
 	TrainingSets map[string][]TrainingSetVariantResource `json:"training-sets"`
-	Sources      map[string][]SourceVariantResource      `json:"primary-data"`
+	Sources      map[string][]SourceVariantResource      `json:"sources"`
+	Status       string                                  `json:"status"`
 }
 
 type ModelResource struct {
@@ -131,20 +146,23 @@ type ModelResource struct {
 	Description  string                                  `json:"description"`
 	Features     map[string][]FeatureVariantResource     `json:"features"`
 	Labels       map[string][]LabelVariantResource       `json:"labels"`
-	TrainingSets map[string][]TrainingSetVariantResource `json:"trainingsets"`
+	TrainingSets map[string][]TrainingSetVariantResource `json:"training-sets"`
+	Status       string                                  `json:"status"`
 }
 
 type ProviderResource struct {
-	Name         string                                  `json:"name"`
-	Type         string                                  `json:"type"`
-	Description  string                                  `json:"description"`
-	ProviderType string                                  `json:"provider-type"`
-	Software     string                                  `json:"software"`
-	Team         string                                  `json:"team"`
-	Sources      map[string][]SourceVariantResource      `json:"primary-data"`
-	Features     map[string][]FeatureVariantResource     `json:"features"`
-	Labels       map[string][]LabelVariantResource       `json:"labels"`
-	TrainingSets map[string][]TrainingSetVariantResource `json:"trainingsets"`
+	Name             string                                  `json:"name"`
+	Type             string                                  `json:"type"`
+	Description      string                                  `json:"description"`
+	ProviderType     string                                  `json:"provider-type"`
+	Software         string                                  `json:"software"`
+	Team             string                                  `json:"team"`
+	Sources          map[string][]SourceVariantResource      `json:"sources"`
+	Features         map[string][]FeatureVariantResource     `json:"features"`
+	Labels           map[string][]LabelVariantResource       `json:"labels"`
+	TrainingSets     map[string][]TrainingSetVariantResource `json:"training-sets"`
+	Status           string                                  `json:"status"`
+	SerializedConfig string                                  `json:"serialized-config"`
 }
 
 type FetchError struct {
@@ -156,17 +174,28 @@ func (m *FetchError) Error() string {
 	return fmt.Sprintf("Error %d: Failed to fetch %s", m.StatusCode, m.Type)
 }
 
+func columnsToMap(columns metadata.ResourceVariantColumns) map[string]string {
+	columnNameValues := reflect.ValueOf(columns)
+	featureColumns := make(map[string]string)
+	for i := 0; i < columnNameValues.NumField(); i++ {
+		featureColumns[columnNameValues.Type().Field(i).Name] = fmt.Sprintf("%v", columnNameValues.Field(i).Interface())
+	}
+	return featureColumns
+}
+
 func featureShallowMap(variant *metadata.FeatureVariant) FeatureVariantResource {
 	return FeatureVariantResource{
 		Created:     variant.Created(),
 		Description: variant.Description(),
 		Entity:      variant.Entity(),
 		Name:        variant.Name(),
-		Type:        variant.Type(),
+		DataType:    variant.Type(),
 		Variant:     variant.Variant(),
 		Owner:       variant.Owner(),
 		Provider:    variant.Provider(),
 		Source:      variant.Source(),
+		Location:    columnsToMap(variant.LocationColumns().(metadata.ResourceVariantColumns)),
+		Status:      variant.Status(),
 	}
 }
 
@@ -176,11 +205,13 @@ func labelShallowMap(variant *metadata.LabelVariant) LabelVariantResource {
 		Description: variant.Description(),
 		Entity:      variant.Entity(),
 		Name:        variant.Name(),
-		Type:        variant.Type(),
+		DataType:    variant.Type(),
 		Variant:     variant.Variant(),
 		Owner:       variant.Owner(),
 		Provider:    variant.Provider(),
 		Source:      variant.Source(),
+		Location:    columnsToMap(variant.LocationColumns().(metadata.ResourceVariantColumns)),
+		Status:      variant.Status(),
 	}
 }
 
@@ -193,18 +224,30 @@ func trainingSetShallowMap(variant *metadata.TrainingSetVariant) TrainingSetVari
 		Owner:       variant.Owner(),
 		Provider:    variant.Provider(),
 		Label:       variant.Label(),
+		Status:      variant.Status(),
 	}
 }
 
 func sourceShallowMap(variant *metadata.SourceVariant) SourceVariantResource {
+	var sourceType string
+	var sourceString string
+	if variant.PrimaryDataSQLTableName() == "" {
+		sourceType = "Transformation"
+		sourceString = variant.SQLTransformationQuery()
+	} else {
+		sourceType = "Primary Table"
+		sourceString = variant.PrimaryDataSQLTableName()
+	}
 	return SourceVariantResource{
 		Created:     variant.Created(),
 		Description: variant.Description(),
 		Name:        variant.Name(),
-		Type:        variant.Type(),
+		SourceType:  sourceType,
 		Variant:     variant.Variant(),
 		Owner:       variant.Owner(),
 		Provider:    variant.Provider(),
+		Status:      variant.Status(),
+		Definition:  sourceString,
 	}
 }
 
@@ -453,7 +496,7 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 			Name:           trainingSet.Name(),
 			Variants:       variantList,
 		})
-	case "primary-data":
+	case "sources":
 		source, err := m.client.GetSource(context.Background(), c.Param("resource"))
 		if err != nil {
 			fetchError := &FetchError{StatusCode: 500, Type: "source"}
@@ -468,7 +511,7 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 		}
 		c.JSON(http.StatusOK, SourceResource{
 			AllVariants:    source.Variants(),
-			Type:           "PrimaryData",
+			Type:           "Source",
 			DefaultVariant: source.DefaultVariant(),
 			Name:           source.Name(),
 			Variants:       variantList,
@@ -485,6 +528,7 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 			Name:        entity.Name(),
 			Type:        "Entity",
 			Description: entity.Description(),
+			Status:      entity.Status(),
 		}
 		fetchGroup := new(errgroup.Group)
 		fetchGroup.Go(func() error {
@@ -527,8 +571,9 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 			return
 		}
 		userResource := &UserResource{
-			Name: user.Name(),
-			Type: "User",
+			Name:   user.Name(),
+			Type:   "User",
+			Status: user.Status(),
 		}
 		fetchGroup := new(errgroup.Group)
 		fetchGroup.Go(func() error {
@@ -583,6 +628,7 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 			Name:        model.Name(),
 			Type:        "Model",
 			Description: model.Description(),
+			Status:      model.Status(),
 		}
 		fetchGroup := new(errgroup.Group)
 		fetchGroup.Go(func() error {
@@ -625,12 +671,14 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 			return
 		}
 		providerResource := &ProviderResource{
-			Name:         provider.Name(),
-			Type:         "Provider",
-			Description:  provider.Description(),
-			ProviderType: provider.Type(),
-			Software:     provider.Software(),
-			Team:         provider.Team(),
+			Name:             provider.Name(),
+			Type:             "Provider",
+			Description:      provider.Description(),
+			ProviderType:     provider.Type(),
+			Software:         provider.Software(),
+			Team:             provider.Team(),
+			Status:           provider.Status(),
+			SerializedConfig: string(provider.SerializedConfig()),
 		}
 		fetchGroup := new(errgroup.Group)
 		fetchGroup.Go(func() error {
@@ -729,7 +777,7 @@ func (m *MetadataServer) GetMetadataList(c *gin.Context) {
 			}
 		}
 		c.JSON(http.StatusOK, trainingSetList)
-	case "primary-data":
+	case "sources":
 		sources, err := m.client.ListSources(context.Background())
 		if err != nil {
 			fetchError := &FetchError{StatusCode: 500, Type: "sources"}
@@ -747,7 +795,7 @@ func (m *MetadataServer) GetMetadataList(c *gin.Context) {
 			}
 			sourceList[i] = SourceResource{
 				AllVariants:    source.Variants(),
-				Type:           "PrimaryData",
+				Type:           "Source",
 				DefaultVariant: source.DefaultVariant(),
 				Name:           source.Name(),
 				Variants:       variantList,
@@ -794,6 +842,7 @@ func (m *MetadataServer) GetMetadataList(c *gin.Context) {
 				Name:        entity.Name(),
 				Type:        "Entity",
 				Description: entity.Description(),
+				Status:      entity.Status(),
 			}
 		}
 		c.JSON(http.StatusOK, entityList)
@@ -812,6 +861,7 @@ func (m *MetadataServer) GetMetadataList(c *gin.Context) {
 				Name:        model.Name(),
 				Type:        "Model",
 				Description: model.Description(),
+				Status:      model.Status(),
 			}
 		}
 		c.JSON(http.StatusOK, modelList)
@@ -827,8 +877,9 @@ func (m *MetadataServer) GetMetadataList(c *gin.Context) {
 		userList := make([]UserResource, len(users))
 		for i, user := range users {
 			userList[i] = UserResource{
-				Name: user.Name(),
-				Type: "User",
+				Name:   user.Name(),
+				Type:   "User",
+				Status: user.Status(),
 			}
 		}
 		c.JSON(http.StatusOK, userList)
@@ -844,12 +895,14 @@ func (m *MetadataServer) GetMetadataList(c *gin.Context) {
 		providerList := make([]ProviderResource, len(providers))
 		for i, provider := range providers {
 			providerList[i] = ProviderResource{
-				Name:         provider.Name(),
-				Type:         "Provider",
-				Description:  provider.Description(),
-				Software:     provider.Software(),
-				Team:         provider.Team(),
-				ProviderType: provider.Type(),
+				Name:             provider.Name(),
+				Type:             "Provider",
+				Description:      provider.Description(),
+				Software:         provider.Software(),
+				Team:             provider.Team(),
+				ProviderType:     provider.Type(),
+				Status:           provider.Status(),
+				SerializedConfig: string(provider.SerializedConfig()),
 			}
 		}
 		c.JSON(http.StatusOK, providerList)
@@ -867,16 +920,19 @@ func (m *MetadataServer) Start(port string) {
 	router := gin.Default()
 	router.Use(cors.Default())
 
-	router.GET("/:type", m.GetMetadataList)
-	router.GET("/:type/:resource", m.GetMetadata)
+	router.GET("/data/:type", m.GetMetadataList)
+	router.GET("/data/:type/:resource", m.GetMetadata)
 
 	router.Run(port)
 }
 
 func main() {
-
+	metadataHost := os.Getenv("METADATA_HOST")
+	metadataPort := os.Getenv("METADATA_PORT")
+	metadataAddress := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
+	fmt.Println("Looking for metadata at: ", metadataAddress)
 	logger := zap.NewExample().Sugar()
-	client, err := metadata.NewClient("localhost:8080", logger)
+	client, err := metadata.NewClient(metadataAddress, logger)
 	if err != nil {
 		logger.Panicw("Failed to connect", "Err", err)
 	}
@@ -885,6 +941,8 @@ func main() {
 	if err != nil {
 		logger.Panicw("Failed to create server", "Err", err)
 	}
-	metadata_port := ":8181"
-	metadata_server.Start(metadata_port)
+	metadataHTTPPort := os.Getenv("METADATA_HTTP_PORT")
+	metadataServingPort := fmt.Sprintf(":%s", metadataHTTPPort)
+	fmt.Sprintf("Serving HTTP Metadata on port: %s", metadataServingPort)
+	metadata_server.Start(metadataServingPort)
 }

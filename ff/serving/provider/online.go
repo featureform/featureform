@@ -1,3 +1,7 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 package provider
 
 import (
@@ -16,7 +20,8 @@ var ctx = context.Background()
 
 type OnlineStore interface {
 	GetTable(feature, variant string) (OnlineStoreTable, error)
-	CreateTable(feature, variant string) (OnlineStoreTable, error)
+	CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error)
+	Provider
 }
 
 type OnlineStoreTable interface {
@@ -78,7 +83,11 @@ type redisOnlineStore struct {
 
 func NewLocalOnlineStore() *localOnlineStore {
 	return &localOnlineStore{
-		tables: make(map[tableKey]localOnlineTable),
+		make(map[tableKey]localOnlineTable),
+		BaseProvider{
+			ProviderType:   LocalOnline,
+			ProviderConfig: []byte{},
+		},
 	}
 }
 
@@ -98,7 +107,11 @@ func NewRedisOnlineStore(options *RedisConfig) *redisOnlineStore {
 		Addr: options.Addr,
 	}
 	redisClient := redis.NewClient(redisOptions)
-	return &redisOnlineStore{client: redisClient, prefix: options.Prefix}
+	return &redisOnlineStore{redisClient, options.Prefix, BaseProvider{
+		ProviderType:   RedisOnline,
+		ProviderConfig: options.Serialized(),
+	},
+	}
 }
 
 func (store *localOnlineStore) AsOnlineStore() (OnlineStore, error) {
@@ -117,7 +130,7 @@ func (store *localOnlineStore) GetTable(feature, variant string) (OnlineStoreTab
 	return table, nil
 }
 
-func (store *localOnlineStore) CreateTable(feature, variant string) (OnlineStoreTable, error) {
+func (store *localOnlineStore) CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error) {
 	key := tableKey{feature, variant}
 	if _, has := store.tables[key]; has {
 		return nil, &TableAlreadyExists{feature, variant}
@@ -129,18 +142,15 @@ func (store *localOnlineStore) CreateTable(feature, variant string) (OnlineStore
 
 func (store *redisOnlineStore) GetTable(feature, variant string) (OnlineStoreTable, error) {
 	key := redisTableKey{store.prefix, feature, variant}
-	exists, err := store.client.HExists(ctx, fmt.Sprintf("%s__tables", store.prefix), key.String()).Result()
+	vType, err := store.client.HGet(ctx, fmt.Sprintf("%s__tables", store.prefix), key.String()).Result()
 	if err != nil {
-		return nil, err
-	}
-	if !exists {
 		return nil, &TableNotFound{feature, variant}
 	}
-	table := &redisOnlineTable{client: store.client, key: key}
+	table := &redisOnlineTable{client: store.client, key: key, valueType: ValueType(vType)}
 	return table, nil
 }
 
-func (store *redisOnlineStore) CreateTable(feature, variant string) (OnlineStoreTable, error) {
+func (store *redisOnlineStore) CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error) {
 	key := redisTableKey{store.prefix, feature, variant}
 	exists, err := store.client.HExists(ctx, fmt.Sprintf("%s__tables", store.prefix), key.String()).Result()
 	if err != nil {
@@ -149,18 +159,19 @@ func (store *redisOnlineStore) CreateTable(feature, variant string) (OnlineStore
 	if exists {
 		return nil, &TableAlreadyExists{feature, variant}
 	}
-	if err := store.client.HSet(ctx, fmt.Sprintf("%s__tables", store.prefix), key.String(), 1).Err(); err != nil {
+	if err := store.client.HSet(ctx, fmt.Sprintf("%s__tables", store.prefix), key.String(), string(valueType)).Err(); err != nil {
 		return nil, err
 	}
-	table := &redisOnlineTable{client: store.client, key: key}
+	table := &redisOnlineTable{client: store.client, key: key, valueType: valueType}
 	return table, nil
 }
 
 type localOnlineTable map[string]interface{}
 
 type redisOnlineTable struct {
-	client *redis.Client
-	key    redisTableKey
+	client    *redis.Client
+	key       redisTableKey
+	valueType ValueType
 }
 
 func (table localOnlineTable) Set(entity string, value interface{}) error {
@@ -185,13 +196,28 @@ func (table redisOnlineTable) Set(entity string, value interface{}) error {
 }
 
 func (table redisOnlineTable) Get(entity string) (interface{}, error) {
-	val := table.client.HMGet(ctx, table.key.String(), entity)
-	result, err := val.Result()
+	val := table.client.HGet(ctx, table.key.String(), entity)
+	if val.Err() != nil {
+		return nil, &EntityNotFound{entity}
+	}
+	var result interface{}
+	var err error
+	switch table.valueType {
+	case NilType, String:
+		result, err = val.Result()
+	case Int:
+		result, err = val.Int()
+	case Int64:
+		result, err = val.Int64()
+	case Float32:
+		result, err = val.Float32()
+	case Float64:
+		result, err = val.Float64()
+	case Bool:
+		result, err = val.Bool()
+	}
 	if err != nil {
 		return nil, err
 	}
-	if result[0] == nil {
-		return nil, &EntityNotFound{entity}
-	}
-	return result[0], nil
+	return result, nil
 }

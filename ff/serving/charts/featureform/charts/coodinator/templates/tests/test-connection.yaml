@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "coodinator.fullname" . }}-test-connection"
+  labels:
+    {{- include "coodinator.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['{{ include "coodinator.fullname" . }}:{{ .Values.service.port }}']
+  restartPolicy: Never

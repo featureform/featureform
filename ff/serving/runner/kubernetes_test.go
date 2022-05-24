@@ -1,3 +1,7 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 package runner
 
 import (
@@ -48,7 +52,7 @@ func (m MockJobClient) GetJobSchedule(jobName string) (CronSchedule, error) {
 }
 
 func TestKubernetesRunnerCreate(t *testing.T) {
-	runner, err := NewMockKubernetesRunner(KubernetesRunnerConfig{envVars: map[string]string{"test": "envVar"}, image: "test", numTasks: 1})
+	runner, err := NewMockKubernetesRunner(KubernetesRunnerConfig{EnvVars: map[string]string{"test": "envVar"}, Image: "test", NumTasks: 1})
 	if err != nil {
 		t.Fatalf("Failed to create Kubernetes runner")
 	}

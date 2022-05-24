@@ -1,3 +1,7 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 package provider
 
 import (
@@ -46,12 +50,23 @@ func TestBaseProvider(t *testing.T) {
 	type MockProvider struct {
 		BaseProvider
 	}
-
-	var mock Provider = &MockProvider{}
+	mockType := Type("mock")
+	var mock Provider = &MockProvider{
+		BaseProvider{
+			ProviderType:   mockType,
+			ProviderConfig: mockConfig,
+		},
+	}
 	if _, err := mock.AsOnlineStore(); err == nil {
 		t.Fatalf("BaseProvider succeeded in OnlineStore cast")
 	}
 	if _, err := mock.AsOfflineStore(); err == nil {
 		t.Fatalf("BaseProvider succeeded in OfflineStore cast")
+	}
+	if !reflect.DeepEqual(mock.Type(), mockType) {
+		t.Fatalf("Type not passed down to provider")
+	}
+	if !reflect.DeepEqual(mock.Config(), mockConfig) {
+		t.Fatalf("Config not passed down to provider")
 	}
 }

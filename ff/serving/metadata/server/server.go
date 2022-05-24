@@ -1,48 +1,46 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 package main
 
 import (
+	"fmt"
 	"github.com/featureform/serving/metadata/search"
-	"net"
+	"os"
 
 	"github.com/featureform/serving/metadata"
-	pb "github.com/featureform/serving/metadata/proto"
 	"go.uber.org/zap"
-	"google.golang.org/grpc"
 )
 
 func main() {
+	etcdHost := os.Getenv("ETCD_HOST")
+	etcdPort := os.Getenv("ETCD_PORT")
 	logger := zap.NewExample().Sugar()
-	port := ":8080"
-	lis, err := net.Listen("tcp", port)
+	addr := ":8080"
 	storageProvider := metadata.EtcdStorageProvider{
 		metadata.EtcdConfig{
 			Nodes: []metadata.EtcdNode{
-				{"localhost", "2379"},
+				{etcdHost, etcdPort},
 			},
 		},
 	}
+	fmt.Println("TS Port", os.Getenv("TYPESENSE_PORT"), "TS HOST", os.Getenv("TYPESENSE_HOST"), "TS KEY", os.Getenv("TYPESENSE_APIKEY"))
 	config := &metadata.Config{
-		Logger: logger,
+		Logger:  logger,
+		Address: addr,
 		TypeSenseParams: &search.TypeSenseParams{
-			Port:   "8108",
-			Host:   "localhost",
-			ApiKey: "xyz",
+			Port:   os.Getenv("TYPESENSE_PORT"),
+			Host:   os.Getenv("TYPESENSE_HOST"),
+			ApiKey: os.Getenv("TYPESENSE_APIKEY"),
 		},
 		StorageProvider: storageProvider,
 	}
-	if err != nil {
-		logger.Panicw("Failed to listen on port", "Err", err)
-	}
-	grpcServer := grpc.NewServer()
 	server, err := metadata.NewMetadataServer(config)
 	if err != nil {
 		logger.Panicw("Failed to create metadata server", "Err", err)
 	}
-	pb.RegisterMetadataServer(grpcServer, server)
-
-	logger.Infow("Server starting", "Port", port)
-	serveErr := grpcServer.Serve(lis)
-	if serveErr != nil {
-		logger.Errorw("Serve failed with error", "Err", serveErr)
+	if err := server.Serve(); err != nil {
+		logger.Errorw("Serve failed with error", "Err", err)
 	}
 }

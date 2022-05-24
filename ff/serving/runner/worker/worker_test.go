@@ -1,3 +1,7 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 package worker
 
 import (
@@ -6,12 +10,26 @@ import (
 	"testing"
 )
 
-type MockRunner struct{}
+type MockRunner struct {
+}
+
+type MockIndexRunner struct {
+	index int
+}
 
 type MockCompletionWatcher struct{}
 
 func (m *MockRunner) Run() (runner.CompletionWatcher, error) {
 	return &MockCompletionWatcher{}, nil
+}
+
+func (m *MockIndexRunner) Run() (runner.CompletionWatcher, error) {
+	return &MockCompletionWatcher{}, nil
+}
+
+func (m *MockIndexRunner) SetIndex(index int) error {
+	m.index = index
+	return nil
 }
 
 func (m *MockCompletionWatcher) Complete() bool {
@@ -57,6 +75,16 @@ func (f *FailingRunner) Run() (runner.CompletionWatcher, error) {
 	return nil, errors.New("Failed to run runner")
 }
 
+type FailingIndexRunner struct{}
+
+func (f *FailingIndexRunner) Run() (runner.CompletionWatcher, error) {
+	return &MockCompletionWatcher{}, nil
+}
+
+func (f *FailingIndexRunner) SetIndex(index int) error {
+	return errors.New("failed to set index")
+}
+
 func registerMockRunnerFactoryFailingWatcher() error {
 	mockRunnerFailingWatcher := &RunnerWithFailingWatcher{}
 	mockFactory := func(config runner.Config) (runner.Runner, error) {
@@ -90,6 +118,28 @@ func registerMockRunnerFactory() error {
 	return nil
 }
 
+func registerMockIndexRunnerFactory() error {
+	mockRunner := &MockIndexRunner{}
+	mockFactory := func(config runner.Config) (runner.Runner, error) {
+		return mockRunner, nil
+	}
+	if err := runner.RegisterFactory("test", mockFactory); err != nil {
+		return err
+	}
+	return nil
+}
+
+func registerMockFailIndexRunnerFactory() error {
+	mockRunner := &FailingIndexRunner{}
+	mockFactory := func(config runner.Config) (runner.Runner, error) {
+		return mockRunner, nil
+	}
+	if err := runner.RegisterFactory("test", mockFactory); err != nil {
+		return err
+	}
+	return nil
+}
+
 func TestBasicRunner(t *testing.T) {
 	runner.ResetFactoryMap()
 	if err := registerMockRunnerFactory(); err != nil {
@@ -100,6 +150,74 @@ func TestBasicRunner(t *testing.T) {
 	t.Setenv("NAME", "test")
 	if err := CreateAndRun(); err != nil {
 		t.Fatalf("Error running mock runner: %v", err)
+	}
+}
+func TestBasicRunnerIndex(t *testing.T) {
+	runner.ResetFactoryMap()
+	if err := registerMockIndexRunnerFactory(); err != nil {
+		t.Fatalf("Error registering mock runner factory: %v", err)
+	}
+	config := runner.Config{}
+	t.Setenv("CONFIG", string(config))
+	t.Setenv("NAME", "test")
+	t.Setenv("JOB_COMPLETION_INDEX", "0")
+	if err := CreateAndRun(); err != nil {
+		t.Fatalf("Error running mock runner: %v", err)
+	}
+}
+
+func TestBasicRunnerNoSetIndex(t *testing.T) {
+	runner.ResetFactoryMap()
+	if err := registerMockIndexRunnerFactory(); err != nil {
+		t.Fatalf("Error registering mock runner factory: %v", err)
+	}
+	config := runner.Config{}
+	t.Setenv("CONFIG", string(config))
+	t.Setenv("NAME", "test")
+	if err := CreateAndRun(); err == nil {
+		t.Fatalf("failed to capture error no set index")
+	}
+}
+
+func TestInvalidIndex(t *testing.T) {
+	runner.ResetFactoryMap()
+	if err := registerMockIndexRunnerFactory(); err != nil {
+		t.Fatalf("Error registering mock runner factory: %v", err)
+	}
+	config := runner.Config{}
+	t.Setenv("CONFIG", string(config))
+	t.Setenv("NAME", "test")
+	t.Setenv("JOB_COMPLETION_INDEX", "a")
+	if err := CreateAndRun(); err == nil {
+		t.Fatalf("failed to catch invalid index")
+	}
+}
+
+func TestUnneededIndex(t *testing.T) {
+	runner.ResetFactoryMap()
+	if err := registerMockRunnerFactory(); err != nil {
+		t.Fatalf("Error registering mock runner factory: %v", err)
+	}
+	config := runner.Config{}
+	t.Setenv("CONFIG", string(config))
+	t.Setenv("NAME", "test")
+	t.Setenv("JOB_COMPLETION_INDEX", "0")
+	if err := CreateAndRun(); err == nil {
+		t.Fatalf("failed to catch unneeded index error")
+	}
+}
+
+func TestIndexSetFail(t *testing.T) {
+	runner.ResetFactoryMap()
+	if err := registerMockFailIndexRunnerFactory(); err != nil {
+		t.Fatalf("Error registering mock runner factory: %v", err)
+	}
+	config := runner.Config{}
+	t.Setenv("CONFIG", string(config))
+	t.Setenv("NAME", "test")
+	t.Setenv("JOB_COMPLETION_INDEX", "0")
+	if err := CreateAndRun(); err == nil {
+		t.Fatalf("failed to catch unneeded index error")
 	}
 }
 

@@ -1,3 +1,7 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 package provider
 
 import (
@@ -7,9 +11,11 @@ import (
 
 func init() {
 	unregisteredFactories := map[Type]Factory{
-		LocalOnline:   localOnlineStoreFactory,
-		RedisOnline:   redisOnlineStoreFactory,
-		MemoryOffline: memoryOfflineStoreFactory,
+		LocalOnline:      localOnlineStoreFactory,
+		RedisOnline:      redisOnlineStoreFactory,
+		MemoryOffline:    memoryOfflineStoreFactory,
+		PostgresOffline:  postgresOfflineStoreFactory,
+		SnowflakeOffline: snowflakeOfflineStoreFactory,
 	}
 	for name, factory := range unregisteredFactories {
 		if err := RegisterFactory(name, factory); err != nil {
@@ -19,6 +25,8 @@ func init() {
 }
 
 type SerializedConfig []byte
+
+type SerializedTableSchema []byte
 
 type RedisConfig struct {
 	Prefix   string
@@ -46,9 +54,13 @@ func (r *RedisConfig) Deserialize(config SerializedConfig) error {
 type Provider interface {
 	AsOnlineStore() (OnlineStore, error)
 	AsOfflineStore() (OfflineStore, error)
+	Type() Type
+	Config() SerializedConfig
 }
 
 type BaseProvider struct {
+	ProviderType   Type
+	ProviderConfig SerializedConfig
 }
 
 func (provider BaseProvider) AsOnlineStore() (OnlineStore, error) {
@@ -57,6 +69,14 @@ func (provider BaseProvider) AsOnlineStore() (OnlineStore, error) {
 
 func (provider BaseProvider) AsOfflineStore() (OfflineStore, error) {
 	return nil, fmt.Errorf("%T cannot be used as an OfflineStore", provider)
+}
+
+func (provider BaseProvider) Type() Type {
+	return provider.ProviderType
+}
+
+func (provider BaseProvider) Config() SerializedConfig {
+	return provider.ProviderConfig
 }
 
 type Factory func(SerializedConfig) (Provider, error)

@@ -1,5 +1,5 @@
 import Resource from "api/resources/Resource.js";
-const TypesenseClient = require("./Search.js");
+import TypesenseClient from "./Search.js";
 
 export const testData = [
   {
@@ -36,22 +36,45 @@ export const providerLogos = Object.freeze({
   Redis: "/Redis_Logo.svg",
   BigQuery: "/google_bigquery-ar21.svg",
   "Apache Spark": "/Apache_Spark_logo.svg",
+  PostgreSQL: "Postgresql_elephant.svg",
+  Snowflake: "Snowflake_Logo.svg",
 });
 
-const API_URL = "http://localhost:8181";
-const TYPESENSE_URL = {
-  port: "8108",
-  host: "localhost",
-  apiKey: "xyz",
-};
+//var API_URL = "http:localhost:8080";
+
+var API_URL = "//"+ window.location.hostname+"/data"
+//var API_URL = "http://a57f7235b9e0e49cf97d9ba661188650-73543dde19a3fca9.elb.us-east-1.amazonaws.com/data"
+if (typeof process.env.REACT_APP_API_URL != "undefined") {
+  API_URL = process.env.REACT_APP_API_URL.trim();
+}
+//export var PROMETHEUS_URL = "http:localhost:9090";
+
+export var PROMETHEUS_URL = "//"+ window.location.hostname+"/prometheus";
+
+if (typeof process.env.REACT_APP_PROMETHEUS_URL != "undefined") {
+  PROMETHEUS_URL = process.env.REACT_APP_PROMETHEUS_URL.trim();
+}
+var TYPESENSE_PORT = "443";
+if (typeof process.env.REACT_APP_TYPESENSE_PORT != "undefined") {
+  TYPESENSE_PORT = process.env.REACT_APP_TYPESENSE_PORT.trim();
+}
+//var TYPESENSE_URL = "localhost";
+var TYPESENSE_URL = window.location.hostname
+if (typeof process.env.REACT_APP_TYPESENSE_URL != "undefined") {
+  TYPESENSE_URL = process.env.REACT_APP_TYPESENSE_URL.trim();
+}
+var TYPESENSE_API_KEY = "xyz";
+if (typeof process.env.REACT_APP_TYPESENSE_API_KEY != "undefined") {
+  TYPESENSE_API_KEY = process.env.REACT_APP_TYPESENSE_API_KEY.trim();
+}
 
 const local = false;
 
 export default class ResourcesAPI {
   static typeSenseClient = new TypesenseClient(
-    TYPESENSE_URL.port,
-    TYPESENSE_URL.host,
-    TYPESENSE_URL.apiKey
+    TYPESENSE_PORT,
+    TYPESENSE_URL,
+    TYPESENSE_API_KEY
   );
   checkStatus() {
     return fetch(API_URL, {
@@ -78,6 +101,7 @@ export default class ResourcesAPI {
     if (process.env.REACT_APP_EMPTY_RESOURCE_VIEW === "true") {
       fetchAddress = "/data/lists/wine-data-empty.json";
     }
+    console.log(fetchAddress);
     return fetch(fetchAddress, {
       headers: {
         "Content-Type": "application/json",

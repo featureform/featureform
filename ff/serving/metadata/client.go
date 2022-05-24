@@ -1,9 +1,14 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 package metadata
 
 import (
 	"context"
 	"fmt"
 	"io"
+	"reflect"
 	"time"
 
 	pb "github.com/featureform/serving/metadata/proto"
@@ -51,6 +56,14 @@ func parseNameVariants(protos []*pb.NameVariant) NameVariants {
 	return parsed
 }
 
+func (variants NameVariants) Names() []string {
+	names := make([]string, len(variants))
+	for i, variant := range variants {
+		names[i] = variant.Name
+	}
+	return names
+}
+
 type Client struct {
 	Logger   *zap.SugaredLogger
 	conn     *grpc.ClientConn
@@ -59,6 +72,13 @@ type Client struct {
 
 type ResourceDef interface {
 	ResourceType() ResourceType
+}
+
+func (client *Client) SetStatus(ctx context.Context, resID ResourceID, status string) error {
+	nameVariant := pb.NameVariant{Name: resID.Name, Variant: resID.Variant}
+	statusRequest := pb.SetStatusRequest{Resource: &nameVariant, ResourceType: string(resID.Type), Status: status}
+	_, err := client.grpcConn.SetResourceStatus(ctx, &statusRequest)
+	return err
 }
 
 func (client *Client) CreateAll(ctx context.Context, defs []ResourceDef) error {
@@ -71,6 +91,7 @@ func (client *Client) CreateAll(ctx context.Context, defs []ResourceDef) error {
 }
 
 func (client *Client) Create(ctx context.Context, def ResourceDef) error {
+	fmt.Printf("%#v\n", def)
 	switch casted := def.(type) {
 	case FeatureDef:
 		return client.CreateFeatureVariant(ctx, casted)
@@ -89,7 +110,7 @@ func (client *Client) Create(ctx context.Context, def ResourceDef) error {
 	case ModelDef:
 		return client.CreateModel(ctx, casted)
 	default:
-		panic(fmt.Sprintf("%T not implemented in Created.", casted))
+		return fmt.Errorf("%T not implemented in Create.", casted)
 	}
 }
 
@@ -144,16 +165,15 @@ func (client *Client) GetFeatureVariants(ctx context.Context, ids []NameVariant)
 }
 
 func (client *Client) GetFeatureVariant(ctx context.Context, id NameVariant) (*FeatureVariant, error) {
-	stream, err := client.grpcConn.GetFeatureVariants(ctx)
-	if err != nil {
-		return nil, err
-	}
-	go stream.Send(id.Serialize())
-	variants, err := client.parseFeatureVariantStream(stream)
+	variants, err := client.GetFeatureVariants(ctx, []NameVariant{id})
 	if err != nil {
 		return nil, err
 	}
 	return variants[0], nil
+}
+
+type FeaturePrimaryData interface {
+	isFeaturePrimaryData() bool
 }
 
 type FeatureDef struct {
@@ -165,6 +185,34 @@ type FeatureDef struct {
 	Owner       string
 	Description string
 	Provider    string
+	Location    interface{}
+}
+
+type ResourceVariantColumns struct {
+	Entity string
+	Value  string
+	TS     string
+	Source string
+}
+
+func (c ResourceVariantColumns) SerializeFeatureColumns() *pb.FeatureVariant_Columns {
+	return &pb.FeatureVariant_Columns{
+		Columns: &pb.Columns{
+			Entity: c.Entity,
+			Value:  c.Value,
+			Ts:     c.TS,
+		},
+	}
+}
+
+func (c ResourceVariantColumns) SerializeLabelColumns() *pb.LabelVariant_Columns {
+	return &pb.LabelVariant_Columns{
+		Columns: &pb.Columns{
+			Entity: c.Entity,
+			Value:  c.Value,
+			Ts:     c.TS,
+		},
+	}
 }
 
 func (def FeatureDef) ResourceType() ResourceType {
@@ -180,7 +228,16 @@ func (client *Client) CreateFeatureVariant(ctx context.Context, def FeatureDef) 
 		Entity:      def.Entity,
 		Owner:       def.Owner,
 		Description: def.Description,
+		Status:      string(CREATED),
 		Provider:    def.Provider,
+	}
+	switch x := def.Location.(type) {
+	case ResourceVariantColumns:
+		serialized.Location = def.Location.(ResourceVariantColumns).SerializeFeatureColumns()
+	case nil:
+		return fmt.Errorf("FeatureDef Columns not set")
+	default:
+		return fmt.Errorf("FeatureDef Columns has unexpected type %T", x)
 	}
 	_, err := client.grpcConn.CreateFeatureVariant(ctx, serialized)
 	return err
@@ -264,6 +321,7 @@ type LabelDef struct {
 	Entity      string
 	Owner       string
 	Provider    string
+	Location    interface{}
 }
 
 func (def LabelDef) ResourceType() ResourceType {
@@ -279,7 +337,16 @@ func (client *Client) CreateLabelVariant(ctx context.Context, def LabelDef) erro
 		Source:      def.Source.Serialize(),
 		Entity:      def.Entity,
 		Owner:       def.Owner,
+		Status:      string(NO_STATUS),
 		Provider:    def.Provider,
+	}
+	switch x := def.Location.(type) {
+	case ResourceVariantColumns:
+		serialized.Location = def.Location.(ResourceVariantColumns).SerializeLabelColumns()
+	case nil:
+		return fmt.Errorf("LabelDef Primary not set")
+	default:
+		return fmt.Errorf("LabelDef Primary has unexpected type %T", x)
 	}
 	_, err := client.grpcConn.CreateLabelVariant(ctx, serialized)
 	return err
@@ -303,12 +370,7 @@ func (client *Client) GetLabelVariants(ctx context.Context, ids []NameVariant) (
 }
 
 func (client *Client) GetLabelVariant(ctx context.Context, id NameVariant) (*LabelVariant, error) {
-	stream, err := client.grpcConn.GetLabelVariants(ctx)
-	if err != nil {
-		return nil, err
-	}
-	go stream.Send(id.Serialize())
-	variants, err := client.parseLabelVariantStream(stream)
+	variants, err := client.GetLabelVariants(ctx, []NameVariant{id})
 	if err != nil {
 		return nil, err
 	}
@@ -405,6 +467,7 @@ func (client *Client) CreateTrainingSetVariant(ctx context.Context, def Training
 		Description: def.Description,
 		Owner:       def.Owner,
 		Provider:    def.Provider,
+		Status:      string(CREATED),
 		Label:       def.Label.Serialize(),
 		Features:    def.Features.Serialize(),
 	}
@@ -413,12 +476,7 @@ func (client *Client) CreateTrainingSetVariant(ctx context.Context, def Training
 }
 
 func (client *Client) GetTrainingSetVariant(ctx context.Context, id NameVariant) (*TrainingSetVariant, error) {
-	stream, err := client.grpcConn.GetTrainingSetVariants(ctx)
-	if err != nil {
-		return nil, err
-	}
-	go stream.Send(id.Serialize())
-	variants, err := client.parseTrainingSetVariantStream(stream)
+	variants, err := client.GetTrainingSetVariants(ctx, []NameVariant{id})
 	if err != nil {
 		return nil, err
 	}
@@ -515,9 +573,91 @@ type SourceDef struct {
 	Name        string
 	Variant     string
 	Description string
-	Type        string
 	Owner       string
 	Provider    string
+	Definition  SourceType
+}
+
+type SourceType interface {
+	isSourceType()
+}
+
+func (t TransformationSource) isSourceType() {}
+func (t PrimaryDataSource) isSourceType()    {}
+
+func (t SQLTransformationType) IsTransformationType() {}
+func (t SQLTable) isPrimaryData()                     {}
+
+type TransformationSource struct {
+	TransformationType TransformationType
+}
+
+type TransformationType interface {
+	IsTransformationType()
+}
+
+type SQLTransformationType struct {
+	Query   string
+	Sources NameVariants
+}
+
+type PrimaryDataSource struct {
+	Location PrimaryDataLocationType
+}
+
+type PrimaryDataLocationType interface {
+	isPrimaryData()
+}
+
+type SQLTable struct {
+	Name string
+}
+
+type TransformationSourceDef struct {
+	Def interface{}
+}
+
+func (s TransformationSource) Serialize() (*pb.SourceVariant_Transformation, error) {
+	var transformation *pb.Transformation
+	switch x := s.TransformationType.(type) {
+	case SQLTransformationType:
+		transformation = &pb.Transformation{
+			Type: &pb.Transformation_SQLTransformation{
+				SQLTransformation: &pb.SQLTransformation{
+					Query:  s.TransformationType.(SQLTransformationType).Query,
+					Source: s.TransformationType.(SQLTransformationType).Sources.Serialize(),
+				},
+			},
+		}
+	case nil:
+		return nil, fmt.Errorf("TransformationSource Type not set")
+	default:
+		return nil, fmt.Errorf("TransformationSource Type has unexpected type %T", x)
+	}
+	return &pb.SourceVariant_Transformation{
+		Transformation: transformation,
+	}, nil
+}
+
+func (s PrimaryDataSource) Serialize() (*pb.SourceVariant_PrimaryData, error) {
+	var primaryData *pb.PrimaryData
+	switch x := s.Location.(type) {
+	case SQLTable:
+		primaryData = &pb.PrimaryData{
+			Location: &pb.PrimaryData_Table{
+				Table: &pb.PrimarySQLTable{
+					Name: s.Location.(SQLTable).Name,
+				},
+			},
+		}
+	case nil:
+		return nil, fmt.Errorf("PrimaryDataSource Type not set")
+	default:
+		return nil, fmt.Errorf("PrimaryDataSource Type has unexpected type %T", x)
+	}
+	return &pb.SourceVariant_PrimaryData{
+		PrimaryData: primaryData,
+	}, nil
 }
 
 func (def SourceDef) ResourceType() ResourceType {
@@ -529,11 +669,25 @@ func (client *Client) CreateSourceVariant(ctx context.Context, def SourceDef) er
 		Name:        def.Name,
 		Variant:     def.Variant,
 		Description: def.Description,
-		Type:        def.Type,
 		Owner:       def.Owner,
+		Status:      string(CREATED),
 		Provider:    def.Provider,
 	}
-	_, err := client.grpcConn.CreateSourceVariant(ctx, serialized)
+	var err error
+	switch x := def.Definition.(type) {
+	case TransformationSource:
+		serialized.Definition, err = def.Definition.(TransformationSource).Serialize()
+	case PrimaryDataSource:
+		serialized.Definition, err = def.Definition.(PrimaryDataSource).Serialize()
+	case nil:
+		return fmt.Errorf("SourceDef Definition not set")
+	default:
+		return fmt.Errorf("SourceDef Definition has unexpected type %T", x)
+	}
+	if err != nil {
+		return err
+	}
+	_, err = client.grpcConn.CreateSourceVariant(ctx, serialized)
 	return err
 }
 
@@ -555,12 +709,7 @@ func (client *Client) GetSourceVariants(ctx context.Context, ids []NameVariant) 
 }
 
 func (client *Client) GetSourceVariant(ctx context.Context, id NameVariant) (*SourceVariant, error) {
-	stream, err := client.grpcConn.GetSourceVariants(ctx)
-	if err != nil {
-		return nil, err
-	}
-	go stream.Send(id.Serialize())
-	variants, err := client.parseSourceVariantStream(stream)
+	variants, err := client.GetSourceVariants(ctx, []NameVariant{id})
 	if err != nil {
 		return nil, err
 	}
@@ -704,11 +853,12 @@ func (client *Client) GetProviders(ctx context.Context, providers []string) ([]*
 }
 
 type ProviderDef struct {
-	Name        string
-	Description string
-	Type        string
-	Software    string
-	Team        string
+	Name             string
+	Description      string
+	Type             string
+	Software         string
+	Team             string
+	SerializedConfig []byte
 }
 
 func (def ProviderDef) ResourceType() ResourceType {
@@ -717,11 +867,13 @@ func (def ProviderDef) ResourceType() ResourceType {
 
 func (client *Client) CreateProvider(ctx context.Context, def ProviderDef) error {
 	serialized := &pb.Provider{
-		Name:        def.Name,
-		Description: def.Description,
-		Type:        def.Type,
-		Software:    def.Software,
-		Team:        def.Team,
+		Name:             def.Name,
+		Description:      def.Description,
+		Type:             def.Type,
+		Software:         def.Software,
+		Team:             def.Team,
+		Status:           string(NO_STATUS),
+		SerializedConfig: def.SerializedConfig,
 	}
 	_, err := client.grpcConn.CreateProvider(ctx, serialized)
 	return err
@@ -790,6 +942,7 @@ func (def EntityDef) ResourceType() ResourceType {
 func (client *Client) CreateEntity(ctx context.Context, def EntityDef) error {
 	serialized := &pb.Entity{
 		Name:        def.Name,
+		Status:      string(NO_STATUS),
 		Description: def.Description,
 	}
 	_, err := client.grpcConn.CreateEntity(ctx, serialized)
@@ -859,6 +1012,7 @@ func (def ModelDef) ResourceType() ResourceType {
 func (client *Client) CreateModel(ctx context.Context, def ModelDef) error {
 	serialized := &pb.Model{
 		Name:        def.Name,
+		Status:      string(NO_STATUS),
 		Description: def.Description,
 	}
 	_, err := client.grpcConn.CreateModel(ctx, serialized)
@@ -933,7 +1087,7 @@ func (fns variantsFns) Variants() []string {
 	return fns.getter.GetVariants()
 }
 
-func (fns variantsFns) NameVariants() []NameVariant {
+func (fns variantsFns) NameVariants() NameVariants {
 	name := fns.getter.GetName()
 	variants := fns.getter.GetVariants()
 	nameVariants := make([]NameVariant, len(variants))
@@ -946,6 +1100,23 @@ func (fns variantsFns) NameVariants() []NameVariant {
 	return nameVariants
 }
 
+type providerGetter interface {
+	GetProvider() string
+}
+
+type fetchProviderFns struct {
+	getter providerGetter
+}
+
+func (fn fetchProviderFns) Provider() string {
+	return fn.getter.GetProvider()
+}
+
+func (fn fetchProviderFns) FetchProvider(client *Client, ctx context.Context) (*Provider, error) {
+	fmt.Println("Fetching provider")
+	return client.GetProvider(ctx, fn.Provider())
+}
+
 type trainingSetsGetter interface {
 	GetTrainingsets() []*pb.NameVariant
 }
@@ -954,7 +1125,7 @@ type fetchTrainingSetsFns struct {
 	getter trainingSetsGetter
 }
 
-func (fn fetchTrainingSetsFns) TrainingSets() []NameVariant {
+func (fn fetchTrainingSetsFns) TrainingSets() NameVariants {
 	return parseNameVariants(fn.getter.GetTrainingsets())
 }
 
@@ -970,7 +1141,7 @@ type fetchLabelsFns struct {
 	getter labelsGetter
 }
 
-func (fn fetchLabelsFns) Labels() []NameVariant {
+func (fn fetchLabelsFns) Labels() NameVariants {
 	return parseNameVariants(fn.getter.GetLabels())
 }
 
@@ -986,7 +1157,7 @@ type fetchFeaturesFns struct {
 	getter featuresGetter
 }
 
-func (fn fetchFeaturesFns) Features() []NameVariant {
+func (fn fetchFeaturesFns) Features() NameVariants {
 	return parseNameVariants(fn.getter.GetFeatures())
 }
 
@@ -1002,7 +1173,7 @@ type fetchSourcesFns struct {
 	getter sourcesGetter
 }
 
-func (fn fetchSourcesFns) Sources() []NameVariant {
+func (fn fetchSourcesFns) Sources() NameVariants {
 	return parseNameVariants(fn.getter.GetSources())
 }
 
@@ -1047,6 +1218,8 @@ func (feature Feature) FetchVariants(client *Client, ctx context.Context) ([]*Fe
 type FeatureVariant struct {
 	serialized *pb.FeatureVariant
 	fetchTrainingSetsFns
+	fetchProviderFns
+	fetchSourceFns
 	createdFn
 	protoStringer
 }
@@ -1055,6 +1228,8 @@ func wrapProtoFeatureVariant(serialized *pb.FeatureVariant) *FeatureVariant {
 	return &FeatureVariant{
 		serialized:           serialized,
 		fetchTrainingSetsFns: fetchTrainingSetsFns{serialized},
+		fetchProviderFns:     fetchProviderFns{serialized},
+		fetchSourceFns:       fetchSourceFns{serialized},
 		createdFn:            createdFn{serialized},
 		protoStringer:        protoStringer{serialized},
 	}
@@ -1064,20 +1239,12 @@ func (variant *FeatureVariant) Name() string {
 	return variant.serialized.GetName()
 }
 
-func (variant *FeatureVariant) Provider() string {
-	return variant.serialized.GetProvider()
-}
-
 func (variant *FeatureVariant) Description() string {
 	return variant.serialized.GetDescription()
 }
 
 func (variant *FeatureVariant) Variant() string {
 	return variant.serialized.GetVariant()
-}
-
-func (variant *FeatureVariant) Source() NameVariant {
-	return parseNameVariant(variant.serialized.GetSource())
 }
 
 func (variant *FeatureVariant) Type() string {
@@ -1090,6 +1257,29 @@ func (variant *FeatureVariant) Entity() string {
 
 func (variant *FeatureVariant) Owner() string {
 	return variant.serialized.GetOwner()
+}
+
+func (variant *FeatureVariant) Status() string {
+	return variant.serialized.GetStatus()
+}
+
+func (variant *FeatureVariant) Location() interface{} {
+	return variant.serialized.GetLocation()
+}
+
+func (variant *FeatureVariant) isTable() bool {
+	return reflect.TypeOf(variant.serialized.GetLocation()) == reflect.TypeOf(&pb.FeatureVariant_Columns{})
+}
+
+func (variant *FeatureVariant) LocationColumns() interface{} {
+	src := variant.serialized.GetColumns()
+	columns := ResourceVariantColumns{
+		Entity: src.Entity,
+		Value:  src.Value,
+		TS:     src.Ts,
+	}
+	return columns
+
 }
 
 type User struct {
@@ -1114,6 +1304,10 @@ func wrapProtoUser(serialized *pb.User) *User {
 
 func (user *User) Name() string {
 	return user.serialized.GetName()
+}
+
+func (user *User) Status() string {
+	return user.serialized.GetStatus()
 }
 
 type Provider struct {
@@ -1156,6 +1350,14 @@ func (provider *Provider) Team() string {
 	return provider.serialized.GetTeam()
 }
 
+func (provider *Provider) SerializedConfig() []byte {
+	return provider.serialized.GetSerializedConfig()
+}
+
+func (provider *Provider) Status() string {
+	return provider.serialized.GetStatus()
+}
+
 type Model struct {
 	serialized *pb.Model
 	fetchTrainingSetsFns
@@ -1182,6 +1384,10 @@ func (model *Model) Description() string {
 	return model.serialized.GetDescription()
 }
 
+func (model *Model) Status() string {
+	return model.serialized.GetStatus()
+}
+
 type Label struct {
 	serialized *pb.Label
 	variantsFns
@@ -1203,6 +1409,8 @@ func (label Label) FetchVariants(client *Client, ctx context.Context) ([]*LabelV
 type LabelVariant struct {
 	serialized *pb.LabelVariant
 	fetchTrainingSetsFns
+	fetchProviderFns
+	fetchSourceFns
 	createdFn
 	protoStringer
 }
@@ -1211,6 +1419,8 @@ func wrapProtoLabelVariant(serialized *pb.LabelVariant) *LabelVariant {
 	return &LabelVariant{
 		serialized:           serialized,
 		fetchTrainingSetsFns: fetchTrainingSetsFns{serialized},
+		fetchProviderFns:     fetchProviderFns{serialized},
+		fetchSourceFns:       fetchSourceFns{serialized},
 		createdFn:            createdFn{serialized},
 		protoStringer:        protoStringer{serialized},
 	}
@@ -1228,10 +1438,6 @@ func (variant *LabelVariant) Variant() string {
 	return variant.serialized.GetVariant()
 }
 
-func (variant *LabelVariant) Source() NameVariant {
-	return parseNameVariant(variant.serialized.GetSource())
-}
-
 func (variant *LabelVariant) Type() string {
 	return variant.serialized.GetType()
 }
@@ -1244,8 +1450,26 @@ func (variant *LabelVariant) Owner() string {
 	return variant.serialized.GetOwner()
 }
 
-func (variant *LabelVariant) Provider() string {
-	return variant.serialized.GetProvider()
+func (variant *LabelVariant) Status() string {
+	return variant.serialized.GetStatus()
+}
+
+func (variant *LabelVariant) Location() interface{} {
+	return variant.serialized.GetLocation()
+}
+
+func (variant *LabelVariant) isTable() bool {
+	return reflect.TypeOf(variant.serialized.GetLocation()) == reflect.TypeOf(&pb.LabelVariant_Columns{})
+}
+
+func (variant *LabelVariant) LocationColumns() interface{} {
+	src := variant.serialized.GetColumns()
+	columns := ResourceVariantColumns{
+		Entity: src.Entity,
+		Value:  src.Value,
+		TS:     src.Ts,
+	}
+	return columns
 }
 
 type TrainingSet struct {
@@ -1269,6 +1493,7 @@ func (trainingSet TrainingSet) FetchVariants(client *Client, ctx context.Context
 type TrainingSetVariant struct {
 	serialized *pb.TrainingSetVariant
 	fetchFeaturesFns
+	fetchProviderFns
 	createdFn
 	protoStringer
 }
@@ -1277,6 +1502,7 @@ func wrapProtoTrainingSetVariant(serialized *pb.TrainingSetVariant) *TrainingSet
 	return &TrainingSetVariant{
 		serialized:       serialized,
 		fetchFeaturesFns: fetchFeaturesFns{serialized},
+		fetchProviderFns: fetchProviderFns{serialized},
 		createdFn:        createdFn{serialized},
 		protoStringer:    protoStringer{serialized},
 	}
@@ -1294,12 +1520,12 @@ func (variant *TrainingSetVariant) Variant() string {
 	return variant.serialized.GetVariant()
 }
 
-func (variant *TrainingSetVariant) Provider() string {
-	return variant.serialized.GetProvider()
-}
-
 func (variant *TrainingSetVariant) Owner() string {
 	return variant.serialized.GetOwner()
+}
+
+func (variant *TrainingSetVariant) Status() string {
+	return variant.serialized.GetStatus()
 }
 
 func (variant *TrainingSetVariant) Label() NameVariant {
@@ -1337,6 +1563,7 @@ type SourceVariant struct {
 	fetchTrainingSetsFns
 	fetchFeaturesFns
 	fetchLabelsFns
+	fetchProviderFns
 	createdFn
 	protoStringer
 }
@@ -1347,6 +1574,7 @@ func wrapProtoSourceVariant(serialized *pb.SourceVariant) *SourceVariant {
 		fetchTrainingSetsFns: fetchTrainingSetsFns{serialized},
 		fetchFeaturesFns:     fetchFeaturesFns{serialized},
 		fetchLabelsFns:       fetchLabelsFns{serialized},
+		fetchProviderFns:     fetchProviderFns{serialized},
 		createdFn:            createdFn{serialized},
 		protoStringer:        protoStringer{serialized},
 	}
@@ -1364,16 +1592,64 @@ func (variant *SourceVariant) Description() string {
 	return variant.serialized.GetDescription()
 }
 
-func (variant *SourceVariant) Type() string {
-	return variant.serialized.GetType()
-}
-
-func (variant *SourceVariant) Provider() string {
-	return variant.serialized.GetProvider()
+func (variant *SourceVariant) Definition() interface{} {
+	return variant.serialized.GetDefinition()
 }
 
 func (variant *SourceVariant) Owner() string {
 	return variant.serialized.GetOwner()
+}
+
+func (variant *SourceVariant) Status() string {
+	return variant.serialized.GetStatus()
+}
+
+func (variant *SourceVariant) IsTransformation() bool {
+	return reflect.TypeOf(variant.serialized.GetDefinition()) == reflect.TypeOf(&pb.SourceVariant_Transformation{})
+}
+
+func (variant *SourceVariant) IsSQLTransformation() bool {
+	if !variant.IsTransformation() {
+		return false
+	}
+	return reflect.TypeOf(variant.serialized.GetTransformation().Type) == reflect.TypeOf(&pb.Transformation_SQLTransformation{})
+}
+
+func (variant *SourceVariant) SQLTransformationQuery() string {
+	if !variant.IsSQLTransformation() {
+		return ""
+	}
+	return variant.serialized.GetTransformation().GetSQLTransformation().GetQuery()
+}
+
+func (variant *SourceVariant) SQLTransformationSources() []NameVariant {
+	if !variant.IsSQLTransformation() {
+		return nil
+	}
+	nameVariants := variant.serialized.GetTransformation().GetSQLTransformation().GetSource()
+	var variants []NameVariant
+	for _, nv := range nameVariants {
+		variants = append(variants, NameVariant{Name: nv.Name, Variant: nv.Variant})
+	}
+	return variants
+}
+
+func (variant *SourceVariant) isPrimaryData() bool {
+	return reflect.TypeOf(variant.serialized.GetDefinition()) == reflect.TypeOf(&pb.SourceVariant_PrimaryData{})
+}
+
+func (variant *SourceVariant) IsPrimaryDataSQLTable() bool {
+	if !variant.isPrimaryData() {
+		return false
+	}
+	return reflect.TypeOf(variant.serialized.GetPrimaryData().GetLocation()) == reflect.TypeOf(&pb.PrimaryData_Table{})
+}
+
+func (variant *SourceVariant) PrimaryDataSQLTableName() string {
+	if !variant.IsPrimaryDataSQLTable() {
+		return ""
+	}
+	return variant.serialized.GetPrimaryData().GetTable().GetName()
 }
 
 type Entity struct {
@@ -1400,6 +1676,10 @@ func (entity *Entity) Name() string {
 
 func (entity *Entity) Description() string {
 	return entity.serialized.GetDescription()
+}
+
+func (entity *Entity) Status() string {
+	return entity.serialized.GetStatus()
 }
 
 func NewClient(host string, logger *zap.SugaredLogger) (*Client, error) {

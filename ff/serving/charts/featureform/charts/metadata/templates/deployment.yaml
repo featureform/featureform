@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    run: sandbox-metadata-server
+  name: sandbox-metadata-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: sandbox-metadata-server
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        run: sandbox-metadata-server
+    spec:
+      containers:
+        - image: {{ .Values.image.repository }}
+          name: sandbox-metadata-server
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 8080
+          resources: {}
+          env:
+            - name: TYPESENSE_PORT
+              value: "80"
+            - name: TYPESENSE_HOST
+              value: sandbox-typesense
+            - name: TYPESENSE_APIKEY
+              value: xyz
+            - name: ETCD_HOST
+              value: sandbox-etcd
+            - name: ETCD_PORT
+              value: "2379"
+status: {}

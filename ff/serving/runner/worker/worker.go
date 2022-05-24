@@ -1,9 +1,14 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 package worker
 
 import (
 	"errors"
 	runner "github.com/featureform/serving/runner"
 	"os"
+	"strconv"
 )
 
 func CreateAndRun() error {
@@ -15,11 +20,29 @@ func CreateAndRun() error {
 	if !ok {
 		return errors.New("NAME not set")
 	}
-	runner, err := runner.Create(name, []byte(config))
+	jobRunner, err := runner.Create(name, []byte(config))
 	if err != nil {
 		return err
 	}
-	watcher, err := runner.Run()
+	indexString, hasIndexEnv := os.LookupEnv("JOB_COMPLETION_INDEX")
+	indexRunner, isIndexRunner := jobRunner.(runner.IndexRunner)
+	if isIndexRunner && !hasIndexEnv {
+		return errors.New("index runner needs index set")
+	}
+	if !isIndexRunner && hasIndexEnv {
+		return errors.New("runner is not an index runner")
+	}
+	if hasIndexEnv && isIndexRunner {
+		index, err := strconv.Atoi(indexString)
+		if err != nil {
+			return errors.New("index not of type int")
+		}
+		if err := indexRunner.SetIndex(index); err != nil {
+			return errors.New("cannot set index")
+		}
+		jobRunner = indexRunner
+	}
+	watcher, err := jobRunner.Run()
 	if err != nil {
 		return err
 	}

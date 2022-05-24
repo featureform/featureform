@@ -38,7 +38,7 @@ class TypeSenseResults {
   }
 }
 
-module.exports = class TypesenseClient {
+export default class TypesenseClient {
   constructor(port, host, apikey) {
     this._port = port;
     this._host = host;
@@ -51,7 +51,7 @@ module.exports = class TypesenseClient {
         {
           host: this._host,
           port: this._port,
-          protocol: "http",
+          protocol: "https",
         },
       ],
       apiKey: this._apikey,
@@ -65,4 +65,4 @@ module.exports = class TypesenseClient {
       return new TypeSenseResults(jsonResp);
     });
   }
-};
+}

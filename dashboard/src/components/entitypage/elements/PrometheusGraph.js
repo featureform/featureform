@@ -5,6 +5,8 @@ import { makeStyles } from "@material-ui/core/styles";
 
 import { connect } from "react-redux";
 
+import { PROMETHEUS_URL } from "api/resources";
+
 const useStyles = makeStyles((theme) => ({
   graphBox: {
     height: "50%",
@@ -68,17 +70,14 @@ const PrometheusGraph = ({
     (start, end, step, stub) => {
       const startTimestamp = start.getTime() / 1000;
       const endTimestamp = end.getTime() / 1000;
-      const url = `http://localhost:9090/api/v1/query_range?query=${query}${add_labels_string}&start=${startTimestamp}&end=${endTimestamp}&step=${step}s`;
-      // if (!stub) {
-      //   return Promise.resolve(JSON.parse(sample_query_data));
-      // }
+      const url = `${PROMETHEUS_URL}/api/v1/query_range?query=${query}${add_labels_string}&start=${startTimestamp}&end=${endTimestamp}&step=${step}s`;
       return fetch(url)
         .then((response) => response.json())
-        .then((response) => response["data"]);
+        .then((response) => response["data"])
+        .catch((err) => console.error(err));
     },
     [query, add_labels_string]
   );
-
   useEffect(() => {
     var myChart = new Chart(chartRef.current, {
       type: "line",

@@ -117,6 +117,7 @@ type OfflineStore interface {
 	RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error)
 	CreateTransformation(config TransformationConfig) error
 	GetTransformationTable(id ResourceID) (TransformationTable, error)
+	UpdateTransformation(config TransformationConfig) error
 	CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error)
 	GetPrimaryTable(id ResourceID) (PrimaryTable, error)
 	CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error)
@@ -267,6 +268,10 @@ func (store *memoryOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, e
 
 func (store *memoryOfflineStore) CreateTransformation(config TransformationConfig) error {
 	return errors.New("CreateTransformation unsupported for this provider")
+}
+
+func (store *memoryOfflineStore) UpdateTransformation(config TransformationConfig) error {
+	return errors.New("UpdateTransformation unsupported for this provider")
 }
 
 func (store *memoryOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {

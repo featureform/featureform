@@ -73,6 +73,7 @@ func TestOfflineStores(t *testing.T) {
 		"PrimaryTableCreate":          testPrimaryCreateTable,
 		"PrimaryTableWrite":           testPrimaryTableWrite,
 		"Transformation":              testTransform,
+		"TransformationUpdate":        testTransformUpdate,
 		"CreateDuplicatePrimaryTable": testCreateDuplicatePrimaryTable,
 		"ChainTransformations":        testChainTransform,
 	}
@@ -538,9 +539,9 @@ func testMaterializationUpdate(t *testing.T, store OfflineStore) {
 				{Entity: "c", Value: 3, TS: time.UnixMilli(0).UTC()},
 			},
 			ExpectedUpdate: []ResourceRecord{
-				{Entity: "a", Value: 4, TS: time.UnixMilli(4).UTC()},
 				{Entity: "b", Value: 2, TS: time.UnixMilli(0).UTC()},
 				{Entity: "c", Value: 3, TS: time.UnixMilli(0).UTC()},
+				{Entity: "a", Value: 4, TS: time.UnixMilli(4).UTC()},
 			},
 		},
 		"OutOfOrderWrites": {
@@ -552,8 +553,7 @@ func testMaterializationUpdate(t *testing.T, store OfflineStore) {
 				{Entity: "a", Value: 4, TS: time.UnixMilli(1).UTC()},
 			},
 			UpdateRecords: []ResourceRecord{
-				{Entity: "c", Value: 9, TS: time.UnixMilli(11).UTC()},
-				{Entity: "a", Value: 4, TS: time.UnixMilli(12).UTC()},
+				{Entity: "a", Value: 6, TS: time.UnixMilli(12).UTC()},
 			},
 			Schema:              schemaInt,
 			ExpectedRows:        3,
@@ -568,9 +568,9 @@ func testMaterializationUpdate(t *testing.T, store OfflineStore) {
 				{Entity: "c", Value: 3, TS: time.UnixMilli(7).UTC()},
 			},
 			ExpectedUpdate: []ResourceRecord{
-				{Entity: "a", Value: 4, TS: time.UnixMilli(12).UTC()},
+				{Entity: "a", Value: 6, TS: time.UnixMilli(12).UTC()},
 				{Entity: "b", Value: 2, TS: time.UnixMilli(3).UTC()},
-				{Entity: "c", Value: 9, TS: time.UnixMilli(11).UTC()},
+				{Entity: "c", Value: 3, TS: time.UnixMilli(7).UTC()},
 			},
 		},
 		"OutOfOrderOverwrites": {
@@ -600,9 +600,9 @@ func testMaterializationUpdate(t *testing.T, store OfflineStore) {
 				{Entity: "c", Value: 3, TS: time.UnixMilli(7).UTC()},
 			},
 			ExpectedUpdate: []ResourceRecord{
+				{Entity: "c", Value: 3, TS: time.UnixMilli(7).UTC()},
 				{Entity: "a", Value: 5, TS: time.UnixMilli(20).UTC()},
 				{Entity: "b", Value: 2, TS: time.UnixMilli(4).UTC()},
-				{Entity: "c", Value: 3, TS: time.UnixMilli(7).UTC()},
 			},
 		},
 	}
@@ -645,11 +645,23 @@ func testMaterializationUpdate(t *testing.T, store OfflineStore) {
 		}
 		i := 0
 		for seg.Next() {
-			actual := seg.Value()
-			expected := test.ExpectedUpdate[i]
-			if !reflect.DeepEqual(actual, expected) {
-				t.Fatalf("Value not equal in materialization: %v %v\n"+
-					"%T:%T %T:%T %T:%T\n", actual, expected, actual.Entity, expected.Entity, actual.Value, expected.Value, actual.TS, expected.TS)
+			// Row order isn't guaranteed, we make sure one row is equivalent
+			// then we delete that row. This is ineffecient, but these test
+			// cases should all be small enough not to matter.
+			found := false
+			for i, expRow := range test.ExpectedUpdate {
+				if reflect.DeepEqual(seg.Value(), expRow) {
+					found = true
+					lastIdx := len(test.ExpectedUpdate) - 1
+					// Swap the record that we've found to the end, then shrink the slice to not include it.
+					// This is essentially a delete operation expect that it re-orders the slice.
+					test.ExpectedUpdate[i], test.ExpectedUpdate[lastIdx] = test.ExpectedUpdate[lastIdx], test.ExpectedUpdate[i]
+					test.ExpectedUpdate = test.ExpectedUpdate[:lastIdx]
+					break
+				}
+			}
+			if !found {
+				t.Fatalf("Unexpected materialization row: %v, expected %v", seg.Value(), test.ExpectedUpdate)
 			}
 			i++
 		}
@@ -1473,6 +1485,164 @@ func testTransform(t *testing.T, store OfflineStore) {
 			t.Fatalf("NumRows do not match. Expected: %d, Got: %d", len(test.Records), rows)
 		}
 		table, err = store.GetTransformationTable(test.Config.TargetTableID)
+
+		if err != nil {
+			t.Errorf("Could not get transformation table: %v", err)
+		}
+		iterator, err := table.IterateSegment(100)
+		if err != nil {
+			t.Fatalf("Could not get generic iterator: %v", err)
+		}
+		i := 0
+		for iterator.Next() {
+			if iterator.Err() != nil {
+				t.Fatalf("could not iterate rows: %v", iterator.Err())
+			}
+			if !reflect.DeepEqual(iterator.Values(), test.Expected[i]) {
+				for j, v := range iterator.Values() {
+					fmt.Printf("Got: %T Expected: %T\n", v, test.Expected[i][j])
+				}
+				t.Fatalf("Expected: %#v, Received %#v", test.Expected[i], iterator.Values())
+			}
+			i++
+		}
+
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			testTransform(t, test)
+		})
+	}
+
+}
+
+func testTransformUpdate(t *testing.T, store OfflineStore) {
+
+	type TransformTest struct {
+		PrimaryTable    ResourceID
+		Schema          TableSchema
+		Records         []GenericRecord
+		UpdatedRecords  []GenericRecord
+		Config          TransformationConfig
+		Expected        []GenericRecord
+		UpdatedExpected []GenericRecord
+	}
+
+	tests := map[string]TransformTest{
+		"Simple": {
+			PrimaryTable: ResourceID{
+				Name: uuid.NewString(),
+				Type: Primary,
+			},
+			Schema: TableSchema{
+				Columns: []TableColumn{
+					{Name: "entity", ValueType: String},
+					{Name: "int", ValueType: Int},
+					{Name: "flt", ValueType: Float64},
+					{Name: "str", ValueType: String},
+					{Name: "bool", ValueType: Bool},
+					{Name: "ts", ValueType: Timestamp},
+				},
+			},
+			Records: []GenericRecord{
+				[]interface{}{"a", 1, 1.1, "test string", true, time.UnixMilli(0)},
+				[]interface{}{"b", 2, 1.2, "second string", false, time.UnixMilli(0)},
+				[]interface{}{"c", 3, 1.3, "third string", nil, time.UnixMilli(0)},
+				[]interface{}{"d", 4, 1.4, "fourth string", false, time.UnixMilli(0)},
+				[]interface{}{"e", 5, 1.5, "fifth string", true, time.UnixMilli(0)},
+			},
+			UpdatedRecords: []GenericRecord{
+				[]interface{}{"d", 6, 1.6, "sixth string", false, time.UnixMilli(0)},
+				[]interface{}{"e", 7, 1.7, "seventh string", true, time.UnixMilli(0)},
+			},
+			Config: TransformationConfig{
+				TargetTableID: ResourceID{
+					Name: uuid.NewString(),
+					Type: Transformation,
+				},
+				Query: "SELECT * FROM tb",
+			},
+			Expected: []GenericRecord{
+				[]interface{}{"a", 1, 1.1, "test string", true, time.UnixMilli(0).UTC()},
+				[]interface{}{"b", 2, 1.2, "second string", false, time.UnixMilli(0).UTC()},
+				[]interface{}{"c", 3, 1.3, "third string", nil, time.UnixMilli(0).UTC()},
+				[]interface{}{"d", 4, 1.4, "fourth string", false, time.UnixMilli(0).UTC()},
+				[]interface{}{"e", 5, 1.5, "fifth string", true, time.UnixMilli(0).UTC()},
+			},
+			UpdatedExpected: []GenericRecord{
+				[]interface{}{"a", 1, 1.1, "test string", true, time.UnixMilli(0).UTC()},
+				[]interface{}{"b", 2, 1.2, "second string", false, time.UnixMilli(0).UTC()},
+				[]interface{}{"c", 3, 1.3, "third string", nil, time.UnixMilli(0).UTC()},
+				[]interface{}{"d", 4, 1.4, "fourth string", false, time.UnixMilli(0).UTC()},
+				[]interface{}{"e", 5, 1.5, "fifth string", true, time.UnixMilli(0).UTC()},
+				[]interface{}{"d", 6, 1.6, "sixth string", false, time.UnixMilli(0).UTC()},
+				[]interface{}{"e", 7, 1.7, "seventh string", true, time.UnixMilli(0).UTC()},
+			},
+		},
+		"Count": {
+			PrimaryTable: ResourceID{
+				Name: uuid.NewString(),
+				Type: Primary,
+			},
+			Schema: TableSchema{
+				Columns: []TableColumn{
+					{Name: "entity", ValueType: String},
+					{Name: "int", ValueType: Int},
+					{Name: "str", ValueType: String},
+					{Name: "bool", ValueType: Bool},
+					{Name: "ts", ValueType: Timestamp},
+				},
+			},
+			Records: []GenericRecord{
+				[]interface{}{"a", 1, "test string", true, time.UnixMilli(0)},
+				[]interface{}{"b", 2, "second string", false, time.UnixMilli(0)},
+				[]interface{}{"c", 3, "third string", nil, time.UnixMilli(0)},
+				[]interface{}{"d", 4, "fourth string", false, time.UnixMilli(0)},
+				[]interface{}{"e", 5, "fifth string", true, time.UnixMilli(0)},
+			},
+			UpdatedRecords: []GenericRecord{
+				[]interface{}{"d", 6, "sixth string", false, time.UnixMilli(0)},
+				[]interface{}{"e", 7, "seventh string", true, time.UnixMilli(0)},
+			},
+			Config: TransformationConfig{
+				TargetTableID: ResourceID{
+					Name: uuid.NewString(),
+					Type: Transformation,
+				},
+				Query: "SELECT COUNT(*) FROM tb",
+			},
+			Expected: []GenericRecord{
+				[]interface{}{5},
+			},
+			UpdatedExpected: []GenericRecord{
+				[]interface{}{7},
+			},
+		},
+	}
+
+	testTransform := func(t *testing.T, test TransformTest) {
+		table, err := store.CreatePrimaryTable(test.PrimaryTable, test.Schema)
+		if err != nil {
+			t.Fatalf("Could not initialize table: %v", err)
+		}
+		for _, value := range test.Records {
+			if err := table.Write(value); err != nil {
+				t.Fatalf("Could not write value: %v: %v", err, value)
+			}
+		}
+		test.Config.Query = strings.Replace(test.Config.Query, "tb", sanitize(table.GetName()), 1)
+		if err := store.CreateTransformation(test.Config); err != nil {
+			t.Fatalf("Could not create transformation: %v", err)
+		}
+		rows, err := table.NumRows()
+		if err != nil {
+			t.Fatalf("could not get NumRows of table: %v", err)
+		}
+		if int(rows) != len(test.Records) {
+			t.Fatalf("NumRows do not match. Expected: %d, Got: %d", len(test.Records), rows)
+		}
+		table, err = store.GetTransformationTable(test.Config.TargetTableID)
 		if err != nil {
 			t.Errorf("Could not get transformation table: %v", err)
 		}
@@ -1490,7 +1660,45 @@ func testTransform(t *testing.T, store OfflineStore) {
 			}
 			i++
 		}
-
+		table, err = store.GetPrimaryTable(test.PrimaryTable)
+		if err != nil {
+			t.Fatalf("Could not get primary table: %v", err)
+		}
+		for _, rec := range test.UpdatedRecords {
+			if err := table.Write(rec); err != nil {
+				t.Errorf("could not write to table: %v", err)
+			}
+		}
+		if err := store.UpdateTransformation(test.Config); err != nil {
+			t.Errorf("could not update transformation: %v", err)
+		}
+		table, err = store.GetTransformationTable(test.Config.TargetTableID)
+		if err != nil {
+			t.Errorf("Could not get updated transformation table: %v", err)
+		}
+		iterator, err = table.IterateSegment(100)
+		if err != nil {
+			t.Fatalf("Could not get generic iterator: %v", err)
+		}
+		i = 0
+		for iterator.Next() {
+			found := false
+			for i, expRow := range test.UpdatedExpected {
+				if reflect.DeepEqual(iterator.Values(), expRow) {
+					found = true
+					lastIdx := len(test.UpdatedExpected) - 1
+					// Swap the record that we've found to the end, then shrink the slice to not include it.
+					// This is essentially a delete operation expect that it re-orders the slice.
+					test.UpdatedExpected[i], test.UpdatedExpected[lastIdx] = test.UpdatedExpected[lastIdx], test.UpdatedExpected[i]
+					test.UpdatedExpected = test.UpdatedExpected[:lastIdx]
+					break
+				}
+			}
+			if !found {
+				t.Fatalf("Unexpected training row: %v, expected %v", iterator.Values(), test.UpdatedExpected)
+			}
+			i++
+		}
 	}
 
 	for name, test := range tests {

@@ -69,10 +69,6 @@ func snowflakeOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	return store, nil
 }
 
-func (q snowflakeSQLQueries) materializationUpdate(tableName string) string {
-	return fmt.Sprintf("REFRESH MATERIALIZED VIEW CONCURRENTLY %s", sanitize(tableName))
-}
-
 func (q snowflakeSQLQueries) materializationDrop(tableName string) string {
 	return fmt.Sprintf("DROP TABLE %s", sanitize(tableName))
 }

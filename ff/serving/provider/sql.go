@@ -5,10 +5,12 @@
 package provider
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
 	db "github.com/jackc/pgx/v4"
+	sf "github.com/snowflakedb/gosnowflake"
 	"strconv"
 	"strings"
 	"time"
@@ -34,11 +36,11 @@ type OfflineTableQueries interface {
 	registerResources(db *sql.DB, tableName string, schema ResourceSchema, timestamp bool) error
 	primaryTableRegister(tableName string, sourceName string) string
 	primaryTableCreate(name string, columnString string) string
-	getColumnNames() string
+	getColumnNames(db *sql.DB, tableName string) (*sql.Rows, error)
 	getValueColumnTypes(tableName string) string
 	determineColumnType(valueType ValueType) (string, error)
-	materializationCreate(tableName string, resultName string) string
-	materializationUpdate(tableName string) string
+	materializationCreate(tableName string, sourceName string) string
+	materializationUpdate(store *sqlOfflineStore, tableName string, sourceName string) error
 	materializationExists() string
 	materializationDrop(tableName string) string
 	getTable() string
@@ -55,6 +57,8 @@ type OfflineTableQueries interface {
 	getValueColumnType(t *sql.ColumnType) interface{}
 	numRows(n interface{}) (int64, error)
 	transformationCreate(name string, query string) string
+	transformationUpdate(db *sql.DB, tableName string, query string) error
+	transformationExists() string
 }
 
 type sqlOfflineStore struct {
@@ -216,12 +220,12 @@ func (store *sqlOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sour
 	if _, err := store.db.Exec(query); err != nil {
 		return nil, err
 	}
-	columnQuery := store.query.getColumnNames()
-	rows, err := store.db.Query(columnQuery, tableName)
-	defer rows.Close()
+
+	rows, err := store.query.getColumnNames(store.db, tableName)
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 	columnNames := make([]TableColumn, 0)
 	for rows.Next() {
 		var column string
@@ -304,8 +308,7 @@ func (store *sqlOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, erro
 	} else if !exists {
 		return nil, &TableNotFound{id.Name, id.Variant}
 	}
-	columnQuery := store.query.getColumnNames()
-	rows, err := store.db.Query(columnQuery, name)
+	rows, err := store.query.getColumnNames(store.db, name)
 	defer rows.Close()
 	if err != nil {
 		return nil, err
@@ -331,13 +334,20 @@ func (store *sqlOfflineStore) GetTransformationTable(id ResourceID) (Transformat
 	if err != nil {
 		return nil, err
 	}
-	if exists, err := store.tableExists(id); err != nil {
+	existsQuery := store.query.tableExists()
+	rows, err := store.db.Query(existsQuery, name)
+	defer rows.Close()
+	if err != nil {
 		return nil, err
-	} else if !exists {
-		return nil, &TableNotFound{id.Name, id.Variant}
 	}
-	columnQuery := store.query.getColumnNames()
-	rows, err := store.db.Query(columnQuery, name)
+	rowCount := 0
+	if rows.Next() {
+		rowCount++
+	}
+	if rowCount == 0 {
+		return nil, fmt.Errorf("transformation not found: %v", name)
+	}
+	rows, err = store.query.getColumnNames(store.db, name)
 	defer rows.Close()
 	if err != nil {
 		return nil, err
@@ -555,6 +565,11 @@ func (store *sqlOfflineStore) UpdateMaterialization(id ResourceID) (Materializat
 	matID := MaterializationID(id.Name)
 	tableName := store.getMaterializationTableName(matID)
 	getMatQry := store.query.materializationExists()
+	resTable, err := store.getsqlResourceTable(id)
+	if err != nil {
+		fmt.Println("3", err)
+		return nil, err
+	}
 
 	rows, err := store.db.Query(getMatQry, tableName)
 	defer rows.Close()
@@ -568,8 +583,8 @@ func (store *sqlOfflineStore) UpdateMaterialization(id ResourceID) (Materializat
 	if rowCount == 0 {
 		return nil, &MaterializationNotFound{matID}
 	}
-	updateQuery := store.query.materializationUpdate(tableName)
-	if _, err := store.db.Exec(updateQuery); err != nil {
+	err = store.query.materializationUpdate(store, tableName, resTable.name)
+	if err != nil {
 		return nil, err
 	}
 	return &sqlMaterialization{
@@ -633,28 +648,32 @@ func (store *sqlOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
 
 func (store *sqlOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
 	if err := id.check(TrainingSet); err != nil {
+		fmt.Println("ERR 1")
 		return nil, err
 	}
 	if exists, err := store.tableExists(id); err != nil {
+		fmt.Println("ERR 2")
 		return nil, err
 	} else if !exists {
+		fmt.Println("ERR 3")
 		return nil, &TrainingSetNotFound{id}
 	}
 	trainingSetName, err := store.getTrainingSetName(id)
 	if err != nil {
+		fmt.Println("ERR 4")
 		return nil, err
 	}
-	columnQuery := store.query.getColumnNames()
-	rows, err := store.db.Query(columnQuery, trainingSetName)
-
-	defer rows.Close()
+	rows, err := store.query.getColumnNames(store.db, trainingSetName)
 	if err != nil {
+		fmt.Println("ERR 5")
 		return nil, err
 	}
+	defer rows.Close()
 	features := make([]string, 0)
 	for rows.Next() {
 		var column string
 		if err := rows.Scan(&column); err != nil {
+			fmt.Println("ERR 6")
 			return nil, err
 		}
 		features = append(features, sanitize(column))
@@ -664,10 +683,12 @@ func (store *sqlOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator
 
 	rows, err = store.db.Query(trainingSetQry)
 	if err != nil {
+		fmt.Println("ERR 7")
 		return nil, err
 	}
 	colTypes, err := store.getValueColumnTypes(trainingSetName)
 	if err != nil {
+		fmt.Println("ERR 8")
 		return nil, err
 	}
 	return store.newsqlTrainingSetIterator(rows, colTypes), nil
@@ -832,9 +853,7 @@ func (table *sqlPrimaryTable) getColumnNameString() string {
 }
 
 func (pt *sqlPrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) {
-
-	query := pt.query.getColumnNames()
-	rows, err := pt.db.Query(query, pt.name)
+	rows, err := pt.query.getColumnNames(pt.db, pt.name)
 
 	defer rows.Close()
 	if err != nil {
@@ -849,7 +868,7 @@ func (pt *sqlPrimaryTable) IterateSegment(n int64) (GenericTableIterator, error)
 		columnNames = append(columnNames, sanitize(column))
 	}
 	columns := strings.Join(columnNames[:], ", ")
-	query = fmt.Sprintf("SELECT %s FROM %s LIMIT %d", columns, sanitize(pt.name), n)
+	query := fmt.Sprintf("SELECT %s FROM %s LIMIT %d", columns, sanitize(pt.name), n)
 	rows, err = pt.db.Query(query)
 	if err != nil {
 		return nil, err
@@ -981,9 +1000,21 @@ func (store *sqlOfflineStore) CreateTransformation(config TransformationConfig) 
 	if err != nil {
 		return err
 	}
-
 	query := store.query.transformationCreate(name, config.Query)
 	if _, err := store.db.Exec(query); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (store *sqlOfflineStore) UpdateTransformation(config TransformationConfig) error {
+	name, err := store.createTransformationName(config.TargetTableID)
+	if err != nil {
+		return err
+	}
+	err = store.query.transformationUpdate(store.db, name, config.Query)
+	if err != nil {
 		return err
 	}
 
@@ -1141,23 +1172,41 @@ func (q defaultOfflineSQLQueries) registerResources(db *sql.DB, tableName string
 func (q defaultOfflineSQLQueries) primaryTableRegister(tableName string, sourceName string) string {
 	return fmt.Sprintf("CREATE VIEW %s AS SELECT * FROM TABLE('%s')", sanitize(tableName), sanitize(sourceName))
 }
-func (q defaultOfflineSQLQueries) getColumnNames() string {
+func (q defaultOfflineSQLQueries) getColumnNames(db *sql.DB, name string) (*sql.Rows, error) {
 	bind := q.newVariableBindingIterator()
 	qry := fmt.Sprintf("SELECT column_name FROM information_schema.columns WHERE table_name = %s order by ordinal_position", bind.Next())
-	return qry
+	return db.Query(qry, name)
 }
 func (q defaultOfflineSQLQueries) primaryTableCreate(name string, columnString string) string {
 	return fmt.Sprintf("CREATE TABLE %s ( %s )", sanitize(name), columnString)
 }
-func (q defaultOfflineSQLQueries) materializationCreate(tableName string, resultName string) string {
+func (q defaultOfflineSQLQueries) materializationCreate(tableName string, sourceName string) string {
 	return fmt.Sprintf(
 		"CREATE TABLE IF NOT EXISTS %s AS (SELECT entity, value, ts, row_number() over(ORDER BY (SELECT NULL)) as row_number FROM "+
 			"(SELECT entity, ts, value, row_number() OVER (PARTITION BY entity ORDER BY ts desc) "+
-			"AS rn FROM %s) t WHERE rn=1)", sanitize(tableName), sanitize(resultName))
+			"AS rn FROM %s) t WHERE rn=1)", sanitize(tableName), sanitize(sourceName))
 }
 
-func (q defaultOfflineSQLQueries) materializationUpdate(tableName string) string {
-	return fmt.Sprintf("REFRESH MATERIALIZED VIEW CONCURRENTLY %s", sanitize(tableName))
+func (q defaultOfflineSQLQueries) materializationUpdate(store *sqlOfflineStore, tableName string, sourceName string) error {
+	sanitizedTable := sanitize(tableName)
+	tempTable := sanitize(fmt.Sprintf("tmp_%s", tableName))
+	oldTable := sanitize(fmt.Sprintf("old_%s", tableName))
+	query := fmt.Sprintf(
+		"BEGIN TRANSACTION;"+
+			"CREATE TABLE IF NOT EXISTS %s AS (SELECT entity, value, ts, row_number() over(ORDER BY (SELECT NULL)) as row_number FROM "+
+			"(SELECT entity, ts, value, row_number() OVER (PARTITION BY entity ORDER BY ts desc) "+
+			"AS rn FROM %s) t WHERE rn=1);"+
+			"ALTER TABLE %s RENAME TO %s;"+
+			"ALTER TABLE %s RENAME TO %s;"+
+			"DROP TABLE %s;"+
+			"COMMIT;"+
+			"", tempTable, sanitize(sourceName), sanitizedTable, oldTable, tempTable, sanitizedTable, oldTable)
+	var numStatements = 6
+	ctx = context.Background()
+	stmt, _ := sf.WithMultiStatement(ctx, numStatements)
+	_, err := store.db.QueryContext(stmt, query)
+
+	return err
 }
 
 func (q defaultOfflineSQLQueries) getTable() string {
@@ -1321,4 +1370,27 @@ func (q defaultOfflineSQLQueries) numRows(n interface{}) (int64, error) {
 
 func (q defaultOfflineSQLQueries) transformationCreate(name string, query string) string {
 	return fmt.Sprintf("CREATE TABLE %s AS SELECT * FROM ( %s )", sanitize(name), query)
+}
+
+func (q defaultOfflineSQLQueries) transformationUpdate(db *sql.DB, tableName string, query string) error {
+	sanitizedTable := sanitize(tableName)
+	tempTable := sanitize(fmt.Sprintf("tmp_%s", tableName))
+	oldTable := sanitize(fmt.Sprintf("old_%s", tableName))
+	transaction := fmt.Sprintf(
+		"BEGIN TRANSACTION;"+
+			"CREATE TABLE %s AS SELECT * FROM ( %s );"+
+			"ALTER TABLE %s RENAME TO %s;"+
+			"ALTER TABLE %s RENAME TO %s;"+
+			"DROP TABLE %s;"+
+			"COMMIT;"+
+			"", tempTable, query, sanitizedTable, oldTable, tempTable, sanitizedTable, oldTable)
+	var numStatements = 6
+	ctx = context.Background()
+	stmt, _ := sf.WithMultiStatement(ctx, numStatements)
+	_, err := db.QueryContext(stmt, transaction)
+	return err
+}
+func (q defaultOfflineSQLQueries) transformationExists() string {
+	bind := q.newVariableBindingIterator()
+	return fmt.Sprintf("SELECT DISTINCT (table_name) FROM information_schema.tables WHERE table_name=%s", bind.Next())
 }

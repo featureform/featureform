@@ -332,7 +332,6 @@ func (lookup etcdResourceLookup) Set(id ResourceID, res Resource) error {
 		return err
 	}
 	key := createKey(id)
-	fmt.Printf("Setting: %v\n", key)
 	err = lookup.connection.Put(key, string(serRes))
 	if err != nil {
 		return err
@@ -370,7 +369,7 @@ func (lookup etcdResourceLookup) Submap(ids []ResourceID) (ResourceLookup, error
 
 func (lookup etcdResourceLookup) ListForType(t ResourceType) ([]Resource, error) {
 	resources := make([]Resource, 0)
-	resp, err := lookup.connection.GetWithPrefix(string(t))
+	resp, err := lookup.connection.GetWithPrefix(t.String())
 	if err != nil {
 		return nil, err
 	}
@@ -412,7 +411,7 @@ func (lookup etcdResourceLookup) List() ([]Resource, error) {
 	return resources, nil
 }
 
-func (lookup etcdResourceLookup) SetStatus(id ResourceID, status string) error {
+func (lookup etcdResourceLookup) SetStatus(id ResourceID, status pb.ResourceStatus) error {
 	res, err := lookup.Lookup(id)
 	if err != nil {
 		return err

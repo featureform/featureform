@@ -178,17 +178,10 @@ func (q postgresSQLQueries) trainingSetQuery(store *sqlOfflineStore, def Trainin
 			return err
 		}
 	} else {
-		santizedName := sanitize(tableName)
 		tempName := sanitize(fmt.Sprintf("tmp_%s", tableName))
-		oldName := sanitize(fmt.Sprintf("old_%s", tableName))
 		fullQuery := fmt.Sprintf("CREATE TABLE %s AS (SELECT %s, l.value as label FROM %s ", tempName, columnStr, query)
-		transaction := fmt.Sprintf("BEGIN;"+
-			"%s;"+
-			"ALTER TABLE %s RENAME TO %s;"+
-			"ALTER TABLE %s RENAME TO %s;"+
-			"DROP TABLE %s;"+
-			"COMMIT;", fullQuery, santizedName, oldName, tempName, santizedName, oldName)
-		if _, err := store.db.Exec(transaction); err != nil {
+		err := q.atomicUpdate(store.db, tableName, tempName, fullQuery)
+		if err != nil {
 			return err
 		}
 	}
@@ -244,15 +237,20 @@ func (q postgresSQLQueries) transformationCreate(name string, query string) stri
 }
 
 func (q postgresSQLQueries) transformationUpdate(db *sql.DB, tableName string, query string) error {
-	santizedName := sanitize(tableName)
 	tempName := sanitize(fmt.Sprintf("tmp_%s", tableName))
+	fullQuery := fmt.Sprintf("CREATE TABLE %s AS %s", tempName, query)
+	return q.atomicUpdate(db, tableName, tempName, fullQuery)
+}
+
+func (q postgresSQLQueries) atomicUpdate(db *sql.DB, tableName string, tempName string, query string) error {
+	santizedName := sanitize(tableName)
 	oldName := sanitize(fmt.Sprintf("old_%s", tableName))
 	transaction := fmt.Sprintf("BEGIN;"+
-		"CREATE TABLE %s AS %s;"+
+		"%s;"+
 		"ALTER TABLE %s RENAME TO %s;"+
 		"ALTER TABLE %s RENAME TO %s;"+
 		"DROP TABLE %s;"+
-		"COMMIT;", tempName, query, santizedName, oldName, tempName, santizedName, oldName)
+		"COMMIT;", query, santizedName, oldName, tempName, santizedName, oldName)
 	_, err := db.Exec(transaction)
 	return err
 }

@@ -821,7 +821,7 @@ func (pt *sqlPrimaryTable) IterateSegment(n int64) (GenericTableIterator, error)
 	columns, err := pt.query.getColumns(pt.db, pt.name)
 	columnNames := make([]string, 0)
 	for _, col := range columns {
-		columnNames = append(columnNames, col.Name)
+		columnNames = append(columnNames, sanitize(col.Name))
 	}
 	names := strings.Join(columnNames[:], ", ")
 	query := fmt.Sprintf("SELECT %s FROM %s LIMIT %d", names, sanitize(pt.name), n)
@@ -1286,29 +1286,34 @@ func (q defaultOfflineSQLQueries) trainingSetQuery(store *sqlOfflineStore, def T
 			return err
 		}
 	} else {
-		sanitizedTable := sanitize(tableName)
 		tempTable := sanitize(fmt.Sprintf("tmp_%s", tableName))
-		oldTable := sanitize(fmt.Sprintf("old_%s", tableName))
 		fullQuery := fmt.Sprintf(
 			"CREATE TABLE %s AS (SELECT %s, label FROM ("+
 				"SELECT *, row_number() over(PARTITION BY e, label, time ORDER BY time desc) as rn FROM ( "+
 				"SELECT t0.entity as e, t0.value as label, t0.ts as time, %s from %s as t0 %s )",
 			tempTable, columnStr, columnStr, sanitize(labelName), query)
-		transaction := fmt.Sprintf(
-			"BEGIN TRANSACTION;"+
-				"%s;"+
-				"ALTER TABLE %s RENAME TO %s;"+
-				"ALTER TABLE %s RENAME TO %s;"+
-				"DROP TABLE %s;"+
-				"COMMIT;"+
-				"", fullQuery, sanitizedTable, oldTable, tempTable, sanitizedTable, oldTable)
-		var numStatements = 6
-		ctx = context.Background()
-		stmt, _ := sf.WithMultiStatement(ctx, numStatements)
-		_, err := store.db.QueryContext(stmt, transaction)
+		err := q.atomicUpdate(store.db, tableName, tempTable, fullQuery)
 		return err
 	}
 	return nil
+}
+
+func (q defaultOfflineSQLQueries) atomicUpdate(db *sql.DB, tableName string, tempName string, query string) error {
+	sanitizedTable := sanitize(tableName)
+	oldTable := sanitize(fmt.Sprintf("old_%s", tableName))
+	transaction := fmt.Sprintf(
+		"BEGIN TRANSACTION;"+
+			"%s;"+
+			"ALTER TABLE %s RENAME TO %s;"+
+			"ALTER TABLE %s RENAME TO %s;"+
+			"DROP TABLE %s;"+
+			"COMMIT;"+
+			"", query, sanitizedTable, oldTable, tempName, sanitizedTable, oldTable)
+	var numStatements = 6
+	ctx = context.Background()
+	stmt, _ := sf.WithMultiStatement(ctx, numStatements)
+	_, err := db.QueryContext(stmt, transaction)
+	return err
 }
 
 func (q defaultOfflineSQLQueries) trainingSetCreate(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string) error {
@@ -1374,22 +1379,13 @@ func (q defaultOfflineSQLQueries) transformationCreate(name string, query string
 }
 
 func (q defaultOfflineSQLQueries) transformationUpdate(db *sql.DB, tableName string, query string) error {
-	sanitizedTable := sanitize(tableName)
-	tempTable := sanitize(fmt.Sprintf("tmp_%s", tableName))
-	oldTable := sanitize(fmt.Sprintf("old_%s", tableName))
-	transaction := fmt.Sprintf(
-		"BEGIN TRANSACTION;"+
-			"CREATE TABLE %s AS SELECT * FROM ( %s );"+
-			"ALTER TABLE %s RENAME TO %s;"+
-			"ALTER TABLE %s RENAME TO %s;"+
-			"DROP TABLE %s;"+
-			"COMMIT;"+
-			"", tempTable, query, sanitizedTable, oldTable, tempTable, sanitizedTable, oldTable)
-	var numStatements = 6
-	ctx = context.Background()
-	stmt, _ := sf.WithMultiStatement(ctx, numStatements)
-	_, err := db.QueryContext(stmt, transaction)
-	return err
+	tempName := sanitize(fmt.Sprintf("tmp_%s", tableName))
+	fullQuery := fmt.Sprintf("CREATE TABLE %s AS SELECT * FROM ( %s )", tempName, query)
+	err := q.atomicUpdate(db, tableName, tempName, fullQuery)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 func (q defaultOfflineSQLQueries) transformationExists() string {
 	bind := q.newVariableBindingIterator()

@@ -105,8 +105,8 @@ func (q postgresSQLQueries) materializationCreate(tableName string, sourceName s
 			"AS rn FROM %s) t WHERE rn=1);  CREATE UNIQUE INDEX ON %s (entity);", sanitize(tableName), sanitize(sourceName), sanitize(tableName))
 }
 
-func (q postgresSQLQueries) materializationUpdate(store *sqlOfflineStore, tableName string, sourceName string) error {
-	_, err := store.db.Exec(fmt.Sprintf("REFRESH MATERIALIZED VIEW CONCURRENTLY %s", sanitize(tableName)))
+func (q postgresSQLQueries) materializationUpdate(db *sql.DB, tableName string, sourceName string) error {
+	_, err := db.Exec(fmt.Sprintf("REFRESH MATERIALIZED VIEW CONCURRENTLY %s", sanitize(tableName)))
 	return err
 }
 
@@ -261,7 +261,7 @@ func (q postgresSQLQueries) transformationExists() string {
 	return fmt.Sprintf("SELECT * FROM pg_matviews WHERE matviewname = $1")
 }
 
-func (q postgresSQLQueries) getColumnNames(store *sql.DB, tableName string) (*sql.Rows, error) {
+func (q postgresSQLQueries) getColumnNames(db *sql.DB, tableName string) (*sql.Rows, error) {
 	qry := fmt.Sprintf("SELECT attname AS column_name FROM   pg_attribute WHERE  attrelid = 'public.%s'::regclass AND    attnum > 0 ORDER  BY attnum", tableName)
-	return store.Query(qry)
+	return db.Query(qry)
 }

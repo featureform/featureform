@@ -40,7 +40,7 @@ type OfflineTableQueries interface {
 	getValueColumnTypes(tableName string) string
 	determineColumnType(valueType ValueType) (string, error)
 	materializationCreate(tableName string, sourceName string) string
-	materializationUpdate(store *sqlOfflineStore, tableName string, sourceName string) error
+	materializationUpdate(db *sql.DB, tableName string, sourceName string) error
 	materializationExists() string
 	materializationDrop(tableName string) string
 	getTable() string
@@ -583,7 +583,7 @@ func (store *sqlOfflineStore) UpdateMaterialization(id ResourceID) (Materializat
 	if rowCount == 0 {
 		return nil, &MaterializationNotFound{matID}
 	}
-	err = store.query.materializationUpdate(store, tableName, resTable.name)
+	err = store.query.materializationUpdate(store.db, tableName, resTable.name)
 	if err != nil {
 		return nil, err
 	}
@@ -1198,7 +1198,7 @@ func (q defaultOfflineSQLQueries) materializationCreate(tableName string, source
 			"AS rn FROM %s) t WHERE rn=1)", sanitize(tableName), sanitize(sourceName))
 }
 
-func (q defaultOfflineSQLQueries) materializationUpdate(store *sqlOfflineStore, tableName string, sourceName string) error {
+func (q defaultOfflineSQLQueries) materializationUpdate(db *sql.DB, tableName string, sourceName string) error {
 	sanitizedTable := sanitize(tableName)
 	tempTable := sanitize(fmt.Sprintf("tmp_%s", tableName))
 	oldTable := sanitize(fmt.Sprintf("old_%s", tableName))
@@ -1215,7 +1215,7 @@ func (q defaultOfflineSQLQueries) materializationUpdate(store *sqlOfflineStore, 
 	var numStatements = 6
 	ctx = context.Background()
 	stmt, _ := sf.WithMultiStatement(ctx, numStatements)
-	_, err := store.db.QueryContext(stmt, query)
+	_, err := db.QueryContext(stmt, query)
 
 	return err
 }

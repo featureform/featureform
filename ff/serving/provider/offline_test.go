@@ -381,7 +381,7 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 			expected := test.ExpectedSegment[i]
 			if !reflect.DeepEqual(actual, expected) {
 				t.Fatalf("Value not equal in materialization: %v %v\n"+
-					"%T:%T %T:%T %T:%T\n", actual, expected, actual.Entity, expected.Entity, actual.Value, expected.Value, actual.TS, expected.TS)
+					"%T:%T %T:%T %T:%T (received:expected)\n", actual, expected, actual.Entity, expected.Entity, actual.Value, expected.Value, actual.TS, expected.TS)
 			}
 			i++
 		}
@@ -759,9 +759,7 @@ func testMaterializeUnknown(t *testing.T, store OfflineStore) {
 
 func testMaterializationNotFound(t *testing.T, store OfflineStore) {
 	id := MaterializationID(uuid.NewString())
-
 	_, err := store.GetMaterialization(id)
-
 	if err == nil {
 		t.Fatalf("Succeeded in getting uninitialized materialization")
 	}

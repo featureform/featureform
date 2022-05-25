@@ -100,7 +100,7 @@ func (k *MemoryJobSpawner) GetJobRunner(jobName string, config runner.Config) (r
 }
 
 func NewCoordinator(meta *metadata.Client, logger *zap.SugaredLogger, cli *clientv3.Client, spawner JobSpawner) (*Coordinator, error) {
-	logger.Debug("Creating new coordinator")
+	logger.Info("Creating new coordinator")
 	kvc := clientv3.NewKV(cli)
 	return &Coordinator{
 		Metadata:   meta,
@@ -115,7 +115,7 @@ func NewCoordinator(meta *metadata.Client, logger *zap.SugaredLogger, cli *clien
 const MAX_ATTEMPTS = 1
 
 func (c *Coordinator) WatchForNewJobs() error {
-	c.Logger.Debug("Watching for new jobs")
+	c.Logger.Info("Watching for new jobs")
 	getResp, err := (*c.KVClient).Get(context.Background(), "JOB_", clientv3.WithPrefix())
 	if err != nil {
 		return err
@@ -174,7 +174,7 @@ func sanitize(ident string) string {
 }
 
 func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVariant, resID metadata.ResourceID, offlineStore provider.OfflineStore) error {
-	c.Logger.Debug("Running SQL transformation job on resource: ", resID)
+	c.Logger.Info("Running SQL transformation job on resource: ", resID)
 	templateString := transformSource.SQLTransformationQuery()
 	sources := transformSource.SQLTransformationSources()
 	allReady := false
@@ -215,7 +215,7 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 }
 
 func (c *Coordinator) runPrimaryTableJob(transformSource *metadata.SourceVariant, resID metadata.ResourceID, offlineStore provider.OfflineStore) error {
-	c.Logger.Debug("Running primary table job on resource: ", resID)
+	c.Logger.Info("Running primary table job on resource: ", resID)
 	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant}
 	sourceName := transformSource.PrimaryDataSQLTableName()
 	if sourceName == "" {
@@ -231,7 +231,7 @@ func (c *Coordinator) runPrimaryTableJob(transformSource *metadata.SourceVariant
 }
 
 func (c *Coordinator) runRegisterSourceJob(resID metadata.ResourceID) error {
-	c.Logger.Debug("Running register source job on resource: ", resID)
+	c.Logger.Info("Running register source job on resource: ", resID)
 	source, err := c.Metadata.GetSourceVariant(context.Background(), metadata.NameVariant{resID.Name, resID.Variant})
 	if err != nil {
 		return err
@@ -259,7 +259,7 @@ func (c *Coordinator) runRegisterSourceJob(resID metadata.ResourceID) error {
 
 //should only be triggered when we are registering an ONLINE feature, not an offline one
 func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID) error {
-	c.Logger.Debug("Running feature materialization job on resource: ", resID)
+	c.Logger.Info("Running feature materialization job on resource: ", resID)
 	feature, err := c.Metadata.GetFeatureVariant(context.Background(), metadata.NameVariant{resID.Name, resID.Variant})
 	if err != nil {
 		return err
@@ -322,7 +322,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID) error 
 }
 
 func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID) error {
-	c.Logger.Debug("Running training set job on resource: ", resID)
+	c.Logger.Info("Running training set job on resource: ", resID)
 	ts, err := c.Metadata.GetTrainingSetVariant(context.Background(), metadata.NameVariant{resID.Name, resID.Variant})
 	if err != nil {
 		return err
@@ -402,7 +402,7 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID) error {
 }
 
 func (c *Coordinator) getJob(mtx *concurrency.Mutex, key string) (*metadata.CoordinatorJob, error) {
-	fmt.Printf("Checking existence of job with key %s\n", key)
+	c.Logger.Debugf("Checking existence of job with key %s\n", key)
 	txn := (*c.KVClient).Txn(context.Background())
 	response, err := txn.If(mtx.IsOwner()).Then(clientv3.OpGet(key)).Commit()
 	if err != nil {
@@ -444,7 +444,7 @@ func (c *Coordinator) incrementJobAttempts(mtx *concurrency.Mutex, job *metadata
 }
 
 func (c *Coordinator) deleteJob(mtx *concurrency.Mutex, key string) error {
-	c.Logger.Debug("Deleting job with key: ", key)
+	c.Logger.Info("Deleting job with key: ", key)
 	txn := (*c.KVClient).Txn(context.Background())
 	response, err := txn.If(mtx.IsOwner()).Then(clientv3.OpDelete(key)).Commit()
 	if err != nil {
@@ -459,7 +459,7 @@ func (c *Coordinator) deleteJob(mtx *concurrency.Mutex, key string) error {
 	if numDeleted != 1 { //returns 0 if delete key did not exist
 		return fmt.Errorf("job Already deleted")
 	}
-	c.Logger.Debug("Succesfully deleted job with key: ", key)
+	c.Logger.Info("Succesfully deleted job with key: ", key)
 	return nil
 }
 
@@ -491,7 +491,7 @@ func (c *Coordinator) markJobFailed(job *metadata.CoordinatorJob) error {
 }
 
 func (c *Coordinator) executeJob(jobKey string) error {
-	c.Logger.Debug("Executing new job with key ", jobKey)
+	c.Logger.Info("Executing new job with key ", jobKey)
 	s, err := concurrency.NewSession(c.EtcdClient, concurrency.WithTTL(1))
 	if err != nil {
 
@@ -532,7 +532,7 @@ func (c *Coordinator) executeJob(jobKey string) error {
 		statusErr := c.Metadata.SetStatus(context.Background(), job.Resource, metadata.FAILED, err.Error())
 		return fmt.Errorf("%s job failed: %v: %v", job.Resource.Type, err, statusErr)
 	}
-	c.Logger.Debug("Succesfully executed job with key: ", jobKey)
+	c.Logger.Info("Succesfully executed job with key: ", jobKey)
 	if err := c.deleteJob(mtx, jobKey); err != nil {
 		c.Logger.Debugw("Error deleting job", "error", err)
 		return err

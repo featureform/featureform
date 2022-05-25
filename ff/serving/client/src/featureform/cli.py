@@ -3,11 +3,9 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import click
-import register
+import featureform.register as register
 import grpc
-import metadata_pb2_grpc as ff_grpc
-import os
-import metadata_pb2 as ff_proto
+from featureform.proto import metadata_pb2_grpc as ff_grpc
 
 resource_types = [
     "feature",

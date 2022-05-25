@@ -124,7 +124,7 @@ func (c *Coordinator) WatchForNewJobs() error {
 		go func(kv *mvccpb.KeyValue) {
 			err := c.executeJob(string(kv.Key))
 			if err != nil {
-				c.Logger.Debugw("Error executing job", "error", err)
+				c.Logger.Errorw("Error executing job", "error", err)
 			}
 		}(kv)
 	}
@@ -136,7 +136,7 @@ func (c *Coordinator) WatchForNewJobs() error {
 					go func(ev *clientv3.Event) {
 						err := c.executeJob(string(ev.Kv.Key))
 						if err != nil {
-							c.Logger.Debugw("Error executing job", "error", err)
+							c.Logger.Errorw("Error executing job", "error", err)
 						}
 					}(ev)
 				}

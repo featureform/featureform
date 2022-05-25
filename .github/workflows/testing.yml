@@ -457,7 +457,7 @@ jobs:
 
       - name: Start API Server
         working-directory: ./api/
-        run: go run api.go
+        run: go run api.go &
 
       - name: Testing
         env:

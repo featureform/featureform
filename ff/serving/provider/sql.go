@@ -568,7 +568,6 @@ func (store *sqlOfflineStore) UpdateMaterialization(id ResourceID) (Materializat
 	getMatQry := store.query.materializationExists()
 	resTable, err := store.getsqlResourceTable(id)
 	if err != nil {
-		fmt.Println("3", err)
 		return nil, err
 	}
 
@@ -668,24 +667,19 @@ func (store *sqlOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {
 
 func (store *sqlOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
 	if err := id.check(TrainingSet); err != nil {
-		fmt.Println("ERR 1")
 		return nil, err
 	}
 	if exists, err := store.tableExists(id); err != nil {
-		fmt.Println("ERR 2")
 		return nil, err
 	} else if !exists {
-		fmt.Println("ERR 3")
 		return nil, &TrainingSetNotFound{id}
 	}
 	trainingSetName, err := store.getTrainingSetName(id)
 	if err != nil {
-		fmt.Println("ERR 4")
 		return nil, err
 	}
 	rows, err := store.query.getColumnNames(store.db, trainingSetName)
 	if err != nil {
-		fmt.Println("ERR 5")
 		return nil, err
 	}
 	defer rows.Close()
@@ -693,7 +687,6 @@ func (store *sqlOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator
 	for rows.Next() {
 		var column string
 		if err := rows.Scan(&column); err != nil {
-			fmt.Println("ERR 6")
 			return nil, err
 		}
 		features = append(features, sanitize(column))
@@ -703,12 +696,10 @@ func (store *sqlOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator
 
 	rows, err = store.db.Query(trainingSetQry)
 	if err != nil {
-		fmt.Println("ERR 7")
 		return nil, err
 	}
 	colTypes, err := store.getValueColumnTypes(trainingSetName)
 	if err != nil {
-		fmt.Println("ERR 8")
 		return nil, err
 	}
 	return store.newsqlTrainingSetIterator(rows, colTypes), nil

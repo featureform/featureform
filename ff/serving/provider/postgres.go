@@ -240,12 +240,10 @@ func (q postgresSQLQueries) numRows(n interface{}) (int64, error) {
 }
 
 func (q postgresSQLQueries) transformationCreate(name string, query string) string {
-	fmt.Println("Creating Table ", name)
 	return fmt.Sprintf("CREATE TABLE  %s AS %s", sanitize(name), query)
 }
 
 func (q postgresSQLQueries) transformationUpdate(db *sql.DB, tableName string, query string) error {
-
 	santizedName := sanitize(tableName)
 	tempName := sanitize(fmt.Sprintf("tmp_%s", tableName))
 	oldName := sanitize(fmt.Sprintf("old_%s", tableName))

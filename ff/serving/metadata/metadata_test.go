@@ -430,23 +430,6 @@ func TestCreate(t *testing.T) {
 	defer ctx.Destroy()
 }
 
-type UnknownResource struct{}
-
-func (t UnknownResource) ResourceType() ResourceType {
-	return ResourceType("UNKNOWN")
-}
-
-func TestUnknownResource(t *testing.T) {
-	ctx := testContext{
-		Defs: []ResourceDef{
-			UnknownResource{},
-		},
-	}
-	if _, err := ctx.Create(t); err == nil {
-		t.Fatalf("Created unknown resource")
-	}
-	defer ctx.Destroy()
-}
 func TestResourceExists(t *testing.T) {
 	ctx := testContext{
 		Defs: []ResourceDef{

@@ -24,10 +24,10 @@ export default class Resource {
     materialIcon: "storage",
     hasMetrics: true,
   });
-  static PrimaryData = new Resource({
-    type: "Primary Data",
-    typePlural: "Primary Data",
-    urlPath: "primary-data",
+  static Source = new Resource({
+    type: "Source",
+    typePlural: "Sources",
+    urlPath: "sources",
     hasVariants: true,
     materialIcon: "source",
     hasMetrics: false,

@@ -36,20 +36,20 @@ export const App = ({ ...props }) => {
       >
         <BreadCrumbs />
         <Switch>
-          <Route exact path="/">
-            <HomePage />
-          </Route>
-          <Route exact path="/search">
-            <SearchResults api={apiHandle} />
-          </Route>
-          <Route exact path="/connections">
-            <ConnectionPage />
-          </Route>
-          <Route exact path="/:type">
-            <DataPage />
-          </Route>
           <Route path="/:type/:entity">
             <EntityPage api={apiHandle} />
+          </Route>
+          <Route path="/search">
+            <SearchResults api={apiHandle} />
+          </Route>
+          <Route path="/connections">
+            <ConnectionPage />
+          </Route>
+          <Route path="/:type">
+            <DataPage />
+          </Route>
+          <Route path="/">
+            <HomePage />
           </Route>
           <Route component={NotFoundPage} />
         </Switch>

@@ -1,10 +1,15 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 package search
 
 import (
 	"fmt"
-
+	re "github.com/avast/retry-go/v4"
 	"github.com/typesense/typesense-go/typesense"
 	"github.com/typesense/typesense-go/typesense/api"
+	"time"
 )
 
 type Searcher interface {
@@ -27,16 +32,32 @@ func NewTypesenseSearch(params *TypeSenseParams) (Searcher, error) {
 	client := typesense.NewClient(
 		typesense.WithServer(fmt.Sprintf("http://%s:%s", params.Host, params.Port)),
 		typesense.WithAPIKey(params.ApiKey))
-	if _, errRetr := client.Collection("resource").Retrieve(); errRetr != nil {
-		errHttp, isHttpErr := errRetr.(*typesense.HTTPError)
-		schemaNotFound := isHttpErr && errHttp.Status == 404
-		if schemaNotFound {
-			if err := makeSchema(client); err != nil {
-				return nil, err
+
+	// Retries connection to typesense. If there is an error creating the schema
+	// it stops attempting, otherwise uses a backoff delay and retries.
+	err := re.Do(
+		func() error {
+			if _, errRetr := client.Collection("resource").Retrieve(); errRetr != nil {
+				errHttp, isHttpErr := errRetr.(*typesense.HTTPError)
+				schemaNotFound := isHttpErr && errHttp.Status == 404
+				if schemaNotFound {
+					if err := makeSchema(client); err != nil {
+						return re.Unrecoverable(err)
+					}
+				} else {
+					fmt.Printf("could not connect to typesense. retrying...\n")
+				}
+				return errRetr
 			}
-		} else {
-			return nil, errRetr
-		}
+			return nil
+		},
+		re.DelayType(func(n uint, err error, config *re.Config) time.Duration {
+			return re.BackOffDelay(n, err, config)
+		}),
+		re.Attempts(10),
+	)
+	if err != nil {
+		return nil, err
 	}
 	if err := initializeCollection(client); err != nil {
 		return nil, err

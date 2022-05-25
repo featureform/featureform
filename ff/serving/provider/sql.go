@@ -341,11 +341,7 @@ func (store *sqlOfflineStore) GetTransformationTable(id ResourceID) (Transformat
 	if err != nil {
 		return nil, err
 	}
-	rowCount := 0
-	if rows.Next() {
-		rowCount++
-	}
-	if rowCount == 0 {
+	if !rows.Next() {
 		return nil, fmt.Errorf("transformation not found: %v", name)
 	}
 	rows, err = store.query.getColumnNames(store.db, name)
@@ -576,11 +572,8 @@ func (store *sqlOfflineStore) UpdateMaterialization(id ResourceID) (Materializat
 	if err != nil {
 		return nil, err
 	}
-	rowCount := 0
-	if rows.Next() {
-		rowCount++
-	}
-	if rowCount == 0 {
+
+	if !rows.Next() {
 		return nil, &MaterializationNotFound{matID}
 	}
 	err = store.query.materializationUpdate(store.db, tableName, resTable.name)

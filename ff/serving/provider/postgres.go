@@ -111,7 +111,7 @@ func (q postgresSQLQueries) materializationUpdate(db *sql.DB, tableName string, 
 }
 
 func (q postgresSQLQueries) materializationExists() string {
-	return fmt.Sprintf("SELECT * FROM pg_matviews WHERE matviewname = $1")
+	return "SELECT * FROM pg_matviews WHERE matviewname = $1"
 }
 
 func (q postgresSQLQueries) determineColumnType(valueType ValueType) (string, error) {
@@ -146,14 +146,14 @@ func (q postgresSQLQueries) createValuePlaceholderString(columns []TableColumn) 
 }
 
 func (q postgresSQLQueries) trainingSetCreate(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string) error {
-	return q.trainingSetGeneral(store, def, tableName, labelName, false)
+	return q.trainingSetQuery(store, def, tableName, labelName, false)
 }
 
 func (q postgresSQLQueries) trainingSetUpdate(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string) error {
-	return q.trainingSetGeneral(store, def, tableName, labelName, true)
+	return q.trainingSetQuery(store, def, tableName, labelName, true)
 }
 
-func (q postgresSQLQueries) trainingSetGeneral(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string, isUpdate bool) error {
+func (q postgresSQLQueries) trainingSetQuery(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string, isUpdate bool) error {
 	columns := make([]string, 0)
 	query := fmt.Sprintf(" (SELECT entity, value , ts from %s ) l ", sanitize(labelName))
 	for i, feature := range def.Features {
@@ -258,10 +258,23 @@ func (q postgresSQLQueries) transformationUpdate(db *sql.DB, tableName string, q
 }
 
 func (q postgresSQLQueries) transformationExists() string {
-	return fmt.Sprintf("SELECT * FROM pg_matviews WHERE matviewname = $1")
+	return "SELECT * FROM pg_matviews WHERE matviewname = $1"
 }
 
-func (q postgresSQLQueries) getColumnNames(db *sql.DB, tableName string) (*sql.Rows, error) {
+func (q postgresSQLQueries) getColumns(db *sql.DB, tableName string) ([]TableColumn, error) {
 	qry := fmt.Sprintf("SELECT attname AS column_name FROM   pg_attribute WHERE  attrelid = 'public.%s'::regclass AND    attnum > 0 ORDER  BY attnum", tableName)
-	return db.Query(qry)
+	rows, err := db.Query(qry)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	columnNames := make([]TableColumn, 0)
+	for rows.Next() {
+		var column string
+		if err := rows.Scan(&column); err != nil {
+			return nil, err
+		}
+		columnNames = append(columnNames, TableColumn{Name: column})
+	}
+	return columnNames, nil
 }

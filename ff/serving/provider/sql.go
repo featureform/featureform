@@ -36,7 +36,7 @@ type OfflineTableQueries interface {
 	registerResources(db *sql.DB, tableName string, schema ResourceSchema, timestamp bool) error
 	primaryTableRegister(tableName string, sourceName string) string
 	primaryTableCreate(name string, columnString string) string
-	getColumnNames(db *sql.DB, tableName string) (*sql.Rows, error)
+	getColumns(db *sql.DB, tableName string) ([]TableColumn, error)
 	getValueColumnTypes(tableName string) string
 	determineColumnType(valueType ValueType) (string, error)
 	materializationCreate(tableName string, sourceName string) string
@@ -222,19 +222,8 @@ func (store *sqlOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sour
 		return nil, err
 	}
 
-	rows, err := store.query.getColumnNames(store.db, tableName)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	columnNames := make([]TableColumn, 0)
-	for rows.Next() {
-		var column string
-		if err := rows.Scan(&column); err != nil {
-			return nil, err
-		}
-		columnNames = append(columnNames, TableColumn{Name: column})
-	}
+	columnNames, err := store.query.getColumns(store.db, tableName)
+
 	return &sqlPrimaryTable{
 		db:     store.db,
 		name:   tableName,
@@ -309,19 +298,8 @@ func (store *sqlOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, erro
 	} else if !exists {
 		return nil, &TableNotFound{id.Name, id.Variant}
 	}
-	rows, err := store.query.getColumnNames(store.db, name)
-	defer rows.Close()
-	if err != nil {
-		return nil, err
-	}
-	columnNames := make([]TableColumn, 0)
-	for rows.Next() {
-		var column string
-		if err := rows.Scan(&column); err != nil {
-			return nil, err
-		}
-		columnNames = append(columnNames, TableColumn{Name: column})
-	}
+	columnNames, err := store.query.getColumns(store.db, name)
+
 	return &sqlPrimaryTable{
 		db:     store.db,
 		name:   name,
@@ -344,19 +322,8 @@ func (store *sqlOfflineStore) GetTransformationTable(id ResourceID) (Transformat
 	if !rows.Next() {
 		return nil, fmt.Errorf("transformation not found: %v", name)
 	}
-	rows, err = store.query.getColumnNames(store.db, name)
-	defer rows.Close()
-	if err != nil {
-		return nil, err
-	}
-	columnNames := make([]TableColumn, 0)
-	for rows.Next() {
-		var column string
-		if err := rows.Scan(&column); err != nil {
-			return nil, err
-		}
-		columnNames = append(columnNames, TableColumn{Name: column})
-	}
+	columnNames, err := store.query.getColumns(store.db, name)
+
 	return &sqlPrimaryTable{
 		db:     store.db,
 		name:   name,
@@ -671,23 +638,17 @@ func (store *sqlOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator
 	if err != nil {
 		return nil, err
 	}
-	rows, err := store.query.getColumnNames(store.db, trainingSetName)
+	columnNames, err := store.query.getColumns(store.db, trainingSetName)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 	features := make([]string, 0)
-	for rows.Next() {
-		var column string
-		if err := rows.Scan(&column); err != nil {
-			return nil, err
-		}
-		features = append(features, sanitize(column))
+	for _, name := range columnNames {
+		features = append(features, sanitize(name.Name))
 	}
 	columns := strings.Join(features[:], ", ")
 	trainingSetQry := store.query.trainingRowSelect(columns, trainingSetName)
-
-	rows, err = store.db.Query(trainingSetQry)
+	rows, err := store.db.Query(trainingSetQry)
 	if err != nil {
 		return nil, err
 	}
@@ -857,23 +818,14 @@ func (table *sqlPrimaryTable) getColumnNameString() string {
 }
 
 func (pt *sqlPrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) {
-	rows, err := pt.query.getColumnNames(pt.db, pt.name)
-
-	defer rows.Close()
-	if err != nil {
-		return nil, err
-	}
+	columns, err := pt.query.getColumns(pt.db, pt.name)
 	columnNames := make([]string, 0)
-	for rows.Next() {
-		var column string
-		if err := rows.Scan(&column); err != nil {
-			return nil, err
-		}
-		columnNames = append(columnNames, sanitize(column))
+	for _, col := range columns {
+		columnNames = append(columnNames, col.Name)
 	}
-	columns := strings.Join(columnNames[:], ", ")
-	query := fmt.Sprintf("SELECT %s FROM %s LIMIT %d", columns, sanitize(pt.name), n)
-	rows, err = pt.db.Query(query)
+	names := strings.Join(columnNames[:], ", ")
+	query := fmt.Sprintf("SELECT %s FROM %s LIMIT %d", names, sanitize(pt.name), n)
+	rows, err := pt.db.Query(query)
 	if err != nil {
 		return nil, err
 	}
@@ -1176,10 +1128,23 @@ func (q defaultOfflineSQLQueries) registerResources(db *sql.DB, tableName string
 func (q defaultOfflineSQLQueries) primaryTableRegister(tableName string, sourceName string) string {
 	return fmt.Sprintf("CREATE VIEW %s AS SELECT * FROM TABLE('%s')", sanitize(tableName), sanitize(sourceName))
 }
-func (q defaultOfflineSQLQueries) getColumnNames(db *sql.DB, name string) (*sql.Rows, error) {
+func (q defaultOfflineSQLQueries) getColumns(db *sql.DB, name string) ([]TableColumn, error) {
 	bind := q.newVariableBindingIterator()
 	qry := fmt.Sprintf("SELECT column_name FROM information_schema.columns WHERE table_name = %s order by ordinal_position", bind.Next())
-	return db.Query(qry, name)
+	rows, err := db.Query(qry, name)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	columnNames := make([]TableColumn, 0)
+	for rows.Next() {
+		var column string
+		if err := rows.Scan(&column); err != nil {
+			return nil, err
+		}
+		columnNames = append(columnNames, TableColumn{Name: column})
+	}
+	return columnNames, nil
 }
 func (q defaultOfflineSQLQueries) primaryTableCreate(name string, columnString string) string {
 	return fmt.Sprintf("CREATE TABLE %s ( %s )", sanitize(name), columnString)
@@ -1292,7 +1257,7 @@ func (q defaultOfflineSQLQueries) createValuePlaceholderString(columns []TableCo
 	return strings.Join(placeholders, ", ")
 }
 
-func (q defaultOfflineSQLQueries) trainingSetGeneral(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string, isUpdate bool) error {
+func (q defaultOfflineSQLQueries) trainingSetQuery(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string, isUpdate bool) error {
 	columns := make([]string, 0)
 	query := ""
 	for i, feature := range def.Features {
@@ -1347,11 +1312,11 @@ func (q defaultOfflineSQLQueries) trainingSetGeneral(store *sqlOfflineStore, def
 }
 
 func (q defaultOfflineSQLQueries) trainingSetCreate(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string) error {
-	return q.trainingSetGeneral(store, def, tableName, labelName, false)
+	return q.trainingSetQuery(store, def, tableName, labelName, false)
 }
 
 func (q defaultOfflineSQLQueries) trainingSetUpdate(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string) error {
-	return q.trainingSetGeneral(store, def, tableName, labelName, true)
+	return q.trainingSetQuery(store, def, tableName, labelName, true)
 }
 
 func (q defaultOfflineSQLQueries) castTableItemType(v interface{}, t interface{}) interface{} {

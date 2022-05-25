@@ -23,6 +23,9 @@ func (m MockOfflineCreateTrainingSetFail) GetResourceTable(id provider.ResourceI
 func (m MockOfflineCreateTrainingSetFail) CreateMaterialization(id provider.ResourceID) (provider.Materialization, error) {
 	return nil, nil
 }
+func (m MockOfflineCreateTrainingSetFail) UpdateMaterialization(id provider.ResourceID) (provider.Materialization, error) {
+	return nil, nil
+}
 func (m MockOfflineCreateTrainingSetFail) GetMaterialization(id provider.MaterializationID) (provider.Materialization, error) {
 	return nil, nil
 }
@@ -35,7 +38,9 @@ func (m MockOfflineCreateTrainingSetFail) CreateTrainingSet(provider.TrainingSet
 func (m MockOfflineCreateTrainingSetFail) GetTrainingSet(id provider.ResourceID) (provider.TrainingSetIterator, error) {
 	return nil, nil
 }
-
+func (m MockOfflineCreateTrainingSetFail) UpdateTrainingSet(provider.TrainingSetDef) error {
+	return nil
+}
 func (m MockOfflineCreateTrainingSetFail) CreatePrimaryTable(id provider.ResourceID, schema provider.TableSchema) (provider.PrimaryTable, error) {
 	return nil, nil
 }
@@ -54,7 +59,9 @@ func (m MockOfflineCreateTrainingSetFail) RegisterPrimaryFromSourceTable(id prov
 func (m MockOfflineCreateTrainingSetFail) CreateTransformation(config provider.TransformationConfig) error {
 	return nil
 }
-
+func (m MockOfflineCreateTrainingSetFail) UpdateTransformation(config provider.TransformationConfig) error {
+	return nil
+}
 func (m MockOfflineCreateTrainingSetFail) GetTransformationTable(id provider.ResourceID) (provider.TransformationTable, error) {
 	return nil, nil
 }

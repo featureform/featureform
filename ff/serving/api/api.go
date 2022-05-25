@@ -121,12 +121,21 @@ func (serv *OfflineServer) CreateTrainingSetVariant(ctx context.Context, train *
 
 func (serv *OnlineServer) FeatureServe(ctx context.Context, req *srv.FeatureServeRequest) (*srv.FeatureRow, error) {
 	serv.Logger.Infow("Serving Features", "request", req.String())
-	return serv.FeatureServe(ctx, req)
+	return serv.client.FeatureServe(ctx, req)
 }
 
-func (serv *OnlineServer) TrainingData(request *srv.TrainingDataRequest, server srv.Feature_TrainingDataServer) error {
-	serv.Logger.Infow("Serving Training Data", "id", request.Id.String())
-	return serv.TrainingData(request, server)
+func (serv *OnlineServer) TrainingData(req *srv.TrainingDataRequest, stream srv.Feature_TrainingDataServer) error {
+	serv.Logger.Infow("Serving Training Data", "id", req.Id.String())
+	client, err := serv.client.TrainingData(context.Background(), req)
+	if err != nil {
+		return err
+	}
+	row, err := client.Recv()
+	if err := stream.Send(row); err != nil {
+		serv.Logger.Errorw("Failed to write to stream", "Error", err)
+		return err
+	}
+	return nil
 }
 
 func (serv *ApiServer) Serve() error {

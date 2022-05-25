@@ -52,6 +52,7 @@ type OfflineTableQueries interface {
 	writeExists(table string) string
 	createValuePlaceholderString(columns []TableColumn) string
 	trainingSetCreate(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string) error
+	trainingSetUpdate(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string) error
 	trainingRowSelect(columns string, trainingSetName string) string
 	castTableItemType(v interface{}, t interface{}) interface{}
 	getValueColumnType(t *sql.ColumnType) interface{}
@@ -640,6 +641,25 @@ func (store *sqlOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
 		return err
 	}
 	if err := store.query.trainingSetCreate(store, def, tableName, label.name); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (store *sqlOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {
+	if err := def.check(); err != nil {
+		return err
+	}
+	label, err := store.getsqlResourceTable(def.Label)
+	if err != nil {
+		return err
+	}
+	tableName, err := store.getTrainingSetName(def.ID)
+	if err != nil {
+		return err
+	}
+	if err := store.query.trainingSetUpdate(store, def, tableName, label.name); err != nil {
 		return err
 	}
 
@@ -1288,7 +1308,7 @@ func (q defaultOfflineSQLQueries) createValuePlaceholderString(columns []TableCo
 	return strings.Join(placeholders, ", ")
 }
 
-func (q defaultOfflineSQLQueries) trainingSetCreate(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string) error {
+func (q defaultOfflineSQLQueries) trainingSetGeneral(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string, isUpdate bool) error {
 	columns := make([]string, 0)
 	query := ""
 	for i, feature := range def.Features {
@@ -1307,15 +1327,47 @@ func (q defaultOfflineSQLQueries) trainingSetCreate(store *sqlOfflineStore, def 
 		}
 	}
 	columnStr := strings.Join(columns, ", ")
-	fullQuery := fmt.Sprintf(
-		"CREATE TABLE %s AS (SELECT %s, label FROM ("+
-			"SELECT *, row_number() over(PARTITION BY e, label, time ORDER BY time desc) as rn FROM ( "+
-			"SELECT t0.entity as e, t0.value as label, t0.ts as time, %s from %s as t0 %s )",
-		sanitize(tableName), columnStr, columnStr, sanitize(labelName), query)
-	if _, err := store.db.Exec(fullQuery); err != nil {
+	if !isUpdate {
+		fullQuery := fmt.Sprintf(
+			"CREATE TABLE %s AS (SELECT %s, label FROM ("+
+				"SELECT *, row_number() over(PARTITION BY e, label, time ORDER BY time desc) as rn FROM ( "+
+				"SELECT t0.entity as e, t0.value as label, t0.ts as time, %s from %s as t0 %s )",
+			sanitize(tableName), columnStr, columnStr, sanitize(labelName), query)
+		if _, err := store.db.Exec(fullQuery); err != nil {
+			return err
+		}
+	} else {
+		sanitizedTable := sanitize(tableName)
+		tempTable := sanitize(fmt.Sprintf("tmp_%s", tableName))
+		oldTable := sanitize(fmt.Sprintf("old_%s", tableName))
+		fullQuery := fmt.Sprintf(
+			"CREATE TABLE %s AS (SELECT %s, label FROM ("+
+				"SELECT *, row_number() over(PARTITION BY e, label, time ORDER BY time desc) as rn FROM ( "+
+				"SELECT t0.entity as e, t0.value as label, t0.ts as time, %s from %s as t0 %s )",
+			tempTable, columnStr, columnStr, sanitize(labelName), query)
+		transaction := fmt.Sprintf(
+			"BEGIN TRANSACTION;"+
+				"%s;"+
+				"ALTER TABLE %s RENAME TO %s;"+
+				"ALTER TABLE %s RENAME TO %s;"+
+				"DROP TABLE %s;"+
+				"COMMIT;"+
+				"", fullQuery, sanitizedTable, oldTable, tempTable, sanitizedTable, oldTable)
+		var numStatements = 6
+		ctx = context.Background()
+		stmt, _ := sf.WithMultiStatement(ctx, numStatements)
+		_, err := store.db.QueryContext(stmt, transaction)
 		return err
 	}
 	return nil
+}
+
+func (q defaultOfflineSQLQueries) trainingSetCreate(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string) error {
+	return q.trainingSetGeneral(store, def, tableName, labelName, false)
+}
+
+func (q defaultOfflineSQLQueries) trainingSetUpdate(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string) error {
+	return q.trainingSetGeneral(store, def, tableName, labelName, true)
 }
 
 func (q defaultOfflineSQLQueries) castTableItemType(v interface{}, t interface{}) interface{} {

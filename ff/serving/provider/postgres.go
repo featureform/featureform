@@ -146,6 +146,14 @@ func (q postgresSQLQueries) createValuePlaceholderString(columns []TableColumn) 
 }
 
 func (q postgresSQLQueries) trainingSetCreate(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string) error {
+	return q.trainingSetGeneral(store, def, tableName, labelName, false)
+}
+
+func (q postgresSQLQueries) trainingSetUpdate(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string) error {
+	return q.trainingSetGeneral(store, def, tableName, labelName, true)
+}
+
+func (q postgresSQLQueries) trainingSetGeneral(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string, isUpdate bool) error {
 	columns := make([]string, 0)
 	query := fmt.Sprintf(" (SELECT entity, value , ts from %s ) l ", sanitize(labelName))
 	for i, feature := range def.Features {
@@ -163,9 +171,26 @@ func (q postgresSQLQueries) trainingSetCreate(store *sqlOfflineStore, def Traini
 		}
 	}
 	columnStr := strings.Join(columns, ", ")
-	fullQuery := fmt.Sprintf("CREATE TABLE %s AS (SELECT %s, l.value as label FROM %s ", sanitize(tableName), columnStr, query)
-	if _, err := store.db.Exec(fullQuery); err != nil {
-		return err
+
+	if !isUpdate {
+		fullQuery := fmt.Sprintf("CREATE TABLE %s AS (SELECT %s, l.value as label FROM %s ", sanitize(tableName), columnStr, query)
+		if _, err := store.db.Exec(fullQuery); err != nil {
+			return err
+		}
+	} else {
+		santizedName := sanitize(tableName)
+		tempName := sanitize(fmt.Sprintf("tmp_%s", tableName))
+		oldName := sanitize(fmt.Sprintf("old_%s", tableName))
+		fullQuery := fmt.Sprintf("CREATE TABLE %s AS (SELECT %s, l.value as label FROM %s ", tempName, columnStr, query)
+		transaction := fmt.Sprintf("BEGIN;"+
+			"%s;"+
+			"ALTER TABLE %s RENAME TO %s;"+
+			"ALTER TABLE %s RENAME TO %s;"+
+			"DROP TABLE %s;"+
+			"COMMIT;", fullQuery, santizedName, oldName, tempName, santizedName, oldName)
+		if _, err := store.db.Exec(transaction); err != nil {
+			return err
+		}
 	}
 	return nil
 }

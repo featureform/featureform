@@ -127,6 +127,7 @@ type OfflineStore interface {
 	UpdateMaterialization(id ResourceID) (Materialization, error)
 	DeleteMaterialization(id MaterializationID) error
 	CreateTrainingSet(TrainingSetDef) error
+	UpdateTrainingSet(TrainingSetDef) error
 	GetTrainingSet(id ResourceID) (TrainingSetIterator, error)
 	Provider
 }
@@ -409,6 +410,10 @@ func (store *memoryOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
 	}
 	store.trainingSets[def.ID] = trainingData
 	return nil
+}
+
+func (store *memoryOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {
+	return store.CreateTrainingSet(def)
 }
 
 func (store *memoryOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {

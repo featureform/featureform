@@ -3,7 +3,6 @@ package coordinator
 import (
 	"context"
 	"fmt"
-	"go.etcd.io/etcd/api/v3/mvccpb"
 	"strings"
 	"time"
 

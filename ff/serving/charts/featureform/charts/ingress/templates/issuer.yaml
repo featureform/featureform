@@ -1,0 +1,14 @@
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: sterling@featureform.com
+    privateKeySecretRef:
+      name: account-key-prod
+    solvers:
+      - http01:
+          ingress:
+            class: nginx

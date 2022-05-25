@@ -6,6 +6,7 @@ package main
 
 import (
 	"net"
+	"os"
 
 	"github.com/featureform/serving/metadata"
 	"github.com/featureform/serving/metrics"
@@ -19,16 +20,16 @@ import (
 func main() {
 	logger := zap.NewExample().Sugar()
 
-	port := ":8080"
+	port := os.Getenv("SERVING_PORT")
 	lis, err := net.Listen("tcp", port)
 	if err != nil {
 		logger.Panicw("Failed to listen on port", "Err", err)
 	}
 
 	promMetrics := metrics.NewMetrics("test")
-	metrics_port := ":2112"
+	metrics_port := os.Getenv("METRICS_PORT")
 
-	meta, err := metadata.NewClient("localhost:8081", logger)
+	meta, err := metadata.NewClient("sandbox-metadata-server:8080", logger)
 	if err != nil {
 		logger.Panicw("Failed to connect to metadata", "Err", err)
 	}

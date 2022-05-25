@@ -8,3 +8,7 @@ dist
 .idea/
 **/.idea/
 .env
+.terraform**
+terrafo
+rm.**
+**pb2**

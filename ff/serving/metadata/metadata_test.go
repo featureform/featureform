@@ -430,23 +430,6 @@ func TestCreate(t *testing.T) {
 	defer ctx.Destroy()
 }
 
-type UnknownResource struct{}
-
-func (t UnknownResource) ResourceType() ResourceType {
-	return ResourceType("UNKNOWN")
-}
-
-func TestUnknownResource(t *testing.T) {
-	ctx := testContext{
-		Defs: []ResourceDef{
-			UnknownResource{},
-		},
-	}
-	if _, err := ctx.Create(t); err == nil {
-		t.Fatalf("Created unknown resource")
-	}
-	defer ctx.Destroy()
-}
 func TestResourceExists(t *testing.T) {
 	ctx := testContext{
 		Defs: []ResourceDef{
@@ -760,11 +743,11 @@ func (test SourceVariantTest) Test(t *testing.T, client *Client, res interface{}
 	assertEquivalentNameVariants(t, source.Features(), test.Features)
 	assertEquivalentNameVariants(t, source.Labels(), test.Labels)
 	assertEquivalentNameVariants(t, source.TrainingSets(), test.TrainingSets)
-	assertEqual(t, source.isTransformation(), test.IsTransformation)
-	assertEqual(t, source.isSQLTransformation(), test.IsSQLTransformation)
+	assertEqual(t, source.IsTransformation(), test.IsTransformation)
+	assertEqual(t, source.IsSQLTransformation(), test.IsSQLTransformation)
 	assertEqual(t, source.SQLTransformationSources(), test.SQLTransformationSources)
 	assertEqual(t, source.isPrimaryData(), test.IsPrimaryData)
-	assertEqual(t, source.isPrimaryDataSQLTable(), test.IsPrimaryDataSQLTable)
+	assertEqual(t, source.IsPrimaryDataSQLTable(), test.IsPrimaryDataSQLTable)
 	assertEqual(t, source.PrimaryDataSQLTableName(), test.PrimaryDataSQLTableName)
 	if shouldFetch {
 		testFetchProvider(t, client, source)

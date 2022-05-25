@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    run: sandbox-api-server
+  name: sandbox-api-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sandbox-api-server
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: sandbox-api-server
+    spec:
+      containers:
+        - image: {{ .Values.image.repository }}
+          name: sandbox-api-server
+          ports:
+            - containerPort: 7878
+              protocol: TCP
+          resources: {}
+          env:
+            - name: TYPESENSE_PORT
+              value: "80"
+            - name: TYPESENSE_HOST
+              value: sandbox-typesense
+            - name: TYPESENSE_APIKEY
+              value: password
+            - name: ETCD_HOST
+              value: sandbox-etcd
+            - name: ETCD_PORT
+              value: "2379"
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          livenessProbe:
+            httpGet:
+              path: /_ah/
+              port: 8443
+            initialDelaySeconds: 20
+            periodSeconds: 3
+status: {}

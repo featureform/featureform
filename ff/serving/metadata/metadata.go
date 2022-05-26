@@ -17,6 +17,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -175,6 +176,7 @@ type ResourceLookup interface {
 	HasJob(ResourceID) (bool, error)
 	SetJob(ResourceID) error
 	SetStatus(ResourceID, pb.ResourceStatus) error
+	SetSchedule(ResourceID, string) error
 }
 
 type TypeSenseWrapper struct {
@@ -257,6 +259,10 @@ func (lookup localResourceLookup) SetStatus(id ResourceID, status pb.ResourceSta
 }
 
 func (lookup localResourceLookup) SetJob(id ResourceID) error {
+	return nil
+}
+
+func (lookup localResourceLookup) SetSchedule(id ResourceID, schedule string) error {
 	return nil
 }
 
@@ -947,8 +953,20 @@ type Config struct {
 	Address         string
 }
 
+func (serv *MetadataServer) RequestScheduleChange(ctx context.Context, req *pb.ScheduleChangeRequest) (*pb.Empty, error) {
+	resID := ResourceID{Name: req.ResourceId.Resource.Name, Variant: req.ResourceId.Resource.Variant, Type: ResourceType(req.ResourceId.ResourceType)}
+	err := serv.lookup.SetSchedule(resID, req.Schedule)
+	return &pb.Empty{}, err
+}
+
+func (serv *MetadataServer) SetResourceUpdateStatus(ctx context.Context, req *pb.SetUpdateStatusRequest) (*pb.Empty, error) {
+	resID := ResourceID{Name: req.ResourceID.Resource.Name, Variant: req.ResourceID.Resource.Variant, Type: ResourceType(req.ResourceID.ResourceType)}
+	err := serv.lookup.SetUpdateStatus(resID, *req.Status)
+	return &pb.Empty{}, err
+}
+
 func (serv *MetadataServer) SetResourceStatus(ctx context.Context, req *pb.SetStatusRequest) (*pb.Empty, error) {
-	resID := ResourceID{Name: req.Resource.Name, Variant: req.Resource.Variant, Type: ResourceType(req.ResourceType)}
+	resID := ResourceID{Name: req.ResourceID.Resource.Name, Variant: req.ResourceID.Resource.Variant, Type: ResourceType(req.ResourceID.ResourceType)}
 	err := serv.lookup.SetStatus(resID, *req.Status)
 	return &pb.Empty{}, err
 }
@@ -960,7 +978,7 @@ func (serv *MetadataServer) ListFeatures(_ *pb.Empty, stream pb.Metadata_ListFea
 }
 
 func (serv *MetadataServer) CreateFeatureVariant(ctx context.Context, variant *pb.FeatureVariant) (*pb.Empty, error) {
-	variant.Created = time.Now().Format(TIME_FORMAT)
+	variant.Created = timestamppb.New(time.Now())
 	return serv.genericCreate(ctx, &featureVariantResource{variant}, func(name, variant string) Resource {
 		return &featureResource{
 			&pb.Feature{
@@ -992,7 +1010,7 @@ func (serv *MetadataServer) ListLabels(_ *pb.Empty, stream pb.Metadata_ListLabel
 }
 
 func (serv *MetadataServer) CreateLabelVariant(ctx context.Context, variant *pb.LabelVariant) (*pb.Empty, error) {
-	variant.Created = time.Now().Format(TIME_FORMAT)
+	variant.Created = timestamppb.New(time.Now())
 	return serv.genericCreate(ctx, &labelVariantResource{variant}, func(name, variant string) Resource {
 		return &labelResource{
 			&pb.Label{
@@ -1024,7 +1042,7 @@ func (serv *MetadataServer) ListTrainingSets(_ *pb.Empty, stream pb.Metadata_Lis
 }
 
 func (serv *MetadataServer) CreateTrainingSetVariant(ctx context.Context, variant *pb.TrainingSetVariant) (*pb.Empty, error) {
-	variant.Created = time.Now().Format(TIME_FORMAT)
+	variant.Created = timestamppb.New(time.Now())
 	return serv.genericCreate(ctx, &trainingSetVariantResource{variant}, func(name, variant string) Resource {
 		return &trainingSetResource{
 			&pb.TrainingSet{
@@ -1056,7 +1074,7 @@ func (serv *MetadataServer) ListSources(_ *pb.Empty, stream pb.Metadata_ListSour
 }
 
 func (serv *MetadataServer) CreateSourceVariant(ctx context.Context, variant *pb.SourceVariant) (*pb.Empty, error) {
-	variant.Created = time.Now().Format(TIME_FORMAT)
+	variant.Created = timestamppb.New(time.Now())
 	return serv.genericCreate(ctx, &sourceVariantResource{variant}, func(name, variant string) Resource {
 		return &sourceResource{
 			&pb.Source{

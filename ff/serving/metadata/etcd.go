@@ -36,6 +36,12 @@ type CoordinatorJob struct {
 	Resource ResourceID
 }
 
+type CoordinatorScheduleJob struct {
+	Attempts int
+	Resource ResourceID
+	Schedule string
+}
+
 func (c *CoordinatorJob) Serialize() ([]byte, error) {
 	serialized, err := json.Marshal(c)
 	if err != nil {
@@ -45,6 +51,22 @@ func (c *CoordinatorJob) Serialize() ([]byte, error) {
 }
 
 func (c *CoordinatorJob) Deserialize(serialized []byte) error {
+	err := json.Unmarshal(serialized, c)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *CoordinatorScheduleJob) Serialize() ([]byte, error) {
+	serialized, err := json.Marshal(c)
+	if err != nil {
+		return nil, err
+	}
+	return serialized, nil
+}
+
+func (c *CoordinatorScheduleJob) Deserialize(serialized []byte) error {
 	err := json.Unmarshal(serialized, c)
 	if err != nil {
 		return err
@@ -294,6 +316,10 @@ func GetJobKey(id ResourceID) string {
 	return fmt.Sprintf("JOB_%s_%s_%s", id.Type, id.Name, id.Variant)
 }
 
+func GetScheduleJobKey(id ResourceID) string {
+	return fmt.Sprintf("SCHEDULEJOB_%s_%s_%s", id.Type, id.Name, id.Variant)
+}
+
 func (lookup etcdResourceLookup) HasJob(id ResourceID) (bool, error) {
 	job_key := GetJobKey(id)
 	count, err := lookup.connection.GetCountWithPrefix(job_key)
@@ -319,6 +345,24 @@ func (lookup etcdResourceLookup) SetJob(id ResourceID) error {
 		return err
 	}
 	jobKey := GetJobKey(id)
+	if err := lookup.connection.Put(jobKey, string(serialized)); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (lookup etcdResourceLookup) SetSchedule(id ResourceID, schedule string) error {
+
+	coordinatorScheduleJob := CoordinatorScheduleJob{
+		Attempts: 0,
+		Resource: id,
+		Schedule: schedule,
+	}
+	serialized, err := coordinatorScheduleJob.Serialize()
+	if err != nil {
+		return err
+	}
+	jobKey := GetScheduleJobKey(id)
 	if err := lookup.connection.Put(jobKey, string(serialized)); err != nil {
 		return err
 	}

@@ -15,6 +15,7 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -76,6 +77,26 @@ type Client struct {
 
 type ResourceDef interface {
 	ResourceType() ResourceType
+}
+
+//accesible to the frontend as it does not directly change status in metadata
+func (client *Client) RequestScheduleChange(ctx context.Context, resID resourceID, string schedule) error {
+	resourceID := pb.ResourceID{Name: nameVariant.Name, Variant: nameVariant, ResourceType: resID.Type.Serialized()}
+	scheduleChangeRequest := pb.ScheduleChangeRequest{ResourceId: resourceID, Schedule: schedule}
+	_, err := client.grpcConn.RequestScheduleChange(ctx, &scheduleChangeRequest)
+	return &pb.Empty{}, err
+}
+
+//Should only be used internally by the coordinator
+func (client *Client) SetUpdateStatus(ctx context.Context, resID ResourceID, schedule string, status ResourceStatus, errorMessage string, timestamp time.Time) error {
+	nameVariant := pb.NameVariant{Name: resID.Name, Variant: resID.Variant}
+	resourceID := pb.ResourceID{Name: nameVariant.Name, Variant: nameVariant, ResourceType: resID.Type.Serialized()}
+	resourceStatus := pb.ResourceStatus{Status: pb.ResourceStatus_Status(status), ErrorMessage: errorMessage}
+	pbTimestamp := timestamppb.New(timestamp)
+	updateStatus := pb.UpdateStatus{LastUpdated: pbTimestamp, Schedule: schedule, ResourceStatus: &resourceStatus}
+	statusRequest := pb.SetUpdateStatusRequest{ResourceId: resourceID, Status: &updateStatus}
+	_, err := client.grpcConn.SetResourceUpdateStatus(ctx, &statusRequest)
+	return err
 }
 
 func (client *Client) SetStatus(ctx context.Context, resID ResourceID, status ResourceStatus, errorMessage string) error {
@@ -1063,7 +1084,7 @@ func (stringer protoStringer) String() string {
 }
 
 type createdGetter interface {
-	GetCreated() string
+	GetCreated() timestamppb.Timestamp
 }
 
 type createdFn struct {
@@ -1071,7 +1092,7 @@ type createdFn struct {
 }
 
 func (fn createdFn) Created() time.Time {
-	t, err := time.Parse(TIME_FORMAT, fn.getter.GetCreated())
+	t := fn.getter.GetCreated().AsTime()
 	if err != nil {
 		panic(err)
 	}

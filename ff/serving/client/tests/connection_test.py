@@ -10,8 +10,8 @@ def test_metadata_connection():
     try:
         client.apply()
     except grpc.RpcError as e:
-        assert (e.details() == "connection error: desc = \"transport: Error while dialing dial tcp: lookup "
-                               "sandbox-metadata-server: no such host\"")
+        assert ("connection error: desc = \"transport: Error while dialing dial tcp: lookup "
+                "sandbox-metadata-server" in e.details())
 
 
 def test_serving_connection():
@@ -20,5 +20,5 @@ def test_serving_connection():
     try:
         client.features([("f1", "v1")], {"user": "a"})
     except grpc.RpcError as e:
-        assert (e.details() == "connection error: desc = \"transport: Error while dialing dial tcp: lookup "
-                               "sandbox-serving-server: no such host\"")
+        assert ("connection error: desc = \"transport: Error while dialing dial tcp: lookup "
+                "sandbox-serving-server:" in e.details())

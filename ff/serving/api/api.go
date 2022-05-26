@@ -22,11 +22,11 @@ type ApiServer struct {
 	address    string
 	grpcServer *grpc.Server
 	listener   net.Listener
-	offline    OfflineServer
+	metadata   MetadataServer
 	online     OnlineServer
 }
 
-type OfflineServer struct {
+type MetadataServer struct {
 	address string
 	Logger  *zap.SugaredLogger
 	meta    pb.MetadataClient
@@ -45,7 +45,7 @@ func NewApiServer(logger *zap.SugaredLogger, address string, metaAddr string, sr
 	return &ApiServer{
 		Logger:  logger,
 		address: address,
-		offline: OfflineServer{
+		metadata: MetadataServer{
 			address: metaAddr,
 			Logger:  logger,
 		},
@@ -56,17 +56,17 @@ func NewApiServer(logger *zap.SugaredLogger, address string, metaAddr string, sr
 	}, nil
 }
 
-func (serv *OfflineServer) CreateUser(ctx context.Context, user *pb.User) (*pb.Empty, error) {
+func (serv *MetadataServer) CreateUser(ctx context.Context, user *pb.User) (*pb.Empty, error) {
 	serv.Logger.Infow("Creating User", "user", user.Name)
 	return serv.meta.CreateUser(ctx, user)
 }
 
-func (serv *OfflineServer) CreateProvider(ctx context.Context, provider *pb.Provider) (*pb.Empty, error) {
+func (serv *MetadataServer) CreateProvider(ctx context.Context, provider *pb.Provider) (*pb.Empty, error) {
 	serv.Logger.Infow("Creating Provider", "name", provider.Name)
 	return serv.meta.CreateProvider(ctx, provider)
 }
 
-func (serv *OfflineServer) CreateSourceVariant(ctx context.Context, source *pb.SourceVariant) (*pb.Empty, error) {
+func (serv *MetadataServer) CreateSourceVariant(ctx context.Context, source *pb.SourceVariant) (*pb.Empty, error) {
 	serv.Logger.Infow("Creating Source Variant", "name", source.Name, "variant", source.Variant)
 	switch casted := source.Definition.(type) {
 	case *pb.SourceVariant_Transformation:
@@ -87,17 +87,17 @@ func (serv *OfflineServer) CreateSourceVariant(ctx context.Context, source *pb.S
 	return serv.meta.CreateSourceVariant(ctx, source)
 }
 
-func (serv *OfflineServer) CreateEntity(ctx context.Context, entity *pb.Entity) (*pb.Empty, error) {
+func (serv *MetadataServer) CreateEntity(ctx context.Context, entity *pb.Entity) (*pb.Empty, error) {
 	serv.Logger.Infow("Creating Entity", "entity", entity.Name)
 	return serv.meta.CreateEntity(ctx, entity)
 }
 
-func (serv *OfflineServer) CreateFeatureVariant(ctx context.Context, feature *pb.FeatureVariant) (*pb.Empty, error) {
+func (serv *MetadataServer) CreateFeatureVariant(ctx context.Context, feature *pb.FeatureVariant) (*pb.Empty, error) {
 	serv.Logger.Infow("Creating Feature Variant", "name", feature.Name, "variant", feature.Variant)
 	return serv.meta.CreateFeatureVariant(ctx, feature)
 }
 
-func (serv *OfflineServer) CreateLabelVariant(ctx context.Context, label *pb.LabelVariant) (*pb.Empty, error) {
+func (serv *MetadataServer) CreateLabelVariant(ctx context.Context, label *pb.LabelVariant) (*pb.Empty, error) {
 	serv.Logger.Infow("Creating Label Variant", "name", label.Name, "variant", label.Variant)
 	protoSource := label.Source
 	source, err := serv.client.GetSourceVariant(ctx, metadata.NameVariant{protoSource.Name, protoSource.Variant})
@@ -108,7 +108,7 @@ func (serv *OfflineServer) CreateLabelVariant(ctx context.Context, label *pb.Lab
 	return serv.meta.CreateLabelVariant(ctx, label)
 }
 
-func (serv *OfflineServer) CreateTrainingSetVariant(ctx context.Context, train *pb.TrainingSetVariant) (*pb.Empty, error) {
+func (serv *MetadataServer) CreateTrainingSetVariant(ctx context.Context, train *pb.TrainingSetVariant) (*pb.Empty, error) {
 	serv.Logger.Infow("Creating Training Set Variant", "name", train.Name, "variant", train.Variant)
 	protoLabel := train.Label
 	label, err := serv.client.GetLabelVariant(ctx, metadata.NameVariant{protoLabel.Name, protoLabel.Variant})
@@ -149,7 +149,7 @@ func (serv *ApiServer) Serve() error {
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
-	metaConn, err := grpc.Dial(serv.offline.address, opts...)
+	metaConn, err := grpc.Dial(serv.metadata.address, opts...)
 	if err != nil {
 		return err
 	}
@@ -157,12 +157,12 @@ func (serv *ApiServer) Serve() error {
 	if err != nil {
 		return err
 	}
-	serv.offline.meta = pb.NewMetadataClient(metaConn)
-	client, err := metadata.NewClient(serv.offline.address, serv.Logger)
+	serv.metadata.meta = pb.NewMetadataClient(metaConn)
+	client, err := metadata.NewClient(serv.metadata.address, serv.Logger)
 	if err != nil {
 		return err
 	}
-	serv.offline.client = client
+	serv.metadata.client = client
 	serv.online.client = srv.NewFeatureClient(servConn)
 	return serv.ServeOnListener(lis)
 }
@@ -170,7 +170,7 @@ func (serv *ApiServer) Serve() error {
 func (serv *ApiServer) ServeOnListener(lis net.Listener) error {
 	serv.listener = lis
 	grpcServer := grpc.NewServer()
-	pb.RegisterApiServer(grpcServer, &serv.offline)
+	pb.RegisterApiServer(grpcServer, &serv.metadata)
 	srv.RegisterFeatureServer(grpcServer, &serv.online)
 	serv.grpcServer = grpcServer
 	serv.Logger.Infow("Server starting", "Address", serv.listener.Addr().String())

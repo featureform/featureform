@@ -4,6 +4,8 @@
 
 syntax = "proto3";
 
+import "google/protobuf/timestamp.proto";
+
 option go_package = "github.com/featureform/serving/metadata/proto";
 
 package featureform.serving.metadata.proto;
@@ -38,6 +40,8 @@ service Metadata {
     rpc CreateModel(Model) returns (Empty);
     rpc GetModels(stream Name) returns (stream Model);
     rpc SetResourceStatus(SetStatusRequest) returns (Empty);
+    rpc SetResourceUpdateStatus(SetUpdateStatusRequest) returns (Empty);
+    rpc RequestScheduleChange(ScheduleChangeRequest) returns (Empty);
 }
 
 service Api {
@@ -54,6 +58,10 @@ message Name {
     string name = 1;
 }
 
+message Schedule {
+    string schedule = 1;
+}
+
 message ResourceStatus {
     enum Status {
         NO_STATUS = 0;
@@ -64,6 +72,12 @@ message ResourceStatus {
       }
     Status status = 1;
     string error_message = 2;
+}
+
+message UpdateStatus {
+    google.protobuf.Timestamp last_updated = 1;
+    Schedule schedule = 2;
+    ResourceStatus update_status = 3;
 }
 
 enum ResourceType {
@@ -81,10 +95,24 @@ enum ResourceType {
     USER = 11;
 }
 
-message SetStatusRequest {
+message ResourceID {
     NameVariant resource = 1;
     ResourceType resource_type = 2;
-    ResourceStatus status = 3;
+}
+
+message SetStatusRequest {
+    ResourceID resource_id = 1;
+    ResourceStatus status = 2;
+}
+
+message SetUpdateStatusRequest {
+    ResourceID resource_id = 1;
+    UpdateStatus status = 2;
+}
+
+message ScheduleChangeRequest {
+    ResourceID resource_id = 1;
+    Schedule schedule = 2;
 }
 
 message NameVariant {
@@ -113,7 +141,7 @@ message FeatureVariant {
     NameVariant source = 3;
     string type = 4;
     string entity = 5;
-    string created = 6;
+    google.protobuf.Timestamp created = 6;
     string owner = 7;
     string description = 8;
     string provider = 9;
@@ -122,6 +150,7 @@ message FeatureVariant {
     oneof location {
         Columns columns = 12;
     }
+    UpdateStatus update_status = 13;
 }
 
 message Label {
@@ -138,7 +167,7 @@ message LabelVariant {
     string type = 4;
     NameVariant source = 5;
     string entity = 6;
-    string created = 7;
+    google.protobuf.Timestamp created = 7;
     string owner = 8;
     string provider = 9;
     ResourceStatus status = 10;
@@ -146,6 +175,7 @@ message LabelVariant {
     oneof location {
         Columns columns = 12;
     }
+    UpdateStatus update_status = 13;
 }
 
 message Provider {
@@ -174,11 +204,12 @@ message TrainingSetVariant {
     string variant = 2;
     string description = 3;
     string owner = 4;
-    string created = 5;
+    google.protobuf.Timestamp created = 5;
     string provider = 6;
     ResourceStatus status = 7;
     repeated NameVariant features = 8;
     NameVariant label = 9;
+    UpdateStatus update_status = 10;
 }
 
 message Entity {
@@ -225,12 +256,13 @@ message SourceVariant {
     string owner = 4;
     string description = 5;
     string provider = 6;
-    string created = 7;
+    google.protobuf.Timestamp created = 7;
     ResourceStatus status = 8;
     string table = 9;
     repeated NameVariant trainingsets = 10;
     repeated NameVariant features = 11;
     repeated NameVariant labels = 12;
+    UpdateStatus update_status = 13;
 }
 
 message Transformation {

@@ -459,6 +459,14 @@ jobs:
         working-directory: ./api/
         run: go run api.go &
 
+      - name: Install python dependencies
+        working-directory: ./
+        run: |
+          python3 -m pip install build pytest
+          rm ./client/dist/*
+          python3 -m build ./client/
+          python3 -m pip install client/dist/*
+
       - name: Testing
         env:
           API_ADDRESS: "localhost:7878"

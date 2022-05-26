@@ -12,7 +12,7 @@ import (
 	"testing"
 )
 
-func NewMockKubernetesRunner(config KubernetesRunnerConfig) (Runner, error) {
+func NewMockKubernetesRunner(config KubernetesRunnerConfig) (CronRunner, error) {
 	jobSpec := newJobSpec(config)
 	jobName := uuid.New().String()
 	namespace := "default"
@@ -42,6 +42,15 @@ func (m MockJobClient) Watch() (watch.Interface, error) {
 func (m MockJobClient) Create(jobSpec *batchv1.JobSpec) (*batchv1.Job, error) {
 	return &batchv1.Job{}, nil
 }
+
+func (m MockJobClient) SetJobSchedule(schedule CronSchedule, jobSpec *batchv1.JobSpec) error {
+	return nil
+}
+
+func (m MockJobClient) GetJobSchedule(jobName string) (CronSchedule, error) {
+	return CronSchedule("* * * * *"), nil
+}
+
 func TestKubernetesRunnerCreate(t *testing.T) {
 	runner, err := NewMockKubernetesRunner(KubernetesRunnerConfig{EnvVars: map[string]string{"test": "envVar"}, Image: "test", NumTasks: 1})
 	if err != nil {
@@ -77,6 +86,14 @@ func (m MockJobClientBroken) Watch() (watch.Interface, error) {
 	return nil, errors.New("cannot get watcher")
 }
 
+func (m MockJobClientBroken) SetJobSchedule(schedule CronSchedule, jobSpec *batchv1.JobSpec) error {
+	return errors.New("cannot schedule job")
+}
+
+func (m MockJobClientBroken) GetJobSchedule(jobName string) (CronSchedule, error) {
+	return CronSchedule(""), errors.New("cannot get job schedule")
+}
+
 func TestJobClientCreateFail(t *testing.T) {
 	runner := KubernetesRunner{
 		jobClient: MockJobClientBroken{},
@@ -101,6 +118,13 @@ func (m MockJobClientRunBroken) Watch() (watch.Interface, error) {
 	return nil, errors.New("cannot get watcher")
 }
 
+func (m MockJobClientRunBroken) SetJobSchedule(schedule CronSchedule, jobSpec *batchv1.JobSpec) error {
+	return errors.New("cannot set job schedule")
+}
+
+func (m MockJobClientRunBroken) GetJobSchedule(jobName string) (CronSchedule, error) {
+	return CronSchedule(""), errors.New("cannot get job schedule")
+}
 func TestJobClientRunFail(t *testing.T) {
 	runner := KubernetesRunner{
 		jobClient: MockJobClientRunBroken{},
@@ -147,6 +171,14 @@ func (m MockJobClientFailChannel) Watch() (watch.Interface, error) {
 	return MockWatch{}, nil
 }
 
+func (m MockJobClientFailChannel) SetJobSchedule(schedule CronSchedule, jobSpec *batchv1.JobSpec) error {
+	return nil
+}
+
+func (m MockJobClientFailChannel) GetJobSchedule(jobName string) (CronSchedule, error) {
+	return CronSchedule(""), nil
+}
+
 func TestPodFailure(t *testing.T) {
 	runner := KubernetesRunner{
 		jobClient: MockJobClientFailChannel{},
@@ -166,4 +198,117 @@ func TestPodFailure(t *testing.T) {
 		t.Fatalf("Failed to read failure job on Err()")
 	}
 	completionWatcher.String()
+}
+
+func TestKubernetesRunnerSchedule(t *testing.T) {
+	runner, err := NewMockKubernetesRunner(KubernetesRunnerConfig{EnvVars: map[string]string{"test": "envVar"}, Image: "test", NumTasks: 1})
+	if err != nil {
+		t.Fatalf("Failed to create Kubernetes runner")
+	}
+	schedule := CronSchedule("* * * * *")
+	if err = runner.ScheduleJob(schedule); err != nil {
+		t.Fatalf("Failed to schedule kubernetes job")
+	}
+}
+
+func TestKubernetesRunnerScheduleFail(t *testing.T) {
+	runner := KubernetesRunner{
+		jobClient: MockJobClientBroken{},
+		jobSpec:   &batchv1.JobSpec{},
+	}
+	schedule := CronSchedule("* * * * *")
+	if err := runner.ScheduleJob(schedule); err == nil {
+		t.Fatalf("Failed to report error scheduling Kubernetes job")
+	}
+}
+
+func TestMonthlySchedule(t *testing.T) {
+	schedule, err := MonthlySchedule(1, 2, 3)
+	if err != nil {
+		t.Fatalf("triggered error on proper cron job parameters")
+	}
+	if *schedule != CronSchedule("1 2 3 * *") {
+		t.Fatalf("Failed to create proper monthly cron schedule")
+	}
+	if _, err := MonthlySchedule(99, 99, 99); err == nil {
+		t.Fatalf("Failed to trigger error on invalid monthly schedule")
+	}
+}
+
+func TestWeeklySchedule(t *testing.T) {
+	schedule, err := WeeklySchedule(1, 2, 3)
+	if err != nil {
+		t.Fatalf("triggered error on proper cron job parameters")
+	}
+	if *schedule != CronSchedule("1 2 * * 3") {
+		t.Fatalf("Failed to create proper weekly cron schedule")
+	}
+	if _, err := WeeklySchedule(99, 99, 99); err == nil {
+		t.Fatalf("Failed to trigger error on invalid weekly schedule")
+	}
+}
+
+func TestDailySchedule(t *testing.T) {
+	schedule, err := DailySchedule(1, 2)
+	if err != nil {
+		t.Fatalf("triggered error on proper cron job parameters")
+	}
+	if *schedule != CronSchedule("1 2 * * *") {
+		t.Fatalf("Failed to create proper daily cron schedule")
+	}
+	if _, err := DailySchedule(99, 99); err == nil {
+		t.Fatalf("Failed to trigger error on invalid daily schedule")
+	}
+}
+
+func TestHourlySchedule(t *testing.T) {
+	schedule, err := HourlySchedule(1)
+	if err != nil {
+		t.Fatalf("triggered error on proper cron job parameters")
+	}
+	if *schedule != CronSchedule("1 * * * *") {
+		t.Fatalf("Failed to create proper hourly cron schedule")
+	}
+	if _, err := HourlySchedule(99); err == nil {
+		t.Fatalf("Failed to trigger error on invalid hourly schedule")
+	}
+}
+
+func TestEveryNMinutes(t *testing.T) {
+	schedule, err := EveryNMinutes(1)
+	if err != nil {
+		t.Fatalf("triggered error on proper cron job parameters")
+	}
+	if *schedule != CronSchedule("*/1 * * * *") {
+		t.Fatalf("Failed to create proper every n minutes cron schedule")
+	}
+	if _, err := EveryNMinutes(99); err == nil {
+		t.Fatalf("Failed to trigger error on invalid every n minutes schedule")
+	}
+}
+
+func TestEveryNHours(t *testing.T) {
+	schedule, err := EveryNHours(1)
+	if err != nil {
+		t.Fatalf("triggered error on proper cron job parameters")
+	}
+	if *schedule != CronSchedule("* */1 * * *") {
+		t.Fatalf("Failed to create proper every n minutes cron schedule")
+	}
+	if _, err := EveryNHours(99); err == nil {
+		t.Fatalf("Failed to trigger error on invalid every n hours schedule")
+	}
+}
+
+func TestEveryNDays(t *testing.T) {
+	schedule, err := EveryNDays(1)
+	if err != nil {
+		t.Fatalf("triggered error on proper cron job parameters")
+	}
+	if *schedule != CronSchedule("* * */1 * *") {
+		t.Fatalf("Failed to create proper every n minutes cron schedule")
+	}
+	if _, err := EveryNDays(99); err == nil {
+		t.Fatalf("Failed to trigger error on invalid every n days schedule")
+	}
 }

@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/google/uuid"
+	"github.com/gorhill/cronexpr"
 	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -17,6 +18,54 @@ import (
 )
 
 var namespace string = "default"
+
+type CronSchedule string
+
+func makeCronSchedule(schedule string) (*CronSchedule, error) {
+	if _, err := cronexpr.Parse(schedule); err != nil {
+		return nil, fmt.Errorf("invalid cron expression: %v", err)
+	}
+	cronSchedule := CronSchedule(schedule)
+	return &cronSchedule, nil
+}
+
+func MonthlySchedule(day, minute, hour int) (*CronSchedule, error) {
+	return makeCronSchedule(fmt.Sprintf("%d %d %d * *", day, minute, hour))
+}
+
+func WeeklySchedule(weekday, hour, minute int) (*CronSchedule, error) {
+	return makeCronSchedule(fmt.Sprintf("%d %d * * %d", weekday, hour, minute))
+}
+
+func DailySchedule(hour, minute int) (*CronSchedule, error) {
+	return makeCronSchedule(fmt.Sprintf("%d %d * * *", hour, minute))
+}
+
+func HourlySchedule(minute int) (*CronSchedule, error) {
+	return makeCronSchedule(fmt.Sprintf("%d * * * *", minute))
+}
+
+func EveryNMinutes(minutes int) (*CronSchedule, error) {
+	return makeCronSchedule(fmt.Sprintf("*/%d * * * *", minutes))
+}
+
+func EveryNHours(hours int) (*CronSchedule, error) {
+	return makeCronSchedule(fmt.Sprintf("* */%d * * *", hours))
+}
+
+func EveryNDays(days int) (*CronSchedule, error) {
+	return makeCronSchedule(fmt.Sprintf("* * */%d * *", days))
+
+}
+
+func EveryNMonths(months int) (*CronSchedule, error) {
+	return makeCronSchedule(fmt.Sprintf("* * * */%d *", months))
+}
+
+type CronRunner interface {
+	Runner
+	ScheduleJob(schedule CronSchedule) error
+}
 
 func generateKubernetesEnvVars(envVars map[string]string) []v1.EnvVar {
 	kubeEnvVars := make([]v1.EnvVar, len(envVars))
@@ -62,6 +111,8 @@ type JobClient interface {
 	Get() (*batchv1.Job, error)
 	Watch() (watch.Interface, error)
 	Create(jobSpec *batchv1.JobSpec) (*batchv1.Job, error)
+	SetJobSchedule(schedule CronSchedule, jobSpec *batchv1.JobSpec) error
+	GetJobSchedule(jobName string) (CronSchedule, error)
 }
 
 type KubernetesRunner struct {
@@ -125,7 +176,14 @@ func (k KubernetesRunner) Run() (CompletionWatcher, error) {
 	return KubernetesCompletionWatcher{jobClient: k.jobClient}, nil
 }
 
-func NewKubernetesRunner(config KubernetesRunnerConfig) (Runner, error) {
+func (k KubernetesRunner) ScheduleJob(schedule CronSchedule) error {
+	if err := k.jobClient.SetJobSchedule(schedule, k.jobSpec); err != nil {
+		return err
+	}
+	return nil
+}
+
+func NewKubernetesRunner(config KubernetesRunnerConfig) (CronRunner, error) {
 	jobSpec := newJobSpec(config)
 	jobName := uuid.New().String()
 	jobClient, err := NewKubernetesJobClient(jobName, namespace)
@@ -155,6 +213,33 @@ func (k KubernetesJobClient) Watch() (watch.Interface, error) {
 func (k KubernetesJobClient) Create(jobSpec *batchv1.JobSpec) (*batchv1.Job, error) {
 	job := &batchv1.Job{ObjectMeta: metav1.ObjectMeta{Name: k.JobName, Namespace: k.Namespace}, Spec: *jobSpec}
 	return k.Clientset.BatchV1().Jobs(k.Namespace).Create(context.TODO(), job, metav1.CreateOptions{})
+}
+
+func (k KubernetesJobClient) SetJobSchedule(schedule CronSchedule, jobSpec *batchv1.JobSpec) error {
+	cronJob := &batchv1.CronJob{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      k.JobName,
+			Namespace: k.Namespace},
+		Spec: batchv1.CronJobSpec{
+			Schedule: string(schedule),
+			JobTemplate: batchv1.JobTemplateSpec{
+				Spec: *jobSpec,
+			},
+		},
+	}
+	if _, err := k.Clientset.BatchV1().CronJobs(k.Namespace).Create(context.TODO(), cronJob, metav1.CreateOptions{}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (k KubernetesJobClient) GetJobSchedule(jobName string) (CronSchedule, error) {
+
+	job, err := k.Clientset.BatchV1().CronJobs(k.Namespace).Get(context.TODO(), jobName, metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+	return CronSchedule(job.Spec.Schedule), nil
 }
 
 func NewKubernetesJobClient(name string, namespace string) (*KubernetesJobClient, error) {

@@ -48,6 +48,7 @@ const PrometheusGraph = ({
   name,
   query_type,
   add_labels,
+  remote,
 }) => {
   let max = 1000;
   if (query.includes("error")) {
@@ -76,7 +77,7 @@ const PrometheusGraph = ({
         .then((response) => response["data"])
         .catch((err) => console.error(err));
     },
-    [query, add_labels_string]
+    [query, add_labels_string, remote]
   );
   useEffect(() => {
     var myChart = new Chart(chartRef.current, {

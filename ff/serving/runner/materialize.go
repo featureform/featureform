@@ -149,10 +149,6 @@ func (m MaterializeRunner) Run() (CompletionWatcher, error) {
 			materializeWatcher.EndWatch(err)
 			return
 		}
-		if err := m.Offline.DeleteMaterialization(materialization.ID()); err != nil {
-			materializeWatcher.EndWatch(err)
-			return
-		}
 		materializeWatcher.EndWatch(nil)
 	}()
 	return materializeWatcher, nil

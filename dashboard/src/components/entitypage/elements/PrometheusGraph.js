@@ -17,28 +17,6 @@ const minutesToMilliseconds = (minutes) => {
   return parseInt(minutes * 60 * 1000);
 };
 
-const sample_query_data = `{
-  "resultType" : "matrix",
-  "result" : [
-
-     {
-        "metric" : {
-           "__name__" : "up",
-           "job" : "node",
-           "instance" : "localhost:9091"
-        },
-        "values" : [
-          [ 1435781385.781, "0" ],
-          [ 1435781400.781, "0" ],
-          [ 1435781415.781, "0" ],
-           [ 1435781430.781, "0" ],
-           [ 1435781445.781, "0" ],
-           [ 1435781460.781, "0" ]
-        ]
-     }
-  ]
-}`;
-
 const PrometheusGraph = ({
   query,
   time,

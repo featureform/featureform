@@ -119,7 +119,8 @@ const useStyles = makeStyles((theme) => ({
     alignSelf: "flex-end",
   },
   syntax: {
-    width: "50%",
+    width: "200px + 50%",
+    minWidth: "200px",
     paddingLeft: theme.spacing(2),
   },
   resourceList: {
@@ -205,7 +206,6 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
   let resourceType = Resource[entity.resources.type];
   let type = resourceType.type;
   const showMetrics = resourceType.hasMetrics;
-  const singleVariant = !resourceType.hasVariants;
   const showStats = false;
   const dataTabDisplacement = (1 ? showMetrics : 0) + (1 ? showStats : 0);
   const statsTabDisplacement = showMetrics ? 1 : 0;

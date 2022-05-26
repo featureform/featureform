@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 import PropTypes from "prop-types";
 import { makeStyles } from "@material-ui/core/styles";
 import Typography from "@material-ui/core/Typography";
@@ -74,16 +74,6 @@ const searchTypeMap = {
 const SearchResultsView = ({ results, search_query, setVariant }) => {
   const classes = useStyles();
 
-  const [value, setValue] = React.useState(0);
-
-  const handleChange = (event, newValue) => {
-    setValue(newValue);
-  };
-
-  useEffect(() => {
-    setValue(0);
-  }, [search_query]);
-
   return (
     <div>
       <Container maxWidth="xl" className={classes.root}>
@@ -108,7 +98,6 @@ const SearchResultsView = ({ results, search_query, setVariant }) => {
 
 const SearchResultsList = ({ type, contents, setVariant }) => {
   const classes = useStyles();
-
   let filteredContents = contents.filter(
     (content) => searchTypeMap[content.Type]
   );
@@ -124,8 +113,9 @@ const SearchResultsList = ({ type, contents, setVariant }) => {
   return (
     <div>
       <List className={classes.root} component="nav">
-        {moreFilteredContents.map((content) => (
+        {moreFilteredContents.map((content, i) => (
           <SearchResultsItem
+            key={i}
             type={type}
             content={content}
             setVariant={setVariant}

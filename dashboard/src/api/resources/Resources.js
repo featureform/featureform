@@ -33,11 +33,11 @@ export const testData = [
 ];
 
 export const providerLogos = Object.freeze({
-  Redis: "/Redis_Logo.svg",
-  BigQuery: "/google_bigquery-ar21.svg",
-  "Apache Spark": "/Apache_Spark_logo.svg",
-  PostgreSQL: "Postgresql_elephant.svg",
-  Snowflake: "Snowflake_Logo.svg",
+  REDIS: "/Redis_Logo.svg",
+  BIGQUERY: "/google_bigquery-ar21.svg",
+  "APACHE SPARK": "/Apache_Spark_logo.svg",
+  POSTGRESQL: "Postgresql_elephant.svg",
+  SNOWFLAKE: "Snowflake_Logo.svg",
 });
 
 //var API_URL = "http:localhost:8080";
@@ -101,7 +101,6 @@ export default class ResourcesAPI {
     if (process.env.REACT_APP_EMPTY_RESOURCE_VIEW === "true") {
       fetchAddress = "/data/lists/wine-data-empty.json";
     }
-    console.log(fetchAddress);
     return fetch(fetchAddress, {
       headers: {
         "Content-Type": "application/json",

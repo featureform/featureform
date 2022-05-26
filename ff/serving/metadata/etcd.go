@@ -119,9 +119,6 @@ func (s EtcdStorage) genericGet(key string, withPrefix bool) (*clientv3.GetRespo
 	if err != nil {
 		return nil, err
 	}
-	if resp.Count == 0 {
-		return nil, fmt.Errorf("no keys found")
-	}
 	return resp, nil
 }
 
@@ -130,6 +127,9 @@ func (s EtcdStorage) Get(key string) ([]byte, error) {
 	resp, err := s.genericGet(key, false)
 	if err != nil {
 		return nil, err
+	}
+	if len(resp.Kvs) == 0 {
+		return []byte{}, nil
 	}
 	return resp.Kvs[0].Value, nil
 }

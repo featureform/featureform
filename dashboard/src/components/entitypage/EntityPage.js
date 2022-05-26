@@ -50,7 +50,7 @@ const EntityPage = ({ api, entityPage, activeVariants, ...props }) => {
 
   useEffect(() => {
     fetchEntity(api, type, entity);
-  }, [type, entity, api, fetchEntity]);
+  }, [type, entity]);
 
   return (
     <div>

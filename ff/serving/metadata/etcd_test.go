@@ -703,7 +703,7 @@ func TestEtcdConfig_Get(t *testing.T) {
 		wantErr bool
 	}{
 		{"Test Invalid Server", fields{"localhost", ""}, args{key: ""}, nil, true},
-		{"Test Invalid Key", fields{"localhost", "2379"}, args{key: "testkey"}, nil, true},
+		{"Test Invalid Key", fields{"localhost", "2379"}, args{key: "testkey"}, []byte{}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

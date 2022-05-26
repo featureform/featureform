@@ -101,13 +101,13 @@ const resourceSlice = createSlice({
         return;
       }
 
-      let hasRequired = false;
+      let hasRequired = true;
       if (action.payload.length > 0) {
+        hasRequired = false;
         const resourceType = action.payload[0].type;
         const hasVariants = resourceType.hasVariants;
         hasRequired = isValidResponse(action.payload, hasVariants);
       }
-
       if (hasRequired) {
         state[type].resources = action.payload;
         state[type].loading = false;

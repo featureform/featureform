@@ -1088,7 +1088,7 @@ func (stringer protoStringer) String() string {
 }
 
 type createdGetter interface {
-	GetCreated() timestamppb.Timestamp
+	GetCreated() *timestamppb.Timestamp
 }
 
 type createdFn struct {
@@ -1097,9 +1097,6 @@ type createdFn struct {
 
 func (fn createdFn) Created() time.Time {
 	t := fn.getter.GetCreated().AsTime()
-	if err != nil {
-		panic(err)
-	}
 	return t
 }
 

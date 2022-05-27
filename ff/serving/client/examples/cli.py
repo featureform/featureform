@@ -1,6 +1,7 @@
 # Run in command line with:
 # python3 -m featureform examples/cli.py -host <hostname:port>
-from featureform import register as ff
+import featureform as ff
+
 
 user = ff.register_user("test")
 user.make_default_owner()

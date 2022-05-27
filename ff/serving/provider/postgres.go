@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 	"strings"
 	"time"
@@ -76,31 +75,27 @@ func (q postgresSQLQueries) tableExists() string {
 	return "SELECT COUNT(*) FROM pg_tables WHERE  tablename  = $1"
 }
 
+func (q postgresSQLQueries) viewExists() string {
+	return "select count(*) from pg_views where viewname = $1"
+}
+
 func (q postgresSQLQueries) registerResources(db *sql.DB, tableName string, schema ResourceSchema, timestamp bool) error {
 	var query string
 	if timestamp {
-		query = fmt.Sprintf("CREATE TABLE %s AS SELECT %s as entity, %s as value, %s as ts FROM %s; ALTER TABLE %s ADD CONSTRAINT  %s  UNIQUE (entity, ts)", sanitize(tableName),
-			sanitize(schema.Entity), sanitize(schema.Value), sanitize(schema.TS), sanitize(schema.SourceTable), sanitize(tableName), sanitize(uuid.NewString()))
+		query = fmt.Sprintf("CREATE VIEW %s AS SELECT %s as entity, %s as value, %s as ts FROM %s", sanitize(tableName),
+			sanitize(schema.Entity), sanitize(schema.Value), sanitize(schema.TS), sanitize(schema.SourceTable))
 	} else {
-		query = fmt.Sprintf("CREATE TABLE %s AS SELECT %s as entity, %s as value, null::TIMESTAMPTZ as ts FROM %s; ALTER TABLE %s ADD CONSTRAINT  %s  UNIQUE (entity, ts)", sanitize(tableName),
-			sanitize(schema.Entity), sanitize(schema.Value), sanitize(schema.SourceTable), sanitize(tableName), sanitize(uuid.NewString()))
+		query = fmt.Sprintf("CREATE VIEW %s AS SELECT %s as entity, %s as value, to_timestamp('%s', 'YYYY-DD-MM HH24:MI:SS +0000 UTC')::TIMESTAMPTZ as ts FROM %s", sanitize(tableName),
+			sanitize(schema.Entity), sanitize(schema.Value), time.UnixMilli(0).UTC(), sanitize(schema.SourceTable))
 	}
-
 	if _, err := db.Exec(query); err != nil {
 		return err
-	}
-	if !timestamp {
-		// Populates empty column with timestamp
-		update := fmt.Sprintf("UPDATE %s SET ts = $1", sanitize(tableName))
-		if _, err := db.Exec(update, time.UnixMilli(0).UTC()); err != nil {
-			return err
-		}
 	}
 	return nil
 }
 
 func (q postgresSQLQueries) primaryTableRegister(tableName string, sourceName string) string {
-	return fmt.Sprintf("CREATE TABLE %s AS SELECT * FROM %s", sanitize(tableName), sanitize(sourceName))
+	return fmt.Sprintf("CREATE VIEW %s AS SELECT * FROM %s", sanitize(tableName), sanitize(sourceName))
 }
 
 func (q postgresSQLQueries) materializationCreate(tableName string, resultName string) string {
@@ -160,7 +155,6 @@ func (q postgresSQLQueries) trainingSetCreate(store *sqlOfflineStore, def Traini
 	}
 	columnStr := strings.Join(columns, ", ")
 	fullQuery := fmt.Sprintf("CREATE TABLE %s AS (SELECT %s, l.value as label FROM %s ", sanitize(tableName), columnStr, query)
-
 	if _, err := store.db.Exec(fullQuery); err != nil {
 		return err
 	}

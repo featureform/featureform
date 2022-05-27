@@ -17,7 +17,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
-	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
+	tspb "google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type NameVariant struct {
@@ -94,7 +94,7 @@ func (client *Client) SetUpdateStatus(ctx context.Context, resID ResourceID, sch
 	nameVariant := pb.NameVariant{Name: resID.Name, Variant: resID.Variant}
 	resourceID := pb.ResourceID{Resource: &nameVariant, ResourceType: resID.Type.Serialized()}
 	resourceStatus := pb.ResourceStatus{Status: pb.ResourceStatus_Status(status), ErrorMessage: errorMessage}
-	pbTimestamp := timestamppb.New(timestamp)
+	pbTimestamp := tspb.New(timestamp)
 	pbSchedule := pb.Schedule{Schedule: schedule}
 	updateStatus := pb.UpdateStatus{LastUpdated: pbTimestamp, Schedule: &pbSchedule, UpdateStatus: &resourceStatus}
 	statusRequest := pb.SetUpdateStatusRequest{ResourceId: &resourceID, Status: &updateStatus}
@@ -1088,7 +1088,7 @@ func (stringer protoStringer) String() string {
 }
 
 type createdGetter interface {
-	GetCreated() *timestamppb.Timestamp
+	GetCreated() *tspb.Timestamp
 }
 
 type createdFn struct {

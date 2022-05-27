@@ -18,7 +18,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
-	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
+	tspb "google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const TIME_FORMAT = time.RFC1123
@@ -319,7 +319,7 @@ func (resource *sourceResource) UpdateStatus(status pb.ResourceStatus) error {
 }
 
 func (resource *sourceResource) SetUpdateStatus(status pb.UpdateStatus) error {
-	return nil
+	return fmt.Errorf("not implemented")
 }
 
 type sourceVariantResource struct {
@@ -422,7 +422,7 @@ func (resource *featureResource) UpdateStatus(status pb.ResourceStatus) error {
 }
 
 func (resource *featureResource) SetUpdateStatus(status pb.UpdateStatus) error {
-	return nil
+	return fmt.Errorf("not implemented")
 }
 
 type featureVariantResource struct {
@@ -529,7 +529,7 @@ func (resource *labelResource) UpdateStatus(status pb.ResourceStatus) error {
 }
 
 func (resource *labelResource) SetUpdateStatus(status pb.UpdateStatus) error {
-	return nil
+	return fmt.Errorf("not implemented")
 }
 
 type labelVariantResource struct {
@@ -636,7 +636,7 @@ func (resource *trainingSetResource) UpdateStatus(status pb.ResourceStatus) erro
 }
 
 func (resource *trainingSetResource) SetUpdateStatus(status pb.UpdateStatus) error {
-	return nil
+	return fmt.Errorf("not implemented")
 }
 
 type trainingSetVariantResource struct {
@@ -760,7 +760,7 @@ func (resource *modelResource) UpdateStatus(status pb.ResourceStatus) error {
 }
 
 func (resource *modelResource) SetUpdateStatus(status pb.UpdateStatus) error {
-	return nil
+	return fmt.Errorf("not implemented")
 }
 
 type userResource struct {
@@ -811,7 +811,7 @@ func (resource *userResource) UpdateStatus(status pb.ResourceStatus) error {
 }
 
 func (resource *userResource) SetUpdateStatus(status pb.UpdateStatus) error {
-	return nil
+	return fmt.Errorf("not implemented")
 }
 
 type providerResource struct {
@@ -862,7 +862,7 @@ func (resource *providerResource) UpdateStatus(status pb.ResourceStatus) error {
 }
 
 func (resource *providerResource) SetUpdateStatus(status pb.UpdateStatus) error {
-	return nil
+	return fmt.Errorf("not implemented")
 }
 
 type entityResource struct {
@@ -906,7 +906,7 @@ func (resource *entityResource) UpdateStatus(status pb.ResourceStatus) error {
 }
 
 func (resource *entityResource) SetUpdateStatus(status pb.UpdateStatus) error {
-	return nil
+	return fmt.Errorf("not implemented")
 }
 
 type MetadataServer struct {
@@ -1044,7 +1044,7 @@ func (serv *MetadataServer) ListFeatures(_ *pb.Empty, stream pb.Metadata_ListFea
 }
 
 func (serv *MetadataServer) CreateFeatureVariant(ctx context.Context, variant *pb.FeatureVariant) (*pb.Empty, error) {
-	variant.Created = timestamppb.New(time.Now())
+	variant.Created = tspb.New(time.Now())
 	return serv.genericCreate(ctx, &featureVariantResource{variant}, func(name, variant string) Resource {
 		return &featureResource{
 			&pb.Feature{
@@ -1076,7 +1076,7 @@ func (serv *MetadataServer) ListLabels(_ *pb.Empty, stream pb.Metadata_ListLabel
 }
 
 func (serv *MetadataServer) CreateLabelVariant(ctx context.Context, variant *pb.LabelVariant) (*pb.Empty, error) {
-	variant.Created = timestamppb.New(time.Now())
+	variant.Created = tspb.New(time.Now())
 	return serv.genericCreate(ctx, &labelVariantResource{variant}, func(name, variant string) Resource {
 		return &labelResource{
 			&pb.Label{
@@ -1108,7 +1108,7 @@ func (serv *MetadataServer) ListTrainingSets(_ *pb.Empty, stream pb.Metadata_Lis
 }
 
 func (serv *MetadataServer) CreateTrainingSetVariant(ctx context.Context, variant *pb.TrainingSetVariant) (*pb.Empty, error) {
-	variant.Created = timestamppb.New(time.Now())
+	variant.Created = tspb.New(time.Now())
 	return serv.genericCreate(ctx, &trainingSetVariantResource{variant}, func(name, variant string) Resource {
 		return &trainingSetResource{
 			&pb.TrainingSet{
@@ -1140,7 +1140,7 @@ func (serv *MetadataServer) ListSources(_ *pb.Empty, stream pb.Metadata_ListSour
 }
 
 func (serv *MetadataServer) CreateSourceVariant(ctx context.Context, variant *pb.SourceVariant) (*pb.Empty, error) {
-	variant.Created = timestamppb.New(time.Now())
+	variant.Created = tspb.New(time.Now())
 	return serv.genericCreate(ctx, &sourceVariantResource{variant}, func(name, variant string) Resource {
 		return &sourceResource{
 			&pb.Source{

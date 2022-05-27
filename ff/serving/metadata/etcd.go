@@ -114,7 +114,7 @@ func (config EtcdConfig) MakeAddresses() []string {
 
 //Uses Storage Type as prefix so Resources and Jobs can be queried more easily
 func createKey(id ResourceID) string {
-	return fmt.Sprintf("%s_%s_%s", id.Type, id.Name, id.Variant)
+	return fmt.Sprintf("%s__%s__%s", id.Type, id.Name, id.Variant)
 }
 
 //Puts K/V into ETCD
@@ -313,11 +313,11 @@ func (lookup etcdResourceLookup) Has(id ResourceID) (bool, error) {
 }
 
 func GetJobKey(id ResourceID) string {
-	return fmt.Sprintf("JOB_%s_%s_%s", id.Type, id.Name, id.Variant)
+	return fmt.Sprintf("JOB__%s__%s__%s", id.Type, id.Name, id.Variant)
 }
 
 func GetScheduleJobKey(id ResourceID) string {
-	return fmt.Sprintf("SCHEDULEJOB_%s_%s_%s", id.Type, id.Name, id.Variant)
+	return fmt.Sprintf("SCHEDULEJOB__%s__%s__%s", id.Type, id.Name, id.Variant)
 }
 
 func (lookup etcdResourceLookup) HasJob(id ResourceID) (bool, error) {

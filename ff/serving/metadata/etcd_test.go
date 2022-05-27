@@ -11,7 +11,7 @@ import (
 	pb "github.com/featureform/serving/metadata/proto"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/protobuf/proto"
-	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
+	tspb "google.golang.org/protobuf/types/known/tspb"
 	"log"
 	"reflect"
 	"testing"
@@ -64,7 +64,7 @@ func Test_etcdResourceLookup_Set(t *testing.T) {
 		&featureVariantResource{&pb.FeatureVariant{
 			Name:    "featureVariantResource",
 			Type:    FEATURE_VARIANT.String(),
-			Created: timestamppb.Now(),
+			Created: tspb.Now(),
 		}},
 	}
 	tests := []struct {
@@ -134,7 +134,7 @@ func Test_etcdResourceLookup_Lookup(t *testing.T) {
 	doWant := &featureVariantResource{&pb.FeatureVariant{
 		Name:    "featureVariant",
 		Type:    FEATURE_VARIANT.String(),
-		Created: timestamppb.Now(),
+		Created: tspb.Now(),
 	}}
 
 	args1 := ResourceID{Name: "test2", Type: FEATURE}
@@ -220,7 +220,7 @@ func Test_etcdResourceLookup_Has(t *testing.T) {
 	doWant := &featureVariantResource{&pb.FeatureVariant{
 		Name:    "resource1",
 		Type:    FEATURE_VARIANT.String(),
-		Created: timestamppb.Now(),
+		Created: tspb.Now(),
 	}}
 	args1 := args{
 		ResourceID{
@@ -312,15 +312,15 @@ func Test_etcdResourceLookup_ListForType(t *testing.T) {
 	featureResources := []Resource{
 		&featureVariantResource{&pb.FeatureVariant{
 			Name:    "feature1",
-			Created: timestamppb.Now(),
+			Created: tspb.Now(),
 		}},
 		&featureVariantResource{&pb.FeatureVariant{
 			Name:    "feature2",
-			Created: timestamppb.Now(),
+			Created: tspb.Now(),
 		}},
 		&featureVariantResource{&pb.FeatureVariant{
 			Name:    "feature3",
-			Created: timestamppb.Now(),
+			Created: tspb.Now(),
 		}},
 	}
 
@@ -406,15 +406,15 @@ func Test_etcdResourceLookup_List(t *testing.T) {
 	featureResources := []Resource{
 		&featureVariantResource{&pb.FeatureVariant{
 			Name:    "feature1",
-			Created: timestamppb.Now(),
+			Created: tspb.Now(),
 		}},
 		&featureVariantResource{&pb.FeatureVariant{
 			Name:    "feature2",
-			Created: timestamppb.Now(),
+			Created: tspb.Now(),
 		}},
 		&featureVariantResource{&pb.FeatureVariant{
 			Name:    "feature3",
-			Created: timestamppb.Now(),
+			Created: tspb.Now(),
 		}},
 	}
 
@@ -501,15 +501,15 @@ func Test_etcdResourceLookup_Submap(t *testing.T) {
 	featureResources := []Resource{
 		&featureVariantResource{&pb.FeatureVariant{
 			Name:    "feature1",
-			Created: timestamppb.Now(),
+			Created: tspb.Now(),
 		}},
 		&featureVariantResource{&pb.FeatureVariant{
 			Name:    "feature2",
-			Created: timestamppb.Now(),
+			Created: tspb.Now(),
 		}},
 		&featureVariantResource{&pb.FeatureVariant{
 			Name:    "feature3",
-			Created: timestamppb.Now(),
+			Created: tspb.Now(),
 		}}}
 
 	resources := localResourceLookup{
@@ -880,8 +880,8 @@ func TestCoordinatorScheduleJobSerialize(t *testing.T) {
 
 func TestGetJobKeys(t *testing.T) {
 	resID := ResourceID{Name: "test", Variant: "foo", Type: FEATURE}
-	expectedJobKey := "JOB_FEATURE_test_foo"
-	expectedScheduleJobKey := "SCHEDULEJOB_FEATURE_test_foo"
+	expectedJobKey := "JOB__FEATURE__test__foo"
+	expectedScheduleJobKey := "SCHEDULEJOB__FEATURE__test__foo"
 	jobKey := GetJobKey(resID)
 	scheduleJobKey := GetScheduleJobKey(resID)
 	if jobKey != expectedJobKey {

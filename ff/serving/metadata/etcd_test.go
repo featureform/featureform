@@ -11,7 +11,7 @@ import (
 	pb "github.com/featureform/serving/metadata/proto"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/protobuf/proto"
-	tspb "google.golang.org/protobuf/types/known/tspb"
+	tspb "google.golang.org/protobuf/types/known/timestamppb"
 	"log"
 	"reflect"
 	"testing"

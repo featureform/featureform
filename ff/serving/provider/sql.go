@@ -1081,12 +1081,14 @@ func (q *defaultOfflineSQLQueries) setVariableBinding(b variableBindingStyle) {
 	q.BindingStyle = b
 }
 
+const genericExists = `SELECT COUNT(*) FROM information_schema.tables WHERE table_name = ?`
+
 func (q defaultOfflineSQLQueries) tableExists() string {
-	return `SELECT COUNT(*) FROM information_schema.tables WHERE table_name = ?`
+	return genericExists
 }
 
 func (q defaultOfflineSQLQueries) viewExists() string {
-	return `SELECT COUNT(*) FROM information_schema.tables WHERE table_name = ?`
+	return genericExists
 }
 
 func (q defaultOfflineSQLQueries) registerResources(db *sql.DB, tableName string, schema ResourceSchema, timestamp bool) error {

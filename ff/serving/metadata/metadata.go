@@ -377,8 +377,8 @@ func (this *sourceVariantResource) Notify(lookup ResourceLookup, op operation, t
 	return nil
 }
 
-func (resource *sourceVariantResource) UpdateStatus(status pb.UpdateStatus) error {
-	resource.serialized.Status = &status
+func (resource *sourceVariantResource) SetUpdateStatus(status pb.UpdateStatus) error {
+	resource.serialized.UpdateStatus = &status
 	return nil
 }
 
@@ -413,6 +413,10 @@ func (this *featureResource) Notify(lookup ResourceLookup, op operation, that Re
 
 func (resource *featureResource) UpdateStatus(status pb.ResourceStatus) error {
 	resource.serialized.Status = &status
+	return nil
+}
+
+func (resource *featureResource) SetUpdateStatus(status pb.UpdateStatus) error {
 	return nil
 }
 
@@ -480,6 +484,11 @@ func (resource *featureVariantResource) UpdateStatus(status pb.ResourceStatus) e
 	return nil
 }
 
+func (resource *featureVariantResource) SetUpdateStatus(status pb.UpdateStatus) error {
+	resource.serialized.UpdateStatus = &status
+	return nil
+}
+
 type labelResource struct {
 	serialized *pb.Label
 }
@@ -511,6 +520,10 @@ func (this *labelResource) Notify(lookup ResourceLookup, op operation, that Reso
 
 func (resource *labelResource) UpdateStatus(status pb.ResourceStatus) error {
 	resource.serialized.Status = &status
+	return nil
+}
+
+func (resource *labelResource) SetUpdateStatus(status pb.UpdateStatus) error {
 	return nil
 }
 
@@ -578,6 +591,11 @@ func (resource *labelVariantResource) UpdateStatus(status pb.ResourceStatus) err
 	return nil
 }
 
+func (resource *labelVariantResource) SetUpdateStatus(status pb.UpdateStatus) error {
+	resource.serialized.UpdateStatus = &status
+	return nil
+}
+
 type trainingSetResource struct {
 	serialized *pb.TrainingSet
 }
@@ -609,6 +627,10 @@ func (this *trainingSetResource) Notify(lookup ResourceLookup, op operation, tha
 
 func (resource *trainingSetResource) UpdateStatus(status pb.ResourceStatus) error {
 	resource.serialized.Status = &status
+	return nil
+}
+
+func (resource *trainingSetResource) SetUpdateStatus(status pb.UpdateStatus) error {
 	return nil
 }
 
@@ -672,6 +694,11 @@ func (resource *trainingSetVariantResource) UpdateStatus(status pb.ResourceStatu
 	return nil
 }
 
+func (resource *trainingSetVariantResource) SetUpdateStatus(status pb.UpdateStatus) error {
+	resource.serialized.UpdateStatus = &status
+	return nil
+}
+
 type modelResource struct {
 	serialized *pb.Model
 }
@@ -727,6 +754,10 @@ func (resource *modelResource) UpdateStatus(status pb.ResourceStatus) error {
 	return nil
 }
 
+func (resource *modelResource) SetUpdateStatus(status pb.UpdateStatus) error {
+	return nil
+}
+
 type userResource struct {
 	serialized *pb.User
 }
@@ -771,6 +802,10 @@ func (this *userResource) Notify(lookup ResourceLookup, op operation, that Resou
 
 func (resource *userResource) UpdateStatus(status pb.ResourceStatus) error {
 	resource.serialized.Status = &status
+	return nil
+}
+
+func (resource *userResource) UpdateStatus(status pb.UpdateStatus) error {
 	return nil
 }
 
@@ -821,6 +856,10 @@ func (resource *providerResource) UpdateStatus(status pb.ResourceStatus) error {
 	return nil
 }
 
+func (resource *providerResource) SetUpdateStatus(status pb.UpdateStatus) error {
+	return nil
+}
+
 type entityResource struct {
 	serialized *pb.Entity
 }
@@ -858,6 +897,10 @@ func (this *entityResource) Notify(lookup ResourceLookup, op operation, that Res
 
 func (resource *entityResource) UpdateStatus(status pb.ResourceStatus) error {
 	resource.serialized.Status = &status
+	return nil
+}
+
+func (resource *entityResource) SetUpdateStatus(status pb.UpdateStatus) error {
 	return nil
 }
 

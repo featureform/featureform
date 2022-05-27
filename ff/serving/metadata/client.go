@@ -17,6 +17,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type NameVariant struct {
@@ -79,29 +80,33 @@ type ResourceDef interface {
 }
 
 //accesible to the frontend as it does not directly change status in metadata
-func (client *Client) RequestScheduleChange(ctx context.Context, resID resourceID, string schedule) error {
-	resourceID := pb.ResourceID{Name: nameVariant.Name, Variant: nameVariant, ResourceType: resID.Type.Serialized()}
-	scheduleChangeRequest := pb.ScheduleChangeRequest{ResourceId: resourceID, Schedule: schedule}
+func (client *Client) RequestScheduleChange(ctx context.Context, resID ResourceID, schedule string) error {
+	nameVariant := pb.NameVariant{Name: resID.Name, Variant: resID.Variant}
+	resourceID := pb.ResourceID{Resource: &nameVariant, ResourceType: resID.Type.Serialized()}
+	pbSchedule := pb.Schedule{Schedule: schedule}
+	scheduleChangeRequest := pb.ScheduleChangeRequest{ResourceId: &resourceID, Schedule: &pbSchedule}
 	_, err := client.grpcConn.RequestScheduleChange(ctx, &scheduleChangeRequest)
-	return &pb.Empty{}, err
+	return err
 }
 
 //Should only be used internally by the coordinator
 func (client *Client) SetUpdateStatus(ctx context.Context, resID ResourceID, schedule string, status ResourceStatus, errorMessage string, timestamp time.Time) error {
 	nameVariant := pb.NameVariant{Name: resID.Name, Variant: resID.Variant}
-	resourceID := pb.ResourceID{Name: nameVariant.Name, Variant: nameVariant, ResourceType: resID.Type.Serialized()}
+	resourceID := pb.ResourceID{Resource: &nameVariant, ResourceType: resID.Type.Serialized()}
 	resourceStatus := pb.ResourceStatus{Status: pb.ResourceStatus_Status(status), ErrorMessage: errorMessage}
 	pbTimestamp := timestamppb.New(timestamp)
-	updateStatus := pb.UpdateStatus{LastUpdated: pbTimestamp, Schedule: schedule, ResourceStatus: &resourceStatus}
-	statusRequest := pb.SetUpdateStatusRequest{ResourceId: resourceID, Status: &updateStatus}
+	pbSchedule := pb.Schedule{Schedule: schedule}
+	updateStatus := pb.UpdateStatus{LastUpdated: pbTimestamp, Schedule: &pbSchedule, UpdateStatus: &resourceStatus}
+	statusRequest := pb.SetUpdateStatusRequest{ResourceId: &resourceID, Status: &updateStatus}
 	_, err := client.grpcConn.SetResourceUpdateStatus(ctx, &statusRequest)
 	return err
 }
 
 func (client *Client) SetStatus(ctx context.Context, resID ResourceID, status ResourceStatus, errorMessage string) error {
 	nameVariant := pb.NameVariant{Name: resID.Name, Variant: resID.Variant}
+	resourceID := pb.ResourceID{Resource: &nameVariant, ResourceType: resID.Type.Serialized()}
 	resourceStatus := pb.ResourceStatus{Status: pb.ResourceStatus_Status(status), ErrorMessage: errorMessage}
-	statusRequest := pb.SetStatusRequest{Resource: &nameVariant, ResourceType: resID.Type.Serialized(), Status: &resourceStatus}
+	statusRequest := pb.SetStatusRequest{ResourceId: &resourceID, Status: &resourceStatus}
 	_, err := client.grpcConn.SetResourceStatus(ctx, &statusRequest)
 	return err
 }

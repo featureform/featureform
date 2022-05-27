@@ -155,6 +155,7 @@ type Resource interface {
 	Dependencies(ResourceLookup) (ResourceLookup, error)
 	Proto() proto.Message
 	UpdateStatus(pb.ResourceStatus) error
+	SetUpdateStatus(pb.UpdateStatus) error
 }
 
 func isDirectDependency(lookup ResourceLookup, dependency, parent Resource) (bool, error) {
@@ -176,6 +177,7 @@ type ResourceLookup interface {
 	HasJob(ResourceID) (bool, error)
 	SetJob(ResourceID) error
 	SetStatus(ResourceID, pb.ResourceStatus) error
+	SetUpdateStatus(ResourceID, pb.UpdateStatus) error
 	SetSchedule(ResourceID, string) error
 }
 
@@ -266,6 +268,18 @@ func (lookup localResourceLookup) SetSchedule(id ResourceID, schedule string) er
 	return nil
 }
 
+func (lookup localResourceLookup) SetUpdateStatus(id ResourceID, status pb.UpdateStatus) error {
+	res, has := lookup[id]
+	if !has {
+		return &ResourceNotFound{id}
+	}
+	if err := res.SetUpdateStatus(status); err != nil {
+		return err
+	}
+	lookup[id] = res
+	return nil
+}
+
 func (lookup localResourceLookup) HasJob(id ResourceID) (bool, error) {
 	return false, nil
 }
@@ -301,6 +315,10 @@ func (this *sourceResource) Notify(lookup ResourceLookup, op operation, that Res
 
 func (resource *sourceResource) UpdateStatus(status pb.ResourceStatus) error {
 	resource.serialized.Status = &status
+	return nil
+}
+
+func (resource *sourceResource) SetUpdateStatus(status pb.UpdateStatus) error {
 	return nil
 }
 
@@ -359,7 +377,7 @@ func (this *sourceVariantResource) Notify(lookup ResourceLookup, op operation, t
 	return nil
 }
 
-func (resource *sourceVariantResource) UpdateStatus(status pb.ResourceStatus) error {
+func (resource *sourceVariantResource) UpdateStatus(status pb.UpdateStatus) error {
 	resource.serialized.Status = &status
 	return nil
 }
@@ -955,18 +973,18 @@ type Config struct {
 
 func (serv *MetadataServer) RequestScheduleChange(ctx context.Context, req *pb.ScheduleChangeRequest) (*pb.Empty, error) {
 	resID := ResourceID{Name: req.ResourceId.Resource.Name, Variant: req.ResourceId.Resource.Variant, Type: ResourceType(req.ResourceId.ResourceType)}
-	err := serv.lookup.SetSchedule(resID, req.Schedule)
+	err := serv.lookup.SetSchedule(resID, req.Schedule.Schedule)
 	return &pb.Empty{}, err
 }
 
 func (serv *MetadataServer) SetResourceUpdateStatus(ctx context.Context, req *pb.SetUpdateStatusRequest) (*pb.Empty, error) {
-	resID := ResourceID{Name: req.ResourceID.Resource.Name, Variant: req.ResourceID.Resource.Variant, Type: ResourceType(req.ResourceID.ResourceType)}
+	resID := ResourceID{Name: req.ResourceId.Resource.Name, Variant: req.ResourceId.Resource.Variant, Type: ResourceType(req.ResourceId.ResourceType)}
 	err := serv.lookup.SetUpdateStatus(resID, *req.Status)
 	return &pb.Empty{}, err
 }
 
 func (serv *MetadataServer) SetResourceStatus(ctx context.Context, req *pb.SetStatusRequest) (*pb.Empty, error) {
-	resID := ResourceID{Name: req.ResourceID.Resource.Name, Variant: req.ResourceID.Resource.Variant, Type: ResourceType(req.ResourceID.ResourceType)}
+	resID := ResourceID{Name: req.ResourceId.Resource.Name, Variant: req.ResourceId.Resource.Variant, Type: ResourceType(req.ResourceId.ResourceType)}
 	err := serv.lookup.SetStatus(resID, *req.Status)
 	return &pb.Empty{}, err
 }

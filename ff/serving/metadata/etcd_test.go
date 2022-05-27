@@ -873,7 +873,7 @@ func TestCoordinatorScheduleJobSerialize(t *testing.T) {
 	if err := copyScheduleJob.Deserialize(serialized); err != nil {
 		t.Fatalf("Could not deserialize schedule job")
 	}
-	if copyScheduleJob != scheduleJob {
+	if !reflect.DeepEqual(copyScheduleJob, scheduleJob) {
 		t.Fatalf("Information changed on serialization and deserialization for schedule job")
 	}
 }

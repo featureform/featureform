@@ -8,7 +8,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
 	db "github.com/jackc/pgx/v4"
 	"strconv"
 	"strings"
@@ -19,7 +18,6 @@ func sanitize(ident string) string {
 	return db.Identifier{ident}.Sanitize()
 }
 
-//Change to struct
 type SQLOfflineStoreConfig struct {
 	Config        SerializedConfig
 	ConnectionURL string
@@ -31,6 +29,7 @@ type SQLOfflineStoreConfig struct {
 type OfflineTableQueries interface {
 	setVariableBinding(b variableBindingStyle)
 	tableExists() string
+	viewExists() string
 	resourceExists(tableName string) string
 	registerResources(db *sql.DB, tableName string, schema ResourceSchema, timestamp bool) error
 	primaryTableRegister(tableName string, sourceName string) string
@@ -145,12 +144,19 @@ func (store *sqlOfflineStore) tableExists(id ResourceID) (bool, error) {
 	}
 	query := store.query.tableExists()
 	err = store.db.QueryRow(query, tableName).Scan(&n)
-	if n == 0 {
-		return false, nil
+	if n > 0 && err == nil {
+		return true, nil
 	} else if err != nil {
 		return false, err
 	}
-	return true, nil
+	query = store.query.viewExists()
+	err = store.db.QueryRow(query, tableName).Scan(&n)
+	if n > 0 && err == nil {
+		return true, nil
+	} else if err != nil {
+		return false, err
+	}
+	return false, nil
 }
 
 func (store *sqlOfflineStore) AsOfflineStore() (OfflineStore, error) {
@@ -159,10 +165,10 @@ func (store *sqlOfflineStore) AsOfflineStore() (OfflineStore, error) {
 
 func (store *sqlOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error) {
 	if err := id.check(Feature, Label); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("type check: %w", err)
 	}
 	if exists, err := store.tableExists(id); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("exists error: %w", err)
 	} else if exists {
 		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}
@@ -171,15 +177,15 @@ func (store *sqlOfflineStore) RegisterResourceFromSourceTable(id ResourceID, sch
 	}
 	tableName, err := store.getResourceTableName(id)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get name: %w", err)
 	}
 	if schema.TS == "" {
 		if err := store.query.registerResources(store.db, tableName, schema, false); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("register no ts: %w", err)
 		}
 	} else {
 		if err := store.query.registerResources(store.db, tableName, schema, true); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("register ts: %w", err)
 		}
 	}
 
@@ -1079,34 +1085,27 @@ func (q defaultOfflineSQLQueries) tableExists() string {
 	return `SELECT COUNT(*) FROM information_schema.tables WHERE table_name = ?`
 }
 
+func (q defaultOfflineSQLQueries) viewExists() string {
+	return `SELECT COUNT(*) FROM information_schema.tables WHERE table_name = ?`
+}
+
 func (q defaultOfflineSQLQueries) registerResources(db *sql.DB, tableName string, schema ResourceSchema, timestamp bool) error {
 	var query string
 	if timestamp {
-		query = fmt.Sprintf("CREATE TABLE %s AS SELECT IDENTIFIER('%s') as entity,  IDENTIFIER('%s') as value,  IDENTIFIER('%s') as ts FROM TABLE('%s')", sanitize(tableName),
+		query = fmt.Sprintf("CREATE VIEW %s AS SELECT IDENTIFIER('%s') as entity,  IDENTIFIER('%s') as value,  IDENTIFIER('%s') as ts FROM TABLE('%s')", sanitize(tableName),
 			schema.Entity, schema.Value, schema.TS, sanitize(schema.SourceTable))
 	} else {
-		query = fmt.Sprintf("CREATE TABLE %s AS SELECT IDENTIFIER('%s') as entity, IDENTIFIER('%s') as value, null::TIMESTAMP_NTZ as ts FROM TABLE('%s')", sanitize(tableName),
-			schema.Entity, schema.Value, sanitize(schema.SourceTable))
+		query = fmt.Sprintf("CREATE VIEW %s AS SELECT IDENTIFIER('%s') as entity, IDENTIFIER('%s') as value, to_timestamp_ntz('%s', 'YYYY-DD-MM HH24:MI:SS +0000 UTC')::TIMESTAMP_NTZ as ts FROM TABLE('%s')", sanitize(tableName),
+			schema.Entity, schema.Value, time.UnixMilli(0).UTC(), sanitize(schema.SourceTable))
 	}
 	if _, err := db.Exec(query); err != nil {
 		return err
-	}
-	query = fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT  %s  UNIQUE (entity, ts)", sanitize(tableName), sanitize(uuid.NewString()))
-	if _, err := db.Exec(query); err != nil {
-		return err
-	}
-	if !timestamp {
-		// Populates empty column with timestamp
-		update := fmt.Sprintf("UPDATE %s SET ts = ?", sanitize(tableName))
-		if _, err := db.Exec(update, time.UnixMilli(0).UTC()); err != nil {
-			return err
-		}
 	}
 	return nil
 }
 
 func (q defaultOfflineSQLQueries) primaryTableRegister(tableName string, sourceName string) string {
-	return fmt.Sprintf("CREATE TABLE %s AS SELECT * FROM TABLE('%s')", sanitize(tableName), sanitize(sourceName))
+	return fmt.Sprintf("CREATE VIEW %s AS SELECT * FROM TABLE('%s')", sanitize(tableName), sanitize(sourceName))
 }
 func (q defaultOfflineSQLQueries) getColumnNames() string {
 	bind := q.newVariableBindingIterator()

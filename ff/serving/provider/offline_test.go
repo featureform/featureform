@@ -1660,6 +1660,38 @@ func Test_createResourceFromSource(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Could not get resource table: %v", err)
 			}
+			mat, err := store.CreateMaterialization(featureID)
+			updatedRecords := []GenericRecord{
+				{"f", 6, "six", time.UnixMilli(0)},
+				{"g", 7, "seven", time.UnixMilli(1)},
+				{"h", 8, "eight", time.UnixMilli(2)},
+				{"i", 9, "nine", time.UnixMilli(3)},
+				{"j", 10, "ten", time.UnixMilli(4)},
+			}
+			for _, record := range updatedRecords {
+				if err := table.Write(record); err != nil {
+					t.Fatalf("Could not write record: %v", err)
+				}
+			}
+			err = store.DeleteMaterialization(mat.ID())
+			if err != nil {
+				t.Fatalf("Could not delete materialization: %v", err)
+			}
+			mat, err = store.CreateMaterialization(featureID)
+			if err != nil {
+				t.Fatalf("Could not recreate materialization: %v", err)
+			}
+			expected, err := table.NumRows()
+			if err != nil {
+				t.Fatalf("Could not get resource table rows: %v", err)
+			}
+			actual, err := mat.NumRows()
+			if err != nil {
+				t.Fatalf("Could not get materialization rows: %v", err)
+			}
+			if expected != actual {
+				t.Errorf("Expected %d Row, Got %d Rows", expected, actual)
+			}
 		})
 	}
 }
@@ -1668,6 +1700,10 @@ func Test_createResourceFromSourceNoTS(t *testing.T) {
 	err := godotenv.Load(".env")
 	if err != nil {
 		fmt.Println(err)
+	}
+	type expectedTrainingRow struct {
+		Features []interface{}
+		Label    interface{}
 	}
 	var postgresConfig = PostgresConfig{
 		Host:     "localhost",
@@ -1714,6 +1750,7 @@ func Test_createResourceFromSourceNoTS(t *testing.T) {
 					{Name: "col1", ValueType: String},
 					{Name: "col2", ValueType: Int},
 					{Name: "col3", ValueType: String},
+					{Name: "col4", ValueType: Bool},
 				},
 			}
 			table, err := store.CreatePrimaryTable(primaryID, schema)
@@ -1721,11 +1758,11 @@ func Test_createResourceFromSourceNoTS(t *testing.T) {
 				t.Fatalf("Could not create primary table: %v", err)
 			}
 			records := []GenericRecord{
-				{"a", 1, "one"},
-				{"b", 2, "two"},
-				{"c", 3, "three"},
-				{"d", 4, "four"},
-				{"e", 5, "five"},
+				{"a", 1, "one", true},
+				{"b", 2, "two", false},
+				{"c", 3, "three", false},
+				{"d", 4, "four", true},
+				{"e", 5, "five", false},
 			}
 			for _, record := range records {
 				if err := table.Write(record); err != nil {
@@ -1744,12 +1781,99 @@ func Test_createResourceFromSourceNoTS(t *testing.T) {
 			t.Log("Resource Name: ", featureID.Name)
 			_, err = store.RegisterResourceFromSourceTable(featureID, recSchema)
 			if err != nil {
-				t.Fatalf("Could not register from Source Table: %s", err)
+				t.Fatalf("Could not register from feature Source Table: %s", err)
 			}
 			_, err = store.GetResourceTable(featureID)
 			if err != nil {
-				t.Fatalf("Could not get resource table: %v", err)
+				t.Fatalf("Could not get feature resource table: %v", err)
 			}
+			labelID := ResourceID{
+				Name: uuid.NewString(),
+				Type: Label,
+			}
+			labelSchema := ResourceSchema{
+				Entity:      "col1",
+				Value:       "col4",
+				SourceTable: table.GetName(),
+			}
+			t.Log("Label Name: ", labelID.Name)
+			_, err = store.RegisterResourceFromSourceTable(labelID, labelSchema)
+			if err != nil {
+				t.Fatalf("Could not register label from Source Table: %s", err)
+			}
+			_, err = store.GetResourceTable(labelID)
+			if err != nil {
+				t.Fatalf("Could not get label resource table: %v", err)
+			}
+			tsetID := ResourceID{
+				Name: uuid.NewString(),
+				Type: TrainingSet,
+			}
+			def := TrainingSetDef{
+				ID: tsetID,
+				Features: []ResourceID{
+					featureID,
+				},
+				Label: labelID,
+			}
+			err = store.CreateTrainingSet(def)
+			if err != nil {
+				t.Fatalf("Could not get create training set: %v", err)
+			}
+
+			train, err := store.GetTrainingSet(tsetID)
+			if err != nil {
+				t.Fatalf("Could not get get training set: %v", err)
+			}
+			i := 0
+			for train.Next() {
+				realRow := expectedTrainingRow{
+					Features: train.Features(),
+					Label:    train.Label(),
+				}
+				expectedRows := []expectedTrainingRow{
+					{
+						Features: []interface{}{records[0][1]},
+						Label:    records[0][3],
+					},
+					{
+						Features: []interface{}{records[1][1]},
+						Label:    records[1][3],
+					},
+					{
+						Features: []interface{}{records[2][1]},
+						Label:    records[2][3],
+					},
+					{
+						Features: []interface{}{records[3][1]},
+						Label:    records[3][3],
+					},
+					{
+						Features: []interface{}{records[4][1]},
+						Label:    records[4][3],
+					},
+				}
+				found := false
+				for i, expRow := range expectedRows {
+					if reflect.DeepEqual(realRow, expRow) {
+						found = true
+						lastIdx := len(expectedRows) - 1
+						// Swap the record that we've found to the end, then shrink the slice to not include it.
+						// This is essentially a delete operation expect that it re-orders the slice.
+						expectedRows[i], expectedRows[lastIdx] = expectedRows[lastIdx], expectedRows[i]
+						expectedRows = expectedRows[:lastIdx]
+						break
+					}
+				}
+				if !found {
+					for i, v := range realRow.Features {
+						fmt.Printf("Got %T Expected %T\n", v, expectedRows[0].Features[i])
+					}
+					t.Fatalf("Unexpected training row: %v, expected %v", realRow, expectedRows)
+				}
+				i++
+			}
+
 		})
 	}
 }

@@ -377,6 +377,11 @@ func (this *sourceVariantResource) Notify(lookup ResourceLookup, op operation, t
 	return nil
 }
 
+func (resource *sourceVariantResource) UpdateStatus(status pb.ResourceStatus) error {
+	resource.serialized.Status = &status
+	return nil
+}
+
 func (resource *sourceVariantResource) SetUpdateStatus(status pb.UpdateStatus) error {
 	resource.serialized.UpdateStatus = &status
 	return nil
@@ -805,7 +810,7 @@ func (resource *userResource) UpdateStatus(status pb.ResourceStatus) error {
 	return nil
 }
 
-func (resource *userResource) UpdateStatus(status pb.UpdateStatus) error {
+func (resource *userResource) SetUpdateStatus(status pb.UpdateStatus) error {
 	return nil
 }
 

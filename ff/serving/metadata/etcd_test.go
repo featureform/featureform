@@ -857,3 +857,37 @@ func TestEtcdConfig_ParseResource(t *testing.T) {
 		})
 	}
 }
+
+func TestCoordinatorScheduleJobSerialize(t *testing.T) {
+	resID := ResourceID{Name: "test", Variant: "foo", Type: FEATURE}
+	scheduleJob := &CoordinatorScheduleJob{
+		Attempts: 0,
+		Resource: resID,
+		Schedule: "* * * * *",
+	}
+	serialized, err := scheduleJob.Serialize()
+	if err != nil {
+		t.Fatalf("Could not serialize schedule job")
+	}
+	copyScheduleJob := &CoordinatorScheduleJob{}
+	if err := copyScheduleJob.Deserialize(serialized); err != nil {
+		t.Fatalf("Could not deserialize schedule job")
+	}
+	if copyScheduleJob != scheduleJob {
+		t.Fatalf("Information changed on serialization and deserialization for schedule job")
+	}
+}
+
+func TestGetJobKeys(t *testing.T) {
+	resID := ResourceID{Name: "test", Variant: "foo", Type: FEATURE}
+	expectedJobKey := "JOB_FEATURE_test_foo"
+	expectedScheduleJobKey := "SCHEDULEJOB_FEATURE_test_foo"
+	jobKey := GetJobKey(resID)
+	scheduleJobKey := GetScheduleJobKey(resID)
+	if jobKey != expectedJobKey {
+		t.Fatalf("Could not generate correct job key")
+	}
+	if scheduleJobKey != expectedScheduleJobKey {
+		t.Fatalf("Could not generate correct schedule job key")
+	}
+}

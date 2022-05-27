@@ -1526,3 +1526,6 @@ func testFetchProvider(t *testing.T, client *Client, fetcher providerFetcher) {
 	// Don't fetch when testing, otherwise we'll get an infinite loop of fetches
 	tests.Test(t, client, []*Provider{provider}, false)
 }
+
+//iterate this for each resource with update status
+//func testSetUpdateStatus()

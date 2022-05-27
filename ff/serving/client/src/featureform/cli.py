@@ -5,7 +5,7 @@
 import click
 import featureform.register as register
 import grpc
-from featureform.proto import metadata_pb2_grpc as ff_grpc
+from .proto import metadata_pb2_grpc as ff_grpc
 
 resource_types = [
     "feature",

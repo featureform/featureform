@@ -12,6 +12,7 @@ import (
 
 	"github.com/featureform/serving/metadata"
 	pb "github.com/featureform/serving/metadata/proto"
+	srv "github.com/featureform/serving/proto"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
@@ -19,34 +20,54 @@ import (
 type ApiServer struct {
 	Logger     *zap.SugaredLogger
 	address    string
-	metaAddr   string
-	meta       pb.MetadataClient
-	metaClient *metadata.Client
 	grpcServer *grpc.Server
 	listener   net.Listener
+	metadata   MetadataServer
+	online     OnlineServer
+}
+
+type MetadataServer struct {
+	address string
+	Logger  *zap.SugaredLogger
+	meta    pb.MetadataClient
+	client  *metadata.Client
 	pb.UnimplementedApiServer
 }
 
-func NewApiServer(logger *zap.SugaredLogger, address string, metaAddr string) (*ApiServer, error) {
+type OnlineServer struct {
+	Logger  *zap.SugaredLogger
+	address string
+	client  srv.FeatureClient
+	srv.UnimplementedFeatureServer
+}
+
+func NewApiServer(logger *zap.SugaredLogger, address string, metaAddr string, srvAddr string) (*ApiServer, error) {
 	return &ApiServer{
-		Logger:   logger,
-		address:  address,
-		metaAddr: metaAddr,
+		Logger:  logger,
+		address: address,
+		metadata: MetadataServer{
+			address: metaAddr,
+			Logger:  logger,
+		},
+		online: OnlineServer{
+			Logger:  logger,
+			address: srvAddr,
+		},
 	}, nil
 }
 
-func (serv *ApiServer) CreateUser(ctx context.Context, user *pb.User) (*pb.Empty, error) {
-	serv.Logger.Infow("Creating User", "User", user.Name)
+func (serv *MetadataServer) CreateUser(ctx context.Context, user *pb.User) (*pb.Empty, error) {
+	serv.Logger.Infow("Creating User", "user", user.Name)
 	return serv.meta.CreateUser(ctx, user)
 }
 
-func (serv *ApiServer) CreateProvider(ctx context.Context, provider *pb.Provider) (*pb.Empty, error) {
-	serv.Logger.Infow("Creating Provider", "Provider", provider.Name)
+func (serv *MetadataServer) CreateProvider(ctx context.Context, provider *pb.Provider) (*pb.Empty, error) {
+	serv.Logger.Infow("Creating Provider", "name", provider.Name)
 	return serv.meta.CreateProvider(ctx, provider)
 }
 
-func (serv *ApiServer) CreateSourceVariant(ctx context.Context, source *pb.SourceVariant) (*pb.Empty, error) {
-	serv.Logger.Infow("Creating Source Variant", "Source Variant", source.Name)
+func (serv *MetadataServer) CreateSourceVariant(ctx context.Context, source *pb.SourceVariant) (*pb.Empty, error) {
+	serv.Logger.Infow("Creating Source Variant", "name", source.Name, "variant", source.Variant)
 	switch casted := source.Definition.(type) {
 	case *pb.SourceVariant_Transformation:
 		transformation := casted.Transformation.Type.(*pb.Transformation_SQLTransformation).SQLTransformation
@@ -66,20 +87,20 @@ func (serv *ApiServer) CreateSourceVariant(ctx context.Context, source *pb.Sourc
 	return serv.meta.CreateSourceVariant(ctx, source)
 }
 
-func (serv *ApiServer) CreateEntity(ctx context.Context, entity *pb.Entity) (*pb.Empty, error) {
-	serv.Logger.Infow("Creating Entity", "Entity", entity.Name)
+func (serv *MetadataServer) CreateEntity(ctx context.Context, entity *pb.Entity) (*pb.Empty, error) {
+	serv.Logger.Infow("Creating Entity", "entity", entity.Name)
 	return serv.meta.CreateEntity(ctx, entity)
 }
 
-func (serv *ApiServer) CreateFeatureVariant(ctx context.Context, feature *pb.FeatureVariant) (*pb.Empty, error) {
-	serv.Logger.Infow("Creating Feature Variant", "Feature Variant", feature.Name)
+func (serv *MetadataServer) CreateFeatureVariant(ctx context.Context, feature *pb.FeatureVariant) (*pb.Empty, error) {
+	serv.Logger.Infow("Creating Feature Variant", "name", feature.Name, "variant", feature.Variant)
 	return serv.meta.CreateFeatureVariant(ctx, feature)
 }
 
-func (serv *ApiServer) CreateLabelVariant(ctx context.Context, label *pb.LabelVariant) (*pb.Empty, error) {
-	serv.Logger.Infow("Creating Label Variant", "Label Variant", label.Name)
+func (serv *MetadataServer) CreateLabelVariant(ctx context.Context, label *pb.LabelVariant) (*pb.Empty, error) {
+	serv.Logger.Infow("Creating Label Variant", "name", label.Name, "variant", label.Variant)
 	protoSource := label.Source
-	source, err := serv.metaClient.GetSourceVariant(ctx, metadata.NameVariant{protoSource.Name, protoSource.Variant})
+	source, err := serv.client.GetSourceVariant(ctx, metadata.NameVariant{protoSource.Name, protoSource.Variant})
 	if err != nil {
 		return nil, err
 	}
@@ -87,15 +108,34 @@ func (serv *ApiServer) CreateLabelVariant(ctx context.Context, label *pb.LabelVa
 	return serv.meta.CreateLabelVariant(ctx, label)
 }
 
-func (serv *ApiServer) CreateTrainingSetVariant(ctx context.Context, train *pb.TrainingSetVariant) (*pb.Empty, error) {
-	serv.Logger.Infow("Creating Training Set Variant", "Training Set Variant", train.Name)
+func (serv *MetadataServer) CreateTrainingSetVariant(ctx context.Context, train *pb.TrainingSetVariant) (*pb.Empty, error) {
+	serv.Logger.Infow("Creating Training Set Variant", "name", train.Name, "variant", train.Variant)
 	protoLabel := train.Label
-	label, err := serv.metaClient.GetLabelVariant(ctx, metadata.NameVariant{protoLabel.Name, protoLabel.Variant})
+	label, err := serv.client.GetLabelVariant(ctx, metadata.NameVariant{protoLabel.Name, protoLabel.Variant})
 	if err != nil {
 		return nil, err
 	}
 	train.Provider = label.Provider()
 	return serv.meta.CreateTrainingSetVariant(ctx, train)
+}
+
+func (serv *OnlineServer) FeatureServe(ctx context.Context, req *srv.FeatureServeRequest) (*srv.FeatureRow, error) {
+	serv.Logger.Infow("Serving Features", "request", req.String())
+	return serv.client.FeatureServe(ctx, req)
+}
+
+func (serv *OnlineServer) TrainingData(req *srv.TrainingDataRequest, stream srv.Feature_TrainingDataServer) error {
+	serv.Logger.Infow("Serving Training Data", "id", req.Id.String())
+	client, err := serv.client.TrainingData(context.Background(), req)
+	if err != nil {
+		return err
+	}
+	row, err := client.Recv()
+	if err := stream.Send(row); err != nil {
+		serv.Logger.Errorw("Failed to write to stream", "Error", err)
+		return err
+	}
+	return nil
 }
 
 func (serv *ApiServer) Serve() error {
@@ -109,23 +149,29 @@ func (serv *ApiServer) Serve() error {
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
-	conn, err := grpc.Dial(serv.metaAddr, opts...)
+	metaConn, err := grpc.Dial(serv.metadata.address, opts...)
 	if err != nil {
 		return err
 	}
-	serv.meta = pb.NewMetadataClient(conn)
-	client, err := metadata.NewClient(serv.metaAddr, serv.Logger)
+	servConn, err := grpc.Dial(serv.online.address, opts...)
 	if err != nil {
 		return err
 	}
-	serv.metaClient = client
+	serv.metadata.meta = pb.NewMetadataClient(metaConn)
+	client, err := metadata.NewClient(serv.metadata.address, serv.Logger)
+	if err != nil {
+		return err
+	}
+	serv.metadata.client = client
+	serv.online.client = srv.NewFeatureClient(servConn)
 	return serv.ServeOnListener(lis)
 }
 
 func (serv *ApiServer) ServeOnListener(lis net.Listener) error {
 	serv.listener = lis
 	grpcServer := grpc.NewServer()
-	pb.RegisterApiServer(grpcServer, serv)
+	pb.RegisterApiServer(grpcServer, &serv.metadata)
+	srv.RegisterFeatureServer(grpcServer, &serv.online)
 	serv.grpcServer = grpcServer
 	serv.Logger.Infow("Server starting", "Address", serv.listener.Addr().String())
 	return grpcServer.Serve(lis)
@@ -196,7 +242,7 @@ func main() {
 			panic(fmt.Sprintf("health check HTTP server failed: %+v", err))
 		}
 	}()
-	serv, err := NewApiServer(logger, "0.0.0.0:7878", "sandbox-metadata-server:8080")
+	serv, err := NewApiServer(logger, "0.0.0.0:7878", "sandbox-metadata-server:8080", "sandbox-serving-server:8080")
 	if err != nil {
 		fmt.Println(err)
 		return

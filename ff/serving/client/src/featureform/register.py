@@ -2,9 +2,12 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-from .resources import ResourceState, Provider, RedisConfig, PostgresConfig, SnowflakeConfig, User, Location, Source, PrimaryData, SQLTable, SQLTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet
+from .resources import ResourceState, Provider, RedisConfig, PostgresConfig, SnowflakeConfig, User, Location, Source, \
+    PrimaryData, SQLTable, SQLTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet
 from typing import Tuple, Callable, TypedDict, List, Union
 from typeguard import typechecked, check_type
+import grpc
+from .proto import metadata_pb2_grpc as ff_grpc
 
 NameVariant = Tuple[str, str]
 
@@ -146,15 +149,15 @@ class SQLTransformationDecorator:
         )
 
     def register_resources(
-        self,
-        entity: Union[str, EntityRegistrar],
-        entity_column: str,
-        owner: Union[str, UserRegistrar] = "",
-        inference_store: Union[str, OnlineProvider] = "",
-        features: List[ColumnMapping] = None,
-        labels: List[ColumnMapping] = None,
-        timestamp_column: str = "",
-        description: str = "",
+            self,
+            entity: Union[str, EntityRegistrar],
+            entity_column: str,
+            owner: Union[str, UserRegistrar] = "",
+            inference_store: Union[str, OnlineProvider] = "",
+            features: List[ColumnMapping] = None,
+            labels: List[ColumnMapping] = None,
+            timestamp_column: str = "",
+            description: str = "",
     ):
         return self.registrar[0].register_column_resources(
             source=(self.name, self.variant),
@@ -172,15 +175,15 @@ class SQLTransformationDecorator:
 class ColumnSourceRegistrar(SourceRegistrar):
 
     def register_resources(
-        self,
-        entity: Union[str, EntityRegistrar],
-        entity_column: str,
-        owner: Union[str, UserRegistrar] = "",
-        inference_store: Union[str, OnlineProvider] = "",
-        features: List[ColumnMapping] = None,
-        labels: List[ColumnMapping] = None,
-        timestamp_column: str = "",
-        description: str = "",
+            self,
+            entity: Union[str, EntityRegistrar],
+            entity_column: str,
+            owner: Union[str, UserRegistrar] = "",
+            inference_store: Union[str, OnlineProvider] = "",
+            features: List[ColumnMapping] = None,
+            labels: List[ColumnMapping] = None,
+            timestamp_column: str = "",
+            description: str = "",
     ):
         return self.registrar().register_column_resources(
             source=self,
@@ -286,16 +289,16 @@ class Registrar:
         return OnlineProvider(self, provider)
 
     def register_snowflake(
-        self,
-        name: str,
-        username: str,
-        password: str,
-        account: str,
-        organization: str,
-        database: str,
-        schema: str = "PUBLIC",
-        description: str = "",
-        team: str = "",
+            self,
+            name: str,
+            username: str,
+            password: str,
+            account: str,
+            organization: str,
+            database: str,
+            schema: str = "PUBLIC",
+            description: str = "",
+            team: str = "",
     ):
         config = SnowflakeConfig(account=account,
                                  database=database,
@@ -416,16 +419,16 @@ class Registrar:
         return EntityRegistrar(self, entity)
 
     def register_column_resources(
-        self,
-        source: Union[NameVariant, SourceRegistrar, SQLTransformationDecorator],
-        entity: Union[str, EntityRegistrar],
-        entity_column: str,
-        owner: Union[str, UserRegistrar] = "",
-        inference_store: Union[str, OnlineProvider] = "",
-        features: List[ColumnMapping] = None,
-        labels: List[ColumnMapping] = None,
-        timestamp_column: str = "",
-        description: str = "",
+            self,
+            source: Union[NameVariant, SourceRegistrar, SQLTransformationDecorator],
+            entity: Union[str, EntityRegistrar],
+            entity_column: str,
+            owner: Union[str, UserRegistrar] = "",
+            inference_store: Union[str, OnlineProvider] = "",
+            features: List[ColumnMapping] = None,
+            labels: List[ColumnMapping] = None,
+            timestamp_column: str = "",
+            description: str = "",
     ):
         if features is None:
             features = []
@@ -506,6 +509,20 @@ class Registrar:
             features=features,
         )
         self.__resources.append(resource)
+
+
+class Client(Registrar):
+    def __init__(self, host, tls_verify):
+        super().__init__()
+        if tls_verify:
+            credentials = grpc.ssl_channel_credentials()
+            channel = grpc.secure_channel(host, credentials)
+        else:
+            channel = grpc.insecure_channel(host, options=(('grpc.enable_http_proxy', 0),))
+        self._stub = ff_grpc.ApiStub(channel)
+
+    def apply(self):
+        self.state().create_all(self._stub)
 
 
 global_registrar = Registrar()

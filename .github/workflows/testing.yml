@@ -434,3 +434,40 @@ jobs:
         with:
           name: coordinator-coverage-reports
           path: ./coverage
+
+  api:
+    name: API Testing
+    needs: setup
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download Working Compiled Directories
+        uses: actions/download-artifact@v3
+        with:
+          name: compiled-workdir
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
+
+      - name: Make Coverage Directory
+        working-directory: ./
+        run: mkdir coverage
+
+      - name: Start API Server
+        working-directory: ./api/
+        run: go run api.go &
+
+      - name: Install python dependencies
+        working-directory: ./
+        run: |
+          python3 -m pip install build pytest
+          python3 -m build ./client/
+          python3 -m pip install client/dist/*
+
+      - name: Testing
+        env:
+          API_ADDRESS: "localhost:7878"
+        working-directory: ./client/tests
+        run: pytest

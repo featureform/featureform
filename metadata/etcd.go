@@ -289,7 +289,7 @@ func (lookup etcdResourceLookup) serializeResource(res Resource) ([]byte, error)
 		Message:      p,
 		StorageType:  RESOURCE,
 	}
-	fmt.Println("Attempting to serialize: ", msg)
+	//	fmt.Println("Attempting to serialize: ", msg)
 	serialMsg, err := json.Marshal(msg)
 	if err != nil {
 		return nil, err

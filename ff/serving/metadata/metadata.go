@@ -18,6 +18,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
+	tspb "google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const TIME_FORMAT = time.RFC1123
@@ -154,6 +155,7 @@ type Resource interface {
 	Dependencies(ResourceLookup) (ResourceLookup, error)
 	Proto() proto.Message
 	UpdateStatus(pb.ResourceStatus) error
+	SetUpdateStatus(pb.UpdateStatus) error
 }
 
 func isDirectDependency(lookup ResourceLookup, dependency, parent Resource) (bool, error) {
@@ -175,6 +177,8 @@ type ResourceLookup interface {
 	HasJob(ResourceID) (bool, error)
 	SetJob(ResourceID) error
 	SetStatus(ResourceID, pb.ResourceStatus) error
+	SetUpdateStatus(ResourceID, pb.UpdateStatus) error
+	SetSchedule(ResourceID, string) error
 }
 
 type TypeSenseWrapper struct {
@@ -260,6 +264,22 @@ func (lookup localResourceLookup) SetJob(id ResourceID) error {
 	return nil
 }
 
+func (lookup localResourceLookup) SetSchedule(id ResourceID, schedule string) error {
+	return nil
+}
+
+func (lookup localResourceLookup) SetUpdateStatus(id ResourceID, status pb.UpdateStatus) error {
+	res, has := lookup[id]
+	if !has {
+		return &ResourceNotFound{id}
+	}
+	if err := res.SetUpdateStatus(status); err != nil {
+		return err
+	}
+	lookup[id] = res
+	return nil
+}
+
 func (lookup localResourceLookup) HasJob(id ResourceID) (bool, error) {
 	return false, nil
 }
@@ -296,6 +316,10 @@ func (this *sourceResource) Notify(lookup ResourceLookup, op operation, that Res
 func (resource *sourceResource) UpdateStatus(status pb.ResourceStatus) error {
 	resource.serialized.Status = &status
 	return nil
+}
+
+func (resource *sourceResource) SetUpdateStatus(status pb.UpdateStatus) error {
+	return fmt.Errorf("not implemented")
 }
 
 type sourceVariantResource struct {
@@ -358,6 +382,11 @@ func (resource *sourceVariantResource) UpdateStatus(status pb.ResourceStatus) er
 	return nil
 }
 
+func (resource *sourceVariantResource) SetUpdateStatus(status pb.UpdateStatus) error {
+	resource.serialized.UpdateStatus = &status
+	return nil
+}
+
 type featureResource struct {
 	serialized *pb.Feature
 }
@@ -390,6 +419,10 @@ func (this *featureResource) Notify(lookup ResourceLookup, op operation, that Re
 func (resource *featureResource) UpdateStatus(status pb.ResourceStatus) error {
 	resource.serialized.Status = &status
 	return nil
+}
+
+func (resource *featureResource) SetUpdateStatus(status pb.UpdateStatus) error {
+	return fmt.Errorf("not implemented")
 }
 
 type featureVariantResource struct {
@@ -456,6 +489,11 @@ func (resource *featureVariantResource) UpdateStatus(status pb.ResourceStatus) e
 	return nil
 }
 
+func (resource *featureVariantResource) SetUpdateStatus(status pb.UpdateStatus) error {
+	resource.serialized.UpdateStatus = &status
+	return nil
+}
+
 type labelResource struct {
 	serialized *pb.Label
 }
@@ -488,6 +526,10 @@ func (this *labelResource) Notify(lookup ResourceLookup, op operation, that Reso
 func (resource *labelResource) UpdateStatus(status pb.ResourceStatus) error {
 	resource.serialized.Status = &status
 	return nil
+}
+
+func (resource *labelResource) SetUpdateStatus(status pb.UpdateStatus) error {
+	return fmt.Errorf("not implemented")
 }
 
 type labelVariantResource struct {
@@ -554,6 +596,11 @@ func (resource *labelVariantResource) UpdateStatus(status pb.ResourceStatus) err
 	return nil
 }
 
+func (resource *labelVariantResource) SetUpdateStatus(status pb.UpdateStatus) error {
+	resource.serialized.UpdateStatus = &status
+	return nil
+}
+
 type trainingSetResource struct {
 	serialized *pb.TrainingSet
 }
@@ -586,6 +633,10 @@ func (this *trainingSetResource) Notify(lookup ResourceLookup, op operation, tha
 func (resource *trainingSetResource) UpdateStatus(status pb.ResourceStatus) error {
 	resource.serialized.Status = &status
 	return nil
+}
+
+func (resource *trainingSetResource) SetUpdateStatus(status pb.UpdateStatus) error {
+	return fmt.Errorf("not implemented")
 }
 
 type trainingSetVariantResource struct {
@@ -648,6 +699,11 @@ func (resource *trainingSetVariantResource) UpdateStatus(status pb.ResourceStatu
 	return nil
 }
 
+func (resource *trainingSetVariantResource) SetUpdateStatus(status pb.UpdateStatus) error {
+	resource.serialized.UpdateStatus = &status
+	return nil
+}
+
 type modelResource struct {
 	serialized *pb.Model
 }
@@ -703,6 +759,10 @@ func (resource *modelResource) UpdateStatus(status pb.ResourceStatus) error {
 	return nil
 }
 
+func (resource *modelResource) SetUpdateStatus(status pb.UpdateStatus) error {
+	return fmt.Errorf("not implemented")
+}
+
 type userResource struct {
 	serialized *pb.User
 }
@@ -748,6 +808,10 @@ func (this *userResource) Notify(lookup ResourceLookup, op operation, that Resou
 func (resource *userResource) UpdateStatus(status pb.ResourceStatus) error {
 	resource.serialized.Status = &status
 	return nil
+}
+
+func (resource *userResource) SetUpdateStatus(status pb.UpdateStatus) error {
+	return fmt.Errorf("not implemented")
 }
 
 type providerResource struct {
@@ -797,6 +861,10 @@ func (resource *providerResource) UpdateStatus(status pb.ResourceStatus) error {
 	return nil
 }
 
+func (resource *providerResource) SetUpdateStatus(status pb.UpdateStatus) error {
+	return fmt.Errorf("not implemented")
+}
+
 type entityResource struct {
 	serialized *pb.Entity
 }
@@ -835,6 +903,10 @@ func (this *entityResource) Notify(lookup ResourceLookup, op operation, that Res
 func (resource *entityResource) UpdateStatus(status pb.ResourceStatus) error {
 	resource.serialized.Status = &status
 	return nil
+}
+
+func (resource *entityResource) SetUpdateStatus(status pb.UpdateStatus) error {
+	return fmt.Errorf("not implemented")
 }
 
 type MetadataServer struct {
@@ -947,8 +1019,20 @@ type Config struct {
 	Address         string
 }
 
+func (serv *MetadataServer) RequestScheduleChange(ctx context.Context, req *pb.ScheduleChangeRequest) (*pb.Empty, error) {
+	resID := ResourceID{Name: req.ResourceId.Resource.Name, Variant: req.ResourceId.Resource.Variant, Type: ResourceType(req.ResourceId.ResourceType)}
+	err := serv.lookup.SetSchedule(resID, req.Schedule.Schedule)
+	return &pb.Empty{}, err
+}
+
+func (serv *MetadataServer) SetResourceUpdateStatus(ctx context.Context, req *pb.SetUpdateStatusRequest) (*pb.Empty, error) {
+	resID := ResourceID{Name: req.ResourceId.Resource.Name, Variant: req.ResourceId.Resource.Variant, Type: ResourceType(req.ResourceId.ResourceType)}
+	err := serv.lookup.SetUpdateStatus(resID, *req.Status)
+	return &pb.Empty{}, err
+}
+
 func (serv *MetadataServer) SetResourceStatus(ctx context.Context, req *pb.SetStatusRequest) (*pb.Empty, error) {
-	resID := ResourceID{Name: req.Resource.Name, Variant: req.Resource.Variant, Type: ResourceType(req.ResourceType)}
+	resID := ResourceID{Name: req.ResourceId.Resource.Name, Variant: req.ResourceId.Resource.Variant, Type: ResourceType(req.ResourceId.ResourceType)}
 	err := serv.lookup.SetStatus(resID, *req.Status)
 	return &pb.Empty{}, err
 }
@@ -960,7 +1044,7 @@ func (serv *MetadataServer) ListFeatures(_ *pb.Empty, stream pb.Metadata_ListFea
 }
 
 func (serv *MetadataServer) CreateFeatureVariant(ctx context.Context, variant *pb.FeatureVariant) (*pb.Empty, error) {
-	variant.Created = time.Now().Format(TIME_FORMAT)
+	variant.Created = tspb.New(time.Now())
 	return serv.genericCreate(ctx, &featureVariantResource{variant}, func(name, variant string) Resource {
 		return &featureResource{
 			&pb.Feature{
@@ -992,7 +1076,7 @@ func (serv *MetadataServer) ListLabels(_ *pb.Empty, stream pb.Metadata_ListLabel
 }
 
 func (serv *MetadataServer) CreateLabelVariant(ctx context.Context, variant *pb.LabelVariant) (*pb.Empty, error) {
-	variant.Created = time.Now().Format(TIME_FORMAT)
+	variant.Created = tspb.New(time.Now())
 	return serv.genericCreate(ctx, &labelVariantResource{variant}, func(name, variant string) Resource {
 		return &labelResource{
 			&pb.Label{
@@ -1024,7 +1108,7 @@ func (serv *MetadataServer) ListTrainingSets(_ *pb.Empty, stream pb.Metadata_Lis
 }
 
 func (serv *MetadataServer) CreateTrainingSetVariant(ctx context.Context, variant *pb.TrainingSetVariant) (*pb.Empty, error) {
-	variant.Created = time.Now().Format(TIME_FORMAT)
+	variant.Created = tspb.New(time.Now())
 	return serv.genericCreate(ctx, &trainingSetVariantResource{variant}, func(name, variant string) Resource {
 		return &trainingSetResource{
 			&pb.TrainingSet{
@@ -1056,7 +1140,7 @@ func (serv *MetadataServer) ListSources(_ *pb.Empty, stream pb.Metadata_ListSour
 }
 
 func (serv *MetadataServer) CreateSourceVariant(ctx context.Context, variant *pb.SourceVariant) (*pb.Empty, error) {
-	variant.Created = time.Now().Format(TIME_FORMAT)
+	variant.Created = tspb.New(time.Now())
 	return serv.genericCreate(ctx, &sourceVariantResource{variant}, func(name, variant string) Resource {
 		return &sourceResource{
 			&pb.Source{

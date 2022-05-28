@@ -17,6 +17,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+	tspb "google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type NameVariant struct {
@@ -78,10 +79,34 @@ type ResourceDef interface {
 	ResourceType() ResourceType
 }
 
+//accesible to the frontend as it does not directly change status in metadata
+func (client *Client) RequestScheduleChange(ctx context.Context, resID ResourceID, schedule string) error {
+	nameVariant := pb.NameVariant{Name: resID.Name, Variant: resID.Variant}
+	resourceID := pb.ResourceID{Resource: &nameVariant, ResourceType: resID.Type.Serialized()}
+	pbSchedule := pb.Schedule{Schedule: schedule}
+	scheduleChangeRequest := pb.ScheduleChangeRequest{ResourceId: &resourceID, Schedule: &pbSchedule}
+	_, err := client.grpcConn.RequestScheduleChange(ctx, &scheduleChangeRequest)
+	return err
+}
+
+//Should only be used internally by the coordinator
+func (client *Client) SetUpdateStatus(ctx context.Context, resID ResourceID, schedule string, status ResourceStatus, errorMessage string, timestamp time.Time) error {
+	nameVariant := pb.NameVariant{Name: resID.Name, Variant: resID.Variant}
+	resourceID := pb.ResourceID{Resource: &nameVariant, ResourceType: resID.Type.Serialized()}
+	resourceStatus := pb.ResourceStatus{Status: pb.ResourceStatus_Status(status), ErrorMessage: errorMessage}
+	pbTimestamp := tspb.New(timestamp)
+	pbSchedule := pb.Schedule{Schedule: schedule}
+	updateStatus := pb.UpdateStatus{LastUpdated: pbTimestamp, Schedule: &pbSchedule, UpdateStatus: &resourceStatus}
+	statusRequest := pb.SetUpdateStatusRequest{ResourceId: &resourceID, Status: &updateStatus}
+	_, err := client.grpcConn.SetResourceUpdateStatus(ctx, &statusRequest)
+	return err
+}
+
 func (client *Client) SetStatus(ctx context.Context, resID ResourceID, status ResourceStatus, errorMessage string) error {
 	nameVariant := pb.NameVariant{Name: resID.Name, Variant: resID.Variant}
+	resourceID := pb.ResourceID{Resource: &nameVariant, ResourceType: resID.Type.Serialized()}
 	resourceStatus := pb.ResourceStatus{Status: pb.ResourceStatus_Status(status), ErrorMessage: errorMessage}
-	statusRequest := pb.SetStatusRequest{Resource: &nameVariant, ResourceType: resID.Type.Serialized(), Status: &resourceStatus}
+	statusRequest := pb.SetStatusRequest{ResourceId: &resourceID, Status: &resourceStatus}
 	_, err := client.grpcConn.SetResourceStatus(ctx, &statusRequest)
 	return err
 }
@@ -1063,7 +1088,7 @@ func (stringer protoStringer) String() string {
 }
 
 type createdGetter interface {
-	GetCreated() string
+	GetCreated() *tspb.Timestamp
 }
 
 type createdFn struct {
@@ -1071,10 +1096,7 @@ type createdFn struct {
 }
 
 func (fn createdFn) Created() time.Time {
-	t, err := time.Parse(TIME_FORMAT, fn.getter.GetCreated())
-	if err != nil {
-		panic(err)
-	}
+	t := fn.getter.GetCreated().AsTime()
 	return t
 }
 

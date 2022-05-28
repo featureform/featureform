@@ -270,7 +270,7 @@ func (lookup etcdResourceLookup) serializeResource(res Resource) ([]byte, error)
 func (lookup etcdResourceLookup) deserialize(value []byte) (EtcdRow, error) {
 	var msg EtcdRow
 	if err := json.Unmarshal(value, &msg); err != nil {
-		return msg, fmt.Errorf("failed To Parse Resource: %s", err)
+		return msg, fmt.Errorf("failed To Parse Resource: %w: %s", err, value)
 	}
 	return msg, nil
 }
@@ -283,15 +283,15 @@ func (lookup etcdResourceLookup) Lookup(id ResourceID) (Resource, error) {
 	}
 	msg, err := lookup.deserialize(resp)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("lookup deserialize: %w: %s", err, id)
 	}
 	resType, err := lookup.createEmptyResource(msg.ResourceType)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("lookup create: %w: %s", err, id)
 	}
 	resource, err := lookup.connection.ParseResource(msg, resType)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("lookup parse: %w: %s", err, id)
 	}
 	return resource, nil
 }

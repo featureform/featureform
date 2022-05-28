@@ -96,8 +96,16 @@ type etcdResourceLookup struct {
 //Wrapper around Resource/Job messages. Allows top level storage for info about saved value
 type EtcdRow struct {
 	ResourceType ResourceType //Resource Type. For use when getting stored keys
-	StorageType  StorageType  //Type of storage. Resource or Job
-	Message      []byte       //Contents to be stored
+	//ResourceType string
+	StorageType StorageType //Type of storage. Resource or Job
+	Message     []byte      //Contents to be stored
+}
+
+type EtcdRowTemp struct {
+	//ResourceType ResourceType //Resource Type. For use when getting stored keys
+	ResourceType string
+	StorageType  StorageType //Type of storage. Resource or Job
+	Message      []byte      //Contents to be stored
 }
 
 func (config EtcdConfig) MakeAddresses() []string {
@@ -254,8 +262,8 @@ func (lookup etcdResourceLookup) serializeResource(res Resource) ([]byte, error)
 	if err != nil {
 		return nil, err
 	}
-	msg := EtcdRow{
-		ResourceType: res.ID().Type,
+	msg := EtcdRowTemp{
+		ResourceType: res.ID().Type.String(),
 		Message:      p,
 		StorageType:  RESOURCE,
 	}
@@ -268,9 +276,14 @@ func (lookup etcdResourceLookup) serializeResource(res Resource) ([]byte, error)
 
 //Deserializes object into ETCD Storage Object
 func (lookup etcdResourceLookup) deserialize(value []byte) (EtcdRow, error) {
-	var msg EtcdRow
-	if err := json.Unmarshal(value, &msg); err != nil {
-		return msg, fmt.Errorf("failed To Parse Resource: %w: %s", err, value)
+	var tmp EtcdRowTemp
+	if err := json.Unmarshal(value, &tmp); err != nil {
+		return EtcdRow{}, fmt.Errorf("failed To Parse Resource: %w: %s", err, value)
+	}
+	msg := EtcdRow{
+		ResourceType: ResourceType(pb.ResourceType_value[tmp.ResourceType]),
+		StorageType:  tmp.StorageType,
+		Message:      tmp.Message,
 	}
 	return msg, nil
 }
@@ -283,15 +296,15 @@ func (lookup etcdResourceLookup) Lookup(id ResourceID) (Resource, error) {
 	}
 	msg, err := lookup.deserialize(resp)
 	if err != nil {
-		return nil, fmt.Errorf("lookup deserialize: %w: %s", err, id)
+		return nil, fmt.Errorf("lookup deserialize: %w %s", err, id)
 	}
 	resType, err := lookup.createEmptyResource(msg.ResourceType)
 	if err != nil {
-		return nil, fmt.Errorf("lookup create: %w: %s", err, id)
+		return nil, fmt.Errorf("lookup create: %w %s", err, id)
 	}
 	resource, err := lookup.connection.ParseResource(msg, resType)
 	if err != nil {
-		return nil, fmt.Errorf("lookup parse: %w: %s", err, id)
+		return nil, fmt.Errorf("lookup parse: %w %s", err, id)
 	}
 	return resource, nil
 }

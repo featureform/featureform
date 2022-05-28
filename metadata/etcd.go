@@ -314,16 +314,16 @@ func (lookup etcdResourceLookup) deserialize(value []byte) (EtcdRow, error) {
 func (lookup etcdResourceLookup) Lookup(id ResourceID) (Resource, error) {
 	key := createKey(id)
 	resp, err := lookup.connection.Get(key)
-	if err != nil {
+	if err != nil || len(resp) == 0 {
 		return nil, &ResourceNotFound{id}
 	}
 	msg, err := lookup.deserialize(resp)
 	if err != nil {
-		return nil, fmt.Errorf("lookup deserialize: %w %s", err, id)
+		return nil, fmt.Errorf("lookup deserialize err: %w id: %s", err, id)
 	}
 	resType, err := lookup.createEmptyResource(msg.ResourceType)
 	if err != nil {
-		return nil, fmt.Errorf("lookup create: %w %s", err, id)
+		return nil, fmt.Errorf("lookup create err: %w id: %s", err, id)
 	}
 	resource, err := lookup.connection.ParseResource(msg, resType)
 	if err != nil {

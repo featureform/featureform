@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"reflect"
+	"strings"
 	"time"
 
 	pb "github.com/featureform/serving/metadata/proto"
@@ -110,6 +112,38 @@ func (id ResourceID) Parent() (ResourceID, bool) {
 		Name: id.Name,
 		Type: parentType,
 	}, true
+}
+
+var bannedStrings = [...]string{"__"}
+var bannedPrefixes = [...]string{"_"}
+var bannedSuffixes = [...]string{"_"}
+
+func resourceNamedSafely(id ResourceID) error {
+	for _, substr := range bannedStrings {
+		if strings.Contains(id.Name, substr) {
+			return fmt.Errorf("resource name %s contains banned string %s", id.Name, substr)
+		}
+		if strings.Contains(id.Variant, substr) {
+			return fmt.Errorf("resource variant %s contains banned string %s", id.Name, substr)
+		}
+	}
+	for _, substr := range bannedPrefixes {
+		if reflect.DeepEqual(id.Name[:len(substr)], substr) {
+			return fmt.Errorf("resource name %s contains banned prefix %s", id.Name, substr)
+		}
+		if reflect.DeepEqual(id.Variant[:len(substr)], substr) {
+			return fmt.Errorf("resource variant %s contains banned prefix %s", id.Name, substr)
+		}
+	}
+	for _, substr := range bannedSuffixes {
+		if reflect.DeepEqual(id.Name[len(id.Name)-len(substr):], substr) {
+			return fmt.Errorf("resource name %s contains banned suffix %s", id.Name, substr)
+		}
+		if reflect.DeepEqual(id.Name[len(id.Variant)-len(substr):], substr) {
+			return fmt.Errorf("resource variant %s contains banned suffix %s", id.Name, substr)
+		}
+	}
+	return nil
 }
 
 type ResourceNotFound struct {
@@ -1159,6 +1193,9 @@ type initParentFn func(name, variant string) Resource
 
 func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, init initParentFn) (*pb.Empty, error) {
 	id := res.ID()
+	if err := resourceNamedSafely(id); err != nil {
+		return nil, err
+	}
 	if has, err := serv.lookup.Has(id); err != nil {
 		return nil, err
 	} else if has {

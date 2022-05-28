@@ -195,7 +195,7 @@ func featureShallowMap(variant *metadata.FeatureVariant) FeatureVariantResource 
 		Provider:    variant.Provider(),
 		Source:      variant.Source(),
 		Location:    columnsToMap(variant.LocationColumns().(metadata.ResourceVariantColumns)),
-		Status:      variant.Status(),
+		Status:      variant.Status().String(),
 	}
 }
 
@@ -211,7 +211,7 @@ func labelShallowMap(variant *metadata.LabelVariant) LabelVariantResource {
 		Provider:    variant.Provider(),
 		Source:      variant.Source(),
 		Location:    columnsToMap(variant.LocationColumns().(metadata.ResourceVariantColumns)),
-		Status:      variant.Status(),
+		Status:      variant.Status().String(),
 	}
 }
 
@@ -224,7 +224,7 @@ func trainingSetShallowMap(variant *metadata.TrainingSetVariant) TrainingSetVari
 		Owner:       variant.Owner(),
 		Provider:    variant.Provider(),
 		Label:       variant.Label(),
-		Status:      variant.Status(),
+		Status:      variant.Status().String(),
 	}
 }
 
@@ -246,7 +246,7 @@ func sourceShallowMap(variant *metadata.SourceVariant) SourceVariantResource {
 		Variant:     variant.Variant(),
 		Owner:       variant.Owner(),
 		Provider:    variant.Provider(),
-		Status:      variant.Status(),
+		Status:      variant.Status().String(),
 		Definition:  sourceString,
 	}
 }
@@ -528,7 +528,7 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 			Name:        entity.Name(),
 			Type:        "Entity",
 			Description: entity.Description(),
-			Status:      entity.Status(),
+			Status:      entity.Status().String(),
 		}
 		fetchGroup := new(errgroup.Group)
 		fetchGroup.Go(func() error {
@@ -573,7 +573,7 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 		userResource := &UserResource{
 			Name:   user.Name(),
 			Type:   "User",
-			Status: user.Status(),
+			Status: user.Status().String(),
 		}
 		fetchGroup := new(errgroup.Group)
 		fetchGroup.Go(func() error {
@@ -628,7 +628,7 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 			Name:        model.Name(),
 			Type:        "Model",
 			Description: model.Description(),
-			Status:      model.Status(),
+			Status:      model.Status().String(),
 		}
 		fetchGroup := new(errgroup.Group)
 		fetchGroup.Go(func() error {
@@ -671,14 +671,15 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 			return
 		}
 		providerResource := &ProviderResource{
-			Name:             provider.Name(),
-			Type:             "Provider",
-			Description:      provider.Description(),
-			ProviderType:     provider.Type(),
-			Software:         provider.Software(),
-			Team:             provider.Team(),
-			Status:           provider.Status(),
-			SerializedConfig: string(provider.SerializedConfig()),
+			Name:         provider.Name(),
+			Type:         "Provider",
+			Description:  provider.Description(),
+			ProviderType: provider.Type(),
+			Software:     provider.Software(),
+			Team:         provider.Team(),
+			Status:       provider.Status().String(),
+			//SerializedConfig: string(provider.SerializedConfig()),
+			SerializedConfig: string("xxxxx"),
 		}
 		fetchGroup := new(errgroup.Group)
 		fetchGroup.Go(func() error {
@@ -842,7 +843,7 @@ func (m *MetadataServer) GetMetadataList(c *gin.Context) {
 				Name:        entity.Name(),
 				Type:        "Entity",
 				Description: entity.Description(),
-				Status:      entity.Status(),
+				Status:      entity.Status().String(),
 			}
 		}
 		c.JSON(http.StatusOK, entityList)
@@ -861,7 +862,7 @@ func (m *MetadataServer) GetMetadataList(c *gin.Context) {
 				Name:        model.Name(),
 				Type:        "Model",
 				Description: model.Description(),
-				Status:      model.Status(),
+				Status:      model.Status().String(),
 			}
 		}
 		c.JSON(http.StatusOK, modelList)
@@ -879,7 +880,7 @@ func (m *MetadataServer) GetMetadataList(c *gin.Context) {
 			userList[i] = UserResource{
 				Name:   user.Name(),
 				Type:   "User",
-				Status: user.Status(),
+				Status: user.Status().String(),
 			}
 		}
 		c.JSON(http.StatusOK, userList)
@@ -895,14 +896,15 @@ func (m *MetadataServer) GetMetadataList(c *gin.Context) {
 		providerList := make([]ProviderResource, len(providers))
 		for i, provider := range providers {
 			providerList[i] = ProviderResource{
-				Name:             provider.Name(),
-				Type:             "Provider",
-				Description:      provider.Description(),
-				Software:         provider.Software(),
-				Team:             provider.Team(),
-				ProviderType:     provider.Type(),
-				Status:           provider.Status(),
-				SerializedConfig: string(provider.SerializedConfig()),
+				Name:         provider.Name(),
+				Type:         "Provider",
+				Description:  provider.Description(),
+				Software:     provider.Software(),
+				Team:         provider.Team(),
+				ProviderType: provider.Type(),
+				Status:       provider.Status().String(),
+				//SerializedConfig: string(provider.SerializedConfig()),
+				SerializedConfig: string("xxxxx"),
 			}
 		}
 		c.JSON(http.StatusOK, providerList)

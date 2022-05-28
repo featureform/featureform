@@ -36,8 +36,21 @@ type CoordinatorJob struct {
 	Resource ResourceID
 }
 
+type TempJob struct {
+	Attempts int
+	Name     string
+	Variant  string
+	Type     string
+}
+
 func (c *CoordinatorJob) Serialize() ([]byte, error) {
-	serialized, err := json.Marshal(c)
+	job := TempJob{
+		Attempts: c.Attempts,
+		Name:     c.Resource.Name,
+		Variant:  c.Resource.Variant,
+		Type:     c.Resource.Type.String(),
+	}
+	serialized, err := json.Marshal(job)
 	if err != nil {
 		return nil, err
 	}
@@ -45,10 +58,15 @@ func (c *CoordinatorJob) Serialize() ([]byte, error) {
 }
 
 func (c *CoordinatorJob) Deserialize(serialized []byte) error {
-	err := json.Unmarshal(serialized, c)
+	job := TempJob{}
+	err := json.Unmarshal(serialized, &job)
 	if err != nil {
 		return err
 	}
+	c.Attempts = job.Attempts
+	c.Resource.Name = job.Name
+	c.Resource.Variant = job.Variant
+	c.Resource.Type = ResourceType(pb.ResourceType_value[job.Type])
 	return nil
 }
 
@@ -414,13 +432,13 @@ func (lookup etcdResourceLookup) List() ([]Resource, error) {
 func (lookup etcdResourceLookup) SetStatus(id ResourceID, status pb.ResourceStatus) error {
 	res, err := lookup.Lookup(id)
 	if err != nil {
-		return err
+		return fmt.Errorf("etcd: could not lookup: %w", err)
 	}
 	if err := res.UpdateStatus(status); err != nil {
-		return err
+		return fmt.Errorf("etcd: could not update: %w", err)
 	}
 	if err := lookup.Set(id, res); err != nil {
-		return err
+		return fmt.Errorf("etcd: could not set: %w", err)
 	}
 	return nil
 }

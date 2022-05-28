@@ -43,6 +43,6 @@ spec:
             httpGet:
               path: /_ah/
               port: 8443
-            initialDelaySeconds: 20
+            initialDelaySeconds: 120
             periodSeconds: 3
 status: {}

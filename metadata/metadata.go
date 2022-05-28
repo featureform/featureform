@@ -1065,8 +1065,10 @@ func (serv *MetadataServer) SetResourceUpdateStatus(ctx context.Context, req *pb
 }
 
 func (serv *MetadataServer) SetResourceStatus(ctx context.Context, req *pb.SetStatusRequest) (*pb.Empty, error) {
+	serv.Logger.Infow("Setting resource status", "request", req.String())
 	resID := ResourceID{Name: req.ResourceId.Resource.Name, Variant: req.ResourceId.Resource.Variant, Type: ResourceType(req.ResourceId.ResourceType)}
 	err := serv.lookup.SetStatus(resID, *req.Status)
+	serv.Logger.Errorw("Could not set resource status", "error", err.Error())
 	return &pb.Empty{}, err
 }
 

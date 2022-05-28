@@ -4,6 +4,7 @@
 
 replicaCount: 1
 
+
 image:
   repository: nginx
   pullPolicy: IfNotPresent
@@ -86,6 +87,7 @@ tolerations: []
 affinity: {}
 
 global:
+  hostname: ""
   port: 3001
   metadata:
     port: 8080

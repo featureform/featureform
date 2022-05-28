@@ -12,7 +12,7 @@ metadata:
   namespace: default
 spec:
   rules:
-    - host: {{ .Release.Name }}-sandbox.featureform.com
+    - host: {{ .Values.global.hostname }}
       http:
         paths:
           - path: /collections/

@@ -15,7 +15,7 @@ metadata:
   namespace: default
 spec:
   rules:
-    - host: {{ .Release.Name }}-sandbox.featureform.com
+    - host: {{ .Values.global.hostname }}
       http:
         paths:
           - path: /featureform.serving.metadata.proto.Api/
@@ -38,6 +38,6 @@ spec:
 
   tls:
     - hosts:
-        - {{ .Release.Name }}-sandbox.featureform.com
+        -  {{ .Values.global.hostname }}
       secretName: {{ .Release.Name }}-sandbox-prod-certificate
 

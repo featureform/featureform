@@ -1114,10 +1114,10 @@ func (q defaultOfflineSQLQueries) registerResources(db *sql.DB, tableName string
 	var query string
 	if timestamp {
 		query = fmt.Sprintf("CREATE VIEW %s AS SELECT IDENTIFIER('%s') as entity,  IDENTIFIER('%s') as value,  IDENTIFIER('%s') as ts FROM TABLE('%s')", sanitize(tableName),
-			schema.Entity, schema.Value, schema.TS, sanitize(schema.SourceTable))
+			schema.Entity, schema.Value, schema.TS, schema.SourceTable)
 	} else {
 		query = fmt.Sprintf("CREATE VIEW %s AS SELECT IDENTIFIER('%s') as entity, IDENTIFIER('%s') as value, to_timestamp_ntz('%s', 'YYYY-DD-MM HH24:MI:SS +0000 UTC')::TIMESTAMP_NTZ as ts FROM TABLE('%s')", sanitize(tableName),
-			schema.Entity, schema.Value, time.UnixMilli(0).UTC(), sanitize(schema.SourceTable))
+			schema.Entity, schema.Value, time.UnixMilli(0).UTC(), schema.SourceTable)
 	}
 	if _, err := db.Exec(query); err != nil {
 		return err
@@ -1126,7 +1126,7 @@ func (q defaultOfflineSQLQueries) registerResources(db *sql.DB, tableName string
 }
 
 func (q defaultOfflineSQLQueries) primaryTableRegister(tableName string, sourceName string) string {
-	return fmt.Sprintf("CREATE VIEW %s AS SELECT * FROM TABLE('%s')", sanitize(tableName), sanitize(sourceName))
+	return fmt.Sprintf("CREATE VIEW %s AS SELECT * FROM TABLE('%s')", sanitize(tableName), sourceName)
 }
 func (q defaultOfflineSQLQueries) getColumns(db *sql.DB, name string) ([]TableColumn, error) {
 	bind := q.newVariableBindingIterator()

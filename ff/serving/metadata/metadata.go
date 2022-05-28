@@ -120,26 +120,26 @@ var bannedSuffixes = [...]string{"_"}
 
 func resourceNamedSafely(id ResourceID) error {
 	for _, substr := range bannedStrings {
-		if len(id.Name) >= len(substr) && strings.Contains(id.Name, substr) {
+		if strings.Contains(id.Name, substr) {
 			return fmt.Errorf("resource name %s contains banned string %s", id.Name, substr)
 		}
-		if len(id.Variant) >= len(substr) && strings.Contains(id.Variant, substr) {
+		if strings.Contains(id.Variant, substr) {
 			return fmt.Errorf("resource variant %s contains banned string %s", id.Name, substr)
 		}
 	}
 	for _, substr := range bannedPrefixes {
-		if len(id.Name) >= len(substr) && reflect.DeepEqual(id.Name[:len(substr)], substr) {
+		if strings.HasPrefix(id.Name, substr) {
 			return fmt.Errorf("resource name %s contains banned prefix %s", id.Name, substr)
 		}
-		if len(id.Variant) >= len(substr) && reflect.DeepEqual(id.Variant[:len(substr)], substr) {
+		if strings.HasPrefix(id.Variant, substr) {
 			return fmt.Errorf("resource variant %s contains banned prefix %s", id.Name, substr)
 		}
 	}
 	for _, substr := range bannedSuffixes {
-		if len(id.Name) >= len(substr) && reflect.DeepEqual(id.Name[len(id.Name)-len(substr):], substr) {
+		if strings.HasSuffix(id.Name, substr) {
 			return fmt.Errorf("resource name %s contains banned suffix %s", id.Name, substr)
 		}
-		if len(id.Variant) >= len(substr) && reflect.DeepEqual(id.Variant[len(id.Variant)-len(substr):], substr) {
+		if strings.HasSuffix(id.Variant, substr) {
 			return fmt.Errorf("resource variant %s contains banned suffix %s", id.Name, substr)
 		}
 	}

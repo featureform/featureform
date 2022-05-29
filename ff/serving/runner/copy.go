@@ -13,6 +13,8 @@ import (
 
 type Runner interface {
 	Run() (CompletionWatcher, error)
+	Resource() metadata.ResourceID
+	IsUpdateJob() bool
 }
 
 type IndexRunner interface {
@@ -157,6 +159,7 @@ type MaterializedChunkRunnerConfig struct {
 	ResourceID     provider.ResourceID
 	ChunkSize      int64
 	ChunkIdx       int64
+	IsUpdate       bool
 }
 
 func (m *MaterializedChunkRunnerConfig) Serialize() (Config, error) {

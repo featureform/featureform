@@ -11,8 +11,11 @@ import (
 type RunnerName string
 
 const (
-	COPY_TO_ONLINE      RunnerName = "Copy to online"
-	CREATE_TRAINING_SET            = "Create training set"
+	COPY_TO_ONLINE        RunnerName = "Copy to online"
+	CREATE_TRAINING_SET              = "Create training set"
+	REGISTER_FILE                    = "Register file"
+	CREATE_TRANSFORMATION            = "Create transformation"
+	MATERIALIZE                      = "Materialize"
 )
 
 type Config []byte

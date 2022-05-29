@@ -20,11 +20,12 @@ const (
 )
 
 type MaterializeRunner struct {
-	Online  provider.OnlineStore
-	Offline provider.OfflineStore
-	ID      provider.ResourceID
-	VType   provider.ValueType
-	Cloud   JobCloud
+	Online   provider.OnlineStore
+	Offline  provider.OfflineStore
+	ID       provider.ResourceID
+	VType    provider.ValueType
+	IsUpdate bool
+	Cloud    JobCloud
 }
 
 type WatcherMultiplex struct {
@@ -65,7 +66,13 @@ func (w WatcherMultiplex) Err() error {
 }
 
 func (m MaterializeRunner) Run() (CompletionWatcher, error) {
-	materialization, err := m.Offline.CreateMaterialization(m.ID)
+	var materialization provider.Materialization
+	var err error
+	if m.IsUpdate {
+		materialization, err = m.Offline.UpdateMaterialization(m.ID)
+	} else {
+		materialization, err = m.Offline.CreateMaterialization(m.ID)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +81,9 @@ func (m MaterializeRunner) Run() (CompletionWatcher, error) {
 	if err != nil && !exists {
 		return nil, err
 	}
-
+	if exists && !m.IsUpdate {
+		return nil, fmt.Errorf("table already exists despite being new job")
+	}
 	chunkSize := MAXIMUM_CHUNK_ROWS
 	var numChunks int64
 	numRows, err := materialization.NumRows()
@@ -152,4 +161,79 @@ func (m MaterializeRunner) Run() (CompletionWatcher, error) {
 		materializeWatcher.EndWatch(nil)
 	}()
 	return materializeWatcher, nil
+}
+
+//here we create a factory method for the materializers
+//the confusing thing about this is this is a Factory IN A FACTOYR FUCK
+
+type MaterializedRunnerConfig struct {
+	OnlineType     provider.Type
+	OfflineType    provider.Type
+	OnlineConfig   provider.SerializedConfig
+	OfflineConfig  provider.SerializedConfig
+	MaterializedID provider.MaterializationID
+	ResourceID     provider.ResourceID
+	ChunkSize      int64
+	ChunkIdx       int64
+	IsUpdate       bool
+}
+
+func (m *MaterializedRunnerConfig) Serialize() (Config, error) {
+	config, err := json.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	return config, nil
+}
+
+func (m *MaterializedChunkRunnerConfig) Deserialize(config Config) error {
+	err := json.Unmarshal(config, m)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func MaterializedChunkRunnerFactory(config Config) (Runner, error) {
+	runnerConfig := &MaterializedChunkRunnerConfig{}
+	if err := runnerConfig.Deserialize(config); err != nil {
+		return nil, fmt.Errorf("failed to deserialize materialize chunk runner config: %v", err)
+	}
+	onlineProvider, err := provider.Get(runnerConfig.OnlineType, runnerConfig.OnlineConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to configure online provider: %v", err)
+	}
+	offlineProvider, err := provider.Get(runnerConfig.OfflineType, runnerConfig.OfflineConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to configure offline provider: %v", err)
+	}
+	onlineStore, err := onlineProvider.AsOnlineStore()
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert provider to online store: %v", err)
+	}
+	offlineStore, err := offlineProvider.AsOfflineStore()
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert provider to offline store: %v", err)
+	}
+	materialization, err := offlineStore.GetMaterialization(runnerConfig.MaterializedID)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get materialization: %v", err)
+	}
+	numRows, err := materialization.NumRows()
+	if err != nil {
+		return nil, fmt.Errorf("cannot get materialization num rows: %v", err)
+	}
+	if runnerConfig.ChunkSize*runnerConfig.ChunkIdx > numRows {
+		return nil, fmt.Errorf("chunk runner starts after end of materialization rows")
+	}
+	table, err := onlineStore.GetTable(runnerConfig.ResourceID.Name, runnerConfig.ResourceID.Variant)
+	if err != nil {
+		return nil, fmt.Errorf("error getting online table: %v", err)
+	}
+	return &MaterializedChunkRunner{
+		Materialized: materialization,
+		Table:        table,
+		ChunkSize:    runnerConfig.ChunkSize,
+		ChunkIdx:     runnerConfig.ChunkIdx,
+	}, nil
 }

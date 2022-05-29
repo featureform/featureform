@@ -12,6 +12,7 @@ import (
 	"github.com/featureform/serving/metadata"
 	provider "github.com/featureform/serving/provider"
 	runner "github.com/featureform/serving/runner"
+	worker "github.com/featureform/serving/runner/worker"
 	mvccpb "go.etcd.io/etcd/api/v3/mvccpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/client/v3/concurrency"
@@ -42,6 +43,26 @@ type Coordinator struct {
 	KVClient   *clientv3.KV
 	Spawner    JobSpawner
 	Timeout    int32
+}
+
+type ETCDConfig struct {
+	Endpoints []string
+}
+
+func (c *ETCDConfig) Serialize() (Config, error) {
+	config, err := json.Marshal(c)
+	if err != nil {
+		panic(err)
+	}
+	return config, nil
+}
+
+func (c *ETCDConfig) Deserialize(config Config) error {
+	err := json.Unmarshal(config, c)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (c *Coordinator) AwaitPendingSource(sourceNameVariant metadata.NameVariant) (*metadata.SourceVariant, error) {
@@ -78,9 +99,14 @@ func GetLockKey(jobKey string) string {
 	return fmt.Sprintf("LOCK_%s", jobKey)
 }
 
-func (k *KubernetesJobSpawner) GetJobRunner(jobName string, config runner.Config) (runner.Runner, error) {
+func (k *KubernetesJobSpawner) GetJobRunner(jobName string, config runner.Config, etcdEndpoints []string) (runner.Runner, error) {
+	etcdConfig := &ETCDConfig{Endpoints: etcdEndpoints}
+	serializedETCD, err := etcdConfig.Serialize()
+	if err != nil {
+		return nil, err
+	}
 	kubeConfig := runner.KubernetesRunnerConfig{
-		EnvVars:  map[string]string{"NAME": jobName, "CONFIG": string(config)},
+		EnvVars:  map[string]string{"NAME": jobName, "CONFIG": string(config), "ETCD_CONFIG": serializedETCD},
 		Image:    "featureform/worker",
 		NumTasks: 1,
 	}
@@ -114,6 +140,7 @@ func NewCoordinator(meta *metadata.Client, logger *zap.SugaredLogger, cli *clien
 
 const MAX_ATTEMPTS = 1
 
+//TODO add watch for update here from the worker which needs to somehow connect to etcd (etcd client for the worker udg)
 func (c *Coordinator) WatchForNewJobs() error {
 	c.Logger.Info("Watching for new jobs")
 	getResp, err := (*c.KVClient).Get(context.Background(), "JOB_", clientv3.WithPrefix())
@@ -137,6 +164,72 @@ func (c *Coordinator) WatchForNewJobs() error {
 						err := c.executeJob(string(ev.Kv.Key))
 						if err != nil {
 							c.Logger.Errorw("Error executing job: Polling search", "error", err)
+						}
+					}(ev)
+				}
+
+			}
+		}
+	}
+	return nil
+}
+
+func (c *Coordinator) WatchForUpdateEvents() error {
+	c.Logger.Info("Watching for new update events")
+	getResp, err := (*c.KVClient).Get(context.Background(), "UPDATE_EVENT_", clientv3.WithPrefix())
+	if err != nil {
+		return err
+	}
+	for _, kv := range getResp.Kvs {
+		go func(kv *mvccpb.KeyValue) {
+			err := c.signalResourceUpdate(string(kv.Key), string(kv.Value))
+			if err != nil {
+				c.Logger.Errorw("Error executing update event catch: Initial search", "error", err)
+			}
+		}(kv)
+	}
+	for {
+		rch := c.EtcdClient.Watch(context.Background(), "UPDATE_EVENT_", clientv3.WithPrefix())
+		for wresp := range rch {
+			for _, ev := range wresp.Events {
+				if ev.Type == 0 {
+					go func(ev *clientv3.Event) {
+						err := c.signalResourceUpdate(string(ev.Kv.Key), string(ev.Kv.Value))
+						if err != nil {
+							c.Logger.Errorw("Error executing update event catch: Polling search", "error", err)
+						}
+					}(ev)
+				}
+
+			}
+		}
+	}
+	return nil
+}
+
+func (c *Coordinator) WatchForScheduleChanges() error {
+	c.Logger.Info("Watching for new update events")
+	getResp, err := (*c.KVClient).Get(context.Background(), "SCHEDULE_JOB_", clientv3.WithPrefix())
+	if err != nil {
+		return err
+	}
+	for _, kv := range getResp.Kvs {
+		go func(kv *mvccpb.KeyValue) {
+			err := c.changeJobSchedule(string(kv.Key), string(kv.Value))
+			if err != nil {
+				c.Logger.Errorw("Error executing job schedule change: Initial search", "error", err)
+			}
+		}(kv)
+	}
+	for {
+		rch := c.EtcdClient.Watch(context.Background(), "SCHEDULE_JOB_", clientv3.WithPrefix())
+		for wresp := range rch {
+			for _, ev := range wresp.Events {
+				if ev.Type == 0 {
+					go func(ev *clientv3.Event) {
+						err := c.changeJobSchedule(string(ev.Kv.Key), string(ev.Kv.Value))
+						if err != nil {
+							c.Logger.Errorw("Error executing job schedule change: Polling search", "error", err)
 						}
 					}(ev)
 				}
@@ -211,9 +304,12 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 	}
 	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Transformation}
 	transformationConfig := provider.TransformationConfig{TargetTableID: providerResourceID, Query: query}
+	//here is should do the factory method stuff
+
 	if err := offlineStore.CreateTransformation(transformationConfig); err != nil {
 		return err
 	}
+	//TODOif schedule, set the schedule thing
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
 		return err
 	}
@@ -227,9 +323,11 @@ func (c *Coordinator) runPrimaryTableJob(transformSource *metadata.SourceVariant
 	if sourceName == "" {
 		return fmt.Errorf("no source name set")
 	}
+	//herre likewise should be an actual factory, not something run herer (as the scheduler has to actually be in kubernetes)
 	if _, err := offlineStore.RegisterPrimaryFromSourceTable(providerResourceID, sourceName); err != nil {
 		return err
 	}
+	//TODOif schedule, set the schedule thing
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
 		return err
 	}
@@ -308,11 +406,12 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID) error 
 		return err
 	}
 	materializeRunner := runner.MaterializeRunner{
-		Online:  featureStore,
-		Offline: sourceStore,
-		ID:      provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Feature},
-		VType:   provider.ValueType(featureType),
-		Cloud:   runner.LocalMaterializeRunner,
+		Online:   featureStore,
+		Offline:  sourceStore,
+		ID:       provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Feature},
+		VType:    provider.ValueType(featureType),
+		Cloud:    runner.LocalMaterializeRunner,
+		IsUpdate: false,
 	}
 	completionWatcher, err := materializeRunner.Run()
 	if err != nil {
@@ -324,6 +423,18 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID) error 
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
 		return err
 	}
+	if isUpdate {
+		scheduleMaterializeRunner := runner.MaterializeRunner{
+			Online:   featureStore,
+			Offline:  sourceStore,
+			ID:       provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Feature},
+			VType:    provider.ValueType(featureType),
+			Cloud:    runner.LocalMaterializeRunner,
+			IsUpdate: true,
+		}
+
+	}
+
 	return nil
 }
 
@@ -390,7 +501,7 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID) error {
 		Def:           trainingSetDef,
 	}
 	serialized, _ := tsRunnerConfig.Serialize()
-	jobRunner, err := c.Spawner.GetJobRunner(runner.CREATE_TRAINING_SET, serialized)
+	jobRunner, err := c.Spawner.GetJobRunner(runner.CREATE_TRAINING_SET, serialized, c.EtcdClient.Endpoints())
 	if err != nil {
 		return err
 	}
@@ -401,6 +512,7 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID) error {
 	if err := completionWatcher.Wait(); err != nil {
 		return err
 	}
+	//TODOif schedule, set the schedule thing
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
 		return err
 	}
@@ -544,4 +656,19 @@ func (c *Coordinator) executeJob(jobKey string) error {
 		return err
 	}
 	return nil
+}
+
+func (c *Coordinator) signalResourceUpdate(key string, value string) error {
+	resUpdatedEvent := &worker.ResourceUpdatedEvent{}
+	if err := resUpdatedEvent.Deserialize(value); err != nil {
+		return err
+	}
+	//TODO set it so an empty string in the new schedule does nothing
+	if err := c.Metadata.SetUpdateStatus(context.Background(), resUpdatedEvent.ResourceID, "", metadata.READY, "", resUpdatedEvent.Completed); err != nil {
+		return err
+	}
+}
+
+func (c *Coordinator) changeJobSchedule(key string, value string) error {
+	//here we request to change the job schedule for a resource's cron job and if succesful update metadata
 }

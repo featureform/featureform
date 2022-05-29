@@ -11,8 +11,9 @@ import (
 )
 
 type TrainingSetRunner struct {
-	Offline provider.OfflineStore
-	Def     provider.TrainingSetDef
+	Offline  provider.OfflineStore
+	Def      provider.TrainingSetDef
+	IsUpdate bool
 }
 
 func (m TrainingSetRunner) Run() (CompletionWatcher, error) {
@@ -22,9 +23,16 @@ func (m TrainingSetRunner) Run() (CompletionWatcher, error) {
 		DoneChannel: done,
 	}
 	go func() {
-		if err := m.Offline.CreateTrainingSet(m.Def); err != nil {
-			trainingSetWatcher.EndWatch(err)
-			return
+		if !IsUpdate {
+			if err := m.Offline.CreateTrainingSet(m.Def); err != nil {
+				trainingSetWatcher.EndWatch(err)
+				return
+			}
+		} else {
+			if err := m.Offline.UpdateTrainingSet(m.Def); err != nil {
+				trainingSetWatcher.EndWatch(err)
+				return
+			}
 		}
 		trainingSetWatcher.EndWatch(nil)
 	}()
@@ -35,6 +43,7 @@ type TrainingSetRunnerConfig struct {
 	OfflineType   provider.Type
 	OfflineConfig provider.SerializedConfig
 	Def           provider.TrainingSetDef
+	IsUpdate      bool
 }
 
 func (c *TrainingSetRunnerConfig) Serialize() (Config, error) {
@@ -67,7 +76,8 @@ func TrainingSetRunnerFactory(config Config) (Runner, error) {
 		return nil, fmt.Errorf("failed to convert provider to offline store: %v", err)
 	}
 	return &TrainingSetRunner{
-		Offline: offlineStore,
-		Def:     runnerConfig.Def,
+		Offline:  offlineStore,
+		Def:      runnerConfig.Def,
+		IsUpdate: runnerConfig.IsUpdate,
 	}, nil
 }

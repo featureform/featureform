@@ -148,12 +148,13 @@ func resourceNamedSafely(id ResourceID) error {
 
 type ResourceNotFound struct {
 	ID ResourceID
+	E  error
 }
 
 func (err *ResourceNotFound) Error() string {
 	id := err.ID
 	name, variant, t := id.Name, id.Variant, id.Type
-	errMsg := fmt.Sprintf("%s Not Found.\nName: %s", t, name)
+	errMsg := fmt.Sprintf("%s Not Found.\nName: %s err: %v", t, name, err.E)
 	if variant != "" {
 		errMsg += "\nVariant: " + variant
 	}
@@ -236,7 +237,7 @@ type localResourceLookup map[ResourceID]Resource
 func (lookup localResourceLookup) Lookup(id ResourceID) (Resource, error) {
 	res, has := lookup[id]
 	if !has {
-		return nil, &ResourceNotFound{id}
+		return nil, &ResourceNotFound{id, nil}
 	}
 	return res, nil
 }
@@ -256,7 +257,7 @@ func (lookup localResourceLookup) Submap(ids []ResourceID) (ResourceLookup, erro
 	for _, id := range ids {
 		resource, has := lookup[id]
 		if !has {
-			return nil, &ResourceNotFound{id}
+			return nil, &ResourceNotFound{id, nil}
 		}
 		resources[id] = resource
 	}
@@ -284,7 +285,7 @@ func (lookup localResourceLookup) List() ([]Resource, error) {
 func (lookup localResourceLookup) SetStatus(id ResourceID, status pb.ResourceStatus) error {
 	res, has := lookup[id]
 	if !has {
-		return &ResourceNotFound{id}
+		return &ResourceNotFound{id, nil}
 	}
 	if err := res.UpdateStatus(status); err != nil {
 		return err

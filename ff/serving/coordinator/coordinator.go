@@ -342,7 +342,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID) error 
 		Variant: resID.Variant,
 		Type:    provider.Feature,
 	}
-	tmpSchema := feature.LocationColumns().(provider.ResourceSchema)
+	tmpSchema := feature.LocationColumns().(metadata.ResourceVariantColumns)
 	schema := provider.ResourceSchema{
 		Entity:      tmpSchema.Entity,
 		Value:       tmpSchema.Value,

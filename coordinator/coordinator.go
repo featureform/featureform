@@ -265,6 +265,22 @@ func (c *Coordinator) runRegisterSourceJob(resID metadata.ResourceID) error {
 	}
 }
 
+//func (c *Coordinator) runFeatureRegisterJob(source metadata.NameVariant, location interface, resID metadata.ResourceID, offlineStore provider.OfflineStore) error {
+//	c.Logger.Info("Running feature table job on resource: ", resID)
+//	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant}
+//	schema := provider.ResourceSchema{
+//		SourceTable: source,
+//	}
+//	c.Logger.Debugw("Registering Resource", "id", resID, "schema", schema)
+//	if _, err := offlineStore.RegisterResourceFromSourceTable(providerResourceID, schema); err != nil {
+//		return err
+//	}
+//	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
+//		return err
+//	}
+//	return nil
+//}
+
 //should only be triggered when we are registering an ONLINE feature, not an offline one
 func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID) error {
 	c.Logger.Info("Running feature materialization job on resource: ", resID)
@@ -274,12 +290,13 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID) error 
 	}
 	status := feature.Status()
 	featureType := feature.Type()
-	if status == metadata.READY || status == metadata.FAILED {
+	if status == metadata.READY || status == metadata.FAILED { // change this?
 		return fmt.Errorf("feature already set to %s", status.String())
 	}
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.PENDING, ""); err != nil {
 		return err
 	}
+
 	sourceNameVariant := feature.Source()
 	source, err := c.AwaitPendingSource(sourceNameVariant)
 	if err != nil {
@@ -309,6 +326,12 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID) error 
 	if err != nil {
 		return err
 	}
+	c.Logger.Info("feature obj", feature)
+	//err = c.runFeatureRegisterJob(sourceNameVariant, feature.LocationColumns(), resID, sourceStore)
+	//if err != nil {
+	//	return fmt.Errorf("materialize feature register: %w", err)
+	//}
+
 	materializeRunner := runner.MaterializeRunner{
 		Online:  featureStore,
 		Offline: sourceStore,

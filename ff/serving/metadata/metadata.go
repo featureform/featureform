@@ -1081,6 +1081,7 @@ func (serv *MetadataServer) GetSources(stream pb.Metadata_GetSourcesServer) erro
 }
 
 func (serv *MetadataServer) GetSourceVariants(stream pb.Metadata_GetSourceVariantsServer) error {
+	serv.Logger.Infow("Getting Source Variant In Metadata")
 	return serv.genericGet(stream, SOURCE_VARIANT, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.SourceVariant))
 	})

@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	provider "github.com/featureform/serving/provider"
+	metadata "github.com/featureform/serving/metadata"
 	"sync"
 )
 
@@ -40,6 +41,17 @@ type ResultSync struct {
 	err  error
 	done bool
 	mu   sync.RWMutex
+}
+
+Resource() metadata.ResourceID
+	IsUpdateJob() bool
+
+func (m *MaterializedChunkRunner) Resource() metadata.ResourceID {
+
+}
+
+func (m *MaterializedChunkRunner) IsUpdateJob() bool {
+	return false
 }
 
 func (m *MaterializedChunkRunner) Run() (CompletionWatcher, error) {

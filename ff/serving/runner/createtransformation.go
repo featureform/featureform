@@ -10,14 +10,14 @@ import (
 	provider "github.com/featureform/serving/provider"
 )
 
-func (m RegisterSourceRunner) Run() (CompletionWatcher, error) {
+func (m *RegisterSourceRunner) Run() (CompletionWatcher, error) {
 	done := make(chan interface{})
 	transformationWatcher := &SyncWatcher{
 		ResultSync:  &ResultSync{},
 		DoneChannel: done,
 	}
 	go func() {
-		if !IsUpdate {
+		if !m.IsUpdate {
 			if err := m.Offline.CreateTransformation(m.TransformationConfig); err != nil {
 				transformationWatcher.EndWatch(err)
 				return
@@ -30,7 +30,7 @@ func (m RegisterSourceRunner) Run() (CompletionWatcher, error) {
 		}
 		transformationWatcher.EndWatch(nil)
 	}()
-	return trainingSetWatcher, nil
+	return transformationWatcher, nil
 }
 
 type CreateTransformationConfig struct {

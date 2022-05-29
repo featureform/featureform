@@ -30,6 +30,7 @@ func main() {
 	}
 	fmt.Println("connected to etcd")
 	logger := zap.NewExample().Sugar()
+	defer logger.Sync()
 	logger.Debug("Connected to ETCD")
 	client, err := metadata.NewClient(metadataUrl, logger)
 	if err != nil {

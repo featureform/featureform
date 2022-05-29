@@ -302,31 +302,31 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID) error 
 
 	source, err := c.AwaitPendingSource(sourceNameVariant)
 	if err != nil {
-		return fmt.Errorf("source of could not complete job: %v", err)
+		return fmt.Errorf("source of could not complete job: %w", err)
 	}
 	sourceProvider, err := source.FetchProvider(c.Metadata, context.Background())
 	if err != nil {
-		return err
+		return fmt.Errorf("could not fetch online provider: %w", err)
 	}
 	p, err := provider.Get(provider.Type(sourceProvider.Type()), sourceProvider.SerializedConfig())
 	if err != nil {
-		return err
+		return fmt.Errorf("could not get offline provider config: %w", err)
 	}
 	sourceStore, err := p.AsOfflineStore()
 	if err != nil {
-		return err
+		return fmt.Errorf("could not use store as offline store: %w", err)
 	}
 	featureProvider, err := feature.FetchProvider(c.Metadata, context.Background())
 	if err != nil {
-		return err
+		return fmt.Errorf("could not fetch  onlineprovider: %w", err)
 	}
 	p, err = provider.Get(provider.Type(featureProvider.Type()), featureProvider.SerializedConfig())
 	if err != nil {
-		return err
+		return fmt.Errorf("could not get online provider config: %w", err)
 	}
 	featureStore, err := p.AsOnlineStore()
 	if err != nil {
-		return err
+		return fmt.Errorf("could not use store as online store: %w", err)
 	}
 	srcID := provider.ResourceID{
 		Name:    sourceNameVariant.Name,
@@ -349,12 +349,12 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID) error 
 		TS:          tmpSchema.TS,
 		SourceTable: srcName,
 	}
-
+	c.Logger.Debugw("Creating Resource Table", "id", featID, "schema", schema)
 	_, err = sourceStore.RegisterResourceFromSourceTable(featID, schema)
 	if err != nil {
 		return fmt.Errorf("materialize feature register: %w", err)
 	}
-
+	c.Logger.Debugw("Resource Table Created", "id", featID, "schema", schema)
 	materializeRunner := runner.MaterializeRunner{
 		Online:  featureStore,
 		Offline: sourceStore,

@@ -108,11 +108,11 @@ func NewCoordinator(meta *metadata.Client, logger *zap.SugaredLogger, cli *clien
 		EtcdClient: cli,
 		KVClient:   &kvc,
 		Spawner:    spawner,
-		Timeout:    5,
+		Timeout:    60,
 	}, nil
 }
 
-const MAX_ATTEMPTS = 1
+const MAX_ATTEMPTS = 60
 
 func (c *Coordinator) WatchForNewJobs() error {
 	c.Logger.Info("Watching for new jobs")

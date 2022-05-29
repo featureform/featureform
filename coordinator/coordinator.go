@@ -187,7 +187,7 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 	for !allReady {
 		sourceVariants, err := c.Metadata.GetSourceVariants(context.Background(), sources)
 		if err != nil {
-			return err
+			return fmt.Errorf("get source variant: %w ", err)
 		}
 		total := len(sourceVariants)
 		totalReady := 0
@@ -203,12 +203,13 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 	}
 	sourceMap, err := c.mapNameVariantsToTables(sources)
 	if err != nil {
-		return err
+		return fmt.Errorf("map name: %w sources: %v", err, sources)
 	}
 	query, err := templateReplace(templateString, sourceMap)
 	if err != nil {
-		return err
+		return fmt.Errorf("template replace: %w source map: %v, template: %s", err, sourceMap, templateString)
 	}
+	c.Logger.Debugw("Created transformation query", "query", query)
 	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Transformation}
 	transformationConfig := provider.TransformationConfig{TargetTableID: providerResourceID, Query: query}
 	if err := offlineStore.CreateTransformation(transformationConfig); err != nil {
@@ -217,6 +218,7 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
 		return err
 	}
+	c.Logger.Info("Transformation Job Complete", resID)
 	return nil
 }
 

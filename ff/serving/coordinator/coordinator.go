@@ -298,6 +298,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID) error 
 	}
 
 	sourceNameVariant := feature.Source()
+	c.Logger.Infow("feature obj", "name", feature.Name(), "source", feature.Source(), "location", feature.Location(), "location_col", feature.LocationColumns())
 	source, err := c.AwaitPendingSource(sourceNameVariant)
 	if err != nil {
 		return fmt.Errorf("source of could not complete job: %v", err)
@@ -326,7 +327,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID) error 
 	if err != nil {
 		return err
 	}
-	c.Logger.Info("feature obj", feature)
+
 	//err = c.runFeatureRegisterJob(sourceNameVariant, feature.LocationColumns(), resID, sourceStore)
 	//if err != nil {
 	//	return fmt.Errorf("materialize feature register: %w", err)

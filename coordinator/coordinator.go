@@ -299,6 +299,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID) error 
 
 	sourceNameVariant := feature.Source()
 	c.Logger.Infow("feature obj", "name", feature.Name(), "source", feature.Source(), "location", feature.Location(), "location_col", feature.LocationColumns())
+
 	source, err := c.AwaitPendingSource(sourceNameVariant)
 	if err != nil {
 		return fmt.Errorf("source of could not complete job: %v", err)
@@ -327,11 +328,32 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID) error 
 	if err != nil {
 		return err
 	}
+	srcID := provider.ResourceID{
+		Name:    sourceNameVariant.Name,
+		Variant: sourceNameVariant.Variant,
+	}
+	srcName, err := provider.GetTransformationName(srcID)
+	if err != nil {
+		return fmt.Errorf("transform name err: %w", err)
+	}
 
-	//err = c.runFeatureRegisterJob(sourceNameVariant, feature.LocationColumns(), resID, sourceStore)
-	//if err != nil {
-	//	return fmt.Errorf("materialize feature register: %w", err)
-	//}
+	featID := provider.ResourceID{
+		Name:    resID.Name,
+		Variant: resID.Variant,
+		Type:    provider.Feature,
+	}
+	tmpSchema := feature.LocationColumns().(provider.ResourceSchema)
+	schema := provider.ResourceSchema{
+		Entity:      tmpSchema.Entity,
+		Value:       tmpSchema.Value,
+		TS:          tmpSchema.TS,
+		SourceTable: srcName,
+	}
+
+	_, err = sourceStore.RegisterResourceFromSourceTable(featID, schema)
+	if err != nil {
+		return fmt.Errorf("materialize feature register: %w", err)
+	}
 
 	materializeRunner := runner.MaterializeRunner{
 		Online:  featureStore,

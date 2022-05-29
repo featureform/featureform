@@ -265,21 +265,73 @@ func (c *Coordinator) runRegisterSourceJob(resID metadata.ResourceID) error {
 	}
 }
 
-//func (c *Coordinator) runFeatureRegisterJob(source metadata.NameVariant, location interface, resID metadata.ResourceID, offlineStore provider.OfflineStore) error {
-//	c.Logger.Info("Running feature table job on resource: ", resID)
-//	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant}
-//	schema := provider.ResourceSchema{
-//		SourceTable: source,
-//	}
-//	c.Logger.Debugw("Registering Resource", "id", resID, "schema", schema)
-//	if _, err := offlineStore.RegisterResourceFromSourceTable(providerResourceID, schema); err != nil {
-//		return err
-//	}
-//	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
-//		return err
-//	}
-//	return nil
-//}
+func (c *Coordinator) runLabelRegisterJob(resID metadata.ResourceID) error {
+	c.Logger.Info("Running label register job: ", resID)
+	label, err := c.Metadata.GetLabelVariant(context.Background(), metadata.NameVariant{resID.Name, resID.Variant})
+	if err != nil {
+		return err
+	}
+	status := label.Status()
+	if status == metadata.READY { // change this?
+		return fmt.Errorf("feature already set to %s", status.String())
+	}
+	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.PENDING, ""); err != nil {
+		return err
+	}
+
+	sourceNameVariant := label.Source()
+	c.Logger.Infow("feature obj", "name", label.Name(), "source", label.Source(), "location", label.Location(), "location_col", label.LocationColumns())
+
+	source, err := c.AwaitPendingSource(sourceNameVariant)
+	if err != nil {
+		return fmt.Errorf("source of could not complete job: %w", err)
+	}
+	sourceProvider, err := source.FetchProvider(c.Metadata, context.Background())
+	if err != nil {
+		return fmt.Errorf("could not fetch online provider: %w", err)
+	}
+	p, err := provider.Get(provider.Type(sourceProvider.Type()), sourceProvider.SerializedConfig())
+	if err != nil {
+		return fmt.Errorf("could not get offline provider config: %w", err)
+	}
+	sourceStore, err := p.AsOfflineStore()
+	if err != nil {
+		return fmt.Errorf("could not use store as offline store: %w", err)
+	}
+
+	srcID := provider.ResourceID{
+		Name:    sourceNameVariant.Name,
+		Variant: sourceNameVariant.Variant,
+	}
+	srcName, err := provider.GetTransformationName(srcID)
+	if err != nil {
+		return fmt.Errorf("transform name err: %w", err)
+	}
+
+	labelID := provider.ResourceID{
+		Name:    resID.Name,
+		Variant: resID.Variant,
+		Type:    provider.Label,
+	}
+	tmpSchema := label.LocationColumns().(metadata.ResourceVariantColumns)
+	schema := provider.ResourceSchema{
+		Entity:      tmpSchema.Entity,
+		Value:       tmpSchema.Value,
+		TS:          tmpSchema.TS,
+		SourceTable: srcName,
+	}
+	c.Logger.Debugw("Creating Label Resource Table", "id", labelID, "schema", schema)
+	_, err = sourceStore.RegisterResourceFromSourceTable(labelID, schema)
+	if err != nil {
+		return fmt.Errorf("register from source: %w", err)
+	}
+	c.Logger.Debugw("Resource Table Created", "id", labelID, "schema", schema)
+
+	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
+		return err
+	}
+	return nil
+}
 
 //should only be triggered when we are registering an ONLINE feature, not an offline one
 func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID) error {
@@ -576,6 +628,7 @@ func (c *Coordinator) executeJob(jobKey string) error {
 	fns := map[metadata.ResourceType]jobFunction{
 		metadata.TRAINING_SET_VARIANT: c.runTrainingSetJob,
 		metadata.FEATURE_VARIANT:      c.runFeatureMaterializeJob,
+		metadata.LABEL_VARIANT:        c.runLabelRegisterJob,
 		metadata.SOURCE_VARIANT:       c.runRegisterSourceJob,
 	}
 	jobFunc, has := fns[job.Resource.Type]

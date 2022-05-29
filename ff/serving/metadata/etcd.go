@@ -73,14 +73,17 @@ func (c *CoordinatorJob) Deserialize(serialized []byte) error {
 func (c EtcdConfig) initClient() (*clientv3.Client, error) {
 	addresses := c.MakeAddresses()
 	client, err := clientv3.New(clientv3.Config{
-		Endpoints:   addresses,
-		DialTimeout: time.Second * 1,
-		Username:    "root",
-		Password:    "secretpassword",
+		Endpoints:         addresses,
+		AutoSyncInterval:  time.Second * 30,
+		DialTimeout:       time.Second * 1,
+		DialKeepAliveTime: time.Second * 1,
+		Username:          "root",
+		Password:          "secretpassword",
 	})
 	if err != nil {
 		return nil, err
 	}
+
 	return client, nil
 }
 

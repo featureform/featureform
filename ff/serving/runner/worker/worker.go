@@ -7,8 +7,8 @@ package worker
 import (
 	"errors"
 	runner "github.com/featureform/serving/runner"
-	"os"
 	"github.com/google/uuid"
+	"os"
 	"strconv"
 )
 
@@ -16,7 +16,7 @@ type Config []byte
 
 type ResourceUpdatedEvent struct {
 	ResourceID metadataResourceID
-	Completed time.Time
+	Completed  time.Time
 }
 
 func (c *ResourceUpdatedEvent) Serialize() (Config, error) {
@@ -92,7 +92,7 @@ func CreateAndRun() error {
 		timeCompleted := time.Now()
 		updatedEvent := &ResourceUpdatedEvent{
 			ResourceID: resourceID,
-			Completed: timeCompleted,
+			Completed:  timeCompleted,
 		}
 		serializedEvent, err := updatedEvent.Serialize()
 		if err != nil {

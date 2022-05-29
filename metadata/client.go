@@ -730,9 +730,10 @@ func (client *Client) CreateSourceVariant(ctx context.Context, def SourceDef) er
 }
 
 func (client *Client) GetSourceVariants(ctx context.Context, ids []NameVariant) ([]*SourceVariant, error) {
+	client.Logger.Infow("Getting Source Variant", "ids", ids)
 	stream, err := client.grpcConn.GetSourceVariants(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("grpc connect: %w", err)
 	}
 	go func() {
 		for _, id := range ids {

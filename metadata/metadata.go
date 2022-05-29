@@ -84,7 +84,8 @@ func (serv *MetadataServer) needsJob(res Resource) bool {
 	if res.ID().Type == TRAINING_SET_VARIANT ||
 		res.ID().Type == FEATURE_VARIANT ||
 		//extra flag on feature variant for online/offline?
-		res.ID().Type == SOURCE_VARIANT {
+		res.ID().Type == SOURCE_VARIANT ||
+		res.ID().Type == LABEL_VARIANT {
 		return true
 	}
 	return false

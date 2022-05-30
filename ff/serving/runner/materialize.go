@@ -10,7 +10,7 @@ import (
 )
 
 const MAXIMUM_CHUNK_ROWS int64 = 1024
-const WORKER_IMAGE string = "featureform/worker"
+const WORKER_IMAGE string = "featureformcom/worker"
 
 type JobCloud string
 

@@ -5,35 +5,18 @@
 package worker
 
 import (
+	"encoding/json"
 	"errors"
+	coordinator "github.com/featureform/serving/coordinator"
+	metadata "github.com/featureform/serving/metadata"
 	runner "github.com/featureform/serving/runner"
 	"github.com/google/uuid"
 	"os"
 	"strconv"
+	"time"
 )
 
 type Config []byte
-
-type ResourceUpdatedEvent struct {
-	ResourceID metadataResourceID
-	Completed  time.Time
-}
-
-func (c *ResourceUpdatedEvent) Serialize() (Config, error) {
-	config, err := json.Marshal(c)
-	if err != nil {
-		panic(err)
-	}
-	return config, nil
-}
-
-func (c *ResourceUpdatedEvent) Deserialize(config Config) error {
-	err := json.Unmarshal(config, c)
-	if err != nil {
-		return err
-	}
-	return nil
-}
 
 //todo add etcd client to the kubernetes environment variables
 func CreateAndRun() error {
@@ -45,7 +28,7 @@ func CreateAndRun() error {
 	if !ok {
 		return errors.New("NAME not set")
 	}
-	etcdConfig, ok := os.LookupEnv("ETCD_CONFIG")
+	etcdConf, ok := os.LookupEnv("ETCD_CONFIG")
 	if !ok {
 		return errors.New("ETCD_CONFIG not set")
 	}
@@ -80,7 +63,7 @@ func CreateAndRun() error {
 	}
 	if jobRunner.IsUpdateJob() {
 		etcdConfig := &coordinator.ETCDConfig{}
-		err := etcdConfig.Deserialize()
+		err := etcdConfig.Deserialize(etcdConf)
 		if err != nil {
 			return err
 		}
@@ -90,7 +73,7 @@ func CreateAndRun() error {
 		}
 		resourceID := jobRunner.Resource()
 		timeCompleted := time.Now()
-		updatedEvent := &ResourceUpdatedEvent{
+		updatedEvent := &metadata.ResourceUpdatedEvent{
 			ResourceID: resourceID,
 			Completed:  timeCompleted,
 		}

@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	redis "github.com/go-redis/redis/v8"
 )
 
 const (

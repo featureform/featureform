@@ -125,6 +125,7 @@ func (m MaterializeRunner) Run() (CompletionWatcher, error) {
 	case LocalMaterializeRunner:
 		completionList := make([]CompletionWatcher, int(numChunks))
 		for i := 0; i < int(numChunks); i++ {
+			fmt.Println("Running Chunks")
 			localRunner, err := Create(string(COPY_TO_ONLINE), serializedConfig)
 			if err != nil {
 				return nil, fmt.Errorf("local runner create: %w", err)

@@ -407,6 +407,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID) error 
 		return fmt.Errorf("materialize feature register: %w", err)
 	}
 	c.Logger.Debugw("Resource Table Created", "id", featID, "schema", schema)
+
 	materializeRunner := runner.MaterializeRunner{
 		Online:  featureStore,
 		Offline: sourceStore,

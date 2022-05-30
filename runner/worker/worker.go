@@ -6,6 +6,7 @@ package worker
 
 import (
 	"errors"
+	"fmt"
 	runner "github.com/featureform/runner"
 	"os"
 	"strconv"
@@ -13,13 +14,17 @@ import (
 
 func CreateAndRun() error {
 	config, ok := os.LookupEnv("CONFIG")
+
 	if !ok {
 		return errors.New("CONFIG not set")
 	}
+	fmt.Printf("Config: %v", config)
 	name, ok := os.LookupEnv("NAME")
+
 	if !ok {
 		return errors.New("NAME not set")
 	}
+	fmt.Printf("Name: %v", name)
 	jobRunner, err := runner.Create(name, []byte(config))
 	if err != nil {
 		return err

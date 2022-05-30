@@ -15,6 +15,7 @@ COPY ./metadata/*.go ./metadata/
 COPY ./metadata/search/ ./metadata/search/
 COPY ./metadata/proto/ ./metadata/proto/
 COPY ./proto/ ./proto/
+COPY ./proto/ ./proto/
 COPY ./api/api.go ./api/api.go
 
 EXPOSE 8080

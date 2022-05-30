@@ -3,6 +3,7 @@ import { connect } from "react-redux";
 import { useLocation } from "react-router-dom";
 import SearchResultsView from "./SearchResultsView";
 import { fetchSearch } from "./SearchResultsSlice";
+import { setVariant } from "../resource-list/VariantSlice.js";
 
 function useQuery() {
   return new URLSearchParams(useLocation().search);
@@ -11,10 +12,13 @@ function useQuery() {
 const mapDispatchToProps = (dispatch) => {
   return {
     fetch: (api, query) => dispatch(fetchSearch({ api, query })),
+    setVariant: (type, name, variant) => {
+      dispatch(setVariant({ type, name, variant }));
+    },
   };
 };
 
-const SearchResults = ({ searchResults, api, ...props }) => {
+const SearchResults = ({ searchResults, api, setVariant, ...props }) => {
   let search_query = useQuery().get("q");
 
   const fetchQuery = props.fetch;
@@ -24,7 +28,15 @@ const SearchResults = ({ searchResults, api, ...props }) => {
 
   return (
     <div>
-      <SearchResultsView results={searchResults} search_query={search_query} />
+      {searchResults.resources ? (
+        <SearchResultsView
+          results={searchResults.resources}
+          search_query={search_query}
+          setVariant={setVariant}
+        />
+      ) : (
+        <div></div>
+      )}
     </div>
   );
 };

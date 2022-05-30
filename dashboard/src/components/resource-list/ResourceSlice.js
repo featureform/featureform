@@ -1,49 +1,56 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import { resourceTypes } from "api/resources";
+import Resource from "api/resources/Resource.js";
 
 const assertAndCheck = (assertion, errorMessage) => {
   console.assert(assertion, { errorMsg: errorMessage });
   return assertion;
 };
 
-const hasRequiredObjects = (resources) => {
+const isValidResponse = (resources, hasVariants) => {
   let af = true;
   af &= assertAndCheck(
     Array.isArray(resources),
     "Resource list fetch not an array"
   );
 
-  resources.forEach((resource) => {
-    af &= assertAndCheck("name" in resource, "Resource has no name element");
-    af &= assertAndCheck(
-      "default-version" in resource,
-      "Resource has no default version"
-    );
-    af &= assertAndCheck(
-      "all-versions" in resource,
-      "Resource has no versions list"
-    );
-    af &= assertAndCheck(
-      "versions" in resource,
-      "Resource has no versions object"
-    );
-    resource["all-versions"].forEach((version) => {
+  if (hasVariants) {
+    resources.forEach((resource) => {
+      af &= assertAndCheck("name" in resource, "Resource has no name element");
       af &= assertAndCheck(
-        Object.keys(resource["versions"]).includes(version),
-        "Element of version list not in versions"
+        "default-variant" in resource,
+        "Resource has no default variant"
       );
-    });
-    af &= assertAndCheck(
-      Object.keys(resource["versions"]).includes(resource["default-version"]),
-      "Default version not included in resource"
-    );
-    Object.keys(resource["versions"]).forEach((key) => {
       af &= assertAndCheck(
-        resource["all-versions"].includes(key),
-        "Version in version object not in version list"
+        "all-variants" in resource,
+        "Resource has no variants list"
       );
+      af &= assertAndCheck(
+        "variants" in resource,
+        "Resource has no variants object"
+      );
+      resource["all-variants"].forEach((variant) => {
+        af &= assertAndCheck(
+          Object.keys(resource["variants"]).includes(variant),
+          "Element of variant list not in variants"
+        );
+      });
+      af &= assertAndCheck(
+        Object.keys(resource["variants"]).includes(resource["default-variant"]),
+        "default variant not included in resource"
+      );
+      Object.keys(resource["variants"]).forEach((key) => {
+        af &= assertAndCheck(
+          resource["all-variants"].includes(key),
+          "Variant in variant object not in variant list"
+        );
+      });
     });
-  });
+  } else {
+    resources.forEach((resource) => {
+      af &= assertAndCheck("name" in resource, "Resource has no name element");
+    });
+  }
+
   return af;
 };
 
@@ -69,7 +76,7 @@ const reduceFn = (map, type) => {
   return map;
 };
 const reduceFnInitial = {};
-export const initialState = Object.values(resourceTypes).reduce(
+export const initialState = Resource.resourceTypes.reduce(
   reduceFn,
   reduceFnInitial
 );
@@ -93,7 +100,14 @@ const resourceSlice = createSlice({
       if (requestId !== state[type].requestId) {
         return;
       }
-      const hasRequired = hasRequiredObjects(action.payload);
+
+      let hasRequired = false;
+      if (action.payload.length > 0) {
+        const resourceType = action.payload[0].type;
+        const hasVariants = resourceType.hasVariants;
+        hasRequired = isValidResponse(action.payload, hasVariants);
+      }
+
       if (hasRequired) {
         state[type].resources = action.payload;
         state[type].loading = false;

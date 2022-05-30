@@ -6,21 +6,22 @@ import EntityPageView from "./EntityPageView.js";
 import Loader from "react-loader-spinner";
 import Container from "@material-ui/core/Container";
 import Paper from "@material-ui/core/Paper";
-import { setVersion } from "../resource-list/VersionSlice.js";
+import { setVariant } from "../resource-list/VariantSlice.js";
 import NotFoundPage from "../notfoundpage/NotFoundPage";
+import Resource from "api/resources/Resource.js";
 
 const mapDispatchToProps = (dispatch) => {
   return {
     fetch: (api, type, title) => dispatch(fetchEntity({ api, type, title })),
-    setVersion: (type, name, version) =>
-      dispatch(setVersion({ type, name, version })),
+    setVariant: (type, name, variant) =>
+      dispatch(setVariant({ type, name, variant })),
   };
 };
 
 function mapStateToProps(state) {
   return {
     entityPage: state.entityPage,
-    activeVersions: state.selectedVersion,
+    activeVariants: state.selectedVariant,
   };
 }
 
@@ -40,8 +41,10 @@ const checkIfEmpty = (object) => {
   return Object.keys(object).length === 0 && object.constructor === Object;
 };
 
-const EntityPage = ({ api, entityPage, activeVersions, ...props }) => {
+const EntityPage = ({ api, entityPage, activeVariants, ...props }) => {
   const { type, entity } = useParams();
+
+  let resourceType = Resource[Resource.pathToType[type]];
 
   const fetchEntity = props.fetch;
 
@@ -59,8 +62,10 @@ const EntityPage = ({ api, entityPage, activeVersions, ...props }) => {
         ) : (
           <EntityPageView
             entity={entityPage}
-            setVersion={props.setVersion}
-            activeVersions={activeVersions}
+            setVariant={props.setVariant}
+            activeVariants={activeVariants}
+            typePath={type}
+            resourceType={resourceType}
           />
         )}
       </div>

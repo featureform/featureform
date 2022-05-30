@@ -1,1 +1,4 @@
 proto/*pb*
+*pb.go
+cover.out
+venv

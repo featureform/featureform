@@ -1,21 +1,18 @@
 import React from "react";
-import { createStyles, alpha, makeStyles } from "@material-ui/core/styles";
-import SearchIcon from "@material-ui/icons/Search";
-import Grid from "@material-ui/core/Grid";
+import { makeStyles } from "@material-ui/core/styles";
 import { useHistory } from "react-router-dom";
-import Container from "@material-ui/core/Container";
 import Chip from "@material-ui/core/Chip";
-import Icon from "@material-ui/core/Icon";
 
 const links = [
   {
-    title: "Wine Quality Dataset",
-    icon: "storage",
-    link: "/training-datasets/Wine%20Quality%20Dataset",
+    title: "User Transaction Count",
+    link: "/features/User%20Transaction%20Count",
   },
-  { title: "Fixed Acidity", link: "/features/fixed_acidity" },
-  { title: "Wine spoiled", link: "/labels/Wine%20spoiled" },
-  { title: "Wine id", link: "/entities/wine_id" },
+  {
+    title: "Fraud Detection Training Set",
+    link: "/training-sets/Fraud%20Detection%20Training%20Set",
+  },
+  { title: "Customer", link: "/entities/Customer" },
 ];
 
 const useStyles = makeStyles((theme) => ({
@@ -26,6 +23,7 @@ const useStyles = makeStyles((theme) => ({
   },
   chip: {
     padding: theme.spacing(1),
+    margin: theme.spacing(1),
     paddingBottom: theme.spacing(1),
     paddingTop: theme.spacing(1),
     "& .MuiChip-labelSmall": {
@@ -37,13 +35,14 @@ const useStyles = makeStyles((theme) => ({
     justifyContent: "space-around",
     display: "flex",
     margin: "auto",
+    width: "1px",
   },
   chipbox: {
     padding: theme.spacing(0),
   },
 }));
 
-const QuickLinks = ({ sections }) => {
+const QuickLinks = () => {
   const history = useHistory();
   const classes = useStyles();
 
@@ -54,7 +53,7 @@ const QuickLinks = ({ sections }) => {
   return (
     <div className={classes.links}>
       {links.map((link) => (
-        <div className={classes.chipbox}>
+        <div className={classes.chipbox} key={link.title}>
           <Chip
             size="small"
             label={link.title}
@@ -68,9 +67,5 @@ const QuickLinks = ({ sections }) => {
     </div>
   );
 };
-
-const mapStateToProps = (state) => ({
-  sections: state.homePageSections,
-});
 
 export default QuickLinks;

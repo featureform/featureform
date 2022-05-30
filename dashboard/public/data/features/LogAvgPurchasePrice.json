@@ -1,12 +1,13 @@
 {
   "name": "LogAvgPurchasePrice",
   "type": "Feature",
-  "default-version": "first-version",
-  "all-versions": ["first-version", "streaming-version"],
+  "default-variant": "first-variant",
+  "all-versions": ["first-variant", "streaming-variant"],
   "versions": {
-    "first-version": {
+    "first-variant": {
       "metadata": {
-        "version-name": "first-version",
+        "version-name": "first-variant",
+        "primary data": "Wine Quality Sample File",
         "transformation source": "AvgPurchasePrice",
         "entity": "wine_id",
         "created": "2020-08-09T13:49:51.141Z",
@@ -17,7 +18,7 @@
         "description": "Logarithm of calculated average purchase price of set"
       },
       "data": {
-        "training-datasets": [
+        "training-sets": [
           {
             "name": "Wine Quality Dataset",
             "description": "set of wine quality samples and quality ratings",
@@ -27,9 +28,10 @@
         ]
       }
     },
-    "streaming-version": {
+    "streaming-variant": {
       "metadata": {
-        "version-name": "streaming-version",
+        "version-name": "streaming-variant",
+        "primary data": "Wine Quality Sample File",
         "transformation source": "AvgPurchasePrice",
         "entity": "wine_id",
         "created": "2020-08-09T13:49:51.141Z",
@@ -40,7 +42,7 @@
         "description": "Logarithm of calculated average purchase price of set"
       },
       "data": {
-        "training-datasets": [
+        "training-sets": [
           {
             "name": "Wine Quality Dataset",
             "description": "set of wine quality samples and quality ratings",

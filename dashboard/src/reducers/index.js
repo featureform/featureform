@@ -1,8 +1,7 @@
 import { combineReducers } from "redux";
-import { navSectionsReducer } from "components/app";
 import {
   resourceReducer,
-  versionReducer,
+  variantReducer,
   tagReducer,
 } from "components/resource-list";
 import { homePageReducer } from "components/homepage";
@@ -12,11 +11,11 @@ import { searchResultsReducer } from "components/searchresults";
 import { exponentialTimeSliderReducer } from "components/entitypage/elements";
 import { metricsSelectSliceReducer } from "components/entitypage/elements";
 import { connectionPageSliceReducer } from "components/connectionpage";
+import { aggregateDropdownSliceReducer } from "components/entitypage/elements";
 
 export default combineReducers({
-  navSections: navSectionsReducer,
   resourceList: resourceReducer,
-  selectedVersion: versionReducer,
+  selectedVariant: variantReducer,
   selectedTags: tagReducer,
   homePageSections: homePageReducer,
   breadCrumbs: breadCrumbsReducer,
@@ -25,4 +24,5 @@ export default combineReducers({
   timeRange: exponentialTimeSliderReducer,
   metricsSelect: metricsSelectSliceReducer,
   connectionStatus: connectionPageSliceReducer,
+  aggregates: aggregateDropdownSliceReducer,
 });

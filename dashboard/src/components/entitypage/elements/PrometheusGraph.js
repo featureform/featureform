@@ -1,9 +1,11 @@
 import React from "react";
-import { useEffect } from "react";
+import { useEffect, useCallback } from "react";
 import { Chart } from "chart.js";
 import { makeStyles } from "@material-ui/core/styles";
 
 import { connect } from "react-redux";
+
+import { PROMETHEUS_URL } from "api/resources";
 
 const useStyles = makeStyles((theme) => ({
   graphBox: {
@@ -50,23 +52,32 @@ const PrometheusGraph = ({
   let max = 1000;
   if (query.includes("error")) {
     max = 10;
+  } else if (query_type === "latency" && type === "Training Set") {
+    max = 10;
+  } else if (query_type === "latency" && type === "Feature") {
+    max = 0.1;
   }
   const classes = useStyles();
 
-  function customReq(start, end, step) {
-    const startTimestamp = start.getTime() / 1000;
-    const endTimestamp = end.getTime() / 1000;
-
-    const url = `http://localhost:9090/api/v1/query_range?query=${query}${add_labels_string}start=${startTimestamp}&end=${endTimestamp}&step=${step}s`;
-
-    return Promise.resolve(JSON.parse(sample_query_data));
-  }
   const add_labels_string = add_labels
     ? Object.keys(add_labels).reduce(
         (acc, label) => `${acc} ${label}:"${add_labels[label]}"`,
         ""
       )
     : "";
+
+  const customReq = useCallback(
+    (start, end, step, stub) => {
+      const startTimestamp = start.getTime() / 1000;
+      const endTimestamp = end.getTime() / 1000;
+      const url = `${PROMETHEUS_URL}/api/v1/query_range?query=${query}${add_labels_string}&start=${startTimestamp}&end=${endTimestamp}&step=${step}s`;
+      return fetch(url)
+        .then((response) => response.json())
+        .then((response) => response["data"])
+        .catch((err) => console.error(err));
+    },
+    [query, add_labels_string]
+  );
   useEffect(() => {
     var myChart = new Chart(chartRef.current, {
       type: "line",
@@ -137,6 +148,8 @@ const PrometheusGraph = ({
     type,
     name,
     add_labels_string,
+    customReq,
+    max,
   ]);
   const chartRef = React.useRef(null);
 

@@ -4,12 +4,10 @@ import AppBar from "@material-ui/core/AppBar";
 import Toolbar from "@material-ui/core/Toolbar";
 import IconButton from "@material-ui/core/IconButton";
 import AccountCircle from "@material-ui/icons/AccountCircle";
-import Typography from "@material-ui/core/Typography";
 import MenuItem from "@material-ui/core/MenuItem";
 import Menu from "@material-ui/core/Menu";
 import { useLocation } from "react-router-dom";
 import SearchBar from "../search/SearchBar";
-import Divider from "@material-ui/core/Divider";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -62,8 +60,6 @@ export default function TopBar() {
   const classes = useStyles();
   let auth = false;
 
-  const instanceName = "Capital One";
-
   const [search, setSearch] = React.useState(false);
   const [anchorEl, setAnchorEl] = React.useState(null);
   const open = Boolean(anchorEl);
@@ -94,7 +90,7 @@ export default function TopBar() {
               height={30}
               alt="Featureform"
               component="div"
-              nowrap
+              nowrap={"true"}
               sx={{ flexGrow: 1, display: { xs: "none", sm: "block" } }}
             />
           </div>
@@ -103,15 +99,6 @@ export default function TopBar() {
             {search && (
               <SearchBar className={classes.searchBar} homePage={false} />
             )}
-            {search && (
-              <Divider orientation="vertical" variant="middle" flexItem />
-            )}
-            <div className={classes.instanceName}>
-              <img
-                className={classes.instanceLogo}
-                src="/Capital_One_logo.svg"
-              />
-            </div>
             {auth && (
               <div>
                 <IconButton

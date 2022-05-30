@@ -2,3 +2,13 @@ bazel-*
 __pycache__
 **.egg-info
 dist
+**node_modules
+**.DS_Store
+**.vscode
+.idea/
+**/.idea/
+.env
+.terraform**
+terrafo
+rm.**
+**pb2**

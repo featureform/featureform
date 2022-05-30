@@ -1,14 +1,15 @@
 {
   "name": "Wine quality rating",
-  "default-version": "first-version",
+  "default-variant": "first-variant",
   "type": "Label",
-  "all-versions": ["first-version", "second-version"],
+  "all-versions": ["first-variant", "second-variant"],
   "versions": {
-    "first-version": {
+    "first-variant": {
       "metadata": {
-        "version-name": "first-version",
+        "version-name": "first-variant",
         "transformation source": "Wine quality red_val",
         "entity": "wine_id",
+        "type": "integer",
         "created": "2020-08-09T13:49:51.141Z",
         "owner": "Simba Khadder",
         "visibility": "private",
@@ -18,7 +19,7 @@
         "sampling": "all"
       },
       "data": {
-        "training-datasets": [
+        "training-sets": [
           {
             "name": "Wine Quality Dataset",
             "description": "set of wine quality samples and quality ratings",
@@ -27,13 +28,14 @@
         ]
       }
     },
-    "second-version": {
+    "second-variant": {
       "metadata": {
-        "version-name": "first-version",
+        "version-name": "first-variant",
         "source": "Wine quality red_val",
         "entity": "wine_id",
         "created": "2020-08-09T13:49:51.141Z",
         "owner": "Simba Khadder",
+        "type": "integer",
         "visibility": "private",
         "revision": "2020-08-12T13:49:51.141Z",
         "tags": ["acid", "static", "chemical", "streaming"],
@@ -41,7 +43,7 @@
         "sampling": "all"
       },
       "data": {
-        "training-datasets": [
+        "training-sets": [
           {
             "name": "Wine Quality Dataset",
             "description": "set of wine quality samples and quality ratings",

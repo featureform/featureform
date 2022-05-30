@@ -4,10 +4,9 @@ import { makeStyles } from "@material-ui/core/styles";
 import Typography from "@material-ui/core/Typography";
 import Grid from "@material-ui/core/Grid";
 import Chip from "@material-ui/core/Chip";
-import MenuItem from "@material-ui/core/MenuItem";
-import FormControl from "@material-ui/core/FormControl";
-import Select from "@material-ui/core/Select";
 import theme from "styles/theme";
+import CircleOutlinedIcon from "@mui/icons-material/CircleOutlined";
+import Rating from "@mui/material/Rating";
 import MaterialTable, {
   MTableBody,
   MTableHeader,
@@ -20,6 +19,8 @@ import json from "react-syntax-highlighter/dist/cjs/languages/prism/json";
 import { useHistory } from "react-router-dom";
 import Container from "@material-ui/core/Container";
 import { providerLogos } from "api/resources";
+import Button from "@material-ui/core/Button";
+import Resource from "api/resources/Resource.js";
 
 SyntaxHighlighter.registerLanguage("python", python);
 SyntaxHighlighter.registerLanguage("sql", sql);
@@ -34,8 +35,24 @@ const useStyles = makeStyles(() => ({
       borderRadius: 16,
     },
   },
+  noDataPage: {
+    "& > *": {
+      padding: theme.spacing(1),
+    },
+  },
   table: {
     borderRadius: 16,
+    background: "rgba(255, 255, 255, 1)",
+    border: `2px solid ${theme.palette.border.main}`,
+  },
+  usageIcon: {
+    color: "red",
+  },
+  variantTableContainer: {
+    marginLeft: theme.spacing(4),
+    marginRight: theme.spacing(4),
+  },
+  variantTable: {
     background: "rgba(255, 255, 255, 1)",
     border: `2px solid ${theme.palette.border.main}`,
   },
@@ -67,22 +84,27 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const convertTimestampToDate = (timestamp_string) => {
-  return new Date(timestamp_string).toDateString();
-};
-
 export const ResourceListView = ({
   title,
   resources,
   loading,
   failed,
+  type,
   activeTags,
-  activeVersions = {},
-  setVersion,
+  activeVariants = {},
+  setVariant,
   toggleTag,
 }) => {
   const columnFormats = {
     default: [
+      { title: "Name", field: "name" },
+      { title: "Description", field: "description" },
+    ],
+    Model: [
+      { title: "Name", field: "name" },
+      { title: "Description", field: "description" },
+    ],
+    default_tags: [
       { title: "Name", field: "name" },
       { title: "Description", field: "description" },
       {
@@ -94,18 +116,6 @@ export const ResourceListView = ({
             tags={row.tags}
             tagClass={classes.tag}
             toggleTag={toggleTag}
-          />
-        ),
-      },
-      {
-        title: "Variants",
-        field: "versions",
-        render: (row) => (
-          <VersionSelector
-            name={row.name}
-            versions={rowVersions.find((v) => v.name === row.name)["versions"]}
-            activeVersions={myVersions}
-            setVersion={setVersion}
           />
         ),
       },
@@ -114,27 +124,14 @@ export const ResourceListView = ({
       { title: "Name", field: "name" },
       { title: "Description", field: "description" },
       {
-        title: "Tags",
-        field: "tags",
-        render: (row) => (
-          <TagList
-            activeTags={activeTags}
-            tags={row.tags}
-            tagClass={classes.tag}
-            toggleTag={toggleTag}
-          />
-        ),
+        title: "Type",
+        field: "data-type",
       },
       {
-        title: "Variants",
-        field: "versions",
+        title: "Default Variant",
+        field: "variants",
         render: (row) => (
-          <VersionSelector
-            name={row.name}
-            versions={rowVersions.find((v) => v.name === row.name)["versions"]}
-            activeVersions={myVersions}
-            setVersion={setVersion}
-          />
+          <Typography variant="body1">{row["default-variant"]}</Typography>
         ),
       },
     ],
@@ -148,63 +145,25 @@ export const ResourceListView = ({
         render: (row) => (
           <div className={classes.providerColumn}>
             <img
+              alt={row.software}
               className={classes.providerLogo}
               src={providerLogos[row.software]}
             ></img>
           </div>
         ),
       },
-      { title: "Team", field: "team" },
     ],
     "Data Source": [
       { title: "Name", field: "name" },
       { title: "Description", field: "description" },
-      {
-        title: "Tags",
-        field: "tags",
-        render: (row) => (
-          <TagList
-            activeTags={activeTags}
-            tags={row.tags}
-            tagClass={classes.tag}
-            toggleTag={toggleTag}
-          />
-        ),
-      },
       { title: "Type", field: "type" },
     ],
-    User: [
-      { title: "Name", field: "name" },
-      {
-        title: "Teams",
-        field: "tags",
-        render: (row) => (
-          <TagList
-            activeTags={activeTags}
-            tags={row.tags}
-            tagClass={classes.tag}
-            toggleTag={toggleTag}
-          />
-        ),
-      },
-    ],
+    User: [{ title: "Name", field: "name" }],
     Entity: [
       { title: "Name", field: "name" },
       {
         title: "Description",
         field: "description",
-      },
-      {
-        title: "Tags",
-        field: "tags",
-        render: (row) => (
-          <TagList
-            activeTags={activeTags}
-            tags={row.tags}
-            tagClass={classes.tag}
-            toggleTag={toggleTag}
-          />
-        ),
       },
     ],
     Transformation: [
@@ -223,15 +182,12 @@ export const ResourceListView = ({
         ),
       },
       {
-        title: "Variants",
-        field: "versions",
+        title: "Default Variant",
+        field: "variants",
         render: (row) => (
-          <VersionSelector
-            name={row.name}
-            versions={rowVersions.find((v) => v.name === row.name)["versions"]}
-            activeVersions={myVersions}
-            setVersion={setVersion}
-          />
+          <Typography variant="body1">
+            {rowVariants.find((v) => v.name === row.name)["default-variant"]}
+          </Typography>
         ),
       },
     ],
@@ -241,95 +197,38 @@ export const ResourceListView = ({
   const initialLoad = resources == null && !loading;
   const initRes = resources || [];
   const copy = (res) => res.map((o) => ({ ...o }));
+  const noVariants = !Resource[type].hasVariants;
   // MaterialTable can't handle immutable object, we have to make a copy
   // https://github.com/mbrn/material-table/issues/666
   const mutableRes = copy(initRes);
-
-  let myVersions = {};
-
-  mutableRes.forEach((o) => {
-    if (!activeVersions[o.name]) {
-      myVersions[o.name] = o["default-version"];
-    } else {
-      myVersions[o.name] = activeVersions[o.name];
-    }
-  });
 
   function detailRedirect(e, data) {
     history.push(history.location.pathname + "/" + data.name);
   }
 
-  let versionRes = mutableRes.map((row) => ({
-    ...row["versions"][myVersions[row.name]],
-    name: row["name"],
-    revision: convertTimestampToDate(
-      row["versions"][myVersions[row.name]]
-        ? row["versions"][myVersions[row.name]]["revision"]
-        : ""
-    ),
-  }));
-
-  let rowVersions = mutableRes.map((row) => ({
-    name: row["name"],
-    versions: row["all-versions"],
-  }));
-
-  let default_columns = [
-    { title: "Name", field: "name" },
-    { title: "Description", field: "description" },
-    {
-      title: "Tags",
-      field: "tags",
-      render: (row) => (
-        <TagList
-          activeTags={activeTags}
-          tags={row.tags}
-          tagClass={classes.tag}
-          toggleTag={toggleTag}
-        />
-      ),
-    },
-    { title: "Revision", field: "revision" },
-    {
-      title: "Version",
-      field: "versions",
-      render: (row) => (
-        <VersionSelector
-          name={row.name}
-          versions={rowVersions.find((v) => v.name === row.name)["versions"]}
-          activeVersions={myVersions}
-          setVersion={setVersion}
-        />
-      ),
-    },
-  ];
-
-  let provider_columns = [
-    { title: "Name", field: "name" },
-    { title: "Description", field: "description" },
-    { title: "Type", field: "type" },
-    {
-      title: "Software",
-      field: "software",
-      render: (row) => (
-        <div className={classes.providerColumn}>
-          <img
-            className={classes.providerLogo}
-            src={providerLogos[row.software]}
-          ></img>
-        </div>
-      ),
-    },
-    { title: "Team", field: "team" },
-  ];
+  let rowVariants = {};
 
   return (
     <div>
       <MaterialTable
+        {...(!noVariants
+          ? {
+              detailPanel: (row) => {
+                return (
+                  <VariantTable
+                    name={row.name}
+                    row={row}
+                    type={type}
+                    setVariant={setVariant}
+                  />
+                );
+              },
+            }
+          : {})}
         className={classes.table}
         title={
           <Typography variant="h4">
-            <b>{title}</b>
+            <b>{Resource[type].typePlural}</b>
           </Typography>
         }
         columns={
@@ -337,7 +236,40 @@ export const ResourceListView = ({
             ? columnFormats[title]
             : columnFormats["default"]
         }
-        data={versionRes}
+        data={mutableRes.map((row) => {
+          //mapping each row to have the same object format
+          //whether or not resource type has variants
+          //Expected format for resource without variants: {"name": <name>, "description": <description> }
+          //Expected format for resource with variants:
+          ///    {
+          //  "default-variant": <default variant>
+          // ...data pertaining to active variant (default variant by default)
+          //  "variants": <data for all variants> (used in variant dropdown view)
+          //}
+          let rowData = {};
+          if (!row.variants) {
+            for (const [key, data] of Object.entries(row)) {
+              rowData[key] = data;
+            }
+            return rowData;
+          }
+          let rowVariant;
+          if (!activeVariants[row.name]) {
+            rowVariant = row["default-variant"];
+          } else {
+            rowVariant = activeVariants[row.name];
+          }
+          for (const [key, data] of Object.entries(row.variants[rowVariant])) {
+            rowData[key] = data;
+          }
+          let variantList = [];
+          Object.values(row.variants).forEach((variantValue) => {
+            variantList.push(variantValue);
+          });
+          rowData["variants"] = variantList;
+          rowData["default-variant"] = row["default-variant"];
+          return rowData;
+        })}
         isLoading={initialLoad || loading || failed}
         onRowClick={detailRedirect}
         components={{
@@ -373,6 +305,15 @@ export const ResourceListView = ({
             borderRadius: 16,
           },
         }}
+        {...(!(initialLoad || loading || failed)
+          ? {
+              localization: {
+                body: {
+                  emptyDataSourceMessage: <NoDataMessage type={title} />,
+                },
+              },
+            }
+          : {})}
       />
     </div>
   );
@@ -401,40 +342,157 @@ export const TagList = ({
   </Grid>
 );
 
-export const VersionSelector = ({
-  name,
-  versions = [""],
-  activeVersions = {},
-  setVersion,
-  children,
-}) => (
-  <FormControl>
-    <Select
-      value={activeVersions[name] || versions[0]}
-      onChange={(event) => setVersion(name, event.target.value)}
-    >
-      {versions.map((version) => (
-        <MenuItem
-          key={version}
-          value={version}
-          onClick={(event) => {
-            event.stopPropagation();
-          }}
-        >
-          {version}
-        </MenuItem>
-      ))}
-    </Select>
-  </FormControl>
-);
+export const VariantTable = ({ name, setVariant, type, row }) => {
+  const classes = useStyles();
+  let history = useHistory();
+  function variantChangeRedirect(e, data) {
+    setVariant(type, name, data.variant);
+    history.push(Resource[type].urlPathResource(name));
+  }
+
+  let myVariants = [];
+  row.variants.forEach((variant) => {
+    myVariants.push({
+      variant: variant.variant,
+      description: variant.description,
+    });
+  });
+
+  const MAX_ROW_SHOW = 5;
+  const ROW_HEIGHT = 5;
+  return (
+    <div className={classes.variantTableContainer}>
+      <MaterialTable
+        className={classes.variantTable}
+        title={
+          <Typography variant="h6">
+            <b></b>
+          </Typography>
+        }
+        onRowClick={variantChangeRedirect}
+        components={{
+          Container: (props) => (
+            <Container
+              maxWidth="xl"
+              className={classes.variantTable}
+              {...props}
+            />
+          ),
+          Body: (props) => (
+            <MTableBody
+              style={{ borderRadius: 16 }}
+              className={classes.tableBody}
+              {...props}
+            />
+          ),
+          Header: (props) => (
+            <MTableHeader className={classes.tableBody} {...props} />
+          ),
+          Toolbar: (props) => (
+            <div className={classes.tableToolbar}>
+              <MTableToolbar {...props} />
+            </div>
+          ),
+        }}
+        columns={[
+          { title: "Variants", field: "variant" },
+          { title: "Description", field: "description" },
+        ]}
+        data={myVariants}
+        options={{
+          search: true,
+          pageSize: row.variants.length,
+          maxHeight: `${MAX_ROW_SHOW * ROW_HEIGHT}em`,
+          toolbar: false,
+          draggable: false,
+          headerStyle: {
+            backgroundColor: "white",
+            color: theme.palette.primary.main,
+            marginLeft: 3,
+          },
+          rowStyle: {
+            opacity: 1,
+            borderRadius: 16,
+            height: `${ROW_HEIGHT}em`,
+          },
+        }}
+      />
+    </div>
+  );
+};
+
+const customIcons = {
+  1: {
+    icon: <CircleOutlinedIcon />,
+    label: "Unused",
+  },
+  2: {
+    icon: <CircleOutlinedIcon />,
+    label: "Dissatisfied",
+  },
+  3: {
+    icon: <CircleOutlinedIcon />,
+    label: "Neutral",
+  },
+  4: {
+    icon: <CircleOutlinedIcon />,
+    label: "Satisfied",
+  },
+  5: {
+    icon: <CircleOutlinedIcon />,
+    label: "Frequently used",
+  },
+};
+function IconContainer(props) {
+  const { value, ...other } = props;
+  return <span {...other}>{customIcons[value].icon}</span>;
+}
+
+export const UsageTab = ({ usage, children }) => {
+  const classes = useStyles();
+
+  return (
+    <Rating
+      className={classes.usageIcon}
+      name="read-only"
+      value={2}
+      IconContainerComponent={IconContainer}
+      readOnly
+    />
+  );
+};
+
+const NoDataMessage = ({ type }) => {
+  const classes = useStyles();
+
+  function redirect() {
+    window.location.href = "https://docs.featureform.com/quickstart";
+  }
+  return (
+    <Container>
+      <div className={classes.noDataPage}>
+        <Typography variant="h4">No {type}s Registered</Typography>
+        <Typography variant="body1">
+          There are no visible {type.toLowerCase()}s in your organization.
+        </Typography>
+        <Typography vairant="body1">
+          Check out our docs for step by step instructions to create one.
+        </Typography>
+        <Button variant="outlined" onClick={redirect}>
+          FeatureForm Docs
+        </Button>
+      </div>
+    </Container>
+  );
+};
 
 ResourceListView.propTypes = {
   title: PropTypes.string.isRequired,
   resources: PropTypes.array,
   loading: PropTypes.bool,
   failed: PropTypes.bool,
-  activeVersions: PropTypes.object,
-  setVersion: PropTypes.func,
+  activeVariants: PropTypes.object,
+  setVariant: PropTypes.func,
 };
 
 export default ResourceListView;

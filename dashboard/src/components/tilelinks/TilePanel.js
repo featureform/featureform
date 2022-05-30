@@ -5,10 +5,10 @@ import Grid from "@material-ui/core/Grid";
 const TilePanel = ({ sections }) => {
   return (
     <div>
-      <Grid container justifyContent="center" lg={12}>
+      <Grid container justifyContent="center">
         {sections.map((section, i) => {
           return (
-            <Grid item xs={4} lg={4} key={`tile-grid-${i}`}>
+            <Grid item xs={12} md={6} lg={4} key={`tile-grid-${i}`}>
               <Tile detail={section} key={`tile-${i}`} id={i} />
             </Grid>
           );

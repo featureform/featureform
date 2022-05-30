@@ -1,22 +1,10 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import SearchEngine from "./searchengine/SearchEngine";
-
-const searchEngine = new SearchEngine();
 
 export const fetchSearch = createAsyncThunk(
   "searchResults/fetchSearch",
   async ({ api, query }, { signal }) => {
     const response = await api.fetchSearch(query, signal);
-    const filteredResults = searchEngine.filterSearch(query, response.data);
-    return filteredResults;
-  },
-  {
-    condition: ({ api, query }, { getState }) => {
-      const { loading } = getState().searchResults;
-      if (loading) {
-        return false;
-      }
-    },
+    return response;
   }
 );
 

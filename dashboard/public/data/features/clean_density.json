@@ -1,15 +1,16 @@
 {
   "name": "clean_density",
   "type": "Feature",
-  "default-version": "default version",
-  "all-versions": ["default version", "null-lost version"],
+  "default-variant": "default variant",
+  "all-versions": ["default variant", "null-lost variant"],
   "versions": {
-    "default version": {
+    "default variant": {
       "metadata": {
-        "version-name": "default version",
+        "version-name": "default variant",
         "transformation source": "clean_density",
+        "primary data": "Wine Quality Sample File",
         "entity": "wine_id",
-        "created": "2020-08-09T13:49:51.141Z",
+
         "owner": "Simba Khadder",
         "visibility": "private",
         "revision": "2020-08-12T13:49:51.141Z",
@@ -17,7 +18,7 @@
         "description": "density of clean part of sample"
       },
       "data": {
-        "training-datasets": [
+        "training-sets": [
           {
             "name": "Wine Quality Dataset",
             "description": "set of wine quality samples and quality ratings",
@@ -27,10 +28,11 @@
         ]
       }
     },
-    "null-lost version": {
+    "null-lost variant": {
       "metadata": {
-        "version-name": "null-lost version",
+        "version-name": "null-lost variant",
         "transformation source": "clean_density",
+        "primary data": "Wine Quality Sample File",
         "entity": "wine_id",
         "created": "2020-08-09T13:49:51.141Z",
         "owner": "Simba Khadder",
@@ -40,7 +42,7 @@
         "description": "null-lost corrected version"
       },
       "data": {
-        "training-datasets": [
+        "training-sets": [
           {
             "name": "Wine Quality Dataset",
             "description": "set of wine quality samples and quality ratings",

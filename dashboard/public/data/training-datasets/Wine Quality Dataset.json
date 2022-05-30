@@ -1,13 +1,15 @@
 {
   "name": "Wine Quality Dataset",
-  "default-version": "default-version",
+  "default-variant": "default-variant",
   "type": "Training Dataset",
-  "all-versions": ["default-version"],
+  "all-versions": ["default-variant"],
   "versions": {
-    "default-version": {
+    "default-variant": {
       "metadata": {
-        "version-name": "first-version",
+        "version-name": "first-variant",
         "rows": 514,
+        "revision": "2020-08-12T13:49:51.141Z",
+        "created": "2020-08-12T13:49:51.141Z",
         "owner": "Simba Khadder",
         "visibility": "private",
         "tags": ["wine", "SKU", "identifier"],

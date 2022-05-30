@@ -1,12 +1,12 @@
 {
   "name": "Sample online provider",
-  "default-version": "default-version",
+  "default-variant": "default-variant",
   "type": "Provider",
-  "all-versions": ["default-version"],
+  "all-versions": ["default-variant"],
   "versions": {
-    "default-version": {
+    "default-variant": {
       "metadata": {
-        "version-name": "default-version",
+        "version-name": "default-variant",
         "created": "2020-08-10T13:49:51.141Z",
         "team": "Customer model team",
         "software": "Redis",

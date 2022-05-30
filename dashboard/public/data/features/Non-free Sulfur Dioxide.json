@@ -1,14 +1,15 @@
 {
   "name": "Non-free Sulfur Dioxide",
   "type": "Feature",
-  "default-version": "first-version",
-  "all-versions": ["first-version", "streaming-version"],
+  "default-variant": "first-variant",
+  "all-versions": ["first-variant", "streaming-variant"],
   "versions": {
-    "first-version": {
+    "first-variant": {
       "metadata": {
-        "version-name": "first-version",
+        "version-name": "first-variant",
         "transformation source": "Non-free Sulfur Dioxide",
         "entity": "wine_id",
+        "primary data": "Wine Quality Sample File",
         "created": "2020-08-09T13:49:51.141Z",
         "owner": "Simba Khadder",
         "visibility": "private",
@@ -17,7 +18,7 @@
         "description": "Sulfur Dioxide that is trapped"
       },
       "data": {
-        "training-datasets": [
+        "training-sets": [
           {
             "name": "Wine Quality Dataset",
             "description": "set of wine quality samples and quality ratings",
@@ -27,19 +28,20 @@
         ]
       }
     },
-    "streaming-version": {
+    "streaming-variant": {
       "metadata": {
-        "version-name": "streaming-version",
+        "version-name": "streaming-variant",
         "transformation source": "Non-free Sulfur Dioxide",
         "entity": "wine_id",
         "created": "2020-08-09T13:49:51.141Z",
+        "primary data": "Wine Quality Sample File",
         "owner": "Simba Khadder",
         "visibility": "private",
         "revision": "2020-08-10T13:49:51.141Z",
         "description": "Sulfur Dioxide that is trapped"
       },
       "data": {
-        "training-datasets": [
+        "training-sets": [
           {
             "name": "Wine Quality Dataset",
             "description": "set of wine quality samples and quality ratings",

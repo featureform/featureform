@@ -1,8 +1,6 @@
 export {
   default,
-  resourceTypes,
-  resourceIcons,
-  resourcePaths,
   testData,
   providerLogos,
+  PROMETHEUS_URL,
 } from "./Resources.js";

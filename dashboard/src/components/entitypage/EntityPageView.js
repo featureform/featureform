@@ -10,13 +10,12 @@ import Box from "@material-ui/core/Box";
 import Grid from "@material-ui/core/Grid";
 import { useHistory } from "react-router-dom";
 import Container from "@material-ui/core/Container";
-import Avatar from "@material-ui/core/Avatar";
 import Icon from "@material-ui/core/Icon";
-import Button from "@material-ui/core/Button";
 import Chip from "@material-ui/core/Chip";
 import FormControl from "@material-ui/core/FormControl";
 import Select from "@material-ui/core/Select";
 import MenuItem from "@material-ui/core/MenuItem";
+import { VariantTable } from "../resource-list/ResourceListView.js";
 
 import { PrismAsyncLight as SyntaxHighlighter } from "react-syntax-highlighter";
 import python from "react-syntax-highlighter/dist/cjs/languages/prism/python";
@@ -24,11 +23,11 @@ import sql from "react-syntax-highlighter/dist/cjs/languages/prism/sql";
 import json from "react-syntax-highlighter/dist/cjs/languages/prism/json";
 import { okaidia } from "react-syntax-highlighter/dist/cjs/styles/prism";
 
-import VersionControl from "./elements/VersionControl";
+import VariantControl from "./elements/VariantControl";
 import TagBox from "./elements/TagBox";
 import MetricsDropdown from "./elements/MetricsDropdown";
 import StatsDropdown from "./elements/StatsDropdown";
-import { resourceTypes, resourceIcons } from "api/resources";
+import Resource from "api/resources/Resource.js";
 import theme from "styles/theme/index.js";
 
 SyntaxHighlighter.registerLanguage("python", python);
@@ -116,11 +115,11 @@ const useStyles = makeStyles((theme) => ({
   icon: {
     marginRight: theme.spacing(2),
   },
-  versionControl: {
+  variantControl: {
     alignSelf: "flex-end",
   },
   syntax: {
-    width: "40%",
+    width: "50%",
     paddingLeft: theme.spacing(2),
   },
   resourceList: {
@@ -144,7 +143,7 @@ const useStyles = makeStyles((theme) => ({
   linkChip: {
     //width: "10%",
     "& .MuiChip-label": {
-      paddingRight: theme.spacing(0),
+      paddingRight: theme.spacing(1),
     },
   },
   linkBox: {
@@ -160,7 +159,7 @@ const useStyles = makeStyles((theme) => ({
       padding: "0",
       margin: "0",
       paddingTop: "1em",
-      paddingBottom: "2em",
+      paddingBottom: "0.5em",
     },
   },
   config: {
@@ -171,7 +170,7 @@ const useStyles = makeStyles((theme) => ({
     marginLeft: theme.spacing(2),
   },
 
-  resourceData: {
+  resourcesData: {
     flexGrow: 1,
     paddingLeft: theme.spacing(1),
     borderLeft: `3px solid ${theme.palette.secondary.main}`,
@@ -200,44 +199,63 @@ function a11yProps(index) {
   };
 }
 
-const EntityPageView = ({ entity, setVersion, activeVersions }) => {
+const EntityPageView = ({ entity, setVariant, activeVariants }) => {
   let history = useHistory();
   let resources = entity.resources;
-
-  const type = resources["type"];
-  const showMetrics =
-    type === resourceTypes.FEATURE ||
-    type === resourceTypes.FEATURE_SET ||
-    type === resourceTypes.DATASET;
-  const showStats =
-    type === resourceTypes.FEATURE || type === resourceTypes.FEATURE_SET;
+  let resourceType = Resource[entity.resources.type];
+  let type = resourceType.type;
+  const showMetrics = resourceType.hasMetrics;
+  const singleVariant = !resourceType.hasVariants;
+  const showStats = false;
   const dataTabDisplacement = (1 ? showMetrics : 0) + (1 ? showStats : 0);
   const statsTabDisplacement = showMetrics ? 1 : 0;
   const name = resources["name"];
-  const icon = resourceIcons[type];
+  const icon = resourceType.materialIcon;
+  const enableTags = false;
 
-  let version = resources["default-version"];
+  let variant = resources["default-variant"];
 
-  if (activeVersions[type][name]) {
-    version = activeVersions[type][name];
+  if (activeVariants[entity.resources.type][name]) {
+    variant = activeVariants[entity.resources.type][name];
   } else {
-    setVersion(type, name, resources["default-version"]);
+    setVariant(entity.resources.type, name, resources["default-variant"]);
   }
 
-  let resource = resources.versions[version];
-  const metadata = resource.metadata;
-  const resourceData = resource.data;
+  let resource;
+  if (resourceType.hasVariants) {
+    resource = resources.variants[variant];
+  } else {
+    resource = resources;
+  }
+  let metadata = {};
+  let resourcesData = {};
+
+  Object.keys(resource).forEach((key) => {
+    if (Resource.pathToType[key]) {
+      resourcesData[Resource.pathToType[key]] = resource[key];
+    } else {
+      metadata[key] = resource[key];
+    }
+  });
+
+  if (metadata["source"]) {
+    metadata["source"] = metadata["source"].Name;
+    metadata["source-variant"] = metadata["source"].Variant;
+  }
+
   const convertTimestampToDate = (timestamp_string) => {
-    return new Date(timestamp_string).toUTCString();
+    return new Date(timestamp_string).toLocaleString("en-US", {
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    });
   };
 
-  let allVersions = resources["all-versions"];
+  let allVariants = resources["all-variants"];
 
   const classes = useStyles();
   const [value, setValue] = React.useState(0);
 
-  const handleVersionChange = (event) => {
-    setVersion(type, name, event.target.value);
+  const handleVariantChange = (event) => {
+    setVariant(type, name, event.target.value);
   };
 
   const handleChange = (event, newValue) => {
@@ -252,12 +270,20 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
     history.push(`/entities/${metadata["entity"]}`);
   };
 
-  const linkToTransformSource = (event) => {
-    history.push(`/transformations/${metadata["transformation source"]}`);
+  const linkToPrimaryData = (event) => {
+    history.push(`/sources/${metadata["source"]}`);
+  };
+
+  const linkToLabel = (event) => {
+    history.push(`/labels/${metadata["label"].Name}`);
   };
 
   const linkToUserPage = (event) => {
     history.push(`/users/${metadata["owner"]}`);
+  };
+
+  const linkToProviderPage = (event) => {
+    history.push(`/providers/${metadata["provider"]}`);
   };
 
   return true || (!resources.loading && !resources.failed && resources.data) ? (
@@ -267,7 +293,6 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
           <Grid
             container
             className={classes.topContainer}
-            lg={12}
             justifyContent="flex-start"
           >
             <Grid item xs={false} className={classes.icon}></Grid>
@@ -279,19 +304,18 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                     <Typography variant="h4" component="h4">
                       <b>{resources.name}</b>
                     </Typography>
-                    {metadata["revision"] && (
+                    {metadata["created"] && (
                       <Typography variant="subtitle1">
-                        Last updated:{" "}
-                        {convertTimestampToDate(metadata["revision"])}
+                        Created: {convertTimestampToDate(metadata["created"])}
                       </Typography>
                     )}
                   </div>
                 </div>
-                {allVersions.length > 1 && (
-                  <VersionControl
-                    version={version}
-                    versions={allVersions}
-                    handleVersionChange={handleVersionChange}
+                {allVariants && (
+                  <VariantControl
+                    variant={variant}
+                    variants={allVariants}
+                    handleVariantChange={handleVariantChange}
                     type={type}
                     name={name}
                     convertTimestampToDate={convertTimestampToDate}
@@ -300,96 +324,179 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
               </div>
             </Grid>
           </Grid>
-          <div className={classes.resourceData}>
-            <Grid container spacing={0}>
-              <Grid item xs={7} className={classes.resourceMetadata}>
-                {metadata["description"] && (
-                  <Typography variant="body1" className={classes.description}>
-                    <b>Description:</b> {metadata["description"]}
-                  </Typography>
-                )}
-
-                {metadata["owner"] && (
-                  <div className={classes.linkBox}>
-                    <Typography variant="body1" className={classes.typeTitle}>
-                      <b>Owner:</b>{" "}
+          {Object.keys(metadata).length > 0 && (
+            <div className={classes.resourcesData}>
+              <Grid container spacing={0}>
+                <Grid item xs={7} className={classes.resourceMetadata}>
+                  {metadata["description"] && (
+                    <Typography variant="body1" className={classes.description}>
+                      <b>Description:</b> {metadata["description"]}
                     </Typography>
-                    <Chip
-                      className={classes.linkChip}
-                      size="small"
-                      onClick={linkToUserPage}
-                      className={classes.transformButton}
-                      label={metadata["owner"]}
-                    ></Chip>
-                  </div>
-                )}
+                  )}
 
-                {metadata["dimensions"] && (
-                  <Typography variant="body1">
-                    <b>Dimensions:</b> {metadata["dimensions"]}
-                  </Typography>
-                )}
-                {metadata["type"] && (
-                  <Typography variant="body1">
-                    <b>Type:</b> {metadata["type"]}
-                  </Typography>
-                )}
-                {metadata["joined"] && (
-                  <Typography variant="body1">
-                    <b>Joined:</b> {convertTimestampToDate(metadata["joined"])}
-                  </Typography>
-                )}
-                {metadata["software"] && (
-                  <Typography variant="body1">
-                    <b>Software:</b> {metadata["software"]}
-                  </Typography>
-                )}
-                {metadata["team"] && (
-                  <Typography variant="body1">
-                    <b>Team:</b> {metadata["team"]}
-                  </Typography>
-                )}
-                {metadata["source"] && (
-                  <Typography variant="body1">
-                    <b>Source:</b> {metadata["source"]}
-                  </Typography>
-                )}
-                {metadata["transformation source"] && (
-                  <div className={classes.linkBox}>
-                    <Typography variant="body1" className={classes.typeTitle}>
-                      <b>Transform Source: </b>{" "}
-                    </Typography>
-                    <Chip
-                      className={classes.linkChip}
-                      size="small"
-                      onClick={linkToTransformSource}
-                      className={classes.transformButton}
-                      label={metadata["transformation source"]}
-                    ></Chip>
-                  </div>
-                )}
+                  {metadata["owner"] && (
+                    <div className={classes.linkBox}>
+                      <Typography variant="body1" className={classes.typeTitle}>
+                        <b>Owner:</b>{" "}
+                      </Typography>
+                      <Chip
+                        variant="outlined"
+                        className={classes.linkChip}
+                        size="small"
+                        onClick={linkToUserPage}
+                        label={metadata["owner"]}
+                      ></Chip>
+                    </div>
+                  )}
 
-                {metadata["entity"] && (
-                  <div className={classes.linkBox}>
-                    <Typography variant="body1" className={classes.typeTitle}>
-                      <b>Entity:</b>{" "}
+                  {metadata["provider"] && (
+                    <div className={classes.linkBox}>
+                      <Typography variant="body1" className={classes.typeTitle}>
+                        <b>Provider:</b>{" "}
+                      </Typography>
+                      <Chip
+                        variant="outlined"
+                        className={classes.linkChip}
+                        size="small"
+                        onClick={linkToProviderPage}
+                        label={metadata["provider"]}
+                      ></Chip>
+                    </div>
+                  )}
+
+                  {metadata["dimensions"] && (
+                    <Typography variant="body1">
+                      <b>Dimensions:</b> {metadata["dimensions"]}
                     </Typography>
-                    <Chip
-                      className={classes.linkChip}
-                      size="small"
-                      onClick={linkToEntityPage}
-                      className={classes.transformButton}
-                      label={metadata["entity"]}
-                    ></Chip>
-                  </div>
+                  )}
+                  {metadata["data-type"] && (
+                    <Typography variant="body1">
+                      <b>Data Type:</b> {metadata["data-type"]}
+                    </Typography>
+                  )}
+                  {metadata["joined"] && (
+                    <Typography variant="body1">
+                      <b>Joined:</b>{" "}
+                      {convertTimestampToDate(metadata["joined"])}
+                    </Typography>
+                  )}
+                  {metadata["software"] && (
+                    <Typography variant="body1">
+                      <b>Software:</b> {metadata["software"]}
+                    </Typography>
+                  )}
+                  {metadata["label"] && (
+                    <div className={classes.linkBox}>
+                      <Typography variant="body1" className={classes.typeTitle}>
+                        <b>Label: </b>{" "}
+                      </Typography>
+                      <Chip
+                        variant="outlined"
+                        className={classes.linkChip}
+                        size="small"
+                        onClick={linkToLabel}
+                        label={metadata["label"].Name}
+                      ></Chip>
+                    </div>
+                  )}
+                  {metadata["provider-type"] && (
+                    <Typography variant="body1">
+                      <b>Provider Type:</b> {metadata["provider-type"]}
+                    </Typography>
+                  )}
+                  {metadata["team"] && (
+                    <Typography variant="body1">
+                      <b>Team:</b> {metadata["team"]}
+                    </Typography>
+                  )}
+                  {metadata["status"] && metadata["status"] !== "No Status" && (
+                    <Typography variant="body1">
+                      <b>Status:</b> {metadata["status"]}
+                    </Typography>
+                  )}
+                  {metadata["source-type"] && (
+                    <Typography variant="body1">
+                      <b>Source Type:</b> {metadata["source-type"]}
+                    </Typography>
+                  )}
+                  {metadata["definition"] && (
+                    <div>
+                      <Typography variant="body1">
+                        <b>Origin:</b>
+                      </Typography>
+                      {metadata["source-type"] === "Transformation" ? (
+                        <SyntaxHighlighter
+                          className={classes.syntax}
+                          language={"sql"}
+                          style={okaidia}
+                        >
+                          {metadata["definition"]}
+                        </SyntaxHighlighter>
+                      ) : (
+                        <Typography variant="h7">
+                          <b>{metadata["definition"]}</b>
+                        </Typography>
+                      )}
+                    </div>
+                  )}
+                  {metadata["serialized-config"] && (
+                    <Typography variant="body1">
+                      <b>Serialized Config:</b> {metadata["serialized-config"]}
+                    </Typography>
+                  )}
+
+                  {metadata["source"] && (
+                    <div className={classes.linkBox}>
+                      <Typography variant="body1" className={classes.typeTitle}>
+                        <b>Source: </b>{" "}
+                      </Typography>
+                      <Chip
+                        variant="outlined"
+                        className={classes.linkChip}
+                        size="small"
+                        onClick={linkToPrimaryData}
+                        label={metadata["source"]}
+                      ></Chip>
+                    </div>
+                  )}
+
+                  {metadata["entity"] && (
+                    <div className={classes.linkBox}>
+                      <Typography variant="body1" className={classes.typeTitle}>
+                        <b>Entity:</b>{" "}
+                      </Typography>
+                      <Chip
+                        variant="outlined"
+                        className={classes.linkChip}
+                        size="small"
+                        onClick={linkToEntityPage}
+                        label={metadata["entity"]}
+                      ></Chip>
+                    </div>
+                  )}
+
+                  {metadata["location"] && (
+                    <div className={classes.linkBox}>
+                      <Typography variant="body1" className={classes.typeTitle}>
+                        <b>Columns:</b>{" "}
+                      </Typography>
+                      <Typography variant="body2">
+                        &nbsp;<b>Entity:</b> {metadata["location"].Entity}
+                        &nbsp;<b>Value:</b> {metadata["location"].Value}
+                        &nbsp;<b>Timestamp:</b> {metadata["location"].TS}
+                      </Typography>
+                    </div>
+                  )}
+                </Grid>
+                <Grid item xs={2}></Grid>
+                {enableTags && (
+                  <Grid item xs={3}>
+                    {metadata["tags"] && <TagBox tags={metadata["tags"]} />}
+                  </Grid>
                 )}
               </Grid>
-              <Grid item xs={2}></Grid>
-              <Grid item xs={3}>
-                {metadata["tags"] && <TagBox tags={metadata["tags"]} />}
-              </Grid>
-            </Grid>
-          </div>
+            </div>
+          )}
           {metadata["config"] && (
             <div className={classes.config}>
               <Typography variant="body1">
@@ -405,6 +512,7 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
             </div>
           )}
         </div>
+
         <div className={classes.root}>
           <AppBar position="static" className={classes.appbar}>
             <Tabs
@@ -416,8 +524,12 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
               {showStats && (
                 <Tab label={"stats"} {...a11yProps(statsTabDisplacement)} />
               )}
-              {Object.keys(resourceData).map((key, i) => (
-                <Tab label={key} {...a11yProps(i + dataTabDisplacement)} />
+              {Object.keys(resourcesData).map((key, i) => (
+                <Tab
+                  key={i}
+                  label={Resource[key].typePlural}
+                  {...a11yProps(i + dataTabDisplacement)}
+                />
               ))}
             </Tabs>
           </AppBar>
@@ -431,7 +543,7 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                 root: classes.tabChart,
               }}
             >
-              <MetricsDropdown type={type} name={name} version={version} />
+              <MetricsDropdown type={type} name={name} variant={variant} />
             </TabPanel>
           )}
           {showStats && (
@@ -448,11 +560,11 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
             </TabPanel>
           )}
 
-          {Object.keys(resourceData).map((key, i) => (
+          {Object.keys(resourcesData).map((resourceType, i) => (
             <TabPanel
               className={classes.tabChart}
               value={value}
-              key={key}
+              key={resourceType}
               index={i + dataTabDisplacement}
               classes={{
                 root: classes.tabChart,
@@ -460,7 +572,17 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
             >
               <MaterialTable
                 className={classes.tableRoot}
-                title={capitalize(key)}
+                detailPanel={(row) => {
+                  return (
+                    <VariantTable
+                      type={resourceType}
+                      name={row.name}
+                      row={row}
+                      setVariant={setVariant}
+                    />
+                  );
+                }}
+                title={capitalize(resourceType)}
                 options={{
                   toolbar: false,
                   headerStyle: {
@@ -468,42 +590,38 @@ const EntityPageView = ({ entity, setVersion, activeVersions }) => {
                     marginLeft: 3,
                   },
                 }}
-                columns={Object.keys(resourceData[key][0]).map((item) => ({
-                  title: capitalize(item),
-                  field: item,
-                  ...(item == "variants" && {
-                    render: (row) => (
-                      <VersionSelector
-                        name={row.name}
-                        versions={row.variants}
-                      />
-                    ),
-                  }),
-                  ...(item == "tags" && {
-                    render: (row) => (
-                      <TagList tags={row.tags} tagClass={classes.tag} />
-                    ),
-                  }),
-                }))}
-                data={resourceData[key].map((o) => {
-                  let new_object = {};
-                  Object.keys(o).forEach((key) => {
-                    if (convertTimestampToDate(o[key]) != "Invalid Date") {
-                      new_object[key] = convertTimestampToDate(o[key]);
-                    } else {
-                      new_object[key] = o[key];
+                {...(Object.keys(resourcesData[resourceType]).length > 0
+                  ? {
+                      columns: ["name", "variant"].map((item) => ({
+                        title: capitalize(item),
+                        field: item,
+                      })),
                     }
-                  });
-                  return new_object;
-                })}
+                  : {})}
+                data={Object.entries(resourcesData[resourceType]).map(
+                  (resourceEntry) => {
+                    const resourceName = resourceEntry[0];
+                    const resourceVariants = resourceEntry[1];
+                    let rowData = { name: resourceName };
+                    if (resourceVariants.length === 1) {
+                      rowData["variant"] = resourceVariants[0].variant;
+                    } else {
+                      rowData["variant"] = "...";
+                    }
+                    rowData["variants"] = Object.values(resourceVariants);
+                    return rowData;
+                  }
+                )}
                 onRowClick={(event, rowData) =>
-                  history.push("/" + key + "/" + rowData.name)
+                  history.push(
+                    Resource[resourceType].urlPathResource(rowData.name)
+                  )
                 }
                 components={{
                   Container: (props) => (
                     <div
                       className={classes.resourceList}
-                      minWidth="xl"
+                      minwidth="xl"
                       {...props}
                     />
                   ),
@@ -545,18 +663,18 @@ export const TagList = ({
   </Grid>
 );
 
-export const VersionSelector = ({ name, versions = [""], children }) => (
+export const VariantSelector = ({ name, variants = [""], children }) => (
   <FormControl>
-    <Select value={versions[0]}>
-      {versions.map((version) => (
+    <Select value={variants[0]}>
+      {variants.map((variant) => (
         <MenuItem
-          key={version}
-          value={version}
+          key={variant}
+          value={variant}
           onClick={(event) => {
             event.stopPropagation();
           }}
         >
-          {version}
+          {variant}
         </MenuItem>
       ))}
     </Select>

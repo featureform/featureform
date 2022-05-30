@@ -2,8 +2,10 @@ import React from "react";
 import Icon from "@material-ui/core/Icon";
 import { makeStyles } from "@material-ui/core/styles";
 import { useHistory } from "react-router-dom";
-import ButtonBase from "@material-ui/core/ButtonBase";
+import Button from "@material-ui/core/Button";
+import Box from "@material-ui/core/Box";
 import Typography from "@material-ui/core/Typography";
+import Resource from "api/resources/Resource.js";
 
 const useStyles = makeStyles((theme, id) => ({
   root: {
@@ -19,6 +21,11 @@ const useStyles = makeStyles((theme, id) => ({
     borderRadius: 16,
     background: "white",
     minWidth: "12em",
+    textTransform: "none",
+    "&:hover": {
+      backgroundColor: (id) => `${theme.palette.hoverColors[id % 2]}`,
+      color: `${theme.palette.ordinalColors[id % 4]}`,
+    },
   },
 
   media: {
@@ -37,6 +44,7 @@ const useStyles = makeStyles((theme, id) => ({
     border: (id) => `2px solid ${theme.palette.ordinalColors[id % 4]}`,
     borderRadius: 16,
     background: "white",
+    textTransform: "none",
     minWidth: "12em",
   },
   icon: {
@@ -57,6 +65,7 @@ const useStyles = makeStyles((theme, id) => ({
 
 const Tile = ({ detail, id }) => {
   let history = useHistory();
+  let resourceType = Resource[detail.type];
   const disabled = detail.disabled;
   const classes = useStyles(id);
 
@@ -67,31 +76,33 @@ const Tile = ({ detail, id }) => {
   }
 
   const handleClick = (event) => {
-    history.push(detail.path);
+    history.push(resourceType.urlPath);
   };
 
   return (
-    <div className={classes.root}>
-      <ButtonBase
-        className={buttonClass}
-        onClick={handleClick}
-        disabled={disabled}
-      >
-        <div className={classes.tileContent}>
-          <div>
-            <Icon color="green" className={classes.icon}>
-              {detail.icon}
-            </Icon>
-          </div>
+    <Box sx={{ boxShadow: 3 }}>
+      <div className={classes.root}>
+        <Button
+          className={buttonClass}
+          onClick={handleClick}
+          disabled={disabled}
+          focusRipple={true}
+          variant="contained"
+        >
+          <div className={classes.tileContent}>
+            <div>
+              <Icon className={classes.icon}>{resourceType.materialIcon}</Icon>
+            </div>
 
-          <div>
-            <Typography className={classes.title} variant="h5">
-              <b>{detail.title}</b>
-            </Typography>
+            <div>
+              <Typography className={classes.title} variant="h5">
+                <b>{resourceType.typePlural}</b>
+              </Typography>
+            </div>
           </div>
-        </div>
-      </ButtonBase>
-    </div>
+        </Button>
+      </div>
+    </Box>
   );
 };
 

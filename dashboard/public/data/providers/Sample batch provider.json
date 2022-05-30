@@ -1,12 +1,12 @@
 {
   "name": "Sample batch provider",
-  "default-version": "default-version",
+  "default-variant": "default-variant",
   "type": "Provider",
-  "all-versions": ["default-version"],
+  "all-versions": ["default-variant"],
   "versions": {
-    "default-version": {
+    "default-variant": {
       "metadata": {
-        "version-name": "default-version",
+        "version-name": "default-variant",
         "created": "2020-08-10T13:49:51.141Z",
         "team": "Customer model team",
         "software": "BigQuery",
@@ -14,25 +14,11 @@
         "description": "Batch provider for historic data"
       },
       "data": {
-        "training-datasets": [
+        "training-sets": [
           {
             "name": "Wine Quality Dataset",
             "description": "set of wine quality samples and quality ratings",
             "tags": ["wine", "batch", "quality"],
-            "variants": ["default", "second"]
-          }
-        ],
-        "transformations": [
-          {
-            "name": "Non-free Sulfur Dioxide",
-            "description": "Total non-free sulfur in sample",
-            "tags": ["wine", "batch", "sulfur"],
-            "variants": ["default", "second"]
-          },
-          {
-            "name": "AvgPurchasePrice",
-            "description": "Average purchase price of sample",
-            "tags": ["purchase", "commerce", "payment"],
             "variants": ["default", "second"]
           }
         ],

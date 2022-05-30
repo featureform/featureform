@@ -7,14 +7,14 @@ export default class SearchEngine {
 
   createFormattedStrings(matchPositions, item) {
     for (const k of Object.keys(matchPositions)) {
-      if (matchPositions[k].size == 0) {
+      if (matchPositions[k].size === 0) {
         continue;
       }
       let originalText;
       if (k === "name") {
         originalText = item.name;
       } else if (k === "description") {
-        originalText = item.versions[item["default-version"]].description;
+        originalText = item.variants[item["default-variant"]].description;
       }
 
       let formattedString = "";
@@ -81,11 +81,11 @@ export default class SearchEngine {
       let score = 0;
       const itemData = {
         name: item.name.toLowerCase(),
-        description: item.versions[item["default-version"]].description
-          ? item.versions[item["default-version"]].description.toLowerCase()
+        description: item.variants[item["default-variant"]].description
+          ? item.variants[item["default-variant"]].description.toLowerCase()
           : "",
-        tags: item.versions[item["default-version"]].tags
-          ? item.versions[item["default-version"]].tags.join(" ").toLowerCase()
+        tags: item.variants[item["default-variant"]].tags
+          ? item.variants[item["default-variant"]].tags.join(" ").toLowerCase()
           : "",
       };
 

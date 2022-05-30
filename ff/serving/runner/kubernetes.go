@@ -18,9 +18,17 @@ import (
 	rest "k8s.io/client-go/rest"
 )
 
-var namespace string = "default"
+var Namespace string = "default"
 
 type CronSchedule string
+
+func GetJobName(id metadata.ResourceID) string {
+	return fmt.Sprintf("JOB__%s__%s__%s", id.Name, id.Variant, id.Type.String())
+}
+
+func GetCronJobName(id metadata.ResourceID) string {
+	return fmt.Sprintf("CRON_JOB__%s__%s__%s", id.Name, id.Variant, id.Type.String())
+}
 
 func makeCronSchedule(schedule string) (*CronSchedule, error) {
 	if _, err := cronexpr.Parse(schedule); err != nil {
@@ -104,12 +112,15 @@ func newJobSpec(config KubernetesRunnerConfig) batchv1.JobSpec {
 
 type KubernetesRunnerConfig struct {
 	EnvVars  map[string]string
+	Resource metadata.ResourceID
 	Image    string
 	NumTasks int32
 }
 
 type JobClient interface {
 	Get() (*batchv1.Job, error)
+	GetCronJob() (*batchv1.CronJob, error)
+	UpdateCronJob() (*batchv1.CronJob, error)
 	Watch() (watch.Interface, error)
 	Create(jobSpec *batchv1.JobSpec) (*batchv1.Job, error)
 	SetJobSchedule(schedule CronSchedule, jobSpec *batchv1.JobSpec) error
@@ -194,8 +205,8 @@ func (k KubernetesRunner) ScheduleJob(schedule CronSchedule) error {
 
 func NewKubernetesRunner(config KubernetesRunnerConfig) (CronRunner, error) {
 	jobSpec := newJobSpec(config)
-	jobName := uuid.New().String()
-	jobClient, err := NewKubernetesJobClient(jobName, namespace)
+	jobName := GetJobName(config.Resource)
+	jobClient, err := NewKubernetesJobClient(jobName, Namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -215,6 +226,14 @@ func (k KubernetesJobClient) Get() (*batchv1.Job, error) {
 	return k.Clientset.BatchV1().Jobs(k.Namespace).Get(context.TODO(), k.JobName, metav1.GetOptions{})
 }
 
+func (k KubernetesJobClient) GetCronJob() (*batchv1.CronJob, error) {
+	return k.Clientset.BatchV1().CronJobs(k.Namespace).Get(context.TODO(), k.JobName, metav1.GetOptions{})
+}
+
+func (k KubernetesJobClient) UpdateCronJob(cronJob *batchv1.CronJob) (*batchv1.CronJob, error) {
+	return k.Clientset.BatchV1().CronJobs(k.Namespace).Update(context.TODO(), cronJob, metav1.UpdateOptions{})
+}
+
 func (k KubernetesJobClient) Watch() (watch.Interface, error) {
 	return k.Clientset.BatchV1().Jobs(k.Namespace).Watch(context.TODO(), metav1.ListOptions{FieldSelector: fmt.Sprintf("metadata.name=%s", k.JobName)})
 }
@@ -227,7 +246,7 @@ func (k KubernetesJobClient) Create(jobSpec *batchv1.JobSpec) (*batchv1.Job, err
 func (k KubernetesJobClient) SetJobSchedule(schedule CronSchedule, jobSpec *batchv1.JobSpec) error {
 	cronJob := &batchv1.CronJob{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      k.JobName,
+			Name:      fmt.Sprintf("CRON_%s", k.JobName),
 			Namespace: k.Namespace},
 		Spec: batchv1.CronJobSpec{
 			Schedule: string(schedule),
@@ -237,6 +256,24 @@ func (k KubernetesJobClient) SetJobSchedule(schedule CronSchedule, jobSpec *batc
 		},
 	}
 	if _, err := k.Clientset.BatchV1().CronJobs(k.Namespace).Create(context.TODO(), cronJob, metav1.CreateOptions{}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (k KubernetesJobClient) UpdateJobSchedule(schedule CronSchedule, jobSpec *batchv1.JobSpec) error {
+	cronJob := &batchv1.CronJob{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      k.JobName,
+			Namespace: k.Namespace},
+		Spec: batchv1.CronJobSpec{
+			Schedule: string(schedule),
+			JobTemplate: batchv1.JobTemplateSpec{
+				Spec: *jobSpec,
+			},
+		},
+	}
+	if _, err := k.Clientset.BatchV1().CronJobs(k.Namespace).Update(context.TODO(), cronJob, metav1.UpdateOptions{}); err != nil {
 		return err
 	}
 	return nil

@@ -12,7 +12,6 @@ import (
 	"github.com/featureform/serving/metadata"
 	provider "github.com/featureform/serving/provider"
 	runner "github.com/featureform/serving/runner"
-	worker "github.com/featureform/serving/runner/worker"
 	mvccpb "go.etcd.io/etcd/api/v3/mvccpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/client/v3/concurrency"
@@ -305,16 +304,16 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Transformation}
 	transformationConfig := provider.TransformationConfig{TargetTableID: providerResourceID, Query: query}
 	createTransformationConfig := runner.CreateTransformationConfig{
-		OfflineType: providerEntry.Type()
-		OfflineConfig: providerEntry.SerializedConfig(),
-		TransformationConfig: transformationConfig
-		IsUpdate: false,
+		OfflineType:          providerEntry.Type(),
+		OfflineConfig:        providerEntry.SerializedConfig(),
+		TransformationConfig: transformationConfig,
+		IsUpdate:             false,
 	}
 	serialized, err := createTransformationConfig.Serialize()
 	if err != nil {
 		return err
 	}
-	jobRunner. err := c.Spawner.GetJobRunner(runner.CREATE_TRANSFORMATION, serialized, c.EtcdClient.Endpoints())
+	jobRunner, err := c.Spawner.GetJobRunner(runner.CREATE_TRANSFORMATION, serialized, c.EtcdClient.Endpoints())
 	if err != nil {
 		return err
 	}
@@ -330,10 +329,10 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 	}
 	if schedule != "" {
 		scheduleCreateTransformationConfig := runner.CreateTransformationConfig{
-			OfflineType: providerEntry.Type()
-			OfflineConfig: providerEntry.SerializedConfig(),
-			TransformationConfig: transformationConfig
-			IsUpdate: true,
+			OfflineType:          providerEntry.Type(),
+			OfflineConfig:        providerEntry.SerializedConfig(),
+			TransformationConfig: transformationConfig,
+			IsUpdate:             true,
 		}
 		serializedUpdate, err := scheduleCreateTransformationConfig.Serialize()
 		if err != nil {
@@ -449,13 +448,13 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 		return err
 	}
 	materializedRunnerConfig := runner.MaterializedRunnerConfig{
-		OnlineType: featureProvider.Type(),
-		OfflineType: sourceProvider.Type(),
-		OnlineConfig: featureProvider.SerializedConfig(),
+		OnlineType:    featureProvider.Type(),
+		OfflineType:   sourceProvider.Type(),
+		OnlineConfig:  featureProvider.SerializedConfig(),
 		OfflineConfig: featureProvider.SerializedConfig(),
-		ResourceID: resID,
-		VType: provider.ValueType(featureType),
-		IsUpdate: false,
+		ResourceID:    resID,
+		VType:         provider.ValueType(featureType),
+		IsUpdate:      false,
 	}
 	serialized, err := materializedRunnerConfig.Serialize()
 	if err != nil {
@@ -477,13 +476,13 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 	}
 	if schedule != "" {
 		scheduleMaterializeRunnerConfig := runner.MaterializedRunnerConfig{
-			OnlineType: featureProvider.Type(),
-			OfflineType: sourceProvider.Type(),
-			OnlineConfig: featureProvider.SerializedConfig(),
+			OnlineType:    featureProvider.Type(),
+			OfflineType:   sourceProvider.Type(),
+			OnlineConfig:  featureProvider.SerializedConfig(),
 			OfflineConfig: featureProvider.SerializedConfig(),
-			ResourceID: resID,
-			VType: provider.ValueType(featureType),
-			IsUpdate: true,
+			ResourceID:    resID,
+			VType:         provider.ValueType(featureType),
+			IsUpdate:      true,
 		}
 		serializedUpdate, err := scheduleMaterializeRunner.Serialize()
 		if err != nil {
@@ -591,13 +590,13 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 	if schedule != "" {
 		//TODO make this for training set
 		scheduleMaterializeRunnerConfig := runner.MaterializedRunnerConfig{
-			OnlineType: featureProvider.Type(),
-			OfflineType: sourceProvider.Type(),
-			OnlineConfig: featureProvider.SerializedConfig(),
+			OnlineType:    featureProvider.Type(),
+			OfflineType:   sourceProvider.Type(),
+			OnlineConfig:  featureProvider.SerializedConfig(),
 			OfflineConfig: featureProvider.SerializedConfig(),
-			ResourceID: resID,
-			VType: provider.ValueType(featureType),
-			IsUpdate: true,
+			ResourceID:    resID,
+			VType:         provider.ValueType(featureType),
+			IsUpdate:      true,
 		}
 		serializedUpdate, err := scheduleMaterializeRunner.Serialize()
 		if err != nil {
@@ -764,8 +763,30 @@ func (c *Coordinator) executeJob(jobKey string) error {
 	return nil
 }
 
+type ResourceUpdatedEvent struct {
+	ResourceID metadata.ResourceID
+	Completed  time.Time
+}
+
+func (c *ResourceUpdatedEvent) Serialize() (Config, error) {
+	config, err := json.Marshal(c)
+	if err != nil {
+		panic(err)
+	}
+	return config, nil
+}
+
+func (c *ResourceUpdatedEvent) Deserialize(config Config) error {
+	err := json.Unmarshal(config, c)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+//here we get a notificaiton from a worker that there was a succesful update to a resource
 func (c *Coordinator) signalResourceUpdate(key string, value string) error {
-	resUpdatedEvent := &worker.ResourceUpdatedEvent{}
+	resUpdatedEvent := &ResourceUpdatedEvent{}
 	if err := resUpdatedEvent.Deserialize(value); err != nil {
 		return err
 	}
@@ -775,21 +796,22 @@ func (c *Coordinator) signalResourceUpdate(key string, value string) error {
 	}
 }
 
+//here we request kubernetes to change the schedule of a job
 func (c *Coordinator) changeJobSchedule(key string, value string) error {
-	//here we request to change the job schedule for a resource's cron job and if succesful update metadata
-	coordinatorScheduleJob := &metadata.CoordinatorScheduleJob{
+	coordinatorScheduleJob := &metadata.CoordinatorScheduleJob{}
 	if err := coordinatorScheduleJob.Deserialize(value); err != nil {
 		return err
 	}
-	scheduleChangeRunner, err := runner.CreateScheduleChangeRunner(coordinatorScheduleJob.ResourceID,coordinatorScheduleJob.Schedule)
+	jobClient, err := NewKubernetesJobClient(runner.GetCronJobName(coordinatorScheduleJob.ResourceID), runner.Namespace)
 	if err != nil {
 		return err
 	}
-	completionWatcher, err := scheduleChangeRunner.Run()
+	cronJob, err := jobClient.GetCronJob()
 	if err != nil {
 		return err
 	}
-	if err := completionWatcher.Wait(); err != nil {
+	cronJob.Spec.Schedule = coordinatorScheduleJob.Schedule
+	if _, err := jobClient.UpdateCronJob(cronJob); err != nil {
 		return err
 	}
 	if err := c.Metadata.SetUpdateStatus(context.Background(), resUpdatedEvent.ResourceID, coordinatorScheduleJob.Schedule, metadata.READY, "", resUpdatedEvent.Completed); err != nil {

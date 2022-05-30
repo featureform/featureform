@@ -11,6 +11,7 @@ import (
 	metadata "github.com/featureform/serving/metadata"
 	runner "github.com/featureform/serving/runner"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 	"os"
 	"strconv"
 	"time"
@@ -20,6 +21,7 @@ type Config []byte
 
 //todo add etcd client to the kubernetes environment variables
 func CreateAndRun() error {
+	logger := zap.NewExample().Sugar()
 	config, ok := os.LookupEnv("CONFIG")
 	if !ok {
 		return errors.New("CONFIG not set")
@@ -35,6 +37,10 @@ func CreateAndRun() error {
 	jobRunner, err := runner.Create(name, []byte(config))
 	if err != nil {
 		return err
+	}
+	logger.Infow("Starting job for resource:", jobRunner.Resource())
+	if jobRunner.IsUpdateJob() {
+		logger.Info("This is an update job")
 	}
 	indexString, hasIndexEnv := os.LookupEnv("JOB_COMPLETION_INDEX")
 	indexRunner, isIndexRunner := jobRunner.(runner.IndexRunner)
@@ -61,7 +67,9 @@ func CreateAndRun() error {
 	if err := watcher.Wait(); err != nil {
 		return err
 	}
+	logger.Infow("Completed job for resource %v", jobRunner.Resource())
 	if jobRunner.IsUpdateJob() {
+		logger.Infow("Logging update success in etcd for job:", jobRunner.Resource())
 		etcdConfig := &coordinator.ETCDConfig{}
 		err := etcdConfig.Deserialize(etcdConf)
 		if err != nil {
@@ -88,6 +96,7 @@ func CreateAndRun() error {
 		if err != nil {
 			return err
 		}
+		logger.Infow("Succesfully logged job completion for resource:", jobRunner.Resource())
 	}
 	return nil
 }

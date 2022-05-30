@@ -5,6 +5,7 @@
 package runner
 
 import (
+	metadata "github.com/featureform/serving/metadata"
 	provider "github.com/featureform/serving/provider"
 	"testing"
 )
@@ -13,6 +14,14 @@ type mockChunkRunner struct{}
 
 func (m mockChunkRunner) Run() (CompletionWatcher, error) {
 	return mockCompletionWatcher{}, nil
+}
+
+func (m mockChunkRunner) Resource() metadata.ResourceID {
+	return metadata.ResourceID{}
+}
+
+func (m mockChunkRunner) IsUpdateJob() bool {
+	return false
 }
 
 type mockCompletionWatcher struct{}

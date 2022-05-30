@@ -7,8 +7,8 @@ package runner
 import (
 	"encoding/json"
 	"fmt"
-	provider "github.com/featureform/serving/provider"
 	metadata "github.com/featureform/serving/metadata"
+	provider "github.com/featureform/serving/provider"
 	"sync"
 )
 
@@ -44,7 +44,7 @@ type ResultSync struct {
 }
 
 func (m *MaterializedChunkRunner) Resource() metadata.ResourceID {
-	return nil
+	return metadata.ResourceID{}
 }
 
 func (m *MaterializedChunkRunner) IsUpdateJob() bool {

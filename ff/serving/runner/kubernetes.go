@@ -7,6 +7,7 @@ package runner
 import (
 	"context"
 	"fmt"
+	metadata "github.com/featureform/serving/metadata"
 	"github.com/google/uuid"
 	"github.com/gorhill/cronexpr"
 	batchv1 "k8s.io/api/batch/v1"
@@ -15,7 +16,6 @@ import (
 	watch "k8s.io/apimachinery/pkg/watch"
 	kubernetes "k8s.io/client-go/kubernetes"
 	rest "k8s.io/client-go/rest"
-	metadata "github.com/featureform/serving/metadata"
 )
 
 var namespace string = "default"
@@ -171,7 +171,7 @@ func (k KubernetesCompletionWatcher) Err() error {
 }
 
 func (k KubernetesRunner) Resource() metadata.ResourceID {
-	return nil
+	return metadata.ResourceID{}
 }
 
 func (k KubernetesRunner) IsUpdateJob() bool {
@@ -264,24 +264,25 @@ func NewKubernetesJobClient(name string, namespace string) (*KubernetesJobClient
 }
 
 type ScheduleChangeRunner struct {
-	ID metadata.ResourceID
+	ID       metadata.ResourceID
 	Schedule string
 }
 
 func (s ScheduleChangeRunner) Run() error {
-
+	//find best client function to change on resource, must be able to lookup on resourceID
+	return nil
 }
 
 func (s ScheduleChangeRunner) Resource() metadata.ResourceID {
-	return nil
+	return metadata.ResourceID{}
 }
 
 func (s ScheduleChangeRunner) IsUpdateJob() bool {
 	return false
-}	
-
+}
 
 func CreateScheduleChangeRunner(id metadata.ResourceID, schedule string) (Runner, error) {
-	//find a way to get the name of the cronjob so you can reference it here. Deterministic name as a consequence of the 
+	//find a way to get the name of the cronjob so you can reference it here. Deterministic name as a consequence of the
 	//function of the resourceID?
+	return nil, nil
 }

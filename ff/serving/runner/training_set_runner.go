@@ -7,6 +7,7 @@ package runner
 import (
 	"encoding/json"
 	"fmt"
+	metadata "github.com/featureform/serving/metadata"
 	provider "github.com/featureform/serving/provider"
 )
 
@@ -23,7 +24,7 @@ func (m TrainingSetRunner) Run() (CompletionWatcher, error) {
 		DoneChannel: done,
 	}
 	go func() {
-		if !IsUpdate {
+		if !m.IsUpdate {
 			if err := m.Offline.CreateTrainingSet(m.Def); err != nil {
 				trainingSetWatcher.EndWatch(err)
 				return
@@ -44,6 +45,18 @@ type TrainingSetRunnerConfig struct {
 	OfflineConfig provider.SerializedConfig
 	Def           provider.TrainingSetDef
 	IsUpdate      bool
+}
+
+func (t TrainingSetRunner) Resource() metadata.ResourceID {
+	return metadata.ResourceID{
+		Name:    t.Def.ID.Name,
+		Variant: t.Def.ID.Variant,
+		Type:    provider.ProviderToMetadataResourceType[t.Def.ID.Type],
+	}
+}
+
+func (t TrainingSetRunner) IsUpdateJob() bool {
+	return t.IsUpdate
 }
 
 func (c *TrainingSetRunnerConfig) Serialize() (Config, error) {

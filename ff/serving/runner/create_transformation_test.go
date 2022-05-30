@@ -59,6 +59,18 @@ func (m MockOfflineCreateTransformationFail) GetTransformationTable(id provider.
 	return nil, nil
 }
 
+func (m MockOfflineCreateTransformationFail) UpdateMaterialization(id provider.ResourceID) (provider.Materialization, error) {
+	return nil, nil
+}
+
+func (m MockOfflineCreateTransformationFail) UpdateTransformation(config provider.TransformationConfig) error {
+	return nil
+}
+
+func (m MockOfflineCreateTransformationFail) UpdateTrainingSet(provider.TrainingSetDef) error {
+	return nil
+}
+
 func TestRun(t *testing.T) {
 	runner := CreateTransformationRunner{
 		MockOfflineStore{},
@@ -75,7 +87,7 @@ func TestRun(t *testing.T) {
 }
 
 func TestFail(t *testing.T) {
-	runner := CreateTransformationRunnerr{
+	runner := CreateTransformationRunner{
 		MockOfflineCreateTransformationFail{},
 		provider.TransformationConfig{},
 		false,
@@ -100,7 +112,7 @@ type ErrorTransformationFactoryConfigs struct {
 }
 
 func TestCreateTransformationRunnerFactoryErrorCoverage(t *testing.T) {
-	transformationSerialize := func(ts CreateTransformationRunnerConfig) Config {
+	transformationSerialize := func(ts CreateTransformationConfig) Config {
 		config, err := ts.Serialize()
 		if err != nil {
 			t.Fatalf("error serializing transformation runner config: %v", err)
@@ -114,13 +126,13 @@ func TestCreateTransformationRunnerFactoryErrorCoverage(t *testing.T) {
 		},
 		{
 			Name: "cannot configure offline provider",
-			ErrorConfig: transformationSerialize(CreateTransformationRunnerConfig{
+			ErrorConfig: transformationSerialize(CreateTransformationConfig{
 				OfflineType: "Invalid_Offline_type",
 			}),
 		},
 		{
 			Name: "cannot convert offline provider to offline store",
-			ErrorConfig: transformationSerialize(CreateTransformationRunnerConfig{
+			ErrorConfig: transformationSerialize(CreateTransformationConfig{
 				OfflineType:   provider.LocalOnline,
 				OfflineConfig: []byte{},
 			}),
@@ -139,21 +151,22 @@ func TestCreateTransformationRunnerFactoryErrorCoverage(t *testing.T) {
 }
 
 func TestTransformationFactory(t *testing.T) {
-	transformationSerialize := func(ts CreateTransformationRunnerConfig) Config {
+	transformationSerialize := func(ts CreateTransformationConfig) Config {
 		config, err := ts.Serialize()
 		if err != nil {
 			t.Fatalf("error serializing transformation runner config: %v", err)
 		}
 		return config
 	}
-	serializedConfig := createTransformationSerialize(TransformationRunnerConfig{
+	serializedConfig := transformationSerialize(CreateTransformationConfig{
 		OfflineType:   "MOCK_OFFLINE",
 		OfflineConfig: []byte{},
-		Def: provider.TransformationConfig{
-			TargetTableId: provider.ResourceID{},
-			Query: "",
-			ColumnMapping: []ColumnMapping{},
-		}
+		TransformationConfig: provider.TransformationConfig{
+			TargetTableID: provider.ResourceID{},
+			Query:         "",
+			ColumnMapping: []provider.ColumnMapping{},
+		},
+		IsUpdate: false,
 	})
 	err := RegisterFactory(CREATE_TRANSFORMATION, CreateTransformationRunnerFactory)
 	if err != nil {

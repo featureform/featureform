@@ -7,8 +7,8 @@ package runner
 import (
 	"encoding/json"
 	"fmt"
-	provider "github.com/featureform/serving/provider"
 	metadata "github.com/featureform/serving/metadata"
+	provider "github.com/featureform/serving/provider"
 )
 
 func (m *RegisterSourceRunner) Run() (CompletionWatcher, error) {
@@ -41,14 +41,18 @@ type RegisterSourceRunner struct {
 }
 
 func (r RegisterSourceRunner) Resource() metadata.ResourceID {
-	return r.ResourceID
+	return metadata.ResourceID{
+		Name:    r.ResourceID.Name,
+		Variant: r.ResourceID.Variant,
+		Type:    provider.ProviderToMetadataResourceType[r.ResourceID.Type],
+	}
 }
 
 func (r RegisterSourceRunner) IsUpdateJob() bool {
 	return false
 }
 
-func (c *RegisterSourceRunnerConfig) Serialize() (Config, error) {
+func (c *RegisterSourceConfig) Serialize() (Config, error) {
 	config, err := json.Marshal(c)
 	if err != nil {
 		panic(err)
@@ -56,7 +60,7 @@ func (c *RegisterSourceRunnerConfig) Serialize() (Config, error) {
 	return config, nil
 }
 
-func (c *RegisterSourceRunnerConfig) Deserialize(config Config) error {
+func (c *RegisterSourceConfig) Deserialize(config Config) error {
 	err := json.Unmarshal(config, c)
 	if err != nil {
 		return err

@@ -59,11 +59,11 @@ func (m MockOfflineRegisterSourceFail) GetTransformationTable(id provider.Resour
 	return nil, nil
 }
 
-func TestRun(t *testing.T) {
+func TestRunRegisterResource(t *testing.T) {
 	runner := RegisterSourceRunner{
 		MockOfflineStore{},
-		provider.ResourceID{}.
-		""
+		provider.ResourceID{},
+		"",
 	}
 	watcher, err := runner.Run()
 	if err != nil {
@@ -74,11 +74,11 @@ func TestRun(t *testing.T) {
 	}
 }
 
-func TestFail(t *testing.T) {
+func TestFailRegisterResource(t *testing.T) {
 	runner := RegisterSourceRunner{
 		MockOfflineStore{},
-		provider.ResourceID{}.
-		""
+		provider.ResourceID{},
+		"",
 	}
 	watcher, err := runner.Run()
 	if err != nil {
@@ -100,8 +100,8 @@ type ErrorRegisterSourceFactoryConfigs struct {
 }
 
 func TestRegisterSourceRunnerFactoryErrorCoverage(t *testing.T) {
-	registerSourceSerialize := func(ts RegisterSourceRunnerConfig) Config {
-		config, err := ts.Serialize()
+	registerSourceSerialize := func(rs RegisterSourceConfig) Config {
+		config, err := rs.Serialize()
 		if err != nil {
 			t.Fatalf("error serializing register source runner config: %v", err)
 		}
@@ -114,13 +114,13 @@ func TestRegisterSourceRunnerFactoryErrorCoverage(t *testing.T) {
 		},
 		{
 			Name: "cannot configure offline provider",
-			ErrorConfig: registerSourceSerialize(RegisterSourceRunnerConfig{
+			ErrorConfig: registerSourceSerialize(RegisterSourceConfig{
 				OfflineType: "Invalid_Offline_type",
 			}),
 		},
 		{
 			Name: "cannot convert offline provider to offline store",
-			ErrorConfig: registerSourceSerialize(RegisterSourceRunnerConfig{
+			ErrorConfig: registerSourceSerialize(RegisterSourceConfig{
 				OfflineType:   provider.LocalOnline,
 				OfflineConfig: []byte{},
 			}),
@@ -139,21 +139,21 @@ func TestRegisterSourceRunnerFactoryErrorCoverage(t *testing.T) {
 }
 
 func TestRegisterSourceFactory(t *testing.T) {
-	registerSourceSerialize := func(ts CreateRegisterSourceRunnerConfig) Config {
+	registerSourceSerialize := func(ts RegisterSourceConfig) Config {
 		config, err := ts.Serialize()
 		if err != nil {
 			t.Fatalf("error serializing register source runner config: %v", err)
 		}
 		return config
 	}
-	serializedConfig := createRegisterSourceSerialize(RegisterSourceRunnerConfig{
-		OfflineType:   "MOCK_OFFLINE",
-		OfflineConfig: []byte{},
-		ResourceID: provider.ResourceID{},
+	serializedConfig := registerSourceSerialize(RegisterSourceConfig{
+		OfflineType:     "MOCK_OFFLINE",
+		OfflineConfig:   []byte{},
+		ResourceID:      provider.ResourceID{},
 		SourceTableName: "",
-		}
-	})
-	err := RegisterFactory(REGISTER_SOURCE, CreateRegisterSourceRunnerFactory)
+	},
+	)
+	err := RegisterFactory(REGISTER_SOURCE, RegisterSourceRunnerFactory)
 	if err != nil {
 		t.Fatalf("Could not register register source factory: %v", err)
 	}

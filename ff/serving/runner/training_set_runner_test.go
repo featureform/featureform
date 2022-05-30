@@ -66,10 +66,11 @@ func (m MockOfflineCreateTrainingSetFail) GetTransformationTable(id provider.Res
 	return nil, nil
 }
 
-func TestRun(t *testing.T) {
+func TestRunTrainingSet(t *testing.T) {
 	runner := TrainingSetRunner{
 		MockOfflineStore{},
 		provider.TrainingSetDef{},
+		false,
 	}
 	watcher, err := runner.Run()
 	if err != nil {
@@ -80,10 +81,11 @@ func TestRun(t *testing.T) {
 	}
 }
 
-func TestFail(t *testing.T) {
+func TestFailTrainingSet(t *testing.T) {
 	runner := TrainingSetRunner{
 		MockOfflineCreateTrainingSetFail{},
 		provider.TrainingSetDef{},
+		false,
 	}
 	watcher, err := runner.Run()
 	if err != nil {

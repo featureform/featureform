@@ -7,23 +7,24 @@ package runner
 import (
 	"encoding/json"
 	"fmt"
+	metadata "github.com/featureform/serving/metadata"
 	provider "github.com/featureform/serving/provider"
 )
 
-func (m *RegisterSourceRunner) Run() (CompletionWatcher, error) {
+func (c *CreateTransformationRunner) Run() (CompletionWatcher, error) {
 	done := make(chan interface{})
 	transformationWatcher := &SyncWatcher{
 		ResultSync:  &ResultSync{},
 		DoneChannel: done,
 	}
 	go func() {
-		if !m.IsUpdate {
-			if err := m.Offline.CreateTransformation(m.TransformationConfig); err != nil {
+		if !c.IsUpdate {
+			if err := c.Offline.CreateTransformation(c.TransformationConfig); err != nil {
 				transformationWatcher.EndWatch(err)
 				return
 			}
 		} else {
-			if err := m.Offline.UpdateTransformation(m.TransformationConfig); err != nil {
+			if err := c.Offline.UpdateTransformation(c.TransformationConfig); err != nil {
 				transformationWatcher.EndWatch(err)
 				return
 			}
@@ -46,16 +47,19 @@ type CreateTransformationRunner struct {
 	IsUpdate             bool
 }
 
-
 func (c CreateTransformationRunner) Resource() metadata.ResourceID {
-	return c.TransformationConfig.TargetTableID
+	return metadata.ResourceID{
+		Name:    c.TransformationConfig.TargetTableID.Name,
+		Variant: c.TransformationConfig.TargetTableID.Variant,
+		Type:    provider.ProviderToMetadataResourceType[c.TransformationConfig.TargetTableID.Type],
+	}
 }
 
 func (c CreateTransformationRunner) IsUpdateJob() bool {
 	return c.IsUpdate
 }
 
-func (c *CreateTransformationRunner) Serialize() (Config, error) {
+func (c *CreateTransformationConfig) Serialize() (Config, error) {
 	config, err := json.Marshal(c)
 	if err != nil {
 		panic(err)
@@ -63,7 +67,7 @@ func (c *CreateTransformationRunner) Serialize() (Config, error) {
 	return config, nil
 }
 
-func (c *CreateTransformationRunner) Deserialize(config Config) error {
+func (c *CreateTransformationConfig) Deserialize(config Config) error {
 	err := json.Unmarshal(config, c)
 	if err != nil {
 		return err

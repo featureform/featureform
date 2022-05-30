@@ -128,12 +128,12 @@ func (serv *OnlineServer) TrainingData(req *srv.TrainingDataRequest, stream srv.
 	serv.Logger.Infow("Serving Training Data", "id", req.Id.String())
 	client, err := serv.client.TrainingData(context.Background(), req)
 	if err != nil {
-		return err
+		return fmt.Errorf("training data: %w", err)
 	}
 	row, err := client.Recv()
 	if err := stream.Send(row); err != nil {
 		serv.Logger.Errorw("Failed to write to stream", "Error", err)
-		return err
+		return fmt.Errorf("training send row: %w", err)
 	}
 	return nil
 }
@@ -144,23 +144,23 @@ func (serv *ApiServer) Serve() error {
 	}
 	lis, err := net.Listen("tcp", serv.address)
 	if err != nil {
-		return err
+		return fmt.Errorf("listen: %w", err)
 	}
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
 	metaConn, err := grpc.Dial(serv.metadata.address, opts...)
 	if err != nil {
-		return err
+		return fmt.Errorf("metdata connection: %w", err)
 	}
 	servConn, err := grpc.Dial(serv.online.address, opts...)
 	if err != nil {
-		return err
+		return fmt.Errorf("serving connection: %w", err)
 	}
 	serv.metadata.meta = pb.NewMetadataClient(metaConn)
 	client, err := metadata.NewClient(serv.metadata.address, serv.Logger)
 	if err != nil {
-		return err
+		return fmt.Errorf("metdata new client: %w", err)
 	}
 	serv.metadata.client = client
 	serv.online.client = srv.NewFeatureClient(servConn)

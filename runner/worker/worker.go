@@ -18,13 +18,16 @@ func CreateAndRun() error {
 	if !ok {
 		return errors.New("CONFIG not set")
 	}
-	fmt.Printf("Config: %v", config)
+	fmt.Printf("Config: %v\n", config)
 	name, ok := os.LookupEnv("NAME")
 
 	if !ok {
 		return errors.New("NAME not set")
 	}
-	fmt.Printf("Name: %v", name)
+	fmt.Printf("Name: %v\n", name)
+	if err := runner.RegisterFactory(string(runner.CREATE_TRAINING_SET), runner.TrainingSetRunnerFactory); err != nil {
+		return fmt.Errorf("failed to register training set runner factory: %w", err)
+	}
 	jobRunner, err := runner.Create(name, []byte(config))
 	if err != nil {
 		return err

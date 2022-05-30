@@ -130,12 +130,19 @@ func (serv *OnlineServer) TrainingData(req *srv.TrainingDataRequest, stream srv.
 	if err != nil {
 		return fmt.Errorf("training data: %w", err)
 	}
-	row, err := client.Recv()
-	if err := stream.Send(row); err != nil {
-		serv.Logger.Errorw("Failed to write to stream", "Error", err)
-		return fmt.Errorf("training send row: %w", err)
+	for {
+		row, err := client.Recv()
+		if err != nil {
+			if err == io.EOF {
+				return nil
+			}
+			return fmt.Errorf("receive error: %w", err)
+		}
+		if err := stream.Send(row); err != nil {
+			serv.Logger.Errorw("Failed to write to stream", "Error", err)
+			return fmt.Errorf("training send row: %w", err)
+		}
 	}
-	return nil
 }
 
 func (serv *ApiServer) Serve() error {

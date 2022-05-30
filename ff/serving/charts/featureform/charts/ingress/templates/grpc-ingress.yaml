@@ -30,9 +30,9 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: sandbox-feature-server
+                name: sandbox-api-server
                 port:
-                  number: 8080
+                  number: 7878
 
 
 

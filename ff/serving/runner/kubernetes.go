@@ -120,7 +120,7 @@ type KubernetesRunnerConfig struct {
 type JobClient interface {
 	Get() (*batchv1.Job, error)
 	GetCronJob() (*batchv1.CronJob, error)
-	UpdateCronJob() (*batchv1.CronJob, error)
+	UpdateCronJob(cronJob *batchv1.CronJob) (*batchv1.CronJob, error)
 	Watch() (watch.Interface, error)
 	Create(jobSpec *batchv1.JobSpec) (*batchv1.Job, error)
 	SetJobSchedule(schedule CronSchedule, jobSpec *batchv1.JobSpec) error

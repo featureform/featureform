@@ -46,6 +46,15 @@ type CreateTransformationRunner struct {
 	IsUpdate             bool
 }
 
+
+func (c CreateTransformationRunner) Resource() metadata.ResourceID {
+	return c.TransformationConfig.TargetTableID
+}
+
+func (c CreateTransformationRunner) IsUpdateJob() bool {
+	return c.IsUpdate
+}
+
 func (c *CreateTransformationRunner) Serialize() (Config, error) {
 	config, err := json.Marshal(c)
 	if err != nil {

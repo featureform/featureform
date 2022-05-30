@@ -28,6 +28,14 @@ type MaterializeRunner struct {
 	Cloud    JobCloud
 }
 
+func (m MaterializeRunner) Resource() metadata.ResourceID {
+	return m.ID
+}
+
+func (m MaterializeRunner) IsUpdateJob() bool {
+	return m.IsUpdate
+}
+
 type WatcherMultiplex struct {
 	CompletionList []CompletionWatcher
 }
@@ -163,37 +171,6 @@ func (m MaterializeRunner) Run() (CompletionWatcher, error) {
 	return materializeWatcher, nil
 }
 
-//here we create a factory method for the materializers
-//the confusing thing about this is this is a Factory IN A FACTOYR FUCK
-
-type MaterializedRunnerConfig struct {
-	OnlineType     provider.Type
-	OfflineType    provider.Type
-	OnlineConfig   provider.SerializedConfig
-	OfflineConfig  provider.SerializedConfig
-	MaterializedID provider.MaterializationID
-	ResourceID     provider.ResourceID
-	ChunkSize      int64
-	ChunkIdx       int64
-	IsUpdate       bool
-}
-
-func (m *MaterializedRunnerConfig) Serialize() (Config, error) {
-	config, err := json.Marshal(m)
-	if err != nil {
-		panic(err)
-	}
-	return config, nil
-}
-
-func (m *MaterializedChunkRunnerConfig) Deserialize(config Config) error {
-	err := json.Unmarshal(config, m)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 func MaterializedChunkRunnerFactory(config Config) (Runner, error) {
 	runnerConfig := &MaterializedChunkRunnerConfig{}
 	if err := runnerConfig.Deserialize(config); err != nil {
@@ -237,3 +214,60 @@ func MaterializedChunkRunnerFactory(config Config) (Runner, error) {
 		ChunkIdx:     runnerConfig.ChunkIdx,
 	}, nil
 }
+
+type MaterializedRunnerConfig struct {
+	OnlineType     provider.Type
+	OfflineType    provider.Type
+	OnlineConfig   provider.SerializedConfig
+	OfflineConfig  provider.SerializedConfig
+	ResourceID     provider.ResourceID
+	VType provider.ValueType
+	IsUpdate       bool
+}
+
+func (m *MaterializedRunnerConfig) Serialize() (Config, error) {
+	config, err := json.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	return config, nil
+}
+
+func (m *MaterializedRunnerConfig) Deserialize(config Config) error {
+	err := json.Unmarshal(config, m)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func MaterializeRunnerFactory(config Config) (Runner, error) {
+	runnerConfig := &MaterializedRunnerConfig{}
+	if err := runnerConfig.Deserialize(config); err != nil {
+		return nil, fmt.Errorf("failed to deserialize materialize runner config: %v", err)
+	}
+	onlineProvider, err := provider.Get(runnerConfig.OnlineType, runnerConfig.OnlineConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to configure online provider: %v", err)
+	}
+	offlineProvider, err := provider.Get(runnerConfig.OfflineType, runnerConfig.OfflineConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to configure offline provider: %v", err)
+	}
+	onlineStore, err := onlineProvider.AsOnlineStore()
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert provider to online store: %v", err)
+	}
+	offlineStore, err := offlineProvider.AsOfflineStore()
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert provider to offline store: %v", err)
+	}
+	return &MaterializedRunner{
+		Online: onlineStore,
+		Offline: offlineStore,
+		ID: runnerConfig.ResourceID,
+		VType: runnerConfig.VType,
+		IsUpdate: runnerConfig.IsUpdate,
+	}, nil
+}
+

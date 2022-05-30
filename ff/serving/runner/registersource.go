@@ -8,16 +8,17 @@ import (
 	"encoding/json"
 	"fmt"
 	provider "github.com/featureform/serving/provider"
+	metadata "github.com/featureform/serving/metadata"
 )
 
-func (m RegisterSourceRunner) Run() (CompletionWatcher, error) {
+func (m *RegisterSourceRunner) Run() (CompletionWatcher, error) {
 	done := make(chan interface{})
 	registerFileWatcher := &SyncWatcher{
 		ResultSync:  &ResultSync{},
 		DoneChannel: done,
 	}
 	go func() {
-		if err := m.Offline.RegisterPrimaryFromSourceTable(m.ResourceID, m.SourceTableName); err != nil {
+		if _, err := m.Offline.RegisterPrimaryFromSourceTable(m.ResourceID, m.SourceTableName); err != nil {
 			registerFileWatcher.EndWatch(err)
 			return
 		}
@@ -39,7 +40,15 @@ type RegisterSourceRunner struct {
 	SourceTableName string
 }
 
-func (c *RegisterSourceRunner) Serialize() (Config, error) {
+func (r RegisterSourceRunner) Resource() metadata.ResourceID {
+	return r.ResourceID
+}
+
+func (r RegisterSourceRunner) IsUpdateJob() bool {
+	return false
+}
+
+func (c *RegisterSourceRunnerConfig) Serialize() (Config, error) {
 	config, err := json.Marshal(c)
 	if err != nil {
 		panic(err)
@@ -47,7 +56,7 @@ func (c *RegisterSourceRunner) Serialize() (Config, error) {
 	return config, nil
 }
 
-func (c *RegisterSourceRunner) Deserialize(config Config) error {
+func (c *RegisterSourceRunnerConfig) Deserialize(config Config) error {
 	err := json.Unmarshal(config, c)
 	if err != nil {
 		return err

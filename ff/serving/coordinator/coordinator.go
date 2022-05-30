@@ -272,7 +272,7 @@ func sanitize(ident string) string {
 	return db.Identifier{ident}.Sanitize()
 }
 
-func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVariant, resID metadata.ResourceID, offlineStore provider.OfflineStore) error {
+func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVariant, resID metadata.ResourceID, offlineStore provider.OfflineStore, schedule string) error {
 	c.Logger.Info("Running SQL transformation job on resource: ", resID)
 	templateString := transformSource.SQLTransformationQuery()
 	sources := transformSource.SQLTransformationSources()
@@ -304,37 +304,80 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 	}
 	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Transformation}
 	transformationConfig := provider.TransformationConfig{TargetTableID: providerResourceID, Query: query}
-	//here is should do the factory method stuff
-
-	if err := offlineStore.CreateTransformation(transformationConfig); err != nil {
+	createTransformationConfig := runner.CreateTransformationConfig{
+		OfflineType: providerEntry.Type()
+		OfflineConfig: providerEntry.SerializedConfig(),
+		TransformationConfig: transformationConfig
+		IsUpdate: false,
+	}
+	serialized, err := createTransformationConfig.Serialize()
+	if err != nil {
 		return err
 	}
-	//TODOif schedule, set the schedule thing
+	jobRunner. err := c.Spawner.GetJobRunner(runner.CREATE_TRANSFORMATION, serialized, c.EtcdClient.Endpoints())
+	if err != nil {
+		return err
+	}
+	completionWatcher, err := jobRunner.Run()
+	if err != nil {
+		return err
+	}
+	if err := completionWatcher.Wait(); err != nil {
+		return err
+	}
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
 		return err
+	}
+	if schedule != "" {
+		scheduleCreateTransformationConfig := runner.CreateTransformationConfig{
+			OfflineType: providerEntry.Type()
+			OfflineConfig: providerEntry.SerializedConfig(),
+			TransformationConfig: transformationConfig
+			IsUpdate: true,
+		}
+		serializedUpdate, err := scheduleCreateTransformationConfig.Serialize()
+		if err != nil {
+			return err
+		}
+		jobRunnerUpdate, err := c.Spawner.GetJobRunner(runner.CREATE_TRANSFORMATION, serializedUpdate, c.EtcdClient.Endpoints())
+		if err != nil {
+			return err
+		}
+		cronRunner, isCronRunner := jobRunnerUpdate.(runner.CronRunner)
+		if !isCronRunner {
+			return fmt.Errorf("kubernetes runner does not implement schedule")
+		}
+		updateCompletionWatcher, err := jobRunnerUpdate.ScheduleJob(runner.CronSchedule(schedule))
+		if err != nil {
+			return err
+		}
+		if err := updateCompletionWatcher.Wait(); err != nil {
+			return err
+		}
+		if err := c.Metadata.SetUpdateStatus(context.Background(), resID, schedule, metadata.READY, "", time.Now()); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
-func (c *Coordinator) runPrimaryTableJob(transformSource *metadata.SourceVariant, resID metadata.ResourceID, offlineStore provider.OfflineStore) error {
+func (c *Coordinator) runPrimaryTableJob(transformSource *metadata.SourceVariant, resID metadata.ResourceID, offlineStore provider.OfflineStore, schedule string) error {
 	c.Logger.Info("Running primary table job on resource: ", resID)
 	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant}
 	sourceName := transformSource.PrimaryDataSQLTableName()
 	if sourceName == "" {
 		return fmt.Errorf("no source name set")
 	}
-	//herre likewise should be an actual factory, not something run herer (as the scheduler has to actually be in kubernetes)
 	if _, err := offlineStore.RegisterPrimaryFromSourceTable(providerResourceID, sourceName); err != nil {
 		return err
 	}
-	//TODOif schedule, set the schedule thing
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (c *Coordinator) runRegisterSourceJob(resID metadata.ResourceID) error {
+func (c *Coordinator) runRegisterSourceJob(resID metadata.ResourceID, schedule string) error {
 	c.Logger.Info("Running register source job on resource: ", resID)
 	source, err := c.Metadata.GetSourceVariant(context.Background(), metadata.NameVariant{resID.Name, resID.Variant})
 	if err != nil {
@@ -353,16 +396,16 @@ func (c *Coordinator) runRegisterSourceJob(resID metadata.ResourceID) error {
 		return err
 	}
 	if source.IsSQLTransformation() {
-		return c.runSQLTransformationJob(source, resID, sourceStore)
+		return c.runSQLTransformationJob(source, resID, sourceStore, schedule)
 	} else if source.IsPrimaryDataSQLTable() {
-		return c.runPrimaryTableJob(source, resID, sourceStore)
+		return c.runPrimaryTableJob(source, resID, sourceStore, schedule)
 	} else {
 		return fmt.Errorf("source type not implemented")
 	}
 }
 
 //should only be triggered when we are registering an ONLINE feature, not an offline one
-func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID) error {
+func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedule string) error {
 	c.Logger.Info("Running feature materialization job on resource: ", resID)
 	feature, err := c.Metadata.GetFeatureVariant(context.Background(), metadata.NameVariant{resID.Name, resID.Variant})
 	if err != nil {
@@ -405,15 +448,24 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID) error 
 	if err != nil {
 		return err
 	}
-	materializeRunner := runner.MaterializeRunner{
-		Online:   featureStore,
-		Offline:  sourceStore,
-		ID:       provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Feature},
-		VType:    provider.ValueType(featureType),
-		Cloud:    runner.LocalMaterializeRunner,
+	materializedRunnerConfig := runner.MaterializedRunnerConfig{
+		OnlineType: featureProvider.Type(),
+		OfflineType: sourceProvider.Type(),
+		OnlineConfig: featureProvider.SerializedConfig(),
+		OfflineConfig: featureProvider.SerializedConfig(),
+		ResourceID: resID,
+		VType: provider.ValueType(featureType),
 		IsUpdate: false,
 	}
-	completionWatcher, err := materializeRunner.Run()
+	serialized, err := materializedRunnerConfig.Serialize()
+	if err != nil {
+		return err
+	}
+	jobRunner, err := c.Spawner.GetJobRunner(runner.MATERIALIZE, serialized, c.EtcdClient.Endpoints())
+	if err != nil {
+		return err
+	}
+	completionWatcher, err := jobRunner.Run()
 	if err != nil {
 		return err
 	}
@@ -423,22 +475,43 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID) error 
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
 		return err
 	}
-	if isUpdate {
-		scheduleMaterializeRunner := runner.MaterializeRunner{
-			Online:   featureStore,
-			Offline:  sourceStore,
-			ID:       provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Feature},
-			VType:    provider.ValueType(featureType),
-			Cloud:    runner.LocalMaterializeRunner,
+	if schedule != "" {
+		scheduleMaterializeRunnerConfig := runner.MaterializedRunnerConfig{
+			OnlineType: featureProvider.Type(),
+			OfflineType: sourceProvider.Type(),
+			OnlineConfig: featureProvider.SerializedConfig(),
+			OfflineConfig: featureProvider.SerializedConfig(),
+			ResourceID: resID,
+			VType: provider.ValueType(featureType),
 			IsUpdate: true,
 		}
-
+		serializedUpdate, err := scheduleMaterializeRunner.Serialize()
+		if err != nil {
+			return err
+		}
+		jobRunnerUpdate, err := c.Spawner.GetJobRunner(runner.MATERIALIZE, serializedUpdate, c.EtcdClient.Endpoints())
+		if err != nil {
+			return err
+		}
+		cronRunner, isCronRunner := jobRunnerUpdate.(runner.CronRunner)
+		if !isCronRunner {
+			return fmt.Errorf("kubernetes runner does not implement schedule")
+		}
+		updateCompletionWatcher, err := jobRunnerUpdate.ScheduleJob(runner.CronSchedule(schedule))
+		if err != nil {
+			return err
+		}
+		if err := updateCompletionWatcher.Wait(); err != nil {
+			return err
+		}
+		if err := c.Metadata.SetUpdateStatus(context.Background(), resID, schedule, metadata.READY, "", time.Now()); err != nil {
+			return err
+		}
 	}
-
 	return nil
 }
 
-func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID) error {
+func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule string) error {
 	c.Logger.Info("Running training set job on resource: ", resID)
 	ts, err := c.Metadata.GetTrainingSetVariant(context.Background(), metadata.NameVariant{resID.Name, resID.Variant})
 	if err != nil {
@@ -512,9 +585,42 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID) error {
 	if err := completionWatcher.Wait(); err != nil {
 		return err
 	}
-	//TODOif schedule, set the schedule thing
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
 		return err
+	}
+	if schedule != "" {
+		//TODO make this for training set
+		scheduleMaterializeRunnerConfig := runner.MaterializedRunnerConfig{
+			OnlineType: featureProvider.Type(),
+			OfflineType: sourceProvider.Type(),
+			OnlineConfig: featureProvider.SerializedConfig(),
+			OfflineConfig: featureProvider.SerializedConfig(),
+			ResourceID: resID,
+			VType: provider.ValueType(featureType),
+			IsUpdate: true,
+		}
+		serializedUpdate, err := scheduleMaterializeRunner.Serialize()
+		if err != nil {
+			return err
+		}
+		jobRunnerUpdate, err := c.Spawner.GetJobRunner(runner.MATERIALIZE, serializedUpdate, c.EtcdClient.Endpoints())
+		if err != nil {
+			return err
+		}
+		cronRunner, isCronRunner := jobRunnerUpdate.(runner.CronRunner)
+		if !isCronRunner {
+			return fmt.Errorf("kubernetes runner does not implement schedule")
+		}
+		updateCompletionWatcher, err := jobRunnerUpdate.ScheduleJob(runner.CronSchedule(schedule))
+		if err != nil {
+			return err
+		}
+		if err := updateCompletionWatcher.Wait(); err != nil {
+			return err
+		}
+		if err := c.Metadata.SetUpdateStatus(context.Background(), resID, schedule, metadata.READY, "", time.Now()); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -646,7 +752,7 @@ func (c *Coordinator) executeJob(jobKey string) error {
 	if !has {
 		return fmt.Errorf("not a valid resource type for running jobs")
 	}
-	if err := jobFunc(job.Resource); err != nil {
+	if err := jobFunc(job.Resource, job.Schedule); err != nil {
 		statusErr := c.Metadata.SetStatus(context.Background(), job.Resource, metadata.FAILED, err.Error())
 		return fmt.Errorf("%s job failed: %v: %v", job.Resource.Type, err, statusErr)
 	}
@@ -671,4 +777,23 @@ func (c *Coordinator) signalResourceUpdate(key string, value string) error {
 
 func (c *Coordinator) changeJobSchedule(key string, value string) error {
 	//here we request to change the job schedule for a resource's cron job and if succesful update metadata
+	coordinatorScheduleJob := &metadata.CoordinatorScheduleJob{
+	if err := coordinatorScheduleJob.Deserialize(value); err != nil {
+		return err
+	}
+	scheduleChangeRunner, err := runner.CreateScheduleChangeRunner(coordinatorScheduleJob.ResourceID,coordinatorScheduleJob.Schedule)
+	if err != nil {
+		return err
+	}
+	completionWatcher, err := scheduleChangeRunner.Run()
+	if err != nil {
+		return err
+	}
+	if err := completionWatcher.Wait(); err != nil {
+		return err
+	}
+	if err := c.Metadata.SetUpdateStatus(context.Background(), resUpdatedEvent.ResourceID, coordinatorScheduleJob.Schedule, metadata.READY, "", resUpdatedEvent.Completed); err != nil {
+		return err
+	}
+
 }

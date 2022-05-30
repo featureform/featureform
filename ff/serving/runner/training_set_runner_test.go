@@ -152,6 +152,7 @@ func TestTrainingSetFactory(t *testing.T) {
 			Label:    provider.ResourceID{},
 			Features: []provider.ResourceID{},
 		},
+		IsUpdate: false,
 	})
 	err := RegisterFactory(CREATE_TRAINING_SET, TrainingSetRunnerFactory)
 	if err != nil {

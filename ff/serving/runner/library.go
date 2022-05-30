@@ -13,7 +13,7 @@ type RunnerName string
 const (
 	COPY_TO_ONLINE        RunnerName = "Copy to online"
 	CREATE_TRAINING_SET              = "Create training set"
-	REGISTER_FILE                    = "Register file"
+	REGISTER_SOURCE                    = "Register source"
 	CREATE_TRANSFORMATION            = "Create transformation"
 	MATERIALIZE                      = "Materialize"
 )

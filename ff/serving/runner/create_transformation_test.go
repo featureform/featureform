@@ -10,52 +10,52 @@ import (
 	"testing"
 )
 
-type MockOfflineCreateTrainingSetFail struct {
+type MockOfflineCreateTransformationFail struct {
 	provider.BaseProvider
 }
 
-func (m MockOfflineCreateTrainingSetFail) CreateResourceTable(provider.ResourceID, provider.TableSchema) (provider.OfflineTable, error) {
+func (m MockOfflineCreateTransformationFail) CreateResourceTable(provider.ResourceID, provider.TableSchema) (provider.OfflineTable, error) {
 	return nil, nil
 }
-func (m MockOfflineCreateTrainingSetFail) GetResourceTable(id provider.ResourceID) (provider.OfflineTable, error) {
+func (m MockOfflineCreateTransformationFail) GetResourceTable(id provider.ResourceID) (provider.OfflineTable, error) {
 	return nil, nil
 }
-func (m MockOfflineCreateTrainingSetFail) CreateMaterialization(id provider.ResourceID) (provider.Materialization, error) {
+func (m MockOfflineCreateTransformationFail) CreateMaterialization(id provider.ResourceID) (provider.Materialization, error) {
 	return nil, nil
 }
-func (m MockOfflineCreateTrainingSetFail) GetMaterialization(id provider.MaterializationID) (provider.Materialization, error) {
+func (m MockOfflineCreateTransformationFail) GetMaterialization(id provider.MaterializationID) (provider.Materialization, error) {
 	return nil, nil
 }
-func (m MockOfflineCreateTrainingSetFail) DeleteMaterialization(id provider.MaterializationID) error {
+func (m MockOfflineCreateTransformationFail) DeleteMaterialization(id provider.MaterializationID) error {
 	return nil
 }
-func (m MockOfflineCreateTrainingSetFail) CreateTrainingSet(provider.TrainingSetDef) error {
+func (m MockOfflineCreateTransformationFail) CreateTrainingSet(provider.TrainingSetDef) error {
 	return fmt.Errorf("could not create training set")
 }
-func (m MockOfflineCreateTrainingSetFail) GetTrainingSet(id provider.ResourceID) (provider.TrainingSetIterator, error) {
+func (m MockOfflineCreateTransformationFail) GetTrainingSet(id provider.ResourceID) (provider.TrainingSetIterator, error) {
 	return nil, nil
 }
 
-func (m MockOfflineCreateTrainingSetFail) CreatePrimaryTable(id provider.ResourceID, schema provider.TableSchema) (provider.PrimaryTable, error) {
+func (m MockOfflineCreateTransformationFail) CreatePrimaryTable(id provider.ResourceID, schema provider.TableSchema) (provider.PrimaryTable, error) {
 	return nil, nil
 }
-func (m MockOfflineCreateTrainingSetFail) GetPrimaryTable(id provider.ResourceID) (provider.PrimaryTable, error) {
-	return nil, nil
-}
-
-func (m MockOfflineCreateTrainingSetFail) RegisterResourceFromSourceTable(id provider.ResourceID, schema provider.ResourceSchema) (provider.OfflineTable, error) {
+func (m MockOfflineCreateTransformationFail) GetPrimaryTable(id provider.ResourceID) (provider.PrimaryTable, error) {
 	return nil, nil
 }
 
-func (m MockOfflineCreateTrainingSetFail) RegisterPrimaryFromSourceTable(id provider.ResourceID, sourceName string) (provider.PrimaryTable, error) {
+func (m MockOfflineCreateTransformationFail) RegisterResourceFromSourceTable(id provider.ResourceID, schema provider.ResourceSchema) (provider.OfflineTable, error) {
 	return nil, nil
 }
 
-func (m MockOfflineCreateTrainingSetFail) CreateTransformation(config provider.TransformationConfig) error {
+func (m MockOfflineCreateTransformationFail) RegisterPrimaryFromSourceTable(id provider.ResourceID, sourceName string) (provider.PrimaryTable, error) {
+	return nil, nil
+}
+
+func (m MockOfflineCreateTransformationFail) CreateTransformation(config provider.TransformationConfig) error {
 	return nil
 }
 
-func (m MockOfflineCreateTrainingSetFail) GetTransformationTable(id provider.ResourceID) (provider.TransformationTable, error) {
+func (m MockOfflineCreateTransformationFail) GetTransformationTable(id provider.ResourceID) (provider.TransformationTable, error) {
 	return nil, nil
 }
 
@@ -76,8 +76,8 @@ func TestRun(t *testing.T) {
 
 func TestFail(t *testing.T) {
 	runner := CreateTransformationRunnerr{
-		MockOfflineCreateTrainingSetFail{},
-		provider.TrainingSetDef{},
+		MockOfflineCreateTransformationFail{},
+		provider.TransformationConfig{},
 		false,
 	}
 	watcher, err := runner.Run()
@@ -114,53 +114,53 @@ func TestCreateTransformationRunnerFactoryErrorCoverage(t *testing.T) {
 		},
 		{
 			Name: "cannot configure offline provider",
-			ErrorConfig: transformationSerialize(CreateTransformationRunner{
+			ErrorConfig: transformationSerialize(CreateTransformationRunnerConfig{
 				OfflineType: "Invalid_Offline_type",
 			}),
 		},
 		{
 			Name: "cannot convert offline provider to offline store",
-			ErrorConfig: trainingSetSerialize(TrainingSetRunnerConfig{
+			ErrorConfig: transformationSerialize(CreateTransformationRunnerConfig{
 				OfflineType:   provider.LocalOnline,
 				OfflineConfig: []byte{},
 			}),
 		},
 	}
-	err := RegisterFactory(CREATE_TRAINING_SET, TrainingSetRunnerFactory)
+	err := RegisterFactory(CREATE_TRANSFORMATION, CreateTransformationRunnerFactory)
 	if err != nil {
-		t.Fatalf("Could not register training set factory: %v", err)
+		t.Fatalf("Could not register transformation factory: %v", err)
 	}
 	for _, config := range errorConfigs {
-		if err := testTrainingSetErrorConfigsFactory(config.ErrorConfig); err == nil {
+		if err := testTransformationErrorConfigsFactory(config.ErrorConfig); err == nil {
 			t.Fatalf("Test Job Failed to catch error: %s", config.Name)
 		}
 	}
 	delete(factoryMap, CREATE_TRAINING_SET)
 }
 
-func TestTrainingSetFactory(t *testing.T) {
-	trainingSetSerialize := func(ts TrainingSetRunnerConfig) Config {
+func TestTransformationFactory(t *testing.T) {
+	transformationSerialize := func(ts CreateTransformationRunnerConfig) Config {
 		config, err := ts.Serialize()
 		if err != nil {
-			t.Fatalf("error serializing training set runner config: %v", err)
+			t.Fatalf("error serializing transformation runner config: %v", err)
 		}
 		return config
 	}
-	serializedConfig := trainingSetSerialize(TrainingSetRunnerConfig{
+	serializedConfig := createTransformationSerialize(TransformationRunnerConfig{
 		OfflineType:   "MOCK_OFFLINE",
 		OfflineConfig: []byte{},
-		Def: provider.TrainingSetDef{
-			ID:       provider.ResourceID{},
-			Label:    provider.ResourceID{},
-			Features: []provider.ResourceID{},
-		},
+		Def: provider.TransformationConfig{
+			TargetTableId: provider.ResourceID{},
+			Query: "",
+			ColumnMapping: []ColumnMapping{},
+		}
 	})
-	err := RegisterFactory(CREATE_TRAINING_SET, TrainingSetRunnerFactory)
+	err := RegisterFactory(CREATE_TRANSFORMATION, CreateTransformationRunnerFactory)
 	if err != nil {
-		t.Fatalf("Could not register training set factory: %v", err)
+		t.Fatalf("Could not register transformation factory: %v", err)
 	}
-	_, err = Create(CREATE_TRAINING_SET, serializedConfig)
+	_, err = Create(CREATE_TRANSFORMATION, serializedConfig)
 	if err != nil {
-		t.Fatalf("Could not create create training set runner")
+		t.Fatalf("Could not create create transformation runner")
 	}
 }

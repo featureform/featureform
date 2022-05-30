@@ -43,11 +43,8 @@ type ResultSync struct {
 	mu   sync.RWMutex
 }
 
-Resource() metadata.ResourceID
-	IsUpdateJob() bool
-
 func (m *MaterializedChunkRunner) Resource() metadata.ResourceID {
-
+	return nil
 }
 
 func (m *MaterializedChunkRunner) IsUpdateJob() bool {

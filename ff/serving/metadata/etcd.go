@@ -34,6 +34,7 @@ type EtcdConfig struct {
 type CoordinatorJob struct {
 	Attempts int
 	Resource ResourceID
+	Schedule string
 }
 
 type CoordinatorScheduleJob struct {

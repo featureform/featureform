@@ -15,6 +15,7 @@ import (
 	watch "k8s.io/apimachinery/pkg/watch"
 	kubernetes "k8s.io/client-go/kubernetes"
 	rest "k8s.io/client-go/rest"
+	metadata "github.com/featureform/serving/metadata"
 )
 
 var namespace string = "default"
@@ -169,6 +170,14 @@ func (k KubernetesCompletionWatcher) Err() error {
 	return nil
 }
 
+func (k KubernetesRunner) Resource() metadata.ResourceID {
+	return nil
+}
+
+func (k KubernetesRunner) IsUpdateJob() bool {
+	return false
+}
+
 func (k KubernetesRunner) Run() (CompletionWatcher, error) {
 	if _, err := k.jobClient.Create(k.jobSpec); err != nil {
 		return nil, err
@@ -252,4 +261,27 @@ func NewKubernetesJobClient(name string, namespace string) (*KubernetesJobClient
 		return nil, err
 	}
 	return &KubernetesJobClient{Clientset: clientset, JobName: name, Namespace: namespace}, nil
+}
+
+type ScheduleChangeRunner struct {
+	ID metadata.ResourceID
+	Schedule string
+}
+
+func (s ScheduleChangeRunner) Run() error {
+
+}
+
+func (s ScheduleChangeRunner) Resource() metadata.ResourceID {
+	return nil
+}
+
+func (s ScheduleChangeRunner) IsUpdateJob() bool {
+	return false
+}	
+
+
+func CreateScheduleChangeRunner(id metadata.ResourceID, schedule string) (Runner, error) {
+	//find a way to get the name of the cronjob so you can reference it here. Deterministic name as a consequence of the 
+	//function of the resourceID?
 }

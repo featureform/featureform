@@ -56,11 +56,13 @@ func TestOfflineStores(t *testing.T) {
 		"TableNotFound":           testOfflineTableNotFound,
 		"InvalidResourceIDs":      testInvalidResourceIDs,
 		"Materializations":        testMaterializations,
+		"MaterializationUpdate":   testMaterializationUpdate,
 		"InvalidResourceRecord":   testWriteInvalidResourceRecord,
 		"InvalidMaterialization":  testInvalidMaterialization,
 		"MaterializeUnknown":      testMaterializeUnknown,
 		"MaterializationNotFound": testMaterializationNotFound,
 		"TrainingSets":            testTrainingSet,
+		"TrainingSetUpdate":       testTrainingSetUpdate,
 		"TrainingSetInvalidID":    testGetTrainingSetInvalidResourceID,
 		"GetUnknownTrainingSet":   testGetUnkonwnTrainingSet,
 		"InvalidTrainingSetDefs":  testInvalidTrainingSetDefs,
@@ -72,6 +74,7 @@ func TestOfflineStores(t *testing.T) {
 		"PrimaryTableCreate":          testPrimaryCreateTable,
 		"PrimaryTableWrite":           testPrimaryTableWrite,
 		"Transformation":              testTransform,
+		"TransformationUpdate":        testTransformUpdate,
 		"CreateDuplicatePrimaryTable": testCreateDuplicatePrimaryTable,
 		"ChainTransformations":        testChainTransform,
 	}
@@ -378,7 +381,7 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 			expected := test.ExpectedSegment[i]
 			if !reflect.DeepEqual(actual, expected) {
 				t.Fatalf("Value not equal in materialization: %v %v\n"+
-					"%T:%T %T:%T %T:%T\n", actual, expected, actual.Entity, expected.Entity, actual.Value, expected.Value, actual.TS, expected.TS)
+					"%T:%T %T:%T %T:%T (received:expected)\n", actual, expected, actual.Entity, expected.Entity, actual.Value, expected.Value, actual.TS, expected.TS)
 			}
 			i++
 		}
@@ -410,6 +413,296 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 			t.Fatalf("Failed to get materialization: %s", err)
 		}
 		testMaterialization(t, getMat, test)
+		if err := store.DeleteMaterialization(mat.ID()); err != nil {
+			t.Fatalf("Failed to delete materialization: %s", err)
+		}
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			runTestCase(t, test)
+		})
+	}
+
+}
+
+func testMaterializationUpdate(t *testing.T, store OfflineStore) {
+	type TestCase struct {
+		WriteRecords                           []ResourceRecord
+		UpdateRecords                          []ResourceRecord
+		Schema                                 TableSchema
+		ExpectedRows                           int64
+		UpdatedRows                            int64
+		SegmentStart, SegmentEnd               int64
+		UpdatedSegmentStart, UpdatedSegmentEnd int64
+		ExpectedSegment                        []ResourceRecord
+		ExpectedUpdate                         []ResourceRecord
+	}
+
+	schemaInt := TableSchema{
+		Columns: []TableColumn{
+			{Name: "entity", ValueType: String},
+			{Name: "value", ValueType: Int},
+			{Name: "ts", ValueType: Timestamp},
+		},
+	}
+	tests := map[string]TestCase{
+		"Empty": {
+			WriteRecords:    []ResourceRecord{},
+			UpdateRecords:   []ResourceRecord{},
+			Schema:          schemaInt,
+			SegmentStart:    0,
+			SegmentEnd:      0,
+			UpdatedRows:     0,
+			ExpectedSegment: []ResourceRecord{},
+			ExpectedUpdate:  []ResourceRecord{},
+		},
+		"NoOverlap": {
+			WriteRecords: []ResourceRecord{
+				{Entity: "a", Value: 1},
+				{Entity: "b", Value: 2},
+				{Entity: "c", Value: 3},
+			},
+			UpdateRecords: []ResourceRecord{
+				{Entity: "d", Value: 4},
+			},
+			Schema:              schemaInt,
+			ExpectedRows:        3,
+			SegmentStart:        0,
+			SegmentEnd:          3,
+			UpdatedSegmentStart: 0,
+			UpdatedSegmentEnd:   4,
+			UpdatedRows:         4,
+			// Have to expect time.UnixMilli(0).UTC() as it is the default value
+			// if a resource does not have a set timestamp
+			ExpectedSegment: []ResourceRecord{
+				{Entity: "a", Value: 1, TS: time.UnixMilli(0).UTC()},
+				{Entity: "b", Value: 2, TS: time.UnixMilli(0).UTC()},
+				{Entity: "c", Value: 3, TS: time.UnixMilli(0).UTC()},
+			},
+			ExpectedUpdate: []ResourceRecord{
+				{Entity: "a", Value: 1, TS: time.UnixMilli(0).UTC()},
+				{Entity: "b", Value: 2, TS: time.UnixMilli(0).UTC()},
+				{Entity: "c", Value: 3, TS: time.UnixMilli(0).UTC()},
+				{Entity: "d", Value: 4, TS: time.UnixMilli(0).UTC()},
+			},
+		},
+		"SimpleOverwrite": {
+			WriteRecords: []ResourceRecord{
+				{Entity: "a", Value: 1},
+				{Entity: "b", Value: 2},
+				{Entity: "c", Value: 3},
+				{Entity: "a", Value: 4},
+			},
+			UpdateRecords: []ResourceRecord{
+				{Entity: "a", Value: 3},
+				{Entity: "b", Value: 4},
+			},
+			Schema:              schemaInt,
+			ExpectedRows:        3,
+			SegmentStart:        0,
+			SegmentEnd:          3,
+			UpdatedSegmentStart: 0,
+			UpdatedSegmentEnd:   3,
+			UpdatedRows:         3,
+			ExpectedSegment: []ResourceRecord{
+				{Entity: "a", Value: 4, TS: time.UnixMilli(0).UTC()},
+				{Entity: "b", Value: 2, TS: time.UnixMilli(0).UTC()},
+				{Entity: "c", Value: 3, TS: time.UnixMilli(0).UTC()},
+			},
+			ExpectedUpdate: []ResourceRecord{
+				{Entity: "a", Value: 3, TS: time.UnixMilli(0).UTC()},
+				{Entity: "b", Value: 4, TS: time.UnixMilli(0).UTC()},
+				{Entity: "c", Value: 3, TS: time.UnixMilli(0).UTC()},
+			},
+		},
+		// Added .UTC() b/c DeepEqual checks the timezone field of time.Time which can vary, resulting in false failures
+		// during tests even if time is correct
+		"SimpleChanges": {
+			WriteRecords: []ResourceRecord{
+				{Entity: "a", Value: 1, TS: time.UnixMilli(0).UTC()},
+				{Entity: "b", Value: 2, TS: time.UnixMilli(0).UTC()},
+				{Entity: "c", Value: 3, TS: time.UnixMilli(0).UTC()},
+				{Entity: "a", Value: 4, TS: time.UnixMilli(1).UTC()},
+			},
+			UpdateRecords: []ResourceRecord{
+				{Entity: "a", Value: 4, TS: time.UnixMilli(4).UTC()},
+			},
+			Schema:              schemaInt,
+			ExpectedRows:        3,
+			SegmentStart:        0,
+			SegmentEnd:          3,
+			UpdatedSegmentStart: 0,
+			UpdatedSegmentEnd:   3,
+			UpdatedRows:         3,
+			ExpectedSegment: []ResourceRecord{
+				{Entity: "a", Value: 4, TS: time.UnixMilli(1).UTC()},
+				{Entity: "b", Value: 2, TS: time.UnixMilli(0).UTC()},
+				{Entity: "c", Value: 3, TS: time.UnixMilli(0).UTC()},
+			},
+			ExpectedUpdate: []ResourceRecord{
+				{Entity: "b", Value: 2, TS: time.UnixMilli(0).UTC()},
+				{Entity: "c", Value: 3, TS: time.UnixMilli(0).UTC()},
+				{Entity: "a", Value: 4, TS: time.UnixMilli(4).UTC()},
+			},
+		},
+		"OutOfOrderWrites": {
+			WriteRecords: []ResourceRecord{
+				{Entity: "a", Value: 1, TS: time.UnixMilli(10).UTC()},
+				{Entity: "b", Value: 2, TS: time.UnixMilli(3).UTC()},
+				{Entity: "c", Value: 3, TS: time.UnixMilli(7).UTC()},
+				{Entity: "c", Value: 9, TS: time.UnixMilli(5).UTC()},
+				{Entity: "a", Value: 4, TS: time.UnixMilli(1).UTC()},
+			},
+			UpdateRecords: []ResourceRecord{
+				{Entity: "a", Value: 6, TS: time.UnixMilli(12).UTC()},
+			},
+			Schema:              schemaInt,
+			ExpectedRows:        3,
+			SegmentStart:        0,
+			SegmentEnd:          3,
+			UpdatedSegmentStart: 0,
+			UpdatedSegmentEnd:   3,
+			UpdatedRows:         3,
+			ExpectedSegment: []ResourceRecord{
+				{Entity: "a", Value: 1, TS: time.UnixMilli(10).UTC()},
+				{Entity: "b", Value: 2, TS: time.UnixMilli(3).UTC()},
+				{Entity: "c", Value: 3, TS: time.UnixMilli(7).UTC()},
+			},
+			ExpectedUpdate: []ResourceRecord{
+				{Entity: "a", Value: 6, TS: time.UnixMilli(12).UTC()},
+				{Entity: "b", Value: 2, TS: time.UnixMilli(3).UTC()},
+				{Entity: "c", Value: 3, TS: time.UnixMilli(7).UTC()},
+			},
+		},
+		"OutOfOrderOverwrites": {
+			WriteRecords: []ResourceRecord{
+				{Entity: "a", Value: 1, TS: time.UnixMilli(10).UTC()},
+				{Entity: "b", Value: 2, TS: time.UnixMilli(3).UTC()},
+				{Entity: "c", Value: 3, TS: time.UnixMilli(7).UTC()},
+				{Entity: "c", Value: 9, TS: time.UnixMilli(5).UTC()},
+				{Entity: "b", Value: 12, TS: time.UnixMilli(2).UTC()},
+				{Entity: "a", Value: 4, TS: time.UnixMilli(1).UTC()},
+				{Entity: "b", Value: 9, TS: time.UnixMilli(3).UTC()},
+			},
+			UpdateRecords: []ResourceRecord{
+				{Entity: "a", Value: 5, TS: time.UnixMilli(20).UTC()},
+				{Entity: "b", Value: 2, TS: time.UnixMilli(4).UTC()},
+			},
+			Schema:              schemaInt,
+			ExpectedRows:        3,
+			SegmentStart:        0,
+			SegmentEnd:          3,
+			UpdatedSegmentStart: 0,
+			UpdatedSegmentEnd:   3,
+			UpdatedRows:         3,
+			ExpectedSegment: []ResourceRecord{
+				{Entity: "a", Value: 1, TS: time.UnixMilli(10).UTC()},
+				{Entity: "b", Value: 9, TS: time.UnixMilli(3).UTC()},
+				{Entity: "c", Value: 3, TS: time.UnixMilli(7).UTC()},
+			},
+			ExpectedUpdate: []ResourceRecord{
+				{Entity: "c", Value: 3, TS: time.UnixMilli(7).UTC()},
+				{Entity: "a", Value: 5, TS: time.UnixMilli(20).UTC()},
+				{Entity: "b", Value: 2, TS: time.UnixMilli(4).UTC()},
+			},
+		},
+	}
+	testMaterialization := func(t *testing.T, mat Materialization, test TestCase) {
+		if numRows, err := mat.NumRows(); err != nil {
+			t.Fatalf("Failed to get num rows: %s", err)
+		} else if numRows != test.ExpectedRows {
+			t.Fatalf("Num rows not equal %d %d", numRows, test.ExpectedRows)
+		}
+		seg, err := mat.IterateSegment(test.SegmentStart, test.SegmentEnd)
+		if err != nil {
+			t.Fatalf("Failed to create segment: %s", err)
+		}
+		i := 0
+		for seg.Next() {
+			actual := seg.Value()
+			expected := test.ExpectedSegment[i]
+			if !reflect.DeepEqual(actual, expected) {
+				t.Fatalf("Value not equal in materialization: %v %v\n"+
+					"%T:%T %T:%T %T:%T\n", actual, expected, actual.Entity, expected.Entity, actual.Value, expected.Value, actual.TS, expected.TS)
+			}
+			i++
+		}
+		if err := seg.Err(); err != nil {
+			t.Fatalf("Iteration failed: %s", err)
+		}
+		if i < len(test.ExpectedSegment) {
+			t.Fatalf("Segment is too small: %d", i)
+		}
+	}
+	testUpdate := func(t *testing.T, mat Materialization, test TestCase) {
+		if numRows, err := mat.NumRows(); err != nil {
+			t.Fatalf("Failed to get num rows: %s", err)
+		} else if numRows != test.UpdatedRows {
+			t.Fatalf("Num rows not equal %d %d", numRows, test.UpdatedRows)
+		}
+		seg, err := mat.IterateSegment(test.UpdatedSegmentStart, test.UpdatedSegmentEnd)
+		if err != nil {
+			t.Fatalf("Failed to create segment: %s", err)
+		}
+		i := 0
+		for seg.Next() {
+			// Row order isn't guaranteed, we make sure one row is equivalent
+			// then we delete that row. This is ineffecient, but these test
+			// cases should all be small enough not to matter.
+			found := false
+			for i, expRow := range test.ExpectedUpdate {
+				if reflect.DeepEqual(seg.Value(), expRow) {
+					found = true
+					lastIdx := len(test.ExpectedUpdate) - 1
+					// Swap the record that we've found to the end, then shrink the slice to not include it.
+					// This is essentially a delete operation expect that it re-orders the slice.
+					test.ExpectedUpdate[i], test.ExpectedUpdate[lastIdx] = test.ExpectedUpdate[lastIdx], test.ExpectedUpdate[i]
+					test.ExpectedUpdate = test.ExpectedUpdate[:lastIdx]
+					break
+				}
+			}
+			if !found {
+				t.Fatalf("Unexpected materialization row: %v, expected %v", seg.Value(), test.ExpectedUpdate)
+			}
+			i++
+		}
+		if err := seg.Err(); err != nil {
+			t.Fatalf("Iteration failed: %s", err)
+		}
+		if i < len(test.ExpectedSegment) {
+			t.Fatalf("Segment is too small: %d", i)
+		}
+	}
+	runTestCase := func(t *testing.T, test TestCase) {
+		id := randomID(Feature)
+		table, err := store.CreateResourceTable(id, test.Schema)
+		if err != nil {
+			t.Fatalf("Failed to create table: %s", err)
+		}
+		for _, rec := range test.WriteRecords {
+			if err := table.Write(rec); err != nil {
+				t.Fatalf("Failed to write record %v: %s", rec, err)
+			}
+		}
+		mat, err := store.CreateMaterialization(id)
+		if err != nil {
+			t.Fatalf("Failed to create materialization: %s", err)
+		}
+		testMaterialization(t, mat, test)
+
+		if err != nil {
+			t.Fatalf("Failed to get materialization: %s", err)
+		}
+		for _, rec := range test.UpdateRecords {
+			if err := table.Write(rec); err != nil {
+				t.Fatalf("Failed to write record %v: %s", rec, err)
+			}
+		}
+		mat, err = store.UpdateMaterialization(id)
+		if err != nil {
+			t.Fatalf("Failed to update materialization: %s", err)
+		}
+		testUpdate(t, mat, test)
 		if err := store.DeleteMaterialization(mat.ID()); err != nil {
 			t.Fatalf("Failed to delete materialization: %s", err)
 		}
@@ -466,9 +759,7 @@ func testMaterializeUnknown(t *testing.T, store OfflineStore) {
 
 func testMaterializationNotFound(t *testing.T, store OfflineStore) {
 	id := MaterializationID(uuid.NewString())
-
 	_, err := store.GetMaterialization(id)
-
 	if err == nil {
 		t.Fatalf("Succeeded in getting uninitialized materialization")
 	}
@@ -763,6 +1054,411 @@ func testTrainingSet(t *testing.T, store OfflineStore) {
 		}
 		if len(test.ExpectedRows) != i {
 			t.Fatalf("Training set has different number of rows %d %d", len(test.ExpectedRows), i)
+		}
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			runTestCase(t, test)
+		})
+	}
+}
+
+func testTrainingSetUpdate(t *testing.T, store OfflineStore) {
+	type expectedTrainingRow struct {
+		Features []interface{}
+		Label    interface{}
+	}
+	type TestCase struct {
+		FeatureRecords        [][]ResourceRecord
+		UpdatedFeatureRecords [][]ResourceRecord
+		LabelRecords          []ResourceRecord
+		UpdatedLabelRecords   []ResourceRecord
+		ExpectedRows          []expectedTrainingRow
+		UpdatedExpectedRows   []expectedTrainingRow
+		FeatureSchema         []TableSchema
+		LabelSchema           TableSchema
+	}
+
+	tests := map[string]TestCase{
+		"Empty": {
+			FeatureRecords: [][]ResourceRecord{
+				// One feature with no records.
+				{},
+			},
+			UpdatedFeatureRecords: [][]ResourceRecord{
+				// One feature with no records.
+				{},
+			},
+			LabelRecords:        []ResourceRecord{},
+			UpdatedLabelRecords: []ResourceRecord{},
+			FeatureSchema:       []TableSchema{{}},
+			// No rows expected
+			ExpectedRows:        []expectedTrainingRow{},
+			UpdatedExpectedRows: []expectedTrainingRow{},
+		},
+		"SimpleJoin": {
+			FeatureRecords: [][]ResourceRecord{
+				{
+					{Entity: "a", Value: 1},
+					{Entity: "b", Value: 2},
+					{Entity: "c", Value: 3},
+				},
+				{
+					{Entity: "a", Value: "red"},
+					{Entity: "b", Value: "green"},
+					{Entity: "c", Value: "blue"},
+				},
+			},
+			UpdatedFeatureRecords: [][]ResourceRecord{
+				{
+					{Entity: "d", Value: 4},
+				},
+				{
+					{Entity: "d", Value: "purple"},
+				},
+			},
+			FeatureSchema: []TableSchema{
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: Int},
+						{Name: "label", ValueType: Bool},
+					},
+				},
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: String},
+						{Name: "label", ValueType: Bool},
+					},
+				},
+			},
+			LabelRecords: []ResourceRecord{
+				{Entity: "a", Value: true},
+				{Entity: "b", Value: false},
+				{Entity: "c", Value: true},
+			},
+			UpdatedLabelRecords: []ResourceRecord{
+				{Entity: "a", Value: true},
+				{Entity: "b", Value: false},
+				{Entity: "c", Value: true},
+				{Entity: "c", Value: false},
+			},
+			LabelSchema: TableSchema{
+				Columns: []TableColumn{
+					{Name: "entity", ValueType: String},
+					{Name: "value", ValueType: Bool},
+				},
+			},
+			ExpectedRows: []expectedTrainingRow{
+				{
+					Features: []interface{}{
+						1,
+						"red",
+					},
+					Label: true,
+				},
+				{
+					Features: []interface{}{
+						2,
+						"green",
+					},
+					Label: false,
+				},
+				{
+					Features: []interface{}{
+						3,
+						"blue",
+					},
+					Label: true,
+				},
+			},
+			UpdatedExpectedRows: []expectedTrainingRow{
+				{
+					Features: []interface{}{
+						1,
+						"red",
+					},
+					Label: true,
+				},
+				{
+					Features: []interface{}{
+						2,
+						"green",
+					},
+					Label: false,
+				},
+				{
+					Features: []interface{}{
+						3,
+						"blue",
+					},
+					Label: true,
+				},
+				{
+					Features: []interface{}{
+						4,
+						"purple",
+					},
+					Label: false,
+				},
+			},
+		},
+		"ComplexJoin": {
+			FeatureRecords: [][]ResourceRecord{
+				// Overwritten feature.
+				{
+					{Entity: "a", Value: 1},
+					{Entity: "b", Value: 2},
+					{Entity: "c", Value: 3},
+					{Entity: "a", Value: 4},
+				},
+				// Feature didn't exist before label
+				{
+					{Entity: "a", Value: "doesnt exist", TS: time.UnixMilli(11)},
+				},
+				// Feature didn't change after label
+				{
+					{Entity: "c", Value: "real value first", TS: time.UnixMilli(5)},
+					{Entity: "c", Value: "real value second", TS: time.UnixMilli(5)},
+					{Entity: "c", Value: "overwritten", TS: time.UnixMilli(4)},
+				},
+				// Different feature values for different TS.
+				{
+					{Entity: "b", Value: "first", TS: time.UnixMilli(3)},
+					{Entity: "b", Value: "second", TS: time.UnixMilli(4)},
+					{Entity: "b", Value: "third", TS: time.UnixMilli(8)},
+				},
+				// Empty feature.
+				{},
+			},
+			UpdatedFeatureRecords: [][]ResourceRecord{
+				{
+					{Entity: "a", Value: 5},
+				},
+				{},
+				{},
+				{
+					{Entity: "b", Value: "zeroth", TS: time.UnixMilli(3)},
+				},
+				{},
+			},
+			FeatureSchema: []TableSchema{
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: Int},
+					},
+				},
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: String},
+					},
+				},
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: String},
+					},
+				},
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: String},
+					},
+				},
+				{
+					Columns: []TableColumn{
+						{},
+					},
+				},
+			},
+			LabelRecords: []ResourceRecord{
+				{Entity: "a", Value: 1, TS: time.UnixMilli(10)},
+				{Entity: "b", Value: 9, TS: time.UnixMilli(3)},
+				{Entity: "b", Value: 5, TS: time.UnixMilli(5)},
+				{Entity: "c", Value: 3, TS: time.UnixMilli(7)},
+			},
+			UpdatedLabelRecords: []ResourceRecord{},
+			LabelSchema: TableSchema{
+				Columns: []TableColumn{
+					{Name: "entity", ValueType: String},
+					{Name: "value", ValueType: Int},
+				},
+			},
+			ExpectedRows: []expectedTrainingRow{
+				{
+					Features: []interface{}{
+						4, nil, nil, nil, nil,
+					},
+					Label: 1,
+				},
+				{
+					Features: []interface{}{
+						2, nil, nil, "first", nil,
+					},
+					Label: 9,
+				},
+				{
+					Features: []interface{}{
+						2, nil, nil, "second", nil,
+					},
+					Label: 5,
+				},
+				{
+					Features: []interface{}{
+						3, nil, "real value second", nil, nil,
+					},
+					Label: 3,
+				},
+			},
+			UpdatedExpectedRows: []expectedTrainingRow{
+				{
+					Features: []interface{}{
+						5, nil, nil, nil, nil,
+					},
+					Label: 1,
+				},
+				{
+					Features: []interface{}{
+						2, nil, nil, "zeroth", nil,
+					},
+					Label: 9,
+				},
+				{
+					Features: []interface{}{
+						2, nil, nil, "second", nil,
+					},
+					Label: 5,
+				},
+				{
+					Features: []interface{}{
+						3, nil, "real value second", nil, nil,
+					},
+					Label: 3,
+				},
+			},
+		},
+	}
+	runTestCase := func(t *testing.T, test TestCase) {
+		featureIDs := make([]ResourceID, len(test.FeatureRecords))
+		featureTables := make([]OfflineTable, 0)
+		for i, recs := range test.FeatureRecords {
+			id := randomID(Feature)
+			featureIDs[i] = id
+			table, err := store.CreateResourceTable(id, test.FeatureSchema[i])
+			featureTables = append(featureTables, table)
+			if err != nil {
+				t.Fatalf("Failed to create table: %s", err)
+			}
+			for _, rec := range recs {
+				if err := table.Write(rec); err != nil {
+					t.Fatalf("Failed to write record %v: %v", rec, err)
+				}
+			}
+		}
+		labelID := randomID(Label)
+		labelTable, err := store.CreateResourceTable(labelID, test.LabelSchema)
+		if err != nil {
+			t.Fatalf("Failed to create table: %s", err)
+		}
+		for _, rec := range test.LabelRecords {
+			if err := labelTable.Write(rec); err != nil {
+				t.Fatalf("Failed to write record %v", rec)
+			}
+		}
+		def := TrainingSetDef{
+			ID:       randomID(TrainingSet),
+			Label:    labelID,
+			Features: featureIDs,
+		}
+		if err := store.CreateTrainingSet(def); err != nil {
+			t.Fatalf("Failed to create training set: %s", err)
+		}
+		iter, err := store.GetTrainingSet(def.ID)
+		if err != nil {
+			t.Fatalf("Failed to get training set: %s", err)
+		}
+		i := 0
+		expectedRows := test.ExpectedRows
+		for iter.Next() {
+			realRow := expectedTrainingRow{
+				Features: iter.Features(),
+				Label:    iter.Label(),
+			}
+			// Row order isn't guaranteed, we make sure one row is equivalent
+			// then we delete that row. This is ineffecient, but these test
+			// cases should all be small enough not to matter.
+			found := false
+			for i, expRow := range expectedRows {
+				if reflect.DeepEqual(realRow, expRow) {
+					found = true
+					lastIdx := len(expectedRows) - 1
+					// Swap the record that we've found to the end, then shrink the slice to not include it.
+					// This is essentially a delete operation expect that it re-orders the slice.
+					expectedRows[i], expectedRows[lastIdx] = expectedRows[lastIdx], expectedRows[i]
+					expectedRows = expectedRows[:lastIdx]
+					break
+				}
+			}
+			if !found {
+				for i, v := range realRow.Features {
+					fmt.Printf("Got %T Expected %T\n", v, expectedRows[0].Features[i])
+				}
+				t.Fatalf("Unexpected training row: %v, expected %v", realRow, expectedRows)
+			}
+			i++
+		}
+		if err := iter.Err(); err != nil {
+			t.Fatalf("Failed to iterate training set: %s", err)
+		}
+		if len(test.ExpectedRows) != i {
+			t.Fatalf("Training set has different number of rows %d %d", len(test.ExpectedRows), i)
+		}
+		for i, table := range featureTables {
+			for _, rec := range test.UpdatedFeatureRecords[i] {
+				if err := table.Write(rec); err != nil {
+					t.Errorf("Could not write update record: %v", rec)
+				}
+			}
+		}
+		if err := store.UpdateTrainingSet(def); err != nil {
+			t.Fatalf("Failed to update training set: %s", err)
+		}
+		iter, err = store.GetTrainingSet(def.ID)
+		if err != nil {
+			t.Fatalf("Failed to get updated training set: %s", err)
+		}
+		i = 0
+		expectedRows = test.UpdatedExpectedRows
+		for iter.Next() {
+			realRow := expectedTrainingRow{
+				Features: iter.Features(),
+				Label:    iter.Label(),
+			}
+			// Row order isn't guaranteed, we make sure one row is equivalent
+			// then we delete that row. This is ineffecient, but these test
+			// cases should all be small enough not to matter.
+			found := false
+			for i, expRow := range expectedRows {
+				if reflect.DeepEqual(realRow, expRow) {
+					found = true
+					lastIdx := len(expectedRows) - 1
+					// Swap the record that we've found to the end, then shrink the slice to not include it.
+					// This is essentially a delete operation expect that it re-orders the slice.
+					expectedRows[i], expectedRows[lastIdx] = expectedRows[lastIdx], expectedRows[i]
+					expectedRows = expectedRows[:lastIdx]
+					break
+				}
+			}
+			if !found {
+				for i, v := range realRow.Features {
+					fmt.Printf("Got %T Expected %T\n", v, expectedRows[0].Features[i])
+				}
+				t.Fatalf("Unexpected updated training row: %v, expected %v", realRow, expectedRows)
+			}
+			i++
 		}
 	}
 	for name, test := range tests {
@@ -1193,6 +1889,164 @@ func testTransform(t *testing.T, store OfflineStore) {
 			t.Fatalf("NumRows do not match. Expected: %d, Got: %d", len(test.Records), rows)
 		}
 		table, err = store.GetTransformationTable(test.Config.TargetTableID)
+
+		if err != nil {
+			t.Errorf("Could not get transformation table: %v", err)
+		}
+		iterator, err := table.IterateSegment(100)
+		if err != nil {
+			t.Fatalf("Could not get generic iterator: %v", err)
+		}
+		i := 0
+		for iterator.Next() {
+			if iterator.Err() != nil {
+				t.Fatalf("could not iterate rows: %v", iterator.Err())
+			}
+			if !reflect.DeepEqual(iterator.Values(), test.Expected[i]) {
+				for j, v := range iterator.Values() {
+					fmt.Printf("Got: %T Expected: %T\n", v, test.Expected[i][j])
+				}
+				t.Fatalf("Expected: %#v, Received %#v", test.Expected[i], iterator.Values())
+			}
+			i++
+		}
+
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			testTransform(t, test)
+		})
+	}
+
+}
+
+func testTransformUpdate(t *testing.T, store OfflineStore) {
+
+	type TransformTest struct {
+		PrimaryTable    ResourceID
+		Schema          TableSchema
+		Records         []GenericRecord
+		UpdatedRecords  []GenericRecord
+		Config          TransformationConfig
+		Expected        []GenericRecord
+		UpdatedExpected []GenericRecord
+	}
+
+	tests := map[string]TransformTest{
+		"Simple": {
+			PrimaryTable: ResourceID{
+				Name: uuid.NewString(),
+				Type: Primary,
+			},
+			Schema: TableSchema{
+				Columns: []TableColumn{
+					{Name: "entity", ValueType: String},
+					{Name: "int", ValueType: Int},
+					{Name: "flt", ValueType: Float64},
+					{Name: "str", ValueType: String},
+					{Name: "bool", ValueType: Bool},
+					{Name: "ts", ValueType: Timestamp},
+				},
+			},
+			Records: []GenericRecord{
+				[]interface{}{"a", 1, 1.1, "test string", true, time.UnixMilli(0)},
+				[]interface{}{"b", 2, 1.2, "second string", false, time.UnixMilli(0)},
+				[]interface{}{"c", 3, 1.3, "third string", nil, time.UnixMilli(0)},
+				[]interface{}{"d", 4, 1.4, "fourth string", false, time.UnixMilli(0)},
+				[]interface{}{"e", 5, 1.5, "fifth string", true, time.UnixMilli(0)},
+			},
+			UpdatedRecords: []GenericRecord{
+				[]interface{}{"d", 6, 1.6, "sixth string", false, time.UnixMilli(0)},
+				[]interface{}{"e", 7, 1.7, "seventh string", true, time.UnixMilli(0)},
+			},
+			Config: TransformationConfig{
+				TargetTableID: ResourceID{
+					Name: uuid.NewString(),
+					Type: Transformation,
+				},
+				Query: "SELECT * FROM tb",
+			},
+			Expected: []GenericRecord{
+				[]interface{}{"a", 1, 1.1, "test string", true, time.UnixMilli(0).UTC()},
+				[]interface{}{"b", 2, 1.2, "second string", false, time.UnixMilli(0).UTC()},
+				[]interface{}{"c", 3, 1.3, "third string", nil, time.UnixMilli(0).UTC()},
+				[]interface{}{"d", 4, 1.4, "fourth string", false, time.UnixMilli(0).UTC()},
+				[]interface{}{"e", 5, 1.5, "fifth string", true, time.UnixMilli(0).UTC()},
+			},
+			UpdatedExpected: []GenericRecord{
+				[]interface{}{"a", 1, 1.1, "test string", true, time.UnixMilli(0).UTC()},
+				[]interface{}{"b", 2, 1.2, "second string", false, time.UnixMilli(0).UTC()},
+				[]interface{}{"c", 3, 1.3, "third string", nil, time.UnixMilli(0).UTC()},
+				[]interface{}{"d", 4, 1.4, "fourth string", false, time.UnixMilli(0).UTC()},
+				[]interface{}{"e", 5, 1.5, "fifth string", true, time.UnixMilli(0).UTC()},
+				[]interface{}{"d", 6, 1.6, "sixth string", false, time.UnixMilli(0).UTC()},
+				[]interface{}{"e", 7, 1.7, "seventh string", true, time.UnixMilli(0).UTC()},
+			},
+		},
+		"Count": {
+			PrimaryTable: ResourceID{
+				Name: uuid.NewString(),
+				Type: Primary,
+			},
+			Schema: TableSchema{
+				Columns: []TableColumn{
+					{Name: "entity", ValueType: String},
+					{Name: "int", ValueType: Int},
+					{Name: "str", ValueType: String},
+					{Name: "bool", ValueType: Bool},
+					{Name: "ts", ValueType: Timestamp},
+				},
+			},
+			Records: []GenericRecord{
+				[]interface{}{"a", 1, "test string", true, time.UnixMilli(0)},
+				[]interface{}{"b", 2, "second string", false, time.UnixMilli(0)},
+				[]interface{}{"c", 3, "third string", nil, time.UnixMilli(0)},
+				[]interface{}{"d", 4, "fourth string", false, time.UnixMilli(0)},
+				[]interface{}{"e", 5, "fifth string", true, time.UnixMilli(0)},
+			},
+			UpdatedRecords: []GenericRecord{
+				[]interface{}{"d", 6, "sixth string", false, time.UnixMilli(0)},
+				[]interface{}{"e", 7, "seventh string", true, time.UnixMilli(0)},
+			},
+			Config: TransformationConfig{
+				TargetTableID: ResourceID{
+					Name: uuid.NewString(),
+					Type: Transformation,
+				},
+				Query: "SELECT COUNT(*) FROM tb",
+			},
+			Expected: []GenericRecord{
+				[]interface{}{5},
+			},
+			UpdatedExpected: []GenericRecord{
+				[]interface{}{7},
+			},
+		},
+	}
+
+	testTransform := func(t *testing.T, test TransformTest) {
+		table, err := store.CreatePrimaryTable(test.PrimaryTable, test.Schema)
+		if err != nil {
+			t.Fatalf("Could not initialize table: %v", err)
+		}
+		for _, value := range test.Records {
+			if err := table.Write(value); err != nil {
+				t.Fatalf("Could not write value: %v: %v", err, value)
+			}
+		}
+		test.Config.Query = strings.Replace(test.Config.Query, "tb", sanitize(table.GetName()), 1)
+		if err := store.CreateTransformation(test.Config); err != nil {
+			t.Fatalf("Could not create transformation: %v", err)
+		}
+		rows, err := table.NumRows()
+		if err != nil {
+			t.Fatalf("could not get NumRows of table: %v", err)
+		}
+		if int(rows) != len(test.Records) {
+			t.Fatalf("NumRows do not match. Expected: %d, Got: %d", len(test.Records), rows)
+		}
+		table, err = store.GetTransformationTable(test.Config.TargetTableID)
 		if err != nil {
 			t.Errorf("Could not get transformation table: %v", err)
 		}
@@ -1210,7 +2064,45 @@ func testTransform(t *testing.T, store OfflineStore) {
 			}
 			i++
 		}
-
+		table, err = store.GetPrimaryTable(test.PrimaryTable)
+		if err != nil {
+			t.Fatalf("Could not get primary table: %v", err)
+		}
+		for _, rec := range test.UpdatedRecords {
+			if err := table.Write(rec); err != nil {
+				t.Errorf("could not write to table: %v", err)
+			}
+		}
+		if err := store.UpdateTransformation(test.Config); err != nil {
+			t.Errorf("could not update transformation: %v", err)
+		}
+		table, err = store.GetTransformationTable(test.Config.TargetTableID)
+		if err != nil {
+			t.Errorf("Could not get updated transformation table: %v", err)
+		}
+		iterator, err = table.IterateSegment(100)
+		if err != nil {
+			t.Fatalf("Could not get generic iterator: %v", err)
+		}
+		i = 0
+		for iterator.Next() {
+			found := false
+			for i, expRow := range test.UpdatedExpected {
+				if reflect.DeepEqual(iterator.Values(), expRow) {
+					found = true
+					lastIdx := len(test.UpdatedExpected) - 1
+					// Swap the record that we've found to the end, then shrink the slice to not include it.
+					// This is essentially a delete operation expect that it re-orders the slice.
+					test.UpdatedExpected[i], test.UpdatedExpected[lastIdx] = test.UpdatedExpected[lastIdx], test.UpdatedExpected[i]
+					test.UpdatedExpected = test.UpdatedExpected[:lastIdx]
+					break
+				}
+			}
+			if !found {
+				t.Fatalf("Unexpected training row: %v, expected %v", iterator.Values(), test.UpdatedExpected)
+			}
+			i++
+		}
 	}
 
 	for name, test := range tests {

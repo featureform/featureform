@@ -329,6 +329,9 @@ func (store *BrokenNumRowsOfflineStore) RegisterPrimaryFromSourceTable(id provid
 func (store *BrokenNumRowsOfflineStore) CreateTransformation(config provider.TransformationConfig) error {
 	return nil
 }
+func (b BrokenNumRowsOfflineStore) UpdateTransformation(config provider.TransformationConfig) error {
+	return nil
+}
 
 func (store *BrokenNumRowsOfflineStore) GetTransformationTable(id provider.ResourceID) (provider.TransformationTable, error) {
 	return nil, nil
@@ -343,6 +346,11 @@ func (b BrokenNumRowsOfflineStore) GetResourceTable(id provider.ResourceID) (pro
 func (b BrokenNumRowsOfflineStore) CreateMaterialization(id provider.ResourceID) (provider.Materialization, error) {
 	return nil, nil
 }
+
+func (b BrokenNumRowsOfflineStore) UpdateMaterialization(id provider.ResourceID) (provider.Materialization, error) {
+	return nil, nil
+}
+
 func (b BrokenNumRowsOfflineStore) GetMaterialization(id provider.MaterializationID) (provider.Materialization, error) {
 	return &MaterializedFeaturesNumRowsBroken{""}, nil
 }
@@ -352,6 +360,11 @@ func (b BrokenNumRowsOfflineStore) DeleteMaterialization(id provider.Materializa
 func (b BrokenNumRowsOfflineStore) CreateTrainingSet(provider.TrainingSetDef) error {
 	return nil
 }
+
+func (b BrokenNumRowsOfflineStore) UpdateTrainingSet(provider.TrainingSetDef) error {
+	return nil
+}
+
 func (b BrokenNumRowsOfflineStore) GetTrainingSet(id provider.ResourceID) (provider.TrainingSetIterator, error) {
 	return nil, nil
 }
@@ -647,8 +660,20 @@ func (m MockOfflineStore) CreateTransformation(config provider.TransformationCon
 	return nil
 }
 
+func (m MockOfflineStore) UpdateTransformation(config provider.TransformationConfig) error {
+	return nil
+}
+
 func (m MockOfflineStore) GetTransformationTable(id provider.ResourceID) (provider.TransformationTable, error) {
 	return nil, nil
+}
+
+func (m MockOfflineStore) UpdateMaterialization(id provider.ResourceID) (provider.Materialization, error) {
+	return nil, nil
+}
+
+func (m MockOfflineStore) UpdateTrainingSet(provider.TrainingSetDef) error {
+	return nil
 }
 
 type MockOnlineStoreTable struct{}

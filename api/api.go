@@ -242,7 +242,7 @@ func main() {
 			panic(fmt.Sprintf("health check HTTP server failed: %+v", err))
 		}
 	}()
-	serv, err := NewApiServer(logger, "0.0.0.0:7878", "sandbox-metadata-server:8080", "sandbox-serving-server:8080")
+	serv, err := NewApiServer(logger, "0.0.0.0:7878", "sandbox-metadata-server:8080", "sandbox-feature-server:8080")
 	if err != nil {
 		fmt.Println(err)
 		return

@@ -1526,3 +1526,34 @@ func testFetchProvider(t *testing.T, client *Client, fetcher providerFetcher) {
 	// Don't fetch when testing, otherwise we'll get an infinite loop of fetches
 	tests.Test(t, client, []*Provider{provider}, false)
 }
+
+func TestBannedStrings(t *testing.T) {
+	resourceInvalidName := ResourceID{"nam__e", "variant", FEATURE}
+	resourceInvalidVariant := ResourceID{"name", "varian__t", FEATURE}
+	if err := resourceNamedSafely(resourceInvalidName); err == nil {
+		t.Fatalf("testing didn't catch error on valid resource name")
+	}
+	if err := resourceNamedSafely(resourceInvalidVariant); err == nil {
+		t.Fatalf("testing didn't catch error on valid resource name")
+	}
+	invalidNamePrefix := ResourceID{"_name", "variant", FEATURE}
+	invalidVariantPrefix := ResourceID{"name", "_variant", FEATURE}
+	if err := resourceNamedSafely(invalidNamePrefix); err == nil {
+		t.Fatalf("testing didn't catch error on valid resource prefix")
+	}
+	if err := resourceNamedSafely(invalidVariantPrefix); err == nil {
+		t.Fatalf("testing didn't catch error on valid variant prefix")
+	}
+	invalidNameSuffix := ResourceID{"name_", "variant", FEATURE}
+	invalidVariantSuffix := ResourceID{"name", "variant_", FEATURE}
+	if err := resourceNamedSafely(invalidNameSuffix); err == nil {
+		t.Fatalf("testing didn't catch error on valid resource prefix")
+	}
+	if err := resourceNamedSafely(invalidVariantSuffix); err == nil {
+		t.Fatalf("testing didn't catch error on valid variant prefix")
+	}
+	validName := ResourceID{"name", "variant", FEATURE}
+	if err := resourceNamedSafely(validName); err != nil {
+		t.Fatalf("valid resource triggered an error")
+	}
+}

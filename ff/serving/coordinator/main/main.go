@@ -26,7 +26,7 @@ func main() {
 		Password:    "secretpassword",
 		DialTimeout: time.Second * 1,
 	})
-	if err := runner.RegisterFactory(string(runner.COPY_TO_ONLINE), runner.TrainingSetRunnerFactory); err != nil {
+	if err := runner.RegisterFactory(string(runner.COPY_TO_ONLINE), runner.MaterializedChunkRunnerFactory); err != nil {
 		panic(fmt.Errorf("failed to register training set runner factory: %w", err))
 	}
 	if err != nil {

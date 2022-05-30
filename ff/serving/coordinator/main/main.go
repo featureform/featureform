@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/featureform/serving/coordinator"
 	"github.com/featureform/serving/metadata"
+	"github.com/featureform/serving/runner"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.uber.org/zap"
 	"os"
@@ -25,6 +26,9 @@ func main() {
 		Password:    "secretpassword",
 		DialTimeout: time.Second * 1,
 	})
+	if err := runner.RegisterFactory(string(runner.COPY_TO_ONLINE), runner.TrainingSetRunnerFactory); err != nil {
+		panic(fmt.Errorf("failed to register training set runner factory: %w", err))
+	}
 	if err != nil {
 		panic(err)
 	}

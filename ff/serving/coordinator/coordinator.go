@@ -414,16 +414,18 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID) error 
 		VType:   provider.ValueType(featureType),
 		Cloud:   runner.LocalMaterializeRunner,
 	}
+	c.Logger.Info("Starting Materialize")
 	completionWatcher, err := materializeRunner.Run()
 	if err != nil {
 		return err
 	}
 	if err := completionWatcher.Wait(); err != nil {
-		return err
+		return fmt.Errorf("completion watcher: %w", err)
 	}
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
-		return err
+		return fmt.Errorf("materialize set success: %w", err)
 	}
+	c.Logger.Info("Materialize Complete")
 	return nil
 }
 

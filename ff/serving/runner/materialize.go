@@ -72,14 +72,14 @@ func (m MaterializeRunner) Run() (CompletionWatcher, error) {
 	_, err = m.Online.CreateTable(m.ID.Name, m.ID.Variant, m.VType)
 	_, exists := err.(*provider.TableAlreadyExists)
 	if err != nil && !exists {
-		return nil, err
+		return nil, fmt.Errorf("create table: %w", err)
 	}
 
 	chunkSize := MAXIMUM_CHUNK_ROWS
 	var numChunks int64
 	numRows, err := materialization.NumRows()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("num rows: %w", err)
 	}
 	if numRows <= MAXIMUM_CHUNK_ROWS {
 		chunkSize = numRows
@@ -103,7 +103,7 @@ func (m MaterializeRunner) Run() (CompletionWatcher, error) {
 	}
 	serializedConfig, err := config.Serialize()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("serialize : %w", err)
 	}
 	var cloudWatcher CompletionWatcher
 	switch m.Cloud {
@@ -116,22 +116,22 @@ func (m MaterializeRunner) Run() (CompletionWatcher, error) {
 		}
 		kubernetesRunner, err := NewKubernetesRunner(kubernetesConfig)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("kubernetes runner: %w", err)
 		}
 		cloudWatcher, err = kubernetesRunner.Run()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("kubernetes run: %w", err)
 		}
 	case LocalMaterializeRunner:
 		completionList := make([]CompletionWatcher, int(numChunks))
 		for i := 0; i < int(numChunks); i++ {
 			localRunner, err := Create(string(COPY_TO_ONLINE), serializedConfig)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("local runner create: %w", err)
 			}
 			watcher, err := localRunner.Run()
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("local runner run: %w", err)
 			}
 			completionList[i] = watcher
 		}
@@ -146,7 +146,7 @@ func (m MaterializeRunner) Run() (CompletionWatcher, error) {
 	}
 	go func() {
 		if err := cloudWatcher.Wait(); err != nil {
-			materializeWatcher.EndWatch(err)
+			materializeWatcher.EndWatch(fmt.Errorf("cloud watch: %w", err))
 			return
 		}
 		materializeWatcher.EndWatch(nil)

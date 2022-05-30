@@ -98,11 +98,20 @@ func (q postgresSQLQueries) primaryTableRegister(tableName string, sourceName st
 	return fmt.Sprintf("CREATE VIEW %s AS SELECT * FROM %s", sanitize(tableName), sanitize(sourceName))
 }
 
-func (q postgresSQLQueries) materializationCreate(tableName string, resultName string) string {
+func (q postgresSQLQueries) materializationCreate(tableName string, sourceName string) string {
 	return fmt.Sprintf(
-		"CREATE TABLE IF NOT EXISTS %s AS (SELECT entity, value, ts, row_number() over(ORDER BY (SELECT NULL)) as row_number FROM "+
+		"CREATE MATERIALIZED VIEW IF NOT EXISTS %s AS (SELECT entity, value, ts, row_number() over(ORDER BY (SELECT NULL)) as row_number FROM "+
 			"(SELECT entity, ts, value, row_number() OVER (PARTITION BY entity ORDER BY ts desc) "+
-			"AS rn FROM %s) t WHERE rn=1)", sanitize(tableName), sanitize(resultName))
+			"AS rn FROM %s) t WHERE rn=1);  CREATE UNIQUE INDEX ON %s (entity);", sanitize(tableName), sanitize(sourceName), sanitize(tableName))
+}
+
+func (q postgresSQLQueries) materializationUpdate(db *sql.DB, tableName string, sourceName string) error {
+	_, err := db.Exec(fmt.Sprintf("REFRESH MATERIALIZED VIEW CONCURRENTLY %s", sanitize(tableName)))
+	return err
+}
+
+func (q postgresSQLQueries) materializationExists() string {
+	return "SELECT * FROM pg_matviews WHERE matviewname = $1"
 }
 
 func (q postgresSQLQueries) determineColumnType(valueType ValueType) (string, error) {
@@ -137,6 +146,14 @@ func (q postgresSQLQueries) createValuePlaceholderString(columns []TableColumn) 
 }
 
 func (q postgresSQLQueries) trainingSetCreate(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string) error {
+	return q.trainingSetQuery(store, def, tableName, labelName, false)
+}
+
+func (q postgresSQLQueries) trainingSetUpdate(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string) error {
+	return q.trainingSetQuery(store, def, tableName, labelName, true)
+}
+
+func (q postgresSQLQueries) trainingSetQuery(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string, isUpdate bool) error {
 	columns := make([]string, 0)
 	query := fmt.Sprintf(" (SELECT entity, value , ts from %s ) l ", sanitize(labelName))
 	for i, feature := range def.Features {
@@ -154,9 +171,19 @@ func (q postgresSQLQueries) trainingSetCreate(store *sqlOfflineStore, def Traini
 		}
 	}
 	columnStr := strings.Join(columns, ", ")
-	fullQuery := fmt.Sprintf("CREATE TABLE %s AS (SELECT %s, l.value as label FROM %s ", sanitize(tableName), columnStr, query)
-	if _, err := store.db.Exec(fullQuery); err != nil {
-		return err
+
+	if !isUpdate {
+		fullQuery := fmt.Sprintf("CREATE TABLE %s AS (SELECT %s, l.value as label FROM %s ", sanitize(tableName), columnStr, query)
+		if _, err := store.db.Exec(fullQuery); err != nil {
+			return err
+		}
+	} else {
+		tempName := sanitize(fmt.Sprintf("tmp_%s", tableName))
+		fullQuery := fmt.Sprintf("CREATE TABLE %s AS (SELECT %s, l.value as label FROM %s ", tempName, columnStr, query)
+		err := q.atomicUpdate(store.db, tableName, tempName, fullQuery)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -206,5 +233,46 @@ func (q postgresSQLQueries) numRows(n interface{}) (int64, error) {
 }
 
 func (q postgresSQLQueries) transformationCreate(name string, query string) string {
-	return fmt.Sprintf("CREATE TABLE %s AS %s ", sanitize(name), query)
+	return fmt.Sprintf("CREATE TABLE  %s AS %s", sanitize(name), query)
+}
+
+func (q postgresSQLQueries) transformationUpdate(db *sql.DB, tableName string, query string) error {
+	tempName := sanitize(fmt.Sprintf("tmp_%s", tableName))
+	fullQuery := fmt.Sprintf("CREATE TABLE %s AS %s", tempName, query)
+	return q.atomicUpdate(db, tableName, tempName, fullQuery)
+}
+
+func (q postgresSQLQueries) atomicUpdate(db *sql.DB, tableName string, tempName string, query string) error {
+	santizedName := sanitize(tableName)
+	oldName := sanitize(fmt.Sprintf("old_%s", tableName))
+	transaction := fmt.Sprintf("BEGIN;"+
+		"%s;"+
+		"ALTER TABLE %s RENAME TO %s;"+
+		"ALTER TABLE %s RENAME TO %s;"+
+		"DROP TABLE %s;"+
+		"COMMIT;", query, santizedName, oldName, tempName, santizedName, oldName)
+	_, err := db.Exec(transaction)
+	return err
+}
+
+func (q postgresSQLQueries) transformationExists() string {
+	return "SELECT * FROM pg_matviews WHERE matviewname = $1"
+}
+
+func (q postgresSQLQueries) getColumns(db *sql.DB, tableName string) ([]TableColumn, error) {
+	qry := fmt.Sprintf("SELECT attname AS column_name FROM   pg_attribute WHERE  attrelid = 'public.%s'::regclass AND    attnum > 0 ORDER  BY attnum", tableName)
+	rows, err := db.Query(qry)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	columnNames := make([]TableColumn, 0)
+	for rows.Next() {
+		var column string
+		if err := rows.Scan(&column); err != nil {
+			return nil, err
+		}
+		columnNames = append(columnNames, TableColumn{Name: column})
+	}
+	return columnNames, nil
 }

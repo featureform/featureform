@@ -117,14 +117,17 @@ type OfflineStore interface {
 	RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error)
 	CreateTransformation(config TransformationConfig) error
 	GetTransformationTable(id ResourceID) (TransformationTable, error)
+	UpdateTransformation(config TransformationConfig) error
 	CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error)
 	GetPrimaryTable(id ResourceID) (PrimaryTable, error)
 	CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error)
 	GetResourceTable(id ResourceID) (OfflineTable, error)
 	CreateMaterialization(id ResourceID) (Materialization, error)
 	GetMaterialization(id MaterializationID) (Materialization, error)
+	UpdateMaterialization(id ResourceID) (Materialization, error)
 	DeleteMaterialization(id MaterializationID) error
 	CreateTrainingSet(TrainingSetDef) error
+	UpdateTrainingSet(TrainingSetDef) error
 	GetTrainingSet(id ResourceID) (TrainingSetIterator, error)
 	Provider
 }
@@ -268,6 +271,10 @@ func (store *memoryOfflineStore) CreateTransformation(config TransformationConfi
 	return errors.New("CreateTransformation unsupported for this provider")
 }
 
+func (store *memoryOfflineStore) UpdateTransformation(config TransformationConfig) error {
+	return errors.New("UpdateTransformation unsupported for this provider")
+}
+
 func (store *memoryOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
 	return nil, errors.New("GetTransformationTable unsupported for this provider")
 }
@@ -350,6 +357,10 @@ func (store *memoryOfflineStore) GetMaterialization(id MaterializationID) (Mater
 	return mat, nil
 }
 
+func (store *memoryOfflineStore) UpdateMaterialization(id ResourceID) (Materialization, error) {
+	return store.CreateMaterialization(id)
+}
+
 func (store *memoryOfflineStore) DeleteMaterialization(id MaterializationID) error {
 	if _, has := store.materializations[id]; !has {
 		return &MaterializationNotFound{id}
@@ -399,6 +410,10 @@ func (store *memoryOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
 	}
 	store.trainingSets[def.ID] = trainingData
 	return nil
+}
+
+func (store *memoryOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {
+	return store.CreateTrainingSet(def)
 }
 
 func (store *memoryOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {

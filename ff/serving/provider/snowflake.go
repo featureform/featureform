@@ -68,3 +68,7 @@ func snowflakeOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	}
 	return store, nil
 }
+
+func (q snowflakeSQLQueries) materializationDrop(tableName string) string {
+	return fmt.Sprintf("DROP TABLE %s", sanitize(tableName))
+}

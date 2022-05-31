@@ -102,4 +102,6 @@ etcd:
   auth:
     rbac:
       rootPassword: "secretpassword"
+    token:
+      ttl: 365d
   replicaCount: 3

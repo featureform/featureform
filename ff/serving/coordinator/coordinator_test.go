@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	pb "github.com/featureform/serving/metadata/proto"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"go.uber.org/zap"
 
@@ -135,7 +134,7 @@ func TestRunSQLJobError(t *testing.T) {
 					Sources: []metadata.NameVariant{{"ghost_source", ""}},
 				},
 			},
-			UpdateStatus: pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: ""}},
+			Schedule: "",
 		},
 	}
 	if err := coord.Metadata.CreateAll(context.Background(), defs); err != nil {
@@ -228,7 +227,7 @@ func TestFeatureMaterializeJobError(t *testing.T) {
 					Name: originalTableName,
 				},
 			},
-			UpdateStatus: pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: ""}},
+			Schedule: "",
 		},
 		metadata.FeatureDef{
 			Name:        featureName,
@@ -244,7 +243,7 @@ func TestFeatureMaterializeJobError(t *testing.T) {
 				Value:  "value",
 				TS:     "ts",
 			},
-			UpdateStatus: pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: ""}},
+			Schedule: "",
 		},
 	}
 	if err := coord.Metadata.CreateAll(context.Background(), defs); err != nil {
@@ -289,7 +288,7 @@ func TestFeatureMaterializeJobError(t *testing.T) {
 					Name: originalTableName,
 				},
 			},
-			UpdateStatus: pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: ""}},
+			Schedule: "",
 		},
 		metadata.FeatureDef{
 			Name:        featureName,
@@ -305,7 +304,7 @@ func TestFeatureMaterializeJobError(t *testing.T) {
 				Value:  "value",
 				TS:     "ts",
 			},
-			UpdateStatus: pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: ""}},
+			Schedule: "",
 		},
 	}
 	if err := coord.Metadata.CreateAll(context.Background(), defs); err != nil {
@@ -359,7 +358,7 @@ func TestFeatureMaterializeJobError(t *testing.T) {
 					Name: originalTableName,
 				},
 			},
-			UpdateStatus: pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: ""}},
+			Schedule: "",
 		},
 		metadata.FeatureDef{
 			Name:        featureName,
@@ -375,7 +374,7 @@ func TestFeatureMaterializeJobError(t *testing.T) {
 				Value:  "value",
 				TS:     "ts",
 			},
-			UpdateStatus: pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: ""}},
+			Schedule: "",
 		},
 	}
 	if err := coord.Metadata.CreateAll(context.Background(), defs); err != nil {
@@ -438,7 +437,7 @@ func TestTrainingSetJobError(t *testing.T) {
 					Name: originalTableName,
 				},
 			},
-			UpdateStatus: pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: ""}},
+			Schedule: "",
 		},
 		metadata.LabelDef{
 			Name:        labelName,
@@ -469,17 +468,17 @@ func TestTrainingSetJobError(t *testing.T) {
 				Value:  "value",
 				TS:     "ts",
 			},
-			UpdateStatus: pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: ""}},
+			Schedule: "",
 		},
 		metadata.TrainingSetDef{
-			Name:         tsName,
-			Variant:      "",
-			Description:  "",
-			Owner:        userName,
-			Provider:     providerName,
-			Label:        metadata.NameVariant{labelName, ""},
-			Features:     []metadata.NameVariant{{featureName, ""}},
-			UpdateStatus: pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: ""}},
+			Name:        tsName,
+			Variant:     "",
+			Description: "",
+			Owner:       userName,
+			Provider:    providerName,
+			Label:       metadata.NameVariant{labelName, ""},
+			Features:    []metadata.NameVariant{{featureName, ""}},
+			Schedule:    "",
 		},
 	}
 	if err := coord.Metadata.CreateAll(context.Background(), defs); err != nil {
@@ -529,7 +528,7 @@ func TestTrainingSetJobError(t *testing.T) {
 					Name: originalTableName,
 				},
 			},
-			UpdateStatus: pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: ""}},
+			Schedule: "",
 		},
 		metadata.LabelDef{
 			Name:        labelName,
@@ -560,17 +559,17 @@ func TestTrainingSetJobError(t *testing.T) {
 				Value:  "value",
 				TS:     "ts",
 			},
-			UpdateStatus: pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: ""}},
+			Schedule: "",
 		},
 		metadata.TrainingSetDef{
-			Name:         tsName,
-			Variant:      "",
-			Description:  "",
-			Owner:        userName,
-			Provider:     providerName,
-			Label:        metadata.NameVariant{labelName, ""},
-			Features:     []metadata.NameVariant{{featureName, ""}},
-			UpdateStatus: pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: ""}},
+			Name:        tsName,
+			Variant:     "",
+			Description: "",
+			Owner:       userName,
+			Provider:    providerName,
+			Label:       metadata.NameVariant{labelName, ""},
+			Features:    []metadata.NameVariant{{featureName, ""}},
+			Schedule:    "",
 		},
 	}
 	if err := coord.Metadata.CreateAll(context.Background(), defs); err != nil {
@@ -618,7 +617,7 @@ func TestRunPrimaryTableJobError(t *testing.T) {
 					Name: "",
 				},
 			},
-			UpdateStatus: pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: ""}},
+			Schedule: "",
 		},
 	}
 	if err := coord.Metadata.CreateAll(context.Background(), defs); err != nil {
@@ -666,7 +665,7 @@ func TestRunPrimaryTableJobError(t *testing.T) {
 					Name: "ghost_primary_table",
 				},
 			},
-			UpdateStatus: pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: ""}},
+			Schedule: "",
 		},
 	}
 	if err := coord.Metadata.CreateAll(context.Background(), newDefs); err != nil {
@@ -725,7 +724,7 @@ func TestMapNameVariantsToTablesError(t *testing.T) {
 					Name: tableName,
 				},
 			},
-			UpdateStatus: pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: ""}},
+			Schedule: "",
 		},
 	}
 	if err := coord.Metadata.CreateAll(context.Background(), defs); err != nil {
@@ -780,7 +779,7 @@ func TestRegisterSourceJobErrors(t *testing.T) {
 					Name: ghostTableName,
 				},
 			},
-			UpdateStatus: pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: ""}},
+			Schedule: "",
 		},
 	}
 	if err := coord.Metadata.CreateAll(context.Background(), providerErrorDefs); err != nil {
@@ -824,7 +823,7 @@ func TestRegisterSourceJobErrors(t *testing.T) {
 					Name: newTableName,
 				},
 			},
-			UpdateStatus: pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: ""}},
+			Schedule: "",
 		},
 	}
 	if err := coord.Metadata.CreateAll(context.Background(), onlineErrorDefs); err != nil {
@@ -908,10 +907,6 @@ func materializeFeatureWithProvider(client *metadata.Client, offlineConfig provi
 	onlineProviderName := uuid.New().String()
 	userName := uuid.New().String()
 	entityName := uuid.New().String()
-	updateStatus := pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: ""}}
-	if schedule != "" {
-		updateStatus.Schedule.Schedule = schedule
-	}
 	defs := []metadata.ResourceDef{
 		metadata.UserDef{
 			Name: userName,
@@ -947,7 +942,7 @@ func materializeFeatureWithProvider(client *metadata.Client, offlineConfig provi
 					Name: originalTableName,
 				},
 			},
-			UpdateStatus: pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: ""}},
+			Schedule: "",
 		},
 		metadata.FeatureDef{
 			Name:        featureName,
@@ -963,7 +958,7 @@ func materializeFeatureWithProvider(client *metadata.Client, offlineConfig provi
 				Value:  "value",
 				TS:     "ts",
 			},
-			UpdateStatus: updateStatus,
+			Schedule: schedule,
 		},
 	}
 	if err := client.CreateAll(context.Background(), defs); err != nil {
@@ -998,7 +993,6 @@ func createSourceWithProvider(client *metadata.Client, config provider.Serialize
 					Name: tableName,
 				},
 			},
-			UpdateStatus: pb.UpdateStatus{},
 		},
 	}
 	if err := client.CreateAll(context.Background(), defs); err != nil {
@@ -1010,10 +1004,6 @@ func createSourceWithProvider(client *metadata.Client, config provider.Serialize
 func createTransformationWithProvider(client *metadata.Client, config provider.SerializedConfig, sourceName string, transformationQuery string, sources []metadata.NameVariant, schedule string) error {
 	userName := uuid.New().String()
 	providerName := uuid.New().String()
-	updateStatus := pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: ""}}
-	if schedule != "" {
-		updateStatus.Schedule.Schedule = schedule
-	}
 	defs := []metadata.ResourceDef{
 		metadata.UserDef{
 			Name: userName,
@@ -1038,7 +1028,7 @@ func createTransformationWithProvider(client *metadata.Client, config provider.S
 					Sources: sources,
 				},
 			},
-			UpdateStatus: updateStatus,
+			Schedule: schedule,
 		},
 	}
 	if err := client.CreateAll(context.Background(), defs); err != nil {
@@ -1051,10 +1041,6 @@ func createTrainingSetWithProvider(client *metadata.Client, config provider.Seri
 	providerName := uuid.New().String()
 	userName := uuid.New().String()
 	entityName := uuid.New().String()
-	updateStatus := pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: ""}}
-	if schedule != "" {
-		updateStatus.Schedule.Schedule = schedule
-	}
 	defs := []metadata.ResourceDef{
 		metadata.UserDef{
 			Name: userName,
@@ -1114,14 +1100,14 @@ func createTrainingSetWithProvider(client *metadata.Client, config provider.Seri
 			},
 		},
 		metadata.TrainingSetDef{
-			Name:         tsName,
-			Variant:      "",
-			Description:  "",
-			Owner:        userName,
-			Provider:     providerName,
-			Label:        metadata.NameVariant{labelName, ""},
-			Features:     []metadata.NameVariant{{featureName, ""}},
-			UpdateStatus: updateStatus,
+			Name:        tsName,
+			Variant:     "",
+			Description: "",
+			Owner:       userName,
+			Provider:    providerName,
+			Label:       metadata.NameVariant{labelName, ""},
+			Features:    []metadata.NameVariant{{featureName, ""}},
+			Schedule:    schedule,
 		},
 	}
 	if err := client.CreateAll(context.Background(), defs); err != nil {

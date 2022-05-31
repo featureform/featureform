@@ -207,16 +207,16 @@ type FeaturePrimaryData interface {
 }
 
 type FeatureDef struct {
-	Name         string
-	Variant      string
-	Source       NameVariant
-	Type         string
-	Entity       string
-	Owner        string
-	Description  string
-	Provider     string
-	UpdateStatus pb.UpdateStatus
-	Location     interface{}
+	Name        string
+	Variant     string
+	Source      NameVariant
+	Type        string
+	Entity      string
+	Owner       string
+	Description string
+	Provider    string
+	Schedule    string
+	Location    interface{}
 }
 
 type ResourceVariantColumns struct {
@@ -261,7 +261,7 @@ func (client *Client) CreateFeatureVariant(ctx context.Context, def FeatureDef) 
 		Description:  def.Description,
 		Status:       &pb.ResourceStatus{Status: pb.ResourceStatus_CREATED},
 		Provider:     def.Provider,
-		UpdateStatus: &def.UpdateStatus,
+		UpdateStatus: &pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: def.Schedule}},
 	}
 	switch x := def.Location.(type) {
 	case ResourceVariantColumns:
@@ -479,14 +479,14 @@ func (client *Client) GetTrainingSets(ctx context.Context, trainingSets []string
 }
 
 type TrainingSetDef struct {
-	Name         string
-	Variant      string
-	Description  string
-	Owner        string
-	Provider     string
-	UpdateStatus pb.UpdateStatus
-	Label        NameVariant
-	Features     NameVariants
+	Name        string
+	Variant     string
+	Description string
+	Owner       string
+	Provider    string
+	Schedule    string
+	Label       NameVariant
+	Features    NameVariants
 }
 
 func (def TrainingSetDef) ResourceType() ResourceType {
@@ -503,7 +503,7 @@ func (client *Client) CreateTrainingSetVariant(ctx context.Context, def Training
 		Status:       &pb.ResourceStatus{Status: pb.ResourceStatus_CREATED},
 		Label:        def.Label.Serialize(),
 		Features:     def.Features.Serialize(),
-		UpdateStatus: &def.UpdateStatus,
+		UpdateStatus: &pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: def.Schedule}},
 	}
 	_, err := client.grpcConn.CreateTrainingSetVariant(ctx, serialized)
 	return err
@@ -604,13 +604,13 @@ func (client *Client) GetSources(ctx context.Context, sources []string) ([]*Sour
 }
 
 type SourceDef struct {
-	Name         string
-	Variant      string
-	Description  string
-	Owner        string
-	Provider     string
-	UpdateStatus pb.UpdateStatus
-	Definition   SourceType
+	Name        string
+	Variant     string
+	Description string
+	Owner       string
+	Provider    string
+	Schedule    string
+	Definition  SourceType
 }
 
 type SourceType interface {
@@ -715,7 +715,7 @@ func (client *Client) CreateSourceVariant(ctx context.Context, def SourceDef) er
 		Owner:        def.Owner,
 		Status:       &pb.ResourceStatus{Status: pb.ResourceStatus_CREATED},
 		Provider:     def.Provider,
-		UpdateStatus: &def.UpdateStatus,
+		UpdateStatus: &pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: def.Schedule}},
 	}
 	var err error
 	switch x := def.Definition.(type) {

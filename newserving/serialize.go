@@ -17,7 +17,7 @@ type feature struct {
 func newFeature(val interface{}) (*feature, error) {
 	serial, err := wrapValue(val)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("new feature: %w", err)
 	}
 	return &feature{serial}, nil
 }
@@ -64,7 +64,7 @@ func (row *row) Serialized() *pb.TrainingDataRow {
 func (row *row) SetLabel(label interface{}) error {
 	value, err := wrapValue(label)
 	if err != nil {
-		return err
+		return fmt.Errorf("set label: %w", err)
 	}
 	row.serialized.Label = value
 	return nil
@@ -73,7 +73,7 @@ func (row *row) SetLabel(label interface{}) error {
 func (row *row) AddFeature(feature interface{}) error {
 	value, err := wrapValue(feature)
 	if err != nil {
-		return err
+		return fmt.Errorf("add feature: %w", err)
 	}
 	row.serialized.Features = append(row.serialized.Features, value)
 	return nil
@@ -105,6 +105,8 @@ func wrapValue(value interface{}) (proto *pb.Value, err error) {
 		proto = wrapBool(typed)
 	case *pb.Value:
 		proto = typed
+	case nil:
+		proto = wrapNil(typed)
 	default:
 		err = InvalidValue{value}
 	}
@@ -150,5 +152,11 @@ func wrapInt64(val int64) *pb.Value {
 func wrapBool(val bool) *pb.Value {
 	return &pb.Value{
 		Value: &pb.Value_BoolValue{val},
+	}
+}
+
+func wrapNil(val interface{}) *pb.Value {
+	return &pb.Value{
+		Value: &pb.Value_StrValue{""},
 	}
 }

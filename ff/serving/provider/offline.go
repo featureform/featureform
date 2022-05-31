@@ -53,10 +53,10 @@ var ProviderToMetadataResourceType = map[OfflineResourceType]metadata.ResourceTy
 }
 
 var MetadataToProviderResourceType = map[metadata.ResourceType]OfflineResourceType{
-	metadata.FEATURE_VARIANT: Feature,      
-	metadata.TRAINING_SET_VARIANT: TrainingSet,    
-	metadata.SOURCE_VARIANT: Primary,        
-	metadata.SOURCE_VARIANT: Transformation,
+	metadata.FEATURE_VARIANT:      Feature,
+	metadata.TRAINING_SET_VARIANT: TrainingSet,
+	metadata.SOURCE_VARIANT:       Primary,
+	metadata.SOURCE_VARIANT:       Transformation,
 }
 
 type FeatureLabelColumnType string

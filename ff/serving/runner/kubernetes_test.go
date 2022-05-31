@@ -39,7 +39,7 @@ func (m MockJobClient) GetCronJob() (*batchv1.CronJob, error) {
 	return &batchv1.CronJob{}, nil
 }
 
-func (m MockJobClient) UpdateCronJob(cronJob *batchv1.Job) (*batchv1.CronJob, error) {
+func (m MockJobClient) UpdateCronJob(cronJob *batchv1.CronJob) (*batchv1.CronJob, error) {
 	return &batchv1.CronJob{}, nil
 }
 
@@ -94,7 +94,7 @@ func (m MockJobClientBroken) GetCronJob() (*batchv1.CronJob, error) {
 	return &batchv1.CronJob{}, nil
 }
 
-func (m MockJobClientBroken) UpdateCronJob(cronJob *batchv1.Job) (*batchv1.CronJob, error) {
+func (m MockJobClientBroken) UpdateCronJob(cronJob *batchv1.CronJob) (*batchv1.CronJob, error) {
 	return &batchv1.CronJob{}, nil
 }
 
@@ -134,7 +134,7 @@ func (m MockJobClientRunBroken) GetCronJob() (*batchv1.CronJob, error) {
 	return &batchv1.CronJob{}, nil
 }
 
-func (m MockJobClientRunBroken) UpdateCronJob(cronJob *batchv1.Job) (*batchv1.CronJob, error) {
+func (m MockJobClientRunBroken) UpdateCronJob(cronJob *batchv1.CronJob) (*batchv1.CronJob, error) {
 	return &batchv1.CronJob{}, nil
 }
 
@@ -195,7 +195,7 @@ func (m MockJobClientFailChannel) GetCronJob() (*batchv1.CronJob, error) {
 	return &batchv1.CronJob{}, nil
 }
 
-func (m MockJobClientFailChannel) UpdateCronJob(cronJob *batchv1.Job) (*batchv1.CronJob, error) {
+func (m MockJobClientFailChannel) UpdateCronJob(cronJob *batchv1.CronJob) (*batchv1.CronJob, error) {
 	return &batchv1.CronJob{}, nil
 }
 

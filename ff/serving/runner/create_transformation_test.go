@@ -30,7 +30,7 @@ func (m MockOfflineCreateTransformationFail) DeleteMaterialization(id provider.M
 	return nil
 }
 func (m MockOfflineCreateTransformationFail) CreateTrainingSet(provider.TrainingSetDef) error {
-	return fmt.Errorf("could not create training set")
+	return nil
 }
 func (m MockOfflineCreateTransformationFail) GetTrainingSet(id provider.ResourceID) (provider.TrainingSetIterator, error) {
 	return nil, nil
@@ -52,7 +52,7 @@ func (m MockOfflineCreateTransformationFail) RegisterPrimaryFromSourceTable(id p
 }
 
 func (m MockOfflineCreateTransformationFail) CreateTransformation(config provider.TransformationConfig) error {
-	return nil
+	return fmt.Errorf("could not create training set")
 }
 
 func (m MockOfflineCreateTransformationFail) GetTransformationTable(id provider.ResourceID) (provider.TransformationTable, error) {
@@ -112,6 +112,7 @@ type ErrorTransformationFactoryConfigs struct {
 }
 
 func TestCreateTransformationRunnerFactoryErrorCoverage(t *testing.T) {
+	ResetFactoryMap()
 	transformationSerialize := func(ts CreateTransformationConfig) Config {
 		config, err := ts.Serialize()
 		if err != nil {
@@ -151,6 +152,7 @@ func TestCreateTransformationRunnerFactoryErrorCoverage(t *testing.T) {
 }
 
 func TestTransformationFactory(t *testing.T) {
+	ResetFactoryMap()
 	transformationSerialize := func(ts CreateTransformationConfig) Config {
 		config, err := ts.Serialize()
 		if err != nil {

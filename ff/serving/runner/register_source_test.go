@@ -30,7 +30,7 @@ func (m MockOfflineRegisterSourceFail) DeleteMaterialization(id provider.Materia
 	return nil
 }
 func (m MockOfflineRegisterSourceFail) CreateTrainingSet(provider.TrainingSetDef) error {
-	return fmt.Errorf("could not create training set")
+	return nil
 }
 func (m MockOfflineRegisterSourceFail) GetTrainingSet(id provider.ResourceID) (provider.TrainingSetIterator, error) {
 	return nil, nil
@@ -44,11 +44,11 @@ func (m MockOfflineRegisterSourceFail) GetPrimaryTable(id provider.ResourceID) (
 }
 
 func (m MockOfflineRegisterSourceFail) RegisterResourceFromSourceTable(id provider.ResourceID, schema provider.ResourceSchema) (provider.OfflineTable, error) {
-	return nil, nil
+	return nil, fmt.Errorf("could not create training set")
 }
 
 func (m MockOfflineRegisterSourceFail) RegisterPrimaryFromSourceTable(id provider.ResourceID, sourceName string) (provider.PrimaryTable, error) {
-	return nil, nil
+	return nil, fmt.Errorf("could not create training set")
 }
 
 func (m MockOfflineRegisterSourceFail) CreateTransformation(config provider.TransformationConfig) error {
@@ -56,6 +56,15 @@ func (m MockOfflineRegisterSourceFail) CreateTransformation(config provider.Tran
 }
 
 func (m MockOfflineRegisterSourceFail) GetTransformationTable(id provider.ResourceID) (provider.TransformationTable, error) {
+	return nil, nil
+}
+func (m MockOfflineRegisterSourceFail) UpdateTransformation(config provider.TransformationConfig) error {
+	return nil
+}
+func (m MockOfflineRegisterSourceFail) UpdateTrainingSet(provider.TrainingSetDef) error {
+	return nil
+}
+func (m MockOfflineRegisterSourceFail) UpdateMaterialization(id provider.ResourceID) (provider.Materialization, error) {
 	return nil, nil
 }
 
@@ -76,7 +85,7 @@ func TestRunRegisterResource(t *testing.T) {
 
 func TestFailRegisterResource(t *testing.T) {
 	runner := RegisterSourceRunner{
-		MockOfflineStore{},
+		MockOfflineRegisterSourceFail{},
 		provider.ResourceID{},
 		"",
 	}
@@ -139,6 +148,7 @@ func TestRegisterSourceRunnerFactoryErrorCoverage(t *testing.T) {
 }
 
 func TestRegisterSourceFactory(t *testing.T) {
+	ResetFactoryMap()
 	registerSourceSerialize := func(ts RegisterSourceConfig) Config {
 		config, err := ts.Serialize()
 		if err != nil {

@@ -38,6 +38,14 @@ type RedisConfig struct {
 	DB       int
 }
 
+//added by Riddhi
+type DynamodbConfig struct {
+	Prefix string
+	Addr   string
+	// Password string
+	// DB       int
+}
+
 func (r RedisConfig) Serialized() SerializedConfig {
 	config, err := json.Marshal(r)
 	if err != nil {
@@ -69,7 +77,23 @@ func (r CassandraConfig) Serialized() SerializedConfig {
 	return config
 }
 
+func (r DynamodbConfig) Serialized() SerializedConfig {
+	config, err := json.Marshal(r)
+	if err != nil {
+		panic(err)
+	}
+	return config
+}
+
 func (r *CassandraConfig) Deserialize(config SerializedConfig) error {
+	err := json.Unmarshal(config, r)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *DynamodbConfig) Deserialize(config SerializedConfig) error {
 	err := json.Unmarshal(config, r)
 	if err != nil {
 		return err

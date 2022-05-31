@@ -76,7 +76,10 @@ func (t redisTableKey) String() string {
 }
 
 func (t cassandraTableKey) String() string {
-	marshalled, _ := json.Marshal(t)
+	marshalled, err := json.Marshal(t)
+	if err != nil {
+		return err.Error()
+	}
 	return string(marshalled)
 }
 
@@ -126,7 +129,7 @@ func redisOnlineStoreFactory(serialized SerializedConfig) (Provider, error) {
 func cassandraOnlineStoreFactory(serialized SerializedConfig) (Provider, error) {
 	cassandraConfig := &CassandraConfig{} //-> An empty struct
 	if err := cassandraConfig.Deserialize(serialized); err != nil {
-		return nil, fmt.Errorf("DESERIALISE!! %s", err)
+		return nil, err
 	}
 	if cassandraConfig.keyspace == "" {
 		cassandraConfig.keyspace = "Featureform_table__"
@@ -151,17 +154,23 @@ func NewCassandraOnlineStore(options *CassandraConfig) (*cassandraOnlineStore, e
 
 	//Create cluster and session
 	cassandraCluster := gocql.NewCluster(options.Addr)
-	var newSession *gocql.Session
 	newSession, err := cassandraCluster.CreateSession()
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	//Create keyspace
-	Query := fmt.Sprintf("CREATE KEYSPACE IF NOT EXISTS %s WITH replication = {'class' : 'SimpleStrategy','replication_factor' : 1}", options.keyspace)
-	err = newSession.Query(Query).WithContext(ctx).Exec()
+	query := fmt.Sprintf("CREATE KEYSPACE IF NOT EXISTS %s WITH replication = {'class' : 'SimpleStrategy','replication_factor' : 1}", options.keyspace)
+	err = newSession.Query(query).WithContext(ctx).Exec()
 	if err != nil {
-		return nil, fmt.Errorf("KEYSPACE CREATION!! %s", err)
+		return nil, err
+	}
+
+	// Create Metadata Table
+	query = fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (tableName text PRIMARY KEY, tableType text)", fmt.Sprintf("%s.tableMetadata", options.keyspace))
+	err = newSession.Query(query).WithContext(ctx).Exec()
+	if err != nil {
+		return nil, err
 	}
 
 	//Assign keyspace to cluster and use it
@@ -237,19 +246,23 @@ func (store *redisOnlineStore) CreateTable(feature, variant string, valueType Va
 func (store *cassandraOnlineStore) CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error) {
 
 	//Create table Name
-	var tableName string
-	tableName = fmt.Sprintf("%s.table%s", store.keyspace, sn.Custom(feature, "[^a-zA-Z0-9_]"))
+	tableName := fmt.Sprintf("%s.table%s", store.keyspace, sn.Custom(feature, "[^a-zA-Z0-9_]"))
 
 	//Create table key
-	var keyName string
 	key := cassandraTableKey{store.keyspace, feature, variant}
-	keyName = sn.Custom(key.String(), "[^a-zA-Z0-9_]")
+	keyName := sn.Custom(key.String(), "[^a-zA-Z0-9_]")
+
+	//Check if table exists
+	getTable, _ := store.GetTable(feature, variant)
+	if getTable != nil {
+		return nil, &TableAlreadyExists{feature, variant}
+	}
 
 	// Create Table
-	query := fmt.Sprintf("CREATE TABLE %s (%s text PRIMARY KEY, %s text)", tableName, keyName, string(valueType))
+	query := fmt.Sprintf("CREATE TABLE %s (entity text PRIMARY KEY, value text)", tableName)
 	err := store.session.Query(query).WithContext(ctx).Exec()
 	if err != nil {
-		return nil, &TableAlreadyExists{feature, variant}
+		return nil, err
 	}
 
 	//return the table
@@ -258,6 +271,14 @@ func (store *cassandraOnlineStore) CreateTable(feature, variant string, valueTyp
 		session:   store.session,
 		key:       key,
 		valueType: valueType,
+	}
+
+	//Update Metadata
+	metadataTableName := fmt.Sprintf("%s.tableMetadata", store.keyspace)
+	query = fmt.Sprintf("INSERT INTO %s (tableName, tableType) VALUES (?, ?)", metadataTableName)
+	err = table.session.Query(query, keyName, string(valueType)).WithContext(ctx).Exec()
+	if err != nil {
+		return nil, err
 	}
 
 	return table, nil
@@ -270,20 +291,24 @@ func (store *cassandraOnlineStore) GetTable(feature, variant string) (OnlineStor
 
 	store.session.SetConsistency(gocql.One)
 
-	//Get table name
-	var vType string
-	var tableName string = fmt.Sprintf("%s.table%s", store.keyspace, sn.Custom(feature, "[^a-zA-Z0-9_]"))
+	//Get table name, key and check if it exists
+	tableName := fmt.Sprintf("%s.table%s", store.keyspace, sn.Custom(feature, "[^a-zA-Z0-9_]"))
+	key := cassandraTableKey{store.keyspace, feature, variant}
+	keyName := sn.Custom(key.String(), "[^a-zA-Z0-9_]")
+	scanner := store.session.Query(fmt.Sprintf("SELECT * FROM %s", tableName)).WithContext(ctx).Iter().Scanner()
 
-	//Check if table existsss
-	query := fmt.Sprintf("SELECT * FROM %s", tableName)
-	scanner := store.session.Query(query).WithContext(ctx).Iter().Scanner()
 	if scanner.Err() != nil {
 		return nil, &TableNotFound{feature, variant}
 	}
 
-	//Get table key
-	key := cassandraTableKey{store.keyspace, feature, variant}
-	var keyName string = sn.Custom(key.String(), "[^a-zA-Z0-9_]")
+	//Select the vType
+	var vType string
+	metadataTableName := fmt.Sprintf("%s.tableMetadata", store.keyspace)
+	query := fmt.Sprintf("SELECT tableType FROM %s WHERE tableName = '%s'", metadataTableName, keyName)
+	err := store.session.Query(query).WithContext(ctx).Scan(&vType)
+	if err != nil {
+		return nil, err
+	}
 
 	table := &cassandraOnlineTable{
 		cluster:   store.cluster,
@@ -365,16 +390,13 @@ func (table cassandraOnlineTable) Set(entity string, value interface{}) error {
 
 	//Get table key
 	key := table.key
-	var keyName string
-	keyName = sn.Custom(key.String(), "[^a-zA-Z0-9_]")
 
 	//Get table Name
-	var tableName string
-	tableName = fmt.Sprintf("%s.table%s", key.Keyspace, sn.Custom(key.Feature, "[^a-zA-Z0-9_]"))
+	tableName := fmt.Sprintf("%s.table%s", key.Keyspace, sn.Custom(key.Feature, "[^a-zA-Z0-9_]"))
 
 	//Set entity
 	val := fmt.Sprintf("%v", value)
-	query := fmt.Sprintf("INSERT INTO %s (%s, %s) VALUES (?, ?)", tableName, keyName, string(table.valueType))
+	query := fmt.Sprintf("INSERT INTO %s (entity, value) VALUES (?, ?)", tableName)
 	err := table.session.Query(query, entity, val).WithContext(ctx).Exec()
 	if err != nil {
 		return err
@@ -388,20 +410,13 @@ func (table cassandraOnlineTable) Get(entity string) (interface{}, error) {
 
 	//Get table key
 	key := table.key
-	var keyName string
-	keyName = sn.Custom(key.String(), "[^a-zA-Z0-9_]")
 
 	//Get table Name
-	var tableName string
-	tableName = fmt.Sprintf("%s.table%s", key.Keyspace, sn.Custom(key.Feature, "[^a-zA-Z0-9_]"))
-
-	//Get table value type
-	var valName string
-	valName = string(table.valueType)
+	tableName := fmt.Sprintf("%s.table%s", key.Keyspace, sn.Custom(key.Feature, "[^a-zA-Z0-9_]"))
 
 	//Get value
 	var val string
-	query := fmt.Sprintf("SELECT %s FROM %s WHERE %s = '%s'", valName, tableName, keyName, entity)
+	query := fmt.Sprintf("SELECT value FROM %s WHERE entity = '%s'", tableName, entity)
 	err := table.session.Query(query).WithContext(ctx).Scan(&val)
 	if err != nil {
 		return nil, &EntityNotFound{entity}
@@ -414,10 +429,11 @@ func (table cassandraOnlineTable) Get(entity string) (interface{}, error) {
 		return strconv.ParseInt(val, 10, 64)
 	// Set float 32 as strconv only outputs float 64
 	case Float32:
-		var result64 float64
 		var result32 float32
-		var err error
-		result64, err = strconv.ParseFloat(val, 32)
+		result64, err := strconv.ParseFloat(val, 32)
+		if err != nil {
+			return nil, err
+		}
 		result32 = float32(result64)
 		return result32, err
 	case Float64:

@@ -50,7 +50,7 @@ func TestOnlineStores(t *testing.T) {
 		Addr: liveAddr,
 	}
 
-	cassandraAddr := fmt.Sprintf("localhost:9042")
+	cassandraAddr := "localhost:9042"
 	cassandraConfig := &CassandraConfig{
 		Addr: cassandraAddr,
 	}
@@ -62,7 +62,7 @@ func TestOnlineStores(t *testing.T) {
 		{LocalOnline, []byte{}, false},
 		{RedisOnline, redisMockConfig.Serialized(), false},
 		{RedisOnline, redisLiveConfig.Serialized(), true},
-		{CassandraOnline, cassandraConfig.Serialized(), false},
+		{CassandraOnline, cassandraConfig.Serialized(), true},
 	}
 	for _, testItem := range testList {
 		if testing.Short() && testItem.integrationTest {

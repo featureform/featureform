@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	pb "github.com/featureform/serving/metadata/proto"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"go.uber.org/zap"
 
@@ -183,7 +184,7 @@ func TestFeatureMaterializeJobError(t *testing.T) {
 	featureName := uuid.New().String()
 	sourceName := uuid.New().String()
 	originalTableName := uuid.New().String()
-	if err := materializeFeatureWithProvider(coord.Metadata, postgresConfig.Serialize(), redisConfig.Serialized(), featureName, sourceName, originalTableName); err != nil {
+	if err := materializeFeatureWithProvider(coord.Metadata, postgresConfig.Serialize(), redisConfig.Serialized(), featureName, sourceName, originalTableName, ""); err != nil {
 		t.Fatalf("could not create example feature, %v", err)
 	}
 	if err := coord.Metadata.SetStatus(context.Background(), metadata.ResourceID{featureName, "", metadata.FEATURE_VARIANT}, metadata.READY, ""); err != nil {
@@ -968,7 +969,7 @@ func createTransformationWithProvider(client *metadata.Client, config provider.S
 	providerName := uuid.New().String()
 	var updateStatus pb.UpdateStatus
 	if schedule != "" {
-		updateStatus.Schedule = schedule
+		updateStatus.Schedule.Schedule = schedule
 	}
 	defs := []metadata.ResourceDef{
 		metadata.UserDef{
@@ -1009,7 +1010,7 @@ func createTrainingSetWithProvider(client *metadata.Client, config provider.Seri
 	entityName := uuid.New().String()
 	var updateStatus pb.UpdateStatus
 	if schedule != "" {
-		updateStatus.Schedule = schedule
+		updateStatus.Schedule.Schedule = schedule
 	}
 	defs := []metadata.ResourceDef{
 		metadata.UserDef{
@@ -1286,7 +1287,7 @@ func testCoordinatorMaterializeFeature(addr string) error {
 	if err := CreateOriginalPostgresTable(originalTableName); err != nil {
 		return err
 	}
-	if err := materializeFeatureWithProvider(client, serialPGConfig, serialRedisConfig, featureName, sourceName, originalTableName); err != nil {
+	if err := materializeFeatureWithProvider(client, serialPGConfig, serialRedisConfig, featureName, sourceName, originalTableName, ""); err != nil {
 		return fmt.Errorf("could not create online feature in metadata: %v", err)
 	}
 	if err := client.SetStatus(context.Background(), metadata.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}, metadata.READY, ""); err != nil {
@@ -1392,7 +1393,7 @@ func testRegisterPrimaryTableFromSource(addr string) error {
 	}
 	//use the postgres/whatever to make a blank agnostic table "sammy's table",
 	sourceName := uuid.New().String()
-	if err := createSourceWithProvider(client, serialPGConfig, sourceName, tableName, ""); err != nil {
+	if err := createSourceWithProvider(client, provider.SerializedConfig(serialPGConfig), sourceName, tableName); err != nil {
 		return fmt.Errorf("could not register source in metadata: %v", err)
 	}
 	sourceCreated, err := client.GetSourceVariant(context.Background(), metadata.NameVariant{Name: sourceName, Variant: ""})
@@ -1500,7 +1501,7 @@ func testRegisterTransformationFromSource(addr string) error {
 		return fmt.Errorf("Could not create non-featureform source table: %v", err)
 	}
 	sourceName := strings.Replace(uuid.New().String(), "-", "", -1)
-	if err := createSourceWithProvider(client, serialPGConfig, sourceName, tableName, ""); err != nil {
+	if err := createSourceWithProvider(client, provider.SerializedConfig(serialPGConfig), sourceName, tableName); err != nil {
 		return fmt.Errorf("could not register source in metadata: %v", err)
 	}
 	sourceCreated, err := client.GetSourceVariant(context.Background(), metadata.NameVariant{Name: sourceName, Variant: ""})
@@ -1731,7 +1732,7 @@ func testScheduleTrainingSet(addr string) error {
 		return fmt.Errorf("Training set not set to created with no coordinator running")
 	}
 	kubeJobSpawner := KubernetesJobSpawner{}
-	coord, err := NewCoordinator(client, logger, cli, &memJobSpawner)
+	coord, err := NewCoordinator(client, logger, cli, &kubeJobSpawner)
 	if err != nil {
 		return fmt.Errorf("Failed to set up coordinator")
 	}
@@ -1739,7 +1740,7 @@ func testScheduleTrainingSet(addr string) error {
 	if err := coord.executeJob(metadata.GetJobKey(sourceID)); err != nil {
 		return err
 	}
-	beforeExecutionTime := time.Now()
+	//beforeExecutionTime := time.Now()
 	go func() {
 		if err := coord.WatchForNewJobs(); err != nil {
 			logger.Errorf("Error watching for new jobs: %v", err)
@@ -1767,11 +1768,12 @@ func testScheduleTrainingSet(addr string) error {
 	if err != nil {
 		return err
 	}
-	tsProto := tsUpdated.Proto()
-	tsLastUpdated := tsProto.LastUpdated
-	if tsLastUpdated.IsZero() {
+	tUpdateStatus := tsUpdated.UpdateStatus()
+	tsLastUpdated := tUpdateStatus.LastUpdated
+	if tsLastUpdated.AsTime().IsZero() {
 		return fmt.Errorf("Scheduler did not update training set")
 	}
+	return nil
 }
 
 func testScheduleFeatureMaterialization(addr string) error {
@@ -1811,11 +1813,11 @@ func testScheduleFeatureMaterialization(addr string) error {
 		Addr: liveAddr,
 	}
 	serialRedisConfig := redisConfig.Serialized()
-	p, err := provider.Get(provider.RedisOnline, serialRedisConfig)
-	if err != nil {
-		return fmt.Errorf("could not get online provider: %v", err)
-	}
-	onlineStore, err := p.AsOnlineStore()
+	//p, err := provider.Get(provider.RedisOnline, serialRedisConfig)
+	// if err != nil {
+	// 	return fmt.Errorf("could not get online provider: %v", err)
+	// }
+	//onlineStore, err := p.AsOnlineStore()
 	if err != nil {
 		return fmt.Errorf("could not get provider as online store")
 	}
@@ -1857,11 +1859,11 @@ func testScheduleFeatureMaterialization(addr string) error {
 		return fmt.Errorf("Feature not set to created with no coordinator running")
 	}
 	kubeJobSpawner := KubernetesJobSpawner{}
-	coord, err := NewCoordinator(client, logger, cli, &memJobSpawner)
+	coord, err := NewCoordinator(client, logger, cli, &kubeJobSpawner)
 	if err != nil {
 		return fmt.Errorf("Failed to set up coordinator")
 	}
-	beforeExecutionTime := time.Now()
+	//beforeExecutionTime := time.Now()
 	go func() {
 		if err := coord.WatchForNewJobs(); err != nil {
 			logger.Errorf("Error watching for new jobs: %v", err)
@@ -1885,15 +1887,16 @@ func testScheduleFeatureMaterialization(addr string) error {
 	if lastExecutionTime.IsZero() {
 		return fmt.Errorf("job did not execute in time")
 	}
-	tsUpdated, err := client.GetFeatureVariant(ctx, metadata.NameVariant{Name: featureID, Variant: ""})
+	featureUpdated, err := client.GetFeatureVariant(context.Background(), metadata.NameVariant{Name: featureID.Name, Variant: ""})
 	if err != nil {
 		return err
 	}
-	tsProto := tsUpdated.Proto()
-	tsLastUpdated := tsProto.LastUpdated
-	if tsLastUpdated.IsZero() {
+	featureUpdateStatus := featureUpdated.UpdateStatus()
+	featureLastUpdated := featureUpdateStatus.LastUpdated
+	if featureLastUpdated.AsTime().IsZero() {
 		return fmt.Errorf("Scheduler did not update feature")
 	}
+	return nil
 }
 
 func testScheduleTransformation(addr string) error {
@@ -1915,11 +1918,11 @@ func testScheduleTransformation(addr string) error {
 	defer cli.Close()
 	tableName := uuid.New().String()
 	serialPGConfig := postgresConfig.Serialize()
-	myProvider, err := provider.Get(provider.PostgresOffline, serialPGConfig)
-	if err != nil {
-		return fmt.Errorf("could not get provider: %v", err)
-	}
-	myOffline, err := myProvider.AsOfflineStore()
+	// myProvider, err := provider.Get(provider.PostgresOffline, serialPGConfig)
+	// if err != nil {
+	// 	return fmt.Errorf("could not get provider: %v", err)
+	// }
+	//myOffline, err := myProvider.AsOfflineStore()
 	if err != nil {
 		return fmt.Errorf("could not get provider as offline store: %v", err)
 	}
@@ -1939,7 +1942,7 @@ func testScheduleTransformation(addr string) error {
 	}
 	sourceID := metadata.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}
 	kubeJobSpawner := KubernetesJobSpawner{}
-	coord, err := NewCoordinator(client, logger, cli, &memJobSpawner)
+	coord, err := NewCoordinator(client, logger, cli, &kubeJobSpawner)
 	if err != nil {
 		return fmt.Errorf("Failed to set up coordinator")
 	}
@@ -1968,7 +1971,7 @@ func testScheduleTransformation(addr string) error {
 		return fmt.Errorf("Transformation not set to created with no coordinator running")
 	}
 
-	beforeExecutionTime := time.Now()
+	//beforeExecutionTime := time.Now()
 	go func() {
 		if err := coord.WatchForNewJobs(); err != nil {
 			logger.Errorf("Error watching for new jobs: %v", err)
@@ -1992,15 +1995,16 @@ func testScheduleTransformation(addr string) error {
 	if lastExecutionTime.IsZero() {
 		return fmt.Errorf("job did not execute in time")
 	}
-	tsUpdated, err := client.GetSourceVariant(ctx, metadata.NameVariant{Name: transformationID, Variant: ""})
+	transformationUpdated, err := client.GetSourceVariant(context.Background(), metadata.NameVariant{Name: transformationID.Name, Variant: ""})
 	if err != nil {
 		return err
 	}
-	tsProto := tsUpdated.Proto()
-	tsLastUpdated := tsProto.LastUpdated
-	if tsLastUpdated.IsZero() {
+	transformationUpdateStatus := transformationUpdated.UpdateStatus()
+	transformationLastUpdated := transformationUpdateStatus.LastUpdated
+	if transformationLastUpdated.AsTime().IsZero() {
 		return fmt.Errorf("Scheduler did not update transformation")
 	}
+	return nil
 }
 
 //TODO, make sure all copied code pastes correctly,

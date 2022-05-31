@@ -207,15 +207,16 @@ type FeaturePrimaryData interface {
 }
 
 type FeatureDef struct {
-	Name        string
-	Variant     string
-	Source      NameVariant
-	Type        string
-	Entity      string
-	Owner       string
-	Description string
-	Provider    string
-	Location    interface{}
+	Name         string
+	Variant      string
+	Source       NameVariant
+	Type         string
+	Entity       string
+	Owner        string
+	Description  string
+	Provider     string
+	UpdateStatus pb.UpdateStatus
+	Location     interface{}
 }
 
 type ResourceVariantColumns struct {
@@ -251,15 +252,16 @@ func (def FeatureDef) ResourceType() ResourceType {
 
 func (client *Client) CreateFeatureVariant(ctx context.Context, def FeatureDef) error {
 	serialized := &pb.FeatureVariant{
-		Name:        def.Name,
-		Variant:     def.Variant,
-		Source:      def.Source.Serialize(),
-		Type:        def.Type,
-		Entity:      def.Entity,
-		Owner:       def.Owner,
-		Description: def.Description,
-		Status:      &pb.ResourceStatus{Status: pb.ResourceStatus_CREATED},
-		Provider:    def.Provider,
+		Name:         def.Name,
+		Variant:      def.Variant,
+		Source:       def.Source.Serialize(),
+		Type:         def.Type,
+		Entity:       def.Entity,
+		Owner:        def.Owner,
+		Description:  def.Description,
+		Status:       &pb.ResourceStatus{Status: pb.ResourceStatus_CREATED},
+		Provider:     def.Provider,
+		UpdateStatus: &def.UpdateStatus,
 	}
 	switch x := def.Location.(type) {
 	case ResourceVariantColumns:
@@ -477,13 +479,14 @@ func (client *Client) GetTrainingSets(ctx context.Context, trainingSets []string
 }
 
 type TrainingSetDef struct {
-	Name        string
-	Variant     string
-	Description string
-	Owner       string
-	Provider    string
-	Label       NameVariant
-	Features    NameVariants
+	Name         string
+	Variant      string
+	Description  string
+	Owner        string
+	Provider     string
+	UpdateStatus pb.UpdateStatus
+	Label        NameVariant
+	Features     NameVariants
 }
 
 func (def TrainingSetDef) ResourceType() ResourceType {
@@ -492,14 +495,15 @@ func (def TrainingSetDef) ResourceType() ResourceType {
 
 func (client *Client) CreateTrainingSetVariant(ctx context.Context, def TrainingSetDef) error {
 	serialized := &pb.TrainingSetVariant{
-		Name:        def.Name,
-		Variant:     def.Variant,
-		Description: def.Description,
-		Owner:       def.Owner,
-		Provider:    def.Provider,
-		Status:      &pb.ResourceStatus{Status: pb.ResourceStatus_CREATED},
-		Label:       def.Label.Serialize(),
-		Features:    def.Features.Serialize(),
+		Name:         def.Name,
+		Variant:      def.Variant,
+		Description:  def.Description,
+		Owner:        def.Owner,
+		Provider:     def.Provider,
+		Status:       &pb.ResourceStatus{Status: pb.ResourceStatus_CREATED},
+		Label:        def.Label.Serialize(),
+		Features:     def.Features.Serialize(),
+		UpdateStatus: &def.UpdateStatus,
 	}
 	_, err := client.grpcConn.CreateTrainingSetVariant(ctx, serialized)
 	return err
@@ -600,12 +604,13 @@ func (client *Client) GetSources(ctx context.Context, sources []string) ([]*Sour
 }
 
 type SourceDef struct {
-	Name        string
-	Variant     string
-	Description string
-	Owner       string
-	Provider    string
-	Definition  SourceType
+	Name         string
+	Variant      string
+	Description  string
+	Owner        string
+	Provider     string
+	UpdateStatus pb.UpdateStatus
+	Definition   SourceType
 }
 
 type SourceType interface {
@@ -704,12 +709,13 @@ func (def SourceDef) ResourceType() ResourceType {
 
 func (client *Client) CreateSourceVariant(ctx context.Context, def SourceDef) error {
 	serialized := &pb.SourceVariant{
-		Name:        def.Name,
-		Variant:     def.Variant,
-		Description: def.Description,
-		Owner:       def.Owner,
-		Status:      &pb.ResourceStatus{Status: pb.ResourceStatus_CREATED},
-		Provider:    def.Provider,
+		Name:         def.Name,
+		Variant:      def.Variant,
+		Description:  def.Description,
+		Owner:        def.Owner,
+		Status:       &pb.ResourceStatus{Status: pb.ResourceStatus_CREATED},
+		Provider:     def.Provider,
+		UpdateStatus: &def.UpdateStatus,
 	}
 	var err error
 	switch x := def.Definition.(type) {
@@ -1278,6 +1284,10 @@ func (variant *FeatureVariant) Description() string {
 	return variant.serialized.GetDescription()
 }
 
+func (variant *FeatureVariant) UpdateStatus() *pb.UpdateStatus {
+	return variant.serialized.GetUpdateStatus()
+}
+
 func (variant *FeatureVariant) Variant() string {
 	return variant.serialized.GetVariant()
 }
@@ -1567,6 +1577,10 @@ func (variant *TrainingSetVariant) Name() string {
 	return variant.serialized.GetName()
 }
 
+func (variant *TrainingSetVariant) UpdateStatus() *pb.UpdateStatus {
+	return variant.serialized.GetUpdateStatus()
+}
+
 func (variant *TrainingSetVariant) Description() string {
 	return variant.serialized.GetDescription()
 }
@@ -1649,6 +1663,10 @@ func (variant *SourceVariant) Variant() string {
 
 func (variant *SourceVariant) Description() string {
 	return variant.serialized.GetDescription()
+}
+
+func (variant *SourceVariant) UpdateStatus() *pb.UpdateStatus {
+	return variant.serialized.GetUpdateStatus()
 }
 
 func (variant *SourceVariant) Definition() interface{} {

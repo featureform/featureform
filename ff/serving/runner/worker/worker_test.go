@@ -368,7 +368,7 @@ func TestBasicUpdateRunner(t *testing.T) {
 		t.Fatalf("Error registering mock runner factory: %v", err)
 	}
 	config := runner.Config{}
-	etcdConfig := &coordinator.ETCDConfig{Endpoints: []string{"localhost:2379"}}
+	etcdConfig := &coordinator.ETCDConfig{Endpoints: []string{"localhost:2379"}, Username: "root", Password: "secretpassword"}
 	serializedETCD, err := etcdConfig.Serialize()
 	if err != nil {
 		t.Fatalf("Could not serialize etcd config")
@@ -381,7 +381,9 @@ func TestBasicUpdateRunner(t *testing.T) {
 	}
 	client, err := clientv3.New(clientv3.Config{
 		Endpoints:   []string{"localhost:2379"},
-		DialTimeout: time.Second * 1,
+		Username:    "root",
+		Password:    "secretpassword",
+		DialTimeout: time.Second * 5,
 	})
 	if err != nil {
 		t.Fatalf("Could not connect to etcd client: %v", err)

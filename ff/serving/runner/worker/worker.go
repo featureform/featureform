@@ -81,7 +81,7 @@ func CreateAndRun() error {
 		if err != nil {
 			return err
 		}
-		cli, err := clientv3.New(clientv3.Config{Endpoints: etcdConfig.Endpoints})
+		cli, err := clientv3.New(clientv3.Config{Endpoints: etcdConfig.Endpoints, Username: etcdConfig.Username, Password: etcdConfig.Password, DialTimeout: time.Second * 5})
 		if err != nil {
 			return err
 		}

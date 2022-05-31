@@ -1659,17 +1659,7 @@ func testRegisterTransformationFromSource(addr string) error {
 	return nil
 }
 
-//TODO test that trainingset, materialize, and createtransformation set cron jobs and those cron jobs run the job
-//touches coordinator, metadata, runner, provider
-
 func testScheduleTrainingSet(addr string) error {
-	//create training sets in metadata
-	//start coordinator
-	//use client to check for existence of cron jobs
-	//wait one minnute
-	//use client to check that another pod was spawned
-	//wait if it is closed, check metadata for last update
-	//timestamp of UpdateStatus should be set for resource (of the resource's proto)
 	if err := runner.RegisterFactory(string(runner.CREATE_TRAINING_SET), runner.TrainingSetRunnerFactory); err != nil {
 		return fmt.Errorf("Failed to register training set runner factory: %v", err)
 	}
@@ -1750,19 +1740,7 @@ func testScheduleTrainingSet(addr string) error {
 	if err := coord.executeJob(metadata.GetJobKey(sourceID)); err != nil {
 		return err
 	}
-	// featureID := metadata.ResourceID{Name: featureName, Variant: "", Type: metadata.FEATURE_VARIANT}
-	// if err := coord.executeJob(metadata.GetJobKey(featureID)); err != nil {
-	// 	return err
-	// }
-	// labelID := metadata.ResourceID{Name: labelName, Variant: "", Type: metadata.LABEL_VARIANT}
-	// // if err := coord.executeJob(metadata.GetJobKey(labelID)); err != nil {
-	// // 	return err
-	// // }
 	beforeExecutionTime := time.Now()
-	//TODO make coordiantor run here, not just execute jawb
-	// if err := coord.executeJob(metadata.GetJobKey(tsID)); err != nil {
-	// 	return err
-	// }
 	go func() {
 		if err := coord.WatchForNewJobs(); err != nil {
 			logger.Errorf("Error watching for new jobs: %v", err)
@@ -1773,17 +1751,6 @@ func testScheduleTrainingSet(addr string) error {
 			logger.Errorf("Error watching for new update events: %v", err)
 		}
 	}()
-	// startWaitDelete := time.Now()
-	// elapsed := time.Since(startWaitDelete)
-	// for has, _ := coord.hasJob(tsID); has && elapsed < time.Duration(10)*time.Second; has, _ = coord.hasJob(tsID) {
-	// 	time.Sleep(1 * time.Second)
-	// 	elapsed = time.Since(startWaitDelete)
-	// 	fmt.Printf("waiting for job %v to be deleted\n", tsID)
-	// }
-	// if elapsed >= time.Duration(10)*time.Second {
-	// 	return fmt.Errorf("timed out waiting for job to delete")
-	// }
-	//now we wait 1 minte
 	time.Sleep(70 * time.Second)
 	jobClient, err := runner.NewKubernetesJobClient(runner.GetCronJobName(tsID), runner.Namespace)
 	if err != nil {
@@ -1806,21 +1773,9 @@ func testScheduleTrainingSet(addr string) error {
 	if tsLastUpdated.IsZero() {
 		return fmt.Errorf("Scheduler did not update training set")
 	}
-	//if lastExecutionTime - beforeExecutionTime
-	//create new kuberentes client
-	//check for the job
-	//then check the metadata of the training set,
-	//once the job has been run once, then the metadata time of update should be changed
 }
 
 func testScheduleFeatureMaterialization(addr string) error {
-	//create training sets in metadata
-	//start coordinator
-	//use client to check for existence of cron jobs
-	//wait one minnute
-	//use client to check that another pod was spawned
-	//wait if it is closed, check metadata for last update
-	//timestamp of UpdateStatus should be set for resource (of the resource's proto)
 	if err := runner.RegisterFactory(string(runner.COPY_TO_ONLINE), runner.MaterializedChunkRunnerFactory); err != nil {
 		return fmt.Errorf("Failed to register training set runner factory: %v", err)
 	}
@@ -1907,12 +1862,7 @@ func testScheduleFeatureMaterialization(addr string) error {
 	if err != nil {
 		return fmt.Errorf("Failed to set up coordinator")
 	}
-
 	beforeExecutionTime := time.Now()
-	//TODO make coordiantor run here, not just execute jawb
-	// if err := coord.executeJob(metadata.GetJobKey(tsID)); err != nil {
-	// 	return err
-	// }
 	go func() {
 		if err := coord.WatchForNewJobs(); err != nil {
 			logger.Errorf("Error watching for new jobs: %v", err)
@@ -1948,13 +1898,6 @@ func testScheduleFeatureMaterialization(addr string) error {
 }
 
 func testScheduleTransformation(addr string) error {
-	//create training sets in metadata
-	//start coordinator
-	//use client to check for existence of cron jobs
-	//wait one minnute
-	//use client to check that another pod was spawned
-	//wait if it is closed, check metadata for last update
-	//timestamp of UpdateStatus should be set for resource (of the resource's proto)
 	if err := runner.RegisterFactory(string(runner.CREATE_TRANSFORMATION), runner.MaterializedChunkRunnerFactory); err != nil {
 		return fmt.Errorf("Failed to register training set runner factory: %v", err)
 	}
@@ -2027,10 +1970,6 @@ func testScheduleTransformation(addr string) error {
 	}
 
 	beforeExecutionTime := time.Now()
-	//TODO make coordiantor run here, not just execute jawb
-	// if err := coord.executeJob(metadata.GetJobKey(tsID)); err != nil {
-	// 	return err
-	// }
 	go func() {
 		if err := coord.WatchForNewJobs(); err != nil {
 			logger.Errorf("Error watching for new jobs: %v", err)
@@ -2041,17 +1980,6 @@ func testScheduleTransformation(addr string) error {
 			logger.Errorf("Error watching for new update events: %v", err)
 		}
 	}()
-	// startWaitDelete := time.Now()
-	// elapsed := time.Since(startWaitDelete)
-	// for has, _ := coord.hasJob(tsID); has && elapsed < time.Duration(10)*time.Second; has, _ = coord.hasJob(tsID) {
-	// 	time.Sleep(1 * time.Second)
-	// 	elapsed = time.Since(startWaitDelete)
-	// 	fmt.Printf("waiting for job %v to be deleted\n", tsID)
-	// }
-	// if elapsed >= time.Duration(10)*time.Second {
-	// 	return fmt.Errorf("timed out waiting for job to delete")
-	// }
-	//now we wait 1 minte
 	time.Sleep(70 * time.Second)
 	jobClient, err := runner.NewKubernetesJobClient(runner.GetCronJobName(transformationID), runner.Namespace)
 	if err != nil {

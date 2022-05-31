@@ -1,9 +1,0 @@
-github_checks: false
-coverage:
-  status:
-    project:
-      default:
-        target: 0
-
-fixes:
-  - "::ff/serving"

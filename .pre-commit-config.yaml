@@ -1,7 +1,0 @@
-repos:
--   repo: local
-    hooks:
-    -   id: lint
-        name: linter
-        entry: ./lint.sh
-        language: script

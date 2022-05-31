@@ -1,0 +1,59 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
+syntax = "proto3";
+
+option go_package = "github.com/featureform/proto";
+
+package featureform.serving.proto;
+
+service Feature {
+  rpc TrainingData(TrainingDataRequest) returns (stream TrainingDataRow) {}
+  rpc FeatureServe(FeatureServeRequest) returns (FeatureRow) {}
+}
+
+message TrainingDataRequest {
+  TrainingDataID id = 1;
+}
+
+message TrainingDataID {
+  string name = 1;
+  string version = 2;
+}
+
+message TrainingDataRow {
+  repeated Value features = 1;
+  Value label = 2;
+}
+
+message FeatureServeRequest {
+    repeated FeatureID features = 1;
+    repeated Entity entities = 2;
+}
+
+message FeatureRow {
+    repeated Value values = 1;
+}
+
+message FeatureID {
+    string name = 1;
+    string version = 2;
+}
+
+message Entity {
+    string name = 1;
+    string value = 2;
+}
+
+message Value {
+    oneof value {
+        string str_value = 1;
+        int32 int_value = 2;
+        float float_value = 3;
+        double double_value = 4;
+        int64  int64_value = 5;
+        int32  int32_value = 6;
+        bool   bool_value = 7;
+    }
+}

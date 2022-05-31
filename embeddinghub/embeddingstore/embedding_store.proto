@@ -1,0 +1,106 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
+syntax = "proto3";
+
+package featureform.embedding.proto;
+
+service EmbeddingHub {
+  rpc CreateSpace(CreateSpaceRequest) returns (CreateSpaceResponse) {}
+  rpc DeleteSpace(DeleteSpaceRequest) returns (DeleteSpaceResponse) {}
+  rpc FreezeSpace(FreezeSpaceRequest) returns (FreezeSpaceResponse) {}
+  rpc Set(SetRequest) returns (SetResponse) {}
+  rpc Get(GetRequest) returns (GetResponse) {}
+  rpc MultiSet(stream MultiSetRequest) returns (MultiSetResponse) {}
+  rpc MultiGet(stream MultiGetRequest) returns (stream MultiGetResponse) {}
+  rpc NearestNeighbor(NearestNeighborRequest)  returns (NearestNeighborResponse) {}
+  rpc Download(DownloadRequest) returns (stream DownloadResponse) {}
+}
+
+message DeleteSpaceRequest {
+  string name = 1;
+}
+
+message DeleteSpaceResponse {
+  // Purposely empty.
+}
+
+message CreateSpaceRequest {
+  string name = 1;
+  uint32 dims = 2;
+}
+
+message CreateSpaceResponse {
+  // Purposely empty.
+}
+
+message FreezeSpaceRequest {
+  string name = 1;
+}
+
+message FreezeSpaceResponse {
+  // Purposely empty.
+}
+
+message SetRequest {
+  string key = 1;
+  Embedding embedding = 2;
+  string space = 3;
+}
+
+message SetResponse {
+  // Purposely empty.
+}
+
+message GetRequest {
+  string key = 1;
+  string space = 2;
+}
+
+message GetResponse {
+  Embedding embedding = 1;
+}
+
+message MultiSetRequest {
+  string key = 1;
+  Embedding embedding = 2;
+  string space = 3;
+}
+
+message MultiSetResponse {
+  // Purposely empty.
+}
+
+message MultiGetRequest {
+  string key = 1;
+  string space = 2;
+}
+
+message MultiGetResponse {
+  Embedding embedding = 1;
+}
+
+message NearestNeighborRequest {
+    int32 num = 1;
+    string space = 2;
+    string key = 3;
+    Embedding embedding = 4;
+}
+
+message NearestNeighborResponse {
+    repeated string keys = 1;
+}
+
+message DownloadRequest {
+  string space = 1;
+}
+
+message DownloadResponse {
+  string key = 1;
+  Embedding embedding = 2;
+}
+
+message Embedding {
+  repeated float values = 1;
+}

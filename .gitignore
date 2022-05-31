@@ -5,7 +5,7 @@ dist
 **node_modules
 **.DS_Store
 **.vscode
-.idea/
+../.idea/
 **/.idea/
 .env
 .terraform**

@@ -124,7 +124,7 @@ func (k *MemoryJobSpawner) GetJobRunner(jobName string, config runner.Config) (r
 	return jobRunner, nil
 }
 
-func NewCoordinator(meta *metadata.Client, logger *	SugaredLogger, cli *clientv3.Client, spawner JobSpawner) (*Coordinator, error) {
+func NewCoordinator(meta *metadata.Client, logger *SugaredLogger, cli *clientv3.Client, spawner JobSpawner) (*Coordinator, error) {
 	logger.Info("Creating new coordinator")
 	kvc := clientv3.NewKV(cli)
 	return &Coordinator{

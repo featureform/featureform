@@ -83,14 +83,14 @@ func createNewCoordinator(addr string) (*Coordinator, error) {
 
 func TestKubernetesJobRunnerError(t *testing.T) {
 	kubeJobSpawner := KubernetesJobSpawner{}
-	if _, err := kubeJobSpawner.GetJobRunner("ghost_job", []byte{}); err == nil {
+	if _, err := kubeJobSpawner.GetJobRunner("ghost_job", []byte{}, []string{"localhost:2379"}); err == nil {
 		t.Fatalf("did not trigger error getting nonexistent runner")
 	}
 }
 
 func TestMemoryJobRunnerError(t *testing.T) {
 	memJobSpawner := MemoryJobSpawner{}
-	if _, err := memJobSpawner.GetJobRunner("ghost_job", []byte{}); err == nil {
+	if _, err := memJobSpawner.GetJobRunner("ghost_job", []byte{}, []string{"localhost:2379"}); err == nil {
 		t.Fatalf("did not trigger error getting nonexistent runner")
 	}
 }
@@ -142,6 +142,10 @@ func TestRunSQLJobError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not fetch created source variant: %v", err)
 	}
+	providerEntry, err := transformSource.FetchProvider(coord.Metadata, context.Background())
+	if err != nil {
+		t.Fatalf("could not fetch provider entry in metadata, provider entry not set: %v", err)
+	}
 	provider, err := provider.Get(provider.PostgresOffline, postgresConfig.Serialize())
 	if err != nil {
 		t.Fatalf("could not get provider: %v", err)
@@ -151,7 +155,7 @@ func TestRunSQLJobError(t *testing.T) {
 		t.Fatalf("could not get provider as offline store: %v", err)
 	}
 	sourceResourceID := metadata.ResourceID{sourceGhostDependency, "", metadata.SOURCE_VARIANT}
-	if err := coord.runSQLTransformationJob(transformSource, sourceResourceID, offlineProvider); err == nil {
+	if err := coord.runSQLTransformationJob(transformSource, sourceResourceID, offlineProvider, "", providerEntry); err == nil {
 		t.Fatalf("did not catch error trying to run primary table job with no source table set")
 	}
 }
@@ -167,7 +171,7 @@ func TestFeatureMaterializeJobError(t *testing.T) {
 		t.Fatalf("could not create new basic coordinator")
 	}
 	defer coord.Metadata.Close()
-	if err := coord.runFeatureMaterializeJob(metadata.ResourceID{"ghost_resource", "", metadata.FEATURE_VARIANT}); err == nil {
+	if err := coord.runFeatureMaterializeJob(metadata.ResourceID{"ghost_resource", "", metadata.FEATURE_VARIANT}, ""); err == nil {
 		t.Fatalf("did not catch error when trying to materialize nonexistent feature")
 	}
 	redisPort := os.Getenv("REDIS_PORT")
@@ -185,7 +189,7 @@ func TestFeatureMaterializeJobError(t *testing.T) {
 	if err := coord.Metadata.SetStatus(context.Background(), metadata.ResourceID{featureName, "", metadata.FEATURE_VARIANT}, metadata.READY, ""); err != nil {
 		t.Fatalf("could not set feature to ready")
 	}
-	if err := coord.runFeatureMaterializeJob(metadata.ResourceID{featureName, "", metadata.FEATURE_VARIANT}); err == nil {
+	if err := coord.runFeatureMaterializeJob(metadata.ResourceID{featureName, "", metadata.FEATURE_VARIANT}, ""); err == nil {
 		t.Fatalf("did not catch error when trying to materialize feature already set to ready")
 	}
 	providerName := uuid.New().String()
@@ -244,7 +248,7 @@ func TestFeatureMaterializeJobError(t *testing.T) {
 	if err := coord.Metadata.SetStatus(context.Background(), metadata.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}, metadata.READY, ""); err != nil {
 		t.Fatalf("could not set source variant to ready")
 	}
-	if err := coord.runFeatureMaterializeJob(metadata.ResourceID{featureName, "", metadata.FEATURE_VARIANT}); err == nil {
+	if err := coord.runFeatureMaterializeJob(metadata.ResourceID{featureName, "", metadata.FEATURE_VARIANT}, ""); err == nil {
 		t.Fatalf("did not trigger error trying to run job with nonexistent provider")
 	}
 	providerName = uuid.New().String()
@@ -303,7 +307,7 @@ func TestFeatureMaterializeJobError(t *testing.T) {
 	if err := coord.Metadata.SetStatus(context.Background(), metadata.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}, metadata.READY, ""); err != nil {
 		t.Fatalf("could not set source variant to ready")
 	}
-	if err := coord.runFeatureMaterializeJob(metadata.ResourceID{featureName, "", metadata.FEATURE_VARIANT}); err == nil {
+	if err := coord.runFeatureMaterializeJob(metadata.ResourceID{featureName, "", metadata.FEATURE_VARIANT}, ""); err == nil {
 		t.Fatalf("did not trigger error trying to use online store as offline store")
 	}
 	providerName = uuid.New().String()
@@ -371,7 +375,7 @@ func TestFeatureMaterializeJobError(t *testing.T) {
 	if err := coord.Metadata.SetStatus(context.Background(), metadata.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}, metadata.READY, ""); err != nil {
 		t.Fatalf("could not set source variant to ready")
 	}
-	if err := coord.runFeatureMaterializeJob(metadata.ResourceID{featureName, "", metadata.FEATURE_VARIANT}); err == nil {
+	if err := coord.runFeatureMaterializeJob(metadata.ResourceID{featureName, "", metadata.FEATURE_VARIANT}, ""); err == nil {
 		t.Fatalf("did not trigger error trying to get invalid feature provider")
 	}
 }
@@ -387,7 +391,7 @@ func TestTrainingSetJobError(t *testing.T) {
 		t.Fatalf("could not create new basic coordinator")
 	}
 	defer coord.Metadata.Close()
-	if err := coord.runTrainingSetJob(metadata.ResourceID{"ghost_training_set", "", metadata.TRAINING_SET_VARIANT}); err == nil {
+	if err := coord.runTrainingSetJob(metadata.ResourceID{"ghost_training_set", "", metadata.TRAINING_SET_VARIANT}, ""); err == nil {
 		t.Fatalf("did not trigger error trying to run job for nonexistent training set")
 	}
 	providerName := uuid.New().String()
@@ -469,7 +473,7 @@ func TestTrainingSetJobError(t *testing.T) {
 	if err := coord.Metadata.CreateAll(context.Background(), defs); err != nil {
 		t.Fatalf("could not create metadata entries: %v", err)
 	}
-	if err := coord.runTrainingSetJob(metadata.ResourceID{tsName, "", metadata.TRAINING_SET_VARIANT}); err == nil {
+	if err := coord.runTrainingSetJob(metadata.ResourceID{tsName, "", metadata.TRAINING_SET_VARIANT}, ""); err == nil {
 		t.Fatalf("did not trigger error trying to run job with nonexistent provider")
 	}
 	providerName = uuid.New().String()
@@ -557,7 +561,7 @@ func TestTrainingSetJobError(t *testing.T) {
 	if err := coord.Metadata.CreateAll(context.Background(), defs); err != nil {
 		t.Fatalf("could not create metadata entries: %v", err)
 	}
-	if err := coord.runTrainingSetJob(metadata.ResourceID{tsName, "", metadata.TRAINING_SET_VARIANT}); err == nil {
+	if err := coord.runTrainingSetJob(metadata.ResourceID{tsName, "", metadata.TRAINING_SET_VARIANT}, ""); err == nil {
 		t.Fatalf("did not trigger error trying to convert online provider to offline")
 	}
 }
@@ -617,7 +621,7 @@ func TestRunPrimaryTableJobError(t *testing.T) {
 		t.Fatalf("could not get provider as offline store: %v", err)
 	}
 	sourceResourceID := metadata.ResourceID{sourceNoPrimaryNameSet, "", metadata.SOURCE_VARIANT}
-	if err := coord.runPrimaryTableJob(transformSource, sourceResourceID, offlineProvider); err == nil {
+	if err := coord.runPrimaryTableJob(transformSource, sourceResourceID, offlineProvider, ""); err == nil {
 		t.Fatalf("did not catch error trying to run primary table job with no source table set")
 	}
 	sourceNoActualPrimaryTable := uuid.New().String()
@@ -656,7 +660,7 @@ func TestRunPrimaryTableJobError(t *testing.T) {
 		t.Fatalf("could not fetch created source variant: %v", err)
 	}
 	newSourceResourceID := metadata.ResourceID{sourceNoActualPrimaryTable, "", metadata.SOURCE_VARIANT}
-	if err := coord.runPrimaryTableJob(newTransformSource, newSourceResourceID, offlineProvider); err == nil {
+	if err := coord.runPrimaryTableJob(newTransformSource, newSourceResourceID, offlineProvider, ""); err == nil {
 		t.Fatalf("did not catch error trying to create primary table when no source table exists in database")
 	}
 }
@@ -728,7 +732,7 @@ func TestRegisterSourceJobErrors(t *testing.T) {
 	defer coord.Metadata.Close()
 	ghostResourceName := uuid.New().String()
 	ghostResourceID := metadata.ResourceID{ghostResourceName, "", metadata.SOURCE_VARIANT}
-	if err := coord.runRegisterSourceJob(ghostResourceID); err == nil {
+	if err := coord.runRegisterSourceJob(ghostResourceID, ""); err == nil {
 		t.Fatalf("did not catch error registering nonexistent resource")
 	}
 	sourceWithoutProvider := uuid.New().String()
@@ -764,7 +768,7 @@ func TestRegisterSourceJobErrors(t *testing.T) {
 		t.Fatalf("could not create test metadata entries")
 	}
 	sourceWithoutProviderResourceID := metadata.ResourceID{sourceWithoutProvider, "", metadata.SOURCE_VARIANT}
-	if err := coord.runRegisterSourceJob(sourceWithoutProviderResourceID); err == nil {
+	if err := coord.runRegisterSourceJob(sourceWithoutProviderResourceID, ""); err == nil {
 		t.Fatalf("did not catch error registering registering resource without provider in offline store")
 	}
 	sourceWithoutOfflineProvider := uuid.New().String()
@@ -807,7 +811,7 @@ func TestRegisterSourceJobErrors(t *testing.T) {
 		t.Fatalf("could not create test metadata entries")
 	}
 	sourceWithOnlineProvider := metadata.ResourceID{sourceWithoutOfflineProvider, "", metadata.SOURCE_VARIANT}
-	if err := coord.runRegisterSourceJob(sourceWithOnlineProvider); err == nil {
+	if err := coord.runRegisterSourceJob(sourceWithOnlineProvider, ""); err == nil {
 		t.Fatalf("did not catch error registering registering resource with online provider")
 	}
 }
@@ -1180,7 +1184,7 @@ func testCoordinatorTrainingSet(addr string) error {
 	if metadata.READY != ts_complete.Status() {
 		return fmt.Errorf("Training set not set to ready once job completes")
 	}
-	if err := coord.runTrainingSetJob(tsID); err == nil {
+	if err := coord.runTrainingSetJob(tsID, ""); err == nil {
 		return fmt.Errorf("run training set job did not trigger error when tried to create training set that already exists")
 	}
 	providerTsID := provider.ResourceID{Name: tsID.Name, Variant: tsID.Variant, Type: provider.TrainingSet}
@@ -1634,3 +1638,6 @@ func testRegisterTransformationFromSource(addr string) error {
 
 	return nil
 }
+
+//TODO test that trainingset, materialize, and createtransformation set cron jobs and those cron jobs run the job
+//touches coordinator, metadata, runner, provider

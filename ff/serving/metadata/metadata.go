@@ -373,7 +373,7 @@ func (resource *sourceVariantResource) ID() ResourceID {
 }
 
 func (resource *sourceVariantResource) Schedule() string {
-	return resource.serialized.UpdateStatus.Schedule
+	return resource.serialized.UpdateStatus.Schedule.Schedule
 }
 
 func (resource *sourceVariantResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
@@ -440,7 +440,7 @@ func (resource *featureResource) ID() ResourceID {
 	}
 }
 
-func (resource *sourceVariantResource) Schedule() string {
+func (resource *featureResource) Schedule() string {
 	return ""
 }
 
@@ -484,7 +484,7 @@ func (resource *featureVariantResource) ID() ResourceID {
 }
 
 func (resource *featureVariantResource) Schedule() string {
-	return resource.serialized.UpdateStatus.Schedule
+	return resource.serialized.UpdateStatus.Schedule.Schedule
 }
 
 func (resource *featureVariantResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
@@ -714,7 +714,7 @@ func (resource *trainingSetVariantResource) ID() ResourceID {
 }
 
 func (resource *trainingSetVariantResource) Schedule() string {
-	return resource.serialized.UpdateStatus.Schedule
+	return resource.serialized.UpdateStatus.Schedule.Schedule
 }
 
 func (resource *trainingSetVariantResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {

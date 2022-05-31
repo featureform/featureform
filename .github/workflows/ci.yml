@@ -7,9 +7,6 @@ on:
       - 'test/**'
 jobs:
     CI:
-        defaults:
-          run:
-            working-directory: ./embeddinghub
         runs-on: ubuntu-latest
         steps:
         - uses: actions/checkout@v1

@@ -5,12 +5,13 @@
 package worker
 
 import (
-	"encoding/json"
+	"context"
 	"errors"
+	"fmt"
 	coordinator "github.com/featureform/serving/coordinator"
-	metadata "github.com/featureform/serving/metadata"
 	runner "github.com/featureform/serving/runner"
 	"github.com/google/uuid"
+	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.uber.org/zap"
 	"os"
 	"strconv"
@@ -30,7 +31,7 @@ func CreateAndRun() error {
 	if !ok {
 		return errors.New("NAME not set")
 	}
-	etcdConf, ok := os.LookupEnv("ETCD_CONFIG")
+	var etcdConf string
 	if !ok {
 		return errors.New("ETCD_CONFIG not set")
 	}
@@ -41,6 +42,10 @@ func CreateAndRun() error {
 	logger.Infow("Starting job for resource:", jobRunner.Resource())
 	if jobRunner.IsUpdateJob() {
 		logger.Info("This is an update job")
+		etcdConf, ok = os.LookupEnv("ETCD_CONFIG")
+		if !ok {
+			return errors.New("ETCD_CONFIG not set")
+		}
 	}
 	indexString, hasIndexEnv := os.LookupEnv("JOB_COMPLETION_INDEX")
 	indexRunner, isIndexRunner := jobRunner.(runner.IndexRunner)
@@ -72,17 +77,17 @@ func CreateAndRun() error {
 		jobResource := jobRunner.Resource()
 		logger.Infow("Logging update success in etcd for job:", jobResource)
 		etcdConfig := &coordinator.ETCDConfig{}
-		err := etcdConfig.Deserialize(etcdConf)
+		err := etcdConfig.Deserialize(coordinator.Config(etcdConf))
 		if err != nil {
 			return err
 		}
 		cli, err := clientv3.New(clientv3.Config{Endpoints: etcdConfig.Endpoints})
 		if err != nil {
-			return nil, err
+			return err
 		}
 		resourceID := jobRunner.Resource()
 		timeCompleted := time.Now()
-		updatedEvent := &metadata.ResourceUpdatedEvent{
+		updatedEvent := &coordinator.ResourceUpdatedEvent{
 			ResourceID: resourceID,
 			Completed:  timeCompleted,
 		}
@@ -93,7 +98,7 @@ func CreateAndRun() error {
 		eventID := uuid.New().String()
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 		defer cancel()
-		_, err := cli.Put(ctx, fmt.Sprint("UPDATE_EVENT_%s__%s__%s__%s", jobResource.Name, jobResource.Variant, jobResource.Type.String(), eventID), string(serializedEvent))
+		_, err = cli.Put(ctx, fmt.Sprintf("UPDATE_EVENT_%s__%s__%s__%s", jobResource.Name, jobResource.Variant, jobResource.Type.String(), eventID), string(serializedEvent))
 		if err != nil {
 			return err
 		}

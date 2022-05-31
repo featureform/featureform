@@ -5,9 +5,16 @@
 package worker
 
 import (
+	"context"
 	"errors"
+	"fmt"
+	coordinator "github.com/featureform/serving/coordinator"
+	metadata "github.com/featureform/serving/metadata"
 	runner "github.com/featureform/serving/runner"
+	"github.com/google/uuid"
+	clientv3 "go.etcd.io/etcd/client/v3"
 	"testing"
+	"time"
 )
 
 type MockRunner struct {
@@ -18,7 +25,7 @@ type MockIndexRunner struct {
 }
 
 type MockUpdateRunner struct {
-	Resource metadata.ResourceID
+	ResourceID metadata.ResourceID
 }
 
 type MockCompletionWatcher struct{}
@@ -57,7 +64,7 @@ func (m *MockUpdateRunner) Run() (runner.CompletionWatcher, error) {
 }
 
 func (m *MockUpdateRunner) Resource() metadata.ResourceID {
-	return m.Resource
+	return m.ResourceID
 }
 
 func (m *MockUpdateRunner) IsUpdateJob() bool {
@@ -86,6 +93,14 @@ func (r *RunnerWithFailingWatcher) Run() (runner.CompletionWatcher, error) {
 	return &FailingWatcher{}, nil
 }
 
+func (r *RunnerWithFailingWatcher) Resource() metadata.ResourceID {
+	return metadata.ResourceID{}
+}
+
+func (r *RunnerWithFailingWatcher) IsUpdateJob() bool {
+	return false
+}
+
 type FailingWatcher struct{}
 
 func (f *FailingWatcher) Complete() bool {
@@ -107,10 +122,26 @@ func (f *FailingRunner) Run() (runner.CompletionWatcher, error) {
 	return nil, errors.New("Failed to run runner")
 }
 
+func (f *FailingRunner) Resource() metadata.ResourceID {
+	return metadata.ResourceID{}
+}
+
+func (f *FailingRunner) IsUpdateJob() bool {
+	return false
+}
+
 type FailingIndexRunner struct{}
 
 func (f *FailingIndexRunner) Run() (runner.CompletionWatcher, error) {
 	return &MockCompletionWatcher{}, nil
+}
+
+func (f *FailingIndexRunner) Resource() metadata.ResourceID {
+	return metadata.ResourceID{}
+}
+
+func (f *FailingIndexRunner) IsUpdateJob() bool {
+	return false
 }
 
 func (f *FailingIndexRunner) SetIndex(index int) error {
@@ -313,7 +344,7 @@ func TestRunnerRunFail(t *testing.T) {
 }
 
 func registerUpdateMockRunnerFactory(resID metadata.ResourceID) error {
-	mockRunner := &MockRunner{Resource: resID}
+	mockRunner := &MockUpdateRunner{ResourceID: resID}
 	mockFactory := func(config runner.Config) (runner.Runner, error) {
 		return mockRunner, nil
 	}
@@ -340,7 +371,7 @@ func TestBasicUpdateRunner(t *testing.T) {
 	etcdConfig := &coordinator.ETCDConfig{Endpoints: []string{"localhost:2379"}}
 	serializedETCD, err := etcdConfig.Serialize()
 	if err != nil {
-		return nil, err
+		t.Fatalf("Could not serialize etcd config")
 	}
 	t.Setenv("CONFIG", string(config))
 	t.Setenv("NAME", "test")
@@ -353,13 +384,13 @@ func TestBasicUpdateRunner(t *testing.T) {
 		DialTimeout: time.Second * 1,
 	})
 	if err != nil {
-		log.Fatalf("Could not connect to etcd client: %v", err)
+		t.Fatalf("Could not connect to etcd client: %v", err)
 	}
-	resp, err := client.GetWithPrefix("UPDATE_EVENT_%s__%s__%s", jobResource.Name, jobResource.Variant, jobResource.Type.String())
+	resp, err := client.Get(context.Background(), fmt.Sprintf("UPDATE_EVENT_%s__%s__%s", resourceName, "", resourceType.String()), clientv3.WithPrefix())
 	if err != nil {
-		t.Fatalf("Worker did not set update event on success of scheduled job")
+		t.Fatalf("Error getting event from etcd")
 	}
-	for _, ev := range resp.Kvs {
-		fmt.Printf("%s : %s\n", ev.Key, ev.Value)
+	if len(resp.Kvs) != 1 {
+		t.Fatalf("Worker did not set update event on success of scheduled job")
 	}
 }

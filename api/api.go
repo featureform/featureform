@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/featureform/serving/metadata"
-	pb "github.com/featureform/serving/metadata/proto"
-	srv "github.com/featureform/serving/proto"
+	"github.com/featureform/metadata"
+	pb "github.com/featureform/metadata/proto"
+	srv "github.com/featureform/proto"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )

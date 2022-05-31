@@ -41,6 +41,14 @@ func RegisterFactory(name string, runnerFactory RunnerFactory) error {
 	return nil
 }
 
+func UnregisterFactory(name string) error {
+	if _, exists := factoryMap[name]; !exists {
+		return fmt.Errorf("factory %s not registered", name)
+	}
+	delete(factoryMap, name)
+	return nil
+}
+
 func Create(name string, config Config) (Runner, error) {
 	factory, exists := factoryMap[name]
 	if !exists {

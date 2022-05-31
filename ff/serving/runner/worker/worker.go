@@ -69,7 +69,8 @@ func CreateAndRun() error {
 	}
 	logger.Infow("Completed job for resource %v", jobRunner.Resource())
 	if jobRunner.IsUpdateJob() {
-		logger.Infow("Logging update success in etcd for job:", jobRunner.Resource())
+		jobResource := jobRunner.Resource()
+		logger.Infow("Logging update success in etcd for job:", jobResource)
 		etcdConfig := &coordinator.ETCDConfig{}
 		err := etcdConfig.Deserialize(etcdConf)
 		if err != nil {
@@ -92,7 +93,7 @@ func CreateAndRun() error {
 		eventID := uuid.New().String()
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 		defer cancel()
-		_, err := cli.Put(ctx, fmt.Sprint("UPDATE_EVENT_%s", eventID), string(serializedEvent))
+		_, err := cli.Put(ctx, fmt.Sprint("UPDATE_EVENT_%s__%s__%s__%s", jobResource.Name, jobResource.Variant, jobResource.Type.String(), eventID), string(serializedEvent))
 		if err != nil {
 			return err
 		}

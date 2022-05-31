@@ -1475,7 +1475,6 @@ func testRegisterTransformationFromSource(addr string) error {
 		return fmt.Errorf("Failed to register training set runner factory: %v", err)
 	}
 	defer runner.UnregisterFactory(string(runner.CREATE_TRANSFORMATION))
-	/////////// this code is copied from the above, make into its own function
 	logger := zap.NewExample().Sugar()
 	client, err := metadata.NewClient(addr, logger)
 	if err != nil {

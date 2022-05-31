@@ -11,12 +11,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v4/pgxpool"
-	"go.uber.org/zap"
-
+	"github.com/featureform/metadata"
 	provider "github.com/featureform/provider"
 	runner "github.com/featureform/runner"
+	"github.com/jackc/pgx/v4/pgxpool"
 	clientv3 "go.etcd.io/etcd/client/v3"
+	"go.uber.org/zap"
 )
 
 var testOfflineTableValues = [...]provider.ResourceRecord{

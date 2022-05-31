@@ -7,12 +7,15 @@ package provider
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/gocql/gocql"
 )
 
 func init() {
 	unregisteredFactories := map[Type]Factory{
 		LocalOnline:      localOnlineStoreFactory,
 		RedisOnline:      redisOnlineStoreFactory,
+		CassandraOnline:  cassandraOnlineStoreFactory,
 		MemoryOffline:    memoryOfflineStoreFactory,
 		PostgresOffline:  postgresOfflineStoreFactory,
 		SnowflakeOffline: snowflakeOfflineStoreFactory,
@@ -44,6 +47,28 @@ func (r RedisConfig) Serialized() SerializedConfig {
 }
 
 func (r *RedisConfig) Deserialize(config SerializedConfig) error {
+	err := json.Unmarshal(config, r)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+type CassandraConfig struct {
+	keyspace string
+	Addr     string
+	session  *gocql.Session
+}
+
+func (r CassandraConfig) Serialized() SerializedConfig {
+	config, err := json.Marshal(r)
+	if err != nil {
+		panic(err)
+	}
+	return config
+}
+
+func (r *CassandraConfig) Deserialize(config SerializedConfig) error {
 	err := json.Unmarshal(config, r)
 	if err != nil {
 		return err

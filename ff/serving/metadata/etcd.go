@@ -354,7 +354,6 @@ func (lookup etcdResourceLookup) SetJob(id ResourceID, schedule string) error {
 }
 
 func (lookup etcdResourceLookup) SetSchedule(id ResourceID, schedule string) error {
-
 	coordinatorScheduleJob := CoordinatorScheduleJob{
 		Attempts: 0,
 		Resource: id,

@@ -124,7 +124,7 @@ func (k *MemoryJobSpawner) GetJobRunner(jobName string, config runner.Config) (r
 	return jobRunner, nil
 }
 
-func NewCoordinator(meta *metadata.Client, logger *zap.SugaredLogger, cli *clientv3.Client, spawner JobSpawner) (*Coordinator, error) {
+func NewCoordinator(meta *metadata.Client, logger *	SugaredLogger, cli *clientv3.Client, spawner JobSpawner) (*Coordinator, error) {
 	logger.Info("Creating new coordinator")
 	kvc := clientv3.NewKV(cli)
 	return &Coordinator{
@@ -208,7 +208,7 @@ func (c *Coordinator) WatchForUpdateEvents() error {
 
 func (c *Coordinator) WatchForScheduleChanges() error {
 	c.Logger.Info("Watching for new update events")
-	getResp, err := (*c.KVClient).Get(context.Background(), "SCHEDULE_JOB_", clientv3.WithPrefix())
+	getResp, err := (*c.KVClient).Get(context.Background(), "SCHEDULEJOB_", clientv3.WithPrefix())
 	if err != nil {
 		return err
 	}
@@ -221,7 +221,7 @@ func (c *Coordinator) WatchForScheduleChanges() error {
 		}(kv)
 	}
 	for {
-		rch := c.EtcdClient.Watch(context.Background(), "SCHEDULE_JOB_", clientv3.WithPrefix())
+		rch := c.EtcdClient.Watch(context.Background(), "SCHEDULEJOB_", clientv3.WithPrefix())
 		for wresp := range rch {
 			for _, ev := range wresp.Events {
 				if ev.Type == 0 {

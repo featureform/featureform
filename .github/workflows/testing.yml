@@ -16,7 +16,7 @@ jobs:
     name: Setup Test Dependencies
     defaults:
       run:
-        working-directory: ./ff/serving
+        working-directory: ./
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -41,7 +41,7 @@ jobs:
       - uses: actions/upload-artifact@v3
         with:
           name: compiled-workdir
-          path: ./ff/serving/
+          path: ./
           retention-days: 1
 
   typesense:

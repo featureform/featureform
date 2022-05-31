@@ -1,4 +1,7 @@
 name: Embedding Store CI
+defaults:
+  run:
+    working-directory: ./embeddinghub
 on:
   push:
     paths:

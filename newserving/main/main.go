@@ -27,7 +27,7 @@ func main() {
 	}
 
 	promMetrics := metrics.NewMetrics("test")
-	metrics_port := os.Getenv("METRICS_PORT")
+	metricsPort := os.Getenv("METRICS_PORT")
 
 	meta, err := metadata.NewClient("sandbox-metadata-server:8080", logger)
 	if err != nil {
@@ -41,8 +41,8 @@ func main() {
 		logger.Panicw("Failed to create training server", "Err", err)
 	}
 	pb.RegisterFeatureServer(grpcServer, serv)
-	logger.Infow("Serving metrics", "Port", metrics_port)
-	go promMetrics.ExposePort(metrics_port)
+	logger.Infow("Serving metrics", "Port", metricsPort)
+	go promMetrics.ExposePort(metricsPort)
 	logger.Infow("Server starting", "Port", port)
 	serveErr := grpcServer.Serve(lis)
 	if serveErr != nil {

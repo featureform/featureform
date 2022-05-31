@@ -584,14 +584,6 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 		return err
 	}
 	if schedule != "" {
-		//TODO make this for training set
-
-		type TrainingSetRunnerConfig struct {
-			OfflineType   provider.Type
-			OfflineConfig provider.SerializedConfig
-			Def           provider.TrainingSetDef
-			IsUpdate      bool
-		}
 		scheduleTrainingSetRunnerConfig := runner.TrainingSetRunnerConfig{
 			OfflineType:   provider.Type(providerEntry.Type()),
 			OfflineConfig: providerEntry.SerializedConfig(),

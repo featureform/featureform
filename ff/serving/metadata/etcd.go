@@ -333,13 +333,14 @@ func (lookup etcdResourceLookup) HasJob(id ResourceID) (bool, error) {
 	return true, nil
 }
 
-func (lookup etcdResourceLookup) SetJob(id ResourceID) error {
+func (lookup etcdResourceLookup) SetJob(id ResourceID, schedule string) error {
 	if jobAlreadySet, _ := lookup.HasJob(id); jobAlreadySet {
 		return fmt.Errorf("Job already set")
 	}
 	coordinatorJob := CoordinatorJob{
 		Attempts: 0,
 		Resource: id,
+		Schedule: schedule,
 	}
 	serialized, err := coordinatorJob.Serialize()
 	if err != nil {

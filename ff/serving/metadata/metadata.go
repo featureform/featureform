@@ -185,6 +185,7 @@ func (err *ResourceExists) GRPCStatus() *status.Status {
 type Resource interface {
 	Notify(ResourceLookup, operation, Resource) error
 	ID() ResourceID
+	Schedule() string
 	Dependencies(ResourceLookup) (ResourceLookup, error)
 	Proto() proto.Message
 	UpdateStatus(pb.ResourceStatus) error
@@ -208,7 +209,7 @@ type ResourceLookup interface {
 	ListForType(ResourceType) ([]Resource, error)
 	List() ([]Resource, error)
 	HasJob(ResourceID) (bool, error)
-	SetJob(ResourceID) error
+	SetJob(ResourceID, string) error
 	SetStatus(ResourceID, pb.ResourceStatus) error
 	SetUpdateStatus(ResourceID, pb.UpdateStatus) error
 	SetSchedule(ResourceID, string) error
@@ -293,7 +294,7 @@ func (lookup localResourceLookup) SetStatus(id ResourceID, status pb.ResourceSta
 	return nil
 }
 
-func (lookup localResourceLookup) SetJob(id ResourceID) error {
+func (lookup localResourceLookup) SetJob(id ResourceID, schedule string) error {
 	return nil
 }
 
@@ -326,6 +327,10 @@ func (resource *sourceResource) ID() ResourceID {
 		Name: resource.serialized.Name,
 		Type: SOURCE,
 	}
+}
+
+func (resource *sourceResource) Schedule() string {
+	return ""
 }
 
 func (resource *sourceResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
@@ -365,6 +370,10 @@ func (resource *sourceVariantResource) ID() ResourceID {
 		Variant: resource.serialized.Variant,
 		Type:    SOURCE_VARIANT,
 	}
+}
+
+func (resource *sourceVariantResource) Schedule() string {
+	return resource.serialized.UpdateStatus.Schedule
 }
 
 func (resource *sourceVariantResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
@@ -431,6 +440,10 @@ func (resource *featureResource) ID() ResourceID {
 	}
 }
 
+func (resource *sourceVariantResource) Schedule() string {
+	return ""
+}
+
 func (resource *featureResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
 	return make(localResourceLookup), nil
 }
@@ -468,6 +481,10 @@ func (resource *featureVariantResource) ID() ResourceID {
 		Variant: resource.serialized.Variant,
 		Type:    FEATURE_VARIANT,
 	}
+}
+
+func (resource *featureVariantResource) Schedule() string {
+	return resource.serialized.UpdateStatus.Schedule
 }
 
 func (resource *featureVariantResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
@@ -538,6 +555,10 @@ func (resource *labelResource) ID() ResourceID {
 	}
 }
 
+func (resource *labelResource) Schedule() string {
+	return ""
+}
+
 func (resource *labelResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
 	return make(localResourceLookup), nil
 }
@@ -575,6 +596,10 @@ func (resource *labelVariantResource) ID() ResourceID {
 		Variant: resource.serialized.Variant,
 		Type:    LABEL_VARIANT,
 	}
+}
+
+func (resource *labelVariantResource) Schedule() string {
+	return ""
 }
 
 func (resource *labelVariantResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
@@ -645,6 +670,10 @@ func (resource *trainingSetResource) ID() ResourceID {
 	}
 }
 
+func (resource *trainingSetResource) Schedule() string {
+	return ""
+}
+
 func (resource *trainingSetResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
 	return make(localResourceLookup), nil
 }
@@ -682,6 +711,10 @@ func (resource *trainingSetVariantResource) ID() ResourceID {
 		Variant: resource.serialized.Variant,
 		Type:    TRAINING_SET_VARIANT,
 	}
+}
+
+func (resource *trainingSetVariantResource) Schedule() string {
+	return resource.serialized.UpdateStatus.Schedule
 }
 
 func (resource *trainingSetVariantResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
@@ -748,6 +781,10 @@ func (resource *modelResource) ID() ResourceID {
 	}
 }
 
+func (resource *modelResource) Schedule() string {
+	return ""
+}
+
 func (resource *modelResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
 	serialized := resource.serialized
 	depIds := make([]ResourceID, 0)
@@ -807,6 +844,10 @@ func (resource *userResource) ID() ResourceID {
 	}
 }
 
+func (resource *userResource) Schedule() string {
+	return ""
+}
+
 func (resource *userResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
 	return make(localResourceLookup), nil
 }
@@ -858,6 +899,10 @@ func (resource *providerResource) ID() ResourceID {
 	}
 }
 
+func (resource *providerResource) Schedule() string {
+	return ""
+}
+
 func (resource *providerResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
 	return make(localResourceLookup), nil
 }
@@ -907,6 +952,10 @@ func (resource *entityResource) ID() ResourceID {
 		Name: resource.serialized.Name,
 		Type: ENTITY,
 	}
+}
+
+func (resource *entityResource) Schedule() string {
+	return ""
 }
 
 func (resource *entityResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
@@ -1288,7 +1337,7 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		return nil, err
 	}
 	if serv.needsJob(res) {
-		if err := serv.lookup.SetJob(id); err != nil {
+		if err := serv.lookup.SetJob(id, res.Schedule()); err != nil {
 			return nil, err
 		}
 	}

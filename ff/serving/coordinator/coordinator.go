@@ -49,8 +49,8 @@ type Coordinator struct {
 
 type ETCDConfig struct {
 	Endpoints []string
-	Username string
-	Password string
+	Username  string
+	Password  string
 }
 
 func (c *ETCDConfig) Serialize() (Config, error) {

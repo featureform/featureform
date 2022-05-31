@@ -880,27 +880,27 @@ func TestCoordinatorCalls(t *testing.T) {
 	// CoordinatorFunctionList := []CoordinatorFunctions{
 	// 	{testCoordinatorMaterializeFeature}
 	// }
-	if err := testCoordinatorMaterializeFeature(addr); err != nil {
-		t.Fatalf("coordinator could not materialize feature: %v", err)
-	}
+	// if err := testCoordinatorMaterializeFeature(addr); err != nil {
+	// 	t.Fatalf("coordinator could not materialize feature: %v", err)
+	// }
 	if err := testCoordinatorTrainingSet(addr); err != nil {
 		t.Fatalf("coordinator could not create training set: %v", err)
 	}
 	if err := testRegisterPrimaryTableFromSource(addr); err != nil {
 		t.Fatalf("coordinator could not register primary table from source: %v", err)
 	}
-	if err := testRegisterTransformationFromSource(addr); err != nil {
-		t.Fatalf("coordinator could not register transformation from source and transformation: %v", err)
-	}
-	if err := testScheduleTrainingSet(addr); err != nil {
-		t.Fatalf("coordinator could not schedule training set to be updated: %v", err)
-	}
-	if err := testScheduleTransformation(addr); err != nil {
-		t.Fatalf("coordinator could not schedule transformation to be updated: %v", err)
-	}
-	if err := testScheduleFeatureMaterialization(addr); err != nil {
-		t.Fatalf("coordinator could not schedule materialization to be updated: %v", err)
-	}
+	// if err := testRegisterTransformationFromSource(addr); err != nil {
+	// 	t.Fatalf("coordinator could not register transformation from source and transformation: %v", err)
+	// }
+	// if err := testScheduleTrainingSet(addr); err != nil {
+	// 	t.Fatalf("coordinator could not schedule training set to be updated: %v", err)
+	// }
+	// if err := testScheduleTransformation(addr); err != nil {
+	// 	t.Fatalf("coordinator could not schedule transformation to be updated: %v", err)
+	// }
+	// if err := testScheduleFeatureMaterialization(addr); err != nil {
+	// 	t.Fatalf("coordinator could not schedule materialization to be updated: %v", err)
+	// }
 }
 
 func materializeFeatureWithProvider(client *metadata.Client, offlineConfig provider.SerializedConfig, onlineConfig provider.SerializedConfig, featureName string, sourceName string, originalTableName string, schedule string) error {

@@ -26,5 +26,7 @@ spec:
           env:
             - name: SERVING_PORT
               value: "0.0.0.0:8080"
+            - name: METRICS_PORT
+              value: "0.0.0.0:2112"
           resources: {}
 status: {}

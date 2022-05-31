@@ -451,7 +451,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 		OfflineType:   provider.Type(sourceProvider.Type()),
 		OnlineConfig:  featureProvider.SerializedConfig(),
 		OfflineConfig: sourceProvider.SerializedConfig(),
-		ResourceID:    provider.ResourceID{Name: redID.Name, Variant: resID.Variant, Type: provider.Feature},
+		ResourceID:    provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Feature},
 		VType:         provider.ValueType(featureType),
 		IsUpdate:      false,
 	}
@@ -479,7 +479,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 			OfflineType:   provider.Type(sourceProvider.Type()),
 			OnlineConfig:  featureProvider.SerializedConfig(),
 			OfflineConfig: sourceProvider.SerializedConfig(),
-			ResourceID:    provider.ResourceID{Name: redID.Name, Variant: resID.Variant, Type: provider.Feature},
+			ResourceID:    provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Feature},
 			VType:         provider.ValueType(featureType),
 			IsUpdate:      false,
 		}
@@ -782,6 +782,22 @@ func (c *ResourceUpdatedEvent) Deserialize(config Config) error {
 
 //here we get a notificaiton from a worker that there was a succesful update to a resource
 func (c *Coordinator) signalResourceUpdate(key string, value string) error {
+	c.Logger.Info("Updating metdata with latest resource update status and time", key)
+	s, err := concurrency.NewSession(c.EtcdClient, concurrency.WithTTL(1))
+	if err != nil {
+
+		return err
+	}
+	defer s.Close()
+	mtx, err := c.createJobLock(key, s)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := mtx.Unlock(context.Background()); err != nil {
+			c.Logger.Debugw("Error unlocking mutex:", "error", err)
+		}
+	}()
 	resUpdatedEvent := &ResourceUpdatedEvent{}
 	if err := resUpdatedEvent.Deserialize(Config(value)); err != nil {
 		return err
@@ -790,11 +806,32 @@ func (c *Coordinator) signalResourceUpdate(key string, value string) error {
 	if err := c.Metadata.SetUpdateStatus(context.Background(), resUpdatedEvent.ResourceID, "", metadata.READY, "", resUpdatedEvent.Completed); err != nil {
 		return err
 	}
+	c.Logger.Info("Succesfully set update status for update job with key: ", key)
+	if err := c.deleteJob(mtx, key); err != nil {
+		c.Logger.Debugw("Error deleting job", "error", err)
+		return err
+	}
 	return nil
 }
 
 //here we request kubernetes to change the schedule of a job
 func (c *Coordinator) changeJobSchedule(key string, value string) error {
+	c.Logger.Info("Updating schedule of currently made cronjob in kubernetes: ", key)
+	s, err := concurrency.NewSession(c.EtcdClient, concurrency.WithTTL(1))
+	if err != nil {
+
+		return err
+	}
+	defer s.Close()
+	mtx, err := c.createJobLock(key, s)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := mtx.Unlock(context.Background()); err != nil {
+			c.Logger.Debugw("Error unlocking mutex:", "error", err)
+		}
+	}()
 	coordinatorScheduleJob := &metadata.CoordinatorScheduleJob{}
 	if err := coordinatorScheduleJob.Deserialize(Config(value)); err != nil {
 		return err
@@ -812,6 +849,11 @@ func (c *Coordinator) changeJobSchedule(key string, value string) error {
 		return err
 	}
 	if err := c.Metadata.SetUpdateStatus(context.Background(), coordinatorScheduleJob.Resource, coordinatorScheduleJob.Schedule, metadata.READY, "", time.Now()); err != nil {
+		return err
+	}
+	c.Logger.Info("Succesfully updated schedule for job in kubernetes with key: ", key)
+	if err := c.deleteJob(mtx, key); err != nil {
+		c.Logger.Debugw("Error deleting job", "error", err)
 		return err
 	}
 	return nil

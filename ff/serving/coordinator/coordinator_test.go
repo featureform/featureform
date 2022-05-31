@@ -651,6 +651,7 @@ func TestRunPrimaryTableJobError(t *testing.T) {
 					Name: "ghost_primary_table",
 				},
 			},
+			UpdateStatus: pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: ""}},
 		},
 	}
 	if err := coord.Metadata.CreateAll(context.Background(), newDefs); err != nil {
@@ -872,6 +873,10 @@ func materializeFeatureWithProvider(client *metadata.Client, offlineConfig provi
 	onlineProviderName := uuid.New().String()
 	userName := uuid.New().String()
 	entityName := uuid.New().String()
+	updateStatus := pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: ""}}
+	if schedule != "" {
+		updateStatus.Schedule.Schedule = schedule
+	}
 	defs := []metadata.ResourceDef{
 		metadata.UserDef{
 			Name: userName,
@@ -907,6 +912,7 @@ func materializeFeatureWithProvider(client *metadata.Client, offlineConfig provi
 					Name: originalTableName,
 				},
 			},
+			UpdateStatus: pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: ""}},
 		},
 		metadata.FeatureDef{
 			Name:        featureName,
@@ -922,6 +928,7 @@ func materializeFeatureWithProvider(client *metadata.Client, offlineConfig provi
 				Value:  "value",
 				TS:     "ts",
 			},
+			UpdateStatus: updateStatus,
 		},
 	}
 	if err := client.CreateAll(context.Background(), defs); err != nil {
@@ -956,6 +963,7 @@ func createSourceWithProvider(client *metadata.Client, config provider.Serialize
 					Name: tableName,
 				},
 			},
+			UpdateStatus: pb.UpdateStatus{},
 		},
 	}
 	if err := client.CreateAll(context.Background(), defs); err != nil {
@@ -967,7 +975,7 @@ func createSourceWithProvider(client *metadata.Client, config provider.Serialize
 func createTransformationWithProvider(client *metadata.Client, config provider.SerializedConfig, sourceName string, transformationQuery string, sources []metadata.NameVariant, schedule string) error {
 	userName := uuid.New().String()
 	providerName := uuid.New().String()
-	var updateStatus pb.UpdateStatus
+	updateStatus := pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: ""}}
 	if schedule != "" {
 		updateStatus.Schedule.Schedule = schedule
 	}
@@ -1008,7 +1016,7 @@ func createTrainingSetWithProvider(client *metadata.Client, config provider.Seri
 	providerName := uuid.New().String()
 	userName := uuid.New().String()
 	entityName := uuid.New().String()
-	var updateStatus pb.UpdateStatus
+	updateStatus := pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: ""}}
 	if schedule != "" {
 		updateStatus.Schedule.Schedule = schedule
 	}

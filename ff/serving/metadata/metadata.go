@@ -650,13 +650,11 @@ func (this *labelVariantResource) Notify(lookup ResourceLookup, op operation, th
 }
 
 func (resource *labelVariantResource) UpdateStatus(status pb.ResourceStatus) error {
-	resource.serialized.Status = &status
-	return nil
+	return fmt.Errorf("Update status not implemented")
 }
 
 func (resource *labelVariantResource) SetUpdateStatus(status pb.UpdateStatus) error {
-	resource.serialized.UpdateStatus = &status
-	return nil
+	return fmt.Errorf("Update status not implemented")
 }
 
 type trainingSetResource struct {

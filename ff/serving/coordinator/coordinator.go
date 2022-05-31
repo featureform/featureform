@@ -603,13 +603,12 @@ func (c *Coordinator) executeJob(jobKey string) error {
 	c.Logger.Info("Executing new job with key ", jobKey)
 	s, err := concurrency.NewSession(c.EtcdClient, concurrency.WithTTL(1))
 	if err != nil {
-
-		return err
+		return fmt.Errorf("new session: %w", err)
 	}
 	defer s.Close()
 	mtx, err := c.createJobLock(jobKey, s)
 	if err != nil {
-		return err
+		return fmt.Errorf("job lock: %w", err)
 	}
 	defer func() {
 		if err := mtx.Unlock(context.Background()); err != nil {
@@ -618,14 +617,14 @@ func (c *Coordinator) executeJob(jobKey string) error {
 	}()
 	job, err := c.getJob(mtx, jobKey)
 	if err != nil {
-		return err
+		return fmt.Errorf("get job: %w", err)
 	}
 	c.Logger.Debugf("Job %s is on attempt %d", jobKey, job.Attempts)
 	if job.Attempts > MAX_ATTEMPTS {
 		return c.markJobFailed(job)
 	}
 	if err := c.incrementJobAttempts(mtx, job, jobKey); err != nil {
-		return err
+		return fmt.Errorf("increment attempt: %w", err)
 	}
 	type jobFunction func(metadata.ResourceID) error
 	fns := map[metadata.ResourceType]jobFunction{
@@ -645,7 +644,7 @@ func (c *Coordinator) executeJob(jobKey string) error {
 	c.Logger.Info("Succesfully executed job with key: ", jobKey)
 	if err := c.deleteJob(mtx, jobKey); err != nil {
 		c.Logger.Debugw("Error deleting job", "error", err)
-		return err
+		return fmt.Errorf("job delete: %w", err)
 	}
 	return nil
 }

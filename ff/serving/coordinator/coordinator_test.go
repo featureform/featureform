@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/google/uuid"
+	// "golang.org/x/sync/errgroup"
 	"net"
 	"os"
 	"reflect"
@@ -134,6 +135,7 @@ func TestRunSQLJobError(t *testing.T) {
 					Sources: []metadata.NameVariant{{"ghost_source", ""}},
 				},
 			},
+			UpdateStatus: pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: ""}},
 		},
 	}
 	if err := coord.Metadata.CreateAll(context.Background(), defs); err != nil {
@@ -226,6 +228,7 @@ func TestFeatureMaterializeJobError(t *testing.T) {
 					Name: originalTableName,
 				},
 			},
+			UpdateStatus: pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: ""}},
 		},
 		metadata.FeatureDef{
 			Name:        featureName,
@@ -241,6 +244,7 @@ func TestFeatureMaterializeJobError(t *testing.T) {
 				Value:  "value",
 				TS:     "ts",
 			},
+			UpdateStatus: pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: ""}},
 		},
 	}
 	if err := coord.Metadata.CreateAll(context.Background(), defs); err != nil {
@@ -285,6 +289,7 @@ func TestFeatureMaterializeJobError(t *testing.T) {
 					Name: originalTableName,
 				},
 			},
+			UpdateStatus: pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: ""}},
 		},
 		metadata.FeatureDef{
 			Name:        featureName,
@@ -300,6 +305,7 @@ func TestFeatureMaterializeJobError(t *testing.T) {
 				Value:  "value",
 				TS:     "ts",
 			},
+			UpdateStatus: pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: ""}},
 		},
 	}
 	if err := coord.Metadata.CreateAll(context.Background(), defs); err != nil {
@@ -353,6 +359,7 @@ func TestFeatureMaterializeJobError(t *testing.T) {
 					Name: originalTableName,
 				},
 			},
+			UpdateStatus: pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: ""}},
 		},
 		metadata.FeatureDef{
 			Name:        featureName,
@@ -368,6 +375,7 @@ func TestFeatureMaterializeJobError(t *testing.T) {
 				Value:  "value",
 				TS:     "ts",
 			},
+			UpdateStatus: pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: ""}},
 		},
 	}
 	if err := coord.Metadata.CreateAll(context.Background(), defs); err != nil {
@@ -430,6 +438,7 @@ func TestTrainingSetJobError(t *testing.T) {
 					Name: originalTableName,
 				},
 			},
+			UpdateStatus: pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: ""}},
 		},
 		metadata.LabelDef{
 			Name:        labelName,
@@ -460,15 +469,17 @@ func TestTrainingSetJobError(t *testing.T) {
 				Value:  "value",
 				TS:     "ts",
 			},
+			UpdateStatus: pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: ""}},
 		},
 		metadata.TrainingSetDef{
-			Name:        tsName,
-			Variant:     "",
-			Description: "",
-			Owner:       userName,
-			Provider:    providerName,
-			Label:       metadata.NameVariant{labelName, ""},
-			Features:    []metadata.NameVariant{{featureName, ""}},
+			Name:         tsName,
+			Variant:      "",
+			Description:  "",
+			Owner:        userName,
+			Provider:     providerName,
+			Label:        metadata.NameVariant{labelName, ""},
+			Features:     []metadata.NameVariant{{featureName, ""}},
+			UpdateStatus: pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: ""}},
 		},
 	}
 	if err := coord.Metadata.CreateAll(context.Background(), defs); err != nil {
@@ -518,6 +529,7 @@ func TestTrainingSetJobError(t *testing.T) {
 					Name: originalTableName,
 				},
 			},
+			UpdateStatus: pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: ""}},
 		},
 		metadata.LabelDef{
 			Name:        labelName,
@@ -548,15 +560,17 @@ func TestTrainingSetJobError(t *testing.T) {
 				Value:  "value",
 				TS:     "ts",
 			},
+			UpdateStatus: pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: ""}},
 		},
 		metadata.TrainingSetDef{
-			Name:        tsName,
-			Variant:     "",
-			Description: "",
-			Owner:       userName,
-			Provider:    providerName,
-			Label:       metadata.NameVariant{labelName, ""},
-			Features:    []metadata.NameVariant{{featureName, ""}},
+			Name:         tsName,
+			Variant:      "",
+			Description:  "",
+			Owner:        userName,
+			Provider:     providerName,
+			Label:        metadata.NameVariant{labelName, ""},
+			Features:     []metadata.NameVariant{{featureName, ""}},
+			UpdateStatus: pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: ""}},
 		},
 	}
 	if err := coord.Metadata.CreateAll(context.Background(), defs); err != nil {
@@ -604,6 +618,7 @@ func TestRunPrimaryTableJobError(t *testing.T) {
 					Name: "",
 				},
 			},
+			UpdateStatus: pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: ""}},
 		},
 	}
 	if err := coord.Metadata.CreateAll(context.Background(), defs); err != nil {
@@ -710,6 +725,7 @@ func TestMapNameVariantsToTablesError(t *testing.T) {
 					Name: tableName,
 				},
 			},
+			UpdateStatus: pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: ""}},
 		},
 	}
 	if err := coord.Metadata.CreateAll(context.Background(), defs); err != nil {
@@ -764,6 +780,7 @@ func TestRegisterSourceJobErrors(t *testing.T) {
 					Name: ghostTableName,
 				},
 			},
+			UpdateStatus: pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: ""}},
 		},
 	}
 	if err := coord.Metadata.CreateAll(context.Background(), providerErrorDefs); err != nil {
@@ -807,6 +824,7 @@ func TestRegisterSourceJobErrors(t *testing.T) {
 					Name: newTableName,
 				},
 			},
+			UpdateStatus: pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: ""}},
 		},
 	}
 	if err := coord.Metadata.CreateAll(context.Background(), onlineErrorDefs); err != nil {
@@ -854,6 +872,14 @@ func TestCoordinatorCalls(t *testing.T) {
 		t.Fatalf("could not set up metadata client: %v", err)
 	}
 	defer client.Close()
+	// coordinatorTestGroup := new(errgroup.Group)
+	// type CoordinatorFunctions struct {
+	// 	Function func() error
+	// 	ErrorMessage string
+	// }
+	// CoordinatorFunctionList := []CoordinatorFunctions{
+	// 	{testCoordinatorMaterializeFeature}
+	// }
 	if err := testCoordinatorMaterializeFeature(addr); err != nil {
 		t.Fatalf("coordinator could not materialize feature: %v", err)
 	}
@@ -865,6 +891,15 @@ func TestCoordinatorCalls(t *testing.T) {
 	}
 	if err := testRegisterTransformationFromSource(addr); err != nil {
 		t.Fatalf("coordinator could not register transformation from source and transformation: %v", err)
+	}
+	if err := testScheduleTrainingSet(addr); err != nil {
+		t.Fatalf("coordinator could not schedule training set to be updated: %v", err)
+	}
+	if err := testScheduleTransformation(addr); err != nil {
+		t.Fatalf("coordinator could not schedule transformation to be updated: %v", err)
+	}
+	if err := testScheduleFeatureMaterialization(addr); err != nil {
+		t.Fatalf("coordinator could not schedule materialization to be updated: %v", err)
 	}
 }
 

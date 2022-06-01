@@ -57,6 +57,12 @@ func TestOnlineStores(t *testing.T) {
 		Consistency: gocql.One,
 	}
 
+	// Dynamodb testing
+	dynamoPort := os.Getenv("DYNAMO_PORT")
+	dynamoAddr := fmt.Sprintf("%s:%s", "localhost", dynamoPort)
+	dynamoConfig := &DynamodbConfig{
+		Addr:   dynamoAddr,
+	}
 	testList := []struct {
 		t               Type
 		c               SerializedConfig
@@ -66,6 +72,7 @@ func TestOnlineStores(t *testing.T) {
 		{RedisOnline, redisMockConfig.Serialized(), false},
 		{RedisOnline, redisLiveConfig.Serialized(), true},
 		{CassandraOnline, cassandraConfig.Serialized(), true},
+		{DynamoDBOnline, dynamoConfig.Serialized(), false},
 	}
 	for _, testItem := range testList {
 		if testing.Short() && testItem.integrationTest {

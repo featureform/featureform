@@ -5,8 +5,8 @@
 package runner
 
 import (
-	metadata "github.com/featureform/serving/metadata"
-	provider "github.com/featureform/serving/provider"
+	metadata "github.com/featureform/metadata"
+	provider "github.com/featureform/provider"
 	"testing"
 )
 

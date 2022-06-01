@@ -110,14 +110,8 @@ func (k *KubernetesJobSpawner) GetJobRunner(jobName string, config runner.Config
 		return nil, err
 	}
 	kubeConfig := runner.KubernetesRunnerConfig{
-<<<<<<< HEAD:ff/serving/coordinator/coordinator.go
 		EnvVars: map[string]string{"NAME": jobName, "CONFIG": string(config), "ETCD_CONFIG": string(serializedETCD)},
-		// Image:    "featureform/worker",
-		Image:    "sami1309/worker",
-=======
-		EnvVars:  map[string]string{"NAME": jobName, "CONFIG": string(config)},
 		Image:    "featureformcom/worker",
->>>>>>> 0ae8aa590a710f413bee74320d3f0f59ab849e56:coordinator/coordinator.go
 		NumTasks: 1,
 		Resource: id,
 	}
@@ -341,7 +335,6 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
 		return err
 	}
-<<<<<<< HEAD:ff/serving/coordinator/coordinator.go
 	if schedule != "" {
 		scheduleCreateTransformationConfig := runner.CreateTransformationConfig{
 			OfflineType:          provider.Type(sourceProvider.Type()),
@@ -368,9 +361,6 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 			return err
 		}
 	}
-=======
-	c.Logger.Info("Transformation Job Complete", resID)
->>>>>>> 0ae8aa590a710f413bee74320d3f0f59ab849e56:coordinator/coordinator.go
 	return nil
 }
 
@@ -512,7 +502,6 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 	if err != nil {
 		return fmt.Errorf("could not fetch online provider: %w", err)
 	}
-<<<<<<< HEAD:ff/serving/coordinator/coordinator.go
 	// p, err := provider.Get(provider.Type(sourceProvider.Type()), sourceProvider.SerializedConfig())
 	// if err != nil {
 	// 	return err
@@ -521,16 +510,6 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 	// if err != nil {
 	// 	return err
 	// }
-=======
-	p, err := provider.Get(provider.Type(sourceProvider.Type()), sourceProvider.SerializedConfig())
-	if err != nil {
-		return fmt.Errorf("could not get offline provider config: %w", err)
-	}
-	sourceStore, err := p.AsOfflineStore()
-	if err != nil {
-		return fmt.Errorf("could not use store as offline store: %w", err)
-	}
->>>>>>> 0ae8aa590a710f413bee74320d3f0f59ab849e56:coordinator/coordinator.go
 	featureProvider, err := feature.FetchProvider(c.Metadata, context.Background())
 	if err != nil {
 		return fmt.Errorf("could not fetch  onlineprovider: %w", err)
@@ -568,47 +547,44 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 	if err != nil {
 		return fmt.Errorf("could not use store as online store: %w", err)
 	}
-<<<<<<< HEAD:ff/serving/coordinator/coordinator.go
 	completionWatcher, err := jobRunner.Run()
-=======
-	srcID := provider.ResourceID{
-		Name:    sourceNameVariant.Name,
-		Variant: sourceNameVariant.Variant,
-	}
-	srcName, err := provider.GetTransformationName(srcID)
-	if err != nil {
-		return fmt.Errorf("transform name err: %w", err)
-	}
+	// srcID := provider.ResourceID{
+	// 	Name:    sourceNameVariant.Name,
+	// 	Variant: sourceNameVariant.Variant,
+	// }
+	// srcName, err := provider.GetTransformationName(srcID)
+	// if err != nil {
+	// 	return fmt.Errorf("transform name err: %w", err)
+	// }
 
-	featID := provider.ResourceID{
-		Name:    resID.Name,
-		Variant: resID.Variant,
-		Type:    provider.Feature,
-	}
-	tmpSchema := feature.LocationColumns().(metadata.ResourceVariantColumns)
-	schema := provider.ResourceSchema{
-		Entity:      tmpSchema.Entity,
-		Value:       tmpSchema.Value,
-		TS:          tmpSchema.TS,
-		SourceTable: srcName,
-	}
-	c.Logger.Debugw("Creating Resource Table", "id", featID, "schema", schema)
-	_, err = sourceStore.RegisterResourceFromSourceTable(featID, schema)
-	if err != nil {
-		return fmt.Errorf("materialize feature register: %w", err)
-	}
-	c.Logger.Debugw("Resource Table Created", "id", featID, "schema", schema)
+	// featID := provider.ResourceID{
+	// 	Name:    resID.Name,
+	// 	Variant: resID.Variant,
+	// 	Type:    provider.Feature,
+	// }
+	// tmpSchema := feature.LocationColumns().(metadata.ResourceVariantColumns)
+	// schema := provider.ResourceSchema{
+	// 	Entity:      tmpSchema.Entity,
+	// 	Value:       tmpSchema.Value,
+	// 	TS:          tmpSchema.TS,
+	// 	SourceTable: srcName,
+	// }
+	// c.Logger.Debugw("Creating Resource Table", "id", featID, "schema", schema)
+	// _, err = sourceStore.RegisterResourceFromSourceTable(featID, schema)
+	// if err != nil {
+	// 	return fmt.Errorf("materialize feature register: %w", err)
+	// }
+	// c.Logger.Debugw("Resource Table Created", "id", featID, "schema", schema)
 
-	materializeRunner := runner.MaterializeRunner{
-		Online:  featureStore,
-		Offline: sourceStore,
-		ID:      provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Feature},
-		VType:   provider.ValueType(featureType),
-		Cloud:   runner.LocalMaterializeRunner,
-	}
-	c.Logger.Info("Starting Materialize")
-	completionWatcher, err := materializeRunner.Run()
->>>>>>> 0ae8aa590a710f413bee74320d3f0f59ab849e56:coordinator/coordinator.go
+	// materializeRunner := runner.MaterializeRunner{
+	// 	Online:  featureStore,
+	// 	Offline: sourceStore,
+	// 	ID:      provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Feature},
+	// 	VType:   provider.ValueType(featureType),
+	// 	Cloud:   runner.LocalMaterializeRunner,
+	// }
+	// c.Logger.Info("Starting Materialize")
+	// completionWatcher, err := materializeRunner.Run()
 	if err != nil {
 		return err
 	}
@@ -618,7 +594,6 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
 		return fmt.Errorf("materialize set success: %w", err)
 	}
-<<<<<<< HEAD:ff/serving/coordinator/coordinator.go
 	if schedule != "" {
 		scheduleMaterializeRunnerConfig := runner.MaterializedRunnerConfig{
 			OnlineType:    provider.Type(featureProvider.Type()),
@@ -649,9 +624,6 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 			return err
 		}
 	}
-=======
-	c.Logger.Info("Materialize Complete")
->>>>>>> 0ae8aa590a710f413bee74320d3f0f59ab849e56:coordinator/coordinator.go
 	return nil
 }
 

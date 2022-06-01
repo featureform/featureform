@@ -7,16 +7,12 @@ package worker
 import (
 	"context"
 	"errors"
-<<<<<<< HEAD:ff/serving/runner/worker/worker_test.go
 	"fmt"
-	coordinator "github.com/featureform/serving/coordinator"
-	metadata "github.com/featureform/serving/metadata"
-	runner "github.com/featureform/serving/runner"
+	coordinator "github.com/featureform/coordinator"
+	metadata "github.com/featureform/metadata"
+	runner "github.com/featureform/runner"
 	"github.com/google/uuid"
 	clientv3 "go.etcd.io/etcd/client/v3"
-=======
-	runner "github.com/featureform/runner"
->>>>>>> 0ae8aa590a710f413bee74320d3f0f59ab849e56:runner/worker/worker_test.go
 	"testing"
 	"time"
 )

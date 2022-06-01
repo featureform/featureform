@@ -5,14 +5,8 @@
 package main
 
 import (
-<<<<<<< HEAD:ff/serving/runner/worker/main/main.go
-	runner "github.com/featureform/serving/runner"
-	worker "github.com/featureform/serving/runner/worker"
-=======
-	"fmt"
-	"github.com/featureform/runner"
-	"github.com/featureform/runner/worker"
->>>>>>> 0ae8aa590a710f413bee74320d3f0f59ab849e56:runner/worker/main/main.go
+	runner "github.com/featureform/runner"
+	worker "github.com/featureform/runner/worker"
 	"log"
 )
 

@@ -8,15 +8,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-<<<<<<< HEAD:ff/serving/runner/worker/worker.go
-	coordinator "github.com/featureform/serving/coordinator"
-	runner "github.com/featureform/serving/runner"
+	coordinator "github.com/featureform/coordinator"
+	runner "github.com/featureform/runner"
 	"github.com/google/uuid"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.uber.org/zap"
-=======
-	"github.com/featureform/runner"
->>>>>>> 0ae8aa590a710f413bee74320d3f0f59ab849e56:runner/worker/worker.go
 	"os"
 	"strconv"
 	"time"

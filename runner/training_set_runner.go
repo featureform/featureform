@@ -7,8 +7,8 @@ package runner
 import (
 	"encoding/json"
 	"fmt"
-	metadata "github.com/featureform/serving/metadata"
-	provider "github.com/featureform/serving/provider"
+	metadata "github.com/featureform/metadata"
+	provider "github.com/featureform/provider"
 )
 
 type TrainingSetRunner struct {
@@ -24,7 +24,6 @@ func (m TrainingSetRunner) Run() (CompletionWatcher, error) {
 		DoneChannel: done,
 	}
 	go func() {
-<<<<<<< HEAD:ff/serving/runner/training_set_runner.go
 		if !m.IsUpdate {
 			if err := m.Offline.CreateTrainingSet(m.Def); err != nil {
 				trainingSetWatcher.EndWatch(err)
@@ -35,11 +34,6 @@ func (m TrainingSetRunner) Run() (CompletionWatcher, error) {
 				trainingSetWatcher.EndWatch(err)
 				return
 			}
-=======
-		if err := m.Offline.CreateTrainingSet(m.Def); err != nil {
-			trainingSetWatcher.EndWatch(fmt.Errorf("create training set: %w", err))
-			return
->>>>>>> 0ae8aa590a710f413bee74320d3f0f59ab849e56:runner/training_set_runner.go
 		}
 		trainingSetWatcher.EndWatch(nil)
 	}()

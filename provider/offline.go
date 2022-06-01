@@ -10,7 +10,7 @@ import (
 	"sort"
 	"time"
 
-	metadata "github.com/featureform/serving/metadata"
+	metadata "github.com/featureform/metadata"
 	"github.com/google/uuid"
 )
 

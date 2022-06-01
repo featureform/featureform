@@ -6,7 +6,7 @@ package runner
 
 import (
 	"errors"
-	metadata "github.com/featureform/serving/metadata"
+	metadata "github.com/featureform/metadata"
 	"testing"
 )
 

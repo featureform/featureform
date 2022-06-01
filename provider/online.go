@@ -159,14 +159,13 @@ func NewRedisOnlineStore(options *RedisConfig) *redisOnlineStore {
 
 func NewCassandraOnlineStore(options *CassandraConfig) (*cassandraOnlineStore, error) {
 
-	//Create cluster, session
 	cassandraCluster := gocql.NewCluster(options.Addr)
+	cassandraCluster.Consistency = options.Consistency
 	newSession, err := cassandraCluster.CreateSession()
 	if err != nil {
 		return nil, err
 	}
 
-	//Create and use keyspace
 	query := fmt.Sprintf("CREATE KEYSPACE IF NOT EXISTS %s WITH replication = {'class' : 'SimpleStrategy','replication_factor' : 3}", options.keyspace)
 	err = newSession.Query(query).WithContext(ctx).Exec()
 	cassandraCluster.Keyspace = options.keyspace
@@ -174,7 +173,6 @@ func NewCassandraOnlineStore(options *CassandraConfig) (*cassandraOnlineStore, e
 		return nil, err
 	}
 
-	// Create Metadata Table
 	query = fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (tableName text PRIMARY KEY, tableType text)", fmt.Sprintf("%s.tableMetadata", options.keyspace))
 	err = newSession.Query(query).WithContext(ctx).Exec()
 	if err != nil {
@@ -248,7 +246,6 @@ func (store *redisOnlineStore) CreateTable(feature, variant string, valueType Va
 
 func (store *cassandraOnlineStore) CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error) {
 
-	//Create table Name, key and check if it exists
 	tableName := fmt.Sprintf("%s.table%s", store.keyspace, sn.Custom(feature, "[^a-zA-Z0-9_]"))
 	vType := cassandraTypeMap[string(valueType)]
 	key := cassandraTableKey{store.keyspace, feature, variant}
@@ -257,7 +254,6 @@ func (store *cassandraOnlineStore) CreateTable(feature, variant string, valueTyp
 		return nil, &TableAlreadyExists{feature, variant}
 	}
 
-	//Update Metadata
 	metadataTableName := fmt.Sprintf("%s.tableMetadata", store.keyspace)
 	query := fmt.Sprintf("INSERT INTO %s (tableName, tableType) VALUES (?, ?)", metadataTableName)
 	err := store.session.Query(query, tableName, string(valueType)).WithContext(ctx).Exec()
@@ -265,7 +261,6 @@ func (store *cassandraOnlineStore) CreateTable(feature, variant string, valueTyp
 		return nil, err
 	}
 
-	// Create Table
 	query = fmt.Sprintf("CREATE TABLE %s (entity text PRIMARY KEY, value %s)", tableName, vType)
 	err = store.session.Query(query).WithContext(ctx).Exec()
 	if err != nil {
@@ -283,8 +278,6 @@ func (store *cassandraOnlineStore) CreateTable(feature, variant string, valueTyp
 }
 
 func (store *cassandraOnlineStore) GetTable(feature, variant string) (OnlineStoreTable, error) {
-
-	store.session.SetConsistency(gocql.One)
 
 	tableName := fmt.Sprintf("%s.table%s", store.keyspace, sn.Custom(feature, "[^a-zA-Z0-9_]"))
 	key := cassandraTableKey{store.keyspace, feature, variant}
@@ -373,7 +366,6 @@ func (table redisOnlineTable) Get(entity string) (interface{}, error) {
 
 func (table cassandraOnlineTable) Set(entity string, value interface{}) error {
 
-	table.session.SetConsistency(gocql.One)
 	key := table.key
 	tableName := fmt.Sprintf("%s.table%s", key.Keyspace, sn.Custom(key.Feature, "[^a-zA-Z0-9_]"))
 	query := fmt.Sprintf("INSERT INTO %s (entity, value) VALUES (?, ?)", tableName)

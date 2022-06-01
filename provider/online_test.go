@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/alicebob/miniredis"
+	"github.com/gocql/gocql"
 	"github.com/google/uuid"
 )
 
@@ -52,7 +53,8 @@ func TestOnlineStores(t *testing.T) {
 
 	cassandraAddr := "localhost:9042"
 	cassandraConfig := &CassandraConfig{
-		Addr: cassandraAddr,
+		Addr:        cassandraAddr,
+		Consistency: gocql.One,
 	}
 
 	testList := []struct {

@@ -55,9 +55,10 @@ func (r *RedisConfig) Deserialize(config SerializedConfig) error {
 }
 
 type CassandraConfig struct {
-	keyspace string
-	Addr     string
-	session  *gocql.Session
+	keyspace    string
+	Addr        string
+	session     *gocql.Session
+	Consistency gocql.Consistency
 }
 
 func (r CassandraConfig) Serialized() SerializedConfig {

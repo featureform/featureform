@@ -207,20 +207,20 @@ func (store *sqlOfflineStore) RegisterResourceFromSourceTable(id ResourceID, sch
 
 func (store *sqlOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error) {
 	if err := id.check(Primary); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("check fail: %w", err)
 	}
 	if exists, err := store.tableExists(id); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("table exist: %w", err)
 	} else if exists {
 		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}
 	tableName, err := GetPrimaryTableName(id)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get name: %w", err)
 	}
 	query := store.query.primaryTableRegister(tableName, sourceName)
 	if _, err := store.db.Exec(query); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("register table: %w", err)
 	}
 
 	columnNames, err := store.query.getColumns(store.db, tableName)

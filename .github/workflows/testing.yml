@@ -16,10 +16,14 @@ jobs:
     name: Setup Test Dependencies
     defaults:
       run:
-        working-directory: ./ff/serving
+        working-directory: ./
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+
+      - name: Check directory
+        run: |
+          ls -la
 
       - name: Set up Go
         uses: actions/setup-go@v2
@@ -36,12 +40,12 @@ jobs:
         run: ./gen_grpc.sh
 
       - name: Build
-        run: go build
+        run: go build ./metadata/*.go
 
       - uses: actions/upload-artifact@v3
         with:
           name: compiled-workdir
-          path: ./ff/serving/
+          path: ./
           retention-days: 1
 
   typesense:

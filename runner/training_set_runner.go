@@ -23,7 +23,7 @@ func (m TrainingSetRunner) Run() (CompletionWatcher, error) {
 	}
 	go func() {
 		if err := m.Offline.CreateTrainingSet(m.Def); err != nil {
-			trainingSetWatcher.EndWatch(err)
+			trainingSetWatcher.EndWatch(fmt.Errorf("create training set: %w", err))
 			return
 		}
 		trainingSetWatcher.EndWatch(nil)
@@ -40,7 +40,8 @@ type TrainingSetRunnerConfig struct {
 func (c *TrainingSetRunnerConfig) Serialize() (Config, error) {
 	config, err := json.Marshal(c)
 	if err != nil {
-		panic(err)
+
+		panic(fmt.Errorf("serialize: %w", err))
 	}
 	return config, nil
 }
@@ -48,7 +49,7 @@ func (c *TrainingSetRunnerConfig) Serialize() (Config, error) {
 func (c *TrainingSetRunnerConfig) Deserialize(config Config) error {
 	err := json.Unmarshal(config, c)
 	if err != nil {
-		return err
+		return fmt.Errorf("deserialize: %w", err)
 	}
 	return nil
 }

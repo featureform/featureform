@@ -28,7 +28,7 @@ func templateReplace(template string, replacements map[string]string) (string, e
 		if !has {
 			return "", fmt.Errorf("no key set")
 		}
-		formattedString += fmt.Sprintf("%s%s", split[0], replacement)
+		formattedString += fmt.Sprintf("%s%s", split[0], sanitize(replacement))
 		template = afterSplit[1]
 	}
 	formattedString += template
@@ -55,7 +55,7 @@ func (c *Coordinator) AwaitPendingSource(sourceNameVariant metadata.NameVariant)
 		}
 		sourceStatus := source.Status()
 		if sourceStatus == metadata.FAILED {
-			return nil, fmt.Errorf("source of feature not ready")
+			return nil, fmt.Errorf("source of feature not ready: name: %s, variant: %s", sourceNameVariant.Name, sourceNameVariant.Variant)
 		}
 		if sourceStatus == metadata.READY {
 			return source, nil
@@ -81,7 +81,7 @@ func GetLockKey(jobKey string) string {
 func (k *KubernetesJobSpawner) GetJobRunner(jobName string, config runner.Config) (runner.Runner, error) {
 	kubeConfig := runner.KubernetesRunnerConfig{
 		EnvVars:  map[string]string{"NAME": jobName, "CONFIG": string(config)},
-		Image:    "featureform/worker",
+		Image:    "featureformcom/worker",
 		NumTasks: 1,
 	}
 	jobRunner, err := runner.NewKubernetesRunner(kubeConfig)
@@ -108,11 +108,11 @@ func NewCoordinator(meta *metadata.Client, logger *zap.SugaredLogger, cli *clien
 		EtcdClient: cli,
 		KVClient:   &kvc,
 		Spawner:    spawner,
-		Timeout:    5,
+		Timeout:    60,
 	}, nil
 }
 
-const MAX_ATTEMPTS = 1
+const MAX_ATTEMPTS = 60
 
 func (c *Coordinator) WatchForNewJobs() error {
 	c.Logger.Info("Watching for new jobs")
@@ -187,7 +187,7 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 	for !allReady {
 		sourceVariants, err := c.Metadata.GetSourceVariants(context.Background(), sources)
 		if err != nil {
-			return err
+			return fmt.Errorf("get source variant: %w ", err)
 		}
 		total := len(sourceVariants)
 		totalReady := 0
@@ -203,12 +203,13 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 	}
 	sourceMap, err := c.mapNameVariantsToTables(sources)
 	if err != nil {
-		return err
+		return fmt.Errorf("map name: %w sources: %v", err, sources)
 	}
 	query, err := templateReplace(templateString, sourceMap)
 	if err != nil {
-		return err
+		return fmt.Errorf("template replace: %w source map: %v, template: %s", err, sourceMap, templateString)
 	}
+	c.Logger.Debugw("Created transformation query", "query", query)
 	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Transformation}
 	transformationConfig := provider.TransformationConfig{TargetTableID: providerResourceID, Query: query}
 	if err := offlineStore.CreateTransformation(transformationConfig); err != nil {
@@ -217,6 +218,7 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
 		return err
 	}
+	c.Logger.Info("Transformation Job Complete", resID)
 	return nil
 }
 
@@ -263,6 +265,74 @@ func (c *Coordinator) runRegisterSourceJob(resID metadata.ResourceID) error {
 	}
 }
 
+func (c *Coordinator) runLabelRegisterJob(resID metadata.ResourceID) error {
+	c.Logger.Info("Running label register job: ", resID)
+	label, err := c.Metadata.GetLabelVariant(context.Background(), metadata.NameVariant{resID.Name, resID.Variant})
+	if err != nil {
+		return err
+	}
+	status := label.Status()
+	if status == metadata.READY {
+		return fmt.Errorf("feature already set to %s", status.String())
+	}
+	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.PENDING, ""); err != nil {
+		return err
+	}
+
+	sourceNameVariant := label.Source()
+	c.Logger.Infow("feature obj", "name", label.Name(), "source", label.Source(), "location", label.Location(), "location_col", label.LocationColumns())
+
+	source, err := c.AwaitPendingSource(sourceNameVariant)
+	if err != nil {
+		return fmt.Errorf("source of could not complete job: %w", err)
+	}
+	sourceProvider, err := source.FetchProvider(c.Metadata, context.Background())
+	if err != nil {
+		return fmt.Errorf("could not fetch online provider: %w", err)
+	}
+	p, err := provider.Get(provider.Type(sourceProvider.Type()), sourceProvider.SerializedConfig())
+	if err != nil {
+		return fmt.Errorf("could not get offline provider config: %w", err)
+	}
+	sourceStore, err := p.AsOfflineStore()
+	if err != nil {
+		return fmt.Errorf("could not use store as offline store: %w", err)
+	}
+
+	srcID := provider.ResourceID{
+		Name:    sourceNameVariant.Name,
+		Variant: sourceNameVariant.Variant,
+	}
+	srcName, err := provider.GetTransformationName(srcID)
+	if err != nil {
+		return fmt.Errorf("transform name err: %w", err)
+	}
+
+	labelID := provider.ResourceID{
+		Name:    resID.Name,
+		Variant: resID.Variant,
+		Type:    provider.Label,
+	}
+	tmpSchema := label.LocationColumns().(metadata.ResourceVariantColumns)
+	schema := provider.ResourceSchema{
+		Entity:      tmpSchema.Entity,
+		Value:       tmpSchema.Value,
+		TS:          tmpSchema.TS,
+		SourceTable: srcName,
+	}
+	c.Logger.Debugw("Creating Label Resource Table", "id", labelID, "schema", schema)
+	_, err = sourceStore.RegisterResourceFromSourceTable(labelID, schema)
+	if err != nil {
+		return fmt.Errorf("register from source: %w", err)
+	}
+	c.Logger.Debugw("Resource Table Created", "id", labelID, "schema", schema)
+
+	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
+		return err
+	}
+	return nil
+}
+
 //should only be triggered when we are registering an ONLINE feature, not an offline one
 func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID) error {
 	c.Logger.Info("Running feature materialization job on resource: ", resID)
@@ -272,41 +342,72 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID) error 
 	}
 	status := feature.Status()
 	featureType := feature.Type()
-	if status == metadata.READY || status == metadata.FAILED {
+	if status == metadata.READY {
 		return fmt.Errorf("feature already set to %s", status.String())
 	}
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.PENDING, ""); err != nil {
 		return err
 	}
+
 	sourceNameVariant := feature.Source()
+	c.Logger.Infow("feature obj", "name", feature.Name(), "source", feature.Source(), "location", feature.Location(), "location_col", feature.LocationColumns())
+
 	source, err := c.AwaitPendingSource(sourceNameVariant)
 	if err != nil {
-		return fmt.Errorf("source of could not complete job: %v", err)
+		return fmt.Errorf("source of could not complete job: %w", err)
 	}
 	sourceProvider, err := source.FetchProvider(c.Metadata, context.Background())
 	if err != nil {
-		return err
+		return fmt.Errorf("could not fetch online provider: %w", err)
 	}
 	p, err := provider.Get(provider.Type(sourceProvider.Type()), sourceProvider.SerializedConfig())
 	if err != nil {
-		return err
+		return fmt.Errorf("could not get offline provider config: %w", err)
 	}
 	sourceStore, err := p.AsOfflineStore()
 	if err != nil {
-		return err
+		return fmt.Errorf("could not use store as offline store: %w", err)
 	}
 	featureProvider, err := feature.FetchProvider(c.Metadata, context.Background())
 	if err != nil {
-		return err
+		return fmt.Errorf("could not fetch  onlineprovider: %w", err)
 	}
 	p, err = provider.Get(provider.Type(featureProvider.Type()), featureProvider.SerializedConfig())
 	if err != nil {
-		return err
+		return fmt.Errorf("could not get online provider config: %w", err)
 	}
 	featureStore, err := p.AsOnlineStore()
 	if err != nil {
-		return err
+		return fmt.Errorf("could not use store as online store: %w", err)
 	}
+	srcID := provider.ResourceID{
+		Name:    sourceNameVariant.Name,
+		Variant: sourceNameVariant.Variant,
+	}
+	srcName, err := provider.GetTransformationName(srcID)
+	if err != nil {
+		return fmt.Errorf("transform name err: %w", err)
+	}
+
+	featID := provider.ResourceID{
+		Name:    resID.Name,
+		Variant: resID.Variant,
+		Type:    provider.Feature,
+	}
+	tmpSchema := feature.LocationColumns().(metadata.ResourceVariantColumns)
+	schema := provider.ResourceSchema{
+		Entity:      tmpSchema.Entity,
+		Value:       tmpSchema.Value,
+		TS:          tmpSchema.TS,
+		SourceTable: srcName,
+	}
+	c.Logger.Debugw("Creating Resource Table", "id", featID, "schema", schema)
+	_, err = sourceStore.RegisterResourceFromSourceTable(featID, schema)
+	if err != nil {
+		return fmt.Errorf("materialize feature register: %w", err)
+	}
+	c.Logger.Debugw("Resource Table Created", "id", featID, "schema", schema)
+
 	materializeRunner := runner.MaterializeRunner{
 		Online:  featureStore,
 		Offline: sourceStore,
@@ -314,16 +415,18 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID) error 
 		VType:   provider.ValueType(featureType),
 		Cloud:   runner.LocalMaterializeRunner,
 	}
+	c.Logger.Info("Starting Materialize")
 	completionWatcher, err := materializeRunner.Run()
 	if err != nil {
 		return err
 	}
 	if err := completionWatcher.Wait(); err != nil {
-		return err
+		return fmt.Errorf("completion watcher: %w", err)
 	}
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
-		return err
+		return fmt.Errorf("materialize set success: %w", err)
 	}
+	c.Logger.Info("Materialize Complete")
 	return nil
 }
 
@@ -484,7 +587,7 @@ func (c *Coordinator) hasJob(id metadata.ResourceID) (bool, error) {
 func (c *Coordinator) createJobLock(jobKey string, s *concurrency.Session) (*concurrency.Mutex, error) {
 	mtx := concurrency.NewMutex(s, GetLockKey(jobKey))
 	if err := mtx.Lock(context.Background()); err != nil {
-		return nil, err
+		panic(err)
 	}
 	return mtx, nil
 }
@@ -500,13 +603,12 @@ func (c *Coordinator) executeJob(jobKey string) error {
 	c.Logger.Info("Executing new job with key ", jobKey)
 	s, err := concurrency.NewSession(c.EtcdClient, concurrency.WithTTL(1))
 	if err != nil {
-
-		return err
+		return fmt.Errorf("new session: %w", err)
 	}
 	defer s.Close()
 	mtx, err := c.createJobLock(jobKey, s)
 	if err != nil {
-		return err
+		return fmt.Errorf("job lock: %w", err)
 	}
 	defer func() {
 		if err := mtx.Unlock(context.Background()); err != nil {
@@ -515,19 +617,20 @@ func (c *Coordinator) executeJob(jobKey string) error {
 	}()
 	job, err := c.getJob(mtx, jobKey)
 	if err != nil {
-		return err
+		return fmt.Errorf("get job: %w", err)
 	}
 	c.Logger.Debugf("Job %s is on attempt %d", jobKey, job.Attempts)
 	if job.Attempts > MAX_ATTEMPTS {
 		return c.markJobFailed(job)
 	}
 	if err := c.incrementJobAttempts(mtx, job, jobKey); err != nil {
-		return err
+		return fmt.Errorf("increment attempt: %w", err)
 	}
 	type jobFunction func(metadata.ResourceID) error
 	fns := map[metadata.ResourceType]jobFunction{
 		metadata.TRAINING_SET_VARIANT: c.runTrainingSetJob,
 		metadata.FEATURE_VARIANT:      c.runFeatureMaterializeJob,
+		metadata.LABEL_VARIANT:        c.runLabelRegisterJob,
 		metadata.SOURCE_VARIANT:       c.runRegisterSourceJob,
 	}
 	jobFunc, has := fns[job.Resource.Type]
@@ -541,7 +644,7 @@ func (c *Coordinator) executeJob(jobKey string) error {
 	c.Logger.Info("Succesfully executed job with key: ", jobKey)
 	if err := c.deleteJob(mtx, jobKey); err != nil {
 		c.Logger.Debugw("Error deleting job", "error", err)
-		return err
+		return fmt.Errorf("job delete: %w", err)
 	}
 	return nil
 }

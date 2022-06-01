@@ -1,31 +1,25 @@
-##To Create a Sandbox
+##Deployment Steps
 
 ###Prerequisites
 
 - kubectl
 - aws cli
-- eksctl
+- terraform
 - helm
 
 ###Create Cluster
-Run:
+In the terraform/ directory, run:
 ````
-eksctl create cluster \
---name <CLUSTER_NAME> \
---version 1.21 \
---region us-east-1 \
---nodegroup-name linux-nodes \
---nodes 1 \
---nodes-min 1 \
---nodes-max 5 \
---with-oidc \
---managed
+terraform init
+terraform apply
 ````
+###Setup kubeconfig
+In the terraform/ directory, run:
+
+``aws eks --region $(terraform output -raw region) update-kubeconfig --name $(terraform output -raw cluster_name)``
+
 
 ###Install Certificate Manager
-
-`kubectl create namespace cert-manager`
-
 `helm repo add jetstack https://charts.jetstack.io`
 
 `helm repo update`
@@ -33,34 +27,35 @@ eksctl create cluster \
 helm install certmgr jetstack/cert-manager \
     --set installCRDs=true \
     --version v1.0.4 \
-    --namespace cert-manager
+    --namespace cert-manager \
+    --create-namespace
 ```
 
-###Install Sandbox
+###Install featureform
 Go to ff/serving/charts and run:
 
-`helm install <NAME> ./featureform/` 
+`helm install <NAME> ./featureform/ --set global.hostname=<DOMAIN_NAME>` 
 
-(This will create a sandbox accessible at <NAME>-sandbox.featureform.com)
+Where <DOMAIN_NAME> is the desired domain name that you own
+and <NAME> is your choice of name for the helm release
+
+###Create DNS Record
+Run:
+``kubectl get ingress``
+
+and select the url in the "ADDRESS" field. Something like:
+xxxxxxxxxxxxxxxxxx-xxxxxxxxxx.us-east-1.elb.amazonaws.com
+
+Then create a cname record directing your <DOMAIN_NAME> to the ADDRESS in your domain provider
+
+Featureform with automatically create a public TLS certificate for your hostname. 
+The status can be checked with
+``kubectl get certificate``
+
+###Usage
 
 Wait until pods are ready by checking:
 
 `kubectl get pods`
 
-(Currently, metadata and coordinator will just terminate and restart repeatedly until etcd is ready)
-
-###Forward DNS
-1. Run:
-`kubectl get ingress`
-2. Copy the hostname
-
-3. Go to:
-https://us-east-1.console.aws.amazon.com/route53/v2/hostedzones?region=us-east-1#ListRecordSets/Z09940351UD84OM1DEZJB
-
-4. Click "Create record"
-5. Create a record with the copied hostname
-6. Change "Record type" to "CNAME"
-7. Copy the address from `kubectl get ingress`
-8. Paste the address in the "Value" field
-9. Hit "Create records"
-
+When everything is in a "Running" state, go to your <DOMAIN_NAME> to view the Featureform dashboard

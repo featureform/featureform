@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -128,14 +129,21 @@ func (serv *OnlineServer) TrainingData(req *srv.TrainingDataRequest, stream srv.
 	serv.Logger.Infow("Serving Training Data", "id", req.Id.String())
 	client, err := serv.client.TrainingData(context.Background(), req)
 	if err != nil {
-		return err
+		return fmt.Errorf("training data: %w", err)
 	}
-	row, err := client.Recv()
-	if err := stream.Send(row); err != nil {
-		serv.Logger.Errorw("Failed to write to stream", "Error", err)
-		return err
+	for {
+		row, err := client.Recv()
+		if err != nil {
+			if err == io.EOF {
+				return nil
+			}
+			return fmt.Errorf("receive error: %w", err)
+		}
+		if err := stream.Send(row); err != nil {
+			serv.Logger.Errorw("Failed to write to stream", "Error", err)
+			return fmt.Errorf("training send row: %w", err)
+		}
 	}
-	return nil
 }
 
 func (serv *ApiServer) Serve() error {
@@ -144,23 +152,23 @@ func (serv *ApiServer) Serve() error {
 	}
 	lis, err := net.Listen("tcp", serv.address)
 	if err != nil {
-		return err
+		return fmt.Errorf("listen: %w", err)
 	}
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
 	metaConn, err := grpc.Dial(serv.metadata.address, opts...)
 	if err != nil {
-		return err
+		return fmt.Errorf("metdata connection: %w", err)
 	}
 	servConn, err := grpc.Dial(serv.online.address, opts...)
 	if err != nil {
-		return err
+		return fmt.Errorf("serving connection: %w", err)
 	}
 	serv.metadata.meta = pb.NewMetadataClient(metaConn)
 	client, err := metadata.NewClient(serv.metadata.address, serv.Logger)
 	if err != nil {
-		return err
+		return fmt.Errorf("metdata new client: %w", err)
 	}
 	serv.metadata.client = client
 	serv.online.client = srv.NewFeatureClient(servConn)
@@ -203,7 +211,7 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)
 
-	_, err := io.WriteString(w, `<html><body>Welcome to gRPC on GKE example</body></html>`)
+	_, err := io.WriteString(w, `<html><body>Welcome to featureform</body></html>`)
 	if err != nil {
 		fmt.Printf("index / write response error: %+v", err)
 	}
@@ -235,6 +243,14 @@ func startHttpsServer(port string) error {
 }
 
 func main() {
+	apiPort := os.Getenv("API_PORT")
+	metadataHost := os.Getenv("METADATA_HOST")
+	metadataPort := os.Getenv("METADATA_PORT")
+	servingHost := os.Getenv("SERVING_HOST")
+	servingPort := os.Getenv("SERVING_PORT")
+	apiConn := fmt.Sprintf("0.0.0.0:%s", apiPort)
+	metadataConn := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
+	servingConn := fmt.Sprintf("%s:%s", servingHost, servingPort)
 	logger := zap.NewExample().Sugar()
 	go func() {
 		err := startHttpsServer(":8443")
@@ -242,7 +258,7 @@ func main() {
 			panic(fmt.Sprintf("health check HTTP server failed: %+v", err))
 		}
 	}()
-	serv, err := NewApiServer(logger, "0.0.0.0:7878", "sandbox-metadata-server:8080", "sandbox-serving-server:8080")
+	serv, err := NewApiServer(logger, apiConn, metadataConn, servingConn)
 	if err != nil {
 		fmt.Println(err)
 		return

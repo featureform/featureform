@@ -47,7 +47,7 @@ Selector labels
 */}}
 {{- define "grpc-ingress.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "grpc-ingress.name" . }}
-app.kubernetes.io/instance: sandbox
+app.kubernetes.io/instance: featureform
 {{- end }}
 
 {{/*

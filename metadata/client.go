@@ -730,9 +730,10 @@ func (client *Client) CreateSourceVariant(ctx context.Context, def SourceDef) er
 }
 
 func (client *Client) GetSourceVariants(ctx context.Context, ids []NameVariant) ([]*SourceVariant, error) {
+	client.Logger.Infow("Getting Source Variant", "ids", ids)
 	stream, err := client.grpcConn.GetSourceVariants(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("grpc connect: %w", err)
 	}
 	go func() {
 		for _, id := range ids {
@@ -1295,7 +1296,10 @@ func (variant *FeatureVariant) Owner() string {
 }
 
 func (variant *FeatureVariant) Status() ResourceStatus {
-	return ResourceStatus(variant.serialized.GetStatus().Status)
+	if variant.serialized.GetStatus() != nil {
+		return ResourceStatus(variant.serialized.GetStatus().Status)
+	}
+	return ResourceStatus(0)
 }
 
 func (variant *FeatureVariant) Error() string {
@@ -1346,7 +1350,10 @@ func (user *User) Name() string {
 }
 
 func (user *User) Status() ResourceStatus {
-	return ResourceStatus(user.serialized.GetStatus().Status)
+	if user.serialized.GetStatus() != nil {
+		return ResourceStatus(user.serialized.GetStatus().Status)
+	}
+	return ResourceStatus(0)
 }
 
 func (user *User) Error() string {
@@ -1398,7 +1405,10 @@ func (provider *Provider) SerializedConfig() []byte {
 }
 
 func (provider *Provider) Status() ResourceStatus {
-	return ResourceStatus(provider.serialized.GetStatus().Status)
+	if provider.serialized.GetStatus() != nil {
+		return ResourceStatus(provider.serialized.GetStatus().Status)
+	}
+	return ResourceStatus(0)
 }
 
 func (provider *Provider) Error() string {
@@ -1432,7 +1442,10 @@ func (model *Model) Description() string {
 }
 
 func (model *Model) Status() ResourceStatus {
-	return ResourceStatus(model.serialized.GetStatus().Status)
+	if model.serialized.GetStatus() != nil {
+		return ResourceStatus(model.serialized.GetStatus().Status)
+	}
+	return ResourceStatus(0)
 }
 
 func (model *Model) Error() string {
@@ -1502,7 +1515,10 @@ func (variant *LabelVariant) Owner() string {
 }
 
 func (variant *LabelVariant) Status() ResourceStatus {
-	return ResourceStatus(variant.serialized.GetStatus().Status)
+	if variant.serialized.GetStatus() != nil {
+		return ResourceStatus(variant.serialized.GetStatus().Status)
+	}
+	return ResourceStatus(0)
 }
 
 func (variant *LabelVariant) Error() string {
@@ -1580,7 +1596,10 @@ func (variant *TrainingSetVariant) Owner() string {
 }
 
 func (variant *TrainingSetVariant) Status() ResourceStatus {
-	return ResourceStatus(variant.serialized.GetStatus().Status)
+	if variant.serialized.GetStatus() != nil {
+		return ResourceStatus(variant.serialized.GetStatus().Status)
+	}
+	return ResourceStatus(0)
 }
 
 func (variant *TrainingSetVariant) Error() string {
@@ -1660,7 +1679,10 @@ func (variant *SourceVariant) Owner() string {
 }
 
 func (variant *SourceVariant) Status() ResourceStatus {
-	return ResourceStatus(variant.serialized.GetStatus().Status)
+	if variant.serialized.GetStatus() != nil {
+		return ResourceStatus(variant.serialized.GetStatus().Status)
+	}
+	return ResourceStatus(0)
 }
 
 func (variant *SourceVariant) Error() string {
@@ -1742,7 +1764,10 @@ func (entity *Entity) Description() string {
 }
 
 func (entity *Entity) Status() ResourceStatus {
-	return ResourceStatus(entity.serialized.GetStatus().Status)
+	if entity.serialized.GetStatus() != nil {
+		return ResourceStatus(entity.serialized.GetStatus().Status)
+	}
+	return ResourceStatus(0)
 }
 
 func (entity *Entity) Error() string {

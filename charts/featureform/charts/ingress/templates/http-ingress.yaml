@@ -12,35 +12,35 @@ metadata:
   namespace: default
 spec:
   rules:
-    - host: {{ .Release.Name }}-sandbox.featureform.com
+    - host: {{ .Values.global.hostname }}
       http:
         paths:
           - path: /collections/
             pathType: Prefix
             backend:
               service:
-                name: sandbox-typesense
+                name: featureform-typesense
                 port:
                   number: 80
           - path: /data/
             pathType: Prefix
             backend:
               service:
-                name: sandbox-dashboard-metadata
+                name: featureform-dashboard-metadata
                 port:
                   number: 8080
           - path: /prometheus/
             pathType: Prefix
             backend:
               service:
-                name: sandbox-prometheus-service
+                name: featureform-prometheus-service
                 port:
                   number: 9090
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: sandbox-dashboard
+                name: featureform-dashboard
                 port:
                   number: 3000
 

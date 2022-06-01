@@ -1,0 +1,13 @@
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: scribd-coodinator-binding
+  namespace: default
+subjects:
+  - kind: ServiceAccount
+    name: scribd-coodinator
+    apiGroup: ""
+roleRef:
+  kind: Role
+  name: scribd-coodinator
+  apiGroup: ""

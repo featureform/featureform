@@ -32,7 +32,7 @@ func ResetFactoryMap() {
 
 func RegisterFactory(name string, runnerFactory RunnerFactory) error {
 	if _, exists := factoryMap[name]; exists {
-		return fmt.Errorf("factory %s already registered", name)
+		return fmt.Errorf("factory already registered: %s", name)
 	}
 	factoryMap[name] = runnerFactory
 	return nil
@@ -41,7 +41,7 @@ func RegisterFactory(name string, runnerFactory RunnerFactory) error {
 func Create(name string, config Config) (Runner, error) {
 	factory, exists := factoryMap[name]
 	if !exists {
-		return nil, fmt.Errorf("factory %s does not exist", name)
+		return nil, fmt.Errorf("factory does not exist: %s", name)
 	}
 	runner, err := factory(config)
 	if err != nil {

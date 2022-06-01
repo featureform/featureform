@@ -84,7 +84,8 @@ func (serv *MetadataServer) needsJob(res Resource) bool {
 	if res.ID().Type == TRAINING_SET_VARIANT ||
 		res.ID().Type == FEATURE_VARIANT ||
 		//extra flag on feature variant for online/offline?
-		res.ID().Type == SOURCE_VARIANT {
+		res.ID().Type == SOURCE_VARIANT ||
+		res.ID().Type == LABEL_VARIANT {
 		return true
 	}
 	return false
@@ -148,12 +149,13 @@ func resourceNamedSafely(id ResourceID) error {
 
 type ResourceNotFound struct {
 	ID ResourceID
+	E  error
 }
 
 func (err *ResourceNotFound) Error() string {
 	id := err.ID
 	name, variant, t := id.Name, id.Variant, id.Type
-	errMsg := fmt.Sprintf("%s Not Found.\nName: %s", t, name)
+	errMsg := fmt.Sprintf("%s Not Found.\nName: %s err: %v", t, name, err.E)
 	if variant != "" {
 		errMsg += "\nVariant: " + variant
 	}
@@ -236,7 +238,7 @@ type localResourceLookup map[ResourceID]Resource
 func (lookup localResourceLookup) Lookup(id ResourceID) (Resource, error) {
 	res, has := lookup[id]
 	if !has {
-		return nil, &ResourceNotFound{id}
+		return nil, &ResourceNotFound{id, nil}
 	}
 	return res, nil
 }
@@ -256,7 +258,7 @@ func (lookup localResourceLookup) Submap(ids []ResourceID) (ResourceLookup, erro
 	for _, id := range ids {
 		resource, has := lookup[id]
 		if !has {
-			return nil, &ResourceNotFound{id}
+			return nil, &ResourceNotFound{id, nil}
 		}
 		resources[id] = resource
 	}
@@ -284,7 +286,7 @@ func (lookup localResourceLookup) List() ([]Resource, error) {
 func (lookup localResourceLookup) SetStatus(id ResourceID, status pb.ResourceStatus) error {
 	res, has := lookup[id]
 	if !has {
-		return &ResourceNotFound{id}
+		return &ResourceNotFound{id, nil}
 	}
 	if err := res.UpdateStatus(status); err != nil {
 		return err
@@ -304,7 +306,7 @@ func (lookup localResourceLookup) SetSchedule(id ResourceID, schedule string) er
 func (lookup localResourceLookup) SetUpdateStatus(id ResourceID, status pb.UpdateStatus) error {
 	res, has := lookup[id]
 	if !has {
-		return &ResourceNotFound{id}
+		return &ResourceNotFound{id, fmt.Errorf("no resource found")}
 	}
 	if err := res.SetUpdateStatus(status); err != nil {
 		return err
@@ -1065,8 +1067,13 @@ func (serv *MetadataServer) SetResourceUpdateStatus(ctx context.Context, req *pb
 }
 
 func (serv *MetadataServer) SetResourceStatus(ctx context.Context, req *pb.SetStatusRequest) (*pb.Empty, error) {
+	serv.Logger.Infow("Setting resource status", "request", req.String())
 	resID := ResourceID{Name: req.ResourceId.Resource.Name, Variant: req.ResourceId.Resource.Variant, Type: ResourceType(req.ResourceId.ResourceType)}
 	err := serv.lookup.SetStatus(resID, *req.Status)
+	if err != nil {
+		serv.Logger.Errorw("Could not set resource status", "error", err.Error())
+	}
+
 	return &pb.Empty{}, err
 }
 
@@ -1193,6 +1200,7 @@ func (serv *MetadataServer) GetSources(stream pb.Metadata_GetSourcesServer) erro
 }
 
 func (serv *MetadataServer) GetSourceVariants(stream pb.Metadata_GetSourceVariantsServer) error {
+	serv.Logger.Infow("Getting Source Variant In Metadata")
 	return serv.genericGet(stream, SOURCE_VARIANT, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.SourceVariant))
 	})
@@ -1275,6 +1283,7 @@ type sendFn func(proto.Message) error
 type initParentFn func(name, variant string) Resource
 
 func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, init initParentFn) (*pb.Empty, error) {
+	serv.Logger.Info("Creating Generic Resource", res.ID().Name, res.ID().Variant)
 	id := res.ID()
 	if err := resourceNamedSafely(id); err != nil {
 		return nil, err
@@ -1288,9 +1297,11 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		return nil, err
 	}
 	if serv.needsJob(res) {
+		serv.Logger.Info("Creating Job", res.ID().Name, res.ID().Variant)
 		if err := serv.lookup.SetJob(id); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("set job: %w", err)
 		}
+		serv.Logger.Info("Successfully Created Job", res.ID().Name, res.ID().Variant)
 	}
 	parentId, hasParent := id.Parent()
 	if hasParent {

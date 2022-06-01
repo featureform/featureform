@@ -8,7 +8,13 @@ image:
   repository: featureformcom/serving
   pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "latest"
+  tag: stable
+
+metrics:
+  port: 2112
+
+serving:
+  port: 8080
 
 imagePullSecrets: []
 nameOverride: ""

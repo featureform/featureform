@@ -2844,7 +2844,9 @@ func Test_createPrimaryFromSource(t *testing.T) {
 			}
 
 			t.Log("Primary Name: ", primaryCopyID.Name)
-			_, err = store.RegisterPrimaryFromSourceTable(primaryCopyID, table.GetName())
+			//Need to sanitize name here b/c the the xxx-xxx format of the uuid. Cannot do it within
+			// register function because precreated tables do not necessarily use double quotes
+			_, err = store.RegisterPrimaryFromSourceTable(primaryCopyID, sanitize(table.GetName()))
 			if err != nil {
 				t.Fatalf("Could not register from Source Table: %s", err)
 			}

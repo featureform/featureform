@@ -1,16 +1,15 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: sandbox-prometheus-service
+  name: featureform-prometheus-service
   annotations:
     prometheus.io/scrape: "true"
     prometheus.io/port: "9090"
 
 spec:
   selector:
-    app: sandbox-prometheus-server
-  type: NodePort
+    app: featureform-prometheus-server
+  type: ClusterIP
   ports:
     - port: 9090
       targetPort: 9090
-      nodePort: 30001

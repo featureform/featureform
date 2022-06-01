@@ -121,10 +121,11 @@ func (store *sqlOfflineStore) getTrainingSetName(id ResourceID) (string, error) 
 }
 
 func GetTransformationName(id ResourceID) (string, error) {
-	if err := checkName(id); err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("featureform_transformation_%s__%s", id.Name, id.Variant), nil
+	return GetPrimaryTableName(id)
+	//if err := checkName(id); err != nil {
+	//	return "", err
+	//}
+	//return fmt.Sprintf("featureform_primary_%s__%s", id.Name, id.Variant), nil
 }
 
 func GetPrimaryTableName(id ResourceID) (string, error) {
@@ -206,20 +207,20 @@ func (store *sqlOfflineStore) RegisterResourceFromSourceTable(id ResourceID, sch
 
 func (store *sqlOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error) {
 	if err := id.check(Primary); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("check fail: %w", err)
 	}
 	if exists, err := store.tableExists(id); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("table exist: %w", err)
 	} else if exists {
 		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}
 	tableName, err := GetPrimaryTableName(id)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get name: %w", err)
 	}
 	query := store.query.primaryTableRegister(tableName, sourceName)
 	if _, err := store.db.Exec(query); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("register table: %w", err)
 	}
 
 	columnNames, err := store.query.getColumns(store.db, tableName)
@@ -1126,7 +1127,7 @@ func (q defaultOfflineSQLQueries) registerResources(db *sql.DB, tableName string
 }
 
 func (q defaultOfflineSQLQueries) primaryTableRegister(tableName string, sourceName string) string {
-	return fmt.Sprintf("CREATE VIEW %s AS SELECT * FROM TABLE('%s')", sanitize(tableName), sanitize(sourceName))
+	return fmt.Sprintf("CREATE VIEW %s AS SELECT * FROM TABLE('%s')", sanitize(tableName), sourceName)
 }
 func (q defaultOfflineSQLQueries) getColumns(db *sql.DB, name string) ([]TableColumn, error) {
 	bind := q.newVariableBindingIterator()

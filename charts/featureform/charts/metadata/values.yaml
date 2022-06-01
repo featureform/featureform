@@ -5,14 +5,24 @@
 replicaCount: 1
 
 image:
-  repository: featureformcom/metadata:latest
+  repository: featureformcom/metadata
   pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
-  tag: ""
+  tag: stable
 
 imagePullSecrets: []
 nameOverride: metadata-server
 fullnameOverride: ""
+
+typesense:
+  host: featureform-typesense
+  port: 80
+  apikey: xyz
+
+
+etcd:
+  host: featureform-etcd
+  port: 2379
 
 serviceAccount:
   # Specifies whether a service account should be created
@@ -46,11 +56,11 @@ grpc:
   port: 8080
 
 #typesense:
-#  host: sandbox-typesense
+#  host: featureform-typesense
 #  port: 80
 #
 #etcd:
-#  host: sandbox-etcd
+#  host: featureform-etcd
 #  port: 2397
 
 ingress:

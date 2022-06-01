@@ -1,8 +1,8 @@
 Dashboard is available at:
-{{ .Release.Name }}-sandbox.featureform.com
+{{ .Values.global.hostname }}
 
 Dashboard Backend is available at:
-{{ .Release.Name }}-sandbox.featureform.com/data/
+{{ .Values.global.hostname }}/data/
 
 CLI can be connected with host flag:
---host {{ .Release.Name }}-sandbox.featureform.com:443
+python3 -m featureform <file> --host {{ .Values.global.hostname }}:443

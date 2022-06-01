@@ -110,7 +110,7 @@ func Test_etcdResourceLookup_Set(t *testing.T) {
 				&pb.FeatureVariant{},
 			}
 
-			var msg EtcdRow
+			var msg EtcdRowTemp
 			if err := json.Unmarshal(value, &msg); err != nil {
 				log.Fatalln("Failed To Parse Resource", err)
 			}

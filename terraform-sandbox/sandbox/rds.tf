@@ -18,4 +18,5 @@ resource "aws_db_instance" "postgres" {
   db_subnet_group_name   = aws_db_subnet_group.public_subnet_group.name
   publicly_accessible    = true
   skip_final_snapshot    = true
+  security_group_names = [aws_security_group.all_worker_mgmt.name]
 }

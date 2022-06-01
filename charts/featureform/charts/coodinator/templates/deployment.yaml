@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: sandbox-coordinator
+  name: featureform-coordinator
   labels:
     {{- include "coodinator.labels" . | nindent 4 }}
 spec:
@@ -37,11 +37,11 @@ spec:
             - name: ETCD_PORT
               value: "2379"
             - name: ETCD_HOST
-              value: sandbox-etcd
+              value: featureform-etcd
             - name: METADATA_PORT
               value: "8080"
             - name: METADATA_HOST
-              value: sandbox-metadata-server
+              value: featureform-metadata-server
           ports:
             - name: http
               containerPort: 80

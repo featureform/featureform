@@ -3,28 +3,30 @@ kind: Deployment
 metadata:
   creationTimestamp: null
   labels:
-    run: sandbox-feature-server
-  name: sandbox-feature-server
+    run: featureform-feature-server
+  name: featureform-feature-server
 spec:
   replicas: 1
   selector:
     matchLabels:
-      run: sandbox-feature-server
+      run: featureform-feature-server
   strategy: {}
   template:
     metadata:
       creationTimestamp: null
       labels:
-        run: sandbox-feature-server
+        run: featureform-feature-server
     spec:
       containers:
         - image: {{ .Values.image.repository }}
-          name: sandbox-feature-server
+          name: featureform-feature-server
           ports:
-            - containerPort: 8080
-            - containerPort: 2112
+            - containerPort: {{ .Values.serving.port }}
+            - containerPort: {{ .Values.metrics.port }}
           env:
             - name: SERVING_PORT
-              value: "localhost:8080"
+              value: "0.0.0.0:"{{ .Values.serving.port }}
+            - name: METRICS_PORT
+              value: "0.0.0.0:"{{ .Values.matrics.port }}
           resources: {}
 status: {}

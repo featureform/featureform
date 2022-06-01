@@ -42,22 +42,6 @@ type CoordinatorScheduleJob struct {
 	Schedule string
 }
 
-func (c *CoordinatorJob) Serialize() ([]byte, error) {
-	serialized, err := json.Marshal(c)
-	if err != nil {
-		return nil, err
-	}
-	return serialized, nil
-}
-
-func (c *CoordinatorJob) Deserialize(serialized []byte) error {
-	err := json.Unmarshal(serialized, c)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 func (c *CoordinatorScheduleJob) Serialize() ([]byte, error) {
 	serialized, err := json.Marshal(c)
 	if err != nil {
@@ -74,17 +58,55 @@ func (c *CoordinatorScheduleJob) Deserialize(serialized []byte) error {
 	return nil
 }
 
+type TempJob struct {
+	Attempts int
+	Name     string
+	Variant  string
+	Type     string
+}
+
+func (c *CoordinatorJob) Serialize() ([]byte, error) {
+	job := TempJob{
+		Attempts: c.Attempts,
+		Name:     c.Resource.Name,
+		Variant:  c.Resource.Variant,
+		Type:     c.Resource.Type.String(),
+	}
+	serialized, err := json.Marshal(job)
+	if err != nil {
+		return nil, err
+	}
+	return serialized, nil
+}
+
+func (c *CoordinatorJob) Deserialize(serialized []byte) error {
+	job := TempJob{}
+	err := json.Unmarshal(serialized, &job)
+
+	if err != nil {
+		return err
+	}
+	c.Attempts = job.Attempts
+	c.Resource.Name = job.Name
+	c.Resource.Variant = job.Variant
+	c.Resource.Type = ResourceType(pb.ResourceType_value[job.Type])
+	return nil
+}
+
 func (c EtcdConfig) initClient() (*clientv3.Client, error) {
 	addresses := c.MakeAddresses()
 	client, err := clientv3.New(clientv3.Config{
-		Endpoints:   addresses,
-		DialTimeout: time.Second * 1,
-		Username:    "root",
-		Password:    "secretpassword",
+		Endpoints:         addresses,
+		AutoSyncInterval:  time.Second * 30,
+		DialTimeout:       time.Second * 1,
+		DialKeepAliveTime: time.Second * 1,
+		Username:          "root",
+		Password:          "secretpassword",
 	})
 	if err != nil {
 		return nil, err
 	}
+
 	return client, nil
 }
 
@@ -100,8 +122,16 @@ type etcdResourceLookup struct {
 //Wrapper around Resource/Job messages. Allows top level storage for info about saved value
 type EtcdRow struct {
 	ResourceType ResourceType //Resource Type. For use when getting stored keys
-	StorageType  StorageType  //Type of storage. Resource or Job
-	Message      []byte       //Contents to be stored
+	//ResourceType string
+	StorageType StorageType //Type of storage. Resource or Job
+	Message     []byte      //Contents to be stored
+}
+
+type EtcdRowTemp struct {
+	//ResourceType ResourceType //Resource Type. For use when getting stored keys
+	ResourceType string
+	StorageType  StorageType //Type of storage. Resource or Job
+	Message      []byte      //Contents to be stored
 }
 
 func (config EtcdConfig) MakeAddresses() []string {
@@ -258,11 +288,12 @@ func (lookup etcdResourceLookup) serializeResource(res Resource) ([]byte, error)
 	if err != nil {
 		return nil, err
 	}
-	msg := EtcdRow{
-		ResourceType: res.ID().Type,
+	msg := EtcdRowTemp{
+		ResourceType: res.ID().Type.String(),
 		Message:      p,
 		StorageType:  RESOURCE,
 	}
+	//	fmt.Println("Attempting to serialize: ", msg)
 	serialMsg, err := json.Marshal(msg)
 	if err != nil {
 		return nil, err
@@ -272,30 +303,36 @@ func (lookup etcdResourceLookup) serializeResource(res Resource) ([]byte, error)
 
 //Deserializes object into ETCD Storage Object
 func (lookup etcdResourceLookup) deserialize(value []byte) (EtcdRow, error) {
-	var msg EtcdRow
-	if err := json.Unmarshal(value, &msg); err != nil {
-		return msg, fmt.Errorf("failed To Parse Resource: %s", err)
+	var tmp EtcdRowTemp
+	if err := json.Unmarshal(value, &tmp); err != nil {
+		return EtcdRow{}, fmt.Errorf("failed To Parse Resource: %w: %s", err, value)
+	}
+	msg := EtcdRow{
+		ResourceType: ResourceType(pb.ResourceType_value[tmp.ResourceType]),
+		StorageType:  tmp.StorageType,
+		Message:      tmp.Message,
 	}
 	return msg, nil
 }
 
 func (lookup etcdResourceLookup) Lookup(id ResourceID) (Resource, error) {
 	key := createKey(id)
+	fmt.Printf("Lookup Key: %s\n", key)
 	resp, err := lookup.connection.Get(key)
-	if err != nil {
-		return nil, &ResourceNotFound{id}
+	if err != nil || len(resp) == 0 {
+		return nil, &ResourceNotFound{id, err}
 	}
 	msg, err := lookup.deserialize(resp)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("lookup deserialize err: %w id: %s", err, id)
 	}
 	resType, err := lookup.createEmptyResource(msg.ResourceType)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("lookup create err: %w id: %s", err, id)
 	}
 	resource, err := lookup.connection.ParseResource(msg, resType)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("lookup parse: %w %s", err, id)
 	}
 	return resource, nil
 }
@@ -390,7 +427,7 @@ func (lookup etcdResourceLookup) Submap(ids []ResourceID) (ResourceLookup, error
 		key := createKey(id)
 		value, err := lookup.connection.Get(key)
 		if err != nil {
-			return nil, &ResourceNotFound{id}
+			return nil, &ResourceNotFound{id, err}
 		}
 		etcdStore, err := lookup.deserialize(value)
 		if err != nil {
@@ -458,13 +495,13 @@ func (lookup etcdResourceLookup) List() ([]Resource, error) {
 func (lookup etcdResourceLookup) SetStatus(id ResourceID, status pb.ResourceStatus) error {
 	res, err := lookup.Lookup(id)
 	if err != nil {
-		return err
+		return fmt.Errorf("etcd: could not lookup: %w", err)
 	}
 	if err := res.UpdateStatus(status); err != nil {
-		return err
+		return fmt.Errorf("etcd: could not update: %w", err)
 	}
 	if err := lookup.Set(id, res); err != nil {
-		return err
+		return fmt.Errorf("etcd: could not set: %w", err)
 	}
 	return nil
 }
@@ -476,9 +513,10 @@ func (lookup etcdResourceLookup) SetUpdateStatus(id ResourceID, status pb.Update
 	}
 	if err := res.SetUpdateStatus(status); err != nil {
 		return err
+
 	}
 	if err := lookup.Set(id, res); err != nil {
-		return err
+		return fmt.Errorf("etcd: could not set: %w", err)
 	}
 	return nil
 }

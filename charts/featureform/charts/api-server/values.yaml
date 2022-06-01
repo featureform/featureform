@@ -5,10 +5,10 @@
 replicaCount: 1
 
 image:
-  repository: featureformcom/api-server:latest
+  repository: featureformcom/api-server
   pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
-  tag: ""
+  tag: {{ .Values.global.imageVersion }}
 
 imagePullSecrets: []
 nameOverride: api-server
@@ -42,16 +42,16 @@ service:
   type: ClusterIP
   port: 7878
 
-grpc:
+apiserver:
   port: 7878
 
-#typesense:
-#  host: sandbox-typesense
-#  port: 80
-#
-#etcd:
-#  host: sandbox-etcd
-#  port: 2397
+metadata:
+  host: featureform-metadata-server
+  port: 8080
+
+serving:
+  host: featureform-feature-server
+  port: 8080
 
 ingress:
   enabled: false

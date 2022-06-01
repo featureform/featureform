@@ -8,7 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/go-redis/redis/v8"
+	redis "github.com/go-redis/redis/v8"
 )
 
 const (
@@ -151,6 +151,7 @@ func (store *redisOnlineStore) GetTable(feature, variant string) (OnlineStoreTab
 }
 
 func (store *redisOnlineStore) CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error) {
+	fmt.Printf("Creating Redis Table")
 	key := redisTableKey{store.prefix, feature, variant}
 	exists, err := store.client.HExists(ctx, fmt.Sprintf("%s__tables", store.prefix), key.String()).Result()
 	if err != nil {
@@ -163,6 +164,7 @@ func (store *redisOnlineStore) CreateTable(feature, variant string, valueType Va
 		return nil, err
 	}
 	table := &redisOnlineTable{client: store.client, key: key, valueType: valueType}
+	fmt.Printf("Redis Table Created")
 	return table, nil
 }
 
@@ -188,6 +190,7 @@ func (table localOnlineTable) Get(entity string) (interface{}, error) {
 }
 
 func (table redisOnlineTable) Set(entity string, value interface{}) error {
+	fmt.Printf("Setting Table: %s, Entity: %s, Value: %v\n", table.key.String(), entity, value)
 	val := table.client.HSet(ctx, table.key.String(), entity, value)
 	if val.Err() != nil {
 		return val.Err()

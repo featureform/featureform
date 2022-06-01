@@ -184,7 +184,7 @@ type MaterializedRunnerConfig struct {
 	OfflineConfig provider.SerializedConfig
 	ResourceID    provider.ResourceID
 	VType         provider.ValueType
-	Cloud JobCloud
+	Cloud         JobCloud
 	IsUpdate      bool
 }
 
@@ -231,6 +231,6 @@ func MaterializeRunnerFactory(config Config) (Runner, error) {
 		ID:       runnerConfig.ResourceID,
 		VType:    runnerConfig.VType,
 		IsUpdate: runnerConfig.IsUpdate,
-		Cloud: runnerConfig.Cloud,
+		Cloud:    runnerConfig.Cloud,
 	}, nil
 }

@@ -34,14 +34,10 @@ func CreateAndRun() error {
 	if !ok {
 		return errors.New("NAME not set")
 	}
-<<<<<<< HEAD:ff/serving/runner/worker/worker.go
 	var etcdConf string
 	if !ok {
 		return errors.New("ETCD_CONFIG not set")
 	}
-=======
-	fmt.Printf("Name: %v\n", name)
->>>>>>> 0ae8aa590a710f413bee74320d3f0f59ab849e56:runner/worker/worker.go
 	jobRunner, err := runner.Create(name, []byte(config))
 	if err != nil {
 		return err

@@ -66,6 +66,7 @@ func (c *CoordinatorJob) Serialize() ([]byte, error) {
 func (c *CoordinatorJob) Deserialize(serialized []byte) error {
 	job := TempJob{}
 	err := json.Unmarshal(serialized, &job)
+
 	if err != nil {
 		return err
 	}
@@ -73,22 +74,6 @@ func (c *CoordinatorJob) Deserialize(serialized []byte) error {
 	c.Resource.Name = job.Name
 	c.Resource.Variant = job.Variant
 	c.Resource.Type = ResourceType(pb.ResourceType_value[job.Type])
-	return nil
-}
-
-func (c *CoordinatorScheduleJob) Serialize() ([]byte, error) {
-	serialized, err := json.Marshal(c)
-	if err != nil {
-		return nil, err
-	}
-	return serialized, nil
-}
-
-func (c *CoordinatorScheduleJob) Deserialize(serialized []byte) error {
-	err := json.Unmarshal(serialized, c)
-	if err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -512,9 +497,10 @@ func (lookup etcdResourceLookup) SetUpdateStatus(id ResourceID, status pb.Update
 	}
 	if err := res.SetUpdateStatus(status); err != nil {
 		return err
+
 	}
 	if err := lookup.Set(id, res); err != nil {
-		return err
+		return fmt.Errorf("etcd: could not set: %w", err)
 	}
 	return nil
 }

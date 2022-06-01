@@ -13,3 +13,4 @@ proto/serving_pb2.py: proto
 
 install_py: requirements.txt
 	pip install -r requirements.txt
+

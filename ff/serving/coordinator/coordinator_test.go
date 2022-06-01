@@ -35,7 +35,13 @@ var postgresConfig = provider.PostgresConfig{
 	Database: os.Getenv("POSTGRES_DB"),
 	Username: os.Getenv("POSTGRES_USER"),
 	Password: os.Getenv("POSTGRES_PASSWORD"),
+	// Database: "testdatabase",
+	// Username: "postgres",
+	// Password: "Fdhfjdhfj9",
 }
+
+var redisPort = os.Getenv("REDIS_PORT")
+// var redisPort = "6379"
 
 func startServ(t *testing.T) (*metadata.MetadataServer, string) {
 	logger := zap.NewExample().Sugar()
@@ -90,7 +96,7 @@ func createNewCoordinator(addr string) (*Coordinator, error) {
 
 func TestMemoryJobRunnerError(t *testing.T) {
 	memJobSpawner := MemoryJobSpawner{}
-	if _, err := memJobSpawner.GetJobRunner("ghost_job", []byte{}, []string{"localhost:2379"}); err == nil {
+	if _, err := memJobSpawner.GetJobRunner("ghost_job", []byte{}, []string{"localhost:2379"}, metadata.ResourceID{}); err == nil {
 		t.Fatalf("did not trigger error getting nonexistent runner")
 	}
 }
@@ -175,7 +181,6 @@ func TestFeatureMaterializeJobError(t *testing.T) {
 	if err := coord.runFeatureMaterializeJob(metadata.ResourceID{"ghost_resource", "", metadata.FEATURE_VARIANT}, ""); err == nil {
 		t.Fatalf("did not catch error when trying to materialize nonexistent feature")
 	}
-	redisPort := os.Getenv("REDIS_PORT")
 	redisHost := "localhost"
 	liveAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
 	redisConfig := &provider.RedisConfig{
@@ -494,7 +499,6 @@ func TestTrainingSetJobError(t *testing.T) {
 	originalTableName = uuid.New().String()
 	featureName = uuid.New().String()
 	tsName = uuid.New().String()
-	redisPort := os.Getenv("REDIS_PORT")
 	redisHost := "localhost"
 	liveAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
 	redisConfig := &provider.RedisConfig{
@@ -792,7 +796,6 @@ func TestRegisterSourceJobErrors(t *testing.T) {
 	onlineProviderName := uuid.New().String()
 	newTableName := uuid.New().String()
 	newUserName := uuid.New().String()
-	redisPort := os.Getenv("REDIS_PORT")
 	redisHost := "localhost"
 	liveAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
 	redisConfig := &provider.RedisConfig{
@@ -870,14 +873,6 @@ func TestCoordinatorCalls(t *testing.T) {
 		t.Fatalf("could not set up metadata client: %v", err)
 	}
 	defer client.Close()
-	// coordinatorTestGroup := new(errgroup.Group)
-	// type CoordinatorFunctions struct {
-	// 	Function func() error
-	// 	ErrorMessage string
-	// }
-	// CoordinatorFunctionList := []CoordinatorFunctions{
-	// 	{testCoordinatorMaterializeFeature}
-	// }
 	if err := testCoordinatorMaterializeFeature(addr); err != nil {
 		t.Fatalf("coordinator could not materialize feature: %v", err)
 	}
@@ -890,9 +885,9 @@ func TestCoordinatorCalls(t *testing.T) {
 	if err := testRegisterTransformationFromSource(addr); err != nil {
 		t.Fatalf("coordinator could not register transformation from source and transformation: %v", err)
 	}
-	if err := testScheduleTrainingSet(addr); err != nil {
-		t.Fatalf("coordinator could not schedule training set to be updated: %v", err)
-	}
+	// if err := testScheduleTrainingSet(addr); err != nil {
+	// 	t.Fatalf("coordinator could not schedule training set to be updated: %v", err)
+	// }
 	// if err := testScheduleTransformation(addr); err != nil {
 	// 	t.Fatalf("coordinator could not schedule transformation to be updated: %v", err)
 	// }
@@ -1276,7 +1271,6 @@ func testCoordinatorMaterializeFeature(addr string) error {
 	if err != nil {
 		return fmt.Errorf("could not get provider as offline store: %v", err)
 	}
-	redisPort := os.Getenv("REDIS_PORT")
 	redisHost := "localhost"
 	liveAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
 	redisConfig := &provider.RedisConfig{
@@ -1772,16 +1766,19 @@ func testScheduleTrainingSet(addr string) error {
 		return err
 	}
 	//beforeExecutionTime := time.Now()
-	go func() {
-		if err := coord.WatchForNewJobs(); err != nil {
-			logger.Errorf("Error watching for new jobs: %v", err)
-		}
-	}()
+	// go func() {
+	// 	if err := coord.WatchForNewJobs(); err != nil {
+	// 		logger.Errorf("Error watching for new jobs: %v", err)
+	// 	}
+	// }()
 	go func() {
 		if err := coord.WatchForUpdateEvents(); err != nil {
 			logger.Errorf("Error watching for new update events: %v", err)
 		}
 	}()
+	if err := coord.executeJob(metadata.GetJobKey(tsID)); err != nil {
+		return err
+	}
 	time.Sleep(70 * time.Second)
 	jobClient, err := runner.NewKubernetesJobClient(runner.GetCronJobName(tsID), runner.Namespace)
 	if err != nil {
@@ -1836,7 +1833,6 @@ func testScheduleFeatureMaterialization(addr string) error {
 	if err != nil {
 		return fmt.Errorf("could not get provider as offline store: %v", err)
 	}
-	redisPort := os.Getenv("REDIS_PORT")
 	redisHost := "localhost"
 	liveAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
 	redisConfig := &provider.RedisConfig{

@@ -6,8 +6,15 @@ package main
 
 import (
 	worker "github.com/featureform/serving/runner/worker"
+	runner "github.com/featureform/serving/runner"
 	"log"
 )
+
+func init() {
+	if err := runner.RegisterFactory(string(runner.CREATE_TRAINING_SET), runner.TrainingSetRunnerFactory); err != nil {
+		log.Fatalf("Failed to register training set runner factory: %v", err)
+	}
+}
 
 func main() {
 	if err := worker.CreateAndRun(); err != nil {

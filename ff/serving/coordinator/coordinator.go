@@ -92,7 +92,7 @@ func (c *Coordinator) AwaitPendingSource(sourceNameVariant metadata.NameVariant)
 }
 
 type JobSpawner interface {
-	GetJobRunner(jobName string, config runner.Config, etcdEndpoints []string) (runner.Runner, error)
+	GetJobRunner(jobName string, config runner.Config, etcdEndpoints []string, id metadata.ResourceID) (runner.Runner, error)
 }
 
 type KubernetesJobSpawner struct{}
@@ -103,7 +103,7 @@ func GetLockKey(jobKey string) string {
 	return fmt.Sprintf("LOCK_%s", jobKey)
 }
 
-func (k *KubernetesJobSpawner) GetJobRunner(jobName string, config runner.Config, etcdEndpoints []string) (runner.Runner, error) {
+func (k *KubernetesJobSpawner) GetJobRunner(jobName string, config runner.Config, etcdEndpoints []string, id metadata.ResourceID) (runner.Runner, error) {
 	etcdConfig := &ETCDConfig{Endpoints: etcdEndpoints}
 	serializedETCD, err := etcdConfig.Serialize()
 	if err != nil {
@@ -111,8 +111,10 @@ func (k *KubernetesJobSpawner) GetJobRunner(jobName string, config runner.Config
 	}
 	kubeConfig := runner.KubernetesRunnerConfig{
 		EnvVars:  map[string]string{"NAME": jobName, "CONFIG": string(config), "ETCD_CONFIG": string(serializedETCD)},
-		Image:    "featureform/worker",
+		// Image:    "featureform/worker",
+		Image: "sami1309/worker",
 		NumTasks: 1,
+		Resource: id,
 	}
 	jobRunner, err := runner.NewKubernetesRunner(kubeConfig)
 	if err != nil {
@@ -121,7 +123,7 @@ func (k *KubernetesJobSpawner) GetJobRunner(jobName string, config runner.Config
 	return jobRunner, nil
 }
 
-func (k *MemoryJobSpawner) GetJobRunner(jobName string, config runner.Config, etcdEndpoints []string) (runner.Runner, error) {
+func (k *MemoryJobSpawner) GetJobRunner(jobName string, config runner.Config, etcdEndpoints []string, id metadata.ResourceID) (runner.Runner, error) {
 	jobRunner, err := runner.Create(jobName, config)
 	if err != nil {
 		return nil, err
@@ -180,18 +182,19 @@ func (c *Coordinator) WatchForNewJobs() error {
 
 func (c *Coordinator) WatchForUpdateEvents() error {
 	c.Logger.Info("Watching for new update events")
-	getResp, err := (*c.KVClient).Get(context.Background(), "UPDATE_EVENT_", clientv3.WithPrefix())
-	if err != nil {
-		return err
-	}
-	for _, kv := range getResp.Kvs {
-		go func(kv *mvccpb.KeyValue) {
-			err := c.signalResourceUpdate(string(kv.Key), string(kv.Value))
-			if err != nil {
-				c.Logger.Errorw("Error executing update event catch: Initial search", "error", err)
-			}
-		}(kv)
-	}
+	// getResp, err := (*c.KVClient).Get(context.Background(), "UPDATE_EVENT_", clientv3.WithPrefix())
+	// if err != nil {
+	// 	return err
+	// }
+	// for _, kv := range getResp.Kvs {
+	// 	fmt.Printf("got update event %v\n",kv)
+	// 	go func(kv *mvccpb.KeyValue) {
+	// 		err := c.signalResourceUpdate(string(kv.Key), string(kv.Value))
+	// 		if err != nil {
+	// 			c.Logger.Errorw("Error executing update event catch: Initial search", "error", err)
+	// 		}
+	// 	}(kv)
+	// }
 	for {
 		rch := c.EtcdClient.Watch(context.Background(), "UPDATE_EVENT_", clientv3.WithPrefix())
 		for wresp := range rch {
@@ -318,7 +321,7 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 	if err != nil {
 		return err
 	}
-	jobRunner, err := c.Spawner.GetJobRunner(runner.CREATE_TRANSFORMATION, serialized, c.EtcdClient.Endpoints())
+	jobRunner, err := c.Spawner.GetJobRunner(runner.CREATE_TRANSFORMATION, serialized, c.EtcdClient.Endpoints(), resID)
 	if err != nil {
 		return err
 	}
@@ -343,7 +346,7 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 		if err != nil {
 			return err
 		}
-		jobRunnerUpdate, err := c.Spawner.GetJobRunner(runner.CREATE_TRANSFORMATION, serializedUpdate, c.EtcdClient.Endpoints())
+		jobRunnerUpdate, err := c.Spawner.GetJobRunner(runner.CREATE_TRANSFORMATION, serializedUpdate, c.EtcdClient.Endpoints(), resID)
 		if err != nil {
 			return err
 		}
@@ -469,7 +472,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 	if err != nil {
 		return err
 	}
-	jobRunner, err := c.Spawner.GetJobRunner(runner.MATERIALIZE, serialized, c.EtcdClient.Endpoints())
+	jobRunner, err := c.Spawner.GetJobRunner(runner.MATERIALIZE, serialized, c.EtcdClient.Endpoints(), resID)
 	if err != nil {
 		return err
 	}
@@ -498,7 +501,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 		if err != nil {
 			return err
 		}
-		jobRunnerUpdate, err := c.Spawner.GetJobRunner(runner.MATERIALIZE, serializedUpdate, c.EtcdClient.Endpoints())
+		jobRunnerUpdate, err := c.Spawner.GetJobRunner(runner.MATERIALIZE, serializedUpdate, c.EtcdClient.Endpoints(), resID)
 		if err != nil {
 			return err
 		}
@@ -518,6 +521,8 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 
 func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule string) error {
 	c.Logger.Info("Running training set job on resource: ", resID)
+	fmt.Println("Training set schedule is", schedule)
+	fmt.Println("Training set resource id is", resID)
 	ts, err := c.Metadata.GetTrainingSetVariant(context.Background(), metadata.NameVariant{resID.Name, resID.Variant})
 	if err != nil {
 		return err
@@ -537,6 +542,7 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 	if err != nil {
 		return err
 	}
+	fmt.Println("no error yet here")
 	store, err := p.AsOfflineStore()
 	if err != nil {
 		return err
@@ -546,6 +552,7 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 		return fmt.Errorf("training set already exists")
 	}
 	features := ts.Features()
+	fmt.Println("no error yet here 2")
 	featureList := make([]provider.ResourceID, len(features))
 	for i, feature := range features {
 		featureList[i] = provider.ResourceID{Name: feature.Name, Variant: feature.Variant, Type: provider.Feature}
@@ -559,6 +566,7 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 			return fmt.Errorf("source of feature could not complete job: %v", err)
 		}
 	}
+	fmt.Println("no error yet here 3")
 	label, err := ts.FetchLabel(c.Metadata, context.Background())
 	if err != nil {
 		return err
@@ -568,6 +576,7 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 	if err != nil {
 		return fmt.Errorf("source of label could not complete job: %v", err)
 	}
+	fmt.Println("no error yet here 32")
 	trainingSetDef := provider.TrainingSetDef{
 		ID:       providerResID,
 		Label:    provider.ResourceID{Name: label.Name(), Variant: label.Variant(), Type: provider.Label},
@@ -579,11 +588,13 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 		Def:           trainingSetDef,
 		IsUpdate:      false,
 	}
+	fmt.Println("no error yet here 34")
 	serialized, _ := tsRunnerConfig.Serialize()
-	jobRunner, err := c.Spawner.GetJobRunner(runner.CREATE_TRAINING_SET, serialized, c.EtcdClient.Endpoints())
+	jobRunner, err := c.Spawner.GetJobRunner(runner.CREATE_TRAINING_SET, serialized, c.EtcdClient.Endpoints(), resID)
 	if err != nil {
 		return err
 	}
+	fmt.Println("no error yet here 4")
 	completionWatcher, err := jobRunner.Run()
 	if err != nil {
 		return err
@@ -591,10 +602,13 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 	if err := completionWatcher.Wait(); err != nil {
 		return err
 	}
+	fmt.Println("no error yet here 5")
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
 		return err
 	}
+	fmt.Println("finishing training set job with schedule ",schedule)
 	if schedule != "" {
+		fmt.Println("scheduling training set job")
 		scheduleTrainingSetRunnerConfig := runner.TrainingSetRunnerConfig{
 			OfflineType:   provider.Type(providerEntry.Type()),
 			OfflineConfig: providerEntry.SerializedConfig(),
@@ -605,7 +619,7 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 		if err != nil {
 			return err
 		}
-		jobRunnerUpdate, err := c.Spawner.GetJobRunner(runner.MATERIALIZE, serializedUpdate, c.EtcdClient.Endpoints())
+		jobRunnerUpdate, err := c.Spawner.GetJobRunner(runner.MATERIALIZE, serializedUpdate, c.EtcdClient.Endpoints(), resID)
 		if err != nil {
 			return err
 		}
@@ -613,6 +627,7 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 		if !isCronRunner {
 			return fmt.Errorf("kubernetes runner does not implement schedule")
 		}
+		fmt.Println("scheduling training set job in kubernetes")
 		if err := cronRunner.ScheduleJob(runner.CronSchedule(schedule)); err != nil {
 			return err
 		}
@@ -750,6 +765,7 @@ func (c *Coordinator) executeJob(jobKey string) error {
 	if !has {
 		return fmt.Errorf("not a valid resource type for running jobs")
 	}
+	fmt.Println("Job with schedule is", job)
 	if err := jobFunc(job.Resource, job.Schedule); err != nil {
 		statusErr := c.Metadata.SetStatus(context.Background(), job.Resource, metadata.FAILED, err.Error())
 		return fmt.Errorf("%s job failed: %v: %v", job.Resource.Type, err, statusErr)

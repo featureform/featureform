@@ -48,7 +48,7 @@ func (pg *PostgresConfig) Serialize() []byte {
 func postgresOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	sc := PostgresConfig{}
 	if err := sc.Deserialize(config); err != nil {
-		return nil, errors.New("invalid snowflake config")
+		return nil, errors.New("invalid postgres config")
 	}
 	queries := postgresSQLQueries{}
 	queries.setVariableBinding(PostgresBindingStyle)

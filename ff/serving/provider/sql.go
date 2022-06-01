@@ -491,7 +491,6 @@ func (store *sqlOfflineStore) CreateMaterialization(id ResourceID) (Materializat
 	if err != nil {
 		return nil, err
 	}
-
 	return &sqlMaterialization{
 		id:        matID,
 		db:        store.db,

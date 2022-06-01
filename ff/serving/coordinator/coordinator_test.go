@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 	// "golang.org/x/sync/errgroup"
 	"net"
-	"os"
+	//"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -69,7 +69,6 @@ func startServ(t *testing.T) (*metadata.MetadataServer, string) {
 
 func createNewCoordinator(addr string) (*Coordinator, error) {
 	logger := zap.NewExample().Sugar()
-	fmt.Println(addr)
 	client, err := metadata.NewClient(addr, logger)
 	if err != nil {
 		return nil, err
@@ -82,12 +81,12 @@ func createNewCoordinator(addr string) (*Coordinator, error) {
 	return NewCoordinator(client, logger, cli, &memJobSpawner)
 }
 
-func TestKubernetesJobRunnerError(t *testing.T) {
-	kubeJobSpawner := KubernetesJobSpawner{}
-	if _, err := kubeJobSpawner.GetJobRunner("ghost_job", []byte{}, []string{"localhost:2379"}); err == nil {
-		t.Fatalf("did not trigger error getting nonexistent runner")
-	}
-}
+// func TestKubernetesJobRunnerError(t *testing.T) {
+// 	kubeJobSpawner := KubernetesJobSpawner{}
+// 	if _, err := kubeJobSpawner.GetJobRunner("ghost_job", []byte{}, []string{"localhost:2379"}); err == nil {
+// 		t.Fatalf("did not trigger error getting nonexistent runner")
+// 	}
+// }
 
 func TestMemoryJobRunnerError(t *testing.T) {
 	memJobSpawner := MemoryJobSpawner{}
@@ -176,7 +175,7 @@ func TestFeatureMaterializeJobError(t *testing.T) {
 	if err := coord.runFeatureMaterializeJob(metadata.ResourceID{"ghost_resource", "", metadata.FEATURE_VARIANT}, ""); err == nil {
 		t.Fatalf("did not catch error when trying to materialize nonexistent feature")
 	}
-	redisPort := os.Getenv("REDIS_PORT")
+	redisPort := "6379"
 	redisHost := "localhost"
 	liveAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
 	redisConfig := &provider.RedisConfig{
@@ -495,7 +494,7 @@ func TestTrainingSetJobError(t *testing.T) {
 	originalTableName = uuid.New().String()
 	featureName = uuid.New().String()
 	tsName = uuid.New().String()
-	redisPort := os.Getenv("REDIS_PORT")
+	redisPort := "6379"
 	redisHost := "localhost"
 	liveAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
 	redisConfig := &provider.RedisConfig{
@@ -793,7 +792,7 @@ func TestRegisterSourceJobErrors(t *testing.T) {
 	onlineProviderName := uuid.New().String()
 	newTableName := uuid.New().String()
 	newUserName := uuid.New().String()
-	redisPort := os.Getenv("REDIS_PORT")
+	redisPort := "6379"
 	redisHost := "localhost"
 	liveAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
 	redisConfig := &provider.RedisConfig{
@@ -879,9 +878,9 @@ func TestCoordinatorCalls(t *testing.T) {
 	// CoordinatorFunctionList := []CoordinatorFunctions{
 	// 	{testCoordinatorMaterializeFeature}
 	// }
-	// if err := testCoordinatorMaterializeFeature(addr); err != nil {
-	// 	t.Fatalf("coordinator could not materialize feature: %v", err)
-	// }
+	if err := testCoordinatorMaterializeFeature(addr); err != nil {
+		t.Fatalf("coordinator could not materialize feature: %v", err)
+	}
 	if err := testCoordinatorTrainingSet(addr); err != nil {
 		t.Fatalf("coordinator could not create training set: %v", err)
 	}
@@ -1253,7 +1252,7 @@ func testCoordinatorMaterializeFeature(addr string) error {
 		return fmt.Errorf("Failed to register training set runner factory: %v", err)
 	}
 	defer runner.UnregisterFactory(string(runner.COPY_TO_ONLINE))
-	if err := runner.RegisterFactory(string(runner.MATERIALIZE), runner.MaterializedChunkRunnerFactory); err != nil {
+	if err := runner.RegisterFactory(string(runner.MATERIALIZE), runner.MaterializeRunnerFactory); err != nil {
 		return fmt.Errorf("Failed to register training set runner factory: %v", err)
 	}
 	defer runner.UnregisterFactory(string(runner.MATERIALIZE))
@@ -1269,7 +1268,6 @@ func testCoordinatorMaterializeFeature(addr string) error {
 	}
 	defer cli.Close()
 	serialPGConfig := postgresConfig.Serialize()
-	fmt.Println(serialPGConfig)
 	offlineProvider, err := provider.Get(provider.PostgresOffline, serialPGConfig)
 	if err != nil {
 		return fmt.Errorf("could not get offline provider: %v", err)
@@ -1278,7 +1276,7 @@ func testCoordinatorMaterializeFeature(addr string) error {
 	if err != nil {
 		return fmt.Errorf("could not get provider as offline store: %v", err)
 	}
-	redisPort := os.Getenv("REDIS_PORT")
+	redisPort := "6379"
 	redisHost := "localhost"
 	liveAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
 	redisConfig := &provider.RedisConfig{
@@ -1335,11 +1333,15 @@ func testCoordinatorMaterializeFeature(addr string) error {
 	if err != nil {
 		return fmt.Errorf("Failed to set up coordinator")
 	}
-	go func() {
-		if err := coord.WatchForNewJobs(); err != nil {
-			logger.Errorf("Error watching for new jobs: %v", err)
-		}
-	}()
+	// go func() {
+	// 	if err := coord.WatchForNewJobs(); err != nil {
+	// 		logger.Errorf("Error watching for new jobs: %v", err)
+	// 	}
+	// }()
+	if err := coord.executeJob(metadata.GetJobKey(featureID)); err != nil {
+		return err
+	}
+	//bookmark
 	startWaitDelete := time.Now()
 	elapsed := time.Since(startWaitDelete)
 	for has, _ := coord.hasJob(featureID); has && elapsed < time.Duration(10)*time.Second; has, _ = coord.hasJob(featureID) {
@@ -1501,7 +1503,7 @@ func testRegisterPrimaryTableFromSource(addr string) error {
 }
 
 func testRegisterTransformationFromSource(addr string) error {
-	if err := runner.RegisterFactory(string(runner.CREATE_TRANSFORMATION), runner.MaterializedChunkRunnerFactory); err != nil {
+	if err := runner.RegisterFactory(string(runner.CREATE_TRANSFORMATION), runner.CreateTransformationRunnerFactory); err != nil {
 		return fmt.Errorf("Failed to register training set runner factory: %v", err)
 	}
 	defer runner.UnregisterFactory(string(runner.CREATE_TRANSFORMATION))
@@ -1619,6 +1621,7 @@ func testRegisterTransformationFromSource(addr string) error {
 	if i != len(testOfflineTableValues) {
 		return fmt.Errorf("transformation table did not copy all rows")
 	}
+
 	//now make a new transformation with two sources, one the original source, and the other the transformation
 	joinTransformationQuery := fmt.Sprintf("SELECT {{%s.}}.entity, {{%s.}}.value, {{%s.}}.ts FROM {{%s.}} INNER JOIN {{%s.}} ON {{%s.}}.entity = {{%s.}}.entity", sourceName, sourceName, sourceName, sourceName, transformationName, sourceName, transformationName)
 	joinTransformationName := strings.Replace(uuid.New().String(), "-", "", -1)
@@ -1634,7 +1637,6 @@ func testRegisterTransformationFromSource(addr string) error {
 	if joinTransformationCreated.Status() != metadata.CREATED {
 		return fmt.Errorf("Transformation not set to created with no coordinator running")
 	}
-
 	if err := coord.executeJob(metadata.GetJobKey(joinTransformationID)); err != nil {
 		return err
 	}
@@ -1810,7 +1812,7 @@ func testScheduleFeatureMaterialization(addr string) error {
 		return fmt.Errorf("Failed to register training set runner factory: %v", err)
 	}
 	defer runner.UnregisterFactory(string(runner.COPY_TO_ONLINE))
-	if err := runner.RegisterFactory(string(runner.MATERIALIZE), runner.MaterializedChunkRunnerFactory); err != nil {
+	if err := runner.RegisterFactory(string(runner.MATERIALIZE), runner.MaterializeRunnerFactory); err != nil {
 		return fmt.Errorf("Failed to register training set runner factory: %v", err)
 	}
 	defer runner.UnregisterFactory(string(runner.MATERIALIZE))
@@ -1826,7 +1828,6 @@ func testScheduleFeatureMaterialization(addr string) error {
 	}
 	defer cli.Close()
 	serialPGConfig := postgresConfig.Serialize()
-	fmt.Println(serialPGConfig)
 	offlineProvider, err := provider.Get(provider.PostgresOffline, serialPGConfig)
 	if err != nil {
 		return fmt.Errorf("could not get offline provider: %v", err)
@@ -1835,7 +1836,8 @@ func testScheduleFeatureMaterialization(addr string) error {
 	if err != nil {
 		return fmt.Errorf("could not get provider as offline store: %v", err)
 	}
-	redisPort := os.Getenv("REDIS_PORT")
+	// redisPort := os.Getenv("REDIS_PORT")
+	redisPort := "6379"
 	redisHost := "localhost"
 	liveAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
 	redisConfig := &provider.RedisConfig{
@@ -1929,7 +1931,7 @@ func testScheduleFeatureMaterialization(addr string) error {
 }
 
 func testScheduleTransformation(addr string) error {
-	if err := runner.RegisterFactory(string(runner.CREATE_TRANSFORMATION), runner.MaterializedChunkRunnerFactory); err != nil {
+	if err := runner.RegisterFactory(string(runner.CREATE_TRANSFORMATION), runner.CreateTransformationRunnerFactory); err != nil {
 		return fmt.Errorf("Failed to register training set runner factory: %v", err)
 	}
 	defer runner.UnregisterFactory(string(runner.CREATE_TRANSFORMATION))

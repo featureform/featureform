@@ -318,8 +318,8 @@ func (s ScheduleChangeRunner) IsUpdateJob() bool {
 	return false
 }
 
-func CreateScheduleChangeRunner(id metadata.ResourceID, schedule string) (Runner, error) {
-	//find a way to get the name of the cronjob so you can reference it here. Deterministic name as a consequence of the
-	//function of the resourceID?
-	return nil, nil
-}
+// func CreateScheduleChangeRunner(id metadata.ResourceID, schedule string) (Runner, error) {
+// 	//find a way to get the name of the cronjob so you can reference it here. Deterministic name as a consequence of the
+// 	//function of the resourceID?
+// 	return nil, nil
+// }

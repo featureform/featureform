@@ -448,6 +448,13 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 	// if err != nil {
 	// 	return err
 	// }
+
+	type JobCloud string
+
+	const (
+		KubernetesMaterializeRunner JobCloud = "KUBERNETES"
+		LocalMaterializeRunner      JobCloud = "LOCAL"
+	)
 	materializedRunnerConfig := runner.MaterializedRunnerConfig{
 		OnlineType:    provider.Type(featureProvider.Type()),
 		OfflineType:   provider.Type(sourceProvider.Type()),
@@ -455,6 +462,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 		OfflineConfig: sourceProvider.SerializedConfig(),
 		ResourceID:    provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Feature},
 		VType:         provider.ValueType(featureType),
+		Cloud:         runner.LocalMaterializeRunner,
 		IsUpdate:      false,
 	}
 	serialized, err := materializedRunnerConfig.Serialize()
@@ -483,6 +491,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 			OfflineConfig: sourceProvider.SerializedConfig(),
 			ResourceID:    provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Feature},
 			VType:         provider.ValueType(featureType),
+			Cloud:         runner.LocalMaterializeRunner,
 			IsUpdate:      false,
 		}
 		serializedUpdate, err := scheduleMaterializeRunnerConfig.Serialize()

@@ -3,7 +3,7 @@ variable "region" {
   description = "AWS region"
 }
 
-variable "sandbox_name" {
+variable "name" {
   type = string
   nullable = false
 }
@@ -15,7 +15,7 @@ provider "aws" {
 data "aws_availability_zones" "available" {}
 
 locals {
-  cluster_name = "sandbox-${var.sandbox_name}"
+  cluster_name = "cluster-${var.name}"
 }
 
 resource "random_string" "suffix" {

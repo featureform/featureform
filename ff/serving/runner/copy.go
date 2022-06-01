@@ -7,7 +7,7 @@ package runner
 import (
 	"encoding/json"
 	"fmt"
-	provider "github.com/featureform/serving/provider"
+	"github.com/featureform/serving/provider"
 	"sync"
 )
 

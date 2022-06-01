@@ -7,9 +7,7 @@ package worker
 import (
 	"errors"
 	"fmt"
-
-	runner "github.com/featureform/runner"
-
+	"github.com/featureform/runner"
 	"os"
 	"strconv"
 )
@@ -27,9 +25,6 @@ func CreateAndRun() error {
 		return errors.New("NAME not set")
 	}
 	fmt.Printf("Name: %v\n", name)
-	if err := runner.RegisterFactory(string(runner.CREATE_TRAINING_SET), runner.TrainingSetRunnerFactory); err != nil {
-		return fmt.Errorf("failed to register training set runner factory: %w", err)
-	}
 	jobRunner, err := runner.Create(name, []byte(config))
 	if err != nil {
 		return err

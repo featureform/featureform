@@ -21,12 +21,12 @@ spec:
         - image: {{ .Values.image.repository }}
           name: featureform-feature-server
           ports:
-            - containerPort: 8080
-            - containerPort: 2112
+            - containerPort: {{ .Values.serving.port }}
+            - containerPort: {{ .Values.metrics.port }}
           env:
             - name: SERVING_PORT
-              value: "0.0.0.0:8080"
+              value: "0.0.0.0:"{{ .Values.serving.port }}
             - name: METRICS_PORT
-              value: "0.0.0.0:2112"
+              value: "0.0.0.0:"{{ .Values.matrics.port }}
           resources: {}
 status: {}

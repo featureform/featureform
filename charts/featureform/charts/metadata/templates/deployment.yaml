@@ -26,13 +26,13 @@ spec:
           resources: {}
           env:
             - name: TYPESENSE_PORT
-              value: "80"
+              value: {{ .Values.typsense.port }}
             - name: TYPESENSE_HOST
-              value: featureform-typesense
+              value: {{ .Values.typsense.host }}
             - name: TYPESENSE_APIKEY
-              value: xyz
+              value: {{ .Values.typsense.apikey }}
             - name: ETCD_HOST
-              value: featureform-etcd
+              value: {{ .Values.etcd.host }}
             - name: ETCD_PORT
-              value: "2379"
+              value: {{ .Values.etcd.port }}
 status: {}

@@ -342,7 +342,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID) error 
 	}
 	status := feature.Status()
 	featureType := feature.Type()
-	if status == metadata.READY { // change this?
+	if status == metadata.READY {
 		return fmt.Errorf("feature already set to %s", status.String())
 	}
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.PENDING, ""); err != nil {

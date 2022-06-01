@@ -42,16 +42,16 @@ service:
   type: ClusterIP
   port: 7878
 
-grpc:
+apiserver:
   port: 7878
 
-#typesense:
-#  host: featureform-typesense
-#  port: 80
-#
-#etcd:
-#  host: featureform-etcd
-#  port: 2397
+metadata:
+  host: featureform-metadata-server
+  port: 8080
+
+serving:
+  host: featureform-feature-server
+  port: 8080
 
 ingress:
   enabled: false

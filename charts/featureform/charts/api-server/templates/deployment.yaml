@@ -26,15 +26,15 @@ spec:
           resources: {}
           env:
             - name: API_PORT
-              value: "7878"
+              value: {{ .Values.apiserver.port }}
             - name: METADATA_HOST
-              value: "featureform-metadata-server"
+              value: {{ .Values.metadata.host }}
             - name: METADATA_PORT
-              value: "8080"
+              value: {{ .Values.metadata.port }}
             - name: SERVING_HOST
-              value: "featureform-feature-server"
+              value: {{ .Values.serving.host }}
             - name: SERVING_PORT
-              value: "8080"
+              value: {{ .Values.serving.port }}
             - name: POD_IP
               valueFrom:
                 fieldRef:

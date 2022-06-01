@@ -14,6 +14,16 @@ imagePullSecrets: []
 nameOverride: metadata-server
 fullnameOverride: ""
 
+typesense:
+  host: featureform-typesense
+  port: 80
+  apikey: xyz
+
+
+etcd:
+  host: featureform-etcd
+  port: 2379
+
 serviceAccount:
   # Specifies whether a service account should be created
   create: true

@@ -10,6 +10,12 @@ image:
   # Overrides the image tag whose default is the chart appVersion.
   tag: stable
 
+metrics:
+  port: 2112
+
+serving:
+  port: 8080
+
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""

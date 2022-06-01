@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 
+	metadata "github.com/featureform/metadata"
 	provider "github.com/featureform/provider"
 )
 
@@ -73,6 +74,14 @@ func (r *RegisterFileRunner) Run() (CompletionWatcher, error) {
 func (r *RegisterFileRunner) SetIndex(index int) error {
 	r.ChunkIdx = int64(index)
 	return nil
+}
+
+func (r *RegisterFileRunner) Resource() metadata.ResourceID {
+	return metadata.ResourceID{}
+}
+
+func (r *RegisterFileRunner) IsUpdateJob() bool {
+	return false
 }
 
 type RegisterFileRunnerConfig struct {

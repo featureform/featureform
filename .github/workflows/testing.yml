@@ -459,9 +459,19 @@ jobs:
         working-directory: ./
         run: mkdir coverage
 
+      - name: Build API.go
+        working-directory: ./api
+        run: go build
+
       - name: Start API Server
-        working-directory: ./api/
-        run: go run api.go &
+        working-directory: ./api
+        env:
+          API_PORT: 7878
+          METADATA_HOST: "featureform-metadata-server"
+          METADATA_PORT: 8080
+          SERVING_HOST:  "featureform-metadata-server"
+          SERVING_PORT: 8080
+        run: ./api.go
 
       - name: Install python dependencies
         working-directory: ./

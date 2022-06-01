@@ -35,19 +35,20 @@ var postgresConfig = provider.PostgresConfig{
 	Database: os.Getenv("POSTGRES_DB"),
 	Username: os.Getenv("POSTGRES_USER"),
 	Password: os.Getenv("POSTGRES_PASSWORD"),
-
 }
 
 var redisPort = os.Getenv("REDIS_PORT")
+var redisHost = "localhost"
 
-// var redisPort = "6379"
+var etcdHost = "localhost"
+var etcdPort = "2379"
 
 func startServ(t *testing.T) (*metadata.MetadataServer, string) {
 	logger := zap.NewExample().Sugar()
 	storageProvider := metadata.EtcdStorageProvider{
 		metadata.EtcdConfig{
 			Nodes: []metadata.EtcdNode{
-				{"localhost", "2379"},
+				{etcdHost, etcdPort},
 			},
 		},
 	}
@@ -78,7 +79,8 @@ func createNewCoordinator(addr string) (*Coordinator, error) {
 	if err != nil {
 		return nil, err
 	}
-	cli, err := clientv3.New(clientv3.Config{Endpoints: []string{"localhost:2379"}})
+	etcdConnect := fmt.Sprintf("%s:%s", etcdHost, etcdPort)
+	cli, err := clientv3.New(clientv3.Config{Endpoints: []string{etcdConnect}})
 	if err != nil {
 		return nil, err
 	}
@@ -94,8 +96,9 @@ func createNewCoordinator(addr string) (*Coordinator, error) {
 // }
 
 func TestMemoryJobRunnerError(t *testing.T) {
+	etcdConnect := fmt.Sprintf("%s:%s", etcdHost, etcdPort)
 	memJobSpawner := MemoryJobSpawner{}
-	if _, err := memJobSpawner.GetJobRunner("ghost_job", []byte{}, []string{"localhost:2379"}, metadata.ResourceID{}); err == nil {
+	if _, err := memJobSpawner.GetJobRunner("ghost_job", []byte{}, []string{etcdConnect}, metadata.ResourceID{}); err == nil {
 		t.Fatalf("did not trigger error getting nonexistent runner")
 	}
 }
@@ -180,7 +183,6 @@ func TestFeatureMaterializeJobError(t *testing.T) {
 	if err := coord.runFeatureMaterializeJob(metadata.ResourceID{"ghost_resource", "", metadata.FEATURE_VARIANT}, ""); err == nil {
 		t.Fatalf("did not catch error when trying to materialize nonexistent feature")
 	}
-	redisHost := "localhost"
 	liveAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
 	redisConfig := &provider.RedisConfig{
 		Addr: liveAddr,
@@ -498,7 +500,6 @@ func TestTrainingSetJobError(t *testing.T) {
 	originalTableName = uuid.New().String()
 	featureName = uuid.New().String()
 	tsName = uuid.New().String()
-	redisHost := "localhost"
 	liveAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
 	redisConfig := &provider.RedisConfig{
 		Addr: liveAddr,
@@ -795,7 +796,6 @@ func TestRegisterSourceJobErrors(t *testing.T) {
 	onlineProviderName := uuid.New().String()
 	newTableName := uuid.New().String()
 	newUserName := uuid.New().String()
-	redisHost := "localhost"
 	liveAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
 	redisConfig := &provider.RedisConfig{
 		Addr: liveAddr,
@@ -1120,7 +1120,8 @@ func testCoordinatorTrainingSet(addr string) error {
 		return fmt.Errorf("Failed to connect: %v", err)
 	}
 	defer client.Close()
-	cli, err := clientv3.New(clientv3.Config{Endpoints: []string{"localhost:2379"}})
+	etcdConnect := fmt.Sprintf("%s:%s", etcdHost, etcdPort)
+	cli, err := clientv3.New(clientv3.Config{Endpoints: []string{etcdConnect}})
 	if err != nil {
 		return err
 	}
@@ -1256,7 +1257,8 @@ func testCoordinatorMaterializeFeature(addr string) error {
 		return fmt.Errorf("Failed to connect: %v", err)
 	}
 	defer client.Close()
-	cli, err := clientv3.New(clientv3.Config{Endpoints: []string{"localhost:2379"}})
+	etcdConnect := fmt.Sprintf("%s:%s", etcdHost, etcdPort)
+	cli, err := clientv3.New(clientv3.Config{Endpoints: []string{etcdConnect}})
 	if err != nil {
 		return err
 	}
@@ -1270,7 +1272,6 @@ func testCoordinatorMaterializeFeature(addr string) error {
 	if err != nil {
 		return fmt.Errorf("could not get provider as offline store: %v", err)
 	}
-	redisHost := "localhost"
 	liveAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
 	redisConfig := &provider.RedisConfig{
 		Addr: liveAddr,
@@ -1397,7 +1398,8 @@ func testRegisterPrimaryTableFromSource(addr string) error {
 		return fmt.Errorf("Failed to connect: %v", err)
 	}
 	defer client.Close()
-	cli, err := clientv3.New(clientv3.Config{Endpoints: []string{"localhost:2379"}})
+	etcdConnect := fmt.Sprintf("%s:%s", etcdHost, etcdPort)
+	cli, err := clientv3.New(clientv3.Config{Endpoints: []string{etcdConnect}})
 	if err != nil {
 		return err
 	}
@@ -1506,7 +1508,8 @@ func testRegisterTransformationFromSource(addr string) error {
 		return fmt.Errorf("Failed to connect: %v", err)
 	}
 	defer client.Close()
-	cli, err := clientv3.New(clientv3.Config{Endpoints: []string{"localhost:2379"}})
+	etcdConnect := fmt.Sprintf("%s:%s", etcdHost, etcdPort)
+	cli, err := clientv3.New(clientv3.Config{Endpoints: []string{etcdConnect}})
 	if err != nil {
 		return err
 	}
@@ -1694,7 +1697,8 @@ func testScheduleTrainingSet(addr string) error {
 		return fmt.Errorf("Failed to connect: %v", err)
 	}
 	defer client.Close()
-	cli, err := clientv3.New(clientv3.Config{Endpoints: []string{"localhost:2379"}})
+	etcdConnect := fmt.Sprintf("%s:%s", etcdHost, etcdPort)
+	cli, err := clientv3.New(clientv3.Config{Endpoints: []string{etcdConnect}})
 	if err != nil {
 		return err
 	}
@@ -1818,7 +1822,8 @@ func testScheduleFeatureMaterialization(addr string) error {
 		return fmt.Errorf("Failed to connect: %v", err)
 	}
 	defer client.Close()
-	cli, err := clientv3.New(clientv3.Config{Endpoints: []string{"localhost:2379"}})
+	etcdConnect := fmt.Sprintf("%s:%s", etcdHost, etcdPort)
+	cli, err := clientv3.New(clientv3.Config{Endpoints: []string{etcdConnect}})
 	if err != nil {
 		return err
 	}
@@ -1832,7 +1837,6 @@ func testScheduleFeatureMaterialization(addr string) error {
 	if err != nil {
 		return fmt.Errorf("could not get provider as offline store: %v", err)
 	}
-	redisHost := "localhost"
 	liveAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
 	redisConfig := &provider.RedisConfig{
 		Addr: liveAddr,
@@ -1936,7 +1940,8 @@ func testScheduleTransformation(addr string) error {
 		return fmt.Errorf("Failed to connect: %v", err)
 	}
 	defer client.Close()
-	cli, err := clientv3.New(clientv3.Config{Endpoints: []string{"localhost:2379"}})
+	etcdConnect := fmt.Sprintf("%s:%s", etcdHost, etcdPort)
+	cli, err := clientv3.New(clientv3.Config{Endpoints: []string{etcdConnect}})
 	if err != nil {
 		return err
 	}

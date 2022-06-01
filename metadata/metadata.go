@@ -306,7 +306,7 @@ func (lookup localResourceLookup) SetSchedule(id ResourceID, schedule string) er
 func (lookup localResourceLookup) SetUpdateStatus(id ResourceID, status pb.UpdateStatus) error {
 	res, has := lookup[id]
 	if !has {
-		return &ResourceNotFound{id}
+		return &ResourceNotFound{id, fmt.Errorf("no resource found")}
 	}
 	if err := res.SetUpdateStatus(status); err != nil {
 		return err

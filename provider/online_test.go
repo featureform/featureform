@@ -54,6 +54,7 @@ func TestOnlineStores(t *testing.T) {
 	cassandraConfig := &CassandraConfig{
 		Addr: cassandraAddr,
 	}
+
 	testList := []struct {
 		t               Type
 		c               SerializedConfig

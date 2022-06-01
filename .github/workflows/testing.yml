@@ -475,3 +475,32 @@ jobs:
           API_ADDRESS: "localhost:7878"
         working-directory: ./client/tests
         run: pytest
+
+  minikube:
+    runs-on: ubuntu-latest
+    name: build featureform and worker and test in minikube
+    steps:
+      - uses: actions/checkout@v2
+      - name: Start minikube
+        uses: medyagh/setup-minikube@master
+      - name: Try the cluster !
+        run: kubectl get pods -A
+      - name: Build featureform image
+        run: |
+          export SHELL=/bin/bash
+          eval $(minikube -p minikube docker-env)
+          docker build -f ./ff/serving/Dockerfile -t featureform/main .
+          echo -n "verifying images:"
+          docker images
+      - name: Build worker image
+        run: |
+          export SHELL=/bin/bash
+          eval $(minikube -p minikube docker-env)
+          docker build -f ./ff/serving/Dockerfile.worker -t featureform/worker .
+          echo -n "verifying images:"
+          docker images
+      - name: Deploy to minikube
+        run: kubectl apply -f test-featureform-minikube.yaml
+      - name: Test main functionality
+        run: |
+          echo "testing"

@@ -5,6 +5,7 @@
 package main
 
 import (
+	"fmt"
 	runner "github.com/featureform/runner"
 	worker "github.com/featureform/runner/worker"
 	"log"

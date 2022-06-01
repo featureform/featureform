@@ -20,7 +20,6 @@ import (
 
 type Config []byte
 
-//todo add etcd client to the kubernetes environment variables
 func CreateAndRun() error {
 	logger := zap.NewExample().Sugar()
 	config, ok := os.LookupEnv("CONFIG")

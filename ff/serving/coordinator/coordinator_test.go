@@ -35,7 +35,6 @@ var postgresConfig = provider.PostgresConfig{
 	Database: os.Getenv("POSTGRES_DB"),
 	Username: os.Getenv("POSTGRES_USER"),
 	Password: os.Getenv("POSTGRES_PASSWORD"),
-
 }
 
 var redisPort = os.Getenv("REDIS_PORT")

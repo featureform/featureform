@@ -264,7 +264,7 @@ func (store *cassandraOnlineStore) CreateTable(feature, variant string, valueTyp
 	query = fmt.Sprintf("CREATE TABLE %s (entity text PRIMARY KEY, value %s)", tableName, vType)
 	err = store.session.Query(query).WithContext(ctx).Exec()
 	if err != nil {
-		return nil, fmt.Errorf("valuetype: %s, vtype %s, %s", string(valueType), vType, err)
+		return nil, err
 	}
 
 	table := &cassandraOnlineTable{

@@ -47,7 +47,7 @@ Selector labels
 */}}
 {{- define "metadata.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "metadata.name" . }}
-app.kubernetes.io/instance: sandbox
+app.kubernetes.io/instance: featureform
 {{- end }}
 
 {{/*

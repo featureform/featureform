@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   creationTimestamp: null
-  name: sandbox-metadata-server
+  name: featureform-metadata-server
 spec:
   ports:
     - name: grpc
@@ -10,6 +10,6 @@ spec:
       protocol: TCP
       targetPort: 8080
   selector:
-    run: sandbox-metadata-server
+    run: featureform-metadata-server
 status:
   loadBalancer: {}

@@ -8,7 +8,7 @@ image:
   repository: featureformcom/metadata
   pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
-  tag: {{ .Values.global.imageVersion }}
+  tag: stable
 
 imagePullSecrets: []
 nameOverride: metadata-server
@@ -46,11 +46,11 @@ grpc:
   port: 8080
 
 #typesense:
-#  host: sandbox-typesense
+#  host: featureform-typesense
 #  port: 80
 #
 #etcd:
-#  host: sandbox-etcd
+#  host: featureform-etcd
 #  port: 2397
 
 ingress:

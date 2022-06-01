@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: sandbox-typesense
+  name: featureform-typesense
   labels: {{- include "typesense.labels" . | nindent 4 }}
 spec:
   selector:

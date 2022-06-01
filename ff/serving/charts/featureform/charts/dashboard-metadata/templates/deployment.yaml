@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: sandbox-dashboard-metadata
+  name: featureform-dashboard-metadata
   labels:
     {{- include "dashboard-metadata.labels" . | nindent 4 }}
 spec:
@@ -35,7 +35,7 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
             - name: METADATA_HOST
-              value: "sandbox-metadata-server"
+              value: "featureform-metadata-server"
             - name: METADATA_PORT
               value: "8080"
             - name: METADATA_HTTP_PORT

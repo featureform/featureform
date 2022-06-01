@@ -91,7 +91,6 @@ global:
   port: 3001
   metadata:
     port: 8080
-  imageVersion: stable
 
 metadata:
   grpc:
@@ -99,10 +98,8 @@ metadata:
 
 
 etcd:
-  fullnameOverride: sandbox-etcd
+  fullnameOverride: featureform-etcd
   auth:
     rbac:
       rootPassword: "secretpassword"
-    token:
-      ttl: 365d
   replicaCount: 3

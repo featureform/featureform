@@ -1,11 +1,11 @@
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: {{ .Release.Name }}-sandbox-prod
+  name: {{ .Release.Name }}-featureform-prod
 spec:
-  secretName: {{ .Release.Name }}-sandbox-prod-certificate
+  secretName: {{ .Release.Name }}-featureform-prod-certificate
   issuerRef:
     name: letsencrypt-prod
   dnsNames:
-#    - test-sandbox.featureform.com
+#    - test-featureform.featureform.com
     - {{ .Values.global.hostname }}

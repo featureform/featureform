@@ -1,20 +1,20 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: sandbox-dashboard
+  name: featureform-dashboard
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: sandbox-dashboard
+      app: featureform-dashboard
   template:
     metadata:
       labels:
-        app: sandbox-dashboard
+        app: featureform-dashboard
     spec:
       terminationGracePeriodSeconds: 30
       containers:
-        - name: sandbox-dashboard
+        - name: featureform-dashboard
           image: {{ .Values.image.repository }}
           imagePullPolicy: "Always"
           ports:
@@ -24,5 +24,5 @@ spec:
               valueFrom:
                 configMapKeyRef:
                   key: REACT_APP_API_URL
-                  name: sandbox-env
+                  name: featureform-env
 

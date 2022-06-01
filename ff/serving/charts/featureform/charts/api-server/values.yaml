@@ -46,11 +46,11 @@ grpc:
   port: 7878
 
 #typesense:
-#  host: sandbox-typesense
+#  host: featureform-typesense
 #  port: 80
 #
 #etcd:
-#  host: sandbox-etcd
+#  host: featureform-etcd
 #  port: 2397
 
 ingress:

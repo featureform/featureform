@@ -3,23 +3,23 @@ kind: Deployment
 metadata:
   creationTimestamp: null
   labels:
-    run: sandbox-api-server
-  name: sandbox-api-server
+    run: featureform-api-server
+  name: featureform-api-server
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: sandbox-api-server
+      app: featureform-api-server
   strategy: {}
   template:
     metadata:
       creationTimestamp: null
       labels:
-        app: sandbox-api-server
+        app: featureform-api-server
     spec:
       containers:
         - image: {{ .Values.image.repository }}
-          name: sandbox-api-server
+          name: featureform-api-server
           ports:
             - containerPort: 7878
               protocol: TCP

@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 	// "golang.org/x/sync/errgroup"
 	"net"
-	//"os"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -175,7 +175,7 @@ func TestFeatureMaterializeJobError(t *testing.T) {
 	if err := coord.runFeatureMaterializeJob(metadata.ResourceID{"ghost_resource", "", metadata.FEATURE_VARIANT}, ""); err == nil {
 		t.Fatalf("did not catch error when trying to materialize nonexistent feature")
 	}
-	redisPort := "6379"
+	redisPort := os.Getenv("REDIS_PORT")
 	redisHost := "localhost"
 	liveAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
 	redisConfig := &provider.RedisConfig{
@@ -494,7 +494,7 @@ func TestTrainingSetJobError(t *testing.T) {
 	originalTableName = uuid.New().String()
 	featureName = uuid.New().String()
 	tsName = uuid.New().String()
-	redisPort := "6379"
+	redisPort := os.Getenv("REDIS_PORT")
 	redisHost := "localhost"
 	liveAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
 	redisConfig := &provider.RedisConfig{
@@ -792,7 +792,7 @@ func TestRegisterSourceJobErrors(t *testing.T) {
 	onlineProviderName := uuid.New().String()
 	newTableName := uuid.New().String()
 	newUserName := uuid.New().String()
-	redisPort := "6379"
+	redisPort := os.Getenv("REDIS_PORT")
 	redisHost := "localhost"
 	liveAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
 	redisConfig := &provider.RedisConfig{
@@ -1276,7 +1276,7 @@ func testCoordinatorMaterializeFeature(addr string) error {
 	if err != nil {
 		return fmt.Errorf("could not get provider as offline store: %v", err)
 	}
-	redisPort := "6379"
+	redisPort := os.Getenv("REDIS_PORT")
 	redisHost := "localhost"
 	liveAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
 	redisConfig := &provider.RedisConfig{
@@ -1836,8 +1836,7 @@ func testScheduleFeatureMaterialization(addr string) error {
 	if err != nil {
 		return fmt.Errorf("could not get provider as offline store: %v", err)
 	}
-	// redisPort := os.Getenv("REDIS_PORT")
-	redisPort := "6379"
+	redisPort := os.Getenv("REDIS_PORT")
 	redisHost := "localhost"
 	liveAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
 	redisConfig := &provider.RedisConfig{
@@ -2037,7 +2036,3 @@ func testScheduleTransformation(addr string) error {
 	}
 	return nil
 }
-
-//TODO, make sure all copied code pastes correctly,
-//make sure that the names for the metadata queries are correctly
-//all are using kuberntes and kubernetes is being queried, checked, etc

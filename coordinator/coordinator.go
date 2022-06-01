@@ -110,7 +110,7 @@ func (k *KubernetesJobSpawner) GetJobRunner(jobName string, config runner.Config
 		return nil, err
 	}
 	kubeConfig := runner.KubernetesRunnerConfig{
-		EnvVars: map[string]string{"NAME": jobName, "CONFIG": string(config), "ETCD_CONFIG": string(serializedETCD)},
+		EnvVars:  map[string]string{"NAME": jobName, "CONFIG": string(config), "ETCD_CONFIG": string(serializedETCD)},
 		Image:    "featureformcom/worker",
 		NumTasks: 1,
 		Resource: id,

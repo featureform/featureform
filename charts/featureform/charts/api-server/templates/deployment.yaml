@@ -25,16 +25,16 @@ spec:
               protocol: TCP
           resources: {}
           env:
-            - name: TYPESENSE_PORT
-              value: "80"
-            - name: TYPESENSE_HOST
-              value: sandbox-typesense
-            - name: TYPESENSE_APIKEY
-              value: password
-            - name: ETCD_HOST
-              value: sandbox-etcd
-            - name: ETCD_PORT
-              value: "2379"
+            - name: API_PORT
+              value: "7878"
+            - name: METADATA_HOST
+              value: "featureform-metadata-server"
+            - name: METADATA_PORT
+              value: "8080"
+            - name: SERVING_HOST
+              value: "featureform-feature-server"
+            - name: SERVING_PORT
+              value: "8080"
             - name: POD_IP
               valueFrom:
                 fieldRef:

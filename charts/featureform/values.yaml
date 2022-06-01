@@ -91,6 +91,7 @@ global:
   port: 3001
   metadata:
     port: 8080
+  imageVersion: stable
 
 metadata:
   grpc:

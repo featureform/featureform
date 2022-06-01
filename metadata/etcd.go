@@ -42,6 +42,22 @@ type CoordinatorScheduleJob struct {
 	Schedule string
 }
 
+func (c *CoordinatorScheduleJob) Serialize() ([]byte, error) {
+	serialized, err := json.Marshal(c)
+	if err != nil {
+		return nil, err
+	}
+	return serialized, nil
+}
+
+func (c *CoordinatorScheduleJob) Deserialize(serialized []byte) error {
+	err := json.Unmarshal(serialized, c)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 type TempJob struct {
 	Attempts int
 	Name     string

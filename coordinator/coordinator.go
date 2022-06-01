@@ -407,7 +407,7 @@ func (c *Coordinator) runRegisterSourceJob(resID metadata.ResourceID, schedule s
 	}
 }
 
-func (c *Coordinator) runLabelRegisterJob(resID metadata.ResourceID) error {
+func (c *Coordinator) runLabelRegisterJob(resID metadata.ResourceID, schedule string) error {
 	c.Logger.Info("Running label register job: ", resID)
 	label, err := c.Metadata.GetLabelVariant(context.Background(), metadata.NameVariant{resID.Name, resID.Variant})
 	if err != nil {

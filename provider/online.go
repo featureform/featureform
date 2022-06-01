@@ -8,7 +8,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strconv"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/gocql/gocql"
@@ -22,6 +21,15 @@ const (
 )
 
 var ctx = context.Background()
+
+var cassandraTypeMap = map[string]string{
+	"string":  "text",
+	"int":     "int",
+	"int64":   "bigint",
+	"float32": "float",
+	"float64": "double",
+	"bool":    "boolean",
+}
 
 type OnlineStore interface {
 	GetTable(feature, variant string) (OnlineStoreTable, error)
@@ -159,7 +167,7 @@ func NewCassandraOnlineStore(options *CassandraConfig) (*cassandraOnlineStore, e
 	}
 
 	//Create and use keyspace
-	query := fmt.Sprintf("CREATE KEYSPACE IF NOT EXISTS %s WITH replication = {'class' : 'SimpleStrategy','replication_factor' : 1}", options.keyspace)
+	query := fmt.Sprintf("CREATE KEYSPACE IF NOT EXISTS %s WITH replication = {'class' : 'SimpleStrategy','replication_factor' : 3}", options.keyspace)
 	err = newSession.Query(query).WithContext(ctx).Exec()
 	cassandraCluster.Keyspace = options.keyspace
 	if err != nil {
@@ -242,6 +250,7 @@ func (store *cassandraOnlineStore) CreateTable(feature, variant string, valueTyp
 
 	//Create table Name, key and check if it exists
 	tableName := fmt.Sprintf("%s.table%s", store.keyspace, sn.Custom(feature, "[^a-zA-Z0-9_]"))
+	vType := cassandraTypeMap[string(valueType)]
 	key := cassandraTableKey{store.keyspace, feature, variant}
 	getTable, _ := store.GetTable(feature, variant)
 	if getTable != nil {
@@ -257,10 +266,10 @@ func (store *cassandraOnlineStore) CreateTable(feature, variant string, valueTyp
 	}
 
 	// Create Table
-	query = fmt.Sprintf("CREATE TABLE %s (entity text PRIMARY KEY, value text)", tableName)
+	query = fmt.Sprintf("CREATE TABLE %s (entity text PRIMARY KEY, value %s)", tableName, vType)
 	err = store.session.Query(query).WithContext(ctx).Exec()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("valuetype: %s, vtype %s, %s", string(valueType), vType, err)
 	}
 
 	table := &cassandraOnlineTable{
@@ -367,9 +376,8 @@ func (table cassandraOnlineTable) Set(entity string, value interface{}) error {
 	table.session.SetConsistency(gocql.One)
 	key := table.key
 	tableName := fmt.Sprintf("%s.table%s", key.Keyspace, sn.Custom(key.Feature, "[^a-zA-Z0-9_]"))
-	val := fmt.Sprintf("%v", value)
 	query := fmt.Sprintf("INSERT INTO %s (entity, value) VALUES (?, ?)", tableName)
-	err := table.session.Query(query, entity, val).WithContext(ctx).Exec()
+	err := table.session.Query(query, entity, value).WithContext(ctx).Exec()
 	if err != nil {
 		return err
 	}
@@ -381,9 +389,27 @@ func (table cassandraOnlineTable) Get(entity string) (interface{}, error) {
 
 	key := table.key
 	tableName := fmt.Sprintf("%s.table%s", key.Keyspace, sn.Custom(key.Feature, "[^a-zA-Z0-9_]"))
-	var val string
+
+	var ptr interface{}
+	switch table.valueType {
+	case Int:
+		ptr = new(int)
+	case Int64:
+		ptr = new(int64)
+	case Float32:
+		ptr = new(float32)
+	case Float64:
+		ptr = new(float64)
+	case Bool:
+		ptr = new(bool)
+	case String, NilType:
+		ptr = new(string)
+	default:
+		return nil, fmt.Errorf("Data type not recognized")
+	}
+
 	query := fmt.Sprintf("SELECT value FROM %s WHERE entity = '%s'", tableName, entity)
-	err := table.session.Query(query).WithContext(ctx).Scan(&val)
+	err := table.session.Query(query).WithContext(ctx).Scan(ptr)
 	if err == gocql.ErrNotFound {
 		return nil, &EntityNotFound{entity}
 	}
@@ -391,26 +417,23 @@ func (table cassandraOnlineTable) Get(entity string) (interface{}, error) {
 		return nil, err
 	}
 
-	switch table.valueType {
-	case Int:
-		return strconv.Atoi(val)
-	case Int64:
-		return strconv.ParseInt(val, 10, 64)
-	// Set float 32 as strconv only outputs float 64
-	case Float32:
-		var result32 float32
-		result64, err := strconv.ParseFloat(val, 32)
-		if err != nil {
-			return nil, err
-		}
-		result32 = float32(result64)
-		return result32, err
-	case Float64:
-		return strconv.ParseFloat(val, 64)
-	case Bool:
-		return strconv.ParseBool(val)
+	var val interface{}
+	switch casted := ptr.(type) {
+	case *int:
+		val = *casted
+	case *int64:
+		val = *casted
+	case *float32:
+		val = *casted
+	case *float64:
+		val = *casted
+	case *bool:
+		val = *casted
+	case *string:
+		val = *casted
+	default:
+		return nil, fmt.Errorf("Data type not recognized")
 	}
-
 	return val, nil
 
 }

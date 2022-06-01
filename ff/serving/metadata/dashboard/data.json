@@ -1,0 +1,159 @@
+{
+  "all-variants": ["default"],
+  "type": "PrimaryData",
+  "default-variant": "default",
+  "name": "Transactions",
+  "variants": {
+    "default": {
+      "created": "2022-03-08T23:45:52-08:00",
+      "description": "Source of user transactions",
+      "name": "Transactions",
+      "type": "CSV",
+      "owner": "Simba Khadder",
+      "provider": "demo-redis",
+      "variant": "default",
+      "labels": {
+        "is_fraud": [
+          {
+            "created": "2022-03-08T23:45:52-08:00",
+            "description": "if a transaction is fraud",
+            "entity": "user",
+            "name": "is_fraud",
+            "owner": "Simba Khadder",
+            "provider": "demo-redis",
+            "type": "boolean",
+            "variant": "default",
+            "source": { "Name": "Transactions", "Variant": "default" },
+            "training-sets": null
+          }
+        ]
+      },
+      "features": {
+        "amt_spent": [
+          {
+            "created": "2022-03-08T23:45:52-08:00",
+            "description": "Total amount spent in the last 30 days.",
+            "entity": "user",
+            "name": "amt_spent",
+            "owner": "Simba Khadder",
+            "provider": "demo-redis",
+            "type": "int",
+            "variant": "30d",
+            "source": { "Name": "Transactions", "Variant": "default" },
+            "training-sets": null
+          }
+        ],
+        "avg_transaction_amt": [
+          {
+            "created": "2022-03-08T23:45:52-08:00",
+            "description": "Average transaction amount",
+            "entity": "user",
+            "name": "avg_transaction_amt",
+            "owner": "Simba Khadder",
+            "provider": "demo-redis",
+            "type": "int",
+            "variant": "default",
+            "source": { "Name": "Transactions", "Variant": "default" },
+            "training-sets": null
+          }
+        ],
+        "number_of_fraud": [
+          {
+            "created": "2022-03-08T23:45:52-08:00",
+            "description": "Number of fraud transactions in the last 90 days.",
+            "entity": "user",
+            "name": "number_of_fraud",
+            "owner": "Simba Khadder",
+            "provider": "demo-redis",
+            "type": "int",
+            "variant": "90d",
+            "source": { "Name": "Transactions", "Variant": "default" },
+            "training-sets": null
+          }
+        ],
+        "user_2fa": [
+          {
+            "created": "2022-03-08T23:45:52-08:00",
+            "description": "If user has 2fa",
+            "entity": "user",
+            "name": "user_2fa",
+            "owner": "Simba Khadder",
+            "provider": "demo-redis",
+            "type": "boolean",
+            "variant": "default",
+            "source": { "Name": "Transactions", "Variant": "default" },
+            "training-sets": null
+          }
+        ],
+        "user_account_age": [
+          {
+            "created": "2022-03-08T23:45:52-08:00",
+            "description": "Seconds since the user's account was created.",
+            "entity": "user",
+            "name": "user_account_age",
+            "owner": "Simba Khadder",
+            "provider": "demo-redis",
+            "type": "int",
+            "variant": "default",
+            "source": { "Name": "Transactions", "Variant": "default" },
+            "training-sets": null
+          }
+        ],
+        "user_credit_score": [
+          {
+            "created": "2022-03-08T23:45:52-08:00",
+            "description": "User's credit score",
+            "entity": "user",
+            "name": "user_credit_score",
+            "owner": "Simba Khadder",
+            "provider": "demo-s3",
+            "type": "int",
+            "variant": "default",
+            "source": { "Name": "Transactions", "Variant": "default" },
+            "training-sets": null
+          }
+        ],
+        "user_transaction_count": [
+          {
+            "created": "2022-03-08T23:45:52-08:00",
+            "description": "Number of transcations the user performed in the last 30 days.",
+            "entity": "user",
+            "name": "user_transaction_count",
+            "owner": "Simba Khadder",
+            "provider": "demo-redis",
+            "type": "int",
+            "variant": "30d",
+            "source": { "Name": "Transactions", "Variant": "default" },
+            "training-sets": null
+          },
+          {
+            "created": "2022-03-08T23:45:52-08:00",
+            "description": "Number of transcations the user performed in the last 7 days.",
+            "entity": "user",
+            "name": "user_transaction_count",
+            "owner": "Simba Khadder",
+            "provider": "demo-s3",
+            "type": "int",
+            "variant": "7d",
+            "source": { "Name": "Transactions", "Variant": "default" },
+            "training-sets": null
+          }
+        ]
+      },
+      "training-sets": {
+        "is_fraud": [
+          {
+            "created": "2022-03-08T23:45:52-08:00",
+            "description": "if a transaction is fraud",
+            "name": "is_fraud",
+            "owner": "Simba Khadder",
+            "provider": "demo-s3",
+            "variant": "default",
+            "label": { "Name": "is_fraud", "Variant": "default" },
+            "features": null
+          }
+        ]
+      }
+    }
+  }
+}

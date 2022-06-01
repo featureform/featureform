@@ -1,0 +1,6 @@
+[
+  { "Name": "Hero", "Type": "Entity", "Variant": "second", "id": "4" },
+  { "Name": "Villain", "Type": "Entity", "Variant": "default", "id": "5" },
+  { "Name": "Hero", "Type": "Feature", "Variant": "default-1", "id": "3" },
+  { "Name": "Heroes", "Type": "TrainingSet", "Variant": "default", "id": "1" }
+]

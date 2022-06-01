@@ -1345,7 +1345,7 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 	}
 	if serv.needsJob(res) {
 		serv.Logger.Info("Creating Job", res.ID().Name, res.ID().Variant)
-		if err := serv.lookup.SetJob(id); err != nil {
+		if err := serv.lookup.SetJob(id, res.Schedule()); err != nil {
 			return nil, fmt.Errorf("set job: %w", err)
 		}
 		serv.Logger.Info("Successfully Created Job", res.ID().Name, res.ID().Variant)

@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: featureform-dashboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: featureform-dashboard
+  template:
+    metadata:
+      labels:
+        app: featureform-dashboard
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: featureform-dashboard
+          image: {{ .Values.image.repository }}
+          imagePullPolicy: "Always"
+          ports:
+            - containerPort: 3000
+          env:
+            - name: REACT_APP_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: REACT_APP_API_URL
+                  name: featureform-env
+

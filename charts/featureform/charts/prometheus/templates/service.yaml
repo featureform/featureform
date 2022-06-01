@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: featureform-prometheus-service
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9090"
+
+spec:
+  selector:
+    app: featureform-prometheus-server
+  type: ClusterIP
+  ports:
+    - port: 9090
+      targetPort: 9090

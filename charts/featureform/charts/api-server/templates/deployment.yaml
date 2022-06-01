@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    run: featureform-api-server
+  name: featureform-api-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: featureform-api-server
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: featureform-api-server
+    spec:
+      containers:
+        - image: {{ .Values.image.repository }}
+          name: featureform-api-server
+          ports:
+            - containerPort: 7878
+              protocol: TCP
+          resources: {}
+          env:
+            - name: API_PORT
+              value: {{ .Values.apiserver.port }}
+            - name: METADATA_HOST
+              value: {{ .Values.metadata.host }}
+            - name: METADATA_PORT
+              value: {{ .Values.metadata.port }}
+            - name: SERVING_HOST
+              value: {{ .Values.serving.host }}
+            - name: SERVING_PORT
+              value: {{ .Values.serving.port }}
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          livenessProbe:
+            httpGet:
+              path: /_ah/
+              port: 8443
+            initialDelaySeconds: 120
+            periodSeconds: 3
+status: {}

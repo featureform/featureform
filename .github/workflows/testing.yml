@@ -16,10 +16,14 @@ jobs:
     name: Setup Test Dependencies
     defaults:
       run:
-        working-directory: ./ff/serving
+        working-directory: ./
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+
+      - name: Check directory
+        run: |
+          ls -la
 
       - name: Set up Go
         uses: actions/setup-go@v2
@@ -36,12 +40,12 @@ jobs:
         run: ./gen_grpc.sh
 
       - name: Build
-        run: go build
+        run: go build ./metadata/*.go
 
       - uses: actions/upload-artifact@v3
         with:
           name: compiled-workdir
-          path: ./ff/serving/
+          path: ./
           retention-days: 1
 
   typesense:
@@ -464,8 +468,18 @@ jobs:
         working-directory: ./
         run: mkdir coverage
 
+      - name: Build API.go
+        working-directory: ./api
+        run: go build
+
       - name: Start API Server
-        working-directory: ./api/
+        working-directory: ./api
+        env:
+          API_PORT: 7878
+          METADATA_HOST: "featureform-metadata-server"
+          METADATA_PORT: 8080
+          SERVING_HOST:  "featureform-metadata-server"
+          SERVING_PORT: 8080
         run: go run api.go &
 
       - name: Install python dependencies

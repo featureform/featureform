@@ -4,6 +4,3 @@ coverage:
     project:
       default:
         target: 0
-
-fixes:
-  - "::ff/serving"

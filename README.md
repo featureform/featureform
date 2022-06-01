@@ -43,7 +43,7 @@
 <br />
 <br />
 
-<img src="docs/assets/embeddinghub.png" alt="drawing" style="width:35em"/>
+<img src="embeddinghub/docs/assets/embeddinghub.png" alt="drawing" style="width:35em"/>
 
 <br />
 <br />

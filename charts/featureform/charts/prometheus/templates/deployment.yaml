@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: featureform-prometheus-deployment
+  labels:
+    app: featureform-prometheus-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: featureform-prometheus-server
+  template:
+    metadata:
+      labels:
+        app: featureform-prometheus-server
+    spec:
+      containers:
+        - name: featureform-prometheus
+          image: {{ .Values.image.repository }}
+          args:
+            - "--config.file=/etc/prometheus/prometheus.yml"
+            - "--storage.tsdb.path=/prometheus/"
+            - "--web.route-prefix=/prometheus"
+            - "--web.external-url=http://{{ .Release.Name }}-featureform.featureform.com/prometheus"
+          ports:
+            - containerPort: 9090
+          volumeMounts:
+            - name: featureform-prometheus-config-volume
+              mountPath: /etc/prometheus/
+            - name: featureform-prometheus-storage-volume
+              mountPath: /prometheus/
+      volumes:
+        - name: featureform-prometheus-config-volume
+          configMap:
+            defaultMode: 420
+            name: featureform-prometheus-server-conf
+
+        - name: featureform-prometheus-storage-volume
+          emptyDir: {}

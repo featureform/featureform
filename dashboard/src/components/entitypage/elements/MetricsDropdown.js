@@ -172,7 +172,7 @@ const MetricsDropdown = ({ type, name, variant, timeRange, aggregates }) => {
                         </div>
                         <div className={classes.aggDropdown}>
                           <TimeDropdown />
-                          <AggregateDropdown graph={i} />
+                          {/*<AggregateDropdown graph={i} />*/}
                         </div>
                       </div>
                       <QueryDropdown

@@ -5,10 +5,10 @@
 replicaCount: 1
 
 image:
-  repository: featureformcom/api-server:latest
+  repository: featureformcom/api-server
   pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
-  tag: ""
+  tag: {{ .Values.global.imageVersion }}
 
 imagePullSecrets: []
 nameOverride: api-server

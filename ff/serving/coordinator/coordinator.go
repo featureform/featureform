@@ -110,9 +110,9 @@ func (k *KubernetesJobSpawner) GetJobRunner(jobName string, config runner.Config
 		return nil, err
 	}
 	kubeConfig := runner.KubernetesRunnerConfig{
-		EnvVars:  map[string]string{"NAME": jobName, "CONFIG": string(config), "ETCD_CONFIG": string(serializedETCD)},
+		EnvVars: map[string]string{"NAME": jobName, "CONFIG": string(config), "ETCD_CONFIG": string(serializedETCD)},
 		// Image:    "featureform/worker",
-		Image: "sami1309/worker",
+		Image:    "sami1309/worker",
 		NumTasks: 1,
 		Resource: id,
 	}
@@ -606,7 +606,7 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
 		return err
 	}
-	fmt.Println("finishing training set job with schedule ",schedule)
+	fmt.Println("finishing training set job with schedule ", schedule)
 	if schedule != "" {
 		fmt.Println("scheduling training set job")
 		scheduleTrainingSetRunnerConfig := runner.TrainingSetRunnerConfig{

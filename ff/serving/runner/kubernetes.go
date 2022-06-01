@@ -7,12 +7,12 @@ package runner
 import (
 	"context"
 	"fmt"
-	"strings"
 	metadata "github.com/featureform/serving/metadata"
 	"github.com/google/uuid"
 	"github.com/gorhill/cronexpr"
 	batchv1 "k8s.io/api/batch/v1"
-	
+	"strings"
+
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	watch "k8s.io/apimachinery/pkg/watch"

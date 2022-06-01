@@ -5,8 +5,8 @@
 package main
 
 import (
-	worker "github.com/featureform/serving/runner/worker"
 	runner "github.com/featureform/serving/runner"
+	worker "github.com/featureform/serving/runner/worker"
 	"log"
 )
 

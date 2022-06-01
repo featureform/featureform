@@ -41,6 +41,7 @@ var postgresConfig = provider.PostgresConfig{
 }
 
 var redisPort = os.Getenv("REDIS_PORT")
+
 // var redisPort = "6379"
 
 func startServ(t *testing.T) (*metadata.MetadataServer, string) {

@@ -47,7 +47,7 @@ Selector labels
 */}}
 {{- define "featureform.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "featureform.name" . }}
-app.kubernetes.io/instance: sandbox
+app.kubernetes.io/instance: featureform
 {{- end }}
 
 {{/*

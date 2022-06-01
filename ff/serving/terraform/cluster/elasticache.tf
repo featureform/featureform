@@ -12,5 +12,4 @@ resource "aws_elasticache_cluster" "cluster" {
   engine_version       = "3.2.10"
   port                 = 6379
   subnet_group_name = aws_elasticache_subnet_group.ec_subnet_grp.name
-  security_group_names = [aws_security_group.all_worker_mgmt.name]
 }

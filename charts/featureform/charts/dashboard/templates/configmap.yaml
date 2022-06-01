@@ -1,8 +1,8 @@
 apiVersion: v1
 data:
-  REACT_APP_API_URL: sandbox-metadata-server
+  REACT_APP_API_URL: featureform-metadata-server
 kind: ConfigMap
 metadata:
   creationTimestamp: null
-  name: sandbox-env
+  name: featureform-env
   

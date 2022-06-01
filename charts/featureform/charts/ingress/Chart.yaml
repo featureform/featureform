@@ -28,6 +28,6 @@ dependencies:
     tags:
       - ingress-nginx
     version: 4.1.0
-  - name: cert-manager
-    repository: https://charts.jetstack.io
-    version: v1.0.4
+#  - name: cert-manager
+#    repository: https://charts.jetstack.io
+#    version: v1.0.4

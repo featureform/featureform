@@ -22,7 +22,7 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: sandbox-api-server
+                name: featureform-api-server
                 port:
                   number: 7878
 
@@ -30,7 +30,7 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: sandbox-api-server
+                name: featureform-api-server
                 port:
                   number: 7878
 
@@ -39,5 +39,5 @@ spec:
   tls:
     - hosts:
         -  {{ .Values.global.hostname }}
-      secretName: {{ .Release.Name }}-sandbox-prod-certificate
+      secretName: {{ .Release.Name }}-featureform-prod-certificate
 

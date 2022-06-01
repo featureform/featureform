@@ -8,7 +8,7 @@ image:
   repository: featureformcom/metadata-dashboard
   pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
-  tag: {{ .Values.global.imageVersion }}
+  tag: stable
 
 imagePullSecrets: []
 nameOverride: ""

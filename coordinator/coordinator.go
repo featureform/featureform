@@ -587,7 +587,7 @@ func (c *Coordinator) hasJob(id metadata.ResourceID) (bool, error) {
 func (c *Coordinator) createJobLock(jobKey string, s *concurrency.Session) (*concurrency.Mutex, error) {
 	mtx := concurrency.NewMutex(s, GetLockKey(jobKey))
 	if err := mtx.Lock(context.Background()); err != nil {
-		return nil, err
+		panic(err)
 	}
 	return mtx, nil
 }

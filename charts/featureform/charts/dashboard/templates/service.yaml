@@ -1,13 +1,12 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: sandbox-dashboard
+  name: featureform-dashboard
 spec:
-  type: NodePort
+  type: ClusterIP
   selector:
-    app: sandbox-dashboard
+    app: featureform-dashboard
   ports:
     - port: {{ .Values.dashboard.port }}
       targetPort: 3000
       protocol: TCP
-      nodePort: 31001

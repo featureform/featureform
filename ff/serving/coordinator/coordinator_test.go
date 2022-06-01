@@ -890,9 +890,9 @@ func TestCoordinatorCalls(t *testing.T) {
 	if err := testRegisterTransformationFromSource(addr); err != nil {
 		t.Fatalf("coordinator could not register transformation from source and transformation: %v", err)
 	}
-	// if err := testScheduleTrainingSet(addr); err != nil {
-	// 	t.Fatalf("coordinator could not schedule training set to be updated: %v", err)
-	// }
+	if err := testScheduleTrainingSet(addr); err != nil {
+		t.Fatalf("coordinator could not schedule training set to be updated: %v", err)
+	}
 	// if err := testScheduleTransformation(addr); err != nil {
 	// 	t.Fatalf("coordinator could not schedule transformation to be updated: %v", err)
 	// }

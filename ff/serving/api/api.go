@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -210,7 +211,7 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)
 
-	_, err := io.WriteString(w, `<html><body>Welcome to gRPC on GKE example</body></html>`)
+	_, err := io.WriteString(w, `<html><body>Welcome to featureform</body></html>`)
 	if err != nil {
 		fmt.Printf("index / write response error: %+v", err)
 	}
@@ -242,6 +243,14 @@ func startHttpsServer(port string) error {
 }
 
 func main() {
+	apiPort := os.Getenv("API_PORT")
+	metadataHost := os.Getenv("METADATA_HOST")
+	metadataPort := os.Getenv("METADATA_PORT")
+	servingHost := os.Getenv("SERVING_HOST")
+	servingPort := os.Getenv("SERVING_PORT")
+	apiConn := fmt.Sprintf("0.0.0.0:%s", apiPort)
+	metadataConn := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
+	servingConn := fmt.Sprintf("%s:%s", servingHost, servingPort)
 	logger := zap.NewExample().Sugar()
 	go func() {
 		err := startHttpsServer(":8443")
@@ -249,7 +258,7 @@ func main() {
 			panic(fmt.Sprintf("health check HTTP server failed: %+v", err))
 		}
 	}()
-	serv, err := NewApiServer(logger, "0.0.0.0:7878", "sandbox-metadata-server:8080", "sandbox-feature-server:8080")
+	serv, err := NewApiServer(logger, apiConn, metadataConn, servingConn)
 	if err != nil {
 		fmt.Println(err)
 		return

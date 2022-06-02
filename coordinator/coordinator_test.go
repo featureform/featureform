@@ -1328,9 +1328,13 @@ func testCoordinatorMaterializeFeature(addr string) error {
 	if err != nil {
 		return fmt.Errorf("Failed to set up coordinator")
 	}
-	if err := coord.executeJob(metadata.GetJobKey(featureID)); err != nil {
-		return err
-	}
+	go func() {
+		if err := coord.WatchForNewJobs(); err != nil {
+			logger.Errorf("Error watching for new jobs: %v", err)
+		}
+	}()
+	//here we think coordiantor will register EVERY source for us all nice and tidy
+	//bookmark3
 	startWaitDelete := time.Now()
 	elapsed := time.Since(startWaitDelete)
 	for has, _ := coord.hasJob(featureID); has && elapsed < time.Duration(10)*time.Second; has, _ = coord.hasJob(featureID) {

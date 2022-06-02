@@ -139,7 +139,7 @@ func TestCreateTransformationRunnerFactoryErrorCoverage(t *testing.T) {
 			}),
 		},
 	}
-	err := RegisterFactory(CREATE_TRANSFORMATION, CreateTransformationRunnerFactory)
+	err := RegisterFactory("TEST_CREATE_TRANSFORMATION", CreateTransformationRunnerFactory)
 	if err != nil {
 		t.Fatalf("Could not register transformation factory: %v", err)
 	}
@@ -148,7 +148,7 @@ func TestCreateTransformationRunnerFactoryErrorCoverage(t *testing.T) {
 			t.Fatalf("Test Job Failed to catch error: %s", config.Name)
 		}
 	}
-	delete(factoryMap, CREATE_TRAINING_SET)
+	delete(factoryMap, "TEST_CREATE_TRANSFORMATION")
 }
 
 func TestTransformationFactory(t *testing.T) {
@@ -170,12 +170,13 @@ func TestTransformationFactory(t *testing.T) {
 		},
 		IsUpdate: false,
 	})
-	err := RegisterFactory(CREATE_TRANSFORMATION, CreateTransformationRunnerFactory)
+	err := RegisterFactory("TEST_CREATE_TRANSFORMATION", CreateTransformationRunnerFactory)
 	if err != nil {
 		t.Fatalf("Could not register transformation factory: %v", err)
 	}
-	_, err = Create(CREATE_TRANSFORMATION, serializedConfig)
+	_, err = Create("TEST_CREATE_TRANSFORMATION", serializedConfig)
 	if err != nil {
 		t.Fatalf("Could not create create transformation runner")
 	}
+	delete(factoryMap, "TEST_CREATE_TRANSFORMATION")
 }

@@ -135,7 +135,7 @@ func TestRegisterSourceRunnerFactoryErrorCoverage(t *testing.T) {
 			}),
 		},
 	}
-	err := RegisterFactory(REGISTER_SOURCE, RegisterSourceRunnerFactory)
+	err := RegisterFactory("TEST_REGISTER_SOURCE", RegisterSourceRunnerFactory)
 	if err != nil {
 		t.Fatalf("Could not register register source factory: %v", err)
 	}
@@ -144,7 +144,7 @@ func TestRegisterSourceRunnerFactoryErrorCoverage(t *testing.T) {
 			t.Fatalf("Test Job Failed to catch error: %s", config.Name)
 		}
 	}
-	delete(factoryMap, CREATE_TRAINING_SET)
+	delete(factoryMap, "TEST_REGISTER_SOURCE")
 }
 
 func TestRegisterSourceFactory(t *testing.T) {
@@ -163,11 +163,11 @@ func TestRegisterSourceFactory(t *testing.T) {
 		SourceTableName: "",
 	},
 	)
-	err := RegisterFactory(REGISTER_SOURCE, RegisterSourceRunnerFactory)
+	err := RegisterFactory("TEST_REGISTER_SOURCE", RegisterSourceRunnerFactory)
 	if err != nil {
 		t.Fatalf("Could not register register source factory: %v", err)
 	}
-	_, err = Create(REGISTER_SOURCE, serializedConfig)
+	_, err = Create("TEST_REGISTER_SOURCE", serializedConfig)
 	if err != nil {
 		t.Fatalf("Could not create create register source runner")
 	}

@@ -58,8 +58,7 @@ func TestMockMaterializeRunner(t *testing.T) {
 		VType: provider.String,
 		Cloud: LocalMaterializeRunner,
 	}
-	delete(factoryMap, string(COPY_TO_ONLINE))
-	if err := RegisterFactory(string(COPY_TO_ONLINE), mockChunkRunnerFactory); err != nil {
+	if err := RegisterFactory("TEST_COPY_TO_ONLINE", mockChunkRunnerFactory); err != nil {
 		t.Fatalf("Failed to register factory: %v", err)
 	}
 
@@ -79,6 +78,8 @@ func TestMockMaterializeRunner(t *testing.T) {
 	if result := watcher.String(); len(result) == 0 {
 		t.Fatalf("Failed to return string on completion status")
 	}
+	delete(factoryMap, "TEST_COPY_TO_ONLINE")
+
 }
 
 func TestWatcherMultiplex(t *testing.T) {

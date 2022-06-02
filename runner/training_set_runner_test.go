@@ -97,7 +97,7 @@ func TestFailTrainingSet(t *testing.T) {
 }
 
 func testTrainingSetErrorConfigsFactory(config Config) error {
-	_, err := Create(CREATE_TRAINING_SET, config)
+	_, err := Create("TEST_CREATE_TRAINING_SET", config)
 	return err
 }
 
@@ -133,7 +133,7 @@ func TestTrainingSetRunnerFactoryErrorCoverage(t *testing.T) {
 			}),
 		},
 	}
-	err := RegisterFactory(CREATE_TRAINING_SET, TrainingSetRunnerFactory)
+	err := RegisterFactory("TEST_CREATE_TRAINING_SET", TrainingSetRunnerFactory)
 	if err != nil {
 		t.Fatalf("Could not register training set factory: %v", err)
 	}
@@ -142,7 +142,7 @@ func TestTrainingSetRunnerFactoryErrorCoverage(t *testing.T) {
 			t.Fatalf("Test Job Failed to catch error: %s", config.Name)
 		}
 	}
-	delete(factoryMap, CREATE_TRAINING_SET)
+	delete(factoryMap, "TEST_CREATE_TRAINING_SET")
 }
 
 func TestTrainingSetFactory(t *testing.T) {
@@ -163,11 +163,11 @@ func TestTrainingSetFactory(t *testing.T) {
 		},
 		IsUpdate: false,
 	})
-	err := RegisterFactory(CREATE_TRAINING_SET, TrainingSetRunnerFactory)
+	err := RegisterFactory("TEST_CREATE_TRAINING_SET", TrainingSetRunnerFactory)
 	if err != nil {
 		t.Fatalf("Could not register training set factory: %v", err)
 	}
-	_, err = Create(CREATE_TRAINING_SET, serializedConfig)
+	_, err = Create("TEST_CREATE_TRAINING_SET", serializedConfig)
 	if err != nil {
 		t.Fatalf("Could not create create training set runner")
 	}

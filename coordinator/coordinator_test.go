@@ -837,13 +837,13 @@ func TestRegisterSourceJobErrors(t *testing.T) {
 func TestTemplateReplace(t *testing.T) {
 	templateString := "Some example text {{name1.variant1}} and more {{name2.variant2}}"
 	replacements := map[string]string{"name1.variant1": "replacement1", "name2.variant2": "replacement2"}
-	correctString := "Some example text replacement1 and more replacement2"
+	correctString := "Some example text \"replacement1\" and more \"replacement2\""
 	result, err := templateReplace(templateString, replacements)
 	if err != nil {
 		t.Fatalf("template replace did not run correctly: %v", err)
 	}
 	if result != correctString {
-		t.Fatalf("template replace did not replace values correctly")
+		t.Fatalf("template replace did not replace values correctly. Expected %s, got %s", correctString, result)
 	}
 
 }

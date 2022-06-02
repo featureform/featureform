@@ -117,6 +117,13 @@ jobs:
         ports:
           - 6379:6379
 
+      cassandra:
+        image: cassandra
+        # Hard coded port because environment variables not currently
+        # supported for use outside of 'steps'
+        ports:
+          - 9042:9042
+
       postgres:
         image: postgres
         ports:

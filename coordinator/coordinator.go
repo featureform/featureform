@@ -551,7 +551,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 		SourceTable: srcName,
 	}
 	c.Logger.Debugw("Creating Resource Table", "id", featID, "schema", schema)
-	_, err = sourceStore.CreateResourceTable(featID, schema)
+	_, err = sourceStore.RegisterResourceFromSourceTable(featID, schema)
 	if err != nil {
 		return fmt.Errorf("materialize feature register: %w", err)
 	}

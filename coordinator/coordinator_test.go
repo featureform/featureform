@@ -1265,14 +1265,14 @@ func testCoordinatorMaterializeFeature(addr string) error {
 	}
 	defer cli.Close()
 	serialPGConfig := postgresConfig.Serialize()
-	offlineProvider, err := provider.Get(provider.PostgresOffline, serialPGConfig)
-	if err != nil {
-		return fmt.Errorf("could not get offline provider: %v", err)
-	}
-	offlineStore, err := offlineProvider.AsOfflineStore()
-	if err != nil {
-		return fmt.Errorf("could not get provider as offline store: %v", err)
-	}
+	// offlineProvider, err := provider.Get(provider.PostgresOffline, serialPGConfig)
+	// if err != nil {
+	// 	return fmt.Errorf("could not get offline provider: %v", err)
+	// }
+	// offlineStore, err := offlineProvider.AsOfflineStore()
+	// if err != nil {
+	// 	return fmt.Errorf("could not get provider as offline store: %v", err)
+	// }
 	liveAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
 	redisConfig := &provider.RedisConfig{
 		Addr: liveAddr,
@@ -1286,25 +1286,25 @@ func testCoordinatorMaterializeFeature(addr string) error {
 	if err != nil {
 		return fmt.Errorf("could not get provider as online store")
 	}
-	schemaInt := provider.TableSchema{
-		Columns: []provider.TableColumn{
-			{Name: "entity", ValueType: provider.String},
-			{Name: "value", ValueType: provider.Int},
-			{Name: "ts", ValueType: provider.Timestamp},
-		},
-	}
+	// schemaInt := provider.TableSchema{
+	// 	Columns: []provider.TableColumn{
+	// 		{Name: "entity", ValueType: provider.String},
+	// 		{Name: "value", ValueType: provider.Int},
+	// 		{Name: "ts", ValueType: provider.Timestamp},
+	// 	},
+	// }
 	featureName := uuid.New().String()
 	sourceName := uuid.New().String()
-	offlineFeature := provider.ResourceID{Name: featureName, Variant: "", Type: provider.Feature}
-	featureTable, err := offlineStore.CreateResourceTable(offlineFeature, schemaInt)
-	if err != nil {
-		return fmt.Errorf("could not create feature table: %v", err)
-	}
-	for _, value := range testOfflineTableValues {
-		if err := featureTable.Write(value); err != nil {
-			return fmt.Errorf("could not write to offline feature table")
-		}
-	}
+	// offlineFeature := provider.ResourceID{Name: featureName, Variant: "", Type: provider.Feature}
+	// //featureTable, err := offlineStore.CreateResourceTable(offlineFeature, schemaInt)
+	// if err != nil {
+	// 	return fmt.Errorf("could not create feature table: %v", err)
+	// }
+	// for _, value := range testOfflineTableValues {
+	// 	if err := featureTable.Write(value); err != nil {
+	// 		return fmt.Errorf("could not write to offline feature table")
+	// 	}
+	// }
 	originalTableName := uuid.New().String()
 	if err := CreateOriginalPostgresTable(originalTableName); err != nil {
 		return err

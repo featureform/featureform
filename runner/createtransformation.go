@@ -7,8 +7,8 @@ package runner
 import (
 	"encoding/json"
 	"fmt"
-	metadata "github.com/featureform/metadata"
-	provider "github.com/featureform/provider"
+	"github.com/featureform/metadata"
+	"github.com/featureform/provider"
 )
 
 func (c *CreateTransformationRunner) Run() (CompletionWatcher, error) {

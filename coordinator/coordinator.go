@@ -11,8 +11,8 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/featureform/metadata"
-	provider "github.com/featureform/provider"
-	runner "github.com/featureform/runner"
+	"github.com/featureform/provider"
+	"github.com/featureform/runner"
 	mvccpb "go.etcd.io/etcd/api/v3/mvccpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/client/v3/concurrency"

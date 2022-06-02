@@ -7,7 +7,7 @@ package runner
 import (
 	"errors"
 	"fmt"
-	provider "github.com/featureform/provider"
+	"github.com/featureform/provider"
 	"github.com/google/uuid"
 	"reflect"
 	"sync"

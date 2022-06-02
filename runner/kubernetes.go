@@ -7,7 +7,7 @@ package runner
 import (
 	"context"
 	"fmt"
-	metadata "github.com/featureform/metadata"
+	"github.com/featureform/metadata"
 	"github.com/google/uuid"
 	"github.com/gorhill/cronexpr"
 	batchv1 "k8s.io/api/batch/v1"

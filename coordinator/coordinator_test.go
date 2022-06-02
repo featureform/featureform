@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/google/uuid"
-	// "golang.org/x/sync/errgroup"
 	"net"
 	"os"
 	"reflect"
@@ -13,8 +12,8 @@ import (
 	"time"
 
 	"github.com/featureform/metadata"
-	provider "github.com/featureform/provider"
-	runner "github.com/featureform/runner"
+	"github.com/featureform/provider"
+	"github.com/featureform/runner"
 	"github.com/jackc/pgx/v4/pgxpool"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.uber.org/zap"

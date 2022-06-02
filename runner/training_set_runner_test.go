@@ -6,7 +6,7 @@ package runner
 
 import (
 	"fmt"
-	provider "github.com/featureform/provider"
+	"github.com/featureform/provider"
 	"testing"
 )
 

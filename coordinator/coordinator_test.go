@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"net"
-	"os"
+	//"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -29,13 +29,17 @@ var testOfflineTableValues = [...]provider.ResourceRecord{
 
 var postgresConfig = provider.PostgresConfig{
 	Host:     "localhost",
-	Port:     "5432",
-	Database: os.Getenv("POSTGRES_DB"),
-	Username: os.Getenv("POSTGRES_USER"),
-	Password: os.Getenv("POSTGRES_PASSWORD"),
+	// Port:     "5432",
+	// Database: os.Getenv("POSTGRES_DB"),
+	// Username: os.Getenv("POSTGRES_USER"),
+	// Password: os.Getenv("POSTGRES_PASSWORD"),
+	Database: "testdatabase",
+	Username: "postgres",
+	Password: "Fdhfjdhfj9",
 }
 
-var redisPort = os.Getenv("REDIS_PORT")
+// var redisPort = os.Getenv("REDIS_PORT")
+var redisPort = "6379"
 var redisHost = "localhost"
 
 var etcdHost = "localhost"

@@ -870,9 +870,9 @@ func TestCoordinatorCalls(t *testing.T) {
 		t.Fatalf("could not set up metadata client: %v", err)
 	}
 	defer client.Close()
-	if err := testCoordinatorMaterializeFeature(addr); err != nil {
-		t.Fatalf("coordinator could not materialize feature: %v", err)
-	}
+	// if err := testCoordinatorMaterializeFeature(addr); err != nil {
+	// 	t.Fatalf("coordinator could not materialize feature: %v", err)
+	// }
 	if err := testCoordinatorTrainingSet(addr); err != nil {
 		t.Fatalf("coordinator could not create training set: %v", err)
 	}

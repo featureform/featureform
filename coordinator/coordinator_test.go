@@ -1241,6 +1241,9 @@ func testCoordinatorTrainingSet(addr string) error {
 	return nil
 }
 
+//TODO verify degree to which features are already registered/need to be registered here and remove aspects not correlated
+//to actual use case
+
 func testCoordinatorMaterializeFeature(addr string) error {
 	if err := runner.RegisterFactory(string(runner.COPY_TO_ONLINE), runner.MaterializedChunkRunnerFactory); err != nil {
 		return fmt.Errorf("Failed to register training set runner factory: %v", err)
@@ -1326,15 +1329,9 @@ func testCoordinatorMaterializeFeature(addr string) error {
 	if err != nil {
 		return fmt.Errorf("Failed to set up coordinator")
 	}
-	// go func() {
-	// 	if err := coord.WatchForNewJobs(); err != nil {
-	// 		logger.Errorf("Error watching for new jobs: %v", err)
-	// 	}
-	// }()
 	if err := coord.executeJob(metadata.GetJobKey(featureID)); err != nil {
 		return err
 	}
-	//bookmark
 	startWaitDelete := time.Now()
 	elapsed := time.Since(startWaitDelete)
 	for has, _ := coord.hasJob(featureID); has && elapsed < time.Duration(10)*time.Second; has, _ = coord.hasJob(featureID) {

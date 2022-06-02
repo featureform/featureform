@@ -462,7 +462,6 @@ func (c *Coordinator) runLabelRegisterJob(resID metadata.ResourceID, schedule st
 	return nil
 }
 
-//should only be triggered when we are registering an ONLINE feature, not an offline one
 func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedule string) error {
 	c.Logger.Info("Running feature materialization job on resource: ", resID)
 	feature, err := c.Metadata.GetFeatureVariant(context.Background(), metadata.NameVariant{resID.Name, resID.Variant})
@@ -505,10 +504,10 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 	if err != nil {
 		return err
 	}
-	//featureStore, err := p.AsOnlineStore()
-	if err != nil {
-		return err
-	}
+	// featureStore, err := p.AsOnlineStore()
+	// if err != nil {
+	// 	return err
+	// }
 
 	type JobCloud string
 
@@ -881,7 +880,6 @@ func (c *ResourceUpdatedEvent) Deserialize(config Config) error {
 	return nil
 }
 
-//here we get a notificaiton from a worker that there was a succesful update to a resource
 func (c *Coordinator) signalResourceUpdate(key string, value string) error {
 	c.Logger.Info("Updating metdata with latest resource update status and time", key)
 	s, err := concurrency.NewSession(c.EtcdClient, concurrency.WithTTL(1))
@@ -913,7 +911,6 @@ func (c *Coordinator) signalResourceUpdate(key string, value string) error {
 	return nil
 }
 
-//here we request kubernetes to change the schedule of a job
 func (c *Coordinator) changeJobSchedule(key string, value string) error {
 	c.Logger.Info("Updating schedule of currently made cronjob in kubernetes: ", key)
 	s, err := concurrency.NewSession(c.EtcdClient, concurrency.WithTTL(1))

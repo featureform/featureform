@@ -616,8 +616,6 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 
 func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule string) error {
 	c.Logger.Info("Running training set job on resource: ", resID)
-	fmt.Println("Training set schedule is", schedule)
-	fmt.Println("Training set resource id is", resID)
 	ts, err := c.Metadata.GetTrainingSetVariant(context.Background(), metadata.NameVariant{resID.Name, resID.Variant})
 	if err != nil {
 		return fmt.Errorf("fetch training set variant from metadata: %w", err)
@@ -694,9 +692,7 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
 		return fmt.Errorf("set training set job runner status: %w", err)
 	}
-	fmt.Println("finishing training set job with schedule ", schedule)
 	if schedule != "" {
-		fmt.Println("scheduling training set job")
 		scheduleTrainingSetRunnerConfig := runner.TrainingSetRunnerConfig{
 			OfflineType:   provider.Type(providerEntry.Type()),
 			OfflineConfig: providerEntry.SerializedConfig(),
@@ -715,7 +711,6 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 		if !isCronRunner {
 			return fmt.Errorf("kubernetes runner does not implement schedule")
 		}
-		fmt.Println("scheduling training set job in kubernetes")
 		if err := cronRunner.ScheduleJob(runner.CronSchedule(schedule)); err != nil {
 			return fmt.Errorf("schedule training set job in kubernetes: %w", err)
 		}
@@ -853,7 +848,6 @@ func (c *Coordinator) executeJob(jobKey string) error {
 	if !has {
 		return fmt.Errorf("not a valid resource type for running jobs")
 	}
-	fmt.Println("Job with schedule is", job)
 	if err := jobFunc(job.Resource, job.Schedule); err != nil {
 		statusErr := c.Metadata.SetStatus(context.Background(), job.Resource, metadata.FAILED, err.Error())
 		return fmt.Errorf("%s job failed: %v: %v", job.Resource.Type, err, statusErr)

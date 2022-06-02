@@ -489,26 +489,26 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 	if err != nil {
 		return fmt.Errorf("could not fetch online provider: %w", err)
 	}
-	// p, err := provider.Get(provider.Type(sourceProvider.Type()), sourceProvider.SerializedConfig())
-	// if err != nil {
-	// 	return err
-	// }
-	//sourceStore, err := p.AsOfflineStore()
-	// if err != nil {
-	// 	return err
-	// }
+	p, err := provider.Get(provider.Type(sourceProvider.Type()), sourceProvider.SerializedConfig())
+	if err != nil {
+		return err
+	}
+	sourceStore, err := p.AsOfflineStore()
+	if err != nil {
+		return err
+	}
 	featureProvider, err := feature.FetchProvider(c.Metadata, context.Background())
 	if err != nil {
 		return fmt.Errorf("could not fetch  onlineprovider: %w", err)
 	}
-	// p, err = provider.Get(provider.Type(featureProvider.Type()), featureProvider.SerializedConfig())
-	// if err != nil {
-	// 	return err
-	// }
+	p, err = provider.Get(provider.Type(featureProvider.Type()), featureProvider.SerializedConfig())
+	if err != nil {
+		return err
+	}
 	//featureStore, err := p.AsOnlineStore()
-	// if err != nil {
-	// 	return err
-	// }
+	if err != nil {
+		return err
+	}
 
 	type JobCloud string
 
@@ -530,38 +530,33 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 	if err != nil {
 		return fmt.Errorf("could not get online provider config: %w", err)
 	}
-	jobRunner, err := c.Spawner.GetJobRunner(runner.MATERIALIZE, serialized, c.EtcdClient.Endpoints(), resID)
-	if err != nil {
-		return fmt.Errorf("could not use store as online store: %w", err)
+	srcID := provider.ResourceID{
+		Name:    sourceNameVariant.Name,
+		Variant: sourceNameVariant.Variant,
 	}
-	completionWatcher, err := jobRunner.Run()
-	// srcID := provider.ResourceID{
-	// 	Name:    sourceNameVariant.Name,
-	// 	Variant: sourceNameVariant.Variant,
-	// }
-	// srcName, err := provider.GetTransformationName(srcID)
-	// if err != nil {
-	// 	return fmt.Errorf("transform name err: %w", err)
-	// }
+	srcName, err := provider.GetTransformationName(srcID)
+	if err != nil {
+		return fmt.Errorf("transform name err: %w", err)
+	}
 
-	// featID := provider.ResourceID{
-	// 	Name:    resID.Name,
-	// 	Variant: resID.Variant,
-	// 	Type:    provider.Feature,
-	// }
-	// tmpSchema := feature.LocationColumns().(metadata.ResourceVariantColumns)
-	// schema := provider.ResourceSchema{
-	// 	Entity:      tmpSchema.Entity,
-	// 	Value:       tmpSchema.Value,
-	// 	TS:          tmpSchema.TS,
-	// 	SourceTable: srcName,
-	// }
-	// c.Logger.Debugw("Creating Resource Table", "id", featID, "schema", schema)
-	// _, err = sourceStore.RegisterResourceFromSourceTable(featID, schema)
-	// if err != nil {
-	// 	return fmt.Errorf("materialize feature register: %w", err)
-	// }
-	// c.Logger.Debugw("Resource Table Created", "id", featID, "schema", schema)
+	featID := provider.ResourceID{
+		Name:    resID.Name,
+		Variant: resID.Variant,
+		Type:    provider.Feature,
+	}
+	tmpSchema := feature.LocationColumns().(metadata.ResourceVariantColumns)
+	schema := provider.ResourceSchema{
+		Entity:      tmpSchema.Entity,
+		Value:       tmpSchema.Value,
+		TS:          tmpSchema.TS,
+		SourceTable: srcName,
+	}
+	c.Logger.Debugw("Creating Resource Table", "id", featID, "schema", schema)
+	_, err = sourceStore.RegisterResourceFromSourceTable(featID, schema)
+	if err != nil {
+		return fmt.Errorf("materialize feature register: %w", err)
+	}
+	c.Logger.Debugw("Resource Table Created", "id", featID, "schema", schema)
 
 	// materializeRunner := runner.MaterializeRunner{
 	// 	Online:  featureStore,
@@ -570,8 +565,13 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 	// 	VType:   provider.ValueType(featureType),
 	// 	Cloud:   runner.LocalMaterializeRunner,
 	// }
-	// c.Logger.Info("Starting Materialize")
-	// completionWatcher, err := materializeRunner.Run()
+	c.Logger.Info("Starting Materialize")
+	jobRunner, err := c.Spawner.GetJobRunner(runner.MATERIALIZE, serialized, c.EtcdClient.Endpoints(), resID)
+	if err != nil {
+		return fmt.Errorf("could not use store as online store: %w", err)
+	}
+	completionWatcher, err := jobRunner.Run()
+	//completionWatcher, err := materializeRunner.Run()
 	if err != nil {
 		return fmt.Errorf("creating watcher for completion runner: %w", err)
 	}

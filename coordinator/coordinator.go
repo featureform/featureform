@@ -181,19 +181,6 @@ func (c *Coordinator) WatchForNewJobs() error {
 
 func (c *Coordinator) WatchForUpdateEvents() error {
 	c.Logger.Info("Watching for new update events")
-	// getResp, err := (*c.KVClient).Get(context.Background(), "UPDATE_EVENT_", clientv3.WithPrefix())
-	// if err != nil {
-	// 	return err
-	// }
-	// for _, kv := range getResp.Kvs {
-	// 	fmt.Printf("got update event %v\n",kv)
-	// 	go func(kv *mvccpb.KeyValue) {
-	// 		err := c.signalResourceUpdate(string(kv.Key), string(kv.Value))
-	// 		if err != nil {
-	// 			c.Logger.Errorw("Error executing update event catch: Initial search", "error", err)
-	// 		}
-	// 	}(kv)
-	// }
 	for {
 		rch := c.EtcdClient.Watch(context.Background(), "UPDATE_EVENT_", clientv3.WithPrefix())
 		for wresp := range rch {

@@ -432,6 +432,8 @@ func (c *Coordinator) runLabelRegisterJob(resID metadata.ResourceID, schedule st
 		Name:    sourceNameVariant.Name,
 		Variant: sourceNameVariant.Variant,
 	}
+	//check if source is primary or transformation
+
 	srcName, err := provider.GetTransformationName(srcID)
 	if err != nil {
 		return fmt.Errorf("transform name err: %w", err)

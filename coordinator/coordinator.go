@@ -64,7 +64,7 @@ func (c *ETCDConfig) Serialize() (Config, error) {
 func (c *ETCDConfig) Deserialize(config Config) error {
 	err := json.Unmarshal(config, c)
 	if err != nil {
-		return err
+		return fmt.Errorf("deserialize etcd config: %w", err)
 	}
 	return nil
 }
@@ -150,7 +150,7 @@ func (c *Coordinator) WatchForNewJobs() error {
 	c.Logger.Info("Watching for new jobs")
 	getResp, err := (*c.KVClient).Get(context.Background(), "JOB_", clientv3.WithPrefix())
 	if err != nil {
-		return err
+		return fmt.Errorf("get existing etcd jobs: %w", err)
 	}
 	for _, kv := range getResp.Kvs {
 		go func(kv *mvccpb.KeyValue) {
@@ -204,7 +204,7 @@ func (c *Coordinator) WatchForScheduleChanges() error {
 	c.Logger.Info("Watching for new update events")
 	getResp, err := (*c.KVClient).Get(context.Background(), "SCHEDULEJOB_", clientv3.WithPrefix())
 	if err != nil {
-		return err
+		return fmt.Errorf("fetch existing etcd schedule jobs: %w", err)
 	}
 	for _, kv := range getResp.Kvs {
 		go func(kv *mvccpb.KeyValue) {
@@ -282,7 +282,7 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 				totalReady += 1
 			}
 			if sourceVariant.Status() == metadata.FAILED {
-				return err
+				return fmt.Errorf("dependent source variant failed")
 			}
 		}
 		allReady = total == totalReady
@@ -306,21 +306,21 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 	}
 	serialized, err := createTransformationConfig.Serialize()
 	if err != nil {
-		return err
+		return fmt.Errorf("serialize transformation config: %w", err)
 	}
 	jobRunner, err := c.Spawner.GetJobRunner(runner.CREATE_TRANSFORMATION, serialized, c.EtcdClient.Endpoints(), resID)
 	if err != nil {
-		return err
+		return fmt.Errorf("spawn create transformation job runner: %w", err)
 	}
 	completionWatcher, err := jobRunner.Run()
 	if err != nil {
-		return err
+		return fmt.Errorf("run transformation job runner: %w", err)
 	}
 	if err := completionWatcher.Wait(); err != nil {
-		return err
+		return fmt.Errorf("wait for transformation job runner completion: %w", err)
 	}
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
-		return err
+		return fmt.Errorf("set transformation job runner done status: %w", err)
 	}
 	if schedule != "" {
 		scheduleCreateTransformationConfig := runner.CreateTransformationConfig{
@@ -331,21 +331,21 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 		}
 		serializedUpdate, err := scheduleCreateTransformationConfig.Serialize()
 		if err != nil {
-			return err
+			return fmt.Errorf("serialize schedule transformation config: %w", err)
 		}
 		jobRunnerUpdate, err := c.Spawner.GetJobRunner(runner.CREATE_TRANSFORMATION, serializedUpdate, c.EtcdClient.Endpoints(), resID)
 		if err != nil {
-			return err
+			return fmt.Errorf("run ransformation schedule job runner: %w", err)
 		}
 		cronRunner, isCronRunner := jobRunnerUpdate.(runner.CronRunner)
 		if !isCronRunner {
 			return fmt.Errorf("kubernetes runner does not implement schedule")
 		}
 		if err := cronRunner.ScheduleJob(runner.CronSchedule(schedule)); err != nil {
-			return err
+			return fmt.Errorf("schedule transformation job in kubernetes: %w", err)
 		}
 		if err := c.Metadata.SetUpdateStatus(context.Background(), resID, schedule, metadata.READY, "", time.Now()); err != nil {
-			return err
+			return fmt.Errorf("set transformation succesful schedule status: %w", err)
 		}
 	}
 	return nil
@@ -359,10 +359,10 @@ func (c *Coordinator) runPrimaryTableJob(transformSource *metadata.SourceVariant
 		return fmt.Errorf("no source name set")
 	}
 	if _, err := offlineStore.RegisterPrimaryFromSourceTable(providerResourceID, sourceName); err != nil {
-		return err
+		return fmt.Errorf("register primary table from source table in offline store: %w", err)
 	}
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
-		return err
+		return fmt.Errorf("set done status for registering primary table: %w", err)
 	}
 	return nil
 }
@@ -371,19 +371,19 @@ func (c *Coordinator) runRegisterSourceJob(resID metadata.ResourceID, schedule s
 	c.Logger.Info("Running register source job on resource: ", resID)
 	source, err := c.Metadata.GetSourceVariant(context.Background(), metadata.NameVariant{resID.Name, resID.Variant})
 	if err != nil {
-		return err
+		return fmt.Errorf("get source variant from metadata: %w", err)
 	}
 	sourceProvider, err := source.FetchProvider(c.Metadata, context.Background())
 	if err != nil {
-		return err
+		return fmt.Errorf("fetch source's dependent provider in metadata: %w", err)
 	}
 	p, err := provider.Get(provider.Type(sourceProvider.Type()), sourceProvider.SerializedConfig())
 	if err != nil {
-		return err
+		return fmt.Errorf("get source's dependent provider in offline store: %w", err)
 	}
 	sourceStore, err := p.AsOfflineStore()
 	if err != nil {
-		return err
+		return fmt.Errorf("convert source provider to offline store interface: %w", err)
 	}
 	if source.IsSQLTransformation() {
 		return c.runSQLTransformationJob(source, resID, sourceStore, schedule, sourceProvider)
@@ -398,14 +398,14 @@ func (c *Coordinator) runLabelRegisterJob(resID metadata.ResourceID, schedule st
 	c.Logger.Info("Running label register job: ", resID)
 	label, err := c.Metadata.GetLabelVariant(context.Background(), metadata.NameVariant{resID.Name, resID.Variant})
 	if err != nil {
-		return err
+		return fmt.Errorf("get label variant from metadata: %w", err)
 	}
 	status := label.Status()
 	if status == metadata.READY {
 		return fmt.Errorf("feature already set to %s", status.String())
 	}
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.PENDING, ""); err != nil {
-		return err
+		return fmt.Errorf("set pending status for label variant: %w", err)
 	}
 
 	sourceNameVariant := label.Source()
@@ -457,7 +457,7 @@ func (c *Coordinator) runLabelRegisterJob(resID metadata.ResourceID, schedule st
 	c.Logger.Debugw("Resource Table Created", "id", labelID, "schema", schema)
 
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
-		return err
+		return fmt.Errorf("set ready status for label variant: %w", err)
 	}
 	return nil
 }
@@ -467,7 +467,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 	c.Logger.Info("Running feature materialization job on resource: ", resID)
 	feature, err := c.Metadata.GetFeatureVariant(context.Background(), metadata.NameVariant{resID.Name, resID.Variant})
 	if err != nil {
-		return err
+		return fmt.Errorf("get feature variant from metadata: %w", err)
 	}
 	status := feature.Status()
 	featureType := feature.Type()
@@ -475,7 +475,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 		return fmt.Errorf("feature already set to %s", status.String())
 	}
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.PENDING, ""); err != nil {
-		return err
+		return fmt.Errorf("set feature variant status to pending: %w", err)
 	}
 
 	sourceNameVariant := feature.Source()
@@ -573,10 +573,10 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 	// c.Logger.Info("Starting Materialize")
 	// completionWatcher, err := materializeRunner.Run()
 	if err != nil {
-		return err
+		return fmt.Errorf("creating watcher for completion runner: %w", err)
 	}
 	if err := completionWatcher.Wait(); err != nil {
-		return fmt.Errorf("completion watcher: %w", err)
+		return fmt.Errorf("completion watcher running: %w", err)
 	}
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
 		return fmt.Errorf("materialize set success: %w", err)
@@ -594,21 +594,21 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 		}
 		serializedUpdate, err := scheduleMaterializeRunnerConfig.Serialize()
 		if err != nil {
-			return err
+			return fmt.Errorf("serialize materialize runner config: %w", err)
 		}
 		jobRunnerUpdate, err := c.Spawner.GetJobRunner(runner.MATERIALIZE, serializedUpdate, c.EtcdClient.Endpoints(), resID)
 		if err != nil {
-			return err
+			return fmt.Errorf("creating materialize job schedule job runner: %w", err)
 		}
 		cronRunner, isCronRunner := jobRunnerUpdate.(runner.CronRunner)
 		if !isCronRunner {
 			return fmt.Errorf("kubernetes runner does not implement schedule")
 		}
 		if err := cronRunner.ScheduleJob(runner.CronSchedule(schedule)); err != nil {
-			return err
+			return fmt.Errorf("schedule materialize job in kubernetes: %w", err)
 		}
 		if err := c.Metadata.SetUpdateStatus(context.Background(), resID, schedule, metadata.READY, "", time.Now()); err != nil {
-			return err
+			return fmt.Errorf("set succesful update status for materialize job in kubernetes: %w", err)
 		}
 	}
 	return nil
@@ -620,40 +620,38 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 	fmt.Println("Training set resource id is", resID)
 	ts, err := c.Metadata.GetTrainingSetVariant(context.Background(), metadata.NameVariant{resID.Name, resID.Variant})
 	if err != nil {
-		return err
+		return fmt.Errorf("fetch training set variant from metadata: %w", err)
 	}
 	status := ts.Status()
 	if status == metadata.READY || status == metadata.FAILED {
 		return fmt.Errorf("training Set already set to %s", status.String())
 	}
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.PENDING, ""); err != nil {
-		return err
+		return fmt.Errorf("set training set variant status to pending: %w", err)
 	}
 	providerEntry, err := ts.FetchProvider(c.Metadata, context.Background())
 	if err != nil {
-		return err
+		return fmt.Errorf("fetch training set variant offline provider: %w", err)
 	}
 	p, err := provider.Get(provider.Type(providerEntry.Type()), providerEntry.SerializedConfig())
 	if err != nil {
-		return err
+		return fmt.Errorf("fetch offline store interface of training set provider: %w", err)
 	}
-	fmt.Println("no error yet here")
 	store, err := p.AsOfflineStore()
 	if err != nil {
-		return err
+		return fmt.Errorf("convert training set provider to offline store interface: %w", err)
 	}
 	providerResID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.TrainingSet}
 	if _, err := store.GetTrainingSet(providerResID); err == nil {
-		return fmt.Errorf("training set already exists")
+		return fmt.Errorf("training set already exists: %w", err)
 	}
 	features := ts.Features()
-	fmt.Println("no error yet here 2")
 	featureList := make([]provider.ResourceID, len(features))
 	for i, feature := range features {
 		featureList[i] = provider.ResourceID{Name: feature.Name, Variant: feature.Variant, Type: provider.Feature}
 		featureResource, err := c.Metadata.GetFeatureVariant(context.Background(), feature)
 		if err != nil {
-			return fmt.Errorf("failed to get fetch dependent feature")
+			return fmt.Errorf("failed to get fetch dependent feature: %w", err)
 		}
 		sourceNameVariant := featureResource.Source()
 		_, err = c.AwaitPendingSource(sourceNameVariant)
@@ -661,17 +659,15 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 			return fmt.Errorf("source of feature could not complete job: %v", err)
 		}
 	}
-	fmt.Println("no error yet here 3")
 	label, err := ts.FetchLabel(c.Metadata, context.Background())
 	if err != nil {
-		return err
+		return fmt.Errorf("fetch training set label: %w", err)
 	}
 	labelSourceNameVariant := label.Source()
 	_, err = c.AwaitPendingSource(labelSourceNameVariant)
 	if err != nil {
 		return fmt.Errorf("source of label could not complete job: %v", err)
 	}
-	fmt.Println("no error yet here 32")
 	trainingSetDef := provider.TrainingSetDef{
 		ID:       providerResID,
 		Label:    provider.ResourceID{Name: label.Name(), Variant: label.Variant(), Type: provider.Label},
@@ -683,23 +679,20 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 		Def:           trainingSetDef,
 		IsUpdate:      false,
 	}
-	fmt.Println("no error yet here 34")
 	serialized, _ := tsRunnerConfig.Serialize()
 	jobRunner, err := c.Spawner.GetJobRunner(runner.CREATE_TRAINING_SET, serialized, c.EtcdClient.Endpoints(), resID)
 	if err != nil {
-		return err
+		return fmt.Errorf("create training set job runner: %w", err)
 	}
-	fmt.Println("no error yet here 4")
 	completionWatcher, err := jobRunner.Run()
 	if err != nil {
-		return err
+		return fmt.Errorf("start training set job runner: %w", err)
 	}
 	if err := completionWatcher.Wait(); err != nil {
-		return err
+		return fmt.Errorf("wait for training set job runner completion: %w", err)
 	}
-	fmt.Println("no error yet here 5")
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
-		return err
+		return fmt.Errorf("set training set job runner status: %w", err)
 	}
 	fmt.Println("finishing training set job with schedule ", schedule)
 	if schedule != "" {
@@ -712,11 +705,11 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 		}
 		serializedUpdate, err := scheduleTrainingSetRunnerConfig.Serialize()
 		if err != nil {
-			return err
+			return fmt.Errorf("serialize training set schedule runner config: %w", err)
 		}
-		jobRunnerUpdate, err := c.Spawner.GetJobRunner(runner.MATERIALIZE, serializedUpdate, c.EtcdClient.Endpoints(), resID)
+		jobRunnerUpdate, err := c.Spawner.GetJobRunner(runner.CREATE_TRAINING_SET, serializedUpdate, c.EtcdClient.Endpoints(), resID)
 		if err != nil {
-			return err
+			return fmt.Errorf("spawn training set job runner: %w", err)
 		}
 		cronRunner, isCronRunner := jobRunnerUpdate.(runner.CronRunner)
 		if !isCronRunner {
@@ -724,10 +717,10 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 		}
 		fmt.Println("scheduling training set job in kubernetes")
 		if err := cronRunner.ScheduleJob(runner.CronSchedule(schedule)); err != nil {
-			return err
+			return fmt.Errorf("schedule training set job in kubernetes: %w", err)
 		}
 		if err := c.Metadata.SetUpdateStatus(context.Background(), resID, schedule, metadata.READY, "", time.Now()); err != nil {
-			return err
+			return fmt.Errorf("update training set scheduler job status: %w", err)
 		}
 	}
 	return nil
@@ -798,7 +791,7 @@ func (c *Coordinator) deleteJob(mtx *concurrency.Mutex, key string) error {
 func (c *Coordinator) hasJob(id metadata.ResourceID) (bool, error) {
 	getResp, err := (*c.KVClient).Get(context.Background(), metadata.GetJobKey(id), clientv3.WithPrefix())
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("fetch jobs from etcd with prefix %s: %w", metadata.GetJobKey(id), err)
 	}
 	responseLength := len(getResp.Kvs)
 	if responseLength > 0 {
@@ -810,7 +803,7 @@ func (c *Coordinator) hasJob(id metadata.ResourceID) (bool, error) {
 func (c *Coordinator) createJobLock(jobKey string, s *concurrency.Session) (*concurrency.Mutex, error) {
 	mtx := concurrency.NewMutex(s, GetLockKey(jobKey))
 	if err := mtx.Lock(context.Background()); err != nil {
-		panic(err)
+		return nil, fmt.Errorf("create job lock in etcd with key %s: %w", GetLockKey(jobKey), err)
 	}
 	return mtx, nil
 }
@@ -889,7 +882,7 @@ func (c *ResourceUpdatedEvent) Serialize() (Config, error) {
 func (c *ResourceUpdatedEvent) Deserialize(config Config) error {
 	err := json.Unmarshal(config, c)
 	if err != nil {
-		return err
+		return fmt.Errorf("deserialize resource update event: %w", err)
 	}
 	return nil
 }
@@ -899,13 +892,12 @@ func (c *Coordinator) signalResourceUpdate(key string, value string) error {
 	c.Logger.Info("Updating metdata with latest resource update status and time", key)
 	s, err := concurrency.NewSession(c.EtcdClient, concurrency.WithTTL(1))
 	if err != nil {
-
-		return err
+		return fmt.Errorf("create new concurrency session for resource update job: %w", err)
 	}
 	defer s.Close()
 	mtx, err := c.createJobLock(key, s)
 	if err != nil {
-		return err
+		return fmt.Errorf("create lock on resource update job with key %s: %w", key, err)
 	}
 	defer func() {
 		if err := mtx.Unlock(context.Background()); err != nil {
@@ -914,16 +906,15 @@ func (c *Coordinator) signalResourceUpdate(key string, value string) error {
 	}()
 	resUpdatedEvent := &ResourceUpdatedEvent{}
 	if err := resUpdatedEvent.Deserialize(Config(value)); err != nil {
-		return err
+		return fmt.Errorf("deserialize resource update event: %w", err)
 	}
 	//TODO set it so an empty string in the new schedule does nothing
 	if err := c.Metadata.SetUpdateStatus(context.Background(), resUpdatedEvent.ResourceID, "", metadata.READY, "", resUpdatedEvent.Completed); err != nil {
-		return err
+		return fmt.Errorf("set resource update status: %w", err)
 	}
 	c.Logger.Info("Succesfully set update status for update job with key: ", key)
 	if err := c.deleteJob(mtx, key); err != nil {
-		c.Logger.Debugw("Error deleting job", "error", err)
-		return err
+		return fmt.Errorf("delete resource update job: %w", err)
 	}
 	return nil
 }
@@ -933,13 +924,12 @@ func (c *Coordinator) changeJobSchedule(key string, value string) error {
 	c.Logger.Info("Updating schedule of currently made cronjob in kubernetes: ", key)
 	s, err := concurrency.NewSession(c.EtcdClient, concurrency.WithTTL(1))
 	if err != nil {
-
-		return err
+		return fmt.Errorf("create new concurrency session for resource update job: %w", err)
 	}
 	defer s.Close()
 	mtx, err := c.createJobLock(key, s)
 	if err != nil {
-		return err
+		return fmt.Errorf("create lock on resource update job with key %s: %w", key, err)
 	}
 	defer func() {
 		if err := mtx.Unlock(context.Background()); err != nil {
@@ -948,27 +938,26 @@ func (c *Coordinator) changeJobSchedule(key string, value string) error {
 	}()
 	coordinatorScheduleJob := &metadata.CoordinatorScheduleJob{}
 	if err := coordinatorScheduleJob.Deserialize(Config(value)); err != nil {
-		return err
+		return fmt.Errorf("deserialize coordiantor schedule job: %w", err)
 	}
 	jobClient, err := runner.NewKubernetesJobClient(runner.GetCronJobName(coordinatorScheduleJob.Resource), runner.Namespace)
 	if err != nil {
-		return err
+		return fmt.Errorf("create new kubernetes job client: %w", err)
 	}
 	cronJob, err := jobClient.GetCronJob()
 	if err != nil {
-		return err
+		return fmt.Errorf("fetch cron job from kuberentes with name %s: %w", runner.GetCronJobName(coordinatorScheduleJob.Resource), err)
 	}
 	cronJob.Spec.Schedule = coordinatorScheduleJob.Schedule
 	if _, err := jobClient.UpdateCronJob(cronJob); err != nil {
-		return err
+		return fmt.Errorf("update kubernetes cron job: %w", err)
 	}
 	if err := c.Metadata.SetUpdateStatus(context.Background(), coordinatorScheduleJob.Resource, coordinatorScheduleJob.Schedule, metadata.READY, "", time.Now()); err != nil {
-		return err
+		return fmt.Errorf("set schedule job update status in metadata: %w", err)
 	}
 	c.Logger.Info("Succesfully updated schedule for job in kubernetes with key: ", key)
 	if err := c.deleteJob(mtx, key); err != nil {
-		c.Logger.Debugw("Error deleting job", "error", err)
-		return err
+		return fmt.Errorf("delete update schedule job in etcd: %w", err)
 	}
 	return nil
 }

@@ -6,11 +6,13 @@ package provider
 
 import (
 	"fmt"
-	"github.com/alicebob/miniredis"
-	"github.com/google/uuid"
 	"os"
 	"reflect"
 	"testing"
+
+	"github.com/alicebob/miniredis"
+	"github.com/gocql/gocql"
+	"github.com/google/uuid"
 )
 
 func mockRedis() *miniredis.Miniredis {
@@ -48,6 +50,13 @@ func TestOnlineStores(t *testing.T) {
 	redisLiveConfig := &RedisConfig{
 		Addr: liveAddr,
 	}
+
+	cassandraAddr := "localhost:9042"
+	cassandraConfig := &CassandraConfig{
+		Addr:        cassandraAddr,
+		Consistency: gocql.One,
+	}
+
 	testList := []struct {
 		t               Type
 		c               SerializedConfig
@@ -56,6 +65,7 @@ func TestOnlineStores(t *testing.T) {
 		{LocalOnline, []byte{}, false},
 		{RedisOnline, redisMockConfig.Serialized(), false},
 		{RedisOnline, redisLiveConfig.Serialized(), true},
+		{CassandraOnline, cassandraConfig.Serialized(), true},
 	}
 	for _, testItem := range testList {
 		if testing.Short() && testItem.integrationTest {
@@ -118,7 +128,7 @@ func testTableNotFound(t *testing.T, store OnlineStore) {
 	if _, err := store.GetTable(mockFeature, mockVariant); err == nil {
 		t.Fatalf("Succeeded in getting non-existant table")
 	} else if casted, valid := err.(*TableNotFound); !valid {
-		t.Fatalf("Wrong error for table not found: %T", err)
+		t.Fatalf("Wrong error for table not found: %s,%T", err, err)
 	} else if casted.Error() == "" {
 		t.Fatalf("TableNotFound has empty error message")
 	}

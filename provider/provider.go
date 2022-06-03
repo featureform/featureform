@@ -16,6 +16,7 @@ func init() {
 		LocalOnline:      localOnlineStoreFactory,
 		RedisOnline:      redisOnlineStoreFactory,
 		CassandraOnline:  cassandraOnlineStoreFactory,
+		FirestoreOnline:  firestoreOnlineStoreFactory,
 		MemoryOffline:    memoryOfflineStoreFactory,
 		PostgresOffline:  postgresOfflineStoreFactory,
 		SnowflakeOffline: snowflakeOfflineStoreFactory,
@@ -79,7 +80,6 @@ func (r *CassandraConfig) Deserialize(config SerializedConfig) error {
 
 type FirestoreConfig struct {
 	Collection string
-	APIKey     string
 	ProjectID  string
 }
 

@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 
 	"cloud.google.com/go/firestore"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 )
 
 func (t firestoreTableKey) String() string {
@@ -25,10 +27,9 @@ type firestoreOnlineStore struct {
 }
 
 type firestoreOnlineTable struct {
-	client     *firestore.Client
-	collection *firestore.CollectionRef
-	document   *firestore.DocumentRef
-	key        firestoreTableKey
+	document  *firestore.DocumentRef
+	key       firestoreTableKey
+	valueType ValueType
 }
 
 type firestoreTableKey struct {
@@ -48,7 +49,7 @@ func firestoreOnlineStoreFactory(serialized SerializedConfig) (Provider, error) 
 
 func NewFirestoreOnlineStore(options *FirestoreConfig) (*firestoreOnlineStore, error) {
 
-	firestoreClient, err := firestore.NewClient(ctx, options.Collection)
+	firestoreClient, err := firestore.NewClient(ctx, options.ProjectID)
 	if err != nil {
 		return nil, err
 	}
@@ -72,31 +73,37 @@ func (store *firestoreOnlineStore) GetTable(feature, variant string) (OnlineStor
 	key := firestoreTableKey{store.collection.ID, feature, variant}
 	tableName := key.String()
 
-	//Check if table exists
 	table, err := store.collection.Doc(tableName).Get(ctx)
-	if !table.Exists() {
+	if grpc.Code(err) == codes.NotFound {
 		return nil, &TableNotFound{feature, variant}
 	}
 	if err != nil {
 		return nil, err
 	}
 
+	metadata, err := store.collection.Doc("firestoreMetadata").Get(ctx)
+	if err != nil {
+		return nil, err
+	}
+	valueType, err := metadata.DataAt(tableName)
+	if err != nil {
+		return nil, err
+	}
+
 	return &firestoreOnlineTable{
-		client:     store.client,
-		collection: store.collection,
-		document:   table.Ref,
-		key:        key,
+		document:  table.Ref,
+		key:       key,
+		valueType: ValueType(valueType.(string)),
 	}, nil
 }
 
 func (store *firestoreOnlineStore) CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error) {
-	//Check if table exists
+
 	getTable, _ := store.GetTable(feature, variant)
 	if getTable != nil {
 		return nil, &TableAlreadyExists{feature, variant}
 	}
 
-	//Create table
 	key := firestoreTableKey{store.collection.ID, feature, variant}
 	tableName := key.String()
 	_, err := store.collection.Doc(tableName).Set(ctx, map[string]interface{}{})
@@ -104,16 +111,14 @@ func (store *firestoreOnlineStore) CreateTable(feature, variant string, valueTyp
 		return nil, err
 	}
 
-	//update metadata
 	_, err = store.collection.Doc("firestoreMetadata").Set(ctx, map[string]interface{}{
 		tableName: valueType,
 	}, firestore.MergeAll)
 
 	return &firestoreOnlineTable{
-		client:     store.client,
-		collection: store.collection,
-		document:   store.collection.Doc(tableName),
-		key:        key,
+		document:  store.collection.Doc(tableName),
+		key:       key,
+		valueType: valueType,
 	}, nil
 
 }
@@ -134,9 +139,17 @@ func (table firestoreOnlineTable) Get(entity string) (interface{}, error) {
 	}
 	value, err := dataSnap.DataAt(entity)
 	if err != nil {
-		return nil, err
+		return nil, &EntityNotFound{entity}
+	}
+
+	switch table.valueType {
+	case Int:
+		var intVal int64 = value.(int64)
+		return int(intVal), nil
+	case Float32:
+		var floatVal float64 = value.(float64)
+		return float32(floatVal), nil
 	}
 
 	return value, nil
-	//https: pkg.go.dev/cloud.google.com/go/firestore#DocumentSnapshot.DataTo
 }

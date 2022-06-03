@@ -18,7 +18,7 @@ spec:
         run: featureform-metadata-server
     spec:
       containers:
-        - image: {{ .Values.image.repository }}
+        - image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           name: featureform-metadata-server
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:

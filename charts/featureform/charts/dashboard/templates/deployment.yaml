@@ -15,7 +15,7 @@ spec:
       terminationGracePeriodSeconds: 30
       containers:
         - name: featureform-dashboard
-          image: {{ .Values.image.repository }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: "Always"
           ports:
             - containerPort: 3000

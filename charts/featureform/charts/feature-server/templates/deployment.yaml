@@ -18,7 +18,7 @@ spec:
         run: featureform-feature-server
     spec:
       containers:
-        - image: {{ .Values.image.repository }}
+        - image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           name: featureform-feature-server
           ports:
             - containerPort: {{ .Values.serving.port }}
@@ -29,8 +29,8 @@ spec:
             - name: METRICS_PORT
               value: 0.0.0.0:{{ .Values.metrics.port }}
             - name: METADATA_HOST
-              value: { { .Values.metadata.host } }
+              value: {{ .Values.metadata.host }}
             - name: METADATA_PORT
-              value: { { .Values.metadata.port | quote } }
+              value: {{ .Values.metadata.port | quote }}
           resources: {}
 status: {}

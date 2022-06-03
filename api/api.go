@@ -107,6 +107,7 @@ func (serv *MetadataServer) CreateLabelVariant(ctx context.Context, label *pb.La
 	}
 	label.Provider = source.Provider()
 	resp, err := serv.meta.CreateLabelVariant(ctx, label)
+	serv.Logger.Debugw("Created label variant", "response", resp)
 	if err != nil {
 		serv.Logger.Errorw("Could not create label variant", "response", resp, "error", err)
 	}

@@ -455,49 +455,49 @@ jobs:
           name: coordinator-coverage-reports
           path: ./coverage
 
-  api:
-    name: API Testing
-    needs: setup
-    runs-on: ubuntu-latest
+  # api:
+  #   name: API Testing
+  #   needs: setup
+  #   runs-on: ubuntu-latest
 
-    steps:
-      - name: Download Working Compiled Directories
-        uses: actions/download-artifact@v3
-        with:
-          name: compiled-workdir
+  #   steps:
+  #     - name: Download Working Compiled Directories
+  #       uses: actions/download-artifact@v3
+  #       with:
+  #         name: compiled-workdir
 
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.17
+  #     - name: Set up Go
+  #       uses: actions/setup-go@v2
+  #       with:
+  #         go-version: 1.17
 
-      - name: Make Coverage Directory
-        working-directory: ./
-        run: mkdir coverage
+  #     - name: Make Coverage Directory
+  #       working-directory: ./
+  #       run: mkdir coverage
 
-      - name: Build API.go
-        working-directory: ./api
-        run: go build
+  #     - name: Build API.go
+  #       working-directory: ./api
+  #       run: go build
 
-      - name: Start API Server
-        working-directory: ./api
-        env:
-          API_PORT: 7878
-          METADATA_HOST: "featureform-metadata-server"
-          METADATA_PORT: 8080
-          SERVING_HOST:  "featureform-metadata-server"
-          SERVING_PORT: 8080
-        run: go run api.go &
+  #     - name: Start API Server
+  #       working-directory: ./api
+  #       env:
+  #         API_PORT: 7878
+  #         METADATA_HOST: "featureform-metadata-server"
+  #         METADATA_PORT: 8080
+  #         SERVING_HOST:  "featureform-metadata-server"
+  #         SERVING_PORT: 8080
+  #       run: go run api.go &
 
-      - name: Install python dependencies
-        working-directory: ./
-        run: |
-          python3 -m pip install build pytest
-          python3 -m build ./client/
-          python3 -m pip install client/dist/*
+  #     - name: Install python dependencies
+  #       working-directory: ./
+  #       run: |
+  #         python3 -m pip install build pytest
+  #         python3 -m build ./client/
+  #         python3 -m pip install client/dist/*
 
-      - name: Testing
-        env:
-          API_ADDRESS: "localhost:7878"
-        working-directory: ./client/tests
-        run: pytest
+  #     - name: Testing
+  #       env:
+  #         API_ADDRESS: "localhost:7878"
+  #       working-directory: ./client/tests
+  #       run: pytest

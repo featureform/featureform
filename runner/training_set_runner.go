@@ -7,12 +7,14 @@ package runner
 import (
 	"encoding/json"
 	"fmt"
-	provider "github.com/featureform/provider"
+	"github.com/featureform/metadata"
+	"github.com/featureform/provider"
 )
 
 type TrainingSetRunner struct {
-	Offline provider.OfflineStore
-	Def     provider.TrainingSetDef
+	Offline  provider.OfflineStore
+	Def      provider.TrainingSetDef
+	IsUpdate bool
 }
 
 func (m TrainingSetRunner) Run() (CompletionWatcher, error) {
@@ -22,9 +24,16 @@ func (m TrainingSetRunner) Run() (CompletionWatcher, error) {
 		DoneChannel: done,
 	}
 	go func() {
-		if err := m.Offline.CreateTrainingSet(m.Def); err != nil {
-			trainingSetWatcher.EndWatch(fmt.Errorf("create training set: %w", err))
-			return
+		if !m.IsUpdate {
+			if err := m.Offline.CreateTrainingSet(m.Def); err != nil {
+				trainingSetWatcher.EndWatch(err)
+				return
+			}
+		} else {
+			if err := m.Offline.UpdateTrainingSet(m.Def); err != nil {
+				trainingSetWatcher.EndWatch(err)
+				return
+			}
 		}
 		trainingSetWatcher.EndWatch(nil)
 	}()
@@ -35,6 +44,19 @@ type TrainingSetRunnerConfig struct {
 	OfflineType   provider.Type
 	OfflineConfig provider.SerializedConfig
 	Def           provider.TrainingSetDef
+	IsUpdate      bool
+}
+
+func (t TrainingSetRunner) Resource() metadata.ResourceID {
+	return metadata.ResourceID{
+		Name:    t.Def.ID.Name,
+		Variant: t.Def.ID.Variant,
+		Type:    provider.ProviderToMetadataResourceType[t.Def.ID.Type],
+	}
+}
+
+func (t TrainingSetRunner) IsUpdateJob() bool {
+	return t.IsUpdate
 }
 
 func (c *TrainingSetRunnerConfig) Serialize() (Config, error) {
@@ -68,7 +90,8 @@ func TrainingSetRunnerFactory(config Config) (Runner, error) {
 		return nil, fmt.Errorf("failed to convert provider to offline store: %v", err)
 	}
 	return &TrainingSetRunner{
-		Offline: offlineStore,
-		Def:     runnerConfig.Def,
+		Offline:  offlineStore,
+		Def:      runnerConfig.Def,
+		IsUpdate: runnerConfig.IsUpdate,
 	}, nil
 }

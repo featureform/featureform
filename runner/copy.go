@@ -7,14 +7,15 @@ package runner
 import (
 	"encoding/json"
 	"fmt"
-
-	provider "github.com/featureform/provider"
-
+	"github.com/featureform/metadata"
+	"github.com/featureform/provider"
 	"sync"
 )
 
 type Runner interface {
 	Run() (CompletionWatcher, error)
+	Resource() metadata.ResourceID
+	IsUpdateJob() bool
 }
 
 type IndexRunner interface {
@@ -22,7 +23,7 @@ type IndexRunner interface {
 	SetIndex(index int) error
 }
 
-type MaterializedChunkRunner struct { //make a more generic version where materialized is any sort of source, table is any dest
+type MaterializedChunkRunner struct {
 	Materialized provider.Materialization
 	Table        provider.OnlineStoreTable
 	ChunkSize    int64
@@ -40,6 +41,14 @@ type ResultSync struct {
 	err  error
 	done bool
 	mu   sync.RWMutex
+}
+
+func (m *MaterializedChunkRunner) Resource() metadata.ResourceID {
+	return metadata.ResourceID{}
+}
+
+func (m *MaterializedChunkRunner) IsUpdateJob() bool {
+	return false
 }
 
 func (m *MaterializedChunkRunner) Run() (CompletionWatcher, error) {
@@ -159,6 +168,7 @@ type MaterializedChunkRunnerConfig struct {
 	ResourceID     provider.ResourceID
 	ChunkSize      int64
 	ChunkIdx       int64
+	IsUpdate       bool
 }
 
 func (m *MaterializedChunkRunnerConfig) Serialize() (Config, error) {

@@ -175,7 +175,6 @@ message LabelVariant {
     oneof location {
         Columns columns = 12;
     }
-    UpdateStatus update_status = 13;
 }
 
 message Provider {

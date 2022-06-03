@@ -5,7 +5,8 @@
 package runner
 
 import (
-	provider "github.com/featureform/provider"
+	"github.com/featureform/metadata"
+	"github.com/featureform/provider"
 	"testing"
 )
 
@@ -13,6 +14,14 @@ type mockChunkRunner struct{}
 
 func (m mockChunkRunner) Run() (CompletionWatcher, error) {
 	return mockCompletionWatcher{}, nil
+}
+
+func (m mockChunkRunner) Resource() metadata.ResourceID {
+	return metadata.ResourceID{}
+}
+
+func (m mockChunkRunner) IsUpdateJob() bool {
+	return false
 }
 
 type mockCompletionWatcher struct{}
@@ -70,6 +79,8 @@ func TestMockMaterializeRunner(t *testing.T) {
 	if result := watcher.String(); len(result) == 0 {
 		t.Fatalf("Failed to return string on completion status")
 	}
+	delete(factoryMap, string(COPY_TO_ONLINE))
+
 }
 
 func TestWatcherMultiplex(t *testing.T) {

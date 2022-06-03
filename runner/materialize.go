@@ -5,8 +5,10 @@
 package runner
 
 import (
+	"encoding/json"
 	"fmt"
-	provider "github.com/featureform/provider"
+	"github.com/featureform/metadata"
+	"github.com/featureform/provider"
 )
 
 const MAXIMUM_CHUNK_ROWS int64 = 1024
@@ -20,11 +22,24 @@ const (
 )
 
 type MaterializeRunner struct {
-	Online  provider.OnlineStore
-	Offline provider.OfflineStore
-	ID      provider.ResourceID
-	VType   provider.ValueType
-	Cloud   JobCloud
+	Online   provider.OnlineStore
+	Offline  provider.OfflineStore
+	ID       provider.ResourceID
+	VType    provider.ValueType
+	IsUpdate bool
+	Cloud    JobCloud
+}
+
+func (m MaterializeRunner) Resource() metadata.ResourceID {
+	return metadata.ResourceID{
+		Name:    m.ID.Name,
+		Variant: m.ID.Variant,
+		Type:    provider.ProviderToMetadataResourceType[m.ID.Type],
+	}
+}
+
+func (m MaterializeRunner) IsUpdateJob() bool {
+	return m.IsUpdate
 }
 
 type WatcherMultiplex struct {
@@ -65,7 +80,13 @@ func (w WatcherMultiplex) Err() error {
 }
 
 func (m MaterializeRunner) Run() (CompletionWatcher, error) {
-	materialization, err := m.Offline.CreateMaterialization(m.ID)
+	var materialization provider.Materialization
+	var err error
+	if m.IsUpdate {
+		materialization, err = m.Offline.UpdateMaterialization(m.ID)
+	} else {
+		materialization, err = m.Offline.CreateMaterialization(m.ID)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +95,9 @@ func (m MaterializeRunner) Run() (CompletionWatcher, error) {
 	if err != nil && !exists {
 		return nil, fmt.Errorf("create table: %w", err)
 	}
-
+	if exists && !m.IsUpdate {
+		return nil, fmt.Errorf("table already exists despite being new job")
+	}
 	chunkSize := MAXIMUM_CHUNK_ROWS
 	var numChunks int64
 	numRows, err := materialization.NumRows()
@@ -125,20 +148,16 @@ func (m MaterializeRunner) Run() (CompletionWatcher, error) {
 	case LocalMaterializeRunner:
 		completionList := make([]CompletionWatcher, int(numChunks))
 		for i := 0; i < int(numChunks); i++ {
-			fmt.Println("Running Chunks")
 			localRunner, err := Create(string(COPY_TO_ONLINE), serializedConfig)
 			if err != nil {
 				return nil, fmt.Errorf("local runner create: %w", err)
 			}
-			fmt.Println("Created Local Runner")
 			watcher, err := localRunner.Run()
 			if err != nil {
 				return nil, fmt.Errorf("local runner run: %w", err)
 			}
-			fmt.Println("Local Runner Completed")
 			completionList[i] = watcher
 		}
-		fmt.Println("Chunk Complete")
 		cloudWatcher = WatcherMultiplex{completionList}
 	default:
 		return nil, fmt.Errorf("no valid job cloud set")
@@ -156,4 +175,62 @@ func (m MaterializeRunner) Run() (CompletionWatcher, error) {
 		materializeWatcher.EndWatch(nil)
 	}()
 	return materializeWatcher, nil
+}
+
+type MaterializedRunnerConfig struct {
+	OnlineType    provider.Type
+	OfflineType   provider.Type
+	OnlineConfig  provider.SerializedConfig
+	OfflineConfig provider.SerializedConfig
+	ResourceID    provider.ResourceID
+	VType         provider.ValueType
+	Cloud         JobCloud
+	IsUpdate      bool
+}
+
+func (m *MaterializedRunnerConfig) Serialize() (Config, error) {
+	config, err := json.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	return config, nil
+}
+
+func (m *MaterializedRunnerConfig) Deserialize(config Config) error {
+	err := json.Unmarshal(config, m)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func MaterializeRunnerFactory(config Config) (Runner, error) {
+	runnerConfig := &MaterializedRunnerConfig{}
+	if err := runnerConfig.Deserialize(config); err != nil {
+		return nil, fmt.Errorf("failed to deserialize materialize runner config: %v", err)
+	}
+	onlineProvider, err := provider.Get(runnerConfig.OnlineType, runnerConfig.OnlineConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to configure online provider: %v", err)
+	}
+	offlineProvider, err := provider.Get(runnerConfig.OfflineType, runnerConfig.OfflineConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to configure offline provider: %v", err)
+	}
+	onlineStore, err := onlineProvider.AsOnlineStore()
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert provider to online store: %v", err)
+	}
+	offlineStore, err := offlineProvider.AsOfflineStore()
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert provider to offline store: %v", err)
+	}
+	return &MaterializeRunner{
+		Online:   onlineStore,
+		Offline:  offlineStore,
+		ID:       runnerConfig.ResourceID,
+		VType:    runnerConfig.VType,
+		IsUpdate: runnerConfig.IsUpdate,
+		Cloud:    runnerConfig.Cloud,
+	}, nil
 }

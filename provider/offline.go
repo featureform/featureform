@@ -10,6 +10,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/featureform/metadata"
 	"github.com/google/uuid"
 )
 
@@ -43,6 +44,13 @@ const (
 	Primary
 	Transformation
 )
+
+var ProviderToMetadataResourceType = map[OfflineResourceType]metadata.ResourceType{
+	Feature:        metadata.FEATURE_VARIANT,
+	TrainingSet:    metadata.TRAINING_SET_VARIANT,
+	Primary:        metadata.SOURCE_VARIANT,
+	Transformation: metadata.SOURCE_VARIANT,
+}
 
 type FeatureLabelColumnType string
 

@@ -7,7 +7,7 @@ package runner
 import (
 	"errors"
 	"fmt"
-	provider "github.com/featureform/provider"
+	"github.com/featureform/provider"
 	"github.com/google/uuid"
 	"reflect"
 	"sync"
@@ -480,7 +480,7 @@ func TestMaterializeRunnerFactoryErrorCoverage(t *testing.T) {
 			}),
 		},
 	}
-	err = RegisterFactory(string(COPY_TO_ONLINE), MaterializedChunkRunnerFactory)
+	err = RegisterFactory("TEST_COPY_TO_ONLINE", MaterializedChunkRunnerFactory)
 	if err != nil {
 		t.Fatalf("Could not register chunk runner factory: %v", err)
 	}
@@ -489,7 +489,7 @@ func TestMaterializeRunnerFactoryErrorCoverage(t *testing.T) {
 			t.Fatalf("Test Job Failed to catch error: %s", config.Name)
 		}
 	}
-	delete(factoryMap, string(COPY_TO_ONLINE))
+	delete(factoryMap, "TEST_COPY_TO_ONLINE")
 }
 
 func TestJobs(t *testing.T) {
@@ -819,15 +819,15 @@ func TestChunkRunnerFactory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create new chunk runner config: %v", err)
 	}
-	delete(factoryMap, string(COPY_TO_ONLINE))
-	if err := RegisterFactory(string(COPY_TO_ONLINE), MaterializedChunkRunnerFactory); err != nil {
+	delete(factoryMap, "TEST_COPY_TO_ONLINE")
+	if err := RegisterFactory("TEST_COPY_TO_ONLINE", MaterializedChunkRunnerFactory); err != nil {
 		t.Fatalf("Failed to register factory: %v", err)
 	}
 	serializedConfig, err := chunkRunnerConfig.Serialize()
 	if err != nil {
 		t.Fatalf("Failed to serialize chunk runner config: %v", err)
 	}
-	runner, err := Create(string(COPY_TO_ONLINE), serializedConfig)
+	runner, err := Create("TEST_COPY_TO_ONLINE", serializedConfig)
 	if err != nil {
 		t.Fatalf("Failed to create materialized chunk runner: %v", err)
 	}

@@ -18,6 +18,7 @@ const (
 	LocalOnline     Type = "LOCAL_ONLINE"
 	RedisOnline          = "REDIS_ONLINE"
 	CassandraOnline      = "CASSANDRA_ONLINE"
+	FirestoreOnline      = "FIRESTORE_ONLINE"
 )
 
 var ctx = context.Background()

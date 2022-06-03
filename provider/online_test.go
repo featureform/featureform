@@ -13,6 +13,7 @@ import (
 	"github.com/alicebob/miniredis"
 	"github.com/gocql/gocql"
 	"github.com/google/uuid"
+	"github.com/joho/godotenv"
 )
 
 func mockRedis() *miniredis.Miniredis {
@@ -39,22 +40,41 @@ func TestOnlineStores(t *testing.T) {
 		"TypeCasting":        testTypeCasting,
 	}
 
+	//REDIS MOCK
 	miniRedis := mockRedis()
 	defer miniRedis.Close()
 	mockRedisAddr := miniRedis.Addr()
 	redisMockConfig := &RedisConfig{
 		Addr: mockRedisAddr,
 	}
+
+	//REDIS LIVE
 	redisPort := os.Getenv("REDIS_PORT")
 	liveAddr := fmt.Sprintf("%s:%s", "localhost", redisPort)
 	redisLiveConfig := &RedisConfig{
 		Addr: liveAddr,
 	}
 
+	//CASSANDRA
 	cassandraAddr := "localhost:9042"
 	cassandraConfig := &CassandraConfig{
 		Addr:        cassandraAddr,
 		Consistency: gocql.One,
+	}
+
+	//FIRESTORE
+	if os.Getenv("FIRESTORE_EMULATOR_HOST") == "" {
+		panic("Not running under the firestore emulator")
+	}
+	err := godotenv.Load(".env")
+	if err != nil {
+		fmt.Println(err)
+	}
+	firestoreKey := os.Getenv("FIRESTORE_KEY")
+	projectID := os.Getenv("PROJECT_ID")
+	firestoreConfig := &FirestoreConfig{
+		APIKey:    firestoreKey,
+		ProjectID: projectID,
 	}
 
 	testList := []struct {
@@ -66,6 +86,7 @@ func TestOnlineStores(t *testing.T) {
 		{RedisOnline, redisMockConfig.Serialized(), false},
 		{RedisOnline, redisLiveConfig.Serialized(), true},
 		{CassandraOnline, cassandraConfig.Serialized(), true},
+		{FirestoreOnline, firestoreConfig.Serialized(), true},
 	}
 	for _, testItem := range testList {
 		if testing.Short() && testItem.integrationTest {

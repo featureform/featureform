@@ -28,5 +28,9 @@ spec:
               value: 0.0.0.0:{{ .Values.serving.port }}
             - name: METRICS_PORT
               value: 0.0.0.0:{{ .Values.metrics.port }}
+            - name: METADATA_HOST
+              value: { { .Values.metadata.host } }
+            - name: METADATA_PORT
+              value: { { .Values.metadata.port | quote } }
           resources: {}
 status: {}

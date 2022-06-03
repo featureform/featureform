@@ -51,17 +51,9 @@ func TestOnlineStores(t *testing.T) {
 		Addr: liveAddr,
 	}
 
-	cassandraAddr := "localhost:9042"
-	cassandraConfig := &CassandraConfig{
-		Addr:        cassandraAddr,
-		Consistency: gocql.One,
-	}
-
-	// Dynamodb testing
-	dynamoPort := os.Getenv("DYNAMO_PORT")
-	dynamoAddr := fmt.Sprintf("%s:%s", "localhost", dynamoPort)
 	dynamoConfig := &DynamodbConfig{
-		Addr:   dynamoAddr,
+		Addr:   "http://localhost:4566",
+		Region: "us-east-1",
 	}
 	testList := []struct {
 		t               Type
@@ -73,6 +65,7 @@ func TestOnlineStores(t *testing.T) {
 		{RedisOnline, redisLiveConfig.Serialized(), true},
 		{CassandraOnline, cassandraConfig.Serialized(), true},
 		{DynamoDBOnline, dynamoConfig.Serialized(), false},
+		{DynamoDBOnline, dynamoConfig.Serialized(), true},
 	}
 	for _, testItem := range testList {
 		if testing.Short() && testItem.integrationTest {
@@ -168,7 +161,7 @@ func testEntityNotFound(t *testing.T, store OnlineStore) {
 		t.Fatalf("Failed to create table: %s", err)
 	}
 	if _, err := tab.Get(entity); err == nil {
-		t.Fatalf("succeeded in getting non-existant entity")
+		t.Fatalf("succeeded in getting non-existent entity")
 	} else if casted, valid := err.(*EntityNotFound); !valid {
 		t.Fatalf("Wrong error for entity not found: %T", err)
 	} else if casted.Error() == "" {

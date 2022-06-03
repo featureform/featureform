@@ -15,7 +15,11 @@ func init() {
 	unregisteredFactories := map[Type]Factory{
 		LocalOnline:      localOnlineStoreFactory,
 		RedisOnline:      redisOnlineStoreFactory,
+<<<<<<< HEAD:provider/provider.go
 		CassandraOnline:  cassandraOnlineStoreFactory,
+=======
+		DynamoDBOnline:   dynamodbOnlineStoreFactory,
+>>>>>>> e8846b1 (Passed all Dyanamodb tests):ff/serving/provider/provider.go
 		MemoryOffline:    memoryOfflineStoreFactory,
 		PostgresOffline:  postgresOfflineStoreFactory,
 		SnowflakeOffline: snowflakeOfflineStoreFactory,
@@ -39,12 +43,10 @@ type RedisConfig struct {
 	DB       int
 }
 
-//added by Riddhi
 type DynamodbConfig struct {
 	Prefix string
 	Addr   string
-	// Password string
-	// DB       int
+	Region string
 }
 
 func (r RedisConfig) Serialized() SerializedConfig {

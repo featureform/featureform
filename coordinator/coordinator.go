@@ -397,7 +397,7 @@ func (c *Coordinator) runLabelRegisterJob(resID metadata.ResourceID, schedule st
 	c.Logger.Info("Running label register job: ", resID)
 	label, err := c.Metadata.GetLabelVariant(context.Background(), metadata.NameVariant{resID.Name, resID.Variant})
 	if err != nil {
-		return fmt.Errorf("get label variant from metadata: %w", err)
+		return fmt.Errorf("get label variant: %w", err)
 	}
 	status := label.Status()
 	if status == metadata.READY {

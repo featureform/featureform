@@ -744,14 +744,21 @@ func (client *Client) GetSourceVariants(ctx context.Context, ids []NameVariant) 
 	go func() {
 		for _, id := range ids {
 			err := stream.Send(&pb.NameVariant{Name: id.Name, Variant: id.Variant})
-			client.Logger.Errorw("Failed to send source variant", "name", id.Name, "variant", id.Variant, "error", err)
+			if err != nil {
+				client.Logger.Errorw("Failed to send source variant", "name", id.Name, "variant", id.Variant, "error", err)
+			}
 		}
 		err := stream.CloseSend()
 		if err != nil {
 			client.Logger.Errorw("Failed to close send", "Err", err)
 		}
 	}()
-	return client.parseSourceVariantStream(stream)
+	client.Logger.Debugw("Received Source Variant", "ids", ids)
+	variants, err := client.parseSourceVariantStream(stream)
+	if err != nil {
+		client.Logger.Errorw("Failed to parse source variant stream", "ids", ids)
+	}
+	return variants, err
 }
 
 func (client *Client) GetSourceVariant(ctx context.Context, id NameVariant) (*SourceVariant, error) {

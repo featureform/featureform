@@ -93,7 +93,7 @@ func createNewCoordinator(addr string) (*Coordinator, error) {
 //may cause an error depending on kubernetes implementation
 func TestKubernetesJobRunnerError(t *testing.T) {
 	kubeJobSpawner := KubernetesJobSpawner{}
-	if _, err := kubeJobSpawner.GetJobRunner("ghost_job", []byte{}, []string{"localhost:2379"}); err == nil {
+	if _, err := kubeJobSpawner.GetJobRunner("ghost_job", []byte{}, []string{"localhost:2379"}, metadata.ResourceID{}); err == nil {
 		t.Fatalf("did not trigger error getting nonexistent runner")
 	}
 }

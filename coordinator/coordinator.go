@@ -145,7 +145,6 @@ func NewCoordinator(meta *metadata.Client, logger *zap.SugaredLogger, cli *clien
 
 const MAX_ATTEMPTS = 60
 
-//TODO add watch for update here from the worker which needs to somehow connect to etcd (etcd client for the worker udg)
 func (c *Coordinator) WatchForNewJobs() error {
 	c.Logger.Info("Watching for new jobs")
 	getResp, err := (*c.KVClient).Get(context.Background(), "JOB_", clientv3.WithPrefix())
@@ -427,13 +426,10 @@ func (c *Coordinator) runLabelRegisterJob(resID metadata.ResourceID, schedule st
 	if err != nil {
 		return fmt.Errorf("could not use store as offline store: %w", err)
 	}
-
 	srcID := provider.ResourceID{
 		Name:    sourceNameVariant.Name,
 		Variant: sourceNameVariant.Variant,
 	}
-	//check if source is primary or transformation
-
 	srcName, err := provider.GetTransformationName(srcID)
 	if err != nil {
 		return fmt.Errorf("transform name err: %w", err)
@@ -502,21 +498,6 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 	if err != nil {
 		return fmt.Errorf("could not fetch  onlineprovider: %w", err)
 	}
-	p, err = provider.Get(provider.Type(featureProvider.Type()), featureProvider.SerializedConfig())
-	if err != nil {
-		return err
-	}
-	// featureStore, err := p.AsOnlineStore()
-	// if err != nil {
-	// 	return err
-	// }
-
-	type JobCloud string
-
-	const (
-		KubernetesMaterializeRunner JobCloud = "KUBERNETES"
-		LocalMaterializeRunner      JobCloud = "LOCAL"
-	)
 	materializedRunnerConfig := runner.MaterializedRunnerConfig{
 		OnlineType:    provider.Type(featureProvider.Type()),
 		OfflineType:   provider.Type(sourceProvider.Type()),
@@ -558,21 +539,12 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 		return fmt.Errorf("materialize feature register: %w", err)
 	}
 	c.Logger.Debugw("Resource Table Created", "id", featID, "schema", schema)
-
-	// materializeRunner := runner.MaterializeRunner{
-	// 	Online:  featureStore,
-	// 	Offline: sourceStore,
-	// 	ID:      provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Feature},
-	// 	VType:   provider.ValueType(featureType),
-	// 	Cloud:   runner.LocalMaterializeRunner,
-	// }
 	c.Logger.Info("Starting Materialize")
 	jobRunner, err := c.Spawner.GetJobRunner(runner.MATERIALIZE, serialized, c.EtcdClient.Endpoints(), resID)
 	if err != nil {
 		return fmt.Errorf("could not use store as online store: %w", err)
 	}
 	completionWatcher, err := jobRunner.Run()
-	//completionWatcher, err := materializeRunner.Run()
 	if err != nil {
 		return fmt.Errorf("creating watcher for completion runner: %w", err)
 	}
@@ -902,7 +874,6 @@ func (c *Coordinator) signalResourceUpdate(key string, value string) error {
 	if err := resUpdatedEvent.Deserialize(Config(value)); err != nil {
 		return fmt.Errorf("deserialize resource update event: %w", err)
 	}
-	//TODO set it so an empty string in the new schedule does nothing
 	if err := c.Metadata.SetUpdateStatus(context.Background(), resUpdatedEvent.ResourceID, "", metadata.READY, "", resUpdatedEvent.Completed); err != nil {
 		return fmt.Errorf("set resource update status: %w", err)
 	}

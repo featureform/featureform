@@ -59,10 +59,6 @@ func (r *RegisterFileRunner) Run() (CompletionWatcher, error) {
 			if err != nil {
 				jobWatcher.EndWatch(err)
 			}
-			//verify data columns uhh
-			// do something with read line
-			//ask sterling about offline normal table interface
-			//copy to offline store logic here
 			fmt.Printf("%+v\n", rec)
 		}
 		jobWatcher.EndWatch(nil)

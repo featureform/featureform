@@ -355,7 +355,6 @@ func registerUpdateMockRunnerFactory(resID metadata.ResourceID) error {
 }
 
 func TestBasicUpdateRunner(t *testing.T) {
-
 	if testing.Short() {
 		return
 	}

@@ -17,9 +17,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	watch "k8s.io/apimachinery/pkg/watch"
 	kubernetes "k8s.io/client-go/kubernetes"
-	// clientcmd "k8s.io/client-go/tools/clientcmd"
-	// "os"
-	// "path/filepath"
 	rest "k8s.io/client-go/rest"
 )
 
@@ -299,7 +296,6 @@ func (k KubernetesJobClient) GetJobSchedule(jobName string) (CronSchedule, error
 	return CronSchedule(job.Spec.Schedule), nil
 }
 
-//use this for production config generation
 func NewKubernetesJobClient(name string, namespace string) (*KubernetesJobClient, error) {
 	fmt.Println("kubernetes client is got", name, namespace)
 	kubeConfig, err := rest.InClusterConfig()
@@ -312,60 +308,3 @@ func NewKubernetesJobClient(name string, namespace string) (*KubernetesJobClient
 	}
 	return &KubernetesJobClient{Clientset: clientset, JobName: name, Namespace: namespace}, nil
 }
-
-//for local implementations
-// func NewKubernetesJobClient(name string, namespace string) (*KubernetesJobClient, error) {
-// 	home, exists := os.LookupEnv("HOME")
-//     if !exists {
-//         home = "/root"
-//     }
-// 	fmt.Println(home)
-
-// 	dirname, err := os.UserHomeDir()
-
-// 	fmt.Println(dirname)
-
-//     configPath := filepath.Join(home, ".kube", "config")
-
-// 	configPathWindows := filepath.Join(dirname, ".kube", "config")
-
-// 	fmt.Println(configPath)
-
-// 	fmt.Println(configPathWindows)
-
-//     config, err := clientcmd.BuildConfigFromFlags("", configPathWindows)
-//     if err != nil {
-//         return nil, err
-//     }
-
-//     clientset, err := kubernetes.NewForConfig(config)
-//     if err != nil {
-//         return nil, err
-//     }
-// 	return &KubernetesJobClient{Clientset: clientset, JobName: name, Namespace: namespace}, nil
-
-// }
-
-type ScheduleChangeRunner struct {
-	ID       metadata.ResourceID
-	Schedule string
-}
-
-func (s ScheduleChangeRunner) Run() error {
-	//find best client function to change on resource, must be able to lookup on resourceID
-	return nil
-}
-
-func (s ScheduleChangeRunner) Resource() metadata.ResourceID {
-	return metadata.ResourceID{}
-}
-
-func (s ScheduleChangeRunner) IsUpdateJob() bool {
-	return false
-}
-
-// func CreateScheduleChangeRunner(id metadata.ResourceID, schedule string) (Runner, error) {
-// 	//find a way to get the name of the cronjob so you can reference it here. Deterministic name as a consequence of the
-// 	//function of the resourceID?
-// 	return nil, nil
-// }

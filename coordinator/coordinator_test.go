@@ -90,12 +90,13 @@ func createNewCoordinator(addr string) (*Coordinator, error) {
 	return NewCoordinator(client, logger, cli, &memJobSpawner)
 }
 
-// func TestKubernetesJobRunnerError(t *testing.T) {
-// 	kubeJobSpawner := KubernetesJobSpawner{}
-// 	if _, err := kubeJobSpawner.GetJobRunner("ghost_job", []byte{}, []string{"localhost:2379"}); err == nil {
-// 		t.Fatalf("did not trigger error getting nonexistent runner")
-// 	}
-// }
+//may cause an error depending on kubernetes implementation
+func TestKubernetesJobRunnerError(t *testing.T) {
+	kubeJobSpawner := KubernetesJobSpawner{}
+	if _, err := kubeJobSpawner.GetJobRunner("ghost_job", []byte{}, []string{"localhost:2379"}); err == nil {
+		t.Fatalf("did not trigger error getting nonexistent runner")
+	}
+}
 
 func TestMemoryJobRunnerError(t *testing.T) {
 	etcdConnect := fmt.Sprintf("%s:%s", etcdHost, etcdPort)
@@ -1193,14 +1194,6 @@ func testCoordinatorTrainingSet(addr string) error {
 	if err := coord.executeJob(metadata.GetJobKey(sourceID)); err != nil {
 		return err
 	}
-	// featureID := metadata.ResourceID{Name: featureName, Variant: "", Type: metadata.FEATURE_VARIANT}
-	// if err := coord.executeJob(metadata.GetJobKey(featureID)); err != nil {
-	// 	return err
-	// }
-	// labelID := metadata.ResourceID{Name: labelName, Variant: "", Type: metadata.LABEL_VARIANT}
-	// // if err := coord.executeJob(metadata.GetJobKey(labelID)); err != nil {
-	// // 	return err
-	// // }
 	if err := coord.executeJob(metadata.GetJobKey(tsID)); err != nil {
 		return err
 	}
@@ -1244,9 +1237,6 @@ func testCoordinatorTrainingSet(addr string) error {
 	return nil
 }
 
-//TODO verify degree to which features are already registered/need to be registered here and remove aspects not correlated
-//to actual use case
-
 func testCoordinatorMaterializeFeature(addr string) error {
 	if err := runner.RegisterFactory(string(runner.COPY_TO_ONLINE), runner.MaterializedChunkRunnerFactory); err != nil {
 		return fmt.Errorf("Failed to register training set runner factory: %v", err)
@@ -1269,14 +1259,6 @@ func testCoordinatorMaterializeFeature(addr string) error {
 	}
 	defer cli.Close()
 	serialPGConfig := postgresConfig.Serialize()
-	// offlineProvider, err := provider.Get(provider.PostgresOffline, serialPGConfig)
-	// if err != nil {
-	// 	return fmt.Errorf("could not get offline provider: %v", err)
-	// }
-	// offlineStore, err := offlineProvider.AsOfflineStore()
-	// if err != nil {
-	// 	return fmt.Errorf("could not get provider as offline store: %v", err)
-	// }
 	liveAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
 	redisConfig := &provider.RedisConfig{
 		Addr: liveAddr,
@@ -1290,25 +1272,8 @@ func testCoordinatorMaterializeFeature(addr string) error {
 	if err != nil {
 		return fmt.Errorf("could not get provider as online store")
 	}
-	// schemaInt := provider.TableSchema{
-	// 	Columns: []provider.TableColumn{
-	// 		{Name: "entity", ValueType: provider.String},
-	// 		{Name: "value", ValueType: provider.Int},
-	// 		{Name: "ts", ValueType: provider.Timestamp},
-	// 	},
-	// }
 	featureName := createSafeUUID()
 	sourceName := createSafeUUID()
-	// offlineFeature := provider.ResourceID{Name: featureName, Variant: "", Type: provider.Feature}
-	// //featureTable, err := offlineStore.CreateResourceTable(offlineFeature, schemaInt)
-	// if err != nil {
-	// 	return fmt.Errorf("could not create feature table: %v", err)
-	// }
-	// for _, value := range testOfflineTableValues {
-	// 	if err := featureTable.Write(value); err != nil {
-	// 		return fmt.Errorf("could not write to offline feature table")
-	// 	}
-	// }
 	originalTableName := createSafeUUID()
 	if err := CreateOriginalPostgresTable(originalTableName); err != nil {
 		return err
@@ -1333,14 +1298,6 @@ func testCoordinatorMaterializeFeature(addr string) error {
 	if err != nil {
 		return fmt.Errorf("Failed to set up coordinator")
 	}
-	// go func() {
-	// 	if err := coord.WatchForNewJobs(); err != nil {
-	// 		logger.Errorf("Error watching for new jobs: %v", err)
-	// 	}
-	// }()
-
-	//here we think coordiantor will register EVERY source for us all nice and tidy
-	//bookmark3
 	if err := coord.executeJob(metadata.GetJobKey(sourceID)); err != nil {
 		return err
 	}
@@ -1380,12 +1337,9 @@ func testCoordinatorMaterializeFeature(addr string) error {
 	return nil
 }
 
-//I control the data
-
 func CreateOriginalPostgresTable(tableName string) error {
 	url := fmt.Sprintf("postgres://%s:%s@%s:%s/%s", postgresConfig.Username, postgresConfig.Password, postgresConfig.Host, postgresConfig.Port, postgresConfig.Database)
 	ctx := context.Background()
-	//tableName = fmt.Sprintf("\"%s\"",tableName)
 	conn, err := pgxpool.Connect(ctx, url)
 	if err != nil {
 		return err
@@ -1429,7 +1383,6 @@ func testRegisterPrimaryTableFromSource(addr string) error {
 	if err := CreateOriginalPostgresTable(tableName); err != nil {
 		return fmt.Errorf("Could not create non-featureform source table: %v", err)
 	}
-	//use the postgres/whatever to make a blank agnostic table "sammy's table",
 	sourceName := createSafeUUID()
 	if err := createSourceWithProvider(client, provider.SerializedConfig(serialPGConfig), sourceName, tableName); err != nil {
 		return fmt.Errorf("could not register source in metadata: %v", err)
@@ -1630,7 +1583,6 @@ func testRegisterTransformationFromSource(addr string) error {
 		return fmt.Errorf("transformation table did not copy all rows")
 	}
 
-	//now make a new transformation with two sources, one the original source, and the other the transformation
 	joinTransformationQuery := fmt.Sprintf("SELECT {{%s.}}.entity, {{%s.}}.value, {{%s.}}.ts FROM {{%s.}} INNER JOIN {{%s.}} ON {{%s.}}.entity = {{%s.}}.entity", sourceName, sourceName, sourceName, sourceName, transformationName, sourceName, transformationName)
 	joinTransformationName := strings.Replace(createSafeUUID(), "-", "", -1)
 	joinTransformationID := metadata.ResourceID{Name: joinTransformationName, Variant: "", Type: metadata.SOURCE_VARIANT}
@@ -1780,12 +1732,6 @@ func testScheduleTrainingSet(addr string) error {
 	if err := coord.executeJob(metadata.GetJobKey(sourceID)); err != nil {
 		return err
 	}
-	//beforeExecutionTime := time.Now()
-	// go func() {
-	// 	if err := coord.WatchForNewJobs(); err != nil {
-	// 		logger.Errorf("Error watching for new jobs: %v", err)
-	// 	}
-	// }()
 	go func() {
 		if err := coord.WatchForUpdateEvents(); err != nil {
 			logger.Errorf("Error watching for new update events: %v", err)
@@ -1854,11 +1800,6 @@ func testScheduleFeatureMaterialization(addr string) error {
 		Addr: liveAddr,
 	}
 	serialRedisConfig := redisConfig.Serialized()
-	//p, err := provider.Get(provider.RedisOnline, serialRedisConfig)
-	// if err != nil {
-	// 	return fmt.Errorf("could not get online provider: %v", err)
-	// }
-	//onlineStore, err := p.AsOnlineStore()
 	if err != nil {
 		return fmt.Errorf("could not get provider as online store")
 	}
@@ -1904,7 +1845,6 @@ func testScheduleFeatureMaterialization(addr string) error {
 	if err != nil {
 		return fmt.Errorf("Failed to set up coordinator")
 	}
-	//beforeExecutionTime := time.Now()
 	go func() {
 		if err := coord.WatchForNewJobs(); err != nil {
 			logger.Errorf("Error watching for new jobs: %v", err)
@@ -1945,7 +1885,6 @@ func testScheduleTransformation(addr string) error {
 		return fmt.Errorf("Failed to register training set runner factory: %v", err)
 	}
 	defer runner.UnregisterFactory(string(runner.CREATE_TRANSFORMATION))
-
 	logger := zap.NewExample().Sugar()
 	client, err := metadata.NewClient(addr, logger)
 	if err != nil {
@@ -1960,11 +1899,6 @@ func testScheduleTransformation(addr string) error {
 	defer cli.Close()
 	tableName := createSafeUUID()
 	serialPGConfig := postgresConfig.Serialize()
-	// myProvider, err := provider.Get(provider.PostgresOffline, serialPGConfig)
-	// if err != nil {
-	// 	return fmt.Errorf("could not get provider: %v", err)
-	// }
-	//myOffline, err := myProvider.AsOfflineStore()
 	if err != nil {
 		return fmt.Errorf("could not get provider as offline store: %v", err)
 	}
@@ -2012,8 +1946,6 @@ func testScheduleTransformation(addr string) error {
 	if transformationCreated.Status() != metadata.CREATED {
 		return fmt.Errorf("Transformation not set to created with no coordinator running")
 	}
-
-	//beforeExecutionTime := time.Now()
 	go func() {
 		if err := coord.WatchForNewJobs(); err != nil {
 			logger.Errorf("Error watching for new jobs: %v", err)

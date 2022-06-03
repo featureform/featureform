@@ -77,6 +77,28 @@ func (r *CassandraConfig) Deserialize(config SerializedConfig) error {
 	return nil
 }
 
+type FirestoreConfig struct {
+	Collection string
+	APIKey     string
+	ProjectID  string
+}
+
+func (r FirestoreConfig) Serialized() SerializedConfig {
+	config, err := json.Marshal(r)
+	if err != nil {
+		panic(err)
+	}
+	return config
+}
+
+func (r *FirestoreConfig) Deserialize(config SerializedConfig) error {
+	err := json.Unmarshal(config, r)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 type Provider interface {
 	AsOnlineStore() (OnlineStore, error)
 	AsOfflineStore() (OfflineStore, error)

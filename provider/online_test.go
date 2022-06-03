@@ -72,8 +72,8 @@ func TestOnlineStores(t *testing.T) {
 		c               SerializedConfig
 		integrationTest bool
 	}{
-		{LocalOnline, []byte{}, true},
-		{RedisOnline, redisMockConfig.Serialized(), true},
+		{LocalOnline, []byte{}, false},
+		{RedisOnline, redisMockConfig.Serialized(), false},
 		{RedisOnline, redisLiveConfig.Serialized(), true},
 		{CassandraOnline, cassandraConfig.Serialized(), true},
 		{FirestoreOnline, firestoreConfig.Serialized(), true},
@@ -115,9 +115,9 @@ func testCreateGetTable(t *testing.T, store OnlineStore) {
 	if tab, err := store.CreateTable(mockFeature, mockVariant, String); tab == nil || err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
-	// if tab, err := store.GetTable(mockFeature, mockVariant); tab == nil || err != nil {
-	// 	t.Fatalf("Failed to get table: %s", err)
-	// }
+	if tab, err := store.GetTable(mockFeature, mockVariant); tab == nil || err != nil {
+		t.Fatalf("Failed to get table: %s", err)
+	}
 }
 
 func testTableAlreadyExists(t *testing.T, store OnlineStore) {

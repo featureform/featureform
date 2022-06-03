@@ -106,7 +106,11 @@ func (serv *MetadataServer) CreateLabelVariant(ctx context.Context, label *pb.La
 		return nil, err
 	}
 	label.Provider = source.Provider()
-	return serv.meta.CreateLabelVariant(ctx, label)
+	resp, err := serv.meta.CreateLabelVariant(ctx, label)
+	if err != nil {
+		serv.Logger.Errorw("Could not create label variant", "response", resp, "error", err)
+	}
+	return resp, err
 }
 
 func (serv *MetadataServer) CreateTrainingSetVariant(ctx context.Context, train *pb.TrainingSetVariant) (*pb.Empty, error) {

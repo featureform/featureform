@@ -798,6 +798,7 @@ func (client *Client) parseSourceVariantStream(stream sourceVariantStream) ([]*S
 		if err == io.EOF {
 			break
 		} else if err != nil {
+			client.Logger.Errorw("Error receiving parsed stream", "error", err)
 			return nil, err
 		}
 		features = append(features, wrapProtoSourceVariant(serial))

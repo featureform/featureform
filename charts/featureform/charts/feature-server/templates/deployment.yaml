@@ -25,8 +25,8 @@ spec:
             - containerPort: {{ .Values.metrics.port }}
           env:
             - name: SERVING_PORT
-              value: "0.0.0.0:"{{ .Values.serving.port }}
+              value: 0.0.0.0:{{ .Values.serving.port }}
             - name: METRICS_PORT
-              value: "0.0.0.0:"{{ .Values.matrics.port }}
+              value: 0.0.0.0:{{ .Values.metrics.port }}
           resources: {}
 status: {}

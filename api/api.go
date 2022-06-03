@@ -103,6 +103,7 @@ func (serv *MetadataServer) CreateLabelVariant(ctx context.Context, label *pb.La
 	protoSource := label.Source
 	source, err := serv.client.GetSourceVariant(ctx, metadata.NameVariant{protoSource.Name, protoSource.Variant})
 	if err != nil {
+		serv.Logger.Errorw("Could not create label source variant", "error", err)
 		return nil, err
 	}
 	label.Provider = source.Provider()

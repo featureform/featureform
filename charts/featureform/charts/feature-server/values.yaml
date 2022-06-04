@@ -16,6 +16,10 @@ metrics:
 serving:
   port: 8080
 
+metadata:
+  host: featureform-metadata-server
+  port: 8080
+
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""

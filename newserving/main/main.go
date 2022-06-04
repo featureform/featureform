@@ -5,6 +5,7 @@
 package main
 
 import (
+	"fmt"
 	"net"
 	"os"
 
@@ -29,7 +30,11 @@ func main() {
 	promMetrics := metrics.NewMetrics("test")
 	metricsPort := os.Getenv("METRICS_PORT")
 
-	meta, err := metadata.NewClient("sandbox-metadata-server:8080", logger)
+	metadataHost := os.Getenv("METADATA_HOST")
+	metadataPort := os.Getenv("METADATA_PORT")
+	metadataConn := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
+
+	meta, err := metadata.NewClient(metadataConn, logger)
 	if err != nil {
 		logger.Panicw("Failed to connect to metadata", "Err", err)
 	}

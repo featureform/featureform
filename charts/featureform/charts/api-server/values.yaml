@@ -43,7 +43,7 @@ service:
   port: 7878
 
 apiserver:
-  port: "7878"
+  port: 7878
 
 metadata:
   host: featureform-metadata-server

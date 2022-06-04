@@ -13,3 +13,4 @@ terrafo
 rm.**
 **pb**
 venv/**
+terraform.tfstate

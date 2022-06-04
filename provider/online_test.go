@@ -63,8 +63,6 @@ func TestOnlineStores(t *testing.T) {
 		{LocalOnline, []byte{}, false},
 		{RedisOnline, redisMockConfig.Serialized(), false},
 		{RedisOnline, redisLiveConfig.Serialized(), true},
-		{CassandraOnline, cassandraConfig.Serialized(), true},
-		{DynamoDBOnline, dynamoConfig.Serialized(), false},
 		{DynamoDBOnline, dynamoConfig.Serialized(), true},
 	}
 	for _, testItem := range testList {

@@ -324,8 +324,8 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
               </div>
             </Grid>
           </Grid>
-          {Object.keys(metadata).length > 0 && (
-            <div className={((metadata["status"] !== "NO_STATUS" && metadata["error"] !== "") && classes.resourcesData)}>
+          {(Object.keys(metadata).length > 0 && metadata["status"] != "NO_STATUS")&& (
+            <div className={classes.resourcesData}>
               <Grid container spacing={0}>
                 <Grid item xs={7} className={classes.resourceMetadata}>
                   {metadata["description"] && (

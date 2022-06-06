@@ -8,7 +8,7 @@ class FeatureVariantResource:
         entity="", 
         name="", 
         owner="", 
-        provider="", 
+        provider="",
         dataType="", 
         variant="",
         status="",
@@ -64,7 +64,7 @@ class TrainingSetVariantResource:
         self.features = features
 
 class TrainingSetResource:
-    def __init__(self, 
+    def __init__(self,
         type = "",
         defaultVariant="",
         name="",
@@ -81,7 +81,7 @@ class SourceVariantResource:
     def __init__(self, 
         created=None, 
         description="", 
-        name="", 
+        name="",
         sourceType = "",
         owner="", 
         provider="", 
@@ -123,7 +123,7 @@ class LabelVariantResource:
         created=None, 
         description="",
         entity="",
-        name="", 
+        name="",
         owner="", 
         provider="",
         dataType = "", 
@@ -131,7 +131,7 @@ class LabelVariantResource:
         location=None,
         status="",
         trainingSets=None):
-        
+
 
         self.created = created
         self.description = description
@@ -159,7 +159,7 @@ class LabelResource:
         self.variants = variants
 
 class EntityResource:
-    def __init__(self, 
+    def __init__(self,
         name="", 
         type="",
         description="",

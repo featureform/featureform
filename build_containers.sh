@@ -1,9 +1,10 @@
 #!/bin/bash
 
-docker buildx build -f ./api/Dockerfile . -t featureformcom/api-server:stable -o type=image --platform=linux/arm64,linux/amd64 --push &
-docker buildx build -f ./coordinator/Dockerfile . -t featureformcom/coordinator:stable -o type=image --platform=linux/arm64,linux/amd64 --push &
-docker buildx build -f ./metadata/Dockerfile . -t featureformcom/metadata:stable -o type=image --platform=linux/arm64,linux/amd64 --push &
-docker buildx build -f ./metadata/dashboard/Dockerfile . -t featureformcom/metadata-dashboard:stable -o type=image --platform=linux/arm64,linux/amd64 --push &
-docker buildx build -f ./newserving/Dockerfile . -t featureformcom/serving:stable -o type=image --platform=linux/arm64,linux/amd64 --push &
-docker buildx build -f ./runner/Dockerfile . -t featureformcom/worker:stable -o type=image --platform=linux/arm64,linux/amd64 --push
+docker build -f ./api/Dockerfile . -t local/api-server:stable &
+docker build -f ./dashboard/Dockerfile . -t local/dashboard:stable &
+docker build -f ./coordinator/Dockerfile . -t local/coordinator:stable &
+docker build -f ./metadata/Dockerfile . -t local/metadata:stable &
+docker build -f ./metadata/dashboard/Dockerfile . -t local/metadata-dashboard:stable &
+docker build -f ./newserving/Dockerfile . -t local/serving:stable &
+docker build -f ./runner/Dockerfile . -t local/worker:stable
 

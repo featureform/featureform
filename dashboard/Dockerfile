@@ -3,7 +3,8 @@
 # docker push featureformcom/dashboard:latest
 
 FROM node:16-alpine
-COPY . .
+COPY ./dashboard ./dashboard
+WORKDIR ./dashboard
 RUN npm install --production
 RUN npm run build
 RUN npm uninstall -g serve

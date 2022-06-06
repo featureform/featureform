@@ -68,14 +68,22 @@ def cli():
               "host",
               required=True,
               help="The host address of the API server to connect to")
+@click.option("--cert",
+              "cert",
+              required=False,
+              help="Path to self-signed TLS certificate")
 @click.option("--insecure",
               is_flag=True,
               help="Disables TLS verification")
-def apply(host, insecure, files):
+def apply(host, cert, insecure, files):
     """apply changes to featureform
     """
     if insecure:
         channel = grpc.insecure_channel(host, options=(('grpc.enable_http_proxy', 0),))
+    elif cert != "":
+        with open(cert, 'rb') as f:
+            credentials = grpc.ssl_channel_credentials(f.read())
+        channel = grpc.secure_channel(host, credentials)
     else:
         credentials = grpc.ssl_channel_credentials()
         channel = grpc.secure_channel(host, credentials)

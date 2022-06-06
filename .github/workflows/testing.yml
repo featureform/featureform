@@ -148,14 +148,12 @@ jobs:
         working-directory: ./
         run: mkdir coverage
 
-      - name: Save Creds To File
-        run: 'echo "$FIRESTORE_CREDENTIALS_FILE" >> firestore_credentials.json'
-        shell: bash
-        env: 
-          FIRESTORE_CREDENTIALS_FILE: ${{secrets.FIRESTORE_CREDENTIALS_FILE}}
-
-      - name: Check file
-        run: cat firestore_credentials.json
+      - name: create-json
+        id: create-json
+        uses: jsdaniell/create-json@1.1.2
+        with:
+          name: "firestore_credentials.json"
+          json: ${{ secrets.FIRESTORE_CREDENTIALS_FILE }}
 
       - name: Testing
         env:

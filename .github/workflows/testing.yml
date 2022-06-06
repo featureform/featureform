@@ -148,12 +148,18 @@ jobs:
         working-directory: ./
         run: mkdir coverage
 
+      - name: Save Creds To File
+        run: |
+          echo ${{ secrets.FIRESTORE_CREDENTIALS_FILE }} >> firestore_credentials.json
+
       - name: Testing
         env:
           SNOWFLAKE_USERNAME: ${{ secrets.SNOWFLAKE_USERNAME }}
           SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
           SNOWFLAKE_ORG: ${{ secrets.SNOWFLAKE_ORG }}
           SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          FIRESTORE_CRED: firestore_credentials.json
+          FIRESTORE_PROJECT: ${{ secrets.FIRESTORE_PROJECT }}
         working-directory: ./
         run: go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/...
 

@@ -6,6 +6,7 @@ package provider
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"reflect"
 	"testing"
@@ -62,9 +63,13 @@ func TestOnlineStores(t *testing.T) {
 	}
 
 	//Firestore
-	projectID := "snappy-density-352219"
+	projectID := os.Getenv("FIRESTORE_PROJECT")
+	firestoreCredentials := os.Getenv("FIRESTORE_CRED")
+	JSONCredentials, _ := ioutil.ReadFile(firestoreCredentials)
+
 	firestoreConfig := &FirestoreConfig{
-		ProjectID: projectID,
+		ProjectID:   projectID,
+		Credentials: JSONCredentials,
 	}
 
 	testList := []struct {

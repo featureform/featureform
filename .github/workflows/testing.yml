@@ -149,8 +149,10 @@ jobs:
         run: mkdir coverage
 
       - name: Save Creds To File
-        run: |
-          echo ${{ secrets.FIRESTORE_CREDENTIALS_FILE }} >> firestore_credentials.json
+        run: 'echo "$FIRESTORE_CREDENTIALS_FILE" >> firestore_credentials.json'
+        shell: bash
+        env: 
+          FIRESTORE_CREDENTIALS_FILE: ${{secrets.FIRESTORE_CREDENTIALS_FILE}}
 
       - name: Testing
         env:

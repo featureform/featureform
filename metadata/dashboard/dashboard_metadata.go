@@ -934,9 +934,6 @@ func (m *MetadataServer) Start(port string) {
 }
 
 func main() {
-	os.Setenv("METADATA_HOST", "localhost")
-	os.Setenv("METADATA_PORT", "8888")
-	os.Setenv("METADATA_HTTP_PORT", "8181")
 	metadataHost := os.Getenv("METADATA_HOST")
 	metadataPort := os.Getenv("METADATA_PORT")
 	metadataAddress := fmt.Sprintf("%s:%s", metadataHost, metadataPort)

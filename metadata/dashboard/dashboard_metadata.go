@@ -41,6 +41,7 @@ type FeatureVariantResource struct {
 	DataType     string                                  `json:"data-type"`
 	Variant      string                                  `json:"variant"`
 	Status       string                                  `json:"status"`
+	Error string `json:"error"`
 	Location     map[string]string                       `json:"location"`
 	Source       metadata.NameVariant                    `json:"source"`
 	TrainingSets map[string][]TrainingSetVariantResource `json:"training-sets"`
@@ -64,6 +65,7 @@ type TrainingSetVariantResource struct {
 	Label       metadata.NameVariant                `json:"label"`
 	Features    map[string][]FeatureVariantResource `json:"features"`
 	Status      string                              `json:"status"`
+	Error string `json:"error"`
 }
 
 type TrainingSetResource struct {
@@ -86,6 +88,7 @@ type SourceVariantResource struct {
 	Features     map[string][]FeatureVariantResource     `json:"features"`
 	TrainingSets map[string][]TrainingSetVariantResource `json:"training-sets"`
 	Status       string                                  `json:"status"`
+	Error string `json:"error"`
 	Definition   string                                  `json:"definition"`
 }
 
@@ -110,6 +113,7 @@ type LabelVariantResource struct {
 	Source       metadata.NameVariant                    `json:"source"`
 	TrainingSets map[string][]TrainingSetVariantResource `json:"training-sets"`
 	Status       string                                  `json:"status"`
+	Error string `json:"error"`
 }
 
 type LabelResource struct {
@@ -162,6 +166,7 @@ type ProviderResource struct {
 	Labels           map[string][]LabelVariantResource       `json:"labels"`
 	TrainingSets     map[string][]TrainingSetVariantResource `json:"training-sets"`
 	Status           string                                  `json:"status"`
+	Error string `json:"error"`
 }
 
 type FetchError struct {
@@ -195,6 +200,7 @@ func featureShallowMap(variant *metadata.FeatureVariant) FeatureVariantResource 
 		Source:      variant.Source(),
 		Location:    columnsToMap(variant.LocationColumns().(metadata.ResourceVariantColumns)),
 		Status:      variant.Status().String(),
+		Error: variant.Error(),
 	}
 }
 
@@ -211,6 +217,7 @@ func labelShallowMap(variant *metadata.LabelVariant) LabelVariantResource {
 		Source:      variant.Source(),
 		Location:    columnsToMap(variant.LocationColumns().(metadata.ResourceVariantColumns)),
 		Status:      variant.Status().String(),
+		Error: variant.Error(),
 	}
 }
 
@@ -224,6 +231,7 @@ func trainingSetShallowMap(variant *metadata.TrainingSetVariant) TrainingSetVari
 		Provider:    variant.Provider(),
 		Label:       variant.Label(),
 		Status:      variant.Status().String(),
+		Error: variant.Error(),
 	}
 }
 
@@ -246,6 +254,7 @@ func sourceShallowMap(variant *metadata.SourceVariant) SourceVariantResource {
 		Owner:       variant.Owner(),
 		Provider:    variant.Provider(),
 		Status:      variant.Status().String(),
+		Error: variant.Error(),
 		Definition:  sourceString,
 	}
 }
@@ -677,6 +686,7 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 			Software:     provider.Software(),
 			Team:         provider.Team(),
 			Status:       provider.Status().String(),
+			Error: variant.Error(),
 		}
 		fetchGroup := new(errgroup.Group)
 		fetchGroup.Go(func() error {
@@ -924,6 +934,9 @@ func (m *MetadataServer) Start(port string) {
 }
 
 func main() {
+	os.Setenv("METADATA_HOST", "localhost")
+	os.Setenv("METADATA_PORT", "8888")
+	os.Setenv("METADATA_HTTP_PORT", "8181")
 	metadataHost := os.Getenv("METADATA_HOST")
 	metadataPort := os.Getenv("METADATA_PORT")
 	metadataAddress := fmt.Sprintf("%s:%s", metadataHost, metadataPort)

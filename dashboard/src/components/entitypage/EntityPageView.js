@@ -409,9 +409,14 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                       <b>Team:</b> {metadata["team"]}
                     </Typography>
                   )}
-                  {metadata["status"] && metadata["status"] !== "NO_STATUS" && (
+                  {metadata["status"] && metadata["status"] !== "NO_STATUS  " && (
                     <Typography variant="body1">
                       <b>Status:</b> {metadata["status"]}
+                    </Typography>
+                  )}
+                  {metadata["error"] && metadata["error"] !== "" && (
+                    <Typography variant="body1">
+                      <b>Error Message:</b> {metadata["error"]}
                     </Typography>
                   )}
                   {metadata["source-type"] && (

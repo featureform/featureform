@@ -325,7 +325,7 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
             </Grid>
           </Grid>
           {Object.keys(metadata).length > 0 && (
-            <div className={classes.resourcesData}>
+            <div className={((metadata["status"] !== "NO_STATUS" && metadata["error"] !== "") && classes.resourcesData)}>
               <Grid container spacing={0}>
                 <Grid item xs={7} className={classes.resourceMetadata}>
                   {metadata["description"] && (
@@ -409,7 +409,7 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                       <b>Team:</b> {metadata["team"]}
                     </Typography>
                   )}
-                  {metadata["status"] && metadata["status"] !== "NO_STATUS  " && (
+                  {metadata["status"] && metadata["status"] !== "NO_STATUS" && (
                     <Typography variant="body1">
                       <b>Status:</b> {metadata["status"]}
                     </Typography>

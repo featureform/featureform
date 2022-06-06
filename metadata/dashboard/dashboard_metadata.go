@@ -162,7 +162,6 @@ type ProviderResource struct {
 	Labels           map[string][]LabelVariantResource       `json:"labels"`
 	TrainingSets     map[string][]TrainingSetVariantResource `json:"training-sets"`
 	Status           string                                  `json:"status"`
-	SerializedConfig string                                  `json:"serialized-config"`
 }
 
 type FetchError struct {
@@ -678,8 +677,6 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 			Software:     provider.Software(),
 			Team:         provider.Team(),
 			Status:       provider.Status().String(),
-			//SerializedConfig: string(provider.SerializedConfig()),
-			SerializedConfig: string("xxxxx"),
 		}
 		fetchGroup := new(errgroup.Group)
 		fetchGroup.Go(func() error {
@@ -903,8 +900,6 @@ func (m *MetadataServer) GetMetadataList(c *gin.Context) {
 				Team:         provider.Team(),
 				ProviderType: provider.Type(),
 				Status:       provider.Status().String(),
-				//SerializedConfig: string(provider.SerializedConfig()),
-				SerializedConfig: string("xxxxx"),
 			}
 		}
 		c.JSON(http.StatusOK, providerList)

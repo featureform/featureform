@@ -124,6 +124,12 @@ jobs:
         # supported for use outside of 'steps'
         ports:
           - 9042:9042
+      dynamodb:
+        image: dynamodb
+        # Hard coded port because environment variables not currently
+        # supported for use outside of 'steps'
+        ports:
+          - 4566:4566
 
       postgres:
         image: postgres

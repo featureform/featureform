@@ -79,8 +79,9 @@ func (r *CassandraConfig) Deserialize(config SerializedConfig) error {
 }
 
 type FirestoreConfig struct {
-	Collection string
-	ProjectID  string
+	Collection  string
+	ProjectID   string
+	Credentials []byte
 }
 
 func (r FirestoreConfig) Serialized() SerializedConfig {

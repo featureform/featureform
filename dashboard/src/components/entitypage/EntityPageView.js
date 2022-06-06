@@ -409,7 +409,7 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                       <b>Team:</b> {metadata["team"]}
                     </Typography>
                   )}
-                  {metadata["status"] && metadata["status"] !== "No Status" && (
+                  {metadata["status"] && metadata["status"] !== "NO_STATUS" && (
                     <Typography variant="body1">
                       <b>Status:</b> {metadata["status"]}
                     </Typography>

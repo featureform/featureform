@@ -151,7 +151,7 @@ jobs:
       - name: Save Creds To File
         run: |
           echo ${{ secrets.FIRESTORE_CREDENTIALS_FILE }} >> firestore_credentials.json
-          catfirestore_credentials.json
+          cat firestore_credentials.json
 
       - name: Testing
         env:

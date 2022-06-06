@@ -143,7 +143,7 @@ func NewCoordinator(meta *metadata.Client, logger *zap.SugaredLogger, cli *clien
 	}, nil
 }
 
-const MAX_ATTEMPTS = 60
+const MAX_ATTEMPTS = 20
 
 func (c *Coordinator) WatchForNewJobs() error {
 	c.Logger.Info("Watching for new jobs")
@@ -303,24 +303,30 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 		TransformationConfig: transformationConfig,
 		IsUpdate:             false,
 	}
+	c.Logger.Debugw("Transformation Serialize Config")
 	serialized, err := createTransformationConfig.Serialize()
 	if err != nil {
 		return fmt.Errorf("serialize transformation config: %w", err)
 	}
+	c.Logger.Debugw("Transformation Get Job Runner")
 	jobRunner, err := c.Spawner.GetJobRunner(runner.CREATE_TRANSFORMATION, serialized, c.EtcdClient.Endpoints(), resID)
 	if err != nil {
 		return fmt.Errorf("spawn create transformation job runner: %w", err)
 	}
+	c.Logger.Debugw("Transformation Run Job")
 	completionWatcher, err := jobRunner.Run()
 	if err != nil {
 		return fmt.Errorf("run transformation job runner: %w", err)
 	}
+	c.Logger.Debugw("Transformation Waiting For Completion")
 	if err := completionWatcher.Wait(); err != nil {
 		return fmt.Errorf("wait for transformation job runner completion: %w", err)
 	}
+	c.Logger.Debugw("Transformation Setting Status")
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
 		return fmt.Errorf("set transformation job runner done status: %w", err)
 	}
+	c.Logger.Debugw("Transformation Complete")
 	if schedule != "" {
 		scheduleCreateTransformationConfig := runner.CreateTransformationConfig{
 			OfflineType:          provider.Type(sourceProvider.Type()),
@@ -594,7 +600,7 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 		return fmt.Errorf("fetch training set variant from metadata: %w", err)
 	}
 	status := ts.Status()
-	if status == metadata.READY || status == metadata.FAILED {
+	if status == metadata.READY {
 		return fmt.Errorf("training Set already set to %s", status.String())
 	}
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.PENDING, ""); err != nil {

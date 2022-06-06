@@ -2,7 +2,7 @@ kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   namespace: default
-  name: scribd-coodinator
+  name: {{ .Release.Name }}-coodinator
 rules:
   - apiGroups: ["", "extensions", "apps", "batch"]
     resources: ["*"]

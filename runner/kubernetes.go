@@ -25,11 +25,12 @@ var Namespace string = "default"
 type CronSchedule string
 
 func GetJobName(id metadata.ResourceID) string {
-	return fmt.Sprintf("%s-%s-%d", strings.ToLower(id.Name), strings.ToLower(id.Variant), id.Type)
+	return strings.ReplaceAll(fmt.Sprintf("%s-%s-%d", strings.ToLower(id.Name), strings.ToLower(id.Variant), id.Type), "_", ".")
+
 }
 
 func GetCronJobName(id metadata.ResourceID) string {
-	return fmt.Sprintf("%s-%s-%d", strings.ToLower(id.Name), strings.ToLower(id.Variant), id.Type)
+	return strings.ReplaceAll(fmt.Sprintf("%s-%s-%d", strings.ToLower(id.Name), strings.ToLower(id.Variant), id.Type), "_", ".")
 }
 
 func makeCronSchedule(schedule string) (*CronSchedule, error) {

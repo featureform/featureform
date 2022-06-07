@@ -40,15 +40,12 @@ export const providerLogos = Object.freeze({
   SNOWFLAKE: "Snowflake_Logo.svg",
 });
 
-//var API_URL = "http:localhost:8080";
-
 var API_URL = "//"+ window.location.hostname+"/data"
+var API_SEARCH = "//"+ window.location.hostname+"/search/"
 //var API_URL = "http://a57f7235b9e0e49cf97d9ba661188650-73543dde19a3fca9.elb.us-east-1.amazonaws.com/data"
 if (typeof process.env.REACT_APP_API_URL != "undefined") {
   API_URL = process.env.REACT_APP_API_URL.trim();
 }
-//export var PROMETHEUS_URL = "http:localhost:9090";
-
 export var PROMETHEUS_URL = "//"+ window.location.hostname+"/prometheus";
 
 if (typeof process.env.REACT_APP_PROMETHEUS_URL != "undefined") {
@@ -72,9 +69,7 @@ const local = false;
 
 export default class ResourcesAPI {
   static typeSenseClient = new TypesenseClient(
-    TYPESENSE_PORT,
-    TYPESENSE_URL,
-    TYPESENSE_API_KEY
+    API_SEARCH,
   );
   checkStatus() {
     return fetch(API_URL, {

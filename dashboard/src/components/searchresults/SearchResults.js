@@ -20,7 +20,6 @@ const mapDispatchToProps = (dispatch) => {
 
 const SearchResults = ({ searchResults, api, setVariant, ...props }) => {
   let search_query = useQuery().get("q");
-
   const fetchQuery = props.fetch;
   useEffect(() => {
     fetchQuery(api, search_query);

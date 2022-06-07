@@ -947,18 +947,19 @@ func (m *MetadataServer) Start(port string) {
 }
 
 func main() {
+	logger := zap.NewExample().Sugar()
 	metadataHost := os.Getenv("METADATA_HOST")
 	metadataPort := os.Getenv("METADATA_PORT")
 	typesenseHost := os.Getenv("TYPESENSE_HOST")
 	typesensePort := os.Getenv("TYPESENSE_PORT")
 	typesenseEndpoint := fmt.Sprintf("http://%s:%s", typesenseHost, typesensePort)
 	typesenseApiKey := os.Getenv("TYPESENSE_APIKEY")
+	logger.Infof("Connecting to typesense at: %s", typesenseEndpoint)
 	typesenseClient = typesense.NewClient(
 		typesense.WithServer(typesenseEndpoint),
 		typesense.WithAPIKey(typesenseApiKey))
 	metadataAddress := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
-	fmt.Println("Looking for metadata at: ", metadataAddress)
-	logger := zap.NewExample().Sugar()
+	logger.Infof("Looking for metadata at: %s", metadataAddress)
 	client, err := metadata.NewClient(metadataAddress, logger)
 	if err != nil {
 		logger.Panicw("Failed to connect", "Err", err)
@@ -970,7 +971,6 @@ func main() {
 	}
 	metadataHTTPPort := os.Getenv("METADATA_HTTP_PORT")
 	metadataServingPort := fmt.Sprintf(":%s", metadataHTTPPort)
-	fmt.Printf("Serving HTTP Metadata on port: %s", metadataServingPort)
-	fmt.Println(typesenseClient)
+	logger.Infof("Serving HTTP Metadata on port: %s", metadataServingPort)
 	metadata_server.Start(metadataServingPort)
 }

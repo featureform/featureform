@@ -58,11 +58,12 @@ func (r ResourceType) Serialized() pb.ResourceType {
 type ResourceStatus int32
 
 const (
-	NO_STATUS ResourceStatus = ResourceStatus(pb.ResourceStatus_NO_STATUS)
-	CREATED                  = ResourceStatus(pb.ResourceStatus_CREATED)
-	PENDING                  = ResourceStatus(pb.ResourceStatus_PENDING)
-	READY                    = ResourceStatus(pb.ResourceStatus_READY)
-	FAILED                   = ResourceStatus(pb.ResourceStatus_FAILED)
+	NO_STATUS    ResourceStatus = ResourceStatus(pb.ResourceStatus_NO_STATUS)
+	CREATED                     = ResourceStatus(pb.ResourceStatus_CREATED)
+	PENDING                     = ResourceStatus(pb.ResourceStatus_PENDING)
+	READY                       = ResourceStatus(pb.ResourceStatus_READY)
+	FAILED                      = ResourceStatus(pb.ResourceStatus_FAILED)
+	READY_ONLINE                = ResourceStatus(pb.ResourceStatus_READY_ONLINE)
 )
 
 func (r ResourceStatus) String() string {

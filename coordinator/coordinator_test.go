@@ -1318,7 +1318,7 @@ func testCoordinatorMaterializeFeature(addr string) error {
 	if err != nil {
 		return fmt.Errorf("could not get feature variant")
 	}
-	if metadata.READY != featureComplete.Status() {
+	if metadata.READY_ONLINE != featureComplete.Status() {
 		return fmt.Errorf("Feature not set to ready once job completes")
 	}
 	resourceTable, err := onlineStore.GetTable(featureName, "")

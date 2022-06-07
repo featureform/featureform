@@ -79,7 +79,7 @@ def cli():
 def apply(host, cert, insecure, files):
     """apply changes to featureform
     """
-    if host == "":
+    if host == None:
         envHost = os.getenv('FEATUREFORM_HOST')
         if envHost == None:
             raise ValueError("Host value must be set in env or with --host flag")

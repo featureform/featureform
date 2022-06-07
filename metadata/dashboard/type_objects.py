@@ -9,12 +9,12 @@ class FeatureVariantResource:
         name="", 
         owner="", 
         provider="", 
-        datatype="", 
+        dataType="", 
         variant="",
         status="",
         location=None,
         source=None,
-        trainingsets=None):
+        trainingSets=None):
 
         self.created = created
         self.description = description
@@ -22,23 +22,23 @@ class FeatureVariantResource:
         self.name = name
         self.owner = owner
         self.provider = provider
-        self.datatype = datatype
+        self.dataType = dataType
         self.variant = variant
         self.status = status
         self.location = location
         self.source = source
-        self.trainingsets = trainingsets
+        self.trainingSets = trainingSets
 
 class FeatureResource:
     def __init__(self, 
-        allvariants=[],
+        allVariants=[],
         type = "",
-        defaultvariant="",
+        defaultVariant="",
         name="",
         variants=None):
-        self.allvariants = allvariants
+        self.allVariants = allVariants
         self.type = type
-        self.defaultvariant = defaultvariant
+        self.defaultVariant = defaultVariant
         self.name = name
         self.variants = variants
 
@@ -66,14 +66,14 @@ class TrainingSetVariantResource:
 
 class TrainingSetResource:
     def __init__(self, 
-        allvariants=[],
+        allVariants=[],
         type = "",
-        defaultvariant="",
+        defaultVariant="",
         name="",
         variants=None):
-        self.allvariants = allvariants
+        self.allVariants = allVariants
         self.type = type
-        self.defaultvariant = defaultvariant
+        self.defaultVariant = defaultVariant
         self.name = name
         self.variants = variants
 
@@ -82,7 +82,7 @@ class SourceVariantResource:
         created=None, 
         description="", 
         name="", 
-        sourcetype = "",
+        sourceType = "",
         owner="", 
         provider="", 
         variant="",
@@ -90,12 +90,12 @@ class SourceVariantResource:
         definition="",
         labels=None,
         features=None,
-        trainingsets=None):
+        trainingSets=None):
 
         self.created = created
         self.description = description
         self.name = name
-        self.sourcetype = sourcetype
+        self.sourceType = sourceType
         self.owner = owner
         self.provider = provider
         self.variant = variant
@@ -103,18 +103,18 @@ class SourceVariantResource:
         self.definition = definition
         self.labels = labels
         self.features = features
-        self.trainingsets = trainingsets
+        self.trainingSets = trainingSets
 
 class SourceResource:
     def __init__(self, 
-        allvariants=[],
+        allVariants=[],
         type = "",
-        defaultvariant="",
+        defaultVariant="",
         name="",
         variants=None):
-        self.allvariants = allvariants
+        self.allVariants = allVariants
         self.type = type
-        self.defaultvariant = defaultvariant
+        self.defaultVariant = defaultVariant
         self.name = name
         self.variants = variants
 
@@ -124,19 +124,19 @@ class LabelVariantResource:
         description="",
         entity="",
         name="", 
-        datatype = "",
+        dataType = "",
         owner="", 
         provider="", 
         variant="",
         status="",
         source=None,
-        trainingsets=None,
+        trainingSets=None,
         location=None):
 
         self.created = created
         self.description = description
         self.entity = entity
-        self.datatype = datatype
+        self.dataType = dataType
         self.name = name
         self.owner = owner
         self.provider = provider
@@ -144,18 +144,18 @@ class LabelVariantResource:
         self.status = status
         self.source = source
         self.location = location
-        self.trainingsets = trainingsets
+        self.trainingSets = trainingSets
 
 class LabelResource:
     def __init__(self, 
-        allvariants=[],
+        allVariants=[],
         type = "",
-        defaultvariant="",
+        defaultVariant="",
         name="",
         variants=None):
-        self.allvariants = allvariants
+        self.allVariants = allVariants
         self.type = type
-        self.defaultvariant = defaultvariant
+        self.defaultVariant = defaultVariant
         self.name = name
         self.variants = variants
 
@@ -166,64 +166,77 @@ class EntityResource:
         name="", 
         features=None,
         labels=None
-        trainingsets=None,
+        trainingSets=None,
         status=""):
 
-        self.created = created
         self.description = description
-        self.entity = entity
-        self.datatype = datatype
+        self.type = type
         self.name = name
-        self.owner = owner
-        self.provider = provider
-        self.variant = variant
+        self.features = features
+        self.labels = labels
+        self.trainingSets = trainingSets
         self.status = status
-        self.source = source
-        self.location = location
-        self.trainingsets = trainingsets
 
+class UserResource:
+    def __init__(self, 
+        name="",
+        type="",
+        features=None,
+        labels=None
+        trainingSets=None,
+        sources=None,
+        status=""):
 
-# type EntityResource struct {
-# 	Name         string                                  `json:"name"`
-# 	Type         string                                  `json:"type"`
-# 	Description  string                                  `json:"description"`
-# 	Features     map[string][]FeatureVariantResource     `json:"features"`
-# 	Labels       map[string][]LabelVariantResource       `json:"labels"`
-# 	TrainingSets map[string][]TrainingSetVariantResource `json:"training-sets"`
-# 	Status       string                                  `json:"status"`
-# }
+        self.name = name
+        self.type = type
+        self.features = features
+        self.labels = labels
+        self.trainingSets = trainingSets
+        self.sources = sources
+        self.status = status 
 
-# type UserResource struct {
-# 	Name         string                                  `json:"name"`
-# 	Type         string                                  `json:"type"`
-# 	Features     map[string][]FeatureVariantResource     `json:"features"`
-# 	Labels       map[string][]LabelVariantResource       `json:"labels"`
-# 	TrainingSets map[string][]TrainingSetVariantResource `json:"training-sets"`
-# 	Sources      map[string][]SourceVariantResource      `json:"sources"`
-# 	Status       string                                  `json:"status"`
-# }
+class ModelResource:
+    def __init__(self, 
+        name="",
+        type="",
+        description="",
+        features=None,
+        labels=None
+        trainingSets=None,
+        status=""):
 
-# type ModelResource struct {
-# 	Name         string                                  `json:"name"`
-# 	Type         string                                  `json:"type"`
-# 	Description  string                                  `json:"description"`
-# 	Features     map[string][]FeatureVariantResource     `json:"features"`
-# 	Labels       map[string][]LabelVariantResource       `json:"labels"`
-# 	TrainingSets map[string][]TrainingSetVariantResource `json:"training-sets"`
-# 	Status       string                                  `json:"status"`
-# }
+        self.name = name
+        self.type = type
+        self.description = description
+        self.features = features
+        self.labels = labels
+        self.trainingSets = trainingSets
+        self.status = status 
 
-# type ProviderResource struct {
-# 	Name             string                                  `json:"name"`
-# 	Type             string                                  `json:"type"`
-# 	Description      string                                  `json:"description"`
-# 	ProviderType     string                                  `json:"provider-type"`
-# 	Software         string                                  `json:"software"`
-# 	Team             string                                  `json:"team"`
-# 	Sources          map[string][]SourceVariantResource      `json:"sources"`
-# 	Features         map[string][]FeatureVariantResource     `json:"features"`
-# 	Labels           map[string][]LabelVariantResource       `json:"labels"`
-# 	TrainingSets     map[string][]TrainingSetVariantResource `json:"training-sets"`
-# 	Status           string                                  `json:"status"`
-# 	SerializedConfig string                                  `json:"serialized-config"`
-# }
+class ProviderResource:
+    def __init__(self, 
+        name="",
+        type="",
+        description="",
+        providerType="",
+        software="",
+        team="",
+        sources=None,
+        features=None,
+        labels=None
+        trainingSets=None,
+        status="",
+        serializedConfig=""):
+
+        self.name = name
+        self.type = type
+        self.description = description
+        self.providerType=providerType
+        self.software=software
+        self.team=team
+        self.sources=sources
+        self.features = features
+        self.labels = labels
+        self.trainingSets = trainingSets
+        self.status = status 
+        self.serializedConfig=serializedConfig

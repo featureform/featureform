@@ -635,7 +635,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 	if err := completionWatcher.Wait(); err != nil {
 		return fmt.Errorf("completion watcher running: %w", err)
 	}
-	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
+	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY_ONLINE, ""); err != nil {
 		return fmt.Errorf("materialize set success: %w", err)
 	}
 	if schedule != "" {

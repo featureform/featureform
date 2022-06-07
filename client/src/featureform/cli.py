@@ -80,7 +80,7 @@ def apply(host, cert, insecure, files):
     """
     if insecure:
         channel = grpc.insecure_channel(host, options=(('grpc.enable_http_proxy', 0),))
-    elif cert != "":
+    elif cert != None:
         with open(cert, 'rb') as f:
             credentials = grpc.ssl_channel_credentials(f.read())
         channel = grpc.secure_channel(host, credentials)

@@ -80,9 +80,9 @@ def apply(host, cert, insecure, files):
     """apply changes to featureform
     """
     if host == "":
-        envHost = os.getenv('HOST')
+        envHost = os.getenv('FEATUREFORM_HOST')
         if envHost == None:
-            raise ValueError("Host value must be set")
+            raise ValueError("Host value must be set in env or with --host flag")
         host = envHost
     if insecure:
         channel = grpc.insecure_channel(host, options=(('grpc.enable_http_proxy', 0),))

@@ -86,6 +86,7 @@ message ResourceStatus {
         PENDING = 2;
         READY = 3;
         FAILED = 4;
+        READY_ONLINE = 5;
       }
     Status status = 1;
     string error_message = 2;

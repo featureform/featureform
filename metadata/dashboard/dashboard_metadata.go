@@ -10,6 +10,8 @@ import (
 	"github.com/featureform/metadata"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/typesense/typesense-go/typesense"
+	api "github.com/typesense/typesense-go/typesense/api"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 	"net/http"
@@ -17,6 +19,8 @@ import (
 	"reflect"
 	"time"
 )
+
+var typesenseClient *typesense.Client
 
 type MetadataServer struct {
 	client *metadata.Client
@@ -923,12 +927,26 @@ func (m *MetadataServer) GetMetadataList(c *gin.Context) {
 
 }
 
+func (m *MetadataServer) GetSearch(c *gin.Context) {
+	query := c.Param("query")
+	searchParameters := &api.SearchCollectionParams{
+		Q:       query,
+		QueryBy: "Name",
+	}
+	result, err := typesenseClient.Collection("resource").Documents().Search(searchParameters)
+	if err != nil {
+		c.JSON(500, "Failed to fetch resources")
+	}
+	c.JSON(200, result)
+}
+
 func (m *MetadataServer) Start(port string) {
 	router := gin.Default()
 	router.Use(cors.Default())
 
 	router.GET("/data/:type", m.GetMetadataList)
 	router.GET("/data/:type/:resource", m.GetMetadata)
+	router.GET("/search/:query", m.GetSearch)
 
 	router.Run(port)
 }
@@ -936,6 +954,13 @@ func (m *MetadataServer) Start(port string) {
 func main() {
 	metadataHost := os.Getenv("METADATA_HOST")
 	metadataPort := os.Getenv("METADATA_PORT")
+	typesenseHost := os.Getenv("TYPESENSE_HOST")
+	typesensePort := os.Getenv("TYPESENSE_PORT")
+	typesenseEndpoint := fmt.Sprintf("http://%s:%s", typesenseHost, typesensePort)
+	typesenseApiKey := os.Getenv("TYPESENSE_APIKEY")
+	typesenseClient = typesense.NewClient(
+		typesense.WithServer(typesenseEndpoint),
+		typesense.WithAPIKey(typesenseApiKey))
 	metadataAddress := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
 	fmt.Println("Looking for metadata at: ", metadataAddress)
 	logger := zap.NewExample().Sugar()
@@ -950,6 +975,7 @@ func main() {
 	}
 	metadataHTTPPort := os.Getenv("METADATA_HTTP_PORT")
 	metadataServingPort := fmt.Sprintf(":%s", metadataHTTPPort)
-	fmt.Sprintf("Serving HTTP Metadata on port: %s", metadataServingPort)
+	fmt.Printf("Serving HTTP Metadata on port: %s", metadataServingPort)
+	fmt.Println(typesenseClient)
 	metadata_server.Start(metadataServingPort)
 }

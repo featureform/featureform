@@ -60,20 +60,19 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const searchTypeMap = {
-  "Feature variant": "Feature",
-  Entity: "Entity",
-  "Label variant": "Label",
-  "Training Set variant": "TrainingSet",
-  Model: "Model",
-  "Source variant": "Source",
-  User: "User",
-  Provider: "Provider",
-};
+var searchTypeMap = {
+  '\u0004': "Feature", //feature variant
+  '\u0005': "Label",
+  '\u0006': "TrainingSet",
+  '\u0007': "Source",
+  '\u0008': "Provider",
+  '\u0009': "Entity",
+  '\u000a': "Model",
+  '\u000b': "User",
+}
 
 const SearchResultsView = ({ results, search_query, setVariant }) => {
   const classes = useStyles();
-
   return (
     <div>
       <Container maxWidth="xl" className={classes.root}>
@@ -103,13 +102,12 @@ const SearchResultsList = ({ type, contents, setVariant }) => {
   );
   let filteredContentHits = {};
   let moreFilteredContents = filteredContents.filter((content) => {
-    if (content.Name + "." + content.Variant in filteredContentHits) {
+    if (content.Name + "." + content.Variant + "." + searchTypeMap[content.Type] in filteredContentHits) {
       return false;
     }
-    filteredContentHits[content.Name + "." + content.Variant] = content.Variant;
+    filteredContentHits[content.Name + "." + content.Variant + "." + searchTypeMap[content.Type]] = content.Variant;
     return true;
   });
-
   return (
     <div>
       <List className={classes.root} component="nav">

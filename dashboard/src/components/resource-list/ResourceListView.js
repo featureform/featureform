@@ -202,7 +202,7 @@ export const ResourceListView = ({
   // MaterialTable can't handle immutable object, we have to make a copy
   // https://github.com/mbrn/material-table/issues/666
   const mutableRes = copy(initRes);
-
+  
   function detailRedirect(e, data) {
     history.push(history.location.pathname + "/" + data.name);
   }

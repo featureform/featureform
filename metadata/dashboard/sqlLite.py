@@ -7,9 +7,23 @@ conn = sqlite3.connect('test.db')
 class SQLiteTest:
     def __init__(self):
         self.createTables()
+
     def createTables(self):
+       conn.execute('''DROP TABLE IF EXISTS features_variant''')
+       conn.execute(''' DROP TABLE IF EXISTS features''')
+       conn.execute('''DROP TABLE IF EXISTS training_set_variant''')
+       conn.execute('''DROP TABLE IF EXISTS training_set''')
+       conn.execute('''DROP TABLE IF EXISTS sources_variant''')
+       conn.execute('''DROP TABLE IF EXISTS sources''')
+       conn.execute('''DROP TABLE IF EXISTS labels_variant''')
+       conn.execute('''DROP TABLE IF EXISTS labels''')
+       conn.execute('''DROP TABLE IF EXISTS entities''')
+       conn.execute('''DROP TABLE IF EXISTS users''')
+       conn.execute('''DROP TABLE IF EXISTS models''')
+       conn.execute('''DROP TABLE IF EXISTS providers''')
+
          # Features variant table
-         conn.execute('''CREATE TABLE features_variant(
+       conn.execute('''CREATE TABLE features_variant(
             created           text,
             description       text,
             entity            text NOT NULL,
@@ -24,15 +38,15 @@ class SQLiteTest:
             sourceValue       text,
             source            text NOT NULL,
             
-            PRIMARY KEY (name, variant),
+            PRIMARY KEY (featureName, variantName),
             
-            FOREIGNKEY(featureName) REFERENCES features(name)),
-            FOREIGNKEY(entity) REFERENCES entities(name)),
-            FOREIGNKEY(provider) REFERENCES providers(name)),
-            FOREIGNKEY(source) REFERENCES source(name));''') 
+            FOREIGN KEY(featureName) REFERENCES features(name),
+            FOREIGN KEY(entity) REFERENCES entities(name),
+            FOREIGN KEY(provider) REFERENCES providers(name),
+            FOREIGN KEY(source) REFERENCES sources(name))''') 
 
          #insert feature variant wine data
-         conn.execute('''INSERT INTO features_variant VALUES
+       conn.execute('''INSERT INTO features_variant VALUES
             ("2020-08-10T13:49:51.141Z", "Sulfur Dioxide that is trapped", "wine_id", "Non-free Sulfur Dioxide", "Simba Khadder", "cassandra", "float", "first-variant", "private", "wine_analysis_id", "2020-08-14T13:49:51.141Z", "54", "Wine Data"),
             ("2020-08-10T13:49:51.141Z", "Sulfur Dioxide that is trapped, streaming derived", "wine_id", "Non-free Sulfur Dioxide", "Simba Khadder", "cassandra", "float", "streaming-variant", "private", "wine_analysis_id", "2020-08-14T13:49:51.141Z", "52", "Wine Data"),
             ("2020-08-10T13:49:51.141Z", "acidity that is fixed", "wine_id", "fixed_acidity", "Simba Khadder", "cassandra", "float", "first-variant", "private", "wine_analysis_id", "2020-08-14T13:49:51.141Z", "57", "Wine Data"),
@@ -40,28 +54,28 @@ class SQLiteTest:
             ("2020-08-10T13:49:51.141Z", "clean part of density", "wine_id", "clean_density", "Simba Khadder", "cassandra", "float", "default variant", "private", "wine_analysis_id", "2020-08-14T13:49:51.141Z", "67", "Wine Data"),
             ("2020-08-10T13:49:51.141Z", "null-lost clean part of density", "wine_id", "clean_density", "Simba Khadder", "cassandra", "float", "null-lost variant", "private", "wine_analysis_id", "2020-08-14T13:49:51.141Z", "67", "Wine Data"),
             ("2020-08-10T13:49:51.141Z", "average purchase price", "wine_id", "LogAvgPurchasePrice", "Simba Khadder", "cassandra", "float", "first-variant", "private", "wine_analysis_id", "2020-08-14T13:49:51.141Z", "67", "Wine Data"),
-            ("2020-08-10T13:49:51.141Z", "average purchase price, streaming derived", "wine_id", "LogAvgPurchasePrice", "Simba Khadder", "cassandra", "float", "streaming-variant", "private", "wine_analysis_id", "2020-08-14T13:49:51.141Z", "67", "Wine Data"),
+            ("2020-08-10T13:49:51.141Z", "average purchase price, streaming derived", "wine_id", "LogAvgPurchasePrice", "Simba Khadder", "cassandra", "float", "streaming-variant", "private", "wine_analysis_id", "2020-08-14T13:49:51.141Z", "67", "Wine Data")
             ''')
          # Features table
-         conn.execute('''CREATE TABLE features(
+       conn.execute('''CREATE TABLE features(
             name               text NOT NULL,
             defaultVariant     text NOT NULL,
             type               text,
             PRIMARY KEY (name));''')
 
          #insert feture wine data
-         conn.execute('''INSERT INTO features VALUES
+       conn.execute('''INSERT INTO features VALUES
             ("Non-free Sulfur Dioxide", "first-variant", "float"),
             ("fixed_acidity", "first-variant", "float"),
             ("clean_density", "default variant", "float"),
-            ("LogAvgPurchasePrice", "first-variant", "float"),
+            ("LogAvgPurchasePrice", "first-variant", "float")
             ''')
          
          # training set variant
-         conn.execute('''CREATE TABLE training_set_variant (
+       conn.execute('''CREATE TABLE training_set_variant(
             created         text,
             description     text,            
-            trainingSetName text PRIMARY KEY     NOT NULL,
+            trainingSetName text NOT NULL,
             owner           text,
             provider        text NOT NULL,
             variantName     text,
@@ -69,17 +83,17 @@ class SQLiteTest:
             features        text,
             status          text,
             PRIMARY KEY(trainingSetName, variantName),
-            FOREIGNKEY(provider) REFERENCES providers(name)),
-            FOREIGNKEY(trainingSetName) REFERENCES training_set(name));''')
+            FOREIGN KEY(provider) REFERENCES providers(name),
+            FOREIGN KEY(trainingSetName) REFERENCES training_set(name));''')
  
          # Training-set table
-         conn.execute('''CREATE TABLE training_set(
+       conn.execute('''CREATE TABLE training_set(
             type           text NOT NULL,
             defaultVariant text,
             name           text PRIMARY KEY NOT NULL);''')
 
          # source variant
-         conn.execute('''CREATE TABLE sources_variant(
+       conn.execute('''CREATE TABLE sources_variant(
             created     text,
             description text,
             sourceName  text NOT NULL,
@@ -90,17 +104,17 @@ class SQLiteTest:
             status      text,
             definition  text,
             PRIMARY KEY(sourceName, variant),
-            FOREIGNKEY(provider) REFERENCES providers(name)),
-            FOREIGNKEY(sourceName) REFERENCES sources(name));''')
+            FOREIGN KEY(provider) REFERENCES providers(name),
+            FOREIGN KEY(sourceName) REFERENCES sources(name));''')
 
          # sources table
-         conn.execute('''CREATE TABLE sources(
-            type           text NOT NULL,
-            defaultVariant text,
-            name           text PRIMARY KEY);''')
+       conn.execute('''CREATE TABLE sources(
+         type           text NOT NULL,
+         defaultVariant text,
+         name           text PRIMARY KEY NOT NULL);''')
 
          # labels variant
-         conn.execute('''CREATE TABLE labels_variant(
+       conn.execute('''CREATE TABLE labels_variant(
             created         text,
             description     text,
             entity          text,
@@ -115,37 +129,37 @@ class SQLiteTest:
             source          text,
             status          text,
             PRIMARY KEY(labelName, variantName),
-            FOREIGNKEY(provider) REFERENCES providers(name)),
-            FOREIGNKEY(labelName) REFERENCES labels(name)));''')
+            FOREIGN KEY(provider) REFERENCES providers(name),
+            FOREIGN KEY(labelName) REFERENCES labels(name));''')
 
          # labels table
-         conn.execute('''CREATE TABLE labels(
+       conn.execute('''CREATE TABLE labels(
             type           text,
             defaultVariant text,
             name           text PRIMARY KEY);''')
 
          # entity table
-         conn.execute('''CREATE TABLE entities(
+       conn.execute('''CREATE TABLE entities(
             name        text PRIMARY KEY NOT NULL,
             type        text,
             description text,
             status      text);''')
             
          # user table
-         conn.execute('''CREATE TABLE users(
+       conn.execute('''CREATE TABLE users(
             name   text PRIMARY KEY NOT NULL,
             type   text,
             status text);''')
 
          # models table
-         conn.execute('''CREATE TABLE models(
+       conn.execute('''CREATE TABLE models(
             name        text PRIMARY KEY NOT NULL,
             type        text,
             description text,
             status      text);''')
          
          # providers table
-         conn.execute('''CREATE TABLE providers(
+       conn.execute('''CREATE TABLE providers(
             name             text PRIMARY KEY NOT NULL,
             type             text,
             description      text,

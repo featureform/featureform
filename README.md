@@ -32,13 +32,6 @@
 
 # What is Featureform?
 
-<br />
-<br />
-
-<img src="https://raw.githubusercontent.com/featureform/featureform/feature/readme/simba/assets/virtual_arch.png" alt="A virtual feature store's architecture" style="width:50em"/>
-
-<br />
-<br />
 
 [Featureform](https://featureform.com) is a virtual feature store. It enables data scientists to define, manage, and serve their ML model's features. Featureform sits atop your existing infrastructure and orchestrates it to work like a traditional feature store.
 By using Featureform, a data science team can solve the organizational problems:
@@ -48,6 +41,18 @@ By using Featureform, a data science team can solve the organizational problems:
 * **Facilitate Deployment** Once a feature is ready to be deployed, Featureform will orchestrate your data infrastructure to make it ready in production. Using the Featureform API, you won't have to worry about the idiosyncrasies of your heterogeneous infrastructure (beyond their transformation language).
 * **Increase Reliability** Featureform enforces that all features, labels, and training sets are immutable. This allows them to safely be re-used among data scientists without worrying about logic changing. Furthermore, Featureform's orchestrator will handle retry logic and attempt to resolve other common distributed system problems automatically.
 * **Preserve Compliance** With built-in role-based access control, audit logs, and dynamic serving rules, your compliance logic can be enforced directly by Featureform.
+
+### Further Reading
+* [Feature Stores Explained: The Three Common Architectures](https://www.featureform.com/post/feature-stores-explained-the-three-common-architectures)
+
+
+<br />
+<br />
+
+<img src="https://raw.githubusercontent.com/featureform/featureform/feature/readme/simba/assets/virtual_arch.png" alt="A virtual feature store's architecture" style="width:50em"/>
+
+<br />
+<br />
 
 # Why is Featureform unique?
 **Use your existing data infrastructure.** Featureform does not replace your existing infrastructure. Rather, Featureform transforms your existing infrastructure into a feature store. In being infrastructure-agnostic, teams can pick the right data infrastructure to solve their processing problems, while Featureform provides a feature store abstraction above it. Featureform orchestrates and manages transformations rather than actually computing them. The computations are offloaded to the organization's existing data infrastructure. In this way, Featureform is more akin to a framework and workflow, than an additional piece of data infrastructure.
@@ -75,85 +80,145 @@ By using Featureform, a data science team can solve the organizational problems:
 
 In reality, the feature’s definition is split across different pieces of infrastructure: the data source, the transformations, the inference store, the training store, and all their underlying data infrastructure. However, a data scientist will think of a feature in its logical form, something like: “a user’s average purchase price”. Featureform allows data scientists to define features in their logical form through transformation, providers, label, and training set resources. Featureform will then orchestrate the actual underlying components to achieve the data scientists' desired state.
 
+# How to use Featureform
 
-## What is an Feature Store?
+You can read our quickstart or deployment docs to learn about how to deploy a Featureform cluster. Once Featureform is deployed, you can interact with it via our Python API and CLI.
 
-Embeddings are dense numerical representations of real-world objects and relationships, expressed as a vector. The vector space quantifies the semantic similarity between categories. Embedding vectors that are close to each other are considered similar. Sometimes, they are used directly for “Similar items to this” section in an e-commerce store. Other times, embeddings are passed to other models. In those cases, the model can share learnings across similar items rather than treating them as two completely unique categories, as is the case with one-hot encodings. For this reason, embeddings can be used to accurately represent sparse data like clickstreams, text, and e-commerce purchases as features to downstream models.
+## Register your infrastructure providers
+To begin, we have to register our data infrastructure with Featureform. Featureform will orchestrate them all to reach the state you define.
 
-### Further Reading
-* [Read up on common embeddings use cases, like recommender systems, nearest neighbor, and natural language processing in our docs.](https://docs.featureform.com)
-* [The Definitive Guide to Embeddings](https://www.featureform.com/post/the-definitive-guide-to-embeddings)
+
+```py
+import featureform as ff
+
+redis = ff.register_redis(
+    name = "redis-quickstart",
+    name="redis",
+    host="quickstart-redis", # The internal dns name for redis
+    port=6379,
+    description = "A Redis deployment we created for the Featureform quickstart"
+)
+
+postgres = ff.register_postgres(
+    name = "postgres-quickstart",
+    host="quickstart-postgres", # The internal dns name for postgres
+    port="5432",
+    user="postgres",
+    password="password",
+    database="postgres",
+    description = "A Postgres deployment we created for the Featureform quickstart"
+)
+```
+Then we can apply it via the CLI.
+
+```
+featureform apply definitions.py
+```
+
+## Define your sources, transformations, features, labels, and training sets
+
+We will create a user profile for us, and set it as the default owner for all the following resource definitions.
+```py
+ff.register_user("featureformer").make_default_owner()
+```
+
+Now we'll register our  user fraud dataset in Featureform.
+
+```py
+transactions = postgres.register_table(
+    name = "transactions",
+    variant = "kaggle",
+    description = "Fraud Dataset From Kaggle",
+    table = "Transactions", # This is the table's name in Postgres
+)
+```
+
+Next, we'll define a SQL transformation on our dataset.
+
+```py
+@postgres.register_transformation(variant="quickstart")
+def average_user_transaction():
+    """the average transaction amount for a user """
+    return "SELECT CustomerID, avg(TransactionAmount) as avg_transaction_amt " \
+            " from {{transactions.kaggle}} GROUP BY user_id"
+```
+
+Next, we'll register a passenger entity to associate with a feature and label.
+
+```py
+user = ff.register_entity("user")
+
+# Register a column from our transformation as a feature
+average_user_transaction.register_resources(
+    entity=user,
+    entity_column="CustomerID",
+    inference_store=redis,
+    features=[
+        {"name": "avg_transactions", "variant": "quickstart", "column": "avg_transaction_amt", "type": "float64"},
+    ],
+)
+
+# Register label from the original file
+transactions.register_resources(
+    entity=passenger,
+    entity_column="CustomerID",
+    labels=[
+        {"name": "fraudulent", "variant": "quickstart", "column": "ISFRAUD", "type": "int"},
+    ],
+)
+```
+
+Finally, we'll join together the feature and label intro a training set.
+
+```py
+ff.register_training_set(
+    "fraud_training", "quickstart",
+    label=("fraudulent", "quickstart"),
+    features=[("avg_transactions", "quickstart")],
+)
+```
+
+Now that our definitions are complete, we can apply it to our Featureform instance.
+
+```py
+featureform apply definitions.py
+```
+
+## Serve your features for training and inference
+Once we have our training set and features registered, we can train our model.
+
+```py
+import featureform as ff
+
+client = ff.ServingClient()
+dataset = client.dataset("fraud_training", "quickstart")
+training_dataset = dataset.repeat(10).shuffle(1000).batch(8)
+for feature_batch, label_batch in training_dataset:
+    # Train model
+```
+We can serve features in production once we deploy our trained model as well.
+
+```py
+import featureform as ff
+
+client = ff.ServingClient()
+fpf = client.features([("avg_transactions", "quickstart")], {"CustomerID": "1"})
+# Run features through model
+```
+
+## Explore the feature registry
+
+We can use the feature registry to search, monitor, and discover our machine learning resources.
 
 <br />
 <br />
 
-# Getting Started
+<img src="https://raw.githubusercontent.com/featureform/featureform/feature/readme/simba/assets/registry.png" alt="A virtual feature store's architecture" style="width:50em"/>
 
-## Step 1: Install Embeddinghub client
+<br />
+<br />
 
-Install the Python SDK via pip
-
-```
-pip install embeddinghub
-```
-
-## Step 2: Deploy Docker container ( _optional_ )
-The Embeddinghub client can be used without a server. This is useful when using embeddings in a research environment where a database server is not necessary. If that’s the case for you, skip ahead to the next step.
-
-Otherwise, we can use this docker command to run Embeddinghub locally and to map the container's main port to our host's port.
-
-```
-docker run featureformcom/embeddinghub -p 7462:7462
-```
-
-## Step 3: Initialize Python Client
-
-If you deployed a docker container, you can initialize the python client.
-
-```py
-import embeddinghub as eh
-
-hub = eh.connect(eh.Config())
-```
-Otherwise, you can use a LocalConfig to store and index embeddings locally.
-
-```py
-hub = eh.connect(eh.LocalConfig("data/"))
-```
-
-## Step 4: Create a Space
-
-Embeddings are written and retrieved from Spaces. When creating a Space we must also specify a version, otherwise a default version is used.
-
-```py
-space = hub.create_space("quickstart", dims=3)
-```
-
-## Step 5: Upload Embeddings
-We will create a dictionary of three embeddings and upload them to our new quickstart space.
-
-```py
-embeddings = {
-    "apple": [1, 0, 0],
-    "orange": [1, 1, 0],
-    "potato": [0, 1, 0],
-    "chicken": [-1, -1, 0],
-}
-space.multiset(embeddings)
-```
-
-## Step 6: Get nearest neighbors
-
-Now we can compare apples to oranges and get the nearest neighbors.
-
-```py
-neighbors = space.nearest_neighbors(key="apple", num=2)
-print(neighbors)
-```
-
-* [Read through our guide to further explore Featureform's functionality.](https://docs.featureform.com)
-* [Explore our docs](https://docs.featureform.com/)
-
+<br />
 <br />
 
 # Contributing

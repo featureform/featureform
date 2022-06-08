@@ -188,10 +188,12 @@ func (m *MaterializedChunkRunnerConfig) Deserialize(config Config) error {
 }
 
 func MaterializedChunkRunnerFactory(config Config) (Runner, error) {
+	fmt.Println("Starting Chunk Factory")
 	runnerConfig := &MaterializedChunkRunnerConfig{}
 	if err := runnerConfig.Deserialize(config); err != nil {
 		return nil, fmt.Errorf("failed to deserialize materialize chunk runner config: %v", err)
 	}
+
 	onlineProvider, err := provider.Get(runnerConfig.OnlineType, runnerConfig.OnlineConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to configure online provider: %v", err)

@@ -512,7 +512,7 @@ func (store *sqlOfflineStore) GetMaterialization(id MaterializationID) (Material
 	if err != nil {
 		return nil, fmt.Errorf("could not get materialization: %w", err)
 	}
-	defer rows.Close()
+
 	rowCount := 0
 	if rows.Next() {
 		rowCount++

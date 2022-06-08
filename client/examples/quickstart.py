@@ -22,13 +22,13 @@ table = postgres.register_table(
 )
 
 
-@postgres.sql_transformation(variant="v2")
+@postgres.sql_transformation(variant="v6")
 def user_transaction_count():
     """the number of transactions for each user"""
     return 'SELECT CustomerID as user_id, COUNT(*) as user_transaction_count FROM {{transactions.v5}} GROUP BY user_id' #Removed timestamp since it doesnt make sense to group by user and timestamp unless its binned
 
 
-@postgres.sql_transformation(variant="v2")
+@postgres.sql_transformation(variant="v6")
 def average_user_transaction():
     """the average transaction amount for a user """
     return 'SELECT CustomerID as user_id, avg(TransactionAmount) as avg_transaction_amt from {{transactions.v5}} GROUP BY user_id'
@@ -61,7 +61,7 @@ average_user_transaction.register_resources(
     entity_column="user_id",
     inference_store=redis,
     features=[
-        {"name": "average_transaction", "variant": "v18", "column": "avg_transaction_amt", "type": "float32"},
+        {"name": "average_transaction", "variant": "test7", "column": "avg_transaction_amt", "type": "float32"},
     ],
 )
 

@@ -628,9 +628,11 @@ func (store *sqlOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {
 }
 
 func (store *sqlOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
+	fmt.Printf("Getting Training Set: %v\n", id)
 	if err := id.check(TrainingSet); err != nil {
 		return nil, err
 	}
+	fmt.Printf("Checking if Training Set exists: %v\n", id)
 	if exists, err := store.tableExists(id); err != nil {
 		return nil, err
 	} else if !exists {
@@ -650,6 +652,7 @@ func (store *sqlOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator
 	}
 	columns := strings.Join(features[:], ", ")
 	trainingSetQry := store.query.trainingRowSelect(columns, trainingSetName)
+	fmt.Printf("Training Set Query: %s\n", trainingSetQry)
 	rows, err := store.db.Query(trainingSetQry)
 	if err != nil {
 		return nil, err

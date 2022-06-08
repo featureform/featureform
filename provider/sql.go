@@ -416,6 +416,7 @@ func (mat *sqlMaterialization) IterateSegment(start, end int64) (FeatureIterator
 	query := mat.query.materializationIterateSegment(mat.tableName)
 
 	rows, err := mat.db.Query(query, start, end)
+	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -507,6 +508,7 @@ func (store *sqlOfflineStore) GetMaterialization(id MaterializationID) (Material
 	getMatQry := store.query.materializationExists()
 
 	rows, err := store.db.Query(getMatQry, tableName)
+	defer rows.Close()
 	if err != nil {
 		return nil, fmt.Errorf("could not get materialization: %w", err)
 	}
@@ -650,6 +652,7 @@ func (store *sqlOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator
 	columns := strings.Join(features[:], ", ")
 	trainingSetQry := store.query.trainingRowSelect(columns, trainingSetName)
 	rows, err := store.db.Query(trainingSetQry)
+	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -665,7 +668,7 @@ func (store *sqlOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator
 func (store *sqlOfflineStore) getValueColumnTypes(table string) ([]interface{}, error) {
 	query := store.query.getValueColumnTypes(table)
 	rows, err := store.db.Query(query)
-
+	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -827,6 +830,7 @@ func (pt *sqlPrimaryTable) IterateSegment(n int64) (GenericTableIterator, error)
 	names := strings.Join(columnNames[:], ", ")
 	query := fmt.Sprintf("SELECT %s FROM %s LIMIT %d", names, sanitize(pt.name), n)
 	rows, err := pt.db.Query(query)
+	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -840,7 +844,7 @@ func (pt *sqlPrimaryTable) IterateSegment(n int64) (GenericTableIterator, error)
 func (pt *sqlPrimaryTable) getValueColumnTypes(table string) ([]interface{}, error) {
 	query := pt.query.getValueColumnTypes(table)
 	rows, err := pt.db.Query(query)
-
+	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -863,6 +867,7 @@ func (pt *sqlPrimaryTable) NumRows() (int64, error) {
 	n := int64(0)
 	query := fmt.Sprintf("SELECT COUNT(*) FROM %s", sanitize(pt.name))
 	rows := pt.db.QueryRow(query)
+
 	err := rows.Scan(&n)
 	if err != nil {
 		return 0, err
@@ -1133,10 +1138,11 @@ func (q defaultOfflineSQLQueries) getColumns(db *sql.DB, name string) ([]TableCo
 	bind := q.newVariableBindingIterator()
 	qry := fmt.Sprintf("SELECT column_name FROM information_schema.columns WHERE table_name = %s order by ordinal_position", bind.Next())
 	rows, err := db.Query(qry, name)
+	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+
 	columnNames := make([]TableColumn, 0)
 	for rows.Next() {
 		var column string

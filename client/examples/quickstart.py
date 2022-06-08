@@ -61,7 +61,7 @@ average_user_transaction.register_resources(
     entity_column="user_id",
     inference_store=redis,
     features=[
-        {"name": "average_transaction", "variant": "v15", "column": "avg_transaction_amt", "type": "float32"},
+        {"name": "average_transaction", "variant": "v18", "column": "avg_transaction_amt", "type": "float32"},
     ],
 )
 

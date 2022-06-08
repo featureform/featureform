@@ -416,7 +416,6 @@ func (mat *sqlMaterialization) IterateSegment(start, end int64) (FeatureIterator
 	query := mat.query.materializationIterateSegment(mat.tableName)
 
 	rows, err := mat.db.Query(query, start, end)
-	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -652,7 +651,6 @@ func (store *sqlOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator
 	columns := strings.Join(features[:], ", ")
 	trainingSetQry := store.query.trainingRowSelect(columns, trainingSetName)
 	rows, err := store.db.Query(trainingSetQry)
-	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -830,7 +828,6 @@ func (pt *sqlPrimaryTable) IterateSegment(n int64) (GenericTableIterator, error)
 	names := strings.Join(columnNames[:], ", ")
 	query := fmt.Sprintf("SELECT %s FROM %s LIMIT %d", names, sanitize(pt.name), n)
 	rows, err := pt.db.Query(query)
-	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}

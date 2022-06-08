@@ -41,8 +41,8 @@ export const providerLogos = Object.freeze({
 });
 
 //var API_URL = "http:localhost:8080";
-
-var API_URL = "//"+ window.location.hostname+"/data"
+var API_URL = "http://127.0.0.1:5000/data";
+// var API_URL = "//"+ window.location.hostname+"/data"
 //var API_URL = "http://a57f7235b9e0e49cf97d9ba661188650-73543dde19a3fca9.elb.us-east-1.amazonaws.com/data"
 if (typeof process.env.REACT_APP_API_URL != "undefined") {
   API_URL = process.env.REACT_APP_API_URL.trim();

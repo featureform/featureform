@@ -1,5 +1,5 @@
 <h1 align="center">
-	<img width="300" src="https://raw.githubusercontent.com/featureform/featureform/feature/readme/simba/assets/featureform_logo.png" alt="featureform">
+	<img width="300" src="https://raw.githubusercontent.com/featureform/featureform/main/assets/featureform_logo.png" alt="featureform">
 	<br>
 </h1>
 
@@ -49,7 +49,7 @@ By using Featureform, a data science team can solve the organizational problems:
 <br />
 <br />
 
-<img src="https://raw.githubusercontent.com/featureform/featureform/feature/readme/simba/assets/virtual_arch.png" alt="A virtual feature store's architecture" style="width:50em"/>
+<img src="https://raw.githubusercontent.com/featureform/featureform/main/assets/virtual_arch.png" alt="A virtual feature store's architecture" style="width:50em"/>
 
 <br />
 <br />
@@ -74,7 +74,7 @@ By using Featureform, a data science team can solve the organizational problems:
 <br />
 <br />
 
-<img src="https://raw.githubusercontent.com/featureform/featureform/feature/readme/simba/assets/components.svg" alt="The components of a feature" style="width:50em"/>
+<img src="https://raw.githubusercontent.com/featureform/featureform/main/assets/components.svg" alt="The components of a feature" style="width:50em"/>
 
 <br />
 <br />
@@ -214,7 +214,7 @@ We can use the feature registry to search, monitor, and discover our machine lea
 <br />
 <br />
 
-<img src="https://raw.githubusercontent.com/featureform/featureform/feature/readme/simba/assets/featureform-dash.png" alt="The feature store registry" style="width:50em"/>
+<img src="https://raw.githubusercontent.com/featureform/featureform/main/assets/featureform-dash.png" alt="The feature store registry" style="width:50em"/>
 
 <br />
 <br />

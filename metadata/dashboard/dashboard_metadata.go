@@ -200,7 +200,7 @@ func featureShallowMap(variant *metadata.FeatureVariant) FeatureVariantResource 
 		Source:      variant.Source(),
 		Location:    columnsToMap(variant.LocationColumns().(metadata.ResourceVariantColumns)),
 		Status:      variant.Status().String(),
-		Error:       variant.Error(),
+		//Error:       variant.Error(),
 	}
 }
 
@@ -217,7 +217,7 @@ func labelShallowMap(variant *metadata.LabelVariant) LabelVariantResource {
 		Source:      variant.Source(),
 		Location:    columnsToMap(variant.LocationColumns().(metadata.ResourceVariantColumns)),
 		Status:      variant.Status().String(),
-		Error:       variant.Error(),
+		//	Error:       variant.Error(),
 	}
 }
 
@@ -231,7 +231,7 @@ func trainingSetShallowMap(variant *metadata.TrainingSetVariant) TrainingSetVari
 		Provider:    variant.Provider(),
 		Label:       variant.Label(),
 		Status:      variant.Status().String(),
-		Error:       variant.Error(),
+		//Error:       variant.Error(),
 	}
 }
 

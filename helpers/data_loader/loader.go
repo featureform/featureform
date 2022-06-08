@@ -60,6 +60,9 @@ func main() {
 		if i == 0 {
 			continue
 		}
+		if i > 10000 {
+			break
+		}
 		values := strings.Split(line, ",")
 		_, err = db.Exec("INSERT INTO TRANSACTIONS VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
 			values[0], values[1], values[2], values[3], values[4], values[5], values[6], values[7])

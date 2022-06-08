@@ -40,6 +40,7 @@ spec:
           env:
             - name: POSTGRES_PASSWORD
               value: password
+          args: ["-c", "max_connections=10000"]
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}

@@ -501,15 +501,16 @@ func (store *sqlOfflineStore) CreateMaterialization(id ResourceID) (Materializat
 }
 
 func (store *sqlOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
+
 	tableName := store.getMaterializationTableName(id)
 
 	getMatQry := store.query.materializationExists()
 
 	rows, err := store.db.Query(getMatQry, tableName)
-	defer rows.Close()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not get materialization: %w", err)
 	}
+	defer rows.Close()
 	rowCount := 0
 	if rows.Next() {
 		rowCount++

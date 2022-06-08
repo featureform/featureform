@@ -213,17 +213,14 @@ We can use the feature registry to search, monitor, and discover our machine lea
 <br />
 <br />
 
-<img src="https://raw.githubusercontent.com/featureform/featureform/feature/readme/simba/assets/registry.png" alt="A virtual feature store's architecture" style="width:50em"/>
-
-<br />
-<br />
+<img src="https://raw.githubusercontent.com/featureform/featureform/feature/readme/simba/assets/featureform-dash.png" alt="The feature store registry" style="width:50em"/>
 
 <br />
 <br />
 
 # Contributing
 
-* To contribute to Embeddinghub, please check out [Contribution docs](https://github.com/featureform/embeddings/blob/main/CONTRIBUTING.md).
+* To contribute to Embeddinghub, please check out [Contribution docs](https://github.com/featureform/featureform/blob/main/CONTRIBUTING.md).
 * Welcome to our community, join us on [Slack](https://join.slack.com/t/featureform-community/shared_invite/zt-xhqp2m4i-JOCaN1vRN2NDXSVif10aQg).
 
 <br />

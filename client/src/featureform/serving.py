@@ -11,9 +11,13 @@ import random
 
 class Client:
 
-    def __init__(self, host, tls_verify=False):
+    def __init__(self, host, tls_verify=False, cert_path=None):
         if tls_verify:
             credentials = grpc.ssl_channel_credentials()
+            channel = grpc.secure_channel(host, credentials)
+        elif cert_path:
+            with open(cert_path, 'rb') as f:
+                credentials = grpc.ssl_channel_credentials(f.read())
             channel = grpc.secure_channel(host, credentials)
         else:
             channel = grpc.insecure_channel(host, options=(('grpc.enable_http_proxy', 0),))

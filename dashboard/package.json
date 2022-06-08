@@ -2,7 +2,7 @@
   "name": "dashboard",
   "version": "0.1.0",
   "homepage": "/",
-  "private": true,
+  "private": false,
   "dependencies": {
     "@emotion/react": "^11.5.0",
     "@emotion/styled": "^11.3.0",

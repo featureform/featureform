@@ -35,7 +35,7 @@
 <br />
 <br />
 
-<img src="https://raw.githubusercontent.com/featureform/featureform/feature/readme/simba/assets/virtual_arch.png" alt="A virtual feature store's architecture" style="width:35em"/>
+<img src="https://raw.githubusercontent.com/featureform/featureform/feature/readme/simba/assets/virtual_arch.png" alt="A virtual feature store's architecture" style="width:50em"/>
 
 <br />
 <br />
@@ -68,7 +68,7 @@ By using Featureform, a data science team can solve the organizational problems:
 <br />
 <br />
 
-<img src="https://raw.githubusercontent.com/featureform/featureform/feature/readme/simba/assets/components.svg" alt="The components of a feature" style="width:35em"/>
+<img src="https://raw.githubusercontent.com/featureform/featureform/feature/readme/simba/assets/components.svg" alt="The components of a feature" style="width:50em"/>
 
 <br />
 <br />

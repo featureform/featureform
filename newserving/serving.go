@@ -67,10 +67,12 @@ func (serv *FeatureServer) TrainingData(req *pb.TrainingDataRequest, stream pb.F
 
 func (serv *FeatureServer) getTrainingSetIterator(name, variant string) (provider.TrainingSetIterator, error) {
 	ctx := context.TODO()
+	serv.Logger.Infow("Getting Training Set Iterator", "name", name, "variant", variant)
 	ts, err := serv.Metadata.GetTrainingSetVariant(ctx, metadata.NameVariant{name, variant})
 	if err != nil {
 		return nil, err
 	}
+	serv.Logger.Debugw("Fetching Training Set Provider", "name", name, "variant", variant)
 	providerEntry, err := ts.FetchProvider(serv.Metadata, ctx)
 	if err != nil {
 		return nil, err
@@ -85,6 +87,7 @@ func (serv *FeatureServer) getTrainingSetIterator(name, variant string) (provide
 		// That shouldn't be possible.
 		return nil, err
 	}
+	serv.Logger.Debugw("Get Training Set From Store", "name", name, "variant", variant)
 	return store.GetTrainingSet(provider.ResourceID{Name: name, Variant: variant})
 }
 

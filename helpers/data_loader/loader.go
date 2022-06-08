@@ -64,7 +64,8 @@ func main() {
 		_, err = db.Exec("INSERT INTO TRANSACTIONS VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
 			values[0], values[1], values[2], values[3], values[4], values[5], values[6], values[7])
 		if err != nil {
-			panic(err)
+			fmt.Println(err)
+			continue
 		}
 
 	}

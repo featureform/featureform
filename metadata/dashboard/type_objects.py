@@ -7,7 +7,7 @@ class FeatureVariantResource:
         description="", 
         entity="", 
         name="", 
-        owner="", 
+        owner="",
         provider="",
         dataType="", 
         variant="",
@@ -80,7 +80,7 @@ class TrainingSetResource:
 class SourceVariantResource:
     def __init__(self, 
         created=None, 
-        description="", 
+        description="",
         name="",
         sourceType = "",
         owner="", 
@@ -237,5 +237,5 @@ class ProviderResource:
         self.features = features
         self.labels = labels
         self.trainingSets = trainingSets
-        self.status = status 
+        self.status = status
         self.serializedConfig=serializedConfig

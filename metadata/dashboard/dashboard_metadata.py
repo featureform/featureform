@@ -1,190 +1,264 @@
 import resource
 from flask import Flask
 import json
+from type_objects import (
+    FeatureResource, 
+    FeatureVariantResource, 
+    TrainingSetResource, 
+    TrainingSetVariantResource, 
+    SourceResource, 
+    SourceVariantResource, 
+    EntityResource, 
+    UserResource, 
+    ModelResource,
+    LabelResource,
+    LabelVariantResource,
+    ProviderResource)
+from sqlLite import SQLiteTest
 
 app = Flask(__name__)
+sqlObject = SQLiteTest()
 
-def features(rowData, sqlObject):
-
+# This function is complete except for the training set variable
+# USE THIS FUNCTION AS A MODEL FOR OTHER FUNCTIONS
+def features(featureRow):
     #Store each row's variant data in a map
-    variantData = dict()
-    _, variantDataJSON = sqlObject.getResource("features", rowData["name"])
-    for variantRowJSON in variantDataJSON:
-        variantRowDictionary = json.loads(variantRowJSON) #puts each json row into a dictionary
+    variantsDict = dict()
+    variantData = sqlObject.getResource("features", featureRow[0])
+    allVariantList = []
+    for variantRow in variantData:
         featureVariant = FeatureVariantResource(
-                variantRowDictionary["created"], 
-                variantRowDictionary["description"], 
-                variantRowDictionary["entity"], 
-                variantRowDictionary["name"], 
-                variantRowDictionary["owner"], 
-                variantRowDictionary["provider"], 
-                variantRowDictionary["dataType"], 
-                variantRowDictionary["variant"], 
-                variantRowDictionary["status"], 
-                variantRowDictionary["location"], 
-                variantRowDictionary["source"], 
-                variantRowDictionary["trainingSets"] 
+                variantRow[0], 
+                variantRow[1], 
+                variantRow[2], 
+                variantRow[3], 
+                variantRow[4], 
+                variantRow[5], 
+                variantRow[6], 
+                variantRow[7], 
+                variantRow[8], 
+                {"entity": variantRow[9],
+                "value": variantRow[11],
+                "timestamp": variantRow[10]},
+                variantRow[12], 
+                variantRow["trainingSets"]
             )
-        variantData[variantRowDictionary["name"]] = featureVariant
+        allVariantList.append(variantRow[3])
+        variantsDict[variantRow["TODO: SHOULD BE THE VARIANT VALUE, NOT NAME"]] = featureVariant
 
     #Return an object of the row
     return FeatureResource(
-                rowData["allVariants"], 
-                rowData["type"], 
-                rowData["defaultVariant"], 
-                rowData["name"], 
-                variantData
+                featureRow[0],
+                featureRow[1],
+                featureRow[2]
+                variantsDict,
+                allVariantList
             )
-
+# DONE
 def trainingSets(rowData):
-    variantData = dict()
-    _, variantDataJSON = sqlObject.getResource("training-sets", rowData["name"])
-    for variantRowJSON in variantDataJSON:
-        variantRowDictionary = json.loads(variantRowJSON) #puts each json row into a dictionary
+    variantDict = dict()
+    variantData = sqlObject.getResource("training-sets", rowData[2])
+    allVariantList = []
+    for variantRow in variantData:
         trainingSetVariant = TrainingSetVariantResource(
-                variantRowDictionary["created"], 
-                variantRowDictionary["description"], 
-                variantRowDictionary["name"], 
-                variantRowDictionary["owner"], 
-                variantRowDictionary["provider"], 
-                variantRowDictionary["variant"], 
-                variantRowDictionary["status"], 
-                variantRowDictionary["label"], 
-                variantRowDictionary["features"]
+                #created
+                variantRow[0], 
+                #descrition
+                variantRow[1], 
+                #name
+                variantRow[2], 
+                #owner
+                variantRow[3], 
+                #provider
+                variantRow[4], 
+                #variant
+                variantRow[5], 
+                #label
+                variantRow[6], 
+                #features
+                variantRow[7], 
+                #status
+                variantRow[8]
             )
-        variantData[variantRowDictionary["name"]] = trainingSetVariant
-    return TrainingSetResource(
-                rowData["allVariants"], 
-                rowData["type"], 
-                rowData["defaultVariant"], 
-                rowData["name"], 
-                variantData
+        allVariantList.append(variantRow[2])
+        variantDict[variantRow[5]] = trainingSetVariant
+    return TrainingSetResource( 
+                #type
+                rowData[0], 
+                #defaultvariant
+                rowData[1], 
+                #name
+                rowData[2], 
+                variantDict,
+                allVariantList
             )
 
+# DONE except feature/labels and stuff
 def sources(rowData):
-    variantData = dict()
-    _, variantDataJSON = sqlObject.getResource("sources", rowData["name"])
-    for variantRowJSON in variantDataJSON:
-        variantRowDictionary = json.loads(variantRowJSON) #puts each json row into a dictionary
+    variantDict = dict()
+    variantData = sqlObject.getResource("sources", rowData[2])
+    allVariantList = []
+    for variantRow in variantData:
         sourceVariant = SourceVariantResource(
-                variantRowDictionary["created"], 
-                variantRowDictionary["description"], 
-                variantRowDictionary["name"], 
-                variantRowDictionary["sourceType"], 
-                variantRowDictionary["owner"], 
-                variantRowDictionary["provider"], 
-                variantRowDictionary["variant"], 
-                variantRowDictionary["status"], 
-                variantRowDictionary["definition"], 
-                variantRowDictionary["labels"], 
-                variantRowDictionary["features"], 
-                variantRowDictionary["trainingSets"] 
+                #created
+                variantRow[0], 
+                #description
+                variantRow[1], 
+                #name
+                variantRow[2], 
+                #sourcetype
+                variantRow[3], 
+                #owner
+                variantRow[4], 
+                #provider
+                variantRow[5], 
+                #variant
+                variantRow[6], 
+                #status
+                variantRow[7], 
+                #definition
+                variantRow[8], 
+                #labels
+                variantRow["labels"], 
+                #features
+                variantRow["features"], 
+                #trainsing sets
+                variantRow["trainingSets"] 
             )
-        variantData[variantRowDictionary["name"]] = sourceVariant
-    return SourceResource(
-                rowData["allVariants"], 
-                rowData["type"], 
-                rowData["defaultVariant"], 
-                rowData["name"], 
-                variantData
+        allVariantList.append(variantRow[2])
+        variantDict[variantRow[6]] = sourceVariant
+    return SourceResource( 
+                #type
+                rowData[0], 
+                #defaultvariant
+                rowData[1], 
+                #name
+                rowData[2], 
+                variantDict,
+                allVariantList
             )
 
+# make the variables like "features()". remove json
 def labels(rowData):
-    variantData = dict()
-    _, variantDataJSON = sqlObject.getResource("labels", rowData["name"])
-    for variantRowJSON in variantDataJSON:
-        variantRowDictionary = json.loads(variantRowJSON) #puts each json row into a dictionary
+    variantDict = dict()
+    variantData = sqlObject.getResource("labels", rowData["name"])
+    allVariantList = []
+    for variantRow in variantData:
         labelVariant = LabelVariantResource(
-                variantRowDictionary["created"], 
-                variantRowDictionary["description"], 
-                variantRowDictionary["entity"], 
-                variantRowDictionary["name"], 
-                variantRowDictionary["dataType"], 
-                variantRowDictionary["owner"], 
-                variantRowDictionary["provider"], 
-                variantRowDictionary["variant"], 
-                variantRowDictionary["status"], 
-                variantRowDictionary["source"], 
-                variantRowDictionary["trainingSets"] 
-                variantRowDictionary["location"], 
+                variantRow["created"], 
+                variantRow["description"], 
+                variantRow["entity"], 
+                variantRow["name"], 
+                variantRow["dataType"], 
+                variantRow["owner"], 
+                variantRow["provider"], 
+                variantRow["variant"], 
+                variantRow["status"], 
+                variantRow["source"], 
+                variantRow["trainingSets"],
+                {"entity": variantRow["source_entity"],
+                "value": variantRow["source_value"],
+                "timestamp": variantRow["source_timestamp"]}
             )
-        variantData[variantRowDictionary["name"]] = labelVariant
+        allVariantList.append(variantRow["name"])
+        variantDict[variantRow["name"]] = labelVariant
     return LabelResource(
-                rowData["allVariants"], 
-                rowData["type"], 
-                rowData["defaultVariant"], 
-                rowData["name"], 
-                variantData
+                #type
+                rowData[0], 
+                #defaultvariant
+                rowData[1], 
+                #name
+                rowData[2], 
+                variantDict,
+                allVariantList
             ) 
 
 def entities(rowData):
     return EntityResource(
-                rowData["description"], 
-                rowData["type"], 
-                rowData["name"], 
+                #name
+                rowData[0], 
+                #type
+                rowData[1],
+                #description
+                rowData[2],
+                #status
+                rowData[3],
                 rowData["features"], 
                 rowData["labels"], 
-                rowData["trainingSets"] 
-                rowData["status"]
+                rowData["trainingSets"]
             )
 
 def models(rowData):
     return ModelResource(
-                rowData["name"], 
-                rowData["type"],
-                rowData["description"],
+                #name
+                rowData[0], 
+                #type
+                rowData[1],
+                #description
+                rowData[2],
+                #status
+                rowData[3],
                 rowData["features"], 
                 rowData["labels"], 
                 rowData["trainingSets"], 
-                rowData["status"]
             )
 
 def users(rowData):
     return UserResource(
-                rowData["name"], 
-                rowData["type"],
+                #name
+                rowData[0], 
+                #type
+                rowData[1],
+                #status
+                rowData[2],
                 rowData["features"], 
                 rowData["labels"], 
                 rowData["trainingSets"], 
-                rowData["sources"],
-                rowData["status"]
+                rowData["sources"]
             )
 
 def providers(rowData):
     return ProviderResource(
-                rowData["name"], 
-                rowData["type"], 
-                rowData["description"], 
-                rowData["providerType"], 
-                rowData["software"], 
-                rowData["team"], 
-                rowData["sources"], 
+                #name
+                rowData[0], 
+                #type
+                rowData[1], 
+                #description
+                rowData[2], 
+                #provider type
+                rowData[3], 
+                #software
+                rowData[4], 
+                #team
+                rowData[5], 
+                #sources
+                rowData[6],
+                #status
+                rowData[7], 
+                #serialis...
+                rowData[8],
                 rowData["features"], 
                 rowData["labels"], 
-                rowData["trainingSets"] 
-                rowData["status"], 
-                rowData["serializedConfig"]
+                rowData["trainingSets"]
             )
 
-
+# I HAVE REMOVED ALL REFERENCES TO JSON SINCE WE'RE NOT USING JSON ANYWHERE ANYMORE
 @app.route("/data/:type")
 def GetMetadataList():
     feature_type = {type}
-    sqlObject = SQLiteTest()
-    tableData = sqlObject.getType(feature_type)
+    tableDataCursor = sqlObject.getTypeTable(feature_type)
 
     allData = []
-    for rowJSON in tableData:
-        rowDictionary = json.loads(rowJSON) #puts each json row into a dictionary
+    for row in tableDataCursor:
         switcher = {
-            "features": features(rowDictionary, sqlObject),
-            "training-sets": trainingSets(rowDictionary, sqlObject),
-            "sources": sources(rowDictionary, sqlObject),
-            "labels": labels(rowDictionary, sqlObject),
-            "entities": entities(rowDictionary),
-            "models": models(rowDictionary),
-            "users": users(rowDictionary),
-            "providers" providers(rowDictionary)
+            "features": features(row),
+            "training-sets": trainingSets(row),
+            "sources": sources(row),
+            "labels": labels(row),
+            "entities": entities(row),
+            "models": models(row),
+            "users": users(row),
+            "providers": providers(row)
         }
         allData.append(switcher.get(feature_type, "Incorrect type")) #returns an object of the row and appends it to the list
 
@@ -194,17 +268,15 @@ def GetMetadataList():
 def GetMetadata():
     feature_type = {type}
     resource_type = {resource}
-    tableData, variantData = sqlObject.getResource(feature_type, resource_type)
-
-    rowDictionary = json.loads(tableData) #puts each json row into a dictionary
-        switcher = {
-            "features": features(rowDictionary, sqlObject),
-            "training-sets": trainingSets(rowDictionary, sqlObject),
-            "sources": sources(rowDictionary, sqlObject),
-            "labels": labels(rowDictionary, sqlObject),
-            "entities": entities(rowDictionary),
-            "models": models(rowDictionary),
-            "users": users(rowDictionary),
-            "providers" providers(rowDictionary)
-        }
-    return switcher.get(feature_type, "Incorrect type" #returns an object of the row
+    tableData = sqlObject.getTypeForResource(feature_type, resource_type)
+    switcher = {
+        "features": features(tableData),
+        "training-sets": trainingSets(tableData),
+        "sources": sources(tableData),
+        "labels": labels(tableData),
+        "entities": entities(tableData),
+        "models": models(tableData),
+        "users": users(tableData),
+        "providers": providers(tableData)
+    }
+    return switcher.get(feature_type, "Incorrect type") #returns an object of the row

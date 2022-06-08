@@ -1,5 +1,8 @@
 from ssl import create_default_context
 
+# USE THIS FILE SINCE IT HAS THE CORRECT ORDER ACCORDING TO THE TABLES KSSHIRAJA MADE
+# NOTE: THE ORDER OF VARIABLES IN THE INIT FUNCTION IS CORRECT BUT THE ORDER OF VARIABLES 
+# IN THE ARGUMENT (PARENTHESIS) OF THE INIT FUNCTION IS INCORRECT, PLEASE FIX
 
 class FeatureVariantResource:
     def __init__(self, 
@@ -29,6 +32,7 @@ class FeatureVariantResource:
         self.source = source
         self.trainingSets = trainingSets
 
+# Final order
 class FeatureResource:
     def __init__(self, 
         allVariants=[],
@@ -36,10 +40,11 @@ class FeatureResource:
         defaultVariant="",
         name="",
         variants=None):
-        self.allVariants = allVariants
-        self.type = type
-        self.defaultVariant = defaultVariant
+
         self.name = name
+        self.defaultVariant = defaultVariant
+        self.type = type
+        self.allVariants = allVariants
         self.variants = variants
 
 class TrainingSetVariantResource:
@@ -60,9 +65,9 @@ class TrainingSetVariantResource:
         self.owner = owner
         self.provider = provider
         self.variant = variant
-        self.status = status
         self.label = label
         self.features = features
+        self.status = status
 
 class TrainingSetResource:
     def __init__(self, 
@@ -71,11 +76,11 @@ class TrainingSetResource:
         defaultVariant="",
         name="",
         variants=None):
-        self.allVariants = allVariants
         self.type = type
         self.defaultVariant = defaultVariant
         self.name = name
         self.variants = variants
+        self.allVariants = allVariants
 
 class SourceVariantResource:
     def __init__(self, 
@@ -112,11 +117,11 @@ class SourceResource:
         defaultVariant="",
         name="",
         variants=None):
-        self.allVariants = allVariants
         self.type = type
         self.defaultVariant = defaultVariant
         self.name = name
         self.variants = variants
+        self.allVariants = allVariants
 
 class LabelVariantResource:
     def __init__(self, 
@@ -136,64 +141,63 @@ class LabelVariantResource:
         self.created = created
         self.description = description
         self.entity = entity
-        self.dataType = dataType
         self.name = name
         self.owner = owner
         self.provider = provider
+        self.dataType = dataType
         self.variant = variant
-        self.status = status
-        self.source = source
         self.location = location
+        self.source = source
+        self.status = status
         self.trainingSets = trainingSets
 
 class LabelResource:
     def __init__(self, 
-        allVariants=[],
         type = "",
         defaultVariant="",
         name="",
-        variants=None):
-        self.allVariants = allVariants
+        variants=None,
+        allVariants=[]):
         self.type = type
         self.defaultVariant = defaultVariant
         self.name = name
         self.variants = variants
+        self.allVariants = allVariants
 
 class EntityResource:
     def __init__(self, 
-        description="",
-        type="",
-        name="", 
-        features=None,
-        labels=None
-        trainingSets=None,
-        status=""):
-
-        self.description = description
-        self.type = type
+    description="", 
+    type="", 
+    name="", 
+    features=None, 
+    labels=None, 
+    trainingSets=None,
+    status=""):
         self.name = name
+        self.type = type
+        self.description = description
+        self.status = status
         self.features = features
         self.labels = labels
         self.trainingSets = trainingSets
-        self.status = status
 
 class UserResource:
     def __init__(self, 
         name="",
         type="",
         features=None,
-        labels=None
+        labels=None,
         trainingSets=None,
         sources=None,
         status=""):
 
         self.name = name
         self.type = type
+        self.status = status
         self.features = features
         self.labels = labels
         self.trainingSets = trainingSets
         self.sources = sources
-        self.status = status 
 
 class ModelResource:
     def __init__(self, 
@@ -201,17 +205,17 @@ class ModelResource:
         type="",
         description="",
         features=None,
-        labels=None
+        labels=None,
         trainingSets=None,
         status=""):
 
         self.name = name
         self.type = type
         self.description = description
+        self.status = status
         self.features = features
         self.labels = labels
-        self.trainingSets = trainingSets
-        self.status = status 
+        self.trainingSets = trainingSets 
 
 class ProviderResource:
     def __init__(self, 
@@ -223,7 +227,7 @@ class ProviderResource:
         team="",
         sources=None,
         features=None,
-        labels=None
+        labels=None,
         trainingSets=None,
         status="",
         serializedConfig=""):
@@ -235,8 +239,8 @@ class ProviderResource:
         self.software=software
         self.team=team
         self.sources=sources
+        self.status = status 
+        self.serializedConfig=serializedConfig
         self.features = features
         self.labels = labels
         self.trainingSets = trainingSets
-        self.status = status 
-        self.serializedConfig=serializedConfig

@@ -6,6 +6,7 @@ import click
 import featureform.register as register
 import grpc
 from .proto import metadata_pb2_grpc as ff_grpc
+import os
 
 resource_types = [
     "feature",
@@ -66,7 +67,7 @@ def cli():
 @click.argument("files", nargs=-1, required=True, type=click.Path(exists=True))
 @click.option("--host",
               "host",
-              required=True,
+              required=False,
               help="The host address of the API server to connect to")
 @click.option("--cert",
               "cert",
@@ -78,6 +79,11 @@ def cli():
 def apply(host, cert, insecure, files):
     """apply changes to featureform
     """
+    if host == None:
+        envHost = os.getenv('FEATUREFORM_HOST')
+        if envHost == None:
+            raise ValueError("Host value must be set in env or with --host flag")
+        host = envHost
     if insecure:
         channel = grpc.insecure_channel(host, options=(('grpc.enable_http_proxy', 0),))
     elif cert != None:

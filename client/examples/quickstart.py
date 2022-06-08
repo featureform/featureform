@@ -1,5 +1,5 @@
 # Run in command line with:
-# python3 -m featureform examples/cli.py -host <hostname:port>
+# python3 -m featureform apply quickstart.py -host <hostname:port>
 import featureform as ff
 
 user = ff.register_user("test")
@@ -31,7 +31,8 @@ def user_transaction_count():
 @postgres.sql_transformation(variant="v1")
 def average_user_transaction():
     """the average transaction amount for a user """
-    return 'SELECT CustomerID as user_id, avg(TransactionAmount) as avg_transaction_amt from {{transactions.v1}} GROUP BY user_id'
+    return "SELECT CustomerID as user_id, avg(TransactionAmount) " \
+           "as avg_transaction_amt from {{transactions.v1}} GROUP BY user_id"
 
 
 @postgres.sql_transformation(variant="v1")

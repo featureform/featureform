@@ -5,7 +5,7 @@ import featureform as ff
 user = ff.register_user("test")
 user.make_default_owner()
 postgres = ff.register_postgres(
-    name="postgres",
+    name="postgres2",
     host="quickstart-postgres",
     port=5432,
     user="postgres",
@@ -16,7 +16,7 @@ postgres = ff.register_postgres(
 )
 table = postgres.register_table(
     name="transactions",
-    variant="v1",
+    variant="v2",
     table="Transactions",
     description="Transactions file from Kaggle",
 )

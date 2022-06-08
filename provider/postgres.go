@@ -21,11 +21,11 @@ const (
 )
 
 type PostgresConfig struct {
-	Host     string
-	Port     string
-	Username string
-	Password string
-	Database string
+	Host     string `json:"Host"`
+	Port     string `json:"Port"`
+	Username string `json:"Username"`
+	Password string `json:"Password"`
+	Database string `json:"Database"`
 }
 
 func (pg *PostgresConfig) Deserialize(config SerializedConfig) error {

@@ -83,6 +83,7 @@ global:
   version: ""
   repo: "featureformcom"
   pullPolicy: "Always"
+  publicCert: false
 
 
 metadata:

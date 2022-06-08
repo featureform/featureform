@@ -91,7 +91,6 @@ def apply(host, cert, insecure, files):
     for file in files:
         with open(file, "r") as py:
             exec(py.read())
-    print(register.state().sorted_list())
     register.state().create_all(stub)
 
 

@@ -39,5 +39,5 @@ spec:
   tls:
     - hosts:
         -  {{ .Values.global.hostname }}
-      secretName: featureform-ca
+      secretName: featureform-ca-secret
 

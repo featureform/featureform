@@ -5,7 +5,7 @@ import featureform as ff
 user = ff.register_user("test")
 user.make_default_owner()
 postgres = ff.register_postgres(
-    name="snowflake",
+    name="postgres",
     host="quickstart-postgres",
     port=5432,
     user="postgres",

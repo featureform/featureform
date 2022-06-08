@@ -79,6 +79,19 @@ class PostgresConfig:
     def software(self) -> str:
         return "postgres"
 
+    def type(self) -> str:
+        return "POSTGRES_OFFLINE"
+
+    def serialize(self) -> bytes:
+        config = {
+            "Host": self.host,
+            "Port": self.port,
+            "Username": self.user,
+            "Password": self.password,
+            "Database": self.database,
+        }
+        return bytes(json.dumps(config), "utf-8")
+
 
 Config = Union[RedisConfig, SnowflakeConfig, PostgresConfig]
 

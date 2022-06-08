@@ -3,7 +3,6 @@ package provider
 import (
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	_ "github.com/lib/pq"
 	"strings"
@@ -48,7 +47,7 @@ func (pg *PostgresConfig) Serialize() []byte {
 func postgresOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	sc := PostgresConfig{}
 	if err := sc.Deserialize(config); err != nil {
-		return nil, errors.New("invalid postgres config")
+		return nil, fmt.Errorf("invalid postgres config: %v", config)
 	}
 	queries := postgresSQLQueries{}
 	queries.setVariableBinding(PostgresBindingStyle)

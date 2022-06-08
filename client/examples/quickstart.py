@@ -5,9 +5,9 @@ import featureform as ff
 user = ff.register_user("test")
 user.make_default_owner()
 postgres = ff.register_postgres(
-    name="postgres3",
+    name="postgres5",
     host="quickstart-postgres",
-    port=5432,
+    port="5432",
     user="postgres",
     password="password",
     database="postgres",
@@ -16,17 +16,17 @@ postgres = ff.register_postgres(
 )
 table = postgres.register_table(
     name="transactions",
-    variant="v3",
+    variant="v5",
     table="Transactions",
     description="Transactions file from Kaggle",
 )
 
-#
-# @postgres.sql_transformation(variant="v17")
-# def user_transaction_count():
-#     """the number of transactions for each user"""
-#     return 'SELECT CustomerID as user_id, COUNT(*) as user_transaction_count FROM {{transactions.v2}} GROUP BY user_id' #Removed timestamp since it doesnt make sense to group by user and timestamp unless its binned
-#
+
+@postgres.sql_transformation(variant="v1")
+def user_transaction_count():
+    """the number of transactions for each user"""
+    return 'SELECT CustomerID as user_id, COUNT(*) as user_transaction_count FROM {{transactions.v5}} GROUP BY user_id' #Removed timestamp since it doesnt make sense to group by user and timestamp unless its binned
+
 #
 # @postgres.sql_transformation(variant="v17")
 # def average_user_transaction():
@@ -40,23 +40,22 @@ table = postgres.register_table(
 #     return 'SELECT CustomerID as user_id, IFF(COUNT_IF(ISFRAUD=TRUE) > 0, TRUE, FALSE) as has_fraud from {{transactions.v2}} GROUP BY user_id'
 #
 #
-# entity = ff.register_entity("user")
-# redis = ff.register_redis(
-#     name="redis2",
-#     host="my-redis-release-master",
-#     port=6379,
-#     password="pyhm0Bqpcl"
-# )
-#
-# user_transaction_count.register_resources(
-#     entity=entity,
-#     entity_column="user_id",
-#     inference_store=redis,
-#     features=[
-#         {"name": "transaction_count", "variant": "v9", "column": "user_transaction_count", "type": "int64"},
-#     ],
-# )
-#
+entity = ff.register_entity("user")
+redis = ff.register_redis(
+    name="redis2",
+    host="quickstart-postgres",
+    port=6379,
+)
+
+user_transaction_count.register_resources(
+    entity=entity,
+    entity_column="user_id",
+    inference_store=redis,
+    features=[
+        {"name": "transaction_count", "variant": "v9", "column": "user_transaction_count", "type": "int64"},
+    ],
+)
+
 # average_user_transaction.register_resources(
 #     entity=entity,
 #     entity_column="user_id",

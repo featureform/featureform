@@ -71,7 +71,7 @@ class SnowflakeConfig:
 @dataclass
 class PostgresConfig:
     host: str
-    port: int
+    port: str
     database: str
     user: str
     password: str

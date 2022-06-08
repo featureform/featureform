@@ -29,13 +29,7 @@ type PostgresConfig struct {
 }
 
 func (pg *PostgresConfig) Deserialize(config SerializedConfig) error {
-	var m map[string]interface{}
-	err := json.Unmarshal(config, &m)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("%#v", m)
-	err = json.Unmarshal(config, pg)
+	err := json.Unmarshal(config, pg)
 	if err != nil {
 		return err
 	}

@@ -80,16 +80,21 @@ func (w WatcherMultiplex) Err() error {
 }
 
 func (m MaterializeRunner) Run() (CompletionWatcher, error) {
+	fmt.Println("Starting Runner")
 	var materialization provider.Materialization
 	var err error
+
 	if m.IsUpdate {
+		fmt.Println("Updating Materialization")
 		materialization, err = m.Offline.UpdateMaterialization(m.ID)
 	} else {
+		fmt.Println("Creating Materialization")
 		materialization, err = m.Offline.CreateMaterialization(m.ID)
 	}
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("Creating Table")
 	_, err = m.Online.CreateTable(m.ID.Name, m.ID.Variant, m.VType)
 	_, exists := err.(*provider.TableAlreadyExists)
 	if err != nil && !exists {
@@ -100,6 +105,7 @@ func (m MaterializeRunner) Run() (CompletionWatcher, error) {
 	}
 	chunkSize := MAXIMUM_CHUNK_ROWS
 	var numChunks int64
+	fmt.Println("Getting Number of Rows")
 	numRows, err := materialization.NumRows()
 	if err != nil {
 		return nil, fmt.Errorf("num rows: %w", err)
@@ -146,8 +152,10 @@ func (m MaterializeRunner) Run() (CompletionWatcher, error) {
 			return nil, fmt.Errorf("kubernetes run: %w", err)
 		}
 	case LocalMaterializeRunner:
+		fmt.Println("Making Local Materialize Runner")
 		completionList := make([]CompletionWatcher, int(numChunks))
 		for i := 0; i < int(numChunks); i++ {
+			fmt.Println("Getting Number of Rows")
 			localRunner, err := Create(string(COPY_TO_ONLINE), serializedConfig)
 			if err != nil {
 				return nil, fmt.Errorf("local runner create: %w", err)

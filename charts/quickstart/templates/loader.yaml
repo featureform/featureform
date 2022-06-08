@@ -1,0 +1,17 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: featureform-quickstart-loader
+spec:
+  template:
+    spec:
+      containers:
+      - image: featureformcom/quickstart-loader:latest
+        name: featureform-quickstart-loader
+        env:
+          - name: HOST
+            value: "{{ .Release.Name }}-postgres"
+          - name: PORT
+            value: "5432"
+      restartPolicy: Never
+  backoffLimit: 10

@@ -1640,10 +1640,10 @@ func (variant *TrainingSetVariant) Status() ResourceStatus {
 }
 
 func (variant *TrainingSetVariant) Error() string {
-	if variant.serialized.GetStatus() != nil {
-		return variant.serialized.GetStatus().ErrorMessage
+	if variant.serialized.GetStatus() == nil {
+		return ""
 	}
-	return ""
+	return variant.serialized.GetStatus().ErrorMessage
 }
 
 func (variant *TrainingSetVariant) Label() NameVariant {
@@ -1730,10 +1730,11 @@ func (variant *SourceVariant) Status() ResourceStatus {
 }
 
 func (variant *SourceVariant) Error() string {
-	if variant.serialized.GetStatus() != nil {
-		return variant.serialized.GetStatus().ErrorMessage
+	if variant.serialized.GetStatus() == nil {
+		return ""
 	}
-	return ""
+	return variant.serialized.GetStatus().ErrorMessage
+
 }
 
 func (variant *SourceVariant) IsTransformation() bool {
@@ -1818,10 +1819,10 @@ func (entity *Entity) Status() ResourceStatus {
 }
 
 func (entity *Entity) Error() string {
-	if entity.serialized.GetStatus() != nil {
-		return entity.serialized.GetStatus().ErrorMessage
+	if entity.serialized.GetStatus() == nil {
+		return ""
 	}
-	return ""
+	return entity.serialized.GetStatus().ErrorMessage
 }
 
 func NewClient(host string, logger *zap.SugaredLogger) (*Client, error) {

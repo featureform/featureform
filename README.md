@@ -65,7 +65,7 @@ By using Featureform, a data science team can solve the organizational problems:
 
 **Native embeddings support** Featureform was built from the ground up with embeddings in mind. It supports vector databases as both inference and training stores. Transformer models can be used as transformations, so that embedding tables can be versioned and reliably regenerated. We even created and open-sourced a popular vector database, Emeddinghub.
 
-**Open-source** Featureform is free to use under the MPL 2.0 license.
+**Open-source** Featureform is free to use under the [Mozilla Public License 2.0](https://github.com/featureform/featureform/blob/main/LICENSE).
 
 <br />
 

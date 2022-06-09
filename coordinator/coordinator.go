@@ -89,7 +89,7 @@ func (c *Coordinator) AwaitPendingSource(sourceNameVariant metadata.NameVariant)
 		elapsed = time.Since(start)
 		time.Sleep(1 * time.Second)
 	}
-	return nil, fmt.Errorf("waited too long for source to become ready")
+	return nil, fmt.Errorf("waited too long for source %s.%s to become ready", sourceNameVariant.Name, sourceNameVariant.Variant)
 }
 
 type JobSpawner interface {
@@ -357,7 +357,7 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 	return nil
 }
 
-func (c *Coordinator) runPrimaryTableJob(transformSource *metadata.SourceVariant, resID metadata.ResourceID, offlineStore provider.OfflineStore, schedule string) error {
+func (c *Coordinator) runPrimaryTableJob(transformSource *metadata.SourceVariant, resID metadata.ResourceID, offlineStore provider.OfflineStore) error {
 	c.Logger.Info("Running primary table job on resource: ", resID)
 	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant}
 	sourceName := transformSource.PrimaryDataSQLTableName()
@@ -394,7 +394,7 @@ func (c *Coordinator) runRegisterSourceJob(resID metadata.ResourceID, schedule s
 	if source.IsSQLTransformation() {
 		return c.runSQLTransformationJob(source, resID, sourceStore, schedule, sourceProvider)
 	} else if source.IsPrimaryDataSQLTable() {
-		return c.runPrimaryTableJob(source, resID, sourceStore, schedule)
+		return c.runPrimaryTableJob(source, resID, sourceStore)
 	} else {
 		return fmt.Errorf("source type not implemented")
 	}
@@ -413,10 +413,8 @@ func (c *Coordinator) runLabelRegisterJob(resID metadata.ResourceID, schedule st
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.PENDING, ""); err != nil {
 		return fmt.Errorf("set pending status for label variant: %w", err)
 	}
-
 	sourceNameVariant := label.Source()
 	c.Logger.Infow("feature obj", "name", label.Name(), "source", label.Source(), "location", label.Location(), "location_col", label.LocationColumns())
-
 	source, err := c.AwaitPendingSource(sourceNameVariant)
 	if err != nil {
 		return fmt.Errorf("source of could not complete job: %w", err)
@@ -512,7 +510,7 @@ func (c *Coordinator) runFeatureRegisterOffline(resID metadata.ResourceID) error
 	c.Logger.Debugw("Creating Resource Table", "id", featID, "schema", schema)
 	_, err = sourceStore.RegisterResourceFromSourceTable(featID, schema)
 	if err != nil {
-		return fmt.Errorf("materialize feature register: %w", err)
+		return fmt.Errorf("offline feature resource table register: %w", err)
 	}
 	c.Logger.Debugw("Resource Table Created", "id", featID, "schema", schema)
 	return nil
@@ -558,10 +556,8 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.PENDING, ""); err != nil {
 		return fmt.Errorf("set feature variant status to pending: %w", err)
 	}
-
 	sourceNameVariant := feature.Source()
 	c.Logger.Infow("feature obj", "name", feature.Name(), "source", feature.Source(), "location", feature.Location(), "location_col", feature.LocationColumns())
-
 	source, err := c.AwaitPendingSource(sourceNameVariant)
 	if err != nil {
 		return fmt.Errorf("source of could not complete job: %w", err)
@@ -570,14 +566,6 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 	if err != nil {
 		return fmt.Errorf("could not fetch online provider: %w", err)
 	}
-	// p, err := provider.Get(provider.Type(sourceProvider.Type()), sourceProvider.SerializedConfig())
-	// if err != nil {
-	// 	return err
-	// }
-	// sourceStore, err := p.AsOfflineStore()
-	// if err != nil {
-	// 	return err
-	// }
 	featureProvider, err := feature.FetchProvider(c.Metadata, context.Background())
 	if err != nil {
 		return fmt.Errorf("could not fetch  onlineprovider: %w", err)
@@ -596,33 +584,6 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 	if err != nil {
 		return fmt.Errorf("could not get online provider config: %w", err)
 	}
-	srcID := provider.ResourceID{
-		Name:    sourceNameVariant.Name,
-		Variant: sourceNameVariant.Variant,
-	}
-	srcName, err := provider.GetTransformationName(srcID)
-	if err != nil {
-		return fmt.Errorf("transform name err: %w", err)
-	}
-
-	featID := provider.ResourceID{
-		Name:    resID.Name,
-		Variant: resID.Variant,
-		Type:    provider.Feature,
-	}
-	tmpSchema := feature.LocationColumns().(metadata.ResourceVariantColumns)
-	schema := provider.ResourceSchema{
-		Entity:      tmpSchema.Entity,
-		Value:       tmpSchema.Value,
-		TS:          tmpSchema.TS,
-		SourceTable: srcName,
-	}
-	c.Logger.Debugw("Creating Resource Table", "id", featID, "schema", schema)
-	// _, err = sourceStore.RegisterResourceFromSourceTable(featID, schema)
-	// if err != nil {
-	// 	return fmt.Errorf("materialize feature register: %w", err)
-	// }
-	c.Logger.Debugw("Resource Table Created", "id", featID, "schema", schema)
 	c.Logger.Info("Starting Materialize")
 	jobRunner, err := c.Spawner.GetJobRunner(runner.MATERIALIZE, serialized, c.EtcdClient.Endpoints(), resID)
 	if err != nil {

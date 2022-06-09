@@ -642,7 +642,7 @@ func TestRunPrimaryTableJobError(t *testing.T) {
 		t.Fatalf("could not get provider as offline store: %v", err)
 	}
 	sourceResourceID := metadata.ResourceID{sourceNoPrimaryNameSet, "", metadata.SOURCE_VARIANT}
-	if err := coord.runPrimaryTableJob(transformSource, sourceResourceID, offlineProvider, ""); err == nil {
+	if err := coord.runPrimaryTableJob(transformSource, sourceResourceID, offlineProvider); err == nil {
 		t.Fatalf("did not catch error trying to run primary table job with no source table set")
 	}
 	sourceNoActualPrimaryTable := createSafeUUID()
@@ -682,7 +682,7 @@ func TestRunPrimaryTableJobError(t *testing.T) {
 		t.Fatalf("could not fetch created source variant: %v", err)
 	}
 	newSourceResourceID := metadata.ResourceID{sourceNoActualPrimaryTable, "", metadata.SOURCE_VARIANT}
-	if err := coord.runPrimaryTableJob(newTransformSource, newSourceResourceID, offlineProvider, ""); err == nil {
+	if err := coord.runPrimaryTableJob(newTransformSource, newSourceResourceID, offlineProvider); err == nil {
 		t.Fatalf("did not catch error trying to create primary table when no source table exists in database")
 	}
 }

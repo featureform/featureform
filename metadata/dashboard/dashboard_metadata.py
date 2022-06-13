@@ -210,7 +210,7 @@ def providers(rowData):
             )
 
 # I HAVE REMOVED ALL REFERENCES TO JSON SINCE WE'RE NOT USING JSON ANYWHERE ANYMORE
-@app.route("/data/:type")
+@app.route("/data/:type", methods = ['POST', 'GET'])
 def GetMetadataList():
     feature_type = {type}
     tableDataCursor = sqlObject.getTypeTable(feature_type)
@@ -230,7 +230,7 @@ def GetMetadataList():
     
     return allData #returns all rows in a single list
 
-@app.route("/data/:type/:resource")
+@app.route("/data/:type/:resource", methods = ['POST', 'GET'])
 def GetMetadata():
     feature_type = {type}
     resource_type = {resource}
@@ -246,3 +246,6 @@ def GetMetadata():
         "providers": providers(tableData)
     }
     return switcher.get(feature_type, "Incorrect type") #returns an object of the row
+
+if __name__ == '__main__':
+    app.run(debug=True)

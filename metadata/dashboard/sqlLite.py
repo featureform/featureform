@@ -79,8 +79,8 @@ class SQLiteTest:
             owner           text,
             provider        text NOT NULL,
             variantName     text,
+            entity          text,
             label           text,
-            features        text,
             status          text,
             PRIMARY KEY(trainingSetName, variantName),
             FOREIGN KEY(provider) REFERENCES providers(name),
@@ -126,7 +126,6 @@ class SQLiteTest:
             sourceEntity    text,
             sourceTimestamp text,
             sourceValue     text,
-            source          text,
             status          text,
             PRIMARY KEY(labelName, variantName),
             FOREIGN KEY(provider) REFERENCES providers(name),
@@ -174,17 +173,22 @@ class SQLiteTest:
     def getTypeTable(self, type):
         query = "SELECT * FROM " + type
         type_data = conn.execute(query)
-        return type_data.fetchall()
+        return type_data
     
     def getTypeForResource(self, type, resource):
         type_table_query = "SELECT * FROM " + type + "WHERE name=" + resource
         type_data = conn.execute(type_table_query)
-        return type_data.fetchall()
+        return type_data
     
     def getResource(self, type, resource):
-        variant_table_query = "SELECT * FROM "+type+"_variant WHERE name="+resource
+        variant_table_query = "SELECT * FROM "+ type +"_variant WHERE name="+ resource
         variant_data = conn.execute(variant_table_query)
-        return variant_data.fetchall()
+        return variant_data
+    
+    def getVariantResource(self, type, variable, resource):
+        variant_table_query = "SELECT * FROM "+ type +" WHERE " + variable + "="+ resource
+        variant_data = conn.execute(variant_table_query)
+        return variant_data
 
 
 

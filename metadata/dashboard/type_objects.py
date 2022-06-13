@@ -13,8 +13,7 @@ class FeatureVariantResource:
         variant="",
         status="",
         location=None,
-        source=None,
-        trainingSets=None):
+        source=None):
 
         self.created = created
         self.description = description
@@ -27,7 +26,6 @@ class FeatureVariantResource:
         self.status = status
         self.location = location
         self.source = source
-        self.trainingSets = trainingSets
 
 class FeatureResource:
     def __init__(self, 
@@ -52,8 +50,8 @@ class TrainingSetVariantResource:
         provider="", 
         variant="",
         label=None,
-        features=None,
-        status=""):
+        status="",
+        features=None):
 
         self.created = created
         self.description = description
@@ -72,6 +70,7 @@ class TrainingSetResource:
         name="",
         variants=None,
         allVariants=[]):
+
         self.allVariants = allVariants
         self.type = type
         self.defaultVariant = defaultVariant
@@ -130,7 +129,6 @@ class LabelVariantResource:
         dataType = "", 
         variant="",
         location=None,
-        source=None,
         status="",
         trainingSets=None):
         
@@ -144,7 +142,6 @@ class LabelVariantResource:
         self.provider = provider
         self.variant = variant
         self.status = status
-        self.source = source
         self.location = location
         self.trainingSets = trainingSets
 
@@ -163,13 +160,13 @@ class LabelResource:
 
 class EntityResource:
     def __init__(self, 
-        description="",
-        type="",
         name="", 
+        type="",
+        description="",
+        status="",
         features=None,
         labels=None,
-        trainingSets=None,
-        status=""):
+        trainingSets=None):
 
         self.description = description
         self.type = type
@@ -183,11 +180,11 @@ class UserResource:
     def __init__(self, 
         name="",
         type="",
+        status="",
         features=None,
         labels=None,
         trainingSets=None,
-        sources=None,
-        status=""):
+        sources=None):
 
         self.name = name
         self.type = type
@@ -202,10 +199,10 @@ class ModelResource:
         name="",
         type="",
         description="",
+        status="",
         features=None,
         labels=None,
-        trainingSets=None,
-        status=""):
+        trainingSets=None):
 
         self.name = name
         self.type = type
@@ -224,11 +221,11 @@ class ProviderResource:
         software="",
         team="",
         sources=None,
+        status="",
+        serializedConfig="",
         features=None,
         labels=None,
-        trainingSets=None,
-        status="",
-        serializedConfig=""):
+        trainingSets=None):
 
         self.name = name
         self.type = type

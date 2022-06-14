@@ -15,17 +15,18 @@ class FeatureVariantResource:
         location=None,
         source=None):
 
-        self.created = created
-        self.description = description
-        self.entity = entity
-        self.name = name
-        self.owner = owner
-        self.provider = provider
-        self.dataType = dataType
-        self.variant = variant
-        self.status = status
-        self.location = location
-        self.source = source
+        self.dictionary = {
+            "created": created,
+            "description": description,
+            "entity": entity,
+            "name": name,
+            "owner": provider,
+            "dataType": dataType,
+            "variant": variant,
+            "status": status,
+            "location":location,
+            "source":source
+        }
 
 class FeatureResource:
     def __init__(self, 
@@ -34,6 +35,14 @@ class FeatureResource:
         type = "",
         variants=None,
         allVariants=[]):
+
+        self.dictionary = {
+            "name": name,
+            "defaultVariant": defaultVariant,
+            "type": type,
+            "variants": variants,
+            "allVariants": allVariants
+        }
 
         self.allVariants = allVariants
         self.type = type

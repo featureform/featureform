@@ -1,7 +1,8 @@
 from lib2to3.pytree import type_repr
 import logging
 import resource
-from flask import Flask
+from flask import Flask, jsonify
+from flask_cors import CORS, cross_origin
 import json
 from type_objects import (
     FeatureResource, 
@@ -19,6 +20,7 @@ from type_objects import (
 from sqlLite import SQLiteTest
 
 app = Flask(__name__)
+CORS(app)
 sqlObject = SQLiteTest() 
 
 # This function is complete except for the training set variable
@@ -209,44 +211,57 @@ def providers(rowData):
                 trainingSet_variant(sqlObject.getVariantResource( "training_set_variant", "provider", rowData[0]))[0], #training sets
             )
 
+def testfunc():
+    print("got tested")
+    data = [{"name1":"obj1","name2":"obj2","name3":"obj3"}]
+    response = app.response_class(
+        response=json.dumps(data),
+        status=200,
+        mimetype='application/json'
+    )
+    return response
+
 # I HAVE REMOVED ALL REFERENCES TO JSON SINCE WE'RE NOT USING JSON ANYWHERE ANYMORE
 @app.route("/data/<type>", methods = ['POST', 'GET'])
+@cross_origin(allow_headers=['Content-Type'])
 def GetMetadataList(type):
-    print("blah")
-    # logging.log("Entered getmetadatalist")
-    tableDataCursor = sqlObject.getTypeTable(type)
-    allData = []
-    for row in tableDataCursor:
-        switcher = {
-            "features": features(row),
-            "training-set": trainingSets(row),
-            "sources": sources(row),
-            "labels": labels(row),
-            "entities": entities(row),
-            "models": models(row),
-            "users": users(row),
-            "providers": providers(row)
-        }
-        allData.append(switcher.get(type, "Incorrect type")) #returns an object of the row and appends it to the list
+    # tableDataCursor = sqlObject.getTypeTable(type)
+    # allData = []
+    # for row in tableDataCursor:
+    #     switcher = {
+    #         "features": features(row),
+    #         "training-set": trainingSets(row),
+    #         "sources": sources(row),
+    #         "labels": labels(row),
+    #         "entities": entities(row),
+    #         "models": models(row),
+    #         "users": users(row),
+    #         "providers": providers(row)
+    #     }
+    #     allData.append(switcher.get(type, "Incorrect type")) #returns an object of the row and appends it to the list
     
-    return allData #returns all rows in a single list
+    # return allData #returns all rows in a single list
+    return testfunc()
 
 @app.route("/data/<type>/<resource>", methods = ['POST', 'GET'])
+@cross_origin(allow_headers=['Content-Type'])
 def GetMetadata(type, resource):
     feature_type = type
     resource_type = resource
-    tableData = sqlObject.getTypeForResource(feature_type, resource_type)
-    switcher = {
-        "features": features(tableData),
-        "training-sets": trainingSets(tableData),
-        "sources": sources(tableData),
-        "labels": labels(tableData),
-        "entities": entities(tableData),
-        "models": models(tableData),
-        "users": users(tableData),
-        "providers": providers(tableData)
-    }
-    return switcher.get(feature_type, "Incorrect type") #returns an object of the row
+    
+    # tableData = sqlObject.getTypeForResource(feature_type, resource_type)
+    # switcher = {
+    #     "features": features(tableData),
+    #     "training-sets": trainingSets(tableData),
+    #     "sources": sources(tableData),
+    #     "labels": labels(tableData),
+    #     "entities": entities(tableData),
+    #     "models": models(tableData),
+    #     "users": users(tableData),
+    #     "providers": providers(tableData)
+    # }
+    # return switcher.get(feature_type, "Incorrect type") #returns an object of the row
+    return testfunc()
 
-if __name__ == '__main__':
-    app.run(port=5000, debug=True)
+# if __name__ == '__main__':
+#     app.run(port=5000, debug=True)

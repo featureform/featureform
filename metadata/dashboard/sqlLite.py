@@ -1,8 +1,21 @@
 from ast import Pass
 import sqlite3
 from sqlite3 import Error
+from threading import Lock
 
-conn = sqlite3.connect('test.db')
+
+class SyncSQLExecutor:
+  def __init__(self, conn):
+    self.__conn = conn
+    self.__lock = Lock()
+
+  def execute(self, cmd):
+    with self.__lock:
+      print(cmd)
+      return self.__conn.execute(cmd)
+
+raw_conn = sqlite3.connect('test.db', check_same_thread=False)
+conn = SyncSQLExecutor(raw_conn)
 
 class SQLiteTest:
     def __init__(self):
@@ -188,16 +201,5 @@ class SQLiteTest:
     def getVariantResource(self, type, variable, resource):
         variant_table_query = "SELECT * FROM "+ type +" WHERE " + variable + "="+ resource
         variant_data = conn.execute(variant_table_query)
-        return variant_data
-
-
-
-
-
-        
-          
-          
-        
-        
-           
+        return variant_data       
            

@@ -1,4 +1,5 @@
 from ssl import create_default_context
+import json
 
 
 class FeatureVariantResource:
@@ -15,18 +16,27 @@ class FeatureVariantResource:
         location=None,
         source=None):
 
-        self.dictionary = {
+          self.__dictionary = {
             "created": created,
             "description": description,
             "entity": entity,
             "name": name,
-            "owner": provider,
-            "dataType": dataType,
+            "owner": owner,
+            "provider": provider,
+            "data-type": dataType,
             "variant": variant,
             "status": status,
             "location":location,
             "source":source
+            # Training Set[] is missing
         }
+
+    def toDictionary(self):
+        return self.__dictionary
+
+    def toJsonLiteral(self):
+        return json.dumps(self.__dictionary)
+
 
 class FeatureResource:
     def __init__(self, 
@@ -36,19 +46,19 @@ class FeatureResource:
         variants=None,
         allVariants=[]):
 
-        self.dictionary = {
-            "name": name,
-            "defaultVariant": defaultVariant,
-            "type": type,
-            "variants": variants,
-            "allVariants": allVariants
+          self.__dictionary = {
+            "all-variants": allVariants,
+            "type" : type,
+            "default-variant" : defaultVariant,
+            "name" : name,
+            "variants" : variants
         }
 
-        self.allVariants = allVariants
-        self.type = type
-        self.defaultVariant = defaultVariant
-        self.name = name
-        self.variants = variants
+    def toDictionary(self):
+        return self.__dictionary
+
+    def toJsonLiteral(self):
+        return json.dumps(self.__dictionary)
 
 class TrainingSetVariantResource:
     def __init__(self, 
@@ -62,15 +72,23 @@ class TrainingSetVariantResource:
         status="",
         features=None):
 
-        self.created = created
-        self.description = description
-        self.name = name
-        self.owner = owner
-        self.provider = provider
-        self.variant = variant
-        self.status = status
-        self.label = label
-        self.features = features
+          self.__dictionary = {
+            "created" : created,
+            "description" : description,
+            "name" : name,
+            "owner" : owner,
+            "provider" : provider,
+            "variant" : variant,
+            "status" : status,
+            "label" : label,
+            "features" : features
+        }
+
+    def toDictionary(self):
+        return self.__dictionary
+
+    def toJsonLiteral(self):
+        return json.dumps(self.__dictionary)
 
 class TrainingSetResource:
     def __init__(self,
@@ -80,11 +98,19 @@ class TrainingSetResource:
         variants=None,
         allVariants=[]):
 
-        self.allVariants = allVariants
-        self.type = type
-        self.defaultVariant = defaultVariant
-        self.name = name
-        self.variants = variants
+        self.__dictionary = {
+          "all-variants":allVariants,
+          "type":type,
+          "defaultVariant":defaultVariant,
+          "name":name,
+          "variants":variants
+        }
+
+    def toDictionary(self):
+        return self.__dictionary
+
+    def toJsonLiteral(self):
+        return json.dumps(self.__dictionary)
 
 class SourceVariantResource:
     def __init__(self, 
@@ -101,18 +127,26 @@ class SourceVariantResource:
         features=None,
         trainingSets=None):
 
-        self.created = created
-        self.description = description
-        self.name = name
-        self.sourceType = sourceType
-        self.owner = owner
-        self.provider = provider
-        self.variant = variant
-        self.status = status
-        self.definition = definition
-        self.labels = labels
-        self.features = features
-        self.trainingSets = trainingSets
+        self.__dictionary = {
+          "created":created,
+          "description":description,
+          "name":name,
+          "sourceType":sourceType,
+          "owner":owner,
+          "provider":provider,
+          "variant":variant,
+         "status":status,
+         "definition":definition,
+         "labels":labels,
+         "features":features,
+         "trainingSets":trainingSets
+        }
+
+    def toDictionary(self):
+        return self.__dictionary
+
+    def toJsonLiteral(self):
+        return json.dumps(self.__dictionary)
 
 class SourceResource:
     def __init__(self, 
@@ -121,11 +155,20 @@ class SourceResource:
         name="",
         variants=None,
         allVariants=[]):
-        self.allVariants = allVariants
-        self.type = type
-        self.defaultVariant = defaultVariant
-        self.name = name
-        self.variants = variants
+
+        self.__dictionary = {
+         "allVariants":allVariants,
+         "type":type,
+         "defaultVariant":defaultVariant,
+         "name":name,
+         "variants":variants
+        }
+
+    def toDictionary(self):
+        return self.__dictionary
+
+    def toJsonLiteral(self):
+        return json.dumps(self.__dictionary)
 
 class LabelVariantResource:
     def __init__(self, 
@@ -142,17 +185,25 @@ class LabelVariantResource:
         trainingSets=None):
 
 
-        self.created = created
-        self.description = description
-        self.entity = entity
-        self.dataType = dataType
-        self.name = name
-        self.owner = owner
-        self.provider = provider
-        self.variant = variant
-        self.status = status
-        self.location = location
-        self.trainingSets = trainingSets
+        self.__dictionary = {
+         "created":created,
+         "description":description,
+         "entity":entity,
+         "dataType":dataType,
+         "name":name,
+         "owner":owner,
+         "provider":provider,
+         "variant":variant,
+         "status":status,
+         "location":location,
+         "trainingSets":trainingSets
+        }
+
+    def toDictionary(self):
+        return self.__dictionary
+
+    def toJsonLiteral(self):
+        return json.dumps(self.__dictionary)
 
 class LabelResource:
     def __init__(self, 
@@ -161,11 +212,20 @@ class LabelResource:
         name="",
         variants=None,
         allVariants=[]):
-        self.allVariants = allVariants
-        self.type = type
-        self.defaultVariant = defaultVariant
-        self.name = name
-        self.variants = variants
+
+        self.__dictionary = {
+         "allVariants":allVariants,
+         "type":type,
+         "defaultVariant":defaultVariant,
+         "name":name,
+         "variants":variants
+        }
+
+    def toDictionary(self):
+        return self.__dictionary
+
+    def toJsonLiteral(self):
+        return json.dumps(self.__dictionary)
 
 class EntityResource:
     def __init__(self,
@@ -177,13 +237,21 @@ class EntityResource:
         labels=None,
         trainingSets=None):
 
-        self.description = description
-        self.type = type
-        self.name = name
-        self.features = features
-        self.labels = labels
-        self.trainingSets = trainingSets
-        self.status = status
+        self.__dictionary = {
+         "description":description,
+         "type":type,
+         "name":name,
+         "features":features,
+         "labels":labels,
+         "trainingSets":trainingSets,
+         "status":status
+        }
+
+    def toDictionary(self):
+        return self.__dictionary
+
+    def toJsonLiteral(self):
+        return json.dumps(self.__dictionary)
 
 class UserResource:
     def __init__(self, 
@@ -195,13 +263,21 @@ class UserResource:
         trainingSets=None,
         sources=None):
 
-        self.name = name
-        self.type = type
-        self.features = features
-        self.labels = labels
-        self.trainingSets = trainingSets
-        self.sources = sources
-        self.status = status 
+        self.__dictionary = {
+         "name":name,
+         "type":type,
+         "features":features,
+         "labels":labels,
+         "trainingSets":trainingSets,
+         "sources":sources,
+         "status":status
+        }
+
+    def toDictionary(self):
+        return self.__dictionary
+
+    def toJsonLiteral(self):
+        return json.dumps(self.__dictionary)
 
 class ModelResource:
     def __init__(self, 
@@ -213,13 +289,21 @@ class ModelResource:
         labels=None,
         trainingSets=None):
 
-        self.name = name
-        self.type = type
-        self.description = description
-        self.features = features
-        self.labels = labels
-        self.trainingSets = trainingSets
-        self.status = status 
+        self.__dictionary = {
+         "name":name,
+         "type":type,
+         "description":description,
+         "features":features,
+         "labels":labels,
+         "trainingSets":trainingSets,
+         "status":status
+        }
+
+    def toDictionary(self):
+        return self.__dictionary
+
+    def toJsonLiteral(self):
+        return json.dumps(self.__dictionary)
 
 class ProviderResource:
     def __init__(self, 
@@ -236,15 +320,23 @@ class ProviderResource:
         labels=None,
         trainingSets=None):
 
-        self.name = name
-        self.type = type
-        self.description = description
-        self.providerType=providerType
-        self.software=software
-        self.team=team
-        self.sources=sources
-        self.features = features
-        self.labels = labels
-        self.trainingSets = trainingSets
-        self.status = status
-        self.serializedConfig=serializedConfig
+         self.__dictionary = {
+            "name" :name,
+            "type" :type,
+             "description":description,
+             "providerType":providerType,
+             "software":software,
+             "team":team,
+             "sources":sources,
+             "features":features,
+              "labels":labels,
+              "trainingSets":trainingSets,
+              "status":status ,
+              "serializedConfig":serializedConfig
+        }
+
+    def toDictionary(self):
+        return self.__dictionary
+
+    def toJsonLiteral(self):
+        return json.dumps(self.__dictionary)

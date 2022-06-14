@@ -11,12 +11,12 @@ class SyncSQLExecutor:
 
   def execute(self, cmd):
     with self.__lock:
-      print(cmd)
+      # print(cmd)
       return self.__conn.execute(cmd)
   
   def executemany(self, cmd, param):
     with self.__lock:
-      print(cmd)
+      # print(cmd)
       return self.__conn.executemany(cmd,param)
 
 raw_conn = sqlite3.connect('test.db', check_same_thread=False)
@@ -192,11 +192,6 @@ class SQLiteTest:
     def getTypeTable(self, type):
         query = "SELECT * FROM " + type
         type_data = conn.execute(query)
-        return type_data.fetchall()
-    
-    def getTypeForResource(self, type, resource):
-        type_table_query = "SELECT * FROM " + type + "WHERE name=" + resource
-        type_data = conn.execute(type_table_query)
         return type_data.fetchall()
     
     def getVariantResource(self, type, variable, resource):

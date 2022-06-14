@@ -45,7 +45,8 @@ def feature_variant(variantData):
                 "value": variantRow[11],
                 "timestamp": variantRow[10]},
                 variantRow[12], #source
-            ).dictionary
+            ).toDictionary()
+            # Training Set[] is missing
         allVariantList.append(variantRow[7])
         variantsDict[variantRow[7]] = featureVariant
     return allVariantList, variantsDict
@@ -59,7 +60,7 @@ def features(featureRow):
                 featureRow[2], #type
                 variantData[1], #variantsDict
                 variantData[0] #All Variants
-            )
+            ).toDictionary()
 
 def training_set_variant(variantData):
     variantDict = dict()
@@ -77,7 +78,7 @@ def training_set_variant(variantData):
                 variantRow[7], #label
                 variantRow[8],  #status
                 feature_variant(sqlObject.getVariantResource("features_variant", "variantName", variantRow[5]))[1]
-            )
+            ).toDictionary()
         allVariantList.append(variantRow[5])
         variantDict[variantRow[5]] = trainingSetVariant
 
@@ -91,7 +92,7 @@ def training_sets(rowData):
                 rowData[2], #name
                 variantData[0], #variantsDict
                 variantData[1] #all variants
-            )
+            ).toDictionary()
 
 def source_variant(variantData):
     variantDict = dict()
@@ -111,7 +112,7 @@ def source_variant(variantData):
                 label_variant(sqlObject.getVariantResource( "labels_variant", "sourceEntity", variantRow[2]))[0], #labels
                 feature_variant(sqlObject.getVariantResource( "features_variant", "variantName", variantRow[6]))[1], #features
                 training_set_variant(sqlObject.getVariantResource( "training_set_variant", "variantName", variantRow[6]))[0] #training sets
-            )
+            ).toDictionary()
         allVariantList.append(variantRow[2])
         variantDict[variantRow[6]] = sourceVariant
     return variantDict, allVariantList
@@ -124,7 +125,7 @@ def sources(rowData):
                 rowData[2], #name
                 variantData[0], #variants
                 variantData[1] #all variants
-            )
+            ).toDictionary()
 
 # make the variables like "features()". remove json
 def label_variant(variantData):
@@ -145,7 +146,7 @@ def label_variant(variantData):
                 "timestamp": variantRow[10]},
                 variantRow[11], #status
                 training_set_variant(sqlObject.getVariantResource( "training_set_variant", "variantName", variantRow[7]))[0] #training sets
-            )
+            ).toDictionary()
         allVariantList.append(variantRow["name"])
         variantDict[variantRow["name"]] = labelVariant
     return variantDict, allVariantList
@@ -159,7 +160,7 @@ def labels(rowData):
                 rowData[2], #name
                 variantData[0], #variantDict
                 variantData[1] #allVariants
-            ) 
+            ).toDictionary()
 
 def entities(rowData):
     return EntityResource(
@@ -171,7 +172,7 @@ def entities(rowData):
                 feature_variant(sqlObject.getVariantResource( "features_variant", "entity", rowData[0]))[1], #features
                 label_variant(sqlObject.getVariantResource( "labels_variant", "entity", rowData[0]))[0], #labels
                 training_set_variant(sqlObject.getVariantResource( "training_set_variant", "entity", rowData[0]))[0] #training sets
-            )
+            ).toDictionary()
 
 def models(rowData):
     return ModelResource(
@@ -182,7 +183,7 @@ def models(rowData):
                 feature_variant(sqlObject.getVariantResource( "features_variant", "featureName", rowData[0]))[1], #features
                 label_variant(sqlObject.getVariantResource( "labels_variant", "variantName ", rowData[0]))[0], #labels
                 training_set_variant(sqlObject.getVariantResource( "training_set_variant", "trainingSetName", rowData[0]))[0] #training sets
-            )
+            ).toDictionary()
 
 def users(rowData):
     return UserResource(
@@ -193,7 +194,7 @@ def users(rowData):
                 label_variant(sqlObject.getVariantResource( "labels_variant", "owner", rowData[0]))[0], #labels
                 training_set_variant(sqlObject.getVariantResource( "training_set_variant", "owner", rowData[0]))[0], #training sets
                 source_variant(sqlObject.getVariantResource( "sources_variant", "owner", rowData[0]))[0], #training sets
-            )
+            ).toDictionary()
 
 def providers(rowData):
     return ProviderResource(
@@ -210,7 +211,7 @@ def providers(rowData):
                 feature_variant(sqlObject.getVariantResource( "features_variant", "provider", rowData[0]))[1], #features
                 label_variant(sqlObject.getVariantResource( "labels_variant", "provider", rowData[0]))[0], #labels
                 training_set_variant(sqlObject.getVariantResource( "training_set_variant", "provider", rowData[0]))[0], #training sets
-            )
+            ).toDictionary()
 
 def testfunc():
     print("got tested")
@@ -249,25 +250,49 @@ def GetMetadataList(type):
         else:
             allData.append("INCORRECT TYPE")
     print(allData)
-    return "Hello" #returns all rows in a single list
+    print()
+    print()
+
+    response = app.response_class(
+        response=json.dumps(allData),
+        status=200,
+        mimetype='application/json'
+    )
+    return response
+    # return testfunc() #returns all rows in a single list
 
 @app.route("/data/<type>/<resource>", methods = ['POST', 'GET'])
 @cross_origin(allow_headers=['Content-Type'])
 def GetMetadata(type, resource):
-    feature_type = type
-    resource_type = resource
-    tableData = sqlObject.getTypeForResource(feature_type, resource_type)
-    switcher = {
-        "features": features(tableData),
-        "training_sets": training_sets(tableData),
-        "sources": sources(tableData),
-        "labels": labels(tableData),
-        "entities": entities(tableData),
-        "models": models(tableData),
-        "users": users(tableData),
-        "providers": providers(tableData)
-    }
-    return switcher.get(feature_type, "Incorrect type") #returns an object of the row
+
+        row = sqlObject.getVariantResource(type, "name", resource)
+
+        if type == "features":
+            dataAsList =  features(row)
+        elif type == "training_sets":
+            dataAsList =  training_sets(row)
+        elif type == "sources":
+            dataAsList =  sources(row)
+        elif type == "labels":
+            dataAsList =  labels(row)
+        elif type == "entities":
+            dataAsList =  entities(row)
+        elif type == "models":
+            dataAsList =  models(row)
+        elif type == "users":
+            dataAsList =  entities(row)
+        elif type == "users":
+            dataAsList =  users(row)
+        else:
+            dataAsList = "INCORRECT TYPE"
+
+        response = app.response_class(
+            response=json.dumps([dataAsList]),
+            status=200,
+            mimetype='application/json'
+        )
+        return response
+    # return testfunc() #switcher.get(feature_type, "Incorrect type") #returns an object of the row
 
 # if __name__ == '__main__':
 #     app.run(port=5000, debug=True)

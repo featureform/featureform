@@ -1,3 +1,5 @@
+from lib2to3.pytree import type_repr
+import logging
 import resource
 from flask import Flask
 import json
@@ -208,15 +210,16 @@ def providers(rowData):
             )
 
 # I HAVE REMOVED ALL REFERENCES TO JSON SINCE WE'RE NOT USING JSON ANYWHERE ANYMORE
-@app.route("/data/:type", methods = ['POST', 'GET'])
-def GetMetadataList():
-    feature_type = {type}
-    tableDataCursor = sqlObject.getTypeTable(feature_type)
+@app.route("/data/<type>", methods = ['POST', 'GET'])
+def GetMetadataList(type):
+    print("blah")
+    # logging.log("Entered getmetadatalist")
+    tableDataCursor = sqlObject.getTypeTable(type)
     allData = []
     for row in tableDataCursor:
         switcher = {
             "features": features(row),
-            "training-sets": trainingSets(row),
+            "training-set": trainingSets(row),
             "sources": sources(row),
             "labels": labels(row),
             "entities": entities(row),
@@ -224,14 +227,14 @@ def GetMetadataList():
             "users": users(row),
             "providers": providers(row)
         }
-        allData.append(switcher.get(feature_type, "Incorrect type")) #returns an object of the row and appends it to the list
+        allData.append(switcher.get(type, "Incorrect type")) #returns an object of the row and appends it to the list
     
     return allData #returns all rows in a single list
 
-@app.route("/data/:type/:resource", methods = ['POST', 'GET'])
-def GetMetadata():
-    feature_type = {type}
-    resource_type = {resource}
+@app.route("/data/<type>/<resource>", methods = ['POST', 'GET'])
+def GetMetadata(type, resource):
+    feature_type = type
+    resource_type = resource
     tableData = sqlObject.getTypeForResource(feature_type, resource_type)
     switcher = {
         "features": features(tableData),
@@ -246,4 +249,4 @@ def GetMetadata():
     return switcher.get(feature_type, "Incorrect type") #returns an object of the row
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(port=5000, debug=True)

@@ -76,6 +76,9 @@ def cli():
 @click.option("--insecure",
               is_flag=True,
               help="Disables TLS verification")
+@click.option("--insecure",
+              is_flag=True,
+              help="Disables TLS verification")
 def apply(host, cert, insecure, files):
     """apply changes to featureform
     """

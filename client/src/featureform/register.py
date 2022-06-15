@@ -2,8 +2,8 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-from .resources import ResourceState, Provider, RedisConfig, PostgresConfig, SnowflakeConfig, RedshiftConfig, User, Location, Source, \
-    PrimaryData, SQLTable, SQLTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet
+from .resources import ResourceState, Provider, RedisConfig, LocalConfig, PostgresConfig, SnowflakeConfig, User, Location, Source, \
+    PrimaryData, SQLTable, SQLTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet, RedshiftConfig
 from typing import Tuple, Callable, TypedDict, List, Union
 from typeguard import typechecked, check_type
 import grpc
@@ -81,13 +81,24 @@ class OfflineSQLProvider(OfflineProvider):
 
 
 class OnlineProvider:
-
     def __init__(self, registrar, provider):
         self.__registrar = registrar
         self.__provider = provider
 
     def name(self) -> str:
         return self.__provider.name
+
+# RIDDHI
+class LocalProvider:
+    def __init__(self, registrar, provider):
+        self.__registrar = registrar
+        self.__provider = provider
+
+    def name(self) -> str:
+        return self.__provider.name
+
+    def register_file(self, file_name):
+        path = self.__provider.config.path
 
 
 class SourceRegistrar:
@@ -348,6 +359,7 @@ class Registrar:
         self.__resources.append(provider)
         return OfflineSQLProvider(self, provider)
 
+
     def register_redshift(self,
                           name: str,
                           description: str = "",
@@ -369,6 +381,18 @@ class Registrar:
                             config=config)
         self.__resources.append(provider)
         return OfflineSQLProvider(self, provider)
+
+    def register_local_directory(self, path: str = ""):
+        config = LocalConfig(path=path)
+        provider = Provider(name="name",
+                            function="ONLINE",
+                            description="description",
+                            team="team",
+                            config=config)
+        self.__resources.append(provider)
+        return LocalProvider(self, provider)
+
+
 
     def register_primary_data(self,
                               name: str,

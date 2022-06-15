@@ -262,13 +262,13 @@ def GetMetadataList(type):
 @app.route("/data/<type>/<resource>", methods = ['POST', 'GET'])
 @cross_origin(allow_headers=['Content-Type'])
 def GetMetadata(type, resource):
-        print("entered here")
         type = type.replace("-", "_")
-        row = sqlObject.getVariantResource(type, "name", resource)
+        row = sqlObject.getVariantResource(type, "name", "".join(resource))[0]
+        print(type)
 
         if type == "features":
             dataAsList =  features(row)
-        elif type == "training-sets":
+        elif type == "training_sets":
             dataAsList =  training_sets(row)
         elif type == "sources":
             dataAsList =  sources(row)
@@ -287,7 +287,7 @@ def GetMetadata(type, resource):
             dataAsList = "INCORRECT TYPE"
 
         response = app.response_class(
-            response=json.dumps([dataAsList]),
+            response=json.dumps(dataAsList),
             status=200,
             mimetype='application/json'
         )

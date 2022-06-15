@@ -85,10 +85,10 @@ class SQLiteTest:
 
          #insert feture wine data
        conn.execute("""INSERT INTO features VALUES
-            ("Non_free_Sulfur_Dioxide", "first-variant", "float"),
-            ("fixed_acidity", "first-variant", "float"),
-            ("clean_density", "default variant", "float"),
-            ("LogAvgPurchasePrice", "first-variant", "float")
+            ("Non_free_Sulfur_Dioxide", "first-variant", "Feature"),
+            ("fixed_acidity", "first-variant", "Feature"),
+            ("clean_density", "default variant", "Feature"),
+            ("LogAvgPurchasePrice", "first-variant", "Feature")
             """)
          # training set variant
        conn.execute('''CREATE TABLE training_set_variant(
@@ -122,10 +122,10 @@ class SQLiteTest:
             name text PRIMARY KEY NOT NULL);''')
        
        conn.execute("""INSERT INTO training_sets VALUES
-            ("float", "first-variant", "Non_free_Sulfur_Dioxide"),
-            ("float", "first-variant", "fixed_acidity"),
-            ("float", "default variant", "clean_density"),
-            ("float", "first-variant", "LogAvgPurchasePrice")
+            ("TrainingSet", "first-variant", "Non_free_Sulfur_Dioxide"),
+            ("TrainingSet", "first-variant", "fixed_acidity"),
+            ("TrainingSet", "default variant", "clean_density"),
+            ("TrainingSet", "first-variant", "LogAvgPurchasePrice")
             """)
 
          # source variant
@@ -161,10 +161,10 @@ class SQLiteTest:
          name           text PRIMARY KEY NOT NULL);''')
        
        conn.execute("""INSERT INTO sources VALUES
-            ("float", "first-variant", "Non_free_Sulfur_Dioxide"),
-            ("float", "first-variant", "fixed_acidity"),
-            ("float", "default-variant", "clean_density"),
-            ("float", "first-variant", "LogAvgPurchasePrice")
+            ("Source", "first-variant", "Non_free_Sulfur_Dioxide"),
+            ("Source", "first-variant", "fixed_acidity"),
+            ("Source", "default-variant", "clean_density"),
+            ("Source", "first-variant", "LogAvgPurchasePrice")
             """)
 
          # labels variant
@@ -198,8 +198,8 @@ class SQLiteTest:
             name           text PRIMARY KEY);''')
        
        conn.execute("""INSERT INTO labels VALUES
-            ("float", "second-variant", "Wine quality rating"),
-            ("float", "first-variant", "Wine spoiled")
+            ("Label", "second-variant", "Wine quality rating"),
+            ("Label", "first-variant", "Wine spoiled")
             """)
 
          # entity table
@@ -210,7 +210,7 @@ class SQLiteTest:
             status      text);''')
 
        conn.execute('''INSERT INTO entities VALUES
-            ("wine_id", "float", "dataset holding information on wine quality", "private")
+            ("wine_id", "Entity", "dataset holding information on wine quality", "private")
        ''')
             
          # user table
@@ -220,9 +220,9 @@ class SQLiteTest:
             status text);''')
 
        conn.execute('''INSERT INTO users VALUES
-            ("Simba Khadder", "Data Scientist", "private"),
-            ("Shabnam Mohktarani", "MLOps", "private"),
-            ("Sam Inloes", "Software Engineer", "private")
+            ("Simba Khadder", "User", "private"),
+            ("Shabnam Mohktarani", "User", "private"),
+            ("Sam Inloes", "User", "private")
        ''')
 
          # models table
@@ -233,7 +233,7 @@ class SQLiteTest:
             status      text);''')
 
        conn.execute('''INSERT INTO models VALUES
-            ("Wine random forest", "float", "Model classifying wine by spoilage and quality assesment", "private")
+            ("Wine random forest", "Model", "Model classifying wine by spoilage and quality assesment", "private")
        ''')
          
          # providers table
@@ -249,8 +249,8 @@ class SQLiteTest:
             serializedConfig text)''')
         
        conn.execute('''INSERT INTO providers VALUES
-            ("Sample batch provider", "float", "Batch provider for historic data", "Batch", "BigQuery", "Customer model team", "wine_id", "private", "serialized"),
-            ("Sample online provider", "float", "Online provider", "Online", "Redis","Customer model team", "wine_id", "private", "serialized")
+            ("Sample batch provider", "Provider", "Batch provider for historic data", "Batch", "BigQuery", "Customer model team", "wine_id", "private", "serialized"),
+            ("Sample online provider", "Provider", "Online provider", "Online", "Redis","Customer model team", "wine_id", "private", "serialized")
        ''')
     
     # All 3 functions return a cursor, USE THIS
@@ -263,3 +263,4 @@ class SQLiteTest:
         variant_table_query = "SELECT * FROM "+ type +" WHERE " + variable + "='"+resource+"';" 
         variant_data = conn.execute(variant_table_query)
         return variant_data.fetchall()
+    

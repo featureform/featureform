@@ -76,10 +76,10 @@ def cli():
 @click.option("--insecure",
               is_flag=True,
               help="Disables TLS verification")
-@click.option("--insecure",
+@click.option("--local",
               is_flag=True,
-              help="Disables TLS verification")
-def apply(host, cert, insecure, files):
+              help="Enable local mode")
+def apply(host, cert, insecure, local, files):
     """apply changes to featureform
     """
     if host == None:
@@ -95,6 +95,9 @@ def apply(host, cert, insecure, files):
         with open(cert, 'rb') as f:
             credentials = grpc.ssl_channel_credentials(f.read())
         channel = grpc.secure_channel(host, credentials)
+    elif local:
+        # Make a database?
+        pass
     else:
         credentials = grpc.ssl_channel_credentials()
         channel = grpc.secure_channel(host, credentials)

@@ -39,6 +39,24 @@ class RedisConfig:
         }
         return bytes(json.dumps(config), "utf-8")
 
+# RIDDHI
+@typechecked
+@dataclass
+class LocalConfig:
+    path: str
+
+    def software(self) -> str:
+        return "localmode"
+
+    def type(self) -> str:
+        return "LOCAL_ONLINE"
+
+    def serialize(self) -> bytes:
+        config = {
+            "Path": self.path
+        }
+        return bytes(json.dumps(config), "utf-8")
+
 
 @typechecked
 @dataclass

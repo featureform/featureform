@@ -152,7 +152,7 @@ def label_variant(variantData):
     return variantDict, allVariantList
 
 def labels(rowData):
-    variantData = label_variant(sqlObject.getVariantResource("labels", "labelName", rowData[2]))
+    variantData = label_variant(sqlObject.getVariantResource("labels_variant", "labelName", rowData[2]))
     return LabelResource(
                 
                 rowData[0], #type
@@ -196,7 +196,7 @@ def users(rowData):
                 feature_variant(sqlObject.getVariantResource( "features_variant", "owner", rowData[0]))[1], #features
                 label_variant(sqlObject.getVariantResource( "labels_variant", "owner", rowData[0]))[0], #labels
                 training_set_variant(sqlObject.getVariantResource( "training_set_variant", "owner", rowData[0]))[0], #training sets
-                source_variant(sqlObject.getVariantResource( "sources_variant", "owner", rowData[0]))[0], #training sets
+                source_variant(sqlObject.getVariantResource( "source_variant", "owner", rowData[0]))[0], #training sets
             ).toDictionary()
 
 def providers(rowData):
@@ -247,9 +247,9 @@ def GetMetadataList(type):
         elif type == "models":
             allData.append(models(row))
         elif type == "users":
-            allData.append(entities(row))
-        elif type == "users":
             allData.append(users(row))
+        elif type == "providers":
+            allData.append(providers(row))
         else:
             allData.append("INCORRECT TYPE")
 
@@ -282,9 +282,9 @@ def GetMetadata(type, resource):
         elif type == "models":
             dataAsList =  models(row)
         elif type == "users":
-            dataAsList =  entities(row)
-        elif type == "users":
             dataAsList =  users(row)
+        elif type == "providers":
+            dataAsList =  providers(row)
         else:
             dataAsList = "INCORRECT TYPE"
 

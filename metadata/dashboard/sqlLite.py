@@ -219,11 +219,11 @@ class SQLiteTest:
             type   text,
             status text);''')
 
-      #  conn.execute('''INSERT INTO users VALUES
-      #       ("Simba Khadder", "Data Scientist", "private"),
-      #       ("Shabnam Mohktarani", "MLOps", "private"),
-      #       ("Sam Inloes", "Software Engineer", "private")
-      #  ''')
+       conn.execute('''INSERT INTO users VALUES
+            ("Simba Khadder", "Data Scientist", "private"),
+            ("Shabnam Mohktarani", "MLOps", "private"),
+            ("Sam Inloes", "Software Engineer", "private")
+       ''')
 
          # models table
        conn.execute('''CREATE TABLE models(
@@ -232,9 +232,9 @@ class SQLiteTest:
             description text,
             status      text);''')
 
-      #  conn.execute('''INSERT INTO models VALUES
-      #       ("Wine random forest", "float", "Model classifying wine by spoilage and quality assesment", "private"),
-      #  ''')
+       conn.execute('''INSERT INTO models VALUES
+            ("Wine random forest", "float", "Model classifying wine by spoilage and quality assesment", "private")
+       ''')
          
          # providers table
        conn.execute('''CREATE TABLE providers(
@@ -248,10 +248,10 @@ class SQLiteTest:
             status           text,
             serializedConfig text)''')
         
-      #  conn.execute('''INSERT INTO providers VALUES
-      #       ("Sample batch provider", "float", "Batch provider for historic data", "Batch", "BigQuery", "Customer model team", "wine_id", "private", "serialized"),
-      #       ("Sample online provider", "float", "Online provider", "Online", "Redis","Customer model team", "wine_id", "private", "serialized"),
-      #  ''')
+       conn.execute('''INSERT INTO providers VALUES
+            ("Sample batch provider", "float", "Batch provider for historic data", "Batch", "BigQuery", "Customer model team", "wine_id", "private", "serialized"),
+            ("Sample online provider", "float", "Online provider", "Online", "Redis","Customer model team", "wine_id", "private", "serialized")
+       ''')
     
     # All 3 functions return a cursor, USE THIS
     def getTypeTable(self, type):

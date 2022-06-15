@@ -101,7 +101,7 @@ class TrainingSetResource:
         self.__dictionary = {
           "all-variants":allVariants,
           "type":type,
-          "defaultVariant":defaultVariant,
+          "default-variant":defaultVariant,
           "name":name,
           "variants":variants
         }
@@ -131,7 +131,7 @@ class SourceVariantResource:
           "created":created,
           "description":description,
           "name":name,
-          "sourceType":sourceType,
+          "source-type":sourceType,
           "owner":owner,
           "provider":provider,
           "variant":variant,
@@ -139,7 +139,7 @@ class SourceVariantResource:
          "definition":definition,
          "labels":labels,
          "features":features,
-         "trainingSets":trainingSets
+         "training-sets":trainingSets
         }
 
     def toDictionary(self):
@@ -157,9 +157,9 @@ class SourceResource:
         allVariants=[]):
 
         self.__dictionary = {
-         "allVariants":allVariants,
+         "all-variants":allVariants,
          "type":type,
-         "defaultVariant":defaultVariant,
+         "default-variant":defaultVariant,
          "name":name,
          "variants":variants
         }
@@ -189,7 +189,7 @@ class LabelVariantResource:
          "created":created,
          "description":description,
          "entity":entity,
-         "dataType":dataType,
+         "data-type":dataType,
          "name":name,
          "owner":owner,
          "provider":provider,
@@ -197,6 +197,7 @@ class LabelVariantResource:
          "status":status,
          "location":location,
          "trainingSets":trainingSets
+        #  source is missing
         }
 
     def toDictionary(self):
@@ -214,9 +215,9 @@ class LabelResource:
         allVariants=[]):
 
         self.__dictionary = {
-         "allVariants":allVariants,
+         "all-variants":allVariants,
          "type":type,
-         "defaultVariant":defaultVariant,
+         "default-variant":defaultVariant,
          "name":name,
          "variants":variants
         }
@@ -243,7 +244,7 @@ class EntityResource:
          "name":name,
          "features":features,
          "labels":labels,
-         "trainingSets":trainingSets,
+         "training-sets":trainingSets,
          "status":status
         }
 
@@ -268,7 +269,7 @@ class UserResource:
          "type":type,
          "features":features,
          "labels":labels,
-         "trainingSets":trainingSets,
+         "training-sets":trainingSets,
          "sources":sources,
          "status":status
         }
@@ -295,7 +296,7 @@ class ModelResource:
          "description":description,
          "features":features,
          "labels":labels,
-         "trainingSets":trainingSets,
+         "training-sets":trainingSets,
          "status":status
         }
 
@@ -324,14 +325,15 @@ class ProviderResource:
             "name" :name,
             "type" :type,
              "description":description,
-             "providerType":providerType,
+             "provider-type":providerType,
              "software":software,
              "team":team,
              "sources":sources,
              "features":features,
               "labels":labels,
-              "trainingSets":trainingSets,
+              "training-sets":trainingSets,
               "status":status ,
+            #   Seems like we dont need serialised config
               "serializedConfig":serializedConfig
         }
 

@@ -93,13 +93,19 @@ class LocalProvider:
     def __init__(self, registrar, provider):
         self.__registrar = registrar
         self.__provider = provider
+        self.store_provider()
 
     def name(self) -> str:
         return self.__provider.name
 
     def register_file(self, file_name):
-        path = self.__provider.config.path
+        # Store the file as a source
+        pass
 
+    def store_provider(self):
+        # Store a new provider row
+        pass
+        
 
 class SourceRegistrar:
 
@@ -391,8 +397,6 @@ class Registrar:
                             config=config)
         self.__resources.append(provider)
         return LocalProvider(self, provider)
-
-
 
     def register_primary_data(self,
                               name: str,

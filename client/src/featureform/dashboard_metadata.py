@@ -1,7 +1,4 @@
-from lib2to3.pytree import type_repr
-import logging
-import resource
-from flask import Flask, jsonify
+from flask import Flask
 from flask_cors import CORS, cross_origin
 import json
 from type_objects import (
@@ -17,11 +14,11 @@ from type_objects import (
     LabelResource,
     LabelVariantResource,
     ProviderResource)
-from sqlLite import SQLiteTest
+from sqlite_metadata import SQLiteMetadata
 
 app = Flask(__name__)
 CORS(app)
-sqlObject = SQLiteTest() 
+sqlObject = SQLiteMetadata() 
 
 def variant_organiser(allVariantList):
     variantsDict = dict()

@@ -1,4 +1,3 @@
-from ast import Pass
 import sqlite3
 from sqlite3 import Error
 from threading import Lock
@@ -29,26 +28,13 @@ class SyncSQLExecutor:
 
 class SQLiteMetadata:
      def __init__(self):
-     #    self.createTables()
           raw_conn = sqlite3.connect('metadata.db', check_same_thread=False)
           self.__conn = SyncSQLExecutor(raw_conn)
+          self.createTables()
 
      def createTables(self):
-     #   conn.execute('''DROP TABLE IF EXISTS feature_variant''')
-     #   conn.execute('''DROP TABLE IF EXISTS features''')
-     #   conn.execute('''DROP TABLE IF EXISTS training_set_variant''')
-     #   conn.execute('''DROP TABLE IF EXISTS training_sets''')
-     #   conn.execute('''DROP TABLE IF EXISTS source_variant''')
-     #   conn.execute('''DROP TABLE IF EXISTS sources''')
-     #   conn.execute('''DROP TABLE IF EXISTS label_variant''')
-     #   conn.execute('''DROP TABLE IF EXISTS labels''')
-     #   conn.execute('''DROP TABLE IF EXISTS entities''')
-     #   conn.execute('''DROP TABLE IF EXISTS users''')
-     #   __conn.execute('''DROP TABLE IF EXISTS models''')
-     #   __conn.execute('''DROP TABLE IF EXISTS providers''')
-
      # Features variant table
-          self.__conn.execute('''CREATE TABLE feature_variant(
+          self.__conn.execute('''CREATE TABLE IF NOT EXISTS feature_variant(
           created text,
           description text,
           entity text NOT NULL,
@@ -61,24 +47,25 @@ class SQLiteMetadata:
           sourceEntity text,
           sourceTimestamp text,
           sourceValue text,
-          source text NOT NULL,
+          sourceName text NOT NULL,
+          sourceVariant text NOT NULL,
 
           PRIMARY KEY(featureName, variantName),
 
           FOREIGN KEY(featureName) REFERENCES features(name),
           FOREIGN KEY(entity) REFERENCES entities(name),
           FOREIGN KEY(provider) REFERENCES providers(name),
-          FOREIGN KEY(source) REFERENCES sources(name))''') 
+          FOREIGN KEY(sourceName) REFERENCES sources(name))''') 
 
           # Features table
-          self.__conn.execute('''CREATE TABLE features(
+          self.__conn.execute('''CREATE TABLE IF NOT EXISTS features(
           name text NOT NULL,
           defaultVariant text NOT NULL,
           type text,
           PRIMARY KEY (name));''')
 
           # training set variant
-          self.__conn.execute('''CREATE TABLE training_set_variant(
+          self.__conn.execute('''CREATE TABLE IF NOT EXISTS training_set_variant(
           created text,
           description text,            
           trainingSetName text NOT NULL,
@@ -92,13 +79,13 @@ class SQLiteMetadata:
           FOREIGN KEY(trainingSetName) REFERENCES training_sets(name));''')
 
           # Training-set table
-          self.__conn.execute('''CREATE TABLE training_sets(
+          self.__conn.execute('''CREATE TABLE IF NOT EXISTS training_sets(
           type text NOT NULL,
           defaultVariant text,
           name text PRIMARY KEY NOT NULL);''')
 
           # source variant
-          self.__conn.execute('''CREATE TABLE source_variant(
+          self.__conn.execute('''CREATE TABLE IF NOT EXISTS source_variant(
           created     text,
           description text,
           sourceName  text NOT NULL,
@@ -113,13 +100,13 @@ class SQLiteMetadata:
           FOREIGN KEY(sourceName) REFERENCES sources(name));''')
 
           # sources table
-          self.__conn.execute('''CREATE TABLE sources(
+          self.__conn.execute('''CREATE TABLE IF NOT EXISTS sources(
           type           text NOT NULL,
           defaultVariant text,
           name           text PRIMARY KEY NOT NULL);''')
 
           # labels variant
-          self.__conn.execute('''CREATE TABLE labels_variant(
+          self.__conn.execute('''CREATE TABLE IF NOT EXISTS labels_variant(
           created         text,
           description     text,
           entity          text,
@@ -137,33 +124,33 @@ class SQLiteMetadata:
           FOREIGN KEY(labelName) REFERENCES labels(name));''')
 
           # labels table
-          self.__conn.execute('''CREATE TABLE labels(
+          self.__conn.execute('''CREATE TABLE IF NOT EXISTS labels(
           type           text,
           defaultVariant text,
           name           text PRIMARY KEY);''')
 
           # entity table
-          self.__conn.execute('''CREATE TABLE entities(
+          self.__conn.execute('''CREATE TABLE IF NOT EXISTS entities(
           name        text PRIMARY KEY NOT NULL,
           type        text,
           description text,
           status      text);''')
 
           # user table
-          self.__conn.execute('''CREATE TABLE users(
+          self.__conn.execute('''CREATE TABLE IF NOT EXISTS users(
           name   text PRIMARY KEY NOT NULL,
           type   text,
           status text);''')
 
           # models table
-          self.__conn.execute('''CREATE TABLE models(
+          self.__conn.execute('''CREATE TABLE IF NOT EXISTS models(
           name        text PRIMARY KEY NOT NULL,
           type        text,
           description text,
           status      text);''')
 
           # providers table
-          self.__conn.execute('''CREATE TABLE providers(
+          self.__conn.execute('''CREATE TABLE IF NOT EXISTS providers(
           name             text PRIMARY KEY NOT NULL,
           type             text,
           description      text,

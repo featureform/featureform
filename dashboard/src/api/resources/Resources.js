@@ -40,8 +40,7 @@ export const providerLogos = Object.freeze({
   SNOWFLAKE: "Snowflake_Logo.svg",
 });
 
-var API_URL = "//"+ window.location.hostname+"/data"
-var API_SEARCH = "//"+ window.location.hostname+"/search/"
+var API_URL = "//"+ window.location.hostname
 //var API_URL = "http://a57f7235b9e0e49cf97d9ba661188650-73543dde19a3fca9.elb.us-east-1.amazonaws.com/data"
 if (typeof process.env.REACT_APP_API_URL != "undefined") {
   API_URL = process.env.REACT_APP_API_URL.trim();
@@ -69,7 +68,7 @@ const local = false;
 
 export default class ResourcesAPI {
   static typeSenseClient = new TypesenseClient(
-    API_SEARCH,
+    API_URL + "/search/",
   );
   checkStatus() {
     return fetch(API_URL, {
@@ -91,7 +90,7 @@ export default class ResourcesAPI {
     if (local) {
       fetchAddress = `/data/lists/wine-data.json`;
     } else {
-      fetchAddress = `${API_URL}${resourceType.urlPath}`;
+      fetchAddress = `${API_URL + "/data"}${resourceType.urlPath}`;
     }
     if (process.env.REACT_APP_EMPTY_RESOURCE_VIEW === "true") {
       fetchAddress = "/data/lists/wine-data-empty.json";
@@ -120,7 +119,7 @@ export default class ResourcesAPI {
     if (local) {
       fetchAddress = "/data/" + type + "/" + title + ".json";
     } else {
-      fetchAddress = `${API_URL}/${type}/${title}`;
+      fetchAddress = `${API_URL + "/data"}/${type}/${title}`;
     }
 
     return fetch(fetchAddress, {

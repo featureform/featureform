@@ -76,11 +76,15 @@ tolerations: []
 affinity: {}
 
 global:
-  hostname: ""
+  hostname: "localhost"
   port: 3001
   metadata:
     port: 8080
   version: ""
+  repo: "featureformcom"
+  pullPolicy: "Always"
+  publicCert: true
+
 
 metadata:
   grpc:

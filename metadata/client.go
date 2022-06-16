@@ -1321,7 +1321,10 @@ func (variant *FeatureVariant) Status() ResourceStatus {
 }
 
 func (variant *FeatureVariant) Error() string {
-	return variant.serialized.GetStatus().ErrorMessage
+	if variant.serialized.GetStatus() != nil {
+		return variant.serialized.GetStatus().ErrorMessage
+	}
+	return ""
 }
 
 func (variant *FeatureVariant) Location() interface{} {
@@ -1375,7 +1378,10 @@ func (user *User) Status() ResourceStatus {
 }
 
 func (user *User) Error() string {
-	return user.serialized.GetStatus().ErrorMessage
+	if user.serialized.GetStatus() != nil {
+		return user.serialized.GetStatus().ErrorMessage
+	}
+	return ""
 }
 
 type Provider struct {
@@ -1430,7 +1436,10 @@ func (provider *Provider) Status() ResourceStatus {
 }
 
 func (provider *Provider) Error() string {
-	return provider.serialized.GetStatus().ErrorMessage
+	if provider.serialized.GetStatus() != nil {
+		return provider.serialized.GetStatus().ErrorMessage
+	}
+	return ""
 }
 
 type Model struct {
@@ -1467,7 +1476,10 @@ func (model *Model) Status() ResourceStatus {
 }
 
 func (model *Model) Error() string {
-	return model.serialized.GetStatus().ErrorMessage
+	if model.serialized.GetStatus() != nil {
+		return model.serialized.GetStatus().ErrorMessage
+	}
+	return ""
 }
 
 type Label struct {
@@ -1540,7 +1552,10 @@ func (variant *LabelVariant) Status() ResourceStatus {
 }
 
 func (variant *LabelVariant) Error() string {
-	return variant.serialized.GetStatus().ErrorMessage
+	if variant.serialized.GetStatus() != nil {
+		return variant.serialized.GetStatus().ErrorMessage
+	}
+	return ""
 }
 
 func (variant *LabelVariant) Location() interface{} {
@@ -1625,6 +1640,9 @@ func (variant *TrainingSetVariant) Status() ResourceStatus {
 }
 
 func (variant *TrainingSetVariant) Error() string {
+	if variant.serialized.GetStatus() == nil {
+		return ""
+	}
 	return variant.serialized.GetStatus().ErrorMessage
 }
 
@@ -1712,7 +1730,11 @@ func (variant *SourceVariant) Status() ResourceStatus {
 }
 
 func (variant *SourceVariant) Error() string {
+	if variant.serialized.GetStatus() == nil {
+		return ""
+	}
 	return variant.serialized.GetStatus().ErrorMessage
+
 }
 
 func (variant *SourceVariant) IsTransformation() bool {
@@ -1797,6 +1819,9 @@ func (entity *Entity) Status() ResourceStatus {
 }
 
 func (entity *Entity) Error() string {
+	if entity.serialized.GetStatus() == nil {
+		return ""
+	}
 	return entity.serialized.GetStatus().ErrorMessage
 }
 

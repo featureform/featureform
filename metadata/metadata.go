@@ -375,7 +375,10 @@ func (resource *sourceVariantResource) ID() ResourceID {
 }
 
 func (resource *sourceVariantResource) Schedule() string {
-	return resource.serialized.UpdateStatus.Schedule.Schedule
+	if resource.serialized.UpdateStatus != nil {
+		return resource.serialized.UpdateStatus.Schedule.Schedule
+	}
+	return ""
 }
 
 func (resource *sourceVariantResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
@@ -486,7 +489,10 @@ func (resource *featureVariantResource) ID() ResourceID {
 }
 
 func (resource *featureVariantResource) Schedule() string {
-	return resource.serialized.UpdateStatus.Schedule.Schedule
+	if resource.serialized.UpdateStatus != nil {
+		return resource.serialized.UpdateStatus.Schedule.Schedule
+	}
+	return ""
 }
 
 func (resource *featureVariantResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
@@ -652,7 +658,8 @@ func (this *labelVariantResource) Notify(lookup ResourceLookup, op operation, th
 }
 
 func (resource *labelVariantResource) UpdateStatus(status pb.ResourceStatus) error {
-	return fmt.Errorf("Update status not implemented")
+	resource.serialized.Status = &status
+	return nil
 }
 
 func (resource *labelVariantResource) SetUpdateStatus(status pb.UpdateStatus) error {
@@ -714,7 +721,10 @@ func (resource *trainingSetVariantResource) ID() ResourceID {
 }
 
 func (resource *trainingSetVariantResource) Schedule() string {
-	return resource.serialized.UpdateStatus.Schedule.Schedule
+	if resource.serialized.UpdateStatus != nil {
+		return resource.serialized.UpdateStatus.Schedule.Schedule
+	}
+	return ""
 }
 
 func (resource *trainingSetVariantResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {

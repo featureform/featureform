@@ -2,3 +2,7 @@ bazel-*
 dist
 __pycache__
 Dockerfile
+node_modules/**
+venv/**
+.git/**
+embeddinghub/**

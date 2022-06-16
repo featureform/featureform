@@ -5,7 +5,8 @@
 replicaCount: 1
 
 image:
-  repository: featureformcom/api-server
+  repository: featureformcom
+  name: api-server
   pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
   tag: stable

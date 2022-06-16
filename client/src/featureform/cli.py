@@ -6,6 +6,7 @@ import click
 import featureform.register as register
 import grpc
 from .proto import metadata_pb2_grpc as ff_grpc
+import os
 
 resource_types = [
     "feature",
@@ -66,16 +67,31 @@ def cli():
 @click.argument("files", nargs=-1, required=True, type=click.Path(exists=True))
 @click.option("--host",
               "host",
-              required=True,
+              required=False,
               help="The host address of the API server to connect to")
+@click.option("--cert",
+              "cert",
+              required=False,
+              help="Path to self-signed TLS certificate")
 @click.option("--insecure",
               is_flag=True,
               help="Disables TLS verification")
-def apply(host, insecure, files):
+def apply(host, cert, insecure, files):
     """apply changes to featureform
     """
+    if host == None:
+        envHost = os.getenv('FEATUREFORM_HOST')
+        if envHost == None:
+            raise ValueError("Host value must be set in env or with --host flag")
+        host = envHost
     if insecure:
         channel = grpc.insecure_channel(host, options=(('grpc.enable_http_proxy', 0),))
+    elif cert != None or os.getenv('FEATUREFORM_HOST') !=None:
+        if os.getenv('FEATUREFORM_CERT') != None and cert == None:
+            cert = os.getenv('FEATUREFORM_CERT')
+        with open(cert, 'rb') as f:
+            credentials = grpc.ssl_channel_credentials(f.read())
+        channel = grpc.secure_channel(host, credentials)
     else:
         credentials = grpc.ssl_channel_credentials()
         channel = grpc.secure_channel(host, credentials)
@@ -83,7 +99,6 @@ def apply(host, insecure, files):
     for file in files:
         with open(file, "r") as py:
             exec(py.read())
-    print(register.state().sorted_list())
     register.state().create_all(stub)
 
 

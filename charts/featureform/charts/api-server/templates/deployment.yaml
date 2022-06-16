@@ -18,7 +18,8 @@ spec:
         app: featureform-api-server
     spec:
       containers:
-        - image: "{{ .Values.image.repository }}:{{ .Values.global.version | default .Values.image.tag }}"
+        - image: "{{ .Values.global.repo | default .Values.image.repository }}/{{ .Values.image.name }}:{{ .Values.global.version | default .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.global.pullPolicy }}
           name: featureform-api-server
           ports:
             - containerPort: 7878
@@ -43,6 +44,6 @@ spec:
             httpGet:
               path: /_ah/
               port: 8443
-            initialDelaySeconds: 120
+            initialDelaySeconds: 300
             periodSeconds: 3
 status: {}

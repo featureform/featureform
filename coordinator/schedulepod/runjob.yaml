@@ -1,0 +1,67 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: example
+spec:
+  # selector:
+  #   matchLabels:
+  #     app: example
+  template:
+    metadata:
+      labels:
+        app: example
+    spec:
+      containers:
+        - name: example-api
+          imagePullPolicy: Always
+          image: sami1309/scheduletester:latest
+          resources:
+            limits:
+              cpu: 50m
+              memory: 100Mi
+            requests:
+              cpu: 25m
+              memory: 10Mi
+          ports:
+            - containerPort: 8080
+      restartPolicy: Never
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: example
+spec:
+  type: NodePort
+  selector:
+    app: example
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubernetes-test
+rules:
+  - apiGroups: ["", "extensions", "apps", "batch"]
+    resources: ["*"]
+    verbs: ["*"]
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubernetes-test
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubernetes-test
+  namespace: default
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kubernetes-test

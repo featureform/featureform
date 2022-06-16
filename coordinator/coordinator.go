@@ -153,7 +153,7 @@ func (c *Coordinator) WatchForNewJobs() error {
 	}
 	for _, kv := range getResp.Kvs {
 		go func(kv *mvccpb.KeyValue) {
-			err := c.executeJob(string(kv.Key))
+			err := c.ExecuteJob(string(kv.Key))
 			if err != nil {
 				c.Logger.Errorw("Error executing job: Initial search", "error", err)
 			}
@@ -165,7 +165,7 @@ func (c *Coordinator) WatchForNewJobs() error {
 			for _, ev := range wresp.Events {
 				if ev.Type == 0 {
 					go func(ev *clientv3.Event) {
-						err := c.executeJob(string(ev.Kv.Key))
+						err := c.ExecuteJob(string(ev.Kv.Key))
 						if err != nil {
 							c.Logger.Errorw("Error executing job: Polling search", "error", err)
 						}
@@ -789,7 +789,7 @@ func (c *Coordinator) markJobFailed(job *metadata.CoordinatorJob) error {
 	return nil
 }
 
-func (c *Coordinator) executeJob(jobKey string) error {
+func (c *Coordinator) ExecuteJob(jobKey string) error {
 	c.Logger.Info("Executing new job with key ", jobKey)
 	s, err := concurrency.NewSession(c.EtcdClient, concurrency.WithTTL(1))
 	if err != nil {

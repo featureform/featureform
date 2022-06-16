@@ -1191,10 +1191,10 @@ func testCoordinatorTrainingSet(addr string) error {
 		return fmt.Errorf("Failed to set up coordinator")
 	}
 	sourceID := metadata.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}
-	if err := coord.executeJob(metadata.GetJobKey(sourceID)); err != nil {
+	if err := coord.ExecuteJob(metadata.GetJobKey(sourceID)); err != nil {
 		return err
 	}
-	if err := coord.executeJob(metadata.GetJobKey(tsID)); err != nil {
+	if err := coord.ExecuteJob(metadata.GetJobKey(tsID)); err != nil {
 		return err
 	}
 	startWaitDelete := time.Now()
@@ -1298,10 +1298,10 @@ func testCoordinatorMaterializeFeature(addr string) error {
 	if err != nil {
 		return fmt.Errorf("Failed to set up coordinator")
 	}
-	if err := coord.executeJob(metadata.GetJobKey(sourceID)); err != nil {
+	if err := coord.ExecuteJob(metadata.GetJobKey(sourceID)); err != nil {
 		return err
 	}
-	if err := coord.executeJob(metadata.GetJobKey(featureID)); err != nil {
+	if err := coord.ExecuteJob(metadata.GetJobKey(featureID)); err != nil {
 		return err
 	}
 	startWaitDelete := time.Now()
@@ -1400,7 +1400,7 @@ func testRegisterPrimaryTableFromSource(addr string) error {
 	if err != nil {
 		return fmt.Errorf("Failed to set up coordinator")
 	}
-	if err := coord.executeJob(metadata.GetJobKey(sourceID)); err != nil {
+	if err := coord.ExecuteJob(metadata.GetJobKey(sourceID)); err != nil {
 		return err
 	}
 	startWaitDelete := time.Now()
@@ -1509,7 +1509,7 @@ func testRegisterTransformationFromSource(addr string) error {
 	if err != nil {
 		return fmt.Errorf("Failed to set up coordinator")
 	}
-	if err := coord.executeJob(metadata.GetJobKey(sourceID)); err != nil {
+	if err := coord.ExecuteJob(metadata.GetJobKey(sourceID)); err != nil {
 		return err
 	}
 	sourceComplete, err := client.GetSourceVariant(context.Background(), metadata.NameVariant{Name: sourceName, Variant: ""})
@@ -1533,7 +1533,7 @@ func testRegisterTransformationFromSource(addr string) error {
 	if transformationCreated.Status() != metadata.CREATED {
 		return fmt.Errorf("Transformation not set to created with no coordinator running")
 	}
-	if err := coord.executeJob(metadata.GetJobKey(transformationID)); err != nil {
+	if err := coord.ExecuteJob(metadata.GetJobKey(transformationID)); err != nil {
 		return err
 	}
 	transformationComplete, err := client.GetSourceVariant(context.Background(), metadata.NameVariant{Name: transformationName, Variant: ""})
@@ -1597,7 +1597,7 @@ func testRegisterTransformationFromSource(addr string) error {
 	if joinTransformationCreated.Status() != metadata.CREATED {
 		return fmt.Errorf("Transformation not set to created with no coordinator running")
 	}
-	if err := coord.executeJob(metadata.GetJobKey(joinTransformationID)); err != nil {
+	if err := coord.ExecuteJob(metadata.GetJobKey(joinTransformationID)); err != nil {
 		return err
 	}
 	joinTransformationComplete, err := client.GetSourceVariant(context.Background(), metadata.NameVariant{Name: joinTransformationName, Variant: ""})
@@ -1729,7 +1729,7 @@ func testScheduleTrainingSet(addr string) error {
 		return fmt.Errorf("Failed to set up coordinator")
 	}
 	sourceID := metadata.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}
-	if err := coord.executeJob(metadata.GetJobKey(sourceID)); err != nil {
+	if err := coord.ExecuteJob(metadata.GetJobKey(sourceID)); err != nil {
 		return err
 	}
 	go func() {
@@ -1737,7 +1737,7 @@ func testScheduleTrainingSet(addr string) error {
 			logger.Errorf("Error watching for new update events: %v", err)
 		}
 	}()
-	if err := coord.executeJob(metadata.GetJobKey(tsID)); err != nil {
+	if err := coord.ExecuteJob(metadata.GetJobKey(tsID)); err != nil {
 		return err
 	}
 	time.Sleep(70 * time.Second)
@@ -1922,7 +1922,7 @@ func testScheduleTransformation(addr string) error {
 	if err != nil {
 		return fmt.Errorf("Failed to set up coordinator")
 	}
-	if err := coord.executeJob(metadata.GetJobKey(sourceID)); err != nil {
+	if err := coord.ExecuteJob(metadata.GetJobKey(sourceID)); err != nil {
 		return err
 	}
 	sourceComplete, err := client.GetSourceVariant(context.Background(), metadata.NameVariant{Name: sourceName, Variant: ""})

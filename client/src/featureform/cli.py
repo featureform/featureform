@@ -79,34 +79,35 @@ def cli():
 @click.option("--local",
               is_flag=True,
               help="Enable local mode")
+
 def apply(host, cert, insecure, local, files):
-    """apply changes to featureform
-    """
-    env_cert_path = os.getenv('FEATUREFORM_CERT')
+    if local:
+        if host is not None:
+            raise ValueError("Cannot be local and have a host")
+        localmode = True
     if host is None:
-        env_host = os.getenv('FEATUREFORM_HOST')
-        if env_host is None:
+        host = os.getenv('FEATUREFORM_HOST')
+        if host is None:
             raise ValueError("Host value must be set in env or with --host flag")
-        host = env_host
     if insecure:
         channel = grpc.insecure_channel(host, options=(('grpc.enable_http_proxy', 0),))
-    elif cert is not None or env_cert_path is not None:
-        if env_cert_path is not None and cert is None:
-            cert = env_cert_path
+    elif cert != None: # or os.getenv('FEATUREFORM_HOST') !=None:
+        if os.getenv('FEATUREFORM_CERT') != None: # and cert == None:
+            cert = os.getenv('FEATUREFORM_CERT')
         with open(cert, 'rb') as f:
             credentials = grpc.ssl_channel_credentials(f.read())
         channel = grpc.secure_channel(host, credentials)
-    elif local:
-        # Make a database?
-        pass
     else:
         credentials = grpc.ssl_channel_credentials()
         channel = grpc.secure_channel(host, credentials)
-    stub = ff_grpc.ApiStub(channel)
     for file in files:
         with open(file, "r") as py:
             exec(py.read())
-    register.state().create_all(stub)
+    if localmode:
+        register.state().create_all_local()
+    else:
+        stub = ff_grpc.ApiStub(channel)
+        register.state().create_all(stub)
 
 
 if __name__ == '__main__':

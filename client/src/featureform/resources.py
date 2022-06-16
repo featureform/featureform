@@ -8,9 +8,10 @@ from dataclasses import dataclass
 from .proto import metadata_pb2 as pb
 import grpc
 import json
+import os
+from sqlite_metadata import SQLiteMetadata
 
 NameVariant = Tuple[str, str]
-
 
 @typechecked
 def valid_name_variant(nvar: NameVariant) -> bool:
@@ -179,6 +180,20 @@ class Provider:
             serialized_config=self.config.serialize(),
         )
         stub.CreateProvider(serialized)
+
+    def _create_local(self, db) -> None:
+        # Should we make a new LocalProvider
+        db.insert("providers", 
+            self.name, 
+            self.description, 
+            self.config.type(), 
+            self.config.software(),
+            self.team,
+            "sources",
+            "status",
+            self.config.serialize(),
+            check_nonexistence = "SELECT name FROM providers WHERE NOT EXISTS (providers.name = "+self.name+")")
+        
 
 
 @typechecked
@@ -491,4 +506,19 @@ class ResourceState:
                 if e.code() == grpc.StatusCode.ALREADY_EXISTS:
                     print(resource.name, "already exists.")
                     continue
+
                 raise
+
+    def create_all_local(self):
+        db = SQLiteMetadata()
+        path = "~/.featureform/SQLiteDB"
+        if not os.path.exists(path):
+            os.path.makedirs(path)
+            db.createTables()
+        
+        # It looks like resource can belong to any class
+        for resource in self.__create_list:
+            print("Creating", resource.name)
+            resource._create_local(db)
+            # Looks like we should add the resource to the respective database in _create_local() itself 
+

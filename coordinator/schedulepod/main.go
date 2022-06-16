@@ -63,12 +63,22 @@ var testOfflineTableValues = [...]provider.ResourceRecord{
 var postgresConfig = provider.PostgresConfig{
 	Host:     "localhost",
 	Port:     "5432",
-	Database: os.Getenv("POSTGRES_DB"),
-	Username: os.Getenv("POSTGRES_USER"),
-	Password: os.Getenv("POSTGRES_PASSWORD"),
+	Database: "app_db",
+	Username: "app1",
+	Password: "AppPassword",
+	PostgresPasword: "StrongPassword"
+	// Database: os.Getenv("POSTGRES_DB"),
+	// Username: os.Getenv("POSTGRES_USER"),
+	// Password: os.Getenv("POSTGRES_PASSWORD"),
 }
 
-var redisPort = os.Getenv("REDIS_PORT")
+// postgresPassword: "StrongPassword"
+// username: "app1"
+// password: "AppPassword"
+// database: "app_db"
+
+// var redisPort = os.Getenv("REDIS_PORT")
+var redisPost = "6379"
 var redisHost = "localhost"
 
 var etcdHost = "localhost"

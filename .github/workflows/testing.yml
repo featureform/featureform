@@ -503,7 +503,7 @@ jobs:
         run: pytest
   schedule:
     runs-on: ubuntu-latest
-    name: build example and deploy to minikube
+    name: Schedule Jobs
     environment: Integration testing
     needs: setup
     steps:

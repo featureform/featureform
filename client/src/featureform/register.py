@@ -2,12 +2,15 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+from distutils.command.config import config
 from .resources import ResourceState, Provider, RedisConfig, LocalConfig, PostgresConfig, SnowflakeConfig, User, Location, Source, \
     PrimaryData, SQLTable, SQLTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet
 from typing import Tuple, Callable, TypedDict, List, Union
 from typeguard import typechecked, check_type
 import grpc
 from .proto import metadata_pb2_grpc as ff_grpc
+import sqlite3
+from sqlite_metadata import SQLiteMetadata
 
 NameVariant = Tuple[str, str]
 
@@ -90,18 +93,28 @@ class LocalProvider:
     def __init__(self, registrar, provider):
         self.__registrar = registrar
         self.__provider = provider
-        self.store_provider()
+        self.sqldb = SQLiteMetadata()
+        self.insert_provider()
 
     def name(self) -> str:
         return self.__provider.name
 
     def register_file(self, file_name):
         # Store the file as a source
-        pass
+        self.sqldb.insert("sources", "created", "default", file_name)  
 
-    def store_provider(self):
+    def insert_provider(self):
         # Store a new provider row
-        pass
+        self.sqldb.insert("providers", 
+            self.__provider.name, 
+            self.__provider.description, 
+            "provider type", 
+            "software", 
+            self.__provider.team,
+            "sources",
+            "status",
+            config
+        )
         
 
 class SourceRegistrar:

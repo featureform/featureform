@@ -86,7 +86,7 @@ def apply(host, cert, insecure, files):
         host = envHost
     if insecure:
         channel = grpc.insecure_channel(host, options=(('grpc.enable_http_proxy', 0),))
-    elif cert != None or os.getenv('FEATUREFORM_HOST') !=None:
+    elif cert != None or os.getenv('FEATUREFORM_CERT') != None:
         if os.getenv('FEATUREFORM_CERT') != None and cert == None:
             cert = os.getenv('FEATUREFORM_CERT')
         with open(cert, 'rb') as f:

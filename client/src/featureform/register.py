@@ -513,7 +513,7 @@ class Registrar:
 
 
 class Client(Registrar):
-    def __init__(self, host, tls_verify=False, cert_path=None):
+    def __init__(self, host, tls_verify=True, cert_path=None):
         super().__init__()
         if tls_verify:
             credentials = grpc.ssl_channel_credentials()

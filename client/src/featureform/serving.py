@@ -11,7 +11,7 @@ import os
 
 class Client:
 
-    def __init__(self, host, tls_verify=False, cert_path=None):
+    def __init__(self, host, tls_verify=True, cert_path=None):
         if tls_verify:
             credentials = grpc.ssl_channel_credentials()
             channel = grpc.secure_channel(host, credentials)

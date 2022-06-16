@@ -7,15 +7,15 @@ import (
 	"net"
 	"os"
 	//"reflect"
-	"strings"
-	"golang.org/x/sync/errgroup"
-	"github.com/jackc/pgx/v4/pgxpool"
 	db "github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
+	"golang.org/x/sync/errgroup"
+	"strings"
 	//"testing"
 	"time"
 
-	"github.com/featureform/metadata"
 	"github.com/featureform/coordinator"
+	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	"github.com/featureform/runner"
 	//"github.com/jackc/pgx/v4/pgxpool"
@@ -42,10 +42,10 @@ func main() {
 	eg.Go(testScheduleTrainingSet)
 	eg.Go(testScheduleTransformation)
 	eg.Go(testScheduleFeatureMaterialization)
-    if err := eg.Wait(); err != nil {
-        logger.Errorf("Error", err)
-    }
-    fmt.Println("Completed successfully!")
+	if err := eg.Wait(); err != nil {
+		logger.Errorf("Error", err)
+	}
+	fmt.Println("Completed successfully!")
 }
 
 func createSafeUUID() string {
@@ -61,12 +61,12 @@ var testOfflineTableValues = [...]provider.ResourceRecord{
 }
 
 var postgresConfig = provider.PostgresConfig{
-	Host:     "localhost",
-	Port:     "5432",
-	Database: "app_db",
-	Username: "app1",
-	Password: "AppPassword",
-	PostgresPasword: "StrongPassword"
+	Host:            "localhost",
+	Port:            "5432",
+	Database:        "app_db",
+	Username:        "app1",
+	Password:        "AppPassword",
+	PostgresPasword: "StrongPassword",
 	// Database: os.Getenv("POSTGRES_DB"),
 	// Username: os.Getenv("POSTGRES_USER"),
 	// Password: os.Getenv("POSTGRES_PASSWORD"),
@@ -128,9 +128,6 @@ func createNewCoordinator(addr string) (*coordinator.Coordinator, error) {
 	kubeJobSpawner := coordinator.KubernetesJobSpawner{}
 	return coordinator.NewCoordinator(client, logger, cli, &kubeJobSpawner)
 }
-
-
-
 
 func testScheduleTrainingSet() error {
 	if err := runner.RegisterFactory(string(runner.CREATE_TRAINING_SET), runner.TrainingSetRunnerFactory); err != nil {
@@ -561,7 +558,6 @@ func createTrainingSetWithProvider(client *metadata.Client, config provider.Seri
 	}
 	return nil
 }
-
 
 func materializeFeatureWithProvider(client *metadata.Client, offlineConfig provider.SerializedConfig, onlineConfig provider.SerializedConfig, featureName string, sourceName string, originalTableName string, schedule string) error {
 	offlineProviderName := createSafeUUID()

@@ -56,25 +56,26 @@ class SQLiteTest:
             sourceEntity text,
             sourceTimestamp text,
             sourceValue text,
-            source text NOT NULL,
+            sourceName text NOT NULL,
+            sourceVariant text NOT NULL,
             
             PRIMARY KEY(featureName, variantName),
             
             FOREIGN KEY(featureName) REFERENCES features(name),
             FOREIGN KEY(entity) REFERENCES entities(name),
             FOREIGN KEY(provider) REFERENCES providers(name),
-            FOREIGN KEY(source) REFERENCES sources(name))''') 
+            FOREIGN KEY(sourceName) REFERENCES sources(name))''') 
 
          #insert feature variant wine data
        conn.execute("""INSERT INTO feature_variant VALUES 
-            ("2020-08-10T13:49:51.141Z", "Sulfur Dioxide that is trapped", "wine_id", "Non_free_Sulfur_Dioxide", "Simba Khadder", "Sample online provider", "float", "first-variant", "CREATED", "wine_analysis_id", "2020-08-14T13:49:51.141Z", "54", "Wine Data"),
-            ("2020-08-10T13:49:51.141Z", "Sulfur Dioxide that is trapped, streaming derived", "wine_id", "Non_free_Sulfur_Dioxide", "Simba Khadder", "Sample online provider", "float", "streaming-variant", "CREATED", "wine_analysis_id", "2020-08-14T13:49:51.141Z", "52", "Wine Data"),
-            ("2020-08-10T13:49:51.141Z", "acidity that is fixed", "wine_id", "fixed_acidity", "Simba Khadder", "Sample online provider", "float", "first-variant", "CREATED", "wine_analysis_id", "2020-08-14T13:49:51.141Z", "57", "Wine Data"),
-            ("2020-08-11", "acidity that is fixed, normalized", "wine_id", "fixed_acidity", "Simba Khadder", "Sample online provider", "float", "normalized-variant", "CREATED", "wine_analysis_id", "2020-08-14T13:49:51.141Z", "59", "Wine Data"),
-            ("2020-08-10T13:49:51.141Z", "clean part of density", "wine_id", "clean_density", "Simba Khadder", "Sample batch provider", "float", "default variant", "CREATED", "wine_analysis_id", "2020-08-14T13:49:51.141Z", "67", "Wine Data"),
-            ("2020-08-10T13:49:51.141Z", "null-lost clean part of density", "wine_id", "clean_density", "Simba Khadder", "Sample batch provider", "float", "null-lost variant", "CREATED", "wine_analysis_id", "2020-08-14T13:49:51.141Z", "67", "Wine Data"),
-            ("2020-08-10T13:49:51.141Z", "average purchase price", "wine_id", "LogAvgPurchasePrice", "Simba Khadder", "Sample batch provider", "float", "first-variant", "CREATED", "wine_analysis_id", "2020-08-14T13:49:51.141Z", "67", "Wine Data"),
-            ("2020-08-10T13:49:51.141Z", "average purchase price, streaming derived", "wine_id", "LogAvgPurchasePrice", "Simba Khadder", "Sample batch provider", "float", "streaming-variant", "CREATED", "wine_analysis_id", "2020-08-14T13:49:51.141Z", "67", "Wine Data")"""
+            ("2020-08-10T13:49:51.141Z", "Sulfur Dioxide that is trapped", "wine_id", "Non_free_Sulfur_Dioxide", "Simba Khadder", "Sample online provider", "float", "first-variant", "CREATED", "wine_analysis_id", "2020-08-14T13:49:51.141Z", "54", "Wine Data", "New source Variant"),
+            ("2020-08-10T13:49:51.141Z", "Sulfur Dioxide that is trapped, streaming derived", "wine_id", "Non_free_Sulfur_Dioxide", "Simba Khadder", "Sample online provider", "float", "streaming-variant", "CREATED", "wine_analysis_id", "2020-08-14T13:49:51.141Z", "52", "Wine Data", "New source Variant"),
+            ("2020-08-10T13:49:51.141Z", "acidity that is fixed", "wine_id", "fixed_acidity", "Simba Khadder", "Sample online provider", "float", "first-variant", "CREATED", "wine_analysis_id", "2020-08-14T13:49:51.141Z", "57", "Wine Data", "New source Variant"),
+            ("2020-08-11", "acidity that is fixed, normalized", "wine_id", "fixed_acidity", "Simba Khadder", "Sample online provider", "float", "normalized-variant", "CREATED", "wine_analysis_id", "2020-08-14T13:49:51.141Z", "59", "Wine Data", "New source Variant"),
+            ("2020-08-10T13:49:51.141Z", "clean part of density", "wine_id", "clean_density", "Simba Khadder", "Sample batch provider", "float", "default variant", "CREATED", "wine_analysis_id", "2020-08-14T13:49:51.141Z", "67", "Wine Data", "New source Variant"),
+            ("2020-08-10T13:49:51.141Z", "null-lost clean part of density", "wine_id", "clean_density", "Simba Khadder", "Sample batch provider", "float", "null-lost variant", "CREATED", "wine_analysis_id", "2020-08-14T13:49:51.141Z", "67", "Wine Data", "New source Variant"),
+            ("2020-08-10T13:49:51.141Z", "average purchase price", "wine_id", "LogAvgPurchasePrice", "Simba Khadder", "Sample batch provider", "float", "first-variant", "CREATED", "wine_analysis_id", "2020-08-14T13:49:51.141Z", "67", "Wine Data", "New source Variant"),
+            ("2020-08-10T13:49:51.141Z", "average purchase price, streaming derived", "wine_id", "LogAvgPurchasePrice", "Simba Khadder", "Sample batch provider", "float", "streaming-variant", "CREATED", "wine_analysis_id", "2020-08-14T13:49:51.141Z", "67", "Wine Data", "New source Variant")"""
        )
          # Features table
        conn.execute('''CREATE TABLE features(
@@ -186,9 +187,9 @@ class SQLiteTest:
             FOREIGN KEY(labelName) REFERENCES labels(name));''')
 
        conn.execute('''INSERT INTO labels_variant VALUES
-            ("2020-08-12T13:49:51.141Z", "Aggregate wine quality rating for a given sample", "wine_id", "Wine quality rating", "Simba Khadder", "Sample batch provider", "float", "first-variant", "wine_analysis_id", "2020-08-14T13:49:51.141Z", "57", "CREATED"),
+            ("2020-08-12T13:49:51.141Z", "rating weighted in higher favor of reviews given higher presidence", "wine_id", "Wine quality rating", "Simba Khadder", "Sample batch provider", "float", "fifth-variant", "wine_analysis_id", "2020-08-14T13:49:51.141Z", "82", "CREATED"),
             ("2020-08-12T13:49:51.141Z", "rating weighted in higher favor of reviews given higher presidence", "wine_id", "Wine quality rating", "Simba Khadder", "Sample batch provider", "float", "second-variant", "wine_analysis_id", "2020-08-14T13:49:51.141Z", "82", "CREATED"),
-            ("2020-08-12T13:49:51.141Z", "Wine was spoiled or not", "wine_id", "Wine spoiled", "Simba Khadder", "Sample batch provider", "float", "first-variant", "wine_analysis_id", "2020-08-14T13:49:51.141Z", "92", "CREATED")
+            ("2020-08-12T13:49:51.141Z", "Wine was spoiled or not", "wine_id", "Wine spoiled", "Simba Khadder", "Sample batch provider", "float", "third-variant", "wine_analysis_id", "2020-08-14T13:49:51.141Z", "92", "CREATED")
        ''')
 
          # labels table
@@ -198,8 +199,8 @@ class SQLiteTest:
             name           text PRIMARY KEY);''')
        
        conn.execute("""INSERT INTO labels VALUES
-            ("Label", "second-variant", "Wine quality rating"),
-            ("Label", "first-variant", "Wine spoiled")
+            ("Label", "fifth-variant", "Wine quality rating"),
+            ("Label", "third-variant", "Wine spoiled")
             """)
 
          # entity table

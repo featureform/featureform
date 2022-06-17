@@ -51,8 +51,10 @@ func TestOnlineStores(t *testing.T) {
 		Addr: liveAddr,
 	}
 
+	dynamoPort := os.Getenv("DYNAMO_PORT")
+	dynamoAddr := fmt.Sprintf("%s:%s", "localhost", dynamoPort)
 	dynamoConfig := &DynamodbConfig{
-		Addr:   "http://localhost:4566",
+		Addr:   dynamoAddr,
 		Region: "us-east-1",
 	}
 	testList := []struct {

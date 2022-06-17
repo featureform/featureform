@@ -197,7 +197,7 @@ jobs:
       - name: Download artifact
         uses: actions/download-artifact@v3
         with:
-          names: api-server coordinator dashboard dashboard-metadata metadata serving #worker
+          names: api-server coordinator dashboard dashboard-metadata metadata serving
           path: /tmp
 
       - name: Check Artifacts
@@ -219,5 +219,4 @@ jobs:
           docker load --input /tmp/dashboard-metadata
           docker load --input /tmp/metadata
           docker load --input /tmp/serving
-        #  docker load --input /tmp/worker.tar
           minikube image ls

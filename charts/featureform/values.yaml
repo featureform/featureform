@@ -83,7 +83,7 @@ global:
   version: ""
   repo: "featureformcom"
   pullPolicy: "Always"
-  publicCert: true
+  publicCert: false
 
 
 metadata:
@@ -96,4 +96,6 @@ etcd:
   auth:
     rbac:
       rootPassword: "secretpassword"
+    token:
+      ttl: 100h
   replicaCount: 3

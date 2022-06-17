@@ -186,7 +186,7 @@ jobs:
           name: worker
           path: /tmp/worker.tar
   test:
-    name: Build Worker
+    name: Run Tests
     needs: [api-server, coordinator, dashboard, dashboard-metadata, metadata, serving, worker]
     defaults:
       run:
@@ -203,7 +203,19 @@ jobs:
       - name: Check Artifacts
         run: ls /tmp
 
-#      - name: Load image
-#        run: |
-#          docker load --input /tmp/myimage.tar
-#          docker image ls -a
+      - name: Start minikube
+        uses: medyagh/setup-minikube@master
+
+      - name: Configure Docker Socket
+        run: eval $(minikube docker-env)
+
+      - name: Load image
+        run: |
+          docker load --input /tmp/api-server.tar
+          docker load --input /tmp/coordinator.tar
+          docker load --input /tmp/dashboard.tar
+          docker load --input /tmp/dashboard-metadata.tar
+          docker load --input /tmp/metadata.tar
+          docker load --input /tmp/serving.tar
+          docker load --input /tmp/worker.tar
+          minikube image ls

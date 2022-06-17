@@ -510,6 +510,9 @@ jobs:
       - uses: actions/checkout@v2
       - name: Start minikube
         uses: medyagh/setup-minikube@master
+      - name: Install Helm
+        uses: azure/setup-helm@v1
+        id: install
       - name: Add bitnami and deploy postgres chart
         run: |
           helm repo add bitnami <https://charts.bitnami.com/bitnami>

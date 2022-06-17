@@ -180,11 +180,11 @@ jobs:
           tags: local/worker:stable
           push: false
           outputs: type=docker,dest=/tmp/worker.tar
-      - name: Upload image
-        uses: actions/upload-artifact@v3
-        with:
-          name: worker
-          path: /tmp/worker.tar
+#      - name: Upload image
+#        uses: actions/upload-artifact@v3
+#        with:
+#          name: worker
+#          path: /tmp/worker.tar
   test:
     name: Run Tests
     needs: [api-server, coordinator, dashboard, dashboard-metadata, metadata, serving, worker]
@@ -197,11 +197,13 @@ jobs:
       - name: Download artifact
         uses: actions/download-artifact@v3
         with:
-          names: api-server coordinator dashboard dashboard-metadata metadata serving worker
+          names: api-server coordinator dashboard dashboard-metadata metadata serving #worker
           path: /tmp
 
       - name: Check Artifacts
-        run: ls /tmp
+        run: |
+          ls /tmp
+          ls /tmp/api-server
 
       - name: Start minikube
         uses: medyagh/setup-minikube@master
@@ -211,11 +213,11 @@ jobs:
 
       - name: Load image
         run: |
-          docker load --input /tmp/api-server.tar
-          docker load --input /tmp/coordinator.tar
-          docker load --input /tmp/dashboard.tar
-          docker load --input /tmp/dashboard-metadata.tar
-          docker load --input /tmp/metadata.tar
-          docker load --input /tmp/serving.tar
-          docker load --input /tmp/worker.tar
+          docker load --input /tmp/api-server
+          docker load --input /tmp/coordinator
+          docker load --input /tmp/dashboard
+          docker load --input /tmp/dashboard-metadata
+          docker load --input /tmp/metadata
+          docker load --input /tmp/serving
+        #  docker load --input /tmp/worker.tar
           minikube image ls

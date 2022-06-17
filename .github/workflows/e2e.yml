@@ -216,7 +216,7 @@ jobs:
           docker load --input /tmp/api-server/api-server.tar
           docker load --input /tmp/coordinator/coordinator.tar
           docker load --input /tmp/dashboard/dashboard.tar
-          docker load --input /tmp/dashboard-metadata/dashboard-metadata.tar
+          docker load --input /tmp/metadata-dashboard/metadata-dashboard.tar
           docker load --input /tmp/metadata/metadata.tar
           docker load --input /tmp/serving/serving.tar
           minikube image ls

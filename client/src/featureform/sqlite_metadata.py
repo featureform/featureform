@@ -1,6 +1,7 @@
 import sqlite3
 from sqlite3 import Error
 from threading import Lock
+import os
 
 
 class SyncSQLExecutor:
@@ -28,12 +29,15 @@ class SyncSQLExecutor:
 
 class SQLiteMetadata:
      def __init__(self):
-          raw_conn = sqlite3.connect('metadata.db', check_same_thread=False)
+          path = '~/.featureform/SQLiteDB'
+          if not os.path.exists(path):
+               os.path.makedirs(path)
+          raw_conn = sqlite3.connect(path+'/metadata.db', check_same_thread=False)
           self.__conn = SyncSQLExecutor(raw_conn)
           self.createTables()
 
      def createTables(self):
-     # Features variant table
+          # Features variant table
           self.__conn.execute('''CREATE TABLE IF NOT EXISTS feature_variant(
           created text,
           description text,

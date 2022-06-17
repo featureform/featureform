@@ -5,7 +5,7 @@
 import click
 import featureform.register as register
 import grpc
-from .proto import metadata_pb2_grpc as ff_grpc
+# from .proto import metadata_pb2_grpc as ff_grpc
 import os
 
 resource_types = [
@@ -64,7 +64,7 @@ def cli():
 
 
 @cli.command()
-@click.argument("files", nargs=-1, required=True, type=click.Path(exists=True))
+@click.argument("files", nargs=-1, required=False, type=click.Path(exists=True))
 @click.option("--host",
               "host",
               required=False,
@@ -84,30 +84,30 @@ def apply(host, cert, insecure, local, files):
     if local:
         if host is not None:
             raise ValueError("Cannot be local and have a host")
-        localmode = True
-    if host is None:
-        host = os.getenv('FEATUREFORM_HOST')
-        if host is None:
-            raise ValueError("Host value must be set in env or with --host flag")
-    if insecure:
-        channel = grpc.insecure_channel(host, options=(('grpc.enable_http_proxy', 0),))
-    elif cert != None: # or os.getenv('FEATUREFORM_HOST') !=None:
-        if os.getenv('FEATUREFORM_CERT') != None: # and cert == None:
-            cert = os.getenv('FEATUREFORM_CERT')
-        with open(cert, 'rb') as f:
-            credentials = grpc.ssl_channel_credentials(f.read())
-        channel = grpc.secure_channel(host, credentials)
     else:
-        credentials = grpc.ssl_channel_credentials()
-        channel = grpc.secure_channel(host, credentials)
+        if host is None and not local:
+            host = os.getenv('FEATUREFORM_HOST')
+            if host is None:
+                raise ValueError("Host value must be set in env or with --host flag")
+        if insecure:
+            channel = grpc.insecure_channel(host, options=(('grpc.enable_http_proxy', 0),))
+        elif cert != None: # or os.getenv('FEATUREFORM_HOST') !=None:
+            if os.getenv('FEATUREFORM_CERT') != None: # and cert == None:
+                cert = os.getenv('FEATUREFORM_CERT')
+            with open(cert, 'rb') as f:
+                credentials = grpc.ssl_channel_credentials(f.read())
+            channel = grpc.secure_channel(host, credentials)
+        else:
+            credentials = grpc.ssl_channel_credentials()
+            channel = grpc.secure_channel(host, credentials)
     for file in files:
         with open(file, "r") as py:
             exec(py.read())
-    if localmode:
+    if local:
         register.state().create_all_local()
-    else:
-        stub = ff_grpc.ApiStub(channel)
-        register.state().create_all(stub)
+    # else:
+    #     stub = ff_grpc.ApiStub(channel)
+    #     register.state().create_all(stub)
 
 
 if __name__ == '__main__':

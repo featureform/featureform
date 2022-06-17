@@ -431,6 +431,15 @@ class ResourceState:
 
         return sorted(self.__state.values(), key=to_sort_key)
 
+    def create_all_local(self) -> None:
+        db = SQLiteMetadata()
+        # It looks like resource can belong to any class
+        for resource in self.__create_list:
+            print("Creating", resource.name)
+            resource._create_local(db)
+            # Looks like we should add the resource to the respective database in _create_local() itself 
+        return
+
     def create_all(self, stub) -> None:
         for resource in self.__create_list:
             try:
@@ -442,16 +451,4 @@ class ResourceState:
                     continue
                 raise
 
-    def create_all_local(self):
-        db = SQLiteMetadata()
-        path = "~/.featureform/SQLiteDB"
-        if not os.path.exists(path):
-            os.path.makedirs(path)
-            db.createTables()
-        
-        # It looks like resource can belong to any class
-        for resource in self.__create_list:
-            print("Creating", resource.name)
-            resource._create_local(db)
-            # Looks like we should add the resource to the respective database in _create_local() itself 
 

@@ -213,10 +213,10 @@ jobs:
 
       - name: Load image
         run: |
-          docker load --input /tmp/api-server
-          docker load --input /tmp/coordinator
-          docker load --input /tmp/dashboard
-          docker load --input /tmp/dashboard-metadata
-          docker load --input /tmp/metadata
-          docker load --input /tmp/serving
+          docker load --input /tmp/api-server/api-server.tar
+          docker load --input /tmp/coordinator/coordinator.tar
+          docker load --input /tmp/dashboard/dashboard.tar
+          docker load --input /tmp/dashboard-metadata/dashboard-metadata.tar
+          docker load --input /tmp/metadata/metadata.tar
+          docker load --input /tmp/serving/serving.tar
           minikube image ls

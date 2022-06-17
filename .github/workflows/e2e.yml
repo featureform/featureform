@@ -1,0 +1,23 @@
+name: End to End Testing
+on: [push, pull_request]
+jobs:
+  setup:
+    name: Build Metadata
+    defaults:
+      run:
+        working-directory: ./
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build and export
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./dashboard/Dockerfile
+          tags: local/dashboard:stable
+          push: false
+          outputs: type=docker,dest=/tmp/dashboard.tar

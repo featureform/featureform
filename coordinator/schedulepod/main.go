@@ -66,7 +66,7 @@ var postgresConfig = provider.PostgresConfig{
 	Database:        "app_db",
 	Username:        "app1",
 	Password:        "AppPassword",
-	PostgresPasword: "StrongPassword",
+	PostgresPassword: "StrongPassword",
 	// Database: os.Getenv("POSTGRES_DB"),
 	// Username: os.Getenv("POSTGRES_USER"),
 	// Password: os.Getenv("POSTGRES_PASSWORD"),

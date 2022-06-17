@@ -525,7 +525,8 @@ class Client(Registrar):
                 credentials = grpc.ssl_channel_credentials(f.read())
             channel = grpc.secure_channel(host, credentials)
         else:
-            self._stub = ff_grpc.ApiStub(channel)
+            channel = grpc.insecure_channel(host, options=(('grpc.enable_http_proxy', 0),))
+        self._stub = ff_grpc.ApiStub(channel)
 
     def apply(self):
         self.state().create_all(self._stub)

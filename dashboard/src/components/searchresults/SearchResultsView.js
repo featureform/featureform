@@ -60,6 +60,7 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
+//resolution between proto labeling of different types (resolves them to unicode values) and the actual names of the resource types
 var searchTypeMap = {
   '\u0004': "Feature", //feature variant
   '\u0005': "Label",

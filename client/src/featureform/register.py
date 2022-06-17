@@ -515,12 +515,13 @@ class Registrar:
 class Client(Registrar):
     def __init__(self, host, tls_verify=True, cert_path=None):
         super().__init__()
+        env_cert_path = os.getenv('FEATUREFORM_CERT')
         if tls_verify:
             credentials = grpc.ssl_channel_credentials()
             channel = grpc.secure_channel(host, credentials)
-        elif cert_path != None or os.getenv('FEATUREFORM_CERT') != None:
-            if os.getenv('FEATUREFORM_CERT') != None and cert_path == None:
-                cert_path = os.getenv('FEATUREFORM_CERT')
+        elif cert_path is not None or env_cert_path is not None:
+            if env_cert_path is not None and cert_path is None:
+                cert_path = env_cert_path
             with open(cert_path, 'rb') as f:
                 credentials = grpc.ssl_channel_credentials(f.read())
             channel = grpc.secure_channel(host, credentials)

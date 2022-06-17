@@ -1,8 +1,48 @@
 name: End to End Testing
 on: [push, pull_request]
 jobs:
-  setup:
-    name: Build Metadata
+  api-server:
+    name: Build API Server
+    defaults:
+      run:
+        working-directory: ./
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build and export
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./api/Dockerfile
+          tags: local/api-server:stable
+          push: false
+          outputs: type=docker,dest=/tmp/api-server.tar
+  coordinator:
+    name: Build Coordinator
+    defaults:
+      run:
+        working-directory: ./
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build and export
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./coordinator/Dockerfile
+          tags: local/coordinator:stable
+          push: false
+          outputs: type=docker,dest=/tmp/coordinator.tar
+  dashboard:
+    name: Build Dashboard
     defaults:
       run:
         working-directory: ./
@@ -21,3 +61,83 @@ jobs:
           tags: local/dashboard:stable
           push: false
           outputs: type=docker,dest=/tmp/dashboard.tar
+  metadata:
+    name: Build Metadata
+    defaults:
+      run:
+        working-directory: ./
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build and export
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./metadata/Dockerfile
+          tags: local/metadata:stable
+          push: false
+          outputs: type=docker,dest=/tmp/metadata.tar
+  dashboard-metadata:
+    name: Build Dashboard Metadata
+    defaults:
+      run:
+        working-directory: ./
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build and export
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./metadata/dashboard/Dockerfile
+          tags: local/metadata-dashboard:stable
+          push: false
+          outputs: type=docker,dest=/tmp/metadata-dashboard.tar
+  serving:
+    name: Build Serving
+    defaults:
+      run:
+        working-directory: ./
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build and export
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./newserving/Dockerfile
+          tags: local/serving:stable
+          push: false
+          outputs: type=docker,dest=/tmp/serving.tar
+  runner:
+    name: Build Worker
+    defaults:
+      run:
+        working-directory: ./
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build and export
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./runner/Dockerfile
+          tags: local/worker:stable
+          push: false
+          outputs: type=docker,dest=/tmp/worker.tar

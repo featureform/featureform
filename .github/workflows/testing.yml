@@ -127,7 +127,7 @@ jobs:
         ports:
           - 9042:9042
       dynamodb:
-        image: dynamodb
+        image: amazon/dynamodb-local
         # Hard coded port because environment variables not currently
         # supported for use outside of 'steps'
         ports:

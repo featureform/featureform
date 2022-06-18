@@ -1,5 +1,4 @@
 import sqlite3
-from sqlite3 import Error
 from threading import Lock
 import os
 
@@ -29,9 +28,9 @@ class SyncSQLExecutor:
 
 class SQLiteMetadata:
      def __init__(self):
-          path = '~/.featureform/SQLiteDB'
+          path = '.featureform/SQLiteDB'
           if not os.path.exists(path):
-               os.path.makedirs(path)
+               os.makedirs(path)
           raw_conn = sqlite3.connect(path+'/metadata.db', check_same_thread=False)
           self.__conn = SyncSQLExecutor(raw_conn)
           self.createTables()
@@ -165,8 +164,8 @@ class SQLiteMetadata:
           status           text,
           serializedConfig text)''')
 
-          self.__conn.commit()
-          self.__conn.close()
+          # self.__conn.commit()
+          # self.__conn.close()
 
      # All 3 functions return a cursor, USE THIS
      def getTypeTable(self, type):
@@ -179,6 +178,13 @@ class SQLiteMetadata:
           variant_data = self.__conn.execute(variant_table_query)
           return variant_data.fetchall()
 
-     def insert(self, tablename, *args, check_nonexistence=""):
-          query = "INSERT INTO "+tablename+" VALUES "+args+" "+check_nonexistence
+     def insert(self, tablename, *args):
+          query = "INSERT OR IGNORE INTO "+tablename+" VALUES "+str(args)
+          print("Printing the query")
+          print(query)
           self.__conn.execute(query)
+          print("executed")
+
+     def commit_close(self):
+          self.__conn.commit()
+          self.__conn.close()

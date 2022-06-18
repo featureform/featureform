@@ -10,8 +10,7 @@ from typeguard import typechecked, check_type
 import grpc
 import os
 from .proto import metadata_pb2_grpc as ff_grpc
-import sqlite3
-from sqlite_metadata import SQLiteMetadata
+from .sqlite_metadata import SQLiteMetadata
 
 NameVariant = Tuple[str, str]
 
@@ -108,15 +107,24 @@ class LocalProvider:
 
     def insert_provider(self):
         # Store a new provider row
+        print("printing in insert_provider")
+        print(self.__provider.name)
+        print(self.__provider.description)
+        print(self.__provider.team)
+        print(self.__provider.config.type())
+        print(self.__provider.config.software())
+        print(self.__provider.config.serialize())
+        print(str(self.__provider.config.serialize(), 'utf-8'))
         self.sqldb.insert("providers", 
             self.__provider.name, 
+            "Provider",
             self.__provider.description, 
-            "provider type", 
-            "software", 
+            self.__provider.config.type(), 
+            self.__provider.config.software(), 
             self.__provider.team,
             "sources",
             "status",
-            config
+            str(self.__provider.config.serialize(), 'utf-8')
         )
         
 
@@ -622,6 +630,7 @@ register_redis = global_registrar.register_redis
 register_snowflake = global_registrar.register_snowflake
 register_postgres = global_registrar.register_postgres
 register_redshift = global_registrar.register_redshift
+register_local_directory = global_registrar.register_local_directory
 register_entity = global_registrar.register_entity
 register_column_resources = global_registrar.register_column_resources
 register_training_set = global_registrar.register_training_set

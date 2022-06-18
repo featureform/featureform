@@ -2,14 +2,15 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+# cofigure.py like definitions.py train.py tests to set the end state - quick start tests
+# use iris model fro serving (serving means reading python files and parsing the data in the backend)
 from typing import List, Tuple, Union
 from typeguard import typechecked
 from dataclasses import dataclass
 from .proto import metadata_pb2 as pb
 import grpc
 import json
-import os
-from sqlite_metadata import SQLiteMetadata
+from .sqlite_metadata import SQLiteMetadata
 
 NameVariant = Tuple[str, str]
 
@@ -185,15 +186,15 @@ class Provider:
         # Should we make a new LocalProvider
         db.insert("providers", 
             self.name, 
+            "Provider",
             self.description, 
             self.config.type(), 
             self.config.software(),
             self.team,
             "sources",
             "status",
-            self.config.serialize(),
-            check_nonexistence = "SELECT name FROM providers WHERE NOT EXISTS (providers.name = "+self.name+")")
-        
+            str(self.config.serialize(), 'utf-8')
+            )
 
 
 @typechecked
@@ -504,6 +505,8 @@ class ResourceState:
             print("Creating", resource.name)
             resource._create_local(db)
             # Looks like we should add the resource to the respective database in _create_local() itself 
+        db.commit_close()
+
         return
 
     def create_all(self, stub) -> None:

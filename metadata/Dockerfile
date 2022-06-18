@@ -18,5 +18,11 @@ COPY ./metadata/proto/ ./metadata/proto/
 COPY ./metadata/search/ ./metadata/search/
 COPY ./metadata/server/server.go ./metadata/main/server.go
 
+RUN go build ./metadata/main/server.go
+
+FROM golang:1.17-alpine
+
+COPY --from=0 ./app/server ./server
+
 EXPOSE 8080
-ENTRYPOINT ["go", "run", "./metadata/main/server.go"]
+ENTRYPOINT ["./server"]

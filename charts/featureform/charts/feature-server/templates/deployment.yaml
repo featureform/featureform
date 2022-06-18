@@ -18,15 +18,20 @@ spec:
         run: featureform-feature-server
     spec:
       containers:
-        - image: {{ .Values.image.repository }}
+        - image: "{{ .Values.global.repo | default .Values.image.repository }}/{{ .Values.image.name }}:{{ .Values.global.version | default .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.global.pullPolicy }}
           name: featureform-feature-server
           ports:
             - containerPort: {{ .Values.serving.port }}
             - containerPort: {{ .Values.metrics.port }}
           env:
             - name: SERVING_PORT
-              value: "0.0.0.0:"{{ .Values.serving.port }}
+              value: 0.0.0.0:{{ .Values.serving.port }}
             - name: METRICS_PORT
-              value: "0.0.0.0:"{{ .Values.matrics.port }}
+              value: 0.0.0.0:{{ .Values.metrics.port }}
+            - name: METADATA_HOST
+              value: {{ .Values.metadata.host }}
+            - name: METADATA_PORT
+              value: {{ .Values.metadata.port | quote }}
           resources: {}
 status: {}

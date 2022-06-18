@@ -492,7 +492,6 @@ func (store *sqlOfflineStore) CreateMaterialization(id ResourceID) (Materializat
 	if err != nil {
 		return nil, err
 	}
-
 	return &sqlMaterialization{
 		id:        matID,
 		db:        store.db,
@@ -502,6 +501,7 @@ func (store *sqlOfflineStore) CreateMaterialization(id ResourceID) (Materializat
 }
 
 func (store *sqlOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
+
 	tableName := store.getMaterializationTableName(id)
 
 	getMatQry := store.query.materializationExists()
@@ -509,8 +509,9 @@ func (store *sqlOfflineStore) GetMaterialization(id MaterializationID) (Material
 	rows, err := store.db.Query(getMatQry, tableName)
 	defer rows.Close()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not get materialization: %w", err)
 	}
+
 	rowCount := 0
 	if rows.Next() {
 		rowCount++
@@ -627,9 +628,11 @@ func (store *sqlOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {
 }
 
 func (store *sqlOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
+	fmt.Printf("Getting Training Set: %v\n", id)
 	if err := id.check(TrainingSet); err != nil {
 		return nil, err
 	}
+	fmt.Printf("Checking if Training Set exists: %v\n", id)
 	if exists, err := store.tableExists(id); err != nil {
 		return nil, err
 	} else if !exists {
@@ -649,6 +652,7 @@ func (store *sqlOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator
 	}
 	columns := strings.Join(features[:], ", ")
 	trainingSetQry := store.query.trainingRowSelect(columns, trainingSetName)
+	fmt.Printf("Training Set Query: %s\n", trainingSetQry)
 	rows, err := store.db.Query(trainingSetQry)
 	if err != nil {
 		return nil, err
@@ -665,7 +669,7 @@ func (store *sqlOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator
 func (store *sqlOfflineStore) getValueColumnTypes(table string) ([]interface{}, error) {
 	query := store.query.getValueColumnTypes(table)
 	rows, err := store.db.Query(query)
-
+	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -840,7 +844,7 @@ func (pt *sqlPrimaryTable) IterateSegment(n int64) (GenericTableIterator, error)
 func (pt *sqlPrimaryTable) getValueColumnTypes(table string) ([]interface{}, error) {
 	query := pt.query.getValueColumnTypes(table)
 	rows, err := pt.db.Query(query)
-
+	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -863,6 +867,7 @@ func (pt *sqlPrimaryTable) NumRows() (int64, error) {
 	n := int64(0)
 	query := fmt.Sprintf("SELECT COUNT(*) FROM %s", sanitize(pt.name))
 	rows := pt.db.QueryRow(query)
+
 	err := rows.Scan(&n)
 	if err != nil {
 		return 0, err
@@ -1133,10 +1138,11 @@ func (q defaultOfflineSQLQueries) getColumns(db *sql.DB, name string) ([]TableCo
 	bind := q.newVariableBindingIterator()
 	qry := fmt.Sprintf("SELECT column_name FROM information_schema.columns WHERE table_name = %s order by ordinal_position", bind.Next())
 	rows, err := db.Query(qry, name)
+	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+
 	columnNames := make([]TableColumn, 0)
 	for rows.Next() {
 		var column string

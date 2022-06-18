@@ -1,5 +1,5 @@
 
 module "featureform_cluster"  {
-  source = "cluster"
-  name = "featureform"
+  source = "./cluster"
+  name = "featureform-test"
 }

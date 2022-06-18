@@ -8,7 +8,8 @@ import (
 	"io"
 	"os"
 
-	provider "github.com/featureform/provider"
+	"github.com/featureform/metadata"
+	"github.com/featureform/provider"
 )
 
 type DataColumn struct {
@@ -58,10 +59,6 @@ func (r *RegisterFileRunner) Run() (CompletionWatcher, error) {
 			if err != nil {
 				jobWatcher.EndWatch(err)
 			}
-			//verify data columns uhh
-			// do something with read line
-			//ask sterling about offline normal table interface
-			//copy to offline store logic here
 			fmt.Printf("%+v\n", rec)
 		}
 		jobWatcher.EndWatch(nil)
@@ -73,6 +70,14 @@ func (r *RegisterFileRunner) Run() (CompletionWatcher, error) {
 func (r *RegisterFileRunner) SetIndex(index int) error {
 	r.ChunkIdx = int64(index)
 	return nil
+}
+
+func (r *RegisterFileRunner) Resource() metadata.ResourceID {
+	return metadata.ResourceID{}
+}
+
+func (r *RegisterFileRunner) IsUpdateJob() bool {
+	return false
 }
 
 type RegisterFileRunnerConfig struct {

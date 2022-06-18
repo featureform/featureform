@@ -5,16 +5,27 @@
 package main
 
 import (
-	"fmt"
 	"github.com/featureform/runner"
 	"github.com/featureform/runner/worker"
 	"log"
 )
 
-func main() {
+func init() {
 	if err := runner.RegisterFactory(string(runner.CREATE_TRAINING_SET), runner.TrainingSetRunnerFactory); err != nil {
-		panic(fmt.Errorf("failed to register training set runner factory: %w", err))
+		log.Fatalf("Failed to register training set runner factory: %v", err)
 	}
+	if err := runner.RegisterFactory(string(runner.COPY_TO_ONLINE), runner.MaterializedChunkRunnerFactory); err != nil {
+		log.Fatalf("Failed to register copy to online runner factory: %v", err)
+	}
+	if err := runner.RegisterFactory(string(runner.MATERIALIZE), runner.MaterializeRunnerFactory); err != nil {
+		log.Fatalf("Failed to register materialize runner factory: %v", err)
+	}
+	if err := runner.RegisterFactory(string(runner.CREATE_TRANSFORMATION), runner.CreateTransformationRunnerFactory); err != nil {
+		log.Fatalf("Failed to register create transformation runner factory: %v", err)
+	}
+}
+
+func main() {
 	if err := worker.CreateAndRun(); err != nil {
 		log.Fatalln(err)
 	}

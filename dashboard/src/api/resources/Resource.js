@@ -75,7 +75,20 @@ export default class Resource {
     return _pathToType;
   }
 
+  static _generateNames() {
+    let _pathToType = {};
+    Object.entries(Resource).forEach((res) => {
+      if (res[1] instanceof Resource) {
+        _pathToType[res[1]._type] = res[0];
+      }
+    });
+    return _pathToType;
+  }
+
   static pathToType = this._generatePaths();
+
+  static typeToName = this._generateNames();
+
 
   static get resourceTypes() {
     return Object.entries(Resource)

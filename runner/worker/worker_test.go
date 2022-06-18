@@ -5,9 +5,16 @@
 package worker
 
 import (
+	"context"
 	"errors"
-	runner "github.com/featureform/runner"
+	"fmt"
+	"github.com/featureform/coordinator"
+	"github.com/featureform/metadata"
+	"github.com/featureform/runner"
+	"github.com/google/uuid"
+	clientv3 "go.etcd.io/etcd/client/v3"
 	"testing"
+	"time"
 )
 
 type MockRunner struct {
@@ -17,19 +24,51 @@ type MockIndexRunner struct {
 	index int
 }
 
+type MockUpdateRunner struct {
+	ResourceID metadata.ResourceID
+}
+
 type MockCompletionWatcher struct{}
 
 func (m *MockRunner) Run() (runner.CompletionWatcher, error) {
 	return &MockCompletionWatcher{}, nil
 }
 
+func (m *MockRunner) Resource() metadata.ResourceID {
+	return metadata.ResourceID{}
+}
+
+func (m *MockRunner) IsUpdateJob() bool {
+	return false
+}
+
 func (m *MockIndexRunner) Run() (runner.CompletionWatcher, error) {
 	return &MockCompletionWatcher{}, nil
+}
+
+func (m *MockIndexRunner) Resource() metadata.ResourceID {
+	return metadata.ResourceID{}
+}
+
+func (m *MockIndexRunner) IsUpdateJob() bool {
+	return false
 }
 
 func (m *MockIndexRunner) SetIndex(index int) error {
 	m.index = index
 	return nil
+}
+
+func (m *MockUpdateRunner) Run() (runner.CompletionWatcher, error) {
+	return &MockCompletionWatcher{}, nil
+}
+
+func (m *MockUpdateRunner) Resource() metadata.ResourceID {
+	return m.ResourceID
+}
+
+func (m *MockUpdateRunner) IsUpdateJob() bool {
+	return true
 }
 
 func (m *MockCompletionWatcher) Complete() bool {
@@ -54,6 +93,14 @@ func (r *RunnerWithFailingWatcher) Run() (runner.CompletionWatcher, error) {
 	return &FailingWatcher{}, nil
 }
 
+func (r *RunnerWithFailingWatcher) Resource() metadata.ResourceID {
+	return metadata.ResourceID{}
+}
+
+func (r *RunnerWithFailingWatcher) IsUpdateJob() bool {
+	return false
+}
+
 type FailingWatcher struct{}
 
 func (f *FailingWatcher) Complete() bool {
@@ -75,10 +122,26 @@ func (f *FailingRunner) Run() (runner.CompletionWatcher, error) {
 	return nil, errors.New("Failed to run runner")
 }
 
+func (f *FailingRunner) Resource() metadata.ResourceID {
+	return metadata.ResourceID{}
+}
+
+func (f *FailingRunner) IsUpdateJob() bool {
+	return false
+}
+
 type FailingIndexRunner struct{}
 
 func (f *FailingIndexRunner) Run() (runner.CompletionWatcher, error) {
 	return &MockCompletionWatcher{}, nil
+}
+
+func (f *FailingIndexRunner) Resource() metadata.ResourceID {
+	return metadata.ResourceID{}
+}
+
+func (f *FailingIndexRunner) IsUpdateJob() bool {
+	return false
 }
 
 func (f *FailingIndexRunner) SetIndex(index int) error {
@@ -277,5 +340,58 @@ func TestRunnerRunFail(t *testing.T) {
 	t.Setenv("NAME", "test")
 	if err := CreateAndRun(); err == nil {
 		t.Fatalf("Broken watcher does not return error")
+	}
+}
+
+func registerUpdateMockRunnerFactory(resID metadata.ResourceID) error {
+	mockRunner := &MockUpdateRunner{ResourceID: resID}
+	mockFactory := func(config runner.Config) (runner.Runner, error) {
+		return mockRunner, nil
+	}
+	if err := runner.RegisterFactory("test", mockFactory); err != nil {
+		return err
+	}
+	return nil
+}
+
+func TestBasicUpdateRunner(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+	runner.ResetFactoryMap()
+	resourceName := uuid.New().String()
+	resourceVariant := ""
+	resourceType := metadata.FEATURE_VARIANT
+	resourceID := metadata.ResourceID{resourceName, resourceVariant, resourceType}
+	if err := registerUpdateMockRunnerFactory(resourceID); err != nil {
+		t.Fatalf("Error registering mock runner factory: %v", err)
+	}
+	config := runner.Config{}
+	etcdConfig := &coordinator.ETCDConfig{Endpoints: []string{"localhost:2379"}, Username: "root", Password: "secretpassword"}
+	serializedETCD, err := etcdConfig.Serialize()
+	if err != nil {
+		t.Fatalf("Could not serialize etcd config")
+	}
+	t.Setenv("CONFIG", string(config))
+	t.Setenv("NAME", "test")
+	t.Setenv("ETCD_CONFIG", string(serializedETCD))
+	if err := CreateAndRun(); err != nil {
+		t.Fatalf("Error running mock runner: %v", err)
+	}
+	client, err := clientv3.New(clientv3.Config{
+		Endpoints:   []string{"localhost:2379"},
+		Username:    "root",
+		Password:    "secretpassword",
+		DialTimeout: time.Second * 5,
+	})
+	if err != nil {
+		t.Fatalf("Could not connect to etcd client: %v", err)
+	}
+	resp, err := client.Get(context.Background(), fmt.Sprintf("UPDATE_EVENT_%s__%s__%s", resourceName, "", resourceType.String()), clientv3.WithPrefix())
+	if err != nil {
+		t.Fatalf("Error getting event from etcd")
+	}
+	if len(resp.Kvs) != 1 {
+		t.Fatalf("Worker did not set update event on success of scheduled job")
 	}
 }

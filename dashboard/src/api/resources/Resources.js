@@ -36,7 +36,7 @@ export const providerLogos = Object.freeze({
   REDIS: "/Redis_Logo.svg",
   BIGQUERY: "/google_bigquery-ar21.svg",
   "APACHE SPARK": "/Apache_Spark_logo.svg",
-  POSTGRESQL: "Postgresql_elephant.svg",
+  POSTGRES: "Postgresql_elephant.svg",
   SNOWFLAKE: "Snowflake_Logo.svg",
 });
 

@@ -3,7 +3,6 @@ package provider
 import (
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	_ "github.com/lib/pq"
 	"strings"
@@ -22,11 +21,11 @@ const (
 )
 
 type PostgresConfig struct {
-	Host     string
-	Port     string
-	Username string
-	Password string
-	Database string
+	Host     string `json:"Host"`
+	Port     string `json:"Port"`
+	Username string `json:"Username"`
+	Password string `json:"Password"`
+	Database string `json:"Database"`
 }
 
 func (pg *PostgresConfig) Deserialize(config SerializedConfig) error {
@@ -48,7 +47,7 @@ func (pg *PostgresConfig) Serialize() []byte {
 func postgresOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	sc := PostgresConfig{}
 	if err := sc.Deserialize(config); err != nil {
-		return nil, errors.New("invalid snowflake config")
+		return nil, fmt.Errorf("invalid postgres config: %v", config)
 	}
 	queries := postgresSQLQueries{}
 	queries.setVariableBinding(PostgresBindingStyle)
@@ -88,6 +87,7 @@ func (q postgresSQLQueries) registerResources(db *sql.DB, tableName string, sche
 		query = fmt.Sprintf("CREATE VIEW %s AS SELECT %s as entity, %s as value, to_timestamp('%s', 'YYYY-DD-MM HH24:MI:SS +0000 UTC')::TIMESTAMPTZ as ts FROM %s", sanitize(tableName),
 			sanitize(schema.Entity), sanitize(schema.Value), time.UnixMilli(0).UTC(), sanitize(schema.SourceTable))
 	}
+	fmt.Printf("Resource creation query: %s", query)
 	if _, err := db.Exec(query); err != nil {
 		return err
 	}

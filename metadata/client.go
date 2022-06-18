@@ -215,6 +215,7 @@ type FeatureDef struct {
 	Owner       string
 	Description string
 	Provider    string
+	Schedule    string
 	Location    interface{}
 }
 
@@ -251,15 +252,16 @@ func (def FeatureDef) ResourceType() ResourceType {
 
 func (client *Client) CreateFeatureVariant(ctx context.Context, def FeatureDef) error {
 	serialized := &pb.FeatureVariant{
-		Name:        def.Name,
-		Variant:     def.Variant,
-		Source:      def.Source.Serialize(),
-		Type:        def.Type,
-		Entity:      def.Entity,
-		Owner:       def.Owner,
-		Description: def.Description,
-		Status:      &pb.ResourceStatus{Status: pb.ResourceStatus_CREATED},
-		Provider:    def.Provider,
+		Name:         def.Name,
+		Variant:      def.Variant,
+		Source:       def.Source.Serialize(),
+		Type:         def.Type,
+		Entity:       def.Entity,
+		Owner:        def.Owner,
+		Description:  def.Description,
+		Status:       &pb.ResourceStatus{Status: pb.ResourceStatus_CREATED},
+		Provider:     def.Provider,
+		UpdateStatus: &pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: def.Schedule}},
 	}
 	switch x := def.Location.(type) {
 	case ResourceVariantColumns:
@@ -482,6 +484,7 @@ type TrainingSetDef struct {
 	Description string
 	Owner       string
 	Provider    string
+	Schedule    string
 	Label       NameVariant
 	Features    NameVariants
 }
@@ -492,14 +495,15 @@ func (def TrainingSetDef) ResourceType() ResourceType {
 
 func (client *Client) CreateTrainingSetVariant(ctx context.Context, def TrainingSetDef) error {
 	serialized := &pb.TrainingSetVariant{
-		Name:        def.Name,
-		Variant:     def.Variant,
-		Description: def.Description,
-		Owner:       def.Owner,
-		Provider:    def.Provider,
-		Status:      &pb.ResourceStatus{Status: pb.ResourceStatus_CREATED},
-		Label:       def.Label.Serialize(),
-		Features:    def.Features.Serialize(),
+		Name:         def.Name,
+		Variant:      def.Variant,
+		Description:  def.Description,
+		Owner:        def.Owner,
+		Provider:     def.Provider,
+		Status:       &pb.ResourceStatus{Status: pb.ResourceStatus_CREATED},
+		Label:        def.Label.Serialize(),
+		Features:     def.Features.Serialize(),
+		UpdateStatus: &pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: def.Schedule}},
 	}
 	_, err := client.grpcConn.CreateTrainingSetVariant(ctx, serialized)
 	return err
@@ -605,6 +609,7 @@ type SourceDef struct {
 	Description string
 	Owner       string
 	Provider    string
+	Schedule    string
 	Definition  SourceType
 }
 
@@ -704,12 +709,13 @@ func (def SourceDef) ResourceType() ResourceType {
 
 func (client *Client) CreateSourceVariant(ctx context.Context, def SourceDef) error {
 	serialized := &pb.SourceVariant{
-		Name:        def.Name,
-		Variant:     def.Variant,
-		Description: def.Description,
-		Owner:       def.Owner,
-		Status:      &pb.ResourceStatus{Status: pb.ResourceStatus_CREATED},
-		Provider:    def.Provider,
+		Name:         def.Name,
+		Variant:      def.Variant,
+		Description:  def.Description,
+		Owner:        def.Owner,
+		Status:       &pb.ResourceStatus{Status: pb.ResourceStatus_CREATED},
+		Provider:     def.Provider,
+		UpdateStatus: &pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: def.Schedule}},
 	}
 	var err error
 	switch x := def.Definition.(type) {
@@ -737,20 +743,28 @@ func (client *Client) GetSourceVariants(ctx context.Context, ids []NameVariant) 
 	}
 	go func() {
 		for _, id := range ids {
-			stream.Send(&pb.NameVariant{Name: id.Name, Variant: id.Variant})
+			err := stream.Send(&pb.NameVariant{Name: id.Name, Variant: id.Variant})
+			if err != nil {
+				client.Logger.Errorw("Failed to send source variant", "name", id.Name, "variant", id.Variant, "error", err)
+			}
 		}
 		err := stream.CloseSend()
 		if err != nil {
 			client.Logger.Errorw("Failed to close send", "Err", err)
 		}
 	}()
-	return client.parseSourceVariantStream(stream)
+	client.Logger.Debugw("Received Source Variant", "ids", ids)
+	variants, err := client.parseSourceVariantStream(stream)
+	if err != nil {
+		client.Logger.Errorw("Failed to parse source variant stream", "ids", ids)
+	}
+	return variants, err
 }
 
 func (client *Client) GetSourceVariant(ctx context.Context, id NameVariant) (*SourceVariant, error) {
 	variants, err := client.GetSourceVariants(ctx, []NameVariant{id})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get source variant: %w", err)
 	}
 	return variants[0], nil
 }
@@ -784,6 +798,7 @@ func (client *Client) parseSourceVariantStream(stream sourceVariantStream) ([]*S
 		if err == io.EOF {
 			break
 		} else if err != nil {
+			client.Logger.Errorw("Error receiving parsed stream", "error", err)
 			return nil, err
 		}
 		features = append(features, wrapProtoSourceVariant(serial))
@@ -1149,7 +1164,6 @@ func (fn fetchProviderFns) Provider() string {
 }
 
 func (fn fetchProviderFns) FetchProvider(client *Client, ctx context.Context) (*Provider, error) {
-	fmt.Println("Fetching provider")
 	return client.GetProvider(ctx, fn.Provider())
 }
 
@@ -1279,6 +1293,10 @@ func (variant *FeatureVariant) Description() string {
 	return variant.serialized.GetDescription()
 }
 
+func (variant *FeatureVariant) UpdateStatus() *pb.UpdateStatus {
+	return variant.serialized.GetUpdateStatus()
+}
+
 func (variant *FeatureVariant) Variant() string {
 	return variant.serialized.GetVariant()
 }
@@ -1303,7 +1321,10 @@ func (variant *FeatureVariant) Status() ResourceStatus {
 }
 
 func (variant *FeatureVariant) Error() string {
-	return variant.serialized.GetStatus().ErrorMessage
+	if variant.serialized.GetStatus() != nil {
+		return variant.serialized.GetStatus().ErrorMessage
+	}
+	return ""
 }
 
 func (variant *FeatureVariant) Location() interface{} {
@@ -1357,7 +1378,10 @@ func (user *User) Status() ResourceStatus {
 }
 
 func (user *User) Error() string {
-	return user.serialized.GetStatus().ErrorMessage
+	if user.serialized.GetStatus() != nil {
+		return user.serialized.GetStatus().ErrorMessage
+	}
+	return ""
 }
 
 type Provider struct {
@@ -1412,7 +1436,10 @@ func (provider *Provider) Status() ResourceStatus {
 }
 
 func (provider *Provider) Error() string {
-	return provider.serialized.GetStatus().ErrorMessage
+	if provider.serialized.GetStatus() != nil {
+		return provider.serialized.GetStatus().ErrorMessage
+	}
+	return ""
 }
 
 type Model struct {
@@ -1449,7 +1476,10 @@ func (model *Model) Status() ResourceStatus {
 }
 
 func (model *Model) Error() string {
-	return model.serialized.GetStatus().ErrorMessage
+	if model.serialized.GetStatus() != nil {
+		return model.serialized.GetStatus().ErrorMessage
+	}
+	return ""
 }
 
 type Label struct {
@@ -1522,7 +1552,10 @@ func (variant *LabelVariant) Status() ResourceStatus {
 }
 
 func (variant *LabelVariant) Error() string {
-	return variant.serialized.GetStatus().ErrorMessage
+	if variant.serialized.GetStatus() != nil {
+		return variant.serialized.GetStatus().ErrorMessage
+	}
+	return ""
 }
 
 func (variant *LabelVariant) Location() interface{} {
@@ -1583,6 +1616,10 @@ func (variant *TrainingSetVariant) Name() string {
 	return variant.serialized.GetName()
 }
 
+func (variant *TrainingSetVariant) UpdateStatus() *pb.UpdateStatus {
+	return variant.serialized.GetUpdateStatus()
+}
+
 func (variant *TrainingSetVariant) Description() string {
 	return variant.serialized.GetDescription()
 }
@@ -1603,6 +1640,9 @@ func (variant *TrainingSetVariant) Status() ResourceStatus {
 }
 
 func (variant *TrainingSetVariant) Error() string {
+	if variant.serialized.GetStatus() == nil {
+		return ""
+	}
 	return variant.serialized.GetStatus().ErrorMessage
 }
 
@@ -1670,6 +1710,10 @@ func (variant *SourceVariant) Description() string {
 	return variant.serialized.GetDescription()
 }
 
+func (variant *SourceVariant) UpdateStatus() *pb.UpdateStatus {
+	return variant.serialized.GetUpdateStatus()
+}
+
 func (variant *SourceVariant) Definition() interface{} {
 	return variant.serialized.GetDefinition()
 }
@@ -1686,7 +1730,11 @@ func (variant *SourceVariant) Status() ResourceStatus {
 }
 
 func (variant *SourceVariant) Error() string {
+	if variant.serialized.GetStatus() == nil {
+		return ""
+	}
 	return variant.serialized.GetStatus().ErrorMessage
+
 }
 
 func (variant *SourceVariant) IsTransformation() bool {
@@ -1771,6 +1819,9 @@ func (entity *Entity) Status() ResourceStatus {
 }
 
 func (entity *Entity) Error() string {
+	if entity.serialized.GetStatus() == nil {
+		return ""
+	}
 	return entity.serialized.GetStatus().ErrorMessage
 }
 

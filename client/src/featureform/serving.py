@@ -7,13 +7,21 @@ import numpy as np
 from .proto import serving_pb2
 from .proto import serving_pb2_grpc
 import random
+import os
 
 
 class Client:
 
-    def __init__(self, host, tls_verify=False):
+    def __init__(self, host, tls_verify=True, cert_path=None):
+        env_cert_path = os.getenv('FEATUREFORM_CERT')
         if tls_verify:
             credentials = grpc.ssl_channel_credentials()
+            channel = grpc.secure_channel(host, credentials)
+        elif cert_path is not None or env_cert_path is not None:
+            if env_cert_path is not None and cert_path is None:
+                cert_path = env_cert_path
+            with open(cert_path, 'rb') as f:
+                credentials = grpc.ssl_channel_credentials(f.read())
             channel = grpc.secure_channel(host, credentials)
         else:
             channel = grpc.insecure_channel(host, options=(('grpc.enable_http_proxy', 0),))

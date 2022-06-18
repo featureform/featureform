@@ -31,7 +31,7 @@ const PrometheusGraph = ({
   let max = 1000;
   if (query.includes("error")) {
     max = 10;
-  } else if (query_type === "latency" && type === "Training Set") {
+  } else if (query_type === "latency" && type === "TrainingSet") {
     max = 10;
   } else if (query_type === "latency" && type === "Feature") {
     max = 0.1;
@@ -52,11 +52,14 @@ const PrometheusGraph = ({
       const url = `${PROMETHEUS_URL}/api/v1/query_range?query=${query}${add_labels_string}&start=${startTimestamp}&end=${endTimestamp}&step=${step}s`;
       return fetch(url)
         .then((response) => response.json())
-        .then((response) => response["data"])
+        .then((response) => {
+          return response["data"]
+        })
         .catch((err) => console.error(err));
     },
     [query, add_labels_string, remote]
   );
+  
   useEffect(() => {
     var myChart = new Chart(chartRef.current, {
       type: "line",
@@ -93,7 +96,6 @@ const PrometheusGraph = ({
                 autoSkip: true,
                 maxTicksLimit: 8,
                 beginAtZero: true,
-                max: max,
               },
             },
           ],

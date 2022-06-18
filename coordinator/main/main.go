@@ -29,6 +29,15 @@ func main() {
 	if err := runner.RegisterFactory(string(runner.COPY_TO_ONLINE), runner.MaterializedChunkRunnerFactory); err != nil {
 		panic(fmt.Errorf("failed to register training set runner factory: %w", err))
 	}
+	if err := runner.RegisterFactory(string(runner.MATERIALIZE), runner.MaterializeRunnerFactory); err != nil {
+		panic(fmt.Errorf("failed to register training set runner factory: %w", err))
+	}
+	if err := runner.RegisterFactory(string(runner.CREATE_TRANSFORMATION), runner.CreateTransformationRunnerFactory); err != nil {
+		panic(fmt.Errorf("failed to register training set runner factory: %w", err))
+	}
+	if err := runner.RegisterFactory(string(runner.CREATE_TRAINING_SET), runner.TrainingSetRunnerFactory); err != nil {
+		panic(fmt.Errorf("failed to register training set runner factory: %w", err))
+	}
 	if err != nil {
 		panic(err)
 	}
@@ -42,7 +51,7 @@ func main() {
 		panic(err)
 	}
 	logger.Debug("Connected to Metadata")
-	coord, err := coordinator.NewCoordinator(client, logger, cli, &coordinator.KubernetesJobSpawner{})
+	coord, err := coordinator.NewCoordinator(client, logger, cli, &coordinator.MemoryJobSpawner{})
 	if err != nil {
 		logger.Errorw("Failed to set up coordinator: %v", err)
 		panic(err)

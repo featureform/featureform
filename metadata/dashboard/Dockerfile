@@ -15,6 +15,11 @@ COPY ./metadata/*.go ./metadata/
 COPY ./metadata/dashboard/ ./metadata/dashboard/
 COPY ./metadata/search/ ./metadata/search/
 
+RUN go build ./metadata/dashboard/dashboard_metadata.go
+
+FROM golang:1.17-alpine
+
+COPY --from=0 ./app/dashboard_metadata ./dashboard_metadata
 
 EXPOSE 8080
-ENTRYPOINT ["go", "run", "./metadata/dashboard/dashboard_metadata.go"]
+ENTRYPOINT ["./dashboard_metadata"]

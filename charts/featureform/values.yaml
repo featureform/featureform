@@ -76,10 +76,15 @@ tolerations: []
 affinity: {}
 
 global:
-  hostname: ""
+  hostname: "localhost"
   port: 3001
   metadata:
     port: 8080
+  version: ""
+  repo: "featureformcom"
+  pullPolicy: "Always"
+  publicCert: false
+
 
 metadata:
   grpc:
@@ -91,4 +96,6 @@ etcd:
   auth:
     rbac:
       rootPassword: "secretpassword"
+    token:
+      ttl: 100h
   replicaCount: 3

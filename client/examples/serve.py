@@ -1,11 +1,16 @@
 from featureform import ServingClient
 
-serving = ServingClient("localhost:8000")
+serving = ServingClient("localhost:443")
 
-dataset = serving.dataset("f1", "v1")
-b = dataset.batch(5)
-dataset.shuffle(7)
-dataset.repeat(3)
-for r in dataset:
-    print(r)
-print(serving.features([("f1", "v1")], {"user": "a"}))
+dataset = serving.dataset("fraud_training", "quickstart")
+training_dataset = dataset.repeat(10).shuffle(1000).batch(8)
+for i, feature_batch in enumerate(training_dataset):
+    print(feature_batch)
+    if i > 25:
+        break
+    i += 1
+
+
+user_feat = serving.features([("avg_transactions", "quickstart")], {"user": "C1410926"})
+print("\nUser Result: ")
+print(user_feat)

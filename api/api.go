@@ -101,12 +101,19 @@ func (serv *MetadataServer) CreateFeatureVariant(ctx context.Context, feature *p
 func (serv *MetadataServer) CreateLabelVariant(ctx context.Context, label *pb.LabelVariant) (*pb.Empty, error) {
 	serv.Logger.Infow("Creating Label Variant", "name", label.Name, "variant", label.Variant)
 	protoSource := label.Source
+	serv.Logger.Debugw("Finding label source", "name", protoSource.Name, "variant", protoSource.Variant)
 	source, err := serv.client.GetSourceVariant(ctx, metadata.NameVariant{protoSource.Name, protoSource.Variant})
 	if err != nil {
+		serv.Logger.Errorw("Could not create label source variant", "error", err)
 		return nil, err
 	}
 	label.Provider = source.Provider()
-	return serv.meta.CreateLabelVariant(ctx, label)
+	resp, err := serv.meta.CreateLabelVariant(ctx, label)
+	serv.Logger.Debugw("Created label variant", "response", resp)
+	if err != nil {
+		serv.Logger.Errorw("Could not create label variant", "response", resp, "error", err)
+	}
+	return resp, err
 }
 
 func (serv *MetadataServer) CreateTrainingSetVariant(ctx context.Context, train *pb.TrainingSetVariant) (*pb.Empty, error) {

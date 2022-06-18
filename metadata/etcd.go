@@ -34,6 +34,7 @@ type EtcdConfig struct {
 type CoordinatorJob struct {
 	Attempts int
 	Resource ResourceID
+	Schedule string
 }
 
 type CoordinatorScheduleJob struct {
@@ -129,7 +130,7 @@ type EtcdRow struct {
 
 type EtcdRowTemp struct {
 	//ResourceType ResourceType //Resource Type. For use when getting stored keys
-	ResourceType string
+	ResourceType ResourceType
 	StorageType  StorageType //Type of storage. Resource or Job
 	Message      []byte      //Contents to be stored
 }
@@ -289,7 +290,7 @@ func (lookup etcdResourceLookup) serializeResource(res Resource) ([]byte, error)
 		return nil, err
 	}
 	msg := EtcdRowTemp{
-		ResourceType: res.ID().Type.String(),
+		ResourceType: res.ID().Type,
 		Message:      p,
 		StorageType:  RESOURCE,
 	}
@@ -308,7 +309,7 @@ func (lookup etcdResourceLookup) deserialize(value []byte) (EtcdRow, error) {
 		return EtcdRow{}, fmt.Errorf("failed To Parse Resource: %w: %s", err, value)
 	}
 	msg := EtcdRow{
-		ResourceType: ResourceType(pb.ResourceType_value[tmp.ResourceType]),
+		ResourceType: ResourceType(tmp.ResourceType),
 		StorageType:  tmp.StorageType,
 		Message:      tmp.Message,
 	}
@@ -369,13 +370,14 @@ func (lookup etcdResourceLookup) HasJob(id ResourceID) (bool, error) {
 	return true, nil
 }
 
-func (lookup etcdResourceLookup) SetJob(id ResourceID) error {
+func (lookup etcdResourceLookup) SetJob(id ResourceID, schedule string) error {
 	if jobAlreadySet, _ := lookup.HasJob(id); jobAlreadySet {
 		return fmt.Errorf("Job already set")
 	}
 	coordinatorJob := CoordinatorJob{
 		Attempts: 0,
 		Resource: id,
+		Schedule: schedule,
 	}
 	serialized, err := coordinatorJob.Serialize()
 	if err != nil {
@@ -389,7 +391,6 @@ func (lookup etcdResourceLookup) SetJob(id ResourceID) error {
 }
 
 func (lookup etcdResourceLookup) SetSchedule(id ResourceID, schedule string) error {
-
 	coordinatorScheduleJob := CoordinatorScheduleJob{
 		Attempts: 0,
 		Resource: id,

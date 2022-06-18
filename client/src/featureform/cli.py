@@ -64,7 +64,7 @@ def cli():
 
 
 @cli.command()
-@click.argument("files", nargs=-1, required=False, type=click.Path(exists=True))
+@click.argument("files", nargs=-1, required=True, type=click.Path(exists=True))
 @click.option("--host",
               "host",
               required=False,

@@ -144,7 +144,6 @@ class Provider:
         stub.CreateProvider(serialized)
 
     def _create_local(self, db) -> None:
-        # Should we make a new LocalProvider
         db.insert("providers", 
             self.name, 
             "Provider",
@@ -433,20 +432,15 @@ class ResourceState:
         return sorted(self.__state.values(), key=to_sort_key)
 
     def create_all_local(self) -> None:
-        db = SQLiteMetadata()
         # It looks like resource can belong to any class
+        db = SQLiteMetadata()
         for resource in self.__create_list:
-            print("Creating", resource.name)
-            resource._create_local(db)
-            # Looks like we should add the resource to the respective database in _create_local() itself 
-        db.commit_close()
-
+            resource._create_local(db) 
         return
 
     def create_all(self, stub) -> None:
         for resource in self.__create_list:
             try:
-                print("Creating", resource.name)
                 resource._create(stub)
             except grpc.RpcError as e:
                 if e.code() == grpc.StatusCode.ALREADY_EXISTS:

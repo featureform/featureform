@@ -28,10 +28,10 @@ class SyncSQLExecutor:
 
 class SQLiteMetadata:
      def __init__(self):
-          path = '.featureform/SQLiteDB'
-          if not os.path.exists(path):
-               os.makedirs(path)
-          raw_conn = sqlite3.connect(path+'/metadata.db', check_same_thread=False)
+          self.path = '.featureform/SQLiteDB'
+          if not os.path.exists(self.path):
+               os.makedirs(self.path)
+          raw_conn = sqlite3.connect(self.path+'/metadata.db', check_same_thread=False)
           self.__conn = SyncSQLExecutor(raw_conn)
           self.createTables()
 
@@ -164,18 +164,19 @@ class SQLiteMetadata:
           status           text,
           serializedConfig text)''')
 
-          # self.__conn.commit()
-          # self.__conn.close()
+          self.__conn.commit()
 
      # All 3 functions return a cursor, USE THIS
      def getTypeTable(self, type):
           query = "SELECT * FROM " + type
           type_data = self.__conn.execute(query)
+          self.__conn.commit()
           return type_data.fetchall()
 
      def getVariantResource(self, type, variable, resource):
-          variant_table_query = "SELECT * FROM "+ type +" WHERE " + variable + "='"+resource+"';" 
+          variant_table_query = "SELECT * FROM "+ type +" WHERE " + variable + "='"+resource+"';"
           variant_data = self.__conn.execute(variant_table_query)
+          self.__conn.commit()
           return variant_data.fetchall()
 
      def insert(self, tablename, *args):
@@ -183,8 +184,9 @@ class SQLiteMetadata:
           print("Printing the query")
           print(query)
           self.__conn.execute(query)
+          self.__conn.commit()
           print("executed")
 
-     def commit_close(self):
-          self.__conn.commit()
-          self.__conn.close()
+     # def commit_close(self):
+     #      self.__conn.commit()
+     #      self.__conn.close()

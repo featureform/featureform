@@ -104,14 +104,6 @@ class LocalProvider:
 
     def insert_provider(self):
         # Store a new provider row
-        print("printing in insert_provider")
-        print(self.__provider.name)
-        print(self.__provider.description)
-        print(self.__provider.team)
-        print(self.__provider.config.type())
-        print(self.__provider.config.software())
-        print(self.__provider.config.serialize())
-        print(str(self.__provider.config.serialize(), 'utf-8'))
         self.sqldb.insert("providers", 
             self.__provider.name, 
             "Provider",

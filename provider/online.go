@@ -69,10 +69,6 @@ type tableKey struct {
 	feature, variant string
 }
 
-type redisTableKey struct {
-	Prefix, Feature, Variant string
-}
-
 type cassandraTableKey struct {
 	Keyspace, Feature, Variant string
 }
@@ -83,11 +79,6 @@ type CustomError struct {
 
 func (err *CustomError) Error() string {
 	return err.ErrorMessage
-}
-
-func (t redisTableKey) String() string {
-	marshalled, _ := json.Marshal(t)
-	return string(marshalled)
 }
 
 func (t cassandraTableKey) String() string {
@@ -107,12 +98,6 @@ type localOnlineStore struct {
 	BaseProvider
 }
 
-type redisOnlineStore struct {
-	client *redis.Client
-	prefix string
-	BaseProvider
-}
-
 type cassandraOnlineStore struct {
 	session  *gocql.Session
 	keyspace string
@@ -129,17 +114,6 @@ func NewLocalOnlineStore() *localOnlineStore {
 	}
 }
 
-func redisOnlineStoreFactory(serialized SerializedConfig) (Provider, error) {
-	redisConfig := &RedisConfig{}
-	if err := redisConfig.Deserialize(serialized); err != nil {
-		return nil, err
-	}
-	if redisConfig.Prefix == "" {
-		redisConfig.Prefix = "Featureform_table__"
-	}
-	return NewRedisOnlineStore(redisConfig), nil
-}
-
 func cassandraOnlineStoreFactory(serialized SerializedConfig) (Provider, error) {
 	cassandraConfig := &CassandraConfig{}
 	if err := cassandraConfig.Deserialize(serialized); err != nil {
@@ -150,18 +124,6 @@ func cassandraOnlineStoreFactory(serialized SerializedConfig) (Provider, error) 
 	}
 
 	return NewCassandraOnlineStore(cassandraConfig)
-}
-
-func NewRedisOnlineStore(options *RedisConfig) *redisOnlineStore {
-	redisOptions := &redis.Options{
-		Addr: options.Addr,
-	}
-	redisClient := redis.NewClient(redisOptions)
-	return &redisOnlineStore{redisClient, options.Prefix, BaseProvider{
-		ProviderType:   RedisOnline,
-		ProviderConfig: options.Serialized(),
-	},
-	}
 }
 
 func NewCassandraOnlineStore(options *CassandraConfig) (*cassandraOnlineStore, error) {
@@ -197,10 +159,6 @@ func (store *localOnlineStore) AsOnlineStore() (OnlineStore, error) {
 	return store, nil
 }
 
-func (store *redisOnlineStore) AsOnlineStore() (OnlineStore, error) {
-	return store, nil
-}
-
 func (store *cassandraOnlineStore) AsOnlineStore() (OnlineStore, error) {
 	return store, nil
 }
@@ -211,34 +169,6 @@ func (store *localOnlineStore) GetTable(feature, variant string) (OnlineStoreTab
 		return nil, &TableNotFound{feature, variant}
 	}
 	return table, nil
-}
-
-func (store *redisOnlineStore) GetTable(feature, variant string) (OnlineStoreTable, error) {
-	key := redisTableKey{store.prefix, feature, variant}
-	vType, err := store.client.HGet(ctx, fmt.Sprintf("%s__tables", store.prefix), key.String()).Result()
-
-	if err != nil {
-		return nil, &TableNotFound{feature, variant}
-	}
-	table := &redisOnlineTable{client: store.client, key: key, valueType: ValueType(vType)}
-	return table, nil
-}
-
-func (store *redisOnlineStore) CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error) {
-	key := redisTableKey{store.prefix, feature, variant}
-	exists, err := store.client.HExists(ctx, fmt.Sprintf("%s__tables", store.prefix), key.String()).Result()
-	if err != nil {
-		return nil, err
-	}
-	if exists {
-		return nil, &TableAlreadyExists{feature, variant}
-	}
-	if err := store.client.HSet(ctx, fmt.Sprintf("%s__tables", store.prefix), key.String(), string(valueType)).Err(); err != nil {
-		return nil, err
-	}
-	table := &redisOnlineTable{client: store.client, key: key, valueType: valueType}
-	return table, nil
-
 }
 
 func (store *cassandraOnlineStore) CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error) {
@@ -310,60 +240,6 @@ func (store *localOnlineStore) CreateTable(feature, variant string, valueType Va
 }
 
 type localOnlineTable map[string]interface{}
-
-type redisOnlineTable struct {
-	client    *redis.Client
-	key       redisTableKey
-	valueType ValueType
-}
-
-func (table redisOnlineTable) Set(entity string, value interface{}) error {
-	val := table.client.HSet(ctx, table.key.String(), entity, value)
-	if val.Err() != nil {
-		return val.Err()
-	}
-	return nil
-}
-
-func (table redisOnlineTable) Get(entity string) (interface{}, error) {
-	val := table.client.HGet(ctx, table.key.String(), entity)
-	if val.Err() != nil {
-		return nil, &EntityNotFound{entity}
-	}
-	var result interface{}
-	var err error
-	switch table.valueType {
-	case NilType, String:
-		result, err = val.Result()
-	case Int:
-		result, err = val.Int()
-	case Int64:
-		result, err = val.Int64()
-	case Float32:
-		result, err = val.Float32()
-	case Float64:
-		result, err = val.Float64()
-	case Bool:
-		result, err = val.Bool()
-	}
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
-}
-
-func (table cassandraOnlineTable) Set(entity string, value interface{}) error {
-
-	key := table.key
-	tableName := fmt.Sprintf("%s.table%s", key.Keyspace, sn.Custom(key.Feature, "[^a-zA-Z0-9_]"))
-	query := fmt.Sprintf("INSERT INTO %s (entity, value) VALUES (?, ?)", tableName)
-	err := table.session.Query(query, entity, value).WithContext(ctx).Exec()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
 
 func (table cassandraOnlineTable) Get(entity string) (interface{}, error) {
 

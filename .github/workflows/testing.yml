@@ -510,15 +510,10 @@ jobs:
       - uses: actions/checkout@v2
       - name: Start minikube
         uses: medyagh/setup-minikube@master
-      - name: Install Helm
-        uses: azure/setup-helm@v1
-        id: install
-      - name: Add bitnami and deploy postgres chart
-        run: |
-          helm repo add bitnami <https://charts.bitnami.com/bitnami>
-          helm repo update
-          helm install postgresql-test -f coordinator/schedulepod/values.yaml bitnami/postgresql
-          helm install redis-test bitnami/redis
+      - name: Set up Postgres deployment on Minikube
+        run: kubectl apply -f coordinator/schedulepod/postgres
+      - name: Set up Redis deployment on Minikube
+        run: kubectl apply -f coordinator/schedulepod/redis
       - name: Get pods in the cluster
         run: kubectl get pods -A
       - name: Get deployments in cluster

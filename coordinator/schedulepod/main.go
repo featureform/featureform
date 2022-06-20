@@ -63,10 +63,9 @@ var testOfflineTableValues = [...]provider.ResourceRecord{
 var postgresConfig = provider.PostgresConfig{
 	Host:            "localhost",
 	Port:            "5432",
-	Database:        "app_db",
-	Username:        "app1",
-	Password:        "AppPassword",
-	PostgresPassword: "StrongPassword",
+	Database:        "postgresdb",
+	Username:        "postgresadmin",
+	Password:        "admin123",
 	// Database: os.Getenv("POSTGRES_DB"),
 	// Username: os.Getenv("POSTGRES_USER"),
 	// Password: os.Getenv("POSTGRES_PASSWORD"),

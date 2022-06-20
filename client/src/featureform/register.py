@@ -3,6 +3,7 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 from distutils.command.config import config
+from typing_extensions import Self
 from .resources import ResourceState, Provider, RedisConfig, LocalConfig, PostgresConfig, SnowflakeConfig, User, Location, Source, \
     PrimaryData, SQLTable, SQLTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet, RedshiftConfig
 from typing import Tuple, Callable, TypedDict, List, Union
@@ -11,6 +12,7 @@ import grpc
 import os
 from .proto import metadata_pb2_grpc as ff_grpc
 from .sqlite_metadata import SQLiteMetadata
+import time
 
 NameVariant = Tuple[str, str]
 
@@ -101,9 +103,15 @@ class LocalProvider:
     def name(self) -> str:
         return self.__provider.name
 
-    def register_file(self, file_name):
+    def register_file(self, name, variant, description, path):
         # Store the file as a source
-        self.sqldb.insert("sources", "created", "default", file_name)  
+        time_created = str(time.time())
+        self.sqldb.insert("sources", time_created, "default", name) 
+        self.sqldb.insert("source_variant", time_created, description, name,
+         "sourcetype", "owner", self.name(), variant, "ready", path)
+         # Where the definition = path
+
+        return LocalSource(self.__registrar, name, "owner", variant, self.name(), description)
 
     def insert_provider(self):
         # Store a new provider row
@@ -138,6 +146,68 @@ class ColumnMapping(TypedDict):
     variant: str
     column: str
     resource_type: str
+
+class LocalSource:
+    def __init__(self,
+                 registrar,
+                 name: str,
+                 owner: str,
+                 variant: str,
+                 provider: str,
+                 description: str = ""):
+        self.registrar = registrar
+        self.name = name
+        self.variant = variant
+        self.owner = owner
+        self.provider = provider
+        self.description = description
+
+    def __call__(self, fn: Callable[[], str]):
+        if self.description == "":
+            self.description = fn.__doc__
+        if self.name == "":
+            self.name = fn.__name__
+        self.__set_query(fn())
+        fn.register_resources = self.register_resources
+        return fn
+
+    # @typechecked
+    # def __set_query(self, query: str):
+    #     if query == "":
+    #         raise ValueError("Query cannot be an empty string")
+    #     self.query = query
+
+    # def to_source(self) -> Source:
+    #     return Source(
+    #         name=self.name,
+    #         variant=self.variant,
+    #         definition=SQLTransformation(self.query),
+    #         owner=self.owner,
+    #         provider=self.provider,
+    #         description=self.description,
+    #     )
+
+    def register_resources(
+            self,
+            entity: Union[str, EntityRegistrar],
+            entity_column: str,
+            owner: Union[str, UserRegistrar] = "",
+            inference_store: Union[str, OnlineProvider] = "",
+            features: List[ColumnMapping] = None,
+            labels: List[ColumnMapping] = None,
+            timestamp_column: str = ""
+    ):
+        return self.registrar.register_column_resources(
+            source=(self.name, self.variant),
+            entity=entity,
+            entity_column=entity_column,
+            owner=owner,
+            inference_store=inference_store,
+            features=features,
+            labels=labels,
+            timestamp_column=timestamp_column,
+            description=self.description,
+        )
 
 
 class SQLTransformationDecorator:

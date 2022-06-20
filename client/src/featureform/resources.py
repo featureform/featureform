@@ -4,7 +4,7 @@
 
 # cofigure.py like definitions.py train.py tests to set the end state - quick start tests
 # use iris model fro serving (serving means reading python files and parsing the data in the backend)
-from time import time
+import time
 from typing import List, Tuple, Union
 from typeguard import typechecked
 from dataclasses import dataclass
@@ -395,7 +395,7 @@ class Feature:
 
     def _create_local(self, db) -> None:
         db.insert("feature_variant",
-        time.time().String(),
+        str(time.time()),
         self.description,
         self.entity,
         self.name, 
@@ -454,8 +454,8 @@ class Label:
         stub.CreateLabelVariant(serialized)
 
     def _create_local(self, db) -> None:
-        db.insert("feature_variant",
-        time.time().String(),
+        db.insert("labels_variant",
+        str(time.time()),
         self.description,
         self.entity,
         self.name, 
@@ -530,7 +530,7 @@ class TrainingSet:
         self.owner,
         # "Provider",
         self.variant,
-        self.label,
+        str(self.label),
          "ready"
         )
         self._create_training_set_resource(db)

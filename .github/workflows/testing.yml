@@ -459,6 +459,12 @@ jobs:
     name: API Testing
     needs: setup
     runs-on: ubuntu-latest
+    env:
+      API_PORT: 7878
+      METADATA_HOST: "featureform-metadata-server"
+      METADATA_PORT: 8080
+      SERVING_HOST: "featureform-feature-server"
+      SERVING_PORT: 8080
 
     steps:
       - name: Download Working Compiled Directories

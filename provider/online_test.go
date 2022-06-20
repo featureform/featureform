@@ -6,11 +6,11 @@ package provider
 
 import (
 	"fmt"
+	"github.com/alicebob/miniredis"
+	"github.com/google/uuid"
 	"os"
 	"reflect"
 	"testing"
-	"github.com/alicebob/miniredis"
-	"github.com/google/uuid"
 )
 
 func mockRedis() *miniredis.Miniredis {

@@ -39,6 +39,26 @@ class RedisConfig:
         }
         return bytes(json.dumps(config), "utf-8")
 
+@typechecked
+@dataclass
+class FirestoreConfig:
+    collection: str
+    project_id: str
+    credentials: bytearray
+
+    def software(self) -> str:
+        return "firestore"
+
+    def type(self) -> str:
+        return "FIRESTORE_ONLINE"
+
+    def serialize(self) -> bytes:
+        config = {
+            "Collection": {self.collection},
+            "Project ID": self.project_id,
+            "Credentials": self.credentials,
+        }
+        return bytes(json.dumps(config), "utf-8")
 
 @typechecked
 @dataclass

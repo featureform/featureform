@@ -2,7 +2,8 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-from .resources import ResourceState, Provider, RedisConfig, PostgresConfig, SnowflakeConfig, User, Location, Source, \
+from numpy import byte
+from .resources import ResourceState, Provider, RedisConfig, FirestoreConfig, PostgresConfig, SnowflakeConfig, User, Location, Source, \
     PrimaryData, SQLTable, SQLTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet
 from typing import Tuple, Callable, TypedDict, List, Union
 from typeguard import typechecked, check_type
@@ -281,6 +282,23 @@ class Registrar:
                        password: str = "",
                        db: int = 0):
         config = RedisConfig(host=host, port=port, password=password, db=db)
+        provider = Provider(name=name,
+                            function="ONLINE",
+                            description=description,
+                            team=team,
+                            config=config)
+        self.__resources.append(provider)
+        return OnlineProvider(self, provider)
+
+    def register_firestore(self,
+                       name: str,
+                       description: str = "",
+                       team: str = "",
+                       collection: str = "",
+                       project_id: str = "",
+                       credentials: bytearray = []
+                       ):
+        config = FirestoreConfig(collection=collection, project_id=project_id, credentials=credentials)
         provider = Provider(name=name,
                             function="ONLINE",
                             description=description,

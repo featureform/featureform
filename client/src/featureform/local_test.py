@@ -2,7 +2,7 @@ import featureform as ff
 
 local = ff.register_local()
 
-local.register_file(
+iris = local.register_file(
     name = "Iris dataset",
     variant = "Kaggle",
     description = "Iris dataset from Kaggle",
@@ -12,22 +12,20 @@ local.register_file(
 ff.register_user("featureformer").make_default_owner()
 
 user_entity = ff.register_entity("flower")
-# Register a feature
-local.register_resources(
+
+# Register a feature and a label
+iris.register_resources(
     entity=user_entity,
     entity_column="Id",
     inference_store=local,
     features=[
         {"name": "SepalLength", "variant": "centimeters", "column": "SepalLengthCm", "type": "float64"},
     ],
-)
-# Register a label
-local.register_resources(
-    entity=user_entity,
-    entity_column="Id",
+    
     labels=[
         {"name": "SpeciesType", "variant": "String", "column": "Species", "type": "string"},
     ],
+
 )
 
 ff.register_training_set(

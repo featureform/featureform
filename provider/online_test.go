@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -64,7 +65,12 @@ func TestOnlineStores(t *testing.T) {
 	//Firestore
 	projectID := os.Getenv("FIRESTORE_PROJECT")
 	firestoreCredentials := os.Getenv("FIRESTORE_CRED")
-	JSONCredentials, err := ioutil.ReadFile(firestoreCredentials)
+	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	if err != nil {
+		panic(err)
+	}
+	path := filepath.Join(dir, firestoreCredentials)
+	JSONCredentials, err := ioutil.ReadFile(path)
 	if err != nil {
 		panic(err)
 	}

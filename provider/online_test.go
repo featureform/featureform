@@ -63,6 +63,14 @@ func TestOnlineStores(t *testing.T) {
 	//}
 
 	//Firestore
+	files, err := ioutil.ReadDir("./")
+	if err != nil {
+		panic(err)
+	}
+
+	for _, file := range files {
+		fmt.Println(file.Name(), file.IsDir())
+	}
 	projectID := os.Getenv("FIRESTORE_PROJECT")
 	firestoreCredentials := os.Getenv("FIRESTORE_CRED")
 	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))

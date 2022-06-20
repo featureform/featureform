@@ -500,7 +500,7 @@ jobs:
           API_PORT: 7878
           METADATA_HOST: "featureform-metadata-server"
           METADATA_PORT: 8080
-          SERVING_HOST:  "featureform-metadata-server"
+          SERVING_HOST:  "featureform-feature-server"
           SERVING_PORT: 8080
         run: go run api.go &
 

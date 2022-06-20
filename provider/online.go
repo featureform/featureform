@@ -7,6 +7,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"encoding/json"
 	"github.com/go-redis/redis/v8"
 	"github.com/gocql/gocql"
 	sn "github.com/mrz1836/go-sanitize"
@@ -240,6 +241,25 @@ func (store *localOnlineStore) CreateTable(feature, variant string, valueType Va
 }
 
 type localOnlineTable map[string]interface{}
+
+type redisOnlineTable struct {
+	client    *redis.Client
+	key       redisTableKey
+	valueType ValueType
+}
+
+func (table cassandraOnlineTable) Set(entity string, value interface{}) error {
+
+	key := table.key
+	tableName := fmt.Sprintf("%s.table%s", key.Keyspace, sn.Custom(key.Feature, "[^a-zA-Z0-9_]"))
+	query := fmt.Sprintf("INSERT INTO %s (entity, value) VALUES (?, ?)", tableName)
+	err := table.session.Query(query, entity, value).WithContext(ctx).Exec()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 
 func (table cassandraOnlineTable) Get(entity string) (interface{}, error) {
 

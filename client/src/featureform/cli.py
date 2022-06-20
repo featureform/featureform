@@ -43,8 +43,8 @@ def cli():
 #     """list resources of a given type.
 #     """
 #     pass
-# 
-# 
+#
+#
 # @cli.command()
 # @click.argument("resource_type",
 #                 type=click.Choice(resource_types, case_sensitive=False))
@@ -53,8 +53,8 @@ def cli():
 #     """get resources of a given type.
 #     """
 #     pass
-# 
-# 
+#
+#
 # @cli.command()
 # @click.argument("files", nargs=-1, required=True, type=click.Path(exists=True))
 # def plan(files):
@@ -80,29 +80,39 @@ def cli():
               is_flag=True,
               help="Enable local mode")
 
+def TlsChecker(host, cert, insecure):
+    if insecure:
+        channel = grpc.insecure_channel(
+            host, options=(('grpc.enable_http_proxy', 0),))
+    elif cert != None or os.getenv('FEATUREFORM_HOST') != None:
+        if os.getenv('FEATUREFORM_CERT') != None and cert == None:
+            cert = os.getenv('FEATUREFORM_CERT')
+        with open(cert, 'rb') as f:
+            credentials = grpc.ssl_channel_credentials(f.read())
+        channel = grpc.secure_channel(host, credentials)
+    else:
+        credentials = grpc.ssl_channel_credentials()
+        channel = grpc.secure_channel(host, credentials)
+    return channel
+
+
 def apply(host, cert, insecure, local, files):
     if local:
-        if host is not None:
+        if host != None:
             raise ValueError("Cannot be local and have a host")
-    else:
-        if host is None and not local:
-            host = os.getenv('FEATUREFORM_HOST')
-            if host is None:
-                raise ValueError("Host value must be set in env or with --host flag")
-        if insecure:
-            channel = grpc.insecure_channel(host, options=(('grpc.enable_http_proxy', 0),))
-        elif cert != None: # or os.getenv('FEATUREFORM_HOST') !=None:
-            if os.getenv('FEATUREFORM_CERT') != None: # and cert == None:
-                cert = os.getenv('FEATUREFORM_CERT')
-            with open(cert, 'rb') as f:
-                credentials = grpc.ssl_channel_credentials(f.read())
-            channel = grpc.secure_channel(host, credentials)
-        else:
-            credentials = grpc.ssl_channel_credentials()
-            channel = grpc.secure_channel(host, credentials)
+    
+    elif host == None:
+        host = os.getenv('FEATUREFORM_HOST')
+        if host == None:
+            raise ValueError(
+                "Host value must be set in env or with --host flag")
+
+    channel = TlsChecker(host, cert, insecure)
+
     for file in files:
         with open(file, "r") as py:
             exec(py.read())
+    
     if local:
         register.state().create_all_local()
     # else:

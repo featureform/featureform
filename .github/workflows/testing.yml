@@ -164,7 +164,7 @@ jobs:
           FIRESTORE_CRED: "firestore_credentials.json"
           FIRESTORE_PROJECT: ${{ secrets.FIRESTORE_PROJECT }}
         working-directory: ./
-        run: go test -v -run TestOnlineStores -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/...
+        run: go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/...
 
       - name: Convert Coverage Test Results
         if: always()

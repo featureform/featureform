@@ -46,7 +46,6 @@ class RedisConfig:
 @typechecked
 @dataclass
 class LocalConfig:
-    path: str
 
     def software(self) -> str:
         return "localmode"
@@ -56,7 +55,6 @@ class LocalConfig:
 
     def serialize(self) -> bytes:
         config = {
-            "Path": self.path
         }
         return bytes(json.dumps(config), "utf-8")
 

@@ -152,7 +152,7 @@ jobs:
         id: create-json
         uses: jsdaniell/create-json@1.1.2
         with:
-          name: "firestore_credentials.json"
+          name: "./provider/firestore_credentials.json"
           json: ${{ secrets.FIRESTORE_CREDENTIALS_FILE }}
 
       - name: Testing
@@ -161,7 +161,7 @@ jobs:
           SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
           SNOWFLAKE_ORG: ${{ secrets.SNOWFLAKE_ORG }}
           SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
-          FIRESTORE_CRED: firestore_credentials.json
+          FIRESTORE_CRED: "firestore_credentials.json"
           FIRESTORE_PROJECT: ${{ secrets.FIRESTORE_PROJECT }}
         working-directory: ./
         run: go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/...
@@ -494,9 +494,15 @@ jobs:
          working-directory: ./api
          run: go build
 
-       - name: Start API Server
-         working-directory: ./api
-         run: go run api.go &
+      - name: Start API Server
+        working-directory: ./api
+        env:
+          API_PORT: 7878
+          METADATA_HOST: "featureform-metadata-server"
+          METADATA_PORT: 8080
+          SERVING_HOST:  "featureform-feature-server"
+          SERVING_PORT: 8080
+        run: go run api.go &
 
        - name: Install python dependencies
          working-directory: ./

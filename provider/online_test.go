@@ -6,13 +6,13 @@ package provider
 
 import (
 	"fmt"
+	"github.com/gocql/gocql"
 	"io/ioutil"
 	"os"
 	"reflect"
 	"testing"
 
 	"github.com/alicebob/miniredis"
-	"github.com/gocql/gocql"
 	"github.com/google/uuid"
 )
 
@@ -65,8 +65,10 @@ func TestOnlineStores(t *testing.T) {
 	//Firestore
 	projectID := os.Getenv("FIRESTORE_PROJECT")
 	firestoreCredentials := os.Getenv("FIRESTORE_CRED")
-	JSONCredentials, _ := ioutil.ReadFile(firestoreCredentials)
-
+	JSONCredentials, err := ioutil.ReadFile(firestoreCredentials)
+	if err != nil {
+		panic(err)
+	}
 	firestoreConfig := &FirestoreConfig{
 		ProjectID:   projectID,
 		Credentials: JSONCredentials,

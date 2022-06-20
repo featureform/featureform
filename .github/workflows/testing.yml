@@ -155,6 +155,9 @@ jobs:
           name: "firestore_credentials.json"
           json: ${{ secrets.FIRESTORE_CREDENTIALS_FILE }}
 
+      - name: Check Credentials
+        run: cat firestore_credentials.json
+
       - name: Testing
         env:
           SNOWFLAKE_USERNAME: ${{ secrets.SNOWFLAKE_USERNAME }}

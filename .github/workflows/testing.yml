@@ -302,6 +302,15 @@ jobs:
         with:
           go-version: 1.17
 
+      - name: Install ETCD
+        run: |
+          git clone -b v3.4.16 https://github.com/etcd-io/etcd.git
+          cd etcd
+          ./build
+          export PATH="$PATH:`pwd`/bin"
+          etcd --version
+          etcd --logger=zap &
+
       - name: Make Coverage Directory
         working-directory: ./
         run: mkdir coverage

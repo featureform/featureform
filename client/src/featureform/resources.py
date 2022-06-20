@@ -4,6 +4,7 @@
 
 # cofigure.py like definitions.py train.py tests to set the end state - quick start tests
 # use iris model fro serving (serving means reading python files and parsing the data in the backend)
+from time import time
 from typing import List, Tuple, Union
 from typeguard import typechecked
 from dataclasses import dataclass
@@ -152,7 +153,7 @@ class Provider:
             self.config.software(),
             self.team,
             "sources",
-            "status",
+            "ready",
             str(self.config.serialize(), 'utf-8')
             )
 
@@ -168,6 +169,13 @@ class User:
     def _create(self, stub) -> None:
         serialized = pb.User(name=self.name)
         stub.CreateUser(serialized)
+
+    def _create_local(self, db) -> None:
+        db.insert("users", 
+            self.name, 
+            "User",
+            "ready"
+            )
 
 
 @typechecked
@@ -241,6 +249,21 @@ class Source:
         )
         stub.CreateSourceVariant(serialized)
 
+    def _create_local(self, db) -> None:
+        db.insert("sources",  
+            "Source",
+            "defaultVariant",
+            self.name
+            )
+        self._create_source_resource(db)
+
+    def _create_source_resource(self, db) -> None:
+        db.insert(
+            "sources",
+            "type",
+            self.variant,
+            self.name
+        )
 
 @typechecked
 @dataclass
@@ -259,6 +282,13 @@ class Entity:
         )
         stub.CreateEntity(serialized)
 
+    def _create_local(self, db) -> None:
+        db.insert("entities",
+        self.name,  
+        "Entity",
+        self.description,
+        "ready"
+        )
 
 @typechecked
 @dataclass
@@ -312,6 +342,33 @@ class Feature:
         )
         stub.CreateFeatureVariant(serialized)
 
+    def _create_local(self, db) -> None:
+        db.insert("feature_variant",
+        time.time().String(),
+        self.description,
+        self.entity,
+        self.name, 
+        self.owner,
+        self.provider,
+        self.value_type,
+        self.variant,
+        "ready",
+        self.location.entity,
+        self.location.timestamp,
+        self.location.value,
+        self.source[0],
+        self.source[1]
+        )
+        self._create_feature_resource(db)
+
+    def _create_feature_resource(self, db) -> None:
+        db.insert(
+            "features",
+            self.name,
+            self.variant,
+            self.value_type
+        )
+
 
 @typechecked
 @dataclass
@@ -344,6 +401,31 @@ class Label:
             columns=self.location.proto(),
         )
         stub.CreateLabelVariant(serialized)
+
+    def _create_local(self, db) -> None:
+        db.insert("feature_variant",
+        time.time().String(),
+        self.description,
+        self.entity,
+        self.name, 
+        self.owner,
+        # "Provider",
+        self.value_type,
+        self.variant,
+        self.location.entity,
+        self.location.timestamp,
+        self.location.value,
+         "ready"
+        )
+        self._create_label_resource(db)
+
+    def _create_label_resource(self, db) -> None:
+        db.insert(
+            "labels",
+            self.value_type,
+            self.variant,
+            self.name
+        )
 
 
 @typechecked
@@ -381,6 +463,27 @@ class TrainingSet:
             label=pb.NameVariant(name=self.label[0], variant=self.label[1]),
         )
         stub.CreateTrainingSetVariant(serialized)
+
+    def _create_local(self, db) -> None:
+        db.insert("training_set_variant",
+        "text",
+        self.description,
+        self.name, 
+        self.owner,
+        # "Provider",
+        self.variant,
+        self.label,
+         "ready"
+        )
+        self._create_training_set_resource(db)
+
+    def _create_training_set_resource(self, db) -> None:
+        db.insert(
+            "training_sets",
+            "type",
+            self.variant,
+            self.name
+        )
 
 
 Resource = Union[PrimaryData, Provider, Entity, User, Feature, Label,
@@ -432,7 +535,6 @@ class ResourceState:
         return sorted(self.__state.values(), key=to_sort_key)
 
     def create_all_local(self) -> None:
-        # It looks like resource can belong to any class
         db = SQLiteMetadata()
         for resource in self.__create_list:
             resource._create_local(db) 

@@ -222,7 +222,7 @@ jobs:
           minikube image ls
 
       - name: Helm Install
-        run: helm install featureform ./charts/featureform --set global.repo=local --global.pullPolicy=Never
+        run: helm install featureform ./charts/featureform --set global.repo=local --set global.pullPolicy=Never
 
       - name: Sleep for 1 minute
         run: sleep 60s

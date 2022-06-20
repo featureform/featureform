@@ -158,6 +158,13 @@ jobs:
       - name: Check Credentials
         run: cat firestore_credentials.json
 
+      - name: Archive creds file
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: creds-test
+          path: firestore_credentials.json
+
       - name: Testing
         env:
           SNOWFLAKE_USERNAME: ${{ secrets.SNOWFLAKE_USERNAME }}

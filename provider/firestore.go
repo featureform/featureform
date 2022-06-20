@@ -6,6 +6,7 @@ package provider
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"cloud.google.com/go/firestore"
 	"google.golang.org/api/option"
@@ -49,7 +50,10 @@ func firestoreOnlineStoreFactory(serialized SerializedConfig) (Provider, error) 
 }
 
 func NewFirestoreOnlineStore(options *FirestoreConfig) (*firestoreOnlineStore, error) {
-
+	fmt.Println(options.Credentials)
+	var creds map[string]interface{}
+	err := json.Unmarshal(options.Credentials, &creds)
+	fmt.Println(creds)
 	firestoreClient, err := firestore.NewClient(ctx, options.ProjectID, option.WithCredentialsJSON(options.Credentials))
 	if err != nil {
 		return nil, err

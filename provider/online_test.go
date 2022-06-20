@@ -65,7 +65,7 @@ func TestOnlineStores(t *testing.T) {
 	projectID := os.Getenv("FIRESTORE_PROJECT")
 	firestoreCredentials := os.Getenv("FIRESTORE_CRED")
 	JSONCredentials, _ := ioutil.ReadFile(firestoreCredentials)
-
+	fmt.Println(JSONCredentials)
 	firestoreConfig := &FirestoreConfig{
 		ProjectID:   projectID,
 		Credentials: JSONCredentials,

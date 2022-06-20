@@ -70,20 +70,13 @@ require (
 	github.com/go-playground/locales v0.14.0 // indirect
 	github.com/go-playground/universal-translator v0.18.0 // indirect
 	github.com/go-playground/validator/v10 v10.9.0 // indirect
-	github.com/gocql/gocql v1.1.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
-	github.com/golang/snappy v0.0.3 // indirect
 	github.com/gomodule/redigo v1.8.8 // indirect
 	github.com/google/flatbuffers v2.0.6+incompatible // indirect
 	github.com/google/go-cmp v0.5.8 // indirect
 	github.com/google/gofuzz v1.1.0 // indirect
 	github.com/googleapis/gnostic v0.5.5 // indirect
-	github.com/hailocab/go-hostpool v0.0.0-20160125115350-e80d13ce29ed // indirect
-	github.com/imdario/mergo v0.3.12 // indirect
-	github.com/gomodule/redigo v1.8.8 // indirect
-	github.com/google/flatbuffers v2.0.6+incompatible // indirect
-	github.com/gorhill/cronexpr v0.0.0-20180427100037-88b0669f7d75 // indirect
 	github.com/gorhill/cronexpr v0.0.0-20180427100037-88b0669f7d75
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
 	github.com/jackc/pgconn v1.11.0 // indirect
@@ -110,8 +103,6 @@ require (
 	github.com/prometheus/procfs v0.7.3 // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/sony/gobreaker v0.5.0 // indirect
-	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/ugorji/go/codec v1.2.6 // indirect
 	github.com/stoicperlman/fls v0.0.0-20171222144224-f073b7a01081
 	github.com/ugorji/go/codec v1.2.6 // indirect
 	github.com/yuin/gopher-lua v0.0.0-20210529063254-f4c35e4016d9 // indirect
@@ -139,19 +130,8 @@ require (
 )
 
 require (
-	github.com/alicebob/gopher-json v0.0.0-20200520072559-a9ecdc9d1d3a // indirect
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.11.4 // indirect
-	github.com/gomodule/redigo v1.8.8 // indirect
-	github.com/google/flatbuffers v2.0.6+incompatible // indirect
-	github.com/gorhill/cronexpr v0.0.0-20180427100037-88b0669f7d75
 	github.com/klauspost/compress v1.15.1 // indirect
-	github.com/lib/pq v1.10.4
-	github.com/mattn/go-ieproxy v0.0.3 // indirect
-	github.com/pierrec/lz4/v4 v4.1.14 // indirect
-	github.com/yuin/gopher-lua v0.0.0-20210529063254-f4c35e4016d9 // indirect
-	go.etcd.io/etcd/api/v3 v3.5.2
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.7.0 // indirect
-	golang.org/x/sys v0.0.0-20220408201424-a24fb2fb8a0f // indirect
-	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
 )

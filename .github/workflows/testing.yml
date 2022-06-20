@@ -164,10 +164,12 @@ jobs:
           SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
           SNOWFLAKE_ORG: ${{ secrets.SNOWFLAKE_ORG }}
           SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
-          FIRESTORE_CRED: firestore_credentials.json
+          FIRESTORE_CRED: "firestore_credentials.json"
           FIRESTORE_PROJECT: ${{ secrets.FIRESTORE_PROJECT }}
         working-directory: ./
-        run: go test -v -run TestOnlineStores -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/...
+        run: |
+          ls
+          go test -v -run TestOnlineStores -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/...
 
       - name: Convert Coverage Test Results
         if: always()

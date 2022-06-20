@@ -6,6 +6,7 @@ package provider
 
 import (
 	"fmt"
+	"github.com/gocql/gocql"
 	"io/ioutil"
 	"os"
 	"reflect"
@@ -39,37 +40,29 @@ func TestOnlineStores(t *testing.T) {
 		"TypeCasting":        testTypeCasting,
 	}
 
-	////Redis (Mock)
-	//miniRedis := mockRedis()
-	//defer miniRedis.Close()
-	//mockRedisAddr := miniRedis.Addr()
-	//redisMockConfig := &RedisConfig{
-	//	Addr: mockRedisAddr,
-	//}
-	//
-	////Redis (Live)
-	//redisPort := os.Getenv("REDIS_PORT")
-	//liveAddr := fmt.Sprintf("%s:%s", "localhost", redisPort)
-	//redisLiveConfig := &RedisConfig{
-	//	Addr: liveAddr,
-	//}
-	//
-	////Cassandra
-	//cassandraAddr := "localhost:9042"
-	//cassandraConfig := &CassandraConfig{
-	//	Addr:        cassandraAddr,
-	//	Consistency: gocql.One,
-	//}
+	//Redis (Mock)
+	miniRedis := mockRedis()
+	defer miniRedis.Close()
+	mockRedisAddr := miniRedis.Addr()
+	redisMockConfig := &RedisConfig{
+		Addr: mockRedisAddr,
+	}
+
+	//Redis (Live)
+	redisPort := os.Getenv("REDIS_PORT")
+	liveAddr := fmt.Sprintf("%s:%s", "localhost", redisPort)
+	redisLiveConfig := &RedisConfig{
+		Addr: liveAddr,
+	}
+
+	//Cassandra
+	cassandraAddr := "localhost:9042"
+	cassandraConfig := &CassandraConfig{
+		Addr:        cassandraAddr,
+		Consistency: gocql.One,
+	}
 
 	//Firestore
-	files, err := ioutil.ReadDir("./")
-	if err != nil {
-		panic(err)
-	}
-
-	for _, file := range files {
-		fmt.Println(file.Name(), file.IsDir())
-	}
 	projectID := os.Getenv("FIRESTORE_PROJECT")
 	firestoreCredentials := os.Getenv("FIRESTORE_CRED")
 	JSONCredentials, err := ioutil.ReadFile(firestoreCredentials)
@@ -86,10 +79,10 @@ func TestOnlineStores(t *testing.T) {
 		c               SerializedConfig
 		integrationTest bool
 	}{
-		//{LocalOnline, []byte{}, false},
-		//{RedisOnline, redisMockConfig.Serialized(), false},
-		//{RedisOnline, redisLiveConfig.Serialized(), true},
-		//{CassandraOnline, cassandraConfig.Serialized(), true},
+		{LocalOnline, []byte{}, false},
+		{RedisOnline, redisMockConfig.Serialized(), false},
+		{RedisOnline, redisLiveConfig.Serialized(), true},
+		{CassandraOnline, cassandraConfig.Serialized(), true},
 		{FirestoreOnline, firestoreConfig.Serialized(), true},
 	}
 	for _, testItem := range testList {

@@ -6,8 +6,8 @@ package provider
 
 import (
 	"context"
-	"fmt"
 	"encoding/json"
+	"fmt"
 	"github.com/go-redis/redis/v8"
 	"github.com/gocql/gocql"
 	sn "github.com/mrz1836/go-sanitize"

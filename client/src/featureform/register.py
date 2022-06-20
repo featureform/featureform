@@ -2,7 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-from .resources import ResourceState, Provider, RedisConfig, PostgresConfig, SnowflakeConfig, User, Location, Source, \
+from .resources import ResourceState, Provider, RedisConfig, DynamodbConfig, PostgresConfig, SnowflakeConfig, User, Location, Source, \
     PrimaryData, SQLTable, SQLTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet
 from typing import Tuple, Callable, TypedDict, List, Union
 from typeguard import typechecked, check_type
@@ -289,6 +289,22 @@ class Registrar:
         self.__resources.append(provider)
         return OnlineProvider(self, provider)
 
+    def register_dynamodb(self,
+                       name: str,
+                       description: str = "",
+                       team: str = "",
+                       host: str = "0.0.0.0",
+                       port: int = 4566,
+                       region: str = ""):
+        config = DynamodbConfig(host=host, port=port, region=region)
+        provider = Provider(name=name,
+                            function="ONLINE",
+                            description=description,
+                            team=team,
+                            config=config)
+        self.__resources.append(provider)
+        return OnlineProvider(self, provider)
+
     def register_snowflake(
             self,
             name: str,
@@ -537,6 +553,7 @@ global_registrar = Registrar()
 state = global_registrar.state
 register_user = global_registrar.register_user
 register_redis = global_registrar.register_redis
+register_dynamodb = global_registrar.register_dynamodb
 register_snowflake = global_registrar.register_snowflake
 register_postgres = global_registrar.register_postgres
 register_entity = global_registrar.register_entity

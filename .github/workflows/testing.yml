@@ -155,9 +155,6 @@ jobs:
           name: "./provider/firestore_credentials.json"
           json: ${{ secrets.FIRESTORE_CREDENTIALS_FILE }}
 
-      - name: Check Credentials
-        run: cat firestore_credentials.json
-
       - name: Archive creds file
         if: always()
         uses: actions/upload-artifact@v3

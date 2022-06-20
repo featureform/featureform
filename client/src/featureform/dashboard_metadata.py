@@ -83,14 +83,14 @@ def training_set_variant(variantData):
                 variantRow[1], #description  
                 variantRow[2], #trainingSetName
                 variantRow[3], #owner
-                variantRow[4], #provider
-                variantRow[5], #variantName
-                variantRow[6], #label
-                variantRow[7], #status
-                variant_organiser(feature_variant(sqlObject.getVariantResource("feature_variant", "variantName", variantRow[5]))[2])
+                # variantRow[4], #provider
+                variantRow[4], #variantName
+                variantRow[5], #label
+                variantRow[6], #status
+                variant_organiser(feature_variant(sqlObject.getVariantResource("feature_variant", "variantName", variantRow[4]))[2])
             ).toDictionary()
-        allVariantList.append(variantRow[5])
-        variantDict[variantRow[5]] = trainingSetVariant
+        allVariantList.append(variantRow[4])
+        variantDict[variantRow[4]] = trainingSetVariant
         variants.append(trainingSetVariant)
 
     return variantDict, allVariantList, variants
@@ -153,18 +153,18 @@ def label_variant(variantData):
                 variantRow[2], #entity
                 variantRow[3], #labelName
                 variantRow[4], #owner
-                variantRow[5], #provider
-                variantRow[6], #dataType
-                variantRow[7], #variantName
-                {"entity": variantRow[8],
-                "value": variantRow[9],
-                "timestamp": variantRow[10]},
-                variantRow[11], #status
+                # variantRow[5], #provider
+                variantRow[5], #dataType
+                variantRow[6], #variantName
+                {"entity": variantRow[7],
+                "value": variantRow[8],
+                "timestamp": variantRow[9]},
+                variantRow[10], #status
                 variant_organiser(training_set_variant(sqlObject.getVariantResource( "training_set_variant", "variantName", variantRow[7]))[2]) #training sets
             ).toDictionary()
         
-        allVariantList.append(variantRow[7])
-        variantDict[variantRow[7]] = labelVariant
+        allVariantList.append(variantRow[6])
+        variantDict[variantRow[6]] = labelVariant
         variants.append(labelVariant)
     return variantDict, allVariantList, variants
 

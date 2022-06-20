@@ -73,13 +73,13 @@ class SQLiteMetadata:
           description text,            
           trainingSetName text NOT NULL,
           owner text,
-          provider text NOT NULL,
           variantName text,
           label text,
           status text,
           PRIMARY KEY(trainingSetName, variantName),
-          FOREIGN KEY(provider) REFERENCES providers(name),
           FOREIGN KEY(trainingSetName) REFERENCES training_sets(name));''')
+
+          # FOREIGN KEY(provider) REFERENCES providers(name),
 
           # Training-set table
           self.__conn.execute('''CREATE TABLE IF NOT EXISTS training_sets(
@@ -115,7 +115,6 @@ class SQLiteMetadata:
           entity          text,
           labelName       text NOT NULL,
           owner           text,
-          provider        text NOT NULL,
           dataType        text,
           variantName     text,
           sourceEntity    text,
@@ -123,9 +122,9 @@ class SQLiteMetadata:
           sourceValue     text,
           status          text,
           PRIMARY KEY(labelName, variantName),
-          FOREIGN KEY(provider) REFERENCES providers(name),
           FOREIGN KEY(labelName) REFERENCES labels(name));''')
 
+# FOREIGN KEY(provider) REFERENCES providers(name),
           # labels table
           self.__conn.execute('''CREATE TABLE IF NOT EXISTS labels(
           type           text,

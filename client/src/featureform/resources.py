@@ -54,9 +54,33 @@ class FirestoreConfig:
 
     def serialize(self) -> bytes:
         config = {
-            "Collection": {self.collection},
+            "Collection": self.collection,
             "Project ID": self.project_id,
             "Credentials": self.credentials,
+        }
+        return bytes(json.dumps(config), "utf-8")
+
+@typechecked
+@dataclass
+class CassandraConfig:
+    keyspace: str
+    host: str
+    port: str
+    session: bytearray
+    consistency: bytearray
+
+    def software(self) -> str:
+        return "cassandra"
+
+    def type(self) -> str:
+        return "CASSANDRA_ONLINE"
+
+    def serialize(self) -> bytes:
+        config = {
+            "Keyspace": self.keyspace,
+            "Addr": f"{self.host}:{self.port}",
+            "Session": self.session,
+            "Consistency": self.consistency,
         }
         return bytes(json.dumps(config), "utf-8")
 

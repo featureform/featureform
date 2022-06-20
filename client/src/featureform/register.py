@@ -3,7 +3,7 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 from numpy import byte
-from .resources import ResourceState, Provider, RedisConfig, FirestoreConfig, PostgresConfig, SnowflakeConfig, User, Location, Source, \
+from .resources import ResourceState, Provider, RedisConfig, FirestoreConfig, CassandraConfig, PostgresConfig, SnowflakeConfig, User, Location, Source, \
     PrimaryData, SQLTable, SQLTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet
 from typing import Tuple, Callable, TypedDict, List, Union
 from typeguard import typechecked, check_type
@@ -299,6 +299,24 @@ class Registrar:
                        credentials: bytearray = []
                        ):
         config = FirestoreConfig(collection=collection, project_id=project_id, credentials=credentials)
+        provider = Provider(name=name,
+                            function="ONLINE",
+                            description=description,
+                            team=team,
+                            config=config)
+        self.__resources.append(provider)
+        return OnlineProvider(self, provider)
+
+    def register_cassandra(self,
+                       name: str,
+                       description: str = "",
+                       team: str = "",
+                       host: str = "0.0.0.0",
+                       port: int = 9042,
+                       keyspace: str = "",
+                       session: bytearray = [],
+                       consistency: bytearray = []):
+        config = CassandraConfig(host=host, port=port, keyspace=keyspace, session=session, consistency=consistency)
         provider = Provider(name=name,
                             function="ONLINE",
                             description=description,

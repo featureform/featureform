@@ -378,7 +378,6 @@ class Registrar:
         self.__resources.append(provider)
         return OfflineSQLProvider(self, provider)
 
-
     def register_redshift(self,
                           name: str,
                           description: str = "",
@@ -401,8 +400,8 @@ class Registrar:
         self.__resources.append(provider)
         return OfflineSQLProvider(self, provider)
 
-    def register_local_directory(self, path: str = ""):
-        config = LocalConfig(path=path)
+    def register_local(self):
+        config = LocalConfig()
         provider = Provider(name="name",
                             function="ONLINE",
                             description="description",
@@ -622,7 +621,7 @@ register_redis = global_registrar.register_redis
 register_snowflake = global_registrar.register_snowflake
 register_postgres = global_registrar.register_postgres
 register_redshift = global_registrar.register_redshift
-register_local_directory = global_registrar.register_local_directory
+register_local = global_registrar.register_local
 register_entity = global_registrar.register_entity
 register_column_resources = global_registrar.register_column_resources
 register_training_set = global_registrar.register_training_set

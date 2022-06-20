@@ -57,6 +57,25 @@ class RedisConfig:
         }
         return bytes(json.dumps(config), "utf-8")
 
+@typechecked
+@dataclass
+class DynamodbConfig:
+    host: str
+    port: int
+    region: str
+
+    def software(self) -> str:
+        return "dynamodb"
+
+    def type(self) -> str:
+        return "DYNAMODB_ONLINE"
+
+    def serialize(self) -> bytes:
+        config = {
+            "Addr": f"{self.host}:{self.port}",
+            "Region": self.region,
+        }
+        return bytes(json.dumps(config), "utf-8")
 
 # RIDDHI
 @typechecked

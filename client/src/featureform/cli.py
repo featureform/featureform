@@ -79,6 +79,28 @@ def cli():
 @click.option("--local",
               is_flag=True,
               help="Enable local mode")
+def apply(host, cert, insecure, local, files):
+    if local:
+        if host != None:
+            raise ValueError("Cannot be local and have a host")
+    
+    elif host == None:
+        host = os.getenv('FEATUREFORM_HOST')
+        if host == None:
+            raise ValueError(
+                "Host value must be set in env or with --host flag")
+
+    # channel = TlsChecker(host, cert, insecure)
+
+    for file in files:
+        with open(file, "r") as py:
+            exec(py.read())
+    
+    if local:
+        register.state().create_all_local()
+    # else:
+    #     stub = ff_grpc.ApiStub(channel)
+    #     register.state().create_all(stub)
 
 def TlsChecker(host, cert, insecure):
     if insecure:
@@ -94,30 +116,6 @@ def TlsChecker(host, cert, insecure):
         credentials = grpc.ssl_channel_credentials()
         channel = grpc.secure_channel(host, credentials)
     return channel
-
-
-def apply(host, cert, insecure, local, files):
-    if local:
-        if host != None:
-            raise ValueError("Cannot be local and have a host")
-    
-    elif host == None:
-        host = os.getenv('FEATUREFORM_HOST')
-        if host == None:
-            raise ValueError(
-                "Host value must be set in env or with --host flag")
-
-    channel = TlsChecker(host, cert, insecure)
-
-    for file in files:
-        with open(file, "r") as py:
-            exec(py.read())
-    
-    if local:
-        register.state().create_all_local()
-    # else:
-    #     stub = ff_grpc.ApiStub(channel)
-    #     register.state().create_all(stub)
 
 
 if __name__ == '__main__':

@@ -163,7 +163,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: creds-test
-          path: firestore_credentials.json
+          path: ./provider/firestore_credentials.json
 
       - name: Testing
         env:

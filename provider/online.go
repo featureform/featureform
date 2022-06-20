@@ -71,6 +71,7 @@ type tableKey struct {
 
 type redisTableKey struct {
 	Prefix, Feature, Variant string
+}
 
 type cassandraTableKey struct {
 	Keyspace, Feature, Variant string

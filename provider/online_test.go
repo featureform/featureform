@@ -76,8 +76,6 @@ func TestOnlineStores(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(firestoreCredentials)
-	fmt.Println(JSONCredentials)
 	firestoreConfig := &FirestoreConfig{
 		ProjectID:   projectID,
 		Credentials: JSONCredentials,

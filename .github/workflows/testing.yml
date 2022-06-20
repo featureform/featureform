@@ -155,13 +155,6 @@ jobs:
           name: "./provider/firestore_credentials.json"
           json: ${{ secrets.FIRESTORE_CREDENTIALS_FILE }}
 
-      - name: Archive creds file
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: creds-test
-          path: ./provider/firestore_credentials.json
-
       - name: Testing
         env:
           SNOWFLAKE_USERNAME: ${{ secrets.SNOWFLAKE_USERNAME }}
@@ -171,9 +164,7 @@ jobs:
           FIRESTORE_CRED: "firestore_credentials.json"
           FIRESTORE_PROJECT: ${{ secrets.FIRESTORE_PROJECT }}
         working-directory: ./
-        run: |
-          ls
-          go test -v -run TestOnlineStores -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/...
+        run: go test -v -run TestOnlineStores -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/...
 
       - name: Convert Coverage Test Results
         if: always()

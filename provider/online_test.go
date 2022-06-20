@@ -12,7 +12,6 @@ import (
 	"testing"
 
 	"github.com/alicebob/miniredis"
-	"github.com/gocql/gocql"
 	"github.com/google/uuid"
 )
 
@@ -40,27 +39,27 @@ func TestOnlineStores(t *testing.T) {
 		"TypeCasting":        testTypeCasting,
 	}
 
-	//Redis (Mock)
-	miniRedis := mockRedis()
-	defer miniRedis.Close()
-	mockRedisAddr := miniRedis.Addr()
-	redisMockConfig := &RedisConfig{
-		Addr: mockRedisAddr,
-	}
-
-	//Redis (Live)
-	redisPort := os.Getenv("REDIS_PORT")
-	liveAddr := fmt.Sprintf("%s:%s", "localhost", redisPort)
-	redisLiveConfig := &RedisConfig{
-		Addr: liveAddr,
-	}
-
-	//Cassandra
-	cassandraAddr := "localhost:9042"
-	cassandraConfig := &CassandraConfig{
-		Addr:        cassandraAddr,
-		Consistency: gocql.One,
-	}
+	////Redis (Mock)
+	//miniRedis := mockRedis()
+	//defer miniRedis.Close()
+	//mockRedisAddr := miniRedis.Addr()
+	//redisMockConfig := &RedisConfig{
+	//	Addr: mockRedisAddr,
+	//}
+	//
+	////Redis (Live)
+	//redisPort := os.Getenv("REDIS_PORT")
+	//liveAddr := fmt.Sprintf("%s:%s", "localhost", redisPort)
+	//redisLiveConfig := &RedisConfig{
+	//	Addr: liveAddr,
+	//}
+	//
+	////Cassandra
+	//cassandraAddr := "localhost:9042"
+	//cassandraConfig := &CassandraConfig{
+	//	Addr:        cassandraAddr,
+	//	Consistency: gocql.One,
+	//}
 
 	//Firestore
 	projectID := os.Getenv("FIRESTORE_PROJECT")
@@ -77,10 +76,10 @@ func TestOnlineStores(t *testing.T) {
 		c               SerializedConfig
 		integrationTest bool
 	}{
-		{LocalOnline, []byte{}, false},
-		{RedisOnline, redisMockConfig.Serialized(), false},
-		{RedisOnline, redisLiveConfig.Serialized(), true},
-		{CassandraOnline, cassandraConfig.Serialized(), true},
+		//{LocalOnline, []byte{}, false},
+		//{RedisOnline, redisMockConfig.Serialized(), false},
+		//{RedisOnline, redisLiveConfig.Serialized(), true},
+		//{CassandraOnline, cassandraConfig.Serialized(), true},
 		{FirestoreOnline, firestoreConfig.Serialized(), true},
 	}
 	for _, testItem := range testList {

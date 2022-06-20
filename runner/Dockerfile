@@ -18,6 +18,7 @@ ENV PATH /go/bin:$PATH
 RUN protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative ./metadata/proto/metadata.proto
 COPY runner/*.go ./runner/
 COPY runner/worker/*.go ./runner/worker/
+COPY coordinator/*.go ./coordinator/
 COPY metadata/*.go ./metadata/
 COPY metadata/search/* ./metadata/search/
 COPY provider/* ./provider/

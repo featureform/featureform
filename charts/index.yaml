@@ -1,0 +1,31 @@
+apiVersion: v1
+entries:
+  featureform:
+  - apiVersion: v2
+    appVersion: 1.16.0
+    created: "2022-06-13T10:58:48.436372-07:00"
+    dependencies:
+    - name: etcd
+      repository: https://charts.bitnami.com/bitnami
+      tags:
+      - bitnami-etcd
+      version: 8.0.1
+    description: A Helm chart for Featureform
+    digest: f55ab73e67ce4336b1b3ba7c39d39d0705283aae236bf87bdd1a00ab39641912
+    name: featureform
+    type: application
+    urls:
+    - featureform-0.1.0.tgz
+    version: 0.1.0
+  quickstart:
+  - apiVersion: v2
+    appVersion: 1.16.0
+    created: "2022-06-13T10:58:48.437036-07:00"
+    description: Quickstart chart for Featureform
+    digest: f75e93475b29b7956b05bd99c7f414a8378f535d1e986692898e0d6f44fd7282
+    name: quickstart
+    type: application
+    urls:
+    - quickstart-0.1.0.tgz
+    version: 0.1.0
+generated: "2022-06-13T10:58:48.428692-07:00"

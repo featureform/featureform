@@ -35,6 +35,14 @@ func (m MockJobClient) Get() (*batchv1.Job, error) {
 	return &batchv1.Job{}, nil
 }
 
+func (m MockJobClient) GetCronJob() (*batchv1.CronJob, error) {
+	return &batchv1.CronJob{}, nil
+}
+
+func (m MockJobClient) UpdateCronJob(cronJob *batchv1.CronJob) (*batchv1.CronJob, error) {
+	return &batchv1.CronJob{}, nil
+}
+
 func (m MockJobClient) Watch() (watch.Interface, error) {
 	return watch.NewEmptyWatch(), nil
 }
@@ -82,6 +90,14 @@ func (m MockJobClientBroken) Get() (*batchv1.Job, error) {
 	return nil, errors.New("cannot get job")
 }
 
+func (m MockJobClientBroken) GetCronJob() (*batchv1.CronJob, error) {
+	return &batchv1.CronJob{}, nil
+}
+
+func (m MockJobClientBroken) UpdateCronJob(cronJob *batchv1.CronJob) (*batchv1.CronJob, error) {
+	return &batchv1.CronJob{}, nil
+}
+
 func (m MockJobClientBroken) Watch() (watch.Interface, error) {
 	return nil, errors.New("cannot get watcher")
 }
@@ -112,6 +128,14 @@ func (m MockJobClientRunBroken) Create(jobSpec *batchv1.JobSpec) (*batchv1.Job, 
 
 func (m MockJobClientRunBroken) Get() (*batchv1.Job, error) {
 	return nil, errors.New("cannot get job")
+}
+
+func (m MockJobClientRunBroken) GetCronJob() (*batchv1.CronJob, error) {
+	return &batchv1.CronJob{}, nil
+}
+
+func (m MockJobClientRunBroken) UpdateCronJob(cronJob *batchv1.CronJob) (*batchv1.CronJob, error) {
+	return &batchv1.CronJob{}, nil
 }
 
 func (m MockJobClientRunBroken) Watch() (watch.Interface, error) {
@@ -165,6 +189,14 @@ func (m MockJobClientFailChannel) Create(jobSpec *batchv1.JobSpec) (*batchv1.Job
 
 func (m MockJobClientFailChannel) Get() (*batchv1.Job, error) {
 	return failJob, nil
+}
+
+func (m MockJobClientFailChannel) GetCronJob() (*batchv1.CronJob, error) {
+	return &batchv1.CronJob{}, nil
+}
+
+func (m MockJobClientFailChannel) UpdateCronJob(cronJob *batchv1.CronJob) (*batchv1.CronJob, error) {
+	return &batchv1.CronJob{}, nil
 }
 
 func (m MockJobClientFailChannel) Watch() (watch.Interface, error) {

@@ -15,8 +15,8 @@ spec:
       terminationGracePeriodSeconds: 30
       containers:
         - name: featureform-dashboard
-          image: {{ .Values.image.repository }}
-          imagePullPolicy: "Always"
+          image: "{{ .Values.global.repo | default .Values.image.repository }}/{{ .Values.image.name }}:{{ .Values.global.version | default .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.global.pullPolicy }}
           ports:
             - containerPort: 3000
           env:

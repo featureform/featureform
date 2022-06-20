@@ -11,8 +11,11 @@ import (
 type RunnerName string
 
 const (
-	COPY_TO_ONLINE      RunnerName = "Copy to online"
-	CREATE_TRAINING_SET            = "Create training set"
+	COPY_TO_ONLINE        RunnerName = "Copy to online"
+	CREATE_TRAINING_SET              = "Create training set"
+	REGISTER_SOURCE                  = "Register source"
+	CREATE_TRANSFORMATION            = "Create transformation"
+	MATERIALIZE                      = "Materialize"
 )
 
 type Config []byte
@@ -35,6 +38,14 @@ func RegisterFactory(name string, runnerFactory RunnerFactory) error {
 		return fmt.Errorf("factory already registered: %s", name)
 	}
 	factoryMap[name] = runnerFactory
+	return nil
+}
+
+func UnregisterFactory(name string) error {
+	if _, exists := factoryMap[name]; !exists {
+		return fmt.Errorf("factory %s not registered", name)
+	}
+	delete(factoryMap, name)
 	return nil
 }
 

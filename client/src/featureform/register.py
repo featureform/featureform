@@ -7,6 +7,7 @@ from .resources import ResourceState, Provider, RedisConfig, PostgresConfig, Sno
 from typing import Tuple, Callable, TypedDict, List, Union
 from typeguard import typechecked, check_type
 import grpc
+import os
 from .proto import metadata_pb2_grpc as ff_grpc
 
 NameVariant = Tuple[str, str]
@@ -512,10 +513,17 @@ class Registrar:
 
 
 class Client(Registrar):
-    def __init__(self, host, tls_verify):
+    def __init__(self, host, tls_verify=True, cert_path=None):
         super().__init__()
+        env_cert_path = os.getenv('FEATUREFORM_CERT')
         if tls_verify:
             credentials = grpc.ssl_channel_credentials()
+            channel = grpc.secure_channel(host, credentials)
+        elif cert_path is not None or env_cert_path is not None:
+            if env_cert_path is not None and cert_path is None:
+                cert_path = env_cert_path
+            with open(cert_path, 'rb') as f:
+                credentials = grpc.ssl_channel_credentials(f.read())
             channel = grpc.secure_channel(host, credentials)
         else:
             channel = grpc.insecure_channel(host, options=(('grpc.enable_http_proxy', 0),))

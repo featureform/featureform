@@ -222,7 +222,12 @@ jobs:
           minikube image ls
 
       - name: Helm Install
-        run: helm install featureform ./charts/featureform --set global.repo=local --set global.pullPolicy=Never
+        run: |
+          helm repo add jetstack https://charts.jetstack.io
+          helm repo update
+          helm install certmgr jetstack/cert-manager --set installCRDs=true --version v1.8.0 --namespace cert-manager --create-namespace
+          helm install featureform ./charts/featureform --set global.repo=local --set global.pullPolicy=Never
+          helm install quickstart ./charts/quickstart 
 
       - name: Sleep for 1 minute
         run: sleep 60s

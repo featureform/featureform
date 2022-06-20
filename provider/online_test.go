@@ -9,9 +9,7 @@ import (
 	"os"
 	"reflect"
 	"testing"
-
 	"github.com/alicebob/miniredis"
-	"github.com/gocql/gocql"
 	"github.com/google/uuid"
 )
 

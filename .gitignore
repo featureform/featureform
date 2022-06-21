@@ -14,3 +14,4 @@ rm.**
 **pb**
 venv/**
 terraform.tfstate
+.venv

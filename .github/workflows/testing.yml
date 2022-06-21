@@ -534,8 +534,8 @@ jobs:
         run: kubectl apply -f coordinator/schedulepod/runjob.yaml
       - name: List jobs
         run: kubectl get jobs -A
-      # - name: Wait until test pod is completed
-      #   run: kubectl wait --for=condition=complete job example
+      - name: Wait until test pod is completed
+        run: kubectl wait --for=condition=complete --timeout=300s job -l app=example
       - name: List jobs
         run: kubectl get jobs -A
       - name: List cron jobs

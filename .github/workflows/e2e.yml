@@ -1,185 +1,185 @@
 name: End to End Testing
 on: [push, pull_request]
 jobs:
-  api-server:
-    name: Build API Server
-    defaults:
-      run:
-        working-directory: ./
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Build and export
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          file: ./api/Dockerfile
-          tags: local/api-server:stable
-          push: false
-          outputs: type=docker,dest=/tmp/api-server.tar
-
-      - name: Upload image
-        uses: actions/upload-artifact@v3
-        with:
-          name: api-server
-          path: /tmp/api-server.tar
-
-  coordinator:
-    name: Build Coordinator
-    defaults:
-      run:
-        working-directory: ./
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Build and export
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          file: ./coordinator/Dockerfile
-          tags: local/coordinator:stable
-          push: false
-          outputs: type=docker,dest=/tmp/coordinator.tar
-      - name: Upload image
-        uses: actions/upload-artifact@v3
-        with:
-          name: coordinator
-          path: /tmp/coordinator.tar
-
-  dashboard:
-    name: Build Dashboard
-    defaults:
-      run:
-        working-directory: ./
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Build and export
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          file: ./dashboard/Dockerfile
-          tags: local/dashboard:stable
-          push: false
-          outputs: type=docker,dest=/tmp/dashboard.tar
-      - name: Upload image
-        uses: actions/upload-artifact@v3
-        with:
-          name: dashboard
-          path: /tmp/dashboard.tar
-
-  metadata:
-    name: Build Metadata
-    defaults:
-      run:
-        working-directory: ./
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Build and export
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          file: ./metadata/Dockerfile
-          tags: local/metadata:stable
-          push: false
-          outputs: type=docker,dest=/tmp/metadata.tar
-      - name: Upload image
-        uses: actions/upload-artifact@v3
-        with:
-          name: metadata
-          path: /tmp/metadata.tar
-
-  dashboard-metadata:
-    name: Build Dashboard Metadata
-    defaults:
-      run:
-        working-directory: ./
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Build and export
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          file: ./metadata/dashboard/Dockerfile
-          tags: local/metadata-dashboard:stable
-          push: false
-          outputs: type=docker,dest=/tmp/metadata-dashboard.tar
-
-      - name: Upload image
-        uses: actions/upload-artifact@v3
-        with:
-          name: metadata-dashboard
-          path: /tmp/metadata-dashboard.tar
-
-  serving:
-    name: Build Serving
-    defaults:
-      run:
-        working-directory: ./
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Build and export
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          file: ./newserving/Dockerfile
-          tags: local/serving:stable
-          push: false
-          outputs: type=docker,dest=/tmp/serving.tar
-
-      - name: Upload image
-        uses: actions/upload-artifact@v3
-        with:
-          name: serving
-          path: /tmp/serving.tar
-
-  worker:
-    name: Build Worker
-    defaults:
-      run:
-        working-directory: ./
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Build and export
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          file: ./runner/Dockerfile
-          tags: local/worker:stable
-          push: false
-          outputs: type=docker,dest=/tmp/worker.tar
+#  api-server:
+#    name: Build API Server
+#    defaults:
+#      run:
+#        working-directory: ./
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v2
+#
+#      - name: Set up Docker Buildx
+#        uses: docker/setup-buildx-action@v2
+#
+#      - name: Build and export
+#        uses: docker/build-push-action@v3
+#        with:
+#          context: .
+#          file: ./api/Dockerfile
+#          tags: local/api-server:stable
+#          push: false
+#          outputs: type=docker,dest=/tmp/api-server.tar
+#
+#      - name: Upload image
+#        uses: actions/upload-artifact@v3
+#        with:
+#          name: api-server
+#          path: /tmp/api-server.tar
+#
+#  coordinator:
+#    name: Build Coordinator
+#    defaults:
+#      run:
+#        working-directory: ./
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v2
+#
+#      - name: Set up Docker Buildx
+#        uses: docker/setup-buildx-action@v2
+#
+#      - name: Build and export
+#        uses: docker/build-push-action@v3
+#        with:
+#          context: .
+#          file: ./coordinator/Dockerfile
+#          tags: local/coordinator:stable
+#          push: false
+#          outputs: type=docker,dest=/tmp/coordinator.tar
+#      - name: Upload image
+#        uses: actions/upload-artifact@v3
+#        with:
+#          name: coordinator
+#          path: /tmp/coordinator.tar
+#
+#  dashboard:
+#    name: Build Dashboard
+#    defaults:
+#      run:
+#        working-directory: ./
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v2
+#
+#      - name: Set up Docker Buildx
+#        uses: docker/setup-buildx-action@v2
+#
+#      - name: Build and export
+#        uses: docker/build-push-action@v3
+#        with:
+#          context: .
+#          file: ./dashboard/Dockerfile
+#          tags: local/dashboard:stable
+#          push: false
+#          outputs: type=docker,dest=/tmp/dashboard.tar
+#      - name: Upload image
+#        uses: actions/upload-artifact@v3
+#        with:
+#          name: dashboard
+#          path: /tmp/dashboard.tar
+#
+#  metadata:
+#    name: Build Metadata
+#    defaults:
+#      run:
+#        working-directory: ./
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v2
+#
+#      - name: Set up Docker Buildx
+#        uses: docker/setup-buildx-action@v2
+#
+#      - name: Build and export
+#        uses: docker/build-push-action@v3
+#        with:
+#          context: .
+#          file: ./metadata/Dockerfile
+#          tags: local/metadata:stable
+#          push: false
+#          outputs: type=docker,dest=/tmp/metadata.tar
+#      - name: Upload image
+#        uses: actions/upload-artifact@v3
+#        with:
+#          name: metadata
+#          path: /tmp/metadata.tar
+#
+#  dashboard-metadata:
+#    name: Build Dashboard Metadata
+#    defaults:
+#      run:
+#        working-directory: ./
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v2
+#
+#      - name: Set up Docker Buildx
+#        uses: docker/setup-buildx-action@v2
+#
+#      - name: Build and export
+#        uses: docker/build-push-action@v3
+#        with:
+#          context: .
+#          file: ./metadata/dashboard/Dockerfile
+#          tags: local/metadata-dashboard:stable
+#          push: false
+#          outputs: type=docker,dest=/tmp/metadata-dashboard.tar
+#
+#      - name: Upload image
+#        uses: actions/upload-artifact@v3
+#        with:
+#          name: metadata-dashboard
+#          path: /tmp/metadata-dashboard.tar
+#
+#  serving:
+#    name: Build Serving
+#    defaults:
+#      run:
+#        working-directory: ./
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v2
+#
+#      - name: Set up Docker Buildx
+#        uses: docker/setup-buildx-action@v2
+#
+#      - name: Build and export
+#        uses: docker/build-push-action@v3
+#        with:
+#          context: .
+#          file: ./newserving/Dockerfile
+#          tags: local/serving:stable
+#          push: false
+#          outputs: type=docker,dest=/tmp/serving.tar
+#
+#      - name: Upload image
+#        uses: actions/upload-artifact@v3
+#        with:
+#          name: serving
+#          path: /tmp/serving.tar
+#
+#  worker:
+#    name: Build Worker
+#    defaults:
+#      run:
+#        working-directory: ./
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v2
+#
+#      - name: Set up Docker Buildx
+#        uses: docker/setup-buildx-action@v2
+#
+#      - name: Build and export
+#        uses: docker/build-push-action@v3
+#        with:
+#          context: .
+#          file: ./runner/Dockerfile
+#          tags: local/worker:stable
+#          push: false
+#          outputs: type=docker,dest=/tmp/worker.tar
 #      - name: Upload image
 #        uses: actions/upload-artifact@v3
 #        with:
@@ -187,52 +187,70 @@ jobs:
 #          path: /tmp/worker.tar
   test:
     name: Run Tests
-    needs: [api-server, coordinator, dashboard, dashboard-metadata, metadata, serving, worker]
+#    needs: [api-server, coordinator, dashboard, dashboard-metadata, metadata, serving, worker]
     defaults:
       run:
         working-directory: ./
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Download artifact
-        uses: actions/download-artifact@v3
-        with:
-          names: api-server coordinator dashboard dashboard-metadata metadata serving
-          path: /tmp
+#      - name: Download artifact
+#        uses: actions/download-artifact@v3
+#        with:
+#          names: api-server coordinator dashboard dashboard-metadata metadata serving
+#          path: /tmp
 
-      - name: Check Artifacts
+#      - name: Check Artifacts
+#        run: |
+#          ls /tmp
+#          ls /tmp/api-server
+
+      - name: Install python dependencies
+        working-directory: ./
         run: |
-          ls /tmp
-          ls /tmp/api-server
+          python3 -m pip install build pytest
+          python3 -m build ./client/
+          python3 -m pip install client/dist/*
+
+      - name: Testing
+        working-directory: ./client/tests
+        run: pytest e2e.py
 
       - name: Start minikube
         uses: medyagh/setup-minikube@master
 
-      - name: Configure Docker Socket
-        run: eval $(minikube docker-env)
+#      - name: Configure Docker Socket
+#        run: eval $(minikube docker-env)
+#
+#      - name: Load image
+#        run: |
+#          docker load --input /tmp/api-server/api-server.tar
+#          docker load --input /tmp/coordinator/coordinator.tar
+#          docker load --input /tmp/dashboard/dashboard.tar
+#          docker load --input /tmp/metadata-dashboard/metadata-dashboard.tar
+#          docker load --input /tmp/metadata/metadata.tar
+#          docker load --input /tmp/serving/serving.tar
+#          minikube image load local/api-server:stable
+#          minikube image load local/coordinator:stable
+#          minikube image load local/dashboard:stable
+#          minikube image load local/metadata-dashboard:stable
+#          minikube image load local/metadata:stable
+#          minikube image load local/serving:stable
+#          minikube image ls
 
-      - name: Load image
-        run: |
-          docker load --input /tmp/api-server/api-server.tar
-          docker load --input /tmp/coordinator/coordinator.tar
-          docker load --input /tmp/dashboard/dashboard.tar
-          docker load --input /tmp/metadata-dashboard/metadata-dashboard.tar
-          docker load --input /tmp/metadata/metadata.tar
-          docker load --input /tmp/serving/serving.tar
-          minikube image load local/api-server:stable
-          minikube image load local/coordinator:stable
-          minikube image load local/dashboard:stable
-          minikube image load local/metadata-dashboard:stable
-          minikube image load local/metadata:stable
-          minikube image load local/serving:stable
-          minikube image ls
-
+#      - name: Helm Install
+#        run: |
+#          helm repo add jetstack https://charts.jetstack.io
+#          helm repo update
+#          helm install certmgr jetstack/cert-manager --set installCRDs=true --version v1.8.0 --namespace cert-manager --create-namespace
+#          helm install featureform ./charts/featureform --set global.repo=local --set global.pullPolicy=Never
+#          helm install quickstart ./charts/quickstart
       - name: Helm Install
         run: |
           helm repo add jetstack https://charts.jetstack.io
           helm repo update
           helm install certmgr jetstack/cert-manager --set installCRDs=true --version v1.8.0 --namespace cert-manager --create-namespace
-          helm install featureform ./charts/featureform --set global.repo=local --set global.pullPolicy=Never
+          helm install featureform ./charts/featureform 
           helm install quickstart ./charts/quickstart 
 
       - name: Check Pods
@@ -254,5 +272,15 @@ jobs:
           kubectl get pods
         shell: bash
 
-      - name: Check deployment
-        run: kubectl get pods
+      - name: Enable Minikube Ingress
+        run: |
+          minikube addons enable ingress
+          minikube tunnel
+
+      - name: Run CLI
+        run: |
+          kubectl get secret featureform-ca-secret -o=custom-columns=':.data.tls\.crt'| base64 -d > tls.crt
+          featureform apply client/examples/quickstart.py --host localhost:443 --cert tls.crt
+
+      - name: Run Test
+        run: pytest client/tests/e2e.py

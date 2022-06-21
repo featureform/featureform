@@ -89,12 +89,14 @@ def test_sources():
         json_ret = req.json()
         if retries > 20:
             assert (json_ret == sources)
+        all_ready = True
         for res in json_ret:
             for v in res['variants']:
                 del res['variants'][v]['created']
                 if res['variants'][v]['status'] != 'READY':
                     time.sleep(5)
                     retries += 1
+                    all_ready = False
                     break
 
     assert (json_ret == sources)
@@ -117,12 +119,14 @@ def test_features():
         json_ret = req.json()
         if retries > 20:
             assert (json_ret == features)
+        all_ready = True
         for res in json_ret:
             for v in res['variants']:
                 del res['variants'][v]['created']
                 if res['variants'][v]['status'] != 'READY':
                     time.sleep(5)
                     retries += 1
+                    all_ready = False
                     break
 
     assert (json_ret == features)
@@ -140,12 +144,14 @@ def test_labels():
         json_ret = req.json()
         if retries > 20:
             assert (json_ret == labels)
+        all_ready = True
         for res in json_ret:
             for v in res['variants']:
                 del res['variants'][v]['created']
                 if res['variants'][v]['status'] != 'READY':
                     time.sleep(5)
                     retries += 1
+                    all_ready = False
                     break
 
     assert (json_ret == labels)
@@ -162,12 +168,14 @@ def test_training_sets():
         json_ret = req.json()
         if retries > 20:
             assert (json_ret == training_sets)
+        all_ready = True
         for res in json_ret:
             for v in res['variants']:
                 del res['variants'][v]['created']
                 if res['variants'][v]['status'] != 'READY':
                     time.sleep(5)
                     retries += 1
+                    all_ready = False
                     break
 
     assert (json_ret == training_sets)

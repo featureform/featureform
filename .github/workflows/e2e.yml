@@ -280,8 +280,8 @@ jobs:
       - name: Enable Minikube Ingress
         run: |
           minikube addons enable ingress
-          minikube service featureform-ingress-nginx-controller --url &
-          sleep 5
+          minikube tunnel
+          sleep 10
 
       - name: Run CLI
         run: |

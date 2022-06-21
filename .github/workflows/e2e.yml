@@ -291,14 +291,13 @@ jobs:
 
       - name: Enable Minikube Ingress
         run: |
-          kubectl port-forward svc/featureform-api-server 7878:7878 &
-          kubectl port-forward svc/featureform-dashboard-metadata  8080:8080 &
+          kubectl port-forward svc/featureform-ingress-nginx-controller 8000:443 &
           sleep 2
 
       - name: Run CLI
         run: |
           kubectl get secret featureform-ca-secret -o=custom-columns=':.data.tls\.crt'| base64 -d > tls.crt
-          featureform apply client/examples/quickstart.py --host localhost:7878 --insecure
+          featureform apply client/examples/quickstart.py --host localhost:8000 --cert tls.crt
 
       - name: Run Test
         run: pytest client/tests/e2e.py

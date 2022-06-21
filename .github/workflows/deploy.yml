@@ -1,4 +1,4 @@
-name: End to End Testing
+name: Deploy
 on:
   push:
     tags:
@@ -31,7 +31,7 @@ jobs:
         with:
           context: .
           file: ./api/Dockerfile
-          tags: local/api-server:${{ env.RELEASE_VERSION }}
+          tags: featureformcom/api-server:${{ env.RELEASE_VERSION }}
           push: true
 
 #  coordinator:

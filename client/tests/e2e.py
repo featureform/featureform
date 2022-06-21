@@ -30,28 +30,28 @@ labels = [{'all-variants': ['quickstart'], 'type': 'Label', 'default-variant': '
 training_sets = [{'all-variants': ['quickstart'], 'type': 'TrainingSet', 'default-variant': 'quickstart', 'name': 'fraud_training', 'variants': {'quickstart': {'description': '', 'name': 'fraud_training', 'owner': 'featureformer', 'provider': 'postgres-quickstart', 'variant': 'quickstart', 'label': {'Name': 'fraudulent', 'Variant': 'quickstart'}, 'features': None, 'status': 'READY', 'error': ''}}}]
 
 def test_user():
-    req = requests.get("http://localhost:80/data/users", json=True)
+    req = requests.get("http://localhost:8080/data/users", json=True)
     json_ret = req.json()
     assert (json_ret == users)
 
 
 def test_providers():
-    req = requests.get("http://localhost:80/data/providers", json=True)
+    req = requests.get("http://localhost:8080/data/providers", json=True)
     json_ret = req.json()
     assert (json_ret == providers)
 
 def test_sources():
-    req = requests.get("http://localhost:80/data/sources", json=True)
+    req = requests.get("http://localhost:8080/data/sources", json=True)
     json_ret = req.json()
     assert (json_ret == sources)
 
 def test_entities():
-    req = requests.get("http://localhost:80/data/entities", json=True)
+    req = requests.get("http://localhost:8080/data/entities", json=True)
     json_ret = req.json()
     assert (json_ret == entities)
 
 def test_features():
-    req = requests.get("http://localhost:80/data/features", json=True)
+    req = requests.get("http://localhost:8080/data/features", json=True)
     json_ret = req.json()
     for res in json_ret:
         for v in res['variants']:
@@ -59,7 +59,7 @@ def test_features():
     assert (json_ret == features)
 
 def test_labels():
-    req = requests.get("http://localhost:80/data/labels", json=True)
+    req = requests.get("http://localhost:8080/data/labels", json=True)
     json_ret = req.json()
     for res in json_ret:
         for v in res['variants']:
@@ -67,7 +67,7 @@ def test_labels():
     assert (json_ret == labels)
 
 def test_training_sets():
-    req = requests.get("http://localhost:80/data/training-sets", json=True)
+    req = requests.get("http://localhost:8080/data/training-sets", json=True)
     json_ret = req.json()
     for res in json_ret:
         for v in res['variants']:

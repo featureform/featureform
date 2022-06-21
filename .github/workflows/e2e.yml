@@ -271,7 +271,7 @@ jobs:
       - name: Enable Minikube Ingress
         run: |
           minikube addons enable ingress
-          minikube tunnel
+          minikube tunnel &
 
       - name: Run CLI
         run: |

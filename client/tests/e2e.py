@@ -43,6 +43,9 @@ def test_providers():
 def test_sources():
     req = requests.get("http://localhost:8000/data/sources", json=True)
     json_ret = req.json()
+    for res in json_ret:
+        for v in res['variants']:
+            del res['variants'][v]['created']
     assert (json_ret == sources)
 
 def test_entities():

@@ -61,7 +61,7 @@ var testOfflineTableValues = [...]provider.ResourceRecord{
 }
 
 var postgresConfig = provider.PostgresConfig{
-	Host:     "localhost",
+	Host:     "postgres",
 	Port:     "5432",
 	Database: "postgresdb",
 	Username: "postgresadmin",
@@ -78,7 +78,7 @@ var postgresConfig = provider.PostgresConfig{
 
 // var redisPort = os.Getenv("REDIS_PORT")
 var redisPort = "6379"
-var redisHost = "localhost"
+var redisHost = "redis"
 
 var etcdHost = "localhost"
 var etcdPort = "2379"

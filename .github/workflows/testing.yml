@@ -514,6 +514,8 @@ jobs:
         run: kubectl apply -f coordinator/schedulepod/postgres
       - name: Set up Redis deployment on Minikube
         run: kubectl apply -f coordinator/schedulepod/redis
+      - name: Set up etcd deployment on Minikube
+        run: kubectl apply -f coordinator/schedulepod/etcd
       - name: Get pods in the cluster
         run: kubectl get pods -A
       - name: Get deployments in cluster

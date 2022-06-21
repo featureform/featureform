@@ -40,7 +40,6 @@ service Metadata {
     rpc CreateModel(Model) returns (Empty);
     rpc GetModels(stream Name) returns (stream Model);
     rpc SetResourceStatus(SetStatusRequest) returns (Empty);
-    rpc SetResourceUpdateStatus(SetUpdateStatusRequest) returns (Empty);
     rpc RequestScheduleChange(ScheduleChangeRequest) returns (Empty);
 }
 
@@ -58,9 +57,6 @@ message Name {
     string name = 1;
 }
 
-message Schedule {
-    string schedule = 1;
-}
 
 message ResourceStatus {
     enum Status {
@@ -72,12 +68,6 @@ message ResourceStatus {
       }
     Status status = 1;
     string error_message = 2;
-}
-
-message UpdateStatus {
-    google.protobuf.Timestamp last_updated = 1;
-    Schedule schedule = 2;
-    ResourceStatus update_status = 3;
 }
 
 enum ResourceType {
@@ -105,14 +95,9 @@ message SetStatusRequest {
     ResourceStatus status = 2;
 }
 
-message SetUpdateStatusRequest {
-    ResourceID resource_id = 1;
-    UpdateStatus status = 2;
-}
-
 message ScheduleChangeRequest {
     ResourceID resource_id = 1;
-    Schedule schedule = 2;
+    string schedule = 2;
 }
 
 message NameVariant {
@@ -150,7 +135,8 @@ message FeatureVariant {
     oneof location {
         Columns columns = 12;
     }
-    UpdateStatus update_status = 13;
+    google.protobuf.Timestamp last_updated = 13;
+    string schedule = 14;
 }
 
 message Label {
@@ -208,7 +194,8 @@ message TrainingSetVariant {
     ResourceStatus status = 7;
     repeated NameVariant features = 8;
     NameVariant label = 9;
-    UpdateStatus update_status = 10;
+    google.protobuf.Timestamp last_updated = 13;
+    string schedule = 14;
 }
 
 message Entity {
@@ -261,7 +248,8 @@ message SourceVariant {
     repeated NameVariant trainingsets = 10;
     repeated NameVariant features = 11;
     repeated NameVariant labels = 12;
-    UpdateStatus update_status = 13;
+    google.protobuf.Timestamp last_updated = 13;
+    string schedule = 16;
 }
 
 message Transformation {

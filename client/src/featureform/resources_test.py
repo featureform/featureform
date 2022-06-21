@@ -3,7 +3,7 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import pytest
-from resources import ResourceRedefinedError, ResourceState, Provider, RedisConfig, SnowflakeConfig, PostgresConfig, User, Provider, Entity, Feature, Label, TrainingSet, PrimaryData, SQLTable, Source, ResourceColumnMapping
+from resources import ResourceRedefinedError, ResourceState, Provider, RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, User, Provider, Entity, Feature, Label, TrainingSet, PrimaryData, SQLTable, Source, ResourceColumnMapping
 
 
 @pytest.fixture
@@ -40,6 +40,17 @@ def redis_config():
 
 
 @pytest.fixture
+def redshift_config():
+    return RedshiftConfig(
+        host="",
+        port=5439,
+        database="dev",
+        user="user",
+        password="p4ssw0rd",
+    )
+
+
+@pytest.fixture
 def postgres_provider(postgres_config):
     return Provider(
         name="postgres",
@@ -69,6 +80,17 @@ def redis_provider(redis_config):
         function="fn3",
         team="team3",
         config=redis_config,
+    )
+
+
+@pytest.fixture
+def redshift_provider(redshift_config):
+    return Provider(
+        name="redshift",
+        description="desc2",
+        function="fn2",
+        team="team2",
+        config=redshift_config,
     )
 
 
@@ -169,11 +191,12 @@ def all_resources_strange_order(redis_provider):
 
 
 def test_create_all_provider_types(redis_provider, snowflake_provider,
-                                   postgres_provider):
+                                   postgres_provider, redshift_provider):
     providers = [
         redis_provider,
         snowflake_provider,
         postgres_provider,
+        redshift_provider,
     ]
     state = ResourceState()
     for provider in providers:

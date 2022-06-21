@@ -217,7 +217,6 @@ jobs:
       - name: Install python dependencies
         working-directory: ./
         run: |
-          
           python3 -m pip install build pytest
           python3 -m build ./client/
           python3 -m pip install client/dist/*
@@ -281,7 +280,7 @@ jobs:
       - name: Enable Minikube Ingress
         run: |
           minikube addons enable ingress
-          minikube tunnel &
+          minikube service featureform-ingress-nginx-controller --url &
           sleep 5
 
       - name: Run CLI

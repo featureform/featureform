@@ -243,9 +243,9 @@ jobs:
           do 
             remaining=$(kubectl get pods | grep "featureform" | grep -wv featureform-quickstart | awk {'print $3'} | column -t | grep -wv Running -c )
             echo "Waiting for containers to be ready: $remaining Remaining"
-            seconds=$((seconds + 1))
-            sleep 1
-            if (( seconds > 120 ))
+            seconds=$((seconds + 10))
+            sleep 10
+            if (( seconds > 360 ))
             then
             	kubectl get pods
             	echo "**Containers Did Not Ready**"

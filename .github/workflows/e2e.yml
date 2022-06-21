@@ -247,7 +247,7 @@ jobs:
           docker load --input /tmp/metadata-dashboard/metadata-dashboard.tar
           docker load --input /tmp/metadata/metadata.tar
           docker load --input /tmp/serving/serving.tar
-          docker load --input /tmp/serving/worker.tar
+          docker load --input /tmp/worker/worker.tar
           minikube image load local/api-server:stable
           minikube image load local/coordinator:stable
           minikube image load local/dashboard:stable

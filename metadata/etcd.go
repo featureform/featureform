@@ -506,18 +506,3 @@ func (lookup etcdResourceLookup) SetStatus(id ResourceID, status pb.ResourceStat
 	}
 	return nil
 }
-
-func (lookup etcdResourceLookup) SetUpdateStatus(id ResourceID, status pb.UpdateStatus) error {
-	res, err := lookup.Lookup(id)
-	if err != nil {
-		return err
-	}
-	if err := res.SetUpdateStatus(status); err != nil {
-		return err
-
-	}
-	if err := lookup.Set(id, res); err != nil {
-		return fmt.Errorf("etcd: could not set: %w", err)
-	}
-	return nil
-}

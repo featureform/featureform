@@ -349,7 +349,7 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 		if err := cronRunner.ScheduleJob(runner.CronSchedule(schedule)); err != nil {
 			return fmt.Errorf("schedule transformation job in kubernetes: %w", err)
 		}
-		if err := c.Metadata.SetUpdateStatus(context.Background(), resID, schedule, metadata.READY, "", time.Now()); err != nil {
+		if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
 			return fmt.Errorf("set transformation succesful schedule status: %w", err)
 		}
 	}
@@ -586,7 +586,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 		if err := cronRunner.ScheduleJob(runner.CronSchedule(schedule)); err != nil {
 			return fmt.Errorf("schedule materialize job in kubernetes: %w", err)
 		}
-		if err := c.Metadata.SetUpdateStatus(context.Background(), resID, schedule, metadata.READY, "", time.Now()); err != nil {
+		if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
 			return fmt.Errorf("set succesful update status for materialize job in kubernetes: %w", err)
 		}
 	}
@@ -693,7 +693,7 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 		if err := cronRunner.ScheduleJob(runner.CronSchedule(schedule)); err != nil {
 			return fmt.Errorf("schedule training set job in kubernetes: %w", err)
 		}
-		if err := c.Metadata.SetUpdateStatus(context.Background(), resID, schedule, metadata.READY, "", time.Now()); err != nil {
+		if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
 			return fmt.Errorf("update training set scheduler job status: %w", err)
 		}
 	}
@@ -880,7 +880,7 @@ func (c *Coordinator) signalResourceUpdate(key string, value string) error {
 	if err := resUpdatedEvent.Deserialize(Config(value)); err != nil {
 		return fmt.Errorf("deserialize resource update event: %w", err)
 	}
-	if err := c.Metadata.SetUpdateStatus(context.Background(), resUpdatedEvent.ResourceID, "", metadata.READY, "", resUpdatedEvent.Completed); err != nil {
+	if err := c.Metadata.SetStatus(context.Background(), resUpdatedEvent.ResourceID, metadata.READY, ""); err != nil {
 		return fmt.Errorf("set resource update status: %w", err)
 	}
 	c.Logger.Info("Succesfully set update status for update job with key: ", key)
@@ -922,7 +922,7 @@ func (c *Coordinator) changeJobSchedule(key string, value string) error {
 	if _, err := jobClient.UpdateCronJob(cronJob); err != nil {
 		return fmt.Errorf("update kubernetes cron job: %w", err)
 	}
-	if err := c.Metadata.SetUpdateStatus(context.Background(), coordinatorScheduleJob.Resource, coordinatorScheduleJob.Schedule, metadata.READY, "", time.Now()); err != nil {
+	if err := c.Metadata.SetStatus(context.Background(), coordinatorScheduleJob.Resource, metadata.READY, ""); err != nil {
 		return fmt.Errorf("set schedule job update status in metadata: %w", err)
 	}
 	c.Logger.Info("Succesfully updated schedule for job in kubernetes with key: ", key)

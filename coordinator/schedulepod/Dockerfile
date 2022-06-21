@@ -17,6 +17,11 @@ COPY ./metadata/*.go ./metadata/
 COPY ./metadata/proto/ ./metadata/proto/
 COPY ./metadata/search/ ./metadata/search/
 COPY ./metadata/server/server.go ./metadata/main/server.go
+COPY ./coordinator/*.go ./coordinator/
+COPY ./provider/ ./provider/
+COPY ./metadata/ ./metadata/
+COPY ./runner/ ./runner/
+COPY ./coordinator/schedulepod/*.go ./coordinator/schedulepod/
 
 RUN go build ./coordinator/schedulepod/main.go
 

@@ -272,6 +272,7 @@ jobs:
         run: |
           minikube addons enable ingress
           minikube tunnel &
+          sleep 5
 
       - name: Run CLI
         run: |

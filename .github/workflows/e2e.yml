@@ -1,5 +1,5 @@
 name: End to End Testing
-on: [push, pull_request]
+on: [pull_request]
 jobs:
   api-server:
     name: Build API Server

@@ -205,9 +205,19 @@ jobs:
 #          ls /tmp
 #          ls /tmp/api-server
 
+      - name: Install grpc_tools
+        run: pip install grpcio-tools
+
+      - name: Install Protobuf
+        run: sudo snap install protobuf --classic
+
+      - name: Setup Proto
+        run: ./gen_grpc.sh
+
       - name: Install python dependencies
         working-directory: ./
         run: |
+          
           python3 -m pip install build pytest
           python3 -m build ./client/
           python3 -m pip install client/dist/*

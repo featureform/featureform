@@ -292,13 +292,13 @@ jobs:
       - name: Enable Minikube Ingress
         run: |
           minikube addons enable ingress
-          minikube tunnel
+          minikube tunnel &
           sleep 10
 
       - name: Run CLI
         run: |
           kubectl get secret featureform-ca-secret -o=custom-columns=':.data.tls\.crt'| base64 -d > tls.crt
-          featureform apply client/examples/quickstart.py --host localhost:443 --cert tls.crt
+          featureform apply client/examples/quickstart.py --host 192.168.49.2:443 --cert tls.crt
 
       - name: Run Test
         run: pytest client/tests/e2e.py

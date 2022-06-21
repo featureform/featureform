@@ -49,9 +49,11 @@ func cassandraOnlineStoreFactory(serialized SerializedConfig) (Provider, error) 
 }
 
 func NewCassandraOnlineStore(options *CassandraConfig) (*cassandraOnlineStore, error) {
-
 	cassandraCluster := gocql.NewCluster(options.Addr)
-	cassandraCluster.Consistency = options.Consistency
+	err := cassandraCluster.Consistency.UnmarshalText([]byte(options.Consistency))
+	if err != nil {
+		return nil, err
+	}
 	newSession, err := cassandraCluster.CreateSession()
 	if err != nil {
 		return nil, err

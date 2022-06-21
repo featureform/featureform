@@ -7,8 +7,6 @@ package provider
 import (
 	"encoding/json"
 	"fmt"
-
-	"github.com/gocql/gocql"
 )
 
 func init() {
@@ -58,8 +56,7 @@ func (r *RedisConfig) Deserialize(config SerializedConfig) error {
 type CassandraConfig struct {
 	keyspace    string
 	Addr        string
-	session     *gocql.Session
-	Consistency gocql.Consistency
+	Consistency string
 }
 
 func (r CassandraConfig) Serialized() SerializedConfig {

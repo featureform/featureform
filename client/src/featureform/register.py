@@ -314,9 +314,8 @@ class Registrar:
                        host: str = "0.0.0.0",
                        port: int = 9042,
                        keyspace: str = "",
-                       session: bytearray = [],
-                       consistency: bytearray = []):
-        config = CassandraConfig(host=host, port=port, keyspace=keyspace, session=session, consistency=consistency)
+                       consistency: str = "ONE"):
+        config = CassandraConfig(host=host, port=port, keyspace=keyspace, consistency=consistency)
         provider = Provider(name=name,
                             function="ONLINE",
                             description=description,

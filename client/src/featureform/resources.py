@@ -66,8 +66,7 @@ class CassandraConfig:
     keyspace: str
     host: str
     port: str
-    session: bytearray
-    consistency: bytearray
+    consistency: str
 
     def software(self) -> str:
         return "cassandra"
@@ -79,13 +78,12 @@ class CassandraConfig:
         config = {
             "Keyspace": self.keyspace,
             "Addr": f"{self.host}:{self.port}",
-            "Session": self.session,
             "Consistency": self.consistency,
         }
         return bytes(json.dumps(config), "utf-8")
 
 @typechecked
-@dataclass
+@dataclasss
 class SnowflakeConfig:
     account: str
     database: str

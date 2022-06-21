@@ -513,7 +513,6 @@ class Registrar:
 
 
 class Client(Registrar):
-
     def __init__(self, host, tls_verify=True, cert_path=None):
         super().__init__()
         env_cert_path = os.getenv('FEATUREFORM_CERT')

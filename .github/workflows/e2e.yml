@@ -212,10 +212,6 @@ jobs:
           python3 -m build ./client/
           python3 -m pip install client/dist/*
 
-      - name: Testing
-        working-directory: ./client/tests
-        run: pytest e2e.py
-
       - name: Start minikube
         uses: medyagh/setup-minikube@master
 

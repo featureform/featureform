@@ -47,7 +47,6 @@ type MetadataClient interface {
 	CreateModel(ctx context.Context, in *Model, opts ...grpc.CallOption) (*Empty, error)
 	GetModels(ctx context.Context, opts ...grpc.CallOption) (Metadata_GetModelsClient, error)
 	SetResourceStatus(ctx context.Context, in *SetStatusRequest, opts ...grpc.CallOption) (*Empty, error)
-	SetResourceUpdateStatus(ctx context.Context, in *SetUpdateStatusRequest, opts ...grpc.CallOption) (*Empty, error)
 	RequestScheduleChange(ctx context.Context, in *ScheduleChangeRequest, opts ...grpc.CallOption) (*Empty, error)
 }
 
@@ -768,15 +767,6 @@ func (c *metadataClient) SetResourceStatus(ctx context.Context, in *SetStatusReq
 	return out, nil
 }
 
-func (c *metadataClient) SetResourceUpdateStatus(ctx context.Context, in *SetUpdateStatusRequest, opts ...grpc.CallOption) (*Empty, error) {
-	out := new(Empty)
-	err := c.cc.Invoke(ctx, "/featureform.serving.metadata.proto.Metadata/SetResourceUpdateStatus", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *metadataClient) RequestScheduleChange(ctx context.Context, in *ScheduleChangeRequest, opts ...grpc.CallOption) (*Empty, error) {
 	out := new(Empty)
 	err := c.cc.Invoke(ctx, "/featureform.serving.metadata.proto.Metadata/RequestScheduleChange", in, out, opts...)
@@ -819,7 +809,6 @@ type MetadataServer interface {
 	CreateModel(context.Context, *Model) (*Empty, error)
 	GetModels(Metadata_GetModelsServer) error
 	SetResourceStatus(context.Context, *SetStatusRequest) (*Empty, error)
-	SetResourceUpdateStatus(context.Context, *SetUpdateStatusRequest) (*Empty, error)
 	RequestScheduleChange(context.Context, *ScheduleChangeRequest) (*Empty, error)
 	mustEmbedUnimplementedMetadataServer()
 }
@@ -914,9 +903,6 @@ func (UnimplementedMetadataServer) GetModels(Metadata_GetModelsServer) error {
 }
 func (UnimplementedMetadataServer) SetResourceStatus(context.Context, *SetStatusRequest) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetResourceStatus not implemented")
-}
-func (UnimplementedMetadataServer) SetResourceUpdateStatus(context.Context, *SetUpdateStatusRequest) (*Empty, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SetResourceUpdateStatus not implemented")
 }
 func (UnimplementedMetadataServer) RequestScheduleChange(context.Context, *ScheduleChangeRequest) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RequestScheduleChange not implemented")
@@ -1576,24 +1562,6 @@ func _Metadata_SetResourceStatus_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Metadata_SetResourceUpdateStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SetUpdateStatusRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(MetadataServer).SetResourceUpdateStatus(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/featureform.serving.metadata.proto.Metadata/SetResourceUpdateStatus",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MetadataServer).SetResourceUpdateStatus(ctx, req.(*SetUpdateStatusRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _Metadata_RequestScheduleChange_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ScheduleChangeRequest)
 	if err := dec(in); err != nil {
@@ -1654,10 +1622,6 @@ var Metadata_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SetResourceStatus",
 			Handler:    _Metadata_SetResourceStatus_Handler,
-		},
-		{
-			MethodName: "SetResourceUpdateStatus",
-			Handler:    _Metadata_SetResourceUpdateStatus_Handler,
 		},
 		{
 			MethodName: "RequestScheduleChange",

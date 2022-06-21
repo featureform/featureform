@@ -1,7 +1,6 @@
 from ssl import create_default_context
 import json
 
-
 class FeatureVariantResource:
     def __init__(self, 
         created=None, 

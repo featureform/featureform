@@ -238,11 +238,9 @@ jobs:
       - name: Check Pods
         run: |
           seconds=0
-          remaining=$(kubectl get pods | grep "featureform" | grep -wv featureform-quickstart | awk {'print $3'} | column -t | grep -wv Running -c )
-          while [ remaining != 0 ]
+          while [ $(kubectl get pods | grep "featureform" | grep -wv featureform-quickstart | awk {'print $3'} | column -t | grep -wv Running -c ) != 0 ]
           do 
-            remaining=$(kubectl get pods | grep "featureform" | grep -wv featureform-quickstart | awk {'print $3'} | column -t | grep -wv Running -c )
-            echo "Waiting for containers to be ready: $remaining Remaining"
+            echo "Waiting for containers to be ready: $(kubectl get pods | grep "featureform" | grep -wv featureform-quickstart | awk {'print $3'} | column -t | grep -wv Running -c ) Remaining"
             seconds=$((seconds + 10))
             sleep 10
             if (( seconds > 360 ))

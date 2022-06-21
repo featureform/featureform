@@ -291,7 +291,7 @@ jobs:
 
       - name: Enable Minikube Ingress
         run: |
-          kubectl port-forward svc/featureform-api-server 7878:7878
+          kubectl port-forward svc/featureform-api-server 7878:7878 &
           sleep 2
 
       - name: Run CLI

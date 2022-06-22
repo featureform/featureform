@@ -6,7 +6,6 @@ package provider
 
 import (
 	"fmt"
-	"github.com/gocql/gocql"
 	"io/ioutil"
 	"os"
 	"reflect"

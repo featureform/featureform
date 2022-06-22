@@ -9,11 +9,12 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	db "github.com/jackc/pgx/v4"
-	sf "github.com/snowflakedb/gosnowflake"
 	"strconv"
 	"strings"
 	"time"
+
+	db "github.com/jackc/pgx/v4"
+	sf "github.com/snowflakedb/gosnowflake"
 )
 
 func sanitize(ident string) string {
@@ -390,12 +391,12 @@ func (mat *sqlMaterialization) ID() MaterializationID {
 	return mat.id
 }
 
-// NumRows checks for the max row number to return as the number of rows.
+// NumRows checks for the count of rows to return as the number of rows.
 // If there are no rows in the table, the interface n is checked for Nil,
 // otherwise the interface is converted from a string to an int64
 func (mat *sqlMaterialization) NumRows() (int64, error) {
 	var n interface{}
-	query := fmt.Sprintf("SELECT MAX(row_number) FROM %s", sanitize(mat.tableName))
+	query := fmt.Sprintf("SELECT COUNT(*) FROM %s", sanitize(mat.tableName))
 	rows := mat.db.QueryRow(query)
 	err := rows.Scan(&n)
 	if err != nil {

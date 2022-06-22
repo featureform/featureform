@@ -18,6 +18,7 @@ func init() {
 		MemoryOffline:    memoryOfflineStoreFactory,
 		PostgresOffline:  postgresOfflineStoreFactory,
 		SnowflakeOffline: snowflakeOfflineStoreFactory,
+		RedshiftOffline:  redshiftOfflineStoreFactory,
 	}
 	for name, factory := range unregisteredFactories {
 		if err := RegisterFactory(name, factory); err != nil {

@@ -50,6 +50,15 @@ func TestOfflineStores(t *testing.T) {
 	}
 	defer destroySnowflakeDatabase(snowflakeConfig)
 
+	var redshiftConfig = RedshiftConfig{
+		Endpoint: os.Getenv("REDSHIFT_ENDPOINT"),
+		Port:     os.Getenv("REDSHIFT_PORT"),
+		Database: os.Getenv("REDSHIFT_DATABASE"),
+		Username: os.Getenv("REDSHIFT_USERNAME"),
+		Password: os.Getenv("REDSHIFT_PASSWORD"),
+	}
+	serialRSConfig := redshiftConfig.Serialize()
+
 	testFns := map[string]func(*testing.T, OfflineStore){
 		"CreateGetTable":          testCreateGetOfflineTable,
 		"TableAlreadyExists":      testOfflineTableAlreadyExists,
@@ -86,6 +95,7 @@ func TestOfflineStores(t *testing.T) {
 		{MemoryOffline, []byte{}, false},
 		{PostgresOffline, serialPGConfig, true},
 		{SnowflakeOffline, serialSFConfig, true},
+		{RedshiftOffline, serialRSConfig, true},
 	}
 	for _, testItem := range testList {
 		if testing.Short() && testItem.integrationTest {
@@ -375,13 +385,28 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 		if err != nil {
 			t.Fatalf("Failed to create segment: %s", err)
 		}
+
 		i := 0
+		expectedRows := test.ExpectedSegment
 		for seg.Next() {
 			actual := seg.Value()
-			expected := test.ExpectedSegment[i]
-			if !reflect.DeepEqual(actual, expected) {
-				t.Fatalf("Value not equal in materialization: %v %v\n"+
-					"%T:%T %T:%T %T:%T (received:expected)\n", actual, expected, actual.Entity, expected.Entity, actual.Value, expected.Value, actual.TS, expected.TS)
+
+			found := false
+			for i, expRow := range expectedRows {
+				if reflect.DeepEqual(actual, expRow) {
+					found = true
+					lastIdx := len(expectedRows) - 1
+
+					// Swap the record that we've found to the end, then shrink the slice to not include it.
+					// This is essentially a delete operation expect that it re-orders the slice.
+					expectedRows[i], expectedRows[lastIdx] = expectedRows[lastIdx], expectedRows[i]
+					expectedRows = expectedRows[:lastIdx]
+					break
+				}
+			}
+
+			if !found {
+				t.Fatalf("Value %v not found in materialization %v", actual, expectedRows)
 			}
 			i++
 		}
@@ -389,7 +414,7 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 			t.Fatalf("Iteration failed: %s", err)
 		}
 		if i < len(test.ExpectedSegment) {
-			t.Fatalf("Segment is too small: %d", i)
+			t.Fatalf("Segment is too small: %d. Expected: %d", i, len(test.ExpectedSegment))
 		}
 	}
 	runTestCase := func(t *testing.T, test TestCase) {
@@ -618,12 +643,27 @@ func testMaterializationUpdate(t *testing.T, store OfflineStore) {
 			t.Fatalf("Failed to create segment: %s", err)
 		}
 		i := 0
+		expectedRows := test.ExpectedSegment
 		for seg.Next() {
 			actual := seg.Value()
-			expected := test.ExpectedSegment[i]
-			if !reflect.DeepEqual(actual, expected) {
-				t.Fatalf("Value not equal in materialization: %v %v\n"+
-					"%T:%T %T:%T %T:%T\n", actual, expected, actual.Entity, expected.Entity, actual.Value, expected.Value, actual.TS, expected.TS)
+
+			// Row order isn't guaranteed, we make sure one row is equivalent
+			// then we delete that row. This is ineffecient, but these test
+			// cases should all be small enough not to matter.
+			found := false
+			for i, expRow := range expectedRows {
+				if reflect.DeepEqual(actual, expRow) {
+					found = true
+					lastIdx := len(expectedRows) - 1
+					// Swap the record that we've found to the end, then shrink the slice to not include it.
+					// This is essentially a delete operation expect that it re-orders the slice.
+					expectedRows[i], expectedRows[lastIdx] = expectedRows[lastIdx], expectedRows[i]
+					expectedRows = expectedRows[:lastIdx]
+					break
+				}
+			}
+			if !found {
+				t.Fatalf("Value %v not found in materialization %v", actual, expectedRows)
 			}
 			i++
 		}
@@ -1897,20 +1937,28 @@ func testTransform(t *testing.T, store OfflineStore) {
 		if err != nil {
 			t.Fatalf("Could not get generic iterator: %v", err)
 		}
-		i := 0
+		tableSize := 0
 		for iterator.Next() {
 			if iterator.Err() != nil {
 				t.Fatalf("could not iterate rows: %v", iterator.Err())
 			}
-			if !reflect.DeepEqual(iterator.Values(), test.Expected[i]) {
-				for j, v := range iterator.Values() {
-					fmt.Printf("Got: %T Expected: %T\n", v, test.Expected[i][j])
+
+			found := false
+			tableSize += 1
+			for i := range test.Expected {
+				if reflect.DeepEqual(iterator.Values(), test.Expected[i]) {
+					found = true
 				}
-				t.Fatalf("Expected: %#v, Received %#v", test.Expected[i], iterator.Values())
 			}
-			i++
+
+			if !found {
+				t.Fatalf("The %v value was not found in Expected Values: %v", iterator.Values(), test.Expected)
+			}
 		}
 
+		if tableSize != len(test.Expected) {
+			t.Fatalf("The number of records do not match for received (%v) and expected (%v)", tableSize, len(test.Expected))
+		}
 	}
 
 	for name, test := range tests {
@@ -2056,11 +2104,20 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 		}
 		i := 0
 		for iterator.Next() {
-			if !reflect.DeepEqual(iterator.Values(), test.Expected[i]) {
-				for j, v := range iterator.Values() {
-					fmt.Printf("Got: %T Expected: %T\n", v, test.Expected[i][j])
+			found := false
+			for i, expRow := range test.Expected {
+				if reflect.DeepEqual(iterator.Values(), expRow) {
+					found = true
+					lastIdx := len(test.Expected) - 1
+					// Swap the record that we've found to the end, then shrink the slice to not include it.
+					// This is essentially a delete operation expect that it re-orders the slice.
+					test.Expected[i], test.Expected[lastIdx] = test.Expected[lastIdx], test.Expected[i]
+					test.Expected = test.Expected[:lastIdx]
+					break
 				}
-				t.Fatalf("Expected: %#v, Received %#v", test.Expected[i], iterator.Values())
+			}
+			if !found {
+				t.Fatalf("Unexpected training row: %v, expected %v", iterator.Values(), test.Expected)
 			}
 			i++
 		}
@@ -2228,7 +2285,6 @@ func testCreateDuplicatePrimaryTable(t *testing.T, store OfflineStore) {
 }
 
 func testChainTransform(t *testing.T, store OfflineStore) {
-
 	type TransformTest struct {
 		PrimaryTable ResourceID
 		Schema       TableSchema
@@ -2247,10 +2303,10 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 			Schema: TableSchema{
 				Columns: []TableColumn{
 					{Name: "entity", ValueType: String},
-					{Name: "int", ValueType: Int},
-					{Name: "flt", ValueType: Float64},
-					{Name: "str", ValueType: String},
-					{Name: "bool", ValueType: Bool},
+					{Name: "int_col", ValueType: Int},
+					{Name: "flt_col", ValueType: Float64},
+					{Name: "str_col", ValueType: String},
+					{Name: "bool_col", ValueType: Bool},
 					{Name: "ts", ValueType: Timestamp},
 				},
 			},
@@ -2266,7 +2322,7 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 					Name: firstTransformName,
 					Type: Transformation,
 				},
-				Query: "SELECT entity, int, flt, str FROM tb",
+				Query: "SELECT entity, int_col, flt_col, str_col FROM tb",
 			},
 			Expected: []GenericRecord{
 				[]interface{}{"a", 1, 1.1, "test string"},
@@ -2284,8 +2340,8 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 			Schema: TableSchema{
 				Columns: []TableColumn{
 					{Name: "entity", ValueType: String},
-					{Name: "int", ValueType: Int},
-					{Name: "str", ValueType: String},
+					{Name: "int_col", ValueType: Int},
+					{Name: "str_col", ValueType: String},
 				},
 			},
 			Config: TransformationConfig{
@@ -2310,12 +2366,13 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 			t.Fatalf("Could not write value: %v: %v", err, value)
 		}
 	}
+
 	config := TransformationConfig{
 		TargetTableID: ResourceID{
 			Name: firstTransformName,
 			Type: Transformation,
 		},
-		Query: fmt.Sprintf("SELECT entity, int, flt, str FROM %s", sanitize(table.GetName())),
+		Query: fmt.Sprintf("SELECT entity, int_col, flt_col, str_col FROM %s", sanitize(table.GetName())),
 	}
 	if err := store.CreateTransformation(config); err != nil {
 		t.Fatalf("Could not create transformation: %v", err)
@@ -2335,13 +2392,27 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 	if err != nil {
 		t.Fatalf("Could not get generic iterator: %v", err)
 	}
-	i := 0
+	tableSize := 0
 	for iterator.Next() {
-		if !reflect.DeepEqual(iterator.Values(), tests["First"].Expected[i]) {
-			t.Fatalf("Expected: %#v, Received %#v", tests["First"].Expected[i], iterator.Values())
+		found := false
+		tableSize += 1
+
+		for i := range tests["First"].Expected {
+			if reflect.DeepEqual(iterator.Values(), tests["First"].Expected[i]) {
+				found = true
+				break
+			}
 		}
-		i++
+
+		if !found {
+			t.Fatalf("The %v value was not found in Expected Values: %v", iterator.Values(), tests["First"].Expected)
+		}
 	}
+
+	if tableSize != len(tests["First"].Expected) {
+		t.Fatalf("The number of records do not match for received (%v) and expected (%v)", tableSize, len(tests["First"].Expected))
+	}
+
 	secondTransformName := uuid.NewString()
 	config = TransformationConfig{
 		TargetTableID: ResourceID{
@@ -2362,7 +2433,7 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 	if err != nil {
 		t.Fatalf("Could not get generic iterator: %v", err)
 	}
-	i = 0
+	i := 0
 	for iterator.Next() {
 		if !reflect.DeepEqual(iterator.Values(), tests["Second"].Expected[i]) {
 			t.Fatalf("Expected: %#v, Received %#v", tests["Second"].Expected[i], iterator.Values())

@@ -3,8 +3,7 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 from numpy import byte
-from .resources import ResourceState, Provider, RedisConfig, FirestoreConfig, CassandraConfig, PostgresConfig, SnowflakeConfig, User, Location, Source, \
-    PrimaryData, SQLTable, SQLTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet
+from .resources import ResourceState, Provider, RedisConfig, PostgresConfig, CassandraConfig, SnowflakeConfig, RedshiftConfig, User, Location, Source, PrimaryData, SQLTable, SQLTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet
 from typing import Tuple, Callable, TypedDict, List, Union
 from typeguard import typechecked, check_type
 import grpc
@@ -372,6 +371,28 @@ class Registrar:
         self.__resources.append(provider)
         return OfflineSQLProvider(self, provider)
 
+    def register_redshift(self,
+                          name: str,
+                          description: str = "",
+                          team: str = "",
+                          host: str = "",
+                          port: int = 5432,
+                          user: str = "redshift",
+                          password: str = "password",
+                          database: str = "dev"):
+        config = RedshiftConfig(host=host,
+                                port=port,
+                                database=database,
+                                user=user,
+                                password=password)
+        provider = Provider(name=name,
+                            function="OFFLINE",
+                            description=description,
+                            team=team,
+                            config=config)
+        self.__resources.append(provider)
+        return OfflineSQLProvider(self, provider)
+
     def register_primary_data(self,
                               name: str,
                               variant: str,
@@ -574,6 +595,7 @@ register_user = global_registrar.register_user
 register_redis = global_registrar.register_redis
 register_snowflake = global_registrar.register_snowflake
 register_postgres = global_registrar.register_postgres
+register_redshift = global_registrar.register_redshift
 register_entity = global_registrar.register_entity
 register_column_resources = global_registrar.register_column_resources
 register_training_set = global_registrar.register_training_set

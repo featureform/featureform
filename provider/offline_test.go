@@ -2285,7 +2285,6 @@ func testCreateDuplicatePrimaryTable(t *testing.T, store OfflineStore) {
 }
 
 func testChainTransform(t *testing.T, store OfflineStore) {
-
 	type TransformTest struct {
 		PrimaryTable ResourceID
 		Schema       TableSchema
@@ -2367,12 +2366,20 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 			t.Fatalf("Could not write value: %v: %v", err, value)
 		}
 	}
+
+	configQuery := ""
+	if store.Type() == "REDSHIFT_OFFLINE" {
+		configQuery = fmt.Sprintf("SELECT entity, \"int\", flt, str FROM %s", sanitize(table.GetName()))
+	} else {
+		configQuery = fmt.Sprintf("SELECT entity, int, flt, str FROM %s", sanitize(table.GetName()))
+	}
+
 	config := TransformationConfig{
 		TargetTableID: ResourceID{
 			Name: firstTransformName,
 			Type: Transformation,
 		},
-		Query: fmt.Sprintf("SELECT entity, \"int\", flt, str FROM %s", sanitize(table.GetName())),
+		Query: configQuery,
 	}
 	if err := store.CreateTransformation(config); err != nil {
 		t.Fatalf("Could not create transformation: %v", err)

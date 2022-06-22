@@ -83,7 +83,7 @@ class CassandraConfig:
         return bytes(json.dumps(config), "utf-8")
 
 @typechecked
-@dataclasss
+@dataclass
 class SnowflakeConfig:
     account: str
     database: str

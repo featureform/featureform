@@ -59,7 +59,7 @@ func TestOnlineStores(t *testing.T) {
 	cassandraAddr := "localhost:9042"
 	cassandraConfig := &CassandraConfig{
 		Addr:        cassandraAddr,
-		Consistency: gocql.One,
+		Consistency: "THREE",
 	}
 
 	//Firestore

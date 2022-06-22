@@ -2303,10 +2303,10 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 			Schema: TableSchema{
 				Columns: []TableColumn{
 					{Name: "entity", ValueType: String},
-					{Name: "int", ValueType: Int},
-					{Name: "flt", ValueType: Float64},
-					{Name: "str", ValueType: String},
-					{Name: "bool", ValueType: Bool},
+					{Name: "int_col", ValueType: Int},
+					{Name: "flt_col", ValueType: Float64},
+					{Name: "str_col", ValueType: String},
+					{Name: "bool_col", ValueType: Bool},
 					{Name: "ts", ValueType: Timestamp},
 				},
 			},
@@ -2322,7 +2322,7 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 					Name: firstTransformName,
 					Type: Transformation,
 				},
-				Query: "SELECT entity, int, flt, str FROM tb",
+				Query: "SELECT entity, int_col, flt_col, str_col FROM tb",
 			},
 			Expected: []GenericRecord{
 				[]interface{}{"a", 1, 1.1, "test string"},
@@ -2340,8 +2340,8 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 			Schema: TableSchema{
 				Columns: []TableColumn{
 					{Name: "entity", ValueType: String},
-					{Name: "int", ValueType: Int},
-					{Name: "str", ValueType: String},
+					{Name: "int_col", ValueType: Int},
+					{Name: "str_col", ValueType: String},
 				},
 			},
 			Config: TransformationConfig{
@@ -2367,19 +2367,12 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 		}
 	}
 
-	configQuery := ""
-	if store.Type() == "REDSHIFT_OFFLINE" {
-		configQuery = fmt.Sprintf("SELECT entity, \"int\", flt, str FROM %s", sanitize(table.GetName()))
-	} else {
-		configQuery = fmt.Sprintf("SELECT entity, int, flt, str FROM %s", sanitize(table.GetName()))
-	}
-
 	config := TransformationConfig{
 		TargetTableID: ResourceID{
 			Name: firstTransformName,
 			Type: Transformation,
 		},
-		Query: configQuery,
+		Query: fmt.Sprintf("SELECT entity, int_col, flt_col, str_col FROM %s", sanitize(table.GetName())),
 	}
 	if err := store.CreateTransformation(config); err != nil {
 		t.Fatalf("Could not create transformation: %v", err)

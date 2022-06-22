@@ -5,11 +5,13 @@ metadata:
   labels: {{- include "typesense.labels" . | nindent 4 }}
 spec:
   selector:
-    matchLabels: {{- include "typesense.matchLabels" . | nindent 6 }}
+    matchLabels:
+      app: featureform
   replicas: {{ .Values.replicas }}
   template:
     metadata:
-      labels: {{- include "typesense.labels" . | nindent 8 }}
+      labels:
+        app: featureform
     spec:
 {{- include "typesense.imagePullSecrets" . | nindent 6 }}
       {{- if .Values.affinity }}

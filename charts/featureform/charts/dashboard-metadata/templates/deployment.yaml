@@ -10,7 +10,7 @@ spec:
   {{- end }}
   selector:
     matchLabels:
-      {{- include "dashboard-metadata.selectorLabels" . | nindent 6 }}
+      app: featureform
   template:
     metadata:
       {{- with .Values.podAnnotations }}
@@ -18,7 +18,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        {{- include "dashboard-metadata.selectorLabels" . | nindent 8 }}
+        app: featureform
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:

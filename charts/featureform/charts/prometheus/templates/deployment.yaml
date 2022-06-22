@@ -3,16 +3,16 @@ kind: Deployment
 metadata:
   name: featureform-prometheus-deployment
   labels:
-    app: featureform-prometheus-server
+    app: featureform
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: featureform-prometheus-server
+      app: featureform
   template:
     metadata:
       labels:
-        app: featureform-prometheus-server
+        app: featureform
     spec:
       containers:
         - name: featureform-prometheus

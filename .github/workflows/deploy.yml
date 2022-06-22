@@ -191,9 +191,48 @@ jobs:
 #          tags: featureformcom/worker:${{ env.RELEASE_VERSION }}
 #          push: true
 
-  helm:
-    name: Package Helm
+#  helm:
+#    name: Package Helm
+#    environment: Deployment
+#    defaults:
+#      run:
+#        working-directory: ./
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v2
+#
+#      - name: Install Helm
+#        run: |
+#          curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+#          chmod 700 get_helm.sh
+#          ./get_helm.sh
+#
+#      - name: Install GCS CLI
+#        run: |
+#          echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
+#          curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
+#          sudo apt-get update
+#          sudo apt-get install google-cloud-sdk
+#
+#      - name: Create GCloud Key
+#        id: gcloud-key-json
+#        uses: jsdaniell/create-json@1.1.2
+#        with:
+#          name: "./gcloud-key.json"
+#          json: ${{ secrets.GCLOUD_CREDENTIALS }}
+#
+#      - name: Login GCS
+#        run: gcloud auth activate-service-account helm-bucket-sa@testing-352123.iam.gserviceaccount.com --key-file=gcloud-key.json --project=testing-352123
+#
+#      - name: Update Charts
+#        run: ./update_helm.sh ${{ env.RELEASE_VERSION }}
+
+  python:
+    name: Package Python
     environment: Deployment
+    env:
+      TWINE_USERNAME: ${{ secrets.TWINE_USERNAME }}
+      TWINE_PASSWORD: ${{ secrets.TWINE_PASSWORD }}
     defaults:
       run:
         working-directory: ./
@@ -201,28 +240,20 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Install Helm
+      - name: Install grpc_tools
+        run: pip install grpcio-tools
+
+      - name: Install Protobuf
+        run: sudo snap install protobuf --classic
+
+      - name: Install Build Deps
         run: |
-          curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
-          chmod 700 get_helm.sh
-          ./get_helm.sh
+          pip install build
+          pip install twine
 
-      - name: Install GCS CLI
-        run: |
-          echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
-          curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
-          sudo apt-get update
-          sudo apt-get install google-cloud-sdk
+      - name: Set Version Number
+        run: sed -i -e 's/0.0.0/${{ env.RELEASE_VERSION }}/g' ./client/setup.cfg
 
-      - name: Create GCloud Key
-        id: gcloud-key-json
-        uses: jsdaniell/create-json@1.1.2
-        with:
-          name: "./gcloud-key.json"
-          json: ${{ secrets.GCLOUD_CREDENTIALS }}
-
-      - name: Login GCS
-        run: gcloud auth activate-service-account helm-bucket-sa@testing-352123.iam.gserviceaccount.com --key-file=gcloud-key.json --project=testing-352123
-
-      - name: Update Charts
-        run: ./update_helm.sh ${{ env.RELEASE_VERSION }}
+      - name: Package and Upload
+        run: ./gen_pypi.sh
+          

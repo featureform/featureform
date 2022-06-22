@@ -1,7 +1,6 @@
 package provider
 
 import (
-	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -10,7 +9,6 @@ import (
 	"time"
 
 	_ "github.com/lib/pq"
-	sf "github.com/snowflakedb/gosnowflake"
 )
 
 type redshiftColumnType string
@@ -126,11 +124,8 @@ func (q redshiftSQLQueries) materializationUpdate(db *sql.DB, tableName string, 
 			"DROP TABLE %s;"+
 			"COMMIT;"+
 			"", tempTable, sanitize(sourceName), sanitizedTable, oldTable, tempTable, sanitizedTable, oldTable)
-	var numStatements = 6
-	ctx = context.Background()
-	stmt, _ := sf.WithMultiStatement(ctx, numStatements)
-	_, err := db.QueryContext(stmt, query)
 
+	_, err := db.Exec(query)
 	return err
 }
 

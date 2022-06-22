@@ -179,38 +179,32 @@ func (q redshiftSQLQueries) trainingSetUpdate(store *sqlOfflineStore, def Traini
 
 func (q redshiftSQLQueries) trainingSetQuery(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string, isUpdate bool) error {
 	columns := make([]string, 0)
-	alias := make([]string, 0)
+	selectColumns := make([]string, 0)
 	query := ""
 	for i, feature := range def.Features {
-
 		tableName, err := store.getResourceTableName(feature)
 		santizedName := sanitize(tableName)
 		if err != nil {
 			return err
 		}
 		tableJoinAlias := fmt.Sprintf("t%d", i+1)
+		selectColumns = append(selectColumns, fmt.Sprintf("%s_rnk", tableJoinAlias))
 		columns = append(columns, santizedName)
-		alias = append(alias, fmt.Sprintf("%s.ts AS %s_ts", tableJoinAlias, tableJoinAlias))
-		query = fmt.Sprintf("%s LEFT OUTER JOIN (SELECT entity, value as %s, ts FROM %s ORDER BY ts desc) as %s ON (%s.entity=t0.entity AND %s.ts <= t0.ts)",
-			query, santizedName, santizedName, tableJoinAlias, tableJoinAlias, tableJoinAlias)
+		query = fmt.Sprintf("%s LEFT OUTER JOIN (SELECT entity, value AS %s, ts, RANK() OVER (ORDER BY ts DESC) AS %s_rnk FROM %s ORDER BY ts desc) AS %s ON (%s.entity=t0.entity AND %s.ts <= t0.ts)",
+			query, santizedName, tableJoinAlias, santizedName, tableJoinAlias, tableJoinAlias, tableJoinAlias)
 		if i == len(def.Features)-1 {
 			query = fmt.Sprintf("%s )) WHERE rn=1", query)
 		}
 	}
 	columnStr := strings.Join(columns, ", ")
-	aliasStr := strings.Join(alias, ",")
+	selectColumnStr := strings.Join(selectColumns, ", ")
 
-	orderBy := "time"
-	if len(columns) >= 4 {
-		orderBy = "t3_ts"
-	}
 	if !isUpdate {
 		fullQuery := fmt.Sprintf(
 			"CREATE TABLE %s AS (SELECT %s, label FROM ("+
-				"SELECT *, row_number() over(PARTITION BY e, label, time ORDER BY %s desc) as rn FROM ( "+
-				"SELECT t0.entity as e, t0.value as label, t0.ts as time, %s, %s from %s as t0 %s )",
-			sanitize(tableName), columnStr, orderBy, columnStr, aliasStr, sanitize(labelName), query)
-
+				"SELECT *, row_number() over(PARTITION BY e, label, time ORDER BY \"time\", %s DESC) AS rn FROM ( "+
+				"SELECT t0.entity AS e, t0.value AS label, t0.ts AS time, %s, %s FROM %s AS t0 %s )",
+			sanitize(tableName), columnStr, selectColumnStr, columnStr, selectColumnStr, sanitize(labelName), query)
 		if _, err := store.db.Exec(fullQuery); err != nil {
 			return err
 		}
@@ -218,10 +212,10 @@ func (q redshiftSQLQueries) trainingSetQuery(store *sqlOfflineStore, def Trainin
 		tempTable := sanitize(fmt.Sprintf("tmp_%s", tableName))
 		fullQuery := fmt.Sprintf(
 			"CREATE TABLE %s AS (SELECT %s, label FROM ("+
-				"SELECT *, row_number() over(PARTITION BY e, label, time ORDER BY %s desc) as rn FROM ( "+
-				"SELECT t0.entity as e, t0.value as label, t0.ts as time, %s, %s from %s as t0 %s )",
-			tempTable, columnStr, orderBy, columnStr, aliasStr, sanitize(labelName), query)
-		fmt.Println("~~~~", fullQuery, "~~~~")
+				"SELECT *, row_number() over(PARTITION BY e, label, time ORDER BY \"time\", %s desc) AS rn FROM ( "+
+				"SELECT t0.entity AS e, t0.value AS label, t0.ts AS time, %s, %s FROM %s AS t0 %s )",
+			tempTable, columnStr, selectColumnStr, columnStr, selectColumnStr, sanitize(labelName), query)
+
 		err := q.atomicUpdate(store.db, tableName, tempTable, fullQuery)
 		return err
 	}

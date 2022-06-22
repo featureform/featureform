@@ -98,30 +98,30 @@ class GetClient(Registrar):
         self._stub = ff_grpc.ApiStub(channel)
 
     def get_user(self, name: str) -> GetUser:
-        user = self._stub.GetUser(metadata_pb2.GetUserRequest(name=name))
+        user = self._stub.GetUser(metadata_pb2.Name(name=name))
         return GetUser(self._stub, user)
 
     def get_provider(self, name: str) -> GetProvider:
         provider = self._stub.GetProvider(
-            metadata_pb2.GetProviderRequest(name=name))
+            metadata_pb2.Name(name=name))
         return GetProvider(self._stub, provider)
 
     def get_source(self, name: str, variant: str) -> GetSource:
         source = self._stub.GetSource(
-            metadata_pb2.GetSourceRequest(name=name, variant=variant))
+            metadata_pb2.NameVariant(name=name, variant=variant))
         return GetSource(self._stub, source)
 
     def get_entity(self, name: str) -> GetEntity:
         entity = self._stub.GetEntity(
-            metadata_pb2.GetEntityRequest(name=name))
+            metadata_pb2.Name(name=name))
         return GetEntity(self._stub, entity)
 
     def get_feature(self, name: str, variant: str) -> GetFeature:
         feature = self._stub.GetFeature(
-            metadata_pb2.GetFeatureRequest(name=name, variant=variant))
+            metadata_pb2.NameVariant(name=name, variant=variant))
         return GetFeature(self._stub, feature)
 
     def get_label(self, name: str, variant: str) -> GetLabel:
         label = self._stub.GetLabel(
-            metadata_pb2.GetLabelRequest(name=name, variant=variant))
+            metadata_pb2.NameVariant(name=name, variant=variant))
         return GetLabel(self._stub, label)

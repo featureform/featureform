@@ -34,128 +34,178 @@ jobs:
           tags: featureformcom/api-server:${{ env.RELEASE_VERSION }}
           push: true
 
-#  coordinator:
-#    name: Build Coordinator
-#    defaults:
-#      run:
-#        working-directory: ./
-#    runs-on: ubuntu-latest
-#    steps:
-#      - uses: actions/checkout@v2
-#
-#      - name: Set up Docker Buildx
-#        uses: docker/setup-buildx-action@v2
-#
-#      - name: Build and export
-#        uses: docker/build-push-action@v3
-#        with:
-#          context: .
-#          file: ./coordinator/Dockerfile
-#          tags: local/coordinator:stable
-#          push: false
-#          outputs: type=docker,dest=/tmp/coordinator.tar
-#
-#  dashboard:
-#    name: Build Dashboard
-#    defaults:
-#      run:
-#        working-directory: ./
-#    runs-on: ubuntu-latest
-#    steps:
-#      - uses: actions/checkout@v2
-#
-#      - name: Set up Docker Buildx
-#        uses: docker/setup-buildx-action@v2
-#
-#      - name: Build and export
-#        uses: docker/build-push-action@v3
-#        with:
-#          context: .
-#          file: ./dashboard/Dockerfile
-#          tags: local/dashboard:stable
-#          push: false
-#          outputs: type=docker,dest=/tmp/dashboard.tar
-#
-#  metadata:
-#    name: Build Metadata
-#    defaults:
-#      run:
-#        working-directory: ./
-#    runs-on: ubuntu-latest
-#    steps:
-#      - uses: actions/checkout@v2
-#
-#      - name: Set up Docker Buildx
-#        uses: docker/setup-buildx-action@v2
-#
-#      - name: Build and export
-#        uses: docker/build-push-action@v3
-#        with:
-#          context: .
-#          file: ./metadata/Dockerfile
-#          tags: local/metadata:stable
-#          push: false
-#          outputs: type=docker,dest=/tmp/metadata.tar
-#
-#  dashboard-metadata:
-#    name: Build Dashboard Metadata
-#    defaults:
-#      run:
-#        working-directory: ./
-#    runs-on: ubuntu-latest
-#    steps:
-#      - uses: actions/checkout@v2
-#
-#      - name: Set up Docker Buildx
-#        uses: docker/setup-buildx-action@v2
-#
-#      - name: Build and export
-#        uses: docker/build-push-action@v3
-#        with:
-#          context: .
-#          file: ./metadata/dashboard/Dockerfile
-#          tags: local/metadata-dashboard:stable
-#          push: false
-#          outputs: type=docker,dest=/tmp/metadata-dashboard.tar
-#
-#  serving:
-#    name: Build Serving
-#    defaults:
-#      run:
-#        working-directory: ./
-#    runs-on: ubuntu-latest
-#    steps:
-#      - uses: actions/checkout@v2
-#
-#      - name: Set up Docker Buildx
-#        uses: docker/setup-buildx-action@v2
-#
-#      - name: Build and export
-#        uses: docker/build-push-action@v3
-#        with:
-#          context: .
-#          file: ./newserving/Dockerfile
-#          tags: local/serving:stable
-#          push: false
-#          outputs: type=docker,dest=/tmp/serving.tar
-#
-#  worker:
-#    name: Build Worker
-#    defaults:
-#      run:
-#        working-directory: ./
-#    runs-on: ubuntu-latest
-#    steps:
-#      - uses: actions/checkout@v2
-#
-#      - name: Set up Docker Buildx
-#        uses: docker/setup-buildx-action@v2
-#
-#      - name: Build and export
-#        uses: docker/build-push-action@v3
-#        with:
-#          context: .
-#          file: ./runner/Dockerfile
-#          tags: local/worker:stable
-#          push: true
-#          outputs: type=docker,dest=/tmp/worker.tar
+  coordinator:
+    name: Build Coordinator
+    defaults:
+      run:
+        working-directory: ./
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and export
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./coordinator/Dockerfile
+          tags: featureformcom/coordinator:${{ env.RELEASE_VERSION }}
+          push: true
+
+  dashboard:
+    name: Build Dashboard
+    defaults:
+      run:
+        working-directory: ./
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and export
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./dashboard/Dockerfile
+          tags: featureformcom/dashboard:${{ env.RELEASE_VERSION }}
+          push: true
+
+  metadata:
+    name: Build Metadata
+    defaults:
+      run:
+        working-directory: ./
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and export
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./metadata/Dockerfile
+          tags: featureformcom/metadata:${{ env.RELEASE_VERSION }}
+          push: true
+
+  dashboard-metadata:
+    name: Build Dashboard Metadata
+    defaults:
+      run:
+        working-directory: ./
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and export
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./metadata/dashboard/Dockerfile
+          tags: featureformcom/metadata-dashboard:${{ env.RELEASE_VERSION }}
+          push: false
+
+
+  serving:
+    name: Build Serving
+    defaults:
+      run:
+        working-directory: ./
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and export
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./newserving/Dockerfile
+          tags: featureformcom/serving:${{ env.RELEASE_VERSION }}
+          push: true
+
+  worker:
+    name: Build Worker
+    defaults:
+      run:
+        working-directory: ./
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and export
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./runner/Dockerfile
+          tags: featureformcom/worker:${{ env.RELEASE_VERSION }}
+          push: true
+
+  helm:
+    name: Package Helm
+    defaults:
+      run:
+        working-directory: ./
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install Helm
+        run: |
+          curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+          chmod 700 get_helm.sh
+          ./get_helm.sh
+
+      - name: Package Chart
+        working-directory: ./charts
+        run: helm package ./featureform --app-version ${{ env.RELEASE_VERSION }} --version ${{ env.RELEASE_VERSION }}

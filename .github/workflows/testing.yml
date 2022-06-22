@@ -510,12 +510,15 @@ jobs:
       - uses: actions/checkout@v2
       - name: Start minikube
         uses: medyagh/setup-minikube@master
-      - name: Set up Postgres deployment on Minikube
-        run: kubectl apply -f coordinator/schedulepod/postgres
-      - name: Set up Redis deployment on Minikube
-        run: kubectl apply -f coordinator/schedulepod/redis
-      - name: Set up etcd deployment on Minikube
-        run: kubectl apply -f coordinator/schedulepod/etcd
+      - name: Helm Install
+        run: |
+          helm repo add jetstack https://charts.jetstack.io
+          helm repo update
+          helm install certmgr jetstack/cert-manager --set installCRDs=true --version v1.8.0 --namespace cert-manager --create-namespace
+          helm install featureform ./charts/featureform --set global.repo=local --set global.pullPolicy=Never
+          helm install quickstart ./charts/quickstart
+      - name: Check Pods
+        run: kubectl wait --for=condition=READY=true pod -l app=featureform --timeout=360s
       - name: Get pods in the cluster
         run: kubectl get pods -A
       - name: Get deployments in cluster
@@ -534,8 +537,8 @@ jobs:
         run: kubectl apply -f coordinator/schedulepod/runjob.yaml
       - name: List jobs
         run: kubectl get jobs -A
-      - name: Wait until test pod is completed
-        run: kubectl wait --for=condition=complete --timeout=300s job -l app=example
+      # - name: Wait until test pod is completed
+      #   run: kubectl wait --for=condition=complete --timeout=300s job -l app=example
       - name: List jobs
         run: kubectl get jobs -A
       - name: List cron jobs

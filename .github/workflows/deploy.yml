@@ -224,9 +224,5 @@ jobs:
       - name: Login GCS
         run: gcloud auth activate-service-account helm-bucket-sa@testing-352123.iam.gserviceaccount.com --key-file=gcloud-key.json --project=testing-352123
 
-      - name: Package Chart
-        working-directory: ./charts
-        run: helm package ./featureform --app-version ${{ env.RELEASE_VERSION }} --version ${{ env.RELEASE_VERSION }}
-
       - name: Update Charts
-        run: ./update_helm.sh
+        run: ./update_helm.sh ${{ env.RELEASE_VERSION }}

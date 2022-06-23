@@ -65,7 +65,7 @@ class TrainingSetVariantResource:
         description="", 
         name="", 
         owner="", 
-        provider="", 
+        # provider="", 
         variant="",
         label=None,
         status="",
@@ -76,7 +76,7 @@ class TrainingSetVariantResource:
             "description" : description,
             "name" : name,
             "owner" : owner,
-            "provider" : provider,
+            # "provider" : provider,
             "variant" : variant,
             "status" : status,
             "label" : label,
@@ -176,11 +176,12 @@ class LabelVariantResource:
         entity="",
         name="",
         owner="", 
-        provider="",
+        # provider="",
         dataType = "", 
         variant="",
         location=None,
         status="",
+        source=None,
         trainingSets=None):
 
 
@@ -191,10 +192,11 @@ class LabelVariantResource:
          "data-type":dataType,
          "name":name,
          "owner":owner,
-         "provider":provider,
+        #  "provider":provider,
          "variant":variant,
          "status":status,
          "location":location,
+         "source":source,
          "trainingSets":trainingSets
         #  source is missing
         }

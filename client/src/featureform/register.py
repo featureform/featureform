@@ -103,15 +103,17 @@ class LocalProvider:
     def name(self) -> str:
         return self.__provider.name
 
-    def register_file(self, name, variant, description, path):
+    def register_file(self, name, variant, description, path, owner=""):
+        if owner is None:
+            owner = self.__registrar.must_get_default_owner()
         # Store the file as a source
         time_created = str(time.time())
-        self.sqldb.insert("sources", time_created, "default", name) 
+        self.sqldb.insert("sources", "Source", variant, name) 
         self.sqldb.insert("source_variant", time_created, description, name,
-         "sourcetype", "owner", self.name(), variant, "ready", path)
+         "Source", owner, self.name(), variant, "ready", path)
          # Where the definition = path
 
-        return LocalSource(self.__registrar, name, "owner", variant, self.name(), description)
+        return LocalSource(self.__registrar, name, owner, variant, self.name(), description)
 
     def insert_provider(self):
         # Store a new provider row

@@ -294,17 +294,23 @@ class Source:
         stub.CreateSourceVariant(serialized)
 
     def _create_local(self, db) -> None:
-        db.insert("sources",  
+        db.insert("source_variant",  
+            str(time.time()),
+            self.description,
+            self.name,
             "Source",
-            "defaultVariant",
-            self.name
+            self.owner,
+            self.provider,
+            self.variant,
+            "ready",
+            self.definition
             )
         self._create_source_resource(db)
 
     def _create_source_resource(self, db) -> None:
         db.insert(
             "sources",
-            "type",
+            "Source",
             self.variant,
             self.name
         )
@@ -466,7 +472,9 @@ class Label:
         self.location.entity,
         self.location.timestamp,
         self.location.value,
-         "ready"
+         "ready",
+        self.source[0],
+        self.source[1]
         )
         self._create_label_resource(db)
 
@@ -524,21 +532,22 @@ class TrainingSet:
 
     def _create_local(self, db) -> None:
         db.insert("training_set_variant",
-        "text",
+        str(time.time()),
         self.description,
         self.name, 
         self.owner,
         # "Provider",
         self.variant,
         str(self.label),
-         "ready"
+         "ready",
+        str(self.features)
         )
         self._create_training_set_resource(db)
 
     def _create_training_set_resource(self, db) -> None:
         db.insert(
             "training_sets",
-            "type",
+            "TrainingSet",
             self.variant,
             self.name
         )

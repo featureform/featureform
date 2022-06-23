@@ -76,6 +76,7 @@ class SQLiteMetadata:
           variantName text,
           label text,
           status text,
+          features text,
           PRIMARY KEY(trainingSetName, variantName),
           FOREIGN KEY(trainingSetName) REFERENCES training_sets(name));''')
 
@@ -121,10 +122,14 @@ class SQLiteMetadata:
           sourceTimestamp text,
           sourceValue     text,
           status          text,
+          sourceName      text,
+          sourceVariant   text,
           PRIMARY KEY(labelName, variantName),
           FOREIGN KEY(labelName) REFERENCES labels(name));''')
 
-# FOREIGN KEY(provider) REFERENCES providers(name),
+#       provider        text,
+#          FOREIGN KEY(provider) REFERENCES providers(name),
+
           # labels table
           self.__conn.execute('''CREATE TABLE IF NOT EXISTS labels(
           type           text,
@@ -172,8 +177,14 @@ class SQLiteMetadata:
           self.__conn.commit()
           return type_data.fetchall()
 
-     def getVariantResource(self, type, variable, resource):
-          variant_table_query = "SELECT * FROM "+ type +" WHERE " + variable + "='"+resource+"';"
+     def getVariantResource(self, type, column, resource):
+          variant_table_query = "SELECT * FROM "+ type +" WHERE " + column + "='"+resource+"';"
+          variant_data = self.__conn.execute(variant_table_query)
+          self.__conn.commit()
+          return variant_data.fetchall()
+     
+     def getNameVariant(self, type, column1, resource1, column2, resource2):
+          variant_table_query = "SELECT * FROM "+ type +" WHERE " + column1 + "='"+resource1+"' AND " + column2 + "='"+resource2+"';"
           variant_data = self.__conn.execute(variant_table_query)
           self.__conn.commit()
           return variant_data.fetchall()

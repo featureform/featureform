@@ -116,6 +116,7 @@ class SQLiteMetadata:
           entity          text,
           labelName       text NOT NULL,
           owner           text,
+          provider        text,
           dataType        text,
           variantName     text,
           sourceEntity    text,
@@ -124,11 +125,9 @@ class SQLiteMetadata:
           status          text,
           sourceName      text,
           sourceVariant   text,
+          FOREIGN KEY(provider) REFERENCES providers(name),
           PRIMARY KEY(labelName, variantName),
           FOREIGN KEY(labelName) REFERENCES labels(name));''')
-
-#       provider        text,
-#          FOREIGN KEY(provider) REFERENCES providers(name),
 
           # labels table
           self.__conn.execute('''CREATE TABLE IF NOT EXISTS labels(
@@ -191,12 +190,5 @@ class SQLiteMetadata:
 
      def insert(self, tablename, *args):
           query = "INSERT OR IGNORE INTO "+tablename+" VALUES "+str(args)
-          print("Printing the query")
-          print(query)
           self.__conn.execute(query)
           self.__conn.commit()
-          print("executed")
-
-     # def commit_close(self):
-     #      self.__conn.commit()
-     #      self.__conn.close()

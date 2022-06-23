@@ -104,7 +104,7 @@ class LocalProvider:
         return self.__provider.name
 
     def register_file(self, name, variant, description, path, owner=""):
-        if owner is None:
+        if owner=="":
             owner = self.__registrar.must_get_default_owner()
         # Store the file as a source
         time_created = str(time.time())
@@ -474,9 +474,9 @@ class Registrar:
 
     def register_local(self):
         config = LocalConfig()
-        provider = Provider(name="name",
+        provider = Provider(name="local mode",
                             function="ONLINE",
-                            description="description",
+                            description="This is local mode",
                             team="team",
                             config=config)
         self.__resources.append(provider)
@@ -630,6 +630,7 @@ class Registrar:
                 value_type=label["type"],
                 entity=entity,
                 owner=owner,
+                provider=inference_store,
                 description=description,
                 location=ResourceColumnMapping(
                     entity=entity_column,

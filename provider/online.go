@@ -9,8 +9,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/go-redis/redis/v8"
-	"github.com/gocql/gocql"
-	sn "github.com/mrz1836/go-sanitize"
 )
 
 const (
@@ -66,14 +64,6 @@ type CustomError struct {
 
 func (err *CustomError) Error() string {
 	return err.ErrorMessage
-}
-
-func (t cassandraTableKey) String() string {
-	marshalled, err := json.Marshal(t)
-	if err != nil {
-		return err.Error()
-	}
-	return string(marshalled)
 }
 
 func localOnlineStoreFactory(SerializedConfig) (Provider, error) {

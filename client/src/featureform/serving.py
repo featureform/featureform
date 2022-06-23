@@ -2,11 +2,38 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import csv
+import sqlite3
 import grpc
 import numpy as np
 from .proto import serving_pb2
 from .proto import serving_pb2_grpc
 import random
+from sqlite_metadata import SyncSQLExecutor
+
+SqlExec = SyncSQLExecutor()
+
+
+class LocalClient:
+    def __init__():
+        return 
+
+    def features(featureVariantTuple):
+        feature = featureVariantTuple[0]
+        variant = featureVariantTuple[1]
+        conn = sqlite3.connect("metadata.db")
+        cur = conn.cursor()
+        cur.execute("""SELECT sourceName FROM feature_variant WHERE featureName = ? AND variantName = ?""", (feature, variant,))
+        source = cur.fetchone()
+        dataList = []
+
+        with open(source, newline = '') as csvfile:
+            data = csv.dictReader(csvfile)
+            for row in data:
+                dataList.append(row[feature])
+        return dataList
+        
+
 
 
 class Client:

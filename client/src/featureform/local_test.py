@@ -2,6 +2,8 @@ import featureform as ff
 
 local = ff.register_local()
 
+ff.register_user("featureformer").make_default_owner()
+
 iris = local.register_file(
     name = "Iris dataset",
     variant = "Kaggle",
@@ -9,7 +11,7 @@ iris = local.register_file(
     path = "iris.csv" 
 )
 
-ff.register_user("featureformer").make_default_owner()
+
 
 user_entity = ff.register_entity("flower")
 
@@ -19,11 +21,11 @@ iris.register_resources(
     entity_column="Id",
     inference_store=local,
     features=[
-        {"name": "SepalLength", "variant": "centimeters", "column": "SepalLengthCm", "type": "float64"},
+        {"name": "SepalLength", "variant": "centimeters", "column": "SepalLengthCm", "type": "Feature"},
     ],
     
     labels=[
-        {"name": "SpeciesType", "variant": "String", "column": "Species", "type": "string"},
+        {"name": "SpeciesType", "variant": "String", "column": "Species", "type": "Label"},
     ],
 
 )

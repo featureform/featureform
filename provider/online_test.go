@@ -40,29 +40,24 @@ func TestOnlineStores(t *testing.T) {
 		"TypeCasting":        testTypeCasting,
 	}
 
-	//Redis (Mock)
-	// miniRedis := mockRedis()
-	// defer miniRedis.Close()
-	// mockRedisAddr := miniRedis.Addr()
-	// redisMockConfig := &RedisConfig{
-	// 	Addr: mockRedisAddr,
-	// }
+	// Redis (Mock)
+	miniRedis := mockRedis()
+	defer miniRedis.Close()
+	mockRedisAddr := miniRedis.Addr()
+	redisMockConfig := &RedisConfig{
+		Addr: mockRedisAddr,
+	}
 
-	// //Redis (Live)
-	// redisPort := os.Getenv("REDIS_PORT")
-	// liveAddr := fmt.Sprintf("%s:%s", "localhost", redisPort)
-	// redisLiveConfig := &RedisConfig{
-	// 	Addr: liveAddr,
-	// }
+	//Redis (Live)
+	redisPort := os.Getenv("REDIS_PORT")
+	liveAddr := fmt.Sprintf("%s:%s", "localhost", redisPort)
+	redisLiveConfig := &RedisConfig{
+		Addr: liveAddr,
+	}
 
-	dynamoPort, ok := os.LookupEnv("DYNAMO_PORT")
+	dynamoPort := os.Getenv("DYNAMO_PORT")
 	dynamoAccessKey := os.Getenv("DYNAMO_ACCESS_KEY")
 	dynamoSecretKey := os.Getenv("DYNAMO_SECRET_KEY")
-	if !ok {
-		dynamoPort = "8000"
-		dynamoAccessKey = "AKIAYUXQ37DFTRWBOL7J"
-		dynamoSecretKey = "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"
-	}
 	dynamoAddr := fmt.Sprintf("%s:%s", "localhost", dynamoPort)
 	dynamoConfig := &DynamodbConfig{
 		Addr:      dynamoAddr,
@@ -77,8 +72,8 @@ func TestOnlineStores(t *testing.T) {
 		integrationTest bool
 	}{
 		{LocalOnline, []byte{}, false},
-		// {RedisOnline, redisMockConfig.Serialized(), false},
-		// {RedisOnline, redisLiveConfig.Serialized(), true},
+		{RedisOnline, redisMockConfig.Serialized(), false},
+		{RedisOnline, redisLiveConfig.Serialized(), true},
 		{DynamoDBOnline, dynamoConfig.Serialized(), true},
 	}
 	for _, testItem := range testList {

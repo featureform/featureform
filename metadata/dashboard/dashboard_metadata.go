@@ -10,6 +10,8 @@ import (
 	"github.com/featureform/metadata"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/typesense/typesense-go/typesense"
+	api "github.com/typesense/typesense-go/typesense/api"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 	"net/http"
@@ -17,6 +19,8 @@ import (
 	"reflect"
 	"time"
 )
+
+var typesenseClient *typesense.Client
 
 type MetadataServer struct {
 	client *metadata.Client
@@ -923,33 +927,57 @@ func (m *MetadataServer) GetMetadataList(c *gin.Context) {
 
 }
 
+func (m *MetadataServer) GetSearch(c *gin.Context) {
+	query := c.Param("query")
+	searchParameters := &api.SearchCollectionParams{
+		Q:       query,
+		QueryBy: "Name",
+	}
+	result, err := typesenseClient.Collection("resource").Documents().Search(searchParameters)
+	if err != nil {
+		m.logger.Errorw("Failed to fetch resources", "error", err)
+		c.JSON(500, "Failed to fetch resources")
+		return
+	}
+	c.JSON(200, result)
+}
+
 func (m *MetadataServer) Start(port string) {
 	router := gin.Default()
 	router.Use(cors.Default())
 
 	router.GET("/data/:type", m.GetMetadataList)
 	router.GET("/data/:type/:resource", m.GetMetadata)
+	router.GET("/search/:query", m.GetSearch)
 
 	router.Run(port)
 }
 
 func main() {
+	logger := zap.NewExample().Sugar()
 	metadataHost := os.Getenv("METADATA_HOST")
 	metadataPort := os.Getenv("METADATA_PORT")
+	typesenseHost := os.Getenv("TYPESENSE_HOST")
+	typesensePort := os.Getenv("TYPESENSE_PORT")
+	typesenseEndpoint := fmt.Sprintf("http://%s:%s", typesenseHost, typesensePort)
+	typesenseApiKey := os.Getenv("TYPESENSE_APIKEY")
+	logger.Infof("Connecting to typesense at: %s\n", typesenseEndpoint)
+	typesenseClient = typesense.NewClient(
+		typesense.WithServer(typesenseEndpoint),
+		typesense.WithAPIKey(typesenseApiKey))
 	metadataAddress := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
-	fmt.Println("Looking for metadata at: ", metadataAddress)
-	logger := zap.NewExample().Sugar()
+	logger.Infof("Looking for metadata at: %s\n", metadataAddress)
 	client, err := metadata.NewClient(metadataAddress, logger)
 	if err != nil {
-		logger.Panicw("Failed to connect", "Err", err)
+		logger.Panicw("Failed to connect", "error", err)
 	}
 
 	metadata_server, err := NewMetadataServer(logger, client)
 	if err != nil {
-		logger.Panicw("Failed to create server", "Err", err)
+		logger.Panicw("Failed to create server", "error", err)
 	}
 	metadataHTTPPort := os.Getenv("METADATA_HTTP_PORT")
 	metadataServingPort := fmt.Sprintf(":%s", metadataHTTPPort)
-	fmt.Sprintf("Serving HTTP Metadata on port: %s", metadataServingPort)
+	logger.Infof("Serving HTTP Metadata on port: %s\n", metadataServingPort)
 	metadata_server.Start(metadataServingPort)
 }

@@ -30,6 +30,13 @@ spec:
                 name: featureform-dashboard-metadata
                 port:
                   number: 8080
+          - path: /search/
+            pathType: Prefix
+            backend:
+              service:
+                name: featureform-dashboard-metadata
+                port:
+                  number: 8080
           - path: /prometheus/
             pathType: Prefix
             backend:

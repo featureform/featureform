@@ -18,6 +18,7 @@ const (
 	MemoryOffline    Type = "MEMORY_OFFLINE"
 	PostgresOffline       = "POSTGRES_OFFLINE"
 	SnowflakeOffline      = "SNOWFLAKE_OFFLINE"
+	RedshiftOffline       = "REDSHIFT_OFFLINE"
 )
 
 type ValueType string

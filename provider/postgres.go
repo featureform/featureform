@@ -4,9 +4,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	_ "github.com/lib/pq"
 	"strings"
 	"time"
+
+	_ "github.com/lib/pq"
 )
 
 type postgresColumnType string

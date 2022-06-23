@@ -474,43 +474,9 @@ class Registrar:
                     team: str = "",
                     host: str = "0.0.0.0",
                     port: int = 8000,
-                    access_key: str ="",
-                    secret_key: str =""):
+                    access_key: str = "",
+                    secret_key: str = ""):
         config = DynamodbConfig(host=host, port=port, access_key=access_key, secret_key=secret_key)
-        provider = Provider(name=name,
-                            function="ONLINE",
-                            description=description,
-                            team=team,
-                            config=config)
-        self.__resources.append(provider)
-        return OnlineProvider(self, provider)
-
-    def register_firestore(self,
-                       name: str,
-                       description: str = "",
-                       team: str = "",
-                       collection: str = "",
-                       project_id: str = "",
-                       credentials: bytearray = []
-                       ):
-        config = FirestoreConfig(collection=collection, project_id=project_id, credentials=credentials)
-        provider = Provider(name=name,
-                            function="ONLINE",
-                            description=description,
-                            team=team,
-                            config=config)
-        self.__resources.append(provider)
-        return OnlineProvider(self, provider)
-
-    def register_cassandra(self,
-                       name: str,
-                       description: str = "",
-                       team: str = "",
-                       host: str = "0.0.0.0",
-                       port: int = 9042,
-                       keyspace: str = "",
-                       consistency: str = "ONE"):
-        config = CassandraConfig(host=host, port=port, keyspace=keyspace, consistency=consistency)
         provider = Provider(name=name,
                             function="ONLINE",
                             description=description,

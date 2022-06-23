@@ -383,6 +383,7 @@ class Label:
     value_type: str
     entity: str
     owner: str
+    provider: str
     description: str
     location: ResourceLocation
 
@@ -413,7 +414,7 @@ class Label:
         self.entity,
         self.name, 
         self.owner,
-        # "Provider",
+        self.provider,
         self.value_type,
         self.variant,
         self.location.entity,

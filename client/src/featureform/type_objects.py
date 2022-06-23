@@ -65,7 +65,6 @@ class TrainingSetVariantResource:
         description="", 
         name="", 
         owner="", 
-        # provider="", 
         variant="",
         label=None,
         status="",
@@ -76,7 +75,6 @@ class TrainingSetVariantResource:
             "description" : description,
             "name" : name,
             "owner" : owner,
-            # "provider" : provider,
             "variant" : variant,
             "status" : status,
             "label" : label,
@@ -176,7 +174,7 @@ class LabelVariantResource:
         entity="",
         name="", 
         owner="", 
-        # provider="",
+        provider="",
         dataType = "", 
         variant="",
         location=None,
@@ -192,7 +190,7 @@ class LabelVariantResource:
          "data-type":dataType,
          "name":name,
          "owner":owner,
-        #  "provider":provider,
+         "provider":provider,
          "variant":variant,
          "status":status,
          "location":location,
@@ -319,8 +317,9 @@ class ProviderResource:
         status="",
         serializedConfig="",
         features=None,
-        labels=None,
-        trainingSets=None):
+        labels=None
+        #trainingSets=None
+        ):
 
          self.__dictionary = {
             "name" :name,
@@ -332,7 +331,7 @@ class ProviderResource:
              "sources":sources,
              "features":features,
               "labels":labels,
-              "training-sets":trainingSets,
+              #"training-sets":trainingSets,
               "status":status ,
             #   Seems like we dont need serialised config
               "serializedConfig":serializedConfig

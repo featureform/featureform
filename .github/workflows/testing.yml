@@ -537,23 +537,23 @@ jobs:
         run: kubectl apply -f coordinator/schedulepod/runjob.yaml
       - name: List jobs
         run: kubectl get jobs -A
-      # - name: Wait until test pod is completed
-      #   run: kubectl wait --for=condition=complete --timeout=300s job -l app=example
+      - name: Wait until test pod is completed
+        run: kubectl wait --for=condition=complete --timeout=300s job -l app=example
       - name: List jobs
         run: kubectl get jobs -A
       - name: List cron jobs
         run: kubectl get cronjobs -A
       - name: List pods
         run: kubectl get pods -l app=example
-      # - name: Get job pods and print logs
-      #   run: |
-      #     export SHELL=/bin/bash
-      #     jobs=( $(kubectl get jobs -l app=example) )
-      #     for job in "${jobs[@]}"
-      #     do
-      #       pod=$(kubectl get pods -l job-name=$job)
-      #       kubectl logs $pod
-      #     done
+      - name: Get job pods and print logs
+        run: |
+          export SHELL=/bin/bash
+          jobs=( $(kubectl get jobs -l app=example) )
+          for job in "${jobs[@]}"
+          do
+            pod=$(kubectl get pods -l job-name=$job)
+            kubectl logs $pod
+          done
       # - name: run schedule test job
       #   run: kubectl apply -f deployscheduler.yaml
       # - name: deploy wait for script

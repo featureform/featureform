@@ -61,26 +61,17 @@ var testOfflineTableValues = [...]provider.ResourceRecord{
 }
 
 var postgresConfig = provider.PostgresConfig{
-	Host:     "postgres",
+	Host:     "quickstart-postgres",
 	Port:     "5432",
 	Database: "postgresdb",
-	Username: "postgresadmin",
-	Password: "admin123",
-	// Database: os.Getenv("POSTGRES_DB"),
-	// Username: os.Getenv("POSTGRES_USER"),
-	// Password: os.Getenv("POSTGRES_PASSWORD"),
+	Username: "postgres",
+	Password: "password",
 }
 
-// postgresPassword: "StrongPassword"
-// username: "app1"
-// password: "AppPassword"
-// database: "app_db"
-
-// var redisPort = os.Getenv("REDIS_PORT")
 var redisPort = "6379"
-var redisHost = "redis"
+var redisHost = "quickstart-redis"
 
-var etcdHost = "localhost"
+var etcdHost = "featureform-etcd"
 var etcdPort = "2379"
 
 func startServ() (*metadata.MetadataServer, string) {

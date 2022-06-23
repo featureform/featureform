@@ -3,6 +3,8 @@ package provider
 import (
 	"encoding/json"
 	"fmt"
+	"time"
+	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
@@ -50,29 +52,33 @@ func dynamodbOnlineStoreFactory(serialized SerializedConfig) (Provider, error) {
 	if dynamodbConfig.Prefix == "" {
 		dynamodbConfig.Prefix = "Featureform_table__"
 	}
-	return NewDyanamodbOnlineStore(dynamodbConfig), nil
+	return NewDynamodbOnlineStore(dynamodbConfig)
 }
 
-func NewDyanamodbOnlineStore(options *DynamodbConfig) *dynamodbOnlineStore {
+func NewDynamodbOnlineStore(options *DynamodbConfig) (*dynamodbOnlineStore, error) {
+	// fmt.Print("sss", options)
 	config := &aws.Config{
-		Endpoint: &options.Addr,
+		// Endpoint: &options.Addr,
 		Region:   aws.String(options.Region),
+		Credentials: credentials.NewStaticCredentials(options.AccessKey, options.SecretKey, ""),
 	}
 	sess := session.Must(session.NewSession(config))
 	dynamodbClient := dynamodb.New(sess)
-	CreateMetadataTable(dynamodbClient)
+	if err := CreateMetadataTable(dynamodbClient); err != nil {
+		return nil, err
+	}
 	return &dynamodbOnlineStore{dynamodbClient, options.Prefix, BaseProvider{
 		ProviderType:   DynamoDBOnline,
 		ProviderConfig: options.Serialized(),
 	},
-	}
+	}, nil
 }
 
 func (store *dynamodbOnlineStore) AsOnlineStore() (OnlineStore, error) {
 	return store, nil
 }
 
-func CreateMetadataTable(dynamodbClient *dynamodb.DynamoDB) {
+func CreateMetadataTable(dynamodbClient *dynamodb.DynamoDB) error{
 	params := &dynamodb.CreateTableInput{
 		TableName: aws.String("Metadata"),
 		AttributeDefinitions: []*dynamodb.AttributeDefinition{
@@ -92,7 +98,20 @@ func CreateMetadataTable(dynamodbClient *dynamodb.DynamoDB) {
 			WriteCapacityUnits: aws.Int64(5),
 		},
 	}
-	dynamodbClient.CreateTable(params)
+	describeMetadataTableParams := &dynamodb.DescribeTableInput{
+		TableName: aws.String("Metadata"),
+	}
+	describeMetadataTable, err := dynamodbClient.DescribeTable(describeMetadataTableParams)
+	if err != nil {
+		return err
+	}
+	if describeMetadataTable == nil {
+		_, err := dynamodbClient.CreateTable(params)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (store *dynamodbOnlineStore) UpdateMetadataTable(tablename string, valueType ValueType) error {
@@ -182,6 +201,19 @@ func (store *dynamodbOnlineStore) CreateTable(feature, variant string, valueType
 	if err != nil {
 		return nil, err
 	}
+	describeTableParams := &dynamodb.DescribeTableInput{TableName: aws.String(sn.Custom(key.String(), "[^a-zA-Z0-9_.\\-]")),}
+	describeTableOutput, err := store.client.DescribeTable(describeTableParams)
+	if err != nil {
+		return nil, err
+	}
+	for describeTableOutput == nil || *describeTableOutput.Table.TableStatus != "ACTIVE" {
+		describeTableOutput, err = store.client.DescribeTable(describeTableParams)
+		if err != nil {
+			return nil, err
+		}
+		time.Sleep(5 * time.Second)
+	}
+	// fmt.Print(*describeTableOutput.Table.TableStatus)
 	return &dynamodbOnlineTable{store.client, key, valueType}, nil
 }
 

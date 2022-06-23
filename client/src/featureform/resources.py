@@ -2,8 +2,6 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-# cofigure.py like definitions.py train.py tests to set the end state - quick start tests
-# use iris model fro serving (serving means reading python files and parsing the data in the backend)
 import time
 from typing import List, Tuple, Union
 from typeguard import typechecked
@@ -63,6 +61,8 @@ class DynamodbConfig:
     host: str
     port: int
     region: str
+    access_key: str
+    secret_key: str
 
     def software(self) -> str:
         return "dynamodb"
@@ -74,6 +74,8 @@ class DynamodbConfig:
         config = {
             "Addr": f"{self.host}:{self.port}",
             "Region": self.region,
+            "AccessKey": self.access_key,
+            "SecretKey": self.secret_key
         }
         return bytes(json.dumps(config), "utf-8")
 

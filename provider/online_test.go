@@ -37,12 +37,15 @@ func TestOnlineStores(t *testing.T) {
 		"TypeCasting":        testTypeCasting,
 	}
 
+	//Redis (Mock)
 	miniRedis := mockRedis()
 	defer miniRedis.Close()
 	mockRedisAddr := miniRedis.Addr()
 	redisMockConfig := &RedisConfig{
 		Addr: mockRedisAddr,
 	}
+
+	//Redis (Live)
 	redisPort := os.Getenv("REDIS_PORT")
 	liveAddr := fmt.Sprintf("%s:%s", "localhost", redisPort)
 	redisLiveConfig := &RedisConfig{
@@ -50,11 +53,16 @@ func TestOnlineStores(t *testing.T) {
 	}
 
 	dynamoPort := os.Getenv("DYNAMO_PORT")
+	dynamoAccessKey := os.Getenv("DYNAMO_ACCESS_KEY")
+	dynamoSecretKey := os.Getenv("DYNAMO_SECRET_KEY")
 	dynamoAddr := fmt.Sprintf("%s:%s", "localhost", dynamoPort)
 	dynamoConfig := &DynamodbConfig{
 		Addr:   dynamoAddr,
 		Region: "us-east-1",
+		AccessKey: dynamoAccessKey,
+		SecretKey: dynamoSecretKey,
 	}
+
 	testList := []struct {
 		t               Type
 		c               SerializedConfig

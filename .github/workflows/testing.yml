@@ -5,7 +5,7 @@ env:
   TYPESENSE_PORT: 8108
   TYPESENSE_API_KEY: "xyz"
   REDIS_PORT: 6379
-  DYNAMO_PORT: 4566
+  DYNAMO_PORT: 8000
   POSTGRES_USER: "username"
   POSTGRES_DB: "default"
   POSTGRES_PASSWORD: "password"
@@ -131,7 +131,7 @@ jobs:
         # Hard coded port because environment variables not currently
         # supported for use outside of 'steps'
         ports:
-          - 4566:4566
+          - 8000:8000
 
       postgres:
         image: postgres
@@ -156,7 +156,6 @@ jobs:
       - name: Make Coverage Directory
         working-directory: ./
         run: mkdir coverage
-
       - name: Testing
         env:
           SNOWFLAKE_USERNAME: ${{ secrets.SNOWFLAKE_USERNAME }}
@@ -499,6 +498,12 @@ jobs:
 
       - name: Start API Server
         working-directory: ./api
+        env:
+          API_PORT: 7878
+          METADATA_HOST: "featureform-metadata-server"
+          METADATA_PORT: 8080
+          SERVING_HOST:  "featureform-feature-server"
+          SERVING_PORT: 8080
         run: go run api.go &
 
       - name: Install python dependencies

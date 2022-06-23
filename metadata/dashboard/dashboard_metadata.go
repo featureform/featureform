@@ -935,7 +935,9 @@ func (m *MetadataServer) GetSearch(c *gin.Context) {
 	}
 	result, err := typesenseClient.Collection("resource").Documents().Search(searchParameters)
 	if err != nil {
+		m.logger.Errorw("Failed to fetch resources", "error", err)
 		c.JSON(500, "Failed to fetch resources")
+		return
 	}
 	c.JSON(200, result)
 }

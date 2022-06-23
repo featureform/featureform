@@ -40,6 +40,12 @@ spec:
               value: "8080"
             - name: METADATA_HTTP_PORT
               value: "8080"
+            - name: TYPESENSE_HOST
+              value: "featureform-typesense"
+            - name: TYPESENSE_PORT
+              value: "80"
+            - name: TYPESENSE_APIKEY
+              value: "xyz"
           ports:
             - name: http
               containerPort: 8080

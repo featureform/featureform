@@ -73,6 +73,15 @@ func NewDynamodbOnlineStore(options *DynamodbConfig) (*dynamodbOnlineStore, erro
 	}, nil
 }
 
+func getDynamodbConfig(options *DynamodbConfig) (*aws.Config){
+	config := &aws.Config{
+		// Endpoint: &options.Addr,
+		Region:      aws.String(options.Region),
+		Credentials: credentials.NewStaticCredentials(options.AccessKey, options.SecretKey, ""),
+	}
+	return config
+}
+
 func (store *dynamodbOnlineStore) AsOnlineStore() (OnlineStore, error) {
 	return store, nil
 }

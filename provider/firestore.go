@@ -48,7 +48,7 @@ func firestoreOnlineStoreFactory(serialized SerializedConfig) (Provider, error) 
 }
 
 func NewFirestoreOnlineStore(options *FirestoreConfig) (*firestoreOnlineStore, error) {
-	firestoreClient, err := firestore.NewClient(ctx, options.ProjectID, option.WithCredentialsJSON(options.Credentials))
+	firestoreClient, err := firestore.NewClient(ctx, options.ProjectID, option.WithCredentialsJSON([]byte(options.Credentials)))
 	if err != nil {
 		return nil, err
 	}

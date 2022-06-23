@@ -6,7 +6,6 @@ package provider
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"testing"
@@ -64,10 +63,7 @@ func TestOnlineStores(t *testing.T) {
 	//Firestore
 	projectID := os.Getenv("FIRESTORE_PROJECT")
 	firestoreCredentials := os.Getenv("FIRESTORE_CRED")
-	JSONCredentials, err := ioutil.ReadFile(firestoreCredentials)
-	if err != nil {
-		panic(err)
-	}
+	JSONCredentials := firestoreCredentials
 	firestoreConfig := &FirestoreConfig{
 		ProjectID:   projectID,
 		Credentials: JSONCredentials,
@@ -96,7 +92,7 @@ func TestOnlineStores(t *testing.T) {
 			}
 			store, err := provider.AsOnlineStore()
 			if err != nil {
-				t.Fatalf("Failed to use provider %s as OfflineStore: %s", testItem.t, err)
+				t.Fatalf("Failed to use provider %s as OnlineStore: %s", testItem.t, err)
 			}
 			var prefix string
 			if testItem.integrationTest {

@@ -296,7 +296,7 @@ class Registrar:
                        team: str = "",
                        collection: str = "",
                        project_id: str = "",
-                       credentials: bytearray = []
+                       credentials: str = ""
                        ):
         config = FirestoreConfig(collection=collection, project_id=project_id, credentials=credentials)
         provider = Provider(name=name,

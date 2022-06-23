@@ -44,7 +44,7 @@ class RedisConfig:
 class FirestoreConfig:
     collection: str
     project_id: str
-    credentials: bytearray
+    credentials: str
 
     def software(self) -> str:
         return "firestore"
@@ -55,8 +55,8 @@ class FirestoreConfig:
     def serialize(self) -> bytes:
         config = {
             "Collection": self.collection,
-            "Project ID": self.project_id,
-            "Credentials": self.credentials,
+            "ProjectID": self.project_id,
+            "Credentials": json.dumps(open(self.credentials, "r")),
         }
         return bytes(json.dumps(config), "utf-8")
 

@@ -7,13 +7,13 @@ package provider
 import (
 	"fmt"
 	"github.com/alicebob/miniredis"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/google/uuid"
 	"os"
 	"reflect"
 	"testing"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
 )
 
 func mockRedis() *miniredis.Miniredis {
@@ -62,7 +62,7 @@ func TestOnlineStores(t *testing.T) {
 		dynamoPort = "8000"
 		dynamoAccessKey = "AKIAYUXQ37DFTRWBOL7J"
 		dynamoSecretKey = "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"
-	} 
+	}
 	dynamoAddr := fmt.Sprintf("%s:%s", "localhost", dynamoPort)
 	dynamoConfig := &DynamodbConfig{
 		Addr:      dynamoAddr,
@@ -239,7 +239,7 @@ func testTypeCasting(t *testing.T, store OnlineStore) {
 	}
 }
 
-func dynamoDeleteTable(tablename string) error{
+func dynamoDeleteTable(tablename string) error {
 	dynamoPort := os.Getenv("DYNAMO_PORT")
 	dynamoAccessKey := os.Getenv("DYNAMO_ACCESS_KEY")
 	dynamoSecretKey := os.Getenv("DYNAMO_SECRET_KEY")
@@ -253,7 +253,7 @@ func dynamoDeleteTable(tablename string) error{
 	sess := session.Must(session.NewSession(getDynamodbConfig(dynamoConfig)))
 	dynamodbClient := dynamodb.New(sess)
 	params := &dynamodb.DeleteTableInput{
-		TableName: aws.String(tablename), 
+		TableName: aws.String(tablename),
 	}
 	_, err := dynamodbClient.DeleteTable(params)
 	if err != nil {

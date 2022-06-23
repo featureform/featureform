@@ -73,7 +73,7 @@ func NewDynamodbOnlineStore(options *DynamodbConfig) (*dynamodbOnlineStore, erro
 	}, nil
 }
 
-func getDynamodbConfig(options *DynamodbConfig) (*aws.Config){
+func getDynamodbConfig(options *DynamodbConfig) *aws.Config {
 	config := &aws.Config{
 		// Endpoint: &options.Addr,
 		Region:      aws.String(options.Region),

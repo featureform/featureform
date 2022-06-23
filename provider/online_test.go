@@ -85,7 +85,7 @@ func TestOnlineStores(t *testing.T) {
 			}
 			store, err := provider.AsOnlineStore()
 			if err != nil {
-				t.Fatalf("Failed to use provider %s as OfflineStore: %s", testItem.t, err)
+				t.Fatalf("Failed to use provider %s as OnlineStore: %s", testItem.t, err)
 			}
 			var prefix string
 			if testItem.integrationTest {

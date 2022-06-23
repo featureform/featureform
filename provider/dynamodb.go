@@ -56,7 +56,6 @@ func dynamodbOnlineStoreFactory(serialized SerializedConfig) (Provider, error) {
 }
 
 func NewDynamodbOnlineStore(options *DynamodbConfig) (*dynamodbOnlineStore, error) {
-	// fmt.Print("sss", options)
 	config := &aws.Config{
 		// Endpoint: &options.Addr,
 		Region:      aws.String(options.Region),
@@ -213,7 +212,6 @@ func (store *dynamodbOnlineStore) CreateTable(feature, variant string, valueType
 		}
 		time.Sleep(5 * time.Second)
 	}
-	// fmt.Print(*describeTableOutput.Table.TableStatus)
 	return &dynamodbOnlineTable{store.client, key, valueType}, nil
 }
 

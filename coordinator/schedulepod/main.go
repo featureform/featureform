@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"net"
-	//"os"
+	"os"
 	//"reflect"
 	db "github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -61,17 +61,17 @@ var testOfflineTableValues = [...]provider.ResourceRecord{
 }
 
 var postgresConfig = provider.PostgresConfig{
-	Host:     "quickstart-postgres",
+	Host:     os.Getenv("POSTGRES_HOST"),
 	Port:     "5432",
-	Database: "postgresdb",
+	Database: os.Getenv("POSTGRES_DB"),
 	Username: "postgres",
-	Password: "password",
+	Password: os.Getenv("POSTGRES_PASSWORD"),
 }
 
 var redisPort = "6379"
-var redisHost = "quickstart-redis"
+var redisHost = os.Getenv("REDIS_HOST")
 
-var etcdHost = "featureform-etcd"
+var etcdHost = os.Getenv("ETCD_HOST")
 var etcdPort = "2379"
 
 func startServ() (*metadata.MetadataServer, string) {

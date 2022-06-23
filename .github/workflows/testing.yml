@@ -538,7 +538,7 @@ jobs:
       - name: List jobs
         run: kubectl get jobs -A
       - name: Wait until test pod is completed
-        run: kubectl wait --for=condition=complete --timeout=300s job -l app=example
+        run: kubectl wait --for=condition=complete --timeout=300s job example
       - name: List jobs
         run: kubectl get jobs -A
       - name: List cron jobs

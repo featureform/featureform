@@ -5,7 +5,7 @@ env:
   TYPESENSE_PORT: 8108
   TYPESENSE_API_KEY: "xyz"
   REDIS_PORT: 6379
-  DYNAMO_PORT: 4566
+  DYNAMO_PORT: 8000
   POSTGRES_USER: "username"
   POSTGRES_DB: "default"
   POSTGRES_PASSWORD: "password"
@@ -124,12 +124,12 @@ jobs:
         # supported for use outside of 'steps'
         ports:
           - 9042:9042
-      dynamodb:
-        image: amazon/dynamodb-local
-        # Hard coded port because environment variables not currently
-        # supported for use outside of 'steps'
-        ports:
-          - 4566:4566
+        dynamodb:
+          image: amazon/dynamodb-local
+          # Hard coded port because environment variables not currently
+          # supported for use outside of 'steps'
+          ports:
+            - 8000:8000
 
       postgres:
         image: postgres
@@ -154,7 +154,6 @@ jobs:
       - name: Make Coverage Directory
         working-directory: ./
         run: mkdir coverage
-
       - name: Testing
         env:
           SNOWFLAKE_USERNAME: ${{ secrets.SNOWFLAKE_USERNAME }}
@@ -474,37 +473,43 @@ jobs:
       SERVING_PORT: 8080
 
     steps:
-       - name: Download Working Compiled Directories
-         uses: actions/download-artifact@v3
-         with:
-           name: compiled-workdir
+      - name: Download Working Compiled Directories
+        uses: actions/download-artifact@v3
+        with:
+          name: compiled-workdir
 
-       - name: Set up Go
-         uses: actions/setup-go@v2
-         with:
-           go-version: 1.17
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
 
-       - name: Make Coverage Directory
-         working-directory: ./
-         run: mkdir coverage
+      - name: Make Coverage Directory
+        working-directory: ./
+        run: mkdir coverage
 
-       - name: Build API.go
-         working-directory: ./api
-         run: go build
+      - name: Build API.go
+        working-directory: ./api
+        run: go build
 
-       - name: Start API Server
-         working-directory: ./api
-         run: go run api.go &
+      - name: Start API Server
+        working-directory: ./api
+        env:
+          API_PORT: 7878
+          METADATA_HOST: "featureform-metadata-server"
+          METADATA_PORT: 8080
+          SERVING_HOST:  "featureform-feature-server"
+          SERVING_PORT: 8080
+        run: go run api.go &
 
-       - name: Install python dependencies
-         working-directory: ./
-         run: |
-           python3 -m pip install build pytest
-           python3 -m build ./client/
-           python3 -m pip install client/dist/*
+      - name: Install python dependencies
+        working-directory: ./
+        run: |
+          python3 -m pip install build pytest
+          python3 -m build ./client/
+          python3 -m pip install client/dist/*
 
-       - name: Testing
-         env:
-           API_ADDRESS: "localhost:7878"
-         working-directory: ./client/tests
-         run: pytest
+      - name: Testing
+        env:
+          API_ADDRESS: "localhost:7878"
+        working-directory: ./client/tests
+        run: pytest

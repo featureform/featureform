@@ -7,15 +7,12 @@ package provider
 import (
 	"encoding/json"
 	"fmt"
-
-	"github.com/gocql/gocql"
 )
 
 func init() {
 	unregisteredFactories := map[Type]Factory{
 		LocalOnline:      localOnlineStoreFactory,
 		RedisOnline:      redisOnlineStoreFactory,
-		CassandraOnline:  cassandraOnlineStoreFactory,
 		DynamoDBOnline:   dynamodbOnlineStoreFactory,
 		MemoryOffline:    memoryOfflineStoreFactory,
 		PostgresOffline:  postgresOfflineStoreFactory,
@@ -43,8 +40,9 @@ type DynamodbConfig struct {
 	Prefix string
 	Addr   string
 	Region string
+	AccessKey string
+	SecretKey string
 }
-
 func (r RedisConfig) Serialized() SerializedConfig {
 	config, err := json.Marshal(r)
 	if err != nil {
@@ -64,8 +62,7 @@ func (r *RedisConfig) Deserialize(config SerializedConfig) error {
 type CassandraConfig struct {
 	keyspace    string
 	Addr        string
-	session     *gocql.Session
-	Consistency gocql.Consistency
+	Consistency string
 }
 
 func (r CassandraConfig) Serialized() SerializedConfig {
@@ -82,14 +79,6 @@ func (r DynamodbConfig) Serialized() SerializedConfig {
 		panic(err)
 	}
 	return config
-}
-
-func (r *CassandraConfig) Deserialize(config SerializedConfig) error {
-	err := json.Unmarshal(config, r)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (r *DynamodbConfig) Deserialize(config SerializedConfig) error {

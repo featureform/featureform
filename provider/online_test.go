@@ -57,8 +57,8 @@ func TestOnlineStores(t *testing.T) {
 	dynamoSecretKey := os.Getenv("DYNAMO_SECRET_KEY")
 	dynamoAddr := fmt.Sprintf("%s:%s", "localhost", dynamoPort)
 	dynamoConfig := &DynamodbConfig{
-		Addr:   dynamoAddr,
-		Region: "us-east-1",
+		Addr:      dynamoAddr,
+		Region:    "us-east-1",
 		AccessKey: dynamoAccessKey,
 		SecretKey: dynamoSecretKey,
 	}

@@ -517,8 +517,8 @@ jobs:
           helm install certmgr jetstack/cert-manager --set installCRDs=true --version v1.8.0 --namespace cert-manager --create-namespace
           helm install featureform ./charts/featureform --set global.repo=local --set global.pullPolicy=Never
           helm install quickstart ./charts/quickstart
-      - name: Check Pods
-        run: kubectl wait --for=condition=READY=true pod -l app=featureform --timeout=360s
+      # - name: Check Pods
+      #   run: kubectl wait --for=condition=READY=true pod -l app=featureform --timeout=360s
       - name: Get pods in the cluster
         run: kubectl get pods -A
       - name: Get deployments in cluster

@@ -14,9 +14,9 @@ import (
 )
 
 const (
-	LocalOnline     Type = "LOCAL_ONLINE"
-	RedisOnline          = "REDIS_ONLINE"
-	DynamoDBOnline       = "DYNAMODB_ONLINE"
+	LocalOnline    Type = "LOCAL_ONLINE"
+	RedisOnline         = "REDIS_ONLINE"
+	DynamoDBOnline      = "DYNAMODB_ONLINE"
 )
 
 var ctx = context.Background()

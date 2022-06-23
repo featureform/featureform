@@ -37,12 +37,13 @@ type RedisConfig struct {
 }
 
 type DynamodbConfig struct {
-	Prefix string
-	Addr   string
-	Region string
+	Prefix    string
+	Addr      string
+	Region    string
 	AccessKey string
 	SecretKey string
 }
+
 func (r RedisConfig) Serialized() SerializedConfig {
 	config, err := json.Marshal(r)
 	if err != nil {

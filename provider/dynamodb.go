@@ -3,14 +3,14 @@ package provider
 import (
 	"encoding/json"
 	"fmt"
-	"time"
-	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	sn "github.com/mrz1836/go-sanitize"
 	"strconv"
+	"time"
 )
 
 type dynamodbTableKey struct {
@@ -59,7 +59,7 @@ func NewDynamodbOnlineStore(options *DynamodbConfig) (*dynamodbOnlineStore, erro
 	// fmt.Print("sss", options)
 	config := &aws.Config{
 		// Endpoint: &options.Addr,
-		Region:   aws.String(options.Region),
+		Region:      aws.String(options.Region),
 		Credentials: credentials.NewStaticCredentials(options.AccessKey, options.SecretKey, ""),
 	}
 	sess := session.Must(session.NewSession(config))
@@ -78,7 +78,7 @@ func (store *dynamodbOnlineStore) AsOnlineStore() (OnlineStore, error) {
 	return store, nil
 }
 
-func CreateMetadataTable(dynamodbClient *dynamodb.DynamoDB) error{
+func CreateMetadataTable(dynamodbClient *dynamodb.DynamoDB) error {
 	params := &dynamodb.CreateTableInput{
 		TableName: aws.String("Metadata"),
 		AttributeDefinitions: []*dynamodb.AttributeDefinition{
@@ -201,7 +201,7 @@ func (store *dynamodbOnlineStore) CreateTable(feature, variant string, valueType
 	if err != nil {
 		return nil, err
 	}
-	describeTableParams := &dynamodb.DescribeTableInput{TableName: aws.String(sn.Custom(key.String(), "[^a-zA-Z0-9_.\\-]")),}
+	describeTableParams := &dynamodb.DescribeTableInput{TableName: aws.String(sn.Custom(key.String(), "[^a-zA-Z0-9_.\\-]"))}
 	describeTableOutput, err := store.client.DescribeTable(describeTableParams)
 	if err != nil {
 		return nil, err

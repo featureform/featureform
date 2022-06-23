@@ -40,6 +40,12 @@ spec:
               value: "8080"
             - name: METADATA_HTTP_PORT
               value: "8080"
+            - name: TYPESENSE_PORT
+              value: {{ .Values.typesense.port | quote }}
+            - name: TYPESENSE_HOST
+              value: {{ .Values.typesense.host }}
+            - name: TYPESENSE_APIKEY
+              value: {{ .Values.typesense.apikey | quote }}
           ports:
             - name: http
               containerPort: 8080

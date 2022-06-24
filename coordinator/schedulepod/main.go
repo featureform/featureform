@@ -30,7 +30,7 @@ func main() {
 	logger := zap.NewExample().Sugar()
 	client, err := metadata.NewClient(metadata_addr, logger)
 	if err != nil {
-		logger.Errorf("could not set up metadata client: %v", err)
+		logger.Fatalf("could not set up metadata client: %v", err)
 	}
 	defer client.Close()
 	eg := &errgroup.Group{}
@@ -38,7 +38,7 @@ func main() {
 	eg.Go(testScheduleTransformation)
 	eg.Go(testScheduleFeatureMaterialization)
 	if err := eg.Wait(); err != nil {
-		logger.Errorf("Error", err)
+		logger.Fatalf("Error", err)
 	}
 	fmt.Println("Completed successfully!")
 }
@@ -535,7 +535,6 @@ func testScheduleTransformation() error {
 		}
 
 	}
-
 
 	return nil
 }

@@ -149,7 +149,6 @@ func testTableAlreadyExists(t *testing.T, store OnlineStore) {
 
 func testTableNotFound(t *testing.T, store OnlineStore) {
 	mockFeature, mockVariant := randomFeatureVariant()
-	defer store.DeleteTable(mockFeature, mockVariant)
 	if _, err := store.GetTable(mockFeature, mockVariant); err == nil {
 		t.Fatalf("Succeeded in getting non-existant table")
 	} else if casted, valid := err.(*TableNotFound); !valid {

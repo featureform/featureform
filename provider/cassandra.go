@@ -164,7 +164,8 @@ func (store *cassandraOnlineStore) DeleteTable(feature, variant string) error {
 
 func (table cassandraOnlineTable) Set(entity string, value interface{}) error {
 	key := table.key
-	tableName := fmt.Sprintf("%s.table%s", key.Keyspace, sn.Custom(key.Feature, "[^a-zA-Z0-9_]"))
+	tableName := fmt.Sprintf("%s.table%sv%s", key.Keyspace, sn.Custom(key.Feature, "[^a-zA-Z0-9_]"), sn.Custom(key.Variant, "[^a-zA-Z0-9_]"))
+
 	query := fmt.Sprintf("INSERT INTO %s (entity, value) VALUES (?, ?)", tableName)
 	err := table.session.Query(query, entity, value).WithContext(ctx).Exec()
 	if err != nil {
@@ -177,7 +178,7 @@ func (table cassandraOnlineTable) Set(entity string, value interface{}) error {
 func (table cassandraOnlineTable) Get(entity string) (interface{}, error) {
 
 	key := table.key
-	tableName := fmt.Sprintf("%s.table%s", key.Keyspace, sn.Custom(key.Feature, "[^a-zA-Z0-9_]"))
+	tableName := fmt.Sprintf("%s.table%sv%s", key.Keyspace, sn.Custom(key.Feature, "[^a-zA-Z0-9_]"), sn.Custom(key.Variant, "[^a-zA-Z0-9_]"))
 
 	var ptr interface{}
 	switch table.valueType {

@@ -74,7 +74,8 @@ class SQLiteMetadata:
           trainingSetName text NOT NULL,
           owner text,
           variantName text,
-          label text,
+          labelName text,
+          labelVariant text,
           status text,
           features text,
           PRIMARY KEY(trainingSetName, variantName),
@@ -87,6 +88,13 @@ class SQLiteMetadata:
           type text NOT NULL,
           defaultVariant text,
           name text PRIMARY KEY NOT NULL);''')
+
+          #
+          self.__conn.execute('''CREATE TABLE IF NOT EXISTS training_set_features(
+          trainingSetName text NOT NULL,
+          trainingSetVariant text NOT NULL,
+          featureName text NOT NULL,
+          featureVariant text PRIMARY KEY NOT NULL);''')
 
           # source variant
           self.__conn.execute('''CREATE TABLE IF NOT EXISTS source_variant(

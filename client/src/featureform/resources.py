@@ -539,11 +539,13 @@ class TrainingSet:
         self.owner,
         # "Provider",
         self.variant,
-        str(self.label),
+        self.label[0],
+        self.label[1],
          "ready",
         str(self.features)
         )
         self._create_training_set_resource(db)
+        self._insert_training_set_features(db)
 
     def _create_training_set_resource(self, db) -> None:
         db.insert(
@@ -551,6 +553,16 @@ class TrainingSet:
             "TrainingSet",
             self.variant,
             self.name
+        )
+    
+    def _insert_training_set_features(self, db) -> None:
+        for feature in self.features:
+            db.insert(
+            "training_set_features",
+            self.name,
+            self.variant,
+            feature[0], #feature name
+            feature[1] #feature variant
         )
 
 

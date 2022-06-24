@@ -85,9 +85,10 @@ def training_set_variant(variantData):
                 variantRow[2], #trainingSetName
                 variantRow[3], #owner
                 variantRow[4], #variantName
-                variantRow[5], #label
-                variantRow[6], #status
-                variant_organiser(feature_variant(getTrainingSetFeatures(variantRow[7]))[2]),
+                {"Name":variantRow[5],
+                "Variant":variantRow[6]}, #label
+                variantRow[7], #status
+                variant_organiser(feature_variant(getTrainingSetFeatures(variantRow[8]))[2]),
             ).toDictionary()
         allVariantList.append(variantRow[4])
         variantDict[variantRow[4]] = trainingSetVariant

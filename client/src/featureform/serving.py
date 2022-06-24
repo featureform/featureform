@@ -25,7 +25,7 @@ class LocalClient:
             sourceRow = self.sqldb.getNameVariant("source_variant",  "sourceName", sourceName, "variant", sourceVariant)[0]
             feature_dataframes, dataframeMapping = self.processFeatureCSV(sourceRow[8], entityTuple[0], feature_dataframes, featureColumnName, dataframeMapping, featureVariantTuple[0])
         try:
-            allFeatureDF = dataframeMapping[feature_dataframes.pop()] # pd.DataFrame(data=dfs[0][entityTuple[0]], columns=[entityTuple[0]])
+            allFeatureDF = dataframeMapping[feature_dataframes.pop()]
             while len(feature_dataframes) != 0:
                 featureDF = dataframeMapping[feature_dataframes.pop()]
                 allFeatureDF = allFeatureDF.join(featureDF.set_index(entityTuple[0]), on=entityTuple[0])
@@ -34,15 +34,54 @@ class LocalClient:
         entityRow = allFeatureDF.loc[allFeatureDF[entityTuple[0]] == entityTuple[1]]
         return entityRow
 
-    def processFeatureCSV(self, sourcePath, entityName, feature_dataframes, featureColumnName, dataframeMapping, featureName):
+    def processFeatureCSV(self, sourcePath, entityName, featureDataframes, featureColumnName, dataframeMapping, featureName):
         df = pd.read_csv(sourcePath)
         df = df[[entityName, featureColumnName]]
         df.set_index(entityName)
-        feature_dataframes.add(featureName)
+        featureDataframes.add(featureName)
         dataframeMapping[featureName] = df
-        return feature_dataframes, dataframeMapping
+        return featureDataframes, dataframeMapping
+
+    def processLabelCSV(self, sourcePath, entityName, labelColumnName):
+        df = pd.read_csv(sourcePath)
+        df = df[[entityName, labelColumnName]]
+        df.set_index(entityName)
+        return df
 
     def training_set(self, trainingSetName, trainingSetVariant):
+        featureDataframes = set()
+        dataframeMapping = {}
+
+        trainingSetRow = self.sqldb.getNameVariant("training_set_variant",  "trainingSetName", trainingSetName, "variantName", trainingSetVariant)[0]
+
+        labelName, labelVariant = trainingSetRow[5], trainingSetRow[6]
+        labelRow = self.sqldb.getNameVariant("labels_variant",  "labelname", labelName, "variantName", labelVariant)[0]
+        entityColumnName = labelRow[8]
+        labelColumnName = labelRow[10]
+        labelSource = self.sqldb.getNameVariant("source_variant",  "sourceName", labelRow[12], "variant", labelRow[12])[0]
+        labelDF = self.processLabelCSV(labelSource[8], entityColumnName, labelColumnName)
+
+        # Get a list of tuples (featureName, featureVariant). Replace the list with the empty lost mentioned below called featureVariantList
+        featureTable = self.sqldb.getNameVariant("training_set_features", "trainingSetName", trainingSetName, "trainingSetVariant", trainingSetVariant)
+        
+        for featureVariant in featureTable:
+            featureRow = self.sqldb.getNameVariant("feature_variant",  "featureName", featureVariant[2], "variantName", featureVariant[3])[0]
+            sourceRow = self.sqldb.getNameVariant("source_variant",  "sourceName", featureRow[12], "variant", featureRow[13])[0]
+            feature_dataframes, dataframeMapping = self.processFeatureCSV(sourceRow[8], featureRow[9], featureDataframes, featureRow[11], dataframeMapping, featureVariant[2])
+
+        try:
+            allFeatureDF = dataframeMapping[feature_dataframes.pop()]
+            while len(feature_dataframes) != 0:
+                featureDF = dataframeMapping[feature_dataframes.pop()]
+                allFeatureDF = allFeatureDF.join(featureDF.set_index(featureRow[9]), on=featureRow[9])
+        except TypeError:
+            print("Set is empty")
+
+        allFeatureDF = allFeatureDF.join(labelDF, on=featureRow[9])
+        allFeatureDF.drop(columns=featureRow[9])
+
+        return Dataset().from_list(list)
+
 
 #         files = set(fname from features)
 # files.append(fname)

@@ -517,32 +517,21 @@ jobs:
       - name: Setup Proto
         run: ./gen_grpc.sh
       - name: Start minikube
-        run: |
-          curl -LO \
-            https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64 \
-            && install minikube-linux-amd64 /tmp/
-
-            kv=$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)
-            curl -LO \
-            https://storage.googleapis.com/kubernetes-release/release/$kv/bin/linux/amd64/kubectl \
-            && install kubectl /tmp/
-
-            /tmp/minikube-linux-amd64 config set WantUpdateNotification false
-            /tmp/minikube-linux-amd64 start --driver=docker
-      - name: Build images and load into minikube
-        run: |
-
-      - name: Helm Install
+        uses: medyagh/setup-minikube@master
+      - name: build docker images and add to minikube
         run: |
           export SHELL=/bin/bash
-          eval $(minikube docker-env)
-          docker build . --file runner/Dockerfile --tag local/worker:stable
-          docker build . --file coordinator/schedulepod/Dockerfile --tag local/scheduletester:stable
-          docker build . --file metadata/Dockerfile --tag local/metadata:stable
-          minikube image load local/metadata:stable
-          minikube image load local/scheduletester:stable
-          minikube image load local/worker:stable
+          eval $(minikube -p minikube docker-env)
+          docker build . --file runner/Dockerfile --tag local/worker
+          docker build . --file coordinator/schedulepod/Dockerfile --tag local/scheduletester
+          docker build . --file metadata/Dockerfile --tag local/metadata
+          minikube image load local/metadata
+          minikube cache add local/metadata
+          minikube image load local/scheduletester
+          minikube image load local/worker
           minikube image ls
+      - name: Set up Helm
+        run: |
           echo -n "verifying images:"
           docker images
           helm repo add jetstack https://charts.jetstack.io
@@ -554,7 +543,8 @@ jobs:
           kubectl wait pods --for condition=ready --timeout=100s -l run=featureform-metadata-server
           kubectl wait pods --for condition=ready --timeout=100s -l app.kubernetes.io/name=etcd
           kubectl wait pods --for condition=ready --timeout=100s -l app.kubernetes.io/instance=test-quickstart
-          kubectl apply -f coordinator/schedulepod/runjob.yaml
+      - name: Deploy schedule tester job
+        run: kubectl apply -f coordinator/schedulepod/runjob.yaml
       - name: Get pods in the cluster
         run: kubectl get pods -A
       - name: Get deployments in cluster

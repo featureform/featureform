@@ -57,7 +57,10 @@ func (r *RedisConfig) Deserialize(config SerializedConfig) error {
 type CassandraConfig struct {
 	keyspace    string
 	Addr        string
+	Username string
+	Password string
 	Consistency string
+	Replication int
 }
 
 func (r CassandraConfig) Serialized() SerializedConfig {

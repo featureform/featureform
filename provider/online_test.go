@@ -56,9 +56,14 @@ func TestOnlineStores(t *testing.T) {
 
 	//Cassandra
 	cassandraAddr := "localhost:9042"
+	cassandraUsername := os.Getenv("CASSANDRA_USER")
+	cassandraPassword := os.Getenv("CASSANDRA_PASSWORD")
 	cassandraConfig := &CassandraConfig{
 		Addr:        cassandraAddr,
+		Username: 	cassandraUsername,
 		Consistency: "ONE",
+		Password: cassandraPassword,
+		Replication: 3,
 	}
 
 	//Firestore
@@ -118,6 +123,7 @@ func randomFeatureVariant() (string, string) {
 
 func testCreateGetTable(t *testing.T, store OnlineStore) {
 	mockFeature, mockVariant := randomFeatureVariant()
+	defer store.DeleteTable(mockFeature, mockVariant)
 	if tab, err := store.CreateTable(mockFeature, mockVariant, String); tab == nil || err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
@@ -128,6 +134,7 @@ func testCreateGetTable(t *testing.T, store OnlineStore) {
 
 func testTableAlreadyExists(t *testing.T, store OnlineStore) {
 	mockFeature, mockVariant := randomFeatureVariant()
+	defer store.DeleteTable(mockFeature, mockVariant)
 	if _, err := store.CreateTable(mockFeature, mockVariant, String); err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
@@ -142,6 +149,7 @@ func testTableAlreadyExists(t *testing.T, store OnlineStore) {
 
 func testTableNotFound(t *testing.T, store OnlineStore) {
 	mockFeature, mockVariant := randomFeatureVariant()
+	defer store.DeleteTable(mockFeature, mockVariant)
 	if _, err := store.GetTable(mockFeature, mockVariant); err == nil {
 		t.Fatalf("Succeeded in getting non-existant table")
 	} else if casted, valid := err.(*TableNotFound); !valid {
@@ -154,6 +162,7 @@ func testTableNotFound(t *testing.T, store OnlineStore) {
 func testSetGetEntity(t *testing.T, store OnlineStore) {
 	mockFeature, mockVariant := randomFeatureVariant()
 	entity, val := "e", "val"
+	defer store.DeleteTable(mockFeature, mockVariant)
 	tab, err := store.CreateTable(mockFeature, mockVariant, String)
 	if err != nil {
 		t.Fatalf("Failed to create table: %s", err)
@@ -173,6 +182,7 @@ func testSetGetEntity(t *testing.T, store OnlineStore) {
 func testEntityNotFound(t *testing.T, store OnlineStore) {
 	mockFeature, mockVariant := uuid.NewString(), "v"
 	entity := "e"
+	defer store.DeleteTable(mockFeature, mockVariant)
 	tab, err := store.CreateTable(mockFeature, mockVariant, String)
 	if err != nil {
 		t.Fatalf("Failed to create table: %s", err)

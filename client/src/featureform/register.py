@@ -312,9 +312,12 @@ class Registrar:
                        team: str = "",
                        host: str = "0.0.0.0",
                        port: int = 9042,
+                       username: str = "cassandra",
+                       password: str = "cassandra",
                        keyspace: str = "",
-                       consistency: str = "ONE"):
-        config = CassandraConfig(host=host, port=port, keyspace=keyspace, consistency=consistency)
+                       consistency: str = "THREE",
+                       replication: int = 3):
+        config = CassandraConfig(host=host, port=port, username=username, password=password, keyspace=keyspace, consistency=consistency, replication=replication)
         provider = Provider(name=name,
                             function="ONLINE",
                             description=description,
@@ -593,6 +596,8 @@ global_registrar = Registrar()
 state = global_registrar.state
 register_user = global_registrar.register_user
 register_redis = global_registrar.register_redis
+register_firestore = global_registrar.register_firestore
+register_cassandra = global_registrar.register_cassandra
 register_snowflake = global_registrar.register_snowflake
 register_postgres = global_registrar.register_postgres
 register_redshift = global_registrar.register_redshift

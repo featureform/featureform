@@ -54,7 +54,7 @@ func NewFirestoreOnlineStore(options *FirestoreConfig) (*firestoreOnlineStore, e
 	}
 
 	firestoreCollection := firestoreClient.Collection(options.Collection)
-	_, err = firestoreCollection.Doc("firestoreMetadata").Set(ctx, map[string]interface{}{})
+	_, err = firestoreCollection.Doc(GetMetadataTable()).Set(ctx, map[string]interface{}{})
 
 	return &firestoreOnlineStore{firestoreClient, firestoreCollection, BaseProvider{
 		ProviderType:   FirestoreOnline,
@@ -65,6 +65,10 @@ func NewFirestoreOnlineStore(options *FirestoreConfig) (*firestoreOnlineStore, e
 
 func (store *firestoreOnlineStore) AsOnlineStore() (OnlineStore, error) {
 	return store, nil
+}
+
+func GetMetadataTable() string {
+	return "featureform_firestore_metadata"
 }
 
 func (store *firestoreOnlineStore) GetTable(feature, variant string) (OnlineStoreTable, error) {
@@ -80,7 +84,7 @@ func (store *firestoreOnlineStore) GetTable(feature, variant string) (OnlineStor
 		return nil, err
 	}
 
-	metadata, err := store.collection.Doc("firestoreMetadata").Get(ctx)
+	metadata, err := store.collection.Doc(GetMetadataTable()).Get(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +114,7 @@ func (store *firestoreOnlineStore) CreateTable(feature, variant string, valueTyp
 		return nil, err
 	}
 
-	_, err = store.collection.Doc("firestoreMetadata").Set(ctx, map[string]interface{}{
+	_, err = store.collection.Doc(GetMetadataTable()).Set(ctx, map[string]interface{}{
 		tableName: valueType,
 	}, firestore.MergeAll)
 
@@ -120,6 +124,28 @@ func (store *firestoreOnlineStore) CreateTable(feature, variant string, valueTyp
 		valueType: valueType,
 	}, nil
 
+}
+
+func (store *firestoreOnlineStore) DeleteTable(feature, variant string) error {
+	key := firestoreTableKey{store.collection.ID, feature, variant}
+	tableName := key.String()
+	_, err := store.collection.Doc(tableName).Delete(ctx)
+	if err != nil {
+		return err
+	}
+
+	_, err = store.collection.Doc(GetMetadataTable()).Update(ctx, []firestore.Update{
+        {
+                Path:  tableName,
+                Value: firestore.Delete,
+        },
+	})
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (table firestoreOnlineTable) Set(entity string, value interface{}) error {

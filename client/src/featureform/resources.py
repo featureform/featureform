@@ -66,7 +66,10 @@ class CassandraConfig:
     keyspace: str
     host: str
     port: str
+    username: str
+    password: str
     consistency: str
+    replication: int
 
     def software(self) -> str:
         return "cassandra"
@@ -78,7 +81,10 @@ class CassandraConfig:
         config = {
             "Keyspace": self.keyspace,
             "Addr": f"{self.host}:{self.port}",
+            "Username": self.username,
+            "Password": self.password,
             "Consistency": self.consistency,
+            "Replication": self.replication
         }
         return bytes(json.dumps(config), "utf-8")
 

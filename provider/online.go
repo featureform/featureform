@@ -33,6 +33,7 @@ var cassandraTypeMap = map[string]string{
 type OnlineStore interface {
 	GetTable(feature, variant string) (OnlineStoreTable, error)
 	CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error)
+	DeleteTable(feature, variant string) error
 	Provider
 }
 
@@ -178,6 +179,14 @@ func (store *redisOnlineStore) CreateTable(feature, variant string, valueType Va
 	table := &redisOnlineTable{client: store.client, key: key, valueType: valueType}
 	return table, nil
 
+}
+
+func (store *redisOnlineStore) DeleteTable(feature, variant string) error {
+	return nil
+}
+
+func (store *localOnlineStore) DeleteTable(feature, variant string) error {
+	return nil
 }
 
 type localOnlineTable map[string]interface{}

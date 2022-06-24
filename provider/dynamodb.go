@@ -236,7 +236,6 @@ func (store *dynamodbOnlineStore) DeleteTable(feature, variant string) error {
 	return nil
 }
 
-
 func (table dynamodbOnlineTable) Set(entity string, value interface{}) error {
 	input := &dynamodb.UpdateItemInput{
 		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{

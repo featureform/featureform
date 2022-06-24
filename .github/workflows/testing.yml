@@ -165,6 +165,8 @@ jobs:
           REDSHIFT_USERNAME: ${{ secrets.REDSHIFT_USERNAME }}
           REDSHIFT_PASSWORD: ${{ secrets.REDSHIFT_PASSWORD }}
           REDSHIFT_ENDPOINT: ${{ secrets.REDSHIFT_ENDPOINT }}
+          DYNAMO_ACCESS_KEY: ${{ secrets.DYNAMO_ACCESS_KEY }}
+          DYNAMO_SECRET_KEY: ${{ secrets.DYNAMO_SECRET_KEY }}
         working-directory: ./
         run: go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/...
 

@@ -5,6 +5,7 @@
 package provider
 
 import (
+	"io/ioutil"
 	"fmt"
 	"os"
 	"reflect"
@@ -63,7 +64,10 @@ func TestOnlineStores(t *testing.T) {
 	//Firestore
 	projectID := os.Getenv("FIRESTORE_PROJECT")
 	firestoreCredentials := os.Getenv("FIRESTORE_CRED")
-	JSONCredentials := firestoreCredentials
+	JSONCredentials, err := ioutil.ReadFile(firestoreCredentials)
+	if err != nil {
+		panic(err)
+	}
 	firestoreConfig := &FirestoreConfig{
 		ProjectID:   projectID,
 		Credentials: JSONCredentials,

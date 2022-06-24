@@ -512,6 +512,9 @@ jobs:
         uses: medyagh/setup-minikube@master
       - name: Build images and load into minikube
         run: |
+
+      - name: Helm Install
+        run: |
           export SHELL=/bin/bash
           eval $(minikube -p minikube docker-env)
           docker build . --file runner/Dockerfile --tag local/worker
@@ -522,27 +525,22 @@ jobs:
           minikube image load local/worker:stable
           echo -n "verifying images:"
           docker images
-      - name: Helm Install
-        run: |
           helm repo add jetstack https://charts.jetstack.io
           helm repo update
           helm install certmgr jetstack/cert-manager --set installCRDs=true --version v1.8.0 --namespace cert-manager --create-namespace
           helm install featureform ./charts/featureform --set global.repo=local --set global.pullPolicy=Never
           helm install test-quickstart ./charts/quickstart
-      - name: Delete coordinator deployment
-        run: kubectl delete svc featureform-coordinator
+          kubectl delete svc featureform-coordinator
+          kubectl wait pods --for condition=ready --timeout=100s -l run=featureform-metadata-server
+          kubectl wait pods --for condition=ready --timeout=100s -l app.kubernetes.io/name=etcd
+          kubectl wait pods --for condition=ready --timeout=100s -l app.kubernetes.io/instance=test-quickstart
+          kubectl apply -f coordinator/schedulepod/runjob.yaml
       - name: Get pods in the cluster
         run: kubectl get pods -A
       - name: Get deployments in cluster
         run: kubectl get deployments -A
       - name: Get services in the cluster
         run: kubectl get services -A
-      - name: Wait until necessary services are ready
-        run: |
-          kubectl wait pods --for condition=ready --timeout=100s -l run=featureform-metadata-server
-          kubectl wait pods --for condition=ready --timeout=100s -l app.kubernetes.io/name=etcd
-      - name: Deploy to minikube
-        run: kubectl apply -f coordinator/schedulepod/runjob.yaml
       - name: Wait until test pod is completed
         run: kubectl wait --for condition=complete --timeout=100s job example
       - name: List cron jobs

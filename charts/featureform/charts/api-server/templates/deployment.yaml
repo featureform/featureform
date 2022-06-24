@@ -9,13 +9,13 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: app
+      app: featureform-api-server
   strategy: {}
   template:
     metadata:
       creationTimestamp: null
       labels:
-        app: featureform
+        app: featureform-api-server
     spec:
       containers:
         - image: "{{ .Values.global.repo | default .Values.image.repository }}/{{ .Values.image.name }}:{{ .Values.global.version | default .Values.image.tag }}"

@@ -266,7 +266,23 @@ jobs:
           helm install quickstart ./charts/quickstart
 
       - name: Check Pods
-        run: kubectl wait --for=condition=READY=true pod -l app=featureform --timeout=360s
+        run: |
+          seconds=0
+          while [ $(kubectl get pods | grep "featureform" | grep -wv featureform-quickstart | awk {'print $3'} | column -t | grep -wv Running -c ) != 0 ]
+          do 
+            echo "Waiting for containers to be ready: $(kubectl get pods | grep "featureform" | grep -wv featureform-quickstart | awk {'print $3'} | column -t | grep -wv Running -c ) Remaining"
+            seconds=$((seconds + 10))
+            sleep 10
+            if (( seconds > 360 ))
+            then
+            	kubectl get pods
+            	echo "**Containers Did Not Ready**"
+            	exit 1
+            fi
+          done
+          echo "Containers Ready"
+          kubectl get pods
+        shell: bash
 
       - name: Enable Minikube Ingress
         run: |

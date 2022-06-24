@@ -6,11 +6,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: featureform
+      app: featureform-dashboard
   template:
     metadata:
       labels:
-        app: featureform
+        app: featureform-dashboard
     spec:
       terminationGracePeriodSeconds: 30
       containers:

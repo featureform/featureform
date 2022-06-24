@@ -3,6 +3,7 @@ kind: Deployment
 metadata:
   name: featureform-coordinator
   labels:
+    chart: featureform
     {{- include "coodinator.labels" . | nindent 4 }}
 spec:
   {{- if not .Values.autoscaling.enabled }}

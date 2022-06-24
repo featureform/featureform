@@ -1,8 +1,8 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  creationTimestamp: null
   labels:
+    chart: featureform
     run: featureform-feature-server
   name: featureform-feature-server
 spec:
@@ -13,8 +13,8 @@ spec:
   strategy: {}
   template:
     metadata:
-      creationTimestamp: null
       labels:
+        chart: featureform
         run: featureform-feature-server
     spec:
       containers:

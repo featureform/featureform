@@ -3,6 +3,7 @@ kind: Deployment
 metadata:
   name: featureform-dashboard-metadata
   labels:
+    chart: featureform
     {{- include "dashboard-metadata.labels" . | nindent 4 }}
 spec:
   {{- if not .Values.autoscaling.enabled }}

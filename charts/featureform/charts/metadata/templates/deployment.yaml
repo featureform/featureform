@@ -1,8 +1,8 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  creationTimestamp: null
   labels:
+    chart: featureform
     run: featureform-metadata-server
   name: featureform-metadata-server
 spec:

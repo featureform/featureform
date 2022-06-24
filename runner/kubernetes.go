@@ -169,7 +169,6 @@ func (k KubernetesCompletionWatcher) Wait() error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("job name: %s\n", k.jobClient.(*KubernetesJobClient).JobName)
 	watchChannel := watcher.ResultChan()
 	for jobEvent := range watchChannel {
 		if active := jobEvent.Object.(*batchv1.Job).Status.Active; active == 0 {

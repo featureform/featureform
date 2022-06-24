@@ -158,6 +158,7 @@ def label_variant(variantData):
     variants = []
 
     for variantRow in variantData:
+        labelTuple = str((variantRow[3], variantRow[8]))
         labelVariant = LabelVariantResource(
                 variantRow[0], #created
                 variantRow[1], #description
@@ -173,7 +174,7 @@ def label_variant(variantData):
                 variantRow[11], #status
                 {"Name":variantRow[12],
                 "Variant":variantRow[13]}, #source
-                variant_organiser(training_set_variant(sqlObject.getVariantResource( "training_set_variant", "variantName", variantRow[7]))[2]) #training sets
+                variant_organiser(training_set_variant(sqlObject.getVariantResource( "training_set_variant", "label", labelTuple))[2]) #training sets
             ).toDictionary()
         
         allVariantList.append(variantRow[7])

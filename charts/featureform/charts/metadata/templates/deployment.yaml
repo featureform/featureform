@@ -9,12 +9,13 @@ spec:
   replicas: 1
   selector:
     matchLabels:
+      chart: featureform
       run: featureform-metadata-server
   strategy: {}
   template:
     metadata:
-      creationTimestamp: null
       labels:
+        chart: featureform
         run: featureform-metadata-server
     spec:
       containers:

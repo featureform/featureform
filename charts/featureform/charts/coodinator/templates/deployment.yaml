@@ -11,6 +11,7 @@ spec:
   {{- end }}
   selector:
     matchLabels:
+      chart: featureform
       {{- include "coodinator.selectorLabels" . | nindent 6 }}
   template:
     metadata:
@@ -19,6 +20,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
+        chart: featureform
         {{- include "coodinator.selectorLabels" . | nindent 8 }}
     spec:
       {{- with .Values.imagePullSecrets }}

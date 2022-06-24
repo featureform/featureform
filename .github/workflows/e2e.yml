@@ -280,7 +280,7 @@ jobs:
           count=0
           while [ $count -lt 10 ]
           do
-            if curl localhost:7001; then
+            if curl localhost:7000; then
               echo "Connected"
               exit 0
             else

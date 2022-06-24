@@ -5,8 +5,8 @@
 package provider
 
 import (
-	"io/ioutil"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"reflect"
 	"testing"

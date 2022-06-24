@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"time"
-	"os"
 
 	db "github.com/jackc/pgx/v4"
 	"go.uber.org/zap"

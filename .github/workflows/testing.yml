@@ -126,12 +126,12 @@ jobs:
         # supported for use outside of 'steps'
         ports:
           - 9042:9042
-        dynamodb:
-          image: amazon/dynamodb-local
-          # Hard coded port because environment variables not currently
-          # supported for use outside of 'steps'
-          ports:
-            - 8000:8000
+      dynamodb:
+        image: amazon/dynamodb-local
+        # Hard coded port because environment variables not currently
+        # supported for use outside of 'steps'
+        ports:
+          - 8000:8000
 
       postgres:
         image: postgres

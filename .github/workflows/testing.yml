@@ -522,7 +522,7 @@ jobs:
         run: |
           eval $(minikube docker-env)
           docker build . --file runner/Dockerfile --tag local/worker:stable
-          docker build . --file coordinator/schedulepod/Dockerfile --tag local/scheduletester:stable
+          docker build . --file coordinator/scheduletest/Dockerfile --tag local/scheduletester:stable
           docker build . --file metadata/Dockerfile --tag local/metadata:stable
           minikube image ls
       - name: Set up Helm
@@ -539,7 +539,7 @@ jobs:
           kubectl wait pods --for condition=ready --timeout=300s -l app.kubernetes.io/name=etcd
           kubectl wait pods --for condition=ready --timeout=300s -l app.kubernetes.io/instance=test-quickstart
       - name: Deploy schedule tester job
-        run: kubectl apply -f coordinator/schedulepod/runjob.yaml
+        run: kubectl apply -f coordinator/scheduletest/runjob.yaml
       - name: Get pods in the cluster
         run: kubectl get pods -A
       - name: Get deployments in cluster

@@ -7,18 +7,15 @@ import (
 	db "github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"golang.org/x/sync/errgroup"
-	"net"
 	"os"
-	//"reflect"
+	"reflect"
 	"strings"
-	//"testing"
 	"time"
 
 	"github.com/featureform/coordinator"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	"github.com/featureform/runner"
-	//"github.com/jackc/pgx/v4/pgxpool"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.uber.org/zap"
 )
@@ -66,6 +63,19 @@ var testOfflineTableUpdateValues = [...]provider.ResourceRecord{
 	provider.ResourceRecord{Entity: "e", Value: 10, TS: time.UnixMilli(1).UTC()},
 }
 
+var finalUpdatedTableValues = [...]provider.ResourceRecord{
+	provider.ResourceRecord{Entity: "a", Value: 1, TS: time.UnixMilli(0).UTC()},
+	provider.ResourceRecord{Entity: "b", Value: 2, TS: time.UnixMilli(0).UTC()},
+	provider.ResourceRecord{Entity: "c", Value: 3, TS: time.UnixMilli(0).UTC()},
+	provider.ResourceRecord{Entity: "d", Value: 4, TS: time.UnixMilli(0).UTC()},
+	provider.ResourceRecord{Entity: "e", Value: 5, TS: time.UnixMilli(0).UTC()},
+	provider.ResourceRecord{Entity: "a", Value: 6, TS: time.UnixMilli(1).UTC()},
+	provider.ResourceRecord{Entity: "b", Value: 7, TS: time.UnixMilli(1).UTC()},
+	provider.ResourceRecord{Entity: "c", Value: 8, TS: time.UnixMilli(1).UTC()},
+	provider.ResourceRecord{Entity: "d", Value: 9, TS: time.UnixMilli(1).UTC()},
+	provider.ResourceRecord{Entity: "e", Value: 10, TS: time.UnixMilli(1).UTC()},
+}
+
 var postgresConfig = provider.PostgresConfig{
 	Host:     os.Getenv("POSTGRES_HOST"),
 	Port:     "5432",
@@ -79,53 +89,6 @@ var redisHost = os.Getenv("REDIS_HOST")
 
 var etcdHost = os.Getenv("ETCD_HOST")
 var etcdPort = "2379"
-
-func startServ() (*metadata.MetadataServer, string) {
-	logger := zap.NewExample().Sugar()
-	storageProvider := metadata.EtcdStorageProvider{
-		metadata.EtcdConfig{
-			Nodes: []metadata.EtcdNode{
-				{etcdHost, etcdPort},
-			},
-		},
-	}
-	config := &metadata.Config{
-		Logger:          logger,
-		StorageProvider: storageProvider,
-	}
-	serv, err := metadata.NewMetadataServer(config)
-	if err != nil {
-		panic(err)
-	}
-	// listen on a random port
-	lis, err := net.Listen("tcp", ":0")
-	if err != nil {
-		panic(err)
-	}
-	go func() {
-		if err := serv.ServeOnListener(lis); err != nil {
-			panic(err)
-		}
-	}()
-	fmt.Println(lis.Addr().String())
-	return serv, lis.Addr().String()
-}
-
-func createNewCoordinator(addr string) (*coordinator.Coordinator, error) {
-	logger := zap.NewExample().Sugar()
-	client, err := metadata.NewClient(addr, logger)
-	if err != nil {
-		return nil, err
-	}
-	etcdConnect := fmt.Sprintf("%s:%s", etcdHost, etcdPort)
-	cli, err := clientv3.New(clientv3.Config{Endpoints: []string{etcdConnect}, Username: "root",
-		Password: "secretpassword"})
-	if err != nil {
-		return nil, err
-	}
-	kubeJobSpawner := coordinator.KubernetesJobSpawner{}
-	return coordinator.NewCoordinator(client, logger, cli, &kubeJobSpawner)
-}
 
 func testScheduleTrainingSet() error {
 	if err := runner.RegisterFactory(string(runner.CREATE_TRAINING_SET), runner.TrainingSetRunnerFactory); err != nil {
@@ -185,12 +148,10 @@ func testScheduleTrainingSet() error {
 		}
 	}
 	originalTableName := createSafeUUID()
-	fmt.Println("creating table in postgres")
 	if err := CreateOriginalPostgresTable(originalTableName); err != nil {
 		return err
 	}
 	sourceName := createSafeUUID()
-	fmt.Println("create training set with provider")
 	if err := createTrainingSetWithProvider(client, serialPGConfig, sourceName, featureName, labelName, tsName, originalTableName, "*/1 * * * *"); err != nil {
 		return fmt.Errorf("could not create training set %v", err)
 	}
@@ -229,24 +190,18 @@ func testScheduleTrainingSet() error {
 	for i := 0; tsIterator.Next(); i++ {
 		retrievedFeatures := tsIterator.Features()
 		retrievedLabel := tsIterator.Label()
-		fmt.Println("training set features", retrievedFeatures[0])
-		fmt.Println("training set labels", retrievedLabel)
-		// if !reflect.DeepEqual(retrievedFeatures[0], testOfflineTableValues[i].Value) {
-		// 	return fmt.Errorf("Features not copied into training set")
-		// }
-		// if !reflect.DeepEqual(retrievedLabel, testOfflineTableValues[i].Value) {
-		// 	return fmt.Errorf("Label not copied into training set")
-		// }
-
+		if !reflect.DeepEqual(retrievedFeatures[0], testOfflineTableValues[i].Value) {
+			return fmt.Errorf("Features not copied into training set")
+		}
+		if !reflect.DeepEqual(retrievedLabel, testOfflineTableValues[i].Value) {
+			return fmt.Errorf("Label not copied into training set")
+		}
 	}
 	tsFirstTimestamp, err := client.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: tsName, Variant: ""})
 	if err != nil {
 		return fmt.Errorf("could not get training set")
 	}
 	oldTimestamp := tsFirstTimestamp.LastUpdated()
-	// if err := UpdateOriginalPostgresTable(originalTableName); err != nil {
-	// 	return err
-	// }
 	for _, value := range testOfflineTableUpdateValues {
 		if err := featureTable.Write(value); err != nil {
 			return fmt.Errorf("could not write to offline feature table")
@@ -278,14 +233,12 @@ func testScheduleTrainingSet() error {
 	for i := 0; tsIterator.Next(); i++ {
 		retrievedFeatures := tsIterator.Features()
 		retrievedLabel := tsIterator.Label()
-		fmt.Println("training set features", retrievedFeatures[0])
-		fmt.Println("training set label", retrievedLabel)
-		// if !reflect.DeepEqual(retrievedFeatures[0], testOfflineTableUpdateValues[i].Value) {
-		// 	return fmt.Errorf("Features not copied into training set")
-		// }
-		// if !reflect.DeepEqual(retrievedLabel, testOfflineTableUpdateValues[i].Value) {
-		// 	return fmt.Errorf("Label not copied into training set")
-		// }
+		if !reflect.DeepEqual(retrievedFeatures[0], finalUpdatedTableValues[i].Value) {
+			return fmt.Errorf("Features not copied into training set")
+		}
+		if !reflect.DeepEqual(retrievedLabel, finalUpdatedTableValues[i].Value) {
+			return fmt.Errorf("Label not copied into training set")
+		}
 
 	}
 	tsSecondTimestamp, err := client.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: tsName, Variant: ""})
@@ -386,10 +339,9 @@ func testScheduleFeatureMaterialization() error {
 		if err != nil {
 			return err
 		}
-		fmt.Println("online table value original", value)
-		// if !reflect.DeepEqual(value, record.Value) {
-		// 	return fmt.Errorf("Feature value did not materialize")
-		// }
+		if !reflect.DeepEqual(value, record.Value) {
+			return fmt.Errorf("Feature value did not materialize")
+		}
 	}
 	featureFirstTimestamp, err := client.GetFeatureVariant(context.Background(), metadata.NameVariant{Name: featureName, Variant: ""})
 	if err != nil {
@@ -421,15 +373,14 @@ func testScheduleFeatureMaterialization() error {
 	if err != nil {
 		return err
 	}
-	for _, record := range testOfflineTableValues {
+	for _, record := range testOfflineTableUpdateValues {
 		value, err := resourceTable.Get(record.Entity)
 		if err != nil {
 			return err
 		}
-		fmt.Println("online table value updated", value)
-		// if !reflect.DeepEqual(value, record.Value) {
-		// 	return fmt.Errorf("Feature value did not materialize")
-		// }
+		if !reflect.DeepEqual(value, record.Value) {
+			return fmt.Errorf("Feature table did not update")
+		}
 	}
 	featureSecondTimestamp, err := client.GetFeatureVariant(context.Background(), metadata.NameVariant{Name: featureName, Variant: ""})
 	if err != nil {
@@ -566,7 +517,7 @@ func testScheduleTransformation() error {
 	if joinTransformationTable.GetName() != transformationJoinName {
 		return fmt.Errorf("Transformation table did not copy name")
 	}
-	joinTransformationIterator, err := joinTransformationTable.IterateSegment(int64(len(testOfflineTableValues) + len(testOfflineTableUpdateValues)))
+	joinTransformationIterator, err := joinTransformationTable.IterateSegment(int64(len(finalUpdatedTableValues)))
 	if err != nil {
 		return err
 	}
@@ -575,33 +526,16 @@ func testScheduleTransformation() error {
 		if joinTransformationIterator.Err() != nil {
 			return err
 		}
-		joinTransformationTableRow := joinTransformationIterator.Values()
-		// values := reflect.ValueOf(testOfflineTableValues[i])
-		// newValues := reflect.ValueOf(testOfflineTableUpdateValues[i])
-		fmt.Println("updated table value", joinTransformationTableRow)
-
-	}
-
-	providerSourceID := provider.ResourceID{Name: sourceName, Variant: "", Type: provider.Primary}
-	primaryTable, err := myOffline.GetPrimaryTable(providerSourceID)
-	primaryTableIterator, err := primaryTable.IterateSegment(int64(len(testOfflineTableValues) + len(testOfflineTableUpdateValues)))
-	if err != nil {
-		return err
-	}
-	i = 0
-	for ; primaryTableIterator.Next(); i++ {
-		if primaryTableIterator.Err() != nil {
-			return err
+		transformationTableRow := joinTransformationIterator.Values()
+		values := reflect.ValueOf(finalUpdatedTableValues[i])
+		for j := 0; j < values.NumField(); j++ {
+			if transformationTableRow[j] != values.Field(j).Interface() {
+				return fmt.Errorf("Transformation table did not update")
+			}
 		}
-		primaryTableRow := primaryTableIterator.Values()
-		// values := reflect.ValueOf(testOfflineTableValues[i])
-		// newValues := reflect.ValueOf(testOfflineTableUpdateValues[i])
-		fmt.Println("Updated primary table value")
-		fmt.Println(primaryTableRow)
-		// if primaryTableRow[j] != values.Field(j).Interface() {
-		// 	return fmt.Errorf("Primary table value does not match original value")
-		// }
+
 	}
+
 
 	return nil
 }

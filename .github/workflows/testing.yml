@@ -555,11 +555,4 @@ jobs:
       - name: Get services in the cluster
         run: kubectl get services -A
       - name: Get job pods and print logs
-        run: |
-          export SHELL=/bin/bash
-          jobs=( $(kubectl get jobs -l app=example) )
-          for job in "${jobs[@]}"
-          do
-            pod=$(kubectl get pods -l job-name=$job)
-            kubectl logs $pod
-          done
+        run: kubectl logs -l job-name=example

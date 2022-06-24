@@ -81,70 +81,7 @@ class LocalClient:
         allFeatureDF = allFeatureDF.join(labelDF, on=featureRow[9])
         allFeatureDF.drop(columns=featureRow[9])
 
-        return Dataset().from_list(list)
-
-
-#         files = set(fname from features)
-# files.append(fname)
-# fileMap = dict()
-# for file in files:
-#     fileMap[fileName] = pandas.csv(...)
-# featureDfs = []
-# for feature in features:
-#     df = fileMap[feature.fname]
-#     df = df[[entityClm, valueClm]]
-#     df.set_index(entityClm)
-#     df.set_type(valueClm, type_of_feature)
-#     featureDfs.append(df)
-# features = joinAll(featureDFs)
-# labelDf = fileMap[label.fname]
-# labelDF = labelDF[[entityClm, valueClm]]
-# trainingSetDF = labelDF.join(features) # on the entity Clm
-# drop entity clm (if necessary)
-
-
-
-        trainingSetRow = self.sqldb.getNameVariant("training_set_variant",  "trainingSetName", trainingSetName, "variantName", trainingSetVariant)[0]
-        # make label name and variant two separate columns in training variant table
-        label = re.match("\(\'(.*?)\'\)", trainingSetRow[5])
-        labelName, labelVariant = label.split('\', \'')
-        labelRow = self.sqldb.getNameVariant("labels_variant",  "labelname", labelName, "variantName", labelVariant)[0]
-        entity = labelRow[2]
-        featureTable = self.sqldb.getVariantResource("feature_variant",  "entity", entity)
-
-        # create a dictionary mapping from file name to pandas dataframe
-
-        for featureRow in featureTable:
-            columnName = featureRow[11]
-            sourceName = featureRow[12]
-            sourceVariant = featureRow[13]
-
-            sourceRow = self.sqldb.getNameVariant("source_variant",  "sourceName", sourceName, "variant", sourceVariant)[0]
-            sourcePath = sourceRow[8]
-
-            df = pd.read_csv(sourcePath)
-            #print column columnName from file sourcePath
-
-        return Dataset().from_list(list)
-        
-
-    # def labels(self, labelVariantTuple):
-    #     label = labelVariantTuple[0]
-    #     variant = labelVariantTuple[1]
-    #     labelRow = self.sqldb.getNameVariant("labels_variant",  "labelName", label, "variantName", variant)[0]
-    #     sourceName = labelRow[12]
-    #     sourceVariant = labelRow[13]
-
-    #     sourceRow = self.sqldb.getNameVariant("source_variant",  "sourceName", sourceName, "variant", sourceVariant)[0]
-    #     sourcePath = sourceRow[8]
-    #     dataList = []
-
-    #     with open(sourcePath, newline = '') as csvfile:
-    #         data = csv.DictReader(csvfile)
-    #         for row in data:
-    #             dataList.append(row[label])
-    #     print(dataList)
-    #     return dataList
+        return Dataset().from_list(allFeatureDF.values.tolist())
 
 class Client:
 
@@ -204,6 +141,10 @@ class Stream:
     def restart(self):
         self._iter = self._stub.TrainingData(self._req)
 
+class LocalStream:
+
+    def __init__(self, datalist):
+        self.datalist = datalist
 
 class Repeat:
 
@@ -297,8 +238,8 @@ class Dataset:
         stream = Stream(stub, name, version)
         return Dataset(stream)
 
-    def from_list(list):
-        stream = LocalStream
+    def from_list(datalist):
+        stream = LocalStream(datalist)
         return Dataset(stream)
 
     def repeat(self, num):

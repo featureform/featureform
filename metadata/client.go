@@ -1102,6 +1102,19 @@ func (fn createdFn) Created() time.Time {
 	return t
 }
 
+type lastUpdatedGetter interface {
+	GetLastUpdated() *tspb.Timestamp
+}
+
+type lastUpdatedFn struct {
+	getter lastUpdatedGetter
+}
+
+func (fn lastUpdatedFn) LastUpdated() time.Time {
+	t := fn.getter.GetLastUpdated().AsTime()
+	return t
+}
+
 type variantsDescriber interface {
 	GetName() string
 	GetDefaultVariant() string
@@ -1257,6 +1270,7 @@ type FeatureVariant struct {
 	fetchProviderFns
 	fetchSourceFns
 	createdFn
+	lastUpdatedFn
 	protoStringer
 }
 
@@ -1267,6 +1281,7 @@ func wrapProtoFeatureVariant(serialized *pb.FeatureVariant) *FeatureVariant {
 		fetchProviderFns:     fetchProviderFns{serialized},
 		fetchSourceFns:       fetchSourceFns{serialized},
 		createdFn:            createdFn{serialized},
+		lastUpdatedFn:        lastUpdatedFn{serialized},
 		protoStringer:        protoStringer{serialized},
 	}
 }
@@ -1581,6 +1596,7 @@ type TrainingSetVariant struct {
 	fetchFeaturesFns
 	fetchProviderFns
 	createdFn
+	lastUpdatedFn
 	protoStringer
 }
 
@@ -1590,6 +1606,7 @@ func wrapProtoTrainingSetVariant(serialized *pb.TrainingSetVariant) *TrainingSet
 		fetchFeaturesFns: fetchFeaturesFns{serialized},
 		fetchProviderFns: fetchProviderFns{serialized},
 		createdFn:        createdFn{serialized},
+		lastUpdatedFn:    lastUpdatedFn{serialized},
 		protoStringer:    protoStringer{serialized},
 	}
 }
@@ -1661,6 +1678,7 @@ type SourceVariant struct {
 	fetchLabelsFns
 	fetchProviderFns
 	createdFn
+	lastUpdatedFn
 	protoStringer
 }
 
@@ -1672,6 +1690,7 @@ func wrapProtoSourceVariant(serialized *pb.SourceVariant) *SourceVariant {
 		fetchLabelsFns:       fetchLabelsFns{serialized},
 		fetchProviderFns:     fetchProviderFns{serialized},
 		createdFn:            createdFn{serialized},
+		lastUpdatedFn:        lastUpdatedFn{serialized},
 		protoStringer:        protoStringer{serialized},
 	}
 }

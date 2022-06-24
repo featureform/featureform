@@ -104,14 +104,15 @@ func GetLockKey(jobKey string) string {
 }
 
 func (k *KubernetesJobSpawner) GetJobRunner(jobName string, config runner.Config, etcdEndpoints []string, id metadata.ResourceID) (runner.Runner, error) {
-	etcdConfig := &ETCDConfig{Endpoints: etcdEndpoints}
+	etcdConfig := &ETCDConfig{Endpoints: etcdEndpoints, Username: "root",
+		Password: "secretpassword"}
 	serializedETCD, err := etcdConfig.Serialize()
 	if err != nil {
 		return nil, err
 	}
 	kubeConfig := runner.KubernetesRunnerConfig{
 		EnvVars:  map[string]string{"NAME": jobName, "CONFIG": string(config), "ETCD_CONFIG": string(serializedETCD)},
-		Image:    "featureformcom/worker",
+		Image:    "sami1309/worker",
 		NumTasks: 1,
 		Resource: id,
 	}
@@ -569,7 +570,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 			ResourceID:    provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Feature},
 			VType:         provider.ValueType(featureType),
 			Cloud:         runner.LocalMaterializeRunner,
-			IsUpdate:      false,
+			IsUpdate:      true,
 		}
 		serializedUpdate, err := scheduleMaterializeRunnerConfig.Serialize()
 		if err != nil {

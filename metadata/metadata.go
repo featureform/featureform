@@ -83,7 +83,6 @@ var parentMapping = map[ResourceType]ResourceType{
 func (serv *MetadataServer) needsJob(res Resource) bool {
 	if res.ID().Type == TRAINING_SET_VARIANT ||
 		res.ID().Type == FEATURE_VARIANT ||
-		//extra flag on feature variant for online/offline?
 		res.ID().Type == SOURCE_VARIANT ||
 		res.ID().Type == LABEL_VARIANT {
 		return true
@@ -417,6 +416,7 @@ func (this *sourceVariantResource) Notify(lookup ResourceLookup, op operation, t
 }
 
 func (resource *sourceVariantResource) UpdateStatus(status pb.ResourceStatus) error {
+	resource.serialized.LastUpdated = tspb.Now()
 	resource.serialized.Status = &status
 	return nil
 }
@@ -532,6 +532,7 @@ func (this *featureVariantResource) Notify(lookup ResourceLookup, op operation, 
 }
 
 func (resource *featureVariantResource) UpdateStatus(status pb.ResourceStatus) error {
+	resource.serialized.LastUpdated = tspb.Now()
 	resource.serialized.Status = &status
 	return nil
 }
@@ -757,6 +758,7 @@ func (this *trainingSetVariantResource) Notify(lookup ResourceLookup, op operati
 }
 
 func (resource *trainingSetVariantResource) UpdateStatus(status pb.ResourceStatus) error {
+	resource.serialized.LastUpdated = tspb.Now()
 	resource.serialized.Status = &status
 	return nil
 }

@@ -11,7 +11,7 @@ spec:
       containers:
         - name: example-api
           imagePullPolicy: Always
-          image: sami1309/scheduletester:latest
+          image: local/scheduletester:latest
           env:
             - name: POSTGRES_HOST
               value: "test-quickstart-postgres"

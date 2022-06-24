@@ -64,6 +64,7 @@ type TempJob struct {
 	Name     string
 	Variant  string
 	Type     string
+	Schedule string
 }
 
 func (c *CoordinatorJob) Serialize() ([]byte, error) {
@@ -72,6 +73,7 @@ func (c *CoordinatorJob) Serialize() ([]byte, error) {
 		Name:     c.Resource.Name,
 		Variant:  c.Resource.Variant,
 		Type:     c.Resource.Type.String(),
+		Schedule: c.Schedule,
 	}
 	serialized, err := json.Marshal(job)
 	if err != nil {
@@ -91,6 +93,7 @@ func (c *CoordinatorJob) Deserialize(serialized []byte) error {
 	c.Resource.Name = job.Name
 	c.Resource.Variant = job.Variant
 	c.Resource.Type = ResourceType(pb.ResourceType_value[job.Type])
+	c.Schedule = job.Schedule
 	return nil
 }
 
@@ -294,7 +297,6 @@ func (lookup etcdResourceLookup) serializeResource(res Resource) ([]byte, error)
 		Message:      p,
 		StorageType:  RESOURCE,
 	}
-	//	fmt.Println("Attempting to serialize: ", msg)
 	serialMsg, err := json.Marshal(msg)
 	if err != nil {
 		return nil, err

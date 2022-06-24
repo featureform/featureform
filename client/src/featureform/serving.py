@@ -22,16 +22,9 @@ class LocalClient:
         dataframeMapping = {}
         for featureVariantTuple in featureVariantList:
             featureRow = self.sqldb.getNameVariant("feature_variant",  "featureName", featureVariantTuple[0], "variantName", featureVariantTuple[1])[0]
-            featureColumnName = featureRow[11]
-            sourceName = featureRow[12]
-            sourceVariant = featureRow[13]
+            featureColumnName, sourceName, sourceVariant = featureRow[11], featureRow[12], featureRow[13]
             sourceRow = self.sqldb.getNameVariant("source_variant",  "sourceName", sourceName, "variant", sourceVariant)[0]
-            sourcePath = sourceRow[8]
-            df = pd.read_csv(sourcePath)
-            df = df[[entityTuple[0], featureColumnName]]
-            df.set_index(entityTuple[0])
-            feature_dataframes.add(featureVariantTuple[0])
-            dataframeMapping[featureVariantTuple[0]] = df
+            feature_dataframes, dataframeMapping = self.processFeatureCSV(sourceRow[8], entityTuple[0], feature_dataframes, featureColumnName, dataframeMapping, featureVariantTuple[0])
         try:
             allFeatureDF = dataframeMapping[feature_dataframes.pop()] # pd.DataFrame(data=dfs[0][entityTuple[0]], columns=[entityTuple[0]])
             while len(feature_dataframes) != 0:
@@ -42,7 +35,36 @@ class LocalClient:
         entityRow = allFeatureDF.loc[allFeatureDF[entityTuple[0]] == entityTuple[1]]
         return entityRow
 
+    def processFeatureCSV(self, sourcePath, entityName, feature_dataframes, featureColumnName, dataframeMapping, featureName):
+        df = pd.read_csv(sourcePath)
+        df = df[[entityName, featureColumnName]]
+        df.set_index(entityName)
+        feature_dataframes.add(featureName)
+        dataframeMapping[featureName] = df
+        return feature_dataframes, dataframeMapping
+
     def training_set(self, trainingSetName, trainingSetVariant):
+
+#         files = set(fname from features)
+# files.append(fname)
+# fileMap = dict()
+# for file in files:
+#     fileMap[fileName] = pandas.csv(...)
+# featureDfs = []
+# for feature in features:
+#     df = fileMap[feature.fname]
+#     df = df[[entityClm, valueClm]]
+#     df.set_index(entityClm)
+#     df.set_type(valueClm, type_of_feature)
+#     featureDfs.append(df)
+# features = joinAll(featureDFs)
+# labelDf = fileMap[label.fname]
+# labelDF = labelDF[[entityClm, valueClm]]
+# trainingSetDF = labelDF.join(features) # on the entity Clm
+# drop entity clm (if necessary)
+
+
+
         trainingSetRow = self.sqldb.getNameVariant("training_set_variant",  "trainingSetName", trainingSetName, "variantName", trainingSetVariant)[0]
         # make label name and variant two separate columns in training variant table
         label = re.match("\(\'(.*?)\'\)", trainingSetRow[5])
@@ -65,9 +87,6 @@ class LocalClient:
             #print column columnName from file sourcePath
 
         return Dataset().from_list(list)
-        # Loop through label column
-        # Get the entity using the label
-        # Use the entity to get the features of the training set
         
 
     # def labels(self, labelVariantTuple):

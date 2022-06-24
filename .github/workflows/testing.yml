@@ -510,14 +510,6 @@ jobs:
       - uses: actions/checkout@v2
       - name: Start minikube
         uses: medyagh/setup-minikube@master
-      # - name: Check Pods
-      #   run: kubectl wait --for=condition=READY=true pod -l app=featureform --timeout=360s
-      - name: Get pods in the cluster
-        run: kubectl get pods -A
-      - name: Get deployments in cluster
-        run: kubectl get deployments -A
-      - name: Get services in the cluster
-        run: kubectl get services -A
       - name: Build images and load into minikube
         run: |
           export SHELL=/bin/bash
@@ -539,18 +531,26 @@ jobs:
           helm install test-quickstart ./charts/quickstart
       - name: Delete coordinator deployment
         run: kubectl delete svc featureform-coordinator
+      - name: Get pods in the cluster
+        run: kubectl get pods -A
+      - name: Get deployments in cluster
+        run: kubectl get deployments -A
+      - name: Get services in the cluster
+        run: kubectl get services -A
+      - name: Wait until necessary services are ready
+        run: |
+          kubectl wait pods --for condition=ready --timeout=100s -l run=featureform-metadata-server
+          kubectl wait pods --for condition=ready --timeout=100s -l app.kubernetes.io/name=etcd
       - name: Deploy to minikube
         run: kubectl apply -f coordinator/schedulepod/runjob.yaml
-      - name: List jobs
-        run: kubectl get jobs -A
       - name: Wait until test pod is completed
-        run: kubectl wait --for=condition=complete --timeout=300s job example
-      - name: List jobs
-        run: kubectl get jobs -A
+        run: kubectl wait --for condition=complete --timeout=100s job example
       - name: List cron jobs
         run: kubectl get cronjobs -A
       - name: List pods
         run: kubectl get pods -l app=example
+      - name: Get services in the cluster
+        run: kubectl get services -A
       - name: Get job pods and print logs
         run: |
           export SHELL=/bin/bash

@@ -520,8 +520,7 @@ jobs:
         uses: medyagh/setup-minikube@master
       - name: build docker images and add to minikube
         run: |
-          export SHELL=/bin/bash
-          eval $(minikube -p minikube docker-env)
+          eval $(minikube docker-env)
           docker build . --file runner/Dockerfile --tag local/worker:stable
           docker build . --file coordinator/schedulepod/Dockerfile --tag local/scheduletester:stable
           docker build . --file metadata/Dockerfile --tag local/metadata:stable
@@ -539,9 +538,9 @@ jobs:
           helm install featureform ./charts/featureform --set global.repo=local --set global.pullPolicy=Never
           helm install test-quickstart ./charts/quickstart
           kubectl delete svc featureform-coordinator
-          kubectl wait pods --for condition=ready --timeout=100s -l run=featureform-metadata-server
-          kubectl wait pods --for condition=ready --timeout=100s -l app.kubernetes.io/name=etcd
-          kubectl wait pods --for condition=ready --timeout=100s -l app.kubernetes.io/instance=test-quickstart
+          kubectl wait pods --for condition=ready --timeout=300s -l run=featureform-metadata-server
+          kubectl wait pods --for condition=ready --timeout=300s -l app.kubernetes.io/name=etcd
+          kubectl wait pods --for condition=ready --timeout=300s -l app.kubernetes.io/instance=test-quickstart
       - name: Deploy schedule tester job
         run: kubectl apply -f coordinator/schedulepod/runjob.yaml
       - name: Get pods in the cluster
@@ -567,13 +566,3 @@ jobs:
             pod=$(kubectl get pods -l job-name=$job)
             kubectl logs $pod
           done
-      # - name: run schedule test job
-      #   run: kubectl apply -f deployscheduler.yaml
-      # - name: deploy wait for script
-      #   run: kubectl run k8s-wait-for --rm -it --image ghcr.io/groundnuty/k8s-wait-for:v1.6 --restart Never --command /bin/sh
-    # - name: Test service URLs
-    #   run: |
-    #     minikube service list
-    #     minikube service example --url
-    #     echo "------------------opening the service------------------"
-    #     curl $(minikube service example --url)

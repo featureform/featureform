@@ -145,7 +145,7 @@ func (store *cassandraOnlineStore) GetTable(feature, variant string) (OnlineStor
 
 func (store *cassandraOnlineStore) DeleteTable(feature, variant string) error {
 	tableName := fmt.Sprintf("%s.table%s-%s", store.keyspace, sn.Custom(feature, "[^a-zA-Z0-9_]"), sn.Custom(variant, "[^a-zA-Z0-9_]"))
-	
+
 	metadataTableName := fmt.Sprintf("%s.tableMetadata", store.keyspace)
 	query := fmt.Sprintf("DELETE FROM %s WHERE tableName = '%s' IF EXISTS", metadataTableName, tableName)
 	err := store.session.Query(query).WithContext(ctx).Exec()
@@ -158,7 +158,7 @@ func (store *cassandraOnlineStore) DeleteTable(feature, variant string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	return nil
 }
 

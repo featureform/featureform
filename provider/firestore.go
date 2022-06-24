@@ -135,10 +135,10 @@ func (store *firestoreOnlineStore) DeleteTable(feature, variant string) error {
 	}
 
 	_, err = store.collection.Doc(GetMetadataTable()).Update(ctx, []firestore.Update{
-        {
-                Path:  tableName,
-                Value: firestore.Delete,
-        },
+		{
+			Path:  tableName,
+			Value: firestore.Delete,
+		},
 	})
 
 	if err != nil {

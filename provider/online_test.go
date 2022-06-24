@@ -60,9 +60,9 @@ func TestOnlineStores(t *testing.T) {
 	cassandraPassword := os.Getenv("CASSANDRA_PASSWORD")
 	cassandraConfig := &CassandraConfig{
 		Addr:        cassandraAddr,
-		Username: 	cassandraUsername,
+		Username:    cassandraUsername,
 		Consistency: "ONE",
-		Password: cassandraPassword,
+		Password:    cassandraPassword,
 		Replication: 3,
 	}
 

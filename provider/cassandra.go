@@ -158,7 +158,7 @@ func (store *cassandraOnlineStore) DeleteTable(feature, variant string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	return nil
 }
 

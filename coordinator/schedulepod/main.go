@@ -536,7 +536,6 @@ func testScheduleTransformation() error {
 
 	}
 
-
 	return nil
 }
 

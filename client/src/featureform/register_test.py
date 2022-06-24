@@ -78,7 +78,6 @@ minimal_user_args = {
     "name": "user",
 }
 
-
 @pytest.mark.parametrize("args,expected", [(minimal_user_args, User("user"))])
 def test_register_user(registrar, args, expected):
     registrar.register_user(**args)
@@ -86,6 +85,36 @@ def test_register_user(registrar, args, expected):
         expected,
     ]
 
+@pytest.mark.parametrize("args", [
+    {
+        "name": "dynamodb"
+    },
+    {
+        "name": "dynamodb",
+        "description": "test",
+        "team": "featureform",
+        "host": "localhost",
+        "port": 1234,
+        "access_key": "abc",
+        "secret_key": "abc"
+    },
+])
+def test_register_dynamodb(registrar, args):
+    registrar.register_dynamodb(**args)
+
+
+minimal_user_args = {
+    "name": "user",
+    "access_key": "abc",
+    "secret_key": "abc"
+}
+
+@pytest.mark.parametrize("args,expected", [(minimal_user_args, User("user"))])
+def test_register_user(registrar, args, expected):
+    registrar.register_user(**args)
+    assert registrar.state().sorted_list() == [
+        expected,
+    ]
 
 @pytest.mark.parametrize("args, expected", [
     ({

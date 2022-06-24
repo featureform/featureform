@@ -3,7 +3,7 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 from numpy import byte
-from .resources import ResourceState, Provider, RedisConfig, PostgresConfig, CassandraConfig, SnowflakeConfig, RedshiftConfig, User, Location, Source, PrimaryData, SQLTable, SQLTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet
+from .resources import ResourceState, Provider, RedisConfig, FirestoreConfig, PostgresConfig, CassandraConfig, SnowflakeConfig, RedshiftConfig, User, Location, Source, PrimaryData, SQLTable, SQLTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet
 from typing import Tuple, Callable, TypedDict, List, Union
 from typeguard import typechecked, check_type
 import grpc

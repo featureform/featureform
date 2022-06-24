@@ -56,7 +56,7 @@ class FirestoreConfig:
         config = {
             "Collection": self.collection,
             "ProjectID": self.project_id,
-            "Credentials": json.dumps(open(self.credentials, "r")),
+            "Credentials": json.load(open(self.credentials)),
         }
         return bytes(json.dumps(config), "utf-8")
 

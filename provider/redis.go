@@ -74,6 +74,10 @@ func (store *redisOnlineStore) CreateTable(feature, variant string, valueType Va
 	return table, nil
 }
 
+func (store *redisOnlineStore) DeleteTable(feature, variant string) error {
+	return nil
+}
+
 func (table redisOnlineTable) Set(entity string, value interface{}) error {
 	val := table.client.HSet(ctx, table.key.String(), entity, value)
 	if val.Err() != nil {

@@ -7,9 +7,6 @@ package provider
 import (
 	"fmt"
 	"github.com/alicebob/miniredis"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/google/uuid"
 	"os"
 	"reflect"
@@ -110,10 +107,7 @@ func randomFeatureVariant() (string, string) {
 
 func testCreateGetTable(t *testing.T, store OnlineStore) {
 	mockFeature, mockVariant := randomFeatureVariant()
-	if store.Type() == "DYNAMODB_ONLINE" {
-		key := dynamodbTableKey{mockFeature, mockVariant, String}
-		defer dynamoDeleteTable(key.String())
-	}
+	defer store.DeleteTable(mockFeature, mockVariant)
 	if tab, err := store.CreateTable(mockFeature, mockVariant, String); tab == nil || err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
@@ -124,6 +118,7 @@ func testCreateGetTable(t *testing.T, store OnlineStore) {
 
 func testTableAlreadyExists(t *testing.T, store OnlineStore) {
 	mockFeature, mockVariant := randomFeatureVariant()
+	defer store.DeleteTable(mockFeature, mockVariant)
 	if _, err := store.CreateTable(mockFeature, mockVariant, String); err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
@@ -138,6 +133,7 @@ func testTableAlreadyExists(t *testing.T, store OnlineStore) {
 
 func testTableNotFound(t *testing.T, store OnlineStore) {
 	mockFeature, mockVariant := randomFeatureVariant()
+	defer store.DeleteTable(mockFeature, mockVariant)
 	if _, err := store.GetTable(mockFeature, mockVariant); err == nil {
 		t.Fatalf("Succeeded in getting non-existant table")
 	} else if casted, valid := err.(*TableNotFound); !valid {
@@ -149,6 +145,7 @@ func testTableNotFound(t *testing.T, store OnlineStore) {
 
 func testSetGetEntity(t *testing.T, store OnlineStore) {
 	mockFeature, mockVariant := randomFeatureVariant()
+	defer store.DeleteTable(mockFeature, mockVariant)
 	entity, val := "e", "val"
 	tab, err := store.CreateTable(mockFeature, mockVariant, String)
 	if err != nil {
@@ -169,6 +166,7 @@ func testSetGetEntity(t *testing.T, store OnlineStore) {
 func testEntityNotFound(t *testing.T, store OnlineStore) {
 	mockFeature, mockVariant := uuid.NewString(), "v"
 	entity := "e"
+	defer store.DeleteTable(mockFeature, mockVariant)
 	tab, err := store.CreateTable(mockFeature, mockVariant, String)
 	if err != nil {
 		t.Fatalf("Failed to create table: %s", err)
@@ -231,28 +229,6 @@ func testTypeCasting(t *testing.T, store OnlineStore) {
 		if !reflect.DeepEqual(resource.Value, gotVal) {
 			t.Fatalf("Values are not the same %v, type %T. %v, type %T", resource.Value, resource.Value, gotVal, gotVal)
 		}
+		store.DeleteTable(featureName, "")
 	}
-}
-
-func dynamoDeleteTable(tablename string) error {
-	dynamoPort := os.Getenv("DYNAMO_PORT")
-	dynamoAccessKey := os.Getenv("DYNAMO_ACCESS_KEY")
-	dynamoSecretKey := os.Getenv("DYNAMO_SECRET_KEY")
-	dynamoAddr := fmt.Sprintf("%s:%s", "localhost", dynamoPort)
-	dynamoConfig := &DynamodbConfig{
-		Addr:      dynamoAddr,
-		Region:    "us-east-1",
-		AccessKey: dynamoAccessKey,
-		SecretKey: dynamoSecretKey,
-	}
-	sess := session.Must(session.NewSession(getDynamodbConfig(dynamoConfig)))
-	dynamodbClient := dynamodb.New(sess)
-	params := &dynamodb.DeleteTableInput{
-		TableName: aws.String(tablename),
-	}
-	_, err := dynamodbClient.DeleteTable(params)
-	if err != nil {
-		return err
-	}
-	return nil
 }

@@ -224,6 +224,19 @@ func (store *dynamodbOnlineStore) CreateTable(feature, variant string, valueType
 	return &dynamodbOnlineTable{store.client, key, valueType}, nil
 }
 
+func (store *dynamodbOnlineStore) DeleteTable(feature, variant string) error {
+	key := dynamodbTableKey{store.prefix, feature, variant}
+	params := &dynamodb.DeleteTableInput{
+		TableName: aws.String(sn.Custom(key.String(), "[^a-zA-Z0-9_.\\-]")),
+	}
+	_, err := store.client.DeleteTable(params)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+
 func (table dynamodbOnlineTable) Set(entity string, value interface{}) error {
 	input := &dynamodb.UpdateItemInput{
 		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{

@@ -21,6 +21,7 @@ var ctx = context.Background()
 type OnlineStore interface {
 	GetTable(feature, variant string) (OnlineStoreTable, error)
 	CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error)
+	DeleteTable(feature, variant string) error
 	Provider
 }
 
@@ -104,6 +105,10 @@ func (store *localOnlineStore) CreateTable(feature, variant string, valueType Va
 	table := make(localOnlineTable)
 	store.tables[key] = table
 	return table, nil
+}
+
+func (store *localOnlineStore) DeleteTable(feaute, variant string) error {
+	return nil
 }
 
 type localOnlineTable map[string]interface{}

@@ -269,6 +269,7 @@ jobs:
         run: |
           kubectl wait --for=condition=READY=true pod -l app.kubernetes.io/name=ingress-nginx --timeout=360s
           kubectl wait --for=condition=READY=true pod -l chart=featureform --timeout=360s
+          kubectl get pods
         shell: bash
 
       - name: Enable Minikube Ingress

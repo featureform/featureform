@@ -2,12 +2,90 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import re
 import grpc
 import numpy as np
 from .proto import serving_pb2
 from .proto import serving_pb2_grpc
 import random
+from .sqlite_metadata import SQLiteMetadata
+import csv
+import pandas as pd
 
+class LocalClient:
+    def __init__(self):
+        self.sqldb = SQLiteMetadata()
+
+    def features(self, featureVariantList, entityTuple):
+        feature_dataframes = set()
+        dataframeMapping = {}
+        for featureVariantTuple in featureVariantList:
+            featureRow = self.sqldb.getNameVariant("feature_variant",  "featureName", featureVariantTuple[0], "variantName", featureVariantTuple[1])[0]
+            featureColumnName = featureRow[11]
+            sourceName = featureRow[12]
+            sourceVariant = featureRow[13]
+            sourceRow = self.sqldb.getNameVariant("source_variant",  "sourceName", sourceName, "variant", sourceVariant)[0]
+            sourcePath = sourceRow[8]
+            df = pd.read_csv(sourcePath)
+            df = df[[entityTuple[0], featureColumnName]]
+            df.set_index(entityTuple[0])
+            feature_dataframes.add(featureVariantTuple[0])
+            dataframeMapping[featureVariantTuple[0]] = df
+        try:
+            allFeatureDF = dataframeMapping[feature_dataframes.pop()] # pd.DataFrame(data=dfs[0][entityTuple[0]], columns=[entityTuple[0]])
+            while len(feature_dataframes) != 0:
+                featureDF = dataframeMapping[feature_dataframes.pop()]
+                allFeatureDF = allFeatureDF.join(featureDF.set_index(entityTuple[0]), on=entityTuple[0])
+        except TypeError:
+            print("Set is empty")
+        entityRow = allFeatureDF.loc[allFeatureDF[entityTuple[0]] == entityTuple[1]]
+        return entityRow
+
+    def training_set(self, trainingSetName, trainingSetVariant):
+        trainingSetRow = self.sqldb.getNameVariant("training_set_variant",  "trainingSetName", trainingSetName, "variantName", trainingSetVariant)[0]
+        # make label name and variant two separate columns in training variant table
+        label = re.match("\(\'(.*?)\'\)", trainingSetRow[5])
+        labelName, labelVariant = label.split('\', \'')
+        labelRow = self.sqldb.getNameVariant("labels_variant",  "labelname", labelName, "variantName", labelVariant)[0]
+        entity = labelRow[2]
+        featureTable = self.sqldb.getVariantResource("feature_variant",  "entity", entity)
+
+        # create a dictionary mapping from file name to pandas dataframe
+
+        for featureRow in featureTable:
+            columnName = featureRow[11]
+            sourceName = featureRow[12]
+            sourceVariant = featureRow[13]
+
+            sourceRow = self.sqldb.getNameVariant("source_variant",  "sourceName", sourceName, "variant", sourceVariant)[0]
+            sourcePath = sourceRow[8]
+
+            df = pd.read_csv(sourcePath)
+            #print column columnName from file sourcePath
+
+        return Dataset().from_list(list)
+        # Loop through label column
+        # Get the entity using the label
+        # Use the entity to get the features of the training set
+        
+
+    # def labels(self, labelVariantTuple):
+    #     label = labelVariantTuple[0]
+    #     variant = labelVariantTuple[1]
+    #     labelRow = self.sqldb.getNameVariant("labels_variant",  "labelName", label, "variantName", variant)[0]
+    #     sourceName = labelRow[12]
+    #     sourceVariant = labelRow[13]
+
+    #     sourceRow = self.sqldb.getNameVariant("source_variant",  "sourceName", sourceName, "variant", sourceVariant)[0]
+    #     sourcePath = sourceRow[8]
+    #     dataList = []
+
+    #     with open(sourcePath, newline = '') as csvfile:
+    #         data = csv.DictReader(csvfile)
+    #         for row in data:
+    #             dataList.append(row[label])
+    #     print(dataList)
+    #     return dataList
 
 class Client:
 
@@ -35,6 +113,9 @@ class Client:
         resp = self._stub.FeatureServe(req)
         return [parse_proto_value(val) for val in resp.values]
 
+# Local stream that is exactly lilke Stream wihtout stub
+# Local Training set doesnt take a stub
+# 
 
 class Stream:
 
@@ -143,9 +224,16 @@ class Batch:
 
 
 class Dataset:
+    def __init__(self, stream):
+        self._stream = stream
 
-    def __init__(self, stub, name, version):
-        self._stream = Stream(stub, name, version)
+    def from_stub(stub, name, version):
+        stream = Stream(stub, name, version)
+        return Dataset(stream)
+
+    def from_list(list):
+        stream = LocalStream
+        return Dataset(stream)
 
     def repeat(self, num):
         if num <= 0:

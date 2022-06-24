@@ -524,9 +524,6 @@ jobs:
           docker build . --file runner/Dockerfile --tag local/worker:stable
           docker build . --file coordinator/schedulepod/Dockerfile --tag local/scheduletester:stable
           docker build . --file metadata/Dockerfile --tag local/metadata:stable
-          minikube image load local/metadata:stable
-          minikube image load local/scheduletester:stable
-          minikube image load local/worker:stable
           minikube image ls
       - name: Set up Helm
         run: |

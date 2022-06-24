@@ -9,7 +9,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"net"
 	"os"
-	"reflect"
+	//"reflect"
 	"strings"
 	//"testing"
 	"time"
@@ -70,7 +70,7 @@ var postgresConfig = provider.PostgresConfig{
 	Host:     os.Getenv("POSTGRES_HOST"),
 	Port:     "5432",
 	Database: os.Getenv("POSTGRES_DB"),
-	Username: "postgres",
+	Username: os.Getenv("POSTGRES_USERNAME"),
 	Password: os.Getenv("POSTGRES_PASSWORD"),
 }
 
@@ -244,8 +244,18 @@ func testScheduleTrainingSet() error {
 		return fmt.Errorf("could not get training set")
 	}
 	oldTimestamp := tsFirstTimestamp.LastUpdated()
-	if err := UpdateOriginalPostgresTable(originalTableName); err != nil {
-		return err
+	// if err := UpdateOriginalPostgresTable(originalTableName); err != nil {
+	// 	return err
+	// }
+	for _, value := range testOfflineTableUpdateValues {
+		if err := featureTable.Write(value); err != nil {
+			return fmt.Errorf("could not write to offline feature table")
+		}
+	}
+	for _, value := range testOfflineTableUpdateValues {
+		if err := labelTable.Write(value); err != nil {
+			return fmt.Errorf("could not write to offline label table")
+		}
 	}
 	time.Sleep(70 * time.Second)
 	jobClient, err := runner.NewKubernetesJobClient(runner.GetCronJobName(tsID), runner.Namespace)
@@ -556,7 +566,7 @@ func testScheduleTransformation() error {
 	if joinTransformationTable.GetName() != transformationJoinName {
 		return fmt.Errorf("Transformation table did not copy name")
 	}
-	joinTransformationIterator, err := joinTransformationTable.IterateSegment(int64(len(testOfflineTableValues)))
+	joinTransformationIterator, err := joinTransformationTable.IterateSegment(int64(len(testOfflineTableValues) + len(testOfflineTableUpdateValues)))
 	if err != nil {
 		return err
 	}
@@ -566,14 +576,33 @@ func testScheduleTransformation() error {
 			return err
 		}
 		joinTransformationTableRow := joinTransformationIterator.Values()
-		values := reflect.ValueOf(testOfflineTableValues[i])
-		for j := 0; j < values.NumField(); j++ {
-			fmt.Println("updated table value", joinTransformationTableRow[j])
-			// if joinTransformationTableRow[j] != values.Field(j).Interface() {
-			// 	return fmt.Errorf("Transformation table value does not match original value")
-			// }
-		}
+		// values := reflect.ValueOf(testOfflineTableValues[i])
+		// newValues := reflect.ValueOf(testOfflineTableUpdateValues[i])
+		fmt.Println("updated table value", joinTransformationTableRow)
+
 	}
+
+	providerSourceID := provider.ResourceID{Name: sourceName, Variant: "", Type: provider.Primary}
+	primaryTable, err := myOffline.GetPrimaryTable(providerSourceID)
+	primaryTableIterator, err := primaryTable.IterateSegment(int64(len(testOfflineTableValues) + len(testOfflineTableUpdateValues)))
+	if err != nil {
+		return err
+	}
+	i = 0
+	for ; primaryTableIterator.Next(); i++ {
+		if primaryTableIterator.Err() != nil {
+			return err
+		}
+		primaryTableRow := primaryTableIterator.Values()
+		// values := reflect.ValueOf(testOfflineTableValues[i])
+		// newValues := reflect.ValueOf(testOfflineTableUpdateValues[i])
+		fmt.Println("Updated primary table value")
+		fmt.Println(primaryTableRow)
+		// if primaryTableRow[j] != values.Field(j).Interface() {
+		// 	return fmt.Errorf("Primary table value does not match original value")
+		// }
+	}
+
 	return nil
 }
 

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"os"
 
 	db "github.com/jackc/pgx/v4"
 	"go.uber.org/zap"
@@ -112,7 +113,7 @@ func (k *KubernetesJobSpawner) GetJobRunner(jobName string, config runner.Config
 	}
 	kubeConfig := runner.KubernetesRunnerConfig{
 		EnvVars:  map[string]string{"NAME": jobName, "CONFIG": string(config), "ETCD_CONFIG": string(serializedETCD)},
-		Image:    "sami1309/worker",
+		Image:    os.Getenv("WORKER_IMAGE"),
 		NumTasks: 1,
 		Resource: id,
 	}

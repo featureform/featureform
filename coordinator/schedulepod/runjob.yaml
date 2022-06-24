@@ -10,12 +10,14 @@ spec:
     spec:
       containers:
         - name: example-api
-          imagePullPolicy: Always
-          image: local/scheduletester:latest
+          imagePullPolicy: Never
+          image: local/scheduletester:stable
           env:
             - name: POSTGRES_HOST
               value: "test-quickstart-postgres"
             - name: POSTGRES_DB
+              value: "postgres"
+            - name: POSTGRES_USERNAME
               value: "postgres"
             - name: POSTGRES_PASSWORD
               value: "password"
@@ -23,6 +25,8 @@ spec:
               value: "test-quickstart-redis"
             - name: ETCD_HOST
               value: "featureform-etcd"
+            - name: WORKER_IMAGE
+              value: local/worker:stable
           resources:
             limits:
               cpu: 50m

@@ -244,5 +244,6 @@ func testTypeCasting(t *testing.T, store OnlineStore) {
 		if !reflect.DeepEqual(resource.Value, gotVal) {
 			t.Fatalf("Values are not the same %v, type %T. %v, type %T", resource.Value, resource.Value, gotVal, gotVal)
 		}
+		store.DeleteTable(featureName, "")
 	}
 }

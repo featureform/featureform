@@ -52,24 +52,15 @@ class LocalClient:
     def training_set(self, trainingSetName, trainingSetVariant):
         featureDataframes = set()
         dataframeMapping = {}
-
         trainingSetRow = self.sqldb.getNameVariant("training_set_variant",  "trainingSetName", trainingSetName, "variantName", trainingSetVariant)[0]
-
-        labelName, labelVariant = trainingSetRow[5], trainingSetRow[6]
-        labelRow = self.sqldb.getNameVariant("labels_variant",  "labelname", labelName, "variantName", labelVariant)[0]
-        entityColumnName = labelRow[8]
-        labelColumnName = labelRow[10]
-        labelSource = self.sqldb.getNameVariant("source_variant",  "sourceName", labelRow[12], "variant", labelRow[12])[0]
-        labelDF = self.processLabelCSV(labelSource[8], entityColumnName, labelColumnName)
-
-        # Get a list of tuples (featureName, featureVariant). Replace the list with the empty lost mentioned below called featureVariantList
+        labelRow = self.sqldb.getNameVariant("labels_variant",  "labelName", trainingSetRow[5], "variantName", trainingSetRow[6])[0]
+        labelSource = self.sqldb.getNameVariant("source_variant",  "sourceName", labelRow[12], "variant", labelRow[13])[0]
+        labelDF = self.processLabelCSV(labelSource[8], labelRow[8], labelRow[10])
         featureTable = self.sqldb.getNameVariant("training_set_features", "trainingSetName", trainingSetName, "trainingSetVariant", trainingSetVariant)
-        
         for featureVariant in featureTable:
             featureRow = self.sqldb.getNameVariant("feature_variant",  "featureName", featureVariant[2], "variantName", featureVariant[3])[0]
             sourceRow = self.sqldb.getNameVariant("source_variant",  "sourceName", featureRow[12], "variant", featureRow[13])[0]
             feature_dataframes, dataframeMapping = self.processFeatureCSV(sourceRow[8], featureRow[9], featureDataframes, featureRow[11], dataframeMapping, featureVariant[2])
-
         try:
             allFeatureDF = dataframeMapping[feature_dataframes.pop()]
             while len(feature_dataframes) != 0:
@@ -77,11 +68,9 @@ class LocalClient:
                 allFeatureDF = allFeatureDF.join(featureDF.set_index(featureRow[9]), on=featureRow[9])
         except TypeError:
             print("Set is empty")
-
-        allFeatureDF = allFeatureDF.join(labelDF, on=featureRow[9])
+        allFeatureDF = allFeatureDF.join(labelDF.set_index(featureRow[9]), on=featureRow[9])
         allFeatureDF.drop(columns=featureRow[9])
-
-        return Dataset().from_list(allFeatureDF.values.tolist())
+        return Dataset.from_list(allFeatureDF.values.tolist())
 
 class Client:
 
@@ -116,10 +105,6 @@ class Client:
         resp = self._stub.FeatureServe(req)
         return [parse_proto_value(val) for val in resp.values]
 
-# Local stream that is exactly lilke Stream wihtout stub
-# Local Training set doesnt take a stub
-# 
-
 class Stream:
 
     def __init__(self, stub, name, version):
@@ -144,7 +129,17 @@ class Stream:
 class LocalStream:
 
     def __init__(self, datalist):
-        self.datalist = datalist
+        self._datalist = datalist
+        self._iter = datalist
+
+    def __iter__(self):
+        return iter(self._iter)
+
+    def __next__(self):
+        return LocalRow(next(self._iter))
+
+    def restart(self):
+        self._iter = self._datalist
 
 class Repeat:
 
@@ -284,6 +279,25 @@ class Row:
 
     def to_numpy(self):
         return self._row()
+
+    def __repr__(self):
+        return "Features: {} , Label: {}".format(self.features(), self.label())
+
+class LocalRow:
+
+    def __init__(self, row_list):
+        self._features = row_list[:-1]
+        self._row = row_list
+        self._label = row_list[-1]
+
+    def features(self):
+        return self._features
+
+    def label(self):
+        return self._label
+
+    def to_numpy(self):
+        return np.array(self._row)
 
     def __repr__(self):
         return "Features: {} , Label: {}".format(self.features(), self.label())

@@ -532,6 +532,9 @@ class TrainingSet:
         stub.CreateTrainingSetVariant(serialized)
 
     def _create_local(self, db) -> None:
+        print("in create local")
+        print(self.label[0])
+        print(self.label[1])
         db.insert("training_set_variant",
         str(time.time()),
         self.description,

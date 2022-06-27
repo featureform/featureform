@@ -21,10 +21,16 @@ spec:
               value: "postgres"
             - name: POSTGRES_PASSWORD
               value: "password"
+            - name: POSTGRES_PORT
+              value: "5432"
             - name: REDIS_HOST
               value: "test-quickstart-redis"
+            - name: REDIS_PORT
+              value: "6379"
             - name: ETCD_HOST
               value: "featureform-etcd"
+            - name: ETCD_PORT
+              value: "2379"
             - name: WORKER_IMAGE
               value: local/worker:stable
             - name: METADATA_HOST

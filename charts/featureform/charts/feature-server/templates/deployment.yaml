@@ -4,18 +4,21 @@ metadata:
   labels:
     chart: featureform
     run: featureform-feature-server
+    app: featureform-feature-server
   name: featureform-feature-server
 spec:
   replicas: 1
   selector:
     matchLabels:
       run: featureform-feature-server
+      app: featureform-feature-server
   strategy: {}
   template:
     metadata:
       labels:
         chart: featureform
         run: featureform-feature-server
+        app: featureform-feature-server
     spec:
       containers:
         - image: "{{ .Values.global.repo | default .Values.image.repository }}/{{ .Values.image.name }}:{{ .Values.global.version | default .Values.image.tag }}"

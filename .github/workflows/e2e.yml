@@ -300,3 +300,35 @@ jobs:
 
       - name: Run Test
         run: pytest client/tests/e2e.py
+
+      - name: API Server Logs
+        if: always()
+        run: kubectl logs -l app=featureform-api-server
+
+      - name: Coordinator Logs
+        if: always()
+        run: kubectl logs -l app=featureform-coordinator
+
+      - name: Dashboard Logs
+        if: always()
+        run: kubectl logs -l app=featureform-dashboard
+
+      - name: Dashboard Metadata Logs
+        if: always()
+        run: kubectl logs -l app=featureform-dashboard-metadata
+
+      - name: ETCD Logs
+        if: always()
+        run: kubectl logs -l app.kubernetes.io/name=etcd
+
+      - name: Feature Server Logs
+        if: always()
+        run: kubectl logs -l app=featureform-feature-server
+
+      - name: Ingress Logs
+        if: always()
+        run: kubectl logs -l app.kubernetes.io/name=ingress-nginx
+
+      - name: Feature Server Logs
+        if: always()
+        run: kubectl logs -l app=featureform-metadata-server

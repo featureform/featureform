@@ -37,6 +37,7 @@ func main() {
 	eg.Go(testScheduleTrainingSet)
 	eg.Go(testScheduleTransformation)
 	eg.Go(testScheduleFeatureMaterialization)
+	eg.Go(testUpdateExistingSchedule)
 	if err := eg.Wait(); err != nil {
 		logger.Fatalf("Error", err)
 	}
@@ -785,6 +786,100 @@ func createTransformationWithProvider(client *metadata.Client, config provider.S
 	}
 	if err := client.CreateAll(context.Background(), defs); err != nil {
 		return err
+	}
+	return nil
+}
+
+func testUpdateExistingSchedule() error {
+	logger := zap.NewExample().Sugar()
+	client, err := metadata.NewClient(metadata_addr, logger)
+	if err != nil {
+		return fmt.Errorf("Failed to connect: %v", err)
+	}
+	defer client.Close()
+	etcdConnect := fmt.Sprintf("%s:%s", etcdHost, etcdPort)
+	cli, err := clientv3.New(clientv3.Config{Endpoints: []string{etcdConnect}, Username: "root",
+		Password: "secretpassword"})
+	if err != nil {
+		return err
+	}
+	defer cli.Close()
+	serialPGConfig := postgresConfig.Serialize()
+	if err != nil {
+		return fmt.Errorf("could not get offline provider: %v", err)
+	}
+	if err != nil {
+		return fmt.Errorf("could not get provider as offline store: %v", err)
+	}
+	liveAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
+	redisConfig := &provider.RedisConfig{
+		Addr: liveAddr,
+	}
+	serialRedisConfig := redisConfig.Serialized()
+	if err != nil {
+		return fmt.Errorf("could not get provider as online store")
+	}
+	if err != nil {
+		return fmt.Errorf("could not get provider as online store: %v", err)
+	}
+	featureName := createSafeUUID()
+	sourceName := createSafeUUID()
+	originalTableName := createSafeUUID()
+	if err := CreateOriginalPostgresTable(originalTableName); err != nil {
+		return err
+	}
+	if err := materializeFeatureWithProvider(client, serialPGConfig, serialRedisConfig, featureName, sourceName, originalTableName, "*/1 * * * *"); err != nil {
+		return fmt.Errorf("could not create online feature in metadata: %v", err)
+	}
+	if err := client.SetStatus(context.Background(), metadata.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}, metadata.READY, ""); err != nil {
+		return err
+	}
+	featureID := metadata.ResourceID{Name: featureName, Variant: "", Type: metadata.FEATURE_VARIANT}
+	featureCreated, err := client.GetFeatureVariant(context.Background(), metadata.NameVariant{Name: featureName, Variant: ""})
+	if err != nil {
+		return fmt.Errorf("could not get feature: %v", err)
+	}
+	if featureCreated.Status() != metadata.CREATED {
+		return fmt.Errorf("Feature not set to created with no coordinator running")
+	}
+	kubeJobSpawner := coordinator.KubernetesJobSpawner{}
+	coord, err := coordinator.NewCoordinator(client, logger, cli, &kubeJobSpawner)
+	if err != nil {
+		return fmt.Errorf("Failed to set up coordinator")
+	}
+	sourceID := metadata.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}
+	if err := coord.ExecuteJob(metadata.GetJobKey(sourceID)); err != nil {
+		return err
+	}
+	if err := coord.ExecuteJob(metadata.GetJobKey(featureID)); err != nil {
+		return err
+	}
+	jobClient, err := runner.NewKubernetesJobClient(runner.GetCronJobName(featureID), runner.Namespace)
+	if err != nil {
+		return err
+	}
+	oldCronJob, err := jobClient.GetCronJob()
+	if err != nil {
+		return err
+	}
+	if oldCronJob.Spec.Schedule != "*/1 * * * *" {
+		return fmt.Errorf("Did not set original schedule")
+	}
+	if err := client.RequestScheduleChange(context.Background(), featureID, "*/2 * * * *"); err != nil {
+		return fmt.Errorf("Could not request schedule change from metadata server")
+	}
+	go func() {
+		if err := coord.WatchForScheduleChanges(); err != nil {
+			logger.Errorf("Error watching for schedule changes: %v", err)
+		}
+	}()
+	time.Sleep(5 * time.Second)
+	newCronJob, err := jobClient.GetCronJob()
+	if err != nil {
+		return fmt.Errorf("Could not get new cron job")
+	}
+	if newCronJob.Spec.Schedule != "*/2 * * * *" {
+		return fmt.Errorf("Did not set new schedule")
 	}
 	return nil
 }

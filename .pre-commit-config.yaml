@@ -4,4 +4,3 @@ repos:
     hooks:
     -   id: detect-secrets
         args: []
-        exclude: .*/tests/.*

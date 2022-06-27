@@ -15,7 +15,7 @@ brew install pre-commit
 
 ## Using pre-commit
 1. Inside the root level of the repository, run `pre-commit install`. 
-2. Commit a change to the repository. The commit will trigger the hooks to be executed. Upon the passing all the hooks, the commit will be achieved. If any hooks, the commit will not go through. 
+2. Commit a change to the repository. The commit will trigger the hooks to be executed. Upon the passing all the hooks, the commit will be achieved. If any hook fails, the commit will not go through. 
 
 Example of successful message:
 

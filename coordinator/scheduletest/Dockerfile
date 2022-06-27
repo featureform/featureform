@@ -1,6 +1,3 @@
-# RUN docker build -f ./metadata/Dockerfile . -t metadata from /serving
-# docker tag metadata:latest featureformcom/metadata:latest
-# docker push featureformcom/metadata:latest
 FROM golang:1.17-alpine
 
 WORKDIR /app

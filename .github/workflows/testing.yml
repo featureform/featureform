@@ -545,7 +545,6 @@ jobs:
       - name: Get services in the cluster
         run: kubectl get services -A
       - name: Wait until test pod is completed
-        # run: kubectl wait --for condition=complete --timeout=180s job example
         run: sleep 130
       - name: List cron jobs
         run: kubectl get cronjobs -A

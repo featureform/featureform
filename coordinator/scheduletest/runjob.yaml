@@ -31,6 +31,10 @@ spec:
               value: "featureform-etcd"
             - name: ETCD_PORT
               value: "2379"
+            - name: ETCD_USERNAME
+              value: "root"
+            - name: ETCD_PASSWORD
+              value: "secretpassword"
             - name: WORKER_IMAGE
               value: local/worker:stable
             - name: METADATA_HOST

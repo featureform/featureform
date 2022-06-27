@@ -27,6 +27,10 @@ spec:
               value: "featureform-etcd"
             - name: WORKER_IMAGE
               value: local/worker:stable
+            - name: METADATA_HOST
+              value: featureform-metadata-server
+            - name: METADATA_PORT
+              value: "8080"
           resources:
             limits:
               cpu: 50m

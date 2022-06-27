@@ -20,30 +20,6 @@ import (
 	"go.uber.org/zap"
 )
 
-func sanitize(ident string) string {
-	return db.Identifier{ident}.Sanitize()
-}
-
-var metadata_addr = "featureform-metadata-server:8080"
-
-func main() {
-	logger := zap.NewExample().Sugar()
-	client, err := metadata.NewClient(metadata_addr, logger)
-	if err != nil {
-		logger.Fatalf("could not set up metadata client: %v", err)
-	}
-	defer client.Close()
-	eg := &errgroup.Group{}
-	eg.Go(testScheduleTrainingSet)
-	eg.Go(testScheduleTransformation)
-	eg.Go(testScheduleFeatureMaterialization)
-	eg.Go(testUpdateExistingSchedule)
-	if err := eg.Wait(); err != nil {
-		logger.Fatalf("Error", err)
-	}
-	fmt.Println("Completed successfully!")
-}
-
 func createSafeUUID() string {
 	return strings.ReplaceAll(fmt.Sprintf("a%sa", uuid.New().String()), "-", "")
 }
@@ -91,24 +67,42 @@ var redisHost = os.Getenv("REDIS_HOST")
 var etcdHost = os.Getenv("ETCD_HOST")
 var etcdPort = "2379"
 
-func testScheduleTrainingSet() error {
-	if err := runner.RegisterFactory(string(runner.CREATE_TRAINING_SET), runner.TrainingSetRunnerFactory); err != nil {
-		return fmt.Errorf("Failed to register training set runner factory: %v", err)
-	}
-	defer runner.UnregisterFactory(string(runner.CREATE_TRAINING_SET))
+var metadata_addr = fmt.Sprintf("%s:%s", os.Getenv("METADATA_HOST"), os.Getenv("METADATA_PORT"))
+
+func sanitize(ident string) string {
+	return db.Identifier{ident}.Sanitize()
+}
+
+var client *metadata.Client
+var logger *zap.SugaredLogger
+var cli *clientv3.Client
+
+func main() {
 	logger := zap.NewExample().Sugar()
 	client, err := metadata.NewClient(metadata_addr, logger)
 	if err != nil {
-		return fmt.Errorf("Failed to connect: %v", err)
+		logger.Fatalf("could not set up metadata client: %v", err)
 	}
 	defer client.Close()
 	etcdConnect := fmt.Sprintf("%s:%s", etcdHost, etcdPort)
-	cli, err := clientv3.New(clientv3.Config{Endpoints: []string{etcdConnect}, Username: "root",
+	cli, err = clientv3.New(clientv3.Config{Endpoints: []string{etcdConnect}, Username: "root",
 		Password: "secretpassword"})
 	if err != nil {
-		return err
+		logger.Fatalf("Error", err)
 	}
 	defer cli.Close()
+	eg := &errgroup.Group{}
+	eg.Go(testScheduleTrainingSet)
+	eg.Go(testScheduleTransformation)
+	eg.Go(testScheduleFeatureMaterialization)
+	eg.Go(testUpdateExistingSchedule)
+	if err := eg.Wait(); err != nil {
+		logger.Fatalf("Error", err)
+	}
+	fmt.Println("Completed successfully!")
+}
+
+func testScheduleTrainingSet() error {
 	featureName := createSafeUUID()
 	labelName := createSafeUUID()
 	tsName := createSafeUUID()
@@ -187,7 +181,6 @@ func testScheduleTrainingSet() error {
 	if err != nil {
 		return fmt.Errorf("Coordinator did not create training set")
 	}
-
 	for i := 0; tsIterator.Next(); i++ {
 		retrievedFeatures := tsIterator.Features()
 		retrievedLabel := tsIterator.Label()
@@ -240,7 +233,6 @@ func testScheduleTrainingSet() error {
 		if !reflect.DeepEqual(retrievedLabel, finalUpdatedTableValues[i].Value) {
 			return fmt.Errorf("Label not copied into training set")
 		}
-
 	}
 	tsSecondTimestamp, err := client.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: tsName, Variant: ""})
 	if err != nil {
@@ -254,42 +246,12 @@ func testScheduleTrainingSet() error {
 }
 
 func testScheduleFeatureMaterialization() error {
-	if err := runner.RegisterFactory(string(runner.COPY_TO_ONLINE), runner.MaterializedChunkRunnerFactory); err != nil {
-		return fmt.Errorf("Failed to register training set runner factory: %v", err)
-	}
-	defer runner.UnregisterFactory(string(runner.COPY_TO_ONLINE))
-	if err := runner.RegisterFactory(string(runner.MATERIALIZE), runner.MaterializeRunnerFactory); err != nil {
-		return fmt.Errorf("Failed to register training set runner factory: %v", err)
-	}
-	defer runner.UnregisterFactory(string(runner.MATERIALIZE))
-	logger := zap.NewExample().Sugar()
-	client, err := metadata.NewClient(metadata_addr, logger)
-	if err != nil {
-		return fmt.Errorf("Failed to connect: %v", err)
-	}
-	defer client.Close()
-	etcdConnect := fmt.Sprintf("%s:%s", etcdHost, etcdPort)
-	cli, err := clientv3.New(clientv3.Config{Endpoints: []string{etcdConnect}, Username: "root",
-		Password: "secretpassword"})
-	if err != nil {
-		return err
-	}
-	defer cli.Close()
 	serialPGConfig := postgresConfig.Serialize()
-	if err != nil {
-		return fmt.Errorf("could not get offline provider: %v", err)
-	}
-	if err != nil {
-		return fmt.Errorf("could not get provider as offline store: %v", err)
-	}
 	liveAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
 	redisConfig := &provider.RedisConfig{
 		Addr: liveAddr,
 	}
 	serialRedisConfig := redisConfig.Serialized()
-	if err != nil {
-		return fmt.Errorf("could not get provider as online store")
-	}
 	onlineProvider, err := provider.Get(provider.RedisOnline, serialRedisConfig)
 	if err != nil {
 		return fmt.Errorf("could not get online provider")
@@ -330,7 +292,6 @@ func testScheduleFeatureMaterialization() error {
 	if err := coord.ExecuteJob(metadata.GetJobKey(featureID)); err != nil {
 		return err
 	}
-
 	resourceTable, err := onlineStore.GetTable(featureName, "")
 	if err != nil {
 		return err
@@ -395,28 +356,8 @@ func testScheduleFeatureMaterialization() error {
 }
 
 func testScheduleTransformation() error {
-	if err := runner.RegisterFactory(string(runner.CREATE_TRANSFORMATION), runner.CreateTransformationRunnerFactory); err != nil {
-		return fmt.Errorf("Failed to register training set runner factory: %v", err)
-	}
-	defer runner.UnregisterFactory(string(runner.CREATE_TRANSFORMATION))
-	logger := zap.NewExample().Sugar()
-	client, err := metadata.NewClient(metadata_addr, logger)
-	if err != nil {
-		return fmt.Errorf("Failed to connect: %v", err)
-	}
-	defer client.Close()
-	etcdConnect := fmt.Sprintf("%s:%s", etcdHost, etcdPort)
-	cli, err := clientv3.New(clientv3.Config{Endpoints: []string{etcdConnect}, Username: "root",
-		Password: "secretpassword"})
-	if err != nil {
-		return err
-	}
-	defer cli.Close()
 	tableName := createSafeUUID()
 	serialPGConfig := postgresConfig.Serialize()
-	if err != nil {
-		return fmt.Errorf("could not get provider as offline store: %v", err)
-	}
 	if err := CreateOriginalPostgresTable(tableName); err != nil {
 		return fmt.Errorf("Could not create non-featureform source table: %v", err)
 	}
@@ -534,9 +475,76 @@ func testScheduleTransformation() error {
 				return fmt.Errorf("Transformation table did not update")
 			}
 		}
-
 	}
+	return nil
+}
 
+func testUpdateExistingSchedule() error {
+	serialPGConfig := postgresConfig.Serialize()
+	liveAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
+	redisConfig := &provider.RedisConfig{
+		Addr: liveAddr,
+	}
+	serialRedisConfig := redisConfig.Serialized()
+	featureName := createSafeUUID()
+	sourceName := createSafeUUID()
+	originalTableName := createSafeUUID()
+	if err := CreateOriginalPostgresTable(originalTableName); err != nil {
+		return err
+	}
+	if err := materializeFeatureWithProvider(client, serialPGConfig, serialRedisConfig, featureName, sourceName, originalTableName, "*/1 * * * *"); err != nil {
+		return fmt.Errorf("could not create online feature in metadata: %v", err)
+	}
+	if err := client.SetStatus(context.Background(), metadata.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}, metadata.READY, ""); err != nil {
+		return err
+	}
+	featureID := metadata.ResourceID{Name: featureName, Variant: "", Type: metadata.FEATURE_VARIANT}
+	featureCreated, err := client.GetFeatureVariant(context.Background(), metadata.NameVariant{Name: featureName, Variant: ""})
+	if err != nil {
+		return fmt.Errorf("could not get feature: %v", err)
+	}
+	if featureCreated.Status() != metadata.CREATED {
+		return fmt.Errorf("Feature not set to created with no coordinator running")
+	}
+	kubeJobSpawner := coordinator.KubernetesJobSpawner{}
+	coord, err := coordinator.NewCoordinator(client, logger, cli, &kubeJobSpawner)
+	if err != nil {
+		return fmt.Errorf("Failed to set up coordinator")
+	}
+	sourceID := metadata.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}
+	if err := coord.ExecuteJob(metadata.GetJobKey(sourceID)); err != nil {
+		return err
+	}
+	if err := coord.ExecuteJob(metadata.GetJobKey(featureID)); err != nil {
+		return err
+	}
+	jobClient, err := runner.NewKubernetesJobClient(runner.GetCronJobName(featureID), runner.Namespace)
+	if err != nil {
+		return err
+	}
+	oldCronJob, err := jobClient.GetCronJob()
+	if err != nil {
+		return err
+	}
+	if oldCronJob.Spec.Schedule != "*/1 * * * *" {
+		return fmt.Errorf("Did not set original schedule")
+	}
+	if err := client.RequestScheduleChange(context.Background(), featureID, "*/2 * * * *"); err != nil {
+		return fmt.Errorf("Could not request schedule change from metadata server")
+	}
+	go func() {
+		if err := coord.WatchForScheduleChanges(); err != nil {
+			logger.Errorf("Error watching for schedule changes: %v", err)
+		}
+	}()
+	time.Sleep(5 * time.Second)
+	newCronJob, err := jobClient.GetCronJob()
+	if err != nil {
+		return fmt.Errorf("Could not get new cron job")
+	}
+	if newCronJob.Spec.Schedule != "*/2 * * * *" {
+		return fmt.Errorf("Did not set new schedule")
+	}
 	return nil
 }
 
@@ -786,100 +794,6 @@ func createTransformationWithProvider(client *metadata.Client, config provider.S
 	}
 	if err := client.CreateAll(context.Background(), defs); err != nil {
 		return err
-	}
-	return nil
-}
-
-func testUpdateExistingSchedule() error {
-	logger := zap.NewExample().Sugar()
-	client, err := metadata.NewClient(metadata_addr, logger)
-	if err != nil {
-		return fmt.Errorf("Failed to connect: %v", err)
-	}
-	defer client.Close()
-	etcdConnect := fmt.Sprintf("%s:%s", etcdHost, etcdPort)
-	cli, err := clientv3.New(clientv3.Config{Endpoints: []string{etcdConnect}, Username: "root",
-		Password: "secretpassword"})
-	if err != nil {
-		return err
-	}
-	defer cli.Close()
-	serialPGConfig := postgresConfig.Serialize()
-	if err != nil {
-		return fmt.Errorf("could not get offline provider: %v", err)
-	}
-	if err != nil {
-		return fmt.Errorf("could not get provider as offline store: %v", err)
-	}
-	liveAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
-	redisConfig := &provider.RedisConfig{
-		Addr: liveAddr,
-	}
-	serialRedisConfig := redisConfig.Serialized()
-	if err != nil {
-		return fmt.Errorf("could not get provider as online store")
-	}
-	if err != nil {
-		return fmt.Errorf("could not get provider as online store: %v", err)
-	}
-	featureName := createSafeUUID()
-	sourceName := createSafeUUID()
-	originalTableName := createSafeUUID()
-	if err := CreateOriginalPostgresTable(originalTableName); err != nil {
-		return err
-	}
-	if err := materializeFeatureWithProvider(client, serialPGConfig, serialRedisConfig, featureName, sourceName, originalTableName, "*/1 * * * *"); err != nil {
-		return fmt.Errorf("could not create online feature in metadata: %v", err)
-	}
-	if err := client.SetStatus(context.Background(), metadata.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}, metadata.READY, ""); err != nil {
-		return err
-	}
-	featureID := metadata.ResourceID{Name: featureName, Variant: "", Type: metadata.FEATURE_VARIANT}
-	featureCreated, err := client.GetFeatureVariant(context.Background(), metadata.NameVariant{Name: featureName, Variant: ""})
-	if err != nil {
-		return fmt.Errorf("could not get feature: %v", err)
-	}
-	if featureCreated.Status() != metadata.CREATED {
-		return fmt.Errorf("Feature not set to created with no coordinator running")
-	}
-	kubeJobSpawner := coordinator.KubernetesJobSpawner{}
-	coord, err := coordinator.NewCoordinator(client, logger, cli, &kubeJobSpawner)
-	if err != nil {
-		return fmt.Errorf("Failed to set up coordinator")
-	}
-	sourceID := metadata.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}
-	if err := coord.ExecuteJob(metadata.GetJobKey(sourceID)); err != nil {
-		return err
-	}
-	if err := coord.ExecuteJob(metadata.GetJobKey(featureID)); err != nil {
-		return err
-	}
-	jobClient, err := runner.NewKubernetesJobClient(runner.GetCronJobName(featureID), runner.Namespace)
-	if err != nil {
-		return err
-	}
-	oldCronJob, err := jobClient.GetCronJob()
-	if err != nil {
-		return err
-	}
-	if oldCronJob.Spec.Schedule != "*/1 * * * *" {
-		return fmt.Errorf("Did not set original schedule")
-	}
-	if err := client.RequestScheduleChange(context.Background(), featureID, "*/2 * * * *"); err != nil {
-		return fmt.Errorf("Could not request schedule change from metadata server")
-	}
-	go func() {
-		if err := coord.WatchForScheduleChanges(); err != nil {
-			logger.Errorf("Error watching for schedule changes: %v", err)
-		}
-	}()
-	time.Sleep(5 * time.Second)
-	newCronJob, err := jobClient.GetCronJob()
-	if err != nil {
-		return fmt.Errorf("Could not get new cron job")
-	}
-	if newCronJob.Spec.Schedule != "*/2 * * * *" {
-		return fmt.Errorf("Did not set new schedule")
 	}
 	return nil
 }

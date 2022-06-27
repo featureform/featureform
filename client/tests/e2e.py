@@ -80,24 +80,17 @@ def test_providers():
 
 def test_sources():
     retries = 0
-    all_ready = False
-    json_ret = None
     while 1:
-        if all_ready:
-            break
         req = requests.get("http://localhost:7000/data/sources", json=True)
         json_ret = req.json()
+        filtered = remove_timestamps(json_ret)
         if retries > 20:
-            assert (json_ret == sources)
-        all_ready = True
-        for res in json_ret:
-            for v in res['variants']:
-                del res['variants'][v]['created']
-                if res['variants'][v]['status'] != 'READY':
-                    time.sleep(5)
-                    retries += 1
-                    all_ready = False
-                    break
+            assert (json_ret == training_sets)
+        if is_ready(filtered):
+            break
+        else:
+            retries += 1
+            time.sleep(5)
 
     assert (json_ret == sources)
 
@@ -110,72 +103,67 @@ def test_entities():
 
 def test_features():
     retries = 0
-    all_ready = False
-    json_ret = None
     while 1:
-        if all_ready:
-            break
         req = requests.get("http://localhost:7000/data/features", json=True)
         json_ret = req.json()
+        filtered = remove_timestamps(json_ret)
         if retries > 20:
-            assert (json_ret == features)
-        all_ready = True
-        for res in json_ret:
-            for v in res['variants']:
-                del res['variants'][v]['created']
-                if res['variants'][v]['status'] != 'READY':
-                    time.sleep(5)
-                    retries += 1
-                    all_ready = False
-                    break
+            assert (json_ret == training_sets)
+        if is_ready(filtered):
+            break
+        else:
+            retries += 1
+            time.sleep(5)
 
     assert (json_ret == features)
 
 
-
 def test_labels():
     retries = 0
-    all_ready = False
-    json_ret = None
     while 1:
-        if all_ready:
-            break
         req = requests.get("http://localhost:7000/data/labels", json=True)
         json_ret = req.json()
+        filtered = remove_timestamps(json_ret)
         if retries > 20:
-            assert (json_ret == labels)
-        all_ready = True
-        for res in json_ret:
-            for v in res['variants']:
-                del res['variants'][v]['created']
-                if res['variants'][v]['status'] != 'READY':
-                    time.sleep(5)
-                    retries += 1
-                    all_ready = False
-                    break
+            assert (json_ret == training_sets)
+        if is_ready(filtered):
+            break
+        else:
+            retries += 1
+            time.sleep(5)
 
     assert (json_ret == labels)
 
 
 def test_training_sets():
     retries = 0
-    all_ready = False
-    json_ret = None
     while 1:
-        if all_ready:
-            break
         req = requests.get("http://localhost:7000/data/training-sets", json=True)
         json_ret = req.json()
+        filtered = remove_timestamps(json_ret)
         if retries > 20:
             assert (json_ret == training_sets)
-        all_ready = True
-        for res in json_ret:
-            for v in res['variants']:
-                del res['variants'][v]['created']
-                if res['variants'][v]['status'] != 'READY':
-                    time.sleep(5)
-                    retries += 1
-                    all_ready = False
-                    break
+        if is_ready(filtered):
+            break
+        else:
+            retries += 1
+            time.sleep(5)
 
     assert (json_ret == training_sets)
+
+
+def remove_timestamps(json_value):
+    for res in json_value:
+        for v in res['variants']:
+            del res['variants'][v]['created']
+    return json_value
+
+
+def is_ready(json_value):
+    ready = True
+    for res in json_value:
+        for v in res['variants']:
+            if res['variants'][v]['status'] != 'READY':
+                ready = False
+
+    return ready

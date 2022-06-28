@@ -83,23 +83,23 @@ var etcdClient *clientv3.Client
 var coord *coordinator.Coordinator
 
 func main() {
-	//initialize providers and clients
+	// initialize providers and clients
 	if err := initializeTestingEnvironment(); err != nil {
 		logger.Fatalf("Could not initialize testing environment: %v", err)
 	}
-	//have coordinator watch for resource update events
+	// have coordinator watch for resource update events
 	go func() {
 		if err := coord.WatchForUpdateEvents(); err != nil {
 			logger.Errorf("Error watching for new update events: %v", err)
 		}
 	}()
-	//have coordinator watch for schedule change requests
+	// have coordinator watch for schedule change requests
 	go func() {
 		if err := coord.WatchForScheduleChanges(); err != nil {
 			logger.Errorf("Error watching for schedule changes: %v", err)
 		}
 	}()
-	//run tests async
+	// run tests async
 	eg := &errgroup.Group{}
 	eg.Go(testScheduleTrainingSet)
 	eg.Go(testScheduleTransformation)
@@ -155,10 +155,10 @@ func initializeTestingEnvironment() error {
 	return nil
 }
 
-//TESTS
+// TESTS
 
 func testScheduleTrainingSet() error {
-	//initialize random resource names
+	// initialize random resource names
 	featureName := createSafeUUID()
 	labelName := createSafeUUID()
 	tsName := createSafeUUID()
@@ -166,47 +166,47 @@ func testScheduleTrainingSet() error {
 	sourceName := createSafeUUID()
 	tsID := metadata.ResourceID{Name: tsName, Variant: "", Type: metadata.TRAINING_SET_VARIANT}
 	sourceID := metadata.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}
-	//create original feature and label tables for training set with original data
+	// create original feature and label tables for training set with original data
 	featureTable, labelTable, err := initializeResourceTablesForTrainingSet(featureName, labelName)
 	if err != nil {
 		return fmt.Errorf("Could not initialize resource tables: %v", err)
 	}
-	//initialize training set in metadata
+	// initialize training set in metadata
 	if err := createTrainingSetWithProvider(sourceName, featureName, labelName, tsName, originalTableName, updateEveryMinuteSchedule); err != nil {
 		return fmt.Errorf("could not create training set %v", err)
 	}
-	//initialize source in offline store via provider
+	// initialize source in offline store via provider
 	if err := coord.ExecuteJob(metadata.GetJobKey(sourceID)); err != nil {
 		return err
 	}
-	//initialize traiining set in offline store via coordinator
+	// initialize traiining set in offline store via coordinator
 	if err := coord.ExecuteJob(metadata.GetJobKey(tsID)); err != nil {
 		return err
 	}
-	//check that original values are correctly set in offline store training set
+	// check that original values are correctly set in offline store training set
 	if err := checkValuesCorrectlySet(tsID, testOfflineTableValues); err != nil {
 		return fmt.Errorf("Original training set values not set properly: %v", err)
 	}
-	//get original metadata timestamp for training set, before update
+	// get original metadata timestamp for training set, before update
 	tsBeforeUpdate, err := metadataClient.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: tsName, Variant: ""})
 	if err != nil {
 		return fmt.Errorf("could not get training set: %v", err)
 	}
 	oldTimestamp := tsBeforeUpdate.LastUpdated()
-	//update resource tables with new data
+	// update resource tables with new data
 	if err := updateResourceTableValues(featureTable, labelTable); err != nil {
 		return fmt.Errorf("Could not update resource table values: %v", err)
 	}
-	//wait for kubernetes run scheduled job at least once
+	// wait for kubernetes run scheduled job at least once
 	time.Sleep(70 * time.Second)
 	if err := kubernetesRanScheduledJob(tsID); err != nil {
 		return fmt.Errorf("kubernetes did not run scheduled job: %v", err)
 	}
-	//check that training set correctly updated to new values
+	// check that training set correctly updated to new values
 	if err := checkValuesCorrectlySet(tsID, finalUpdatedTableValues); err != nil {
 		return fmt.Errorf("Updated training set values not set properly: %v", err)
 	}
-	//get metadata timestamp after update completed and check that it is more recent than original
+	// get metadata timestamp after update completed and check that it is more recent than original
 	tsAfterUpdate, err := metadataClient.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: tsName, Variant: ""})
 	if err != nil {
 		return fmt.Errorf("could not get training set: %v", err)
@@ -218,7 +218,7 @@ func testScheduleTrainingSet() error {
 	return nil
 }
 
-//training set helper functions
+// training set helper functions
 
 func initializeResourceTablesForTrainingSet(featureName string, labelName string) (provider.OfflineTable, provider.OfflineTable, error) {
 	offline_feature := provider.ResourceID{Name: featureName, Variant: "", Type: provider.Feature}
@@ -300,37 +300,37 @@ func kubernetesRanScheduledJob(resID metadata.ResourceID) error {
 	return nil
 }
 
-//feature materialization test
+// feature materialization test
 
 func testScheduleFeatureMaterialization() error {
-	//initialize random resource names
+	// initialize random resource names
 	featureName := createSafeUUID()
 	sourceName := createSafeUUID()
 	originalTableName := createSafeUUID()
 	featureID := metadata.ResourceID{Name: featureName, Variant: "", Type: metadata.FEATURE_VARIANT}
 	sourceID := metadata.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}
-	//create postgres table with original data
+	// create postgres table with original data
 	if err := CreateOriginalPostgresTable(originalTableName); err != nil {
 		return fmt.Errorf("Could not create table in postgres: %v", err)
 	}
-	//initialize feature in metadata
+	// initialize feature in metadata
 	if err := materializeFeatureWithProvider(featureName, sourceName, originalTableName, updateEveryMinuteSchedule); err != nil {
 		return fmt.Errorf("could not create online feature in metadata: %v", err)
 	}
-	//check that feature is set in metdata
-	//have coordinator run job on source resource
+	// check that feature is set in metdata
+	// have coordinator run job on source resource
 	if err := coord.ExecuteJob(metadata.GetJobKey(sourceID)); err != nil {
 		return fmt.Errorf("Could not execute coordinator source job: %v", err)
 	}
-	//have coordinator run job on feature resource
+	// have coordinator run job on feature resource
 	if err := coord.ExecuteJob(metadata.GetJobKey(featureID)); err != nil {
 		return fmt.Errorf("Could not execute coordinator feature job: %v", err)
 	}
-	//check that original values for online store set correctly
+	// check that original values for online store set correctly
 	if err := checkOnlineStoreTables(featureName, testOfflineTableValues); err != nil {
 		return fmt.Errorf("tables not set correctly before update", err)
 	}
-	//get last_updated timestamp of feature before update job runs
+	// get last_updated timestamp of feature before update job runs
 	featureBeforeUpdate, err := metadataClient.GetFeatureVariant(ctx, metadata.NameVariant{Name: featureName, Variant: ""})
 	if err != nil {
 		return fmt.Errorf("could not get training set: %v", err)
@@ -339,17 +339,17 @@ func testScheduleFeatureMaterialization() error {
 	if err := UpdateOriginalPostgresTable(originalTableName); err != nil {
 		return fmt.Errorf("Could not update postgres table: %v", err)
 	}
-	//wait for scheduler to run job at least once (1 minute + 10 second buffer)
+	// wait for scheduler to run job at least once (1 minute + 10 second buffer)
 	time.Sleep(70 * time.Second)
-	//check that kubernetes ran scheduled job
+	// check that kubernetes ran scheduled job
 	if err := kubernetesRanScheduledJob(featureID); err != nil {
 		return fmt.Errorf("kubernetes did not run scheduled job: %v", err)
 	}
-	//check that online store tables have freshest data
+	// check that online store tables have freshest data
 	if err := checkOnlineStoreTables(featureName, testOfflineTableUpdateValues); err != nil {
 		return fmt.Errorf("Online table did not update to new values: %v", err)
 	}
-	//get timestamp of feature after update and compare to original timestamp
+	// get timestamp of feature after update and compare to original timestamp
 	featureSecondTimestamp, err := metadataClient.GetFeatureVariant(ctx, metadata.NameVariant{Name: featureName, Variant: ""})
 	if err != nil {
 		return fmt.Errorf("could not get online data: %v", err)
@@ -361,7 +361,7 @@ func testScheduleFeatureMaterialization() error {
 	return nil
 }
 
-//feature materialization test helper functions
+// feature materialization test helper functions
 
 func checkOnlineStoreTables(featureName string, correctTable []provider.ResourceRecord) error {
 	resourceTable, err := onlineRedisStore.GetTable(featureName, "")
@@ -380,9 +380,9 @@ func checkOnlineStoreTables(featureName string, correctTable []provider.Resource
 	return nil
 }
 
-//transformation schedule test
+// transformation schedule test
 func testScheduleTransformation() error {
-	//create random resource names
+	// create random resource names
 	tableName := createSafeUUID()
 	sourceName := strings.Replace(createSafeUUID(), "-", "", -1)
 	transformationName := strings.Replace(createSafeUUID(), "-", "", -1)
@@ -390,27 +390,27 @@ func testScheduleTransformation() error {
 	sourceID := metadata.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}
 	sourceNameVariants := []metadata.NameVariant{{Name: sourceName, Variant: ""}}
 	transformationID := metadata.ResourceID{Name: transformationName, Variant: "", Type: metadata.SOURCE_VARIANT}
-	//initialize source data table
+	// initialize source data table
 	if err := CreateOriginalPostgresTable(tableName); err != nil {
 		return fmt.Errorf("Could not create non-featureform source table: %v", err)
 	}
-	//create primary table in metadata
+	// create primary table in metadata
 	if err := createSourceWithProvider(sourceName, tableName); err != nil {
 		return fmt.Errorf("could not register source in metadata: %v", err)
 	}
-	//have coordinator initialize primary table in offline store
+	// have coordinator initialize primary table in offline store
 	if err := coord.ExecuteJob(metadata.GetJobKey(sourceID)); err != nil {
 		return fmt.Errorf("Could not execute source job in coordinator: %v", err)
 	}
-	//create transformation in metadata
+	// create transformation in metadata
 	if err := createTransformationWithProvider(transformationName, transformationQuery, sourceNameVariants, updateEveryMinuteSchedule); err != nil {
 		return fmt.Errorf("Could not register transformation in metadata: %v", err)
 	}
-	//have coordinator initialize transformation in offline store
+	// have coordinator initialize transformation in offline store
 	if err := coord.ExecuteJob(metadata.GetJobKey(transformationID)); err != nil {
 		return fmt.Errorf("Could not execute transformation job in coordinator: %v", err)
 	}
-	//get original timestamp for metadata transformation
+	// get original timestamp for metadata transformation
 	originalTransformationMetadataRecord, err := metadataClient.GetSourceVariant(ctx, metadata.NameVariant{Name: transformationName, Variant: ""})
 	if err != nil {
 		return fmt.Errorf("could not get training set")
@@ -419,17 +419,17 @@ func testScheduleTransformation() error {
 	if err := UpdateOriginalPostgresTable(tableName); err != nil {
 		return fmt.Errorf("Could not update table in postgres: %v", err)
 	}
-	//wait for kubernetes to run scheduled job at least once
+	// wait for kubernetes to run scheduled job at least once
 	time.Sleep(70 * time.Second)
-	//check that kubernetes ran scheduled job
+	// check that kubernetes ran scheduled job
 	if err := kubernetesRanScheduledJob(transformationID); err != nil {
 		return fmt.Errorf("transformation scheduled job did not run: %v", err)
 	}
-	//check that transformation table is updated with latest values
+	// check that transformation table is updated with latest values
 	if err := checkTransformationTableValues(transformationName, finalUpdatedTableValues); err != nil {
 		return fmt.Errorf("transformation table values did not update: %v", err)
 	}
-	//get timestamp of updated transformation table in metadata and check that timestamp is more recent than original
+	// get timestamp of updated transformation table in metadata and check that timestamp is more recent than original
 	updatedTransformationMetadataRecord, err := metadataClient.GetSourceVariant(ctx, metadata.NameVariant{Name: transformationName, Variant: ""})
 	if err != nil {
 		return fmt.Errorf("could not get training set: %v", err)
@@ -441,7 +441,7 @@ func testScheduleTransformation() error {
 	return nil
 }
 
-//transformation test helper functions
+// transformation test helper functions
 
 func checkTransformationTableValues(transformationName string, correctValues []provider.ResourceRecord) error {
 	providerJoinTransformationID := provider.ResourceID{Name: transformationName, Variant: "", Type: provider.Transformation}
@@ -476,30 +476,30 @@ func checkTransformationTableValues(transformationName string, correctValues []p
 	return nil
 }
 
-//test changing schedule of existing resource
-//(this could be tested with a training set, transformation or feature)
-//(my choice of feature materialization was arbitrary)
+// test changing schedule of existing resource
+// (this could be tested with a training set, transformation or feature)
+// (my choice of feature materialization was arbitrary)
 
 func testUpdateExistingSchedule() error {
-	//create random resource names
+	// create random resource names
 	featureName := createSafeUUID()
 	sourceName := createSafeUUID()
 	originalTableName := createSafeUUID()
 	featureID := metadata.ResourceID{Name: featureName, Variant: "", Type: metadata.FEATURE_VARIANT}
 	sourceID := metadata.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}
-	//intiialize feature in metadata
+	// intiialize feature in metadata
 	if err := materializeFeatureWithProvider(featureName, sourceName, originalTableName, updateEveryMinuteSchedule); err != nil {
 		return fmt.Errorf("could not create online feature in metadata: %v", err)
 	}
-	//have coordinator initialize feature's source in offline store
+	// have coordinator initialize feature's source in offline store
 	if err := coord.ExecuteJob(metadata.GetJobKey(sourceID)); err != nil {
 		return fmt.Errorf("Error executing source job in coordinator: %v", err)
 	}
-	//have coordinator materialize feature in online store
+	// have coordinator materialize feature in online store
 	if err := coord.ExecuteJob(metadata.GetJobKey(featureID)); err != nil {
 		return fmt.Errorf("Error executing feature job in coordinator: %v", err)
 	}
-	//Check the original set schedule in kubernetes
+	// Check the original set schedule in kubernetes
 	jobClient, err := runner.NewKubernetesJobClient(runner.GetCronJobName(featureID), runner.Namespace)
 	if err != nil {
 		return fmt.Errorf("Could not get kubernetes job client: %v", err)
@@ -511,14 +511,14 @@ func testUpdateExistingSchedule() error {
 	if oldCronJob.Spec.Schedule != updateEveryMinuteSchedule {
 		return fmt.Errorf("Did not set original schedule")
 	}
-	//run request schedule change client method, which signals the metadata to set update schedule job in etcd
-	//The coordinator will then see this job and open a client to kubernetes to change the schedule
+	// run request schedule change client method, which signals the metadata to set update schedule job in etcd
+	// The coordinator will then see this job and open a client to kubernetes to change the schedule
 	if err := metadataClient.RequestScheduleChange(ctx, featureID, updateEveryTwoMinutesSchedule); err != nil {
 		return fmt.Errorf("Could not request schedule change from metadata server: %v", err)
 	}
-	//wait a bit
+	// wait a bit
 	time.Sleep(5 * time.Second)
-	//check kubernetes to see if new schedule is set
+	// check kubernetes to see if new schedule is set
 	newCronJob, err := jobClient.GetCronJob()
 	if err != nil {
 		return fmt.Errorf("Could not get new cron job: %v", err)
@@ -529,10 +529,10 @@ func testUpdateExistingSchedule() error {
 	return nil
 }
 
-//helper function for setting original source data
+// helper function for setting original source data
 
 func CreateOriginalPostgresTable(tableName string) error {
-	url := fmt.Sprintf("postgres://%s:%s@%s:%s/%s", postgresConfig.Username, postgresConfig.Password, postgresConfig.Host, postgresConfig.Port, postgresConfig.Database)
+	url := fmt.Sprintf("postgres:// %s:%s@%s:%s/%s", postgresConfig.Username, postgresConfig.Password, postgresConfig.Host, postgresConfig.Port, postgresConfig.Database)
 	conn, err := pgxpool.Connect(ctx, url)
 	if err != nil {
 		return fmt.Errorf("Error connecting to postgres deployment: %v", err)
@@ -551,7 +551,7 @@ func CreateOriginalPostgresTable(tableName string) error {
 }
 
 func UpdateOriginalPostgresTable(tableName string) error {
-	url := fmt.Sprintf("postgres://%s:%s@%s:%s/%s", postgresConfig.Username, postgresConfig.Password, postgresConfig.Host, postgresConfig.Port, postgresConfig.Database)
+	url := fmt.Sprintf("postgres:// %s:%s@%s:%s/%s", postgresConfig.Username, postgresConfig.Password, postgresConfig.Host, postgresConfig.Port, postgresConfig.Database)
 	conn, err := pgxpool.Connect(ctx, url)
 	if err != nil {
 		return fmt.Errorf("Error connecting to postgres deployment: %v", err)
@@ -565,7 +565,7 @@ func UpdateOriginalPostgresTable(tableName string) error {
 	return nil
 }
 
-//  helper functions for creating resources in metadata
+//   helper functions for creating resources in metadata
 
 func createTrainingSetWithProvider(sourceName string, featureName string, labelName string, tsName string, originalTableName string, schedule string) error {
 	providerName := createSafeUUID()

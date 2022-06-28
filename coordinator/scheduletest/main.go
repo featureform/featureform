@@ -222,7 +222,7 @@ func testScheduleTrainingSet() error {
 // training set helper functions
 
 func initializeResourceTablesForTrainingSet(featureName string, labelName string) (provider.OfflineTable, provider.OfflineTable, error) {
-	offline_feature := provider.ResourceID{Name: featureName, Variant: "", Type: provider.Feature}
+	offlineFeature := provider.ResourceID{Name: featureName, Variant: "", Type: provider.Feature}
 	schemaInt := provider.TableSchema{
 		Columns: []provider.TableColumn{
 			{Name: "entity", ValueType: provider.String},
@@ -230,7 +230,7 @@ func initializeResourceTablesForTrainingSet(featureName string, labelName string
 			{Name: "ts", ValueType: provider.Timestamp},
 		},
 	}
-	featureTable, err := offlinePostgresStore.CreateResourceTable(offline_feature, schemaInt)
+	featureTable, err := offlinePostgresStore.CreateResourceTable(offlineFeature, schemaInt)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not create feature table: %v", err)
 	}
@@ -239,8 +239,8 @@ func initializeResourceTablesForTrainingSet(featureName string, labelName string
 			return nil, nil, fmt.Errorf("could not write to offline feature table: %v", err)
 		}
 	}
-	offline_label := provider.ResourceID{Name: labelName, Variant: "", Type: provider.Label}
-	labelTable, err := offlinePostgresStore.CreateResourceTable(offline_label, schemaInt)
+	offlineLabel := provider.ResourceID{Name: labelName, Variant: "", Type: provider.Label}
+	labelTable, err := offlinePostgresStore.CreateResourceTable(offlineLabel, schemaInt)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not create label table: %v", err)
 	}

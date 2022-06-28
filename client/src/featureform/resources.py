@@ -22,7 +22,7 @@ class Schedule:
     name: str
     variant: str
     resource_type: int
-    schedule: str
+    schedule_string: str
 
     @staticmethod
     def type() -> str:
@@ -234,7 +234,7 @@ class Source:
     schedule: Schedule = None
 
     def update_schedule(self, schedule) -> None:
-        self.schedule = Schedule(name=self.name, variant=self.variant, resource_type=7, schedule=schedule)
+        self.schedule = Schedule(name=self.name, variant=self.variant, resource_type=7, schedule_string=schedule)
 
     @staticmethod
     def type() -> str:
@@ -305,7 +305,7 @@ class Feature:
     schedule: Schedule = None
 
     def update_schedule(self, schedule) -> None:
-        self.schedule = Schedule(name=self.name, variant=self.variant, resource_type=4, schedule=schedule)
+        self.schedule = Schedule(name=self.name, variant=self.variant, resource_type=4, schedule_string=schedule)
 
     @staticmethod
     def type() -> str:
@@ -375,7 +375,7 @@ class TrainingSet:
     schedule: Schedule = None
 
     def update_schedule(self, schedule) -> None:
-        self.schedule = Schedule(name=self.name, variant=self.variant, resource_type=6, schedule=schedule)
+        self.schedule = Schedule(name=self.name, variant=self.variant, resource_type=6, schedule_string=schedule)
 
     def __post_init__(self):
         if not valid_name_variant(self.label):

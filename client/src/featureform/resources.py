@@ -434,7 +434,7 @@ class ResourceState:
             raise ResourceRedefinedError(resource)
         self.__state[key] = resource
         self.__create_list.append(resource)
-        if hasattr(resource, 'schedule'):
+        if hasattr(resource, 'schedule') and resource.schedule != None:
             self.__create_list.append(resource.schedule)
 
     def sorted_list(self) -> List[Resource]:

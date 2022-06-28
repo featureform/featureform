@@ -3,10 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/google/uuid"
-	db "github.com/jackc/pgx/v4"
-	"github.com/jackc/pgx/v4/pgxpool"
-	"golang.org/x/sync/errgroup"
 	"os"
 	"reflect"
 	"strings"
@@ -16,8 +12,13 @@ import (
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	"github.com/featureform/runner"
+
+	"github.com/google/uuid"
+	db "github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
 )
 
 func createSafeUUID() string {

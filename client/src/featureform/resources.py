@@ -92,7 +92,7 @@ class PostgresConfig:
         }
         return bytes(json.dumps(config), "utf-8")
 
-        
+
 @typechecked
 @dataclass
 class RedshiftConfig:
@@ -218,6 +218,14 @@ class Source:
     description: str
     schedule: str
 
+    def update_schedule(self, schedule, metadata_stub) -> None:
+        serialized_request = pb.SetScheduleChangeRequest(
+            resource_id=pb.ResourceID(resource=pb.NameVariant(name=self.name, variant=self.variant), resource_type=7),
+            schedule=schedule
+        )
+        metadata_stub.UpdateSchedule(serialized_request)
+        self.schedule = schedule
+
     @staticmethod
     def type() -> str:
         return "source"
@@ -286,6 +294,14 @@ class Feature:
     schedule: str
     location: ResourceLocation
 
+    def update_schedule(self, schedule, metadata_stub) -> None:
+        serialized_request = pb.SetScheduleChangeRequest(
+            resource_id=pb.ResourceID(resource=pb.NameVariant(name=self.name, variant=self.variant), resource_type=4),
+            schedule=schedule
+        )
+        metadata_stub.UpdateSchedule(serialized_request)
+        self.schedule = schedule
+
     @staticmethod
     def type() -> str:
         return "feature"
@@ -352,6 +368,14 @@ class TrainingSet:
     features: List[NameVariant]
     description: str
     schedule: str
+
+    def update_schedule(self, schedule, metadata_stub) -> None:
+        serialized_request = pb.SetScheduleChangeRequest(
+            resource_id=pb.ResourceID(resource=pb.NameVariant(name=self.name, variant=self.variant), resource_type=6),
+            schedule=schedule
+        )
+        metadata_stub.UpdateSchedule(serialized_request)
+        self.schedule = schedule
 
     def __post_init__(self):
         if not valid_name_variant(self.label):

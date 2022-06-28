@@ -16,6 +16,21 @@ NameVariant = Tuple[str, str]
 def valid_name_variant(nvar: NameVariant) -> bool:
     return nvar[0] != "" and nvar[1] != ""
 
+@typechecked
+@dataclass
+class Schedule:
+    name: str
+    variant: str
+    resource_type: int
+    schedule: str
+
+    @staticmethod
+    def type() -> str:
+        return "schedule"
+
+    def _create(self, stub) -> None:
+        serialized = pb.SetScheduleChangeRequest(resource=pb.NameVariant(name=self.name, variant=self.variant), resource_type=self.resource_type)
+        stub.UpdateSchedule(serialized)
 
 @typechecked
 @dataclass
@@ -216,15 +231,10 @@ class Source:
     owner: str
     provider: str
     description: str
-    schedule: str
+    schedule: Resource
 
-    def update_schedule(self, schedule, stub) -> None:
-        serialized_request = pb.SetScheduleChangeRequest(
-            resource_id=pb.ResourceID(resource=pb.NameVariant(name=self.name, variant=self.variant), resource_type=7),
-            schedule=schedule
-        )
-        stub.UpdateSchedule(serialized_request)
-        self.schedule = schedule
+    def update_schedule(self, schedule) -> None:
+        self.schedule = Schedule(name=self.name, variant=self.variant, resource_type=7, schedule=schedule)
 
     @staticmethod
     def type() -> str:
@@ -291,16 +301,11 @@ class Feature:
     owner: str
     provider: str
     description: str
-    schedule: str
     location: ResourceLocation
+    schedule: Resource
 
-    def update_schedule(self, schedule, stub) -> None:
-        serialized_request = pb.SetScheduleChangeRequest(
-            resource_id=pb.ResourceID(resource=pb.NameVariant(name=self.name, variant=self.variant), resource_type=4),
-            schedule=schedule
-        )
-        stub.UpdateSchedule(serialized_request)
-        self.schedule = schedule
+    def update_schedule(self, schedule) -> None:
+        self.schedule = Schedule(name=self.name, variant=self.variant, resource_type=4, schedule=schedule)
 
     @staticmethod
     def type() -> str:
@@ -367,15 +372,10 @@ class TrainingSet:
     label: NameVariant
     features: List[NameVariant]
     description: str
-    schedule: str
+    schedule: Resource
 
-    def update_schedule(self, schedule, stub) -> None:
-        serialized_request = pb.SetScheduleChangeRequest(
-            resource_id=pb.ResourceID(resource=pb.NameVariant(name=self.name, variant=self.variant), resource_type=6),
-            schedule=schedule
-        )
-        stub.UpdateSchedule(serialized_request)
-        self.schedule = schedule
+    def update_schedule(self, schedule) -> None:
+        self.schedule = Schedule(name=self.name, variant=self.variant, resource_type=6, schedule=schedule)
 
     def __post_init__(self):
         if not valid_name_variant(self.label):
@@ -406,7 +406,7 @@ class TrainingSet:
 
 
 Resource = Union[PrimaryData, Provider, Entity, User, Feature, Label,
-                 TrainingSet, Source]
+                 TrainingSet, Source, Schedule]
 
 
 class ResourceRedefinedError(Exception):
@@ -434,6 +434,8 @@ class ResourceState:
             raise ResourceRedefinedError(resource)
         self.__state[key] = resource
         self.__create_list.append(resource)
+        if hasattr(resource, 'schedule'):
+            self.__create_list.append(resource.schedule)
 
     def sorted_list(self) -> List[Resource]:
         resource_order = {
@@ -444,6 +446,7 @@ class ResourceState:
             "feature": 4,
             "label": 5,
             "training-set": 6,
+            "schedule": 7,
         }
 
         def to_sort_key(res):
@@ -463,4 +466,3 @@ class ResourceState:
                     print(resource.name, "already exists.")
                     continue
                 raise
-

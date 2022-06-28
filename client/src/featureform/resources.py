@@ -93,33 +93,7 @@ class PostgresConfig:
         return bytes(json.dumps(config), "utf-8")
 
 
-@typechecked
-@dataclass
-class RedshiftConfig:
-    host: str
-    port: str
-    database: str
-    user: str
-    password: str
-
-    def software(self) -> str:
-        return "redshift"
-
-    def type(self) -> str:
-        return "REDSHIFT_OFFLINE"
-
-    def serialize(self) -> bytes:
-        config = {
-            "Host": self.host,
-            "Port": self.port,
-            "Username": self.user,
-            "Password": self.password,
-            "Database": self.database,
-        }
-        return bytes(json.dumps(config), "utf-8")
-
-
-Config = Union[RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig]
+Config = Union[RedisConfig, SnowflakeConfig, PostgresConfig]
 
 
 @typechecked
@@ -217,6 +191,7 @@ class Source:
     owner: str
     provider: str
     description: str
+    schedule: str
 
     @staticmethod
     def type() -> str:
@@ -229,6 +204,7 @@ class Source:
             variant=self.variant,
             owner=self.owner,
             description=self.description,
+            schedule=self.schedule,
             provider=self.provider,
             **defArgs,
         )
@@ -282,6 +258,7 @@ class Feature:
     owner: str
     provider: str
     description: str
+    schedule: str
     location: ResourceLocation
 
     @staticmethod
@@ -300,6 +277,7 @@ class Feature:
             entity=self.entity,
             owner=self.owner,
             description=self.description,
+            schedule=self.schedule,
             provider=self.provider,
             columns=self.location.proto(),
         )
@@ -348,6 +326,7 @@ class TrainingSet:
     label: NameVariant
     features: List[NameVariant]
     description: str
+    schedule: str
 
     def __post_init__(self):
         if not valid_name_variant(self.label):
@@ -367,6 +346,7 @@ class TrainingSet:
             name=self.name,
             variant=self.variant,
             description=self.description,
+            schedule=self.schedule,
             owner=self.owner,
             features=[
                 pb.NameVariant(name=v[0], variant=v[1]) for v in self.features

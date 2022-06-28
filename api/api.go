@@ -93,6 +93,11 @@ func (serv *MetadataServer) CreateEntity(ctx context.Context, entity *pb.Entity)
 	return serv.meta.CreateEntity(ctx, entity)
 }
 
+func (serv *MetadataServer) RequestScheduleChange(ctx context.Context, req *pb.ScheduleChangeRequest) (*pb.Empty, error) {
+	serv.Logger.Infow("Requesting Schedule Change", "resource", req.ResourceId, "new schedule", req.Schedule)
+	return serv.meta.RequestScheduleChange(ctx, req)
+}
+
 func (serv *MetadataServer) CreateFeatureVariant(ctx context.Context, feature *pb.FeatureVariant) (*pb.Empty, error) {
 	serv.Logger.Infow("Creating Feature Variant", "name", feature.Name, "variant", feature.Variant)
 	return serv.meta.CreateFeatureVariant(ctx, feature)

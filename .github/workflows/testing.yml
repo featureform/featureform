@@ -531,6 +531,7 @@ jobs:
           docker images
           helm repo add jetstack https://charts.jetstack.io
           helm repo update
+          helm install certmgr jetstack/cert-manager --set installCRDs=true --version v1.0.4 --namespace cert-manager --create-namespace
           helm install featureform ./charts/featureform --set global.repo=local --set global.pullPolicy=Never
           helm install test-quickstart ./charts/quickstart
           kubectl wait pods --for condition=ready --timeout=300s -l run=featureform-metadata-server

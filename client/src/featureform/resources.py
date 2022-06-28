@@ -218,12 +218,12 @@ class Source:
     description: str
     schedule: str
 
-    def update_schedule(self, schedule, metadata_stub) -> None:
+    def update_schedule(self, schedule, stub) -> None:
         serialized_request = pb.SetScheduleChangeRequest(
             resource_id=pb.ResourceID(resource=pb.NameVariant(name=self.name, variant=self.variant), resource_type=7),
             schedule=schedule
         )
-        metadata_stub.UpdateSchedule(serialized_request)
+        stub.UpdateSchedule(serialized_request)
         self.schedule = schedule
 
     @staticmethod
@@ -294,12 +294,12 @@ class Feature:
     schedule: str
     location: ResourceLocation
 
-    def update_schedule(self, schedule, metadata_stub) -> None:
+    def update_schedule(self, schedule, stub) -> None:
         serialized_request = pb.SetScheduleChangeRequest(
             resource_id=pb.ResourceID(resource=pb.NameVariant(name=self.name, variant=self.variant), resource_type=4),
             schedule=schedule
         )
-        metadata_stub.UpdateSchedule(serialized_request)
+        stub.UpdateSchedule(serialized_request)
         self.schedule = schedule
 
     @staticmethod
@@ -369,12 +369,12 @@ class TrainingSet:
     description: str
     schedule: str
 
-    def update_schedule(self, schedule, metadata_stub) -> None:
+    def update_schedule(self, schedule, stub) -> None:
         serialized_request = pb.SetScheduleChangeRequest(
             resource_id=pb.ResourceID(resource=pb.NameVariant(name=self.name, variant=self.variant), resource_type=6),
             schedule=schedule
         )
-        metadata_stub.UpdateSchedule(serialized_request)
+        stub.UpdateSchedule(serialized_request)
         self.schedule = schedule
 
     def __post_init__(self):

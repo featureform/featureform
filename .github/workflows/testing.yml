@@ -534,7 +534,7 @@ jobs:
           helm install featureform ./charts/featureform/charts/metadata --set global.repo=local --set global.pullPolicy=Never
           helm install test-quickstart ./charts/quickstart
           kubectl wait pods --for condition=ready --timeout=300s -l run=featureform-metadata-server
-          kubectl wait pods --for condition=ready --timeout=300s -l app.kubernetes.io/name=etcd
+          kubectl wait pods --for condition=ready --timeout=300s -l app=etcd
           kubectl wait pods --for condition=ready --timeout=300s -l app.kubernetes.io/instance=test-quickstart
       - name: Deploy schedule tester job
         run: kubectl apply -f coordinator/scheduletest/runjob.yaml

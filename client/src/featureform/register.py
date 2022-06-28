@@ -396,10 +396,10 @@ class Registrar:
                                     name: str,
                                     variant: str,
                                     query: str,
-                                    schedule: str,
                                     provider: Union[str, OfflineProvider],
                                     owner: Union[str, UserRegistrar] = "",
-                                    description: str = ""):
+                                    description: str = "",
+                                    schedule: str = ""):
         if not isinstance(owner, str):
             owner = owner.name()
         if owner == "":
@@ -533,10 +533,10 @@ class Registrar:
                               name: str,
                               variant: str,
                               label: NameVariant,
-                              schedule: str,
                               features: List[NameVariant],
                               owner: Union[str, UserRegistrar] = "",
-                              description: str = ""):
+                              description: str = "",
+                              schedule: str = ""):
         if not isinstance(owner, str):
             owner = owner.name()
         if owner == "":

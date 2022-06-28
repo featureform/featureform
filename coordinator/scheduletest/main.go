@@ -330,7 +330,7 @@ func testScheduleFeatureMaterialization() error {
 	}
 	// check that original values for online store set correctly
 	if err := checkOnlineStoreTables(featureName, testOfflineTableValues); err != nil {
-		return fmt.Errorf("tables not set correctly before update", err)
+		return fmt.Errorf("tables not set correctly before update: %v", err)
 	}
 	// get last_updated timestamp of feature before update job runs
 	featureBeforeUpdate, err := metadataClient.GetFeatureVariant(ctx, metadata.NameVariant{Name: featureName, Variant: ""})

@@ -231,7 +231,7 @@ class Source:
     owner: str
     provider: str
     description: str
-    schedule: Schedule
+    schedule: Schedule = None
 
     def update_schedule(self, schedule) -> None:
         self.schedule = Schedule(name=self.name, variant=self.variant, resource_type=7, schedule=schedule)
@@ -302,7 +302,7 @@ class Feature:
     provider: str
     description: str
     location: ResourceLocation
-    schedule: Schedule
+    schedule: Schedule = None
 
     def update_schedule(self, schedule) -> None:
         self.schedule = Schedule(name=self.name, variant=self.variant, resource_type=4, schedule=schedule)
@@ -372,7 +372,7 @@ class TrainingSet:
     label: NameVariant
     features: List[NameVariant]
     description: str
-    schedule: Schedule
+    schedule: Schedule = None
 
     def update_schedule(self, schedule) -> None:
         self.schedule = Schedule(name=self.name, variant=self.variant, resource_type=6, schedule=schedule)

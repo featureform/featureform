@@ -65,7 +65,7 @@ var etcdPort = os.Getenv("ETCD_PORT")
 var etcdUsername = os.Getenv("ETCD_USERNAME")
 var etcdPassword = os.Getenv("ETCD_PASSWORD")
 
-var metadata_addr = fmt.Sprintf("%s:%s", os.Getenv("METADATA_HOST"), os.Getenv("METADATA_PORT"))
+var metadataAddress = fmt.Sprintf("%s:%s", os.Getenv("METADATA_HOST"), os.Getenv("METADATA_PORT"))
 
 var serialPGConfig []byte
 var offlinePostgresStore provider.OfflineStore
@@ -115,7 +115,7 @@ func main() {
 
 func initializeTestingEnvironment() error {
 	logger := zap.NewExample().Sugar()
-	metadataClient, err := metadata.NewClient(metadata_addr, logger)
+	metadataClient, err := metadata.NewClient(metadataAddress, logger)
 	if err != nil {
 		return fmt.Errorf("could not set up metadata client: %v", err)
 	}

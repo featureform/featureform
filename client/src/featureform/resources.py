@@ -92,9 +92,34 @@ class PostgresConfig:
         }
         return bytes(json.dumps(config), "utf-8")
 
+        
+@typechecked
+@dataclass
+class RedshiftConfig:
+    host: str
+    port: str
+    database: str
+    user: str
+    password: str
 
-Config = Union[RedisConfig, SnowflakeConfig, PostgresConfig]
+    def software(self) -> str:
+        return "redshift"
 
+    def type(self) -> str:
+        return "REDSHIFT_OFFLINE"
+
+    def serialize(self) -> bytes:
+        config = {
+            "Host": self.host,
+            "Port": self.port,
+            "Username": self.user,
+            "Password": self.password,
+            "Database": self.database,
+        }
+        return bytes(json.dumps(config), "utf-8")
+
+
+Config = Union[RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig]
 
 @typechecked
 @dataclass

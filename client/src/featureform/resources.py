@@ -231,10 +231,11 @@ class Source:
     owner: str
     provider: str
     description: str
-    schedule: Schedule = None
+    schedule: str
+    schedule_obj: Schedule = None
 
     def update_schedule(self, schedule) -> None:
-        self.schedule = Schedule(name=self.name, variant=self.variant, resource_type=7, schedule_string=schedule)
+        self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=7, schedule_string=schedule)
 
     @staticmethod
     def type() -> str:
@@ -302,10 +303,11 @@ class Feature:
     provider: str
     description: str
     location: ResourceLocation
-    schedule: Schedule = None
-
+    schedule: str
+    schedule_obj: Schedule = None
+    
     def update_schedule(self, schedule) -> None:
-        self.schedule = Schedule(name=self.name, variant=self.variant, resource_type=4, schedule_string=schedule)
+        self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=4, schedule_string=schedule)
 
     @staticmethod
     def type() -> str:
@@ -372,10 +374,11 @@ class TrainingSet:
     label: NameVariant
     features: List[NameVariant]
     description: str
-    schedule: Schedule = None
+    schedule: str
+    schedule_obj: Schedule = None
 
     def update_schedule(self, schedule) -> None:
-        self.schedule = Schedule(name=self.name, variant=self.variant, resource_type=6, schedule_string=schedule)
+        self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=6, schedule_string=schedule)
 
     def __post_init__(self):
         if not valid_name_variant(self.label):
@@ -434,8 +437,8 @@ class ResourceState:
             raise ResourceRedefinedError(resource)
         self.__state[key] = resource
         self.__create_list.append(resource)
-        if hasattr(resource, 'schedule') and resource.schedule != None:
-            self.__create_list.append(resource.schedule)
+        if hasattr(resource, 'schedule_obj') and resource.schedule_obj != None:
+            self.__create_list.append(resource.schedule_obj)
 
     def sorted_list(self) -> List[Resource]:
         resource_order = {

@@ -1792,6 +1792,7 @@ type ApiClient interface {
 	CreateFeatureVariant(ctx context.Context, in *FeatureVariant, opts ...grpc.CallOption) (*Empty, error)
 	CreateLabelVariant(ctx context.Context, in *LabelVariant, opts ...grpc.CallOption) (*Empty, error)
 	CreateTrainingSetVariant(ctx context.Context, in *TrainingSetVariant, opts ...grpc.CallOption) (*Empty, error)
+	RequestScheduleChange(ctx context.Context, in *ScheduleChangeRequest, opts ...grpc.CallOption) (*Empty, error)
 }
 
 type apiClient struct {
@@ -1865,6 +1866,15 @@ func (c *apiClient) CreateTrainingSetVariant(ctx context.Context, in *TrainingSe
 	return out, nil
 }
 
+func (c *apiClient) RequestScheduleChange(ctx context.Context, in *ScheduleChangeRequest, opts ...grpc.CallOption) (*Empty, error) {
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, "/featureform.serving.metadata.proto.Api/RequestScheduleChange", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ApiServer is the server API for Api service.
 // All implementations must embed UnimplementedApiServer
 // for forward compatibility
@@ -1876,6 +1886,7 @@ type ApiServer interface {
 	CreateFeatureVariant(context.Context, *FeatureVariant) (*Empty, error)
 	CreateLabelVariant(context.Context, *LabelVariant) (*Empty, error)
 	CreateTrainingSetVariant(context.Context, *TrainingSetVariant) (*Empty, error)
+	RequestScheduleChange(context.Context, *ScheduleChangeRequest) (*Empty, error)
 	mustEmbedUnimplementedApiServer()
 }
 
@@ -1903,6 +1914,9 @@ func (UnimplementedApiServer) CreateLabelVariant(context.Context, *LabelVariant)
 }
 func (UnimplementedApiServer) CreateTrainingSetVariant(context.Context, *TrainingSetVariant) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateTrainingSetVariant not implemented")
+}
+func (UnimplementedApiServer) RequestScheduleChange(context.Context, *ScheduleChangeRequest) (*Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RequestScheduleChange not implemented")
 }
 func (UnimplementedApiServer) mustEmbedUnimplementedApiServer() {}
 
@@ -2043,6 +2057,24 @@ func _Api_CreateTrainingSetVariant_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Api_RequestScheduleChange_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ScheduleChangeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ApiServer).RequestScheduleChange(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/featureform.serving.metadata.proto.Api/RequestScheduleChange",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ApiServer).RequestScheduleChange(ctx, req.(*ScheduleChangeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Api_ServiceDesc is the grpc.ServiceDesc for Api service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -2077,6 +2109,10 @@ var Api_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CreateTrainingSetVariant",
 			Handler:    _Api_CreateTrainingSetVariant_Handler,
+		},
+		{
+			MethodName: "RequestScheduleChange",
+			Handler:    _Api_RequestScheduleChange_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

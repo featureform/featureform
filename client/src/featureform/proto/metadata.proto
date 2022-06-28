@@ -52,6 +52,7 @@ service Api {
     rpc CreateFeatureVariant(FeatureVariant) returns (Empty);
     rpc CreateLabelVariant(LabelVariant) returns (Empty);
     rpc CreateTrainingSetVariant(TrainingSetVariant) returns (Empty);
+    rpc RequestScheduleChange(ScheduleChangeRequest) returns (Empty);
 }
 
 message Name {

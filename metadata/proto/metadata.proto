@@ -151,6 +151,7 @@ message FeatureVariant {
         Columns columns = 12;
     }
     UpdateStatus update_status = 13;
+    string schedule = 14;
 }
 
 message Label {
@@ -209,6 +210,7 @@ message TrainingSetVariant {
     repeated NameVariant features = 8;
     NameVariant label = 9;
     UpdateStatus update_status = 10;
+    string schedule = 11;
 }
 
 message Entity {
@@ -262,6 +264,7 @@ message SourceVariant {
     repeated NameVariant features = 11;
     repeated NameVariant labels = 12;
     UpdateStatus update_status = 13;
+    string schedule = 16;
 }
 
 message Transformation {

@@ -29,7 +29,7 @@ class Schedule:
         return "schedule"
 
     def _create(self, stub) -> None:
-        serialized = pb.SetScheduleChangeRequest(resource=pb.NameVariant(name=self.name, variant=self.variant), resource_type=self.resource_type)
+        serialized = pb.SetScheduleChangeRequest(resource=pb.ResourceId(pb.NameVariant(name=self.name, variant=self.variant), resource_type=self.resource_type), schedule=self.schedule_string)
         stub.RequestScheduleChange(serialized)
 
 @typechecked

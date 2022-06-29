@@ -372,57 +372,6 @@ def test_invalid_training_set(args):
     with pytest.raises((ValueError, TypeError)):
         TrainingSet(**args)
 
-@pytest.fixture
-def all_resources_scheduled(redis_provider):
-    ts_schedule = Schedule(name="training-set",variant="v1",resource_type=6,schedule_string="* * * * *")
-    return [
-        TrainingSet(name="training-set",
-                    variant="v1",
-                    description="desc",
-                    owner="featureform",
-                    label=("label", "var"),
-                    features=[("f1", "var")],
-                    schedule="* * * * *",
-                    schedule_obj=ts_schedule),
-        Label(
-            name="label",
-            variant="v1",
-            source=("a", "b"),
-            description="feature",
-            location=ResourceColumnMapping(
-                entity="abc",
-                value="def",
-                timestamp="ts",
-            ),
-            value_type="float32",
-            entity="user",
-            owner="Owner",
-        ),
-        Feature(name="feature",
-                variant="v1",
-                source=("a", "b"),
-                description="feature",
-                value_type="float32",
-                entity="user",
-                location=ResourceColumnMapping(
-                    entity="abc",
-                    value="def",
-                    timestamp="ts",
-                ),
-                owner="Owner",
-                provider="redis-name"),
-        Entity(name="user", description="A user"),
-        Source(name="primary",
-               variant="abc",
-               definition=PrimaryData(location=SQLTable("table")),
-               owner="someone",
-               description="desc",
-               provider="redis-name"),
-        redis_provider,
-        User(name="Featureform"),
-    ]
-
-
 def test_add_all_resources_with_schedule(all_resources_strange_order, redis_config):
     state = ResourceState()
     for resource in all_resources_strange_order:

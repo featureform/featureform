@@ -115,7 +115,7 @@ func main() {
 }
 
 func initializeTestingEnvironment() error {
-	logger := zap.NewExample().Sugar()
+	logger = zap.NewExample().Sugar()
 	var err error
 	metadataClient, err = metadata.NewClient(metadataAddress, logger)
 	if err != nil {

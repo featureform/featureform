@@ -24,8 +24,7 @@ class Schedule:
     resource_type: int
     schedule_string: str
 
-    @staticmethod
-    def type() -> str:
+    def type(self) -> str:
         return "schedule"
 
     def _create(self, stub) -> None:
@@ -236,6 +235,7 @@ class Source:
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=7, schedule_string=schedule)
+        self.schedule = schedule
 
     @staticmethod
     def type() -> str:
@@ -308,6 +308,7 @@ class Feature:
     
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=4, schedule_string=schedule)
+        self.schedule = schedule
 
     @staticmethod
     def type() -> str:
@@ -379,6 +380,7 @@ class TrainingSet:
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=6, schedule_string=schedule)
+        self.schedule = schedule
 
     def __post_init__(self):
         if not valid_name_variant(self.label):
@@ -438,7 +440,10 @@ class ResourceState:
         self.__state[key] = resource
         self.__create_list.append(resource)
         if hasattr(resource, 'schedule_obj') and resource.schedule_obj != None:
-            self.__create_list.append(resource.schedule_obj)
+            my_schedule = resource.schedule_obj
+            key = (my_schedule.type(),  my_schedule.name)
+            self.__state[key] =  my_schedule
+            self.__create_list.append(my_schedule)
 
     def sorted_list(self) -> List[Resource]:
         resource_order = {
@@ -462,7 +467,7 @@ class ResourceState:
     def create_all(self, stub) -> None:
         for resource in self.__create_list:
             try:
-                print("Creating", resource.name)
+                print("Creating", resource.type(), resource.name)
                 resource._create(stub)
             except grpc.RpcError as e:
                 if e.code() == grpc.StatusCode.ALREADY_EXISTS:

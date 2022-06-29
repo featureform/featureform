@@ -530,6 +530,7 @@ jobs:
           echo -n "verifying images:"
           docker images
           helm repo add jetstack https://charts.jetstack.io
+          helm repo add bitnami https://charts.bitnami.com/bitnami
           helm repo update
           helm install featureform ./charts/featureform/charts/metadata --set global.repo=local --set global.pullPolicy=Never
           helm install featureform-etcd bitnami/etcd --set nameOverride=""

@@ -63,8 +63,8 @@ var redisHost = os.Getenv("REDIS_HOST")
 var etcdHost = os.Getenv("ETCD_HOST")
 var etcdPort = os.Getenv("ETCD_PORT")
 
-var etcdUsername = os.Getenv("ETCD_USERNAME")
-var etcdPassword = os.Getenv("ETCD_PASSWORD")
+// var etcdUsername = os.Getenv("ETCD_USERNAME")
+// var etcdPassword = os.Getenv("ETCD_PASSWORD")
 
 var metadataAddress = fmt.Sprintf("%s:%s", os.Getenv("METADATA_HOST"), os.Getenv("METADATA_PORT"))
 
@@ -122,8 +122,7 @@ func initializeTestingEnvironment() error {
 		return fmt.Errorf("could not set up metadata client: %v", err)
 	}
 	etcdConnect := fmt.Sprintf("%s:%s", etcdHost, etcdPort)
-	etcdClient, err = clientv3.New(clientv3.Config{Endpoints: []string{etcdConnect}, Username: etcdUsername,
-		Password: etcdPassword})
+	etcdClient, err = clientv3.New(clientv3.Config{Endpoints: []string{etcdConnect}})
 	if err != nil {
 		return fmt.Errorf("Could not connect to etcd: %v", err)
 	}

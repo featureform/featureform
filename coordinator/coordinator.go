@@ -105,7 +105,7 @@ func GetLockKey(jobKey string) string {
 }
 
 func (k *KubernetesJobSpawner) GetJobRunner(jobName string, config runner.Config, etcdEndpoints []string, id metadata.ResourceID) (runner.Runner, error) {
-	etcdConfig := &ETCDConfig{Endpoints: etcdEndpoints, Username: "root", Password: "secretpassword"}
+	etcdConfig := &ETCDConfig{Endpoints: etcdEndpoints, Username: os.Getenv("ETCD_USERNAME"), Password: os.Getenv("ETCD_PASSWORD")}
 	serializedETCD, err := etcdConfig.Serialize()
 	if err != nil {
 		return nil, err

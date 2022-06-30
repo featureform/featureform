@@ -151,7 +151,6 @@ class LocalClient:
                                            left_on=labelRow[9], right_on=feature_row[10], left_by=labelRow[8],
                                            right_by=feature_row[9])
             else:
-                print(feature_df)
                 feature_df.drop_duplicates(subset=[feature_row[9], name_variant])
                 trainingset_df = pd.merge_asof(trainingset_df, feature_df.sort_values(feature_row[9]), direction='backward',
                                                left_by=labelRow[8],

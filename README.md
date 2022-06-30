@@ -82,11 +82,22 @@ By using Featureform, a data science team can solve the organizational problems:
 In reality, the feature’s definition is split across different pieces of infrastructure: the data source, the transformations, the inference store, the training store, and all their underlying data infrastructure. However, a data scientist will think of a feature in its logical form, something like: “a user’s average purchase price”. Featureform allows data scientists to define features in their logical form through transformation, providers, label, and training set resources. Featureform will then orchestrate the actual underlying components to achieve the data scientists' desired state.
 
 # How to use Featureform
+Featureform can be run locally on files or in Kubernetes with your existing infrastructure.
+## Kubernetes
 
-Featureform can be run locally on files or in Kubernetes with your existing infrastructure. To check out how to run it in the cloud or on minikube,
-follow our Kubernetes quickstart [here](https://docs.featureform.com/quickstart-kubernetes).
+Featureform on Kubernetes can be used to connect to your existing cloud infrastructure and can also be run 
+locally on Minikube. 
 
-Otherwise, continue below to see how to run Featureform locally.
+To check out how to run it in the cloud,
+follow our [Kubernetes quickstart](https://docs.featureform.com/quickstart-kubernetes).
+
+To try Featureform with Minikube, follow our [Minikube guide](https://docs.featureform.com/deployment/minikube)
+
+## Local
+
+Featureform can also be run locally on files. Follow the steps below to get started 
+with the Featureform CLI.  
+
 ## Install Featureform
 ```
 pip install featureform

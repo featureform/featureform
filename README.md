@@ -85,125 +85,111 @@ In reality, the feature’s definition is split across different pieces of infra
 
 You can read our quickstart or deployment docs to learn about how to deploy a Featureform cluster. Once Featureform is deployed, you can interact with it via our Python API and CLI.
 
-## Register your infrastructure providers
-To begin, we have to register our data infrastructure with Featureform. Featureform will orchestrate them all to reach the state you define.
+## Install Featureform
+```
+pip install featureform
+```
 
+## Download sample data
+We'll use a fraudulent transaction dataset that can be found here: https://featureform-demo-files.s3.amazonaws.com/transactions.csv
+
+The data contains 9 columns, almost all of would require some feature engineering before using in a typical model.
+```
+TransactionID,CustomerID,CustomerDOB,CustLocation,CustAccountBalance,TransactionAmount (INR),Timestamp,IsFraud
+T1,C5841053,10/1/94,JAMSHEDPUR,17819.05,25,2022-04-09 11:33:09,False
+T2,C2142763,4/4/57,JHAJJAR,2270.69,27999,2022-03-27 01:04:21,False
+T3,C4417068,26/11/96,MUMBAI,17874.44,459,2022-04-07 00:48:14,False
+T4,C5342380,14/9/73,MUMBAI,866503.21,2060,2022-04-14 07:56:59,True
+T5,C9031234,24/3/88,NAVI MUMBAI,6714.43,1762.5,2022-04-13 07:39:19,False
+T6,C1536588,8/10/72,ITANAGAR,53609.2,676,2022-03-26 17:02:51,True
+T7,C7126560,26/1/92,MUMBAI,973.46,566,2022-03-29 08:00:09,True
+T8,C1220223,27/1/82,MUMBAI,95075.54,148,2022-04-12 07:01:02,True
+T9,C8536061,19/4/88,GURGAON,14906.96,833,2022-04-10 20:43:10,True
+```
+
+## Register local provider
+We can write a config file in Python that registers our test data file.
 
 ```py
 import featureform as ff
 
-redis = ff.register_redis(
-    name = "redis-quickstart",
-    name="redis",
-    host="quickstart-redis", # The internal dns name for redis
-    port=6379,
-    description = "A Redis deployment we created for the Featureform quickstart"
-)
-
-postgres = ff.register_postgres(
-    name = "postgres-quickstart",
-    host="quickstart-postgres", # The internal dns name for postgres
-    port="5432",
-    user="postgres",
-    password="password",
-    database="postgres",
-    description = "A Postgres deployment we created for the Featureform quickstart"
-)
-```
-Then we can apply it via the CLI.
-
-```
-featureform apply definitions.py
-```
-
-## Define your sources, transformations, features, labels, and training sets
-
-We will create a user profile for us, and set it as the default owner for all the following resource definitions.
-```py
 ff.register_user("featureformer").make_default_owner()
-```
 
-Now we'll register our  user fraud dataset in Featureform.
+local = ff.register_local()
 
-```py
-transactions = postgres.register_table(
-    name = "transactions",
-    variant = "kaggle",
-    description = "Fraud Dataset From Kaggle",
-    table = "Transactions", # This is the table's name in Postgres
+transactions = local.register_file(
+    name="transactions",
+    variant="quickstart",
+    description="A dataset of fraudulent transactions",
+    path="transactions.csv"
 )
 ```
+Next, we'll define a Dataframe transformation on our dataset.
 
-Next, we'll define a SQL transformation on our dataset.
-
-```py
-@postgres.register_transformation(variant="quickstart")
-def average_user_transaction():
+```python
+@local.df_transformation(variant="quickstart",
+                         inputs=[("transactions", "quickstart")])
+def average_user_transaction(transactions):
     """the average transaction amount for a user """
-    return "SELECT CustomerID, avg(TransactionAmount) as avg_transaction_amt " \
-            " from {{transactions.kaggle}} GROUP BY user_id"
+    return transactions.groupby("CustomerID")["TransactionAmount"].mean()
 ```
 
 Next, we'll register a passenger entity to associate with a feature and label.
 
-```py
+```python
 user = ff.register_entity("user")
-
 # Register a column from our transformation as a feature
 average_user_transaction.register_resources(
     entity=user,
     entity_column="CustomerID",
-    inference_store=redis,
+    inference_store=local,
     features=[
-        {"name": "avg_transactions", "variant": "quickstart", "column": "avg_transaction_amt", "type": "float64"},
+        {"name": "avg_transactions", "variant": "quickstart", "column": "TransactionAmount", "type": "float32"},
     ],
 )
-
-# Register label from the original file
+# Register label from our base Transactions table
 transactions.register_resources(
-    entity=passenger,
+    entity=user,
     entity_column="CustomerID",
     labels=[
-        {"name": "fraudulent", "variant": "quickstart", "column": "ISFRAUD", "type": "int"},
+        {"name": "fraudulent", "variant": "quickstart", "column": "IsFraud", "type": "bool"},
     ],
 )
 ```
 
 Finally, we'll join together the feature and label intro a training set.
-
-```py
+```python
 ff.register_training_set(
-    "fraud_training", "quickstart",
-    label=("fraudulent", "quickstart"),
-    features=[("avg_transactions", "quickstart")],
+"fraud_training", "quickstart",
+label=("fraudulent", "quickstart"),
+features=[("avg_transactions", "quickstart")],
 )
 ```
-
 Now that our definitions are complete, we can apply it to our Featureform instance.
 
-```py
-featureform apply definitions.py
+```
+featureform apply definitions.py --local
 ```
 
-## Serve your features for training and inference
+## Serve features for training and inference
 Once we have our training set and features registered, we can train our model.
-
-```py
+```python
 import featureform as ff
 
-client = ff.ServingClient()
-dataset = client.dataset("fraud_training", "quickstart")
+client = ff.ServingLocalClient()
+dataset = client.training_set("fraud_training", "quickstart")
 training_dataset = dataset.repeat(10).shuffle(1000).batch(8)
-for feature_batch, label_batch in training_dataset:
+for feature_batch in training_dataset:
     # Train model
 ```
+
 We can serve features in production once we deploy our trained model as well.
 
-```py
+```python
 import featureform as ff
 
-client = ff.ServingClient()
-fpf = client.features([("avg_transactions", "quickstart")], {"CustomerID": "1"})
+client = ff.ServingLocalClient()
+fpf = client.features([("avg_transactions", "quickstart")], ("CustomerID", "C1410926"))
 # Run features through model
 ```
 

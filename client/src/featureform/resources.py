@@ -261,8 +261,6 @@ class SQLTransformation(Transformation):
 
 class DFTransformation(Transformation):
     def __init__(self, query: str, inputs: list):
-        print("DF TRANSFORMATION QUERY")
-        print(query)
         self.query = query
         self.inputs = inputs
 
@@ -316,13 +314,9 @@ class Source:
         is_transformation = False
         inputs = []
         if type(self.definition) == DFTransformation:
-            print(dir(self.definition))
-            print("Is transformation")
             is_transformation = True
             inputs = self.definition.inputs
             self.definition = self.definition.query
-            print("DEFINTION QUERY")
-            print(self.definition)
 
         db.insert_source("source_variant",
                          str(time.time()),
@@ -566,9 +560,6 @@ class TrainingSet:
         stub.CreateTrainingSetVariant(serialized)
 
     def _create_local(self, db) -> None:
-        print("in create local")
-        print(self.label[0])
-        print(self.label[1])
         db.insert("training_set_variant",
                   str(time.time()),
                   self.description,
@@ -594,7 +585,6 @@ class TrainingSet:
 
     def _insert_training_set_features(self, db) -> None:
         for feature in self.features:
-            print("INSERTING TSET FEATURE", feature)
             db.insert(
                 "training_set_features",
                 self.name,

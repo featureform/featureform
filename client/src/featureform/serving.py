@@ -3,7 +3,7 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 import json
 import marshal
-import re
+
 import grpc
 import numpy as np
 from .proto import serving_pb2
@@ -11,7 +11,7 @@ from .proto import serving_pb2_grpc
 import random
 import os
 from .sqlite_metadata import SQLiteMetadata
-import csv
+
 import pandas as pd
 import types
 
@@ -116,7 +116,7 @@ class LocalClient:
 
         featureTable = self.sqldb.getNameVariant("training_set_features", "trainingSetName", trainingSetName,
                                                  "trainingSetVariant", trainingSetVariant)
-        #labelDF.ts = pd.to_numeric(labelDF.ts)
+
         labelDF.rename(columns={labelRow[10]: 'label'}, inplace=True)
         trainingset_df = labelDF
         for featureVariant in featureTable:
@@ -125,7 +125,7 @@ class LocalClient:
 
             source_row = \
                 self.sqldb.getNameVariant("source_variant", "name", feature_row[12], "variant", feature_row[13])[0]
-            #feature_df = None
+
             name_variant = featureVariant[2] + "." + featureVariant[3]
             if self.sqldb.is_transformation(feature_row[12], feature_row[13]):
                 df = self.process_transformation(feature_row[12], feature_row[13])

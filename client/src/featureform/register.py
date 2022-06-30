@@ -16,7 +16,6 @@ from .proto import metadata_pb2_grpc as ff_grpc
 from .sqlite_metadata import SQLiteMetadata
 import time
 import pandas as pd
-import json
 
 NameVariant = Tuple[str, str]
 
@@ -192,22 +191,6 @@ class LocalSource:
         fn.register_resources = self.register_resources
         return fn
 
-    # @typechecked
-    # def __set_query(self, query: str):
-    #     if query == "":
-    #         raise ValueError("Query cannot be an empty string")
-    #     self.query = query
-
-    # def to_source(self) -> Source:
-    #     return Source(
-    #         name=self.name,
-    #         variant=self.variant,
-    #         definition=SQLTransformation(self.query),
-    #         owner=self.owner,
-    #         provider=self.provider,
-    #         description=self.description,
-    #     )
-
     def register_resources(
             self,
             entity: Union[str, EntityRegistrar],
@@ -229,17 +212,6 @@ class LocalSource:
             timestamp_column=timestamp_column,
             description=self.description,
         )
-
-    # def df_transformation(self,
-    #                       variant: str,
-    #                       owner: Union[str, UserRegistrar] = "",
-    #                       name: str = "",
-    #                       description: str = ""):
-    #     return self.registrar.df_transformation(name=name,
-    #                                             variant=variant,
-    #                                             owner=owner,
-    #                                             provider=self.name(),
-    #                                             description=description)
 
 
 class SQLTransformationDecorator:
@@ -335,18 +307,9 @@ class DFTransformationDecorator:
             self.description = fn.__doc__
         if self.name == "":
             self.name = fn.__name__
-        print("NORMAL")
-        print(marshal.dumps(fn.__code__))
         self.query = marshal.dumps(fn.__code__)
         fn.register_resources = self.register_resources
         return fn
-
-    # @typechecked
-    # def __set_query(self, query: pd.DataFrame):
-    #
-    #     # if query == "":
-    #     #     raise ValueError("Query cannot be an empty string")
-    #     self.query = pickle.dumps(query)
 
     def to_source(self) -> Source:
         return Source(

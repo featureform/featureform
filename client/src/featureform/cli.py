@@ -7,7 +7,7 @@ import click
 import featureform.register as register
 import grpc
 from .proto import metadata_pb2_grpc as ff_grpc
-from .proto import metadata_pb2
+from .get import *
 import os
 
 resource_types = [
@@ -81,216 +81,45 @@ def get(host, cert, insecure, resource_type, name, variant):
 
     match resource_type:
         case "user":
-            if not name:
-                print("Please enter a name of a user.")
-                return
-            searchName = metadata_pb2.Name(name=name)
-            try:
-                for user in stub.GetUsers(iter([searchName])):
-                    print("USER NAME: ", user.name)
-                    print("")
-                    print("{:<30} {:<35} {:<40}".format('NAME', 'VARIANT', 'TYPE'))
-                    for f in user.features:
-                        print("{:<30} {:<35} {:<40}".format(
-                            f.name, f.variant, "feature"))
-                    for l in user.labels:
-                        print("{:<30} {:<35} {:<40}".format(
-                            l.name, l.variant, "label"))
-                    for t in user.trainingsets:
-                        print("{:<30} {:<35} {:<40}".format(
-                            t.name, t.variant, "training set"))
-                    for s in user.sources:
-                        print("{:<30} {:<35} {:<40}".format(
-                            s.name, s.variant, "source"))
-            except grpc._channel._MultiThreadedRendezvous:
-                print("User not found.")
-        case "feature" | "label":
+            GetUser(stub, name)
+        case "feature":
             if not variant:
-                if resource_type == "feature":
-                    f = stub.GetFeatures
-                if resource_type == "label":
-                    f = stub.GetLabels
-                searchName = metadata_pb2.Name(name=name)
-                for x in f(iter([searchName])):
-                    print("NAME: ", x.name)
-                    print("STATUS: ", x.status.Status._enum_type.values[x.status.status].name)
-                    print("VARIANTS:")
-                    print("{:<20} {:<25}".format(x.default_variant, 'default'))
-                    for v in x.variants:
-                        if v != x.default_variant:
-                            print("{:<20} {:<35}".format(v, ''))
+                GetFeature(stub, name)
             else:
-                if resource_type == "feature":
-                    f = stub.GetFeatureVariants
-                if resource_type == "label":
-                    f = stub.GetLabelVariants
-                searchNameVariant = metadata_pb2.NameVariant(name=name, variant=variant)
-                try:
-                    for x in f(iter([searchNameVariant])):
-                        print("{:<20} {:<15}".format("NAME: ", x.name))
-                        print("{:<20} {:<15}".format("VARIANT: ", x.variant))
-                        print("{:<20} {:<15}".format("TYPE:", x.type))
-                        print("{:<20} {:<15}".format("ENTITY:", x.entity))
-                        print("{:<20} {:<15}".format("OWNER:", x.owner))
-                        print("{:<20} {:<15}".format("DESCRIPTION:", x.description))
-                        print("{:<20} {:<15}".format("PROVIDER:", x.provider))
-                        print("{:<20} {:<15}".format("STATUS: ", x.status.Status._enum_type.values[x.status.status].name))
-                        print("")
-                        print("SOURCE: ")
-                        print("{:<30} {:<35}".format("NAME", "VARIANT"))
-                        print("{:<30} {:<35}".format(x.source.name, x.source.variant))
-                        print("")
-                        print("TRAINING SETS:")
-                        print("{:<30} {:<35}".format("NAME", "VARIANT"))
-                        for t in x.trainingsets:
-                            print("{:<30} {:<35}".format(t.name, t.variant))
-                except grpc._channel._MultiThreadedRendezvous:
-                    print(f"{resource_type.capitalize()} variant not found.")
+                GetFeatureVariant(stub, name, variant)
+        case "label":
+            if not variant:
+                GetLabel(stub, name)
+            else:
+                GetLabelVariant(stub, name, variant)
         case "source":
             if not variant:
-                searchName = metadata_pb2.Name(name=name)
-                try:
-                    for x in stub.GetSources(iter([searchName])):
-                        print("NAME: ", x.name)
-                        print("STATUS: ", x.status.Status._enum_type.values[x.status.status].name)
-                        print("VARIANTS:")
-                        print("{:<20} {:<25}".format(x.default_variant, 'default'))
-                        for v in x.variants:
-                            if v != x.default_variant:
-                                print("{:<20} {:<35}".format(v, ''))
-                except grpc._channel._MultiThreadedRendezvous:
-                    print(f"{resource_type.capitalize()} not found.")
+                GetSource(stub, name)
             else:
-                searchNameVariant = metadata_pb2.NameVariant(name=name, variant=variant)
-                try:
-                    for x in stub.GetSourceVariants(iter([searchNameVariant])):
-                        print("{:<20} {:<15}".format("NAME: ", x.name))
-                        print("{:<20} {:<15}".format("VARIANT: ", x.variant))
-                        print("{:<20} {:<15}".format("OWNER:", x.owner))
-                        print("{:<20} {:<15}".format("DESCRIPTION:", x.description))
-                        print("{:<20} {:<15}".format("PROVIDER:", x.provider))
-                        print("{:<20} {:<15}".format("TABLE:", x.table))
-                        print("{:<20} {:<15}".format("STATUS: ", x.status.Status._enum_type.values[x.status.status].name))
-                        print("")
-                        print("DEFINITION:")
-                        print("TRANSFORMATION")
-                        print(x.transformation.SQLTransformation.query)
-                        print("")
-                        print("SOURCES")
-                        print("{:<30} {:<35}".format("NAME", "VARIANT"))
-                        for s in x.transformation.SQLTransformation.source:
-                            print("{:<30} {:<35}".format(s.name, s.variant))
-                        print("")
-                        print("PRIMARY DATA")
-                        print(x.primaryData.table.name)
-                        print("FEATURES:")
-                        print("{:<30} {:<35}".format("NAME", "VARIANT"))
-                        for t in x.features:
-                            print("{:<30} {:<35}".format(t.name, t.variant))
-                        print("")
-                        print("LABELS:")
-                        print("{:<30} {:<35}".format("NAME", "VARIANT"))
-                        for t in x.labels:
-                            print("{:<30} {:<35}".format(t.name, t.variant))
-                        print("")
-                        print("TRAINING SETS:")
-                        print("{:<30} {:<35}".format("NAME", "VARIANT"))
-                        for t in x.trainingsets:
-                            print("{:<30} {:<35}".format(t.name, t.variant))
-                except grpc._channel._MultiThreadedRendezvous:
-                    print(f"{resource_type.capitalize()} variant not found.")
+                GetSourceVariant(stub, name, variant)
         case "training-set":
             if not variant:
-                searchName = metadata_pb2.Name(name=name)
-                try:
-                    for x in stub.GetTrainingSets(iter([searchName])):
-                        print("NAME: ", x.name)
-                        print("STATUS: ", x.status.Status._enum_type.values[x.status.status].name)
-                        print("VARIANTS:")
-                        print("{:<20} {:<25}".format(x.default_variant, 'default'))
-                        for v in x.variants:
-                            if v != x.default_variant:
-                                print("{:<20} {:<35}".format(v, ''))
-                except grpc._channel._MultiThreadedRendezvous:
-                    print(f"{resource_type.capitalize()} not found.")
+                GetTrainingSet(stub, name)
             else:
-                searchNameVariant = metadata_pb2.NameVariant(name=name, variant=variant)
-                try:
-                    for x in stub.GetTrainingSetVariants(iter([searchNameVariant])):
-                        print("{:<20} {:<15}".format("NAME: ", x.name))
-                        print("{:<20} {:<15}".format("VARIANT: ", x.variant))
-                        print("{:<20} {:<15}".format("OWNER:", x.owner))
-                        print("{:<20} {:<15}".format("DESCRIPTION:", x.description))
-                        print("{:<20} {:<15}".format("PROVIDER:", x.provider))
-                        print("{:<20} {:<15}".format("STATUS: ", x.status.Status._enum_type.values[x.status.status].name))
-                        print("")
-                        print("LABEL: ")
-                        print("{:<30} {:<35}".format("NAME", "VARIANT"))
-                        print("{:<30} {:<35}".format(x.label.name, x.label.variant))
-                        print("")
-                        print("FEATURES:")
-                        print("{:<30} {:<35}".format("NAME", "VARIANT"))
-                        for f in x.features:
-                            print("{:<30} {:<35}".format(f.name, f.variant))
-                except grpc._channel._MultiThreadedRendezvous:
-                    print(f"{resource_type.capitalize()} variant not found.")
+                GetTrainingSetVariant(stub, name, variant)
         case "provider":
             if variant:
                 print("Variant not needed.")
                 return
             else:
-                searchName = metadata_pb2.Name(name=name)
-                try:
-                    for x in f(iter([searchName])):
-                        print("{:<20} {:<15}".format("NAME: ", x.name))
-                        print("{:<20} {:<15}".format("DESCRIPTION: ", x.description))
-                        print("{:<20} {:<15}".format("TYPE: ", x.type))
-                        print("{:<20} {:<15}".format("SOFTWARE: ", x.software))
-                        print("{:<20} {:<15}".format("TEAM: ", x.team))
-                        print("{:<20} {:<15}".format("STATUS: ", x.status.Status._enum_type.values[x.status.status].name))
-                        print("")
-                        print("SOURCES:")
-                        print("{:<30} {:<35}".format("NAME", "VARIANT"))
-                        for s in x.sources:
-                            print("{:<30} {:<35}".format(s.name, s.variant))
-                        print("")
-                        print("FEATURES:")
-                        print("{:<30} {:<35}".format("NAME", "VARIANT"))
-                        for f in x.features:
-                            print("{:<30} {:<35}".format(f.name, f.variant))
-                        print("")
-                        print("LABELS:")
-                        print("{:<30} {:<35}".format("NAME", "VARIANT"))
-                        for l in x.labels:
-                            print("{:<30} {:<35}".format(l.name, l.variant))
-                        print("")
-                        print("TRAINING SETS:")
-                        print("{:<30} {:<35}".format("NAME", "VARIANT"))
-                        for t in x.trainingsets:
-                            print("{:<30} {:<35}".format(t.name, t.variant))
-                except grpc._channel._MultiThreadedRendezvous:
-                    print(f"{resource_type.capitalize()} not found.")
-        case "entity" | "model":
-            if resource_type == "feature":
-                f = stub.GetEntities
-            if resource_type == "label":
-                f = stub.GetModels
+                GetProvider(stub, name)
+        case "entity":
             if variant:
                 print("Variant not needed.")
                 return
             else:
-                searchName = metadata_pb2.Name(name=name)
-                try:
-                    for x in f(iter([searchName])):
-                        print("{:<20} {:<15}".format("NAME: ", x.name))
-                        print("{:<20} {:<15}".format("STATUS: ", x.status.Status._enum_type.values[x.status.status].name))
-                        print("VARIANTS:")
-                        print("{:<20} {:<25}".format(x.default_variant, 'default'))
-                        for v in x.variants:
-                            if v != x.default_variant:
-                                print("{:<20} {:<35}".format(v, ''))
-                except grpc._channel._MultiThreadedRendezvous:
-                    print(f"{resource_type.capitalize()} not found.")
+                GetEntity(stub, name)
+        case "model":
+            if variant:
+                print("Variant not needed.")
+                return
+            else:
+                GetModel(stub, name)
         case _:
             print("Resource type not found.")
 
@@ -338,6 +167,12 @@ def list(host, cert, insecure, resource_type):
             pass
         case "features":
             pass
+            # print()
+            # for f in stub.ListFeatures(metadata_pb2.Empty()):
+            #     print("{:<20} {:<25}".format(f.name, f"{f.default_variant} (default)"))
+            #     for v in f.variants:
+            #         if v != f.default_variant:
+            #             print("{:<20} {:<35}".format(v, ''))
         case "labels":
             pass
         case "sources":

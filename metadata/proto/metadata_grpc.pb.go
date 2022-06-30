@@ -1808,6 +1808,14 @@ type ApiClient interface {
 	GetProviders(ctx context.Context, opts ...grpc.CallOption) (Api_GetProvidersClient, error)
 	GetEntities(ctx context.Context, opts ...grpc.CallOption) (Api_GetEntitiesClient, error)
 	GetModels(ctx context.Context, opts ...grpc.CallOption) (Api_GetModelsClient, error)
+	ListFeatures(ctx context.Context, in *Empty, opts ...grpc.CallOption) (Api_ListFeaturesClient, error)
+	ListLabels(ctx context.Context, in *Empty, opts ...grpc.CallOption) (Api_ListLabelsClient, error)
+	ListTrainingSets(ctx context.Context, in *Empty, opts ...grpc.CallOption) (Api_ListTrainingSetsClient, error)
+	ListSources(ctx context.Context, in *Empty, opts ...grpc.CallOption) (Api_ListSourcesClient, error)
+	ListUsers(ctx context.Context, in *Empty, opts ...grpc.CallOption) (Api_ListUsersClient, error)
+	ListProviders(ctx context.Context, in *Empty, opts ...grpc.CallOption) (Api_ListProvidersClient, error)
+	ListEntities(ctx context.Context, in *Empty, opts ...grpc.CallOption) (Api_ListEntitiesClient, error)
+	ListModels(ctx context.Context, in *Empty, opts ...grpc.CallOption) (Api_ListModelsClient, error)
 }
 
 type apiClient struct {
@@ -2253,6 +2261,262 @@ func (x *apiGetModelsClient) Recv() (*Model, error) {
 	return m, nil
 }
 
+func (c *apiClient) ListFeatures(ctx context.Context, in *Empty, opts ...grpc.CallOption) (Api_ListFeaturesClient, error) {
+	stream, err := c.cc.NewStream(ctx, &Api_ServiceDesc.Streams[12], "/featureform.serving.metadata.proto.Api/ListFeatures", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &apiListFeaturesClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type Api_ListFeaturesClient interface {
+	Recv() (*Feature, error)
+	grpc.ClientStream
+}
+
+type apiListFeaturesClient struct {
+	grpc.ClientStream
+}
+
+func (x *apiListFeaturesClient) Recv() (*Feature, error) {
+	m := new(Feature)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *apiClient) ListLabels(ctx context.Context, in *Empty, opts ...grpc.CallOption) (Api_ListLabelsClient, error) {
+	stream, err := c.cc.NewStream(ctx, &Api_ServiceDesc.Streams[13], "/featureform.serving.metadata.proto.Api/ListLabels", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &apiListLabelsClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type Api_ListLabelsClient interface {
+	Recv() (*Label, error)
+	grpc.ClientStream
+}
+
+type apiListLabelsClient struct {
+	grpc.ClientStream
+}
+
+func (x *apiListLabelsClient) Recv() (*Label, error) {
+	m := new(Label)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *apiClient) ListTrainingSets(ctx context.Context, in *Empty, opts ...grpc.CallOption) (Api_ListTrainingSetsClient, error) {
+	stream, err := c.cc.NewStream(ctx, &Api_ServiceDesc.Streams[14], "/featureform.serving.metadata.proto.Api/ListTrainingSets", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &apiListTrainingSetsClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type Api_ListTrainingSetsClient interface {
+	Recv() (*TrainingSet, error)
+	grpc.ClientStream
+}
+
+type apiListTrainingSetsClient struct {
+	grpc.ClientStream
+}
+
+func (x *apiListTrainingSetsClient) Recv() (*TrainingSet, error) {
+	m := new(TrainingSet)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *apiClient) ListSources(ctx context.Context, in *Empty, opts ...grpc.CallOption) (Api_ListSourcesClient, error) {
+	stream, err := c.cc.NewStream(ctx, &Api_ServiceDesc.Streams[15], "/featureform.serving.metadata.proto.Api/ListSources", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &apiListSourcesClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type Api_ListSourcesClient interface {
+	Recv() (*Source, error)
+	grpc.ClientStream
+}
+
+type apiListSourcesClient struct {
+	grpc.ClientStream
+}
+
+func (x *apiListSourcesClient) Recv() (*Source, error) {
+	m := new(Source)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *apiClient) ListUsers(ctx context.Context, in *Empty, opts ...grpc.CallOption) (Api_ListUsersClient, error) {
+	stream, err := c.cc.NewStream(ctx, &Api_ServiceDesc.Streams[16], "/featureform.serving.metadata.proto.Api/ListUsers", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &apiListUsersClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type Api_ListUsersClient interface {
+	Recv() (*User, error)
+	grpc.ClientStream
+}
+
+type apiListUsersClient struct {
+	grpc.ClientStream
+}
+
+func (x *apiListUsersClient) Recv() (*User, error) {
+	m := new(User)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *apiClient) ListProviders(ctx context.Context, in *Empty, opts ...grpc.CallOption) (Api_ListProvidersClient, error) {
+	stream, err := c.cc.NewStream(ctx, &Api_ServiceDesc.Streams[17], "/featureform.serving.metadata.proto.Api/ListProviders", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &apiListProvidersClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type Api_ListProvidersClient interface {
+	Recv() (*Provider, error)
+	grpc.ClientStream
+}
+
+type apiListProvidersClient struct {
+	grpc.ClientStream
+}
+
+func (x *apiListProvidersClient) Recv() (*Provider, error) {
+	m := new(Provider)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *apiClient) ListEntities(ctx context.Context, in *Empty, opts ...grpc.CallOption) (Api_ListEntitiesClient, error) {
+	stream, err := c.cc.NewStream(ctx, &Api_ServiceDesc.Streams[18], "/featureform.serving.metadata.proto.Api/ListEntities", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &apiListEntitiesClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type Api_ListEntitiesClient interface {
+	Recv() (*Entity, error)
+	grpc.ClientStream
+}
+
+type apiListEntitiesClient struct {
+	grpc.ClientStream
+}
+
+func (x *apiListEntitiesClient) Recv() (*Entity, error) {
+	m := new(Entity)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *apiClient) ListModels(ctx context.Context, in *Empty, opts ...grpc.CallOption) (Api_ListModelsClient, error) {
+	stream, err := c.cc.NewStream(ctx, &Api_ServiceDesc.Streams[19], "/featureform.serving.metadata.proto.Api/ListModels", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &apiListModelsClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type Api_ListModelsClient interface {
+	Recv() (*Model, error)
+	grpc.ClientStream
+}
+
+type apiListModelsClient struct {
+	grpc.ClientStream
+}
+
+func (x *apiListModelsClient) Recv() (*Model, error) {
+	m := new(Model)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // ApiServer is the server API for Api service.
 // All implementations must embed UnimplementedApiServer
 // for forward compatibility
@@ -2276,6 +2540,14 @@ type ApiServer interface {
 	GetProviders(Api_GetProvidersServer) error
 	GetEntities(Api_GetEntitiesServer) error
 	GetModels(Api_GetModelsServer) error
+	ListFeatures(*Empty, Api_ListFeaturesServer) error
+	ListLabels(*Empty, Api_ListLabelsServer) error
+	ListTrainingSets(*Empty, Api_ListTrainingSetsServer) error
+	ListSources(*Empty, Api_ListSourcesServer) error
+	ListUsers(*Empty, Api_ListUsersServer) error
+	ListProviders(*Empty, Api_ListProvidersServer) error
+	ListEntities(*Empty, Api_ListEntitiesServer) error
+	ListModels(*Empty, Api_ListModelsServer) error
 	mustEmbedUnimplementedApiServer()
 }
 
@@ -2339,6 +2611,30 @@ func (UnimplementedApiServer) GetEntities(Api_GetEntitiesServer) error {
 }
 func (UnimplementedApiServer) GetModels(Api_GetModelsServer) error {
 	return status.Errorf(codes.Unimplemented, "method GetModels not implemented")
+}
+func (UnimplementedApiServer) ListFeatures(*Empty, Api_ListFeaturesServer) error {
+	return status.Errorf(codes.Unimplemented, "method ListFeatures not implemented")
+}
+func (UnimplementedApiServer) ListLabels(*Empty, Api_ListLabelsServer) error {
+	return status.Errorf(codes.Unimplemented, "method ListLabels not implemented")
+}
+func (UnimplementedApiServer) ListTrainingSets(*Empty, Api_ListTrainingSetsServer) error {
+	return status.Errorf(codes.Unimplemented, "method ListTrainingSets not implemented")
+}
+func (UnimplementedApiServer) ListSources(*Empty, Api_ListSourcesServer) error {
+	return status.Errorf(codes.Unimplemented, "method ListSources not implemented")
+}
+func (UnimplementedApiServer) ListUsers(*Empty, Api_ListUsersServer) error {
+	return status.Errorf(codes.Unimplemented, "method ListUsers not implemented")
+}
+func (UnimplementedApiServer) ListProviders(*Empty, Api_ListProvidersServer) error {
+	return status.Errorf(codes.Unimplemented, "method ListProviders not implemented")
+}
+func (UnimplementedApiServer) ListEntities(*Empty, Api_ListEntitiesServer) error {
+	return status.Errorf(codes.Unimplemented, "method ListEntities not implemented")
+}
+func (UnimplementedApiServer) ListModels(*Empty, Api_ListModelsServer) error {
+	return status.Errorf(codes.Unimplemented, "method ListModels not implemented")
 }
 func (UnimplementedApiServer) mustEmbedUnimplementedApiServer() {}
 
@@ -2791,6 +3087,174 @@ func (x *apiGetModelsServer) Recv() (*Name, error) {
 	return m, nil
 }
 
+func _Api_ListFeatures_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(Empty)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(ApiServer).ListFeatures(m, &apiListFeaturesServer{stream})
+}
+
+type Api_ListFeaturesServer interface {
+	Send(*Feature) error
+	grpc.ServerStream
+}
+
+type apiListFeaturesServer struct {
+	grpc.ServerStream
+}
+
+func (x *apiListFeaturesServer) Send(m *Feature) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func _Api_ListLabels_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(Empty)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(ApiServer).ListLabels(m, &apiListLabelsServer{stream})
+}
+
+type Api_ListLabelsServer interface {
+	Send(*Label) error
+	grpc.ServerStream
+}
+
+type apiListLabelsServer struct {
+	grpc.ServerStream
+}
+
+func (x *apiListLabelsServer) Send(m *Label) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func _Api_ListTrainingSets_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(Empty)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(ApiServer).ListTrainingSets(m, &apiListTrainingSetsServer{stream})
+}
+
+type Api_ListTrainingSetsServer interface {
+	Send(*TrainingSet) error
+	grpc.ServerStream
+}
+
+type apiListTrainingSetsServer struct {
+	grpc.ServerStream
+}
+
+func (x *apiListTrainingSetsServer) Send(m *TrainingSet) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func _Api_ListSources_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(Empty)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(ApiServer).ListSources(m, &apiListSourcesServer{stream})
+}
+
+type Api_ListSourcesServer interface {
+	Send(*Source) error
+	grpc.ServerStream
+}
+
+type apiListSourcesServer struct {
+	grpc.ServerStream
+}
+
+func (x *apiListSourcesServer) Send(m *Source) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func _Api_ListUsers_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(Empty)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(ApiServer).ListUsers(m, &apiListUsersServer{stream})
+}
+
+type Api_ListUsersServer interface {
+	Send(*User) error
+	grpc.ServerStream
+}
+
+type apiListUsersServer struct {
+	grpc.ServerStream
+}
+
+func (x *apiListUsersServer) Send(m *User) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func _Api_ListProviders_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(Empty)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(ApiServer).ListProviders(m, &apiListProvidersServer{stream})
+}
+
+type Api_ListProvidersServer interface {
+	Send(*Provider) error
+	grpc.ServerStream
+}
+
+type apiListProvidersServer struct {
+	grpc.ServerStream
+}
+
+func (x *apiListProvidersServer) Send(m *Provider) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func _Api_ListEntities_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(Empty)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(ApiServer).ListEntities(m, &apiListEntitiesServer{stream})
+}
+
+type Api_ListEntitiesServer interface {
+	Send(*Entity) error
+	grpc.ServerStream
+}
+
+type apiListEntitiesServer struct {
+	grpc.ServerStream
+}
+
+func (x *apiListEntitiesServer) Send(m *Entity) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func _Api_ListModels_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(Empty)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(ApiServer).ListModels(m, &apiListModelsServer{stream})
+}
+
+type Api_ListModelsServer interface {
+	Send(*Model) error
+	grpc.ServerStream
+}
+
+type apiListModelsServer struct {
+	grpc.ServerStream
+}
+
+func (x *apiListModelsServer) Send(m *Model) error {
+	return x.ServerStream.SendMsg(m)
+}
+
 // Api_ServiceDesc is the grpc.ServiceDesc for Api service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -2899,6 +3363,46 @@ var Api_ServiceDesc = grpc.ServiceDesc{
 			Handler:       _Api_GetModels_Handler,
 			ServerStreams: true,
 			ClientStreams: true,
+		},
+		{
+			StreamName:    "ListFeatures",
+			Handler:       _Api_ListFeatures_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "ListLabels",
+			Handler:       _Api_ListLabels_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "ListTrainingSets",
+			Handler:       _Api_ListTrainingSets_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "ListSources",
+			Handler:       _Api_ListSources_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "ListUsers",
+			Handler:       _Api_ListUsers_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "ListProviders",
+			Handler:       _Api_ListProviders_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "ListEntities",
+			Handler:       _Api_ListEntities_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "ListModels",
+			Handler:       _Api_ListModels_Handler,
+			ServerStreams: true,
 		},
 	},
 	Metadata: "metadata/proto/metadata.proto",

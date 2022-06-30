@@ -2922,7 +2922,7 @@ var file_metadata_proto_metadata_proto_rawDesc = []byte{
 	0x64, 0x75, 0x6c, 0x65, 0x43, 0x68, 0x61, 0x6e, 0x67, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
 	0x74, 0x1a, 0x29, 0x2e, 0x66, 0x65, 0x61, 0x74, 0x75, 0x72, 0x65, 0x66, 0x6f, 0x72, 0x6d, 0x2e,
 	0x73, 0x65, 0x72, 0x76, 0x69, 0x6e, 0x67, 0x2e, 0x6d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61,
-	0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x32, 0xe0, 0x10, 0x0a,
+	0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x32, 0xa9, 0x17, 0x0a,
 	0x03, 0x41, 0x70, 0x69, 0x12, 0x61, 0x0a, 0x0a, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x55, 0x73,
 	0x65, 0x72, 0x12, 0x28, 0x2e, 0x66, 0x65, 0x61, 0x74, 0x75, 0x72, 0x65, 0x66, 0x6f, 0x72, 0x6d,
 	0x2e, 0x73, 0x65, 0x72, 0x76, 0x69, 0x6e, 0x67, 0x2e, 0x6d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74,
@@ -3056,10 +3056,63 @@ var file_metadata_proto_metadata_proto_rawDesc = []byte{
 	0x61, 0x64, 0x61, 0x74, 0x61, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x4e, 0x61, 0x6d, 0x65,
 	0x1a, 0x29, 0x2e, 0x66, 0x65, 0x61, 0x74, 0x75, 0x72, 0x65, 0x66, 0x6f, 0x72, 0x6d, 0x2e, 0x73,
 	0x65, 0x72, 0x76, 0x69, 0x6e, 0x67, 0x2e, 0x6d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0x2e,
-	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x4d, 0x6f, 0x64, 0x65, 0x6c, 0x28, 0x01, 0x30, 0x01, 0x42,
-	0x27, 0x5a, 0x25, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x66, 0x65,
-	0x61, 0x74, 0x75, 0x72, 0x65, 0x66, 0x6f, 0x72, 0x6d, 0x2f, 0x6d, 0x65, 0x74, 0x61, 0x64, 0x61,
-	0x74, 0x61, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x4d, 0x6f, 0x64, 0x65, 0x6c, 0x28, 0x01, 0x30, 0x01, 0x12,
+	0x68, 0x0a, 0x0c, 0x4c, 0x69, 0x73, 0x74, 0x46, 0x65, 0x61, 0x74, 0x75, 0x72, 0x65, 0x73, 0x12,
+	0x29, 0x2e, 0x66, 0x65, 0x61, 0x74, 0x75, 0x72, 0x65, 0x66, 0x6f, 0x72, 0x6d, 0x2e, 0x73, 0x65,
+	0x72, 0x76, 0x69, 0x6e, 0x67, 0x2e, 0x6d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0x2e, 0x70,
+	0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x1a, 0x2b, 0x2e, 0x66, 0x65, 0x61,
+	0x74, 0x75, 0x72, 0x65, 0x66, 0x6f, 0x72, 0x6d, 0x2e, 0x73, 0x65, 0x72, 0x76, 0x69, 0x6e, 0x67,
+	0x2e, 0x6d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e,
+	0x46, 0x65, 0x61, 0x74, 0x75, 0x72, 0x65, 0x30, 0x01, 0x12, 0x64, 0x0a, 0x0a, 0x4c, 0x69, 0x73,
+	0x74, 0x4c, 0x61, 0x62, 0x65, 0x6c, 0x73, 0x12, 0x29, 0x2e, 0x66, 0x65, 0x61, 0x74, 0x75, 0x72,
+	0x65, 0x66, 0x6f, 0x72, 0x6d, 0x2e, 0x73, 0x65, 0x72, 0x76, 0x69, 0x6e, 0x67, 0x2e, 0x6d, 0x65,
+	0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x45, 0x6d, 0x70,
+	0x74, 0x79, 0x1a, 0x29, 0x2e, 0x66, 0x65, 0x61, 0x74, 0x75, 0x72, 0x65, 0x66, 0x6f, 0x72, 0x6d,
+	0x2e, 0x73, 0x65, 0x72, 0x76, 0x69, 0x6e, 0x67, 0x2e, 0x6d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74,
+	0x61, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x4c, 0x61, 0x62, 0x65, 0x6c, 0x30, 0x01, 0x12,
+	0x70, 0x0a, 0x10, 0x4c, 0x69, 0x73, 0x74, 0x54, 0x72, 0x61, 0x69, 0x6e, 0x69, 0x6e, 0x67, 0x53,
+	0x65, 0x74, 0x73, 0x12, 0x29, 0x2e, 0x66, 0x65, 0x61, 0x74, 0x75, 0x72, 0x65, 0x66, 0x6f, 0x72,
+	0x6d, 0x2e, 0x73, 0x65, 0x72, 0x76, 0x69, 0x6e, 0x67, 0x2e, 0x6d, 0x65, 0x74, 0x61, 0x64, 0x61,
+	0x74, 0x61, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x1a, 0x2f,
+	0x2e, 0x66, 0x65, 0x61, 0x74, 0x75, 0x72, 0x65, 0x66, 0x6f, 0x72, 0x6d, 0x2e, 0x73, 0x65, 0x72,
+	0x76, 0x69, 0x6e, 0x67, 0x2e, 0x6d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0x2e, 0x70, 0x72,
+	0x6f, 0x74, 0x6f, 0x2e, 0x54, 0x72, 0x61, 0x69, 0x6e, 0x69, 0x6e, 0x67, 0x53, 0x65, 0x74, 0x30,
+	0x01, 0x12, 0x66, 0x0a, 0x0b, 0x4c, 0x69, 0x73, 0x74, 0x53, 0x6f, 0x75, 0x72, 0x63, 0x65, 0x73,
+	0x12, 0x29, 0x2e, 0x66, 0x65, 0x61, 0x74, 0x75, 0x72, 0x65, 0x66, 0x6f, 0x72, 0x6d, 0x2e, 0x73,
+	0x65, 0x72, 0x76, 0x69, 0x6e, 0x67, 0x2e, 0x6d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0x2e,
+	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x1a, 0x2a, 0x2e, 0x66, 0x65,
+	0x61, 0x74, 0x75, 0x72, 0x65, 0x66, 0x6f, 0x72, 0x6d, 0x2e, 0x73, 0x65, 0x72, 0x76, 0x69, 0x6e,
+	0x67, 0x2e, 0x6d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f,
+	0x2e, 0x53, 0x6f, 0x75, 0x72, 0x63, 0x65, 0x30, 0x01, 0x12, 0x62, 0x0a, 0x09, 0x4c, 0x69, 0x73,
+	0x74, 0x55, 0x73, 0x65, 0x72, 0x73, 0x12, 0x29, 0x2e, 0x66, 0x65, 0x61, 0x74, 0x75, 0x72, 0x65,
+	0x66, 0x6f, 0x72, 0x6d, 0x2e, 0x73, 0x65, 0x72, 0x76, 0x69, 0x6e, 0x67, 0x2e, 0x6d, 0x65, 0x74,
+	0x61, 0x64, 0x61, 0x74, 0x61, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x45, 0x6d, 0x70, 0x74,
+	0x79, 0x1a, 0x28, 0x2e, 0x66, 0x65, 0x61, 0x74, 0x75, 0x72, 0x65, 0x66, 0x6f, 0x72, 0x6d, 0x2e,
+	0x73, 0x65, 0x72, 0x76, 0x69, 0x6e, 0x67, 0x2e, 0x6d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61,
+	0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x55, 0x73, 0x65, 0x72, 0x30, 0x01, 0x12, 0x6a, 0x0a,
+	0x0d, 0x4c, 0x69, 0x73, 0x74, 0x50, 0x72, 0x6f, 0x76, 0x69, 0x64, 0x65, 0x72, 0x73, 0x12, 0x29,
+	0x2e, 0x66, 0x65, 0x61, 0x74, 0x75, 0x72, 0x65, 0x66, 0x6f, 0x72, 0x6d, 0x2e, 0x73, 0x65, 0x72,
+	0x76, 0x69, 0x6e, 0x67, 0x2e, 0x6d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0x2e, 0x70, 0x72,
+	0x6f, 0x74, 0x6f, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x1a, 0x2c, 0x2e, 0x66, 0x65, 0x61, 0x74,
+	0x75, 0x72, 0x65, 0x66, 0x6f, 0x72, 0x6d, 0x2e, 0x73, 0x65, 0x72, 0x76, 0x69, 0x6e, 0x67, 0x2e,
+	0x6d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x50,
+	0x72, 0x6f, 0x76, 0x69, 0x64, 0x65, 0x72, 0x30, 0x01, 0x12, 0x67, 0x0a, 0x0c, 0x4c, 0x69, 0x73,
+	0x74, 0x45, 0x6e, 0x74, 0x69, 0x74, 0x69, 0x65, 0x73, 0x12, 0x29, 0x2e, 0x66, 0x65, 0x61, 0x74,
+	0x75, 0x72, 0x65, 0x66, 0x6f, 0x72, 0x6d, 0x2e, 0x73, 0x65, 0x72, 0x76, 0x69, 0x6e, 0x67, 0x2e,
+	0x6d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x45,
+	0x6d, 0x70, 0x74, 0x79, 0x1a, 0x2a, 0x2e, 0x66, 0x65, 0x61, 0x74, 0x75, 0x72, 0x65, 0x66, 0x6f,
+	0x72, 0x6d, 0x2e, 0x73, 0x65, 0x72, 0x76, 0x69, 0x6e, 0x67, 0x2e, 0x6d, 0x65, 0x74, 0x61, 0x64,
+	0x61, 0x74, 0x61, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x45, 0x6e, 0x74, 0x69, 0x74, 0x79,
+	0x30, 0x01, 0x12, 0x64, 0x0a, 0x0a, 0x4c, 0x69, 0x73, 0x74, 0x4d, 0x6f, 0x64, 0x65, 0x6c, 0x73,
+	0x12, 0x29, 0x2e, 0x66, 0x65, 0x61, 0x74, 0x75, 0x72, 0x65, 0x66, 0x6f, 0x72, 0x6d, 0x2e, 0x73,
+	0x65, 0x72, 0x76, 0x69, 0x6e, 0x67, 0x2e, 0x6d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0x2e,
+	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x1a, 0x29, 0x2e, 0x66, 0x65,
+	0x61, 0x74, 0x75, 0x72, 0x65, 0x66, 0x6f, 0x72, 0x6d, 0x2e, 0x73, 0x65, 0x72, 0x76, 0x69, 0x6e,
+	0x67, 0x2e, 0x6d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f,
+	0x2e, 0x4d, 0x6f, 0x64, 0x65, 0x6c, 0x30, 0x01, 0x42, 0x27, 0x5a, 0x25, 0x67, 0x69, 0x74, 0x68,
+	0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x66, 0x65, 0x61, 0x74, 0x75, 0x72, 0x65, 0x66, 0x6f,
+	0x72, 0x6d, 0x2f, 0x6d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0x2f, 0x70, 0x72, 0x6f, 0x74,
+	0x6f, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -3220,58 +3273,74 @@ var file_metadata_proto_metadata_proto_depIdxs = []int32{
 	2,   // 108: featureform.serving.metadata.proto.Api.GetProviders:input_type -> featureform.serving.metadata.proto.Name
 	2,   // 109: featureform.serving.metadata.proto.Api.GetEntities:input_type -> featureform.serving.metadata.proto.Name
 	2,   // 110: featureform.serving.metadata.proto.Api.GetModels:input_type -> featureform.serving.metadata.proto.Name
-	12,  // 111: featureform.serving.metadata.proto.Metadata.ListFeatures:output_type -> featureform.serving.metadata.proto.Feature
-	11,  // 112: featureform.serving.metadata.proto.Metadata.CreateFeatureVariant:output_type -> featureform.serving.metadata.proto.Empty
-	12,  // 113: featureform.serving.metadata.proto.Metadata.GetFeatures:output_type -> featureform.serving.metadata.proto.Feature
-	14,  // 114: featureform.serving.metadata.proto.Metadata.GetFeatureVariants:output_type -> featureform.serving.metadata.proto.FeatureVariant
-	15,  // 115: featureform.serving.metadata.proto.Metadata.ListLabels:output_type -> featureform.serving.metadata.proto.Label
-	11,  // 116: featureform.serving.metadata.proto.Metadata.CreateLabelVariant:output_type -> featureform.serving.metadata.proto.Empty
-	15,  // 117: featureform.serving.metadata.proto.Metadata.GetLabels:output_type -> featureform.serving.metadata.proto.Label
-	16,  // 118: featureform.serving.metadata.proto.Metadata.GetLabelVariants:output_type -> featureform.serving.metadata.proto.LabelVariant
-	18,  // 119: featureform.serving.metadata.proto.Metadata.ListTrainingSets:output_type -> featureform.serving.metadata.proto.TrainingSet
-	11,  // 120: featureform.serving.metadata.proto.Metadata.CreateTrainingSetVariant:output_type -> featureform.serving.metadata.proto.Empty
-	18,  // 121: featureform.serving.metadata.proto.Metadata.GetTrainingSets:output_type -> featureform.serving.metadata.proto.TrainingSet
-	19,  // 122: featureform.serving.metadata.proto.Metadata.GetTrainingSetVariants:output_type -> featureform.serving.metadata.proto.TrainingSetVariant
-	23,  // 123: featureform.serving.metadata.proto.Metadata.ListSources:output_type -> featureform.serving.metadata.proto.Source
-	11,  // 124: featureform.serving.metadata.proto.Metadata.CreateSourceVariant:output_type -> featureform.serving.metadata.proto.Empty
-	23,  // 125: featureform.serving.metadata.proto.Metadata.GetSources:output_type -> featureform.serving.metadata.proto.Source
-	24,  // 126: featureform.serving.metadata.proto.Metadata.GetSourceVariants:output_type -> featureform.serving.metadata.proto.SourceVariant
-	22,  // 127: featureform.serving.metadata.proto.Metadata.ListUsers:output_type -> featureform.serving.metadata.proto.User
-	11,  // 128: featureform.serving.metadata.proto.Metadata.CreateUser:output_type -> featureform.serving.metadata.proto.Empty
-	22,  // 129: featureform.serving.metadata.proto.Metadata.GetUsers:output_type -> featureform.serving.metadata.proto.User
-	17,  // 130: featureform.serving.metadata.proto.Metadata.ListProviders:output_type -> featureform.serving.metadata.proto.Provider
-	11,  // 131: featureform.serving.metadata.proto.Metadata.CreateProvider:output_type -> featureform.serving.metadata.proto.Empty
-	17,  // 132: featureform.serving.metadata.proto.Metadata.GetProviders:output_type -> featureform.serving.metadata.proto.Provider
-	20,  // 133: featureform.serving.metadata.proto.Metadata.ListEntities:output_type -> featureform.serving.metadata.proto.Entity
-	11,  // 134: featureform.serving.metadata.proto.Metadata.CreateEntity:output_type -> featureform.serving.metadata.proto.Empty
-	20,  // 135: featureform.serving.metadata.proto.Metadata.GetEntities:output_type -> featureform.serving.metadata.proto.Entity
-	21,  // 136: featureform.serving.metadata.proto.Metadata.ListModels:output_type -> featureform.serving.metadata.proto.Model
-	11,  // 137: featureform.serving.metadata.proto.Metadata.CreateModel:output_type -> featureform.serving.metadata.proto.Empty
-	21,  // 138: featureform.serving.metadata.proto.Metadata.GetModels:output_type -> featureform.serving.metadata.proto.Model
-	11,  // 139: featureform.serving.metadata.proto.Metadata.SetResourceStatus:output_type -> featureform.serving.metadata.proto.Empty
-	11,  // 140: featureform.serving.metadata.proto.Metadata.SetResourceUpdateStatus:output_type -> featureform.serving.metadata.proto.Empty
-	11,  // 141: featureform.serving.metadata.proto.Metadata.RequestScheduleChange:output_type -> featureform.serving.metadata.proto.Empty
-	11,  // 142: featureform.serving.metadata.proto.Api.CreateUser:output_type -> featureform.serving.metadata.proto.Empty
-	11,  // 143: featureform.serving.metadata.proto.Api.CreateProvider:output_type -> featureform.serving.metadata.proto.Empty
-	11,  // 144: featureform.serving.metadata.proto.Api.CreateSourceVariant:output_type -> featureform.serving.metadata.proto.Empty
-	11,  // 145: featureform.serving.metadata.proto.Api.CreateEntity:output_type -> featureform.serving.metadata.proto.Empty
-	11,  // 146: featureform.serving.metadata.proto.Api.CreateFeatureVariant:output_type -> featureform.serving.metadata.proto.Empty
-	11,  // 147: featureform.serving.metadata.proto.Api.CreateLabelVariant:output_type -> featureform.serving.metadata.proto.Empty
-	11,  // 148: featureform.serving.metadata.proto.Api.CreateTrainingSetVariant:output_type -> featureform.serving.metadata.proto.Empty
-	22,  // 149: featureform.serving.metadata.proto.Api.GetUsers:output_type -> featureform.serving.metadata.proto.User
-	12,  // 150: featureform.serving.metadata.proto.Api.GetFeatures:output_type -> featureform.serving.metadata.proto.Feature
-	14,  // 151: featureform.serving.metadata.proto.Api.GetFeatureVariants:output_type -> featureform.serving.metadata.proto.FeatureVariant
-	15,  // 152: featureform.serving.metadata.proto.Api.GetLabels:output_type -> featureform.serving.metadata.proto.Label
-	16,  // 153: featureform.serving.metadata.proto.Api.GetLabelVariants:output_type -> featureform.serving.metadata.proto.LabelVariant
-	18,  // 154: featureform.serving.metadata.proto.Api.GetTrainingSets:output_type -> featureform.serving.metadata.proto.TrainingSet
-	19,  // 155: featureform.serving.metadata.proto.Api.GetTrainingSetVariants:output_type -> featureform.serving.metadata.proto.TrainingSetVariant
-	23,  // 156: featureform.serving.metadata.proto.Api.GetSources:output_type -> featureform.serving.metadata.proto.Source
-	24,  // 157: featureform.serving.metadata.proto.Api.GetSourceVariants:output_type -> featureform.serving.metadata.proto.SourceVariant
-	17,  // 158: featureform.serving.metadata.proto.Api.GetProviders:output_type -> featureform.serving.metadata.proto.Provider
-	20,  // 159: featureform.serving.metadata.proto.Api.GetEntities:output_type -> featureform.serving.metadata.proto.Entity
-	21,  // 160: featureform.serving.metadata.proto.Api.GetModels:output_type -> featureform.serving.metadata.proto.Model
-	111, // [111:161] is the sub-list for method output_type
-	61,  // [61:111] is the sub-list for method input_type
+	11,  // 111: featureform.serving.metadata.proto.Api.ListFeatures:input_type -> featureform.serving.metadata.proto.Empty
+	11,  // 112: featureform.serving.metadata.proto.Api.ListLabels:input_type -> featureform.serving.metadata.proto.Empty
+	11,  // 113: featureform.serving.metadata.proto.Api.ListTrainingSets:input_type -> featureform.serving.metadata.proto.Empty
+	11,  // 114: featureform.serving.metadata.proto.Api.ListSources:input_type -> featureform.serving.metadata.proto.Empty
+	11,  // 115: featureform.serving.metadata.proto.Api.ListUsers:input_type -> featureform.serving.metadata.proto.Empty
+	11,  // 116: featureform.serving.metadata.proto.Api.ListProviders:input_type -> featureform.serving.metadata.proto.Empty
+	11,  // 117: featureform.serving.metadata.proto.Api.ListEntities:input_type -> featureform.serving.metadata.proto.Empty
+	11,  // 118: featureform.serving.metadata.proto.Api.ListModels:input_type -> featureform.serving.metadata.proto.Empty
+	12,  // 119: featureform.serving.metadata.proto.Metadata.ListFeatures:output_type -> featureform.serving.metadata.proto.Feature
+	11,  // 120: featureform.serving.metadata.proto.Metadata.CreateFeatureVariant:output_type -> featureform.serving.metadata.proto.Empty
+	12,  // 121: featureform.serving.metadata.proto.Metadata.GetFeatures:output_type -> featureform.serving.metadata.proto.Feature
+	14,  // 122: featureform.serving.metadata.proto.Metadata.GetFeatureVariants:output_type -> featureform.serving.metadata.proto.FeatureVariant
+	15,  // 123: featureform.serving.metadata.proto.Metadata.ListLabels:output_type -> featureform.serving.metadata.proto.Label
+	11,  // 124: featureform.serving.metadata.proto.Metadata.CreateLabelVariant:output_type -> featureform.serving.metadata.proto.Empty
+	15,  // 125: featureform.serving.metadata.proto.Metadata.GetLabels:output_type -> featureform.serving.metadata.proto.Label
+	16,  // 126: featureform.serving.metadata.proto.Metadata.GetLabelVariants:output_type -> featureform.serving.metadata.proto.LabelVariant
+	18,  // 127: featureform.serving.metadata.proto.Metadata.ListTrainingSets:output_type -> featureform.serving.metadata.proto.TrainingSet
+	11,  // 128: featureform.serving.metadata.proto.Metadata.CreateTrainingSetVariant:output_type -> featureform.serving.metadata.proto.Empty
+	18,  // 129: featureform.serving.metadata.proto.Metadata.GetTrainingSets:output_type -> featureform.serving.metadata.proto.TrainingSet
+	19,  // 130: featureform.serving.metadata.proto.Metadata.GetTrainingSetVariants:output_type -> featureform.serving.metadata.proto.TrainingSetVariant
+	23,  // 131: featureform.serving.metadata.proto.Metadata.ListSources:output_type -> featureform.serving.metadata.proto.Source
+	11,  // 132: featureform.serving.metadata.proto.Metadata.CreateSourceVariant:output_type -> featureform.serving.metadata.proto.Empty
+	23,  // 133: featureform.serving.metadata.proto.Metadata.GetSources:output_type -> featureform.serving.metadata.proto.Source
+	24,  // 134: featureform.serving.metadata.proto.Metadata.GetSourceVariants:output_type -> featureform.serving.metadata.proto.SourceVariant
+	22,  // 135: featureform.serving.metadata.proto.Metadata.ListUsers:output_type -> featureform.serving.metadata.proto.User
+	11,  // 136: featureform.serving.metadata.proto.Metadata.CreateUser:output_type -> featureform.serving.metadata.proto.Empty
+	22,  // 137: featureform.serving.metadata.proto.Metadata.GetUsers:output_type -> featureform.serving.metadata.proto.User
+	17,  // 138: featureform.serving.metadata.proto.Metadata.ListProviders:output_type -> featureform.serving.metadata.proto.Provider
+	11,  // 139: featureform.serving.metadata.proto.Metadata.CreateProvider:output_type -> featureform.serving.metadata.proto.Empty
+	17,  // 140: featureform.serving.metadata.proto.Metadata.GetProviders:output_type -> featureform.serving.metadata.proto.Provider
+	20,  // 141: featureform.serving.metadata.proto.Metadata.ListEntities:output_type -> featureform.serving.metadata.proto.Entity
+	11,  // 142: featureform.serving.metadata.proto.Metadata.CreateEntity:output_type -> featureform.serving.metadata.proto.Empty
+	20,  // 143: featureform.serving.metadata.proto.Metadata.GetEntities:output_type -> featureform.serving.metadata.proto.Entity
+	21,  // 144: featureform.serving.metadata.proto.Metadata.ListModels:output_type -> featureform.serving.metadata.proto.Model
+	11,  // 145: featureform.serving.metadata.proto.Metadata.CreateModel:output_type -> featureform.serving.metadata.proto.Empty
+	21,  // 146: featureform.serving.metadata.proto.Metadata.GetModels:output_type -> featureform.serving.metadata.proto.Model
+	11,  // 147: featureform.serving.metadata.proto.Metadata.SetResourceStatus:output_type -> featureform.serving.metadata.proto.Empty
+	11,  // 148: featureform.serving.metadata.proto.Metadata.SetResourceUpdateStatus:output_type -> featureform.serving.metadata.proto.Empty
+	11,  // 149: featureform.serving.metadata.proto.Metadata.RequestScheduleChange:output_type -> featureform.serving.metadata.proto.Empty
+	11,  // 150: featureform.serving.metadata.proto.Api.CreateUser:output_type -> featureform.serving.metadata.proto.Empty
+	11,  // 151: featureform.serving.metadata.proto.Api.CreateProvider:output_type -> featureform.serving.metadata.proto.Empty
+	11,  // 152: featureform.serving.metadata.proto.Api.CreateSourceVariant:output_type -> featureform.serving.metadata.proto.Empty
+	11,  // 153: featureform.serving.metadata.proto.Api.CreateEntity:output_type -> featureform.serving.metadata.proto.Empty
+	11,  // 154: featureform.serving.metadata.proto.Api.CreateFeatureVariant:output_type -> featureform.serving.metadata.proto.Empty
+	11,  // 155: featureform.serving.metadata.proto.Api.CreateLabelVariant:output_type -> featureform.serving.metadata.proto.Empty
+	11,  // 156: featureform.serving.metadata.proto.Api.CreateTrainingSetVariant:output_type -> featureform.serving.metadata.proto.Empty
+	22,  // 157: featureform.serving.metadata.proto.Api.GetUsers:output_type -> featureform.serving.metadata.proto.User
+	12,  // 158: featureform.serving.metadata.proto.Api.GetFeatures:output_type -> featureform.serving.metadata.proto.Feature
+	14,  // 159: featureform.serving.metadata.proto.Api.GetFeatureVariants:output_type -> featureform.serving.metadata.proto.FeatureVariant
+	15,  // 160: featureform.serving.metadata.proto.Api.GetLabels:output_type -> featureform.serving.metadata.proto.Label
+	16,  // 161: featureform.serving.metadata.proto.Api.GetLabelVariants:output_type -> featureform.serving.metadata.proto.LabelVariant
+	18,  // 162: featureform.serving.metadata.proto.Api.GetTrainingSets:output_type -> featureform.serving.metadata.proto.TrainingSet
+	19,  // 163: featureform.serving.metadata.proto.Api.GetTrainingSetVariants:output_type -> featureform.serving.metadata.proto.TrainingSetVariant
+	23,  // 164: featureform.serving.metadata.proto.Api.GetSources:output_type -> featureform.serving.metadata.proto.Source
+	24,  // 165: featureform.serving.metadata.proto.Api.GetSourceVariants:output_type -> featureform.serving.metadata.proto.SourceVariant
+	17,  // 166: featureform.serving.metadata.proto.Api.GetProviders:output_type -> featureform.serving.metadata.proto.Provider
+	20,  // 167: featureform.serving.metadata.proto.Api.GetEntities:output_type -> featureform.serving.metadata.proto.Entity
+	21,  // 168: featureform.serving.metadata.proto.Api.GetModels:output_type -> featureform.serving.metadata.proto.Model
+	12,  // 169: featureform.serving.metadata.proto.Api.ListFeatures:output_type -> featureform.serving.metadata.proto.Feature
+	15,  // 170: featureform.serving.metadata.proto.Api.ListLabels:output_type -> featureform.serving.metadata.proto.Label
+	18,  // 171: featureform.serving.metadata.proto.Api.ListTrainingSets:output_type -> featureform.serving.metadata.proto.TrainingSet
+	23,  // 172: featureform.serving.metadata.proto.Api.ListSources:output_type -> featureform.serving.metadata.proto.Source
+	22,  // 173: featureform.serving.metadata.proto.Api.ListUsers:output_type -> featureform.serving.metadata.proto.User
+	17,  // 174: featureform.serving.metadata.proto.Api.ListProviders:output_type -> featureform.serving.metadata.proto.Provider
+	20,  // 175: featureform.serving.metadata.proto.Api.ListEntities:output_type -> featureform.serving.metadata.proto.Entity
+	21,  // 176: featureform.serving.metadata.proto.Api.ListModels:output_type -> featureform.serving.metadata.proto.Model
+	119, // [119:177] is the sub-list for method output_type
+	61,  // [61:119] is the sub-list for method input_type
 	61,  // [61:61] is the sub-list for extension type_name
 	61,  // [61:61] is the sub-list for extension extendee
 	0,   // [0:61] is the sub-list for field type_name

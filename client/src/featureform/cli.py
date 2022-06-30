@@ -90,7 +90,7 @@ def apply(host, cert, insecure, local, files):
             raise ValueError(
                 "Host value must be set in env or with --host flag")
 
-    channel = tls_check(host, cert, insecure)
+        channel = tls_check(host, cert, insecure)
 
     for file in files:
         with open(file, "r") as py:

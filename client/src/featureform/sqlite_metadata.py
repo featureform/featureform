@@ -204,24 +204,20 @@ class SQLiteMetadata:
 
     def is_transformation(self, name, variant):
         query = "SELECT transformation FROM source_variant WHERE name='" + name + "' and variant='" + variant + "';"
-        print(query)
         transformation = self.__conn.execute(query)
         self.__conn.commit()
         if transformation.fetchall()[0][0] is 1:
-            print("Is a transformation")
+
             return True
         else:
-            print("Is not a transformation")
             return False
 
     def insert_source(self, tablename, *args):
-        print(tablename, str(args))
         stmt = "INSERT OR IGNORE INTO " + tablename + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         self.__conn.execute_stmt(stmt, args)
         self.__conn.commit()
 
     def insert(self, tablename, *args):
-        print(tablename, str(args))
         query = "INSERT OR IGNORE INTO " + tablename + " VALUES " + str(args)
         self.__conn.execute(query)
         self.__conn.commit()

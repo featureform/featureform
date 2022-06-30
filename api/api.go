@@ -402,11 +402,14 @@ func (serv *MetadataServer) ListFeatures(in *pb.Empty, stream pb.Api_ListFeature
 	if err != nil {
 		return err
 	}
-	res, err := proxyStream.Recv()
-	if err != nil {
-		return err
-	}
 	for {
+		res, err := proxyStream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
 		sendErr := stream.Send(res)
 		if sendErr != nil {
 			return sendErr

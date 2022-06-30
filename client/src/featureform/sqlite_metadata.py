@@ -206,8 +206,10 @@ class SQLiteMetadata:
         query = "SELECT transformation FROM source_variant WHERE name='" + name + "' and variant='" + variant + "';"
         transformation = self.__conn.execute(query)
         self.__conn.commit()
-        if transformation.fetchall()[0][0] is 1:
-
+        t = transformation.fetchall()
+        if len(t) == 0:
+            return False
+        if t[0][0] is 1:
             return True
         else:
             return False

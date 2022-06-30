@@ -50,8 +50,13 @@ class LocalClient:
             source_row = self.sqldb.getNameVariant("source_variant", "name", source_name, "variant", source_variant)[0]
             if self.sqldb.is_transformation(source_name, source_variant):
                 df = self.process_transformation(source_name, source_variant)
+                if isinstance(df, pd.Series):
+                    df = df.to_frame()
+                #if feature_column_name not in df.columns:
+                    df.reset_index(inplace=True)
                 df = df[[entity_tuple[0], feature_column_name]]
                 df.set_index(entity_tuple[0])
+
                 feature_dataframes.add(featureVariantTuple[0])
                 dataframe_mapping[featureVariantTuple[0]] = df
             else:
@@ -129,10 +134,15 @@ class LocalClient:
             name_variant = featureVariant[2] + "." + featureVariant[3]
             if self.sqldb.is_transformation(feature_row[12], feature_row[13]):
                 df = self.process_transformation(feature_row[12], feature_row[13])
+                if isinstance(df, pd.Series):
+                    df = df.to_frame()
+               # if feature_row[11] not in df.columns:
+                    df.reset_index(inplace=True)
                 if feature_row[10] != "":
                     df = df[[feature_row[9], feature_row[11], feature_row[10]]]
                 else:
                     df = df[[feature_row[9], feature_row[11]]]
+
                 df.set_index(feature_row[9])
 
                 df.rename(columns={feature_row[11]: name_variant}, inplace=True)
@@ -145,16 +155,19 @@ class LocalClient:
                     df = df[[feature_row[9], feature_row[11]]]
                 df.set_index(feature_row[9])
                 df.rename(columns={feature_row[11]: name_variant}, inplace=True)
-                feature_df = df#.sort_values(by=feature_row[10], ascending=False)
+                feature_df = df
             if feature_row[10] != "":
                 trainingset_df = pd.merge_asof(trainingset_df, feature_df.sort_values(['ts']), direction='backward',
                                            left_on=labelRow[9], right_on=feature_row[10], left_by=labelRow[8],
                                            right_by=feature_row[9])
             else:
                 feature_df.drop_duplicates(subset=[feature_row[9], name_variant])
-                trainingset_df = pd.merge_asof(trainingset_df, feature_df.sort_values(feature_row[9]), direction='backward',
-                                               left_by=labelRow[8],
-                                               right_by=feature_row[9])
+                trainingset_df[labelRow[8]]=trainingset_df[labelRow[8]].astype('string')
+                feature_df[labelRow[8]]=feature_df[labelRow[8]].astype('string')
+                trainingset_df = trainingset_df.join(feature_df.set_index(labelRow[8]), how="left", on=labelRow[8], lsuffix="_left")
+                # trainingset_df = pd.merge_asof(trainingset_df, feature_df.sort_values(feature_row[9]), direction='backward',
+                #                                left_by=labelRow[8],
+                #                                right_by=feature_row[9])
 
         if labelRow[9] != "":
             trainingset_df.drop(columns=labelRow[9], inplace=True)

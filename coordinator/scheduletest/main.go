@@ -100,8 +100,6 @@ func main() {
 			logger.Errorf("Error watching for schedule changes: %v", err)
 		}
 	}()
-	fmt.Println("logger")
-	fmt.Println(logger)
 	// run tests async
 	eg := &errgroup.Group{}
 	eg.Go(testScheduleTrainingSet)

@@ -535,8 +535,8 @@ jobs:
           helm install certmgr jetstack/cert-manager --set installCRDs=true --version v1.8.0 --namespace cert-manager --create-namespace
           helm install featureform ./charts/featureform --set global.repo=local --set global.pullPolicy=Never
           helm install test-quickstart ./charts/quickstart
-          kubectl wait pods --for condition=ready --timeout=300s -l run=featureform-metadata-server
           kubectl wait pods --for condition=ready --timeout=300s -l app.kubernetes.io/name=etcd
+          kubectl wait deployments --for condition=Available=True --timeout=300s -l run=featureform-metadata-server   
           kubectl wait pods --for condition=ready --timeout=300s -l app.kubernetes.io/instance=test-quickstart
       - name: Deploy schedule tester job
         run: kubectl apply -f coordinator/scheduletest/runjob.yaml

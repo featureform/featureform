@@ -213,9 +213,9 @@ def apply(host, cert, insecure, local, files):
         host = os.getenv('FEATUREFORM_HOST')
         if host == None:
             raise ValueError(
-                "Host value must be set in env or with --host flag")
+                "Host value must be set with --host flag or in env as FEATUREFORM_HOST")
 
-        channel = tls_check(host, cert, insecure)
+
 
     for file in files:
         with open(file, "r") as py:
@@ -224,6 +224,7 @@ def apply(host, cert, insecure, local, files):
     if local:
         register.state().create_all_local()
     else:
+        channel = tls_check(host, cert, insecure)
         stub = ff_grpc.ApiStub(channel)
         register.state().create_all(stub)
 

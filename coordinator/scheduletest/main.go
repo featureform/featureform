@@ -553,7 +553,7 @@ func CreateOriginalPostgresTable(tableName string) error {
 }
 
 func UpdateOriginalPostgresTable(tableName string) error {
-	url := fmt.Sprintf("postgres:// %s:%s@%s:%s/%s", postgresConfig.Username, postgresConfig.Password, postgresConfig.Host, postgresConfig.Port, postgresConfig.Database)
+	url := fmt.Sprintf("postgres://%s:%s@%s:%s/%s", postgresConfig.Username, postgresConfig.Password, postgresConfig.Host, postgresConfig.Port, postgresConfig.Database)
 	conn, err := pgxpool.Connect(ctx, url)
 	if err != nil {
 		return fmt.Errorf("Error connecting to postgres deployment: %v", err)

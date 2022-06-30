@@ -63,19 +63,6 @@ func (serv *MetadataServer) CreateUser(ctx context.Context, user *pb.User) (*pb.
 	return serv.meta.CreateUser(ctx, user)
 }
 
-// rpc GetUsers(stream Name) returns (stream User);
-//     rpc GetFeatures(stream Name) returns (stream Feature);
-//     rpc GetFeatureVariants(stream NameVariant) returns (stream FeatureVariant);
-//     rpc GetLabels(stream Name) returns (stream Label);
-//     rpc GetLabelVariants(stream NameVariant) returns (stream LabelVariant);
-//     rpc GetTrainingSets(stream Name) returns (stream TrainingSet);
-//     rpc GetTrainingSetVariants(stream NameVariant) returns (stream TrainingSetVariant);
-//     rpc GetSources(stream Name) returns (stream Source);
-//     rpc GetSourceVariants(stream NameVariant) returns (stream SourceVariant);
-//     rpc GetProviders(stream Name) returns (stream Provider);
-//     rpc GetEntities(stream Name) returns (stream Entity);
-//     rpc GetModels(stream Name) returns (stream Model);
-
 func (serv *MetadataServer) GetUsers(stream pb.Api_GetUsersServer) error {
 	for {
 		name, err := stream.Recv()
@@ -411,15 +398,15 @@ func (serv *MetadataServer) GetModels(stream pb.Api_GetModelsServer) error {
 }
 
 func (serv *MetadataServer) ListFeatures(in *pb.Empty, stream pb.Api_ListFeaturesServer) error {
+	proxyStream, err := serv.meta.ListFeatures(stream.Context(), in)
+	if err != nil {
+		return err
+	}
+	res, err := proxyStream.Recv()
+	if err != nil {
+		return err
+	}
 	for {
-		proxyStream, err := serv.meta.ListFeatures(stream.Context(), in)
-		if err != nil {
-			return err
-		}
-		res, err := proxyStream.Recv()
-		if err != nil {
-			return err
-		}
 		sendErr := stream.Send(res)
 		if sendErr != nil {
 			return sendErr

@@ -472,37 +472,92 @@ jobs:
       SERVING_PORT: 8080
 
     steps:
-       - name: Download Working Compiled Directories
-         uses: actions/download-artifact@v3
-         with:
-           name: compiled-workdir
+      - name: Download Working Compiled Directories
+        uses: actions/download-artifact@v3
+        with:
+          name: compiled-workdir
 
-       - name: Set up Go
-         uses: actions/setup-go@v2
-         with:
-           go-version: 1.17
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
 
-       - name: Make Coverage Directory
-         working-directory: ./
-         run: mkdir coverage
+      - name: Make Coverage Directory
+        working-directory: ./
+        run: mkdir coverage
 
-       - name: Build API.go
-         working-directory: ./api
-         run: go build
+      - name: Build API.go
+        working-directory: ./api
+        run: go build
 
-       - name: Start API Server
-         working-directory: ./api
-         run: go run api.go &
+      - name: Start API Server
+        working-directory: ./api
+        run: go run api.go &
 
-       - name: Install python dependencies
-         working-directory: ./
-         run: |
-           python3 -m pip install build pytest
-           python3 -m build ./client/
-           python3 -m pip install client/dist/*
+      - name: Install python dependencies
+        working-directory: ./
+        run: |
+          python3 -m pip install build pytest
+          python3 -m build ./client/
+          python3 -m pip install client/dist/*
 
-       - name: Testing
-         env:
-           API_ADDRESS: "localhost:7878"
-         working-directory: ./client/tests
-         run: pytest
+      - name: Testing
+        env:
+          API_ADDRESS: "localhost:7878"
+        working-directory: ./client/tests
+        run: pytest
+  schedule:
+    runs-on: ubuntu-latest
+    name: Schedule Jobs
+    environment: Integration testing
+    needs: setup
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install grpc_tools
+        run: pip install grpcio-tools
+
+      - name: Install Protobuf
+        run: sudo snap install protobuf --classic
+
+      - name: Setup Proto
+        run: ./gen_grpc.sh
+      - name: Start minikube
+        uses: medyagh/setup-minikube@master
+      - name: build docker images and add to minikube
+        run: |
+          eval $(minikube docker-env)
+          docker build . --file runner/Dockerfile --tag local/worker:stable
+          docker build . --file coordinator/scheduletest/Dockerfile --tag local/scheduletester:stable
+          docker build . --file metadata/Dockerfile --tag local/metadata:stable
+          minikube image ls
+      - name: Set up Helm
+        run: |
+          echo -n "verifying images:"
+          docker images
+          helm repo add jetstack https://charts.jetstack.io
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+          helm repo update
+          helm install certmgr jetstack/cert-manager --set installCRDs=true --version v1.8.0 --namespace cert-manager --create-namespace
+          helm install featureform ./charts/featureform --set global.repo=local --set global.pullPolicy=Never
+          helm install test-quickstart ./charts/quickstart
+          kubectl wait pods --for condition=ready --timeout=300s -l app.kubernetes.io/name=etcd
+          kubectl wait deployments --for condition=Available=True --timeout=300s -l run=featureform-metadata-server   
+          kubectl wait pods --for condition=ready --timeout=300s -l app.kubernetes.io/instance=test-quickstart
+      - name: Deploy schedule tester job
+        run: kubectl apply -f coordinator/scheduletest/runjob.yaml
+      - name: Get pods in the cluster
+        run: kubectl get pods -A
+      - name: Get deployments in cluster
+        run: kubectl get deployments -A
+      - name: Get services in the cluster
+        run: kubectl get services -A
+      - name: Wait until test pod is completed
+        run: kubectl wait job example --for condition=complete --timeout=300s
+      - name: List cron jobs
+        run: kubectl get cronjobs -A
+      - name: List pods
+        run: kubectl get pods -l app=example
+      - name: Get services in the cluster
+        run: kubectl get services -A
+      - name: Get job pods and print logs
+        run: kubectl logs -l job-name=example

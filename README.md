@@ -83,8 +83,10 @@ In reality, the feature’s definition is split across different pieces of infra
 
 # How to use Featureform
 
-You can read our quickstart or deployment docs to learn about how to deploy a Featureform cluster. Once Featureform is deployed, you can interact with it via our Python API and CLI.
+Featureform can be run locally on files or in Kubernetes with your existing infrastructure. To check out how to run it in the cloud or on minikube,
+follow our Kubernetes quickstart [here](https://docs.featureform.com/quickstart-kubernetes).
 
+Otherwise, continue below to see how to run Featureform locally.
 ## Install Featureform
 ```
 pip install featureform

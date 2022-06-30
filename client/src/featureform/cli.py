@@ -79,49 +79,48 @@ def get(host, cert, insecure, resource_type, name, variant):
         channel = grpc.secure_channel(host, credentials)
     stub = ff_grpc.ApiStub(channel)
 
-    match resource_type:
-        case "user":
-            GetUser(stub, name)
-        case "feature":
-            if not variant:
-                GetFeature(stub, name)
-            else:
-                GetFeatureVariant(stub, name, variant)
-        case "label":
-            if not variant:
-                GetLabel(stub, name)
-            else:
-                GetLabelVariant(stub, name, variant)
-        case "source":
-            if not variant:
-                GetSource(stub, name)
-            else:
-                GetSourceVariant(stub, name, variant)
-        case "training-set" | "trainingset":
-            if not variant:
-                GetTrainingSet(stub, name)
-            else:
-                GetTrainingSetVariant(stub, name, variant)
-        case "provider":
-            if variant:
-                print("Variant not needed.")
-                return
-            else:
-                GetProvider(stub, name)
-        case "entity":
-            if variant:
-                print("Variant not needed.")
-                return
-            else:
-                GetEntity(stub, name)
-        case "model":
-            if variant:
-                print("Variant not needed.")
-                return
-            else:
-                GetModel(stub, name)
-        case _:
-            print("Resource type not found.")
+    if resource_type == "user":
+        GetUser(stub, name)
+    elif resource_type == "feature":
+        if not variant:
+            GetFeature(stub, name)
+        else:
+            GetFeatureVariant(stub, name, variant)
+    elif resource_type == "label":
+        if not variant:
+            GetLabel(stub, name)
+        else:
+            GetLabelVariant(stub, name, variant)
+    elif resource_type == "source":
+        if not variant:
+            GetSource(stub, name)
+        else:
+            GetSourceVariant(stub, name, variant)
+    elif resource_type == "training-set" or resource_type == "trainingset":
+        if not variant:
+            GetTrainingSet(stub, name)
+        else:
+            GetTrainingSetVariant(stub, name, variant)
+    elif resource_type == "provider":
+        if variant:
+            print("Variant not needed.")
+            return
+        else:
+            GetProvider(stub, name)
+    elif resource_type == "entity":
+        if variant:
+            print("Variant not needed.")
+            return
+        else:
+            GetEntity(stub, name)
+    elif resource_type == "model":
+        if variant:
+            print("Variant not needed.")
+            return
+        else:
+            GetModel(stub, name)
+    else:
+        print("Resource type not found.")
 
 
 

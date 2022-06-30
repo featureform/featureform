@@ -55,7 +55,7 @@ def cli():
 @click.argument("name", required=True)
 @click.argument("variant", required=False)
 def get(host, cert, insecure, resource_type, name, variant):
-    """list resources of a given type.
+    """get resources of a given type.
     """
     env_cert_path = os.getenv('FEATUREFORM_CERT')
     if host is None:
@@ -204,33 +204,48 @@ def list(host, cert, insecure, resource_type):
 @click.option("--insecure",
               is_flag=True,
               help="Disables TLS verification")
-def apply(host, cert, insecure, files):
-    """apply changes to featureform
-    """
-    env_cert_path = os.getenv('FEATUREFORM_CERT')
-    if host is None:
-        env_host = os.getenv('FEATUREFORM_HOST')
-        if env_host is None:
+@click.option("--local",
+              is_flag=True,
+              help="Enable local mode")
+def apply(host, cert, insecure, local, files):
+    if local:
+        if host != None:
+            raise ValueError("Cannot be local and have a host")
+
+    elif host == None:
+        host = os.getenv('FEATUREFORM_HOST')
+        if host == None:
             raise ValueError(
-                "Host value must be set in env or with --host flag")
-        host = env_host
+                "Host value must be set with --host flag or in env as FEATUREFORM_HOST")
+
+
+
+    for file in files:
+        with open(file, "r") as py:
+            exec(py.read())
+
+    if local:
+        register.state().create_all_local()
+    else:
+        channel = tls_check(host, cert, insecure)
+        stub = ff_grpc.ApiStub(channel)
+        register.state().create_all(stub)
+
+
+def tls_check(host, cert, insecure):
     if insecure:
         channel = grpc.insecure_channel(
             host, options=(('grpc.enable_http_proxy', 0),))
-    elif cert is not None or env_cert_path is not None:
-        if env_cert_path is not None and cert is None:
-            cert = env_cert_path
+    elif cert != None or os.getenv('FEATUREFORM_CERT') != None:
+        if os.getenv('FEATUREFORM_CERT') != None and cert == None:
+            cert = os.getenv('FEATUREFORM_CERT')
         with open(cert, 'rb') as f:
             credentials = grpc.ssl_channel_credentials(f.read())
         channel = grpc.secure_channel(host, credentials)
     else:
         credentials = grpc.ssl_channel_credentials()
         channel = grpc.secure_channel(host, credentials)
-    stub = ff_grpc.ApiStub(channel)
-    for file in files:
-        with open(file, "r") as py:
-            exec(py.read())
-    register.state().create_all(stub)
+    return channel
 
 
 if __name__ == '__main__':

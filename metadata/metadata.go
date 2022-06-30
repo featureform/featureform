@@ -83,7 +83,6 @@ var parentMapping = map[ResourceType]ResourceType{
 func (serv *MetadataServer) needsJob(res Resource) bool {
 	if res.ID().Type == TRAINING_SET_VARIANT ||
 		res.ID().Type == FEATURE_VARIANT ||
-		//extra flag on feature variant for online/offline?
 		res.ID().Type == SOURCE_VARIANT ||
 		res.ID().Type == LABEL_VARIANT {
 		return true
@@ -191,7 +190,7 @@ type Resource interface {
 	Dependencies(ResourceLookup) (ResourceLookup, error)
 	Proto() proto.Message
 	UpdateStatus(pb.ResourceStatus) error
-	SetUpdateStatus(pb.UpdateStatus) error
+	UpdateSchedule(string) error
 }
 
 func isDirectDependency(lookup ResourceLookup, dependency, parent Resource) (bool, error) {
@@ -213,7 +212,6 @@ type ResourceLookup interface {
 	HasJob(ResourceID) (bool, error)
 	SetJob(ResourceID, string) error
 	SetStatus(ResourceID, pb.ResourceStatus) error
-	SetUpdateStatus(ResourceID, pb.UpdateStatus) error
 	SetSchedule(ResourceID, string) error
 }
 
@@ -301,15 +299,11 @@ func (lookup localResourceLookup) SetJob(id ResourceID, schedule string) error {
 }
 
 func (lookup localResourceLookup) SetSchedule(id ResourceID, schedule string) error {
-	return nil
-}
-
-func (lookup localResourceLookup) SetUpdateStatus(id ResourceID, status pb.UpdateStatus) error {
 	res, has := lookup[id]
 	if !has {
-		return &ResourceNotFound{id, fmt.Errorf("no resource found")}
+		return &ResourceNotFound{id, nil}
 	}
-	if err := res.SetUpdateStatus(status); err != nil {
+	if err := res.UpdateSchedule(schedule); err != nil {
 		return err
 	}
 	lookup[id] = res
@@ -358,7 +352,7 @@ func (resource *sourceResource) UpdateStatus(status pb.ResourceStatus) error {
 	return nil
 }
 
-func (resource *sourceResource) SetUpdateStatus(status pb.UpdateStatus) error {
+func (resource *sourceResource) UpdateSchedule(schedule string) error {
 	return fmt.Errorf("not implemented")
 }
 
@@ -375,10 +369,7 @@ func (resource *sourceVariantResource) ID() ResourceID {
 }
 
 func (resource *sourceVariantResource) Schedule() string {
-	if resource.serialized.UpdateStatus != nil {
-		return resource.serialized.UpdateStatus.Schedule.Schedule
-	}
-	return ""
+	return resource.serialized.Schedule
 }
 
 func (resource *sourceVariantResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
@@ -425,12 +416,13 @@ func (this *sourceVariantResource) Notify(lookup ResourceLookup, op operation, t
 }
 
 func (resource *sourceVariantResource) UpdateStatus(status pb.ResourceStatus) error {
+	resource.serialized.LastUpdated = tspb.Now()
 	resource.serialized.Status = &status
 	return nil
 }
 
-func (resource *sourceVariantResource) SetUpdateStatus(status pb.UpdateStatus) error {
-	resource.serialized.UpdateStatus = &status
+func (resource *sourceVariantResource) UpdateSchedule(schedule string) error {
+	resource.serialized.Schedule = schedule
 	return nil
 }
 
@@ -472,7 +464,7 @@ func (resource *featureResource) UpdateStatus(status pb.ResourceStatus) error {
 	return nil
 }
 
-func (resource *featureResource) SetUpdateStatus(status pb.UpdateStatus) error {
+func (resource *featureResource) UpdateSchedule(schedule string) error {
 	return fmt.Errorf("not implemented")
 }
 
@@ -489,10 +481,7 @@ func (resource *featureVariantResource) ID() ResourceID {
 }
 
 func (resource *featureVariantResource) Schedule() string {
-	if resource.serialized.UpdateStatus != nil {
-		return resource.serialized.UpdateStatus.Schedule.Schedule
-	}
-	return ""
+	return resource.serialized.Schedule
 }
 
 func (resource *featureVariantResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
@@ -543,12 +532,13 @@ func (this *featureVariantResource) Notify(lookup ResourceLookup, op operation, 
 }
 
 func (resource *featureVariantResource) UpdateStatus(status pb.ResourceStatus) error {
+	resource.serialized.LastUpdated = tspb.Now()
 	resource.serialized.Status = &status
 	return nil
 }
 
-func (resource *featureVariantResource) SetUpdateStatus(status pb.UpdateStatus) error {
-	resource.serialized.UpdateStatus = &status
+func (resource *featureVariantResource) UpdateSchedule(schedule string) error {
+	resource.serialized.Schedule = schedule
 	return nil
 }
 
@@ -590,7 +580,7 @@ func (resource *labelResource) UpdateStatus(status pb.ResourceStatus) error {
 	return nil
 }
 
-func (resource *labelResource) SetUpdateStatus(status pb.UpdateStatus) error {
+func (resource *labelResource) UpdateSchedule(schedule string) error {
 	return fmt.Errorf("not implemented")
 }
 
@@ -662,8 +652,8 @@ func (resource *labelVariantResource) UpdateStatus(status pb.ResourceStatus) err
 	return nil
 }
 
-func (resource *labelVariantResource) SetUpdateStatus(status pb.UpdateStatus) error {
-	return fmt.Errorf("Update status not implemented")
+func (resource *labelVariantResource) UpdateSchedule(schedule string) error {
+	return fmt.Errorf("not implemented")
 }
 
 type trainingSetResource struct {
@@ -704,7 +694,7 @@ func (resource *trainingSetResource) UpdateStatus(status pb.ResourceStatus) erro
 	return nil
 }
 
-func (resource *trainingSetResource) SetUpdateStatus(status pb.UpdateStatus) error {
+func (resource *trainingSetResource) UpdateSchedule(schedule string) error {
 	return fmt.Errorf("not implemented")
 }
 
@@ -721,10 +711,7 @@ func (resource *trainingSetVariantResource) ID() ResourceID {
 }
 
 func (resource *trainingSetVariantResource) Schedule() string {
-	if resource.serialized.UpdateStatus != nil {
-		return resource.serialized.UpdateStatus.Schedule.Schedule
-	}
-	return ""
+	return resource.serialized.Schedule
 }
 
 func (resource *trainingSetVariantResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
@@ -771,12 +758,13 @@ func (this *trainingSetVariantResource) Notify(lookup ResourceLookup, op operati
 }
 
 func (resource *trainingSetVariantResource) UpdateStatus(status pb.ResourceStatus) error {
+	resource.serialized.LastUpdated = tspb.Now()
 	resource.serialized.Status = &status
 	return nil
 }
 
-func (resource *trainingSetVariantResource) SetUpdateStatus(status pb.UpdateStatus) error {
-	resource.serialized.UpdateStatus = &status
+func (resource *trainingSetVariantResource) UpdateSchedule(schedule string) error {
+	resource.serialized.Schedule = schedule
 	return nil
 }
 
@@ -839,7 +827,7 @@ func (resource *modelResource) UpdateStatus(status pb.ResourceStatus) error {
 	return nil
 }
 
-func (resource *modelResource) SetUpdateStatus(status pb.UpdateStatus) error {
+func (resource *modelResource) UpdateSchedule(schedule string) error {
 	return fmt.Errorf("not implemented")
 }
 
@@ -894,7 +882,7 @@ func (resource *userResource) UpdateStatus(status pb.ResourceStatus) error {
 	return nil
 }
 
-func (resource *userResource) SetUpdateStatus(status pb.UpdateStatus) error {
+func (resource *userResource) UpdateSchedule(schedule string) error {
 	return fmt.Errorf("not implemented")
 }
 
@@ -949,7 +937,7 @@ func (resource *providerResource) UpdateStatus(status pb.ResourceStatus) error {
 	return nil
 }
 
-func (resource *providerResource) SetUpdateStatus(status pb.UpdateStatus) error {
+func (resource *providerResource) UpdateSchedule(schedule string) error {
 	return fmt.Errorf("not implemented")
 }
 
@@ -997,7 +985,7 @@ func (resource *entityResource) UpdateStatus(status pb.ResourceStatus) error {
 	return nil
 }
 
-func (resource *entityResource) SetUpdateStatus(status pb.UpdateStatus) error {
+func (resource *entityResource) UpdateSchedule(schedule string) error {
 	return fmt.Errorf("not implemented")
 }
 
@@ -1113,13 +1101,7 @@ type Config struct {
 
 func (serv *MetadataServer) RequestScheduleChange(ctx context.Context, req *pb.ScheduleChangeRequest) (*pb.Empty, error) {
 	resID := ResourceID{Name: req.ResourceId.Resource.Name, Variant: req.ResourceId.Resource.Variant, Type: ResourceType(req.ResourceId.ResourceType)}
-	err := serv.lookup.SetSchedule(resID, req.Schedule.Schedule)
-	return &pb.Empty{}, err
-}
-
-func (serv *MetadataServer) SetResourceUpdateStatus(ctx context.Context, req *pb.SetUpdateStatusRequest) (*pb.Empty, error) {
-	resID := ResourceID{Name: req.ResourceId.Resource.Name, Variant: req.ResourceId.Resource.Variant, Type: ResourceType(req.ResourceId.ResourceType)}
-	err := serv.lookup.SetUpdateStatus(resID, *req.Status)
+	err := serv.lookup.SetSchedule(resID, req.Schedule)
 	return &pb.Empty{}, err
 }
 

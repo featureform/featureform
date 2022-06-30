@@ -409,6 +409,24 @@ func (serv *MetadataServer) GetModels(stream pb.Api_GetModelsServer) error {
 		}
 	}
 }
+
+func (serv *MetadataServer) ListFeatures(in *pb.Empty, stream pb.Api_ListFeaturesServer) error {
+	for {
+		proxyStream, err := serv.meta.ListFeatures(stream.Context(), in)
+		if err != nil {
+			return err
+		}
+		res, err := proxyStream.Recv()
+		if err != nil {
+			return err
+		}
+		sendErr := stream.Send(res)
+		if sendErr != nil {
+			return sendErr
+		}
+	}
+}
+
 func (serv *MetadataServer) CreateProvider(ctx context.Context, provider *pb.Provider) (*pb.Empty, error) {
 	serv.Logger.Infow("Creating Provider", "name", provider.Name)
 	return serv.meta.CreateProvider(ctx, provider)

@@ -64,6 +64,14 @@ service Api {
     rpc GetProviders(stream Name) returns (stream Provider);
     rpc GetEntities(stream Name) returns (stream Entity);
     rpc GetModels(stream Name) returns (stream Model);
+    rpc ListFeatures(Empty) returns (stream Feature);
+    rpc ListLabels(Empty) returns (stream Label);
+    rpc ListTrainingSets(Empty) returns (stream TrainingSet);
+    rpc ListSources(Empty) returns (stream Source);
+    rpc ListUsers(Empty) returns (stream User);
+    rpc ListProviders(Empty) returns (stream Provider);
+    rpc ListEntities(Empty) returns (stream Entity);
+    rpc ListModels(Empty) returns (stream Model);
 }
 
 message Name {

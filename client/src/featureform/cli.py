@@ -52,8 +52,8 @@ def cli():
 @click.option("--insecure",
               is_flag=True,
               help="Disables TLS verification")
-@click.argument("resource_type")
-@click.argument("name", required=False)
+@click.argument("resource_type", required=True)
+@click.argument("name", required=True)
 @click.argument("variant", required=False)
 def get(host, cert, insecure, resource_type, name, variant):
     """list resources of a given type.
@@ -199,7 +199,7 @@ def get(host, cert, insecure, resource_type, name, variant):
                             print("{:<30} {:<35}".format(t.name, t.variant))
                 except grpc._channel._MultiThreadedRendezvous:
                     print(f"{resource_type.capitalize()} variant not found.")
-        case "trainingset":
+        case "training-set":
             if not variant:
                 searchName = metadata_pb2.Name(name=name)
                 try:
@@ -295,15 +295,62 @@ def get(host, cert, insecure, resource_type, name, variant):
             print("Resource type not found.")
 
 
-#
-# @cli.command()
-# @click.argument("resource_type",
-#                 type=click.Choice(resource_types, case_sensitive=False))
-# @click.argument("resources", nargs=-1, required=True)
-# def get(resource_type, resoruces):
-#     """get resources of a given type.
-#     """
-#     pass
+
+@cli.command()
+@click.option("--host",
+              "host",
+              required=False,
+              help="The host address of the API server to connect to")
+@click.option("--cert",
+              "cert",
+              required=False,
+              help="Path to self-signed TLS certificate")
+@click.option("--insecure",
+              is_flag=True,
+              help="Disables TLS verification")
+@click.argument("resource_type", required=True)
+def list(host, cert, insecure, resource_type):
+    """list resources of a given type.
+    """
+    env_cert_path = os.getenv('FEATUREFORM_CERT')
+    if host is None:
+        env_host = os.getenv('FEATUREFORM_HOST')
+        if env_host is None:
+            raise ValueError(
+                "Host value must be set in env or with --host flag")
+        host = env_host
+    if insecure:
+        channel = grpc.insecure_channel(
+            host, options=(('grpc.enable_http_proxy', 0),))
+    elif cert is not None or env_cert_path is not None:
+        if env_cert_path is not None and cert is None:
+            cert = env_cert_path
+        with open(cert, 'rb') as f:
+            credentials = grpc.ssl_channel_credentials(f.read())
+        channel = grpc.secure_channel(host, credentials)
+    else:
+        credentials = grpc.ssl_channel_credentials()
+        channel = grpc.secure_channel(host, credentials)
+    stub = ff_grpc.ApiStub(channel)
+
+    match resource_type:
+        case "users":
+            pass
+        case "features":
+            pass
+        case "labels":
+            pass
+        case "sources":
+            pass
+        case "training-sets":
+            pass
+        case "entities":
+            pass
+        case "providers":
+            pass
+        case "models":
+            pass
+
 #
 #
 # @cli.command()

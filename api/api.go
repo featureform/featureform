@@ -3,13 +3,14 @@ package main
 import (
 	"context"
 	"fmt"
-	"google.golang.org/grpc/credentials/insecure"
 	"io"
 	"net"
 	"net/http"
 	"os"
 	"strings"
 	"time"
+
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/featureform/metadata"
 	pb "github.com/featureform/metadata/proto"
@@ -62,6 +63,352 @@ func (serv *MetadataServer) CreateUser(ctx context.Context, user *pb.User) (*pb.
 	return serv.meta.CreateUser(ctx, user)
 }
 
+// rpc GetUsers(stream Name) returns (stream User);
+//     rpc GetFeatures(stream Name) returns (stream Feature);
+//     rpc GetFeatureVariants(stream NameVariant) returns (stream FeatureVariant);
+//     rpc GetLabels(stream Name) returns (stream Label);
+//     rpc GetLabelVariants(stream NameVariant) returns (stream LabelVariant);
+//     rpc GetTrainingSets(stream Name) returns (stream TrainingSet);
+//     rpc GetTrainingSetVariants(stream NameVariant) returns (stream TrainingSetVariant);
+//     rpc GetSources(stream Name) returns (stream Source);
+//     rpc GetSourceVariants(stream NameVariant) returns (stream SourceVariant);
+//     rpc GetProviders(stream Name) returns (stream Provider);
+//     rpc GetEntities(stream Name) returns (stream Entity);
+//     rpc GetModels(stream Name) returns (stream Model);
+
+func (serv *MetadataServer) GetUsers(stream pb.Api_GetUsersServer) error {
+	for {
+		name, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			serv.Logger.Fatalf("Error when reading client request stream: %v", err)
+		}
+		proxyStream, err := serv.meta.GetUsers(stream.Context())
+		if err != nil {
+			return err
+		}
+		sErr := proxyStream.Send(name)
+		if sErr != nil {
+			return sErr
+		}
+		res, err := proxyStream.Recv()
+		if err != nil {
+			return err
+		}
+		sendErr := stream.Send(res)
+		if sendErr != nil {
+			return sendErr
+		}
+	}
+}
+
+func (serv *MetadataServer) GetFeatures(stream pb.Api_GetFeaturesServer) error {
+	for {
+		name, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			serv.Logger.Fatalf("Error when reading client request stream: %v", err)
+		}
+		proxyStream, err := serv.meta.GetFeatures(stream.Context())
+		if err != nil {
+			return err
+		}
+		sErr := proxyStream.Send(name)
+		if sErr != nil {
+			return sErr
+		}
+		res, err := proxyStream.Recv()
+		if err != nil {
+			return err
+		}
+		sendErr := stream.Send(res)
+		if sendErr != nil {
+			return sendErr
+		}
+	}
+}
+
+func (serv *MetadataServer) GetFeatureVariants(stream pb.Api_GetFeatureVariantsServer) error {
+	for {
+		nameVariant, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			serv.Logger.Fatalf("Error when reading client request stream: %v", err)
+		}
+		proxyStream, err := serv.meta.GetFeatureVariants(stream.Context())
+		if err != nil {
+			return err
+		}
+		sErr := proxyStream.Send(nameVariant)
+		if sErr != nil {
+			return sErr
+		}
+		res, err := proxyStream.Recv()
+		if err != nil {
+			return err
+		}
+		sendErr := stream.Send(res)
+		if sendErr != nil {
+			return sendErr
+		}
+	}
+}
+
+func (serv *MetadataServer) GetLabels(stream pb.Api_GetLabelsServer) error {
+	for {
+		name, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			serv.Logger.Fatalf("Error when reading client request stream: %v", err)
+		}
+		proxyStream, err := serv.meta.GetLabels(stream.Context())
+		if err != nil {
+			return err
+		}
+		sErr := proxyStream.Send(name)
+		if sErr != nil {
+			return sErr
+		}
+		res, err := proxyStream.Recv()
+		if err != nil {
+			return err
+		}
+		sendErr := stream.Send(res)
+		if sendErr != nil {
+			return sendErr
+		}
+	}
+}
+
+func (serv *MetadataServer) GetLabelVariants(stream pb.Api_GetLabelVariantsServer) error {
+	for {
+		nameVariant, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			serv.Logger.Fatalf("Error when reading client request stream: %v", err)
+		}
+		proxyStream, err := serv.meta.GetLabelVariants(stream.Context())
+		if err != nil {
+			return err
+		}
+		sErr := proxyStream.Send(nameVariant)
+		if sErr != nil {
+			return sErr
+		}
+		res, err := proxyStream.Recv()
+		if err != nil {
+			return err
+		}
+		sendErr := stream.Send(res)
+		if sendErr != nil {
+			return sendErr
+		}
+	}
+}
+
+func (serv *MetadataServer) GetSources(stream pb.Api_GetSourcesServer) error {
+	for {
+		name, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			serv.Logger.Fatalf("Error when reading client request stream: %v", err)
+		}
+		proxyStream, err := serv.meta.GetSources(stream.Context())
+		if err != nil {
+			return err
+		}
+		sErr := proxyStream.Send(name)
+		if sErr != nil {
+			return sErr
+		}
+		res, err := proxyStream.Recv()
+		if err != nil {
+			return err
+		}
+		sendErr := stream.Send(res)
+		if sendErr != nil {
+			return sendErr
+		}
+	}
+}
+
+func (serv *MetadataServer) GetSourceVariants(stream pb.Api_GetSourceVariantsServer) error {
+	for {
+		nameVariant, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			serv.Logger.Fatalf("Error when reading client request stream: %v", err)
+		}
+		proxyStream, err := serv.meta.GetSourceVariants(stream.Context())
+		if err != nil {
+			return err
+		}
+		sErr := proxyStream.Send(nameVariant)
+		if sErr != nil {
+			return sErr
+		}
+		res, err := proxyStream.Recv()
+		if err != nil {
+			return err
+		}
+		sendErr := stream.Send(res)
+		if sendErr != nil {
+			return sendErr
+		}
+	}
+}
+
+func (serv *MetadataServer) GetTrainingSets(stream pb.Api_GetTrainingSetsServer) error {
+	for {
+		name, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			serv.Logger.Fatalf("Error when reading client request stream: %v", err)
+		}
+		proxyStream, err := serv.meta.GetTrainingSets(stream.Context())
+		if err != nil {
+			return err
+		}
+		sErr := proxyStream.Send(name)
+		if sErr != nil {
+			return sErr
+		}
+		res, err := proxyStream.Recv()
+		if err != nil {
+			return err
+		}
+		sendErr := stream.Send(res)
+		if sendErr != nil {
+			return sendErr
+		}
+	}
+}
+
+func (serv *MetadataServer) GetTrainingSetVariants(stream pb.Api_GetTrainingSetVariantsServer) error {
+	for {
+		nameVariant, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			serv.Logger.Fatalf("Error when reading client request stream: %v", err)
+		}
+		proxyStream, err := serv.meta.GetTrainingSetVariants(stream.Context())
+		if err != nil {
+			return err
+		}
+		sErr := proxyStream.Send(nameVariant)
+		if sErr != nil {
+			return sErr
+		}
+		res, err := proxyStream.Recv()
+		if err != nil {
+			return err
+		}
+		sendErr := stream.Send(res)
+		if sendErr != nil {
+			return sendErr
+		}
+	}
+}
+
+func (serv *MetadataServer) GetProviders(stream pb.Api_GetProvidersServer) error {
+	for {
+		name, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			serv.Logger.Fatalf("Error when reading client request stream: %v", err)
+		}
+		proxyStream, err := serv.meta.GetProviders(stream.Context())
+		if err != nil {
+			return err
+		}
+		sErr := proxyStream.Send(name)
+		if sErr != nil {
+			return sErr
+		}
+		res, err := proxyStream.Recv()
+		if err != nil {
+			return err
+		}
+		sendErr := stream.Send(res)
+		if sendErr != nil {
+			return sendErr
+		}
+	}
+}
+func (serv *MetadataServer) GetEntities(stream pb.Api_GetEntitiesServer) error {
+	for {
+		name, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			serv.Logger.Fatalf("Error when reading client request stream: %v", err)
+		}
+		proxyStream, err := serv.meta.GetEntities(stream.Context())
+		if err != nil {
+			return err
+		}
+		sErr := proxyStream.Send(name)
+		if sErr != nil {
+			return sErr
+		}
+		res, err := proxyStream.Recv()
+		if err != nil {
+			return err
+		}
+		sendErr := stream.Send(res)
+		if sendErr != nil {
+			return sendErr
+		}
+	}
+}
+func (serv *MetadataServer) GetModels(stream pb.Api_GetModelsServer) error {
+	for {
+		name, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			serv.Logger.Fatalf("Error when reading client request stream: %v", err)
+		}
+		proxyStream, err := serv.meta.GetModels(stream.Context())
+		if err != nil {
+			return err
+		}
+		sErr := proxyStream.Send(name)
+		if sErr != nil {
+			return sErr
+		}
+		res, err := proxyStream.Recv()
+		if err != nil {
+			return err
+		}
+		sendErr := stream.Send(res)
+		if sendErr != nil {
+			return sendErr
+		}
+	}
+}
 func (serv *MetadataServer) CreateProvider(ctx context.Context, provider *pb.Provider) (*pb.Empty, error) {
 	serv.Logger.Infow("Creating Provider", "name", provider.Name)
 	return serv.meta.CreateProvider(ctx, provider)

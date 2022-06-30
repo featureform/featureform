@@ -52,6 +52,18 @@ service Api {
     rpc CreateLabelVariant(LabelVariant) returns (Empty);
     rpc CreateTrainingSetVariant(TrainingSetVariant) returns (Empty);
     rpc RequestScheduleChange(ScheduleChangeRequest) returns (Empty);
+    rpc GetUsers(stream Name) returns (stream User);
+    rpc GetFeatures(stream Name) returns (stream Feature);
+    rpc GetFeatureVariants(stream NameVariant) returns (stream FeatureVariant);
+    rpc GetLabels(stream Name) returns (stream Label);
+    rpc GetLabelVariants(stream NameVariant) returns (stream LabelVariant);
+    rpc GetTrainingSets(stream Name) returns (stream TrainingSet);
+    rpc GetTrainingSetVariants(stream NameVariant) returns (stream TrainingSetVariant);
+    rpc GetSources(stream Name) returns (stream Source);
+    rpc GetSourceVariants(stream NameVariant) returns (stream SourceVariant);
+    rpc GetProviders(stream Name) returns (stream Provider);
+    rpc GetEntities(stream Name) returns (stream Entity);
+    rpc GetModels(stream Name) returns (stream Model);
 }
 
 message Name {

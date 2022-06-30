@@ -100,6 +100,8 @@ func main() {
 			logger.Errorf("Error watching for schedule changes: %v", err)
 		}
 	}()
+	fmt.Println("logger")
+	fmt.Println(logger)
 	// run tests async
 	eg := &errgroup.Group{}
 	eg.Go(testScheduleTrainingSet)
@@ -168,6 +170,9 @@ func testScheduleTrainingSet() error {
 	sourceName := createSafeUUID()
 	tsID := metadata.ResourceID{Name: tsName, Variant: "", Type: metadata.TRAINING_SET_VARIANT}
 	sourceID := metadata.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}
+	if err := CreateOriginalPostgresTable(originalTableName); err != nil {
+		return fmt.Errorf("Could not create table in postgres: %v", err)
+	}
 	// create original feature and label tables for training set with original data
 	featureTable, labelTable, err := initializeResourceTablesForTrainingSet(featureName, labelName)
 	if err != nil {
@@ -489,6 +494,9 @@ func testUpdateExistingSchedule() error {
 	originalTableName := createSafeUUID()
 	featureID := metadata.ResourceID{Name: featureName, Variant: "", Type: metadata.FEATURE_VARIANT}
 	sourceID := metadata.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}
+	if err := CreateOriginalPostgresTable(originalTableName); err != nil {
+		return fmt.Errorf("Could not create table in postgres: %v", err)
+	}
 	// intiialize feature in metadata
 	if err := materializeFeatureWithProvider(featureName, sourceName, originalTableName, updateEveryMinuteSchedule); err != nil {
 		return fmt.Errorf("could not create online feature in metadata: %v", err)
@@ -534,7 +542,7 @@ func testUpdateExistingSchedule() error {
 // helper function for setting original source data
 
 func CreateOriginalPostgresTable(tableName string) error {
-	url := fmt.Sprintf("postgres:// %s:%s@%s:%s/%s", postgresConfig.Username, postgresConfig.Password, postgresConfig.Host, postgresConfig.Port, postgresConfig.Database)
+	url := fmt.Sprintf("postgres://%s:%s@%s:%s/%s", postgresConfig.Username, postgresConfig.Password, postgresConfig.Host, postgresConfig.Port, postgresConfig.Database)
 	conn, err := pgxpool.Connect(ctx, url)
 	if err != nil {
 		return fmt.Errorf("Error connecting to postgres deployment: %v", err)

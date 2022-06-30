@@ -532,8 +532,8 @@ jobs:
           helm repo add jetstack https://charts.jetstack.io
           helm repo add bitnami https://charts.bitnami.com/bitnami
           helm repo update
-          helm install featureform ./charts/featureform/charts/metadata --set global.repo=local --set global.pullPolicy=Never
-          helm install featureform-etcd bitnami/etcd --set nameOverride="",auth.rbac.create=false,readinessProbe.enabled=false,livenessProbe.enabled=false,startupProbe.enabled=false
+          helm install featureform ./charts/featureform --set global.repo=local --set global.pullPolicy=Never
+          helm install featureform bitnami/etcd --set auth.rbac.create=false
           helm install test-quickstart ./charts/quickstart
           kubectl wait pods --for condition=ready --timeout=300s -l run=featureform-metadata-server
           kubectl wait pods --for condition=ready --timeout=300s -l app.kubernetes.io/name=etcd

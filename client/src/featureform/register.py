@@ -1,14 +1,21 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
+import marshal
+from distutils.command.config import config
+from typing_extensions import Self
+from .resources import ResourceState, Provider, RedisConfig, LocalConfig, PostgresConfig, SnowflakeConfig, User, \
+    Location, Source, \
+    PrimaryData, SQLTable, SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet
 
-from .resources import ResourceState, Provider, RedisConfig, PostgresConfig, SnowflakeConfig, RedshiftConfig, User, Location, Source, \
-    PrimaryData, SQLTable, SQLTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet
 from typing import Tuple, Callable, TypedDict, List, Union
 from typeguard import typechecked, check_type
 import grpc
 import os
 from .proto import metadata_pb2_grpc as ff_grpc
+from .sqlite_metadata import SQLiteMetadata
+import time
+import pandas as pd
 
 NameVariant = Tuple[str, str]
 
@@ -81,13 +88,63 @@ class OfflineSQLProvider(OfflineProvider):
 
 
 class OnlineProvider:
-
     def __init__(self, registrar, provider):
         self.__registrar = registrar
         self.__provider = provider
 
     def name(self) -> str:
         return self.__provider.name
+
+
+# RIDDHI
+class LocalProvider:
+    def __init__(self, registrar, provider):
+        self.__registrar = registrar
+        self.__provider = provider
+        self.sqldb = SQLiteMetadata()
+        self.insert_provider()
+
+    def name(self) -> str:
+        return self.__provider.name
+
+    def register_file(self, name, variant, description, path, owner=""):
+        if owner == "":
+            owner = self.__registrar.must_get_default_owner()
+        # Store the file as a source
+        time_created = str(time.time())
+        self.sqldb.insert("sources", "Source", variant, name)
+        self.sqldb.insert("source_variant", time_created, description, name,
+                          "Source", owner, self.name(), variant, "ready", False, "", path)
+        # Where the definition = path
+
+        return LocalSource(self.__registrar, name, owner, variant, self.name(), description)
+
+    def insert_provider(self):
+        # Store a new provider row
+        self.sqldb.insert("providers",
+                          self.__provider.name,
+                          "Provider",
+                          self.__provider.description,
+                          self.__provider.config.type(),
+                          self.__provider.config.software(),
+                          self.__provider.team,
+                          "sources",
+                          "status",
+                          str(self.__provider.config.serialize(), 'utf-8')
+                          )
+
+    def df_transformation(self,
+                          variant: str,
+                          owner: Union[str, UserRegistrar] = "",
+                          name: str = "",
+                          description: str = "",
+                          inputs: list=[]):
+        return self.__registrar.df_transformation(name=name,
+                                                  variant=variant,
+                                                  owner=owner,
+                                                  provider=self.name(),
+                                                  description=description,
+                                                  inputs=inputs)
 
 
 class SourceRegistrar:
@@ -97,7 +154,7 @@ class SourceRegistrar:
         self.__source = source
 
     def id(self) -> NameVariant:
-        return (self.__source.name, self.__source.variant)
+        return self.__source.name, self.__source.variant
 
     def registrar(self):
         return self.__registrar
@@ -108,6 +165,53 @@ class ColumnMapping(TypedDict):
     variant: str
     column: str
     resource_type: str
+
+
+class LocalSource:
+    def __init__(self,
+                 registrar,
+                 name: str,
+                 owner: str,
+                 variant: str,
+                 provider: str,
+                 description: str = ""):
+        self.registrar = registrar
+        self.name = name
+        self.variant = variant
+        self.owner = owner
+        self.provider = provider
+        self.description = description
+
+    def __call__(self, fn: Callable[[], str]):
+        if self.description == "":
+            self.description = fn.__doc__
+        if self.name == "":
+            self.name = fn.__name__
+        self.__set_query(fn())
+        fn.register_resources = self.register_resources
+        return fn
+
+    def register_resources(
+            self,
+            entity: Union[str, EntityRegistrar],
+            entity_column: str,
+            owner: Union[str, UserRegistrar] = "",
+            inference_store: Union[str, OnlineProvider] = "",
+            features: List[ColumnMapping] = None,
+            labels: List[ColumnMapping] = None,
+            timestamp_column: str = ""
+    ):
+        return self.registrar.register_column_resources(
+            source=(self.name, self.variant),
+            entity=entity,
+            entity_column=entity_column,
+            owner=owner,
+            inference_store=inference_store,
+            features=features,
+            labels=labels,
+            timestamp_column=timestamp_column,
+            description=self.description,
+        )
 
 
 class SQLTransformationDecorator:
@@ -177,6 +281,70 @@ class SQLTransformationDecorator:
             timestamp_column=timestamp_column,
             description=description,
             schedule=schedule,
+        )
+
+
+class DFTransformationDecorator:
+
+    def __init__(self,
+                 registrar,
+                 variant: str,
+                 owner: str,
+                 provider: str,
+                 name: str = "",
+                 description: str = "",
+                 inputs: list = []):
+        self.registrar = registrar,
+        self.name = name
+        self.variant = variant
+        self.owner = owner
+        self.provider = provider
+        self.description = description
+        self.inputs = inputs
+
+    def __call__(self, fn: Callable[[pd.DataFrame], pd.DataFrame]):
+        if self.description == "":
+            self.description = fn.__doc__
+        if self.name == "":
+            self.name = fn.__name__
+        self.query = marshal.dumps(fn.__code__)
+        fn.register_resources = self.register_resources
+        return fn
+
+    def to_source(self) -> Source:
+        return Source(
+            name=self.name,
+            variant=self.variant,
+            definition=DFTransformation(self.query, self.inputs),
+            owner=self.owner,
+            provider=self.provider,
+            description=self.description,
+        )
+
+    def test_func(self):
+        pass
+
+    def register_resources(
+            self,
+            entity: Union[str, EntityRegistrar],
+            entity_column: str,
+            owner: Union[str, UserRegistrar] = "",
+            inference_store: Union[str, OnlineProvider] = "",
+            features: List[ColumnMapping] = None,
+            labels: List[ColumnMapping] = None,
+            timestamp_column: str = "",
+            description: str = "",
+    ):
+        return self.registrar[0].register_column_resources(
+            source=(self.name, self.variant),
+            entity=entity,
+            entity_column=entity_column,
+            owner=owner,
+            inference_store=inference_store,
+            features=features,
+            labels=labels,
+            timestamp_column=timestamp_column,
+            description=description,
         )
 
 
@@ -370,6 +538,16 @@ class Registrar:
         self.__resources.append(provider)
         return OfflineSQLProvider(self, provider)
 
+    def register_local(self):
+        config = LocalConfig()
+        provider = Provider(name="local mode",
+                            function="ONLINE",
+                            description="This is local mode",
+                            team="team",
+                            config=config)
+        self.__resources.append(provider)
+        return LocalProvider(self, provider)
+
     def register_primary_data(self,
                               name: str,
                               variant: str,
@@ -443,9 +621,34 @@ class Registrar:
         self.__resources.append(decorator)
         return decorator
 
+    def df_transformation(self,
+                          variant: str,
+                          provider: Union[str, OfflineProvider],
+                          name: str = "",
+                          owner: Union[str, UserRegistrar] = "",
+                          description: str = "",
+                          inputs: list = []):
+        if not isinstance(owner, str):
+            owner = owner.name()
+        if owner == "":
+            owner = self.must_get_default_owner()
+        if not isinstance(provider, str):
+            provider = provider.name()
+        decorator = DFTransformationDecorator(
+            registrar=self,
+            name=name,
+            variant=variant,
+            provider=provider,
+            owner=owner,
+            description=description,
+            inputs=inputs,
+        )
+        self.__resources.append(decorator)
+        return decorator
+
     def state(self):
         for resource in self.__resources:
-            if isinstance(resource, SQLTransformationDecorator):
+            if isinstance(resource, SQLTransformationDecorator) or isinstance(resource, DFTransformationDecorator):
                 resource = resource.to_source()
             self.__state.add(resource)
         self.__resources = []
@@ -518,6 +721,7 @@ class Registrar:
                 value_type=label["type"],
                 entity=entity,
                 owner=owner,
+                provider=inference_store,
                 description=description,
                 location=ResourceColumnMapping(
                     entity=entity_column,
@@ -581,6 +785,7 @@ register_redis = global_registrar.register_redis
 register_snowflake = global_registrar.register_snowflake
 register_postgres = global_registrar.register_postgres
 register_redshift = global_registrar.register_redshift
+register_local = global_registrar.register_local
 register_entity = global_registrar.register_entity
 register_column_resources = global_registrar.register_column_resources
 register_training_set = global_registrar.register_training_set

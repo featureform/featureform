@@ -13,6 +13,8 @@ terrafo
 rm.**
 **/*pb*
 *.pb.go
-venv/**
+**pb**
+venv/
 terraform.tfstate
 .venv
+

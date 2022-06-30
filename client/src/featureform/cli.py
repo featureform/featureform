@@ -5,7 +5,7 @@
 import click
 import featureform.register as register
 import grpc
-# from .proto import metadata_pb2_grpc as ff_grpc
+from .proto import metadata_pb2_grpc as ff_grpc
 import os
 
 resource_types = [
@@ -83,30 +83,31 @@ def apply(host, cert, insecure, local, files):
     if local:
         if host != None:
             raise ValueError("Cannot be local and have a host")
-    
+
     elif host == None:
         host = os.getenv('FEATUREFORM_HOST')
         if host == None:
             raise ValueError(
                 "Host value must be set in env or with --host flag")
 
-    # channel = TlsChecker(host, cert, insecure)
+    channel = tls_check(host, cert, insecure)
 
     for file in files:
         with open(file, "r") as py:
             exec(py.read())
-    
+
     if local:
         register.state().create_all_local()
-    # else:
-    #     stub = ff_grpc.ApiStub(channel)
-    #     register.state().create_all(stub)
+    else:
+        stub = ff_grpc.ApiStub(channel)
+        register.state().create_all(stub)
 
-def TlsChecker(host, cert, insecure):
+
+def tls_check(host, cert, insecure):
     if insecure:
         channel = grpc.insecure_channel(
             host, options=(('grpc.enable_http_proxy', 0),))
-    elif cert != None or os.getenv('FEATUREFORM_HOST') != None:
+    elif cert != None or os.getenv('FEATUREFORM_CERT') != None:
         if os.getenv('FEATUREFORM_CERT') != None and cert == None:
             cert = os.getenv('FEATUREFORM_CERT')
         with open(cert, 'rb') as f:

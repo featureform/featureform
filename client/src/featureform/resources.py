@@ -15,6 +15,7 @@ from .sqlite_metadata import SQLiteMetadata
 
 NameVariant = Tuple[str, str]
 
+
 @typechecked
 def valid_name_variant(nvar: NameVariant) -> bool:
     return nvar[0] != "" and nvar[1] != ""
@@ -55,6 +56,7 @@ class RedisConfig:
             "DB": self.db,
         }
         return bytes(json.dumps(config), "utf-8")
+
 
 # RIDDHI
 @typechecked
@@ -182,17 +184,17 @@ class Provider:
         stub.CreateProvider(serialized)
 
     def _create_local(self, db) -> None:
-        db.insert("providers", 
-            self.name, 
-            "Provider",
-            self.description, 
-            self.config.type(), 
-            self.config.software(),
-            self.team,
-            "sources",
-            "ready",
-            str(self.config.serialize(), 'utf-8')
-            )
+        db.insert("providers",
+                  self.name,
+                  "Provider",
+                  self.description,
+                  self.config.type(),
+                  self.config.software(),
+                  self.team,
+                  "sources",
+                  "ready",
+                  str(self.config.serialize(), 'utf-8')
+                  )
 
 
 @typechecked
@@ -208,11 +210,11 @@ class User:
         stub.CreateUser(serialized)
 
     def _create_local(self, db) -> None:
-        db.insert("users", 
-            self.name, 
-            "User",
-            "ready"
-            )
+        db.insert("users",
+                  self.name,
+                  "User",
+                  "ready"
+                  )
 
 
 @typechecked
@@ -233,7 +235,7 @@ class PrimaryData:
         return {
             "primaryData":
                 pb.PrimaryData(table=pb.PrimarySQLTable(
-                    name=self.location.name,),),
+                    name=self.location.name, ), ),
         }
 
 
@@ -253,7 +255,24 @@ class SQLTransformation(Transformation):
         return {
             "transformation":
                 pb.Transformation(SQLTransformation=pb.SQLTransformation(
-                    query=self.query,),),
+                    query=self.query, ), ),
+        }
+
+
+class DFTransformation(Transformation):
+    def __init__(self, query: str, inputs: list):
+        print("DF TRANSFORMATION QUERY")
+        print(query)
+        self.query = query
+        self.inputs = inputs
+
+    def type(self):
+        "DF"
+
+    def kwargs(self):
+        return {
+            "transformation": True,
+            "inputs": self.inputs
         }
 
 
@@ -294,17 +313,30 @@ class Source:
         stub.CreateSourceVariant(serialized)
 
     def _create_local(self, db) -> None:
-        db.insert("source_variant",  
-            str(time.time()),
-            self.description,
-            self.name,
-            "Source",
-            self.owner,
-            self.provider,
-            self.variant,
-            "ready",
-            self.definition
-            )
+        is_transformation = False
+        inputs = []
+        if type(self.definition) == DFTransformation:
+            print(dir(self.definition))
+            print("Is transformation")
+            is_transformation = True
+            inputs = self.definition.inputs
+            self.definition = self.definition.query
+            print("DEFINTION QUERY")
+            print(self.definition)
+
+        db.insert_source("source_variant",
+                         str(time.time()),
+                         self.description,
+                         self.name,
+                         "Source",
+                         self.owner,
+                         self.provider,
+                         self.variant,
+                         "ready",
+                         is_transformation,
+                         json.dumps(inputs),
+                         self.definition
+                         )
         self._create_source_resource(db)
 
     def _create_source_resource(self, db) -> None:
@@ -314,6 +346,7 @@ class Source:
             self.variant,
             self.name
         )
+
 
 @typechecked
 @dataclass
@@ -334,11 +367,12 @@ class Entity:
 
     def _create_local(self, db) -> None:
         db.insert("entities",
-        self.name,  
-        "Entity",
-        self.description,
-        "ready"
-        )
+                  self.name,
+                  "Entity",
+                  self.description,
+                  "ready"
+                  )
+
 
 @typechecked
 @dataclass
@@ -401,21 +435,21 @@ class Feature:
 
     def _create_local(self, db) -> None:
         db.insert("feature_variant",
-        str(time.time()),
-        self.description,
-        self.entity,
-        self.name, 
-        self.owner,
-        self.provider,
-        self.value_type,
-        self.variant,
-        "ready",
-        self.location.entity,
-        self.location.timestamp,
-        self.location.value,
-        self.source[0],
-        self.source[1]
-        )
+                  str(time.time()),
+                  self.description,
+                  self.entity,
+                  self.name,
+                  self.owner,
+                  self.provider,
+                  self.value_type,
+                  self.variant,
+                  "ready",
+                  self.location.entity,
+                  self.location.timestamp,
+                  self.location.value,
+                  self.source[0],
+                  self.source[1]
+                  )
         self._create_feature_resource(db)
 
     def _create_feature_resource(self, db) -> None:
@@ -462,21 +496,21 @@ class Label:
 
     def _create_local(self, db) -> None:
         db.insert("labels_variant",
-        str(time.time()),
-        self.description,
-        self.entity,
-        self.name, 
-        self.owner,
-        self.provider,
-        self.value_type,
-        self.variant,
-        self.location.entity,
-        self.location.timestamp,
-        self.location.value,
-         "ready",
-        self.source[0],
-        self.source[1]
-        )
+                  str(time.time()),
+                  self.description,
+                  self.entity,
+                  self.name,
+                  self.owner,
+                  self.provider,
+                  self.value_type,
+                  self.variant,
+                  self.location.entity,
+                  self.location.timestamp,
+                  self.location.value,
+                  "ready",
+                  self.source[0],
+                  self.source[1]
+                  )
         self._create_label_resource(db)
 
     def _create_label_resource(self, db) -> None:
@@ -536,17 +570,17 @@ class TrainingSet:
         print(self.label[0])
         print(self.label[1])
         db.insert("training_set_variant",
-        str(time.time()),
-        self.description,
-        self.name, 
-        self.owner,
-        # "Provider",
-        self.variant,
-        self.label[0],
-        self.label[1],
-         "ready",
-        str(self.features)
-        )
+                  str(time.time()),
+                  self.description,
+                  self.name,
+                  self.owner,
+                  # "Provider",
+                  self.variant,
+                  self.label[0],
+                  self.label[1],
+                  "ready",
+                  str(self.features)
+                  )
         self._create_training_set_resource(db)
         self._insert_training_set_features(db)
 
@@ -557,16 +591,17 @@ class TrainingSet:
             self.variant,
             self.name
         )
-    
+
     def _insert_training_set_features(self, db) -> None:
         for feature in self.features:
+            print("INSERTING TSET FEATURE", feature)
             db.insert(
-            "training_set_features",
-            self.name,
-            self.variant,
-            feature[0], #feature name
-            feature[1] #feature variant
-        )
+                "training_set_features",
+                self.name,
+                self.variant,
+                feature[0],  # feature name
+                feature[1]  # feature variant
+            )
 
 
 Resource = Union[PrimaryData, Provider, Entity, User, Feature, Label,
@@ -593,7 +628,10 @@ class ResourceState:
 
     @typechecked
     def add(self, resource: Resource) -> None:
-        key = (resource.type(), resource.name)
+        if hasattr(resource, 'variant'):
+            key = (resource.type(), resource.name, resource.variant)
+        else:
+            key = (resource.type(), resource.name)
         if key in self.__state:
             raise ResourceRedefinedError(resource)
         self.__state[key] = resource
@@ -626,7 +664,8 @@ class ResourceState:
     def create_all_local(self) -> None:
         db = SQLiteMetadata()
         for resource in self.__create_list:
-            resource._create_local(db) 
+            print("Creating", resource.name)
+            resource._create_local(db)
         return
 
     def create_all(self, stub) -> None:
@@ -640,5 +679,3 @@ class ResourceState:
                     continue
 
                 raise
-
-

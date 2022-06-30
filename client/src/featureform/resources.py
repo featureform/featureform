@@ -16,6 +16,20 @@ NameVariant = Tuple[str, str]
 def valid_name_variant(nvar: NameVariant) -> bool:
     return nvar[0] != "" and nvar[1] != ""
 
+@typechecked
+@dataclass
+class Schedule:
+    name: str
+    variant: str
+    resource_type: int
+    schedule_string: str
+
+    def type(self) -> str:
+        return "schedule"
+
+    def _create(self, stub) -> None:
+        serialized = pb.SetScheduleChangeRequest(resource=pb.ResourceId(pb.NameVariant(name=self.name, variant=self.variant), resource_type=self.resource_type), schedule=self.schedule_string)
+        stub.RequestScheduleChange(serialized)
 
 @typechecked
 @dataclass
@@ -121,7 +135,6 @@ class RedshiftConfig:
 
 Config = Union[RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig]
 
-
 @typechecked
 @dataclass
 class Provider:
@@ -217,6 +230,12 @@ class Source:
     owner: str
     provider: str
     description: str
+    schedule: str = ""
+    schedule_obj: Schedule = None
+
+    def update_schedule(self, schedule) -> None:
+        self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=7, schedule_string=schedule)
+        self.schedule = schedule
 
     @staticmethod
     def type() -> str:
@@ -229,6 +248,7 @@ class Source:
             variant=self.variant,
             owner=self.owner,
             description=self.description,
+            schedule=self.schedule,
             provider=self.provider,
             **defArgs,
         )
@@ -283,6 +303,12 @@ class Feature:
     provider: str
     description: str
     location: ResourceLocation
+    schedule: str = ""
+    schedule_obj: Schedule = None
+    
+    def update_schedule(self, schedule) -> None:
+        self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=4, schedule_string=schedule)
+        self.schedule = schedule
 
     @staticmethod
     def type() -> str:
@@ -300,6 +326,7 @@ class Feature:
             entity=self.entity,
             owner=self.owner,
             description=self.description,
+            schedule=self.schedule,
             provider=self.provider,
             columns=self.location.proto(),
         )
@@ -348,6 +375,12 @@ class TrainingSet:
     label: NameVariant
     features: List[NameVariant]
     description: str
+    schedule: str = ""
+    schedule_obj: Schedule = None
+
+    def update_schedule(self, schedule) -> None:
+        self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=6, schedule_string=schedule)
+        self.schedule = schedule
 
     def __post_init__(self):
         if not valid_name_variant(self.label):
@@ -367,6 +400,7 @@ class TrainingSet:
             name=self.name,
             variant=self.variant,
             description=self.description,
+            schedule=self.schedule,
             owner=self.owner,
             features=[
                 pb.NameVariant(name=v[0], variant=v[1]) for v in self.features
@@ -377,7 +411,7 @@ class TrainingSet:
 
 
 Resource = Union[PrimaryData, Provider, Entity, User, Feature, Label,
-                 TrainingSet, Source]
+                 TrainingSet, Source, Schedule]
 
 
 class ResourceRedefinedError(Exception):
@@ -405,6 +439,11 @@ class ResourceState:
             raise ResourceRedefinedError(resource)
         self.__state[key] = resource
         self.__create_list.append(resource)
+        if hasattr(resource, 'schedule_obj') and resource.schedule_obj != None:
+            my_schedule = resource.schedule_obj
+            key = (my_schedule.type(),  my_schedule.name)
+            self.__state[key] =  my_schedule
+            self.__create_list.append(my_schedule)
 
     def sorted_list(self) -> List[Resource]:
         resource_order = {
@@ -415,6 +454,7 @@ class ResourceState:
             "feature": 4,
             "label": 5,
             "training-set": 6,
+            "schedule": 7,
         }
 
         def to_sort_key(res):
@@ -427,11 +467,10 @@ class ResourceState:
     def create_all(self, stub) -> None:
         for resource in self.__create_list:
             try:
-                print("Creating", resource.name)
+                print("Creating", resource.type(), resource.name)
                 resource._create(stub)
             except grpc.RpcError as e:
                 if e.code() == grpc.StatusCode.ALREADY_EXISTS:
                     print(resource.name, "already exists.")
                     continue
                 raise
-

@@ -70,10 +70,12 @@ class OfflineSQLProvider(OfflineProvider):
                            variant: str,
                            owner: Union[str, UserRegistrar] = "",
                            name: str = "",
+                           schedule: str = "",
                            description: str = ""):
         return self.__registrar.sql_transformation(name=name,
                                                    variant=variant,
                                                    owner=owner,
+                                                   schedule=schedule,
                                                    provider=self.name(),
                                                    description=description)
 
@@ -116,11 +118,13 @@ class SQLTransformationDecorator:
                  owner: str,
                  provider: str,
                  name: str = "",
+                 schedule: str = "",
                  description: str = ""):
         self.registrar = registrar,
         self.name = name
         self.variant = variant
         self.owner = owner
+        self.schedule = schedule
         self.provider = provider
         self.description = description
 
@@ -145,6 +149,7 @@ class SQLTransformationDecorator:
             variant=self.variant,
             definition=SQLTransformation(self.query),
             owner=self.owner,
+            schedule=self.schedule,
             provider=self.provider,
             description=self.description,
         )
@@ -159,6 +164,7 @@ class SQLTransformationDecorator:
             labels: List[ColumnMapping] = None,
             timestamp_column: str = "",
             description: str = "",
+            schedule: str = "",
     ):
         return self.registrar[0].register_column_resources(
             source=(self.name, self.variant),
@@ -170,6 +176,7 @@ class SQLTransformationDecorator:
             labels=labels,
             timestamp_column=timestamp_column,
             description=description,
+            schedule=schedule,
         )
 
 
@@ -185,6 +192,7 @@ class ColumnSourceRegistrar(SourceRegistrar):
             labels: List[ColumnMapping] = None,
             timestamp_column: str = "",
             description: str = "",
+            schedule: str = "",
     ):
         return self.registrar().register_column_resources(
             source=self,
@@ -196,6 +204,7 @@ class ColumnSourceRegistrar(SourceRegistrar):
             labels=labels,
             timestamp_column=timestamp_column,
             description=description,
+            schedule=schedule,
         )
 
 
@@ -210,6 +219,7 @@ class ResourceRegistrar():
                             name: str,
                             variant: str,
                             label: NameVariant = None,
+                            schedule: str = "",
                             features: List[NameVariant] = None,
                             owner: Union[str, UserRegistrar] = "",
                             description: str = ""):
@@ -243,6 +253,7 @@ class ResourceRegistrar():
             label=label,
             features=features,
             owner=owner,
+            schedule=schedule,
             description=description,
         )
 
@@ -387,7 +398,8 @@ class Registrar:
                                     query: str,
                                     provider: Union[str, OfflineProvider],
                                     owner: Union[str, UserRegistrar] = "",
-                                    description: str = ""):
+                                    description: str = "",
+                                    schedule: str = ""):
         if not isinstance(owner, str):
             owner = owner.name()
         if owner == "":
@@ -399,6 +411,7 @@ class Registrar:
             variant=variant,
             definition=SQLTransformation(query),
             owner=owner,
+            schedule=schedule,
             provider=provider,
             description=description,
         )
@@ -409,6 +422,7 @@ class Registrar:
                            variant: str,
                            provider: Union[str, OfflineProvider],
                            name: str = "",
+                           schedule: str = "",
                            owner: Union[str, UserRegistrar] = "",
                            description: str = ""):
         if not isinstance(owner, str):
@@ -422,6 +436,7 @@ class Registrar:
             name=name,
             variant=variant,
             provider=provider,
+            schedule=schedule,
             owner=owner,
             description=description,
         )
@@ -452,6 +467,7 @@ class Registrar:
             labels: List[ColumnMapping] = None,
             timestamp_column: str = "",
             description: str = "",
+            schedule: str = "",
     ):
         if features is None:
             features = []
@@ -484,6 +500,7 @@ class Registrar:
                 owner=owner,
                 provider=inference_store,
                 description=description,
+                schedule=schedule,
                 location=ResourceColumnMapping(
                     entity=entity_column,
                     value=feature["column"],
@@ -518,7 +535,8 @@ class Registrar:
                               label: NameVariant,
                               features: List[NameVariant],
                               owner: Union[str, UserRegistrar] = "",
-                              description: str = ""):
+                              description: str = "",
+                              schedule: str = ""):
         if not isinstance(owner, str):
             owner = owner.name()
         if owner == "":
@@ -528,6 +546,7 @@ class Registrar:
             variant=variant,
             description=description,
             owner=owner,
+            schedule=schedule,
             label=label,
             features=features,
         )

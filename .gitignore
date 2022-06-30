@@ -11,7 +11,8 @@ dist
 .terraform**
 terrafo
 rm.**
-**pb**
+**/*pb*
+*.pb.go
 venv/**
 terraform.tfstate
 .venv

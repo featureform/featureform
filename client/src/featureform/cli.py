@@ -2,10 +2,12 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+from curses import meta
 import click
 import featureform.register as register
 import grpc
 from .proto import metadata_pb2_grpc as ff_grpc
+from .get import *
 import os
 
 resource_types = [
@@ -37,22 +39,145 @@ def cli():
     pass
 
 
+
+@cli.command()
+@click.option("--host",
+              "host",
+              required=False,
+              help="The host address of the API server to connect to")
+@click.option("--cert",
+              "cert",
+              required=False,
+              help="Path to self-signed TLS certificate")
+@click.option("--insecure",
+              is_flag=True,
+              help="Disables TLS verification")
+@click.argument("resource_type", required=True)
+@click.argument("name", required=True)
+@click.argument("variant", required=False)
+def get(host, cert, insecure, resource_type, name, variant):
+    """list resources of a given type.
+    """
+    env_cert_path = os.getenv('FEATUREFORM_CERT')
+    if host is None:
+        env_host = os.getenv('FEATUREFORM_HOST')
+        if env_host is None:
+            raise ValueError(
+                "Host value must be set in env or with --host flag")
+        host = env_host
+    if insecure:
+        channel = grpc.insecure_channel(
+            host, options=(('grpc.enable_http_proxy', 0),))
+    elif cert is not None or env_cert_path is not None:
+        if env_cert_path is not None and cert is None:
+            cert = env_cert_path
+        with open(cert, 'rb') as f:
+            credentials = grpc.ssl_channel_credentials(f.read())
+        channel = grpc.secure_channel(host, credentials)
+    else:
+        credentials = grpc.ssl_channel_credentials()
+        channel = grpc.secure_channel(host, credentials)
+    stub = ff_grpc.ApiStub(channel)
+
+    if resource_type == "user":
+        GetUser(stub, name)
+    elif resource_type == "feature":
+        if not variant:
+            GetFeature(stub, name)
+        else:
+            GetFeatureVariant(stub, name, variant)
+    elif resource_type == "label":
+        if not variant:
+            GetLabel(stub, name)
+        else:
+            GetLabelVariant(stub, name, variant)
+    elif resource_type == "source":
+        if not variant:
+            GetSource(stub, name)
+        else:
+            GetSourceVariant(stub, name, variant)
+    elif resource_type == "training-set" or resource_type == "trainingset":
+        if not variant:
+            GetTrainingSet(stub, name)
+        else:
+            GetTrainingSetVariant(stub, name, variant)
+    elif resource_type == "provider":
+        if variant:
+            print("Variant not needed.")
+            return
+        else:
+            GetProvider(stub, name)
+    elif resource_type == "entity":
+        if variant:
+            print("Variant not needed.")
+            return
+        else:
+            GetEntity(stub, name)
+    elif resource_type == "model":
+        if variant:
+            print("Variant not needed.")
+            return
+        else:
+            GetModel(stub, name)
+    else:
+        print("Resource type not found.")
+
+
+
 # @cli.command()
-# @click.argument("resource_type")
-# def list(resource_type):
+# @click.option("--host",
+#               "host",
+#               required=False,
+#               help="The host address of the API server to connect to")
+# @click.option("--cert",
+#               "cert",
+#               required=False,
+#               help="Path to self-signed TLS certificate")
+# @click.option("--insecure",
+#               is_flag=True,
+#               help="Disables TLS verification")
+# @click.argument("resource_type", required=True)
+# def list(host, cert, insecure, resource_type):
 #     """list resources of a given type.
 #     """
-#     pass
-#
-#
-# @cli.command()
-# @click.argument("resource_type",
-#                 type=click.Choice(resource_types, case_sensitive=False))
-# @click.argument("resources", nargs=-1, required=True)
-# def get(resource_type, resoruces):
-#     """get resources of a given type.
-#     """
-#     pass
+#     env_cert_path = os.getenv('FEATUREFORM_CERT')
+#     if host is None:
+#         env_host = os.getenv('FEATUREFORM_HOST')
+#         if env_host is None:
+#             raise ValueError(
+#                 "Host value must be set in env or with --host flag")
+#         host = env_host
+#     if insecure:
+#         channel = grpc.insecure_channel(
+#             host, options=(('grpc.enable_http_proxy', 0),))
+#     elif cert is not None or env_cert_path is not None:
+#         if env_cert_path is not None and cert is None:
+#             cert = env_cert_path
+#         with open(cert, 'rb') as f:
+#             credentials = grpc.ssl_channel_credentials(f.read())
+#         channel = grpc.secure_channel(host, credentials)
+#     else:
+#         credentials = grpc.ssl_channel_credentials()
+#         channel = grpc.secure_channel(host, credentials)
+#     stub = ff_grpc.ApiStub(channel)
+
+#     match resource_type:
+#         case "users":
+#             pass
+#         case "features":
+#             pass
+#         case "labels":
+#             pass
+#         case "sources":
+#             pass
+#         case "training-sets":
+#             pass
+#         case "entities":
+#             pass
+#         case "providers":
+#             pass
+#         case "models":
+#             pass
 #
 #
 # @cli.command()

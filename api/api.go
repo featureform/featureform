@@ -397,8 +397,147 @@ func (serv *MetadataServer) GetModels(stream pb.Api_GetModelsServer) error {
 	}
 }
 
+func (serv *MetadataServer) ListUsers(in *pb.Empty, stream pb.Api_ListUsersServer) error {
+	proxyStream, err := serv.meta.ListUsers(stream.Context(), in)
+	if err != nil {
+		return err
+	}
+	for {
+		res, err := proxyStream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		sendErr := stream.Send(res)
+		if sendErr != nil {
+			return sendErr
+		}
+	}
+}
+
 func (serv *MetadataServer) ListFeatures(in *pb.Empty, stream pb.Api_ListFeaturesServer) error {
 	proxyStream, err := serv.meta.ListFeatures(stream.Context(), in)
+	if err != nil {
+		return err
+	}
+	for {
+		res, err := proxyStream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		sendErr := stream.Send(res)
+		if sendErr != nil {
+			return sendErr
+		}
+	}
+}
+
+func (serv *MetadataServer) ListLabels(in *pb.Empty, stream pb.Api_ListLabelsServer) error {
+	proxyStream, err := serv.meta.ListLabels(stream.Context(), in)
+	if err != nil {
+		return err
+	}
+	for {
+		res, err := proxyStream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		sendErr := stream.Send(res)
+		if sendErr != nil {
+			return sendErr
+		}
+	}
+}
+
+func (serv *MetadataServer) ListSources(in *pb.Empty, stream pb.Api_ListSourcesServer) error {
+	proxyStream, err := serv.meta.ListSources(stream.Context(), in)
+	if err != nil {
+		return err
+	}
+	for {
+		res, err := proxyStream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		sendErr := stream.Send(res)
+		if sendErr != nil {
+			return sendErr
+		}
+	}
+}
+
+func (serv *MetadataServer) ListTrainingSets(in *pb.Empty, stream pb.Api_ListTrainingSetsServer) error {
+	proxyStream, err := serv.meta.ListTrainingSets(stream.Context(), in)
+	if err != nil {
+		return err
+	}
+	for {
+		res, err := proxyStream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		sendErr := stream.Send(res)
+		if sendErr != nil {
+			return sendErr
+		}
+	}
+}
+
+func (serv *MetadataServer) ListModels(in *pb.Empty, stream pb.Api_ListModelsServer) error {
+	proxyStream, err := serv.meta.ListModels(stream.Context(), in)
+	if err != nil {
+		return err
+	}
+	for {
+		res, err := proxyStream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		sendErr := stream.Send(res)
+		if sendErr != nil {
+			return sendErr
+		}
+	}
+}
+
+func (serv *MetadataServer) ListEntities(in *pb.Empty, stream pb.Api_ListEntitiesServer) error {
+	proxyStream, err := serv.meta.ListEntities(stream.Context(), in)
+	if err != nil {
+		return err
+	}
+	for {
+		res, err := proxyStream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		sendErr := stream.Send(res)
+		if sendErr != nil {
+			return sendErr
+		}
+	}
+}
+func (serv *MetadataServer) ListProviders(in *pb.Empty, stream pb.Api_ListProvidersServer) error {
+	proxyStream, err := serv.meta.ListProviders(stream.Context(), in)
 	if err != nil {
 		return err
 	}

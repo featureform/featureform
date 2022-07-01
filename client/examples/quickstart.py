@@ -41,10 +41,7 @@ average_user_transaction_v2.register_resources(
     entity_column="user_id",
     inference_store=redis,
     features=[
-        {"name": "avg_transactions", "variant": "quickstart", "column": "avg_transaction_amt", "type": "float32"},
-        {"name": "avg_transactions", "variant": "prod", "column": "avg_transaction_amt", "type": "float32"},
-        {"name": "avg_transactions_v2", "variant": "quickstart", "column": "avg_transaction_amt", "type": "float32"},
-        {"name": "avg_transactions_v2", "variant": "va", "column": "avg_transaction_amt", "type": "float32"},
+        {"name": "avg_transactions", "variant": "quickstart", "column": "avg_transaction_amt", "type": "float32"}
     ]
 )
 
@@ -53,8 +50,7 @@ transactions.register_resources(
     entity=user,
     entity_column="customerid",
     labels=[
-        {"name": "fraudulent", "variant": "quickstart", "column": "isfraud", "type": "bool"},
-        {"name": "fraudulent", "variant": "v1", "column": "isfraud", "type": "bool"},
+        {"name": "fraudulent", "variant": "quickstart", "column": "isfraud", "type": "bool"}
     ],
 )
 

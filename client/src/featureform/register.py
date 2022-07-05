@@ -295,9 +295,9 @@ class Registrar:
                        team: str = "",
                        collection: str = "",
                        project_id: str = "",
-                       credentials: str = ""
+                       credentials_path: str = ""
                        ):
-        config = FirestoreConfig(collection=collection, project_id=project_id, credentials=credentials)
+        config = FirestoreConfig(collection=collection, project_id=project_id, credentials_path=credentials_path)
         provider = Provider(name=name,
                             function="ONLINE",
                             description=description,

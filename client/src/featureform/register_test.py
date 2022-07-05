@@ -96,7 +96,7 @@ def test_register_user(registrar, args, expected):
         "team": "featureform",
         "collection": "abc",
         "project_id": "abc",
-        "credentials": "abc"
+        "credentials_path": "abc"
     },
 ])
 def test_register_firestore(registrar, args):
@@ -107,7 +107,7 @@ minimal_user_args = {
     "name": "user",
     "collection": "abc",
     "project_id": "abc",
-    "credentials": "abc"
+    "credentials_path": "abc"
 }
 
 

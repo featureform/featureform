@@ -55,7 +55,7 @@ def firesstore_config():
     return FirestoreConfig(
         collection="abc",
         project_id="abc",
-        credentials="abc",
+        credentials_path="abc",
     )
 
 @pytest.fixture

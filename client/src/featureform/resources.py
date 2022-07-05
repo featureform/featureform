@@ -44,7 +44,7 @@ class RedisConfig:
 class FirestoreConfig:
     collection: str
     project_id: str
-    credentials: str
+    credentials_path: str
 
     def software(self) -> str:
         return "firestore"
@@ -56,7 +56,7 @@ class FirestoreConfig:
         config = {
             "Collection": self.collection,
             "ProjectID": self.project_id,
-            "Credentials": json.load(open(self.credentials)),
+            "Credentials": json.load(open(self.credentials_path)),
         }
         return bytes(json.dumps(config), "utf-8")
 

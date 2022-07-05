@@ -55,7 +55,7 @@ func (r *RedisConfig) Deserialize(config SerializedConfig) error {
 }
 
 type CassandraConfig struct {
-	keyspace    string
+	Keyspace    string
 	Addr        string
 	Username    string
 	Password    string

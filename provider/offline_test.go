@@ -36,6 +36,7 @@ func TestOfflineStores(t *testing.T) {
 	serialPGConfig := postgresConfig.Serialize()
 	os.Setenv("TZ", "UTC")
 	snowFlakeDatabase := strings.ToUpper(uuid.NewString())
+	redshiftDatabase := fmt.Sprintf("ff%s", strings.ToLower(uuid.NewString()))
 	t.Log("Snowflake Database: ", snowFlakeDatabase)
 	var snowflakeConfig = SnowflakeConfig{
 		Username:     os.Getenv("SNOWFLAKE_USERNAME"),
@@ -48,16 +49,32 @@ func TestOfflineStores(t *testing.T) {
 	if err := createSnowflakeDatabase(snowflakeConfig); err != nil {
 		t.Fatalf("%v", err)
 	}
-	defer destroySnowflakeDatabase(snowflakeConfig)
+	defer func(c SnowflakeConfig) {
+		err := destroySnowflakeDatabase(c)
+		if err != nil {
+			t.Fatalf("%v", err)
+		}
+	}(snowflakeConfig)
 
 	var redshiftConfig = RedshiftConfig{
 		Endpoint: os.Getenv("REDSHIFT_ENDPOINT"),
 		Port:     os.Getenv("REDSHIFT_PORT"),
-		Database: os.Getenv("REDSHIFT_DATABASE"),
+		Database: redshiftDatabase,
 		Username: os.Getenv("REDSHIFT_USERNAME"),
 		Password: os.Getenv("REDSHIFT_PASSWORD"),
 	}
 	serialRSConfig := redshiftConfig.Serialize()
+
+	if err := createRedshiftDatabase(redshiftConfig); err != nil {
+		t.Fatalf("%v", err)
+	}
+
+	defer func(c RedshiftConfig) {
+		err := destroyRedshiftDatabase(c)
+		if err != nil {
+			t.Fatalf("%v", err)
+		}
+	}(redshiftConfig)
 
 	testFns := map[string]func(*testing.T, OfflineStore){
 		"CreateGetTable":          testCreateGetOfflineTable,
@@ -137,6 +154,33 @@ func TestOfflineStores(t *testing.T) {
 	}
 }
 
+func createRedshiftDatabase(c RedshiftConfig) error {
+	url := fmt.Sprintf("sslmode=require user=%v password=%s host=%v port=%v dbname=%v", c.Username, c.Password, c.Endpoint, c.Port, "dev")
+	db, err := sql.Open("postgres", url)
+	if err != nil {
+		return err
+	}
+	databaseQuery := fmt.Sprintf("CREATE DATABASE %s", sanitize(c.Database))
+	if _, err := db.Exec(databaseQuery); err != nil {
+		return err
+	}
+	fmt.Printf("Created Redshift Database %s\n", c.Database)
+	return nil
+}
+
+func destroyRedshiftDatabase(c RedshiftConfig) error {
+	url := fmt.Sprintf("sslmode=require user=%v password=%s host=%v port=%v dbname=%v", c.Username, c.Password, c.Endpoint, c.Port, "dev")
+	db, err := sql.Open("postgres", url)
+	if err != nil {
+		return err
+	}
+	databaseQuery := fmt.Sprintf("DROP DATABASE %s", sanitize(c.Database))
+	if _, err := db.Exec(databaseQuery); err != nil {
+		return err
+	}
+	return nil
+}
+
 func createSnowflakeDatabase(c SnowflakeConfig) error {
 	url := fmt.Sprintf("%s:%s@%s-%s", c.Username, c.Password, c.Organization, c.Account)
 	db, err := sql.Open("snowflake", url)
@@ -154,6 +198,10 @@ func destroySnowflakeDatabase(c SnowflakeConfig) error {
 	url := fmt.Sprintf("%s:%s@%s-%s", c.Username, c.Password, c.Organization, c.Account)
 	db, err := sql.Open("snowflake", url)
 	if err != nil {
+		return err
+	}
+	disconnectQuery := fmt.Sprintf("SELECT pid, pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid();")
+	if _, err := db.Exec(disconnectQuery); err != nil {
 		return err
 	}
 	databaseQuery := fmt.Sprintf("DROP DATABASE IF EXISTS %s", sanitize(c.Database))

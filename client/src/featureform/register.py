@@ -12,6 +12,7 @@ from typing import Tuple, Callable, TypedDict, List, Union
 from typeguard import typechecked, check_type
 import grpc
 import os
+from .proto import metadata_pb2
 from .proto import metadata_pb2_grpc as ff_grpc
 from .sqlite_metadata import SQLiteMetadata
 import time
@@ -59,6 +60,12 @@ class OfflineSQLProvider(OfflineProvider):
         super().__init__(registrar, provider)
         self.__registrar = registrar
         self.__provider = provider
+
+    def registrar(self):
+        return self.__registrar
+    
+    def provider(self):
+        return self.__provider
 
     def register_table(self,
                        name: str,
@@ -493,7 +500,7 @@ class Registrar:
                             config=config)
         self.__resources.append(provider)
         return OfflineSQLProvider(self, provider)
-
+    
     def register_postgres(self,
                           name: str,
                           description: str = "",
@@ -758,7 +765,7 @@ class Registrar:
 
 
 class Client(Registrar):
-    def __init__(self, host, tls_verify=True, cert_path=None):
+    def __init__(self, host, tls_verify=False, cert_path=None):
         super().__init__()
         env_cert_path = os.getenv('FEATUREFORM_CERT')
         if tls_verify:
@@ -776,6 +783,24 @@ class Client(Registrar):
 
     def apply(self):
         self.state().create_all(self._stub)
+
+    def get_redis(self, name):
+        searchName = metadata_pb2.Name(name=name)
+        try:
+            for provider in self._stub.GetProviders(iter([searchName])):
+                return OnlineProvider(global_registrar, provider)
+        except grpc._channel._MultiThreadedRendezvous:
+            raise ValueError("Provider not found.")
+    
+    def get_postgres(self, name):
+        searchName = metadata_pb2.Name(name=name)
+        try:
+            for provider in self._stub.GetProviders(iter([searchName])):
+                return OfflineSQLProvider(global_registrar, provider)
+        except grpc._channel._MultiThreadedRendezvous:
+            raise ValueError("Provider not found.")
+
+
 
 
 global_registrar = Registrar()

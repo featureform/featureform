@@ -70,7 +70,7 @@ func NewCassandraOnlineStore(options *CassandraConfig) (*cassandraOnlineStore, e
 		return nil, err
 	}
 
-	query = fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (tableName text PRIMARY KEY, tableType text)", fmt.Sprintf("%s.tableMetadata", options.Keyspace))
+	query = fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (tableName text PRIMARY KEY, tableType text)", fmt.Sprintf("%s.featureform__metadata", options.Keyspace))
 	err = newSession.Query(query).WithContext(ctx).Exec()
 	if err != nil {
 		return nil, err
@@ -87,8 +87,8 @@ func (store *cassandraOnlineStore) AsOnlineStore() (OnlineStore, error) {
 	return store, nil
 }
 
-func GetTableName(store *cassandraOnlineStore, feature, variant string) string {
-	tableName := fmt.Sprintf("%s.featureform__%s__%s", store.keyspace, sn.Custom(feature, "[^a-zA-Z0-9_]"), sn.Custom(variant, "[^a-zA-Z0-9_]"))
+func GetTableName(keyspace, feature, variant string) string {
+	tableName := fmt.Sprintf("%s.featureform__%s__%s", sn.Custom(keyspace, "[^a-zA-Z0-9_]"), sn.Custom(feature, "[^a-zA-Z0-9_]"), sn.Custom(variant, "[^a-zA-Z0-9_]"))
 	return tableName
 }
 
@@ -98,7 +98,7 @@ func GetMetadataTableName(store *cassandraOnlineStore) string {
 }
 
 func (store *cassandraOnlineStore) CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error) {
-	tableName := GetTableName(store, feature, variant)
+	tableName := GetTableName(store.keyspace, feature, variant)
 	vType := cassandraTypeMap[string(valueType)]
 	key := cassandraTableKey{store.keyspace, feature, variant}
 	getTable, _ := store.GetTable(feature, variant)
@@ -130,7 +130,7 @@ func (store *cassandraOnlineStore) CreateTable(feature, variant string, valueTyp
 }
 
 func (store *cassandraOnlineStore) GetTable(feature, variant string) (OnlineStoreTable, error) {
-	tableName := GetTableName(store, feature, variant)
+	tableName := GetTableName(store.keyspace, feature, variant)
 	key := cassandraTableKey{store.keyspace, feature, variant}
 
 	var vType string
@@ -154,7 +154,7 @@ func (store *cassandraOnlineStore) GetTable(feature, variant string) (OnlineStor
 }
 
 func (store *cassandraOnlineStore) DeleteTable(feature, variant string) error {
-	tableName := GetTableName(store, feature, variant)
+	tableName := GetTableName(store.keyspace, feature, variant)
 	metadataTableName := GetMetadataTableName(store)
 	query := fmt.Sprintf("DELETE FROM %s WHERE tableName = '%s' IF EXISTS", metadataTableName, tableName)
 	err := store.session.Query(query).WithContext(ctx).Exec()
@@ -172,7 +172,7 @@ func (store *cassandraOnlineStore) DeleteTable(feature, variant string) error {
 
 func (table cassandraOnlineTable) Set(entity string, value interface{}) error {
 	key := table.key
-	tableName := fmt.Sprintf("%s.table%sv%s", key.Keyspace, sn.Custom(key.Feature, "[^a-zA-Z0-9_]"), sn.Custom(key.Variant, "[^a-zA-Z0-9_]"))
+	tableName := GetTableName(key.Keyspace, key.Feature, key.Variant)
 
 	query := fmt.Sprintf("INSERT INTO %s (entity, value) VALUES (?, ?)", tableName)
 	err := table.session.Query(query, entity, value).WithContext(ctx).Exec()
@@ -186,7 +186,7 @@ func (table cassandraOnlineTable) Set(entity string, value interface{}) error {
 func (table cassandraOnlineTable) Get(entity string) (interface{}, error) {
 
 	key := table.key
-	tableName := fmt.Sprintf("%s.table%sv%s", key.Keyspace, sn.Custom(key.Feature, "[^a-zA-Z0-9_]"), sn.Custom(key.Variant, "[^a-zA-Z0-9_]"))
+	tableName := GetTableName(key.Keyspace, key.Feature, key.Variant)
 
 	var ptr interface{}
 	switch table.valueType {

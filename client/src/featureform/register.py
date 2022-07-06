@@ -6,8 +6,10 @@ from distutils.command.config import config
 from typing_extensions import Self
 
 from numpy import byte
-from .resources import ResourceState, Provider, RedisConfig, DynamodbConfig, PostgresConfig, SnowflakeConfig, LocalConfig, User, Location, Source, \
-    PrimaryData, SQLTable, SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet
+from .resources import ResourceState, Provider, RedisConfig, DynamodbConfig, PostgresConfig, SnowflakeConfig, \
+    LocalConfig, User, Location, Source, \
+    PrimaryData, SQLTable, SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, \
+    TrainingSet
 from typing import Tuple, Callable, TypedDict, List, Union
 from typeguard import typechecked, check_type
 import grpc
@@ -138,7 +140,7 @@ class LocalProvider:
                           owner: Union[str, UserRegistrar] = "",
                           name: str = "",
                           description: str = "",
-                          inputs: list=[]):
+                          inputs: list = []):
         return self.__registrar.df_transformation(name=name,
                                                   variant=variant,
                                                   owner=owner,
@@ -469,14 +471,15 @@ class Registrar:
         return OnlineProvider(self, provider)
 
     def register_dynamodb(self,
-                    name: str,
-                    description: str = "",
-                    team: str = "",
-                    host: str = "0.0.0.0",
-                    port: int = 8000,
-                    access_key: str = "",
-                    secret_key: str = ""):
-        config = DynamodbConfig(host=host, port=port, access_key=access_key, secret_key=secret_key)
+                          name: str,
+                          description: str = "",
+                          team: str = "",
+                          access_key: str = "",
+                          secret_key: str = "",
+                          region: str = "",
+                          host: str = "0.0.0.0",
+                          port: int = 8000):
+        config = DynamodbConfig(host=host, port=port, access_key=access_key, secret_key=secret_key, region=region)
         provider = Provider(name=name,
                             function="ONLINE",
                             description=description,

@@ -41,8 +41,8 @@ func cassandraOnlineStoreFactory(serialized SerializedConfig) (Provider, error) 
 	if err := cassandraConfig.Deserialize(serialized); err != nil {
 		return nil, err
 	}
-	if cassandraConfig.keyspace == "" {
-		cassandraConfig.keyspace = "Featureform_table__"
+	if cassandraConfig.Keyspace == "" {
+		cassandraConfig.Keyspace = "Featureform_table__"
 	}
 
 	return NewCassandraOnlineStore(cassandraConfig)
@@ -63,20 +63,20 @@ func NewCassandraOnlineStore(options *CassandraConfig) (*cassandraOnlineStore, e
 		return nil, err
 	}
 
-	query := fmt.Sprintf("CREATE KEYSPACE IF NOT EXISTS %s WITH replication = {'class' : 'SimpleStrategy','replication_factor' : %d }", options.keyspace, options.Replication)
+	query := fmt.Sprintf("CREATE KEYSPACE IF NOT EXISTS %s WITH replication = {'class' : 'SimpleStrategy','replication_factor' : %d }", options.Keyspace, options.Replication)
 	err = newSession.Query(query).WithContext(ctx).Exec()
-	cassandraCluster.Keyspace = options.keyspace
+	cassandraCluster.Keyspace = options.Keyspace
 	if err != nil {
 		return nil, err
 	}
 
-	query = fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (tableName text PRIMARY KEY, tableType text)", fmt.Sprintf("%s.tableMetadata", options.keyspace))
+	query = fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (tableName text PRIMARY KEY, tableType text)", fmt.Sprintf("%s.tableMetadata", options.Keyspace))
 	err = newSession.Query(query).WithContext(ctx).Exec()
 	if err != nil {
 		return nil, err
 	}
 
-	return &cassandraOnlineStore{newSession, options.keyspace, BaseProvider{
+	return &cassandraOnlineStore{newSession, options.Keyspace, BaseProvider{
 		ProviderType:   CassandraOnline,
 		ProviderConfig: options.Serialized(),
 	},
@@ -106,7 +106,7 @@ func (store *cassandraOnlineStore) CreateTable(feature, variant string, valueTyp
 		return nil, &TableAlreadyExists{feature, variant}
 	}
 
-	metadataTableName := 
+	metadataTableName := GetMetadataTableName(store)
 	query := fmt.Sprintf("INSERT INTO %s (tableName, tableType) VALUES (?, ?)", metadataTableName)
 	err := store.session.Query(query, tableName, string(valueType)).WithContext(ctx).Exec()
 	if err != nil {
@@ -134,7 +134,7 @@ func (store *cassandraOnlineStore) GetTable(feature, variant string) (OnlineStor
 	key := cassandraTableKey{store.keyspace, feature, variant}
 
 	var vType string
-	metadataTableName := GetMetadataTable(store)
+	metadataTableName := GetMetadataTableName(store)
 	query := fmt.Sprintf("SELECT tableType FROM %s WHERE tableName = '%s'", metadataTableName, tableName)
 	err := store.session.Query(query).WithContext(ctx).Scan(&vType)
 	if err == gocql.ErrNotFound {
@@ -155,7 +155,7 @@ func (store *cassandraOnlineStore) GetTable(feature, variant string) (OnlineStor
 
 func (store *cassandraOnlineStore) DeleteTable(feature, variant string) error {
 	tableName := GetTableName(store, feature, variant)
-	metadataTableName := GetMetadataTable(store)
+	metadataTableName := GetMetadataTableName(store)
 	query := fmt.Sprintf("DELETE FROM %s WHERE tableName = '%s' IF EXISTS", metadataTableName, tableName)
 	err := store.session.Query(query).WithContext(ctx).Exec()
 	if err != nil {

@@ -157,9 +157,14 @@ func (store *dynamodbOnlineStore) GetFromMetadataTable(tablename string) (ValueT
 	return ValueType(metadata_item.Valuetype), err
 }
 
+func GetTablename(prefix, feature, variant string) string {
+	tablename := fmt.Sprintf("%s__%s__%s", sn.Custom(prefix, "[^a-zA-Z0-9_]"), sn.Custom(feature, "[^a-zA-Z0-9_]"), sn.Custom(variant, "[^a-zA-Z0-9_]"))
+	return sn.Custom(tablename, "[^a-zA-Z0-9_.\\-]")
+}
+
 func (store *dynamodbOnlineStore) GetTable(feature, variant string) (OnlineStoreTable, error) {
 	key := dynamodbTableKey{store.prefix, feature, variant}
-	typeOfValue, err := store.GetFromMetadataTable(sn.Custom(key.String(), "[^a-zA-Z0-9_.\\-]"))
+	typeOfValue, err := store.GetFromMetadataTable(GetTablename(store.prefix, feature, variant))
 	if err != nil {
 		return nil, &TableNotFound{feature, variant}
 	}
@@ -169,12 +174,12 @@ func (store *dynamodbOnlineStore) GetTable(feature, variant string) (OnlineStore
 
 func (store *dynamodbOnlineStore) CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error) {
 	key := dynamodbTableKey{store.prefix, feature, variant}
-	_, err := store.GetFromMetadataTable(sn.Custom(key.String(), "[^a-zA-Z0-9_.\\-]"))
+	_, err := store.GetFromMetadataTable(GetTablename(store.prefix, feature, variant))
 	if err == nil {
 		return nil, &TableAlreadyExists{feature, variant}
 	}
 	params := &dynamodb.CreateTableInput{
-		TableName: aws.String(sn.Custom(key.String(), "[^a-zA-Z0-9_.\\-]")),
+		TableName: aws.String(GetTablename(store.prefix, feature, variant)),
 		AttributeDefinitions: []*dynamodb.AttributeDefinition{
 			{
 				AttributeName: aws.String(feature),
@@ -192,7 +197,7 @@ func (store *dynamodbOnlineStore) CreateTable(feature, variant string, valueType
 			WriteCapacityUnits: aws.Int64(5),
 		},
 	}
-	err = store.UpdateMetadataTable(sn.Custom(key.String(), "[^a-zA-Z0-9_.\\-]"), valueType)
+	err = store.UpdateMetadataTable(GetTablename(store.prefix, feature, variant), valueType)
 	if err != nil {
 		return nil, err
 	}
@@ -200,7 +205,7 @@ func (store *dynamodbOnlineStore) CreateTable(feature, variant string, valueType
 	if err != nil {
 		return nil, err
 	}
-	describeTableParams := &dynamodb.DescribeTableInput{TableName: aws.String(sn.Custom(key.String(), "[^a-zA-Z0-9_.\\-]"))}
+	describeTableParams := &dynamodb.DescribeTableInput{TableName: aws.String(GetTablename(store.prefix, feature, variant)), "[^a-zA-Z0-9_.\\-]"))}
 	describeTableOutput, err := store.client.DescribeTable(describeTableParams)
 	if err != nil {
 		return nil, err
@@ -216,9 +221,8 @@ func (store *dynamodbOnlineStore) CreateTable(feature, variant string, valueType
 }
 
 func (store *dynamodbOnlineStore) DeleteTable(feature, variant string) error {
-	key := dynamodbTableKey{store.prefix, feature, variant}
 	params := &dynamodb.DeleteTableInput{
-		TableName: aws.String(sn.Custom(key.String(), "[^a-zA-Z0-9_.\\-]")),
+		TableName: aws.String(GetTablename(store.prefix, feature, variant), "[^a-zA-Z0-9_.\\-]")),
 	}
 	_, err := store.client.DeleteTable(params)
 	if err != nil {
@@ -234,7 +238,7 @@ func (table dynamodbOnlineTable) Set(entity string, value interface{}) error {
 				S: aws.String(fmt.Sprintf("%v", value)),
 			},
 		},
-		TableName: aws.String(sn.Custom(table.key.String(), "[^a-zA-Z0-9_.\\-]")),
+		TableName: aws.String(GetTablename(store.prefix, feature, variant), "[^a-zA-Z0-9_.\\-]")),
 		Key: map[string]*dynamodb.AttributeValue{
 			table.key.Feature: {
 				S: aws.String(entity),
@@ -248,7 +252,7 @@ func (table dynamodbOnlineTable) Set(entity string, value interface{}) error {
 
 func (table dynamodbOnlineTable) Get(entity string) (interface{}, error) {
 	input := &dynamodb.GetItemInput{
-		TableName: aws.String(sn.Custom(table.key.String(), "[^a-zA-Z0-9_.\\-]")),
+		TableName: aws.String(GetTablename(store.prefix, feature, variant), "[^a-zA-Z0-9_.\\-]")),
 		Key: map[string]*dynamodb.AttributeValue{
 			table.key.Feature: {
 				S: aws.String(entity),

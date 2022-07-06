@@ -92,8 +92,8 @@ func GetTableName(keyspace, feature, variant string) string {
 	return tableName
 }
 
-func GetMetadataTableName(store *cassandraOnlineStore) string {
-	metadataTableName := fmt.Sprintf("%s.featureform__metadata", store.keyspace)
+func GetMetadataTableName(keyspace string) string {
+	metadataTableName := fmt.Sprintf("%s.featureform__metadata", keyspace)
 	return metadataTableName
 }
 
@@ -106,7 +106,7 @@ func (store *cassandraOnlineStore) CreateTable(feature, variant string, valueTyp
 		return nil, &TableAlreadyExists{feature, variant}
 	}
 
-	metadataTableName := GetMetadataTableName(store)
+	metadataTableName := GetMetadataTableName(store.keyspace)
 	query := fmt.Sprintf("INSERT INTO %s (tableName, tableType) VALUES (?, ?)", metadataTableName)
 	err := store.session.Query(query, tableName, string(valueType)).WithContext(ctx).Exec()
 	if err != nil {
@@ -134,7 +134,7 @@ func (store *cassandraOnlineStore) GetTable(feature, variant string) (OnlineStor
 	key := cassandraTableKey{store.keyspace, feature, variant}
 
 	var vType string
-	metadataTableName := GetMetadataTableName(store)
+	metadataTableName := GetMetadataTableName(store.keyspace)
 	query := fmt.Sprintf("SELECT tableType FROM %s WHERE tableName = '%s'", metadataTableName, tableName)
 	err := store.session.Query(query).WithContext(ctx).Scan(&vType)
 	if err == gocql.ErrNotFound {
@@ -155,7 +155,7 @@ func (store *cassandraOnlineStore) GetTable(feature, variant string) (OnlineStor
 
 func (store *cassandraOnlineStore) DeleteTable(feature, variant string) error {
 	tableName := GetTableName(store.keyspace, feature, variant)
-	metadataTableName := GetMetadataTableName(store)
+	metadataTableName := GetMetadataTableName(store.keyspace)
 	query := fmt.Sprintf("DELETE FROM %s WHERE tableName = '%s' IF EXISTS", metadataTableName, tableName)
 	err := store.session.Query(query).WithContext(ctx).Exec()
 	if err != nil {

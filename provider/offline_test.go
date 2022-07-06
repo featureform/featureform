@@ -174,6 +174,10 @@ func destroyRedshiftDatabase(c RedshiftConfig) error {
 	if err != nil {
 		return err
 	}
+	disconnectQuery := fmt.Sprintf("SELECT pg_terminate_backend(pg_stat_activity.procpid) FROM pg_stat_activity WHERE datid=(SELECT oid from pg_database where datname = '%s');", c.Database)
+	if _, err := db.Exec(disconnectQuery); err != nil {
+		return err
+	}
 	databaseQuery := fmt.Sprintf("DROP DATABASE %s", sanitize(c.Database))
 	if _, err := db.Exec(databaseQuery); err != nil {
 		return err
@@ -198,10 +202,6 @@ func destroySnowflakeDatabase(c SnowflakeConfig) error {
 	url := fmt.Sprintf("%s:%s@%s-%s", c.Username, c.Password, c.Organization, c.Account)
 	db, err := sql.Open("snowflake", url)
 	if err != nil {
-		return err
-	}
-	disconnectQuery := fmt.Sprintf("SELECT pid, pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid();")
-	if _, err := db.Exec(disconnectQuery); err != nil {
 		return err
 	}
 	databaseQuery := fmt.Sprintf("DROP DATABASE IF EXISTS %s", sanitize(c.Database))

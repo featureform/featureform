@@ -57,7 +57,6 @@ func dynamodbOnlineStoreFactory(serialized SerializedConfig) (Provider, error) {
 
 func NewDynamodbOnlineStore(options *DynamodbConfig) (*dynamodbOnlineStore, error) {
 	config := &aws.Config{
-		// Endpoint: &options.Addr,
 		Region:      aws.String(options.Region),
 		Credentials: credentials.NewStaticCredentials(options.AccessKey, options.SecretKey, ""),
 	}
@@ -71,15 +70,6 @@ func NewDynamodbOnlineStore(options *DynamodbConfig) (*dynamodbOnlineStore, erro
 		ProviderConfig: options.Serialized(),
 	},
 	}, nil
-}
-
-func getDynamodbConfig(options *DynamodbConfig) *aws.Config {
-	config := &aws.Config{
-		// Endpoint: &options.Addr,
-		Region:      aws.String(options.Region),
-		Credentials: credentials.NewStaticCredentials(options.AccessKey, options.SecretKey, ""),
-	}
-	return config
 }
 
 func (store *dynamodbOnlineStore) AsOnlineStore() (OnlineStore, error) {

@@ -474,12 +474,10 @@ class Registrar:
                           name: str,
                           description: str = "",
                           team: str = "",
-                          access_key: str = "",
-                          secret_key: str = "",
-                          region: str = "",
-                          host: str = "0.0.0.0",
-                          port: int = 8000):
-        config = DynamodbConfig(host=host, port=port, access_key=access_key, secret_key=secret_key, region=region)
+                          access_key: str = None,
+                          secret_key: str = None,
+                          region: str = None):
+        config = DynamodbConfig(access_key=access_key, secret_key=secret_key, region=region)
         provider = Provider(name=name,
                             function="ONLINE",
                             description=description,

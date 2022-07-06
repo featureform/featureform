@@ -58,8 +58,6 @@ class RedisConfig:
 @typechecked
 @dataclass
 class DynamodbConfig:
-    host: str
-    port: int
     region: str
     access_key: str
     secret_key: str
@@ -72,7 +70,6 @@ class DynamodbConfig:
 
     def serialize(self) -> bytes:
         config = {
-            "Addr": f"{self.host}:{self.port}",
             "Region": self.region,
             "AccessKey": self.access_key,
             "SecretKey": self.secret_key

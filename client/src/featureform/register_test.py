@@ -1,7 +1,7 @@
 import pytest
+from featureform.register import Registrar
+from featureform.resources import SQLTable, SQLTransformation, Source, User, PrimaryData, Entity, Feature, Label, ResourceColumnMapping
 
-from register import Registrar
-from resources import SQLTable, SQLTransformation, Source, User, PrimaryData, Entity, Feature, Label, ResourceColumnMapping
 
 
 @pytest.fixture

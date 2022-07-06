@@ -4,6 +4,7 @@ metadata:
   creationTimestamp: null
   labels:
     run: featureform-api-server
+    chart: featureform
   name: featureform-api-server
 spec:
   replicas: 1

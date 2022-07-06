@@ -10,6 +10,7 @@ spec:
   template:
     metadata:
       labels:
+        chart: featureform
         app: featureform-dashboard
     spec:
       terminationGracePeriodSeconds: 30

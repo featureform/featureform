@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -104,14 +105,14 @@ func GetLockKey(jobKey string) string {
 }
 
 func (k *KubernetesJobSpawner) GetJobRunner(jobName string, config runner.Config, etcdEndpoints []string, id metadata.ResourceID) (runner.Runner, error) {
-	etcdConfig := &ETCDConfig{Endpoints: etcdEndpoints}
+	etcdConfig := &ETCDConfig{Endpoints: etcdEndpoints, Username: os.Getenv("ETCD_USERNAME"), Password: os.Getenv("ETCD_PASSWORD")}
 	serializedETCD, err := etcdConfig.Serialize()
 	if err != nil {
 		return nil, err
 	}
 	kubeConfig := runner.KubernetesRunnerConfig{
 		EnvVars:  map[string]string{"NAME": jobName, "CONFIG": string(config), "ETCD_CONFIG": string(serializedETCD)},
-		Image:    "featureformcom/worker",
+		Image:    os.Getenv("WORKER_IMAGE"),
 		NumTasks: 1,
 		Resource: id,
 	}
@@ -153,7 +154,7 @@ func (c *Coordinator) WatchForNewJobs() error {
 	}
 	for _, kv := range getResp.Kvs {
 		go func(kv *mvccpb.KeyValue) {
-			err := c.executeJob(string(kv.Key))
+			err := c.ExecuteJob(string(kv.Key))
 			if err != nil {
 				c.Logger.Errorw("Error executing job: Initial search", "error", err)
 			}
@@ -165,7 +166,7 @@ func (c *Coordinator) WatchForNewJobs() error {
 			for _, ev := range wresp.Events {
 				if ev.Type == 0 {
 					go func(ev *clientv3.Event) {
-						err := c.executeJob(string(ev.Kv.Key))
+						err := c.ExecuteJob(string(ev.Kv.Key))
 						if err != nil {
 							c.Logger.Errorw("Error executing job: Polling search", "error", err)
 						}
@@ -349,7 +350,7 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 		if err := cronRunner.ScheduleJob(runner.CronSchedule(schedule)); err != nil {
 			return fmt.Errorf("schedule transformation job in kubernetes: %w", err)
 		}
-		if err := c.Metadata.SetUpdateStatus(context.Background(), resID, schedule, metadata.READY, "", time.Now()); err != nil {
+		if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
 			return fmt.Errorf("set transformation succesful schedule status: %w", err)
 		}
 	}
@@ -569,7 +570,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 			ResourceID:    provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Feature},
 			VType:         provider.ValueType(featureType),
 			Cloud:         runner.LocalMaterializeRunner,
-			IsUpdate:      false,
+			IsUpdate:      true,
 		}
 		serializedUpdate, err := scheduleMaterializeRunnerConfig.Serialize()
 		if err != nil {
@@ -586,7 +587,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 		if err := cronRunner.ScheduleJob(runner.CronSchedule(schedule)); err != nil {
 			return fmt.Errorf("schedule materialize job in kubernetes: %w", err)
 		}
-		if err := c.Metadata.SetUpdateStatus(context.Background(), resID, schedule, metadata.READY, "", time.Now()); err != nil {
+		if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
 			return fmt.Errorf("set succesful update status for materialize job in kubernetes: %w", err)
 		}
 	}
@@ -693,7 +694,7 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 		if err := cronRunner.ScheduleJob(runner.CronSchedule(schedule)); err != nil {
 			return fmt.Errorf("schedule training set job in kubernetes: %w", err)
 		}
-		if err := c.Metadata.SetUpdateStatus(context.Background(), resID, schedule, metadata.READY, "", time.Now()); err != nil {
+		if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
 			return fmt.Errorf("update training set scheduler job status: %w", err)
 		}
 	}
@@ -789,7 +790,7 @@ func (c *Coordinator) markJobFailed(job *metadata.CoordinatorJob) error {
 	return nil
 }
 
-func (c *Coordinator) executeJob(jobKey string) error {
+func (c *Coordinator) ExecuteJob(jobKey string) error {
 	c.Logger.Info("Executing new job with key ", jobKey)
 	s, err := concurrency.NewSession(c.EtcdClient, concurrency.WithTTL(1))
 	if err != nil {
@@ -880,7 +881,7 @@ func (c *Coordinator) signalResourceUpdate(key string, value string) error {
 	if err := resUpdatedEvent.Deserialize(Config(value)); err != nil {
 		return fmt.Errorf("deserialize resource update event: %w", err)
 	}
-	if err := c.Metadata.SetUpdateStatus(context.Background(), resUpdatedEvent.ResourceID, "", metadata.READY, "", resUpdatedEvent.Completed); err != nil {
+	if err := c.Metadata.SetStatus(context.Background(), resUpdatedEvent.ResourceID, metadata.READY, ""); err != nil {
 		return fmt.Errorf("set resource update status: %w", err)
 	}
 	c.Logger.Info("Succesfully set update status for update job with key: ", key)
@@ -922,7 +923,7 @@ func (c *Coordinator) changeJobSchedule(key string, value string) error {
 	if _, err := jobClient.UpdateCronJob(cronJob); err != nil {
 		return fmt.Errorf("update kubernetes cron job: %w", err)
 	}
-	if err := c.Metadata.SetUpdateStatus(context.Background(), coordinatorScheduleJob.Resource, coordinatorScheduleJob.Schedule, metadata.READY, "", time.Now()); err != nil {
+	if err := c.Metadata.SetStatus(context.Background(), coordinatorScheduleJob.Resource, metadata.READY, ""); err != nil {
 		return fmt.Errorf("set schedule job update status in metadata: %w", err)
 	}
 	c.Logger.Info("Succesfully updated schedule for job in kubernetes with key: ", key)

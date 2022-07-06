@@ -118,6 +118,10 @@ require (
 require (
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.11.4 // indirect
 	github.com/klauspost/compress v1.15.1 // indirect
+	github.com/lib/pq v1.10.4
+	github.com/mattn/go-ieproxy v0.0.3 // indirect
+	github.com/yuin/gopher-lua v0.0.0-20210529063254-f4c35e4016d9 // indirect
+	go.etcd.io/etcd/api/v3 v3.5.2
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.7.0 // indirect
 	golang.org/x/sys v0.0.0-20220408201424-a24fb2fb8a0f // indirect

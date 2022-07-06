@@ -3,14 +3,15 @@ package provider
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	sn "github.com/mrz1836/go-sanitize"
-	"strconv"
-	"time"
 )
 
 type dynamodbTableKey struct {
@@ -57,7 +58,6 @@ func dynamodbOnlineStoreFactory(serialized SerializedConfig) (Provider, error) {
 
 func NewDynamodbOnlineStore(options *DynamodbConfig) (*dynamodbOnlineStore, error) {
 	config := &aws.Config{
-		// Endpoint: &options.Addr,
 		Region:      aws.String(options.Region),
 		Credentials: credentials.NewStaticCredentials(options.AccessKey, options.SecretKey, ""),
 	}
@@ -71,15 +71,6 @@ func NewDynamodbOnlineStore(options *DynamodbConfig) (*dynamodbOnlineStore, erro
 		ProviderConfig: options.Serialized(),
 	},
 	}, nil
-}
-
-func getDynamodbConfig(options *DynamodbConfig) *aws.Config {
-	config := &aws.Config{
-		// Endpoint: &options.Addr,
-		Region:      aws.String(options.Region),
-		Credentials: credentials.NewStaticCredentials(options.AccessKey, options.SecretKey, ""),
-	}
-	return config
 }
 
 func (store *dynamodbOnlineStore) AsOnlineStore() (OnlineStore, error) {

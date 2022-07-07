@@ -519,7 +519,7 @@ class Label:
 @dataclass
 class GetEntity:
     name: str
-    obj: Entity | None
+    obj: Union[Entity, None]
 
     @staticmethod
     def type() -> str:
@@ -538,7 +538,7 @@ class GetEntity:
 class GetProvider:
     name: str
     provider_type: str
-    obj: Provider | None
+    obj: Union[Provider, None]
 
     @staticmethod
     def type() -> str:
@@ -557,7 +557,7 @@ class GetProvider:
 class GetSource:
     name: str
     variant: str
-    obj: Source | None
+    obj: Union[Source, None]
 
     @staticmethod
     def type() -> str:

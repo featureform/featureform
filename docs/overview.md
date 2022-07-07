@@ -1,6 +1,6 @@
 # What is Featureform
 
-![](.gitbook/assets/FF\_hero\_detailed-15.png)
+![](.gitbook/assets/FF_hero_detailed-15.png)
 
 Featureform is a **virtual feature store**. It enables data scientists to **define**, **manage**, and **serve** their ML model's features. Featureform sits **atop your existing infrastructure** and orchestrates it to work like a [traditional feature store](https://www.featureform.com/post/feature-stores-explained-the-three-common-architectures).
 

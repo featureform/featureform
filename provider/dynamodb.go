@@ -27,6 +27,7 @@ type dynamodbOnlineStore struct {
 	client *dynamodb.DynamoDB
 	prefix string
 	BaseProvider
+	timeout int
 }
 
 type dynamodbOnlineTable struct {
@@ -69,7 +70,7 @@ func NewDynamodbOnlineStore(options *DynamodbConfig) (*dynamodbOnlineStore, erro
 	return &dynamodbOnlineStore{dynamodbClient, options.Prefix, BaseProvider{
 		ProviderType:   DynamoDBOnline,
 		ProviderConfig: options.Serialized(),
-	},
+	}, 10,
 	}, nil
 }
 
@@ -210,12 +211,17 @@ func (store *dynamodbOnlineStore) CreateTable(feature, variant string, valueType
 	if err != nil {
 		return nil, err
 	}
+	duration := 0
 	for describeTableOutput == nil || *describeTableOutput.Table.TableStatus != "ACTIVE" {
 		describeTableOutput, err = store.client.DescribeTable(describeTableParams)
 		if err != nil {
 			return nil, err
 		}
 		time.Sleep(5 * time.Second)
+		duration += 5
+		if duration > store.timeout {
+			return nil, fmt.Errorf("timeout creating table")
+		}
 	}
 	return &dynamodbOnlineTable{store.client, key, valueType}, nil
 }

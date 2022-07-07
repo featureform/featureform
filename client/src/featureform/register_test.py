@@ -93,8 +93,7 @@ def test_register_user(registrar, args, expected):
         "name": "dynamodb",
         "description": "test",
         "team": "featureform",
-        "host": "localhost",
-        "port": 1234,
+        "region": "abc",
         "access_key": "abc",
         "secret_key": "abc"
     },
@@ -105,6 +104,7 @@ def test_register_dynamodb(registrar, args):
 
 minimal_user_args = {
     "name": "user",
+    "region": "abc",
     "access_key": "abc",
     "secret_key": "abc"
 }

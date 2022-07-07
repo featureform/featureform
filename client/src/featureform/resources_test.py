@@ -41,8 +41,7 @@ def redis_config():
 @pytest.fixture
 def dynamodb_config():
     return DynamodbConfig(
-        host="localhost",
-        port=123,
+        region="abc",
         access_key="abc",
         secret_key="abc"
     )

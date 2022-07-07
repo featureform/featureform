@@ -5,7 +5,6 @@ env:
   TYPESENSE_PORT: 8108
   TYPESENSE_API_KEY: "xyz"
   REDIS_PORT: 6379
-  DYNAMO_PORT: 8000
   POSTGRES_USER: "username"
   POSTGRES_DB: "default"
   POSTGRES_PASSWORD: "password"
@@ -126,12 +125,6 @@ jobs:
         # supported for use outside of 'steps'
         ports:
           - 9042:9042
-      dynamodb:
-        image: amazon/dynamodb-local
-        # Hard coded port because environment variables not currently
-        # supported for use outside of 'steps'
-        ports:
-          - 8000:8000
 
       postgres:
         image: postgres

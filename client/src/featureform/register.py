@@ -4,7 +4,7 @@
 import marshal
 from distutils.command.config import config
 from typing_extensions import Self
-from .resources import ResourceState, Provider, RedisConfig, LocalConfig, PostgresConfig, SnowflakeConfig, User, \
+from .resources import GetSource, ResourceState, Provider, GetProvider, GetSource, GetEntity, RedisConfig, LocalConfig, PostgresConfig, SnowflakeConfig, User, \
     Location, Source, \
     PrimaryData, SQLTable, SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet
 
@@ -60,12 +60,6 @@ class OfflineSQLProvider(OfflineProvider):
         super().__init__(registrar, provider)
         self.__registrar = registrar
         self.__provider = provider
-
-    def registrar(self):
-        return self.__registrar
-    
-    def provider(self):
-        return self.__provider
 
     def register_table(self,
                        name: str,
@@ -458,6 +452,45 @@ class Registrar:
                 "Owner must be set or a default owner must be specified.")
         return owner
 
+    def get_source(self, name, variant):
+        get = GetSource(name=name, variant=variant, obj=None)
+        self.__resources.append(get)
+        fakeDefinition = PrimaryData(location=SQLTable(name=""))
+        fakeSource = Source(name=name,
+                        variant=variant,
+                        definition=fakeDefinition,
+                        owner="",
+                        provider="",
+                        description="")
+        return ColumnSourceRegistrar(self, fakeSource)
+
+    def get_redis(self, name):
+        get = GetProvider(name=name, provider_type="redis", obj=None)
+        self.__resources.append(get)
+        fakeConfig = RedisConfig(host="", port=123, password="", db=123)
+        fakeProvider = Provider(name=name, function="ONLINE", description="", team="", config=fakeConfig)
+        return OnlineProvider(self, fakeProvider)
+
+    def get_postgres(self, name):
+        get = GetProvider(name=name, provider_type="postgres", obj=None)
+        self.__resources.append(get)
+        fakeConfig = PostgresConfig(host="", port="", database="", user="", password="")
+        fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
+        return OfflineSQLProvider(self, fakeProvider)
+
+    def get_snowflake(self, name):
+        get = GetProvider(name=name, provider_type="snowflake", obj=None)
+        self.__resources.append(get)
+        fakeConfig = SnowflakeConfig(account="", database="", organization="", username="", password="", schema="")
+        fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
+        return OfflineSQLProvider(self, fakeProvider)
+
+    def get_entity(self, name):
+        get = GetEntity(name=name, obj=None)
+        fakeEntity = Entity(name=name, description="")
+        self.__resources.append(get)
+        return EntityRegistrar(self, fakeEntity)
+
     def register_redis(self,
                        name: str,
                        description: str = "",
@@ -784,24 +817,6 @@ class Client(Registrar):
     def apply(self):
         self.state().create_all(self._stub)
 
-    def get_redis(self, name):
-        searchName = metadata_pb2.Name(name=name)
-        try:
-            for provider in self._stub.GetProviders(iter([searchName])):
-                return OnlineProvider(global_registrar, provider)
-        except grpc._channel._MultiThreadedRendezvous:
-            raise ValueError("Provider not found.")
-    
-    def get_postgres(self, name):
-        searchName = metadata_pb2.Name(name=name)
-        try:
-            for provider in self._stub.GetProviders(iter([searchName])):
-                return OfflineSQLProvider(global_registrar, provider)
-        except grpc._channel._MultiThreadedRendezvous:
-            raise ValueError("Provider not found.")
-
-
-
 
 global_registrar = Registrar()
 state = global_registrar.state
@@ -816,3 +831,8 @@ register_column_resources = global_registrar.register_column_resources
 register_training_set = global_registrar.register_training_set
 sql_transformation = global_registrar.sql_transformation
 register_sql_transformation = global_registrar.register_sql_transformation
+get_entity = global_registrar.get_entity
+get_source = global_registrar.get_source
+get_redis = global_registrar.get_redis
+get_postgres = global_registrar.get_postgres
+get_snowflake = global_registrar.get_snowflake

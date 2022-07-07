@@ -515,6 +515,61 @@ class Label:
             self.name
         )
 
+@typechecked
+@dataclass
+class GetEntity:
+    name: str
+    obj: Entity | None
+
+    @staticmethod
+    def type() -> str:
+        return f"get-entity"
+
+    def _create(self, stub):
+        entityList = stub.GetEntities(iter([pb.Name(name=self.name)]))
+        try:
+            for entity in entityList:
+                self.obj = entity
+        except grpc._channel._MultiThreadedRendezvous:
+            raise ValueError(f"Entity {self.name} not found.")
+
+@typechecked
+@dataclass
+class GetProvider:
+    name: str
+    provider_type: str
+    obj: Provider | None
+
+    @staticmethod
+    def type() -> str:
+        return f"get-provider"
+
+    def _create(self, stub):
+        providerList = stub.GetProviders(iter([pb.Name(name=self.name)]))
+        try:
+            for provider in providerList:
+                self.obj = provider
+        except grpc._channel._MultiThreadedRendezvous:
+            raise ValueError(f"Provider {self.name} of type {self.provider_type} not found.")
+
+@typechecked
+@dataclass
+class GetSource:
+    name: str
+    variant: str
+    obj: Source | None
+
+    @staticmethod
+    def type() -> str:
+        return f"get-source"
+
+    def _create(self, stub):
+        sourceList = stub.GetSourceVariants(iter([pb.NameVariant(name=self.name, variant=self.variant)]))
+        try:
+            for source in sourceList:
+                self.obj = source
+        except grpc._channel._MultiThreadedRendezvous:
+            raise ValueError(f"Source {self.name}, variant {self.variant} not found.")
 
 @typechecked
 @dataclass
@@ -595,7 +650,7 @@ class TrainingSet:
 
 
 Resource = Union[PrimaryData, Provider, Entity, User, Feature, Label,
-                 TrainingSet, Source, Schedule]
+                 TrainingSet, Source, Schedule, GetProvider, GetSource, GetEntity]
 
 
 class ResourceRedefinedError(Exception):
@@ -661,7 +716,10 @@ class ResourceState:
     def create_all(self, stub) -> None:
         for resource in self.__create_list:
             try:
-                print("Creating", resource.type(), resource.name)
+                if resource.type()[:3] == "get":
+                    print("Getting", resource.type()[4:], resource.name)
+                else:
+                    print("Creating", resource.type(), resource.name)
                 resource._create(stub)
             except grpc.RpcError as e:
                 if e.code() == grpc.StatusCode.ALREADY_EXISTS:

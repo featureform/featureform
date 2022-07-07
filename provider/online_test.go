@@ -6,11 +6,12 @@ package provider
 
 import (
 	"fmt"
-	"github.com/alicebob/miniredis"
-	"github.com/google/uuid"
 	"os"
 	"reflect"
 	"testing"
+
+	"github.com/alicebob/miniredis"
+	"github.com/google/uuid"
 )
 
 func mockRedis() *miniredis.Miniredis {
@@ -52,12 +53,9 @@ func TestOnlineStores(t *testing.T) {
 		Addr: liveAddr,
 	}
 
-	dynamoPort := os.Getenv("DYNAMO_PORT")
 	dynamoAccessKey := os.Getenv("DYNAMO_ACCESS_KEY")
 	dynamoSecretKey := os.Getenv("DYNAMO_SECRET_KEY")
-	dynamoAddr := fmt.Sprintf("%s:%s", "localhost", dynamoPort)
 	dynamoConfig := &DynamodbConfig{
-		Addr:      dynamoAddr,
 		Region:    "us-east-1",
 		AccessKey: dynamoAccessKey,
 		SecretKey: dynamoSecretKey,

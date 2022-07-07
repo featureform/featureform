@@ -39,7 +39,6 @@ type RedisConfig struct {
 
 type DynamodbConfig struct {
 	Prefix    string
-	Addr      string
 	Region    string
 	AccessKey string
 	SecretKey string

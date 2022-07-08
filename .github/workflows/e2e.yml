@@ -200,6 +200,10 @@ jobs:
           names: api-server coordinator dashboard dashboard-metadata metadata serving worker
           path: /tmp
 
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.7'
+
       - name: Check Artifacts
         run: |
           ls /tmp

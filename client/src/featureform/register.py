@@ -10,7 +10,7 @@ from .resources import ResourceState, Provider, RedisConfig, DynamodbConfig, Pos
     LocalConfig, User, Location, Source, \
     PrimaryData, SQLTable, SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, \
     TrainingSet
-from typing import Tuple, Callable, TypedDict, List, Union
+from typing import Tuple, Callable, List, Union
 from typeguard import typechecked, check_type
 import grpc
 import os
@@ -162,7 +162,7 @@ class SourceRegistrar:
         return self.__registrar
 
 
-class ColumnMapping(TypedDict):
+class ColumnMapping:
     name: str
     variant: str
     column: str

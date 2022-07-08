@@ -210,7 +210,7 @@ jobs:
           ls /tmp/api-server
 
       - name: Install grpc_tools
-        run: pip install grpcio-tools
+        run: pip install grpcio-tools requests
 
       - name: Install Protobuf
         run: sudo snap install protobuf --classic

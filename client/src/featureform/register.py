@@ -4,10 +4,12 @@
 import marshal
 from distutils.command.config import config
 from typing_extensions import Self
-from .resources import ResourceState, Provider, RedisConfig, LocalConfig, PostgresConfig, SnowflakeConfig, User, \
-    Location, Source, \
-    PrimaryData, SQLTable, SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet
 
+from numpy import byte
+from .resources import ResourceState, Provider, RedisConfig, DynamodbConfig, PostgresConfig, SnowflakeConfig, \
+    LocalConfig, User, Location, Source, \
+    PrimaryData, SQLTable, SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, \
+    TrainingSet
 from typing import Tuple, Callable, TypedDict, List, Union
 from typeguard import typechecked, check_type
 import grpc
@@ -138,7 +140,7 @@ class LocalProvider:
                           owner: Union[str, UserRegistrar] = "",
                           name: str = "",
                           description: str = "",
-                          inputs: list=[]):
+                          inputs: list = []):
         return self.__registrar.df_transformation(name=name,
                                                   variant=variant,
                                                   owner=owner,
@@ -468,6 +470,22 @@ class Registrar:
         self.__resources.append(provider)
         return OnlineProvider(self, provider)
 
+    def register_dynamodb(self,
+                          name: str,
+                          description: str = "",
+                          team: str = "",
+                          access_key: str = None,
+                          secret_key: str = None,
+                          region: str = None):
+        config = DynamodbConfig(access_key=access_key, secret_key=secret_key, region=region)
+        provider = Provider(name=name,
+                            function="ONLINE",
+                            description=description,
+                            team=team,
+                            config=config)
+        self.__resources.append(provider)
+        return OnlineProvider(self, provider)
+
     def register_snowflake(
             self,
             name: str,
@@ -782,6 +800,7 @@ global_registrar = Registrar()
 state = global_registrar.state
 register_user = global_registrar.register_user
 register_redis = global_registrar.register_redis
+register_dynamodb = global_registrar.register_dynamodb
 register_snowflake = global_registrar.register_snowflake
 register_postgres = global_registrar.register_postgres
 register_redshift = global_registrar.register_redshift

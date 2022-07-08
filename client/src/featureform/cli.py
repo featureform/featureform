@@ -19,7 +19,8 @@ resource_types = [
     "label",
     "entity",
     "provider",
-    "transformation",
+    "model",
+    "user"
 ]
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
@@ -55,12 +56,33 @@ def cli():
               help="Disables TLS verification")
 @click.option("--local",
               is_flag=True,
-              help="Enable local mode")
-@click.argument("resource_type", required=True)
-@click.argument("name", required=True)
-@click.argument("variant", required=False)
+              help="Enables local mode")
+@click.argument("resource_type", required=True, help="Type of resource to be retrieved. Can be feature, user, source, provider, entity, model, label, or training-set.")
+@click.argument("name", required=True, help="Name of resource to be retrieved.")
+@click.argument("variant", required=False, help="Variant of resource to be retrieved, optional.")
 def get(host, cert, insecure, local, resource_type, name, variant):
-    """get resources of a given type.
+    """Get information about a resource or resource variant of a given type. 
+    General information about a resource can be retrieved without the variant paraameter, 
+    but to get information on a specific variant, variant must be given.
+
+    :param host: Host address of the API server
+    :type host: str
+    :param cert: Path to self-signed TLS certificate
+    :type cert: str, optional (not given if --insecure is used)
+    :param insecure: Disables TLS verification
+    :type insecure: str, optional (not given if --cert is used)
+    :param local: Enables local mode
+    :type local: str, optional
+    :param resource_type: Type of resource to be retrieved
+    :type resource_type: str, can be "feature", "user", "source", "provider", "entity", "model", "label", or "training-set"
+    :param name: Name of resource to be retrieved.
+    :type name: str
+    :param variant: Variant of resource to be retrieved
+    :type variant: str, optional (only given if information on a particular variant is needed)
+    :raises ValueError: Cannot be local and have a host
+    :raises ValueError: Host value must be set with --host flag or in env as FEATUREFORM_HOST
+    :raises ValueError: Variant not needed
+    :raises ValueError: Resource type not found
     """
     if local:
         if host != None:
@@ -95,17 +117,16 @@ def get(host, cert, insecure, local, resource_type, name, variant):
             GetResource(stub, resource_type, name)
     elif resource_type in ["model", "entity"]:
         if variant:
-            print("Variant not needed.")
+            raise ValueError("Variant not needed")
         else:
             GetResource(stub, resource_type, name)
     elif resource_type == "provider":
         if variant:
-            print("Variant not needed.")
-            return
+            raise ValueError("Variant not needed")
         else:
             GetProvider(stub, name)
     else:
-        print("Resource type not found.")
+        raise ValueError("Resource type not found")
 
 
 @cli.command()
@@ -125,7 +146,21 @@ def get(host, cert, insecure, local, resource_type, name, variant):
               help="Enable local mode")
 @click.argument("resource_type", required=True)
 def list(host, cert, insecure, local, resource_type):
-    """list resources of a given type.
+    """List all resources of a given resource type.
+
+    :param host: Host address of the API server
+    :type host: str
+    :param cert: Path to self-signed TLS certificate
+    :type cert: str, optional (not given if --insecure is used)
+    :param insecure: Disables TLS verification
+    :type insecure: str, optional (not given if --cert is used)
+    :param local: Enables local mode
+    :type local: str, optional
+    :param resource_type: Type of resource to be retrieved
+    :type resource_type: str, can be "feature", "user", "source", "provider", "entity", "model", "label", or "training-set"
+    :raises ValueError: Cannot be local and have a host
+    :raises ValueError: Host value must be set with --host flag or in env as FEATUREFORM_HOST
+    :raises ValueError: Resource type not found
     """
     if local:
         if host != None:
@@ -153,7 +188,7 @@ def list(host, cert, insecure, local, resource_type):
     elif resource_type in ["model", "provider"]:
         ListNameStatusDesc(stub, resource_type)
     else:
-        print("Resource type not found.")
+        raise ValueError("Resource type not found")
 
 # @cli.command()
 # @click.argument("files", nargs=-1, required=True, type=click.Path(exists=True))
@@ -180,6 +215,21 @@ def list(host, cert, insecure, local, resource_type):
               is_flag=True,
               help="Enable local mode")
 def apply(host, cert, insecure, local, files):
+    """Submit resource definitions in FILES to the Featureform instance for logging and materialization.
+
+    :param host: Host address of the API server
+    :type host: str
+    :param cert: Path to self-signed TLS certificate
+    :type cert: str, optional (not given if --insecure is used)
+    :param insecure: Disables TLS verification
+    :type insecure: str, optional (not given if --cert is used)
+    :param local: Enables local mode
+    :type local: str, optional
+    :param files: Path to file with resource definitions.
+    :type files: str
+    :raises ValueError: Cannot be local and have a host
+    :raises ValueError: Host value must be set with --host flag or in env as FEATUREFORM_HOST
+    """
     if local:
         if host != None:
             raise ValueError("Cannot be local and have a host")

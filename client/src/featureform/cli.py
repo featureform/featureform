@@ -6,7 +6,7 @@ from curses import meta
 import click
 import featureform.register as register
 import grpc
-
+from featureform import ResourceClient
 from .list import *
 from .proto import metadata_pb2_grpc as ff_grpc
 from .get import *
@@ -79,31 +79,44 @@ def get(host, cert, insecure, local, resource_type, name, variant):
         stub = ff_grpc.ApiStub(channel)
         register.state().create_all(stub)
 
-    getVariantFuncDict = {
-        "feature": GetFeatureVariant,
-        "label": GetLabelVariant,
-        "source": GetSourceVariant,
-        "trainingset": GetTrainingSetVariant,
-        "training-set": GetTrainingSetVariant
-    }
-    if resource_type == "user":
-        GetUser(stub, name)
-    elif resource_type in ["feature", "label", "source", "trainingset", "training-set"]:
-        if variant:
-            getVariantFuncDict[resource_type](stub, name, variant)
+    rc = ResourceClient(host)
+
+    if resource_type == "feature":
+        if not variant:
+            rc.get_feature(name)
         else:
-            GetResource(stub, resource_type, name)
-    elif resource_type in ["model", "entity"]:
-        if variant:
-            print("Variant not needed.")
+            rc.get_feature(name, variant)
+    elif resource_type == "label":
+        if not variant:
+            rc.get_label(name)
         else:
-            GetResource(stub, resource_type, name)
+            rc.get_label(name, variant)
+    elif resource_type == "source":
+        if not variant:
+            rc.get_source(name)
+        else:
+            rc.get_source(name, variant)
+    elif resource_type == "trainingset" or resource_type == "training-set":
+        if not variant:
+            rc.get_training_set(name)
+        else:
+            rc.get_training_set(name, variant)
+    elif resource_type == "user":
+        if variant:
+            raise ValueError("Variant not needed")
+        rc.get_user(name)
+    elif resource_type == "model":
+        if variant:
+            raise ValueError("Variant not needed")
+        rc.get_model(name)
+    elif resource_type == "entity":
+        if variant:
+            raise ValueError("Variant not needed")
+        rc.get_entity(name)
     elif resource_type == "provider":
         if variant:
-            print("Variant not needed.")
-            return
-        else:
-            GetProvider(stub, name)
+            raise ValueError("Variant not needed")
+        rc.get_provider(name)
     else:
         print("Resource type not found.")
 

@@ -517,7 +517,7 @@ class Label:
 
 @typechecked
 @dataclass
-class GetEntity:
+class EntityReference:
     name: str
     obj: Union[Entity, None]
 
@@ -535,7 +535,7 @@ class GetEntity:
 
 @typechecked
 @dataclass
-class GetProvider:
+class ProviderReference:
     name: str
     provider_type: str
     obj: Union[Provider, None]
@@ -554,7 +554,7 @@ class GetProvider:
 
 @typechecked
 @dataclass
-class GetSource:
+class SourceReference:
     name: str
     variant: str
     obj: Union[Source, None]
@@ -650,7 +650,7 @@ class TrainingSet:
 
 
 Resource = Union[PrimaryData, Provider, Entity, User, Feature, Label,
-                 TrainingSet, Source, Schedule, GetProvider, GetSource, GetEntity]
+                 TrainingSet, Source, Schedule, ProviderReference, SourceReference, EntityReference]
 
 
 class ResourceRedefinedError(Exception):

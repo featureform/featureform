@@ -162,7 +162,7 @@ class SourceRegistrar:
         return self.__registrar
 
 
-class ColumnMapping:
+class ColumnMapping(dict):
     name: str
     variant: str
     column: str

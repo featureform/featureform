@@ -149,7 +149,6 @@ jobs:
       - name: Make Coverage Directory
         working-directory: ./
         run: mkdir coverage
-
       - name: Testing
         env:
           SNOWFLAKE_USERNAME: ${{ secrets.SNOWFLAKE_USERNAME }}
@@ -159,6 +158,8 @@ jobs:
           REDSHIFT_USERNAME: ${{ secrets.REDSHIFT_USERNAME }}
           REDSHIFT_PASSWORD: ${{ secrets.REDSHIFT_PASSWORD }}
           REDSHIFT_ENDPOINT: ${{ secrets.REDSHIFT_ENDPOINT }}
+          DYNAMO_ACCESS_KEY: ${{ secrets.DYNAMO_ACCESS_KEY }}
+          DYNAMO_SECRET_KEY: ${{ secrets.DYNAMO_SECRET_KEY }}
         working-directory: ./
         run: go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/...
 
@@ -492,6 +493,12 @@ jobs:
 
       - name: Start API Server
         working-directory: ./api
+        env:
+          API_PORT: 7878
+          METADATA_HOST: "featureform-metadata-server"
+          METADATA_PORT: 8080
+          SERVING_HOST:  "featureform-feature-server"
+          SERVING_PORT: 8080
         run: go run api.go &
 
       - name: Install python dependencies

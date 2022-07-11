@@ -75,7 +75,6 @@ class DynamodbConfig:
         }
         return bytes(json.dumps(config), "utf-8")
 
-# RIDDHI
 @typechecked
 @dataclass
 class LocalConfig:

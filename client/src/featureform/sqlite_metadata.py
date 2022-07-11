@@ -84,15 +84,13 @@ class SQLiteMetadata:
           PRIMARY KEY(trainingSetName, variantName),
           FOREIGN KEY(trainingSetName) REFERENCES training_sets(name));''')
 
-        # FOREIGN KEY(provider) REFERENCES providers(name),
-
         # Training-set table
         self.__conn.execute('''CREATE TABLE IF NOT EXISTS training_sets(
           type text NOT NULL,
           defaultVariant text,
           name text PRIMARY KEY NOT NULL);''')
 
-        #
+        # Training set features
         self.__conn.execute('''CREATE TABLE IF NOT EXISTS training_set_features(
           trainingSetName text NOT NULL,
           trainingSetVariant text NOT NULL,
@@ -183,7 +181,6 @@ class SQLiteMetadata:
 
         self.__conn.commit()
 
-    # All 3 functions return a cursor, USE THIS
     def getTypeTable(self, type):
         query = "SELECT * FROM " + type
         type_data = self.__conn.execute(query)

@@ -38,8 +38,6 @@ def cli():
     """
     pass
 
-
-
 @cli.command()
 @click.option("--host",
               "host",
@@ -122,72 +120,6 @@ def get(host, cert, insecure, resource_type, name, variant):
     else:
         print("Resource type not found.")
 
-
-
-# @cli.command()
-# @click.option("--host",
-#               "host",
-#               required=False,
-#               help="The host address of the API server to connect to")
-# @click.option("--cert",
-#               "cert",
-#               required=False,
-#               help="Path to self-signed TLS certificate")
-# @click.option("--insecure",
-#               is_flag=True,
-#               help="Disables TLS verification")
-# @click.argument("resource_type", required=True)
-# def list(host, cert, insecure, resource_type):
-#     """list resources of a given type.
-#     """
-#     env_cert_path = os.getenv('FEATUREFORM_CERT')
-#     if host is None:
-#         env_host = os.getenv('FEATUREFORM_HOST')
-#         if env_host is None:
-#             raise ValueError(
-#                 "Host value must be set in env or with --host flag")
-#         host = env_host
-#     if insecure:
-#         channel = grpc.insecure_channel(
-#             host, options=(('grpc.enable_http_proxy', 0),))
-#     elif cert is not None or env_cert_path is not None:
-#         if env_cert_path is not None and cert is None:
-#             cert = env_cert_path
-#         with open(cert, 'rb') as f:
-#             credentials = grpc.ssl_channel_credentials(f.read())
-#         channel = grpc.secure_channel(host, credentials)
-#     else:
-#         credentials = grpc.ssl_channel_credentials()
-#         channel = grpc.secure_channel(host, credentials)
-#     stub = ff_grpc.ApiStub(channel)
-
-#     match resource_type:
-#         case "users":
-#             pass
-#         case "features":
-#             pass
-#         case "labels":
-#             pass
-#         case "sources":
-#             pass
-#         case "training-sets":
-#             pass
-#         case "entities":
-#             pass
-#         case "providers":
-#             pass
-#         case "models":
-#             pass
-#
-#
-# @cli.command()
-# @click.argument("files", nargs=-1, required=True, type=click.Path(exists=True))
-# def plan(files):
-#     """print out resources that would be changed by applying these files.
-#     """
-#     pass
-
-
 @cli.command()
 @click.argument("files", nargs=-1, required=True, type=click.Path(exists=True))
 @click.option("--host",
@@ -213,20 +145,15 @@ def apply(host, cert, insecure, local, files):
         if host == None:
             raise ValueError(
                 "Host value must be set with --host flag or in env as FEATUREFORM_HOST")
-
-
-
     for file in files:
         with open(file, "r") as py:
             exec(py.read())
-
     if local:
         register.state().create_all_local()
     else:
         channel = tls_check(host, cert, insecure)
         stub = ff_grpc.ApiStub(channel)
         register.state().create_all(stub)
-
 
 def tls_check(host, cert, insecure):
     if insecure:
@@ -242,7 +169,6 @@ def tls_check(host, cert, insecure):
         credentials = grpc.ssl_channel_credentials()
         channel = grpc.secure_channel(host, credentials)
     return channel
-
 
 if __name__ == '__main__':
     cli()

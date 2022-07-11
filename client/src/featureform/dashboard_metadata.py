@@ -63,7 +63,6 @@ def feature_variant(variantData):
 
 def features(featureRow):
     variantData = feature_variant(sqlObject.getVariantResource("feature_variant", "featureName",featureRow[0]))
-    #Return an object of the row
     return FeatureResource(
                 featureRow[0], #name
                 featureRow[1], #defaultVariant
@@ -97,10 +96,8 @@ def training_set_variant(variantData):
     return variantDict, allVariantList, variants
     
 def getTrainingSetFeatures(featureList):
-    # parse the featureList str(list of tuples)
     featureVariantTuple = []
     features = [tuple(featureTuple.split('\', \'')) for featureTuple in re.findall("\(\'(.*?)\'\)", featureList)]
-    # Iterate throigh the list and get one large tuple of tuples
     for feature in features:
         featureVariantTuple += sqlObject.getNameVariant("feature_variant", "featureName", feature[0], "variantName", feature[1])
     
@@ -147,7 +144,6 @@ def sources(rowData):
     return SourceResource( 
                 rowData[0], #type
                 rowData[1], #defaultVariant
-                #source_variant(sqlObject.getNameVariant("source_variant", "sourceName", rowData[2], "variantName", rowData[1]))[0], #defaultvariant
                 rowData[2], #name
                 variantData[0], #variants
                 variantData[1] #all variants
@@ -239,10 +235,9 @@ def providers(rowData):
                 rowData[5], #team
                 variant_organiser(source_variant(sqlObject.getVariantResource( "source_variant", "provider", rowData[0]))[2]), #sources
                 rowData[7], #status
-                rowData[8],#serialis...
+                rowData[8], #serialise
                 variant_organiser(feature_variant(sqlObject.getVariantResource( "feature_variant", "provider", rowData[0]))[2]), #features
                 variant_organiser(label_variant(sqlObject.getVariantResource( "labels_variant", "provider", rowData[0]))[2]), #labels
-                #variant_organiser(training_set_variant(sqlObject.getVariantResource( "training_set_variant", "provider", rowData[0]))[2]), #training sets
             ).toDictionary()
 
 @app.route("/data/<type>", methods = ['POST', 'GET'])

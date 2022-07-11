@@ -30,7 +30,7 @@ def join_transformation(df1, df2):
 
 
 @local.df_transformation(variant="v1", inputs=[("Iris dataset", "Kaggle"), ("Iris dataset", "Kaggle")])
-def new_transformation(df, df2):
+def new_transformation(df):
     """the number of transactions for each user"""
     df.drop(columns="Species", inplace=True)
     return df.transform(lambda x: x + 1)
@@ -52,14 +52,6 @@ def transform3(df):
     """one transform"""
     df = pd.DataFrame({'id':[1, 2, 3], 'value': [True, False, True], 'ts': [.2, .2, .2]})
     return df
-
-
-
-# @local.df_transformation(variant="v1", inputs=[("iris_dataset", "v1"),
-#                                                ("other_dataset", "v1")])
-# def new_transformation(iris, other):
-#     """the number of transactions for each user"""
-#     return iris.join(other.setIndex('ID'))
 
 test_entity = ff.register_entity("id")
 
@@ -120,8 +112,6 @@ transform3.register_resources(
     ],
 )
 
-
-
 user_entity = ff.register_entity("flower")
 
 new_transformation.register_resources(
@@ -131,11 +121,6 @@ new_transformation.register_resources(
     features=[
         {"name": "SepalLength", "variant": "transformation_test", "column": "SepalLengthCm", "type": "float"},
     ],
-    #
-    # labels=[
-    #     {"name": "SpeciesType", "variant": "String", "column": "Species", "type": "Label"},
-    # ],
-
 )
 
 join_transformation.register_resources(
@@ -153,8 +138,6 @@ join_transformation.register_resources(
     ],
 
 )
-
-
 
 # Register a feature and a label
 iris.register_resources(

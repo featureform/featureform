@@ -70,7 +70,7 @@ func NewDynamodbOnlineStore(options *DynamodbConfig) (*dynamodbOnlineStore, erro
 	return &dynamodbOnlineStore{dynamodbClient, options.Prefix, BaseProvider{
 		ProviderType:   DynamoDBOnline,
 		ProviderConfig: options.Serialized(),
-	}, 120,
+	}, 360,
 	}, nil
 }
 

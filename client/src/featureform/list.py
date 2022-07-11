@@ -7,8 +7,11 @@ def ListNameStatus(stub, resource_type):
         "user": stub.ListUsers
     }
     formatRows("NAME", "STATUS")
+    res = []
     for f in funcDict[resource_type](metadata_pb2.Empty()):
         formatRows(f.name, f.status.Status._enum_type.values[f.status.status].name)
+        res.append(f)
+    return res
 
 def ListNameStatusDesc(stub, resource_type):
     funcDict = {
@@ -16,8 +19,11 @@ def ListNameStatusDesc(stub, resource_type):
         "provider": stub.ListProviders
     }
     formatRows("NAME", "STATUS", "DESCRIPTION")
+    res = []
     for f in funcDict[resource_type](metadata_pb2.Empty()):
         formatRows(f.name, f.status.Status._enum_type.values[f.status.status].name, f.description[:60])
+        res.append(f)
+    return res
 
 def ListNameVariantStatus(stub, resource_type):
     funcDict = {
@@ -26,7 +32,9 @@ def ListNameVariantStatus(stub, resource_type):
     }
 
     formatRows("NAME", "VARIANT", "STATUS")
+    res = []
     for f in funcDict[resource_type][0](metadata_pb2.Empty()):
+        res.append(f)
         for v in f.variants:
             searchNameVariant = metadata_pb2.NameVariant(name=f.name, variant=v)
             for x in funcDict[resource_type][1](iter([searchNameVariant])):
@@ -34,6 +42,7 @@ def ListNameVariantStatus(stub, resource_type):
                     formatRows(f.name, f"{f.default_variant} (default)", f.status.Status._enum_type.values[f.status.status].name)
                 else:
                     formatRows(x.name, x.variant, x.status.Status._enum_type.values[x.status.status].name)
+    return res
 
 def ListNameVariantStatusDesc(stub, resource_type):
     funcDict = {
@@ -43,7 +52,9 @@ def ListNameVariantStatusDesc(stub, resource_type):
     }
 
     formatRows("NAME", "VARIANT", "STATUS", "DESCRIPTION")
+    res = []
     for f in funcDict[resource_type][0](metadata_pb2.Empty()):
+        res.append(f)
         for v in f.variants:
             searchNameVariant = metadata_pb2.NameVariant(name=f.name, variant=v)
             for x in funcDict[resource_type][1](iter([searchNameVariant])):
@@ -51,3 +62,4 @@ def ListNameVariantStatusDesc(stub, resource_type):
                     formatRows(f.name, f"{f.default_variant} (default)", f.status.Status._enum_type.values[f.status.status].name, x.description)
                 else:
                     formatRows(x.name, x.variant, x.status.Status._enum_type.values[x.status.status].name, x.description)
+    return res

@@ -46,3 +46,27 @@ print(trainingset)
 trainingset_variant = rc.get_training_set("fraud_training", "quickstart")
 
 print(trainingset_variant)
+
+listProvider = rc.list_providers()
+
+print(listProvider)
+
+listSource = rc.list_sources()
+
+print(listSource)
+
+listFeature = rc.list_features()
+
+print(listFeature)
+
+listLabel = rc.list_labels()
+
+print(listLabel)
+
+listEntity = rc.list_entities()
+
+print(listEntity)
+
+listTrainingSet = rc.list_training_sets()
+
+print(listTrainingSet)

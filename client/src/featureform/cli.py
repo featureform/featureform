@@ -157,14 +157,24 @@ def list(host, cert, insecure, local, resource_type):
         stub = ff_grpc.ApiStub(channel)
         register.state().create_all(stub)
 
-    if resource_type in  ["user", "entity"]:
-        ListNameStatus(stub, resource_type)
-    elif resource_type in ["feature", "label"]:
-        ListNameVariantStatus(stub, resource_type)
-    elif resource_type in ["source", "trainingset", "training-set"]:
-        ListNameVariantStatusDesc(stub, resource_type)
-    elif resource_type in ["model", "provider"]:
-        ListNameStatusDesc(stub, resource_type)
+    rc = ResourceClient(host)
+
+    if resource_type == "features":
+        rc.list_features()
+    elif resource_type == "labels":
+        rc.list_labels()
+    elif resource_type == "sources":
+        rc.list_sources()
+    elif resource_type == "trainingsets" or resource_type == "training-sets":
+        rc.list_training_sets()
+    elif resource_type == "users":
+        rc.list_users()
+    elif resource_type == "models":
+        rc.list_models()
+    elif resource_type == "entities":
+        rc.list_entities()
+    elif resource_type == "providers":
+        rc.list_providers()
     else:
         print("Resource type not found.")
 

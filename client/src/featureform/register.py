@@ -18,6 +18,7 @@ from .sqlite_metadata import SQLiteMetadata
 import time
 import pandas as pd
 from .get import *
+from .list import *
 
 NameVariant = Tuple[str, str]
 
@@ -849,6 +850,30 @@ class Client(Registrar):
         if not variant:
             return GetResource(self._stub, "source", name)
         return GetSourceVariant(self._stub, name, variant)
+
+    def list_features(self):
+        return ListNameVariantStatus(self._stub, "feature")
+
+    def list_labels(self):
+        return ListNameVariantStatus(self._stub, "label")
+
+    def list_users(self):
+        return ListNameStatus(self._stub, "user")
+
+    def list_entities(self):
+        return ListNameStatus(self._stub, "entity")
+
+    def list_sources(self):
+        return ListNameVariantStatusDesc(self._stub, "source")
+
+    def list_training_sets(self):
+        return ListNameVariantStatusDesc(self._stub, "training-set")
+
+    def list_models(self):
+        return ListNameStatusDesc(self._stub, "model")
+
+    def list_providers(self):
+        return ListNameStatusDesc(self._stub, "provider")
 
 global_registrar = Registrar()
 state = global_registrar.state

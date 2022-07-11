@@ -219,7 +219,6 @@ def models(rowData):
 
 def users(rowData):
     return UserResource(
-                
                 rowData[0], #name
                 rowData[1], #type
                 rowData[2],  #status

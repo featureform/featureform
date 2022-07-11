@@ -171,8 +171,13 @@ func (k KubernetesCompletionWatcher) Wait() error {
 	}
 	watchChannel := watcher.ResultChan()
 	for jobEvent := range watchChannel {
-		if failed := jobEvent.Object.(*batchv1.Job).Status.Failed; failed > 0 {
-			return fmt.Errorf("job failed while running")
+		if active := jobEvent.Object.(*batchv1.Job).Status.Active; active == 0 {
+			if succeeded := jobEvent.Object.(*batchv1.Job).Status.Succeeded; succeeded > 0 {
+				return nil
+			}
+			if failed := jobEvent.Object.(*batchv1.Job).Status.Failed; failed > 0 {
+				return fmt.Errorf("job failed while running")
+			}
 		}
 
 	}
@@ -298,7 +303,6 @@ func (k KubernetesJobClient) GetJobSchedule(jobName string) (CronSchedule, error
 }
 
 func NewKubernetesJobClient(name string, namespace string) (*KubernetesJobClient, error) {
-	fmt.Println("kubernetes client is got", name, namespace)
 	kubeConfig, err := rest.InClusterConfig()
 	if err != nil {
 		return nil, err

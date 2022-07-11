@@ -4,9 +4,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	_ "github.com/lib/pq"
 	"strings"
 	"time"
+
+	_ "github.com/lib/pq"
 )
 
 type postgresColumnType string
@@ -87,6 +88,7 @@ func (q postgresSQLQueries) registerResources(db *sql.DB, tableName string, sche
 		query = fmt.Sprintf("CREATE VIEW %s AS SELECT %s as entity, %s as value, to_timestamp('%s', 'YYYY-DD-MM HH24:MI:SS +0000 UTC')::TIMESTAMPTZ as ts FROM %s", sanitize(tableName),
 			sanitize(schema.Entity), sanitize(schema.Value), time.UnixMilli(0).UTC(), sanitize(schema.SourceTable))
 	}
+	fmt.Printf("Resource creation query: %s", query)
 	if _, err := db.Exec(query); err != nil {
 		return err
 	}

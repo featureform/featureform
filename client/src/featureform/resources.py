@@ -2,8 +2,6 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-# cofigure.py like definitions.py train.py tests to set the end state - quick start tests
-# use iris model fro serving (serving means reading python files and parsing the data in the backend)
 import time
 from typing import List, Tuple, Union
 from typeguard import typechecked
@@ -19,6 +17,20 @@ NameVariant = Tuple[str, str]
 def valid_name_variant(nvar: NameVariant) -> bool:
     return nvar[0] != "" and nvar[1] != ""
 
+@typechecked
+@dataclass
+class Schedule:
+    name: str
+    variant: str
+    resource_type: int
+    schedule_string: str
+
+    def type(self) -> str:
+        return "schedule"
+
+    def _create(self, stub) -> None:
+        serialized = pb.SetScheduleChangeRequest(resource=pb.ResourceId(pb.NameVariant(name=self.name, variant=self.variant), resource_type=self.resource_type), schedule=self.schedule_string)
+        stub.RequestScheduleChange(serialized)
 
 @typechecked
 @dataclass
@@ -39,6 +51,27 @@ class RedisConfig:
             "Addr": f"{self.host}:{self.port}",
             "Password": self.password,
             "DB": self.db,
+        }
+        return bytes(json.dumps(config), "utf-8")
+
+@typechecked
+@dataclass
+class DynamodbConfig:
+    region: str
+    access_key: str
+    secret_key: str
+
+    def software(self) -> str:
+        return "dynamodb"
+
+    def type(self) -> str:
+        return "DYNAMODB_ONLINE"
+
+    def serialize(self) -> bytes:
+        config = {
+            "Region": self.region,
+            "AccessKey": self.access_key,
+            "SecretKey": self.secret_key
         }
         return bytes(json.dumps(config), "utf-8")
 
@@ -112,8 +145,33 @@ class PostgresConfig:
         return bytes(json.dumps(config), "utf-8")
 
 
-Config = Union[RedisConfig, SnowflakeConfig, PostgresConfig]
+@typechecked
+@dataclass
+class RedshiftConfig:
+    host: str
+    port: str
+    database: str
+    user: str
+    password: str
 
+    def software(self) -> str:
+        return "redshift"
+
+    def type(self) -> str:
+        return "REDSHIFT_OFFLINE"
+
+    def serialize(self) -> bytes:
+        config = {
+            "Host": self.host,
+            "Port": self.port,
+            "Username": self.user,
+            "Password": self.password,
+            "Database": self.database,
+        }
+        return bytes(json.dumps(config), "utf-8")
+
+
+Config = Union[RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig]
 
 @typechecked
 @dataclass
@@ -143,17 +201,17 @@ class Provider:
         stub.CreateProvider(serialized)
 
     def _create_local(self, db) -> None:
-        db.insert("providers", 
-            self.name, 
-            "Provider",
-            self.description, 
-            self.config.type(), 
-            self.config.software(),
-            self.team,
-            "sources",
-            "ready",
-            str(self.config.serialize(), 'utf-8')
-            )
+        db.insert("providers",
+                  self.name,
+                  "Provider",
+                  self.description,
+                  self.config.type(),
+                  self.config.software(),
+                  self.team,
+                  "sources",
+                  "ready",
+                  str(self.config.serialize(), 'utf-8')
+                  )
 
 
 @typechecked
@@ -169,11 +227,11 @@ class User:
         stub.CreateUser(serialized)
 
     def _create_local(self, db) -> None:
-        db.insert("users", 
-            self.name, 
-            "User",
-            "ready"
-            )
+        db.insert("users",
+                  self.name,
+                  "User",
+                  "ready"
+                  )
 
 
 @typechecked
@@ -194,7 +252,7 @@ class PrimaryData:
         return {
             "primaryData":
                 pb.PrimaryData(table=pb.PrimarySQLTable(
-                    name=self.location.name,),),
+                    name=self.location.name, ), ),
         }
 
 
@@ -214,7 +272,22 @@ class SQLTransformation(Transformation):
         return {
             "transformation":
                 pb.Transformation(SQLTransformation=pb.SQLTransformation(
-                    query=self.query,),),
+                    query=self.query, ), ),
+        }
+
+
+class DFTransformation(Transformation):
+    def __init__(self, query: str, inputs: list):
+        self.query = query
+        self.inputs = inputs
+
+    def type(self):
+        "DF"
+
+    def kwargs(self):
+        return {
+            "transformation": True,
+            "inputs": self.inputs
         }
 
 
@@ -230,6 +303,12 @@ class Source:
     owner: str
     provider: str
     description: str
+    schedule: str = ""
+    schedule_obj: Schedule = None
+
+    def update_schedule(self, schedule) -> None:
+        self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=7, schedule_string=schedule)
+        self.schedule = schedule
 
     @staticmethod
     def type() -> str:
@@ -242,23 +321,33 @@ class Source:
             variant=self.variant,
             owner=self.owner,
             description=self.description,
+            schedule=self.schedule,
             provider=self.provider,
             **defArgs,
         )
         stub.CreateSourceVariant(serialized)
 
     def _create_local(self, db) -> None:
-        db.insert("source_variant",  
-            str(time.time()),
-            self.description,
-            self.name,
-            "Source",
-            self.owner,
-            self.provider,
-            self.variant,
-            "ready",
-            self.definition
-            )
+        is_transformation = False
+        inputs = []
+        if type(self.definition) == DFTransformation:
+            is_transformation = True
+            inputs = self.definition.inputs
+            self.definition = self.definition.query
+
+        db.insert_source("source_variant",
+                         str(time.time()),
+                         self.description,
+                         self.name,
+                         "Source",
+                         self.owner,
+                         self.provider,
+                         self.variant,
+                         "ready",
+                         is_transformation,
+                         json.dumps(inputs),
+                         self.definition
+                         )
         self._create_source_resource(db)
 
     def _create_source_resource(self, db) -> None:
@@ -288,11 +377,12 @@ class Entity:
 
     def _create_local(self, db) -> None:
         db.insert("entities",
-        self.name,  
-        "Entity",
-        self.description,
-        "ready"
-        )
+                  self.name,
+                  "Entity",
+                  self.description,
+                  "ready"
+                  )
+
 
 @typechecked
 @dataclass
@@ -324,6 +414,12 @@ class Feature:
     provider: str
     description: str
     location: ResourceLocation
+    schedule: str = ""
+    schedule_obj: Schedule = None
+    
+    def update_schedule(self, schedule) -> None:
+        self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=4, schedule_string=schedule)
+        self.schedule = schedule
 
     @staticmethod
     def type() -> str:
@@ -341,6 +437,7 @@ class Feature:
             entity=self.entity,
             owner=self.owner,
             description=self.description,
+            schedule=self.schedule,
             provider=self.provider,
             columns=self.location.proto(),
         )
@@ -348,21 +445,21 @@ class Feature:
 
     def _create_local(self, db) -> None:
         db.insert("feature_variant",
-        str(time.time()),
-        self.description,
-        self.entity,
-        self.name, 
-        self.owner,
-        self.provider,
-        self.value_type,
-        self.variant,
-        "ready",
-        self.location.entity,
-        self.location.timestamp,
-        self.location.value,
-        self.source[0],
-        self.source[1]
-        )
+                  str(time.time()),
+                  self.description,
+                  self.entity,
+                  self.name,
+                  self.owner,
+                  self.provider,
+                  self.value_type,
+                  self.variant,
+                  "ready",
+                  self.location.entity,
+                  self.location.timestamp,
+                  self.location.value,
+                  self.source[0],
+                  self.source[1]
+                  )
         self._create_feature_resource(db)
 
     def _create_feature_resource(self, db) -> None:
@@ -409,21 +506,21 @@ class Label:
 
     def _create_local(self, db) -> None:
         db.insert("labels_variant",
-        str(time.time()),
-        self.description,
-        self.entity,
-        self.name, 
-        self.owner,
-        self.provider,
-        self.value_type,
-        self.variant,
-        self.location.entity,
-        self.location.timestamp,
-        self.location.value,
-         "ready",
-        self.source[0],
-        self.source[1]
-        )
+                  str(time.time()),
+                  self.description,
+                  self.entity,
+                  self.name,
+                  self.owner,
+                  self.provider,
+                  self.value_type,
+                  self.variant,
+                  self.location.entity,
+                  self.location.timestamp,
+                  self.location.value,
+                  "ready",
+                  self.source[0],
+                  self.source[1]
+                  )
         self._create_label_resource(db)
 
     def _create_label_resource(self, db) -> None:
@@ -444,6 +541,12 @@ class TrainingSet:
     label: NameVariant
     features: List[NameVariant]
     description: str
+    schedule: str = ""
+    schedule_obj: Schedule = None
+
+    def update_schedule(self, schedule) -> None:
+        self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=6, schedule_string=schedule)
+        self.schedule = schedule
 
     def __post_init__(self):
         if not valid_name_variant(self.label):
@@ -463,6 +566,7 @@ class TrainingSet:
             name=self.name,
             variant=self.variant,
             description=self.description,
+            schedule=self.schedule,
             owner=self.owner,
             features=[
                 pb.NameVariant(name=v[0], variant=v[1]) for v in self.features
@@ -472,21 +576,18 @@ class TrainingSet:
         stub.CreateTrainingSetVariant(serialized)
 
     def _create_local(self, db) -> None:
-        print("in create local")
-        print(self.label[0])
-        print(self.label[1])
         db.insert("training_set_variant",
-        str(time.time()),
-        self.description,
-        self.name, 
-        self.owner,
-        # "Provider",
-        self.variant,
-        self.label[0],
-        self.label[1],
-         "ready",
-        str(self.features)
-        )
+                  str(time.time()),
+                  self.description,
+                  self.name,
+                  self.owner,
+                  # "Provider",
+                  self.variant,
+                  self.label[0],
+                  self.label[1],
+                  "ready",
+                  str(self.features)
+                  )
         self._create_training_set_resource(db)
         self._insert_training_set_features(db)
 
@@ -497,20 +598,20 @@ class TrainingSet:
             self.variant,
             self.name
         )
-    
+
     def _insert_training_set_features(self, db) -> None:
         for feature in self.features:
             db.insert(
-            "training_set_features",
-            self.name,
-            self.variant,
-            feature[0], #feature name
-            feature[1] #feature variant
-        )
+                "training_set_features",
+                self.name,
+                self.variant,
+                feature[0],  # feature name
+                feature[1]  # feature variant
+            )
 
 
 Resource = Union[PrimaryData, Provider, Entity, User, Feature, Label,
-                 TrainingSet, Source]
+                 TrainingSet, Source, Schedule]
 
 
 class ResourceRedefinedError(Exception):
@@ -533,11 +634,19 @@ class ResourceState:
 
     @typechecked
     def add(self, resource: Resource) -> None:
-        key = (resource.type(), resource.name)
+        if hasattr(resource, 'variant'):
+            key = (resource.type(), resource.name, resource.variant)
+        else:
+            key = (resource.type(), resource.name)
         if key in self.__state:
             raise ResourceRedefinedError(resource)
         self.__state[key] = resource
         self.__create_list.append(resource)
+        if hasattr(resource, 'schedule_obj') and resource.schedule_obj != None:
+            my_schedule = resource.schedule_obj
+            key = (my_schedule.type(),  my_schedule.name)
+            self.__state[key] =  my_schedule
+            self.__create_list.append(my_schedule)
 
     def sorted_list(self) -> List[Resource]:
         resource_order = {
@@ -548,6 +657,7 @@ class ResourceState:
             "feature": 4,
             "label": 5,
             "training-set": 6,
+            "schedule": 7,
         }
 
         def to_sort_key(res):
@@ -560,17 +670,18 @@ class ResourceState:
     def create_all_local(self) -> None:
         db = SQLiteMetadata()
         for resource in self.__create_list:
-            resource._create_local(db) 
+            print("Creating", resource.name)
+            resource._create_local(db)
         return
 
     def create_all(self, stub) -> None:
         for resource in self.__create_list:
             try:
+                print("Creating", resource.type(), resource.name)
                 resource._create(stub)
             except grpc.RpcError as e:
                 if e.code() == grpc.StatusCode.ALREADY_EXISTS:
                     print(resource.name, "already exists.")
                     continue
+
                 raise
-
-

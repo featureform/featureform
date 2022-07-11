@@ -7,18 +7,17 @@ package provider
 import (
 	"encoding/json"
 	"fmt"
-
-	"github.com/gocql/gocql"
 )
 
 func init() {
 	unregisteredFactories := map[Type]Factory{
 		LocalOnline:      localOnlineStoreFactory,
 		RedisOnline:      redisOnlineStoreFactory,
-		CassandraOnline:  cassandraOnlineStoreFactory,
+		DynamoDBOnline:   dynamodbOnlineStoreFactory,
 		MemoryOffline:    memoryOfflineStoreFactory,
 		PostgresOffline:  postgresOfflineStoreFactory,
 		SnowflakeOffline: snowflakeOfflineStoreFactory,
+		RedshiftOffline:  redshiftOfflineStoreFactory,
 	}
 	for name, factory := range unregisteredFactories {
 		if err := RegisterFactory(name, factory); err != nil {
@@ -36,6 +35,13 @@ type RedisConfig struct {
 	Addr     string
 	Password string
 	DB       int
+}
+
+type DynamodbConfig struct {
+	Prefix    string
+	Region    string
+	AccessKey string
+	SecretKey string
 }
 
 func (r RedisConfig) Serialized() SerializedConfig {
@@ -57,8 +63,7 @@ func (r *RedisConfig) Deserialize(config SerializedConfig) error {
 type CassandraConfig struct {
 	keyspace    string
 	Addr        string
-	session     *gocql.Session
-	Consistency gocql.Consistency
+	Consistency string
 }
 
 func (r CassandraConfig) Serialized() SerializedConfig {
@@ -69,7 +74,15 @@ func (r CassandraConfig) Serialized() SerializedConfig {
 	return config
 }
 
-func (r *CassandraConfig) Deserialize(config SerializedConfig) error {
+func (r DynamodbConfig) Serialized() SerializedConfig {
+	config, err := json.Marshal(r)
+	if err != nil {
+		panic(err)
+	}
+	return config
+}
+
+func (r *DynamodbConfig) Deserialize(config SerializedConfig) error {
 	err := json.Unmarshal(config, r)
 	if err != nil {
 		return err

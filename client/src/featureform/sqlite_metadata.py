@@ -4,40 +4,43 @@ import os
 
 
 class SyncSQLExecutor:
-     def __init__(self, conn):
-          self.__conn = conn
-          self.__lock = Lock()
+    def __init__(self, conn):
+        self.__conn = conn
+        self.__lock = Lock()
 
-     def execute(self, cmd):
-          with self.__lock:
-               return self.__conn.execute(cmd)
+    def execute(self, cmd):
+        with self.__lock:
+            return self.__conn.execute(cmd)
 
-     def executemany(self, cmd, param):
-          with self.__lock:
-               return self.__conn.executemany(cmd, param)
+    def execute_stmt(self, stmt, vals):
+        with self.__lock:
+            return self.__conn.execute(stmt, vals)
 
-     def close(self):
-          with self.__lock:
-               return self.__conn.close()
+    def executemany(self, cmd, param):
+        with self.__lock:
+            return self.__conn.executemany(cmd, param)
 
-     def commit(self):
-          with self.__lock:
-               return self.__conn.commit()
+    def close(self):
+        with self.__lock:
+            return self.__conn.close()
 
+    def commit(self):
+        with self.__lock:
+            return self.__conn.commit()
 
 
 class SQLiteMetadata:
-     def __init__(self):
-          self.path = '.featureform/SQLiteDB'
-          if not os.path.exists(self.path):
-               os.makedirs(self.path)
-          raw_conn = sqlite3.connect(self.path+'/metadata.db', check_same_thread=False)
-          self.__conn = SyncSQLExecutor(raw_conn)
-          self.createTables()
+    def __init__(self):
+        self.path = '.featureform/SQLiteDB'
+        if not os.path.exists(self.path):
+            os.makedirs(self.path)
+        raw_conn = sqlite3.connect(self.path + '/metadata.db', check_same_thread=False)
+        self.__conn = SyncSQLExecutor(raw_conn)
+        self.createTables()
 
-     def createTables(self):
-          # Features variant table
-          self.__conn.execute('''CREATE TABLE IF NOT EXISTS feature_variant(
+    def createTables(self):
+        # Features variant table
+        self.__conn.execute('''CREATE TABLE IF NOT EXISTS feature_variant(
           created text,
           description text,
           entity text NOT NULL,
@@ -58,17 +61,17 @@ class SQLiteMetadata:
           FOREIGN KEY(featureName) REFERENCES features(name),
           FOREIGN KEY(entity) REFERENCES entities(name),
           FOREIGN KEY(provider) REFERENCES providers(name),
-          FOREIGN KEY(sourceName) REFERENCES sources(name))''') 
+          FOREIGN KEY(sourceName) REFERENCES sources(name))''')
 
-          # Features table
-          self.__conn.execute('''CREATE TABLE IF NOT EXISTS features(
+        # Features table
+        self.__conn.execute('''CREATE TABLE IF NOT EXISTS features(
           name text NOT NULL,
           defaultVariant text NOT NULL,
           type text,
           PRIMARY KEY (name));''')
 
-          # training set variant
-          self.__conn.execute('''CREATE TABLE IF NOT EXISTS training_set_variant(
+        # training set variant
+        self.__conn.execute('''CREATE TABLE IF NOT EXISTS training_set_variant(
           created text,
           description text,            
           trainingSetName text NOT NULL,
@@ -81,44 +84,47 @@ class SQLiteMetadata:
           PRIMARY KEY(trainingSetName, variantName),
           FOREIGN KEY(trainingSetName) REFERENCES training_sets(name));''')
 
-          # FOREIGN KEY(provider) REFERENCES providers(name),
+        # FOREIGN KEY(provider) REFERENCES providers(name),
 
-          # Training-set table
-          self.__conn.execute('''CREATE TABLE IF NOT EXISTS training_sets(
+        # Training-set table
+        self.__conn.execute('''CREATE TABLE IF NOT EXISTS training_sets(
           type text NOT NULL,
           defaultVariant text,
           name text PRIMARY KEY NOT NULL);''')
 
-          #
-          self.__conn.execute('''CREATE TABLE IF NOT EXISTS training_set_features(
+        #
+        self.__conn.execute('''CREATE TABLE IF NOT EXISTS training_set_features(
           trainingSetName text NOT NULL,
           trainingSetVariant text NOT NULL,
           featureName text NOT NULL,
-          featureVariant text PRIMARY KEY NOT NULL);''')
+          featureVariant text NOT NULL,
+          UNIQUE(featureName, featureVariant));''')
 
-          # source variant
-          self.__conn.execute('''CREATE TABLE IF NOT EXISTS source_variant(
+        # source variant
+        self.__conn.execute('''CREATE TABLE IF NOT EXISTS source_variant(
           created     text,
           description text,
-          sourceName  text NOT NULL,
+          name  text NOT NULL,
           sourceType  text,
           owner       text,
           provider    text NOT NULL,
           variant     text,
           status      text,
-          definition  text,
-          PRIMARY KEY(sourceName, variant),
+          transformation bool,
+          inputs text, 
+          definition  BLOB,
+          PRIMARY KEY(name, variant),
           FOREIGN KEY(provider) REFERENCES providers(name),
-          FOREIGN KEY(sourceName) REFERENCES sources(name));''')
+          FOREIGN KEY(name) REFERENCES sources(name));''')
 
-          # sources table
-          self.__conn.execute('''CREATE TABLE IF NOT EXISTS sources(
+        # sources table
+        self.__conn.execute('''CREATE TABLE IF NOT EXISTS sources(
           type           text NOT NULL,
           defaultVariant text,
           name           text PRIMARY KEY NOT NULL);''')
 
-          # labels variant
-          self.__conn.execute('''CREATE TABLE IF NOT EXISTS labels_variant(
+        # labels variant
+        self.__conn.execute('''CREATE TABLE IF NOT EXISTS labels_variant(
           created         text,
           description     text,
           entity          text,
@@ -137,34 +143,34 @@ class SQLiteMetadata:
           PRIMARY KEY(labelName, variantName),
           FOREIGN KEY(labelName) REFERENCES labels(name));''')
 
-          # labels table
-          self.__conn.execute('''CREATE TABLE IF NOT EXISTS labels(
+        # labels table
+        self.__conn.execute('''CREATE TABLE IF NOT EXISTS labels(
           type           text,
           defaultVariant text,
           name           text PRIMARY KEY);''')
 
-          # entity table
-          self.__conn.execute('''CREATE TABLE IF NOT EXISTS entities(
+        # entity table
+        self.__conn.execute('''CREATE TABLE IF NOT EXISTS entities(
           name        text PRIMARY KEY NOT NULL,
           type        text,
           description text,
           status      text);''')
 
-          # user table
-          self.__conn.execute('''CREATE TABLE IF NOT EXISTS users(
+        # user table
+        self.__conn.execute('''CREATE TABLE IF NOT EXISTS users(
           name   text PRIMARY KEY NOT NULL,
           type   text,
           status text);''')
 
-          # models table
-          self.__conn.execute('''CREATE TABLE IF NOT EXISTS models(
+        # models table
+        self.__conn.execute('''CREATE TABLE IF NOT EXISTS models(
           name        text PRIMARY KEY NOT NULL,
           type        text,
           description text,
           status      text);''')
 
-          # providers table
-          self.__conn.execute('''CREATE TABLE IF NOT EXISTS providers(
+        # providers table
+        self.__conn.execute('''CREATE TABLE IF NOT EXISTS providers(
           name             text PRIMARY KEY NOT NULL,
           type             text,
           description      text,
@@ -175,28 +181,45 @@ class SQLiteMetadata:
           status           text,
           serializedConfig text)''')
 
-          self.__conn.commit()
+        self.__conn.commit()
 
-     # All 3 functions return a cursor, USE THIS
-     def getTypeTable(self, type):
-          query = "SELECT * FROM " + type
-          type_data = self.__conn.execute(query)
-          self.__conn.commit()
-          return type_data.fetchall()
+    # All 3 functions return a cursor, USE THIS
+    def getTypeTable(self, type):
+        query = "SELECT * FROM " + type
+        type_data = self.__conn.execute(query)
+        self.__conn.commit()
+        return type_data.fetchall()
 
-     def getVariantResource(self, type, column, resource):
-          variant_table_query = "SELECT * FROM "+ type +" WHERE " + column + "='"+resource+"';"
-          variant_data = self.__conn.execute(variant_table_query)
-          self.__conn.commit()
-          return variant_data.fetchall()
-     
-     def getNameVariant(self, type, column1, resource1, column2, resource2):
-          variant_table_query = "SELECT * FROM "+ type +" WHERE " + column1 + "='"+resource1+"' AND " + column2 + "='"+resource2+"';"
-          variant_data = self.__conn.execute(variant_table_query)
-          self.__conn.commit()
-          return variant_data.fetchall()
+    def getVariantResource(self, type, column, resource):
+        variant_table_query = "SELECT * FROM " + type + " WHERE " + column + "='" + resource + "';"
+        variant_data = self.__conn.execute(variant_table_query)
+        self.__conn.commit()
+        return variant_data.fetchall()
 
-     def insert(self, tablename, *args):
-          query = "INSERT OR IGNORE INTO "+tablename+" VALUES "+str(args)
-          self.__conn.execute(query)
-          self.__conn.commit()
+    def getNameVariant(self, type, column1, resource1, column2, resource2):
+        variant_table_query = "SELECT * FROM " + type + " WHERE " + column1 + "='" + resource1 + "' AND " + column2 + "='" + resource2 + "';"
+        variant_data = self.__conn.execute(variant_table_query)
+        self.__conn.commit()
+        return variant_data.fetchall()
+
+    def is_transformation(self, name, variant):
+        query = "SELECT transformation FROM source_variant WHERE name='" + name + "' and variant='" + variant + "';"
+        transformation = self.__conn.execute(query)
+        self.__conn.commit()
+        t = transformation.fetchall()
+        if len(t) == 0:
+            return False
+        if t[0][0] is 1:
+            return True
+        else:
+            return False
+
+    def insert_source(self, tablename, *args):
+        stmt = "INSERT OR IGNORE INTO " + tablename + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        self.__conn.execute_stmt(stmt, args)
+        self.__conn.commit()
+
+    def insert(self, tablename, *args):
+        query = "INSERT OR IGNORE INTO " + tablename + " VALUES " + str(args)
+        self.__conn.execute(query)
+        self.__conn.commit()

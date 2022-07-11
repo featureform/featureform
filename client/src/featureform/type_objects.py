@@ -7,8 +7,8 @@ class FeatureVariantResource:
         description="", 
         entity="", 
         name="", 
-        owner="", 
-        provider="", 
+        owner="",
+        provider="",
         dataType="", 
         variant="",
         status="",
@@ -88,7 +88,7 @@ class TrainingSetVariantResource:
         return json.dumps(self.__dictionary)
 
 class TrainingSetResource:
-    def __init__(self, 
+    def __init__(self,
         type = "",
         defaultVariant="",
         name="",
@@ -112,8 +112,8 @@ class TrainingSetResource:
 class SourceVariantResource:
     def __init__(self, 
         created=None, 
-        description="", 
-        name="", 
+        description="",
+        name="",
         sourceType = "",
         owner="", 
         provider="", 
@@ -172,7 +172,7 @@ class LabelVariantResource:
         created=None, 
         description="",
         entity="",
-        name="", 
+        name="",
         owner="", 
         provider="",
         dataType = "", 
@@ -181,7 +181,6 @@ class LabelVariantResource:
         status="",
         source=None,
         trainingSets=None):
-        
 
         self.__dictionary = {
          "created":created,
@@ -228,7 +227,7 @@ class LabelResource:
         return json.dumps(self.__dictionary)
 
 class EntityResource:
-    def __init__(self, 
+    def __init__(self,
         name="", 
         type="",
         description="",

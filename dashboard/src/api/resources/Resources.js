@@ -40,18 +40,9 @@ export const providerLogos = Object.freeze({
   SNOWFLAKE: "Snowflake_Logo.svg",
 });
 
-<<<<<<< HEAD
-//var API_URL = "http:localhost:8080";
-var API_URL = "http://127.0.0.1:5000/data";
-// var API_URL = "//"+ window.location.hostname+"/data"
-//var API_URL = "http://a57f7235b9e0e49cf97d9ba661188650-73543dde19a3fca9.elb.us-east-1.amazonaws.com/data"
-=======
-
-
 // var API_URL = "http://127.0.0.1:5000/data"; //localmode
 var API_URL = "//"+ window.location.hostname+"/data"
 
->>>>>>> 23b9c47887bc46c1c044d39f73d59aae6aa15327
 if (typeof process.env.REACT_APP_API_URL != "undefined") {
   API_URL = process.env.REACT_APP_API_URL.trim();
 }

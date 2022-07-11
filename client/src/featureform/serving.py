@@ -246,7 +246,7 @@ class LocalStream:
         return LocalRow(next(self._iter))
 
     def restart(self):
-        self._iter = self._datalist
+        self._iter = iter(self._datalist)
 
 
 class Repeat:

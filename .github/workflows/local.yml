@@ -1,0 +1,37 @@
+name: Local Tests
+on: [push]
+
+jobs:
+  setup:
+    name: Setup Test Dependencies
+    defaults:
+      run:
+        working-directory: ./
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
+
+      - name: Install grpc_tools
+        run: pip install grpcio-tools
+
+      - name: Install Protobuf
+        run: sudo snap install protobuf --classic
+
+      - name: Setup Proto
+        run: ./gen_grpc.sh
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.7' # Version range or exact version of a Python version to use, using SemVer's version range syntax
+          #architecture: 'x64' # optional x64 or x86. Defaults to x64 if not specified
+
+      - run: pip install build pytest
+
+      - run: ./pip_update
+
+      - run: pytest client/tests/localmode.py

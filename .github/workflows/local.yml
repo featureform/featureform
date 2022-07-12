@@ -3,10 +3,11 @@ on: [push]
 
 jobs:
   setup:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
         matrix:
-          python-version: [ '3.7', '3.8', '3.9' ]
+          os: [ubuntu-latest, macos-latest, osx-arm64, windows-latest]
+          python-version: [ '3.7', '3.8', '3.9', '3.10' ]
     steps:
       - uses: actions/checkout@v2
 

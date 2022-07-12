@@ -54,6 +54,7 @@ jobs:
 
       - run: pip install build pytest
 
+      - run: chmod +x ./pip_update.sh
       - run: ./pip_update.sh
 
       - run: curl https://featureform-demo-files.s3.amazonaws.com/transactions.csv -o transactions.csv

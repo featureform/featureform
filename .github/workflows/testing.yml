@@ -111,6 +111,7 @@ jobs:
     environment: Integration testing
     needs: setup
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     services:
       redis:
         image: redis

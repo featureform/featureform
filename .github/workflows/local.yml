@@ -52,7 +52,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - run: pip install build pytest
+      - run: pip install build pytest dataclasses
 
       - run: chmod +x ./pip_update.sh
       - run: |

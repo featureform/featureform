@@ -76,7 +76,6 @@ class DynamodbConfig:
         }
         return bytes(json.dumps(config), "utf-8")
 
-# RIDDHI
 @typechecked
 @dataclass
 class LocalConfig:
@@ -583,7 +582,6 @@ class TrainingSet:
                   self.description,
                   self.name,
                   self.owner,
-                  # "Provider",
                   self.variant,
                   self.label[0],
                   self.label[1],

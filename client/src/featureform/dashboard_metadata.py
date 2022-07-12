@@ -26,7 +26,7 @@ def variant_organiser(allVariantList):
 
     for variant in allVariantList:
         name = variant["name"]
-        if name in variantsDict: #Check if the key exists
+        if name in variantsDict:
             variantsDict[name].append(variant)
         else:
             variantsDict[name] = [variant]
@@ -97,10 +97,8 @@ def training_set_variant(variantData):
     return variantDict, allVariantList, variants
     
 def getTrainingSetFeatures(featureList):
-    # parse the featureList str(list of tuples)
     featureVariantTuple = []
     features = [tuple(featureTuple.split('\', \'')) for featureTuple in re.findall("\(\'(.*?)\'\)", featureList)]
-    # Iterate throigh the list and get one large tuple of tuples
     for feature in features:
         featureVariantTuple += sqlObject.getNameVariant("feature_variant", "featureName", feature[0], "variantName", feature[1])
     
@@ -147,7 +145,6 @@ def sources(rowData):
     return SourceResource( 
                 rowData[0], #type
                 rowData[1], #defaultVariant
-                #source_variant(sqlObject.getNameVariant("source_variant", "sourceName", rowData[2], "variantName", rowData[1]))[0], #defaultvariant
                 rowData[2], #name
                 variantData[0], #variants
                 variantData[1] #all variants
@@ -242,7 +239,6 @@ def providers(rowData):
                 rowData[8],#serialis...
                 variant_organiser(feature_variant(sqlObject.getVariantResource( "feature_variant", "provider", rowData[0]))[2]), #features
                 variant_organiser(label_variant(sqlObject.getVariantResource( "labels_variant", "provider", rowData[0]))[2]), #labels
-                #variant_organiser(training_set_variant(sqlObject.getVariantResource( "training_set_variant", "provider", rowData[0]))[2]), #training sets
             ).toDictionary()
 
 @app.route("/data/<type>", methods = ['POST', 'GET'])

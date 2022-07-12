@@ -27,7 +27,6 @@ class FeatureVariantResource:
             "status": status,
             "location":location,
             "source":source
-            # Training Set[] is missing
         }
 
     def toDictionary(self):
@@ -196,7 +195,6 @@ class LabelVariantResource:
          "location":location,
          "source":source,
          "trainingSets":trainingSets
-        #  source is missing
         }
 
     def toDictionary(self):
@@ -318,7 +316,6 @@ class ProviderResource:
         serializedConfig="",
         features=None,
         labels=None
-        #trainingSets=None
         ):
 
          self.__dictionary = {
@@ -331,9 +328,7 @@ class ProviderResource:
              "sources":sources,
              "features":features,
               "labels":labels,
-              #"training-sets":trainingSets,
               "status":status ,
-            #   Seems like we dont need serialised config
               "serializedConfig":serializedConfig
         }
 

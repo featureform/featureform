@@ -39,7 +39,6 @@ def cli():
     pass
 
 
-
 @cli.command()
 @click.option("--host",
               "host",
@@ -121,7 +120,6 @@ def get(host, cert, insecure, resource_type, name, variant):
             GetModel(stub, name)
     else:
         print("Resource type not found.")
-
 
 
 # @cli.command()
@@ -214,8 +212,6 @@ def apply(host, cert, insecure, local, files):
         if host == None:
             raise ValueError(
                 "Host value must be set with --host flag or in env as FEATUREFORM_HOST")
-
-
 
     for file in files:
         with open(file, "r") as py:

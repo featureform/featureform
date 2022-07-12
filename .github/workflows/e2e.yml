@@ -200,13 +200,17 @@ jobs:
           names: api-server coordinator dashboard dashboard-metadata metadata serving worker
           path: /tmp
 
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.7'
+
       - name: Check Artifacts
         run: |
           ls /tmp
           ls /tmp/api-server
 
       - name: Install grpc_tools
-        run: pip install grpcio-tools
+        run: pip install grpcio-tools requests
 
       - name: Install Protobuf
         run: sudo snap install protobuf --classic
@@ -219,7 +223,7 @@ jobs:
         run: |
           python3 -m pip install build pytest
           python3 -m build ./client/
-          python3 -m pip install client/dist/*
+          pip install client/dist/*.whl
 
       - name: Start minikube
         run: |

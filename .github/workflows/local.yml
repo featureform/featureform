@@ -3,13 +3,17 @@ on: [push]
 
 jobs:
   setup:
-    name: Setup Test Dependencies
-    defaults:
-      run:
-        working-directory: ./
     runs-on: ubuntu-latest
+    strategy:
+        matrix:
+          python-version: [ '3.7', '3.8', '3.9', '3.10' ]
     steps:
       - uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
 
       - name: Set up Go
         uses: actions/setup-go@v2
@@ -25,10 +29,6 @@ jobs:
       - name: Setup Proto
         run: ./gen_grpc.sh
 
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.7' # Version range or exact version of a Python version to use, using SemVer's version range syntax
-          #architecture: 'x64' # optional x64 or x86. Defaults to x64 if not specified
 
       - run: pip install build pytest
 
@@ -36,6 +36,6 @@ jobs:
 
       - run: curl https://featureform-demo-files.s3.amazonaws.com/transactions.csv -o transactions.csv
 
-      - run: featureform apply client/examples/local_quickstart.py
+      - run: featureform apply client/examples/local_quickstart.py --local
 
       - run: pytest client/tests/localmode.py

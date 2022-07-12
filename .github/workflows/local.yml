@@ -52,12 +52,12 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - run: pip install build pytest dataclasses
+      - run: pip install build pytest
 
       - run: chmod +x ./pip_update.sh
       - run: |
           python3 -m build ./client/
-          pip install client/dist/*.whl
+          pip install featureform-0.0.0-py3-none-any.whl
 
       - run: curl https://featureform-demo-files.s3.amazonaws.com/transactions.csv -o transactions.csv
 

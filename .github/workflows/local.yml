@@ -59,6 +59,6 @@ jobs:
 
       - run: curl https://featureform-demo-files.s3.amazonaws.com/transactions.csv -o transactions.csv
 
-      - run: featureform apply client/examples/local_quickstart.py --local
+      - run: python -m featureform apply client/examples/local_quickstart.py --local
 
       - run: pytest client/tests/localmode.py

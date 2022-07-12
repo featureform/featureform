@@ -29,9 +29,6 @@ jobs:
       - name: Setup Proto
         run: ./gen_grpc.sh
 
-      - name: Build
-        run: go build ./metadata/*.go
-
       - uses: actions/upload-artifact@v3
         with:
           name: compiled-workdir
@@ -45,8 +42,6 @@ jobs:
           os: [ubuntu-latest, macos-latest, osx-arm64, windows-latest]
           python-version: [ '3.7', '3.8', '3.9', '3.10' ]
     steps:
-      - uses: actions/checkout@v2
-
       - name: Download Working Compiled Directories
         uses: actions/download-artifact@v3
         with:

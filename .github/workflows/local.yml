@@ -44,7 +44,7 @@ jobs:
     strategy:
         matrix:
           os: [ubuntu-latest, macos-latest, windows-latest] #, osx-arm64] osx-arm64 currently not working. Ticket send to github
-          python-version: [ '3.6', '3.7', '3.8', '3.9', '3.10' ]
+          python-version: [ '3.7', '3.8', '3.9', '3.10' ]
     steps:
       - name: Download Working Compiled Directories
         uses: actions/download-artifact@v3

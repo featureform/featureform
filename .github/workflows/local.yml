@@ -29,6 +29,10 @@ jobs:
       - name: Setup Proto
         run: ./gen_grpc.sh
 
+      - run: pip install build pytest
+
+      - run: ./pip_update.sh
+
       - uses: actions/upload-artifact@v3
         with:
           name: compiled-workdir
@@ -52,13 +56,9 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - run: pip install build pytest
+      - run: pip install pytest
 
-      - run: chmod +x ./pip_update.sh
-      - run: |
-          python3 -m build client/
-          ls
-          pip install client/dist/featureform-0.0.0-py3-none-any.whl
+      - run: pip install client/dist/featureform-0.0.0-py3-none-any.whl
 
       - run: curl https://featureform-demo-files.s3.amazonaws.com/transactions.csv -o transactions.csv
 

@@ -22,8 +22,32 @@ def GetUser(stub, name):
             for s in user.sources:
                 formatRows(
                     s.name, s.variant, "source")
+            formatNewPara("")
+            return user
     except grpc._channel._MultiThreadedRendezvous:
         print("User not found.")
+
+def GetEntity(stub, name):
+    searchName = metadata_pb2.Name(name=name)
+    try:
+        for x in stub.GetEntities(iter([searchName])):
+            formatRows([("ENTITY NAME: ", x.name),
+            ("STATUS: ", x.status.Status._enum_type.values[x.status.status].name)])
+            formatNewPara("")
+            formatRows('NAME', 'VARIANT', 'TYPE')
+            for f in x.features:
+                formatRows(
+                    f.name, f.variant, "feature")
+            for l in x.labels:
+                formatRows(
+                    l.name, l.variant, "label")
+            for t in x.trainingsets:
+                formatRows(
+                    t.name, t.variant, "training set")
+            formatNewPara("")
+            return x
+    except grpc._channel._MultiThreadedRendezvous:
+        print("Entity not found.")
 
 def GetResource(stub, resource_type, name):
     funcDict = {
@@ -32,7 +56,6 @@ def GetResource(stub, resource_type, name):
         "source": stub.GetSources,
         "trainingset": stub.GetTrainingSets,
         "training-set": stub.GetTrainingSets,
-        "entity": stub.GetEntities,
         "model": stub.GetModels
     }
 
@@ -46,8 +69,10 @@ def GetResource(stub, resource_type, name):
             for v in x.variants:
                 if v != x.default_variant:
                     formatRows(v, '')
+            formatNewPara("")
+            return x
     except grpc._channel._MultiThreadedRendezvous:
-        print("Feature not found.")
+        print(f"{resource_type} not found.")
 
 def GetFeatureVariant(stub, name, variant):
     searchNameVariant = metadata_pb2.NameVariant(name=name, variant=variant)
@@ -68,6 +93,8 @@ def GetFeatureVariant(stub, name, variant):
             formatRows("NAME", "VARIANT")
             for t in x.trainingsets:
                 formatRows(t.name, t.variant)
+            formatNewPara("")
+            return x
     except grpc._channel._MultiThreadedRendezvous:
         print("Feature variant not found.")
 
@@ -89,6 +116,8 @@ def GetLabelVariant(stub, name, variant):
             formatRows("NAME", "VARIANT")
             for t in x.trainingsets:
                 formatRows(t.name, t.variant)
+            formatNewPara("")
+            return x
     except grpc._channel._MultiThreadedRendezvous:
         print("Label variant not found.")
 
@@ -124,6 +153,8 @@ def GetSourceVariant(stub, name, variant):
             formatRows("NAME", "VARIANT")
             for t in x.trainingsets:
                 formatRows(t.name, t.variant)
+            formatNewPara("")
+            return x
     except grpc._channel._MultiThreadedRendezvous:
         print("Source variant not found.")
 
@@ -143,6 +174,8 @@ def GetTrainingSetVariant(stub, name, variant):
             formatRows("NAME", "VARIANT")
             for f in x.features:
                 formatRows(f.name, f.variant)
+            formatNewPara("")
+            return x
     except grpc._channel._MultiThreadedRendezvous:
         print("Training set variant not found.")
 
@@ -172,5 +205,7 @@ def GetProvider(stub, name):
             formatRows("NAME", "VARIANT")
             for t in x.trainingsets:
                 formatRows(t.name, t.variant)
+            formatNewPara("")
+            return x
     except grpc._channel._MultiThreadedRendezvous:
         print("Provider not found.")

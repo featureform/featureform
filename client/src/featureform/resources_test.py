@@ -3,7 +3,7 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import pytest
-from .resources import ResourceRedefinedError, ResourceState, Provider, RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, User, Provider, Entity, Feature, Label, TrainingSet, PrimaryData, SQLTable, Source, ResourceColumnMapping, Schedule
+from resources import ResourceRedefinedError, ResourceState, Provider, RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, User, Provider, Entity, Feature, Label, TrainingSet, PrimaryData, SQLTable, Source, ResourceColumnMapping, DynamodbConfig, Schedule
 
 
 @pytest.fixture
@@ -38,6 +38,13 @@ def redis_config():
         db=3,
     )
 
+@pytest.fixture
+def dynamodb_config():
+    return DynamodbConfig(
+        region="abc",
+        access_key="abc",
+        secret_key="abc"
+    )
 
 @pytest.fixture
 def redshift_config():

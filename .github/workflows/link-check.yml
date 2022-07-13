@@ -1,12 +1,6 @@
 name: Check All Public Links
 
-on:
-  push:
-    branches:
-      - main
-  schedule:
-    # Run everyday at 9:00 AM (See https://pubs.opengroup.org/onlinepubs/9699919799/utilities/crontab.html#tag_20_25_07)
-    - cron: "0 9 * * *"
+on: [push]
 
 jobs:
   github-link-check:
@@ -31,7 +25,7 @@ jobs:
           use-quiet-mode: "yes"
           use-verbose-mode: "yes"
           config-file: ".docs_mlc_config.json"
-          folder-path: "docs"
+          folder-path: "embeddinghub/docs"
           max-depth: 2
   website-link-checker:
     runs-on: ubuntu-latest

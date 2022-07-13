@@ -4,10 +4,10 @@
 import marshal
 from distutils.command.config import config
 from typing_extensions import Self
-from .resources import GetSource, ResourceState, Provider, GetProvider, GetSource, GetEntity, RedisConfig, LocalConfig, PostgresConfig, SnowflakeConfig, User, \
-    Location, Source, \
-    PrimaryData, SQLTable, SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet
-
+from .resources import ResourceState, Provider, ProviderReference, SourceReference, EntityReference, RedisConfig, \
+    LocalConfig, DynamodbConfig, PostgresConfig, SnowflakeConfig, RedshiftConfig, User, Location, Source, PrimaryData, SQLTable, \
+    SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet
+from numpy import byte
 from typing import Tuple, Callable, TypedDict, List, Union
 from typeguard import typechecked, check_type
 import grpc
@@ -17,6 +17,8 @@ from .proto import metadata_pb2_grpc as ff_grpc
 from .sqlite_metadata import SQLiteMetadata
 import time
 import pandas as pd
+from .get import *
+from .list import *
 
 NameVariant = Tuple[str, str]
 
@@ -139,7 +141,7 @@ class LocalProvider:
                           owner: Union[str, UserRegistrar] = "",
                           name: str = "",
                           description: str = "",
-                          inputs: list=[]):
+                          inputs: list = []):
         return self.__registrar.df_transformation(name=name,
                                                   variant=variant,
                                                   owner=owner,
@@ -465,8 +467,7 @@ class Registrar:
         Returns:
             _type_: _description_
         """
-
-        get = GetSource(name=name, variant=variant, obj=None)
+        get = SourceReference(name=name, variant=variant, obj=None)
         self.__resources.append(get)
         fakeDefinition = PrimaryData(location=SQLTable(name=""))
         fakeSource = Source(name=name,
@@ -478,28 +479,28 @@ class Registrar:
         return ColumnSourceRegistrar(self, fakeSource)
 
     def get_redis(self, name):
-        get = GetProvider(name=name, provider_type="redis", obj=None)
+        get = ProviderReference(name=name, provider_type="redis", obj=None)
         self.__resources.append(get)
         fakeConfig = RedisConfig(host="", port=123, password="", db=123)
         fakeProvider = Provider(name=name, function="ONLINE", description="", team="", config=fakeConfig)
         return OnlineProvider(self, fakeProvider)
 
     def get_postgres(self, name):
-        get = GetProvider(name=name, provider_type="postgres", obj=None)
+        get = ProviderReference(name=name, provider_type="postgres", obj=None)
         self.__resources.append(get)
         fakeConfig = PostgresConfig(host="", port="", database="", user="", password="")
         fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
         return OfflineSQLProvider(self, fakeProvider)
 
     def get_snowflake(self, name):
-        get = GetProvider(name=name, provider_type="snowflake", obj=None)
+        get = ProviderReference(name=name, provider_type="snowflake", obj=None)
         self.__resources.append(get)
         fakeConfig = SnowflakeConfig(account="", database="", organization="", username="", password="", schema="")
         fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
         return OfflineSQLProvider(self, fakeProvider)
 
     def get_entity(self, name):
-        get = GetEntity(name=name, obj=None)
+        get = EntityReference(name=name, obj=None)
         fakeEntity = Entity(name=name, description="")
         self.__resources.append(get)
         return EntityRegistrar(self, fakeEntity)
@@ -513,6 +514,22 @@ class Registrar:
                        password: str = "",
                        db: int = 0):
         config = RedisConfig(host=host, port=port, password=password, db=db)
+        provider = Provider(name=name,
+                            function="ONLINE",
+                            description=description,
+                            team=team,
+                            config=config)
+        self.__resources.append(provider)
+        return OnlineProvider(self, provider)
+
+    def register_dynamodb(self,
+                          name: str,
+                          description: str = "",
+                          team: str = "",
+                          access_key: str = None,
+                          secret_key: str = None,
+                          region: str = None):
+        config = DynamodbConfig(access_key=access_key, secret_key=secret_key, region=region)
         provider = Provider(name=name,
                             function="ONLINE",
                             description=description,
@@ -832,11 +849,67 @@ class Client(Registrar):
         """
         self.state().create_all(self._stub)
 
+    def get_user(self, name):
+        return GetUser(self._stub, name)
+    
+    def get_entity(self, name):
+        return GetEntity(self._stub, name)
+
+    def get_model(self, name):
+        return GetResource(self._stub, "model", name)
+
+    def get_provider(self, name):
+        return GetProvider(self._stub, name)
+
+    def get_feature(self, name, variant=None):
+        if not variant:
+            return GetResource(self._stub, "feature", name)
+        return GetFeatureVariant(self._stub, name, variant)
+
+    def get_label(self, name, variant=None):
+        if not variant:
+            return GetResource(self._stub, "label", name)
+        return GetLabelVariant(self._stub, name, variant)
+
+    def get_training_set(self, name, variant=None):
+        if not variant:
+            return GetResource(self._stub, "training-set", name)
+        return GetTrainingSetVariant(self._stub, name, variant)
+
+    def get_source(self, name, variant=None):
+        if not variant:
+            return GetResource(self._stub, "source", name)
+        return GetSourceVariant(self._stub, name, variant)
+
+    def list_features(self):
+        return ListNameVariantStatus(self._stub, "feature")
+
+    def list_labels(self):
+        return ListNameVariantStatus(self._stub, "label")
+
+    def list_users(self):
+        return ListNameStatus(self._stub, "user")
+
+    def list_entities(self):
+        return ListNameStatus(self._stub, "entity")
+
+    def list_sources(self):
+        return ListNameVariantStatusDesc(self._stub, "source")
+
+    def list_training_sets(self):
+        return ListNameVariantStatusDesc(self._stub, "training-set")
+
+    def list_models(self):
+        return ListNameStatusDesc(self._stub, "model")
+
+    def list_providers(self):
+        return ListNameStatusDesc(self._stub, "provider")
 
 global_registrar = Registrar()
 state = global_registrar.state
 register_user = global_registrar.register_user
 register_redis = global_registrar.register_redis
+register_dynamodb = global_registrar.register_dynamodb
 register_snowflake = global_registrar.register_snowflake
 register_postgres = global_registrar.register_postgres
 register_redshift = global_registrar.register_redshift

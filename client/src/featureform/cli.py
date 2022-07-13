@@ -6,7 +6,7 @@ from curses import meta
 import click
 import featureform.register as register
 import grpc
-
+from featureform import ResourceClient
 from .list import *
 from .proto import metadata_pb2_grpc as ff_grpc
 from .get import *
@@ -101,30 +101,44 @@ def get(host, cert, insecure, local, resource_type, name, variant):
         stub = ff_grpc.ApiStub(channel)
         register.state().create_all(stub)
 
-    getVariantFuncDict = {
-        "feature": GetFeatureVariant,
-        "label": GetLabelVariant,
-        "source": GetSourceVariant,
-        "trainingset": GetTrainingSetVariant,
-        "training-set": GetTrainingSetVariant
-    }
-    if resource_type == "user":
-        GetUser(stub, name)
-    elif resource_type in ["feature", "label", "source", "trainingset", "training-set"]:
-        if variant:
-            getVariantFuncDict[resource_type](stub, name, variant)
+    rc = ResourceClient(host)
+
+    if resource_type == "feature":
+        if not variant:
+            rc.get_feature(name)
         else:
-            GetResource(stub, resource_type, name)
-    elif resource_type in ["model", "entity"]:
+            rc.get_feature(name, variant)
+    elif resource_type == "label":
+        if not variant:
+            rc.get_label(name)
+        else:
+            rc.get_label(name, variant)
+    elif resource_type == "source":
+        if not variant:
+            rc.get_source(name)
+        else:
+            rc.get_source(name, variant)
+    elif resource_type == "trainingset" or resource_type == "training-set":
+        if not variant:
+            rc.get_training_set(name)
+        else:
+            rc.get_training_set(name, variant)
+    elif resource_type == "user":
         if variant:
             raise ValueError("Variant not needed")
-        else:
-            GetResource(stub, resource_type, name)
+        rc.get_user(name)
+    elif resource_type == "model":
+        if variant:
+            raise ValueError("Variant not needed")
+        rc.get_model(name)
+    elif resource_type == "entity":
+        if variant:
+            raise ValueError("Variant not needed")
+        rc.get_entity(name)
     elif resource_type == "provider":
         if variant:
             raise ValueError("Variant not needed")
-        else:
-            GetProvider(stub, name)
+        rc.get_provider(name)
     else:
         raise ValueError("Resource type not found")
 
@@ -179,14 +193,24 @@ def list(host, cert, insecure, local, resource_type):
         stub = ff_grpc.ApiStub(channel)
         register.state().create_all(stub)
 
-    if resource_type in  ["user", "entity"]:
-        ListNameStatus(stub, resource_type)
-    elif resource_type in ["feature", "label"]:
-        ListNameVariantStatus(stub, resource_type)
-    elif resource_type in ["source", "trainingset", "training-set"]:
-        ListNameVariantStatusDesc(stub, resource_type)
-    elif resource_type in ["model", "provider"]:
-        ListNameStatusDesc(stub, resource_type)
+    rc = ResourceClient(host)
+
+    if resource_type == "features":
+        rc.list_features()
+    elif resource_type == "labels":
+        rc.list_labels()
+    elif resource_type == "sources":
+        rc.list_sources()
+    elif resource_type == "trainingsets" or resource_type == "training-sets":
+        rc.list_training_sets()
+    elif resource_type == "users":
+        rc.list_users()
+    elif resource_type == "models":
+        rc.list_models()
+    elif resource_type == "entities":
+        rc.list_entities()
+    elif resource_type == "providers":
+        rc.list_providers()
     else:
         raise ValueError("Resource type not found")
 

@@ -57,7 +57,8 @@ jobs:
       - run: chmod +x ./pip_update.sh
       - run: |
           python3 -m build client/
-          pip install client/dist/*.whl
+          ls
+          pip install client/dist/featureform-0.0.0-py3-none-any.whl
 
       - run: curl https://featureform-demo-files.s3.amazonaws.com/transactions.csv -o transactions.csv
 

@@ -202,25 +202,6 @@ class LocalSource:
             labels: List[ColumnMapping] = None,
             timestamp_column: str = ""
     ):
-        """_summary_
-
-        :param entity: _description_
-        :type entity: Union[str, EntityRegistrar]
-        :param entity_column: _description_
-        :type entity_column: str
-        :param owner: _description_, defaults to ""
-        :type owner: Union[str, UserRegistrar], optional
-        :param inference_store: _description_, defaults to ""
-        :type inference_store: Union[str, OnlineProvider], optional
-        :param features: _description_, defaults to None
-        :type features: List[ColumnMapping], optional
-        :param labels: _description_, defaults to None
-        :type labels: List[ColumnMapping], optional
-        :param timestamp_column: _description_, defaults to ""
-        :type timestamp_column: str, optional
-        :return: _description_
-        :rtype: _type_
-        """
         return self.registrar.register_column_resources(
             source=(self.name, self.variant),
             entity=entity,
@@ -447,45 +428,23 @@ class ResourceRegistrar():
 
 
 class Registrar:
-
-    """_summary_
-    """
-
     def __init__(self):
         self.__state = ResourceState()
         self.__resources = []
         self.__default_owner = ""
 
     def register_user(self, name: str) -> UserRegistrar:
-        """_summary_
-
-        :param name: _description_
-        :type name: str
-        :return: _description_
-        :rtype: UserRegistrar
-        """
         user = User(name)
         self.__resources.append(user)
         return UserRegistrar(self, user)
 
     def set_default_owner(self, user: str):
-        """_summary_
-
-        :param user: _description_
-        :type user: str
-        """
         self.__default_owner = user
 
     def default_owner(self) -> str:
         return self.__default_owner
 
     def must_get_default_owner(self) -> str:
-        """_summary_
-
-        :raises ValueError: _description_
-        :return: _description_
-        :rtype: str
-        """
         owner = self.default_owner()
         if owner == "":
             raise ValueError(
@@ -493,15 +452,20 @@ class Registrar:
         return owner
 
     def get_source(self, name, variant):
-        """Get source variant.
+        """_summary_
 
-        :param name: _description_
-        :type name: _type_
-        :param variant: _description_
-        :type variant: _type_
-        :return: _description_
-        :rtype: _type_
+        *Examples*:
+        ```
+        redis = get_source("redis-quickstart", "quickstart")
+        ```
+        Args:
+            name (string): Name of source to be retrieved.
+            variant (string): Name of variant of source to be retrieved.
+
+        Returns:
+            _type_: _description_
         """
+
         get = GetSource(name=name, variant=variant, obj=None)
         self.__resources.append(get)
         fakeDefinition = PrimaryData(location=SQLTable(name=""))
@@ -514,13 +478,6 @@ class Registrar:
         return ColumnSourceRegistrar(self, fakeSource)
 
     def get_redis(self, name):
-        """_summary_
-
-        :param name: _description_
-        :type name: _type_
-        :return: _description_
-        :rtype: _type_
-        """
         get = GetProvider(name=name, provider_type="redis", obj=None)
         self.__resources.append(get)
         fakeConfig = RedisConfig(host="", port=123, password="", db=123)
@@ -528,13 +485,6 @@ class Registrar:
         return OnlineProvider(self, fakeProvider)
 
     def get_postgres(self, name):
-        """_summary_
-
-        :param name: _description_
-        :type name: _type_
-        :return: _description_
-        :rtype: _type_
-        """
         get = GetProvider(name=name, provider_type="postgres", obj=None)
         self.__resources.append(get)
         fakeConfig = PostgresConfig(host="", port="", database="", user="", password="")
@@ -542,13 +492,6 @@ class Registrar:
         return OfflineSQLProvider(self, fakeProvider)
 
     def get_snowflake(self, name):
-        """_summary_
-
-        :param name: _description_
-        :type name: _type_
-        :return: _description_
-        :rtype: _type_
-        """
         get = GetProvider(name=name, provider_type="snowflake", obj=None)
         self.__resources.append(get)
         fakeConfig = SnowflakeConfig(account="", database="", organization="", username="", password="", schema="")
@@ -556,13 +499,6 @@ class Registrar:
         return OfflineSQLProvider(self, fakeProvider)
 
     def get_entity(self, name):
-        """_summary_
-
-        :param name: _description_
-        :type name: _type_
-        :return: _description_
-        :rtype: _type_
-        """
         get = GetEntity(name=name, obj=None)
         fakeEntity = Entity(name=name, description="")
         self.__resources.append(get)
@@ -576,25 +512,6 @@ class Registrar:
                        port: int = 6379,
                        password: str = "",
                        db: int = 0):
-        """Register redis as a provider.
-
-        :param name: _description_
-        :type name: str
-        :param description: _description_, defaults to ""
-        :type description: str, optional
-        :param team: _description_, defaults to ""
-        :type team: str, optional
-        :param host: _description_, defaults to "0.0.0.0"
-        :type host: str, optional
-        :param port: _description_, defaults to 6379
-        :type port: int, optional
-        :param password: _description_, defaults to ""
-        :type password: str, optional
-        :param db: _description_, defaults to 0
-        :type db: int, optional
-        :return: _description_
-        :rtype: _type_
-        """
         config = RedisConfig(host=host, port=port, password=password, db=db)
         provider = Provider(name=name,
                             function="ONLINE",
@@ -616,29 +533,6 @@ class Registrar:
             description: str = "",
             team: str = "",
     ):
-        """_summary_
-
-        :param name: _description_
-        :type name: str
-        :param username: _description_
-        :type username: str
-        :param password: _description_
-        :type password: str
-        :param account: _description_
-        :type account: str
-        :param organization: _description_
-        :type organization: str
-        :param database: _description_
-        :type database: str
-        :param schema: _description_, defaults to "PUBLIC"
-        :type schema: str, optional
-        :param description: _description_, defaults to ""
-        :type description: str, optional
-        :param team: _description_, defaults to ""
-        :type team: str, optional
-        :return: _description_
-        :rtype: _type_
-        """
         config = SnowflakeConfig(account=account,
                                  database=database,
                                  organization=organization,
@@ -662,27 +556,6 @@ class Registrar:
                           user: str = "postgres",
                           password: str = "password",
                           database: str = "postgres"):
-        """_summary_
-
-        :param name: _description_
-        :type name: str
-        :param description: _description_, defaults to ""
-        :type description: str, optional
-        :param team: _description_, defaults to ""
-        :type team: str, optional
-        :param host: _description_, defaults to "0.0.0.0"
-        :type host: str, optional
-        :param port: _description_, defaults to 5432
-        :type port: int, optional
-        :param user: _description_, defaults to "postgres"
-        :type user: str, optional
-        :param password: _description_, defaults to "password"
-        :type password: str, optional
-        :param database: _description_, defaults to "postgres"
-        :type database: str, optional
-        :return: _description_
-        :rtype: _type_
-        """
         config = PostgresConfig(host=host,
                                 port=port,
                                 database=database,
@@ -705,27 +578,6 @@ class Registrar:
                           user: str = "redshift",
                           password: str = "password",
                           database: str = "dev"):
-        """_summary_
-
-        :param name: _description_
-        :type name: str
-        :param description: _description_, defaults to ""
-        :type description: str, optional
-        :param team: _description_, defaults to ""
-        :type team: str, optional
-        :param host: _description_, defaults to ""
-        :type host: str, optional
-        :param port: _description_, defaults to 5432
-        :type port: int, optional
-        :param user: _description_, defaults to "redshift"
-        :type user: str, optional
-        :param password: _description_, defaults to "password"
-        :type password: str, optional
-        :param database: _description_, defaults to "dev"
-        :type database: str, optional
-        :return: _description_
-        :rtype: _type_
-        """
         config = RedshiftConfig(host=host,
                                 port=port,
                                 database=database,
@@ -740,11 +592,6 @@ class Registrar:
         return OfflineSQLProvider(self, provider)
 
     def register_local(self):
-        """_summary_
-
-        :return: _description_
-        :rtype: _type_
-        """
         config = LocalConfig()
         provider = Provider(name="local mode",
                             function="ONLINE",
@@ -761,23 +608,6 @@ class Registrar:
                               provider: Union[str, OfflineProvider],
                               owner: Union[str, UserRegistrar] = "",
                               description: str = ""):
-        """_summary_
-
-        :param name: _description_
-        :type name: str
-        :param variant: _description_
-        :type variant: str
-        :param location: _description_
-        :type location: Location
-        :param provider: _description_
-        :type provider: Union[str, OfflineProvider]
-        :param owner: _description_, defaults to ""
-        :type owner: Union[str, UserRegistrar], optional
-        :param description: _description_, defaults to ""
-        :type description: str, optional
-        :return: _description_
-        :rtype: _type_
-        """
         if not isinstance(owner, str):
             owner = owner.name()
         if owner == "":
@@ -801,25 +631,6 @@ class Registrar:
                                     owner: Union[str, UserRegistrar] = "",
                                     description: str = "",
                                     schedule: str = ""):
-        """_summary_
-
-        :param name: _description_
-        :type name: str
-        :param variant: _description_
-        :type variant: str
-        :param query: _description_
-        :type query: str
-        :param provider: _description_
-        :type provider: Union[str, OfflineProvider]
-        :param owner: _description_, defaults to ""
-        :type owner: Union[str, UserRegistrar], optional
-        :param description: _description_, defaults to ""
-        :type description: str, optional
-        :param schedule: _description_, defaults to ""
-        :type schedule: str, optional
-        :return: _description_
-        :rtype: _type_
-        """
         if not isinstance(owner, str):
             owner = owner.name()
         if owner == "":
@@ -845,23 +656,6 @@ class Registrar:
                            schedule: str = "",
                            owner: Union[str, UserRegistrar] = "",
                            description: str = ""):
-        """_summary_
-
-        :param variant: _description_
-        :type variant: str
-        :param provider: _description_
-        :type provider: Union[str, OfflineProvider]
-        :param name: _description_, defaults to ""
-        :type name: str, optional
-        :param schedule: _description_, defaults to ""
-        :type schedule: str, optional
-        :param owner: _description_, defaults to ""
-        :type owner: Union[str, UserRegistrar], optional
-        :param description: _description_, defaults to ""
-        :type description: str, optional
-        :return: _description_
-        :rtype: _type_
-        """
         if not isinstance(owner, str):
             owner = owner.name()
         if owner == "":
@@ -887,23 +681,6 @@ class Registrar:
                           owner: Union[str, UserRegistrar] = "",
                           description: str = "",
                           inputs: list = []):
-        """_summary_
-
-        :param variant: _description_
-        :type variant: str
-        :param provider: _description_
-        :type provider: Union[str, OfflineProvider]
-        :param name: _description_, defaults to ""
-        :type name: str, optional
-        :param owner: _description_, defaults to ""
-        :type owner: Union[str, UserRegistrar], optional
-        :param description: _description_, defaults to ""
-        :type description: str, optional
-        :param inputs: _description_, defaults to []
-        :type inputs: list, optional
-        :return: _description_
-        :rtype: _type_
-        """
         if not isinstance(owner, str):
             owner = owner.name()
         if owner == "":
@@ -1051,6 +828,8 @@ class Client(Registrar):
         self._stub = ff_grpc.ApiStub(channel)
 
     def apply(self):
+        """_summary_
+        """
         self.state().create_all(self._stub)
 
 

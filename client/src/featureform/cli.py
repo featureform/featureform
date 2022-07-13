@@ -2,11 +2,8 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-from curses import meta
 import click
 import featureform.register as register
-import grpc
-from .proto import metadata_pb2_grpc as ff_grpc
 from .get import *
 import os
 

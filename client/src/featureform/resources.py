@@ -287,7 +287,7 @@ class DFTransformation(Transformation):
 
     def kwargs(self):
         return {
-            "transformation": True,
+            "transformation": 1,
             "inputs": self.inputs
         }
 
@@ -329,10 +329,10 @@ class Source:
         stub.CreateSourceVariant(serialized)
 
     def _create_local(self, db) -> None:
-        is_transformation = False
+        is_transformation = 0
         inputs = []
         if type(self.definition) == DFTransformation:
-            is_transformation = True
+            is_transformation = 1
             inputs = self.definition.inputs
             self.definition = self.definition.query
 

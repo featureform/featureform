@@ -145,7 +145,7 @@ jobs:
           DYNAMO_ACCESS_KEY: ${{ secrets.DYNAMO_ACCESS_KEY }}
           DYNAMO_SECRET_KEY: ${{ secrets.DYNAMO_SECRET_KEY }}
         working-directory: ./
-        run: go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/online_test.go ./provider/provider_test.go
+        run: go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/... -tags=online,provider
 
       - name: Convert Coverage Test Results
         if: always()
@@ -208,7 +208,7 @@ jobs:
           REDSHIFT_PASSWORD: ${{ secrets.REDSHIFT_PASSWORD }}
           REDSHIFT_ENDPOINT: ${{ secrets.REDSHIFT_ENDPOINT }}
         working-directory: ./
-        run: go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/offline_test.go
+        run: go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/... -tags=offline
 
       - name: Convert Coverage Test Results
         if: always()

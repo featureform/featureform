@@ -7,13 +7,20 @@ class TestQuickstart:
     entity = 'CustomerID'
     feature_col = 'TransactionAmount'
     label_col = 'IsFraud'
-    name_variant = 'avg_transactions.quickstart'
+    training_set_name = 'fraud_training'
+    training_set_variant = 'quickstart'
+    feature_name = 'avg_transactions'
+    feature_variant = 'quickstart'
+    name_variant = feature_name + '.' + feature_variant
+    entity_value = 'C1410926'
+    entity_index = 43653
+    feature_value = 5000.0
 
     def test_training_set(self):
         expected_tset = get_training_set_from_file(self.file, self.entity, self.feature_col, self.label_col,
                                                    self.name_variant)
         client = ff.ServingLocalClient()
-        dataset = client.training_set("fraud_training", "quickstart")
+        dataset = client.training_set(self.training_set_name, self.training_set_variant)
         training_dataset = dataset
         for i, feature_batch in enumerate(training_dataset):
             assert feature_batch.features()[0] == expected_tset[i][0]
@@ -24,7 +31,7 @@ class TestQuickstart:
                                                self.name_variant)
         expected_tset = half_test + half_test
         client = ff.ServingLocalClient()
-        dataset = client.training_set("fraud_training", "quickstart")
+        dataset = client.training_set(self.training_set_name, self.training_set_variant)
         training_dataset = dataset.repeat(1)
         for i, feature_batch in enumerate(training_dataset):
             assert feature_batch.features()[0] == expected_tset[i][0]
@@ -34,7 +41,7 @@ class TestQuickstart:
         expected_tset = get_training_set_from_file(self.file, self.entity, self.feature_col, self.label_col,
                                                    self.name_variant)
         client = ff.ServingLocalClient()
-        dataset = client.training_set("fraud_training", "quickstart")
+        dataset = client.training_set(self.training_set_name, self.training_set_variant)
         training_dataset = dataset.shuffle(1)
         rows = 0
         for feature_batch in training_dataset:
@@ -45,7 +52,7 @@ class TestQuickstart:
         expected_tset = get_training_set_from_file(self.file, self.entity, self.feature_col, self.label_col,
                                                    self.name_variant)
         client = ff.ServingLocalClient()
-        dataset = client.training_set("fraud_training", "quickstart")
+        dataset = client.training_set(self.training_set_name, self.training_set_variant)
         training_dataset = dataset.batch(5)
         for i, feature_batch in enumerate(training_dataset):
             for j, row in enumerate(feature_batch):
@@ -54,10 +61,10 @@ class TestQuickstart:
 
     def test_feature(self):
         client = ff.ServingLocalClient()
-        feature = client.features([("avg_transactions", "quickstart")], (self.entity, "C1410926"))
+        feature = client.features([(self.feature_name, self.feature_variant)], (self.entity, self.entity_value))
         assert pd.DataFrame(
-            data={self.entity: ['C1410926'], self.feature_col: [5000.0]},
-            index=[43653]).equals(feature)
+            data={self.entity: [self.entity_value], self.feature_col: [self.feature_value]},
+            index=[self.entity_index]).equals(feature)
 
 
 def get_label(df: pd.DataFrame, entity, label):
@@ -86,7 +93,7 @@ def run_transformation(df: pd.DataFrame, entity, col):
 def get_training_set(label: pd.DataFrame, feature: pd.DataFrame, entity):
     training_set_df = label
     training_set_df[entity] = training_set_df[entity].astype('string')
-    training_set_df = training_set_df.join(feature.set_index(entity), how="left", on='CustomerID',
+    training_set_df = training_set_df.join(feature.set_index(entity), how="left", on=entity,
                                            lsuffix="_left")
     training_set_df.drop(columns=entity, inplace=True)
     label_col = training_set_df.pop('label')

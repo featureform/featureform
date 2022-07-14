@@ -154,8 +154,6 @@ join_transformation.register_resources(
 
 )
 
-
-
 # Register a feature and a label
 iris.register_resources(
     entity=user_entity,

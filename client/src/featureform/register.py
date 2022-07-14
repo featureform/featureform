@@ -114,7 +114,7 @@ class LocalProvider:
         time_created = str(time.time())
         self.sqldb.insert("sources", "Source", variant, name)
         self.sqldb.insert("source_variant", time_created, description, name,
-                          "Source", owner, self.name(), variant, "ready", False, "", path)
+                          "Source", owner, self.name(), variant, "ready", 0, "", path)
 
         return LocalSource(self.__registrar, name, owner, variant, self.name(), description)
 

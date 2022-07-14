@@ -1,5 +1,4 @@
 ## Resource Client
-
 ::: src.featureform.register.Client
     handler: python
     options:

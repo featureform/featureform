@@ -1,10 +1,10 @@
 site_name: Featureform
-nav:
-    - Home: index.md
-    - Client:
-        - Client: client.md
-        - Resource Client: resource_client.md
 theme: material
 plugins:
 - search
 - mkdocstrings
+- gen-files:
+    scripts:
+    - gen_pages.py
+- literate-nav:
+      nav_file: index.md

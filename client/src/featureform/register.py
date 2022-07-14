@@ -69,6 +69,18 @@ class OfflineSQLProvider(OfflineProvider):
                        table: str,
                        owner: Union[str, UserRegistrar] = "",
                        description: str = ""):
+        """Register a SQL table as a primary data source.
+
+        Args:
+            name (str): Name of table to be registered
+            variant (str): Name of variant to be registered
+            table (str): Name of SQL table
+            owner (Union[str, UserRegistrar]): Owner
+            description (str): Description of table to be registered
+
+        Returns:
+            source (ColumnSourceRegistrar): source
+        """
         return self.__registrar.register_primary_data(name=name,
                                                       variant=variant,
                                                       location=SQLTable(table),
@@ -82,6 +94,7 @@ class OfflineSQLProvider(OfflineProvider):
                            name: str = "",
                            schedule: str = "",
                            description: str = ""):
+    
         return self.__registrar.sql_transformation(name=name,
                                                    variant=variant,
                                                    owner=owner,
@@ -454,18 +467,25 @@ class Registrar:
         return owner
 
     def get_source(self, name, variant):
-        """_summary_
+        """Get a source.
 
-        *Examples*:
+        **Examples**:
         ```
-        redis = get_source("redis-quickstart", "quickstart")
+        transactions = get_source("transactions","kaggle")
+        transactions.register_resources(
+            entity=user,
+            entity_column="customerid",
+            labels=[
+                {"name": "fraudulent", "variant": "quickstart", "column": "isfraud", "type": "bool"},
+            ],
+        )
         ```
         Args:
-            name (string): Name of source to be retrieved.
-            variant (string): Name of variant of source to be retrieved.
+            name (str): Name of source to be retrieved
+            variant (str): Name of variant of source to be retrieved
 
         Returns:
-            _type_: _description_
+            source (ColumnSourceRegistrar): Source
         """
         get = SourceReference(name=name, variant=variant, obj=None)
         self.__resources.append(get)
@@ -479,6 +499,27 @@ class Registrar:
         return ColumnSourceRegistrar(self, fakeSource)
 
     def get_redis(self, name):
+        """Get a Redis provider.
+
+        **Examples**:
+        ```
+        redis = get_redis("redis-quickstart")
+        // Defining a new transformation source with retrieved Redis provider
+        average_user_transaction.register_resources(
+            entity=user,
+            entity_column="user_id",
+            inference_store=redis,
+            features=[
+                {"name": "avg_transactions", "variant": "quickstart", "column": "avg_transaction_amt", "type": "float32"},
+            ],
+        )
+        ```
+        Args:
+            name (str): Name of Redis provider to be retrieved
+
+        Returns:
+            redis (OnlineProvider): Provider
+        """
         get = ProviderReference(name=name, provider_type="redis", obj=None)
         self.__resources.append(get)
         fakeConfig = RedisConfig(host="", port=123, password="", db=123)
@@ -486,6 +527,24 @@ class Registrar:
         return OnlineProvider(self, fakeProvider)
 
     def get_postgres(self, name):
+        """Get a Postgres provider.
+
+        **Examples**:
+        ```
+        postgres = get_postgres("postgres-quickstart")
+        transactions = postgres.register_table(
+            name="transactions",
+            variant="kaggle",
+            description="Fraud Dataset From Kaggle",
+            table="Transactions",  # This is the table's name in Postgres
+        )
+        ```
+        Args:
+            name (str): Name of Postgres provider to be retrieved
+
+        Returns:
+            postgres (OfflineSQLProvider): Provider
+        """
         get = ProviderReference(name=name, provider_type="postgres", obj=None)
         self.__resources.append(get)
         fakeConfig = PostgresConfig(host="", port="", database="", user="", password="")
@@ -493,6 +552,24 @@ class Registrar:
         return OfflineSQLProvider(self, fakeProvider)
 
     def get_snowflake(self, name):
+        """Get a Snowflake provider.
+
+        **Examples**:
+        ```
+        snowflake = get_snowflake("snowflake-quickstart")
+        transactions = snowflake.register_table(
+            name="transactions",
+            variant="kaggle",
+            description="Fraud Dataset From Kaggle",
+            table="Transactions",  # This is the table's name in Postgres
+        )
+        ```
+        Args:
+            name (str): Name of Snowflake provider to be retrieved
+
+        Returns:
+            snowflake (OfflineSQLProvider): Provider
+        """
         get = ProviderReference(name=name, provider_type="snowflake", obj=None)
         self.__resources.append(get)
         fakeConfig = SnowflakeConfig(account="", database="", organization="", username="", password="", schema="")
@@ -500,6 +577,18 @@ class Registrar:
         return OfflineSQLProvider(self, fakeProvider)
 
     def get_entity(self, name):
+        """Get an entity.
+
+        **Examples**:
+        ```
+        user = get_entity("user")
+        ```
+        Args:
+            name (str): Name of Snowflake provider to be retrieved
+
+        Returns:
+            entity (EntityRegistrar): Entity
+        """
         get = EntityReference(name=name, obj=None)
         fakeEntity = Entity(name=name, description="")
         self.__resources.append(get)
@@ -513,6 +602,29 @@ class Registrar:
                        port: int = 6379,
                        password: str = "",
                        db: int = 0):
+        """Register a Redis provider.
+
+        **Examples**:
+        ```   
+        redis = ff.register_redis(
+            name="redis-quickstart",
+            host="quickstart-redis",  # The internal dns name for redis
+            port=6379,
+            description="A Redis deployment we created for the Featureform quickstart"
+        )
+        ```
+        Args:
+            name (str): Name of Redis provider to be registered
+            description (str): Description of Redis provider to be registered
+            team (str): Name of team
+            host (str): Internal DNS name for Redis
+            port (int): Redis port
+            password (str): Redis password
+            db (str): Redis database
+
+        Returns:
+            redis (OnlineProvider): Provider
+        """
         config = RedisConfig(host=host, port=port, password=password, db=db)
         provider = Provider(name=name,
                             function="ONLINE",
@@ -529,6 +641,30 @@ class Registrar:
                           access_key: str = None,
                           secret_key: str = None,
                           region: str = None):
+        """Register a DynamoDB provider.
+
+        **Examples**:
+        ```   
+        dynamodb = ff.register_dynamodb(
+            name="dynamodb-quickstart",
+            host="quickstart-dynamodb",  # The internal dns name for dynamodb
+            description="A Dynamodb deployment we created for the Featureform quickstart",
+            access_key="$ACCESS_KEY",
+            secret_key="$SECRET_KEY",
+            region="us-east-1"
+        )
+        ```
+        Args:
+            name (str): Name of DynamoDB provider to be registered
+            description (str): Description of DynamoDB provider to be registered
+            team (str): Name of team
+            access_key (str): Access key
+            secret_key (str): Secret key
+            region (str): Region
+
+        Returns:
+            dynamodb (OnlineProvider): Provider
+        """
         config = DynamodbConfig(access_key=access_key, secret_key=secret_key, region=region)
         provider = Provider(name=name,
                             function="ONLINE",
@@ -550,6 +686,34 @@ class Registrar:
             description: str = "",
             team: str = "",
     ):
+        """Register a Snowflake provider.
+
+        **Examples**:
+        ```   
+        snowflake = ff.register_snowflake(
+            name="snowflake-quickstart",
+            username="snowflake",
+            password="password",
+            account="account",
+            database="snowflake",
+            schema="PUBLIC",
+            description="A Dynamodb deployment we created for the Featureform quickstart"
+        )
+        ```
+        Args:
+            name (str): Name of Snowflake provider to be registered
+            username (str): Username
+            password (str): Password
+            account (str): Account
+            organization (str): Organization
+            database (str): Database
+            schema (str): Schema
+            description (str): Description of Snowflake provider to be registered
+            team (str): Name of team
+
+        Returns:
+            snowflake (OfflineSQLProvider): Provider
+        """
         config = SnowflakeConfig(account=account,
                                  database=database,
                                  organization=organization,
@@ -573,6 +737,34 @@ class Registrar:
                           user: str = "postgres",
                           password: str = "password",
                           database: str = "postgres"):
+        """Register a Postgres provider.
+
+        **Examples**:
+        ```   
+        postgres = ff.register_postgres(
+            name="postgres-quickstart",
+            description="A Postgres deployment we created for the Featureform quickstart",
+            host="quickstart-postgres",  # The internal dns name for postgres
+            port="5432",
+            user="postgres",
+            password="password",
+            database="postgres"
+        )
+        ```
+        Args:
+            name (str): Name of Postgres provider to be registered
+            username (str): Username
+            description (str): Description of Postgres provider to be registered
+            team (str): Name of team
+            host (str): Internal DNS name of Postgres
+            port (str): Port
+            user (str): User
+            password (str): Password
+            database (str): Database
+            
+        Returns:
+            postgres (OfflineSQLProvider): Provider
+        """
         config = PostgresConfig(host=host,
                                 port=port,
                                 database=database,
@@ -595,6 +787,33 @@ class Registrar:
                           user: str = "redshift",
                           password: str = "password",
                           database: str = "dev"):
+        """Register a Redshift provider.
+
+        **Examples**:
+        ```   
+        redshift = ff.register_redshift(
+            name="redshift-quickstart",
+            description="A Redshift deployment we created for the Featureform quickstart",
+            host="quickstart-redshift",  # The internal dns name for postgres
+            port="5432",
+            user="redshift",
+            password="password",
+            database="dev"
+        )
+        ```
+        Args:
+            name (str): Name of Redshift provider to be registered
+            description (str): Description of Redshift provider to be registered
+            team (str): Name of team
+            host (str): Internal DNS name of Redshift
+            port (str): Port
+            user (str): User
+            password (str): Password
+            database (str): Database
+            
+        Returns:
+            redshift (OfflineSQLProvider): Provider
+        """
         config = RedshiftConfig(host=host,
                                 port=port,
                                 database=database,
@@ -609,6 +828,17 @@ class Registrar:
         return OfflineSQLProvider(self, provider)
 
     def register_local(self):
+        """Register a Local provider.
+
+        **Examples**:
+        ```   
+            local = register_local()
+        ```
+        Args:
+            
+        Returns:
+            local (LocalProvider): Provider
+        """
         config = LocalConfig()
         provider = Provider(name="local mode",
                             function="ONLINE",
@@ -625,6 +855,19 @@ class Registrar:
                               provider: Union[str, OfflineProvider],
                               owner: Union[str, UserRegistrar] = "",
                               description: str = ""):
+        """Register a primary data source.
+
+        Args:
+            name (str): Name of source
+            variant (str): Name of variant
+            location (Location): Location of primary data
+            provider (Union[str, OfflineProvider]): Provider
+            owner (Union[str, UserRegistrar]): Owner
+            description (str): Description of primary data to be registered
+
+        Returns:
+            source (ColumnSourceRegistrar): Source
+        """
         if not isinstance(owner, str):
             owner = owner.name()
         if owner == "":
@@ -648,6 +891,20 @@ class Registrar:
                                     owner: Union[str, UserRegistrar] = "",
                                     description: str = "",
                                     schedule: str = ""):
+        """Register a SQL transformation source.
+
+        Args:
+            name (str): Name of source
+            variant (str): Name of variant
+            query (str): SQL query
+            provider (Union[str, OfflineProvider]): Provider
+            owner (Union[str, UserRegistrar]): Owner
+            description (str): Description of primary data to be registered
+            schedule (str): Kubernetes CronJob schedule string ("* * * * *")
+
+        Returns:
+            source (ColumnSourceRegistrar): Source
+        """
         if not isinstance(owner, str):
             owner = owner.name()
         if owner == "":
@@ -673,6 +930,19 @@ class Registrar:
                            schedule: str = "",
                            owner: Union[str, UserRegistrar] = "",
                            description: str = ""):
+        """SQL transformation decorator.
+
+        Args:
+            variant (str): Name of variant
+            provider (Union[str, OfflineProvider]): Provider
+            name (str): Name of source
+            schedule (str): Kubernetes CronJob schedule string ("* * * * *")
+            owner (Union[str, UserRegistrar]): Owner
+            description (str): Description of SQL transformation
+
+        Returns:
+            decorator (SQLTransformationDecorator): decorator
+        """
         if not isinstance(owner, str):
             owner = owner.name()
         if owner == "":
@@ -698,6 +968,19 @@ class Registrar:
                           owner: Union[str, UserRegistrar] = "",
                           description: str = "",
                           inputs: list = []):
+        """Dataframe transformation decorator.
+
+        Args:
+            variant (str): Name of variant
+            provider (Union[str, OfflineProvider]): Provider
+            name (str): Name of source
+            owner (Union[str, UserRegistrar]): Owner
+            description (str): Description of SQL transformation
+            inputs (list): Inputs to transformation
+
+        Returns:
+            decorator (DFTransformationDecorator): decorator
+        """
         if not isinstance(owner, str):
             owner = owner.name()
         if owner == "":
@@ -725,6 +1008,15 @@ class Registrar:
         return self.__state
 
     def register_entity(self, name: str, description: str = ""):
+        """Register an entity.
+
+        Args:
+            name (str): Name of entity to be registered
+            description (str): Description of entity to be registered
+
+        Returns:
+            entity (EntityRegistrar): Entity
+        """
         entity = Entity(name=name, description=description)
         self.__resources.append(entity)
         return EntityRegistrar(self, entity)
@@ -742,6 +1034,22 @@ class Registrar:
             description: str = "",
             schedule: str = "",
     ):
+        """Create features and labels from a source. Used in the register_resources function.
+
+        Args:
+            source (Union[NameVariant, SourceRegistrar, SQLTransformationDecorator]): Source of features, labels, entity
+            entity (Union[str, EntityRegistrar]): Entity
+            entity_column (str): Column of entity in source
+            owner (Union[str, UserRegistrar]): Owner
+            inference_store (Union[str, OnlineProvider]): Online provider
+            features (List[ColumnMapping]): List of ColumnMapping objects (dictionaries containing the keys: name, variant, column, resource_type)
+            labels (List[ColumnMapping]): List of ColumnMapping objects (dictionaries containing the keys: name, variant, column, resource_type)
+            description (str): Description 
+            schedule (str): Kubernetes CronJob schedule string ("* * * * *")
+
+        Returns:
+            resource (ResourceRegistrar): resource
+        """
         if features is None:
             features = []
         if labels is None:
@@ -811,6 +1119,20 @@ class Registrar:
                               owner: Union[str, UserRegistrar] = "",
                               description: str = "",
                               schedule: str = ""):
+        """Register a training set.
+
+        Args:
+            name (str): Name of training set to be registered
+            variant (str): Name of variant to be registered
+            label (NameVariant): Label of training set
+            features (List[NameVariant]): Features of training set
+            owner (Union[str, UserRegistrar]): Owner
+            description (str): Description of training set to be registered
+            schedule (str): Kubernetes CronJob schedule string ("* * * * *")
+
+        Returns:
+            resource (ResourceRegistrar): resource
+        """
         if not isinstance(owner, str):
             owner = owner.name()
         if owner == "":
@@ -845,13 +1167,21 @@ class Client(Registrar):
         self._stub = ff_grpc.ApiStub(channel)
 
     def apply(self):
-        """_summary_
+        """Apply all definitions, creating and retrieving all specified resources.
         """
         self.state().create_all(self._stub)
 
     def get_user(self, name):
+        """Get a user. 
+
+        Args:
+            name (str): Name of user to be retrieved.
+
+        Returns:
+            user (User): _description_
+        """
         return GetUser(self._stub, name)
-    
+
     def get_entity(self, name):
         return GetEntity(self._stub, name)
 

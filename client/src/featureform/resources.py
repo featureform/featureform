@@ -672,7 +672,6 @@ Resource = Union[PrimaryData, Provider, Entity, User, Feature, Label,
 
 
 class ResourceRedefinedError(Exception):
-
     @typechecked
     def __init__(self, resource: Resource):
         variantStr = f" variant {resource.variant}" if hasattr(

@@ -790,7 +790,7 @@ class Client(Registrar):
 
         else:
             channel = self.tls_check(host, cert_path, tls_verify)
-            self.stub = ff_grpc.ApiStub(channel)
+            self._stub = ff_grpc.ApiStub(channel)
 
         self.apply(local)
 

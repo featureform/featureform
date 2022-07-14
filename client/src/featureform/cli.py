@@ -4,6 +4,7 @@
 
 from curses import meta
 import click
+from featureform import ResourceClient
 import featureform.register as register
 import grpc
 from .proto import metadata_pb2_grpc as ff_grpc
@@ -113,6 +114,7 @@ def get(host, cert, insecure, resource_type, name, variant):
             return
         else:
             GetEntity(stub, name)
+
     elif resource_type == "model":
         if variant:
             print("Variant not needed.")
@@ -205,44 +207,44 @@ def get(host, cert, insecure, resource_type, name, variant):
               is_flag=True,
               help="Enable local mode")
 def apply(host, cert, insecure, local, files):
-    if local:
-        if host != None:
-            raise ValueError("Cannot be local and have a host")
+    # if local:
+    #     if host != None:
+    #         raise ValueError("Cannot be local and have a host")
 
-    elif host == None:
-        host = os.getenv('FEATUREFORM_HOST')
-        if host == None:
-            raise ValueError(
-                "Host value must be set with --host flag or in env as FEATUREFORM_HOST")
-
-
+    # elif host == None:
+    #     host = os.getenv('FEATUREFORM_HOST')
+    #     if host == None:
+    #         raise ValueError(
+    #             "Host value must be set with --host flag or in env as FEATUREFORM_HOST")
 
     for file in files:
         with open(file, "r") as py:
             exec(py.read())
 
-    if local:
-        register.state().create_all_local()
-    else:
-        channel = tls_check(host, cert, insecure)
-        stub = ff_grpc.ApiStub(channel)
-        register.state().create_all(stub)
+    ResourceClient(local, host, insecure, cert)
+
+    # if local:
+    #     register.state().create_all_local()
+    # else:
+    #     channel = tls_check(host, cert, insecure)
+    #     stub = ff_grpc.ApiStub(channel)
+    #     register.state().create_all(stub)
 
 
-def tls_check(host, cert, insecure):
-    if insecure:
-        channel = grpc.insecure_channel(
-            host, options=(('grpc.enable_http_proxy', 0),))
-    elif cert != None or os.getenv('FEATUREFORM_CERT') != None:
-        if os.getenv('FEATUREFORM_CERT') != None and cert == None:
-            cert = os.getenv('FEATUREFORM_CERT')
-        with open(cert, 'rb') as f:
-            credentials = grpc.ssl_channel_credentials(f.read())
-        channel = grpc.secure_channel(host, credentials)
-    else:
-        credentials = grpc.ssl_channel_credentials()
-        channel = grpc.secure_channel(host, credentials)
-    return channel
+# def tls_check(host, cert, insecure):
+#     if insecure:
+#         channel = grpc.insecure_channel(
+#             host, options=(('grpc.enable_http_proxy', 0),))
+#     elif cert != None or os.getenv('FEATUREFORM_CERT') != None:
+#         if os.getenv('FEATUREFORM_CERT') != None and cert == None:
+#             cert = os.getenv('FEATUREFORM_CERT')
+#         with open(cert, 'rb') as f:
+#             credentials = grpc.ssl_channel_credentials(f.read())
+#         channel = grpc.secure_channel(host, credentials)
+#     else:
+#         credentials = grpc.ssl_channel_credentials()
+#         channel = grpc.secure_channel(host, credentials)
+#     return channel
 
 
 if __name__ == '__main__':

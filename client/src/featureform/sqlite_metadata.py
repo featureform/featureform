@@ -208,11 +208,11 @@ class SQLiteMetadata:
         self.__conn.commit()
         t = transformation.fetchall()
         if len(t) == 0:
-            return False
+            return 0
         if t[0][0] is 1:
-            return True
+            return 1
         else:
-            return False
+            return 0
 
     def insert_source(self, tablename, *args):
         stmt = "INSERT OR IGNORE INTO " + tablename + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"

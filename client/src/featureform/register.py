@@ -130,7 +130,7 @@ class LocalProvider:
         time_created = str(time.time())
         self.sqldb.insert("sources", "Source", variant, name)
         self.sqldb.insert("source_variant", time_created, description, name,
-                          "Source", owner, self.name(), variant, "ready", False, "", path)
+                          "Source", owner, self.name(), variant, "ready", 0, "", path)
         # Where the definition = path
 
         return LocalSource(self.__registrar, name, owner, variant, self.name(), description)
@@ -176,7 +176,7 @@ class SourceRegistrar:
         return self.__registrar
 
 
-class ColumnMapping(TypedDict):
+class ColumnMapping(dict):
     name: str
     variant: str
     column: str
@@ -1171,24 +1171,16 @@ class Client(Registrar):
         """
         self.state().create_all(self._stub)
 
-    def get_user(self, name):
-        """Get a user. 
-
-        Args:
-            name (str): Name of user to be retrieved.
-
-        Returns:
-            user (User): _description_
-        """
+    def get_user(self, name, variant=None):
         return GetUser(self._stub, name)
-
-    def get_entity(self, name):
+    
+    def get_entity(self, name, variant=None):
         return GetEntity(self._stub, name)
 
-    def get_model(self, name):
+    def get_model(self, name, variant=None):
         return GetResource(self._stub, "model", name)
 
-    def get_provider(self, name):
+    def get_provider(self, name, variant=None):
         return GetProvider(self._stub, name)
 
     def get_feature(self, name, variant=None):

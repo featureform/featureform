@@ -61,6 +61,8 @@ def cli():
 @click.argument("name", required=True, help="Name of resource to be retrieved.")
 @click.argument("variant", required=False, help="Variant of resource to be retrieved, optional.")
 def get(host, cert, insecure, local, resource_type, name, variant):
+    """Get resources of a given type.
+    """
     if local:
         if host != None:
             raise ValueError("Cannot be local and have a host")
@@ -71,53 +73,34 @@ def get(host, cert, insecure, local, resource_type, name, variant):
             raise ValueError(
                 "Host value must be set with --host flag or in env as FEATUREFORM_HOST")
 
-    if local:
-        register.state().create_all_local()
+    if insecure:
+        rc = ResourceClient(host, False)
     else:
-        channel = tls_check(host, cert, insecure)
-        stub = ff_grpc.ApiStub(channel)
-        register.state().create_all(stub)
+        rc = ResourceClient(host, True, cert)
 
-    rc = ResourceClient(host)
+    funcDict = {
+        "feature": rc.get_feature,
+        "label": rc.get_label,
+        "source": rc.get_source,
+        "trainingset": rc.get_training_set,
+        "training-set": rc.get_training_set,
+        "user": rc.get_user,
+        "model": rc.get_model,
+        "entity": rc.get_entity,
+        "provider": rc.get_provider
+    }
 
-    if resource_type == "feature":
-        if not variant:
-            rc.get_feature(name)
-        else:
-            rc.get_feature(name, variant)
-    elif resource_type == "label":
-        if not variant:
-            rc.get_label(name)
-        else:
-            rc.get_label(name, variant)
-    elif resource_type == "source":
-        if not variant:
-            rc.get_source(name)
-        else:
-            rc.get_source(name, variant)
-    elif resource_type == "trainingset" or resource_type == "training-set":
-        if not variant:
-            rc.get_training_set(name)
-        else:
-            rc.get_training_set(name, variant)
-    elif resource_type == "user":
-        if variant:
-            raise ValueError("Variant not needed")
-        rc.get_user(name)
-    elif resource_type == "model":
-        if variant:
-            raise ValueError("Variant not needed")
-        rc.get_model(name)
-    elif resource_type == "entity":
-        if variant:
-            raise ValueError("Variant not needed")
-        rc.get_entity(name)
-    elif resource_type == "provider":
-        if variant:
-            raise ValueError("Variant not needed")
-        rc.get_provider(name)
+    if resource_type in funcDict:
+        funcDict[resource_type](name, variant)
     else:
         raise ValueError("Resource type not found")
+
+# @cli.command()
+# @click.argument("files", nargs=-1, required=True, type=click.Path(exists=True))
+# def plan(files):
+#     """print out resources that would be changed by applying these files.
+#     """
+#     pass
 
 
 @cli.command()
@@ -147,41 +130,27 @@ def list(host, cert, insecure, local, resource_type):
             raise ValueError(
                 "Host value must be set with --host flag or in env as FEATUREFORM_HOST")
 
-    if local:
-        register.state().create_all_local()
+    if insecure:
+        rc = ResourceClient(host, False)
     else:
-        channel = tls_check(host, cert, insecure)
-        stub = ff_grpc.ApiStub(channel)
-        register.state().create_all(stub)
+        rc = ResourceClient(host, True, cert)
 
-    rc = ResourceClient(host)
+    funcDict = {
+        "features": rc.list_features,
+        "labels": rc.list_labels,
+        "sources": rc.list_sources,
+        "trainingsets": rc.list_sources,
+        "training-sets": rc.list_training_sets,
+        "users": rc.list_users,
+        "models": rc.list_models,
+        "entities": rc.list_entities,
+        "providers": rc.list_providers
+    }
 
-    if resource_type == "features":
-        rc.list_features()
-    elif resource_type == "labels":
-        rc.list_labels()
-    elif resource_type == "sources":
-        rc.list_sources()
-    elif resource_type == "trainingsets" or resource_type == "training-sets":
-        rc.list_training_sets()
-    elif resource_type == "users":
-        rc.list_users()
-    elif resource_type == "models":
-        rc.list_models()
-    elif resource_type == "entities":
-        rc.list_entities()
-    elif resource_type == "providers":
-        rc.list_providers()
+    if resource_type in funcDict:
+        funcDict[resource_type]()
     else:
         raise ValueError("Resource type not found")
-
-# @cli.command()
-# @click.argument("files", nargs=-1, required=True, type=click.Path(exists=True))
-# def plan(files):
-#     """print out resources that would be changed by applying these files.
-#     """
-#     pass
-
 
 @cli.command()
 @click.argument("files", nargs=-1, required=True, type=click.Path(exists=True))

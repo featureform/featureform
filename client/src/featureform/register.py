@@ -819,16 +819,16 @@ class Client(Registrar):
     def apply(self):
         self.state().create_all(self._stub)
 
-    def get_user(self, name):
+    def get_user(self, name, variant=None):
         return GetUser(self._stub, name)
     
-    def get_entity(self, name):
+    def get_entity(self, name, variant=None):
         return GetEntity(self._stub, name)
 
-    def get_model(self, name):
+    def get_model(self, name, variant=None):
         return GetResource(self._stub, "model", name)
 
-    def get_provider(self, name):
+    def get_provider(self, name, variant=None):
         return GetProvider(self._stub, name)
 
     def get_feature(self, name, variant=None):

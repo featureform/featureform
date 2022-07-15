@@ -1,6 +1,6 @@
 name: Update Pypi
 on: 
-  workflow_call:
+  workflow_dispatch: 
     inputs:
       version:
         description: 'Version of python package to deploy'

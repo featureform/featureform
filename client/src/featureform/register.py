@@ -776,7 +776,7 @@ class Registrar:
 
 
 class Client(Registrar):
-    def __init__(self, local=False, host=None, tls_verify=True, cert_path=None):
+    def __init__(self, host=None, local=False, tls_verify=True, cert_path=None):
         super().__init__()
         if local:
             if host != None:

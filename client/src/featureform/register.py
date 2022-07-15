@@ -778,7 +778,8 @@ class Registrar:
 class Client(Registrar):
     def __init__(self, host=None, local=False, tls_verify=True, cert_path=None):
         super().__init__()
-        if local:
+        self.local = local
+        if self.local:
             if host != None:
                 raise ValueError("Cannot be local and have a host")
 
@@ -792,7 +793,7 @@ class Client(Registrar):
             channel = self.tls_check(host, cert_path, tls_verify)
             self._stub = ff_grpc.ApiStub(channel)
 
-        self.apply(local)
+        self.apply()
 
         # env_cert_path = os.getenv('FEATUREFORM_CERT')
         # if tls_verify:
@@ -823,9 +824,9 @@ class Client(Registrar):
             channel = grpc.secure_channel(host, credentials)
         return channel
 
-    def apply(self, local):
+    def apply(self):
         
-        if local:
+        if self.local:
             state().create_all_local()
         else:
             state().create_all(self._stub)

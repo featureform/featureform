@@ -18,7 +18,6 @@ require (
 	github.com/prometheus/client_golang v1.12.1
 	github.com/prometheus/client_model v0.2.0
 	github.com/snowflakedb/gosnowflake v1.6.8
-	github.com/stoicperlman/fls v0.0.0-20171222144224-f073b7a01081
 	github.com/stretchr/testify v1.7.0
 	github.com/typesense/typesense-go v0.4.0
 	go.etcd.io/etcd/api/v3 v3.5.2
@@ -118,10 +117,6 @@ require (
 require (
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.11.4 // indirect
 	github.com/klauspost/compress v1.15.1 // indirect
-	github.com/lib/pq v1.10.4
-	github.com/mattn/go-ieproxy v0.0.3 // indirect
-	github.com/yuin/gopher-lua v0.0.0-20210529063254-f4c35e4016d9 // indirect
-	go.etcd.io/etcd/api/v3 v3.5.2
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.7.0 // indirect
 	golang.org/x/sys v0.0.0-20220408201424-a24fb2fb8a0f // indirect

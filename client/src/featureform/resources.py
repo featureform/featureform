@@ -26,6 +26,10 @@ class Schedule:
     resource_type: int
     schedule_string: str
 
+    @staticmethod
+    def operation_type() -> str:
+        return "create"
+
     def type(self) -> str:
         return "schedule"
 
@@ -187,6 +191,10 @@ class Provider:
         self.software = self.config.software()
 
     @staticmethod
+    def operation_type() -> str:
+        return "create"
+
+    @staticmethod
     def type() -> str:
         return "provider"
 
@@ -219,6 +227,10 @@ class Provider:
 @dataclass
 class User:
     name: str
+
+    @staticmethod
+    def operation_type() -> str:
+        return "create"
 
     def type(self) -> str:
         return "user"
@@ -312,6 +324,10 @@ class Source:
         self.schedule = schedule
 
     @staticmethod
+    def operation_type() -> str:
+        return "create"
+
+    @staticmethod
     def type() -> str:
         return "source"
 
@@ -365,6 +381,10 @@ class Source:
 class Entity:
     name: str
     description: str
+
+    @staticmethod
+    def operation_type() -> str:
+        return "create"
 
     @staticmethod
     def type() -> str:
@@ -422,6 +442,10 @@ class Feature:
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=4, schedule_string=schedule)
         self.schedule = schedule
+
+    @staticmethod
+    def operation_type() -> str:
+        return "create"
 
     @staticmethod
     def type() -> str:
@@ -487,6 +511,10 @@ class Label:
     location: ResourceLocation
 
     @staticmethod
+    def operation_type() -> str:
+        return "create"
+
+    @staticmethod
     def type() -> str:
         return "label"
 
@@ -540,10 +568,14 @@ class EntityReference:
     obj: Union[Entity, None]
 
     @staticmethod
-    def type() -> str:
-        return f"get-entity"
+    def operation_type() -> str:
+        return "get"
 
-    def _create(self, stub):
+    @staticmethod
+    def type() -> str:
+        return "entity"
+
+    def _get(self, stub):
         entityList = stub.GetEntities(iter([pb.Name(name=self.name)]))
         try:
             for entity in entityList:
@@ -559,10 +591,14 @@ class ProviderReference:
     obj: Union[Provider, None]
 
     @staticmethod
-    def type() -> str:
-        return f"get-provider"
+    def operation_type() -> str:
+        return "get"
 
-    def _create(self, stub):
+    @staticmethod
+    def type() -> str:
+        return "provider"
+
+    def _get(self, stub):
         providerList = stub.GetProviders(iter([pb.Name(name=self.name)]))
         try:
             for provider in providerList:
@@ -578,10 +614,14 @@ class SourceReference:
     obj: Union[Source, None]
 
     @staticmethod
-    def type() -> str:
-        return f"get-source"
+    def operation_type() -> str:
+        return "get"
 
-    def _create(self, stub):
+    @staticmethod
+    def type() -> str:
+        return "source"
+
+    def _get(self, stub):
         sourceList = stub.GetSourceVariants(iter([pb.NameVariant(name=self.name, variant=self.variant)]))
         try:
             for source in sourceList:
@@ -613,6 +653,10 @@ class TrainingSet:
         for feature in self.features:
             if not valid_name_variant(feature):
                 raise ValueError("Invalid Feature")
+
+    @staticmethod
+    def operation_type() -> str:
+        return "create"
 
     @staticmethod
     def type() -> str:
@@ -691,9 +735,9 @@ class ResourceState:
     @typechecked
     def add(self, resource: Resource) -> None:
         if hasattr(resource, 'variant'):
-            key = (resource.type(), resource.name, resource.variant)
+            key = (resource.operation_type(), resource.type(), resource.name, resource.variant)
         else:
-            key = (resource.type(), resource.name)
+            key = (resource.operation_type(), resource.type(), resource.name)
         if key in self.__state:
             raise ResourceRedefinedError(resource)
         self.__state[key] = resource
@@ -733,11 +777,12 @@ class ResourceState:
     def create_all(self, stub) -> None:
         for resource in self.__create_list:
             try:
-                if resource.type()[:3] == "get":
-                    print("Getting", resource.type()[4:], resource.name)
-                else:
+                if resource.operation_type() == "get":
+                    print("Getting", resource.type(), resource.name)
+                    resource._get(stub)
+                if resource.operation_type() == "create":
                     print("Creating", resource.type(), resource.name)
-                resource._create(stub)
+                    resource._create(stub)
             except grpc.RpcError as e:
                 if e.code() == grpc.StatusCode.ALREADY_EXISTS:
                     print(resource.name, "already exists.")

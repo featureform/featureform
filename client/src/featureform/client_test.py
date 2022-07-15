@@ -17,13 +17,13 @@ postgres = ff.register_postgres(
     description="A Postgres deployment we created for the Featureform quickstart"
 )
 
-redisGet = ff.get_redis("redis-quickstart")
+redis_get = ff.get_redis("redis-quickstart")
 
-postgresGet = ff.get_postgres("postgres-quickstart")
+postgres_get = ff.get_postgres("postgres-quickstart")
 
 ff.register_user("featureformer").make_default_owner()
 
-transactions = postgresGet.register_table(
+transactions = postgres_get.register_table(
     name="transactions",
     variant="kaggle",
     description="Fraud Dataset From Kaggle",
@@ -38,14 +38,14 @@ def average_user_transaction():
 
 user = ff.register_entity("user")
 
-userGet = ff.get_entity("user")
+user_get = ff.get_entity("user")
 
-average_user_transaction_Get = ff.get_source("average_user_transaction", "quickstart")
+average_user_transaction_get = ff.get_source("average_user_transaction", "quickstart")
 
-average_user_transaction_Get.register_resources(
-    entity=userGet,
+average_user_transaction_get.register_resources(
+    entity=user_get,
     entity_column="user_id",
-    inference_store=redisGet,
+    inference_store=redis_get,
     features=[
         {"name": "avg_transactions", "variant": "quickstart", "column": "avg_transaction_amt", "type": "float32"},
     ],
@@ -56,7 +56,7 @@ transactionsGet = ff.get_source("transactions", "kaggle")
 
 # Register label from our base Transactions table
 transactionsGet.register_resources(
-    entity=userGet,
+    entity=user_get,
     entity_column="customerid",
     labels=[
         {"name": "fraudulent", "variant": "quickstart", "column": "isfraud", "type": "bool"},

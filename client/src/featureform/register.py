@@ -8,7 +8,7 @@ from .resources import ResourceState, Provider, ProviderReference, SourceReferen
     LocalConfig, DynamodbConfig, PostgresConfig, SnowflakeConfig, RedshiftConfig, User, Location, Source, PrimaryData, SQLTable, \
     SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet
 from numpy import byte
-from typing import Tuple, Callable, TypedDict, List, Union
+from typing import Tuple, Callable, List, Union
 from typeguard import typechecked, check_type
 import grpc
 import os

@@ -221,7 +221,7 @@ def apply(host, cert, insecure, local, files):
         with open(file, "r") as py:
             exec(py.read())
 
-    ResourceClient(local, host, insecure, cert)
+    ResourceClient(host, local, insecure, cert)
 
     # if local:
     #     register.state().create_all_local()

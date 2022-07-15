@@ -1171,16 +1171,79 @@ class Client(Registrar):
         """
         self.state().create_all(self._stub)
 
-    def get_user(self, name, variant=None):
+    def get_user(self, name):
+        """Get a user. Prints out name of user, and all resources associated with the user.
+
+        **Examples:**
+
+        Input
+        ```
+        // get_user.py
+        featureformer = rc.get_user("featureformer")
+        print(featureformer)
+        ```
+        Output
+        ```
+        // get_user prints a formatted version of user information
+        USER NAME:                     featureformer
+        -----------------------------------------------
+
+        NAME                           VARIANT                        TYPE
+        avg_transactions               quickstart                     feature
+        fraudulent                     quickstart                     label
+        fraud_training                 quickstart                     training set
+        transactions                   kaggle                         source
+        average_user_transaction       quickstart                     source
+        -----------------------------------------------
+
+        // get_user returns the User object
+        name: "featureformer"
+        features {
+        name: "avg_transactions"
+        variant: "quickstart"
+        }
+        labels {
+        name: "fraudulent"
+        variant: "quickstart"
+        }
+        trainingsets {
+        name: "fraud_training"
+        variant: "quickstart"
+        }
+        sources {
+        name: "transactions"
+        variant: "kaggle"
+        }
+        sources {
+        name: "average_user_transaction"
+        variant: "quickstart"
+        }
+        ```
+
+
+        Args:
+            name (str): Name of user to be retrieved
+
+        Returns:
+            user (User): User
+        """
         return GetUser(self._stub, name)
     
-    def get_entity(self, name, variant=None):
+    def get_entity(self, name):
+        """Get an entity.
+
+        Args:
+            name (str): Name of entity to be retrieved
+
+        Returns:
+            user (User): User that is retrieved.
+        """
         return GetEntity(self._stub, name)
 
-    def get_model(self, name, variant=None):
+    def get_model(self, name):
         return GetResource(self._stub, "model", name)
 
-    def get_provider(self, name, variant=None):
+    def get_provider(self, name):
         return GetProvider(self._stub, name)
 
     def get_feature(self, name, variant=None):

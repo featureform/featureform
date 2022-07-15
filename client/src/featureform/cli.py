@@ -57,9 +57,9 @@ def cli():
 @click.option("--local",
               is_flag=True,
               help="Enables local mode")
-@click.argument("resource_type", required=True, help="Type of resource to be retrieved. Can be feature, user, source, provider, entity, model, label, or training-set.")
-@click.argument("name", required=True, help="Name of resource to be retrieved.")
-@click.argument("variant", required=False, help="Variant of resource to be retrieved, optional.")
+@click.argument("resource_type", required=True)
+@click.argument("name", required=True)
+@click.argument("variant", required=False)
 def get(host, cert, insecure, local, resource_type, name, variant):
     """Get resources of a given type.
     """
@@ -78,20 +78,25 @@ def get(host, cert, insecure, local, resource_type, name, variant):
     else:
         rc = ResourceClient(host, True, cert)
 
-    funcDict = {
+    funcDictWithVariant = {
         "feature": rc.get_feature,
         "label": rc.get_label,
         "source": rc.get_source,
         "trainingset": rc.get_training_set,
-        "training-set": rc.get_training_set,
+        "training-set": rc.get_training_set
+    }
+
+    funcDictNoVariant = {
         "user": rc.get_user,
         "model": rc.get_model,
         "entity": rc.get_entity,
         "provider": rc.get_provider
     }
 
-    if resource_type in funcDict:
-        funcDict[resource_type](name, variant)
+    if resource_type in funcDictWithVariant:
+        funcDictWithVariant[resource_type](name, variant)
+    elif resource_type in funcDictNoVariant:
+        funcDictNoVariant[resource_type](name)
     else:
         raise ValueError("Resource type not found")
 

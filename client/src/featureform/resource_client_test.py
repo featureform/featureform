@@ -7,6 +7,10 @@ redis = rc.get_provider("redis-quickstart")
 
 print(redis)
 
+featureformer = rc.get_user("featureformer")
+
+print(featureformer)
+
 postgres = rc.get_provider("postgres-quickstart")
 
 print(postgres)

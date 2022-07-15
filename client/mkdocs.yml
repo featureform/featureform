@@ -1,5 +1,5 @@
 site_name: Featureform
-theme: material
+theme: "material"
 plugins:
 - search
 - mkdocstrings

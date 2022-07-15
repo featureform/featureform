@@ -795,20 +795,6 @@ class Client(Registrar):
 
         self.apply()
 
-        # env_cert_path = os.getenv('FEATUREFORM_CERT')
-        # if tls_verify:
-        #     credentials = grpc.ssl_channel_credentials()
-        #     channel = grpc.secure_channel(host, credentials)
-        # elif cert_path is not None or env_cert_path is not None:
-        #     if env_cert_path is not None and cert_path is None:
-        #         cert_path = env_cert_path
-        #     with open(cert_path, 'rb') as f:
-        #         credentials = grpc.ssl_channel_credentials(f.read())
-        #     channel = grpc.secure_channel(host, credentials)
-        # else:
-        #     channel = grpc.insecure_channel(host, options=(('grpc.enable_http_proxy', 0),))
-        # self._stub = ff_grpc.ApiStub(channel)
-
     def tls_check(self, host, cert, insecure):
         if insecure:
             channel = grpc.insecure_channel(

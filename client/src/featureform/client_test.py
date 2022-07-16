@@ -30,7 +30,7 @@ transactions = postgres_get.register_table(
     table="Transactions",  # This is the table's name in Postgres
 )
 
-@postgres.sql_transformation(variant="quickstart")
+@postgres_get.sql_transformation(variant="quickstart")
 def average_user_transaction():
     """the average transaction amount for a user """
     return "SELECT CustomerID as user_id, avg(TransactionAmount) " \

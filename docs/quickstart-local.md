@@ -16,7 +16,8 @@ pip install featureform
 ```
 
 {% hint style="info" %}
-This is a test{% endhint %}
+This is a test 2
+{% endhint %}
 
 ## Step 2: Download test data
 

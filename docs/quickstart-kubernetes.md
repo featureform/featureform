@@ -12,7 +12,7 @@ This quickstart will walk through creating a few simple features, labels, and a 
 
 - Python 3.7+
 
-{% hint style="danger" %}
+{% hint style="info" %}
 Incompatible with M1 Macs on Python3.10 due to a bug with GRPC
 {% endhint %}
 

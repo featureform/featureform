@@ -74,3 +74,7 @@ print(listEntity)
 listTrainingSet = rc.list_training_sets()
 
 print(listTrainingSet)
+
+listUser = rc.list_users()
+
+print(listUser)

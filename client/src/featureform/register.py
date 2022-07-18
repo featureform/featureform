@@ -431,17 +431,32 @@ class ResourceRegistrar():
 
 
 class Registrar:
+    """These functions are used to registed new resources and retrieving existing resources. Retrieved resources can be used to register additional resources. If information on these resources is needed (e.g. retrieve the names of all variants of a feature), use the Resource Client instead.
+    """
     def __init__(self):
         self.__state = ResourceState()
         self.__resources = []
         self.__default_owner = ""
 
     def register_user(self, name: str) -> UserRegistrar:
+        """Register a user.
+
+        Args:
+            name (str): User to be registered.
+
+        Returns:
+            UserRegistrar: User
+        """
         user = User(name)
         self.__resources.append(user)
         return UserRegistrar(self, user)
 
     def set_default_owner(self, user: str):
+        """Set default owner.
+
+        Args:
+            user (str): User to be set as default owner of resources.
+        """
         self.__default_owner = user
 
     def default_owner(self) -> str:
@@ -748,7 +763,6 @@ class Registrar:
         ```
         Args:
             name (str): Name of Postgres provider to be registered
-            username (str): Username
             description (str): Description of Postgres provider to be registered
             team (str): Name of team
             host (str): Internal DNS name of Postgres
@@ -829,8 +843,7 @@ class Registrar:
         ```   
             local = register_local()
         ```
-        Args:
-            
+
         Returns:
             local (LocalProvider): Provider
         """
@@ -1145,7 +1158,27 @@ class Registrar:
 
 
 class Client(Registrar):
-    def __init__(self, host, tls_verify=False, cert_path=None):
+    """The resource client is used to retrieve information on specific resources (entities, providers, features, labels, training sets, models, users). If retrieved resources are needed to register additional resources (e.g. registering a feature from a source), use the Registrar functions instead.
+
+    **Using the Resource Client:**
+    ``` py title="definitions.py"
+    import featureform as ff
+    from featureform import ResourceClient
+
+    rc = ResourceClient("localhost:8000")
+
+    # example query:
+    redis = rc.get_provider("redis-quickstart")
+    ```
+    """
+    def __init__(self, host, tls_verify=True, cert_path=None):
+        """Initialise a Resource Client object.
+
+        Args:
+            host (str): Host path
+            tls_verify (bool): If true, do TLS verification
+            cert_path (str): Path to certificate
+        """
         super().__init__()
         env_cert_path = os.getenv('FEATUREFORM_CERT')
         if tls_verify:
@@ -1773,64 +1806,349 @@ class Client(Registrar):
     def list_features(self):
         """List all features.
 
+        **Examples:**
+        ``` py title="Input"
+        features_list = rc.list_features()
+        ```
+
+        ``` json title="Output"
+        // list_features prints out formatted information on all features
+
+        NAME                           VARIANT                        STATUS
+        user_age                       quickstart (default)           READY
+        avg_transactions               quickstart (default)           READY
+        avg_transactions               production                     CREATED
+        ```
+        
+        ``` py title="Input"
+        print(features_list)
+        ```
+
+        ``` json title="Output"
+        // list_features returns a list of Feature objects
+
+        [name: "user_age"
+        default_variant: "quickstart"
+        variants: "quickstart"
+        , name: "avg_transactions"
+        default_variant: "quickstart"
+        variants: "quickstart"
+        variants: "production"
+        ]
+        ```
+
         Returns:
-            List[Feature]: List of Feature Objects
+            features (List[Feature]): List of Feature Objects
         """
         return ListNameVariantStatus(self._stub, "feature")
 
     def list_labels(self):
         """List all labels.
 
+        **Examples:**
+        ``` py title="Input"
+        features_list = rc.list_labels()
+        ```
+
+        ``` json title="Output"
+        // list_labels prints out formatted information on all labels
+
+        NAME                           VARIANT                        STATUS
+        user_age                       quickstart (default)           READY
+        avg_transactions               quickstart (default)           READY
+        avg_transactions               production                     CREATED
+        ```
+        
+        ``` py title="Input"
+        print(label_list)
+        ```
+
+        ``` json title="Output"
+        // list_features returns a list of Feature objects
+        
+        [name: "user_age"
+        default_variant: "quickstart"
+        variants: "quickstart"
+        , name: "avg_transactions"
+        default_variant: "quickstart"
+        variants: "quickstart"
+        variants: "production"
+        ]
+        ```
+
         Returns:
-            List[Label]: List of Label Objects
+            labels (List[Label]): List of Label Objects
         """
         return ListNameVariantStatus(self._stub, "label")
 
     def list_users(self):
-        """List all users.
+        """List all users. Prints a list of all users.
+
+        **Examples:**
+        ``` py title="Input"
+        users_list = rc.list_users()
+        ```
+
+        ``` json title="Output"
+        // list_users prints out formatted information on all users
+
+        NAME                           STATUS
+        featureformer                  NO_STATUS
+        featureformers_friend          CREATED
+        ```
+        
+        ``` py title="Input"
+        print(features_list)
+        ```
+
+        ``` json title="Output"
+        // list_features returns a list of Feature objects
+        
+        [name: "featureformer"
+        features {
+        name: "avg_transactions"
+        variant: "quickstart"
+        }
+        labels {
+        name: "fraudulent"
+        variant: "quickstart"
+        }
+        trainingsets {
+        name: "fraud_training"
+        variant: "quickstart"
+        }
+        sources {
+        name: "transactions"
+        variant: "kaggle"
+        }
+        sources {
+        name: "average_user_transaction"
+        variant: "quickstart"
+        },
+        name: "featureformers_friend"
+        features {
+        name: "user_age"
+        variant: "production"
+        }
+        sources {
+        name: "user_profiles"
+        variant: "production"
+        }
+        ]
+        ```
 
         Returns:
-            List[User]: List of User Objects
+            users (List[User]): List of User Objects
         """
         return ListNameStatus(self._stub, "user")
 
     def list_entities(self):
-        """List all entities.
+        """List all entities. Prints a list of all entities.
+
+        **Examples:**
+        ``` py title="Input"
+        entities = rc.list_entities()
+        ```
+
+        ``` json title="Output"
+        // list_entities prints out formatted information on all entities
+
+        NAME                           STATUS
+        user                           CREATED
+        transaction                    CREATED
+        ```
+        
+        ``` py title="Input"
+        print(features_list)
+        ```
+
+        ``` json title="Output"
+        // list_entities returns a list of Entity objects
+        
+        [name: "user"
+        features {
+        name: "avg_transactions"
+        variant: "quickstart"
+        }
+        features {
+        name: "avg_transactions"
+        variant: "production"
+        }
+        features {
+        name: "user_age"
+        variant: "quickstart"
+        }
+        labels {
+        name: "fraudulent"
+        variant: "quickstart"
+        }
+        trainingsets {
+        name: "fraud_training"
+        variant: "quickstart"
+        }
+        ,
+        name: "transaction"
+        features {
+        name: "amount_spent"
+        variant: "production"
+        }
+        ]
+        ```
 
         Returns:
-            List[Entity]: List of Entity Objects
+            entities (List[Entity]): List of Entity Objects
         """
         return ListNameStatus(self._stub, "entity")
 
     def list_sources(self):
-        """List all sources.
+        """List all sources. Prints a list of all sources.
+
+        **Examples:**
+        ``` py title="Input"
+        sources_list = rc.list_sources()
+        ```
+
+        ``` json title="Output"
+        // list_sources prints out formatted information on all sources
+
+        NAME                           VARIANT                        STATUS                         DESCRIPTION
+        average_user_transaction       quickstart (default)           NO_STATUS                      the average transaction amount for a user
+        transactions                   kaggle (default)               NO_STATUS                      Fraud Dataset From Kaggle   
+        ```
+        
+        ``` py title="Input"
+        print(sources_list)
+        ```
+
+        ``` json title="Output"
+        // list_sources returns a list of Source objects
+        
+        [name: "average_user_transaction"
+        default_variant: "quickstart"
+        variants: "quickstart"
+        , name: "transactions"
+        default_variant: "kaggle"
+        variants: "kaggle"
+        ]
+        ```
 
         Returns:
-            List[Source]: List of Source Objects
+            sources (List[Source]): List of Source Objects
         """
         return ListNameVariantStatusDesc(self._stub, "source")
 
     def list_training_sets(self):
-        """List all training sets.
+        """List all training sets. Prints a list of all training sets.
+
+        **Examples:**
+        ``` py title="Input"
+        training_sets_list = rc.list_training_sets()
+        ```
+
+        ``` json title="Output"
+        // list_training_sets prints out formatted information on all training sets
+
+        NAME                           VARIANT                        STATUS                         DESCRIPTION
+        fraud_training                 quickstart (default)           READY                          Training set for fraud detection.
+        fraud_training                 v2                             CREATED                        Improved training set for fraud detection.
+        recommender                    v1 (default)                   CREATED                        Training set for recommender system.
+        ```
+        
+        ``` py title="Input"
+        print(training_sets_list)
+        ```
+
+        ``` json title="Output"
+        // list_training_sets returns a list of TrainingSet objects
+        
+        [name: "fraud_training"
+        default_variant: "quickstart"
+        variants: "quickstart", "v2",
+        name: "recommender"
+        default_variant: "v1"
+        variants: "v1"
+        ]
+        ```
 
         Returns:
-            List[TrainingSet]: List of TrainingSet Objects
+            training_sets (List[TrainingSet]): List of TrainingSet Objects
         """
         return ListNameVariantStatusDesc(self._stub, "training-set")
 
     def list_models(self):
-        """List all models.
+        """List all models. Prints a list of all models.
 
         Returns:
-            List[Model]: List of Model Objects
+            models (List[Model]): List of Model Objects
         """
         return ListNameStatusDesc(self._stub, "model")
 
     def list_providers(self):
-        """List all providers.
+        """List all providers. Prints a list of all providers.
+
+        **Examples:**
+        ``` py title="Input"
+        providers_list = rc.list_providers()
+        ```
+
+        ``` json title="Output"
+        // list_providers prints out formatted information on all providers
+
+        NAME                           STATUS                         DESCRIPTION
+        redis-quickstart               CREATED                      A Redis deployment we created for the Featureform quickstart
+        postgres-quickstart            CREATED                      A Postgres deployment we created for the Featureform quickst
+        ```
+        
+        ``` py title="Input"
+        print(providers_list)
+        ```
+
+        ``` json title="Output"
+        // list_providers returns a list of Providers objects
+        
+        [name: "redis-quickstart"
+        description: "A Redis deployment we created for the Featureform quickstart"
+        type: "REDIS_ONLINE"
+        software: "redis"
+        serialized_config: "{\"Addr\": \"quickstart-redis:6379\", \"Password\": \"\", \"DB\": 0}"
+        features {
+        name: "avg_transactions"
+        variant: "quickstart"
+        }
+        features {
+        name: "avg_transactions"
+        variant: "production"
+        }
+        features {
+        name: "user_age"
+        variant: "quickstart"
+        }
+        , name: "postgres-quickstart"
+        description: "A Postgres deployment we created for the Featureform quickstart"
+        type: "POSTGRES_OFFLINE"
+        software: "postgres"
+        serialized_config: "{\"Host\": \"quickstart-postgres\", \"Port\": \"5432\", \"Username\": \"postgres\", \"Password\": \"password\", \"Database\": \"postgres\"}"
+        sources {
+        name: "transactions"
+        variant: "kaggle"
+        }
+        sources {
+        name: "average_user_transaction"
+        variant: "quickstart"
+        }
+        trainingsets {
+        name: "fraud_training"
+        variant: "quickstart"
+        }
+        labels {
+        name: "fraudulent"
+        variant: "quickstart"
+        }
+        ]
+        ```
 
         Returns:
-            List[Provider]: List of Provider Objects
+            providers (List[Provider]): List of Provider Objects
         """
         return ListNameStatusDesc(self._stub, "provider")
 

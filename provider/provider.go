@@ -15,6 +15,7 @@ func init() {
 		RedisOnline:      redisOnlineStoreFactory,
 		CassandraOnline:  cassandraOnlineStoreFactory,
 		FirestoreOnline:  firestoreOnlineStoreFactory,
+		DynamoDBOnline:   dynamodbOnlineStoreFactory,
 		MemoryOffline:    memoryOfflineStoreFactory,
 		PostgresOffline:  postgresOfflineStoreFactory,
 		SnowflakeOffline: snowflakeOfflineStoreFactory,
@@ -36,6 +37,13 @@ type RedisConfig struct {
 	Addr     string
 	Password string
 	DB       int
+}
+
+type DynamodbConfig struct {
+	Prefix    string
+	Region    string
+	AccessKey string
+	SecretKey string
 }
 
 func (r RedisConfig) Serialized() SerializedConfig {
@@ -71,7 +79,15 @@ func (r CassandraConfig) Serialized() SerializedConfig {
 	return config
 }
 
-func (r *CassandraConfig) Deserialize(config SerializedConfig) error {
+func (r DynamodbConfig) Serialized() SerializedConfig {
+	config, err := json.Marshal(r)
+	if err != nil {
+		panic(err)
+	}
+	return config
+}
+
+func (r *DynamodbConfig) Deserialize(config SerializedConfig) error {
 	err := json.Unmarshal(config, r)
 	if err != nil {
 		return err

@@ -22,6 +22,7 @@ class TypeSenseResults {
       }
     }
     this._resultsByType = dictionary;
+    return this
   }
   length() {
     return this._length;
@@ -39,30 +40,22 @@ class TypeSenseResults {
 }
 
 export default class TypesenseClient {
-  constructor(port, host, apikey) {
-    this._port = port;
-    this._host = host;
-    this._apikey = apikey;
+  constructor(url) {
+    this._url = url
   }
   search(query) {
-    let searchParams = { q: query, query_by: "Name" };
-    let client = new Typesense.Client({
-      nodes: [
-        {
-          host: this._host,
-          port: this._port,
-          protocol: "https",
-        },
-      ],
-      apiKey: this._apikey,
-      connectionTimeoutSeconds: 2,
-    });
-    let response = client
-      .collections("resource")
-      .documents()
-      .search(searchParams);
-    return response.then(function (jsonResp) {
-      return new TypeSenseResults(jsonResp);
-    });
+    var queryString = this._url + query
+    return fetch(queryString, {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    })
+      .then(function (res) {
+          return res.json().then((json_data) => {
+            return new TypeSenseResults(json_data)} );
+      })
+      .catch((error) => {
+        console.error(error);
+      });
   }
 }

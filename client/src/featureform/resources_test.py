@@ -3,7 +3,9 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import pytest
-from resources import ResourceRedefinedError, ResourceState, Provider, RedisConfig, CassandraConfig, FirestoreConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, User, Provider, Entity, Feature, Label, TrainingSet, PrimaryData, SQLTable, Source, ResourceColumnMapping
+from resources import ResourceRedefinedError, ResourceState, Provider, RedisConfig, CassandraConfig, FirestoreConfig, \
+SnowflakeConfig, PostgresConfig, RedshiftConfig, User, Provider, Entity, Feature, Label, TrainingSet, PrimaryData, SQLTable, \
+Source, ResourceColumnMapping, DynamodbConfig, Schedule
 
 
 @pytest.fixture
@@ -56,6 +58,14 @@ def firesstore_config():
         collection="abc",
         project_id="abc",
         credentials_path="abc",
+    )
+
+@pytest.fixture
+def dynamodb_config():
+    return DynamodbConfig(
+        region="abc",
+        access_key="abc",
+        secret_key="abc"
     )
 
 @pytest.fixture
@@ -240,7 +250,6 @@ def test_redefine_provider(redis_config, snowflake_config):
     with pytest.raises(ResourceRedefinedError):
         state.add(providers[1])
 
-
 def test_add_all_resource_types(all_resources_strange_order, redis_config):
     state = ResourceState()
     for resource in all_resources_strange_order:
@@ -391,3 +400,78 @@ def test_invalid_users():
 def test_invalid_training_set(args):
     with pytest.raises((ValueError, TypeError)):
         TrainingSet(**args)
+
+def test_add_all_resources_with_schedule(all_resources_strange_order, redis_config):
+    state = ResourceState()
+    for resource in all_resources_strange_order:
+        if hasattr(resource, 'schedule'):
+            resource.update_schedule("* * * * *")
+        state.add(resource)
+    assert state.sorted_list() == [
+        User(name="Featureform"),
+        Provider(
+            name="redis",
+            description="desc3",
+            function="fn3",
+            team="team3",
+            config=redis_config,
+        ),
+        Source(name="primary",
+               variant="abc",
+               definition=PrimaryData(location=SQLTable("table")),
+               owner="someone",
+               description="desc",
+               provider="redis-name",
+               schedule="* * * * *",
+               schedule_obj=Schedule(name="primary",variant="abc",resource_type=7,schedule_string="* * * * *")),
+        Entity(name="user", description="A user"),
+        Feature(name="feature",
+                variant="v1",
+                source=("a", "b"),
+                description="feature",
+                value_type="float32",
+                location=ResourceColumnMapping(
+                    entity="abc",
+                    value="def",
+                    timestamp="ts",
+                ),
+                entity="user",
+                owner="Owner",
+                provider="redis-name",
+                schedule="* * * * *",
+                schedule_obj=Schedule(name="feature",variant="v1",resource_type=4,schedule_string="* * * * *")),
+        Label(
+            name="label",
+            variant="v1",
+            source=("a", "b"),
+            description="feature",
+            value_type="float32",
+            location=ResourceColumnMapping(
+                entity="abc",
+                value="def",
+                timestamp="ts",
+            ),
+            entity="user",
+            owner="Owner",
+        ),
+        TrainingSet(name="training-set",
+                    variant="v1",
+                    description="desc",
+                    owner="featureform",
+                    label=("label", "var"),
+                    features=[("f1", "var")],
+                    schedule="* * * * *",
+                    schedule_obj=Schedule(name="training-set",variant="v1",resource_type=6,schedule_string="* * * * *")),
+        Schedule(name="feature",
+                variant="v1",
+                resource_type=4,
+                schedule_string="* * * * *"),
+        Schedule(name="primary",
+                variant="abc",
+                resource_type=7,
+                schedule_string="* * * * *"),
+        Schedule(name="training-set",
+                 variant="v1",
+                 resource_type=6,
+                 schedule_string="* * * * *"),
+    ]

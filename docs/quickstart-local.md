@@ -15,6 +15,9 @@ Install the Featureform SDK via Pip.
 pip install featureform
 ```
 
+{% hint style="info" %}
+This is a test{% endhint %}
+
 ## Step 2: Download test data
 
 For this quickstart, we'll use a fraudulent transaction dataset that can be found here: [https://featureform-demo-files.s3.amazonaws.com/transactions.csv](https://featureform-demo-files.s3.amazonaws.com/transactions.csv)\

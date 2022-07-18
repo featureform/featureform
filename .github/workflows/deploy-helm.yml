@@ -1,8 +1,26 @@
-name: Deploy
-on:
-  push:
-    tags:
-      - '*'
+name: Update Helm
+on: push
+#  workflow_dispatch:
+#    inputs:
+#      version:
+#        description: 'Version of helm package to deploy'
+#        required: true
+#        type: string
+#      type:
+#        description: 'If this version is a release or pre-release'
+#        required: true
+#        default: 'pre-release'
+#        type: choice
+#        options:
+#          - release
+#          - pre-release
+
+env:
+  RELEASE_TAG: 0.0.1
+  PRERELEASE_TAG: 0.0.1-rc
+#  RELEASE_TAG: ${{ inputs.version }}
+#  PRERELEASE_TAG: $${{ inputs.version }}-rc
+
 jobs:
   api-server:
     name: Build API Server
@@ -14,11 +32,19 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+#      - name: Set production tag
+#        run: |
+#          echo "TAG=$RELEASE_TAG" >> $GITHUB_ENV
+#        if: ${{ inputs.type == 'release' }}
+
+      - name: Set production tag
+        run: |
+          echo "TAG=$PRERELEASE_TAG" >> $GITHUB_ENV
+#        if: ${{ inputs.type == 'pre-release' }}
+        if: always()
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
-
-      - name: Set env
-        run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
 
       - name: Login to DockerHub
         uses: docker/login-action@v2
@@ -31,7 +57,7 @@ jobs:
         with:
           context: .
           file: ./api/Dockerfile
-          tags: featureformcom/api-server:${{ env.RELEASE_VERSION }}
+          tags: featureformcom/api-server:${{ env.TAG }}
           push: true
 
   coordinator:
@@ -43,11 +69,18 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      #      - name: Set production tag
+      #        run: |
+      #          echo "TAG=$RELEASE_TAG" >> $GITHUB_ENV
+      #        if: ${{ inputs.type == 'release' }}
+
+      - name: Set production tag
+        run: |
+          echo "TAG=$PRERELEASE_TAG" >> $GITHUB_ENV
+      #        if: ${{ inputs.type == 'pre-release' }}
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
-
-      - name: Set env
-        run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
 
       - name: Login to DockerHub
         uses: docker/login-action@v2
@@ -60,7 +93,7 @@ jobs:
         with:
           context: .
           file: ./coordinator/Dockerfile
-          tags: featureformcom/coordinator:${{ env.RELEASE_VERSION }}
+          tags: featureformcom/coordinator:${{ env.TAG }}
           push: true
 
   dashboard:
@@ -72,11 +105,18 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      #      - name: Set production tag
+      #        run: |
+      #          echo "TAG=$RELEASE_TAG" >> $GITHUB_ENV
+      #        if: ${{ inputs.type == 'release' }}
+
+      - name: Set production tag
+        run: |
+          echo "TAG=$PRERELEASE_TAG" >> $GITHUB_ENV
+      #        if: ${{ inputs.type == 'pre-release' }}
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
-
-      - name: Set env
-        run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
 
       - name: Login to DockerHub
         uses: docker/login-action@v2
@@ -89,7 +129,7 @@ jobs:
         with:
           context: .
           file: ./dashboard/Dockerfile
-          tags: featureformcom/dashboard:${{ env.RELEASE_VERSION }}
+          tags: featureformcom/dashboard:${{ env.TAG }}
           push: true
 
   metadata:
@@ -101,11 +141,18 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      #      - name: Set production tag
+      #        run: |
+      #          echo "TAG=$RELEASE_TAG" >> $GITHUB_ENV
+      #        if: ${{ inputs.type == 'release' }}
+
+      - name: Set production tag
+        run: |
+          echo "TAG=$PRERELEASE_TAG" >> $GITHUB_ENV
+      #        if: ${{ inputs.type == 'pre-release' }}
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
-
-      - name: Set env
-        run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
 
       - name: Login to DockerHub
         uses: docker/login-action@v2
@@ -118,7 +165,7 @@ jobs:
         with:
           context: .
           file: ./metadata/Dockerfile
-          tags: featureformcom/metadata:${{ env.RELEASE_VERSION }}
+          tags: featureformcom/metadata:${{ env.TAG }}
           push: true
 
   dashboard-metadata:
@@ -130,11 +177,18 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      #      - name: Set production tag
+      #        run: |
+      #          echo "TAG=$RELEASE_TAG" >> $GITHUB_ENV
+      #        if: ${{ inputs.type == 'release' }}
+
+      - name: Set production tag
+        run: |
+          echo "TAG=$PRERELEASE_TAG" >> $GITHUB_ENV
+      #        if: ${{ inputs.type == 'pre-release' }}
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
-
-      - name: Set env
-        run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
 
       - name: Login to DockerHub
         uses: docker/login-action@v2
@@ -147,7 +201,7 @@ jobs:
         with:
           context: .
           file: ./metadata/dashboard/Dockerfile
-          tags: featureformcom/metadata-dashboard:${{ env.RELEASE_VERSION }}
+          tags: featureformcom/metadata-dashboard:${{ env.TAG }}
           push: false
 
 
@@ -160,11 +214,18 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      #      - name: Set production tag
+      #        run: |
+      #          echo "TAG=$RELEASE_TAG" >> $GITHUB_ENV
+      #        if: ${{ inputs.type == 'release' }}
+
+      - name: Set production tag
+        run: |
+          echo "TAG=$PRERELEASE_TAG" >> $GITHUB_ENV
+      #        if: ${{ inputs.type == 'pre-release' }}
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
-
-      - name: Set env
-        run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
 
       - name: Login to DockerHub
         uses: docker/login-action@v2
@@ -177,7 +238,7 @@ jobs:
         with:
           context: .
           file: ./newserving/Dockerfile
-          tags: featureformcom/serving:${{ env.RELEASE_VERSION }}
+          tags: featureformcom/serving:${{ env.TAG }}
           push: true
 
   worker:
@@ -189,11 +250,18 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      #      - name: Set production tag
+      #        run: |
+      #          echo "TAG=$RELEASE_TAG" >> $GITHUB_ENV
+      #        if: ${{ inputs.type == 'release' }}
+
+      - name: Set production tag
+        run: |
+          echo "TAG=$PRERELEASE_TAG" >> $GITHUB_ENV
+      #        if: ${{ inputs.type == 'pre-release' }}
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
-
-      - name: Set env
-        run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
 
       - name: Login to DockerHub
         uses: docker/login-action@v2
@@ -206,7 +274,7 @@ jobs:
         with:
           context: .
           file: ./runner/Dockerfile
-          tags: featureformcom/worker:${{ env.RELEASE_VERSION }}
+          tags: featureformcom/worker:${{ env.TAG }}
           push: true
 
   helm:
@@ -219,8 +287,15 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Set env
-        run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+      #      - name: Set production tag
+      #        run: |
+      #          echo "TAG=$RELEASE_TAG" >> $GITHUB_ENV
+      #        if: ${{ inputs.type == 'release' }}
+
+      - name: Set production tag
+        run: |
+          echo "TAG=$PRERELEASE_TAG" >> $GITHUB_ENV
+      #        if: ${{ inputs.type == 'pre-release' }}
 
       - name: Install Helm
         run: |
@@ -246,38 +321,4 @@ jobs:
         run: gcloud auth activate-service-account helm-bucket-sa@testing-352123.iam.gserviceaccount.com --key-file=gcloud-key.json --project=testing-352123
 
       - name: Update Charts
-        run: ./update_helm.sh ${{ env.RELEASE_VERSION }}
-
-  python:
-    name: Package Python
-    environment: Deployment
-    env:
-      TWINE_USERNAME: ${{ secrets.TWINE_USERNAME }}
-      TWINE_PASSWORD: ${{ secrets.TWINE_PASSWORD }}
-    defaults:
-      run:
-        working-directory: ./
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Set env
-        run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
-
-      - name: Install grpc_tools
-        run: pip install grpcio-tools
-
-      - name: Install Protobuf
-        run: sudo snap install protobuf --classic
-
-      - name: Install Build Deps
-        run: |
-          pip install build
-          pip install twine
-
-      - name: Set Version Number
-        run: sed -i -e 's/0.0.0/${{ env.RELEASE_VERSION }}/g' ./client/setup.cfg
-
-      - name: Package and Upload
-        run: ./gen_pypi.sh
-          
+        run: ./update_helm.sh ${{ env.TAG }}

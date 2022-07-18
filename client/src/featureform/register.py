@@ -69,18 +69,6 @@ class OfflineSQLProvider(OfflineProvider):
                        table: str,
                        owner: Union[str, UserRegistrar] = "",
                        description: str = ""):
-        """Register a SQL table as a primary data source.
-
-        Args:
-            name (str): Name of table to be registered
-            variant (str): Name of variant to be registered
-            table (str): Name of SQL table
-            owner (Union[str, UserRegistrar]): Owner
-            description (str): Description of table to be registered
-
-        Returns:
-            source (ColumnSourceRegistrar): source
-        """
         return self.__registrar.register_primary_data(name=name,
                                                       variant=variant,
                                                       location=SQLTable(table),
@@ -467,10 +455,10 @@ class Registrar:
         return owner
 
     def get_source(self, name, variant):
-        """Get a source.
+        """Get a source. The returned object can be used to register additional resources.
 
         **Examples**:
-        ```
+        ``` py
         transactions = get_source("transactions","kaggle")
         transactions.register_resources(
             entity=user,
@@ -499,10 +487,10 @@ class Registrar:
         return ColumnSourceRegistrar(self, fakeSource)
 
     def get_redis(self, name):
-        """Get a Redis provider.
+        """Get a Redis provider. The returned object can be used to register additional resources.
 
         **Examples**:
-        ```
+        ``` py
         redis = get_redis("redis-quickstart")
         // Defining a new transformation source with retrieved Redis provider
         average_user_transaction.register_resources(
@@ -527,10 +515,10 @@ class Registrar:
         return OnlineProvider(self, fakeProvider)
 
     def get_postgres(self, name):
-        """Get a Postgres provider.
+        """Get a Postgres provider. The returned object can be used to register additional resources.
 
         **Examples**:
-        ```
+        ``` py
         postgres = get_postgres("postgres-quickstart")
         transactions = postgres.register_table(
             name="transactions",
@@ -552,10 +540,10 @@ class Registrar:
         return OfflineSQLProvider(self, fakeProvider)
 
     def get_snowflake(self, name):
-        """Get a Snowflake provider.
+        """Get a Snowflake provider. The returned object can be used to register additional resources.
 
         **Examples**:
-        ```
+        ``` py
         snowflake = get_snowflake("snowflake-quickstart")
         transactions = snowflake.register_table(
             name="transactions",
@@ -577,14 +565,21 @@ class Registrar:
         return OfflineSQLProvider(self, fakeProvider)
 
     def get_entity(self, name):
-        """Get an entity.
+        """Get an entity. The returned object can be used to register additional resources.
 
         **Examples**:
-        ```
-        user = get_entity("user")
+        ``` py
+        entity = get_entity("user")
+        transactions.register_resources(
+            entity=entity,
+            entity_column="customerid",
+            labels=[
+                {"name": "fraudulent", "variant": "quickstart", "column": "isfraud", "type": "bool"},
+            ],
+        )
         ```
         Args:
-            name (str): Name of Snowflake provider to be retrieved
+            name (str): Name of entity to be retrieved
 
         Returns:
             entity (EntityRegistrar): Entity
@@ -1235,38 +1230,25 @@ class Client(Registrar):
         return GetUser(self._stub, name)
     
     def get_entity(self, name):
-        """Get an entity.
+        """Get an entity. Prints out information on entity, and all resources associated with the entity.
 
         **Examples:**
 
         ``` py title="Input"
-        postgres = ff.get_provider("postgres-quickstart")
+        entity = rc.get_entity("user")
         ```
 
         ``` json title="Output"
-        // get_provider prints out formatted information on provider
+        // get_entity prints out formatted information on entity
 
-        NAME:                          postgres-quickstart
-        DESCRIPTION:                   A Postgres deployment we created for the Featureform quickstart
-        TYPE:                          POSTGRES_OFFLINE
-        SOFTWARE:                      postgres
+        ENTITY NAME:                   user
         STATUS:                        NO_STATUS
         -----------------------------------------------
-        SOURCES:
-        NAME                           VARIANT
-        transactions                   kaggle
-        average_user_transaction       quickstart
-        -----------------------------------------------
-        FEATURES:
-        NAME                           VARIANT
-        -----------------------------------------------
-        LABELS:
-        NAME                           VARIANT
-        fraudulent                     quickstart
-        -----------------------------------------------
-        TRAINING SETS:
-        NAME                           VARIANT
-        fraud_training                 quickstart
+
+        NAME                           VARIANT                        TYPE
+        avg_transactions               quickstart                     feature
+        fraudulent                     quickstart                     label
+        fraud_training                 quickstart                     training set
         -----------------------------------------------
         ```
         
@@ -1275,31 +1257,19 @@ class Client(Registrar):
         ```
 
         ``` json title="Output"
-        // get_provider returns the Provider object
+        // get_entity returns the Entity object
 
-        name: "postgres-quickstart"
-        description: "A Postgres deployment we created for the Featureform quickstart"
-        type: "POSTGRES_OFFLINE"
-        software: "postgres"
-        serialized_config: "{\"Host\": \"quickstart-postgres\", 
-                            \"Port\": \"5432\", 
-                            \"Username\": \"postgres\", 
-                            \"Password\": \"password\", 
-                            \"Database\": \"postgres\"}"                
-        sources {
-        name: "transactions"
-        variant: "kaggle"
-        }
-        sources {
-        name: "average_user_transaction"
-        variant: "quickstart"
-        }
-        trainingsets {
-        name: "fraud_training"
+        name: "user"
+        features {
+        name: "avg_transactions"
         variant: "quickstart"
         }
         labels {
         name: "fraudulent"
+        variant: "quickstart"
+        }
+        trainingsets {
+        name: "fraud_training"
         variant: "quickstart"
         }
         ```
@@ -1308,11 +1278,19 @@ class Client(Registrar):
             name (str): Name of entity to be retrieved
 
         Returns:
-            user (User): User that is retrieved.
+            entity (Entity): Entity
         """
         return GetEntity(self._stub, name)
 
     def get_model(self, name):
+        """Get a model. Prints out information on model, and all resources associated with the model.
+
+        Args:
+            name (str): Name of model to be retrieved
+
+        Returns:
+            model (Model): Model
+        """
         return GetResource(self._stub, "model", name)
 
     def get_provider(self, name):
@@ -1321,7 +1299,7 @@ class Client(Registrar):
         **Examples:**
 
         ``` py title="Input"
-        postgres = ff.get_provider("postgres-quickstart")
+        postgres = rc.get_provider("postgres-quickstart")
         ```
 
         ``` json title="Output"
@@ -1394,47 +1372,466 @@ class Client(Registrar):
         return GetProvider(self._stub, name)
 
     def get_feature(self, name, variant=None):
+        """Get a feature. Prints out information on feature, and all variants associated with the feature. If variant is included, print information on that specific variant and all resources associated with it.
+
+        **Examples:**
+
+        ``` py title="Input"
+        avg_transactions = rc.get_feature("avg_transactions")
+        ```
+
+        ``` json title="Output"
+        // get_feature prints out formatted information on feature
+
+        NAME:                          avg_transactions
+        STATUS:                        NO_STATUS
+        -----------------------------------------------
+        VARIANTS:
+        quickstart                     default
+        -----------------------------------------------
+        ```
+        
+        ``` py title="Input"
+        print(avg_transactions)
+        ```
+
+        ``` json title="Output"
+        // get_feature returns the Feature object
+
+        name: "avg_transactions"
+        default_variant: "quickstart"
+        variants: "quickstart"
+        ```
+
+        ``` py title="Input"
+        avg_transactions_variant = ff.get_feature("avg_transactions", "quickstart")
+        ```
+
+        ``` json title="Output"
+        // get_feature with variant provided prints out formatted information on feature variant
+
+        NAME:                          avg_transactions
+        VARIANT:                       quickstart
+        TYPE:                          float32
+        ENTITY:                        user
+        OWNER:                         featureformer
+        PROVIDER:                      redis-quickstart
+        STATUS:                        NO_STATUS
+        -----------------------------------------------
+        SOURCE:
+        NAME                           VARIANT
+        average_user_transaction       quickstart
+        -----------------------------------------------
+        TRAINING SETS:
+        NAME                           VARIANT
+        fraud_training                 quickstart
+        -----------------------------------------------
+        ```
+        
+        ``` py title="Input"
+        print(avg_transactions_variant)
+        ```
+
+        ``` json title="Output"
+        // get_feature returns the FeatureVariant object
+
+        name: "avg_transactions"
+        variant: "quickstart"
+        source {
+        name: "average_user_transaction"
+        variant: "quickstart"
+        }
+        type: "float32"
+        entity: "user"
+        created {
+        seconds: 1658168552
+        nanos: 142461900
+        }
+        owner: "featureformer"
+        provider: "redis-quickstart"
+        trainingsets {
+        name: "fraud_training"
+        variant: "quickstart"
+        }
+        columns {
+        entity: "user_id"
+        value: "avg_transaction_amt"
+        }
+        ```
+
+        Args:
+            name (str): Name of feature to be retrieved
+            variant (str): Name of variant of feature 
+
+        Returns:
+            feature (Union[Feature, FeatureVariant]): Feature or FeatureVariant
+        """
         if not variant:
             return GetResource(self._stub, "feature", name)
         return GetFeatureVariant(self._stub, name, variant)
 
     def get_label(self, name, variant=None):
+        """Get a label. Prints out information on label, and all variants associated with the label. If variant is included, print information on that specific variant and all resources associated with it.
+
+        **Examples:**
+
+        ``` py title="Input"
+        fraudulent = rc.get_label("fraudulent")
+        ```
+
+        ``` json title="Output"
+        // get_label prints out formatted information on label
+
+        NAME:                          fraudulent
+        STATUS:                        NO_STATUS
+        -----------------------------------------------
+        VARIANTS:
+        quickstart                     default
+        -----------------------------------------------
+        ```
+        
+        ``` py title="Input"
+        print(fraudulent)
+        ```
+
+        ``` json title="Output"
+        // get_label returns the Label object
+
+        name: "fraudulent"
+        default_variant: "quickstart"
+        variants: "quickstart"
+        ```
+
+        ``` py title="Input"
+        fraudulent_variant = ff.get_label("fraudulent", "quickstart")
+        ```
+
+        ``` json title="Output"
+        // get_label with variant provided prints out formatted information on label variant
+
+        NAME:                          fraudulent
+        VARIANT:                       quickstart
+        TYPE:                          bool
+        ENTITY:                        user
+        OWNER:                         featureformer
+        PROVIDER:                      postgres-quickstart
+        STATUS:                        NO_STATUS
+        -----------------------------------------------
+        SOURCE:
+        NAME                           VARIANT
+        transactions                   kaggle
+        -----------------------------------------------
+        TRAINING SETS:
+        NAME                           VARIANT
+        fraud_training                 quickstart
+        -----------------------------------------------
+        ```
+        
+        ``` py title="Input"
+        print(fraudulent_variant)
+        ```
+
+        ``` json title="Output"
+        // get_label returns the LabelVariant object
+
+        name: "fraudulent"
+        variant: "quickstart"
+        type: "bool"
+        source {
+        name: "transactions"
+        variant: "kaggle"
+        }
+        entity: "user"
+        created {
+        seconds: 1658168552
+        nanos: 154924300
+        }
+        owner: "featureformer"
+        provider: "postgres-quickstart"
+        trainingsets {
+        name: "fraud_training"
+        variant: "quickstart"
+        }
+        columns {
+        entity: "customerid"
+        value: "isfraud"
+        }
+        ```
+
+        Args:
+            name (str): Name of label to be retrieved
+            variant (str): Name of variant of label 
+
+        Returns:
+            label (Union[label, LabelVariant]): Label or LabelVariant
+        """
         if not variant:
             return GetResource(self._stub, "label", name)
         return GetLabelVariant(self._stub, name, variant)
 
     def get_training_set(self, name, variant=None):
+        """Get a training set. Prints out information on training set, and all variants associated with the training set. If variant is included, print information on that specific variant and all resources associated with it.
+
+        **Examples:**
+
+        ``` py title="Input"
+        fraud_training = rc.get_training_set("fraud_training")
+        ```
+
+        ``` json title="Output"
+        // get_training_set prints out formatted information on training set
+
+        NAME:                          fraud_training
+        STATUS:                        NO_STATUS
+        -----------------------------------------------
+        VARIANTS:
+        quickstart                     default
+        -----------------------------------------------
+        ```
+        
+        ``` py title="Input"
+        print(fraud_training)
+        ```
+
+        ``` json title="Output"
+        // get_training_set returns the TrainingSet object
+
+        name: "fraud_training"
+        default_variant: "quickstart"
+        variants: "quickstart"
+        ```
+
+        ``` py title="Input"
+        fraudulent_variant = ff.get_training set("fraudulent", "quickstart")
+        ```
+
+        ``` json title="Output"
+        // get_training_set with variant provided prints out formatted information on training set variant
+
+        NAME:                          fraud_training
+        VARIANT:                       quickstart
+        OWNER:                         featureformer
+        PROVIDER:                      postgres-quickstart
+        STATUS:                        NO_STATUS
+        -----------------------------------------------
+        LABEL:
+        NAME                           VARIANT
+        fraudulent                     quickstart
+        -----------------------------------------------
+        FEATURES:
+        NAME                           VARIANT
+        avg_transactions               quickstart
+        -----------------------------------------------
+        ```
+        
+        ``` py title="Input"
+        print(fraudulent_variant)
+        ```
+
+        ``` json title="Output"
+        // get_training_set returns the TrainingSetVariant object
+
+        name: "fraud_training"
+        variant: "quickstart"
+        owner: "featureformer"
+        created {
+        seconds: 1658168552
+        nanos: 157934800
+        }
+        provider: "postgres-quickstart"
+        features {
+        name: "avg_transactions"
+        variant: "quickstart"
+        }
+        label {
+        name: "fraudulent"
+        variant: "quickstart"
+        }
+        ```
+
+        Args:
+            name (str): Name of training set to be retrieved
+            variant (str): Name of variant of training set 
+
+        Returns:
+            training_set (Union[TrainingSet, TrainingSetVariant]): TrainingSet or TrainingSetVariant
+        """
         if not variant:
             return GetResource(self._stub, "training-set", name)
         return GetTrainingSetVariant(self._stub, name, variant)
 
     def get_source(self, name, variant=None):
+        """Get a source. Prints out information on source, and all variants associated with the source. If variant is included, print information on that specific variant and all resources associated with it.
+
+        **Examples:**
+
+        ``` py title="Input"
+        transactions = rc.get_transactions("transactions")
+        ```
+
+        ``` json title="Output"
+        // get_source prints out formatted information on source
+
+        NAME:                          transactions
+        STATUS:                        NO_STATUS
+        -----------------------------------------------
+        VARIANTS:
+        kaggle                         default
+        -----------------------------------------------
+        ```
+        
+        ``` py title="Input"
+        print(transactions)
+        ```
+
+        ``` json title="Output"
+        // get_source returns the Source object
+
+        name: "transactions"
+        default_variant: "kaggle"
+        variants: "kaggle"
+        ```
+
+        ``` py title="Input"
+        transactions_variant = rc.get_source("transactions", "kaggle")
+        ```
+
+        ``` json title="Output"
+        // get_source with variant provided prints out formatted information on source variant
+
+        NAME:                          transactions
+        VARIANT:                       kaggle
+        OWNER:                         featureformer
+        DESCRIPTION:                   Fraud Dataset From Kaggle
+        PROVIDER:                      postgres-quickstart
+        STATUS:                        NO_STATUS
+        -----------------------------------------------
+        DEFINITION:
+        TRANSFORMATION
+
+        -----------------------------------------------
+        SOURCES
+        NAME                           VARIANT
+        -----------------------------------------------
+        PRIMARY DATA
+        Transactions
+        FEATURES:
+        NAME                           VARIANT
+        -----------------------------------------------
+        LABELS:
+        NAME                           VARIANT
+        fraudulent                     quickstart
+        -----------------------------------------------
+        TRAINING SETS:
+        NAME                           VARIANT
+        fraud_training                 quickstart
+        -----------------------------------------------
+        ```
+        
+        ``` py title="Input"
+        print(transactions_variant)
+        ```
+
+        ``` json title="Output"
+        // get_source returns the SourceVariant object
+
+        name: "transactions"
+        variant: "kaggle"
+        owner: "featureformer"
+        description: "Fraud Dataset From Kaggle"
+        provider: "postgres-quickstart"
+        created {
+        seconds: 1658168552
+        nanos: 128768000
+        }
+        trainingsets {
+        name: "fraud_training"
+        variant: "quickstart"
+        }
+        labels {
+        name: "fraudulent"
+        variant: "quickstart"
+        }
+        primaryData {
+        table {
+            name: "Transactions"
+        }
+        }
+        ```
+
+        Args:
+            name (str): Name of source to be retrieved
+            variant (str): Name of variant of source
+
+        Returns:
+            source (Union[Source, SourceVariant]): Source or SourceVariant
+        """
         if not variant:
             return GetResource(self._stub, "source", name)
         return GetSourceVariant(self._stub, name, variant)
 
     def list_features(self):
+        """List all features.
+
+        Returns:
+            List[Feature]: List of Feature Objects
+        """
         return ListNameVariantStatus(self._stub, "feature")
 
     def list_labels(self):
+        """List all labels.
+
+        Returns:
+            List[Label]: List of Label Objects
+        """
         return ListNameVariantStatus(self._stub, "label")
 
     def list_users(self):
+        """List all users.
+
+        Returns:
+            List[User]: List of User Objects
+        """
         return ListNameStatus(self._stub, "user")
 
     def list_entities(self):
+        """List all entities.
+
+        Returns:
+            List[Entity]: List of Entity Objects
+        """
         return ListNameStatus(self._stub, "entity")
 
     def list_sources(self):
+        """List all sources.
+
+        Returns:
+            List[Source]: List of Source Objects
+        """
         return ListNameVariantStatusDesc(self._stub, "source")
 
     def list_training_sets(self):
+        """List all training sets.
+
+        Returns:
+            List[TrainingSet]: List of TrainingSet Objects
+        """
         return ListNameVariantStatusDesc(self._stub, "training-set")
 
     def list_models(self):
+        """List all models.
+
+        Returns:
+            List[Model]: List of Model Objects
+        """
         return ListNameStatusDesc(self._stub, "model")
 
     def list_providers(self):
+        """List all providers.
+
+        Returns:
+            List[Provider]: List of Provider Objects
+        """
         return ListNameStatusDesc(self._stub, "provider")
 
 global_registrar = Registrar()

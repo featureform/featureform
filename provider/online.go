@@ -15,7 +15,7 @@ const (
 	RedisOnline          = "REDIS_ONLINE"
 	CassandraOnline      = "CASSANDRA_ONLINE"
 	FirestoreOnline      = "FIRESTORE_ONLINE"
-	DynamoDBOnline      = "DYNAMODB_ONLINE"
+	DynamoDBOnline       = "DYNAMODB_ONLINE"
 )
 
 var ctx = context.Background()

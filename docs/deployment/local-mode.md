@@ -6,6 +6,14 @@ It stores all your metadata and transformations in a SQLite database that's crea
 
 Local mode come built into the featureform PyPi package.
 
+### Requirements
+
+- Python 3.7+
+
+{% hint style="danger" %}
+Incompatible with M1 Macs on Python3.10 due to a bug with GRPC
+{% endhint %}
+
 ```bash
 pip install featureform
 ```

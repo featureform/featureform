@@ -9,15 +9,20 @@ description: >-
 
 ## Step 1: Install Featureform
 
+### Requirements
+
+- Python 3.7+
+
+{% hint style="danger" %}
+Incompatible with M1 Macs on Python3.10 due to a bug with GRPC
+{% endhint %}
+
 Install the Featureform SDK via Pip.
 
 ```
 pip install featureform
 ```
 
-{% hint style="info" %}
-This is a test 2
-{% endhint %}
 
 ## Step 2: Download test data
 

@@ -40,7 +40,7 @@ func TestOnlineStores(t *testing.T) {
 		"EntityNotFound":     testEntityNotFound,
 		"TypeCasting":        testTypeCasting,
 	}
-  
+
 	// Redis (Mock)
 	miniRedis := mockRedis()
 	defer miniRedis.Close()
@@ -78,7 +78,7 @@ func TestOnlineStores(t *testing.T) {
 	firestoreConfig := &FirestoreConfig{
 		ProjectID:   projectID,
 		Credentials: JSONCredentials,
-   }
+	}
 
 	dynamoAccessKey := os.Getenv("DYNAMO_ACCESS_KEY")
 	dynamoSecretKey := os.Getenv("DYNAMO_SECRET_KEY")

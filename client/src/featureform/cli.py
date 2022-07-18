@@ -138,16 +138,6 @@ def get(host, cert, insecure, resource_type, name, variant):
               is_flag=True,
               help="Enable local mode")
 def apply(host, cert, insecure, local, files):
-    if local:
-        if host != None:
-            raise ValueError("Cannot be local and have a host")
-
-    elif host == None:
-        host = os.getenv('FEATUREFORM_HOST')
-        if host == None:
-            raise ValueError(
-                "Host value must be set with --host flag or in env as FEATUREFORM_HOST")
-
     for file in files:
         with open(file, "r") as py:
             exec(py.read())

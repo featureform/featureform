@@ -2,12 +2,9 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-from curses import meta
 import click
 from featureform import ResourceClient
 import featureform.register as register
-import grpc
-from .proto import metadata_pb2_grpc as ff_grpc
 from .get import *
 import os
 
@@ -38,7 +35,6 @@ def cli():
     Interact with Featureform's Feature Store via the official command line interface.
     """
     pass
-
 
 
 @cli.command()
@@ -142,6 +138,16 @@ def get(host, cert, insecure, resource_type, name, variant):
               is_flag=True,
               help="Enable local mode")
 def apply(host, cert, insecure, local, files):
+    if local:
+        if host != None:
+            raise ValueError("Cannot be local and have a host")
+
+    elif host == None:
+        host = os.getenv('FEATUREFORM_HOST')
+        if host == None:
+            raise ValueError(
+                "Host value must be set with --host flag or in env as FEATUREFORM_HOST")
+
     for file in files:
         with open(file, "r") as py:
             exec(py.read())

@@ -62,6 +62,7 @@ jobs:
 
   coordinator:
     name: Build Coordinator
+    environment: Deployment
     defaults:
       run:
         working-directory: ./
@@ -98,6 +99,7 @@ jobs:
 
   dashboard:
     name: Build Dashboard
+    environment: Deployment
     defaults:
       run:
         working-directory: ./
@@ -134,6 +136,7 @@ jobs:
 
   metadata:
     name: Build Metadata
+    environment: Deployment
     defaults:
       run:
         working-directory: ./
@@ -170,6 +173,7 @@ jobs:
 
   dashboard-metadata:
     name: Build Dashboard Metadata
+    environment: Deployment
     defaults:
       run:
         working-directory: ./
@@ -207,6 +211,7 @@ jobs:
 
   serving:
     name: Build Serving
+    environment: Deployment
     defaults:
       run:
         working-directory: ./
@@ -243,6 +248,7 @@ jobs:
 
   worker:
     name: Build Worker
+    environment: Deployment
     defaults:
       run:
         working-directory: ./

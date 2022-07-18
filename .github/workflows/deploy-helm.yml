@@ -1,25 +1,23 @@
 name: Update Helm
-on: push
-#  workflow_dispatch:
-#    inputs:
-#      version:
-#        description: 'Version of helm package to deploy'
-#        required: true
-#        type: string
-#      type:
-#        description: 'If this version is a release or pre-release'
-#        required: true
-#        default: 'pre-release'
-#        type: choice
-#        options:
-#          - release
-#          - pre-release
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version of helm package to deploy'
+        required: true
+        type: string
+      type:
+        description: 'If this version is a release or pre-release'
+        required: true
+        default: 'pre-release'
+        type: choice
+        options:
+          - release
+          - pre-release
 
 env:
-  RELEASE_TAG: 0.0.1
-  PRERELEASE_TAG: 0.0.1-rc
-#  RELEASE_TAG: ${{ inputs.version }}
-#  PRERELEASE_TAG: $${{ inputs.version }}-rc
+  RELEASE_TAG: ${{ inputs.version }}
+  PRERELEASE_TAG: $${{ inputs.version }}-rc
 
 jobs:
   api-server:
@@ -32,16 +30,15 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-#      - name: Set production tag
-#        run: |
-#          echo "TAG=$RELEASE_TAG" >> $GITHUB_ENV
-#        if: ${{ inputs.type == 'release' }}
+      - name: Set production tag
+        run: |
+          echo "TAG=$RELEASE_TAG" >> $GITHUB_ENV
+        if: ${{ inputs.type == 'release' }}
 
       - name: Set production tag
         run: |
           echo "TAG=$PRERELEASE_TAG" >> $GITHUB_ENV
-#        if: ${{ inputs.type == 'pre-release' }}
-        if: always()
+        if: ${{ inputs.type == 'pre-release' }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
@@ -70,15 +67,15 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      #      - name: Set production tag
-      #        run: |
-      #          echo "TAG=$RELEASE_TAG" >> $GITHUB_ENV
-      #        if: ${{ inputs.type == 'release' }}
+      - name: Set production tag
+        run: |
+          echo "TAG=$RELEASE_TAG" >> $GITHUB_ENV
+        if: ${{ inputs.type == 'release' }}
 
       - name: Set production tag
         run: |
           echo "TAG=$PRERELEASE_TAG" >> $GITHUB_ENV
-      #        if: ${{ inputs.type == 'pre-release' }}
+        if: ${{ inputs.type == 'pre-release' }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
@@ -107,15 +104,15 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      #      - name: Set production tag
-      #        run: |
-      #          echo "TAG=$RELEASE_TAG" >> $GITHUB_ENV
-      #        if: ${{ inputs.type == 'release' }}
+      - name: Set production tag
+        run: |
+          echo "TAG=$RELEASE_TAG" >> $GITHUB_ENV
+        if: ${{ inputs.type == 'release' }}
 
       - name: Set production tag
         run: |
           echo "TAG=$PRERELEASE_TAG" >> $GITHUB_ENV
-      #        if: ${{ inputs.type == 'pre-release' }}
+        if: ${{ inputs.type == 'pre-release' }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
@@ -144,15 +141,15 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      #      - name: Set production tag
-      #        run: |
-      #          echo "TAG=$RELEASE_TAG" >> $GITHUB_ENV
-      #        if: ${{ inputs.type == 'release' }}
+      - name: Set production tag
+        run: |
+          echo "TAG=$RELEASE_TAG" >> $GITHUB_ENV
+        if: ${{ inputs.type == 'release' }}
 
       - name: Set production tag
         run: |
           echo "TAG=$PRERELEASE_TAG" >> $GITHUB_ENV
-      #        if: ${{ inputs.type == 'pre-release' }}
+        if: ${{ inputs.type == 'pre-release' }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
@@ -181,15 +178,15 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      #      - name: Set production tag
-      #        run: |
-      #          echo "TAG=$RELEASE_TAG" >> $GITHUB_ENV
-      #        if: ${{ inputs.type == 'release' }}
+      - name: Set production tag
+        run: |
+          echo "TAG=$RELEASE_TAG" >> $GITHUB_ENV
+        if: ${{ inputs.type == 'release' }}
 
       - name: Set production tag
         run: |
           echo "TAG=$PRERELEASE_TAG" >> $GITHUB_ENV
-      #        if: ${{ inputs.type == 'pre-release' }}
+        if: ${{ inputs.type == 'pre-release' }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
@@ -219,15 +216,15 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      #      - name: Set production tag
-      #        run: |
-      #          echo "TAG=$RELEASE_TAG" >> $GITHUB_ENV
-      #        if: ${{ inputs.type == 'release' }}
+      - name: Set production tag
+        run: |
+          echo "TAG=$RELEASE_TAG" >> $GITHUB_ENV
+        if: ${{ inputs.type == 'release' }}
 
       - name: Set production tag
         run: |
           echo "TAG=$PRERELEASE_TAG" >> $GITHUB_ENV
-      #        if: ${{ inputs.type == 'pre-release' }}
+        if: ${{ inputs.type == 'pre-release' }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
@@ -256,15 +253,15 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      #      - name: Set production tag
-      #        run: |
-      #          echo "TAG=$RELEASE_TAG" >> $GITHUB_ENV
-      #        if: ${{ inputs.type == 'release' }}
+      - name: Set production tag
+        run: |
+          echo "TAG=$RELEASE_TAG" >> $GITHUB_ENV
+        if: ${{ inputs.type == 'release' }}
 
       - name: Set production tag
         run: |
           echo "TAG=$PRERELEASE_TAG" >> $GITHUB_ENV
-      #        if: ${{ inputs.type == 'pre-release' }}
+        if: ${{ inputs.type == 'pre-release' }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
@@ -293,15 +290,15 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      #      - name: Set production tag
-      #        run: |
-      #          echo "TAG=$RELEASE_TAG" >> $GITHUB_ENV
-      #        if: ${{ inputs.type == 'release' }}
+      - name: Set production tag
+        run: |
+          echo "TAG=$RELEASE_TAG" >> $GITHUB_ENV
+        if: ${{ inputs.type == 'release' }}
 
       - name: Set production tag
         run: |
           echo "TAG=$PRERELEASE_TAG" >> $GITHUB_ENV
-      #        if: ${{ inputs.type == 'pre-release' }}
+        if: ${{ inputs.type == 'pre-release' }}
 
       - name: Install Helm
         run: |

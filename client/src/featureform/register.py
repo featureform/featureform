@@ -1176,15 +1176,13 @@ class Client(Registrar):
 
         **Examples:**
 
-        Input
-        ```
-        // get_user.py
+        ``` py title="Input"
         featureformer = rc.get_user("featureformer")
-        print(featureformer)
         ```
-        Output
-        ```
-        // get_user prints a formatted version of user information
+
+        ``` json title="Output"
+        // get_user prints out formatted information on user
+
         USER NAME:                     featureformer
         -----------------------------------------------
 
@@ -1195,8 +1193,15 @@ class Client(Registrar):
         transactions                   kaggle                         source
         average_user_transaction       quickstart                     source
         -----------------------------------------------
+        ```
+        
+        ``` py title="Input"
+        print(featureformer)
+        ```
 
+        ``` json title="Output"
         // get_user returns the User object
+
         name: "featureformer"
         features {
         name: "avg_transactions"
@@ -1232,6 +1237,73 @@ class Client(Registrar):
     def get_entity(self, name):
         """Get an entity.
 
+        **Examples:**
+
+        ``` py title="Input"
+        postgres = ff.get_provider("postgres-quickstart")
+        ```
+
+        ``` json title="Output"
+        // get_provider prints out formatted information on provider
+
+        NAME:                          postgres-quickstart
+        DESCRIPTION:                   A Postgres deployment we created for the Featureform quickstart
+        TYPE:                          POSTGRES_OFFLINE
+        SOFTWARE:                      postgres
+        STATUS:                        NO_STATUS
+        -----------------------------------------------
+        SOURCES:
+        NAME                           VARIANT
+        transactions                   kaggle
+        average_user_transaction       quickstart
+        -----------------------------------------------
+        FEATURES:
+        NAME                           VARIANT
+        -----------------------------------------------
+        LABELS:
+        NAME                           VARIANT
+        fraudulent                     quickstart
+        -----------------------------------------------
+        TRAINING SETS:
+        NAME                           VARIANT
+        fraud_training                 quickstart
+        -----------------------------------------------
+        ```
+        
+        ``` py title="Input"
+        print(postgres)
+        ```
+
+        ``` json title="Output"
+        // get_provider returns the Provider object
+
+        name: "postgres-quickstart"
+        description: "A Postgres deployment we created for the Featureform quickstart"
+        type: "POSTGRES_OFFLINE"
+        software: "postgres"
+        serialized_config: "{\"Host\": \"quickstart-postgres\", 
+                            \"Port\": \"5432\", 
+                            \"Username\": \"postgres\", 
+                            \"Password\": \"password\", 
+                            \"Database\": \"postgres\"}"                
+        sources {
+        name: "transactions"
+        variant: "kaggle"
+        }
+        sources {
+        name: "average_user_transaction"
+        variant: "quickstart"
+        }
+        trainingsets {
+        name: "fraud_training"
+        variant: "quickstart"
+        }
+        labels {
+        name: "fraudulent"
+        variant: "quickstart"
+        }
+        ```
+
         Args:
             name (str): Name of entity to be retrieved
 
@@ -1244,6 +1316,81 @@ class Client(Registrar):
         return GetResource(self._stub, "model", name)
 
     def get_provider(self, name):
+        """Get a provider. Prints out information on provider, and all resources associated with the provider.
+
+        **Examples:**
+
+        ``` py title="Input"
+        postgres = ff.get_provider("postgres-quickstart")
+        ```
+
+        ``` json title="Output"
+        // get_provider prints out formatted information on provider
+
+        NAME:                          postgres-quickstart
+        DESCRIPTION:                   A Postgres deployment we created for the Featureform quickstart
+        TYPE:                          POSTGRES_OFFLINE
+        SOFTWARE:                      postgres
+        STATUS:                        NO_STATUS
+        -----------------------------------------------
+        SOURCES:
+        NAME                           VARIANT
+        transactions                   kaggle
+        average_user_transaction       quickstart
+        -----------------------------------------------
+        FEATURES:
+        NAME                           VARIANT
+        -----------------------------------------------
+        LABELS:
+        NAME                           VARIANT
+        fraudulent                     quickstart
+        -----------------------------------------------
+        TRAINING SETS:
+        NAME                           VARIANT
+        fraud_training                 quickstart
+        -----------------------------------------------
+        ```
+        
+        ``` py title="Input"
+        print(postgres)
+        ```
+
+        ``` json title="Output"
+        // get_provider returns the Provider object
+
+        name: "postgres-quickstart"
+        description: "A Postgres deployment we created for the Featureform quickstart"
+        type: "POSTGRES_OFFLINE"
+        software: "postgres"
+        serialized_config: "{\"Host\": \"quickstart-postgres\", 
+                            \"Port\": \"5432\", 
+                            \"Username\": \"postgres\", 
+                            \"Password\": \"password\", 
+                            \"Database\": \"postgres\"}"                
+        sources {
+        name: "transactions"
+        variant: "kaggle"
+        }
+        sources {
+        name: "average_user_transaction"
+        variant: "quickstart"
+        }
+        trainingsets {
+        name: "fraud_training"
+        variant: "quickstart"
+        }
+        labels {
+        name: "fraudulent"
+        variant: "quickstart"
+        }
+        ```
+
+        Args:
+            name (str): Name of provider to be retrieved
+
+        Returns:
+            provider (Provider): Provider
+        """
         return GetProvider(self._stub, name)
 
     def get_feature(self, name, variant=None):

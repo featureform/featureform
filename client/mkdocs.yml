@@ -8,3 +8,9 @@ plugins:
     - gen_pages.py
 - literate-nav:
       nav_file: index.md
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences

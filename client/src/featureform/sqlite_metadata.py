@@ -1,6 +1,7 @@
 import sqlite3
 from threading import Lock
 import os
+from xml.dom import NotFoundErr
 
 
 class SyncSQLExecutor:
@@ -92,13 +93,14 @@ class SQLiteMetadata:
           defaultVariant text,
           name text PRIMARY KEY NOT NULL);''')
 
-        #
+        # Training set features
         self.__conn.execute('''CREATE TABLE IF NOT EXISTS training_set_features(
           trainingSetName text NOT NULL,
           trainingSetVariant text NOT NULL,
           featureName text NOT NULL,
-          featureVariant text NOT NULL,
-          UNIQUE(featureName, featureVariant));''')
+          featureVariant text NOT NULL);''')
+
+          # UNIQUE(featureName, featureVariant)
 
         # source variant
         self.__conn.execute('''CREATE TABLE IF NOT EXISTS source_variant(
@@ -183,7 +185,6 @@ class SQLiteMetadata:
 
         self.__conn.commit()
 
-    # All 3 functions return a cursor, USE THIS
     def getTypeTable(self, type):
         query = "SELECT * FROM " + type
         type_data = self.__conn.execute(query)
@@ -194,13 +195,19 @@ class SQLiteMetadata:
         variant_table_query = "SELECT * FROM " + type + " WHERE " + column + "='" + resource + "';"
         variant_data = self.__conn.execute(variant_table_query)
         self.__conn.commit()
+        variant_data_list = variant_data.fetchall()
+        if len(variant_data_list) == 0:
+          raise ValueError(type + " with " + column + " : " + resource + " not found")
         return variant_data.fetchall()
 
     def getNameVariant(self, type, column1, resource1, column2, resource2):
         variant_table_query = "SELECT * FROM " + type + " WHERE " + column1 + "='" + resource1 + "' AND " + column2 + "='" + resource2 + "';"
         variant_data = self.__conn.execute(variant_table_query)
         self.__conn.commit()
-        return variant_data.fetchall()
+        variant_data_list = variant_data.fetchall()
+        if len(variant_data_list) == 0:
+          raise ValueError(type + " with " + column1 + " : " + resource1 + " and " + column2 + " : " + resource2 + " not found")
+        return variant_data_list
 
     def is_transformation(self, name, variant):
         query = "SELECT transformation FROM source_variant WHERE name='" + name + "' and variant='" + variant + "';"

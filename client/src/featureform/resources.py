@@ -578,12 +578,12 @@ class TrainingSet:
         stub.CreateTrainingSetVariant(serialized)
 
     def _create_local(self, db) -> None:
+        self._insert_training_set_features(db)
         db.insert("training_set_variant",
                   str(time.time()),
                   self.description,
                   self.name,
                   self.owner,
-                  # "Provider",
                   self.variant,
                   self.label[0],
                   self.label[1],
@@ -591,7 +591,6 @@ class TrainingSet:
                   str(self.features)
                   )
         self._create_training_set_resource(db)
-        self._insert_training_set_features(db)
 
     def _create_training_set_resource(self, db) -> None:
         db.insert(
@@ -603,6 +602,10 @@ class TrainingSet:
 
     def _insert_training_set_features(self, db) -> None:
         for feature in self.features:
+            try:
+                db.getNameVariant("feature_variant", "featureName", feature[0], "variantName", feature[1])
+            except ValueError:
+                raise ValueError(feature[0] + " does not exist. Failed to register training set")
             db.insert(
                 "training_set_features",
                 self.name,

@@ -21,7 +21,8 @@ class LocalClient:
         self.sqldb = SQLiteMetadata()
 
     def process_transformation(self, name, variant):
-        source_row = self.sqldb.getNameVariant("source_variant", "name", name, "variant", variant)[0]
+        source_rows = self.sqldb.getNameVariant("source_variant", "name", name, "variant", variant)
+        source_row = source_rows[0]
         inputs = json.loads(source_row[9])
         dataframes = []
         code = marshal.loads(bytearray(source_row[10]))
@@ -44,8 +45,9 @@ class LocalClient:
         dataframe_mapping = {}
         for featureVariantTuple in feature_variant_list:
 
-            feature_row = self.sqldb.getNameVariant("feature_variant", "featureName", featureVariantTuple[0],
-                                                    "variantName", featureVariantTuple[1])[0]
+            feature_rows = self.sqldb.getNameVariant("feature_variant", "featureName", featureVariantTuple[0],
+                                                    "variantName", featureVariantTuple[1])
+            feature_row = feature_rows[0]
             feature_column_name, source_name, source_variant = feature_row[11], feature_row[12], feature_row[13]
             source_row = self.sqldb.getNameVariant("source_variant", "name", source_name, "variant", source_variant)[0]
             if self.sqldb.is_transformation(source_name, source_variant):
@@ -99,15 +101,16 @@ class LocalClient:
         return df
 
     def training_set(self, trainingSetName, trainingSetVariant):
-        feature_dataframes = set()
-        dataframe_mapping = {}
-        trainingSetRow = \
+        trainingSetRows = \
             self.sqldb.getNameVariant("training_set_variant", "trainingSetName", trainingSetName, "variantName",
-                                      trainingSetVariant)[0]
-        labelRow = \
+                                      trainingSetVariant)
+        trainingSetRow = trainingSetRows[0]
+        labelRows = \
             self.sqldb.getNameVariant("labels_variant", "labelName", trainingSetRow[5], "variantName",
-                                      trainingSetRow[6])[0]
-        labelSource = self.sqldb.getNameVariant("source_variant", "name", labelRow[12], "variant", labelRow[13])[0]
+                                      trainingSetRow[6])
+        labelRow = labelRows[0]
+        labelSources = self.sqldb.getNameVariant("source_variant", "name", labelRow[12], "variant", labelRow[13])
+        labelSource = labelSources[0]
         if self.sqldb.is_transformation(labelRow[12], labelRow[13]):
             df = self.process_transformation(labelRow[12], labelRow[13])
             if labelRow[9] != "":
@@ -125,11 +128,13 @@ class LocalClient:
         labelDF.rename(columns={labelRow[10]: 'label'}, inplace=True)
         trainingset_df = labelDF
         for featureVariant in featureTable:
-            feature_row = self.sqldb.getNameVariant("feature_variant", "featureName", featureVariant[2], "variantName",
-                                                    featureVariant[3])[0]
+            feature_rows = self.sqldb.getNameVariant("feature_variant", "featureName", featureVariant[2], "variantName",
+                                                    featureVariant[3])
+            feature_row = feature_rows[0]
 
-            source_row = \
-                self.sqldb.getNameVariant("source_variant", "name", feature_row[12], "variant", feature_row[13])[0]
+            source_rows = \
+                self.sqldb.getNameVariant("source_variant", "name", feature_row[12], "variant", feature_row[13])
+            source_row = source_rows[0]
 
             name_variant = featureVariant[2] + "." + featureVariant[3]
             if self.sqldb.is_transformation(feature_row[12], feature_row[13]):
@@ -165,9 +170,6 @@ class LocalClient:
                 trainingset_df[labelRow[8]]=trainingset_df[labelRow[8]].astype('string')
                 feature_df[labelRow[8]]=feature_df[labelRow[8]].astype('string')
                 trainingset_df = trainingset_df.join(feature_df.set_index(labelRow[8]), how="left", on=labelRow[8], lsuffix="_left")
-                # trainingset_df = pd.merge_asof(trainingset_df, feature_df.sort_values(feature_row[9]), direction='backward',
-                #                                left_by=labelRow[8],
-                #                                right_by=feature_row[9])
 
         if labelRow[9] != "":
             trainingset_df.drop(columns=labelRow[9], inplace=True)

@@ -431,7 +431,19 @@ class ResourceRegistrar():
 
 
 class Registrar:
-    """These functions are used to registed new resources and retrieving existing resources. Retrieved resources can be used to register additional resources. If information on these resources is needed (e.g. retrieve the names of all variants of a feature), use the Resource Client instead.
+    """These functions are used to registed new resources and retrieving existing resources. Retrieved resources can be used to register additional resources. If information on these resources is needed (e.g. retrieve the names of all variants of a feature), use the [Resource Client](resource_client.md) instead.
+
+    ``` py title="definitions.py"
+    import featureform as ff
+
+    # e.g. registering a new provider
+    redis = ff.register_redis(
+        name="redis-quickstart",
+        host="quickstart-redis",  # The internal dns name for redis
+        port=6379,
+        description="A Redis deployment we created for the Featureform quickstart"
+    )
+    ```
     """
     def __init__(self):
         self.__state = ResourceState()
@@ -1158,7 +1170,7 @@ class Registrar:
 
 
 class Client(Registrar):
-    """The resource client is used to retrieve information on specific resources (entities, providers, features, labels, training sets, models, users). If retrieved resources are needed to register additional resources (e.g. registering a feature from a source), use the Registrar functions instead.
+    """The resource client is used to retrieve information on specific resources (entities, providers, features, labels, training sets, models, users). If retrieved resources are needed to register additional resources (e.g. registering a feature from a source), use the [Client](client.md) functions instead.
 
     **Using the Resource Client:**
     ``` py title="definitions.py"

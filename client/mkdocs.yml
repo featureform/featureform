@@ -1,4 +1,4 @@
-site_name: Featureform
+site_name: Featureform API Reference
 theme: "material"
 plugins:
 - search
@@ -9,6 +9,8 @@ plugins:
 - literate-nav:
       nav_file: index.md
 markdown_extensions:
+  - toc:
+      permalink: "#"
   - pymdownx.highlight:
       anchor_linenums: true
   - pymdownx.inlinehilite

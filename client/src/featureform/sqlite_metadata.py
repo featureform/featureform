@@ -1,7 +1,6 @@
 import sqlite3
 from threading import Lock
 import os
-from xml.dom import NotFoundErr
 
 
 class SyncSQLExecutor:
@@ -98,9 +97,8 @@ class SQLiteMetadata:
           trainingSetName text NOT NULL,
           trainingSetVariant text NOT NULL,
           featureName text NOT NULL,
-          featureVariant text NOT NULL);''')
-
-          # UNIQUE(featureName, featureVariant)
+          featureVariant text NOT NULL,
+          UNIQUE(trainingSetName, trainingSetVariant, featureName, featureVariant));''')
 
         # source variant
         self.__conn.execute('''CREATE TABLE IF NOT EXISTS source_variant(

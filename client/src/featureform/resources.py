@@ -579,6 +579,11 @@ class TrainingSet:
 
     def _create_local(self, db) -> None:
         self._insert_training_set_features(db)
+        try:
+            db.getNameVariant("labels_variant", "labelName", self.label[0], "variantName", self.label[1])
+        except ValueError:
+            raise ValueError(self.label[0] + " does not exist. Failed to register training set")
+            
         db.insert("training_set_variant",
                   str(time.time()),
                   self.description,

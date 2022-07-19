@@ -195,7 +195,7 @@ class Client:
         self._stub = serving_pb2_grpc.FeatureStub(channel)
 
     def dataset(self, name, version):
-        return Dataset(self._stub, name, version)
+        return Dataset(self._stub).from_stub(name, version)
 
     def features(self, features, entities):
         req = serving_pb2.FeatureServeRequest()
@@ -246,7 +246,7 @@ class LocalStream:
         return LocalRow(next(self._iter))
 
     def restart(self):
-        self._iter = self._datalist
+        self._iter = iter(self._datalist)
 
 
 class Repeat:
@@ -337,8 +337,8 @@ class Dataset:
     def __init__(self, stream):
         self._stream = stream
 
-    def from_stub(stub, name, version):
-        stream = Stream(stub, name, version)
+    def from_stub(self, name, version):
+        stream = Stream(self._stream, name, version)
         return Dataset(stream)
 
     def from_list(datalist):

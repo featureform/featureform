@@ -1,0 +1,10 @@
+site_name: Featureform
+theme: "material"
+plugins:
+- search
+- mkdocstrings
+- gen-files:
+    scripts:
+    - gen_pages.py
+- literate-nav:
+      nav_file: index.md

@@ -1,6 +1,6 @@
 twoRowSpacing = "{:<30} {:<25}"
 threeRowSpacing = "{:<30} {:<30} {:<30}"
-fourRowSpacing = "{:<30} {:<30} {:<15} {:<30}"
+fourRowSpacing = "{:<30} {:<30} {:<30} {:<30}"
 divider = "-----------------------------------------------"
 
 def formatRows(formatObj, formatObj2=None, formatObj3=None, formatObj4=None):
@@ -10,7 +10,7 @@ def formatRows(formatObj, formatObj2=None, formatObj3=None, formatObj4=None):
                 formatRows(s[0], s[1])
             elif len(s) == 3:
                 formatRows(s[0], s[1], s[2])
-            elif len(s) == 3:
+            elif len(s) == 4:
                 formatRows(s[0], s[1], s[2], s[3])
             else:
                 return "Tuple length not formattable."

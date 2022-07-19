@@ -2,8 +2,6 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-# cofigure.py like definitions.py train.py tests to set the end state - quick start tests
-# use iris model fro serving (serving means reading python files and parsing the data in the backend)
 import time
 from typing import List, Tuple, Union
 from typeguard import typechecked
@@ -27,6 +25,10 @@ class Schedule:
     variant: str
     resource_type: int
     schedule_string: str
+
+    @staticmethod
+    def operation_type() -> str:
+        return "create"
 
     def type(self) -> str:
         return "schedule"
@@ -57,6 +59,26 @@ class RedisConfig:
         }
         return bytes(json.dumps(config), "utf-8")
 
+@typechecked
+@dataclass
+class DynamodbConfig:
+    region: str
+    access_key: str
+    secret_key: str
+
+    def software(self) -> str:
+        return "dynamodb"
+
+    def type(self) -> str:
+        return "DYNAMODB_ONLINE"
+
+    def serialize(self) -> bytes:
+        config = {
+            "Region": self.region,
+            "AccessKey": self.access_key,
+            "SecretKey": self.secret_key
+        }
+        return bytes(json.dumps(config), "utf-8")
 
 # RIDDHI
 @typechecked
@@ -154,7 +176,7 @@ class RedshiftConfig:
         return bytes(json.dumps(config), "utf-8")
 
 
-Config = Union[RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig]
+Config = Union[RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig]
 
 @typechecked
 @dataclass
@@ -167,6 +189,10 @@ class Provider:
 
     def __post_init__(self):
         self.software = self.config.software()
+
+    @staticmethod
+    def operation_type() -> str:
+        return "create"
 
     @staticmethod
     def type() -> str:
@@ -201,6 +227,10 @@ class Provider:
 @dataclass
 class User:
     name: str
+
+    @staticmethod
+    def operation_type() -> str:
+        return "create"
 
     def type(self) -> str:
         return "user"
@@ -269,7 +299,7 @@ class DFTransformation(Transformation):
 
     def kwargs(self):
         return {
-            "transformation": True,
+            "transformation": 1,
             "inputs": self.inputs
         }
 
@@ -294,6 +324,10 @@ class Source:
         self.schedule = schedule
 
     @staticmethod
+    def operation_type() -> str:
+        return "create"
+
+    @staticmethod
     def type() -> str:
         return "source"
 
@@ -311,10 +345,10 @@ class Source:
         stub.CreateSourceVariant(serialized)
 
     def _create_local(self, db) -> None:
-        is_transformation = False
+        is_transformation = 0
         inputs = []
         if type(self.definition) == DFTransformation:
-            is_transformation = True
+            is_transformation = 1
             inputs = self.definition.inputs
             self.definition = self.definition.query
 
@@ -347,6 +381,10 @@ class Source:
 class Entity:
     name: str
     description: str
+
+    @staticmethod
+    def operation_type() -> str:
+        return "create"
 
     @staticmethod
     def type() -> str:
@@ -404,6 +442,10 @@ class Feature:
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=4, schedule_string=schedule)
         self.schedule = schedule
+
+    @staticmethod
+    def operation_type() -> str:
+        return "create"
 
     @staticmethod
     def type() -> str:
@@ -469,6 +511,10 @@ class Label:
     location: ResourceLocation
 
     @staticmethod
+    def operation_type() -> str:
+        return "create"
+
+    @staticmethod
     def type() -> str:
         return "label"
 
@@ -515,6 +561,73 @@ class Label:
             self.name
         )
 
+@typechecked
+@dataclass
+class EntityReference:
+    name: str
+    obj: Union[Entity, None]
+
+    @staticmethod
+    def operation_type() -> str:
+        return "get"
+
+    @staticmethod
+    def type() -> str:
+        return "entity"
+
+    def _get(self, stub):
+        entityList = stub.GetEntities(iter([pb.Name(name=self.name)]))
+        try:
+            for entity in entityList:
+                self.obj = entity
+        except grpc._channel._MultiThreadedRendezvous:
+            raise ValueError(f"Entity {self.name} not found.")
+
+@typechecked
+@dataclass
+class ProviderReference:
+    name: str
+    provider_type: str
+    obj: Union[Provider, None]
+
+    @staticmethod
+    def operation_type() -> str:
+        return "get"
+
+    @staticmethod
+    def type() -> str:
+        return "provider"
+
+    def _get(self, stub):
+        providerList = stub.GetProviders(iter([pb.Name(name=self.name)]))
+        try:
+            for provider in providerList:
+                self.obj = provider
+        except grpc._channel._MultiThreadedRendezvous:
+            raise ValueError(f"Provider {self.name} of type {self.provider_type} not found.")
+
+@typechecked
+@dataclass
+class SourceReference:
+    name: str
+    variant: str
+    obj: Union[Source, None]
+
+    @staticmethod
+    def operation_type() -> str:
+        return "get"
+
+    @staticmethod
+    def type() -> str:
+        return "source"
+
+    def _get(self, stub):
+        sourceList = stub.GetSourceVariants(iter([pb.NameVariant(name=self.name, variant=self.variant)]))
+        try:
+            for source in sourceList:
+                self.obj = source
+        except grpc._channel._MultiThreadedRendezvous:
+            raise ValueError(f"Source {self.name}, variant {self.variant} not found.")
 
 @typechecked
 @dataclass
@@ -540,6 +653,10 @@ class TrainingSet:
         for feature in self.features:
             if not valid_name_variant(feature):
                 raise ValueError("Invalid Feature")
+
+    @staticmethod
+    def operation_type() -> str:
+        return "create"
 
     @staticmethod
     def type() -> str:
@@ -595,11 +712,10 @@ class TrainingSet:
 
 
 Resource = Union[PrimaryData, Provider, Entity, User, Feature, Label,
-                 TrainingSet, Source, Schedule]
+                 TrainingSet, Source, Schedule, ProviderReference, SourceReference, EntityReference]
 
 
 class ResourceRedefinedError(Exception):
-
     @typechecked
     def __init__(self, resource: Resource):
         variantStr = f" variant {resource.variant}" if hasattr(
@@ -619,9 +735,9 @@ class ResourceState:
     @typechecked
     def add(self, resource: Resource) -> None:
         if hasattr(resource, 'variant'):
-            key = (resource.type(), resource.name, resource.variant)
+            key = (resource.operation_type(), resource.type(), resource.name, resource.variant)
         else:
-            key = (resource.type(), resource.name)
+            key = (resource.operation_type(), resource.type(), resource.name)
         if key in self.__state:
             raise ResourceRedefinedError(resource)
         self.__state[key] = resource
@@ -661,8 +777,12 @@ class ResourceState:
     def create_all(self, stub) -> None:
         for resource in self.__create_list:
             try:
-                print("Creating", resource.type(), resource.name)
-                resource._create(stub)
+                if resource.operation_type() == "get":
+                    print("Getting", resource.type(), resource.name)
+                    resource._get(stub)
+                if resource.operation_type() == "create":
+                    print("Creating", resource.type(), resource.name)
+                    resource._create(stub)
             except grpc.RpcError as e:
                 if e.code() == grpc.StatusCode.ALREADY_EXISTS:
                     print(resource.name, "already exists.")

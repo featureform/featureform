@@ -2,11 +2,10 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-from curses import meta
 import click
 import featureform.register as register
 import grpc
-
+from featureform import ResourceClient
 from .list import *
 from .proto import metadata_pb2_grpc as ff_grpc
 from .get import *
@@ -19,7 +18,8 @@ resource_types = [
     "label",
     "entity",
     "provider",
-    "transformation",
+    "model",
+    "user"
 ]
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
@@ -55,12 +55,12 @@ def cli():
               help="Disables TLS verification")
 @click.option("--local",
               is_flag=True,
-              help="Enable local mode")
+              help="Enables local mode")
 @click.argument("resource_type", required=True)
 @click.argument("name", required=True)
 @click.argument("variant", required=False)
 def get(host, cert, insecure, local, resource_type, name, variant):
-    """get resources of a given type.
+    """Get resources of a given type.
     """
     if local:
         if host != None:
@@ -72,40 +72,39 @@ def get(host, cert, insecure, local, resource_type, name, variant):
             raise ValueError(
                 "Host value must be set with --host flag or in env as FEATUREFORM_HOST")
 
-    if local:
-        register.state().create_all_local()
+    if insecure:
+        rc = ResourceClient(host, False)
     else:
-        channel = tls_check(host, cert, insecure)
-        stub = ff_grpc.ApiStub(channel)
-        register.state().create_all(stub)
+        rc = ResourceClient(host, True, cert)
 
-    getVariantFuncDict = {
-        "feature": GetFeatureVariant,
-        "label": GetLabelVariant,
-        "source": GetSourceVariant,
-        "trainingset": GetTrainingSetVariant,
-        "training-set": GetTrainingSetVariant
+    funcDictWithVariant = {
+        "feature": rc.get_feature,
+        "label": rc.get_label,
+        "source": rc.get_source,
+        "trainingset": rc.get_training_set,
+        "training-set": rc.get_training_set
     }
-    if resource_type == "user":
-        GetUser(stub, name)
-    elif resource_type in ["feature", "label", "source", "trainingset", "training-set"]:
-        if variant:
-            getVariantFuncDict[resource_type](stub, name, variant)
-        else:
-            GetResource(stub, resource_type, name)
-    elif resource_type in ["model", "entity"]:
-        if variant:
-            print("Variant not needed.")
-        else:
-            GetResource(stub, resource_type, name)
-    elif resource_type == "provider":
-        if variant:
-            print("Variant not needed.")
-            return
-        else:
-            GetProvider(stub, name)
+
+    funcDictNoVariant = {
+        "user": rc.get_user,
+        "model": rc.get_model,
+        "entity": rc.get_entity,
+        "provider": rc.get_provider
+    }
+
+    if resource_type in funcDictWithVariant:
+        funcDictWithVariant[resource_type](name, variant)
+    elif resource_type in funcDictNoVariant:
+        funcDictNoVariant[resource_type](name)
     else:
-        print("Resource type not found.")
+        raise ValueError("Resource type not found")
+
+# @cli.command()
+# @click.argument("files", nargs=-1, required=True, type=click.Path(exists=True))
+# def plan(files):
+#     """print out resources that would be changed by applying these files.
+#     """
+#     pass
 
 
 @cli.command()
@@ -125,8 +124,6 @@ def get(host, cert, insecure, local, resource_type, name, variant):
               help="Enable local mode")
 @click.argument("resource_type", required=True)
 def list(host, cert, insecure, local, resource_type):
-    """list resources of a given type.
-    """
     if local:
         if host != None:
             raise ValueError("Cannot be local and have a host")
@@ -136,32 +133,27 @@ def list(host, cert, insecure, local, resource_type):
         if host == None:
             raise ValueError(
                 "Host value must be set with --host flag or in env as FEATUREFORM_HOST")
-
-    if local:
-        register.state().create_all_local()
+    if insecure:
+        rc = ResourceClient(host, False)
     else:
-        channel = tls_check(host, cert, insecure)
-        stub = ff_grpc.ApiStub(channel)
-        register.state().create_all(stub)
+        rc = ResourceClient(host, True, cert)
 
-    if resource_type in  ["user", "entity"]:
-        ListNameStatus(stub, resource_type)
-    elif resource_type in ["feature", "label"]:
-        ListNameVariantStatus(stub, resource_type)
-    elif resource_type in ["source", "trainingset", "training-set"]:
-        ListNameVariantStatusDesc(stub, resource_type)
-    elif resource_type in ["model", "provider"]:
-        ListNameStatusDesc(stub, resource_type)
+    funcDict = {
+        "features": rc.list_features,
+        "labels": rc.list_labels,
+        "sources": rc.list_sources,
+        "trainingsets": rc.list_sources,
+        "training-sets": rc.list_training_sets,
+        "users": rc.list_users,
+        "models": rc.list_models,
+        "entities": rc.list_entities,
+        "providers": rc.list_providers
+    }
+
+    if resource_type in funcDict:
+        funcDict[resource_type]()
     else:
-        print("Resource type not found.")
-
-# @cli.command()
-# @click.argument("files", nargs=-1, required=True, type=click.Path(exists=True))
-# def plan(files):
-#     """print out resources that would be changed by applying these files.
-#     """
-#     pass
-
+        raise ValueError("Resource type not found")
 
 @cli.command()
 @click.argument("files", nargs=-1, required=True, type=click.Path(exists=True))

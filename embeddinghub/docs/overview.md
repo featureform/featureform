@@ -51,7 +51,7 @@ It works by transforming the user’s text and an image into an embedding in the
 
 ## Architecture
 
-The alpha version of the Embeddinghub can only be deployed in a single node configuration. It uses RocksDB to durably store embeddings and metadata, and uses HNSWLib to build approximate nearest neighbor indices. The python client also has the ability to use HNSWLib to build local embeddings but does not currently handle durable storage. The server communicates via gRPC, the proto service file can be found [here](https://github.com/featureform/embeddings/blob/main/embeddingstore/embedding_store.proto). All of the metadata is also stored in serialized protobuf form as defined [here](https://github.com/featureform/embeddings/blob/main/embeddingstore/embedding_store_meta.proto).
+The alpha version of the Embeddinghub can only be deployed in a single node configuration. It uses RocksDB to durably store embeddings and metadata, and uses HNSWLib to build approximate nearest neighbor indices. The python client also has the ability to use HNSWLib to build local embeddings but does not currently handle durable storage. The server communicates via gRPC, the proto service file can be found [here](https://github.com/featureform/featureform/blob/main/embeddinghub/embeddingstore/embedding_store.proto). All of the metadata is also stored in serialized protobuf form as defined [here](https://github.com/featureform/featureform/blob/main/embeddinghub/embeddingstore/embedding_store_meta.proto).
 
 <br />
 

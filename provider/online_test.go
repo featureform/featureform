@@ -1,7 +1,9 @@
+//go:build online
+// +build online
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
-
 package provider
 
 import (
@@ -11,7 +13,6 @@ import (
 	"testing"
 
 	"github.com/alicebob/miniredis"
-	"github.com/gocql/gocql"
 	"github.com/google/uuid"
 )
 
@@ -39,22 +40,27 @@ func TestOnlineStores(t *testing.T) {
 		"TypeCasting":        testTypeCasting,
 	}
 
+	// Redis (Mock)
 	miniRedis := mockRedis()
 	defer miniRedis.Close()
 	mockRedisAddr := miniRedis.Addr()
 	redisMockConfig := &RedisConfig{
 		Addr: mockRedisAddr,
 	}
+
+	//Redis (Live)
 	redisPort := os.Getenv("REDIS_PORT")
 	liveAddr := fmt.Sprintf("%s:%s", "localhost", redisPort)
 	redisLiveConfig := &RedisConfig{
 		Addr: liveAddr,
 	}
 
-	cassandraAddr := "localhost:9042"
-	cassandraConfig := &CassandraConfig{
-		Addr:        cassandraAddr,
-		Consistency: gocql.One,
+	dynamoAccessKey := os.Getenv("DYNAMO_ACCESS_KEY")
+	dynamoSecretKey := os.Getenv("DYNAMO_SECRET_KEY")
+	dynamoConfig := &DynamodbConfig{
+		Region:    "us-east-1",
+		AccessKey: dynamoAccessKey,
+		SecretKey: dynamoSecretKey,
 	}
 
 	testList := []struct {
@@ -65,7 +71,7 @@ func TestOnlineStores(t *testing.T) {
 		{LocalOnline, []byte{}, false},
 		{RedisOnline, redisMockConfig.Serialized(), false},
 		{RedisOnline, redisLiveConfig.Serialized(), true},
-		{CassandraOnline, cassandraConfig.Serialized(), true},
+		{DynamoDBOnline, dynamoConfig.Serialized(), true},
 	}
 	for _, testItem := range testList {
 		if testing.Short() && testItem.integrationTest {
@@ -79,7 +85,7 @@ func TestOnlineStores(t *testing.T) {
 			}
 			store, err := provider.AsOnlineStore()
 			if err != nil {
-				t.Fatalf("Failed to use provider %s as OfflineStore: %s", testItem.t, err)
+				t.Fatalf("Failed to use provider %s as OnlineStore: %s", testItem.t, err)
 			}
 			var prefix string
 			if testItem.integrationTest {
@@ -101,6 +107,7 @@ func randomFeatureVariant() (string, string) {
 
 func testCreateGetTable(t *testing.T, store OnlineStore) {
 	mockFeature, mockVariant := randomFeatureVariant()
+	defer store.DeleteTable(mockFeature, mockVariant)
 	if tab, err := store.CreateTable(mockFeature, mockVariant, String); tab == nil || err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
@@ -111,6 +118,7 @@ func testCreateGetTable(t *testing.T, store OnlineStore) {
 
 func testTableAlreadyExists(t *testing.T, store OnlineStore) {
 	mockFeature, mockVariant := randomFeatureVariant()
+	defer store.DeleteTable(mockFeature, mockVariant)
 	if _, err := store.CreateTable(mockFeature, mockVariant, String); err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
@@ -126,7 +134,7 @@ func testTableAlreadyExists(t *testing.T, store OnlineStore) {
 func testTableNotFound(t *testing.T, store OnlineStore) {
 	mockFeature, mockVariant := randomFeatureVariant()
 	if _, err := store.GetTable(mockFeature, mockVariant); err == nil {
-		t.Fatalf("Succeeded in getting non-existant table")
+		t.Fatalf("Succeeded in getting non-existent table")
 	} else if casted, valid := err.(*TableNotFound); !valid {
 		t.Fatalf("Wrong error for table not found: %s,%T", err, err)
 	} else if casted.Error() == "" {
@@ -136,6 +144,7 @@ func testTableNotFound(t *testing.T, store OnlineStore) {
 
 func testSetGetEntity(t *testing.T, store OnlineStore) {
 	mockFeature, mockVariant := randomFeatureVariant()
+	defer store.DeleteTable(mockFeature, mockVariant)
 	entity, val := "e", "val"
 	tab, err := store.CreateTable(mockFeature, mockVariant, String)
 	if err != nil {
@@ -156,12 +165,13 @@ func testSetGetEntity(t *testing.T, store OnlineStore) {
 func testEntityNotFound(t *testing.T, store OnlineStore) {
 	mockFeature, mockVariant := uuid.NewString(), "v"
 	entity := "e"
+	defer store.DeleteTable(mockFeature, mockVariant)
 	tab, err := store.CreateTable(mockFeature, mockVariant, String)
 	if err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
 	if _, err := tab.Get(entity); err == nil {
-		t.Fatalf("succeeded in getting non-existant entity")
+		t.Fatalf("succeeded in getting non-existent entity")
 	} else if casted, valid := err.(*EntityNotFound); !valid {
 		t.Fatalf("Wrong error for entity not found: %T", err)
 	} else if casted.Error() == "" {
@@ -218,5 +228,6 @@ func testTypeCasting(t *testing.T, store OnlineStore) {
 		if !reflect.DeepEqual(resource.Value, gotVal) {
 			t.Fatalf("Values are not the same %v, type %T. %v, type %T", resource.Value, resource.Value, gotVal, gotVal)
 		}
+		store.DeleteTable(featureName, "")
 	}
 }

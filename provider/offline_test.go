@@ -78,7 +78,7 @@ func TestOfflineStores(t *testing.T) {
 		// if err != nil {
 		// 	t.Fatalf("%v", err)
 		// }
-		count = 2
+		count := 2
 		err := destroyRedshiftDatabase(c)
 		for count > 0 {
 			if err == nil {

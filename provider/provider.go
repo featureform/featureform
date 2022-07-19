@@ -39,13 +39,6 @@ type RedisConfig struct {
 	DB       int
 }
 
-type DynamodbConfig struct {
-	Prefix    string
-	Region    string
-	AccessKey string
-	SecretKey string
-}
-
 func (r RedisConfig) Serialized() SerializedConfig {
 	config, err := json.Marshal(r)
 	if err != nil {
@@ -85,6 +78,13 @@ func (r *CassandraConfig) Deserialize(config SerializedConfig) error {
 		return err
 	}
 	return nil
+}
+
+type DynamodbConfig struct {
+	Prefix    string
+	Region    string
+	AccessKey string
+	SecretKey string
 }
 
 func (r DynamodbConfig) Serialized() SerializedConfig {

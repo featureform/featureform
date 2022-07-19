@@ -5,8 +5,9 @@
 package provider
 
 import (
-	"cloud.google.com/go/firestore"
 	"encoding/json"
+
+	"cloud.google.com/go/firestore"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -55,7 +56,9 @@ func NewFirestoreOnlineStore(options *FirestoreConfig) (*firestoreOnlineStore, e
 
 	firestoreCollection := firestoreClient.Collection(options.Collection)
 	_, err = firestoreCollection.Doc(GetMetadataTable()).Set(ctx, map[string]interface{}{})
-
+	if err != nil {
+		return nil, err
+	}
 	return &firestoreOnlineStore{firestoreClient, firestoreCollection, BaseProvider{
 		ProviderType:   FirestoreOnline,
 		ProviderConfig: options.Serialized(),
@@ -117,7 +120,9 @@ func (store *firestoreOnlineStore) CreateTable(feature, variant string, valueTyp
 	_, err = store.collection.Doc(GetMetadataTable()).Set(ctx, map[string]interface{}{
 		tableName: valueType,
 	}, firestore.MergeAll)
-
+	if err != nil {
+		return nil, err
+	}
 	return &firestoreOnlineTable{
 		document:  store.collection.Doc(tableName),
 		key:       key,

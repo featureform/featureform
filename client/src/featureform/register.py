@@ -8,8 +8,8 @@ from typing_extensions import Self
 
 from numpy import byte
 from .resources import ResourceState, Provider, RedisConfig, FirestoreConfig, CassandraConfig, DynamodbConfig, \
-    PostgresConfig, SnowflakeConfig, LocalConfig, User, Location, Source, PrimaryData, SQLTable, SQLTransformation, \
-    DFTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet
+    PostgresConfig, SnowflakeConfig, LocalConfig, RedshiftConfig, User, Location, Source, PrimaryData, SQLTable, \
+    SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet
 from typing import Tuple, Callable, List, Union
 from typeguard import typechecked, check_type
 import grpc

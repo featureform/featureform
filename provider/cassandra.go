@@ -203,7 +203,7 @@ func (table cassandraOnlineTable) Get(entity string) (interface{}, error) {
 	case String, NilType:
 		ptr = new(string)
 	default:
-		return nil, fmt.Errorf("Data type not recognized")
+		return nil, fmt.Errorf("data type not recognized")
 	}
 
 	query := fmt.Sprintf("SELECT value FROM %s WHERE entity = '%s'", tableName, entity)
@@ -230,7 +230,7 @@ func (table cassandraOnlineTable) Get(entity string) (interface{}, error) {
 	case *string:
 		val = *casted
 	default:
-		return nil, fmt.Errorf("Data type not recognized")
+		return nil, fmt.Errorf("data type not recognized")
 	}
 	return val, nil
 

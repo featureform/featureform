@@ -79,6 +79,14 @@ func (r CassandraConfig) Serialized() SerializedConfig {
 	return config
 }
 
+func (r *CassandraConfig) Deserialize(config SerializedConfig) error {
+	err := json.Unmarshal(config, r)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (r DynamodbConfig) Serialized() SerializedConfig {
 	config, err := json.Marshal(r)
 	if err != nil {

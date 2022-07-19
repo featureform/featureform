@@ -182,6 +182,8 @@ class Client:
     def __init__(self, host=None, local=False, tls_verify=True, cert_path=None):
         self.local = local
         if local:
+            if host != None:
+                raise ValueError("Cannot be local and have a host")
             self.sqldb = SQLiteMetadata()
         else:
             env_cert_path = os.getenv('FEATUREFORM_CERT')

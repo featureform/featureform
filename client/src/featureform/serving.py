@@ -180,8 +180,8 @@ import types
 class Client:
 
     def __init__(self, host=None, local=False, tls_verify=True, cert_path=None):
+        self.local = local
         if local:
-            self.local = True
             self.sqldb = SQLiteMetadata()
         else:
             env_cert_path = os.getenv('FEATUREFORM_CERT')

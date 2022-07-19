@@ -200,18 +200,18 @@ ff.register_training_set(
               ("PetalWidth", "join")],
 )
 
-# Should error
-ff.register_training_set(
-"join", "v2",
-label=("SpeciesTypo", "join"),
-features=[("SepalLength", "join"), ("SepalWidth", "join"), ("PetalLength", "join"),
-            ("PetalWidth", "join")],
-)
+# # Should error
+# ff.register_training_set(
+# "join", "v2",
+# label=("SpeciesTypo", "join"),
+# features=[("SepalLength", "join"), ("SepalWidth", "join"), ("PetalLength", "join"),
+#             ("PetalWidth", "join")],
+# )
 
-# Should error
-ff.register_training_set(
-"join", "v3",
-label=("SpeciesType", "join"),
-features=[("SepalLength", "join"), ("SepalWidth", "join"), ("PetaLength", "join"),
-            ("PetalWidth", "join")],
-)
+# # Should error
+# ff.register_training_set(
+# "join", "v3",
+# label=("SpeciesType", "join"),
+# features=[("SepalLength", "join"), ("SepalWidth", "join"), ("PetaLength", "join"),
+#             ("PetalWidth", "join")],
+# )

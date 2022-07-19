@@ -214,6 +214,21 @@ jobs:
       - name: Setup Proto
         run: ./gen_grpc.sh
 
+      - name: Install etcdctl
+        env:
+          ETCD_VER: v3.4.19
+          GOOGLE_URL: https://storage.googleapis.com/etcd
+        run: |
+          rm -f /tmp/etcd-${ETCD_VER}-linux-amd64.tar.gz
+          rm -rf /tmp/etcd-download-test && mkdir -p /tmp/etcd-download-test
+          
+          curl -L ${GOOGLE_URL}/${ETCD_VER}/etcd-${ETCD_VER}-linux-amd64.tar.gz -o /tmp/etcd-${ETCD_VER}-linux-amd64.tar.gz
+          tar xzvf /tmp/etcd-${ETCD_VER}-linux-amd64.tar.gz -C /tmp/etcd-download-test --strip-components=1
+          rm -f /tmp/etcd-${ETCD_VER}-linux-amd64.tar.gz
+          
+          /tmp/etcd-download-test/etcd --version
+          /tmp/etcd-download-test/etcdctl version
+
       - name: Install python dependencies
         working-directory: ./
         run: |
@@ -301,6 +316,12 @@ jobs:
 
       - name: Run Test
         run: pytest client/tests/e2e.py
+
+      - name: Reset Quickstart
+        run: |
+          helm uninstall quickstart
+          helm install quickstart ./charts/quickstart
+          /tmp/etcd-download-test/etcdctl --user=root:secretpassword del "" --prefix
 
       - name: API Server Logs
         if: always()

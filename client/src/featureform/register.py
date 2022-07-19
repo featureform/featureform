@@ -1227,7 +1227,7 @@ class Client(Registrar):
         Returns:
             user (User): User
         """
-        return GetUser(self._stub, name)
+        return get_user(self._stub, name)
     
     def get_entity(self, name):
         """Get an entity.
@@ -1238,57 +1238,57 @@ class Client(Registrar):
         Returns:
             user (User): User that is retrieved.
         """
-        return GetEntity(self._stub, name)
+        return get_entity(self._stub, name)
 
     def get_model(self, name):
-        return GetResource(self._stub, "model", name)
+        return get_resource(self._stub, "model", name)
 
     def get_provider(self, name):
-        return GetProvider(self._stub, name)
+        return get_provider(self._stub, name)
 
     def get_feature(self, name, variant=None):
         if not variant:
-            return GetResource(self._stub, "feature", name)
-        return GetFeatureVariant(self._stub, name, variant)
+            return get_resource(self._stub, "feature", name)
+        return get_feature_variant(self._stub, name, variant)
 
     def get_label(self, name, variant=None):
         if not variant:
-            return GetResource(self._stub, "label", name)
-        return GetLabelVariant(self._stub, name, variant)
+            return get_resource(self._stub, "label", name)
+        return get_label_variant(self._stub, name, variant)
 
     def get_training_set(self, name, variant=None):
         if not variant:
-            return GetResource(self._stub, "training-set", name)
-        return GetTrainingSetVariant(self._stub, name, variant)
+            return get_resource(self._stub, "training-set", name)
+        return get_training_set_variant(self._stub, name, variant)
 
     def get_source(self, name, variant=None):
         if not variant:
-            return GetResource(self._stub, "source", name)
-        return GetSourceVariant(self._stub, name, variant)
+            return get_resource(self._stub, "source", name)
+        return get_source_variant(self._stub, name, variant)
 
     def list_features(self):
-        return ListNameVariantStatus(self._stub, "feature")
+        return list_name_variant_status(self._stub, "feature")
 
     def list_labels(self):
-        return ListNameVariantStatus(self._stub, "label")
+        return list_name_variant_status(self._stub, "label")
 
     def list_users(self):
-        return ListNameStatus(self._stub, "user")
+        return list_name_status(self._stub, "user")
 
     def list_entities(self):
-        return ListNameStatus(self._stub, "entity")
+        return list_name_status(self._stub, "entity")
 
     def list_sources(self):
-        return ListNameVariantStatusDesc(self._stub, "source")
+        return list_name_variant_status_desc(self._stub, "source")
 
     def list_training_sets(self):
-        return ListNameVariantStatusDesc(self._stub, "training-set")
+        return list_name_variant_status_desc(self._stub, "training-set")
 
     def list_models(self):
-        return ListNameStatusDesc(self._stub, "model")
+        return list_name_status_desc(self._stub, "model")
 
     def list_providers(self):
-        return ListNameStatusDesc(self._stub, "provider")
+        return list_name_status_desc(self._stub, "provider")
 
 global_registrar = Registrar()
 state = global_registrar.state

@@ -77,7 +77,7 @@ def get(host, cert, insecure, local, resource_type, name, variant):
     else:
         rc = ResourceClient(host, True, cert)
 
-    funcDictWithVariant = {
+    rc_get_functions_variant = {
         "feature": rc.get_feature,
         "label": rc.get_label,
         "source": rc.get_source,
@@ -85,17 +85,17 @@ def get(host, cert, insecure, local, resource_type, name, variant):
         "training-set": rc.get_training_set
     }
 
-    funcDictNoVariant = {
+    rc_get_functions = {
         "user": rc.get_user,
         "model": rc.get_model,
         "entity": rc.get_entity,
         "provider": rc.get_provider
     }
 
-    if resource_type in funcDictWithVariant:
-        funcDictWithVariant[resource_type](name, variant)
-    elif resource_type in funcDictNoVariant:
-        funcDictNoVariant[resource_type](name)
+    if resource_type in rc_get_functions_variant:
+        rc_get_functions_variant[resource_type](name, variant)
+    elif resource_type in rc_get_functions:
+        rc_get_functions[resource_type](name)
     else:
         raise ValueError("Resource type not found")
 
@@ -138,7 +138,7 @@ def list(host, cert, insecure, local, resource_type):
     else:
         rc = ResourceClient(host, True, cert)
 
-    funcDict = {
+    rc_list_functions = {
         "features": rc.list_features,
         "labels": rc.list_labels,
         "sources": rc.list_sources,
@@ -150,8 +150,8 @@ def list(host, cert, insecure, local, resource_type):
         "providers": rc.list_providers
     }
 
-    if resource_type in funcDict:
-        funcDict[resource_type]()
+    if resource_type in rc_list_functions:
+        rc_list_functions[resource_type]()
     else:
         raise ValueError("Resource type not found")
 

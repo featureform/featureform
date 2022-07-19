@@ -73,9 +73,16 @@ func TestOfflineStores(t *testing.T) {
 	}
 
 	defer func(c RedshiftConfig) {
+		// err := destroyRedshiftDatabase(c)
+		// if err != nil {
+		// 	t.Fatalf("%v", err)
+		// }
+		count = 2
 		err := destroyRedshiftDatabase(c)
-		if err != nil {
-			t.Fatalf("%v", err)
+		while err != nil and count > 0{
+			time.Sleep(time.Second)
+			err := destroyRedshiftDatabase(c)
+			count -= 1
 		}
 	}(redshiftConfig)
 

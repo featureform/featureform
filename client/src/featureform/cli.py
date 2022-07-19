@@ -110,7 +110,6 @@ def get(host, cert, insecure, resource_type, name, variant):
             return
         else:
             GetEntity(stub, name)
-
     elif resource_type == "model":
         if variant:
             print("Variant not needed.")

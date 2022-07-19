@@ -1,3 +1,4 @@
+from multiprocessing.sharedctypes import Value
 import featureform as ff
 import pandas as pd
 local = ff.register_local()
@@ -200,18 +201,29 @@ ff.register_training_set(
               ("PetalWidth", "join")],
 )
 
-# # Should error
-# ff.register_training_set(
-# "join", "v2",
-# label=("SpeciesTypo", "join"),
-# features=[("SepalLength", "join"), ("SepalWidth", "join"), ("PetalLength", "join"),
-#             ("PetalWidth", "join")],
-# )
+# Should error
+ff.register_training_set(
+"join", "v2",
+label=("SpeciesTypo", "join"),
+features=[("SepalLength", "join"), ("SepalWidth", "join"), ("PetalLength", "join"),
+            ("PetalWidth", "join")],
+)
+try:
+    client = ff.ResourceClient(local=True)
+    client.apply()
+except ValueError as e:
+    print("Label does not exist")
 
-# # Should error
-# ff.register_training_set(
-# "join", "v3",
-# label=("SpeciesType", "join"),
-# features=[("SepalLength", "join"), ("SepalWidth", "join"), ("PetaLength", "join"),
-#             ("PetalWidth", "join")],
-# )
+# Should error
+ff.register_training_set(
+"join", "v3",
+label=("SpeciesType", "join"),
+features=[("SepalLength", "join"), ("SepalWidth", "join"), ("PetaLength", "join"),
+            ("PetalWidth", "join")],
+)
+try:
+    client = ff.ResourceClient(local=True)
+    client.apply()
+except ValueError:
+    print("Feature not found")
+    pass

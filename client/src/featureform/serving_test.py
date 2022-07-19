@@ -9,5 +9,3 @@ print(fpf)
 training_set = client.training_set("join", "v1")
 for r in training_set:
     print(r)
-
-# ff.ServingLocalClient().training_set("fraud_trainxing", "quickstart")

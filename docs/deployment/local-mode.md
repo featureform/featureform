@@ -10,9 +10,6 @@ Local mode come built into the featureform PyPi package.
 
 - Python 3.7+
 
-{% hint style="info" %}
-Incompatible with M1 Macs on Python3.10 due to a bug with GRPC
-{% endhint %}
 
 ```bash
 pip install featureform

@@ -2,8 +2,9 @@ from multiprocessing.sharedctypes import Value
 import featureform as ff
 import pandas as pd
 import pytest
-local = ff.register_local()
 
+local = ff.register_local()
+ 
 ff.register_user("featureformer").make_default_owner()
 
 iris = local.register_file(
@@ -196,24 +197,24 @@ ff.register_training_set(
               ("PetalWidth", "join")],
 )
 
-def add_invalid_label():
+def test_add_invalid_label():
     ff.register_training_set(
     "join", "v2",
     label=("SpeciesTypo", "join"),
     features=[("SepalLength", "join"), ("SepalWidth", "join"), ("PetalLength", "join"),
                 ("PetalWidth", "join")],
     )
-    client = ff.ResourceClient(local=True)
     with pytest.raises(ValueError):
+        client = ff.ResourceClient(local=True)
         client.apply()
 
-def add_invalid_feature():
+def test_add_invalid_feature():
     ff.register_training_set(
     "join", "v3",
     label=("SpeciesType", "join"),
     features=[("SepalLength", "join"), ("SepalWidth", "join"), ("PetaLength", "join"),
                 ("PetalWidth", "join")],
     )
-    client = ff.ResourceClient(local=True)
     with pytest.raises(ValueError):
+        client = ff.ResourceClient(local=True)
         client.apply()

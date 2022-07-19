@@ -80,13 +80,16 @@ func TestOfflineStores(t *testing.T) {
 		// }
 		count := 2
 		err := destroyRedshiftDatabase(c)
+		if err == nil {
+			return
+		}
 		for count > 0 {
-			if err == nil {
-				return
-			}
 			time.Sleep(time.Second)
 			err := destroyRedshiftDatabase(c)
 			count -= 1
+			if err == nil {
+				return
+			}
 		}
 		t.Fatalf("%v", err)
 	}(redshiftConfig)

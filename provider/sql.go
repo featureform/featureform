@@ -121,15 +121,11 @@ func (store *sqlOfflineStore) getTrainingSetName(id ResourceID) (string, error) 
 	return fmt.Sprintf("featureform_trainingset__%s__%s", id.Name, id.Variant), nil
 }
 
-func GetTransformationName(id ResourceID) (string, error) {
-	return GetPrimaryTableName(id)
-	//if err := checkName(id); err != nil {
-	//	return "", err
-	//}
-	//return fmt.Sprintf("featureform_primary_%s__%s", id.Name, id.Variant), nil
-}
+func GetPrimaryTableName(id ResourceID, providerType string, providerConfig string) string {
 
-func GetPrimaryTableName(id ResourceID) (string, error) {
+	//deserialize the config based on the type ()
+	//interpret provider type and serialized config to add proper prefix if necessary
+	//sanitize based on type if necessary
 	if err := checkName(id); err != nil {
 		return "", err
 	}

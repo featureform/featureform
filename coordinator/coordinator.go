@@ -236,7 +236,6 @@ func (c *Coordinator) WatchForScheduleChanges() error {
 func (c *Coordinator) mapNameVariantsToTables(sources []metadata.NameVariant) (map[string]string, error) {
 	sourceMap := make(map[string]string)
 	for _, nameVariant := range sources {
-		var tableName string
 		source, err := c.Metadata.GetSourceVariant(context.Background(), nameVariant)
 		if err != nil {
 			return nil, err
@@ -245,17 +244,13 @@ func (c *Coordinator) mapNameVariantsToTables(sources []metadata.NameVariant) (m
 			return nil, fmt.Errorf("source in query not ready")
 		}
 		providerResourceID := provider.ResourceID{Name: source.Name(), Variant: source.Variant()}
-		if source.IsSQLTransformation() {
-			tableName, err = provider.GetTransformationName(providerResourceID)
-			if err != nil {
-				return nil, err
-			}
-		} else if source.IsPrimaryDataSQLTable() {
-			tableName, err = provider.GetPrimaryTableName(providerResourceID)
-			if err != nil {
-				return nil, err
-			}
+		provider, err := source.FetchProvider(c.Metadata, context.Background())
+		if err != nil {
+			return nil, err
 		}
+		providerType := provider.Type()
+		providerConfig := provider.SerializedConfig()
+		tableName := provider.GetPrimaryTableName(providerResourceID, providerType, providerConfig)
 		sourceMap[nameVariant.ClientString()] = tableName
 	}
 	return sourceMap, nil
@@ -917,8 +912,10 @@ func (c *Coordinator) changeJobSchedule(key string, value string) error {
 	}
 	cronJob, err := jobClient.GetCronJob()
 	if err != nil {
+		fmt.Println("ERROIR: Schedule does not exist uwu. U need to make one first")
 		return fmt.Errorf("fetch cron job from kuberentes with name %s: %w", runner.GetCronJobName(coordinatorScheduleJob.Resource), err)
 	}
+	//if cron job doesn't exist, create one lol
 	cronJob.Spec.Schedule = coordinatorScheduleJob.Schedule
 	if _, err := jobClient.UpdateCronJob(cronJob); err != nil {
 		return fmt.Errorf("update kubernetes cron job: %w", err)

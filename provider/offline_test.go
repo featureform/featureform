@@ -82,12 +82,13 @@ func TestOfflineStores(t *testing.T) {
 		err := destroyRedshiftDatabase(c)
 		for count > 0 {
 			if err == nil {
-				break
+				return
 			}
 			time.Sleep(time.Second)
 			err := destroyRedshiftDatabase(c)
 			count -= 1
 		}
+		t.Fatalf("%v", err)
 	}(redshiftConfig)
 
 	testFns := map[string]func(*testing.T, OfflineStore){

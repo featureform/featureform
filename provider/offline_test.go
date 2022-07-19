@@ -79,7 +79,7 @@ func TestOfflineStores(t *testing.T) {
 		// }
 		count = 2
 		err := destroyRedshiftDatabase(c)
-		while err != nil and count > 0{
+		while (err != nil && count > 0) {
 			time.Sleep(time.Second)
 			err := destroyRedshiftDatabase(c)
 			count -= 1

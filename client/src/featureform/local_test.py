@@ -1,6 +1,7 @@
 from multiprocessing.sharedctypes import Value
 import featureform as ff
 import pandas as pd
+import pytest
 local = ff.register_local()
 
 ff.register_user("featureformer").make_default_owner()
@@ -53,8 +54,6 @@ def transform3(df):
     """one transform"""
     df = pd.DataFrame({'id':[1, 2, 3], 'value': [True, False, True], 'ts': [.2, .2, .2]})
     return df
-
-
 
 # @local.df_transformation(variant="v1", inputs=[("iris_dataset", "v1"),
 #                                                ("other_dataset", "v1")])
@@ -121,8 +120,6 @@ transform3.register_resources(
     ],
 )
 
-
-
 user_entity = ff.register_entity("flower")
 
 new_transformation.register_resources(
@@ -154,8 +151,6 @@ join_transformation.register_resources(
     ],
 
 )
-
-
 
 # Register a feature and a label
 iris.register_resources(
@@ -201,29 +196,24 @@ ff.register_training_set(
               ("PetalWidth", "join")],
 )
 
-# Should error
-ff.register_training_set(
-"join", "v2",
-label=("SpeciesTypo", "join"),
-features=[("SepalLength", "join"), ("SepalWidth", "join"), ("PetalLength", "join"),
-            ("PetalWidth", "join")],
-)
-try:
+def add_invalid_label():
+    ff.register_training_set(
+    "join", "v2",
+    label=("SpeciesTypo", "join"),
+    features=[("SepalLength", "join"), ("SepalWidth", "join"), ("PetalLength", "join"),
+                ("PetalWidth", "join")],
+    )
     client = ff.ResourceClient(local=True)
-    client.apply()
-except ValueError as e:
-    print("Label does not exist")
+    with pytest.raises(ValueError):
+        client.apply()
 
-# Should error
-ff.register_training_set(
-"join", "v3",
-label=("SpeciesType", "join"),
-features=[("SepalLength", "join"), ("SepalWidth", "join"), ("PetaLength", "join"),
-            ("PetalWidth", "join")],
-)
-try:
+def add_invalid_feature():
+    ff.register_training_set(
+    "join", "v3",
+    label=("SpeciesType", "join"),
+    features=[("SepalLength", "join"), ("SepalWidth", "join"), ("PetaLength", "join"),
+                ("PetalWidth", "join")],
+    )
     client = ff.ResourceClient(local=True)
-    client.apply()
-except ValueError:
-    print("Feature not found")
-    pass
+    with pytest.raises(ValueError):
+        client.apply()

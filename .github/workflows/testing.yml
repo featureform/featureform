@@ -204,19 +204,21 @@ jobs:
       - name: Make Coverage Directory
         working-directory: ./
         run: mkdir coverage
+
       - name: create-json
         id: create-json
         uses: jsdaniell/create-json@1.1.2
         with:
           name: "./provider/firestore_credentials.json"
           json: ${{ secrets.FIRESTORE_CREDENTIALS_FILE }}
+
       - name: Testing
         env:
           SNOWFLAKE_USERNAME: ${{ secrets.SNOWFLAKE_USERNAME }}
           SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
           SNOWFLAKE_ORG: ${{ secrets.SNOWFLAKE_ORG }}
           SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
-          FIRESTORE_CRED: "./provider/firestore_credentials.json"
+          FIRESTORE_CRED: "firestore_credentials.json"
           FIRESTORE_PROJECT: ${{ secrets.FIRESTORE_PROJECT }}
           REDSHIFT_USERNAME: ${{ secrets.REDSHIFT_USERNAME }}
           REDSHIFT_PASSWORD: ${{ secrets.REDSHIFT_PASSWORD }}

@@ -11,14 +11,15 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
-	"github.com/joho/godotenv"
 	"math/rand"
 	"os"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/joho/godotenv"
 )
 
 func TestOfflineStores(t *testing.T) {
@@ -79,7 +80,10 @@ func TestOfflineStores(t *testing.T) {
 		// }
 		count = 2
 		err := destroyRedshiftDatabase(c)
-		while (err != nil && count > 0) {
+		for count > 0 {
+			if err == nil {
+				break
+			}
 			time.Sleep(time.Second)
 			err := destroyRedshiftDatabase(c)
 			count -= 1

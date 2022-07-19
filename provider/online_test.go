@@ -1,3 +1,6 @@
+//go:build online
+// +build online
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -68,7 +71,6 @@ func TestOnlineStores(t *testing.T) {
 	//Firestore
 	projectID := os.Getenv("FIRESTORE_PROJECT")
 	firestoreCredentials := os.Getenv("FIRESTORE_CRED")
-	fmt.Print(firestoreCredentials)
 	JSONCredentials, err := ioutil.ReadFile(firestoreCredentials)
 	if err != nil {
 		panic(err)

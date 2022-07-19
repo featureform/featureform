@@ -6,7 +6,7 @@ print("features")
 print(fpf)
 # # fpf = client.features([("SepalLength", "centimeters")], {"CustomerID": "1"})
 # # Run features through model
-training_set = client.training_set("jjoin", "v1")
+training_set = client.training_set("join", "v1")
 for r in training_set:
     print(r)
 

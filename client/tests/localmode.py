@@ -19,7 +19,7 @@ class TestQuickstart:
     def test_training_set(self):
         expected_tset = get_training_set_from_file(self.file, self.entity, self.feature_col, self.label_col,
                                                    self.name_variant)
-        client = ff.ServingLocalClient()
+        client = ff.ServingClient(local=True)
         dataset = client.training_set(self.training_set_name, self.training_set_variant)
         training_dataset = dataset
         for i, feature_batch in enumerate(training_dataset):
@@ -30,7 +30,7 @@ class TestQuickstart:
         half_test = get_training_set_from_file(self.file, self.entity, self.feature_col, self.label_col,
                                                self.name_variant)
         expected_tset = half_test + half_test
-        client = ff.ServingLocalClient()
+        client = ff.ServingClient(local=True)
         dataset = client.training_set(self.training_set_name, self.training_set_variant)
         training_dataset = dataset.repeat(1)
         for i, feature_batch in enumerate(training_dataset):
@@ -40,7 +40,7 @@ class TestQuickstart:
     def test_training_set_shuffle(self):
         expected_tset = get_training_set_from_file(self.file, self.entity, self.feature_col, self.label_col,
                                                    self.name_variant)
-        client = ff.ServingLocalClient()
+        client = ff.ServingClient(local=True)
         dataset = client.training_set(self.training_set_name, self.training_set_variant)
         training_dataset = dataset.shuffle(1)
         rows = 0
@@ -51,7 +51,7 @@ class TestQuickstart:
     def test_training_set_batch(self):
         expected_tset = get_training_set_from_file(self.file, self.entity, self.feature_col, self.label_col,
                                                    self.name_variant)
-        client = ff.ServingLocalClient()
+        client = ff.ServingClient(local=True)
         dataset = client.training_set(self.training_set_name, self.training_set_variant)
         training_dataset = dataset.batch(5)
         for i, feature_batch in enumerate(training_dataset):
@@ -60,7 +60,7 @@ class TestQuickstart:
                 assert row.label() == expected_tset[j + (i * 5)][1]
 
     def test_feature(self):
-        client = ff.ServingLocalClient()
+        client = ff.ServingClient(local=True)
         feature = client.features([(self.feature_name, self.feature_variant)], (self.entity, self.entity_value))
         assert pd.DataFrame(
             data={self.entity: [self.entity_value], self.feature_col: [self.feature_value]},

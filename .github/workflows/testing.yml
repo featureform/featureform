@@ -5,6 +5,8 @@ env:
   TYPESENSE_PORT: 8108
   TYPESENSE_API_KEY: "xyz"
   REDIS_PORT: 6379
+  CASSANDRA_USER: "cassandra"
+  CASSANDRA_PASSWORD: "CASSANDRA"
   POSTGRES_USER: "username"
   POSTGRES_DB: "default"
   POSTGRES_PASSWORD: "password"
@@ -33,7 +35,7 @@ jobs:
           go-version: 1.17
 
       - name: Install grpc_tools
-        run: pip install grpcio-tools
+        run: pip install grpcio-tools build
 
       - name: Install Protobuf
         run: sudo snap install protobuf --classic
@@ -43,6 +45,9 @@ jobs:
 
       - name: Build
         run: go build ./metadata/*.go
+
+      - name: Build Python Package
+        run: ./pip_update.sh
 
       - uses: actions/upload-artifact@v3
         with:
@@ -111,6 +116,7 @@ jobs:
     environment: Integration testing
     needs: setup
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     services:
       redis:
         image: redis
@@ -140,10 +146,20 @@ jobs:
       - name: Make Coverage Directory
         working-directory: ./
         run: mkdir coverage
+
+      - name: create-json
+        id: create-json
+        uses: jsdaniell/create-json@1.1.2
+        with:
+          name: "./provider/firestore_credentials.json"
+          json: ${{ secrets.FIRESTORE_CREDENTIALS_FILE }}
+
       - name: Testing
         env:
           DYNAMO_ACCESS_KEY: ${{ secrets.DYNAMO_ACCESS_KEY }}
           DYNAMO_SECRET_KEY: ${{ secrets.DYNAMO_SECRET_KEY }}
+          FIRESTORE_CRED: "firestore_credentials.json"
+          FIRESTORE_PROJECT: ${{ secrets.FIRESTORE_PROJECT }}
         working-directory: ./
         run: go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/... -tags=online,provider
 
@@ -198,6 +214,7 @@ jobs:
       - name: Make Coverage Directory
         working-directory: ./
         run: mkdir coverage
+
       - name: Testing
         env:
           SNOWFLAKE_USERNAME: ${{ secrets.SNOWFLAKE_USERNAME }}
@@ -615,3 +632,36 @@ jobs:
         run: kubectl get services -A
       - name: Get job pods and print logs
         run: kubectl logs -l job-name=example
+
+  localmode:
+    name: Test Localmode
+    needs: setup
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, macos-latest, windows-latest ] #osx-arm64 currently not working. Ticket made with github
+        python-version: [ '3.7', '3.8', '3.9', '3.10' ]
+    steps:
+      - name: Download Working Compiled Directories
+        uses: actions/download-artifact@v3
+        with:
+          name: compiled-workdir
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install pytest
+        run: pip install pytest
+
+      - name: Install featureform
+        run: pip install client/dist/featureform-0.0.0-py3-none-any.whl
+
+      - name: Download Test Data
+        run: curl https://featureform-demo-files.s3.amazonaws.com/transactions.csv -o transactions.csv
+
+      - name: Featureform Apply
+        run: python -m featureform apply client/examples/local_quickstart.py --local
+
+      - name: Run Tests
+        run: pytest client/tests/localmode.py

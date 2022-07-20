@@ -2,7 +2,6 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-from curses import meta
 import click
 import featureform.register as register
 import grpc
@@ -134,7 +133,6 @@ def list(host, cert, insecure, local, resource_type):
         if host == None:
             raise ValueError(
                 "Host value must be set with --host flag or in env as FEATUREFORM_HOST")
-
     if insecure:
         rc = ResourceClient(host, False)
     else:
@@ -183,7 +181,7 @@ def apply(host, cert, insecure, local, files):
         if host == None:
             raise ValueError(
                 "Host value must be set with --host flag or in env as FEATUREFORM_HOST")
-
+                
     for file in files:
         with open(file, "r") as py:
             exec(py.read())

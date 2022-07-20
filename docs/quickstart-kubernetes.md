@@ -8,6 +8,11 @@ This quickstart will walk through creating a few simple features, labels, and a 
 
 ## Step 1: Install Featureform client
 
+### Requirements
+
+- Python 3.7+
+
+
 Install the Featureform SDK via Pip.
 
 ```
@@ -207,7 +212,7 @@ Once we have our training set and features registered, we can train our model.
 import featureform as ff
 
 client = ff.ServingClient()
-dataset = client.dataset("fraud_training", "quickstart")
+dataset = client.training_set("fraud_training", "quickstart")
 training_dataset = dataset.repeat(10).shuffle(1000).batch(8)
 for feature_batch in training_dataset:
     # Train model

@@ -92,7 +92,7 @@ class Client:
                 df = self.process_transformation(feature_row[12], feature_row[13])
                 if isinstance(df, pd.Series):
                     df = df.to_frame()
-               # if feature_row[11] not in df.columns:
+                    # if feature_row[11] not in df.columns:
                     df.reset_index(inplace=True)
                 if feature_row[10] != "":
                     df = df[[feature_row[9], feature_row[11], feature_row[10]]]
@@ -102,7 +102,7 @@ class Client:
                 df.set_index(feature_row[9])
 
                 df.rename(columns={feature_row[11]: name_variant}, inplace=True)
-                feature_df = df#.sort_values(by=feature_row[10], ascending=False)
+                feature_df = df  # .sort_values(by=feature_row[10], ascending=False)
             else:
                 df = pd.read_csv(str(source_row[10]))
                 if featureVariant[2] != "":
@@ -114,8 +114,8 @@ class Client:
                 feature_df = df
             if feature_row[10] != "":
                 trainingset_df = pd.merge_asof(trainingset_df, feature_df.sort_values(['ts']), direction='backward',
-                                           left_on=labelRow[9], right_on=feature_row[10], left_by=labelRow[8],
-                                           right_by=feature_row[9])
+                                               left_on=labelRow[9], right_on=feature_row[10], left_by=labelRow[8],
+                                               right_by=feature_row[9])
             else:
                 feature_df.drop_duplicates(subset=[feature_row[9], name_variant])
                 trainingset_df[labelRow[8]]=trainingset_df[labelRow[8]].astype('string')
@@ -167,55 +167,67 @@ class Client:
         new_data = func(*dataframes)
         return new_data
 
+
     def _local_features(self, feature_variant_list, entity_tuple):
-        feature_dataframes = set()
-        dataframe_mapping = {}
+        dataframe_mapping = []
         for featureVariantTuple in feature_variant_list:
 
             feature_row = self.sqldb.getNameVariant("feature_variant", "featureName", featureVariantTuple[0],
-                                                    "variantName", featureVariantTuple[1])[0]
-            feature_column_name, source_name, source_variant = feature_row[11], feature_row[12], feature_row[13]
+                                                        "variantName", featureVariantTuple[1])[0]
+            entity_column, ts_column, feature_column_name, source_name, source_variant = feature_row[9], feature_row[
+                    10], feature_row[11], feature_row[12], feature_row[13]
             source_row = self.sqldb.getNameVariant("source_variant", "name", source_name, "variant", source_variant)[0]
             if self.sqldb.is_transformation(source_name, source_variant):
                 df = self.process_transformation(source_name, source_variant)
                 if isinstance(df, pd.Series):
                     df = df.to_frame()
-                #if feature_column_name not in df.columns:
                     df.reset_index(inplace=True)
                 df = df[[entity_tuple[0], feature_column_name]]
                 df.set_index(entity_tuple[0])
-
-                feature_dataframes.add(featureVariantTuple[0])
-                dataframe_mapping[featureVariantTuple[0]] = df
+                dataframe_mapping.append(df)
             else:
-                feature_dataframes, dataframe_mapping = self.process_feature_csv(source_row[10], entity_tuple[0],
-                                                                                 feature_dataframes,
-                                                                                 feature_column_name,
-                                                                                 dataframe_mapping,
-                                                                                 featureVariantTuple[0], "")
+                name_variant = "{}.{}".format(featureVariantTuple[0], featureVariantTuple[1])
+                dataframe_mapping = self.process_feature_csv(source_row[10], entity_tuple[0], entity_column,
+                                                                 feature_column_name,
+                                                                 dataframe_mapping,
+                                                                 name_variant, ts_column)
         try:
-            all_feature_df = dataframe_mapping[feature_dataframes.pop()]
-            while len(feature_dataframes) != 0:
-                featureDF = dataframe_mapping[feature_dataframes.pop()]
-                all_feature_df = all_feature_df.join(featureDF.set_index(entity_tuple[0]), on=entity_tuple[0], lsuffix='_left')
+            all_feature_df = None
+            for value in dataframe_mapping:
+                if all_feature_df is None:
+                    all_feature_df = value
+                else:
+                    all_feature_df = all_feature_df.join(value.set_index(entity_tuple[0]), on=entity_tuple[0],
+                                                             lsuffix='_left')
         except TypeError:
             print("Set is empty")
         entity_row = all_feature_df.loc[all_feature_df[entity_tuple[0]] == entity_tuple[1]]
-        return entity_row
+        entity_row.drop(columns=entity_tuple[0], inplace=True)
+        return entity_row.values
 
-    def process_feature_csv(self, source_path, entity_name, feature_dataframes, feature_column_name, dataframe_mapping,
-                            featureName, timestamp_column):
+    def process_feature_csv(self, source_path, entity_name, entity_loc, value_col_name, dataframe_mapping,
+                            feature_name_variant, timestamp_column):
         df = pd.read_csv(str(source_path))
+        if entity_loc not in df.columns:
+            raise KeyError("Entity column does not exist: {}".format(entity_loc))
+        if value_col_name not in df.columns:
+            raise KeyError("Value column does not exist: {}".format(value_col_name))
+        if timestamp_column != "" and timestamp_column not in df.columns:
+            raise KeyError("Timestamp column does not exist: {}".format(timestamp_column))
         if timestamp_column != "":
-            df = df[[entity_name, feature_column_name, timestamp_column]]
+            df = df[[entity_loc, value_col_name, timestamp_column]]
         else:
-            df = df[[entity_name, feature_column_name]]
+            df = df[[entity_loc, value_col_name]]
+        df.set_index(entity_loc)
+        if timestamp_column != "":
+            df = df.sort_values(by=timestamp_column, ascending=True)
+        df.rename(columns={entity_loc: entity_name, value_col_name: feature_name_variant}, inplace=True)
+        df.drop_duplicates(subset=[entity_name], keep="last", inplace=True)
 
-        df.set_index(entity_name)
-        feature_dataframes.add(featureName)
-
-        dataframe_mapping[featureName] = df.sort_values(by=feature_column_name, ascending=False)
-        return feature_dataframes, dataframe_mapping
+        if timestamp_column != "":
+            df = df.drop(columns=timestamp_column)
+        dataframe_mapping.append(df)
+        return dataframe_mapping
 
     def processLabelCSV(self, source_path, entity_name, labelColumnName, timestamp_column):
         df = pd.read_csv(source_path)

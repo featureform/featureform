@@ -7,16 +7,28 @@ package provider
 import (
 	"context"
 	"fmt"
+
 	"github.com/go-redis/redis/v8"
 )
 
 const (
-	LocalOnline    Type = "LOCAL_ONLINE"
-	RedisOnline         = "REDIS_ONLINE"
-	DynamoDBOnline      = "DYNAMODB_ONLINE"
+	LocalOnline     Type = "LOCAL_ONLINE"
+	RedisOnline          = "REDIS_ONLINE"
+	CassandraOnline      = "CASSANDRA_ONLINE"
+	FirestoreOnline      = "FIRESTORE_ONLINE"
+	DynamoDBOnline       = "DYNAMODB_ONLINE"
 )
 
 var ctx = context.Background()
+
+var cassandraTypeMap = map[string]string{
+	"string":  "text",
+	"int":     "int",
+	"int64":   "bigint",
+	"float32": "float",
+	"float64": "double",
+	"bool":    "boolean",
+}
 
 type OnlineStore interface {
 	GetTable(feature, variant string) (OnlineStoreTable, error)

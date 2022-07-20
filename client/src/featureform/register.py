@@ -1,15 +1,15 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 import marshal
 from distutils.command.config import config
 from typing_extensions import Self
 
 from numpy import byte
-from .resources import ResourceState, Provider, RedisConfig, DynamodbConfig, PostgresConfig, SnowflakeConfig, \
-    LocalConfig, User, Location, Source, \
-    PrimaryData, SQLTable, SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, \
-    TrainingSet
+from .resources import ResourceState, Provider, RedisConfig, FirestoreConfig, CassandraConfig, DynamodbConfig, \
+    PostgresConfig, SnowflakeConfig, LocalConfig, RedshiftConfig, User, Location, Source, PrimaryData, SQLTable, \
+    SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet
 from typing import Tuple, Callable, List, Union
 from typeguard import typechecked, check_type
 import grpc
@@ -469,7 +469,44 @@ class Registrar:
                             config=config)
         self.__resources.append(provider)
         return OnlineProvider(self, provider)
+        
+    def register_firestore(self,
+                       name: str,
+                       description: str = "",
+                       team: str = "",
+                       collection: str = "",
+                       project_id: str = "",
+                       credentials_path: str = ""
+                       ):
+        config = FirestoreConfig(collection=collection, project_id=project_id, credentials_path=credentials_path)
+        provider = Provider(name=name,
+                            function="ONLINE",
+                            description=description,
+                            team=team,
+                            config=config)
+        self.__resources.append(provider)
+        return OnlineProvider(self, provider)
 
+    def register_cassandra(self,
+                       name: str,
+                       description: str = "",
+                       team: str = "",
+                       host: str = "0.0.0.0",
+                       port: int = 9042,
+                       username: str = "cassandra",
+                       password: str = "cassandra",
+                       keyspace: str = "",
+                       consistency: str = "THREE",
+                       replication: int = 3):
+        config = CassandraConfig(host=host, port=port, username=username, password=password, keyspace=keyspace, consistency=consistency, replication=replication)
+        provider = Provider(name=name,
+                            function="ONLINE",
+                            description=description,
+                            team=team,
+                            config=config)
+        self.__resources.append(provider)
+        return OnlineProvider(self, provider)
+        
     def register_dynamodb(self,
                           name: str,
                           description: str = "",
@@ -822,6 +859,8 @@ global_registrar = Registrar()
 state = global_registrar.state
 register_user = global_registrar.register_user
 register_redis = global_registrar.register_redis
+register_firestore = global_registrar.register_firestore
+register_cassandra = global_registrar.register_cassandra
 register_dynamodb = global_registrar.register_dynamodb
 register_snowflake = global_registrar.register_snowflake
 register_postgres = global_registrar.register_postgres

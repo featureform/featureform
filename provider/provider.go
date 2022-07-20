@@ -13,6 +13,8 @@ func init() {
 	unregisteredFactories := map[Type]Factory{
 		LocalOnline:      localOnlineStoreFactory,
 		RedisOnline:      redisOnlineStoreFactory,
+		CassandraOnline:  cassandraOnlineStoreFactory,
+		FirestoreOnline:  firestoreOnlineStoreFactory,
 		DynamoDBOnline:   dynamodbOnlineStoreFactory,
 		MemoryOffline:    memoryOfflineStoreFactory,
 		PostgresOffline:  postgresOfflineStoreFactory,
@@ -37,13 +39,6 @@ type RedisConfig struct {
 	DB       int
 }
 
-type DynamodbConfig struct {
-	Prefix    string
-	Region    string
-	AccessKey string
-	SecretKey string
-}
-
 func (r RedisConfig) Serialized() SerializedConfig {
 	config, err := json.Marshal(r)
 	if err != nil {
@@ -61,9 +56,12 @@ func (r *RedisConfig) Deserialize(config SerializedConfig) error {
 }
 
 type CassandraConfig struct {
-	keyspace    string
+	Keyspace    string
 	Addr        string
+	Username    string
+	Password    string
 	Consistency string
+	Replication int
 }
 
 func (r CassandraConfig) Serialized() SerializedConfig {
@@ -72,6 +70,21 @@ func (r CassandraConfig) Serialized() SerializedConfig {
 		panic(err)
 	}
 	return config
+}
+
+func (r *CassandraConfig) Deserialize(config SerializedConfig) error {
+	err := json.Unmarshal(config, r)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+type DynamodbConfig struct {
+	Prefix    string
+	Region    string
+	AccessKey string
+	SecretKey string
 }
 
 func (r DynamodbConfig) Serialized() SerializedConfig {
@@ -83,6 +96,28 @@ func (r DynamodbConfig) Serialized() SerializedConfig {
 }
 
 func (r *DynamodbConfig) Deserialize(config SerializedConfig) error {
+	err := json.Unmarshal(config, r)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+type FirestoreConfig struct {
+	Collection  string
+	ProjectID   string
+	Credentials []byte
+}
+
+func (r FirestoreConfig) Serialized() SerializedConfig {
+	config, err := json.Marshal(r)
+	if err != nil {
+		panic(err)
+	}
+	return config
+}
+
+func (r *FirestoreConfig) Deserialize(config SerializedConfig) error {
 	err := json.Unmarshal(config, r)
 	if err != nil {
 		return err

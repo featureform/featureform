@@ -20,7 +20,7 @@ When a [training set is defined](defining-features-labels-and-training-sets.md#r
 import featureform as ff
 
 client = ff.ServingClient(host)
-dataset = client.dataset(name, variant)
+dataset = client.training_set(name, variant)
 for features, labels in dataset:
     # Train Model
 ```
@@ -35,7 +35,7 @@ The Dataset API takes inspiration from Tensorflow's Dataset API, and both can be
 import featureform as ff
 
 client = ff.ServingClient(host)
-for features, labels in client.dataset(name, variant).repeat(5):
+for features, labels in client.training_set(name, variant).repeat(5):
     # Run through 5 epochs of the dataset
 ```
 
@@ -46,7 +46,7 @@ import featureform as ff
 
 client = ff.ServingClient(host)
 buffer_size = 1000
-for features, labels in client.dataset(name, variant).shuffle(buffer_size):
+for features, labels in client.training_set(name, variant).shuffle(buffer_size):
     # Run through a shuffled dataset
 ```
 
@@ -56,7 +56,7 @@ for features, labels in client.dataset(name, variant).shuffle(buffer_size):
 import featureform as ff
 
 client = ff.ServingClient(host)
-for feature_batch, label_batch in client.dataset(name, variant).batch(8):
+for feature_batch, label_batch in client.training_set(name, variant).batch(8):
     # Run batches of features and labels
 ```
 
@@ -68,7 +68,7 @@ The commands above can be chained together.
 import featureform as ff
 
 client = ff.ServingClient(host)
-dataset = client.dataset(name, variant).repeat(5).shuffle(1000).batch(64)
+dataset = client.training_set(name, variant).repeat(5).shuffle(1000).batch(64)
 for feature_batch, label_batch in dataset:
     # Run through a shuffled dataset 5x in batches of 64
 ```

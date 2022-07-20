@@ -15,6 +15,7 @@ from .sqlite_metadata import SQLiteMetadata
 import pandas as pd
 import types
 
+
 class Client:
 
     def __init__(self, host=None, local=False, tls_verify=True, cert_path=None):
@@ -43,7 +44,7 @@ class Client:
             return self._local_training_set(name, version)
         else:
             return self._host_training_set(name, version)
-    
+
     def _host_training_set(self, name, version):
         if self.local:
             raise ValueError("Not supported in localmode. Please try using training_set()")
@@ -51,7 +52,7 @@ class Client:
 
     def _local_training_set(self, trainingSetName, trainingSetVariant):
         if not self.local:
-          raise ValueError("Only supported in localmode. Please try using dataset()")  
+            raise ValueError("Only supported in localmode. Please try using dataset()")
         trainingSetRows = \
             self.sqldb.getNameVariant("training_set_variant", "trainingSetName", trainingSetName, "variantName",
                                       trainingSetVariant)
@@ -167,15 +168,17 @@ class Client:
         new_data = func(*dataframes)
         return new_data
 
-
     def _local_features(self, feature_variant_list, entity_tuple):
+        if len(feature_variant_list) == 0:
+            raise Exception("No features provided")
         dataframe_mapping = []
+        all_feature_df = None
         for featureVariantTuple in feature_variant_list:
 
             feature_row = self.sqldb.getNameVariant("feature_variant", "featureName", featureVariantTuple[0],
-                                                        "variantName", featureVariantTuple[1])[0]
+                                                    "variantName", featureVariantTuple[1])[0]
             entity_column, ts_column, feature_column_name, source_name, source_variant = feature_row[9], feature_row[
-                    10], feature_row[11], feature_row[12], feature_row[13]
+                10], feature_row[11], feature_row[12], feature_row[13]
             source_row = self.sqldb.getNameVariant("source_variant", "name", source_name, "variant", source_variant)[0]
             if self.sqldb.is_transformation(source_name, source_variant):
                 df = self.process_transformation(source_name, source_variant)
@@ -188,22 +191,24 @@ class Client:
             else:
                 name_variant = "{}.{}".format(featureVariantTuple[0], featureVariantTuple[1])
                 dataframe_mapping = self.process_feature_csv(source_row[10], entity_tuple[0], entity_column,
-                                                                 feature_column_name,
-                                                                 dataframe_mapping,
-                                                                 name_variant, ts_column)
+                                                             feature_column_name,
+                                                             dataframe_mapping,
+                                                             name_variant, ts_column)
         try:
-            all_feature_df = None
             for value in dataframe_mapping:
                 if all_feature_df is None:
                     all_feature_df = value
                 else:
                     all_feature_df = all_feature_df.join(value.set_index(entity_tuple[0]), on=entity_tuple[0],
-                                                             lsuffix='_left')
+                                                         lsuffix='_left')
         except TypeError:
             print("Set is empty")
-        entity_row = all_feature_df.loc[all_feature_df[entity_tuple[0]] == entity_tuple[1]]
+        entity_row = all_feature_df.loc[all_feature_df[entity_tuple[0]] == entity_tuple[1]].copy()
         entity_row.drop(columns=entity_tuple[0], inplace=True)
-        return entity_row.values
+        if len(entity_row.values) > 0:
+            return entity_row.values[0]
+        else:
+            raise Exception("No matching entities for {}".format(entity_tuple))
 
     def process_feature_csv(self, source_path, entity_name, entity_loc, value_col_name, dataframe_mapping,
                             feature_name_variant, timestamp_column):

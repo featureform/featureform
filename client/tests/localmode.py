@@ -62,9 +62,7 @@ class TestQuickstart:
     def test_feature(self):
         client = ff.ServingClient(local=True)
         feature = client.features([(self.feature_name, self.feature_variant)], (self.entity, self.entity_value))
-        assert pd.DataFrame(
-            data={self.entity: [self.entity_value], self.feature_col: [self.feature_value]},
-            index=[self.entity_index]).equals(feature)
+        assert feature == pd.array([self.entity_value])
 
 
 def get_label(df: pd.DataFrame, entity, label):

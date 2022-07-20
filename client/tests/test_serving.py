@@ -102,6 +102,11 @@ class TestFeaturesE2E(TestCase):
     @pytest.fixture(autouse=True)
     def run_before_and_after_tests(tmpdir):
         """Fixture to execute asserts before and after a test is run"""
+        # Remove any lingering Databases
+        try:
+            shutil.rmtree('.featureform')
+        except:
+            print("File Already Removed")
         yield
         try:
             shutil.rmtree('.featureform')

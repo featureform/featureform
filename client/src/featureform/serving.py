@@ -240,7 +240,6 @@ class Client:
         df.set_index(entity_name)
         return df
 
-
 class Stream:
 
     def __init__(self, stub, name, version):

@@ -103,7 +103,7 @@ class Client:
                 df.set_index(feature_row[9])
 
                 df.rename(columns={feature_row[11]: name_variant}, inplace=True)
-                feature_df = df  # .sort_values(by=feature_row[10], ascending=False)
+                feature_df = df
             else:
                 df = pd.read_csv(str(source_row[10]))
                 if featureVariant[2] != "":
@@ -119,9 +119,10 @@ class Client:
                                                right_by=feature_row[9])
             else:
                 feature_df.drop_duplicates(subset=[feature_row[9], name_variant])
-                trainingset_df[labelRow[8]]=trainingset_df[labelRow[8]].astype('string')
-                feature_df[labelRow[8]]=feature_df[labelRow[8]].astype('string')
-                trainingset_df = trainingset_df.join(feature_df.set_index(labelRow[8]), how="left", on=labelRow[8], lsuffix="_left")
+                trainingset_df[labelRow[8]] = trainingset_df[labelRow[8]].astype('string')
+                feature_df[labelRow[8]] = feature_df[labelRow[8]].astype('string')
+                trainingset_df = trainingset_df.join(feature_df.set_index(labelRow[8]), how="left", on=labelRow[8],
+                                                     lsuffix="_left")
 
         if labelRow[9] != "":
             trainingset_df.drop(columns=labelRow[9], inplace=True)

@@ -669,5 +669,5 @@ jobs:
       - name: Clear SQLite
         run: rm -r .featureform
 
-      - name: Run Register Tests
-        run: pytest client/tests/localmode.py client/tests/test_serving.py
+      - name: Run Unit Tests
+        run: pytest client/tests/localmode.py client/tests/test_serving.py -s

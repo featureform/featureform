@@ -3,7 +3,7 @@ import grpc
 from .proto import metadata_pb2_grpc as ff_grpc
 from .format import *
 
-def get_user(stub, name):
+def get_user_info(stub, name):
     searchName = metadata_pb2.Name(name=name)
     try:
         for user in stub.GetUsers(iter([searchName])):
@@ -27,7 +27,7 @@ def get_user(stub, name):
     except grpc._channel._MultiThreadedRendezvous:
         print("User not found.")
 
-def get_entity(stub, name):
+def get_entity_info(stub, name):
     searchName = metadata_pb2.Name(name=name)
     try:
         for x in stub.GetEntities(iter([searchName])):
@@ -49,7 +49,7 @@ def get_entity(stub, name):
     except grpc._channel._MultiThreadedRendezvous:
         print("Entity not found.")
 
-def get_resource(stub, resource_type, name):
+def get_resource_info(stub, resource_type, name):
     stub_get_functions = {
         "feature": stub.GetFeatures,
         "label": stub.GetLabels,
@@ -74,7 +74,7 @@ def get_resource(stub, resource_type, name):
     except grpc._channel._MultiThreadedRendezvous:
         print(f"{resource_type} not found.")
 
-def get_feature_variant(stub, name, variant):
+def get_feature_variant_info(stub, name, variant):
     searchNameVariant = metadata_pb2.NameVariant(name=name, variant=variant)
     try:
         for x in stub.GetFeatureVariants(iter([searchNameVariant])):
@@ -98,7 +98,7 @@ def get_feature_variant(stub, name, variant):
     except grpc._channel._MultiThreadedRendezvous:
         print("Feature variant not found.")
 
-def get_label_variant(stub, name, variant):
+def get_label_variant_info(stub, name, variant):
     searchNameVariant = metadata_pb2.NameVariant(name=name, variant=variant)
     try:
         for x in stub.GetLabelVariants(iter([searchNameVariant])):
@@ -121,7 +121,7 @@ def get_label_variant(stub, name, variant):
     except grpc._channel._MultiThreadedRendezvous:
         print("Label variant not found.")
 
-def get_source_variant(stub, name, variant):
+def get_source_variant_info(stub, name, variant):
     searchNameVariant = metadata_pb2.NameVariant(name=name, variant=variant)
     try:
         for x in stub.GetSourceVariants(iter([searchNameVariant])):
@@ -158,7 +158,7 @@ def get_source_variant(stub, name, variant):
     except grpc._channel._MultiThreadedRendezvous:
         print("Source variant not found.")
 
-def get_training_set_variant(stub, name, variant):
+def get_training_set_variant_info(stub, name, variant):
     searchNameVariant = metadata_pb2.NameVariant(name=name, variant=variant)
     try:
         for x in stub.GetTrainingSetVariants(iter([searchNameVariant])):
@@ -179,7 +179,7 @@ def get_training_set_variant(stub, name, variant):
     except grpc._channel._MultiThreadedRendezvous:
         print("Training set variant not found.")
 
-def get_provider(stub, name):
+def get_provider_info(stub, name):
     searchName = metadata_pb2.Name(name=name)
     try:
         for x in stub.GetProviders(iter([searchName])):

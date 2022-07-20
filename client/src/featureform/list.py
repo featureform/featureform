@@ -8,7 +8,10 @@ def list_name_status(stub, resource_type):
     }
     format_rows("NAME", "STATUS")
     res = []
-    for f in stub_list_functions[resource_type](metadata_pb2.Empty()):
+    to_sort = []
+    for received in stub_list_functions[resource_type](metadata_pb2.Empty()):
+        to_sort.append(received)
+    for f in sorted(to_sort, key=lambda x:x.name):
         format_rows(f.name, f.status.Status._enum_type.values[f.status.status].name)
         res.append(f)
     return res
@@ -20,7 +23,10 @@ def list_name_status_desc(stub, resource_type):
     }
     format_rows("NAME", "STATUS", "DESCRIPTION")
     res = []
-    for f in stub_list_functions[resource_type](metadata_pb2.Empty()):
+    to_sort = []
+    for received in stub_list_functions[resource_type](metadata_pb2.Empty()):
+        to_sort.append(received)
+    for f in sorted(to_sort, key=lambda x:x.name):
         format_rows(f.name, f.status.Status._enum_type.values[f.status.status].name, f.description[:60])
         res.append(f)
     return res
@@ -33,7 +39,10 @@ def list_name_variant_status(stub, resource_type):
 
     format_rows("NAME", "VARIANT", "STATUS")
     res = []
-    for f in stub_list_functions[resource_type][0](metadata_pb2.Empty()):
+    to_sort = []
+    for received in stub_list_functions[resource_type][0](metadata_pb2.Empty()):
+        to_sort.append(received)
+    for f in sorted(to_sort, key=lambda x:x.name):
         res.append(f)
         for v in f.variants:
             searchNameVariant = metadata_pb2.NameVariant(name=f.name, variant=v)
@@ -53,7 +62,10 @@ def list_name_variant_status_desc(stub, resource_type):
 
     format_rows("NAME", "VARIANT", "STATUS", "DESCRIPTION")
     res = []
-    for f in stub_list_functions[resource_type][0](metadata_pb2.Empty()):
+    to_sort = []
+    for received in stub_list_functions[resource_type][0](metadata_pb2.Empty()):
+        to_sort.append(received)
+    for f in sorted(to_sort, key=lambda x:x.name):
         res.append(f)
         for v in f.variants:
             searchNameVariant = metadata_pb2.NameVariant(name=f.name, variant=v)

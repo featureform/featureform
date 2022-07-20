@@ -1,7 +1,7 @@
 import featureform as ff
 from featureform import ResourceClient
 
-rc = ResourceClient("localhost:8000")
+rc = ResourceClient("localhost:8000", False)
 
 redis = rc.get_provider("redis-quickstart")
 
@@ -58,6 +58,10 @@ print(listProvider)
 listSource = rc.list_sources()
 
 print(listSource)
+
+listUser = rc.list_users()
+
+print(listUser)
 
 listFeature = rc.list_features()
 

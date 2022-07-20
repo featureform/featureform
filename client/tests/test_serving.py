@@ -1,11 +1,12 @@
-import os
-from unittest import TestCase
+import csv
 import shutil
+from tempfile import NamedTemporaryFile
+from unittest import TestCase
+
 import pandas as pd
 import pytest
 from featureform import serving, ResourceClient
-from tempfile import NamedTemporaryFile
-import csv
+
 from localmode_cases import features_no_ts, features_with_ts, feature_invalid_entity, feature_invalid_value, \
     feature_invalid_ts, feature_e2e
 
@@ -16,7 +17,8 @@ class TestIndividualFeatures(TestCase):
             with self.subTest(name):
                 file_name = create_temp_file(case)
                 client = serving.LocalClient()
-                dataframe_mapping = client.process_feature_csv(file_name, case['entity'], case['entity'], case['value_col'], [], "test_name_variant", "")
+                dataframe_mapping = client.process_feature_csv(file_name, case['entity'], case['entity'],
+                                                               case['value_col'], [], "test_name_variant", "")
                 expected = pd.DataFrame(case['expected'])
                 actual = dataframe_mapping[0]
                 expected = expected.values.tolist()
@@ -29,7 +31,9 @@ class TestIndividualFeatures(TestCase):
             with self.subTest(msg=name):
                 file_name = create_temp_file(case)
                 client = serving.LocalClient()
-                dataframe_mapping = client.process_feature_csv(file_name, case['entity'], case['entity'], case['value_col'], [], "test_name_variant", case['ts_col'])
+                dataframe_mapping = client.process_feature_csv(file_name, case['entity'], case['entity'],
+                                                               case['value_col'], [], "test_name_variant",
+                                                               case['ts_col'])
                 expected = pd.DataFrame(case['expected'])
                 actual = dataframe_mapping[0]
                 expected = expected.values.tolist()
@@ -42,7 +46,8 @@ class TestIndividualFeatures(TestCase):
         file_name = create_temp_file(case)
         client = serving.LocalClient()
         with pytest.raises(KeyError) as err:
-            client.process_feature_csv(file_name, case['entity'], case['value_col'], case['name'], [], "test_name_variant", case['ts_col'])
+            client.process_feature_csv(file_name, case['entity'], case['value_col'], case['name'], [],
+                                       "test_name_variant", case['ts_col'])
         assert "column does not exist" in str(err.value)
 
     def test_invalid_value_col(self):
@@ -50,7 +55,8 @@ class TestIndividualFeatures(TestCase):
         file_name = create_temp_file(case)
         client = serving.LocalClient()
         with pytest.raises(KeyError) as err:
-            client.process_feature_csv(file_name, case['entity'], case['value_col'], case['name'], [], "test_name_variant", case['ts_col'])
+            client.process_feature_csv(file_name, case['entity'], case['value_col'], case['name'], [],
+                                       "test_name_variant", case['ts_col'])
         assert "column does not exist" in str(err.value)
 
     def test_invalid_ts_col(self):
@@ -58,7 +64,8 @@ class TestIndividualFeatures(TestCase):
         file_name = create_temp_file(case)
         client = serving.LocalClient()
         with pytest.raises(KeyError) as err:
-            client.process_feature_csv(file_name, case['entity'], case['value_col'], case['name'], [], "test_name_variant", case['ts_col'])
+            client.process_feature_csv(file_name, case['entity'], case['value_col'], case['name'], [],
+                                       "test_name_variant", case['ts_col'])
         assert "column does not exist" in str(err.value)
 
 
@@ -67,13 +74,12 @@ class TestFeaturesE2E(TestCase):
         for name, case in feature_e2e.items():
             with self.subTest(msg=name):
                 file_name = create_temp_file(case)
-                res = e2e_features(file_name, case['entity'], case['entity_loc'], case['features'], case['value_cols'], case['entities'], case['ts_col'])
+                res = e2e_features(file_name, case['entity'], case['entity_loc'], case['features'], case['value_cols'],
+                                   case['entities'], case['ts_col'])
                 expected = case['expected']
                 assert all(elem in expected for elem in res), \
                     "Expected: {} Got: {}".format(expected, res)
             shutil.rmtree('.featureform')
-
-
 
     def test_timestamp_doesnt_exist(self):
         case = {
@@ -94,10 +100,9 @@ class TestFeaturesE2E(TestCase):
         }
         file_name = create_temp_file(case)
         with pytest.raises(KeyError) as err:
-            e2e_features(file_name, case['entity'], case['entity_loc'], case['features'], case['value_cols'], case['entities'], case['ts_col'])
+            e2e_features(file_name, case['entity'], case['entity_loc'], case['features'], case['value_cols'],
+                         case['entities'], case['ts_col'])
         assert "column does not exist" in str(err.value)
-
-
 
     @pytest.fixture(autouse=True)
     def run_before_and_after_tests(tmpdir):

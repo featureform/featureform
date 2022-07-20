@@ -3,17 +3,17 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 import json
 import marshal
+import os
+import random
+import types
 
 import grpc
 import numpy as np
+import pandas as pd
+
 from .proto import serving_pb2
 from .proto import serving_pb2_grpc
-import random
-import os
 from .sqlite_metadata import SQLiteMetadata
-
-import pandas as pd
-import types
 
 
 class Client:

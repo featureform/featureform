@@ -195,7 +195,7 @@ class SQLiteMetadata:
         self.__conn.commit()
         variant_data_list = variant_data.fetchall()
         if len(variant_data_list) == 0:
-          raise ValueError(type + " with " + column + " : " + resource + " not found")
+          raise ValueError("{} with {}: {} not found".format(type, column, resource))
         return variant_data.fetchall()
 
     def getNameVariant(self, type, column1, resource1, column2, resource2):
@@ -204,7 +204,7 @@ class SQLiteMetadata:
         self.__conn.commit()
         variant_data_list = variant_data.fetchall()
         if len(variant_data_list) == 0:
-          raise ValueError(type + " with " + column1 + " : " + resource1 + " and " + column2 + " : " + resource2 + " not found")
+          raise ValueError("{} with {}: {} and {}: {} not found".format(type, column1, resource1, column2, resource2))
         return variant_data_list
 
     def is_transformation(self, name, variant):

@@ -2,7 +2,7 @@ import csv
 import shutil
 from tempfile import NamedTemporaryFile
 from unittest import TestCase
-
+import os, stat
 import pandas as pd
 import pytest
 from featureform import serving, ResourceClient
@@ -109,14 +109,18 @@ class TestFeaturesE2E(TestCase):
         """Fixture to execute asserts before and after a test is run"""
         # Remove any lingering Databases
         try:
-            shutil.rmtree('.featureform')
+            shutil.rmtree('.featureform', onerror=del_rw)
         except:
             print("File Already Removed")
         yield
         try:
-            shutil.rmtree('.featureform')
+            shutil.rmtree('.featureform', onerror=del_rw)
         except:
             print("File Already Removed")
+
+def del_rw(action, name, exc):
+    os.chmod(name, stat.S_IWRITE)
+    os.remove(name)
 
 
 def create_temp_file(test_values):

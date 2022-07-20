@@ -79,7 +79,7 @@ class TestFeaturesE2E(TestCase):
                 expected = case['expected']
                 assert all(elem in expected for elem in res), \
                     "Expected: {} Got: {}".format(expected, res)
-            shutil.rmtree('.featureform')
+            shutil.rmtree('.featureform', onerror=del_rw)
 
     def test_timestamp_doesnt_exist(self):
         case = {

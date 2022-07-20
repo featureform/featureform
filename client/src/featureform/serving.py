@@ -38,12 +38,18 @@ class Client:
                 channel = grpc.insecure_channel(host, options=(('grpc.enable_http_proxy', 0),))
             self._stub = serving_pb2_grpc.FeatureStub(channel)
 
-    def dataset(self, name, version):
+    def training_set(self, name, version):
+        if self.local:
+            return self._local_training_set(name, version)
+        else:
+            return self._host_training_set(name, version)
+    
+    def _host_training_set(self, name, version):
         if self.local:
             raise ValueError("Not supported in localmode. Please try using training_set()")
         return Dataset(self._stub).from_stub(name, version)
 
-    def training_set(self, trainingSetName, trainingSetVariant):
+    def _local_training_set(self, trainingSetName, trainingSetVariant):
         if not self.local:
           raise ValueError("Only supported in localmode. Please try using dataset()")  
         feature_dataframes = set()

@@ -207,7 +207,7 @@ Once we have our training set and features registered, we can train our model.
 import featureform as ff
 
 client = ff.ServingClient()
-dataset = client.dataset("fraud_training", "quickstart")
+dataset = client.training_set("fraud_training", "quickstart")
 training_dataset = dataset.repeat(10).shuffle(1000).batch(8)
 for feature_batch in training_dataset:
     # Train model

@@ -1,6 +1,5 @@
 from .register import *
-from .serving import Client as servClient, LocalClient as servLocalClient
+from .serving import Client as servClient
 
 ServingClient = servClient
 ResourceClient = Client
-ServingLocalClient = servLocalClient

@@ -1,5 +1,10 @@
 site_name: Featureform API Reference
-theme: "material"
+theme:
+    name: "material"
+    palette:
+        scheme: "slate"
+        primary: "pink"
+        accent: "pink"
 plugins:
 - search
 - mkdocstrings
@@ -9,8 +14,6 @@ plugins:
 - literate-nav:
       nav_file: index.md
 markdown_extensions:
-  - toc:
-      permalink: "#"
   - pymdownx.highlight:
       anchor_linenums: true
   - pymdownx.inlinehilite

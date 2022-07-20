@@ -663,8 +663,11 @@ jobs:
       - name: Featureform Apply
         run: python -m featureform apply client/examples/local_quickstart.py --local
 
-      - name: Run Tests
+      - name: Run Quickstart Test
         run: pytest client/tests/localmode.py
+
+      - name: Clear SQLite
+        run: rm -r .featureform
 
       - name: Run Register Tests
         run: pytest client/tests/localmode.py client/tests/test_serving.py

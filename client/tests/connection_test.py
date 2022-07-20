@@ -7,9 +7,9 @@ def test_metadata_connection():
     host = os.getenv('API_ADDRESS', "localhost:7878")
     metadata_host = os.getenv('METADATA_HOST')
 
-    client = ResourceClient(host=host, tls_verify=False)
-    client.register_user("test")
     try:
+        client = ResourceClient(host=host, tls_verify=False)
+        client.register_user("test")
         client.apply()
     # Expect error since metadata server behind api server is not running
     # Checks that the metadata server hostname failed to resolve
@@ -20,8 +20,8 @@ def test_metadata_connection():
 def test_serving_connection():
     host = os.getenv('API_ADDRESS', "localhost:7878")
     serving_host = os.getenv('SERVING_HOST')
-    client = ServingClient(host=host, tls_verify=False)
     try:
+        client = ServingClient(host=host, tls_verify=False)
         client.features([("f1", "v1")], {"user": "a"})
     # Expect error since feature server behind api server is not running
     # Checks that the feature server hostname failed to resolve

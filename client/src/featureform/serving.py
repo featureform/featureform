@@ -15,90 +15,43 @@ from .sqlite_metadata import SQLiteMetadata
 import pandas as pd
 import types
 
+class Client:
 
-class LocalClient:
-    def __init__(self):
-        self.sqldb = SQLiteMetadata()
-
-    def process_transformation(self, name, variant):
-        source_row = self.sqldb.getNameVariant("source_variant", "name", name, "variant", variant)[0]
-        inputs = json.loads(source_row[9])
-        dataframes = []
-        code = marshal.loads(bytearray(source_row[10]))
-        func = types.FunctionType(code, globals(), "transformation")
-        for input in inputs:
-            source_name, source_variant = input[0], input[1],
-            if self.sqldb.is_transformation(source_name, source_variant):
-                df = self.process_transformation(source_name, source_variant)
-                dataframes.append(df)
-            else:
-                source_row = \
-                    self.sqldb.getNameVariant("source_variant", "name", source_name, "variant", source_variant)[0]
-                df = pd.read_csv(str(source_row[10]))
-                dataframes.append(df)
-        new_data = func(*dataframes)
-        return new_data
-
-    def features(self, feature_variant_list, entity_tuple):
-        feature_dataframes = set()
-        dataframe_mapping = {}
-        for featureVariantTuple in feature_variant_list:
-
-            feature_row = self.sqldb.getNameVariant("feature_variant", "featureName", featureVariantTuple[0],
-                                                    "variantName", featureVariantTuple[1])[0]
-            feature_column_name, source_name, source_variant = feature_row[11], feature_row[12], feature_row[13]
-            source_row = self.sqldb.getNameVariant("source_variant", "name", source_name, "variant", source_variant)[0]
-            if self.sqldb.is_transformation(source_name, source_variant):
-                df = self.process_transformation(source_name, source_variant)
-                if isinstance(df, pd.Series):
-                    df = df.to_frame()
-                #if feature_column_name not in df.columns:
-                    df.reset_index(inplace=True)
-                df = df[[entity_tuple[0], feature_column_name]]
-                df.set_index(entity_tuple[0])
-
-                feature_dataframes.add(featureVariantTuple[0])
-                dataframe_mapping[featureVariantTuple[0]] = df
-            else:
-                feature_dataframes, dataframe_mapping = self.process_feature_csv(source_row[10], entity_tuple[0],
-                                                                                 feature_dataframes,
-                                                                                 feature_column_name,
-                                                                                 dataframe_mapping,
-                                                                                 featureVariantTuple[0], "")
-        try:
-            all_feature_df = dataframe_mapping[feature_dataframes.pop()]
-            while len(feature_dataframes) != 0:
-                featureDF = dataframe_mapping[feature_dataframes.pop()]
-                all_feature_df = all_feature_df.join(featureDF.set_index(entity_tuple[0]), on=entity_tuple[0], lsuffix='_left')
-        except TypeError:
-            print("Set is empty")
-        entity_row = all_feature_df.loc[all_feature_df[entity_tuple[0]] == entity_tuple[1]]
-        return entity_row
-
-    def process_feature_csv(self, source_path, entity_name, feature_dataframes, feature_column_name, dataframe_mapping,
-                            featureName, timestamp_column):
-        df = pd.read_csv(str(source_path))
-        if timestamp_column != "":
-            df = df[[entity_name, feature_column_name, timestamp_column]]
+    def __init__(self, host=None, local=False, tls_verify=True, cert_path=None):
+        self.local = local
+        if local:
+            if host != None:
+                raise ValueError("Cannot be local and have a host")
+            self.sqldb = SQLiteMetadata()
         else:
-            df = df[[entity_name, feature_column_name]]
+            env_cert_path = os.getenv('FEATUREFORM_CERT')
+            if tls_verify:
+                credentials = grpc.ssl_channel_credentials()
+                channel = grpc.secure_channel(host, credentials)
+            elif cert_path is not None or env_cert_path is not None:
+                if env_cert_path is not None and cert_path is None:
+                    cert_path = env_cert_path
+                with open(cert_path, 'rb') as f:
+                    credentials = grpc.ssl_channel_credentials(f.read())
+                channel = grpc.secure_channel(host, credentials)
+            else:
+                channel = grpc.insecure_channel(host, options=(('grpc.enable_http_proxy', 0),))
+            self._stub = serving_pb2_grpc.FeatureStub(channel)
 
-        df.set_index(entity_name)
-        feature_dataframes.add(featureName)
-
-        dataframe_mapping[featureName] = df.sort_values(by=feature_column_name, ascending=False)
-        return feature_dataframes, dataframe_mapping
-
-    def processLabelCSV(self, source_path, entity_name, labelColumnName, timestamp_column):
-        df = pd.read_csv(source_path)
-        if timestamp_column != "":
-            df = df[[entity_name, labelColumnName, timestamp_column]]
+    def training_set(self, name, version):
+        if self.local:
+            return self._local_training_set(name, version)
         else:
-            df = df[[entity_name, labelColumnName]]
-        df.set_index(entity_name)
-        return df
+            return self._host_training_set(name, version)
+    
+    def _host_training_set(self, name, version):
+        if self.local:
+            raise ValueError("Not supported in localmode. Please try using training_set()")
+        return Dataset(self._stub).from_stub(name, version)
 
-    def training_set(self, trainingSetName, trainingSetVariant):
+    def _local_training_set(self, trainingSetName, trainingSetVariant):
+        if not self.local:
+          raise ValueError("Only supported in localmode. Please try using dataset()")  
         feature_dataframes = set()
         dataframe_mapping = {}
         trainingSetRow = \
@@ -176,28 +129,13 @@ class LocalClient:
         trainingset_df = trainingset_df.assign(label=label_col)
         return Dataset.from_list(trainingset_df.values.tolist())
 
-
-class Client:
-
-    def __init__(self, host, tls_verify=True, cert_path=None):
-        env_cert_path = os.getenv('FEATUREFORM_CERT')
-        if tls_verify:
-            credentials = grpc.ssl_channel_credentials()
-            channel = grpc.secure_channel(host, credentials)
-        elif cert_path is not None or env_cert_path is not None:
-            if env_cert_path is not None and cert_path is None:
-                cert_path = env_cert_path
-            with open(cert_path, 'rb') as f:
-                credentials = grpc.ssl_channel_credentials(f.read())
-            channel = grpc.secure_channel(host, credentials)
-        else:
-            channel = grpc.insecure_channel(host, options=(('grpc.enable_http_proxy', 0),))
-        self._stub = serving_pb2_grpc.FeatureStub(channel)
-
-    def dataset(self, name, version):
-        return Dataset(self._stub).from_stub(name, version)
-
     def features(self, features, entities):
+        if self.local:
+            return self._local_features(features, entities)
+        else:
+            return self._host_features(features, entities)
+
+    def _host_features(self, features, entities):
         req = serving_pb2.FeatureServeRequest()
         for name, value in entities.items():
             entity_proto = req.entities.add()
@@ -209,6 +147,84 @@ class Client:
             feature_id.version = version
         resp = self._stub.FeatureServe(req)
         return [parse_proto_value(val) for val in resp.values]
+
+    def process_transformation(self, name, variant):
+        source_row = self.sqldb.getNameVariant("source_variant", "name", name, "variant", variant)[0]
+        inputs = json.loads(source_row[9])
+        dataframes = []
+        code = marshal.loads(bytearray(source_row[10]))
+        func = types.FunctionType(code, globals(), "transformation")
+        for input in inputs:
+            source_name, source_variant = input[0], input[1],
+            if self.sqldb.is_transformation(source_name, source_variant):
+                df = self.process_transformation(source_name, source_variant)
+                dataframes.append(df)
+            else:
+                source_row = \
+                    self.sqldb.getNameVariant("source_variant", "name", source_name, "variant", source_variant)[0]
+                df = pd.read_csv(str(source_row[10]))
+                dataframes.append(df)
+        new_data = func(*dataframes)
+        return new_data
+
+    def _local_features(self, feature_variant_list, entity_tuple):
+        feature_dataframes = set()
+        dataframe_mapping = {}
+        for featureVariantTuple in feature_variant_list:
+
+            feature_row = self.sqldb.getNameVariant("feature_variant", "featureName", featureVariantTuple[0],
+                                                    "variantName", featureVariantTuple[1])[0]
+            feature_column_name, source_name, source_variant = feature_row[11], feature_row[12], feature_row[13]
+            source_row = self.sqldb.getNameVariant("source_variant", "name", source_name, "variant", source_variant)[0]
+            if self.sqldb.is_transformation(source_name, source_variant):
+                df = self.process_transformation(source_name, source_variant)
+                if isinstance(df, pd.Series):
+                    df = df.to_frame()
+                #if feature_column_name not in df.columns:
+                    df.reset_index(inplace=True)
+                df = df[[entity_tuple[0], feature_column_name]]
+                df.set_index(entity_tuple[0])
+
+                feature_dataframes.add(featureVariantTuple[0])
+                dataframe_mapping[featureVariantTuple[0]] = df
+            else:
+                feature_dataframes, dataframe_mapping = self.process_feature_csv(source_row[10], entity_tuple[0],
+                                                                                 feature_dataframes,
+                                                                                 feature_column_name,
+                                                                                 dataframe_mapping,
+                                                                                 featureVariantTuple[0], "")
+        try:
+            all_feature_df = dataframe_mapping[feature_dataframes.pop()]
+            while len(feature_dataframes) != 0:
+                featureDF = dataframe_mapping[feature_dataframes.pop()]
+                all_feature_df = all_feature_df.join(featureDF.set_index(entity_tuple[0]), on=entity_tuple[0], lsuffix='_left')
+        except TypeError:
+            print("Set is empty")
+        entity_row = all_feature_df.loc[all_feature_df[entity_tuple[0]] == entity_tuple[1]]
+        return entity_row
+
+    def process_feature_csv(self, source_path, entity_name, feature_dataframes, feature_column_name, dataframe_mapping,
+                            featureName, timestamp_column):
+        df = pd.read_csv(str(source_path))
+        if timestamp_column != "":
+            df = df[[entity_name, feature_column_name, timestamp_column]]
+        else:
+            df = df[[entity_name, feature_column_name]]
+
+        df.set_index(entity_name)
+        feature_dataframes.add(featureName)
+
+        dataframe_mapping[featureName] = df.sort_values(by=feature_column_name, ascending=False)
+        return feature_dataframes, dataframe_mapping
+
+    def processLabelCSV(self, source_path, entity_name, labelColumnName, timestamp_column):
+        df = pd.read_csv(source_path)
+        if timestamp_column != "":
+            df = df[[entity_name, labelColumnName, timestamp_column]]
+        else:
+            df = df[[entity_name, labelColumnName]]
+        df.set_index(entity_name)
+        return df
 
 
 class Stream:

@@ -61,6 +61,55 @@ class RedisConfig:
 
 @typechecked
 @dataclass
+class FirestoreConfig:
+    collection: str
+    project_id: str
+    credentials_path: str
+
+    def software(self) -> str:
+        return "firestore"
+
+    def type(self) -> str:
+        return "FIRESTORE_ONLINE"
+
+    def serialize(self) -> bytes:
+        config = {
+            "Collection": self.collection,
+            "ProjectID": self.project_id,
+            "Credentials": json.load(open(self.credentials_path)),
+        }
+        return bytes(json.dumps(config), "utf-8")
+
+@typechecked
+@dataclass
+class CassandraConfig:
+    keyspace: str
+    host: str
+    port: str
+    username: str
+    password: str
+    consistency: str
+    replication: int
+
+    def software(self) -> str:
+        return "cassandra"
+
+    def type(self) -> str:
+        return "CASSANDRA_ONLINE"
+
+    def serialize(self) -> bytes:
+        config = {
+            "Keyspace": self.keyspace,
+            "Addr": f"{self.host}:{self.port}",
+            "Username": self.username,
+            "Password": self.password,
+            "Consistency": self.consistency,
+            "Replication": self.replication
+        }
+        return bytes(json.dumps(config), "utf-8")
+
+@typechecked
+@dataclass
 class DynamodbConfig:
     region: str
     access_key: str
@@ -95,8 +144,7 @@ class LocalConfig:
         config = {
         }
         return bytes(json.dumps(config), "utf-8")
-
-
+        
 @typechecked
 @dataclass
 class SnowflakeConfig:

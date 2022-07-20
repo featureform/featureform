@@ -9,11 +9,16 @@ description: >-
 
 ## Step 1: Install Featureform
 
+### Requirements
+
+- Python 3.7+
+
 Install the Featureform SDK via Pip.
 
 ```
 pip install featureform
 ```
+
 
 ## Step 2: Download test data
 

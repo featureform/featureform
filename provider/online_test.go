@@ -8,6 +8,7 @@ package provider
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"reflect"
 	"testing"
@@ -55,6 +56,30 @@ func TestOnlineStores(t *testing.T) {
 		Addr: liveAddr,
 	}
 
+	//Cassandra
+	cassandraAddr := "localhost:9042"
+	cassandraUsername := os.Getenv("CASSANDRA_USER")
+	cassandraPassword := os.Getenv("CASSANDRA_PASSWORD")
+	cassandraConfig := &CassandraConfig{
+		Addr:        cassandraAddr,
+		Username:    cassandraUsername,
+		Consistency: "ONE",
+		Password:    cassandraPassword,
+		Replication: 3,
+	}
+
+	//Firestore
+	projectID := os.Getenv("FIRESTORE_PROJECT")
+	firestoreCredentials := os.Getenv("FIRESTORE_CRED")
+	JSONCredentials, err := ioutil.ReadFile(firestoreCredentials)
+	if err != nil {
+		panic(err)
+	}
+	firestoreConfig := &FirestoreConfig{
+		ProjectID:   projectID,
+		Credentials: JSONCredentials,
+	}
+
 	dynamoAccessKey := os.Getenv("DYNAMO_ACCESS_KEY")
 	dynamoSecretKey := os.Getenv("DYNAMO_SECRET_KEY")
 	dynamoConfig := &DynamodbConfig{
@@ -71,6 +96,8 @@ func TestOnlineStores(t *testing.T) {
 		{LocalOnline, []byte{}, false},
 		{RedisOnline, redisMockConfig.Serialized(), false},
 		{RedisOnline, redisLiveConfig.Serialized(), true},
+		{CassandraOnline, cassandraConfig.Serialized(), true},
+		{FirestoreOnline, firestoreConfig.Serialized(), true},
 		{DynamoDBOnline, dynamoConfig.Serialized(), true},
 	}
 	for _, testItem := range testList {
@@ -146,6 +173,7 @@ func testSetGetEntity(t *testing.T, store OnlineStore) {
 	mockFeature, mockVariant := randomFeatureVariant()
 	defer store.DeleteTable(mockFeature, mockVariant)
 	entity, val := "e", "val"
+	defer store.DeleteTable(mockFeature, mockVariant)
 	tab, err := store.CreateTable(mockFeature, mockVariant, String)
 	if err != nil {
 		t.Fatalf("Failed to create table: %s", err)

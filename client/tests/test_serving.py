@@ -1,5 +1,6 @@
 import csv
 import shutil
+import time
 from tempfile import NamedTemporaryFile
 from unittest import TestCase
 import os, stat
@@ -79,7 +80,7 @@ class TestFeaturesE2E(TestCase):
                 expected = case['expected']
                 assert all(elem in expected for elem in res), \
                     "Expected: {} Got: {}".format(expected, res)
-            shutil.rmtree('.featureform', onerror=del_rw)
+            retry_delete()
 
     def test_timestamp_doesnt_exist(self):
         case = {
@@ -117,6 +118,7 @@ class TestFeaturesE2E(TestCase):
             shutil.rmtree('.featureform', onerror=del_rw)
         except:
             print("File Already Removed")
+
 
 def del_rw(action, name, exc):
     os.chmod(name, stat.S_IWRITE)
@@ -161,3 +163,14 @@ def e2e_features(file, entity_name, entity_loc, name_variants, value_cols, entit
     for entity in entities:
         results.append(client.features(name_variants, entity))
     return results
+
+
+def retry_delete():
+    for i in range(0, 100):
+        while True:
+            try:
+                shutil.rmtree('.featureform', onerror=del_rw)
+            except Exception:
+                time.sleep(1)
+                continue
+            break

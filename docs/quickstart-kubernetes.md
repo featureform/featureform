@@ -8,6 +8,11 @@ This quickstart will walk through creating a few simple features, labels, and a 
 
 ## Step 1: Install Featureform client
 
+### Requirements
+
+- Python 3.7+
+
+
 Install the Featureform SDK via Pip.
 
 ```

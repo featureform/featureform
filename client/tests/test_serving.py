@@ -167,10 +167,8 @@ def e2e_features(file, entity_name, entity_loc, name_variants, value_cols, entit
 
 def retry_delete():
     for i in range(0, 100):
-        while True:
-            try:
-                shutil.rmtree('.featureform', onerror=del_rw)
-            except Exception:
-                time.sleep(1)
-                continue
+        try:
+            shutil.rmtree('.featureform', onerror=del_rw)
             break
+        except Exception:
+            time.sleep(1)

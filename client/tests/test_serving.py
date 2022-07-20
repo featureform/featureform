@@ -161,3 +161,16 @@ def e2e_features(file, entity_name, entity_loc, name_variants, value_cols, entit
     for entity in entities:
         results.append(client.features(name_variants, entity))
     return results
+
+
+
+def retry_delete():
+    for i in range(0, 100):
+        try:
+            shutil.rmtree('.featureform', onerror=del_rw)
+            print("Table Deleted")
+            break
+        except Exception:
+            print("Could not delete. Retrying...")
+            time.sleep(1)
+

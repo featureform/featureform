@@ -1,3 +1,6 @@
+//go:build offline
+// +build offline
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -8,14 +11,15 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
-	"github.com/joho/godotenv"
 	"math/rand"
 	"os"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/joho/godotenv"
 )
 
 func TestOfflineStores(t *testing.T) {
@@ -70,10 +74,20 @@ func TestOfflineStores(t *testing.T) {
 	}
 
 	defer func(c RedshiftConfig) {
+		count := 2
 		err := destroyRedshiftDatabase(c)
-		if err != nil {
-			t.Fatalf("%v", err)
+		if err == nil {
+			return
 		}
+		for count > 0 {
+			time.Sleep(time.Second)
+			err := destroyRedshiftDatabase(c)
+			count -= 1
+			if err == nil {
+				return
+			}
+		}
+		t.Fatalf("%v", err)
 	}(redshiftConfig)
 
 	testFns := map[string]func(*testing.T, OfflineStore){

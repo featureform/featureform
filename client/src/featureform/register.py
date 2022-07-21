@@ -813,7 +813,7 @@ class Registrar:
 
 
 class Client(Registrar):
-    def __init__(self, host=None, local=False, tls_verify=True, cert_path=None):
+    def __init__(self, host=None, local=False, insecure=True, cert_path=None):
         super().__init__()
         self.local = local
         if self.local:
@@ -827,7 +827,7 @@ class Client(Registrar):
                     "Host value must be set or in env as FEATUREFORM_HOST")
 
         else:
-            channel = self.tls_check(host, cert_path, not tls_verify)
+            channel = self.tls_check(host, cert_path, insecure)
             self._stub = ff_grpc.ApiStub(channel)
 
         self.apply()

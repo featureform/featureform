@@ -2,7 +2,7 @@ from .register import Client
 from io import StringIO
 from unittest.mock import patch
 
-rc = Client("localhost:8000", False)
+rc = Client("localhost:8000", True, "tls.crt")
 
 def check_print_return(expected_print, expected_return, resource_type):
   rc_list_functions = {

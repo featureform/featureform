@@ -670,7 +670,7 @@ jobs:
         run: rm -r .featureform
 
       - name: Run Unit Tests
-        run: pytest client/tests/test_serving.py -s
+        run: pytest client/tests/serving_test.py -s
 
       - name: Clear SQLite
         continue-on-error: true

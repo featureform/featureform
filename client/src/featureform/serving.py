@@ -93,7 +93,6 @@ class Client:
                 df = self.process_transformation(feature_row[12], feature_row[13])
                 if isinstance(df, pd.Series):
                     df = df.to_frame()
-                    # if feature_row[11] not in df.columns:
                     df.reset_index(inplace=True)
                 if feature_row[10] != "":
                     df = df[[feature_row[9], feature_row[11], feature_row[10]]]

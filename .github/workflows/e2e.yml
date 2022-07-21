@@ -187,7 +187,16 @@ jobs:
           path: /tmp/worker.tar
   test:
     name: Run Tests
-    needs: [api-server, coordinator, dashboard, dashboard-metadata, metadata, serving, worker]
+    needs:
+      [
+        api-server,
+        coordinator,
+        dashboard,
+        dashboard-metadata,
+        metadata,
+        serving,
+        worker,
+      ]
     defaults:
       run:
         working-directory: ./
@@ -226,15 +235,14 @@ jobs:
           curl -LO \
             https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64 \
             && install minikube-linux-amd64 /tmp/
-  
+
             kv=$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)
             curl -LO \
             https://storage.googleapis.com/kubernetes-release/release/$kv/bin/linux/amd64/kubectl \
             && install kubectl /tmp/
-  
+
             /tmp/minikube-linux-amd64 config set WantUpdateNotification false
             /tmp/minikube-linux-amd64 start --driver=docker
-
 
       - name: Configure Docker Socket
         run: eval $(minikube docker-env)
@@ -333,3 +341,88 @@ jobs:
       - name: Feature Server Logs
         if: always()
         run: kubectl logs -l app=featureform-metadata-server
+
+  schedule:
+    runs-on: ubuntu-latest
+    name: Schedule Jobs
+    needs:
+      [
+        api-server,
+        coordinator,
+        dashboard,
+        dashboard-metadata,
+        metadata,
+        serving,
+        worker,
+      ]
+    defaults:
+      run:
+        working-directory: ./
+    steps:
+      - uses: actions/checkout@v2
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+          names: api-server coordinator dashboard dashboard-metadata metadata serving worker
+          path: /tmp
+
+      - name: Check Artifacts
+        run: |
+          ls /tmp
+          ls /tmp/api-server
+
+      - name: Install grpc_tools
+        run: pip install grpcio-tools
+
+      - uses: actions/checkout@v2
+      - name: Install grpc_tools
+        run: pip install grpcio-tools
+
+      - name: Install Protobuf
+        run: sudo snap install protobuf --classic
+
+      - name: Setup Proto
+        run: ./gen_grpc.sh
+      - name: Start minikube
+        uses: medyagh/setup-minikube@master
+      - name: build docker images and add to minikube
+        run: |
+          eval $(minikube docker-env)
+          docker build . --file coordinator/scheduletest/Dockerfile --tag local/scheduletester:stable
+          docker load --input /tmp/metadata/metadata.tar
+          docker load --input /tmp/worker/worker.tar
+          minikube image load local/metadata:stable
+          minikube image load local/worker:stable
+          minikube image load local/scheduletester:stable
+          minikube image ls
+      - name: Set up Helm
+        run: |
+          echo -n "verifying images:"
+          docker images
+          helm repo add jetstack https://charts.jetstack.io
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+          helm repo update
+          helm install certmgr jetstack/cert-manager --set installCRDs=true --version v1.8.0 --namespace cert-manager --create-namespace
+          helm install featureform ./charts/featureform --set global.repo=local --set global.pullPolicy=Never
+          helm install test-quickstart ./charts/quickstart
+          kubectl wait pods --for condition=ready --timeout=300s -l app.kubernetes.io/name=etcd
+          kubectl wait deployments --for condition=Available=True --timeout=300s -l run=featureform-metadata-server   
+          kubectl wait pods --for condition=ready --timeout=300s -l app.kubernetes.io/instance=test-quickstart
+      - name: Deploy schedule tester job
+        run: kubectl apply -f coordinator/scheduletest/runjob.yaml
+      - name: Get pods in the cluster
+        run: kubectl get pods -A
+      - name: Get deployments in cluster
+        run: kubectl get deployments -A
+      - name: Get services in the cluster
+        run: kubectl get services -A
+      - name: Wait until test pod is completed
+        run: kubectl wait job example --for condition=complete --timeout=300s
+      - name: List cron jobs
+        run: kubectl get cronjobs -A
+      - name: List pods
+        run: kubectl get pods -l app=example
+      - name: Get services in the cluster
+        run: kubectl get services -A
+      - name: Get job pods and print logs
+        run: kubectl logs -l job-name=example

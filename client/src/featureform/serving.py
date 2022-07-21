@@ -100,9 +100,7 @@ class Client:
                     df = df[[feature_row[9], feature_row[11]]]
 
                 df.set_index(feature_row[9])
-
                 df.rename(columns={feature_row[11]: name_variant}, inplace=True)
-                feature_df = df
             else:
                 df = pd.read_csv(str(source_row[10]))
                 if featureVariant[2] != "":
@@ -111,16 +109,15 @@ class Client:
                     df = df[[feature_row[9], feature_row[11]]]
                 df.set_index(feature_row[9])
                 df.rename(columns={feature_row[11]: name_variant}, inplace=True)
-                feature_df = df
             if feature_row[10] != "":
-                trainingset_df = pd.merge_asof(trainingset_df, feature_df.sort_values(['ts']), direction='backward',
+                trainingset_df = pd.merge_asof(trainingset_df, df.sort_values(['ts']), direction='backward',
                                                left_on=labelRow[9], right_on=feature_row[10], left_by=labelRow[8],
                                                right_by=feature_row[9])
             else:
-                feature_df.drop_duplicates(subset=[feature_row[9], name_variant])
+                df.drop_duplicates(subset=[feature_row[9], name_variant])
                 trainingset_df[labelRow[8]] = trainingset_df[labelRow[8]].astype('string')
-                feature_df[labelRow[8]] = feature_df[labelRow[8]].astype('string')
-                trainingset_df = trainingset_df.join(feature_df.set_index(labelRow[8]), how="left", on=labelRow[8],
+                df[labelRow[8]] = df[labelRow[8]].astype('string')
+                trainingset_df = trainingset_df.join(df.set_index(labelRow[8]), how="left", on=labelRow[8],
                                                      lsuffix="_left")
 
         if labelRow[9] != "":

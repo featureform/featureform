@@ -1,5 +1,5 @@
 name: Testing
-on: [push, pull_request]
+on: [push]
 
 env:
   TYPESENSE_PORT: 8108

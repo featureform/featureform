@@ -1,6 +1,6 @@
-from .proto import metadata_pb2
+from featureform.proto import metadata_pb2
 import grpc
-from .proto import metadata_pb2_grpc as ff_grpc
+from featureform.proto import metadata_pb2_grpc as ff_grpc
 from .format import *
 
 def get_user_info(stub, name):

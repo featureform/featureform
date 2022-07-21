@@ -6,7 +6,7 @@ import time
 from typing import List, Tuple, Union
 from typeguard import typechecked
 from dataclasses import dataclass
-from .proto import metadata_pb2 as pb
+from featureform.proto import metadata_pb2 as pb
 import grpc
 import json
 from .sqlite_metadata import SQLiteMetadata

@@ -1,4 +1,4 @@
-from .proto import metadata_pb2
+from featureform.proto import metadata_pb2
 from .format import *
 
 def list_name_status(stub, resource_type):

@@ -14,8 +14,8 @@ from typing import Tuple, Callable, List, Union
 from typeguard import typechecked, check_type
 import grpc
 import os
-from .proto import metadata_pb2
-from .proto import metadata_pb2_grpc as ff_grpc
+from featureform.proto import metadata_pb2
+from featureform.proto import metadata_pb2_grpc as ff_grpc
 from .sqlite_metadata import SQLiteMetadata
 import time
 import pandas as pd

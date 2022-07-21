@@ -6,8 +6,8 @@ import marshal
 
 import grpc
 import numpy as np
-from .proto import serving_pb2
-from .proto import serving_pb2_grpc
+from featureform.proto import serving_pb2
+from featureform.proto import serving_pb2_grpc
 import random
 import os
 from .sqlite_metadata import SQLiteMetadata

@@ -228,3 +228,6 @@ class SQLiteMetadata:
         query = "INSERT OR IGNORE INTO " + tablename + " VALUES " + str(args)
         self.__conn.execute(query)
         self.__conn.commit()
+
+    def close(self):
+        self.__conn.close()

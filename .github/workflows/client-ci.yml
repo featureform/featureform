@@ -1,0 +1,19 @@
+name: client-ci 
+on:
+  push:
+    branches:
+      - main
+jobs:
+  clientdocs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: [ '3.7', '3.8', '3.9', '3.10' ]
+      - run: pip install mkdocs-material
+      - run: pip install mkdocs
+      - run: pip install mkdocstrings-python
+      - run: pip install mkdocs-gen-files
+      - run: pip install mkdocs-literate-nav
+      - run: mkdocs gh-deploy --force

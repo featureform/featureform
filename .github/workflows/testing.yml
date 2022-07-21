@@ -665,3 +665,6 @@ jobs:
 
       - name: Run Tests
         run: pytest client/tests/localmode.py
+
+      - name: Run Register Tests
+        run: python client/tests/local_test.py

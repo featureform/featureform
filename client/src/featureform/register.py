@@ -813,24 +813,46 @@ class Registrar:
 
 
 class Client(Registrar):
-    def __init__(self, host, tls_verify=True, cert_path=None):
+    def __init__(self, host=None, local=False, insecure=True, cert_path=None):
         super().__init__()
-        env_cert_path = os.getenv('FEATUREFORM_CERT')
-        if tls_verify:
-            credentials = grpc.ssl_channel_credentials()
-            channel = grpc.secure_channel(host, credentials)
-        elif cert_path is not None or env_cert_path is not None:
-            if env_cert_path is not None and cert_path is None:
-                cert_path = env_cert_path
-            with open(cert_path, 'rb') as f:
+        self.local = local
+        if self.local:
+            if host != None:
+                raise ValueError("Cannot be local and have a host")
+
+        elif host == None:
+            host = os.getenv('FEATUREFORM_HOST')
+            if host == None:
+                raise ValueError(
+                    "Host value must be set or in env as FEATUREFORM_HOST")
+
+        else:
+            channel = self.tls_check(host, cert_path, insecure)
+            self._stub = ff_grpc.ApiStub(channel)
+
+        self.apply()
+
+    def tls_check(self, host, cert, insecure):
+        if insecure:
+            channel = grpc.insecure_channel(
+                host, options=(('grpc.enable_http_proxy', 0),))
+        elif cert != None or os.getenv('FEATUREFORM_CERT') != None:
+            if os.getenv('FEATUREFORM_CERT') != None and cert == None:
+                cert = os.getenv('FEATUREFORM_CERT')
+            with open(cert, 'rb') as f:
                 credentials = grpc.ssl_channel_credentials(f.read())
             channel = grpc.secure_channel(host, credentials)
         else:
-            channel = grpc.insecure_channel(host, options=(('grpc.enable_http_proxy', 0),))
-        self._stub = ff_grpc.ApiStub(channel)
+            credentials = grpc.ssl_channel_credentials()
+            channel = grpc.secure_channel(host, credentials)
+        return channel
 
     def apply(self):
-        self.state().create_all(self._stub)
+        
+        if self.local:
+            state().create_all_local()
+        else:
+            state().create_all(self._stub)
 
 
 global_registrar = Registrar()

@@ -24,6 +24,7 @@ class TestIndividualFeatures(TestCase):
                 actual = dataframe_mapping[0]
                 expected = expected.values.tolist()
                 actual = actual.values.tolist()
+                client.sqldb.close()
                 assert all(elem in expected for elem in actual), \
                     "Expected: {} Got: {}".format(expected, actual)
 
@@ -39,6 +40,7 @@ class TestIndividualFeatures(TestCase):
                 actual = dataframe_mapping[0]
                 expected = expected.values.tolist()
                 actual = actual.values.tolist()
+                client.sqldb.close()
                 assert all(elem in expected for elem in actual), \
                     "Expected: {} Got: {}".format(expected, actual)
 
@@ -49,6 +51,7 @@ class TestIndividualFeatures(TestCase):
         with pytest.raises(KeyError) as err:
             client.process_feature_csv(file_name, case['entity'], case['value_col'], case['name'], [],
                                        "test_name_variant", case['ts_col'])
+        client.sqldb.close()
         assert "column does not exist" in str(err.value)
 
     def test_invalid_value_col(self):
@@ -58,6 +61,7 @@ class TestIndividualFeatures(TestCase):
         with pytest.raises(KeyError) as err:
             client.process_feature_csv(file_name, case['entity'], case['value_col'], case['name'], [],
                                        "test_name_variant", case['ts_col'])
+        client.sqldb.close()
         assert "column does not exist" in str(err.value)
 
     def test_invalid_ts_col(self):
@@ -67,6 +71,7 @@ class TestIndividualFeatures(TestCase):
         with pytest.raises(KeyError) as err:
             client.process_feature_csv(file_name, case['entity'], case['value_col'], case['name'], [],
                                        "test_name_variant", case['ts_col'])
+        client.sqldb.close()
         assert "column does not exist" in str(err.value)
 
 

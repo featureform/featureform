@@ -2,8 +2,6 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-# cofigure.py like definitions.py train.py tests to set the end state - quick start tests
-# use iris model fro serving (serving means reading python files and parsing the data in the backend)
 import time
 from typing import List, Tuple, Union
 from typeguard import typechecked
@@ -57,6 +55,75 @@ class RedisConfig:
         }
         return bytes(json.dumps(config), "utf-8")
 
+@typechecked
+@dataclass
+class FirestoreConfig:
+    collection: str
+    project_id: str
+    credentials_path: str
+
+    def software(self) -> str:
+        return "firestore"
+
+    def type(self) -> str:
+        return "FIRESTORE_ONLINE"
+
+    def serialize(self) -> bytes:
+        config = {
+            "Collection": self.collection,
+            "ProjectID": self.project_id,
+            "Credentials": json.load(open(self.credentials_path)),
+        }
+        return bytes(json.dumps(config), "utf-8")
+
+@typechecked
+@dataclass
+class CassandraConfig:
+    keyspace: str
+    host: str
+    port: str
+    username: str
+    password: str
+    consistency: str
+    replication: int
+
+    def software(self) -> str:
+        return "cassandra"
+
+    def type(self) -> str:
+        return "CASSANDRA_ONLINE"
+
+    def serialize(self) -> bytes:
+        config = {
+            "Keyspace": self.keyspace,
+            "Addr": f"{self.host}:{self.port}",
+            "Username": self.username,
+            "Password": self.password,
+            "Consistency": self.consistency,
+            "Replication": self.replication
+        }
+        return bytes(json.dumps(config), "utf-8")
+
+@typechecked
+@dataclass
+class DynamodbConfig:
+    region: str
+    access_key: str
+    secret_key: str
+
+    def software(self) -> str:
+        return "dynamodb"
+
+    def type(self) -> str:
+        return "DYNAMODB_ONLINE"
+
+    def serialize(self) -> bytes:
+        config = {
+            "Region": self.region,
+            "AccessKey": self.access_key,
+            "SecretKey": self.secret_key
+        }
+        return bytes(json.dumps(config), "utf-8")
 
 # RIDDHI
 @typechecked
@@ -73,8 +140,7 @@ class LocalConfig:
         config = {
         }
         return bytes(json.dumps(config), "utf-8")
-
-
+        
 @typechecked
 @dataclass
 class SnowflakeConfig:
@@ -154,7 +220,7 @@ class RedshiftConfig:
         return bytes(json.dumps(config), "utf-8")
 
 
-Config = Union[RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig]
+Config = Union[RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig]
 
 @typechecked
 @dataclass
@@ -269,7 +335,7 @@ class DFTransformation(Transformation):
 
     def kwargs(self):
         return {
-            "transformation": True,
+            "transformation": 1,
             "inputs": self.inputs
         }
 
@@ -311,10 +377,10 @@ class Source:
         stub.CreateSourceVariant(serialized)
 
     def _create_local(self, db) -> None:
-        is_transformation = False
+        is_transformation = 0
         inputs = []
         if type(self.definition) == DFTransformation:
-            is_transformation = True
+            is_transformation = 1
             inputs = self.definition.inputs
             self.definition = self.definition.query
 

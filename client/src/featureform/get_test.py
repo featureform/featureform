@@ -4,7 +4,7 @@ from unittest.mock import patch
 import re
 import os
 
-rc = Client("localhost:8000", False, "./tls.crt")
+rc = Client("localhost:8000", False, False, "./tls.crt")
 
 def check_print_return(expected_print, expected_return, resource_type):
   rc_get_functions = {
@@ -24,7 +24,6 @@ def check_print_return(expected_print, expected_return, resource_type):
     "training_set_var": [rc.get_training_set, "fraud_training", "quickstart"]
   }
 
-  print(os.getenv('FEATUREFORM_CERT'))
   with patch('sys.stdout', new = StringIO()) as fake_out:
     if resource_type in rc_get_functions:
       value = rc_get_functions[resource_type][0](rc_get_functions[resource_type][1])

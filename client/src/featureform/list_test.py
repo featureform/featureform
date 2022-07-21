@@ -3,7 +3,7 @@ from io import StringIO
 from unittest.mock import patch
 import os
 
-rc = Client("localhost:8000", False, os.getenv('FEATUREFORM_CERT'))
+rc = Client("localhost:8000", False, False, os.getenv('FEATUREFORM_CERT'))
 
 def check_print_return(expected_print, expected_return, resource_type):
   rc_list_functions = {

@@ -169,7 +169,8 @@ def apply(host, cert, insecure, local, files):
         with open(file, "r") as py:
             exec(py.read())
 
-    ResourceClient(host, local, insecure, cert)
+    rc = ResourceClient(host, local, insecure, cert)
+    rc.apply()
 
 
 if __name__ == '__main__':

@@ -827,7 +827,7 @@ class Client(Registrar):
                     "Host value must be set or in env as FEATUREFORM_HOST")
 
         else:
-            channel = self.tls_check(host, cert_path, tls_verify)
+            channel = self.tls_check(host, cert_path, not tls_verify)
             self._stub = ff_grpc.ApiStub(channel)
 
         self.apply()

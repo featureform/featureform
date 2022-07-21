@@ -27,3 +27,7 @@ def test_serving_connection():
     # Checks that the feature server hostname failed to resolve
     except grpc.RpcError as e:
         assert (serving_host in e.details())
+
+
+if __name__ == "__main__":
+    test_serving_connection()

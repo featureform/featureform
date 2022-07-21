@@ -332,6 +332,9 @@ jobs:
         run: |
           kubectl get secret featureform-ca-secret -o=custom-columns=':.data.tls\.crt'| base64 -d > tls.crt
           featureform apply client/examples/quickstart_get.py --host localhost:8000 --cert tls.crt
+      
+      - name: Set Cert as Env Variable
+        run: export FEATUREFORM_CERT=$(pwd)/tls.crt
 
       - name: Run Get Test
         run: pytest client/src/featureform/get_test.py

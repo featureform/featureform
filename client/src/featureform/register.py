@@ -1195,7 +1195,7 @@ class Client(Registrar):
         if tls_verify:
             credentials = grpc.ssl_channel_credentials()
             channel = grpc.secure_channel(host, credentials)
-        elif cert_path is not None or env_cert_path is not None:
+        if cert_path is not None or env_cert_path is not None:
             if env_cert_path is not None and cert_path is None:
                 cert_path = env_cert_path
             with open(cert_path, 'rb') as f:

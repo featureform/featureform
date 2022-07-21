@@ -1,5 +1,7 @@
+from multiprocessing.sharedctypes import Value
 import featureform as ff
 import pandas as pd
+
 local = ff.register_local()
 
 ff.register_user("featureformer").make_default_owner()
@@ -10,6 +12,8 @@ iris = local.register_file(
     description="Iris dataset from Kaggle",
     path="iris.csv"
 )
+
+test_entity = ff.register_entity("id")
 
 @local.df_transformation(variant="v1", inputs=[("Iris dataset", "Kaggle")])
 def base_transformation1(df):
@@ -53,15 +57,11 @@ def transform3(df):
     df = pd.DataFrame({'id':[1, 2, 3], 'value': [True, False, True], 'ts': [.2, .2, .2]})
     return df
 
-
-
 # @local.df_transformation(variant="v1", inputs=[("iris_dataset", "v1"),
 #                                                ("other_dataset", "v1")])
 # def new_transformation(iris, other):
 #     """the number of transactions for each user"""
 #     return iris.join(other.setIndex('ID'))
-
-test_entity = ff.register_entity("id")
 
 transform1.register_resources(
     entity=test_entity,
@@ -120,8 +120,6 @@ transform3.register_resources(
     ],
 )
 
-
-
 user_entity = ff.register_entity("flower")
 
 new_transformation.register_resources(
@@ -153,10 +151,6 @@ join_transformation.register_resources(
     ],
 
 )
-
-
-
-# Register a feature and a label
 iris.register_resources(
     entity=user_entity,
     entity_column="Id",
@@ -171,7 +165,6 @@ iris.register_resources(
     labels=[
         {"name": "SpeciesType", "variant": "String", "column": "Species", "type": "Label"},
     ],
-
 )
 
 ff.register_training_set(
@@ -190,12 +183,39 @@ ff.register_training_set(
     "iris_training", "quickstart",
     label=("SpeciesType", "String"),
     features=[("SepalLength", "centimeters"), ("SepalWidth", "centimeters"), ("PetalLength", "centimeters"),
-              ("PetalWidth", "centimeters"), ("SepalLength", "transformation_test")],
+            ("PetalWidth", "centimeters"), ("SepalLength", "transformation_test")],
 )
 
 ff.register_training_set(
     "join", "v1",
     label=("SpeciesType", "join"),
     features=[("SepalLength", "join"), ("SepalWidth", "join"), ("PetalLength", "join"),
-              ("PetalWidth", "join")],
+            ("PetalWidth", "join")],
 )
+
+client = ff.ResourceClient(local=True)
+client.apply()
+
+ff.register_training_set(
+"join", "v2",
+label=("SpeciesTypo", "join"),
+features=[("SepalLength", "join"), ("SepalWidth", "join"), ("PetalLength", "join"),
+            ("PetalWidth", "join")],
+)
+try:
+    client = ff.ResourceClient(local=True)
+    client.apply()
+except ValueError:
+    print("Label does not exist. Test passed")
+
+ff.register_training_set(
+"join", "v3",
+label=("SpeciesType", "join"),
+features=[("SepalLength", "join"), ("SepalWidth", "join"), ("PetaLength", "join"),
+            ("PetalWidth", "join")],
+)
+try:
+    client = ff.ResourceClient(local=True)
+    client.apply()
+except ValueError:
+    print("Feature does not exist. Test passed")

@@ -576,7 +576,7 @@ jobs:
         env:
           API_ADDRESS: "localhost:7878"
         working-directory: ./client/tests/
-        run: pytest connection_tests.py
+        run: pytest connection_test.py
   schedule:
     runs-on: ubuntu-latest
     name: Schedule Jobs
@@ -673,6 +673,7 @@ jobs:
         run: pytest client/tests/test_serving.py -s
 
       - name: Clear SQLite
+        continue-on-error: true
         run: rm -r .featureform
 
       - name: Run Client Tests

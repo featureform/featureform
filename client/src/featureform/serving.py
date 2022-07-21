@@ -186,7 +186,7 @@ class Client:
                 df.set_index(entity_tuple[0])
                 dataframe_mapping.append(df)
             else:
-                name_variant = "{}.{}".format(featureVariantTuple[0], featureVariantTuple[1])
+                name_variant = f"{featureVariantTuple[0]}.{featureVariantTuple[1]}"
                 dataframe_mapping = self.process_feature_csv(source_row[10], entity_tuple[0], entity_column,
                                                              feature_column_name,
                                                              dataframe_mapping,

@@ -8,13 +8,12 @@ import pandas as pd
 import pytest
 from featureform import ServingClient, ResourceClient
 
-from localmode_cases import features_no_ts, features_with_ts, feature_invalid_entity, feature_invalid_value, \
-    feature_invalid_ts, feature_e2e
+import serving_cases as cases
 
 
 class TestIndividualFeatures(TestCase):
     def test_process_feature_no_ts(self):
-        for name, case in features_no_ts.items():
+        for name, case in cases.features_no_ts.items():
             with self.subTest(name):
                 file_name = create_temp_file(case)
                 client = ServingClient(local=True)
@@ -29,7 +28,7 @@ class TestIndividualFeatures(TestCase):
                     "Expected: {} Got: {}".format(expected, actual)
 
     def test_process_feature_with_ts(self):
-        for name, case in features_with_ts.items():
+        for name, case in cases.features_with_ts.items():
             with self.subTest(msg=name):
                 file_name = create_temp_file(case)
                 client = ServingClient(local=True)
@@ -45,7 +44,7 @@ class TestIndividualFeatures(TestCase):
                     "Expected: {} Got: {}".format(expected, actual)
 
     def test_invalid_entity_col(self):
-        case = feature_invalid_entity
+        case = cases.feature_invalid_entity
         file_name = create_temp_file(case)
         client = ServingClient(local=True)
         with pytest.raises(KeyError) as err:
@@ -55,7 +54,7 @@ class TestIndividualFeatures(TestCase):
         assert "column does not exist" in str(err.value)
 
     def test_invalid_value_col(self):
-        case = feature_invalid_value
+        case = cases.feature_invalid_value
         file_name = create_temp_file(case)
         client = ServingClient(local=True)
         with pytest.raises(KeyError) as err:
@@ -65,7 +64,7 @@ class TestIndividualFeatures(TestCase):
         assert "column does not exist" in str(err.value)
 
     def test_invalid_ts_col(self):
-        case = feature_invalid_ts
+        case = cases.feature_invalid_ts
         file_name = create_temp_file(case)
         client = ServingClient(local=True)
         with pytest.raises(KeyError) as err:
@@ -77,7 +76,7 @@ class TestIndividualFeatures(TestCase):
 
 class TestFeaturesE2E(TestCase):
     def test_features(self):
-        for name, case in feature_e2e.items():
+        for name, case in cases.feature_e2e.items():
             with self.subTest(msg=name):
                 file_name = create_temp_file(case)
                 res = e2e_features(file_name, case['entity'], case['entity_loc'], case['features'], case['value_cols'],
@@ -179,3 +178,4 @@ def retry_delete():
         except Exception:
             print("Could not delete. Retrying...")
             time.sleep(1)
+

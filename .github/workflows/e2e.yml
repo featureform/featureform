@@ -211,7 +211,7 @@ jobs:
 
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.7'
+          python-version: "3.7"
 
       - name: Check Artifacts
         run: |
@@ -385,9 +385,6 @@ jobs:
       - name: Install Protobuf
         run: sudo snap install protobuf --classic
 
-      - name: Configure Docker Socket
-        run: eval $(minikube docker-env)
-
       - name: Setup Proto
         run: ./gen_grpc.sh
 
@@ -404,6 +401,9 @@ jobs:
 
             /tmp/minikube-linux-amd64 config set WantUpdateNotification false
             /tmp/minikube-linux-amd64 start --driver=docker
+
+      - name: Configure Docker Socket
+        run: eval $(minikube docker-env)
 
       - name: build docker images and add to minikube
         run: |

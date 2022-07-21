@@ -381,13 +381,28 @@ jobs:
       - name: Install Protobuf
         run: sudo snap install protobuf --classic
 
+      - name: Configure Docker Socket
+        run: eval $(minikube docker-env)
+
       - name: Setup Proto
         run: ./gen_grpc.sh
+
       - name: Start minikube
-        uses: medyagh/setup-minikube@master
+        run: |
+          curl -LO \
+            https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64 \
+            && install minikube-linux-amd64 /tmp/
+
+            kv=$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)
+            curl -LO \
+            https://storage.googleapis.com/kubernetes-release/release/$kv/bin/linux/amd64/kubectl \
+            && install kubectl /tmp/
+
+            /tmp/minikube-linux-amd64 config set WantUpdateNotification false
+            /tmp/minikube-linux-amd64 start --driver=docker
+
       - name: build docker images and add to minikube
         run: |
-          eval $(minikube docker-env)
           docker build . --file coordinator/scheduletest/Dockerfile --tag local/scheduletester:stable
           docker load --input /tmp/metadata/metadata.tar
           docker load --input /tmp/worker/worker.tar

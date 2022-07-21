@@ -3,7 +3,7 @@ from io import StringIO
 from unittest.mock import patch
 import re
 
-rc = Client("localhost:8000", True, "tls.crt")
+rc = Client("localhost:7000", True, "tls.crt")
 
 def check_print_return(expected_print, expected_return, resource_type):
   rc_get_functions = {

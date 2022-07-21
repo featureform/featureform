@@ -2,8 +2,9 @@ from .register import Client
 from io import StringIO
 from unittest.mock import patch
 import re
+import os
 
-rc = Client("localhost:8000", True, "tls.crt")
+rc = Client("localhost:8000", True, os.getenv('FEATUREFORM_CERT'))
 
 def check_print_return(expected_print, expected_return, resource_type):
   rc_get_functions = {

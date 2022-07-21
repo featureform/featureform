@@ -6,7 +6,7 @@ from unittest import TestCase
 import os, stat
 import pandas as pd
 import pytest
-from featureform import serving, ResourceClient
+from featureform import ServingClient, ResourceClient
 
 from localmode_cases import features_no_ts, features_with_ts, feature_invalid_entity, feature_invalid_value, \
     feature_invalid_ts, feature_e2e
@@ -17,7 +17,7 @@ class TestIndividualFeatures(TestCase):
         for name, case in features_no_ts.items():
             with self.subTest(name):
                 file_name = create_temp_file(case)
-                client = serving.LocalClient()
+                client = ServingClient(local=True)
                 dataframe_mapping = client.process_feature_csv(file_name, case['entity'], case['entity'],
                                                                case['value_col'], [], "test_name_variant", "")
                 expected = pd.DataFrame(case['expected'])
@@ -32,7 +32,7 @@ class TestIndividualFeatures(TestCase):
         for name, case in features_with_ts.items():
             with self.subTest(msg=name):
                 file_name = create_temp_file(case)
-                client = serving.LocalClient()
+                client = ServingClient(local=True)
                 dataframe_mapping = client.process_feature_csv(file_name, case['entity'], case['entity'],
                                                                case['value_col'], [], "test_name_variant",
                                                                case['ts_col'])
@@ -47,7 +47,7 @@ class TestIndividualFeatures(TestCase):
     def test_invalid_entity_col(self):
         case = feature_invalid_entity
         file_name = create_temp_file(case)
-        client = serving.LocalClient()
+        client = ServingClient(local=True)
         with pytest.raises(KeyError) as err:
             client.process_feature_csv(file_name, case['entity'], case['value_col'], case['name'], [],
                                        "test_name_variant", case['ts_col'])
@@ -57,7 +57,7 @@ class TestIndividualFeatures(TestCase):
     def test_invalid_value_col(self):
         case = feature_invalid_value
         file_name = create_temp_file(case)
-        client = serving.LocalClient()
+        client = ServingClient(local=True)
         with pytest.raises(KeyError) as err:
             client.process_feature_csv(file_name, case['entity'], case['value_col'], case['name'], [],
                                        "test_name_variant", case['ts_col'])
@@ -67,7 +67,7 @@ class TestIndividualFeatures(TestCase):
     def test_invalid_ts_col(self):
         case = feature_invalid_ts
         file_name = create_temp_file(case)
-        client = serving.LocalClient()
+        client = ServingClient(local=True)
         with pytest.raises(KeyError) as err:
             client.process_feature_csv(file_name, case['entity'], case['value_col'], case['name'], [],
                                        "test_name_variant", case['ts_col'])
@@ -163,7 +163,7 @@ def e2e_features(file, entity_name, entity_loc, name_variants, value_cols, entit
             timestamp_column=ts_col
         )
     ff.state().create_all_local()
-    client = serving.LocalClient()
+    client = ServingClient(local=True)
     results = []
     for entity in entities:
         results.append(client.features(name_variants, entity))

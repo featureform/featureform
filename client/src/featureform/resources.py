@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from featureform.proto import metadata_pb2 as pb
 import grpc
 import json
+
 from .sqlite_metadata import SQLiteMetadata
 from enum import Enum
 
@@ -659,6 +660,12 @@ class ProviderReference:
                 self.obj = provider
         except grpc._channel._MultiThreadedRendezvous:
             raise ValueError(f"Provider {self.name} of type {self.provider_type} not found.")
+        
+    def _get_local(self, db):
+        local_provider = db.getVariantResource("providers", "local mode", self.name)
+        if local_provider == []:
+            raise ValueError("Local mode provider not found.")
+        self.obj = local_provider
 
 @typechecked
 @dataclass
@@ -682,6 +689,12 @@ class SourceReference:
                 self.obj = source
         except grpc._channel._MultiThreadedRendezvous:
             raise ValueError(f"Source {self.name}, variant {self.variant} not found.")
+    
+    def _get_local(self, db):
+        local_source = db.getNameVariant("source_variant", "name", self.name, "variant", self.variant)
+        if local_source == []:
+            raise ValueError(f"Source {self.name}, variant {self.variant} not found.")
+        self.obj = local_source
 
 @typechecked
 @dataclass
@@ -831,8 +844,12 @@ class ResourceState:
     def create_all_local(self) -> None:
         db = SQLiteMetadata()
         for resource in self.__create_list:
-            print("Creating", resource.name)
-            resource._create_local(db)
+            if resource.operation_type() is OperationType.GET:
+                print("Getting", resource.type(), resource.name)
+                resource._get_local(db)
+            if resource.operation_type() is OperationType.CREATE:
+                print("Creating", resource.type(), resource.name)
+                resource._create_local(db)
         return
 
     def create_all(self, stub) -> None:

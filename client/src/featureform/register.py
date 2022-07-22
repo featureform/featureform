@@ -120,7 +120,6 @@ class LocalProvider:
         self.__registrar = registrar
         self.__provider = provider
         self.sqldb = SQLiteMetadata()
-        self.insert_provider()
 
     def name(self) -> str:
         return self.__provider.name
@@ -468,60 +467,34 @@ class Registrar:
                 "Owner must be set or a default owner must be specified.")
         return owner
 
-    def get_source(self, name, variant):
-        """Get a source.
-
-        **Examples**:
-        ```
-        transactions = get_source("transactions","kaggle")
-        transactions.register_resources(
-            entity=user,
-            entity_column="customerid",
-            labels=[
-                {"name": "fraudulent", "variant": "quickstart", "column": "isfraud", "type": "bool"},
-            ],
-        )
-        ```
-        Args:
-            name (str): Name of source to be retrieved
-            variant (str): Name of variant of source to be retrieved
-
-        Returns:
-            source (ColumnSourceRegistrar): Source
-        """
+    def get_source(self, name, variant, local=False):
         get = SourceReference(name=name, variant=variant, obj=None)
         self.__resources.append(get)
-        fakeDefinition = PrimaryData(location=SQLTable(name=""))
-        fakeSource = Source(name=name,
-                        variant=variant,
-                        definition=fakeDefinition,
-                        owner="",
-                        provider="",
-                        description="")
-        return ColumnSourceRegistrar(self, fakeSource)
+        if local:
+            return LocalSource(self,
+                                name=name,
+                                owner="",
+                                variant=variant,
+                                provider="",
+                                description="")
+        else:
+            fakeDefinition = PrimaryData(location=SQLTable(name=""))
+            fakeSource = Source(name=name,
+                            variant=variant,
+                            definition=fakeDefinition,
+                            owner="",
+                            provider="",
+                            description="")
+            return ColumnSourceRegistrar(self, fakeSource)
+
+    def get_local(self, name):
+        get = ProviderReference(name=name, provider_type="local", obj=None)
+        self.__resources.append(get)
+        fakeConfig = LocalConfig()
+        fakeProvider = Provider(name=name, function="LOCAL_ONLINE", description="", team="", config=fakeConfig)
+        return LocalProvider(self, fakeProvider)
 
     def get_redis(self, name):
-        """Get a Redis provider.
-
-        **Examples**:
-        ```
-        redis = get_redis("redis-quickstart")
-        // Defining a new transformation source with retrieved Redis provider
-        average_user_transaction.register_resources(
-            entity=user,
-            entity_column="user_id",
-            inference_store=redis,
-            features=[
-                {"name": "avg_transactions", "variant": "quickstart", "column": "avg_transaction_amt", "type": "float32"},
-            ],
-        )
-        ```
-        Args:
-            name (str): Name of Redis provider to be retrieved
-
-        Returns:
-            redis (OnlineProvider): Provider
-        """
         get = ProviderReference(name=name, provider_type="redis", obj=None)
         self.__resources.append(get)
         fakeConfig = RedisConfig(host="", port=123, password="", db=123)
@@ -529,24 +502,6 @@ class Registrar:
         return OnlineProvider(self, fakeProvider)
 
     def get_postgres(self, name):
-        """Get a Postgres provider.
-
-        **Examples**:
-        ```
-        postgres = get_postgres("postgres-quickstart")
-        transactions = postgres.register_table(
-            name="transactions",
-            variant="kaggle",
-            description="Fraud Dataset From Kaggle",
-            table="Transactions",  # This is the table's name in Postgres
-        )
-        ```
-        Args:
-            name (str): Name of Postgres provider to be retrieved
-
-        Returns:
-            postgres (OfflineSQLProvider): Provider
-        """
         get = ProviderReference(name=name, provider_type="postgres", obj=None)
         self.__resources.append(get)
         fakeConfig = PostgresConfig(host="", port="", database="", user="", password="")
@@ -554,46 +509,16 @@ class Registrar:
         return OfflineSQLProvider(self, fakeProvider)
 
     def get_snowflake(self, name):
-        """Get a Snowflake provider.
-
-        **Examples**:
-        ```
-        snowflake = get_snowflake("snowflake-quickstart")
-        transactions = snowflake.register_table(
-            name="transactions",
-            variant="kaggle",
-            description="Fraud Dataset From Kaggle",
-            table="Transactions",  # This is the table's name in Postgres
-        )
-        ```
-        Args:
-            name (str): Name of Snowflake provider to be retrieved
-
-        Returns:
-            snowflake (OfflineSQLProvider): Provider
-        """
         get = ProviderReference(name=name, provider_type="snowflake", obj=None)
         self.__resources.append(get)
         fakeConfig = SnowflakeConfig(account="", database="", organization="", username="", password="", schema="")
         fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
         return OfflineSQLProvider(self, fakeProvider)
 
-    def get_entity(self, name):
-        """Get an entity.
-
-        **Examples**:
-        ```
-        user = get_entity("user")
-        ```
-        Args:
-            name (str): Name of Snowflake provider to be retrieved
-
-        Returns:
-            entity (EntityRegistrar): Entity
-        """
+    def get_entity(self, name, local=False):
         get = EntityReference(name=name, obj=None)
-        fakeEntity = Entity(name=name, description="")
         self.__resources.append(get)
+        fakeEntity = Entity(name=name, description="")
         return EntityRegistrar(self, fakeEntity)
 
     def register_redis(self,
@@ -604,29 +529,6 @@ class Registrar:
                        port: int = 6379,
                        password: str = "",
                        db: int = 0):
-        """Register a Redis provider.
-
-        **Examples**:
-        ```   
-        redis = ff.register_redis(
-            name="redis-quickstart",
-            host="quickstart-redis",  # The internal dns name for redis
-            port=6379,
-            description="A Redis deployment we created for the Featureform quickstart"
-        )
-        ```
-        Args:
-            name (str): Name of Redis provider to be registered
-            description (str): Description of Redis provider to be registered
-            team (str): Name of team
-            host (str): Internal DNS name for Redis
-            port (int): Redis port
-            password (str): Redis password
-            db (str): Redis database
-
-        Returns:
-            redis (OnlineProvider): Provider
-        """
         config = RedisConfig(host=host, port=port, password=password, db=db)
         provider = Provider(name=name,
                             function="ONLINE",
@@ -885,7 +787,9 @@ class Registrar:
                             team="team",
                             config=config)
         self.__resources.append(provider)
-        return LocalProvider(self, provider)
+        local_provider = LocalProvider(self, provider)
+        local_provider.insert_provider()
+        return local_provider
 
     def register_primary_data(self,
                               name: str,
@@ -1366,6 +1270,7 @@ sql_transformation = global_registrar.sql_transformation
 register_sql_transformation = global_registrar.register_sql_transformation
 get_entity = global_registrar.get_entity
 get_source = global_registrar.get_source
+get_local = global_registrar.get_local
 get_redis = global_registrar.get_redis
 get_postgres = global_registrar.get_postgres
 get_snowflake = global_registrar.get_snowflake

@@ -341,6 +341,17 @@ jobs:
       
       - name: Run List Test
         run: pytest client/src/featureform/list_test.py
+      
+      - name: Reset Quickstart
+        run: |
+          helm uninstall quickstart
+          helm install quickstart ./charts/quickstart
+          /tmp/etcd-download-test/etcdctl --user=root:secretpassword del "" --prefix
+      
+      - name: Run CLI for Localmode Get and List Functions
+        run: |
+          kubectl get secret featureform-ca-secret -o=custom-columns=':.data.tls\.crt'| base64 -d > tls.crt
+          featureform apply client/examples/local_quickstart_get.py --host localhost:8000 --cert tls.crt
 
       - name: API Server Logs
         if: always()

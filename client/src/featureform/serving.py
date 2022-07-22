@@ -110,6 +110,7 @@ class Client:
                                                right_by=feature_row[9])
             else:
                 df.drop_duplicates(subset=[feature_row[9], name_variant])
+                trainingset_df.reset_index(inplace=True)
                 trainingset_df[labelRow[8]] = trainingset_df[labelRow[8]].astype('string')
                 df[labelRow[8]] = df[labelRow[8]].astype('string')
                 trainingset_df = trainingset_df.join(df.set_index(labelRow[8]), how="left", on=labelRow[8],
@@ -239,8 +240,8 @@ class Client:
         else:
             df = df[[entity_col, value_col]]
         if timestamp_column != "":
-            df = df.sort_values(by=timestamp_column)
-            df = df.drop_duplicates(subset=[entity_col, timestamp_column], keep="last")
+            df.sort_values(by=timestamp_column, inplace=True)
+            df.drop_duplicates(subset=[entity_col, timestamp_column], keep="last", inplace=True)
         df.rename(columns={entity_col: entity_name}, inplace=True)
         df.set_index(entity_name, inplace=True)
         return df

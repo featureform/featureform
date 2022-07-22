@@ -306,3 +306,86 @@ feature_e2e = {
         'ts_col': "ts"
     },
 }
+
+labels = {
+    'Empty': {
+        'columns': ['entity', 'values', 'timestamp'],
+        'values': [],
+        'entity_name': 'entity',
+        'entity_col': 'entity',
+        'value_col': 'values',
+        'expected': pd.DataFrame({'entity':[], 'values':[]}, dtype='object'),
+        'ts_col': ""
+    },
+    'Simple': {
+        'columns': ['entity', 'values', 'timestamp'],
+        'values': [
+            ['a', 1],
+            ['b', 2]
+        ],
+        'entity_name': 'entity',
+        'entity_col': 'entity',
+        'value_col': 'values',
+        'expected': pd.DataFrame(
+            {
+                'entity':['a', 'b'],
+                'values':[1, 2]
+            }
+        ),
+        'ts_col': ""
+    },
+    'DifferentEntityName': {
+        'columns': ['entity', 'values', 'timestamp'],
+        'values': [
+            ['a', 1],
+            ['b', 2]
+        ],
+        'entity_name': 'user',
+        'entity_col': 'entity',
+        'value_col': 'values',
+        'expected': pd.DataFrame(
+            {
+                'user':['a', 'b'],
+                'values':[1, 2]
+            }
+        ),
+        'ts_col': ""
+    },
+    'WithTimestamp': {
+        'columns': ['entity', 'values', 'timestamp'],
+        'values': [
+            ['a', 1, datetime.fromtimestamp(0)],
+            ['b', 2, datetime.fromtimestamp(0)]
+        ],
+        'entity_name': 'entity',
+        'entity_col': 'entity',
+        'value_col': 'values',
+        'expected': pd.DataFrame(
+            {
+                'entity': ['a', 'b'],
+                'values': [1, 2],
+                'timestamp': [str(datetime.fromtimestamp(0)), str(datetime.fromtimestamp(0))]
+            }
+        ),
+        'ts_col': "timestamp"
+    },
+    'WithSameTimestamp': {
+        'columns': ['entity', 'values', 'timestamp'],
+        'values': [
+            ['a', 1, datetime.fromtimestamp(0)],
+            ['b', 2, datetime.fromtimestamp(0)],
+            ['a', 3, datetime.fromtimestamp(0)]
+        ],
+        'entity_name': 'entity',
+        'entity_col': 'entity',
+        'value_col': 'values',
+        'expected': pd.DataFrame(
+            {
+                'entity': ['b', 'a'],
+                'values': [2, 3],
+                'timestamp': [str(datetime.fromtimestamp(0)), str(datetime.fromtimestamp(0))]
+            }
+        ),
+        'ts_col': "timestamp"
+    },
+}

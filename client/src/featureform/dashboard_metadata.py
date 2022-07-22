@@ -40,34 +40,34 @@ def feature_variant(variantData):
     
     for variantRow in variantData:
         featureVariant = FeatureVariantResource(
-                variantRow[0], #created
-                variantRow[1], #description
-                variantRow[2], #entity 
-                variantRow[3], #featureName
-                variantRow[4], #owner
-                variantRow[5], #provider
-                variantRow[6], #dataType
-                variantRow[7], #variantName
-                variantRow[8], #status
-                {"entity": variantRow[9],
-                "value": variantRow[11], #location
-                "timestamp": variantRow[10]},
-                {"Name":variantRow[12],
-                "Variant":variantRow[13]} #source
+                variantRow['created'], #created
+                variantRow['description'], #description
+                variantRow['entity'], #entity 
+                variantRow['featureName'], #featureName
+                variantRow['owner'], #owner
+                variantRow['provider'], #provider
+                variantRow['dataType'], #dataType
+                variantRow['variantName'], #variantName
+                variantRow['status'], #status
+                {"entity": variantRow['sourceEntity'],
+                "value": variantRow['sourceValue'], #location
+                "timestamp": variantRow['sourceTimestamp']},
+                {"Name":variantRow['sourceName'],
+                "Variant":variantRow['sourceVariant']} #source
             ).toDictionary()
 
-        allVariantList.append(variantRow[7])
-        variantsDict[variantRow[7]] = featureVariant
+        allVariantList.append(variantRow['variantName'])
+        variantsDict[variantRow['variantName']] = featureVariant
         variants.append(featureVariant)
     return variantsDict, allVariantList, variants
 
 def features(featureRow):
-    variantData = feature_variant(sqlObject.getVariantResource("feature_variant", "featureName",featureRow[0]))
+    variantData = feature_variant(sqlObject.getVariantResource("feature_variant", "featureName",featureRow['name']))
     #Return an object of the row
     return FeatureResource(
-                featureRow[0], #name
-                featureRow[1], #defaultVariant
-                featureRow[2], #type
+                featureRow['name'], #name
+                featureRow['defaultVariant'], #defaultVariant
+                featureRow['type'], #type
                 variantData[0], #variantsDict
                 variantData[1] #All Variants
             ).toDictionary()
@@ -80,18 +80,18 @@ def training_set_variant(variantData):
     for variantRow in variantData:
         trainingSetVariant = TrainingSetVariantResource(
                 
-                variantRow[0], #created
-                variantRow[1], #description  
-                variantRow[2], #trainingSetName
-                variantRow[3], #owner
-                variantRow[4], #variantName
-                {"Name":variantRow[5],
-                "Variant":variantRow[6]}, #label
-                variantRow[7], #status
-                variant_organiser(feature_variant(getTrainingSetFeatures(variantRow[8]))[2]),
+                variantRow['created'], #created
+                variantRow['description'], #description  
+                variantRow['trainingSetName'], #trainingSetName
+                variantRow['owner'], #owner
+                variantRow['variantName'], #variantName
+                {"Name":variantRow['labelName'],
+                "Variant":variantRow['labelVariant']}, #label
+                variantRow['status'], #status
+                variant_organiser(feature_variant(getTrainingSetFeatures(variantRow['features']))[2]),
             ).toDictionary()
-        allVariantList.append(variantRow[4])
-        variantDict[variantRow[4]] = trainingSetVariant
+        allVariantList.append(variantRow['variantName'])
+        variantDict[variantRow['variantName']] = trainingSetVariant
         variants.append(trainingSetVariant)
 
     return variantDict, allVariantList, variants
@@ -107,11 +107,11 @@ def getTrainingSetFeatures(featureList):
     return featureVariantTuple
 
 def training_sets(rowData):
-    variantData = training_set_variant(sqlObject.getVariantResource("training_set_variant", "trainingSetName", rowData[2]))
+    variantData = training_set_variant(sqlObject.getVariantResource("training_set_variant", "trainingSetName", rowData['name']))
     return TrainingSetResource( 
-                rowData[0], #type
-                rowData[1], #defaultvariant
-                rowData[2], #name
+                rowData['type'], #type
+                rowData['defaultVariant'], #defaultvariant
+                rowData['name'], #name
                 variantData[0], #variantsDict
                 variantData[1] #all variants
             ).toDictionary()
@@ -123,32 +123,32 @@ def source_variant(variantData):
     for variantRow in variantData:
         sourceVariant = SourceVariantResource(
                 
-                variantRow[0], #created
-                variantRow[1], #description
-                variantRow[2], #sourceName
-                variantRow[3], #sourceType
-                variantRow[4], #owner
-                variantRow[5], #provider
-                variantRow[6], #variant
-                variantRow[7], #status
-                variantRow[8], #definition
-                variant_organiser(label_variant(sqlObject.getNameVariant( "label_variant", "sourceName", variantRow[2], "sourceVariant", variantRow[6]))[2]), #labels
-                variant_organiser(feature_variant(sqlObject.getNameVariant( "feature_variant", "sourceName", variantRow[2],"sourceVariant",variantRow[6]))[2]), #features
-                variant_organiser(training_set_variant(sqlObject.getVariantResource( "training_set_variant", "variantName", variantRow[6]))[2]) #training sets
+                variantRow['created'], #created
+                variantRow['description'], #description
+                variantRow['name'], #sourceName
+                variantRow['sourceType'], #sourceType
+                variantRow['owner'], #owner
+                variantRow['provider'], #provider
+                variantRow['variant'], #variant
+                variantRow['status'], #status
+                variantRow['definition'], #definition
+                variant_organiser(label_variant(sqlObject.getNameVariant( "labels_variant", "sourceName", variantRow['name'], "sourceVariant", variantRow['variant']))[2]), #labels
+                variant_organiser(feature_variant(sqlObject.getNameVariant( "feature_variant", "sourceName", variantRow['name'],"sourceVariant",variantRow['variant']))[2]), #features
+                variant_organiser(training_set_variant(sqlObject.getVariantResource( "training_set_variant", "variantName", variantRow['variant']))[2]) #training sets
             ).toDictionary()
-        allVariantList.append(variantRow[2])
-        variantDict[variantRow[6]] = sourceVariant
+        allVariantList.append(variantRow['name'])
+        variantDict[variantRow['variant']] = sourceVariant
         variants.append(sourceVariant)
     
     return variantDict, allVariantList, variants
 
 def sources(rowData):
-    variantData = source_variant(sqlObject.getVariantResource("source_variant", "sourceName", rowData[2]))
+    variantData = source_variant(sqlObject.getVariantResource("source_variant", "sourceName", rowData['name']))
     return SourceResource( 
-                rowData[0], #type
-                rowData[1], #defaultVariant
+                rowData['type'], #type
+                rowData['defaultVariant'], #defaultVariant
                 #source_variant(sqlObject.getNameVariant("source_variant", "sourceName", rowData[2], "variantName", rowData[1]))[0], #defaultvariant
-                rowData[2], #name
+                rowData['name'], #name
                 variantData[0], #variants
                 variantData[1] #all variants
             ).toDictionary()
@@ -159,37 +159,37 @@ def label_variant(variantData):
     variants = []
 
     for variantRow in variantData:
-        labelTuple = str((variantRow[3], variantRow[8]))
+        labelTuple = str((variantRow['labelName'], variantRow['variantName']))
         labelVariant = LabelVariantResource(
-                variantRow[0], #created
-                variantRow[1], #description
-                variantRow[2], #entity
-                variantRow[3], #labelName
-                variantRow[4], #owner
-                variantRow[6], #provider
-                variantRow[7], #dataType
-                variantRow[8], #variantName
-                {"entity": variantRow[8],
-                "value": variantRow[9],
-                "timestamp": variantRow[10]},
-                variantRow[11], #status
-                {"Name":variantRow[12],
-                "Variant":variantRow[13]}, #source
+                variantRow['created'], #created
+                variantRow['description'], #description
+                variantRow['entity'], #entity
+                variantRow['labelName'], #labelName
+                variantRow['owner'], #owner
+                variantRow['provider'], #provider
+                variantRow['dataType'], #dataType
+                variantRow['variantName'], #variantName
+                {"entity": variantRow['sourceEntity'],
+                "value": variantRow['sourceValue'],
+                "timestamp": variantRow['sourceTimestamp']},
+                variantRow['status'], #status
+                {"Name":variantRow['sourceName'],
+                "Variant":variantRow['sourceVariant']}, #source
                 variant_organiser(training_set_variant(sqlObject.getVariantResource( "training_set_variant", "label", labelTuple))[2]) #training sets
             ).toDictionary()
         
-        allVariantList.append(variantRow[7])
-        variantDict[variantRow[7]] = labelVariant
+        allVariantList.append(variantRow['variantName'])
+        variantDict[variantRow['variantName']] = labelVariant
         variants.append(labelVariant)
     return variantDict, allVariantList, variants
 
 def labels(rowData):
-    variantData = label_variant(sqlObject.getVariantResource("label_variant", "labelName", rowData[2]))
+    variantData = label_variant(sqlObject.getVariantResource("label_variant", "labelName", rowData['name']))
     return LabelResource(
                 
-                rowData[0], #type
-                rowData[1], #defaultvariant
-                rowData[2], #name
+                rowData['type'], #type
+                rowData['defaultVariant'], #defaultvariant
+                rowData['name'], #name
                 variantData[0], #variantDict
                 variantData[1] #allVariants
             ).toDictionary()
@@ -197,51 +197,51 @@ def labels(rowData):
 def entities(rowData):
     return EntityResource(
                 
-                rowData[0], #name
-                rowData[1], #type
-                rowData[2], #description
-                rowData[3], #status
-                variant_organiser(feature_variant(sqlObject.getVariantResource( "feature_variant", "entity", rowData[0]))[2]), #features
-                variant_organiser(label_variant(sqlObject.getVariantResource( "label_variant", "entity", rowData[0]))[2]), #labels
-                variant_organiser(training_set_variant(sqlObject.getVariantResource( "training_set_variant", "label", rowData[0]))[2]) #training sets
+                rowData['name'], #name
+                rowData['type'], #type
+                rowData['description'], #description
+                rowData['status'], #status
+                variant_organiser(feature_variant(sqlObject.getVariantResource( "feature_variant", "entity", rowData['name']))[2]), #features
+                variant_organiser(label_variant(sqlObject.getVariantResource( "label_variant", "entity", rowData['name']))[2]), #labels
+                variant_organiser(training_set_variant(sqlObject.getVariantResource( "training_set_variant", "label", rowData['name']))[2]) #training sets
             ).toDictionary()
 
 def models(rowData):
     return ModelResource(
-                rowData[0], #name
-                rowData[1], #type
-                rowData[2], #description
-                rowData[3], #status
-                variant_organiser(feature_variant(sqlObject.getVariantResource( "feature_variant", "featureName", rowData[0]))[2]), #features
-                variant_organiser(label_variant(sqlObject.getVariantResource( "label_variant", "variantName ", rowData[0]))[2]), #labels
-                variant_organiser(training_set_variant(sqlObject.getVariantResource( "training_set_variant", "trainingSetName", rowData[0]))[2]) #training sets
+                rowData['name'], #name
+                rowData['type'], #type
+                rowData['description'], #description
+                rowData['status'], #status
+                variant_organiser(feature_variant(sqlObject.getVariantResource( "feature_variant", "featureName", rowData['name']))[2]), #features
+                variant_organiser(label_variant(sqlObject.getVariantResource( "label_variant", "variantName ", rowData['name']))[2]), #labels
+                variant_organiser(training_set_variant(sqlObject.getVariantResource( "training_set_variant", "trainingSetName", rowData['name']))[2]) #training sets
             ).toDictionary()
 
 def users(rowData):
     return UserResource(
-                rowData[0], #name
-                rowData[1], #type
-                rowData[2],  #status
-                variant_organiser(feature_variant(sqlObject.getVariantResource( "feature_variant", "owner", rowData[0]))[2]), #features
-                variant_organiser(label_variant(sqlObject.getVariantResource( "label_variant", "owner", rowData[0]))[2]), #labels
-                variant_organiser(training_set_variant(sqlObject.getVariantResource( "training_set_variant", "owner", rowData[0]))[2]), #training sets
-                variant_organiser(source_variant(sqlObject.getVariantResource( "source_variant", "owner", rowData[0]))[2]), #training sets
+                rowData['name'], #name
+                rowData['type'], #type
+                rowData['status'],  #status
+                variant_organiser(feature_variant(sqlObject.getVariantResource( "feature_variant", "owner", rowData['name']))[2]), #features
+                variant_organiser(label_variant(sqlObject.getVariantResource( "label_variant", "owner", rowData['name']))[2]), #labels
+                variant_organiser(training_set_variant(sqlObject.getVariantResource( "training_set_variant", "owner", rowData['name']))[2]), #training sets
+                variant_organiser(source_variant(sqlObject.getVariantResource( "source_variant", "owner", rowData['name']))[2]), #training sets
             ).toDictionary()
 
 def providers(rowData):
     return ProviderResource(
                 
-                rowData[0], #name
-                rowData[1], #type
-                rowData[2], #description
-                rowData[3], #provider type
-                rowData[4], #software
-                rowData[5], #team
-                variant_organiser(source_variant(sqlObject.getVariantResource( "source_variant", "provider", rowData[0]))[2]), #sources
-                rowData[7], #status
-                rowData[8],#serialis...
-                variant_organiser(feature_variant(sqlObject.getVariantResource( "feature_variant", "provider", rowData[0]))[2]), #features
-                variant_organiser(label_variant(sqlObject.getVariantResource( "label_variant", "provider", rowData[0]))[2]), #labels
+                rowData['name'], #name
+                rowData['type'], #type
+                rowData['description'], #description
+                rowData['providerType'], #provider type
+                rowData['software'], #software
+                rowData['team'], #team
+                variant_organiser(source_variant(sqlObject.getVariantResource( "source_variant", "provider", rowData['name']))[2]), #sources
+                rowData['status'], #status
+                rowData['serializedConfig'],#serialis...
+                variant_organiser(feature_variant(sqlObject.getVariantResource( "feature_variant", "provider", rowData['name']))[2]), #features
+                variant_organiser(label_variant(sqlObject.getVariantResource( "label_variant", "provider", rowData['name']))[2]), #labels
                 #variant_organiser(training_set_variant(sqlObject.getVariantResource( "training_set_variant", "provider", rowData[0]))[2]), #training sets
             ).toDictionary()
 

@@ -36,6 +36,7 @@ class SQLiteMetadata:
             os.makedirs(self.path)
         raw_conn = sqlite3.connect(self.path + '/metadata.db', check_same_thread=False)
         self.__conn = SyncSQLExecutor(raw_conn)
+        self.__conn.row_factory = sqlite3.Row
         self.createTables()
 
     def createTables(self):

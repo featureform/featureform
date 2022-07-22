@@ -53,16 +53,15 @@ class Client:
     def _local_training_set(self, trainingSetName, trainingSetVariant):
         if not self.local:
             raise ValueError("Only supported in localmode. Please try using dataset()")
-        trainingSetRows = \
+        feature_dataframes = set()
+        dataframe_mapping = {}
+        trainingSetRow = \
             self.sqldb.getNameVariant("training_set_variant", "trainingSetName", trainingSetName, "variantName",
-                                      trainingSetVariant)
-        trainingSetRow = trainingSetRows[0]
-        labelRows = \
+                                      trainingSetVariant)[0]
+        labelRow = \
             self.sqldb.getNameVariant("labels_variant", "labelName", trainingSetRow[5], "variantName",
-                                      trainingSetRow[6])
-        labelRow = labelRows[0]
-        labelSources = self.sqldb.getNameVariant("source_variant", "name", labelRow[12], "variant", labelRow[13])
-        labelSource = labelSources[0]
+                                      trainingSetRow[6])[0]
+        labelSource = self.sqldb.getNameVariant("source_variant", "name", labelRow[12], "variant", labelRow[13])[0]
         if self.sqldb.is_transformation(labelRow[12], labelRow[13]):
             df = self.process_transformation(labelRow[12], labelRow[13])
             if labelRow[9] != "":
@@ -72,7 +71,7 @@ class Client:
             df.set_index(labelRow[8])
             labelDF = df
         else:
-            labelDF = self.processLabelCSV(labelSource[10], labelRow[8], labelRow[10], labelRow[9])
+            labelDF = self.process_label_csv(labelSource[10], labelRow[8], labelRow[8], labelRow[10], labelRow[9])
 
         featureTable = self.sqldb.getNameVariant("training_set_features", "trainingSetName", trainingSetName,
                                                  "trainingSetVariant", trainingSetVariant)
@@ -80,19 +79,18 @@ class Client:
         labelDF.rename(columns={labelRow[10]: 'label'}, inplace=True)
         trainingset_df = labelDF
         for featureVariant in featureTable:
-            feature_rows = self.sqldb.getNameVariant("feature_variant", "featureName", featureVariant[2], "variantName",
-                                                    featureVariant[3])
-            feature_row = feature_rows[0]
+            feature_row = self.sqldb.getNameVariant("feature_variant", "featureName", featureVariant[2], "variantName",
+                                                    featureVariant[3])[0]
 
-            source_rows = \
-                self.sqldb.getNameVariant("source_variant", "name", feature_row[12], "variant", feature_row[13])
-            source_row = source_rows[0]
+            source_row = \
+                self.sqldb.getNameVariant("source_variant", "name", feature_row[12], "variant", feature_row[13])[0]
 
             name_variant = featureVariant[2] + "." + featureVariant[3]
             if self.sqldb.is_transformation(feature_row[12], feature_row[13]):
                 df = self.process_transformation(feature_row[12], feature_row[13])
                 if isinstance(df, pd.Series):
                     df = df.to_frame()
+                    # if feature_row[11] not in df.columns:
                     df.reset_index(inplace=True)
                 if feature_row[10] != "":
                     df = df[[feature_row[9], feature_row[11], feature_row[10]]]
@@ -100,7 +98,9 @@ class Client:
                     df = df[[feature_row[9], feature_row[11]]]
 
                 df.set_index(feature_row[9])
+
                 df.rename(columns={feature_row[11]: name_variant}, inplace=True)
+                feature_df = df
             else:
                 df = pd.read_csv(str(source_row[10]))
                 if featureVariant[2] != "":
@@ -109,15 +109,16 @@ class Client:
                     df = df[[feature_row[9], feature_row[11]]]
                 df.set_index(feature_row[9])
                 df.rename(columns={feature_row[11]: name_variant}, inplace=True)
+                feature_df = df
             if feature_row[10] != "":
-                trainingset_df = pd.merge_asof(trainingset_df, df.sort_values(['ts']), direction='backward',
+                trainingset_df = pd.merge_asof(trainingset_df, feature_df.sort_values(['ts']), direction='backward',
                                                left_on=labelRow[9], right_on=feature_row[10], left_by=labelRow[8],
                                                right_by=feature_row[9])
             else:
-                df.drop_duplicates(subset=[feature_row[9], name_variant])
+                feature_df.drop_duplicates(subset=[feature_row[9], name_variant])
                 trainingset_df[labelRow[8]] = trainingset_df[labelRow[8]].astype('string')
-                df[labelRow[8]] = df[labelRow[8]].astype('string')
-                trainingset_df = trainingset_df.join(df.set_index(labelRow[8]), how="left", on=labelRow[8],
+                feature_df[labelRow[8]] = feature_df[labelRow[8]].astype('string')
+                trainingset_df = trainingset_df.join(feature_df.set_index(labelRow[8]), how="left", on=labelRow[8],
                                                      lsuffix="_left")
 
         if labelRow[9] != "":
@@ -207,23 +208,23 @@ class Client:
         else:
             raise Exception("No matching entities for {}".format(entity_tuple))
 
-    def process_feature_csv(self, source_path, entity_name, entity_loc, value_col_name, dataframe_mapping,
+    def process_feature_csv(self, source_path, entity_name, entity_col, value_col, dataframe_mapping,
                             feature_name_variant, timestamp_column):
         df = pd.read_csv(str(source_path))
-        if entity_loc not in df.columns:
-            raise KeyError("Entity column does not exist: {}".format(entity_loc))
-        if value_col_name not in df.columns:
-            raise KeyError("Value column does not exist: {}".format(value_col_name))
+        if entity_col not in df.columns:
+            raise KeyError("Entity column does not exist: {}".format(entity_col))
+        if value_col not in df.columns:
+            raise KeyError("Value column does not exist: {}".format(value_col))
         if timestamp_column != "" and timestamp_column not in df.columns:
             raise KeyError("Timestamp column does not exist: {}".format(timestamp_column))
         if timestamp_column != "":
-            df = df[[entity_loc, value_col_name, timestamp_column]]
+            df = df[[entity_col, value_col, timestamp_column]]
         else:
-            df = df[[entity_loc, value_col_name]]
-        df.set_index(entity_loc)
+            df = df[[entity_col, value_col]]
+        df.set_index(entity_col)
         if timestamp_column != "":
             df = df.sort_values(by=timestamp_column, ascending=True)
-        df.rename(columns={entity_loc: entity_name, value_col_name: feature_name_variant}, inplace=True)
+        df.rename(columns={entity_col: entity_name, value_col: feature_name_variant}, inplace=True)
         df.drop_duplicates(subset=[entity_name], keep="last", inplace=True)
 
         if timestamp_column != "":
@@ -231,13 +232,23 @@ class Client:
         dataframe_mapping.append(df)
         return dataframe_mapping
 
-    def processLabelCSV(self, source_path, entity_name, labelColumnName, timestamp_column):
+    def process_label_csv(self, source_path, entity_name, entity_col, value_col, timestamp_column):
         df = pd.read_csv(source_path)
+        if entity_col not in df.columns:
+            raise KeyError("Entity column does not exist: {}".format(entity_col))
+        if value_col not in df.columns:
+            raise KeyError("Value column does not exist: {}".format(value_col))
+        if timestamp_column != "" and timestamp_column not in df.columns:
+            raise KeyError("Timestamp column does not exist: {}".format(timestamp_column))
         if timestamp_column != "":
-            df = df[[entity_name, labelColumnName, timestamp_column]]
+            df = df[[entity_col, value_col, timestamp_column]]
         else:
-            df = df[[entity_name, labelColumnName]]
-        df.set_index(entity_name)
+            df = df[[entity_col, value_col]]
+        if timestamp_column != "":
+            df = df.sort_values(by=timestamp_column)
+            df = df.drop_duplicates(subset=[entity_col, timestamp_column], keep="last")
+        df.rename(columns={entity_col: entity_name}, inplace=True)
+        df.set_index(entity_name, inplace=True)
         return df
 
 class Stream:

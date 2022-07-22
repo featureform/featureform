@@ -35,6 +35,7 @@ class SQLiteMetadata:
         if not os.path.exists(self.path):
             os.makedirs(self.path)
         raw_conn = sqlite3.connect(self.path + '/metadata.db', check_same_thread=False)
+        raw_conn.row_factory = sqlite3.Row
         self.__conn = SyncSQLExecutor(raw_conn)
         self.createTables()
 
@@ -228,3 +229,6 @@ class SQLiteMetadata:
         query = "INSERT OR IGNORE INTO " + tablename + " VALUES " + str(args)
         self.__conn.execute(query)
         self.__conn.commit()
+
+    def close(self):
+        self.__conn.close()

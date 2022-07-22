@@ -671,11 +671,8 @@ jobs:
       - name: Download Test Data
         run: curl https://featureform-demo-files.s3.amazonaws.com/transactions.csv -o transactions.csv
 
-      - name: Featureform Apply
-        run: python -m featureform apply client/examples/local_quickstart.py --local
-
       - name: Run Quickstart Test
-        run: pytest client/tests/localmode.py
+        run: pytest client/tests/localmode_quickstart_test.py
 
       - name: Run Register Tests
         run: python client/tests/local_test.py

@@ -1,10 +1,13 @@
+import os
+import shutil
+
 import featureform as ff
 import pandas as pd
 import pytest
 from featureform.resources import ResourceRedefinedError
 
 
-class TestQuickstart:
+class Quickstart:
     file = './transactions.csv'
     entity = 'CustomerID'
     feature_col = 'TransactionAmount'
@@ -68,6 +71,24 @@ class TestQuickstart:
         feature = client.features([(self.feature_name, self.feature_variant)], {self.entity: self.entity_value})
         assert feature == pd.array([self.entity_value])
 
+    @pytest.fixture(autouse=True)
+    def run_before_and_after_tests(tmpdir):
+        """Fixture to execute asserts before and after a test is run"""
+        # Remove any lingering Databases
+        try:
+            client = ff.ServingClient(local=True)
+            client.sqldb.close()
+            shutil.rmtree('.featureform', onerror=del_rw)
+        except:
+            print("File Already Removed")
+        yield
+        try:
+            client = ff.ServingClient(local=True)
+            client.sqldb.close()
+            shutil.rmtree('.featureform', onerror=del_rw)
+        except:
+            print("File Already Removed")
+
 
 def get_label(df: pd.DataFrame, entity, label):
     df = df[[entity, label]]
@@ -111,7 +132,70 @@ def get_training_set_from_file(file, entity, feature_col, label, name_variant):
     training_set_df = get_training_set(label, feature, entity)
     return training_set_df.values.tolist()
 
-class TestLocalMode:
+class TestCLI:
+
+    def test_setup(self):
+        import subprocess
+
+        apply = subprocess.run(['featureform', 'apply', 'client/examples/local_quickstart.py', '--local'])
+        print("The exit code was: %d" % apply.returncode)
+        assert apply.returncode == 0, f"OUT: {apply.stdout}, ERR: {apply.stderr}"
+
+    Test = Quickstart
+
+
+class TestResourceClient:
+
+
+    def test_setup(self):
+        ff.register_user("featureformer").make_default_owner()
+
+        local = ff.register_local()
+
+        transactions = local.register_file(
+            name="transactions",
+            variant="quickstart",
+            description="A dataset of fraudulent transactions",
+            path="transactions.csv"
+        )
+
+        @local.df_transformation(variant="quickstart",
+                                 inputs=[("transactions", "quickstart")])
+        def average_user_transaction(transactions):
+            """the average transaction amount for a user """
+            return transactions.groupby("CustomerID")["TransactionAmount"].mean()
+
+        user = ff.register_entity("user")
+        # Register a column from our transformation as a feature
+        average_user_transaction.register_resources(
+            entity=user,
+            entity_column="CustomerID",
+            inference_store=local,
+            features=[
+                {"name": "avg_transactions", "variant": "quickstart", "column": "TransactionAmount", "type": "float32"},
+            ],
+        )
+        # Register label from our base Transactions table
+        transactions.register_resources(
+            entity=user,
+            entity_column="CustomerID",
+            labels=[
+                {"name": "fraudulent", "variant": "quickstart", "column": "IsFraud", "type": "bool"},
+            ],
+        )
+
+        ff.register_training_set(
+            "fraud_training", "quickstart",
+            label=("fraudulent", "quickstart"),
+            features=[("avg_transactions", "quickstart")],
+        )
+
+        client = ff.ResourceClient(local=True)
+        client.apply()
+
+    Tests = Quickstart
+
+class TestResourcesRedefined:
     def test_duplicate_resources(self):
         ff.register_user("featureformer").make_default_owner()
 
@@ -136,7 +220,7 @@ class TestLocalMode:
         user = ff.register_entity("user")
 
         @local.df_transformation(variant="quickstart",
-                            inputs=[("transactions", "quickstart")])
+                                 inputs=[("transactions", "quickstart")])
         def average_user_transaction(transactions):
             """the average transaction amount for a user """
             return transactions.groupby("CustomerID")["TransactionAmount"].mean()
@@ -208,7 +292,7 @@ class TestLocalMode:
         client.apply()
 
         @local.df_transformation(variant="quickstart",
-                            inputs=[("transactions", "quickstart")])
+                                 inputs=[("transactions", "quickstart")])
         def average_user_transaction(transactions):
             """the average transaction amount for a user """
             return transactions.groupby("CustomerID")["TransactionAmount"].mean()
@@ -265,4 +349,3 @@ class TestLocalMode:
 
         with pytest.raises(ResourceRedefinedError):
             client.apply()
-

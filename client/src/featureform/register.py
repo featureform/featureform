@@ -515,7 +515,7 @@ class Registrar:
         fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
         return OfflineSQLProvider(self, fakeProvider)
 
-    def get_entity(self, name, local=False):
+    def get_entity(self, name):
         get = EntityReference(name=name, obj=None)
         self.__resources.append(get)
         fakeEntity = Entity(name=name, description="")
@@ -781,8 +781,8 @@ class Registrar:
             local (LocalProvider): Provider
         """
         config = LocalConfig()
-        provider = Provider(name="local mode",
-                            function="ONLINE",
+        provider = Provider(name="local-mode",
+                            function="LOCAL_ONLINE",
                             description="This is local mode",
                             team="team",
                             config=config)

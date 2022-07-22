@@ -303,6 +303,18 @@ jobs:
           kubectl get secret featureform-ca-secret -o=custom-columns=':.data.tls\.crt'| base64 -d > tls.crt
           featureform apply client/examples/quickstart.py --host localhost:8000 --cert tls.crt
 
+      - name: Check For Broken Links
+        id: link-report
+        uses: celinekurpershoek/link-checker@master
+        with:
+          # Required:
+          url: "localhost:8000"
+          # optional:
+          honorRobotExclusions: false
+          recursiveLinks: true
+      - name: Print result
+        run: echo "${{steps.link-report.outputs.result}}"
+
       - name: Run Test
         run: pytest client/tests/e2e.py
 

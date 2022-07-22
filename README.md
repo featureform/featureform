@@ -218,6 +218,180 @@ We can use the feature registry to search, monitor, and discover our machine lea
 <br />
 <br />
 
+# Fraud Detection Tutorial
+
+In this quickstart module we will go over installing and using the Featureform API to create a local feature store and use various resources such as features, labels, entities etc. 
+
+Requirements:
+1. Python3
+2. Pip3
+
+Overview:
+Featureform's local mode allows you to use features, labels, entities locally. This includes registering resources, running transformations and viewing them on our interface. Localmode can help you conveniently use featureform's API for data analysis without having to install kubernetes. 
+
+(Is this para required? Can be made more concise)
+Multiple variants of the same feature can be stored using featureform which allowing you to track feature versions. Featureform's data organization methods allow users and teams to reuse and collaborate on different features.
+
+## STEP 1: Installing Featureform's api via pip
+
+```
+!pip3 install featureform
+import featureform as ff
+```
+Here we first install featureform's API using pip and import the featureform class. The imported featureform class is renamed to ff to use throughout our code.
+
+## STEP 2: Setup your feature store
+
+```python
+ff.register_user("featureformer").make_default_owner()
+# conn = sqlite3.connect(".featureform/SQLiteDB/metadata.db", check_same_thread=False)
+# print(conn.execute("SELECT * FROM users;").fetchall())
+local = ff.register_local()
+client = ff.ResourceClient(local=True)
+
+transactions = local.register_file(
+    name="transactions",
+    variant="quickstart",
+    description="A dataset of fraudulent transactions",
+    path="transactions.csv"
+)
+```
+
+From here on we use the featureform API to create and use our own feature store. The code snippet above is used to initalise the feature store by creating your user profile and registering the test database file you will use for the feature store.
+
+First the register_user() function is called using the Featureform package. The parameter passed into the function, "featureformer" is the name of the user we wish to register. Finally, the function make_default_owner() is an optional class which can be called to set this user as the default owner of the feature store.
+
+Finally, the function register_local uses the ff object to create the local feature store and initalise it with default values such as the default owner. The dataset we want to work with is then registered within the local feature store. This is done using the register_filefunction. Here we use a dataset which stores user transaction data to identify whether a transaction is fraudulent. The data is stored in a .csv file.
+
+To use the feature store created a client is required which is created using the ResourceClient function with the default value of local = True passed into the dunction.
+
+## STEP 3: Define data transformations on our dataset
+
+This step shows us how to preform transformations on our data.
+
+```python
+@local.df_transformation(variant="quickstart",
+                         inputs=[("transactions", "quickstart")])
+def average_user_transaction(transactions):
+    """the average transaction amount for a user """
+    return transactions.groupby("CustomerID")["TransactionAmount"].mean()
+```
+
+Featureform's local mode allows you to perform transformations on your data. Transformations is a data manipulation technique which allows you to convert your existing feature data into a different form. This new form is then stored as a new feature and can be used for data analysis and be used by various teams in your organisation.
+
+Here we will transform transaction data to create a new feature which stores the average transaction amount of each customer. In this example we have defined a function which groups transaction amounts by matching customer ID's and returns the average transaction amount of each customer.
+
+## STEP 4: Registering resources (Entity, feature, label)
+
+```python
+user = ff.register_entity("user")
+average_user_transaction.register_resources(
+    entity=user,
+    entity_column="CustomerID",
+    inference_store=local,
+    features=[
+        {"name": "avg_transactions", "variant": "quickstart", "column": "TransactionAmount", "type": "float32"},
+    ],
+)
+
+# Register label from our base Transactions table
+transactions.register_resources(
+    entity=user,
+    entity_column="CustomerID",
+    labels=[
+        {"name": "fraudulent", "variant": "quickstart", "column": "IsFraud", "type": "bool"},
+    ],
+)
+```
+Similar to how we registered a user, we register entities too. We call the register_entity function and provide the name of the entity, "user" as the paramater. An entity is anything that a feature can describe.
+
+Now we come to the most important part of our feature store, registering and defining features!
+
+Features are resources and are thus defined using the register_resources function. This function can be called using any dataset. This can include existing imported dataset tables (stored through register_file) or new dataset tables created through transformations. Here we first create a feature using the new dataset we created through our average_user_transaction transformation.
+
+When registering a feature, establishing the entity for which you want to create the feature is necessary. Here the entity is the customer and the feature we are creating for each customer is their average transaction amount. You could think of the entity as the primary key for the feature. The variable inference_store stores the type of store the feature is being created in. Here it is of local type but it can also be an online store.
+
+Then finally when defining your features, you must do so in a list of dictionaries. Each dictionary can be a different feature and each dictionary has key value pairs. The keys must include:
+
+name: A unique name given by you to identify this feature
+variant: Since each feature can have multiple variants, it makes it more convenient to provoide a different name for each feature's variants.
+column: This is the existing column name in the dataset from which you want to get your feature values.
+type: stores the data type of the feature values
+Defining labels follows the same pattern. In the above example, labels are created from an existing column in our transactions data, and not the newly created transformations data.
+
+## STEP 5: Registering training sets
+
+Register a training set using the labels and features defined earlier
+
+```python
+ff.register_training_set(
+    "fraud_training", "quickstart",
+    label=("fraudulent", "quickstart"),
+    features=[("avg_transactions", "quickstart")],
+)
+```
+
+Once having registered features and labels, you can use them to create a training set for your machine learning model.
+
+Registering a training set is slightly different from registering a label or feature. To do so we use the register_training_set function. This function requires 4 parameters in this exact order:
+
+Training set name: A unique name given by you to identify this training set
+Variant name: Since each training set can have multiple variants, it makes it more convenient to provoide a different name for each training set's variants.
+Labels: One label which you want to use for the training set. This label must inputted in the form of a tuple, where the first value is the label name and second value is the label variant name.
+Features: Each training set can use multiple features. These features are taken in an as a list of tuples. Each element of the list is a tuple which stores the feature name as the first value and feature variant name as the second value.
+The generic syntax is as follows:
+
+```python
+label = ("labelName","labelVariant")
+features=[
+  ("featureName1", "featureVariant1"), 
+  ("featureName2", "featureVariant2"),
+  ("featureName3", "featureVariant3"),
+  ...
+]
+```
+
+## STEP 6: Training a model
+
+```python
+client.apply()
+servingclient = ff.ServingClient(local=True)
+dataset = servingclient.training_set("fraud_training", "quickstart")
+training_dataset = dataset.repeat(9).shuffle(1000).batch(12)
+```
+
+In this step we will be using our registered data to train a model. To train a model, the client must be implemented using the apply function. This client was created in step 3. Additionally, a serving client must be created to serve the data outputted by the model by calling the ServingClient method. The parameter passed into this function will be the constant boolean value True, as this is the tutorial for localmode.
+
+Then we store the data into a dataset variable. We pass the training set name and variant name into the training_set function and call it via the serving client.
+
+To ensure the data being trained is randomized and to prevent errors of confounding variables, we use the repeat, shuffle and batch functions. Each function recevies an integer parameter which determines the number of times the operation is performed on the data.
+
+Finally the shuffled data is printed out and the model is trained.
+
+```python
+from sklearn.linear_model import SGDClassifier
+
+classifier = SGDClassifier(loss='log')
+for feature_batch in training_dataset:
+  X = []
+  y = []
+  for feature_label in feature_batch:
+    X.append(feature_label.features())
+    y.append(feature_label.label())
+  classifier.partial_fit(X, y, [True, False])
+
+# Get first two rows of training data
+print(X)
+samples = X
+sample_answer = y
+print(sample_answer)
+# Make a test prediction
+classifier.predict(samples)
+```
+Finally, we can use the registered features in our training set in a machine learning model. To create our machine learning classification model we import the scikit learn library. The registered features are added to the X axis and the label we want to predict is added to the Y axis.
+
+
+
 # Contributing
 
 * To contribute to Embeddinghub, please check out [Contribution docs](https://github.com/featureform/featureform/blob/main/CONTRIBUTING.md).

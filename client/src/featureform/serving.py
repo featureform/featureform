@@ -119,6 +119,7 @@ class Client:
         if label_row['sourceTimestamp'] != "":
             trainingset_df.drop(columns=label_row['sourceTimestamp'], inplace=True)
         trainingset_df.drop(columns=label_row['sourceEntity'], inplace=True)
+
         label_col = trainingset_df.pop('label')
         trainingset_df = trainingset_df.assign(label=label_col)
         return Dataset.from_list(trainingset_df.values.tolist())
@@ -171,6 +172,7 @@ class Client:
             feature_row = self.sqldb.get_name_variant("feature_variant", "featureName", feature_variant_tuple[0],
                                                     "variantName", feature_variant_tuple[1])[0]
             entity_column, ts_column, feature_column_name, source_name, source_variant = feature_row['sourceEntity'], feature_row['sourceTimestamp'], feature_row['sourceValue'], feature_row['sourceName'], feature_row['sourceVariant']
+
             source_row = self.sqldb.get_name_variant("source_variant", "name", source_name, "variant", source_variant)[0]
             if self.sqldb.is_transformation(source_name, source_variant):
                 df = self.process_transformation(source_name, source_variant)

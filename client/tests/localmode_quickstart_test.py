@@ -4,6 +4,7 @@ import stat
 
 import featureform as ff
 import pandas as pd
+import pytest
 
 class Quickstart:
     file = './transactions.csv'
@@ -69,9 +70,19 @@ class Quickstart:
         feature = client.features([(self.feature_name, self.feature_variant)], {self.entity: self.entity_value})
         assert feature == pd.array([self.entity_value])
 
-    def test_cleanup(tmpdir):
+
+    @pytest.fixture(autouse=True)
+    def run_before_and_after_tests(tmpdir):
+        """Fixture to execute asserts before and after a test is run"""
+        # Remove any lingering Databases
         try:
-            ff.clear_state()
+            client = ff.ServingClient(local=True)
+            client.sqldb.close()
+            shutil.rmtree('.featureform', onerror=del_rw)
+        except:
+            print("File Already Removed")
+        yield
+        try:
             client = ff.ServingClient(local=True)
             client.sqldb.close()
             shutil.rmtree('.featureform', onerror=del_rw)
@@ -186,5 +197,4 @@ class TestResourceClient:
         client = ff.ResourceClient(local=True)
         client.apply()
     Tests = Quickstart
-
 

@@ -20,6 +20,7 @@ from .sqlite_metadata import SQLiteMetadata
 import time
 import pandas as pd
 from .get import *
+from.get_local import *
 from .list import *
 
 NameVariant = Tuple[str, str]
@@ -1095,6 +1096,7 @@ class Registrar:
 class Client(Registrar):
     def __init__(self, host=None, local=False, insecure=True, cert_path=None):
         super().__init__()
+        self._stub = None
         self.local = local
         if self.local:
             if host != None:
@@ -1133,7 +1135,7 @@ class Client(Registrar):
         else:
             state().create_all(self._stub)
 
-    def get_user(self, name):
+    def get_user(self, name, local=False):
         """Get a user. Prints out name of user, and all resources associated with the user.
 
         **Examples:**
@@ -1189,9 +1191,11 @@ class Client(Registrar):
         Returns:
             user (User): User
         """
+        if local:
+            return get_user_info_local(name)
         return get_user_info(self._stub, name)
     
-    def get_entity(self, name):
+    def get_entity(self, name, local=False):
         """Get an entity.
 
         Args:
@@ -1200,6 +1204,8 @@ class Client(Registrar):
         Returns:
             user (User): User that is retrieved.
         """
+        if local:
+            return get_entity_info_local(name)
         return get_entity_info(self._stub, name)
 
     def get_model(self, name):
@@ -1208,22 +1214,34 @@ class Client(Registrar):
     def get_provider(self, name):
         return get_provider_info(self._stub, name)
 
-    def get_feature(self, name, variant=None):
+    def get_feature(self, name, variant=None, local=False):
+        if local:
+            if not variant:
+                return get_resource_info_local("feature", name)
         if not variant:
             return get_resource_info(self._stub, "feature", name)
         return get_feature_variant_info(self._stub, name, variant)
 
-    def get_label(self, name, variant=None):
+    def get_label(self, name, variant=None, local=False):
+        if local:
+            if not variant:
+                return get_resource_info_local("label", name)
         if not variant:
             return get_resource_info(self._stub, "label", name)
         return get_label_variant_info(self._stub, name, variant)
 
-    def get_training_set(self, name, variant=None):
+    def get_training_set(self, name, variant=None, local=False):
+        if local:
+            if not variant:
+                return get_resource_info_local("training-set", name)
         if not variant:
             return get_resource_info(self._stub, "training-set", name)
         return get_training_set_variant_info(self._stub, name, variant)
 
-    def get_source(self, name, variant=None):
+    def get_source(self, name, variant=None, local=False):
+        if local:
+            if not variant:
+                return get_resource_info_local("source", name)
         if not variant:
             return get_resource_info(self._stub, "source", name)
         return get_source_variant_info(self._stub, name, variant)

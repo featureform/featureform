@@ -590,7 +590,7 @@ class Label:
         stub.CreateLabelVariant(serialized)
 
     def _create_local(self, db) -> None:
-        db.insert("labels_variant",
+        db.insert("label_variant",
                   str(time.time()),
                   self.description,
                   self.entity,
@@ -774,7 +774,7 @@ class TrainingSet:
 
     def _check_insert_training_set_resources(self, db) -> None:
         try:
-            db.getNameVariant("labels_variant", "labelName", self.label[0], "variantName", self.label[1])
+            db.getNameVariant("label_variant", "labelName", self.label[0], "variantName", self.label[1])
         except ValueError:
             raise ValueError("{} does not exist. Failed to register training set".format(self.label[0]))
         for feature in self.features:

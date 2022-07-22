@@ -32,6 +32,7 @@ average_user_transaction_get.register_resources(
     inference_store=local,
     features=[
         {"name": "avg_transactions", "variant": "quickstart", "column": "TransactionAmount", "type": "float32"},
+        {"name": "avg_transactions_2", "variant": "quickstart", "column": "TransactionAmount", "type": "float32"},
     ],
 )
 

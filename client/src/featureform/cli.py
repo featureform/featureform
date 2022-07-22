@@ -73,10 +73,7 @@ def get(host, cert, insecure, local, resource_type, name, variant):
             raise ValueError(
                 "Host value must be set with --host flag or in env as FEATUREFORM_HOST")
 
-    if insecure:
-        rc = ResourceClient(host, False)
-    else:
-        rc = ResourceClient(host, True, cert)
+    rc = ResourceClient(host=host, local=local, insecure=insecure, cert_path=cert)
 
     rc_get_functions_variant = {
         "feature": rc.get_feature,
@@ -94,9 +91,9 @@ def get(host, cert, insecure, local, resource_type, name, variant):
     }
 
     if resource_type in rc_get_functions_variant:
-        rc_get_functions_variant[resource_type](name, variant)
+        rc_get_functions_variant[resource_type](name=name, variant=variant, local=local)
     elif resource_type in rc_get_functions:
-        rc_get_functions[resource_type](name)
+        rc_get_functions[resource_type](name=name, local=local)
     else:
         raise ValueError("Resource type not found")
 

@@ -125,7 +125,7 @@ class SQLiteMetadata:
           name           text PRIMARY KEY NOT NULL);''')
 
         # labels variant
-        self.__conn.execute('''CREATE TABLE IF NOT EXISTS labels_variant(
+        self.__conn.execute('''CREATE TABLE IF NOT EXISTS label_variant(
           created         text,
           description     text,
           entity          text,
@@ -197,7 +197,7 @@ class SQLiteMetadata:
         variant_data_list = variant_data.fetchall()
         if len(variant_data_list) == 0:
           raise ValueError("{} with {}: {} not found".format(type, column, resource))
-        return variant_data.fetchall()
+        return variant_data_list
 
     def getNameVariant(self, type, column1, resource1, column2, resource2):
         variant_table_query = "SELECT * FROM " + type + " WHERE " + column1 + "='" + resource1 + "' AND " + column2 + "='" + resource2 + "';"

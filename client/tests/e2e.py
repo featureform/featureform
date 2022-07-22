@@ -3,6 +3,8 @@ import time
 import pytest
 import requests
 
+max_retries = 60
+
 users = [
     {'name': 'featureformer', 'type': 'User', 'features': None, 'labels': None, 'training-sets': None, 'sources': None,
      'status': 'NO_STATUS'}]
@@ -84,7 +86,7 @@ def test_sources():
         req = requests.get("http://localhost:7000/data/sources", json=True)
         json_ret = req.json()
         filtered = remove_timestamps(json_ret)
-        if retries > 20:
+        if retries > max_retries:
             assert (json_ret == training_sets)
         if is_ready(filtered):
             break
@@ -107,7 +109,7 @@ def test_features():
         req = requests.get("http://localhost:7000/data/features", json=True)
         json_ret = req.json()
         filtered = remove_timestamps(json_ret)
-        if retries > 20:
+        if retries > max_retries:
             assert (json_ret == training_sets)
         if is_ready(filtered):
             break
@@ -124,7 +126,7 @@ def test_labels():
         req = requests.get("http://localhost:7000/data/labels", json=True)
         json_ret = req.json()
         filtered = remove_timestamps(json_ret)
-        if retries > 20:
+        if retries > max_retries:
             assert (json_ret == training_sets)
         if is_ready(filtered):
             break
@@ -141,7 +143,7 @@ def test_training_sets():
         req = requests.get("http://localhost:7000/data/training-sets", json=True)
         json_ret = req.json()
         filtered = remove_timestamps(json_ret)
-        if retries > 20:
+        if retries > max_retries:
             assert (json_ret == training_sets)
         if is_ready(filtered):
             break

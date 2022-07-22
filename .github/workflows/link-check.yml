@@ -43,3 +43,20 @@ jobs:
           recursiveLinks: true
       - name: Print result
         run: echo "${{steps.link-report.outputs.result}}"
+
+  demo-link-checker:
+    runs-on: ubuntu-latest
+    name: broken-link-check
+    steps:
+      - name: Check for broken links
+        id: link-report
+        uses: celinekurpershoek/link-checker@master
+        with:
+          # Required:
+          url: "https://demo.featureform.com/"
+          # optional:
+          honorRobotExclusions: false
+          ignorePatterns: "*linkedin*" # Linkedin returns 999 error to web scrapers
+          recursiveLinks: true
+      - name: Print result
+        run: echo "${{steps.link-report.outputs.result}}"

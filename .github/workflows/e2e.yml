@@ -308,7 +308,7 @@ jobs:
         uses: celinekurpershoek/link-checker@master
         with:
           # Required:
-          url: "localhost:8000"
+          url: "localhost:7000"
           # optional:
           honorRobotExclusions: false
           recursiveLinks: true

@@ -197,7 +197,7 @@ class SQLiteMetadata:
         variant_data_list = variant_data.fetchall()
         if len(variant_data_list) == 0:
           raise ValueError("{} with {}: {} not found".format(type, column, resource))
-        return variant_data_list
+        return variant_data.fetchall()
 
     def getNameVariant(self, type, column1, resource1, column2, resource2):
         variant_table_query = "SELECT * FROM " + type + " WHERE " + column1 + "='" + resource1 + "' AND " + column2 + "='" + resource2 + "';"

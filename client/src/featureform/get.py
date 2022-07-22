@@ -8,7 +8,7 @@ def get_user_info(stub, name):
     try:
         for user in stub.GetUsers(iter([searchName])):
             format_rows("USER NAME: ", user.name)
-            format_new_para("")
+            format_new_para()
             format_rows('NAME', 'VARIANT', 'TYPE')
             for f in user.features:
                 format_rows(
@@ -22,7 +22,7 @@ def get_user_info(stub, name):
             for s in user.sources:
                 format_rows(
                     s.name, s.variant, "source")
-            format_new_para("")
+            format_new_para()
             return user
     except grpc._channel._MultiThreadedRendezvous:
         print("User not found.")
@@ -33,7 +33,7 @@ def get_entity_info(stub, name):
         for x in stub.GetEntities(iter([searchName])):
             format_rows([("ENTITY NAME: ", x.name),
             ("STATUS: ", x.status.Status._enum_type.values[x.status.status].name)])
-            format_new_para("")
+            format_new_para()
             format_rows('NAME', 'VARIANT', 'TYPE')
             for f in x.features:
                 format_rows(
@@ -44,7 +44,7 @@ def get_entity_info(stub, name):
             for t in x.trainingsets:
                 format_rows(
                     t.name, t.variant, "training set")
-            format_new_para("")
+            format_new_para()
             return x
     except grpc._channel._MultiThreadedRendezvous:
         print("Entity not found.")
@@ -69,7 +69,7 @@ def get_resource_info(stub, resource_type, name):
             for v in x.variants:
                 if v != x.default_variant:
                     format_rows(v, '')
-            format_new_para("")
+            format_new_para()
             return x
     except grpc._channel._MultiThreadedRendezvous:
         print(f"{resource_type} not found.")
@@ -93,7 +93,7 @@ def get_feature_variant_info(stub, name, variant):
             format_rows("NAME", "VARIANT")
             for t in x.trainingsets:
                 format_rows(t.name, t.variant)
-            format_new_para("")
+            format_new_para()
             return x
     except grpc._channel._MultiThreadedRendezvous:
         print("Feature variant not found.")
@@ -116,7 +116,7 @@ def get_label_variant_info(stub, name, variant):
             format_rows("NAME", "VARIANT")
             for t in x.trainingsets:
                 format_rows(t.name, t.variant)
-            format_new_para("")
+            format_new_para()
             return x
     except grpc._channel._MultiThreadedRendezvous:
         print("Label variant not found.")
@@ -153,7 +153,7 @@ def get_source_variant_info(stub, name, variant):
             format_rows("NAME", "VARIANT")
             for t in x.trainingsets:
                 format_rows(t.name, t.variant)
-            format_new_para("")
+            format_new_para()
             return x
     except grpc._channel._MultiThreadedRendezvous:
         print("Source variant not found.")
@@ -174,7 +174,7 @@ def get_training_set_variant_info(stub, name, variant):
             format_rows("NAME", "VARIANT")
             for f in x.features:
                 format_rows(f.name, f.variant)
-            format_new_para("")
+            format_new_para()
             return x
     except grpc._channel._MultiThreadedRendezvous:
         print("Training set variant not found.")
@@ -205,7 +205,7 @@ def get_provider_info(stub, name):
             format_rows("NAME", "VARIANT")
             for t in x.trainingsets:
                 format_rows(t.name, t.variant)
-            format_new_para("")
+            format_new_para()
             return x
     except grpc._channel._MultiThreadedRendezvous:
         print("Provider not found.")

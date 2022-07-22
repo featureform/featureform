@@ -11,8 +11,6 @@ import grpc
 import numpy as np
 from featureform.proto import serving_pb2
 from featureform.proto import serving_pb2_grpc
-import random
-import os
 import pandas as pd
 from .sqlite_metadata import SQLiteMetadata
 

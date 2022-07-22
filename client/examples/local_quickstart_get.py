@@ -34,8 +34,11 @@ average_user_transaction_get.register_resources(
         {"name": "avg_transactions", "variant": "quickstart", "column": "TransactionAmount", "type": "float32"},
     ],
 )
+
+transactions_get = ff.get_source("transactions", "quickstart", True)
+
 # Register label from our base Transactions table
-transactions.register_resources(
+transactions_get.register_resources(
     entity=user_get,
     entity_column="CustomerID",
     labels=[

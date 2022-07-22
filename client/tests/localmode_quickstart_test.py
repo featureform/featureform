@@ -72,17 +72,7 @@ class Quickstart:
         feature = client.features([(self.feature_name, self.feature_variant)], {self.entity: self.entity_value})
         assert feature == pd.array([self.entity_value])
 
-    @pytest.fixture(autouse=True)
     def run_before_and_after_tests(tmpdir):
-        """Fixture to execute asserts before and after a test is run"""
-        # Remove any lingering Databases
-        try:
-            client = ff.ServingClient(local=True)
-            client.sqldb.close()
-            shutil.rmtree('.featureform', onerror=del_rw)
-        except:
-            print("File Already Removed")
-        yield
         try:
             client = ff.ServingClient(local=True)
             client.sqldb.close()

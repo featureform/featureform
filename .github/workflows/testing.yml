@@ -575,8 +575,8 @@ jobs:
       - name: Testing
         env:
           API_ADDRESS: "localhost:7878"
-        working-directory: ./client/tests
-        run: pytest
+        working-directory: ./client/tests/
+        run: pytest connection_test.py
   schedule:
     runs-on: ubuntu-latest
     name: Schedule Jobs
@@ -663,8 +663,18 @@ jobs:
       - name: Featureform Apply
         run: python -m featureform apply client/examples/local_quickstart.py --local
 
-      - name: Run Tests
+      - name: Run Quickstart Test
         run: pytest client/tests/localmode.py
 
-      - name: Run Register Tests
-        run: python client/tests/local_test.py
+      - name: Clear SQLite
+        run: rm -r .featureform
+
+      - name: Run Unit Tests
+        run: pytest client/tests/serving_test.py -s
+
+      - name: Clear SQLite
+        continue-on-error: true
+        run: rm -r .featureform
+
+      - name: Run Client Tests
+        run: pytest client/tests/local_test.py -s

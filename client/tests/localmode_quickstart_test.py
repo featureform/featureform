@@ -1,5 +1,6 @@
 import os
 import shutil
+import stat
 
 import featureform as ff
 import pandas as pd
@@ -16,7 +17,7 @@ class Quickstart:
     training_set_variant = 'quickstart'
     feature_name = 'avg_transactions'
     feature_variant = 'quickstart'
-    name_variant = feature_name + '.' + feature_variant
+    name_variant = f"{feature_name}.{feature_variant}"
     entity_value = 'C1410926'
     entity_index = 43653
     feature_value = 5000.0
@@ -89,6 +90,9 @@ class Quickstart:
         except:
             print("File Already Removed")
 
+def del_rw(action, name, exc):
+    os.chmod(name, stat.S_IWRITE)
+    os.remove(name)
 
 def get_label(df: pd.DataFrame, entity, label):
     df = df[[entity, label]]

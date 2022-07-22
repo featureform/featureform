@@ -11,8 +11,6 @@ import grpc
 import numpy as np
 from featureform.proto import serving_pb2
 from featureform.proto import serving_pb2_grpc
-import random
-import os
 import pandas as pd
 from .sqlite_metadata import SQLiteMetadata
 
@@ -59,7 +57,7 @@ class Client:
                                       trainingSetVariant)
         trainingSetRow = trainingSetRows[0]
         labelRows = \
-            self.sqldb.getNameVariant("labels_variant", "labelName", trainingSetRow[5], "variantName",
+            self.sqldb.getNameVariant("label_variant", "labelName", trainingSetRow[5], "variantName",
                                       trainingSetRow[6])
         labelRow = labelRows[0]
         labelSources = self.sqldb.getNameVariant("source_variant", "name", labelRow[12], "variant", labelRow[13])

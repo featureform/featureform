@@ -650,12 +650,12 @@ class TrainingSet:
 
     def _check_insert_training_set_resources(self, db) -> None:
         try:
-            db.getNameVariant("labels_variant", "labelName", self.label[0], "variantName", self.label[1])
+            db.get_name_variant("labels_variant", "labelName", self.label[0], "variantName", self.label[1])
         except ValueError:
             raise ValueError("{} does not exist. Failed to register training set".format(self.label[0]))
         for feature in self.features:
             try:
-                db.getNameVariant("feature_variant", "featureName", feature[0], "variantName", feature[1])
+                db.get_name_variant("feature_variant", "featureName", feature[0], "variantName", feature[1])
             except ValueError:
                 raise ValueError("{} does not exist. Failed to register training set".format(feature[0]))
             db.insert(

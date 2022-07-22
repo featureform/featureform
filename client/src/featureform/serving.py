@@ -50,16 +50,16 @@ class Client:
             raise ValueError("Not supported in localmode. Please try using training_set()")
         return Dataset(self._stub).from_stub(name, version)
 
-    def _local_training_set(self, trainingSetName, trainingSetVariant):
+    def _local_training_set(self, training_set_name, training_set_variant):
         if not self.local:
             raise ValueError("Only supported in localmode. Please try using dataset()")
         training_set_row = \
-            self.sqldb.getNameVariant("training_set_variant", "trainingSetName", trainingSetName, "variantName",
-                                      trainingSetVariant)[0]
+            self.sqldb.get_name_variant("training_set_variant", "trainingSetName", training_set_name, "variantName",
+                                      training_set_variant)[0]
         label_row = \
-            self.sqldb.getNameVariant("labels_variant", "labelName", training_set_row['labelName'], "variantName",
+            self.sqldb.get_name_variant("labels_variant", "labelName", training_set_row['labelName'], "variantName",
                                       training_set_row['labelVariant'])[0]
-        label_source = self.sqldb.getNameVariant("source_variant", "name", label_row['sourceName'], "variant", label_row['sourceVariant'])[0]
+        label_source = self.sqldb.get_name_variant("source_variant", "name", label_row['sourceName'], "variant", label_row['sourceVariant'])[0]
         if self.sqldb.is_transformation(label_row['sourceName'], label_row['sourceVariant']):
             df = self.process_transformation(label_row['sourceName'], label_row['sourceVariant'])
             if label_row['sourceTimestamp'] != "":
@@ -71,17 +71,17 @@ class Client:
         else:
             label_df = self.process_label_csv(label_source['definition'], label_row['sourceEntity'], label_row['sourceEntity'], label_row['sourceValue'], label_row['sourceTimestamp'])
 
-        feature_table = self.sqldb.getNameVariant("training_set_features", "trainingSetName", trainingSetName,
-                                                 "trainingSetVariant", trainingSetVariant)
+        feature_table = self.sqldb.get_name_variant("training_set_features", "trainingSetName", training_set_name,
+                                                 "trainingSetVariant", training_set_variant)
 
         label_df.rename(columns={label_row['sourceValue']: 'label'}, inplace=True)
         trainingset_df = label_df
         for feature_variant in feature_table:
-            feature_row = self.sqldb.getNameVariant("feature_variant", "featureName", feature_variant['featureName'], "variantName",
+            feature_row = self.sqldb.get_name_variant("feature_variant", "featureName", feature_variant['featureName'], "variantName",
                                                     feature_variant['featureVariant'])[0]
 
             source_row = \
-                self.sqldb.getNameVariant("source_variant", "name", feature_row['sourceName'], "variant", feature_row['sourceVariant'])[0]
+                self.sqldb.get_name_variant("source_variant", "name", feature_row['sourceName'], "variant", feature_row['sourceVariant'])[0]
 
             name_variant = feature_variant['featureName'] + "." + feature_variant['featureVariant']
             if self.sqldb.is_transformation(feature_row['sourceName'], feature_row['sourceVariant']):
@@ -143,7 +143,7 @@ class Client:
         return [parse_proto_value(val) for val in resp.values]
 
     def process_transformation(self, name, variant):
-        source_row = self.sqldb.getNameVariant("source_variant", "name", name, "variant", variant)[0]
+        source_row = self.sqldb.get_name_variant("source_variant", "name", name, "variant", variant)[0]
         inputs = json.loads(source_row['inputs'])
         dataframes = []
         code = marshal.loads(bytearray(source_row['definition']))
@@ -155,7 +155,7 @@ class Client:
                 dataframes.append(df)
             else:
                 source_row = \
-                    self.sqldb.getNameVariant("source_variant", "name", source_name, "variant", source_variant)[0]
+                    self.sqldb.get_name_variant("source_variant", "name", source_name, "variant", source_variant)[0]
                 df = pd.read_csv(str(source_row['definition']))
                 dataframes.append(df)
         new_data = func(*dataframes)
@@ -166,12 +166,12 @@ class Client:
             raise Exception("No features provided")
         dataframe_mapping = []
         all_feature_df = None
-        for featureVariantTuple in feature_variant_list:
+        for feature_variant_tuple in feature_variant_list:
 
-            feature_row = self.sqldb.getNameVariant("feature_variant", "featureName", featureVariantTuple[0],
-                                                    "variantName", featureVariantTuple[1])[0]
+            feature_row = self.sqldb.get_name_variant("feature_variant", "featureName", feature_variant_tuple[0],
+                                                    "variantName", feature_variant_tuple[1])[0]
             entity_column, ts_column, feature_column_name, source_name, source_variant = feature_row['sourceEntity'], feature_row['sourceTimestamp'], feature_row['sourceValue'], feature_row['sourceName'], feature_row['sourceVariant']
-            source_row = self.sqldb.getNameVariant("source_variant", "name", source_name, "variant", source_variant)[0]
+            source_row = self.sqldb.get_name_variant("source_variant", "name", source_name, "variant", source_variant)[0]
             if self.sqldb.is_transformation(source_name, source_variant):
                 df = self.process_transformation(source_name, source_variant)
                 if isinstance(df, pd.Series):
@@ -181,7 +181,7 @@ class Client:
                 df.set_index(entity_tuple[0])
                 dataframe_mapping.append(df)
             else:
-                name_variant = f"{featureVariantTuple[0]}.{featureVariantTuple[1]}"
+                name_variant = f"{feature_variant_tuple[0]}.{feature_variant_tuple[1]}"
                 dataframe_mapping = self.process_feature_csv(source_row['definition'], entity_tuple[0], entity_column,
                                                              feature_column_name,
                                                              dataframe_mapping,

@@ -184,13 +184,13 @@ class SQLiteMetadata:
 
         self.__conn.commit()
 
-    def getTypeTable(self, type):
+    def get_type_table(self, type):
         query = "SELECT * FROM " + type
         type_data = self.__conn.execute(query)
         self.__conn.commit()
         return type_data.fetchall()
 
-    def getVariantResource(self, type, column, resource):
+    def get_variant_resource(self, type, column, resource):
         variant_table_query = "SELECT * FROM " + type + " WHERE " + column + "='" + resource + "';"
         variant_data = self.__conn.execute(variant_table_query)
         self.__conn.commit()
@@ -199,7 +199,7 @@ class SQLiteMetadata:
           raise ValueError("{} with {}: {} not found".format(type, column, resource))
         return variant_data.fetchall()
 
-    def getNameVariant(self, type, column1, resource1, column2, resource2):
+    def get_name_variant(self, type, column1, resource1, column2, resource2):
         variant_table_query = "SELECT * FROM " + type + " WHERE " + column1 + "='" + resource1 + "' AND " + column2 + "='" + resource2 + "';"
         variant_data = self.__conn.execute(variant_table_query)
         self.__conn.commit()

@@ -10,9 +10,15 @@ from featureform.proto import metadata_pb2 as pb
 import grpc
 import json
 from .sqlite_metadata import SQLiteMetadata
+from enum import Enum
 
 NameVariant = Tuple[str, str]
 
+@typechecked
+@dataclass
+class OperationType(Enum):
+    GET = 0
+    CREATE = 1
 
 @typechecked
 def valid_name_variant(nvar: NameVariant) -> bool:
@@ -27,8 +33,8 @@ class Schedule:
     schedule_string: str
 
     @staticmethod
-    def operation_type() -> str:
-        return "create"
+    def operation_type() -> OperationType:
+        return OperationType.CREATE
 
     def type(self) -> str:
         return "schedule"
@@ -239,8 +245,8 @@ class Provider:
         self.software = self.config.software()
 
     @staticmethod
-    def operation_type() -> str:
-        return "create"
+    def operation_type() -> OperationType:
+        return OperationType.CREATE
 
     @staticmethod
     def type() -> str:
@@ -277,8 +283,8 @@ class User:
     name: str
 
     @staticmethod
-    def operation_type() -> str:
-        return "create"
+    def operation_type() -> OperationType:
+        return OperationType.CREATE
 
     def type(self) -> str:
         return "user"
@@ -372,8 +378,8 @@ class Source:
         self.schedule = schedule
 
     @staticmethod
-    def operation_type() -> str:
-        return "create"
+    def operation_type() -> OperationType:
+        return OperationType.CREATE
 
     @staticmethod
     def type() -> str:
@@ -431,8 +437,8 @@ class Entity:
     description: str
 
     @staticmethod
-    def operation_type() -> str:
-        return "create"
+    def operation_type() -> OperationType:
+        return OperationType.CREATE
 
     @staticmethod
     def type() -> str:
@@ -492,8 +498,8 @@ class Feature:
         self.schedule = schedule
 
     @staticmethod
-    def operation_type() -> str:
-        return "create"
+    def operation_type() -> OperationType:
+        return OperationType.CREATE
 
     @staticmethod
     def type() -> str:
@@ -559,8 +565,8 @@ class Label:
     location: ResourceLocation
 
     @staticmethod
-    def operation_type() -> str:
-        return "create"
+    def operation_type() -> OperationType:
+        return OperationType.CREATE
 
     @staticmethod
     def type() -> str:
@@ -616,8 +622,8 @@ class EntityReference:
     obj: Union[Entity, None]
 
     @staticmethod
-    def operation_type() -> str:
-        return "get"
+    def operation_type() -> OperationType:
+        return OperationType.GET
 
     @staticmethod
     def type() -> str:
@@ -639,8 +645,8 @@ class ProviderReference:
     obj: Union[Provider, None]
 
     @staticmethod
-    def operation_type() -> str:
-        return "get"
+    def operation_type() -> OperationType:
+        return OperationType.GET
 
     @staticmethod
     def type() -> str:
@@ -662,8 +668,8 @@ class SourceReference:
     obj: Union[Source, None]
 
     @staticmethod
-    def operation_type() -> str:
-        return "get"
+    def operation_type() -> OperationType:
+        return OperationType.GET
 
     @staticmethod
     def type() -> str:
@@ -703,8 +709,8 @@ class TrainingSet:
                 raise ValueError("Invalid Feature")
 
     @staticmethod
-    def operation_type() -> str:
-        return "create"
+    def operation_type() -> OperationType:
+        return OperationType.CREATE
 
     @staticmethod
     def type() -> str:
@@ -790,9 +796,9 @@ class ResourceState:
     @typechecked
     def add(self, resource: Resource) -> None:
         if hasattr(resource, 'variant'):
-            key = (resource.operation_type(), resource.type(), resource.name, resource.variant)
+            key = (resource.operation_type().name, resource.type(), resource.name, resource.variant)
         else:
-            key = (resource.operation_type(), resource.type(), resource.name)
+            key = (resource.operation_type().name, resource.type(), resource.name)
         if key in self.__state:
             raise ResourceRedefinedError(resource)
         self.__state[key] = resource
@@ -832,10 +838,10 @@ class ResourceState:
     def create_all(self, stub) -> None:
         for resource in self.__create_list:
             try:
-                if resource.operation_type() == "get":
+                if resource.operation_type() is OperationType.GET:
                     print("Getting", resource.type(), resource.name)
                     resource._get(stub)
-                if resource.operation_type() == "create":
+                if resource.operation_type() is OperationType.CREATE:
                     print("Creating", resource.type(), resource.name)
                     resource._create(stub)
             except grpc.RpcError as e:

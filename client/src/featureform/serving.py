@@ -53,8 +53,6 @@ class Client:
     def _local_training_set(self, trainingSetName, trainingSetVariant):
         if not self.local:
             raise ValueError("Only supported in localmode. Please try using dataset()")
-        feature_dataframes = set()
-        dataframe_mapping = {}
         trainingSetRow = \
             self.sqldb.getNameVariant("training_set_variant", "trainingSetName", trainingSetName, "variantName",
                                       trainingSetVariant)[0]
@@ -90,7 +88,6 @@ class Client:
                 df = self.process_transformation(feature_row[12], feature_row[13])
                 if isinstance(df, pd.Series):
                     df = df.to_frame()
-                    # if feature_row[11] not in df.columns:
                     df.reset_index(inplace=True)
                 if feature_row[10] != "":
                     df = df[[feature_row[9], feature_row[11], feature_row[10]]]
@@ -98,9 +95,7 @@ class Client:
                     df = df[[feature_row[9], feature_row[11]]]
 
                 df.set_index(feature_row[9])
-
                 df.rename(columns={feature_row[11]: name_variant}, inplace=True)
-                feature_df = df
             else:
                 df = pd.read_csv(str(source_row[10]))
                 if featureVariant[2] != "":
@@ -109,16 +104,15 @@ class Client:
                     df = df[[feature_row[9], feature_row[11]]]
                 df.set_index(feature_row[9])
                 df.rename(columns={feature_row[11]: name_variant}, inplace=True)
-                feature_df = df
             if feature_row[10] != "":
-                trainingset_df = pd.merge_asof(trainingset_df, feature_df.sort_values(['ts']), direction='backward',
+                trainingset_df = pd.merge_asof(trainingset_df, df.sort_values(['ts']), direction='backward',
                                                left_on=labelRow[9], right_on=feature_row[10], left_by=labelRow[8],
                                                right_by=feature_row[9])
             else:
-                feature_df.drop_duplicates(subset=[feature_row[9], name_variant])
+                df.drop_duplicates(subset=[feature_row[9], name_variant])
                 trainingset_df[labelRow[8]] = trainingset_df[labelRow[8]].astype('string')
-                feature_df[labelRow[8]] = feature_df[labelRow[8]].astype('string')
-                trainingset_df = trainingset_df.join(feature_df.set_index(labelRow[8]), how="left", on=labelRow[8],
+                df[labelRow[8]] = df[labelRow[8]].astype('string')
+                trainingset_df = trainingset_df.join(df.set_index(labelRow[8]), how="left", on=labelRow[8],
                                                      lsuffix="_left")
 
         if labelRow[9] != "":
@@ -212,11 +206,11 @@ class Client:
                             feature_name_variant, timestamp_column):
         df = pd.read_csv(str(source_path))
         if entity_col not in df.columns:
-            raise KeyError("Entity column does not exist: {}".format(entity_col))
+            raise KeyError(f"Entity column does not exist: {entity_col}")
         if value_col not in df.columns:
-            raise KeyError("Value column does not exist: {}".format(value_col))
+            raise KeyError(f"Value column does not exist: {value_col}")
         if timestamp_column != "" and timestamp_column not in df.columns:
-            raise KeyError("Timestamp column does not exist: {}".format(timestamp_column))
+            raise KeyError(f"Timestamp column does not exist: {timestamp_column}")
         if timestamp_column != "":
             df = df[[entity_col, value_col, timestamp_column]]
         else:
@@ -235,11 +229,11 @@ class Client:
     def process_label_csv(self, source_path, entity_name, entity_col, value_col, timestamp_column):
         df = pd.read_csv(source_path)
         if entity_col not in df.columns:
-            raise KeyError("Entity column does not exist: {}".format(entity_col))
+            raise KeyError(f"Entity column does not exist: {entity_col}")
         if value_col not in df.columns:
-            raise KeyError("Value column does not exist: {}".format(value_col))
+            raise KeyError(f"Value column does not exist: {value_col}")
         if timestamp_column != "" and timestamp_column not in df.columns:
-            raise KeyError("Timestamp column does not exist: {}".format(timestamp_column))
+            raise KeyError(f"Timestamp column does not exist: {timestamp_column}")
         if timestamp_column != "":
             df = df[[entity_col, value_col, timestamp_column]]
         else:

@@ -4,7 +4,7 @@ from unittest.mock import patch
 import re
 import os
 
-rc = Client("localhost:8000", False, False, os.getenv('FEATUREFORM_CERT'))
+rc = Client("localhost:8000", False, False, './tls.cert')
 
 def check_print_return(expected_print, expected_return, resource_type):
   rc_get_functions = {

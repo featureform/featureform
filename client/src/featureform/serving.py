@@ -9,10 +9,9 @@ import types
 
 import grpc
 import numpy as np
+from featureform.proto import serving_pb2
+from featureform.proto import serving_pb2_grpc
 import pandas as pd
-
-from .proto import serving_pb2
-from .proto import serving_pb2_grpc
 from .sqlite_metadata import SQLiteMetadata
 
 

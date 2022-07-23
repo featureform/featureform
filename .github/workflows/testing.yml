@@ -666,6 +666,9 @@ jobs:
       - name: Run Quickstart Test
         run: pytest client/tests/localmode.py
 
+      - name: Run Register Tests
+        run: python client/tests/local_test.py
+
       - name: Clear SQLite
         run: rm -r .featureform
 
@@ -678,3 +681,4 @@ jobs:
 
       - name: Run Client Tests
         run: pytest client/tests/local_test.py -s
+        

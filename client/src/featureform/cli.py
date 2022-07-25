@@ -24,8 +24,6 @@ resource_types = [
 ]
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
-env_host = os.getenv('HOST')
-env_cert = os.getenv('CERT')
 
 @click.group(context_settings=CONTEXT_SETTINGS)
 def cli():
@@ -64,10 +62,6 @@ def cli():
 def get(host, cert, insecure, local, resource_type, name, variant):
     """Get resources of a given type.
     """ 
-    if not local and env_host:
-        host = env_host
-    if not local and env_cert:
-        cert = env_cert
     if local:
         if host != None:
             raise ValueError("Cannot be local and have a host")
@@ -122,10 +116,6 @@ def get(host, cert, insecure, local, resource_type, name, variant):
               help="Enable local mode")
 @click.argument("resource_type", required=True)
 def list(host, cert, insecure, local, resource_type):
-    if not local and env_host:
-        host = env_host
-    if not local and env_cert:
-        cert = env_cert
     if local:
         if host != None:
             raise ValueError("Cannot be local and have a host")
@@ -174,11 +164,6 @@ def list(host, cert, insecure, local, resource_type):
               is_flag=True,
               help="Enable local mode")
 def apply(host, cert, insecure, local, files):
-    if not local and env_host:
-        host = env_host
-    if not local and env_cert:
-        cert = env_cert
-
     for file in files:
         with open(file, "r") as py:
             exec(py.read())

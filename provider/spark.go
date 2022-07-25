@@ -1,6 +1,11 @@
 package provider
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"os"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/emr"
@@ -104,15 +109,15 @@ func spark(config SerializedConfig) (Provider, error) {
 	if err := sc.Deserialize(config); err != nil {
 		return nil, fmt.Errorf("invalid spark config: %v", config)
 	}
-	exec, err := NewSparkExecutor(sc.ExecutorType, sc.ExecutorConfig)
+	exec, err := NewSparkExecutor(sc.ExecutorType, SerializedConfig(sc.ExecutorConfig))
 	if err != nil {
 		return nil, err
 	}
-	store, err := NewSparkStore(sc.StoreType, sc.StoreConfig)
+	store, err := NewSparkStore(sc.StoreType, SerializedConfig(sc.StoreConfig))
 	if err != nil {
 		return nil, err
 	}
-	if err != store.UploadSparkScript(); err != nil {
+	if err := store.UploadSparkScript(); err != nil {
 		return nil, err
 	}
 	queries := sparkSQLQueries{}
@@ -120,7 +125,7 @@ func spark(config SerializedConfig) (Provider, error) {
 		Executor: exec,
 		Store:    store,
 		query:    &queries,
-		BaseProvider{
+		BaseProvider: BaseProvider{
 			ProviderType:   SparkOffline,
 			ProviderConfig: config,
 		},
@@ -154,15 +159,15 @@ type S3Store struct {
 
 func (s *S3Store) UploadSparkScript() error {
 	var sparkScriptPath string
-	sparkScriptPath, ok := os.Lookupenv("SPARK_SCRIPT_PATH")
+	sparkScriptPath, ok := os.LookupEnv("SPARK_SCRIPT_PATH")
 	if !ok {
-		sparkScriptPath := "./scripts/offline_store_spark_runner.py"
+		sparkScriptPath = "./scripts/offline_store_spark_runner.py"
 	}
 	scriptFile, err := os.Open(sparkScriptPath)
 	if err != nil {
 		return err
 	}
-	_, err := bucket.client.PutObject(context.TODO(), s3.PutObjectInput{
+	_, err = s.client.PutObject(context.TODO(), &s3.PutObjectInput{
 		Bucket: aws.String(s.bucketPath),
 		Key:    aws.String("featureform/scripts/offline_store_spark_runner.py"),
 		Body:   scriptFile,
@@ -170,13 +175,14 @@ func (s *S3Store) UploadSparkScript() error {
 	if err != nil {
 		return err
 	}
+	return nil
 }
 
 func (s *S3Store) ResourcePath(id ResourceID) (string, error) {
-	return nil, nil
+	return "", nil
 }
 
-func NewSparkExecutor(execType string, config string) (SparkExecutor, error) {
+func NewSparkExecutor(execType SparkExecutorType, config SerializedConfig) (SparkExecutor, error) {
 	if execType == EMR {
 		emrConf := EMRConfig{}
 		if err := emrConf.Deserialize(config); err != nil {
@@ -184,18 +190,19 @@ func NewSparkExecutor(execType string, config string) (SparkExecutor, error) {
 		}
 		client := emr.New(emr.Options{
 			Region:      emrConf.ClusterRegion,
-			Credentials: aws.NewCredentialsCache(credentials.NewStaticCredentialsProvider(emrConf.AWSAccessKeyId, emrConf.AWSSecretKey)),
+			Credentials: aws.NewCredentialsCache(credentials.NewStaticCredentialsProvider(emrConf.AWSAccessKeyId, emrConf.AWSSecretKey, "")),
 		})
 
 		emrExecutor := EMRExecutor{
 			client:      client,
-			clusterName: emrConf.CluserName,
+			clusterName: emrConf.ClusterName,
 		}
 		return &emrExecutor, nil
 	}
+	return nil, nil
 }
 
-func NewSparkStore(storeType string, config string) (SparkStore, error) {
+func NewSparkStore(storeType SparkStoreType, config SerializedConfig) (SparkStore, error) {
 	if storeType == S3 {
 		s3Conf := S3Config{}
 		if err := s3Conf.Deserialize(config); err != nil {
@@ -203,18 +210,17 @@ func NewSparkStore(storeType string, config string) (SparkStore, error) {
 		}
 		client := s3.New(s3.Options{
 			Region:      s3Conf.BucketRegion,
-			Credentials: aws.NewCredentialsCache(credentials.NewStaticCredentialsProvider(s3Conf.AWSAccessKeyId, s3Conf.AWSSecretKey)),
+			Credentials: aws.NewCredentialsCache(credentials.NewStaticCredentialsProvider(s3Conf.AWSAccessKeyId, s3Conf.AWSSecretKey, "")),
 		})
-		s3Store := EMRExecutor{
+		s3Store := S3Store{
 			client:     client,
 			region:     s3Conf.BucketRegion,
 			bucketPath: s3Conf.BucketPath,
 		}
 		return &s3Store, nil
 	}
+	return nil, nil
 }
-
-// not yet implemented for this PR
 
 func (s *S3Store) ResourceStream(id ResourceID) (chan []byte, error) {
 	return nil, nil
@@ -225,7 +231,7 @@ func (s *S3Store) ResourceColumns(id ResourceID) ([]string, error) {
 }
 
 func (s *S3Store) ResourceRowCt(id ResourceID) (int, error) {
-	return nil, nil
+	return 0, nil
 }
 
 func (e *EMRExecutor) RunSparkJob(args []string) error {

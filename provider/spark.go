@@ -104,7 +104,11 @@ type SparkOfflineStore struct {
 	BaseProvider
 }
 
-func spark(config SerializedConfig) (Provider, error) {
+func (store *SparkOfflineStore) AsOfflineStore() (OfflineStore, error) {
+	return store, nil
+}
+
+func sparkOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	sc := SparkConfig{}
 	if err := sc.Deserialize(config); err != nil {
 		return nil, fmt.Errorf("invalid spark config: %v", config)
@@ -126,12 +130,11 @@ func spark(config SerializedConfig) (Provider, error) {
 		Store:    store,
 		query:    &queries,
 		BaseProvider: BaseProvider{
-			ProviderType:   SparkOffline,
+			ProviderType:   "SPARK_OFFLINE",
 			ProviderConfig: config,
 		},
 	}
-
-	return sparkOfflineStore, nil
+	return &sparkOfflineStore, nil
 }
 
 type SparkExecutor interface {
@@ -236,4 +239,68 @@ func (s *S3Store) ResourceRowCt(id ResourceID) (int, error) {
 
 func (e *EMRExecutor) RunSparkJob(args []string) error {
 	return nil
+}
+
+func (spark *SparkOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error) {
+	return nil, nil
+}
+
+func (spark *SparkOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error) {
+	return nil, nil
+}
+
+func (spark *SparkOfflineStore) CreateTransformation(config TransformationConfig) error {
+	return nil
+}
+
+func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
+	return nil, nil
+}
+
+func (spark *SparkOfflineStore) UpdateTransformation(config TransformationConfig) error {
+	return nil
+}
+
+func (spark *SparkOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error) {
+	return nil, nil
+}
+
+func (spark *SparkOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error) {
+	return nil, nil
+}
+
+func (spark *SparkOfflineStore) CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error) {
+	return nil, nil
+}
+
+func (spark *SparkOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, error) {
+	return nil, nil
+}
+
+func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materialization, error) {
+	return nil, nil
+}
+
+func (spark *SparkOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
+	return nil, nil
+}
+
+func (spark *SparkOfflineStore) UpdateMaterialization(id ResourceID) (Materialization, error) {
+	return nil, nil
+}
+
+func (spark *SparkOfflineStore) DeleteMaterialization(id MaterializationID) error {
+	return nil
+}
+
+func (spark *SparkOfflineStore) CreateTrainingSet(TrainingSetDef) error {
+	return nil
+}
+
+func (spark *SparkOfflineStore) UpdateTrainingSet(TrainingSetDef) error {
+	return nil
+}
+
+func (spark *SparkOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
+	return nil, nil
 }

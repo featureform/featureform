@@ -136,7 +136,6 @@ class DynamodbConfig:
         }
         return bytes(json.dumps(config), "utf-8")
 
-# RIDDHI
 @typechecked
 @dataclass
 class LocalConfig:
@@ -276,6 +275,13 @@ class Provider:
                   "ready",
                   str(self.config.serialize(), 'utf-8')
                   )
+
+    def parameter_list(self):
+        return {"name": self.name,
+                "config": self.config,
+                "description": self.description,
+                "team": self.team,
+                "provider_type": self.config.type(),}
 
 
 @typechecked

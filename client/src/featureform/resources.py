@@ -366,12 +366,12 @@ SourceDefinition = Union[PrimaryData, Transformation]
 @dataclass
 class Source:
     name: str
-    variant: str
     definition: SourceDefinition
     owner: str
     provider: str
     description: str
     schedule: str = ""
+    variant: str = "default"
     schedule_obj: Schedule = None
 
     def update_schedule(self, schedule) -> None:
@@ -483,7 +483,6 @@ ResourceLocation = ResourceColumnMapping
 @dataclass
 class Feature:
     name: str
-    variant: str
     source: NameVariant
     value_type: str
     entity: str
@@ -491,6 +490,7 @@ class Feature:
     provider: str
     description: str
     location: ResourceLocation
+    variant: str = "default"
     schedule: str = ""
     schedule_obj: Schedule = None
     
@@ -556,7 +556,6 @@ class Feature:
 @dataclass
 class Label:
     name: str
-    variant: str
     source: NameVariant
     value_type: str
     entity: str
@@ -564,6 +563,7 @@ class Label:
     provider: str
     description: str
     location: ResourceLocation
+    variant: str = "default"
 
     @staticmethod
     def operation_type() -> OperationType:
@@ -700,11 +700,11 @@ class SourceReference:
 @dataclass
 class TrainingSet:
     name: str
-    variant: str
     owner: str
     label: NameVariant
     features: List[NameVariant]
     description: str
+    variant: str = "default"
     schedule: str = ""
     schedule_obj: Schedule = None
 

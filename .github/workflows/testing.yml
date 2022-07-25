@@ -1,10 +1,12 @@
 name: Testing
-on: [push, pull_request]
+on: [push]
 
 env:
   TYPESENSE_PORT: 8108
   TYPESENSE_API_KEY: "xyz"
   REDIS_PORT: 6379
+  CASSANDRA_USER: "cassandra"
+  CASSANDRA_PASSWORD: "CASSANDRA"
   POSTGRES_USER: "username"
   POSTGRES_DB: "default"
   POSTGRES_PASSWORD: "password"
@@ -33,7 +35,7 @@ jobs:
           go-version: 1.17
 
       - name: Install grpc_tools
-        run: pip install grpcio-tools
+        run: pip install grpcio-tools build
 
       - name: Install Protobuf
         run: sudo snap install protobuf --classic
@@ -43,6 +45,9 @@ jobs:
 
       - name: Build
         run: go build ./metadata/*.go
+
+      - name: Build Python Package
+        run: ./pip_update.sh
 
       - uses: actions/upload-artifact@v3
         with:
@@ -106,11 +111,12 @@ jobs:
           name: typesense-coverage-reports
           path: ./coverage
 
-  provider:
-    name: Provider Testing
+  provider-online:
+    name: Online Provider Testing
     environment: Integration testing
     needs: setup
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     services:
       redis:
         image: redis
@@ -126,6 +132,65 @@ jobs:
         ports:
           - 9042:9042
 
+    steps:
+      - name: Download Working Compiled Directories
+        uses: actions/download-artifact@v3
+        with:
+          name: compiled-workdir
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
+
+      - name: Make Coverage Directory
+        working-directory: ./
+        run: mkdir coverage
+
+      - name: create-json
+        id: create-json
+        uses: jsdaniell/create-json@1.1.2
+        with:
+          name: "./provider/firestore_credentials.json"
+          json: ${{ secrets.FIRESTORE_CREDENTIALS_FILE }}
+
+      - name: Testing
+        env:
+          DYNAMO_ACCESS_KEY: ${{ secrets.DYNAMO_ACCESS_KEY }}
+          DYNAMO_SECRET_KEY: ${{ secrets.DYNAMO_SECRET_KEY }}
+          FIRESTORE_CRED: "firestore_credentials.json"
+          FIRESTORE_PROJECT: ${{ secrets.FIRESTORE_PROJECT }}
+        working-directory: ./
+        run: go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/... -tags=online,provider
+
+      - name: Convert Coverage Test Results
+        if: always()
+        working-directory: ./coverage
+        run: |
+          cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
+          go tool cover -html=cover.out -o cover.html
+
+      - uses: codecov/codecov-action@v2
+        if: always()
+        with:
+          root_dir: ./
+          files: ./coverage/cover.out
+          name: provider-online-coverage
+          verbose: true
+
+      - name: Archive code coverage results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: provider-online-coverage-reports
+          path: ./coverage
+
+  provider-offline:
+    name: Offline Provider Testing
+    environment: Integration testing
+    needs: setup
+    runs-on: ubuntu-latest
+    services:
       postgres:
         image: postgres
         ports:
@@ -160,7 +225,7 @@ jobs:
           REDSHIFT_PASSWORD: ${{ secrets.REDSHIFT_PASSWORD }}
           REDSHIFT_ENDPOINT: ${{ secrets.REDSHIFT_ENDPOINT }}
         working-directory: ./
-        run: go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/...
+        run: go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/... -tags=offline
 
       - name: Convert Coverage Test Results
         if: always()
@@ -174,14 +239,14 @@ jobs:
         with:
           root_dir: ./
           files: ./coverage/cover.out
-          name: provider-coverage
+          name: provider-offline-coverage
           verbose: true
 
       - name: Archive code coverage results
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: provider-coverage-reports
+          name: provider-offline-coverage-reports
           path: ./coverage
 
   metadata:
@@ -492,6 +557,12 @@ jobs:
 
       - name: Start API Server
         working-directory: ./api
+        env:
+          API_PORT: 7878
+          METADATA_HOST: "featureform-metadata-server"
+          METADATA_PORT: 8080
+          SERVING_HOST:  "featureform-feature-server"
+          SERVING_PORT: 8080
         run: go run api.go &
 
       - name: Install python dependencies
@@ -504,8 +575,8 @@ jobs:
       - name: Testing
         env:
           API_ADDRESS: "localhost:7878"
-        working-directory: ./client/tests
-        run: pytest
+        working-directory: ./client/tests/
+        run: pytest connection_test.py
   schedule:
     runs-on: ubuntu-latest
     name: Schedule Jobs
@@ -538,7 +609,7 @@ jobs:
           helm repo add bitnami https://charts.bitnami.com/bitnami
           helm repo update
           helm install certmgr jetstack/cert-manager --set installCRDs=true --version v1.8.0 --namespace cert-manager --create-namespace
-          helm install featureform ./charts/featureform --set global.repo=local --set global.pullPolicy=Never
+          helm install featureform ./charts/featureform --set global.repo=local --set global.pullPolicy=Never --set global.version=stable
           helm install test-quickstart ./charts/quickstart
           kubectl wait pods --for condition=ready --timeout=300s -l app.kubernetes.io/name=etcd
           kubectl wait deployments --for condition=Available=True --timeout=300s -l run=featureform-metadata-server   
@@ -561,3 +632,53 @@ jobs:
         run: kubectl get services -A
       - name: Get job pods and print logs
         run: kubectl logs -l job-name=example
+
+  localmode:
+    name: Test Localmode
+    needs: setup
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, macos-latest, windows-latest ] #osx-arm64 currently not working. Ticket made with github
+        python-version: [ '3.7', '3.8', '3.9', '3.10' ]
+    steps:
+      - name: Download Working Compiled Directories
+        uses: actions/download-artifact@v3
+        with:
+          name: compiled-workdir
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install pytest
+        run: pip install pytest
+
+      - name: Install featureform
+        run: pip install client/dist/featureform-0.0.0-py3-none-any.whl
+
+      - name: Download Test Data
+        run: curl https://featureform-demo-files.s3.amazonaws.com/transactions.csv -o transactions.csv
+
+      - name: Featureform Apply
+        run: python -m featureform apply client/examples/local_quickstart.py --local
+
+      - name: Run Quickstart Test
+        run: pytest client/tests/localmode.py
+
+      - name: Run Register Tests
+        run: python client/tests/local_test.py
+
+      - name: Clear SQLite
+        run: rm -r .featureform
+
+      - name: Run Unit Tests
+        run: pytest client/tests/serving_test.py -s
+
+      - name: Clear SQLite
+        continue-on-error: true
+        run: rm -r .featureform
+
+      - name: Run Client Tests
+        run: pytest client/tests/local_test.py -s
+        

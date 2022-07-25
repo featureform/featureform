@@ -380,8 +380,13 @@ func (store *BrokenGetTableOnlineStore) AsOnlineStore() (provider.OnlineStore, e
 func (b BrokenGetTableOnlineStore) GetTable(feature, variant string) (provider.OnlineStoreTable, error) {
 	return nil, errors.New("failed to get table")
 }
+
 func (b BrokenGetTableOnlineStore) CreateTable(feature, variant string, valueType provider.ValueType) (provider.OnlineStoreTable, error) {
 	return nil, nil
+}
+
+func (b BrokenGetTableOnlineStore) DeleteTable(feature, variant string) error {
+	return nil
 }
 
 func TestMaterializeRunnerFactoryErrorCoverage(t *testing.T) {
@@ -693,6 +698,10 @@ func (m MockOnlineStore) GetTable(feature, variant string) (provider.OnlineStore
 
 func (m MockOnlineStore) CreateTable(feature, variant string, valueType provider.ValueType) (provider.OnlineStoreTable, error) {
 	return &MockOnlineStoreTable{}, nil
+}
+
+func (m MockOnlineStore) DeleteTable(feature, variant string) error {
+	return nil
 }
 
 func (m MockOnlineStoreTable) Set(entity string, value interface{}) error {

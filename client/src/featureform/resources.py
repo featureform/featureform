@@ -2,19 +2,24 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-# cofigure.py like definitions.py train.py tests to set the end state - quick start tests
-# use iris model fro serving (serving means reading python files and parsing the data in the backend)
 import time
 from typing import List, Tuple, Union
 from typeguard import typechecked
 from dataclasses import dataclass
-from .proto import metadata_pb2 as pb
+from featureform.proto import metadata_pb2 as pb
 import grpc
 import json
+
 from .sqlite_metadata import SQLiteMetadata
+from enum import Enum
 
 NameVariant = Tuple[str, str]
 
+@typechecked
+@dataclass
+class OperationType(Enum):
+    GET = 0
+    CREATE = 1
 
 @typechecked
 def valid_name_variant(nvar: NameVariant) -> bool:
@@ -27,6 +32,10 @@ class Schedule:
     variant: str
     resource_type: int
     schedule_string: str
+
+    @staticmethod
+    def operation_type() -> OperationType:
+        return OperationType.CREATE
 
     def type(self) -> str:
         return "schedule"
@@ -57,6 +66,75 @@ class RedisConfig:
         }
         return bytes(json.dumps(config), "utf-8")
 
+@typechecked
+@dataclass
+class FirestoreConfig:
+    collection: str
+    project_id: str
+    credentials_path: str
+
+    def software(self) -> str:
+        return "firestore"
+
+    def type(self) -> str:
+        return "FIRESTORE_ONLINE"
+
+    def serialize(self) -> bytes:
+        config = {
+            "Collection": self.collection,
+            "ProjectID": self.project_id,
+            "Credentials": json.load(open(self.credentials_path)),
+        }
+        return bytes(json.dumps(config), "utf-8")
+
+@typechecked
+@dataclass
+class CassandraConfig:
+    keyspace: str
+    host: str
+    port: str
+    username: str
+    password: str
+    consistency: str
+    replication: int
+
+    def software(self) -> str:
+        return "cassandra"
+
+    def type(self) -> str:
+        return "CASSANDRA_ONLINE"
+
+    def serialize(self) -> bytes:
+        config = {
+            "Keyspace": self.keyspace,
+            "Addr": f"{self.host}:{self.port}",
+            "Username": self.username,
+            "Password": self.password,
+            "Consistency": self.consistency,
+            "Replication": self.replication
+        }
+        return bytes(json.dumps(config), "utf-8")
+
+@typechecked
+@dataclass
+class DynamodbConfig:
+    region: str
+    access_key: str
+    secret_key: str
+
+    def software(self) -> str:
+        return "dynamodb"
+
+    def type(self) -> str:
+        return "DYNAMODB_ONLINE"
+
+    def serialize(self) -> bytes:
+        config = {
+            "Region": self.region,
+            "AccessKey": self.access_key,
+            "SecretKey": self.secret_key
+        }
+        return bytes(json.dumps(config), "utf-8")
 
 # RIDDHI
 @typechecked
@@ -73,8 +151,7 @@ class LocalConfig:
         config = {
         }
         return bytes(json.dumps(config), "utf-8")
-
-
+        
 @typechecked
 @dataclass
 class SnowflakeConfig:
@@ -154,7 +231,7 @@ class RedshiftConfig:
         return bytes(json.dumps(config), "utf-8")
 
 
-Config = Union[RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig]
+Config = Union[RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig]
 
 @typechecked
 @dataclass
@@ -167,6 +244,10 @@ class Provider:
 
     def __post_init__(self):
         self.software = self.config.software()
+
+    @staticmethod
+    def operation_type() -> OperationType:
+        return OperationType.CREATE
 
     @staticmethod
     def type() -> str:
@@ -201,6 +282,10 @@ class Provider:
 @dataclass
 class User:
     name: str
+
+    @staticmethod
+    def operation_type() -> OperationType:
+        return OperationType.CREATE
 
     def type(self) -> str:
         return "user"
@@ -269,7 +354,7 @@ class DFTransformation(Transformation):
 
     def kwargs(self):
         return {
-            "transformation": True,
+            "transformation": 1,
             "inputs": self.inputs
         }
 
@@ -294,6 +379,10 @@ class Source:
         self.schedule = schedule
 
     @staticmethod
+    def operation_type() -> OperationType:
+        return OperationType.CREATE
+
+    @staticmethod
     def type() -> str:
         return "source"
 
@@ -311,10 +400,10 @@ class Source:
         stub.CreateSourceVariant(serialized)
 
     def _create_local(self, db) -> None:
-        is_transformation = False
+        is_transformation = 0
         inputs = []
         if type(self.definition) == DFTransformation:
-            is_transformation = True
+            is_transformation = 1
             inputs = self.definition.inputs
             self.definition = self.definition.query
 
@@ -347,6 +436,10 @@ class Source:
 class Entity:
     name: str
     description: str
+
+    @staticmethod
+    def operation_type() -> OperationType:
+        return OperationType.CREATE
 
     @staticmethod
     def type() -> str:
@@ -404,6 +497,10 @@ class Feature:
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=4, schedule_string=schedule)
         self.schedule = schedule
+
+    @staticmethod
+    def operation_type() -> OperationType:
+        return OperationType.CREATE
 
     @staticmethod
     def type() -> str:
@@ -469,6 +566,10 @@ class Label:
     location: ResourceLocation
 
     @staticmethod
+    def operation_type() -> OperationType:
+        return OperationType.CREATE
+
+    @staticmethod
     def type() -> str:
         return "label"
 
@@ -515,6 +616,85 @@ class Label:
             self.name
         )
 
+@typechecked
+@dataclass
+class EntityReference:
+    name: str
+    obj: Union[Entity, None]
+
+    @staticmethod
+    def operation_type() -> OperationType:
+        return OperationType.GET
+
+    @staticmethod
+    def type() -> str:
+        return "entity"
+
+    def _get(self, stub):
+        entityList = stub.GetEntities(iter([pb.Name(name=self.name)]))
+        try:
+            for entity in entityList:
+                self.obj = entity
+        except grpc._channel._MultiThreadedRendezvous:
+            raise ValueError(f"Entity {self.name} not found.")
+
+@typechecked
+@dataclass
+class ProviderReference:
+    name: str
+    provider_type: str
+    obj: Union[Provider, None]
+
+    @staticmethod
+    def operation_type() -> OperationType:
+        return OperationType.GET
+
+    @staticmethod
+    def type() -> str:
+        return "provider"
+
+    def _get(self, stub):
+        providerList = stub.GetProviders(iter([pb.Name(name=self.name)]))
+        try:
+            for provider in providerList:
+                self.obj = provider
+        except grpc._channel._MultiThreadedRendezvous:
+            raise ValueError(f"Provider {self.name} of type {self.provider_type} not found.")
+        
+    def _get_local(self, db):
+        local_provider = db.getVariantResource("providers", "local mode", self.name)
+        if local_provider == []:
+            raise ValueError("Local mode provider not found.")
+        self.obj = local_provider
+
+@typechecked
+@dataclass
+class SourceReference:
+    name: str
+    variant: str
+    obj: Union[Source, None]
+
+    @staticmethod
+    def operation_type() -> OperationType:
+        return OperationType.GET
+
+    @staticmethod
+    def type() -> str:
+        return "source"
+
+    def _get(self, stub):
+        sourceList = stub.GetSourceVariants(iter([pb.NameVariant(name=self.name, variant=self.variant)]))
+        try:
+            for source in sourceList:
+                self.obj = source
+        except grpc._channel._MultiThreadedRendezvous:
+            raise ValueError(f"Source {self.name}, variant {self.variant} not found.")
+    
+    def _get_local(self, db):
+        local_source = db.getNameVariant("source_variant", "name", self.name, "variant", self.variant)
+        if local_source == []:
+            raise ValueError(f"Source {self.name}, variant {self.variant} not found.")
+        self.obj = local_source
 
 @typechecked
 @dataclass
@@ -542,6 +722,10 @@ class TrainingSet:
                 raise ValueError("Invalid Feature")
 
     @staticmethod
+    def operation_type() -> OperationType:
+        return OperationType.CREATE
+
+    @staticmethod
     def type() -> str:
         return "training-set"
 
@@ -560,12 +744,12 @@ class TrainingSet:
         stub.CreateTrainingSetVariant(serialized)
 
     def _create_local(self, db) -> None:
+        self._check_insert_training_set_resources(db)   
         db.insert("training_set_variant",
                   str(time.time()),
                   self.description,
                   self.name,
                   self.owner,
-                  # "Provider",
                   self.variant,
                   self.label[0],
                   self.label[1],
@@ -573,7 +757,6 @@ class TrainingSet:
                   str(self.features)
                   )
         self._create_training_set_resource(db)
-        self._insert_training_set_features(db)
 
     def _create_training_set_resource(self, db) -> None:
         db.insert(
@@ -583,8 +766,16 @@ class TrainingSet:
             self.name
         )
 
-    def _insert_training_set_features(self, db) -> None:
+    def _check_insert_training_set_resources(self, db) -> None:
+        try:
+            db.getNameVariant("labels_variant", "labelName", self.label[0], "variantName", self.label[1])
+        except ValueError:
+            raise ValueError("{} does not exist. Failed to register training set".format(self.label[0]))
         for feature in self.features:
+            try:
+                db.getNameVariant("feature_variant", "featureName", feature[0], "variantName", feature[1])
+            except ValueError:
+                raise ValueError("{} does not exist. Failed to register training set".format(feature[0]))
             db.insert(
                 "training_set_features",
                 self.name,
@@ -595,11 +786,10 @@ class TrainingSet:
 
 
 Resource = Union[PrimaryData, Provider, Entity, User, Feature, Label,
-                 TrainingSet, Source, Schedule]
+                 TrainingSet, Source, Schedule, ProviderReference, SourceReference, EntityReference]
 
 
 class ResourceRedefinedError(Exception):
-
     @typechecked
     def __init__(self, resource: Resource):
         variantStr = f" variant {resource.variant}" if hasattr(
@@ -619,9 +809,9 @@ class ResourceState:
     @typechecked
     def add(self, resource: Resource) -> None:
         if hasattr(resource, 'variant'):
-            key = (resource.type(), resource.name, resource.variant)
+            key = (resource.operation_type().name, resource.type(), resource.name, resource.variant)
         else:
-            key = (resource.type(), resource.name)
+            key = (resource.operation_type().name, resource.type(), resource.name)
         if key in self.__state:
             raise ResourceRedefinedError(resource)
         self.__state[key] = resource
@@ -654,15 +844,23 @@ class ResourceState:
     def create_all_local(self) -> None:
         db = SQLiteMetadata()
         for resource in self.__create_list:
-            print("Creating", resource.name)
-            resource._create_local(db)
+            if resource.operation_type() is OperationType.GET:
+                print("Getting", resource.type(), resource.name)
+                resource._get_local(db)
+            if resource.operation_type() is OperationType.CREATE:
+                print("Creating", resource.type(), resource.name)
+                resource._create_local(db)
         return
 
     def create_all(self, stub) -> None:
         for resource in self.__create_list:
             try:
-                print("Creating", resource.type(), resource.name)
-                resource._create(stub)
+                if resource.operation_type() is OperationType.GET:
+                    print("Getting", resource.type(), resource.name)
+                    resource._get(stub)
+                if resource.operation_type() is OperationType.CREATE:
+                    print("Creating", resource.type(), resource.name)
+                    resource._create(stub)
             except grpc.RpcError as e:
                 if e.code() == grpc.StatusCode.ALREADY_EXISTS:
                     print(resource.name, "already exists.")

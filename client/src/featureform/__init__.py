@@ -1,6 +1,5 @@
-from featureform import register, serving
-from featureform.register import *
+from .register import *
+from .serving import Client as servClient
 
-ServingClient = serving.Client
-ResourceClient = register.Client
-ServingLocalClient = serving.LocalClient
+ServingClient = servClient
+ResourceClient = Client

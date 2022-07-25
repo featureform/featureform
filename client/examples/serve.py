@@ -2,7 +2,7 @@ from featureform import ServingClient
 
 serving = ServingClient("localhost:443")
 
-dataset = serving.dataset("fraud_training", "quickstart")
+dataset = serving.training_set("fraud_training", "quickstart")
 training_dataset = dataset.repeat(10).shuffle(1000).batch(8)
 for i, feature_batch in enumerate(training_dataset):
     print(feature_batch)

@@ -35,6 +35,7 @@ class SQLiteMetadata:
         if not os.path.exists(self.path):
             os.makedirs(self.path)
         raw_conn = sqlite3.connect(self.path + '/metadata.db', check_same_thread=False)
+        raw_conn.row_factory = sqlite3.Row
         self.__conn = SyncSQLExecutor(raw_conn)
         self.createTables()
 
@@ -92,13 +93,13 @@ class SQLiteMetadata:
           defaultVariant text,
           name text PRIMARY KEY NOT NULL);''')
 
-        #
+        # Training set features
         self.__conn.execute('''CREATE TABLE IF NOT EXISTS training_set_features(
           trainingSetName text NOT NULL,
           trainingSetVariant text NOT NULL,
           featureName text NOT NULL,
           featureVariant text NOT NULL,
-          UNIQUE(featureName, featureVariant));''')
+          UNIQUE(trainingSetName, trainingSetVariant, featureName, featureVariant));''')
 
         # source variant
         self.__conn.execute('''CREATE TABLE IF NOT EXISTS source_variant(
@@ -183,7 +184,6 @@ class SQLiteMetadata:
 
         self.__conn.commit()
 
-    # All 3 functions return a cursor, USE THIS
     def getTypeTable(self, type):
         query = "SELECT * FROM " + type
         type_data = self.__conn.execute(query)
@@ -194,13 +194,19 @@ class SQLiteMetadata:
         variant_table_query = "SELECT * FROM " + type + " WHERE " + column + "='" + resource + "';"
         variant_data = self.__conn.execute(variant_table_query)
         self.__conn.commit()
+        variant_data_list = variant_data.fetchall()
+        if len(variant_data_list) == 0:
+          raise ValueError("{} with {}: {} not found".format(type, column, resource))
         return variant_data.fetchall()
 
     def getNameVariant(self, type, column1, resource1, column2, resource2):
         variant_table_query = "SELECT * FROM " + type + " WHERE " + column1 + "='" + resource1 + "' AND " + column2 + "='" + resource2 + "';"
         variant_data = self.__conn.execute(variant_table_query)
         self.__conn.commit()
-        return variant_data.fetchall()
+        variant_data_list = variant_data.fetchall()
+        if len(variant_data_list) == 0:
+          raise ValueError("{} with {}: {} and {}: {} not found".format(type, column1, resource1, column2, resource2))
+        return variant_data_list
 
     def is_transformation(self, name, variant):
         query = "SELECT transformation FROM source_variant WHERE name='" + name + "' and variant='" + variant + "';"
@@ -208,11 +214,11 @@ class SQLiteMetadata:
         self.__conn.commit()
         t = transformation.fetchall()
         if len(t) == 0:
-            return False
+            return 0
         if t[0][0] is 1:
-            return True
+            return 1
         else:
-            return False
+            return 0
 
     def insert_source(self, tablename, *args):
         stmt = "INSERT OR IGNORE INTO " + tablename + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
@@ -223,3 +229,6 @@ class SQLiteMetadata:
         query = "INSERT OR IGNORE INTO " + tablename + " VALUES " + str(args)
         self.__conn.execute(query)
         self.__conn.commit()
+
+    def close(self):
+        self.__conn.close()

@@ -1404,6 +1404,7 @@ class Client(Registrar):
         variant: "quickstart"
         }
         ```
+        """
         return get_entity_info(self._stub, name)
 
     def get_model(self, name):

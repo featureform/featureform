@@ -17,4 +17,5 @@ rm.**
 venv/
 terraform.tfstate
 .venv
-
+client/src/.featureform
+client/src/featureform/.featureform

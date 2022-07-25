@@ -370,8 +370,8 @@ class Source:
     owner: str
     provider: str
     description: str
-    schedule: str = ""
     variant: str = "default"
+    schedule: str = ""
     schedule_obj: Schedule = None
 
     def update_schedule(self, schedule) -> None:

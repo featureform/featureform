@@ -813,6 +813,8 @@ class ResourceState:
         else:
             key = (resource.operation_type().name, resource.type(), resource.name)
         if key in self.__state:
+            if self.is_identical_resource(resource):
+                return
             raise ResourceRedefinedError(resource)
         self.__state[key] = resource
         self.__create_list.append(resource)
@@ -821,6 +823,11 @@ class ResourceState:
             key = (my_schedule.type(),  my_schedule.name)
             self.__state[key] =  my_schedule
             self.__create_list.append(my_schedule)
+
+    def is_identical_resource(self, resource):
+        print("Entered the check identical function")
+        print(type(resource))
+        return False
 
     def sorted_list(self) -> List[Resource]:
         resource_order = {

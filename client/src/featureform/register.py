@@ -1218,6 +1218,7 @@ class Client(Registrar):
         if local:
             if not variant:
                 return get_resource_info_local("feature", name)
+            return get_feature_variant_info_local(name, variant)
         if not variant:
             return get_resource_info(self._stub, "feature", name)
         return get_feature_variant_info(self._stub, name, variant)
@@ -1226,6 +1227,7 @@ class Client(Registrar):
         if local:
             if not variant:
                 return get_resource_info_local("label", name)
+            return get_label_variant_info_local(name, variant)
         if not variant:
             return get_resource_info(self._stub, "label", name)
         return get_label_variant_info(self._stub, name, variant)
@@ -1234,6 +1236,7 @@ class Client(Registrar):
         if local:
             if not variant:
                 return get_resource_info_local("training-set", name)
+            return get_training_set_variant_info_local(name, variant)
         if not variant:
             return get_resource_info(self._stub, "training-set", name)
         return get_training_set_variant_info(self._stub, name, variant)
@@ -1242,6 +1245,7 @@ class Client(Registrar):
         if local:
             if not variant:
                 return get_resource_info_local("source", name)
+            return get_source_variant_info_local(name, variant)
         if not variant:
             return get_resource_info(self._stub, "source", name)
         return get_source_variant_info(self._stub, name, variant)

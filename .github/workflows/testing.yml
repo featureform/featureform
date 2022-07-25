@@ -1,5 +1,5 @@
 name: Testing
-on: [push, pull_request]
+on: [push]
 
 env:
   TYPESENSE_PORT: 8108
@@ -575,8 +575,8 @@ jobs:
       - name: Testing
         env:
           API_ADDRESS: "localhost:7878"
-        working-directory: ./client/tests
-        run: pytest
+        working-directory: ./client/tests/
+        run: pytest connection_test.py
   schedule:
     runs-on: ubuntu-latest
     name: Schedule Jobs
@@ -609,7 +609,7 @@ jobs:
           helm repo add bitnami https://charts.bitnami.com/bitnami
           helm repo update
           helm install certmgr jetstack/cert-manager --set installCRDs=true --version v1.8.0 --namespace cert-manager --create-namespace
-          helm install featureform ./charts/featureform --set global.repo=local --set global.pullPolicy=Never
+          helm install featureform ./charts/featureform --set global.repo=local --set global.pullPolicy=Never --set global.version=stable
           helm install test-quickstart ./charts/quickstart
           kubectl wait pods --for condition=ready --timeout=300s -l app.kubernetes.io/name=etcd
           kubectl wait deployments --for condition=Available=True --timeout=300s -l run=featureform-metadata-server   
@@ -663,5 +663,22 @@ jobs:
       - name: Featureform Apply
         run: python -m featureform apply client/examples/local_quickstart.py --local
 
-      - name: Run Tests
+      - name: Run Quickstart Test
         run: pytest client/tests/localmode.py
+
+      - name: Run Register Tests
+        run: python client/tests/local_test.py
+
+      - name: Clear SQLite
+        run: rm -r .featureform
+
+      - name: Run Unit Tests
+        run: pytest client/tests/serving_test.py -s
+
+      - name: Clear SQLite
+        continue-on-error: true
+        run: rm -r .featureform
+
+      - name: Run Client Tests
+        run: pytest client/tests/local_test.py -s
+        

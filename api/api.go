@@ -517,6 +517,7 @@ func (serv *MetadataServer) ListModels(in *pb.Empty, stream pb.Api_ListModelsSer
 	}
 }
 
+
 func (serv *MetadataServer) ListEntities(in *pb.Empty, stream pb.Api_ListEntitiesServer) error {
 	proxyStream, err := serv.meta.ListEntities(stream.Context(), in)
 	if err != nil {
@@ -536,6 +537,7 @@ func (serv *MetadataServer) ListEntities(in *pb.Empty, stream pb.Api_ListEntitie
 		}
 	}
 }
+
 func (serv *MetadataServer) ListProviders(in *pb.Empty, stream pb.Api_ListProvidersServer) error {
 	proxyStream, err := serv.meta.ListProviders(stream.Context(), in)
 	if err != nil {

@@ -1,56 +1,56 @@
-from .proto import metadata_pb2
+from featureform.proto import metadata_pb2
 import grpc
-from .proto import metadata_pb2_grpc as ff_grpc
+from featureform.proto import metadata_pb2_grpc as ff_grpc
 from .format import *
 
-def GetUser(stub, name):
+def get_user_info(stub, name):
     searchName = metadata_pb2.Name(name=name)
     try:
         for user in stub.GetUsers(iter([searchName])):
-            formatRows("USER NAME: ", user.name)
-            formatNewPara("")
-            formatRows('NAME', 'VARIANT', 'TYPE')
+            format_rows("USER NAME: ", user.name)
+            format_new_para()
+            format_rows('NAME', 'VARIANT', 'TYPE')
             for f in user.features:
-                formatRows(
+                format_rows(
                     f.name, f.variant, "feature")
             for l in user.labels:
-                formatRows(
+                format_rows(
                     l.name, l.variant, "label")
             for t in user.trainingsets:
-                formatRows(
+                format_rows(
                     t.name, t.variant, "training set")
             for s in user.sources:
-                formatRows(
+                format_rows(
                     s.name, s.variant, "source")
-            formatNewPara("")
+            format_new_para()
             return user
     except grpc._channel._MultiThreadedRendezvous:
         print("User not found.")
 
-def GetEntity(stub, name):
+def get_entity_info(stub, name):
     searchName = metadata_pb2.Name(name=name)
     try:
         for x in stub.GetEntities(iter([searchName])):
-            formatRows([("ENTITY NAME: ", x.name),
+            format_rows([("ENTITY NAME: ", x.name),
             ("STATUS: ", x.status.Status._enum_type.values[x.status.status].name)])
-            formatNewPara("")
-            formatRows('NAME', 'VARIANT', 'TYPE')
+            format_new_para()
+            format_rows('NAME', 'VARIANT', 'TYPE')
             for f in x.features:
-                formatRows(
+                format_rows(
                     f.name, f.variant, "feature")
             for l in x.labels:
-                formatRows(
+                format_rows(
                     l.name, l.variant, "label")
             for t in x.trainingsets:
-                formatRows(
+                format_rows(
                     t.name, t.variant, "training set")
-            formatNewPara("")
+            format_new_para()
             return x
     except grpc._channel._MultiThreadedRendezvous:
         print("Entity not found.")
 
-def GetResource(stub, resource_type, name):
-    funcDict = {
+def get_resource_info(stub, resource_type, name):
+    stub_get_functions = {
         "feature": stub.GetFeatures,
         "label": stub.GetLabels,
         "source": stub.GetSources,
@@ -61,24 +61,24 @@ def GetResource(stub, resource_type, name):
 
     searchName = metadata_pb2.Name(name=name)
     try:
-        for x in funcDict[resource_type](iter([searchName])):
-            formatRows([("NAME: ", x.name),
+        for x in stub_get_functions[resource_type](iter([searchName])):
+            format_rows([("NAME: ", x.name),
             ("STATUS: ", x.status.Status._enum_type.values[x.status.status].name)])
-            formatNewPara("VARIANTS:")
-            formatRows(x.default_variant, 'default')
+            format_new_para("VARIANTS:")
+            format_rows(x.default_variant, 'default')
             for v in x.variants:
                 if v != x.default_variant:
-                    formatRows(v, '')
-            formatNewPara("")
+                    format_rows(v, '')
+            format_new_para()
             return x
     except grpc._channel._MultiThreadedRendezvous:
         print(f"{resource_type} not found.")
 
-def GetFeatureVariant(stub, name, variant):
+def get_feature_variant_info(stub, name, variant):
     searchNameVariant = metadata_pb2.NameVariant(name=name, variant=variant)
     try:
         for x in stub.GetFeatureVariants(iter([searchNameVariant])):
-            formatRows([("NAME: ", x.name), 
+            format_rows([("NAME: ", x.name), 
             ("VARIANT: ", x.variant), 
             ("TYPE:", x.type), 
             ("ENTITY:", x.entity),
@@ -87,22 +87,22 @@ def GetFeatureVariant(stub, name, variant):
             ("PROVIDER:", x.provider),
             ("STATUS: ", x.status.Status._enum_type.values[x.status.status].name)
             ])
-            formatNewPara("SOURCE: ")
-            formatRows([("NAME", "VARIANT"), (x.source.name, x.source.variant)])
-            formatNewPara("TRAINING SETS:")
-            formatRows("NAME", "VARIANT")
+            format_new_para("SOURCE: ")
+            format_rows([("NAME", "VARIANT"), (x.source.name, x.source.variant)])
+            format_new_para("TRAINING SETS:")
+            format_rows("NAME", "VARIANT")
             for t in x.trainingsets:
-                formatRows(t.name, t.variant)
-            formatNewPara("")
+                format_rows(t.name, t.variant)
+            format_new_para()
             return x
     except grpc._channel._MultiThreadedRendezvous:
         print("Feature variant not found.")
 
-def GetLabelVariant(stub, name, variant):
+def get_label_variant_info(stub, name, variant):
     searchNameVariant = metadata_pb2.NameVariant(name=name, variant=variant)
     try:
         for x in stub.GetLabelVariants(iter([searchNameVariant])):
-            formatRows([("NAME: ", x.name),
+            format_rows([("NAME: ", x.name),
             ("VARIANT: ", x.variant), 
             ("TYPE:", x.type), 
             ("ENTITY:", x.entity), 
@@ -110,102 +110,102 @@ def GetLabelVariant(stub, name, variant):
             ("DESCRIPTION:", x.description),
             ("PROVIDER:", x.provider),
             ("STATUS: ", x.status.Status._enum_type.values[x.status.status].name)])
-            formatNewPara("SOURCE: ")
-            formatRows([("NAME", "VARIANT"), (x.source.name, x.source.variant)])
-            formatNewPara("TRAINING SETS:")
-            formatRows("NAME", "VARIANT")
+            format_new_para("SOURCE: ")
+            format_rows([("NAME", "VARIANT"), (x.source.name, x.source.variant)])
+            format_new_para("TRAINING SETS:")
+            format_rows("NAME", "VARIANT")
             for t in x.trainingsets:
-                formatRows(t.name, t.variant)
-            formatNewPara("")
+                format_rows(t.name, t.variant)
+            format_new_para()
             return x
     except grpc._channel._MultiThreadedRendezvous:
         print("Label variant not found.")
 
-def GetSourceVariant(stub, name, variant):
+def get_source_variant_info(stub, name, variant):
     searchNameVariant = metadata_pb2.NameVariant(name=name, variant=variant)
     try:
         for x in stub.GetSourceVariants(iter([searchNameVariant])):
-            formatRows([("NAME: ", x.name),
+            format_rows([("NAME: ", x.name),
             ("VARIANT: ", x.variant), 
             ("OWNER:", x.owner),
             ("DESCRIPTION:", x.description),
             ("PROVIDER:", x.provider),
             ("TABLE:", x.table),
             ("STATUS: ", x.status.Status._enum_type.values[x.status.status].name)])
-            formatNewPara("DEFINITION:")
+            format_new_para("DEFINITION:")
             print("TRANSFORMATION")
             print(x.transformation.SQLTransformation.query)
-            formatNewPara("SOURCES")
-            formatRows("NAME", "VARIANT")
+            format_new_para("SOURCES")
+            format_rows("NAME", "VARIANT")
             for s in x.transformation.SQLTransformation.source:
-                formatRows(s.name, s.variant)
-            formatNewPara("PRIMARY DATA")
+                format_rows(s.name, s.variant)
+            format_new_para("PRIMARY DATA")
             print(x.primaryData.table.name)
             print("FEATURES:")
-            formatRows("NAME", "VARIANT")
+            format_rows("NAME", "VARIANT")
             for t in x.features:
-                formatRows(t.name, t.variant)
-            formatNewPara("LABELS:")
-            formatRows("NAME", "VARIANT")
+                format_rows(t.name, t.variant)
+            format_new_para("LABELS:")
+            format_rows("NAME", "VARIANT")
             for t in x.labels:
-                formatRows(t.name, t.variant)
-            formatNewPara("TRAINING SETS:")
-            formatRows("NAME", "VARIANT")
+                format_rows(t.name, t.variant)
+            format_new_para("TRAINING SETS:")
+            format_rows("NAME", "VARIANT")
             for t in x.trainingsets:
-                formatRows(t.name, t.variant)
-            formatNewPara("")
+                format_rows(t.name, t.variant)
+            format_new_para()
             return x
     except grpc._channel._MultiThreadedRendezvous:
         print("Source variant not found.")
 
-def GetTrainingSetVariant(stub, name, variant):
+def get_training_set_variant_info(stub, name, variant):
     searchNameVariant = metadata_pb2.NameVariant(name=name, variant=variant)
     try:
         for x in stub.GetTrainingSetVariants(iter([searchNameVariant])):
-            formatRows([("NAME: ", x.name),
+            format_rows([("NAME: ", x.name),
             ("VARIANT: ", x.variant),
             ("OWNER:", x.owner),
             ("DESCRIPTION:", x.description),
             ("PROVIDER:", x.provider),
             ("STATUS: ", x.status.Status._enum_type.values[x.status.status].name)])
-            formatNewPara("LABEL: ")
-            formatRows([("NAME", "VARIANT"), (x.label.name, x.label.variant)])
-            formatNewPara("FEATURES:")
-            formatRows("NAME", "VARIANT")
+            format_new_para("LABEL: ")
+            format_rows([("NAME", "VARIANT"), (x.label.name, x.label.variant)])
+            format_new_para("FEATURES:")
+            format_rows("NAME", "VARIANT")
             for f in x.features:
-                formatRows(f.name, f.variant)
-            formatNewPara("")
+                format_rows(f.name, f.variant)
+            format_new_para()
             return x
     except grpc._channel._MultiThreadedRendezvous:
         print("Training set variant not found.")
 
-def GetProvider(stub, name):
+def get_provider_info(stub, name):
     searchName = metadata_pb2.Name(name=name)
     try:
         for x in stub.GetProviders(iter([searchName])):
-            formatRows([("NAME: ", x.name),
+            format_rows([("NAME: ", x.name),
             ("DESCRIPTION: ", x.description),
             ("TYPE: ", x.type),
             ("SOFTWARE: ", x.software),
             ("TEAM: ", x.team),
             ("STATUS: ", x.status.Status._enum_type.values[x.status.status].name)])
-            formatNewPara("SOURCES:")
-            formatRows("NAME", "VARIANT")
+            format_new_para("SOURCES:")
+            format_rows("NAME", "VARIANT")
             for s in x.sources:
-                formatRows(s.name, s.variant)
-            formatNewPara("FEATURES:")
-            formatRows("NAME", "VARIANT")
+                format_rows(s.name, s.variant)
+            format_new_para("FEATURES:")
+            format_rows("NAME", "VARIANT")
             for f in x.features:
-                formatRows(f.name, f.variant)
-            formatNewPara("LABELS:")
-            formatRows("NAME", "VARIANT")
+                format_rows(f.name, f.variant)
+            format_new_para("LABELS:")
+            format_rows("NAME", "VARIANT")
             for l in x.labels:
-                formatRows(l.name, l.variant)
-            formatNewPara("TRAINING SETS:")
-            formatRows("NAME", "VARIANT")
+                format_rows(l.name, l.variant)
+            format_new_para("TRAINING SETS:")
+            format_rows("NAME", "VARIANT")
             for t in x.trainingsets:
-                formatRows(t.name, t.variant)
-            formatNewPara("")
+                format_rows(t.name, t.variant)
+            format_new_para()
             return x
     except grpc._channel._MultiThreadedRendezvous:
         print("Provider not found.")

@@ -218,6 +218,21 @@ jobs:
       - name: Setup Proto
         run: ./gen_grpc.sh
 
+      - name: Install etcdctl
+        env:
+          ETCD_VER: v3.4.19
+          GOOGLE_URL: https://storage.googleapis.com/etcd
+        run: |
+          rm -f /tmp/etcd-${ETCD_VER}-linux-amd64.tar.gz
+          rm -rf /tmp/etcd-download-test && mkdir -p /tmp/etcd-download-test
+          
+          curl -L ${GOOGLE_URL}/${ETCD_VER}/etcd-${ETCD_VER}-linux-amd64.tar.gz -o /tmp/etcd-${ETCD_VER}-linux-amd64.tar.gz
+          tar xzvf /tmp/etcd-${ETCD_VER}-linux-amd64.tar.gz -C /tmp/etcd-download-test --strip-components=1
+          rm -f /tmp/etcd-${ETCD_VER}-linux-amd64.tar.gz
+          
+          /tmp/etcd-download-test/etcd --version
+          /tmp/etcd-download-test/etcdctl version
+
       - name: Install python dependencies
         working-directory: ./
         run: |
@@ -266,7 +281,7 @@ jobs:
           helm repo add jetstack https://charts.jetstack.io
           helm repo update
           helm install certmgr jetstack/cert-manager --set installCRDs=true --version v1.8.0 --namespace cert-manager --create-namespace
-          helm install featureform ./charts/featureform --set global.repo=local --set global.pullPolicy=Never
+          helm install featureform ./charts/featureform --set global.repo=local --set global.pullPolicy=Never --set global.version=stable
           helm install quickstart ./charts/quickstart
 
       - name: Check Pods
@@ -280,6 +295,7 @@ jobs:
       - name: Enable Minikube Ingress
         run: |
           kubectl port-forward svc/featureform-ingress-nginx-controller 8000:443 7000:80 &
+          kubectl port-forward svc/featureform-etcd 2379:2379 &
 
       - name: Wait For Ingress To Be Active
         shell: bash
@@ -305,6 +321,26 @@ jobs:
 
       - name: Run Test
         run: pytest client/tests/e2e.py
+
+      - name: Reset Quickstart
+        run: |
+          helm uninstall quickstart
+          helm install quickstart ./charts/quickstart
+          /tmp/etcd-download-test/etcdctl --user=root:secretpassword del "" --prefix
+
+      - name: Run CLI for Get and List Functions
+        run: |
+          kubectl get secret featureform-ca-secret -o=custom-columns=':.data.tls\.crt'| base64 -d > tls.crt
+          featureform apply client/examples/quickstart_get.py --host localhost:8000 --cert tls.crt
+      
+      - name: Set Cert as Env Variable
+        run: export FEATUREFORM_CERT=$(pwd)/tls.crt
+
+      - name: Run Get Test
+        run: pytest client/src/featureform/get_test.py
+      
+      - name: Run List Test
+        run: pytest client/src/featureform/list_test.py
 
       - name: API Server Logs
         if: always()

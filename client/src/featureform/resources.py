@@ -6,13 +6,20 @@ import time
 from typing import List, Tuple, Union
 from typeguard import typechecked
 from dataclasses import dataclass
-from .proto import metadata_pb2 as pb
+from featureform.proto import metadata_pb2 as pb
 import grpc
 import json
+
 from .sqlite_metadata import SQLiteMetadata
+from enum import Enum
 
 NameVariant = Tuple[str, str]
 
+@typechecked
+@dataclass
+class OperationType(Enum):
+    GET = 0
+    CREATE = 1
 
 @typechecked
 def valid_name_variant(nvar: NameVariant) -> bool:
@@ -25,6 +32,10 @@ class Schedule:
     variant: str
     resource_type: int
     schedule_string: str
+
+    @staticmethod
+    def operation_type() -> OperationType:
+        return OperationType.CREATE
 
     def type(self) -> str:
         return "schedule"
@@ -235,6 +246,10 @@ class Provider:
         self.software = self.config.software()
 
     @staticmethod
+    def operation_type() -> OperationType:
+        return OperationType.CREATE
+
+    @staticmethod
     def type() -> str:
         return "provider"
 
@@ -267,6 +282,10 @@ class Provider:
 @dataclass
 class User:
     name: str
+
+    @staticmethod
+    def operation_type() -> OperationType:
+        return OperationType.CREATE
 
     def type(self) -> str:
         return "user"
@@ -360,6 +379,10 @@ class Source:
         self.schedule = schedule
 
     @staticmethod
+    def operation_type() -> OperationType:
+        return OperationType.CREATE
+
+    @staticmethod
     def type() -> str:
         return "source"
 
@@ -413,6 +436,10 @@ class Source:
 class Entity:
     name: str
     description: str
+
+    @staticmethod
+    def operation_type() -> OperationType:
+        return OperationType.CREATE
 
     @staticmethod
     def type() -> str:
@@ -470,6 +497,10 @@ class Feature:
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=4, schedule_string=schedule)
         self.schedule = schedule
+
+    @staticmethod
+    def operation_type() -> OperationType:
+        return OperationType.CREATE
 
     @staticmethod
     def type() -> str:
@@ -535,6 +566,10 @@ class Label:
     location: ResourceLocation
 
     @staticmethod
+    def operation_type() -> OperationType:
+        return OperationType.CREATE
+
+    @staticmethod
     def type() -> str:
         return "label"
 
@@ -588,10 +623,14 @@ class EntityReference:
     obj: Union[Entity, None]
 
     @staticmethod
-    def type() -> str:
-        return f"get-entity"
+    def operation_type() -> OperationType:
+        return OperationType.GET
 
-    def _create(self, stub):
+    @staticmethod
+    def type() -> str:
+        return "entity"
+
+    def _get(self, stub):
         entityList = stub.GetEntities(iter([pb.Name(name=self.name)]))
         try:
             for entity in entityList:
@@ -607,16 +646,26 @@ class ProviderReference:
     obj: Union[Provider, None]
 
     @staticmethod
-    def type() -> str:
-        return f"get-provider"
+    def operation_type() -> OperationType:
+        return OperationType.GET
 
-    def _create(self, stub):
+    @staticmethod
+    def type() -> str:
+        return "provider"
+
+    def _get(self, stub):
         providerList = stub.GetProviders(iter([pb.Name(name=self.name)]))
         try:
             for provider in providerList:
                 self.obj = provider
         except grpc._channel._MultiThreadedRendezvous:
             raise ValueError(f"Provider {self.name} of type {self.provider_type} not found.")
+        
+    def _get_local(self, db):
+        local_provider = db.getVariantResource("providers", "local mode", self.name)
+        if local_provider == []:
+            raise ValueError("Local mode provider not found.")
+        self.obj = local_provider
 
 @typechecked
 @dataclass
@@ -626,16 +675,26 @@ class SourceReference:
     obj: Union[Source, None]
 
     @staticmethod
-    def type() -> str:
-        return f"get-source"
+    def operation_type() -> OperationType:
+        return OperationType.GET
 
-    def _create(self, stub):
+    @staticmethod
+    def type() -> str:
+        return "source"
+
+    def _get(self, stub):
         sourceList = stub.GetSourceVariants(iter([pb.NameVariant(name=self.name, variant=self.variant)]))
         try:
             for source in sourceList:
                 self.obj = source
         except grpc._channel._MultiThreadedRendezvous:
             raise ValueError(f"Source {self.name}, variant {self.variant} not found.")
+    
+    def _get_local(self, db):
+        local_source = db.getNameVariant("source_variant", "name", self.name, "variant", self.variant)
+        if local_source == []:
+            raise ValueError(f"Source {self.name}, variant {self.variant} not found.")
+        self.obj = local_source
 
 @typechecked
 @dataclass
@@ -663,6 +722,10 @@ class TrainingSet:
                 raise ValueError("Invalid Feature")
 
     @staticmethod
+    def operation_type() -> OperationType:
+        return OperationType.CREATE
+
+    @staticmethod
     def type() -> str:
         return "training-set"
 
@@ -681,12 +744,12 @@ class TrainingSet:
         stub.CreateTrainingSetVariant(serialized)
 
     def _create_local(self, db) -> None:
+        self._check_insert_training_set_resources(db)   
         db.insert("training_set_variant",
                   str(time.time()),
                   self.description,
                   self.name,
                   self.owner,
-                  # "Provider",
                   self.variant,
                   self.label[0],
                   self.label[1],
@@ -694,7 +757,6 @@ class TrainingSet:
                   str(self.features)
                   )
         self._create_training_set_resource(db)
-        self._insert_training_set_features(db)
 
     def _create_training_set_resource(self, db) -> None:
         db.insert(
@@ -704,8 +766,16 @@ class TrainingSet:
             self.name
         )
 
-    def _insert_training_set_features(self, db) -> None:
+    def _check_insert_training_set_resources(self, db) -> None:
+        try:
+            db.getNameVariant("labels_variant", "labelName", self.label[0], "variantName", self.label[1])
+        except ValueError:
+            raise ValueError("{} does not exist. Failed to register training set".format(self.label[0]))
         for feature in self.features:
+            try:
+                db.getNameVariant("feature_variant", "featureName", feature[0], "variantName", feature[1])
+            except ValueError:
+                raise ValueError("{} does not exist. Failed to register training set".format(feature[0]))
             db.insert(
                 "training_set_features",
                 self.name,
@@ -739,9 +809,9 @@ class ResourceState:
     @typechecked
     def add(self, resource: Resource) -> None:
         if hasattr(resource, 'variant'):
-            key = (resource.type(), resource.name, resource.variant)
+            key = (resource.operation_type().name, resource.type(), resource.name, resource.variant)
         else:
-            key = (resource.type(), resource.name)
+            key = (resource.operation_type().name, resource.type(), resource.name)
         if key in self.__state:
             raise ResourceRedefinedError(resource)
         self.__state[key] = resource
@@ -774,18 +844,23 @@ class ResourceState:
     def create_all_local(self) -> None:
         db = SQLiteMetadata()
         for resource in self.__create_list:
-            print("Creating", resource.name)
-            resource._create_local(db)
+            if resource.operation_type() is OperationType.GET:
+                print("Getting", resource.type(), resource.name)
+                resource._get_local(db)
+            if resource.operation_type() is OperationType.CREATE:
+                print("Creating", resource.type(), resource.name)
+                resource._create_local(db)
         return
 
     def create_all(self, stub) -> None:
         for resource in self.__create_list:
             try:
-                if resource.type()[:3] == "get":
-                    print("Getting", resource.type()[4:], resource.name)
-                else:
+                if resource.operation_type() is OperationType.GET:
+                    print("Getting", resource.type(), resource.name)
+                    resource._get(stub)
+                if resource.operation_type() is OperationType.CREATE:
                     print("Creating", resource.type(), resource.name)
-                resource._create(stub)
+                    resource._create(stub)
             except grpc.RpcError as e:
                 if e.code() == grpc.StatusCode.ALREADY_EXISTS:
                     print(resource.name, "already exists.")

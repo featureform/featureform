@@ -1,26 +1,26 @@
-twoRowSpacing = "{:<30} {:<25}"
-threeRowSpacing = "{:<30} {:<30} {:<30}"
-fourRowSpacing = "{:<30} {:<30} {:<30} {:<30}"
+two_row_spacing = "{:<30} {:<25}"
+three_row_spacing = "{:<30} {:<30} {:<30}"
+four_row_spacing = "{:<30} {:<30} {:<30} {:<30}"
 divider = "-----------------------------------------------"
 
-def formatRows(formatObj, formatObj2=None, formatObj3=None, formatObj4=None):
-    if not formatObj2 and not formatObj3:
-        for s in formatObj:
+def format_rows(format_obj, format_obj_2=None, format_obj_3=None, format_obj_4=None):
+    if not format_obj_2 and not format_obj_3:
+        for s in format_obj:
             if len(s) == 2:
-                formatRows(s[0], s[1])
+                format_rows(s[0], s[1])
             elif len(s) == 3:
-                formatRows(s[0], s[1], s[2])
+                format_rows(s[0], s[1], s[2])
             elif len(s) == 4:
-                formatRows(s[0], s[1], s[2], s[3])
+                format_rows(s[0], s[1], s[2], s[3])
             else:
                 return "Tuple length not formattable."
-    elif formatObj2 and not formatObj3:
-        print(twoRowSpacing.format(formatObj, formatObj2))
-    elif formatObj2 and formatObj3 and not formatObj4:
-        print(threeRowSpacing.format(formatObj, formatObj2, formatObj3))
+    elif format_obj_2 and not format_obj_3:
+        print(two_row_spacing.format(format_obj, format_obj_2))
+    elif format_obj_2 and format_obj_3 and not format_obj_4:
+        print(three_row_spacing.format(format_obj, format_obj_2, format_obj_3))
     else:
-        print(fourRowSpacing.format(formatObj, formatObj2, formatObj3, formatObj4))
+        print(four_row_spacing.format(format_obj, format_obj_2, format_obj_3, format_obj_4))
 
-def formatNewPara(s):
+def format_new_para(s=""):
     print(divider)
     print(s)

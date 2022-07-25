@@ -5,19 +5,17 @@
 import marshal
 from distutils.command.config import config
 from typing_extensions import Self
-from .resources import ResourceState, Provider, ProviderReference, SourceReference, EntityReference, RedisConfig, \
-    LocalConfig, DynamodbConfig, PostgresConfig, SnowflakeConfig, RedshiftConfig, User, Location, Source, PrimaryData, SQLTable, \
-    SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet
 from numpy import byte
 from .resources import ResourceState, Provider, RedisConfig, FirestoreConfig, CassandraConfig, DynamodbConfig, \
     PostgresConfig, SnowflakeConfig, LocalConfig, RedshiftConfig, User, Location, Source, PrimaryData, SQLTable, \
-    SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet
+    SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet, ProviderReference, \
+    EntityReference, SourceReference
 from typing import Tuple, Callable, List, Union
 from typeguard import typechecked, check_type
 import grpc
 import os
-from .proto import metadata_pb2
-from .proto import metadata_pb2_grpc as ff_grpc
+from featureform.proto import metadata_pb2
+from featureform.proto import metadata_pb2_grpc as ff_grpc
 from .sqlite_metadata import SQLiteMetadata
 import time
 import pandas as pd
@@ -73,6 +71,18 @@ class OfflineSQLProvider(OfflineProvider):
                        table: str,
                        owner: Union[str, UserRegistrar] = "",
                        description: str = ""):
+        """Register a SQL table as a primary data source.
+
+        Args:
+            name (str): Name of table to be registered
+            variant (str): Name of variant to be registered
+            table (str): Name of SQL table
+            owner (Union[str, UserRegistrar]): Owner
+            description (str): Description of table to be registered
+
+        Returns:
+            source (ColumnSourceRegistrar): source
+        """
         return self.__registrar.register_primary_data(name=name,
                                                       variant=variant,
                                                       location=SQLTable(table),
@@ -110,7 +120,6 @@ class LocalProvider:
         self.__registrar = registrar
         self.__provider = provider
         self.sqldb = SQLiteMetadata()
-        self.insert_provider()
 
     def name(self) -> str:
         return self.__provider.name
@@ -485,7 +494,7 @@ class Registrar:
                 "Owner must be set or a default owner must be specified.")
         return owner
 
-    def get_source(self, name, variant):
+    def get_source(self, name, variant, local=False):
         """Get a source. The returned object can be used to register additional resources.
 
         **Examples**:
@@ -502,20 +511,36 @@ class Registrar:
         Args:
             name (str): Name of source to be retrieved
             variant (str): Name of variant of source to be retrieved
+            local (bool): If localmode is being used
 
         Returns:
             source (ColumnSourceRegistrar): Source
         """
         get = SourceReference(name=name, variant=variant, obj=None)
         self.__resources.append(get)
-        fakeDefinition = PrimaryData(location=SQLTable(name=""))
-        fakeSource = Source(name=name,
-                        variant=variant,
-                        definition=fakeDefinition,
-                        owner="",
-                        provider="",
-                        description="")
-        return ColumnSourceRegistrar(self, fakeSource)
+        if local:
+            return LocalSource(self,
+                                name=name,
+                                owner="",
+                                variant=variant,
+                                provider="",
+                                description="")
+        else:
+            fakeDefinition = PrimaryData(location=SQLTable(name=""))
+            fakeSource = Source(name=name,
+                            variant=variant,
+                            definition=fakeDefinition,
+                            owner="",
+                            provider="",
+                            description="")
+            return ColumnSourceRegistrar(self, fakeSource)
+
+    def get_local(self, name):
+        get = ProviderReference(name=name, provider_type="local", obj=None)
+        self.__resources.append(get)
+        fakeConfig = LocalConfig()
+        fakeProvider = Provider(name=name, function="LOCAL_ONLINE", description="", team="", config=fakeConfig)
+        return LocalProvider(self, fakeProvider)
 
     def get_redis(self, name):
         """Get a Redis provider. The returned object can be used to register additional resources.
@@ -595,7 +620,7 @@ class Registrar:
         fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
         return OfflineSQLProvider(self, fakeProvider)
 
-    def get_entity(self, name):
+    def get_entity(self, name, local=False):
         """Get an entity. The returned object can be used to register additional resources.
 
         **Examples**:
@@ -611,13 +636,14 @@ class Registrar:
         ```
         Args:
             name (str): Name of entity to be retrieved
+            local (bool): If localmode is being used
 
         Returns:
             entity (EntityRegistrar): Entity
         """
         get = EntityReference(name=name, obj=None)
-        fakeEntity = Entity(name=name, description="")
         self.__resources.append(get)
+        fakeEntity = Entity(name=name, description="")
         return EntityRegistrar(self, fakeEntity)
 
     def register_redis(self,
@@ -896,7 +922,6 @@ class Registrar:
         ```   
             local = register_local()
         ```
-
         Returns:
             local (LocalProvider): Provider
         """
@@ -907,7 +932,9 @@ class Registrar:
                             team="team",
                             config=config)
         self.__resources.append(provider)
-        return LocalProvider(self, provider)
+        local_provider = LocalProvider(self, provider)
+        local_provider.insert_provider()
+        return local_provider
 
     def register_primary_data(self,
                               name: str,
@@ -1224,33 +1251,53 @@ class Client(Registrar):
     redis = rc.get_provider("redis-quickstart")
     ```
     """
-    def __init__(self, host, tls_verify=True, cert_path=None):
+    def __init__(self, host=None, local=False, insecure=True, cert_path=None):
         """Initialise a Resource Client object.
 
         Args:
             host (str): Host path
-            tls_verify (bool): If true, do TLS verification
+            local (bool): If localmode is being used
+            insecure (bool): If true, do not do TLS verification
             cert_path (str): Path to certificate
         """
         super().__init__()
-        env_cert_path = os.getenv('FEATUREFORM_CERT')
-        if tls_verify:
-            credentials = grpc.ssl_channel_credentials()
-            channel = grpc.secure_channel(host, credentials)
-        elif cert_path is not None or env_cert_path is not None:
-            if env_cert_path is not None and cert_path is None:
-                cert_path = env_cert_path
-            with open(cert_path, 'rb') as f:
+        self.local = local
+        if self.local:
+            if host != None:
+                raise ValueError("Cannot be local and have a host")
+
+        elif host == None:
+            host = os.getenv('FEATUREFORM_HOST')
+            if host == None:
+                raise ValueError(
+                    "Host value must be set or in env as FEATUREFORM_HOST")
+        else:
+            channel = self.tls_check(host, cert_path, insecure)
+            self._stub = ff_grpc.ApiStub(channel)
+
+    def tls_check(self, host, cert, insecure):
+        if insecure:
+            channel = grpc.insecure_channel(
+                host, options=(('grpc.enable_http_proxy', 0),))
+        elif cert != None or os.getenv('FEATUREFORM_CERT') != None:
+            if os.getenv('FEATUREFORM_CERT') != None and cert == None:
+                cert = os.getenv('FEATUREFORM_CERT')
+            with open(cert, 'rb') as f:
                 credentials = grpc.ssl_channel_credentials(f.read())
             channel = grpc.secure_channel(host, credentials)
         else:
-            channel = grpc.insecure_channel(host, options=(('grpc.enable_http_proxy', 0),))
-        self._stub = ff_grpc.ApiStub(channel)
+            credentials = grpc.ssl_channel_credentials()
+            channel = grpc.secure_channel(host, credentials)
+        return channel
 
     def apply(self):
         """Apply all definitions, creating and retrieving all specified resources.
         """
-        self.state().create_all(self._stub)
+        
+        if self.local:
+            state().create_all_local()
+        else:
+            state().create_all(self._stub)
 
     def get_user(self, name):
         """Get a user. Prints out name of user, and all resources associated with the user.
@@ -1263,7 +1310,6 @@ class Client(Registrar):
 
         ``` json title="Output"
         // get_user prints out formatted information on user
-
         USER NAME:                     featureformer
         -----------------------------------------------
 
@@ -1306,14 +1352,13 @@ class Client(Registrar):
         }
         ```
 
-
         Args:
             name (str): Name of user to be retrieved
 
         Returns:
             user (User): User
         """
-        return GetUser(self._stub, name)
+        return get_user_info(self._stub, name)
     
     def get_entity(self, name):
         """Get an entity. Prints out information on entity, and all resources associated with the entity.
@@ -1359,14 +1404,7 @@ class Client(Registrar):
         variant: "quickstart"
         }
         ```
-
-        Args:
-            name (str): Name of entity to be retrieved
-
-        Returns:
-            entity (Entity): Entity
-        """
-        return GetEntity(self._stub, name)
+        return get_entity_info(self._stub, name)
 
     def get_model(self, name):
         """Get a model. Prints out information on model, and all resources associated with the model.
@@ -1377,7 +1415,7 @@ class Client(Registrar):
         Returns:
             model (Model): Model
         """
-        return GetResource(self._stub, "model", name)
+        return get_resource_info(self._stub, "model", name)
 
     def get_provider(self, name):
         """Get a provider. Prints out information on provider, and all resources associated with the provider.
@@ -1455,7 +1493,7 @@ class Client(Registrar):
         Returns:
             provider (Provider): Provider
         """
-        return GetProvider(self._stub, name)
+        return get_provider_info(self._stub, name)
 
     def get_feature(self, name, variant=None):
         """Get a feature. Prints out information on feature, and all variants associated with the feature. If variant is included, print information on that specific variant and all resources associated with it.
@@ -1553,9 +1591,9 @@ class Client(Registrar):
             feature (Union[Feature, FeatureVariant]): Feature or FeatureVariant
         """
         if not variant:
-            return GetResource(self._stub, "feature", name)
-        return GetFeatureVariant(self._stub, name, variant)
-
+            return get_resource_info(self._stub, "feature", name)
+        return get_feature_variant_info(self._stub, name, variant)
+        
     def get_label(self, name, variant=None):
         """Get a label. Prints out information on label, and all variants associated with the label. If variant is included, print information on that specific variant and all resources associated with it.
 
@@ -1652,8 +1690,8 @@ class Client(Registrar):
             label (Union[label, LabelVariant]): Label or LabelVariant
         """
         if not variant:
-            return GetResource(self._stub, "label", name)
-        return GetLabelVariant(self._stub, name, variant)
+            return get_resource_info(self._stub, "label", name)
+        return get_label_variant_info(self._stub, name, variant)
 
     def get_training_set(self, name, variant=None):
         """Get a training set. Prints out information on training set, and all variants associated with the training set. If variant is included, print information on that specific variant and all resources associated with it.
@@ -1743,8 +1781,8 @@ class Client(Registrar):
             training_set (Union[TrainingSet, TrainingSetVariant]): TrainingSet or TrainingSetVariant
         """
         if not variant:
-            return GetResource(self._stub, "training-set", name)
-        return GetTrainingSetVariant(self._stub, name, variant)
+            return get_resource_info(self._stub, "training-set", name)
+        return get_training_set_variant_info(self._stub, name, variant)
 
     def get_source(self, name, variant=None):
         """Get a source. Prints out information on source, and all variants associated with the source. If variant is included, print information on that specific variant and all resources associated with it.
@@ -1853,8 +1891,8 @@ class Client(Registrar):
             source (Union[Source, SourceVariant]): Source or SourceVariant
         """
         if not variant:
-            return GetResource(self._stub, "source", name)
-        return GetSourceVariant(self._stub, name, variant)
+            return get_resource_info(self._stub, "source", name)
+        return get_source_variant_info(self._stub, name, variant)
 
     def list_features(self):
         """List all features.
@@ -1893,7 +1931,7 @@ class Client(Registrar):
         Returns:
             features (List[Feature]): List of Feature Objects
         """
-        return ListNameVariantStatus(self._stub, "feature")
+        return list_name_variant_status(self._stub, "feature")
 
     def list_labels(self):
         """List all labels.
@@ -1932,7 +1970,7 @@ class Client(Registrar):
         Returns:
             labels (List[Label]): List of Label Objects
         """
-        return ListNameVariantStatus(self._stub, "label")
+        return list_name_variant_status(self._stub, "label")
 
     def list_users(self):
         """List all users. Prints a list of all users.
@@ -1993,7 +2031,7 @@ class Client(Registrar):
         Returns:
             users (List[User]): List of User Objects
         """
-        return ListNameStatus(self._stub, "user")
+        return list_name_status(self._stub, "user")
 
     def list_entities(self):
         """List all entities. Prints a list of all entities.
@@ -2051,7 +2089,7 @@ class Client(Registrar):
         Returns:
             entities (List[Entity]): List of Entity Objects
         """
-        return ListNameStatus(self._stub, "entity")
+        return list_name_status(self._stub, "entity")
 
     def list_sources(self):
         """List all sources. Prints a list of all sources.
@@ -2088,7 +2126,7 @@ class Client(Registrar):
         Returns:
             sources (List[Source]): List of Source Objects
         """
-        return ListNameVariantStatusDesc(self._stub, "source")
+        return list_name_variant_status_desc(self._stub, "source")
 
     def list_training_sets(self):
         """List all training sets. Prints a list of all training sets.
@@ -2126,7 +2164,7 @@ class Client(Registrar):
         Returns:
             training_sets (List[TrainingSet]): List of TrainingSet Objects
         """
-        return ListNameVariantStatusDesc(self._stub, "training-set")
+        return list_name_variant_status_desc(self._stub, "training-set")
 
     def list_models(self):
         """List all models. Prints a list of all models.
@@ -2134,7 +2172,7 @@ class Client(Registrar):
         Returns:
             models (List[Model]): List of Model Objects
         """
-        return ListNameStatusDesc(self._stub, "model")
+        return list_name_status_desc(self._stub, "model")
 
     def list_providers(self):
         """List all providers. Prints a list of all providers.
@@ -2203,7 +2241,7 @@ class Client(Registrar):
         Returns:
             providers (List[Provider]): List of Provider Objects
         """
-        return ListNameStatusDesc(self._stub, "provider")
+        return list_name_status_desc(self._stub, "provider")
 
 global_registrar = Registrar()
 state = global_registrar.state
@@ -2223,6 +2261,7 @@ sql_transformation = global_registrar.sql_transformation
 register_sql_transformation = global_registrar.register_sql_transformation
 get_entity = global_registrar.get_entity
 get_source = global_registrar.get_source
+get_local = global_registrar.get_local
 get_redis = global_registrar.get_redis
 get_postgres = global_registrar.get_postgres
 get_snowflake = global_registrar.get_snowflake

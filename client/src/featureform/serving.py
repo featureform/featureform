@@ -160,9 +160,12 @@ class Client:
         new_data = func(*dataframes)
         return new_data
 
-    def _local_features(self, feature_variant_list, entity_tuple):
+    def _local_features(self, feature_variant_list, entity):
         if len(feature_variant_list) == 0:
             raise Exception("No features provided")
+        # This code was originally written to take a tuple, this is a quick fix to turn a dict with a single entry into that tuple.
+        # This should all be refactored later.
+        entity_tuple = list(entity.items())[0]
         dataframe_mapping = []
         all_feature_df = None
         for featureVariantTuple in feature_variant_list:

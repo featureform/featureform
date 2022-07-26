@@ -61,7 +61,7 @@ class TestQuickstart:
 
     def test_feature(self):
         client = ff.ServingClient(local=True)
-        feature = client.features([(self.feature_name, self.feature_variant)], (self.entity, self.entity_value))
+        feature = client.features([(self.feature_name, self.feature_variant)], {self.entity: self.entity_value})
         assert feature == pd.array([self.entity_value])
 
 

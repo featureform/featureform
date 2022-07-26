@@ -189,7 +189,7 @@ feature_e2e = {
         'entity': 'user',
         'entity_loc': 'entity',
         'features': [("avg_transactions", "quickstart")],
-        'entities': [("user", "a"), ("user", "b")],
+        'entities': [{"user": "a"}, {"user": "b"}],
         'expected': np.array([[1], [2]]),
         'ts_col': ""
     },
@@ -205,7 +205,7 @@ feature_e2e = {
         'entity': 'user',
         'entity_loc': 'entity',
         'features': [("avg_transactions", "quickstart")],
-        'entities': [("user", "a"), ("user", "b"), ("user", "c")],
+        'entities': [{"user": "a"}, {"user": "b"}, {"user": "c"}],
         'expected': np.array([[4], [2], [3]]),
         'ts_col': ""
     },
@@ -221,7 +221,7 @@ feature_e2e = {
         'entity': 'user',
         'entity_loc': 'entity',
         'features': [("avg_transactions", "quickstart")],
-        'entities': [("user", "a"), ("user", "b"), ("user", "c")],
+        'entities': [{"user": "a"}, {"user": "b"}, {"user": "c"}],
         'expected': np.array([[4], [2], [3]]),
         'ts_col': "ts"
     },
@@ -238,7 +238,7 @@ feature_e2e = {
         'entity': 'user',
         'entity_loc': 'entity',
         'features': [("avg_transactions", "quickstart")],
-        'entities': [("user", "a"), ("user", "b"), ("user", "c")],
+        'entities': [{"user": "a"}, {"user": "b"}, {"user": "c"}],
         'expected': np.array([[1], [2], [3]]),
         'ts_col': "ts"
     },
@@ -257,7 +257,7 @@ feature_e2e = {
         'entity': 'user',
         'entity_loc': 'entity',
         'features': [("avg_transactions", "quickstart")],
-        'entities': [("user", "a"), ("user", "b"), ("user", "c")],
+        'entities': [{"user": "a"}, {"user": "b"}, {"user": "c"}],
         'expected': np.array([[1], [9], [3]]),
         'ts_col': "ts"
     },
@@ -271,7 +271,7 @@ feature_e2e = {
         'entity': 'user',
         'entity_loc': 'entity',
         'features': [("avg_transactions", "quickstart"), ("avg_transactions", "quickstart2")],
-        'entities': [("user", "a"), ("user", "b")],
+        'entities': [{"user": "a"}, {"user": "b"}],
         'expected': np.array([['one', 1], ['two', 2]]),
         'ts_col': ""
     },
@@ -285,7 +285,7 @@ feature_e2e = {
         'entity': 'user',
         'entity_loc': 'entity',
         'features': [("avg_transactions", "quickstart"), ("avg_transactions", "quickstart2")],
-        'entities': [("user", "a"), ("user", "b")],
+        'entities': [{"user": "a"}, {"user": "b"}],
         'expected': np.array([['one', 1], ['two', 2]]),
         'ts_col': "ts"
     },
@@ -301,7 +301,7 @@ feature_e2e = {
         'entity': 'user',
         'entity_loc': 'entity',
         'features': [("avg_transactions", "quickstart"), ("avg_transactions", "quickstart2")],
-        'entities': [("user", "a"), ("user", "b")],
+        'entities': [{"user": "a"}, {"user": "b"}],
         'expected': np.array([['four', 4], ['two', 2]]),
         'ts_col': "ts"
     },

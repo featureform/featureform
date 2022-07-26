@@ -277,11 +277,13 @@ class Provider:
                   )
 
     def parameter_list(self):
-        return {"name": self.name,
-                "config": self.config,
+        return {"resource_type": "providers",
+                "name": self.name,
+                "serialized_config": str(self.configs.serialize(), 'utf-8'),
                 "description": self.description,
                 "team": self.team,
-                "provider_type": self.config.type(),}
+                "provider_type": self.config.type(),
+                "software": self.config.software()}
 
 
 @typechecked
@@ -306,6 +308,12 @@ class User:
                   "User",
                   "ready"
                   )
+
+    def parameter_list(self):
+        return {
+            "resource_type": "users",
+            "name": self.name
+        }
 
 
 @typechecked
@@ -379,6 +387,8 @@ class Source:
     description: str
     schedule: str = ""
     schedule_obj: Schedule = None
+    is_transformation = 0
+    inputs = []
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=7, schedule_string=schedule)
@@ -406,11 +416,9 @@ class Source:
         stub.CreateSourceVariant(serialized)
 
     def _create_local(self, db) -> None:
-        is_transformation = 0
-        inputs = []
         if type(self.definition) == DFTransformation:
-            is_transformation = 1
-            inputs = self.definition.inputs
+            self.is_transformation = 1
+            self.inputs = self.definition.inputs
             self.definition = self.definition.query
 
         db.insert_source("source_variant",
@@ -422,8 +430,8 @@ class Source:
                          self.provider,
                          self.variant,
                          "ready",
-                         is_transformation,
-                         json.dumps(inputs),
+                         self.is_transformation,
+                         json.dumps(self.inputs),
                          self.definition
                          )
         self._create_source_resource(db)
@@ -435,6 +443,19 @@ class Source:
             self.variant,
             self.name
         )
+
+    def parameter_list(self):
+        return {
+            "resource_type": "source_variant",
+            "name": self.name,
+            "description": self.description,
+            "owner": self.owner,
+            "provider": self.provider,
+            "variant": self.variant,
+            "transformation": self.is_transformation,
+            "inputs": json.dumps(self.inputs),
+            "definition": self.definition
+        }
 
 
 @typechecked
@@ -465,6 +486,13 @@ class Entity:
                   self.description,
                   "ready"
                   )
+
+    def parameter_list(self):
+        return {
+            "resource_type": "entities",
+            "name": self.name,
+            "description": self.description
+        }
 
 
 @typechecked
@@ -557,6 +585,23 @@ class Feature:
             self.value_type
         )
 
+    def parameter_list(self):
+        return {
+            "resource_type": "feature_variant",
+            "description": self.description,
+            "entity": self.entity,
+            "name": self.name,
+            "owner": self.owner,
+            "provider": self.provider,
+            "dataType": self.value_type,
+            "variant": self.variant,
+            "sourceEntity": self.location.entity,
+            "sourceTimestamp": self.location.timestamp,
+            "sourceValue": self.location.value,
+            "sourceName": self.source[0],
+            "sourceVariant": self.source[1]
+        }
+
 
 @typechecked
 @dataclass
@@ -621,6 +666,23 @@ class Label:
             self.variant,
             self.name
         )
+
+    def parameter_list(self):
+        return {
+            "resource_type": "labels_variant",
+            "description": self.description,
+            "entity": self.entity,
+            "name": self.name,
+            "owner": self.owner,
+            "provider": self.provider,
+            "dataType": self.value_type,
+            "variant": self.variant,
+            "sourceEntity": self.location.entity,
+            "sourceTimestamp": self.location.timestamp,
+            "sourceValue": self.location.value,
+            "sourceName": self.source[0],
+            "sourceVariant": self.source[1]
+        }
 
 @typechecked
 @dataclass
@@ -777,18 +839,33 @@ class TrainingSet:
             db.getNameVariant("labels_variant", "labelName", self.label[0], "variantName", self.label[1])
         except ValueError:
             raise ValueError("{} does not exist. Failed to register training set".format(self.label[0]))
-        for feature in self.features:
+        for feature_name, feature_variant in self.features:
             try:
-                db.getNameVariant("feature_variant", "featureName", feature[0], "variantName", feature[1])
+                db.getNameVariant("feature_variant", "featureName", feature_name, "variantName", feature_variant)
             except ValueError:
-                raise ValueError("{} does not exist. Failed to register training set".format(feature[0]))
+                raise ValueError("{} does not exist. Failed to register training set".format(feature_name))
             db.insert(
                 "training_set_features",
                 self.name,
                 self.variant,
-                feature[0],  # feature name
-                feature[1]  # feature variant
+                feature_name,  # feature name
+                feature_variant # feature variant
             )
+
+    def parameter_list(self):
+        feature_dictionary = {}
+        for feature_name, feature_variant in self.features:
+            feature_dictionary[feature_name] = feature_variant
+        return {
+                "resource_type": "training_set_variant",
+                "description": self.description,
+                "name": self.name,
+                "owner": self.owner,
+                "variant": self.variant,
+                "labelName": self.label[0],
+                "labelVariant": self.label[1],
+                "features": feature_dictionary
+            }
 
 
 Resource = Union[PrimaryData, Provider, Entity, User, Feature, Label,
@@ -831,8 +908,34 @@ class ResourceState:
             self.__create_list.append(my_schedule)
 
     def is_identical_resource(self, resource):
-        print("Entered the check identical function")
-        print(type(resource))
+        db = SQLiteMetadata()
+        resource_values = resource.parameter_list()
+        resource_type = resource_values["resource_type"]
+
+        if resource_type in ["providers", "entities", "users"]:
+            resource_in_table = db.getVariantResource(resource_type, "name", resource_values["name"])[0]
+            for resource_value in resource_values:
+                if resource_values[resource_value] != resource_in_table[resource_value]:
+                    return False
+            return True
+
+        if resource_type in ["source_variant", "feature_variant", "labels_variant"]:
+            resource_in_table = db.getNameVariant(resource_type, "name", resource_values["name"], "variant", resource_values["variant"])[0]
+            for resource_value in resource_values:
+                if resource_values[resource_value] != resource_in_table[resource_value]:
+                    return False
+            return True
+
+        if resource_type == "training_set_variant":
+            resource_in_table = db.getNameVariant(resource_type, "name", resource_values["name"], "variant", resource_values["variant"])[0]
+            for resource_value in resource_values:
+                if resource_value == "features":
+                    # go through features
+                    pass
+                if resource_values[resource_value] != resource_in_table[resource_value]:
+                    return False
+            return True
+
         return False
 
     def sorted_list(self) -> List[Resource]:

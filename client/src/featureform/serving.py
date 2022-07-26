@@ -355,7 +355,7 @@ class Batch:
         return self
 
     def __next__(self):
-        rows = []
+        rows = BatchRow()
         for _ in range(self.batch_size):
             try:
                 next_row = next(self._stream)
@@ -445,6 +445,30 @@ class LocalRow:
     def __repr__(self):
         return "Features: {} , Label: {}".format(self.features(), self.label())
 
+class BatchRow:
+
+    def __init__(self, rows=None):
+        self._features = []
+        self._labels = []
+        if rows is None:
+            rows = []
+        self._rows = rows
+        for row in rows:
+            self.append(row)
+
+    def append(self, row):
+        self._features.append(row.features())
+        self._labels.append(row.label())
+        self._rows.append(row)
+
+    def features(self):
+        return self._features
+
+    def labels(self):
+        return self._labels
+
+    def to_list(self):
+        return self._rows
 
 def parse_proto_value(value):
     """ parse_proto_value is used to parse the one of Value message

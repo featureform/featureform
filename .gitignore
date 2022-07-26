@@ -17,4 +17,4 @@ rm.**
 venv/
 terraform.tfstate
 .venv
-site/
+**/site/

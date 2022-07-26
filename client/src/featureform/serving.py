@@ -79,35 +79,35 @@ class Client:
                                                     feature_variant['featureVariant'])[0]
 
             source_row = \
-                self.sqldb.getNameVariant("source_variant", "name", feature_row['sourceName'], "variant", feature_row['sourceVariant'])[0]
+                self.sqldb.getNameVariant("source_variant", "name", feature_row['source_name'], "variant", feature_row['source_variant'])[0]
 
             name_variant = feature_variant['featureName'] + "." + feature_variant['featureVariant']
-            if self.sqldb.is_transformation(feature_row['sourceName'], feature_row['sourceVariant']):
-                df = self.process_transformation(feature_row['sourceName'], feature_row['sourceVariant'])
+            if self.sqldb.is_transformation(feature_row['source_name'], feature_row['source_variant']):
+                df = self.process_transformation(feature_row['source_name'], feature_row['source_variant'])
                 if isinstance(df, pd.Series):
                     df = df.to_frame()
                     df.reset_index(inplace=True)
-                if feature_row['sourceTimestamp'] != "":
-                    df = df[[feature_row['sourceEntity'], feature_row['sourceValue'], feature_row['sourceTimestamp']]]
+                if feature_row['source_timestamp'] != "":
+                    df = df[[feature_row['source_entity'], feature_row['source_value'], feature_row['source_timestamp']]]
                 else:
-                    df = df[[feature_row['sourceEntity'], feature_row['sourceValue']]]
+                    df = df[[feature_row['source_entity'], feature_row['source_value']]]
 
-                df.set_index(feature_row['sourceEntity'])
-                df.rename(columns={feature_row['sourceValue']: name_variant}, inplace=True)
+                df.set_index(feature_row['source_entity'])
+                df.rename(columns={feature_row['source_value']: name_variant}, inplace=True)
             else:
                 df = pd.read_csv(str(source_row['definition']))
                 if feature_variant['featureName'] != "":
-                    df = df[[feature_row['sourceEntity'], feature_row['sourceValue'], feature_row['sourceTimestamp']]]
+                    df = df[[feature_row['source_entity'], feature_row['source_value'], feature_row['source_timestamp']]]
                 else:
-                    df = df[[feature_row['sourceEntity'], feature_row['sourceValue']]]
-                df.set_index(feature_row['sourceEntity'])
-                df.rename(columns={feature_row['sourceValue']: name_variant}, inplace=True)
-            if feature_row['sourceTimestamp'] != "":
+                    df = df[[feature_row['source_entity'], feature_row['source_value']]]
+                df.set_index(feature_row['source_entity'])
+                df.rename(columns={feature_row['source_value']: name_variant}, inplace=True)
+            if feature_row['source_timestamp'] != "":
                 trainingset_df = pd.merge_asof(trainingset_df, df.sort_values(['ts']), direction='backward',
-                                               left_on=label_row['sourceTimestamp'], right_on=feature_row['sourceTimestamp'], left_by=label_row['sourceEntity'],
-                                               right_by=feature_row['sourceEntity'])
+                                               left_on=label_row['sourceTimestamp'], right_on=feature_row['source_timestamp'], left_by=label_row['sourceEntity'],
+                                               right_by=feature_row['source_entity'])
             else:
-                df.drop_duplicates(subset=[feature_row['sourceEntity'], name_variant])
+                df.drop_duplicates(subset=[feature_row['source_entity'], name_variant])
                 trainingset_df.reset_index(inplace=True)
                 trainingset_df[label_row['sourceEntity']] = trainingset_df[label_row['sourceEntity']].astype('string')
                 df[label_row['sourceEntity']] = df[label_row['sourceEntity']].astype('string')
@@ -172,7 +172,7 @@ class Client:
 
             feature_row = self.sqldb.getNameVariant("feature_variant", "name", featureVariantTuple[0],
                                                     "variant", featureVariantTuple[1])[0]
-            entity_column, ts_column, feature_column_name, source_name, source_variant = feature_row['sourceEntity'], feature_row['sourceTimestamp'], feature_row['sourceValue'], feature_row['sourceName'], feature_row['sourceVariant']
+            entity_column, ts_column, feature_column_name, source_name, source_variant = feature_row['source_entity'], feature_row['source_timestamp'], feature_row['source_value'], feature_row['source_name'], feature_row['source_variant']
 
             source_row = self.sqldb.getNameVariant("source_variant", "name", source_name, "variant", source_variant)[0]
             if self.sqldb.is_transformation(source_name, source_variant):

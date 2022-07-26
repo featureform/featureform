@@ -1,4 +1,3 @@
-from cProfile import label
 from .format import *
 from .sqlite_metadata import *
 
@@ -62,7 +61,7 @@ def get_resource_info_local(resource_type, name):
     get_query_names = {
         "feature": ["features", "feature_variant", "featureName", "variantName"],
         "label": ["labels", "label_variant", "labelName", "variantName"],
-        "source": ["sources", "source_variant", "name", "variant"],
+        "source": ["sources", "source_variant", "name", "variant"], #changesource
         "trainingset": ["training_sets", "training_set_variant", "trainingSetName", "variantName"],
         "training-set": ["training_sets", "training_set_variant", "trainingSetName", "variantName"]
     }
@@ -189,7 +188,7 @@ def get_label_variant_info_local(name, variant):
 
 def get_source_variant_info_local(name, variant):
     db = SQLiteMetadata()
-    source_list = db.getNameVariant("source_variant", "name", name, "variant", variant)
+    source_list = db.getNameVariant("source_variant", "name", name, "variant", variant)#changesource
     source = source_list[0]
 
     returned_features_list = get_related_resources("feature_variant", 

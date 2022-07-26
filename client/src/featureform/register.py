@@ -20,7 +20,8 @@ from .sqlite_metadata import SQLiteMetadata
 import time
 import pandas as pd
 from .get import *
-from.get_local import *
+from .get_local import *
+from .list_local import *
 from .list import *
 
 NameVariant = Tuple[str, str]
@@ -1252,28 +1253,44 @@ class Client(Registrar):
             return get_resource_info(self._stub, "source", name)
         return get_source_variant_info(self._stub, name, variant)
 
-    def list_features(self):
+    def list_features(self, local=False):
+        if local:
+            return list_name_variant_status_local("feature")
         return list_name_variant_status(self._stub, "feature")
 
-    def list_labels(self):
+    def list_labels(self, local=False):
+        if local:
+            return list_name_variant_status_local("label")
         return list_name_variant_status(self._stub, "label")
 
-    def list_users(self):
+    def list_users(self, local=False):
+        if local:
+            return list_name_status_local("user")
         return list_name_status(self._stub, "user")
 
-    def list_entities(self):
+    def list_entities(self, local=False):
+        if local:
+            return list_name_status_local("entity")
         return list_name_status(self._stub, "entity")
 
-    def list_sources(self):
+    def list_sources(self, local=False):
+        if local:
+            return list_name_variant_status_desc_local("source")
         return list_name_variant_status_desc(self._stub, "source")
 
-    def list_training_sets(self):
+    def list_training_sets(self, local=False):
+        if local:
+            return list_name_variant_status_desc_local("training-set")
         return list_name_variant_status_desc(self._stub, "training-set")
 
-    def list_models(self):
+    def list_models(self, local=False):
+        if local:
+            return list_name_status_desc_local("model")
         return list_name_status_desc(self._stub, "model")
 
-    def list_providers(self):
+    def list_providers(self, local=False):
+        if local:
+            return list_name_status_desc_local("provider")
         return list_name_status_desc(self._stub, "provider")
 
 global_registrar = Registrar()

@@ -1,63 +1,60 @@
-from featureform.proto import metadata_pb2
+from .sqlite_metadata import *
 from .format import *
 
 cutoff_length = 60
 
-def list_name_status_local(stub, resource_type):
-    stub_list_functions = {
-        "entity": stub.ListEntities,
-        "user": stub.ListUsers
+def get_sorted_list(resource_type, variant=False):
+    db = SQLiteMetadata()
+    local_list_args = {
+        "entity": ["entities"],
+        "user": ["users"],
+        "model": ["models"],
+        "provider": ["providers"],
+        "feature": ["features", "feature_variant", "featureName"],
+        "label": ["labels", "label_variant", "labelName"],
+        "source": ["sources", "source_variant", "name"], #changesource
+        "training-set": ["training_sets", "training_set_variant", "trainingSetName"]
     }
+    if variant:
+        res = sorted([received for received in db.getTypeTable(local_list_args[resource_type][1])], key=lambda x:x[local_list_args[resource_type][2]])
+    else:
+        res = sorted([received for received in db.getTypeTable(local_list_args[resource_type][0])], key=lambda x:x["name"])
+    return res
+
+def list_name_status_local(resource_type):
     format_rows("NAME", "STATUS")
-    res = sorted([received for received in stub_list_functions[resource_type](metadata_pb2.Empty())], key=lambda x:x.name)
-    for f in res:
-        format_rows(f.name, f.status.Status._enum_type.values[f.status.status].name)
+    res = get_sorted_list(resource_type)
+    for r in res:
+        format_rows(r["name"], r["status"])
     return res
 
-def list_name_status_desc_local(stub, resource_type):
-    stub_list_functions = {
-        "model": stub.ListModels,
-        "provider": stub.ListProviders
-    }
+def list_name_status_desc_local(resource_type):
     format_rows("NAME", "STATUS", "DESCRIPTION")
-    res = sorted([received for received in stub_list_functions[resource_type](metadata_pb2.Empty())], key=lambda x:x.name)
-    for f in res:
-        format_rows(f.name, f.status.Status._enum_type.values[f.status.status].name, f.description[:cutoff_length])
+    res = get_sorted_list(resource_type)
+    for r in res:
+        format_rows(r["name"], r["status"], r["description"][:cutoff_length])
     return res
 
-def list_name_variant_status_local(stub, resource_type):
-    stub_list_functions = {
-        "feature": [stub.ListFeatures, stub.GetFeatureVariants],
-        "label": [stub.ListLabels, stub.GetLabelVariants]
-    }
-
+def list_name_variant_status_local(resource_type):
     format_rows("NAME", "VARIANT", "STATUS")
-    res = sorted([received for received in stub_list_functions[resource_type][0](metadata_pb2.Empty())], key=lambda x:x.name)
-    for f in res:
-        for v in f.variants:
-            searchNameVariant = metadata_pb2.NameVariant(name=f.name, variant=v)
-            for x in stub_list_functions[resource_type][1](iter([searchNameVariant])):
-                if x.variant == f.default_variant:
-                    format_rows(f.name, f"{f.default_variant} (default)", f.status.Status._enum_type.values[f.status.status].name)
-                else:
-                    format_rows(x.name, x.variant, x.status.Status._enum_type.values[x.status.status].name)
+    res = get_sorted_list(resource_type)
+    for r in res:
+        res_variants = get_sorted_list(resource_type, True)
+        for v in res_variants:
+            if r["defaultVariant"] == v["variantName"]:
+                format_rows(r["name"], f"{r['defaultVariant']} (default)", v["status"])
+            else:
+                format_rows(r["name"], v["variantName"], v["status"])
     return res
 
-def list_name_variant_status_desc_local(stub, resource_type):
-    stub_list_functions = {
-        "source": [stub.ListSources, stub.GetSourceVariants],
-        "training-set": [stub.ListTrainingSets, stub.GetTrainingSetVariants],
-        "trainingset": [stub.ListTrainingSets, stub.GetTrainingSetVariants]
-    }
-
+def list_name_variant_status_desc_local(resource_type):
     format_rows("NAME", "VARIANT", "STATUS", "DESCRIPTION")
-    res = sorted([received for received in stub_list_functions[resource_type][0](metadata_pb2.Empty())], key=lambda x:x.name)
-    for f in res:
-        for v in f.variants:
-            searchNameVariant = metadata_pb2.NameVariant(name=f.name, variant=v)
-            for x in stub_list_functions[resource_type][1](iter([searchNameVariant])):
-                if x.variant == f.default_variant:
-                    format_rows(f.name, f"{f.default_variant} (default)", f.status.Status._enum_type.values[f.status.status].name, x.description)
-                else:
-                    format_rows(x.name, x.variant, x.status.Status._enum_type.values[x.status.status].name, x.description)
+    res = get_sorted_list(resource_type)
+    for r in res:
+        res_variants = get_sorted_list(resource_type, True)
+        for v in res_variants:
+            if r["defaultVariant"] == v["variantName"]:
+                format_rows(r["name"], f"{r['defaultVariant']} (default)", v["status"], v["description"])
+            else:
+                format_rows(r["name"], v["variantName"], v["status"], v["description"])
     return res

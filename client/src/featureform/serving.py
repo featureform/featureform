@@ -361,7 +361,7 @@ class Batch:
                 next_row = next(self._stream)
                 rows.append(next_row)
             except StopIteration:
-                if rows.len() == 0:
+                if len(rows) == 0:
                     raise
                 return rows
         return rows
@@ -470,7 +470,7 @@ class BatchRow:
     def to_list(self):
         return self._rows
 
-    def len(self):
+    def __len__(self):
         return len(self._rows)
 
 def parse_proto_value(value):

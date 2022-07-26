@@ -75,7 +75,7 @@ class Client:
         label_df.rename(columns={label_row['sourceValue']: 'label'}, inplace=True)
         trainingset_df = label_df
         for feature_variant in feature_table:
-            feature_row = self.sqldb.getNameVariant("feature_variant", "name", feature_variant['name'], "variant",
+            feature_row = self.sqldb.getNameVariant("feature_variant", "name", feature_variant['featureName'], "variant",
                                                     feature_variant['featureVariant'])[0]
 
             source_row = \

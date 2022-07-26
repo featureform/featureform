@@ -1104,7 +1104,7 @@ class Client(Registrar):
                 host = os.getenv('FEATUREFORM_HOST')
                 if host == None:
                     raise ValueError(
-                    "   Host value must be set or in env as FEATUREFORM_HOST")
+                    "Host value must be set or in env as FEATUREFORM_HOST")
 
             channel = self.tls_check(host, cert_path, insecure)
             self._stub = ff_grpc.ApiStub(channel)

@@ -1099,13 +1099,13 @@ class Client(Registrar):
         if self.local:
             if host != None:
                 raise ValueError("Cannot be local and have a host")
-
-        elif host == None:
-            host = os.getenv('FEATUREFORM_HOST')
-            if host == None:
-                raise ValueError(
-                    "Host value must be set or in env as FEATUREFORM_HOST")
         else:
+            if host == None:
+                host = os.getenv('FEATUREFORM_HOST')
+                if host == None:
+                    raise ValueError(
+                    "Host value must be set or in env as FEATUREFORM_HOST")
+
             channel = self.tls_check(host, cert_path, insecure)
             self._stub = ff_grpc.ApiStub(channel)
 

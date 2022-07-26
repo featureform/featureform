@@ -16,9 +16,11 @@ def get_sorted_list(resource_type, variant=False):
         "training-set": ["training_sets", "training_set_variant", "trainingSetName"]
     }
     if variant:
-        res = sorted([received for received in db.getTypeTable(local_list_args[resource_type][1])], key=lambda x:x[local_list_args[resource_type][2]])
+        received = db.getTypeTable(local_list_args[resource_type][1])
+        res = sorted([r for r in received], key=lambda x:x[local_list_args[resource_type][2]])
     else:
-        res = sorted([received for received in db.getTypeTable(local_list_args[resource_type][0])], key=lambda x:x["name"])
+        received =  db.getTypeTable(local_list_args[resource_type][0])
+        res = sorted([r for r in received], key=lambda x:x["name"])
     return res
 
 def list_name_status_local(resource_type):

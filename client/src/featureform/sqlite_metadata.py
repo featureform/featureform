@@ -109,7 +109,7 @@ class SQLiteMetadata:
           sourceType  text,
           owner       text,
           provider    text NOT NULL,
-          variant     text,
+          variant    text,
           status      text,
           transformation bool,
           inputs text, 

@@ -1211,7 +1211,9 @@ class Client(Registrar):
     def get_model(self, name):
         return get_resource_info(self._stub, "model", name)
 
-    def get_provider(self, name):
+    def get_provider(self, name, local=False):
+        if local:
+            return get_provider_info_local(name)
         return get_provider_info(self._stub, name)
 
     def get_feature(self, name, variant=None, local=False):

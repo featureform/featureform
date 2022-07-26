@@ -129,25 +129,25 @@ class SQLiteMetadata:
           created         text,
           description     text,
           entity          text,
-          labelName       text NOT NULL,
+          name            text NOT NULL,
           owner           text,
           provider        text,
-          dataType        text,
-          variantName     text,
-          sourceEntity    text,
-          sourceTimestamp text,
-          sourceValue     text,
+          data_type       text,
+          variant         text,
+          source_entity    text,
+          source_timestamp text,
+          source_value     text,
           status          text,
-          sourceName      text,
-          sourceVariant   text,
+          source_name      text,
+          source_variant   text,
           FOREIGN KEY(provider) REFERENCES providers(name),
-          PRIMARY KEY(labelName, variantName),
-          FOREIGN KEY(labelName) REFERENCES labels(name));''')
+          PRIMARY KEY(name, variant),
+          FOREIGN KEY(name) REFERENCES labels(name));''')
 
         # labels table
         self.__conn.execute('''CREATE TABLE IF NOT EXISTS labels(
           type           text,
-          defaultVariant text,
+          default_variant text,
           name           text PRIMARY KEY);''')
 
         # entity table

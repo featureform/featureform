@@ -75,7 +75,7 @@ class Client:
         label_df.rename(columns={label_row['sourceValue']: 'label'}, inplace=True)
         trainingset_df = label_df
         for feature_variant in feature_table:
-            feature_row = self.sqldb.getNameVariant("feature_variant", "featureName", feature_variant['featureName'], "variantName",
+            feature_row = self.sqldb.getNameVariant("feature_variant", "name", feature_variant['name'], "variant",
                                                     feature_variant['featureVariant'])[0]
 
             source_row = \
@@ -170,8 +170,8 @@ class Client:
         all_feature_df = None
         for featureVariantTuple in feature_variant_list:
 
-            feature_row = self.sqldb.getNameVariant("feature_variant", "featureName", featureVariantTuple[0],
-                                                    "variantName", featureVariantTuple[1])[0]
+            feature_row = self.sqldb.getNameVariant("feature_variant", "name", featureVariantTuple[0],
+                                                    "variant", featureVariantTuple[1])[0]
             entity_column, ts_column, feature_column_name, source_name, source_variant = feature_row['sourceEntity'], feature_row['sourceTimestamp'], feature_row['sourceValue'], feature_row['sourceName'], feature_row['sourceVariant']
 
             source_row = self.sqldb.getNameVariant("source_variant", "name", source_name, "variant", source_variant)[0]

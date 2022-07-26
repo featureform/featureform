@@ -45,29 +45,29 @@ class SQLiteMetadata:
           created text,
           description text,
           entity text NOT NULL,
-          featureName text NOT NULL,
+          name text NOT NULL,
           owner text,
           provider text NOT NULL,
-          dataType text NOT NULL,
-          variantName text NOT NULL,
+          data_type text NOT NULL,
+          variant text NOT NULL,
           status text,
-          sourceEntity text,
-          sourceTimestamp text,
-          sourceValue text,
-          sourceName text NOT NULL,
-          sourceVariant text NOT NULL,
+          source_entity text,
+          source_timestamp text,
+          source_value text,
+          source_name text NOT NULL,
+          source_variant text NOT NULL,
 
-          PRIMARY KEY(featureName, variantName),
+          PRIMARY KEY(name, variant),
 
-          FOREIGN KEY(featureName) REFERENCES features(name),
+          FOREIGN KEY(name) REFERENCES features(name),
           FOREIGN KEY(entity) REFERENCES entities(name),
           FOREIGN KEY(provider) REFERENCES providers(name),
-          FOREIGN KEY(sourceName) REFERENCES sources(name))''')
+          FOREIGN KEY(source_name) REFERENCES sources(name))''')
 
         # Features table
         self.__conn.execute('''CREATE TABLE IF NOT EXISTS features(
           name text NOT NULL,
-          defaultVariant text NOT NULL,
+          default_variant text NOT NULL,
           type text,
           PRIMARY KEY (name));''')
 

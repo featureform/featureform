@@ -6,14 +6,14 @@ local = ff.register_local()
 
 local_get = ff.get_local("local-mode")
 
-transactions = local.register_file(
+transactions = local_get.register_file(
     name="transactions",
     variant="quickstart",
     description="A dataset of fraudulent transactions",
     path="transactions.csv"
 )
 
-@local.df_transformation(variant="quickstart",
+@local_get.df_transformation(variant="quickstart",
                          inputs=[("transactions", "quickstart")])
 def average_user_transaction(transactions):
     """the average transaction amount for a user """
@@ -39,7 +39,7 @@ average_user_transaction_get.register_resources(
 transactions_get = ff.get_source("transactions", "quickstart", True)
 
 # Register label from our base Transactions table
-transactions.register_resources(
+transactions_get.register_resources(
     entity=user_get,
     entity_column="CustomerID",
     labels=[

@@ -276,14 +276,21 @@ class Provider:
                   str(self.config.serialize(), 'utf-8')
                   )
 
-    def parameter_list(self):
-        return {"resource_type": "providers",
-                "name": self.name,
-                "serialized_config": str(self.configs.serialize(), 'utf-8'),
-                "description": self.description,
-                "team": self.team,
-                "provider_type": self.config.type(),
-                "software": self.config.software()}
+    def __eq__(self, other):
+        if self.name != other.name:
+            return False
+        if self.description != other.description:
+            return False
+        if self.team != other.team:
+            return False
+        if str(self.config.serialize(), 'utf-8') != str(other.config.serialize(), 'utf-8'):
+            return False
+        if self.config.type() != other.config.type():
+            return False
+        if self.config.software() != other.config.software():
+            return False
+        return True
+
 
 
 @typechecked
@@ -309,11 +316,10 @@ class User:
                   "ready"
                   )
 
-    def parameter_list(self):
-        return {
-            "resource_type": "users",
-            "name": self.name
-        }
+    def __eq__(self, other):
+        if self.name != other.name:
+            return False
+        return True
 
 
 @typechecked
@@ -444,18 +450,22 @@ class Source:
             self.name
         )
 
-    def parameter_list(self):
-        return {
-            "resource_type": "source_variant",
-            "name": self.name,
-            "description": self.description,
-            "owner": self.owner,
-            "provider": self.provider,
-            "variant": self.variant,
-            "transformation": self.is_transformation,
-            "inputs": json.dumps(self.inputs),
-            "definition": self.definition
-        }
+    def __eq__(self, other):
+        if self.name != other.name:
+            return False
+        if self.description != other.description:
+            return False
+        if self.owner != other.owner:
+            return False
+        if self.provider != other.provider:
+            return False
+        if self.variant != other.variant:
+            return False
+        if json.dumps(self.inputs) != json.dumps(other.inputs):
+            return False
+        if self.definition != other.definition:
+            return False
+        return True
 
 
 @typechecked
@@ -487,12 +497,12 @@ class Entity:
                   "ready"
                   )
 
-    def parameter_list(self):
-        return {
-            "resource_type": "entities",
-            "name": self.name,
-            "description": self.description
-        }
+    def __eq__(self, other):
+        if self.name != other.name:
+            return False
+        if self.description != other.description:
+            return False
+        return True
 
 
 @typechecked
@@ -585,22 +595,30 @@ class Feature:
             self.value_type
         )
 
-    def parameter_list(self):
-        return {
-            "resource_type": "feature_variant",
-            "description": self.description,
-            "entity": self.entity,
-            "name": self.name,
-            "owner": self.owner,
-            "provider": self.provider,
-            "dataType": self.value_type,
-            "variant": self.variant,
-            "sourceEntity": self.location.entity,
-            "sourceTimestamp": self.location.timestamp,
-            "sourceValue": self.location.value,
-            "sourceName": self.source[0],
-            "sourceVariant": self.source[1]
-        }
+    def __eq__(self, other):
+        if self.name != other.name:
+            return False
+        if self.description != other.description:
+            return False
+        if self.entity != other.entity:
+            return False
+        if self.owner != other.owner:
+            return False
+        if self.provider != other.provider:
+            return False
+        if self.value_type != other.value_type:
+            return False
+        if self.variant != other.variant:
+            return False
+        if self.location.entity != other.location.entity:
+            return False
+        if self.location.timestamp != other.location.timestamp:
+            return False
+        if self.location.value != other.location.value:
+            return False
+        if self.source != other.source:
+            return False
+        return True
 
 
 @typechecked
@@ -667,22 +685,30 @@ class Label:
             self.name
         )
 
-    def parameter_list(self):
-        return {
-            "resource_type": "labels_variant",
-            "description": self.description,
-            "entity": self.entity,
-            "name": self.name,
-            "owner": self.owner,
-            "provider": self.provider,
-            "dataType": self.value_type,
-            "variant": self.variant,
-            "sourceEntity": self.location.entity,
-            "sourceTimestamp": self.location.timestamp,
-            "sourceValue": self.location.value,
-            "sourceName": self.source[0],
-            "sourceVariant": self.source[1]
-        }
+    def __eq__(self, other):
+        if self.name != other.name:
+            return False
+        if self.description != other.description:
+            return False
+        if self.entity != other.entity:
+            return False
+        if self.owner != other.owner:
+            return False
+        if self.provider != other.provider:
+            return False
+        if self.value_type != other.value_type:
+            return False
+        if self.variant != other.variant:
+            return False
+        if self.location.entity != other.location.entity:
+            return False
+        if self.location.timestamp != other.location.timestamp:
+            return False
+        if self.location.value != other.location.value:
+            return False
+        if self.source != other.source:
+            return False
+        return True
 
 @typechecked
 @dataclass
@@ -852,20 +878,20 @@ class TrainingSet:
                 feature_variant # feature variant
             )
 
-    def parameter_list(self):
-        feature_dictionary = {}
-        for feature_name, feature_variant in self.features:
-            feature_dictionary[feature_name] = feature_variant
-        return {
-                "resource_type": "training_set_variant",
-                "description": self.description,
-                "name": self.name,
-                "owner": self.owner,
-                "variant": self.variant,
-                "labelName": self.label[0],
-                "labelVariant": self.label[1],
-                "features": feature_dictionary
-            }
+    def __eq__(self, other):
+        if self.name != other.name:
+            return False
+        if self.description != other.description:
+            return False
+        if self.owner != other.owner:
+            return False
+        if self.variant != other.variant:
+            return False
+        if self.label != other.label:
+            return False
+        if set(self.features) != set(other.features):
+            return False
+        return True
 
 
 Resource = Union[PrimaryData, Provider, Entity, User, Feature, Label,
@@ -896,7 +922,8 @@ class ResourceState:
         else:
             key = (resource.operation_type().name, resource.type(), resource.name)
         if key in self.__state:
-            if self.is_identical_resource(resource):
+            if resource == self.__state[key]:
+                print(f"Resource {resource.type()} already registered.")
                 return
             raise ResourceRedefinedError(resource)
         self.__state[key] = resource
@@ -906,37 +933,6 @@ class ResourceState:
             key = (my_schedule.type(),  my_schedule.name)
             self.__state[key] =  my_schedule
             self.__create_list.append(my_schedule)
-
-    def is_identical_resource(self, resource):
-        db = SQLiteMetadata()
-        resource_values = resource.parameter_list()
-        resource_type = resource_values["resource_type"]
-
-        if resource_type in ["providers", "entities", "users"]:
-            resource_in_table = db.getVariantResource(resource_type, "name", resource_values["name"])[0]
-            for resource_value in resource_values:
-                if resource_values[resource_value] != resource_in_table[resource_value]:
-                    return False
-            return True
-
-        if resource_type in ["source_variant", "feature_variant", "labels_variant"]:
-            resource_in_table = db.getNameVariant(resource_type, "name", resource_values["name"], "variant", resource_values["variant"])[0]
-            for resource_value in resource_values:
-                if resource_values[resource_value] != resource_in_table[resource_value]:
-                    return False
-            return True
-
-        if resource_type == "training_set_variant":
-            resource_in_table = db.getNameVariant(resource_type, "name", resource_values["name"], "variant", resource_values["variant"])[0]
-            for resource_value in resource_values:
-                if resource_value == "features":
-                    # go through features
-                    pass
-                if resource_values[resource_value] != resource_in_table[resource_value]:
-                    return False
-            return True
-
-        return False
 
     def sorted_list(self) -> List[Resource]:
         resource_order = {

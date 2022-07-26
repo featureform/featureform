@@ -18,3 +18,4 @@ venv/
 terraform.tfstate
 .venv
 site/
+**/.featureform

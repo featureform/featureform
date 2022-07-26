@@ -114,7 +114,6 @@ class OnlineProvider:
         return self.__provider.name
 
 
-# RIDDHI
 class LocalProvider:
     def __init__(self, registrar, provider):
         self.__registrar = registrar
@@ -134,7 +133,7 @@ class LocalProvider:
                           "Source", owner, self.name(), variant, "ready", 0, "", path)
         # Where the definition = path
 
-        return LocalSource(self.__registrar, name, owner, variant, self.name(), description)
+        return LocalSource(self.__registrar, name, owner, variant, self.name(), path, description)
 
     def insert_provider(self):
         # Store a new provider row
@@ -191,12 +190,14 @@ class LocalSource:
                  owner: str,
                  variant: str,
                  provider: str,
+                 path: str,
                  description: str = ""):
         self.registrar = registrar
         self.name = name
         self.variant = variant
         self.owner = owner
         self.provider = provider
+        self.path = path
         self.description = description
 
     def __call__(self, fn: Callable[[], str]):
@@ -207,6 +208,12 @@ class LocalSource:
         self.__set_query(fn())
         fn.register_resources = self.register_resources
         return fn
+
+    def name_variant(self):
+        return (self.name, self.variant)
+
+    def pandas(self):
+        return pd.read_csv(self.path)
 
     def register_resources(
             self,
@@ -338,8 +345,8 @@ class DFTransformationDecorator:
             description=self.description,
         )
 
-    def test_func(self):
-        pass
+    def name_variant(self):
+        return (self.name, self.variant)
 
     def register_resources(
             self,
@@ -476,7 +483,8 @@ class Registrar:
                                 owner="",
                                 variant=variant,
                                 provider="",
-                                description="")
+                                description="",
+                                path = "")
         else:
             fakeDefinition = PrimaryData(location=SQLTable(name=""))
             fakeSource = Source(name=name,
@@ -930,6 +938,9 @@ class Registrar:
             owner = self.must_get_default_owner()
         if not isinstance(provider, str):
             provider = provider.name()
+        for i, nv in enumerate(inputs):
+            if not isinstance(nv, tuple):
+                inputs[i] = nv.name_variant()
         decorator = DFTransformationDecorator(
             registrar=self,
             name=name,

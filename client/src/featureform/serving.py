@@ -24,6 +24,12 @@ class Client:
                 raise ValueError("Cannot be local and have a host")
             self.sqldb = SQLiteMetadata()
         else:
+            host = host or os.getenv('FEATUREFORM_HOST')
+            if host is None:
+                raise RuntimeError(
+                    'If not in local mode then `host` must be passed or the environment'
+                    ' variable FEATUREFORM_HOST must be set.'
+                )
             env_cert_path = os.getenv('FEATUREFORM_CERT')
             if tls_verify:
                 credentials = grpc.ssl_channel_credentials()

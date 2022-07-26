@@ -125,7 +125,7 @@ class SQLiteMetadata:
           name           text PRIMARY KEY NOT NULL);''')
 
         # labels variant
-        self.__conn.execute('''CREATE TABLE IF NOT EXISTS labels_variant(
+        self.__conn.execute('''CREATE TABLE IF NOT EXISTS label_variant(
           created         text,
           description     text,
           entity          text,

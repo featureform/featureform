@@ -56,7 +56,7 @@ class Client:
             self.sqldb.getNameVariant("training_set_variant", "trainingSetName", trainingSetName, "variantName",
                                       trainingSetVariant)[0]
         label_row = \
-            self.sqldb.getNameVariant("labels_variant", "labelName", training_set_row['labelName'], "variantName",
+            self.sqldb.getNameVariant("label_variant", "labelName", training_set_row['labelName'], "variantName",
                                       training_set_row['labelVariant'])[0]
         label_source = self.sqldb.getNameVariant("source_variant", "name", label_row['sourceName'], "variant", label_row['sourceVariant'])[0]
         if self.sqldb.is_transformation(label_row['sourceName'], label_row['sourceVariant']):

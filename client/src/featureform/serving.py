@@ -361,7 +361,7 @@ class Batch:
                 next_row = next(self._stream)
                 rows.append(next_row)
             except StopIteration:
-                if len(rows) == 0:
+                if rows.len() == 0:
                     raise
                 return rows
         return rows
@@ -469,6 +469,9 @@ class BatchRow:
 
     def to_list(self):
         return self._rows
+
+    def len(self):
+        return len(self._rows)
 
 def parse_proto_value(value):
     """ parse_proto_value is used to parse the one of Value message

@@ -99,7 +99,7 @@ class TestFeaturesE2E(TestCase):
             'entity': 'entity',
             'entity_loc': 'entity',
             'features': [("avg_transactions", "quickstart")],
-            'entities': [("entity", "a"), ("entity", "b"), ("entity", "c")],
+            'entities': [{"entity": "a"}, {"entity": "b"}, {"entity": "c"}],
             'expected': [[1], [2], [3]],
             'ts_col': "ts"
         }

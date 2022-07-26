@@ -25,7 +25,6 @@ resource_types = [
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
-
 @click.group(context_settings=CONTEXT_SETTINGS)
 def cli():
     """
@@ -62,7 +61,7 @@ def cli():
 @click.argument("variant", required=False)
 def get(host, cert, insecure, local, resource_type, name, variant):
     """Get resources of a given type.
-    """
+    """ 
     if local:
         if host != None:
             raise ValueError("Cannot be local and have a host")

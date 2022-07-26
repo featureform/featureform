@@ -166,10 +166,10 @@ class Client:
             raise Exception("No features provided")
         dataframe_mapping = []
         all_feature_df = None
-        for featureVariantTuple in feature_variant_list:
+        for feature_variant_tuple in feature_variant_list:
 
-            feature_row = self.sqldb.getNameVariant("feature_variant", "featureName", featureVariantTuple[0],
-                                                    "variantName", featureVariantTuple[1])[0]
+            feature_row = self.sqldb.getNameVariant("feature_variant", "featureName", feature_variant_tuple[0],
+                                                    "variantName", feature_variant_tuple[1])[0]
             entity_column, ts_column, feature_column_name, source_name, source_variant = feature_row['sourceEntity'], feature_row['sourceTimestamp'], feature_row['sourceValue'], feature_row['sourceName'], feature_row['sourceVariant']
             source_row = self.sqldb.getNameVariant("source_variant", "name", source_name, "variant", source_variant)[0]
             if self.sqldb.is_transformation(source_name, source_variant):
@@ -181,7 +181,7 @@ class Client:
                 df.set_index(entity_tuple[0])
                 dataframe_mapping.append(df)
             else:
-                name_variant = f"{featureVariantTuple[0]}.{featureVariantTuple[1]}"
+                name_variant = f"{feature_variant_tuple[0]}.{feature_variant_tuple[1]}"
                 dataframe_mapping = self.process_feature_csv(source_row['definition'], entity_tuple[0], entity_column,
                                                              feature_column_name,
                                                              dataframe_mapping,

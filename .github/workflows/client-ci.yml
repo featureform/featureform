@@ -2,7 +2,7 @@ name: client-ci
 on:
   push:
     branches:
-      - other/client-autodoc-fix/steffi
+      - main
 jobs:
   clientdocs:
     defaults:

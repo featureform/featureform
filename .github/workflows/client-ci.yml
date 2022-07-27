@@ -5,6 +5,9 @@ on:
       - main
 jobs:
   clientdocs:
+    defaults:
+      run:
+        working-directory: ./client
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2

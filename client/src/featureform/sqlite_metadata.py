@@ -222,7 +222,7 @@ class SQLiteMetadata:
             return 0
 
     def insert_source(self, tablename, *args):
-        stmt = "INSERT OR IGNORE INTO " + tablename + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        stmt = "INSERT OR IGNORE INTO " + tablename + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         self.__conn.execute_stmt(stmt, args)
         self.__conn.commit()
 

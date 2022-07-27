@@ -392,7 +392,7 @@ class Source:
     owner: str
     provider: str
     description: str
-    path: str = "None"
+    path: str = ""
     schedule: str = ""
     schedule_obj: Schedule = None
     is_transformation = 0

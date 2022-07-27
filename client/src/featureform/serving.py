@@ -55,15 +55,15 @@ class Client:
             raise ValueError("Not supported in localmode. Please try using training_set()")
         return Dataset(self._stub).from_stub(name, version)
 
-    def _local_training_set(self, trainingSetName, trainingSetVariant):
+    def _local_training_set(self, training_set_name, training_set_variant):
         if not self.local:
             raise ValueError("Only supported in localmode. Please try using dataset()")
         training_set_row = \
-            self.sqldb.getNameVariant("training_set_variant", "trainingSetName", trainingSetName, "variantName",
-                                      trainingSetVariant)[0]
+            self.sqldb.getNameVariant("training_set_variant", "name", training_set_name, "variant",
+                                      training_set_variant)[0]
         label_row = \
-            self.sqldb.getNameVariant("label_variant", "name", training_set_row['labelName'], "variant",
-                                      training_set_row['labelVariant'])[0]
+            self.sqldb.getNameVariant("label_variant", "name", training_set_row['label_name'], "variant",
+                                      training_set_row['label_variant'])[0]
         label_source = self.sqldb.getNameVariant("source_variant", "name", label_row['source_name'], "variant", label_row['source_variant'])[0]
         if self.sqldb.is_transformation(label_row['source_name'], label_row['source_variant']):
             df = self.process_transformation(label_row['source_name'], label_row['source_variant'])
@@ -75,19 +75,19 @@ class Client:
             label_df = df
         else:
             label_df = self.process_label_csv(label_source['definition'], label_row['source_entity'], label_row['source_entity'], label_row['source_value'], label_row['source_timestamp'])
-        feature_table = self.sqldb.getNameVariant("training_set_features", "trainingSetName", trainingSetName,
-                                                 "trainingSetVariant", trainingSetVariant)
+        feature_table = self.sqldb.getNameVariant("training_set_features", "training_set_name", training_set_name,
+                                                 "training_set_variant", training_set_variant)
 
         label_df.rename(columns={label_row['source_value']: 'label'}, inplace=True)
         trainingset_df = label_df
         for feature_variant in feature_table:
-            feature_row = self.sqldb.getNameVariant("feature_variant", "name", feature_variant['featureName'], "variant",
-                                                    feature_variant['featureVariant'])[0]
+            feature_row = self.sqldb.getNameVariant("feature_variant", "name", feature_variant['feature_name'], "variant",
+                                                    feature_variant['feature_variant'])[0]
 
             source_row = \
                 self.sqldb.getNameVariant("source_variant", "name", feature_row['source_name'], "variant", feature_row['source_variant'])[0]
 
-            name_variant = feature_variant['featureName'] + "." + feature_variant['featureVariant']
+            name_variant = feature_variant['feature_name'] + "." + feature_variant['feature_variant']
             if self.sqldb.is_transformation(feature_row['source_name'], feature_row['source_variant']):
                 df = self.process_transformation(feature_row['source_name'], feature_row['source_variant'])
                 if isinstance(df, pd.Series):
@@ -102,7 +102,7 @@ class Client:
                 df.rename(columns={feature_row['source_value']: name_variant}, inplace=True)
             else:
                 df = pd.read_csv(str(source_row['definition']))
-                if feature_variant['featureName'] != "":
+                if feature_variant['feature_name'] != "":
                     df = df[[feature_row['source_entity'], feature_row['source_value'], feature_row['source_timestamp']]]
                 else:
                     df = df[[feature_row['source_entity'], feature_row['source_value']]]

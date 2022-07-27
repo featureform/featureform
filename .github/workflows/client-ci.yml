@@ -2,9 +2,12 @@ name: client-ci
 on:
   push:
     branches:
-      - main
+      - *
 jobs:
   clientdocs:
+    defaults:
+      run:
+        working-directory: ./client/docs
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2

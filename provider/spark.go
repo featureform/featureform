@@ -5,11 +5,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/emr"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+
+	emrTypes "github.com/aws/aws-sdk-go-v2/service/emr/types"
+	s3Types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 )
 
 type SparkExecutorType string
@@ -22,6 +29,13 @@ type SparkStoreType string
 
 const (
 	S3 SparkStoreType = "S3"
+)
+
+type SelectReturnType string
+
+const (
+	CSV  SelectReturnType = "CSV"
+	JSON                  = "JSON"
 )
 
 type SparkConfig struct {
@@ -104,7 +118,11 @@ type SparkOfflineStore struct {
 	BaseProvider
 }
 
-func spark(config SerializedConfig) (Provider, error) {
+func (store *SparkOfflineStore) AsOfflineStore() (OfflineStore, error) {
+	return store, nil
+}
+
+func SparkOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	sc := SparkConfig{}
 	if err := sc.Deserialize(config); err != nil {
 		return nil, fmt.Errorf("invalid spark config: %v", config)
@@ -126,12 +144,11 @@ func spark(config SerializedConfig) (Provider, error) {
 		Store:    store,
 		query:    &queries,
 		BaseProvider: BaseProvider{
-			ProviderType:   SparkOffline,
+			ProviderType:   "SPARK_OFFLINE",
 			ProviderConfig: config,
 		},
 	}
-
-	return sparkOfflineStore, nil
+	return &sparkOfflineStore, nil
 }
 
 type SparkExecutor interface {
@@ -140,7 +157,7 @@ type SparkExecutor interface {
 
 type SparkStore interface {
 	UploadSparkScript() error //initialization function
-	ResourcePath(id ResourceID) (string, error)
+	ResourceKey(id ResourceID) (string, error)
 	ResourceStream(id ResourceID) (chan []byte, error)
 	ResourceColumns(id ResourceID) ([]string, error)
 	ResourceRowCt(id ResourceID) (int, error)
@@ -176,10 +193,6 @@ func (s *S3Store) UploadSparkScript() error {
 		return err
 	}
 	return nil
-}
-
-func (s *S3Store) ResourcePath(id ResourceID) (string, error) {
-	return "", nil
 }
 
 func NewSparkExecutor(execType SparkExecutorType, config SerializedConfig) (SparkExecutor, error) {
@@ -222,18 +235,242 @@ func NewSparkStore(storeType SparkStoreType, config SerializedConfig) (SparkStor
 	return nil, nil
 }
 
+func (s *S3Store) resourcePrefix(id ResourceID) string {
+	return fmt.Sprintf("featureform/%s/%s/%s/", id.Type, id.Name, id.Variant)
+}
+
+func (s *S3Store) ResourceKey(id ResourceID) (string, error) {
+	filePrefix := s.resourcePrefix(id)
+	fmt.Println(filePrefix)
+	objects, err := s.client.ListObjects(context.TODO(), &s3.ListObjectsInput{
+		Bucket: aws.String(s.bucketPath),
+		Prefix: aws.String(filePrefix),
+	})
+	if err != nil {
+		return "", err
+	}
+	var resourceTimestamps = make(map[string]string)
+	for _, object := range objects.Contents {
+		suffix := (*object.Key)[len(filePrefix):]
+		suffixParts := strings.Split(suffix, "/")
+		if len(suffixParts) > 1 {
+			resourceTimestamps[suffixParts[0]] = suffixParts[1]
+		}
+	}
+	keys := make([]string, len(resourceTimestamps))
+	for k := range resourceTimestamps {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	latestTimestamp := keys[len(keys)-1]
+	lastSuffix := resourceTimestamps[latestTimestamp]
+	return fmt.Sprintf("featureform/%s/%s/%s/%s/%s", id.Type, id.Name, id.Variant, latestTimestamp, lastSuffix), nil
+}
+
 func (s *S3Store) ResourceStream(id ResourceID) (chan []byte, error) {
-	return nil, nil
+	resourceKey, err := s.ResourceKey(id)
+	if err != nil {
+		return nil, err
+	}
+	queryString := "SELECT * from S3Object"
+	outputStream, err := s.selectFromKey(resourceKey, queryString, "JSON")
+	if err != nil {
+		return nil, err
+	}
+	outputEvents := (*outputStream).Events()
+	out := make(chan []byte)
+	go func() {
+		defer close(out)
+		for i := range outputEvents {
+			switch v := i.(type) {
+			case *s3Types.SelectObjectContentEventStreamMemberRecords:
+				lines := strings.Split(string(v.Value.Payload), "\n")
+				for _, line := range lines {
+					out <- []byte(line)
+				}
+			}
+		}
+	}()
+	return out, nil
 }
 
 func (s *S3Store) ResourceColumns(id ResourceID) ([]string, error) {
+	resourceKey, err := s.ResourceKey(id)
+	if err != nil {
+		return nil, err
+	}
+	queryString := "SELECT s.* from S3Object s limit 1"
+	outputStream, err := s.selectFromKey(resourceKey, queryString, "JSON")
+	if err != nil {
+		return nil, err
+	}
+	outputEvents := (*outputStream).Events()
+	for i := range outputEvents {
+		switch v := i.(type) {
+		case *s3Types.SelectObjectContentEventStreamMemberRecords:
+			var m map[string]interface{}
+			if err := json.Unmarshal(v.Value.Payload, &m); err != nil {
+				return nil, err
+			}
+			keys := make([]string, 0, len(m))
+			for k := range m {
+				keys = append(keys, k)
+			}
+			return keys, nil
+		}
+	}
 	return nil, nil
 }
 
 func (s *S3Store) ResourceRowCt(id ResourceID) (int, error) {
+	resourceKey, err := s.ResourceKey(id)
+	if err != nil {
+		return 0, err
+	}
+	queryString := "SELECT COUNT(*) FROM S3Object"
+	outputStream, err := s.selectFromKey(resourceKey, queryString, "CSV")
+	if err != nil {
+		return 0, err
+	}
+	outputEvents := (*outputStream).Events()
+	for i := range outputEvents {
+		switch v := i.(type) {
+		case *s3Types.SelectObjectContentEventStreamMemberRecords:
+			intVar, err := strconv.Atoi(strings.TrimSuffix(string(v.Value.Payload), "\n"))
+			if err != nil {
+				return 0, err
+			}
+			return intVar, nil
+		}
+
+	}
 	return 0, nil
 }
 
+func (s *S3Store) selectFromKey(key string, query string, returnType SelectReturnType) (*s3.SelectObjectContentEventStreamReader, error) {
+	fmt.Println(key)
+	var outputSerialization s3Types.OutputSerialization
+	if returnType == "CSV" {
+		outputSerialization = s3Types.OutputSerialization{
+			CSV: &s3Types.CSVOutput{},
+		}
+	} else if returnType == "JSON" {
+		outputSerialization = s3Types.OutputSerialization{
+			JSON: &s3Types.JSONOutput{},
+		}
+	}
+	selectOutput, err := s.client.SelectObjectContent(context.TODO(), &s3.SelectObjectContentInput{
+		Bucket:         aws.String(s.bucketPath),
+		ExpressionType: "SQL",
+		InputSerialization: &s3Types.InputSerialization{
+			Parquet: &s3Types.ParquetInput{},
+		},
+		OutputSerialization: &outputSerialization,
+		Expression:          &query,
+		Key:                 aws.String(key),
+	})
+	if err != nil {
+		return nil, err
+	}
+	outputStream := selectOutput.GetStream().Reader
+	return &outputStream, nil
+
+}
+
 func (e *EMRExecutor) RunSparkJob(args []string) error {
+	params := &emr.AddJobFlowStepsInput{
+		JobFlowId: aws.String(e.clusterName), //returned by listclusters
+		Steps: []emrTypes.StepConfig{
+			{
+				Name: aws.String("Featureform execution step"),
+				HadoopJarStep: &emrTypes.HadoopJarStepConfig{
+					Jar:  aws.String("command-runner.jar"), //jar file for running pyspark scripts
+					Args: args,
+				},
+				ActionOnFailure: emrTypes.ActionOnFailureCancelAndWait,
+			},
+		},
+	}
+	resp, err := e.client.AddJobFlowSteps(context.TODO(), params)
+	if err != nil {
+		return err
+	}
+	stepId := resp.StepIds[0]
+	var waitDuration time.Duration = time.Second * 150
+	time.Sleep(1 * time.Second)
+	stepCompleteWaiter := emr.NewStepCompleteWaiter(e.client)
+	output, err := stepCompleteWaiter.WaitForOutput(context.TODO(), &emr.DescribeStepInput{
+		ClusterId: aws.String(e.clusterName),
+		StepId:    aws.String(stepId),
+	}, waitDuration)
+	if err != nil {
+		return err
+	}
+	fmt.Println(output)
 	return nil
+
+}
+
+func (spark *SparkOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error) {
+	return nil, nil
+}
+
+func (spark *SparkOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error) {
+	return nil, nil
+}
+
+func (spark *SparkOfflineStore) CreateTransformation(config TransformationConfig) error {
+	return nil
+}
+
+func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
+	return nil, nil
+}
+
+func (spark *SparkOfflineStore) UpdateTransformation(config TransformationConfig) error {
+	return nil
+}
+
+func (spark *SparkOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error) {
+	return nil, nil
+}
+
+func (spark *SparkOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error) {
+	return nil, nil
+}
+
+func (spark *SparkOfflineStore) CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error) {
+	return nil, nil
+}
+
+func (spark *SparkOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, error) {
+	return nil, nil
+}
+
+func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materialization, error) {
+	return nil, nil
+}
+
+func (spark *SparkOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
+	return nil, nil
+}
+
+func (spark *SparkOfflineStore) UpdateMaterialization(id ResourceID) (Materialization, error) {
+	return nil, nil
+}
+
+func (spark *SparkOfflineStore) DeleteMaterialization(id MaterializationID) error {
+	return nil
+}
+
+func (spark *SparkOfflineStore) CreateTrainingSet(TrainingSetDef) error {
+	return nil
+}
+
+func (spark *SparkOfflineStore) UpdateTrainingSet(TrainingSetDef) error {
+	return nil
+}
+
+func (spark *SparkOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
+	return nil, nil
 }

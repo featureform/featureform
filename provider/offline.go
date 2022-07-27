@@ -19,6 +19,7 @@ const (
 	PostgresOffline       = "POSTGRES_OFFLINE"
 	SnowflakeOffline      = "SNOWFLAKE_OFFLINE"
 	RedshiftOffline       = "REDSHIFT_OFFLINE"
+	SparkOffline          = "SPARK_OFFLINE"
 )
 
 type ValueType string
@@ -51,6 +52,17 @@ var ProviderToMetadataResourceType = map[OfflineResourceType]metadata.ResourceTy
 	TrainingSet:    metadata.TRAINING_SET_VARIANT,
 	Primary:        metadata.SOURCE_VARIANT,
 	Transformation: metadata.SOURCE_VARIANT,
+}
+
+func (offlineType OfflineResourceType) String() string {
+	typeMap := map[OfflineResourceType]string{
+		Label:          "Label",
+		Feature:        "Feature",
+		TrainingSet:    "TrainingSet",
+		Primary:        "Primary",
+		Transformation: "Transformation",
+	}
+	return typeMap[offlineType]
 }
 
 type FeatureLabelColumnType string

@@ -129,7 +129,7 @@ def list(host, cert, insecure, local, resource_type):
         "features": rc.list_features,
         "labels": rc.list_labels,
         "sources": rc.list_sources,
-        "trainingsets": rc.list_sources,
+        "trainingsets": rc.list_training_sets,
         "training-sets": rc.list_training_sets,
         "users": rc.list_users,
         "models": rc.list_models,

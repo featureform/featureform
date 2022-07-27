@@ -16,19 +16,22 @@ def get_entity_info_local(name):
     entity = entity_list[0]
     
     returned_features_list = get_related_resources("feature_variant", 
-                                                    name_col="featureName", 
-                                                    var_col="variantName", 
                                                     column1="entity", 
                                                     name=name)
     returned_labels_list = get_related_resources("label_variant", 
-                                                    name_col="labelName", 
-                                                    var_col="variantName", 
                                                     column1="entity", 
                                                     name=name)
 
     training_set_list = set()
     for f in returned_features_list:
-        training_set_features_query_list = get_related_resources("training_set_features", name_col="trainingSetName", var_col="trainingSetVariant", column1="featureName", name=f["name"], column2="featureVariant", variant=f["variant"], format=False)
+        training_set_features_query_list = get_related_resources("training_set_features", 
+                                                                name_col="trainingSetName", 
+                                                                var_col="trainingSetVariant", 
+                                                                column1="featureName", 
+                                                                name=f["name"], 
+                                                                column2="featureVariant", 
+                                                                variant=f["variant"], 
+                                                                format=False)
         for t in training_set_features_query_list:
             training_set_list.add(t)
     returned_training_sets_list = [{ "name": t["trainingSetName"], "variant": t["trainingSetVariant"]} for t in training_set_list]
@@ -59,9 +62,9 @@ def get_entity_info_local(name):
 
 def get_resource_info_local(resource_type, name):
     get_query_names = {
-        "feature": ["features", "feature_variant", "featureName", "variantName"],
-        "label": ["labels", "label_variant", "labelName", "variantName"],
-        "source": ["sources", "source_variant", "name", "variant"], #changesource
+        "feature": ["features", "feature_variant", "name", "variant"],
+        "label": ["labels", "label_variant", "name", "variant"],
+        "source": ["sources", "source_variant", "name", "variant"],
         "trainingset": ["training_sets", "training_set_variant", "trainingSetName", "variantName"],
         "training-set": ["training_sets", "training_set_variant", "trainingSetName", "variantName"]
     }
@@ -96,7 +99,7 @@ def get_resource_info_local(resource_type, name):
 
 def get_feature_variant_info_local(name, variant):
     db = SQLiteMetadata()
-    features_list = db.getNameVariant("feature_variant", "featureName", name, "variantName", variant)
+    features_list = db.getNameVariant("feature_variant", "name", name, "variant", variant)
     feature = features_list[0]
 
     returned_training_sets_list = get_related_resources("training_set_features", 
@@ -108,8 +111,8 @@ def get_feature_variant_info_local(name, variant):
                                                         variant=feature["variantName"])
 
     returned_feature = {
-        "name": feature["featureName"],
-        "variant": feature["variantName"],
+        "name": feature["name"],
+        "variant": feature["variant"],
         "type": feature["dataType"],
         "entity": feature["entity"],
         "owner": feature["owner"],
@@ -142,7 +145,7 @@ def get_feature_variant_info_local(name, variant):
 
 def get_label_variant_info_local(name, variant):
     db = SQLiteMetadata()
-    labels_list = db.getNameVariant("label_variant", "labelName", name, "variantName", variant)
+    labels_list = db.getNameVariant("label_variant", "name", name, "variant", variant)
     label = labels_list[0]
 
     returned_training_sets_list = get_related_resources("training_set_variant", 
@@ -154,8 +157,8 @@ def get_label_variant_info_local(name, variant):
                                                         variant=label["variantName"])
 
     returned_label = {
-        "name": label["labelName"],
-        "variant": label["variantName"],
+        "name": label["name"],
+        "variant": label["variant"],
         "type": label["dataType"],
         "entity": label["entity"],
         "owner": label["owner"],
@@ -192,15 +195,15 @@ def get_source_variant_info_local(name, variant):
     source = source_list[0]
 
     returned_features_list = get_related_resources("feature_variant", 
-                                                    name_col="featureName", 
-                                                    var_col="variantName", 
+                                                    name_col="name", 
+                                                    var_col="variant", 
                                                     column1="sourceName", 
                                                     name=name, 
                                                     column2="sourceVariant", 
                                                     variant=variant)
     returned_labels_list = get_related_resources("label_variant", 
-                                                    name_col="labelName", 
-                                                    var_col="variantName", 
+                                                    name_col="name", 
+                                                    var_col="variant", 
                                                     column1="sourceName", 
                                                     name=name, 
                                                     column2="sourceVariant", 
@@ -223,9 +226,9 @@ def get_source_variant_info_local(name, variant):
 
     for l in returned_labels_list:
         training_set_features_query_list = get_related_resources("training_set_variant", 
-                                                                    column1="labelName", 
+                                                                    column1="name", 
                                                                     name="name", 
-                                                                    column2="labelVariant", 
+                                                                    column2="variant", 
                                                                     variant="variant", 
                                                                     format=False)
         for t in training_set_features_query_list:
@@ -314,14 +317,14 @@ def get_provider_info_local(name):
     provider = providers_list[0]
 
     returned_features_list = get_related_resources("feature_variant", 
-                                                    name_col="featureName",
-                                                    var_col="variantName",
+                                                    name_col="name",
+                                                    var_col="variant",
                                                     column1="provider",
                                                     name=name)
                                                     
     returned_labels_list = get_related_resources("label_variant", 
-                                                    name_col="labelName",
-                                                    var_col="variantName",
+                                                    name_col="name",
+                                                    var_col="variant",
                                                     column1="provider",
                                                     name=name)
     returned_provider = {
@@ -355,7 +358,7 @@ def get_provider_info_local(name):
     format_new_para("")
     return returned_provider
 
-def get_related_resources(table, column1, name, column2=None, variant=None, name_col=None, var_col=None, format=True):
+def get_related_resources(table, column1, name, column2=None, variant=None, name_col="name", var_col="variant", format=True):
     db = SQLiteMetadata()
     if column2 and variant:
         try:

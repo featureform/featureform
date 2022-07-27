@@ -10,9 +10,9 @@ def get_sorted_list(resource_type, variant=False):
         "user": ["users"],
         "model": ["models"],
         "provider": ["providers"],
-        "feature": ["features", "feature_variant", "featureName"],
-        "label": ["labels", "label_variant", "labelName"],
-        "source": ["sources", "source_variant", "name"], #changesource
+        "feature": ["features", "feature_variant", "name"],
+        "label": ["labels", "label_variant", "name"],
+        "source": ["sources", "source_variant", "name"],
         "training-set": ["training_sets", "training_set_variant", "trainingSetName"]
     }
     if variant:
@@ -40,23 +40,24 @@ def list_name_status_desc_local(resource_type):
 def list_name_variant_status_local(resource_type):
     format_rows("NAME", "VARIANT", "STATUS")
     res = get_sorted_list(resource_type)
+    res_variants = get_sorted_list(resource_type, True)
     for r in res:
-        res_variants = get_sorted_list(resource_type, True)
-        for v in res_variants:
-            if r["defaultVariant"] == v["variantName"]:
-                format_rows(r["name"], f"{r['defaultVariant']} (default)", v["status"])
+        for v in filter(lambda x: x["name"] == r["name"], res_variants):
+            if r["default_variant"] == v["variant"]:
+                format_rows(r["name"], f"{r['default_variant']} (default)", v["status"])
             else:
-                format_rows(r["name"], v["variantName"], v["status"])
+                format_rows(r["name"], v["variant"], v["status"])
     return res
 
 def list_name_variant_status_desc_local(resource_type):
+    print(resource_type)
     format_rows("NAME", "VARIANT", "STATUS", "DESCRIPTION")
     res = get_sorted_list(resource_type)
+    res_variants = get_sorted_list(resource_type, True)
     for r in res:
-        res_variants = get_sorted_list(resource_type, True)
-        for v in res_variants:
-            if r["defaultVariant"] == v["variantName"]:
+        for v in filter(lambda x: x["name"] == r["name"], res_variants):
+            if r["defaultVariant"] == v["variant"]:
                 format_rows(r["name"], f"{r['defaultVariant']} (default)", v["status"], v["description"])
             else:
-                format_rows(r["name"], v["variantName"], v["status"], v["description"])
+                format_rows(r["name"], v["variant"], v["status"], v["description"])
     return res

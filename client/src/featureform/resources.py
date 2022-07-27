@@ -422,6 +422,7 @@ class Source:
         stub.CreateSourceVariant(serialized)
 
     def _create_local(self, db) -> None:
+        print("Entered here")
         if type(self.definition) == DFTransformation:
             self.is_transformation = 1
             self.inputs = self.definition.inputs

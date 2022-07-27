@@ -1,5 +1,10 @@
 import featureform as ff
 import pandas as pd
+import pytest
+import shutil
+import os, stat
+
+from featureform.resources import ResourceRedefinedError
 
 
 class TestQuickstart:
@@ -106,3 +111,176 @@ def get_training_set_from_file(file, entity, feature_col, label, name_variant):
     label = get_label(df, entity, label)
     training_set_df = get_training_set(label, feature, entity)
     return training_set_df.values.tolist()
+
+class TestLocalMode:
+    def test_duplicate_resources(self):
+        ff.register_user("featureformer").make_default_owner()
+
+        local = ff.register_local()
+        local = ff.register_local()
+
+        transactions = local.register_file(
+            name="transactions",
+            variant="quickstart",
+            description="A dataset of fraudulent transactions",
+            path="transactions.csv"
+        )
+
+        transactions = local.register_file(
+            name="transactions",
+            variant="quickstart",
+            description="A dataset of fraudulent transactions",
+            path="transactions.csv"
+        )
+
+        user = ff.register_entity("user")
+        user = ff.register_entity("user")
+
+        @local.df_transformation(variant="quickstart",
+                            inputs=[("transactions", "quickstart")])
+        def average_user_transaction(transactions):
+            """the average transaction amount for a user """
+            return transactions.groupby("CustomerID")["TransactionAmount"].mean()
+
+        # Register a column from our transformation as a feature
+        average_user_transaction.register_resources(
+            entity=user,
+            entity_column="CustomerID",
+            inference_store=local,
+            features=[
+                {"name": "avg_transactions", "variant": "quickstart", "column": "TransactionAmount", "type": "float32"},
+            ],
+        )
+        average_user_transaction.register_resources(
+            entity=user,
+            entity_column="CustomerID",
+            inference_store=local,
+            features=[
+                {"name": "avg_transactions", "variant": "quickstart", "column": "TransactionAmount", "type": "float32"},
+            ],
+        )
+
+        # Register label from our base Transactions table
+        transactions.register_resources(
+            entity=user,
+            entity_column="CustomerID",
+            labels=[
+                {"name": "fraudulent", "variant": "quickstart", "column": "IsFraud", "type": "bool"},
+            ],
+        )
+        transactions.register_resources(
+            entity=user,
+            entity_column="CustomerID",
+            labels=[
+                {"name": "fraudulent", "variant": "quickstart", "column": "IsFraud", "type": "bool"},
+            ],
+        )
+
+        ff.register_training_set(
+            "fraud_training", "quickstart",
+            label=("fraudulent", "quickstart"),
+            features=[("avg_transactions", "quickstart")],
+        )
+
+        ff.register_training_set(
+            "fraud_training", "quickstart",
+            label=("fraudulent", "quickstart"),
+            features=[("avg_transactions", "quickstart")],
+        )
+
+        client = ff.Client(local=True)
+        client.apply()
+
+
+    def test_diff_resources_same_name_variant(self):
+        client = ff.Client(local=True)
+        ff.register_user("featureformer").make_default_owner()
+        local = ff.register_local()
+
+        transactions = local.register_file(
+            name="transactions",
+            variant="quickstart",
+            description="A dataset of fraudulent transactions",
+            path="transactions.csv"
+        )
+        client.apply()
+
+        user = ff.register_entity("user")
+
+        @local.df_transformation(variant="quickstart",
+                            inputs=[("transactions", "quickstart")])
+        def average_user_transaction(transactions):
+            """the average transaction amount for a user """
+            return transactions.groupby("CustomerID")["TransactionAmount"].mean()
+
+        # Register a column from our transformation as a feature
+        average_user_transaction.register_resources(
+            entity=user,
+            entity_column="CustomerID",
+            inference_store=local,
+            features=[
+                {"name": "avg_transactions", "variant": "quickstart", "column": "TransactionAmount", "type": "float32"},
+            ],
+        )
+        average_user_transaction.register_resources(
+            entity=user,
+            entity_column="CustomerID",
+            inference_store=local,
+            features=[
+                {"name": "avg_transactions", "variant": "quickstart", "column": "TransactionAmount", "type": "float64"},
+            ],
+        )
+
+        with pytest.raises(ResourceRedefinedError):
+            client.apply()
+
+        # Register label from our base Transactions table
+        transactions.register_resources(
+            entity=user,
+            entity_column="CustomerID",
+            labels=[
+                {"name": "fraudulent", "variant": "quickstart", "column": "IsFraud", "type": "bool"},
+            ],
+        )
+        transactions.register_resources(
+            entity=user,
+            entity_column="CustomerID",
+            labels=[
+                {"name": "fraudulent", "variant": "quickstart", "column": "IsFraud", "type": "boolean"},
+            ],
+        )
+        with pytest.raises(ResourceRedefinedError):
+            client.apply()
+
+        ff.register_training_set(
+            "fraud_training", "quickstart",
+            label=("fraudulent", "quickstart"),
+            features=[("avg_transactions", "quickstart")],
+        )
+        ff.register_training_set(
+            "fraud_training", "quickstart",
+            label=("fraudulent", "qwickstart"),
+            features=[("avg_tranzactions", "quickstart")],
+        )
+
+        with pytest.raises(ResourceRedefinedError):
+            client.apply()
+
+
+    @pytest.fixture(autouse=True)
+    def run_before_and_after_tests(tmpdir):
+        """Fixture to execute asserts before and after a test is run"""
+        # Remove any lingering Databases
+        try:
+            shutil.rmtree('.featureform', onerror=del_rw)
+        except:
+            print("File Already Removed")
+        yield
+        try:
+            shutil.rmtree('.featureform', onerror=del_rw)
+        except:
+            print("File Already Removed")
+
+def del_rw(action, name, exc):
+    os.chmod(name, stat.S_IWRITE)
+    os.remove(name)

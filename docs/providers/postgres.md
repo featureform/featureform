@@ -39,7 +39,7 @@ ff.register_postgres(
     description = "Example offline store store",
     team = "Featureform",
     host = "0.0.0.0",
-    port = 5432,
+    port = "5432",
     user = "postgres",
     password = "password",
     database = "postgres",

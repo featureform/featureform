@@ -441,7 +441,7 @@ class Source:
                          self.is_transformation,
                          json.dumps(self.inputs),
                          self.definition,
-                         self.path
+                         self.path,
                          )
         self._create_source_resource(db)
 

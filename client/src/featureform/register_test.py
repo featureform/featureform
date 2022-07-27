@@ -46,7 +46,7 @@ minimal_postgres_args = {
         "description": "test",
         "team": "featureform",
         "host": "localhost",
-        "port": 1234,
+        "port": "1234",
         "user": "Abc",
         "password": "abc",
         "database": "db",

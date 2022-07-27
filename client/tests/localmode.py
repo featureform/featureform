@@ -1,9 +1,6 @@
 import featureform as ff
 import pandas as pd
 import pytest
-import shutil
-import os, stat
-
 from featureform.resources import ResourceRedefinedError
 
 
@@ -205,7 +202,7 @@ class TestLocalMode:
         )
 
         user = ff.register_entity("user")
-        
+
         client.apply()
 
         @local.df_transformation(variant="quickstart",

@@ -134,8 +134,6 @@ class LocalProvider:
                           "Source", owner, self.name(), variant, "ready", 0, "", path)
         # Where the definition = path
 
-        # source = Source(name=name, variant=variant, definition=path, owner=owner, provider=self.name(), description=description)
-        # self.__registrar.add_resource(source)
         return LocalSource(self.__registrar, name, owner, variant, self.name(), description)
 
     def insert_provider(self):

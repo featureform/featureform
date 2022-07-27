@@ -37,37 +37,37 @@ class SQLiteMetadata:
         raw_conn = sqlite3.connect(self.path + '/metadata.db', check_same_thread=False)
         self.__conn = SyncSQLExecutor(raw_conn)
         self.__conn.row_factory = sqlite3.Row
-        self.createTables()
+        self.create_tables()
 
-    def createTables(self):
+    def create_tables(self):
         # Features variant table
         self.__conn.execute('''CREATE TABLE IF NOT EXISTS feature_variant(
           created text,
           description text,
           entity text NOT NULL,
-          featureName text NOT NULL,
+          feature_name text NOT NULL,
           owner text,
           provider text NOT NULL,
-          dataType text NOT NULL,
-          variantName text NOT NULL,
+          data_type text NOT NULL,
+          variant_name text NOT NULL,
           status text,
-          sourceEntity text,
-          sourceTimestamp text,
-          sourceValue text,
-          sourceName text NOT NULL,
-          sourceVariant text NOT NULL,
+          source_entity text,
+          source_timestamp text,
+          source_value text,
+          source_name text NOT NULL,
+          source_variant text NOT NULL,
 
-          PRIMARY KEY(featureName, variantName),
+          PRIMARY KEY(feature_name, variant_name),
 
-          FOREIGN KEY(featureName) REFERENCES features(name),
+          FOREIGN KEY(feature_name) REFERENCES features(name),
           FOREIGN KEY(entity) REFERENCES entities(name),
           FOREIGN KEY(provider) REFERENCES providers(name),
-          FOREIGN KEY(sourceName) REFERENCES sources(name))''')
+          FOREIGN KEY(source_name) REFERENCES sources(name))''')
 
         # Features table
         self.__conn.execute('''CREATE TABLE IF NOT EXISTS features(
           name text NOT NULL,
-          defaultVariant text NOT NULL,
+          default_variant text NOT NULL,
           type text,
           PRIMARY KEY (name));''')
 
@@ -75,38 +75,38 @@ class SQLiteMetadata:
         self.__conn.execute('''CREATE TABLE IF NOT EXISTS training_set_variant(
           created text,
           description text,            
-          trainingSetName text NOT NULL,
+          trainingset_name text NOT NULL,
           owner text,
-          variantName text,
-          labelName text,
-          labelVariant text,
+          variant_name text,
+          label_name text,
+          label_variant text,
           status text,
           features text,
-          PRIMARY KEY(trainingSetName, variantName),
-          FOREIGN KEY(trainingSetName) REFERENCES training_sets(name));''')
+          PRIMARY KEY(trainingset_name, variant_name),
+          FOREIGN KEY(trainingset_name) REFERENCES training_sets(name));''')
 
         # FOREIGN KEY(provider) REFERENCES providers(name),
 
         # Training-set table
         self.__conn.execute('''CREATE TABLE IF NOT EXISTS training_sets(
           type text NOT NULL,
-          defaultVariant text,
+          default_variant text,
           name text PRIMARY KEY NOT NULL);''')
 
         # Training set features
         self.__conn.execute('''CREATE TABLE IF NOT EXISTS training_set_features(
-          trainingSetName text NOT NULL,
-          trainingSetVariant text NOT NULL,
-          featureName text NOT NULL,
-          featureVariant text NOT NULL,
-          UNIQUE(trainingSetName, trainingSetVariant, featureName, featureVariant));''')
+          trainingset_name text NOT NULL,
+          trainingset_variant text NOT NULL,
+          feature_name text NOT NULL,
+          feature_variant text NOT NULL,
+          UNIQUE(trainingset_name, trainingset_variant, feature_name, feature_variant));''')
 
         # source variant
         self.__conn.execute('''CREATE TABLE IF NOT EXISTS source_variant(
           created     text,
           description text,
           name  text NOT NULL,
-          sourceType  text,
+          source_type  text,
           owner       text,
           provider    text NOT NULL,
           variant     text,
@@ -121,7 +121,7 @@ class SQLiteMetadata:
         # sources table
         self.__conn.execute('''CREATE TABLE IF NOT EXISTS sources(
           type           text NOT NULL,
-          defaultVariant text,
+          default_variant text,
           name           text PRIMARY KEY NOT NULL);''')
 
         # labels variant
@@ -129,25 +129,25 @@ class SQLiteMetadata:
           created         text,
           description     text,
           entity          text,
-          labelName       text NOT NULL,
+          label_name       text NOT NULL,
           owner           text,
           provider        text,
-          dataType        text,
-          variantName     text,
-          sourceEntity    text,
-          sourceTimestamp text,
-          sourceValue     text,
+          data_type        text,
+          variant_name     text,
+          source_entity    text,
+          source_timestamp text,
+          source_value     text,
           status          text,
-          sourceName      text,
-          sourceVariant   text,
+          source_name      text,
+          source_variant   text,
           FOREIGN KEY(provider) REFERENCES providers(name),
-          PRIMARY KEY(labelName, variantName),
-          FOREIGN KEY(labelName) REFERENCES labels(name));''')
+          PRIMARY KEY(label_name, variant_name),
+          FOREIGN KEY(label_name) REFERENCES labels(name));''')
 
         # labels table
         self.__conn.execute('''CREATE TABLE IF NOT EXISTS labels(
           type           text,
-          defaultVariant text,
+          default_variant text,
           name           text PRIMARY KEY);''')
 
         # entity table
@@ -175,22 +175,22 @@ class SQLiteMetadata:
           name             text PRIMARY KEY NOT NULL,
           type             text,
           description      text,
-          providerType     text,
+          provider_type     text,
           software         text,
           team             text,
           sources          text,
           status           text,
-          serializedConfig text)''')
+          serialized_config text)''')
 
         self.__conn.commit()
 
-    def getTypeTable(self, type):
+    def get_type_table(self, type):
         query = "SELECT * FROM " + type
         type_data = self.__conn.execute(query)
         self.__conn.commit()
         return type_data.fetchall()
 
-    def getVariantResource(self, type, column, resource):
+    def get_variant_resource(self, type, column, resource):
         variant_table_query = "SELECT * FROM " + type + " WHERE " + column + "='" + resource + "';"
         variant_data = self.__conn.execute(variant_table_query)
         self.__conn.commit()
@@ -199,7 +199,7 @@ class SQLiteMetadata:
           raise ValueError("{} with {}: {} not found".format(type, column, resource))
         return variant_data.fetchall()
 
-    def getNameVariant(self, type, column1, resource1, column2, resource2):
+    def get_name_variant(self, type, column1, resource1, column2, resource2):
         variant_table_query = "SELECT * FROM " + type + " WHERE " + column1 + "='" + resource1 + "' AND " + column2 + "='" + resource2 + "';"
         variant_data = self.__conn.execute(variant_table_query)
         self.__conn.commit()

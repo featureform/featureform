@@ -674,7 +674,7 @@ class Registrar:
                           description: str = "",
                           team: str = "",
                           host: str = "0.0.0.0",
-                          port: int = 5432,
+                          port: str = "5432",
                           user: str = "postgres",
                           password: str = "password",
                           database: str = "postgres"):

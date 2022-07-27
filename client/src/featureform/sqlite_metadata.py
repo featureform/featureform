@@ -114,6 +114,7 @@ class SQLiteMetadata:
           transformation bool,
           inputs text, 
           definition  BLOB,
+          path   text,
           PRIMARY KEY(name, variant),
           FOREIGN KEY(provider) REFERENCES providers(name),
           FOREIGN KEY(name) REFERENCES sources(name));''')

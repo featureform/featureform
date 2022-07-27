@@ -132,6 +132,7 @@ def source_variant(variantData):
                 variantRow['variant'], #variant
                 variantRow['status'], #status
                 variantRow['definition'], #definition
+                variantRow['path'],
                 variant_organiser(label_variant(sqlObject.getNameVariant( "labels_variant", "sourceName", variantRow['name'], "sourceVariant", variantRow['variant']))[2]), #labels
                 variant_organiser(feature_variant(sqlObject.getNameVariant( "feature_variant", "sourceName", variantRow['name'],"sourceVariant",variantRow['variant']))[2]), #features
                 variant_organiser(training_set_variant(sqlObject.getVariantResource( "training_set_variant", "variantName", variantRow['variant']))[2]) #training sets

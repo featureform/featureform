@@ -2,6 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+from importlib.resources import path
 import time
 from typing import List, Tuple, Union
 from typeguard import typechecked
@@ -391,6 +392,7 @@ class Source:
     owner: str
     provider: str
     description: str
+    path: str
     schedule: str = ""
     schedule_obj: Schedule = None
     is_transformation = 0
@@ -422,7 +424,6 @@ class Source:
         stub.CreateSourceVariant(serialized)
 
     def _create_local(self, db) -> None:
-        print("Entered here")
         if type(self.definition) == DFTransformation:
             self.is_transformation = 1
             self.inputs = self.definition.inputs
@@ -439,7 +440,8 @@ class Source:
                          "ready",
                          self.is_transformation,
                          json.dumps(self.inputs),
-                         self.definition
+                         self.definition,
+                         self.path
                          )
         self._create_source_resource(db)
 

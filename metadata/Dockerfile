@@ -22,7 +22,7 @@ RUN go build ./metadata/main/server.go
 
 FROM alpine
 
-COPY --from=0 ./app/server ./server
+COPY --from=0 ./app/server /server
 
 EXPOSE 8080
-ENTRYPOINT ["./server"]
+ENTRYPOINT ["server"]

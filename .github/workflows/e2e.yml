@@ -322,6 +322,9 @@ jobs:
       - name: Run Test
         run: pytest client/tests/e2e.py
 
+      - name: Run Colab
+        run: jupyter nbconvert --to notebook --execute colab_tutorial/Fraud_Detection_Example.ipynb
+
 #      - name: Reset Quickstart
 #        run: |
 #          helm uninstall quickstart

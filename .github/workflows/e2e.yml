@@ -242,17 +242,20 @@ jobs:
 #
       - name: Install minikube
         run: |
-          curl -LO \
-            https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64 \
-            && install minikube-linux-amd64 /tmp/
+          curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-darwin-amd64
+          sudo install minikube-darwin-amd64 /usr/local/bin/minikube
 
-            kv=$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)
-            curl -LO \
-            https://storage.googleapis.com/kubernetes-release/release/$kv/bin/linux/amd64/kubectl \
-            && install kubectl /tmp/
-
-            /tmp/minikube-linux-amd64 config set WantUpdateNotification false
-            /tmp/minikube-linux-amd64 start --driver=docker
+      #          curl -LO \
+#            https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64 \
+#            && install minikube-linux-amd64 /tmp/
+#
+#            kv=$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)
+#            curl -LO \
+#            https://storage.googleapis.com/kubernetes-release/release/$kv/bin/linux/amd64/kubectl \
+#            && install kubectl /tmp/
+#
+#            /tmp/minikube-linux-amd64 config set WantUpdateNotification false
+#            /tmp/minikube-linux-amd64 start --driver=docker
 
       - name: Setup
         run: | 

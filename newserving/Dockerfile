@@ -25,7 +25,7 @@ RUN go build ./newserving/main/main.go
 
 FROM alpine
 
-COPY --from=0 ./app/server ./main
+COPY --from=0 ./app/main ./main
 
 EXPOSE 8080
 ENTRYPOINT ["./main"]

@@ -98,14 +98,15 @@ test_e2e: update_python					## Runs End-to-End tests on minikube
 	-kubectl port-forward svc/featureform-ingress-nginx-controller 8000:443 7000:80 &
 	-kubectl port-forward svc/featureform-etcd 2379:2379 &
 
-	sleep 2
+	while ! echo exit | nc localhost 7000; do sleep 10; done
+	while ! echo exit | nc localhost 2379; do sleep 10; done
 
 	featureform apply client/examples/quickstart.py --host localhost:8000 --cert tls.crt
 	pytest client/tests/e2e.py
 
 reset_e2e: etcd						## Resets Cluster. Requires install_etcd
 	-kubectl port-forward svc/featureform-etcd 2379:2379 &
-	sleep 2
+	while ! echo exit | nc localhost 2379; do sleep 10; done
 	etcdctl --user=root:secretpassword del "" --prefix
 	-helm uninstall quickstart
 

@@ -17,12 +17,13 @@ COPY ./metadata/*.go ./metadata/
 COPY ./metadata/search/ ./metadata/search/
 COPY ./metadata/proto/ ./metadata/proto/
 COPY ./proto/ ./proto/
-COPY ./api/api.go ./api/api.go
-RUN go build ./api/api.go
+COPY ./api/main.go ./api/main.go
+
+RUN go build ./api/main.go
 
 FROM alpine
 
-COPY --from=0 ./app/server ./api
+COPY --from=0 ./app/main ./main
 
 EXPOSE 8080
-ENTRYPOINT ["./api"]
+ENTRYPOINT ["./main"]

@@ -2,8 +2,37 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-gen_grpc:
-	pip install grpcio-tools
+## ----------------------------------------------------------------------
+## To run End-To-End Tests Run:
+## make etcdctl
+## make update_python
+## make start_minikube
+## make containers
+## make test_e2e
+## ....
+## When updating a file and rerunning the test:
+## make reset_e2e
+## make update_python
+## 	or
+## make containers
+## 	then
+## make test_e2e
+## ----------------------------------------------------------------------
+
+help:     						## Show this help.
+	@sed -ne '/@sed/!s/## //p' $(MAKEFILE_LIST)
+
+etcdctl: 						## Installs ETCDCTL. Required for reset_e2e
+	-git clone -b v3.4.16 https://github.com/etcd-io/etcd.git
+	cd etcd && ./build
+	export PATH=$PATH:"`pwd`/etcd/bin"
+	etcdctl version
+
+create_venv:						## Creates a virtual environment to test from
+	python3 -m venv test_venv
+
+gen_grpc:						## Generates GRPC Dependencies
+	pip3 install grpcio-tools
 
 	-mkdir client/src/featureform/proto/
 	set -e
@@ -16,68 +45,34 @@ gen_grpc:
 	protoc --go_out=. --go_opt=paths=source_relative     --go-grpc_out=. --go-grpc_opt=paths=source_relative     ./metadata/proto/metadata.proto
 	python -m grpc_tools.protoc -I ./client/src --python_out=./client/src/ --grpc_python_out=./client/src/ ./client/src/featureform/proto/metadata.proto
 
-update_python: gen_grpc
-	pip install build
-	pip uninstall featureform  -y
+update_python: create_venv gen_grpc 			## Updates the python package locally
+	cd test_venv/bin && source activate
+	pip3 install pytest
+	pip3 install build
+	pip3 uninstall featureform  -y
 	rm -r client/dist/*
 	python3 -m build ./client/
-	pip install client/dist/*.whl
+	pip3 install client/dist/*.whl
 
 
-build_containers:
-	docker build -f ./api/Dockerfile . -t local/api-server:stable & \
-	docker build -f ./dashboard/Dockerfile . -t local/dashboard:stable & \
-	docker build -f ./coordinator/Dockerfile . -t local/coordinator:stable & \
-	docker build -f ./metadata/Dockerfile . -t local/metadata:stable & \
-	docker build -f ./metadata/dashboard/Dockerfile . -t local/metadata-dashboard:stable & \
-	docker build -f ./newserving/Dockerfile . -t local/serving:stable & \
+containers:						## Build Docker containers for Minikube
+	minikube image build -f ./api/Dockerfile . -t local/api-server:stable & \
+	minikube image build -f ./dashboard/Dockerfile . -t local/dashboard:stable & \
+	minikube image build -f ./coordinator/Dockerfile . -t local/coordinator:stable & \
+	minikube image build -f ./metadata/Dockerfile . -t local/metadata:stable & \
+	minikube image build -f ./metadata/dashboard/Dockerfile . -t local/metadata-dashboard:stable & \
+	minikube image build -f ./newserving/Dockerfile . -t local/serving:stable & \
 	wait; \
 	echo "Build Complete"
-	minikube image load local/api-server:stable
-	minikube image load local/dashboard:stable
-	minikube image load local/coordinator:stable
-	minikube image load local/metadata:stable
-	minikube image load local/metadata-dashboard:stable
-	minikube image load local/serving:stable
 
-load_containers: build_containers
-	minikube image load local/api-server:stable
-#	minikube image load local/coordinator:stable & \
-#	minikube image load local/dashboard:stable & \
-#	minikube image load local/metadata-dashboard:stable & \
-#	minikube image load local/metadata:stable & \
-#	minikube image load local/serving:stable & \
-#	minikube image load local/worker:stable & \
-
-
-start_minikube:
+start_minikube:	##Starts Minikube
 	minikube start
 
-reset_minikube:
+reset_minikube:	##Resets Minikube
 	minikube delete
 	minikube start
 
-#install_featureform:
-#	helm install featureform ./charts/featureform
-#
-#install_quickstart:
-#	helm install quickstart ./charts/quickstart
-#
-#update_featureform:
-#	helm upgrade featureform ./charts/featureform
-#	helm upgrade quickstart ./charts/quickstart
-
-uninstall_featureform:
-	helm uninstall featureform
-
-uninstall_quickstart:
-	helm uninstall quickstart
-
-reset_quickstart: uninstall_quickstart install_quickstart
-
-reset_featureform: uninstall_featureform install_featureform
-
-install_featureform: start_minikube load_containers
+install_featureform: start_minikube containers		## Configures Featureform on Minikube
 	helm repo add jetstack https://charts.jetstack.io
 	helm repo update
 	helm install certmgr jetstack/cert-manager \
@@ -87,17 +82,31 @@ install_featureform: start_minikube load_containers
         --create-namespace
 	helm install featureform ./charts/featureform --set global.repo=local --set global.pullPolicy=Never --set global.version=stable
 	kubectl get secret featureform-ca-secret -o=custom-columns=':.data.tls\.crt'| base64 -d > tls.crt
-	minikube addons enable ingress
-	minikube tunnel
 	export FEATUREFORM_HOST="localhost:443"
     export FEATUREFORM_CERT="tls.crt"
 
-update_featureform:  load_containers
-	helm upgrade featureform ./charts/featureform --set global.repo=local --set global.pullPolicy=Never --set global.version=stable
-	kubectl get secret featureform-ca-secret -o=custom-columns=':.data.tls\.crt'| base64 -d > tls.crt
-	minikube addons enable ingress
-	minikube tunnel
-	export FEATUREFORM_HOST="localhost:443"
-    export FEATUREFORM_CERT="tls.crt"
+test_e2e: update_python					## Runs End-to-End tests on minikube
+	cd test_venv/bin && source activate
+	cd ../../
+	pip3 install requests
+	-helm install quickstart ./charts/quickstart
+	kubectl wait --for=condition=complete job/featureform-quickstart-loader --timeout=360s
+	kubectl wait --for=condition=READY=true pod -l app.kubernetes.io/name=ingress-nginx --timeout=360s
+	kubectl wait --for=condition=READY=true pod -l app.kubernetes.io/name=etcd --timeout=360s
+	kubectl wait --for=condition=READY=true pod -l chart=featureform --timeout=360s
+
+	-kubectl port-forward svc/featureform-ingress-nginx-controller 8000:443 7000:80 &
+	-kubectl port-forward svc/featureform-etcd 2379:2379 &
+
+	sleep 2
+
+	featureform apply client/examples/quickstart.py --host localhost:8000 --cert tls.crt
+	pytest client/tests/e2e.py
+
+reset_e2e: etcd						## Resets Cluster. Requires install_etcd
+	-kubectl port-forward svc/featureform-etcd 2379:2379 &
+	sleep 2
+	etcdctl --user=root:secretpassword del "" --prefix
+	-helm uninstall quickstart
 
 

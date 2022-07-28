@@ -259,7 +259,6 @@ jobs:
 
       - name: Setup
         run: | 
-          make etcdctl
           make update_python
           make start_minikube
           make containers

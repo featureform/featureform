@@ -204,6 +204,12 @@ jobs:
         with:
           python-version: '3.7'
 
+      - name: Install Homebrew
+        run: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+      - name: Install Protobuf
+        run: brew install protobuf
+
 #      - name: Check Artifacts
 #        run: |
 #          ls /tmp

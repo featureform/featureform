@@ -330,8 +330,6 @@ jobs:
 
       - name: Run CLI for Get and List Functions
         run: |
-          name: "Run CLI for Get and List Functions"
-        run: |
             kubectl get secret featureform-ca-secret -o=custom-columns=':.data.tls\.crt'| base64 -d > tls.crt
             featureform apply client/examples/quickstart.py --host localhost:8000 --cert tls.crt
             featureform get label fraudulent --host localhost:8000 --cert tls.crt

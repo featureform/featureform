@@ -50,7 +50,7 @@ update_python: create_venv gen_grpc 			## Updates the python package locally
 	pip3 install pytest
 	pip3 install build
 	pip3 uninstall featureform  -y
-	rm -r client/dist/*
+	-rm -r client/dist/*
 	python3 -m build ./client/
 	pip3 install client/dist/*.whl
 

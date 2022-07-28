@@ -196,5 +196,6 @@ class TestResourceClient:
 
         client = ff.ResourceClient(local=True)
         client.apply()
+
     Tests = Quickstart
 

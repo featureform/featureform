@@ -322,6 +322,12 @@ jobs:
       - name: Run Test
         run: pytest client/tests/e2e.py
 
+      - name: Install jupyter
+        run: pip install jupyter
+
+      - name: Install nbconvert
+        run: pip install nbconvert
+
       - name: Run Colab
         run: jupyter nbconvert --to notebook --execute colab_tutorial/Fraud_Detection_Example.ipynb
 

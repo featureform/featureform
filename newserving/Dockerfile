@@ -19,7 +19,7 @@ COPY newserving/*.go ./newserving/
 COPY ./metadata/ ./metadata/
 COPY ./metrics/ ./metrics/
 COPY ./provider/ ./provider/
-COPY newserving/main/main.go
+COPY newserving/main/main.go ./newserving/main/main.go
 
 RUN go build ./newserving/main/main.go
 

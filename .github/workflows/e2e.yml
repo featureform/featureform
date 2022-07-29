@@ -321,7 +321,7 @@ jobs:
 
       - name: Run Test
         run: pytest client/tests/e2e.py
-
+        
       - name: Install jupyter
         run: pip install jupyter
 
@@ -335,22 +335,37 @@ jobs:
       - name: Run Colab
         run: jupyter nbconvert --to notebook --execute colab_tutorial/Fraud_Detection_Example.ipynb
 
-#      - name: Reset Quickstart
-#        run: |
-#          helm uninstall quickstart
-#          helm install quickstart ./charts/quickstart
-#          /tmp/etcd-download-test/etcdctl --user=root:secretpassword del "" --prefix
-#
-#      - name: Run CLI for Get and List Functions
-#        run: |
-#          kubectl get secret featureform-ca-secret -o=custom-columns=':.data.tls\.crt'| base64 -d > tls.crt
-#          featureform apply client/examples/quickstart_get.py --host localhost:8000 --cert tls.crt
+      - name: Reset Quickstart
+        run: |
+          helm uninstall quickstart
+          helm install quickstart ./charts/quickstart
+          /tmp/etcd-download-test/etcdctl --user=root:secretpassword del "" --prefix
+
+      - name: Run CLI for Get and List Functions
+        run: |
+            kubectl get secret featureform-ca-secret -o=custom-columns=':.data.tls\.crt'| base64 -d > tls.crt
+            featureform apply client/examples/quickstart.py --host localhost:8000 --cert tls.crt
+            featureform get label fraudulent --host localhost:8000 --cert tls.crt
+            featureform get label fraudulent quickstart --host localhost:8000 --cert tls.crt
+            featureform list labels --host localhost:8000 --cert tls.crt
+            featureform get source transactions --host localhost:8000 --cert tls.crt
+            featureform get source transactions kaggle --host localhost:8000 --cert tls.crt
+            featureform list sources --host localhost:8000 --cert tls.crt
+            featureform get feature avg_transactions --host localhost:8000 --cert tls.crt
+            featureform get feature avg_transactions quickstart --host localhost:8000 --cert tls.crt
+            featureform list features --host localhost:8000 --cert tls.crt
+            featureform get provider redis-quickstart --host localhost:8000 --cert tls.crt
+            featureform list providers --host localhost:8000 --cert tls.crt
+            featureform get user featureformer --host localhost:8000 --cert tls.crt
+            featureform list users --host localhost:8000 --cert tls.crt
+            featureform get entity user --host localhost:8000 --cert tls.crt
+            featureform list entities --host localhost:8000 --cert tls.crt
 #
 #      - name: Set Cert as Env Variable
 #        run: export FEATUREFORM_CERT=$(pwd)/tls.crt
 #
 #      - name: Run Get Test
-#        run: pytest client/src/featureform/get_test.py
+#        run: pytest client/src/featureform/get_test.pya
 #
 #      - name: Run List Test
 #        run: pytest client/src/featureform/list_test.py

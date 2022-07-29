@@ -683,7 +683,7 @@ jobs:
         run: pytest client/tests/local_test.py -s
 
       - name: Install colab dependencies
-        run: pip install jupyter nbconvert matplotlib pandas scikit-learn
+        run: pip install jupyter nbconvert matplotlib pandas scikit-learn requests
 
       - name: Run Colab
         run: jupyter nbconvert --to notebook --execute colab_tutorial/Fraud_Detection_Example.ipynb

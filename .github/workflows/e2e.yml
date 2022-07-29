@@ -328,6 +328,10 @@ jobs:
       - name: Install nbconvert
         run: pip install nbconvert
 
+      - name: Install pandas and matplotlib
+        run: pip install matplotlib
+        run: pip install pandas
+
       - name: Run Colab
         run: jupyter nbconvert --to notebook --execute colab_tutorial/Fraud_Detection_Example.ipynb
 

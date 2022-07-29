@@ -396,11 +396,11 @@ SourceDefinition = Union[PrimaryData, Transformation]
 @dataclass
 class Source:
     name: str
-    variant: str
     definition: SourceDefinition
     owner: str
     provider: str
     description: str
+    variant: str = "default"
     schedule: str = ""
     schedule_obj: Schedule = None
     is_transformation = 0
@@ -540,7 +540,6 @@ ResourceLocation = ResourceColumnMapping
 @dataclass
 class Feature:
     name: str
-    variant: str
     source: NameVariant
     value_type: str
     entity: str
@@ -548,6 +547,7 @@ class Feature:
     provider: str
     description: str
     location: ResourceLocation
+    variant: str = "default"
     schedule: str = ""
     schedule_obj: Schedule = None
     
@@ -643,7 +643,6 @@ class Feature:
 @dataclass
 class Label:
     name: str
-    variant: str
     source: NameVariant
     value_type: str
     entity: str
@@ -651,6 +650,7 @@ class Label:
     provider: str
     description: str
     location: ResourceLocation
+    variant: str = "default"
 
     @staticmethod
     def operation_type() -> OperationType:
@@ -677,7 +677,7 @@ class Label:
         stub.CreateLabelVariant(serialized)
 
     def _create_local(self, db) -> None:
-        db.insert("labels_variant",
+        db.insert("label_variant",
                   str(time.time()),
                   self.description,
                   self.entity,
@@ -817,11 +817,11 @@ class SourceReference:
 @dataclass
 class TrainingSet:
     name: str
-    variant: str
     owner: str
     label: NameVariant
     features: List[NameVariant]
     description: str
+    variant: str = "default"
     schedule: str = ""
     schedule_obj: Schedule = None
 
@@ -885,12 +885,12 @@ class TrainingSet:
 
     def _check_insert_training_set_resources(self, db) -> None:
         try:
-            db.getNameVariant("labels_variant", "labelName", self.label[0], "variantName", self.label[1])
+            db.getNameVariant("label_variant", "name", self.label[0], "variant", self.label[1])
         except ValueError:
             raise ValueError("{} does not exist. Failed to register training set".format(self.label[0]))
         for feature_name, feature_variant in self.features:
             try:
-                db.getNameVariant("feature_variant", "featureName", feature_name, "variantName", feature_variant)
+                db.getNameVariant("feature_variant", "name", feature_name, "variant", feature_variant)
             except ValueError:
                 raise ValueError("{} does not exist. Failed to register training set".format(feature_name))
             db.insert(

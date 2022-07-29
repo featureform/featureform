@@ -314,24 +314,6 @@ jobs:
           done
           exit 1
 
-      - name: Install jupyter
-        run: pip install jupyter
-
-      - name: Install nbconvert
-        run: pip install nbconvert
-
-      - name: Install matplotlib
-        run: pip install matplotlib
-
-      - name: Install pandas
-        run: pip install pandas
-
-      - name: Install sklearn
-        run: pip install scikit-learn
-
-      - name: Run Colab
-        run: jupyter nbconvert --to notebook --execute colab_tutorial/Fraud_Detection_Example.ipynb
-
       - name: Run CLI
         run: |
           kubectl get secret featureform-ca-secret -o=custom-columns=':.data.tls\.crt'| base64 -d > tls.crt

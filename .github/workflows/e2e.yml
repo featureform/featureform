@@ -314,14 +314,6 @@ jobs:
           done
           exit 1
 
-      - name: Run CLI
-        run: |
-          kubectl get secret featureform-ca-secret -o=custom-columns=':.data.tls\.crt'| base64 -d > tls.crt
-          featureform apply client/examples/quickstart.py --host localhost:8000 --cert tls.crt
-
-      - name: Run Test
-        run: pytest client/tests/e2e.py
-        
       - name: Install jupyter
         run: pip install jupyter
 
@@ -335,6 +327,14 @@ jobs:
       - name: Run Colab
         run: jupyter nbconvert --to notebook --execute colab_tutorial/Fraud_Detection_Example.ipynb
 
+      - name: Run CLI
+        run: |
+          kubectl get secret featureform-ca-secret -o=custom-columns=':.data.tls\.crt'| base64 -d > tls.crt
+          featureform apply client/examples/quickstart.py --host localhost:8000 --cert tls.crt
+
+      - name: Run Test
+        run: pytest client/tests/e2e.py
+        
       - name: Reset Quickstart
         run: |
           helm uninstall quickstart

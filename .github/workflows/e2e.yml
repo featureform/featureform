@@ -326,6 +326,9 @@ jobs:
       - name: Install pandas
         run: pip install pandas
 
+      - name: Install sklearn
+        run: pip install scikit-learn
+
       - name: Run Colab
         run: jupyter nbconvert --to notebook --execute colab_tutorial/Fraud_Detection_Example.ipynb
 

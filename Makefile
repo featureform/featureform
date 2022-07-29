@@ -22,6 +22,16 @@
 help:     						## Show this help.
 	@sed -ne '/@sed/!s/## //p' $(MAKEFILE_LIST)
 
+pytest:
+	curl https://featureform-demo-files.s3.amazonaws.com/transactions.csv -o transactions.csv -C -
+	featureform apply client/examples/local_quickstart.py --local
+	pytest client/tests/localmode.py
+	python client/tests/local_test.py
+	rm -r .featureform
+	pytest client/tests/serving_test.py -s
+	rm -r .featureform
+	pytest client/tests/local_test.py -s
+
 etcdctl: 						## Installs ETCDCTL. Required for reset_e2e
 	-git clone -b v3.4.16 https://github.com/etcd-io/etcd.git
 	cd etcd && ./build
@@ -47,6 +57,7 @@ gen_grpc:						## Generates GRPC Dependencies
 
 update_python: create_venv gen_grpc 			## Updates the python package locally
 	cd test_venv/bin && source activate
+	cd ../../
 	pip3 install pytest
 	pip3 install build
 	pip3 uninstall featureform  -y

@@ -320,8 +320,10 @@ jobs:
       - name: Install nbconvert
         run: pip install nbconvert
 
-      - name: Install pandas and matplotlib
+      - name: Install matplotlib
         run: pip install matplotlib
+
+      - name: Install pandas
         run: pip install pandas
 
       - name: Run Colab

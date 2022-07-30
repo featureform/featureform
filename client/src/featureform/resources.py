@@ -637,12 +637,6 @@ class EntityReference:
                 self.obj = entity
         except grpc._channel._MultiThreadedRendezvous:
             raise ValueError(f"Entity {self.name} not found.")
-    
-    def _get_local(self, db):
-        local_entity = db.getVariantResource("entities", "name", self.name)
-        if local_entity == []:
-            raise ValueError(f"Entity {self.name} not found.")
-        self.obj = local_entity
 
 @typechecked
 @dataclass
@@ -668,7 +662,7 @@ class ProviderReference:
             raise ValueError(f"Provider {self.name} of type {self.provider_type} not found.")
         
     def _get_local(self, db):
-        local_provider = db.getVariantResource("providers", "name", self.name)
+        local_provider = db.getVariantResource("providers", "local mode", self.name)
         if local_provider == []:
             raise ValueError("Local mode provider not found.")
         self.obj = local_provider
@@ -774,12 +768,12 @@ class TrainingSet:
 
     def _check_insert_training_set_resources(self, db) -> None:
         try:
-            db.getNameVariant("label_variant", "labelName", self.label[0], "variantName", self.label[1])
+            db.getNameVariant("label_variant", "name", self.label[0], "variant", self.label[1])
         except ValueError:
             raise ValueError("{} does not exist. Failed to register training set".format(self.label[0]))
         for feature in self.features:
             try:
-                db.getNameVariant("feature_variant", "featureName", feature[0], "variantName", feature[1])
+                db.getNameVariant("feature_variant", "name", feature[0], "variant", feature[1])
             except ValueError:
                 raise ValueError("{} does not exist. Failed to register training set".format(feature[0]))
             db.insert(

@@ -563,7 +563,7 @@ jobs:
           METADATA_PORT: 8080
           SERVING_HOST:  "featureform-feature-server"
           SERVING_PORT: 8080
-        run: go run main.go &
+        run: go run api.go &
 
       - name: Install python dependencies
         working-directory: ./

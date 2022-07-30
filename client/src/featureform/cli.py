@@ -72,7 +72,10 @@ def get(host, cert, insecure, local, resource_type, name, variant):
             raise ValueError(
                 "Host value must be set with --host flag or in env as FEATUREFORM_HOST")
 
-    rc = ResourceClient(host=host, local=local, insecure=insecure, cert_path=cert)
+    if insecure:
+        rc = ResourceClient(host, False)
+    else:
+        rc = ResourceClient(host, True, cert)
 
     rc_get_functions_variant = {
         "feature": rc.get_feature,
@@ -123,7 +126,10 @@ def list(host, cert, insecure, local, resource_type):
             raise ValueError(
                 "Host value must be set with --host flag or in env as FEATUREFORM_HOST")
                 
-    rc = ResourceClient(host=host, local=local, insecure=insecure, cert_path=cert)
+    if insecure:
+        rc = ResourceClient(host, False)
+    else:
+        rc = ResourceClient(host, True, cert)
 
     rc_list_functions = {
         "features": rc.list_features,
@@ -163,7 +169,7 @@ def apply(host, cert, insecure, local, files):
         with open(file, "r") as py:
             exec(py.read())
 
-    rc = ResourceClient(host=host, local=local, insecure=insecure, cert_path=cert)
+    rc = ResourceClient(host, local, insecure, cert)
     rc.apply()
 
 

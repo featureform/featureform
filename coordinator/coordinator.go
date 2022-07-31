@@ -235,7 +235,6 @@ func (c *Coordinator) WatchForScheduleChanges() error {
 func (c *Coordinator) mapNameVariantsToTables(sources []metadata.NameVariant) (map[string]string, error) {
 	sourceMap := make(map[string]string)
 	for _, nameVariant := range sources {
-		var tableName string
 		source, err := c.Metadata.GetSourceVariant(context.Background(), nameVariant)
 		if err != nil {
 			return nil, err
@@ -244,16 +243,11 @@ func (c *Coordinator) mapNameVariantsToTables(sources []metadata.NameVariant) (m
 			return nil, fmt.Errorf("source in query not ready")
 		}
 		providerResourceID := provider.ResourceID{Name: source.Name(), Variant: source.Variant()}
-		if source.IsSQLTransformation() {
-			tableName, err = provider.GetTransformationName(providerResourceID)
-			if err != nil {
-				return nil, err
-			}
-		} else if source.IsPrimaryDataSQLTable() {
-			tableName, err = provider.GetPrimaryTableName(providerResourceID)
-			if err != nil {
-				return nil, err
-			}
+		sourceProvider, err := source.FetchProvider(c.Metadata, context.Background())
+		providerType := sourceProvider.Type()
+		tableName, err := provider.GetPrimaryTableName(providerResourceID, providerType)
+		if err != nil {
+			return nil, err
 		}
 		sourceMap[nameVariant.ClientString()] = tableName
 	}

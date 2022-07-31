@@ -5,6 +5,7 @@
 package provider
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -16,6 +17,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"cloud.google.com/go/bigquery"
 )
 
 func TestOfflineStores(t *testing.T) {
@@ -26,38 +29,51 @@ func TestOfflineStores(t *testing.T) {
 	if err != nil {
 		fmt.Println(err)
 	}
-	var postgresConfig = PostgresConfig{
-		Host:     "localhost",
-		Port:     "5432",
-		Database: os.Getenv("POSTGRES_DB"),
-		Username: os.Getenv("POSTGRES_USER"),
-		Password: os.Getenv("POSTGRES_PASSWORD"),
-	}
-	serialPGConfig := postgresConfig.Serialize()
-	os.Setenv("TZ", "UTC")
-	snowFlakeDatabase := strings.ToUpper(uuid.NewString())
-	t.Log("Snowflake Database: ", snowFlakeDatabase)
-	var snowflakeConfig = SnowflakeConfig{
-		Username:     os.Getenv("SNOWFLAKE_USERNAME"),
-		Password:     os.Getenv("SNOWFLAKE_PASSWORD"),
-		Organization: os.Getenv("SNOWFLAKE_ORG"),
-		Account:      os.Getenv("SNOWFLAKE_ACCOUNT"),
-		Database:     snowFlakeDatabase,
-	}
-	serialSFConfig := snowflakeConfig.Serialize()
-	if err := createSnowflakeDatabase(snowflakeConfig); err != nil {
-		t.Fatalf("%v", err)
-	}
-	defer destroySnowflakeDatabase(snowflakeConfig)
+	// var postgresConfig = PostgresConfig{
+	// 	Host:     "localhost",
+	// 	Port:     "5432",
+	// 	Database: os.Getenv("POSTGRES_DB"),
+	// 	Username: os.Getenv("POSTGRES_USER"),
+	// 	Password: os.Getenv("POSTGRES_PASSWORD"),
+	// }
+	// serialPGConfig := postgresConfig.Serialize()
+	// os.Setenv("TZ", "UTC")
+	// snowFlakeDatabase := strings.ToUpper(uuid.NewString())
+	// t.Log("Snowflake Database: ", snowFlakeDatabase)
+	// var snowflakeConfig = SnowflakeConfig{
+	// 	Username:     os.Getenv("SNOWFLAKE_USERNAME"),
+	// 	Password:     os.Getenv("SNOWFLAKE_PASSWORD"),
+	// 	Organization: os.Getenv("SNOWFLAKE_ORG"),
+	// 	Account:      os.Getenv("SNOWFLAKE_ACCOUNT"),
+	// 	Database:     snowFlakeDatabase,
+	// }
+	// serialSFConfig := snowflakeConfig.Serialize()
+	// if err := createSnowflakeDatabase(snowflakeConfig); err != nil {
+	// 	t.Fatalf("%v", err)
+	// }
+	// defer destroySnowflakeDatabase(snowflakeConfig)
 
-	var redshiftConfig = RedshiftConfig{
-		Endpoint: os.Getenv("REDSHIFT_ENDPOINT"),
-		Port:     os.Getenv("REDSHIFT_PORT"),
-		Database: os.Getenv("REDSHIFT_DATABASE"),
-		Username: os.Getenv("REDSHIFT_USERNAME"),
-		Password: os.Getenv("REDSHIFT_PASSWORD"),
+	// var redshiftConfig = RedshiftConfig{
+	// 	Endpoint: os.Getenv("REDSHIFT_ENDPOINT"),
+	// 	Port:     os.Getenv("REDSHIFT_PORT"),
+	// 	Database: os.Getenv("REDSHIFT_DATABASE"),
+	// 	Username: os.Getenv("REDSHIFT_USERNAME"),
+	// 	Password: os.Getenv("REDSHIFT_PASSWORD"),
+	// }
+	// serialRSConfig := redshiftConfig.Serialize()
+
+	// bigQueryDatasetId := strings.Replace(strings.ToUpper(uuid.NewString()), "-", "_", -1)
+	// os.Setenv("BIGQUERY_DATASET_ID", bigQueryDatasetId)
+	// t.Log("BigQuery Dataset: ", bigQueryDatasetId)
+	var bigQueryConfig = BigQueryConfig{
+		ProjectId: os.Getenv("BIGQUERY_PROJECT_ID"),
+		DatasetId: os.Getenv("BIGQUERY_DATASET_ID"),
 	}
-	serialRSConfig := redshiftConfig.Serialize()
+	serialBQConfig := bigQueryConfig.Serialize()
+	// if err := createBigQueryDataset(bigQueryConfig); err != nil {
+	// 	t.Fatalf("Cannot create BigQuery Dataset: %v", err)
+	// }
+	// defer destroyBigQueryDataset(bigQueryConfig)
 
 	testFns := map[string]func(*testing.T, OfflineStore){
 		"CreateGetTable":          testCreateGetOfflineTable,
@@ -93,9 +109,10 @@ func TestOfflineStores(t *testing.T) {
 		integrationTest bool
 	}{
 		{MemoryOffline, []byte{}, false},
-		{PostgresOffline, serialPGConfig, true},
-		{SnowflakeOffline, serialSFConfig, true},
-		{RedshiftOffline, serialRSConfig, true},
+		// {PostgresOffline, serialPGConfig, true},
+		// {SnowflakeOffline, serialSFConfig, true},
+		// {RedshiftOffline, serialRSConfig, true},
+		{BigQueryOffline, serialBQConfig, true},
 	}
 	for _, testItem := range testList {
 		if testing.Short() && testItem.integrationTest {
@@ -161,6 +178,40 @@ func destroySnowflakeDatabase(c SnowflakeConfig) error {
 		return err
 	}
 	return nil
+}
+
+func createBigQueryDataset(c BigQueryConfig) error {
+	ctx := context.Background()
+
+	client, err := bigquery.NewClient(ctx, c.ProjectId)
+	if err != nil {
+		return err
+	}
+	defer client.Close()
+
+	meta := &bigquery.DatasetMetadata{
+		Location:               "US",
+		DefaultTableExpiration: 24 * time.Hour,
+	}
+	err = client.Dataset(c.DatasetId).Create(ctx, meta)
+
+	return err
+}
+
+func destroyBigQueryDataset(c BigQueryConfig) error {
+	ctx := context.Background()
+
+	time.Sleep(10 * time.Second)
+
+	client, err := bigquery.NewClient(ctx, c.ProjectId)
+	if err != nil {
+		return err
+	}
+	defer client.Close()
+
+	err = client.Dataset(c.DatasetId).DeleteWithContents(ctx)
+
+	return err
 }
 
 func randomID(types ...OfflineResourceType) ResourceID {
@@ -385,7 +436,6 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 		if err != nil {
 			t.Fatalf("Failed to create segment: %s", err)
 		}
-
 		i := 0
 		expectedRows := test.ExpectedSegment
 		for seg.Next() {
@@ -420,9 +470,11 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 	runTestCase := func(t *testing.T, test TestCase) {
 		id := randomID(Feature)
 		table, err := store.CreateResourceTable(id, test.Schema)
+
 		if err != nil {
 			t.Fatalf("Failed to create table: %s", err)
 		}
+
 		for _, rec := range test.WriteRecords {
 			if err := table.Write(rec); err != nil {
 				t.Fatalf("Failed to write record %v: %s", rec, err)
@@ -432,8 +484,10 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 		if err != nil {
 			t.Fatalf("Failed to create materialization: %s", err)
 		}
+
 		testMaterialization(t, mat, test)
 		getMat, err := store.GetMaterialization(mat.ID())
+
 		if err != nil {
 			t.Fatalf("Failed to get materialization: %s", err)
 		}
@@ -1024,6 +1078,7 @@ func testTrainingSet(t *testing.T, store OfflineStore) {
 	}
 	runTestCase := func(t *testing.T, test TestCase) {
 		featureIDs := make([]ResourceID, len(test.FeatureRecords))
+
 		for i, recs := range test.FeatureRecords {
 			id := randomID(Feature)
 			featureIDs[i] = id
@@ -1066,6 +1121,7 @@ func testTrainingSet(t *testing.T, store OfflineStore) {
 				Features: iter.Features(),
 				Label:    iter.Label(),
 			}
+
 			// Row order isn't guaranteed, we make sure one row is equivalent
 			// then we delete that row. This is ineffecient, but these test
 			// cases should all be small enough not to matter.
@@ -1899,7 +1955,7 @@ func testTransform(t *testing.T, store OfflineStore) {
 					Name: uuid.NewString(),
 					Type: Transformation,
 				},
-				Query: "SELECT COUNT(*) FROM tb",
+				Query: "SELECT COUNT(*) as total_count FROM tb",
 			},
 			Expected: []GenericRecord{
 				[]interface{}{5},
@@ -1912,15 +1968,19 @@ func testTransform(t *testing.T, store OfflineStore) {
 		if err != nil {
 			t.Fatalf("Could not initialize table: %v", err)
 		}
+
 		for _, value := range test.Records {
 			if err := table.Write(value); err != nil {
 				t.Fatalf("Could not write value: %v: %v", err, value)
 			}
 		}
-		test.Config.Query = strings.Replace(test.Config.Query, "tb", sanitize(table.GetName()), 1)
+
+		tableName := getTableName(t.Name(), table.GetName())
+		test.Config.Query = strings.Replace(test.Config.Query, "tb", tableName, 1)
 		if err := store.CreateTransformation(test.Config); err != nil {
 			t.Fatalf("Could not create transformation: %v", err)
 		}
+
 		rows, err := table.NumRows()
 		if err != nil {
 			t.Fatalf("could not get NumRows of table: %v", err)
@@ -1928,15 +1988,17 @@ func testTransform(t *testing.T, store OfflineStore) {
 		if int(rows) != len(test.Records) {
 			t.Fatalf("NumRows do not match. Expected: %d, Got: %d", len(test.Records), rows)
 		}
-		table, err = store.GetTransformationTable(test.Config.TargetTableID)
 
+		table, err = store.GetTransformationTable(test.Config.TargetTableID)
 		if err != nil {
 			t.Errorf("Could not get transformation table: %v", err)
 		}
+
 		iterator, err := table.IterateSegment(100)
 		if err != nil {
 			t.Fatalf("Could not get generic iterator: %v", err)
 		}
+
 		tableSize := 0
 		for iterator.Next() {
 			if iterator.Err() != nil {
@@ -2062,7 +2124,7 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 					Name: uuid.NewString(),
 					Type: Transformation,
 				},
-				Query: "SELECT COUNT(*) FROM tb",
+				Query: "SELECT COUNT(*) as total_count FROM tb",
 			},
 			Expected: []GenericRecord{
 				[]interface{}{5},
@@ -2083,7 +2145,9 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 				t.Fatalf("Could not write value: %v: %v", err, value)
 			}
 		}
-		test.Config.Query = strings.Replace(test.Config.Query, "tb", sanitize(table.GetName()), 1)
+
+		tableName := getTableName(t.Name(), table.GetName())
+		test.Config.Query = strings.Replace(test.Config.Query, "tb", tableName, 1)
 		if err := store.CreateTransformation(test.Config); err != nil {
 			t.Fatalf("Could not create transformation: %v", err)
 		}
@@ -2234,7 +2298,9 @@ func testTransformCreateFeature(t *testing.T, store OfflineStore) {
 				t.Fatalf("Could not write value: %v: %v", err, value)
 			}
 		}
-		test.Config.Query = strings.Replace(test.Config.Query, "tb", sanitize(table.GetName()), 1)
+
+		tableName := getTableName(t.Name(), table.GetName())
+		test.Config.Query = strings.Replace(test.Config.Query, "tb", tableName, 1)
 		if err := store.CreateTransformation(test.Config); err != nil {
 			t.Fatalf("Could not create transformation: %v", err)
 		}
@@ -2349,7 +2415,7 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 					Name: uuid.NewString(),
 					Type: Transformation,
 				},
-				Query: "SELECT COUNT(*) FROM tb",
+				Query: "SELECT COUNT(*) as total_count FROM tb",
 			},
 			Expected: []GenericRecord{
 				[]interface{}{5},
@@ -2367,12 +2433,13 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 		}
 	}
 
+	tableName := getTableName(t.Name(), table.GetName())
 	config := TransformationConfig{
 		TargetTableID: ResourceID{
 			Name: firstTransformName,
 			Type: Transformation,
 		},
-		Query: fmt.Sprintf("SELECT entity, int_col, flt_col, str_col FROM %s", sanitize(table.GetName())),
+		Query: fmt.Sprintf("SELECT entity, int_col, flt_col, str_col FROM %s", tableName),
 	}
 	if err := store.CreateTransformation(config); err != nil {
 		t.Fatalf("Could not create transformation: %v", err)
@@ -2413,13 +2480,14 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 		t.Fatalf("The number of records do not match for received (%v) and expected (%v)", tableSize, len(tests["First"].Expected))
 	}
 
+	tableName = getTableName(t.Name(), table.GetName())
 	secondTransformName := uuid.NewString()
 	config = TransformationConfig{
 		TargetTableID: ResourceID{
 			Name: secondTransformName,
 			Type: Transformation,
 		},
-		Query: fmt.Sprintf("SELECT Count(*) FROM %s", sanitize(table.GetName())),
+		Query: fmt.Sprintf("SELECT Count(*) as total_count FROM %s", tableName),
 	}
 	if err := store.CreateTransformation(config); err != nil {
 		t.Fatalf("Could not create transformation: %v", err)
@@ -2500,12 +2568,14 @@ func testTransformToMaterialize(t *testing.T, store OfflineStore) {
 			t.Fatalf("Could not write value: %v: %v", err, value)
 		}
 	}
+
+	tableName := getTableName(t.Name(), table.GetName())
 	config := TransformationConfig{
 		TargetTableID: ResourceID{
 			Name: firstTransformName,
 			Type: Transformation,
 		},
-		Query: fmt.Sprintf("SELECT entity, int, flt, str FROM %s", sanitize(table.GetName())),
+		Query: fmt.Sprintf("SELECT entity, int, flt, str FROM %s", tableName),
 	}
 	if err := store.CreateTransformation(config); err != nil {
 		t.Fatalf("Could not create transformation: %v", err)
@@ -2953,4 +3023,14 @@ func Test_snowflakeOfflineTable_checkTimestamp(t *testing.T) {
 			}
 		})
 	}
+}
+
+func getTableName(testName string, tableName string) string {
+	if strings.Contains(testName, "BIGQUERY") {
+		prefix := fmt.Sprintf("%s.%s", os.Getenv("BIGQUERY_PROJECT_ID"), os.Getenv("BIGQUERY_DATASET_ID"))
+		tableName = fmt.Sprintf("`%s.%s`", prefix, tableName)
+	} else {
+		tableName = sanitize(tableName)
+	}
+	return tableName
 }

@@ -164,7 +164,7 @@ jobs:
           json: ${{ secrets.FIRESTORE_CREDENTIALS_FILE }}
 
       - name: Set Redis Password
-        run: docker exec -it redis-secure redis-cli config set requirepass ${{ REDIS_PASSWORD }}
+        run: docker exec -it redis-secure redis-cli config set requirepass "$REDIS_PASSWORD"
 
       - name: Testing
         env:

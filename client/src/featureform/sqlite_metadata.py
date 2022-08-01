@@ -81,7 +81,6 @@ class SQLiteMetadata:
           label_name text,
           label_variant text,
           status text,
-          features text,
           PRIMARY KEY(name, variant),
           FOREIGN KEY(name) REFERENCES training_sets(name));''')
 

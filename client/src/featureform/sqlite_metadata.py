@@ -195,46 +195,46 @@ class SQLiteMetadata:
         variant_data_list = variant_data.fetchall()
         if len(variant_data_list) == 0:
           raise ValueError(f"{type} with {column}: {resource} not found")
-        return variant_data.fetchall()
+        return variant_data_list
 
     def get_feature_variant(self, name, variant):
         variant_table_query = "SELECT * FROM feature_variant WHERE name = '" + name + "' AND variant = '" + variant + "';"
         variant_data = self.__conn.execute(variant_table_query)
         self.__conn.commit()
-        variant_data_list = variant_data.fetchone()
+        variant_data_list = variant_data.fetchall()
         if len(variant_data_list) == 0:
           raise ValueError(f"feature_variant with name: {name} and variant: {variant} not found")
-        return variant_data_list
+        return variant_data_list[0]
 
     def get_training_set_variant(self, name, variant):
         variant_table_query = "SELECT * FROM training_set_variant WHERE name = '" + name + "' AND variant = '" + variant + "';"
         variant_data = self.__conn.execute(variant_table_query)
         self.__conn.commit()
-        variant_data_list = variant_data.fetchone()
+        variant_data_list = variant_data.fetchall()
         if len(variant_data_list) == 0:
           raise ValueError(f"training_set_variant with name: {name} and variant: {variant} not found")
-        return variant_data_list
+        return variant_data_list[0]
     
     def get_label_variant(self, name, variant):
         variant_table_query = "SELECT * FROM label_variant WHERE name = '" + name + "' AND variant = '" + variant + "';"
         variant_data = self.__conn.execute(variant_table_query)
         self.__conn.commit()
-        variant_data_list = variant_data.fetchone()
+        variant_data_list = variant_data.fetchall()
         if len(variant_data_list) == 0:
           raise ValueError(f"label_variant with name: {name} and variant: {variant} not found")
-        return variant_data_list
+        return variant_data_list[0]
 
     def get_source_variant(self, name, variant):
         variant_table_query = "SELECT * FROM source_variant WHERE name = '" + name + "' AND variant = '" + variant + "';"
         variant_data = self.__conn.execute(variant_table_query)
         self.__conn.commit()
-        variant_data_list = variant_data.fetchone()
+        variant_data_list = variant_data.fetchall()
         if len(variant_data_list) == 0:
           raise ValueError(f"source_variant with name: {name} and variant: {variant} not found")
-        return variant_data_list
+        return variant_data_list[0]
 
     def get_training_set_features(self, name, variant):
-        variant_table_query = "SELECT * FROM c WHERE training_set_name = '" + name + "' AND training_set_variant = '" + variant + "';"
+        variant_table_query = "SELECT * FROM training_set_features WHERE training_set_name = '" + name + "' AND training_set_variant = '" + variant + "';"
         variant_data = self.__conn.execute(variant_table_query)
         self.__conn.commit()
         variant_data_list = variant_data.fetchall()

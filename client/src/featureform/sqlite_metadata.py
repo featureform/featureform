@@ -182,32 +182,55 @@ class SQLiteMetadata:
 
         self.__conn.commit()
 
-    def getTypeTable(self, type):
-        query = "SELECT * FROM " + type
+    def get_type_table(self, type):
+        query = f"SELECT * FROM {type}"
         type_data = self.__conn.execute(query)
         self.__conn.commit()
         return type_data.fetchall()
 
-    def getVariantResource(self, type, column, resource):
-        variant_table_query = "SELECT * FROM " + type + " WHERE " + column + "='" + resource + "';"
-        variant_data = self.__conn.execute(variant_table_query)
+    def query_resource(self, type, column, resource):
+        query = f"SELECT * FROM {type} WHERE {column}='{resource}';"
+        variant_data = self.__conn.execute(query)
         self.__conn.commit()
         variant_data_list = variant_data.fetchall()
         if len(variant_data_list) == 0:
-          raise ValueError("{} with {}: {} not found".format(type, column, resource))
+          raise ValueError(f"{type} with {column}: {resource} not found")
+        return variant_data_list
+  
+    def fetch_data(self, query, type, name, variant):
+        variant_data = self.__conn.execute(query)
+        self.__conn.commit()
+        variant_data_list = variant_data.fetchall()
+        if len(variant_data_list) == 0:
+          raise ValueError(f"{type} with name: {name} and variant: {variant} not found")
         return variant_data_list
 
-    def getNameVariant(self, type, column1, resource1, column2, resource2):
-        variant_table_query = "SELECT * FROM " + type + " WHERE " + column1 + "='" + resource1 + "' AND " + column2 + "='" + resource2 + "';"
-        variant_data = self.__conn.execute(variant_table_query)
-        self.__conn.commit()
-        variant_data_list = variant_data.fetchall()
-        if len(variant_data_list) == 0:
-          raise ValueError("{} with {}: {} and {}: {} not found".format(type, column1, resource1, column2, resource2))
-        return variant_data_list
+    def get_feature_variant(self, name, variant):
+        query = f"SELECT * FROM feature_variant WHERE name = '{name}' AND variant = '{variant}';"
+        return self.fetch_data(query, "feature_variant", name, variant)[0]
+
+    def get_training_set_variant(self, name, variant):
+        query = f"SELECT * FROM training_set_variant WHERE name = '{name}' AND variant = '{variant}';"
+        return self.fetch_data(query, "training_set_variant", name, variant)[0]
+    
+    def get_label_variant(self, name, variant):
+        query = f"SELECT * FROM label_variant WHERE name = '{name}' AND variant = '{variant}';"
+        return self.fetch_data(query, "label_variant", name, variant)[0]
+
+    def get_source_variant(self, name, variant):
+        query = f"SELECT * FROM source_variant WHERE name = '{name}' AND variant = '{variant}';"
+        return self.fetch_data(query, "source_variant", name, variant)[0]
+
+    def get_training_set_features(self, name, variant):
+        query = f"SELECT * FROM training_set_features WHERE training_set_name = '{name}' AND training_set_variant = '{variant}';"
+        return self.fetch_data(query, "training_set_features", name, variant)
+
+    def get_resource_with_source(self, type, source_name, source_variant):
+        query = f"SELECT * FROM {type} WHERE source_name ='{source_name}' AND source_variant ='{source_variant}';"
+        return self.fetch_data(query, type, source_name, source_variant)
 
     def is_transformation(self, name, variant):
-        query = "SELECT transformation FROM source_variant WHERE name='" + name + "' and variant='" + variant + "';"
+        query = f"SELECT transformation FROM source_variant WHERE name='{name}' and variant='{variant}';"
         transformation = self.__conn.execute(query)
         self.__conn.commit()
         t = transformation.fetchall()
@@ -219,12 +242,12 @@ class SQLiteMetadata:
             return 0
 
     def insert_source(self, tablename, *args):
-        stmt = "INSERT OR IGNORE INTO " + tablename + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        stmt = f"INSERT OR IGNORE INTO {tablename} VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         self.__conn.execute_stmt(stmt, args)
         self.__conn.commit()
 
     def insert(self, tablename, *args):
-        query = "INSERT OR IGNORE INTO " + tablename + " VALUES " + str(args)
+        query = f"INSERT OR IGNORE INTO {tablename} VALUES {str(args)}"
         self.__conn.execute(query)
         self.__conn.commit()
 

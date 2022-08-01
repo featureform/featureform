@@ -20,7 +20,7 @@ from .sqlite_metadata import SQLiteMetadata
 import time
 import pandas as pd
 from .get import *
-from .get_local_provider import *
+from .get_local import *
 from .list_local import *
 from .list import *
 
@@ -1969,7 +1969,7 @@ class Client(Registrar):
             features (List[Feature]): List of Feature Objects
         """
         if local:
-            return list_name_variant_status_local("feature")
+            return list_local("feature", [ColumnName.NAME, ColumnName.VARIANT, ColumnName.STATUS])
         return list_name_variant_status(self._stub, "feature")
 
     def list_labels(self, local=False):
@@ -2010,7 +2010,7 @@ class Client(Registrar):
             labels (List[Label]): List of Label Objects
         """
         if local:
-            return list_name_variant_status_local("label")
+            return list_local("label", [ColumnName.NAME, ColumnName.VARIANT, ColumnName.STATUS])
         return list_name_variant_status(self._stub, "label")
 
     def list_users(self, local=False):
@@ -2073,7 +2073,7 @@ class Client(Registrar):
             users (List[User]): List of User Objects
         """
         if local:
-            return list_name_status_local("user")
+            return list_local("user", [ColumnName.NAME, ColumnName.STATUS])
         return list_name_status(self._stub, "user")
 
     def list_entities(self, local=False):
@@ -2133,7 +2133,7 @@ class Client(Registrar):
             entities (List[Entity]): List of Entity Objects
         """
         if local:
-            return list_name_status_local("entity")
+            return list_local("entity", [ColumnName.NAME, ColumnName.STATUS])
         return list_name_status(self._stub, "entity")
 
     def list_sources(self, local=False):
@@ -2172,7 +2172,7 @@ class Client(Registrar):
             sources (List[Source]): List of Source Objects
         """
         if local:
-            return list_name_variant_status_desc_local("source")
+            return list_local("source", [ColumnName.NAME, ColumnName.VARIANT, ColumnName.STATUS, ColumnName.DESCRIPTION])
         return list_name_variant_status_desc(self._stub, "source")
 
     def list_training_sets(self, local=False):
@@ -2212,7 +2212,7 @@ class Client(Registrar):
             training_sets (List[TrainingSet]): List of TrainingSet Objects
         """
         if local:
-            return list_name_variant_status_desc_local("training-set")
+            return list_local("training-set", [ColumnName.NAME, ColumnName.VARIANT, ColumnName.STATUS])
         return list_name_variant_status_desc(self._stub, "training-set")
 
     def list_models(self, local=False):
@@ -2222,7 +2222,7 @@ class Client(Registrar):
             models (List[Model]): List of Model Objects
         """
         if local:
-            return list_name_status_desc_local("model")
+            return list_local("model", [ColumnName.NAME, ColumnName.STATUS, ColumnName.DESCRIPTION])
         return list_name_status_desc(self._stub, "model")
 
     def list_providers(self, local=False):
@@ -2293,7 +2293,7 @@ class Client(Registrar):
             providers (List[Provider]): List of Provider Objects
         """
         if local:
-            return list_name_status_desc_local("provider")
+            return list_local("provider", [ColumnName.NAME, ColumnName.STATUS, ColumnName.DESCRIPTION])
         return list_name_status_desc(self._stub, "provider")
 
 global_registrar = Registrar()

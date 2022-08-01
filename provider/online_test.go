@@ -8,6 +8,7 @@ package provider
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"reflect"
 	"testing"

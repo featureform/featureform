@@ -1,5 +1,4 @@
 import React, { useEffect } from "react";
-// import { useParams } from "react-router-dom";
 import { connect } from "react-redux";
 import { fetchEntity } from "./EntityPageSlice.js";
 import EntityPageView from "./EntityPageView.js";
@@ -43,30 +42,28 @@ const checkIfEmpty = (object) => {
 
 const EntityPage = ({ api, entityPage, activeVariants, type, entity, ...props }) => {
   let resourceType = Resource[Resource.pathToType[type]];
-
   const fetchEntity = props.fetch;
 
   useEffect(() => {
+    console.log(api, type, entity);
     fetchEntity(api, type, entity);
   }, [type, entity]);
 
   return (
     <div>
-      <div>
-        {entityPage.failed ? (
-          <NotFoundPage />
-        ) : checkIfEmpty(entityPage) || entityPage.loading ? (
-          <LoadingDots />
-        ) : (
-          <EntityPageView
-            entity={entityPage}
-            setVariant={props.setVariant}
-            activeVariants={activeVariants}
-            typePath={type}
-            resourceType={resourceType}
-          />
-        )}
-      </div>
+      {entityPage.failed ? (
+        <NotFoundPage />
+      ) : checkIfEmpty(entityPage) || entityPage.loading ? (
+        <LoadingDots />
+      ) : (
+        <EntityPageView
+          entity={entityPage}
+          setVariant={props.setVariant}
+          activeVariants={activeVariants}
+          typePath={type}
+          resourceType={resourceType}
+        />
+      )}
     </div>
   );
 };

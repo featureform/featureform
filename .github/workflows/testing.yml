@@ -222,8 +222,8 @@ jobs:
           name: "./provider/bigquery_credentials.json"
           json: ${{ secrets.BIGQUERY_CREDENTIALS_FILE }}
       
-      - name: Export Variable
-        run: echo "GOOGLE_APPLICATION_CREDENTIALS=${GITHUB_ACTION_PATH}/provider/bigquery_credentials.json" >> $GITHUB_ENV
+      - name: Export GOOGLE_APPLICATION_CREDENTIALS Variable
+        run: echo "GOOGLE_APPLICATION_CREDENTIALS=$GITHUB_ACTION_PATH/provider/bigquery_credentials.json" >> $GITHUB_ENV
 
       - name: Testing
         env:

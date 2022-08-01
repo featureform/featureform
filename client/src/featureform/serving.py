@@ -9,6 +9,7 @@ import types
 
 import grpc
 import numpy as np
+from pyrsistent import v
 from featureform.proto import serving_pb2
 from featureform.proto import serving_pb2_grpc
 import pandas as pd
@@ -17,43 +18,43 @@ from .sqlite_metadata import SQLiteMetadata
 
 class Client:
 
-    def __init__(self, host=None, local=False, tls_verify=True, cert_path=None):
-        self.local = local
-        if local:
-            if host != None:
-                raise ValueError("Cannot be local and have a host")
-            self.sqldb = SQLiteMetadata()
-        else:
-            host = host or os.getenv('FEATUREFORM_HOST')
-            if host is None:
-                raise RuntimeError(
-                    'If not in local mode then `host` must be passed or the environment'
-                    ' variable FEATUREFORM_HOST must be set.'
-                )
-            env_cert_path = os.getenv('FEATUREFORM_CERT')
-            if tls_verify:
-                credentials = grpc.ssl_channel_credentials()
-                channel = grpc.secure_channel(host, credentials)
-            elif cert_path is not None or env_cert_path is not None:
-                if env_cert_path is not None and cert_path is None:
-                    cert_path = env_cert_path
-                with open(cert_path, 'rb') as f:
-                    credentials = grpc.ssl_channel_credentials(f.read())
-                channel = grpc.secure_channel(host, credentials)
-            else:
-                channel = grpc.insecure_channel(host, options=(('grpc.enable_http_proxy', 0),))
-            self._stub = serving_pb2_grpc.FeatureStub(channel)
+    # def __init__(self, host=None, local=False, tls_verify=True, cert_path=None):
+    #     self.local = local
+    #     if local:
+    #         if host != None:
+    #             raise ValueError("Cannot be local and have a host")
+    #         self.sqldb = SQLiteMetadata()
+    #     else:
+    #         host = host or os.getenv('FEATUREFORM_HOST')
+    #         if host is None:
+    #             raise RuntimeError(
+    #                 'If not in local mode then `host` must be passed or the environment'
+    #                 ' variable FEATUREFORM_HOST must be set.'
+    #             )
+    #         env_cert_path = os.getenv('FEATUREFORM_CERT')
+    #         if tls_verify:
+    #             credentials = grpc.ssl_channel_credentials()
+    #             channel = grpc.secure_channel(host, credentials)
+    #         elif cert_path is not None or env_cert_path is not None:
+    #             if env_cert_path is not None and cert_path is None:
+    #                 cert_path = env_cert_path
+    #             with open(cert_path, 'rb') as f:
+    #                 credentials = grpc.ssl_channel_credentials(f.read())
+    #             channel = grpc.secure_channel(host, credentials)
+    #         else:
+    #             channel = grpc.insecure_channel(host, options=(('grpc.enable_http_proxy', 0),))
+    #         self._stub = serving_pb2_grpc.FeatureStub(channel)
 
-    def training_set(self, name, version):
-        if self.local:
-            return self._local_training_set(name, version)
-        else:
-            return self._host_training_set(name, version)
+    # def training_set(self, name, version):
+    #     if self.local:
+    #         return self._local_training_set(name, version)
+    #     else:
+    #         return self._host_training_set(name, version)
 
-    def _host_training_set(self, name, version):
-        if self.local:
-            raise ValueError("Not supported in localmode. Please try using training_set()")
-        return Dataset(self._stub).from_stub(name, version)
+    # def _host_training_set(self, name, version):
+    #     if self.local:
+    #         raise ValueError("Not supported in localmode. Please try using training_set()")
+    #     return Dataset(self._stub).from_stub(name, version)
 
     def _local_training_set(self, training_set_name, training_set_variant):
         if not self.local:
@@ -253,6 +254,132 @@ class Client:
         df.rename(columns={entity_col: entity_name}, inplace=True)
         df.set_index(entity_name, inplace=True)
         return df
+
+class Client:
+    def __init__(self, host=None, local=False, tls_verify=True, cert_path=None):
+        if local:
+            if host != None:
+                raise ValueError("Cannot be local and have a host")
+            self.__client = LocalClient()
+        else:
+            self.__client = HostedClient(host, tls_verify, cert_path)
+
+    def training_set(self, name, version):
+        return self.__client.training_set()
+
+
+class LocalClient(Client):
+    def __init__(self):
+        self.db = SQLiteMetadata()
+        
+    def training_set(self, name, version):
+        ts =  self.db.get_training_set(name, version)
+        label, features = ts["label"], ts["features"]
+        retrieve_dataframes(label, features)
+
+        sources = set(label.source())
+        for feat in features:
+            sources.add(feat.source())
+        sources_df = get_source_dataframes(sources)
+
+        training_set_row = \
+            self.sqldb.getNameVariant("training_set_variant", "name", training_set_name, "variant",
+                                      training_set_variant)[0]
+        label_row = \
+            self.sqldb.getNameVariant("label_variant", "name", training_set_row['label_name'], "variant",
+                                      training_set_row['label_variant'])[0]
+        label_source = self.sqldb.getNameVariant("source_variant", "name", label_row['source_name'], "variant", label_row['source_variant'])[0]
+        if self.sqldb.is_transformation(label_row['source_name'], label_row['source_variant']):
+            df = self.process_transformation(label_row['source_name'], label_row['source_variant'])
+            if label_row['source_timestamp'] != "":
+                df = df[[label_row['source_entity'], label_row['source_value'], label_row['source_timestamp']]]
+            else:
+                df = df[[label_row['source_entity'], label_row['source_value']]]
+            df.set_index(label_row['source_entity'])
+            label_df = df
+        else:
+            label_df = self.process_label_csv(label_source['definition'], label_row['source_entity'], label_row['source_entity'], label_row['source_value'], label_row['source_timestamp'])
+        feature_table = self.sqldb.getNameVariant("training_set_features", "training_set_name", training_set_name,
+                                                 "training_set_variant", training_set_variant)
+
+        label_df.rename(columns={label_row['source_value']: 'label'}, inplace=True)
+        trainingset_df = label_df
+        for feature_variant in feature_table:
+            feature_row = self.sqldb.getNameVariant("feature_variant", "name", feature_variant['feature_name'], "variant",
+                                                    feature_variant['feature_variant'])[0]
+
+            source_row = \
+                self.sqldb.getNameVariant("source_variant", "name", feature_row['source_name'], "variant", feature_row['source_variant'])[0]
+
+            name_variant = feature_variant['feature_name'] + "." + feature_variant['feature_variant']
+            if self.sqldb.is_transformation(feature_row['source_name'], feature_row['source_variant']):
+                df = self.process_transformation(feature_row['source_name'], feature_row['source_variant'])
+                if isinstance(df, pd.Series):
+                    df = df.to_frame()
+                    df.reset_index(inplace=True)
+                if feature_row['source_timestamp'] != "":
+                    df = df[[feature_row['source_entity'], feature_row['source_value'], feature_row['source_timestamp']]]
+                else:
+                    df = df[[feature_row['source_entity'], feature_row['source_value']]]
+
+                df.set_index(feature_row['source_entity'])
+                df.rename(columns={feature_row['source_value']: name_variant}, inplace=True)
+            else:
+                df = pd.read_csv(str(source_row['definition']))
+                if feature_variant['feature_name'] != "":
+                    df = df[[feature_row['source_entity'], feature_row['source_value'], feature_row['source_timestamp']]]
+                else:
+                    df = df[[feature_row['source_entity'], feature_row['source_value']]]
+                df.set_index(feature_row['source_entity'])
+                df.rename(columns={feature_row['source_value']: name_variant}, inplace=True)
+            if feature_row['source_timestamp'] != "":
+                trainingset_df = pd.merge_asof(trainingset_df, df.sort_values(['ts']), direction='backward',
+                                               left_on=label_row['source_timestamp'], right_on=feature_row['source_timestamp'], left_by=label_row['source_entity'],
+                                               right_by=feature_row['source_entity'])
+            else:
+                df.drop_duplicates(subset=[feature_row['source_entity'], name_variant])
+                trainingset_df.reset_index(inplace=True)
+                trainingset_df[label_row['source_entity']] = trainingset_df[label_row['source_entity']].astype('string')
+                df[label_row['source_entity']] = df[label_row['source_entity']].astype('string')
+                trainingset_df = trainingset_df.join(df.set_index(label_row['source_entity']), how="left", on=label_row['source_entity'],
+                                                     lsuffix="_left")
+
+        if label_row['source_timestamp'] != "":
+            trainingset_df.drop(columns=label_row['source_timestamp'], inplace=True)
+        trainingset_df.drop(columns=label_row['source_entity'], inplace=True)
+
+        label_col = trainingset_df.pop('label')
+        trainingset_df = trainingset_df.assign(label=label_col)
+        return Dataset.from_list(trainingset_df.values.tolist())
+
+
+        
+class HostedClient(Client):
+    def __init__(self, host=None, tls_verify=True, cert_path=None):
+        host = host or os.getenv('FEATUREFORM_HOST')
+        if host is None:
+            raise RuntimeError(
+                'If not in local mode then `host` must be passed or the environment'
+                ' variable FEATUREFORM_HOST must be set.'
+            )
+        env_cert_path = os.getenv('FEATUREFORM_CERT')
+        if tls_verify:
+            credentials = grpc.ssl_channel_credentials()
+            channel = grpc.secure_channel(host, credentials)
+        elif cert_path is not None or env_cert_path is not None:
+            if env_cert_path is not None and cert_path is None:
+                cert_path = env_cert_path
+            with open(cert_path, 'rb') as f:
+                credentials = grpc.ssl_channel_credentials(f.read())
+            channel = grpc.secure_channel(host, credentials)
+        else:
+            channel = grpc.insecure_channel(host, options=(('grpc.enable_http_proxy', 0),))
+        self._stub = serving_pb2_grpc.FeatureStub(channel)
+
+    def training_set(self, name, version):
+        return Dataset(self._stub).from_stub(name, version)
+        
+
 
 class Stream:
 

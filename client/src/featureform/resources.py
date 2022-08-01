@@ -282,20 +282,6 @@ class Provider:
                 return False
         return True
 
-        # if self.name != other.name:
-        #     return False
-        # if self.description != other.description:
-        #     return False
-        # if self.team != other.team:
-        #     return False
-        # if str(self.config.serialize(), 'utf-8') != str(other.config.serialize(), 'utf-8'):
-        #     return False
-        # if self.config.type() != other.config.type():
-        #     return False
-        # if self.config.software() != other.config.software():
-        #     return False
-        # return True
-
 
 
 @typechecked
@@ -326,10 +312,6 @@ class User:
             if getattr(self, attribute) != getattr(other, attribute):
                 return False
         return True
-
-        # if self.name != other.name:
-        #     return False
-        # return True
 
 
 @typechecked
@@ -465,21 +447,6 @@ class Source:
             if getattr(self, attribute) != getattr(other, attribute):
                 return False
         return True
-        # if self.name != other.name:
-        #     return False
-        # if self.description != other.description:
-        #     return False
-        # if self.owner != other.owner:
-        #     return False
-        # if self.provider != other.provider:
-        #     return False
-        # if self.variant != other.variant:
-        #     return False
-        # if json.dumps(self.inputs) != json.dumps(other.inputs):
-        #     return False
-        # if self.definition != other.definition:
-        #     return False
-        # return True
 
 
 @typechecked
@@ -614,30 +581,6 @@ class Feature:
                 return False
         return True
 
-        # if self.name != other.name:
-        #     return False
-        # if self.description != other.description:
-        #     return False
-        # if self.entity != other.entity:
-        #     return False
-        # if self.owner != other.owner:
-        #     return False
-        # if self.provider != other.provider:
-        #     return False
-        # if self.value_type != other.value_type:
-        #     return False
-        # if self.variant != other.variant:
-        #     return False
-        # if self.location.entity != other.location.entity:
-        #     return False
-        # if self.location.timestamp != other.location.timestamp:
-        #     return False
-        # if self.location.value != other.location.value:
-        #     return False
-        # if self.source != other.source:
-        #     return False
-        # return True
-
 
 @typechecked
 @dataclass
@@ -708,30 +651,6 @@ class Label:
             if getattr(self, attribute) != getattr(other, attribute):
                 return False
         return True
-
-        # if self.name != other.name:
-        #     return False
-        # if self.description != other.description:
-        #     return False
-        # if self.entity != other.entity:
-        #     return False
-        # if self.owner != other.owner:
-        #     return False
-        # if self.provider != other.provider:
-        #     return False
-        # if self.value_type != other.value_type:
-        #     return False
-        # if self.variant != other.variant:
-        #     return False
-        # if self.location.entity != other.location.entity:
-        #     return False
-        # if self.location.timestamp != other.location.timestamp:
-        #     return False
-        # if self.location.value != other.location.value:
-        #     return False
-        # if self.source != other.source:
-        #     return False
-        # return True
 
 @typechecked
 @dataclass
@@ -906,20 +825,6 @@ class TrainingSet:
             if getattr(self, attribute) != getattr(other, attribute):
                 return False
         return True
-
-        # if self.name != other.name:
-        #     return False
-        # if self.description != other.description:
-        #     return False
-        # if self.owner != other.owner:
-        #     return False
-        # if self.variant != other.variant:
-        #     return False
-        # if self.label != other.label:
-        #     return False
-        # if set(self.features) != set(other.features):
-        #     return False
-        # return True
 
 
 Resource = Union[PrimaryData, Provider, Entity, User, Feature, Label,

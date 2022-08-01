@@ -470,6 +470,9 @@ class Registrar:
         self.__resources = []
         self.__default_owner = ""
 
+    def add_resource(self, resource):
+        self.__resources.append(resource)
+
     def register_user(self, name: str) -> UserRegistrar:
         """Register a user.
 

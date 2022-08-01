@@ -686,6 +686,6 @@ jobs:
         run: pip install jupyter nbconvert matplotlib pandas scikit-learn requests
 
       - name: Run Colab
-        run: jupyter nbconvert --to notebook --execute colab_tutorial/Fraud_Detection_Example.ipynb
+        run: jupyter nbconvert --to notebook --execute notebooks/Fraud_Detection_Example.ipynb
 
         

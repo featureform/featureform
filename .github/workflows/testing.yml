@@ -127,13 +127,14 @@ jobs:
         ports:
           - 6379:6379
 
-      redis-secure:
-        image: redis
-          # Hard coded port because environment variables not currently
-          # supported for use outside of 'steps'
-        ports:
-          - 6378:6379
-        options: --name redis-secure
+#      redis-secure:
+#        image: redis
+#          # Hard coded port because environment variables not currently
+#          # supported for use outside of 'steps'
+#        command: redis-server --requirepass yourpassword
+#        ports:
+#          - 6378:6379
+#        options: --name redis-secure
 
       cassandra:
         image: cassandra
@@ -147,6 +148,12 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: compiled-workdir
+
+      - uses: getong/redis-action@v1
+        with:
+          host port: 6378
+          container port: 6379
+          redis password: 'password'
 
       - name: Set up Go
         uses: actions/setup-go@v2
@@ -166,9 +173,6 @@ jobs:
 
       - name: Check running containers
         run: docker ps
-
-      - name: Set Redis Password
-        run: docker exec -it redis-secure redis-cli config set requirepass password
 
       - name: Testing
         env:

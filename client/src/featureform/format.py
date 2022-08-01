@@ -21,6 +21,6 @@ def format_rows(format_obj, format_obj_2=None, format_obj_3=None, format_obj_4=N
     else:
         print(four_row_spacing.format(format_obj, format_obj_2, format_obj_3, format_obj_4))
 
-def format_new_para(s=""):
+def format_pg(s=""):
     print(divider)
     print(s)

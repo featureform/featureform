@@ -52,7 +52,7 @@ def get_entity_info_local(name):
 
     format_rows("ENTITY NAME: ", returned_entity["name"]),
     ("STATUS: ", returned_entity["status"])
-    format_new_para("")
+    format_pg("")
     format_rows('NAME', 'VARIANT', 'TYPE')
     for f in returned_entity["features"]:
         format_rows(
@@ -63,7 +63,7 @@ def get_entity_info_local(name):
     for t in returned_entity["trainingsets"]:
         format_rows(
             t["name"], t["variant"], "training set")
-    format_new_para("")
+    format_pg("")
     return returned_entity
 
 def get_resource_info_local(resource_type, name):
@@ -98,12 +98,12 @@ def get_resource_info_local(resource_type, name):
     format_rows("NAME: ", returned_resource_list["name"])
     if "status" in resource:
         format_rows("STATUS: ", resource["status"])
-    format_new_para("VARIANTS:")
+    format_pg("VARIANTS:")
     format_rows(returned_resource_list["default_variant"], 'default')
     for v in returned_resource_list["variants"]:
         if v != returned_resource_list["default_variant"]:
             format_rows(v, '')
-    format_new_para("")
+    format_pg("")
     return returned_resource_list
 
 def get_feature_variant_info_local(name, variant):
@@ -146,13 +146,13 @@ def get_feature_variant_info_local(name, variant):
     ("PROVIDER:", returned_feature["provider"]),
     ("STATUS: ", returned_feature["status"])
     ])
-    format_new_para("SOURCE: ")
+    format_pg("SOURCE: ")
     format_rows([("NAME", "VARIANT"), (returned_feature["source"]["name"], returned_feature["source"]["variant"])])
-    format_new_para("TRAINING SETS:")
+    format_pg("TRAINING SETS:")
     format_rows("NAME", "VARIANT")
     for t in returned_feature["trainingsets"]:
         format_rows(t["name"], t["variant"])
-    format_new_para("")
+    format_pg("")
     return returned_feature
 
 def get_label_variant_info_local(name, variant):
@@ -195,13 +195,13 @@ def get_label_variant_info_local(name, variant):
     ("PROVIDER:", returned_label["provider"]),
     ("STATUS: ", returned_label["status"])
     ])
-    format_new_para("SOURCE: ")
+    format_pg("SOURCE: ")
     format_rows([("NAME", "VARIANT"), (returned_label["source"]["name"], returned_label["source"]["variant"])])
-    format_new_para("TRAINING SETS:")
+    format_pg("TRAINING SETS:")
     format_rows("NAME", "VARIANT")
     for t in returned_label["trainingsets"]:
         format_rows(t["name"], t["variant"])
-    format_new_para("")
+    format_pg("")
     return returned_label
 
 def get_source_variant_info_local(name, variant):
@@ -273,21 +273,21 @@ def get_source_variant_info_local(name, variant):
     ("DESCRIPTION:", returned_source["description"]),
     ("PROVIDER:", returned_source["provider"]),
     ("STATUS: ", returned_source["status"])])
-    format_new_para("DEFINITION:")
+    format_pg("DEFINITION:")
     print(returned_source["definition"])
     print("FEATURES:")
     format_rows("NAME", "VARIANT")
     for f in returned_source["features"]:
         format_rows(f["name"], f["variant"])
-    format_new_para("LABELS:")
+    format_pg("LABELS:")
     format_rows("NAME", "VARIANT")
     for l in returned_source["labels"]:
         format_rows(l["name"], l["variant"])
-    format_new_para("TRAINING SETS:")
+    format_pg("TRAINING SETS:")
     format_rows("NAME", "VARIANT")
     for t in returned_source["trainingsets"]:
         format_rows(t["name"], t["variant"])
-    format_new_para("")
+    format_pg("")
     return returned_source
 
 def get_training_set_variant_info_local(name, variant):
@@ -323,13 +323,13 @@ def get_training_set_variant_info_local(name, variant):
     ("OWNER:", returned_training_set["owner"]),
     ("DESCRIPTION:", returned_training_set["description"]),
     ("STATUS: ", returned_training_set["status"])])
-    format_new_para("LABEL: ")
+    format_pg("LABEL: ")
     format_rows([("NAME", "VARIANT"), (returned_training_set["label"]["name"], returned_training_set["label"]["variant"])])
-    format_new_para("FEATURES:")
+    format_pg("FEATURES:")
     format_rows("NAME", "VARIANT")
     for f in returned_training_set["features"]:
         format_rows(f["name"], f["variant"])
-    format_new_para("")
+    format_pg("")
     return returned_training_set
 
 def get_provider_info_local(name):
@@ -371,15 +371,15 @@ def get_provider_info_local(name):
     ("TEAM: ", returned_provider["team"]),
     ("STATUS: ", returned_provider["status"])])
     format_rows("SOURCE:", returned_provider["sources"])
-    format_new_para("FEATURES:")
+    format_pg("FEATURES:")
     format_rows("NAME", "VARIANT")
     for f in returned_provider["features"]:
         format_rows(f["name"], f["variant"])
-    format_new_para("LABELS:")
+    format_pg("LABELS:")
     format_rows("NAME", "VARIANT")
     for l in returned_provider["labels"]:
         format_rows(l["name"], l["variant"])
-    format_new_para("")
+    format_pg("")
     return returned_provider
 
 def get_related_resources(table, column1, name, column2=None, variant=None, name_col="name", var_col="variant", format=True):

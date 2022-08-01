@@ -20,7 +20,7 @@ from .sqlite_metadata import SQLiteMetadata
 import time
 import pandas as pd
 from .get import *
-from .get_local import *
+from .get_local_provider import *
 from .list_local import *
 from .list import *
 
@@ -545,7 +545,7 @@ class Registrar:
                             description="")
             return ColumnSourceRegistrar(self, fakeSource)
 
-    def get_local(self, name):
+    def get_local_provider(self, name="local-mode"):
         get = ProviderReference(name=name, provider_type="local", obj=None)
         self.__resources.append(get)
         fakeConfig = LocalConfig()
@@ -2314,7 +2314,7 @@ sql_transformation = global_registrar.sql_transformation
 register_sql_transformation = global_registrar.register_sql_transformation
 get_entity = global_registrar.get_entity
 get_source = global_registrar.get_source
-get_local = global_registrar.get_local
+get_local_provider = global_registrar.get_local_provider
 get_redis = global_registrar.get_redis
 get_postgres = global_registrar.get_postgres
 get_snowflake = global_registrar.get_snowflake

@@ -119,7 +119,26 @@ class RedshiftConfig:
         return bytes(json.dumps(config), "utf-8")
 
 
-Config = Union[RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig]
+@typechecked
+@dataclass
+class BigQueryConfig:
+    project_id: str
+    dataset_id: str
+
+    def software(self) -> str:
+        return "bigquery"
+
+    def type(self) -> str:
+        return "BIGQUERY_OFFLINE"
+
+    def serialize(self) -> bytes:
+        config = {
+            "PROJECT_ID": self.host,
+            "DATASET_ID": self.port,
+        }
+        return bytes(json.dumps(config), "utf-8")
+
+Config = Union[RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, BigQueryConfig]
 
 
 @typechecked

@@ -101,7 +101,6 @@ def getTrainingSetFeatures(feature_list):
     feature_variant_tuple = []
     for feature in feature_list:
         feature_variant_tuple.append(sqlObject.get_feature_variant(feature["feature_name"], feature["feature_variant"]))
-    
     return feature_variant_tuple
 
 def training_sets(rowData):

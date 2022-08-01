@@ -186,6 +186,15 @@ def get_label_variant_info_local(name, variant):
         },
         "trainingsets": returned_training_sets_list
     }
+    print([("NAME: ", returned_label["name"]), 
+    ("VARIANT: ", returned_label["variant"]), 
+    ("TYPE:", returned_label["type"]), 
+    ("ENTITY:", returned_label["entity"]),
+    ("OWNER:", returned_label["owner"]),
+    ("DESCRIPTION:", returned_label["description"]),
+    ("PROVIDER:", returned_label["provider"]),
+    ("STATUS: ", returned_label["status"])
+    ])
     format_rows([("NAME: ", returned_label["name"]), 
     ("VARIANT: ", returned_label["variant"]), 
     ("TYPE:", returned_label["type"]), 

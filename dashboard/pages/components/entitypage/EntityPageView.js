@@ -8,7 +8,6 @@ import Typography from "@material-ui/core/Typography";
 import MaterialTable, { MTableBody, MTableHeader } from "material-table";
 import Box from "@material-ui/core/Box";
 import Grid from "@material-ui/core/Grid";
-// import { useHistory } from "react-router-dom";
 import Container from "@material-ui/core/Container";
 import Icon from "@material-ui/core/Icon";
 import Chip from "@material-ui/core/Chip";
@@ -16,7 +15,7 @@ import FormControl from "@material-ui/core/FormControl";
 import Select from "@material-ui/core/Select";
 import MenuItem from "@material-ui/core/MenuItem";
 import { VariantTable } from "../resource-list/ResourceListView.js";
-
+import { useRouter } from "next/router";
 import { PrismAsyncLight as SyntaxHighlighter } from "react-syntax-highlighter";
 import python from "react-syntax-highlighter/dist/cjs/languages/prism/python";
 import sql from "react-syntax-highlighter/dist/cjs/languages/prism/sql";
@@ -201,10 +200,10 @@ function a11yProps(index) {
 }
 
 const EntityPageView = ({ entity, setVariant, activeVariants }) => {
-  let history = useHistory();
   let resources = entity.resources;
   let resourceType = Resource[entity.resources.type];
   let type = resourceType.type;
+  const router = useRouter();
   const showMetrics = resourceType.hasMetrics;
   const showStats = false;
   const dataTabDisplacement = (1 ? showMetrics : 0) + (1 ? showStats : 0);
@@ -267,23 +266,23 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
   };
 
   const linkToEntityPage = (event) => {
-    history.push(`/entities/${metadata["entity"]}`);
+    router.push(`/entities/${metadata["entity"]}`);
   };
 
   const linkToPrimaryData = (event) => {
-    history.push(`/sources/${metadata["source"]}`);
+    router.push(`/sources/${metadata["source"]}`);
   };
 
   const linkToLabel = (event) => {
-    history.push(`/labels/${metadata["label"].Name}`);
+    router.push(`/labels/${metadata["label"].Name}`);
   };
 
   const linkToUserPage = (event) => {
-    history.push(`/users/${metadata["owner"]}`);
+    router.push(`/users/${metadata["owner"]}`);
   };
 
   const linkToProviderPage = (event) => {
-    history.push(`/providers/${metadata["provider"]}`);
+    router.push(`/providers/${metadata["provider"]}`);
   };
 
   return true || (!resources.loading && !resources.failed && resources.data) ? (
@@ -618,7 +617,7 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                   }
                 )}
                 onRowClick={(event, rowData) =>
-                  history.push(
+                  router.push(
                     Resource[resourceType].urlPathResource(rowData.name)
                   )
                 }

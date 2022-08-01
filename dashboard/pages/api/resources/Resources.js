@@ -42,14 +42,14 @@ export const providerLogos = Object.freeze({
 
 
 
-var API_URL = "http://127.0.0.1:5000/data"; //localmode
-// var API_URL = "//"+ window.location.hostname+"/data"
+// var API_URL = "http://127.0.0.1:5000/data"; //localmode
+// var API_URL = "//"+ window.location.hostname
+var API_URL = "http://localhost:8181";
 
 if (typeof process.env.REACT_APP_API_URL != "undefined") {
   API_URL = process.env.REACT_APP_API_URL.trim();
 }
 // export var PROMETHEUS_URL = "//"+ window.location.hostname+"/prometheus";
-export var PROMETHEUS_URL = "http://127.0.0.1:5000/prometheus"; //localmode
 
 if (typeof process.env.REACT_APP_PROMETHEUS_URL != "undefined") {
   PROMETHEUS_URL = process.env.REACT_APP_PROMETHEUS_URL.trim();
@@ -95,6 +95,7 @@ export default class ResourcesAPI {
       fetchAddress = `/data/lists/wine-data.json`;
     } else {
       fetchAddress = `${API_URL + "/data"}${resourceType.urlPath}`;
+      console.log(fetchAddress)
     }
     if (process.env.REACT_APP_EMPTY_RESOURCE_VIEW === "true") {
       fetchAddress = "/data/lists/wine-data-empty.json";

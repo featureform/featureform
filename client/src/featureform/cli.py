@@ -122,7 +122,7 @@ def list(host, cert, insecure, local, resource_type):
         if host == None:
             raise ValueError(
                 "Host value must be set with --host flag or in env as FEATUREFORM_HOST")
-    
+
     rc = ResourceClient(host=host, local=local, insecure=insecure, cert_path=cert)
 
     rc_list_functions = {
@@ -163,7 +163,7 @@ def apply(host, cert, insecure, local, files):
         with open(file, "r") as py:
             exec(py.read())
 
-    rc = ResourceClient(host, local, insecure, cert)
+    rc = ResourceClient(host=host, local=local, insecure=insecure, cert_path=cert)
     rc.apply()
 
 

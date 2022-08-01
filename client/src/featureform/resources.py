@@ -136,7 +136,6 @@ class DynamodbConfig:
         }
         return bytes(json.dumps(config), "utf-8")
 
-# RIDDHI
 @typechecked
 @dataclass
 class LocalConfig:
@@ -277,6 +276,13 @@ class Provider:
                   str(self.config.serialize(), 'utf-8')
                   )
 
+    def __eq__(self, other):
+        for attribute in vars(self):
+            if getattr(self, attribute) != getattr(other, attribute):
+                return False
+        return True
+
+
 
 @typechecked
 @dataclass
@@ -300,6 +306,12 @@ class User:
                   "User",
                   "ready"
                   )
+
+    def __eq__(self, other):
+        for attribute in vars(self):
+            if getattr(self, attribute) != getattr(other, attribute):
+                return False
+        return True
 
 
 @typechecked
@@ -373,6 +385,8 @@ class Source:
     variant: str = "default"
     schedule: str = ""
     schedule_obj: Schedule = None
+    is_transformation = 0
+    inputs = []
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=7, schedule_string=schedule)
@@ -400,11 +414,9 @@ class Source:
         stub.CreateSourceVariant(serialized)
 
     def _create_local(self, db) -> None:
-        is_transformation = 0
-        inputs = []
         if type(self.definition) == DFTransformation:
-            is_transformation = 1
-            inputs = self.definition.inputs
+            self.is_transformation = 1
+            self.inputs = self.definition.inputs
             self.definition = self.definition.query
 
         db.insert_source("source_variant",
@@ -416,8 +428,8 @@ class Source:
                          self.provider,
                          self.variant,
                          "ready",
-                         is_transformation,
-                         json.dumps(inputs),
+                         self.is_transformation,
+                         json.dumps(self.inputs),
                          self.definition
                          )
         self._create_source_resource(db)
@@ -429,6 +441,12 @@ class Source:
             self.variant,
             self.name
         )
+
+    def __eq__(self, other):
+        for attribute in vars(self):
+            if getattr(self, attribute) != getattr(other, attribute):
+                return False
+        return True
 
 
 @typechecked
@@ -459,6 +477,12 @@ class Entity:
                   self.description,
                   "ready"
                   )
+
+    def __eq__(self, other):
+        for attribute in vars(self):
+            if getattr(self, attribute) != getattr(other, attribute):
+                return False
+        return True
 
 
 @typechecked
@@ -551,6 +575,12 @@ class Feature:
             self.value_type
         )
 
+    def __eq__(self, other):
+        for attribute in vars(self):
+            if getattr(self, attribute) != getattr(other, attribute):
+                return False
+        return True
+
 
 @typechecked
 @dataclass
@@ -615,6 +645,12 @@ class Label:
             self.variant,
             self.name
         )
+
+    def __eq__(self, other):
+        for attribute in vars(self):
+            if getattr(self, attribute) != getattr(other, attribute):
+                return False
+        return True
 
 @typechecked
 @dataclass
@@ -776,19 +812,25 @@ class TrainingSet:
         try:
             db.getNameVariant("label_variant", "name", self.label[0], "variant", self.label[1])
         except ValueError:
-            raise ValueError("{} does not exist. Failed to register training set".format(self.label[0]))
-        for feature in self.features:
+            raise ValueError(f"{self.label[0]} does not exist. Failed to register training set")
+        for feature_name, feature_variant in self.features:
             try:
-                db.getNameVariant("feature_variant", "name", feature[0], "variant", feature[1])
+                db.getNameVariant("feature_variant", "name", feature_name, "variant", feature_variant)
             except ValueError:
-                raise ValueError("{} does not exist. Failed to register training set".format(feature[0]))
+                raise ValueError(f"{feature_name} does not exist. Failed to register training set")
             db.insert(
                 "training_set_features",
                 self.name,
                 self.variant,
-                feature[0],  # feature name
-                feature[1]  # feature variant
+                feature_name,  # feature name
+                feature_variant # feature variant
             )
+
+    def __eq__(self, other):
+        for attribute in vars(self):
+            if getattr(self, attribute) != getattr(other, attribute):
+                return False
+        return True
 
 
 Resource = Union[PrimaryData, Provider, Entity, User, Feature, Label,
@@ -819,6 +861,9 @@ class ResourceState:
         else:
             key = (resource.operation_type().name, resource.type(), resource.name)
         if key in self.__state:
+            if resource == self.__state[key]:
+                print(f"Resource {resource.type()} already registered.")
+                return
             raise ResourceRedefinedError(resource)
         self.__state[key] = resource
         self.__create_list.append(resource)

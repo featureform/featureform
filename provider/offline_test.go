@@ -29,51 +29,53 @@ func TestOfflineStores(t *testing.T) {
 	if err != nil {
 		fmt.Println(err)
 	}
-	// var postgresConfig = PostgresConfig{
-	// 	Host:     "localhost",
-	// 	Port:     "5432",
-	// 	Database: os.Getenv("POSTGRES_DB"),
-	// 	Username: os.Getenv("POSTGRES_USER"),
-	// 	Password: os.Getenv("POSTGRES_PASSWORD"),
-	// }
-	// serialPGConfig := postgresConfig.Serialize()
-	// os.Setenv("TZ", "UTC")
-	// snowFlakeDatabase := strings.ToUpper(uuid.NewString())
-	// t.Log("Snowflake Database: ", snowFlakeDatabase)
-	// var snowflakeConfig = SnowflakeConfig{
-	// 	Username:     os.Getenv("SNOWFLAKE_USERNAME"),
-	// 	Password:     os.Getenv("SNOWFLAKE_PASSWORD"),
-	// 	Organization: os.Getenv("SNOWFLAKE_ORG"),
-	// 	Account:      os.Getenv("SNOWFLAKE_ACCOUNT"),
-	// 	Database:     snowFlakeDatabase,
-	// }
-	// serialSFConfig := snowflakeConfig.Serialize()
-	// if err := createSnowflakeDatabase(snowflakeConfig); err != nil {
-	// 	t.Fatalf("%v", err)
-	// }
-	// defer destroySnowflakeDatabase(snowflakeConfig)
 
-	// var redshiftConfig = RedshiftConfig{
-	// 	Endpoint: os.Getenv("REDSHIFT_ENDPOINT"),
-	// 	Port:     os.Getenv("REDSHIFT_PORT"),
-	// 	Database: os.Getenv("REDSHIFT_DATABASE"),
-	// 	Username: os.Getenv("REDSHIFT_USERNAME"),
-	// 	Password: os.Getenv("REDSHIFT_PASSWORD"),
-	// }
-	// serialRSConfig := redshiftConfig.Serialize()
+	var postgresConfig = PostgresConfig{
+		Host:     "localhost",
+		Port:     "5432",
+		Database: os.Getenv("POSTGRES_DB"),
+		Username: os.Getenv("POSTGRES_USER"),
+		Password: os.Getenv("POSTGRES_PASSWORD"),
+	}
+	serialPGConfig := postgresConfig.Serialize()
+	os.Setenv("TZ", "UTC")
 
-	// bigQueryDatasetId := strings.Replace(strings.ToUpper(uuid.NewString()), "-", "_", -1)
-	// os.Setenv("BIGQUERY_DATASET_ID", bigQueryDatasetId)
-	// t.Log("BigQuery Dataset: ", bigQueryDatasetId)
+	snowFlakeDatabase := strings.ToUpper(uuid.NewString())
+	t.Log("Snowflake Database: ", snowFlakeDatabase)
+	var snowflakeConfig = SnowflakeConfig{
+		Username:     os.Getenv("SNOWFLAKE_USERNAME"),
+		Password:     os.Getenv("SNOWFLAKE_PASSWORD"),
+		Organization: os.Getenv("SNOWFLAKE_ORG"),
+		Account:      os.Getenv("SNOWFLAKE_ACCOUNT"),
+		Database:     snowFlakeDatabase,
+	}
+	serialSFConfig := snowflakeConfig.Serialize()
+	if err := createSnowflakeDatabase(snowflakeConfig); err != nil {
+		t.Fatalf("%v", err)
+	}
+	defer destroySnowflakeDatabase(snowflakeConfig)
+
+	var redshiftConfig = RedshiftConfig{
+		Endpoint: os.Getenv("REDSHIFT_ENDPOINT"),
+		Port:     os.Getenv("REDSHIFT_PORT"),
+		Database: os.Getenv("REDSHIFT_DATABASE"),
+		Username: os.Getenv("REDSHIFT_USERNAME"),
+		Password: os.Getenv("REDSHIFT_PASSWORD"),
+	}
+	serialRSConfig := redshiftConfig.Serialize()
+
+	bigQueryDatasetId := strings.Replace(strings.ToUpper(uuid.NewString()), "-", "_", -1)
+	os.Setenv("BIGQUERY_DATASET_ID", bigQueryDatasetId)
+	t.Log("BigQuery Dataset: ", bigQueryDatasetId)
 	var bigQueryConfig = BigQueryConfig{
 		ProjectId: os.Getenv("BIGQUERY_PROJECT_ID"),
 		DatasetId: os.Getenv("BIGQUERY_DATASET_ID"),
 	}
 	serialBQConfig := bigQueryConfig.Serialize()
-	// if err := createBigQueryDataset(bigQueryConfig); err != nil {
-	// 	t.Fatalf("Cannot create BigQuery Dataset: %v", err)
-	// }
-	// defer destroyBigQueryDataset(bigQueryConfig)
+	if err := createBigQueryDataset(bigQueryConfig); err != nil {
+		t.Fatalf("Cannot create BigQuery Dataset: %v", err)
+	}
+	defer destroyBigQueryDataset(bigQueryConfig)
 
 	testFns := map[string]func(*testing.T, OfflineStore){
 		"CreateGetTable":          testCreateGetOfflineTable,
@@ -109,9 +111,9 @@ func TestOfflineStores(t *testing.T) {
 		integrationTest bool
 	}{
 		{MemoryOffline, []byte{}, false},
-		// {PostgresOffline, serialPGConfig, true},
-		// {SnowflakeOffline, serialSFConfig, true},
-		// {RedshiftOffline, serialRSConfig, true},
+		{PostgresOffline, serialPGConfig, true},
+		{SnowflakeOffline, serialSFConfig, true},
+		{RedshiftOffline, serialRSConfig, true},
 		{BigQueryOffline, serialBQConfig, true},
 	}
 	for _, testItem := range testList {

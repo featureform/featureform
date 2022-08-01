@@ -806,12 +806,12 @@ class TrainingSet:
         try:
             db.getNameVariant("label_variant", "name", self.label[0], "variant", self.label[1])
         except ValueError:
-            raise ValueError("{} does not exist. Failed to register training set".format(self.label[0]))
+            raise ValueError(f"{self.label[0]} does not exist. Failed to register training set")
         for feature_name, feature_variant in self.features:
             try:
                 db.getNameVariant("feature_variant", "name", feature_name, "variant", feature_variant)
             except ValueError:
-                raise ValueError("{} does not exist. Failed to register training set".format(feature_name))
+                raise ValueError(f"{feature_name} does not exist. Failed to register training set")
             db.insert(
                 "training_set_features",
                 self.name,

@@ -23,7 +23,7 @@
     "deferred": "^0.7.11",
     "faker": "^5.5.3",
     "jest-canvas-mock": "^2.2.0",
-    "material-table": "^1.66.0",
+    "material-table": "^1.69.3",
     "moment": "^2.29.2",
     "momentjs": "^2.0.0",
     "next": "^12.2.3",

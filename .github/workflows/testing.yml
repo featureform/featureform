@@ -133,6 +133,7 @@ jobs:
           # supported for use outside of 'steps'
         ports:
           - 6378:6379
+        options: --name redis-secure
 
       cassandra:
         image: cassandra

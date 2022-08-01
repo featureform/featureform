@@ -7,7 +7,7 @@ from distutils.command.config import config
 from typing_extensions import Self
 from numpy import byte
 from .resources import ResourceState, Provider, RedisConfig, FirestoreConfig, CassandraConfig, DynamodbConfig, \
-    PostgresConfig, SnowflakeConfig, LocalConfig, RedshiftConfig, User, Location, Source, PrimaryData, SQLTable, \
+    PostgresConfig, SnowflakeConfig, LocalConfig, RedshiftConfig, BigQueryConfig, User, Location, Source, PrimaryData, SQLTable, \
     SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet, ProviderReference, \
     EntityReference, SourceReference
 from typing import Tuple, Callable, List, Union
@@ -627,6 +627,56 @@ class Registrar:
         fakeConfig = SnowflakeConfig(account="", database="", organization="", username="", password="", schema="")
         fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
         return OfflineSQLProvider(self, fakeProvider)
+    
+    def get_redshift(self, name):
+        """Get a Redshift provider. The returned object can be used to register additional resources.
+
+        **Examples**:
+        ``` py
+        redshift = get_redshift("redshift-quickstart")
+        transactions = redshift.register_table(
+            name="transactions",
+            variant="kaggle",
+            description="Fraud Dataset From Kaggle",
+            table="Transactions",  # This is the table's name in Postgres
+        )
+        ```
+        Args:
+            name (str): Name of Redshift provider to be retrieved
+
+        Returns:
+            redshift (OfflineSQLProvider): Provider
+        """
+        get = ProviderReference(name=name, provider_type="redshift", obj=None)
+        self.__resources.append(get)
+        fakeConfig = RedshiftConfig(host="", port="", database="", user="", password="")
+        fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
+        return OfflineSQLProvider(self, fakeProvider)
+    
+    def get_bigquery(self, name):
+        """Get a BigQuery provider. The returned object can be used to register additional resources.
+
+        **Examples**:
+        ``` py
+        bigquery = get_bigquery("bigquery-quickstart")
+        transactions = bigquery.register_table(
+            name="transactions",
+            variant="kaggle",
+            description="Fraud Dataset From Kaggle",
+            table="Transactions",  # This is the table's name in Postgres
+        )
+        ```
+        Args:
+            name (str): Name of BigQuery provider to be retrieved
+
+        Returns:
+            bigquery (OfflineSQLProvider): Provider
+        """
+        get = ProviderReference(name=name, provider_type="bigquery", obj=None)
+        self.__resources.append(get)
+        fakeConfig = BigQueryConfig(project_id="", dataset_id="")
+        fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
+        return OfflineSQLProvider(self, fakeProvider)      
 
     def get_entity(self, name, local=False):
         """Get an entity. The returned object can be used to register additional resources.
@@ -922,6 +972,44 @@ class Registrar:
                             config=config)
         self.__resources.append(provider)
         return OfflineSQLProvider(self, provider)
+
+    def register_bigquery(self,
+                          name: str,
+                          description: str = "",
+                          team: str = "",
+                          project_id: str = "",
+                          dataset_id: str = "",):
+        """Register a BigQuery provider.
+
+        **Examples**:
+        ```   
+        bigquery = ff.register_bigquery(
+            name="bigquery-quickstart",
+            description="A BigQuery deployment we created for the Featureform quickstart",
+            project_id="quickstart-project", 
+            dataset_id="quickstart-dataset",
+        )
+        ```
+        Args:
+            name (str): Name of BigQuery provider to be registered
+            description (str): Description of BigQuery provider to be registered
+            team (str): Name of team
+            project_id (str): The Project name in GCP
+            dataset_id (str): The Dataset name in GCP under the Project Id
+            
+        Returns:
+            redshift (OfflineSQLProvider): Provider
+        """
+        config = BigQueryConfig(project_id=project_id,
+                                dataset_id=dataset_id,)
+        provider = Provider(name=name,
+                            function="OFFLINE",
+                            description=description,
+                            team=team,
+                            config=config)
+        self.__resources.append(provider)
+        return OfflineSQLProvider(self, provider)
+
 
     def register_local(self):
         """Register a Local provider.

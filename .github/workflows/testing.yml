@@ -127,15 +127,6 @@ jobs:
         ports:
           - 6379:6379
 
-#      redis-secure:
-#        image: redis
-#          # Hard coded port because environment variables not currently
-#          # supported for use outside of 'steps'
-#        command: redis-server --requirepass yourpassword
-#        ports:
-#          - 6378:6379
-#        options: --name redis-secure
-
       cassandra:
         image: cassandra
         # Hard coded port because environment variables not currently

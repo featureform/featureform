@@ -163,6 +163,9 @@ jobs:
           name: "./provider/firestore_credentials.json"
           json: ${{ secrets.FIRESTORE_CREDENTIALS_FILE }}
 
+      - name: Check running containers
+        run: docker ps
+
       - name: Set Redis Password
         run: docker exec -it redis-secure redis-cli config set requirepass "$REDIS_PASSWORD"
 

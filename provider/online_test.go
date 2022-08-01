@@ -50,10 +50,18 @@ func TestOnlineStores(t *testing.T) {
 	}
 
 	//Redis (Live)
-	redisPort := os.Getenv("REDIS_PORT")
-	liveAddr := fmt.Sprintf("%s:%s", "localhost", redisPort)
-	redisLiveConfig := &RedisConfig{
-		Addr: liveAddr,
+	redisInsecurePort := os.Getenv("REDIS_INSECURE_PORT")
+	insecureAddr := fmt.Sprintf("%s:%s", "localhost", redisInsecurePort)
+	redisInsecureConfig := &RedisConfig{
+		Addr: insecureAddr,
+	}
+
+	redisSecurePort := os.Getenv("REDIS_SECURE_PORT")
+	redisPassword := os.Getenv("REDIS_PASSWORD")
+	secureAddr := fmt.Sprintf("%s:%s", "localhost", redisSecurePort)
+	redisSecureConfig := &RedisConfig{
+		Addr:     secureAddr,
+		Password: redisPassword,
 	}
 
 	//Cassandra
@@ -73,7 +81,7 @@ func TestOnlineStores(t *testing.T) {
 	firestoreCredentials := os.Getenv("FIRESTORE_CRED")
 	JSONCredentials, err := ioutil.ReadFile(firestoreCredentials)
 	if err != nil {
-		panic(err)
+		panic(fmt.Sprintf("Could not open firestore credentials: %v", err))
 	}
 	firestoreConfig := &FirestoreConfig{
 		ProjectID:   projectID,
@@ -90,15 +98,17 @@ func TestOnlineStores(t *testing.T) {
 
 	testList := []struct {
 		t               Type
+		subType         string
 		c               SerializedConfig
 		integrationTest bool
 	}{
-		{LocalOnline, []byte{}, false},
-		{RedisOnline, redisMockConfig.Serialized(), false},
-		{RedisOnline, redisLiveConfig.Serialized(), true},
-		{CassandraOnline, cassandraConfig.Serialized(), true},
-		{FirestoreOnline, firestoreConfig.Serialized(), true},
-		{DynamoDBOnline, dynamoConfig.Serialized(), true},
+		{LocalOnline, "", []byte{}, false},
+		{RedisOnline, "_MOCK", redisMockConfig.Serialized(), false},
+		{RedisOnline, "_INSECURE", redisInsecureConfig.Serialized(), true},
+		{RedisOnline, "_SECURE", redisSecureConfig.Serialized(), true},
+		{CassandraOnline, "", cassandraConfig.Serialized(), true},
+		{FirestoreOnline, "", firestoreConfig.Serialized(), true},
+		{DynamoDBOnline, "", dynamoConfig.Serialized(), true},
 	}
 	for _, testItem := range testList {
 		if testing.Short() && testItem.integrationTest {
@@ -120,7 +130,7 @@ func TestOnlineStores(t *testing.T) {
 			} else {
 				prefix = "UNIT"
 			}
-			testName := fmt.Sprintf("%s_%s_%s", testItem.t, prefix, name)
+			testName := fmt.Sprintf("%s%s_%s_%s", testItem.t, testItem.subType, prefix, name)
 			t.Run(testName, func(t *testing.T) {
 				fn(t, store)
 			})

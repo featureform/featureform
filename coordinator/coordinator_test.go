@@ -39,7 +39,7 @@ var postgresConfig = provider.PostgresConfig{
 	Password: os.Getenv("POSTGRES_PASSWORD"),
 }
 
-var redisPort = os.Getenv("REDIS_PORT")
+var redisPort = os.Getenv("REDIS_INSECURE_PORT")
 var redisHost = "localhost"
 
 var etcdHost = "localhost"

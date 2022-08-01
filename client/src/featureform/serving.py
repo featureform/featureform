@@ -17,7 +17,7 @@ from .sqlite_metadata import SQLiteMetadata
 
 class Client:
 
-    def __init__(self, host=None, local=False, tls_verify=True, cert_path=None):
+    def __init__(self, host=None, local=False, insecure=False, cert_path=None):
         self.local = local
         if local:
             if host != None:
@@ -31,7 +31,7 @@ class Client:
                     ' variable FEATUREFORM_HOST must be set.'
                 )
             env_cert_path = os.getenv('FEATUREFORM_CERT')
-            if tls_verify:
+            if not insecure:
                 credentials = grpc.ssl_channel_credentials()
                 channel = grpc.secure_channel(host, credentials)
             elif cert_path is not None or env_cert_path is not None:

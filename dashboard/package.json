@@ -7,7 +7,7 @@
     "@emotion/react": "^11.5.0",
     "@emotion/styled": "^11.3.0",
     "@material-ui/core": "^4.12.3",
-    "@material-ui/icons": "^4.9.1",
+    "@material-ui/icons": "^4.11.3",
     "@mui/icons-material": "^5.0.5",
     "@mui/material": "^5.0.0",
     "@nivo/bar": "^0.73.1",

@@ -59,12 +59,10 @@ class Client:
         if not self.local:
             raise ValueError("Only supported in localmode. Please try using dataset()")
         training_set_row = \
-            self.sqldb.getNameVariant("training_set_variant", "name", training_set_name, "variant",
-                                      training_set_variant)[0]
+            self.sqldb.get_training_set_variant(training_set_name, training_set_variant)
         label_row = \
-            self.sqldb.getNameVariant("label_variant", "name", training_set_row['label_name'], "variant",
-                                      training_set_row['label_variant'])[0]
-        label_source = self.sqldb.getNameVariant("source_variant", "name", label_row['source_name'], "variant", label_row['source_variant'])[0]
+            self.sqldb.get_label_variant(training_set_row['label_name'], training_set_row['label_variant'])
+        label_source = self.sqldb.get_source_variant(label_row['source_name'], label_row['source_variant'])
         if self.sqldb.is_transformation(label_row['source_name'], label_row['source_variant']):
             df = self.process_transformation(label_row['source_name'], label_row['source_variant'])
             if label_row['source_timestamp'] != "":
@@ -75,17 +73,15 @@ class Client:
             label_df = df
         else:
             label_df = self.process_label_csv(label_source['definition'], label_row['source_entity'], label_row['source_entity'], label_row['source_value'], label_row['source_timestamp'])
-        feature_table = self.sqldb.getNameVariant("training_set_features", "training_set_name", training_set_name,
-                                                 "training_set_variant", training_set_variant)
+        feature_table = self.sqldb.get_training_set_features(training_set_name, training_set_variant)
 
         label_df.rename(columns={label_row['source_value']: 'label'}, inplace=True)
         trainingset_df = label_df
         for feature_variant in feature_table:
-            feature_row = self.sqldb.getNameVariant("feature_variant", "name", feature_variant['feature_name'], "variant",
-                                                    feature_variant['feature_variant'])[0]
+            feature_row = self.sqldb.get_feature_variant(feature_variant['feature_name'], feature_variant['feature_variant'])
 
             source_row = \
-                self.sqldb.getNameVariant("source_variant", "name", feature_row['source_name'], "variant", feature_row['source_variant'])[0]
+                self.sqldb.get_source_variant(feature_row['source_name'], feature_row['source_variant'])
 
             name_variant = feature_variant['feature_name'] + "." + feature_variant['feature_variant']
             if self.sqldb.is_transformation(feature_row['source_name'], feature_row['source_variant']):
@@ -148,7 +144,7 @@ class Client:
         return [parse_proto_value(val) for val in resp.values]
 
     def process_transformation(self, name, variant):
-        source_row = self.sqldb.getNameVariant("source_variant", "name", name, "variant", variant)[0]
+        source_row = self.sqldb.get_source_variant(name, variant)
         inputs = json.loads(source_row['inputs'])
         dataframes = []
         code = marshal.loads(bytearray(source_row['definition']))
@@ -160,7 +156,7 @@ class Client:
                 dataframes.append(df)
             else:
                 source_row = \
-                    self.sqldb.getNameVariant("source_variant", "name", source_name, "variant", source_variant)[0]
+                    self.sqldb.get_source_variant(source_name, source_variant)
                 df = pd.read_csv(str(source_row['definition']))
                 dataframes.append(df)
         new_data = func(*dataframes)
@@ -176,11 +172,10 @@ class Client:
         all_feature_df = None
         for featureVariantTuple in feature_variant_list:
 
-            feature_row = self.sqldb.getNameVariant("feature_variant", "name", featureVariantTuple[0],
-                                                    "variant", featureVariantTuple[1])[0]
+            feature_row = self.sqldb.get_feature_variant(featureVariantTuple[0], featureVariantTuple[1])
             entity_column, ts_column, feature_column_name, source_name, source_variant = feature_row['source_entity'], feature_row['source_timestamp'], feature_row['source_value'], feature_row['source_name'], feature_row['source_variant']
 
-            source_row = self.sqldb.getNameVariant("source_variant", "name", source_name, "variant", source_variant)[0]
+            source_row = self.sqldb.get_source_variant(source_name, source_variant)
             if self.sqldb.is_transformation(source_name, source_variant):
                 df = self.process_transformation(source_name, source_variant)
                 if isinstance(df, pd.Series):

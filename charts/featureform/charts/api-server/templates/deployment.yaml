@@ -4,6 +4,7 @@ metadata:
   creationTimestamp: null
   labels:
     run: featureform-api-server
+    chart: featureform
   name: featureform-api-server
 spec:
   replicas: 1
@@ -18,7 +19,7 @@ spec:
         app: featureform-api-server
     spec:
       containers:
-        - image: "{{ .Values.global.repo | default .Values.image.repository }}/{{ .Values.image.name }}:{{ .Values.global.version | default .Values.image.tag }}"
+        - image: "{{ .Values.global.repo | default .Values.image.repository }}/{{ .Values.image.name }}:{{ .Values.global.version | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.global.pullPolicy }}
           name: featureform-api-server
           ports:

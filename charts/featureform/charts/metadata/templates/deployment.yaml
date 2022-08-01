@@ -1,24 +1,28 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  creationTimestamp: null
   labels:
+    chart: featureform
     run: featureform-metadata-server
+    app: featureform-metadata-server
   name: featureform-metadata-server
 spec:
   replicas: 1
   selector:
     matchLabels:
+      chart: featureform
       run: featureform-metadata-server
+      app: featureform-metadata-server
   strategy: {}
   template:
     metadata:
-      creationTimestamp: null
       labels:
+        chart: featureform
         run: featureform-metadata-server
+        app: featureform-metadata-server
     spec:
       containers:
-        - image: "{{ .Values.global.repo | default .Values.image.repository }}/{{ .Values.image.name }}:{{ .Values.global.version | default .Values.image.tag }}"
+        - image: "{{ .Values.global.repo | default .Values.image.repository }}/{{ .Values.image.name }}:{{ .Values.global.version | default .Chart.AppVersion }}"
           name: featureform-metadata-server
           imagePullPolicy: {{ .Values.global.pullPolicy }}
           ports:

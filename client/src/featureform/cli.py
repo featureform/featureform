@@ -3,9 +3,13 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import click
+from featureform import ResourceClient
 import featureform.register as register
 import grpc
-from .proto import metadata_pb2_grpc as ff_grpc
+from featureform import ResourceClient
+from .list import *
+from featureform.proto import metadata_pb2_grpc as ff_grpc
+from .get import *
 import os
 
 resource_types = [
@@ -15,11 +19,11 @@ resource_types = [
     "label",
     "entity",
     "provider",
-    "transformation",
+    "model",
+    "user"
 ]
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
-
 
 @click.group(context_settings=CONTEXT_SETTINGS)
 def cli():
@@ -37,31 +41,106 @@ def cli():
     pass
 
 
-# @cli.command()
-# @click.argument("resource_type")
-# def list(resource_type):
-#     """list resources of a given type.
-#     """
-#     pass
-# 
-# 
-# @cli.command()
-# @click.argument("resource_type",
-#                 type=click.Choice(resource_types, case_sensitive=False))
-# @click.argument("resources", nargs=-1, required=True)
-# def get(resource_type, resoruces):
-#     """get resources of a given type.
-#     """
-#     pass
-# 
-# 
-# @cli.command()
-# @click.argument("files", nargs=-1, required=True, type=click.Path(exists=True))
-# def plan(files):
-#     """print out resources that would be changed by applying these files.
-#     """
-#     pass
+@cli.command()
+@click.option("--host",
+              "host",
+              required=False,
+              help="The host address of the API server to connect to")
+@click.option("--cert",
+              "cert",
+              required=False,
+              help="Path to self-signed TLS certificate")
+@click.option("--insecure",
+              is_flag=True,
+              help="Disables TLS verification")
+@click.option("--local",
+              is_flag=True,
+              help="Enables local mode")
+@click.argument("resource_type", required=True)
+@click.argument("name", required=True)
+@click.argument("variant", required=False)
+def get(host, cert, insecure, local, resource_type, name, variant):
+    """Get resources of a given type.
+    """ 
+    if local:
+        if host != None:
+            raise ValueError("Cannot be local and have a host")
 
+    elif host == None:
+        host = os.getenv('FEATUREFORM_HOST')
+        if host == None:
+            raise ValueError(
+                "Host value must be set with --host flag or in env as FEATUREFORM_HOST")
+
+    rc = ResourceClient(host=host, local=local, insecure=insecure, cert_path=cert)
+
+    rc_get_functions_variant = {
+        "feature": rc.get_feature,
+        "label": rc.get_label,
+        "source": rc.get_source,
+        "trainingset": rc.get_training_set,
+        "training-set": rc.get_training_set
+    }
+
+    rc_get_functions = {
+        "user": rc.get_user,
+        "model": rc.get_model,
+        "entity": rc.get_entity,
+        "provider": rc.get_provider
+    }
+
+    if resource_type in rc_get_functions_variant:
+        rc_get_functions_variant[resource_type](name, variant)
+    elif resource_type in rc_get_functions:
+        rc_get_functions[resource_type](name)
+    else:
+        raise ValueError("Resource type not found")
+
+@cli.command()
+@click.option("--host",
+              "host",
+              required=False,
+              help="The host address of the API server to connect to")
+@click.option("--cert",
+              "cert",
+              required=False,
+              help="Path to self-signed TLS certificate")
+@click.option("--insecure",
+              is_flag=True,
+              help="Disables TLS verification")
+@click.option("--local",
+              is_flag=True,
+              help="Enable local mode")
+@click.argument("resource_type", required=True)
+def list(host, cert, insecure, local, resource_type):
+    if local:
+        if host != None:
+            raise ValueError("Cannot be local and have a host")
+
+    elif host == None:
+        host = os.getenv('FEATUREFORM_HOST')
+        if host == None:
+            raise ValueError(
+                "Host value must be set with --host flag or in env as FEATUREFORM_HOST")
+                
+    rc = ResourceClient(host=host, local=local, insecure=insecure, cert_path=cert)
+
+    rc_list_functions = {
+        "features": rc.list_features,
+        "labels": rc.list_labels,
+        "sources": rc.list_sources,
+        "trainingsets": rc.list_sources,
+        "training-sets": rc.list_training_sets,
+        "users": rc.list_users,
+        "models": rc.list_models,
+        "entities": rc.list_entities,
+        "providers": rc.list_providers
+    }
+
+    if resource_type in rc_list_functions:
+        rc_list_functions[resource_type]()
+    else:
+        raise ValueError("Resource type not found")
 
 @cli.command()
 @click.argument("files", nargs=-1, required=True, type=click.Path(exists=True))
@@ -76,31 +155,16 @@ def cli():
 @click.option("--insecure",
               is_flag=True,
               help="Disables TLS verification")
-def apply(host, cert, insecure, files):
-    """apply changes to featureform
-    """
-    env_cert_path = os.getenv('FEATUREFORM_CERT')
-    if host is None:
-        env_host = os.getenv('FEATUREFORM_HOST')
-        if env_host is None:
-            raise ValueError("Host value must be set in env or with --host flag")
-        host = env_host
-    if insecure:
-        channel = grpc.insecure_channel(host, options=(('grpc.enable_http_proxy', 0),))
-    elif cert is not None or env_cert_path is not None:
-        if env_cert_path is not None and cert is None:
-            cert = env_cert_path
-        with open(cert, 'rb') as f:
-            credentials = grpc.ssl_channel_credentials(f.read())
-        channel = grpc.secure_channel(host, credentials)
-    else:
-        credentials = grpc.ssl_channel_credentials()
-        channel = grpc.secure_channel(host, credentials)
-    stub = ff_grpc.ApiStub(channel)
+@click.option("--local",
+              is_flag=True,
+              help="Enable local mode")
+def apply(host, cert, insecure, local, files):
     for file in files:
         with open(file, "r") as py:
             exec(py.read())
-    register.state().create_all(stub)
+
+    rc = ResourceClient(host=host, local=local, insecure=insecure, cert_path=cert)
+    rc.apply()
 
 
 if __name__ == '__main__':

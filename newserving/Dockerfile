@@ -21,5 +21,11 @@ COPY ./metrics/ ./metrics/
 COPY ./provider/ ./provider/
 COPY newserving/main/main.go ./newserving/main/main.go
 
+RUN go build ./newserving/main/main.go
+
+FROM alpine
+
+COPY --from=0 ./app/main ./main
+
 EXPOSE 8080
-ENTRYPOINT ["go", "run", "./newserving/main/main.go"]
+ENTRYPOINT ["./main"]

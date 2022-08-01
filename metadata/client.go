@@ -83,22 +83,8 @@ type ResourceDef interface {
 func (client *Client) RequestScheduleChange(ctx context.Context, resID ResourceID, schedule string) error {
 	nameVariant := pb.NameVariant{Name: resID.Name, Variant: resID.Variant}
 	resourceID := pb.ResourceID{Resource: &nameVariant, ResourceType: resID.Type.Serialized()}
-	pbSchedule := pb.Schedule{Schedule: schedule}
-	scheduleChangeRequest := pb.ScheduleChangeRequest{ResourceId: &resourceID, Schedule: &pbSchedule}
+	scheduleChangeRequest := pb.ScheduleChangeRequest{ResourceId: &resourceID, Schedule: schedule}
 	_, err := client.grpcConn.RequestScheduleChange(ctx, &scheduleChangeRequest)
-	return err
-}
-
-//Should only be used internally by the coordinator
-func (client *Client) SetUpdateStatus(ctx context.Context, resID ResourceID, schedule string, status ResourceStatus, errorMessage string, timestamp time.Time) error {
-	nameVariant := pb.NameVariant{Name: resID.Name, Variant: resID.Variant}
-	resourceID := pb.ResourceID{Resource: &nameVariant, ResourceType: resID.Type.Serialized()}
-	resourceStatus := pb.ResourceStatus{Status: pb.ResourceStatus_Status(status), ErrorMessage: errorMessage}
-	pbTimestamp := tspb.New(timestamp)
-	pbSchedule := pb.Schedule{Schedule: schedule}
-	updateStatus := pb.UpdateStatus{LastUpdated: pbTimestamp, Schedule: &pbSchedule, UpdateStatus: &resourceStatus}
-	statusRequest := pb.SetUpdateStatusRequest{ResourceId: &resourceID, Status: &updateStatus}
-	_, err := client.grpcConn.SetResourceUpdateStatus(ctx, &statusRequest)
 	return err
 }
 
@@ -252,16 +238,16 @@ func (def FeatureDef) ResourceType() ResourceType {
 
 func (client *Client) CreateFeatureVariant(ctx context.Context, def FeatureDef) error {
 	serialized := &pb.FeatureVariant{
-		Name:         def.Name,
-		Variant:      def.Variant,
-		Source:       def.Source.Serialize(),
-		Type:         def.Type,
-		Entity:       def.Entity,
-		Owner:        def.Owner,
-		Description:  def.Description,
-		Status:       &pb.ResourceStatus{Status: pb.ResourceStatus_CREATED},
-		Provider:     def.Provider,
-		UpdateStatus: &pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: def.Schedule}},
+		Name:        def.Name,
+		Variant:     def.Variant,
+		Source:      def.Source.Serialize(),
+		Type:        def.Type,
+		Entity:      def.Entity,
+		Owner:       def.Owner,
+		Description: def.Description,
+		Status:      &pb.ResourceStatus{Status: pb.ResourceStatus_CREATED},
+		Provider:    def.Provider,
+		Schedule:    def.Schedule,
 	}
 	switch x := def.Location.(type) {
 	case ResourceVariantColumns:
@@ -495,15 +481,15 @@ func (def TrainingSetDef) ResourceType() ResourceType {
 
 func (client *Client) CreateTrainingSetVariant(ctx context.Context, def TrainingSetDef) error {
 	serialized := &pb.TrainingSetVariant{
-		Name:         def.Name,
-		Variant:      def.Variant,
-		Description:  def.Description,
-		Owner:        def.Owner,
-		Provider:     def.Provider,
-		Status:       &pb.ResourceStatus{Status: pb.ResourceStatus_CREATED},
-		Label:        def.Label.Serialize(),
-		Features:     def.Features.Serialize(),
-		UpdateStatus: &pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: def.Schedule}},
+		Name:        def.Name,
+		Variant:     def.Variant,
+		Description: def.Description,
+		Owner:       def.Owner,
+		Provider:    def.Provider,
+		Status:      &pb.ResourceStatus{Status: pb.ResourceStatus_CREATED},
+		Label:       def.Label.Serialize(),
+		Features:    def.Features.Serialize(),
+		Schedule:    def.Schedule,
 	}
 	_, err := client.grpcConn.CreateTrainingSetVariant(ctx, serialized)
 	return err
@@ -709,13 +695,13 @@ func (def SourceDef) ResourceType() ResourceType {
 
 func (client *Client) CreateSourceVariant(ctx context.Context, def SourceDef) error {
 	serialized := &pb.SourceVariant{
-		Name:         def.Name,
-		Variant:      def.Variant,
-		Description:  def.Description,
-		Owner:        def.Owner,
-		Status:       &pb.ResourceStatus{Status: pb.ResourceStatus_CREATED},
-		Provider:     def.Provider,
-		UpdateStatus: &pb.UpdateStatus{Schedule: &pb.Schedule{Schedule: def.Schedule}},
+		Name:        def.Name,
+		Variant:     def.Variant,
+		Description: def.Description,
+		Owner:       def.Owner,
+		Status:      &pb.ResourceStatus{Status: pb.ResourceStatus_CREATED},
+		Provider:    def.Provider,
+		Schedule:    def.Schedule,
 	}
 	var err error
 	switch x := def.Definition.(type) {
@@ -1116,6 +1102,19 @@ func (fn createdFn) Created() time.Time {
 	return t
 }
 
+type lastUpdatedGetter interface {
+	GetLastUpdated() *tspb.Timestamp
+}
+
+type lastUpdatedFn struct {
+	getter lastUpdatedGetter
+}
+
+func (fn lastUpdatedFn) LastUpdated() time.Time {
+	t := fn.getter.GetLastUpdated().AsTime()
+	return t
+}
+
 type variantsDescriber interface {
 	GetName() string
 	GetDefaultVariant() string
@@ -1271,6 +1270,7 @@ type FeatureVariant struct {
 	fetchProviderFns
 	fetchSourceFns
 	createdFn
+	lastUpdatedFn
 	protoStringer
 }
 
@@ -1281,6 +1281,7 @@ func wrapProtoFeatureVariant(serialized *pb.FeatureVariant) *FeatureVariant {
 		fetchProviderFns:     fetchProviderFns{serialized},
 		fetchSourceFns:       fetchSourceFns{serialized},
 		createdFn:            createdFn{serialized},
+		lastUpdatedFn:        lastUpdatedFn{serialized},
 		protoStringer:        protoStringer{serialized},
 	}
 }
@@ -1291,10 +1292,6 @@ func (variant *FeatureVariant) Name() string {
 
 func (variant *FeatureVariant) Description() string {
 	return variant.serialized.GetDescription()
-}
-
-func (variant *FeatureVariant) UpdateStatus() *pb.UpdateStatus {
-	return variant.serialized.GetUpdateStatus()
 }
 
 func (variant *FeatureVariant) Variant() string {
@@ -1599,6 +1596,7 @@ type TrainingSetVariant struct {
 	fetchFeaturesFns
 	fetchProviderFns
 	createdFn
+	lastUpdatedFn
 	protoStringer
 }
 
@@ -1608,16 +1606,13 @@ func wrapProtoTrainingSetVariant(serialized *pb.TrainingSetVariant) *TrainingSet
 		fetchFeaturesFns: fetchFeaturesFns{serialized},
 		fetchProviderFns: fetchProviderFns{serialized},
 		createdFn:        createdFn{serialized},
+		lastUpdatedFn:    lastUpdatedFn{serialized},
 		protoStringer:    protoStringer{serialized},
 	}
 }
 
 func (variant *TrainingSetVariant) Name() string {
 	return variant.serialized.GetName()
-}
-
-func (variant *TrainingSetVariant) UpdateStatus() *pb.UpdateStatus {
-	return variant.serialized.GetUpdateStatus()
 }
 
 func (variant *TrainingSetVariant) Description() string {
@@ -1683,6 +1678,7 @@ type SourceVariant struct {
 	fetchLabelsFns
 	fetchProviderFns
 	createdFn
+	lastUpdatedFn
 	protoStringer
 }
 
@@ -1694,6 +1690,7 @@ func wrapProtoSourceVariant(serialized *pb.SourceVariant) *SourceVariant {
 		fetchLabelsFns:       fetchLabelsFns{serialized},
 		fetchProviderFns:     fetchProviderFns{serialized},
 		createdFn:            createdFn{serialized},
+		lastUpdatedFn:        lastUpdatedFn{serialized},
 		protoStringer:        protoStringer{serialized},
 	}
 }
@@ -1708,10 +1705,6 @@ func (variant *SourceVariant) Variant() string {
 
 func (variant *SourceVariant) Description() string {
 	return variant.serialized.GetDescription()
-}
-
-func (variant *SourceVariant) UpdateStatus() *pb.UpdateStatus {
-	return variant.serialized.GetUpdateStatus()
 }
 
 func (variant *SourceVariant) Definition() interface{} {

@@ -10,12 +10,13 @@ spec:
   template:
     metadata:
       labels:
+        chart: featureform
         app: featureform-dashboard
     spec:
       terminationGracePeriodSeconds: 30
       containers:
         - name: featureform-dashboard
-          image: "{{ .Values.global.repo | default .Values.image.repository }}/{{ .Values.image.name }}:{{ .Values.global.version | default .Values.image.tag }}"
+          image: "{{ .Values.global.repo | default .Values.image.repository }}/{{ .Values.image.name }}:{{ .Values.global.version | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.global.pullPolicy }}
           ports:
             - containerPort: 3000

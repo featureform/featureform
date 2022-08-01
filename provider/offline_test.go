@@ -1,3 +1,6 @@
+//go:build offline
+// +build offline
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -9,8 +12,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
-	"github.com/joho/godotenv"
 	"math/rand"
 	"os"
 	"reflect"
@@ -19,6 +20,8 @@ import (
 	"time"
 
 	"cloud.google.com/go/bigquery"
+	"github.com/google/uuid"
+	"github.com/joho/godotenv"
 )
 
 func TestOfflineStores(t *testing.T) {
@@ -41,6 +44,7 @@ func TestOfflineStores(t *testing.T) {
 	os.Setenv("TZ", "UTC")
 
 	snowFlakeDatabase := strings.ToUpper(uuid.NewString())
+	redshiftDatabase := fmt.Sprintf("ff%s", strings.ToLower(uuid.NewString()))
 	t.Log("Snowflake Database: ", snowFlakeDatabase)
 	var snowflakeConfig = SnowflakeConfig{
 		Username:     os.Getenv("SNOWFLAKE_USERNAME"),
@@ -53,16 +57,38 @@ func TestOfflineStores(t *testing.T) {
 	if err := createSnowflakeDatabase(snowflakeConfig); err != nil {
 		t.Fatalf("%v", err)
 	}
-	defer destroySnowflakeDatabase(snowflakeConfig)
+	defer func(c SnowflakeConfig) {
+		err := destroySnowflakeDatabase(c)
+		if err != nil {
+			t.Fatalf("%v", err)
+		}
+	}(snowflakeConfig)
 
 	var redshiftConfig = RedshiftConfig{
 		Endpoint: os.Getenv("REDSHIFT_ENDPOINT"),
 		Port:     os.Getenv("REDSHIFT_PORT"),
-		Database: os.Getenv("REDSHIFT_DATABASE"),
+		Database: redshiftDatabase,
 		Username: os.Getenv("REDSHIFT_USERNAME"),
 		Password: os.Getenv("REDSHIFT_PASSWORD"),
 	}
 	serialRSConfig := redshiftConfig.Serialize()
+
+	defer func(c RedshiftConfig) {
+		count := 2
+		err := destroyRedshiftDatabase(c)
+		if err == nil {
+			return
+		}
+		for count > 0 {
+			time.Sleep(time.Second)
+			err := destroyRedshiftDatabase(c)
+			count -= 1
+			if err == nil {
+				return
+			}
+		}
+		t.Fatalf("%v", err)
+	}(redshiftConfig)
 
 	bigQueryDatasetId := strings.Replace(strings.ToUpper(uuid.NewString()), "-", "_", -1)
 	os.Setenv("BIGQUERY_DATASET_ID", bigQueryDatasetId)
@@ -76,6 +102,9 @@ func TestOfflineStores(t *testing.T) {
 		t.Fatalf("Cannot create BigQuery Dataset: %v", err)
 	}
 	defer destroyBigQueryDataset(bigQueryConfig)
+	if err := createRedshiftDatabase(redshiftConfig); err != nil {
+		t.Fatalf("%v", err)
+	}
 
 	testFns := map[string]func(*testing.T, OfflineStore){
 		"CreateGetTable":          testCreateGetOfflineTable,
@@ -154,6 +183,37 @@ func TestOfflineStores(t *testing.T) {
 			})
 		}
 	}
+}
+
+func createRedshiftDatabase(c RedshiftConfig) error {
+	url := fmt.Sprintf("sslmode=require user=%v password=%s host=%v port=%v dbname=%v", c.Username, c.Password, c.Endpoint, c.Port, "dev")
+	db, err := sql.Open("postgres", url)
+	if err != nil {
+		return err
+	}
+	databaseQuery := fmt.Sprintf("CREATE DATABASE %s", sanitize(c.Database))
+	if _, err := db.Exec(databaseQuery); err != nil {
+		return err
+	}
+	fmt.Printf("Created Redshift Database %s\n", c.Database)
+	return nil
+}
+
+func destroyRedshiftDatabase(c RedshiftConfig) error {
+	url := fmt.Sprintf("sslmode=require user=%v password=%s host=%v port=%v dbname=%v", c.Username, c.Password, c.Endpoint, c.Port, "dev")
+	db, err := sql.Open("postgres", url)
+	if err != nil {
+		return err
+	}
+	disconnectQuery := fmt.Sprintf("SELECT pg_terminate_backend(pg_stat_activity.procpid) FROM pg_stat_activity WHERE datid=(SELECT oid from pg_database where datname = '%s');", c.Database)
+	if _, err := db.Exec(disconnectQuery); err != nil {
+		return err
+	}
+	databaseQuery := fmt.Sprintf("DROP DATABASE %s", sanitize(c.Database))
+	if _, err := db.Exec(databaseQuery); err != nil {
+		return err
+	}
+	return nil
 }
 
 func createSnowflakeDatabase(c SnowflakeConfig) error {

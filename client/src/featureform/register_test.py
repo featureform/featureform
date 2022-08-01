@@ -1,7 +1,7 @@
 import pytest
+from featureform.register import Registrar
+from featureform.resources import SQLTable, SQLTransformation, Source, User, PrimaryData, Entity, Feature, Label, ResourceColumnMapping
 
-from register import Registrar
-from resources import SQLTable, SQLTransformation, Source, User, PrimaryData, Entity, Feature, Label, ResourceColumnMapping
 
 
 @pytest.fixture
@@ -46,7 +46,7 @@ minimal_postgres_args = {
         "description": "test",
         "team": "featureform",
         "host": "localhost",
-        "port": 1234,
+        "port": "1234",
         "user": "Abc",
         "password": "abc",
         "database": "db",
@@ -78,6 +78,66 @@ minimal_user_args = {
     "name": "user",
 }
 
+@pytest.mark.parametrize("args,expected", [(minimal_user_args, User("user"))])
+def test_register_user(registrar, args, expected):
+    registrar.register_user(**args)
+    assert registrar.state().sorted_list() == [
+        expected,
+    ]
+
+@pytest.mark.parametrize("args", [
+    {
+        "name": "firestore"
+    },
+    {
+        "name": "firestore",
+        "description": "test",
+        "team": "featureform",
+        "collection": "abc",
+        "project_id": "abc",
+        "credentials_path": "abc"
+    },
+])
+def test_register_firestore(registrar, args):
+    registrar.register_firestore(**args)
+   
+minimal_user_args = {
+    "name": "user",
+    "collection": "abc",
+    "project_id": "abc",
+    "credentials_path": "abc"
+}
+    
+@pytest.mark.parametrize("args,expected", [(minimal_user_args, User("user"))])
+def test_register_user(registrar, args, expected):
+    registrar.register_user(**args)
+    assert registrar.state().sorted_list() == [
+        expected,
+    ]
+    
+@pytest.mark.parametrize("args", [
+    {
+        "name": "dynamodb"
+    },
+    {
+        "name": "dynamodb",
+        "description": "test",
+        "team": "featureform",
+        "region": "abc",
+        "access_key": "abc",
+        "secret_key": "abc"
+    },
+])
+def test_register_dynamodb(registrar, args):
+    registrar.register_dynamodb(**args)
+    
+minimal_user_args = {
+    "name": "user",
+    "region": "abc",
+    "access_key": "abc",
+    "secret_key": "abc"
+}
+
 
 @pytest.mark.parametrize("args,expected", [(minimal_user_args, User("user"))])
 def test_register_user(registrar, args, expected):
@@ -86,6 +146,42 @@ def test_register_user(registrar, args, expected):
         expected,
     ]
 
+@pytest.mark.parametrize("args", [
+    {
+        "name": "cassandra"
+    },
+    {
+        "name": "cassandra",
+        "description": "test",
+        "team": "featureform",
+        "host": "localhost",
+        "port": 123,
+        "username" :"abc",
+        "password": "abc",
+        "keyspace": "",
+        "consistency": "THREE",
+        "replication": 3
+    },
+])
+def test_register_cassandra(registrar, args):
+    registrar.register_cassandra(**args)
+
+
+minimal_user_args = {
+    "name": "user",
+    "username": "abc",
+    "password": "abc",
+    "keyspace": "",
+    "consistency": "THREE",
+    "replication": 3
+}
+
+@pytest.mark.parametrize("args,expected", [(minimal_user_args, User("user"))])
+def test_register_user(registrar, args, expected):
+    registrar.register_user(**args)
+    assert registrar.state().sorted_list() == [
+        expected,
+    ]
 
 @pytest.mark.parametrize("args, expected", [
     ({

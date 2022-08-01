@@ -4,7 +4,9 @@ on: [push]
 env:
   TYPESENSE_PORT: 8108
   TYPESENSE_API_KEY: "xyz"
-  REDIS_PORT: 6379
+  REDIS_INSECURE_PORT: 6379
+  REDIS_SECURE_PORT: 6378
+  REDIS_PASSWORD: "password"
   CASSANDRA_USER: "cassandra"
   CASSANDRA_PASSWORD: "CASSANDRA"
   POSTGRES_USER: "username"
@@ -118,12 +120,19 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     services:
-      redis:
+      redis-insecure:
         image: redis
         # Hard coded port because environment variables not currently
         # supported for use outside of 'steps'
         ports:
           - 6379:6379
+
+      redis-secure:
+        image: redis
+          # Hard coded port because environment variables not currently
+          # supported for use outside of 'steps'
+        ports:
+          - 6378:6379
 
       cassandra:
         image: cassandra
@@ -153,6 +162,9 @@ jobs:
         with:
           name: "./provider/firestore_credentials.json"
           json: ${{ secrets.FIRESTORE_CREDENTIALS_FILE }}
+
+      - name: Set Redis Password
+        run: docker exec -it redis-secure redis-cli config set requirepass ${{ REDIS_PASSWORD }}
 
       - name: Testing
         env:

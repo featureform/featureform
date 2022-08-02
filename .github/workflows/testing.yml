@@ -222,9 +222,6 @@ jobs:
           name: "./provider/bigquery_credentials.json"
           json: ${{ secrets.BIGQUERY_CREDENTIALS_FILE }}
       
-      - name: Export GOOGLE_APPLICATION_CREDENTIALS Variable
-        run: echo "GOOGLE_APPLICATION_CREDENTIALS=$GITHUB_ACTION_PATH/provider/bigquery_credentials.json" >> $GITHUB_ENV
-
       - name: Testing
         env:
           SNOWFLAKE_USERNAME: ${{ secrets.SNOWFLAKE_USERNAME }}
@@ -236,6 +233,7 @@ jobs:
           REDSHIFT_ENDPOINT: ${{ secrets.REDSHIFT_ENDPOINT }}
           BIGQUERY_PROJECT_ID: ${{ secrets.BIGQUERY_PROJECT_ID }}
           BIGQUERY_DATASET_ID: ${{ secrets.BIGQUERY_DATASET_ID }}
+          BIGQUERY_CREDENTIALS: "bigquery_credentials.json"
         working-directory: ./
         run: go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/... -tags=offline
 

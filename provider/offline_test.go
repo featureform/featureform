@@ -22,6 +22,7 @@ import (
 	"cloud.google.com/go/bigquery"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
+	"google.golang.org/api/option"
 )
 
 func TestOfflineStores(t *testing.T) {
@@ -72,7 +73,9 @@ func TestOfflineStores(t *testing.T) {
 		Password: os.Getenv("REDSHIFT_PASSWORD"),
 	}
 	serialRSConfig := redshiftConfig.Serialize()
-
+	if err := createRedshiftDatabase(redshiftConfig); err != nil {
+		t.Fatalf("%v", err)
+	}
 	defer func(c RedshiftConfig) {
 		count := 2
 		err := destroyRedshiftDatabase(c)
@@ -90,21 +93,27 @@ func TestOfflineStores(t *testing.T) {
 		t.Fatalf("%v", err)
 	}(redshiftConfig)
 
+	bigqueryCredentials := os.Getenv("BIGQUERY_CREDENTIALS")
+	JSONCredentials, err := ioutil.ReadFile(bigqueryCredentials)
+	if err != nil {
+		panic(err)
+	}
+
 	bigQueryDatasetId := strings.Replace(strings.ToUpper(uuid.NewString()), "-", "_", -1)
 	os.Setenv("BIGQUERY_DATASET_ID", bigQueryDatasetId)
 	t.Log("BigQuery Dataset: ", bigQueryDatasetId)
+
 	var bigQueryConfig = BigQueryConfig{
-		ProjectId: os.Getenv("BIGQUERY_PROJECT_ID"),
-		DatasetId: os.Getenv("BIGQUERY_DATASET_ID"),
+		ProjectId:   os.Getenv("BIGQUERY_PROJECT_ID"),
+		DatasetId:   os.Getenv("BIGQUERY_DATASET_ID"),
+		Credentials: JSONCredentials,
 	}
 	serialBQConfig := bigQueryConfig.Serialize()
+
 	if err := createBigQueryDataset(bigQueryConfig); err != nil {
 		t.Fatalf("Cannot create BigQuery Dataset: %v", err)
 	}
 	defer destroyBigQueryDataset(bigQueryConfig)
-	if err := createRedshiftDatabase(redshiftConfig); err != nil {
-		t.Fatalf("%v", err)
-	}
 
 	testFns := map[string]func(*testing.T, OfflineStore){
 		"CreateGetTable":          testCreateGetOfflineTable,
@@ -245,7 +254,7 @@ func destroySnowflakeDatabase(c SnowflakeConfig) error {
 func createBigQueryDataset(c BigQueryConfig) error {
 	ctx := context.Background()
 
-	client, err := bigquery.NewClient(ctx, c.ProjectId)
+	client, err := bigquery.NewClient(ctx, c.ProjectId, option.WithCredentialsJSON(c.Config.Credentials))
 	if err != nil {
 		return err
 	}
@@ -265,7 +274,7 @@ func destroyBigQueryDataset(c BigQueryConfig) error {
 
 	time.Sleep(10 * time.Second)
 
-	client, err := bigquery.NewClient(ctx, c.ProjectId)
+	client, err := bigquery.NewClient(ctx, c.ProjectId, option.WithCredentialsJSON(config.Config.Credentials))
 	if err != nil {
 		return err
 	}

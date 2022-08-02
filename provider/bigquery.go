@@ -11,6 +11,7 @@ import (
 	"cloud.google.com/go/bigquery"
 	_ "github.com/lib/pq"
 	"google.golang.org/api/iterator"
+	"google.golang.org/api/option"
 )
 
 const (
@@ -35,8 +36,9 @@ const (
 )
 
 type BigQueryConfig struct {
-	ProjectId string
-	DatasetId string
+	ProjectId   string
+	DatasetId   string
+	Credentials []byte
 }
 
 func (bq *BigQueryConfig) Deserialize(config SerializedConfig) error {
@@ -744,7 +746,7 @@ type bqOfflineStore struct {
 func NewBQOfflineStore(config BQOfflineStoreConfig) (*bqOfflineStore, error) {
 	ctx := context.Background()
 
-	client, err := bigquery.NewClient(ctx, config.ProjectId)
+	client, err := bigquery.NewClient(ctx, config.ProjectId, option.WithCredentialsJSON(config.Config.Credentials))
 	if err != nil {
 		return nil, err
 	}

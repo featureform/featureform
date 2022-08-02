@@ -217,7 +217,7 @@ class HostedClientImpl():
     def __init__(self, host=None, insecure=False, cert_path=None):
         host = host or os.getenv('FEATUREFORM_HOST')
         if host is None:
-            raise RuntimeError(
+            raise ValueError(
                 'If not in local mode then `host` must be passed or the environment'
                 ' variable FEATUREFORM_HOST must be set.'
             )

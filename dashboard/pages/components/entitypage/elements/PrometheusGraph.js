@@ -141,7 +141,7 @@ const PrometheusGraph = ({
     });
 
     return () => {
-      myChart.destroy();
+      setTimeout(() => myChart.destroy(), 100);
     };
   }, [
     query,

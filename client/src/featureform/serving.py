@@ -242,8 +242,6 @@ class HostedClientImpl():
         return grpc.secure_channel(host, credentials)
 
     def training_set(self, name, version):
-        if self.local:
-            raise ValueError("Not supported in localmode. Please try using training_set()")
         return Dataset(self._stub).from_stub(name, version)
 
     def features(self, features, entities):

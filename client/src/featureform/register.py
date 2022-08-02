@@ -17,6 +17,7 @@ import os
 from featureform.proto import metadata_pb2
 from featureform.proto import metadata_pb2_grpc as ff_grpc
 from .sqlite_metadata import SQLiteMetadata
+from .tls import insecure_channel, secure_channel
 import time
 import pandas as pd
 from .get import *
@@ -1276,33 +1277,21 @@ class Client(Registrar):
         """
         super().__init__()
         self.local = local
-        if self.local:
+        if local:
             if host != None:
                 raise ValueError("Cannot be local and have a host")
         else:
-            if host == None:
-                host = os.getenv('FEATUREFORM_HOST')
-                if host == None:
-                    raise ValueError(
-                    "Host value must be set or in env as FEATUREFORM_HOST")
-
-            channel = self.tls_check(host, cert_path, insecure)
+            host = host or os.getenv('FEATUREFORM_HOST')
+            if host is None:
+                raise RuntimeError(
+                    'If not in local mode then `host` must be passed or the environment'
+                    ' variable FEATUREFORM_HOST must be set.'
+                )
+            if insecure:
+                channel = insecure_channel(host)
+            else:
+                channel = secure_channel(host, cert_path)
             self._stub = ff_grpc.ApiStub(channel)
-
-    def tls_check(self, host, cert, insecure):
-        if insecure:
-            channel = grpc.insecure_channel(
-                host, options=(('grpc.enable_http_proxy', 0),))
-        elif cert != None or os.getenv('FEATUREFORM_CERT') != None:
-            if os.getenv('FEATUREFORM_CERT') != None and cert == None:
-                cert = os.getenv('FEATUREFORM_CERT')
-            with open(cert, 'rb') as f:
-                credentials = grpc.ssl_channel_credentials(f.read())
-            channel = grpc.secure_channel(host, credentials)
-        else:
-            credentials = grpc.ssl_channel_credentials()
-            channel = grpc.secure_channel(host, credentials)
-        return channel
 
     def apply(self):
         """Apply all definitions, creating and retrieving all specified resources.

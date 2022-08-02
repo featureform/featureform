@@ -254,7 +254,7 @@ func destroySnowflakeDatabase(c SnowflakeConfig) error {
 func createBigQueryDataset(c BigQueryConfig) error {
 	ctx := context.Background()
 
-	client, err := bigquery.NewClient(ctx, c.ProjectId, option.WithCredentialsJSON(c.Config.Credentials))
+	client, err := bigquery.NewClient(ctx, c.ProjectId, option.WithCredentialsJSON(c.Credentials))
 	if err != nil {
 		return err
 	}
@@ -274,7 +274,7 @@ func destroyBigQueryDataset(c BigQueryConfig) error {
 
 	time.Sleep(10 * time.Second)
 
-	client, err := bigquery.NewClient(ctx, c.ProjectId, option.WithCredentialsJSON(config.Config.Credentials))
+	client, err := bigquery.NewClient(ctx, c.ProjectId, option.WithCredentialsJSON(c.Credentials))
 	if err != nil {
 		return err
 	}

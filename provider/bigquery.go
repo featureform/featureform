@@ -746,7 +746,12 @@ type bqOfflineStore struct {
 func NewBQOfflineStore(config BQOfflineStoreConfig) (*bqOfflineStore, error) {
 	ctx := context.Background()
 
-	client, err := bigquery.NewClient(ctx, config.ProjectId, option.WithCredentialsJSON(config.Config.Credentials))
+	sc := BigQueryConfig{}
+	if err := sc.Deserialize(config.Config); err != nil {
+		return nil, errors.New("invalid bigquery config")
+	}
+
+	client, err := bigquery.NewClient(ctx, config.ProjectId, option.WithCredentialsJSON(sc.Credentials))
 	if err != nil {
 		return nil, err
 	}

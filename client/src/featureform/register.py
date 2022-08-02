@@ -1111,6 +1111,9 @@ class Registrar:
         self.__resources = []
         return self.__state
 
+    def clear_state(self):
+        self.__state = ResourceState()
+
     def register_entity(self, name: str, description: str = ""):
         """Register an entity.
 
@@ -2251,6 +2254,7 @@ class Client(Registrar):
 
 global_registrar = Registrar()
 state = global_registrar.state
+clear_state = global_registrar.clear_state
 register_user = global_registrar.register_user
 register_redis = global_registrar.register_redis
 register_firestore = global_registrar.register_firestore

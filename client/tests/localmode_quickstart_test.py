@@ -162,6 +162,15 @@ class TestResourcesRedefined:
         with pytest.raises(ResourceRedefinedError):
             client.apply()
 
+    def test_cleanup(tmpdir):
+        try:
+            ff.clear_state()
+            client = ff.ServingClient(local=True)
+            client.sqldb.close()
+            shutil.rmtree('.featureform', onerror=del_rw)
+        except:
+            print("File Already Removed")
+
 class Quickstart:
     file = './transactions.csv'
     entity = 'CustomerID'
@@ -228,6 +237,7 @@ class Quickstart:
 
     def test_cleanup(tmpdir):
         try:
+            ff.clear_state()
             client = ff.ServingClient(local=True)
             client.sqldb.close()
             shutil.rmtree('.featureform', onerror=del_rw)
@@ -340,7 +350,6 @@ class TestResourceClient:
 
         client = ff.ResourceClient(local=True)
         client.apply()
-
     Tests = Quickstart
 
 

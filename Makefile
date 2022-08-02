@@ -23,14 +23,15 @@ help:     						## Show this help.
 	@sed -ne '/@sed/!s/## //p' $(MAKEFILE_LIST)
 
 pytest:
-	curl https://featureform-demo-files.s3.amazonaws.com/transactions.csv -o transactions.csv -C -
-	featureform apply client/examples/local_quickstart.py --local
-	pytest client/tests/localmode.py
-	python client/tests/local_test.py
-	rm -r .featureform
-	pytest client/tests/serving_test.py -s
-	rm -r .featureform
-	pytest client/tests/local_test.py -s
+	-rm -r .featureform
+	curl -C - https://featureform-demo-files.s3.amazonaws.com/transactions.csv -o transactions.csv
+	pytest client/tests/localmode_quickstart_test.py
+	pytest client/tests/redefined_test.py
+	pytest client/tests/local_test.py
+	pytest client/tests/serving_test.py
+	pip install jupyter nbconvert matplotlib pandas scikit-learn requests
+	jupyter nbconvert --to notebook --execute notebooks/Fraud_Detection_Example.ipynb
+	-rm -r .featureform
 
 etcdctl: 						## Installs ETCDCTL. Required for reset_e2e
 	-git clone -b v3.4.16 https://github.com/etcd-io/etcd.git

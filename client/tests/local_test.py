@@ -1,7 +1,9 @@
-from multiprocessing.sharedctypes import Value
 import featureform as ff
 import pandas as pd
 import pytest
+import shutil
+import os
+import stat
 
 class TestPetalGuide:
     def test_register_local(self):
@@ -201,3 +203,22 @@ class TestPetalGuide:
             client.apply()
         assert "SpeciesTypo does not exist. Failed to register training set" in str(err.value)
 
+
+    @pytest.fixture(autouse=True)
+    def run_before_and_after_tests(tmpdir):
+        """Fixture to execute asserts before and after a test is run"""
+        # Remove any lingering Databases
+        try:
+            shutil.rmtree('.featureform', onerror=del_rw)
+        except:
+            print("File Already Removed")
+        yield
+        try:
+            shutil.rmtree('.featureform', onerror=del_rw)
+        except:
+            print("File Already Removed")
+
+
+def del_rw(action, name, exc):
+    os.chmod(name, stat.S_IWRITE)
+    os.remove(name)

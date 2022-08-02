@@ -71,17 +71,7 @@ class Quickstart:
         assert feature == pd.array([self.entity_value])
 
 
-    @pytest.fixture(autouse=True)
-    def run_before_and_after_tests(tmpdir):
-        """Fixture to execute asserts before and after a test is run"""
-        # Remove any lingering Databases
-        try:
-            client = ff.ServingClient(local=True)
-            client.sqldb.close()
-            shutil.rmtree('.featureform', onerror=del_rw)
-        except:
-            print("File Already Removed")
-        yield
+    def cleanup(self):
         try:
             client = ff.ServingClient(local=True)
             client.sqldb.close()
@@ -148,8 +138,6 @@ class TestCLI:
 
 
 class TestResourceClient:
-
-
     def test_setup(self):
 
         ff.register_user("featureformer").make_default_owner()

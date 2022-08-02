@@ -17,10 +17,10 @@ def get_sorted_list(resource_type, variant=False):
         "training-set": ["training_sets", "training_set_variant"]
     }
     if variant:
-        received = db.getTypeTable(local_list_args[resource_type][1])
+        received = db.get_type_table(local_list_args[resource_type][1])
         res = sorted([r for r in received], key=lambda x:x["name"])
     else:
-        received =  db.getTypeTable(local_list_args[resource_type][0])
+        received =  db.get_type_table(local_list_args[resource_type][0])
         res = sorted([r for r in received], key=lambda x:x["name"])
     return res
 

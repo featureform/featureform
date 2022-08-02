@@ -244,7 +244,6 @@ func (c *Coordinator) mapNameVariantsToTables(sources []metadata.NameVariant) (m
 			return nil, fmt.Errorf("source in query not ready")
 		}
 		providerResourceID := provider.ResourceID{Name: source.Name(), Variant: source.Variant()}
-		sourceProvider, err := source.FetchProvider(c.Metadata, context.Background())
 		tableName, err := provider.GetPrimaryTableName(providerResourceID)
 		if err != nil {
 			return nil, err

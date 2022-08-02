@@ -431,7 +431,7 @@ func testScheduleTransformation() error {
 		return fmt.Errorf("transformation scheduled job did not run: %v", err)
 	}
 	// check that transformation table is updated with latest values
-	if err := checkTransformationTableValues(transformationName, finalUpdatedTableValues); err != nil {
+	if err := checkTransformationTableValues(transformationName, finalUpdatedTableValues, "POSTGRES"); err != nil {
 		return fmt.Errorf("transformation table values did not update: %v", err)
 	}
 	// get timestamp of updated transformation table in metadata and check that timestamp is more recent than original
@@ -448,13 +448,13 @@ func testScheduleTransformation() error {
 
 // transformation test helper functions
 
-func checkTransformationTableValues(transformationName string, correctValues []provider.ResourceRecord) error {
+func checkTransformationTableValues(transformationName string, correctValues []provider.ResourceRecord, providerType string) error {
 	providerJoinTransformationID := provider.ResourceID{Name: transformationName, Variant: "", Type: provider.Transformation}
 	joinTransformationTable, err := offlinePostgresStore.GetTransformationTable(providerJoinTransformationID)
 	if err != nil {
 		return fmt.Errorf("Could not get transformation table from offline store: %v", err)
 	}
-	transformationJoinName, err := provider.GetTransformationName(providerJoinTransformationID)
+	transformationJoinName, err := provider.GetPrimaryTableName(providerJoinTransformationID, providerType)
 	if err != nil {
 		return fmt.Errorf("invalid transformation table name: %v", err)
 	}

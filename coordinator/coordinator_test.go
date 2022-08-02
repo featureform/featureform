@@ -1425,7 +1425,7 @@ func testRegisterPrimaryTableFromSource(addr string) error {
 	if err != nil {
 		return fmt.Errorf("Coordinator did not create primary table")
 	}
-	primaryTableName, err := provider.GetPrimaryTableName(providerSourceID, myProvider.Type())
+	primaryTableName, err := provider.GetPrimaryTableName(providerSourceID, string(myProvider.Type()))
 	if err != nil {
 		return fmt.Errorf("invalid table name: %v", err)
 	}
@@ -1548,7 +1548,7 @@ func testRegisterTransformationFromSource(addr string) error {
 	if err != nil {
 		return err
 	}
-	transformationTableName, err := provider.GetPrimaryTableName(providerTransformationID, myProvider.Type())
+	transformationTableName, err := provider.GetPrimaryTableName(providerTransformationID, string(myProvider.Type()))
 	if err != nil {
 		return fmt.Errorf("invalid transformation table name: %v", err)
 	}
@@ -1612,7 +1612,7 @@ func testRegisterTransformationFromSource(addr string) error {
 	if err != nil {
 		return err
 	}
-	transformationJoinName, err := provider.GetPrimaryTableName(providerJoinTransformationID, myProvider.Type())
+	transformationJoinName, err := provider.GetPrimaryTableName(providerJoinTransformationID, string(myProvider.Type()))
 	if err != nil {
 		return fmt.Errorf("invalid transformation table name: %v", err)
 	}

@@ -97,7 +97,6 @@ class OfflineSQLProvider(OfflineProvider):
                            name: str = "",
                            schedule: str = "",
                            description: str = ""):
-    
         return self.__registrar.sql_transformation(name=name,
                                                    variant=variant,
                                                    owner=owner,
@@ -466,6 +465,7 @@ class Registrar:
     )
     ```
     """
+
     def __init__(self):
         self.__state = ResourceState()
         self.__resources = []
@@ -531,20 +531,20 @@ class Registrar:
         self.__resources.append(get)
         if local:
             return LocalSource(self,
-                                name=name,
-                                owner="",
-                                variant=variant,
-                                provider="",
-                                description="",
-                                path = "")
+                               name=name,
+                               owner="",
+                               variant=variant,
+                               provider="",
+                               description="",
+                               path="")
         else:
             fakeDefinition = PrimaryData(location=SQLTable(name=""))
             fakeSource = Source(name=name,
-                            variant=variant,
-                            definition=fakeDefinition,
-                            owner="",
-                            provider="",
-                            description="")
+                                variant=variant,
+                                definition=fakeDefinition,
+                                owner="",
+                                provider="",
+                                description="")
             return ColumnSourceRegistrar(self, fakeSource)
 
     def get_local(self, name):
@@ -697,15 +697,15 @@ class Registrar:
                             config=config)
         self.__resources.append(provider)
         return OnlineProvider(self, provider)
-        
+
     def register_firestore(self,
-                       name: str,
-                       description: str = "",
-                       team: str = "",
-                       collection: str = "",
-                       project_id: str = "",
-                       credentials_path: str = ""
-                       ):
+                           name: str,
+                           description: str = "",
+                           team: str = "",
+                           collection: str = "",
+                           project_id: str = "",
+                           credentials_path: str = ""
+                           ):
         config = FirestoreConfig(collection=collection, project_id=project_id, credentials_path=credentials_path)
         provider = Provider(name=name,
                             function="ONLINE",
@@ -716,17 +716,18 @@ class Registrar:
         return OnlineProvider(self, provider)
 
     def register_cassandra(self,
-                       name: str,
-                       description: str = "",
-                       team: str = "",
-                       host: str = "0.0.0.0",
-                       port: int = 9042,
-                       username: str = "cassandra",
-                       password: str = "cassandra",
-                       keyspace: str = "",
-                       consistency: str = "THREE",
-                       replication: int = 3):
-        config = CassandraConfig(host=host, port=port, username=username, password=password, keyspace=keyspace, consistency=consistency, replication=replication)
+                           name: str,
+                           description: str = "",
+                           team: str = "",
+                           host: str = "0.0.0.0",
+                           port: int = 9042,
+                           username: str = "cassandra",
+                           password: str = "cassandra",
+                           keyspace: str = "",
+                           consistency: str = "THREE",
+                           replication: int = 3):
+        config = CassandraConfig(host=host, port=port, username=username, password=password, keyspace=keyspace,
+                                 consistency=consistency, replication=replication)
         provider = Provider(name=name,
                             function="ONLINE",
                             description=description,
@@ -734,7 +735,7 @@ class Registrar:
                             config=config)
         self.__resources.append(provider)
         return OnlineProvider(self, provider)
-        
+
     def register_dynamodb(self,
                           name: str,
                           description: str = "",
@@ -828,7 +829,7 @@ class Registrar:
                             config=config)
         self.__resources.append(provider)
         return OfflineSQLProvider(self, provider)
-    
+
     def register_postgres(self,
                           name: str,
                           description: str = "",
@@ -1266,6 +1267,7 @@ class Client(Registrar):
     redis = rc.get_provider("redis-quickstart")
     ```
     """
+
     def __init__(self, host=None, local=False, insecure=False, cert_path=None):
         """Initialise a Resource Client object.
 
@@ -1277,9 +1279,8 @@ class Client(Registrar):
         """
         super().__init__()
         self.local = local
-        if local:
-            if host != None:
-                raise ValueError("Cannot be local and have a host")
+        if local and host:
+            raise ValueError("Cannot be local and have a host")
         else:
             host = host or os.getenv('FEATUREFORM_HOST')
             if host is None:
@@ -1296,7 +1297,7 @@ class Client(Registrar):
     def apply(self):
         """Apply all definitions, creating and retrieving all specified resources.
         """
-        
+
         if self.local:
             state().create_all_local()
         else:
@@ -1362,7 +1363,7 @@ class Client(Registrar):
             user (User): User
         """
         return get_user_info(self._stub, name)
-    
+
     def get_entity(self, name):
         """Get an entity. Prints out information on entity, and all resources associated with the entity.
 
@@ -1597,7 +1598,7 @@ class Client(Registrar):
         if not variant:
             return get_resource_info(self._stub, "feature", name)
         return get_feature_variant_info(self._stub, name, variant)
-        
+
     def get_label(self, name, variant=None):
         """Get a label. Prints out information on label, and all variants associated with the label. If variant is included, print information on that specific variant and all resources associated with it.
 
@@ -2246,6 +2247,7 @@ class Client(Registrar):
             providers (List[Provider]): List of Provider Objects
         """
         return list_name_status_desc(self._stub, "provider")
+
 
 global_registrar = Registrar()
 state = global_registrar.state

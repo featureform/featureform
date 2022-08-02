@@ -674,7 +674,7 @@ class Registrar:
         """
         get = ProviderReference(name=name, provider_type="bigquery", obj=None)
         self.__resources.append(get)
-        fakeConfig = BigQueryConfig(project_id="", dataset_id="")
+        fakeConfig = BigQueryConfig(project_id="", dataset_id="", credentials_path="")
         fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
         return OfflineSQLProvider(self, fakeProvider)      
 
@@ -978,7 +978,8 @@ class Registrar:
                           description: str = "",
                           team: str = "",
                           project_id: str = "",
-                          dataset_id: str = "",):
+                          dataset_id: str = "",
+                          credentials_path: str = ""):
         """Register a BigQuery provider.
 
         **Examples**:
@@ -1001,7 +1002,8 @@ class Registrar:
             redshift (OfflineSQLProvider): Provider
         """
         config = BigQueryConfig(project_id=project_id,
-                                dataset_id=dataset_id,)
+                                dataset_id=dataset_id,
+                                credentials_path=credentials_path,)
         provider = Provider(name=name,
                             function="OFFLINE",
                             description=description,

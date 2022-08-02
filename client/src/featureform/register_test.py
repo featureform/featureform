@@ -158,6 +158,7 @@ def test_register_redshift(registrar, args):
         "team": "featureform",
         "project_id": "abc",
         "dataset_id": "abc",
+        "credentials_path": "abc",
     },
 ])
 def test_register_bigquery(registrar, args):

@@ -219,19 +219,27 @@ class HostedClientImpl():
                 'If not in local mode then `host` must be passed or the environment'
                 ' variable FEATUREFORM_HOST must be set.'
             )
-        env_cert_path = os.getenv('FEATUREFORM_CERT')
-        if not insecure:
+        channel = self._create_channel(host, insecure, cert_path)
+        self._stub = serving_pb2_grpc.FeatureStub(channel)
+
+    def _create_channel(self, host, insecure, cert_path):
+        if insecure:
+            return self._create_insecure_channel(host)
+        else:
+            return self._create_secure_channel(host, cert_path)  
+
+    def _create_insecure_channel(self, host):
+        return grpc.insecure_channel(host, options=(('grpc.enable_http_proxy', 0),))
+
+    def _create_secure_channel(self, host, cert_path):
+        cert_path = cert_path or os.getenv('FEATUREFORM_CERT')
+        use_default_creds = not cert_path
+        if use_default_creds:
             credentials = grpc.ssl_channel_credentials()
-            channel = grpc.secure_channel(host, credentials)
-        elif cert_path is not None or env_cert_path is not None:
-            if env_cert_path is not None and cert_path is None:
-                cert_path = env_cert_path
+        else:
             with open(cert_path, 'rb') as f:
                 credentials = grpc.ssl_channel_credentials(f.read())
-            channel = grpc.secure_channel(host, credentials)
-        else:
-            channel = grpc.insecure_channel(host, options=(('grpc.enable_http_proxy', 0),))
-        self._stub = serving_pb2_grpc.FeatureStub(channel)
+        return grpc.secure_channel(host, credentials)
 
     def training_set(self, name, version):
         if self.local:

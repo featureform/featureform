@@ -18,44 +18,26 @@ from .sqlite_metadata import SQLiteMetadata
 class Client:
 
     def __init__(self, host=None, local=False, insecure=False, cert_path=None):
-        self.local = local
+        if local and host:
+            raise ValueError("Host and local cannot both be set")
         if local:
-            if host != None:
-                raise ValueError("Cannot be local and have a host")
-            self.sqldb = SQLiteMetadata()
+            self.impl = LocalClientImpl()
         else:
-            host = host or os.getenv('FEATUREFORM_HOST')
-            if host is None:
-                raise RuntimeError(
-                    'If not in local mode then `host` must be passed or the environment'
-                    ' variable FEATUREFORM_HOST must be set.'
-                )
-            env_cert_path = os.getenv('FEATUREFORM_CERT')
-            if not insecure:
-                credentials = grpc.ssl_channel_credentials()
-                channel = grpc.secure_channel(host, credentials)
-            elif cert_path is not None or env_cert_path is not None:
-                if env_cert_path is not None and cert_path is None:
-                    cert_path = env_cert_path
-                with open(cert_path, 'rb') as f:
-                    credentials = grpc.ssl_channel_credentials(f.read())
-                channel = grpc.secure_channel(host, credentials)
-            else:
-                channel = grpc.insecure_channel(host, options=(('grpc.enable_http_proxy', 0),))
-            self._stub = serving_pb2_grpc.FeatureStub(channel)
+            self.impl = HostedClientImpl(host, insecure, cert_path)
+
 
     def training_set(self, name, version):
-        if self.local:
-            return self._local_training_set(name, version)
-        else:
-            return self._host_training_set(name, version)
+        return self.impl.training_set(name, version)
 
-    def _host_training_set(self, name, version):
-        if self.local:
-            raise ValueError("Not supported in localmode. Please try using training_set()")
-        return Dataset(self._stub).from_stub(name, version)
+    def features(self, features, entities):
+        return self.impl.features(features, entities)
 
-    def _local_training_set(self, training_set_name, training_set_variant):
+class LocalClientImpl():
+    
+    def __init__(self):
+        self.sqldb = SQLiteMetadata()
+
+    def training_set(self, training_set_name, training_set_variant):
         if not self.local:
             raise ValueError("Only supported in localmode. Please try using dataset()")
         training_set_row = \
@@ -124,25 +106,6 @@ class Client:
         trainingset_df = trainingset_df.assign(label=label_col)
         return Dataset.from_list(trainingset_df.values.tolist())
 
-    def features(self, features, entities):
-        if self.local:
-            return self._local_features(features, entities)
-        else:
-            return self._host_features(features, entities)
-
-    def _host_features(self, features, entities):
-        req = serving_pb2.FeatureServeRequest()
-        for name, value in entities.items():
-            entity_proto = req.entities.add()
-            entity_proto.name = name
-            entity_proto.value = value
-        for (name, version) in features:
-            feature_id = req.features.add()
-            feature_id.name = name
-            feature_id.version = version
-        resp = self._stub.FeatureServe(req)
-        return [parse_proto_value(val) for val in resp.values]
-
     def process_transformation(self, name, variant):
         source_row = self.sqldb.get_source_variant(name, variant)
         inputs = json.loads(source_row['inputs'])
@@ -162,7 +125,7 @@ class Client:
         new_data = func(*dataframes)
         return new_data
 
-    def _local_features(self, feature_variant_list, entity):
+    def features(self, feature_variant_list, entity):
         if len(feature_variant_list) == 0:
             raise Exception("No features provided")
         # This code was originally written to take a tuple, this is a quick fix to turn a dict with a single entry into that tuple.
@@ -248,6 +211,49 @@ class Client:
         df.rename(columns={entity_col: entity_name}, inplace=True)
         df.set_index(entity_name, inplace=True)
         return df
+
+class HostedClientImpl():
+    
+    def __init__(self, host=None, local=False, insecure=False, cert_path=None):
+        host = host or os.getenv('FEATUREFORM_HOST')
+        if host is None:
+            raise RuntimeError(
+                'If not in local mode then `host` must be passed or the environment'
+                ' variable FEATUREFORM_HOST must be set.'
+            )
+        env_cert_path = os.getenv('FEATUREFORM_CERT')
+        if not insecure:
+            credentials = grpc.ssl_channel_credentials()
+            channel = grpc.secure_channel(host, credentials)
+        elif cert_path is not None or env_cert_path is not None:
+            if env_cert_path is not None and cert_path is None:
+                cert_path = env_cert_path
+            with open(cert_path, 'rb') as f:
+                credentials = grpc.ssl_channel_credentials(f.read())
+            channel = grpc.secure_channel(host, credentials)
+        else:
+            channel = grpc.insecure_channel(host, options=(('grpc.enable_http_proxy', 0),))
+        self._stub = serving_pb2_grpc.FeatureStub(channel)
+
+    def training_set(self, name, version):
+        if self.local:
+            raise ValueError("Not supported in localmode. Please try using training_set()")
+        return Dataset(self._stub).from_stub(name, version)
+
+    def features(self, features, entities):
+        req = serving_pb2.FeatureServeRequest()
+        for name, value in entities.items():
+            entity_proto = req.entities.add()
+            entity_proto.name = name
+            entity_proto.value = value
+        for (name, version) in features:
+            feature_id = req.features.add()
+            feature_id.name = name
+            feature_id.version = version
+        resp = self._stub.FeatureServe(req)
+        return [parse_proto_value(val) for val in resp.values]
+
+
 
 class Stream:
 

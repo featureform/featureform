@@ -431,7 +431,7 @@ func (c *Coordinator) runLabelRegisterJob(resID metadata.ResourceID, schedule st
 		Name:    sourceNameVariant.Name,
 		Variant: sourceNameVariant.Variant,
 	}
-	srcName, err := provider.GetTransformationName(srcID)
+	srcName, err := provider.GetPrimaryTableName(srcID)
 	if err != nil {
 		return fmt.Errorf("transform name err: %w", err)
 	}
@@ -517,7 +517,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 		Name:    sourceNameVariant.Name,
 		Variant: sourceNameVariant.Variant,
 	}
-	srcName, err := provider.GetTransformationName(srcID)
+	srcName, err := provider.GetPrimaryTableName(srcID)
 	if err != nil {
 		return fmt.Errorf("transform name err: %w", err)
 	}

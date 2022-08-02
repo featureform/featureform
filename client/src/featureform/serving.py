@@ -38,8 +38,6 @@ class LocalClientImpl():
         self.sqldb = SQLiteMetadata()
 
     def training_set(self, training_set_name, training_set_variant):
-        if not self.local:
-            raise ValueError("Only supported in localmode. Please try using dataset()")
         training_set_row = \
             self.sqldb.get_training_set_variant(training_set_name, training_set_variant)
         label_row = \

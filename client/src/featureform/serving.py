@@ -214,7 +214,7 @@ class LocalClientImpl():
 
 class HostedClientImpl():
     
-    def __init__(self, host=None, local=False, insecure=False, cert_path=None):
+    def __init__(self, host=None, insecure=False, cert_path=None):
         host = host or os.getenv('FEATUREFORM_HOST')
         if host is None:
             raise RuntimeError(

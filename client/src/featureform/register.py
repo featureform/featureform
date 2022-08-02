@@ -1266,7 +1266,7 @@ class Client(Registrar):
     redis = rc.get_provider("redis-quickstart")
     ```
     """
-    def __init__(self, host=None, local=False, insecure=True, cert_path=None):
+    def __init__(self, host=None, local=False, insecure=False, cert_path=None):
         """Initialise a Resource Client object.
 
         Args:

@@ -11,6 +11,7 @@ import grpc
 import numpy as np
 from featureform.proto import serving_pb2
 from featureform.proto import serving_pb2_grpc
+from .tls import insecure_channel, secure_channel
 import pandas as pd
 from .sqlite_metadata import SQLiteMetadata
 
@@ -19,9 +20,9 @@ class Client:
 
     def __init__(self, host=None, local=False, insecure=False, cert_path=None):
         self.local = local
-        if local:
-            if host != None:
+        if local and host:
                 raise ValueError("Cannot be local and have a host")
+        elif local and not host:
             self.sqldb = SQLiteMetadata()
         else:
             host = host or os.getenv('FEATUREFORM_HOST')
@@ -30,19 +31,12 @@ class Client:
                     'If not in local mode then `host` must be passed or the environment'
                     ' variable FEATUREFORM_HOST must be set.'
                 )
-            env_cert_path = os.getenv('FEATUREFORM_CERT')
-            if not insecure:
-                credentials = grpc.ssl_channel_credentials()
-                channel = grpc.secure_channel(host, credentials)
-            elif cert_path is not None or env_cert_path is not None:
-                if env_cert_path is not None and cert_path is None:
-                    cert_path = env_cert_path
-                with open(cert_path, 'rb') as f:
-                    credentials = grpc.ssl_channel_credentials(f.read())
-                channel = grpc.secure_channel(host, credentials)
+            if insecure:
+                channel = insecure_channel(host)
             else:
-                channel = grpc.insecure_channel(host, options=(('grpc.enable_http_proxy', 0),))
+                channel = secure_channel(host, cert_path)
             self._stub = serving_pb2_grpc.FeatureStub(channel)
+
 
     def training_set(self, name, version):
         if self.local:

@@ -124,14 +124,16 @@ func (store *sqlOfflineStore) getTrainingSetName(id ResourceID) (string, error) 
 	return fmt.Sprintf("featureform_trainingset__%s__%s", id.Name, id.Variant), nil
 }
 
-func GetPrimaryTableName(id ResourceID, providerType string) (string, error) {
+func GetPrimaryTableName(id ResourceID, providerType Type) (string, error) {
 	if err := checkName(id); err != nil {
 		return "", err
 	}
 
 	var tableName string
 	tableName = fmt.Sprintf("featureform_primary_%s__%s", id.Name, id.Variant)
-	if providerType != "BIGQUERY_OFFLINE" {
+
+	provider := fmt.Sprintf("%s", providerType)
+	if provider != "BIGQUERY_OFFLINE" {
 		tableName = sanitize(tableName)
 	}
 	return tableName, nil
@@ -146,7 +148,7 @@ func (store *sqlOfflineStore) tableExists(id ResourceID) (bool, error) {
 	} else if id.check(TrainingSet) == nil {
 		tableName, err = store.getTrainingSetName(id)
 	} else if id.check(Primary) == nil || id.check(Transformation) == nil {
-		tableName, err = GetPrimaryTableName(id, fmt.Sprintf("%s", store.parent.ProviderType))
+		tableName, err = GetPrimaryTableName(id, store.parent.ProviderType)
 	}
 	if err != nil {
 		return false, err
@@ -214,7 +216,7 @@ func (store *sqlOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sour
 	} else if exists {
 		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}
-	tableName, err := GetPrimaryTableName(id, fmt.Sprintf("%s", store.parent.ProviderType))
+	tableName, err := GetPrimaryTableName(id, store.parent.ProviderType)
 	if err != nil {
 		return nil, fmt.Errorf("get name: %w", err)
 	}
@@ -245,7 +247,7 @@ func (store *sqlOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSche
 	if len(schema.Columns) == 0 {
 		return nil, fmt.Errorf("cannot create primary table without columns")
 	}
-	tableName, err := GetPrimaryTableName(id, fmt.Sprintf("%s", store.parent.ProviderType))
+	tableName, err := GetPrimaryTableName(id, store.parent.ProviderType)
 	if err != nil {
 		return nil, err
 	}
@@ -290,7 +292,7 @@ func (store *sqlOfflineStore) createsqlPrimaryTableQuery(name string, schema Tab
 }
 
 func (store *sqlOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error) {
-	name, err := GetPrimaryTableName(id, fmt.Sprintf("%s", store.parent.ProviderType))
+	name, err := GetPrimaryTableName(id, store.parent.ProviderType)
 	if err != nil {
 		return nil, err
 	}
@@ -310,7 +312,7 @@ func (store *sqlOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, erro
 }
 
 func (store *sqlOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
-	name, err := GetPrimaryTableName(id, string(store.parent.ProviderType))
+	name, err := GetPrimaryTableName(id, store.parent.ProviderType)
 	if err != nil {
 		return nil, err
 	}
@@ -988,7 +990,7 @@ func (store *sqlOfflineStore) UpdateTransformation(config TransformationConfig) 
 func (store *sqlOfflineStore) createTransformationName(id ResourceID) (string, error) {
 	switch id.Type {
 	case Transformation:
-		return GetPrimaryTableName(id, string(store.parent.ProviderType))
+		return GetPrimaryTableName(id, store.parent.ProviderType)
 	case Label:
 		return "", TransformationTypeError{"Invalid Transformation Type: Label"}
 	case Feature:

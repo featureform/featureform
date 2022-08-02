@@ -855,7 +855,7 @@ func (store *bqOfflineStore) CreateTransformation(config TransformationConfig) e
 func (store *bqOfflineStore) createTransformationName(id ResourceID) (string, error) {
 	switch id.Type {
 	case Transformation:
-		return GetPrimaryTableName(id, string(store.parent.ProviderType))
+		return GetPrimaryTableName(id, store.parent.ProviderType)
 	case Label:
 		return "", TransformationTypeError{"Invalid Transformation Type: Label"}
 	case Feature:
@@ -870,7 +870,7 @@ func (store *bqOfflineStore) createTransformationName(id ResourceID) (string, er
 }
 
 func (store *bqOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
-	name, err := GetPrimaryTableName(id, string(store.parent.ProviderType))
+	name, err := GetPrimaryTableName(id, store.parent.ProviderType)
 	if err != nil {
 		return nil, err
 	}
@@ -930,7 +930,7 @@ func (store *bqOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchem
 	if len(schema.Columns) == 0 {
 		return nil, fmt.Errorf("cannot create primary table without columns")
 	}
-	tableName, err := GetPrimaryTableName(id, fmt.Sprintf("%s", store.parent.ProviderType))
+	tableName, err := GetPrimaryTableName(id, store.parent.ProviderType)
 	if err != nil {
 		return nil, err
 	}
@@ -942,7 +942,7 @@ func (store *bqOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchem
 }
 
 func (store *bqOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error) {
-	name, err := GetPrimaryTableName(id, fmt.Sprintf("%s", store.parent.ProviderType))
+	name, err := GetPrimaryTableName(id, store.parent.ProviderType)
 	if err != nil {
 		return nil, err
 	}
@@ -1311,7 +1311,7 @@ func (store *bqOfflineStore) tableExists(id ResourceID) (bool, error) {
 	} else if id.check(TrainingSet) == nil {
 		tableName, err = store.getTrainingSetName(id)
 	} else if id.check(Primary) == nil || id.check(Transformation) == nil {
-		tableName, err = GetPrimaryTableName(id, fmt.Sprintf("%s", store.parent.ProviderType))
+		tableName, err = GetPrimaryTableName(id, store.parent.ProviderType)
 	}
 	if err != nil {
 		return false, err

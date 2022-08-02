@@ -250,10 +250,10 @@ class HostedClientImpl():
             entity_proto = req.entities.add()
             entity_proto.name = name
             entity_proto.value = value
-        for (name, version) in features:
+        for (name, variant) in features:
             feature_id = req.features.add()
             feature_id.name = name
-            feature_id.version = version
+            feature_id.version = variant
         resp = self._stub.FeatureServe(req)
         return [parse_proto_value(val) for val in resp.values]
 

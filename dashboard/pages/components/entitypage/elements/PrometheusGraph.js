@@ -71,13 +71,13 @@ const PrometheusGraph = ({
       const startTimestamp = start.getTime() / 1000;
       const endTimestamp = end.getTime() / 1000;
       const url = `${PROMETHEUS_URL}/api/v1/query_range?query=${query}${add_labels_string}&start=${startTimestamp}&end=${endTimestamp}&step=${step}s`;
-      return Promise.resolve(JSON.parse(sample_query_data));
-      // return fetch(url)
-      //   .then((response) => response.json())
-      //   .then((response) => {
-      //     return response["data"]
-      //   })
-      //   .catch((err) => console.error(err));
+      // return Promise.resolve(JSON.parse(sample_query_data));
+      return fetch(url)
+        .then((response) => response.json())
+        .then((response) => {
+          return response["data"]
+        })
+        .catch((err) => console.error(err));
     },
     [query, add_labels_string, remote]
   );

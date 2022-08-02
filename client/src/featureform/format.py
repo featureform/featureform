@@ -4,12 +4,12 @@ four_row_spacing = "{:<30} {:<30} {:<30} {:<30}"
 divider = "-----------------------------------------------"
 
 def format_rows(format_obj, format_obj_2=None, format_obj_3=None, format_obj_4=None):
+    if isinstance(format_obj_2, str):
+        print(two_row_spacing.format(format_obj, format_obj_2))
+        return
     if not format_obj_2:
-        if isinstance(format_obj_2, str):
-            print(two_row_spacing.format(format_obj, format_obj_2))
-        else:
-            for s in format_obj:
-                format_rows(*s)
+        for s in format_obj:
+            format_rows(*s)
     elif format_obj_2 and not format_obj_3:
         print(two_row_spacing.format(format_obj, format_obj_2))
     elif format_obj_2 and format_obj_3 and not format_obj_4:

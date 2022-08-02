@@ -50,8 +50,8 @@ def get_entity_info_local(name):
         "trainingsets": returned_training_sets_list
     }
 
-    format_rows("ENTITY NAME: ", returned_entity["name"]),
-    ("STATUS: ", returned_entity["status"])
+    format_rows([("ENTITY NAME: ", returned_entity["name"]),
+    ("STATUS: ", returned_entity["status"])])
     format_pg("")
     format_rows('NAME', 'VARIANT', 'TYPE')
     for f in returned_entity["features"]:
@@ -186,15 +186,6 @@ def get_label_variant_info_local(name, variant):
         },
         "trainingsets": returned_training_sets_list
     }
-    print([("NAME: ", returned_label["name"]), 
-    ("VARIANT: ", returned_label["variant"]), 
-    ("TYPE:", returned_label["type"]), 
-    ("ENTITY:", returned_label["entity"]),
-    ("OWNER:", returned_label["owner"]),
-    ("DESCRIPTION:", returned_label["description"]),
-    ("PROVIDER:", returned_label["provider"]),
-    ("STATUS: ", returned_label["status"])
-    ])
     format_rows([("NAME: ", returned_label["name"]), 
     ("VARIANT: ", returned_label["variant"]), 
     ("TYPE:", returned_label["type"]), 

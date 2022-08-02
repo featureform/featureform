@@ -345,10 +345,10 @@ export const TagList = ({
 
 export const VariantTable = ({ name, setVariant, type, row }) => {
   const classes = useStyles();
-  let history = useHistory();
+  let router = useRouter();
   function variantChangeRedirect(e, data) {
     setVariant(type, name, data.variant);
-    history.push(Resource[type].urlPathResource(name));
+    router.push(Resource[type].urlPathResource(name));
   }
 
   let myVariants = [];

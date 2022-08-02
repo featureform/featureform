@@ -61,6 +61,7 @@ class Client:
             df = self.process_transformation(label_row['source_name'], label_row['source_variant'])
             if label_row['source_timestamp'] != "":
                 df = df[[label_row['source_entity'], label_row['source_value'], label_row['source_timestamp']]]
+                df[label_row['source_timestamp']] = pd.to_datetime(df[label_row['source_timestamp']])
             else:
                 df = df[[label_row['source_entity'], label_row['source_value']]]
             df.set_index(label_row['source_entity'])
@@ -85,6 +86,7 @@ class Client:
                     df.reset_index(inplace=True)
                 if feature_row['source_timestamp'] != "":
                     df = df[[feature_row['source_entity'], feature_row['source_value'], feature_row['source_timestamp']]]
+                    df[feature_row['source_timestamp']] = pd.to_datetime(df[feature_row['source_timestamp']])
                 else:
                     df = df[[feature_row['source_entity'], feature_row['source_value']]]
 
@@ -92,8 +94,9 @@ class Client:
                 df.rename(columns={feature_row['source_value']: name_variant}, inplace=True)
             else:
                 df = pd.read_csv(str(source_row['definition']))
-                if feature_variant['feature_name'] != "":
+                if feature_row['source_timestamp'] != "":
                     df = df[[feature_row['source_entity'], feature_row['source_value'], feature_row['source_timestamp']]]
+                    df[feature_row['source_timestamp']] = pd.to_datetime(df[feature_row['source_timestamp']])
                 else:
                     df = df[[feature_row['source_entity'], feature_row['source_value']]]
                 df.set_index(feature_row['source_entity'])
@@ -103,12 +106,14 @@ class Client:
                                                left_on=label_row['source_timestamp'], right_on=feature_row['source_timestamp'], left_by=label_row['source_entity'],
                                                right_by=feature_row['source_entity'])
             else:
-                df.drop_duplicates(subset=[feature_row['source_entity'], name_variant])
+                df.drop_duplicates(subset=[feature_row['source_entity']], keep="last", inplace=True)
                 trainingset_df.reset_index(inplace=True)
                 trainingset_df[label_row['source_entity']] = trainingset_df[label_row['source_entity']].astype('string')
                 df[label_row['source_entity']] = df[label_row['source_entity']].astype('string')
                 trainingset_df = trainingset_df.join(df.set_index(label_row['source_entity']), how="left", on=label_row['source_entity'],
                                                      lsuffix="_left")
+                if "index" in trainingset_df.columns:
+                    trainingset_df.drop(columns='index', inplace=True)
 
         if label_row['source_timestamp'] != "":
             trainingset_df.drop(columns=label_row['source_timestamp'], inplace=True)
@@ -234,6 +239,7 @@ class Client:
             raise KeyError(f"Timestamp column does not exist: {timestamp_column}")
         if timestamp_column != "":
             df = df[[entity_col, value_col, timestamp_column]]
+            df[timestamp_column] = pd.to_datetime(df[timestamp_column])
         else:
             df = df[[entity_col, value_col]]
         if timestamp_column != "":

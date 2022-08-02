@@ -245,8 +245,7 @@ func (c *Coordinator) mapNameVariantsToTables(sources []metadata.NameVariant) (m
 		}
 		providerResourceID := provider.ResourceID{Name: source.Name(), Variant: source.Variant()}
 		sourceProvider, err := source.FetchProvider(c.Metadata, context.Background())
-		providerType := string(sourceProvider.Type())
-		tableName, err := provider.GetPrimaryTableName(providerResourceID, providerType)
+		tableName, err := provider.GetPrimaryTableName(providerResourceID)
 		if err != nil {
 			return nil, err
 		}
@@ -431,7 +430,7 @@ func (c *Coordinator) runLabelRegisterJob(resID metadata.ResourceID, schedule st
 		Name:    sourceNameVariant.Name,
 		Variant: sourceNameVariant.Variant,
 	}
-	srcName, err := provider.GetPrimaryTableName(srcID, string(sourceProvider.Type()))
+	srcName, err := provider.GetPrimaryTableName(srcID)
 	if err != nil {
 		return fmt.Errorf("transform name err: %w", err)
 	}
@@ -517,7 +516,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 		Name:    sourceNameVariant.Name,
 		Variant: sourceNameVariant.Variant,
 	}
-	srcName, err := provider.GetPrimaryTableName(srcID, string(sourceProvider.Type()))
+	srcName, err := provider.GetPrimaryTableName(srcID)
 	if err != nil {
 		return fmt.Errorf("transform name err: %w", err)
 	}

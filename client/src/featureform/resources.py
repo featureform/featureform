@@ -789,8 +789,7 @@ class TrainingSet:
                   self.variant,
                   self.label[0],
                   self.label[1],
-                  "ready",
-                  str(self.features)
+                  "ready"
                   )
         self._create_training_set_resource(db)
 

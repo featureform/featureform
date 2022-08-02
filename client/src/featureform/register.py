@@ -1281,7 +1281,7 @@ class Client(Registrar):
         self.local = local
         if local and host:
             raise ValueError("Cannot be local and have a host")
-        else:
+        elif not local:
             host = host or os.getenv('FEATUREFORM_HOST')
             if host is None:
                 raise RuntimeError(

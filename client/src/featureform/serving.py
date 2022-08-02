@@ -20,9 +20,9 @@ class Client:
 
     def __init__(self, host=None, local=False, insecure=False, cert_path=None):
         self.local = local
-        if local:
-            if host != None:
+        if local and host:
                 raise ValueError("Cannot be local and have a host")
+        elif local and not host:
             self.sqldb = SQLiteMetadata()
         else:
             host = host or os.getenv('FEATUREFORM_HOST')

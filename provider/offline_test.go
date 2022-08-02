@@ -46,7 +46,6 @@ func TestOfflineStores(t *testing.T) {
 	os.Setenv("TZ", "UTC")
 
 	snowFlakeDatabase := strings.ToUpper(uuid.NewString())
-	redshiftDatabase := fmt.Sprintf("ff%s", strings.ToLower(uuid.NewString()))
 	t.Log("Snowflake Database: ", snowFlakeDatabase)
 	var snowflakeConfig = SnowflakeConfig{
 		Username:     os.Getenv("SNOWFLAKE_USERNAME"),
@@ -66,6 +65,7 @@ func TestOfflineStores(t *testing.T) {
 		}
 	}(snowflakeConfig)
 
+	redshiftDatabase := fmt.Sprintf("ff%s", strings.ToLower(uuid.NewString()))
 	var redshiftConfig = RedshiftConfig{
 		Endpoint: os.Getenv("REDSHIFT_ENDPOINT"),
 		Port:     os.Getenv("REDSHIFT_PORT"),

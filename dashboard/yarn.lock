@@ -383,15 +383,15 @@
     "prop-types" "^15.8.1"
     "react-is" "^18.2.0"
 
-"@next/env@12.2.3":
-  "integrity" "sha512-2lWKP5Xcvnor70NaaROZXBvU8z9mFReePCG8NhZw6NyNGnPvC+8s+Cre/63LAB1LKzWw/e9bZJnQUg0gYFRb2Q=="
-  "resolved" "https://registry.npmjs.org/@next/env/-/env-12.2.3.tgz"
-  "version" "12.2.3"
+"@next/env@12.2.4-canary.8":
+  "integrity" "sha512-UCxihMhR1gIvJU4geqOFYWMa/HS8qWncaOhaUUKoBDcB82LGmUVAiQ7ONseGD3jDDHlVS8IrbUlEDx9sYzcAGw=="
+  "resolved" "https://registry.npmjs.org/@next/env/-/env-12.2.4-canary.8.tgz"
+  "version" "12.2.4-canary.8"
 
-"@next/swc-win32-x64-msvc@12.2.3":
-  "integrity" "sha512-huSNb98KSG77Kl96CoPgCwom28aamuUsPpRmn/4s9L0RNbbHVSkp9E6HA4yOAykZCEuWcdNsRLbVVuAbt8rtIw=="
-  "resolved" "https://registry.npmjs.org/@next/swc-win32-x64-msvc/-/swc-win32-x64-msvc-12.2.3.tgz"
-  "version" "12.2.3"
+"@next/swc-win32-x64-msvc@12.2.4-canary.8":
+  "integrity" "sha512-gHHcTM3MTY3MZDXsIWisFlSIxE0SlqrSef3waEGk0q9qYgSOwNK7Vm+4UNWIPsv/5RuYnSCCTTEOZeomoeOs3Q=="
+  "resolved" "https://registry.npmjs.org/@next/swc-win32-x64-msvc/-/swc-win32-x64-msvc-12.2.4-canary.8.tgz"
+  "version" "12.2.4-canary.8"
 
 "@nivo/annotations@0.73.0":
   "integrity" "sha512-1rLAX5tcQh1Zo8ToENIO2WI1va72UhKc9K3219rtGRhXsy3f2hbmRZiw/iOJCLqzGtmT8RIKA++hOExWSyh4dQ=="
@@ -847,14 +847,7 @@
   "resolved" "https://registry.npmjs.org/atob/-/atob-2.1.2.tgz"
   "version" "2.1.2"
 
-"axios@^0.23.0":
-  "integrity" "sha512-NmvAE4i0YAv5cKq8zlDoPd1VLKAqX5oLuZKs8xkJa4qi6RGn0uhCYFjWtHHC9EM/MwOwYWOs53W+V0aqEXq1sg=="
-  "resolved" "https://registry.npmjs.org/axios/-/axios-0.23.0.tgz"
-  "version" "0.23.0"
-  dependencies:
-    "follow-redirects" "^1.14.4"
-
-"axios@^0.26.0":
+"axios@^0.26.0", "axios@^0.26.1":
   "integrity" "sha512-fPwcX4EvnSHuInCMItEhAGnaSEXRBjtzh9fOtsE6E1G6p7vl7edEeZe11QHf18+6+9gR5PbKV/sGKNaD8YaMeA=="
   "resolved" "https://registry.npmjs.org/axios/-/axios-0.26.1.tgz"
   "version" "0.26.1"
@@ -958,26 +951,26 @@
     "moment" "^2.10.2"
 
 "chartjs-color-string@^0.4.0":
-  "integrity" "sha1-V3SNRTCuKNjbClSSGCugbf3y9Gg="
+  "integrity" "sha512-DluZ+kINsaVNF6VhZIEZGRY6eZWjedgkK+7xXZNpn5/+uxW4jHjY4kulOjV4YUKJ4BedTc8TYeV9n9LpLOWXkA=="
   "resolved" "https://registry.npmjs.org/chartjs-color-string/-/chartjs-color-string-0.4.0.tgz"
   "version" "0.4.0"
   dependencies:
     "color-name" "^1.0.0"
 
 "chartjs-color@^2.1.0":
-  "integrity" "sha1-nDmsgwzNmJlq6AyfEQhv8SyYp1Y="
+  "integrity" "sha512-ta1qm+deBMqfYCnyB8D4m/6NO0RnaU+3S0UdnzxTrmMlLUwaS2sjkJqu0opsMZ1UWHjwayqNFJRSyvglPeejeA=="
   "resolved" "https://registry.npmjs.org/chartjs-color/-/chartjs-color-2.1.0.tgz"
   "version" "2.1.0"
   dependencies:
     "chartjs-color-string" "^0.4.0"
     "color-convert" "^0.5.3"
 
-"chartjs-plugin-datasource-prometheus@^1.0.6":
-  "integrity" "sha512-lS9XyC/caeN0qEXOMidTiv4C2JsrACRpRBoJQtgGHVelN1hg/jxvS0E8IvZkvV7R5LMOHQuI01Hc/5nI5C9NEg=="
-  "resolved" "https://registry.npmjs.org/chartjs-plugin-datasource-prometheus/-/chartjs-plugin-datasource-prometheus-1.0.6.tgz"
-  "version" "1.0.6"
+"chartjs-plugin-datasource-prometheus@^1.0.11":
+  "integrity" "sha512-8tlaVUZ8PWA8G0Anf4VpRwCv/fWilsMDdktmd5Yo2Ky9SF9J2pEH7l4EeaRj76TsppaKj9028tS8H44uEuvfdQ=="
+  "resolved" "https://registry.npmjs.org/chartjs-plugin-datasource-prometheus/-/chartjs-plugin-datasource-prometheus-1.0.11.tgz"
+  "version" "1.0.11"
   dependencies:
-    "prometheus-query" "^3.2.0"
+    "prometheus-query" "^3.2.5"
 
 "cheerio-select@^1.5.0":
   "integrity" "sha512-qocaHPv5ypefh6YNxvnbABM07KMxExbtbfuJoIie3iZXX1ERwYmJcIiRrr9H05ucQP1k28dav8rpdDgjQd8drg=="
@@ -1014,7 +1007,7 @@
   "version" "1.2.1"
 
 "color-convert@^0.5.3":
-  "integrity" "sha1-vbbGnOZg+t/+CwAHzER+G59ygr0="
+  "integrity" "sha512-RwBeO/B/vZR3dfKL1ye/vx8MHZ40ugzpyfeVG5GsiuGnrlMWe2o8wxBbLCpw9CsxV+wHuzYlCiWnybrIA0ling=="
   "resolved" "https://registry.npmjs.org/color-convert/-/color-convert-0.5.3.tgz"
   "version" "0.5.3"
 
@@ -1540,7 +1533,7 @@
   "resolved" "https://registry.npmjs.org/find-root/-/find-root-1.1.0.tgz"
   "version" "1.1.0"
 
-"follow-redirects@^1.14.4", "follow-redirects@^1.14.8":
+"follow-redirects@^1.14.8":
   "integrity" "sha512-yLAMQs+k0b2m7cVxpS1VKJVvoz7SS9Td1zss3XRwXj+ZDH00RJgnuLx7E44wx02kQLrdM3aOOy+FpzS7+8OizA=="
   "resolved" "https://registry.npmjs.org/follow-redirects/-/follow-redirects-1.15.1.tgz"
   "version" "1.15.1"
@@ -2079,31 +2072,31 @@
   "resolved" "https://registry.npmjs.org/next-tick/-/next-tick-1.0.0.tgz"
   "version" "1.0.0"
 
-"next@^12.2.3":
-  "integrity" "sha512-TA0tmSA6Dk6S6kfvCNbF7CWYW8468gZUxr/3/30z4KvAQbXnl2ASYZElVe7q/hBW/1F1ee0tSBlHa4/sn+ZIBw=="
-  "resolved" "https://registry.npmjs.org/next/-/next-12.2.3.tgz"
-  "version" "12.2.3"
+"next@^12.2.4-canary.8":
+  "integrity" "sha512-iq8+2YXqXtUqqGdcUoKTRBJLhaXvW7l0o6TD/HUUCN2BgbokUdHX8GONW/+Bb1u8iJG9ZgBEOCTcaEbNa3wdCQ=="
+  "resolved" "https://registry.npmjs.org/next/-/next-12.2.4-canary.8.tgz"
+  "version" "12.2.4-canary.8"
   dependencies:
-    "@next/env" "12.2.3"
+    "@next/env" "12.2.4-canary.8"
     "@swc/helpers" "0.4.3"
     "caniuse-lite" "^1.0.30001332"
     "postcss" "8.4.14"
     "styled-jsx" "5.0.2"
     "use-sync-external-store" "1.2.0"
   optionalDependencies:
-    "@next/swc-android-arm-eabi" "12.2.3"
-    "@next/swc-android-arm64" "12.2.3"
-    "@next/swc-darwin-arm64" "12.2.3"
-    "@next/swc-darwin-x64" "12.2.3"
-    "@next/swc-freebsd-x64" "12.2.3"
-    "@next/swc-linux-arm-gnueabihf" "12.2.3"
-    "@next/swc-linux-arm64-gnu" "12.2.3"
-    "@next/swc-linux-arm64-musl" "12.2.3"
-    "@next/swc-linux-x64-gnu" "12.2.3"
-    "@next/swc-linux-x64-musl" "12.2.3"
-    "@next/swc-win32-arm64-msvc" "12.2.3"
-    "@next/swc-win32-ia32-msvc" "12.2.3"
-    "@next/swc-win32-x64-msvc" "12.2.3"
+    "@next/swc-android-arm-eabi" "12.2.4-canary.8"
+    "@next/swc-android-arm64" "12.2.4-canary.8"
+    "@next/swc-darwin-arm64" "12.2.4-canary.8"
+    "@next/swc-darwin-x64" "12.2.4-canary.8"
+    "@next/swc-freebsd-x64" "12.2.4-canary.8"
+    "@next/swc-linux-arm-gnueabihf" "12.2.4-canary.8"
+    "@next/swc-linux-arm64-gnu" "12.2.4-canary.8"
+    "@next/swc-linux-arm64-musl" "12.2.4-canary.8"
+    "@next/swc-linux-x64-gnu" "12.2.4-canary.8"
+    "@next/swc-linux-x64-musl" "12.2.4-canary.8"
+    "@next/swc-win32-arm64-msvc" "12.2.4-canary.8"
+    "@next/swc-win32-ia32-msvc" "12.2.4-canary.8"
+    "@next/swc-win32-x64-msvc" "12.2.4-canary.8"
 
 "nth-check@^2.0.0":
   "integrity" "sha512-it1vE95zF6dTT9lBsYbxvqh0Soy4SPowchj0UBGj/V6cTPnXXtQOPUbhZ6CmGzAD/rW22LQK6E96pcdJXk4A4w=="
@@ -2295,12 +2288,12 @@
   "resolved" "https://registry.npmjs.org/prismjs/-/prismjs-1.27.0.tgz"
   "version" "1.27.0"
 
-"prometheus-query@^3.2.0":
-  "integrity" "sha512-wkfUPmPxBXhzsP0QL1mNPv/uJ96Jj1o/eravCQyMapRJn7wEyo5rQy5jFpNwou/ScssWejRCREpVjjkgmiMsWw=="
-  "resolved" "https://registry.npmjs.org/prometheus-query/-/prometheus-query-3.2.0.tgz"
-  "version" "3.2.0"
+"prometheus-query@^3.2.5":
+  "integrity" "sha512-2oSoR+sfGb7o41vF9pRKEjJA4JRJEoO9b+idxbmb261lydk3d65DYjUjJQFU1gAOK10F+wU4+RU5QhmTLr4Q4w=="
+  "resolved" "https://registry.npmjs.org/prometheus-query/-/prometheus-query-3.2.5.tgz"
+  "version" "3.2.5"
   dependencies:
-    "axios" "^0.23.0"
+    "axios" "^0.26.1"
 
 "prop-types@^15.5.8", "prop-types@^15.6.0", "prop-types@^15.6.2", "prop-types@^15.7.0", "prop-types@^15.7.2", "prop-types@^15.8.1", "prop-types@>= 15.5.10 < 16.0.0":
   "integrity" "sha512-oj87CgZICdulUohogVAR7AjlC0327U4el4L6eAvOqCeudMDVU0NThNaV+b9Df4dXgSP1gXMTnPdhfe/2qDH5cg=="

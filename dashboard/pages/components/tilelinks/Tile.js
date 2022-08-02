@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Icon from "@material-ui/core/Icon";
 import { makeStyles } from "@material-ui/core/styles";
 import { useRouter } from "next/router";
@@ -63,6 +63,21 @@ const useStyles = makeStyles((theme, id) => ({
   },
 }));
 
+function ClientOnly({ children, ...delegated }) {
+  const [hasMounted, setHasMounted] = useState(false);
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+  if (!hasMounted) {
+    return null;
+  }
+  return (
+    <div {...delegated}>
+      {children}
+    </div>
+  );
+}
+
 const Tile = ({ detail, id }) => {
   let router = useRouter();
   let resourceType = Resource[detail.type];
@@ -80,29 +95,31 @@ const Tile = ({ detail, id }) => {
   };
 
   return (
-    <Box sx={{ boxShadow: 3 }}>
-      <div className={classes.root}>
-        <Button
-          className={buttonClass}
-          onClick={handleClick}
-          disabled={disabled}
-          focusRipple={true}
-          variant="contained"
-        >
-          <div className={classes.tileContent}>
-            <div>
-              <Icon className={classes.icon}>{resourceType.materialIcon}</Icon>
-            </div>
+    <ClientOnly>
+      <Box sx={{ boxShadow: 3 }}>
+        <div className={classes.root}>
+          <Button
+            className={buttonClass}
+            onClick={handleClick}
+            disabled={disabled}
+            focusRipple={true}
+            variant="contained"
+          >
+            <div className={classes.tileContent}>
+              <div>
+                <Icon className={classes.icon}>{resourceType.materialIcon}</Icon>
+              </div>
 
-            <div>
-              <Typography className={classes.title} variant="h5">
-                <b>{resourceType.typePlural}</b>
-              </Typography>
+              <div>
+                <Typography className={classes.title} variant="h5">
+                  <b>{resourceType.typePlural}</b>
+                </Typography>
+              </div>
             </div>
-          </div>
-        </Button>
-      </div>
-    </Box>
+          </Button>
+        </div>
+      </Box>
+    </ClientOnly>
   );
 };
 

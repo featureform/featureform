@@ -34,25 +34,6 @@ export const App = ({ Component, pageProps }) => {
       >
         <BreadCrumbs />
         <Component {...pageProps} />
-        {/* <HomePage /> */}
-        {/* <Switch>
-          <Route path="/:type/:entity">
-            <EntityPage api={apiHandle} />
-          </Route>
-          <Route path="/search">
-            <SearchResults api={apiHandle} />
-          </Route>
-          <Route path="/connections">
-            <ConnectionPage />
-          </Route>
-          <Route path="/:type">
-            <DataPage />
-          </Route>
-          <Route path="/">
-            <HomePage />
-          </Route>
-          <Route component={NotFoundPage} />
-        </Switch> */}
       </Container>
     </ThemeWrapper>
   );

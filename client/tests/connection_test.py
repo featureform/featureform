@@ -21,7 +21,7 @@ def test_serving_connection():
     host = os.getenv('API_ADDRESS', "localhost:7878")
     serving_host = os.getenv('SERVING_HOST')
     try:
-        client = ServingClient(host=host, tls_verify=False)
+        client = ServingClient(host=host, insecure=True)
         client.features([("f1", "v1")], {"user": "a"})
     # Expect error since feature server behind api server is not running
     # Checks that the feature server hostname failed to resolve

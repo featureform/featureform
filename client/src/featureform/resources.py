@@ -703,8 +703,8 @@ class ProviderReference:
         except grpc._channel._MultiThreadedRendezvous:
             raise ValueError(f"Provider {self.name} of type {self.provider_type} not found.")
         
-    def _get_local_provider(self, db):
-        local_provider = db.getVariantResource("providers", "name", self.name)
+    def _get_local(self, db):
+        local_provider = db.query_resource("providers", "local mode", self.name)
         if local_provider == []:
             raise ValueError("Local mode provider not found.")
         self.obj = local_provider
@@ -732,8 +732,8 @@ class SourceReference:
         except grpc._channel._MultiThreadedRendezvous:
             raise ValueError(f"Source {self.name}, variant {self.variant} not found.")
     
-    def _get_local_provider(self, db):
-        local_source = db.getNameVariant("source_variant", "name", self.name, "variant", self.variant)
+    def _get_local(self, db):
+        local_source = db.get_source_variant(self.name, self.variant)
         if local_source == []:
             raise ValueError(f"Source {self.name}, variant {self.variant} not found.")
         self.obj = local_source
@@ -795,8 +795,7 @@ class TrainingSet:
                   self.variant,
                   self.label[0],
                   self.label[1],
-                  "ready",
-                  str(self.features)
+                  "ready"
                   )
         self._create_training_set_resource(db)
 
@@ -810,12 +809,12 @@ class TrainingSet:
 
     def _check_insert_training_set_resources(self, db) -> None:
         try:
-            db.getNameVariant("label_variant", "name", self.label[0], "variant", self.label[1])
+            db.get_label_variant(self.label[0], self.label[1])
         except ValueError:
             raise ValueError(f"{self.label[0]} does not exist. Failed to register training set")
         for feature_name, feature_variant in self.features:
             try:
-                db.getNameVariant("feature_variant", "name", feature_name, "variant", feature_variant)
+                db.get_feature_variant(feature_name, feature_variant)
             except ValueError:
                 raise ValueError(f"{feature_name} does not exist. Failed to register training set")
             db.insert(

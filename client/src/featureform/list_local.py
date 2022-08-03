@@ -34,7 +34,7 @@ def list_conditions(x, clm_name, default_variant=None):
     if clm_name == "variant" and default_variant == x[clm_name]:
         return f"{x[clm_name]} (default)"
     if clm_name == "description":
-        return x[:cutoff_length]
+        return x[clm_name][:cutoff_length]
     return x[clm_name]
 
 def list_local(resource_type, fields):
@@ -55,5 +55,6 @@ def list_local(resource_type, fields):
                 format_rows(*format_list)
     else:
         for r in res:
-            format_rows(*[list_conditions(r, clm_name) for clm_name in clm_names])
+            format_list = [list_conditions(r, clm_name) for clm_name in clm_names]
+            format_rows(*format_list)
     return res

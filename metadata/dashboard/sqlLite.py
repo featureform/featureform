@@ -255,12 +255,12 @@ class SQLiteTest:
        ''')
     
     # All 3 functions return a cursor, USE THIS
-    def getTypeTable(self, type):
+    def get_type_table(self, type):
         query = "SELECT * FROM " + type
         type_data = conn.execute(query)
         return type_data.fetchall()
     
-    def getVariantResource(self, type, variable, resource):
+    def get_variant_resource(self, type, variable, resource):
         variant_table_query = "SELECT * FROM "+ type +" WHERE " + variable + "='"+resource+"';" 
         variant_data = conn.execute(variant_table_query)
         return variant_data.fetchall()

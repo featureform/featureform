@@ -674,8 +674,8 @@ class EntityReference:
         except grpc._channel._MultiThreadedRendezvous:
             raise ValueError(f"Entity {self.name} not found.")
     
-    def _get_local_provider(self, db):
-        local_entity = db.getVariantResource("entities", "name", self.name)
+    def _get_local(self, db):
+        local_entity = db.query_resource("entities", "name", self.name)
         if local_entity == []:
             raise ValueError(f"Entity {self.name} not found.")
         self.obj = local_entity
@@ -704,7 +704,7 @@ class ProviderReference:
             raise ValueError(f"Provider {self.name} of type {self.provider_type} not found.")
         
     def _get_local(self, db):
-        local_provider = db.query_resource("providers", "local mode", self.name)
+        local_provider = db.query_resource("providers", "name", self.name)
         if local_provider == []:
             raise ValueError("Local mode provider not found.")
         self.obj = local_provider
@@ -896,7 +896,7 @@ class ResourceState:
         for resource in self.__create_list:
             if resource.operation_type() is OperationType.GET:
                 print("Getting", resource.type(), resource.name)
-                resource._get_local_provider(db)
+                resource._get_local(db)
             if resource.operation_type() is OperationType.CREATE:
                 print("Creating", resource.type(), resource.name)
                 resource._create_local(db)

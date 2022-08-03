@@ -204,21 +204,84 @@ class SQLiteMetadata:
           raise ValueError(f"{type} with name: {name} and variant: {variant} not found")
         return variant_data_list
 
+    def get_user(self, name):
+      return self.query_resource("users", "name", name)[0]
+
+    def get_entity(self, name):
+      return self.query_resource("entities", "name", name)[0]
+
+    def get_feature(self, name):
+      return self.query_resource("features", "name", name)[0]
+    
+    def get_label(self, name):
+      return self.query_resource("labels", "name", name)[0]
+    
+    def get_source(self, name):
+      return self.query_resource("sources", "name", name)[0]
+
+    def get_training_set(self, name):
+      return self.query_resource("training_sets", "name", name)[0]
+    
+    def get_model(self, name):
+      return self.query_resource("models", "name", name)[0]
+    
+    def get_provider(self, name):
+      return self.query_resource("providers", "name", name)[0]
+
     def get_feature_variant(self, name, variant):
         query = f"SELECT * FROM feature_variant WHERE name = '{name}' AND variant = '{variant}';"
         return self.fetch_data(query, "feature_variant", name, variant)[0]
 
+    def get_feature_variants_from_provider(self, name):
+        return self.query_resource("feature_variant", "provider", name)
+
+    def get_feature_variants_from_source(self, name, variant):
+        query = f"SELECT * FROM feature_variant WHERE source_name = '{name}' AND source_variant = '{variant}';"
+        return self.fetch_data(query, "feature_variant", name, variant)
+
+    def get_feature_variants_from_feature(self, name):
+      return self.query_resource("feature_variant", "name", name)
+
     def get_training_set_variant(self, name, variant):
         query = f"SELECT * FROM training_set_variant WHERE name = '{name}' AND variant = '{variant}';"
         return self.fetch_data(query, "training_set_variant", name, variant)[0]
+
+    def get_training_set_variant_from_training_set(self, name):
+        return self.query_resource("training_set_variant", "name", name)
+    
+    def get_training_set_variant_from_label(self, name, variant):
+        query = f"SELECT * FROM training_set_variant WHERE label_name = '{name}' AND label_variant = '{variant}';"
+        return self.fetch_data(query, "training_set_variant", name, variant)
     
     def get_label_variant(self, name, variant):
         query = f"SELECT * FROM label_variant WHERE name = '{name}' AND variant = '{variant}';"
         return self.fetch_data(query, "label_variant", name, variant)[0]
+    
+    def get_label_variants_from_label(self, name):
+        return self.query_resource("label_variant", "name", name)
+
+    def get_label_variants_from_provider(self, name):
+        query = f"SELECT * FROM label_variant WHERE provider = '{name}';"
+        return self.query_resource("label_variant", "provider", name)
+    
+    def get_label_variants_from_source(self, name, variant):
+        query = f"SELECT * FROM label_variant WHERE source_name = '{name}' AND source_variant = '{variant}';"
+        return self.fetch_data(query, "label_variant", name, variant)
 
     def get_source_variant(self, name, variant):
         query = f"SELECT * FROM source_variant WHERE name = '{name}' AND variant = '{variant}';"
         return self.fetch_data(query, "source_variant", name, variant)[0]
+
+    def get_source_variants_from_source(self, name):
+        return self.query_resource("source_variant", "name", name)
+
+    def get_training_set_from_features(self, name, variant):
+        query = f"SELECT * FROM training_set_features WHERE feature_name = '{name}' AND feature_variant = '{variant}';"
+        return self.fetch_data(query, "training_set_features", name, variant)
+
+    def get_training_set_from_labels(self, name, variant):
+        query = f"SELECT * FROM training_set_variant WHERE label_name = '{name}' AND label_variant = '{variant}';"
+        return self.fetch_data(query, "training_set_variant", name, variant)
 
     def get_training_set_features(self, name, variant):
         query = f"SELECT * FROM training_set_features WHERE training_set_name = '{name}' AND training_set_variant = '{variant}';"

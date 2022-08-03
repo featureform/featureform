@@ -94,6 +94,8 @@ class Client:
                 df.rename(columns={feature_row['source_value']: name_variant}, inplace=True)
             else:
                 df = pd.read_csv(str(source_row['definition']))
+                print("Read")
+                print(df)
                 if feature_row['source_timestamp'] != "":
                     df = df[[feature_row['source_entity'], feature_row['source_value'], feature_row['source_timestamp']]]
                     df[feature_row['source_timestamp']] = pd.to_datetime(df[feature_row['source_timestamp']])
@@ -114,6 +116,8 @@ class Client:
                                                      lsuffix="_left")
                 if "index" in trainingset_df.columns:
                     trainingset_df.drop(columns='index', inplace=True)
+            print("Training Set")
+            print(trainingset_df)
 
         if label_row['source_timestamp'] != "":
             trainingset_df.drop(columns=label_row['source_timestamp'], inplace=True)

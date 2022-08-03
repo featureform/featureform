@@ -367,6 +367,7 @@ class TestTrainingSet(TestCase):
             ],
             timestamp_column=label['ts_col']
         )
+        return file
 
     def test_all(self):
         for name, case in cases.training_set.items():
@@ -383,7 +384,7 @@ class TestTrainingSet(TestCase):
                     self._register_feature(feature, local, case, i)
                     feature_list.append((f"feat{i}", "default"))
 
-                self._register_label(local, case)
+                file = self._register_label(local, case)
 
                 ff.register_training_set(
                     "training_set", "default",
@@ -394,6 +395,8 @@ class TestTrainingSet(TestCase):
                 client = ff.ResourceClient(local=True)
                 client.apply()
                 serving = ff.ServingClient(local=True)
+                with open(file, 'r') as f:
+                    print(f.read())
                 tset = serving.training_set("training_set", "default")
                 actual_len = 0
                 expected_len = len(case['expected'])

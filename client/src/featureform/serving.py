@@ -95,6 +95,8 @@ class Client:
             else:
                 df = pd.read_csv(str(source_row['definition']))
                 print("Read")
+                with open(str(source_row['definition']), 'r') as f:
+                    print(f.read())
                 print(df)
                 if feature_row['source_timestamp'] != "":
                     df = df[[feature_row['source_entity'], feature_row['source_value'], feature_row['source_timestamp']]]
@@ -235,6 +237,8 @@ class Client:
 
     def process_label_csv(self, source_path, entity_name, entity_col, value_col, timestamp_column):
         df = pd.read_csv(source_path)
+        with open(source_path, 'r') as f:
+            print(f.read())
         if entity_col not in df.columns:
             raise KeyError(f"Entity column does not exist: {entity_col}")
         if value_col not in df.columns:

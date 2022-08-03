@@ -2849,31 +2849,6 @@ func Test_createResourceFromSourceNoTS(t *testing.T) {
 		t.Fatal("Failed to get snowflake provider")
 	}
 
-	bigqueryCredentials := os.Getenv("BIGQUERY_CREDENTIALS")
-	JSONCredentials, err := ioutil.ReadFile(bigqueryCredentials)
-	if err != nil {
-		panic(err)
-	}
-	bigQueryDatasetId := strings.Replace(strings.ToUpper(uuid.NewString()), "-", "_", -1)
-	os.Setenv("BIGQUERY_DATASET_ID", bigQueryDatasetId)
-	t.Log("BigQuery Dataset: ", bigQueryDatasetId)
-
-	var bigQueryConfig = BigQueryConfig{
-		ProjectId:   os.Getenv("BIGQUERY_PROJECT_ID"),
-		DatasetId:   os.Getenv("BIGQUERY_DATASET_ID"),
-		Credentials: JSONCredentials,
-	}
-	serialBQConfig := bigQueryConfig.Serialize()
-
-	if err := createBigQueryDataset(bigQueryConfig); err != nil {
-		t.Fatalf("Cannot create BigQuery Dataset: %v", err)
-	}
-	defer destroyBigQueryDataset(bigQueryConfig)
-	bqProvider, err := Get(BigQueryOffline, serialBQConfig)
-	if err != nil {
-		t.Fatal("Failed to get bigquery provider")
-	}
-
 	for name, provider := range map[string]Provider{"POSTGRES": pgProvider, "SNOWFLAKE": sfProvider, "BIGQUERY": bqProvider} {
 		t.Run(name, func(t *testing.T) {
 

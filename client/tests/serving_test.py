@@ -295,7 +295,6 @@ class TestTransformation(TestCase):
         )
 
     def run_checks(self, transformation, name, local):
-        print("MADE LOCAL", name)
         transformation.register_resources(
             entity="user1",
             entity_column="entity",
@@ -308,7 +307,6 @@ class TestTransformation(TestCase):
         client.apply()
         serve = ServingClient(local=True)
         res = serve.features([(f"feature-{name}", name)], {"entity": "a"})
-        print(res)
         return res
 
     @pytest.fixture(autouse=True)
@@ -369,7 +367,8 @@ class TestTrainingSet(TestCase):
             ],
             timestamp_column=label['ts_col']
         )
-    def test_no_ts(self):
+
+    def test_all(self):
         for name, case in cases.training_set.items():
             with self.subTest(msg=name):
                 print("TEST: ", name)
@@ -386,7 +385,6 @@ class TestTrainingSet(TestCase):
 
                 self._register_label(local, case)
 
-                print(feature_list)
                 ff.register_training_set(
                     "training_set", "default",
                     label=("label", "default"),

@@ -2849,7 +2849,7 @@ func Test_createResourceFromSourceNoTS(t *testing.T) {
 		t.Fatal("Failed to get snowflake provider")
 	}
 
-	for name, provider := range map[string]Provider{"POSTGRES": pgProvider, "SNOWFLAKE": sfProvider, "BIGQUERY": bqProvider} {
+	for name, provider := range map[string]Provider{"POSTGRES": pgProvider, "SNOWFLAKE": sfProvider} {
 		t.Run(name, func(t *testing.T) {
 
 			store, err := provider.AsOfflineStore()

@@ -307,7 +307,7 @@ class TestTransformation(TestCase):
         client.apply()
         serve = ServingClient(local=True)
         res = serve.features([(f"feature-{name}", name)], {"entity": "a"})
-        serve.sqldb.close()
+        serve.impl.db.close()
         return res
 
     @pytest.fixture(autouse=True)
@@ -399,7 +399,7 @@ class TestTrainingSet(TestCase):
                 serving = ff.ServingClient(local=True)
 
                 tset = serving.training_set(f"training_set-{name}", "default")
-                serving.sqldb.close()
+                serving.impl.db.close()
                 actual_len = 0
                 expected_len = len(case['expected'])
                 for i, r in enumerate(tset):

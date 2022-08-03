@@ -1,5 +1,5 @@
 name: Testing
-on: [push]
+on: [pull_request]
 
 env:
   TYPESENSE_PORT: 8108
@@ -668,35 +668,7 @@ jobs:
       - name: Install featureform
         run: pip install client/dist/featureform-0.0.0-py3-none-any.whl
 
-      - name: Download Test Data
-        run: curl https://featureform-demo-files.s3.amazonaws.com/transactions.csv -o transactions.csv
-
-      - name: Featureform Apply
-        run: python -m featureform apply client/examples/local_quickstart.py --local
-
-      - name: Run Quickstart Test
-        run: pytest client/tests/localmode.py
-
-      - name: Run Register Tests
-        run: python client/tests/local_test.py
-
-      - name: Clear SQLite
-        run: rm -r .featureform
-
-      - name: Run Unit Tests
-        run: pytest client/tests/serving_test.py -s
-
-      - name: Clear SQLite
-        continue-on-error: true
-        run: rm -r .featureform
-
-      - name: Run Client Tests
-        run: pytest client/tests/local_test.py -s
-
-      - name: Install colab dependencies
-        run: pip install jupyter nbconvert matplotlib pandas scikit-learn requests
-
-      - name: Run Colab
-        run: jupyter nbconvert --to notebook --execute notebooks/Fraud_Detection_Example.ipynb
+      - name: Run Tests
+        run: make pytest
 
         

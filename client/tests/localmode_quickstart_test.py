@@ -4,6 +4,7 @@ import stat
 
 import featureform as ff
 import pandas as pd
+import pytest
 
 class Quickstart:
     file = './transactions.csv'
@@ -69,9 +70,9 @@ class Quickstart:
         feature = client.features([(self.feature_name, self.feature_variant)], {self.entity: self.entity_value})
         assert feature == pd.array([self.entity_value])
 
-    def test_cleanup(tmpdir):
+
+    def cleanup(self):
         try:
-            ff.clear_state()
             client = ff.ServingClient(local=True)
             client.sqldb.close()
             shutil.rmtree('.featureform', onerror=del_rw)
@@ -137,8 +138,6 @@ class TestCLI:
 
 
 class TestResourceClient:
-
-
     def test_setup(self):
 
         ff.register_user("featureformer").make_default_owner()
@@ -185,6 +184,7 @@ class TestResourceClient:
 
         client = ff.ResourceClient(local=True)
         client.apply()
+
     Tests = Quickstart
 
 

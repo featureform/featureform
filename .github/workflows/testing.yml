@@ -674,17 +674,17 @@ jobs:
       - name: Run Quickstart Test
         run: pytest client/tests/localmode_quickstart_test.py
 
-      - name: Run Redefined Tests
-        run: pytest client/tests/redefined_test.py
-
-      - name: Run Register Tests
-        run: python client/tests/local_test.py
-
       - name: Clear SQLite
         run: rm -r .featureform
 
       - name: Run Unit Tests
         run: pytest client/tests/serving_test.py -s
+
+      - name: Run Redefined Tests
+        run: pytest client/tests/redefined_test.py
+
+      - name: Run Register Tests
+        run: python client/tests/local_test.py
 
       - name: Clear SQLite
         continue-on-error: true

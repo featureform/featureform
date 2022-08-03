@@ -1,7 +1,9 @@
-from featureform import ServingClient, ResourceClient
+#from featureform import ServingClient, ResourceClient
 import grpc
 import os
-
+import sys
+sys.path.insert(0, 'client/src/')
+from featureform import ResourceClient, ServingClient
 # Tests to make sure client can successfully connect to metadata endpoints
 def test_metadata_connection():
     host = os.getenv('API_ADDRESS', "localhost:7878")

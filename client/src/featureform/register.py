@@ -331,6 +331,10 @@ class DFTransformationDecorator:
             self.description = fn.__doc__
         if self.name == "":
             self.name = fn.__name__
+
+        for nv in self.inputs:
+            if self.name is nv[0] and self.variant is nv[1]:
+                raise ValueError(f"Transformation cannot be input for itself: {self.name} {self.variant}")
         self.query = marshal.dumps(fn.__code__)
         fn.register_resources = self.register_resources
         return fn

@@ -22,14 +22,22 @@
 help:     						## Show this help.
 	@sed -ne '/@sed/!s/## //p' $(MAKEFILE_LIST)
 
+pytest:
+	-rm -r .featureform
+	curl -C - https://featureform-demo-files.s3.amazonaws.com/transactions.csv -o transactions.csv
+	pytest client/tests/localmode_quickstart_test.py
+	pytest client/tests/redefined_test.py
+	pytest client/tests/local_test.py
+	pytest client/tests/serving_test.py
+	pip install jupyter nbconvert matplotlib pandas scikit-learn requests
+	jupyter nbconvert --to notebook --execute notebooks/Fraud_Detection_Example.ipynb
+	-rm -r .featureform
+
 etcdctl: 						## Installs ETCDCTL. Required for reset_e2e
 	-git clone -b v3.4.16 https://github.com/etcd-io/etcd.git
 	cd etcd && ./build
 	export PATH=$PATH:"`pwd`/etcd/bin"
 	etcdctl version
-
-create_venv:						## Creates a virtual environment to test from
-	python3 -m venv test_venv
 
 gen_grpc:						## Generates GRPC Dependencies
 	pip3 install grpcio-tools
@@ -45,8 +53,7 @@ gen_grpc:						## Generates GRPC Dependencies
 	protoc --go_out=. --go_opt=paths=source_relative     --go-grpc_out=. --go-grpc_opt=paths=source_relative     ./metadata/proto/metadata.proto
 	python -m grpc_tools.protoc -I ./client/src --python_out=./client/src/ --grpc_python_out=./client/src/ ./client/src/featureform/proto/metadata.proto
 
-update_python: create_venv gen_grpc 			## Updates the python package locally
-	cd test_venv/bin && source activate
+update_python: gen_grpc 			## Updates the python package locally
 	pip3 install pytest
 	pip3 install build
 	pip3 uninstall featureform  -y
@@ -86,8 +93,6 @@ install_featureform: start_minikube containers		## Configures Featureform on Min
     export FEATUREFORM_CERT="tls.crt"
 
 test_e2e: update_python					## Runs End-to-End tests on minikube
-	cd test_venv/bin && source activate
-	cd ../../
 	pip3 install requests
 	-helm install quickstart ./charts/quickstart
 	kubectl wait --for=condition=complete job/featureform-quickstart-loader --timeout=360s

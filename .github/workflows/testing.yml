@@ -671,10 +671,4 @@ jobs:
       - name: Run Tests
         run: make pytest
 
-      - name: Install colab dependencies
-        run: pip install jupyter nbconvert matplotlib pandas scikit-learn requests
-
-      - name: Run Colab
-        run: jupyter nbconvert --to notebook --execute notebooks/Fraud_Detection_Example.ipynb
-
         

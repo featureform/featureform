@@ -440,6 +440,7 @@ def create_temp_file(test_values):
         writer.writerow(test_values['columns'])
         for row in test_values['values']:
             writer.writerow(row)
+        csvfile.close()
 
     return file.name
 

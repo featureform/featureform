@@ -34,7 +34,7 @@ class Client:
 
     def process_feature_csv(self, source_path, entity_name, entity_col, value_col, dataframe_mapping,
                             feature_name_variant, timestamp_column):
-        return self.impl.process_feature_csv(self, source_path, entity_name, entity_col, value_col, dataframe_mapping, feature_name_variant, timestamp_column):
+        return self.impl.process_feature_csv(self, source_path, entity_name, entity_col, value_col, dataframe_mapping, feature_name_variant, timestamp_column)
 
 class LocalClientImpl():
     

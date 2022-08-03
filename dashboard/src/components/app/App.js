@@ -7,12 +7,12 @@ import ResourcesAPI from "../../api/resources";
 import HomePage from "../homepage/HomePage";
 import DataPage from "../datapage/DataPage";
 import TopBar from "../topbar/TopBar";
-import EntityPage from "../../components/entitypage/EntityPage";
-import BreadCrumbs from "../../components/breadcrumbs/BreadCrumbs";
+import EntityPage from "../entitypage/EntityPage";
+import BreadCrumbs from "../breadcrumbs/BreadCrumbs";
 import Container from "@material-ui/core/Container";
 import SearchResults from "../searchresults/SearchResults";
-import NotFoundPage from "../../components/notfoundpage/NotFoundPage";
-import ConnectionPage from "../../components/connectionpage";
+import NotFoundPage from "../notfoundpage/NotFoundPage";
+import ConnectionPage from "../connectionpage";
 
 const apiHandle = new ResourcesAPI();
 const useStyles = makeStyles((theme) => ({

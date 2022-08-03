@@ -1,3 +1,3 @@
-import ConnectionPage from "./components/connectionpage/ConnectionPage"
+import ConnectionPage from "../src/components/connectionpage/ConnectionPage"
 
 export default ConnectionPage

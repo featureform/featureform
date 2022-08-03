@@ -365,7 +365,7 @@ class TestTrainingSet(TestCase):
             entity_column=case['entity_loc'],
             inference_store=local,
             labels=[
-                {"name": "label", "variant": "default", "column": 'value', "type": "bool"},
+                {"name": f"label-{name}", "variant": "default", "column": 'value', "type": "bool"},
             ],
             timestamp_column=label['ts_col']
         )
@@ -389,8 +389,8 @@ class TestTrainingSet(TestCase):
                 self._register_label(local, case, name)
 
                 ff.register_training_set(
-                    "training_set", "default",
-                    label=("label", "default"),
+                    f"training_set-{name}", "default",
+                    label=(f"label-{name}", "default"),
                     features=feature_list
                 )
 
@@ -398,7 +398,7 @@ class TestTrainingSet(TestCase):
                 client.apply()
                 serving = ff.ServingClient(local=True)
 
-                tset = serving.training_set("training_set", "default")
+                tset = serving.training_set(f"training_set-{name}", "default")
                 serving.sqldb.close()
                 actual_len = 0
                 expected_len = len(case['expected'])

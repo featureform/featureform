@@ -40,6 +40,7 @@ etcdctl: 						## Installs ETCDCTL. Required for reset_e2e
 	cd etcd && ./build
 	export PATH=$PATH:"`pwd`/etcd/bin"
 	etcdctl version
+##############################################  SETUP ##################################################################
 
 gen_grpc:						## Generates GRPC Dependencies
 	pip3 install grpcio-tools
@@ -55,14 +56,38 @@ gen_grpc:						## Generates GRPC Dependencies
 	protoc --go_out=. --go_opt=paths=source_relative     --go-grpc_out=. --go-grpc_opt=paths=source_relative     ./metadata/proto/metadata.proto
 	python3 -m grpc_tools.protoc -I ./client/src --python_out=./client/src/ --grpc_python_out=./client/src/ ./client/src/featureform/proto/metadata.proto
 
-update_python: gen_grpc 			## Updates the python package locally
+update_python: gen_grpc 				## Updates the python package locally
 	pip3 install pytest
 	pip3 install build
 	pip3 uninstall featureform  -y
 	-rm -r client/dist/*
 	python3 -m build ./client/
 	pip3 install client/dist/*.whl
+etcdctl: 						## Installs ETCDCTL. Required for reset_e2e
+	-git clone -b v3.4.16 https://github.com/etcd-io/etcd.git
+	cd etcd && ./build
+	export PATH=$PATH:"`pwd`/etcd/bin"
+	etcdctl version
 
+##############################################  PYTHON TESTS ###########################################################
+pytest:							## Run pytest tests
+	-rm -r .featureform
+	curl -C - https://featureform-demo-files.s3.amazonaws.com/transactions.csv -o transactions.csv
+	pytest client/tests/localmode_quickstart_test.py
+	pytest client/tests/redefined_test.py
+	pytest client/tests/local_test.py
+	pytest client/tests/serving_test.py
+	pip install jupyter nbconvert matplotlib pandas scikit-learn requests
+	jupyter nbconvert --to notebook --execute notebooks/Fraud_Detection_Example.ipynb
+	-rm -r .featureform
+
+##############################################  GO TESTS ###############################################################
+
+test_offline:						## Run offline tests. Run with `make test_offline provider=(memory | postgres | snowflake | redshift)`
+	-mkdir coverage
+	go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/... --tags=offline --provider=$(provider)
+
+##############################################  MINIKUBE ###############################################################
 
 containers:						## Build Docker containers for Minikube
 	minikube image build -f ./api/Dockerfile . -t local/api-server:stable & \

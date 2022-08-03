@@ -188,9 +188,10 @@ class TestPetalGuide:
                       ("PetalWidth", "join")],
         )
 
-    def test_invalid_label(self):
         client = ff.ResourceClient(local=True)
         client.apply()
+
+    def test_invalid_label(self):
 
         ff.register_training_set(
             "join", "v2",

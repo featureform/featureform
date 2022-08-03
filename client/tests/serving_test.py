@@ -348,6 +348,7 @@ class TestTrainingSet(TestCase):
             ],
             timestamp_column=feature['ts_col']
         )
+        return file
 
     def _register_label(self, local, case):
         label = case['label']
@@ -380,9 +381,12 @@ class TestTrainingSet(TestCase):
                 local = ff.register_local()
                 ff.register_user("featureformer").make_default_owner()
                 feature_list = []
+                feature_files = []
                 for i, feature in enumerate(case['features']):
-                    self._register_feature(feature, local, case, i)
+                    feature_files.append(self._register_feature(feature, local, case, i))
                     feature_list.append((f"feat{i}", "default"))
+
+
 
                 file = self._register_label(local, case)
 
@@ -395,8 +399,16 @@ class TestTrainingSet(TestCase):
                 client = ff.ResourceClient(local=True)
                 client.apply()
                 serving = ff.ServingClient(local=True)
+                for feat in feature_files:
+                    with open(feat, 'r') as f:
+                        print("Feature")
+                        print(f.read())
+
+                print("Label")
                 with open(file, 'r') as f:
                     print(f.read())
+
+
                 tset = serving.training_set("training_set", "default")
                 actual_len = 0
                 expected_len = len(case['expected'])

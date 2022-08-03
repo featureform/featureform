@@ -109,18 +109,18 @@ func TestOfflineStores(t *testing.T) {
 		return serialRSConfig, redshiftConfig
 	}
 
-	if *provider == "memory" || *provider == "all" {
+	if *provider == "memory" || *provider == "" {
 		testList = append(testList, testMember{MemoryOffline, []byte{}, false})
 	}
-	if *provider == "postgres" || *provider == "all" {
+	if *provider == "postgres" || *provider == "" {
 		testList = append(testList, testMember{PostgresOffline, postgresInit(), true})
 	}
-	if *provider == "snowflake" || *provider == "all" {
+	if *provider == "snowflake" || *provider == "" {
 		serialSFConfig, snowflakeConfig := snowflakeInit()
 		defer destroySnowflakeDatabase(snowflakeConfig)
 		testList = append(testList, testMember{SnowflakeOffline, serialSFConfig, true})
 	}
-	if *provider == "redshift" || *provider == "all" {
+	if *provider == "redshift" || *provider == "" {
 		serialRSConfig, redshiftConfig := redshiftInit()
 		defer destroyRedshiftDatabase(redshiftConfig)
 		testList = append(testList, testMember{RedshiftOffline, serialRSConfig, true})

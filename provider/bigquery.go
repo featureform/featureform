@@ -153,20 +153,6 @@ func (pt *bqPrimaryTable) NumRows() (int64, error) {
 	return n[0].(int64), nil
 }
 
-type Inserter struct {
-	Columns []string
-	Record  []bigquery.Value
-}
-
-func (in *Inserter) Save() (map[string]bigquery.Value, string, error) {
-	var recordToInsert = make(map[string]bigquery.Value)
-	for i, rec := range in.Record {
-		recordToInsert[in.Columns[i]] = rec
-	}
-
-	return recordToInsert, "", nil
-}
-
 func (pt *bqPrimaryTable) Write(rec GenericRecord) error {
 	tb := pt.name
 	recordsParameter, columns, columnsString := pt.getNonNullRecords(rec)
@@ -233,7 +219,6 @@ func (it *bqGenericTableIterator) Columns() []string {
 	for _, col := range it.iter.Schema {
 		columns = append(columns, col.Name)
 	}
-
 	return columns
 }
 

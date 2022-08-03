@@ -2085,6 +2085,11 @@ func testTransform(t *testing.T, store OfflineStore) {
 				}
 			}
 
+			tableColumns := iterator.Columns()
+			if len(tableColumns) == 0 {
+				t.Fatalf("The table doesn't have any columns.")
+			}
+
 			if !found {
 				t.Fatalf("The %v value was not found in Expected Values: %v", iterator.Values(), test.Expected)
 			}
@@ -2273,10 +2278,12 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 		if err != nil {
 			t.Errorf("Could not get updated transformation table: %v", err)
 		}
+
 		iterator, err = table.IterateSegment(100)
 		if err != nil {
 			t.Fatalf("Could not get generic iterator: %v", err)
 		}
+
 		i = 0
 		for iterator.Next() {
 			found := false

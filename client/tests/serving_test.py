@@ -377,8 +377,8 @@ class TestTrainingSet(TestCase):
                 print("TEST: ", name)
                 try:
                     clear_and_reset()
-                except:
-                    pass
+                except Exception as e:
+                    print(f"Could Not Reset Database: {e}")
                 local = ff.register_local()
                 ff.register_user("featureformer").make_default_owner()
                 feature_list = []
@@ -423,6 +423,10 @@ class TestTrainingSet(TestCase):
                         case['expected'].remove(actual)
                     else:
                         raise AssertionError(f"{r.features() + [r.label()]} not in  {case['expected']}")
+                try:
+                    clear_and_reset()
+                except Exception as e:
+                    print(f"Could Not Reset Database: {e}")
                 assert actual_len == expected_len
 
 

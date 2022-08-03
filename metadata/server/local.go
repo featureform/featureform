@@ -5,16 +5,18 @@
 package main
 
 import (
+	"fmt"
+	help "github.com/featureform/helpers"
 	"github.com/featureform/metadata"
 	"go.uber.org/zap"
 )
 
 func main() {
 	logger := zap.NewExample().Sugar()
-	addr := ":8888"
+	addr := help.GetEnv("METADATA_PORT", "8888")
 	config := &metadata.Config{
 		Logger:          logger,
-		Address:         addr,
+		Address:         fmt.Sprintf(":%s", addr),
 		StorageProvider: metadata.LocalStorageProvider{},
 	}
 	server, err := metadata.NewMetadataServer(config)

@@ -2845,6 +2845,9 @@ func Test_createResourceFromSourceNoTS(t *testing.T) {
 	}
 	defer destroySnowflakeDatabase(snowflakeConfig)
 	sfProvider, err := Get(SnowflakeOffline, serialSFConfig)
+	if err != nil {
+		t.Fatal("Failed to get snowflake provider")
+	}
 
 	bigqueryCredentials := os.Getenv("BIGQUERY_CREDENTIALS")
 	JSONCredentials, err := ioutil.ReadFile(bigqueryCredentials)
@@ -2867,10 +2870,10 @@ func Test_createResourceFromSourceNoTS(t *testing.T) {
 	}
 	defer destroyBigQueryDataset(bigQueryConfig)
 	bqProvider, err := Get(BigQueryOffline, serialBQConfig)
-
 	if err != nil {
-		t.Fatal("Failed to get postgres provider")
+		t.Fatal("Failed to get bigquery provider")
 	}
+
 	for name, provider := range map[string]Provider{"POSTGRES": pgProvider, "SNOWFLAKE": sfProvider, "BIGQUERY": bqProvider} {
 		t.Run(name, func(t *testing.T) {
 

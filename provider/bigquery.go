@@ -96,6 +96,7 @@ type BQOfflineTableQueries interface {
 	trainingSetQuery(store *bqOfflineStore, def TrainingSetDef, tableName string, labelName string, isUpdate bool) error
 	atomicUpdate(client *bigquery.Client, tableName string, tempName string, query string) error
 	trainingRowSelect(columns string, trainingSetName string) string
+	primaryTableRegister(tableName string, sourceName string) string
 }
 
 type defaultBQQueries struct {
@@ -575,6 +576,10 @@ func (q defaultBQQueries) trainingRowSelect(columns string, trainingSetName stri
 	return fmt.Sprintf("SELECT %s FROM `%s.%s`", columns, q.getTablePrefix(), trainingSetName)
 }
 
+func (q defaultBQQueries) primaryTableRegister(tableName string, sourceName string) string {
+	return fmt.Sprintf("CREATE VIEW `%s.%s` AS SELECT * FROM `%s.%s`", q.getTablePrefix(), tableName, q.getTablePrefix(), sourceName)
+}
+
 type bqMaterialization struct {
 	id        MaterializationID
 	client    *bigquery.Client
@@ -809,8 +814,42 @@ func (store *bqOfflineStore) RegisterResourceFromSourceTable(id ResourceID, sche
 }
 
 func (store *bqOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error) {
-	// TODO
-	return nil, nil
+	if err := id.check(Primary); err != nil {
+		return nil, fmt.Errorf("check fail: %w", err)
+	}
+	if exists, err := store.tableExists(id); err != nil {
+		return nil, fmt.Errorf("table exist: %w", err)
+	} else if exists {
+		return nil, &TableAlreadyExists{id.Name, id.Variant}
+	}
+
+	tableName, err := GetPrimaryTableName(id)
+	if err != nil {
+		return nil, fmt.Errorf("get name: %w", err)
+	}
+	query := store.query.primaryTableRegister(tableName, sourceName)
+
+	bqQ := store.client.Query(query)
+	job, err := bqQ.Run(store.query.getContext())
+	if err != nil {
+		return nil, err
+	}
+
+	status, err := store.query.monitorJob(job)
+	if err != nil {
+		return nil, err
+	}
+	if status != DONE {
+		return nil, fmt.Errorf("The %s job, with %s status, could not be completed within %v seconds", job.ID(), status, SleepTime*NumOfIterations)
+	}
+
+	columnNames, err := store.query.getColumns(store.client, tableName)
+	return &bqPrimaryTable{
+		client: store.client,
+		name:   tableName,
+		schema: TableSchema{Columns: columnNames},
+		query:  store.query,
+	}, nil
 }
 
 func (store *bqOfflineStore) CreateTransformation(config TransformationConfig) error {

@@ -47,13 +47,24 @@ func TestOfflineStores(t *testing.T) {
 	}
 	testList := []testMember{}
 
+	checkEnv := func(envVar string) string {
+		value, has := os.LookupEnv(envVar)
+		if !has {
+			panic(fmt.Sprintf("Environment variable not found: %s", envVar))
+		}
+		return value
+	}
+
 	postgresInit := func() SerializedConfig {
+		db := checkEnv("POSTGRES_DB")
+		user := checkEnv("POSTGRES_USER")
+		password := checkEnv("POSTGRES_PASSWORD")
 		var postgresConfig = PostgresConfig{
 			Host:     "localhost",
 			Port:     "5432",
-			Database: os.Getenv("POSTGRES_DB"),
-			Username: os.Getenv("POSTGRES_USER"),
-			Password: os.Getenv("POSTGRES_PASSWORD"),
+			Database: db,
+			Username: user,
+			Password: password,
 		}
 		return postgresConfig.Serialize()
 	}
@@ -61,11 +72,15 @@ func TestOfflineStores(t *testing.T) {
 	snowflakeInit := func() (SerializedConfig, SnowflakeConfig) {
 		snowFlakeDatabase := strings.ToUpper(uuid.NewString())
 		t.Log("Snowflake Database: ", snowFlakeDatabase)
+		username := checkEnv("SNOWFLAKE_USERNAME")
+		password := checkEnv("SNOWFLAKE_PASSWORD")
+		org := checkEnv("SNOWFLAKE_ORG")
+		account := checkEnv("SNOWFLAKE_ACCOUNT")
 		var snowflakeConfig = SnowflakeConfig{
-			Username:     os.Getenv("SNOWFLAKE_USERNAME"),
-			Password:     os.Getenv("SNOWFLAKE_PASSWORD"),
-			Organization: os.Getenv("SNOWFLAKE_ORG"),
-			Account:      os.Getenv("SNOWFLAKE_ACCOUNT"),
+			Username:     username,
+			Password:     password,
+			Organization: org,
+			Account:      account,
 			Database:     snowFlakeDatabase,
 		}
 		if err := createSnowflakeDatabase(snowflakeConfig); err != nil {
@@ -76,12 +91,16 @@ func TestOfflineStores(t *testing.T) {
 
 	redshiftInit := func() (SerializedConfig, RedshiftConfig) {
 		redshiftDatabase := fmt.Sprintf("ff%s", strings.ToLower(uuid.NewString()))
+		endpoint := checkEnv("REDSHIFT_ENDPOINT")
+		port := checkEnv("REDSHIFT_PORT")
+		username := checkEnv("REDSHIFT_USERNAME")
+		password := checkEnv("REDSHIFT_PASSWORD")
 		var redshiftConfig = RedshiftConfig{
-			Endpoint: os.Getenv("REDSHIFT_ENDPOINT"),
-			Port:     os.Getenv("REDSHIFT_PORT"),
+			Endpoint: endpoint,
+			Port:     port,
 			Database: redshiftDatabase,
-			Username: os.Getenv("REDSHIFT_USERNAME"),
-			Password: os.Getenv("REDSHIFT_PASSWORD"),
+			Username: username,
+			Password: password,
 		}
 		serialRSConfig := redshiftConfig.Serialize()
 		if err := createRedshiftDatabase(redshiftConfig); err != nil {
@@ -219,12 +238,12 @@ func destroyRedshiftDatabase(c RedshiftConfig) error {
 	url := fmt.Sprintf("sslmode=require user=%v password=%s host=%v port=%v dbname=%v", c.Username, c.Password, c.Endpoint, c.Port, "dev")
 	db, err := sql.Open("postgres", url)
 	if err != nil {
-		fmt.Errorf(err)
+		fmt.Errorf(err.Error())
 		return err
 	}
 	disconnectQuery := fmt.Sprintf("SELECT pg_terminate_backend(pg_stat_activity.procpid) FROM pg_stat_activity WHERE datid=(SELECT oid from pg_database where datname = '%s');", c.Database)
 	if _, err := db.Exec(disconnectQuery); err != nil {
-		fmt.Errorf(err)
+		fmt.Errorf(err.Error())
 		return err
 	}
 	var deleteErr error
@@ -239,7 +258,7 @@ func destroyRedshiftDatabase(c RedshiftConfig) error {
 			continue
 		}
 		if retries == 0 {
-			fmt.Errorf(err)
+			fmt.Errorf(err.Error())
 			return deleteErr
 		}
 	}
@@ -264,12 +283,12 @@ func destroySnowflakeDatabase(c SnowflakeConfig) error {
 	url := fmt.Sprintf("%s:%s@%s-%s", c.Username, c.Password, c.Organization, c.Account)
 	db, err := sql.Open("snowflake", url)
 	if err != nil {
-		fmt.Errorf(err)
+		fmt.Errorf(err.Error())
 		return err
 	}
 	databaseQuery := fmt.Sprintf("DROP DATABASE IF EXISTS %s", sanitize(c.Database))
 	if _, err := db.Exec(databaseQuery); err != nil {
-		fmt.Errorf(err)
+		fmt.Errorf(err.Error())
 		return err
 	}
 	return nil

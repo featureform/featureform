@@ -23,16 +23,8 @@ const (
 	bqTimestamp = "TIMESTAMP"
 )
 
-// Used for Job Status
 const (
-	PENDING = "Pending"
-	RUNNING = "Running"
-	DONE    = "Done"
-)
-
-const (
-	SleepTime       = 6 * time.Second
-	NumOfIterations = 10
+	SleepTime = 6 * time.Second
 )
 
 type BigQueryConfig struct {
@@ -87,7 +79,7 @@ type BQOfflineTableQueries interface {
 	materializationExists(tableName string) string
 	materializationDrop(tableName string) string
 	materializationUpdate(client *bigquery.Client, tableName string, sourceName string) error
-	monitorJob(job *bigquery.Job) (string, error)
+	monitorJob(job *bigquery.Job) error
 	transformationCreate(name string, query string) string
 	getColumns(client *bigquery.Client, name string) ([]TableColumn, error)
 	transformationUpdate(client *bigquery.Client, tableName string, query string) error
@@ -401,46 +393,27 @@ func (q defaultBQQueries) materializationUpdate(client *bigquery.Client, tableNa
 		return err
 	}
 
-	status, err := q.monitorJob(job)
-	if err != nil {
-		return err
-	}
-
-	if status != DONE {
-		return fmt.Errorf("The %s job, with %s status, could not be completed within %v seconds", job.ID(), status, SleepTime*NumOfIterations)
-	}
-	return nil
+	err = q.monitorJob(job)
+	return err
 }
 
-func (q defaultBQQueries) monitorJob(job *bigquery.Job) (string, error) {
-	state := "Unknown"
-	count := 0
-
-	for count < NumOfIterations {
+func (q defaultBQQueries) monitorJob(job *bigquery.Job) error {
+	for {
 		time.Sleep(SleepTime)
 		status, err := job.Status(q.getContext())
 		if err != nil {
-			return "", err
+			return err
 		} else if status.Err() != nil {
-			return "", fmt.Errorf("%s", status.Err())
+			return fmt.Errorf("%s", status.Err())
 		}
 
 		switch status.State {
-		case bigquery.Pending:
-			state = PENDING
-		case bigquery.Running:
-			state = RUNNING
 		case bigquery.Done:
-			state = DONE
+			return nil
+		default:
+			continue
 		}
-
-		if state == DONE {
-			break
-		}
-		count++
 	}
-
-	return state, nil
 }
 
 func (q defaultBQQueries) transformationCreate(name string, query string) string {
@@ -499,14 +472,8 @@ func (q defaultBQQueries) atomicUpdate(client *bigquery.Client, tableName string
 		return err
 	}
 
-	status, err := q.monitorJob(job)
-	if err != nil {
-		return err
-	}
-	if status != DONE {
-		return fmt.Errorf("The %s job, with %s status, could not be completed within %v seconds", job.ID(), status, SleepTime*NumOfIterations)
-	}
-	return nil
+	err = q.monitorJob(job)
+	return err
 }
 
 func (q defaultBQQueries) trainingSetCreate(store *bqOfflineStore, def TrainingSetDef, tableName string, labelName string) error {
@@ -551,15 +518,9 @@ func (q defaultBQQueries) trainingSetQuery(store *bqOfflineStore, def TrainingSe
 		if err != nil {
 			return err
 		}
-		status, err := store.query.monitorJob(job)
-		if err != nil {
-			return err
-		}
 
-		if status != DONE {
-			return fmt.Errorf("The %s job, with %s status, could not be completed within %v seconds", job.ID(), status, SleepTime*NumOfIterations)
-		}
-		return nil
+		err = store.query.monitorJob(job)
+		return err
 	} else {
 		tempTable := fmt.Sprintf("tmp_%s", tableName)
 		fullQuery := fmt.Sprintf(
@@ -835,12 +796,9 @@ func (store *bqOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourc
 		return nil, err
 	}
 
-	status, err := store.query.monitorJob(job)
+	err = store.query.monitorJob(job)
 	if err != nil {
 		return nil, err
-	}
-	if status != DONE {
-		return nil, fmt.Errorf("The %s job, with %s status, could not be completed within %v seconds", job.ID(), status, SleepTime*NumOfIterations)
 	}
 
 	columnNames, err := store.query.getColumns(store.client, tableName)
@@ -865,15 +823,8 @@ func (store *bqOfflineStore) CreateTransformation(config TransformationConfig) e
 		return err
 	}
 
-	status, err := store.query.monitorJob(job)
-	if err != nil {
-		return err
-	}
-	if status != DONE {
-		return fmt.Errorf("The %s job, with %s status, could not be completed within %v seconds", job.ID(), status, SleepTime*NumOfIterations)
-	}
-
-	return nil
+	err = store.query.monitorJob(job)
+	return err
 }
 
 func (store *bqOfflineStore) createTransformationName(id ResourceID) (string, error) {

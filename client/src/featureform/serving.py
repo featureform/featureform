@@ -93,13 +93,8 @@ class Client:
                 df.set_index(feature_row['source_entity'])
                 df.rename(columns={feature_row['source_value']: name_variant}, inplace=True)
             else:
-                print("Read")
-                print(str(source_row['definition']))
-                with open(str(source_row['definition']), 'r') as f:
-                    print(f.read())
                 df = pd.read_csv(str(source_row['definition']))
 
-                print(df)
                 if feature_row['source_timestamp'] != "":
                     df = df[[feature_row['source_entity'], feature_row['source_value'], feature_row['source_timestamp']]]
                     df[feature_row['source_timestamp']] = pd.to_datetime(df[feature_row['source_timestamp']])
@@ -120,8 +115,6 @@ class Client:
                                                      lsuffix="_left")
                 if "index" in trainingset_df.columns:
                     trainingset_df.drop(columns='index', inplace=True)
-            print("Training Set")
-            print(trainingset_df)
 
         if label_row['source_timestamp'] != "":
             trainingset_df.drop(columns=label_row['source_timestamp'], inplace=True)
@@ -238,9 +231,6 @@ class Client:
         return dataframe_mapping
 
     def process_label_csv(self, source_path, entity_name, entity_col, value_col, timestamp_column):
-        print(source_path)
-        with open(source_path, 'r') as f:
-            print(f.read())
         df = pd.read_csv(source_path)
 
         if entity_col not in df.columns:

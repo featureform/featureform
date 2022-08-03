@@ -331,10 +331,10 @@ class TestTransformation(TestCase):
 
 
 class TestTrainingSet(TestCase):
-    def _register_feature(self, feature, local, case, index):
+    def _register_feature(self, feature, local, case, index, name):
         file = create_temp_file(feature)
         test_file = local.register_file(
-            name=f"table{index}",
+            name=f"table-{name}-{index}",
             variant="v1",
             description="",
             path=file
@@ -345,17 +345,17 @@ class TestTrainingSet(TestCase):
             entity_column=case['entity_loc'],
             inference_store=local,
             features=[
-                {"name": f"feat{index}", "variant": "default", "column": "value", "type": "bool"},
+                {"name": f"feat-{name}-{index}", "variant": "default", "column": "value", "type": "bool"},
             ],
             timestamp_column=feature['ts_col']
         )
         return file
 
-    def _register_label(self, local, case):
+    def _register_label(self, local, case, name):
         label = case['label']
         file = create_temp_file(label)
         test_file = local.register_file(
-            name=f"table-label",
+            name=f"table-{name}-label",
             variant="v1",
             description="",
             path=file
@@ -382,14 +382,11 @@ class TestTrainingSet(TestCase):
                 local = ff.register_local()
                 ff.register_user("featureformer").make_default_owner()
                 feature_list = []
-                feature_files = []
                 for i, feature in enumerate(case['features']):
-                    feature_files.append(self._register_feature(feature, local, case, i))
-                    feature_list.append((f"feat{i}", "default"))
+                    self._register_feature(feature, local, case, i, name)
+                    feature_list.append((f"feat-{name}-{i}", "default"))
 
-
-
-                file = self._register_label(local, case)
+                self._register_label(local, case, name)
 
                 ff.register_training_set(
                     "training_set", "default",
@@ -400,17 +397,6 @@ class TestTrainingSet(TestCase):
                 client = ff.ResourceClient(local=True)
                 client.apply()
                 serving = ff.ServingClient(local=True)
-                for feat in feature_files:
-                    print(feat)
-                    with open(feat, 'r') as f:
-                        print("Feature")
-                        print(f.read())
-
-                print("Label")
-                print(file)
-                with open(file, 'r') as f:
-                    print(f.read())
-
 
                 tset = serving.training_set("training_set", "default")
                 serving.sqldb.close()

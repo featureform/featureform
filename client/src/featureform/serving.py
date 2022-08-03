@@ -148,12 +148,12 @@ class LocalClientImpl():
 
             source_row = self.db.get_source_variant(source_name, source_variant)
             if self.db.is_transformation(source_name, source_variant):
-                df = self.process_transformation(source_name, source_variant)
-                if isinstance(df, pd.Series):
-                    df = df.to_frame()
-                    df.reset_index(inplace=True)
-                df = df[[entity_tuple[0], feature_column_name]]
-                df.set_index(entity_tuple[0])
+                df = self.process_transformation(features)
+                # if isinstance(df, pd.Series):
+                #     df = df.to_frame()
+                #     df.reset_index(inplace=True)
+                # df = df[[entity_tuple[0], feature_column_name]]
+                # df.set_index(entity_tuple[0])
                 dataframe_mapping.append(df)
             else:
                 name_variant = f"{featureVariantTuple[0]}.{featureVariantTuple[1]}"

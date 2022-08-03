@@ -67,7 +67,7 @@ class LocalClientImpl():
 
         source = self.db.get_source_variant(feature['source_name'], feature['source_variant'])
 
-        name_variant = feature['feature_name'] + "." + feature['feature_variant']
+        name_variant = feature['name'] + "." + feature['variant']
         if self.db.is_transformation(feature['source_name'], feature['source_variant']):
             df = self.process_transformation(feature)
             df.rename(columns={feature['source_value']: name_variant}, inplace=True)

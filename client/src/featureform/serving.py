@@ -93,10 +93,12 @@ class Client:
                 df.set_index(feature_row['source_entity'])
                 df.rename(columns={feature_row['source_value']: name_variant}, inplace=True)
             else:
-                df = pd.read_csv(str(source_row['definition']))
                 print("Read")
+                print(str(source_row['definition']))
                 with open(str(source_row['definition']), 'r') as f:
                     print(f.read())
+                df = pd.read_csv(str(source_row['definition']))
+
                 print(df)
                 if feature_row['source_timestamp'] != "":
                     df = df[[feature_row['source_entity'], feature_row['source_value'], feature_row['source_timestamp']]]
@@ -236,9 +238,11 @@ class Client:
         return dataframe_mapping
 
     def process_label_csv(self, source_path, entity_name, entity_col, value_col, timestamp_column):
-        df = pd.read_csv(source_path)
+        print(source_path)
         with open(source_path, 'r') as f:
             print(f.read())
+        df = pd.read_csv(source_path)
+
         if entity_col not in df.columns:
             raise KeyError(f"Entity column does not exist: {entity_col}")
         if value_col not in df.columns:

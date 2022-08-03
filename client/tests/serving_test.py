@@ -400,11 +400,13 @@ class TestTrainingSet(TestCase):
                 client.apply()
                 serving = ff.ServingClient(local=True)
                 for feat in feature_files:
+                    print(feat)
                     with open(feat, 'r') as f:
                         print("Feature")
                         print(f.read())
 
                 print("Label")
+                print(file)
                 with open(file, 'r') as f:
                     print(f.read())
 

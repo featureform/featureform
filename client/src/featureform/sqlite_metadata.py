@@ -225,9 +225,9 @@ class SQLiteMetadata:
         return self.fetch_data(query, "training_set_features", name, variant)
 
     def get_training_set_label(self, name, variant):
-      query = f"SELECT label_name, label_variant FROM training_set_variant WHERE name = '{name}' AND variant = '{variant}';"
-      label = self.fetch_data(query, "training_set_variant", name, variant)
-      return self.get_label_variant(label['label_name'], label['label_variant'])
+        query = f"SELECT label_name, label_variant FROM training_set_variant WHERE name = '{name}' AND variant = '{variant}';"
+        label = self.fetch_data(query, "training_set_variant", name, variant)[0]
+        return self.get_label_variant(label['label_name'], label['label_variant'])
 
     def get_resource_with_source(self, type, source_name, source_variant):
         query = f"SELECT * FROM {type} WHERE source_name ='{source_name}' AND source_variant ='{source_variant}';"

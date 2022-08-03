@@ -40,13 +40,6 @@ func TestOfflineStores(t *testing.T) {
 
 	os.Setenv("TZ", "UTC")
 
-	type testMember struct {
-		t               Type
-		c               SerializedConfig
-		integrationTest bool
-	}
-	testList := []testMember{}
-
 	checkEnv := func(envVar string) string {
 		value, has := os.LookupEnv(envVar)
 		if !has {
@@ -108,6 +101,13 @@ func TestOfflineStores(t *testing.T) {
 		}
 		return serialRSConfig, redshiftConfig
 	}
+
+	type testMember struct {
+		t               Type
+		c               SerializedConfig
+		integrationTest bool
+	}
+	testList := []testMember{}
 
 	if *provider == "memory" || *provider == "" {
 		testList = append(testList, testMember{MemoryOffline, []byte{}, false})
@@ -254,12 +254,16 @@ func destroyRedshiftDatabase(c RedshiftConfig) error {
 			deleteErr = err
 			time.Sleep(time.Second)
 			retries--
+			if retries == 0 {
+				fmt.Errorf(err.Error())
+				return deleteErr
+			}
+			if retries == 0 {
+				fmt.Errorf(err.Error())
+				return deleteErr
+			}
 		} else {
 			continue
-		}
-		if retries == 0 {
-			fmt.Errorf(err.Error())
-			return deleteErr
 		}
 	}
 

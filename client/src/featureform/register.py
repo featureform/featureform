@@ -17,6 +17,7 @@ import os
 from featureform.proto import metadata_pb2
 from featureform.proto import metadata_pb2_grpc as ff_grpc
 from .sqlite_metadata import SQLiteMetadata
+from .tls import insecure_channel, secure_channel
 import time
 import pandas as pd
 from .get import *
@@ -98,7 +99,6 @@ class OfflineSQLProvider(OfflineProvider):
                            name: str = "",
                            schedule: str = "",
                            description: str = ""):
-    
         return self.__registrar.sql_transformation(name=name,
                                                    variant=variant,
                                                    owner=owner,
@@ -333,6 +333,10 @@ class DFTransformationDecorator:
             self.description = fn.__doc__
         if self.name == "":
             self.name = fn.__name__
+
+        for nv in self.inputs:
+            if self.name is nv[0] and self.variant is nv[1]:
+                raise ValueError(f"Transformation cannot be input for itself: {self.name} {self.variant}")
         self.query = marshal.dumps(fn.__code__)
         fn.register_resources = self.register_resources
         return fn
@@ -467,6 +471,7 @@ class Registrar:
     )
     ```
     """
+
     def __init__(self):
         self.__state = ResourceState()
         self.__resources = []
@@ -532,20 +537,20 @@ class Registrar:
         self.__resources.append(get)
         if local:
             return LocalSource(self,
-                                name=name,
-                                owner="",
-                                variant=variant,
-                                provider="",
-                                description="",
-                                path = "")
+                               name=name,
+                               owner="",
+                               variant=variant,
+                               provider="",
+                               description="",
+                               path="")
         else:
             fakeDefinition = PrimaryData(location=SQLTable(name=""))
             fakeSource = Source(name=name,
-                            variant=variant,
-                            definition=fakeDefinition,
-                            owner="",
-                            provider="",
-                            description="")
+                                variant=variant,
+                                definition=fakeDefinition,
+                                owner="",
+                                provider="",
+                                description="")
             return ColumnSourceRegistrar(self, fakeSource)
 
     def get_local_provider(self, name="local-mode"):
@@ -698,15 +703,15 @@ class Registrar:
                             config=config)
         self.__resources.append(provider)
         return OnlineProvider(self, provider)
-        
+
     def register_firestore(self,
-                       name: str,
-                       description: str = "",
-                       team: str = "",
-                       collection: str = "",
-                       project_id: str = "",
-                       credentials_path: str = ""
-                       ):
+                           name: str,
+                           description: str = "",
+                           team: str = "",
+                           collection: str = "",
+                           project_id: str = "",
+                           credentials_path: str = ""
+                           ):
         config = FirestoreConfig(collection=collection, project_id=project_id, credentials_path=credentials_path)
         provider = Provider(name=name,
                             function="ONLINE",
@@ -717,17 +722,18 @@ class Registrar:
         return OnlineProvider(self, provider)
 
     def register_cassandra(self,
-                       name: str,
-                       description: str = "",
-                       team: str = "",
-                       host: str = "0.0.0.0",
-                       port: int = 9042,
-                       username: str = "cassandra",
-                       password: str = "cassandra",
-                       keyspace: str = "",
-                       consistency: str = "THREE",
-                       replication: int = 3):
-        config = CassandraConfig(host=host, port=port, username=username, password=password, keyspace=keyspace, consistency=consistency, replication=replication)
+                           name: str,
+                           description: str = "",
+                           team: str = "",
+                           host: str = "0.0.0.0",
+                           port: int = 9042,
+                           username: str = "cassandra",
+                           password: str = "cassandra",
+                           keyspace: str = "",
+                           consistency: str = "THREE",
+                           replication: int = 3):
+        config = CassandraConfig(host=host, port=port, username=username, password=password, keyspace=keyspace,
+                                 consistency=consistency, replication=replication)
         provider = Provider(name=name,
                             function="ONLINE",
                             description=description,
@@ -735,7 +741,7 @@ class Registrar:
                             config=config)
         self.__resources.append(provider)
         return OnlineProvider(self, provider)
-        
+
     def register_dynamodb(self,
                           name: str,
                           description: str = "",
@@ -829,7 +835,7 @@ class Registrar:
                             config=config)
         self.__resources.append(provider)
         return OfflineSQLProvider(self, provider)
-    
+
     def register_postgres(self,
                           name: str,
                           description: str = "",
@@ -1111,6 +1117,9 @@ class Registrar:
         self.__resources = []
         return self.__state
 
+    def clear_state(self):
+        self.__state = ResourceState()
+
     def register_entity(self, name: str, description: str = ""):
         """Register an entity.
 
@@ -1267,7 +1276,8 @@ class Client(Registrar):
     redis = rc.get_provider("redis-quickstart")
     ```
     """
-    def __init__(self, host=None, local=False, insecure=True, cert_path=None):
+
+    def __init__(self, host=None, local=False, insecure=False, cert_path=None):
         """Initialise a Resource Client object.
 
         Args:
@@ -1279,38 +1289,25 @@ class Client(Registrar):
         super().__init__()
         self._stub = None
         self.local = local
-        if self.local:
-            if host != None:
-                raise ValueError("Cannot be local and have a host")
-        else:
-            if host == None:
-                host = os.getenv('FEATUREFORM_HOST')
-                if host == None:
-                    raise ValueError(
-                    "Host value must be set or in env as FEATUREFORM_HOST")
-
-            channel = self.tls_check(host, cert_path, insecure)
+        if local and host:
+            raise ValueError("Cannot be local and have a host")
+        elif not local:
+            host = host or os.getenv('FEATUREFORM_HOST')
+            if host is None:
+                raise RuntimeError(
+                    'If not in local mode then `host` must be passed or the environment'
+                    ' variable FEATUREFORM_HOST must be set.'
+                )
+            if insecure:
+                channel = insecure_channel(host)
+            else:
+                channel = secure_channel(host, cert_path)
             self._stub = ff_grpc.ApiStub(channel)
-
-    def tls_check(self, host, cert, insecure):
-        if insecure:
-            channel = grpc.insecure_channel(
-                host, options=(('grpc.enable_http_proxy', 0),))
-        elif cert != None or os.getenv('FEATUREFORM_CERT') != None:
-            if os.getenv('FEATUREFORM_CERT') != None and cert == None:
-                cert = os.getenv('FEATUREFORM_CERT')
-            with open(cert, 'rb') as f:
-                credentials = grpc.ssl_channel_credentials(f.read())
-            channel = grpc.secure_channel(host, credentials)
-        else:
-            credentials = grpc.ssl_channel_credentials()
-            channel = grpc.secure_channel(host, credentials)
-        return channel
 
     def apply(self):
         """Apply all definitions, creating and retrieving all specified resources.
         """
-        
+
         if self.local:
             state().create_all_local()
         else:
@@ -1378,7 +1375,7 @@ class Client(Registrar):
         if local:
             return get_user_info_local(name)
         return get_user_info(self._stub, name)
-    
+
     def get_entity(self, name, local=False):
         """Get an entity. Prints out information on entity, and all resources associated with the entity.
 
@@ -2299,8 +2296,10 @@ class Client(Registrar):
             return list_local("provider", [ColumnName.NAME, ColumnName.STATUS, ColumnName.DESCRIPTION])
         return list_name_status_desc(self._stub, "provider")
 
+
 global_registrar = Registrar()
 state = global_registrar.state
+clear_state = global_registrar.clear_state
 register_user = global_registrar.register_user
 register_redis = global_registrar.register_redis
 register_firestore = global_registrar.register_firestore

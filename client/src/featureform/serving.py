@@ -11,6 +11,7 @@ import grpc
 import numpy as np
 from featureform.proto import serving_pb2
 from featureform.proto import serving_pb2_grpc
+from .tls import insecure_channel, secure_channel
 import pandas as pd
 from .sqlite_metadata import SQLiteMetadata
 
@@ -203,6 +204,7 @@ class LocalClientImpl():
 
     def process_label_csv(self, source_path, entity_name, entity_col, value_col, timestamp_column):
         df = pd.read_csv(source_path)
+
         if entity_col not in df.columns:
             raise KeyError(f"Entity column does not exist: {entity_col}")
         if value_col not in df.columns:
@@ -211,6 +213,7 @@ class LocalClientImpl():
             raise KeyError(f"Timestamp column does not exist: {timestamp_column}")
         if timestamp_column != "":
             df = df[[entity_col, value_col, timestamp_column]]
+            df[timestamp_column] = pd.to_datetime(df[timestamp_column])
         else:
             df = df[[entity_col, value_col]]
         if timestamp_column != "":

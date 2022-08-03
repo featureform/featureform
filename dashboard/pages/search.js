@@ -1,3 +1,3 @@
-import SearchResults from "./components/searchresults/SearchResults"
+import SearchResults from "../src/components/searchresults/SearchResults"
 
 export default SearchResults

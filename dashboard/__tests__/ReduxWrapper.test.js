@@ -4,7 +4,7 @@ import Adapter from "@wojtekmaj/enzyme-adapter-react-17";
 import { connect } from "react-redux";
 import { configureStore, createSlice } from "@reduxjs/toolkit";
 
-import ReduxWrapper from "./ReduxWrapper.js";
+import ReduxWrapper from "../src/components/redux/wrapper/ReduxWrapper.js";
 
 configure({ adapter: new Adapter() });
 

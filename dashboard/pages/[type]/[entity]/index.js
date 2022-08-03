@@ -1,6 +1,6 @@
-import EntityPage from "../../components/entitypage/EntityPage"
+import EntityPage from "../../../src/components/entitypage/EntityPage"
 import { useRouter } from "next/router";
-import ResourcesAPI from "../../api/resources/Resources";
+import ResourcesAPI from "../../../src/api/resources/Resources";
 
 
 const EntityPageRoute = () => {

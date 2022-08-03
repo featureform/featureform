@@ -1,21 +1,21 @@
 import React from "react";
-import "./styles/base.css";
-import ReduxWrapper from "./components/redux/wrapper";
-import ReduxStore from "./components/redux/store";
+import "../src/styles/base.css";
+import ReduxWrapper from "../src/components/redux/wrapper";
+import ReduxStore from "../src/components/redux/store";
 import { makeStyles } from "@material-ui/core/styles";
 import CssBaseline from "@material-ui/core/CssBaseline";
-import theme from "../pages/styles/theme";
+import theme from "../src/styles/theme";
 import { ThemeProvider } from "@material-ui/core/styles";
-import ResourcesAPI from "../pages/api/resources";
-import HomePage from "./components/homepage/HomePage";
-import DataPage from "./components/datapage/DataPage";
-import TopBar from "./components/topbar/TopBar";
-import EntityPage from "./components/entitypage/EntityPage";
-import BreadCrumbs from "./components/breadcrumbs/BreadCrumbs";
+import ResourcesAPI from "../src/api/resources";
+import HomePage from "../src/components/homepage/HomePage";
+import DataPage from "../src/components/datapage/DataPage";
+import TopBar from "../src/components/topbar/TopBar";
+import EntityPage from "../src/components/entitypage/EntityPage";
+import BreadCrumbs from "../src/components/breadcrumbs/BreadCrumbs";
 import Container from "@material-ui/core/Container";
-import SearchResults from "./components/searchresults/SearchResults";
-import NotFoundPage from "./components/notfoundpage/NotFoundPage";
-import ConnectionPage from "./components/connectionpage";
+import SearchResults from "../src/components/searchresults/SearchResults";
+import NotFoundPage from "../src/components/notfoundpage/NotFoundPage";
+import ConnectionPage from "../src/components/connectionpage";
 
 const apiHandle = new ResourcesAPI();
 const useStyles = makeStyles((theme) => ({

@@ -1,11 +1,11 @@
 import React from "react";
 import "jest-canvas-mock";
-import ReduxWrapper from "../pages/components/redux/wrapper";
+import ReduxWrapper from "../src/components/redux/wrapper";
 import { configure, mount } from "enzyme";
 import Adapter from "@wojtekmaj/enzyme-adapter-react-17";
-import { newTestStore } from "../pages/components/redux/store";
-import { testData } from "../pages/api/resources";
-import ResourceList, { makeSelectFilteredResources } from "../pages/components/resource-list/ResourceList";
+import { newTestStore } from "../src/components/redux/store";
+import { testData } from "../src/api/resources";
+import ResourceList, { makeSelectFilteredResources } from "../src/components/resource-list/ResourceList";
 
 configure({ adapter: new Adapter() });
 

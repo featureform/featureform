@@ -90,9 +90,9 @@ def get(host, cert, insecure, local, resource_type, name, variant):
     }
 
     if resource_type in rc_get_functions_variant:
-        rc_get_functions_variant[resource_type](name, variant)
+        rc_get_functions_variant[resource_type](name=name, variant=variant, local=local)
     elif resource_type in rc_get_functions:
-        rc_get_functions[resource_type](name)
+        rc_get_functions[resource_type](name=name, local=local)
     else:
         raise ValueError("Resource type not found")
 
@@ -122,14 +122,14 @@ def list(host, cert, insecure, local, resource_type):
         if host == None:
             raise ValueError(
                 "Host value must be set with --host flag or in env as FEATUREFORM_HOST")
-                
+
     rc = ResourceClient(host=host, local=local, insecure=insecure, cert_path=cert)
 
     rc_list_functions = {
         "features": rc.list_features,
         "labels": rc.list_labels,
         "sources": rc.list_sources,
-        "trainingsets": rc.list_sources,
+        "trainingsets": rc.list_training_sets,
         "training-sets": rc.list_training_sets,
         "users": rc.list_users,
         "models": rc.list_models,
@@ -138,7 +138,7 @@ def list(host, cert, insecure, local, resource_type):
     }
 
     if resource_type in rc_list_functions:
-        rc_list_functions[resource_type]()
+        rc_list_functions[resource_type](local=local)
     else:
         raise ValueError("Resource type not found")
 

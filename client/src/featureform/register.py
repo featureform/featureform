@@ -21,6 +21,8 @@ from .tls import insecure_channel, secure_channel
 import time
 import pandas as pd
 from .get import *
+from .get_local import *
+from .list_local import *
 from .list import *
 
 NameVariant = Tuple[str, str]
@@ -551,7 +553,7 @@ class Registrar:
                                 description="")
             return ColumnSourceRegistrar(self, fakeSource)
 
-    def get_local(self, name):
+    def get_local_provider(self, name="local-mode"):
         get = ProviderReference(name=name, provider_type="local", obj=None)
         self.__resources.append(get)
         fakeConfig = LocalConfig()
@@ -943,8 +945,8 @@ class Registrar:
             local (LocalProvider): Provider
         """
         config = LocalConfig()
-        provider = Provider(name="local mode",
-                            function="ONLINE",
+        provider = Provider(name="local-mode",
+                            function="LOCAL_ONLINE",
                             description="This is local mode",
                             team="team",
                             config=config)
@@ -1285,6 +1287,7 @@ class Client(Registrar):
             cert_path (str): Path to certificate
         """
         super().__init__()
+        self._stub = None
         self.local = local
         if local and host:
             raise ValueError("Cannot be local and have a host")
@@ -1310,7 +1313,7 @@ class Client(Registrar):
         else:
             state().create_all(self._stub)
 
-    def get_user(self, name):
+    def get_user(self, name, local=False):
         """Get a user. Prints out name of user, and all resources associated with the user.
 
         **Examples:**
@@ -1369,9 +1372,11 @@ class Client(Registrar):
         Returns:
             user (User): User
         """
+        if local:
+            return get_user_info_local(name)
         return get_user_info(self._stub, name)
 
-    def get_entity(self, name):
+    def get_entity(self, name, local=False):
         """Get an entity. Prints out information on entity, and all resources associated with the entity.
 
         **Examples:**
@@ -1416,6 +1421,8 @@ class Client(Registrar):
         }
         ```
         """
+        if local:
+            return get_entity_info_local(name)
         return get_entity_info(self._stub, name)
 
     def get_model(self, name):
@@ -1429,7 +1436,7 @@ class Client(Registrar):
         """
         return get_resource_info(self._stub, "model", name)
 
-    def get_provider(self, name):
+    def get_provider(self, name, local=False):
         """Get a provider. Prints out information on provider, and all resources associated with the provider.
 
         **Examples:**
@@ -1505,9 +1512,11 @@ class Client(Registrar):
         Returns:
             provider (Provider): Provider
         """
+        if local:
+            return get_provider_info_local(name)
         return get_provider_info(self._stub, name)
 
-    def get_feature(self, name, variant=None):
+    def get_feature(self, name, variant=None, local=False):
         """Get a feature. Prints out information on feature, and all variants associated with the feature. If variant is included, print information on that specific variant and all resources associated with it.
 
         **Examples:**
@@ -1602,11 +1611,15 @@ class Client(Registrar):
         Returns:
             feature (Union[Feature, FeatureVariant]): Feature or FeatureVariant
         """
+        if local:
+            if not variant:
+                return get_resource_info_local("feature", name)
+            return get_feature_variant_info_local(name, variant)
         if not variant:
             return get_resource_info(self._stub, "feature", name)
         return get_feature_variant_info(self._stub, name, variant)
 
-    def get_label(self, name, variant=None):
+    def get_label(self, name, variant=None, local=False):
         """Get a label. Prints out information on label, and all variants associated with the label. If variant is included, print information on that specific variant and all resources associated with it.
 
         **Examples:**
@@ -1701,11 +1714,15 @@ class Client(Registrar):
         Returns:
             label (Union[label, LabelVariant]): Label or LabelVariant
         """
+        if local:
+            if not variant:
+                return get_resource_info_local("label", name)
+            return get_label_variant_info_local(name, variant)
         if not variant:
             return get_resource_info(self._stub, "label", name)
         return get_label_variant_info(self._stub, name, variant)
 
-    def get_training_set(self, name, variant=None):
+    def get_training_set(self, name, variant=None, local=False):
         """Get a training set. Prints out information on training set, and all variants associated with the training set. If variant is included, print information on that specific variant and all resources associated with it.
 
         **Examples:**
@@ -1792,11 +1809,15 @@ class Client(Registrar):
         Returns:
             training_set (Union[TrainingSet, TrainingSetVariant]): TrainingSet or TrainingSetVariant
         """
+        if local:
+            if not variant:
+                return get_resource_info_local("training-set", name)
+            return get_training_set_variant_info_local(name, variant)
         if not variant:
             return get_resource_info(self._stub, "training-set", name)
         return get_training_set_variant_info(self._stub, name, variant)
 
-    def get_source(self, name, variant=None):
+    def get_source(self, name, variant=None, local=False):
         """Get a source. Prints out information on source, and all variants associated with the source. If variant is included, print information on that specific variant and all resources associated with it.
 
         **Examples:**
@@ -1902,11 +1923,15 @@ class Client(Registrar):
         Returns:
             source (Union[Source, SourceVariant]): Source or SourceVariant
         """
+        if local:
+            if not variant:
+                return get_resource_info_local("source", name)
+            return get_source_variant_info_local(name, variant)
         if not variant:
             return get_resource_info(self._stub, "source", name)
         return get_source_variant_info(self._stub, name, variant)
 
-    def list_features(self):
+    def list_features(self, local=False):
         """List all features.
 
         **Examples:**
@@ -1943,9 +1968,11 @@ class Client(Registrar):
         Returns:
             features (List[Feature]): List of Feature Objects
         """
+        if local:
+            return list_local("feature", [ColumnName.NAME, ColumnName.VARIANT, ColumnName.STATUS])
         return list_name_variant_status(self._stub, "feature")
 
-    def list_labels(self):
+    def list_labels(self, local=False):
         """List all labels.
 
         **Examples:**
@@ -1982,9 +2009,11 @@ class Client(Registrar):
         Returns:
             labels (List[Label]): List of Label Objects
         """
+        if local:
+            return list_local("label", [ColumnName.NAME, ColumnName.VARIANT, ColumnName.STATUS])
         return list_name_variant_status(self._stub, "label")
 
-    def list_users(self):
+    def list_users(self, local=False):
         """List all users. Prints a list of all users.
 
         **Examples:**
@@ -2043,9 +2072,11 @@ class Client(Registrar):
         Returns:
             users (List[User]): List of User Objects
         """
+        if local:
+            return list_local("user", [ColumnName.NAME, ColumnName.STATUS])
         return list_name_status(self._stub, "user")
 
-    def list_entities(self):
+    def list_entities(self, local=False):
         """List all entities. Prints a list of all entities.
 
         **Examples:**
@@ -2101,9 +2132,11 @@ class Client(Registrar):
         Returns:
             entities (List[Entity]): List of Entity Objects
         """
+        if local:
+            return list_local("entity", [ColumnName.NAME, ColumnName.STATUS])
         return list_name_status(self._stub, "entity")
 
-    def list_sources(self):
+    def list_sources(self, local=False):
         """List all sources. Prints a list of all sources.
 
         **Examples:**
@@ -2138,9 +2171,11 @@ class Client(Registrar):
         Returns:
             sources (List[Source]): List of Source Objects
         """
+        if local:
+            return list_local("source", [ColumnName.NAME, ColumnName.VARIANT, ColumnName.STATUS, ColumnName.DESCRIPTION])
         return list_name_variant_status_desc(self._stub, "source")
 
-    def list_training_sets(self):
+    def list_training_sets(self, local=False):
         """List all training sets. Prints a list of all training sets.
 
         **Examples:**
@@ -2176,17 +2211,21 @@ class Client(Registrar):
         Returns:
             training_sets (List[TrainingSet]): List of TrainingSet Objects
         """
+        if local:
+            return list_local("training-set", [ColumnName.NAME, ColumnName.VARIANT, ColumnName.STATUS])
         return list_name_variant_status_desc(self._stub, "training-set")
 
-    def list_models(self):
+    def list_models(self, local=False):
         """List all models. Prints a list of all models.
 
         Returns:
             models (List[Model]): List of Model Objects
         """
+        if local:
+            return list_local("model", [ColumnName.NAME, ColumnName.STATUS, ColumnName.DESCRIPTION])
         return list_name_status_desc(self._stub, "model")
 
-    def list_providers(self):
+    def list_providers(self, local=False):
         """List all providers. Prints a list of all providers.
 
         **Examples:**
@@ -2253,6 +2292,8 @@ class Client(Registrar):
         Returns:
             providers (List[Provider]): List of Provider Objects
         """
+        if local:
+            return list_local("provider", [ColumnName.NAME, ColumnName.STATUS, ColumnName.DESCRIPTION])
         return list_name_status_desc(self._stub, "provider")
 
 
@@ -2275,7 +2316,7 @@ sql_transformation = global_registrar.sql_transformation
 register_sql_transformation = global_registrar.register_sql_transformation
 get_entity = global_registrar.get_entity
 get_source = global_registrar.get_source
-get_local = global_registrar.get_local
+get_local_provider = global_registrar.get_local_provider
 get_redis = global_registrar.get_redis
 get_postgres = global_registrar.get_postgres
 get_snowflake = global_registrar.get_snowflake

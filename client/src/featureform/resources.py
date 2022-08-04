@@ -673,6 +673,12 @@ class EntityReference:
                 self.obj = entity
         except grpc._channel._MultiThreadedRendezvous:
             raise ValueError(f"Entity {self.name} not found.")
+    
+    def _get_local(self, db):
+        local_entity = db.query_resource("entities", "name", self.name)
+        if local_entity == []:
+            raise ValueError(f"Entity {self.name} not found.")
+        self.obj = local_entity
 
 @typechecked
 @dataclass
@@ -698,7 +704,7 @@ class ProviderReference:
             raise ValueError(f"Provider {self.name} of type {self.provider_type} not found.")
         
     def _get_local(self, db):
-        local_provider = db.query_resource("providers", "local mode", self.name)
+        local_provider = db.query_resource("providers", "name", self.name)
         if local_provider == []:
             raise ValueError("Local mode provider not found.")
         self.obj = local_provider

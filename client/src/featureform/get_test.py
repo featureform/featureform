@@ -31,7 +31,6 @@ def check_print_return(expected_print, expected_return, resource_type):
       value = rc_get_functions_var[resource_type][0](rc_get_functions_var[resource_type][1], rc_get_functions_var[resource_type][2])
     assert (fake_out.getvalue().replace(" ","") == expected_print.replace(" ", ""))
   assert re.match(expected_return.replace(" ", ""), str(value).replace(" ", ""))
-  # (str(value).replace(" ", "") ==  expected_return.replace(" ", ""))
 
 def test_get_provider():
   expected_print_provider = """NAME:                          redis-quickstart

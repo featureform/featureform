@@ -40,7 +40,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && next export",
     "start": "next start",
     "start:windows": "set PORT=8000 && next start",
     "start:nix": "PORT=8000 next start",

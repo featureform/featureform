@@ -6,14 +6,14 @@ import Adapter from "@wojtekmaj/enzyme-adapter-react-17";
 import Chip from "@material-ui/core/Chip";
 import produce from "immer";
 import CssBaseline from "@material-ui/core/CssBaseline";
-import TEST_THEME from "../pages/styles/theme";
+import TEST_THEME from "../src/styles/theme";
 import { ThemeProvider } from "@material-ui/core/styles";
 
 import {
   ResourceListView,
   TagList,
   VariantSelector,
-} from "../pages/components/resource-list/ResourceListView";
+} from "../src/components/resource-list/ResourceListView";
 
 configure({ adapter: new Adapter() });
 

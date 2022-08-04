@@ -1,4 +1,4 @@
-import { default as reducer, setVariant } from "../pages/components/resource-list/VariantSlice";
+import { default as reducer, setVariant } from "../src/components/resource-list/VariantSlice";
 
 describe("VariantSlice", () => {
   it("sets variant", () => {

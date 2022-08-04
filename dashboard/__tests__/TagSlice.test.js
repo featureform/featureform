@@ -1,4 +1,4 @@
-import { default as reducer, toggleTag } from "../pages/components/resource-list/TagSlice";
+import { default as reducer, toggleTag } from "../src/components/resource-list/TagSlice";
 
 describe("TagSlice ", () => {
   const type = "Feature";

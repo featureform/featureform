@@ -1,13 +1,13 @@
 import "jest-canvas-mock";
 import deferred from "deferred";
 import { configureStore } from "@reduxjs/toolkit";
-import { newTestStore } from "../pages/components/redux/store";
+import { newTestStore } from "../src/components/redux/store";
 import {
   initialState,
   fetchResources,
   default as resourceReducer,
-} from "../pages/components/resource-list/ResourceSlice";
-import { testData } from "../pages/api/resources";
+} from "../src/components/resource-list/ResourceSlice";
+import { testData } from "../src/api/resources";
 
 const dataType = "Feature";
 

@@ -232,10 +232,10 @@ func newBigQueryGenericTableIterator(it *bigquery.RowIterator, query BQOfflineTa
 func (q defaultBQQueries) registerResources(client *bigquery.Client, tableName string, schema ResourceSchema, timestamp bool) error {
 	var query string
 	if timestamp {
-		query = fmt.Sprintf("CREATE VIEW `%s` AS SELECT %s as entity, %s as value, %s as ts FROM `%s`", q.getTableName(tableName),
+		query = fmt.Sprintf("CREATE VIEW `%s` AS SELECT `%s` as entity, `%s` as value, `%s` as ts FROM `%s`", q.getTableName(tableName),
 			schema.Entity, schema.Value, schema.TS, q.getTableName(schema.SourceTable))
 	} else {
-		query = fmt.Sprintf("CREATE VIEW `%s` AS SELECT %s as entity, %s as value, to_timestamp('%s', 'YYYY-DD-MM HH24:MI:SS +0000 UTC')::TIMESTAMP as ts FROM `%s`", q.getTableName(tableName),
+		query = fmt.Sprintf("CREATE VIEW `%s` AS SELECT `%s` as entity, `%s` as value, to_timestamp('%s', 'YYYY-DD-MM HH24:MI:SS +0000 UTC')::TIMESTAMP as ts FROM `%s`", q.getTableName(tableName),
 			schema.Entity, schema.Value, time.UnixMilli(0).UTC(), q.getTableName(schema.SourceTable))
 	}
 

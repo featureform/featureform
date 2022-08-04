@@ -31,7 +31,7 @@ class TestIndividualFeatures(TestCase):
                 actual = dataframe_mapping[0]
                 expected = expected.values.tolist()
                 actual = actual.values.tolist()
-                client.sqldb.close()
+                client.impl.db.close()
                 assert all(elem in expected for elem in actual), \
                     "Expected: {} Got: {}".format(expected, actual)
 
@@ -48,7 +48,7 @@ class TestIndividualFeatures(TestCase):
                 actual = dataframe_mapping[0]
                 expected = expected.values.tolist()
                 actual = actual.values.tolist()
-                client.sqldb.close()
+                client.impl.db.close()
                 assert all(elem in expected for elem in actual), \
                     "Expected: {} Got: {}".format(expected, actual)
 
@@ -59,7 +59,7 @@ class TestIndividualFeatures(TestCase):
         with pytest.raises(KeyError) as err:
             client.process_feature_csv(file_name, case['entity'], case['value_col'], case['name'], [],
                                        "test_name_variant", case['ts_col'])
-        client.sqldb.close()
+        client.impl.db.close()
         assert "column does not exist" in str(err.value)
 
     def test_invalid_value_col(self):
@@ -69,7 +69,7 @@ class TestIndividualFeatures(TestCase):
         with pytest.raises(KeyError) as err:
             client.process_feature_csv(file_name, case['entity'], case['value_col'], case['name'], [],
                                        "test_name_variant", case['ts_col'])
-        client.sqldb.close()
+        client.impl.db.close()
         assert "column does not exist" in str(err.value)
 
     def test_invalid_ts_col(self):
@@ -79,7 +79,7 @@ class TestIndividualFeatures(TestCase):
         with pytest.raises(KeyError) as err:
             client.process_feature_csv(file_name, case['entity'], case['value_col'], case['name'], [],
                                        "test_name_variant", case['ts_col'])
-        client.sqldb.close()
+        client.impl.db.close()
         assert "column does not exist" in str(err.value)
 
 
@@ -307,7 +307,7 @@ class TestTransformation(TestCase):
         client.apply()
         serve = ServingClient(local=True)
         res = serve.features([(f"feature-{name}", name)], {"entity": "a"})
-        serve.sqldb.close()
+        serve.impl.db.close()
         return res
 
     @pytest.fixture(autouse=True)
@@ -399,7 +399,7 @@ class TestTrainingSet(TestCase):
                 serving = ff.ServingClient(local=True)
 
                 tset = serving.training_set(f"training_set-{name}", "default")
-                serving.sqldb.close()
+                serving.impl.db.close()
                 actual_len = 0
                 expected_len = len(case['expected'])
                 for i, r in enumerate(tset):

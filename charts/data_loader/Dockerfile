@@ -2,12 +2,12 @@ FROM golang:1.17-alpine
 
 WORKDIR /app
 
-COPY go.mod ./
-COPY go.sum ./
+COPY ../../go.mod ./
+COPY ../../go.sum ./
 
 ENV PATH /go/bin:$PATH
 
-COPY ./helpers/data_loader/loader.go ./helpers/data_loader/main.go
+COPY loader.go ./helpers/data_loader/main.go
 
 RUN go build ./helpers/data_loader/main.go
 

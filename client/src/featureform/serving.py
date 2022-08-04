@@ -86,7 +86,7 @@ class LocalClientImpl():
                 df.rename(columns={feature_row['source_value']: name_variant}, inplace=True)
             else:
                 df = pd.read_csv(str(source_row['definition']))
-                if feature_variant['feature_name'] != "":
+                if feature_variant['source_timestamp'] != "":
                     df = df[[feature_row['source_entity'], feature_row['source_value'], feature_row['source_timestamp']]]
                 else:
                     df = df[[feature_row['source_entity'], feature_row['source_value']]]

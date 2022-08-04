@@ -61,7 +61,12 @@ class LocalClientImpl():
         source_name, source_variant = label['source_name'], label['source_variant']
         label_source = self.db.get_source_variant(source_name, source_variant)
         if self.db.is_transformation(source_name, source_variant):
-            label_df = self.process_transformation(label)
+            label_df = self.process_transformation(label['source_name'], label['source_variant'])
+            if label['source_timestamp'] != "":
+                label_df = label_df[[label['source_entity'], label['source_value'], label['source_timestamp']]]
+            else:
+                label_df = label_df[[label['source_entity'], label['source_value']]]
+            label_df.set_index(label['source_entity'])
         else:
             label_df = self.process_label_csv(label_source['definition'], label['source_entity'], label['source_entity'], label['source_value'], label['source_timestamp'])
         label_df.rename(columns={label['source_value']: 'label'}, inplace=True)
@@ -73,7 +78,16 @@ class LocalClientImpl():
 
         name_variant = feature['name'] + "." + feature['variant']
         if self.db.is_transformation(feature['source_name'], feature['source_variant']):
-            df = self.process_transformation(feature)
+            df = self.process_transformation(feature['source_name'], feature['source_variant'])
+            if isinstance(df, pd.Series):
+                df = df.to_frame()
+                df.reset_index(inplace=True)
+            if feature['source_timestamp'] != "":
+                df = df[[feature['source_entity'], feature['source_value'], feature['source_timestamp']]]
+            else:
+                df = df[[feature['source_entity'], feature['source_value']]]
+
+            df.set_index(feature['source_entity'])
             df.rename(columns={feature['source_value']: name_variant}, inplace=True)
         else:
             df = pd.read_csv(str(source['definition']))
@@ -109,8 +123,8 @@ class LocalClientImpl():
         training_set_df = training_set_df.assign(label=label_col)
         return Dataset.from_list(training_set_df.values.tolist())
 
-    def process_transformation(self, resource):
-        source_row = self.db.get_source_variant(resource['source_name'], resource['source_variant'])
+    def process_transformation(self, name, variant):
+        source_row = self.db.get_source_variant(name, variant)
         inputs = json.loads(source_row['inputs'])
         dataframes = []
         code = marshal.loads(bytearray(source_row['definition']))
@@ -118,7 +132,7 @@ class LocalClientImpl():
         for input in inputs:
             source_name, source_variant = input[0], input[1],
             if self.db.is_transformation(source_name, source_variant):
-                df = self.process_transform(source_name, source_variant, resource)
+                df = self.process_transformation(source_name, source_variant)
                 dataframes.append(df)
             else:
                 source_row = \
@@ -126,44 +140,7 @@ class LocalClientImpl():
                 df = pd.read_csv(str(source_row['definition']))
                 dataframes.append(df)
         new_data = func(*dataframes)
-        if isinstance(new_data, pd.Series):
-            new_data = new_data.to_frame()
-            new_data.reset_index(inplace=True)
-        if resource['source_timestamp'] != "":
-            df = new_data[[resource['source_entity'], resource['source_value'], resource['source_timestamp']]]
-            df[resource['source_timestamp']] = pd.to_datetime(df[resource['source_timestamp']])
-        else:
-            df = new_data[[resource['source_entity'], resource['source_value']]]
-        df.set_index(resource['source_entity'])
-        return df
-
-    def process_transform(self, source_name, source_variant, resource):
-        source_row = self.db.get_source_variant(source_name, source_variant)
-        inputs = json.loads(source_row['inputs'])
-        dataframes = []
-        code = marshal.loads(bytearray(source_row['definition']))
-        func = types.FunctionType(code, globals(), "transformation")
-        for input in inputs:
-            source_name, source_variant = input[0], input[1],
-            if self.db.is_transformation(source_name, source_variant):
-                df = self.process_transform(source_name, source_variant)
-                dataframes.append(df)
-            else:
-                source_row = \
-                    self.db.get_source_variant(source_name, source_variant)
-                df = pd.read_csv(str(source_row['definition']))
-                dataframes.append(df)
-        new_data = func(*dataframes)
-        if isinstance(new_data, pd.Series):
-            new_data = new_data.to_frame()
-            new_data.reset_index(inplace=True)
-        if resource['source_timestamp'] != "":
-            df = new_data[[resource['source_entity'], resource['source_value'], resource['source_timestamp']]]
-            df[resource['source_timestamp']] = pd.to_datetime(df[resource['source_timestamp']])
-        else:
-            df = new_data[[resource['source_entity'], resource['source_value']]]
-        df.set_index(resource['source_entity'])
-        return df
+        return new_data
 
     def features(self, feature_variant_list, entity):
         if len(feature_variant_list) == 0:
@@ -180,12 +157,12 @@ class LocalClientImpl():
 
             source_row = self.db.get_source_variant(source_name, source_variant)
             if self.db.is_transformation(source_name, source_variant):
-                df = self.process_transformation(features)
-                # if isinstance(df, pd.Series):
-                #     df = df.to_frame()
-                #     df.reset_index(inplace=True)
-                # df = df[[entity_tuple[0], feature_column_name]]
-                # df.set_index(entity_tuple[0])
+                df = self.process_transformation(source_name, source_variant)
+                if isinstance(df, pd.Series):
+                    df = df.to_frame()
+                    df.reset_index(inplace=True)
+                df = df[[entity_tuple[0], feature_column_name]]
+                df.set_index(entity_tuple[0])
                 dataframe_mapping.append(df)
             else:
                 name_variant = f"{featureVariantTuple[0]}.{featureVariantTuple[1]}"

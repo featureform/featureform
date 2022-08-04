@@ -1,0 +1,56 @@
+{
+  "name": "Wine quality rating",
+  "default-variant": "first-variant",
+  "type": "Label",
+  "all-versions": ["first-variant", "second-variant"],
+  "versions": {
+    "first-variant": {
+      "metadata": {
+        "version-name": "first-variant",
+        "transformation source": "Wine quality red_val",
+        "entity": "wine_id",
+        "type": "integer",
+        "created": "2020-08-09T13:49:51.141Z",
+        "owner": "Simba Khadder",
+        "visibility": "private",
+        "revision": "2020-08-12T13:49:51.141Z",
+        "tags": ["wine", "quality", "label"],
+        "description": "Classification of wine quality based on human ratings",
+        "sampling": "all"
+      },
+      "data": {
+        "training-sets": [
+          {
+            "name": "Wine Quality Dataset",
+            "description": "set of wine quality samples and quality ratings",
+            "tags": ["wine", "batch", "quality"]
+          }
+        ]
+      }
+    },
+    "second-variant": {
+      "metadata": {
+        "version-name": "first-variant",
+        "source": "Wine quality red_val",
+        "entity": "wine_id",
+        "created": "2020-08-09T13:49:51.141Z",
+        "owner": "Simba Khadder",
+        "type": "integer",
+        "visibility": "private",
+        "revision": "2020-08-12T13:49:51.141Z",
+        "tags": ["acid", "static", "chemical", "streaming"],
+        "description": "Acidity updated with streaming data",
+        "sampling": "all"
+      },
+      "data": {
+        "training-sets": [
+          {
+            "name": "Wine Quality Dataset",
+            "description": "set of wine quality samples and quality ratings",
+            "tags": ["wine", "batch", "quality"]
+          }
+        ]
+      }
+    }
+  }
+}

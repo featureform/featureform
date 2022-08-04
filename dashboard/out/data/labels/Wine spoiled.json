@@ -1,0 +1,56 @@
+{
+  "name": "Wine spoiled",
+  "default-variant": "first-variant",
+  "type": "Label",
+  "all-versions": ["first-variant", "second-variant"],
+  "versions": {
+    "first-variant": {
+      "metadata": {
+        "version-name": "first-variant",
+        "created": "2020-08-09T13:49:51.141Z",
+        "owner": "Simba Khadder",
+        "visibility": "private",
+        "type": "boolean",
+        "transformation source": "Wine quality red_val",
+        "revision": "2020-08-12T13:49:51.141Z",
+        "tags": ["wine", "SKU", "identifier"],
+        "description": "Unique ID specifying the wine sample",
+        "sampling": "all"
+      },
+      "data": {
+        "training-sets": [
+          {
+            "name": "Wine Quality Dataset",
+            "description": "set of wine quality samples and quality ratings",
+            "tags": ["wine", "batch", "quality"],
+            "variants": ["default", "second"]
+          }
+        ]
+      }
+    },
+    "second-variant": {
+      "metadata": {
+        "version-name": "first-variant",
+        "created": "2020-08-09T13:49:51.141Z",
+        "owner": "Simba Khadder",
+        "visibility": "private",
+        "type": "boolean",
+        "source": "Wine spoiled binary",
+        "revision": "2020-08-12T13:49:51.141Z",
+        "tags": ["wine", "SKU", "identifier"],
+        "description": "Unique ID specifying the wine sample",
+        "sampling": "all"
+      },
+      "data": {
+        "training-sets": [
+          {
+            "name": "Wine Quality Dataset",
+            "description": "set of wine quality samples and quality ratings",
+            "tags": ["wine", "batch", "quality"],
+            "variants": ["default", "second"]
+          }
+        ]
+      }
+    }
+  }
+}

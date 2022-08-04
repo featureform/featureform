@@ -1,0 +1,42 @@
+{
+  "name": "Wine quality red_val",
+  "type": "Transformation",
+  "default-variant": "first-variant",
+  "all-versions": ["first-variant", "normalized variant"],
+  "versions": {
+    "first-variant": {
+      "metadata": {
+        "version-name": "first-variant",
+        "entity": "wine_id",
+        "created": "2020-08-09T13:49:51.141Z",
+        "owner": "Simba Khadder",
+        "visibility": "private",
+        "revision": "2020-08-12T13:49:51.141Z",
+        "tags": ["acid", "static", "chemical"],
+        "description": "Constant acidity of wine sample"
+      },
+      "data": {
+        "feature-sets": [
+          { "name": "Wine quality set", "created": "2020-08-10T13:49:51.141Z" }
+        ]
+      }
+    },
+    "normalized variant": {
+      "metadata": {
+        "version-name": "normalized variant",
+        "entity": "wine_id",
+        "created": "2020-08-09T13:49:51.141Z",
+        "owner": "Simba Khadder",
+        "visibility": "private",
+        "revision": "2020-08-12T13:49:51.141Z",
+        "tags": ["acid", "static", "chemical", "streaming"],
+        "description": "Acidity updated with streaming data"
+      },
+      "data": {
+        "feature-sets": [
+          { "name": "Wine quality set", "created": "2020-08-10T13:49:51.141Z" }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "name": "clean_density",
+  "type": "Transformation",
+  "default-variant": "default variant",
+  "all-versions": ["default variant", "null-lost variant"],
+  "versions": {
+    "default variant": {
+      "metadata": {
+        "version-name": "default variant",
+        "entity": "wine_id",
+        "created": "2020-08-09T13:49:51.141Z",
+        "owner": "Simba Khadder",
+        "visibility": "private",
+        "revision": "2020-08-12T13:49:51.141Z",
+        "tags": ["calculated", "measured", "wine"],
+        "description": "density of clean part of sample"
+      },
+      "data": {
+        "inputs": [
+          {
+            "name": "catalog.price",
+            "description": "price of the purchase",
+            "tags": ["price", "purchase"],
+            "type": "float"
+          },
+          {
+            "name": "purchases",
+            "description": "number of purchases",
+            "tags": ["bought", "purchase"],
+            "type": "integer"
+          }
+        ],
+        "training-sets": [
+          {
+            "name": "Wine Quality Dataset",
+            "description": "set of wine quality samples and quality ratings",
+            "tags": ["wine", "batch", "quality"],
+            "variants": ["default", "error-removed"]
+          }
+        ]
+      }
+    },
+    "null-lost variant": {
+      "metadata": {
+        "version-name": "null-lost variant",
+        "entity": "wine_id",
+        "created": "2020-08-09T13:49:51.141Z",
+        "owner": "Simba Khadder",
+        "visibility": "private",
+        "revision": "2020-08-12T13:49:51.141Z",
+        "tags": ["calculated", "measured", "wine"],
+        "description": "null-lost corrected version"
+      },
+      "data": {
+        "columns": [
+          {
+            "name": "id",
+            "type": "entity"
+          },
+          { "name": "fixed_acidity", "type": "float" },
+          { "name": "clean_density", "type": "float" },
+          {
+            "name": "purchases",
+            "type": "integer"
+          }
+        ],
+        "training-sets": [
+          {
+            "name": "Wine Quality Dataset",
+            "description": "set of wine quality samples and quality ratings",
+            "tags": ["wine", "batch", "quality"],
+            "variants": ["default", "error-removed"]
+          }
+        ]
+      }
+    }
+  }
+}

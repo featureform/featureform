@@ -106,7 +106,37 @@ class LocalClientImpl:
         label_df.rename(columns={label_row['source_value']: 'label'}, inplace=True)
         return label_df
 
+    def get_feature_dataframe(self, feature_row, feature_variant):
+        source_row = \
+                self.db.get_source_variant(feature_row['source_name'], feature_row['source_variant'])
 
+        name_variant = feature_variant['feature_name'] + "." + feature_variant['feature_variant']
+        if self.db.is_transformation(feature_row['source_name'], feature_row['source_variant']):
+            df = self.process_transformation(feature_row['source_name'], feature_row['source_variant'])
+            if isinstance(df, pd.Series):
+                df = df.to_frame()
+                df.reset_index(inplace=True)
+            if feature_row['source_timestamp'] != "":
+                df = df[[feature_row['source_entity'], feature_row['source_value'], feature_row['source_timestamp']]]
+                df[feature_row['source_timestamp']] = pd.to_datetime(df[feature_row['source_timestamp']])
+            else:
+                df = df[[feature_row['source_entity'], feature_row['source_value']]]
+
+            df.set_index(feature_row['source_entity'])
+            df.rename(columns={feature_row['source_value']: name_variant}, inplace=True)
+        else:
+            df = pd.read_csv(str(source_row['definition']))
+
+            if feature_row['source_timestamp'] != "":
+                df = df[[feature_row['source_entity'], feature_row['source_value'], feature_row['source_timestamp']]]
+                df[feature_row['source_timestamp']] = pd.to_datetime(df[feature_row['source_timestamp']])
+            else:
+                df = df[[feature_row['source_entity'], feature_row['source_value']]]
+            df.set_index(feature_row['source_entity'])
+            df.rename(columns={feature_row['source_value']: name_variant}, inplace=True)
+
+        return df
+        
     def training_set(self, training_set_name, training_set_variant):
         training_set_row = \
             self.db.get_training_set_variant(training_set_name, training_set_variant)
@@ -118,34 +148,7 @@ class LocalClientImpl:
         feature_table = self.db.get_training_set_features(training_set_name, training_set_variant)
         for feature_variant in feature_table:
             feature_row = self.db.get_feature_variant(feature_variant['feature_name'], feature_variant['feature_variant'])
-
-            source_row = \
-                self.db.get_source_variant(feature_row['source_name'], feature_row['source_variant'])
-
-            name_variant = feature_variant['feature_name'] + "." + feature_variant['feature_variant']
-            if self.db.is_transformation(feature_row['source_name'], feature_row['source_variant']):
-                df = self.process_transformation(feature_row['source_name'], feature_row['source_variant'])
-                if isinstance(df, pd.Series):
-                    df = df.to_frame()
-                    df.reset_index(inplace=True)
-                if feature_row['source_timestamp'] != "":
-                    df = df[[feature_row['source_entity'], feature_row['source_value'], feature_row['source_timestamp']]]
-                    df[feature_row['source_timestamp']] = pd.to_datetime(df[feature_row['source_timestamp']])
-                else:
-                    df = df[[feature_row['source_entity'], feature_row['source_value']]]
-
-                df.set_index(feature_row['source_entity'])
-                df.rename(columns={feature_row['source_value']: name_variant}, inplace=True)
-            else:
-                df = pd.read_csv(str(source_row['definition']))
-
-                if feature_row['source_timestamp'] != "":
-                    df = df[[feature_row['source_entity'], feature_row['source_value'], feature_row['source_timestamp']]]
-                    df[feature_row['source_timestamp']] = pd.to_datetime(df[feature_row['source_timestamp']])
-                else:
-                    df = df[[feature_row['source_entity'], feature_row['source_value']]]
-                df.set_index(feature_row['source_entity'])
-                df.rename(columns={feature_row['source_value']: name_variant}, inplace=True)
+            df = self.get_feature_dataframe(feature_row, feature_variant)
             if feature_row['source_timestamp'] != "":
                 trainingset_df = pd.merge_asof(trainingset_df, df.sort_values(['ts']), direction='backward',
                                                left_on=label_row['source_timestamp'], right_on=feature_row['source_timestamp'], left_by=label_row['source_entity'],

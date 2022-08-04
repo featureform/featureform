@@ -1,0 +1,46 @@
+{
+  "name": "Sample online provider",
+  "default-variant": "default-variant",
+  "type": "Provider",
+  "all-versions": ["default-variant"],
+  "versions": {
+    "default-variant": {
+      "metadata": {
+        "version-name": "default-variant",
+        "created": "2020-08-10T13:49:51.141Z",
+        "team": "Customer model team",
+        "software": "Redis",
+        "type": "Online",
+        "description": "Provider for batch data"
+      },
+      "data": {
+        "features": [
+          {
+            "name": "Non-free Sulfur Dioxide",
+            "description": "Total non-free sulfur in sample",
+            "tags": ["wine", "batch", "sulfur"],
+            "variants": ["default", "second"]
+          },
+          {
+            "name": "fixed_acidity",
+            "description": "fixed acidity of smaple",
+            "tags": ["wine", "batch", "sulfur"],
+            "variants": ["default", "second"]
+          },
+          {
+            "name": "clean_density",
+            "description": "Clean density of sample",
+            "tags": ["wine", "batch", "sulfur"],
+            "variants": ["default", "second"]
+          },
+          {
+            "name": "LogAvgPurchasePrice",
+            "description": "Average purchase price of sample",
+            "tags": ["purchase", "commerce", "payment"],
+            "variants": ["default", "second"]
+          }
+        ]
+      }
+    }
+  }
+}

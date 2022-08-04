@@ -1,0 +1,70 @@
+{
+  "name": "Wine Quality Sample File",
+  "default-variant": "default-variant",
+  "type": "Primary Data",
+  "all-versions": ["default-variant"],
+  "versions": {
+    "default-variant": {
+      "metadata": {
+        "version-name": "default-variant",
+        "created": "2020-08-10T13:49:51.141Z",
+        "owner": "Simba Khadder",
+        "path": "/capital_one/home/examples/wine_data/wine_sample_sets",
+        "type": "CSV",
+        "description": "File containing measured wine sample data and human quality ratings."
+      },
+      "data": {
+        "training-sets": [
+          {
+            "name": "Wine Quality Dataset",
+            "description": "set of wine quality samples and quality ratings",
+            "tags": ["wine", "batch", "quality"],
+            "variants": ["default", "second"]
+          }
+        ],
+        "features": [
+          {
+            "name": "Non-free Sulfur Dioxide",
+            "description": "Non-free sulfur dioxide in sample",
+            "tags": ["wine", "batch", "sulfur"],
+            "variants": ["default", "second"]
+          },
+          {
+            "name": "fixed_acidity",
+            "description": "fixed acidity of sample",
+            "tags": ["wine", "batch", "quality"],
+            "variants": ["default", "second"]
+          },
+          {
+            "name": "clean_density",
+            "description": "clean density of sample",
+            "tags": ["wine", "batch", "quality"],
+            "variants": ["default", "second"]
+          },
+          {
+            "name": "LogAvgPurchasePrice",
+            "description": "log of average purchase price of sample",
+            "tags": ["wine", "batch", "quality"],
+            "variants": ["default", "second"]
+          }
+        ],
+        "labels": [
+          {
+            "name": "Wine quality rating",
+            "description": "human curated wine quality rating from 0 to 10",
+            "type": "integer",
+            "tags": ["wine", "batch", "quality"],
+            "variants": ["default", "second"]
+          },
+          {
+            "name": "Wine spoiled rating",
+            "description": "Determination if wine has spoiled or not",
+            "type": "boolean",
+            "tags": ["wine", "batch", "quality"],
+            "variants": ["default", "second"]
+          }
+        ]
+      }
+    }
+  }
+}

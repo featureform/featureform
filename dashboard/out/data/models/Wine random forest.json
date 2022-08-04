@@ -1,0 +1,63 @@
+{
+  "name": "Wine random forest",
+  "default-variant": "first-variant",
+  "type": "Model",
+  "all-versions": ["first-variant"],
+  "versions": {
+    "first-variant": {
+      "metadata": {
+        "version-name": "first-variant",
+        "created": "2020-08-09T13:49:51.141Z",
+        "visibility": "private",
+        "revision": "2020-08-12T13:49:51.141Z",
+        "tags": ["wine", "model", "classifier"],
+        "description": "Model predicting quality of wine sample from given metrics"
+      },
+      "data": {
+        "training-sets": [
+          {
+            "name": "Wine Quality Dataset",
+            "description": "set of wine quality samples and quality ratings",
+            "tags": ["wine", "batch", "quality"],
+            "variants": ["default", "second"]
+          }
+        ],
+        "features": [
+          {
+            "name": "Non-free Sulfur Dioxide",
+            "description": "Non-free sulfur dioxide in sample",
+            "tags": ["wine", "batch", "sulfur"],
+            "variants": ["default", "second"]
+          },
+          {
+            "name": "fixed_acidity",
+            "description": "fixed acidity of sample",
+            "tags": ["wine", "batch", "quality"],
+            "variants": ["default", "second"]
+          },
+          {
+            "name": "clean_density",
+            "description": "clean density of sample",
+            "tags": ["wine", "batch", "quality"],
+            "variants": ["default", "second"]
+          },
+          {
+            "name": "LogAvgPurchasePrice",
+            "description": "log of average purchase price of sample",
+            "tags": ["wine", "batch", "quality"],
+            "variants": ["default", "second"]
+          }
+        ],
+        "labels": [
+          {
+            "name": "Wine quality rating",
+            "description": "human curated wine quality rating from 0 to 10",
+            "type": "integer",
+            "tags": ["wine", "batch", "quality"],
+            "variants": ["default", "second"]
+          }
+        ]
+      }
+    }
+  }
+}

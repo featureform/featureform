@@ -60,7 +60,7 @@ class LocalClientImpl():
             df.set_index(label['source_entity'])
             label_df = df
         else:
-            label_df = self.process_label_csv(label_source['definition'], label['source_entity'], label['source_entity'], label_row['source_value'], label_row['source_timestamp'])
+            label_df = self.process_label_csv(label_source['definition'], label['source_entity'], label['source_entity'], label['source_value'], label['source_timestamp'])
         feature_table = self.db.get_training_set_features(training_set_name, training_set_variant)
 
         label_df.rename(columns={label['source_value']: 'label'}, inplace=True)

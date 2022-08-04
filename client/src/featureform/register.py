@@ -150,7 +150,7 @@ class LocalProvider:
                           )
 
     def df_transformation(self,
-                          variant: str,
+                          variant: str = "",
                           owner: Union[str, UserRegistrar] = "",
                           name: str = "",
                           description: str = "",
@@ -337,6 +337,7 @@ class DFTransformationDecorator:
                 raise ValueError(f"Transformation cannot be input for itself: {self.name} {self.variant}")
         self.query = marshal.dumps(fn.__code__)
         fn.register_resources = self.register_resources
+        fn.name_variant = self.name_variant
         return fn
 
     def to_source(self) -> Source:
@@ -1067,8 +1068,8 @@ class Registrar:
         return decorator
 
     def df_transformation(self,
-                          variant: str,
                           provider: Union[str, OfflineProvider],
+                          variant: str = "",
                           name: str = "",
                           owner: Union[str, UserRegistrar] = "",
                           description: str = "",
@@ -1086,10 +1087,13 @@ class Registrar:
         Returns:
             decorator (DFTransformationDecorator): decorator
         """
+
         if not isinstance(owner, str):
             owner = owner.name()
         if owner == "":
             owner = self.must_get_default_owner()
+        if variant == "":
+            variant = "default"
         if not isinstance(provider, str):
             provider = provider.name()
         for i, nv in enumerate(inputs):

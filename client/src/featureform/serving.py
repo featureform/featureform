@@ -136,6 +136,32 @@ class LocalClientImpl:
             df.rename(columns={feature_row['source_value']: name_variant}, inplace=True)
 
         return df
+
+    def merge_feature_into_ts(self, feature_row, label_row, df):
+        if feature_row['source_timestamp'] != "":
+            trainingset_df = pd.merge_asof(trainingset_df, df.sort_values(['ts']), direction='backward',
+                                            left_on=label_row['source_timestamp'], right_on=feature_row['source_timestamp'], left_by=label_row['source_entity'],
+                                            right_by=feature_row['source_entity'])
+        else:
+            df.drop_duplicates(subset=[feature_row['source_entity']], keep="last", inplace=True)
+            trainingset_df.reset_index(inplace=True)
+            trainingset_df[label_row['source_entity']] = trainingset_df[label_row['source_entity']].astype('string')
+            df[label_row['source_entity']] = df[label_row['source_entity']].astype('string')
+            trainingset_df = trainingset_df.join(df.set_index(label_row['source_entity']), how="left", on=label_row['source_entity'],
+                                                    lsuffix="_left")
+            if "index" in trainingset_df.columns:
+                trainingset_df.drop(columns='index', inplace=True)
+        return trainingset_df
+
+    def convert_ts_df_to_dataset(self, label_row, trainingset_df):
+        if label_row['source_timestamp'] != "":
+            trainingset_df.drop(columns=label_row['source_timestamp'], inplace=True)
+        trainingset_df.drop(columns=label_row['source_entity'], inplace=True)
+
+        label_col = trainingset_df.pop('label')
+        trainingset_df = trainingset_df.assign(label=label_col)
+        return Dataset.from_list(trainingset_df.values.tolist())
+
         
     def training_set(self, training_set_name, training_set_variant):
         training_set_row = \
@@ -149,27 +175,9 @@ class LocalClientImpl:
         for feature_variant in feature_table:
             feature_row = self.db.get_feature_variant(feature_variant['feature_name'], feature_variant['feature_variant'])
             df = self.get_feature_dataframe(feature_row, feature_variant)
-            if feature_row['source_timestamp'] != "":
-                trainingset_df = pd.merge_asof(trainingset_df, df.sort_values(['ts']), direction='backward',
-                                               left_on=label_row['source_timestamp'], right_on=feature_row['source_timestamp'], left_by=label_row['source_entity'],
-                                               right_by=feature_row['source_entity'])
-            else:
-                df.drop_duplicates(subset=[feature_row['source_entity']], keep="last", inplace=True)
-                trainingset_df.reset_index(inplace=True)
-                trainingset_df[label_row['source_entity']] = trainingset_df[label_row['source_entity']].astype('string')
-                df[label_row['source_entity']] = df[label_row['source_entity']].astype('string')
-                trainingset_df = trainingset_df.join(df.set_index(label_row['source_entity']), how="left", on=label_row['source_entity'],
-                                                     lsuffix="_left")
-                if "index" in trainingset_df.columns:
-                    trainingset_df.drop(columns='index', inplace=True)
+            trainingset_df = self.merge_feature_into_ts(feature_row, label_row, df)
 
-        if label_row['source_timestamp'] != "":
-            trainingset_df.drop(columns=label_row['source_timestamp'], inplace=True)
-        trainingset_df.drop(columns=label_row['source_entity'], inplace=True)
-
-        label_col = trainingset_df.pop('label')
-        trainingset_df = trainingset_df.assign(label=label_col)
-        return Dataset.from_list(trainingset_df.values.tolist())
+        return self.convert_ts_df_to_dataset(label_row, trainingset_df)
 
     def process_transformation(self, name, variant):
         source_row = self.db.get_source_variant(name, variant)

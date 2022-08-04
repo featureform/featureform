@@ -15,49 +15,87 @@ from .tls import insecure_channel, secure_channel
 import pandas as pd
 from .sqlite_metadata import SQLiteMetadata
 
-
 class Client:
 
     def __init__(self, host=None, local=False, insecure=False, cert_path=None):
-        self.local = local
         if local and host:
-                raise ValueError("Cannot be local and have a host")
-        elif local and not host:
-            self.sqldb = SQLiteMetadata()
+            raise ValueError("Host and local cannot both be set")
+        if local:
+            self.impl = LocalClientImpl()
         else:
-            host = host or os.getenv('FEATUREFORM_HOST')
-            if host is None:
-                raise RuntimeError(
-                    'If not in local mode then `host` must be passed or the environment'
-                    ' variable FEATUREFORM_HOST must be set.'
-                )
-            if insecure:
-                channel = insecure_channel(host)
-            else:
-                channel = secure_channel(host, cert_path)
-            self._stub = serving_pb2_grpc.FeatureStub(channel)
+            self.impl = HostedClientImpl(host, insecure, cert_path)
 
 
     def training_set(self, name, version):
-        if self.local:
-            return self._local_training_set(name, version)
-        else:
-            return self._host_training_set(name, version)
+        return self.impl.training_set(name, version)
 
-    def _host_training_set(self, name, version):
-        if self.local:
-            raise ValueError("Not supported in localmode. Please try using training_set()")
+    def features(self, features, entities):
+        return self.impl.features(features, entities)
+
+    def process_feature_csv(self, source_path, entity_name, entity_col, value_col, dataframe_mapping,
+                            feature_name_variant, timestamp_column):
+        return self.impl.process_feature_csv(source_path, entity_name, entity_col, value_col, dataframe_mapping, feature_name_variant, timestamp_column)
+
+    def process_label_csv(self, source_path, entity_name, entity_col, value_col, timestamp_column):
+        return self.impl.process_label_csv(source_path, entity_name, entity_col, value_col, timestamp_column)
+
+class HostedClientImpl:
+    def __init__(self, host=None, insecure=False, cert_path=None):
+        host = host or os.getenv('FEATUREFORM_HOST')
+        if host is None:
+            raise ValueError(
+                'If not in local mode then `host` must be passed or the environment'
+                ' variable FEATUREFORM_HOST must be set.'
+            )
+        channel = self._create_channel(host, insecure, cert_path)
+        self._stub = serving_pb2_grpc.FeatureStub(channel)
+
+    def _create_channel(self, host, insecure, cert_path):
+        if insecure:
+            return self._create_insecure_channel(host)
+        else:
+            return self._create_secure_channel(host, cert_path)  
+
+    def _create_insecure_channel(self, host):
+        return grpc.insecure_channel(host, options=(('grpc.enable_http_proxy', 0),))
+
+    def _create_secure_channel(self, host, cert_path):
+        cert_path = cert_path or os.getenv('FEATUREFORM_CERT')
+        use_default_creds = not cert_path
+        if use_default_creds:
+            credentials = grpc.ssl_channel_credentials()
+        else:
+            with open(cert_path, 'rb') as f:
+                credentials = grpc.ssl_channel_credentials(f.read())
+        return grpc.secure_channel(host, credentials)
+
+    def training_set(self, name, version):
         return Dataset(self._stub).from_stub(name, version)
 
-    def _local_training_set(self, training_set_name, training_set_variant):
-        if not self.local:
-            raise ValueError("Only supported in localmode. Please try using dataset()")
+    def features(self, features, entities):
+        req = serving_pb2.FeatureServeRequest()
+        for name, value in entities.items():
+            entity_proto = req.entities.add()
+            entity_proto.name = name
+            entity_proto.value = value
+        for (name, version) in features:
+            feature_id = req.features.add()
+            feature_id.name = name
+            feature_id.version = version
+        resp = self._stub.FeatureServe(req)
+        return [parse_proto_value(val) for val in resp.values]
+
+class LocalClientImpl:
+    def __init__(self):
+        self.db = SQLiteMetadata()
+
+    def training_set(self, training_set_name, training_set_variant):
         training_set_row = \
-            self.sqldb.get_training_set_variant(training_set_name, training_set_variant)
+            self.db.get_training_set_variant(training_set_name, training_set_variant)
         label_row = \
-            self.sqldb.get_label_variant(training_set_row['label_name'], training_set_row['label_variant'])
-        label_source = self.sqldb.get_source_variant(label_row['source_name'], label_row['source_variant'])
-        if self.sqldb.is_transformation(label_row['source_name'], label_row['source_variant']):
+            self.db.get_label_variant(training_set_row['label_name'], training_set_row['label_variant'])
+        label_source = self.db.get_source_variant(label_row['source_name'], label_row['source_variant'])
+        if self.db.is_transformation(label_row['source_name'], label_row['source_variant']):
             df = self.process_transformation(label_row['source_name'], label_row['source_variant'])
             if label_row['source_timestamp'] != "":
                 df = df[[label_row['source_entity'], label_row['source_value'], label_row['source_timestamp']]]
@@ -68,18 +106,18 @@ class Client:
             label_df = df
         else:
             label_df = self.process_label_csv(label_source['definition'], label_row['source_entity'], label_row['source_entity'], label_row['source_value'], label_row['source_timestamp'])
-        feature_table = self.sqldb.get_training_set_features(training_set_name, training_set_variant)
+        feature_table = self.db.get_training_set_features(training_set_name, training_set_variant)
 
         label_df.rename(columns={label_row['source_value']: 'label'}, inplace=True)
         trainingset_df = label_df
         for feature_variant in feature_table:
-            feature_row = self.sqldb.get_feature_variant(feature_variant['feature_name'], feature_variant['feature_variant'])
+            feature_row = self.db.get_feature_variant(feature_variant['feature_name'], feature_variant['feature_variant'])
 
             source_row = \
-                self.sqldb.get_source_variant(feature_row['source_name'], feature_row['source_variant'])
+                self.db.get_source_variant(feature_row['source_name'], feature_row['source_variant'])
 
             name_variant = feature_variant['feature_name'] + "." + feature_variant['feature_variant']
-            if self.sqldb.is_transformation(feature_row['source_name'], feature_row['source_variant']):
+            if self.db.is_transformation(feature_row['source_name'], feature_row['source_variant']):
                 df = self.process_transformation(feature_row['source_name'], feature_row['source_variant'])
                 if isinstance(df, pd.Series):
                     df = df.to_frame()
@@ -124,45 +162,26 @@ class Client:
         trainingset_df = trainingset_df.assign(label=label_col)
         return Dataset.from_list(trainingset_df.values.tolist())
 
-    def features(self, features, entities):
-        if self.local:
-            return self._local_features(features, entities)
-        else:
-            return self._host_features(features, entities)
-
-    def _host_features(self, features, entities):
-        req = serving_pb2.FeatureServeRequest()
-        for name, value in entities.items():
-            entity_proto = req.entities.add()
-            entity_proto.name = name
-            entity_proto.value = value
-        for (name, version) in features:
-            feature_id = req.features.add()
-            feature_id.name = name
-            feature_id.version = version
-        resp = self._stub.FeatureServe(req)
-        return [parse_proto_value(val) for val in resp.values]
-
     def process_transformation(self, name, variant):
-        source_row = self.sqldb.get_source_variant(name, variant)
+        source_row = self.db.get_source_variant(name, variant)
         inputs = json.loads(source_row['inputs'])
         dataframes = []
         code = marshal.loads(bytearray(source_row['definition']))
         func = types.FunctionType(code, globals(), "transformation")
         for input in inputs:
             source_name, source_variant = input[0], input[1],
-            if self.sqldb.is_transformation(source_name, source_variant):
+            if self.db.is_transformation(source_name, source_variant):
                 df = self.process_transformation(source_name, source_variant)
                 dataframes.append(df)
             else:
                 source_row = \
-                    self.sqldb.get_source_variant(source_name, source_variant)
+                    self.db.get_source_variant(source_name, source_variant)
                 df = pd.read_csv(str(source_row['definition']))
                 dataframes.append(df)
         new_data = func(*dataframes)
         return new_data
 
-    def _local_features(self, feature_variant_list, entity):
+    def features(self, feature_variant_list, entity):
         if len(feature_variant_list) == 0:
             raise Exception("No features provided")
         # This code was originally written to take a tuple, this is a quick fix to turn a dict with a single entry into that tuple.
@@ -172,11 +191,11 @@ class Client:
         all_feature_df = None
         for featureVariantTuple in feature_variant_list:
 
-            feature_row = self.sqldb.get_feature_variant(featureVariantTuple[0], featureVariantTuple[1])
+            feature_row = self.db.get_feature_variant(featureVariantTuple[0], featureVariantTuple[1])
             entity_column, ts_column, feature_column_name, source_name, source_variant = feature_row['source_entity'], feature_row['source_timestamp'], feature_row['source_value'], feature_row['source_name'], feature_row['source_variant']
 
-            source_row = self.sqldb.get_source_variant(source_name, source_variant)
-            if self.sqldb.is_transformation(source_name, source_variant):
+            source_row = self.db.get_source_variant(source_name, source_variant)
+            if self.db.is_transformation(source_name, source_variant):
                 df = self.process_transformation(source_name, source_variant)
                 if isinstance(df, pd.Series):
                     df = df.to_frame()

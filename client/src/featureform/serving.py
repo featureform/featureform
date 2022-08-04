@@ -89,11 +89,7 @@ class LocalClientImpl:
     def __init__(self):
         self.db = SQLiteMetadata()
 
-    def training_set(self, training_set_name, training_set_variant):
-        training_set_row = \
-            self.db.get_training_set_variant(training_set_name, training_set_variant)
-        label_row = \
-            self.db.get_label_variant(training_set_row['label_name'], training_set_row['label_variant'])
+    def get_label_dataframe(self, label_row):
         label_source = self.db.get_source_variant(label_row['source_name'], label_row['source_variant'])
         if self.db.is_transformation(label_row['source_name'], label_row['source_variant']):
             df = self.process_transformation(label_row['source_name'], label_row['source_variant'])
@@ -106,10 +102,20 @@ class LocalClientImpl:
             label_df = df
         else:
             label_df = self.process_label_csv(label_source['definition'], label_row['source_entity'], label_row['source_entity'], label_row['source_value'], label_row['source_timestamp'])
-        feature_table = self.db.get_training_set_features(training_set_name, training_set_variant)
 
         label_df.rename(columns={label_row['source_value']: 'label'}, inplace=True)
+        return label_df
+
+
+    def training_set(self, training_set_name, training_set_variant):
+        training_set_row = \
+            self.db.get_training_set_variant(training_set_name, training_set_variant)
+        label_row = \
+            self.db.get_label_variant(training_set_row['label_name'], training_set_row['label_variant'])
+        label_df = self.get_label_dataframe(label_row)
+        
         trainingset_df = label_df
+        feature_table = self.db.get_training_set_features(training_set_name, training_set_variant)
         for feature_variant in feature_table:
             feature_row = self.db.get_feature_variant(feature_variant['feature_name'], feature_variant['feature_variant'])
 

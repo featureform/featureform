@@ -24,7 +24,7 @@ const (
 )
 
 const (
-	SleepTime = 6 * time.Second
+	sleepTime = 1 * time.Second
 )
 
 type BigQueryConfig struct {
@@ -89,6 +89,7 @@ type BQOfflineTableQueries interface {
 	atomicUpdate(client *bigquery.Client, tableName string, tempName string, query string) error
 	trainingRowSelect(columns string, trainingSetName string) string
 	primaryTableRegister(tableName string, sourceName string) string
+	getTableName(tableName string) string
 }
 
 type defaultBQQueries struct {
@@ -115,7 +116,7 @@ func (pt *bqPrimaryTable) GetName() string {
 }
 
 func (pt *bqPrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) {
-	tableName := fmt.Sprintf("%s.%s", pt.query.getTablePrefix(), pt.name)
+	tableName := pt.query.getTableName(pt.name)
 	query := fmt.Sprintf("SELECT * FROM `%s` LIMIT %d", tableName, n)
 	bqQ := pt.client.Query(query)
 	it, err := bqQ.Read(pt.query.getContext())
@@ -128,7 +129,7 @@ func (pt *bqPrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) 
 
 func (pt *bqPrimaryTable) NumRows() (int64, error) {
 	var n []bigquery.Value
-	tableName := fmt.Sprintf("%s.%s", pt.query.getTablePrefix(), pt.name)
+	tableName := pt.query.getTableName(pt.name)
 	query := fmt.Sprintf("SELECT COUNT(*) FROM `%s`", tableName)
 
 	bqQ := pt.client.Query(query)
@@ -231,11 +232,11 @@ func newBigQueryGenericTableIterator(it *bigquery.RowIterator, query BQOfflineTa
 func (q defaultBQQueries) registerResources(client *bigquery.Client, tableName string, schema ResourceSchema, timestamp bool) error {
 	var query string
 	if timestamp {
-		query = fmt.Sprintf("CREATE VIEW `%s.%s` AS SELECT %s as entity, %s as value, %s as ts FROM `%s.%s`", q.getTablePrefix(), tableName,
-			schema.Entity, schema.Value, schema.TS, q.getTablePrefix(), schema.SourceTable)
+		query = fmt.Sprintf("CREATE VIEW `%s` AS SELECT %s as entity, %s as value, %s as ts FROM `%s`", q.getTableName(tableName),
+			schema.Entity, schema.Value, schema.TS, q.getTableName(schema.SourceTable))
 	} else {
-		query = fmt.Sprintf("CREATE VIEW `%s.%s` AS SELECT %s as entity, %s as value, to_timestamp('%s', 'YYYY-DD-MM HH24:MI:SS +0000 UTC')::TIMESTAMP as ts FROM `%s.%s`", q.getTablePrefix(), tableName,
-			schema.Entity, schema.Value, time.UnixMilli(0).UTC(), q.getTablePrefix(), schema.SourceTable)
+		query = fmt.Sprintf("CREATE VIEW `%s` AS SELECT %s as entity, %s as value, to_timestamp('%s', 'YYYY-DD-MM HH24:MI:SS +0000 UTC')::TIMESTAMP as ts FROM `%s`", q.getTableName(tableName),
+			schema.Entity, schema.Value, time.UnixMilli(0).UTC(), q.getTableName(schema.SourceTable))
 	}
 
 	bqQ := client.Query(query)
@@ -244,14 +245,14 @@ func (q defaultBQQueries) registerResources(client *bigquery.Client, tableName s
 }
 
 func (q defaultBQQueries) writeUpdate(table string) string {
-	return fmt.Sprintf("UPDATE `%s.%s` SET value=? WHERE entity=? AND ts=? ", q.getTablePrefix(), table)
+	return fmt.Sprintf("UPDATE `%s` SET value=? WHERE entity=? AND ts=? ", q.getTableName(table))
 }
 func (q defaultBQQueries) writeInserts(table string) string {
-	return fmt.Sprintf("INSERT INTO `%s.%s` (entity, value, ts, insert_ts) VALUES (?, ?, ?, CURRENT_TIMESTAMP())", q.getTablePrefix(), table)
+	return fmt.Sprintf("INSERT INTO `%s` (entity, value, ts, insert_ts) VALUES (?, ?, ?, CURRENT_TIMESTAMP())", q.getTableName(table))
 }
 
 func (q defaultBQQueries) writeExists(table string) string {
-	return fmt.Sprintf("SELECT COUNT(*) FROM `%s.%s` WHERE entity=\"%s\" AND ts=timestamp(\"%s\")", q.getTablePrefix(), table, "?", "?")
+	return fmt.Sprintf("SELECT COUNT(*) FROM `%s` WHERE entity=\"%s\" AND ts=timestamp(\"%s\")", q.getTableName(table), "?", "?")
 }
 
 func (q defaultBQQueries) tableExists(tableName string) string {
@@ -284,12 +285,12 @@ func (q defaultBQQueries) determineColumnType(valueType ValueType) (string, erro
 }
 
 func (q defaultBQQueries) primaryTableCreate(name string, columnString string) string {
-	query := fmt.Sprintf("CREATE TABLE `%s.%s` ( %s )", q.getTablePrefix(), name, columnString)
+	query := fmt.Sprintf("CREATE TABLE `%s` ( %s )", q.getTableName(name), columnString)
 	return query
 }
 
 func (q defaultBQQueries) upsertQuery(tb string, columns string, placeholder string) string {
-	return fmt.Sprintf("INSERT INTO `%s.%s` ( %s ) VALUES ( %s )", q.getTablePrefix(), tb, columns, placeholder)
+	return fmt.Sprintf("INSERT INTO `%s` ( %s ) VALUES ( %s )", q.getTableName(tb), columns, placeholder)
 }
 
 func (q defaultBQQueries) createValuePlaceholderString(columns []TableColumn) string {
@@ -301,24 +302,24 @@ func (q defaultBQQueries) createValuePlaceholderString(columns []TableColumn) st
 }
 
 func (q defaultBQQueries) newBQOfflineTable(name string, columnType string) string {
-	return fmt.Sprintf("CREATE TABLE `%s.%s` (entity STRING, value %s, ts TIMESTAMP, insert_ts TIMESTAMP)", q.getTablePrefix(), name, columnType)
+	return fmt.Sprintf("CREATE TABLE `%s` (entity STRING, value %s, ts TIMESTAMP, insert_ts TIMESTAMP)", q.getTableName(name), columnType)
 }
 
 func (q defaultBQQueries) materializationCreate(tableName string, resultName string) string {
 	query := fmt.Sprintf(
-		"CREATE TABLE `%s.%s` AS (SELECT entity, value, ts, row_number() over(ORDER BY entity) as row_number FROM "+
+		"CREATE TABLE `%s` AS (SELECT entity, value, ts, row_number() over(ORDER BY entity) as row_number FROM "+
 			"(SELECT entity, ts, value, row_number() OVER (PARTITION BY entity ORDER BY ts DESC, insert_ts DESC) "+
-			"AS rn FROM `%s.%s`) t WHERE rn=1)", q.getTablePrefix(), tableName, q.getTablePrefix(), resultName)
+			"AS rn FROM `%s`) t WHERE rn=1)", q.getTableName(tableName), q.getTableName(resultName))
 
 	return query
 }
 
 func (q defaultBQQueries) materializationIterateSegment(tableName string, start int64, end int64) string {
-	return fmt.Sprintf("SELECT entity, value, ts FROM ( SELECT * FROM `%s.%s` WHERE row_number > %v AND row_number <= %v)", q.getTablePrefix(), tableName, start, end)
+	return fmt.Sprintf("SELECT entity, value, ts FROM ( SELECT * FROM `%s` WHERE row_number > %v AND row_number <= %v)", q.getTableName(tableName), start, end)
 }
 
 func (q defaultBQQueries) getNumRowsQuery(tableName string) string {
-	return fmt.Sprintf("SELECT COUNT(*) FROM `%s.%s`", q.getTablePrefix(), tableName)
+	return fmt.Sprintf("SELECT COUNT(*) FROM `%s`", q.getTableName(tableName))
 }
 
 func (q *defaultBQQueries) getTablePrefix() string {
@@ -367,7 +368,7 @@ func (q defaultBQQueries) materializationExists(tableName string) string {
 }
 
 func (q defaultBQQueries) materializationDrop(tableName string) string {
-	return fmt.Sprintf("DROP TABLE `%s.%s`", q.getTablePrefix(), tableName)
+	return fmt.Sprintf("DROP TABLE `%s`", q.getTableName(tableName))
 }
 
 func (q defaultBQQueries) materializationUpdate(client *bigquery.Client, tableName string, sourceName string) error {
@@ -375,15 +376,15 @@ func (q defaultBQQueries) materializationUpdate(client *bigquery.Client, tableNa
 	tempTable := fmt.Sprintf("tmp_%s", tableName)
 	oldTable := fmt.Sprintf("old_%s", tableName)
 
-	materializationCreateQuery := fmt.Sprintf("CREATE TABLE `%s.%s` AS (SELECT entity, value, ts, row_number() over(ORDER BY (entity)) as row_number FROM "+
+	materializationCreateQuery := fmt.Sprintf("CREATE TABLE `%s` AS (SELECT entity, value, ts, row_number() over(ORDER BY (entity)) as row_number FROM "+
 		"(SELECT entity, ts, value, row_number() OVER (PARTITION BY entity ORDER BY ts DESC, insert_ts DESC) "+
-		"AS rn FROM `%s.%s`) t WHERE rn=1);", q.getTablePrefix(), tempTable, q.getTablePrefix(), sourceName)
+		"AS rn FROM `%s`) t WHERE rn=1);", q.getTableName(tempTable), q.getTableName(sourceName))
 
 	alterTables := fmt.Sprintf(
-		"ALTER TABLE `%s.%s` RENAME TO `%s`;"+
-			"ALTER TABLE `%s.%s` RENAME TO `%s`;", q.getTablePrefix(), sanitizedTable, oldTable, q.getTablePrefix(), tempTable, sanitizedTable)
+		"ALTER TABLE `%s` RENAME TO `%s`;"+
+			"ALTER TABLE `%s` RENAME TO `%s`;", q.getTableName(sanitizedTable), oldTable, q.getTableName(tempTable), sanitizedTable)
 
-	dropTable := fmt.Sprintf("DROP TABLE `%s.%s`;", q.getTablePrefix(), oldTable)
+	dropTable := fmt.Sprintf("DROP TABLE `%s`;", q.getTableName(oldTable))
 
 	query := fmt.Sprintf("%s %s %s", materializationCreateQuery, alterTables, dropTable)
 
@@ -399,7 +400,7 @@ func (q defaultBQQueries) materializationUpdate(client *bigquery.Client, tableNa
 
 func (q defaultBQQueries) monitorJob(job *bigquery.Job) error {
 	for {
-		time.Sleep(SleepTime)
+		time.Sleep(sleepTime)
 		status, err := job.Status(q.getContext())
 		if err != nil {
 			return err
@@ -417,7 +418,7 @@ func (q defaultBQQueries) monitorJob(job *bigquery.Job) error {
 }
 
 func (q defaultBQQueries) transformationCreate(name string, query string) string {
-	qry := fmt.Sprintf("CREATE TABLE `%s.%s` AS %s", q.getTablePrefix(), name, query)
+	qry := fmt.Sprintf("CREATE TABLE `%s` AS %s", q.getTableName(name), query)
 	return qry
 }
 
@@ -447,7 +448,7 @@ func (q defaultBQQueries) getColumns(client *bigquery.Client, name string) ([]Ta
 
 func (q defaultBQQueries) transformationUpdate(client *bigquery.Client, tableName string, query string) error {
 	tempName := fmt.Sprintf("tmp_%s", tableName)
-	fullQuery := fmt.Sprintf("CREATE TABLE `%s.%s` AS %s", q.getTablePrefix(), tempName, query)
+	fullQuery := fmt.Sprintf("CREATE TABLE `%s` AS %s", q.getTableName(tempName), query)
 
 	err := q.atomicUpdate(client, tableName, tempName, fullQuery)
 	if err != nil {
@@ -461,10 +462,10 @@ func (q defaultBQQueries) atomicUpdate(client *bigquery.Client, tableName string
 	oldTable := fmt.Sprintf("old_%s", tableName)
 	updateQuery := fmt.Sprintf(
 		"%s;"+
-			"ALTER TABLE `%s.%s` RENAME TO `%s`;"+
-			"ALTER TABLE `%s.%s` RENAME TO `%s`;"+
-			"DROP TABLE `%s.%s`;"+
-			"", query, q.getTablePrefix(), sanitizedTable, oldTable, q.getTablePrefix(), tempName, sanitizedTable, q.getTablePrefix(), oldTable)
+			"ALTER TABLE `%s` RENAME TO `%s`;"+
+			"ALTER TABLE `%s` RENAME TO `%s`;"+
+			"DROP TABLE `%s`;"+
+			"", query, q.getTableName(sanitizedTable), oldTable, q.getTableName(tempName), sanitizedTable, q.getTableName(oldTable))
 
 	bdQ := client.Query(updateQuery)
 	job, err := bdQ.Run(q.getContext())
@@ -497,8 +498,8 @@ func (q defaultBQQueries) trainingSetQuery(store *bqOfflineStore, def TrainingSe
 		tableJoinAlias := fmt.Sprintf("t%d", i+1)
 		selectColumns = append(selectColumns, fmt.Sprintf("%s_rnk", tableJoinAlias))
 		columns = append(columns, santizedName)
-		query = fmt.Sprintf("%s LEFT OUTER JOIN (SELECT entity, value AS `%s`, ts, RANK() OVER (ORDER BY ts DESC, insert_ts DESC) AS %s_rnk FROM `%s.%s` ORDER BY ts desc) AS %s ON (%s.entity=t0.entity AND %s.ts <= t0.ts)",
-			query, santizedName, tableJoinAlias, q.getTablePrefix(), tableName, tableJoinAlias, tableJoinAlias, tableJoinAlias)
+		query = fmt.Sprintf("%s LEFT OUTER JOIN (SELECT entity, value AS `%s`, ts, RANK() OVER (ORDER BY ts DESC, insert_ts DESC) AS %s_rnk FROM `%s` ORDER BY ts desc) AS %s ON (%s.entity=t0.entity AND %s.ts <= t0.ts)",
+			query, santizedName, tableJoinAlias, q.getTableName(tableName), tableJoinAlias, tableJoinAlias, tableJoinAlias)
 		if i == len(def.Features)-1 {
 			query = fmt.Sprintf("%s )) WHERE rn=1", query)
 		}
@@ -508,10 +509,10 @@ func (q defaultBQQueries) trainingSetQuery(store *bqOfflineStore, def TrainingSe
 
 	if !isUpdate {
 		fullQuery := fmt.Sprintf(
-			"CREATE TABLE `%s.%s` AS (SELECT %s, label FROM ("+
+			"CREATE TABLE `%s` AS (SELECT %s, label FROM ("+
 				"SELECT *, row_number() over(PARTITION BY e, label, time ORDER BY \"time\", %s DESC) AS rn FROM ( "+
-				"SELECT t0.entity AS e, t0.value AS label, t0.ts AS time, %s, %s FROM `%s.%s` AS t0 %s )",
-			q.getTablePrefix(), tableName, columnStr, selectColumnStr, columnStr, selectColumnStr, q.getTablePrefix(), labelName, query)
+				"SELECT t0.entity AS e, t0.value AS label, t0.ts AS time, %s, %s FROM `%s` AS t0 %s )",
+			q.getTableName(tableName), columnStr, selectColumnStr, columnStr, selectColumnStr, q.getTableName(labelName), query)
 
 		bqQ := store.client.Query(fullQuery)
 		job, err := bqQ.Run(store.query.getContext())
@@ -524,21 +525,25 @@ func (q defaultBQQueries) trainingSetQuery(store *bqOfflineStore, def TrainingSe
 	} else {
 		tempTable := fmt.Sprintf("tmp_%s", tableName)
 		fullQuery := fmt.Sprintf(
-			"CREATE TABLE `%s.%s` AS (SELECT %s, label FROM ("+
+			"CREATE TABLE `%s` AS (SELECT %s, label FROM ("+
 				"SELECT *, row_number() over(PARTITION BY e, label, time ORDER BY \"time\", %s desc) AS rn FROM ( "+
-				"SELECT t0.entity AS e, t0.value AS label, t0.ts AS time, %s, %s FROM `%s.%s` AS t0 %s )",
-			q.getTablePrefix(), tempTable, columnStr, selectColumnStr, columnStr, selectColumnStr, q.getTablePrefix(), labelName, query)
+				"SELECT t0.entity AS e, t0.value AS label, t0.ts AS time, %s, %s FROM `%s` AS t0 %s )",
+			q.getTableName(tempTable), columnStr, selectColumnStr, columnStr, selectColumnStr, q.getTableName(labelName), query)
 		err := q.atomicUpdate(store.client, tableName, tempTable, fullQuery)
 		return err
 	}
 }
 
 func (q defaultBQQueries) trainingRowSelect(columns string, trainingSetName string) string {
-	return fmt.Sprintf("SELECT %s FROM `%s.%s`", columns, q.getTablePrefix(), trainingSetName)
+	return fmt.Sprintf("SELECT %s FROM `%s`", columns, q.getTableName(trainingSetName))
 }
 
 func (q defaultBQQueries) primaryTableRegister(tableName string, sourceName string) string {
-	return fmt.Sprintf("CREATE VIEW `%s.%s` AS SELECT * FROM `%s.%s`", q.getTablePrefix(), tableName, q.getTablePrefix(), sourceName)
+	return fmt.Sprintf("CREATE VIEW `%s` AS SELECT * FROM `%s`", q.getTableName(tableName), q.getTableName(sourceName))
+}
+
+func (q defaultBQQueries) getTableName(tableName string) string {
+	return fmt.Sprintf("%s.%s", q.getTablePrefix(), tableName)
 }
 
 type bqMaterialization struct {

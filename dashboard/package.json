@@ -48,7 +48,7 @@
     "start-empty:windows": "set REACT_APP_EMPTY_RESOURCE_VIEW=true&& set PORT=8000 && next start",
     "start-empty:nix": "REACT_APP_EMPTY_RESOURCE_VIEW=true PORT=8000 next start",
     "format": "prettier --write \"./**/*.{js,jsx,json}\"",
-    "test": "jest --watch",
+    "test": "jest",
     "snapshot": "jest --updateSnapshot"
   },
   "eslintConfig": {

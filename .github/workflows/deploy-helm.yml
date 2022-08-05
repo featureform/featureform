@@ -168,7 +168,7 @@ jobs:
           context: .
           file: ./metadata/dashboard/Dockerfile
           tags: featureformcom/metadata-dashboard:${{ env.TAG }}
-          push: false
+          push: true
 
 
   serving:

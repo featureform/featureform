@@ -11,17 +11,18 @@ import grpc
 import numpy as np
 from featureform.proto import serving_pb2
 from featureform.proto import serving_pb2_grpc
+from .tls import insecure_channel, secure_channel
 import pandas as pd
 from .sqlite_metadata import SQLiteMetadata
 
 
 class Client:
 
-    def __init__(self, host=None, local=False, tls_verify=True, cert_path=None):
+    def __init__(self, host=None, local=False, insecure=False, cert_path=None):
         self.local = local
-        if local:
-            if host != None:
+        if local and host:
                 raise ValueError("Cannot be local and have a host")
+        elif local and not host:
             self.sqldb = SQLiteMetadata()
         else:
             host = host or os.getenv('FEATUREFORM_HOST')
@@ -30,19 +31,12 @@ class Client:
                     'If not in local mode then `host` must be passed or the environment'
                     ' variable FEATUREFORM_HOST must be set.'
                 )
-            env_cert_path = os.getenv('FEATUREFORM_CERT')
-            if tls_verify:
-                credentials = grpc.ssl_channel_credentials()
-                channel = grpc.secure_channel(host, credentials)
-            elif cert_path is not None or env_cert_path is not None:
-                if env_cert_path is not None and cert_path is None:
-                    cert_path = env_cert_path
-                with open(cert_path, 'rb') as f:
-                    credentials = grpc.ssl_channel_credentials(f.read())
-                channel = grpc.secure_channel(host, credentials)
+            if insecure:
+                channel = insecure_channel(host)
             else:
-                channel = grpc.insecure_channel(host, options=(('grpc.enable_http_proxy', 0),))
+                channel = secure_channel(host, cert_path)
             self._stub = serving_pb2_grpc.FeatureStub(channel)
+
 
     def training_set(self, name, version):
         if self.local:
@@ -59,33 +53,30 @@ class Client:
         if not self.local:
             raise ValueError("Only supported in localmode. Please try using dataset()")
         training_set_row = \
-            self.sqldb.getNameVariant("training_set_variant", "name", training_set_name, "variant",
-                                      training_set_variant)[0]
+            self.sqldb.get_training_set_variant(training_set_name, training_set_variant)
         label_row = \
-            self.sqldb.getNameVariant("label_variant", "name", training_set_row['label_name'], "variant",
-                                      training_set_row['label_variant'])[0]
-        label_source = self.sqldb.getNameVariant("source_variant", "name", label_row['source_name'], "variant", label_row['source_variant'])[0]
+            self.sqldb.get_label_variant(training_set_row['label_name'], training_set_row['label_variant'])
+        label_source = self.sqldb.get_source_variant(label_row['source_name'], label_row['source_variant'])
         if self.sqldb.is_transformation(label_row['source_name'], label_row['source_variant']):
             df = self.process_transformation(label_row['source_name'], label_row['source_variant'])
             if label_row['source_timestamp'] != "":
                 df = df[[label_row['source_entity'], label_row['source_value'], label_row['source_timestamp']]]
+                df[label_row['source_timestamp']] = pd.to_datetime(df[label_row['source_timestamp']])
             else:
                 df = df[[label_row['source_entity'], label_row['source_value']]]
             df.set_index(label_row['source_entity'])
             label_df = df
         else:
             label_df = self.process_label_csv(label_source['definition'], label_row['source_entity'], label_row['source_entity'], label_row['source_value'], label_row['source_timestamp'])
-        feature_table = self.sqldb.getNameVariant("training_set_features", "training_set_name", training_set_name,
-                                                 "training_set_variant", training_set_variant)
+        feature_table = self.sqldb.get_training_set_features(training_set_name, training_set_variant)
 
         label_df.rename(columns={label_row['source_value']: 'label'}, inplace=True)
         trainingset_df = label_df
         for feature_variant in feature_table:
-            feature_row = self.sqldb.getNameVariant("feature_variant", "name", feature_variant['feature_name'], "variant",
-                                                    feature_variant['feature_variant'])[0]
+            feature_row = self.sqldb.get_feature_variant(feature_variant['feature_name'], feature_variant['feature_variant'])
 
             source_row = \
-                self.sqldb.getNameVariant("source_variant", "name", feature_row['source_name'], "variant", feature_row['source_variant'])[0]
+                self.sqldb.get_source_variant(feature_row['source_name'], feature_row['source_variant'])
 
             name_variant = feature_variant['feature_name'] + "." + feature_variant['feature_variant']
             if self.sqldb.is_transformation(feature_row['source_name'], feature_row['source_variant']):
@@ -95,6 +86,7 @@ class Client:
                     df.reset_index(inplace=True)
                 if feature_row['source_timestamp'] != "":
                     df = df[[feature_row['source_entity'], feature_row['source_value'], feature_row['source_timestamp']]]
+                    df[feature_row['source_timestamp']] = pd.to_datetime(df[feature_row['source_timestamp']])
                 else:
                     df = df[[feature_row['source_entity'], feature_row['source_value']]]
 
@@ -102,8 +94,10 @@ class Client:
                 df.rename(columns={feature_row['source_value']: name_variant}, inplace=True)
             else:
                 df = pd.read_csv(str(source_row['definition']))
-                if feature_variant['feature_name'] != "":
+
+                if feature_row['source_timestamp'] != "":
                     df = df[[feature_row['source_entity'], feature_row['source_value'], feature_row['source_timestamp']]]
+                    df[feature_row['source_timestamp']] = pd.to_datetime(df[feature_row['source_timestamp']])
                 else:
                     df = df[[feature_row['source_entity'], feature_row['source_value']]]
                 df.set_index(feature_row['source_entity'])
@@ -113,12 +107,14 @@ class Client:
                                                left_on=label_row['source_timestamp'], right_on=feature_row['source_timestamp'], left_by=label_row['source_entity'],
                                                right_by=feature_row['source_entity'])
             else:
-                df.drop_duplicates(subset=[feature_row['source_entity'], name_variant])
+                df.drop_duplicates(subset=[feature_row['source_entity']], keep="last", inplace=True)
                 trainingset_df.reset_index(inplace=True)
                 trainingset_df[label_row['source_entity']] = trainingset_df[label_row['source_entity']].astype('string')
                 df[label_row['source_entity']] = df[label_row['source_entity']].astype('string')
                 trainingset_df = trainingset_df.join(df.set_index(label_row['source_entity']), how="left", on=label_row['source_entity'],
                                                      lsuffix="_left")
+                if "index" in trainingset_df.columns:
+                    trainingset_df.drop(columns='index', inplace=True)
 
         if label_row['source_timestamp'] != "":
             trainingset_df.drop(columns=label_row['source_timestamp'], inplace=True)
@@ -148,7 +144,7 @@ class Client:
         return [parse_proto_value(val) for val in resp.values]
 
     def process_transformation(self, name, variant):
-        source_row = self.sqldb.getNameVariant("source_variant", "name", name, "variant", variant)[0]
+        source_row = self.sqldb.get_source_variant(name, variant)
         inputs = json.loads(source_row['inputs'])
         dataframes = []
         code = marshal.loads(bytearray(source_row['definition']))
@@ -160,7 +156,7 @@ class Client:
                 dataframes.append(df)
             else:
                 source_row = \
-                    self.sqldb.getNameVariant("source_variant", "name", source_name, "variant", source_variant)[0]
+                    self.sqldb.get_source_variant(source_name, source_variant)
                 df = pd.read_csv(str(source_row['definition']))
                 dataframes.append(df)
         new_data = func(*dataframes)
@@ -176,11 +172,10 @@ class Client:
         all_feature_df = None
         for featureVariantTuple in feature_variant_list:
 
-            feature_row = self.sqldb.getNameVariant("feature_variant", "name", featureVariantTuple[0],
-                                                    "variant", featureVariantTuple[1])[0]
+            feature_row = self.sqldb.get_feature_variant(featureVariantTuple[0], featureVariantTuple[1])
             entity_column, ts_column, feature_column_name, source_name, source_variant = feature_row['source_entity'], feature_row['source_timestamp'], feature_row['source_value'], feature_row['source_name'], feature_row['source_variant']
 
-            source_row = self.sqldb.getNameVariant("source_variant", "name", source_name, "variant", source_variant)[0]
+            source_row = self.sqldb.get_source_variant(source_name, source_variant)
             if self.sqldb.is_transformation(source_name, source_variant):
                 df = self.process_transformation(source_name, source_variant)
                 if isinstance(df, pd.Series):
@@ -237,6 +232,7 @@ class Client:
 
     def process_label_csv(self, source_path, entity_name, entity_col, value_col, timestamp_column):
         df = pd.read_csv(source_path)
+
         if entity_col not in df.columns:
             raise KeyError(f"Entity column does not exist: {entity_col}")
         if value_col not in df.columns:
@@ -245,6 +241,7 @@ class Client:
             raise KeyError(f"Timestamp column does not exist: {timestamp_column}")
         if timestamp_column != "":
             df = df[[entity_col, value_col, timestamp_column]]
+            df[timestamp_column] = pd.to_datetime(df[timestamp_column])
         else:
             df = df[[entity_col, value_col]]
         if timestamp_column != "":

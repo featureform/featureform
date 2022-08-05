@@ -6,3 +6,4 @@ node_modules/**
 venv/**
 .git/**
 embeddinghub/**
+client/**

@@ -137,7 +137,7 @@ class LocalClientImpl:
 
         return df
 
-    def merge_feature_into_ts(self, feature_row, label_row, df):
+    def merge_feature_into_ts(self, feature_row, label_row, df, trainingset_df):
         if feature_row['source_timestamp'] != "":
             trainingset_df = pd.merge_asof(trainingset_df, df.sort_values(['ts']), direction='backward',
                                             left_on=label_row['source_timestamp'], right_on=feature_row['source_timestamp'], left_by=label_row['source_entity'],
@@ -175,7 +175,7 @@ class LocalClientImpl:
         for feature_variant in feature_table:
             feature_row = self.db.get_feature_variant(feature_variant['feature_name'], feature_variant['feature_variant'])
             df = self.get_feature_dataframe(feature_row, feature_variant)
-            trainingset_df = self.merge_feature_into_ts(feature_row, label_row, df)
+            trainingset_df = self.merge_feature_into_ts(feature_row, label_row, df, trainingset_df)
 
         return self.convert_ts_df_to_dataset(label_row, trainingset_df)
 

@@ -88,6 +88,39 @@ class HostedClientImpl:
 class LocalClientImpl:
     def __init__(self):
         self.db = SQLiteMetadata()
+        
+    def training_set(self, training_set_name, training_set_variant):
+        training_set = self.db.get_training_set_variant(training_set_name, training_set_variant)
+        label = self.db.get_label_variant(training_set['label_name'], training_set['label_variant'])
+        label_df = self.get_label_dataframe(label)
+        # We will build the training set DF by merging each feature one by one into it.
+        trainingset_df = label_df
+        features = self.db.get_training_set_features(training_set_name, training_set_variant)
+        for feature_variant in features:
+            feature = self.db.get_feature_variant(feature_variant['feature_name'], feature_variant['feature_variant'])
+            feature_df = self.get_feature_dataframe(feature, feature_variant)
+            trainingset_df = self.merge_feature_into_ts(feature, label, feature_df, trainingset_df)
+
+        return self.convert_ts_df_to_dataset(label, trainingset_df)
+
+    def process_transformation(self, name, variant):
+        source_row = self.db.get_source_variant(name, variant)
+        inputs = json.loads(source_row['inputs'])
+        dataframes = []
+        code = marshal.loads(bytearray(source_row['definition']))
+        func = types.FunctionType(code, globals(), "transformation")
+        for input in inputs:
+            source_name, source_variant = input[0], input[1],
+            if self.db.is_transformation(source_name, source_variant):
+                df = self.process_transformation(source_name, source_variant)
+                dataframes.append(df)
+            else:
+                source_row = \
+                    self.db.get_source_variant(source_name, source_variant)
+                df = pd.read_csv(str(source_row['definition']))
+                dataframes.append(df)
+        new_data = func(*dataframes)
+        return new_data
 
     def get_label_dataframe(self, label_row):
         label_source = self.db.get_source_variant(label_row['source_name'], label_row['source_variant'])
@@ -161,42 +194,6 @@ class LocalClientImpl:
         label_col = trainingset_df.pop('label')
         trainingset_df = trainingset_df.assign(label=label_col)
         return Dataset.from_list(trainingset_df.values.tolist())
-
-        
-    def training_set(self, training_set_name, training_set_variant):
-        training_set_row = \
-            self.db.get_training_set_variant(training_set_name, training_set_variant)
-        label_row = \
-            self.db.get_label_variant(training_set_row['label_name'], training_set_row['label_variant'])
-        label_df = self.get_label_dataframe(label_row)
-        
-        trainingset_df = label_df
-        feature_table = self.db.get_training_set_features(training_set_name, training_set_variant)
-        for feature_variant in feature_table:
-            feature_row = self.db.get_feature_variant(feature_variant['feature_name'], feature_variant['feature_variant'])
-            df = self.get_feature_dataframe(feature_row, feature_variant)
-            trainingset_df = self.merge_feature_into_ts(feature_row, label_row, df, trainingset_df)
-
-        return self.convert_ts_df_to_dataset(label_row, trainingset_df)
-
-    def process_transformation(self, name, variant):
-        source_row = self.db.get_source_variant(name, variant)
-        inputs = json.loads(source_row['inputs'])
-        dataframes = []
-        code = marshal.loads(bytearray(source_row['definition']))
-        func = types.FunctionType(code, globals(), "transformation")
-        for input in inputs:
-            source_name, source_variant = input[0], input[1],
-            if self.db.is_transformation(source_name, source_variant):
-                df = self.process_transformation(source_name, source_variant)
-                dataframes.append(df)
-            else:
-                source_row = \
-                    self.db.get_source_variant(source_name, source_variant)
-                df = pd.read_csv(str(source_row['definition']))
-                dataframes.append(df)
-        new_data = func(*dataframes)
-        return new_data
 
     def features(self, feature_variant_list, entity):
         if len(feature_variant_list) == 0:

@@ -5,7 +5,7 @@
 FROM node:16-alpine
 COPY ./dashboard ./dashboard
 WORKDIR ./dashboard
-RUN npm install --omit=dev
+RUN npm install --omit=dev --legacy-peer-deps
 RUN npm run build
 RUN npm uninstall -g serve
 RUN npm i -g serve

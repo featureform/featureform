@@ -150,7 +150,7 @@ class LocalProvider:
                           )
 
     def df_transformation(self,
-                          variant: str = "",
+                          variant: str = "default",
                           owner: Union[str, UserRegistrar] = "",
                           name: str = "",
                           description: str = "",
@@ -1069,7 +1069,7 @@ class Registrar:
 
     def df_transformation(self,
                           provider: Union[str, OfflineProvider],
-                          variant: str = "",
+                          variant: str = "default",
                           name: str = "",
                           owner: Union[str, UserRegistrar] = "",
                           description: str = "",
@@ -1092,8 +1092,6 @@ class Registrar:
             owner = owner.name()
         if owner == "":
             owner = self.must_get_default_owner()
-        if variant == "":
-            variant = "default"
         if not isinstance(provider, str):
             provider = provider.name()
         for i, nv in enumerate(inputs):

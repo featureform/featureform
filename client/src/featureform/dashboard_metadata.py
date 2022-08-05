@@ -2,8 +2,8 @@ from flask import Flask
 from flask_cors import CORS, cross_origin
 import json
 import re
-from .sqlite_metadata import SQLiteMetadata
-from .type_objects import (
+from featureform.sqlite_metadata import SQLiteMetadata
+from featureform.type_objects import (
     FeatureResource, 
     FeatureVariantResource, 
     TrainingSetResource, 
@@ -16,6 +16,7 @@ from .type_objects import (
     LabelResource,
     LabelVariantResource,
     ProviderResource)
+
 
 app = Flask(__name__)
 CORS(app)
@@ -192,7 +193,6 @@ def labels(rowData):
 
 def entities(rowData):
     return EntityResource(
-                
                 rowData['name'], #name
                 rowData['type'], #type
                 rowData['description'], #description
@@ -304,3 +304,6 @@ def GetMetadata(type, resource):
             mimetype='application/json'
         )
         return response
+
+if __name__ == '__main__':
+    app.run(threaded=True, port=8181)

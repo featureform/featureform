@@ -51,7 +51,7 @@ if (typeof process.env.REACT_APP_API_URL != "undefined") {
 }
 // export var PROMETHEUS_URL = "//"+ window.location.hostname+"/prometheus";
 
-export var PROMETHEUS_URL = "http://localhost:8181/promethus";
+export var PROMETHEUS_URL = "http://localhost:8181/prometheus";
 
 if (typeof process.env.REACT_APP_PROMETHEUS_URL != "undefined") {
   PROMETHEUS_URL = process.env.REACT_APP_PROMETHEUS_URL.trim();

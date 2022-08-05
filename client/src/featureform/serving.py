@@ -124,13 +124,13 @@ class LocalClientImpl:
 
     def get_label_dataframe(self, label):
         if self.db.is_transformation(label['source_name'], label['source_variant']):
-            label_df = self.label_df_with_transformation(label) 
+            label_df = self.label_df_from_transformation(label) 
         else:
             label_df = self.label_df_from_csv(label)
         label_df.rename(columns={label['source_value']: 'label'}, inplace=True)
         return label_df
 
-    def label_df_with_transformation(self, label):
+    def label_df_from_transformation(self, label):
         df = self.process_transformation(label['source_name'], label['source_variant'])
         if label['source_timestamp'] != "":
             df = df[[label['source_entity'], label['source_value'], label['source_timestamp']]]
@@ -143,7 +143,6 @@ class LocalClientImpl:
     def label_df_from_csv(self, label):
         label_source = self.db.get_source_variant(label['source_name'], label['source_variant'])
         df = pd.read_csv(label_source['definition'])
-
         if label['source_entity'] not in df.columns:
             raise KeyError(f"Entity column does not exist: {label['source_entity']}")
         if label['source_value'] not in df.columns:
@@ -153,11 +152,10 @@ class LocalClientImpl:
         if label['source_timestamp'] != "":
             df = df[[label['source_entity'], label['source_value'], label['source_timestamp']]]
             df[label['source_timestamp']] = pd.to_datetime(df[label['source_timestamp']])
-        else:
-            df = df[[label['source_entity'], label['source_value']]]
-        if label['source_timestamp'] != "":
             df.sort_values(by=label['source_timestamp'], inplace=True)
             df.drop_duplicates(subset=[label['source_entity'], label['source_timestamp']], keep="last", inplace=True)
+        else:
+            df = df[[label['source_entity'], label['source_value']]]  
         df.rename(columns={label['source_entity']: label['source_entity']}, inplace=True)
         df.set_index(label['source_entity'], inplace=True)
         return df
@@ -165,14 +163,14 @@ class LocalClientImpl:
     def get_feature_dataframe(self, feature):
         name_variant = feature['name'] + "." + feature['variant']
         if self.db.is_transformation(feature['source_name'], feature['source_variant']):
-            feature_df = self.feature_df_with_transformation(feature)
+            feature_df = self.feature_df_from_transformation(feature)
         else:
-            feature_df = self.feature_df_with_csv(feature)
+            feature_df = self.feature_df_from_csv(feature)
         feature_df.set_index(feature['source_entity'])
         feature_df.rename(columns={feature['source_value']: name_variant}, inplace=True)
         return feature_df
 
-    def feature_df_with_transformation(self, feature):
+    def feature_df_from_transformation(self, feature):
         df = self.process_transformation(feature['source_name'], feature['source_variant'])
         if isinstance(df, pd.Series):
             df = df.to_frame()
@@ -184,7 +182,7 @@ class LocalClientImpl:
             df = df[[feature['source_entity'], feature['source_value']]]
         return df
 
-    def feature_df_with_csv(self, feature):
+    def feature_df_from_csv(self, feature):
         source = self.db.get_source_variant(feature['source_name'], feature['source_variant'])
         df = pd.read_csv(str(source['definition']))
         if feature['source_timestamp'] != "":

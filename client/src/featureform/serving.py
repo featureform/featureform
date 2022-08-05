@@ -36,8 +36,8 @@ class Client:
                             feature_name_variant, timestamp_column):
         return self.impl.process_feature_csv(source_path, entity_name, entity_col, value_col, dataframe_mapping, feature_name_variant, timestamp_column)
 
-    def process_label_csv(self, source_path, entity_name, entity_col, value_col, timestamp_column):
-        return self.impl.process_label_csv(source_path, entity_name, entity_col, value_col, timestamp_column)
+    def label_df_from_csv(self, source_path, entity_name, entity_col, value_col, timestamp_column):
+        return self.impl.label_df_from_csv(source_path, entity_name, entity_col, value_col, timestamp_column)
 
 class HostedClientImpl:
     def __init__(self, host=None, insecure=False, cert_path=None):
@@ -123,12 +123,10 @@ class LocalClientImpl:
         return new_data
 
     def get_label_dataframe(self, label):
-        label_source = self.db.get_source_variant(label['source_name'], label['source_variant'])
         if self.db.is_transformation(label['source_name'], label['source_variant']):
             label_df = self.label_df_with_transformation(label) 
         else:
-            label_df = self.process_label_csv(label_source['definition'], label['source_entity'], label['source_entity'], label['source_value'], label['source_timestamp'])
-
+            label_df = self.label_df_from_csv(label)
         label_df.rename(columns={label['source_value']: 'label'}, inplace=True)
         return label_df
 
@@ -140,6 +138,28 @@ class LocalClientImpl:
         else:
             df = df[[label['source_entity'], label['source_value']]]
         df.set_index(label['source_entity'])
+        return df
+
+    def label_df_from_csv(self, label):
+        label_source = self.db.get_source_variant(label['source_name'], label['source_variant'])
+        df = pd.read_csv(label_source['definition'])
+
+        if label['source_entity'] not in df.columns:
+            raise KeyError(f"Entity column does not exist: {label['source_entity']}")
+        if label['source_value'] not in df.columns:
+            raise KeyError(f"Value column does not exist: {label['source_value']}")
+        if label['source_timestamp'] != "" and label['source_timestamp'] not in df.columns:
+            raise KeyError(f"Timestamp column does not exist: {label['source_timestamp']}")
+        if label['source_timestamp'] != "":
+            df = df[[label['source_entity'], label['source_value'], label['source_timestamp']]]
+            df[label['source_timestamp']] = pd.to_datetime(df[label['source_timestamp']])
+        else:
+            df = df[[label['source_entity'], label['source_value']]]
+        if label['source_timestamp'] != "":
+            df.sort_values(by=label['source_timestamp'], inplace=True)
+            df.drop_duplicates(subset=[label['source_entity'], label['source_timestamp']], keep="last", inplace=True)
+        df.rename(columns={label['source_entity']: label['source_entity']}, inplace=True)
+        df.set_index(label['source_entity'], inplace=True)
         return df
 
     def get_feature_dataframe(self, feature):
@@ -266,27 +286,6 @@ class LocalClientImpl:
             df = df.drop(columns=timestamp_column)
         dataframe_mapping.append(df)
         return dataframe_mapping
-
-    def process_label_csv(self, source_path, entity_name, entity_col, value_col, timestamp_column):
-        df = pd.read_csv(source_path)
-
-        if entity_col not in df.columns:
-            raise KeyError(f"Entity column does not exist: {entity_col}")
-        if value_col not in df.columns:
-            raise KeyError(f"Value column does not exist: {value_col}")
-        if timestamp_column != "" and timestamp_column not in df.columns:
-            raise KeyError(f"Timestamp column does not exist: {timestamp_column}")
-        if timestamp_column != "":
-            df = df[[entity_col, value_col, timestamp_column]]
-            df[timestamp_column] = pd.to_datetime(df[timestamp_column])
-        else:
-            df = df[[entity_col, value_col]]
-        if timestamp_column != "":
-            df.sort_values(by=timestamp_column, inplace=True)
-            df.drop_duplicates(subset=[entity_col, timestamp_column], keep="last", inplace=True)
-        df.rename(columns={entity_col: entity_name}, inplace=True)
-        df.set_index(entity_name, inplace=True)
-        return df
 
 class Stream:
 

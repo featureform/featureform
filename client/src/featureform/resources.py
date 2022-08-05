@@ -230,7 +230,29 @@ class RedshiftConfig:
         return bytes(json.dumps(config), "utf-8")
 
 
-Config = Union[RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig]
+@typechecked
+@dataclass
+class BigQueryConfig:
+    project_id: str
+    dataset_id: str
+    credentials_path: str
+
+    def software(self) -> str:
+        return "bigquery"
+
+    def type(self) -> str:
+        return "BIGQUERY_OFFLINE"
+
+    def serialize(self) -> bytes:
+        config = {
+            "ProjectId": self.project_id,
+            "DatasetId": self.dataset_id,
+            "Credentials": json.load(open(self.credentials_path)),
+        }
+        return bytes(json.dumps(config), "utf-8")
+
+
+Config = Union[RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig, BigQueryConfig]
 
 @typechecked
 @dataclass

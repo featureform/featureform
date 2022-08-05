@@ -226,6 +226,13 @@ jobs:
         working-directory: ./
         run: mkdir coverage
 
+      - name: create-json
+        id: create-json-2
+        uses: jsdaniell/create-json@1.1.2
+        with:
+          name: "./provider/bigquery_credentials.json"
+          json: ${{ secrets.BIGQUERY_CREDENTIALS_FILE }}
+      
       - name: Testing
         env:
           SNOWFLAKE_USERNAME: ${{ secrets.SNOWFLAKE_USERNAME }}
@@ -235,8 +242,11 @@ jobs:
           REDSHIFT_USERNAME: ${{ secrets.REDSHIFT_USERNAME }}
           REDSHIFT_PASSWORD: ${{ secrets.REDSHIFT_PASSWORD }}
           REDSHIFT_ENDPOINT: ${{ secrets.REDSHIFT_ENDPOINT }}
+          BIGQUERY_PROJECT_ID: ${{ secrets.BIGQUERY_PROJECT_ID }}
+          BIGQUERY_DATASET_ID: ${{ secrets.BIGQUERY_DATASET_ID }}
+          BIGQUERY_CREDENTIALS: "bigquery_credentials.json"
         working-directory: ./
-        run: go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/... -tags=offline
+        run: go test -v -timeout 60m -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/... -tags=offline
 
       - name: Convert Coverage Test Results
         if: always()

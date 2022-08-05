@@ -130,6 +130,40 @@ def test_register_user(registrar, args, expected):
 ])
 def test_register_dynamodb(registrar, args):
     registrar.register_dynamodb(**args)
+
+
+@pytest.mark.parametrize("args", [
+    {
+        "name": "redshift"
+    },
+    {
+        "name": "redshift",
+        "description": "test",
+        "team": "featureform",
+        "project_id": "abc",
+        "dataset_id": "abc",
+    },
+])
+def test_register_redshift(registrar, args):
+    registrar.register_redshift(**args)
+
+
+@pytest.mark.parametrize("args", [
+    {
+        "name": "bigquery"
+    },
+    {
+        "name": "bigquery",
+        "description": "test",
+        "team": "featureform",
+        "project_id": "abc",
+        "dataset_id": "abc",
+        "credentials_path": "abc",
+    },
+])
+def test_register_bigquery(registrar, args):
+    registrar.register_bigquery(**args)
+
     
 minimal_user_args = {
     "name": "user",

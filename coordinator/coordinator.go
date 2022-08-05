@@ -236,7 +236,6 @@ func (c *Coordinator) WatchForScheduleChanges() error {
 func (c *Coordinator) mapNameVariantsToTables(sources []metadata.NameVariant) (map[string]string, error) {
 	sourceMap := make(map[string]string)
 	for _, nameVariant := range sources {
-		var tableName string
 		source, err := c.Metadata.GetSourceVariant(context.Background(), nameVariant)
 		if err != nil {
 			return nil, err
@@ -245,16 +244,9 @@ func (c *Coordinator) mapNameVariantsToTables(sources []metadata.NameVariant) (m
 			return nil, fmt.Errorf("source in query not ready")
 		}
 		providerResourceID := provider.ResourceID{Name: source.Name(), Variant: source.Variant()}
-		if source.IsSQLTransformation() {
-			tableName, err = provider.GetTransformationName(providerResourceID)
-			if err != nil {
-				return nil, err
-			}
-		} else if source.IsPrimaryDataSQLTable() {
-			tableName, err = provider.GetPrimaryTableName(providerResourceID)
-			if err != nil {
-				return nil, err
-			}
+		tableName, err := provider.GetPrimaryTableName(providerResourceID)
+		if err != nil {
+			return nil, err
 		}
 		sourceMap[nameVariant.ClientString()] = tableName
 	}
@@ -437,7 +429,7 @@ func (c *Coordinator) runLabelRegisterJob(resID metadata.ResourceID, schedule st
 		Name:    sourceNameVariant.Name,
 		Variant: sourceNameVariant.Variant,
 	}
-	srcName, err := provider.GetTransformationName(srcID)
+	srcName, err := provider.GetPrimaryTableName(srcID)
 	if err != nil {
 		return fmt.Errorf("transform name err: %w", err)
 	}
@@ -523,7 +515,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 		Name:    sourceNameVariant.Name,
 		Variant: sourceNameVariant.Variant,
 	}
-	srcName, err := provider.GetTransformationName(srcID)
+	srcName, err := provider.GetPrimaryTableName(srcID)
 	if err != nil {
 		return fmt.Errorf("transform name err: %w", err)
 	}

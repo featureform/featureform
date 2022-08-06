@@ -104,10 +104,10 @@ class LocalClientImpl:
         return self.convert_ts_df_to_dataset(label, trainingset_df)
 
     def process_transformation(self, name, variant):
-        source_row = self.db.get_source_variant(name, variant)
-        inputs = json.loads(source_row['inputs'])
+        source = self.db.get_source_variant(name, variant)
+        inputs = json.loads(source['inputs'])
         dataframes = []
-        code = marshal.loads(bytearray(source_row['definition']))
+        code = marshal.loads(bytearray(source['definition']))
         func = types.FunctionType(code, globals(), "transformation")
         for input in inputs:
             source_name, source_variant = input[0], input[1],
@@ -115,9 +115,8 @@ class LocalClientImpl:
                 df = self.process_transformation(source_name, source_variant)
                 dataframes.append(df)
             else:
-                source_row = \
-                    self.db.get_source_variant(source_name, source_variant)
-                df = pd.read_csv(str(source_row['definition']))
+                source = self.db.get_source_variant(source_name, source_variant)
+                df = pd.read_csv(str(source['definition']))
                 dataframes.append(df)
         new_data = func(*dataframes)
         return new_data

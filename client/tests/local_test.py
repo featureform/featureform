@@ -9,8 +9,6 @@ class TestPetalGuide:
     def test_register_local(self):
         local = ff.register_local()
 
-        ff.register_user("featureformer").make_default_owner()
-
         iris = local.register_file(
             name="Iris dataset",
             variant="Kaggle",

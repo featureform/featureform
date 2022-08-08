@@ -3,6 +3,7 @@ import shutil
 import stat
 
 import featureform as ff
+from featureform import local
 import pandas as pd
 import pytest
 

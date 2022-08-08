@@ -1,13 +1,10 @@
 import featureform as ff
+from featureform import local
 import pytest
 from featureform.resources import ResourceRedefinedError
 
 class TestResourcesRedefined:
     def test_duplicate_resources(self):
-        ff.register_user("featureformer").make_default_owner()
-
-        local = ff.register_local()
-        local = ff.register_local()
 
         transactions = local.register_file(
             name="transactions",
@@ -84,8 +81,6 @@ class TestResourcesRedefined:
 
     def test_diff_resources_same_name_variant(self):
         client = ff.Client(local=True)
-        ff.register_user("featureformer").make_default_owner()
-        local = ff.register_local()
 
         transactions = local.register_file(
             name="transactions",

@@ -178,21 +178,20 @@ class TestIndividualLabels(TestCase):
     #                                  case['ts_col'])
     #     assert "column does not exist" in str(err.value)
 
-    # def test_invalid_ts(self):
-    #     case = {
-    #         'columns': ['entity', 'value', 'ts'],
-    #         'values': [],
-    #         'entity_name': 'entity',
-    #         'entity_col': 'entity',
-    #         'value_col': 'value',
-    #         'ts_col': 'ts_dne'
-    #     }
-    #     file_name = create_temp_file(case)
-    #     client = ServingClient(local=True)
-    #     with pytest.raises(KeyError) as err:
-    #         client.label_df_from_csv(file_name, case['entity_name'], case['entity_col'], case['value_col'],
-    #                                  case['ts_col'])
-    #     assert "column does not exist" in str(err.value)
+    def test_invalid_ts(self):
+        case = {
+            'columns': ['entity', 'value', 'ts'],
+            'values': [],
+            'source_entity': 'entity',
+            'source_value': 'value',
+            'source_timestamp': 'ts_dne'
+        }
+        file_name = create_temp_file(case)
+        case['definition'] = file_name
+        client = ServingClient(local=True)
+        with pytest.raises(KeyError) as err:
+            client.label_df_from_csv(case)
+        assert "column does not exist" in str(err.value)
 
     @pytest.fixture(autouse=True)
     def run_before_and_after_tests(tmpdir):

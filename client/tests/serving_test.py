@@ -404,11 +404,11 @@ class TestTrainingSet(TestCase):
                 expected_len = len(case['expected'])
                 for i, r in enumerate(tset):
                     actual_len += 1
-                    actual = [r.features()] + [[r.label()]]
+                    actual = r.features() + [r.label()]
                     if actual in case['expected']:
                         case['expected'].remove(actual)
                     else:
-                        raise AssertionError(f"{[r.features()] + [[r.label()]]} not in  {case['expected']}")
+                        raise AssertionError(f"{r.features() + [r.label()]} not in  {case['expected']}")
                 try:
                     clear_and_reset()
                 except Exception as e:

@@ -467,9 +467,9 @@ training_set = {
         'entity': 'user',
         'entity_loc': 'entity',
         'expected': [
-            ['one', 1, True],
-            ['two', 2, False],
-            ['three', 3, True]
+            [['one', 1], True],
+            [['two', 2], False],
+            [['three', 3], True]
         ],
     },
     'Complex': {

@@ -222,7 +222,7 @@ class LocalClientImpl:
         # This code assumes that the entities dictionary only has one entity
         entity_id = list(entities.keys())[0]
         entity_value = entities[entity_id]
-        all_features_list = self.add_feature_dfs_to_list(feature_variant_list, entity_id, entity_value)
+        all_features_list = self.add_feature_dfs_to_list(feature_variant_list, entity_id)
         all_features_df = self.list_to_combined_df(all_features_list, entity_id)
         return self.get_features_for_entity(entity_id, entity_value, all_features_df)
     

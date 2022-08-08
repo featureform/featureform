@@ -18,7 +18,7 @@ import featureform as ff
 from datetime import datetime
 
 
-class TestIndividualFeatures(TestCase):
+# class TestIndividualFeatures(TestCase):
     # def test_process_feature_no_ts(self):
     #     for name, case in cases.features_no_ts.items():
     #         with self.subTest(name):

@@ -420,10 +420,10 @@ class Row:
         self._row = np.append(features, self._label)
 
     def features(self):
-        return self._row[:-1]
+        return [self._row[:-1]]
 
     def label(self):
-        return self._label
+        return [self._label]
 
     def to_numpy(self):
         return self._row()
@@ -440,10 +440,10 @@ class LocalRow:
         self._label = row_list[-1]
 
     def features(self):
-        return self._features
+        return [self._features]
 
     def label(self):
-        return self._label
+        return [self._label]
 
     def to_numpy(self):
         return np.array(self._row)
@@ -470,7 +470,7 @@ class BatchRow:
     def features(self):
         return self._features
 
-    def labels(self):
+    def label(self):
         return self._labels
 
     def to_list(self):

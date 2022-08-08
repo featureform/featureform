@@ -5,7 +5,6 @@ import TimeDropdown from "./TimeDropdown";
 import QueryDropdown from "./QueryDropdown";
 import { connect } from "react-redux";
 import Chip from "@material-ui/core/Chip";
-// import { Link } from "react-router";
 
 const useStyles = makeStyles((theme) => ({
   root: {

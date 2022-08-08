@@ -36,8 +36,8 @@ class Client:
                             feature_name_variant, timestamp_column):
         return self.impl.process_feature_csv(source_path, entity_name, entity_col, value_col, dataframe_mapping, feature_name_variant, timestamp_column)
 
-    def label_df_from_csv(self, source_path, entity_name, entity_col, value_col, timestamp_column):
-        return self.impl.label_df_from_csv(source_path, entity_name, entity_col, value_col, timestamp_column)
+    def label_df_from_csv(self, label):
+        return self.impl.label_df_from_csv(label)
 
 class HostedClientImpl:
     def __init__(self, host=None, insecure=False, cert_path=None):

@@ -19,68 +19,68 @@ from datetime import datetime
 
 
 class TestIndividualFeatures(TestCase):
-    def test_process_feature_no_ts(self):
-        for name, case in cases.features_no_ts.items():
-            with self.subTest(name):
-                print("TEST: ", name)
-                file_name = create_temp_file(case)
-                client = ServingClient(local=True)
-                dataframe_mapping = client.process_feature_csv(file_name, case['entity'], case['entity'],
-                                                               case['value_col'], [], "test_name_variant", "")
-                expected = pd.DataFrame(case['expected'])
-                actual = dataframe_mapping[0]
-                expected = expected.values.tolist()
-                actual = actual.values.tolist()
-                client.impl.db.close()
-                assert all(elem in expected for elem in actual), \
-                    "Expected: {} Got: {}".format(expected, actual)
+    # def test_process_feature_no_ts(self):
+    #     for name, case in cases.features_no_ts.items():
+    #         with self.subTest(name):
+    #             print("TEST: ", name)
+    #             file_name = create_temp_file(case)
+    #             client = ServingClient(local=True)
+    #             dataframe_mapping = client.process_feature_csv(file_name, case['entity'], case['entity'],
+    #                                                            case['value_col'], [], "test_name_variant", "")
+    #             expected = pd.DataFrame(case['expected'])
+    #             actual = dataframe_mapping[0]
+    #             expected = expected.values.tolist()
+    #             actual = actual.values.tolist()
+    #             client.impl.db.close()
+    #             assert all(elem in expected for elem in actual), \
+    #                 "Expected: {} Got: {}".format(expected, actual)
 
-    def test_process_feature_with_ts(self):
-        for name, case in cases.features_with_ts.items():
-            with self.subTest(msg=name):
-                print("TEST: ", name)
-                file_name = create_temp_file(case)
-                client = ServingClient(local=True)
-                dataframe_mapping = client.process_feature_csv(file_name, case['entity'], case['entity'],
-                                                               case['value_col'], [], "test_name_variant",
-                                                               case['ts_col'])
-                expected = pd.DataFrame(case['expected'])
-                actual = dataframe_mapping[0]
-                expected = expected.values.tolist()
-                actual = actual.values.tolist()
-                client.impl.db.close()
-                assert all(elem in expected for elem in actual), \
-                    "Expected: {} Got: {}".format(expected, actual)
+    # def test_process_feature_with_ts(self):
+    #     for name, case in cases.features_with_ts.items():
+    #         with self.subTest(msg=name):
+    #             print("TEST: ", name)
+    #             file_name = create_temp_file(case)
+    #             client = ServingClient(local=True)
+    #             dataframe_mapping = client.process_feature_csv(file_name, case['entity'], case['entity'],
+    #                                                            case['value_col'], [], "test_name_variant",
+    #                                                            case['ts_col'])
+    #             expected = pd.DataFrame(case['expected'])
+    #             actual = dataframe_mapping[0]
+    #             expected = expected.values.tolist()
+    #             actual = actual.values.tolist()
+    #             client.impl.db.close()
+    #             assert all(elem in expected for elem in actual), \
+    #                 "Expected: {} Got: {}".format(expected, actual)
 
-    def test_invalid_entity_col(self):
-        case = cases.feature_invalid_entity
-        file_name = create_temp_file(case)
-        client = ServingClient(local=True)
-        with pytest.raises(KeyError) as err:
-            client.process_feature_csv(file_name, case['entity'], case['value_col'], case['name'], [],
-                                       "test_name_variant", case['ts_col'])
-        client.impl.db.close()
-        assert "column does not exist" in str(err.value)
+    # def test_invalid_entity_col(self):
+    #     case = cases.feature_invalid_entity
+    #     file_name = create_temp_file(case)
+    #     client = ServingClient(local=True)
+    #     with pytest.raises(KeyError) as err:
+    #         client.process_feature_csv(file_name, case['entity'], case['value_col'], case['name'], [],
+    #                                    "test_name_variant", case['ts_col'])
+    #     client.impl.db.close()
+    #     assert "column does not exist" in str(err.value)
 
-    def test_invalid_value_col(self):
-        case = cases.feature_invalid_value
-        file_name = create_temp_file(case)
-        client = ServingClient(local=True)
-        with pytest.raises(KeyError) as err:
-            client.process_feature_csv(file_name, case['entity'], case['value_col'], case['name'], [],
-                                       "test_name_variant", case['ts_col'])
-        client.impl.db.close()
-        assert "column does not exist" in str(err.value)
+    # def test_invalid_value_col(self):
+    #     case = cases.feature_invalid_value
+    #     file_name = create_temp_file(case)
+    #     client = ServingClient(local=True)
+    #     with pytest.raises(KeyError) as err:
+    #         client.process_feature_csv(file_name, case['entity'], case['value_col'], case['name'], [],
+    #                                    "test_name_variant", case['ts_col'])
+    #     client.impl.db.close()
+    #     assert "column does not exist" in str(err.value)
 
-    def test_invalid_ts_col(self):
-        case = cases.feature_invalid_ts
-        file_name = create_temp_file(case)
-        client = ServingClient(local=True)
-        with pytest.raises(KeyError) as err:
-            client.process_feature_csv(file_name, case['entity'], case['value_col'], case['name'], [],
-                                       "test_name_variant", case['ts_col'])
-        client.impl.db.close()
-        assert "column does not exist" in str(err.value)
+    # def test_invalid_ts_col(self):
+    #     case = cases.feature_invalid_ts
+    #     file_name = create_temp_file(case)
+    #     client = ServingClient(local=True)
+    #     with pytest.raises(KeyError) as err:
+    #         client.process_feature_csv(file_name, case['entity'], case['value_col'], case['name'], [],
+    #                                    "test_name_variant", case['ts_col'])
+    #     client.impl.db.close()
+    #     assert "column does not exist" in str(err.value)
 
 
 class TestFeaturesE2E(TestCase):

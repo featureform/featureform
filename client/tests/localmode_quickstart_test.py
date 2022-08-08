@@ -27,8 +27,8 @@ class Quickstart:
         dataset = client.training_set(self.training_set_name, self.training_set_variant)
         training_dataset = dataset
         for i, feature_batch in enumerate(training_dataset):
-            assert feature_batch.features()[0] == expected_tset[i][0]
-            assert feature_batch.label() == expected_tset[i][1]
+            assert feature_batch.features()[0] == [expected_tset[i][0]]
+            assert feature_batch.label() == [expected_tset[i][1]]
 
     def test_training_set_repeat(self):
         half_test = get_training_set_from_file(self.file, self.entity, self.feature_col, self.label_col,
@@ -38,8 +38,8 @@ class Quickstart:
         dataset = client.training_set(self.training_set_name, self.training_set_variant)
         training_dataset = dataset.repeat(1)
         for i, feature_batch in enumerate(training_dataset):
-            assert feature_batch.features()[0] == expected_tset[i][0]
-            assert feature_batch.label() == expected_tset[i][1]
+            assert feature_batch.features()[0] == [expected_tset[i][0]]
+            assert feature_batch.label() == [expected_tset[i][1]]
 
     def test_training_set_shuffle(self):
         expected_tset = get_training_set_from_file(self.file, self.entity, self.feature_col, self.label_col,
@@ -59,11 +59,11 @@ class Quickstart:
         dataset = client.training_set(self.training_set_name, self.training_set_variant)
         training_dataset = dataset.batch(5)
         for i, feature_batch in enumerate(training_dataset):
-            batch_vals = zip(feature_batch.features(), feature_batch.labels())
+            batch_vals = zip(feature_batch.features(), feature_batch.label())
             for j, batch in enumerate(batch_vals):
                 features, label = batch
-                assert features[0] == expected_test[j + (i * 5)][0]
-                assert label == expected_test[j + (i * 5)][1]
+                assert features[0] == [expected_test[j + (i * 5)][0]]
+                assert label == [expected_test[j + (i * 5)][1]]
 
     def test_feature(self):
         client = ff.ServingClient(local=True)

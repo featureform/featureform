@@ -216,73 +216,79 @@ class LocalClientImpl:
         trainingset_df = trainingset_df.assign(label=label_col)
         return Dataset.from_list(trainingset_df.values.tolist())
 
-    def features(self, feature_variant_list, entity):
+    def features(self, feature_variant_list, entities):
         if len(feature_variant_list) == 0:
             raise Exception("No features provided")
-        # This code was originally written to take a tuple, this is a quick fix to turn a dict with a single entry into that tuple.
-        # This should all be refactored later.
-        entity_tuple = list(entity.items())[0]
-        dataframe_mapping = []
-        all_feature_df = None
-        for featureVariantTuple in feature_variant_list:
-
-            feature_row = self.db.get_feature_variant(featureVariantTuple[0], featureVariantTuple[1])
-            entity_column, ts_column, feature_column_name, source_name, source_variant = feature_row['source_entity'], feature_row['source_timestamp'], feature_row['source_value'], feature_row['source_name'], feature_row['source_variant']
-
-            source_row = self.db.get_source_variant(source_name, source_variant)
+        # This code assumes that the entities dictionary only has one entity
+        entity_id = list(entities.keys())[0]
+        entity_value = entities[entity_id]
+        all_features_list = self.add_feature_dfs_to_list(feature_variant_list, entity_id, entity_value)
+        all_features_df = self.list_to_combined_df(all_features_list, entity_id)
+        return self.get_features_for_entity(entity_id, entity_value, all_features_df)
+    
+    def add_feature_dfs_to_list(self, feature_variant_list, entity_id):
+        feature_df_list = []
+        for feature_variant in feature_variant_list:
+            feature = self.db.get_feature_variant(feature_variant[0], feature_variant[1])
+            source_name, source_variant = feature['source_name'], feature['source_variant']
             if self.db.is_transformation(source_name, source_variant):
-                df = self.process_transformation(source_name, source_variant)
-                if isinstance(df, pd.Series):
-                    df = df.to_frame()
-                    df.reset_index(inplace=True)
-                df = df[[entity_tuple[0], feature_column_name]]
-                df.set_index(entity_tuple[0])
-                dataframe_mapping.append(df)
+                feature_df = self.process_transformation(source_name, source_variant)
+                if isinstance(feature_df, pd.Series):
+                    feature_df = feature_df.to_frame()
+                    feature_df.reset_index(inplace=True)
+                feature_df = feature_df[[entity_id, feature['source_value']]]
+                feature_df.set_index(entity_id)
+                feature_df_list.append(feature_df)
             else:
-                name_variant = f"{featureVariantTuple[0]}.{featureVariantTuple[1]}"
-                dataframe_mapping = self.process_feature_csv(source_row['definition'], entity_tuple[0], entity_column,
-                                                             feature_column_name,
-                                                             dataframe_mapping,
-                                                             name_variant, ts_column)
+                source = self.db.get_source_variant(source_name, source_variant)
+                feature_df = self.process_feature_csv(source['definition'], entity_id, feature)
+                feature_df_list.append(feature_df)
+
+        return feature_df_list
+
+    def list_to_combined_df(self, features_list, entity_id):
+        all_feature_df = None
         try:
-            for value in dataframe_mapping:
+            for feature in features_list:
                 if all_feature_df is None:
-                    all_feature_df = value
+                    all_feature_df = feature
                 else:
-                    all_feature_df = all_feature_df.join(value.set_index(entity_tuple[0]), on=entity_tuple[0],
+                    all_feature_df = all_feature_df.join(feature.set_index(entity_id), on=entity_id,
                                                          lsuffix='_left')
+            return all_feature_df
         except TypeError:
             print("Set is empty")
-        entity_row = all_feature_df.loc[all_feature_df[entity_tuple[0]] == entity_tuple[1]].copy()
-        entity_row.drop(columns=entity_tuple[0], inplace=True)
-        if len(entity_row.values) > 0:
-            return entity_row.values[0]
-        else:
-            raise Exception("No matching entities for {}".format(entity_tuple))
 
-    def process_feature_csv(self, source_path, entity_name, entity_col, value_col, dataframe_mapping,
-                            feature_name_variant, timestamp_column):
+    def get_features_for_entity(self, entity_id, entity_value, all_feature_df):
+        entity = all_feature_df.loc[all_feature_df[entity_id] == entity_value].copy()
+        entity.drop(columns=entity_id, inplace=True)
+        if len(entity.values) > 0:
+            return entity.values[0]
+        else:
+            raise Exception(f"No matching entities for {entity_id}: {entity_id}")
+
+    def process_feature_csv(self, source_path, entity_id, feature):
+        name_variant = f"{feature['name']}.{feature['variant']}"
         df = pd.read_csv(str(source_path))
-        if entity_col not in df.columns:
-            raise KeyError(f"Entity column does not exist: {entity_col}")
-        if value_col not in df.columns:
-            raise KeyError(f"Value column does not exist: {value_col}")
-        if timestamp_column != "" and timestamp_column not in df.columns:
-            raise KeyError(f"Timestamp column does not exist: {timestamp_column}")
-        if timestamp_column != "":
-            df = df[[entity_col, value_col, timestamp_column]]
+        if feature['source_entity'] not in df.columns:
+            raise KeyError(f"Entity column does not exist: {feature['source_entity']}")
+        if feature['source_value'] not in df.columns:
+            raise KeyError(f"Value column does not exist: {feature['source_value']}")
+        if feature['source_timestamp'] != "" and feature['source_timestamp'] not in df.columns:
+            raise KeyError(f"Timestamp column does not exist: {feature['source_timestamp']}")
+        if feature['source_timestamp'] != "":
+            df = df[[feature['source_entity'], feature['source_value'], feature['source_timestamp']]]
         else:
-            df = df[[entity_col, value_col]]
-        df.set_index(entity_col)
-        if timestamp_column != "":
-            df = df.sort_values(by=timestamp_column, ascending=True)
-        df.rename(columns={entity_col: entity_name, value_col: feature_name_variant}, inplace=True)
-        df.drop_duplicates(subset=[entity_name], keep="last", inplace=True)
+            df = df[[feature['source_entity'], feature['source_value']]]
+        df.set_index(feature['source_entity'])
+        if feature['source_timestamp'] != "":
+            df = df.sort_values(by=feature['source_timestamp'], ascending=True)
+        df.rename(columns={feature['source_entity']: entity_id, feature['source_value']: name_variant}, inplace=True)
+        df.drop_duplicates(subset=[entity_id], keep="last", inplace=True)
 
-        if timestamp_column != "":
-            df = df.drop(columns=timestamp_column)
-        dataframe_mapping.append(df)
-        return dataframe_mapping
+        if feature['source_timestamp'] != "":
+            df = df.drop(columns=feature['source_timestamp'])
+        return df
 
 class Stream:
 

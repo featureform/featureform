@@ -454,7 +454,7 @@ func checkTransformationTableValues(transformationName string, correctValues []p
 	if err != nil {
 		return fmt.Errorf("Could not get transformation table from offline store: %v", err)
 	}
-	transformationJoinName, err := provider.GetTransformationName(providerJoinTransformationID)
+	transformationJoinName, err := provider.GetPrimaryTableName(providerJoinTransformationID)
 	if err != nil {
 		return fmt.Errorf("invalid transformation table name: %v", err)
 	}

@@ -19,6 +19,7 @@ const (
 	PostgresOffline       = "POSTGRES_OFFLINE"
 	SnowflakeOffline      = "SNOWFLAKE_OFFLINE"
 	RedshiftOffline       = "REDSHIFT_OFFLINE"
+	BigQueryOffline       = "BIGQUERY_OFFLINE"
 )
 
 type ValueType string
@@ -536,6 +537,7 @@ func (table *memoryOfflineTable) Write(rec ResourceRecord) error {
 	if err := rec.check(); err != nil {
 		return err
 	}
+
 	if recs, has := table.entityMap[rec.Entity]; has {
 		// Replace any record with the same timestamp/entity pair.
 		for i, existingRec := range recs {

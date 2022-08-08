@@ -7,7 +7,7 @@ from distutils.command.config import config
 from typing_extensions import Self
 from numpy import byte
 from .resources import ResourceState, Provider, RedisConfig, FirestoreConfig, CassandraConfig, DynamodbConfig, \
-    PostgresConfig, SnowflakeConfig, LocalConfig, RedshiftConfig, User, Location, Source, PrimaryData, SQLTable, \
+    PostgresConfig, SnowflakeConfig, LocalConfig, RedshiftConfig, BigQueryConfig, User, Location, Source, PrimaryData, SQLTable, \
     SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet, ProviderReference, \
     EntityReference, SourceReference
 from typing import Tuple, Callable, List, Union
@@ -17,9 +17,12 @@ import os
 from featureform.proto import metadata_pb2
 from featureform.proto import metadata_pb2_grpc as ff_grpc
 from .sqlite_metadata import SQLiteMetadata
+from .tls import insecure_channel, secure_channel
 import time
 import pandas as pd
 from .get import *
+from .get_local import *
+from .list_local import *
 from .list import *
 
 NameVariant = Tuple[str, str]
@@ -96,7 +99,6 @@ class OfflineSQLProvider(OfflineProvider):
                            name: str = "",
                            schedule: str = "",
                            description: str = ""):
-    
         return self.__registrar.sql_transformation(name=name,
                                                    variant=variant,
                                                    owner=owner,
@@ -150,7 +152,7 @@ class LocalProvider:
                           )
 
     def df_transformation(self,
-                          variant: str,
+                          variant: str = "default",
                           owner: Union[str, UserRegistrar] = "",
                           name: str = "",
                           description: str = "",
@@ -331,8 +333,13 @@ class DFTransformationDecorator:
             self.description = fn.__doc__
         if self.name == "":
             self.name = fn.__name__
+
+        for nv in self.inputs:
+            if self.name is nv[0] and self.variant is nv[1]:
+                raise ValueError(f"Transformation cannot be input for itself: {self.name} {self.variant}")
         self.query = marshal.dumps(fn.__code__)
         fn.register_resources = self.register_resources
+        fn.name_variant = self.name_variant
         return fn
 
     def to_source(self) -> Source:
@@ -465,10 +472,14 @@ class Registrar:
     )
     ```
     """
+
     def __init__(self):
         self.__state = ResourceState()
         self.__resources = []
         self.__default_owner = ""
+
+    def add_resource(self, resource):
+        self.__resources.append(resource)
 
     def register_user(self, name: str) -> UserRegistrar:
         """Register a user.
@@ -527,23 +538,23 @@ class Registrar:
         self.__resources.append(get)
         if local:
             return LocalSource(self,
-                                name=name,
-                                owner="",
-                                variant=variant,
-                                provider="",
-                                description="",
-                                path = "")
+                               name=name,
+                               owner="",
+                               variant=variant,
+                               provider="",
+                               description="",
+                               path="")
         else:
             fakeDefinition = PrimaryData(location=SQLTable(name=""))
             fakeSource = Source(name=name,
-                            variant=variant,
-                            definition=fakeDefinition,
-                            owner="",
-                            provider="",
-                            description="")
+                                variant=variant,
+                                definition=fakeDefinition,
+                                owner="",
+                                provider="",
+                                description="")
             return ColumnSourceRegistrar(self, fakeSource)
 
-    def get_local(self, name):
+    def get_local_provider(self, name="local-mode"):
         get = ProviderReference(name=name, provider_type="local", obj=None)
         self.__resources.append(get)
         fakeConfig = LocalConfig()
@@ -627,6 +638,56 @@ class Registrar:
         fakeConfig = SnowflakeConfig(account="", database="", organization="", username="", password="", schema="")
         fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
         return OfflineSQLProvider(self, fakeProvider)
+    
+    def get_redshift(self, name):
+        """Get a Redshift provider. The returned object can be used to register additional resources.
+
+        **Examples**:
+        ``` py
+        redshift = get_redshift("redshift-quickstart")
+        transactions = redshift.register_table(
+            name="transactions",
+            variant="kaggle",
+            description="Fraud Dataset From Kaggle",
+            table="Transactions",  # This is the table's name in Postgres
+        )
+        ```
+        Args:
+            name (str): Name of Redshift provider to be retrieved
+
+        Returns:
+            redshift (OfflineSQLProvider): Provider
+        """
+        get = ProviderReference(name=name, provider_type="redshift", obj=None)
+        self.__resources.append(get)
+        fakeConfig = RedshiftConfig(host="", port="", database="", user="", password="")
+        fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
+        return OfflineSQLProvider(self, fakeProvider)
+    
+    def get_bigquery(self, name):
+        """Get a BigQuery provider. The returned object can be used to register additional resources.
+
+        **Examples**:
+        ``` py
+        bigquery = get_bigquery("bigquery-quickstart")
+        transactions = bigquery.register_table(
+            name="transactions",
+            variant="kaggle",
+            description="Fraud Dataset From Kaggle",
+            table="Transactions",  # This is the table's name in Postgres
+        )
+        ```
+        Args:
+            name (str): Name of BigQuery provider to be retrieved
+
+        Returns:
+            bigquery (OfflineSQLProvider): Provider
+        """
+        get = ProviderReference(name=name, provider_type="bigquery", obj=None)
+        self.__resources.append(get)
+        fakeConfig = BigQueryConfig(project_id="", dataset_id="", credentials_path="")
+        fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
+        return OfflineSQLProvider(self, fakeProvider)      
 
     def get_entity(self, name, local=False):
         """Get an entity. The returned object can be used to register additional resources.
@@ -693,15 +754,15 @@ class Registrar:
                             config=config)
         self.__resources.append(provider)
         return OnlineProvider(self, provider)
-        
+
     def register_firestore(self,
-                       name: str,
-                       description: str = "",
-                       team: str = "",
-                       collection: str = "",
-                       project_id: str = "",
-                       credentials_path: str = ""
-                       ):
+                           name: str,
+                           description: str = "",
+                           team: str = "",
+                           collection: str = "",
+                           project_id: str = "",
+                           credentials_path: str = ""
+                           ):
         config = FirestoreConfig(collection=collection, project_id=project_id, credentials_path=credentials_path)
         provider = Provider(name=name,
                             function="ONLINE",
@@ -712,17 +773,18 @@ class Registrar:
         return OnlineProvider(self, provider)
 
     def register_cassandra(self,
-                       name: str,
-                       description: str = "",
-                       team: str = "",
-                       host: str = "0.0.0.0",
-                       port: int = 9042,
-                       username: str = "cassandra",
-                       password: str = "cassandra",
-                       keyspace: str = "",
-                       consistency: str = "THREE",
-                       replication: int = 3):
-        config = CassandraConfig(host=host, port=port, username=username, password=password, keyspace=keyspace, consistency=consistency, replication=replication)
+                           name: str,
+                           description: str = "",
+                           team: str = "",
+                           host: str = "0.0.0.0",
+                           port: int = 9042,
+                           username: str = "cassandra",
+                           password: str = "cassandra",
+                           keyspace: str = "",
+                           consistency: str = "THREE",
+                           replication: int = 3):
+        config = CassandraConfig(host=host, port=port, username=username, password=password, keyspace=keyspace,
+                                 consistency=consistency, replication=replication)
         provider = Provider(name=name,
                             function="ONLINE",
                             description=description,
@@ -730,7 +792,7 @@ class Registrar:
                             config=config)
         self.__resources.append(provider)
         return OnlineProvider(self, provider)
-        
+
     def register_dynamodb(self,
                           name: str,
                           description: str = "",
@@ -824,7 +886,7 @@ class Registrar:
                             config=config)
         self.__resources.append(provider)
         return OfflineSQLProvider(self, provider)
-    
+
     def register_postgres(self,
                           name: str,
                           description: str = "",
@@ -923,6 +985,46 @@ class Registrar:
         self.__resources.append(provider)
         return OfflineSQLProvider(self, provider)
 
+    def register_bigquery(self,
+                          name: str,
+                          description: str = "",
+                          team: str = "",
+                          project_id: str = "",
+                          dataset_id: str = "",
+                          credentials_path: str = ""):
+        """Register a BigQuery provider.
+
+        **Examples**:
+        ```   
+        bigquery = ff.register_bigquery(
+            name="bigquery-quickstart",
+            description="A BigQuery deployment we created for the Featureform quickstart",
+            project_id="quickstart-project", 
+            dataset_id="quickstart-dataset",
+        )
+        ```
+        Args:
+            name (str): Name of BigQuery provider to be registered
+            description (str): Description of BigQuery provider to be registered
+            team (str): Name of team
+            project_id (str): The Project name in GCP
+            dataset_id (str): The Dataset name in GCP under the Project Id
+            
+        Returns:
+            redshift (OfflineSQLProvider): Provider
+        """
+        config = BigQueryConfig(project_id=project_id,
+                                dataset_id=dataset_id,
+                                credentials_path=credentials_path,)
+        provider = Provider(name=name,
+                            function="OFFLINE",
+                            description=description,
+                            team=team,
+                            config=config)
+        self.__resources.append(provider)
+        return OfflineSQLProvider(self, provider)
+
+
     def register_local(self):
         """Register a Local provider.
 
@@ -934,8 +1036,8 @@ class Registrar:
             local (LocalProvider): Provider
         """
         config = LocalConfig()
-        provider = Provider(name="local mode",
-                            function="ONLINE",
+        provider = Provider(name="local-mode",
+                            function="LOCAL_ONLINE",
                             description="This is local mode",
                             team="team",
                             config=config)
@@ -1058,8 +1160,8 @@ class Registrar:
         return decorator
 
     def df_transformation(self,
-                          variant: str,
                           provider: Union[str, OfflineProvider],
+                          variant: str = "default",
                           name: str = "",
                           owner: Union[str, UserRegistrar] = "",
                           description: str = "",
@@ -1077,6 +1179,7 @@ class Registrar:
         Returns:
             decorator (DFTransformationDecorator): decorator
         """
+
         if not isinstance(owner, str):
             owner = owner.name()
         if owner == "":
@@ -1105,6 +1208,9 @@ class Registrar:
             self.__state.add(resource)
         self.__resources = []
         return self.__state
+
+    def clear_state(self):
+        self.__state = ResourceState()
 
     def register_entity(self, name: str, description: str = ""):
         """Register an entity.
@@ -1262,7 +1368,8 @@ class Client(Registrar):
     redis = rc.get_provider("redis-quickstart")
     ```
     """
-    def __init__(self, host=None, local=False, insecure=True, cert_path=None):
+
+    def __init__(self, host=None, local=False, insecure=False, cert_path=None):
         """Initialise a Resource Client object.
 
         Args:
@@ -1272,45 +1379,33 @@ class Client(Registrar):
             cert_path (str): Path to certificate
         """
         super().__init__()
+        self._stub = None
         self.local = local
-        if self.local:
-            if host != None:
-                raise ValueError("Cannot be local and have a host")
-        else:
-            if host == None:
-                host = os.getenv('FEATUREFORM_HOST')
-                if host == None:
-                    raise ValueError(
-                    "Host value must be set or in env as FEATUREFORM_HOST")
-
-            channel = self.tls_check(host, cert_path, insecure)
+        if local and host:
+            raise ValueError("Cannot be local and have a host")
+        elif not local:
+            host = host or os.getenv('FEATUREFORM_HOST')
+            if host is None:
+                raise RuntimeError(
+                    'If not in local mode then `host` must be passed or the environment'
+                    ' variable FEATUREFORM_HOST must be set.'
+                )
+            if insecure:
+                channel = insecure_channel(host)
+            else:
+                channel = secure_channel(host, cert_path)
             self._stub = ff_grpc.ApiStub(channel)
-
-    def tls_check(self, host, cert, insecure):
-        if insecure:
-            channel = grpc.insecure_channel(
-                host, options=(('grpc.enable_http_proxy', 0),))
-        elif cert != None or os.getenv('FEATUREFORM_CERT') != None:
-            if os.getenv('FEATUREFORM_CERT') != None and cert == None:
-                cert = os.getenv('FEATUREFORM_CERT')
-            with open(cert, 'rb') as f:
-                credentials = grpc.ssl_channel_credentials(f.read())
-            channel = grpc.secure_channel(host, credentials)
-        else:
-            credentials = grpc.ssl_channel_credentials()
-            channel = grpc.secure_channel(host, credentials)
-        return channel
 
     def apply(self):
         """Apply all definitions, creating and retrieving all specified resources.
         """
-        
+
         if self.local:
             state().create_all_local()
         else:
             state().create_all(self._stub)
 
-    def get_user(self, name):
+    def get_user(self, name, local=False):
         """Get a user. Prints out name of user, and all resources associated with the user.
 
         **Examples:**
@@ -1369,9 +1464,11 @@ class Client(Registrar):
         Returns:
             user (User): User
         """
+        if local:
+            return get_user_info_local(name)
         return get_user_info(self._stub, name)
-    
-    def get_entity(self, name):
+
+    def get_entity(self, name, local=False):
         """Get an entity. Prints out information on entity, and all resources associated with the entity.
 
         **Examples:**
@@ -1416,6 +1513,8 @@ class Client(Registrar):
         }
         ```
         """
+        if local:
+            return get_entity_info_local(name)
         return get_entity_info(self._stub, name)
 
     def get_model(self, name):
@@ -1429,7 +1528,7 @@ class Client(Registrar):
         """
         return get_resource_info(self._stub, "model", name)
 
-    def get_provider(self, name):
+    def get_provider(self, name, local=False):
         """Get a provider. Prints out information on provider, and all resources associated with the provider.
 
         **Examples:**
@@ -1505,9 +1604,11 @@ class Client(Registrar):
         Returns:
             provider (Provider): Provider
         """
+        if local:
+            return get_provider_info_local(name)
         return get_provider_info(self._stub, name)
 
-    def get_feature(self, name, variant=None):
+    def get_feature(self, name, variant=None, local=False):
         """Get a feature. Prints out information on feature, and all variants associated with the feature. If variant is included, print information on that specific variant and all resources associated with it.
 
         **Examples:**
@@ -1602,11 +1703,15 @@ class Client(Registrar):
         Returns:
             feature (Union[Feature, FeatureVariant]): Feature or FeatureVariant
         """
+        if local:
+            if not variant:
+                return get_resource_info_local("feature", name)
+            return get_feature_variant_info_local(name, variant)
         if not variant:
             return get_resource_info(self._stub, "feature", name)
         return get_feature_variant_info(self._stub, name, variant)
-        
-    def get_label(self, name, variant=None):
+
+    def get_label(self, name, variant=None, local=False):
         """Get a label. Prints out information on label, and all variants associated with the label. If variant is included, print information on that specific variant and all resources associated with it.
 
         **Examples:**
@@ -1701,11 +1806,15 @@ class Client(Registrar):
         Returns:
             label (Union[label, LabelVariant]): Label or LabelVariant
         """
+        if local:
+            if not variant:
+                return get_resource_info_local("label", name)
+            return get_label_variant_info_local(name, variant)
         if not variant:
             return get_resource_info(self._stub, "label", name)
         return get_label_variant_info(self._stub, name, variant)
 
-    def get_training_set(self, name, variant=None):
+    def get_training_set(self, name, variant=None, local=False):
         """Get a training set. Prints out information on training set, and all variants associated with the training set. If variant is included, print information on that specific variant and all resources associated with it.
 
         **Examples:**
@@ -1792,11 +1901,15 @@ class Client(Registrar):
         Returns:
             training_set (Union[TrainingSet, TrainingSetVariant]): TrainingSet or TrainingSetVariant
         """
+        if local:
+            if not variant:
+                return get_resource_info_local("training-set", name)
+            return get_training_set_variant_info_local(name, variant)
         if not variant:
             return get_resource_info(self._stub, "training-set", name)
         return get_training_set_variant_info(self._stub, name, variant)
 
-    def get_source(self, name, variant=None):
+    def get_source(self, name, variant=None, local=False):
         """Get a source. Prints out information on source, and all variants associated with the source. If variant is included, print information on that specific variant and all resources associated with it.
 
         **Examples:**
@@ -1902,11 +2015,15 @@ class Client(Registrar):
         Returns:
             source (Union[Source, SourceVariant]): Source or SourceVariant
         """
+        if local:
+            if not variant:
+                return get_resource_info_local("source", name)
+            return get_source_variant_info_local(name, variant)
         if not variant:
             return get_resource_info(self._stub, "source", name)
         return get_source_variant_info(self._stub, name, variant)
 
-    def list_features(self):
+    def list_features(self, local=False):
         """List all features.
 
         **Examples:**
@@ -1943,9 +2060,11 @@ class Client(Registrar):
         Returns:
             features (List[Feature]): List of Feature Objects
         """
+        if local:
+            return list_local("feature", [ColumnName.NAME, ColumnName.VARIANT, ColumnName.STATUS])
         return list_name_variant_status(self._stub, "feature")
 
-    def list_labels(self):
+    def list_labels(self, local=False):
         """List all labels.
 
         **Examples:**
@@ -1982,9 +2101,11 @@ class Client(Registrar):
         Returns:
             labels (List[Label]): List of Label Objects
         """
+        if local:
+            return list_local("label", [ColumnName.NAME, ColumnName.VARIANT, ColumnName.STATUS])
         return list_name_variant_status(self._stub, "label")
 
-    def list_users(self):
+    def list_users(self, local=False):
         """List all users. Prints a list of all users.
 
         **Examples:**
@@ -2043,9 +2164,11 @@ class Client(Registrar):
         Returns:
             users (List[User]): List of User Objects
         """
+        if local:
+            return list_local("user", [ColumnName.NAME, ColumnName.STATUS])
         return list_name_status(self._stub, "user")
 
-    def list_entities(self):
+    def list_entities(self, local=False):
         """List all entities. Prints a list of all entities.
 
         **Examples:**
@@ -2101,9 +2224,11 @@ class Client(Registrar):
         Returns:
             entities (List[Entity]): List of Entity Objects
         """
+        if local:
+            return list_local("entity", [ColumnName.NAME, ColumnName.STATUS])
         return list_name_status(self._stub, "entity")
 
-    def list_sources(self):
+    def list_sources(self, local=False):
         """List all sources. Prints a list of all sources.
 
         **Examples:**
@@ -2138,9 +2263,11 @@ class Client(Registrar):
         Returns:
             sources (List[Source]): List of Source Objects
         """
+        if local:
+            return list_local("source", [ColumnName.NAME, ColumnName.VARIANT, ColumnName.STATUS, ColumnName.DESCRIPTION])
         return list_name_variant_status_desc(self._stub, "source")
 
-    def list_training_sets(self):
+    def list_training_sets(self, local=False):
         """List all training sets. Prints a list of all training sets.
 
         **Examples:**
@@ -2176,17 +2303,21 @@ class Client(Registrar):
         Returns:
             training_sets (List[TrainingSet]): List of TrainingSet Objects
         """
+        if local:
+            return list_local("training-set", [ColumnName.NAME, ColumnName.VARIANT, ColumnName.STATUS])
         return list_name_variant_status_desc(self._stub, "training-set")
 
-    def list_models(self):
+    def list_models(self, local=False):
         """List all models. Prints a list of all models.
 
         Returns:
             models (List[Model]): List of Model Objects
         """
+        if local:
+            return list_local("model", [ColumnName.NAME, ColumnName.STATUS, ColumnName.DESCRIPTION])
         return list_name_status_desc(self._stub, "model")
 
-    def list_providers(self):
+    def list_providers(self, local=False):
         """List all providers. Prints a list of all providers.
 
         **Examples:**
@@ -2253,10 +2384,14 @@ class Client(Registrar):
         Returns:
             providers (List[Provider]): List of Provider Objects
         """
+        if local:
+            return list_local("provider", [ColumnName.NAME, ColumnName.STATUS, ColumnName.DESCRIPTION])
         return list_name_status_desc(self._stub, "provider")
+
 
 global_registrar = Registrar()
 state = global_registrar.state
+clear_state = global_registrar.clear_state
 register_user = global_registrar.register_user
 register_redis = global_registrar.register_redis
 register_firestore = global_registrar.register_firestore
@@ -2273,7 +2408,7 @@ sql_transformation = global_registrar.sql_transformation
 register_sql_transformation = global_registrar.register_sql_transformation
 get_entity = global_registrar.get_entity
 get_source = global_registrar.get_source
-get_local = global_registrar.get_local
+get_local_provider = global_registrar.get_local_provider
 get_redis = global_registrar.get_redis
 get_postgres = global_registrar.get_postgres
 get_snowflake = global_registrar.get_snowflake

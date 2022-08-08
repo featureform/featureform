@@ -169,7 +169,7 @@ class SQLiteTest:
             """)
 
          # labels variant
-       conn.execute('''CREATE TABLE labels_variant(
+       conn.execute('''CREATE TABLE label_variant(
             created         text,
             description     text,
             entity          text,
@@ -186,7 +186,7 @@ class SQLiteTest:
             FOREIGN KEY(provider) REFERENCES providers(name),
             FOREIGN KEY(labelName) REFERENCES labels(name));''')
 
-       conn.execute('''INSERT INTO labels_variant VALUES
+       conn.execute('''INSERT INTO label_variant VALUES
             ("2020-08-12T13:49:51.141Z", "rating weighted in higher favor of reviews given higher presidence", "wine_id", "Wine quality rating", "Simba Khadder", "Sample batch provider", "float", "fifth-variant", "wine_analysis_id", "2020-08-14T13:49:51.141Z", "82", "CREATED"),
             ("2020-08-12T13:49:51.141Z", "rating weighted in higher favor of reviews given higher presidence", "wine_id", "Wine quality rating", "Simba Khadder", "Sample batch provider", "float", "second-variant", "wine_analysis_id", "2020-08-14T13:49:51.141Z", "82", "CREATED"),
             ("2020-08-12T13:49:51.141Z", "Wine was spoiled or not", "wine_id", "Wine spoiled", "Simba Khadder", "Sample batch provider", "float", "third-variant", "wine_analysis_id", "2020-08-14T13:49:51.141Z", "92", "CREATED")
@@ -255,12 +255,12 @@ class SQLiteTest:
        ''')
     
     # All 3 functions return a cursor, USE THIS
-    def getTypeTable(self, type):
+    def get_type_table(self, type):
         query = "SELECT * FROM " + type
         type_data = conn.execute(query)
         return type_data.fetchall()
     
-    def getVariantResource(self, type, variable, resource):
+    def get_variant_resource(self, type, variable, resource):
         variant_table_query = "SELECT * FROM "+ type +" WHERE " + variable + "='"+resource+"';" 
         variant_data = conn.execute(variant_table_query)
         return variant_data.fetchall()

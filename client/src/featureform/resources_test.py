@@ -4,7 +4,7 @@
 
 import pytest
 from resources import ResourceRedefinedError, ResourceState, Provider, RedisConfig, CassandraConfig, FirestoreConfig, \
-SnowflakeConfig, PostgresConfig, RedshiftConfig, User, Provider, Entity, Feature, Label, TrainingSet, PrimaryData, SQLTable, \
+SnowflakeConfig, PostgresConfig, RedshiftConfig, BigQueryConfig, User, Provider, Entity, Feature, Label, TrainingSet, PrimaryData, SQLTable, \
 Source, ResourceColumnMapping, DynamodbConfig, Schedule
 
 
@@ -78,6 +78,14 @@ def redshift_config():
         password="p4ssw0rd",
     )
 
+@pytest.fixture
+def bigquery_config():
+    return BigQueryConfig(
+        project_id="bigquery-project",
+        dataset_id="bigquery-dataset",
+        credentials_path="bigquery-credentials-path",
+    )
+
 
 @pytest.fixture
 def postgres_provider(postgres_config):
@@ -120,6 +128,17 @@ def redshift_provider(redshift_config):
         function="fn2",
         team="team2",
         config=redshift_config,
+    )
+
+
+@pytest.fixture
+def bigquery_provider(bigquery_config):
+    return Provider(
+        name="bigquery",
+        description="desc2",
+        function="fn2",
+        team="team2",
+        config=bigquery_config,
     )
 
 
@@ -220,12 +239,13 @@ def all_resources_strange_order(redis_provider):
 
 
 def test_create_all_provider_types(redis_provider, snowflake_provider,
-                                   postgres_provider, redshift_provider):
+                                   postgres_provider, redshift_provider, bigquery_provider):
     providers = [
         redis_provider,
         snowflake_provider,
         postgres_provider,
         redshift_provider,
+        bigquery_provider, 
     ]
     state = ResourceState()
     for provider in providers:

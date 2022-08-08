@@ -121,18 +121,11 @@ func (store *sqlOfflineStore) getTrainingSetName(id ResourceID) (string, error) 
 	return fmt.Sprintf("featureform_trainingset__%s__%s", id.Name, id.Variant), nil
 }
 
-func GetTransformationName(id ResourceID) (string, error) {
-	return GetPrimaryTableName(id)
-	//if err := checkName(id); err != nil {
-	//	return "", err
-	//}
-	//return fmt.Sprintf("featureform_primary_%s__%s", id.Name, id.Variant), nil
-}
-
 func GetPrimaryTableName(id ResourceID) (string, error) {
 	if err := checkName(id); err != nil {
 		return "", err
 	}
+
 	return fmt.Sprintf("featureform_primary_%s__%s", id.Name, id.Variant), nil
 }
 
@@ -144,10 +137,8 @@ func (store *sqlOfflineStore) tableExists(id ResourceID) (bool, error) {
 		tableName, err = store.getResourceTableName(id)
 	} else if id.check(TrainingSet) == nil {
 		tableName, err = store.getTrainingSetName(id)
-	} else if id.check(Primary) == nil {
+	} else if id.check(Primary) == nil || id.check(Transformation) == nil {
 		tableName, err = GetPrimaryTableName(id)
-	} else if id.check(Transformation) == nil {
-		tableName, err = GetTransformationName(id)
 	}
 	if err != nil {
 		return false, err
@@ -311,7 +302,7 @@ func (store *sqlOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, erro
 }
 
 func (store *sqlOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
-	name, err := GetTransformationName(id)
+	name, err := GetPrimaryTableName(id)
 	if err != nil {
 		return nil, err
 	}
@@ -987,7 +978,7 @@ func (store *sqlOfflineStore) UpdateTransformation(config TransformationConfig) 
 func (store *sqlOfflineStore) createTransformationName(id ResourceID) (string, error) {
 	switch id.Type {
 	case Transformation:
-		return GetTransformationName(id)
+		return GetPrimaryTableName(id)
 	case Label:
 		return "", TransformationTypeError{"Invalid Transformation Type: Label"}
 	case Feature:

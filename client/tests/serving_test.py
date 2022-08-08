@@ -427,6 +427,7 @@ def create_temp_file(test_values):
 
 def e2e_features(file, entity_name, entity_loc, name_variants, value_cols, entities, ts_col):
     ff = ResourceClient(local=True)
+    ff.register_user("featureformer").make_default_owner()
     local = ff.register_local()
     transactions = local.register_file(
         name="transactions",

@@ -1,4 +1,5 @@
 import featureform as ff
+from featureform import local
 import pandas as pd
 import pytest
 import shutil
@@ -7,7 +8,6 @@ import stat
 
 class TestPetalGuide:
     def test_register_local(self):
-        local = ff.register_local()
 
         iris = local.register_file(
             name="Iris dataset",

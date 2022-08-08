@@ -12,7 +12,7 @@ import pytest
 import sys
 
 sys.path.insert(0, 'client/src/')
-from featureform import ResourceClient, ServingClient
+from featureform import ResourceClient, ServingClient, local
 import serving_cases as cases
 import featureform as ff
 from datetime import datetime
@@ -210,7 +210,6 @@ class TestIndividualLabels(TestCase):
 class TestTransformation(TestCase):
 
     def test_simple(self):
-        local = ff.register_local()
         name = 'Simple'
         case = cases.transform[name]
         self.setup(case, name, local)
@@ -224,7 +223,6 @@ class TestTransformation(TestCase):
         np.testing.assert_array_equal(res, np.array([1]))
 
     def test_simple2(self):
-        local = ff.register_local()
         name = 'Simple2'
         case = cases.transform[name]
         self.setup(case, name, local)
@@ -238,7 +236,6 @@ class TestTransformation(TestCase):
         np.testing.assert_array_equal(res, np.array([1]))
 
     def test_groupby(self):
-        local = ff.register_local()
         name = 'GroupBy'
         case = cases.transform[name]
         self.setup(case, name, local)
@@ -252,7 +249,6 @@ class TestTransformation(TestCase):
         np.testing.assert_array_equal(res, np.array([5.5]))
 
     def test_complex_join(self):
-        local = ff.register_local()
         name = 'Complex'
         case = cases.transform[name]
         self.setup(case, name, local)
@@ -368,7 +364,6 @@ class TestTrainingSet(TestCase):
                     clear_and_reset()
                 except Exception as e:
                     print(f"Could Not Reset Database: {e}")
-                local = ff.register_local()
                 feature_list = []
                 for i, feature in enumerate(case['features']):
                     self._register_feature(feature, local, case, i, name)

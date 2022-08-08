@@ -187,10 +187,9 @@ class TestIndividualLabels(TestCase):
             'source_timestamp': 'ts_dne'
         }
         file_name = create_temp_file(case)
-        case['definition'] = file_name
         client = ServingClient(local=True)
         with pytest.raises(KeyError) as err:
-            client.label_df_from_csv(case)
+            client.label_df_from_csv(case, file_name)
         assert "column does not exist" in str(err.value)
 
     @pytest.fixture(autouse=True)

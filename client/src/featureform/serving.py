@@ -36,8 +36,8 @@ class Client:
                             feature_name_variant, timestamp_column):
         return self.impl.process_feature_csv(source_path, entity_name, entity_col, value_col, dataframe_mapping, feature_name_variant, timestamp_column)
 
-    def label_df_from_csv(self, label):
-        return self.impl.label_df_from_csv(label)
+    def label_df_from_csv(self, label, file_name):
+        return self.impl.label_df_from_csv(label, file_name)
 
 class HostedClientImpl:
     def __init__(self, host=None, insecure=False, cert_path=None):
@@ -125,7 +125,8 @@ class LocalClientImpl:
         if self.db.is_transformation(label['source_name'], label['source_variant']):
             label_df = self.label_df_from_transformation(label) 
         else:
-            label_df = self.label_df_from_csv(label)
+            label_source = self.db.get_source_variant(label['source_name'], label['source_variant'])
+            label_df = self.label_df_from_csv(label, label_source['definition'])
         label_df.rename(columns={label['source_value']: 'label'}, inplace=True)
         return label_df
 
@@ -139,9 +140,8 @@ class LocalClientImpl:
         df.set_index(label['source_entity'])
         return df
 
-    def label_df_from_csv(self, label):
-        label_source = self.db.get_source_variant(label['source_name'], label['source_variant'])
-        df = pd.read_csv(label_source['definition'])
+    def label_df_from_csv(self, label, file_name):
+        df = pd.read_csv(file_name)
         if label['source_entity'] not in df.columns:
             raise KeyError(f"Entity column does not exist: {label['source_entity']}")
         if label['source_value'] not in df.columns:

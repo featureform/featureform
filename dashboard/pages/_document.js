@@ -8,14 +8,7 @@ class MyDocument extends Document {
         <Html>
 		<Head>
 			<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons"/>
-			<link
-					rel="stylesheet"
-					href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap"
-			/>
-			<link rel="icon" href="/static/images/favicon.ico"/>
-			<script language="JavaScript" type="text/javascript" src="/static/js/scripts.js">
-			</script>
-
+			<link rel="icon" href="/static/favicon.ico"/>
 		</Head>
 		<body>
 		<Main/>

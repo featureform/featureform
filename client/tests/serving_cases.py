@@ -529,10 +529,10 @@ training_set = {
         'entity': 'user',
         'entity_loc': 'entity',
         'expected': [
-            [4, np.NAN, np.NAN, np.NAN, np.NAN, 1],
-            [2, np.NAN, np.NAN, "first", np.NAN, 9],
-            [2, np.NAN, np.NAN, "second", np.NAN, 5],
-            [3, np.NAN, "real value second", np.NAN, np.NAN, 3]
+            [[4, np.NAN, np.NAN, np.NAN, np.NAN], [1]],
+            [[2, np.NAN, np.NAN, "first", np.NAN], [9]],
+            [[2, np.NAN, np.NAN, "second", np.NAN], [5]],
+            [[3, np.NAN, "real value second", np.NAN, np.NAN], [3]]
         ],
     },
 }

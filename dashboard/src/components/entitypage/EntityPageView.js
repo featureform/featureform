@@ -201,7 +201,7 @@ function a11yProps(index) {
 
 const EntityPageView = ({ entity, setVariant, activeVariants }) => {
   let resources = entity.resources;
-  let resourceType = Resource[entity.resources.type];
+  let resourceType = Resource[resources.type];
   let type = resourceType.type;
   const router = useRouter();
   const showMetrics = resourceType.hasMetrics;

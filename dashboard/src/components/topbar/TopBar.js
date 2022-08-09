@@ -86,7 +86,7 @@ export default function TopBar() {
         <Toolbar className={classes.toolbar}>
           <div className={classes.title}>
             <img
-              src="/FeatureForm_Logo_Full_Black.svg"
+              src="/static/FeatureForm_Logo_Full_Black.svg"
               height={30}
               alt="Featureform"
               component="div"

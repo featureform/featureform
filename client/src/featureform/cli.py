@@ -143,6 +143,10 @@ def list(host, cert, insecure, local, resource_type):
         raise ValueError("Resource type not found")
 
 @cli.command()
+def dash():
+    os.system("python ../../dashboard/main.py")
+
+@cli.command()
 @click.argument("files", nargs=-1, required=True, type=click.Path(exists=True))
 @click.option("--host",
               "host",

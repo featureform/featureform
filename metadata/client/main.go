@@ -14,7 +14,7 @@ import (
 
 func main() {
 	logger := zap.NewExample().Sugar()
-	client, err := metadata.NewClient("localhost:8080", logger)
+	client, err := metadata.NewClient("localhost:8888", logger)
 	if err != nil {
 		logger.Panicw("Failed to connect", "Err", err)
 	}

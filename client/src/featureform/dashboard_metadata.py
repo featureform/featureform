@@ -2,8 +2,8 @@ from flask import Flask
 from flask_cors import CORS, cross_origin
 import json
 import re
-from featureform.sqlite_metadata import SQLiteMetadata
-from featureform.type_objects import (
+from sqlite_metadata import SQLiteMetadata
+from type_objects import (
     FeatureResource, 
     FeatureVariantResource, 
     TrainingSetResource, 
@@ -16,7 +16,6 @@ from featureform.type_objects import (
     LabelResource,
     LabelVariantResource,
     ProviderResource)
-
 
 app = Flask(__name__)
 CORS(app)
@@ -68,7 +67,7 @@ def features(featureRow):
     return FeatureResource(
                 featureRow['name'], #name
                 featureRow['default_variant'], #defaultVariant
-                featureRow['type'], #type
+                "Feature", #type
                 variantData[0], #variantsDict
                 variantData[1] #All Variants
             ).toDictionary()
@@ -77,9 +76,11 @@ def training_set_variant(variantData):
     variantDict = dict()
     allVariantList = []
     variants = []
-
     for variantRow in variantData:
-        feature_list = sqlObject.get_training_set_features(variantRow['name'], variantRow['variant'])
+        try:
+            feature_list = sqlObject.get_training_set_features(variantRow['name'], variantRow['variant'])
+        except ValueError:
+            pass
         trainingSetVariant = TrainingSetVariantResource(
                 
                 variantRow['created'], #created
@@ -107,7 +108,7 @@ def getTrainingSetFeatures(feature_list):
 def training_sets(rowData):
     variantData = training_set_variant(sqlObject.query_resource("training_set_variant", "name", rowData['name']))
     return TrainingSetResource( 
-                rowData['type'], #type
+                "TrainingSet", #type
                 rowData['default_variant'], #defaultvariant
                 rowData['name'], #name
                 variantData[0], #variantsDict
@@ -119,8 +120,34 @@ def source_variant(variantData):
     allVariantList = []
     variants = []
     for variantRow in variantData:
+        try:
+            feature_list = sqlObject.get_feature_variants_from_source(variantRow['name'], variantRow['variant'])
+        except ValueError:
+            feature_list = []
+        training_set_list = set()
+        for f in feature_list:
+            try:
+                features_training_set_list = sqlObject.get_training_set_from_features(f["name"], f["variant"])
+                for training_set in features_training_set_list:
+                    training_set_list.add(sqlObject.get_training_set_variant(training_set["training_set_name"], training_set["training_set_variant"]))
+            except ValueError:
+                continue
+        try:
+            label_list = sqlObject.get_label_variants_from_source(variantRow["name"], variantRow["variant"])
+        except ValueError:
+            label_list = []
+        for l in label_list:
+            try:
+                labels_training_set_list = sqlObject.get_training_set_variant_from_label(l["name"], l["variant"])
+                for training_set in labels_training_set_list:
+                    training_set_list.add(training_set)
+            except ValueError:
+                continue
+        if variantRow['transformation']:
+            definition = str(variantRow['definition'], 'latin-1')
+        else:
+            definition = variantRow['definition']
         sourceVariant = SourceVariantResource(
-                
                 variantRow['created'], #created
                 variantRow['description'], #description
                 variantRow['name'], #sourceName
@@ -129,10 +156,10 @@ def source_variant(variantData):
                 variantRow['provider'], #provider
                 variantRow['variant'], #variant
                 variantRow['status'], #status
-                variantRow['definition'], #definition
-                variant_organiser(label_variant(sqlObject.get_resource_with_source( "label_variant", variantRow['name'], variantRow['variant']))[2]), #labels
-                variant_organiser(feature_variant(sqlObject.get_resource_with_source( "feature_variant", variantRow['name'], variantRow['variant']))[2]), #features
-                variant_organiser(training_set_variant(sqlObject.query_resource( "training_set_variant", "variant", variantRow['variant']))[2]) #training sets
+                definition, #definition
+                variant_organiser(label_variant(label_list)[2]), #labels
+                variant_organiser(feature_variant(feature_list)[2]), #features
+                variant_organiser(training_set_variant(training_set_list)[2]) #training sets
             ).toDictionary()
         allVariantList.append(variantRow['name'])
         variantDict[variantRow['variant']] = sourceVariant
@@ -143,7 +170,7 @@ def source_variant(variantData):
 def sources(rowData):
     variantData = source_variant(sqlObject.query_resource("source_variant", "name", rowData['name']))
     return SourceResource( 
-                rowData['type'], #type
+                "Source", #type
                 rowData['default_variant'], #defaultVariant
                 rowData['name'], #name
                 variantData[0], #variants
@@ -172,7 +199,7 @@ def label_variant(variantData):
                 variantRow['status'], #status
                 {"Name":variantRow['source_name'],
                 "Variant":variantRow['source_variant']}, #source
-                variant_organiser(training_set_variant(sqlObject.query_resource( "training_set_variant", "label", labelTuple))[2]) #training sets
+                variant_organiser(training_set_variant(sqlObject.get_training_set_variant_from_label(variantRow['name'], variantRow['variant']))[2]) #training sets
             ).toDictionary()
         
         allVariantList.append(variantRow['variant'])
@@ -183,8 +210,7 @@ def label_variant(variantData):
 def labels(rowData):
     variantData = label_variant(sqlObject.query_resource("label_variant", "name", rowData['name']))
     return LabelResource(
-                
-                rowData['type'], #type
+                "Label", #type
                 rowData['default_variant'], #defaultvariant
                 rowData['name'], #name
                 variantData[0], #variantDict
@@ -192,14 +218,19 @@ def labels(rowData):
             ).toDictionary()
 
 def entities(rowData):
+    label_list = sqlObject.query_resource( "label_variant", "entity", rowData['name'])
+    training_set_list = set()
+    for label in label_list:
+        for training_set in sqlObject.get_training_set_variant_from_label(label["name"], label["variant"]):
+            training_set_list.add(training_set)
     return EntityResource(
                 rowData['name'], #name
                 rowData['type'], #type
                 rowData['description'], #description
                 rowData['status'], #status
                 variant_organiser(feature_variant(sqlObject.query_resource( "feature_variant", "entity", rowData['name']))[2]), #features
-                variant_organiser(label_variant(sqlObject.query_resource( "label_variant", "entity", rowData['name']))[2]), #labels
-                variant_organiser(training_set_variant(sqlObject.query_resource( "training_set_variant", "label", rowData['name']))[2]) #training sets
+                variant_organiser(label_variant(label_list)[2]), #labels
+                variant_organiser(training_set_variant(training_set_list)[2]) #training sets
             ).toDictionary()
 
 def models(rowData):
@@ -225,6 +256,18 @@ def users(rowData):
             ).toDictionary()
 
 def providers(rowData):
+    try:
+        source_list = sqlObject.query_resource( "source_variant", "provider", rowData['name'])
+    except ValueError:
+        source_list = []
+    try:
+        feature_list = sqlObject.query_resource( "feature_variant", "provider", rowData['name'])
+    except ValueError:
+        feature_list = []
+    try:
+        label_list = sqlObject.query_resource( "label_variant", "provider", rowData['name'])
+    except ValueError:
+        label_list = []
     return ProviderResource(
                 rowData['name'], #name
                 rowData['type'], #type
@@ -232,11 +275,11 @@ def providers(rowData):
                 rowData['provider_type'], #provider type
                 rowData['software'], #software
                 rowData['team'], #team
-                variant_organiser(source_variant(sqlObject.query_resource( "source_variant", "provider", rowData['name']))[2]), #sources
+                variant_organiser(source_variant(source_list)[2]), #sources
                 rowData['status'], #status
                 rowData['serialized_config'],#serialis...
-                variant_organiser(feature_variant(sqlObject.query_resource( "feature_variant", "provider", rowData['name']))[2]), #features
-                variant_organiser(label_variant(sqlObject.query_resource( "label_variant", "provider", rowData['name']))[2]), #labels
+                variant_organiser(feature_variant(feature_list)[2]), #features
+                variant_organiser(label_variant(label_list)[2]), #labels
                 #variant_organiser(training_set_variant(sqlObject.query_resource( "training_set_variant", "provider", rowData[0]))[2]), #training sets
             ).toDictionary()
 
@@ -265,7 +308,6 @@ def GetMetadataList(type):
             allData.append(providers(row))
         else:
             allData.append("INCORRECT TYPE")
-
     response = app.response_class(
         response=json.dumps(allData),
         status=200,

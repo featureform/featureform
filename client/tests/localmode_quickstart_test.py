@@ -62,8 +62,8 @@ class Quickstart:
             batch_vals = zip(feature_batch.features(), feature_batch.label())
             for j, batch in enumerate(batch_vals):
                 features, label = batch
-                assert features[0] == [expected_test[j + (i * 5)][0]]
-                assert label == [expected_test[j + (i * 5)][1]]
+                assert features[0] == expected_test[j + (i * 5)][0]
+                assert label == expected_test[j + (i * 5)][1]
 
     def test_feature(self):
         client = ff.ServingClient(local=True)

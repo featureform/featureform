@@ -24,6 +24,7 @@ import (
 	s3Types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	parquetGo "github.com/xitongsys/parquet-go-source/s3"
 	reader "github.com/xitongsys/parquet-go/reader"
+	source "github.com/xitongsys/parquet-go/source"
 	writer "github.com/xitongsys/parquet-go/writer"
 )
 
@@ -283,81 +284,99 @@ func (spark *SparkOfflineStore) RegisterResourceFromSourceTable(id ResourceID, s
 	return nil, nil
 }
 
-
 func (s *S3Store) ResourcePath(id ResourceID) string {
 	return fmt.Sprintf("s3://%s/%s", s.bucketPath, s.resourcePrefix(id))
 }
 
-func (s *S3Store) generateJSONFromInterface(data interface{}) ([]string, error) {
-	arr := reflect.ValueOf(data)
-	dataList := make([]string, arr.Len())
-	for i := 0; i < arr.Len(); i++ {
-		dataString := `
-		{`
-		schemaStruct := arr.Index(i)
-		typeOfS := schemaStruct.Type()
-		for j := 0; j < schemaStruct.NumField(); j++ {
-			dataString += fmt.Sprintf(`"%s":`, strings.ToLower(typeOfS.Field(j).Name))
-			value := schemaStruct.Field(j).Interface()
-			switch reflect.TypeOf(value).String() {
-			case "string":
-				dataString += fmt.Sprintf(`"%s"`, value.(string))
-			case "int":
-				dataString += fmt.Sprintf(`%d`, value.(int))
-			case "float":
-				dataString += fmt.Sprintf(`%f`, value.(float64))
-			case "float32":
-				dataString += fmt.Sprintf(`%f`, value.(float32))
-			case "int32":
-				dataString += fmt.Sprintf(`%d`, value.(int32))
-			case "bool":
-				dataString += fmt.Sprintf(`%t`, value.(bool))
-			case "time.Time":
-				//convert to int64
-				dataString += fmt.Sprintf(`%d`, value.(time.Time).UnixMilli())
-			}
-			if j != schemaStruct.NumField()-1 {
-				dataString += ",\n"
-			} else {
-				dataString += "\n}"
-			}
-		}
-		dataList[i] = dataString
+func stringifyValue(value interface{}) string {
+	switch reflect.TypeOf(value).String() {
+	case "string":
+		return fmt.Sprintf(`"%s"`, value.(string))
+	case "int":
+		return fmt.Sprintf(`%d`, value.(int))
+	case "float":
+		return fmt.Sprintf(`%f`, value.(float64))
+	case "float32":
+		return fmt.Sprintf(`%f`, value.(float32))
+	case "int32":
+		return fmt.Sprintf(`%d`, value.(int32))
+	case "bool":
+		return fmt.Sprintf(`%t`, value.(bool))
+	case "time.Time":
+		//convert to int64
+		return fmt.Sprintf(`%d`, value.(time.Time).UnixMilli())
 	}
-	return dataList, nil
+	return ""
 }
 
-func (s *S3Store) generateSchemaFromInterface(data interface{}) (string, error) {
-	arr := reflect.ValueOf(data)
-	if arr.Len() < 1 {
-		return "", fmt.Errorf("interface passed has no data")
+func stringifyStruct(data interface{}) string {
+	curStruct := reflect.ValueOf(data)
+	structType := curStruct.Type()
+	structString := `
+	{`
+	for j := 0; j < curStruct.NumField(); j++ {
+		structString += fmt.Sprintf(`"%s":`, strings.ToLower(structType.Field(j).Name))
+		value := curStruct.Field(j).Interface()
+		structString += stringifyValue(value)
+		if j != curStruct.NumField()-1 {
+			structString += ",\n"
+		} else {
+			structString += "\n}"
+		}
 	}
-	schemaStruct := arr.Index(0)
+	return structString
+}
+
+func stringifyStructArray(data interface{}) ([]string, error) {
+	array := reflect.ValueOf(data)
+	structStringArray := make([]string, array.Len())
+	for i := 0; i < array.Len(); i++ {
+		structStringArray[i] = stringifyStruct(array.Index(i).Interface())
+	}
+	return structStringArray, nil
+}
+
+func stringifyStructField(data interface{}, idx int) string {
+	schemaStruct := reflect.ValueOf(data)
 	typeOfS := schemaStruct.Type()
-	schemaString := `
+	fieldDataType := reflect.TypeOf(schemaStruct.Field(idx).Interface()).String()
+	jsonFriendlyFieldName := strings.ToLower(typeOfS.Field(idx).Name)
+	switch fieldDataType {
+	case "string":
+		return fmt.Sprintf(`{"Tag": "name=%s, type=BYTE_ARRAY, convertedtype=UTF8"}`, jsonFriendlyFieldName)
+	case "int":
+		return fmt.Sprintf(`{"Tag": "name=%s, type=INT32"}`, jsonFriendlyFieldName)
+	case "float":
+		return fmt.Sprintf(`{"Tag": "name=%s, type=FLOAT"}`, jsonFriendlyFieldName)
+	case "float32":
+		return fmt.Sprintf(`{"Tag": "name=%s, type=FLOAT"}`, jsonFriendlyFieldName)
+	case "int32":
+		return fmt.Sprintf(`{"Tag": "name=%s, type=INT32"}`, jsonFriendlyFieldName)
+	case "bool":
+		return fmt.Sprintf(`{"Tag": "name=%s, type=BOOLEAN"}`, jsonFriendlyFieldName)
+	case "time.Time":
+		return fmt.Sprintf(`{"Tag": "name=%s, type=INT64"}`, jsonFriendlyFieldName)
+	}
+	return ""
+}
+
+func parquetSchemaHeader() string {
+	return `
     {
         "Tag":"name=parquet-go-root",
         "Fields":[
 		    `
+}
+
+func generateSchemaFromInterface(data interface{}) (string, error) {
+	array := reflect.ValueOf(data)
+	if array.Len() < 1 {
+		return "", fmt.Errorf("interface passed has no data")
+	}
+	schemaStruct := array.Index(0)
+	schemaString := parquetSchemaHeader()
 	for i := 0; i < schemaStruct.NumField(); i++ {
-		fieldDataType := reflect.TypeOf(schemaStruct.Field(i).Interface()).String()
-		jsonFriendlyFieldName := strings.ToLower(typeOfS.Field(i).Name)
-		switch fieldDataType {
-		case "string":
-			schemaString = schemaString + fmt.Sprintf(`{"Tag": "name=%s, type=BYTE_ARRAY, convertedtype=UTF8"}`, jsonFriendlyFieldName)
-		case "int":
-			schemaString = schemaString + fmt.Sprintf(`{"Tag": "name=%s, type=INT32"}`, jsonFriendlyFieldName)
-		case "float":
-			schemaString = schemaString + fmt.Sprintf(`{"Tag": "name=%s, type=FLOAT"}`, jsonFriendlyFieldName)
-		case "float32":
-			schemaString = schemaString + fmt.Sprintf(`{"Tag": "name=%s, type=FLOAT"}`, jsonFriendlyFieldName)
-		case "int32":
-			schemaString = schemaString + fmt.Sprintf(`{"Tag": "name=%s, type=INT32"}`, jsonFriendlyFieldName)
-		case "bool":
-			schemaString = schemaString + fmt.Sprintf(`{"Tag": "name=%s, type=BOOLEAN"}`, jsonFriendlyFieldName)
-		case "time.Time":
-			schemaString = schemaString + fmt.Sprintf(`{"Tag": "name=%s, type=INT64"}`, jsonFriendlyFieldName)
-		}
+		schemaString += stringifyStructField(schemaStruct.Interface(), i)
 		if i != schemaStruct.NumField()-1 {
 			schemaString += `,
 					`
@@ -370,36 +389,50 @@ func (s *S3Store) generateSchemaFromInterface(data interface{}) (string, error) 
 	return schemaString, nil
 }
 
-func (s *S3Store) UploadParquetTable(path string, data interface{}) error {
-	ctx := context.Background()
-	schemaString, err := s.generateSchemaFromInterface(data)
-	if err != nil {
-		return err
-	}
-	dataString, err := s.generateJSONFromInterface(data)
-	if err != nil {
-		return err
-	}
-	file, err := parquetGo.NewS3FileWriter(ctx, s.bucketPath, path, "bucket-owner-full-control", nil, &awsV1.Config{
+func (s *S3Store) parquetJSONWriter(path string, schema string) (*writer.JSONWriter, source.ParquetFile, error) {
+	file, err := parquetGo.NewS3FileWriter(context.TODO(), s.bucketPath, path, "bucket-owner-full-control", nil, &awsV1.Config{
 		Credentials: s.credentials,
 		Region:      awsV1.String(s.region),
 	})
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
-	pw, err := writer.NewJSONWriter(schemaString, file, 4)
+	pw, err := writer.NewJSONWriter(schema, file, 4)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
+	return pw, file, nil
+}
+
+func writeStringArrayToParquet(pw *writer.JSONWriter, dataString []string) error {
 	for i := 0; i < len(dataString); i++ {
-		if err = pw.Write(dataString[i]); err != nil {
+		if err := pw.Write(dataString[i]); err != nil {
 			return err
 		}
 	}
-	if err = pw.WriteStop(); err != nil {
+	if err := pw.WriteStop(); err != nil {
 		return err
 	}
-	file.Close()
+	return nil
+}
+
+func (s *S3Store) UploadParquetTable(path string, data interface{}) error {
+	schemaString, err := generateSchemaFromInterface(data)
+	if err != nil {
+		return err
+	}
+	dataString, err := stringifyStructArray(data)
+	if err != nil {
+		return err
+	}
+	pw, file, err := s.parquetJSONWriter(path, schemaString)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	if err := writeStringArrayToParquet(pw, dataString); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -422,47 +455,66 @@ func (s *S3Store) FileExists(path string) (bool, error) {
 	return false, nil
 }
 
-func (s *S3Store) CompareParquetTable(path string, data interface{}) error {
+func (s *S3Store) S3ParquetReader(path string) (source.ParquetFile, error) {
 	fr, err := parquetGo.NewS3FileReader(ctx, s.bucketPath, path, &awsV1.Config{
 		Credentials: s.credentials,
 		Region:      awsV1.String(s.region),
 	})
 	if err != nil {
+		return nil, err
+	}
+	return fr, nil
+}
+
+func typeConvertValue(value interface{}) interface{} {
+	switch reflect.TypeOf(value).String() {
+	case "time.Time":
+		return value.(time.Time).UnixMilli()
+	case "int":
+		return int32(value.(int))
+	}
+	return value
+}
+
+func compareStructs(local interface{}, fetched interface{}) error {
+	localStruct := reflect.ValueOf(local)
+	fetchedStruct := reflect.ValueOf(fetched)
+	for i := 0; i < localStruct.NumField(); i++ {
+		localValue := typeConvertValue(localStruct.Field(i).Interface())
+		fetchedValue := typeConvertValue(fetchedStruct.Field(i).Interface())
+		if !reflect.DeepEqual(fetchedValue, localValue) {
+			return fmt.Errorf("%v does not equal %v", fetchedValue, localValue)
+		}
+	}
+	return nil
+}
+
+func (s *S3Store) CompareParquetTable(path string, data interface{}) error {
+	fr, err := s.S3ParquetReader(path)
+	if err != nil {
 		return err
 	}
+	defer fr.Close()
 	pr, err := reader.NewParquetReader(fr, nil, 4)
 	if err != nil {
 		return err
 	}
-	num := int(pr.GetNumRows())
-	res, err := pr.ReadByNumber(num)
+	fetchedArray, err := pr.ReadByNumber(int(pr.GetNumRows()))
 	if err != nil {
 		return err
 	}
 	compareArray := reflect.ValueOf(data)
-	if len(res) != compareArray.Len() {
+	if len(fetchedArray) != compareArray.Len() {
 		return fmt.Errorf("data do not have the same number of rows")
 	}
 	for i := 0; i < compareArray.Len(); i++ {
-		for j := 0; j < compareArray.Index(i).NumField(); j++ {
-			var localValue interface{}
-			localValue = compareArray.Index(i).Field(j).Interface()
-			if reflect.TypeOf(localValue).String() == "time.Time" {
-				localValue = localValue.(time.Time).UnixMilli()
-			} else if reflect.TypeOf(localValue).String() == "int" {
-				localValue = int32(localValue.(int))
-			} else {
-				localValue = compareArray.Index(i).Field(j).Interface()
-			}
-			fetchedValue := reflect.Indirect(reflect.ValueOf(res[i])).Field(j).Interface()
-			if !reflect.DeepEqual(fetchedValue, localValue) {
-				return fmt.Errorf("%v does not equal %v", fetchedValue, localValue)
-			}
+		localStruct := compareArray.Index(i).Interface()
+		fetchedStruct := reflect.ValueOf(fetchedArray[i]).Interface()
+		if err := compareStructs(localStruct, fetchedStruct); err != nil {
+			return err
 		}
-
 	}
 	pr.ReadStop()
-	fr.Close()
 	return nil
 }
 
@@ -499,7 +551,7 @@ func (spark *SparkOfflineStore) UpdateTransformation(config TransformationConfig
 }
 
 func (spark *SparkOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error) {
-  return nil,  nil
+	return nil, nil
 }
 
 func (spark *SparkOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error) {

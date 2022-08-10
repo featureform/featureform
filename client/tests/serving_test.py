@@ -431,16 +431,16 @@ def create_temp_file(test_values):
 
 
 def e2e_features(file, entity_name, entity_loc, name_variants, value_cols, entities, ts_col):
-    ff = ResourceClient(local=True)
-    ff.register_user("featureformer").make_default_owner()
-    local = ff.register_local()
+    resource_client = ResourceClient(local=True)
+    resource_client.register_user("featureformer").make_default_owner()
+    local = resource_client.register_local()
     transactions = local.register_file(
         name="transactions",
         variant="v1",
         description="A dataset of fraudulent transactions",
         path=file
     )
-    entity = ff.register_entity(entity_name)
+    entity = resource_client.register_entity(entity_name)
     for i, variant in enumerate(name_variants):
         transactions.register_resources(
             entity=entity,
@@ -451,7 +451,7 @@ def e2e_features(file, entity_name, entity_loc, name_variants, value_cols, entit
             ],
             timestamp_column=ts_col
         )
-    ff.state().create_all_local()
+    resource_client.state().create_all_local()
     client = ServingClient(local=True)
     results = []
     for entity in entities:

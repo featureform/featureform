@@ -158,7 +158,7 @@ class TestResourcesRedefined:
         )
         ff.register_training_set(
             "fraud_training", "quickstart",
-            label=("fraudulent", "qwickstart"),
+            label=("fraudulent", "quickstart"),
             features=[("avg_tranzactions", "quickstart")],
         )
 

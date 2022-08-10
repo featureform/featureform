@@ -19,7 +19,7 @@ from type_objects import (
 
 app = Flask(__name__)
 CORS(app)
-sqlObject = SQLiteMetadata('../.featureform/SQLiteDB') 
+sqlObject = SQLiteMetadata('.featureform/SQLiteDB') 
 
 def variant_organiser(allVariantList):
     variantsDict = dict()

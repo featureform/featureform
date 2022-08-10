@@ -1,7 +1,7 @@
 from flask import Flask
 from flask_cors import CORS, cross_origin
 import json
-import re
+import os
 from sqlite_metadata import SQLiteMetadata
 from type_objects import (
     FeatureResource, 
@@ -348,4 +348,4 @@ def GetMetadata(type, resource):
         return response
 
 if __name__ == '__main__':
-    app.run(threaded=True, port=8181)
+    app.run(threaded=True, port=os.getenv("DASHBOARD_METADATA_PORT", 8181))

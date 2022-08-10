@@ -20,7 +20,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/emr"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 
-	// emrTypes "github.com/aws/aws-sdk-go-v2/service/emr/types"
 	s3Types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	parquetGo "github.com/xitongsys/parquet-go-source/s3"
 	reader "github.com/xitongsys/parquet-go/reader"

@@ -31,8 +31,12 @@ class SyncSQLExecutor:
 
 
 class SQLiteMetadata:
-    def __init__(self):
-        self.path = '../.featureform/SQLiteDB'
+    def __init__(self, path=None):
+      # Added because an extra .featureform/SQLiteDB was being created when dashboard_metadata.py was run
+        if path:
+          self.path = path
+        else:
+          self.path = '.featureform/SQLiteDB'
         if not os.path.exists(self.path):
             os.makedirs(self.path)
         raw_conn = sqlite3.connect(self.path + '/metadata.db', check_same_thread=False)

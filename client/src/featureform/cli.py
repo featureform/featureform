@@ -11,6 +11,8 @@ from .list import *
 from featureform.proto import metadata_pb2_grpc as ff_grpc
 from .get import *
 import os
+from flask import Flask
+from .dashboard_metadata import dashboard
 
 resource_types = [
     "feature",
@@ -144,7 +146,9 @@ def list(host, cert, insecure, local, resource_type):
 
 @cli.command()
 def dash():
-    os.system("python ../../dashboard/main.py")
+    app = Flask(__name__)
+    app.register_blueprint(dashboard)
+    app.run(threaded=True, port=os.getenv("LOCALMODE_DASHBOARD_PORT", 8181))
 
 @cli.command()
 @click.argument("files", nargs=-1, required=True, type=click.Path(exists=True))

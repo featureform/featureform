@@ -7,7 +7,6 @@ const IndexPage = () => {
     <div>
       <Head>
         <title>Featureform Dashboard</title>
-        <link rel="icon" href="/static/favicon.ico" />
       </Head>
         <HomePage />
     </div>

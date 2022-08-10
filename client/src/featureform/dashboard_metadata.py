@@ -1,9 +1,9 @@
-from flask import Flask
+from flask import Blueprint, Response
 from flask_cors import CORS, cross_origin
 import json
 import os
-from sqlite_metadata import SQLiteMetadata
-from type_objects import (
+from .sqlite_metadata import SQLiteMetadata
+from .type_objects import (
     FeatureResource, 
     FeatureVariantResource, 
     TrainingSetResource, 
@@ -17,9 +17,26 @@ from type_objects import (
     LabelVariantResource,
     ProviderResource)
 
-app = Flask(__name__)
-CORS(app)
-sqlObject = SQLiteMetadata('.featureform/SQLiteDB') 
+dashboard = Blueprint('dashboard', __name__, static_folder='../../../dashboard/out/', static_url_path='')
+
+CORS(dashboard)
+sqlObject = SQLiteMetadata() 
+
+@dashboard.route('/')
+def index():
+    return dashboard.send_static_file('index.html')
+
+@dashboard.route('/<type>')
+def type(type):
+    return dashboard.send_static_file('[type].html')
+
+@dashboard.route('/<type>/<entity>')
+def entity(type, entity):
+    return dashboard.send_static_file('[type]/[entity].html')
+
+@dashboard.route('/static/<asset>')
+def deliver_static(asset):
+    return dashboard.send_static_file('static/' + asset)
 
 def variant_organiser(allVariantList):
     variantsDict = dict()
@@ -236,7 +253,7 @@ def entities(rowData):
 def models(rowData):
     return ModelResource(
                 rowData['name'], #name
-                rowData['type'], #type
+                "Model", #type
                 rowData['description'], #description
                 rowData['status'], #status
                 variant_organiser(feature_variant(sqlObject.query_resource( "feature_variant", "name", rowData['name']))[2]), #features
@@ -283,7 +300,7 @@ def providers(rowData):
                 #variant_organiser(training_set_variant(sqlObject.query_resource( "training_set_variant", "provider", rowData[0]))[2]), #training sets
             ).toDictionary()
 
-@app.route("/data/<type>", methods = ['POST', 'GET'])
+@dashboard.route("/data/<type>", methods = ['POST', 'GET'])
 @cross_origin(allow_headers=['Content-Type'])
 def GetMetadataList(type):
     type = type.replace("-", "_")
@@ -308,14 +325,14 @@ def GetMetadataList(type):
             allData.append(providers(row))
         else:
             allData.append("INCORRECT TYPE")
-    response = app.response_class(
+    response = Response(
         response=json.dumps(allData),
         status=200,
         mimetype='application/json'
     )
     return response
 
-@app.route("/data/<type>/<resource>", methods = ['POST', 'GET'])
+@dashboard.route("/data/<type>/<resource>", methods = ['POST', 'GET'])
 @cross_origin(allow_headers=['Content-Type'])
 def GetMetadata(type, resource):
         type = type.replace("-", "_")
@@ -340,12 +357,10 @@ def GetMetadata(type, resource):
         else:
             dataAsList = "INCORRECT TYPE"
 
-        response = app.response_class(
+        response = Response(
             response=json.dumps(dataAsList),
             status=200,
             mimetype='application/json'
         )
         return response
-
-if __name__ == '__main__':
-    app.run(threaded=True, port=os.getenv("DASHBOARD_METADATA_PORT", 8181))
+        

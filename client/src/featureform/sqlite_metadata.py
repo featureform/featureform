@@ -32,6 +32,7 @@ class SyncSQLExecutor:
 
 class SQLiteMetadata:
     def __init__(self):
+        self.path = '.featureform/SQLiteDB'
         if not os.path.exists(self.path):
             os.makedirs(self.path)
         raw_conn = sqlite3.connect(self.path + '/metadata.db', check_same_thread=False)

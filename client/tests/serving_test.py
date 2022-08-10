@@ -436,7 +436,7 @@ def e2e_features(file, entity_name, entity_loc, name_variants, value_cols, entit
     local = ff.register_local()
     transactions = local.register_file(
         name="transactions",
-        variant="quickstart",
+        variant="v1",
         description="A dataset of fraudulent transactions",
         path=file
     )

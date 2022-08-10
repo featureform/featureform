@@ -16,5 +16,9 @@ def type(type):
 def entity(type, entity):
     return app.send_static_file('[type]/[entity].html')
 
+@app.route('/static/<asset>')
+def deliver_static(asset):
+    return app.send_static_file('static/' + asset)
+
 if __name__ == '__main__':
     app.run(threaded=True, port=os.getenv("DASHBOARD_PORT", 5000))

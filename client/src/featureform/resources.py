@@ -136,7 +136,6 @@ class DynamodbConfig:
         }
         return bytes(json.dumps(config), "utf-8")
 
-# RIDDHI
 @typechecked
 @dataclass
 class LocalConfig:
@@ -231,7 +230,29 @@ class RedshiftConfig:
         return bytes(json.dumps(config), "utf-8")
 
 
-Config = Union[RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig]
+@typechecked
+@dataclass
+class BigQueryConfig:
+    project_id: str
+    dataset_id: str
+    credentials_path: str
+
+    def software(self) -> str:
+        return "bigquery"
+
+    def type(self) -> str:
+        return "BIGQUERY_OFFLINE"
+
+    def serialize(self) -> bytes:
+        config = {
+            "ProjectId": self.project_id,
+            "DatasetId": self.dataset_id,
+            "Credentials": json.load(open(self.credentials_path)),
+        }
+        return bytes(json.dumps(config), "utf-8")
+
+
+Config = Union[RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig, BigQueryConfig]
 
 @typechecked
 @dataclass
@@ -277,6 +298,13 @@ class Provider:
                   str(self.config.serialize(), 'utf-8')
                   )
 
+    def __eq__(self, other):
+        for attribute in vars(self):
+            if getattr(self, attribute) != getattr(other, attribute):
+                return False
+        return True
+
+
 
 @typechecked
 @dataclass
@@ -300,6 +328,12 @@ class User:
                   "User",
                   "ready"
                   )
+
+    def __eq__(self, other):
+        for attribute in vars(self):
+            if getattr(self, attribute) != getattr(other, attribute):
+                return False
+        return True
 
 
 @typechecked
@@ -366,13 +400,15 @@ SourceDefinition = Union[PrimaryData, Transformation]
 @dataclass
 class Source:
     name: str
-    variant: str
     definition: SourceDefinition
     owner: str
     provider: str
     description: str
+    variant: str = "default"
     schedule: str = ""
     schedule_obj: Schedule = None
+    is_transformation = 0
+    inputs = []
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=7, schedule_string=schedule)
@@ -400,11 +436,9 @@ class Source:
         stub.CreateSourceVariant(serialized)
 
     def _create_local(self, db) -> None:
-        is_transformation = 0
-        inputs = []
         if type(self.definition) == DFTransformation:
-            is_transformation = 1
-            inputs = self.definition.inputs
+            self.is_transformation = 1
+            self.inputs = self.definition.inputs
             self.definition = self.definition.query
 
         db.insert_source("source_variant",
@@ -416,8 +450,8 @@ class Source:
                          self.provider,
                          self.variant,
                          "ready",
-                         is_transformation,
-                         json.dumps(inputs),
+                         self.is_transformation,
+                         json.dumps(self.inputs),
                          self.definition
                          )
         self._create_source_resource(db)
@@ -429,6 +463,12 @@ class Source:
             self.variant,
             self.name
         )
+
+    def __eq__(self, other):
+        for attribute in vars(self):
+            if getattr(self, attribute) != getattr(other, attribute):
+                return False
+        return True
 
 
 @typechecked
@@ -460,6 +500,12 @@ class Entity:
                   "ready"
                   )
 
+    def __eq__(self, other):
+        for attribute in vars(self):
+            if getattr(self, attribute) != getattr(other, attribute):
+                return False
+        return True
+
 
 @typechecked
 @dataclass
@@ -483,7 +529,6 @@ ResourceLocation = ResourceColumnMapping
 @dataclass
 class Feature:
     name: str
-    variant: str
     source: NameVariant
     value_type: str
     entity: str
@@ -491,6 +536,7 @@ class Feature:
     provider: str
     description: str
     location: ResourceLocation
+    variant: str = "default"
     schedule: str = ""
     schedule_obj: Schedule = None
     
@@ -551,12 +597,17 @@ class Feature:
             self.value_type
         )
 
+    def __eq__(self, other):
+        for attribute in vars(self):
+            if getattr(self, attribute) != getattr(other, attribute):
+                return False
+        return True
+
 
 @typechecked
 @dataclass
 class Label:
     name: str
-    variant: str
     source: NameVariant
     value_type: str
     entity: str
@@ -564,6 +615,7 @@ class Label:
     provider: str
     description: str
     location: ResourceLocation
+    variant: str = "default"
 
     @staticmethod
     def operation_type() -> OperationType:
@@ -590,7 +642,7 @@ class Label:
         stub.CreateLabelVariant(serialized)
 
     def _create_local(self, db) -> None:
-        db.insert("labels_variant",
+        db.insert("label_variant",
                   str(time.time()),
                   self.description,
                   self.entity,
@@ -616,6 +668,12 @@ class Label:
             self.name
         )
 
+    def __eq__(self, other):
+        for attribute in vars(self):
+            if getattr(self, attribute) != getattr(other, attribute):
+                return False
+        return True
+
 @typechecked
 @dataclass
 class EntityReference:
@@ -637,6 +695,12 @@ class EntityReference:
                 self.obj = entity
         except grpc._channel._MultiThreadedRendezvous:
             raise ValueError(f"Entity {self.name} not found.")
+    
+    def _get_local(self, db):
+        local_entity = db.query_resource("entities", "name", self.name)
+        if local_entity == []:
+            raise ValueError(f"Entity {self.name} not found.")
+        self.obj = local_entity
 
 @typechecked
 @dataclass
@@ -662,7 +726,7 @@ class ProviderReference:
             raise ValueError(f"Provider {self.name} of type {self.provider_type} not found.")
         
     def _get_local(self, db):
-        local_provider = db.getVariantResource("providers", "local mode", self.name)
+        local_provider = db.query_resource("providers", "name", self.name)
         if local_provider == []:
             raise ValueError("Local mode provider not found.")
         self.obj = local_provider
@@ -691,7 +755,7 @@ class SourceReference:
             raise ValueError(f"Source {self.name}, variant {self.variant} not found.")
     
     def _get_local(self, db):
-        local_source = db.getNameVariant("source_variant", "name", self.name, "variant", self.variant)
+        local_source = db.get_source_variant(self.name, self.variant)
         if local_source == []:
             raise ValueError(f"Source {self.name}, variant {self.variant} not found.")
         self.obj = local_source
@@ -700,11 +764,11 @@ class SourceReference:
 @dataclass
 class TrainingSet:
     name: str
-    variant: str
     owner: str
     label: NameVariant
     features: List[NameVariant]
     description: str
+    variant: str = "default"
     schedule: str = ""
     schedule_obj: Schedule = None
 
@@ -753,8 +817,7 @@ class TrainingSet:
                   self.variant,
                   self.label[0],
                   self.label[1],
-                  "ready",
-                  str(self.features)
+                  "ready"
                   )
         self._create_training_set_resource(db)
 
@@ -768,21 +831,27 @@ class TrainingSet:
 
     def _check_insert_training_set_resources(self, db) -> None:
         try:
-            db.getNameVariant("labels_variant", "labelName", self.label[0], "variantName", self.label[1])
+            db.get_label_variant(self.label[0], self.label[1])
         except ValueError:
-            raise ValueError("{} does not exist. Failed to register training set".format(self.label[0]))
-        for feature in self.features:
+            raise ValueError(f"{self.label[0]} does not exist. Failed to register training set")
+        for feature_name, feature_variant in self.features:
             try:
-                db.getNameVariant("feature_variant", "featureName", feature[0], "variantName", feature[1])
+                db.get_feature_variant(feature_name, feature_variant)
             except ValueError:
-                raise ValueError("{} does not exist. Failed to register training set".format(feature[0]))
+                raise ValueError(f"{feature_name} does not exist. Failed to register training set")
             db.insert(
                 "training_set_features",
                 self.name,
                 self.variant,
-                feature[0],  # feature name
-                feature[1]  # feature variant
+                feature_name,  # feature name
+                feature_variant # feature variant
             )
+
+    def __eq__(self, other):
+        for attribute in vars(self):
+            if getattr(self, attribute) != getattr(other, attribute):
+                return False
+        return True
 
 
 Resource = Union[PrimaryData, Provider, Entity, User, Feature, Label,
@@ -813,6 +882,9 @@ class ResourceState:
         else:
             key = (resource.operation_type().name, resource.type(), resource.name)
         if key in self.__state:
+            if resource == self.__state[key]:
+                print(f"Resource {resource.type()} already registered.")
+                return
             raise ResourceRedefinedError(resource)
         self.__state[key] = resource
         self.__create_list.append(resource)

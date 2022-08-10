@@ -17,7 +17,7 @@ COPY ./metadata/search/ ./metadata/search/
 
 RUN go build ./metadata/dashboard/dashboard_metadata.go
 
-FROM golang:1.17-alpine
+FROM alpine
 
 COPY --from=0 ./app/dashboard_metadata ./dashboard_metadata
 

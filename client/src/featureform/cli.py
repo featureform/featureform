@@ -25,7 +25,6 @@ resource_types = [
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
-
 @click.group(context_settings=CONTEXT_SETTINGS)
 def cli():
     """
@@ -62,7 +61,7 @@ def cli():
 @click.argument("variant", required=False)
 def get(host, cert, insecure, local, resource_type, name, variant):
     """Get resources of a given type.
-    """
+    """ 
     if local:
         if host != None:
             raise ValueError("Cannot be local and have a host")
@@ -73,10 +72,7 @@ def get(host, cert, insecure, local, resource_type, name, variant):
             raise ValueError(
                 "Host value must be set with --host flag or in env as FEATUREFORM_HOST")
 
-    if insecure:
-        rc = ResourceClient(host, False)
-    else:
-        rc = ResourceClient(host, True, cert)
+    rc = ResourceClient(host=host, local=local, insecure=insecure, cert_path=cert)
 
     rc_get_functions_variant = {
         "feature": rc.get_feature,
@@ -94,9 +90,9 @@ def get(host, cert, insecure, local, resource_type, name, variant):
     }
 
     if resource_type in rc_get_functions_variant:
-        rc_get_functions_variant[resource_type](name, variant)
+        rc_get_functions_variant[resource_type](name=name, variant=variant, local=local)
     elif resource_type in rc_get_functions:
-        rc_get_functions[resource_type](name)
+        rc_get_functions[resource_type](name=name, local=local)
     else:
         raise ValueError("Resource type not found")
 
@@ -126,16 +122,14 @@ def list(host, cert, insecure, local, resource_type):
         if host == None:
             raise ValueError(
                 "Host value must be set with --host flag or in env as FEATUREFORM_HOST")
-    if insecure:
-        rc = ResourceClient(host, False)
-    else:
-        rc = ResourceClient(host, True, cert)
+
+    rc = ResourceClient(host=host, local=local, insecure=insecure, cert_path=cert)
 
     rc_list_functions = {
         "features": rc.list_features,
         "labels": rc.list_labels,
         "sources": rc.list_sources,
-        "trainingsets": rc.list_sources,
+        "trainingsets": rc.list_training_sets,
         "training-sets": rc.list_training_sets,
         "users": rc.list_users,
         "models": rc.list_models,
@@ -144,7 +138,7 @@ def list(host, cert, insecure, local, resource_type):
     }
 
     if resource_type in rc_list_functions:
-        rc_list_functions[resource_type]()
+        rc_list_functions[resource_type](local=local)
     else:
         raise ValueError("Resource type not found")
 
@@ -169,7 +163,7 @@ def apply(host, cert, insecure, local, files):
         with open(file, "r") as py:
             exec(py.read())
 
-    rc = ResourceClient(host, local, insecure, cert)
+    rc = ResourceClient(host=host, local=local, insecure=insecure, cert_path=cert)
     rc.apply()
 
 

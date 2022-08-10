@@ -6,10 +6,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/featureform/metadata/search"
 	"os"
 
 	"github.com/featureform/metadata"
+	"github.com/featureform/metadata/search"
 	"go.uber.org/zap"
 )
 

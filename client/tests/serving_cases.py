@@ -189,7 +189,7 @@ feature_e2e = {
         'entity': 'user',
         'entity_loc': 'entity',
         'features': [("avg_transactions", "quickstart")],
-        'entities': [("user", "a"), ("user", "b")],
+        'entities': [{"user": "a"}, {"user": "b"}],
         'expected': np.array([[1], [2]]),
         'ts_col': ""
     },
@@ -205,7 +205,7 @@ feature_e2e = {
         'entity': 'user',
         'entity_loc': 'entity',
         'features': [("avg_transactions", "quickstart")],
-        'entities': [("user", "a"), ("user", "b"), ("user", "c")],
+        'entities': [{"user": "a"}, {"user": "b"}, {"user": "c"}],
         'expected': np.array([[4], [2], [3]]),
         'ts_col': ""
     },
@@ -221,7 +221,7 @@ feature_e2e = {
         'entity': 'user',
         'entity_loc': 'entity',
         'features': [("avg_transactions", "quickstart")],
-        'entities': [("user", "a"), ("user", "b"), ("user", "c")],
+        'entities': [{"user": "a"}, {"user": "b"}, {"user": "c"}],
         'expected': np.array([[4], [2], [3]]),
         'ts_col': "ts"
     },
@@ -238,7 +238,7 @@ feature_e2e = {
         'entity': 'user',
         'entity_loc': 'entity',
         'features': [("avg_transactions", "quickstart")],
-        'entities': [("user", "a"), ("user", "b"), ("user", "c")],
+        'entities': [{"user": "a"}, {"user": "b"}, {"user": "c"}],
         'expected': np.array([[1], [2], [3]]),
         'ts_col': "ts"
     },
@@ -257,7 +257,7 @@ feature_e2e = {
         'entity': 'user',
         'entity_loc': 'entity',
         'features': [("avg_transactions", "quickstart")],
-        'entities': [("user", "a"), ("user", "b"), ("user", "c")],
+        'entities': [{"user": "a"}, {"user": "b"}, {"user": "c"}],
         'expected': np.array([[1], [9], [3]]),
         'ts_col': "ts"
     },
@@ -271,7 +271,7 @@ feature_e2e = {
         'entity': 'user',
         'entity_loc': 'entity',
         'features': [("avg_transactions", "quickstart"), ("avg_transactions", "quickstart2")],
-        'entities': [("user", "a"), ("user", "b")],
+        'entities': [{"user": "a"}, {"user": "b"}],
         'expected': np.array([['one', 1], ['two', 2]]),
         'ts_col': ""
     },
@@ -285,7 +285,7 @@ feature_e2e = {
         'entity': 'user',
         'entity_loc': 'entity',
         'features': [("avg_transactions", "quickstart"), ("avg_transactions", "quickstart2")],
-        'entities': [("user", "a"), ("user", "b")],
+        'entities': [{"user": "a"}, {"user": "b"}],
         'expected': np.array([['one', 1], ['two', 2]]),
         'ts_col': "ts"
     },
@@ -301,7 +301,7 @@ feature_e2e = {
         'entity': 'user',
         'entity_loc': 'entity',
         'features': [("avg_transactions", "quickstart"), ("avg_transactions", "quickstart2")],
-        'entities': [("user", "a"), ("user", "b")],
+        'entities': [{"user": "a"}, {"user": "b"}],
         'expected': np.array([['four', 4], ['two', 2]]),
         'ts_col': "ts"
     },
@@ -364,7 +364,7 @@ labels = {
             {
                 'entity': ['a', 'b'],
                 'values': [1, 2],
-                'timestamp': [str(datetime.fromtimestamp(0)), str(datetime.fromtimestamp(0))]
+                'timestamp': [datetime.fromtimestamp(0), datetime.fromtimestamp(0)]
             }
         ),
         'ts_col': "timestamp"
@@ -383,9 +383,156 @@ labels = {
             {
                 'entity': ['b', 'a'],
                 'values': [2, 3],
-                'timestamp': [str(datetime.fromtimestamp(0)), str(datetime.fromtimestamp(0))]
+                'timestamp': [datetime.fromtimestamp(0), datetime.fromtimestamp(0)]
             }
         ),
         'ts_col': "timestamp"
+    },
+}
+
+transform = {
+    'Simple':{
+        'columns': ['entity', 'values', 'timestamp'],
+        'values': [['a', 1, 0]],
+    },
+    'Simple2':{
+        'columns': ['entity', 'values', 'timestamp'],
+        'values': [['a', 1, 0]],
+    },
+    'GroupBy': {
+        'columns': ['entity', 'values', 'timestamp'],
+        'values': [
+            ['a', 1, 0],
+            ['a', 10, 0],
+        ],
+    },
+    'Complex': {
+        'columns': ['entity', 'values1', 'values2', 'timestamp'],
+        'values': [
+            ['a', 1, 2, 0],
+            ['a', 10, 2, 0]
+        ],
+    }
+}
+
+training_set = {
+    'Empty': {
+        'features': [
+            {
+                'columns': ['entity', 'value'],
+                'values': [],
+                'ts_col': ""
+            },
+
+        ],
+        'label': {
+            'columns': ['entity', 'value'],
+            'values': [],
+            'ts_col': ""
+        },
+        'entity': 'user',
+        'entity_loc': 'entity',
+        'expected': []
+    },
+    'Simple': {
+        'features': [
+            {
+                'columns': ['entity', 'value'],
+                'values': [
+                    ['a', 'one'],
+                    ['b', 'two'],
+                    ['c', 'three'],
+                ],
+                'ts_col': ""
+            },
+            {
+                'columns': ['entity', 'value'],
+                'values': [
+                    ['a', 1],
+                    ['b', 2],
+                    ['c', 3],
+                ],
+                'ts_col': ""
+            }
+        ],
+        'label': {
+            'columns': ['entity', 'value'],
+            'values': [
+                ['a', True],
+                ['b', False],
+                ['c', True],
+            ],
+            'ts_col': ""
+        },
+        'entity': 'user',
+        'entity_loc': 'entity',
+        'expected': [
+            ['one', 1, True],
+            ['two', 2, False],
+            ['three', 3, True]
+        ],
+    },
+    'Complex': {
+        'features': [
+            {
+                'columns': ['entity', 'value'],
+                'values': [
+                    ['a', 1],
+                    ['b', 2],
+                    ['c', 3],
+                    ['a', 4],
+                ],
+                'ts_col': ""
+            },
+            {
+                'columns': ['entity', 'value', "ts"],
+                'values': [
+                    ['a', "doesnt exist", datetime.fromtimestamp(11)],
+                ],
+                'ts_col': "ts"
+            },
+            {
+                'columns': ['entity', 'value', "ts"],
+                'values': [
+                    ['c', "real value first", datetime.fromtimestamp(5)],
+                    ['c', "real value second", datetime.fromtimestamp(5)],
+                    ['c', "overwritten", datetime.fromtimestamp(4)],
+                ],
+                'ts_col': "ts"
+            },
+            {
+                'columns': ['entity', 'value', "ts"],
+                'values': [
+                    ['b', "first", datetime.fromtimestamp(3)],
+                    ['b', "second", datetime.fromtimestamp(4)],
+                    ['b', "third", datetime.fromtimestamp(8)],
+                ],
+                'ts_col': "ts"
+            },
+            {
+                'columns': ['entity', 'value', "ts"],
+                'values': [
+                ],
+                'ts_col': "ts"
+            }
+        ],
+        'label': {
+            'columns': ['entity', 'value', 'ts'],
+            'values': [
+                ['a', 1, datetime.fromtimestamp(10)],
+                ['b', 9, datetime.fromtimestamp(3)],
+                ['b', 5, datetime.fromtimestamp(5)],
+                ['c', 3, datetime.fromtimestamp(7)],
+            ],
+            'ts_col': "ts"
+        },
+        'entity': 'user',
+        'entity_loc': 'entity',
+        'expected': [
+            [4, np.NAN, np.NAN, np.NAN, np.NAN, 1],
+            [2, np.NAN, np.NAN, "first", np.NAN, 9],
+            [2, np.NAN, np.NAN, "second", np.NAN, 5],
+            [3, np.NAN, "real value second", np.NAN, np.NAN, 3]
+        ],
     },
 }

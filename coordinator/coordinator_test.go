@@ -39,7 +39,7 @@ var postgresConfig = provider.PostgresConfig{
 	Password: os.Getenv("POSTGRES_PASSWORD"),
 }
 
-var redisPort = os.Getenv("REDIS_PORT")
+var redisPort = os.Getenv("REDIS_INSECURE_PORT")
 var redisHost = "localhost"
 
 var etcdHost = "localhost"
@@ -1548,7 +1548,7 @@ func testRegisterTransformationFromSource(addr string) error {
 	if err != nil {
 		return err
 	}
-	transformationTableName, err := provider.GetTransformationName(providerTransformationID)
+	transformationTableName, err := provider.GetPrimaryTableName(providerTransformationID)
 	if err != nil {
 		return fmt.Errorf("invalid transformation table name: %v", err)
 	}
@@ -1612,7 +1612,7 @@ func testRegisterTransformationFromSource(addr string) error {
 	if err != nil {
 		return err
 	}
-	transformationJoinName, err := provider.GetTransformationName(providerJoinTransformationID)
+	transformationJoinName, err := provider.GetPrimaryTableName(providerJoinTransformationID)
 	if err != nil {
 		return fmt.Errorf("invalid transformation table name: %v", err)
 	}

@@ -283,6 +283,7 @@ func (spark *SparkOfflineStore) RegisterResourceFromSourceTable(id ResourceID, s
 	return nil, nil
 }
 
+
 func (s *S3Store) ResourcePath(id ResourceID) string {
 	return fmt.Sprintf("s3://%s/%s", s.bucketPath, s.resourcePrefix(id))
 }
@@ -480,6 +481,7 @@ func (s *S3Store) SparkSubmitArgs(destPath string, cleanQuery string, sourceList
 	argList = append(argList, sourceList...)
 	return argList
 }
+
 func (spark *SparkOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error) {
 	return nil, nil
 }
@@ -497,7 +499,7 @@ func (spark *SparkOfflineStore) UpdateTransformation(config TransformationConfig
 }
 
 func (spark *SparkOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error) {
-	return spark.GetPrimaryTable(id)
+  return nil,  nil
 }
 
 func (spark *SparkOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error) {
@@ -505,7 +507,7 @@ func (spark *SparkOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, er
 }
 
 func (spark *SparkOfflineStore) CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error) {
-	return spark.GetResourceTable(id)
+	return nil, nil
 }
 
 func (spark *SparkOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, error) {
@@ -513,7 +515,7 @@ func (spark *SparkOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, e
 }
 
 func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materialization, error) {
-	return spark.UpdateMaterialization(id)
+	return nil, nil
 }
 
 func (spark *SparkOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
@@ -528,8 +530,7 @@ func (spark *SparkOfflineStore) DeleteMaterialization(id MaterializationID) erro
 	return nil
 }
 
-func (spark *SparkOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
-	return spark.UpdateTrainingSet(def)
+func (spark *SparkOfflineStore) CreateTrainingSet(TrainingSetDef) error {
 	return nil
 }
 

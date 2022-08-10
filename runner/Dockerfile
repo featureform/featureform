@@ -26,7 +26,7 @@ COPY runner/worker/main/main.go ./runner/worker/main/main.go
 
 RUN go build -o worker ./runner/worker/main
 
-FROM golang:1.17-alpine
+FROM alpine
 
 COPY --from=0 ./app/worker ./worker
 

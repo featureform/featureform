@@ -465,6 +465,6 @@ def retry_delete():
             shutil.rmtree('.featureform', onerror=del_rw)
             print("Table Deleted")
             break
-        except Exception:
-            print("Could not delete. Retrying...")
+        except Exception as e:
+            print(f"Could not delete. Retrying...", e)
             time.sleep(1)

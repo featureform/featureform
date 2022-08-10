@@ -113,11 +113,10 @@ class LocalClientImpl:
             source_name, source_variant = input[0], input[1],
             if self.db.is_transformation(source_name, source_variant):
                 df = self.process_transformation(source_name, source_variant)
-                dataframes.append(df)
             else:
                 source = self.db.get_source_variant(source_name, source_variant)
                 df = pd.read_csv(str(source['definition']))
-                dataframes.append(df)
+            dataframes.append(df)
         new_data = func(*dataframes)
         return new_data
 
@@ -238,11 +237,10 @@ class LocalClientImpl:
                     feature_df.reset_index(inplace=True)
                 feature_df = feature_df[[entity_id, feature['source_value']]]
                 feature_df.set_index(entity_id)
-                feature_df_list.append(feature_df)
             else:
                 source = self.db.get_source_variant(source_name, source_variant)
                 feature_df = self.process_feature_csv(source['definition'], entity_id, feature)
-                feature_df_list.append(feature_df)
+            feature_df_list.append(feature_df)
 
         return feature_df_list
 
@@ -278,16 +276,13 @@ class LocalClientImpl:
             raise KeyError(f"Timestamp column does not exist: {feature['source_timestamp']}")
         if feature['source_timestamp'] != "":
             df = df[[feature['source_entity'], feature['source_value'], feature['source_timestamp']]]
+            df = df.sort_values(by=feature['source_timestamp'], ascending=True)
+            df = df.drop(columns=feature['source_timestamp'])
         else:
             df = df[[feature['source_entity'], feature['source_value']]]
         df.set_index(feature['source_entity'])
-        if feature['source_timestamp'] != "":
-            df = df.sort_values(by=feature['source_timestamp'], ascending=True)
         df.rename(columns={feature['source_entity']: entity_id, feature['source_value']: name_variant}, inplace=True)
-        df.drop_duplicates(subset=[entity_id], keep="last", inplace=True)
-
-        if feature['source_timestamp'] != "":
-            df = df.drop(columns=feature['source_timestamp'])
+        df.drop_duplicates(subset=[entity_id], keep="last", inplace=True)   
         return df
 
 class Stream:

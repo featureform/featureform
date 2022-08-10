@@ -14,10 +14,29 @@ func testTableUploadCompare(store *SparkOfflineStore) error {
 		testData[i].Value = i
 		testData[i].TS = time.Now()
 	}
-	if err := store.Store.UploadTestTable(testTable, testData); err != nil {
+	exists, err := store.Store.FileExists(testTable)
+	if err != nil {
 		return err
 	}
-	if err := store.Store.CompareTestTable(testTable, testData); err != nil {
+	if exists {
+		if err := store.Store.DeleteFile(testTable); err != nil {
+			return err
+		}
+	}
+	if err := store.Store.UploadParquetTable(testTable, testData); err != nil {
+		return err
+	}
+	if err := store.Store.CompareParquetTable(testTable, testData); err != nil {
+		return err
+	}
+	if err := store.Store.DeleteFile(testTable); err != nil {
+		return err
+	}
+	exists, err = store.Store.FileExists(testTable)
+	if err != nil {
+		return err
+	}
+	if exists {
 		return err
 	}
 	return nil
@@ -29,7 +48,7 @@ func TestParquetUpload(t *testing.T) {
 	}
 	emrConf := EMRConfig{
 		AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
-		AWSSecretKey:   os.Getenv("AWS_SECRET_ACCESS_KEY"),
+		AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),
 		ClusterRegion:  os.Getenv("AWS_EMR_CLUSTER_REGION"),
 		ClusterName:    os.Getenv("AWS_EMR_CLUSTER_ID"),
 	}

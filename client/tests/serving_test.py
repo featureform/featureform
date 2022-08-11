@@ -325,10 +325,6 @@ class TestTransformation(TestCase):
         except:
             print("File Already Removed")
 
-
-
-
-
 class TestTrainingSet(TestCase):
     def _register_feature(self, feature, local, case, index, name):
         file = create_temp_file(feature)
@@ -338,7 +334,6 @@ class TestTrainingSet(TestCase):
             description="",
             path=file
         )
-
         test_file.register_resources(
             entity=case['entity'],
             entity_column=case['entity_loc'],
@@ -403,25 +398,16 @@ class TestTrainingSet(TestCase):
                 expected_len = len(case['expected'])
                 for i, r in enumerate(tset):
                     actual_len += 1
-                    # actual_features = r.features()
-                    # actual_label = r.label()
                     actual = r.features() + r.label()
                     if actual in case['expected']:
                         case['expected'].remove(actual)
                     else:
-                        # raise AssertionError(f"{r.features()} not in {case['expected_features']}")
                         raise AssertionError(f"{r.features() + r.label()} not in  {case['expected']}")
-                    # if actual_label in case['expected_label']:
-                    #     case['expected_label'].remove(actual_label)
-                    # else:
-                    #     raise AssertionError(f"{r.label()} not in {case['expected_label']}")
                 try:
                     clear_and_reset()
                 except Exception as e:
                     print(f"Could Not Reset Database: {e}")
                 assert actual_len == expected_len
-
-
 
 
 def clear_and_reset():

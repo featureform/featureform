@@ -129,12 +129,7 @@ class LocalProvider:
         if owner == "":
             owner = self.__registrar.must_get_default_owner()
         # Store the file as a source
-        time_created = str(time.time())
-        self.sqldb.insert("sources", "Source", variant, name)
-        self.sqldb.insert("source_variant", time_created, description, name,
-                          "Source", owner, self.name(), variant, "ready", 0, "", path)
-        # Where the definition = path
-
+        self.__registrar.register_primary_data(name, variant, SQLTable(path), self.__provider.name, owner, description)
         return LocalSource(self.__registrar, name, owner, variant, self.name(), path, description)
 
     def insert_provider(self):

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -294,9 +295,11 @@ func stringifyValue(value interface{}) string {
 	case "int":
 		return fmt.Sprintf(`%d`, value.(int))
 	case "float":
-		return fmt.Sprintf(`%f`, value.(float64))
+		return strconv.FormatFloat(value.(float64), 'f', -1, 64)
+	case "float64":
+		return strconv.FormatFloat(value.(float64), 'f', -1, 64)
 	case "float32":
-		return fmt.Sprintf(`%f`, value.(float32))
+		return strconv.FormatFloat(float64(value.(float32)), 'f', -1, 32)
 	case "int32":
 		return fmt.Sprintf(`%d`, value.(int32))
 	case "bool":
@@ -471,8 +474,9 @@ func typeConvertValue(value interface{}) interface{} {
 		return value.(time.Time).UnixMilli()
 	case "int":
 		return int32(value.(int))
+	default:
+		return value
 	}
-	return value
 }
 
 func compareStructs(local interface{}, fetched interface{}) error {

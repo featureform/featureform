@@ -1,7 +1,10 @@
 package provider
 
 import (
+	"encoding/json"
+	"fmt"
 	"os"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -43,6 +46,9 @@ func testTableUploadCompare(store *SparkOfflineStore) error {
 }
 
 func TestParquetUpload(t *testing.T) {
+	if testing.Short() {
+		return
+	}
 	if err := RegisterFactory("SPARK_OFFLINE", SparkOfflineStoreFactory); err != nil {
 		t.Fatalf("Could not register Spark factory: %s", err)
 	}
@@ -78,5 +84,162 @@ func TestParquetUpload(t *testing.T) {
 	sparkOfflineStore := sparkStore.(*SparkOfflineStore)
 	if err := testTableUploadCompare(sparkOfflineStore); err != nil {
 		t.Fatalf("Upload test failed: %s", err)
+	}
+}
+
+type exampleStruct struct {
+	Name       string
+	Age        int
+	Score      float32
+	Winner     bool
+	Registered time.Time
+}
+
+func TestStringifyValue(t *testing.T) {
+	testValueMap := map[interface{}]string{
+		"test":            `"test"`,
+		10:                "10",
+		float64(10.1):     "10.1",
+		float32(10.1):     "10.1",
+		int32(10):         "10",
+		false:             "false",
+		time.UnixMilli(0): "0",
+	}
+
+	for k, v := range testValueMap {
+		if stringifyValue(k) != v {
+			t.Fatalf("%v does not equal %v\n", stringifyValue(k), v)
+		}
+	}
+}
+
+func TestStringifyStruct(t *testing.T) {
+	exampleInstance := exampleStruct{
+		Name:       "John Smith",
+		Age:        30,
+		Score:      100.4,
+		Winner:     false,
+		Registered: time.UnixMilli(0),
+	}
+	desiredOutput := `
+	{"name":"John Smith",
+"age":30,
+"score":100.4,
+"winner":false,
+"registered":0
+}`
+	stringStruct := stringifyStruct(exampleInstance)
+	if desiredOutput != stringStruct {
+		t.Fatalf("%s\nis not equal to %s\n", desiredOutput, stringStruct)
+	}
+}
+
+func TestStringifyStructArray(t *testing.T) {
+	exampleStructArray := make([]exampleStruct, 5)
+	for i := range exampleStructArray {
+		exampleStructArray[i] = exampleStruct{
+			Name:       fmt.Sprintf("John Smith_%d", i),
+			Age:        30 + i,
+			Score:      100.4 + float32(i),
+			Winner:     false,
+			Registered: time.UnixMilli(int64(i)),
+		}
+	}
+	desiredOutput := []string{
+		`
+	{"name":"John Smith_0",
+"age":30,
+"score":100.4,
+"winner":false,
+"registered":0
+}`,
+		`
+	{"name":"John Smith_1",
+"age":31,
+"score":101.4,
+"winner":false,
+"registered":1
+}`,
+		`
+	{"name":"John Smith_2",
+"age":32,
+"score":102.4,
+"winner":false,
+"registered":2
+}`,
+		`
+	{"name":"John Smith_3",
+"age":33,
+"score":103.4,
+"winner":false,
+"registered":3
+}`,
+		`
+	{"name":"John Smith_4",
+"age":34,
+"score":104.4,
+"winner":false,
+"registered":4
+}`}
+	stringArray, _ := stringifyStructArray(exampleStructArray)
+	if !reflect.DeepEqual(stringArray, desiredOutput) {
+		t.Fatalf("returned structs are not equal")
+	}
+}
+
+func TestStringifyStructField(t *testing.T) {
+	exampleInstance := exampleStruct{
+		Name:       "John Smith",
+		Age:        30,
+		Score:      100.4,
+		Winner:     false,
+		Registered: time.UnixMilli(0),
+	}
+	desiredResults := []string{
+		`{"Tag": "name=name, type=BYTE_ARRAY, convertedtype=UTF8"}`,
+		`{"Tag": "name=age, type=INT32"}`,
+		`{"Tag": "name=score, type=FLOAT"}`,
+		`{"Tag": "name=winner, type=BOOLEAN"}`,
+		`{"Tag": "name=registered, type=INT64"}`,
+	}
+
+	reflectedStruct := reflect.ValueOf(exampleInstance)
+	for i := 0; i < reflectedStruct.NumField(); i++ {
+		resultField := stringifyStructField(exampleInstance, i)
+		if resultField != desiredResults[i] {
+			t.Fatalf("%s does not equal %s", resultField, desiredResults[i])
+		}
+	}
+}
+
+func TestGenerateSchemaFromInterface(t *testing.T) {
+	exampleStructArray := make([]exampleStruct, 5)
+	for i := range exampleStructArray {
+		exampleStructArray[i] = exampleStruct{
+			Name:       fmt.Sprintf("John Smith_%d", i),
+			Age:        30 + i,
+			Score:      100.4 + float32(i),
+			Winner:     false,
+			Registered: time.UnixMilli(int64(i)),
+		}
+	}
+	schema, _ := generateSchemaFromInterface(exampleStructArray)
+	desiredOutput := `
+    {
+        "Tag":"name=parquet-go-root",
+        "Fields":[
+                    {"Tag": "name=name, type=BYTE_ARRAY, convertedtype=UTF8"},
+                                        {"Tag": "name=age, type=INT32"},
+                                        {"Tag": "name=score, type=FLOAT"},
+                                        {"Tag": "name=winner, type=BOOLEAN"},
+                                        {"Tag": "name=registered, type=INT64"}
+                                ]
+                        }`
+	var jsonMap map[string]interface{}
+	json.Unmarshal([]byte(desiredOutput), &jsonMap)
+	var resultMap map[string]interface{}
+	json.Unmarshal([]byte(schema), &resultMap)
+	if !reflect.DeepEqual(jsonMap, resultMap) {
+		t.Fatalf("Marshalled json schemas are not equal")
 	}
 }

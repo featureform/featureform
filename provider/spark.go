@@ -362,13 +362,11 @@ func stringifyStructField(data interface{}, idx int) string {
 	return ""
 }
 
-func parquetSchemaHeader() string {
-	return `
+var parquetSchemaHeader = `
     {
         "Tag":"name=parquet-go-root",
         "Fields":[
 		    `
-}
 
 func generateSchemaFromInterface(data interface{}) (string, error) {
 	array := reflect.ValueOf(data)
@@ -376,7 +374,7 @@ func generateSchemaFromInterface(data interface{}) (string, error) {
 		return "", fmt.Errorf("interface passed has no data")
 	}
 	schemaStruct := array.Index(0)
-	schemaString := parquetSchemaHeader()
+	schemaString := parquetSchemaHeader
 	for i := 0; i < schemaStruct.NumField(); i++ {
 		schemaString += stringifyStructField(schemaStruct.Interface(), i)
 		if i != schemaStruct.NumField()-1 {

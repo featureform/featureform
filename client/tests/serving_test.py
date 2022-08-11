@@ -26,11 +26,13 @@ class TestIndividualFeatures(TestCase):
                 print("TEST: ", name)
                 file_name = create_temp_file(case)
                 client = ServingClient(local=True)
-                dataframe_mapping = LocalClientImpl().feature_df_with_entity(file_name, "entity_id", case)
+                local_client = LocalClientImpl()
+                dataframe_mapping = local_client.feature_df_with_entity(file_name, "entity_id", case)
                 expected = pd.DataFrame(case['expected'])
                 actual = dataframe_mapping
                 expected = expected.values.tolist()
                 actual = actual.values.tolist()
+                local_client.db.close()
                 client.impl.db.close()
                 assert all(elem in expected for elem in actual), \
                     "Expected: {} Got: {}".format(expected, actual)
@@ -41,11 +43,13 @@ class TestIndividualFeatures(TestCase):
                 print("TEST: ", name)
                 file_name = create_temp_file(case)
                 client = ServingClient(local=True)
-                dataframe_mapping = LocalClientImpl().feature_df_with_entity(file_name, "entity_id", case)
+                local_client = LocalClientImpl()
+                dataframe_mapping = local_client.feature_df_with_entity(file_name, "entity_id", case)
                 expected = pd.DataFrame(case['expected'])
                 actual = dataframe_mapping
                 expected = expected.values.tolist()
                 actual = actual.values.tolist()
+                local_client.db.close()
                 client.impl.db.close()
                 assert all(elem in expected for elem in actual), \
                     "Expected: {} Got: {}".format(expected, actual)
@@ -54,8 +58,10 @@ class TestIndividualFeatures(TestCase):
         case = cases.feature_invalid_entity
         file_name = create_temp_file(case)
         client = ServingClient(local=True)
+        local_client = LocalClientImpl()
         with pytest.raises(KeyError) as err:
-            LocalClientImpl().feature_df_with_entity(file_name, "entity_id", case)
+            local_client.feature_df_with_entity(file_name, "entity_id", case)
+        local_client.db.close()
         client.impl.db.close()
         assert "column does not exist" in str(err.value)
 
@@ -63,8 +69,10 @@ class TestIndividualFeatures(TestCase):
         case = cases.feature_invalid_value
         file_name = create_temp_file(case)
         client = ServingClient(local=True)
+        local_client = LocalClientImpl()
         with pytest.raises(KeyError) as err:
-            LocalClientImpl().feature_df_with_entity(file_name, "entity_id", case)
+            local_client.feature_df_with_entity(file_name, "entity_id", case)
+        local_client.db.close()
         client.impl.db.close()
         assert "column does not exist" in str(err.value)
 
@@ -72,8 +80,10 @@ class TestIndividualFeatures(TestCase):
         case = cases.feature_invalid_ts
         file_name = create_temp_file(case)
         client = ServingClient(local=True)
+        local_client = LocalClientImpl()
         with pytest.raises(KeyError) as err:
-            LocalClientImpl().feature_df_with_entity(file_name, "entity_id", case)
+            local_client.feature_df_with_entity(file_name, "entity_id", case)
+        local_client.db.close()
         client.impl.db.close()
         assert "column does not exist" in str(err.value)
 
@@ -135,7 +145,8 @@ class TestIndividualLabels(TestCase):
             with self.subTest(name):
                 print("TEST: ", name)
                 file_name = create_temp_file(case)
-                actual = LocalClientImpl().label_df_from_csv(case, file_name)
+                local_client = LocalClientImpl()
+                actual = local_client.label_df_from_csv(case, file_name)
                 expected = pd.DataFrame(case['expected']).set_index(case['entity_name'])
                 pd.testing.assert_frame_equal(actual, expected)
 
@@ -149,8 +160,9 @@ class TestIndividualLabels(TestCase):
             'source_timestamp': 'ts'
         }
         file_name = create_temp_file(case)
+        local_client = LocalClientImpl()
         with pytest.raises(KeyError) as err:
-            LocalClientImpl().label_df_from_csv(case, file_name)
+            local_client.label_df_from_csv(case, file_name)
         assert "column does not exist" in str(err.value)
 
     def test_invalid_value(self):
@@ -162,9 +174,9 @@ class TestIndividualLabels(TestCase):
             'source_timestamp': 'ts'
         }
         file_name = create_temp_file(case)
-        client = ServingClient(local=True)
+        local_client = LocalClientImpl()
         with pytest.raises(KeyError) as err:
-            LocalClientImpl().label_df_from_csv(case, file_name)
+            local_client.label_df_from_csv(case, file_name)
         assert "column does not exist" in str(err.value)
 
     def test_invalid_ts(self):
@@ -176,8 +188,9 @@ class TestIndividualLabels(TestCase):
             'source_timestamp': 'ts_dne'
         }
         file_name = create_temp_file(case)
+        local_client = LocalClientImpl()
         with pytest.raises(KeyError) as err:
-            LocalClientImpl().label_df_from_csv(case, file_name)
+            local_client.label_df_from_csv(case, file_name)
         assert "column does not exist" in str(err.value)
 
     @pytest.fixture(autouse=True)

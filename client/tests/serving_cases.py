@@ -432,7 +432,8 @@ training_set = {
         },
         'entity': 'user',
         'entity_loc': 'entity',
-        'expected': []
+        'expected_features': [],
+        'expected_label': []
     },
     'Simple': {
         'features': [
@@ -466,10 +467,13 @@ training_set = {
         },
         'entity': 'user',
         'entity_loc': 'entity',
-        'expected': [
-            [['one', 1], [True]],
-            [['two', 2], [False]],
-            [['three', 3], [True]]
+        'expected_features': [
+            [['one', 1]],
+            [['two', 2]],
+            [['three', 3]]
+        ],
+        'expected_label': [
+            [True], [False], [True]
         ],
     },
     'Complex': {
@@ -528,11 +532,17 @@ training_set = {
         },
         'entity': 'user',
         'entity_loc': 'entity',
-        'expected': [
-            [[4, np.NAN, np.NAN, np.NAN, np.NAN], [1]],
-            [[2, np.NAN, np.NAN, "first", np.NAN], [9]],
-            [[2, np.NAN, np.NAN, "second", np.NAN], [5]],
-            [[3, np.NAN, "real value second", np.NAN, np.NAN], [3]]
+        'expected_features': [
+            [[4, np.NAN, np.NAN, np.NAN, np.NAN]],
+            [[2, np.NAN, np.NAN, "first", np.NAN]],
+            [[2, np.NAN, np.NAN, "second", np.NAN]],
+            [[3, np.NAN, "real value second", np.NAN, np.NAN]]
+        ],
+        'expected_label': [
+            [1],
+            [9],
+            [5],
+            [3]
         ],
     },
 }

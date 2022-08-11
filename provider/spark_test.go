@@ -9,6 +9,16 @@ import (
 	"time"
 )
 
+func testResourcePath(store *SparkOfflineStore) error {
+	bucketName := os.Getenv("S3_BUCKET_PATH")
+	exampleResource := ResourceID{"test_resource", "test_variant", Primary}
+	expectedPath := fmt.Sprintf("S3://%s/featureform/Primary/test_resource/test_variant", bucketName)
+	resultPath := store.Store.ResourcePath(exampleResource)
+	if expectedPath != resultPath {
+		return fmt.Errorf("%s does not equal %s", expectedPath, resultPath)
+	}
+}
+
 func testTableUploadCompare(store *SparkOfflineStore) error {
 	testTable := "featureform/tests/testFile.parquet"
 	testData := make([]ResourceRecord, 10)
@@ -84,6 +94,9 @@ func TestParquetUpload(t *testing.T) {
 	sparkOfflineStore := sparkStore.(*SparkOfflineStore)
 	if err := testTableUploadCompare(sparkOfflineStore); err != nil {
 		t.Fatalf("Upload test failed: %s", err)
+	}
+	if err := testResourcePath(sparkOfflineStore); err != nil {
+		t.Fatalf("resource path test failed: %s", err)
 	}
 }
 

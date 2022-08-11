@@ -32,9 +32,8 @@ class Client:
     def features(self, features, entities):
         return self.impl.features(features, entities)
 
-    def process_feature_csv(self, source_path, entity_name, entity_col, value_col, dataframe_mapping,
-                            feature_name_variant, timestamp_column):
-        return self.impl.process_feature_csv(source_path, entity_name, entity_col, value_col, dataframe_mapping, feature_name_variant, timestamp_column)
+    def feature_df_with_entity(self, source_path, entity_id, feature):
+        return self.impl.feature_df_with_entity(source_path, entity_id, feature)
 
     def label_df_from_csv(self, label, file_name):
         return self.impl.label_df_from_csv(label, file_name)
@@ -153,8 +152,7 @@ class LocalClientImpl:
             df.sort_values(by=label['source_timestamp'], inplace=True)
             df.drop_duplicates(subset=[label['source_entity'], label['source_timestamp']], keep="last", inplace=True)
         else:
-            df = df[[label['source_entity'], label['source_value']]]  
-        df.rename(columns={label['source_entity']: label['source_entity']}, inplace=True)
+            df = df[[label['source_entity'], label['source_value']]]
         df.set_index(label['source_entity'], inplace=True)
         return df
 
@@ -163,7 +161,8 @@ class LocalClientImpl:
         if self.db.is_transformation(feature['source_name'], feature['source_variant']):
             feature_df = self.feature_df_from_transformation(feature)
         else:
-            feature_df = self.feature_df_from_csv(feature)
+            source = self.db.get_source_variant(feature['source_name'], feature['source_variant'])
+            feature_df = self.feature_df_from_csv(feature, source['definition'])
         feature_df.set_index(feature['source_entity'])
         feature_df.rename(columns={feature['source_value']: name_variant}, inplace=True)
         return feature_df
@@ -180,12 +179,18 @@ class LocalClientImpl:
             df = df[[feature['source_entity'], feature['source_value']]]
         return df
 
-    def feature_df_from_csv(self, feature):
-        source = self.db.get_source_variant(feature['source_name'], feature['source_variant'])
-        df = pd.read_csv(str(source['definition']))
+    def feature_df_from_csv(self, feature, filename):
+        df = pd.read_csv(str(filename))
+        if feature['source_entity'] not in df.columns:
+            raise KeyError(f"Entity column does not exist: {feature['source_entity']}")
+        if feature['source_value'] not in df.columns:
+            raise KeyError(f"Value column does not exist: {feature['source_value']}")
+        if feature['source_timestamp'] not in df.columns and feature['source_timestamp'] != "":
+            raise KeyError(f"Timestamp column does not exist: {feature['source_timestamp']}")
         if feature['source_timestamp'] != "":
             df = df[[feature['source_entity'], feature['source_value'], feature['source_timestamp']]]
             df[feature['source_timestamp']] = pd.to_datetime(df[feature['source_timestamp']])
+            df = df.sort_values(by=feature['source_timestamp'], ascending=True)
         else:
             df = df[[feature['source_entity'], feature['source_value']]]
         return df
@@ -195,6 +200,7 @@ class LocalClientImpl:
             trainingset_df = pd.merge_asof(trainingset_df, df.sort_values(['ts']), direction='backward',
                                             left_on=label_row['source_timestamp'], right_on=feature_row['source_timestamp'], left_by=label_row['source_entity'],
                                             right_by=feature_row['source_entity'])
+            df.drop_duplicates(subset=[feature_row['source_entity']], keep="last", inplace=True)
         else:
             df.drop_duplicates(subset=[feature_row['source_entity']], keep="last", inplace=True)
             trainingset_df.reset_index(inplace=True)
@@ -239,7 +245,7 @@ class LocalClientImpl:
                 feature_df.set_index(entity_id)
             else:
                 source = self.db.get_source_variant(source_name, source_variant)
-                feature_df = self.process_feature_csv(source['definition'], entity_id, feature)
+                feature_df = self.feature_df_with_entity(source['definition'], entity_id, feature)
             feature_df_list.append(feature_df)
 
         return feature_df_list
@@ -265,14 +271,14 @@ class LocalClientImpl:
         else:
             raise Exception(f"No matching entities for {entity_id}: {entity_id}")
 
-    def process_feature_csv(self, source_path, entity_id, feature):
+    def feature_df_with_entity(self, source_path, entity_id, feature):
         name_variant = f"{feature['name']}.{feature['variant']}"
         df = pd.read_csv(str(source_path))
         if feature['source_entity'] not in df.columns:
             raise KeyError(f"Entity column does not exist: {feature['source_entity']}")
         if feature['source_value'] not in df.columns:
             raise KeyError(f"Value column does not exist: {feature['source_value']}")
-        if feature['source_timestamp'] != "" and feature['source_timestamp'] not in df.columns:
+        if feature['source_timestamp'] not in df.columns and feature['source_timestamp'] != "":
             raise KeyError(f"Timestamp column does not exist: {feature['source_timestamp']}")
         if feature['source_timestamp'] != "":
             df = df[[feature['source_entity'], feature['source_value'], feature['source_timestamp']]]

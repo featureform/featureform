@@ -195,7 +195,7 @@ func (s *S3Store) UploadSparkScript() error {
 	var sparkScriptPath string
 	sparkScriptPath, ok := os.LookupEnv("SPARK_SCRIPT_PATH")
 	if !ok {
-		sparkScriptPath = "./provider/scripts/offline_store_spark_runner.py"
+		sparkScriptPath = "./scripts/offline_store_spark_runner.py"
 	}
 	scriptFile, err := os.Open(sparkScriptPath)
 	if err != nil {

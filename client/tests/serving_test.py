@@ -17,7 +17,6 @@ import serving_cases as cases
 import featureform as ff
 from datetime import datetime
 
-
 class TestIndividualFeatures(TestCase):
     def test_process_feature_no_ts(self):
         for name, case in cases.features_no_ts.items():
@@ -326,10 +325,6 @@ class TestTransformation(TestCase):
         except:
             print("File Already Removed")
 
-
-
-
-
 class TestTrainingSet(TestCase):
     def _register_feature(self, feature, local, case, index, name):
         file = create_temp_file(feature)
@@ -339,7 +334,6 @@ class TestTrainingSet(TestCase):
             description="",
             path=file
         )
-
         test_file.register_resources(
             entity=case['entity'],
             entity_column=case['entity_loc'],
@@ -404,18 +398,16 @@ class TestTrainingSet(TestCase):
                 expected_len = len(case['expected'])
                 for i, r in enumerate(tset):
                     actual_len += 1
-                    actual = r.features() + [r.label()]
+                    actual = r.features() + r.label()
                     if actual in case['expected']:
                         case['expected'].remove(actual)
                     else:
-                        raise AssertionError(f"{r.features() + [r.label()]} not in  {case['expected']}")
+                        raise AssertionError(f"{r.features() + r.label()} not in  {case['expected']}")
                 try:
                     clear_and_reset()
                 except Exception as e:
                     print(f"Could Not Reset Database: {e}")
                 assert actual_len == expected_len
-
-
 
 
 def clear_and_reset():

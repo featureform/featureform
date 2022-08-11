@@ -32,12 +32,6 @@ class Client:
     def features(self, features, entities):
         return self.impl.features(features, entities)
 
-    def feature_df_with_entity(self, source_path, entity_id, feature):
-        return self.impl.feature_df_with_entity(source_path, entity_id, feature)
-
-    def label_df_from_csv(self, label, file_name):
-        return self.impl.label_df_from_csv(label, file_name)
-
 class HostedClientImpl:
     def __init__(self, host=None, insecure=False, cert_path=None):
         host = host or os.getenv('FEATUREFORM_HOST')

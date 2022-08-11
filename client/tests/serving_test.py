@@ -16,6 +16,7 @@ from featureform import ResourceClient, ServingClient
 import serving_cases as cases
 import featureform as ff
 from datetime import datetime
+from featureform.serving import LocalClientImpl
 
 
 class TestIndividualFeatures(TestCase):
@@ -25,7 +26,7 @@ class TestIndividualFeatures(TestCase):
                 print("TEST: ", name)
                 file_name = create_temp_file(case)
                 client = ServingClient(local=True)
-                dataframe_mapping = client.feature_df_with_entity(file_name, "entity_id", case)
+                dataframe_mapping = LocalClientImpl().feature_df_with_entity(file_name, "entity_id", case)
                 expected = pd.DataFrame(case['expected'])
                 actual = dataframe_mapping
                 expected = expected.values.tolist()
@@ -40,7 +41,7 @@ class TestIndividualFeatures(TestCase):
                 print("TEST: ", name)
                 file_name = create_temp_file(case)
                 client = ServingClient(local=True)
-                dataframe_mapping = client.feature_df_with_entity(file_name, "entity_id", case)
+                dataframe_mapping = LocalClientImpl().feature_df_with_entity(file_name, "entity_id", case)
                 expected = pd.DataFrame(case['expected'])
                 actual = dataframe_mapping
                 expected = expected.values.tolist()
@@ -54,7 +55,7 @@ class TestIndividualFeatures(TestCase):
         file_name = create_temp_file(case)
         client = ServingClient(local=True)
         with pytest.raises(KeyError) as err:
-            client.feature_df_with_entity(file_name, "entity_id", case)
+            LocalClientImpl().feature_df_with_entity(file_name, "entity_id", case)
         client.impl.db.close()
         assert "column does not exist" in str(err.value)
 
@@ -63,7 +64,7 @@ class TestIndividualFeatures(TestCase):
         file_name = create_temp_file(case)
         client = ServingClient(local=True)
         with pytest.raises(KeyError) as err:
-            client.feature_df_with_entity(file_name, "entity_id", case)
+            LocalClientImpl().feature_df_with_entity(file_name, "entity_id", case)
         client.impl.db.close()
         assert "column does not exist" in str(err.value)
 
@@ -72,7 +73,7 @@ class TestIndividualFeatures(TestCase):
         file_name = create_temp_file(case)
         client = ServingClient(local=True)
         with pytest.raises(KeyError) as err:
-            client.feature_df_with_entity(file_name, "entity_id", case)
+            LocalClientImpl().feature_df_with_entity(file_name, "entity_id", case)
         client.impl.db.close()
         assert "column does not exist" in str(err.value)
 
@@ -134,8 +135,7 @@ class TestIndividualLabels(TestCase):
             with self.subTest(name):
                 print("TEST: ", name)
                 file_name = create_temp_file(case)
-                client = ServingClient(local=True)
-                actual = client.label_df_from_csv(case, file_name)
+                actual = LocalClientImpl().label_df_from_csv(case, file_name)
                 expected = pd.DataFrame(case['expected']).set_index(case['entity_name'])
                 pd.testing.assert_frame_equal(actual, expected)
 
@@ -149,9 +149,8 @@ class TestIndividualLabels(TestCase):
             'source_timestamp': 'ts'
         }
         file_name = create_temp_file(case)
-        client = ServingClient(local=True)
         with pytest.raises(KeyError) as err:
-            client.label_df_from_csv(case, file_name)
+            LocalClientImpl().label_df_from_csv(case, file_name)
         assert "column does not exist" in str(err.value)
 
     def test_invalid_value(self):
@@ -165,7 +164,7 @@ class TestIndividualLabels(TestCase):
         file_name = create_temp_file(case)
         client = ServingClient(local=True)
         with pytest.raises(KeyError) as err:
-            client.label_df_from_csv(case, file_name)
+            LocalClientImpl().label_df_from_csv(case, file_name)
         assert "column does not exist" in str(err.value)
 
     def test_invalid_ts(self):
@@ -177,9 +176,8 @@ class TestIndividualLabels(TestCase):
             'source_timestamp': 'ts_dne'
         }
         file_name = create_temp_file(case)
-        client = ServingClient(local=True)
         with pytest.raises(KeyError) as err:
-            client.label_df_from_csv(case, file_name)
+            LocalClientImpl().label_df_from_csv(case, file_name)
         assert "column does not exist" in str(err.value)
 
     @pytest.fixture(autouse=True)

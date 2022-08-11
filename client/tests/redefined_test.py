@@ -16,6 +16,13 @@ class TestResourcesRedefined:
             path="transactions.csv"
         )
 
+        transactions = local.register_file(
+            name="transactions",
+            variant="quickstart",
+            description="A dataset of fraudulent transactions",
+            path="transactions.csv"
+        )
+
         user = ff.register_entity("user")
         user = ff.register_entity("user")
 
@@ -87,9 +94,17 @@ class TestResourcesRedefined:
             path="transactions.csv"
         )
 
-        user = ff.register_entity("user")
+        transactions = local.register_file(
+            name="transaction",
+            variant="quickstart",
+            description="A dataset of fraudulent transaction",
+            path="transaction.csv"
+        )
 
-        client.apply()
+        with pytest.raises(ResourceRedefinedError):
+            client.apply()
+
+        user = ff.register_entity("user")
 
         @local.df_transformation(variant="quickstart",
                                  inputs=[("transaction", "quickstart")])

@@ -17,6 +17,7 @@ func testResourcePath(store *SparkOfflineStore) error {
 	if expectedPath != resultPath {
 		return fmt.Errorf("%s does not equal %s", expectedPath, resultPath)
 	}
+	return nil
 }
 
 func testTableUploadCompare(store *SparkOfflineStore) error {

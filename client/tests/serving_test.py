@@ -400,21 +400,21 @@ class TestTrainingSet(TestCase):
                 tset = serving.training_set(f"training_set-{name}", "default")
                 serving.sqldb.close()
                 actual_len = 0
-                expected_len = len(case['expected_features'])
+                expected_len = len(case['expected'])
                 for i, r in enumerate(tset):
                     actual_len += 1
-                    actual_features = r.features()
-                    actual_label = r.label()
-                    # actual = r.features() + [r.label()]
-                    if actual_features in case['expected_features']:
-                        case['expected_features'].remove(actual_features)
+                    # actual_features = r.features()
+                    # actual_label = r.label()
+                    actual = r.features() + r.label()
+                    if actual in case['expected']:
+                        case['expected'].remove(actual)
                     else:
-                        raise AssertionError(f"{r.features()} not in {case['expected_features']}")
-                        # raise AssertionError(f"{r.features() + [r.label()]} not in  {case['expected']}")
-                    if actual_label in case['expected_label']:
-                        case['expected_label'].remove(actual_label)
-                    else:
-                        raise AssertionError(f"{r.label()} not in {case['expected_label']}")
+                        # raise AssertionError(f"{r.features()} not in {case['expected_features']}")
+                        raise AssertionError(f"{r.features() + r.label()} not in  {case['expected']}")
+                    # if actual_label in case['expected_label']:
+                    #     case['expected_label'].remove(actual_label)
+                    # else:
+                    #     raise AssertionError(f"{r.label()} not in {case['expected_label']}")
                 try:
                     clear_and_reset()
                 except Exception as e:

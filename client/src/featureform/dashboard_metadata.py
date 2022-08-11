@@ -97,9 +97,9 @@ def training_set_variant(variantData):
         try:
             feature_list = sqlObject.get_training_set_features(variantRow['name'], variantRow['variant'])
         except ValueError:
-            pass
+            feature_list = []
+
         trainingSetVariant = TrainingSetVariantResource(
-                
                 variantRow['created'], 
                 variantRow['description'], 
                 variantRow['name'], 

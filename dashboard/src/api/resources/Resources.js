@@ -1,6 +1,5 @@
 import Resource from "./Resource.js";
 import TypesenseClient from "./Search.js";
-import os from 'os';
 
 export const testData = [
   {

@@ -144,7 +144,7 @@ jobs:
         with:
           host port: 6378
           container port: 6379
-          redis password: 'password'
+          redis password: "password"
 
       - name: Set up Go
         uses: actions/setup-go@v2
@@ -232,7 +232,7 @@ jobs:
         with:
           name: "./provider/bigquery_credentials.json"
           json: ${{ secrets.BIGQUERY_CREDENTIALS_FILE }}
-      
+
       - name: Testing
         env:
           SNOWFLAKE_USERNAME: ${{ secrets.SNOWFLAKE_USERNAME }}
@@ -244,10 +244,10 @@ jobs:
           REDSHIFT_ENDPOINT: ${{ secrets.REDSHIFT_ENDPOINT }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
-          AWS_EMR_CLUSTER_REGION: "us-east-2"
-          AWS_EMR_CLUSTER_ID: "j-2B1UNJ2J9HQI9"
-          S3_BUCKET_PATH: "test-bucket-s1gz45f"
-          S3_BUCKET_REGION: "us-east-1"
+          AWS_EMR_CLUSTER_REGION: ${{ secrets.AWS_EMR_CLUSTER_REGION }}
+          AWS_EMR_CLUSTER_ID: ${{ secrets.AWS_EMR_CLUSTER_ID }}
+          S3_BUCKET_PATH: ${{ secrets.S3_BUCKET_PATH }}
+          S3_BUCKET_REGION: ${{ secrets.S3_BUCKET_REGION }}
           BIGQUERY_PROJECT_ID: ${{ secrets.BIGQUERY_PROJECT_ID }}
           BIGQUERY_DATASET_ID: ${{ secrets.BIGQUERY_DATASET_ID }}
           BIGQUERY_CREDENTIALS: "bigquery_credentials.json"
@@ -686,4 +686,3 @@ jobs:
 
       - name: Run Tests
         run: make pytest
-

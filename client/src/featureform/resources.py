@@ -357,6 +357,9 @@ class PrimaryData:
                     name=self.location.name, ), ),
         }
 
+    def name(self):
+        return self.location.name
+
 
 class Transformation:
     pass
@@ -440,7 +443,8 @@ class Source:
             self.is_transformation = 1
             self.inputs = self.definition.inputs
             self.definition = self.definition.query
-
+        if type(self.definition) == PrimaryData:
+            self.definition = self.definition.name()
         db.insert_source("source_variant",
                          str(time.time()),
                          self.description,

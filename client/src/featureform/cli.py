@@ -148,7 +148,7 @@ def list(host, cert, insecure, local, resource_type):
 def dash():
     app = Flask(__name__)
     app.register_blueprint(dashboard)
-    app.run(threaded=True, port=os.getenv("LOCALMODE_DASHBOARD_PORT", 8181))
+    app.run(threaded=True, port=os.getenv("LOCALMODE_DASHBOARD_PORT", 3000))
 
 @cli.command()
 @click.argument("files", nargs=-1, required=True, type=click.Path(exists=True))

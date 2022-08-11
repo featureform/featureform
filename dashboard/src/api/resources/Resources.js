@@ -33,20 +33,20 @@ export const testData = [
 ];
 
 export const providerLogos = Object.freeze({
-  REDIS: "/Redis_Logo.svg",
-  BIGQUERY: "/google_bigquery-ar21.svg",
-  "APACHE SPARK": "/Apache_Spark_logo.svg",
-  POSTGRES: "Postgresql_elephant.svg",
-  SNOWFLAKE: "Snowflake_Logo.svg",
+  REDIS: "static/Redis_Logo.svg",
+  BIGQUERY: "static/google_bigquery-ar21.svg",
+  "APACHE SPARK": "static/Apache_Spark_logo.svg",
+  POSTGRES: "static/Postgresql_elephant.svg",
+  SNOWFLAKE: "static/Snowflake_Logo.svg",
 });
 
-var API_URL = "http://localhost:3000";
+var API_URL = os.getenv("API_URL", "http://localhost:3000");
 
 if (typeof process.env.REACT_APP_API_URL != "undefined") {
   API_URL = process.env.REACT_APP_API_URL.trim();
 }
 
-export var PROMETHEUS_URL = "http://localhost:3000/prometheus";
+export var PROMETHEUS_URL = os.getenv("API_URL", "http://localhost:3000") + "/prometheus";
 
 if (typeof process.env.REACT_APP_PROMETHEUS_URL != "undefined") {
   PROMETHEUS_URL = process.env.REACT_APP_PROMETHEUS_URL.trim();

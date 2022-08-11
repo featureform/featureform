@@ -85,6 +85,7 @@ class TestIndividualFeatures(TestCase):
         local_client.db.close()
         client.impl.db.close()
         assert "column does not exist" in str(err.value)
+        retry_delete()
 
 
 class TestFeaturesE2E(TestCase):

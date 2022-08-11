@@ -12,7 +12,7 @@ import (
 func testResourcePath(store *SparkOfflineStore) error {
 	bucketName := os.Getenv("S3_BUCKET_PATH")
 	exampleResource := ResourceID{"test_resource", "test_variant", Primary}
-	expectedPath := fmt.Sprintf("S3://%s/featureform/Primary/test_resource/test_variant", bucketName)
+	expectedPath := fmt.Sprintf("s3://%s/featureform/Primary/test_resource/test_variant/", bucketName)
 	resultPath := store.Store.ResourcePath(exampleResource)
 	if expectedPath != resultPath {
 		return fmt.Errorf("%s does not equal %s", expectedPath, resultPath)
@@ -72,7 +72,7 @@ func TestParquetUpload(t *testing.T) {
 	emrSerializedConfig := emrConf.Serialize()
 	s3Conf := S3Config{
 		AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
-		AWSSecretKey:   os.Getenv("AWS_SECRET_ACCESS_KEY"),
+		AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),
 		BucketRegion:   os.Getenv("S3_BUCKET_REGION"),
 		BucketPath:     os.Getenv("S3_BUCKET_PATH"),
 	}

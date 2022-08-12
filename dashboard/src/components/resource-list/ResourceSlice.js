@@ -1,5 +1,5 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import Resource from "api/resources/Resource.js";
+import Resource from "../../api/resources/Resource.js";
 
 const assertAndCheck = (assertion, errorMessage) => {
   console.assert(assertion, { errorMsg: errorMessage });

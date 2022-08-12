@@ -7,7 +7,7 @@ import {
 } from "@material-ui/core/";
 import Typography from "@material-ui/core/Typography";
 
-import MetricsAPI from "api/resources/Metrics.js";
+import MetricsAPI from "../../api/resources/Metrics.js";
 import {
   modifyMetrics,
   modifyInstances,

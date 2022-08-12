@@ -6,7 +6,7 @@ import IconButton from "@material-ui/core/IconButton";
 import AccountCircle from "@material-ui/icons/AccountCircle";
 import MenuItem from "@material-ui/core/MenuItem";
 import Menu from "@material-ui/core/Menu";
-import { useLocation } from "react-router-dom";
+import { useRouter } from "next/router";
 import SearchBar from "../search/SearchBar";
 
 const useStyles = makeStyles((theme) => ({
@@ -56,7 +56,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 export default function TopBar() {
-  let location = useLocation();
+  let router = useRouter();
   const classes = useStyles();
   let auth = false;
 
@@ -65,12 +65,12 @@ export default function TopBar() {
   const open = Boolean(anchorEl);
 
   useEffect(() => {
-    if (location.pathname !== "/") {
+    if (router.pathname !== "/") {
       setSearch(true);
     } else {
       setSearch(false);
     }
-  }, [location]);
+  }, [router]);
 
   const handleMenu = (event) => {
     setAnchorEl(event.currentTarget);
@@ -86,7 +86,7 @@ export default function TopBar() {
         <Toolbar className={classes.toolbar}>
           <div className={classes.title}>
             <img
-              src="/FeatureForm_Logo_Full_Black.svg"
+              src="/static/FeatureForm_Logo_Full_Black.svg"
               height={30}
               alt="Featureform"
               component="div"

@@ -1,10 +1,11 @@
 import React from "react";
 import PropTypes from "prop-types";
 import { makeStyles } from "@material-ui/core/styles";
+import { useRouter } from "next/router";
 import Typography from "@material-ui/core/Typography";
 import Grid from "@material-ui/core/Grid";
 import Chip from "@material-ui/core/Chip";
-import theme from "styles/theme";
+import theme from "../../styles/theme";
 import CircleOutlinedIcon from "@mui/icons-material/CircleOutlined";
 import Rating from "@mui/material/Rating";
 import MaterialTable, {
@@ -16,11 +17,10 @@ import { PrismAsyncLight as SyntaxHighlighter } from "react-syntax-highlighter";
 import python from "react-syntax-highlighter/dist/cjs/languages/prism/python";
 import sql from "react-syntax-highlighter/dist/cjs/languages/prism/sql";
 import json from "react-syntax-highlighter/dist/cjs/languages/prism/json";
-import { useHistory } from "react-router-dom";
 import Container from "@material-ui/core/Container";
-import { providerLogos } from "api/resources";
+import { providerLogos } from "../../api/resources";
 import Button from "@material-ui/core/Button";
-import Resource from "api/resources/Resource.js";
+import Resource from "../../api/resources/Resource.js";
 
 SyntaxHighlighter.registerLanguage("python", python);
 SyntaxHighlighter.registerLanguage("sql", sql);
@@ -194,7 +194,7 @@ export const ResourceListView = ({
     ],
   };
   const classes = useStyles();
-  let history = useHistory();
+  let router = useRouter();
   const initialLoad = resources == null && !loading;
   const initRes = resources || [];
   const copy = (res) => res.map((o) => ({ ...o }));
@@ -204,7 +204,7 @@ export const ResourceListView = ({
   const mutableRes = copy(initRes);
   
   function detailRedirect(e, data) {
-    history.push(history.location.pathname + "/" + data.name);
+    router.push(router.query["type"] + "/" + data.name);
   }
 
   let rowVariants = {};
@@ -345,10 +345,10 @@ export const TagList = ({
 
 export const VariantTable = ({ name, setVariant, type, row }) => {
   const classes = useStyles();
-  let history = useHistory();
+  let router = useRouter();
   function variantChangeRedirect(e, data) {
     setVariant(type, name, data.variant);
-    history.push(Resource[type].urlPathResource(name));
+    router.push(Resource[type].urlPathResource(name));
   }
 
   let myVariants = [];

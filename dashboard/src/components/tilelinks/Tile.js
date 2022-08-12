@@ -1,11 +1,11 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Icon from "@material-ui/core/Icon";
 import { makeStyles } from "@material-ui/core/styles";
-import { useHistory } from "react-router-dom";
+import { useRouter } from "next/router";
 import Button from "@material-ui/core/Button";
 import Box from "@material-ui/core/Box";
 import Typography from "@material-ui/core/Typography";
-import Resource from "api/resources/Resource.js";
+import Resource from "../../api/resources/Resource.js";
 
 const useStyles = makeStyles((theme, id) => ({
   root: {
@@ -63,8 +63,23 @@ const useStyles = makeStyles((theme, id) => ({
   },
 }));
 
+function ClientOnly({ children, ...delegated }) {
+  const [hasMounted, setHasMounted] = useState(false);
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+  if (!hasMounted) {
+    return null;
+  }
+  return (
+    <div {...delegated}>
+      {children}
+    </div>
+  );
+}
+
 const Tile = ({ detail, id }) => {
-  let history = useHistory();
+  let router = useRouter();
   let resourceType = Resource[detail.type];
   const disabled = detail.disabled;
   const classes = useStyles(id);
@@ -76,33 +91,35 @@ const Tile = ({ detail, id }) => {
   }
 
   const handleClick = (event) => {
-    history.push(resourceType.urlPath);
+    router.push(resourceType.urlPath);
   };
 
   return (
-    <Box sx={{ boxShadow: 3 }}>
-      <div className={classes.root}>
-        <Button
-          className={buttonClass}
-          onClick={handleClick}
-          disabled={disabled}
-          focusRipple={true}
-          variant="contained"
-        >
-          <div className={classes.tileContent}>
-            <div>
-              <Icon className={classes.icon}>{resourceType.materialIcon}</Icon>
-            </div>
+    <ClientOnly>
+      <Box sx={{ boxShadow: 3 }}>
+        <div className={classes.root}>
+          <Button
+            className={buttonClass}
+            onClick={handleClick}
+            disabled={disabled}
+            focusRipple={true}
+            variant="contained"
+          >
+            <div className={classes.tileContent}>
+              <div>
+                <Icon className={classes.icon}>{resourceType.materialIcon}</Icon>
+              </div>
 
-            <div>
-              <Typography className={classes.title} variant="h5">
-                <b>{resourceType.typePlural}</b>
-              </Typography>
+              <div>
+                <Typography className={classes.title} variant="h5">
+                  <b>{resourceType.typePlural}</b>
+                </Typography>
+              </div>
             </div>
-          </div>
-        </Button>
-      </div>
-    </Box>
+          </Button>
+        </div>
+      </Box>
+    </ClientOnly>
   );
 };
 

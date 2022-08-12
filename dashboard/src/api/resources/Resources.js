@@ -1,4 +1,4 @@
-import Resource from "api/resources/Resource.js";
+import Resource from "./Resource.js";
 import TypesenseClient from "./Search.js";
 
 export const testData = [
@@ -33,22 +33,20 @@ export const testData = [
 ];
 
 export const providerLogos = Object.freeze({
-  REDIS: "/Redis_Logo.svg",
-  BIGQUERY: "/google_bigquery-ar21.svg",
-  "APACHE SPARK": "/Apache_Spark_logo.svg",
-  POSTGRES: "Postgresql_elephant.svg",
-  SNOWFLAKE: "Snowflake_Logo.svg",
+  REDIS: "static/Redis_Logo.svg",
+  BIGQUERY: "static/google_bigquery-ar21.svg",
+  "APACHE SPARK": "static/Apache_Spark_logo.svg",
+  POSTGRES: "static/Postgresql_elephant.svg",
+  SNOWFLAKE: "static/Snowflake_Logo.svg",
 });
 
-
-
-// var API_URL = "http://127.0.0.1:5000/data"; //localmode
-var API_URL = "//"+ window.location.hostname
+var API_URL = process.env.API_URL || "http://localhost:3000";
 
 if (typeof process.env.REACT_APP_API_URL != "undefined") {
   API_URL = process.env.REACT_APP_API_URL.trim();
 }
-export var PROMETHEUS_URL = "//"+ window.location.hostname+"/prometheus";
+
+export var PROMETHEUS_URL = (process.env.API_URL || "http://localhost:3000") + "/prometheus";
 
 if (typeof process.env.REACT_APP_PROMETHEUS_URL != "undefined") {
   PROMETHEUS_URL = process.env.REACT_APP_PROMETHEUS_URL.trim();
@@ -57,8 +55,8 @@ var TYPESENSE_PORT = "443";
 if (typeof process.env.REACT_APP_TYPESENSE_PORT != "undefined") {
   TYPESENSE_PORT = process.env.REACT_APP_TYPESENSE_PORT.trim();
 }
-//var TYPESENSE_URL = "localhost";
-var TYPESENSE_URL = window.location.hostname
+var TYPESENSE_URL = "localhost";
+// var TYPESENSE_URL = window.location.hostname
 if (typeof process.env.REACT_APP_TYPESENSE_URL != "undefined") {
   TYPESENSE_URL = process.env.REACT_APP_TYPESENSE_URL.trim();
 }

@@ -8,9 +8,8 @@ import ListItem from "@material-ui/core/ListItem";
 import ListItemText from "@material-ui/core/ListItemText";
 import Container from "@material-ui/core/Container";
 import Icon from "@material-ui/core/Icon";
-import { useHistory } from "react-router-dom";
+import Resource from "../../api/resources/Resource.js";
 
-import Resource from "api/resources/Resource.js";
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
 

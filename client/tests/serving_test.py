@@ -457,7 +457,7 @@ def e2e_features(file, entity_name, entity_loc, name_variants, value_cols, entit
     results = []
     for entity in entities:
         results.append(client.features(name_variants, entity))
-    client.sqldb.close()
+
     return results
 
 

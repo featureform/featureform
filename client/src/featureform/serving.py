@@ -45,22 +45,9 @@ class HostedClientImpl:
 
     def _create_channel(self, host, insecure, cert_path):
         if insecure:
-            return self._create_insecure_channel(host)
+            return insecure_channel(host)
         else:
-            return self._create_secure_channel(host, cert_path)  
-
-    def _create_insecure_channel(self, host):
-        return grpc.insecure_channel(host, options=(('grpc.enable_http_proxy', 0),))
-
-    def _create_secure_channel(self, host, cert_path):
-        cert_path = cert_path or os.getenv('FEATUREFORM_CERT')
-        use_default_creds = not cert_path
-        if use_default_creds:
-            credentials = grpc.ssl_channel_credentials()
-        else:
-            with open(cert_path, 'rb') as f:
-                credentials = grpc.ssl_channel_credentials(f.read())
-        return grpc.secure_channel(host, credentials)
+            return secure_channel(host, cert_path)  
 
     def training_set(self, name, version):
         return Dataset(self._stub).from_stub(name, version)

@@ -125,7 +125,7 @@ class LocalProvider:
     def name(self) -> str:
         return self.__provider.name
 
-    def register_file(self, name, variant, description, path, owner=""):
+    def register_file(self, name, description, path, variant="default", owner=""):
         if owner == "":
             owner = self.__registrar.must_get_default_owner()
         # Store the file as a source

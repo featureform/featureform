@@ -134,12 +134,7 @@ class LocalClientImpl:
 
     def label_df_from_csv(self, label, file_name):
         df = pd.read_csv(file_name)
-        if label['source_entity'] not in df.columns:
-            raise KeyError(f"Entity column does not exist: {label['source_entity']}")
-        if label['source_value'] not in df.columns:
-            raise KeyError(f"Value column does not exist: {label['source_value']}")
-        if label['source_timestamp'] != "" and label['source_timestamp'] not in df.columns:
-            raise KeyError(f"Timestamp column does not exist: {label['source_timestamp']}")
+        self.check_missing_values(label, df)
         if label['source_timestamp'] != "":
             df = df[[label['source_entity'], label['source_value'], label['source_timestamp']]]
             df[label['source_timestamp']] = pd.to_datetime(df[label['source_timestamp']])
@@ -175,12 +170,7 @@ class LocalClientImpl:
 
     def feature_df_from_csv(self, feature, filename):
         df = pd.read_csv(str(filename))
-        if feature['source_entity'] not in df.columns:
-            raise KeyError(f"Entity column does not exist: {feature['source_entity']}")
-        if feature['source_value'] not in df.columns:
-            raise KeyError(f"Value column does not exist: {feature['source_value']}")
-        if feature['source_timestamp'] not in df.columns and feature['source_timestamp'] != "":
-            raise KeyError(f"Timestamp column does not exist: {feature['source_timestamp']}")
+        self.check_missing_values(feature, df)
         if feature['source_timestamp'] != "":
             df = df[[feature['source_entity'], feature['source_value'], feature['source_timestamp']]]
             df[feature['source_timestamp']] = pd.to_datetime(df[feature['source_timestamp']])
@@ -268,12 +258,7 @@ class LocalClientImpl:
     def feature_df_with_entity(self, source_path, entity_id, feature):
         name_variant = f"{feature['name']}.{feature['variant']}"
         df = pd.read_csv(str(source_path))
-        if feature['source_entity'] not in df.columns:
-            raise KeyError(f"Entity column does not exist: {feature['source_entity']}")
-        if feature['source_value'] not in df.columns:
-            raise KeyError(f"Value column does not exist: {feature['source_value']}")
-        if feature['source_timestamp'] not in df.columns and feature['source_timestamp'] != "":
-            raise KeyError(f"Timestamp column does not exist: {feature['source_timestamp']}")
+        self.check_missing_values(feature, df)
         if feature['source_timestamp'] != "":
             df = df[[feature['source_entity'], feature['source_value'], feature['source_timestamp']]]
             df = df.sort_values(by=feature['source_timestamp'], ascending=True)
@@ -284,6 +269,14 @@ class LocalClientImpl:
         df.rename(columns={feature['source_entity']: entity_id, feature['source_value']: name_variant}, inplace=True)
         df.drop_duplicates(subset=[entity_id], keep="last", inplace=True)   
         return df
+
+    def check_missing_values(self, resource, df):
+        if resource['source_entity'] not in df.columns:
+            raise KeyError(f"Entity column does not exist: {resource['source_entity']}")
+        if resource['source_value'] not in df.columns:
+            raise KeyError(f"Value column does not exist: {resource['source_value']}")
+        if resource['source_timestamp'] not in df.columns and resource['source_timestamp'] != "":
+            raise KeyError(f"Timestamp column does not exist: {resource['source_timestamp']}")
 
 class Stream:
 

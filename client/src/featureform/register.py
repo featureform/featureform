@@ -120,7 +120,6 @@ class LocalProvider:
     def __init__(self, registrar, provider):
         self.__registrar = registrar
         self.__provider = provider
-        self.sqldb = SQLiteMetadata()
 
     def name(self) -> str:
         return self.__provider.name
@@ -133,8 +132,9 @@ class LocalProvider:
         return LocalSource(self.__registrar, name, owner, variant, self.name(), path, description)
 
     def insert_provider(self):
+        sqldb = SQLiteMetadata()
         # Store a new provider row
-        self.sqldb.insert("providers",
+        sqldb.insert("providers",
                           self.__provider.name,
                           "Provider",
                           self.__provider.description,
@@ -145,6 +145,7 @@ class LocalProvider:
                           "status",
                           str(self.__provider.config.serialize(), 'utf-8')
                           )
+        sqldb.close()
 
     def df_transformation(self,
                           variant: str = "default",

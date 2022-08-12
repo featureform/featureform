@@ -303,6 +303,14 @@ def providers(rowData):
 @cross_origin(allow_headers=['Content-Type'])
 def GetMetadataList(type):
     type = type.replace("-", "_")
+    if type not in ["features", "training_sets", "sources", "labels", "entities", "models", "users", "providers"]:
+        errorData = f"invalid resource type: {type}"
+        response = Response(
+        response=json.dumps(errorData),
+        status=400,
+        mimetype='application/json'
+        )
+        return response
     tableDataCursor = sqlObject.get_type_table(type)
     allData = []
     for row in tableDataCursor:
@@ -322,8 +330,7 @@ def GetMetadataList(type):
             allData.append(users(row))
         elif type == "providers":
             allData.append(providers(row))
-        else:
-            allData.append("INCORRECT TYPE")
+
     response = Response(
         response=json.dumps(allData),
         status=200,
@@ -335,6 +342,14 @@ def GetMetadataList(type):
 @cross_origin(allow_headers=['Content-Type'])
 def GetMetadata(type, resource):
         type = type.replace("-", "_")
+        if type not in ["features", "training_sets", "sources", "labels", "entities", "models", "users", "providers"]:
+            errorData = f"invalid resource type: {type}"
+            response = Response(
+            response=json.dumps(errorData),
+            status=400,
+            mimetype='application/json'
+            )
+            return response
         row = sqlObject.query_resource(type, "name", "".join(resource))[0]
 
         if type == "features":
@@ -353,8 +368,6 @@ def GetMetadata(type, resource):
             dataAsList =  users(row)
         elif type == "providers":
             dataAsList =  providers(row)
-        else:
-            dataAsList = "INCORRECT TYPE"
 
         response = Response(
             response=json.dumps(dataAsList),

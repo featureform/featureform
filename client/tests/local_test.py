@@ -13,7 +13,6 @@ class TestPetalGuide:
 
         iris = local.register_file(
             name="Iris dataset",
-            variant="Kaggle",
             description="Iris dataset from Kaggle",
             path="iris.csv"
         )

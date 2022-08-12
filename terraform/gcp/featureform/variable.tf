@@ -19,7 +19,6 @@ variable "featureform_version" {
 }
 variable "featureform_hostname" {
   type = string
-  default = ""
   description = "The domain name for featureform"
 }
 variable "featureform_public_cert" {

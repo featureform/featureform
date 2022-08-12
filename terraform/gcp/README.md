@@ -20,7 +20,6 @@ The Terraform scripts install Featureform on GCP.
 
 ## Install Featureform
 1. Run ``cd ../featureform``
-2. Run ``gcloud auth application-default login`` to give Terraform access to GCP
 3. Update the `featureform_hostname` variable in `terraform.auto.tfvars` file 
 3. Run ``terraform init``
 4. Run ``terraform plan``

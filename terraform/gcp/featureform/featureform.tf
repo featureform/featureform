@@ -21,7 +21,6 @@ resource "helm_release" "certmgr" {
 resource "helm_release" "featureform" {
   name = "featureform"
   namespace = "default"
-  version = "v0.1.0"
 
   repository = "https://storage.googleapis.com/featureform-helm/"
   chart = "featureform"

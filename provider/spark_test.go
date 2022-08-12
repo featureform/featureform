@@ -82,8 +82,6 @@ func testRegisterResource(store *SparkOfflineStore) error {
 			Registered: time.UnixMilli(int64(i)),
 		}
 	}
-	//upload it to the
-	// bucketName := os.Getenv("S3_BUCKET_PATH")
 	path := "featureform/tests/testFile.parquet"
 	if err := store.Store.UploadParquetTable(path, exampleStructArray); err != nil {
 		return err
@@ -94,17 +92,31 @@ func testRegisterResource(store *SparkOfflineStore) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println(table)
 	fetchedTable, err := store.GetResourceTable(testResource)
 	if err != nil {
 		return err
 	}
-	fmt.Println(fetchedTable)
-
+	if !reflect.DeepEqual(fetchedTable, table) {
+		return fmt.Errorf("Did not properly register table")
+	}
 	return nil
-	//create fake resource from source table uhhh
-	//make sure source table exists and is uplaoded uhhh
-	// fakeResource
+
+}
+
+func unorderedEqual(first, second []string) bool {
+	if len(first) != len(second) {
+		return false
+	}
+	exists := make(map[string]bool)
+	for _, value := range first {
+		exists[value] = true
+	}
+	for _, value := range second {
+		if !exists[value] {
+			return false
+		}
+	}
+	return true
 }
 
 func testRegisterPrimary(store *SparkOfflineStore) error {
@@ -128,14 +140,13 @@ func testRegisterPrimary(store *SparkOfflineStore) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println(table)
 	fetchedTable, err := store.GetPrimaryTable(testResource)
 	if err != nil {
 		return err
 	}
-	fmt.Println(fetchedTable)
-	fmt.Println("num rows")
-	fmt.Println(fetchedTable.NumRows())
+	if !reflect.DeepEqual(table, fetchedTable) {
+		return fmt.Errorf("Tables not equal")
+	}
 	numRows, err := fetchedTable.NumRows()
 	if err != nil {
 		return err
@@ -149,13 +160,23 @@ func testRegisterPrimary(store *SparkOfflineStore) error {
 	}
 	expectedColumns := []string{"name", "age", "score", "winner", "registered"}
 
-	columns := iterator.Columns()
-	fmt.Println(iterator.Columns())
-	for iterator.Next() {
-		fmt.Println(iterator.Values())
+	if !unorderedEqual(iterator.Columns(), expectedColumns) {
+		return fmt.Errorf("Not the correct columns returned")
 	}
-	//do some asserts here
-
+	idx := 0
+	for iterator.Next() {
+		jsonString := reflect.ValueOf(iterator.Values()).Index(0).Interface()
+		var jsonMap map[string]interface{}
+		json.Unmarshal([]byte(jsonString.(string)), &jsonMap)
+		curStruct := reflect.ValueOf(exampleStructArray[idx])
+		if curStruct.NumField() != 5 {
+			return fmt.Errorf("incorrect number of fields")
+		}
+		idx += 1
+	}
+	if idx != 5 {
+		return fmt.Errorf("incorrect number of rows written")
+	}
 	return nil
 }
 

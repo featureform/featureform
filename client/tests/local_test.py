@@ -62,7 +62,7 @@ class TestPetalGuide:
             df = pd.DataFrame({'id':[1, 2, 3], 'value': [True, False, True], 'ts': [.2, .2, .2]})
             return df
 
-        transform1.register_resources(
+        feat1v1 = transform1.register_resources(
             entity=test_entity,
             entity_column="id",
             inference_store=local,
@@ -72,7 +72,7 @@ class TestPetalGuide:
             timestamp_column='ts'
         )
 
-        transform1.register_resources(
+        feat1v2 = transform1.register_resources(
             entity=test_entity,
             entity_column="id",
             inference_store=local,
@@ -81,7 +81,7 @@ class TestPetalGuide:
             ],
         )
 
-        transform2.register_resources(
+        feat2v1 = transform2.register_resources(
             entity=test_entity,
             entity_column="id",
             inference_store=local,
@@ -91,7 +91,7 @@ class TestPetalGuide:
             timestamp_column='ts'
         )
 
-        transform2.register_resources(
+        feat2v2 = transform2.register_resources(
             entity=test_entity,
             entity_column="id",
             inference_store=local,
@@ -100,7 +100,7 @@ class TestPetalGuide:
             ],
         )
 
-        transform3.register_resources(
+        label1v1 = transform3.register_resources(
             entity=test_entity,
             entity_column="id",
             inference_store=local,
@@ -110,7 +110,7 @@ class TestPetalGuide:
             timestamp_column='ts'
         )
 
-        transform3.register_resources(
+        label1v2 = transform3.register_resources(
             entity=test_entity,
             entity_column="id",
             inference_store=local,
@@ -131,7 +131,7 @@ class TestPetalGuide:
 
         )
 
-        join_transformation.register_resources(
+        join_resources = join_transformation.register_resources(
             entity=user_entity,
             entity_column="Id",
             inference_store=local,
@@ -146,7 +146,7 @@ class TestPetalGuide:
             ],
 
         )
-        iris.register_resources(
+        iris_centimeters = iris.register_resources(
             entity=user_entity,
             entity_column="Id",
             inference_store=local,
@@ -164,8 +164,8 @@ class TestPetalGuide:
 
         ff.register_training_set(
             "test_training", "v1",
-            label=("label1", "v1"),
-            features=[("feat1", "v1"), ("feat2", "v1")],
+            label=label1v1.labels,
+            features=[feat1v1.features, feat2v1.features],
         )
 
         ff.register_training_set(
@@ -177,15 +177,13 @@ class TestPetalGuide:
         ff.register_training_set(
             "iris_training", "quickstart",
             label=("SpeciesType", "String"),
-            features=[("SepalLength", "centimeters"), ("SepalWidth", "centimeters"), ("PetalLength", "centimeters"),
-                      ("PetalWidth", "centimeters"), ("SepalLength", "transformation_test")],
+            features=[iris_centimeters.features, ("SepalLength", "transformation_test")],
         )
 
         ff.register_training_set(
             "join", "v1",
-            label=("SpeciesType", "join"),
-            features=[("SepalLength", "join"), ("SepalWidth", "join"), ("PetalLength", "join"),
-                      ("PetalWidth", "join")],
+            label = join_resources.labels,
+            features= join_resources.features,
         )
 
         client = ff.ResourceClient(local=True)

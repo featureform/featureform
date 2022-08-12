@@ -1341,8 +1341,9 @@ class Registrar:
     def register_training_set(self,
                               name: str,
                               variant: str,
-                              label: NameVariant,
-                              features: List[NameVariant],
+                              label: NameVariant = None,
+                              features: List[NameVariant] = None,
+                              resources: Union[str, ResourceRegistrar] = "",
                               owner: Union[str, UserRegistrar] = "",
                               description: str = "",
                               schedule: str = ""):
@@ -1364,8 +1365,13 @@ class Registrar:
             owner = owner.name()
         if owner == "":
             owner = self.must_get_default_owner()
+        if resources and (features or label):
+            raise ValueError("Either a resource or features/label must be entered")
         if isinstance(features,tuple):
             raise ValueError("Features must be entered as a list")
+        if resources != "":
+            features = resources.features()
+            label = resources.label()
         features = self.__get_feature_nv(features)
 
         resource = TrainingSet(

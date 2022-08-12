@@ -186,6 +186,11 @@ class TestPetalGuide:
             features= join_resources.features(),
         )
 
+        ff.register_training_set(
+            "join", "v3",
+            resources = join_resources,
+        )
+
         client = ff.ResourceClient(local=True)
         client.apply()
 

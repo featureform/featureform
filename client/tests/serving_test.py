@@ -6,7 +6,6 @@ from unittest import TestCase
 import os, stat
 import numpy as np
 
-import featureform.resources
 import pandas as pd
 import pytest
 import sys
@@ -15,7 +14,6 @@ sys.path.insert(0, 'client/src/')
 from featureform import ResourceClient, ServingClient
 import serving_cases as cases
 import featureform as ff
-from datetime import datetime
 from featureform.serving import LocalClientImpl
 
 class TestIndividualFeatures(TestCase):
@@ -325,6 +323,7 @@ class TestTransformation(TestCase):
         except:
             print("File Already Removed")
 
+
 class TestTrainingSet(TestCase):
     def _register_feature(self, feature, local, case, index, name):
         file = create_temp_file(feature)
@@ -414,6 +413,7 @@ def clear_and_reset():
     ff.clear_state()
     shutil.rmtree('.featureform', onerror=del_rw)
 
+
 def del_rw(action, name, exc):
     os.chmod(name, stat.S_IWRITE)
     os.remove(name)
@@ -457,6 +457,7 @@ def e2e_features(file, entity_name, entity_loc, name_variants, value_cols, entit
     results = []
     for entity in entities:
         results.append(client.features(name_variants, entity))
+    client.sqldb.close()
     return results
 
 

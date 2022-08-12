@@ -25,10 +25,10 @@ help:     						## Show this help.
 pytest:
 	-rm -r .featureform
 	curl -C - https://featureform-demo-files.s3.amazonaws.com/transactions.csv -o transactions.csv
-	pytest client/tests/serving_test.py
-	pytest client/tests/redefined_test.py
-	pytest client/tests/local_test.py
-	pytest client/tests/localmode_quickstart_test.py
+	pytest client/tests/serving_test.py -s
+	pytest client/tests/redefined_test.py -s
+	pytest client/tests/local_test.py -s
+	pytest client/tests/localmode_quickstart_test.py -s
 	pip install jupyter nbconvert matplotlib pandas scikit-learn requests
 	jupyter nbconvert --to notebook --execute notebooks/Fraud_Detection_Example.ipynb
 	-rm -r .featureform

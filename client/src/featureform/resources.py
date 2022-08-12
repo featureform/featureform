@@ -926,6 +926,7 @@ class ResourceState:
             if resource.operation_type() is OperationType.CREATE:
                 print("Creating", resource.type(), resource.name)
                 resource._create_local(db)
+        db.close()
         return
 
     def create_all(self, stub) -> None:

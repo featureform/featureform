@@ -5,8 +5,7 @@ resource "kubernetes_namespace" "featureform_quickstart_namespace" {
   }
 
   depends_on = [
-    helm_release.featureform, 
-    null_resource.target_group_depends_on
+    helm_release.featureform
   ]
 }
 
@@ -20,7 +19,6 @@ resource "helm_release" "featureform-quickstart" {
   chart = "quickstart"
 
   depends_on = [
-    helm_release.featureform, 
-    null_resource.target_group_depends_on
+    helm_release.featureform
   ]
 }

@@ -1,12 +1,3 @@
-resource "null_resource" "target_group_depends_on" {
-  triggers = {
-    # The reference to the variable here creates an implicit
-    # dependency on the variable.
-    dependency = var.gcp_services_dependency
-  }
-}
-
-
 provider "helm" {
   kubernetes {
     config_path = "~/.kube/config"
@@ -25,10 +16,6 @@ resource "helm_release" "certmgr" {
     name  = "installCRDs"
     value = "true"
   }
-
-  depends_on = [
-    null_resource.target_group_depends_on
-  ]
 }
 
 resource "helm_release" "featureform" {
@@ -50,7 +37,6 @@ resource "helm_release" "featureform" {
   }
 
   depends_on = [
-    null_resource.target_group_depends_on,
     helm_release.certmgr
   ]
 }

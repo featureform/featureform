@@ -15,122 +15,44 @@ from .tls import insecure_channel, secure_channel
 import pandas as pd
 from .sqlite_metadata import SQLiteMetadata
 
-
 class Client:
 
     def __init__(self, host=None, local=False, insecure=False, cert_path=None):
-        self.local = local
         if local and host:
-                raise ValueError("Cannot be local and have a host")
-        elif local and not host:
-            self.sqldb = SQLiteMetadata()
+            raise ValueError("Host and local cannot both be set")
+        if local:
+            self.impl = LocalClientImpl()
         else:
-            host = host or os.getenv('FEATUREFORM_HOST')
-            if host is None:
-                raise RuntimeError(
-                    'If not in local mode then `host` must be passed or the environment'
-                    ' variable FEATUREFORM_HOST must be set.'
-                )
-            if insecure:
-                channel = insecure_channel(host)
-            else:
-                channel = secure_channel(host, cert_path)
-            self._stub = serving_pb2_grpc.FeatureStub(channel)
+            self.impl = HostedClientImpl(host, insecure, cert_path)
 
 
     def training_set(self, name, version):
-        if self.local:
-            return self._local_training_set(name, version)
-        else:
-            return self._host_training_set(name, version)
-
-    def _host_training_set(self, name, version):
-        if self.local:
-            raise ValueError("Not supported in localmode. Please try using training_set()")
-        return Dataset(self._stub).from_stub(name, version)
-
-    def _local_training_set(self, training_set_name, training_set_variant):
-        if not self.local:
-            raise ValueError("Only supported in localmode. Please try using dataset()")
-        training_set_row = \
-            self.sqldb.get_training_set_variant(training_set_name, training_set_variant)
-        label_row = \
-            self.sqldb.get_label_variant(training_set_row['label_name'], training_set_row['label_variant'])
-        label_source = self.sqldb.get_source_variant(label_row['source_name'], label_row['source_variant'])
-        if self.sqldb.is_transformation(label_row['source_name'], label_row['source_variant']):
-            df = self.process_transformation(label_row['source_name'], label_row['source_variant'])
-            if label_row['source_timestamp'] != "":
-                df = df[[label_row['source_entity'], label_row['source_value'], label_row['source_timestamp']]]
-                df[label_row['source_timestamp']] = pd.to_datetime(df[label_row['source_timestamp']])
-            else:
-                df = df[[label_row['source_entity'], label_row['source_value']]]
-            df.set_index(label_row['source_entity'])
-            label_df = df
-        else:
-            label_df = self.process_label_csv(label_source['definition'], label_row['source_entity'], label_row['source_entity'], label_row['source_value'], label_row['source_timestamp'])
-        feature_table = self.sqldb.get_training_set_features(training_set_name, training_set_variant)
-
-        label_df.rename(columns={label_row['source_value']: 'label'}, inplace=True)
-        trainingset_df = label_df
-        for feature_variant in feature_table:
-            feature_row = self.sqldb.get_feature_variant(feature_variant['feature_name'], feature_variant['feature_variant'])
-
-            source_row = \
-                self.sqldb.get_source_variant(feature_row['source_name'], feature_row['source_variant'])
-
-            name_variant = feature_variant['feature_name'] + "." + feature_variant['feature_variant']
-            if self.sqldb.is_transformation(feature_row['source_name'], feature_row['source_variant']):
-                df = self.process_transformation(feature_row['source_name'], feature_row['source_variant'])
-                if isinstance(df, pd.Series):
-                    df = df.to_frame()
-                    df.reset_index(inplace=True)
-                if feature_row['source_timestamp'] != "":
-                    df = df[[feature_row['source_entity'], feature_row['source_value'], feature_row['source_timestamp']]]
-                    df[feature_row['source_timestamp']] = pd.to_datetime(df[feature_row['source_timestamp']])
-                else:
-                    df = df[[feature_row['source_entity'], feature_row['source_value']]]
-
-                df.set_index(feature_row['source_entity'])
-                df.rename(columns={feature_row['source_value']: name_variant}, inplace=True)
-            else:
-                df = pd.read_csv(str(source_row['definition']))
-
-                if feature_row['source_timestamp'] != "":
-                    df = df[[feature_row['source_entity'], feature_row['source_value'], feature_row['source_timestamp']]]
-                    df[feature_row['source_timestamp']] = pd.to_datetime(df[feature_row['source_timestamp']])
-                else:
-                    df = df[[feature_row['source_entity'], feature_row['source_value']]]
-                df.set_index(feature_row['source_entity'])
-                df.rename(columns={feature_row['source_value']: name_variant}, inplace=True)
-            if feature_row['source_timestamp'] != "":
-                trainingset_df = pd.merge_asof(trainingset_df, df.sort_values(['ts']), direction='backward',
-                                               left_on=label_row['source_timestamp'], right_on=feature_row['source_timestamp'], left_by=label_row['source_entity'],
-                                               right_by=feature_row['source_entity'])
-            else:
-                df.drop_duplicates(subset=[feature_row['source_entity']], keep="last", inplace=True)
-                trainingset_df.reset_index(inplace=True)
-                trainingset_df[label_row['source_entity']] = trainingset_df[label_row['source_entity']].astype('string')
-                df[label_row['source_entity']] = df[label_row['source_entity']].astype('string')
-                trainingset_df = trainingset_df.join(df.set_index(label_row['source_entity']), how="left", on=label_row['source_entity'],
-                                                     lsuffix="_left")
-                if "index" in trainingset_df.columns:
-                    trainingset_df.drop(columns='index', inplace=True)
-
-        if label_row['source_timestamp'] != "":
-            trainingset_df.drop(columns=label_row['source_timestamp'], inplace=True)
-        trainingset_df.drop(columns=label_row['source_entity'], inplace=True)
-
-        label_col = trainingset_df.pop('label')
-        trainingset_df = trainingset_df.assign(label=label_col)
-        return Dataset.from_list(trainingset_df.values.tolist())
+        return self.impl.training_set(name, version)
 
     def features(self, features, entities):
-        if self.local:
-            return self._local_features(features, entities)
-        else:
-            return self._host_features(features, entities)
+        return self.impl.features(features, entities)
 
-    def _host_features(self, features, entities):
+class HostedClientImpl:
+    def __init__(self, host=None, insecure=False, cert_path=None):
+        host = host or os.getenv('FEATUREFORM_HOST')
+        if host is None:
+            raise ValueError(
+                'If not in local mode then `host` must be passed or the environment'
+                ' variable FEATUREFORM_HOST must be set.'
+            )
+        channel = self._create_channel(host, insecure, cert_path)
+        self._stub = serving_pb2_grpc.FeatureStub(channel)
+
+    def _create_channel(self, host, insecure, cert_path):
+        if insecure:
+            return insecure_channel(host)
+        else:
+            return secure_channel(host, cert_path)  
+
+    def training_set(self, name, version):
+        return Dataset(self._stub).from_stub(name, version)
+
+    def features(self, features, entities):
         req = serving_pb2.FeatureServeRequest()
         for name, value in entities.items():
             entity_proto = req.entities.add()
@@ -143,113 +65,205 @@ class Client:
         resp = self._stub.FeatureServe(req)
         return [parse_proto_value(val) for val in resp.values]
 
+class LocalClientImpl:
+    def __init__(self):
+        self.db = SQLiteMetadata()
+        
+    def training_set(self, training_set_name, training_set_variant):
+        training_set = self.db.get_training_set_variant(training_set_name, training_set_variant)
+        label = self.db.get_label_variant(training_set['label_name'], training_set['label_variant'])
+        label_df = self.get_label_dataframe(label)
+        # We will build the training set DF by merging each feature one by one into it.
+        trainingset_df = label_df
+        features = self.db.get_training_set_features(training_set_name, training_set_variant)
+        for feature_variant in features:
+            feature = self.db.get_feature_variant(feature_variant['feature_name'], feature_variant['feature_variant'])
+            feature_df = self.get_feature_dataframe(feature)
+            trainingset_df = self.merge_feature_into_ts(feature, label, feature_df, trainingset_df)
+
+        return self.convert_ts_df_to_dataset(label, trainingset_df)
+
     def process_transformation(self, name, variant):
-        source_row = self.sqldb.get_source_variant(name, variant)
-        inputs = json.loads(source_row['inputs'])
+        source = self.db.get_source_variant(name, variant)
+        inputs = json.loads(source['inputs'])
         dataframes = []
-        code = marshal.loads(bytearray(source_row['definition']))
+        code = marshal.loads(bytearray(source['definition']))
         func = types.FunctionType(code, globals(), "transformation")
         for input in inputs:
             source_name, source_variant = input[0], input[1],
-            if self.sqldb.is_transformation(source_name, source_variant):
+            if self.db.is_transformation(source_name, source_variant):
                 df = self.process_transformation(source_name, source_variant)
-                dataframes.append(df)
             else:
-                source_row = \
-                    self.sqldb.get_source_variant(source_name, source_variant)
-                df = pd.read_csv(str(source_row['definition']))
-                dataframes.append(df)
+                source = self.db.get_source_variant(source_name, source_variant)
+                df = pd.read_csv(str(source['definition']))
+            dataframes.append(df)
         new_data = func(*dataframes)
         return new_data
 
-    def _local_features(self, feature_variant_list, entity):
+    def get_label_dataframe(self, label):
+        if self.db.is_transformation(label['source_name'], label['source_variant']):
+            label_df = self.label_df_from_transformation(label) 
+        else:
+            label_source = self.db.get_source_variant(label['source_name'], label['source_variant'])
+            label_df = self.label_df_from_csv(label, label_source['definition'])
+        label_df.rename(columns={label['source_value']: 'label'}, inplace=True)
+        return label_df
+
+    def label_df_from_transformation(self, label):
+        df = self.process_transformation(label['source_name'], label['source_variant'])
+        if label['source_timestamp'] != "":
+            df = df[[label['source_entity'], label['source_value'], label['source_timestamp']]]
+            df[label['source_timestamp']] = pd.to_datetime(df[label['source_timestamp']])
+        else:
+            df = df[[label['source_entity'], label['source_value']]]
+        df.set_index(label['source_entity'])
+        return df
+
+    def label_df_from_csv(self, label, file_name):
+        df = pd.read_csv(file_name)
+        self.check_missing_values(label, df)
+        if label['source_timestamp'] != "":
+            df = df[[label['source_entity'], label['source_value'], label['source_timestamp']]]
+            df[label['source_timestamp']] = pd.to_datetime(df[label['source_timestamp']])
+            df.sort_values(by=label['source_timestamp'], inplace=True)
+            df.drop_duplicates(subset=[label['source_entity'], label['source_timestamp']], keep="last", inplace=True)
+        else:
+            df = df[[label['source_entity'], label['source_value']]]
+        df.set_index(label['source_entity'], inplace=True)
+        return df
+
+    def get_feature_dataframe(self, feature):
+        name_variant = feature['name'] + "." + feature['variant']
+        if self.db.is_transformation(feature['source_name'], feature['source_variant']):
+            feature_df = self.feature_df_from_transformation(feature)
+        else:
+            source = self.db.get_source_variant(feature['source_name'], feature['source_variant'])
+            feature_df = self.feature_df_from_csv(feature, source['definition'])
+        feature_df.set_index(feature['source_entity'])
+        feature_df.rename(columns={feature['source_value']: name_variant}, inplace=True)
+        return feature_df
+
+    def feature_df_from_transformation(self, feature):
+        df = self.process_transformation(feature['source_name'], feature['source_variant'])
+        if isinstance(df, pd.Series):
+            df = df.to_frame()
+            df.reset_index(inplace=True)
+        if feature['source_timestamp'] != "":
+            df = df[[feature['source_entity'], feature['source_value'], feature['source_timestamp']]]
+            df[feature['source_timestamp']] = pd.to_datetime(df[feature['source_timestamp']])
+        else:
+            df = df[[feature['source_entity'], feature['source_value']]]
+        return df
+
+    def feature_df_from_csv(self, feature, filename):
+        df = pd.read_csv(str(filename))
+        self.check_missing_values(feature, df)
+        if feature['source_timestamp'] != "":
+            df = df[[feature['source_entity'], feature['source_value'], feature['source_timestamp']]]
+            df[feature['source_timestamp']] = pd.to_datetime(df[feature['source_timestamp']])
+            df = df.sort_values(by=feature['source_timestamp'], ascending=True)
+        else:
+            df = df[[feature['source_entity'], feature['source_value']]]
+        return df
+
+    def merge_feature_into_ts(self, feature_row, label_row, df, trainingset_df):
+        if feature_row['source_timestamp'] != "":
+            trainingset_df = pd.merge_asof(trainingset_df, df.sort_values(['ts']), direction='backward',
+                                            left_on=label_row['source_timestamp'], right_on=feature_row['source_timestamp'], left_by=label_row['source_entity'],
+                                            right_by=feature_row['source_entity'])
+            df.drop_duplicates(subset=[feature_row['source_entity']], keep="last", inplace=True)
+        else:
+            df.drop_duplicates(subset=[feature_row['source_entity']], keep="last", inplace=True)
+            trainingset_df.reset_index(inplace=True)
+            trainingset_df[label_row['source_entity']] = trainingset_df[label_row['source_entity']].astype('string')
+            df[label_row['source_entity']] = df[label_row['source_entity']].astype('string')
+            trainingset_df = trainingset_df.join(df.set_index(label_row['source_entity']), how="left", on=label_row['source_entity'],
+                                                    lsuffix="_left")
+            if "index" in trainingset_df.columns:
+                trainingset_df.drop(columns='index', inplace=True)
+        return trainingset_df
+
+    def convert_ts_df_to_dataset(self, label_row, trainingset_df):
+        if label_row['source_timestamp'] != "":
+            trainingset_df.drop(columns=label_row['source_timestamp'], inplace=True)
+        trainingset_df.drop(columns=label_row['source_entity'], inplace=True)
+
+        label_col = trainingset_df.pop('label')
+        trainingset_df = trainingset_df.assign(label=label_col)
+        return Dataset.from_list(trainingset_df.values.tolist())
+
+    def features(self, feature_variant_list, entities):
         if len(feature_variant_list) == 0:
             raise Exception("No features provided")
-        # This code was originally written to take a tuple, this is a quick fix to turn a dict with a single entry into that tuple.
-        # This should all be refactored later.
-        entity_tuple = list(entity.items())[0]
-        dataframe_mapping = []
-        all_feature_df = None
-        for featureVariantTuple in feature_variant_list:
-
-            feature_row = self.sqldb.get_feature_variant(featureVariantTuple[0], featureVariantTuple[1])
-            entity_column, ts_column, feature_column_name, source_name, source_variant = feature_row['source_entity'], feature_row['source_timestamp'], feature_row['source_value'], feature_row['source_name'], feature_row['source_variant']
-
-            source_row = self.sqldb.get_source_variant(source_name, source_variant)
-            if self.sqldb.is_transformation(source_name, source_variant):
-                df = self.process_transformation(source_name, source_variant)
-                if isinstance(df, pd.Series):
-                    df = df.to_frame()
-                    df.reset_index(inplace=True)
-                df = df[[entity_tuple[0], feature_column_name]]
-                df.set_index(entity_tuple[0])
-                dataframe_mapping.append(df)
+        # This code assumes that the entities dictionary only has one entity
+        entity_id = list(entities.keys())[0]
+        entity_value = entities[entity_id]
+        all_features_list = self.add_feature_dfs_to_list(feature_variant_list, entity_id)
+        all_features_df = self.list_to_combined_df(all_features_list, entity_id)
+        return self.get_features_for_entity(entity_id, entity_value, all_features_df)
+    
+    def add_feature_dfs_to_list(self, feature_variant_list, entity_id):
+        feature_df_list = []
+        for feature_variant in feature_variant_list:
+            feature = self.db.get_feature_variant(feature_variant[0], feature_variant[1])
+            source_name, source_variant = feature['source_name'], feature['source_variant']
+            if self.db.is_transformation(source_name, source_variant):
+                feature_df = self.process_transformation(source_name, source_variant)
+                if isinstance(feature_df, pd.Series):
+                    feature_df = feature_df.to_frame()
+                    feature_df.reset_index(inplace=True)
+                feature_df = feature_df[[entity_id, feature['source_value']]]
+                feature_df.set_index(entity_id)
             else:
-                name_variant = f"{featureVariantTuple[0]}.{featureVariantTuple[1]}"
-                dataframe_mapping = self.process_feature_csv(source_row['definition'], entity_tuple[0], entity_column,
-                                                             feature_column_name,
-                                                             dataframe_mapping,
-                                                             name_variant, ts_column)
+                source = self.db.get_source_variant(source_name, source_variant)
+                feature_df = self.feature_df_with_entity(source['definition'], entity_id, feature)
+            feature_df_list.append(feature_df)
+
+        return feature_df_list
+
+    def list_to_combined_df(self, features_list, entity_id):
+        all_feature_df = None
         try:
-            for value in dataframe_mapping:
+            for feature in features_list:
                 if all_feature_df is None:
-                    all_feature_df = value
+                    all_feature_df = feature
                 else:
-                    all_feature_df = all_feature_df.join(value.set_index(entity_tuple[0]), on=entity_tuple[0],
+                    all_feature_df = all_feature_df.join(feature.set_index(entity_id), on=entity_id,
                                                          lsuffix='_left')
+            return all_feature_df
         except TypeError:
             print("Set is empty")
-        entity_row = all_feature_df.loc[all_feature_df[entity_tuple[0]] == entity_tuple[1]].copy()
-        entity_row.drop(columns=entity_tuple[0], inplace=True)
-        if len(entity_row.values) > 0:
-            return entity_row.values[0]
-        else:
-            raise Exception("No matching entities for {}".format(entity_tuple))
 
-    def process_feature_csv(self, source_path, entity_name, entity_col, value_col, dataframe_mapping,
-                            feature_name_variant, timestamp_column):
+    def get_features_for_entity(self, entity_id, entity_value, all_feature_df):
+        entity = all_feature_df.loc[all_feature_df[entity_id] == entity_value].copy()
+        entity.drop(columns=entity_id, inplace=True)
+        if len(entity.values) > 0:
+            return entity.values[0]
+        else:
+            raise Exception(f"No matching entities for {entity_id}: {entity_value}")
+
+    def feature_df_with_entity(self, source_path, entity_id, feature):
+        name_variant = f"{feature['name']}.{feature['variant']}"
         df = pd.read_csv(str(source_path))
-        if entity_col not in df.columns:
-            raise KeyError(f"Entity column does not exist: {entity_col}")
-        if value_col not in df.columns:
-            raise KeyError(f"Value column does not exist: {value_col}")
-        if timestamp_column != "" and timestamp_column not in df.columns:
-            raise KeyError(f"Timestamp column does not exist: {timestamp_column}")
-        if timestamp_column != "":
-            df = df[[entity_col, value_col, timestamp_column]]
+        self.check_missing_values(feature, df)
+        if feature['source_timestamp'] != "":
+            df = df[[feature['source_entity'], feature['source_value'], feature['source_timestamp']]]
+            df = df.sort_values(by=feature['source_timestamp'], ascending=True)
+            df = df.drop(columns=feature['source_timestamp'])
         else:
-            df = df[[entity_col, value_col]]
-        df.set_index(entity_col)
-        if timestamp_column != "":
-            df = df.sort_values(by=timestamp_column, ascending=True)
-        df.rename(columns={entity_col: entity_name, value_col: feature_name_variant}, inplace=True)
-        df.drop_duplicates(subset=[entity_name], keep="last", inplace=True)
-
-        if timestamp_column != "":
-            df = df.drop(columns=timestamp_column)
-        dataframe_mapping.append(df)
-        return dataframe_mapping
-
-    def process_label_csv(self, source_path, entity_name, entity_col, value_col, timestamp_column):
-        df = pd.read_csv(source_path)
-
-        if entity_col not in df.columns:
-            raise KeyError(f"Entity column does not exist: {entity_col}")
-        if value_col not in df.columns:
-            raise KeyError(f"Value column does not exist: {value_col}")
-        if timestamp_column != "" and timestamp_column not in df.columns:
-            raise KeyError(f"Timestamp column does not exist: {timestamp_column}")
-        if timestamp_column != "":
-            df = df[[entity_col, value_col, timestamp_column]]
-            df[timestamp_column] = pd.to_datetime(df[timestamp_column])
-        else:
-            df = df[[entity_col, value_col]]
-        if timestamp_column != "":
-            df.sort_values(by=timestamp_column, inplace=True)
-            df.drop_duplicates(subset=[entity_col, timestamp_column], keep="last", inplace=True)
-        df.rename(columns={entity_col: entity_name}, inplace=True)
-        df.set_index(entity_name, inplace=True)
+            df = df[[feature['source_entity'], feature['source_value']]]
+        df.set_index(feature['source_entity'])
+        df.rename(columns={feature['source_entity']: entity_id, feature['source_value']: name_variant}, inplace=True)
+        df.drop_duplicates(subset=[entity_id], keep="last", inplace=True)   
         return df
+
+    def check_missing_values(self, resource, df):
+        if resource['source_entity'] not in df.columns:
+            raise KeyError(f"Entity column does not exist: {resource['source_entity']}")
+        if resource['source_value'] not in df.columns:
+            raise KeyError(f"Value column does not exist: {resource['source_value']}")
+        if resource['source_timestamp'] not in df.columns and resource['source_timestamp'] != "":
+            raise KeyError(f"Timestamp column does not exist: {resource['source_timestamp']}")
 
 class Stream:
 

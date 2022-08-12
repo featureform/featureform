@@ -6,8 +6,11 @@ features_no_ts = {
     'Empty': {
         'columns': ['entity', 'values', 'timestamp'],
         'values': [],
-        'entity': 'entity',
-        'value_col': 'values',
+        'name': 'feature_test',
+        'variant': 'no_ts',
+        'source_entity': 'entity',
+        'source_value': 'values',
+        'source_timestamp': '',
         'expected':
             {
                 'entity': [],
@@ -21,8 +24,11 @@ features_no_ts = {
             ['b', 2],
             ['c', 3]
         ],
-        'entity': 'entity',
-        'value_col': 'values',
+        'name': 'feature_test',
+        'variant': 'no_ts',
+        'source_entity': 'entity',
+        'source_value': 'values',
+        'source_timestamp': '',
         'expected':
             {
                 'entity': ['a', 'b', 'c'],
@@ -37,8 +43,11 @@ features_no_ts = {
             ['c', 3],
             ['a', 4]
         ],
-        'entity': 'entity',
-        'value_col': 'values',
+        'name': 'feature_test',
+        'variant': 'no_ts',
+        'source_entity': 'entity',
+        'source_value': 'values',
+        'source_timestamp': '',
         'expected':
             {
                 'entity': ['a', 'b', 'c'],
@@ -52,9 +61,11 @@ features_with_ts = {
     'empty': {
         'columns': ['entity', 'values', 'timestamp'],
         'values': [],
-        'entity': 'entity',
-        'value_col': 'values',
-        'ts_col': 'timestamp',
+        'name': 'feature_test',
+        'variant': 'ts',
+        'source_entity': 'entity',
+        'source_value': 'values',
+        'source_timestamp': 'timestamp',
         'expected':
             {
                 'entity': [],
@@ -68,9 +79,11 @@ features_with_ts = {
             ['b', 2, datetime.fromtimestamp(0)],
             ['c', 3, datetime.fromtimestamp(0)]
         ],
-        'entity': 'entity',
-        'value_col': 'values',
-        'ts_col': 'timestamp',
+        'name': 'feature_test',
+        'variant': 'ts',
+        'source_entity': 'entity',
+        'source_value': 'values',
+        'source_timestamp': 'timestamp',
         'expected':
             {
                 'entity': ['a', 'b', 'c'],
@@ -85,9 +98,11 @@ features_with_ts = {
             ['c', 3, datetime.fromtimestamp(0)],
             ['a', 4, datetime.fromtimestamp(0)]
         ],
-        'entity': 'entity',
-        'value_col': 'values',
-        'ts_col': 'timestamp',
+        'name': 'feature_test',
+        'variant': 'ts',
+        'source_entity': 'entity',
+        'source_value': 'values',
+        'source_timestamp': 'timestamp',
         'expected':
             {
                 'entity': ['a', 'b', 'c'],
@@ -102,9 +117,11 @@ features_with_ts = {
             ['c', 3, datetime.fromtimestamp(0)],
             ['a', 4, datetime.fromtimestamp(1)]
         ],
-        'entity': 'entity',
-        'value_col': 'values',
-        'ts_col': 'timestamp',
+        'name': 'feature_test',
+        'variant': 'ts',
+        'source_entity': 'entity',
+        'source_value': 'values',
+        'source_timestamp': 'timestamp',
         'expected':
             {
                 'entity': ['a', 'b', 'c'],
@@ -120,9 +137,11 @@ features_with_ts = {
             ['c', 9, datetime.fromtimestamp(5)],
             ['a', 4, datetime.fromtimestamp(1)]
         ],
-        'entity': 'entity',
-        'value_col': 'values',
-        'ts_col': 'timestamp',
+        'name': 'feature_test',
+        'variant': 'ts',
+        'source_entity': 'entity',
+        'source_value': 'values',
+        'source_timestamp': 'timestamp',
         'expected':
             {
                 'entity': ['a', 'b', 'c'],
@@ -140,9 +159,11 @@ features_with_ts = {
             ['a', 4, datetime.fromtimestamp(1)],
             ['b', 9, datetime.fromtimestamp(3)]
         ],
-        'entity': 'entity',
-        'value_col': 'values',
-        'ts_col': 'timestamp',
+        'name': 'feature_test',
+        'variant': 'ts',
+        'source_entity': 'entity',
+        'source_value': 'values',
+        'source_timestamp': 'timestamp',
         'expected':
             {
                 'entity': ['a', 'b', 'c'],
@@ -155,27 +176,33 @@ feature_invalid_entity = {
     'name': "InvalidEntity",
     'columns': ['entity', 'values', 'timestamp'],
     'values': [],
-    'entity': 'wrong_entity',
-    'value_col': 'values',
-    'ts_col': 'timestamp',
+    'name': 'feature_test',
+    'variant': 'invalid_entity',
+    'source_entity': 'wrong_entity',
+    'source_value': 'values',
+    'source_timestamp': 'timestamp',
 }
 
 feature_invalid_value = {
     'name': "InvalidValue",
     'columns': ['entity', 'values', 'timestamp'],
     'values': [],
-    'entity': 'entity',
-    'value_col': 'wrong_values',
-    'ts_col': 'timestamp',
+    'name': 'feature_test',
+    'variant': 'invalid_value',
+    'source_entity': 'entity',
+    'source_value': 'wrong_values',
+    'source_timestamp': 'timestamp',
 }
 
 feature_invalid_ts = {
     'name': "InvalidTimestamp",
     'columns': ['entity', 'values', 'timestamp'],
     'values': [],
-    'entity': 'entity',
-    'value_col': 'values',
-    'ts_col': 'wrong_timestamp',
+    'name': 'feature_test',
+    'variant': 'invalid_ts',
+    'source_entity': 'entity',
+    'source_value': 'values',
+    'source_timestamp': 'wrong_timestamp',
 }
 
 feature_e2e = {
@@ -312,10 +339,10 @@ labels = {
         'columns': ['entity', 'values', 'timestamp'],
         'values': [],
         'entity_name': 'entity',
-        'entity_col': 'entity',
-        'value_col': 'values',
+        'source_entity': 'entity',
+        'source_value': 'values',
         'expected': pd.DataFrame({'entity':[], 'values':[]}, dtype='object'),
-        'ts_col': ""
+        'source_timestamp': ""
     },
     'Simple': {
         'columns': ['entity', 'values', 'timestamp'],
@@ -324,15 +351,15 @@ labels = {
             ['b', 2]
         ],
         'entity_name': 'entity',
-        'entity_col': 'entity',
-        'value_col': 'values',
+        'source_entity': 'entity',
+        'source_value': 'values',
         'expected': pd.DataFrame(
             {
                 'entity':['a', 'b'],
                 'values':[1, 2]
             }
         ),
-        'ts_col': ""
+        'source_timestamp': ""
     },
     'DifferentEntityName': {
         'columns': ['entity', 'values', 'timestamp'],
@@ -340,16 +367,16 @@ labels = {
             ['a', 1],
             ['b', 2]
         ],
-        'entity_name': 'user',
-        'entity_col': 'entity',
-        'value_col': 'values',
+        'entity_name': 'entity',
+        'source_entity': 'entity',
+        'source_value': 'values',
         'expected': pd.DataFrame(
             {
-                'user':['a', 'b'],
+                'entity':['a', 'b'],
                 'values':[1, 2]
             }
         ),
-        'ts_col': ""
+        'source_timestamp': ""
     },
     'WithTimestamp': {
         'columns': ['entity', 'values', 'timestamp'],
@@ -358,8 +385,8 @@ labels = {
             ['b', 2, datetime.fromtimestamp(0)]
         ],
         'entity_name': 'entity',
-        'entity_col': 'entity',
-        'value_col': 'values',
+        'source_entity': 'entity',
+        'source_value': 'values',
         'expected': pd.DataFrame(
             {
                 'entity': ['a', 'b'],
@@ -367,7 +394,7 @@ labels = {
                 'timestamp': [datetime.fromtimestamp(0), datetime.fromtimestamp(0)]
             }
         ),
-        'ts_col': "timestamp"
+        'source_timestamp': "timestamp"
     },
     'WithSameTimestamp': {
         'columns': ['entity', 'values', 'timestamp'],
@@ -377,8 +404,8 @@ labels = {
             ['a', 3, datetime.fromtimestamp(0)]
         ],
         'entity_name': 'entity',
-        'entity_col': 'entity',
-        'value_col': 'values',
+        'source_entity': 'entity',
+        'source_value': 'values',
         'expected': pd.DataFrame(
             {
                 'entity': ['b', 'a'],
@@ -386,7 +413,7 @@ labels = {
                 'timestamp': [datetime.fromtimestamp(0), datetime.fromtimestamp(0)]
             }
         ),
-        'ts_col': "timestamp"
+        'source_timestamp': "timestamp"
     },
 }
 

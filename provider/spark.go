@@ -599,7 +599,7 @@ func (s *S3PrimaryTable) NumRows() (int64, error) {
 }
 
 func (spark *SparkOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error) {
-	resourcePath := fmt.Sprintf("%sresource.parquet", ResourcePrefix(id))
+	resourcePath := parquetResourcePath(id)
 	exists, err := spark.Store.FileExists(resourcePath)
 	if exists {
 		return nil, fmt.Errorf("resource already exists")
@@ -619,12 +619,16 @@ type S3OfflineTable struct {
 	schema ResourceSchema
 }
 
+func parquetResourcePath(id ResourceID) string {
+	return fmt.Sprintf("%sresource.parquet", ResourcePrefix(id))
+}
+
 func (s *S3OfflineTable) Write(ResourceRecord) error {
 	return fmt.Errorf("not implemented")
 }
 
 func (spark *SparkOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error) {
-	resourcePath := fmt.Sprintf("%sresource.parquet", ResourcePrefix(id))
+	resourcePath := parquetResourcePath(id)
 	exists, err := spark.Store.FileExists(resourcePath)
 	if exists {
 		return nil, fmt.Errorf("resource already exists")
@@ -656,7 +660,7 @@ func (spark *SparkOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSc
 }
 
 func (spark *SparkOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error) {
-	path := fmt.Sprintf("%sresource.parquet", ResourcePrefix(id))
+	path := parquetResourcePath(id)
 	table, err := spark.Store.DownloadParquetTable(path)
 	if err != nil {
 		return nil, err
@@ -674,13 +678,13 @@ func (spark *SparkOfflineStore) CreateResourceTable(id ResourceID, schema TableS
 }
 
 func (spark *SparkOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, error) {
-	path := fmt.Sprintf("%sresource.parquet", ResourcePrefix(id))
+	path := parquetResourcePath(id)
 	table, err := spark.Store.DownloadParquetTable(path)
 	if err != nil {
 		return nil, err
 	}
-	list := reflect.ValueOf(table).Index(0)
-	myStruct, ok := list.Interface().(struct {
+	storedResourceData := reflect.ValueOf(table).Index(0)
+	resourceTableStruct, ok := storedResourceData.Interface().(struct {
 		Entity      string
 		Value       string
 		Ts          string
@@ -690,10 +694,10 @@ func (spark *SparkOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, e
 		return nil, fmt.Errorf("cant convert downloaded resource table")
 	}
 	return &S3OfflineTable{ResourceSchema{
-		Entity:      myStruct.Entity,
-		Value:       myStruct.Value,
-		TS:          myStruct.Ts,
-		SourceTable: myStruct.Sourcetable,
+		Entity:      resourceTableStruct.Entity,
+		Value:       resourceTableStruct.Value,
+		TS:          resourceTableStruct.Ts,
+		SourceTable: resourceTableStruct.Sourcetable,
 	}}, nil
 }
 
@@ -727,11 +731,11 @@ func (spark *SparkOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterat
 
 func (s *S3Store) selectFromKey(key string, query string, returnType SelectReturnType) (*s3.SelectObjectContentEventStreamReader, error) {
 	var outputSerialization s3Types.OutputSerialization
-	if returnType == "CSV" {
+	if returnType == CSV {
 		outputSerialization = s3Types.OutputSerialization{
 			CSV: &s3Types.CSVOutput{},
 		}
-	} else if returnType == "JSON" {
+	} else if returnType == JSON {
 		outputSerialization = s3Types.OutputSerialization{
 			JSON: &s3Types.JSONOutput{},
 		}
@@ -756,10 +760,14 @@ func (s *S3Store) selectFromKey(key string, query string, returnType SelectRetur
 
 func (s *S3Store) ResourceRowCt(key string) (int, error) {
 	queryString := "SELECT COUNT(*) FROM S3Object"
-	outputStream, err := s.selectFromKey(key, queryString, "CSV")
+	outputStream, err := s.selectFromKey(key, queryString, CSV)
 	if err != nil {
 		return 0, err
 	}
+	return streamResolveIntegerValue(outputStream)
+}
+
+func streamResolveIntegerValue(outputStream *s3.SelectObjectContentEventStreamReader) (int, error) {
 	outputEvents := (*outputStream).Events()
 	for i := range outputEvents {
 		switch v := i.(type) {
@@ -777,10 +785,15 @@ func (s *S3Store) ResourceRowCt(key string) (int, error) {
 
 func (s *S3Store) ResourceColumns(key string) ([]string, error) {
 	queryString := "SELECT s.* from S3Object s limit 1"
-	outputStream, err := s.selectFromKey(key, queryString, "JSON")
+	outputStream, err := s.selectFromKey(key, queryString, JSON)
 	if err != nil {
 		return nil, err
 	}
+	return streamResolveStringList(outputStream)
+
+}
+
+func streamResolveStringList(outputStream *s3.SelectObjectContentEventStreamReader) ([]string, error) {
 	outputEvents := (*outputStream).Events()
 	for i := range outputEvents {
 		switch v := i.(type) {
@@ -801,23 +814,25 @@ func (s *S3Store) ResourceColumns(key string) ([]string, error) {
 
 func (s *S3Store) ResourceStream(key string) (chan []byte, error) {
 	queryString := "SELECT * from S3Object"
-	outputStream, err := s.selectFromKey(key, queryString, "CSV")
+	outputStream, err := s.selectFromKey(key, queryString, CSV)
 	if err != nil {
 		return nil, err
 	}
-	outputEvents := (*outputStream).Events()
 	out := make(chan []byte)
-	go func() {
-		defer close(out)
-		for i := range outputEvents {
-			switch v := i.(type) {
-			case *s3Types.SelectObjectContentEventStreamMemberRecords:
-				lines := strings.Split(string(v.Value.Payload), "\n")
-				for _, line := range lines {
-					out <- []byte(line)
-				}
+	go streamResolveByteChanel(outputStream, out)
+	return out, nil
+}
+
+func streamResolveByteChanel(outputStream *s3.SelectObjectContentEventStreamReader, out chan []byte) {
+	outputEvents := (*outputStream).Events()
+	defer close(out)
+	for i := range outputEvents {
+		switch v := i.(type) {
+		case *s3Types.SelectObjectContentEventStreamMemberRecords:
+			lines := strings.Split(string(v.Value.Payload), "\n")
+			for _, line := range lines {
+				out <- []byte(line)
 			}
 		}
-	}()
-	return out, nil
+	}
 }

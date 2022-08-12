@@ -63,6 +63,102 @@ func testTableUploadCompare(store *SparkOfflineStore) error {
 	return nil
 }
 
+type exampleStruct struct {
+	Name       string
+	Age        int
+	Score      float32
+	Winner     bool
+	Registered time.Time
+}
+
+func testRegisterResource(store *SparkOfflineStore) error {
+	exampleStructArray := make([]exampleStruct, 5)
+	for i := range exampleStructArray {
+		exampleStructArray[i] = exampleStruct{
+			Name:       fmt.Sprintf("John Smith_%d", i),
+			Age:        30 + i,
+			Score:      100.4 + float32(i),
+			Winner:     false,
+			Registered: time.UnixMilli(int64(i)),
+		}
+	}
+	//upload it to the
+	// bucketName := os.Getenv("S3_BUCKET_PATH")
+	path := "featureform/tests/testFile.parquet"
+	if err := store.Store.UploadParquetTable(path, exampleStructArray); err != nil {
+		return err
+	}
+	testResource := ResourceID{"test_name", "test_variant", Feature}
+	testResourceSchema := ResourceSchema{"Name", "Age", "Registered", path}
+	table, err := store.RegisterResourceFromSourceTable(testResource, testResourceSchema)
+	if err != nil {
+		return err
+	}
+	fmt.Println(table)
+	fetchedTable, err := store.GetResourceTable(testResource)
+	if err != nil {
+		return err
+	}
+	fmt.Println(fetchedTable)
+
+	return nil
+	//create fake resource from source table uhhh
+	//make sure source table exists and is uplaoded uhhh
+	// fakeResource
+}
+
+func testRegisterPrimary(store *SparkOfflineStore) error {
+	exampleStructArray := make([]exampleStruct, 5)
+	for i := range exampleStructArray {
+		exampleStructArray[i] = exampleStruct{
+			Name:       fmt.Sprintf("John Smith_%d", i),
+			Age:        30 + i,
+			Score:      100.4 + float32(i),
+			Winner:     false,
+			Registered: time.UnixMilli(int64(i)),
+		}
+	}
+
+	path := "featureform/testprimary/testFile.parquet"
+	if err := store.Store.UploadParquetTable(path, exampleStructArray); err != nil {
+		return err
+	}
+	testResource := ResourceID{"test_name", "test_variant", Primary}
+	table, err := store.RegisterPrimaryFromSourceTable(testResource, path)
+	if err != nil {
+		return err
+	}
+	fmt.Println(table)
+	fetchedTable, err := store.GetPrimaryTable(testResource)
+	if err != nil {
+		return err
+	}
+	fmt.Println(fetchedTable)
+	fmt.Println("num rows")
+	fmt.Println(fetchedTable.NumRows())
+	numRows, err := fetchedTable.NumRows()
+	if err != nil {
+		return err
+	}
+	if numRows != 5 {
+		return fmt.Errorf("Did not fetch the correct number of rows")
+	}
+	iterator, err := fetchedTable.IterateSegment(5)
+	if err != nil {
+		return err
+	}
+	expectedColumns := []string{"name", "age", "score", "winner", "registered"}
+
+	columns := iterator.Columns()
+	fmt.Println(iterator.Columns())
+	for iterator.Next() {
+		fmt.Println(iterator.Values())
+	}
+	//do some asserts here
+
+	return nil
+}
+
 func TestParquetUpload(t *testing.T) {
 	if testing.Short() {
 		return
@@ -106,14 +202,12 @@ func TestParquetUpload(t *testing.T) {
 	if err := testResourcePath(sparkOfflineStore); err != nil {
 		t.Fatalf("resource path test failed: %s", err)
 	}
-}
-
-type exampleStruct struct {
-	Name       string
-	Age        int
-	Score      float32
-	Winner     bool
-	Registered time.Time
+	if err := testRegisterResource(sparkOfflineStore); err != nil {
+		t.Fatalf("register resource test failed: %s", err)
+	}
+	if err := testRegisterPrimary(sparkOfflineStore); err != nil {
+		t.Fatalf("resource primary test failed: %s", err)
+	}
 }
 
 func TestStringifyValue(t *testing.T) {

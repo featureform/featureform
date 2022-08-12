@@ -15,7 +15,8 @@ rm.**
 *.pb.go
 **pb**
 venv/
-terraform.tfstate
+terraform.tfstate*
 .venv
 **/site/
 **/.featureform
+testing-terraform.tfvars

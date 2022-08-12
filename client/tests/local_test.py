@@ -164,7 +164,7 @@ class TestPetalGuide:
 
         ff.register_training_set(
             "test_training", "v1",
-            label=label1v1.labels(),
+            label=label1v1.label(),
             features=[feat1v1.features(), feat2v1.features()],
         )
 
@@ -182,7 +182,7 @@ class TestPetalGuide:
 
         ff.register_training_set(
             "join", "v1",
-            label = join_resources.labels(),
+            label = join_resources.label(),
             features= join_resources.features(),
         )
 

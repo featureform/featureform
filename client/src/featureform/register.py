@@ -459,7 +459,11 @@ class ResourceRegistrar():
     def features(self):
         return self.__features
     
-    def labels(self):
+    def label(self):
+        if isinstance(self.__labels, list):
+            if len(self.__labels) != 1:
+                raise ValueError("This resource has multiple labels. Please call only one label to register a training set")
+            self.__labels = (self.__labels[0]["name"], self.__labels[0]["variant"])
         return self.__labels
 
 
@@ -1333,14 +1337,6 @@ class Registrar:
             else:
                 feature_nv_list.append(feature)
         return feature_nv_list
-    
-    def __get_label_nv(self, label):
-        if isinstance(label, list):
-            if len(label) != 1:
-                raise ValueError("This resource has multiple labels. Please call only one label to register a training set")
-            label = (label[0]["name"], label[0]["variant"])
-        return label
-        
 
     def register_training_set(self,
                               name: str,
@@ -1370,7 +1366,6 @@ class Registrar:
             owner = self.must_get_default_owner()
         if isinstance(features,tuple):
             raise ValueError("Features must be entered as a list")
-        label = self.__get_label_nv(label)
         features = self.__get_feature_nv(features)
 
         resource = TrainingSet(

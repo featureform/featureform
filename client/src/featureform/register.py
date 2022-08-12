@@ -2,7 +2,6 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import enum
 import marshal
 from distutils.command.config import config
 from typing_extensions import Self
@@ -1320,7 +1319,6 @@ class Registrar:
     def __get_feature_nv(self, features):
         feature_nv_list = []
         for feature in features:
-
             if isinstance(feature, dict):
                 feature_nv = (feature["name"], feature["variant"])
                 feature_nv_list.append(feature_nv)
@@ -1328,7 +1326,6 @@ class Registrar:
                 feature_nv_list.extend(self.__get_feature_nv(feature))
             else:
                 feature_nv_list.append(feature)
-
         return feature_nv_list
 
     def register_training_set(self,
@@ -1362,9 +1359,8 @@ class Registrar:
         if isinstance(label, list):
             if len(label) != 1:
                 raise ValueError("Only one label can be used to register a training set")
-            label_nv = (label[0]["name"], label[0]["variant"])
-            label = label_nv
-        feature_nv = self.__get_feature_nv(features)
+            label = (label[0]["name"], label[0]["variant"])
+        features = self.__get_feature_nv(features)
 
         resource = TrainingSet(
             name=name,
@@ -1373,7 +1369,7 @@ class Registrar:
             owner=owner,
             schedule=schedule,
             label=label,
-            features=feature_nv,
+            features=features,
         )
         self.__resources.append(resource)
 

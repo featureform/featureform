@@ -106,6 +106,7 @@ class TestPetalGuide:
             inference_store=local,
             labels=[
                 {"name": "label1", "variant": "v1", "column": "value", "type": "bool"},
+                {"name": "label1", "variant": "v1.1", "column": "value", "type": "bool"},
             ],
             timestamp_column='ts'
         )
@@ -164,7 +165,7 @@ class TestPetalGuide:
 
         ff.register_training_set(
             "test_training", "v1",
-            label=label1v1.label(),
+            label=label1v2.label(),
             features=[feat1v1.features(), feat2v1.features()],
         )
 
@@ -193,6 +194,42 @@ class TestPetalGuide:
 
         client = ff.ResourceClient(local=True)
         client.apply()
+
+        with pytest.raises(ValueError, match="Either a resource or features/label must be entered"):
+            ff.register_training_set(
+            "join", "v4",
+            resources = join_resources,
+            features=[("SepalLength", "join"), ("SepalWidth", "join"), ("PetalLength", "join"),
+                      ("PetalWidth", "join")],
+            )
+
+        with pytest.raises(ValueError, match="Label must be entered as a tuple"):
+            ff.register_training_set(
+            "join", "v4",
+            label = [join_resources, ("SpeciesType", "String")],
+            features=[("SepalLength", "join"), ("SepalWidth", "join"), ("PetalLength", "join"),
+                      ("PetalWidth", "join")],
+            )
+        
+        with pytest.raises(ValueError, match="The given resource does not contain a label"):
+            ff.register_training_set(
+            "missing_label", "v4",
+            resources = feat2v2
+            )
+        
+        with pytest.raises(ValueError, match="This resource has multiple labels. Please call only one label to register a training set"):
+            ff.register_training_set(
+            "multiple_labels", "v4",
+            resources = label1v1
+            )
+        
+        with pytest.raises(ValueError, match="A training-set must have atleast one feature"):
+            ff.register_training_set(
+            "Missing_features", "v4",
+            resources = label1v2
+            )
+
+            
 
     def test_invalid_label(self):
 

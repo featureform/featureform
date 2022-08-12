@@ -461,8 +461,10 @@ class ResourceRegistrar():
     
     def label(self):
         if isinstance(self.__labels, list):
-            if len(self.__labels) != 1:
+            if len(self.__labels) > 1:
                 raise ValueError("This resource has multiple labels. Please call only one label to register a training set")
+            if len(self.__labels) == 0:
+                raise ValueError("The given resource does not contain a label")
             self.__labels = (self.__labels[0]["name"], self.__labels[0]["variant"])
         return self.__labels
 
@@ -1369,9 +1371,12 @@ class Registrar:
             raise ValueError("Either a resource or features/label must be entered")
         if isinstance(features,tuple):
             raise ValueError("Features must be entered as a list")
+        if isinstance(label, list):
+            raise ValueError("Label must be entered as a tuple")
         if resources != "":
             features = resources.features()
             label = resources.label()
+        
         features = self.__get_feature_nv(features)
 
         resource = TrainingSet(

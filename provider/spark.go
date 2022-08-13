@@ -772,15 +772,18 @@ func streamResolveIntegerValue(outputStream *s3.SelectObjectContentEventStreamRe
 	for i := range outputEvents {
 		switch v := i.(type) {
 		case *s3Types.SelectObjectContentEventStreamMemberRecords:
-			intVar, err := strconv.Atoi(strings.TrimSuffix(string(v.Value.Payload), "\n"))
-			if err != nil {
-				return 0, err
-			}
-			return intVar, nil
+			return streamRecordReadInteger(v)
 		}
-
 	}
 	return 0, nil
+}
+
+func streamRecordReadInteger(record *s3Types.SelectObjectContentEventStreamMemberRecords) (int, error) {
+	intVar, err := strconv.Atoi(strings.TrimSuffix(string(record.Value.Payload), "\n"))
+	if err != nil {
+		return 0, err
+	}
+	return intVar, nil
 }
 
 func (s *S3Store) ResourceColumns(key string) ([]string, error) {
@@ -798,18 +801,22 @@ func streamResolveStringList(outputStream *s3.SelectObjectContentEventStreamRead
 	for i := range outputEvents {
 		switch v := i.(type) {
 		case *s3Types.SelectObjectContentEventStreamMemberRecords:
-			var m map[string]interface{}
-			if err := json.Unmarshal(v.Value.Payload, &m); err != nil {
-				return nil, err
-			}
-			keys := make([]string, 0, len(m))
-			for k := range m {
-				keys = append(keys, k)
-			}
-			return keys, nil
+			return streamRecordKeyLabels(v)
 		}
 	}
 	return nil, nil
+}
+
+func streamRecordKeyLabels(record *s3Types.SelectObjectContentEventStreamMemberRecords) ([]string, error) {
+	var m map[string]interface{}
+	if err := json.Unmarshal(record.Value.Payload, &m); err != nil {
+		return nil, err
+	}
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys, nil
 }
 
 func (s *S3Store) ResourceStream(key string) (chan []byte, error) {
@@ -819,20 +826,24 @@ func (s *S3Store) ResourceStream(key string) (chan []byte, error) {
 		return nil, err
 	}
 	out := make(chan []byte)
-	go streamResolveByteChanel(outputStream, out)
+	go resolveByteChannel(outputStream, out)
 	return out, nil
 }
 
-func streamResolveByteChanel(outputStream *s3.SelectObjectContentEventStreamReader, out chan []byte) {
+func resolveByteChannel(outputStream *s3.SelectObjectContentEventStreamReader, out chan []byte) {
 	outputEvents := (*outputStream).Events()
 	defer close(out)
 	for i := range outputEvents {
 		switch v := i.(type) {
 		case *s3Types.SelectObjectContentEventStreamMemberRecords:
-			lines := strings.Split(string(v.Value.Payload), "\n")
-			for _, line := range lines {
-				out <- []byte(line)
-			}
+			splitRecordLinesOverStream(v, out)
 		}
+	}
+}
+
+func splitRecordLinesOverStream(record *s3Types.SelectObjectContentEventStreamMemberRecords, out chan []byte) {
+	lines := strings.Split(string(record.Value.Payload), "\n")
+	for _, line := range lines {
+		out <- []byte(line)
 	}
 }

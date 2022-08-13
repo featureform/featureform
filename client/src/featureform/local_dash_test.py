@@ -104,18 +104,3 @@ def test_cleanup():
     except:
         print("File Already Removed")
 
-
-# @pytest.fixture(autouse=True)
-# def run_before_and_after_tests(tmpdir):
-#     def del_rw(action, name, exc):
-#         os.chmod(name, stat.S_IWRITE)
-#         os.remove(name)
-#     try:
-#         shutil.rmtree('.featureform', onerror=del_rw)
-#     except:
-#         print("File Already Removed")
-#     yield
-#     try:
-#         shutil.rmtree('.featureform', onerror=del_rw)
-#     except:
-#         print("File Already Removed")

@@ -1366,7 +1366,6 @@ class Registrar:
         Returns:
             resource (ResourceRegistrar): resource
         """
-        print(features)
         if not isinstance(owner, str):
             owner = owner.name()
         if owner == "":
@@ -1381,7 +1380,6 @@ class Registrar:
             resources = []
         for resource in resources:
             features += resource.features()
-            print(features)
             resource_label = resource.label()
             if label == ():
                 label = resource_label
@@ -1393,8 +1391,7 @@ class Registrar:
             raise ValueError("Label must be set")
         if features == []:
             raise ValueError("A training-set must have atleast one feature")
-        print(name, features)
-
+        
         resource = TrainingSet(
             name=name,
             variant=variant,

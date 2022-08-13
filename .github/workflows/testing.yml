@@ -673,7 +673,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install pytest
-        run: pip install pytest
+        run: pip install pytest protobuf==3.20.1
 
       - name: Install featureform
         run: pip install client/dist/featureform-0.0.0-py3-none-any.whl

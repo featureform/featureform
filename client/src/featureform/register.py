@@ -120,26 +120,21 @@ class LocalProvider:
     def __init__(self, registrar, provider):
         self.__registrar = registrar
         self.__provider = provider
-        self.sqldb = SQLiteMetadata()
 
     def name(self) -> str:
         return self.__provider.name
 
-    def register_file(self, name, variant, description, path, owner=""):
+    def register_file(self, name, description, path, variant="default", owner=""):
         if owner == "":
             owner = self.__registrar.must_get_default_owner()
         # Store the file as a source
-        time_created = str(time.time())
-        self.sqldb.insert("sources", "Source", variant, name)
-        self.sqldb.insert("source_variant", time_created, description, name,
-                          "Source", owner, self.name(), variant, "ready", 0, "", path)
-        # Where the definition = path
-
+        self.__registrar.register_primary_data(name, variant, SQLTable(path), self.__provider.name, owner, description)
         return LocalSource(self.__registrar, name, owner, variant, self.name(), path, description)
 
     def insert_provider(self):
+        sqldb = SQLiteMetadata()
         # Store a new provider row
-        self.sqldb.insert("providers",
+        sqldb.insert("providers",
                           self.__provider.name,
                           "Provider",
                           self.__provider.description,
@@ -150,6 +145,7 @@ class LocalProvider:
                           "status",
                           str(self.__provider.config.serialize(), 'utf-8')
                           )
+        sqldb.close()
 
     def df_transformation(self,
                           variant: str = "default",
@@ -420,6 +416,7 @@ class ResourceRegistrar():
                             label: NameVariant = None,
                             schedule: str = "",
                             features: List[NameVariant] = None,
+                            resources: List = None,
                             owner: Union[str, UserRegistrar] = "",
                             description: str = ""):
         if len(self.__labels) == 0:
@@ -451,10 +448,24 @@ class ResourceRegistrar():
             variant=variant,
             label=label,
             features=features,
+            resources = resources,
             owner=owner,
             schedule=schedule,
             description=description,
         )
+    
+    def features(self):
+        return self.__features
+    
+    def label(self):
+        if isinstance(self.__labels, list):
+            if len(self.__labels) > 1:
+                raise ValueError("A resource used has multiple labels. A training set can only have one label")
+            elif len(self.__labels) == 1:
+                self.__labels = (self.__labels[0]["name"], self.__labels[0]["variant"])
+            else:
+                self.__labels = ()
+        return self.__labels
 
 
 class Registrar:
@@ -1044,6 +1055,7 @@ class Registrar:
         self.__resources.append(provider)
         local_provider = LocalProvider(self, provider)
         local_provider.insert_provider()
+        self.register_user("default_user").make_default_owner()
         return local_provider
 
     def register_primary_data(self,
@@ -1316,11 +1328,24 @@ class Registrar:
             label_resources.append(resource)
         return ResourceRegistrar(self, features, labels)
 
+    def __get_feature_nv(self, features):
+        feature_nv_list = []
+        for feature in features:
+            if isinstance(feature, dict):
+                feature_nv = (feature["name"], feature["variant"])
+                feature_nv_list.append(feature_nv)
+            elif isinstance(feature, list):
+                feature_nv_list.extend(self.__get_feature_nv(feature))
+            else:
+                feature_nv_list.append(feature)
+        return feature_nv_list
+
     def register_training_set(self,
                               name: str,
                               variant: str,
-                              label: NameVariant,
-                              features: List[NameVariant],
+                              features: list = None,
+                              label: NameVariant = (),
+                              resources: list = None,
                               owner: Union[str, UserRegistrar] = "",
                               description: str = "",
                               schedule: str = ""):
@@ -1342,6 +1367,30 @@ class Registrar:
             owner = owner.name()
         if owner == "":
             owner = self.must_get_default_owner()
+        if isinstance(features,tuple):
+            raise ValueError("Features must be entered as a list")
+        if isinstance(label, list):
+            raise ValueError("Label must be entered as a tuple")
+        if features == None:
+            features = []
+        if resources == None:
+            resources = []
+        for resource in resources:
+            features += resource.features()
+            resource_label = resource.label()
+            #label == () if it is NOT manually entered 
+            if label == ():
+                label = resource_label
+            #Elif: If label was updated to store resource_label it will not check the following elif
+            elif resource_label != ():
+                raise ValueError("A training set can only have one label")
+        features = self.__get_feature_nv(features)
+
+        if label == ():
+            raise ValueError("Label must be set")
+        if features == []:
+            raise ValueError("A training-set must have atleast one feature")
+        
         resource = TrainingSet(
             name=name,
             variant=variant,
@@ -1395,6 +1444,8 @@ class Client(Registrar):
             else:
                 channel = secure_channel(host, cert_path)
             self._stub = ff_grpc.ApiStub(channel)
+        elif local:
+            self.register_user("default_user").make_default_owner()
 
     def apply(self):
         """Apply all definitions, creating and retrieving all specified resources.

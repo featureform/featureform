@@ -357,6 +357,9 @@ class PrimaryData:
                     name=self.location.name, ), ),
         }
 
+    def name(self):
+        return self.location.name
+
 
 class Transformation:
     pass
@@ -440,7 +443,8 @@ class Source:
             self.is_transformation = 1
             self.inputs = self.definition.inputs
             self.definition = self.definition.query
-
+        if type(self.definition) == PrimaryData:
+            self.definition = self.definition.name()
         db.insert_source("source_variant",
                          str(time.time()),
                          self.description,
@@ -922,10 +926,15 @@ class ResourceState:
             if resource.operation_type() is OperationType.CREATE:
                 print("Creating", resource.type(), resource.name)
                 resource._create_local(db)
+        db.close()
         return
 
     def create_all(self, stub) -> None:
         for resource in self.__create_list:
+            if resource.type() == "user" and resource.name == "default_user":
+                continue
+            if resource.type() == "provider" and resource.name == "local-mode":
+                continue
             try:
                 if resource.operation_type() is OperationType.GET:
                     print("Getting", resource.type(), resource.name)

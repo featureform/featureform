@@ -1,4 +1,5 @@
 import featureform as ff
+from featureform import local
 import pandas as pd
 import pytest
 import shutil
@@ -7,13 +8,10 @@ import stat
 
 class TestPetalGuide:
     def test_register_local(self):
-        local = ff.register_local()
-
-        ff.register_user("featureformer").make_default_owner()
 
         iris = local.register_file(
             name="Iris dataset",
-            variant="Kaggle",
+            variant = "Kaggle",
             description="Iris dataset from Kaggle",
             path="iris.csv"
         )
@@ -62,7 +60,7 @@ class TestPetalGuide:
             df = pd.DataFrame({'id':[1, 2, 3], 'value': [True, False, True], 'ts': [.2, .2, .2]})
             return df
 
-        transform1.register_resources(
+        feat1v1 = transform1.register_resources(
             entity=test_entity,
             entity_column="id",
             inference_store=local,
@@ -72,7 +70,7 @@ class TestPetalGuide:
             timestamp_column='ts'
         )
 
-        transform1.register_resources(
+        feat1v2 = transform1.register_resources(
             entity=test_entity,
             entity_column="id",
             inference_store=local,
@@ -81,7 +79,7 @@ class TestPetalGuide:
             ],
         )
 
-        transform2.register_resources(
+        feat2v1 = transform2.register_resources(
             entity=test_entity,
             entity_column="id",
             inference_store=local,
@@ -91,7 +89,7 @@ class TestPetalGuide:
             timestamp_column='ts'
         )
 
-        transform2.register_resources(
+        feat2v2 = transform2.register_resources(
             entity=test_entity,
             entity_column="id",
             inference_store=local,
@@ -100,17 +98,7 @@ class TestPetalGuide:
             ],
         )
 
-        transform3.register_resources(
-            entity=test_entity,
-            entity_column="id",
-            inference_store=local,
-            labels=[
-                {"name": "label1", "variant": "v1", "column": "value", "type": "bool"},
-            ],
-            timestamp_column='ts'
-        )
-
-        transform3.register_resources(
+        label1v2 = transform3.register_resources(
             entity=test_entity,
             entity_column="id",
             inference_store=local,
@@ -118,10 +106,21 @@ class TestPetalGuide:
                 {"name": "label1", "variant": "v2", "column": "value", "type": "bool"},
             ],
         )
+        label1v1 = transform3.register_resources(
+            entity=test_entity,
+            entity_column="id",
+            inference_store=local,
+            labels=[
+                {"name": "label1", "variant": "v1", "column": "value", "type": "bool"},
+                {"name": "label1", "variant": "v1.1", "column": "value", "type": "bool"},
+            ],
+            timestamp_column='ts'
+        )
+
 
         user_entity = ff.register_entity("flower")
 
-        new_transformation.register_resources(
+        transformation_test = new_transformation.register_resources(
             entity=user_entity,
             entity_column="Id",
             inference_store=local,
@@ -131,7 +130,7 @@ class TestPetalGuide:
 
         )
 
-        join_transformation.register_resources(
+        join_resources = join_transformation.register_resources(
             entity=user_entity,
             entity_column="Id",
             inference_store=local,
@@ -146,7 +145,7 @@ class TestPetalGuide:
             ],
 
         )
-        iris.register_resources(
+        iris_centimeters = iris.register_resources(
             entity=user_entity,
             entity_column="Id",
             inference_store=local,
@@ -162,35 +161,83 @@ class TestPetalGuide:
             ],
         )
 
+        client = ff.ResourceClient(local=True)
+
         ff.register_training_set(
             "test_training", "v1",
-            label=("label1", "v1"),
-            features=[("feat1", "v1"), ("feat2", "v1")],
+            label=label1v2.label(),
+            features=[feat1v1.features(), feat2v1.features()],
         )
 
         ff.register_training_set(
-            "test_training", "v2",
+            "resouce_and_features", "v2",
             label=("label1", "v2"),
-            features=[("feat1", "v2"), ("feat2", "v2")],
+            resources = [feat1v2],
+            features=[("feat2", "v2")],
         )
+        ff.register_training_set(
+            "multiple_resources", "v2",
+            label=("label1", "v2"),
+            resources = [feat1v2, feat2v2],
+        )
+
+        ff.register_training_set(
+            "resources", "v3",
+            resources = [join_resources, transformation_test],
+        ) 
 
         ff.register_training_set(
             "iris_training", "quickstart",
             label=("SpeciesType", "String"),
-            features=[("SepalLength", "centimeters"), ("SepalWidth", "centimeters"), ("PetalLength", "centimeters"),
-                      ("PetalWidth", "centimeters"), ("SepalLength", "transformation_test")],
+            features=[iris_centimeters.features(), ("SepalLength", "transformation_test")],
         )
 
         ff.register_training_set(
             "join", "v1",
-            label=("SpeciesType", "join"),
-            features=[("SepalLength", "join"), ("SepalWidth", "join"), ("PetalLength", "join"),
-                      ("PetalWidth", "join")],
+            label = join_resources.label(),
+            features= join_resources.features(),
         )
 
-        client = ff.ResourceClient(local=True)
+        ff.register_training_set(
+            "join", "v3",
+            resources = [join_resources],
+        ) 
+
         client.apply()
 
+        with pytest.raises(ValueError, match="Label must be entered as a tuple"):
+            ff.register_training_set(
+            "join", "v4",
+            label = [join_resources, ("SpeciesType", "String")],
+            features=[("SepalLength", "join"), ("SepalWidth", "join"), ("PetalLength", "join"),
+                      ("PetalWidth", "join")],
+            )
+        
+        with pytest.raises(ValueError, match="A training set can only have one label"):
+            ff.register_training_set(
+            "multiple_labels", "v4",
+            resources = [label1v1]
+            )
+        
+        with pytest.raises(ValueError, match="A training set can only have one label"):
+            ff.register_training_set(
+                "multiple_labels", "v2",
+                label=("label1", "v2"),
+                resources = [join_resources, iris_centimeters],
+            )
+
+        with pytest.raises(ValueError, match="A training-set must have atleast one feature"):
+            ff.register_training_set(
+                "Missing_features", "v4",
+                resources = [label1v2]
+            )
+
+        with pytest.raises(ValueError, match="Label must be set"):
+            ff.register_training_set(
+                "missing_label", "v2",
+                resources = [feat1v1],
+            ) 
+            
     def test_invalid_label(self):
 
         ff.register_training_set(

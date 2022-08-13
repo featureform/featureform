@@ -144,7 +144,7 @@ jobs:
         with:
           host port: 6378
           container port: 6379
-          redis password: 'password'
+          redis password: "password"
 
       - name: Set up Go
         uses: actions/setup-go@v2
@@ -232,7 +232,7 @@ jobs:
         with:
           name: "./provider/bigquery_credentials.json"
           json: ${{ secrets.BIGQUERY_CREDENTIALS_FILE }}
-      
+
       - name: Testing
         env:
           SNOWFLAKE_USERNAME: ${{ secrets.SNOWFLAKE_USERNAME }}
@@ -242,6 +242,12 @@ jobs:
           REDSHIFT_USERNAME: ${{ secrets.REDSHIFT_USERNAME }}
           REDSHIFT_PASSWORD: ${{ secrets.REDSHIFT_PASSWORD }}
           REDSHIFT_ENDPOINT: ${{ secrets.REDSHIFT_ENDPOINT }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
+          AWS_EMR_CLUSTER_REGION: ${{ secrets.AWS_EMR_CLUSTER_REGION }}
+          AWS_EMR_CLUSTER_ID: ${{ secrets.AWS_EMR_CLUSTER_ID }}
+          S3_BUCKET_PATH: ${{ secrets.S3_BUCKET_PATH }}
+          S3_BUCKET_REGION: ${{ secrets.S3_BUCKET_REGION }}
           BIGQUERY_PROJECT_ID: ${{ secrets.BIGQUERY_PROJECT_ID }}
           BIGQUERY_DATASET_ID: ${{ secrets.BIGQUERY_DATASET_ID }}
           BIGQUERY_CREDENTIALS: "bigquery_credentials.json"
@@ -582,7 +588,7 @@ jobs:
           API_PORT: 7878
           METADATA_HOST: "featureform-metadata-server"
           METADATA_PORT: 8080
-          SERVING_HOST:  "featureform-feature-server"
+          SERVING_HOST: "featureform-feature-server"
           SERVING_PORT: 8080
         run: go run main.go &
 
@@ -660,8 +666,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ ubuntu-latest, macos-latest, windows-latest ] #osx-arm64 currently not working. Ticket made with github
-        python-version: [ '3.7', '3.8', '3.9', '3.10' ]
+        os: [ubuntu-latest, macos-latest, windows-latest] #osx-arm64 currently not working. Ticket made with github
+        python-version: ["3.7", "3.8", "3.9", "3.10"]
     steps:
       - name: Download Working Compiled Directories
         uses: actions/download-artifact@v3
@@ -680,5 +686,3 @@ jobs:
 
       - name: Run Tests
         run: make pytest
-
-        

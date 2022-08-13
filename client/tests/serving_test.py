@@ -6,7 +6,6 @@ from unittest import TestCase
 import os, stat
 import numpy as np
 
-import featureform.resources
 import pandas as pd
 import pytest
 import sys
@@ -15,8 +14,7 @@ sys.path.insert(0, 'client/src/')
 from featureform import ResourceClient, ServingClient
 import serving_cases as cases
 import featureform as ff
-from datetime import datetime
-
+from featureform.serving import LocalClientImpl
 
 class TestIndividualFeatures(TestCase):
     def test_process_feature_no_ts(self):
@@ -25,13 +23,14 @@ class TestIndividualFeatures(TestCase):
                 print("TEST: ", name)
                 file_name = create_temp_file(case)
                 client = ServingClient(local=True)
-                dataframe_mapping = client.process_feature_csv(file_name, case['entity'], case['entity'],
-                                                               case['value_col'], [], "test_name_variant", "")
+                local_client = LocalClientImpl()
+                dataframe_mapping = local_client.feature_df_with_entity(file_name, "entity_id", case)
                 expected = pd.DataFrame(case['expected'])
-                actual = dataframe_mapping[0]
+                actual = dataframe_mapping
                 expected = expected.values.tolist()
                 actual = actual.values.tolist()
-                client.sqldb.close()
+                local_client.db.close()
+                client.impl.db.close()
                 assert all(elem in expected for elem in actual), \
                     "Expected: {} Got: {}".format(expected, actual)
 
@@ -41,14 +40,14 @@ class TestIndividualFeatures(TestCase):
                 print("TEST: ", name)
                 file_name = create_temp_file(case)
                 client = ServingClient(local=True)
-                dataframe_mapping = client.process_feature_csv(file_name, case['entity'], case['entity'],
-                                                               case['value_col'], [], "test_name_variant",
-                                                               case['ts_col'])
+                local_client = LocalClientImpl()
+                dataframe_mapping = local_client.feature_df_with_entity(file_name, "entity_id", case)
                 expected = pd.DataFrame(case['expected'])
-                actual = dataframe_mapping[0]
+                actual = dataframe_mapping
                 expected = expected.values.tolist()
                 actual = actual.values.tolist()
-                client.sqldb.close()
+                local_client.db.close()
+                client.impl.db.close()
                 assert all(elem in expected for elem in actual), \
                     "Expected: {} Got: {}".format(expected, actual)
 
@@ -56,31 +55,35 @@ class TestIndividualFeatures(TestCase):
         case = cases.feature_invalid_entity
         file_name = create_temp_file(case)
         client = ServingClient(local=True)
+        local_client = LocalClientImpl()
         with pytest.raises(KeyError) as err:
-            client.process_feature_csv(file_name, case['entity'], case['value_col'], case['name'], [],
-                                       "test_name_variant", case['ts_col'])
-        client.sqldb.close()
+            local_client.feature_df_with_entity(file_name, "entity_id", case)
+        local_client.db.close()
+        client.impl.db.close()
         assert "column does not exist" in str(err.value)
 
     def test_invalid_value_col(self):
         case = cases.feature_invalid_value
         file_name = create_temp_file(case)
         client = ServingClient(local=True)
+        local_client = LocalClientImpl()
         with pytest.raises(KeyError) as err:
-            client.process_feature_csv(file_name, case['entity'], case['value_col'], case['name'], [],
-                                       "test_name_variant", case['ts_col'])
-        client.sqldb.close()
+            local_client.feature_df_with_entity(file_name, "entity_id", case)
+        local_client.db.close()
+        client.impl.db.close()
         assert "column does not exist" in str(err.value)
 
     def test_invalid_ts_col(self):
         case = cases.feature_invalid_ts
         file_name = create_temp_file(case)
         client = ServingClient(local=True)
+        local_client = LocalClientImpl()
         with pytest.raises(KeyError) as err:
-            client.process_feature_csv(file_name, case['entity'], case['value_col'], case['name'], [],
-                                       "test_name_variant", case['ts_col'])
-        client.sqldb.close()
+            local_client.feature_df_with_entity(file_name, "entity_id", case)
+        local_client.db.close()
+        client.impl.db.close()
         assert "column does not exist" in str(err.value)
+        retry_delete()
 
 
 class TestFeaturesE2E(TestCase):
@@ -108,7 +111,7 @@ class TestFeaturesE2E(TestCase):
             'value_cols': ['value'],
             'entity': 'entity',
             'entity_loc': 'entity',
-            'features': [("avg_transactions", "quickstart")],
+            'features': [("avg_transactions", "v13")],
             'entities': [{"entity": "a"}, {"entity": "b"}, {"entity": "c"}],
             'expected': [[1], [2], [3]],
             'ts_col': "ts"
@@ -140,9 +143,8 @@ class TestIndividualLabels(TestCase):
             with self.subTest(name):
                 print("TEST: ", name)
                 file_name = create_temp_file(case)
-                client = ServingClient(local=True)
-                actual = client.process_label_csv(file_name, case['entity_name'], case['entity_col'], case['value_col'],
-                                                  case['ts_col'])
+                local_client = LocalClientImpl()
+                actual = local_client.label_df_from_csv(case, file_name)
                 expected = pd.DataFrame(case['expected']).set_index(case['entity_name'])
                 pd.testing.assert_frame_equal(actual, expected)
 
@@ -151,47 +153,42 @@ class TestIndividualLabels(TestCase):
             'columns': ['entity', 'value', 'ts'],
             'values': [],
             'entity_name': 'entity',
-            'entity_col': 'name_dne',
-            'value_col': 'value',
-            'ts_col': 'ts'
+            'source_entity': 'name_dne',
+            'source_value': 'value',
+            'source_timestamp': 'ts'
         }
         file_name = create_temp_file(case)
-        client = ServingClient(local=True)
+        local_client = LocalClientImpl()
         with pytest.raises(KeyError) as err:
-            client.process_label_csv(file_name, case['entity_name'], case['entity_col'], case['value_col'],
-                                     case['ts_col'])
+            local_client.label_df_from_csv(case, file_name)
         assert "column does not exist" in str(err.value)
 
     def test_invalid_value(self):
         case = {
             'columns': ['entity', 'value', 'ts'],
             'values': [],
-            'entity_name': 'entity',
-            'entity_col': 'entity',
-            'value_col': 'value_dne',
-            'ts_col': 'ts'
+            'source_entity': 'entity',
+            'source_value': 'value_dne',
+            'source_timestamp': 'ts'
         }
         file_name = create_temp_file(case)
-        client = ServingClient(local=True)
+        local_client = LocalClientImpl()
         with pytest.raises(KeyError) as err:
-            client.process_label_csv(file_name, case['entity_name'], case['entity_col'], case['value_col'],
-                                     case['ts_col'])
+            local_client.label_df_from_csv(case, file_name)
         assert "column does not exist" in str(err.value)
 
     def test_invalid_ts(self):
         case = {
             'columns': ['entity', 'value', 'ts'],
             'values': [],
-            'entity_name': 'entity',
-            'entity_col': 'entity',
-            'value_col': 'value',
-            'ts_col': 'ts_dne'
+            'source_entity': 'entity',
+            'source_value': 'value',
+            'source_timestamp': 'ts_dne'
         }
         file_name = create_temp_file(case)
-        client = ServingClient(local=True)
+        local_client = LocalClientImpl()
         with pytest.raises(KeyError) as err:
-            client.process_label_csv(file_name, case['entity_name'], case['entity_col'], case['value_col'],
-                                     case['ts_col'])
+            local_client.label_df_from_csv(case, file_name)
         assert "column does not exist" in str(err.value)
 
     @pytest.fixture(autouse=True)
@@ -307,7 +304,7 @@ class TestTransformation(TestCase):
         client.apply()
         serve = ServingClient(local=True)
         res = serve.features([(f"feature-{name}", name)], {"entity": "a"})
-        serve.sqldb.close()
+        serve.impl.db.close()
         return res
 
     @pytest.fixture(autouse=True)
@@ -327,9 +324,6 @@ class TestTransformation(TestCase):
             print("File Already Removed")
 
 
-
-
-
 class TestTrainingSet(TestCase):
     def _register_feature(self, feature, local, case, index, name):
         file = create_temp_file(feature)
@@ -339,7 +333,6 @@ class TestTrainingSet(TestCase):
             description="",
             path=file
         )
-
         test_file.register_resources(
             entity=case['entity'],
             entity_column=case['entity_loc'],
@@ -399,16 +392,16 @@ class TestTrainingSet(TestCase):
                 serving = ff.ServingClient(local=True)
 
                 tset = serving.training_set(f"training_set-{name}", "default")
-                serving.sqldb.close()
+                serving.impl.db.close()
                 actual_len = 0
                 expected_len = len(case['expected'])
                 for i, r in enumerate(tset):
                     actual_len += 1
-                    actual = r.features() + [r.label()]
+                    actual = r.features() + r.label()
                     if actual in case['expected']:
                         case['expected'].remove(actual)
                     else:
-                        raise AssertionError(f"{r.features() + [r.label()]} not in  {case['expected']}")
+                        raise AssertionError(f"{r.features() + r.label()} not in  {case['expected']}")
                 try:
                     clear_and_reset()
                 except Exception as e:
@@ -416,11 +409,10 @@ class TestTrainingSet(TestCase):
                 assert actual_len == expected_len
 
 
-
-
 def clear_and_reset():
     ff.clear_state()
     shutil.rmtree('.featureform', onerror=del_rw)
+
 
 def del_rw(action, name, exc):
     os.chmod(name, stat.S_IWRITE)
@@ -440,16 +432,16 @@ def create_temp_file(test_values):
 
 
 def e2e_features(file, entity_name, entity_loc, name_variants, value_cols, entities, ts_col):
-    ff = ResourceClient(local=True)
-    ff.register_user("featureformer").make_default_owner()
-    local = ff.register_local()
+    resource_client = ResourceClient(local=True)
+    resource_client.register_user("featureformer").make_default_owner()
+    local = resource_client.register_local()
     transactions = local.register_file(
         name="transactions",
-        variant="quickstart",
+        variant="v1",
         description="A dataset of fraudulent transactions",
         path=file
     )
-    entity = ff.register_entity(entity_name)
+    entity = resource_client.register_entity(entity_name)
     for i, variant in enumerate(name_variants):
         transactions.register_resources(
             entity=entity,
@@ -460,11 +452,12 @@ def e2e_features(file, entity_name, entity_loc, name_variants, value_cols, entit
             ],
             timestamp_column=ts_col
         )
-    ff.state().create_all_local()
+    resource_client.state().create_all_local()
     client = ServingClient(local=True)
     results = []
     for entity in entities:
         results.append(client.features(name_variants, entity))
+
     return results
 
 
@@ -474,6 +467,6 @@ def retry_delete():
             shutil.rmtree('.featureform', onerror=del_rw)
             print("Table Deleted")
             break
-        except Exception:
-            print("Could not delete. Retrying...")
+        except Exception as e:
+            print(f"Could not delete. Retrying...", e)
             time.sleep(1)

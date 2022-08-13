@@ -88,18 +88,26 @@ class TestResourcesRedefined:
         local = ff.register_local()
 
         transactions = local.register_file(
-            name="transactions",
+            name="transaction",
             variant="quickstart",
             description="A dataset of fraudulent transactions",
             path="transactions.csv"
         )
 
+        transactions = local.register_file(
+            name="transaction",
+            variant="quickstart",
+            description="A dataset of fraudulent transaction",
+            path="transaction.csv"
+        )
+
+        with pytest.raises(ResourceRedefinedError):
+            client.apply()
+
         user = ff.register_entity("user")
 
-        client.apply()
-
         @local.df_transformation(variant="quickstart",
-                                 inputs=[("transactions", "quickstart")])
+                                 inputs=[("transaction", "quickstart")])
         def average_user_transaction(transactions):
             """the average transaction amount for a user """
             return transactions.groupby("CustomerID")["TransactionAmount"].mean()
@@ -150,7 +158,7 @@ class TestResourcesRedefined:
         )
         ff.register_training_set(
             "fraud_training", "quickstart",
-            label=("fraudulent", "qwickstart"),
+            label=("fraudulent", "quickstart"),
             features=[("avg_tranzactions", "quickstart")],
         )
 

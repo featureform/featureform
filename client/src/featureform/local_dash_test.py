@@ -33,7 +33,6 @@ def remove_keys(obj, rubbish):
                   if item not in rubbish]
     return obj
 
-@pytest.fixture(autouse=True)
 def test_setup():
     import subprocess
     apply = subprocess.run(['featureform', 'apply', 'client/examples/local_quickstart.py', '--local'])
@@ -96,8 +95,7 @@ def test_fraud_training(client):
 def test_user(client):
     check_objs("/data/entities/user", user, client)
 
-@pytest.fixture(autouse=True)
-def run_before_and_after_tests(tmpdir):
+def test_cleanup():
     def del_rw(action, name, exc):
         os.chmod(name, stat.S_IWRITE)
         os.remove(name)
@@ -105,8 +103,19 @@ def run_before_and_after_tests(tmpdir):
         shutil.rmtree('.featureform', onerror=del_rw)
     except:
         print("File Already Removed")
-    yield
-    try:
-        shutil.rmtree('.featureform', onerror=del_rw)
-    except:
-        print("File Already Removed")
+
+
+# @pytest.fixture(autouse=True)
+# def run_before_and_after_tests(tmpdir):
+#     def del_rw(action, name, exc):
+#         os.chmod(name, stat.S_IWRITE)
+#         os.remove(name)
+#     try:
+#         shutil.rmtree('.featureform', onerror=del_rw)
+#     except:
+#         print("File Already Removed")
+#     yield
+#     try:
+#         shutil.rmtree('.featureform', onerror=del_rw)
+#     except:
+#         print("File Already Removed")

@@ -1391,6 +1391,8 @@ class Client(Registrar):
             else:
                 channel = secure_channel(host, cert_path)
             self._stub = ff_grpc.ApiStub(channel)
+        elif local:
+            register_user("default_user").make_default_owner()
 
     def apply(self):
         """Apply all definitions, creating and retrieving all specified resources.

@@ -1381,8 +1381,10 @@ class Registrar:
         for resource in resources:
             features += resource.features()
             resource_label = resource.label()
+            #label == () if it is NOT manually entered 
             if label == ():
                 label = resource_label
+            #Elif: If label was updated to store resource_label it will not check the following elif
             elif resource_label != ():
                 raise ValueError("A training set can only have one label")
         features = self.__get_feature_nv(features)

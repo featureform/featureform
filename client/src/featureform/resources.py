@@ -936,8 +936,6 @@ class ResourceState:
             if resource.type() == "provider" and resource.name == "local-mode":
                 continue
             try:
-                if resource.name == "local-mode":
-                    pass
                 if resource.operation_type() is OperationType.GET:
                     print("Getting", resource.type(), resource.name)
                     resource._get(stub)

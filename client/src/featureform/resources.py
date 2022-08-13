@@ -931,6 +931,10 @@ class ResourceState:
 
     def create_all(self, stub) -> None:
         for resource in self.__create_list:
+            if resource.type() == "user" and resource.name == "default_user":
+                continue
+            if resource.type() == "provider" and resource.name == "local-mode":
+                continue
             try:
                 if resource.name == "local-mode":
                     pass

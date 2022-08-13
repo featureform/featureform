@@ -71,9 +71,6 @@ def test_entities(client):
 def test_models(client):
     check_objs("/data/models", models, client)
 
-def test_users(client):
-    check_objs("/data/users", users, client)
-
 def test_providers(client):
     check_objs("/data/providers", providers, client)
 

@@ -932,6 +932,8 @@ class ResourceState:
     def create_all(self, stub) -> None:
         for resource in self.__create_list:
             try:
+                if resource.name == "local-mode":
+                    pass
                 if resource.operation_type() is OperationType.GET:
                     print("Getting", resource.type(), resource.name)
                     resource._get(stub)

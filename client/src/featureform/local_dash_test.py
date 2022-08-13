@@ -33,10 +33,9 @@ def remove_keys(obj, rubbish):
                   if item not in rubbish]
     return obj
 
-@pytest.fixture
 def test_setup():
     import subprocess
-    apply = subprocess.run(['python', '-m','featureform', 'apply', '../examples/local_quickstart.py', '--local'])
+    apply = subprocess.run(['featureform', 'apply', 'client/examples/local_quickstart.py', '--local'])
     print("The exit code was: %d" % apply.returncode)
     assert apply.returncode == 0, f"OUT: {apply.stdout}, ERR: {apply.stderr}"
 
@@ -96,21 +95,6 @@ def test_fraud_training(client):
 def test_user(client):
     check_objs("/data/entities/user", user, client)
 
-@pytest.fixture(autouse=True)
-def run_before_and_after_tests(tmpdir):
-    """Fixture to execute asserts before and after a test is run"""
-    # Remove any lingering Databases
-    def del_rw(action, name, exc):
-        os.chmod(name, stat.S_IWRITE)
-        os.remove(name)
-    try:
-        shutil.rmtree('.featureform', onerror=del_rw)
-    except:
-        print("File Already Removed")
-    yield
-    try:
-        shutil.rmtree('.featureform', onerror=del_rw)
-    except:
-        print("File Already Removed")
+
 
     

@@ -100,6 +100,14 @@ class TestPetalGuide:
             ],
         )
 
+        label1v2 = transform3.register_resources(
+            entity=test_entity,
+            entity_column="id",
+            inference_store=local,
+            labels=[
+                {"name": "label1", "variant": "v2", "column": "value", "type": "bool"},
+            ],
+        )
         label1v1 = transform3.register_resources(
             entity=test_entity,
             entity_column="id",
@@ -111,18 +119,10 @@ class TestPetalGuide:
             timestamp_column='ts'
         )
 
-        label1v2 = transform3.register_resources(
-            entity=test_entity,
-            entity_column="id",
-            inference_store=local,
-            labels=[
-                {"name": "label1", "variant": "v2", "column": "value", "type": "bool"},
-            ],
-        )
 
         user_entity = ff.register_entity("flower")
 
-        new_transformation.register_resources(
+        transformation_test = new_transformation.register_resources(
             entity=user_entity,
             entity_column="Id",
             inference_store=local,
@@ -163,6 +163,8 @@ class TestPetalGuide:
             ],
         )
 
+        client = ff.ResourceClient(local=True)
+
         ff.register_training_set(
             "test_training", "v1",
             label=label1v2.label(),
@@ -170,10 +172,21 @@ class TestPetalGuide:
         )
 
         ff.register_training_set(
-            "test_training", "v2",
+            "resouce_and_features", "v2",
             label=("label1", "v2"),
-            features=[("feat1", "v2"), ("feat2", "v2")],
+            resources = [feat1v2],
+            features=[("feat2", "v2")],
         )
+        ff.register_training_set(
+            "multiple_resources", "v2",
+            label=("label1", "v2"),
+            resources = [feat1v2, feat2v2],
+        )
+
+        ff.register_training_set(
+            "resources", "v3",
+            resources = [join_resources, transformation_test],
+        ) 
 
         ff.register_training_set(
             "iris_training", "quickstart",
@@ -189,19 +202,10 @@ class TestPetalGuide:
 
         ff.register_training_set(
             "join", "v3",
-            resources = join_resources,
-        )
+            resources = [join_resources],
+        ) 
 
-        client = ff.ResourceClient(local=True)
         client.apply()
-
-        with pytest.raises(ValueError, match="Either a resource or features/label must be entered"):
-            ff.register_training_set(
-            "join", "v4",
-            resources = join_resources,
-            features=[("SepalLength", "join"), ("SepalWidth", "join"), ("PetalLength", "join"),
-                      ("PetalWidth", "join")],
-            )
 
         with pytest.raises(ValueError, match="Label must be entered as a tuple"):
             ff.register_training_set(
@@ -211,26 +215,31 @@ class TestPetalGuide:
                       ("PetalWidth", "join")],
             )
         
-        with pytest.raises(ValueError, match="The given resource does not contain a label"):
-            ff.register_training_set(
-            "missing_label", "v4",
-            resources = feat2v2
-            )
-        
-        with pytest.raises(ValueError, match="This resource has multiple labels. Please call only one label to register a training set"):
+        with pytest.raises(ValueError, match="A training set can only have one label"):
             ff.register_training_set(
             "multiple_labels", "v4",
-            resources = label1v1
+            resources = [label1v1]
             )
         
-        with pytest.raises(ValueError, match="A training-set must have atleast one feature"):
+        with pytest.raises(ValueError, match="A training set can only have one label"):
             ff.register_training_set(
-            "Missing_features", "v4",
-            resources = label1v2
+                "multiple_labels", "v2",
+                label=("label1", "v2"),
+                resources = [join_resources, iris_centimeters],
             )
 
-            
+        with pytest.raises(ValueError, match="A training-set must have atleast one feature"):
+            ff.register_training_set(
+                "Missing_features", "v4",
+                resources = [label1v2]
+            )
 
+        with pytest.raises(ValueError, match="Label must be set"):
+            ff.register_training_set(
+                "missing_label", "v2",
+                resources = [feat1v1],
+            ) 
+            
     def test_invalid_label(self):
 
         ff.register_training_set(

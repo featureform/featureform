@@ -3,6 +3,7 @@ import shutil
 import stat
 
 import featureform as ff
+from featureform import local
 import pandas as pd
 import pytest
 
@@ -139,10 +140,6 @@ class TestCLI:
 
 class TestResourceClient:
     def test_setup(self):
-
-        ff.register_user("featureformer").make_default_owner()
-
-        local = ff.register_local()
 
         transactions = local.register_file(
             name="transactions",

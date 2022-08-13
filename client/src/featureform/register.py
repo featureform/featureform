@@ -120,7 +120,6 @@ class LocalProvider:
     def __init__(self, registrar, provider):
         self.__registrar = registrar
         self.__provider = provider
-        self.sqldb = SQLiteMetadata()
 
     def name(self) -> str:
         return self.__provider.name
@@ -133,8 +132,9 @@ class LocalProvider:
         return LocalSource(self.__registrar, name, owner, variant, self.name(), path, description)
 
     def insert_provider(self):
+        sqldb = SQLiteMetadata()
         # Store a new provider row
-        self.sqldb.insert("providers",
+        sqldb.insert("providers",
                           self.__provider.name,
                           "Provider",
                           self.__provider.description,
@@ -145,6 +145,7 @@ class LocalProvider:
                           "status",
                           str(self.__provider.config.serialize(), 'utf-8')
                           )
+        sqldb.close()
 
     def df_transformation(self,
                           variant: str = "default",
@@ -1054,6 +1055,7 @@ class Registrar:
         self.__resources.append(provider)
         local_provider = LocalProvider(self, provider)
         local_provider.insert_provider()
+        self.register_user("default_user").make_default_owner()
         return local_provider
 
     def register_primary_data(self,
@@ -1442,6 +1444,8 @@ class Client(Registrar):
             else:
                 channel = secure_channel(host, cert_path)
             self._stub = ff_grpc.ApiStub(channel)
+        elif local:
+            self.register_user("default_user").make_default_owner()
 
     def apply(self):
         """Apply all definitions, creating and retrieving all specified resources.

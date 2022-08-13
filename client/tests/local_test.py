@@ -1,4 +1,5 @@
 import featureform as ff
+from featureform import local
 import pandas as pd
 import pytest
 import shutil
@@ -7,12 +8,10 @@ import stat
 
 class TestPetalGuide:
     def test_register_local(self):
-        local = ff.register_local()
-
-        ff.register_user("featureformer").make_default_owner()
 
         iris = local.register_file(
             name="Iris dataset",
+            variant = "Kaggle",
             description="Iris dataset from Kaggle",
             path="iris.csv"
         )

@@ -926,10 +926,15 @@ class ResourceState:
             if resource.operation_type() is OperationType.CREATE:
                 print("Creating", resource.type(), resource.name)
                 resource._create_local(db)
+        db.close()
         return
 
     def create_all(self, stub) -> None:
         for resource in self.__create_list:
+            if resource.type() == "user" and resource.name == "default_user":
+                continue
+            if resource.type() == "provider" and resource.name == "local-mode":
+                continue
             try:
                 if resource.operation_type() is OperationType.GET:
                     print("Getting", resource.type(), resource.name)

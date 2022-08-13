@@ -35,6 +35,9 @@ class SQLiteMetadata:
         self.path = '.featureform/SQLiteDB'
         if not os.path.exists(self.path):
             os.makedirs(self.path)
+            print("Featureform Database does not exist. Creating...")
+        if os.path.exists(f"{self.path}/metadata.db"):
+            print("Featureform Database exists. Connecting...")
         raw_conn = sqlite3.connect(self.path + '/metadata.db', check_same_thread=False)
         raw_conn.row_factory = sqlite3.Row
         self.__conn = SyncSQLExecutor(raw_conn)

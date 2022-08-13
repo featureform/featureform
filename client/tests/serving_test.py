@@ -6,7 +6,6 @@ from unittest import TestCase
 import os, stat
 import numpy as np
 
-import featureform.resources
 import pandas as pd
 import pytest
 import sys
@@ -15,7 +14,6 @@ sys.path.insert(0, 'client/src/')
 from featureform import ResourceClient, ServingClient
 import serving_cases as cases
 import featureform as ff
-from datetime import datetime
 from featureform.serving import LocalClientImpl
 
 class TestIndividualFeatures(TestCase):
@@ -85,6 +83,7 @@ class TestIndividualFeatures(TestCase):
         local_client.db.close()
         client.impl.db.close()
         assert "column does not exist" in str(err.value)
+        retry_delete()
 
 
 class TestFeaturesE2E(TestCase):
@@ -112,7 +111,7 @@ class TestFeaturesE2E(TestCase):
             'value_cols': ['value'],
             'entity': 'entity',
             'entity_loc': 'entity',
-            'features': [("avg_transactions", "quickstart")],
+            'features': [("avg_transactions", "v13")],
             'entities': [{"entity": "a"}, {"entity": "b"}, {"entity": "c"}],
             'expected': [[1], [2], [3]],
             'ts_col': "ts"
@@ -324,6 +323,7 @@ class TestTransformation(TestCase):
         except:
             print("File Already Removed")
 
+
 class TestTrainingSet(TestCase):
     def _register_feature(self, feature, local, case, index, name):
         file = create_temp_file(feature)
@@ -413,6 +413,7 @@ def clear_and_reset():
     ff.clear_state()
     shutil.rmtree('.featureform', onerror=del_rw)
 
+
 def del_rw(action, name, exc):
     os.chmod(name, stat.S_IWRITE)
     os.remove(name)
@@ -431,16 +432,16 @@ def create_temp_file(test_values):
 
 
 def e2e_features(file, entity_name, entity_loc, name_variants, value_cols, entities, ts_col):
-    ff = ResourceClient(local=True)
-    ff.register_user("featureformer").make_default_owner()
-    local = ff.register_local()
+    resource_client = ResourceClient(local=True)
+    resource_client.register_user("featureformer").make_default_owner()
+    local = resource_client.register_local()
     transactions = local.register_file(
         name="transactions",
-        variant="quickstart",
+        variant="v1",
         description="A dataset of fraudulent transactions",
         path=file
     )
-    entity = ff.register_entity(entity_name)
+    entity = resource_client.register_entity(entity_name)
     for i, variant in enumerate(name_variants):
         transactions.register_resources(
             entity=entity,
@@ -451,11 +452,12 @@ def e2e_features(file, entity_name, entity_loc, name_variants, value_cols, entit
             ],
             timestamp_column=ts_col
         )
-    ff.state().create_all_local()
+    resource_client.state().create_all_local()
     client = ServingClient(local=True)
     results = []
     for entity in entities:
         results.append(client.features(name_variants, entity))
+
     return results
 
 
@@ -465,6 +467,6 @@ def retry_delete():
             shutil.rmtree('.featureform', onerror=del_rw)
             print("Table Deleted")
             break
-        except Exception:
-            print("Could not delete. Retrying...")
+        except Exception as e:
+            print(f"Could not delete. Retrying...", e)
             time.sleep(1)

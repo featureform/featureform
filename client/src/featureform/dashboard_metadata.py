@@ -1,7 +1,7 @@
 from flask import Blueprint, Response
 from flask_cors import CORS, cross_origin
 import json
-import os
+import importlib.resources as pkg_resources
 from .sqlite_metadata import SQLiteMetadata
 from .type_objects import (
     FeatureResource, 
@@ -16,27 +16,31 @@ from .type_objects import (
     LabelResource,
     LabelVariantResource,
     ProviderResource)
+import os
+import sys
 
-dashboard = Blueprint('dashboard', __name__, static_folder='../../../dashboard/out/', static_url_path='')
+path = os.path.join(os.path.dirname(__file__), 'dashboard')
 
-CORS(dashboard)
+dashboard_app = Blueprint('dashboard_app', __name__, static_folder=path + '/out/', static_url_path='')
+
+CORS(dashboard_app)
 sqlObject = SQLiteMetadata() 
 
-@dashboard.route('/')
+@dashboard_app.route('/')
 def index():
-    return dashboard.send_static_file('index.html')
+    return dashboard_app.send_static_file('index.html')
 
-@dashboard.route('/<type>')
+@dashboard_app.route('/<type>')
 def type(type):
-    return dashboard.send_static_file('[type].html')
+    return dashboard_app.send_static_file('[type].html')
 
-@dashboard.route('/<type>/<entity>')
+@dashboard_app.route('/<type>/<entity>')
 def entity(type, entity):
-    return dashboard.send_static_file('[type]/[entity].html')
+    return dashboard_app.send_static_file('[type]/[entity].html')
 
-@dashboard.route('/static/<asset>')
+@dashboard_app.route('/static/<asset>')
 def deliver_static(asset):
-    return dashboard.send_static_file('static/' + asset)
+    return dashboard_app.send_static_file('static/' + asset)
 
 def variant_organiser(allVariantList):
     variantsDict = dict()
@@ -299,7 +303,7 @@ def providers(rowData):
                 variant_organiser(label_variant(label_list)[2])
             ).toDictionary()
 
-@dashboard.route("/data/<type>", methods = ['POST', 'GET'])
+@dashboard_app.route("/data/<type>", methods = ['POST', 'GET'])
 @cross_origin(allow_headers=['Content-Type'])
 def GetMetadataList(type):
     type = type.replace("-", "_")
@@ -338,7 +342,7 @@ def GetMetadataList(type):
     )
     return response
 
-@dashboard.route("/data/<type>/<resource>", methods = ['POST', 'GET'])
+@dashboard_app.route("/data/<type>/<resource>", methods = ['POST', 'GET'])
 @cross_origin(allow_headers=['Content-Type'])
 def GetMetadata(type, resource):
         type = type.replace("-", "_")

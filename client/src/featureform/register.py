@@ -1040,6 +1040,7 @@ class Registrar:
         self.__resources.append(provider)
         local_provider = LocalProvider(self, provider)
         local_provider.insert_provider()
+        self.register_user("default_user").make_default_owner()
         return local_provider
 
     def register_primary_data(self,
@@ -1392,7 +1393,7 @@ class Client(Registrar):
                 channel = secure_channel(host, cert_path)
             self._stub = ff_grpc.ApiStub(channel)
         elif local:
-            register_user("default_user").make_default_owner()
+            self.register_user("default_user").make_default_owner()
 
     def apply(self):
         """Apply all definitions, creating and retrieving all specified resources.

@@ -801,13 +801,13 @@ func streamResolveStringList(outputStream *s3.SelectObjectContentEventStreamRead
 	for i := range outputEvents {
 		switch v := i.(type) {
 		case *s3Types.SelectObjectContentEventStreamMemberRecords:
-			return streamRecordKeyLabels(v)
+			return streamGetKeys(v)
 		}
 	}
 	return nil, nil
 }
 
-func streamRecordKeyLabels(record *s3Types.SelectObjectContentEventStreamMemberRecords) ([]string, error) {
+func streamGetKeys(record *s3Types.SelectObjectContentEventStreamMemberRecords) ([]string, error) {
 	var m map[string]interface{}
 	if err := json.Unmarshal(record.Value.Payload, &m); err != nil {
 		return nil, err

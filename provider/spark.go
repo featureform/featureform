@@ -120,6 +120,13 @@ type sparkSQLQueries struct {
 	defaultOfflineSQLQueries
 }
 
+func (q sparkSQLQueries) materializationCreate(tableName string, sourceName string) string {
+	return fmt.Sprintf(
+		"SELECT entity, value, ts, row_number() over(ORDER BY (SELECT NULL)) as row_number FROM "+
+			"(SELECT entity, ts, value, row_number() OVER (PARTITION BY entity ORDER BY ts desc) "+
+			"AS rn FROM %s) t WHERE rn=1", sanitize(sourceName), sanitize(tableName))
+}
+
 type SparkOfflineStore struct {
 	Executor SparkExecutor
 	Store    SparkStore
@@ -701,8 +708,51 @@ func (spark *SparkOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, e
 	}}, nil
 }
 
+type S3Materialization struct {
+}
+
+func (s *S3Materialization) ID() MaterializationID {
+	return nil
+}
+
+func (s *S3Materialization) NumRows() (int64, error) {
+	return 0, nil
+}
+
+func (s *S3Materialization) IterateSegment(begin, end int64) (FeatureIterator, error) {
+	return &S3FeatureIterator{}, nil
+}
+
+type S3FeatureIterator struct {
+}
+
+func (s *S3FeatureIterator) Next() bool {
+	return false
+}
+
+func (s *S3FeatureIterator) Value() ResourceRecord {
+	return nil
+}
+
+func (s *S3FeatureIterator) Err() error {
+	return nil
+}
+
 func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materialization, error) {
-	return nil, nil
+	materializationID := ResourceID{Name: id.Name, Variant: id.Variant, Type: Materialization}
+	destinationPath := spark.Store.ResourcePath(materializationID)
+	exists, err := spark.Store.FileExists(destinationPath)
+	if exists {
+		return nil, fmt.Errorf("materialization already exists")
+	}
+	materializationQuery := spark.query.materializationCreate("source_0", "source_1")
+	sourcePath := spark.Store.ResourcePath(id)
+	sparkArgs := spark.Store.SparkSubmitArgs(destinationPath, materializationQuery, []string{sourcePath})
+	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
+		return nil, err
+	}
+
+	return &S3Materialization{}, nil
 }
 
 func (spark *SparkOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {

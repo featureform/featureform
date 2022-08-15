@@ -1,7 +1,8 @@
 # Description
 
-**Please include a summary of the changes and the related issue. Please also include relevant motivation and context.**
-
+<!--- Please include a summary of the changes and the related issue. -->
+<!--- Why is this change required? What problem does it solve? -->
+<!--- If it fixes an open issue, please link to the issue here. -->
 
 ## Type of change
 
@@ -14,7 +15,9 @@
 
 # How Has This Been Tested?
 
-**Please describe the tests that you ran to verify your changes. Provide instructions that be can reproduced. Please also list any relevant details for your test configuration**
+<!--- Please describe the tests that you ran to verify your changes. -->
+<!--- Provide instructions that can be reproduced. -->
+<!--- Please also list any relevant details for your test configuration. -->
 
 
 **Test Configuration**:

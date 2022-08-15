@@ -46,6 +46,7 @@ const (
 	TrainingSet
 	Primary
 	Transformation
+	FeatureMaterialization
 )
 
 var ProviderToMetadataResourceType = map[OfflineResourceType]metadata.ResourceType{

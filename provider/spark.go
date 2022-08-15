@@ -124,7 +124,7 @@ func (q sparkSQLQueries) materializationCreate(tableName string, sourceName stri
 	return fmt.Sprintf(
 		"SELECT entity, value, ts, row_number() over(ORDER BY (SELECT NULL)) as row_number FROM "+
 			"(SELECT entity, ts, value, row_number() OVER (PARTITION BY entity ORDER BY ts desc) "+
-			"AS rn FROM %s) t WHERE rn=1", sanitize(sourceName), sanitize(tableName))
+			"AS rn FROM %s) t WHERE rn=1", sanitize(sourceName))
 }
 
 type SparkOfflineStore struct {
@@ -739,13 +739,13 @@ func (s *S3FeatureIterator) Err() error {
 }
 
 func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materialization, error) {
-	materializationID := ResourceID{Name: id.Name, Variant: id.Variant, Type: Materialization}
+	materializationID := ResourceID{Name: id.Name, Variant: id.Variant, Type: FeatureMaterialization}
 	destinationPath := spark.Store.ResourcePath(materializationID)
 	exists, err := spark.Store.FileExists(destinationPath)
 	if exists {
 		return nil, fmt.Errorf("materialization already exists")
 	}
-	materializationQuery := spark.query.materializationCreate("source_0", "source_1")
+	materializationQuery := spark.query.materializationCreate("source_0")
 	sourcePath := spark.Store.ResourcePath(id)
 	sparkArgs := spark.Store.SparkSubmitArgs(destinationPath, materializationQuery, []string{sourcePath})
 	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {

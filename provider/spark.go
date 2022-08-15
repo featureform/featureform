@@ -120,11 +120,15 @@ type sparkSQLQueries struct {
 	defaultOfflineSQLQueries
 }
 
-func (q sparkSQLQueries) materializationCreate(tableName string, sourceName string) string {
+func sparkMaterializationQuery(schema ResourceSchema) string {
+	timestampColumn := schema.TS
+	if schema.TS == "" {
+		timestampColumn = "ts"
+	}
 	return fmt.Sprintf(
-		"SELECT entity, value, ts, row_number() over(ORDER BY (SELECT NULL)) as row_number FROM "+
+		"SELECT %s AS entity, %s AS value, %s AS ts, row_number() over(ORDER BY (SELECT NULL)) as row_number FROM "+
 			"(SELECT entity, ts, value, row_number() OVER (PARTITION BY entity ORDER BY ts desc) "+
-			"AS rn FROM %s) t WHERE rn=1", sanitize(sourceName))
+			"AS rn FROM %s) t WHERE rn=1", schema.Entity, schema.Value, timestampColumn, sanitize(schema.SourceTable))
 }
 
 type SparkOfflineStore struct {
@@ -709,10 +713,11 @@ func (spark *SparkOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, e
 }
 
 type S3Materialization struct {
+	id ResourceID
 }
 
 func (s *S3Materialization) ID() MaterializationID {
-	return nil
+	return MaterializationID(fmt.Sprintf("%s/%s/%s", s.id.Type, s.id.Name, s.id.Variant))
 }
 
 func (s *S3Materialization) NumRows() (int64, error) {
@@ -731,7 +736,7 @@ func (s *S3FeatureIterator) Next() bool {
 }
 
 func (s *S3FeatureIterator) Value() ResourceRecord {
-	return nil
+	return ResourceRecord{}
 }
 
 func (s *S3FeatureIterator) Err() error {
@@ -739,8 +744,13 @@ func (s *S3FeatureIterator) Err() error {
 }
 
 func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materialization, error) {
-	if _, err := spark.GetResourceTable(id); err != nil {
-		return nil, fmt.Errorf("Resource not registered: %v", err)
+	resourceTable, err := spark.GetResourceTable(id)
+	if err != nil {
+		return nil, fmt.Errorf("resource not registered: %v", err)
+	}
+	sparkResourceTable, ok := resourceTable.(*S3OfflineTable)
+	if !ok {
+		return nil, fmt.Errorf("could not convert offline table to sparkResourceTable")
 	}
 	materializationID := ResourceID{Name: id.Name, Variant: id.Variant, Type: FeatureMaterialization}
 	destinationPath := spark.Store.ResourcePath(materializationID)
@@ -748,7 +758,7 @@ func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materializ
 	if exists {
 		return nil, fmt.Errorf("materialization already exists")
 	}
-	materializationQuery := spark.query.materializationCreate("", "source_0")
+	materializationQuery := sparkMaterializationQuery(sparkResourceTable.schema)
 	sourcePath := spark.Store.ResourcePath(id)
 	sparkArgs := spark.Store.SparkSubmitArgs(destinationPath, materializationQuery, []string{sourcePath})
 	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {

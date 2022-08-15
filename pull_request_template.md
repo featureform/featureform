@@ -16,13 +16,6 @@
 - [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
 - [ ] Documentation update
 
-# How has this been tested?
-
-<!--- Please describe the tests that you ran to verify your changes. -->
-<!--- Provide instructions that can be reproduced. -->
-<!--- Please also list any relevant details for your test configuration. -->
-
-
 # Checklist:
 
 - [ ] I have performed a self-review of my code

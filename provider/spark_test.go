@@ -16,6 +16,18 @@ import (
 	"time"
 )
 
+func testMaterializeFeature(id ResourceID, store *SparkOfflineStore) error {
+	materialization, err := store.CreateMaterialization(id)
+	if err != nil {
+		return err
+	}
+	fetchedMaterialization, err := store.GetMaterialization(id)
+	if !reflect.DeepEqual(fetchedMaterialization, materialization) {
+		return fmt.Errorf("get materialization and create materialization return different results")
+	}
+	return nil
+}
+
 func testResourcePath(store *SparkOfflineStore) error {
 	bucketName := os.Getenv("S3_BUCKET_PATH")
 	exampleResource := ResourceID{"test_resource", "test_variant", Primary}
@@ -99,7 +111,10 @@ func testRegisterResource(store *SparkOfflineStore) error {
 	if !reflect.DeepEqual(fetchedTable, table) {
 		return fmt.Errorf("Did not properly register table")
 	}
-	return nil
+
+	if err := testMaterializeFeature(testResource, store); err != nil {
+		return fmt.Errorf("Could not materialize feature")
+	}
 
 }
 

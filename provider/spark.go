@@ -739,13 +739,16 @@ func (s *S3FeatureIterator) Err() error {
 }
 
 func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materialization, error) {
+	if _, err := spark.GetResourceTable(id); err != nil {
+		return nil, fmt.Errorf("Resource not registered: %v", err)
+	}
 	materializationID := ResourceID{Name: id.Name, Variant: id.Variant, Type: FeatureMaterialization}
 	destinationPath := spark.Store.ResourcePath(materializationID)
-	exists, err := spark.Store.FileExists(destinationPath)
+	exists, _ := spark.Store.FileExists(destinationPath)
 	if exists {
 		return nil, fmt.Errorf("materialization already exists")
 	}
-	materializationQuery := spark.query.materializationCreate("source_0")
+	materializationQuery := spark.query.materializationCreate("", "source_0")
 	sourcePath := spark.Store.ResourcePath(id)
 	sparkArgs := spark.Store.SparkSubmitArgs(destinationPath, materializationQuery, []string{sourcePath})
 	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {

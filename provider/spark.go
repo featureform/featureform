@@ -126,11 +126,13 @@ func (s *S3Config) Serialize() []byte {
 	return conf
 }
 
-type sparkSQLQueries struct {
-	defaultOfflineSQLQueries
+type SparkOfflineQueries interface {
+	materializationCreate(schema ResourceSchema) string
 }
 
-func sparkMaterializationCreate(schema ResourceSchema) string {
+type defaultSparkOfflineQueries struct{}
+
+func (q defaultSparkOfflineQueries) materializationCreate(schema ResourceSchema) string {
 	timestampColumn := schema.TS
 	if schema.TS == "" {
 		timestampColumn = "ts"
@@ -145,7 +147,7 @@ func sparkMaterializationCreate(schema ResourceSchema) string {
 type SparkOfflineStore struct {
 	Executor SparkExecutor
 	Store    SparkStore
-	query    OfflineTableQueries
+	query    *defaultSparkOfflineQueries
 	BaseProvider
 }
 
@@ -169,7 +171,7 @@ func SparkOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	if err := store.UploadSparkScript(); err != nil {
 		return nil, err
 	}
-	queries := sparkSQLQueries{}
+	queries := defaultSparkOfflineQueries{}
 	sparkOfflineStore := SparkOfflineStore{
 		Executor: exec,
 		Store:    store,
@@ -830,7 +832,7 @@ func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materializ
 	if exists {
 		return nil, fmt.Errorf("materialization %v already exists", materializationID)
 	}
-	materializationQuery := sparkMaterializationCreate(sparkResourceTable.schema)
+	materializationQuery := spark.query.materializationCreate(sparkResourceTable.schema)
 	sourcePath := fmt.Sprintf("%s%s", spark.Store.BucketPrefix(), sparkResourceTable.schema.SourceTable)
 	sparkArgs := spark.Store.SparkSubmitArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize)
 	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {

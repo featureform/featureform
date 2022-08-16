@@ -385,6 +385,6 @@ jobs:
         if: always()
         run: kubectl logs -l app.kubernetes.io/name=ingress-nginx
 
-      - name: Feature Server Logs
+      - name: Metadata Server Logs
         if: always()
         run: kubectl logs -l app=featureform-metadata-server

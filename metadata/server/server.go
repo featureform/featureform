@@ -17,7 +17,7 @@ import (
 func main() {
 
 	etcdHost := help.GetEnv("ETCD_HOST", "localhost")
-	etcdPort := help.GetEnv("ETCD_HOST", "6379")
+	etcdPort := help.GetEnv("ETCD_PORT", "6379")
 	logger := zap.NewExample().Sugar()
 	addr := help.GetEnv("METADATA_PORT", "8080")
 	storageProvider := metadata.EtcdStorageProvider{

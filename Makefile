@@ -30,7 +30,7 @@ pytest:
 	pytest client/tests/local_test.py
 	pytest client/tests/serving_test.py
 	pytest client/tests/localmode_quickstart_test.py
-	pip install jupyter nbconvert matplotlib pandas scikit-learn requests
+	pip3 install jupyter nbconvert matplotlib pandas scikit-learn requests
 	jupyter nbconvert --to notebook --execute notebooks/Fraud_Detection_Example.ipynb
 	-rm -r .featureform
 
@@ -49,10 +49,10 @@ gen_grpc:						## Generates GRPC Dependencies
 	cp proto/serving.proto client/src/featureform/proto/serving.proto
 
 	protoc --go_out=. --go_opt=paths=source_relative     --go-grpc_out=. --go-grpc_opt=paths=source_relative     ./proto/serving.proto
-	python -m grpc_tools.protoc -I ./client/src --python_out=./client/src --grpc_python_out=./client/src/ ./client/src/featureform/proto/serving.proto
+	python3 -m grpc_tools.protoc -I ./client/src --python_out=./client/src --grpc_python_out=./client/src/ ./client/src/featureform/proto/serving.proto
 
 	protoc --go_out=. --go_opt=paths=source_relative     --go-grpc_out=. --go-grpc_opt=paths=source_relative     ./metadata/proto/metadata.proto
-	python -m grpc_tools.protoc -I ./client/src --python_out=./client/src/ --grpc_python_out=./client/src/ ./client/src/featureform/proto/metadata.proto
+	python3 -m grpc_tools.protoc -I ./client/src --python_out=./client/src/ --grpc_python_out=./client/src/ ./client/src/featureform/proto/metadata.proto
 
 update_python: gen_grpc 			## Updates the python package locally
 	pip3 install pytest
@@ -115,5 +115,3 @@ reset_e2e: etcd						## Resets Cluster. Requires install_etcd
 	while ! echo exit | nc localhost 2379; do sleep 10; done
 	etcdctl --user=root:secretpassword del "" --prefix
 	-helm uninstall quickstart
-
-

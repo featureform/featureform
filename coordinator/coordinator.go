@@ -50,7 +50,7 @@ func getSourceMapping(template string, replacements map[string]string) ([]provid
 		if !has {
 			return nil, fmt.Errorf("no key set")
 		}
-		sourceMap = append(sourceMap, provider.SourceMapping{template: sanitize(replacement), source: replacement})
+		sourceMap = append(sourceMap, provider.SourceMapping{provider.SourceMapping.template: sanitize(replacement), provider.SourceMapping.source: replacement})
 		template = afterSplit[1]
 	}
 	return sourceMap, nil

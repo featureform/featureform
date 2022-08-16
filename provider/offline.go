@@ -132,8 +132,8 @@ const (
 )
 
 type SourceMapping struct {
-	template string
-	source   string
+	Template string
+	Source   string
 }
 
 type TransformationConfig struct {

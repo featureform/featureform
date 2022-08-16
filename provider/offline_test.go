@@ -1995,8 +1995,8 @@ func testTransform(t *testing.T, store OfflineStore) {
 				Query: "SELECT * FROM tb",
 				SourceMapping: []SourceMapping{
 					SourceMapping{
-						template: "tb",
-						source:   "TBD",
+						Template: "tb",
+						Source:   "TBD",
 					},
 				},
 			},
@@ -2038,8 +2038,8 @@ func testTransform(t *testing.T, store OfflineStore) {
 				Query: "SELECT COUNT(*) as total_count FROM tb",
 				SourceMapping: []SourceMapping{
 					SourceMapping{
-						template: "tb",
-						source:   "TBD",
+						Template: "tb",
+						Source:   "TBD",
 					},
 				},
 			},
@@ -2170,8 +2170,8 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 				Query: "SELECT * FROM tb",
 				SourceMapping: []SourceMapping{
 					SourceMapping{
-						template: "tb",
-						source:   "TBD",
+						Template: "tb",
+						Source:   "TBD",
 					},
 				},
 			},
@@ -2226,8 +2226,8 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 				Query: "SELECT COUNT(*) as total_count FROM tb",
 				SourceMapping: []SourceMapping{
 					SourceMapping{
-						template: "tb",
-						source:   "TBD",
+						Template: "tb",
+						Source:   "TBD",
 					},
 				},
 			},
@@ -2382,8 +2382,8 @@ func testTransformCreateFeature(t *testing.T, store OfflineStore) {
 				Query: "SELECT entity, int, ts FROM tb",
 				SourceMapping: []SourceMapping{
 					SourceMapping{
-						template: "tb",
-						source:   "TBD",
+						Template: "tb",
+						Source:   "TBD",
 					},
 				},
 			},
@@ -2501,8 +2501,8 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 				Query: "SELECT entity, int_col, flt_col, str_col FROM tb",
 				SourceMapping: []SourceMapping{
 					SourceMapping{
-						template: "tb",
-						source:   "TBD",
+						Template: "tb",
+						Source:   "TBD",
 					},
 				},
 			},
@@ -2535,8 +2535,8 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 				Query: "SELECT COUNT(*) as total_count FROM tb",
 				SourceMapping: []SourceMapping{
 					SourceMapping{
-						template: "tb",
-						source:   "TBD",
+						Template: "tb",
+						Source:   "TBD",
 					},
 				},
 			},
@@ -2566,8 +2566,8 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 		Query: fmt.Sprintf("SELECT entity, int_col, flt_col, str_col FROM %s", tableName),
 		SourceMapping: []SourceMapping{
 			SourceMapping{
-				template: tableName,
-				source:   tableName,
+				Template: tableName,
+				Source:   tableName,
 			},
 		},
 	}
@@ -2621,8 +2621,8 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 		Query: fmt.Sprintf("SELECT Count(*) as total_count FROM %s", tableName),
 		SourceMapping: []SourceMapping{
 			SourceMapping{
-				template: tableName,
-				source:   tableName,
+				Template: tableName,
+				Source:   tableName,
 			},
 		},
 	}
@@ -2688,8 +2688,8 @@ func testTransformToMaterialize(t *testing.T, store OfflineStore) {
 				Query: "SELECT entity, int, flt, str FROM tb",
 				SourceMapping: []SourceMapping{
 					SourceMapping{
-						template: "tb",
-						source:   "TBD",
+						Template: "tb",
+						Source:   "TBD",
 					},
 				},
 			},
@@ -2723,8 +2723,8 @@ func testTransformToMaterialize(t *testing.T, store OfflineStore) {
 		Query: fmt.Sprintf("SELECT entity, int, flt, str FROM %s", tableName),
 		SourceMapping: []SourceMapping{
 			SourceMapping{
-				template: tableName,
-				source:   tableName,
+				Template: tableName,
+				Source:   tableName,
 			},
 		},
 	}

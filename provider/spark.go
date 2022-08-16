@@ -136,9 +136,10 @@ func sparkMaterializationQuery(schema ResourceSchema) string {
 		timestampColumn = "ts"
 	}
 	return fmt.Sprintf(
-		"SELECT %s AS entity, %s AS value, %s AS ts, row_number() over(ORDER BY (SELECT NULL)) as row_number FROM "+
-			"(SELECT entity, ts, value, row_number() OVER (PARTITION BY entity ORDER BY ts desc) "+
-			"AS rn FROM %s) t WHERE rn=1", schema.Entity, schema.Value, timestampColumn, "source_0")
+		"SELECT entity, value, ts, ROW_NUMBER() over (ORDER BY (SELECT NULL)) AS row_number FROM "+
+			"(SELECT entity, value, ts, rn FROM (SELECT %s AS entity, %s AS value, %s AS ts, "+
+			"ROW_NUMBER() OVER (PARTITION BY %s ORDER BY %s DESC) AS rn FROM %s) t WHERE rn=1) t2",
+		schema.Entity, schema.Value, timestampColumn, schema.Entity, timestampColumn, "source_0")
 }
 
 type SparkOfflineStore struct {
@@ -339,7 +340,7 @@ func (e *EMRExecutor) RunSparkJob(args []string) error {
 	var waitDuration time.Duration = time.Second * 150
 	time.Sleep(1 * time.Second)
 	stepCompleteWaiter := emr.NewStepCompleteWaiter(e.client)
-	output, err := stepCompleteWaiter.WaitForOutput(context.TODO(), &emr.DescribeStepInput{
+	_, err = stepCompleteWaiter.WaitForOutput(context.TODO(), &emr.DescribeStepInput{
 		ClusterId: aws.String(e.clusterName),
 		StepId:    aws.String(stepId),
 	}, waitDuration)
@@ -827,13 +828,13 @@ func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materializ
 	destinationPath := spark.Store.ResourcePath(materializationID)
 	exists, _ := spark.Store.FileExists(destinationPath)
 	if exists {
-		return nil, fmt.Errorf("materialization already exists")
+		return nil, fmt.Errorf("materialization %v already exists", materializationID)
 	}
 	materializationQuery := sparkMaterializationQuery(sparkResourceTable.schema)
 	sourcePath := fmt.Sprintf("%s%s", spark.Store.BucketPrefix(), sparkResourceTable.schema.SourceTable)
 	sparkArgs := spark.Store.SparkSubmitArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize)
 	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("spark submit job for materialization %v failed to run: %v", materializationID, err)
 	}
 
 	return &S3Materialization{materializationID}, nil

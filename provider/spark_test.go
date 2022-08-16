@@ -16,8 +16,45 @@ import (
 	"time"
 )
 
-func testMaterializeFeature(id ResourceID, store *SparkOfflineStore) error {
-	materialization, err := store.CreateMaterialization(id)
+func testMaterializeResource(store *SparkOfflineStore) error {
+	exampleStructArray := make([]exampleStruct, 10)
+	for i := 0; i < 5; i++ {
+		exampleStructArray[i] = exampleStruct{
+			Name:       fmt.Sprintf("John Smith_%d", i),
+			Age:        30 + i,
+			Score:      100.4 + float32(i),
+			Winner:     false,
+			Registered: time.UnixMilli(int64(i)),
+		}
+	}
+	for i := 0; i < 5; i++ {
+		exampleStructArray[i+5] = exampleStruct{
+			Name:       fmt.Sprintf("John Smith_%d", i),
+			Age:        30 + i + 5,
+			Score:      105.4 + float32(i),
+			Winner:     true,
+			Registered: time.UnixMilli(int64(i + 5)),
+		}
+	}
+	path := "featureform/tests/testFile2.parquet"
+	if err := store.Store.UploadParquetTable(path, exampleStructArray); err != nil {
+		return err
+	}
+	testResource := ResourceID{"test_name_materialize", "test_variant", Feature}
+	testResourceSchema := ResourceSchema{"name", "age", "registered", path}
+	table, err := store.RegisterResourceFromSourceTable(testResource, testResourceSchema)
+	if err != nil {
+		return err
+	}
+	fetchedTable, err := store.GetResourceTable(testResource)
+	if err != nil {
+		return err
+	}
+	if !reflect.DeepEqual(fetchedTable, table) {
+		return fmt.Errorf("Did not properly register table")
+	}
+
+	materialization, err := store.CreateMaterialization(testResource)
 	if err != nil {
 		return err
 	}
@@ -113,10 +150,6 @@ func testRegisterResource(store *SparkOfflineStore) error {
 	}
 	if !reflect.DeepEqual(fetchedTable, table) {
 		return fmt.Errorf("Did not properly register table")
-	}
-
-	if err := testMaterializeFeature(testResource, store); err != nil {
-		return fmt.Errorf("Could not materialize feature: %v", err)
 	}
 	return nil
 }
@@ -246,6 +279,9 @@ func TestParquetUpload(t *testing.T) {
 	}
 	if err := testRegisterPrimary(sparkOfflineStore); err != nil {
 		t.Fatalf("resource primary test failed: %s", err)
+	}
+	if err := testMaterializeResource(sparkOfflineStore); err != nil {
+		t.Fatalf("resource materialize test failed: %s", err)
 	}
 }
 

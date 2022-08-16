@@ -164,9 +164,10 @@ func TestTransformationFactory(t *testing.T) {
 		OfflineType:   "MOCK_OFFLINE",
 		OfflineConfig: []byte{},
 		TransformationConfig: provider.TransformationConfig{
+			Type:          provider.SQLTransformation,
 			TargetTableID: provider.ResourceID{},
 			Query:         "",
-			ColumnMapping: []provider.ColumnMapping{},
+			SourceMapping: []provider.SourceMapping{},
 		},
 		IsUpdate: false,
 	})

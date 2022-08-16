@@ -13,11 +13,10 @@ from pyspark.sql import SparkSession
 def execute_sql_query(job_type, output_uri, sql_query, source_list):
     try:
         with SparkSession.builder.appName("Execute SQL Query").getOrCreate() as spark:
-            # if job_type == "Transformation" or job_type == "Materialization":
-            #     for _, source in enumerate(source_list):
-                    
-            source_df = spark.read.option("header","true").parquet(source_list[0])  
-            source_df.createOrReplaceTempView("source_0")
+            if job_type == "Transformation" or job_type == "Materialization":
+                for i, source in enumerate(source_list):          
+                    source_df = spark.read.option("header","true").parquet(source)  
+                    source_df.createOrReplaceTempView(f'source_{i}')
             output_dataframe = spark.sql(sql_query)
 
             dt = datetime.now()

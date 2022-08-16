@@ -27,13 +27,13 @@ func testMaterializeResource(store *SparkOfflineStore) error {
 			Registered: time.UnixMilli(int64(i)),
 		}
 	}
-	for i := 0; i < 5; i++ {
-		exampleStructArray[i+5] = exampleStruct{
-			Name:       fmt.Sprintf("John Smith_%d", i),
-			Age:        30 + i + 5,
-			Score:      105.4 + float32(i),
+	for i := 5; i < 10; i++ {
+		exampleStructArray[i] = exampleStruct{
+			Name:       fmt.Sprintf("John Smith_%d", i-5),
+			Age:        30 + i,
+			Score:      100.4 + float32(i),
 			Winner:     true,
-			Registered: time.UnixMilli(int64(i + 5)),
+			Registered: time.UnixMilli(int64(i)),
 		}
 	}
 	path := "featureform/tests/testFile2.parquet"

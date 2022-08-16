@@ -130,7 +130,7 @@ type sparkSQLQueries struct {
 	defaultOfflineSQLQueries
 }
 
-func sparkMaterializationQuery(schema ResourceSchema) string {
+func sparkMaterializationCreate(schema ResourceSchema) string {
 	timestampColumn := schema.TS
 	if schema.TS == "" {
 		timestampColumn = "ts"
@@ -822,7 +822,7 @@ func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materializ
 	}
 	sparkResourceTable, ok := resourceTable.(*S3OfflineTable)
 	if !ok {
-		return nil, fmt.Errorf("could not convert offline table to sparkResourceTable")
+		return nil, fmt.Errorf("could not convert offline table with id %v to sparkResourceTable", id)
 	}
 	materializationID := ResourceID{Name: id.Name, Variant: id.Variant, Type: FeatureMaterialization}
 	destinationPath := spark.Store.ResourcePath(materializationID)
@@ -830,7 +830,7 @@ func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materializ
 	if exists {
 		return nil, fmt.Errorf("materialization %v already exists", materializationID)
 	}
-	materializationQuery := sparkMaterializationQuery(sparkResourceTable.schema)
+	materializationQuery := sparkMaterializationCreate(sparkResourceTable.schema)
 	sourcePath := fmt.Sprintf("%s%s", spark.Store.BucketPrefix(), sparkResourceTable.schema.SourceTable)
 	sparkArgs := spark.Store.SparkSubmitArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize)
 	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {

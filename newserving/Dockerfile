@@ -17,6 +17,7 @@ RUN protoc --go_out=. --go_opt=paths=source_relative     --go-grpc_out=. --go-gr
 
 COPY newserving/*.go ./newserving/
 COPY ./metadata/ ./metadata/
+COPY ./helpers/ ./helpers/
 COPY ./metrics/ ./metrics/
 COPY ./provider/ ./provider/
 COPY newserving/main/main.go ./newserving/main/main.go

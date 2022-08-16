@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	help "github.com/featureform/helpers"
 	pb "github.com/featureform/metadata/proto"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/protobuf/proto"
@@ -104,8 +105,8 @@ func (c EtcdConfig) initClient() (*clientv3.Client, error) {
 		AutoSyncInterval:  time.Second * 30,
 		DialTimeout:       time.Second * 1,
 		DialKeepAliveTime: time.Second * 1,
-		Username:          "root",
-		Password:          "secretpassword",
+		Username:          help.GetEnv("ETCD_USERNAME", "root"),
+		Password:          help.GetEnv("ETCD_PASSWORD", "secretpassword"),
 	})
 	if err != nil {
 		return nil, err

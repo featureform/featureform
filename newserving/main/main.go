@@ -6,12 +6,11 @@ package main
 
 import (
 	"fmt"
-	"net"
-	"os"
-
+	help "github.com/featureform/helpers"
 	"github.com/featureform/metadata"
 	"github.com/featureform/metrics"
 	"github.com/featureform/newserving"
+	"net"
 
 	pb "github.com/featureform/proto"
 	"go.uber.org/zap"
@@ -21,17 +20,17 @@ import (
 func main() {
 	logger := zap.NewExample().Sugar()
 
-	port := os.Getenv("SERVING_PORT")
+	port := help.GetEnv("SERVING_PORT", "8080")
 	lis, err := net.Listen("tcp", port)
 	if err != nil {
 		logger.Panicw("Failed to listen on port", "Err", err)
 	}
 
 	promMetrics := metrics.NewMetrics("test")
-	metricsPort := os.Getenv("METRICS_PORT")
+	metricsPort := help.GetEnv("METRICS_PORT", "")
 
-	metadataHost := os.Getenv("METADATA_HOST")
-	metadataPort := os.Getenv("METADATA_PORT")
+	metadataHost := help.GetEnv("METADATA_HOST", "localhost")
+	metadataPort := help.GetEnv("METADATA_PORT", "8080")
 	metadataConn := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
 
 	meta, err := metadata.NewClient(metadataConn, logger)

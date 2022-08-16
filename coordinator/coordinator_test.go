@@ -850,7 +850,6 @@ func TestTemplateReplace(t *testing.T) {
 	if result != correctString {
 		t.Fatalf("template replace did not replace values correctly. Expected %s, got %s", correctString, result)
 	}
-
 }
 
 func TestTemplateReplaceError(t *testing.T) {
@@ -1648,4 +1647,37 @@ func testRegisterTransformationFromSource(addr string) error {
 	}
 
 	return nil
+}
+
+func TestGetSourceMapping(t *testing.T) {
+	templateString := "Some example text {{name1.variant1}} and more {{name2.variant2}}"
+	replacements := map[string]string{"name1.variant1": "replacement1", "name2.variant2": "replacement2"}
+	expectedSourceMap := []provider.SourceMapping{
+		provider.SourceMapping{
+			Template: "\"replacement1\"",
+			Source:   "replacement1",
+		},
+		provider.SourceMapping{
+			Template: "\"replacement2\"",
+			Source:   "replacement2",
+		},
+	}
+
+	sourceMap, err := getSourceMapping(templateString, replacements)
+	if err != nil {
+		t.Fatalf("Could not retrieve the source mapping: %v", err)
+	}
+
+	if !reflect.DeepEqual(sourceMap, expectedSourceMap) {
+		t.Fatalf("source mapping did not generate the SourceMapping correctly. Expected %v, got %v", sourceMap, expectedSourceMap)
+	}
+}
+
+func TestGetSourceMappingError(t *testing.T) {
+	templateString := "Some example text {{name1.variant1}} and more {{name2.variant2}}"
+	wrongReplacements := map[string]string{"name1.variant1": "replacement1", "name3.variant3": "replacement2"}
+	_, err := getSourceMapping(templateString, wrongReplacements)
+	if err == nil {
+		t.Fatalf("getSourceMapping did not catch error: templateString {%v} and wrongReplacement {%v}", templateString, wrongReplacements)
+	}
 }

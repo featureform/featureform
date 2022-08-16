@@ -19,7 +19,7 @@ func main() {
 	etcdHost := help.GetEnv("ETCD_HOST", "localhost")
 	etcdPort := help.GetEnv("ETCD_HOST", "6379")
 	logger := zap.NewExample().Sugar()
-	addr := help.GetEnv("METADATA_PORT", "8888")
+	addr := help.GetEnv("METADATA_PORT", "8080")
 	storageProvider := metadata.EtcdStorageProvider{
 		metadata.EtcdConfig{
 			Nodes: []metadata.EtcdNode{

@@ -13,7 +13,7 @@ import (
 
 func main() {
 	logger := zap.NewExample().Sugar()
-	addr := help.GetEnv("METADATA_PORT", "8888")
+	addr := help.GetEnv("METADATA_PORT", "8080")
 	config := &metadata.Config{
 		Logger:          logger,
 		Address:         fmt.Sprintf(":%s", addr),

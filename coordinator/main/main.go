@@ -16,7 +16,7 @@ func main() {
 	etcdPort := help.GetEnv("ETCD_HOST", "6379")
 	etcdUrl := fmt.Sprintf("%s:%s", etcdHost, etcdPort)
 	metadataHost := help.GetEnv("METADATA_HOST", "localhost")
-	metadataPort := help.GetEnv("METADATA_PORT", "8888")
+	metadataPort := help.GetEnv("METADATA_PORT", "8080")
 	metadataUrl := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
 	fmt.Printf("connecting to etcd: %s\n", etcdUrl)
 	fmt.Printf("connecting to metadata: %s\n", metadataUrl)

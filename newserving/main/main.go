@@ -20,7 +20,7 @@ import (
 func main() {
 	logger := zap.NewExample().Sugar()
 
-	port := help.GetEnv("SERVING_PORT", "9999")
+	port := help.GetEnv("SERVING_PORT", "8080")
 	lis, err := net.Listen("tcp", port)
 	if err != nil {
 		logger.Panicw("Failed to listen on port", "Err", err)
@@ -30,7 +30,7 @@ func main() {
 	metricsPort := help.GetEnv("METRICS_PORT", "")
 
 	metadataHost := help.GetEnv("METADATA_HOST", "localhost")
-	metadataPort := help.GetEnv("METADATA_PORT", "8888")
+	metadataPort := help.GetEnv("METADATA_PORT", "8080")
 	metadataConn := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
 
 	meta, err := metadata.NewClient(metadataConn, logger)

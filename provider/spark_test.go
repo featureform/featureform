@@ -16,6 +16,58 @@ import (
 	"time"
 )
 
+func testMaterializeResource(store *SparkOfflineStore) error {
+	exampleStructArray := make([]exampleStruct, 10)
+	for i := 0; i < 5; i++ {
+		exampleStructArray[i] = exampleStruct{
+			Name:       fmt.Sprintf("John Smith_%d", i),
+			Age:        30 + i,
+			Score:      100.4 + float32(i),
+			Winner:     false,
+			Registered: time.UnixMilli(int64(i)),
+		}
+	}
+	for i := 5; i < 10; i++ {
+		exampleStructArray[i] = exampleStruct{
+			Name:       fmt.Sprintf("John Smith_%d", i-5),
+			Age:        30 + i,
+			Score:      100.4 + float32(i),
+			Winner:     true,
+			Registered: time.UnixMilli(int64(i)),
+		}
+	}
+	path := "featureform/tests/testFile2.parquet"
+	if err := store.Store.UploadParquetTable(path, exampleStructArray); err != nil {
+		return err
+	}
+	testResource := ResourceID{"test_name_materialize", "test_variant", Feature}
+	testResourceSchema := ResourceSchema{"name", "age", "registered", path}
+	table, err := store.RegisterResourceFromSourceTable(testResource, testResourceSchema)
+	if err != nil {
+		return err
+	}
+	fetchedTable, err := store.GetResourceTable(testResource)
+	if err != nil {
+		return err
+	}
+	if !reflect.DeepEqual(fetchedTable, table) {
+		return fmt.Errorf("Did not properly register table")
+	}
+
+	materialization, err := store.CreateMaterialization(testResource)
+	if err != nil {
+		return err
+	}
+	fetchedMaterialization, err := store.GetMaterialization(materialization.ID())
+	if err != nil {
+		return err
+	}
+	if !reflect.DeepEqual(fetchedMaterialization, materialization) {
+		return fmt.Errorf("get materialization and create materialization return different results")
+	}
+	return nil
+}
+
 func testResourcePath(store *SparkOfflineStore) error {
 	bucketName := os.Getenv("S3_BUCKET_PATH")
 	exampleResource := ResourceID{"test_resource", "test_variant", Primary}
@@ -87,7 +139,7 @@ func testRegisterResource(store *SparkOfflineStore) error {
 		return err
 	}
 	testResource := ResourceID{"test_name", "test_variant", Feature}
-	testResourceSchema := ResourceSchema{"Name", "Age", "Registered", path}
+	testResourceSchema := ResourceSchema{"name", "age", "registered", path}
 	table, err := store.RegisterResourceFromSourceTable(testResource, testResourceSchema)
 	if err != nil {
 		return err
@@ -100,7 +152,6 @@ func testRegisterResource(store *SparkOfflineStore) error {
 		return fmt.Errorf("Did not properly register table")
 	}
 	return nil
-
 }
 
 func unorderedEqual(first, second []string) bool {
@@ -228,6 +279,9 @@ func TestParquetUpload(t *testing.T) {
 	}
 	if err := testRegisterPrimary(sparkOfflineStore); err != nil {
 		t.Fatalf("resource primary test failed: %s", err)
+	}
+	if err := testMaterializeResource(sparkOfflineStore); err != nil {
+		t.Fatalf("resource materialize test failed: %s", err)
 	}
 }
 

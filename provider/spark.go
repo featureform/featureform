@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -21,6 +22,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/emr"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 
+	emrTypes "github.com/aws/aws-sdk-go-v2/service/emr/types"
 	s3Types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	parquetGo "github.com/xitongsys/parquet-go-source/s3"
 	reader "github.com/xitongsys/parquet-go/reader"
@@ -45,6 +47,14 @@ type SelectReturnType string
 const (
 	CSV  SelectReturnType = "CSV"
 	JSON                  = "JSON"
+)
+
+type JobType string
+
+const (
+	Materialize       JobType = "Materialization"
+	Transform                 = "Transformation"
+	CreateTrainingSet         = "Training Set"
 )
 
 type SparkConfig struct {
@@ -116,14 +126,28 @@ func (s *S3Config) Serialize() []byte {
 	return conf
 }
 
-type sparkSQLQueries struct {
-	defaultOfflineSQLQueries
+type SparkOfflineQueries interface {
+	materializationCreate(schema ResourceSchema) string
+}
+
+type defaultSparkOfflineQueries struct{}
+
+func (q defaultSparkOfflineQueries) materializationCreate(schema ResourceSchema) string {
+	timestampColumn := schema.TS
+	if schema.TS == "" {
+		timestampColumn = "ts"
+	}
+	return fmt.Sprintf(
+		"SELECT entity, value, ts, ROW_NUMBER() over (ORDER BY (SELECT NULL)) AS row_number FROM "+
+			"(SELECT entity, value, ts, rn FROM (SELECT %s AS entity, %s AS value, %s AS ts, "+
+			"ROW_NUMBER() OVER (PARTITION BY %s ORDER BY %s DESC) AS rn FROM %s) t WHERE rn=1) t2",
+		schema.Entity, schema.Value, timestampColumn, schema.Entity, timestampColumn, "source_0")
 }
 
 type SparkOfflineStore struct {
 	Executor SparkExecutor
 	Store    SparkStore
-	query    OfflineTableQueries
+	query    *defaultSparkOfflineQueries
 	BaseProvider
 }
 
@@ -147,7 +171,7 @@ func SparkOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	if err := store.UploadSparkScript(); err != nil {
 		return nil, err
 	}
-	queries := sparkSQLQueries{}
+	queries := defaultSparkOfflineQueries{}
 	sparkOfflineStore := SparkOfflineStore{
 		Executor: exec,
 		Store:    store,
@@ -171,7 +195,8 @@ type SparkStore interface {
 	ResourceColumns(key string) ([]string, error)
 	ResourceRowCt(key string) (int, error)
 	ResourcePath(id ResourceID) string
-	SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string) []string
+	BucketPrefix() string
+	SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType) []string
 	UploadParquetTable(path string, data interface{}) error
 	DownloadParquetTable(path string) (interface{}, error)
 	CompareParquetTable(path string, data interface{}) error
@@ -190,6 +215,10 @@ type S3Store struct {
 	credentials *credentialsV1.Credentials
 	region      string
 	bucketPath  string
+}
+
+func (s *S3Store) BucketPrefix() string {
+	return fmt.Sprintf("s3://%s/", s.bucketPath)
 }
 
 func (s *S3Store) UploadSparkScript() error {
@@ -262,10 +291,64 @@ func ResourcePrefix(id ResourceID) string {
 }
 
 func (s *S3Store) ResourceKey(id ResourceID) (string, error) {
-	return "", nil
+	filePrefix := ResourcePrefix(id)
+	objects, err := s.client.ListObjects(context.TODO(), &s3.ListObjectsInput{
+		Bucket: aws.String(s.bucketPath),
+		Prefix: aws.String(filePrefix),
+	})
+	if err != nil {
+		return "", err
+	}
+	var resourceTimestamps = make(map[string]string)
+	if len(objects.Contents) == 0 {
+		return "", fmt.Errorf("no resource exists")
+	}
+	for _, object := range objects.Contents {
+		suffix := (*object.Key)[len(filePrefix):]
+		suffixParts := strings.Split(suffix, "/")
+		if len(suffixParts) > 1 {
+			resourceTimestamps[suffixParts[0]] = suffixParts[1]
+		}
+	}
+	keys := make([]string, len(resourceTimestamps))
+	for k := range resourceTimestamps {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	latestTimestamp := keys[len(keys)-1]
+	lastSuffix := resourceTimestamps[latestTimestamp]
+	return fmt.Sprintf("featureform/%s/%s/%s/%s/%s", id.Type, id.Name, id.Variant, latestTimestamp, lastSuffix), nil
 }
 
 func (e *EMRExecutor) RunSparkJob(args []string) error {
+	params := &emr.AddJobFlowStepsInput{
+		JobFlowId: aws.String(e.clusterName), //returned by listclusters
+		Steps: []emrTypes.StepConfig{
+			{
+				Name: aws.String("Featureform execution step"),
+				HadoopJarStep: &emrTypes.HadoopJarStepConfig{
+					Jar:  aws.String("command-runner.jar"), //jar file for running pyspark scripts
+					Args: args,
+				},
+				ActionOnFailure: emrTypes.ActionOnFailureCancelAndWait,
+			},
+		},
+	}
+	resp, err := e.client.AddJobFlowSteps(context.TODO(), params)
+	if err != nil {
+		return err
+	}
+	stepId := resp.StepIds[0]
+	var waitDuration time.Duration = time.Second * 150
+	time.Sleep(1 * time.Second)
+	stepCompleteWaiter := emr.NewStepCompleteWaiter(e.client)
+	_, err = stepCompleteWaiter.WaitForOutput(context.TODO(), &emr.DescribeStepInput{
+		ClusterId: aws.String(e.clusterName),
+		StepId:    aws.String(stepId),
+	}, waitDuration)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -514,7 +597,7 @@ func (s *S3Store) CompareParquetTable(path string, data interface{}) error {
 	return nil
 }
 
-func (s *S3Store) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string) []string {
+func (s *S3Store) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType) []string {
 	argList := []string{
 		"spark-submit",
 		"--deploy-mode",
@@ -524,6 +607,8 @@ func (s *S3Store) SparkSubmitArgs(destPath string, cleanQuery string, sourceList
 		destPath,
 		"--sql_query",
 		cleanQuery,
+		"--job_type",
+		string(jobType),
 		"--source_list",
 	}
 	argList = append(argList, sourceList...)
@@ -701,12 +786,70 @@ func (spark *SparkOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, e
 	}}, nil
 }
 
+type S3Materialization struct {
+	id ResourceID
+}
+
+func (s *S3Materialization) ID() MaterializationID {
+	return MaterializationID(fmt.Sprintf("%s/%s/%s", FeatureMaterialization, s.id.Name, s.id.Variant))
+}
+
+func (s *S3Materialization) NumRows() (int64, error) {
+	return 0, nil
+}
+
+func (s *S3Materialization) IterateSegment(begin, end int64) (FeatureIterator, error) {
+	return &S3FeatureIterator{}, nil
+}
+
+type S3FeatureIterator struct {
+}
+
+func (s *S3FeatureIterator) Next() bool {
+	return false
+}
+
+func (s *S3FeatureIterator) Value() ResourceRecord {
+	return ResourceRecord{}
+}
+
+func (s *S3FeatureIterator) Err() error {
+	return nil
+}
+
 func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materialization, error) {
-	return nil, nil
+	resourceTable, err := spark.GetResourceTable(id)
+	if err != nil {
+		return nil, fmt.Errorf("resource not registered: %v", err)
+	}
+	sparkResourceTable, ok := resourceTable.(*S3OfflineTable)
+	if !ok {
+		return nil, fmt.Errorf("could not convert offline table with id %v to sparkResourceTable", id)
+	}
+	materializationID := ResourceID{Name: id.Name, Variant: id.Variant, Type: FeatureMaterialization}
+	destinationPath := spark.Store.ResourcePath(materializationID)
+	exists, _ := spark.Store.FileExists(destinationPath)
+	if exists {
+		return nil, fmt.Errorf("materialization %v already exists", materializationID)
+	}
+	materializationQuery := spark.query.materializationCreate(sparkResourceTable.schema)
+	sourcePath := fmt.Sprintf("%s%s", spark.Store.BucketPrefix(), sparkResourceTable.schema.SourceTable)
+	sparkArgs := spark.Store.SparkSubmitArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize)
+	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
+		return nil, fmt.Errorf("spark submit job for materialization %v failed to run: %v", materializationID, err)
+	}
+
+	return &S3Materialization{materializationID}, nil
 }
 
 func (spark *SparkOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
-	return nil, nil
+	s := strings.Split(string(id), "/")
+	materializationID := ResourceID{s[1], s[2], FeatureMaterialization}
+	_, err := spark.Store.ResourceKey(materializationID)
+	if err != nil {
+		return nil, err
+	}
+	return &S3Materialization{materializationID}, nil
 }
 
 func (spark *SparkOfflineStore) UpdateMaterialization(id ResourceID) (Materialization, error) {

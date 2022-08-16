@@ -58,11 +58,12 @@ var ProviderToMetadataResourceType = map[OfflineResourceType]metadata.ResourceTy
 
 func (offlineType OfflineResourceType) String() string {
 	typeMap := map[OfflineResourceType]string{
-		Label:          "Label",
-		Feature:        "Feature",
-		TrainingSet:    "TrainingSet",
-		Primary:        "Primary",
-		Transformation: "Transformation",
+		Label:                  "Label",
+		Feature:                "Feature",
+		TrainingSet:            "TrainingSet",
+		Primary:                "Primary",
+		Transformation:         "Transformation",
+		FeatureMaterialization: "Materialization",
 	}
 	return typeMap[offlineType]
 }

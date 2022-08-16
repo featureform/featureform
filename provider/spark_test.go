@@ -22,6 +22,9 @@ func testMaterializeFeature(id ResourceID, store *SparkOfflineStore) error {
 		return err
 	}
 	fetchedMaterialization, err := store.GetMaterialization(materialization.ID())
+	if err != nil {
+		return err
+	}
 	if !reflect.DeepEqual(fetchedMaterialization, materialization) {
 		return fmt.Errorf("get materialization and create materialization return different results")
 	}
@@ -99,7 +102,7 @@ func testRegisterResource(store *SparkOfflineStore) error {
 		return err
 	}
 	testResource := ResourceID{"test_name", "test_variant", Feature}
-	testResourceSchema := ResourceSchema{"Name", "Age", "Registered", path}
+	testResourceSchema := ResourceSchema{"name", "age", "registered", path}
 	table, err := store.RegisterResourceFromSourceTable(testResource, testResourceSchema)
 	if err != nil {
 		return err
@@ -113,7 +116,7 @@ func testRegisterResource(store *SparkOfflineStore) error {
 	}
 
 	if err := testMaterializeFeature(testResource, store); err != nil {
-		return fmt.Errorf("Could not materialize feature")
+		return fmt.Errorf("Could not materialize feature: %v", err)
 	}
 	return nil
 }

@@ -123,15 +123,24 @@ func (def *TrainingSetDef) check() error {
 	return nil
 }
 
-type ColumnMapping struct {
-	sourceColumn   string
-	resourceColumn FeatureLabelColumnType
+type TransformationType int
+
+const (
+	NoTransformationType TransformationType = iota
+	SQLTransformation
+	DataframeTransformation
+)
+
+type SourceMapping struct {
+	sourceName string
+	sourcePath string
 }
 
 type TransformationConfig struct {
+	Type          TransformationType
 	TargetTableID ResourceID
 	Query         string
-	ColumnMapping []ColumnMapping
+	SourceMapping []SourceMapping
 }
 
 type OfflineStore interface {

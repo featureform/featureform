@@ -1987,11 +1987,18 @@ func testTransform(t *testing.T, store OfflineStore) {
 				[]interface{}{"e", 5, 1.5, "fifth string", true, time.UnixMilli(0)},
 			},
 			Config: TransformationConfig{
+				Type: SQLTransformation,
 				TargetTableID: ResourceID{
 					Name: uuid.NewString(),
 					Type: Transformation,
 				},
 				Query: "SELECT * FROM tb",
+				SourceMapping: []SourceMapping{
+					SourceMapping{
+						sourceName: "tb",
+						sourcePath: "TBD",
+					},
+				},
 			},
 			Expected: []GenericRecord{
 				[]interface{}{"a", 1, 1.1, "test string", true, time.UnixMilli(0).UTC()},
@@ -2023,11 +2030,18 @@ func testTransform(t *testing.T, store OfflineStore) {
 				[]interface{}{"e", 5, "fifth string", true, time.UnixMilli(0)},
 			},
 			Config: TransformationConfig{
+				Type: SQLTransformation,
 				TargetTableID: ResourceID{
 					Name: uuid.NewString(),
 					Type: Transformation,
 				},
 				Query: "SELECT COUNT(*) as total_count FROM tb",
+				SourceMapping: []SourceMapping{
+					SourceMapping{
+						sourceName: "tb",
+						sourcePath: "TBD",
+					},
+				},
 			},
 			Expected: []GenericRecord{
 				[]interface{}{5},
@@ -2148,11 +2162,18 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 				[]interface{}{"e", 7, 1.7, "seventh string", true, time.UnixMilli(0)},
 			},
 			Config: TransformationConfig{
+				Type: SQLTransformation,
 				TargetTableID: ResourceID{
 					Name: uuid.NewString(),
 					Type: Transformation,
 				},
 				Query: "SELECT * FROM tb",
+				SourceMapping: []SourceMapping{
+					SourceMapping{
+						sourceName: "tb",
+						sourcePath: "TBD",
+					},
+				},
 			},
 			Expected: []GenericRecord{
 				[]interface{}{"a", 1, 1.1, "test string", true, time.UnixMilli(0).UTC()},
@@ -2197,11 +2218,18 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 				[]interface{}{"e", 7, "seventh string", true, time.UnixMilli(0)},
 			},
 			Config: TransformationConfig{
+				Type: SQLTransformation,
 				TargetTableID: ResourceID{
 					Name: uuid.NewString(),
 					Type: Transformation,
 				},
 				Query: "SELECT COUNT(*) as total_count FROM tb",
+				SourceMapping: []SourceMapping{
+					SourceMapping{
+						sourceName: "tb",
+						sourcePath: "TBD",
+					},
+				},
 			},
 			Expected: []GenericRecord{
 				[]interface{}{5},
@@ -2346,15 +2374,17 @@ func testTransformCreateFeature(t *testing.T, store OfflineStore) {
 				[]interface{}{"e", 5, 1.5, "fifth string", true, time.UnixMilli(0)},
 			},
 			Config: TransformationConfig{
+				Type: SQLTransformation,
 				TargetTableID: ResourceID{
 					Name: uuid.NewString(),
 					Type: Feature,
 				},
 				Query: "SELECT entity, int, ts FROM tb",
-				ColumnMapping: []ColumnMapping{
-					{sourceColumn: "entity", resourceColumn: "entity"},
-					{sourceColumn: "int", resourceColumn: "value"},
-					{sourceColumn: "ts", resourceColumn: "ts"},
+				SourceMapping: []SourceMapping{
+					SourceMapping{
+						sourceName: "tb",
+						sourcePath: "TBD",
+					},
 				},
 			},
 			Expected: []GenericRecord{
@@ -2463,11 +2493,18 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 				[]interface{}{"e", 5, 1.5, "fifth string", true, time.UnixMilli(0)},
 			},
 			Config: TransformationConfig{
+				Type: SQLTransformation,
 				TargetTableID: ResourceID{
 					Name: firstTransformName,
 					Type: Transformation,
 				},
 				Query: "SELECT entity, int_col, flt_col, str_col FROM tb",
+				SourceMapping: []SourceMapping{
+					SourceMapping{
+						sourceName: "tb",
+						sourcePath: "TBD",
+					},
+				},
 			},
 			Expected: []GenericRecord{
 				[]interface{}{"a", 1, 1.1, "test string"},
@@ -2490,11 +2527,18 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 				},
 			},
 			Config: TransformationConfig{
+				Type: SQLTransformation,
 				TargetTableID: ResourceID{
 					Name: uuid.NewString(),
 					Type: Transformation,
 				},
 				Query: "SELECT COUNT(*) as total_count FROM tb",
+				SourceMapping: []SourceMapping{
+					SourceMapping{
+						sourceName: "tb",
+						sourcePath: "TBD",
+					},
+				},
 			},
 			Expected: []GenericRecord{
 				[]interface{}{5},
@@ -2514,11 +2558,18 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 
 	tableName := getTableName(t.Name(), table.GetName())
 	config := TransformationConfig{
+		Type: SQLTransformation,
 		TargetTableID: ResourceID{
 			Name: firstTransformName,
 			Type: Transformation,
 		},
 		Query: fmt.Sprintf("SELECT entity, int_col, flt_col, str_col FROM %s", tableName),
+		SourceMapping: []SourceMapping{
+			SourceMapping{
+				sourceName: tableName,
+				sourcePath: tableName,
+			},
+		},
 	}
 	if err := store.CreateTransformation(config); err != nil {
 		t.Fatalf("Could not create transformation: %v", err)
@@ -2562,11 +2613,18 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 	tableName = getTableName(t.Name(), table.GetName())
 	secondTransformName := uuid.NewString()
 	config = TransformationConfig{
+		Type: SQLTransformation,
 		TargetTableID: ResourceID{
 			Name: secondTransformName,
 			Type: Transformation,
 		},
 		Query: fmt.Sprintf("SELECT Count(*) as total_count FROM %s", tableName),
+		SourceMapping: []SourceMapping{
+			SourceMapping{
+				sourceName: tableName,
+				sourcePath: tableName,
+			},
+		},
 	}
 	if err := store.CreateTransformation(config); err != nil {
 		t.Fatalf("Could not create transformation: %v", err)
@@ -2622,11 +2680,18 @@ func testTransformToMaterialize(t *testing.T, store OfflineStore) {
 				[]interface{}{"e", 5, time.UnixMilli(0)},
 			},
 			Config: TransformationConfig{
+				Type: SQLTransformation,
 				TargetTableID: ResourceID{
 					Name: firstTransformName,
 					Type: Transformation,
 				},
 				Query: "SELECT entity, int, flt, str FROM tb",
+				SourceMapping: []SourceMapping{
+					SourceMapping{
+						sourceName: "tb",
+						sourcePath: "TBD",
+					},
+				},
 			},
 			Expected: []GenericRecord{
 				[]interface{}{"a", 1, time.UnixMilli(0)},
@@ -2650,11 +2715,18 @@ func testTransformToMaterialize(t *testing.T, store OfflineStore) {
 
 	tableName := getTableName(t.Name(), table.GetName())
 	config := TransformationConfig{
+		Type: SQLTransformation,
 		TargetTableID: ResourceID{
 			Name: firstTransformName,
 			Type: Transformation,
 		},
 		Query: fmt.Sprintf("SELECT entity, int, flt, str FROM %s", tableName),
+		SourceMapping: []SourceMapping{
+			SourceMapping{
+				sourceName: tableName,
+				sourcePath: tableName,
+			},
+		},
 	}
 	if err := store.CreateTransformation(config); err != nil {
 		t.Fatalf("Could not create transformation: %v", err)

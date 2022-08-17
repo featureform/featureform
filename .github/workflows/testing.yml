@@ -1,7 +1,7 @@
 name: Testing
 on: [pull_request]
 concurrency:
-  group: ${{ github.head_ref }}-testing
+  group: ${{ github.head_ref }}-testing 
   cancel-in-progress: true
 
 env:

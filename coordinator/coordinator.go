@@ -39,6 +39,23 @@ func templateReplace(template string, replacements map[string]string) (string, e
 	return formattedString, nil
 }
 
+func getSourceMapping(template string, replacements map[string]string) ([]provider.SourceMapping, error) {
+	sourceMap := []provider.SourceMapping{}
+	numEscapes := strings.Count(template, "{{")
+	for i := 0; i < numEscapes; i++ {
+		split := strings.SplitN(template, "{{", 2)
+		afterSplit := strings.SplitN(split[1], "}}", 2)
+		key := strings.TrimSpace(afterSplit[0])
+		replacement, has := replacements[key]
+		if !has {
+			return nil, fmt.Errorf("no key set")
+		}
+		sourceMap = append(sourceMap, provider.SourceMapping{Template: sanitize(replacement), Source: replacement})
+		template = afterSplit[1]
+	}
+	return sourceMap, nil
+}
+
 type Coordinator struct {
 	Metadata   *metadata.Client
 	Logger     *zap.SugaredLogger
@@ -283,13 +300,18 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 	if err != nil {
 		return fmt.Errorf("map name: %w sources: %v", err, sources)
 	}
+	sourceMapping, err := getSourceMapping(templateString, sourceMap)
+	if err != nil {
+		return fmt.Errorf("template replace: %w source map: %v, template: %s", err, sourceMap, templateString)
+	}
+
 	query, err := templateReplace(templateString, sourceMap)
 	if err != nil {
 		return fmt.Errorf("template replace: %w source map: %v, template: %s", err, sourceMap, templateString)
 	}
 	c.Logger.Debugw("Created transformation query", "query", query)
 	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Transformation}
-	transformationConfig := provider.TransformationConfig{TargetTableID: providerResourceID, Query: query}
+	transformationConfig := provider.TransformationConfig{Type: provider.SQLTransformation, TargetTableID: providerResourceID, Query: query, SourceMapping: sourceMapping}
 	createTransformationConfig := runner.CreateTransformationConfig{
 		OfflineType:          provider.Type(sourceProvider.Type()),
 		OfflineConfig:        sourceProvider.SerializedConfig(),

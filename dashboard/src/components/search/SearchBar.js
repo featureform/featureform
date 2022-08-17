@@ -2,12 +2,9 @@ import React from "react";
 import { createStyles, alpha, makeStyles } from "@material-ui/core/styles";
 import SearchIcon from "@material-ui/icons/Search";
 import Grid from "@material-ui/core/Grid";
-import { useHistory } from "react-router-dom";
+import Router from "next/router";
 import Container from "@material-ui/core/Container";
-
 import InputBase from "@material-ui/core/InputBase";
-
-import { generatePath } from "react-router";
 
 const ENTER_KEY_CODE = 13;
 
@@ -76,16 +73,13 @@ const useStyles = makeStyles((theme) =>
 );
 
 const SearchBar = ({ input, setQuery, homePage }) => {
-  const history = useHistory();
   const classes = useStyles();
 
   const [searchText, setSearchText] = React.useState("");
 
   function handleSearch(event) {
-    let uri = generatePath("/search?q=:query", {
-      query: searchText,
-    });
-    history.push(uri);
+    let uri = "/search?q=:" + searchText;
+    Router.push(uri);
   }
 
   return (

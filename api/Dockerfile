@@ -17,6 +17,7 @@ COPY ./metadata/*.go ./metadata/
 COPY ./metadata/search/ ./metadata/search/
 COPY ./metadata/proto/ ./metadata/proto/
 COPY ./proto/ ./proto/
+COPY ./helpers/ ./helpers/
 COPY ./api/main.go ./api/main.go
 
 RUN go build ./api/main.go

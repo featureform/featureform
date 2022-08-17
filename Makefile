@@ -25,11 +25,12 @@ help:     						## Show this help.
 pytest:
 	-rm -r .featureform
 	curl -C - https://featureform-demo-files.s3.amazonaws.com/transactions.csv -o transactions.csv
-	pytest client/tests/serving_test.py -s
-	pytest client/tests/redefined_test.py -s
-	pytest client/tests/local_test.py -s
-	pytest client/tests/localmode_quickstart_test.py -s
-	pip install jupyter nbconvert matplotlib pandas scikit-learn requests
+	pytest client/src/featureform/local_dash_test.py
+	pytest client/tests/redefined_test.py
+	pytest client/tests/local_test.py
+	pytest client/tests/serving_test.py
+	pytest client/tests/localmode_quickstart_test.py
+	pip3 install jupyter nbconvert matplotlib pandas scikit-learn requests
 	jupyter nbconvert --to notebook --execute notebooks/Fraud_Detection_Example.ipynb
 	-rm -r .featureform
 
@@ -48,10 +49,10 @@ gen_grpc:						## Generates GRPC Dependencies
 	cp proto/serving.proto client/src/featureform/proto/serving.proto
 
 	protoc --go_out=. --go_opt=paths=source_relative     --go-grpc_out=. --go-grpc_opt=paths=source_relative     ./proto/serving.proto
-	python -m grpc_tools.protoc -I ./client/src --python_out=./client/src --grpc_python_out=./client/src/ ./client/src/featureform/proto/serving.proto
+	python3 -m grpc_tools.protoc -I ./client/src --python_out=./client/src --grpc_python_out=./client/src/ ./client/src/featureform/proto/serving.proto
 
 	protoc --go_out=. --go_opt=paths=source_relative     --go-grpc_out=. --go-grpc_opt=paths=source_relative     ./metadata/proto/metadata.proto
-	python -m grpc_tools.protoc -I ./client/src --python_out=./client/src/ --grpc_python_out=./client/src/ ./client/src/featureform/proto/metadata.proto
+	python3 -m grpc_tools.protoc -I ./client/src --python_out=./client/src/ --grpc_python_out=./client/src/ ./client/src/featureform/proto/metadata.proto
 
 update_python: gen_grpc 			## Updates the python package locally
 	pip3 install pytest
@@ -114,5 +115,3 @@ reset_e2e: etcd						## Resets Cluster. Requires install_etcd
 	while ! echo exit | nc localhost 2379; do sleep 10; done
 	etcdctl --user=root:secretpassword del "" --prefix
 	-helm uninstall quickstart
-
-

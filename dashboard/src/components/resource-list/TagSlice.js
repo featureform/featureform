@@ -1,5 +1,5 @@
 import { createSlice } from "@reduxjs/toolkit";
-import Resource from "api/resources/Resource.js";
+import Resource from "../../api/resources/Resource.js";
 
 const reduceFn = (map, type) => {
   map[type] = {};

@@ -6,12 +6,12 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
 	"google.golang.org/grpc/credentials/insecure"
 
+	help "github.com/featureform/helpers"
 	"github.com/featureform/metadata"
 	pb "github.com/featureform/metadata/proto"
 	srv "github.com/featureform/proto"
@@ -517,7 +517,6 @@ func (serv *MetadataServer) ListModels(in *pb.Empty, stream pb.Api_ListModelsSer
 	}
 }
 
-
 func (serv *MetadataServer) ListEntities(in *pb.Empty, stream pb.Api_ListEntitiesServer) error {
 	proxyStream, err := serv.meta.ListEntities(stream.Context(), in)
 	if err != nil {
@@ -751,11 +750,11 @@ func startHttpsServer(port string) error {
 }
 
 func main() {
-	apiPort := os.Getenv("API_PORT")
-	metadataHost := os.Getenv("METADATA_HOST")
-	metadataPort := os.Getenv("METADATA_PORT")
-	servingHost := os.Getenv("SERVING_HOST")
-	servingPort := os.Getenv("SERVING_PORT")
+	apiPort := help.GetEnv("API_PORT", "7878")
+	metadataHost := help.GetEnv("METADATA_HOST", "localhost")
+	metadataPort := help.GetEnv("METADATA_PORT", "8080")
+	servingHost := help.GetEnv("SERVING_HOST", "locahost")
+	servingPort := help.GetEnv("SERVING_PORT", "8080")
 	apiConn := fmt.Sprintf("0.0.0.0:%s", apiPort)
 	metadataConn := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
 	servingConn := fmt.Sprintf("%s:%s", servingHost, servingPort)

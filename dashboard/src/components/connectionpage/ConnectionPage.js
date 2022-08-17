@@ -1,8 +1,8 @@
 import React, { useEffect } from "react";
 import { fetchStatus } from "./ConnectionPageSlice";
-import MetricsAPI from "api/resources/Metrics.js";
+import MetricsAPI from "../../api/resources/Metrics.js";
 import ConnectionPageView from "./ConnectionPageView.js";
-import ResourcesAPI from "api/resources";
+import ResourcesAPI from "../../api/resources";
 import { connect } from "react-redux";
 
 const mapDispatchToProps = (dispatch) => {

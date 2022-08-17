@@ -15,6 +15,7 @@ RUN protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_o
 
 COPY ./metadata/*.go ./metadata/
 COPY ./metadata/proto/ ./metadata/proto/
+COPY ./helpers/ ./helpers/
 COPY ./metadata/search/ ./metadata/search/
 COPY ./metadata/server/server.go ./metadata/main/server.go
 

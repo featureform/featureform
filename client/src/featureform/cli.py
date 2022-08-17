@@ -4,13 +4,11 @@
 
 import click
 from featureform import ResourceClient
-import featureform.register as register
-import grpc
-from featureform import ResourceClient
 from .list import *
-from featureform.proto import metadata_pb2_grpc as ff_grpc
 from .get import *
 import os
+from flask import Flask
+from .dashboard_metadata import dashboard_app
 
 resource_types = [
     "feature",
@@ -141,6 +139,13 @@ def list(host, cert, insecure, local, resource_type):
         rc_list_functions[resource_type](local=local)
     else:
         raise ValueError("Resource type not found")
+
+app = Flask(__name__)
+app.register_blueprint(dashboard_app)
+
+@cli.command()
+def dash():
+    app.run(threaded=True, port=os.getenv("LOCALMODE_DASHBOARD_PORT", 3000))
 
 @cli.command()
 @click.argument("files", nargs=-1, required=True, type=click.Path(exists=True))

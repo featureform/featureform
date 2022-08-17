@@ -3,27 +3,27 @@ package main
 import (
 	"fmt"
 	"github.com/featureform/coordinator"
+	help "github.com/featureform/helpers"
 	"github.com/featureform/metadata"
 	"github.com/featureform/runner"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.uber.org/zap"
-	"os"
 	"time"
 )
 
 func main() {
-	etcdHost := os.Getenv("ETCD_HOST")
-	etcdPort := os.Getenv("ETCD_PORT")
+	etcdHost := help.GetEnv("ETCD_HOST", "localhost")
+	etcdPort := help.GetEnv("ETCD_PORT", "6379")
 	etcdUrl := fmt.Sprintf("%s:%s", etcdHost, etcdPort)
-	metadataHost := os.Getenv("METADATA_HOST")
-	metadataPort := os.Getenv("METADATA_PORT")
+	metadataHost := help.GetEnv("METADATA_HOST", "localhost")
+	metadataPort := help.GetEnv("METADATA_PORT", "8080")
 	metadataUrl := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
 	fmt.Printf("connecting to etcd: %s\n", etcdUrl)
 	fmt.Printf("connecting to metadata: %s\n", metadataUrl)
 	cli, err := clientv3.New(clientv3.Config{
 		Endpoints:   []string{etcdUrl},
-		Username:    "root",
-		Password:    "secretpassword",
+		Username:    help.GetEnv("ETCD_USERNAME", "root"),
+		Password:    help.GetEnv("ETCD_PASSWORD", "secretpassword"),
 		DialTimeout: time.Second * 1,
 	})
 	if err := runner.RegisterFactory(string(runner.COPY_TO_ONLINE), runner.MaterializedChunkRunnerFactory); err != nil {

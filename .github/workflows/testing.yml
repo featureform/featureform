@@ -375,6 +375,51 @@ jobs:
           name: metrics-coverage-reports
           path: ./coverage
 
+  helpers:
+    name: Helper Testing
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Working Compiled Directories
+        uses: actions/download-artifact@v3
+        with:
+          name: compiled-workdir
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
+
+      - name: Make Coverage Directory
+        working-directory: ./
+        run: mkdir coverage
+
+      - name: Testing
+        working-directory: ./
+        run: go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./helpers/...
+
+      - name: Convert Coverage Test Results
+        if: always()
+        working-directory: ./coverage
+        run: |
+          cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
+          go tool cover -html=cover.out -o cover.html
+
+      - uses: codecov/codecov-action@v2
+        if: always()
+        with:
+          root_dir: ./
+          files: ./coverage/cover.out
+          name: helper-coverage
+          verbose: true
+
+      - name: Archive code coverage results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: helper-coverage-reports
+          path: ./coverage
+
   runner:
     name: Runner Testing
     needs: setup
@@ -679,7 +724,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install pytest
-        run: pip install pytest
+        run: pip install pytest protobuf==3.20.1
 
       - name: Install featureform
         run: pip install client/dist/featureform-0.0.0-py3-none-any.whl

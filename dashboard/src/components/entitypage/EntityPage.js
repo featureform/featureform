@@ -1,5 +1,4 @@
 import React, { useEffect } from "react";
-import { useParams } from "react-router-dom";
 import { connect } from "react-redux";
 import { fetchEntity } from "./EntityPageSlice.js";
 import EntityPageView from "./EntityPageView.js";
@@ -8,7 +7,7 @@ import Container from "@material-ui/core/Container";
 import Paper from "@material-ui/core/Paper";
 import { setVariant } from "../resource-list/VariantSlice.js";
 import NotFoundPage from "../notfoundpage/NotFoundPage";
-import Resource from "api/resources/Resource.js";
+import Resource from "../../api/resources/Resource.js";
 
 const mapDispatchToProps = (dispatch) => {
   return {
@@ -41,11 +40,8 @@ const checkIfEmpty = (object) => {
   return Object.keys(object).length === 0 && object.constructor === Object;
 };
 
-const EntityPage = ({ api, entityPage, activeVariants, ...props }) => {
-  const { type, entity } = useParams();
-
+const EntityPage = ({ api, entityPage, activeVariants, type, entity, ...props }) => {
   let resourceType = Resource[Resource.pathToType[type]];
-
   const fetchEntity = props.fetch;
 
   useEffect(() => {
@@ -54,21 +50,19 @@ const EntityPage = ({ api, entityPage, activeVariants, ...props }) => {
 
   return (
     <div>
-      <div>
-        {entityPage.failed ? (
-          <NotFoundPage />
-        ) : checkIfEmpty(entityPage) || entityPage.loading ? (
-          <LoadingDots />
-        ) : (
-          <EntityPageView
-            entity={entityPage}
-            setVariant={props.setVariant}
-            activeVariants={activeVariants}
-            typePath={type}
-            resourceType={resourceType}
-          />
-        )}
-      </div>
+      {entityPage.failed ? (
+        <NotFoundPage />
+      ) : checkIfEmpty(entityPage) || entityPage.loading ? (
+        <LoadingDots />
+      ) : (
+        <EntityPageView
+          entity={entityPage}
+          setVariant={props.setVariant}
+          activeVariants={activeVariants}
+          typePath={type}
+          resourceType={resourceType}
+        />
+      )}
     </div>
   );
 };

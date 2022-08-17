@@ -1,13 +1,11 @@
 import React from "react";
 import ResourcesAPI from "../../api/resources";
 import ResourceList from "../resource-list/ResourceList";
-import { useParams } from "react-router-dom";
 import NotFoundPage from "../notfoundpage/NotFoundPage";
-import Resource from "api/resources/Resource.js";
+import Resource from "../../api/resources/Resource.js";
 const apiHandle = new ResourcesAPI();
 
-const DataPage = ({ ...props }) => {
-  const { type } = useParams();
+const DataPage = ({ type, ...props }) => {
   let resourceType = Resource.pathToType[type];
   return (
     <div>

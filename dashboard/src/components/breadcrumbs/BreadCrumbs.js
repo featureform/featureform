@@ -1,7 +1,7 @@
 import React from "react";
-import { useLocation } from "react-router-dom";
+import { useRouter } from 'next/router';
 import { makeStyles } from "@material-ui/core/styles";
-import { Link } from "react-router-dom";
+import Link from 'next/link';
 import Breadcrumbs from "@material-ui/core/Breadcrumbs";
 import NavigateNextIcon from "@mui/icons-material/NavigateNext";
 
@@ -24,7 +24,8 @@ const useStyles = makeStyles((theme) => ({
 
 const BreadCrumbs = () => {
   const classes = useStyles();
-  const path = useLocation().pathname.split("/");
+  const { asPath } = useRouter();
+  const path = asPath.split("/");
   while (path.length > 0 && path[0].length === 0) {
     path.shift();
   }
@@ -48,11 +49,11 @@ const BreadCrumbs = () => {
             ol: classes.ol,
           }}
         >
-          <Link to="/">Home</Link>
+          <Link href="/">Home</Link>
           {path.map((ent, i) => (
             <Link
               key={`link-${i}`}
-              to={"/" + path.slice(0, i + 1).reduce(pathBuilder)}
+              href={"/" + path.slice(0, i + 1).reduce(pathBuilder)}
             >
               {i === path.length - 1 ? (
                 <b>{capitalize(ent)}</b>

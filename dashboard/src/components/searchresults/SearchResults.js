@@ -1,12 +1,14 @@
 import React, { useEffect } from "react";
 import { connect } from "react-redux";
-import { useLocation } from "react-router-dom";
 import SearchResultsView from "./SearchResultsView";
+import { useRouter } from 'next/router'
 import { fetchSearch } from "./SearchResultsSlice";
 import { setVariant } from "../resource-list/VariantSlice.js";
 
+
 function useQuery() {
-  return new URLSearchParams(useLocation().search);
+  const router = useRouter();
+  return new URLSearchParams(router.query);
 }
 
 const mapDispatchToProps = (dispatch) => {

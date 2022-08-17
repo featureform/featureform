@@ -1,20 +1,18 @@
 import React from "react";
 import { makeStyles } from "@material-ui/core/styles";
 import CssBaseline from "@material-ui/core/CssBaseline";
-import theme from "styles/theme";
+import theme from "../../styles/theme";
 import { ThemeProvider } from "@material-ui/core/styles";
-import { Route } from "react-router-dom";
-import ResourcesAPI from "api/resources";
+import ResourcesAPI from "../../api/resources";
 import HomePage from "../homepage/HomePage";
 import DataPage from "../datapage/DataPage";
-import { Switch } from "react-router-dom";
 import TopBar from "../topbar/TopBar";
-import EntityPage from "components/entitypage/EntityPage";
-import BreadCrumbs from "components/breadcrumbs/BreadCrumbs";
+import EntityPage from "../entitypage/EntityPage";
+import BreadCrumbs from "../breadcrumbs/BreadCrumbs";
 import Container from "@material-ui/core/Container";
 import SearchResults from "../searchresults/SearchResults";
-import NotFoundPage from "components/notfoundpage/NotFoundPage";
-import ConnectionPage from "components/connectionpage";
+import NotFoundPage from "../notfoundpage/NotFoundPage";
+import ConnectionPage from "../connectionpage";
 
 const apiHandle = new ResourcesAPI();
 const useStyles = makeStyles((theme) => ({
@@ -24,7 +22,7 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-export const App = ({ ...props }) => {
+export const App = ({ Component, pageProps }) => {
   const classes = useStyles();
   return (
     <ThemeWrapper>
@@ -35,24 +33,7 @@ export const App = ({ ...props }) => {
         classes={{ maxWidthXl: classes.pageContainer }}
       >
         <BreadCrumbs />
-        <Switch>
-          <Route path="/:type/:entity">
-            <EntityPage api={apiHandle} />
-          </Route>
-          <Route path="/search">
-            <SearchResults api={apiHandle} />
-          </Route>
-          <Route path="/connections">
-            <ConnectionPage />
-          </Route>
-          <Route path="/:type">
-            <DataPage />
-          </Route>
-          <Route path="/">
-            <HomePage />
-          </Route>
-          <Route component={NotFoundPage} />
-        </Switch>
+        <Component {...pageProps} />
       </Container>
     </ThemeWrapper>
   );

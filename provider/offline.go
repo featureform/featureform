@@ -46,6 +46,7 @@ const (
 	TrainingSet
 	Primary
 	Transformation
+	FeatureMaterialization
 )
 
 var ProviderToMetadataResourceType = map[OfflineResourceType]metadata.ResourceType{
@@ -57,11 +58,12 @@ var ProviderToMetadataResourceType = map[OfflineResourceType]metadata.ResourceTy
 
 func (offlineType OfflineResourceType) String() string {
 	typeMap := map[OfflineResourceType]string{
-		Label:          "Label",
-		Feature:        "Feature",
-		TrainingSet:    "TrainingSet",
-		Primary:        "Primary",
-		Transformation: "Transformation",
+		Label:                  "Label",
+		Feature:                "Feature",
+		TrainingSet:            "TrainingSet",
+		Primary:                "Primary",
+		Transformation:         "Transformation",
+		FeatureMaterialization: "Materialization",
 	}
 	return typeMap[offlineType]
 }
@@ -123,15 +125,24 @@ func (def *TrainingSetDef) check() error {
 	return nil
 }
 
-type ColumnMapping struct {
-	sourceColumn   string
-	resourceColumn FeatureLabelColumnType
+type TransformationType int
+
+const (
+	NoTransformationType TransformationType = iota
+	SQLTransformation
+	DataframeTransformation
+)
+
+type SourceMapping struct {
+	Template string
+	Source   string
 }
 
 type TransformationConfig struct {
+	Type          TransformationType
 	TargetTableID ResourceID
 	Query         string
-	ColumnMapping []ColumnMapping
+	SourceMapping []SourceMapping
 }
 
 type OfflineStore interface {

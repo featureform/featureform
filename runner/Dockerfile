@@ -19,6 +19,7 @@ RUN protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_o
 COPY runner/*.go ./runner/
 COPY runner/worker/*.go ./runner/worker/
 COPY coordinator/*.go ./coordinator/
+COPY helpers/ ./helpers/
 COPY metadata/*.go ./metadata/
 COPY metadata/search/* ./metadata/search/
 COPY provider/* ./provider/

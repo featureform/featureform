@@ -7,6 +7,11 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"os"
+	"reflect"
+	"time"
+
 	"github.com/featureform/metadata"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -14,10 +19,6 @@ import (
 	api "github.com/typesense/typesense-go/typesense/api"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
-	"net/http"
-	"os"
-	"reflect"
-	"time"
 )
 
 var typesenseClient *typesense.Client

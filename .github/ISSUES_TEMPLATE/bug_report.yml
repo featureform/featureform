@@ -1,0 +1,72 @@
+name: Bug Report
+description: File a bug report
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected Behavior
+      description: Please describe the behavior you expected
+    validations:
+      required: true
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: Actual Behavior
+      description: Please describe the behavior that actually happened
+    validations:
+      required: true
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: Steps To Reproduce
+      description: Please describe the steps required to reproduce this issue
+    validations:
+      required: true
+  - type: dropdown
+    id: featureform-mode
+    attributes:
+      label: What mode are you running Featureform in?
+      options:
+        - Local
+        - Hosted
+    validations:
+      required: true
+  - type: input
+    id: featureform-python-version
+    attributes:
+      label: Featureform Python Package Version
+      description: What version of Featureform Python Package are you running?
+    validations:
+      required: true
+  - type: input
+    id: featureform-helm-version
+    attributes:
+      label: Featureform Helm Chart Version
+      description: What version of Featureform Helm Chart are you running?
+    validations:
+      required: false
+  - type: dropdown
+    id: python-verison
+    attributes:
+      label: What version of Python are you running?
+      options:
+        - 3.7
+        - 3.8
+        - 3.9
+        - 3.10
+    validations:
+      required: true
+  - type: input
+    id: k8s-verison
+    attributes:
+      label: What version of Kubernetes are you running?
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: Please copy and paste any relevant log output. This will be automatically formatted into code, so no need for backticks.
+      render: shell

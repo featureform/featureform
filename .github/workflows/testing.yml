@@ -172,7 +172,7 @@ jobs:
           FIRESTORE_CRED: "firestore_credentials.json"
           FIRESTORE_PROJECT: ${{ secrets.FIRESTORE_PROJECT }}
         working-directory: ./
-        run: go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/... -tags=online,provider
+        run: make test_online
 
       - name: Convert Coverage Test Results
         if: always()
@@ -252,7 +252,7 @@ jobs:
           BIGQUERY_DATASET_ID: ${{ secrets.BIGQUERY_DATASET_ID }}
           BIGQUERY_CREDENTIALS: "bigquery_credentials.json"
         working-directory: ./
-        run: go test -v -timeout 60m -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/... -tags=offline
+        run: make test_offline
 
       - name: Convert Coverage Test Results
         if: always()

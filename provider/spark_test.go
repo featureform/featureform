@@ -41,7 +41,9 @@ func testMaterializeResource(store *SparkOfflineStore) error {
 	if err := store.Store.UploadParquetTable(path, exampleStructArray); err != nil {
 		return err
 	}
-	testResource := ResourceID{"test_name_materialize", "test_variant", Feature}
+	testResourceName := "test_name_materialize"
+	testResourceVariant := "test_variant"
+	testResource := ResourceID{testResourceName, testResourceVariant, Feature}
 	testResourceSchema := ResourceSchema{"name", "age", "registered", path}
 	table, err := store.RegisterResourceFromSourceTable(testResource, testResourceSchema)
 	if err != nil {
@@ -54,13 +56,12 @@ func testMaterializeResource(store *SparkOfflineStore) error {
 	if !reflect.DeepEqual(fetchedTable, table) {
 		return fmt.Errorf("Did not properly register table")
 	}
-
-	matID := MaterializationID("Materialization/test_name_materialize/test_variant")
+	testResourceMaterializationID := fmt.Sprintf("%s/%s/%s", FeatureMaterialization, testResourceName, testResourceVariant)
 	materialization, err := store.CreateMaterialization(testResource)
 	if err != nil {
 		return err
 	}
-	fetchedMaterialization, err := store.GetMaterialization(matID)
+	fetchedMaterialization, err := store.GetMaterialization(testResourceMaterializationID)
 	if err != nil {
 		return err
 	}

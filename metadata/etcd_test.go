@@ -596,6 +596,9 @@ func Test_etcdResourceLookup_Submap(t *testing.T) {
 }
 
 func Test_etcdResourceLookup_findResourceType(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	type fields struct {
 		connection EtcdConfig
 	}
@@ -729,6 +732,9 @@ func TestEtcdConfig_Get(t *testing.T) {
 }
 
 func TestEtcdConfig_GetWithPrefix(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	type fields struct {
 		Host string
 		Port string
@@ -770,6 +776,9 @@ func TestEtcdConfig_GetWithPrefix(t *testing.T) {
 }
 
 func TestEtcdConfig_GetCountWithPrefix(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	type fields struct {
 		Host string
 		Port string
@@ -814,6 +823,9 @@ func TestEtcdConfig_GetCountWithPrefix(t *testing.T) {
 }
 
 func TestEtcdConfig_ParseResource(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	type fields struct {
 		Host string
 		Port string

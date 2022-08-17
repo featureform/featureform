@@ -22,24 +22,10 @@
 help:     						## Show this help.
 	@sed -ne '/@sed/!s/## //p' $(MAKEFILE_LIST)
 
-pytest:
-	-rm -r .featureform
-	curl -C - https://featureform-demo-files.s3.amazonaws.com/transactions.csv -o transactions.csv
-	pytest client/tests/serving_test.py
-	pytest client/src/featureform/local_dash_test.py
-	pytest client/tests/redefined_test.py
-	pytest client/tests/local_test.py
-	pytest client/tests/localmode_quickstart_test.py
-	pytest client/tests/register_test.py
-	pip3 install jupyter nbconvert matplotlib pandas scikit-learn requests
-	jupyter nbconvert --to notebook --execute notebooks/Fraud_Detection_Example.ipynb
-	-rm -r .featureform
+init:
 
-etcdctl: 						## Installs ETCDCTL. Required for reset_e2e
-	-git clone -b v3.4.16 https://github.com/etcd-io/etcd.git
-	cd etcd && ./build
-	export PATH=$PATH:"`pwd`/etcd/bin"
-	etcdctl version
+test: gen_grpc pytest test_go_unit
+
 ##############################################  SETUP ##################################################################
 
 gen_grpc:						## Generates GRPC Dependencies
@@ -63,6 +49,7 @@ update_python: gen_grpc 				## Updates the python package locally
 	-rm -r client/dist/*
 	python3 -m build ./client/
 	pip3 install client/dist/*.whl
+
 etcdctl: 						## Installs ETCDCTL. Required for reset_e2e
 	-git clone -b v3.4.16 https://github.com/etcd-io/etcd.git
 	cd etcd && ./build
@@ -70,14 +57,16 @@ etcdctl: 						## Installs ETCDCTL. Required for reset_e2e
 	etcdctl version
 
 ##############################################  PYTHON TESTS ###########################################################
-pytest:							## Run pytest tests
+pytest:
 	-rm -r .featureform
 	curl -C - https://featureform-demo-files.s3.amazonaws.com/transactions.csv -o transactions.csv
-	pytest client/tests/localmode_quickstart_test.py
+	pytest client/tests/serving_test.py
+	pytest client/src/featureform/local_dash_test.py
 	pytest client/tests/redefined_test.py
 	pytest client/tests/local_test.py
-	pytest client/tests/serving_test.py
-	pip install jupyter nbconvert matplotlib pandas scikit-learn requests
+	pytest client/tests/localmode_quickstart_test.py
+	pytest client/tests/register_test.py
+	pip3 install jupyter nbconvert matplotlib pandas scikit-learn requests
 	jupyter nbconvert --to notebook --execute notebooks/Fraud_Detection_Example.ipynb
 	-rm -r .featureform
 
@@ -86,6 +75,11 @@ pytest:							## Run pytest tests
 test_offline:						## Run offline tests. Run with `make test_offline provider=(memory | postgres | snowflake | redshift)`
 	-mkdir coverage
 	go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/... --tags=offline --provider=$(provider)
+
+test_go_unit:
+	-mkdir coverage
+	go test ./... -tags=*,offline,provider --short   -coverprofile coverage/cover.out.tmp
+
 
 ##############################################  MINIKUBE ###############################################################
 

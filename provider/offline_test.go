@@ -31,7 +31,7 @@ var provider = flag.String("provider", "all", "provider to perform test on")
 
 func TestOfflineStores(t *testing.T) {
 	if testing.Short() {
-		return
+		t.Skip()
 	}
 	err := godotenv.Load(".env")
 	if err != nil {
@@ -102,6 +102,30 @@ func TestOfflineStores(t *testing.T) {
 		return serialRSConfig, redshiftConfig
 	}
 
+	bqInit := func() (SerializedConfig, BigQueryConfig) {
+		bigqueryCredentials := os.Getenv("BIGQUERY_CREDENTIALS")
+		JSONCredentials, err := ioutil.ReadFile(bigqueryCredentials)
+		if err != nil {
+			panic(err)
+		}
+
+		bigQueryDatasetId := strings.Replace(strings.ToUpper(uuid.NewString()), "-", "_", -1)
+		os.Setenv("BIGQUERY_DATASET_ID", bigQueryDatasetId)
+		t.Log("BigQuery Dataset: ", bigQueryDatasetId)
+
+		var bigQueryConfig = BigQueryConfig{
+			ProjectId:   os.Getenv("BIGQUERY_PROJECT_ID"),
+			DatasetId:   os.Getenv("BIGQUERY_DATASET_ID"),
+			Credentials: JSONCredentials,
+		}
+		serialBQConfig := bigQueryConfig.Serialize()
+
+		if err := createBigQueryDataset(bigQueryConfig); err != nil {
+			t.Fatalf("Cannot create BigQuery Dataset: %v", err)
+		}
+		return serialBQConfig, bigQueryConfig
+	}
+
 	type testMember struct {
 		t               Type
 		c               SerializedConfig
@@ -125,28 +149,11 @@ func TestOfflineStores(t *testing.T) {
 		defer destroyRedshiftDatabase(redshiftConfig)
 		testList = append(testList, testMember{RedshiftOffline, serialRSConfig, true})
 	}
-
-	bigqueryCredentials := os.Getenv("BIGQUERY_CREDENTIALS")
-	JSONCredentials, err := ioutil.ReadFile(bigqueryCredentials)
-	if err != nil {
-		panic(err)
+	if *provider == "bigquery" || *provider == "" {
+		serialBQConfig, bigQueryConfig := bqInit()
+		defer destroyBigQueryDataset(bigQueryConfig)
+		testList = append(testList, testMember{RedshiftOffline, serialBQConfig, true})
 	}
-
-	bigQueryDatasetId := strings.Replace(strings.ToUpper(uuid.NewString()), "-", "_", -1)
-	os.Setenv("BIGQUERY_DATASET_ID", bigQueryDatasetId)
-	t.Log("BigQuery Dataset: ", bigQueryDatasetId)
-
-	var bigQueryConfig = BigQueryConfig{
-		ProjectId:   os.Getenv("BIGQUERY_PROJECT_ID"),
-		DatasetId:   os.Getenv("BIGQUERY_DATASET_ID"),
-		Credentials: JSONCredentials,
-	}
-	serialBQConfig := bigQueryConfig.Serialize()
-
-	if err := createBigQueryDataset(bigQueryConfig); err != nil {
-		t.Fatalf("Cannot create BigQuery Dataset: %v", err)
-	}
-	defer destroyBigQueryDataset(bigQueryConfig)
 
 	testFns := map[string]func(*testing.T, OfflineStore){
 		"CreateGetTable":          testCreateGetOfflineTable,

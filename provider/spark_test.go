@@ -56,7 +56,7 @@ func testMaterializeResource(store *SparkOfflineStore) error {
 	if !reflect.DeepEqual(fetchedTable, table) {
 		return fmt.Errorf("Did not properly register table")
 	}
-	testResourceMaterializationID := fmt.Sprintf("%s/%s/%s", FeatureMaterialization, testResourceName, testResourceVariant)
+	testResourceMaterializationID := MaterializationID(fmt.Sprintf("%s/%s/%s", FeatureMaterialization, testResourceName, testResourceVariant))
 	materialization, err := store.CreateMaterialization(testResource)
 	if err != nil {
 		return err

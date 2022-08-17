@@ -112,7 +112,7 @@ class SQLiteMetadata:
           provider    text NOT NULL,
           variant    text,
           status      text,
-          transformation integer,
+          transformation text,
           inputs text, 
           definition  BLOB,
           PRIMARY KEY(name, variant),

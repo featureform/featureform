@@ -33,6 +33,17 @@ body:
         - Hosted
     validations:
       required: true
+  - type: dropdown
+    id: python-verison
+    attributes:
+      label: What version of Python are you running?
+      options:
+        - "3.7"
+        - "3.8"
+        - "3.9"
+        - "3.10"
+    validations:
+      required: true
   - type: input
     id: featureform-python-version
     attributes:
@@ -44,24 +55,13 @@ body:
     id: featureform-helm-version
     attributes:
       label: Featureform Helm Chart Version
-      description: What version of Featureform Helm Chart are you running?
+      description: What version of Featureform Helm Chart are you running? (If Relevant)
     validations:
       required: false
-  - type: dropdown
-    id: python-verison
-    attributes:
-      label: What version of Python are you running?
-      options:
-        - 3.7
-        - 3.8
-        - 3.9
-        - 3.10
-    validations:
-      required: true
   - type: input
     id: k8s-verison
     attributes:
-      label: What version of Kubernetes are you running?
+      label: What version of Kubernetes are you running? (If Relevant)
     validations:
       required: false
   - type: textarea

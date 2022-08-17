@@ -2,29 +2,73 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-## ----------------------------------------------------------------------
-## To run End-To-End Tests Run:
-## make etcdctl
-## make update_python
-## make start_minikube
-## make containers
-## make test_e2e
-## ....
-## When updating a file and rerunning the test:
-## make reset_e2e
-## make update_python
-## 	or
-## make containers
-## 	then
-## make test_e2e
-## ----------------------------------------------------------------------
+##############################################  HELP  ##################################################################
 
-help:     						## Show this help.
-	@sed -ne '/@sed/!s/## //p' $(MAKEFILE_LIST)
+define HELP_BODY
+To run unit tests, run:
+	make test
 
-init:
+usage: make [target] [options]
+TARGETS
+help
+	Description:
+		Prints this help message
 
-test: gen_grpc pytest test_go_unit
+init
+	Requirements:
+		- Python 3.7-3.10
+		- Golang 1.18
+
+	Description:
+		Installs grpc-tools with pip and builds the proto files for the serving and metadata connections for the
+		Python client and Golang libraries. It then builds and installs the Python SDK and CLI.
+
+
+test
+	Requirements:
+		- Python 3.7-3.10
+		- Golang 1.18
+	Description:
+		Runs 'init' then runs the Python and Golang Unit tests
+
+test_offline
+	Requirements:
+		- Golang 1.18
+
+	Description:
+		Runs offline store integration tests. Requires credentials if not using the memory provider
+
+	Options:
+		provider (memory | postgres | snowflake | redshift | bigquery)
+
+			Usage:
+				make test_offline provider=memory
+
+test_online
+	Requirements:
+		- Golang 1.18
+
+	Description:
+		Runs online store integration tests. Requires credentials if not using the memory or redis_mock provider
+
+	Options:
+		provider (memory | redis_mock | redis_insecure | redis_secure | cassandra | firestore | dynamo )
+
+			Usage:
+				make test_online provider=memory
+
+
+endef
+export HELP_BODY
+
+help:
+	@echo "$$HELP_BODY"  |  less
+
+##############################################  UNIT TESTS #############################################################
+
+init: update_python
+
+test: init pytest test_go_unit
 
 ##############################################  SETUP ##################################################################
 
@@ -72,9 +116,13 @@ pytest:
 
 ##############################################  GO TESTS ###############################################################
 
-test_offline:						## Run offline tests. Run with `make test_offline provider=(memory | postgres | snowflake | redshift)`
+test_offline: gen_grpc						## Run offline tests. Run with `make test_offline provider=(memory | postgres | snowflake | redshift)`
 	-mkdir coverage
 	go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/... --tags=offline --provider=$(provider)
+
+test_online: gen_grpc					## Run offline tests. Run with `make test_online provider=(memory | redis_mock | redis_insecure | redis_secure | cassandra | firestore | dynamo )`
+	-mkdir coverage
+	go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/... --tags=online,provider --provider=$(provider)
 
 test_go_unit:
 	-mkdir coverage

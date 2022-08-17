@@ -3177,6 +3177,96 @@ func Test_snowflakeOfflineTable_checkTimestamp(t *testing.T) {
 	}
 }
 
+func TestReplaceSourceName(t *testing.T) {
+	tests := []struct {
+		name            string
+		query           string
+		sourceMap       []SourceMapping
+		sanitize        sanitization
+		expectedQuery   string
+		expectedFailure bool
+	}{
+		{
+			"TwoReplacementsPass",
+			"SELECT * FROM {{name1.variant1}} and more {{name2.variant2}}",
+			[]SourceMapping{
+				SourceMapping{
+					Template: "{{name1.variant1}}",
+					Source:   "table1",
+				},
+				SourceMapping{
+					Template: "{{name2.variant2}}",
+					Source:   "table2",
+				},
+			},
+			sanitize,
+			"SELECT * FROM \"table1\" and more \"table2\"",
+			false,
+		},
+		{
+			"OneReplacementPass",
+			"SELECT * FROM {{name1.variant1}}",
+			[]SourceMapping{
+				SourceMapping{
+					Template: "{{name1.variant1}}",
+					Source:   "table1",
+				},
+			},
+			sanitize,
+			"SELECT * FROM \"table1\"",
+			false,
+		},
+		{
+			"OneReplacementWithThreeSourceMappingPass",
+			"SELECT * FROM {{name1.variant1}}",
+			[]SourceMapping{
+				SourceMapping{
+					Template: "{{name1.variant1}}",
+					Source:   "table1",
+				},
+				SourceMapping{
+					Template: "{{name2.variant2}}",
+					Source:   "table2",
+				},
+				SourceMapping{
+					Template: "{{name3.variant3}}",
+					Source:   "table3",
+				},
+			},
+			sanitize,
+			"SELECT * FROM \"table1\"",
+			false,
+		},
+		{
+			"ReplacementExpectedFailure",
+			"SELECT * FROM {{name1.variant1}} and more {{name2.variant2}}",
+			[]SourceMapping{
+				SourceMapping{
+					Template: "{{name1.variant1}}",
+					Source:   "table1",
+				},
+			},
+			sanitize,
+			"SELECT * FROM \"table1\" and more {{name2.variant2}}",
+			true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			retreivedQuery, err := replaceSourceName(tt.query, tt.sourceMap, tt.sanitize)
+			if !tt.expectedFailure && err != nil {
+				t.Fatalf("Could not replace the template query: %v", err)
+			}
+
+			if !tt.expectedFailure && !reflect.DeepEqual(retreivedQuery, tt.expectedQuery) {
+				t.Fatalf("ReplaceSourceName did not replace the query correctly. Expected \" %v \", got \" %v \".", tt.expectedQuery, retreivedQuery)
+			}
+		})
+	}
+
+}
+
 func getTableName(testName string, tableName string) string {
 	if strings.Contains(testName, "BIGQUERY") {
 		prefix := fmt.Sprintf("%s.%s", os.Getenv("BIGQUERY_PROJECT_ID"), os.Getenv("BIGQUERY_DATASET_ID"))

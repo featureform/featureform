@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/featureform/metadata"
@@ -631,4 +632,24 @@ func checkTimestamp(rec ResourceRecord) ResourceRecord {
 		rec.TS = time.UnixMilli(0).UTC()
 	}
 	return rec
+}
+
+type sanitization func(string) string
+
+func replaceSourceName(query string, mapping []SourceMapping, sanitize sanitization) (string, error) {
+	replacements := make([]string, len(mapping)*2) // It's times 2 because each replacement will be a pair; (original, replacedValue)
+
+	for _, m := range mapping {
+		replacements = append(replacements, m.Template)
+		replacements = append(replacements, sanitize(m.Source))
+	}
+
+	replacer := strings.NewReplacer(replacements...)
+	replacedQuery := replacer.Replace(query)
+
+	if strings.Contains(replacedQuery, "{{") {
+		return "", fmt.Errorf("could not replace all the templates with the current mapping. Mapping: %v; Replaced Query: %s", mapping, replacedQuery)
+	}
+
+	return replacedQuery, nil
 }

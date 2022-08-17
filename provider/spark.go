@@ -728,8 +728,38 @@ func (spark *SparkOfflineStore) RegisterResourceFromSourceTable(id ResourceID, s
 	return &S3OfflineTable{schema}, nil
 }
 
-func (spark *SparkOfflineStore) CreateTransformation(config TransformationConfig) error {
-	return nil
+func (store *SparkOfflineStore) CreateTransformation(config TransformationConfig) error {
+	name, err := spark.createTransformationName(config.TargetTableID)
+	if err != nil {
+		return err
+	}
+	query := store.query.transformationCreate(name, config.Query)
+
+	bqQ := store.client.Query(query)
+	job, err := bqQ.Run(store.query.getContext())
+	if err != nil {
+		return err
+	}
+
+	err = store.query.monitorJob(job)
+	return err
+}
+
+func (store *SparkOfflineStore) createTransformationName(id ResourceID) (string, error) {
+	switch id.Type {
+	case Transformation:
+		return GetPrimaryTableName(id)
+	case Label:
+		return "", TransformationTypeError{"Invalid Transformation Type: Label"}
+	case Feature:
+		return "", TransformationTypeError{"Invalid Transformation Type: Feature"}
+	case TrainingSet:
+		return "", TransformationTypeError{"Invalid Transformation Type: Training Set"}
+	case Primary:
+		return "", TransformationTypeError{"Invalid Transformation Type: Primary"}
+	default:
+		return "", TransformationTypeError{"Invalid Transformation Type"}
+	}
 }
 
 func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {

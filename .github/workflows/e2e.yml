@@ -1,5 +1,8 @@
 name: End to End Testing
 on: [pull_request]
+concurrency:
+  group: ${{ github.head_ref }}-e2e
+  cancel-in-progress: true
 jobs:
   api-server:
     name: Build API Server

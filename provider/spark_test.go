@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -54,16 +55,75 @@ func testMaterializeResource(store *SparkOfflineStore) error {
 		return fmt.Errorf("Did not properly register table")
 	}
 
+	matID := MaterializationID("Materialization/test_name_materialize/test_variant")
 	materialization, err := store.CreateMaterialization(testResource)
 	if err != nil {
 		return err
 	}
-	fetchedMaterialization, err := store.GetMaterialization(materialization.ID())
+	fetchedMaterialization, err := store.GetMaterialization(matID)
 	if err != nil {
 		return err
 	}
 	if !reflect.DeepEqual(fetchedMaterialization, materialization) {
 		return fmt.Errorf("get materialization and create materialization return different results")
+	}
+	correctMaterialization := map[string]ResourceRecord{
+		"John Smith_0": ResourceRecord{"John Smith_0", reflect.ValueOf(35).Interface(), time.UnixMilli(int64(5))},
+		"John Smith_1": ResourceRecord{"John Smith_1", reflect.ValueOf(36).Interface(), time.UnixMilli(int64(6))},
+		"John Smith_2": ResourceRecord{"John Smith_2", reflect.ValueOf(37).Interface(), time.UnixMilli(int64(7))},
+		"John Smith_3": ResourceRecord{"John Smith_3", reflect.ValueOf(38).Interface(), time.UnixMilli(int64(8))},
+		"John Smith_4": ResourceRecord{"John Smith_4", reflect.ValueOf(39).Interface(), time.UnixMilli(int64(9))},
+	}
+	if fetchedMaterialization.ID() != "Materialization/test_name_materialize/test_variant" {
+		return fmt.Errorf("materialization id not correct, expected Materialization/test_name_materialize/test_variant, got %s", fetchedMaterialization.ID())
+	}
+	numRows, err := fetchedMaterialization.NumRows()
+	if err != nil {
+		return err
+	}
+	if numRows != 5 {
+		return fmt.Errorf("Num rows not correct, expected 5, got %d", numRows)
+	}
+	numRowsFirst := int64(2)
+	iterator, err := fetchedMaterialization.IterateSegment(0, numRowsFirst)
+	if err != nil {
+		return err
+	}
+	comparisonList := make([]ResourceRecord, 0, 5)
+	iterations := int64(0)
+	for iterator.Next() {
+		if iterator.Err() == nil {
+			comparisonList = append(comparisonList, iterator.Value())
+		}
+		iterations += 1
+	}
+	if iterations != numRowsFirst {
+		return fmt.Errorf("Feature iterator had wrong number of iterations. Expected %d, got %d", numRowsFirst, iterations)
+	}
+	numRowsSecond := int64(3)
+	nextIterator, err := fetchedMaterialization.IterateSegment(numRowsFirst, numRowsFirst+numRowsSecond)
+	if err != nil {
+		return err
+	}
+	iterations = 0
+	for nextIterator.Next() {
+		if nextIterator.Err() == nil {
+			comparisonList = append(comparisonList, nextIterator.Value())
+		}
+		iterations += 1
+	}
+	if iterations != numRowsSecond {
+		return fmt.Errorf("Feature iterator had wrong number of iterations. Expected %d, got %d", numRowsSecond, iterations)
+	}
+	for _, rec := range comparisonList {
+		val, err := strconv.Atoi(rec.Value.(string))
+		if err != nil {
+			return err
+		}
+		rec.Value = val
+		if !reflect.DeepEqual(rec, correctMaterialization[rec.Entity]) {
+			return fmt.Errorf("Wrong materialization entry: %T does not equal %T", rec.Value, correctMaterialization[rec.Entity].Value)
+		}
 	}
 	return nil
 }

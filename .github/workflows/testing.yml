@@ -1,5 +1,8 @@
 name: Testing
 on: [pull_request]
+concurrency:
+  group: ${{ github.head_ref }}-testing
+  cancel-in-progress: true
 
 env:
   TYPESENSE_PORT: 8108

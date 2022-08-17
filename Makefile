@@ -78,7 +78,6 @@ gen_grpc:						## Generates GRPC Dependencies
 	pip3 install grpcio-tools
 
 	-mkdir client/src/featureform/proto/
-	set -e
 	cp metadata/proto/metadata.proto client/src/featureform/proto/metadata.proto
 	cp proto/serving.proto client/src/featureform/proto/serving.proto
 

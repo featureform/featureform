@@ -39,8 +39,9 @@ test_offline
 		Runs offline store integration tests. Requires credentials if not using the memory provider
 
 	Options:
-		provider (memory | postgres | snowflake | redshift | bigquery)
-
+		- provider (memory | postgres | snowflake | redshift | bigquery)
+			Description:
+				Runs specified provider. If left blank or not included, runs all providers
 			Usage:
 				make test_offline provider=memory
 
@@ -52,8 +53,9 @@ test_online
 		Runs online store integration tests. Requires credentials if not using the memory or redis_mock provider
 
 	Options:
-		provider (memory | redis_mock | redis_insecure | redis_secure | cassandra | firestore | dynamo )
-
+		- provider (memory | redis_mock | redis_insecure | redis_secure | cassandra | firestore | dynamo )
+			Description:
+				Runs specified provider. If left blank or not included, runs all providers
 			Usage:
 				make test_online provider=memory
 

@@ -164,14 +164,12 @@ class LocalProvider:
                           variant: str = "default",
                           owner: Union[str, UserRegistrar] = "",
                           name: str = "",
-                          description: str = "",
-                          inputs: list = []):
+                          description: str = ""):
         return self.__registrar.sql_transformation(name=name,
                                                   variant=variant,
                                                   owner=owner,
                                                   provider=self.name(),
-                                                  description=description,
-                                                  inputs=inputs)
+                                                  description=description)
 
 
 class SourceRegistrar:
@@ -258,8 +256,7 @@ class SQLTransformationDecorator:
                  provider: str,
                  name: str = "",
                  schedule: str = "",
-                 description: str = "",
-                 inputs: list = []):
+                 description: str = ""):
         self.registrar = registrar,
         self.name = name
         self.variant = variant
@@ -267,16 +264,12 @@ class SQLTransformationDecorator:
         self.schedule = schedule
         self.provider = provider
         self.description = description
-        self.inputs = inputs
 
     def __call__(self, fn: Callable[[], str]):
         if self.description == "":
             self.description = fn.__doc__
         if self.name == "":
             self.name = fn.__name__
-        for nv in self.inputs:
-            if self.name is nv[0] and self.variant is nv[1]:
-                raise ValueError(f"Transformation cannot be input for itself: {self.name} {self.variant}")
         self.__set_query(fn())
         fn.register_resources = self.register_resources
         fn.name_variant = self.name_variant
@@ -1146,8 +1139,7 @@ class Registrar:
                            name: str = "",
                            schedule: str = "",
                            owner: Union[str, UserRegistrar] = "",
-                           description: str = "",
-                           inputs: list = []):
+                           description: str = ""):
         """SQL transformation decorator.
 
         Args:
@@ -1167,9 +1159,6 @@ class Registrar:
             owner = self.must_get_default_owner()
         if not isinstance(provider, str):
             provider = provider.name()
-        for i, nv in enumerate(inputs):
-            if not isinstance(nv, tuple):
-                inputs[i] = nv.name_variant()
         decorator = SQLTransformationDecorator(
             registrar=self,
             name=name,

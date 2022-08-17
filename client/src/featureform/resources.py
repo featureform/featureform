@@ -22,6 +22,13 @@ class OperationType(Enum):
     CREATE = 1
 
 @typechecked
+@dataclass
+class SourceType(Enum):
+    PRIMARY_DATA = 0
+    DF_TRANSFORMATION = 1
+    SQL_TRANSFORMATION = 2
+
+@typechecked
 def valid_name_variant(nvar: NameVariant) -> bool:
     return nvar[0] != "" and nvar[1] != ""
 
@@ -410,7 +417,7 @@ class Source:
     variant: str = "default"
     schedule: str = ""
     schedule_obj: Schedule = None
-    is_transformation = 0
+    is_transformation = SourceType.PRIMARY_DATA
     inputs = []
 
     def update_schedule(self, schedule) -> None:
@@ -440,8 +447,11 @@ class Source:
 
     def _create_local(self, db) -> None:
         if type(self.definition) == DFTransformation:
-            self.is_transformation = 1
+            self.is_transformation = SourceType.DF_TRANSFORMATION
             self.inputs = self.definition.inputs
+            self.definition = self.definition.query
+        if type(self.definition) == SQLTransformation:
+            self.is_transformation = SourceType.SQL_TRANSFORMATION
             self.definition = self.definition.query
         if type(self.definition) == PrimaryData:
             self.definition = self.definition.name()

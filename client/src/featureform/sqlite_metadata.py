@@ -111,7 +111,7 @@ class SQLiteMetadata:
           provider    text NOT NULL,
           variant    text,
           status      text,
-          transformation bool,
+          transformation integer,
           inputs text, 
           definition  BLOB,
           PRIMARY KEY(name, variant),
@@ -301,10 +301,7 @@ class SQLiteMetadata:
         t = transformation.fetchall()
         if len(t) == 0:
             return 0
-        if t[0][0] is 1:
-            return 1
-        else:
-            return 0
+        return t[0][0]
 
     def insert_source(self, tablename, *args):
         stmt = f"INSERT OR IGNORE INTO {tablename} VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"

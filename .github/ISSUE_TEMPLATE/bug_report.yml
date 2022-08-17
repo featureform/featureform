@@ -61,7 +61,7 @@ body:
   - type: input
     id: k8s-verison
     attributes:
-      label: Kubernetes Version?
+      label: Kubernetes Version
       description: What version of Kubernetes are you running? (If Relevant)
     validations:
       required: false

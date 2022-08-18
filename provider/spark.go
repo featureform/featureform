@@ -1005,7 +1005,6 @@ func streamGetKeys(record *s3Types.SelectObjectContentEventStreamMemberRecords) 
 	return keys, nil
 }
 
-//Add row numbers?
 func (s *S3Store) ResourceStream(key string) (chan []byte, error) {
 	queryString := "SELECT * from S3Object"
 	outputStream, err := s.selectFromKey(key, queryString, CSV)

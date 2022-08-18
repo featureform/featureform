@@ -80,7 +80,7 @@ global:
   port: 3001
   metadata:
     port: 8080
-  version: "1.1.0-rc"
+  version: "0.0.0"
   repo: "featureformcom"
   pullPolicy: "Always"
   publicCert: false

@@ -192,6 +192,7 @@ type SparkStore interface {
 	UploadSparkScript() error //initialization function
 	ResourceKey(id ResourceID) (string, error)
 	ResourceStream(key string) (chan []byte, error)
+	RowStreamFromSelectQuery(key string, query string) (chan []byte, error)
 	ResourceColumns(key string) ([]string, error)
 	ResourceRowCt(key string) (int, error)
 	ResourcePath(id ResourceID) string
@@ -787,7 +788,9 @@ func (spark *SparkOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, e
 }
 
 type S3Materialization struct {
-	id ResourceID
+	id    ResourceID
+	store SparkStore
+	Key   string
 }
 
 func (s *S3Materialization) ID() MaterializationID {
@@ -795,26 +798,63 @@ func (s *S3Materialization) ID() MaterializationID {
 }
 
 func (s *S3Materialization) NumRows() (int64, error) {
-	return 0, nil
+	numRows, err := s.store.ResourceRowCt(s.Key)
+	if err != nil {
+		return 0, err
+	}
+	return int64(numRows), nil
 }
 
 func (s *S3Materialization) IterateSegment(begin, end int64) (FeatureIterator, error) {
-	return &S3FeatureIterator{}, nil
+	stream, err := s.store.RowStreamFromSelectQuery(s.Key, fmt.Sprintf("SELECT * FROM S3Object WHERE row_number > %d AND row_number <= %d", begin, end))
+	if err != nil {
+		return nil, err
+	}
+	return &S3FeatureIterator{stream: stream, maxIdx: (end - begin)}, nil
 }
 
 type S3FeatureIterator struct {
+	stream chan []byte
+	cur    ResourceRecord
+	err    error
+	curIdx int64
+	maxIdx int64
+}
+
+// expected format is "<entity(string)>,<value(interface{})>,<timestamp(int64)>"
+func featureCSVToResource(csv string) (ResourceRecord, error) {
+	values := strings.Split(csv, ",")
+	entity := string(values[0])
+	value := reflect.ValueOf(values[1]).Interface()
+	timeStampMilli, err := strconv.Atoi(values[2])
+	if err != nil {
+		return ResourceRecord{}, err
+	}
+	timestamp := time.UnixMilli(int64(timeStampMilli))
+	return ResourceRecord{entity, value, timestamp}, nil
 }
 
 func (s *S3FeatureIterator) Next() bool {
-	return false
+	if s.curIdx == s.maxIdx {
+		return false
+	}
+	val := <-s.stream
+	currentRecord, err := featureCSVToResource(string(val))
+	if err != nil {
+		s.err = err
+		return false
+	}
+	s.cur = currentRecord
+	s.curIdx += 1
+	return true
 }
 
 func (s *S3FeatureIterator) Value() ResourceRecord {
-	return ResourceRecord{}
+	return s.cur
 }
 
 func (s *S3FeatureIterator) Err() error {
-	return nil
+	return s.err
 }
 
 func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materialization, error) {
@@ -838,18 +878,21 @@ func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materializ
 	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
 		return nil, fmt.Errorf("spark submit job for materialization %v failed to run: %v", materializationID, err)
 	}
-
-	return &S3Materialization{materializationID}, nil
+	key, err := spark.Store.ResourceKey(materializationID)
+	if err != nil {
+		return nil, fmt.Errorf("Materialization result does not exist in offline store: %v", err)
+	}
+	return &S3Materialization{materializationID, spark.Store, key}, nil
 }
 
 func (spark *SparkOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
 	s := strings.Split(string(id), "/")
 	materializationID := ResourceID{s[1], s[2], FeatureMaterialization}
-	_, err := spark.Store.ResourceKey(materializationID)
+	key, err := spark.Store.ResourceKey(materializationID)
 	if err != nil {
 		return nil, err
 	}
-	return &S3Materialization{materializationID}, nil
+	return &S3Materialization{materializationID, spark.Store, key}, nil
 }
 
 func (spark *SparkOfflineStore) UpdateMaterialization(id ResourceID) (Materialization, error) {
@@ -965,6 +1008,16 @@ func streamGetKeys(record *s3Types.SelectObjectContentEventStreamMemberRecords) 
 func (s *S3Store) ResourceStream(key string) (chan []byte, error) {
 	queryString := "SELECT * from S3Object"
 	outputStream, err := s.selectFromKey(key, queryString, CSV)
+	if err != nil {
+		return nil, err
+	}
+	out := make(chan []byte)
+	go resolveByteChannel(outputStream, out)
+	return out, nil
+}
+
+func (s *S3Store) RowStreamFromSelectQuery(key string, query string) (chan []byte, error) {
+	outputStream, err := s.selectFromKey(key, query, CSV)
 	if err != nil {
 		return nil, err
 	}

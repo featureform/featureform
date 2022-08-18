@@ -75,7 +75,7 @@ test: init pytest test_go_unit
 ##############################################  SETUP ##################################################################
 
 gen_grpc:						## Generates GRPC Dependencies
-	pip3 install grpcio-tools
+	python3 -m pip install --user grpcio-tools
 
 	-mkdir client/src/featureform/proto/
 	python3 -c 'import shutil; \

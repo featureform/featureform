@@ -78,9 +78,8 @@ gen_grpc:						## Generates GRPC Dependencies
 	python3 -m pip install --user grpcio-tools
 
 	-mkdir client/src/featureform/proto/
-	python3 -c 'import shutil; \
-	shutil.copyfile("metadata/proto/metadata.proto", "client/src/featureform/proto/metadata.proto"); \
-	shutil.copyfile("proto/serving.proto", "client/src/featureform/proto/serving.proto")'
+	cp metadata/proto/metadata.proto client/src/featureform/proto/metadata.proto
+	cp proto/serving.proto client/src/featureform/proto/serving.proto
 
 	protoc --go_out=. --go_opt=paths=source_relative     --go-grpc_out=. --go-grpc_opt=paths=source_relative     ./proto/serving.proto
 	python3 -m grpc_tools.protoc -I ./client/src --python_out=./client/src --grpc_python_out=./client/src/ ./client/src/featureform/proto/serving.proto
@@ -92,8 +91,7 @@ update_python: gen_grpc 				## Updates the python package locally
 	pip3 install pytest
 	pip3 install build
 	pip3 uninstall featureform  -y
-	-python3 -c 'import shutil; shutil.rmtree( "client/dist/*" )'
-	#-rm -r client/dist/*
+	-rm -r client/dist/*
 	python3 -m build ./client/
 	pip3 install client/dist/*.whl
 

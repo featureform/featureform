@@ -46,8 +46,6 @@ func TestOnlineStores(t *testing.T) {
 
 	// Redis (Mock)
 	redisMockInit := func() RedisConfig {
-		miniRedis := mockRedis()
-		defer miniRedis.Close()
 		mockRedisAddr := miniRedis.Addr()
 		redisMockConfig := &RedisConfig{
 			Addr: mockRedisAddr,
@@ -130,6 +128,8 @@ func TestOnlineStores(t *testing.T) {
 		testList = append(testList, testMember{LocalOnline, "", []byte{}, false})
 	}
 	if *provider == "redis_mock" || *provider == "" {
+		miniRedis := mockRedis()
+		defer miniRedis.Close()
 		testList = append(testList, testMember{RedisOnline, "_MOCK", redisMockInit().Serialized(), false})
 	}
 	if *provider == "redis_insecure" || *provider == "" {

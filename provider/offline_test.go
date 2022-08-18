@@ -3273,6 +3273,23 @@ func TestReplaceSourceName(t *testing.T) {
 			"SELECT * FROM \"table1\" and more {{name2.variant2}}",
 			true,
 		},
+		{
+			"TwoReplacementsSparkSQLSanitizePass",
+			"SELECT * FROM {{name1.variant1}} and more {{name2.variant2}}",
+			[]SourceMapping{
+				SourceMapping{
+					Template: "{{name1.variant1}}",
+					Source:   "table1",
+				},
+				SourceMapping{
+					Template: "{{name2.variant2}}",
+					Source:   "table2",
+				},
+			},
+			sanitizeSparkSQL,
+			"SELECT * FROM table1 and more table2",
+			false,
+		},
 	}
 
 	for _, tt := range tests {

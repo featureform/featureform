@@ -116,6 +116,28 @@ func TestOfflineStores(t *testing.T) {
 	}
 	defer destroyBigQueryDataset(bigQueryConfig)
 
+	emrConf := EMRConfig{
+		AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
+		AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),
+		ClusterRegion:  os.Getenv("AWS_EMR_CLUSTER_REGION"),
+		ClusterName:    os.Getenv("AWS_EMR_CLUSTER_ID"),
+	}
+	emrSerializedConfig := emrConf.Serialize()
+	s3Conf := S3Config{
+		AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
+		AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),
+		BucketRegion:   os.Getenv("S3_BUCKET_REGION"),
+		BucketPath:     os.Getenv("S3_BUCKET_PATH"),
+	}
+	s3SerializedConfig := s3Conf.Serialize()
+	SparkOfflineConfig := SparkConfig{
+		ExecutorType:   EMR,
+		ExecutorConfig: string(emrSerializedConfig),
+		StoreType:      S3,
+		StoreConfig:    string(s3SerializedConfig),
+	}
+	sparkSerializedConfig := SparkOfflineConfig.Serialize()
+
 	testFns := map[string]func(*testing.T, OfflineStore){
 		"CreateGetTable":          testCreateGetOfflineTable,
 		"TableAlreadyExists":      testOfflineTableAlreadyExists,
@@ -154,6 +176,7 @@ func TestOfflineStores(t *testing.T) {
 		{SnowflakeOffline, serialSFConfig, true},
 		{RedshiftOffline, serialRSConfig, true},
 		{BigQueryOffline, serialBQConfig, true},
+		{SparkOffline, sparkSerializedConfig, true},
 	}
 	for _, testItem := range testList {
 		if testing.Short() && testItem.integrationTest {

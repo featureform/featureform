@@ -69,11 +69,11 @@ func testMaterializeResource(store *SparkOfflineStore) error {
 		return fmt.Errorf("get materialization and create materialization return different results")
 	}
 	correctMaterialization := map[string]ResourceRecord{
-		"John Smith_0": ResourceRecord{"John Smith_0", reflect.ValueOf(35).Interface(), time.UnixMilli(int64(5))},
-		"John Smith_1": ResourceRecord{"John Smith_1", reflect.ValueOf(36).Interface(), time.UnixMilli(int64(6))},
-		"John Smith_2": ResourceRecord{"John Smith_2", reflect.ValueOf(37).Interface(), time.UnixMilli(int64(7))},
-		"John Smith_3": ResourceRecord{"John Smith_3", reflect.ValueOf(38).Interface(), time.UnixMilli(int64(8))},
-		"John Smith_4": ResourceRecord{"John Smith_4", reflect.ValueOf(39).Interface(), time.UnixMilli(int64(9))},
+		"John Smith_0": ResourceRecord{"John Smith_0", 35, time.UnixMilli(int64(5))},
+		"John Smith_1": ResourceRecord{"John Smith_1", 36, time.UnixMilli(int64(6))},
+		"John Smith_2": ResourceRecord{"John Smith_2", 37, time.UnixMilli(int64(7))},
+		"John Smith_3": ResourceRecord{"John Smith_3", 38, time.UnixMilli(int64(8))},
+		"John Smith_4": ResourceRecord{"John Smith_4", 39, time.UnixMilli(int64(9))},
 	}
 	if fetchedMaterialization.ID() != "Materialization/test_name_materialize/test_variant" {
 		return fmt.Errorf("materialization id not correct, expected Materialization/test_name_materialize/test_variant, got %s", fetchedMaterialization.ID())

@@ -192,7 +192,7 @@ type SparkStore interface {
 	UploadSparkScript() error //initialization function
 	ResourceKey(id ResourceID) (string, error)
 	ResourceStream(key string) (chan []byte, error)
-	ResourceStreamCustom(key string, query string) (chan []byte, error)
+	RowStreamFromSelectQuery(key string, query string) (chan []byte, error)
 	ResourceColumns(key string) ([]string, error)
 	ResourceRowCt(key string) (int, error)
 	ResourcePath(id ResourceID) string
@@ -806,7 +806,7 @@ func (s *S3Materialization) NumRows() (int64, error) {
 }
 
 func (s *S3Materialization) IterateSegment(begin, end int64) (FeatureIterator, error) {
-	stream, err := s.store.ResourceStreamCustom(s.Key, fmt.Sprintf("SELECT * FROM S3Object WHERE row_number > %d AND row_number <= %d", begin, end))
+	stream, err := s.store.RowStreamFromSelectQuery(s.Key, fmt.Sprintf("SELECT * FROM S3Object WHERE row_number > %d AND row_number <= %d", begin, end))
 	if err != nil {
 		return nil, err
 	}
@@ -821,21 +821,29 @@ type S3FeatureIterator struct {
 	maxIdx int64
 }
 
+// expected format is "<entity(string)>,<value(interface{})>,<timestamp(int64)>"
+func featureCSVToResource(csv string) (ResourceRecord, error) {
+	values := strings.Split(csv, ",")
+	entity := string(values[0])
+	value := reflect.ValueOf(values[1]).Interface()
+	timeStampMilli, err := strconv.Atoi(values[2])
+	if err != nil {
+		return ResourceRecord{}, err
+	}
+	timestamp := time.UnixMilli(int64(timeStampMilli))
+	return ResourceRecord{entity, value, timestamp}, nil
+}
+
 func (s *S3FeatureIterator) Next() bool {
 	if s.curIdx == s.maxIdx {
 		return false
 	}
 	val := <-s.stream
-	values := strings.Split(string(val), ",")
-	entity := string(values[0])
-	value := reflect.ValueOf(values[1]).Interface()
-	timeStampMilli, err := strconv.Atoi(values[2])
+	currentRecord, err := featureCSVToResource(string(val))
 	if err != nil {
 		s.err = err
 		return false
 	}
-	timestamp := time.UnixMilli(int64(timeStampMilli))
-	currentRecord := ResourceRecord{entity, value, timestamp}
 	s.cur = currentRecord
 	s.curIdx += 1
 	return true
@@ -872,7 +880,7 @@ func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materializ
 	}
 	key, err := spark.Store.ResourceKey(materializationID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Materialization result does not exist in offline store: %v", err)
 	}
 	return &S3Materialization{materializationID, spark.Store, key}, nil
 }
@@ -1009,7 +1017,7 @@ func (s *S3Store) ResourceStream(key string) (chan []byte, error) {
 	return out, nil
 }
 
-func (s *S3Store) ResourceStreamCustom(key string, query string) (chan []byte, error) {
+func (s *S3Store) RowStreamFromSelectQuery(key string, query string) (chan []byte, error) {
 	outputStream, err := s.selectFromKey(key, query, CSV)
 	if err != nil {
 		return nil, err

@@ -934,9 +934,24 @@ type S3TrainingSet struct {
 	label    interface{}
 	features []interface{}
 	iter     chan []byte
+	rows     int64
+	idx      int64
+}
+
+func trainingSetValuesFromCSV(csv string) ([]interface{}, interface{}) {
+	values := strings.Split(string(csv), ",")
+	features := make([]interface{}, len(values)-1)
+	for i := 0; i < len(values)-1; i++ {
+		features[i] = reflect.ValueOf(values[i]).Interface()
+	}
+	label := reflect.ValueOf(values[len(values)-1]).Interface()
+	return features, label
 }
 
 func (s *S3TrainingSet) Next() bool {
+	if s.idx >= s.rows {
+		return false
+	}
 	if s.iter == nil {
 		iterator, err := s.store.ResourceStream(s.Key)
 		if err != nil {
@@ -946,14 +961,10 @@ func (s *S3TrainingSet) Next() bool {
 		s.iter = iterator
 	}
 	val := <-s.iter
-	values := strings.Split(string(val), ",")
-	features := make([]interface{}, len(values)-1)
-	for i := 0; i < len(values)-1; i++ {
-		features[i] = reflect.ValueOf(values[i]).Interface()
-	}
-	label := reflect.ValueOf(values[len(values)-1]).Interface()
+	features, label := trainingSetValuesFromCSV(string(val))
 	s.features = features
 	s.label = label
+	s.idx += 1
 	return true
 }
 
@@ -969,6 +980,18 @@ func (s *S3TrainingSet) Err() error {
 	return s.err
 }
 
+func (spark *SparkOfflineStore) registeredResourceSchema(id ResourceID) (ResourceSchema, error) {
+	table, err := spark.GetResourceTable(id)
+	if err != nil {
+		return ResourceSchema{}, fmt.Errorf("resource not registered: %v", err)
+	}
+	sparkResourceTable, ok := table.(*S3OfflineTable)
+	if !ok {
+		return ResourceSchema{}, fmt.Errorf("could not convert offline table with id %v to sparkResourceTable", id)
+	}
+	return sparkResourceTable.schema, nil
+}
+
 func (spark *SparkOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
 	sourcePaths := make([]string, 0)
 	featureSchemas := make([]ResourceSchema, 0)
@@ -977,29 +1000,20 @@ func (spark *SparkOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
 	if exists {
 		return fmt.Errorf("training set already exists %v already exists", def.ID)
 	}
-	labelTable, err := spark.GetResourceTable(def.Label)
+	labelSchema, err := spark.registeredResourceSchema(def.Label)
 	if err != nil {
-		return fmt.Errorf("resource not registered: %v", err)
+		return fmt.Errorf("Could not get schema of label %s: %v", def.Label, err)
 	}
-	sparkLabelResourceTable, ok := labelTable.(*S3OfflineTable)
-	if !ok {
-		return fmt.Errorf("could not convert offline table with id %v to sparkResourceTable", def.ID)
-	}
-	labelPath := fmt.Sprintf("%s%s", spark.Store.BucketPrefix(), sparkLabelResourceTable.schema.SourceTable)
-	labelSchema := sparkLabelResourceTable.schema
+	labelPath := fmt.Sprintf("%s%s", spark.Store.BucketPrefix(), labelSchema.SourceTable)
 	sourcePaths = append(sourcePaths, labelPath)
 	for _, feature := range def.Features {
-		featureTable, err := spark.GetResourceTable(feature)
+		featureSchema, err := spark.registeredResourceSchema(feature)
 		if err != nil {
-			return fmt.Errorf("resource not registered: %v", err)
+			return fmt.Errorf("Could not get schema of feature %s: %v", feature, err)
 		}
-		sparkFeatureResourceTable, ok := featureTable.(*S3OfflineTable)
-		if !ok {
-			return fmt.Errorf("could not convert offline table with id %v to sparkResourceTable", def.ID)
-		}
-		featurePath := fmt.Sprintf("%s%s", spark.Store.BucketPrefix(), sparkFeatureResourceTable.schema.SourceTable)
+		featurePath := fmt.Sprintf("%s%s", spark.Store.BucketPrefix(), featureSchema.SourceTable)
 		sourcePaths = append(sourcePaths, featurePath)
-		featureSchemas = append(featureSchemas, sparkFeatureResourceTable.schema)
+		featureSchemas = append(featureSchemas, featureSchema)
 	}
 	trainingSetQuery := spark.query.trainingSetCreate(def, featureSchemas, labelSchema)
 	sparkArgs := spark.Store.SparkSubmitArgs(destinationPath, trainingSetQuery, sourcePaths, CreateTrainingSet)
@@ -1022,7 +1036,11 @@ func (spark *SparkOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterat
 	if err != nil {
 		return nil, fmt.Errorf("Training Set result does not exist in offline store: %v", err)
 	}
-	return &S3TrainingSet{id: id, store: spark.Store, Key: key}, nil
+	rowCount, err := spark.Store.ResourceRowCt(key)
+	if err != nil {
+		return nil, err
+	}
+	return &S3TrainingSet{id: id, store: spark.Store, Key: key, rows: int64(rowCount)}, nil
 }
 
 func (s *S3Store) selectFromKey(key string, query string, returnType SelectReturnType) (*s3.SelectObjectContentEventStreamReader, error) {

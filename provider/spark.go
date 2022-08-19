@@ -940,11 +940,13 @@ type S3TrainingSet struct {
 
 func trainingSetValuesFromCSV(csv string) ([]interface{}, interface{}) {
 	values := strings.Split(string(csv), ",")
-	features := make([]interface{}, len(values)-1)
-	for i := 0; i < len(values)-1; i++ {
+	numFeatures := len(values) - 1
+	features := make([]interface{}, numFeatures)
+	for i := 0; i < numFeatures; i++ {
 		features[i] = reflect.ValueOf(values[i]).Interface()
 	}
-	label := reflect.ValueOf(values[len(values)-1]).Interface()
+	lastIndex := numFeatures
+	label := reflect.ValueOf(values[lastIndex]).Interface()
 	return features, label
 }
 

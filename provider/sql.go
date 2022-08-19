@@ -334,13 +334,13 @@ func (store *sqlOfflineStore) CreateResourceTable(id ResourceID, schema TableSch
 	}
 
 	if exists, err := store.tableExists(id); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not check if table exists: %v", err)
 	} else if exists {
 		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}
 	tableName, err := store.getResourceTableName(id)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not get table name: %v", err)
 	}
 	var valueType ValueType
 	if valueIndex := store.getValueIndex(schema.Columns); valueIndex > 0 {
@@ -351,7 +351,7 @@ func (store *sqlOfflineStore) CreateResourceTable(id ResourceID, schema TableSch
 	}
 	table, err := store.newsqlOfflineTable(store.db, tableName, valueType)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not return SQL offline table: %v", err)
 	}
 	return table, nil
 }
@@ -889,12 +889,12 @@ func determineColumnType(valueType ValueType) (string, error) {
 func (store *sqlOfflineStore) newsqlOfflineTable(db *sql.DB, name string, valueType ValueType) (*sqlOfflineTable, error) {
 	columnType, err := determineColumnType(valueType)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not determine column type: %v", err)
 	}
 	tableCreateQry := store.query.newSQLOfflineTable(name, columnType)
 	_, err = db.Exec(tableCreateQry)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not create table query: %v", err)
 	}
 	return &sqlOfflineTable{
 		db:    db,

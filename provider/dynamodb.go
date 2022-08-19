@@ -65,7 +65,7 @@ func NewDynamodbOnlineStore(options *DynamodbConfig) (*dynamodbOnlineStore, erro
 	sess := session.Must(session.NewSession(config))
 	dynamodbClient := dynamodb.New(sess)
 	if err := CreateMetadataTable(dynamodbClient); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not create metadata table: %v", err)
 	}
 	return &dynamodbOnlineStore{dynamodbClient, options.Prefix, BaseProvider{
 		ProviderType:   DynamoDBOnline,
@@ -103,12 +103,12 @@ func CreateMetadataTable(dynamodbClient *dynamodb.DynamoDB) error {
 	}
 	describeMetadataTable, err := dynamodbClient.DescribeTable(describeMetadataTableParams)
 	if err != nil {
-		return err
+		fmt.Println("Could not describe dynamo metadata table, attemping to create...", err)
 	}
 	if describeMetadataTable == nil {
 		_, err := dynamodbClient.CreateTable(params)
 		if err != nil {
-			return err
+			return fmt.Errorf("create attempt: %v", err)
 		}
 	}
 	return nil

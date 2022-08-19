@@ -141,21 +141,21 @@ func (store *sqlOfflineStore) tableExists(id ResourceID) (bool, error) {
 		tableName, err = GetPrimaryTableName(id)
 	}
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("type check: %v: %v", id, err)
 	}
 	query := store.query.tableExists()
 	err = store.db.QueryRow(query, tableName).Scan(&n)
 	if n > 0 && err == nil {
 		return true, nil
 	} else if err != nil {
-		return false, err
+		return false, fmt.Errorf("table exists: %v", err)
 	}
 	query = store.query.viewExists()
 	err = store.db.QueryRow(query, tableName).Scan(&n)
 	if n > 0 && err == nil {
 		return true, nil
 	} else if err != nil {
-		return false, err
+		return false, fmt.Errorf("view exists: %v", err)
 	}
 	return false, nil
 }

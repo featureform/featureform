@@ -499,10 +499,10 @@ func (store *sqlOfflineStore) GetMaterialization(id MaterializationID) (Material
 	getMatQry := store.query.materializationExists()
 
 	rows, err := store.db.Query(getMatQry, tableName)
-	defer rows.Close()
 	if err != nil {
 		return nil, fmt.Errorf("could not get materialization: %w", err)
 	}
+	defer rows.Close()
 
 	rowCount := 0
 	if rows.Next() {

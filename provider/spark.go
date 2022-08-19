@@ -730,7 +730,7 @@ func (spark *SparkOfflineStore) RegisterResourceFromSourceTable(id ResourceID, s
 }
 
 func (spark *SparkOfflineStore) CreateTransformation(config TransformationConfig) error {
-	updatedQuery, err := replaceSourceName(config.Query, config.SourceMapping, sanitizeSparkSQL)
+	updatedQuery, sources, err := updateQuery(config.Query, config.SourceMapping)
 	if err != nil {
 		return err
 	}
@@ -741,32 +741,38 @@ func (spark *SparkOfflineStore) CreateTransformation(config TransformationConfig
 		return fmt.Errorf("transformation %v already exists at %s", config.TargetTableID, transformationDestination)
 	}
 
-	resourceTable, err := spark.GetResourceTable(config.TargetTableID)
-	if err != nil {
-		return fmt.Errorf("resource not registered: %v", err)
-	}
-
-	sparkResourceTable, ok := resourceTable.(*S3OfflineTable)
-	if !ok {
-		return fmt.Errorf("could not convert offline table with id %v to sparkResourceTable", config.TargetTableID)
-	}
-
-	sourcePath := fmt.Sprintf("%s%s", spark.Store.BucketPrefix(), sparkResourceTable.schema.SourceTable)
-	sparkArgs := spark.Store.SparkSubmitArgs(transformationDestination, updatedQuery, []string{sourcePath}, Transform)
-
+	sparkArgs := spark.Store.SparkSubmitArgs(transformationDestination, updatedQuery, sources, Transform)
 	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
 		return fmt.Errorf("spark submit job for transformation %v failed to run: %v", config.TargetTableID, err)
 	}
-
 	return nil
 }
 
+func updateQuery(query string, mapping []SourceMapping) (string, []string, error) {
+	sources := make([]string, len(mapping))
+	replacements := make([]string, len(mapping)*2) // It's times 2 because each replacement will be a pair; (original, replacedValue)
+
+	for i, m := range mapping {
+		replacements = append(replacements, m.Template)
+		replacements = append(replacements, fmt.Sprintf("source_%v", i))
+		sources[i] = m.Source
+	}
+
+	replacer := strings.NewReplacer(replacements...)
+	updatedQuery := replacer.Replace(query)
+
+	if strings.Contains(updatedQuery, "{{") {
+		return "", nil, fmt.Errorf("could not replace all the templates with the current mapping. Mapping: %v; Replaced Query: %s", mapping, updatedQuery)
+	}
+	return updatedQuery, sources, nil
+}
+
 func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
-	table, err := spark.GetPrimaryTable(id)
+	transformationPath, err := spark.Store.ResourceKey(id)
 	if err != nil {
 		return nil, fmt.Errorf("could not get transformation table (%v) because %s", id, err)
 	}
-	return table, nil
+	return &S3PrimaryTable{spark.Store, transformationPath}, nil
 }
 
 func (spark *SparkOfflineStore) UpdateTransformation(config TransformationConfig) error {

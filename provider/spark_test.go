@@ -15,6 +15,9 @@ import (
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/joho/godotenv"
 )
 
 func testMaterializeResource(store *SparkOfflineStore) error {
@@ -493,4 +496,247 @@ func TestGenerateSchemaFromInterface(t *testing.T) {
 	if !reflect.DeepEqual(jsonMap, resultMap) {
 		t.Fatalf("Marshalled json schemas are not equal")
 	}
+}
+
+func TestSparkSQLTransformation(t *testing.T) {
+	cases := []struct {
+		name            string
+		config          TransformationConfig
+		sourceID        ResourceID
+		expectedFailure bool
+	}{
+		{
+			"SimpleTransformation",
+			TransformationConfig{
+				Type: SQLTransformation,
+				TargetTableID: ResourceID{
+					Name:    uuid.NewString(),
+					Type:    Transformation,
+					Variant: "test_variant",
+				},
+				Query: "SELECT * FROM {{test_name.test_variant}}",
+				SourceMapping: []SourceMapping{
+					SourceMapping{
+						Template: "{{test_name.test_variant}}",
+						Source:   "s3://featureform-spark-testing/featureform/testprimary/testFile.parquet",
+					},
+				},
+			},
+			ResourceID{"test_name", "test_variant", Primary},
+			false,
+		},
+		{
+			"FailedTransformation",
+			TransformationConfig{
+				Type: SQLTransformation,
+				TargetTableID: ResourceID{
+					Name:    uuid.NewString(),
+					Type:    Transformation,
+					Variant: "test_variant",
+				},
+				Query: "SELECT * FROM {{test_name.test_variant}}",
+				SourceMapping: []SourceMapping{
+					SourceMapping{
+						Template: "{{test_name.test_variant}}",
+						Source:   "s3://featureform-spark-testing/fake/file/path/testFile.parquet",
+					},
+				},
+			},
+			ResourceID{"test_name", "test_variant", Primary},
+			true,
+		},
+	}
+
+	store, err := getSparkOfflineStore(t)
+	if err != nil {
+		t.Fatalf("could not get SparkOfflineStore: %s", err)
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			err := store.CreateTransformation(tt.config)
+			if !tt.expectedFailure && err != nil {
+				t.Fatalf("could not create transformation '%v' because %s", tt.config, err)
+			}
+
+			sourceTable, err := store.GetPrimaryTable(tt.sourceID)
+			if !tt.expectedFailure && err != nil {
+				t.Fatalf("failed to get source table, %v,: %s", tt.sourceID, err)
+			}
+
+			transformationTable, err := store.GetTransformationTable(tt.config.TargetTableID)
+			if err != nil {
+				if tt.expectedFailure {
+					return
+				}
+				t.Fatalf("failed to get the transformation, %s", err)
+			}
+
+			sourceCount, err := sourceTable.NumRows()
+			transformationCount, err := transformationTable.NumRows()
+			if !tt.expectedFailure && sourceCount != transformationCount {
+				t.Fatalf("the source table and expected did not match: %v:%v", sourceCount, transformationCount)
+			}
+		})
+	}
+}
+
+func TestUpdateQuery(t *testing.T) {
+	cases := []struct {
+		name            string
+		query           string
+		sourceMap       []SourceMapping
+		expectedQuery   string
+		expectedSources []string
+		expectedFailure bool
+	}{
+		{
+			"TwoReplacementsPass",
+			"SELECT * FROM {{name1.variant1}} and more {{name2.variant2}}",
+			[]SourceMapping{
+				SourceMapping{
+					Template: "{{name1.variant1}}",
+					Source:   "s3://featureform/name1/variant1/file",
+				},
+				SourceMapping{
+					Template: "{{name2.variant2}}",
+					Source:   "s3://featureform/name2/variant2/file",
+				},
+			},
+			"SELECT * FROM source_0 and more source_1",
+			[]string{
+				"s3://featureform/name1/variant1/file",
+				"s3://featureform/name2/variant2/file",
+			},
+			false,
+		},
+		{
+			"OneReplacementPass",
+			"SELECT * FROM {{name1.variant1}}",
+			[]SourceMapping{
+				SourceMapping{
+					Template: "{{name1.variant1}}",
+					Source:   "s3://featureform/name1/variant1",
+				},
+			},
+			"SELECT * FROM source_0",
+			[]string{
+				"s3://featureform/name1/variant1",
+			},
+			false,
+		},
+		{
+			"ReplacementExpectedFailure",
+			"SELECT * FROM {{name1.variant1}} and more {{name2.variant2}}",
+			[]SourceMapping{
+				SourceMapping{
+					Template: "{{name1.variant1}}",
+					Source:   "s3://featureform/name1/variant1",
+				},
+			},
+			"SELECT * FROM source_0",
+			[]string{
+				"s3://featureform/name1/variant1",
+			},
+			true,
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			retreivedQuery, sources, err := updateQuery(tt.query, tt.sourceMap)
+
+			if !tt.expectedFailure && err != nil {
+				t.Fatalf("Could not replace the template query: %v", err)
+			}
+			if !tt.expectedFailure && !reflect.DeepEqual(retreivedQuery, tt.expectedQuery) {
+				t.Fatalf("updateQuery did not replace the query correctly. Expected \" %v \", got \" %v \".", tt.expectedQuery, retreivedQuery)
+			}
+			if !tt.expectedFailure && !reflect.DeepEqual(sources, tt.expectedSources) {
+				t.Fatalf("updateQuery did not get the correct sources. Expected \" %v \", got \" %v \".", tt.expectedSources, sources)
+			}
+		})
+	}
+
+}
+
+func TestGetTransformation(t *testing.T) {
+	cases := []struct {
+		name             string
+		id               ResourceID
+		expectedRowCount int64
+	}{
+		{
+			"testTransformation",
+			ResourceID{
+				Name:    "12fdd4f9-023c-4c0e-99ae-35bdabd0a465",
+				Type:    Transformation,
+				Variant: "test_variant",
+			},
+			5,
+		},
+	}
+
+	store, err := getSparkOfflineStore(t)
+	if err != nil {
+		t.Fatalf("could not get SparkOfflineStore: %s", err)
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			table, err := store.GetTransformationTable(tt.id)
+			if err != nil {
+				t.Fatalf("Failed to get Transformation Table: %v", err)
+			}
+
+			caseNumRow, err := table.NumRows()
+			if err != nil {
+				t.Fatalf("Failed to get Transformation Table Num Rows: %v", err)
+			}
+
+			if caseNumRow != tt.expectedRowCount {
+				t.Fatalf("Row count do not match. Expected \" %v \", got \" %v \".", caseNumRow, tt.expectedRowCount)
+			}
+		})
+	}
+}
+
+func getSparkOfflineStore(t *testing.T) (*SparkOfflineStore, error) {
+	err := godotenv.Load(".env")
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	emrConf := EMRConfig{
+		AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
+		AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),
+		ClusterRegion:  os.Getenv("AWS_EMR_CLUSTER_REGION"),
+		ClusterName:    os.Getenv("AWS_EMR_CLUSTER_ID"),
+	}
+	emrSerializedConfig := emrConf.Serialize()
+	s3Conf := S3Config{
+		AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
+		AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),
+		BucketRegion:   os.Getenv("S3_BUCKET_REGION"),
+		BucketPath:     os.Getenv("S3_BUCKET_PATH"),
+	}
+	s3SerializedConfig := s3Conf.Serialize()
+	SparkOfflineConfig := SparkConfig{
+		ExecutorType:   EMR,
+		ExecutorConfig: string(emrSerializedConfig),
+		StoreType:      S3,
+		StoreConfig:    string(s3SerializedConfig),
+	}
+	sparkSerializedConfig := SparkOfflineConfig.Serialize()
+	sparkProvider, err := Get("SPARK_OFFLINE", sparkSerializedConfig)
+	if err != nil {
+		t.Fatalf("Could not create spark provider: %s", err)
+	}
+	sparkStore, err := sparkProvider.AsOfflineStore()
+	if err != nil {
+		t.Fatalf("Could not convert spark provider to offline store: %s", err)
+	}
+	sparkOfflineStore := sparkStore.(*SparkOfflineStore)
+
+	return sparkOfflineStore, nil
 }

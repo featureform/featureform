@@ -299,9 +299,6 @@ func TestParquetUpload(t *testing.T) {
 	if testing.Short() {
 		return
 	}
-	if err := RegisterFactory("SPARK_OFFLINE", SparkOfflineStoreFactory); err != nil {
-		t.Fatalf("Could not register Spark factory: %s", err)
-	}
 	emrConf := EMRConfig{
 		AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
 		AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),

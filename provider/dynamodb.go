@@ -46,6 +46,8 @@ type Metadata struct {
 	Valuetype string `dynamodbav:"ValueType"`
 }
 
+const tableCreateTimeout = 120
+
 func dynamodbOnlineStoreFactory(serialized SerializedConfig) (Provider, error) {
 	dynamodbConfig := &DynamodbConfig{}
 	if err := dynamodbConfig.Deserialize(serialized); err != nil {
@@ -123,7 +125,7 @@ func CreateMetadataTable(dynamodbClient *dynamodb.DynamoDB) error {
 		}
 		time.Sleep(5 * time.Second)
 		duration += 5
-		if duration > 120 {
+		if duration > tableCreateTimeout {
 			return fmt.Errorf("timeout creating table Metadata Table")
 		}
 	}

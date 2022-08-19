@@ -152,7 +152,7 @@ func TestOfflineStores(t *testing.T) {
 	if *provider == "bigquery" || *provider == "" {
 		serialBQConfig, bigQueryConfig := bqInit()
 		defer destroyBigQueryDataset(bigQueryConfig)
-		testList = append(testList, testMember{RedshiftOffline, serialBQConfig, true})
+		testList = append(testList, testMember{BigQueryOffline, serialBQConfig, true})
 	}
 
 	testFns := map[string]func(*testing.T, OfflineStore){

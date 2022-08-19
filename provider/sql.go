@@ -148,14 +148,14 @@ func (store *sqlOfflineStore) tableExists(id ResourceID) (bool, error) {
 	if n > 0 && err == nil {
 		return true, nil
 	} else if err != nil {
-		return false, fmt.Errorf("table exists: %v", err)
+		return false, fmt.Errorf("table exists check: %v", err)
 	}
 	query = store.query.viewExists()
 	err = store.db.QueryRow(query, tableName).Scan(&n)
 	if n > 0 && err == nil {
 		return true, nil
 	} else if err != nil {
-		return false, fmt.Errorf("view exists: %v", err)
+		return false, fmt.Errorf("view exists check: %v", err)
 	}
 	return false, nil
 }
@@ -330,7 +330,7 @@ func (store *sqlOfflineStore) GetTransformationTable(id ResourceID) (Transformat
 // Returns an error if the table already exists or if table is the wrong type.
 func (store *sqlOfflineStore) CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error) {
 	if err := id.check(Feature, Label); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ID check failed: %v", err)
 	}
 
 	if exists, err := store.tableExists(id); err != nil {
@@ -340,7 +340,7 @@ func (store *sqlOfflineStore) CreateResourceTable(id ResourceID, schema TableSch
 	}
 	tableName, err := store.getResourceTableName(id)
 	if err != nil {
-		return nil, fmt.Errorf("could not get table name: %v", err)
+		return nil, fmt.Errorf("could not get resource table name: %v", err)
 	}
 	var valueType ValueType
 	if valueIndex := store.getValueIndex(schema.Columns); valueIndex > 0 {

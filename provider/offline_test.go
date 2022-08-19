@@ -106,7 +106,7 @@ func TestOfflineStores(t *testing.T) {
 		bigqueryCredentials := os.Getenv("BIGQUERY_CREDENTIALS")
 		JSONCredentials, err := ioutil.ReadFile(bigqueryCredentials)
 		if err != nil {
-			panic(err)
+			panic(fmt.Errorf("cannot find big query credentials: %v", err))
 		}
 
 		bigQueryDatasetId := strings.Replace(strings.ToUpper(uuid.NewString()), "-", "_", -1)
@@ -2805,6 +2805,9 @@ func testTransformToMaterialize(t *testing.T, store OfflineStore) {
 }
 
 func testCreateResourceFromSource(t *testing.T, store OfflineStore) {
+	if store.Type() == BigQueryOffline {
+		t.Skip()
+	}
 	primaryID := ResourceID{
 		Name: uuid.NewString(),
 		Type: Primary,
@@ -2853,6 +2856,9 @@ func testCreateResourceFromSource(t *testing.T, store OfflineStore) {
 		t.Fatalf("Could not get resource table: %v", err)
 	}
 	mat, err := store.CreateMaterialization(featureID)
+	if err != nil {
+		t.Fatalf("Could not create materialization: %v", err)
+	}
 	updatedRecords := []GenericRecord{
 		{"f", 6, "six", time.UnixMilli(0)},
 		{"g", 7, "seven", time.UnixMilli(1)},
@@ -2888,6 +2894,9 @@ func testCreateResourceFromSource(t *testing.T, store OfflineStore) {
 }
 
 func testCreateResourceFromSourceNoTS(t *testing.T, store OfflineStore) {
+	if store.Type() == BigQueryOffline {
+		t.Skip()
+	}
 	type expectedTrainingRow struct {
 		Features []interface{}
 		Label    interface{}
@@ -3028,7 +3037,9 @@ func testCreateResourceFromSourceNoTS(t *testing.T, store OfflineStore) {
 }
 
 func testCreatePrimaryFromSource(t *testing.T, store OfflineStore) {
-
+	if store.Type() == BigQueryOffline {
+		t.Skip()
+	}
 	primaryID := ResourceID{
 		Name: uuid.NewString(),
 		Type: Primary,

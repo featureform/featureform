@@ -1009,7 +1009,7 @@ func (store *bqOfflineStore) CreateMaterialization(id ResourceID) (Materializati
 	}
 	resTable, err := store.getbqResourceTable(id)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get resource table: %v", err)
 	}
 
 	matID := MaterializationID(id.Name)
@@ -1019,7 +1019,7 @@ func (store *bqOfflineStore) CreateMaterialization(id ResourceID) (Materializati
 	bqQ := store.client.Query(materializeQry)
 	_, err = bqQ.Read(store.query.getContext())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ready query result: %v", err)
 	}
 	return &bqMaterialization{
 		id:        matID,

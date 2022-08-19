@@ -39,7 +39,7 @@ test_offline
 		Runs offline store integration tests. Requires credentials if not using the memory provider
 
 	Options:
-		- provider (memory | postgres | snowflake | redshift | bigquery)
+		- provider (memory | postgres | snowflake | redshift | bigquery | spark )
 			Description:
 				Runs specified provider. If left blank or not included, runs all providers
 			Usage:
@@ -75,7 +75,7 @@ test: init pytest test_go_unit
 ##############################################  SETUP ##################################################################
 
 gen_grpc:						## Generates GRPC Dependencies
-	python3 -m pip install --user grpcio-tools
+	python3 -m pip install grpcio-tools
 
 	-mkdir client/src/featureform/proto/
 	cp metadata/proto/metadata.proto client/src/featureform/proto/metadata.proto
@@ -117,9 +117,9 @@ pytest:
 
 ##############################################  GO TESTS ###############################################################
 
-test_offline: gen_grpc						## Run offline tests. Run with `make test_offline provider=(memory | postgres | snowflake | redshift)`
+test_offline: gen_grpc						## Run offline tests. Run with `make test_offline provider=(memory | postgres | snowflake | redshift | spark )`
 	-mkdir coverage
-	go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/... --tags=offline --provider=$(provider)
+	go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/... --tags=offline,spark --provider=$(provider)
 
 test_online: gen_grpc					## Run offline tests. Run with `make test_online provider=(memory | redis_mock | redis_insecure | redis_secure | cassandra | firestore | dynamo )`
 	-mkdir coverage

@@ -244,9 +244,15 @@ class LocalClientImpl:
             source_name, source_variant = feature['source_name'], feature['source_variant']
             if self.db.is_transformation(source_name, source_variant) != "PRIMARY":
                 feature_df = self.process_transformation(source_name, source_variant)
+                #feature df should have 2 colummns, check if df.columns and entity id and feature value a
+                # etnity and feature dont mtch source 
                 if isinstance(feature_df, pd.Series):
                     feature_df = feature_df.to_frame()
                     feature_df.reset_index(inplace=True)
+                if not entity_id in feature_df.columns:
+                    raise ValueError(f"No column named {entity_id} exists")
+                if not feature['source_value'] in feature_df.columns:
+                    raise ValueError(f"No column named {feature['source_value']} exists")
                 feature_df = feature_df[[entity_id, feature['source_value']]]
                 feature_df.set_index(entity_id)
             else:

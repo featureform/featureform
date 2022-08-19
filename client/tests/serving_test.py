@@ -224,25 +224,25 @@ class TestTransformation(TestCase):
         @local.sql_transformation(variant="quickstart")
         def transformation():
             """the average transaction amount for a user """
-            return "SELECT CustomerID as user_id from {{transactions.quickstart}} GROUP BY user_id"
+            return "SELECT CustomerID as entity, avg(TransactionAmount) as feature_val from {{transactions.quickstart}} GROUP BY entity"
         
         @local.sql_transformation(variant="sql_to_sql")
         def transformation1():
             """the customerID for a user """
-            return "SELECT CustomerID as user_id from {{transformation.quickstart}} GROUP BY user_id"
+            return "SELECT entity, feature_val from {{transactions.quickstart}} GROUP BY entity"
 
-        @local.df_transformation(variant="quickstart", inputs=[("transactions", "quickstart")])
+        @local.df_transformation(variant="quickstart", inputs=[("transformation1", "sql_to_sql")])
         def average_user_transaction(transactions):
             """the average transaction amount for a user """
-            return transactions.groupby("CustomerID")["TransactionAmount"].mean()
+            return transactions.groupby("entity")["featue_val"].mean()
 
         @local.sql_transformation(variant="df_to_sql")
         def transformation2():
             """the customerID for a user """
-            return "SELECT CustomerID as user_id from {{average_user_transaction.quickstart}} GROUP BY user_id"
+            return "SELECT entity, feature_val from {{average_user_transaction.quickstart}} GROUP BY entity"
 
-        res = self.run_checks(transformation, name, local)
-        np.testing.assert_array_equal(res, np.array([1]))
+        res = self.sql_run_checks(transformation, name, local)
+        np.testing.assert_array_equal(res, np.array([2553.0]))
 
     def test_simple(self):
         local = ff.register_local()
@@ -355,6 +355,22 @@ class TestTransformation(TestCase):
         client.apply()
         serve = ServingClient(local=True)
         res = serve.features([(f"feature-{name}", name)], {"entity": "a"})
+        serve.impl.db.close()
+        return res
+    
+    def sql_run_checks(self, transformation, name, local):
+        transformation.register_resources(
+            entity="user1",
+            entity_column="entity",
+            inference_store=local,
+            features=[
+                {"name": f"feature-{name}", "variant": name, "column": "feature_val", "type": "float32"},
+            ],
+        )
+        client = ff.ResourceClient(local=True)
+        client.apply()
+        serve = ServingClient(local=True)
+        res = serve.features([(f"feature-{name}", name)], {"entity": "C1010011"})
         serve.impl.db.close()
         return res
 

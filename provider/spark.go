@@ -152,7 +152,6 @@ func (q defaultSparkOfflineQueries) trainingSetCreate(def TrainingSetDef, featur
 	columns := make([]string, 0)
 	joinQueries := make([]string, 0)
 	for i, feature := range def.Features {
-		fmt.Println(feature)
 		featureColumnName := featureColumnName(feature)
 		columns = append(columns, featureColumnName)
 		featureWindowQuery := fmt.Sprintf("SELECT %s as entity, %s as %s, %s as ts FROM source_%d", featureSchemas[i].Entity, featureSchemas[i].Value, featureColumnName, featureSchemas[i].TS, i+1)

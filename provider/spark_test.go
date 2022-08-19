@@ -577,6 +577,40 @@ func TestSparkSQLTransformation(t *testing.T) {
 			if !tt.expectedFailure && sourceCount != transformationCount {
 				t.Fatalf("the source table and expected did not match: %v:%v", sourceCount, transformationCount)
 			}
+
+			updateConfig := TransformationConfig{
+				Type: SQLTransformation,
+				TargetTableID: ResourceID{
+					Name:    tt.config.TargetTableID.Name,
+					Type:    Transformation,
+					Variant: tt.config.TargetTableID.Variant,
+				},
+				Query: tt.config.Query,
+				SourceMapping: []SourceMapping{
+					SourceMapping{
+						Template: tt.config.SourceMapping[0].Template,
+						Source:   store.Store.ResourcePath(tt.config.TargetTableID),
+					},
+				},
+			}
+
+			err = store.UpdateTransformation(updateConfig)
+			if !tt.expectedFailure && err != nil {
+				t.Fatalf("could not update transformation '%v' because %s", updateConfig, err)
+			}
+
+			updateTable, err := store.GetTransformationTable(updateConfig.TargetTableID)
+			if err != nil {
+				if tt.expectedFailure {
+					return
+				}
+				t.Fatalf("failed to get the updated transformation, %s", err)
+			}
+
+			updateCount, err := updateTable.NumRows()
+			if !tt.expectedFailure && updateCount != transformationCount {
+				t.Fatalf("the source table and expected did not match: %v:%v", updateCount, transformationCount)
+			}
 		})
 	}
 }

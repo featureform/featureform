@@ -202,6 +202,7 @@ type SparkStore interface {
 	DownloadParquetTable(path string) (interface{}, error)
 	CompareParquetTable(path string, data interface{}) error
 	FileExists(path string) (bool, error)
+	ResourceExists(id ResourceID) (bool, error)
 	DeleteFile(path string) error
 }
 
@@ -525,6 +526,21 @@ func (s *S3Store) FileExists(path string) (bool, error) {
 	return false, nil
 }
 
+func (s *S3Store) ResourceExists(id ResourceID) (bool, error) {
+	filePrefix := ResourcePrefix(id)
+	objects, err := s.client.ListObjects(context.TODO(), &s3.ListObjectsInput{
+		Bucket: aws.String(s.bucketPath),
+		Prefix: aws.String(filePrefix),
+	})
+	if err != nil {
+		return false, err
+	}
+	if len(objects.Contents) > 0 {
+		return true, nil
+	}
+	return false, nil
+}
+
 func (s *S3Store) S3ParquetReader(path string) (source.ParquetFile, error) {
 	fr, err := parquetGo.NewS3FileReader(ctx, s.bucketPath, path, &awsV1.Config{
 		Credentials: s.credentials,
@@ -730,15 +746,25 @@ func (spark *SparkOfflineStore) RegisterResourceFromSourceTable(id ResourceID, s
 }
 
 func (spark *SparkOfflineStore) CreateTransformation(config TransformationConfig) error {
+	return spark.sqlTransformation(config, false)
+}
+
+func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, isUpdate bool) error {
 	updatedQuery, sources, err := updateQuery(config.Query, config.SourceMapping)
 	if err != nil {
 		return err
 	}
 
 	transformationDestination := spark.Store.ResourcePath(config.TargetTableID)
-	exists, _ := spark.Store.FileExists(transformationDestination)
-	if exists {
+	exists, err := spark.Store.ResourceExists(config.TargetTableID)
+	if err != nil {
+		return err
+	}
+
+	if !isUpdate && exists {
 		return fmt.Errorf("transformation %v already exists at %s", config.TargetTableID, transformationDestination)
+	} else if isUpdate && !exists {
+		return fmt.Errorf("transformation %v doesn't exist at %s and you are trying to update", config.TargetTableID, transformationDestination)
 	}
 
 	sparkArgs := spark.Store.SparkSubmitArgs(transformationDestination, updatedQuery, sources, Transform)
@@ -776,7 +802,7 @@ func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (Transform
 }
 
 func (spark *SparkOfflineStore) UpdateTransformation(config TransformationConfig) error {
-	return spark.CreateTransformation(config)
+	return spark.sqlTransformation(config, true)
 }
 
 func (spark *SparkOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error) {

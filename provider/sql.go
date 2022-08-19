@@ -308,10 +308,10 @@ func (store *sqlOfflineStore) GetTransformationTable(id ResourceID) (Transformat
 	}
 	existsQuery := store.query.tableExists()
 	rows, err := store.db.Query(existsQuery, name)
-	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 	if !rows.Next() {
 		return nil, fmt.Errorf("transformation not found: %v", name)
 	}
@@ -529,11 +529,10 @@ func (store *sqlOfflineStore) UpdateMaterialization(id ResourceID) (Materializat
 	}
 
 	rows, err := store.db.Query(getMatQry, tableName)
-	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
-
+	defer rows.Close()
 	if !rows.Next() {
 		return nil, &MaterializationNotFound{matID}
 	}
@@ -567,10 +566,10 @@ func (store *sqlOfflineStore) materializationExists(id MaterializationID) (bool,
 	tableName := store.getMaterializationTableName(id)
 	getMatQry := store.query.materializationExists()
 	rows, err := store.db.Query(getMatQry, tableName)
-	defer rows.Close()
 	if err != nil {
 		return false, err
 	}
+	defer rows.Close()
 	rowCount := 0
 	if rows.Next() {
 		rowCount++
@@ -661,10 +660,10 @@ func (store *sqlOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator
 func (store *sqlOfflineStore) getValueColumnTypes(table string) ([]interface{}, error) {
 	query := store.query.getValueColumnTypes(table)
 	rows, err := store.db.Query(query)
-	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 	colTypes := make([]interface{}, 0)
 
 	if rows.Next() {
@@ -836,10 +835,10 @@ func (pt *sqlPrimaryTable) IterateSegment(n int64) (GenericTableIterator, error)
 func (pt *sqlPrimaryTable) getValueColumnTypes(table string) ([]interface{}, error) {
 	query := pt.query.getValueColumnTypes(table)
 	rows, err := pt.db.Query(query)
-	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 	colTypes := make([]interface{}, 0)
 	if rows.Next() {
 
@@ -935,10 +934,10 @@ func (table *sqlOfflineTable) resourceExists(rec ResourceRecord) (bool, error) {
 	query := table.query.resourceExists(table.name)
 
 	rows, err := table.db.Query(query, rec.Entity, rec.TS)
-	defer rows.Close()
 	if err != nil {
 		return false, err
 	}
+	defer rows.Close()
 	rowCount := 0
 	for rows.Next() {
 		rowCount++
@@ -1130,11 +1129,10 @@ func (q defaultOfflineSQLQueries) getColumns(db *sql.DB, name string) ([]TableCo
 	bind := q.newVariableBindingIterator()
 	qry := fmt.Sprintf("SELECT column_name FROM information_schema.columns WHERE table_name = %s order by ordinal_position", bind.Next())
 	rows, err := db.Query(qry, name)
-	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
-
+	defer rows.Close()
 	columnNames := make([]TableColumn, 0)
 	for rows.Next() {
 		var column string

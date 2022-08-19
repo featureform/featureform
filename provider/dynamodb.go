@@ -101,14 +101,30 @@ func CreateMetadataTable(dynamodbClient *dynamodb.DynamoDB) error {
 	describeMetadataTableParams := &dynamodb.DescribeTableInput{
 		TableName: aws.String("Metadata"),
 	}
-	describeMetadataTable, err := dynamodbClient.DescribeTable(describeMetadataTableParams)
+	_, err := dynamodbClient.DescribeTable(describeMetadataTableParams)
 	if err != nil {
 		fmt.Println("Could not describe dynamo metadata table, attemping to create...", err)
+	} else {
+		return nil
 	}
-	if describeMetadataTable == nil {
-		_, err := dynamodbClient.CreateTable(params)
+	_, err = dynamodbClient.CreateTable(params)
+	if err != nil {
+		return fmt.Errorf("create attempt: %v", err)
+	}
+	describeTableOutput, err := dynamodbClient.DescribeTable(describeMetadataTableParams)
+	if err != nil {
+		return fmt.Errorf("could not check dynamo table: %v", err)
+	}
+	duration := 0
+	for describeTableOutput == nil || *describeTableOutput.Table.TableStatus != "ACTIVE" {
+		describeTableOutput, err = dynamodbClient.DescribeTable(describeMetadataTableParams)
 		if err != nil {
-			return fmt.Errorf("create attempt: %v", err)
+			fmt.Println("Waiting for dynamo Metadata table to create...", err)
+		}
+		time.Sleep(5 * time.Second)
+		duration += 5
+		if duration > 10 {
+			return fmt.Errorf("timeout creating table Metadata Table")
 		}
 	}
 	return nil

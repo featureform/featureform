@@ -123,7 +123,7 @@ func CreateMetadataTable(dynamodbClient *dynamodb.DynamoDB) error {
 		}
 		time.Sleep(5 * time.Second)
 		duration += 5
-		if duration > 10 {
+		if duration > 120 {
 			return fmt.Errorf("timeout creating table Metadata Table")
 		}
 	}

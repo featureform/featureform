@@ -262,7 +262,7 @@ jobs:
           BIGQUERY_DATASET_ID: ${{ secrets.BIGQUERY_DATASET_ID }}
           BIGQUERY_CREDENTIALS: "bigquery_credentials.json"
         working-directory: ./
-        run: make test_offline
+        run: make test_offline provider=redshift
 
       - name: Convert Coverage Test Results
         if: always()

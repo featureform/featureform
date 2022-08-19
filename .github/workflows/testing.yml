@@ -204,6 +204,7 @@ jobs:
 
   provider-offline:
     name: Offline Provider Testing
+    timeout-minutes: 20
     environment: Integration testing
     needs: setup
     runs-on: ubuntu-latest

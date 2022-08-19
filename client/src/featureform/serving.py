@@ -5,6 +5,7 @@ import json
 import marshal
 import os
 import random
+import re
 import types
 
 import grpc
@@ -13,6 +14,7 @@ from featureform.proto import serving_pb2
 from featureform.proto import serving_pb2_grpc
 from .tls import insecure_channel, secure_channel
 import pandas as pd
+import pandasql
 from .sqlite_metadata import SQLiteMetadata
 
 class Client:
@@ -83,21 +85,43 @@ class LocalClientImpl:
 
         return self.convert_ts_df_to_dataset(label, trainingset_df)
 
+    def get_input_df(self, source_name, source_variant):
+        source_name, source_variant = input[0], input[1],
+        if self.db.is_transformation(source_name, source_variant) == "PRIMARY":
+            source = self.db.get_source_variant(source_name, source_variant)
+            df = pd.read_csv(str(source['definition']))
+        else:
+            df = self.process_transformation(source_name, source_variant)
+        return df
+
+    def sql_transformation(self, query):
+            inputs = re.findall("(?={{).*?(?<=}})", str)
+            dataframes = []
+            for i, input in enumerate(inputs):
+                name_variant = input[2:-2].split(".")
+                source_name, source_variant = name_variant[0], name_variant[1]
+                dataframes.append(self.get_input_df(source_name,source_variant))
+                df_variable = "dataframes["+i+"]"
+                query = query.replace(input,df_variable)
+            
+            return pandasql.sqldf(query)
+
+
     def process_transformation(self, name, variant):
         source = self.db.get_source_variant(name, variant)
-        inputs = json.loads(source['inputs'])
-        dataframes = []
-        code = marshal.loads(bytearray(source['definition']))
-        func = types.FunctionType(code, globals(), "transformation")
-        for input in inputs:
-            source_name, source_variant = input[0], input[1],
-            if self.db.is_transformation(source_name, source_variant):
-                df = self.process_transformation(source_name, source_variant)
-            else:
-                source = self.db.get_source_variant(source_name, source_variant)
-                df = pd.read_csv(str(source['definition']))
-            dataframes.append(df)
-        new_data = func(*dataframes)
+        if self.db.is_transformation(name, variant) == "SQL":
+            query = marshal.loads(bytearray(source['definition']))
+            new_data = self.sql_transformation(query)
+        else:   
+            inputs = json.loads(source['inputs'])
+            dataframes = []
+            for input in inputs:
+                source_name, source_variant = input[0], input[1],
+                dataframes.append(self.get_input_df(source_name, source_variant))
+            code = marshal.loads(bytearray(source['definition']))
+            func = types.FunctionType(code, globals(), "transformation")
+            new_data = func(*dataframes)
+
         return new_data
 
     def get_label_dataframe(self, label):

@@ -119,7 +119,7 @@ pytest:
 
 test_offline: gen_grpc						## Run offline tests. Run with `make test_offline provider=(memory | postgres | snowflake | redshift | spark )`
 	-mkdir coverage
-	go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/... --tags=offline,spark --provider=$(provider)
+	go test -v -timeout 30m -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/... --tags=offline,spark --provider=$(provider)
 
 test_online: gen_grpc					## Run offline tests. Run with `make test_online provider=(memory | redis_mock | redis_insecure | redis_secure | cassandra | firestore | dynamo )`
 	-mkdir coverage

@@ -207,6 +207,57 @@ class TestIndividualLabels(TestCase):
 
 
 class TestTransformation(TestCase):
+    def test_sql(self):
+        local = ff.register_local()
+        ff.register_user("featureformer").make_default_owner()
+        name = 'Simple'
+        case = cases.transform[name]
+        self.setup(case, name, local)
+
+        transactions = local.register_file(
+            name="transactions",
+            variant="quickstart",
+            description="A dataset of fraudulent transactions",
+            path="transactions.csv"
+        )
+
+        @local.sql_transformation(variant="quickstart")
+        def transformation():
+            """the average transaction amount for a user """
+            return "SELECT CustomerID as user_id from {{transactions.quickstart}} GROUP BY user_id"
+        
+        @local.sql_transformation(variant="sql_to_sql")
+        def transformation1():
+            """the customerID for a user """
+            return "SELECT CustomerID as user_id from {{transformation.quickstart}} GROUP BY user_id"
+
+        @local.df_transformation(variant="quickstart", inputs=[("transactions", "quickstart")])
+        def average_user_transaction(transactions):
+            """the average transaction amount for a user """
+            return transactions.groupby("CustomerID")["TransactionAmount"].mean()
+
+        @local.sql_transformation(variant="df_to_sql")
+        def transformation2():
+            """the customerID for a user """
+            return "SELECT CustomerID as user_id from {{average_user_transaction.quickstart}} GROUP BY user_id"
+
+        res = self.run_checks(transformation, name, local)
+        np.testing.assert_array_equal(res, np.array([1]))
+
+    def test_simple(self):
+        local = ff.register_local()
+        ff.register_user("featureformer").make_default_owner()
+        name = 'Simple'
+        case = cases.transform[name]
+        self.setup(case, name, local)
+
+        @local.df_transformation(variant=name, inputs=[("transactions", name)])
+        def transformation(df):
+            """ transformation """
+            return df
+
+        res = self.run_checks(transformation, name, local)
+        np.testing.assert_array_equal(res, np.array([1]))
 
     def test_simple(self):
         local = ff.register_local()

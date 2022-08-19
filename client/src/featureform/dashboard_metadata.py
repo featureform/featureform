@@ -164,7 +164,7 @@ def source_variant(variantData):
                     training_set_list.add(training_set)
             except ValueError:
                 continue
-        if variantRow['transformation']:
+        if variantRow['transformation'] == "DF":
             definition = str(variantRow['definition'], 'latin-1')
         else:
             definition = variantRow['definition']

@@ -14,7 +14,7 @@ from featureform.proto import serving_pb2
 from featureform.proto import serving_pb2_grpc
 from .tls import insecure_channel, secure_channel
 import pandas as pd
-import pandasql
+from pandasql import sqldf
 from .sqlite_metadata import SQLiteMetadata
 
 class Client:
@@ -86,7 +86,6 @@ class LocalClientImpl:
         return self.convert_ts_df_to_dataset(label, trainingset_df)
 
     def get_input_df(self, source_name, source_variant):
-        source_name, source_variant = input[0], input[1],
         if self.db.is_transformation(source_name, source_variant) == "PRIMARY":
             source = self.db.get_source_variant(source_name, source_variant)
             df = pd.read_csv(str(source['definition']))
@@ -95,37 +94,49 @@ class LocalClientImpl:
         return df
 
     def sql_transformation(self, query):
-            inputs = re.findall("(?={{).*?(?<=}})", str)
-            dataframes = []
+            inputs = re.findall("(?={{).*?(?<=}})", query)
             for i, input in enumerate(inputs):
                 name_variant = input[2:-2].split(".")
                 source_name, source_variant = name_variant[0], name_variant[1]
-                dataframes.append(self.get_input_df(source_name,source_variant))
-                df_variable = "dataframes["+i+"]"
+                df_variable = f"dataframes_{i}"
+                globals()[df_variable] = self.get_input_df(source_name,source_variant)
                 query = query.replace(input,df_variable)
             
-            return pandasql.sqldf(query)
+            print(sqldf(query,globals()))
+            return sqldf(query,globals())
+            # inputs = re.findall("(?={{).*?(?<=}})", query)
+            # dataframes = []
+            # for i, input in enumerate(inputs):
+            #     name_variant = input[2:-2].split(".")
+            #     source_name, source_variant = name_variant[0], name_variant[1]
+            #     dataframes.append(self.get_input_df(source_name,source_variant))
+            #     df_variable = f"dataframes[{i}]"
+            #     query = query.replace(input,df_variable)
+            
+            # print(query)
+            # print(dataframes[0])
+            # return sqldf(query, globals)
 
 
     def process_transformation(self, name, variant):
         source = self.db.get_source_variant(name, variant)
         if self.db.is_transformation(name, variant) == "SQL":
-            query = marshal.loads(bytearray(source['definition']))
+            query = source['definition']
             new_data = self.sql_transformation(query)
-        else:   
+        else: 
+            code = marshal.loads(bytearray(source['definition']))  
             inputs = json.loads(source['inputs'])
             dataframes = []
             for input in inputs:
                 source_name, source_variant = input[0], input[1],
                 dataframes.append(self.get_input_df(source_name, source_variant))
-            code = marshal.loads(bytearray(source['definition']))
             func = types.FunctionType(code, globals(), "transformation")
             new_data = func(*dataframes)
 
         return new_data
 
     def get_label_dataframe(self, label):
-        if self.db.is_transformation(label['source_name'], label['source_variant']):
+        if self.db.is_transformation(label['source_name'], label['source_variant']) != "PRIMARY":
             label_df = self.label_df_from_transformation(label) 
         else:
             label_source = self.db.get_source_variant(label['source_name'], label['source_variant'])
@@ -158,7 +169,7 @@ class LocalClientImpl:
 
     def get_feature_dataframe(self, feature):
         name_variant = feature['name'] + "." + feature['variant']
-        if self.db.is_transformation(feature['source_name'], feature['source_variant']):
+        if self.db.is_transformation(feature['source_name'], feature['source_variant']) != "PRIMARY":
             feature_df = self.feature_df_from_transformation(feature)
         else:
             source = self.db.get_source_variant(feature['source_name'], feature['source_variant'])
@@ -231,7 +242,7 @@ class LocalClientImpl:
         for feature_variant in feature_variant_list:
             feature = self.db.get_feature_variant(feature_variant[0], feature_variant[1])
             source_name, source_variant = feature['source_name'], feature['source_variant']
-            if self.db.is_transformation(source_name, source_variant):
+            if self.db.is_transformation(source_name, source_variant) != "PRIMARY":
                 feature_df = self.process_transformation(source_name, source_variant)
                 if isinstance(feature_df, pd.Series):
                     feature_df = feature_df.to_frame()

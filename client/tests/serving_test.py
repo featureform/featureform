@@ -259,21 +259,6 @@ class TestTransformation(TestCase):
         res = self.run_checks(transformation, name, local)
         np.testing.assert_array_equal(res, np.array([1]))
 
-    def test_simple(self):
-        local = ff.register_local()
-        ff.register_user("featureformer").make_default_owner()
-        name = 'Simple'
-        case = cases.transform[name]
-        self.setup(case, name, local)
-
-        @local.df_transformation(variant=name, inputs=[("transactions", name)])
-        def transformation(df):
-            """ transformation """
-            return df
-
-        res = self.run_checks(transformation, name, local)
-        np.testing.assert_array_equal(res, np.array([1]))
-
     def test_simple2(self):
         local = ff.register_local()
         ff.register_user("featureformer").make_default_owner()

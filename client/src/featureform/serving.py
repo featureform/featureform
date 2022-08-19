@@ -101,22 +101,8 @@ class LocalClientImpl:
                 df_variable = f"dataframes_{i}"
                 globals()[df_variable] = self.get_input_df(source_name,source_variant)
                 query = query.replace(input,df_variable)
-            
-            print(sqldf(query,globals()))
+                
             return sqldf(query,globals())
-            # inputs = re.findall("(?={{).*?(?<=}})", query)
-            # dataframes = []
-            # for i, input in enumerate(inputs):
-            #     name_variant = input[2:-2].split(".")
-            #     source_name, source_variant = name_variant[0], name_variant[1]
-            #     dataframes.append(self.get_input_df(source_name,source_variant))
-            #     df_variable = f"dataframes[{i}]"
-            #     query = query.replace(input,df_variable)
-            
-            # print(query)
-            # print(dataframes[0])
-            # return sqldf(query, globals)
-
 
     def process_transformation(self, name, variant):
         source = self.db.get_source_variant(name, variant)
@@ -244,8 +230,6 @@ class LocalClientImpl:
             source_name, source_variant = feature['source_name'], feature['source_variant']
             if self.db.is_transformation(source_name, source_variant) != "PRIMARY":
                 feature_df = self.process_transformation(source_name, source_variant)
-                #feature df should have 2 colummns, check if df.columns and entity id and feature value a
-                # etnity and feature dont mtch source 
                 if isinstance(feature_df, pd.Series):
                     feature_df = feature_df.to_frame()
                     feature_df.reset_index(inplace=True)

@@ -144,6 +144,30 @@ func (q defaultSparkOfflineQueries) materializationCreate(schema ResourceSchema)
 		schema.Entity, schema.Value, timestampColumn, schema.Entity, timestampColumn, "source_0")
 }
 
+func featureColumnName(id ResourceID) string {
+	return fmt.Sprintf("%s__%s__%s", id.Type, id.Name, id.Variant)
+}
+
+func (q defaultSparkOfflineQueries) trainingSetCreate(def TrainingSetDef, featureSchemas []ResourceSchema, labelSchema ResourceSchema) string {
+	columns := make([]string, 0)
+	joinQueries := make([]string, 0)
+	for i, feature := range def.Features {
+		fmt.Println(feature)
+		featureColumnName := featureColumnName(feature)
+		columns = append(columns, featureColumnName)
+		featureWindowQuery := fmt.Sprintf("SELECT %s as entity, %s as %s, %s as ts FROM source_%d", featureSchemas[i].Entity, featureSchemas[i].Value, featureColumnName, featureSchemas[i].TS, i+1)
+		featureJoinQuery := fmt.Sprintf("LEFT OUTER JOIN (%s) AS t%d ON (t%d.entity = labelTable.entity AND t%d.ts <= labelTable.ts)", featureWindowQuery, i+1, i+1, i+1)
+		joinQueries = append(joinQueries, featureJoinQuery)
+	}
+	columnStr := strings.Join(columns, ", ")
+	joinQueryString := strings.Join(joinQueries, " ")
+	labelWindowQuery := fmt.Sprintf("SELECT %s as entity, %s as value, %s as ts FROM source_0", labelSchema.Entity, labelSchema.Value, labelSchema.TS)
+	labelPartitionQuery := fmt.Sprintf("SELECT * FROM (SELECT *, ROW_NUMBER() over(PARTITION BY labelTable.entity, labelTable.value, labelTable.ts ORDER BY ts desc) as rn FROM (%s) AS labelTable) WHERE rn = 1) AS labelTable", labelWindowQuery)
+	labelJoinQuery := fmt.Sprintf("%s %s", labelPartitionQuery, joinQueryString)
+	fullQuery := fmt.Sprintf("SELECT %s, labelTable.value AS %s FROM (%s", columnStr, featureColumnName(def.Label), labelJoinQuery)
+	return fullQuery
+}
+
 type SparkOfflineStore struct {
 	Executor SparkExecutor
 	Store    SparkStore
@@ -903,7 +927,90 @@ func (spark *SparkOfflineStore) DeleteMaterialization(id MaterializationID) erro
 	return nil
 }
 
-func (spark *SparkOfflineStore) CreateTrainingSet(TrainingSetDef) error {
+type S3TrainingSet struct {
+	id       ResourceID
+	store    SparkStore
+	Key      string
+	err      error
+	label    interface{}
+	features []interface{}
+	iter     chan []byte
+}
+
+func (s *S3TrainingSet) Next() bool {
+	if s.iter == nil {
+		iterator, err := s.store.ResourceStream(s.Key)
+		if err != nil {
+			s.err = err
+			return false
+		}
+		s.iter = iterator
+	}
+	val := <-s.iter
+	values := strings.Split(string(val), ",")
+	features := make([]interface{}, len(values)-1)
+	for i := 0; i < len(values)-1; i++ {
+		features[i] = reflect.ValueOf(values[i]).Interface()
+	}
+	label := reflect.ValueOf(values[len(values)-1]).Interface()
+	s.features = features
+	s.label = label
+	return true
+}
+
+func (s *S3TrainingSet) Features() []interface{} {
+	return s.features
+}
+
+func (s *S3TrainingSet) Label() interface{} {
+	return s.label
+}
+
+func (s *S3TrainingSet) Err() error {
+	return s.err
+}
+
+func (spark *SparkOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
+	sourcePaths := make([]string, 0)
+	featureSchemas := make([]ResourceSchema, 0)
+	destinationPath := spark.Store.ResourcePath(def.ID)
+	exists, _ := spark.Store.FileExists(destinationPath)
+	if exists {
+		return fmt.Errorf("training set already exists %v already exists", def.ID)
+	}
+	labelTable, err := spark.GetResourceTable(def.Label)
+	if err != nil {
+		return fmt.Errorf("resource not registered: %v", err)
+	}
+	sparkLabelResourceTable, ok := labelTable.(*S3OfflineTable)
+	if !ok {
+		return fmt.Errorf("could not convert offline table with id %v to sparkResourceTable", def.ID)
+	}
+	labelPath := fmt.Sprintf("%s%s", spark.Store.BucketPrefix(), sparkLabelResourceTable.schema.SourceTable)
+	labelSchema := sparkLabelResourceTable.schema
+	sourcePaths = append(sourcePaths, labelPath)
+	for _, feature := range def.Features {
+		featureTable, err := spark.GetResourceTable(feature)
+		if err != nil {
+			return fmt.Errorf("resource not registered: %v", err)
+		}
+		sparkFeatureResourceTable, ok := featureTable.(*S3OfflineTable)
+		if !ok {
+			return fmt.Errorf("could not convert offline table with id %v to sparkResourceTable", def.ID)
+		}
+		featurePath := fmt.Sprintf("%s%s", spark.Store.BucketPrefix(), sparkFeatureResourceTable.schema.SourceTable)
+		sourcePaths = append(sourcePaths, featurePath)
+		featureSchemas = append(featureSchemas, sparkFeatureResourceTable.schema)
+	}
+	trainingSetQuery := spark.query.trainingSetCreate(def, featureSchemas, labelSchema)
+	sparkArgs := spark.Store.SparkSubmitArgs(destinationPath, trainingSetQuery, sourcePaths, CreateTrainingSet)
+	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
+		return fmt.Errorf("spark submit job for training set %v failed to run: %v", def.ID, err)
+	}
+	_, err = spark.Store.ResourceKey(def.ID)
+	if err != nil {
+		return fmt.Errorf("Training Set result does not exist in offline store: %v", err)
+	}
 	return nil
 }
 
@@ -912,7 +1019,11 @@ func (spark *SparkOfflineStore) UpdateTrainingSet(TrainingSetDef) error {
 }
 
 func (spark *SparkOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
-	return nil, nil
+	key, err := spark.Store.ResourceKey(id)
+	if err != nil {
+		return nil, fmt.Errorf("Training Set result does not exist in offline store: %v", err)
+	}
+	return &S3TrainingSet{id: id, store: spark.Store, Key: key}, nil
 }
 
 func (s *S3Store) selectFromKey(key string, query string, returnType SelectReturnType) (*s3.SelectObjectContentEventStreamReader, error) {

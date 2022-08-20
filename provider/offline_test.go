@@ -249,7 +249,7 @@ func TestOfflineStores(t *testing.T) {
 				panic(err)
 			}
 			t.Run("POSTGRES_ConnectionCheck", func(t *testing.T) {
-				if connections_start != connections_end {
+				if connections_start+2 <= connections_end {
 					t.Errorf("Started with %d connections, ended with %d connections", connections_start, connections_end)
 				}
 			})

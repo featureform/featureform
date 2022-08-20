@@ -190,13 +190,13 @@ func TestOfflineStores(t *testing.T) {
 		c               SerializedConfig
 		integrationTest bool
 	}{
-		//{MemoryOffline, []byte{}, false},
+		{MemoryOffline, []byte{}, false},
 		{PostgresOffline, serialPGConfig, true},
-		//{SnowflakeOffline, serialSFConfig, true},
-		//{RedshiftOffline, serialRSConfig, true},
-		//{BigQueryOffline, serialBQConfig, true},
+		{SnowflakeOffline, serialSFConfig, true},
+		{RedshiftOffline, serialRSConfig, true},
+		{BigQueryOffline, serialBQConfig, true},
 	}
-	psqlInfo := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", "postgres", "password", "localhost", "5432", "postgres")
+	psqlInfo := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", os.Getenv("POSTGRES_USER"), os.Getenv("POSTGRES_PASSWORD"), "localhost", "5432", os.Getenv("POSTGRES_DB"))
 	db, err := sql.Open("postgres", psqlInfo)
 	if err != nil {
 		panic(err)

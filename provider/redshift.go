@@ -96,8 +96,7 @@ func (q redshiftSQLQueries) registerResources(db *sql.DB, tableName string, sche
 }
 
 func (q redshiftSQLQueries) primaryTableRegister(tableName string, sourceName string) string {
-	query := fmt.Sprintf("CREATE VIEW %s AS SELECT * FROM %s", sanitize(tableName), sanitize(sourceName))
-	fmt.Println(query)
+	query := fmt.Sprintf("CREATE VIEW %s AS SELECT * FROM %s", sanitize(tableName), sourceName)
 	return query
 }
 

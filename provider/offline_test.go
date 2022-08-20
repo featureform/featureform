@@ -11,6 +11,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -26,95 +27,133 @@ import (
 	"google.golang.org/api/option"
 )
 
+var provider = flag.String("provider", "all", "provider to perform test on")
+
 func TestOfflineStores(t *testing.T) {
 	if testing.Short() {
-		return
+		t.Skip()
 	}
 	err := godotenv.Load(".env")
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	var postgresConfig = PostgresConfig{
-		Host:     "localhost",
-		Port:     "5432",
-		Database: os.Getenv("POSTGRES_DB"),
-		Username: os.Getenv("POSTGRES_USER"),
-		Password: os.Getenv("POSTGRES_PASSWORD"),
-	}
-	serialPGConfig := postgresConfig.Serialize()
 	os.Setenv("TZ", "UTC")
 
-	snowFlakeDatabase := strings.ToUpper(uuid.NewString())
-	t.Log("Snowflake Database: ", snowFlakeDatabase)
-	var snowflakeConfig = SnowflakeConfig{
-		Username:     os.Getenv("SNOWFLAKE_USERNAME"),
-		Password:     os.Getenv("SNOWFLAKE_PASSWORD"),
-		Organization: os.Getenv("SNOWFLAKE_ORG"),
-		Account:      os.Getenv("SNOWFLAKE_ACCOUNT"),
-		Database:     snowFlakeDatabase,
+	checkEnv := func(envVar string) string {
+		value, has := os.LookupEnv(envVar)
+		if !has {
+			panic(fmt.Sprintf("Environment variable not found: %s", envVar))
+		}
+		return value
 	}
-	serialSFConfig := snowflakeConfig.Serialize()
-	if err := createSnowflakeDatabase(snowflakeConfig); err != nil {
-		t.Fatalf("%v", err)
+
+	postgresInit := func() SerializedConfig {
+		db := checkEnv("POSTGRES_DB")
+		user := checkEnv("POSTGRES_USER")
+		password := checkEnv("POSTGRES_PASSWORD")
+		var postgresConfig = PostgresConfig{
+			Host:     "localhost",
+			Port:     "5432",
+			Database: db,
+			Username: user,
+			Password: password,
+		}
+		return postgresConfig.Serialize()
 	}
-	defer func(c SnowflakeConfig) {
-		err := destroySnowflakeDatabase(c)
-		if err != nil {
+
+	snowflakeInit := func() (SerializedConfig, SnowflakeConfig) {
+		snowFlakeDatabase := strings.ToUpper(uuid.NewString())
+		t.Log("Snowflake Database: ", snowFlakeDatabase)
+		username := checkEnv("SNOWFLAKE_USERNAME")
+		password := checkEnv("SNOWFLAKE_PASSWORD")
+		org := checkEnv("SNOWFLAKE_ORG")
+		account := checkEnv("SNOWFLAKE_ACCOUNT")
+		var snowflakeConfig = SnowflakeConfig{
+			Username:     username,
+			Password:     password,
+			Organization: org,
+			Account:      account,
+			Database:     snowFlakeDatabase,
+		}
+		if err := createSnowflakeDatabase(snowflakeConfig); err != nil {
 			t.Fatalf("%v", err)
 		}
-	}(snowflakeConfig)
+		return snowflakeConfig.Serialize(), snowflakeConfig
+	}
 
-	redshiftDatabase := fmt.Sprintf("ff%s", strings.ToLower(uuid.NewString()))
-	var redshiftConfig = RedshiftConfig{
-		Endpoint: os.Getenv("REDSHIFT_ENDPOINT"),
-		Port:     os.Getenv("REDSHIFT_PORT"),
-		Database: redshiftDatabase,
-		Username: os.Getenv("REDSHIFT_USERNAME"),
-		Password: os.Getenv("REDSHIFT_PASSWORD"),
-	}
-	serialRSConfig := redshiftConfig.Serialize()
-	if err := createRedshiftDatabase(redshiftConfig); err != nil {
-		t.Fatalf("%v", err)
-	}
-	defer func(c RedshiftConfig) {
-		count := 2
-		err := destroyRedshiftDatabase(c)
-		if err == nil {
-			return
+	redshiftInit := func() (SerializedConfig, RedshiftConfig) {
+		redshiftDatabase := fmt.Sprintf("ff%s", strings.ToLower(uuid.NewString()))
+		endpoint := checkEnv("REDSHIFT_ENDPOINT")
+		port := checkEnv("REDSHIFT_PORT")
+		username := checkEnv("REDSHIFT_USERNAME")
+		password := checkEnv("REDSHIFT_PASSWORD")
+		var redshiftConfig = RedshiftConfig{
+			Endpoint: endpoint,
+			Port:     port,
+			Database: redshiftDatabase,
+			Username: username,
+			Password: password,
 		}
-		for count > 0 {
-			time.Sleep(time.Second)
-			err := destroyRedshiftDatabase(c)
-			count -= 1
-			if err == nil {
-				return
-			}
+		serialRSConfig := redshiftConfig.Serialize()
+		if err := createRedshiftDatabase(redshiftConfig); err != nil {
+			t.Fatalf("%v", err)
 		}
-		t.Fatalf("%v", err)
-	}(redshiftConfig)
-
-	bigqueryCredentials := os.Getenv("BIGQUERY_CREDENTIALS")
-	JSONCredentials, err := ioutil.ReadFile(bigqueryCredentials)
-	if err != nil {
-		panic(err)
+		return serialRSConfig, redshiftConfig
 	}
 
-	bigQueryDatasetId := strings.Replace(strings.ToUpper(uuid.NewString()), "-", "_", -1)
-	os.Setenv("BIGQUERY_DATASET_ID", bigQueryDatasetId)
-	t.Log("BigQuery Dataset: ", bigQueryDatasetId)
+	bqInit := func() (SerializedConfig, BigQueryConfig) {
+		bigqueryCredentials := os.Getenv("BIGQUERY_CREDENTIALS")
+		JSONCredentials, err := ioutil.ReadFile(bigqueryCredentials)
+		if err != nil {
+			panic(fmt.Errorf("cannot find big query credentials: %v", err))
+		}
 
-	var bigQueryConfig = BigQueryConfig{
-		ProjectId:   os.Getenv("BIGQUERY_PROJECT_ID"),
-		DatasetId:   os.Getenv("BIGQUERY_DATASET_ID"),
-		Credentials: JSONCredentials,
-	}
-	serialBQConfig := bigQueryConfig.Serialize()
+		bigQueryDatasetId := strings.Replace(strings.ToUpper(uuid.NewString()), "-", "_", -1)
+		os.Setenv("BIGQUERY_DATASET_ID", bigQueryDatasetId)
+		t.Log("BigQuery Dataset: ", bigQueryDatasetId)
 
-	if err := createBigQueryDataset(bigQueryConfig); err != nil {
-		t.Fatalf("Cannot create BigQuery Dataset: %v", err)
+		var bigQueryConfig = BigQueryConfig{
+			ProjectId:   os.Getenv("BIGQUERY_PROJECT_ID"),
+			DatasetId:   os.Getenv("BIGQUERY_DATASET_ID"),
+			Credentials: JSONCredentials,
+		}
+		serialBQConfig := bigQueryConfig.Serialize()
+
+		if err := createBigQueryDataset(bigQueryConfig); err != nil {
+			t.Fatalf("Cannot create BigQuery Dataset: %v", err)
+		}
+		return serialBQConfig, bigQueryConfig
 	}
-	defer destroyBigQueryDataset(bigQueryConfig)
+
+	type testMember struct {
+		t               Type
+		c               SerializedConfig
+		integrationTest bool
+	}
+	testList := []testMember{}
+
+	if *provider == "memory" || *provider == "" {
+		testList = append(testList, testMember{MemoryOffline, []byte{}, false})
+	}
+	if *provider == "postgres" || *provider == "" {
+		testList = append(testList, testMember{PostgresOffline, postgresInit(), true})
+	}
+	if *provider == "snowflake" || *provider == "" {
+		serialSFConfig, snowflakeConfig := snowflakeInit()
+		defer destroySnowflakeDatabase(snowflakeConfig)
+		testList = append(testList, testMember{SnowflakeOffline, serialSFConfig, true})
+	}
+	if *provider == "redshift" || *provider == "" {
+		serialRSConfig, redshiftConfig := redshiftInit()
+		defer destroyRedshiftDatabase(redshiftConfig)
+		testList = append(testList, testMember{RedshiftOffline, serialRSConfig, true})
+	}
+	if *provider == "bigquery" || *provider == "" {
+		serialBQConfig, bigQueryConfig := bqInit()
+		defer destroyBigQueryDataset(bigQueryConfig)
+		testList = append(testList, testMember{BigQueryOffline, serialBQConfig, true})
+	}
 
 	testFns := map[string]func(*testing.T, OfflineStore){
 		"CreateGetTable":          testCreateGetOfflineTable,
@@ -137,24 +176,17 @@ func TestOfflineStores(t *testing.T) {
 		"TrainingDefShorthand":    testTrainingSetDefShorthand,
 	}
 	testSQLFns := map[string]func(*testing.T, OfflineStore){
-		"PrimaryTableCreate":          testPrimaryCreateTable,
-		"PrimaryTableWrite":           testPrimaryTableWrite,
-		"Transformation":              testTransform,
-		"TransformationUpdate":        testTransformUpdate,
-		"CreateDuplicatePrimaryTable": testCreateDuplicatePrimaryTable,
-		"ChainTransformations":        testChainTransform,
+		"PrimaryTableCreate":           testPrimaryCreateTable,
+		"PrimaryTableWrite":            testPrimaryTableWrite,
+		"Transformation":               testTransform,
+		"TransformationUpdate":         testTransformUpdate,
+		"CreateDuplicatePrimaryTable":  testCreateDuplicatePrimaryTable,
+		"ChainTransformations":         testChainTransform,
+		"CreateResourceFromSource":     testCreateResourceFromSource,
+		"CreateResourceFromSourceNoTS": testCreateResourceFromSourceNoTS,
+		"CreatePrimaryFromSource":      testCreatePrimaryFromSource,
 	}
-	testList := []struct {
-		t               Type
-		c               SerializedConfig
-		integrationTest bool
-	}{
-		{MemoryOffline, []byte{}, false},
-		{PostgresOffline, serialPGConfig, true},
-		{SnowflakeOffline, serialSFConfig, true},
-		{RedshiftOffline, serialRSConfig, true},
-		{BigQueryOffline, serialBQConfig, true},
-	}
+
 	for _, testItem := range testList {
 		if testing.Short() && testItem.integrationTest {
 			t.Logf("Skipping %s, because it is an integration test", testItem.t)
@@ -213,16 +245,31 @@ func destroyRedshiftDatabase(c RedshiftConfig) error {
 	url := fmt.Sprintf("sslmode=require user=%v password=%s host=%v port=%v dbname=%v", c.Username, c.Password, c.Endpoint, c.Port, "dev")
 	db, err := sql.Open("postgres", url)
 	if err != nil {
+		fmt.Errorf(err.Error())
 		return err
 	}
 	disconnectQuery := fmt.Sprintf("SELECT pg_terminate_backend(pg_stat_activity.procpid) FROM pg_stat_activity WHERE datid=(SELECT oid from pg_database where datname = '%s');", c.Database)
 	if _, err := db.Exec(disconnectQuery); err != nil {
+		fmt.Errorf(err.Error())
 		return err
 	}
+	var deleteErr error
+	retries := 5
 	databaseQuery := fmt.Sprintf("DROP DATABASE %s", sanitize(c.Database))
-	if _, err := db.Exec(databaseQuery); err != nil {
-		return err
+	for {
+		if _, err := db.Exec(databaseQuery); err != nil {
+			deleteErr = err
+			time.Sleep(time.Second)
+			retries--
+			if retries == 0 {
+				fmt.Errorf(err.Error())
+				return deleteErr
+			}
+		} else {
+			continue
+		}
 	}
+
 	return nil
 }
 
@@ -243,10 +290,12 @@ func destroySnowflakeDatabase(c SnowflakeConfig) error {
 	url := fmt.Sprintf("%s:%s@%s-%s", c.Username, c.Password, c.Organization, c.Account)
 	db, err := sql.Open("snowflake", url)
 	if err != nil {
+		fmt.Errorf(err.Error())
 		return err
 	}
 	databaseQuery := fmt.Sprintf("DROP DATABASE IF EXISTS %s", sanitize(c.Database))
 	if _, err := db.Exec(databaseQuery); err != nil {
+		fmt.Errorf(err.Error())
 		return err
 	}
 	return nil
@@ -2755,399 +2804,285 @@ func testTransformToMaterialize(t *testing.T, store OfflineStore) {
 	}
 }
 
-func Test_createResourceFromSource(t *testing.T) {
-	err := godotenv.Load(".env")
+func testCreateResourceFromSource(t *testing.T, store OfflineStore) {
+	if store.Type() == BigQueryOffline {
+		t.Skip()
+	}
+	primaryID := ResourceID{
+		Name: uuid.NewString(),
+		Type: Primary,
+	}
+	schema := TableSchema{
+		Columns: []TableColumn{
+			{Name: "col1", ValueType: String},
+			{Name: "col2", ValueType: Int},
+			{Name: "col3", ValueType: String},
+			{Name: "col4", ValueType: Timestamp},
+		},
+	}
+	table, err := store.CreatePrimaryTable(primaryID, schema)
 	if err != nil {
-		fmt.Println(err)
+		t.Fatalf("Could not create primary table: %v", err)
 	}
-	var postgresConfig = PostgresConfig{
-		Host:     "localhost",
-		Port:     "5432",
-		Database: os.Getenv("POSTGRES_DB"),
-		Username: os.Getenv("POSTGRES_USER"),
-		Password: os.Getenv("POSTGRES_PASSWORD"),
+	records := []GenericRecord{
+		{"a", 1, "one", time.UnixMilli(0)},
+		{"b", 2, "two", time.UnixMilli(1)},
+		{"c", 3, "three", time.UnixMilli(2)},
+		{"d", 4, "four", time.UnixMilli(3)},
+		{"e", 5, "five", time.UnixMilli(4)},
 	}
-	serialPGConfig := postgresConfig.Serialize()
-	os.Setenv("TZ", "UTC")
-	pgProvider, err := Get(PostgresOffline, serialPGConfig)
+	for _, record := range records {
+		if err := table.Write(record); err != nil {
+			t.Fatalf("Could not write record: %v", err)
+		}
+	}
+	featureID := ResourceID{
+		Name: uuid.NewString(),
+		Type: Feature,
+	}
+	recSchema := ResourceSchema{
+		Entity:      "col1",
+		Value:       "col2",
+		TS:          "col4",
+		SourceTable: table.GetName(),
+	}
+	t.Log("Resource Name: ", featureID.Name)
+	_, err = store.RegisterResourceFromSourceTable(featureID, recSchema)
 	if err != nil {
-		t.Fatal("Failed to get postgres provider")
+		t.Fatalf("Could not register from Primary Table: %s", err)
 	}
-	snowFlakeDatabase := strings.ToUpper(uuid.NewString())
-	t.Log("Snowflake Database: ", snowFlakeDatabase)
-	var snowflakeConfig = SnowflakeConfig{
-		Username:     os.Getenv("SNOWFLAKE_USERNAME"),
-		Password:     os.Getenv("SNOWFLAKE_PASSWORD"),
-		Organization: os.Getenv("SNOWFLAKE_ORG"),
-		Account:      os.Getenv("SNOWFLAKE_ACCOUNT"),
-		Database:     snowFlakeDatabase,
-	}
-	serialSFConfig := snowflakeConfig.Serialize()
-	if err := createSnowflakeDatabase(snowflakeConfig); err != nil {
-		t.Fatalf("%v", err)
-	}
-	defer destroySnowflakeDatabase(snowflakeConfig)
-	sfProvider, err := Get(SnowflakeOffline, serialSFConfig)
+	_, err = store.GetResourceTable(featureID)
 	if err != nil {
-		t.Fatal("Failed to get postgres provider")
+		t.Fatalf("Could not get resource table: %v", err)
+	}
+	mat, err := store.CreateMaterialization(featureID)
+	if err != nil {
+		t.Fatalf("Could not create materialization: %v", err)
+	}
+	updatedRecords := []GenericRecord{
+		{"f", 6, "six", time.UnixMilli(0)},
+		{"g", 7, "seven", time.UnixMilli(1)},
+		{"h", 8, "eight", time.UnixMilli(2)},
+		{"i", 9, "nine", time.UnixMilli(3)},
+		{"j", 10, "ten", time.UnixMilli(4)},
+	}
+	for _, record := range updatedRecords {
+		if err := table.Write(record); err != nil {
+			t.Fatalf("Could not write record: %v", err)
+		}
+	}
+	err = store.DeleteMaterialization(mat.ID())
+	if err != nil {
+		t.Fatalf("Could not delete materialization: %v", err)
+	}
+	mat, err = store.CreateMaterialization(featureID)
+	if err != nil {
+		t.Fatalf("Could not recreate materialization: %v", err)
+	}
+	expected, err := table.NumRows()
+	if err != nil {
+		t.Fatalf("Could not get resource table rows: %v", err)
+	}
+	actual, err := mat.NumRows()
+	if err != nil {
+		t.Fatalf("Could not get materialization rows: %v", err)
+	}
+	if expected != actual {
+		t.Errorf("Expected %d Row, Got %d Rows", expected, actual)
 	}
 
-	for name, provider := range map[string]Provider{"POSTGRES": pgProvider, "SNOWFLAKE": sfProvider} {
-		t.Run(name, func(t *testing.T) {
-
-			store, err := provider.AsOfflineStore()
-			// Create a generic table to test with
-			primaryID := ResourceID{
-				Name: uuid.NewString(),
-				Type: Primary,
-			}
-			schema := TableSchema{
-				Columns: []TableColumn{
-					{Name: "col1", ValueType: String},
-					{Name: "col2", ValueType: Int},
-					{Name: "col3", ValueType: String},
-					{Name: "col4", ValueType: Timestamp},
-				},
-			}
-			table, err := store.CreatePrimaryTable(primaryID, schema)
-			if err != nil {
-				t.Fatalf("Could not create primary table: %v", err)
-			}
-			records := []GenericRecord{
-				{"a", 1, "one", time.UnixMilli(0)},
-				{"b", 2, "two", time.UnixMilli(1)},
-				{"c", 3, "three", time.UnixMilli(2)},
-				{"d", 4, "four", time.UnixMilli(3)},
-				{"e", 5, "five", time.UnixMilli(4)},
-			}
-			for _, record := range records {
-				if err := table.Write(record); err != nil {
-					t.Fatalf("Could not write record: %v", err)
-				}
-			}
-			featureID := ResourceID{
-				Name: uuid.NewString(),
-				Type: Feature,
-			}
-			recSchema := ResourceSchema{
-				Entity:      "col1",
-				Value:       "col2",
-				TS:          "col4",
-				SourceTable: table.GetName(),
-			}
-			t.Log("Resource Name: ", featureID.Name)
-			_, err = store.RegisterResourceFromSourceTable(featureID, recSchema)
-			if err != nil {
-				t.Fatalf("Could not register from Primary Table: %s", err)
-			}
-			_, err = store.GetResourceTable(featureID)
-			if err != nil {
-				t.Fatalf("Could not get resource table: %v", err)
-			}
-			mat, err := store.CreateMaterialization(featureID)
-			updatedRecords := []GenericRecord{
-				{"f", 6, "six", time.UnixMilli(0)},
-				{"g", 7, "seven", time.UnixMilli(1)},
-				{"h", 8, "eight", time.UnixMilli(2)},
-				{"i", 9, "nine", time.UnixMilli(3)},
-				{"j", 10, "ten", time.UnixMilli(4)},
-			}
-			for _, record := range updatedRecords {
-				if err := table.Write(record); err != nil {
-					t.Fatalf("Could not write record: %v", err)
-				}
-			}
-			err = store.DeleteMaterialization(mat.ID())
-			if err != nil {
-				t.Fatalf("Could not delete materialization: %v", err)
-			}
-			mat, err = store.CreateMaterialization(featureID)
-			if err != nil {
-				t.Fatalf("Could not recreate materialization: %v", err)
-			}
-			expected, err := table.NumRows()
-			if err != nil {
-				t.Fatalf("Could not get resource table rows: %v", err)
-			}
-			actual, err := mat.NumRows()
-			if err != nil {
-				t.Fatalf("Could not get materialization rows: %v", err)
-			}
-			if expected != actual {
-				t.Errorf("Expected %d Row, Got %d Rows", expected, actual)
-			}
-		})
-	}
 }
 
-func Test_createResourceFromSourceNoTS(t *testing.T) {
-	err := godotenv.Load(".env")
-	if err != nil {
-		fmt.Println(err)
+func testCreateResourceFromSourceNoTS(t *testing.T, store OfflineStore) {
+	if store.Type() == BigQueryOffline {
+		t.Skip()
 	}
 	type expectedTrainingRow struct {
 		Features []interface{}
 		Label    interface{}
 	}
-	var postgresConfig = PostgresConfig{
-		Host:     "localhost",
-		Port:     "5432",
-		Database: os.Getenv("POSTGRES_DB"),
-		Username: os.Getenv("POSTGRES_USER"),
-		Password: os.Getenv("POSTGRES_PASSWORD"),
+
+	primaryID := ResourceID{
+		Name: uuid.NewString(),
+		Type: Primary,
 	}
-	serialPGConfig := postgresConfig.Serialize()
-	os.Setenv("TZ", "UTC")
-	pgProvider, err := Get(PostgresOffline, serialPGConfig)
+	schema := TableSchema{
+		Columns: []TableColumn{
+			{Name: "col1", ValueType: String},
+			{Name: "col2", ValueType: Int},
+			{Name: "col3", ValueType: String},
+			{Name: "col4", ValueType: Bool},
+		},
+	}
+	table, err := store.CreatePrimaryTable(primaryID, schema)
 	if err != nil {
-		t.Fatal("Failed to get postgres provider")
+		t.Fatalf("Could not create primary table: %v", err)
 	}
-	snowFlakeDatabase := strings.ToUpper(uuid.NewString())
-	t.Log("Snowflake Database: ", snowFlakeDatabase)
-	var snowflakeConfig = SnowflakeConfig{
-		Username:     os.Getenv("SNOWFLAKE_USERNAME"),
-		Password:     os.Getenv("SNOWFLAKE_PASSWORD"),
-		Organization: os.Getenv("SNOWFLAKE_ORG"),
-		Account:      os.Getenv("SNOWFLAKE_ACCOUNT"),
-		Database:     snowFlakeDatabase,
+	records := []GenericRecord{
+		{"a", 1, "one", true},
+		{"b", 2, "two", false},
+		{"c", 3, "three", false},
+		{"d", 4, "four", true},
+		{"e", 5, "five", false},
 	}
-	serialSFConfig := snowflakeConfig.Serialize()
-	if err := createSnowflakeDatabase(snowflakeConfig); err != nil {
-		t.Fatalf("%v", err)
+	for _, record := range records {
+		if err := table.Write(record); err != nil {
+			t.Fatalf("Could not write record: %v", err)
+		}
 	}
-	defer destroySnowflakeDatabase(snowflakeConfig)
-	sfProvider, err := Get(SnowflakeOffline, serialSFConfig)
+	featureID := ResourceID{
+		Name: uuid.NewString(),
+		Type: Feature,
+	}
+	recSchema := ResourceSchema{
+		Entity:      "col1",
+		Value:       "col2",
+		SourceTable: table.GetName(),
+	}
+	t.Log("Resource Name: ", featureID.Name)
+	_, err = store.RegisterResourceFromSourceTable(featureID, recSchema)
 	if err != nil {
-		t.Fatal("Failed to get snowflake provider")
+		t.Fatalf("Could not register from feature Source Table: %s", err)
+	}
+	_, err = store.GetResourceTable(featureID)
+	if err != nil {
+		t.Fatalf("Could not get feature resource table: %v", err)
+	}
+	labelID := ResourceID{
+		Name: uuid.NewString(),
+		Type: Label,
+	}
+	labelSchema := ResourceSchema{
+		Entity:      "col1",
+		Value:       "col4",
+		SourceTable: table.GetName(),
+	}
+	t.Log("Label Name: ", labelID.Name)
+	_, err = store.RegisterResourceFromSourceTable(labelID, labelSchema)
+	if err != nil {
+		t.Fatalf("Could not register label from Source Table: %s", err)
+	}
+	_, err = store.GetResourceTable(labelID)
+	if err != nil {
+		t.Fatalf("Could not get label resource table: %v", err)
+	}
+	tsetID := ResourceID{
+		Name: uuid.NewString(),
+		Type: TrainingSet,
+	}
+	def := TrainingSetDef{
+		ID: tsetID,
+		Features: []ResourceID{
+			featureID,
+		},
+		Label: labelID,
+	}
+	err = store.CreateTrainingSet(def)
+	if err != nil {
+		t.Fatalf("Could not get create training set: %v", err)
 	}
 
-	for name, provider := range map[string]Provider{"POSTGRES": pgProvider, "SNOWFLAKE": sfProvider} {
-		t.Run(name, func(t *testing.T) {
-
-			store, err := provider.AsOfflineStore()
-			// Create a generic table to test with
-			primaryID := ResourceID{
-				Name: uuid.NewString(),
-				Type: Primary,
+	train, err := store.GetTrainingSet(tsetID)
+	if err != nil {
+		t.Fatalf("Could not get get training set: %v", err)
+	}
+	i := 0
+	for train.Next() {
+		realRow := expectedTrainingRow{
+			Features: train.Features(),
+			Label:    train.Label(),
+		}
+		expectedRows := []expectedTrainingRow{
+			{
+				Features: []interface{}{records[0][1]},
+				Label:    records[0][3],
+			},
+			{
+				Features: []interface{}{records[1][1]},
+				Label:    records[1][3],
+			},
+			{
+				Features: []interface{}{records[2][1]},
+				Label:    records[2][3],
+			},
+			{
+				Features: []interface{}{records[3][1]},
+				Label:    records[3][3],
+			},
+			{
+				Features: []interface{}{records[4][1]},
+				Label:    records[4][3],
+			},
+		}
+		found := false
+		for i, expRow := range expectedRows {
+			if reflect.DeepEqual(realRow, expRow) {
+				found = true
+				lastIdx := len(expectedRows) - 1
+				// Swap the record that we've found to the end, then shrink the slice to not include it.
+				// This is essentially a delete operation expect that it re-orders the slice.
+				expectedRows[i], expectedRows[lastIdx] = expectedRows[lastIdx], expectedRows[i]
+				expectedRows = expectedRows[:lastIdx]
+				break
 			}
-			schema := TableSchema{
-				Columns: []TableColumn{
-					{Name: "col1", ValueType: String},
-					{Name: "col2", ValueType: Int},
-					{Name: "col3", ValueType: String},
-					{Name: "col4", ValueType: Bool},
-				},
+		}
+		if !found {
+			for i, v := range realRow.Features {
+				fmt.Printf("Got %T Expected %T\n", v, expectedRows[0].Features[i])
 			}
-			table, err := store.CreatePrimaryTable(primaryID, schema)
-			if err != nil {
-				t.Fatalf("Could not create primary table: %v", err)
-			}
-			records := []GenericRecord{
-				{"a", 1, "one", true},
-				{"b", 2, "two", false},
-				{"c", 3, "three", false},
-				{"d", 4, "four", true},
-				{"e", 5, "five", false},
-			}
-			for _, record := range records {
-				if err := table.Write(record); err != nil {
-					t.Fatalf("Could not write record: %v", err)
-				}
-			}
-			featureID := ResourceID{
-				Name: uuid.NewString(),
-				Type: Feature,
-			}
-			recSchema := ResourceSchema{
-				Entity:      "col1",
-				Value:       "col2",
-				SourceTable: table.GetName(),
-			}
-			t.Log("Resource Name: ", featureID.Name)
-			_, err = store.RegisterResourceFromSourceTable(featureID, recSchema)
-			if err != nil {
-				t.Fatalf("Could not register from feature Source Table: %s", err)
-			}
-			_, err = store.GetResourceTable(featureID)
-			if err != nil {
-				t.Fatalf("Could not get feature resource table: %v", err)
-			}
-			labelID := ResourceID{
-				Name: uuid.NewString(),
-				Type: Label,
-			}
-			labelSchema := ResourceSchema{
-				Entity:      "col1",
-				Value:       "col4",
-				SourceTable: table.GetName(),
-			}
-			t.Log("Label Name: ", labelID.Name)
-			_, err = store.RegisterResourceFromSourceTable(labelID, labelSchema)
-			if err != nil {
-				t.Fatalf("Could not register label from Source Table: %s", err)
-			}
-			_, err = store.GetResourceTable(labelID)
-			if err != nil {
-				t.Fatalf("Could not get label resource table: %v", err)
-			}
-			tsetID := ResourceID{
-				Name: uuid.NewString(),
-				Type: TrainingSet,
-			}
-			def := TrainingSetDef{
-				ID: tsetID,
-				Features: []ResourceID{
-					featureID,
-				},
-				Label: labelID,
-			}
-			err = store.CreateTrainingSet(def)
-			if err != nil {
-				t.Fatalf("Could not get create training set: %v", err)
-			}
-
-			train, err := store.GetTrainingSet(tsetID)
-			if err != nil {
-				t.Fatalf("Could not get get training set: %v", err)
-			}
-			i := 0
-			for train.Next() {
-				realRow := expectedTrainingRow{
-					Features: train.Features(),
-					Label:    train.Label(),
-				}
-				expectedRows := []expectedTrainingRow{
-					{
-						Features: []interface{}{records[0][1]},
-						Label:    records[0][3],
-					},
-					{
-						Features: []interface{}{records[1][1]},
-						Label:    records[1][3],
-					},
-					{
-						Features: []interface{}{records[2][1]},
-						Label:    records[2][3],
-					},
-					{
-						Features: []interface{}{records[3][1]},
-						Label:    records[3][3],
-					},
-					{
-						Features: []interface{}{records[4][1]},
-						Label:    records[4][3],
-					},
-				}
-				found := false
-				for i, expRow := range expectedRows {
-					if reflect.DeepEqual(realRow, expRow) {
-						found = true
-						lastIdx := len(expectedRows) - 1
-						// Swap the record that we've found to the end, then shrink the slice to not include it.
-						// This is essentially a delete operation expect that it re-orders the slice.
-						expectedRows[i], expectedRows[lastIdx] = expectedRows[lastIdx], expectedRows[i]
-						expectedRows = expectedRows[:lastIdx]
-						break
-					}
-				}
-				if !found {
-					for i, v := range realRow.Features {
-						fmt.Printf("Got %T Expected %T\n", v, expectedRows[0].Features[i])
-					}
-					t.Fatalf("Unexpected training row: %v, expected %v", realRow, expectedRows)
-				}
-				i++
-			}
-
-		})
+			t.Fatalf("Unexpected training row: %v, expected %v", realRow, expectedRows)
+		}
+		i++
 	}
 }
 
-func Test_createPrimaryFromSource(t *testing.T) {
-	err := godotenv.Load(".env")
+func testCreatePrimaryFromSource(t *testing.T, store OfflineStore) {
+	if store.Type() == BigQueryOffline {
+		t.Skip()
+	}
+	primaryID := ResourceID{
+		Name: uuid.NewString(),
+		Type: Primary,
+	}
+	schema := TableSchema{
+		Columns: []TableColumn{
+			{Name: "col1", ValueType: String},
+			{Name: "col2", ValueType: Int},
+			{Name: "col3", ValueType: String},
+			{Name: "col4", ValueType: Timestamp},
+		},
+	}
+	table, err := store.CreatePrimaryTable(primaryID, schema)
 	if err != nil {
-		fmt.Println(err)
+		t.Fatalf("Could not create primary table: %v", err)
 	}
-	var postgresConfig = PostgresConfig{
-		Host:     "localhost",
-		Port:     "5432",
-		Database: os.Getenv("POSTGRES_DB"),
-		Username: os.Getenv("POSTGRES_USER"),
-		Password: os.Getenv("POSTGRES_PASSWORD"),
+	records := []GenericRecord{
+		{"a", 1, "one", time.UnixMilli(0)},
+		{"b", 2, "two", time.UnixMilli(1)},
+		{"c", 3, "three", time.UnixMilli(2)},
+		{"d", 4, "four", time.UnixMilli(3)},
+		{"e", 5, "five", time.UnixMilli(4)},
 	}
-	serialPGConfig := postgresConfig.Serialize()
-	os.Setenv("TZ", "UTC")
-	pgProvider, err := Get(PostgresOffline, serialPGConfig)
-	if err != nil {
-		t.Fatal("Failed to get postgres provider")
+	for _, record := range records {
+		if err := table.Write(record); err != nil {
+			t.Fatalf("Could not write record: %v", err)
+		}
 	}
-	snowFlakeDatabase := strings.ToUpper(uuid.NewString())
-	t.Log("Snowflake Database: ", snowFlakeDatabase)
-	var snowflakeConfig = SnowflakeConfig{
-		Username:     os.Getenv("SNOWFLAKE_USERNAME"),
-		Password:     os.Getenv("SNOWFLAKE_PASSWORD"),
-		Organization: os.Getenv("SNOWFLAKE_ORG"),
-		Account:      os.Getenv("SNOWFLAKE_ACCOUNT"),
-		Database:     snowFlakeDatabase,
+	primaryCopyID := ResourceID{
+		Name: uuid.NewString(),
+		Type: Primary,
 	}
-	serialSFConfig := snowflakeConfig.Serialize()
-	if err := createSnowflakeDatabase(snowflakeConfig); err != nil {
-		t.Fatalf("%v", err)
-	}
-	defer destroySnowflakeDatabase(snowflakeConfig)
-	sfProvider, err := Get(SnowflakeOffline, serialSFConfig)
-	if err != nil {
-		t.Fatal("Failed to get postgres provider")
-	}
-	for name, provider := range map[string]Provider{"POSTGRES": pgProvider, "SNOWFLAKE": sfProvider} {
-		t.Run(name, func(t *testing.T) {
-			store, err := provider.AsOfflineStore()
-			// Create a generic table to test with
-			primaryID := ResourceID{
-				Name: uuid.NewString(),
-				Type: Primary,
-			}
-			schema := TableSchema{
-				Columns: []TableColumn{
-					{Name: "col1", ValueType: String},
-					{Name: "col2", ValueType: Int},
-					{Name: "col3", ValueType: String},
-					{Name: "col4", ValueType: Timestamp},
-				},
-			}
-			table, err := store.CreatePrimaryTable(primaryID, schema)
-			if err != nil {
-				t.Fatalf("Could not create primary table: %v", err)
-			}
-			records := []GenericRecord{
-				{"a", 1, "one", time.UnixMilli(0)},
-				{"b", 2, "two", time.UnixMilli(1)},
-				{"c", 3, "three", time.UnixMilli(2)},
-				{"d", 4, "four", time.UnixMilli(3)},
-				{"e", 5, "five", time.UnixMilli(4)},
-			}
-			for _, record := range records {
-				if err := table.Write(record); err != nil {
-					t.Fatalf("Could not write record: %v", err)
-				}
-			}
-			primaryCopyID := ResourceID{
-				Name: uuid.NewString(),
-				Type: Primary,
-			}
 
-			t.Log("Primary Name: ", primaryCopyID.Name)
-			//Need to sanitize name here b/c the the xxx-xxx format of the uuid. Cannot do it within
-			// register function because precreated tables do not necessarily use double quotes
-			_, err = store.RegisterPrimaryFromSourceTable(primaryCopyID, sanitize(table.GetName()))
-			if err != nil {
-				t.Fatalf("Could not register from Source Table: %s", err)
-			}
-			_, err = store.GetPrimaryTable(primaryCopyID)
-			if err != nil {
-				t.Fatalf("Could not get primary table: %v", err)
-			}
-		})
+	t.Log("Primary Name: ", primaryCopyID.Name)
+	//Need to sanitize name here b/c the the xxx-xxx format of the uuid. Cannot do it within
+	// register function because precreated tables do not necessarily use double quotes
+	_, err = store.RegisterPrimaryFromSourceTable(primaryCopyID, sanitize(table.GetName()))
+	if err != nil {
+		t.Fatalf("Could not register from Source Table: %s", err)
+	}
+	_, err = store.GetPrimaryTable(primaryCopyID)
+	if err != nil {
+		t.Fatalf("Could not get primary table: %v", err)
 	}
 }
 

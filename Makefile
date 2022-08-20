@@ -2,26 +2,106 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-## ----------------------------------------------------------------------
-## To run End-To-End Tests Run:
-## make etcdctl
-## make update_python
-## make start_minikube
-## make containers
-## make test_e2e
-## ....
-## When updating a file and rerunning the test:
-## make reset_e2e
-## make update_python
-## 	or
-## make containers
-## 	then
-## make test_e2e
-## ----------------------------------------------------------------------
+##############################################  HELP  ##################################################################
 
-help:     						## Show this help.
-	@sed -ne '/@sed/!s/## //p' $(MAKEFILE_LIST)
+define HELP_BODY
+To run unit tests, run:
+	make test
 
+usage: make [target] [options]
+TARGETS
+help
+	Description:
+		Prints this help message
+
+init
+	Requirements:
+		- Python 3.7-3.10
+		- Golang 1.18
+
+	Description:
+		Installs grpc-tools with pip and builds the proto files for the serving and metadata connections for the
+		Python client and Golang libraries. It then builds and installs the Python SDK and CLI.
+
+
+test
+	Requirements:
+		- Python 3.7-3.10
+		- Golang 1.18
+	Description:
+		Runs 'init' then runs the Python and Golang Unit tests
+
+test_offline
+	Requirements:
+		- Golang 1.18
+
+	Description:
+		Runs offline store integration tests. Requires credentials if not using the memory provider
+
+	Options:
+		- provider (memory | postgres | snowflake | redshift | bigquery | spark )
+			Description:
+				Runs specified provider. If left blank or not included, runs all providers
+			Usage:
+				make test_offline provider=memory
+
+test_online
+	Requirements:
+		- Golang 1.18
+
+	Description:
+		Runs online store integration tests. Requires credentials if not using the memory or redis_mock provider
+
+	Options:
+		- provider (memory | redis_mock | redis_insecure | redis_secure | cassandra | firestore | dynamo )
+			Description:
+				Runs specified provider. If left blank or not included, runs all providers
+			Usage:
+				make test_online provider=memory
+
+
+endef
+export HELP_BODY
+
+help:
+	@echo "$$HELP_BODY"  |  less
+
+##############################################  UNIT TESTS #############################################################
+
+init: update_python
+
+test: init pytest test_go_unit
+
+##############################################  SETUP ##################################################################
+
+gen_grpc:						## Generates GRPC Dependencies
+	python3 -m pip install grpcio-tools
+
+	-mkdir client/src/featureform/proto/
+	cp metadata/proto/metadata.proto client/src/featureform/proto/metadata.proto
+	cp proto/serving.proto client/src/featureform/proto/serving.proto
+
+	protoc --go_out=. --go_opt=paths=source_relative     --go-grpc_out=. --go-grpc_opt=paths=source_relative     ./proto/serving.proto
+	python3 -m grpc_tools.protoc -I ./client/src --python_out=./client/src --grpc_python_out=./client/src/ ./client/src/featureform/proto/serving.proto
+
+	protoc --go_out=. --go_opt=paths=source_relative     --go-grpc_out=. --go-grpc_opt=paths=source_relative     ./metadata/proto/metadata.proto
+	python3 -m grpc_tools.protoc -I ./client/src --python_out=./client/src/ --grpc_python_out=./client/src/ ./client/src/featureform/proto/metadata.proto
+
+update_python: gen_grpc 				## Updates the python package locally
+	pip3 install pytest
+	pip3 install build
+	pip3 uninstall featureform  -y
+	-rm -r client/dist/*
+	python3 -m build ./client/
+	pip3 install client/dist/*.whl
+
+etcdctl: 						## Installs ETCDCTL. Required for reset_e2e
+	-git clone -b v3.4.16 https://github.com/etcd-io/etcd.git
+	cd etcd && ./build
+	export PATH=$PATH:"`pwd`/etcd/bin"
+	etcdctl version
+
+##############################################  PYTHON TESTS ###########################################################
 pytest:
 	-rm -r .featureform
 	curl -C - https://featureform-demo-files.s3.amazonaws.com/transactions.csv -o transactions.csv
@@ -35,34 +115,22 @@ pytest:
 	jupyter nbconvert --to notebook --execute notebooks/Fraud_Detection_Example.ipynb
 	-rm -r .featureform
 
-etcdctl: 						## Installs ETCDCTL. Required for reset_e2e
-	-git clone -b v3.4.16 https://github.com/etcd-io/etcd.git
-	cd etcd && ./build
-	export PATH=$PATH:"`pwd`/etcd/bin"
-	etcdctl version
+##############################################  GO TESTS ###############################################################
 
-gen_grpc:						## Generates GRPC Dependencies
-	pip3 install grpcio-tools
+test_offline: gen_grpc						## Run offline tests. Run with `make test_offline provider=(memory | postgres | snowflake | redshift | spark )`
+	-mkdir coverage
+	go test -v -timeout 30m -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/... --tags=offline,spark --provider=$(provider)
 
-	-mkdir client/src/featureform/proto/
-	set -e
-	cp metadata/proto/metadata.proto client/src/featureform/proto/metadata.proto
-	cp proto/serving.proto client/src/featureform/proto/serving.proto
+test_online: gen_grpc					## Run offline tests. Run with `make test_online provider=(memory | redis_mock | redis_insecure | redis_secure | cassandra | firestore | dynamo )`
+	-mkdir coverage
+	go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/... --tags=online,provider --provider=$(provider)
 
-	protoc --go_out=. --go_opt=paths=source_relative     --go-grpc_out=. --go-grpc_opt=paths=source_relative     ./proto/serving.proto
-	python3 -m grpc_tools.protoc -I ./client/src --python_out=./client/src --grpc_python_out=./client/src/ ./client/src/featureform/proto/serving.proto
+test_go_unit:
+	-mkdir coverage
+	go test ./... -tags=*,offline,provider --short   -coverprofile coverage/cover.out.tmp
 
-	protoc --go_out=. --go_opt=paths=source_relative     --go-grpc_out=. --go-grpc_opt=paths=source_relative     ./metadata/proto/metadata.proto
-	python3 -m grpc_tools.protoc -I ./client/src --python_out=./client/src/ --grpc_python_out=./client/src/ ./client/src/featureform/proto/metadata.proto
 
-update_python: gen_grpc 			## Updates the python package locally
-	pip3 install pytest
-	pip3 install build
-	pip3 uninstall featureform  -y
-	-rm -r client/dist/*
-	python3 -m build ./client/
-	pip3 install client/dist/*.whl
-
+##############################################  MINIKUBE ###############################################################
 
 containers:						## Build Docker containers for Minikube
 	minikube image build -f ./api/Dockerfile . -t local/api-server:stable & \

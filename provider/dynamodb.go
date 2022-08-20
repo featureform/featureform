@@ -46,6 +46,8 @@ type Metadata struct {
 	Valuetype string `dynamodbav:"ValueType"`
 }
 
+const tableCreateTimeout = 120
+
 func dynamodbOnlineStoreFactory(serialized SerializedConfig) (Provider, error) {
 	dynamodbConfig := &DynamodbConfig{}
 	if err := dynamodbConfig.Deserialize(serialized); err != nil {
@@ -65,7 +67,7 @@ func NewDynamodbOnlineStore(options *DynamodbConfig) (*dynamodbOnlineStore, erro
 	sess := session.Must(session.NewSession(config))
 	dynamodbClient := dynamodb.New(sess)
 	if err := CreateMetadataTable(dynamodbClient); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not create metadata table: %v", err)
 	}
 	return &dynamodbOnlineStore{dynamodbClient, options.Prefix, BaseProvider{
 		ProviderType:   DynamoDBOnline,
@@ -101,14 +103,30 @@ func CreateMetadataTable(dynamodbClient *dynamodb.DynamoDB) error {
 	describeMetadataTableParams := &dynamodb.DescribeTableInput{
 		TableName: aws.String("Metadata"),
 	}
-	describeMetadataTable, err := dynamodbClient.DescribeTable(describeMetadataTableParams)
+	_, err := dynamodbClient.DescribeTable(describeMetadataTableParams)
 	if err != nil {
-		return err
+		fmt.Println("Could not describe dynamo metadata table, attemping to create...", err)
+	} else {
+		return nil
 	}
-	if describeMetadataTable == nil {
-		_, err := dynamodbClient.CreateTable(params)
+	_, err = dynamodbClient.CreateTable(params)
+	if err != nil {
+		return fmt.Errorf("create attempt: %v", err)
+	}
+	describeTableOutput, err := dynamodbClient.DescribeTable(describeMetadataTableParams)
+	if err != nil {
+		return fmt.Errorf("could not check dynamo table: %v", err)
+	}
+	duration := 0
+	for describeTableOutput == nil || *describeTableOutput.Table.TableStatus != "ACTIVE" {
+		describeTableOutput, err = dynamodbClient.DescribeTable(describeMetadataTableParams)
 		if err != nil {
-			return err
+			fmt.Println("Waiting for dynamo Metadata table to create...", err)
+		}
+		time.Sleep(5 * time.Second)
+		duration += 5
+		if duration > tableCreateTimeout {
+			return fmt.Errorf("timeout creating table Metadata Table")
 		}
 	}
 	return nil

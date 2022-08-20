@@ -186,17 +186,7 @@ func TestOfflineStores(t *testing.T) {
 		"CreateResourceFromSourceNoTS": testCreateResourceFromSourceNoTS,
 		"CreatePrimaryFromSource":      testCreatePrimaryFromSource,
 	}
-	testList := []struct {
-		t               Type
-		c               SerializedConfig
-		integrationTest bool
-	}{
-		{MemoryOffline, []byte{}, false},
-		{PostgresOffline, serialPGConfig, true},
-		{SnowflakeOffline, serialSFConfig, true},
-		{RedshiftOffline, serialRSConfig, true},
-		{BigQueryOffline, serialBQConfig, true},
-	}
+
 	psqlInfo := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", os.Getenv("POSTGRES_USER"), os.Getenv("POSTGRES_PASSWORD"), "localhost", "5432", os.Getenv("POSTGRES_DB"))
 	db, err := sql.Open("postgres", psqlInfo)
 	if err != nil {

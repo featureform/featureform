@@ -68,6 +68,10 @@ func (m MockOfflineRegisterSourceFail) UpdateMaterialization(id provider.Resourc
 	return nil, nil
 }
 
+func (m MockOfflineRegisterSourceFail) Close() error {
+	return nil
+}
+
 func TestRunRegisterResource(t *testing.T) {
 	runner := RegisterSourceRunner{
 		MockOfflineStore{},

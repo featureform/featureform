@@ -66,6 +66,10 @@ func (m MockOfflineCreateTrainingSetFail) GetTransformationTable(id provider.Res
 	return nil, nil
 }
 
+func (m MockOfflineCreateTrainingSetFail) Close() error {
+	return nil
+}
+
 func TestRunTrainingSet(t *testing.T) {
 	runner := TrainingSetRunner{
 		MockOfflineStore{},

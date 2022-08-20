@@ -254,7 +254,6 @@ func TestOfflineStores(t *testing.T) {
 				}
 			})
 		}
-		time.Sleep(10 * time.Second)
 	}
 }
 
@@ -923,6 +922,9 @@ func testMaterializationUpdate(t *testing.T, store OfflineStore) {
 		}
 		if i < len(test.ExpectedSegment) {
 			t.Fatalf("Segment is too small: %d", i)
+		}
+		if err := seg.Close(); err != nil {
+			t.Fatalf("Could not close iterator: %v", err)
 		}
 	}
 	runTestCase := func(t *testing.T, test TestCase) {

@@ -165,7 +165,7 @@ func (store *sqlOfflineStore) AsOfflineStore() (OfflineStore, error) {
 }
 
 func (store *sqlOfflineStore) Close() error {
-	return nil
+	return store.db.Close()
 }
 
 func (store *sqlOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error) {

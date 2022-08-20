@@ -164,6 +164,10 @@ func (store *sqlOfflineStore) AsOfflineStore() (OfflineStore, error) {
 	return store, nil
 }
 
+func (store *sqlOfflineStore) Close() error {
+	return nil
+}
+
 func (store *sqlOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error) {
 	if err := id.check(Feature, Label); err != nil {
 		return nil, fmt.Errorf("type check: %w", err)
@@ -465,6 +469,10 @@ func (iter *sqlFeatureIterator) Value() ResourceRecord {
 
 func (iter *sqlFeatureIterator) Err() error {
 	return nil
+}
+
+func (iter *sqlFeatureIterator) Close() error {
+	return iter.rows.Close()
 }
 
 func (store *sqlOfflineStore) CreateMaterialization(id ResourceID) (Materialization, error) {
@@ -1059,6 +1067,10 @@ func (it *sqlGenericTableIterator) Columns() []string {
 
 func (it *sqlGenericTableIterator) Err() error {
 	return it.err
+}
+
+func (it *sqlGenericTableIterator) Close() error {
+	return it.rows.Close()
 }
 
 type defaultOfflineSQLQueries struct {

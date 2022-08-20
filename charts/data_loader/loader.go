@@ -13,6 +13,11 @@ import (
 func main() {
 	host := os.Getenv("HOST")
 	port := os.Getenv("PORT")
+	size := os.Getenv("TEST_SIZE")
+	max_record := 10000
+	if size == "long" {
+		max_record = 10000000
+	}
 	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s "+
 		"password=%s dbname=%s sslmode=disable",
 		host, port, "postgres", "password", "postgres")
@@ -60,7 +65,7 @@ func main() {
 		if i == 0 {
 			continue
 		}
-		if i > 10000 {
+		if i > max_record {
 			break
 		}
 		values := strings.Split(line, ",")

@@ -178,6 +178,10 @@ func (store *SparkOfflineStore) AsOfflineStore() (OfflineStore, error) {
 	return store, nil
 }
 
+func (store *SparkOfflineStore) Close() error {
+	return nil
+}
+
 func SparkOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	sc := SparkConfig{}
 	if err := sc.Deserialize(config); err != nil {
@@ -700,6 +704,10 @@ func (s *S3GenericTableIterator) Err() error {
 	return nil
 }
 
+func (s *S3GenericTableIterator) Close() error {
+	return nil
+}
+
 func (s *S3PrimaryTable) Write(GenericRecord) error {
 	return fmt.Errorf("not implemented")
 }
@@ -947,6 +955,10 @@ func (s *S3FeatureIterator) Value() ResourceRecord {
 
 func (s *S3FeatureIterator) Err() error {
 	return s.err
+}
+
+func (s *S3FeatureIterator) Close() error {
+	return nil
 }
 
 func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materialization, error) {

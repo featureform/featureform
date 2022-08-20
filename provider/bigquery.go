@@ -220,6 +220,10 @@ func (it *bqGenericTableIterator) Err() error {
 	return it.err
 }
 
+func (it *bqGenericTableIterator) Close() error {
+	return nil
+}
+
 func newBigQueryGenericTableIterator(it *bigquery.RowIterator, query BQOfflineTableQueries) GenericTableIterator {
 	return &bqGenericTableIterator{
 		iter:         it,
@@ -632,6 +636,10 @@ func (it *bqFeatureIterator) Value() ResourceRecord {
 
 func (it *bqFeatureIterator) Err() error {
 	return it.err
+}
+
+func (it *bqFeatureIterator) Close() error {
+	return nil
 }
 
 type bqOfflineTable struct {
@@ -1280,6 +1288,10 @@ func (it *bqTrainingRowsIterator) Label() interface{} {
 
 func (store *bqOfflineStore) AsOfflineStore() (OfflineStore, error) {
 	return store, nil
+}
+
+func (store *bqOfflineStore) Close() error {
+	return store.client.Close()
 }
 
 func (store *bqOfflineStore) tableExists(id ResourceID) (bool, error) {

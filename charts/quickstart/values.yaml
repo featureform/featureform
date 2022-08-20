@@ -4,6 +4,9 @@
 
 replicaCount: 1
 
+global:
+  data_size: "short"
+
 image:
   repository: nginx
   pullPolicy: IfNotPresent

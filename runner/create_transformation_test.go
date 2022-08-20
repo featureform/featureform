@@ -71,6 +71,10 @@ func (m MockOfflineCreateTransformationFail) UpdateTrainingSet(provider.Training
 	return nil
 }
 
+func (m MockOfflineCreateTransformationFail) Close() error {
+	return nil
+}
+
 func TestRun(t *testing.T) {
 	runner := CreateTransformationRunner{
 		MockOfflineStore{},

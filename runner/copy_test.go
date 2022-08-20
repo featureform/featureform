@@ -50,6 +50,10 @@ func (m *MaterializedFeaturesNumRowsBroken) IterateSegment(begin int64, end int6
 	return nil, nil
 }
 
+func (m *MaterializedFeaturesNumRowsBroken) Close() error {
+	return nil
+}
+
 type MaterializedFeaturesIterateBroken struct {
 	id provider.MaterializationID
 }
@@ -125,6 +129,10 @@ func (m *MockFeatureIterator) Err() error {
 	return nil
 }
 
+func (m *MockFeatureIterator) Close() error {
+	return nil
+}
+
 func (m *MockFeatureIterator) Value() provider.ResourceRecord {
 	return m.Slice[m.CurrentIndex]
 }
@@ -137,6 +145,10 @@ func (m *BrokenFeatureIterator) Next() bool {
 
 func (m *BrokenFeatureIterator) Err() error {
 	return errors.New("error iterating over features")
+}
+
+func (m *BrokenFeatureIterator) Close() error {
+	return nil
 }
 
 func (m *BrokenFeatureIterator) Value() provider.ResourceRecord {
@@ -367,6 +379,10 @@ func (b BrokenNumRowsOfflineStore) UpdateTrainingSet(provider.TrainingSetDef) er
 
 func (b BrokenNumRowsOfflineStore) GetTrainingSet(id provider.ResourceID) (provider.TrainingSetIterator, error) {
 	return nil, nil
+}
+
+func (b BrokenNumRowsOfflineStore) Close() error {
+	return nil
 }
 
 type BrokenGetTableOnlineStore struct {
@@ -680,6 +696,9 @@ func (m MockOfflineStore) UpdateMaterialization(id provider.ResourceID) (provide
 func (m MockOfflineStore) UpdateTrainingSet(provider.TrainingSetDef) error {
 	return nil
 }
+func (m MockOfflineStore) Close() error {
+	return nil
+}
 
 type MockOnlineStoreTable struct{}
 
@@ -780,6 +799,10 @@ func (m MockIterator) Value() provider.ResourceRecord {
 }
 
 func (m MockIterator) Err() error {
+	return nil
+}
+
+func (m MockIterator) Close() error {
 	return nil
 }
 

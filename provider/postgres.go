@@ -253,6 +253,7 @@ func (q postgresSQLQueries) atomicUpdate(db *sql.DB, tableName string, tempName 
 		"DROP TABLE %s;"+
 		"COMMIT;", query, santizedName, oldName, tempName, santizedName, oldName)
 	_, err := db.Exec(transaction)
+
 	return err
 }
 

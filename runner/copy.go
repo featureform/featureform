@@ -95,6 +95,10 @@ func (m *MaterializedChunkRunner) Run() (CompletionWatcher, error) {
 			jobWatcher.EndWatch(err)
 			return
 		}
+		err = it.Close()
+		if err != nil {
+			jobWatcher.EndWatch(err)
+		}
 		jobWatcher.EndWatch(nil)
 	}()
 	return jobWatcher, nil

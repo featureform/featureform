@@ -7,7 +7,7 @@ COPY ../../go.sum ./
 
 ENV PATH /go/bin:$PATH
 
-COPY loader.go ./helpers/data_loader/main.go
+COPY charts/data_loader/loader.go ./helpers/data_loader/main.go
 
 RUN go build ./helpers/data_loader/main.go
 

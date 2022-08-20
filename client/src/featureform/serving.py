@@ -16,6 +16,7 @@ from .tls import insecure_channel, secure_channel
 import pandas as pd
 from pandasql import sqldf
 from .sqlite_metadata import SQLiteMetadata
+from .resources import SourceType
 
 class Client:
 
@@ -86,7 +87,7 @@ class LocalClientImpl:
         return self.convert_ts_df_to_dataset(label, trainingset_df)
 
     def get_input_df(self, source_name, source_variant):
-        if self.db.is_transformation(source_name, source_variant) == "PRIMARY":
+        if self.db.is_transformation(source_name, source_variant) == SourceType.PRIMARY_SOURCE.value:
             source = self.db.get_source_variant(source_name, source_variant)
             df = pd.read_csv(str(source['definition']))
         else:
@@ -94,11 +95,17 @@ class LocalClientImpl:
         return df
 
     def sql_transformation(self, query):
+            # Use regex to parse query inputs in double curly braces {{ }} and store in a list
             inputs = re.findall("(?={{).*?(?<=}})", query)
             for i, input in enumerate(inputs):
+                #Trim curly braces before and after to get name.variant from {{name.variant}}
                 name_variant = input[2:-2].split(".")
                 source_name, source_variant = name_variant[0], name_variant[1]
+                #Creates a variable called dataframes_i which stores the corresponding df for each input
                 df_variable = f"dataframes_{i}"
+                # globals()[df_variable]: 
+                # 1. Converts a string "dataframes_i" to a variable name 
+                # 2. Assigns a global scope to the variable, to access it outside the loop
                 globals()[df_variable] = self.get_input_df(source_name,source_variant)
                 query = query.replace(input,df_variable)
                 
@@ -106,7 +113,7 @@ class LocalClientImpl:
 
     def process_transformation(self, name, variant):
         source = self.db.get_source_variant(name, variant)
-        if self.db.is_transformation(name, variant) == "SQL":
+        if self.db.is_transformation(name, variant) == SourceType.SQL_TRANSFORMATION.value:
             query = source['definition']
             new_data = self.sql_transformation(query)
         else: 
@@ -122,7 +129,7 @@ class LocalClientImpl:
         return new_data
 
     def get_label_dataframe(self, label):
-        if self.db.is_transformation(label['source_name'], label['source_variant']) != "PRIMARY":
+        if self.db.is_transformation(label['source_name'], label['source_variant']) != SourceType.PRIMARY_SOURCE.value:
             label_df = self.label_df_from_transformation(label) 
         else:
             label_source = self.db.get_source_variant(label['source_name'], label['source_variant'])
@@ -155,7 +162,7 @@ class LocalClientImpl:
 
     def get_feature_dataframe(self, feature):
         name_variant = feature['name'] + "." + feature['variant']
-        if self.db.is_transformation(feature['source_name'], feature['source_variant']) != "PRIMARY":
+        if self.db.is_transformation(feature['source_name'], feature['source_variant']) != SourceType.PRIMARY_SOURCE.value:
             feature_df = self.feature_df_from_transformation(feature)
         else:
             source = self.db.get_source_variant(feature['source_name'], feature['source_variant'])
@@ -228,15 +235,15 @@ class LocalClientImpl:
         for feature_variant in feature_variant_list:
             feature = self.db.get_feature_variant(feature_variant[0], feature_variant[1])
             source_name, source_variant = feature['source_name'], feature['source_variant']
-            if self.db.is_transformation(source_name, source_variant) != "PRIMARY":
+            if self.db.is_transformation(source_name, source_variant) != SourceType.PRIMARY_SOURCE.value:
                 feature_df = self.process_transformation(source_name, source_variant)
                 if isinstance(feature_df, pd.Series):
                     feature_df = feature_df.to_frame()
                     feature_df.reset_index(inplace=True)
                 if not entity_id in feature_df.columns:
-                    raise ValueError(f"No column named {entity_id} exists")
+                    raise ValueError(f"Could not set entity column. No column name {entity_id} exists in {source_name}-{source_variant}")
                 if not feature['source_value'] in feature_df.columns:
-                    raise ValueError(f"No column named {feature['source_value']} exists")
+                    raise ValueError(f"Could not access feature value column. No column name {feature['source_value']} exists in {source_name}-{source_variant}")
                 feature_df = feature_df[[entity_id, feature['source_value']]]
                 feature_df.set_index(entity_id)
             else:

@@ -95,7 +95,10 @@ func (m *MaterializedChunkRunner) Run() (CompletionWatcher, error) {
 			jobWatcher.EndWatch(err)
 			return
 		}
-		it.Close()
+		err = it.Close()
+		if err != nil {
+			jobWatcher.EndWatch(err)
+		}
 		jobWatcher.EndWatch(nil)
 	}()
 	return jobWatcher, nil
@@ -211,12 +214,6 @@ func MaterializedChunkRunnerFactory(config Config) (Runner, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert provider to offline store: %v", err)
 	}
-	defer func(offlineStore provider.OfflineStore) {
-		err := offlineStore.Close()
-		if err != nil {
-			fmt.Printf("could not close offline store: %v", err)
-		}
-	}(offlineStore)
 	materialization, err := offlineStore.GetMaterialization(runnerConfig.MaterializedID)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get materialization: %v", err)

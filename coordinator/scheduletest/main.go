@@ -478,6 +478,10 @@ func checkTransformationTableValues(transformationName string, correctValues []p
 			}
 		}
 	}
+	err = joinTransformationIterator.Close()
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

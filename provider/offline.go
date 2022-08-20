@@ -162,6 +162,7 @@ type OfflineStore interface {
 	CreateTrainingSet(TrainingSetDef) error
 	UpdateTrainingSet(TrainingSetDef) error
 	GetTrainingSet(id ResourceID) (TrainingSetIterator, error)
+	Close() error
 	Provider
 }
 
@@ -179,6 +180,7 @@ type GenericTableIterator interface {
 	Values() GenericRecord
 	Columns() []string
 	Err() error
+	Close() error
 }
 
 type Materialization interface {
@@ -191,6 +193,7 @@ type FeatureIterator interface {
 	Next() bool
 	Value() ResourceRecord
 	Err() error
+	Close() error
 }
 
 // Used to implement sort.Interface
@@ -459,6 +462,9 @@ func (store *memoryOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetItera
 	}
 	return data.Iterator(), nil
 }
+func (store *memoryOfflineStore) Close() error {
+	return nil
+}
 
 type TrainingSetNotFound struct {
 	ID ResourceID
@@ -501,6 +507,10 @@ func (it *memoryTrainingRowsIterator) Next() bool {
 }
 
 func (it *memoryTrainingRowsIterator) Err() error {
+	return nil
+}
+
+func (it *memoryTrainingRowsIterator) Close() error {
 	return nil
 }
 
@@ -619,6 +629,10 @@ func (iter *memoryFeatureIterator) Value() ResourceRecord {
 }
 
 func (iter *memoryFeatureIterator) Err() error {
+	return nil
+}
+
+func (iter *memoryFeatureIterator) Close() error {
 	return nil
 }
 

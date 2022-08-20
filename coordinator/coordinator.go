@@ -405,6 +405,12 @@ func (c *Coordinator) runRegisterSourceJob(resID metadata.ResourceID, schedule s
 	if err != nil {
 		return fmt.Errorf("convert source provider to offline store interface: %w", err)
 	}
+	defer func(sourceStore provider.OfflineStore) {
+		err := sourceStore.Close()
+		if err != nil {
+			c.Logger.Errorf("could not close offline store: %v", err)
+		}
+	}(sourceStore)
 	if source.IsSQLTransformation() {
 		return c.runSQLTransformationJob(source, resID, sourceStore, schedule, sourceProvider)
 	} else if source.IsPrimaryDataSQLTable() {
@@ -445,8 +451,14 @@ func (c *Coordinator) runLabelRegisterJob(resID metadata.ResourceID, schedule st
 	}
 	sourceStore, err := p.AsOfflineStore()
 	if err != nil {
-		return fmt.Errorf("could not use store as offline store: %w", err)
+		return fmt.Errorf("convert source provider to offline store interface: %w", err)
 	}
+	defer func(sourceStore provider.OfflineStore) {
+		err := sourceStore.Close()
+		if err != nil {
+			c.Logger.Errorf("could not close offline store: %v", err)
+		}
+	}(sourceStore)
 	srcID := provider.ResourceID{
 		Name:    sourceNameVariant.Name,
 		Variant: sourceNameVariant.Variant,
@@ -515,6 +527,12 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 	if err != nil {
 		return err
 	}
+	defer func(sourceStore provider.OfflineStore) {
+		err := sourceStore.Close()
+		if err != nil {
+			c.Logger.Errorf("could not close offline store: %v", err)
+		}
+	}(sourceStore)
 	featureProvider, err := feature.FetchProvider(c.Metadata, context.Background())
 	if err != nil {
 		return fmt.Errorf("could not fetch  onlineprovider: %w", err)
@@ -633,6 +651,12 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 	if err != nil {
 		return fmt.Errorf("convert training set provider to offline store interface: %w", err)
 	}
+	defer func(store provider.OfflineStore) {
+		err := store.Close()
+		if err != nil {
+			c.Logger.Errorf("could not close offline store: %v", err)
+		}
+	}(store)
 	providerResID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.TrainingSet}
 	if _, err := store.GetTrainingSet(providerResID); err == nil {
 		return fmt.Errorf("training set already exists: %w", err)

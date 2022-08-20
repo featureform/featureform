@@ -13,5 +13,7 @@ spec:
             value: "{{ .Release.Name }}-postgres"
           - name: PORT
             value: "5432"
+          - name: TEST_SIZE
+            value: "{{ .Values.global.data_size }}"
       restartPolicy: Never
   backoffLimit: 10

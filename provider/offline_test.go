@@ -13,7 +13,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"reflect"
@@ -186,11 +185,34 @@ func TestOfflineStores(t *testing.T) {
 		"CreateResourceFromSourceNoTS": testCreateResourceFromSourceNoTS,
 		"CreatePrimaryFromSource":      testCreatePrimaryFromSource,
 	}
+	testList := []struct {
+		t               Type
+		c               SerializedConfig
+		integrationTest bool
+	}{
+		//{MemoryOffline, []byte{}, false},
+		{PostgresOffline, serialPGConfig, true},
+		//{SnowflakeOffline, serialSFConfig, true},
+		//{RedshiftOffline, serialRSConfig, true},
+		//{BigQueryOffline, serialBQConfig, true},
+	}
+	psqlInfo := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", "postgres", "password", "localhost", "5432", "postgres")
+	db, err := sql.Open("postgres", psqlInfo)
+	if err != nil {
+		panic(err)
+	}
 
 	for _, testItem := range testList {
 		if testing.Short() && testItem.integrationTest {
 			t.Logf("Skipping %s, because it is an integration test", testItem.t)
 			continue
+		}
+		var connections_start, connections_end int
+		if testItem.t == PostgresOffline {
+			err = db.QueryRow("SELECT Count(*) FROM pg_stat_activity WHERE pid!=pg_backend_pid()").Scan(&connections_start)
+			if err != nil {
+				panic(err)
+			}
 		}
 		for name, fn := range testFns {
 			provider, err := Get(testItem.t, testItem.c)
@@ -205,6 +227,9 @@ func TestOfflineStores(t *testing.T) {
 			t.Run(testName, func(t *testing.T) {
 				fn(t, store)
 			})
+			if err := store.Close(); err != nil {
+				t.Errorf("%v:%v - %v\n", testItem.t, name, err)
+			}
 		}
 		for name, fn := range testSQLFns {
 			if testItem.t == MemoryOffline {
@@ -223,7 +248,22 @@ func TestOfflineStores(t *testing.T) {
 			t.Run(testName, func(t *testing.T) {
 				fn(t, store)
 			})
+			if err := store.Close(); err != nil {
+				t.Errorf("%v:%v - %v\n", testItem.t, name, err)
+			}
 		}
+		if testItem.t == PostgresOffline {
+			err = db.QueryRow("SELECT Count(*) FROM pg_stat_activity WHERE pid!=pg_backend_pid()").Scan(&connections_end)
+			if err != nil {
+				panic(err)
+			}
+			t.Run("POSTGRES_ConnectionCheck", func(t *testing.T) {
+				if connections_start != connections_end {
+					t.Errorf("Started with %d connections, ended with %d connections", connections_start, connections_end)
+				}
+			})
+		}
+		time.Sleep(10 * time.Second)
 	}
 }
 
@@ -587,6 +627,9 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 		if i < len(test.ExpectedSegment) {
 			t.Fatalf("Segment is too small: %d. Expected: %d", i, len(test.ExpectedSegment))
 		}
+		if err := seg.Close(); err != nil {
+			t.Fatalf("Could not close iterator: %v", err)
+		}
 	}
 	runTestCase := func(t *testing.T, test TestCase) {
 		id := randomID(Feature)
@@ -847,6 +890,9 @@ func testMaterializationUpdate(t *testing.T, store OfflineStore) {
 		}
 		if i < len(test.ExpectedSegment) {
 			t.Fatalf("Segment is too small: %d", i)
+		}
+		if err := seg.Close(); err != nil {
+			t.Fatalf("Could not close iterator: %v", err)
 		}
 	}
 	testUpdate := func(t *testing.T, mat Materialization, test TestCase) {
@@ -2161,6 +2207,9 @@ func testTransform(t *testing.T, store OfflineStore) {
 		if tableSize != len(test.Expected) {
 			t.Fatalf("The number of records do not match for received (%v) and expected (%v)", tableSize, len(test.Expected))
 		}
+		if err := iterator.Close(); err != nil {
+			t.Fatalf("Could not close iterator: %v", err)
+		}
 	}
 
 	for name, test := range tests {
@@ -2339,6 +2388,9 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 			}
 			i++
 		}
+		if err := iterator.Close(); err != nil {
+			t.Fatalf("Could not close iterator: %v", err)
+		}
 		table, err = store.GetPrimaryTable(test.PrimaryTable)
 		if err != nil {
 			t.Fatalf("Could not get primary table: %v", err)
@@ -2379,6 +2431,9 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 				t.Fatalf("Unexpected training row: %v, expected %v", iterator.Values(), test.UpdatedExpected)
 			}
 			i++
+		}
+		if err := iterator.Close(); err != nil {
+			t.Fatalf("Could not close iterator: %v", err)
 		}
 	}
 
@@ -2654,6 +2709,9 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 			t.Fatalf("The %v value was not found in Expected Values: %v", iterator.Values(), tests["First"].Expected)
 		}
 	}
+	if err := iterator.Close(); err != nil {
+		t.Fatalf("Could not close iterator: %v", err)
+	}
 
 	if tableSize != len(tests["First"].Expected) {
 		t.Fatalf("The number of records do not match for received (%v) and expected (%v)", tableSize, len(tests["First"].Expected))
@@ -2693,6 +2751,9 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 			t.Fatalf("Expected: %#v, Received %#v", tests["Second"].Expected[i], iterator.Values())
 		}
 		i++
+	}
+	if err := iterator.Close(); err != nil {
+		t.Fatalf("Could not close iterator: %v", err)
 	}
 
 }
@@ -2801,6 +2862,9 @@ func testTransformToMaterialize(t *testing.T, store OfflineStore) {
 			t.Fatalf("Expected: %#v, Got: %#v", tests["First"].Expected[i], iterator.Value())
 		}
 		i++
+	}
+	if err := iterator.Close(); err != nil {
+		t.Fatalf("Could not close iterator: %v", err)
 	}
 }
 

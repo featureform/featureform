@@ -13,7 +13,7 @@ from pyspark.sql import SparkSession
 def execute_sql_query(job_type, output_uri, sql_query, source_list):
     try:
         with SparkSession.builder.appName("Execute SQL Query").getOrCreate() as spark:
-            if job_type == "Transformation" or job_type == "Materialization":
+            if job_type == "Transformation" or job_type == "Materialization" or job_type == "Training Set":
                 for i, source in enumerate(source_list):          
                     source_df = spark.read.option("header","true").parquet(source)  
                     source_df.createOrReplaceTempView(f'source_{i}')

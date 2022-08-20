@@ -207,6 +207,42 @@ class TestIndividualLabels(TestCase):
 
 
 class TestTransformation(TestCase):
+    def test_sql(self):
+        local = ff.register_local()
+        ff.register_user("featureformer").make_default_owner()
+        name = 'Simple'
+        case = cases.transform[name]
+        self.setup(case, name, local)
+
+        transactions = local.register_file(
+            name="transactions",
+            variant="quickstart",
+            description="A dataset of fraudulent transactions",
+            path="transactions.csv"
+        )
+
+        @local.sql_transformation(variant="quickstart")
+        def transformation():
+            """the average transaction amount for a user """
+            return "SELECT CustomerID as entity, avg(TransactionAmount) as feature_val from {{transactions.quickstart}} GROUP BY entity"
+        
+        @local.sql_transformation(variant="sql_to_sql")
+        def transformation1():
+            """the customerID for a user """
+            return "SELECT entity, feature_val from {{transformation.quickstart}} GROUP BY entity"
+
+        @local.df_transformation(variant="quickstart", inputs=[("transformation1", "sql_to_sql")])
+        def average_user_transaction(transactions):
+            """the average transaction amount for a user """
+            return transactions.groupby("entity")["feature_val"].mean()
+
+        @local.sql_transformation(variant="df_to_sql")
+        def transformation2():
+            """the customerID for a user """
+            return "SELECT entity, feature_val from {{average_user_transaction.quickstart}} GROUP BY entity"
+
+        res = self.sql_run_checks(transformation2, name, local)
+        np.testing.assert_array_equal(res, np.array([2553.0]))
 
     def test_simple(self):
         local = ff.register_local()
@@ -304,6 +340,22 @@ class TestTransformation(TestCase):
         client.apply()
         serve = ServingClient(local=True)
         res = serve.features([(f"feature-{name}", name)], {"entity": "a"})
+        serve.impl.db.close()
+        return res
+    
+    def sql_run_checks(self, transformation, name, local):
+        transformation.register_resources(
+            entity="user1",
+            entity_column="entity",
+            inference_store=local,
+            features=[
+                {"name": f"feature-{name}", "variant": name, "column": "feature_val", "type": "float32"},
+            ],
+        )
+        client = ff.ResourceClient(local=True)
+        client.apply()
+        serve = ServingClient(local=True)
+        res = serve.features([(f"feature-{name}", name)], {"entity": "C1010011"})
         serve.impl.db.close()
         return res
 

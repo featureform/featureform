@@ -3,6 +3,7 @@ from flask_cors import CORS, cross_origin
 import json
 import importlib.resources as pkg_resources
 from .sqlite_metadata import SQLiteMetadata
+from .resources import SourceType
 from .type_objects import (
     FeatureResource, 
     FeatureVariantResource, 
@@ -164,7 +165,7 @@ def source_variant(variantData):
                     training_set_list.add(training_set)
             except ValueError:
                 continue
-        if variantRow['transformation']:
+        if variantRow['transformation'] == SourceType.DF_TRANSFORMATION.value:
             definition = str(variantRow['definition'], 'latin-1')
         else:
             definition = variantRow['definition']

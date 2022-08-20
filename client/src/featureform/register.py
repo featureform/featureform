@@ -160,6 +160,17 @@ class LocalProvider:
                                                   description=description,
                                                   inputs=inputs)
 
+    def sql_transformation(self,
+                          variant: str = "default",
+                          owner: Union[str, UserRegistrar] = "",
+                          name: str = "",
+                          description: str = ""):
+        return self.__registrar.sql_transformation(name=name,
+                                                  variant=variant,
+                                                  owner=owner,
+                                                  provider=self.name(),
+                                                  description=description)
+
 
 class SourceRegistrar:
 
@@ -261,6 +272,7 @@ class SQLTransformationDecorator:
             self.name = fn.__name__
         self.__set_query(fn())
         fn.register_resources = self.register_resources
+        fn.name_variant = self.name_variant
         return fn
 
     @typechecked
@@ -279,6 +291,9 @@ class SQLTransformationDecorator:
             provider=self.provider,
             description=self.description,
         )
+
+    def name_variant(self):
+        return (self.name, self.variant)
 
     def register_resources(
             self,

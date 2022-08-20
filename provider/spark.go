@@ -155,15 +155,15 @@ func (q defaultSparkOfflineQueries) trainingSetCreate(def TrainingSetDef, featur
 		featureColumnName := featureColumnName(feature)
 		columns = append(columns, featureColumnName)
 		featureWindowQuery := fmt.Sprintf("SELECT %s as entity, %s as %s, %s as ts FROM source_%d", featureSchemas[i].Entity, featureSchemas[i].Value, featureColumnName, featureSchemas[i].TS, i+1)
-		featureJoinQuery := fmt.Sprintf("LEFT OUTER JOIN (%s) AS t%d ON (t%d.entity = labelTable.entity AND t%d.ts <= labelTable.ts)", featureWindowQuery, i+1, i+1, i+1)
+		featureJoinQuery := fmt.Sprintf("LEFT OUTER JOIN (%s) t%d ON (t%d.entity = t0.entity AND t%d.ts <= t0.ts)", featureWindowQuery, i+1, i+1, i+1)
 		joinQueries = append(joinQueries, featureJoinQuery)
 	}
 	columnStr := strings.Join(columns, ", ")
 	joinQueryString := strings.Join(joinQueries, " ")
-	labelWindowQuery := fmt.Sprintf("SELECT %s as entity, %s as value, %s as ts FROM source_0", labelSchema.Entity, labelSchema.Value, labelSchema.TS)
-	labelPartitionQuery := fmt.Sprintf("SELECT * FROM (SELECT *, ROW_NUMBER() over(PARTITION BY labelTable.entity, labelTable.value, labelTable.ts ORDER BY ts desc) as rn FROM (%s) AS labelTable) WHERE rn = 1) AS labelTable", labelWindowQuery)
+	labelWindowQuery := fmt.Sprintf("SELECT %s as entity, %s as value, %s as ts, ROW_NUMBER() over (PARTITION BY %s, %s, %s ORDER BY %s DESC) as rn FROM source_0", labelSchema.Entity, labelSchema.Value, labelSchema.TS, labelSchema.Entity, labelSchema.Value, labelSchema.TS, labelSchema.TS)
+	labelPartitionQuery := fmt.Sprintf("(SELECT * FROM (SELECT entity, value, ts, rn FROM (%s) t WHERE rn = 1) t0)", labelWindowQuery)
 	labelJoinQuery := fmt.Sprintf("%s %s", labelPartitionQuery, joinQueryString)
-	fullQuery := fmt.Sprintf("SELECT %s, labelTable.value AS %s FROM (%s", columnStr, featureColumnName(def.Label), labelJoinQuery)
+	fullQuery := fmt.Sprintf("SELECT %s, t0.value AS %s FROM %s", columnStr, featureColumnName(def.Label), labelJoinQuery)
 	return fullQuery
 }
 
@@ -220,6 +220,7 @@ type SparkStore interface {
 	ResourceRowCt(key string) (int, error)
 	ResourcePath(id ResourceID) string
 	BucketPrefix() string
+	KeyPath(sourceKey string) string
 	SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType) []string
 	UploadParquetTable(path string, data interface{}) error
 	DownloadParquetTable(path string) (interface{}, error)
@@ -378,6 +379,10 @@ func (e *EMRExecutor) RunSparkJob(args []string) error {
 
 func (s *S3Store) ResourcePath(id ResourceID) string {
 	return fmt.Sprintf("s3://%s/%s", s.bucketPath, ResourcePrefix(id))
+}
+
+func (s *S3Store) KeyPath(sourceKey string) string {
+	return fmt.Sprintf("%s%s", s.BucketPrefix(), sourceKey)
 }
 
 func stringifyValue(value interface{}) string {
@@ -896,7 +901,7 @@ func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materializ
 		return nil, fmt.Errorf("materialization %v already exists", materializationID)
 	}
 	materializationQuery := spark.query.materializationCreate(sparkResourceTable.schema)
-	sourcePath := fmt.Sprintf("%s%s", spark.Store.BucketPrefix(), sparkResourceTable.schema.SourceTable)
+	sourcePath := spark.Store.KeyPath(sparkResourceTable.schema.SourceTable)
 	sparkArgs := spark.Store.SparkSubmitArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize)
 	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
 		return nil, fmt.Errorf("spark submit job for materialization %v failed to run: %v", materializationID, err)
@@ -1006,14 +1011,14 @@ func (spark *SparkOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
 	if err != nil {
 		return fmt.Errorf("Could not get schema of label %s: %v", def.Label, err)
 	}
-	labelPath := fmt.Sprintf("%s%s", spark.Store.BucketPrefix(), labelSchema.SourceTable)
+	labelPath := spark.Store.KeyPath(labelSchema.SourceTable)
 	sourcePaths = append(sourcePaths, labelPath)
 	for _, feature := range def.Features {
 		featureSchema, err := spark.registeredResourceSchema(feature)
 		if err != nil {
 			return fmt.Errorf("Could not get schema of feature %s: %v", feature, err)
 		}
-		featurePath := fmt.Sprintf("%s%s", spark.Store.BucketPrefix(), featureSchema.SourceTable)
+		featurePath := spark.Store.KeyPath(featureSchema.SourceTable)
 		sourcePaths = append(sourcePaths, featurePath)
 		featureSchemas = append(featureSchemas, featureSchema)
 	}

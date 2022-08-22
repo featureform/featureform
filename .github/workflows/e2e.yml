@@ -286,6 +286,13 @@ jobs:
           helm install certmgr jetstack/cert-manager --set installCRDs=true --version v1.8.0 --namespace cert-manager --create-namespace
           helm install featureform ./charts/featureform --set global.repo=local --set global.pullPolicy=Never --set global.version=stable
 
+
+      - name: Run CLI
+        run: |
+          kubectl get secret featureform-ca-secret -o=custom-columns=':.data.tls\.crt'| base64 -d > tls.crt
+          export FEATUREFORM_HOST="localhost:443"
+          export FEATUREFORM_CERT="tls.crt"
+
       - name: Test End-to-End
         run: make test_e2e
 #
@@ -319,10 +326,7 @@ jobs:
 #          done
 #          exit 1
 #
-#      - name: Run CLI
-#        run: |
-#          kubectl get secret featureform-ca-secret -o=custom-columns=':.data.tls\.crt'| base64 -d > tls.crt
-#          featureform apply client/examples/quickstart.py --host localhost:8000 --cert tls.crt
+
 #
 #      - name: Run Test
 #        run: pytest client/tests/e2e.py

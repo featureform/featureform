@@ -122,7 +122,7 @@ Once we have our training set and features registered, we can train our model.
 ```python
 import featureform as ff
 
-client = ff.ServingLocalClient()
+client = ff.ServingClient(local=True)
 dataset = client.training_set("fraud_training", "quickstart")
 training_dataset = dataset.repeat(10).shuffle(1000).batch(8)
 for feature_batch in training_dataset:
@@ -138,7 +138,3 @@ client = ff.ServingClient(local=True)
 fpf = client.features([("avg_transactions", "quickstart")], {"CustomerID": "C1410926"})
 # Run features through model
 ```
-
-{% hint style="info" %}
-In Local Mode we use ServingLocalClient instead of ServingClient.
-{% endhint %}

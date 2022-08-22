@@ -194,7 +194,7 @@ jobs:
     defaults:
       run:
         working-directory: ./
-    runs-on: ubuntu-latest
+    runs-on: macos-12
     steps:
       - uses: actions/checkout@v2
 #      - name: Download artifact
@@ -365,6 +365,10 @@ jobs:
 #
 #      - name: Run List Test
 #        run: pytest client/src/featureform/list_test.py
+
+      - name: K8s Pods
+        if: always()
+        run: kubectl get pods
 
       - name: API Server Logs
         if: always()

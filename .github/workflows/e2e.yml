@@ -4,193 +4,193 @@ concurrency:
   group: ${{ github.head_ref }}-e2e
   cancel-in-progress: true
 jobs:
-  api-server:
-    name: Build API Server
-    defaults:
-      run:
-        working-directory: ./
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Build and export
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          file: ./api/Dockerfile
-          tags: local/api-server:stable
-          push: false
-          outputs: type=docker,dest=/tmp/api-server.tar
-
-      - name: Upload image
-        uses: actions/upload-artifact@v3
-        with:
-          name: api-server
-          path: /tmp/api-server.tar
-
-  coordinator:
-    name: Build Coordinator
-    defaults:
-      run:
-        working-directory: ./
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Build and export
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          file: ./coordinator/Dockerfile
-          tags: local/coordinator:stable
-          push: false
-          outputs: type=docker,dest=/tmp/coordinator.tar
-      - name: Upload image
-        uses: actions/upload-artifact@v3
-        with:
-          name: coordinator
-          path: /tmp/coordinator.tar
-
-  dashboard:
-    name: Build Dashboard
-    defaults:
-      run:
-        working-directory: ./
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Build and export
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          file: ./dashboard/Dockerfile
-          tags: local/dashboard:stable
-          push: false
-          outputs: type=docker,dest=/tmp/dashboard.tar
-      - name: Upload image
-        uses: actions/upload-artifact@v3
-        with:
-          name: dashboard
-          path: /tmp/dashboard.tar
-
-  metadata:
-    name: Build Metadata
-    defaults:
-      run:
-        working-directory: ./
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Build and export
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          file: ./metadata/Dockerfile
-          tags: local/metadata:stable
-          push: false
-          outputs: type=docker,dest=/tmp/metadata.tar
-      - name: Upload image
-        uses: actions/upload-artifact@v3
-        with:
-          name: metadata
-          path: /tmp/metadata.tar
-
-  dashboard-metadata:
-    name: Build Dashboard Metadata
-    defaults:
-      run:
-        working-directory: ./
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Build and export
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          file: ./metadata/dashboard/Dockerfile
-          tags: local/metadata-dashboard:stable
-          push: false
-          outputs: type=docker,dest=/tmp/metadata-dashboard.tar
-
-      - name: Upload image
-        uses: actions/upload-artifact@v3
-        with:
-          name: metadata-dashboard
-          path: /tmp/metadata-dashboard.tar
-
-  serving:
-    name: Build Serving
-    defaults:
-      run:
-        working-directory: ./
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Build and export
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          file: ./newserving/Dockerfile
-          tags: local/serving:stable
-          push: false
-          outputs: type=docker,dest=/tmp/serving.tar
-
-      - name: Upload image
-        uses: actions/upload-artifact@v3
-        with:
-          name: serving
-          path: /tmp/serving.tar
-
-  worker:
-    name: Build Worker
-    defaults:
-      run:
-        working-directory: ./
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Build and export
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          file: ./runner/Dockerfile
-          tags: local/worker:stable
-          push: false
-          outputs: type=docker,dest=/tmp/worker.tar
-      - name: Upload image
-        uses: actions/upload-artifact@v3
-        with:
-          name: worker
-          path: /tmp/worker.tar
+#  api-server:
+#    name: Build API Server
+#    defaults:
+#      run:
+#        working-directory: ./
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v2
+#
+#      - name: Set up Docker Buildx
+#        uses: docker/setup-buildx-action@v2
+#
+#      - name: Build and export
+#        uses: docker/build-push-action@v3
+#        with:
+#          context: .
+#          file: ./api/Dockerfile
+#          tags: local/api-server:stable
+#          push: false
+#          outputs: type=docker,dest=/tmp/api-server.tar
+#
+#      - name: Upload image
+#        uses: actions/upload-artifact@v3
+#        with:
+#          name: api-server
+#          path: /tmp/api-server.tar
+#
+#  coordinator:
+#    name: Build Coordinator
+#    defaults:
+#      run:
+#        working-directory: ./
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v2
+#
+#      - name: Set up Docker Buildx
+#        uses: docker/setup-buildx-action@v2
+#
+#      - name: Build and export
+#        uses: docker/build-push-action@v3
+#        with:
+#          context: .
+#          file: ./coordinator/Dockerfile
+#          tags: local/coordinator:stable
+#          push: false
+#          outputs: type=docker,dest=/tmp/coordinator.tar
+#      - name: Upload image
+#        uses: actions/upload-artifact@v3
+#        with:
+#          name: coordinator
+#          path: /tmp/coordinator.tar
+#
+#  dashboard:
+#    name: Build Dashboard
+#    defaults:
+#      run:
+#        working-directory: ./
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v2
+#
+#      - name: Set up Docker Buildx
+#        uses: docker/setup-buildx-action@v2
+#
+#      - name: Build and export
+#        uses: docker/build-push-action@v3
+#        with:
+#          context: .
+#          file: ./dashboard/Dockerfile
+#          tags: local/dashboard:stable
+#          push: false
+#          outputs: type=docker,dest=/tmp/dashboard.tar
+#      - name: Upload image
+#        uses: actions/upload-artifact@v3
+#        with:
+#          name: dashboard
+#          path: /tmp/dashboard.tar
+#
+#  metadata:
+#    name: Build Metadata
+#    defaults:
+#      run:
+#        working-directory: ./
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v2
+#
+#      - name: Set up Docker Buildx
+#        uses: docker/setup-buildx-action@v2
+#
+#      - name: Build and export
+#        uses: docker/build-push-action@v3
+#        with:
+#          context: .
+#          file: ./metadata/Dockerfile
+#          tags: local/metadata:stable
+#          push: false
+#          outputs: type=docker,dest=/tmp/metadata.tar
+#      - name: Upload image
+#        uses: actions/upload-artifact@v3
+#        with:
+#          name: metadata
+#          path: /tmp/metadata.tar
+#
+#  dashboard-metadata:
+#    name: Build Dashboard Metadata
+#    defaults:
+#      run:
+#        working-directory: ./
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v2
+#
+#      - name: Set up Docker Buildx
+#        uses: docker/setup-buildx-action@v2
+#
+#      - name: Build and export
+#        uses: docker/build-push-action@v3
+#        with:
+#          context: .
+#          file: ./metadata/dashboard/Dockerfile
+#          tags: local/metadata-dashboard:stable
+#          push: false
+#          outputs: type=docker,dest=/tmp/metadata-dashboard.tar
+#
+#      - name: Upload image
+#        uses: actions/upload-artifact@v3
+#        with:
+#          name: metadata-dashboard
+#          path: /tmp/metadata-dashboard.tar
+#
+#  serving:
+#    name: Build Serving
+#    defaults:
+#      run:
+#        working-directory: ./
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v2
+#
+#      - name: Set up Docker Buildx
+#        uses: docker/setup-buildx-action@v2
+#
+#      - name: Build and export
+#        uses: docker/build-push-action@v3
+#        with:
+#          context: .
+#          file: ./newserving/Dockerfile
+#          tags: local/serving:stable
+#          push: false
+#          outputs: type=docker,dest=/tmp/serving.tar
+#
+#      - name: Upload image
+#        uses: actions/upload-artifact@v3
+#        with:
+#          name: serving
+#          path: /tmp/serving.tar
+#
+#  worker:
+#    name: Build Worker
+#    defaults:
+#      run:
+#        working-directory: ./
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v2
+#
+#      - name: Set up Docker Buildx
+#        uses: docker/setup-buildx-action@v2
+#
+#      - name: Build and export
+#        uses: docker/build-push-action@v3
+#        with:
+#          context: .
+#          file: ./runner/Dockerfile
+#          tags: local/worker:stable
+#          push: false
+#          outputs: type=docker,dest=/tmp/worker.tar
+#      - name: Upload image
+#        uses: actions/upload-artifact@v3
+#        with:
+#          name: worker
+#          path: /tmp/worker.tar
   test:
     name: Run Tests
-    needs: [api-server, coordinator, dashboard, dashboard-metadata, metadata, serving, worker]
+   # needs: [api-server, coordinator, dashboard, dashboard-metadata, metadata, serving, worker]
     defaults:
       run:
         working-directory: ./
@@ -218,8 +218,8 @@ jobs:
       - name: Install Protobuf
         run: sudo snap install protobuf --classic
 
-      - name: Setup Proto
-        run: ./gen_grpc.sh
+#      - name: Setup Proto
+#        run: ./gen_grpc.sh
 
       - name: Install etcdctl
         env:
@@ -236,94 +236,100 @@ jobs:
           /tmp/etcd-download-test/etcd --version
           /tmp/etcd-download-test/etcdctl version
 
-      - name: Install python dependencies
-        working-directory: ./
-        run: |
-          python3 -m pip install build pytest
-          python3 -m build ./client/
-          pip install client/dist/*.whl
+#      - name: Install python dependencies
+#        working-directory: ./
+#        run: |
+#          python3 -m pip install build pytest
+#          python3 -m build ./client/
+#          pip install client/dist/*.whl
 
       - name: Start minikube
         run: |
           curl -LO \
             https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64 \
             && install minikube-linux-amd64 /tmp/
-  
+
             kv=$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)
             curl -LO \
             https://storage.googleapis.com/kubernetes-release/release/$kv/bin/linux/amd64/kubectl \
             && install kubectl /tmp/
-  
+
             /tmp/minikube-linux-amd64 config set WantUpdateNotification false
             /tmp/minikube-linux-amd64 start --driver=docker
 
+      - name: Install Featureform
+        run: make install_featureform
 
-      - name: Configure Docker Socket
-        run: eval $(minikube docker-env)
+      - name: Test End-to-End
+        run: make test_e2e
 
-      - name: Load image
-        run: |
-          docker load --input /tmp/api-server/api-server.tar
-          docker load --input /tmp/coordinator/coordinator.tar
-          docker load --input /tmp/dashboard/dashboard.tar
-          docker load --input /tmp/metadata-dashboard/metadata-dashboard.tar
-          docker load --input /tmp/metadata/metadata.tar
-          docker load --input /tmp/serving/serving.tar
-          docker load --input /tmp/worker/worker.tar
-          minikube image load local/api-server:stable
-          minikube image load local/coordinator:stable
-          minikube image load local/dashboard:stable
-          minikube image load local/metadata-dashboard:stable
-          minikube image load local/metadata:stable
-          minikube image load local/serving:stable
-          minikube image load local/worker:stable
-          minikube image ls
-
-      - name: Helm Install
-        run: |
-          helm repo add jetstack https://charts.jetstack.io
-          helm repo update
-          helm install certmgr jetstack/cert-manager --set installCRDs=true --version v1.8.0 --namespace cert-manager --create-namespace
-          helm install featureform ./charts/featureform --set global.repo=local --set global.pullPolicy=Never --set global.version=stable
-          helm install quickstart ./charts/quickstart --set global.data_size=long
-
-      - name: Check Pods
-        run: |
-          kubectl wait --for=condition=READY=true pod -l app.kubernetes.io/name=ingress-nginx --timeout=360s
-          kubectl wait --for=condition=READY=true pod -l app.kubernetes.io/name=etcd --timeout=360s
-          kubectl wait --for=condition=READY=true pod -l chart=featureform --timeout=360s
-          kubectl get pods
-        shell: bash
-
-      - name: Enable Minikube Ingress
-        run: |
-          kubectl port-forward svc/featureform-ingress-nginx-controller 8000:443 7000:80 &
-          kubectl port-forward svc/featureform-etcd 2379:2379 &
-
-      - name: Wait For Ingress To Be Active
-        shell: bash
-        run: |
-          count=0
-          while [ $count -lt 10 ]
-          do
-            if curl localhost:7000; then
-              echo "Connected"
-              exit 0
-            else
-              echo "Waiting for connection"
-              count=$((count + 1))
-              sleep 1
-            fi
-          done
-          exit 1
-
-      - name: Run CLI
-        run: |
-          kubectl get secret featureform-ca-secret -o=custom-columns=':.data.tls\.crt'| base64 -d > tls.crt
-          featureform apply client/examples/quickstart.py --host localhost:8000 --cert tls.crt
-
-      - name: Run Test
-        run: pytest client/tests/e2e.py
+#
+#      - name: Configure Docker Socket
+#        run: eval $(minikube docker-env)
+#
+#      - name: Load image
+#        run: |
+#          docker load --input /tmp/api-server/api-server.tar
+#          docker load --input /tmp/coordinator/coordinator.tar
+#          docker load --input /tmp/dashboard/dashboard.tar
+#          docker load --input /tmp/metadata-dashboard/metadata-dashboard.tar
+#          docker load --input /tmp/metadata/metadata.tar
+#          docker load --input /tmp/serving/serving.tar
+#          docker load --input /tmp/worker/worker.tar
+#          minikube image load local/api-server:stable
+#          minikube image load local/coordinator:stable
+#          minikube image load local/dashboard:stable
+#          minikube image load local/metadata-dashboard:stable
+#          minikube image load local/metadata:stable
+#          minikube image load local/serving:stable
+#          minikube image load local/worker:stable
+#          minikube image ls
+#
+#      - name: Helm Install
+#        run: |
+#          helm repo add jetstack https://charts.jetstack.io
+#          helm repo update
+#          helm install certmgr jetstack/cert-manager --set installCRDs=true --version v1.8.0 --namespace cert-manager --create-namespace
+#          helm install featureform ./charts/featureform --set global.repo=local --set global.pullPolicy=Never --set global.version=stable
+#          helm install quickstart ./charts/quickstart --set global.data_size=long
+#
+#      - name: Check Pods
+#        run: |
+#          kubectl wait --for=condition=READY=true pod -l app.kubernetes.io/name=ingress-nginx --timeout=360s
+#          kubectl wait --for=condition=READY=true pod -l app.kubernetes.io/name=etcd --timeout=360s
+#          kubectl wait --for=condition=READY=true pod -l chart=featureform --timeout=360s
+#          kubectl get pods
+#        shell: bash
+#
+#      - name: Enable Minikube Ingress
+#        run: |
+#          kubectl port-forward svc/featureform-ingress-nginx-controller 8000:443 7000:80 &
+#          kubectl port-forward svc/featureform-etcd 2379:2379 &
+#
+#      - name: Wait For Ingress To Be Active
+#        shell: bash
+#        run: |
+#          count=0
+#          while [ $count -lt 10 ]
+#          do
+#            if curl localhost:7000; then
+#              echo "Connected"
+#              exit 0
+#            else
+#              echo "Waiting for connection"
+#              count=$((count + 1))
+#              sleep 1
+#            fi
+#          done
+#          exit 1
+#
+#      - name: Run CLI
+#        run: |
+#          kubectl get secret featureform-ca-secret -o=custom-columns=':.data.tls\.crt'| base64 -d > tls.crt
+#          featureform apply client/examples/quickstart.py --host localhost:8000 --cert tls.crt
+#
+#      - name: Run Test
+#        run: pytest client/tests/e2e.py
         
       - name: Reset Quickstart
         run: |

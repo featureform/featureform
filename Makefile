@@ -132,7 +132,7 @@ test_go_unit:
 
 ##############################################  MINIKUBE ###############################################################
 
-containers:						## Build Docker containers for Minikube
+containers: gen_grpc						## Build Docker containers for Minikube
 	minikube image build -f ./api/Dockerfile . -t local/api-server:stable & \
 	minikube image build -f ./dashboard/Dockerfile . -t local/dashboard:stable & \
 	minikube image build -f ./coordinator/Dockerfile . -t local/coordinator:stable & \

@@ -27,6 +27,7 @@ jobs:
 
       - name: Install
         run: npm install
+        working-directory: ./dashboard
 
       - run: npm run build --omit=dev
         working-directory: ./dashboard

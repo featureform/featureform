@@ -355,3 +355,21 @@ jobs:
       - name: Quickstart Loader Logs
         if: always()
         run: kubectl logs -l job-name=featureform-quickstart-loader
+
+      - name: Cleanup Featureform
+        if: always()
+        run: helm uninstall featureform
+
+      - name: Cleanup Cert Manager
+        if: always()
+        run: helm uninstall certmgr
+
+      - name: Cleanup Quickstart
+        if: always()
+        run: helm uninstall quickstart
+
+      - name: Cleanup Docker
+        if: always()
+        run: | 
+          docker system prune -a
+          docker rmi $(docker images -a -q)

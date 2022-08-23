@@ -24,6 +24,10 @@ jobs:
           node-version: 16
           cache: 'npm'
           cache-dependency-path: dashboard/package-lock.json
+
+      - name: Install next
+        run: npm install next
+
       - run: npm run build --omit=dev
         working-directory: ./dashboard
 

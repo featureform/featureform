@@ -8,4 +8,4 @@ mkdir -p client/src/featureform/dashboard/
 cp -r dashboard/out client/src/featureform/dashboard/
 set -e
 python3 -m build ./client/
-python3 -m twine upload -r pypi client/dist/*
+#python3 -m twine upload -r pypi client/dist/*

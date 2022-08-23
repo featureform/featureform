@@ -1,7 +1,6 @@
 #!/bin/bash
 pip3 uninstall featureform -y
 rm -r client/dist/*
-set -e
 cd dashboard && npm run build
 cd ../
 mkdir -p client/src/featureform/dashboard/

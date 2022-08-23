@@ -117,6 +117,21 @@ class OnlineProvider:
 
 
 class LocalProvider:
+    """
+    The LocalProvider exposes the registration functions for LocalMode
+
+    **Using the LocalProvider:**
+    ``` py
+    from featureform import local
+
+    transactions = local.register_file(
+        name="transactions",
+        variant="quickstart",
+        description="A dataset of fraudulent transactions",
+        path="transactions.csv"
+    )
+    ```
+    """
     def __init__(self, registrar, provider):
         self.__registrar = registrar
         self.__provider = provider
@@ -125,6 +140,27 @@ class LocalProvider:
         return self.__provider.name
 
     def register_file(self, name, description, path, variant="default", owner=""):
+        """Register a local file.
+
+        **Examples**:
+        ```
+        transactions = local.register_file(
+            name="transactions",
+            variant="quickstart",
+            description="A dataset of fraudulent transactions",
+            path="transactions.csv"
+        )
+        ```
+        Args:
+            name (str): Name for how to reference the file later
+            description (str): Description of the file
+            path (str): Path to the file
+            variant (str): File variant
+            owner (str): Owner of the file
+
+        Returns:
+            source (LocalSource): source
+        """
         if owner == "":
             owner = self.__registrar.must_get_default_owner()
         # Store the file as a source
@@ -153,6 +189,31 @@ class LocalProvider:
                           name: str = "",
                           description: str = "",
                           inputs: list = []):
+        """
+        Register a Dataframe transformation source. The local.df_transformation decorator takes the contents
+        of the following function and executes the code it contains at serving time.
+
+        The name of the function is used as the name of the source when being registered.
+
+        The specified inputs are loaded into dataframes that can be accessed using the function parameters.
+
+        **Examples**:
+        ``` py
+        @local.df_transformation(inputs=[("source", "one"), ("source", "two")]) # Sources are added as inputs
+        def average_user_transaction(df_one, df_two):                           # Sources can be manipulated by adding them as params
+            return source_one.groupby("CustomerID")["TransactionAmount"].mean()
+        ```
+
+        Args:
+            name (str): Name of source
+            variant (str): Name of variant
+            owner (Union[str, UserRegistrar]): Owner
+            description (str): Description of primary data to be registered
+            inputs (list[Tuple(str, str)]): A list of Source NameVariant Tuples to input into the transformation
+
+        Returns:
+            source (ColumnSourceRegistrar): Source
+        """
         return self.__registrar.df_transformation(name=name,
                                                   variant=variant,
                                                   owner=owner,
@@ -165,6 +226,33 @@ class LocalProvider:
                           owner: Union[str, UserRegistrar] = "",
                           name: str = "",
                           description: str = ""):
+        """
+        Register a SQL transformation source. The local.sql_transformation decorator takes the returned string in the
+        following function and executes it as a SQL Query.
+
+        The name of the function is the name of the resulting source.
+
+        Sources for the transformation can be specified by adding the Name and Variant in brackets '{{ name.variant }}'.
+        The correct source is substituted when the query is run.
+
+        **Examples**:
+        ``` py
+        @local.sql_transformation(variant="quickstart")
+        def average_user_transaction():
+            return "SELECT CustomerID as user_id, avg(TransactionAmount) as avg_transaction_amt from" \
+            " {{transactions.v1}} GROUP BY user_id"
+        ```
+
+        Args:
+            name (str): Name of source
+            variant (str): Name of variant
+            owner (Union[str, UserRegistrar]): Owner
+            description (str): Description of primary data to be registered
+
+
+        Returns:
+            source (ColumnSourceRegistrar): Source
+        """
         return self.__registrar.sql_transformation(name=name,
                                                   variant=variant,
                                                   owner=owner,
@@ -193,6 +281,9 @@ class ColumnMapping(dict):
 
 
 class LocalSource:
+    """
+    LocalSource creates a reference to a source that can be accessed locally.
+    """
     def __init__(self,
                  registrar,
                  name: str,
@@ -222,6 +313,12 @@ class LocalSource:
         return (self.name, self.variant)
 
     def pandas(self):
+        """
+        Returns the local source as a pandas datafame.
+
+        Returns:
+        dataframe (pandas.Dataframe): A pandas Dataframe
+        """
         return pd.read_csv(self.path)
 
     def register_resources(
@@ -234,6 +331,33 @@ class LocalSource:
             labels: List[ColumnMapping] = None,
             timestamp_column: str = ""
     ):
+        """
+        Registers a features and/or labels that can be used in training sets or served.
+
+        **Examples**:
+        ``` py
+        average_user_transaction.register_resources(
+            entity=user,
+            entity_column="CustomerID",
+            inference_store=local,
+            features=[
+                {"name": <feature name>, "variant": <feature variant>, "column": <value column>, "type": "float32"}, # Column Mapping
+            ],
+        )
+        ```
+
+        Args:
+            entity (Union[str, EntityRegistrar]): The name to reference the entity by when serving features
+            entity_column (str): The name of the column in the source to be used as the entity
+            owner (Union[str, UserRegistrar]): The owner of the resource(s)
+            inference_store (Union[str, OnlineProvider]): Where to store the materialized feature for serving. (Use the local provider in Localmode)
+            features (List[ColumnMapping]): A list of column mappings to define the features
+            labels (List[ColumnMapping]): A list of column mappings to define the labels
+            timestamp_column: (str): The name of an optional timestamp column in the dataset. Will be used to match the features and labels with point-in-time correctness
+
+        Returns:
+            registrar (ResourceRegister): Registrar
+        """
         return self.registrar.register_column_resources(
             source=(self.name, self.variant),
             entity=entity,
@@ -404,6 +528,33 @@ class ColumnSourceRegistrar(SourceRegistrar):
             description: str = "",
             schedule: str = "",
     ):
+        """
+        Registers a features and/or labels that can be used in training sets or served.
+
+        **Examples**:
+        ``` py
+        average_user_transaction.register_resources(
+            entity=user,
+            entity_column="CustomerID",
+            inference_store=local,
+            features=[
+                {"name": "avg_transactions", "variant": "quickstart", "column": "TransactionAmount", "type": "float32"},
+            ],
+        )
+        ```
+
+        Args:
+            entity (Union[str, EntityRegistrar]): The name to reference the entity by when serving features
+            entity_column (str): The name of the column in the source to be used as the entity
+            owner (Union[str, UserRegistrar]): The owner of the resource(s)
+            inference_store (Union[str, OnlineProvider]): Where to store the materialized feature for serving. (Use the local provider in Localmode)
+            features (List[ColumnMapping]): A list of column mappings to define the features
+            labels (List[ColumnMapping]): A list of column mappings to define the labels
+            timestamp_column: (str): The name of an optional timestamp column in the dataset. Will be used to match the features and labels with point-in-time correctness
+
+        Returns:
+            registrar (ResourceRegister): Registrar
+        """
         return self.registrar().register_column_resources(
             source=self,
             entity=entity,
@@ -418,7 +569,7 @@ class ColumnSourceRegistrar(SourceRegistrar):
         )
 
 
-class ResourceRegistrar():
+class ResourceRegistrar:
 
     def __init__(self, registrar, features, labels):
         self.__registrar = registrar
@@ -1418,7 +1569,7 @@ class Registrar:
         self.__resources.append(resource)
 
 
-class Client(Registrar):
+class ResourceClient(Registrar):
     """The resource client is used to retrieve information on specific resources (entities, providers, features, labels, training sets, models, users). If retrieved resources are needed to register additional resources (e.g. registering a feature from a source), use the [Client](client.md) functions instead.
 
     **Using the Resource Client:**
@@ -1437,10 +1588,10 @@ class Client(Registrar):
         """Initialise a Resource Client object.
 
         Args:
-            host (str): Host path
-            local (bool): If localmode is being used
-            insecure (bool): If true, do not do TLS verification
-            cert_path (str): Path to certificate
+            host (str): The hostname of the Featureform instance. Exclude if using Localmode.
+            local (bool): True if using Localmode.
+            insecure (bool): True if connecting to an insecure Featureform endpoint. False if using a self-signed or public TLS certificate
+            cert_path (str): The path to a public certificate if using a self-signed certificate.
         """
         super().__init__()
         self._stub = None

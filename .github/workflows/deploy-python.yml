@@ -29,9 +29,6 @@ jobs:
         run: npm install --legacy-peer-deps
         working-directory: ./dashboard
 
-      - run: npm run build --omit=dev
-        working-directory: ./dashboard
-
       - name: Install grpc_tools
         run: pip install grpcio-tools
 

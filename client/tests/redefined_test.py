@@ -1,6 +1,7 @@
 import featureform as ff
 import pytest
 from featureform.resources import ResourceRedefinedError
+import shutil
 
 class TestResourcesRedefined:
     def test_duplicate_resources(self):
@@ -78,12 +79,12 @@ class TestResourcesRedefined:
             features=[("avg_transactions", "quickstart")],
         )
 
-        client = ff.Client(local=True)
+        client = ff.ResourceClient(local=True)
         client.apply()
 
 
     def test_diff_resources_same_name_variant(self):
-        client = ff.Client(local=True)
+        client = ff.ResourceClient(local=True)
         ff.register_user("featureformer").make_default_owner()
         local = ff.register_local()
 
@@ -168,7 +169,7 @@ class TestResourcesRedefined:
     def test_cleanup(tmpdir):
         try:
             client = ff.ServingClient(local=True)
-            client.sqldb.close()
-            shutil.rmtree('.featureform', onerror=del_rw)
+            client.impl.sqldb.close()
+            shutil.rmtree('.featureform')
         except:
             print("File Already Removed")

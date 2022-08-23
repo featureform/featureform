@@ -207,6 +207,7 @@ jobs:
         with:
           python-version: "3.10.6"
           cache: 'pip'
+          check-latest: true
 
 
       - name: Check Artifacts

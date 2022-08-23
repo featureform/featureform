@@ -237,20 +237,10 @@ jobs:
 
       - name: Start minikube
         run: |
-          curl -LO \
-            https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64 \
-            && install minikube-linux-amd64 /tmp/
+          curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+          sudo install minikube-linux-amd64 /usr/local/bin/minikube
 
-            kv=$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)
-            curl -LO \
-            https://storage.googleapis.com/kubernetes-release/release/$kv/bin/linux/amd64/kubectl \
-            && install kubectl /tmp/
-
-            /tmp/minikube-linux-amd64 config set WantUpdateNotification false
-            /tmp/minikube-linux-amd64 start --driver=docker
-
-
-      - name: Configure Docker Socket
+- name: Configure Docker Socket
         run: eval $(minikube docker-env)
 
       - name: Load image

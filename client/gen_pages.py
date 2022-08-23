@@ -1,10 +1,34 @@
 import mkdocs_gen_files
 import os
 
-excluded_files = ['__pycache__', 'proto', '__init__.py', '__main__.py', 'cli.py', 'client_test.py', 'resource_client_test.py', 'dashboard_metadata.py', 'format.py', 'get.py', 'list.py', 'local_test.py', 'local.py', 'register_test.py', 'resources_test.py', 'resources.py', 'serving_test.py', 'serving.py', 'sqlite_metadata.py', 'type_objects.py', 'register.py']
+excluded_files = [
+    '__pycache__',
+    'proto',
+    '__init__.py',
+    '__main__.py',
+    'cli.py',
+    'dashboard_metadata.py',
+    'format.py',
+    'get.py',
+    'list.py',
+    'local.py',
+    'resources.py',
+    'serving_test.py',
+    'serving.py',
+    'sqlite_metadata.py',
+    'type_objects.py',
+    'register.py',
+    'dashboard',
+    'get_local.py',
+    'get_test.py',
+    'list_local.py',
+    'tls.py'
+]
 
 for filename in os.listdir("./src/featureform"):
     if filename in excluded_files:
+        continue
+    if 'test' in filename:
         continue
 
     file = filename.split(".")[0]

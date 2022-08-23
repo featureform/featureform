@@ -18,9 +18,35 @@ from pandasql import sqldf
 from .sqlite_metadata import SQLiteMetadata
 from .resources import SourceType
 
-class Client:
+
+class ServingClient:
+    """
+    The serving client is used to retrieve training sets and features for training and serving purposes.
+
+
+    **Using the Serving Client:**
+    ``` py
+    import featureform as ff
+    from featureform import ServingClient
+
+    client = ServingClient(host="localhost:8000")
+
+    # example:
+    dataset = client.training_set("fraud_training", "quickstart")
+    training_dataset = dataset.repeat(10).shuffle(1000).batch(8)
+    for feature_batch in training_dataset:
+        # Train model
+    ```
+    """
 
     def __init__(self, host=None, local=False, insecure=False, cert_path=None):
+        """
+        Args:
+            host (str): The hostname of the Featureform instance. Exclude if using Localmode.
+            local (bool): True if using Localmode.
+            insecure (bool): True if connecting to an insecure Featureform endpoint. False if using a self-signed or public TLS certificate
+            cert_path (bool): The path to a public certificate if using a self-signed certificate.
+        """
         if local and host:
             raise ValueError("Host and local cannot both be set")
         if local:
@@ -28,12 +54,44 @@ class Client:
         else:
             self.impl = HostedClientImpl(host, insecure, cert_path)
 
+    def training_set(self, name, variant="default"):
+        """Return an iterator that iterates through the specified training set.
 
-    def training_set(self, name, version):
-        return self.impl.training_set(name, version)
+        **Examples**:
+        ``` py
+            client = ff.ServingClient()
+            dataset = client.training_set("fraud_training", "quickstart")
+            training_dataset = dataset.repeat(10).shuffle(1000).batch(8)
+            for feature_batch in training_dataset:
+                # Train model
+        ```
+        Args:
+            name (str): Name of training set to be retrieved
+            variant (str): Variant of training set to be retrieved
+
+        Returns:
+            training set (Dataset): A training set iterator
+        """
+        return self.impl.training_set(name, variant)
 
     def features(self, features, entities):
+        """Returns the feature values for the specified entities.
+
+        **Examples**:
+        ``` py
+            client = ff.ServingClient(local=True)
+            fpf = client.features([("avg_transactions", "quickstart")], {"CustomerID": "C1410926"})
+            # Run features through model
+        ```
+        Args:
+            features (list[(str, str)]): List of Name Variant Tuples
+            entities (dict): Dictionary of entity name/value pairs
+
+        Returns:
+            features (numpy.Array): An Numpy array of feature values in the order given by the inputs
+        """
         return self.impl.features(features, entities)
+
 
 class HostedClientImpl:
     def __init__(self, host=None, insecure=False, cert_path=None):
@@ -50,7 +108,7 @@ class HostedClientImpl:
         if insecure:
             return insecure_channel(host)
         else:
-            return secure_channel(host, cert_path)  
+            return secure_channel(host, cert_path)
 
     def training_set(self, name, version):
         return Dataset(self._stub).from_stub(name, version)
@@ -68,10 +126,11 @@ class HostedClientImpl:
         resp = self._stub.FeatureServe(req)
         return [parse_proto_value(val) for val in resp.values]
 
+
 class LocalClientImpl:
     def __init__(self):
         self.db = SQLiteMetadata()
-        
+
     def training_set(self, training_set_name, training_set_variant):
         training_set = self.db.get_training_set_variant(training_set_name, training_set_variant)
         label = self.db.get_label_variant(training_set['label_name'], training_set['label_variant'])
@@ -95,29 +154,29 @@ class LocalClientImpl:
         return df
 
     def sql_transformation(self, query):
-            # Use regex to parse query inputs in double curly braces {{ }} and store in a list
-            inputs = re.findall("(?={{).*?(?<=}})", query)
-            for i, input in enumerate(inputs):
-                #Trim curly braces before and after to get name.variant from {{name.variant}}
-                name_variant = input[2:-2].split(".")
-                source_name, source_variant = name_variant[0], name_variant[1]
-                #Creates a variable called dataframes_i which stores the corresponding df for each input
-                df_variable = f"dataframes_{i}"
-                # globals()[df_variable]: 
-                # 1. Converts a string "dataframes_i" to a variable name 
-                # 2. Assigns a global scope to the variable, to access it outside the loop
-                globals()[df_variable] = self.get_input_df(source_name,source_variant)
-                query = query.replace(input,df_variable)
-                
-            return sqldf(query,globals())
+        # Use regex to parse query inputs in double curly braces {{ }} and store in a list
+        inputs = re.findall("(?={{).*?(?<=}})", query)
+        for i, input in enumerate(inputs):
+            # Trim curly braces before and after to get name.variant from {{name.variant}}
+            name_variant = input[2:-2].split(".")
+            source_name, source_variant = name_variant[0], name_variant[1]
+            # Creates a variable called dataframes_i which stores the corresponding df for each input
+            df_variable = f"dataframes_{i}"
+            # globals()[df_variable]:
+            # 1. Converts a string "dataframes_i" to a variable name
+            # 2. Assigns a global scope to the variable, to access it outside the loop
+            globals()[df_variable] = self.get_input_df(source_name, source_variant)
+            query = query.replace(input, df_variable)
+
+        return sqldf(query, globals())
 
     def process_transformation(self, name, variant):
         source = self.db.get_source_variant(name, variant)
         if self.db.is_transformation(name, variant) == SourceType.SQL_TRANSFORMATION.value:
             query = source['definition']
             new_data = self.sql_transformation(query)
-        else: 
-            code = marshal.loads(bytearray(source['definition']))  
+        else:
+            code = marshal.loads(bytearray(source['definition']))
             inputs = json.loads(source['inputs'])
             dataframes = []
             for input in inputs:
@@ -130,7 +189,7 @@ class LocalClientImpl:
 
     def get_label_dataframe(self, label):
         if self.db.is_transformation(label['source_name'], label['source_variant']) != SourceType.PRIMARY_SOURCE.value:
-            label_df = self.label_df_from_transformation(label) 
+            label_df = self.label_df_from_transformation(label)
         else:
             label_source = self.db.get_source_variant(label['source_name'], label['source_variant'])
             label_df = self.label_df_from_csv(label, label_source['definition'])
@@ -162,7 +221,8 @@ class LocalClientImpl:
 
     def get_feature_dataframe(self, feature):
         name_variant = feature['name'] + "." + feature['variant']
-        if self.db.is_transformation(feature['source_name'], feature['source_variant']) != SourceType.PRIMARY_SOURCE.value:
+        if self.db.is_transformation(feature['source_name'],
+                                     feature['source_variant']) != SourceType.PRIMARY_SOURCE.value:
             feature_df = self.feature_df_from_transformation(feature)
         else:
             source = self.db.get_source_variant(feature['source_name'], feature['source_variant'])
@@ -197,16 +257,18 @@ class LocalClientImpl:
     def merge_feature_into_ts(self, feature_row, label_row, df, trainingset_df):
         if feature_row['source_timestamp'] != "":
             trainingset_df = pd.merge_asof(trainingset_df, df.sort_values(['ts']), direction='backward',
-                                            left_on=label_row['source_timestamp'], right_on=feature_row['source_timestamp'], left_by=label_row['source_entity'],
-                                            right_by=feature_row['source_entity'])
+                                           left_on=label_row['source_timestamp'],
+                                           right_on=feature_row['source_timestamp'], left_by=label_row['source_entity'],
+                                           right_by=feature_row['source_entity'])
             df.drop_duplicates(subset=[feature_row['source_entity']], keep="last", inplace=True)
         else:
             df.drop_duplicates(subset=[feature_row['source_entity']], keep="last", inplace=True)
             trainingset_df.reset_index(inplace=True)
             trainingset_df[label_row['source_entity']] = trainingset_df[label_row['source_entity']].astype('string')
             df[label_row['source_entity']] = df[label_row['source_entity']].astype('string')
-            trainingset_df = trainingset_df.join(df.set_index(label_row['source_entity']), how="left", on=label_row['source_entity'],
-                                                    lsuffix="_left")
+            trainingset_df = trainingset_df.join(df.set_index(label_row['source_entity']), how="left",
+                                                 on=label_row['source_entity'],
+                                                 lsuffix="_left")
             if "index" in trainingset_df.columns:
                 trainingset_df.drop(columns='index', inplace=True)
         return trainingset_df
@@ -229,7 +291,7 @@ class LocalClientImpl:
         all_features_list = self.add_feature_dfs_to_list(feature_variant_list, entity_id)
         all_features_df = self.list_to_combined_df(all_features_list, entity_id)
         return self.get_features_for_entity(entity_id, entity_value, all_features_df)
-    
+
     def add_feature_dfs_to_list(self, feature_variant_list, entity_id):
         feature_df_list = []
         for feature_variant in feature_variant_list:
@@ -241,9 +303,11 @@ class LocalClientImpl:
                     feature_df = feature_df.to_frame()
                     feature_df.reset_index(inplace=True)
                 if not entity_id in feature_df.columns:
-                    raise ValueError(f"Could not set entity column. No column name {entity_id} exists in {source_name}-{source_variant}")
+                    raise ValueError(
+                        f"Could not set entity column. No column name {entity_id} exists in {source_name}-{source_variant}")
                 if not feature['source_value'] in feature_df.columns:
-                    raise ValueError(f"Could not access feature value column. No column name {feature['source_value']} exists in {source_name}-{source_variant}")
+                    raise ValueError(
+                        f"Could not access feature value column. No column name {feature['source_value']} exists in {source_name}-{source_variant}")
                 feature_df = feature_df[[entity_id, feature['source_value']]]
                 feature_df.set_index(entity_id)
             else:
@@ -286,7 +350,7 @@ class LocalClientImpl:
             df = df[[feature['source_entity'], feature['source_value']]]
         df.set_index(feature['source_entity'])
         df.rename(columns={feature['source_entity']: entity_id, feature['source_value']: name_variant}, inplace=True)
-        df.drop_duplicates(subset=[entity_id], keep="last", inplace=True)   
+        df.drop_duplicates(subset=[entity_id], keep="last", inplace=True)
         return df
 
     def check_missing_values(self, resource, df):
@@ -296,6 +360,7 @@ class LocalClientImpl:
             raise KeyError(f"Value column does not exist: {resource['source_value']}")
         if resource['source_timestamp'] not in df.columns and resource['source_timestamp'] != "":
             raise KeyError(f"Timestamp column does not exist: {resource['source_timestamp']}")
+
 
 class Stream:
 
@@ -420,7 +485,16 @@ class Batch:
 
 
 class Dataset:
+
     def __init__(self, stream):
+        """Repeats the Dataset for the specified number of times
+
+        Args:
+            stream (Iterator): An iterable object.
+
+        Returns:
+            self (Dataset): Returns a Dataset created from the iterable object.
+        """
         self._stream = stream
 
     def from_stub(self, name, version):
@@ -432,18 +506,66 @@ class Dataset:
         return Dataset(stream)
 
     def repeat(self, num):
+        """Repeats the Dataset for the specified number of times
+
+        **Examples**:
+        ``` py
+            client = ff.ServingClient()
+            dataset = client.training_set("fraud_training", "quickstart")
+            training_dataset = dataset.repeat(10) # Repeats data 10 times
+            for feature_batch in training_dataset:
+                # Train model
+        ```
+        Args:
+            num (int): The number of times the dataset will be repeated
+
+        Returns:
+            self (Dataset): Returns the current Dataset
+        """
         if num <= 0:
             raise Exception("Must repeat 1 or more times")
         self._stream = Repeat(num, self._stream)
         return self
 
     def shuffle(self, buffer_size):
+        """Swaps random rows within the Dataset.
+
+        **Examples**:
+        ``` py
+            client = ff.ServingClient()
+            dataset = client.training_set("fraud_training", "quickstart")
+            training_dataset = dataset.shuffle(100) # Swaps 100 Rows
+            for feature_batch in training_dataset:
+                # Train model
+        ```
+        Args:
+            buffer_size (int): The number of Dataset rows to be randomly swapped
+
+        Returns:
+            self (Dataset): Returns the current Dataset
+        """
         if buffer_size <= 0:
             raise Exception("Buffer size must be greater than or equal to 1")
         self._stream = Shuffle(buffer_size, self._stream)
         return self
 
     def batch(self, batch_size):
+        """Creates a batch row in the Dataset.
+
+        **Examples**:
+        ``` py
+            client = ff.ServingClient()
+            dataset = client.training_set("fraud_training", "quickstart")
+            training_dataset = dataset.batch(8) # Creates a batch of 8 Datasets for each row
+            for feature_batch in training_dataset:
+                # Train model
+        ```
+        Args:
+            batch_size (int): The number of items to be added to each batch
+
+        Returns:
+            self (Dataset): Returns the current Dataset
+        """
         if batch_size <= 0:
             raise Exception("Batch size must be greater than or equal to 1")
         self._stream = Batch(batch_size, self._stream)
@@ -497,6 +619,7 @@ class LocalRow:
     def __repr__(self):
         return "Features: {} , Label: {}".format(self.features(), self.label())
 
+
 class BatchRow:
 
     def __init__(self, rows=None):
@@ -524,6 +647,7 @@ class BatchRow:
 
     def __len__(self):
         return len(self._rows)
+
 
 def parse_proto_value(value):
     """ parse_proto_value is used to parse the one of Value message

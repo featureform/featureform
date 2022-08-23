@@ -26,7 +26,7 @@ jobs:
           cache-dependency-path: dashboard/package-lock.json
 
       - name: Install
-        run: npm install
+        run: npm install --legacy-peer-deps
         working-directory: ./dashboard
 
       - run: npm run build --omit=dev

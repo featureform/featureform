@@ -3,7 +3,7 @@ import time
 import pytest
 import requests
 
-MAX_RETRIES = 60
+MAX_RETRIES = 10
 RETRY_WAIT = 5
 
 users = [
@@ -194,38 +194,35 @@ training_sets = [
 ]
 
 
-def test_user():
-    req = requests.get("http://localhost:7000/data/users", json=True)
-    json_ret = req.json()
-    assert (json_ret == users)
 
+class TestE2E:
 
-def test_providers():
-    req = requests.get("http://localhost:7000/data/providers", json=True)
-    json_ret = req.json()
-    assert (json_ret == providers)
+    def test_user(self):
+        req = requests.get("http://localhost:7000/data/users", json=True)
+        json_ret = req.json()
+        assert (json_ret == users)
 
+    def test_providers(self):
+        req = requests.get("http://localhost:7000/data/providers", json=True)
+        json_ret = req.json()
+        assert (json_ret == providers)
 
-def test_sources():
-    check_results("http://localhost:7000/data/sources", sources)
+    def test_entities(self):
+        req = requests.get("http://localhost:7000/data/entities", json=True)
+        json_ret = req.json()
+        assert (json_ret == entities)
 
+    def test_sources(self):
+        check_results("http://localhost:7000/data/sources", sources)
 
-def test_entities():
-    req = requests.get("http://localhost:7000/data/entities", json=True)
-    json_ret = req.json()
-    assert (json_ret == entities)
+    def test_features(self):
+        check_results("http://localhost:7000/data/features", features)
 
+    def test_labels(self):
+        check_results("http://localhost:7000/data/labels", labels)
 
-def test_features():
-    check_results("http://localhost:7000/data/features", features)
-
-
-def test_labels():
-    check_results("http://localhost:7000/data/labels", labels)
-
-
-def test_training_sets():
-    check_results("http://localhost:7000/data/training-sets", training_sets)
+    def test_training_sets(self):
+        check_results("http://localhost:7000/data/training-sets", training_sets)
 
 
 def check_results(endpoint, expected):

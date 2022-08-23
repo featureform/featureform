@@ -362,7 +362,7 @@ jobs:
 
       - name: Cleanup Cert Manager
         if: always()
-        run: helm uninstall certmgr
+        run: helm uninstall certmgr --namespace cert-manager
 
       - name: Cleanup Quickstart
         if: always()

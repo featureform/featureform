@@ -4,6 +4,10 @@
 * [Quickstart (Local)](quickstart-local.md)
 * [Quickstart (Kubernetes)](quickstart-kubernetes.md)
 
+## Reference
+
+* [Python SDK](https://sdk.featureform.com)
+
 ## Getting Started
 
 * [Overview](getting-started/overview.md)
@@ -13,9 +17,6 @@
 * [Serving for Inference and Training](getting-started/serving-for-inference-and-training.md)
 * [Interact with the CLI](getting-started/interact-with-the-cli.md)
 * [Exploring the Feature Registry](getting-started/exploring-the-feature-registry.md)
-
-## Reference
-* [Python SDK](https://sdk.featureform.com)
 
 ## Providers
 

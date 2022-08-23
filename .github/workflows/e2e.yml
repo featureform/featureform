@@ -218,9 +218,6 @@ jobs:
       - name: Install Protobuf
         run: sudo snap install protobuf --classic
 
-#      - name: Setup Proto
-#        run: ./gen_grpc.sh
-
       - name: Install etcdctl
         env:
           ETCD_VER: v3.4.19
@@ -235,13 +232,6 @@ jobs:
           
           /tmp/etcd-download-test/etcd --version
           /tmp/etcd-download-test/etcdctl version
-
-#      - name: Install python dependencies
-#        working-directory: ./
-#        run: |
-#          python3 -m pip install build pytest
-#          python3 -m build ./client/
-#          pip install client/dist/*.whl
 
       - name: Start minikube
         run: |
@@ -295,42 +285,7 @@ jobs:
 
       - name: Test End-to-End
         run: make test_e2e
-#
-#      - name: Check Pods
-#        run: |
-#          kubectl wait --for=condition=READY=true pod -l app.kubernetes.io/name=ingress-nginx --timeout=360s
-#          kubectl wait --for=condition=READY=true pod -l app.kubernetes.io/name=etcd --timeout=360s
-#          kubectl wait --for=condition=READY=true pod -l chart=featureform --timeout=360s
-#          kubectl get pods
-#        shell: bash
-#
-#      - name: Enable Minikube Ingress
-#        run: |
-#          kubectl port-forward svc/featureform-ingress-nginx-controller 8000:443 7000:80 &
-#          kubectl port-forward svc/featureform-etcd 2379:2379 &
-#
-#      - name: Wait For Ingress To Be Active
-#        shell: bash
-#        run: |
-#          count=0
-#          while [ $count -lt 10 ]
-#          do
-#            if curl localhost:7000; then
-#              echo "Connected"
-#              exit 0
-#            else
-#              echo "Waiting for connection"
-#              count=$((count + 1))
-#              sleep 1
-#            fi
-#          done
-#          exit 1
-#
 
-#
-#      - name: Run Test
-#        run: pytest client/tests/e2e.py
-        
       - name: Reset Quickstart
         run: |
           helm uninstall quickstart

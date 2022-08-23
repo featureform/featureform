@@ -3,7 +3,7 @@ import time
 import pytest
 import requests
 
-MAX_RETRIES = 20
+MAX_RETRIES = 60
 RETRY_WAIT = 5
 
 users = [

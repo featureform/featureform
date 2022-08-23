@@ -20,6 +20,10 @@ spec:
       labels:
         {{- include "postgres.selectorLabels" . | nindent 8 }}
     spec:
+      volumes:
+      - name: dshm
+        emptyDir:
+          medium: Memory
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -41,6 +45,9 @@ spec:
             - name: POSTGRES_PASSWORD
               value: password
           args: ["-c", "max_connections=10000"]
+          volumeMounts:
+            - mountPath: /dev/shm
+              name: dshm
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}

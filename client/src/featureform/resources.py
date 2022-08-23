@@ -455,6 +455,7 @@ class Source:
             self.definition = self.definition.query
         elif type(self.definition) == PrimaryData:
             self.definition = self.definition.name()
+            self.is_transformation = SourceType.PRIMARY_SOURCE.value
         db.insert_source("source_variant",
                          str(time.time()),
                          self.description,

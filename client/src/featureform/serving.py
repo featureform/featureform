@@ -45,7 +45,7 @@ class ServingClient:
             host (str): The hostname of the Featureform instance. Exclude if using Localmode.
             local (bool): True if using Localmode.
             insecure (bool): True if connecting to an insecure Featureform endpoint. False if using a self-signed or public TLS certificate
-            cert_path (bool): The path to a public certificate if using a self-signed certificate.
+            cert_path (str): The path to a public certificate if using a self-signed certificate.
         """
         if local and host:
             raise ValueError("Host and local cannot both be set")
@@ -188,7 +188,8 @@ class LocalClientImpl:
         return new_data
 
     def get_label_dataframe(self, label):
-        if self.db.is_transformation(label['source_name'], label['source_variant']) != SourceType.PRIMARY_SOURCE.value:
+        transform_type = self.db.is_transformation(label['source_name'], label['source_variant'])
+        if transform_type == SourceType.SQL_TRANSFORMATION.value or transform_type == SourceType.DF_TRANSFORMATION.value:
             label_df = self.label_df_from_transformation(label)
         else:
             label_source = self.db.get_source_variant(label['source_name'], label['source_variant'])
@@ -221,8 +222,8 @@ class LocalClientImpl:
 
     def get_feature_dataframe(self, feature):
         name_variant = feature['name'] + "." + feature['variant']
-        if self.db.is_transformation(feature['source_name'],
-                                     feature['source_variant']) != SourceType.PRIMARY_SOURCE.value:
+        transform_type = self.db.is_transformation(feature['source_name'], feature['source_variant'])
+        if transform_type == SourceType.SQL_TRANSFORMATION.value or transform_type == SourceType.DF_TRANSFORMATION.value:
             feature_df = self.feature_df_from_transformation(feature)
         else:
             source = self.db.get_source_variant(feature['source_name'], feature['source_variant'])

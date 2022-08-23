@@ -193,14 +193,14 @@ class LocalProvider:
         Register a Dataframe transformation source. The local.df_transformation decorator takes the contents
         of the following function and executes the code it contains at serving time.
 
-        The name of the function is the name of the resulting source.
+        The name of the function is used as the name of the source when being registered.
 
         The specified inputs are loaded into dataframes that can be accessed using the function parameters.
 
         **Examples**:
         ``` py
         @local.df_transformation(inputs=[("source", "one"), ("source", "two")]) # Sources are added as inputs
-        def average_user_transaction(source_one, source_two):                   # Sources can be manipulated by adding them as params
+        def average_user_transaction(df_one, df_two):                           # Sources can be manipulated by adding them as params
             return source_one.groupby("CustomerID")["TransactionAmount"].mean()
         ```
 
@@ -341,7 +341,7 @@ class LocalSource:
             entity_column="CustomerID",
             inference_store=local,
             features=[
-                {"name": "avg_transactions", "variant": "quickstart", "column": "TransactionAmount", "type": "float32"},
+                {"name": <feature name>, "variant": <feature variant>, "column": <value column>, "type": "float32"}, # Column Mapping
             ],
         )
         ```
@@ -1591,7 +1591,7 @@ class ResourceClient(Registrar):
             host (str): The hostname of the Featureform instance. Exclude if using Localmode.
             local (bool): True if using Localmode.
             insecure (bool): True if connecting to an insecure Featureform endpoint. False if using a self-signed or public TLS certificate
-            cert_path (bool): The path to a public certificate if using a self-signed certificate.
+            cert_path (str): The path to a public certificate if using a self-signed certificate.
         """
         super().__init__()
         self._stub = None

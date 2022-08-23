@@ -1,11 +1,11 @@
 name: Update Pypi
-on: pull_request
-#  workflow_dispatch:
-#    inputs:
-#      version:
-#        description: 'Version of python package to deploy'
-#        required: true
-#        type: string
+on: 
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version of python package to deploy'
+        required: true
+        type: string
 jobs:
   python:
     name: Package Python

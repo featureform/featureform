@@ -132,7 +132,7 @@ test_go_unit:
 
 ##############################################  MINIKUBE ###############################################################
 
-containers:						## Build Docker containers for Minikube
+containers: gen_grpc						## Build Docker containers for Minikube
 	minikube image build -f ./api/Dockerfile . -t local/api-server:stable & \
 	minikube image build -f ./dashboard/Dockerfile . -t local/dashboard:stable & \
 	minikube image build -f ./coordinator/Dockerfile . -t local/coordinator:stable & \
@@ -165,10 +165,10 @@ install_featureform: start_minikube containers		## Configures Featureform on Min
 test_e2e: update_python					## Runs End-to-End tests on minikube
 	pip3 install requests
 	-helm install quickstart ./charts/quickstart
-	kubectl wait --for=condition=complete job/featureform-quickstart-loader --timeout=360s
-	kubectl wait --for=condition=READY=true pod -l app.kubernetes.io/name=ingress-nginx --timeout=360s
-	kubectl wait --for=condition=READY=true pod -l app.kubernetes.io/name=etcd --timeout=360s
-	kubectl wait --for=condition=READY=true pod -l chart=featureform --timeout=360s
+	kubectl wait --for=condition=complete job/featureform-quickstart-loader --timeout=720s
+	kubectl wait --for=condition=READY=true pod -l app.kubernetes.io/name=ingress-nginx --timeout=720s
+	kubectl wait --for=condition=READY=true pod -l app.kubernetes.io/name=etcd --timeout=720s
+	kubectl wait --for=condition=READY=true pod -l chart=featureform --timeout=720s
 
 	-kubectl port-forward svc/featureform-ingress-nginx-controller 8000:443 7000:80 &
 	-kubectl port-forward svc/featureform-etcd 2379:2379 &
@@ -179,7 +179,7 @@ test_e2e: update_python					## Runs End-to-End tests on minikube
 	featureform apply client/examples/quickstart.py --host localhost:8000 --cert tls.crt
 	pytest client/tests/e2e.py
 
-reset_e2e: etcd						## Resets Cluster. Requires install_etcd
+reset_e2e:  			 			## Resets Cluster. Requires install_etcd
 	-kubectl port-forward svc/featureform-etcd 2379:2379 &
 	while ! echo exit | nc localhost 2379; do sleep 10; done
 	etcdctl --user=root:secretpassword del "" --prefix

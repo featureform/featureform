@@ -19,3 +19,4 @@ terraform.tfstate*
 **/site/
 **/.featureform
 testing-terraform.tfvars
+client/src/featureform/dashboard/**

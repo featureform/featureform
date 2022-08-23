@@ -1,11 +1,11 @@
 name: Update Pypi
-on: pull_request
-#  workflow_dispatch:
-#    inputs:
-#      version:
-#        description: 'Version of python package to deploy'
-#        required: true
-#        type: string
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version of python package to deploy'
+        required: true
+        type: string
 jobs:
   python:
     name: Package Python
@@ -46,6 +46,6 @@ jobs:
       - name: Set Version Number
         run: sed -i -e 's/0.0.0/${{ inputs.version }}/g' ./client/setup.cfg
 
-#      - name: Package and Upload
-#        run: ./gen_pypi.sh
+      - name: Package and Upload
+        run: ./gen_pypi.sh
 

@@ -353,22 +353,35 @@ jobs:
 
       - name: Quickstart Loader Logs
         if: always()
+        continue-on-error: true
         run: kubectl logs -l job-name=featureform-quickstart-loader
 
       - name: Cleanup Featureform
         if: always()
+        continue-on-error: true
         run: helm uninstall featureform
 
       - name: Cleanup Cert Manager
         if: always()
+        continue-on-error: true
         run: helm uninstall certmgr --namespace cert-manager
 
       - name: Cleanup Quickstart
         if: always()
+        continue-on-error: true
         run: helm uninstall quickstart
 
       - name: Cleanup Docker
         if: always()
+        continue-on-error: true
         run: | 
           docker system prune -a
           docker rmi $(docker images -a -q)
+
+      - name: Cleanup PVC
+        if: always()
+        continue-on-error: true
+        run: |
+          kubectl delete pvc data-featureform-etcd-0
+          kubectl delete pvc data-featureform-etcd-1
+          kubectl delete pvc data-featureform-etcd-2

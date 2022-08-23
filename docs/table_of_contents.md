@@ -14,6 +14,9 @@
 * [Interact with the CLI](getting-started/interact-with-the-cli.md)
 * [Exploring the Feature Registry](getting-started/exploring-the-feature-registry.md)
 
+## Reference
+* [Python SDK](https://sdk.featureform.com)
+
 ## Providers
 
 * [Redis](providers/redis.md)

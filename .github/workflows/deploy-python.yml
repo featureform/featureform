@@ -1,5 +1,5 @@
 name: Update Pypi
-on:
+on: 
   workflow_dispatch:
     inputs:
       version:
@@ -27,9 +27,6 @@ jobs:
 
       - name: Install
         run: npm install --legacy-peer-deps
-        working-directory: ./dashboard
-
-      - run: npm run build --omit=dev
         working-directory: ./dashboard
 
       - name: Install grpc_tools

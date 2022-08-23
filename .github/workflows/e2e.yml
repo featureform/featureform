@@ -235,10 +235,13 @@ jobs:
           /tmp/etcd-download-test/etcd --version
           /tmp/etcd-download-test/etcdctl version
 
-      - name: Start minikube
+      - name: Install minikube and helm
         run: |
           curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
           sudo install minikube-linux-amd64 /usr/local/bin/minikube
+          curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+          chmod 700 get_helm.sh
+          ./get_helm.sh
 
       - name: Configure Docker Socket
         run: eval $(minikube docker-env)

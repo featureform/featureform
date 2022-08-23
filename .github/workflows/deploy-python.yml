@@ -1,11 +1,11 @@
 name: Update Pypi
-on: 
-  workflow_dispatch: 
-    inputs:
-      version:
-        description: 'Version of python package to deploy'
-        required: true
-        type: string
+on: pull_request
+#  workflow_dispatch:
+#    inputs:
+#      version:
+#        description: 'Version of python package to deploy'
+#        required: true
+#        type: string
 jobs:
   python:
     name: Package Python
@@ -24,7 +24,7 @@ jobs:
           node-version: 16
           cache: 'npm'
           cache-dependency-path: dashboard/package-lock.json
-      - run: npm run build --production
+      - run: npm run build --omit=dev
         working-directory: ./dashboard
 
       - name: Install grpc_tools
@@ -41,6 +41,6 @@ jobs:
       - name: Set Version Number
         run: sed -i -e 's/0.0.0/${{ inputs.version }}/g' ./client/setup.cfg
 
-      - name: Package and Upload
-        run: ./gen_pypi.sh
+#      - name: Package and Upload
+#        run: ./gen_pypi.sh
 

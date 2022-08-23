@@ -1,6 +1,6 @@
 name: Update Pypi
-on: 
-  workflow_dispatch: 
+on:
+  workflow_dispatch:
     inputs:
       version:
         description: 'Version of python package to deploy'
@@ -24,7 +24,12 @@ jobs:
           node-version: 16
           cache: 'npm'
           cache-dependency-path: dashboard/package-lock.json
-      - run: npm ci
+
+      - name: Install
+        run: npm install --legacy-peer-deps
+        working-directory: ./dashboard
+
+      - run: npm run build --omit=dev
         working-directory: ./dashboard
 
       - name: Install grpc_tools

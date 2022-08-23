@@ -194,7 +194,7 @@ jobs:
     defaults:
       run:
         working-directory: ./
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
       - name: Download artifact
@@ -205,7 +205,9 @@ jobs:
 
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.7'
+          python-version: "3.7"
+          check-latest: true
+
 
       - name: Check Artifacts
         run: |
@@ -217,9 +219,6 @@ jobs:
 
       - name: Install Protobuf
         run: sudo snap install protobuf --classic
-
-      - name: Setup Proto
-        run: ./gen_grpc.sh
 
       - name: Install etcdctl
         env:
@@ -236,27 +235,13 @@ jobs:
           /tmp/etcd-download-test/etcd --version
           /tmp/etcd-download-test/etcdctl version
 
-      - name: Install python dependencies
-        working-directory: ./
+      - name: Install minikube and helm
         run: |
-          python3 -m pip install build pytest
-          python3 -m build ./client/
-          pip install client/dist/*.whl
-
-      - name: Start minikube
-        run: |
-          curl -LO \
-            https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64 \
-            && install minikube-linux-amd64 /tmp/
-  
-            kv=$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)
-            curl -LO \
-            https://storage.googleapis.com/kubernetes-release/release/$kv/bin/linux/amd64/kubectl \
-            && install kubectl /tmp/
-  
-            /tmp/minikube-linux-amd64 config set WantUpdateNotification false
-            /tmp/minikube-linux-amd64 start --driver=docker
-
+          curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+          sudo install minikube-linux-amd64 /usr/local/bin/minikube
+          curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+          chmod 700 get_helm.sh
+          ./get_helm.sh
 
       - name: Configure Docker Socket
         run: eval $(minikube docker-env)
@@ -285,46 +270,16 @@ jobs:
           helm repo update
           helm install certmgr jetstack/cert-manager --set installCRDs=true --version v1.8.0 --namespace cert-manager --create-namespace
           helm install featureform ./charts/featureform --set global.repo=local --set global.pullPolicy=Never --set global.version=stable
-          helm install quickstart ./charts/quickstart --set global.data_size=long
-
-      - name: Check Pods
-        run: |
-          kubectl wait --for=condition=READY=true pod -l app.kubernetes.io/name=ingress-nginx --timeout=360s
-          kubectl wait --for=condition=READY=true pod -l app.kubernetes.io/name=etcd --timeout=360s
-          kubectl wait --for=condition=READY=true pod -l chart=featureform --timeout=360s
-          kubectl get pods
-        shell: bash
-
-      - name: Enable Minikube Ingress
-        run: |
-          kubectl port-forward svc/featureform-ingress-nginx-controller 8000:443 7000:80 &
-          kubectl port-forward svc/featureform-etcd 2379:2379 &
-
-      - name: Wait For Ingress To Be Active
-        shell: bash
-        run: |
-          count=0
-          while [ $count -lt 10 ]
-          do
-            if curl localhost:7000; then
-              echo "Connected"
-              exit 0
-            else
-              echo "Waiting for connection"
-              count=$((count + 1))
-              sleep 1
-            fi
-          done
-          exit 1
 
       - name: Run CLI
         run: |
           kubectl get secret featureform-ca-secret -o=custom-columns=':.data.tls\.crt'| base64 -d > tls.crt
-          featureform apply client/examples/quickstart.py --host localhost:8000 --cert tls.crt
+          export FEATUREFORM_HOST="localhost:443"
+          export FEATUREFORM_CERT="tls.crt"
 
-      - name: Run Test
-        run: pytest client/tests/e2e.py
-        
+      - name: Test End-to-End
+        run: make test_e2e
+
       - name: Reset Quickstart
         run: |
           helm uninstall quickstart
@@ -360,6 +315,10 @@ jobs:
 #      - name: Run List Test
 #        run: pytest client/src/featureform/list_test.py
 
+      - name: K8s Pods
+        if: always()
+        run: kubectl get pods
+
       - name: API Server Logs
         if: always()
         run: kubectl logs -l app=featureform-api-server
@@ -391,3 +350,38 @@ jobs:
       - name: Metadata Server Logs
         if: always()
         run: kubectl logs -l app=featureform-metadata-server
+
+      - name: Quickstart Loader Logs
+        if: always()
+        continue-on-error: true
+        run: kubectl logs -l job-name=featureform-quickstart-loader
+
+      - name: Cleanup Featureform
+        if: always()
+        continue-on-error: true
+        run: helm uninstall featureform
+
+      - name: Cleanup Cert Manager
+        if: always()
+        continue-on-error: true
+        run: helm uninstall certmgr --namespace cert-manager
+
+      - name: Cleanup Quickstart
+        if: always()
+        continue-on-error: true
+        run: helm uninstall quickstart
+
+      - name: Cleanup Docker
+        if: always()
+        continue-on-error: true
+        run: | 
+          docker system prune -a
+          docker rmi $(docker images -a -q)
+
+      - name: Cleanup PVC
+        if: always()
+        continue-on-error: true
+        run: |
+          kubectl delete pvc data-featureform-etcd-0
+          kubectl delete pvc data-featureform-etcd-1
+          kubectl delete pvc data-featureform-etcd-2

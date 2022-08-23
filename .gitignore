@@ -19,3 +19,6 @@ terraform.tfstate*
 **/site/
 **/.featureform
 testing-terraform.tfvars
+
+provider/scripts/tests/test_files/output*
+*.coverage

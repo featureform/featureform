@@ -164,6 +164,25 @@ def test_register_redshift(registrar, args):
 def test_register_bigquery(registrar, args):
     registrar.register_bigquery(**args)
 
+@pytest.mark.parametrize("args", [
+    {
+        "name": "spark_aws"
+    },
+    {
+        "name": "sparkaws",
+        "description": "test",
+        "team": "featureform",
+        "emr_cluster_id": "test_cluster_id",
+        "bucket_path": "test_bucket",
+        "emr_cluster_region": "us-east-1",
+        "bucket_region": "us-east-1",
+        "credentials_path": "abc",
+    },
+])
+def test_register_spark_aws(registrar, args):
+    registrar.register_spark_aws(**args)
+
+
     
 minimal_user_args = {
     "name": "user",

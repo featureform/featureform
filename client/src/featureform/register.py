@@ -3,27 +3,21 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import marshal
-from distutils.command.config import config
-from typing_extensions import Self
-from numpy import byte
-from .resources import ResourceState, Provider, RedisConfig, FirestoreConfig, CassandraConfig, DynamodbConfig, \
+from client.src.featureform.resources import ResourceState, Provider, RedisConfig, FirestoreConfig, CassandraConfig, DynamodbConfig, SparkAWSConfig, \
     PostgresConfig, SnowflakeConfig, LocalConfig, RedshiftConfig, BigQueryConfig, User, Location, Source, PrimaryData, SQLTable, \
     SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet, ProviderReference, \
     EntityReference, SourceReference
 from typing import Tuple, Callable, List, Union
-from typeguard import typechecked, check_type
-import grpc
+from typeguard import typechecked
 import os
-from featureform.proto import metadata_pb2
 from featureform.proto import metadata_pb2_grpc as ff_grpc
-from .sqlite_metadata import SQLiteMetadata
-from .tls import insecure_channel, secure_channel
-import time
+from client.src.featureform.sqlite_metadata import SQLiteMetadata
+from client.src.featureform.tls import insecure_channel, secure_channel
 import pandas as pd
-from .get import *
-from .get_local import *
-from .list_local import *
-from .list import *
+from client.src.featureform.get import *
+from client.src.featureform.get_local import *
+from client.src.featureform.list_local import *
+from client.src.featureform.list import *
 
 NameVariant = Tuple[str, str]
 
@@ -864,6 +858,31 @@ class Registrar:
         self.__resources.append(get)
         fakeConfig = BigQueryConfig(project_id="", dataset_id="", credentials_path="")
         fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
+        return OfflineSQLProvider(self, fakeProvider) 
+
+    def get_spark_aws(self, name):
+        """Get a Spark provider. The returned object can be used to register additional resources.
+
+        **Examples**:
+        ``` py
+        spark = get_spark("spark-quickstart")
+        transactions = spark.register_table(
+            name="transactions",
+            variant="kaggle",
+            description="Fraud Dataset From Kaggle",
+            table="Transactions",  # This is the table's name in Postgres
+        )
+        ```
+        Args:
+            name (str): Name of Spark provider to be retrieved
+
+        Returns:
+            spark (OfflineSQLProvider): Provider
+        """
+        get = ProviderReference(name=name, provider_type="spark", obj=None)
+        self.__resources.append(get)
+        fakeConfig = SparkAWSConfig(emr_cluster_id="",bucket_path="",emr_cluster_region="",bucket_region="",credentials_path="")
+        fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
         return OfflineSQLProvider(self, fakeProvider)      
 
     def get_entity(self, name, local=False):
@@ -1200,6 +1219,57 @@ class Registrar:
                             config=config)
         self.__resources.append(provider)
         return OfflineSQLProvider(self, provider)
+
+    def register_spark_aws(self,
+                          name: str,
+                          description: str = "",
+                          team: str = "",
+                          emr_cluster_id: str = "",
+                          bucket_path: str = "",
+                          emr_cluster_region: str = "",
+                          bucket_region: str = "",
+                          credentials_path: str = ""):
+        """Register a Spark on AWS provider.
+
+        **Examples**:
+        ```   
+        bigquery = ff.register_spark_aws(
+            name="spark-quickstart",
+            description="A Spark deployment we created for the Featureform quickstart",
+            team="featureform-team"
+            emr_cluster_id="AAAAAA",
+            bucket_path="project_bucket",
+            emr_cluster_region="us-east-1",
+            bucket_region="us-east-2",
+            credentials_path="C:/path/to/creds/.config"
+        )
+        ```
+        Args:
+            name (str): Name of Spark AWS provider to be registered
+            description (str): Description of Spark AWS provider to be registered
+            team (str): Name of team
+            cluster_id (str): The id of the running EMR (Elastic Map Reduce) cluster with Spark enabled
+            bucket_path (str): The project's S3 path
+            emr_cluster_region (str): aws region of the cluster
+            bucket_region (str): aws region of the bucket
+            credientials_path (str): path to the credentials file containing AWS key id and secret key
+            
+        Returns:
+            spark_aws (OfflineSQLProvider): Provider
+        """
+        config = SparkAWSConfig(emr_cluster_id=emr_cluster_id,
+                                bucket_path=bucket_path,
+                                emr_cluster_region=emr_cluster_region,
+                                bucket_region=bucket_region,
+                                credentials_path=credentials_path,)
+        provider = Provider(name=name,
+                            function="OFFLINE",
+                            description=description,
+                            team=team,
+                            config=config)
+        self.__resources.append(provider)
+        return OfflineSQLProvider(self, provider)
+
 
 
     def register_local(self):

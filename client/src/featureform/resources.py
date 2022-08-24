@@ -10,7 +10,7 @@ from featureform.proto import metadata_pb2 as pb
 import grpc
 import json
 
-from .sqlite_metadata import SQLiteMetadata
+from client.src.featureform.sqlite_metadata import SQLiteMetadata
 from enum import Enum
 
 NameVariant = Tuple[str, str]
@@ -258,8 +258,32 @@ class BigQueryConfig:
         }
         return bytes(json.dumps(config), "utf-8")
 
+@typechecked
+@dataclass
+class SparkAWSConfig:
+    emr_cluster_id: str
+    bucket_path: str
+    emr_cluster_region: str
+    bucket_region: str
+    credentials_path: str
 
-Config = Union[RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig, BigQueryConfig]
+    def software(self) -> str:
+        return "spark"
+
+    def type(self) -> str:
+        return "SPARK_OFFLINE"
+
+    def serialize(self) -> bytes:
+        config = {
+            "EMRClusterId": self.emr_cluster_id,
+            "BucketPath": self.bucket_path,
+            "EMRClusterRegion": self.emr_cluster_region,
+            "BucketRegion": self.bucket_region,
+            "Credentials": json.load(open(self.credentials_path)),
+        }
+        return bytes(json.dumps(config), "utf-8")
+
+Config = Union[RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig, BigQueryConfig, SparkAWSConfig]
 
 @typechecked
 @dataclass

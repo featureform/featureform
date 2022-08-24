@@ -3,21 +3,21 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import marshal
-from client.src.featureform.resources import ResourceState, Provider, RedisConfig, FirestoreConfig, CassandraConfig, DynamodbConfig, SparkAWSConfig, \
-    PostgresConfig, SnowflakeConfig, LocalConfig, RedshiftConfig, BigQueryConfig, User, Location, Source, PrimaryData, SQLTable, \
+from .resources import ResourceState, Provider, RedisConfig, FirestoreConfig, CassandraConfig, DynamodbConfig, \
+    PostgresConfig, SnowflakeConfig, LocalConfig, RedshiftConfig, BigQueryConfig, SparkAWSConfig, User, Location, Source, PrimaryData, SQLTable, \
     SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet, ProviderReference, \
     EntityReference, SourceReference
 from typing import Tuple, Callable, List, Union
 from typeguard import typechecked
 import os
 from featureform.proto import metadata_pb2_grpc as ff_grpc
-from client.src.featureform.sqlite_metadata import SQLiteMetadata
-from client.src.featureform.tls import insecure_channel, secure_channel
+from .sqlite_metadata import SQLiteMetadata
+from .tls import insecure_channel, secure_channel
 import pandas as pd
-from client.src.featureform.get import *
-from client.src.featureform.get_local import *
-from client.src.featureform.list_local import *
-from client.src.featureform.list import *
+from .get import *
+from .get_local import *
+from .list_local import *
+from .list import *
 
 NameVariant = Tuple[str, str]
 

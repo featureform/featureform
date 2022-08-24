@@ -299,36 +299,11 @@ func TestParquetUpload(t *testing.T) {
 	if testing.Short() {
 		return
 	}
-	emrConf := EMRConfig{
-		AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
-		AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),
-		ClusterRegion:  os.Getenv("AWS_EMR_CLUSTER_REGION"),
-		ClusterName:    os.Getenv("AWS_EMR_CLUSTER_ID"),
-	}
-	emrSerializedConfig := emrConf.Serialize()
-	s3Conf := S3Config{
-		AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
-		AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),
-		BucketRegion:   os.Getenv("S3_BUCKET_REGION"),
-		BucketPath:     os.Getenv("S3_BUCKET_PATH"),
-	}
-	s3SerializedConfig := s3Conf.Serialize()
-	SparkOfflineConfig := SparkConfig{
-		ExecutorType:   EMR,
-		ExecutorConfig: string(emrSerializedConfig),
-		StoreType:      S3,
-		StoreConfig:    string(s3SerializedConfig),
-	}
-	sparkSerializedConfig := SparkOfflineConfig.Serialize()
-	sparkProvider, err := Get("SPARK_OFFLINE", sparkSerializedConfig)
+	sparkOfflineStore, err := getSparkOfflineStore(t)
 	if err != nil {
-		t.Fatalf("Could not create spark provider: %s", err)
+		t.Fatalf("could not get SparkOfflineStore: %s", err)
 	}
-	sparkStore, err := sparkProvider.AsOfflineStore()
-	if err != nil {
-		t.Fatalf("Could not convert spark provider to offline store: %s", err)
-	}
-	sparkOfflineStore := sparkStore.(*SparkOfflineStore)
+
 	if err := testTableUploadCompare(sparkOfflineStore); err != nil {
 		t.Fatalf("Upload test failed: %s", err)
 	}
@@ -515,7 +490,7 @@ func TestSparkSQLTransformation(t *testing.T) {
 				SourceMapping: []SourceMapping{
 					SourceMapping{
 						Template: "{{test_name.test_variant}}",
-						Source:   "s3://featureform-spark-testing/featureform/testprimary/testFile.parquet",
+						Source:   "s3://featureform-spark-testing/featureform/Primary/test_name/test_variant",
 					},
 				},
 			},
@@ -535,7 +510,7 @@ func TestSparkSQLTransformation(t *testing.T) {
 				SourceMapping: []SourceMapping{
 					SourceMapping{
 						Template: "{{test_name.test_variant}}",
-						Source:   "s3://featureform-spark-testing/fake/file/path/testFile.parquet",
+						Source:   "s3://featureform-spark-testing/featureform/Primary/test_fake_name/test_fake_variant",
 					},
 				},
 			},
@@ -632,17 +607,17 @@ func TestUpdateQuery(t *testing.T) {
 			[]SourceMapping{
 				SourceMapping{
 					Template: "{{name1.variant1}}",
-					Source:   "s3://featureform/name1/variant1/file",
+					Source:   "s3://featureform-spark-testing/featureform/Primary/test_name/test_variant",
 				},
 				SourceMapping{
 					Template: "{{name2.variant2}}",
-					Source:   "s3://featureform/name2/variant2/file",
+					Source:   "s3://featureform-spark-testing/featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant",
 				},
 			},
 			"SELECT * FROM source_0 and more source_1",
 			[]string{
-				"s3://featureform/name1/variant1/file",
-				"s3://featureform/name2/variant2/file",
+				"s3://featureform-spark-testing/featureform/testprimary/testFile.parquet",
+				"s3://featureform-spark-testing/featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant/2022-08-19 17:37:36.546384/part-00000-c93fe1fb-4ab0-45df-9292-b139e4043181-c000.snappy.parquet",
 			},
 			false,
 		},
@@ -652,12 +627,12 @@ func TestUpdateQuery(t *testing.T) {
 			[]SourceMapping{
 				SourceMapping{
 					Template: "{{name1.variant1}}",
-					Source:   "s3://featureform/name1/variant1",
+					Source:   "s3://featureform-spark-testing/featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant",
 				},
 			},
 			"SELECT * FROM source_0",
 			[]string{
-				"s3://featureform/name1/variant1",
+				"s3://featureform-spark-testing/featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant/2022-08-19 17:37:36.546384/part-00000-c93fe1fb-4ab0-45df-9292-b139e4043181-c000.snappy.parquet",
 			},
 			false,
 		},
@@ -667,20 +642,25 @@ func TestUpdateQuery(t *testing.T) {
 			[]SourceMapping{
 				SourceMapping{
 					Template: "{{name1.variant1}}",
-					Source:   "s3://featureform/name1/variant1",
+					Source:   "s3://featureform-bucket/featureform/Transformation/name1/variant1/file",
 				},
 			},
 			"SELECT * FROM source_0",
 			[]string{
-				"s3://featureform/name1/variant1",
+				"s3://featureform-bucket/featureform/Transformation/name1/variant1/file",
 			},
 			true,
 		},
 	}
 
+	store, err := getSparkOfflineStore(t)
+	if err != nil {
+		t.Fatalf("could not get SparkOfflineStore: %s", err)
+	}
+
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
-			retreivedQuery, sources, err := updateQuery(tt.query, tt.sourceMap)
+			retreivedQuery, sources, err := store.updateQuery(tt.query, tt.sourceMap)
 
 			if !tt.expectedFailure && err != nil {
 				t.Fatalf("Could not replace the template query: %v", err)
@@ -693,7 +673,6 @@ func TestUpdateQuery(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestGetTransformation(t *testing.T) {
@@ -732,6 +711,58 @@ func TestGetTransformation(t *testing.T) {
 
 			if caseNumRow != tt.expectedRowCount {
 				t.Fatalf("Row count do not match. Expected \" %v \", got \" %v \".", caseNumRow, tt.expectedRowCount)
+			}
+		})
+	}
+}
+
+func TestGetSourcePath(t *testing.T) {
+	cases := []struct {
+		name            string
+		sourcePath      string
+		expectedPath    string
+		expectedFailure bool
+	}{
+		{
+			"PrimaryPathSuccess",
+			"s3://featureform-spark-testing/featureform/Primary/test_name/test_variant",
+			"s3://featureform-spark-testing/featureform/testprimary/testFile.parquet",
+			false,
+		},
+		{
+			"TransformationPathSuccess",
+			"s3://featureform-spark-testing/featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant",
+			"s3://featureform-spark-testing/featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant/2022-08-19 17:37:36.546384/part-00000-c93fe1fb-4ab0-45df-9292-b139e4043181-c000.snappy.parquet",
+			false,
+		},
+		{
+			"PrimaryPathFailure",
+			"s3://featureform-spark-testing/featureform/Primary/fake_name/fake_variant",
+			"",
+			true,
+		},
+		{
+			"TransformationPathFailure",
+			"s3://featureform-spark-testing/featureform/Transformation/fake_028f6213-77a8-43bb-9d91-dd7e9ee96102/fake_variant",
+			"",
+			true,
+		},
+	}
+
+	store, err := getSparkOfflineStore(t)
+	if err != nil {
+		t.Fatalf("could not get SparkOfflineStore: %s", err)
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			retreivedPath, err := store.getSourcePath(tt.sourcePath)
+			if !tt.expectedFailure && err != nil {
+				t.Fatalf("getSourcePath could not get the path because %s.", err)
+			}
+
+			if !tt.expectedFailure && !reflect.DeepEqual(tt.expectedPath, retreivedPath) {
+				t.Fatalf("getSourcePath could not find the expected path. Expected \"%s\", got \"%s\".", tt.expectedPath, retreivedPath)
 			}
 		})
 	}

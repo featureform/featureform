@@ -506,8 +506,6 @@ func stringifyStructField(data interface{}, idx int) string {
 		return fmt.Sprintf(`{"Tag": "name=%s, type=BYTE_ARRAY, convertedtype=UTF8"}`, jsonFriendlyFieldName)
 	case "int":
 		return fmt.Sprintf(`{"Tag": "name=%s, type=INT32"}`, jsonFriendlyFieldName)
-	case "float":
-		return fmt.Sprintf(`{"Tag": "name=%s, type=FLOAT"}`, jsonFriendlyFieldName)
 	case "float32":
 		return fmt.Sprintf(`{"Tag": "name=%s, type=FLOAT"}`, jsonFriendlyFieldName)
 	case "int32":
@@ -654,6 +652,9 @@ func typeConvertValue(value interface{}) interface{} {
 func compareStructs(local interface{}, fetched interface{}) error {
 	localStruct := reflect.ValueOf(local)
 	fetchedStruct := reflect.ValueOf(fetched)
+	if localStruct.NumField() != fetchedStruct.NumField() {
+		return fmt.Errorf("structs do not have the same number of fields")
+	}
 	for i := 0; i < localStruct.NumField(); i++ {
 		localValue := typeConvertValue(localStruct.Field(i).Interface())
 		fetchedValue := typeConvertValue(fetchedStruct.Field(i).Interface())

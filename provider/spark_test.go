@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	s3Types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 )
@@ -406,14 +407,17 @@ func TestParquetUpload(t *testing.T) {
 }
 
 func TestStringifyValue(t *testing.T) {
+	type randomStruct struct{}
 	testValueMap := map[interface{}]string{
 		"test":            `"test"`,
 		10:                "10",
+		1.1:               "1.1",
 		float64(10.1):     "10.1",
 		float32(10.1):     "10.1",
 		int32(10):         "10",
 		false:             "false",
 		time.UnixMilli(0): "0",
+		randomStruct{}:    "",
 	}
 
 	for k, v := range testValueMap {
@@ -498,19 +502,32 @@ func TestStringifyStructArray(t *testing.T) {
 }
 
 func TestStringifyStructField(t *testing.T) {
-	exampleInstance := exampleStruct{
+	type testStruct struct {
+		Name       string
+		Age        int
+		Points     int32
+		Score      float32
+		Winner     bool
+		Registered time.Time
+		Offshoot   exampleStruct
+	}
+	exampleInstance := testStruct{
 		Name:       "John Smith",
 		Age:        30,
-		Score:      100.4,
+		Points:     int32(10),
+		Score:      float32(100.4),
 		Winner:     false,
 		Registered: time.UnixMilli(0),
+		Offshoot:   exampleStruct{},
 	}
 	desiredResults := []string{
 		`{"Tag": "name=name, type=BYTE_ARRAY, convertedtype=UTF8"}`,
 		`{"Tag": "name=age, type=INT32"}`,
+		`{"Tag": "name=points, type=INT32"}`,
 		`{"Tag": "name=score, type=FLOAT"}`,
 		`{"Tag": "name=winner, type=BOOLEAN"}`,
 		`{"Tag": "name=registered, type=INT64"}`,
+		"",
 	}
 
 	reflectedStruct := reflect.ValueOf(exampleInstance)
@@ -551,6 +568,13 @@ func TestGenerateSchemaFromInterface(t *testing.T) {
 	json.Unmarshal([]byte(schema), &resultMap)
 	if !reflect.DeepEqual(jsonMap, resultMap) {
 		t.Fatalf("Marshalled json schemas are not equal")
+	}
+}
+
+func TestGenerateSchemaNoData(t *testing.T) {
+	emptyInterface := []interface{}{}
+	if _, err := generateSchemaFromInterface(emptyInterface); err == nil {
+		t.Fatalf("failed to trigger error on empty interface")
 	}
 }
 
@@ -1116,4 +1140,206 @@ func getSparkOfflineStore(t *testing.T) (*SparkOfflineStore, error) {
 
 	sparkOfflineStore := sparkStore.(*SparkOfflineStore)
 	return sparkOfflineStore, nil
+}
+
+// Unit tests
+
+func TestSparkConfigDeserialize(t *testing.T) {
+	correctSparkConfig := SparkConfig{
+		ExecutorType:   "EMR",
+		ExecutorConfig: "",
+		StoreType:      "S3",
+		StoreConfig:    "",
+	}
+	serializedConfig := correctSparkConfig.Serialize()
+	reserializedConfig := SparkConfig{}
+	if err := reserializedConfig.Deserialize(SerializedConfig(serializedConfig)); err != nil {
+		t.Fatalf("error deserializing spark config")
+	}
+	invalidConfig := SerializedConfig("invalidConfig")
+	invalidDeserialized := SparkConfig{}
+	if err := invalidDeserialized.Deserialize(invalidConfig); err == nil {
+		t.Fatalf("did not return error on deserializing improper config")
+	}
+}
+
+func TestEMRConfigDeserialize(t *testing.T) {
+	correctEMRConfig := EMRConfig{
+		AWSAccessKeyId: "",
+		AWSSecretKey:   "",
+		ClusterRegion:  "us-east-1",
+		ClusterName:    "example",
+	}
+	serializedConfig := correctEMRConfig.Serialize()
+	reserializedConfig := EMRConfig{}
+	if err := reserializedConfig.Deserialize(SerializedConfig(serializedConfig)); err != nil {
+		t.Fatalf("error deserializing emr config")
+	}
+	invalidConfig := SerializedConfig("invalidConfig")
+	invalidDeserialized := EMRConfig{}
+	if err := invalidDeserialized.Deserialize(invalidConfig); err == nil {
+		t.Fatalf("did not return error on deserializing improper config")
+	}
+}
+
+func TestS3ConfigDeserialize(t *testing.T) {
+	correctSparkConfig := S3Config{
+		AWSAccessKeyId: "",
+		AWSSecretKey:   "",
+		BucketRegion:   "us-east-1",
+		BucketPath:     "example",
+	}
+	serializedConfig := correctSparkConfig.Serialize()
+	reserializedConfig := S3Config{}
+	if err := reserializedConfig.Deserialize(SerializedConfig(serializedConfig)); err != nil {
+		t.Fatalf("error deserializing spark config")
+	}
+	invalidConfig := SerializedConfig("invalidConfig")
+	invalidDeserialized := S3Config{}
+	if err := invalidDeserialized.Deserialize(invalidConfig); err == nil {
+		t.Fatalf("did not return error on deserializing improper config")
+	}
+}
+
+func TestMaterializationCreate(t *testing.T) {
+	exampleSchemaWithTS := ResourceSchema{
+		Entity: "entity",
+		Value:  "value",
+		TS:     "timestamp",
+	}
+	queries := defaultSparkOfflineQueries{}
+	materializeQuery := queries.materializationCreate(exampleSchemaWithTS)
+	correctQuery := "SELECT entity, value, ts, ROW_NUMBER() over (ORDER BY (SELECT NULL)) AS row_number FROM (SELECT entity, value, ts, rn FROM (SELECT entity AS entity, value AS value, timestamp AS ts, ROW_NUMBER() OVER (PARTITION BY entity ORDER BY timestamp DESC) AS rn FROM source_0) t WHERE rn=1) t2"
+	if correctQuery != materializeQuery {
+		t.Fatalf("Materialize create did not produce correct query")
+	}
+
+	exampleSchemaWithoutTS := ResourceSchema{
+		Entity: "entity",
+		Value:  "value",
+	}
+	materializeTSQuery := queries.materializationCreate(exampleSchemaWithoutTS)
+	correctTSQuery := "SELECT entity, value, ts, ROW_NUMBER() over (ORDER BY (SELECT NULL)) AS row_number FROM (SELECT entity, value, ts, rn FROM (SELECT entity AS entity, value AS value, ts AS ts, ROW_NUMBER() OVER (PARTITION BY entity ORDER BY ts DESC) AS rn FROM source_0) t WHERE rn=1) t2"
+	if correctTSQuery != materializeTSQuery {
+		t.Fatalf("Materialize create did not produce correct query substituting timestamp")
+	}
+}
+
+func TestTrainingSetCreate(t *testing.T) {
+	// (def TrainingSetDef, featureSchemas []ResourceSchema, labelSchema ResourceSchema
+	testTrainingSetDef := TrainingSetDef{
+		ID: ResourceID{"test_training_set", "default", TrainingSet},
+		Features: []ResourceID{
+			{"test_feature_1", "default", Feature},
+			{"test_feature_2", "default", Feature},
+		},
+		Label: ResourceID{"test_label", "default", Label},
+	}
+	testFeatureSchemas := []ResourceSchema{
+		{
+			Entity: "entity",
+			Value:  "feature_value_1",
+			TS:     "ts",
+		},
+		{
+			Entity: "entity",
+			Value:  "feature_value_2",
+			TS:     "ts",
+		},
+	}
+	testLabelSchema := ResourceSchema{
+		Entity: "entity",
+		Value:  "label_value",
+		TS:     "ts",
+	}
+	queries := defaultSparkOfflineQueries{}
+	trainingSetQuery := queries.trainingSetCreate(testTrainingSetDef, testFeatureSchemas, testLabelSchema)
+	correctQuery := "SELECT Feature__test_feature_1__default, Feature__test_feature_2__default, value AS Label__test_label__default FROM ((SELECT * FROM (SELECT entity, value, ts, rn " +
+		"FROM (SELECT entity AS entity, label_value AS value, ts AS ts, ROW_NUMBER() over (PARTITION BY entity, label_value, ts ORDER BY ts DESC) AS rn FROM source_0) t WHERE rn = 1) t0) LEFT OUTER JOIN (SELECT entity as t1_entity, feature_value_1 as Feature__test_feature_1__default, ts as t1_ts FROM source_1) t1 ON (t1_entity = entity AND t1_ts <= ts) LEFT OUTER JOIN (SELECT entity as t2_entity, feature_value_2 as Feature__test_feature_2__default, ts as t2_ts FROM source_2) t2 ON (t2_entity = entity AND t2_ts <= ts))"
+	if trainingSetQuery != correctQuery {
+		t.Fatalf("training set query not correct")
+	}
+}
+
+func TestCompareStructsFail(t *testing.T) {
+	type testStruct struct {
+		Field string
+	}
+	firstStruct := testStruct{"first"}
+	secondStruct := testStruct{"second"}
+	if err := compareStructs(firstStruct, secondStruct); err == nil {
+		t.Fatalf("failed to trigger error with unequal structs")
+	}
+	type similarStruct struct {
+		Field int
+	}
+	firstStructSimilar := testStruct{"1"}
+	secondStructSimilar := similarStruct{1}
+	if err := compareStructs(firstStructSimilar, secondStructSimilar); err == nil {
+		t.Fatalf("failed to trigger error when structs contain different types")
+	}
+	type testStructFields struct {
+		Field      string
+		OtherField int
+	}
+	firstStructFields := testStructFields{"1", 2}
+	secondStructFields := testStruct{"1"}
+	if err := compareStructs(firstStructFields, secondStructFields); err == nil {
+		t.Fatalf("failed to trigger error when structs contain different types")
+	}
+}
+
+// func TestSparkSubmitArgs(t *testing.T) {
+// 	localS3StoreTest := S3Store{
+
+// 	}
+// }
+
+func TestGenericTableIteratorError(t *testing.T) {
+	iter := S3GenericTableIterator{}
+	if err := iter.Err(); err != nil {
+		t.Fatalf("triggered nonexistent error on iterator")
+	}
+	if err := iter.Close(); err != nil {
+		t.Fatalf("triggered nonexistent error on closing")
+	}
+}
+
+func TestPrimaryTableError(t *testing.T) {
+	table := S3PrimaryTable{sourcePath: "test_path"}
+	rec := GenericRecord([]interface{}{"1"})
+	if err := table.Write(rec); err == nil {
+		t.Fatalf("did not trigger error on attempting to write")
+	}
+	if path := table.GetName(); path != "test_path" {
+		t.Fatalf("did not return correct name")
+	}
+}
+
+func TestOfflineTableError(t *testing.T) {
+	table := S3OfflineTable{}
+	rec := ResourceRecord{}
+	if err := table.Write(rec); err == nil {
+		t.Fatalf("did not trigger error on attempting to write")
+	}
+}
+
+func TestFeatureIteratorError(t *testing.T) {
+	iter := S3FeatureIterator{}
+	if err := iter.Close(); err != nil {
+		t.Fatalf("triggered error on trying to close feature iterator")
+	}
+}
+
+func TestStreamRecordReadInt(t *testing.T) {
+	intPayload := []byte("1")
+	record := s3Types.SelectObjectContentEventStreamMemberRecords{Value: s3Types.RecordsEvent{Payload: intPayload}}
+	if _, err := streamRecordReadInteger(&record); err != nil {
+		t.Fatalf("triggered error trying to parse integer payload")
+	}
+	nonIntPayload := []byte("fail")
+	failRecord := s3Types.SelectObjectContentEventStreamMemberRecords{Value: s3Types.RecordsEvent{Payload: nonIntPayload}}
+	if _, err := streamRecordReadInteger(&failRecord); err == nil {
+		t.Fatalf("did not trigger error reading invalid payload")
+	}
 }

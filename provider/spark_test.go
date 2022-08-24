@@ -1027,12 +1027,6 @@ func TestCompareStructsFail(t *testing.T) {
 	}
 }
 
-// func TestSparkSubmitArgs(t *testing.T) {
-// 	localS3StoreTest := S3Store{
-
-// 	}
-// }
-
 func TestGenericTableIteratorError(t *testing.T) {
 	iter := S3GenericTableIterator{}
 	if err := iter.Err(); err != nil {
@@ -1079,5 +1073,115 @@ func TestStreamRecordReadInt(t *testing.T) {
 	failRecord := s3Types.SelectObjectContentEventStreamMemberRecords{Value: s3Types.RecordsEvent{Payload: nonIntPayload}}
 	if _, err := streamRecordReadInteger(&failRecord); err == nil {
 		t.Fatalf("did not trigger error reading invalid payload")
+	}
+}
+
+func TestSparkExecutorFail(t *testing.T) {
+	invalidConfig := SerializedConfig("invalid")
+	invalidExecType := SparkExecutorType("invalid")
+	if executor, err := NewSparkExecutor(invalidExecType, invalidConfig); !(executor == nil && err == nil) {
+		t.Fatalf("did not return nil on invalid exec type")
+	}
+	validExecType := SparkExecutorType("EMR")
+	if _, err := NewSparkExecutor(validExecType, invalidConfig); err == nil {
+		t.Fatalf("did not trigger error with invalid config")
+	}
+}
+
+func TestSparkStoreFail(t *testing.T) {
+	invalidConfig := SerializedConfig("invalid")
+	invalidExecType := SparkStoreType("invalid")
+	if executor, err := NewSparkStore(invalidExecType, invalidConfig); !(executor == nil && err == nil) {
+		t.Fatalf("did not return nil on invalid exec type")
+	}
+	validExecType := SparkStoreType("S3")
+	if _, err := NewSparkStore(validExecType, invalidConfig); err == nil {
+		t.Fatalf("did not trigger error with invalid config")
+	}
+}
+
+func TestUnimplimentedFailures(t *testing.T) {
+	store := SparkOfflineStore{}
+	if table, err := store.CreatePrimaryTable(ResourceID{}, TableSchema{}); !(table == nil && err == nil) {
+		t.Fatalf("did not return nil on calling unimplimented function")
+	}
+	if table, err := store.CreateResourceTable(ResourceID{}, TableSchema{}); !(table == nil && err == nil) {
+		t.Fatalf("did not return nil on calling unimplimented function")
+	}
+}
+
+func TestFeatureCSVToResource(t *testing.T) {
+	validCSV := "entity,value,1"
+	resource, err := featureCSVToResource(validCSV)
+	if err != nil {
+		t.Fatalf("triggered error creating valid resource: %v", err)
+	}
+	if resource.Entity != "entity" || resource.Value != "value" || resource.TS != time.UnixMilli(1) {
+		t.Fatalf("did not properly convert valid csv to resource record")
+	}
+	invalidCSV := "entity,value,not a timestamp"
+	if _, err := featureCSVToResource(invalidCSV); err == nil {
+		t.Fatalf("did not trigger error converting invalid CSV to resource")
+	}
+	shortCSV := "entity,value"
+	if _, err := featureCSVToResource(shortCSV); err == nil {
+		t.Fatalf("did not trigger error converting short CSV to resource")
+	}
+}
+
+func TestS3FeatureIteratorStreamFail(t *testing.T) {
+	out := make(chan []byte)
+	go func(out chan []byte) {
+		defer close(out)
+		out <- []byte("invalid csv")
+	}(out)
+	failingS3Iterator := S3FeatureIterator{stream: out}
+	if result := failingS3Iterator.Next(); result != false {
+		t.Fatalf("failing iterator stream did not trigger errror when passed invalid csv")
+	}
+}
+
+func TestTrainingSetIteratorStreamFail(t *testing.T) {
+	out := make(chan []byte)
+	go func(out chan []byte) {
+		defer close(out)
+		out <- []byte("invalid csv")
+	}(out)
+	failingTrainingSet := S3TrainingSet{iter: out}
+	if result := failingTrainingSet.Next(); result != false {
+		t.Fatalf("failing iterator stream did not trigger errror when passed invalid csv")
+	}
+}
+
+func TestStreamGetKeys(t *testing.T) {
+	type testStruct struct {
+		Name   string
+		Value  int
+		Failed bool
+	}
+	correctFields := map[string]bool{
+		"Name":   true,
+		"Value":  true,
+		"Failed": true,
+	}
+	test := testStruct{"name", 1, true}
+	payload, err := json.Marshal(test)
+	if err != nil {
+		t.Fatalf("Could not marshal into json: %v", err)
+	}
+	record := s3Types.SelectObjectContentEventStreamMemberRecords{Value: s3Types.RecordsEvent{Payload: payload}}
+	records, err := streamGetKeys(&record)
+	if err != nil {
+		t.Fatalf("failed to parse json: %v", err)
+	}
+	for _, rec := range records {
+		if correctFields[rec] != true {
+			t.Fatalf("invalid record field returned")
+		}
+	}
+	invalidPayload := []byte("invalid payload")
+	invalidRecord := s3Types.SelectObjectContentEventStreamMemberRecords{Value: s3Types.RecordsEvent{Payload: invalidPayload}}
+	if _, err := streamGetKeys(&invalidRecord); err == nil {
+		t.Fatalf("failed to trigger error retrieving fields from invalid json byte string")
 	}
 }

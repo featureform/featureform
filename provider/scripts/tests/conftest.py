@@ -4,7 +4,6 @@ import pytest
 from pyspark.sql import SparkSession
 
 
-
 @pytest.fixture(scope="module")
 def sql_all_arguments():
     input_args = ["sql", "--job_type", "Transformation", "--output_uri", "s3://featureform-testing/fake-path", "--sql_query", "SELECT * FROM source_0", "--source_list", "s3://path", "s3://path"]
@@ -51,6 +50,7 @@ def df_invaild_arguments():
     expected_args = Namespace(transformation_type="df", output_uri="s3://featureform-testing/fake-path")
     return (input_args, expected_args)
 
+
 @pytest.fixture(scope="module")
 def invalid_arguments():
     input_args = ["invalid_arg"]
@@ -63,16 +63,19 @@ def df_local_all_arguments(df_transformation):
     expected_args = Namespace(transformation_type="df", output_uri="tests/test_files/output/test_transformation", code=df_transformation, source={"transactions": "tests/test_files/input/transaction"})
     return expected_args
 
+
 @pytest.fixture(scope="module")
 def df_local_pass_none_code_failure():
     expected_args = Namespace(transformation_type="df", output_uri="tests/test_files/output/test_transformation", code=None, source={"transactions": "tests/test_files/input/transaction"})
     return expected_args
+
 
 @pytest.fixture(scope="module")
 def df_transformation():
     def sum_transaction(transactions):
         return transactions.groupBy(["account_id"]).agg({'transaction_amount': 'sum'})
     return sum_transaction.__code__
+
 
 @pytest.fixture(scope="module")
 def spark():

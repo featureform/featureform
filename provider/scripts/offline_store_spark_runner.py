@@ -3,15 +3,8 @@ import argparse
 from typing import List
 from datetime import datetime
 
-# import dill
 from pyspark.sql import SparkSession
 
-# Expected format
-
-# job_type: "Transformation", "Materialization", or "Training Set",
-# output_uri: s3://featureform/{type}/{name}/{variant}
-# sql_query: eg. SELECT * FROM source_1 INNER JOIN source_2 ON source_1.id = source_2.id
-# source_list: [s3://featureform/{type}/{name}/{variant}, s3://featureform/{type}/{name}/{variant}...] (implicitly mapped to source_1, source_2, etc)
 
 def main(args):
     if args.transformation_type == "sql": 
@@ -46,7 +39,6 @@ def execute_df_job(output_uri, code, sources):
         func_parameters[name] = spark.read.parquet(location)
     
     try:
-        # code = dill.loads(bytes(code))
         func = types.FunctionType(code, globals(), "df_transformation")
         output_df = func(**func_parameters)
 
@@ -59,7 +51,7 @@ def execute_df_job(output_uri, code, sources):
         raise e
 
 
-class keyvalue(argparse.Action):
+class KeyValue(argparse.Action):
     def __call__( self , parser, namespace,
                  values, option_string = None):
         setattr(namespace, self.dest, dict())
@@ -73,11 +65,11 @@ def parse_args(args=None):
     subparser = parser.add_subparsers(dest="transformation_type", required=True)
     sql_parser = subparser.add_parser("sql")
     sql_parser.add_argument(
-        "--job_type", help="type of job being run on spark") 
+        "--job_type", choices=["Transformation", "Materialization", "Training Set"], help="type of job being run on spark") 
     sql_parser.add_argument(
-        '--output_uri', help="output S3 file location")
+        '--output_uri', help="output S3 file location; eg. s3://featureform/{type}/{name}/{variant}")
     sql_parser.add_argument(
-        '--sql_query', help="The SQL query you would like to run on the data source")
+        '--sql_query', help="The SQL query you would like to run on the data source. eg. SELECT * FROM source_1 INNER JOIN source_2 ON source_1.id = source_2.id")
     sql_parser.add_argument(
         "--source_list", nargs="+", help="list of sources in the transformation string")
     
@@ -88,7 +80,7 @@ def parse_args(args=None):
         "--code", required=True, help="the df transformation code"
     )
     df_parser.add_argument(
-        "--source", required=True, nargs='*', action=keyvalue, help="""Add a number of source mapping key=value. 
+        "--source", required=True, nargs='*', action=KeyValue, help="""Add a number of source mapping key=value. 
         Do not put spaces before or after the '=' sign."""
     )
     

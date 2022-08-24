@@ -837,8 +837,7 @@ func (spark *SparkOfflineStore) updateQuery(query string, mapping []SourceMappin
 }
 
 func (spark *SparkOfflineStore) getSourcePath(path string) (string, error) {
-	filePaths := strings.Split(path[len("s3://"):], "/")
-	fileType, fileName, fileVariant := filePaths[2], filePaths[3], filePaths[4]
+	fileType, fileName, fileVariant := spark.getResourceInformationFromFilePath(path)
 
 	var filePath string
 	if fileType == "Primary" {
@@ -859,6 +858,13 @@ func (spark *SparkOfflineStore) getSourcePath(path string) (string, error) {
 	}
 
 	return filePath, nil
+}
+
+func (spark *SparkOfflineStore) getResourceInformationFromFilePath(path string) (string, string, string) {
+	filePaths := strings.Split(path[len("s3://"):], "/")
+	fileType, fileName, fileVariant := filePaths[2], filePaths[3], filePaths[4]
+
+	return fileType, fileName, fileVariant
 }
 
 func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {

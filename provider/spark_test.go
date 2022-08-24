@@ -31,6 +31,13 @@ func testCreateTrainingSet(store *SparkOfflineStore) error {
 			Registered: time.UnixMilli(int64(i)),
 		}
 	}
+	correctMapping := map[string]string{
+		"30": "false",
+		"31": "false",
+		"32": "false",
+		"33": "false",
+		"34": "false",
+	}
 	path := "featureform/tests/trainingSetTest.parquet"
 	if err := store.Store.UploadParquetTable(path, exampleStructArray); err != nil {
 		return err
@@ -73,14 +80,23 @@ func testCreateTrainingSet(store *SparkOfflineStore) error {
 	if err != nil {
 		return fmt.Errorf("failed to fetch training set: %v", err)
 	}
+	i := 0
 	for fetchedTrainingSet.Next() {
 		if fetchedTrainingSet.Err() != nil {
 			return fmt.Errorf("failure while iterating over training set: %v", err)
 		}
 		features := fetchedTrainingSet.Features()
 		label := fetchedTrainingSet.Label()
-		fmt.Println(features)
-		fmt.Println(label)
+		if len(features) != 1 {
+			return fmt.Errorf("incorrect number of feature entries")
+		}
+		if correctMapping[reflect.ValueOf(features[0]).Interface().(string)] != label {
+			return fmt.Errorf("incorrect feature value")
+		}
+		i += 1
+	}
+	if i != 5 {
+		return fmt.Errorf("incorrect number of training set rows")
 	}
 	return nil
 }
@@ -385,7 +401,7 @@ func TestParquetUpload(t *testing.T) {
 		t.Fatalf("resource materialize test failed: %s", err)
 	}
 	if err := testCreateTrainingSet(sparkOfflineStore); err != nil {
-		t.Fataf("resource training set test failed: %s", err)
+		t.Fatalf("resource training set test failed: %s", err)
 	}
 }
 

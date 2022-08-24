@@ -452,8 +452,6 @@ func stringifyValue(value interface{}) string {
 		return fmt.Sprintf(`"%s"`, value.(string))
 	case "int":
 		return fmt.Sprintf(`%d`, value.(int))
-	case "float":
-		return strconv.FormatFloat(value.(float64), 'f', -1, 64)
 	case "float64":
 		return strconv.FormatFloat(value.(float64), 'f', -1, 64)
 	case "float32":
@@ -1085,6 +1083,9 @@ type S3FeatureIterator struct {
 // expected format is "<entity(string)>,<value(interface{})>,<timestamp(int64)>"
 func featureCSVToResource(csv string) (ResourceRecord, error) {
 	values := strings.Split(csv, ",")
+	if len(values) != 3 {
+		return ResourceRecord{}, fmt.Errorf("feature csv not the correct length")
+	}
 	entity := string(values[0])
 	value := reflect.ValueOf(values[1]).Interface()
 	timeStampMilli, err := strconv.Atoi(values[2])

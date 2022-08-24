@@ -20,6 +20,71 @@ import (
 	"github.com/joho/godotenv"
 )
 
+func testCreateTrainingSet(store *SparkOfflineStore) error {
+	exampleStructArray := make([]exampleStruct, 5)
+	for i := 0; i < 5; i++ {
+		exampleStructArray[i] = exampleStruct{
+			Name:       fmt.Sprintf("John Smith_%d", i),
+			Age:        30 + i,
+			Score:      100.4 + float32(i),
+			Winner:     false,
+			Registered: time.UnixMilli(int64(i)),
+		}
+	}
+	path := "featureform/tests/trainingSetTest.parquet"
+	if err := store.Store.UploadParquetTable(path, exampleStructArray); err != nil {
+		return err
+	}
+	testFeatureName := "test_feature"
+	testFeatureResource := ResourceID{testFeatureName, "default", Feature}
+	testResourceSchema := ResourceSchema{"name", "age", "registered", path}
+	table, err := store.RegisterResourceFromSourceTable(testFeatureResource, testResourceSchema)
+	if err != nil {
+		return err
+	}
+	fetchedTable, err := store.GetResourceTable(testFeatureResource)
+	if err != nil {
+		return err
+	}
+	if !reflect.DeepEqual(fetchedTable, table) {
+		return fmt.Errorf("Did not properly register table")
+	}
+	testLabelName := "test_label"
+	testLabelResource := ResourceID{testLabelName, "default", Label}
+	testLabelResourceSchema := ResourceSchema{"name", "winner", "registered", path}
+	labelTable, err := store.RegisterResourceFromSourceTable(testLabelResource, testLabelResourceSchema)
+	fetchedLabel, err := store.GetResourceTable(testLabelResource)
+	if err != nil {
+		return err
+	}
+	if !reflect.DeepEqual(fetchedLabel, labelTable) {
+		return fmt.Errorf("Did not properly register label")
+	}
+	trainingSetResource := ResourceID{"test_training_set", "default", TrainingSet}
+	testTrainingSetDef := TrainingSetDef{
+		ID:       trainingSetResource,
+		Label:    testLabelResource,
+		Features: []ResourceID{testFeatureResource},
+	}
+	if err := store.CreateTrainingSet(testTrainingSetDef); err != nil {
+		return fmt.Errorf("failed to create training set: %v", err)
+	}
+	fetchedTrainingSet, err := store.GetTrainingSet(trainingSetResource)
+	if err != nil {
+		return fmt.Errorf("failed to fetch training set: %v", err)
+	}
+	for fetchedTrainingSet.Next() {
+		if fetchedTrainingSet.Err() != nil {
+			return fmt.Errorf("failure while iterating over training set: %v", err)
+		}
+		features := fetchedTrainingSet.Features()
+		label := fetchedTrainingSet.Label()
+		fmt.Println(features)
+		fmt.Println(label)
+	}
+	return nil
+}
+
 func testMaterializeResource(store *SparkOfflineStore) error {
 	exampleStructArray := make([]exampleStruct, 10)
 	for i := 0; i < 5; i++ {
@@ -318,6 +383,9 @@ func TestParquetUpload(t *testing.T) {
 	}
 	if err := testMaterializeResource(sparkOfflineStore); err != nil {
 		t.Fatalf("resource materialize test failed: %s", err)
+	}
+	if err := testCreateTrainingSet(sparkOfflineStore); err != nil {
+		t.Fataf("resource training set test failed: %s", err)
 	}
 }
 

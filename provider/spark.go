@@ -154,16 +154,16 @@ func (q defaultSparkOfflineQueries) trainingSetCreate(def TrainingSetDef, featur
 	for i, feature := range def.Features {
 		featureColumnName := featureColumnName(feature)
 		columns = append(columns, featureColumnName)
-		featureWindowQuery := fmt.Sprintf("SELECT %s as entity, %s as %s, %s as ts FROM source_%d", featureSchemas[i].Entity, featureSchemas[i].Value, featureColumnName, featureSchemas[i].TS, i+1)
-		featureJoinQuery := fmt.Sprintf("LEFT OUTER JOIN (%s) t%d ON (t%d.entity = t0.entity AND t%d.ts <= t0.ts)", featureWindowQuery, i+1, i+1, i+1)
+		featureWindowQuery := fmt.Sprintf("SELECT %s as t%d_entity, %s as %s, %s as t%d_ts FROM source_%d", featureSchemas[i].Entity, i+1, featureSchemas[i].Value, featureColumnName, featureSchemas[i].TS, i+1, i+1)
+		featureJoinQuery := fmt.Sprintf("LEFT OUTER JOIN (%s) t%d ON (t%d_entity = entity AND t%d_ts <= ts)", featureWindowQuery, i+1, i+1, i+1)
 		joinQueries = append(joinQueries, featureJoinQuery)
 	}
 	columnStr := strings.Join(columns, ", ")
 	joinQueryString := strings.Join(joinQueries, " ")
-	labelWindowQuery := fmt.Sprintf("SELECT %s as entity, %s as value, %s as ts, ROW_NUMBER() over (PARTITION BY %s, %s, %s ORDER BY %s DESC) as rn FROM source_0", labelSchema.Entity, labelSchema.Value, labelSchema.TS, labelSchema.Entity, labelSchema.Value, labelSchema.TS, labelSchema.TS)
+	labelWindowQuery := fmt.Sprintf("SELECT %s AS entity, %s AS value, %s AS ts, ROW_NUMBER() over (PARTITION BY %s, %s, %s ORDER BY %s DESC) AS rn FROM source_0", labelSchema.Entity, labelSchema.Value, labelSchema.TS, labelSchema.Entity, labelSchema.Value, labelSchema.TS, labelSchema.TS)
 	labelPartitionQuery := fmt.Sprintf("(SELECT * FROM (SELECT entity, value, ts, rn FROM (%s) t WHERE rn = 1) t0)", labelWindowQuery)
 	labelJoinQuery := fmt.Sprintf("%s %s", labelPartitionQuery, joinQueryString)
-	fullQuery := fmt.Sprintf("SELECT %s, t0.value AS %s FROM %s", columnStr, featureColumnName(def.Label), labelJoinQuery)
+	fullQuery := fmt.Sprintf("SELECT %s, value AS %s FROM (%s)", columnStr, featureColumnName(def.Label), labelJoinQuery)
 	return fullQuery
 }
 

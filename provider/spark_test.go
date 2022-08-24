@@ -575,6 +575,11 @@ func TestSparkSQLTransformation(t *testing.T) {
 				t.Fatalf("the source table and expected did not match: %v:%v", sourceCount, transformationCount)
 			}
 
+			sourcePath, err := store.Store.ResourceKey(tt.config.TargetTableID)
+			if err != nil {
+				t.Fatalf("failed to retrieve source key %s", err)
+			}
+
 			updateConfig := TransformationConfig{
 				Type: SQLTransformation,
 				TargetTableID: ResourceID{
@@ -586,7 +591,7 @@ func TestSparkSQLTransformation(t *testing.T) {
 				SourceMapping: []SourceMapping{
 					SourceMapping{
 						Template: tt.config.SourceMapping[0].Template,
-						Source:   store.Store.ResourcePath(tt.config.TargetTableID),
+						Source:   fmt.Sprintf("%s%s", store.Store.BucketPrefix(), sourcePath),
 					},
 				},
 			}

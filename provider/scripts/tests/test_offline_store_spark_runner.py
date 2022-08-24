@@ -44,7 +44,7 @@ def test_parse_args(arguments, request):
 )
 def test_execute_df_job(arguments, expected_output, spark, request):
     args = request.getfixturevalue(arguments)
-    output_file = execute_df_job(args.job_type, args.output_uri, args.code, args.source)
+    output_file = execute_df_job(args.output_uri, args.code, args.source)
 
     expected_df = spark.read.parquet(expected_output)
     output_df = spark.read.parquet(output_file)

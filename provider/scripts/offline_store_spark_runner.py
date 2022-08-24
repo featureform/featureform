@@ -3,7 +3,7 @@ import argparse
 from typing import List
 from datetime import datetime
 
-import dill
+# import dill
 from pyspark.sql import SparkSession
 
 # Expected format
@@ -14,10 +14,10 @@ from pyspark.sql import SparkSession
 # source_list: [s3://featureform/{type}/{name}/{variant}, s3://featureform/{type}/{name}/{variant}...] (implicitly mapped to source_1, source_2, etc)
 
 def main(args):
-    if args.cmd == "sql": 
+    if args.transformation_type == "sql": 
         output_location = execute_sql_query(args.job_type, args.output_uri, args.sql_query, args.source_list)
-    elif args.cmd == "df":
-        output_location = execute_df_job(args.job_type, args.output_uri, args.code, args.source)
+    elif args.transformation_type == "df":
+        output_location = execute_df_job(args.output_uri, args.code, args.source)
     return output_location
 
 def execute_sql_query(job_type, output_uri, sql_query, source_list):
@@ -34,11 +34,11 @@ def execute_sql_query(job_type, output_uri, sql_query, source_list):
 
             output_dataframe.coalesce(1).write.option("header", "true").mode("overwrite").parquet(output_uri_with_timestamp)
             return output_uri_with_timestamp
-    except Exception as ident:
-        print(ident)
-        raise ident
+    except Exception as e:
+        print(e)
+        raise e
 
-def execute_df_job(job_type, output_uri, code, sources):
+def execute_df_job(output_uri, code, sources):
     spark = SparkSession.builder.appName("Dataframe Transformation").getOrCreate()
     
     func_parameters = {}
@@ -55,7 +55,7 @@ def execute_df_job(job_type, output_uri, code, sources):
         output_df.coalesce(1).write.mode("overwrite").parquet(output_uri_with_timestamp)
         return output_uri_with_timestamp
     except Exception as e:
-        print(f"Issue with execution the function: {e}")
+        print(f"Issue with execution of the transformation: {e}")
         raise e
 
 
@@ -65,13 +65,12 @@ class keyvalue(argparse.Action):
         setattr(namespace, self.dest, dict())
           
         for value in values:
-            print("value")
             key, value = value.split('=')
             getattr(namespace, self.dest)[key] = value
 
 def parse_args(args=None):
     parser = argparse.ArgumentParser()
-    subparser = parser.add_subparsers(dest="cmd", required=True)
+    subparser = parser.add_subparsers(dest="transformation_type", required=True)
     sql_parser = subparser.add_parser("sql")
     sql_parser.add_argument(
         "--job_type", help="type of job being run on spark") 
@@ -83,8 +82,6 @@ def parse_args(args=None):
         "--source_list", nargs="+", help="list of sources in the transformation string")
     
     df_parser = subparser.add_parser("df")
-    df_parser.add_argument(
-        "--job_type", choices=["Transformation", "Materialization", "Training Set"], required=True, help="type of job being run on spark")
     df_parser.add_argument(
         '--output_uri', required=True, help="output S3 file location")
     df_parser.add_argument(

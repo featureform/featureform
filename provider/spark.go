@@ -1040,10 +1040,39 @@ func (spark *SparkOfflineStore) GetMaterialization(id MaterializationID) (Materi
 }
 
 func (spark *SparkOfflineStore) UpdateMaterialization(id ResourceID) (Materialization, error) {
-	return nil, nil
+	resourceTable, err := spark.GetResourceTable(id)
+	if err != nil {
+		return nil, fmt.Errorf("resource not registered: %v", err)
+	}
+	sparkResourceTable, ok := resourceTable.(*S3OfflineTable)
+	if !ok {
+		return nil, fmt.Errorf("could not convert offline table with id %v to sparkResourceTable", id)
+	}
+	materializationID := ResourceID{Name: id.Name, Variant: id.Variant, Type: FeatureMaterialization}
+	destinationPath := spark.Store.ResourcePath(materializationID)
+	materializationQuery := spark.query.materializationCreate(sparkResourceTable.schema)
+	sourcePath := spark.Store.KeyPath(sparkResourceTable.schema.SourceTable)
+	sparkArgs := spark.Store.SparkSubmitArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize)
+	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
+		return nil, fmt.Errorf("spark submit job for materialization %v failed to run: %v", materializationID, err)
+	}
+	key, err := spark.Store.ResourceKey(materializationID)
+	if err != nil {
+		return nil, fmt.Errorf("Materialization result does not exist in offline store: %v", err)
+	}
+	return &S3Materialization{materializationID, spark.Store, key}, nil
 }
 
 func (spark *SparkOfflineStore) DeleteMaterialization(id MaterializationID) error {
+	s := strings.Split(string(id), "/")
+	materializationID := ResourceID{s[1], s[2], FeatureMaterialization}
+	key, err := spark.Store.ResourceKey(materializationID)
+	if err != nil {
+		return nil, err
+	}
+	if err := spark.Store.DeleteFile(key); err != nil {
+		return fmt.Errorf("failed to delete file: %v", err)
+	}
 	return nil
 }
 
@@ -1151,6 +1180,33 @@ func (spark *SparkOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
 }
 
 func (spark *SparkOfflineStore) UpdateTrainingSet(TrainingSetDef) error {
+	sourcePaths := make([]string, 0)
+	featureSchemas := make([]ResourceSchema, 0)
+	destinationPath := spark.Store.ResourcePath(def.ID)
+	labelSchema, err := spark.registeredResourceSchema(def.Label)
+	if err != nil {
+		return fmt.Errorf("Could not get schema of label %s: %v", def.Label, err)
+	}
+	labelPath := spark.Store.KeyPath(labelSchema.SourceTable)
+	sourcePaths = append(sourcePaths, labelPath)
+	for _, feature := range def.Features {
+		featureSchema, err := spark.registeredResourceSchema(feature)
+		if err != nil {
+			return fmt.Errorf("Could not get schema of feature %s: %v", feature, err)
+		}
+		featurePath := spark.Store.KeyPath(featureSchema.SourceTable)
+		sourcePaths = append(sourcePaths, featurePath)
+		featureSchemas = append(featureSchemas, featureSchema)
+	}
+	trainingSetQuery := spark.query.trainingSetCreate(def, featureSchemas, labelSchema)
+	sparkArgs := spark.Store.SparkSubmitArgs(destinationPath, trainingSetQuery, sourcePaths, CreateTrainingSet)
+	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
+		return fmt.Errorf("spark submit job for training set %v failed to run: %v", def.ID, err)
+	}
+	_, err = spark.Store.ResourceKey(def.ID)
+	if err != nil {
+		return fmt.Errorf("Training Set result does not exist in offline store: %v", err)
+	}
 	return nil
 }
 

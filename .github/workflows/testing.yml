@@ -659,6 +659,31 @@ jobs:
           API_ADDRESS: "localhost:7878"
         working-directory: ./client/tests/
         run: pytest connection_test.py
+
+  spark-script:
+    name: PySpark Script Testing
+    needs: setup
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download Working Compiled Directories
+        uses: actions/download-artifact@v3
+        with:
+          name: compiled-workdir
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install python dependencies
+        working-directory: ./provider/scripts
+        run: python3 -m pip install -r requirements.txt
+
+      - name: Testing
+        working-directory: ./provider/scripts
+        run: pytest -v --cov=offline_store_spark_runner tests/ --cov-report term-missing
+
   schedule:
     runs-on: ubuntu-latest
     name: Schedule Jobs

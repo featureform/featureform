@@ -768,6 +768,51 @@ func TestGetSourcePath(t *testing.T) {
 	}
 }
 
+func TestGetResourceInformationFromFilePath(t *testing.T) {
+	cases := []struct {
+		name         string
+		sourcePath   string
+		expectedInfo []string
+	}{
+		{
+			"PrimaryPathSuccess",
+			"s3://featureform-spark-testing/featureform/Primary/test_name/test_variant",
+			[]string{"Primary", "test_name", "test_variant"},
+		},
+		{
+			"TransformationPathSuccess",
+			"s3://featureform-spark-testing/featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant",
+			[]string{"Transformation", "028f6213-77a8-43bb-9d91-dd7e9ee96102", "test_variant"},
+		},
+		{
+			"IncorrectPrimaryPath",
+			"s3://featureform-spark-testing/featureform/Primary/",
+			[]string{"", "", ""},
+		},
+		{
+			"IncorrectTransformationPath",
+			"s3://featureform-spark-testing/featureform/Transformation/fake_028f6213",
+			[]string{"", "", ""},
+		},
+	}
+
+	store, err := getSparkOfflineStore(t)
+	if err != nil {
+		t.Fatalf("could not get SparkOfflineStore: %s", err)
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			resourceType, resourceName, resourceVariant := store.getResourceInformationFromFilePath(tt.sourcePath)
+			resourceInfo := []string{resourceType, resourceName, resourceVariant}
+
+			if !reflect.DeepEqual(tt.expectedInfo, resourceInfo) {
+				t.Fatalf("getSourcePath could not find the expected path. Expected \"%s\", got \"%s\".", tt.expectedInfo, resourceInfo)
+			}
+		})
+	}
+}
+
 func getSparkOfflineStore(t *testing.T) (*SparkOfflineStore, error) {
 	err := godotenv.Load(".env")
 	if err != nil {

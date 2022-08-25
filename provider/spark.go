@@ -862,6 +862,10 @@ func (spark *SparkOfflineStore) getSourcePath(path string) (string, error) {
 
 func (spark *SparkOfflineStore) getResourceInformationFromFilePath(path string) (string, string, string) {
 	filePaths := strings.Split(path[len("s3://"):], "/")
+	if len(filePaths) <= 4 {
+		return "", "", ""
+	}
+
 	fileType, fileName, fileVariant := filePaths[2], filePaths[3], filePaths[4]
 
 	return fileType, fileName, fileVariant

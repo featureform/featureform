@@ -1083,7 +1083,7 @@ type S3FeatureIterator struct {
 // expected format is "<entity(string)>,<value(interface{})>,<timestamp(int64)>"
 func featureCSVToResource(csv string) (ResourceRecord, error) {
 	values := strings.Split(csv, ",")
-	if len(values) != 3 {
+	if len(values) != 3 && len(values) != 4 {
 		return ResourceRecord{}, fmt.Errorf("feature csv not the correct length")
 	}
 	entity := string(values[0])

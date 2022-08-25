@@ -651,6 +651,7 @@ func (s *S3Store) SparkSubmitArgs(destPath string, cleanQuery string, sourceList
 		"--deploy-mode",
 		"cluster",
 		fmt.Sprintf("s3://%s/featureform/scripts/offline_store_spark_runner.py", s.bucketPath),
+		"sql",
 		"--output_uri",
 		destPath,
 		"--sql_query",
@@ -785,7 +786,7 @@ func (spark *SparkOfflineStore) CreateTransformation(config TransformationConfig
 }
 
 func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, isUpdate bool) error {
-	updatedQuery, sources, err := updateQuery(config.Query, config.SourceMapping)
+	updatedQuery, sources, err := spark.updateQuery(config.Query, config.SourceMapping)
 	if err != nil {
 		return err
 	}
@@ -809,14 +810,20 @@ func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, i
 	return nil
 }
 
-func updateQuery(query string, mapping []SourceMapping) (string, []string, error) {
+func (spark *SparkOfflineStore) updateQuery(query string, mapping []SourceMapping) (string, []string, error) {
 	sources := make([]string, len(mapping))
 	replacements := make([]string, len(mapping)*2) // It's times 2 because each replacement will be a pair; (original, replacedValue)
 
 	for i, m := range mapping {
 		replacements = append(replacements, m.Template)
 		replacements = append(replacements, fmt.Sprintf("source_%v", i))
-		sources[i] = m.Source
+
+		sourcePath, err := spark.getSourcePath(m.Source)
+		if err != nil {
+			return "", nil, fmt.Errorf("could not get the sourcePath for %s because %s", m.Source, err)
+		}
+
+		sources[i] = sourcePath
 	}
 
 	replacer := strings.NewReplacer(replacements...)
@@ -826,6 +833,37 @@ func updateQuery(query string, mapping []SourceMapping) (string, []string, error
 		return "", nil, fmt.Errorf("could not replace all the templates with the current mapping. Mapping: %v; Replaced Query: %s", mapping, updatedQuery)
 	}
 	return updatedQuery, sources, nil
+}
+
+func (spark *SparkOfflineStore) getSourcePath(path string) (string, error) {
+	fileType, fileName, fileVariant := spark.getResourceInformationFromFilePath(path)
+
+	var filePath string
+	if fileType == "Primary" {
+		fileResourceId := ResourceID{Name: fileName, Variant: fileVariant, Type: Primary}
+		fileTable, err := spark.GetPrimaryTable(fileResourceId)
+		if err != nil {
+			return "", fmt.Errorf("could not get the primary table for {%v} because %s", fileResourceId, err)
+		}
+		filePath = fmt.Sprintf("%s%s", spark.Store.BucketPrefix(), fileTable.GetName())
+	} else if fileType == "Transformation" {
+		fileResourceId := ResourceID{Name: fileName, Variant: fileVariant, Type: Transformation}
+		transformationPath, err := spark.Store.ResourceKey(fileResourceId)
+
+		if err != nil {
+			return "", fmt.Errorf("could not get the transformation table for {%v} because %s", fileResourceId, err)
+		}
+		filePath = fmt.Sprintf("%s%s", spark.Store.BucketPrefix(), transformationPath)
+	}
+
+	return filePath, nil
+}
+
+func (spark *SparkOfflineStore) getResourceInformationFromFilePath(path string) (string, string, string) {
+	filePaths := strings.Split(path[len("s3://"):], "/")
+	fileType, fileName, fileVariant := filePaths[2], filePaths[3], filePaths[4]
+
+	return fileType, fileName, fileVariant
 }
 
 func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {

@@ -14,6 +14,17 @@ def main(args):
     return output_location
 
 def execute_sql_query(job_type, output_uri, sql_query, source_list):
+    """
+    Executes the SQL Queries:
+    Parameters:
+        job_type: string ("Transformation", "Materialization", "Training Set")
+        output_uri: string (s3 paths)
+        sql_query: string (eg. "SELECT * FROM source_0)
+        source_list: List(string) (a list of s3 paths)
+    Return:
+        output_uri_with_timestamp: string (output s3 path)
+    """
+
     try:
         with SparkSession.builder.appName("Execute SQL Query").getOrCreate() as spark:
             if job_type == "Transformation" or job_type == "Materialization" or job_type == "Training Set":
@@ -32,6 +43,16 @@ def execute_sql_query(job_type, output_uri, sql_query, source_list):
         raise e
 
 def execute_df_job(output_uri, code, sources):
+    """
+    Executes the DF transformation:
+    Parameters:
+        output_uri: string (s3 paths)
+        code: code (python code)
+        sources: {parameter: s3_path} (used for passing dataframe parameters)
+    Return:
+        output_uri_with_timestamp: string (output s3 path)
+    """
+
     spark = SparkSession.builder.appName("Dataframe Transformation").getOrCreate()
     
     func_parameters = {}

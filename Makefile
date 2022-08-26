@@ -149,6 +149,28 @@ test_go_unit:
 	-mkdir coverage
 	go test ./... -tags=*,offline,provider --short   -coverprofile coverage/cover.out.tmp
 
+test_metadata:							## Requires ETCD to be installed and added to path
+	-mkdir coverage
+	$(flags) etcd &
+	sleep 1
+	go test -coverpkg=./... -coverprofile coverage/cover.out.tmp ./metadata/
+
+test_helpers:
+	-mkdir coverage
+	go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./helpers/...
+
+test_serving:
+	-mkdir coverage
+	go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./newserving/...
+
+test_runner:							## Requires ETCD to be installed and added to path
+	-mkdir coverage
+	$(flags) etcd &
+	sleep 1
+	go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./runner/...
+
+
+
 
 ##############################################  MINIKUBE ###############################################################
 

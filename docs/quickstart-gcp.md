@@ -2,7 +2,7 @@
 description: A quick start guide for Featureform on GCP using Terraform.
 ---
 
-# Quickstart ()
+# Quickstart (GCP)
 
 This quickstart will walk through creating a few simple features, labels, and a training set using Bigquery and Firestore. 
 We will use a transaction fraud training set.
@@ -12,7 +12,9 @@ We will use a transaction fraud training set.
 - Python 3.7+
 - [Terraform v1.2.7+](https://www.terraform.io/downloads)
 - [A Google Cloud Platform Project](https://cloud.google.com/)
+- [gcloud CLI](https://cloud.google.com/sdk/gcloud)
 - [kubectl](https://kubernetes.io/docs/tasks/tools/)
+- An available domain/subdomain you own that can be pointed at your cluster IP
 
 ## Step 1: Clone the Featureform Repo
 ```shell
@@ -21,6 +23,8 @@ cd featureform/terraform/gcp
 ```
 
 ## Step 2: Create GCP Services
+We'll start BigQuery, Firestore, and Google Kubernetes Engine (GKE). (Specific services can be enabled/disabled as needed)
+
 1. Run ``cd gcp_services``
 2. Run ``gcloud auth application-default login`` to give Terraform access to GCP
 3. Update the `project_id` variable in`terraform.auto.tfvars` file and if you want create Firestore and BigQuery instances.
@@ -29,32 +33,65 @@ cd featureform/terraform/gcp
 5. Run ``terraform apply -`` then type ``yes`` when prompted
 
 ## Step 3: Configure Kubectl
+We need to load the GKE config into our kubeconfig.
+
 1. Run ``gcloud container clusters get-credentials $(terraform output -raw kubernetes_cluster_name) --region $(terraform output -raw region)`` in `gcp_services` folder
 
 ## Step 3: Install Featureform
+We'll use terraform to install Featureform on our GKE cluster.
+
 1. Run ``cd ../featureform``
-3. Update the `featureform_hostname` variable in `terraform.auto.tfvars` file
+2. Update the `featureform_hostname` variable in `terraform.auto.tfvars` file (This is a domain name that you own)
 3. Run ``terraform init``
 4. Run ``terraform plan``
 5. Run ``terraform apply -`` then type ``yes`` when prompted
 
-## Step 4: Install the Featureform SDK
+## Step 4: Direct Your Domain To Featureform
+
+Featureform automatically provisions a public certificate for your domain name. 
+
+To connect, you need to point your domain name at the Featureform GKE Cluster.
+
+We can get the IP Address for the cluster using:
+```shell
+kubectl get ingress | grep "grpc-ingress" | awk {'print $4'} | column -t
+```
+
+Creating an A record for your domain with the outputted IP address. 
+
+
+## Step 5: Load Demo Data
+We can load some demo data into BigQuery that we can transform and serve. 
+
+We need to set:
+```shell
+export PROJECT_ID=<your-project-id>
+export DATASET_ID="featureform"
+export BUCKET_NAME="<your-bucket-name>"
+```
+
+```shell
+# Set our CLI to our current project
+gcloud config set project $PROJECT_ID
+
+# Make our featureform dataset
+bq mk -d $DATASET_ID
+
+# Load sample data into a bucket in the same project
+curl  https://featureform-demo-files.s3.amazonaws.com/transactions.csv | gsutil cp - gs://$BUCKET_NAME/transactions.csv
+
+# Load the bucket data into BigQuery
+bq load --autodetect --source_format=CSV $DATASET_ID.transactions gs://$BUCKET_NAME/transactions.csv
+```
+
+## Step 5: Install the Featureform SDK
 
 ```
 pip install featureform
 ```
 
-## Step 5: Load Data
-export PROJECT_ID=<your-project-id>
-export DATASET_ID="featureform"
-export BUCKET_NAME="<your-bucket-name>"
-
-gcloud config set project $PROJECT_ID
-bq mk -d $DATASET_ID
-curl  https://featureform-demo-files.s3.amazonaws.com/transactions.csv | gsutil cp - gs://$BUCKET_NAME/transactions.csv
-bq load --autodetect --source_format=CSV $DATASET_ID.transactions gs://$BUCKET_NAME/transactions.csv
-
 ## Step 6: Register providers
+GCP Registered providers require a GCP Credentials file for a user that has permissions for Firestore and BigQuery.
 
 {% code title="definitions.py" %}
 ```python
@@ -65,7 +102,7 @@ redis = ff.register_firestore(
     description="A Firestore deployment we created for the Featureform quickstart",
     project_id="<your-gcp-project-id>",
     collection="<your-collection-id>",
-    credentials_path="<path-to-bigquery-credentials-file>"
+    credentials_path="<path-to-bigquery-credentials-file>" 
 )
 
 bigquery = ff.register_bigquery(

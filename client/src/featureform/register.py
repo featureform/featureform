@@ -1070,6 +1070,28 @@ class Registrar:
                            project_id: str = "",
                            credentials_path: str = ""
                            ):
+        """Register a Firestore provider.
+
+        **Examples**:
+        ```
+        bigquery = ff.register_firestore(
+            name="firestore-quickstart",
+            description="A Firestore deployment we created for the Featureform quickstart",
+            project_id="quickstart-project",
+            collection="quickstart-collection",
+        )
+        ```
+        Args:
+            name (str): Name of BigQuery provider to be registered
+            description (str): Description of BigQuery provider to be registered
+            team (str): Name of team
+            project_id (str): The Project name in GCP
+            collection (str): The Collection name in Firestore under the given project ID
+            credentials_path (str): A path to a Google Credentials file with access permissions for BigQuery
+
+        Returns:
+            bigquery (OfflineSQLProvider): Provider
+        """
         config = FirestoreConfig(collection=collection, project_id=project_id, credentials_path=credentials_path)
         provider = Provider(name=name,
                             function="ONLINE",
@@ -1316,9 +1338,10 @@ class Registrar:
             team (str): Name of team
             project_id (str): The Project name in GCP
             dataset_id (str): The Dataset name in GCP under the Project Id
+            credentials_path (str): A path to a Google Credentials file with access permissions for BigQuery
             
         Returns:
-            redshift (OfflineSQLProvider): Provider
+            bigquery (OfflineSQLProvider): Provider
         """
         config = BigQueryConfig(project_id=project_id,
                                 dataset_id=dataset_id,

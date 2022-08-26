@@ -265,13 +265,14 @@ class SparkAWSConfig:
     bucket_path: str
     emr_cluster_region: str
     bucket_region: str
-    credentials_path: str
+    aws_access_key_id: str
+    aws_secret_access_key: str
 
     def software(self) -> str:
         return "spark"
 
     def type(self) -> str:
-        return "SPARK_OFFLINE"
+        return "SPARK_AWS_OFFLINE"
 
     def serialize(self) -> bytes:
         config = {
@@ -279,7 +280,8 @@ class SparkAWSConfig:
             "BucketPath": self.bucket_path,
             "EMRClusterRegion": self.emr_cluster_region,
             "BucketRegion": self.bucket_region,
-            "Credentials": json.load(open(self.credentials_path)),
+            "AWSAccessKeyId": self.aws_access_key_id,
+            "AWSSecretAccessKey": self.aws_secret_access_key,
         }
         return bytes(json.dumps(config), "utf-8")
 

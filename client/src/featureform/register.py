@@ -881,7 +881,7 @@ class Registrar:
         """
         get = ProviderReference(name=name, provider_type="spark", obj=None)
         self.__resources.append(get)
-        fakeConfig = SparkAWSConfig(emr_cluster_id="",bucket_path="",emr_cluster_region="",bucket_region="",credentials_path="")
+        fakeConfig = SparkAWSConfig(emr_cluster_id="",bucket_path="",emr_cluster_region="",bucket_region="",aws_access_key_id="",aws_secret_access_key="")
         fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
         return OfflineSQLProvider(self, fakeProvider)      
 
@@ -1228,7 +1228,8 @@ class Registrar:
                           bucket_path: str = "",
                           emr_cluster_region: str = "",
                           bucket_region: str = "",
-                          credentials_path: str = ""):
+                          aws_access_key_id: str = "",
+                          aws_secret_access_key: str = "",):
         """Register a Spark on AWS provider.
 
         **Examples**:
@@ -1241,7 +1242,8 @@ class Registrar:
             bucket_path="project_bucket",
             emr_cluster_region="us-east-1",
             bucket_region="us-east-2",
-            credentials_path="C:/path/to/creds/.config"
+            aws_access_key_id="<access key id>"
+            aws_secret_access_key="<secret access key>"
         )
         ```
         Args:
@@ -1252,7 +1254,9 @@ class Registrar:
             bucket_path (str): The project's S3 path
             emr_cluster_region (str): aws region of the cluster
             bucket_region (str): aws region of the bucket
-            credientials_path (str): path to the credentials file containing AWS key id and secret key
+            aws_access_key_id (str): aws access key id of a role with access to the bucket and emr cluster
+            aws_secret_access_key (str): secret key tied to the acces key
+
             
         Returns:
             spark_aws (OfflineSQLProvider): Provider
@@ -1261,7 +1265,8 @@ class Registrar:
                                 bucket_path=bucket_path,
                                 emr_cluster_region=emr_cluster_region,
                                 bucket_region=bucket_region,
-                                credentials_path=credentials_path,)
+                                aws_access_key_id=aws_access_key_id,
+                                aws_secret_access_key=aws_secret_access_key)
         provider = Provider(name=name,
                             function="OFFLINE",
                             description=description,

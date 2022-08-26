@@ -773,29 +773,16 @@ func getSparkOfflineStore(t *testing.T) (*SparkOfflineStore, error) {
 	if err != nil {
 		fmt.Println(err)
 	}
-
-	emrConf := EMRConfig{
-		AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
-		AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),
-		ClusterRegion:  os.Getenv("AWS_EMR_CLUSTER_REGION"),
-		ClusterName:    os.Getenv("AWS_EMR_CLUSTER_ID"),
+	sparkAWSConfig := SparkAWSConfig{
+		EMRClusterId:       os.Getenv("AWS_EMR_CLUSTER_ID"),
+		BucketPath:         os.Getenv("S3_BUCKET_PATH"),
+		EMRClusterRegion:   os.Getenv("AWS_EMR_CLUSTER_REGION"),
+		BucketRegion:       os.Getenv("S3_BUCKET_REGION"),
+		AWSAccessKeyId:     SecretConfig(os.Getenv("AWS_ACCESS_KEY_ID")),
+		AWSSecretAccessKey: SecretConfig(os.Getenv("AWS_SECRET_KEY")),
 	}
-	emrSerializedConfig := emrConf.Serialize()
-	s3Conf := S3Config{
-		AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
-		AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),
-		BucketRegion:   os.Getenv("S3_BUCKET_REGION"),
-		BucketPath:     os.Getenv("S3_BUCKET_PATH"),
-	}
-	s3SerializedConfig := s3Conf.Serialize()
-	SparkOfflineConfig := SparkConfig{
-		ExecutorType:   EMR,
-		ExecutorConfig: string(emrSerializedConfig),
-		StoreType:      S3,
-		StoreConfig:    string(s3SerializedConfig),
-	}
-	sparkSerializedConfig := SparkOfflineConfig.Serialize()
-	sparkProvider, err := Get("SPARK_OFFLINE", sparkSerializedConfig)
+	sparkSerializedConfig := sparkAWSConfig.Serialize()
+	sparkProvider, err := Get("SPARK_AWS_OFFLINE", sparkSerializedConfig)
 	if err != nil {
 		t.Fatalf("Could not create spark provider: %s", err)
 	}
@@ -804,6 +791,29 @@ func getSparkOfflineStore(t *testing.T) (*SparkOfflineStore, error) {
 		t.Fatalf("Could not convert spark provider to offline store: %s", err)
 	}
 	sparkOfflineStore := sparkStore.(*SparkOfflineStore)
-
 	return sparkOfflineStore, nil
+}
+
+func TestRegisterSparkAWSStore(t *testing.T) {
+	sparkAWSConfig := SparkAWSConfig{
+		EMRClusterId:       os.Getenv("AWS_EMR_CLUSTER_ID"),
+		BucketPath:         os.Getenv("S3_BUCKET_PATH"),
+		EMRClusterRegion:   os.Getenv("AWS_EMR_CLUSTER_REGION"),
+		BucketRegion:       os.Getenv("S3_BUCKET_REGION"),
+		AWSAccessKeyId:     SecretConfig(os.Getenv("AWS_ACCESS_KEY_ID")),
+		AWSSecretAccessKey: SecretConfig(os.Getenv("AWS_SECRET_KEY")),
+	}
+	serialized := sparkAWSConfig.Serialize()
+	newSparkAWSStore, err := SparkAWSOfflineStoreFactory(serialized)
+	if err != nil {
+		t.Fatalf("could not create new AWS spark store: %v", err)
+	}
+	offlineSparkStore, err := newSparkAWSStore.AsOfflineStore()
+	if err != nil {
+		t.Fatalf("could not convert spark AWS store to offline store: %v", err)
+	}
+	sparkOfflineStore, ok := offlineSparkStore.(*SparkOfflineStore)
+	if !ok {
+		t.Fatalf("could not convert offline store to spark offline store")
+	}
 }

@@ -93,7 +93,8 @@ def spark_aws_config():
         bucket_path="project-bucket-path",
         emr_cluster_region="us-east-1",
         bucket_region="us-east-1"
-        credentials_path="spark-aws-credentials-path",
+        aws_access_key_id="aws-access-key",
+        aws_secret_access_key="aws-secret-key",
     )
 
 

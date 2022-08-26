@@ -176,7 +176,8 @@ def test_register_bigquery(registrar, args):
         "bucket_path": "test_bucket",
         "emr_cluster_region": "us-east-1",
         "bucket_region": "us-east-1",
-        "credentials_path": "abc",
+        "aws_access_key_id": "aws-access-key",
+        "aws_secret_access_key": "aws-secret-key",
     },
 ])
 def test_register_spark_aws(registrar, args):

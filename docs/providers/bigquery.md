@@ -1,4 +1,4 @@
-# Snowflake
+# BigQuery
 
 Featureform supports [BigQuery](https://cloud.google.com/bigquery) as an Offline Store.
 

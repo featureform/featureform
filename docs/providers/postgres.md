@@ -10,10 +10,6 @@ Featureform supports [Postgres](https://www.postgresql.org/) as an Offline Store
 
 Table sources are used directly via a view. Featureform will never write to a primary source.
 
-#### Files
-
-Files are copied into a Snowflake table via a Kubernetes Job kicked off by our coordinator. If scheduling is set, the table will atomically be re-copied over.
-
 ### Transformation Sources
 
 SQL transformations are used to create a view. By default, those views are materialized and updated according to the schedule parameter. Deprecated transformations are converted to un-materialized views to save storage space.

@@ -1068,7 +1068,7 @@ func (spark *SparkOfflineStore) DeleteMaterialization(id MaterializationID) erro
 	materializationID := ResourceID{s[1], s[2], FeatureMaterialization}
 	key, err := spark.Store.ResourceKey(materializationID)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if err := spark.Store.DeleteFile(key); err != nil {
 		return fmt.Errorf("failed to delete file: %v", err)
@@ -1179,7 +1179,7 @@ func (spark *SparkOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
 	return nil
 }
 
-func (spark *SparkOfflineStore) UpdateTrainingSet(TrainingSetDef) error {
+func (spark *SparkOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {
 	sourcePaths := make([]string, 0)
 	featureSchemas := make([]ResourceSchema, 0)
 	destinationPath := spark.Store.ResourcePath(def.ID)

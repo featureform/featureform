@@ -35,7 +35,7 @@ We'll start BigQuery, Firestore, and Google Kubernetes Engine (GKE). (Specific s
 ## Step 3: Configure Kubectl
 We need to load the GKE config into our kubeconfig.
 
-1. Run ``gcloud container clusters get-credentials $(terraform output -raw kubernetes_cluster_name) --region $(terraform output -raw region)`` in `gcp_services` folder
+``gcloud container clusters get-credentials $(terraform output -raw kubernetes_cluster_name) --region $(terraform output -raw region)``
 
 ## Step 3: Install Featureform
 We'll use terraform to install Featureform on our GKE cluster.
@@ -84,13 +84,13 @@ curl  https://featureform-demo-files.s3.amazonaws.com/transactions.csv | gsutil 
 bq load --autodetect --source_format=CSV $DATASET_ID.transactions gs://$BUCKET_NAME/transactions.csv
 ```
 
-## Step 5: Install the Featureform SDK
+## Step 6: Install the Featureform SDK
 
 ```
 pip install featureform
 ```
 
-## Step 6: Register providers
+## Step 7: Register providers
 GCP Registered providers require a GCP Credentials file for a user that has permissions for Firestore and BigQuery.
 
 {% code title="definitions.py" %}
@@ -121,7 +121,7 @@ Once we create our config file, we can apply it to our Featureform deployment.
 featureform apply definitions.py
 ```
 
-## Step 7: Define our resources
+## Step 8: Define our resources
 
 We will create a user profile for us, and set it as the default owner for all the following resource definitions.
 
@@ -200,7 +200,7 @@ Now that our definitions are complete, we can apply it to our Featureform instan
 featureform apply definitions.py
 ```
 
-## Step 8: Serve features for training and inference
+## Step 9: Serve features for training and inference
 
 Once we have our training set and features registered, we can train our model.
 

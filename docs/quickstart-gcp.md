@@ -121,12 +121,6 @@ featureform apply definitions.py
 
 We will create a user profile for us, and set it as the default owner for all the following resource definitions.
 
-{% code title="definitions.py" %}
-```python
-ff.register_user("featureformer").make_default_owner()
-```
-{% endcode %}
-
 Now we'll register our  user fraud dataset in Featureform.
 
 {% code title="definitions.py" %}

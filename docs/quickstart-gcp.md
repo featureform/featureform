@@ -25,26 +25,30 @@ cd featureform/terraform/gcp
 ## Step 2: Create GCP Services
 We'll start BigQuery, Firestore, and Google Kubernetes Engine (GKE). (Specific services can be enabled/disabled as needed)
 
+We need to set:
+```shell
+export PROJECT_ID=<your-project-id>           # Your GCP Project ID
+export DATASET_ID="featureform"               # The BigQuery Dataset we'll use
+export BUCKET_NAME="<your-bucket-name>"       # A GCP Storage Bucket where we can store test data
+export FEATUREFORM_HOST="<your-domain-name>"  # The domain name that you own
+```
+# Set our CLI to our current project
+
 1. Run ``cd gcp_services``
 2. Run ``gcloud auth application-default login`` to give Terraform access to GCP
-3. Update the `project_id` variable in`terraform.auto.tfvars` file and if you want create Firestore and BigQuery instances.
-3. Run ``terraform init``
-4. Run ``terraform plan``
-5. Run ``terraform apply -`` then type ``yes`` when prompted
+3. Run ``gcloud config set project $PROJECT_ID`` to set our GCP Project
+4. Run ``terraform init; terraform apply -auto-approve -var="project_id=$PROJECT_ID" -var="bigquery_dataset_id=DATASET_ID"``
 
 ## Step 3: Configure Kubectl
 We need to load the GKE config into our kubeconfig.
 
 ``gcloud container clusters get-credentials $(terraform output -raw kubernetes_cluster_name) --region $(terraform output -raw region)``
 
-## Step 3: Install Featureform
+## Step 4: Install Featureform
 We'll use terraform to install Featureform on our GKE cluster.
 
 1. Run ``cd ../featureform``
-2. Update the `featureform_hostname` variable in `terraform.auto.tfvars` file (This is a domain name that you own)
-3. Run ``terraform init``
-4. Run ``terraform plan``
-5. Run ``terraform apply -`` then type ``yes`` when prompted
+2. Run ``terraform init; terraform apply -auto-approve -var="featureform_hostname=$FEATUREFORM_HOST"``
 
 ## Step 4: Direct Your Domain To Featureform
 
@@ -61,22 +65,9 @@ Creating an A record for your domain with the outputted IP address.
 
 
 ## Step 5: Load Demo Data
-We can load some demo data into BigQuery that we can transform and serve. 
-
-We need to set:
-```shell
-export PROJECT_ID=<your-project-id>
-export DATASET_ID="featureform"
-export BUCKET_NAME="<your-bucket-name>"
-```
+We can load some demo data into BigQuery that we can transform and serve.
 
 ```shell
-# Set our CLI to our current project
-gcloud config set project $PROJECT_ID
-
-# Make our featureform dataset
-bq mk -d $DATASET_ID
-
 # Load sample data into a bucket in the same project
 curl  https://featureform-demo-files.s3.amazonaws.com/transactions.csv | gsutil cp - gs://$BUCKET_NAME/transactions.csv
 
@@ -137,7 +128,6 @@ Now we'll register our  user fraud dataset in Featureform.
 ```python
 transactions = bigquery.register_table(
     name = "transactions",
-    variant = "kaggle",
     description = "Fraud Dataset From Kaggle",
     table = "Transactions", # This is the table's name in Postgres
 )
@@ -148,11 +138,10 @@ Next, we'll define a SQL transformation on our dataset.
 
 {% code title="definitions.py" %}
 ```python
-@bigquery.sql_transformation(variant="quickstart")
+@bigquery.sql_transformation()
 def average_user_transaction():
-    """the average transaction amount for a user """
     return "SELECT CustomerID as user_id, avg(TransactionAmount) " \
-           "as avg_transaction_amt from {{transactions.kaggle}} GROUP BY user_id"
+           "as avg_transaction_amt from {{transactions.default}} GROUP BY user_id"
     
 ```
 {% endcode %}
@@ -161,14 +150,13 @@ Next, we'll register a passenger entity to associate with a feature and label.
 
 {% code title="definitions.py" %}
 ```python
-user = ff.register_entity("user")
 # Register a column from our transformation as a feature
 average_user_transaction.register_resources(
     entity=user,
     entity_column="user_id",
     inference_store=firestore,
     features=[
-        {"name": "avg_transactions", "variant": "quickstart", "column": "avg_transaction_amt", "type": "float32"},
+        {"name": "avg_transactions", "column": "avg_transaction_amt", "type": "float32"},
     ],
 )
 # Register label from our base Transactions table
@@ -176,7 +164,7 @@ transactions.register_resources(
     entity=user,
     entity_column="customerid",
     labels=[
-        {"name": "fraudulent", "variant": "quickstart", "column": "isfraud", "type": "bool"},
+        {"name": "fraudulent", "column": "isfraud", "type": "bool"},
     ],
 )
 ```
@@ -187,9 +175,9 @@ Finally, we'll join together the feature and label intro a training set.
 {% code title="definitions.py" %}
 ```python
 ff.register_training_set(
-    "fraud_training", "quickstart",
-    label=("fraudulent", "quickstart"),
-    features=[("avg_transactions", "quickstart")],
+    "fraud_training",
+    label=("fraudulent"),
+    features=[("avg_transactions")],
 )
 ```
 {% endcode %}
@@ -208,7 +196,7 @@ Once we have our training set and features registered, we can train our model.
 import featureform as ff
 
 client = ff.ServingClient()
-dataset = client.training_set("fraud_training", "quickstart")
+dataset = client.training_set("fraud_training")
 training_dataset = dataset.repeat(10).shuffle(1000).batch(8)
 for feature_batch in training_dataset:
     # Train model
@@ -220,6 +208,6 @@ We can serve features in production once we deploy our trained model as well.
 import featureform as ff
 
 client = ff.ServingClient()
-fpf = client.features([("avg_transactions", "quickstart")], {"user": "C1410926"})
+fpf = client.features([("avg_transactions")], {"user": "C1410926"})
 # Run features through model
 ```

@@ -32,7 +32,7 @@ export DATASET_ID="featureform"               # The BigQuery Dataset we'll use
 export BUCKET_NAME="<your-bucket-name>"       # A GCP Storage Bucket where we can store test data
 export FEATUREFORM_HOST="<your-domain-name>"  # The domain name that you own
 ```
-# Set our CLI to our current project
+### Set our CLI to our current project
 ```shell
 cd gcp_services
 gcloud auth application-default login   # Gives Terraform access to GCP

@@ -55,7 +55,7 @@ cd ../featureform
 terraform init; terraform apply -auto-approve -var="featureform_hostname=$FEATUREFORM_HOST"
 ```
 
-## Step 4: Direct Your Domain To Featureform
+## Step 5: Direct Your Domain To Featureform
 
 Featureform automatically provisions a public certificate for your domain name. 
 
@@ -69,7 +69,7 @@ kubectl get ingress | grep "grpc-ingress" | awk {'print $4'} | column -t
 Creating an A record for your domain with the outputted IP address. 
 
 
-## Step 5: Load Demo Data
+## Step 6: Load Demo Data
 We can load some demo data into BigQuery that we can transform and serve.
 
 ```shell
@@ -80,13 +80,13 @@ curl  https://featureform-demo-files.s3.amazonaws.com/transactions.csv | gsutil 
 bq load --autodetect --source_format=CSV $DATASET_ID.transactions gs://$BUCKET_NAME/transactions.csv
 ```
 
-## Step 6: Install the Featureform SDK
+## Step 7: Install the Featureform SDK
 
 ```
 pip install featureform
 ```
 
-## Step 7: Register providers
+## Step 8: Register providers
 GCP Registered providers require a GCP Credentials file for a user that has permissions for Firestore and BigQuery.
 
 {% code title="definitions.py" %}
@@ -117,7 +117,7 @@ Once we create our config file, we can apply it to our Featureform deployment.
 featureform apply definitions.py
 ```
 
-## Step 8: Define our resources
+## Step 9: Define our resources
 
 We will create a user profile for us, and set it as the default owner for all the following resource definitions.
 
@@ -187,7 +187,7 @@ Now that our definitions are complete, we can apply it to our Featureform instan
 featureform apply definitions.py
 ```
 
-## Step 9: Serve features for training and inference
+## Step 10: Serve features for training and inference
 
 Once we have our training set and features registered, we can train our model.
 

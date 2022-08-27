@@ -224,6 +224,7 @@ type SparkStore interface {
 	ResourceRowCt(key string) (int, error)
 	ResourcePath(id ResourceID) string
 	BucketPrefix() string
+	Region() string
 	KeyPath(sourceKey string) string
 	SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType) []string
 	UploadParquetTable(path string, data interface{}) error
@@ -249,6 +250,10 @@ type S3Store struct {
 
 func (s *S3Store) BucketPrefix() string {
 	return fmt.Sprintf("s3://%s/", s.bucketPath)
+}
+
+func (s *S3Store) Region() string {
+	return s.region
 }
 
 func (s *S3Store) UploadSparkScript() error {
@@ -783,7 +788,17 @@ func (spark *SparkOfflineStore) RegisterResourceFromSourceTable(id ResourceID, s
 }
 
 func (spark *SparkOfflineStore) CreateTransformation(config TransformationConfig) error {
-	return spark.sqlTransformation(config, false)
+	return spark.transformation(config, false)
+}
+
+func (spark *SparkOfflineStore) transformation(config TransformationConfig, isUpdate bool) error {
+	if config.Type == SQLTransformation {
+		return spark.sqlTransformation(config, isUpdate)
+	} else if config.Type == DFTransformation {
+		return spark.dfTransformation(config, isUpdate)
+	} else {
+		return fmt.Errorf("the transformation type '%v' is not supported", config.Type)
+	}
 }
 
 func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, isUpdate bool) error {
@@ -805,6 +820,30 @@ func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, i
 	}
 
 	sparkArgs := spark.Store.SparkSubmitArgs(transformationDestination, updatedQuery, sources, Transform)
+	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
+		return fmt.Errorf("spark submit job for transformation %v failed to run: %v", config.TargetTableID, err)
+	}
+	return nil
+}
+
+func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, isUpdate bool) error {
+	transformationDestination := spark.Store.ResourcePath(config.TargetTableID)
+	exists, err := spark.Store.ResourceExists(config.TargetTableID)
+	if err != nil {
+		return err
+	}
+
+	if !isUpdate && exists {
+		return fmt.Errorf("transformation %v already exists at %s", config.TargetTableID, transformationDestination)
+	} else if isUpdate && !exists {
+		return fmt.Errorf("transformation %v doesn't exist at %s and you are trying to update", config.TargetTableID, transformationDestination)
+	}
+
+	sparkArgs, err := spark.getDFArgs(transformationDestination, config.Query, spark.Store.Region(), config.SourceMapping)
+	if err != nil {
+		return fmt.Errorf("error with getting df arguments %v", sparkArgs)
+	}
+
 	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
 		return fmt.Errorf("spark submit job for transformation %v failed to run: %v", config.TargetTableID, err)
 	}
@@ -871,6 +910,34 @@ func (spark *SparkOfflineStore) getResourceInformationFromFilePath(path string) 
 	return fileType, fileName, fileVariant
 }
 
+func (spark *SparkOfflineStore) getDFArgs(outputURI string, code string, awsRegion string, mapping []SourceMapping) ([]string, error) {
+	argList := []string{
+		"spark-submit",
+		"--deploy-mode",
+		"cluster",
+		fmt.Sprintf("%sfeatureform/scripts/offline_store_spark_runner.py", spark.Store.BucketPrefix()),
+		"df",
+		"--output_uri",
+		outputURI,
+		"--code",
+		code,
+		"--aws_region",
+		awsRegion,
+		"--source",
+	}
+
+	for _, m := range mapping {
+		sourcePath, err := spark.getSourcePath(m.Source)
+		if err != nil {
+			return nil, fmt.Errorf("issue with retreiving the source path for %s because %s", m.Source, err)
+		}
+
+		argList = append(argList, fmt.Sprintf("%s=%s", m.Template, sourcePath))
+	}
+
+	return argList, nil
+}
+
 func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
 	transformationPath, err := spark.Store.ResourceKey(id)
 	if err != nil {
@@ -880,7 +947,7 @@ func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (Transform
 }
 
 func (spark *SparkOfflineStore) UpdateTransformation(config TransformationConfig) error {
-	return spark.sqlTransformation(config, true)
+	return spark.transformation(config, true)
 }
 
 func (spark *SparkOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error) {

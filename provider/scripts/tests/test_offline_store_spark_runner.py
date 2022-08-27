@@ -38,13 +38,13 @@ def test_parse_args(arguments, request):
 @pytest.mark.parametrize(
     "arguments,expected_output",
     [
-        ("df_local_all_arguments", "tests/test_files/expected/test_execute_df_job_success"),
+        ("df_local_all_arguments", "tests/test_files/input/transaction"),
         pytest.param("df_local_pass_none_code_failure", "tests/test_files/expected/test_execute_df_job_success", marks=pytest.mark.xfail),
     ]
 )
 def test_execute_df_job(arguments, expected_output, spark, request):
     args = request.getfixturevalue(arguments)
-    output_file = execute_df_job(args.output_uri, args.code, args.source)
+    output_file = execute_df_job(args.output_uri, args.code, args.aws_region, args.source)
 
     expected_df = spark.read.parquet(expected_output)
     output_df = spark.read.parquet(output_file)

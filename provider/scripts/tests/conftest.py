@@ -34,8 +34,8 @@ def sql_invalid_local_arguments():
 
 @pytest.fixture(scope="module")
 def df_all_arguments():
-    input_args = ["df", "--output_uri", "s3://featureform-testing/fake-path", "--code", "code", "--source", "transaction=s3://featureform/transaction", "account=s3://featureform/account"]
-    expected_args = Namespace(transformation_type="df", output_uri="s3://featureform-testing/fake-path", code="code", source={"transaction": "s3://featureform/transaction", "account": "s3://featureform/account"})
+    input_args = ["df", "--output_uri", "s3://featureform-testing/fake-path", "--code", "code", "--source", "transaction=s3://featureform/transaction", "account=s3://featureform/account", "--aws_region", "us-east-1"]
+    expected_args = Namespace(transformation_type="df", output_uri="s3://featureform-testing/fake-path", code="code", source={"transaction": "s3://featureform/transaction", "account": "s3://featureform/account"}, aws_region="us-east-1")
     return (input_args, expected_args)
 
 @pytest.fixture(scope="module")
@@ -60,21 +60,19 @@ def invalid_arguments():
 
 @pytest.fixture(scope="module")
 def df_local_all_arguments(df_transformation):
-    expected_args = Namespace(transformation_type="df", output_uri="tests/test_files/output/test_transformation", code=df_transformation, source={"transactions": "tests/test_files/input/transaction"})
+    expected_args = Namespace(transformation_type="df", output_uri="tests/test_files/output/test_transformation", code=df_transformation, source={"transaction": "tests/test_files/input/transaction"}, aws_region=None)
     return expected_args
 
 
 @pytest.fixture(scope="module")
 def df_local_pass_none_code_failure():
-    expected_args = Namespace(transformation_type="df", output_uri="tests/test_files/output/test_transformation", code=None, source={"transactions": "tests/test_files/input/transaction"})
+    expected_args = Namespace(transformation_type="df", output_uri="tests/test_files/output/test_transformation", code="s3://featureform-testing/fake-path/code", source={"transactions": "tests/test_files/input/transaction"})
     return expected_args
 
 
 @pytest.fixture(scope="module")
 def df_transformation():
-    def sum_transaction(transactions):
-        return transactions.groupBy(["account_id"]).agg({'transaction_amount': 'sum'})
-    return sum_transaction.__code__
+    return "tests/test_files/transformations/same_df.pkl"
 
 
 @pytest.fixture(scope="module")

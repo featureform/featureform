@@ -813,6 +813,173 @@ func TestGetResourceInformationFromFilePath(t *testing.T) {
 	}
 }
 
+func TestGetDFArgs(t *testing.T) {
+	cases := []struct {
+		name            string
+		outputURI       string
+		code            string
+		region          string
+		mapping         []SourceMapping
+		expectedArgs    []string
+		expectedFailure bool
+	}{
+		{
+			"PrimaryPathSuccess",
+			"s3://featureform-spark-testing/featureform/Primary/test_name/test_variant",
+			"code",
+			"us-east-2",
+			[]SourceMapping{
+				SourceMapping{
+					Template: "transaction",
+					Source:   "s3://featureform-spark-testing/featureform/Primary/test_name/test_variant",
+				},
+			},
+			[]string{
+				"spark-submit",
+				"--deploy-mode",
+				"cluster",
+				"s3://featureform-spark-testing/featureform/scripts/offline_store_spark_runner.py",
+				"df",
+				"--output_uri",
+				"s3://featureform-spark-testing/featureform/Primary/test_name/test_variant",
+				"--code",
+				"code",
+				"--aws_region",
+				"us-east-2",
+				"--source",
+				"transaction=s3://featureform-spark-testing/featureform/testprimary/testFile.parquet",
+			},
+			false,
+		},
+		{
+			"FakePrimaryPath",
+			"s3://featureform-spark-testing/featureform/Primary/test_name/test_variant",
+			"code",
+			"us-east-2",
+			[]SourceMapping{
+				SourceMapping{
+					Template: "transaction",
+					Source:   "s3://featureform-spark-testing/featureform/Primary",
+				},
+			},
+			nil,
+			true,
+		},
+	}
+
+	store, err := getSparkOfflineStore(t)
+	if err != nil {
+		t.Fatalf("could not get SparkOfflineStore: %s", err)
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			args, err := store.getDFArgs(tt.outputURI, tt.code, tt.region, tt.mapping)
+			if !tt.expectedFailure && err != nil {
+				t.Fatalf("could not get df args %s", err)
+			}
+
+			if !tt.expectedFailure && !reflect.DeepEqual(tt.expectedArgs, args) {
+				t.Fatalf("getDFArgs could not generate the expected args. Expected \"%s\", got \"%s\".", tt.expectedArgs, args)
+			}
+		})
+	}
+}
+
+func TestTransformation(t *testing.T) {
+	cases := []struct {
+		name            string
+		config          TransformationConfig
+		sourceID        ResourceID
+		expectedFailure bool
+	}{
+		{
+			"SQLTransformation",
+			TransformationConfig{
+				Type: SQLTransformation,
+				TargetTableID: ResourceID{
+					Name:    uuid.NewString(),
+					Type:    Transformation,
+					Variant: "test_variant",
+				},
+				Query: "SELECT * FROM {{test_name.test_variant}}",
+				SourceMapping: []SourceMapping{
+					SourceMapping{
+						Template: "{{test_name.test_variant}}",
+						Source:   "s3://featureform-spark-testing/featureform/Primary/test_name/test_variant",
+					},
+				},
+			},
+			ResourceID{"test_name", "test_variant", Primary},
+			false,
+		},
+		{
+			"DFTransformationType",
+			TransformationConfig{
+				Type: DFTransformation,
+				TargetTableID: ResourceID{
+					Name:    uuid.NewString(),
+					Type:    Transformation,
+					Variant: "test_variant",
+				},
+				Query: "s3://featureform-spark-testing/featureform/DFTransformations/test_name/test_variant/transformation.pkl",
+				SourceMapping: []SourceMapping{
+					SourceMapping{
+						Template: "transaction",
+						Source:   "s3://featureform-spark-testing/featureform/Primary/test_name/test_variant",
+					},
+				},
+			},
+			ResourceID{"test_name", "test_variant", Primary},
+			false,
+		},
+		{
+			"NoTransformationType",
+			TransformationConfig{
+				Type:          NoTransformationType,
+				TargetTableID: ResourceID{},
+				Query:         "SELECT * FROM {{test_name.test_variant}}",
+				SourceMapping: []SourceMapping{},
+			},
+			ResourceID{},
+			true,
+		},
+	}
+
+	store, err := getSparkOfflineStore(t)
+	if err != nil {
+		t.Fatalf("could not get SparkOfflineStore: %s", err)
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			err := store.transformation(tt.config, false)
+			if !tt.expectedFailure && err != nil {
+				t.Fatalf("could not run transformation %s", err)
+			}
+
+			sourceTable, err := store.GetPrimaryTable(tt.sourceID)
+			if !tt.expectedFailure && err != nil {
+				t.Fatalf("failed to get source table, %v,: %s", tt.sourceID, err)
+			}
+
+			transformationTable, err := store.GetTransformationTable(tt.config.TargetTableID)
+			if err != nil {
+				if tt.expectedFailure {
+					return
+				}
+				t.Fatalf("failed to get the transformation, %s", err)
+			}
+
+			sourceCount, err := sourceTable.NumRows()
+			transformationCount, err := transformationTable.NumRows()
+			if !tt.expectedFailure && sourceCount != transformationCount {
+				t.Fatalf("the source table and expected did not match: %v:%v", sourceCount, transformationCount)
+			}
+		})
+	}
+}
+
 func getSparkOfflineStore(t *testing.T) (*SparkOfflineStore, error) {
 	err := godotenv.Load(".env")
 	if err != nil {

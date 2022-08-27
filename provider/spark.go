@@ -25,6 +25,7 @@ import (
 	emrTypes "github.com/aws/aws-sdk-go-v2/service/emr/types"
 	s3Types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	parquetGo "github.com/xitongsys/parquet-go-source/s3"
+	// parquet "github.com/xitongsys/parquet-go/parquet"
 	reader "github.com/xitongsys/parquet-go/reader"
 	source "github.com/xitongsys/parquet-go/source"
 	writer "github.com/xitongsys/parquet-go/writer"
@@ -218,9 +219,8 @@ type SparkExecutor interface {
 type SparkStore interface {
 	UploadSparkScript() error //initialization function
 	ResourceKey(id ResourceID) (string, error)
-	ResourceStream(key string) (chan []byte, error)
-	RowStreamFromSelectQuery(key string, query string) (chan []byte, error)
-	ResourceColumns(key string) ([]string, error)
+	// ResourceStream(key string) (chan []byte, error)
+	ResourceStreamConv(key string) (chan interface{}, error)
 	ResourceRowCt(key string) (int, error)
 	ResourcePath(id ResourceID) string
 	BucketPrefix() string
@@ -448,8 +448,12 @@ func stringifyStructField(data interface{}, idx int) string {
 		return fmt.Sprintf(`{"Tag": "name=%s, type=BYTE_ARRAY, convertedtype=UTF8"}`, jsonFriendlyFieldName)
 	case "int":
 		return fmt.Sprintf(`{"Tag": "name=%s, type=INT32"}`, jsonFriendlyFieldName)
+	case "int64":
+		return fmt.Sprintf(`{"Tag": "name=%s, type=INT64"}`, jsonFriendlyFieldName)
 	case "float32":
 		return fmt.Sprintf(`{"Tag": "name=%s, type=FLOAT"}`, jsonFriendlyFieldName)
+	case "float64":
+		return fmt.Sprintf(`{"Tag": "name=%s, type=DOUBLE"}`, jsonFriendlyFieldName)
 	case "int32":
 		return fmt.Sprintf(`{"Tag": "name=%s, type=INT32"}`, jsonFriendlyFieldName)
 	case "bool":
@@ -542,23 +546,10 @@ func (s *S3Store) DeleteFile(path string) error {
 	return nil
 }
 
-//not working?
 func (s *S3Store) FileExists(path string) (bool, error) {
-	output, err := s.client.GetObjectAttributes(context.TODO(), &s3.GetObjectAttributesInput{Bucket: aws.String(s.bucketPath), Key: aws.String(path), ObjectAttributes: []s3Types.ObjectAttributes{s3Types.ObjectAttributesChecksum}})
-	if output == nil {
-		return false, nil
-	}
-	if err != nil {
-		return false, err
-	}
-	return false, nil
-}
-
-func (s *S3Store) ResourceExists(id ResourceID) (bool, error) {
-	filePrefix := ResourcePrefix(id)
 	objects, err := s.client.ListObjects(context.TODO(), &s3.ListObjectsInput{
 		Bucket: aws.String(s.bucketPath),
-		Prefix: aws.String(filePrefix),
+		Prefix: aws.String(path),
 	})
 	if err != nil {
 		return false, err
@@ -567,6 +558,11 @@ func (s *S3Store) ResourceExists(id ResourceID) (bool, error) {
 		return true, nil
 	}
 	return false, nil
+}
+
+func (s *S3Store) ResourceExists(id ResourceID) (bool, error) {
+	filePrefix := ResourcePrefix(id)
+	return s.FileExists(filePrefix)
 }
 
 func (s *S3Store) S3ParquetReader(path string) (source.ParquetFile, error) {
@@ -678,8 +674,8 @@ type S3GenericTableIterator struct {
 	sourcePath    string
 	rows          int64
 	columns       []string
-	valuesChannel chan []byte
-	currentValue  []byte
+	valuesChannel chan interface{}
+	currentValue  interface{}
 	currentIndex  int64
 }
 
@@ -693,7 +689,12 @@ func (s *S3GenericTableIterator) Next() bool {
 }
 
 func (s *S3GenericTableIterator) Values() GenericRecord {
-	return []interface{}{string(s.currentValue)}
+	v := reflect.ValueOf(s.currentValue)
+	values := make([]interface{}, v.NumField())
+	for i := 0; i < v.NumField(); i++ {
+		values[i] = v.Field(i).Interface()
+	}
+	return values
 }
 
 func (s *S3GenericTableIterator) Columns() []string {
@@ -717,11 +718,18 @@ func (s *S3PrimaryTable) GetName() string {
 }
 
 func (s *S3PrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) {
-	columns, err := s.store.ResourceColumns(s.sourcePath)
+	columnStream, err := s.store.ResourceStreamConv(s.sourcePath)
 	if err != nil {
 		return nil, err
 	}
-	channel, err := s.store.ResourceStream(s.sourcePath)
+	v := <-columnStream
+	rowStruct := reflect.ValueOf(v)
+	numColumns := rowStruct.NumField()
+	columns := make([]string, numColumns)
+	for i := 0; i < rowStruct.NumField(); i++ {
+		columns[i] = rowStruct.Type().Field(i).Name
+	}
+	channel, err := s.store.ResourceStreamConv(s.sourcePath)
 	if err != nil {
 		return nil, err
 	}
@@ -738,12 +746,12 @@ func (s *S3PrimaryTable) NumRows() (int64, error) {
 
 func (spark *SparkOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error) {
 	resourcePath := parquetResourcePath(id)
-	exists, err := spark.Store.FileExists(resourcePath)
-	if exists {
-		return nil, fmt.Errorf("resource already exists")
-	}
+	primaryExists, err := spark.Store.ResourceExists(id)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error checking if primary exists: %v", err)
+	}
+	if primaryExists {
+		return nil, fmt.Errorf("primary already exists")
 	}
 	primarySchema := PrimarySchema{sourceName}
 	schemaList := []PrimarySchema{primarySchema}
@@ -767,12 +775,12 @@ func (s *S3OfflineTable) Write(ResourceRecord) error {
 
 func (spark *SparkOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error) {
 	resourcePath := parquetResourcePath(id)
-	exists, err := spark.Store.FileExists(resourcePath)
-	if exists {
-		return nil, fmt.Errorf("resource already exists")
-	}
+	resourceExists, err := spark.Store.ResourceExists(id)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error checking if resource registry exists: %v", err)
+	}
+	if resourceExists {
+		return nil, fmt.Errorf("resource registry already exists")
 	}
 	schemaList := []ResourceSchema{schema}
 	if err := spark.Store.UploadParquetTable(resourcePath, schemaList); err != nil {
@@ -943,35 +951,68 @@ func (s *S3Materialization) NumRows() (int64, error) {
 }
 
 func (s *S3Materialization) IterateSegment(begin, end int64) (FeatureIterator, error) {
-	stream, err := s.store.RowStreamFromSelectQuery(s.Key, fmt.Sprintf("SELECT * FROM S3Object WHERE row_number > %d AND row_number <= %d", begin, end))
+	stream, err := s.store.ResourceStreamConv(s.Key)
 	if err != nil {
 		return nil, err
+	}
+	for i := int64(0); i < begin; i++ {
+		_ = <-stream
 	}
 	return &S3FeatureIterator{stream: stream, maxIdx: (end - begin)}, nil
 }
 
 type S3FeatureIterator struct {
-	stream chan []byte
+	stream chan interface{}
 	cur    ResourceRecord
 	err    error
 	curIdx int64
 	maxIdx int64
 }
 
-// expected format is "<entity(string)>,<value(interface{})>,<timestamp(int64)>"
-func featureCSVToResource(csv string) (ResourceRecord, error) {
-	values := strings.Split(csv, ",")
-	if len(values) != 3 && len(values) != 4 {
-		return ResourceRecord{}, fmt.Errorf("feature csv not the correct length")
+func convIndirectToVal(value interface{}) interface{} {
+
+	switch v := value.(type) {
+	case *string:
+		return *v
+	case *int:
+		return *v
+	case *int32:
+		return int(*v)
+	case *int64:
+		return *v
+	case *float32:
+		return *v
+	case *float64:
+		return *v
+	case *bool:
+		return *v
 	}
-	entity := string(values[0])
-	value := reflect.ValueOf(values[1]).Interface()
-	timeStampMilli, err := strconv.Atoi(values[2])
-	if err != nil {
-		return ResourceRecord{}, err
+	return nil
+}
+
+func featureStructToResource(row interface{}) (ResourceRecord, error) {
+	rowVal := reflect.ValueOf(row)
+	if rowVal.NumField() < 3 {
+		return ResourceRecord{}, fmt.Errorf("not enough fields in feature struct")
 	}
-	timestamp := time.UnixMilli(int64(timeStampMilli))
-	return ResourceRecord{entity, value, timestamp}, nil
+	entity := *rowVal.Field(0).Interface().(*string)
+	value := convIndirectToVal(rowVal.Field(1).Interface())
+	//convert whatever time format is to time.Time
+	timestampValue := rowVal.Field(2).Interface()
+	var ts time.Time
+	switch v := timestampValue.(type) {
+	case *string:
+		//need to get non-converted value
+		layout := "2006-01-02T15:04:05.000Z"
+		var err error
+		ts, err = time.Parse(layout, *v)
+		if err != nil {
+			return ResourceRecord{}, fmt.Errorf("could not parse timestmap: %v", err)
+		}
+	case *int64:
+		ts = time.UnixMilli(*v)
+	}
+	return ResourceRecord{entity, value, ts}, nil
 }
 
 func (s *S3FeatureIterator) Next() bool {
@@ -979,7 +1020,7 @@ func (s *S3FeatureIterator) Next() bool {
 		return false
 	}
 	val := <-s.stream
-	currentRecord, err := featureCSVToResource(string(val))
+	currentRecord, err := featureStructToResource(val)
 	if err != nil {
 		s.err = err
 		return false
@@ -1012,9 +1053,12 @@ func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materializ
 	}
 	materializationID := ResourceID{Name: id.Name, Variant: id.Variant, Type: FeatureMaterialization}
 	destinationPath := spark.Store.ResourcePath(materializationID)
-	exists, _ := spark.Store.FileExists(destinationPath)
-	if exists {
-		return nil, fmt.Errorf("materialization %v already exists", materializationID)
+	materializationExists, err := spark.Store.ResourceExists(materializationID)
+	if err != nil {
+		return nil, fmt.Errorf("error checking if materialization exists: %v", err)
+	}
+	if materializationExists {
+		return nil, fmt.Errorf("materialization already exists")
 	}
 	materializationQuery := spark.query.materializationCreate(sparkResourceTable.schema)
 	sourcePath := spark.Store.KeyPath(sparkResourceTable.schema.SourceTable)
@@ -1083,20 +1127,20 @@ type S3TrainingSet struct {
 	err      error
 	label    interface{}
 	features []interface{}
-	iter     chan []byte
+	iter     chan interface{}
 	rows     int64
 	idx      int64
 }
 
-func trainingSetValuesFromCSV(csv string) ([]interface{}, interface{}) {
-	values := strings.Split(string(csv), ",")
-	numFeatures := len(values) - 1
+func trainingSetValuesFromStruct(row interface{}) ([]interface{}, interface{}) {
+	rowVal := reflect.ValueOf(row)
+	numFeatures := rowVal.NumField() - 1
 	features := make([]interface{}, numFeatures)
 	for i := 0; i < numFeatures; i++ {
-		features[i] = reflect.ValueOf(values[i]).Interface()
+		features[i] = convIndirectToVal(rowVal.Field(i).Interface())
 	}
 	lastIndex := numFeatures
-	label := reflect.ValueOf(values[lastIndex]).Interface()
+	label := convIndirectToVal(rowVal.Field(lastIndex).Interface())
 	return features, label
 }
 
@@ -1105,7 +1149,7 @@ func (s *S3TrainingSet) Next() bool {
 		return false
 	}
 	if s.iter == nil {
-		iterator, err := s.store.ResourceStream(s.Key)
+		iterator, err := s.store.ResourceStreamConv(s.Key)
 		if err != nil {
 			s.err = err
 			return false
@@ -1113,7 +1157,12 @@ func (s *S3TrainingSet) Next() bool {
 		s.iter = iterator
 	}
 	val := <-s.iter
-	features, label := trainingSetValuesFromCSV(string(val))
+	valError, valIsError := val.(error)
+	if valIsError {
+		s.err = valError
+		return false
+	}
+	features, label := trainingSetValuesFromStruct(val)
 	s.features = features
 	s.label = label
 	s.idx += 1
@@ -1148,9 +1197,12 @@ func (spark *SparkOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
 	sourcePaths := make([]string, 0)
 	featureSchemas := make([]ResourceSchema, 0)
 	destinationPath := spark.Store.ResourcePath(def.ID)
-	exists, _ := spark.Store.FileExists(destinationPath)
-	if exists {
-		return fmt.Errorf("training set already exists %v already exists", def.ID)
+	trainingSetExists, err := spark.Store.ResourceExists(def.ID)
+	if err != nil {
+		return fmt.Errorf("error checking if training set exists: %v", err)
+	}
+	if trainingSetExists {
+		return fmt.Errorf("training set already exists")
 	}
 	labelSchema, err := spark.registeredResourceSchema(def.Label)
 	if err != nil {
@@ -1279,16 +1331,6 @@ func streamRecordReadInteger(record *s3Types.SelectObjectContentEventStreamMembe
 	return intVar, nil
 }
 
-func (s *S3Store) ResourceColumns(key string) ([]string, error) {
-	queryString := "SELECT s.* from S3Object s limit 1"
-	outputStream, err := s.selectFromKey(key, queryString, JSON)
-	if err != nil {
-		return nil, err
-	}
-	return streamResolveStringList(outputStream)
-
-}
-
 func streamResolveStringList(outputStream *s3.SelectObjectContentEventStreamReader) ([]string, error) {
 	outputEvents := (*outputStream).Events()
 	for i := range outputEvents {
@@ -1321,6 +1363,36 @@ func (s *S3Store) ResourceStream(key string) (chan []byte, error) {
 	out := make(chan []byte)
 	go resolveByteChannel(outputStream, out)
 	return out, nil
+}
+
+func (s *S3Store) ResourceStreamConv(key string) (chan interface{}, error) {
+	file, err := s.S3ParquetReader(key)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	pr, err := reader.NewParquetReader(file, nil, 4)
+	if err != nil {
+		return nil, err
+	}
+	numRows := pr.GetNumRows()
+	rowChannel := make(chan interface{})
+	go func(rowChannel chan interface{}, numRows int64, pr *reader.ParquetReader) {
+		for i := int64(0); i < numRows; i++ {
+			res, err := pr.ReadByNumber(1)
+			if err != nil {
+				rowChannel <- err
+			}
+			row := reflect.ValueOf(res).Index(0).Interface()
+			rowChannel <- row
+		}
+		rowChannel <- fmt.Errorf("end of file")
+	}(rowChannel, numRows, pr)
+	return rowChannel, nil
+}
+
+func castedSelectQuery(types []string) string {
+	return ""
 }
 
 func (s *S3Store) RowStreamFromSelectQuery(key string, query string) (chan []byte, error) {

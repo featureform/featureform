@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
-	"strconv"
+	// "strconv"
 	"testing"
 	"time"
 
@@ -32,19 +32,20 @@ func testCreateTrainingSet(store *SparkOfflineStore) error {
 			Registered: time.UnixMilli(int64(i)),
 		}
 	}
-	correctMapping := map[string]string{
-		"30": "false",
-		"31": "false",
-		"32": "false",
-		"33": "false",
-		"34": "false",
+	correctMapping := map[interface{}]bool{
+		30: false,
+		31: false,
+		32: false,
+		33: false,
+		34: false,
 	}
 	path := "featureform/tests/trainingSetTest.parquet"
 	if err := store.Store.UploadParquetTable(path, exampleStructArray); err != nil {
 		return err
 	}
 	testFeatureName := "test_feature"
-	testFeatureResource := ResourceID{testFeatureName, "default", Feature}
+	testVariantname := "bookmark1"
+	testFeatureResource := ResourceID{testFeatureName, testVariantname, Feature}
 	testResourceSchema := ResourceSchema{"name", "age", "registered", path}
 	table, err := store.RegisterResourceFromSourceTable(testFeatureResource, testResourceSchema)
 	if err != nil {
@@ -58,7 +59,8 @@ func testCreateTrainingSet(store *SparkOfflineStore) error {
 		return fmt.Errorf("Did not properly register table")
 	}
 	testLabelName := "test_label"
-	testLabelResource := ResourceID{testLabelName, "default", Label}
+	labelVariantName := "bookmark2"
+	testLabelResource := ResourceID{testLabelName, labelVariantName, Label}
 	testLabelResourceSchema := ResourceSchema{"name", "winner", "registered", path}
 	labelTable, err := store.RegisterResourceFromSourceTable(testLabelResource, testLabelResourceSchema)
 	fetchedLabel, err := store.GetResourceTable(testLabelResource)
@@ -68,7 +70,8 @@ func testCreateTrainingSet(store *SparkOfflineStore) error {
 	if !reflect.DeepEqual(fetchedLabel, labelTable) {
 		return fmt.Errorf("Did not properly register label")
 	}
-	trainingSetResource := ResourceID{"test_training_set", "default", TrainingSet}
+	trainingSetVariantname := "bookmark3"
+	trainingSetResource := ResourceID{"test_training_set", trainingSetVariantname, TrainingSet}
 	testTrainingSetDef := TrainingSetDef{
 		ID:       trainingSetResource,
 		Label:    testLabelResource,
@@ -91,7 +94,7 @@ func testCreateTrainingSet(store *SparkOfflineStore) error {
 		if len(features) != 1 {
 			return fmt.Errorf("incorrect number of feature entries")
 		}
-		if correctMapping[reflect.ValueOf(features[0]).Interface().(string)] != label {
+		if correctMapping[features[0]] != label {
 			return fmt.Errorf("incorrect feature value")
 		}
 		i += 1
@@ -127,7 +130,7 @@ func testMaterializeResource(store *SparkOfflineStore) error {
 		return err
 	}
 	testResourceName := "test_name_materialize"
-	testResourceVariant := "test_variant"
+	testResourceVariant := uuid.New().String()
 	testResource := ResourceID{testResourceName, testResourceVariant, Feature}
 	testResourceSchema := ResourceSchema{"name", "age", "registered", path}
 	table, err := store.RegisterResourceFromSourceTable(testResource, testResourceSchema)
@@ -160,7 +163,7 @@ func testMaterializeResource(store *SparkOfflineStore) error {
 		"John Smith_3": ResourceRecord{"John Smith_3", 38, time.UnixMilli(int64(8))},
 		"John Smith_4": ResourceRecord{"John Smith_4", 39, time.UnixMilli(int64(9))},
 	}
-	if fetchedMaterialization.ID() != "Materialization/test_name_materialize/test_variant" {
+	if fetchedMaterialization.ID() != MaterializationID(fmt.Sprintf("Materialization/%s/%s", testResourceName, testResourceVariant)) {
 		return fmt.Errorf("materialization id not correct, expected Materialization/test_name_materialize/test_variant, got %s", fetchedMaterialization.ID())
 	}
 	numRows, err := fetchedMaterialization.NumRows()
@@ -202,11 +205,6 @@ func testMaterializeResource(store *SparkOfflineStore) error {
 		return fmt.Errorf("Feature iterator had wrong number of iterations. Expected %d, got %d", numRowsSecond, iterations)
 	}
 	for _, rec := range comparisonList {
-		val, err := strconv.Atoi(rec.Value.(string))
-		if err != nil {
-			return err
-		}
-		rec.Value = val
 		if !reflect.DeepEqual(rec, correctMaterialization[rec.Entity]) {
 			return fmt.Errorf("Wrong materialization entry: %T does not equal %T", rec.Value, correctMaterialization[rec.Entity].Value)
 		}
@@ -230,9 +228,13 @@ func testTableUploadCompare(store *SparkOfflineStore) error {
 	testData := make([]ResourceRecord, 10)
 	for i := range testData {
 		testData[i].Entity = "a"
-		testData[i].Value = i
+		testData[i].Value = float32(float32(i) + 1.1)
 		testData[i].TS = time.Now()
 	}
+	// testData := make([]GenericRecord, 10)
+	// for i := range testData {
+	// 	testData[i] = []interface{}{1, int64(1), float32(1.1), float64(1.2), "string", time.Now(), false}
+	// }
 	exists, err := store.Store.FileExists(testTable)
 	if err != nil {
 		return err
@@ -284,7 +286,8 @@ func testRegisterResource(store *SparkOfflineStore) error {
 	if err := store.Store.UploadParquetTable(path, exampleStructArray); err != nil {
 		return err
 	}
-	testResource := ResourceID{"test_name", "test_variant", Feature}
+	resourceVariantName := uuid.New().String()
+	testResource := ResourceID{"test_name", resourceVariantName, Feature}
 	testResourceSchema := ResourceSchema{"name", "age", "registered", path}
 	table, err := store.RegisterResourceFromSourceTable(testResource, testResourceSchema)
 	if err != nil {
@@ -332,7 +335,8 @@ func testRegisterPrimary(store *SparkOfflineStore) error {
 	if err := store.Store.UploadParquetTable(path, exampleStructArray); err != nil {
 		return err
 	}
-	testResource := ResourceID{"test_name", "test_variant", Primary}
+	primaryVariantName := uuid.New().String()
+	testResource := ResourceID{"test_name", primaryVariantName, Primary}
 	table, err := store.RegisterPrimaryFromSourceTable(testResource, path)
 	if err != nil {
 		return err
@@ -355,7 +359,7 @@ func testRegisterPrimary(store *SparkOfflineStore) error {
 	if err != nil {
 		return err
 	}
-	expectedColumns := []string{"name", "age", "score", "winner", "registered"}
+	expectedColumns := []string{"Name", "Age", "Score", "Winner", "Registered"}
 
 	if !unorderedEqual(iterator.Columns(), expectedColumns) {
 		return fmt.Errorf("Not the correct columns returned")
@@ -395,6 +399,15 @@ func TestParquetUpload(t *testing.T) {
 	if err := testRegisterResource(sparkOfflineStore); err != nil {
 		t.Fatalf("register resource test failed: %s", err)
 	}
+
+	//get write working for each of the functions
+	//get pull the schema and match them
+	//yeahahahahahhah
+	//test parity for every go type
+
+	//test write resource
+	//test write primary
+	//
 	if err := testRegisterPrimary(sparkOfflineStore); err != nil {
 		t.Fatalf("resource primary test failed: %s", err)
 	}
@@ -658,6 +671,8 @@ func TestSparkSQLTransformation(t *testing.T) {
 				t.Fatalf("the source table and expected did not match: %v:%v", sourceCount, transformationCount)
 			}
 
+			// test transformation result rows are correct
+
 			sourcePath, err := store.Store.ResourceKey(tt.config.TargetTableID)
 			if err != nil {
 				t.Fatalf("failed to retrieve source key %s", err)
@@ -696,6 +711,7 @@ func TestSparkSQLTransformation(t *testing.T) {
 			if !tt.expectedFailure && updateCount != transformationCount {
 				t.Fatalf("the source table and expected did not match: %v:%v", updateCount, transformationCount)
 			}
+			// test transformation result rows are correct
 		})
 	}
 }
@@ -820,6 +836,8 @@ func TestGetTransformation(t *testing.T) {
 			if caseNumRow != tt.expectedRowCount {
 				t.Fatalf("Row count do not match. Expected \" %v \", got \" %v \".", caseNumRow, tt.expectedRowCount)
 			}
+
+			// test transformation result rows are correct
 		})
 	}
 }
@@ -1146,48 +1164,48 @@ func TestUnimplimentedFailures(t *testing.T) {
 	}
 }
 
-func TestFeatureCSVToResource(t *testing.T) {
-	validCSV := "entity,value,1"
-	resource, err := featureCSVToResource(validCSV)
-	if err != nil {
-		t.Fatalf("triggered error creating valid resource: %v", err)
-	}
-	if resource.Entity != "entity" || resource.Value != "value" || resource.TS != time.UnixMilli(1) {
-		t.Fatalf("did not properly convert valid csv to resource record")
-	}
-	invalidCSV := "entity,value,not a timestamp"
-	if _, err := featureCSVToResource(invalidCSV); err == nil {
-		t.Fatalf("did not trigger error converting invalid CSV to resource")
-	}
-	shortCSV := "entity,value"
-	if _, err := featureCSVToResource(shortCSV); err == nil {
-		t.Fatalf("did not trigger error converting short CSV to resource")
-	}
-}
+// func TestFeatureCSVToResource(t *testing.T) {
+// 	validCSV := "entity,value,1"
+// 	resource, err := featureCSVToResource(validCSV)
+// 	if err != nil {
+// 		t.Fatalf("triggered error creating valid resource: %v", err)
+// 	}
+// 	if resource.Entity != "entity" || resource.Value != "value" || resource.TS != time.UnixMilli(1) {
+// 		t.Fatalf("did not properly convert valid csv to resource record")
+// 	}
+// 	invalidCSV := "entity,value,not a timestamp"
+// 	if _, err := featureCSVToResource(invalidCSV); err == nil {
+// 		t.Fatalf("did not trigger error converting invalid CSV to resource")
+// 	}
+// 	shortCSV := "entity,value"
+// 	if _, err := featureCSVToResource(shortCSV); err == nil {
+// 		t.Fatalf("did not trigger error converting short CSV to resource")
+// 	}
+// }
 
-func TestS3FeatureIteratorStreamFail(t *testing.T) {
-	out := make(chan []byte)
-	go func(out chan []byte) {
-		defer close(out)
-		out <- []byte("invalid csv")
-	}(out)
-	failingS3Iterator := S3FeatureIterator{stream: out}
-	if result := failingS3Iterator.Next(); result != false {
-		t.Fatalf("failing iterator stream did not trigger errror when passed invalid csv")
-	}
-}
+// func TestS3FeatureIteratorStreamFail(t *testing.T) {
+// 	out := make(chan []byte)
+// 	go func(out chan []byte) {
+// 		defer close(out)
+// 		out <- []byte("invalid csv")
+// 	}(out)
+// 	failingS3Iterator := S3FeatureIterator{stream: out}
+// 	if result := failingS3Iterator.Next(); result != false {
+// 		t.Fatalf("failing iterator stream did not trigger errror when passed invalid csv")
+// 	}
+// }
 
-func TestTrainingSetIteratorStreamFail(t *testing.T) {
-	out := make(chan []byte)
-	go func(out chan []byte) {
-		defer close(out)
-		out <- []byte("invalid csv")
-	}(out)
-	failingTrainingSet := S3TrainingSet{iter: out}
-	if result := failingTrainingSet.Next(); result != false {
-		t.Fatalf("failing iterator stream did not trigger errror when passed invalid csv")
-	}
-}
+// func TestTrainingSetIteratorStreamFail(t *testing.T) {
+// 	out := make(chan []byte)
+// 	go func(out chan []byte) {
+// 		defer close(out)
+// 		out <- []byte("invalid csv")
+// 	}(out)
+// 	failingTrainingSet := S3TrainingSet{iter: out}
+// 	if result := failingTrainingSet.Next(); result != false {
+// 		t.Fatalf("failing iterator stream did not trigger errror when passed invalid csv")
+// 	}
+// }
 
 func TestStreamGetKeys(t *testing.T) {
 	type testStruct struct {

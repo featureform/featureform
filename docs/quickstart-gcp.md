@@ -198,7 +198,17 @@ client = ff.ServingClient()
 dataset = client.training_set("fraud_training")
 training_dataset = dataset.repeat(10).shuffle(1000).batch(8)
 for feature_batch in training_dataset:
-    # Train model
+    print(feature_batch)
+```
+
+Expected Output:
+```text
+Features: [25.] , Label: False
+Features: [27999.] , Label: False
+Features: [459.] , Label: False
+Features: [2060.] , Label: True
+Features: [1762.5] , Label: False
+...
 ```
 
 We can serve features in production once we deploy our trained model as well.
@@ -208,5 +218,9 @@ import featureform as ff
 
 client = ff.ServingClient()
 fpf = client.features([("avg_transactions")], {"user": "C1410926"})
-# Run features through model
+print(fpf)
+```
+Expected Output:
+```text
+[5000.0]
 ```

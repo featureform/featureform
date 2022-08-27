@@ -33,22 +33,27 @@ export BUCKET_NAME="<your-bucket-name>"       # A GCP Storage Bucket where we ca
 export FEATUREFORM_HOST="<your-domain-name>"  # The domain name that you own
 ```
 # Set our CLI to our current project
-
-1. Run ``cd gcp_services``
-2. Run ``gcloud auth application-default login`` to give Terraform access to GCP
-3. Run ``gcloud config set project $PROJECT_ID`` to set our GCP Project
-4. Run ``terraform init; terraform apply -auto-approve -var="project_id=$PROJECT_ID" -var="bigquery_dataset_id=DATASET_ID"``
+```shell
+cd gcp_services
+gcloud auth application-default login   # Gives Terraform access to GCP
+gcloud config set project $PROJECT_ID   # Sets  our GCP Project
+terraform init; terraform apply -auto-approve -var="project_id=$PROJECT_ID" -var="bigquery_dataset_id=$DATASET_ID" # Run Terraform
+```
 
 ## Step 3: Configure Kubectl
 We need to load the GKE config into our kubeconfig.
 
-``gcloud container clusters get-credentials $(terraform output -raw kubernetes_cluster_name) --region $(terraform output -raw region)``
+```shell
+gcloud container clusters get-credentials $(terraform output -raw kubernetes_cluster_name) --region $(terraform output -raw region)
+```
 
 ## Step 4: Install Featureform
 We'll use terraform to install Featureform on our GKE cluster.
 
-1. Run ``cd ../featureform``
-2. Run ``terraform init; terraform apply -auto-approve -var="featureform_hostname=$FEATUREFORM_HOST"``
+```shell
+cd ../featureform
+terraform init; terraform apply -auto-approve -var="featureform_hostname=$FEATUREFORM_HOST"
+```
 
 ## Step 4: Direct Your Domain To Featureform
 

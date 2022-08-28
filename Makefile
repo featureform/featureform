@@ -103,8 +103,9 @@ etcdctl: 						## Installs ETCDCTL. Required for reset_e2e
 
 credentials:
 	-mkdir ~/credentials
-	aws secretsmanager get-secret-value --secret-id bigquery.json --region us-east-1 > ~/credentials/bigquery.json
-	aws secretsmanager get-secret-value --secret-id .env --region us-east-1 |   jq -r '.SecretString' |   jq -r "to_entries|map(\"\(.key)=\\\"\(.value|tostring)\\\"\")|.[]" > provider/.env
+	aws secretsmanager get-secret-value --secret-id bigquery.json --region us-east-1 |   jq -r '.SecretString' > ~/credentials/bigquery.json
+	aws secretsmanager get-secret-value --secret-id firebase.json --region us-east-1 |   jq -r '.SecretString' > ~/credentials/firebase.json
+	aws secretsmanager get-secret-value --secret-id .env --region us-east-1 |   jq -r '.SecretString' |   jq -r "to_entries|map(\"\(.key)=\\\"\(.value|tostring)\\\"\")|.[]" > .env
 
 start_postgres:
 	-docker kill postgres

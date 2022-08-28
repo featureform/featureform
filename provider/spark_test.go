@@ -299,33 +299,7 @@ func TestParquetUpload(t *testing.T) {
 	if testing.Short() {
 		return
 	}
-	err := godotenv.Load("../.env")
-	if err != nil {
-		fmt.Println(err)
-	}
 	sparkOfflineStore, err := getSparkOfflineStore(t)
-	emrConf := EMRConfig{
-		AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
-		AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),
-		ClusterRegion:  os.Getenv("AWS_EMR_CLUSTER_REGION"),
-		ClusterName:    os.Getenv("AWS_EMR_CLUSTER_ID"),
-	}
-	emrSerializedConfig := emrConf.Serialize()
-	s3Conf := S3Config{
-		AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
-		AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),
-		BucketRegion:   os.Getenv("S3_BUCKET_REGION"),
-		BucketPath:     os.Getenv("S3_BUCKET_PATH"),
-	}
-	s3SerializedConfig := s3Conf.Serialize()
-	SparkOfflineConfig := SparkConfig{
-		ExecutorType:   EMR,
-		ExecutorConfig: string(emrSerializedConfig),
-		StoreType:      S3,
-		StoreConfig:    string(s3SerializedConfig),
-	}
-	sparkSerializedConfig := SparkOfflineConfig.Serialize()
-	sparkProvider, err := Get("SPARK_OFFLINE", sparkSerializedConfig)
 	if err != nil {
 		t.Fatalf("could not get SparkOfflineStore: %s", err)
 	}
@@ -795,7 +769,7 @@ func TestGetSourcePath(t *testing.T) {
 }
 
 func getSparkOfflineStore(t *testing.T) (*SparkOfflineStore, error) {
-	err := godotenv.Load(".env")
+	err := godotenv.Load("../.env")
 	if err != nil {
 		fmt.Println(err)
 	}

@@ -169,7 +169,38 @@ test_runner:							## Requires ETCD to be installed and added to path
 	sleep 1
 	go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./runner/...
 
+test_api: update_python
+	pip3 install -U pip
+	pip3 install python-dotenv pytest
+	go run api/main.go & echo $$! > server.PID;
+	sleep 1
+	pytest client/tests/connection_test.py
+	kill -9 `cat server.PID`
 
+test_typesense:
+	-docker kill typesense
+	-docker rm typesense
+	-mkdir coverage
+	-mkdir /tmp/typesense-data
+	docker run -d --name typesense -p 8108:8108 -v/tmp/typesense-data:/data typesense/typesense:0.23.1 --data-dir /data --api-key=xyz --enable-cors
+	go test -v -coverpkg=./... -coverprofile ./coverage/cover.out.tmp ./metadata/search/...
+	docker kill typesense
+	docker rm typesense
+
+test_coordinator: cleanup_coordinator
+	-mkdir coverage
+	docker run -d --name postgres -p 5432:5432 -e POSTGRES_PASSWORD=password postgres
+	docker run -d --name redis -p 6379:6379 redis
+	$(flags) etcd &
+	sleep 1
+	go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./coordinator/...
+	$(MAKE) cleanup_coordinator
+
+cleanup_coordinator:
+	-docker kill postgres
+	-docker rm postgres
+	-docker kill redis
+	-docker rm redis
 
 
 ##############################################  MINIKUBE ###############################################################

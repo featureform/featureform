@@ -3,10 +3,10 @@ package coordinator
 import (
 	"context"
 	"fmt"
+	help "github.com/featureform/helpers"
 	"github.com/google/uuid"
 	"io/ioutil"
 	"net"
-	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -36,12 +36,12 @@ var testOfflineTableValues = [...]provider.ResourceRecord{
 var postgresConfig = provider.PostgresConfig{
 	Host:     "localhost",
 	Port:     "5432",
-	Database: os.Getenv("POSTGRES_DB"),
-	Username: os.Getenv("POSTGRES_USER"),
-	Password: os.Getenv("POSTGRES_PASSWORD"),
+	Database: help.GetEnv("POSTGRES_DB", "postgres"),
+	Username: help.GetEnv("POSTGRES_USER", "postgres"),
+	Password: help.GetEnv("POSTGRES_PASSWORD", "password"),
 }
 
-var redisPort = os.Getenv("REDIS_INSECURE_PORT")
+var redisPort = help.GetEnv("REDIS_INSECURE_PORT", "6379")
 var redisHost = "localhost"
 
 var etcdHost = "localhost"

@@ -280,6 +280,17 @@ jobs:
       - name: Test End-to-End
         run: make test_e2e
 
+      - name: Check That Dashboard Is Working
+        id: link-report
+        uses: celinekurpershoek/link-checker@master
+        with:
+          # Required:
+          url: "http://localhost:7000"
+          # optional:
+          recursiveLinks: true
+      - name: Print result
+        run: echo "${{steps.link-report.outputs.result}}"
+
       - name: Reset Quickstart
         run: |
           helm uninstall quickstart

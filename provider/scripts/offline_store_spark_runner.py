@@ -77,6 +77,7 @@ def execute_df_job(output_uri, code, aws_region, sources):
 
 def get_code_from_file(file_path, aws_region=None):
     prefix_len = len("s3://")
+    code = None
     if "s3://" == file_path[:prefix_len]:
         split_path = file_path[prefix_len:].split("/")
         bucket = split_path[0]
@@ -90,11 +91,12 @@ def get_code_from_file(file_path, aws_region=None):
 
             f.seek(0)
             code = dill.loads(f.read())
-            return code
     else:
+
         with open(file_path, "rb") as f:
             code  = dill.load(f)
-            return code
+    
+    return code
 
 
 class KeyValue(argparse.Action):

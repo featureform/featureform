@@ -167,8 +167,9 @@ type defaultSparkOfflineQueries struct{}
 
 func (q defaultSparkOfflineQueries) materializationCreate(schema ResourceSchema) string {
 	timestampColumn := schema.TS
+	// without timestamp, assumes each entity only has single entry
 	if schema.TS == "" {
-		timestampColumn = "ts"
+		return fmt.Sprintf("SELECT %s AS entity, %s AS value, 0 as ts, ROW_NUMBER() over (ORDER BY (SELECT NULL)) AS row_number FROM source_0", schema.Entity, schema.Value)
 	}
 	return fmt.Sprintf(
 		"SELECT entity, value, ts, ROW_NUMBER() over (ORDER BY (SELECT NULL)) AS row_number FROM "+
@@ -187,13 +188,24 @@ func (q defaultSparkOfflineQueries) trainingSetCreate(def TrainingSetDef, featur
 	for i, feature := range def.Features {
 		featureColumnName := featureColumnName(feature)
 		columns = append(columns, featureColumnName)
-		featureWindowQuery := fmt.Sprintf("SELECT %s as t%d_entity, %s as %s, %s as t%d_ts FROM source_%d", featureSchemas[i].Entity, i+1, featureSchemas[i].Value, featureColumnName, featureSchemas[i].TS, i+1, i+1)
+		var featureWindowQuery string
+		// if no timestamp column, set resource time as zero
+		if featureSchemas[i].TS == "" {
+			featureWindowQuery = fmt.Sprintf("SELECT %s as t%d_entity, %s as %s, 0 as t%d_ts FROM source_%d", featureSchemas[i].Entity, i+1, featureSchemas[i].Value, featureColumnName, i+1, i+1)
+		} else {
+			featureWindowQuery = fmt.Sprintf("SELECT %s as t%d_entity, %s as %s, %s as t%d_ts FROM source_%d", featureSchemas[i].Entity, i+1, featureSchemas[i].Value, featureColumnName, featureSchemas[i].TS, i+1, i+1)
+		}
 		featureJoinQuery := fmt.Sprintf("LEFT OUTER JOIN (%s) t%d ON (t%d_entity = entity AND t%d_ts <= ts)", featureWindowQuery, i+1, i+1, i+1)
 		joinQueries = append(joinQueries, featureJoinQuery)
 	}
 	columnStr := strings.Join(columns, ", ")
 	joinQueryString := strings.Join(joinQueries, " ")
-	labelWindowQuery := fmt.Sprintf("SELECT %s AS entity, %s AS value, %s AS ts, ROW_NUMBER() over (PARTITION BY %s, %s, %s ORDER BY %s DESC) AS rn FROM source_0", labelSchema.Entity, labelSchema.Value, labelSchema.TS, labelSchema.Entity, labelSchema.Value, labelSchema.TS, labelSchema.TS)
+	var labelWindowQuery string
+	if labelSchema.TS == "" {
+		labelWindowQuery = fmt.Sprintf("SELECT entity, value, ts, ROW_NUMBER() over (PARTITION BY entity, value, ts ORDER BY ts DESC) AS rn FROM ( SELECT %s AS entity, %s AS value, 0 AS ts from source_0 )  FROM source_0", labelSchema.Entity, labelSchema.Value)
+	} else {
+		labelWindowQuery = fmt.Sprintf("SELECT %s AS entity, %s AS value, %s AS ts, ROW_NUMBER() over (PARTITION BY %s, %s, %s ORDER BY %s DESC) AS rn FROM source_0", labelSchema.Entity, labelSchema.Value, labelSchema.TS, labelSchema.Entity, labelSchema.Value, labelSchema.TS, labelSchema.TS)
+	}
 	labelPartitionQuery := fmt.Sprintf("(SELECT * FROM (SELECT entity, value, ts, rn FROM (%s) t WHERE rn = 1) t0)", labelWindowQuery)
 	labelJoinQuery := fmt.Sprintf("%s %s", labelPartitionQuery, joinQueryString)
 	fullQuery := fmt.Sprintf("SELECT %s, value AS %s FROM (%s)", columnStr, featureColumnName(def.Label), labelJoinQuery)
@@ -526,10 +538,17 @@ var parquetSchemaHeader = `
         "Fields":[
 		    `
 
+var emptyParquetSchema = `
+{
+	"Tag":"name=parquet-go-root",
+	"Fields":[
+	]
+}`
+
 func generateSchemaFromInterface(data interface{}) (string, error) {
 	array := reflect.ValueOf(data)
 	if array.Len() < 1 {
-		return "", fmt.Errorf("interface passed has no data")
+		return emptyParquetSchema, nil
 	}
 	schemaStruct := array.Index(0)
 	schemaString := parquetSchemaHeader
@@ -830,13 +849,16 @@ func (s *S3OfflineTable) Write(ResourceRecord) error {
 }
 
 func (spark *SparkOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error) {
+	if err := id.check(Feature, Label); err != nil {
+		return nil, fmt.Errorf("ID check failed: %v", err)
+	}
 	resourcePath := parquetResourcePath(id)
 	resourceExists, err := spark.Store.ResourceExists(id)
 	if err != nil {
 		return nil, fmt.Errorf("error checking if resource registry exists: %v", err)
 	}
 	if resourceExists {
-		return nil, fmt.Errorf("resource registry already exists")
+		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}
 	schemaList := []ResourceSchema{schema}
 	if err := spark.Store.UploadParquetTable(resourcePath, schemaList); err != nil {
@@ -1034,7 +1056,7 @@ func (spark *SparkOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, e
 	path := parquetResourcePath(id)
 	table, err := spark.Store.DownloadParquetTable(path)
 	if err != nil {
-		return nil, err
+		return nil, &TableNotFound{id.Name, id.Variant}
 	}
 	storedResourceData := reflect.ValueOf(table).Index(0)
 	resourceTableStruct, ok := storedResourceData.Interface().(struct {
@@ -1131,8 +1153,14 @@ func featureStructToResource(row interface{}) (ResourceRecord, error) {
 		if err != nil {
 			return ResourceRecord{}, fmt.Errorf("could not parse timestmap: %v", err)
 		}
-	case *int64:
-		ts = time.UnixMilli(*v)
+	case *int64, *int32, *int:
+		directValue, ok := reflect.ValueOf(v).Elem().Interface().(int64)
+		if !ok {
+			return ResourceRecord{}, fmt.Errorf("cannot convert timestamp value to int64")
+		}
+		ts = time.UnixMilli(directValue).UTC()
+	case int32:
+		ts = time.UnixMilli(int64(v)).UTC()
 	}
 	return ResourceRecord{entity, value, ts}, nil
 }
@@ -1165,6 +1193,9 @@ func (s *S3FeatureIterator) Close() error {
 }
 
 func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materialization, error) {
+	if id.Type != Feature {
+		return nil, fmt.Errorf("only features can be materialized")
+	}
 	resourceTable, err := spark.GetResourceTable(id)
 	if err != nil {
 		return nil, fmt.Errorf("resource not registered: %v", err)
@@ -1197,6 +1228,9 @@ func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materializ
 
 func (spark *SparkOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
 	s := strings.Split(string(id), "/")
+	if len(s) != 3 {
+		return nil, fmt.Errorf("invalid materialization id")
+	}
 	materializationID := ResourceID{s[1], s[2], FeatureMaterialization}
 	key, err := spark.Store.ResourceKey(materializationID)
 	if err != nil {
@@ -1206,6 +1240,9 @@ func (spark *SparkOfflineStore) GetMaterialization(id MaterializationID) (Materi
 }
 
 func (spark *SparkOfflineStore) UpdateMaterialization(id ResourceID) (Materialization, error) {
+	if id.Type != Feature {
+		return nil, fmt.Errorf("only features can be materialized")
+	}
 	resourceTable, err := spark.GetResourceTable(id)
 	if err != nil {
 		return nil, fmt.Errorf("resource not registered: %v", err)
@@ -1231,10 +1268,18 @@ func (spark *SparkOfflineStore) UpdateMaterialization(id ResourceID) (Materializ
 
 func (spark *SparkOfflineStore) DeleteMaterialization(id MaterializationID) error {
 	s := strings.Split(string(id), "/")
+	if len(s) != 3 {
+		return &MaterializationNotFound{id}
+	}
 	materializationID := ResourceID{s[1], s[2], FeatureMaterialization}
 	key, err := spark.Store.ResourceKey(materializationID)
 	if err != nil {
 		return err
+	}
+	if exists, err := spark.Store.FileExists(key); err != nil {
+		return err
+	} else if !exists {
+		return &MaterializationNotFound{id}
 	}
 	if err := spark.Store.DeleteFile(key); err != nil {
 		return fmt.Errorf("failed to delete file: %v", err)
@@ -1316,6 +1361,9 @@ func (spark *SparkOfflineStore) registeredResourceSchema(id ResourceID) (Resourc
 }
 
 func (spark *SparkOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
+	if err := def.check(); err != nil {
+		return err
+	}
 	sourcePaths := make([]string, 0)
 	featureSchemas := make([]ResourceSchema, 0)
 	destinationPath := spark.Store.ResourcePath(def.ID)
@@ -1354,6 +1402,9 @@ func (spark *SparkOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
 }
 
 func (spark *SparkOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {
+	if err := def.check(); err != nil {
+		return err
+	}
 	sourcePaths := make([]string, 0)
 	featureSchemas := make([]ResourceSchema, 0)
 	destinationPath := spark.Store.ResourcePath(def.ID)
@@ -1385,9 +1436,12 @@ func (spark *SparkOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {
 }
 
 func (spark *SparkOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
+	if err := id.check(TrainingSet); err != nil {
+		return nil, err
+	}
 	key, err := spark.Store.ResourceKey(id)
 	if err != nil {
-		return nil, fmt.Errorf("Training Set result does not exist in offline store: %v", err)
+		return nil, &TrainingSetNotFound{id}
 	}
 	rowCount, err := spark.Store.ResourceRowCt(key)
 	if err != nil {

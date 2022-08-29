@@ -76,6 +76,17 @@ def execute_df_job(output_uri, code, aws_region, sources):
         raise e
 
 def get_code_from_file(file_path, aws_region=None):
+    """
+    Reads the code from a pkl file into a python code object.
+    Then this object will be used to execute the transformation. 
+    
+    Parameters:
+        file_path: string (path to file)
+        aws_region: string (aws region where s3 bucket is located)
+    Return:
+        code: code object that could be executed
+    """
+    
     prefix_len = len("s3://")
     code = None
     if "s3://" == file_path[:prefix_len]:

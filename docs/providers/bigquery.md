@@ -1,6 +1,6 @@
-# Postgres
+# BigQuery
 
-Featureform supports [Postgres](https://www.postgresql.org/) as an Offline Store.
+Featureform supports [BigQuery](https://cloud.google.com/bigquery) as an Offline Store.
 
 ## Implementation <a href="#implementation" id="implementation"></a>
 
@@ -24,21 +24,18 @@ Every registered feature and label is associated with a view table. That view co
 
 ## Configuration <a href="#configuration" id="configuration"></a>
 
-First we have to add a declarative Postgres configuration in Python.
+First we have to add a declarative BigQuery configuration in Python.
 
-{% code title="postgres_config.py" %}
+{% code title="bigquery_config.py" %}
 ```python
 import featureform as ff
 
-ff.register_postgres(
-    name = "postgres_docs",
-    description = "Example offline store store",
-    team = "Featureform",
-    host = "0.0.0.0",
-    port = "5432",
-    user = "postgres",
-    password = "password",
-    database = "postgres",
+bigquery = ff.register_bigquery(
+    name="bigquery-quickstart",
+    description="A BigQuery deployment we created for the Featureform quickstart",
+    project_id="<your-gcp-project-id>",
+    dataset_id="<your-big-query-dataset>",
+    credentials_path="<path-to-bigquery-credentials-file>"
 )
 ```
 {% endcode %}
@@ -46,7 +43,7 @@ ff.register_postgres(
 Once our config file is complete, we can apply it to our Featureform deployment
 
 ```bash
-featureform apply postgres_config.py --host $FEATUREFORM_HOST
+featureform apply bigquery_config.py --host $FEATUREFORM_HOST
 ```
 
 We can re-verify that the provider is created by checking the [Providers tab of the Feature Registry](../getting-started/exploring-the-feature-registry.md).

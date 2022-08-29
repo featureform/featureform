@@ -16,6 +16,7 @@ import (
 
 	"github.com/alicebob/miniredis"
 	"github.com/google/uuid"
+	"github.com/joho/godotenv"
 )
 
 func mockRedis() *miniredis.Miniredis {

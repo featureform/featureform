@@ -681,8 +681,7 @@ jobs:
         run: python3 -m pip install -r requirements.txt
 
       - name: Testing
-        working-directory: ./provider/scripts
-        run: pytest -v --cov=offline_store_spark_runner tests/ --cov-report term-missing
+        run: make test_pyspark
 
   schedule:
     runs-on: ubuntu-latest

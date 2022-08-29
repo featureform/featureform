@@ -10,6 +10,5 @@ RUN npm run build
 RUN npm uninstall -g serve
 RUN npm i -g serve
 RUN yarn global add serve
-RUN ls
 EXPOSE 3000
-ENTRYPOINT serve -s build
+ENTRYPOINT serve -s out

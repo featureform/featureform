@@ -94,6 +94,7 @@ update_python: gen_grpc 				## Updates the python package locally
 	-rm -r client/dist/*
 	python3 -m build ./client/
 	pip3 install client/dist/*.whl
+	pip3 install -r provider/scripts/requirements.txt
 
 etcdctl: 						## Installs ETCDCTL. Required for reset_e2e
 	-git clone -b v3.4.16 https://github.com/etcd-io/etcd.git
@@ -130,6 +131,8 @@ pytest:
 	jupyter nbconvert --to notebook --execute notebooks/Fraud_Detection_Example.ipynb
 	-rm -r .featureform
 
+test_pyspark:
+	pytest -v --cov=offline_store_spark_runner provider/scripts/tests/ --cov-report term-missing
 ##############################################  GO TESTS ###############################################################
 
 test_offline: gen_grpc 					## Run offline tests. Run with `make test_offline provider=(memory | postgres | snowflake | redshift | spark )`

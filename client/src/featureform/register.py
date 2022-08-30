@@ -147,6 +147,33 @@ class OfflineSparkProvider(OfflineProvider):
                            name: str = "",
                            schedule: str = "",
                            description: str = ""):
+        """
+        Register a SQL transformation source. The spark.sql_transformation decorator takes the returned string in the
+        following function and executes it as a SQL Query.
+
+        The name of the function is the name of the resulting source.
+
+        Sources for the transformation can be specified by adding the Name and Variant in brackets '{{ name.variant }}'.
+        The correct source is substituted when the query is run.
+
+        **Examples**:
+        ``` py
+        @spark.sql_transformation(variant="quickstart")
+        def average_user_transaction():
+            return "SELECT CustomerID as user_id, avg(TransactionAmount) as avg_transaction_amt from" \
+            " {{transactions.v1}} GROUP BY user_id"
+        ```
+
+        Args:
+            name (str): Name of source
+            variant (str): Name of variant
+            owner (Union[str, UserRegistrar]): Owner
+            description (str): Description of primary data to be registered
+
+
+        Returns:
+            source (ColumnSourceRegistrar): Source
+        """
         return self.__registrar.sql_transformation(name=name,
                                                    variant=variant,
                                                    owner=owner,
@@ -954,7 +981,7 @@ class Registrar:
         fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
         return OfflineSQLProvider(self, fakeProvider)      
 
-    def get_spark_aws(self, name):
+    def get_spark(self, name):
         """Get a Spark provider. The returned object can be used to register additional resources.
         **Examples**:
         ``` py
@@ -1312,7 +1339,7 @@ class Registrar:
         self.__resources.append(provider)
         return OfflineSQLProvider(self, provider)
 
-    def register_spark_aws(self,
+    def register_spark(self,
                           name: str,
                           description: str = "",
                           team: str = "",
@@ -2781,7 +2808,7 @@ register_snowflake = global_registrar.register_snowflake
 register_postgres = global_registrar.register_postgres
 register_redshift = global_registrar.register_redshift
 register_bigquery = global_registrar.register_bigquery
-register_spark_aws = global_registrar.register_spark_aws
+register_spark_aws = global_registrar.register_spark
 register_local = global_registrar.register_local
 register_entity = global_registrar.register_entity
 register_column_resources = global_registrar.register_column_resources
@@ -2796,4 +2823,4 @@ get_postgres = global_registrar.get_postgres
 get_snowflake = global_registrar.get_snowflake
 get_redshift = global_registrar.get_redshift
 get_bigquery = global_registrar.get_bigquery
-get_spark_aws = global_registrar.get_spark_aws
+get_spark_aws = global_registrar.get_spark

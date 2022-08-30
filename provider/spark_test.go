@@ -1078,8 +1078,12 @@ func TestGenerateSchemaFromInterface(t *testing.T) {
 
 func TestGenerateSchemaNoData(t *testing.T) {
 	emptyInterface := []interface{}{}
-	if _, err := generateSchemaFromInterface(emptyInterface); err == nil {
-		t.Fatalf("failed to trigger error on empty interface")
+	schema, err := generateSchemaFromInterface(emptyInterface)
+	if err != nil {
+		t.Fatalf("failed on empty interface")
+	}
+	if schema != emptyParquetSchema {
+		t.Fatalf("returned incorrect empty schema")
 	}
 }
 
@@ -1733,7 +1737,7 @@ func TestMaterializationCreate(t *testing.T) {
 		Value:  "value",
 	}
 	materializeTSQuery := queries.materializationCreate(exampleSchemaWithoutTS)
-	correctTSQuery := "SELECT entity, value, ts, ROW_NUMBER() over (ORDER BY (SELECT NULL)) AS row_number FROM (SELECT entity, value, ts, rn FROM (SELECT entity AS entity, value AS value, ts AS ts, ROW_NUMBER() OVER (PARTITION BY entity ORDER BY ts DESC) AS rn FROM source_0) t WHERE rn=1) t2"
+	correctTSQuery := "SELECT entity AS entity, value AS value, 0 as ts, ROW_NUMBER() over (ORDER BY (SELECT NULL)) AS row_number FROM source_0"
 	if correctTSQuery != materializeTSQuery {
 		t.Fatalf("Materialize create did not produce correct query substituting timestamp")
 	}
@@ -1767,8 +1771,14 @@ func TestTrainingSetCreate(t *testing.T) {
 	}
 	queries := defaultSparkOfflineQueries{}
 	trainingSetQuery := queries.trainingSetCreate(testTrainingSetDef, testFeatureSchemas, testLabelSchema)
-	correctQuery := "SELECT Feature__test_feature_1__default, Feature__test_feature_2__default, value AS Label__test_label__default FROM ((SELECT * FROM (SELECT entity, value, ts, rn " +
-		"FROM (SELECT entity AS entity, label_value AS value, ts AS ts, ROW_NUMBER() over (PARTITION BY entity, label_value, ts ORDER BY ts DESC) AS rn FROM source_0) t WHERE rn = 1) t0) LEFT OUTER JOIN (SELECT entity as t1_entity, feature_value_1 as Feature__test_feature_1__default, ts as t1_ts FROM source_1) t1 ON (t1_entity = entity AND t1_ts <= ts) LEFT OUTER JOIN (SELECT entity as t2_entity, feature_value_2 as Feature__test_feature_2__default, ts as t2_ts FROM source_2) t2 ON (t2_entity = entity AND t2_ts <= ts))"
+	correctQuery := "SELECT Feature__test_feature_1__default, Feature__test_feature_2__default, Label__test_label__default " +
+		"FROM (SELECT * FROM (SELECT *, row_number FROM (SELECT Feature__test_feature_1__default, Feature__test_feature_2__default, " +
+		"value AS Label__test_label__default, entity, label_ts, ROW_NUMBER() over (PARTITION BY entity, value, label_ts ORDER BY " +
+		"label_ts DESC) as row_number FROM ((SELECT * FROM (SELECT entity, value, label_ts FROM (SELECT entity AS entity, label_value " +
+		"AS value, ts AS label_ts FROM source_0) t ) t0) LEFT OUTER JOIN (SELECT * FROM (SELECT entity as t1_entity, feature_value_1 as " +
+		"Feature__test_feature_1__default, ts as t1_ts FROM source_1) ORDER BY t1_ts ASC) t1 ON (t1_entity = entity AND t1_ts <= label_ts) " +
+		"LEFT OUTER JOIN (SELECT * FROM (SELECT entity as t2_entity, feature_value_2 as Feature__test_feature_2__default, ts as t2_ts " +
+		"FROM source_2) ORDER BY t2_ts ASC) t2 ON (t2_entity = entity AND t2_ts <= label_ts)) tt) WHERE row_number=1 ))"
 	if trainingSetQuery != correctQuery {
 		t.Fatalf("training set query not correct")
 	}

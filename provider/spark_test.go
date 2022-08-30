@@ -895,7 +895,7 @@ func sparkTestMaterializationNotFound(t *testing.T, store *SparkOfflineStore) {
 	}
 }
 
-func sparkSafesparkSafeRandomID(types ...OfflineResourceType) ResourceID {
+func sparkSafeRandomID(types ...OfflineResourceType) ResourceID {
 	var t OfflineResourceType
 	if len(types) == 0 {
 		t = NoType

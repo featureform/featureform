@@ -574,6 +574,13 @@ jobs:
         working-directory: ./
         run: mkdir coverage
 
+      - name: create-json
+        id: create-json-2
+        uses: jsdaniell/create-json@1.1.2
+        with:
+          name: "./coordinator/bigquery_credentials.json"
+          json: ${{ secrets.BIGQUERY_CREDENTIALS_FILE }}
+
       - name: Testing
         env:
           SNOWFLAKE_USERNAME: ${{ secrets.SNOWFLAKE_USERNAME }}
@@ -582,6 +589,9 @@ jobs:
           SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
           ETCD_HOST: ${{ env.ETCD_HOST }}
           ETCD_PORT: ${{ env.ETCD_PORT }}
+          BIGQUERY_PROJECT_ID: ${{ secrets.BIGQUERY_PROJECT_ID }}
+          BIGQUERY_DATASET_ID: ${{ secrets.BIGQUERY_DATASET_ID }}
+          BIGQUERY_CREDENTIALS: "bigquery_credentials.json"
         working-directory: ./
         run: go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./coordinator/...
 

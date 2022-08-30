@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/google/uuid"
+	"io/ioutil"
 	"net"
 	"os"
 	"reflect"
@@ -15,6 +16,7 @@ import (
 	"github.com/featureform/provider"
 	"github.com/featureform/runner"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/joho/godotenv"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.uber.org/zap"
 )
@@ -840,26 +842,105 @@ func TestRegisterSourceJobErrors(t *testing.T) {
 }
 
 func TestTemplateReplace(t *testing.T) {
-	templateString := "Some example text {{name1.variant1}} and more {{name2.variant2}}"
-	replacements := map[string]string{"name1.variant1": "replacement1", "name2.variant2": "replacement2"}
-	correctString := "Some example text \"replacement1\" and more \"replacement2\""
-	result, err := templateReplace(templateString, replacements)
+	err := godotenv.Load(".env")
 	if err != nil {
-		t.Fatalf("template replace did not run correctly: %v", err)
+		fmt.Println(err)
 	}
-	if result != correctString {
-		t.Fatalf("template replace did not replace values correctly. Expected %s, got %s", correctString, result)
+
+	bigQueryConfig := getBigQueryConfig(t)
+	bqPrefix := fmt.Sprintf("%s.%s", bigQueryConfig.ProjectId, bigQueryConfig.DatasetId)
+
+	cases := []struct {
+		name            string
+		provider        provider.Type
+		config          provider.SerializedConfig
+		templateString  string
+		replacements    map[string]string
+		expectedResults string
+		expectedFailure bool
+	}{
+		{
+			"PostgresSuccess",
+			provider.PostgresOffline,
+			postgresConfig.Serialize(),
+			"Some example text {{name1.variant1}} and more {{name2.variant2}}",
+			map[string]string{"name1.variant1": "replacement1", "name2.variant2": "replacement2"},
+			"Some example text \"replacement1\" and more \"replacement2\"",
+			false,
+		},
+		{
+			"PostgresFailure",
+			provider.PostgresOffline,
+			postgresConfig.Serialize(),
+			"Some example text {{name1.variant1}} and more {{name2.variant2}}",
+			map[string]string{"name1.variant1": "replacement1", "name3.variant3": "replacement2"},
+			"",
+			true,
+		},
+		{
+			"BigQuerySuccess",
+			provider.BigQueryOffline,
+			bigQueryConfig.Serialize(),
+			"Some example text {{name1.variant1}} and more {{name2.variant2}}",
+			map[string]string{"name1.variant1": "replacement1", "name2.variant2": "replacement2"},
+			fmt.Sprintf("Some example text `%s.replacement1` and more `%s.replacement2`", bqPrefix, bqPrefix),
+			false,
+		},
+		{
+			"BigQueryFailure",
+			provider.BigQueryOffline,
+			bigQueryConfig.Serialize(),
+			"Some example text {{name1.variant1}} and more {{name2.variant2}}",
+			map[string]string{"name1.variant1": "replacement1", "name3.variant3": "replacement2"},
+			"",
+			true,
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			offlineProvider := getOfflineStore(t, tt.provider, tt.config)
+			result, err := templateReplace(tt.templateString, tt.replacements, offlineProvider)
+			if !tt.expectedFailure && err != nil {
+				t.Fatalf("template replace did not run correctly: %v", err)
+			}
+			if !tt.expectedFailure && result != tt.expectedResults {
+				t.Fatalf("template replace did not replace values correctly. Expected %s, got %s", tt.expectedResults, result)
+			}
+		})
 	}
 }
 
-func TestTemplateReplaceError(t *testing.T) {
-	templateString := "Some example text {{name1.variant1}} and more {{name2.variant2}}"
-	wrongReplacements := map[string]string{"name1.variant1": "replacement1", "name3.variant3": "replacement2"}
-	_, err := templateReplace(templateString, wrongReplacements)
-	if err == nil {
-		t.Fatalf("template replace did not catch error: %v", err)
+func getOfflineStore(t *testing.T, providerName provider.Type, config provider.SerializedConfig) provider.OfflineStore {
+	provider, err := provider.Get(providerName, config)
+	if err != nil {
+		t.Fatalf("could not get provider: %v", err)
+	}
+	offlineProvider, err := provider.AsOfflineStore()
+	if err != nil {
+		t.Fatalf("could not get provider as offline store: %v", err)
+	}
+	return offlineProvider
+}
+
+func getBigQueryConfig(t *testing.T) provider.BigQueryConfig {
+	bigqueryCredentials := os.Getenv("BIGQUERY_CREDENTIALS")
+	JSONCredentials, err := ioutil.ReadFile(bigqueryCredentials)
+	if err != nil {
+		panic(fmt.Errorf("cannot find big query credentials: %v", err))
 	}
 
+	bigQueryDatasetId := strings.Replace(strings.ToUpper(uuid.NewString()), "-", "_", -1)
+	os.Setenv("BIGQUERY_DATASET_ID", bigQueryDatasetId)
+	t.Log("BigQuery Dataset: ", bigQueryDatasetId)
+
+	var bigQueryConfig = provider.BigQueryConfig{
+		ProjectId:   os.Getenv("BIGQUERY_PROJECT_ID"),
+		DatasetId:   os.Getenv("BIGQUERY_DATASET_ID"),
+		Credentials: JSONCredentials,
+	}
+
+	return bigQueryConfig
 }
 
 func TestCoordinatorCalls(t *testing.T) {

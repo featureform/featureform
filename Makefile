@@ -236,7 +236,7 @@ test_go_unit:
 test_metadata:							## Requires ETCD to be installed and added to path
 	-mkdir coverage
 	$(flags) etcd &
-	sleep 1
+	while ! echo exit | nc localhost 2379; do sleep 1; done
 	go test -coverpkg=./... -coverprofile coverage/cover.out.tmp ./metadata/
 
 test_helpers:
@@ -250,14 +250,14 @@ test_serving:
 test_runner:							## Requires ETCD to be installed and added to path
 	-mkdir coverage
 	$(flags) etcd &
-	sleep 1
+	while ! echo exit | nc localhost 2379; do sleep 1; done
 	go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./runner/...
 
 test_api: update_python
 	pip3 install -U pip
 	pip3 install python-dotenv pytest
 	go run api/main.go & echo $$! > server.PID;
-	sleep 1
+	while ! echo exit | nc localhost 7878; do sleep 1; done
 	pytest client/tests/connection_test.py
 	kill -9 `cat server.PID`
 
@@ -276,7 +276,9 @@ test_coordinator: cleanup_coordinator
 	docker run -d --name postgres -p 5432:5432 -e POSTGRES_PASSWORD=password postgres
 	docker run -d --name redis -p 6379:6379 redis
 	$(flags) etcd &
-	sleep 1
+	while ! echo exit | nc localhost 2379; do sleep 1; done
+	while ! echo exit | nc localhost 5432; do sleep 1; done
+	while ! echo exit | nc localhost 6379; do sleep 1; done
 	go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./coordinator/...
 	$(MAKE) cleanup_coordinator
 

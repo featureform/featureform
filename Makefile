@@ -216,7 +216,7 @@ pytest:
 	-rm -r .featureform
 
 test_pyspark:
-	pytest -v --cov=offline_store_spark_runner provider/scripts/tests/ --cov-report term-missing
+	coverage run -m pytest -v provider/scripts/tests/ && coverage report --show-missing
 ##############################################  GO TESTS ###############################################################
 
 test_offline: gen_grpc 					## Run offline tests. Run with `make test_offline provider=(memory | postgres | snowflake | redshift | spark )`

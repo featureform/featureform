@@ -3295,13 +3295,12 @@ func getTableName(testName string, tableName string) string {
 	return tableName
 }
 
-
 func sanitizeTableName(testName string, tableName string) string {
 	if !strings.Contains(testName, "BIGQUERY") {
 		tableName = sanitize(tableName)
 	}
 	return tableName
-
+}
 
 func TestBigQueryConfig_Deserialize(t *testing.T) {
 	content, err := ioutil.ReadFile("connection/connection_configs.json")

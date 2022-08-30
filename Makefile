@@ -133,8 +133,8 @@ pytest:
 
 test_pyspark:
 	pytest -v --cov=offline_store_spark_runner provider/scripts/tests/ --cov-report term-missing
-##############################################  GO TESTS ###############################################################
 
+##############################################  GO TESTS ###############################################################
 test_offline: gen_grpc 					## Run offline tests. Run with `make test_offline provider=(memory | postgres | snowflake | redshift | spark )`
 	@echo "These tests require a .env file. Please Check .env-template for possible variables"
 	-mkdir coverage

@@ -263,7 +263,7 @@ type SparkExecutor interface {
 type SparkStore interface {
 	UploadSparkScript() error //initialization function
 	ResourceKey(id ResourceID) (string, error)
-	ResourceStreamConv(key string) (chan interface{}, error)
+	ResourceStreamConv(key string, begin int64) (chan interface{}, error)
 	ResourceRowCt(key string) (int, error)
 	ResourcePath(id ResourceID) string
 	BucketPrefix() string
@@ -773,7 +773,7 @@ func (s *S3PrimaryTable) GetName() string {
 }
 
 func (s *S3PrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) {
-	columnStream, err := s.store.ResourceStreamConv(s.sourcePath)
+	columnStream, err := s.store.ResourceStreamConv(s.sourcePath, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -784,7 +784,7 @@ func (s *S3PrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) {
 	for i := 0; i < rowStruct.NumField(); i++ {
 		columns[i] = rowStruct.Type().Field(i).Name
 	}
-	channel, err := s.store.ResourceStreamConv(s.sourcePath)
+	channel, err := s.store.ResourceStreamConv(s.sourcePath, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -1075,12 +1075,9 @@ func (s *S3Materialization) NumRows() (int64, error) {
 }
 
 func (s *S3Materialization) IterateSegment(begin, end int64) (FeatureIterator, error) {
-	stream, err := s.store.ResourceStreamConv(s.Key)
+	stream, err := s.store.ResourceStreamConv(s.Key, begin)
 	if err != nil {
 		return nil, err
-	}
-	for i := int64(0); i < begin; i++ {
-		_ = <-stream
 	}
 	return &S3FeatureIterator{stream: stream, maxIdx: (end - begin)}, nil
 }
@@ -1136,9 +1133,9 @@ func featureStructToResource(row interface{}) (ResourceRecord, error) {
 	switch v := timestampValue.(type) {
 	case *string:
 		//need to get non-converted value
-		layout := "2006-01-02T15:04:05.000Z"
+		timestampLayout := time.RFC3339
 		var err error
-		ts, err = time.Parse(layout, *v)
+		ts, err = time.Parse(timestampLayout, *v)
 		if err != nil {
 			return ResourceRecord{}, fmt.Errorf("could not parse timestmap: %v", err)
 		}
@@ -1305,7 +1302,7 @@ func (s *S3TrainingSet) Next() bool {
 		return false
 	}
 	if s.iter == nil {
-		iterator, err := s.store.ResourceStreamConv(s.Key)
+		iterator, err := s.store.ResourceStreamConv(s.Key, 0)
 		if err != nil {
 			s.err = err
 			return false
@@ -1530,7 +1527,7 @@ func (s *S3Store) ResourceStream(key string) (chan []byte, error) {
 	return out, nil
 }
 
-func (s *S3Store) ResourceStreamConv(key string) (chan interface{}, error) {
+func (s *S3Store) ResourceStreamConv(key string, begin int64) (chan interface{}, error) {
 	file, err := s.S3ParquetReader(key)
 	if err != nil {
 		return nil, err
@@ -1539,6 +1536,11 @@ func (s *S3Store) ResourceStreamConv(key string) (chan interface{}, error) {
 	pr, err := reader.NewParquetReader(file, nil, 4)
 	if err != nil {
 		return nil, err
+	}
+	if begin > 0 {
+		if err := pr.SkipRows(begin); err != nil {
+			return nil, err
+		}
 	}
 	numRows := pr.GetNumRows()
 	rowChannel := make(chan interface{})
@@ -1554,10 +1556,6 @@ func (s *S3Store) ResourceStreamConv(key string) (chan interface{}, error) {
 		rowChannel <- fmt.Errorf("end of file")
 	}(rowChannel, numRows, pr)
 	return rowChannel, nil
-}
-
-func castedSelectQuery(types []string) string {
-	return ""
 }
 
 func (s *S3Store) RowStreamFromSelectQuery(key string, query string) (chan []byte, error) {

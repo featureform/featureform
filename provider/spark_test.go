@@ -1734,7 +1734,6 @@ func TestMaterializationCreate(t *testing.T) {
 }
 
 func TestTrainingSetCreate(t *testing.T) {
-	// (def TrainingSetDef, featureSchemas []ResourceSchema, labelSchema ResourceSchema
 	testTrainingSetDef := TrainingSetDef{
 		ID: ResourceID{"test_training_set", "default", TrainingSet},
 		Features: []ResourceID{

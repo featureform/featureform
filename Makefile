@@ -60,6 +60,90 @@ test_online
 				make test_online provider=memory
 
 
+test_go_unit
+	Requirements:
+		- Golang 1.18
+
+	Description:
+		Runs golang unit tests
+
+test_metadata
+	Requirements:
+		- Golang 1.18
+		- ETCD installed and added to path (https://etcd.io/docs/v3.4/install/)
+
+	Description:
+		Runs metadata tests
+
+	Flags:
+		- ETCD_UNSUPPORTED_ARCH
+			Description:
+				This flag must be set to run on M1/M2 Macs
+			Usage:
+				make test_metadata flags=ETCD_UNSUPPORTED_ARCH=arm64
+
+
+test_helpers
+	Requirements:
+		- Golang 1.18
+
+	Description:
+		Runs helper tests
+
+test_serving
+	Requirements:
+		- Golang 1.18
+
+	Description:
+		Runs serving tests
+
+test_runner
+	Requirements:
+		- Golang 1.18
+		- ETCD installed and added to path (https://etcd.io/docs/v3.4/install/)
+
+	Description:
+		Runs coordinator runner tests
+
+	Flags:
+		- ETCD_UNSUPPORTED_ARCH
+			Description:
+				This flag must be set to run on M1/M2 Macs
+			Usage:
+				make test_metadata flags=ETCD_UNSUPPORTED_ARCH=arm64
+
+test_api
+	Requirements:
+		- Golang 1.18
+		- Python3.6-3.10
+
+	Description:
+		Starts an API Server instance and checks that the serving and metadata clients can connect
+
+test_typesense
+	Requirements:
+		- Golang 1.18
+		- Docker
+
+	Description:
+		Starts a typesense instance and tests the typesense package
+
+test_coordinator
+	Requirements:
+		- Golang 1.18
+		- ETCD installed and added to path (https://etcd.io/docs/v3.4/install/)
+		- Docker
+
+	Description:
+		Starts ETCD, Postgres, and Redis to test the coordinator
+
+	Flags:
+		- ETCD_UNSUPPORTED_ARCH
+			Description:
+				This flag must be set to run on M1/M2 Macs
+			Usage:
+				make test_metadata flags=ETCD_UNSUPPORTED_ARCH=arm64
+
 endef
 export HELP_BODY
 
@@ -132,6 +216,7 @@ pytest:
 	-rm -r .featureform
 
 test_pyspark:
+	@echo "Requires Java to be installed"
 	pytest -v --cov=offline_store_spark_runner provider/scripts/tests/ --cov-report term-missing
 ##############################################  GO TESTS ###############################################################
 
@@ -148,6 +233,61 @@ test_online: gen_grpc 					## Run offline tests. Run with `make test_online prov
 test_go_unit:
 	-mkdir coverage
 	go test ./... -tags=*,offline,provider --short   -coverprofile coverage/cover.out.tmp
+
+test_metadata:							## Requires ETCD to be installed and added to path
+	-mkdir coverage
+	$(flags) etcd &
+	while ! echo exit | nc localhost 2379; do sleep 1; done
+	go test -coverpkg=./... -coverprofile coverage/cover.out.tmp ./metadata/
+
+test_helpers:
+	-mkdir coverage
+	go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./helpers/...
+
+test_serving:
+	-mkdir coverage
+	go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./newserving/...
+
+test_runner:							## Requires ETCD to be installed and added to path
+	-mkdir coverage
+	$(flags) etcd &
+	while ! echo exit | nc localhost 2379; do sleep 1; done
+	go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./runner/...
+
+test_api: update_python
+	pip3 install -U pip
+	pip3 install python-dotenv pytest
+	go run api/main.go & echo $$! > server.PID;
+	while ! echo exit | nc localhost 7878; do sleep 1; done
+	pytest client/tests/connection_test.py
+	kill -9 `cat server.PID`
+
+test_typesense:
+	-docker kill typesense
+	-docker rm typesense
+	-mkdir coverage
+	-mkdir /tmp/typesense-data
+	docker run -d --name typesense -p 8108:8108 -v/tmp/typesense-data:/data typesense/typesense:0.23.1 --data-dir /data --api-key=xyz --enable-cors
+	go test -v -coverpkg=./... -coverprofile ./coverage/cover.out.tmp ./metadata/search/...
+	docker kill typesense
+	docker rm typesense
+
+test_coordinator: cleanup_coordinator
+	-mkdir coverage
+	docker run -d --name postgres -p 5432:5432 -e POSTGRES_PASSWORD=password postgres
+	docker run -d --name redis -p 6379:6379 redis
+	$(flags) etcd &
+	while ! echo exit | nc localhost 2379; do sleep 1; done
+	while ! echo exit | nc localhost 5432; do sleep 1; done
+	while ! echo exit | nc localhost 6379; do sleep 1; done
+	go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./coordinator/...
+	$(MAKE) cleanup_coordinator
+
+cleanup_coordinator:
+	-docker kill postgres
+	-docker rm postgres
+	-docker kill redis
+	-docker rm redis
 
 
 ##############################################  MINIKUBE ###############################################################

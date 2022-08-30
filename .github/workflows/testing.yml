@@ -660,7 +660,7 @@ jobs:
       - name: Install python dependencies
         working-directory: ./
         run: |
-          python3 -m pip install build pytest
+          python3 -m pip install build pytest python-dotenv
           python3 -m build ./client/
           python3 -m pip install client/dist/*
 
@@ -768,7 +768,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install pytest
-        run: pip install pytest protobuf==3.20.1
+        run: pip install pytest protobuf==3.20.1 python-dotenv
 
       - name: Install featureform
         run: pip install client/dist/featureform-0.0.0-py3-none-any.whl

@@ -33,7 +33,7 @@ func TestOfflineStores(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
-	err := godotenv.Load(".env")
+	err := godotenv.Load("../.env")
 	if err != nil {
 		fmt.Println(err)
 	}

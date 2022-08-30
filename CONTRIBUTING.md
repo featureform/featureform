@@ -17,10 +17,11 @@ In general, we follow the "fork-and-pull" Git workflow.
 1. Fork the embeddingstore repository
 2. Clone the repository
 3. Make changes and commit them
-4. Push your local branch to your fork
-5. Submit a pull request so that we can review your changes
-6. Write a commit message
-7. Make sure that the CI tests are GREEN
+4. Run `make help` for instructions on how to test your changes
+5. Push your local branch to your fork
+6. Submit a pull request so that we can review your changes
+7. Write a commit message
+8. Make sure that the CI tests are GREEN
 
 >NOTE: Be sure to merge the latest from "upstream" before making a pull request!
 

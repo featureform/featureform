@@ -101,6 +101,21 @@ etcdctl: 						## Installs ETCDCTL. Required for reset_e2e
 	export PATH=$PATH:"`pwd`/etcd/bin"
 	etcdctl version
 
+credentials:
+	-mkdir ~/credentials
+	aws secretsmanager get-secret-value --secret-id bigquery.json --region us-east-1 |   jq -r '.SecretString' > ~/credentials/bigquery.json
+	aws secretsmanager get-secret-value --secret-id firebase.json --region us-east-1 |   jq -r '.SecretString' > ~/credentials/firebase.json
+	aws secretsmanager get-secret-value --secret-id .env --region us-east-1 |   jq -r '.SecretString' |   jq -r "to_entries|map(\"\(.key)=\\\"\(.value|tostring)\\\"\")|.[]" > .env
+
+start_postgres:
+	-docker kill postgres
+	-docker rm postgres
+	docker run -d -p 5432:5432 --name postgres -e POSTGRES_PASSWORD=password postgres
+
+stop_postgres:
+	docker kill postgres
+	docker rm postgres
+
 ##############################################  PYTHON TESTS ###########################################################
 pytest:
 	-rm -r .featureform
@@ -117,11 +132,13 @@ pytest:
 
 ##############################################  GO TESTS ###############################################################
 
-test_offline: gen_grpc						## Run offline tests. Run with `make test_offline provider=(memory | postgres | snowflake | redshift | spark )`
+test_offline: gen_grpc 					## Run offline tests. Run with `make test_offline provider=(memory | postgres | snowflake | redshift | spark )`
+	@echo "These tests require a .env file. Please Check .env-template for possible variables"
 	-mkdir coverage
 	go test -v -timeout 60m -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/... --tags=offline,spark --provider=$(provider)
 
-test_online: gen_grpc					## Run offline tests. Run with `make test_online provider=(memory | redis_mock | redis_insecure | redis_secure | cassandra | firestore | dynamo )`
+test_online: gen_grpc 					## Run offline tests. Run with `make test_online provider=(memory | redis_mock | redis_insecure | redis_secure | cassandra | firestore | dynamo )`
+	@echo "These tests require a .env file. Please Check .env-template for possible variables"
 	-mkdir coverage
 	go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/... --tags=online,provider --provider=$(provider)
 

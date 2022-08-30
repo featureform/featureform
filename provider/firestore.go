@@ -6,6 +6,7 @@ package provider
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"cloud.google.com/go/firestore"
 	"google.golang.org/api/option"
@@ -49,19 +50,23 @@ func firestoreOnlineStoreFactory(serialized SerializedConfig) (Provider, error) 
 }
 
 func NewFirestoreOnlineStore(options *FirestoreConfig) (*firestoreOnlineStore, error) {
-	firestoreClient, err := firestore.NewClient(ctx, options.ProjectID, option.WithCredentialsJSON(options.Credentials))
+	credBytes, err := json.Marshal(options.Credentials)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not serialized firestore config, %v", err)
+	}
+	firestoreClient, err := firestore.NewClient(ctx, options.ProjectID, option.WithCredentialsJSON(credBytes))
+	if err != nil {
+		return nil, fmt.Errorf("could not create firestore connection, %v", err)
 	}
 
 	firestoreCollection := firestoreClient.Collection(options.Collection)
 	_, err = firestoreCollection.Doc(GetMetadataTable()).Set(ctx, map[string]interface{}{})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not create firestore document, %v", err)
 	}
 	return &firestoreOnlineStore{firestoreClient, firestoreCollection, BaseProvider{
 		ProviderType:   FirestoreOnline,
-		ProviderConfig: options.Serialized(),
+		ProviderConfig: options.Serialize(),
 	},
 	}, nil
 }

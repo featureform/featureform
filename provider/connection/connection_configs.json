@@ -1,0 +1,18 @@
+{
+  "BigQuery": {
+      "ProjectID": "some-project-id",
+      "DatasetID": "some-dataset-id",
+      "Credentials": {
+        "Project": "some-project-id",
+        "SecretKey": "my-secret-key"
+    }
+  },
+  "Firestore": {
+    "ProjectID": "some-project-id",
+    "Collection": "some-collection-id",
+    "Credentials": {
+      "Project": "some-project-id",
+      "SecretKey": "my-secret-key"
+    }
+  }
+}

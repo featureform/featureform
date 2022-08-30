@@ -65,8 +65,8 @@ class OfflineSQLProvider(OfflineProvider):
 
     def register_table(self,
                        name: str,
-                       variant: str,
                        table: str,
+                       variant: str = "default",
                        owner: Union[str, UserRegistrar] = "",
                        description: str = ""):
         """Register a SQL table as a primary data source.
@@ -89,8 +89,8 @@ class OfflineSQLProvider(OfflineProvider):
                                                       description=description)
 
     def sql_transformation(self,
-                           variant: str,
                            owner: Union[str, UserRegistrar] = "",
+                           variant: str = "default",
                            name: str = "",
                            schedule: str = "",
                            description: str = ""):
@@ -1770,6 +1770,7 @@ class Registrar:
             label = (label, "default")
         features = self.__get_feature_nv(features)
 
+
         if label == ():
             raise ValueError("Label must be set")
         if features == []:
@@ -2829,6 +2830,7 @@ state = global_registrar.state
 clear_state = global_registrar.clear_state
 register_user = global_registrar.register_user
 register_redis = global_registrar.register_redis
+register_bigquery = global_registrar.register_bigquery
 register_firestore = global_registrar.register_firestore
 register_cassandra = global_registrar.register_cassandra
 register_dynamodb = global_registrar.register_dynamodb

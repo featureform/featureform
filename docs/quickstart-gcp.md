@@ -23,13 +23,15 @@ cd featureform/terraform/gcp
 ```
 
 ## Step 2: Create GCP Services
-We'll start BigQuery, Firestore, and Google Kubernetes Engine (GKE). (Specific services can be enabled/disabled as needed)
+We'll start BigQuery, Firestore, and Google Kubernetes Engine (GKE). (Specific services can be enabled/disabled as needed in
+terraform.auto.tfvars)
 
 We need to set:
 ```shell
 export PROJECT_ID=<your-project-id>           # Your GCP Project ID
 export DATASET_ID="featureform"               # The BigQuery Dataset we'll use
 export BUCKET_NAME="<your-bucket-name>"       # A GCP Storage Bucket where we can store test data
+export COLLECTION_ID="featureform_collection" # A Firestore Collection ID
 export FEATUREFORM_HOST="<your-domain-name>"  # The domain name that you own
 ```
 ### Set our CLI to our current project
@@ -37,7 +39,12 @@ export FEATUREFORM_HOST="<your-domain-name>"  # The domain name that you own
 cd gcp_services
 gcloud auth application-default login   # Gives Terraform access to GCP
 gcloud config set project $PROJECT_ID   # Sets  our GCP Project
-terraform init; terraform apply -auto-approve -var="project_id=$PROJECT_ID" -var="bigquery_dataset_id=$DATASET_ID" # Run Terraform
+terraform init; \
+terraform apply -auto-approve \
+-var="project_id=$PROJECT_ID" \
+-var="bigquery_dataset_id=$DATASET_ID" \
+-var="storage_bucket_name=$BUCKET_NAME" # Run Terraform \
+-var="firestore_collection_name=$COLLECTION_ID"
 ```
 
 ## Step 3: Configure Kubectl
@@ -90,22 +97,28 @@ pip install featureform
 GCP Registered providers require a GCP Credentials file for a user that has permissions for Firestore and BigQuery.
 
 {% code title="definitions.py" %}
+
 ```python
+import os
 import featureform as ff
 
-redis = ff.register_firestore(
+project_id = os.getenv("PROJECT_ID")
+collection_id=os.getenv("COLLECTION_ID")
+dataset_id = os.getenv("DATASET_ID")
+
+firestore = ff.register_firestore(
     name="firestore-quickstart",
     description="A Firestore deployment we created for the Featureform quickstart",
-    project_id="<your-gcp-project-id>",
-    collection="<your-collection-id>",
-    credentials_path="<path-to-bigquery-credentials-file>" 
+    project_id=project_id,
+    collection=collection_id,
+    credentials_path="<path-to-bigquery-credentials-file>"
 )
 
 bigquery = ff.register_bigquery(
     name="bigquery-quickstart",
     description="A BigQuery deployment we created for the Featureform quickstart",
-    project_id="<your-gcp-project-id>",
-    dataset_id="featureform",
+    project_id=project_id,
+    dataset_id=dataset_id,
     credentials_path="<path-to-bigquery-credentials-file>"
 )
 ```

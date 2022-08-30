@@ -3,7 +3,7 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import pytest
-from resources import ResourceRedefinedError, ResourceState, Provider, RedisConfig, CassandraConfig, FirestoreConfig, \
+from .resources import ResourceRedefinedError, ResourceState, Provider, RedisConfig, CassandraConfig, FirestoreConfig, \
 SnowflakeConfig, PostgresConfig, RedshiftConfig, BigQueryConfig, User, Provider, Entity, Feature, Label, TrainingSet, PrimaryData, SQLTable, \
 Source, ResourceColumnMapping, DynamodbConfig, Schedule
 
@@ -83,8 +83,11 @@ def bigquery_config():
     return BigQueryConfig(
         project_id="bigquery-project",
         dataset_id="bigquery-dataset",
-        credentials_path="bigquery-credentials-path",
+        credentials_path="/Users/sdreyer/credentials/bigquery.json",
     )
+
+def test_bigquery_config(bigquery_config):
+    print(bigquery_config.serialize())
 
 
 @pytest.fixture

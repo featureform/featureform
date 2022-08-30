@@ -252,8 +252,8 @@ class BigQueryConfig:
 
     def serialize(self) -> bytes:
         config = {
-            "ProjectId": self.project_id,
-            "DatasetId": self.dataset_id,
+            "ProjectID": self.project_id,
+            "DatasetID": self.dataset_id,
             "Credentials": json.load(open(self.credentials_path)),
         }
         return bytes(json.dumps(config), "utf-8")

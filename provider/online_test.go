@@ -7,6 +7,7 @@
 package provider
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -103,9 +104,16 @@ func TestOnlineStores(t *testing.T) {
 		if err != nil {
 			panic(fmt.Sprintf("Could not open firestore credentials: %v", err))
 		}
+
+		var credentialsDict map[string]interface{}
+		err = json.Unmarshal(JSONCredentials, &credentialsDict)
+		if err != nil {
+			panic(fmt.Errorf("cannot unmarshal big query credentials: %v", err))
+		}
+
 		firestoreConfig := &FirestoreConfig{
 			ProjectID:   projectID,
-			Credentials: JSONCredentials,
+			Credentials: credentialsDict,
 		}
 		return *firestoreConfig
 	}
@@ -148,7 +156,7 @@ func TestOnlineStores(t *testing.T) {
 		testList = append(testList, testMember{CassandraOnline, "", cassandraInit().Serialized(), true})
 	}
 	if *provider == "firestore" || *provider == "" {
-		testList = append(testList, testMember{FirestoreOnline, "", firestoreInit().Serialized(), true})
+		testList = append(testList, testMember{FirestoreOnline, "", firestoreInit().Serialize(), true})
 	}
 	if *provider == "dynamo" || *provider == "" {
 		testList = append(testList, testMember{DynamoDBOnline, "", dynamoInit().Serialized(), true})
@@ -311,5 +319,66 @@ func testTypeCasting(t *testing.T, store OnlineStore) {
 			t.Fatalf("Values are not the same %v, type %T. %v, type %T", resource.Value, resource.Value, gotVal, gotVal)
 		}
 		store.DeleteTable(featureName, "")
+	}
+}
+
+func TestFirestoreConfig_Deserialize(t *testing.T) {
+	content, err := ioutil.ReadFile("connection/connection_configs.json")
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	var payload map[string]interface{}
+	err = json.Unmarshal(content, &payload)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	testConfig := payload["Firestore"].(map[string]interface{})
+
+	fsconfig := FirestoreConfig{
+		ProjectID:   testConfig["ProjectID"].(string),
+		Collection:  testConfig["Collection"].(string),
+		Credentials: testConfig["Credentials"].(map[string]interface{}),
+	}
+
+	serialized := fsconfig.Serialize()
+
+	type fields struct {
+		Collection  string
+		ProjectID   string
+		Credentials map[string]interface{}
+	}
+	type args struct {
+		config SerializedConfig
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "TestCredentials",
+			fields: fields{
+				ProjectID:   testConfig["ProjectID"].(string),
+				Collection:  testConfig["Collection"].(string),
+				Credentials: testConfig["Credentials"].(map[string]interface{}),
+			},
+			args: args{
+				config: serialized,
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := &FirestoreConfig{
+				Collection:  tt.fields.Collection,
+				ProjectID:   tt.fields.ProjectID,
+				Credentials: tt.fields.Credentials,
+			}
+			if err := r.Deserialize(tt.args.config); (err != nil) != tt.wantErr {
+				t.Errorf("Deserialize() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
 	}
 }

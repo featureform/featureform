@@ -205,7 +205,8 @@ stop_postgres:
 pytest:
 	-rm -r .featureform
 	curl -C - https://featureform-demo-files.s3.amazonaws.com/transactions.csv -o transactions.csv
-	pytest client/tests/serving_test.py -s
+	pytest client/tests/provider_config_test.py
+	pytest client/tests/serving_test.py
 	pytest client/src/featureform/local_dash_test.py
 	pytest client/tests/redefined_test.py
 	pytest client/tests/local_test.py

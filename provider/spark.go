@@ -195,7 +195,7 @@ func (store *SparkOfflineStore) Close() error {
 	return nil
 }
 
-func SparkOfflineStoreFactory(config SerializedConfig) (Provider, error) {
+func sparkOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	sc := SparkConfig{}
 	if err := sc.Deserialize(config); err != nil {
 		return nil, fmt.Errorf("invalid spark config: %v", config)

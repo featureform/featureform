@@ -395,26 +395,26 @@ func TestParquetUpload(t *testing.T) {
 		t.Fatalf("resource primary test failed: %s", err)
 	}
 	// inherited from offline_test.go
-	testOfflineTableNotFound(t, sparkOfflineStore)
-	testCreateGetOfflineTable(t, sparkOfflineStore)
-	testOfflineTableAlreadyExists(t, sparkOfflineStore)
-	testInvalidResourceIDs(t, sparkOfflineStore)
-	testInvalidMaterialization(t, sparkOfflineStore)
-	testMaterializeUnknown(t, sparkOfflineStore)
-	testMaterializationNotFound(t, sparkOfflineStore)
-	testGetTrainingSetInvalidResourceID(t, sparkOfflineStore)
-	testGetUnknownTrainingSet(t, sparkOfflineStore)
-	testInvalidTrainingSetDefs(t, sparkOfflineStore)
-	testLabelTableNotFound(t, sparkOfflineStore)
-	testFeatureTableNotFound(t, sparkOfflineStore)
-	testCreatePrimaryFromSource(t, sparkOfflineStore)
-	testCreateDuplicatePrimaryTable(t, sparkOfflineStore)
+	sparkTestOfflineTableNotFound(t, sparkOfflineStore)
+	sparkTestCreateGetOfflineTable(t, sparkOfflineStore)
+	sparkTestOfflineTableAlreadyExists(t, sparkOfflineStore)
+	sparkTestInvalidResourceIDs(t, sparkOfflineStore)
+	sparkTestInvalidMaterialization(t, sparkOfflineStore)
+	sparkTestMaterializeUnknown(t, sparkOfflineStore)
+	sparkTestMaterializationNotFound(t, sparkOfflineStore)
+	sparkTestGetTrainingSetInvalidResourceID(t, sparkOfflineStore)
+	sparkTestGetUnknownTrainingSet(t, sparkOfflineStore)
+	sparkTestInvalidTrainingSetDefs(t, sparkOfflineStore)
+	sparkTestLabelTableNotFound(t, sparkOfflineStore)
+	sparkTestFeatureTableNotFound(t, sparkOfflineStore)
+	sparkTestCreatePrimaryFromSource(t, sparkOfflineStore)
+	sparkTestCreateDuplicatePrimaryTable(t, sparkOfflineStore)
 	// EMR tests (take a lot longer)
-	testTrainingSet(t, sparkOfflineStore)
-	testMaterializations(t, sparkOfflineStore)
-	testTrainingSetDefShorthand(t, sparkOfflineStore)
-	testMaterializationUpdate(t, sparkOfflineStore)
-	testTrainingSetUpdate(t, sparkOfflineStore)
+	sparkTestTrainingSet(t, sparkOfflineStore)
+	sparkTestMaterializations(t, sparkOfflineStore)
+	sparkTestTrainingSetDefShorthand(t, sparkOfflineStore)
+	sparkTestMaterializationUpdate(t, sparkOfflineStore)
+	sparkTestTrainingSetUpdate(t, sparkOfflineStore)
 	if err := testMaterializeResource(sparkOfflineStore); err != nil {
 		t.Fatalf("resource materialize test failed: %s", err)
 	}
@@ -424,7 +424,7 @@ func TestParquetUpload(t *testing.T) {
 
 }
 
-func testCreateDuplicatePrimaryTable(t *testing.T, store *SparkOfflineStore) {
+func sparkTestCreateDuplicatePrimaryTable(t *testing.T, store *SparkOfflineStore) {
 	var err error
 	randomSourceTablePath := fmt.Sprintf("featureform/tests/source_tables/%s/table.parquet", uuid.NewString())
 	table := []ResourceRecord{{
@@ -448,7 +448,7 @@ func testCreateDuplicatePrimaryTable(t *testing.T, store *SparkOfflineStore) {
 	}
 }
 
-func testCreatePrimaryFromSource(t *testing.T, store *SparkOfflineStore) {
+func sparkTestCreatePrimaryFromSource(t *testing.T, store *SparkOfflineStore) {
 	//upload random source table
 	var err error
 	randomSourceTablePath := fmt.Sprintf("featureform/tests/source_tables/%s/table.parquet", uuid.NewString())
@@ -469,14 +469,14 @@ func testCreatePrimaryFromSource(t *testing.T, store *SparkOfflineStore) {
 	}
 }
 
-func testGetTrainingSetInvalidResourceID(t *testing.T, store OfflineStore) {
+func sparkTestGetTrainingSetInvalidResourceID(t *testing.T, store OfflineStore) {
 	id := randomID(Feature)
 	if _, err := store.GetTrainingSet(id); err == nil {
 		t.Fatalf("Succeeded in getting invalid training set ResourceID")
 	}
 }
 
-func testGetUnknownTrainingSet(t *testing.T, store OfflineStore) {
+func sparkTestGetUnknownTrainingSet(t *testing.T, store OfflineStore) {
 	// This should default to TrainingSet
 	id := randomID(NoType)
 	if _, err := store.GetTrainingSet(id); err == nil {
@@ -488,7 +488,7 @@ func testGetUnknownTrainingSet(t *testing.T, store OfflineStore) {
 	}
 }
 
-func testInvalidTrainingSetDefs(t *testing.T, store OfflineStore) {
+func sparkTestInvalidTrainingSetDefs(t *testing.T, store OfflineStore) {
 	invalidDefs := map[string]TrainingSetDef{
 		"WrongTSType": TrainingSetDef{
 			ID:    randomID(Feature),
@@ -532,7 +532,7 @@ func testInvalidTrainingSetDefs(t *testing.T, store OfflineStore) {
 	}
 }
 
-func testLabelTableNotFound(t *testing.T, store *SparkOfflineStore) {
+func sparkTestLabelTableNotFound(t *testing.T, store *SparkOfflineStore) {
 	featureID := randomID(Feature)
 	if err := registerRandomResource(featureID, store); err != nil {
 		t.Fatalf("could not register random resource")
@@ -549,7 +549,7 @@ func testLabelTableNotFound(t *testing.T, store *SparkOfflineStore) {
 	}
 }
 
-func testFeatureTableNotFound(t *testing.T, store *SparkOfflineStore) {
+func sparkTestFeatureTableNotFound(t *testing.T, store *SparkOfflineStore) {
 	labelID := randomID(Label)
 	if err := registerRandomResource(labelID, store); err != nil {
 		t.Fatalf("could not register random resource")
@@ -566,7 +566,7 @@ func testFeatureTableNotFound(t *testing.T, store *SparkOfflineStore) {
 	}
 }
 
-func testTrainingSetDefShorthand(t *testing.T, store *SparkOfflineStore) {
+func sparkTestTrainingSetDefShorthand(t *testing.T, store *SparkOfflineStore) {
 	featureID := randomID(Feature)
 	if err := registerRandomResource(featureID, store); err != nil {
 		t.Fatalf("could not register random resource")
@@ -589,7 +589,7 @@ func testTrainingSetDefShorthand(t *testing.T, store *SparkOfflineStore) {
 	}
 }
 
-func testOfflineTableNotFound(t *testing.T, store OfflineStore) {
+func sparkTestOfflineTableNotFound(t *testing.T, store OfflineStore) {
 	id := randomID(Feature, Label)
 	if _, err := store.GetResourceTable(id); err == nil {
 		t.Fatalf("Succeeded in getting non-existant table")
@@ -657,7 +657,7 @@ func registerRandomResource(id ResourceID, store *SparkOfflineStore) error {
 	return nil
 }
 
-func testCreateGetOfflineTable(t *testing.T, store *SparkOfflineStore) {
+func sparkTestCreateGetOfflineTable(t *testing.T, store *SparkOfflineStore) {
 	id := randomID(Feature, Label)
 	if err := registerRandomResource(id, store); err != nil {
 		t.Fatalf("could not register random resource: %v", err)
@@ -667,7 +667,7 @@ func testCreateGetOfflineTable(t *testing.T, store *SparkOfflineStore) {
 	}
 }
 
-func testOfflineTableAlreadyExists(t *testing.T, store *SparkOfflineStore) {
+func sparkTestOfflineTableAlreadyExists(t *testing.T, store *SparkOfflineStore) {
 	id := randomID(Feature, Label)
 	if err := registerRandomResource(id, store); err != nil {
 		t.Fatalf("could not register random resource: %v", err)
@@ -681,7 +681,7 @@ func testOfflineTableAlreadyExists(t *testing.T, store *SparkOfflineStore) {
 	}
 }
 
-func testInvalidResourceIDs(t *testing.T, store *SparkOfflineStore) {
+func sparkTestInvalidResourceIDs(t *testing.T, store *SparkOfflineStore) {
 	invalidIds := []ResourceID{
 		{Type: Feature},
 		{Name: uuid.NewString()},
@@ -693,7 +693,7 @@ func testInvalidResourceIDs(t *testing.T, store *SparkOfflineStore) {
 	}
 }
 
-func testMaterializations(t *testing.T, store *SparkOfflineStore) {
+func sparkTestMaterializations(t *testing.T, store *SparkOfflineStore) {
 	type TestCase struct {
 		WriteRecords             []ResourceRecord
 		Timestamp                bool
@@ -857,7 +857,7 @@ func testMaterializations(t *testing.T, store *SparkOfflineStore) {
 	}
 
 }
-func testInvalidMaterialization(t *testing.T, store *SparkOfflineStore) {
+func sparkTestInvalidMaterialization(t *testing.T, store *SparkOfflineStore) {
 	id := randomID(Label)
 	if err := registerRandomResource(id, store); err != nil {
 		t.Fatalf("could not register random resource: %v", err)
@@ -867,14 +867,14 @@ func testInvalidMaterialization(t *testing.T, store *SparkOfflineStore) {
 	}
 }
 
-func testMaterializeUnknown(t *testing.T, store OfflineStore) {
+func sparkTestMaterializeUnknown(t *testing.T, store OfflineStore) {
 	id := randomID(Feature)
 	if _, err := store.CreateMaterialization(id); err == nil {
 		t.Fatalf("Succeeded in materializing uninitialized resource")
 	}
 }
 
-func testMaterializationNotFound(t *testing.T, store *SparkOfflineStore) {
+func sparkTestMaterializationNotFound(t *testing.T, store *SparkOfflineStore) {
 	id := MaterializationID(uuid.NewString())
 	_, err := store.GetMaterialization(id)
 	if err == nil {
@@ -1913,7 +1913,7 @@ func TestStreamGetKeys(t *testing.T) {
 	}
 }
 
-func testTrainingSet(t *testing.T, store *SparkOfflineStore) {
+func sparkTestTrainingSet(t *testing.T, store *SparkOfflineStore) {
 	type expectedTrainingRow struct {
 		Features []interface{}
 		Label    interface{}
@@ -2109,7 +2109,7 @@ func testTrainingSet(t *testing.T, store *SparkOfflineStore) {
 	}
 }
 
-func testMaterializationUpdate(t *testing.T, store *SparkOfflineStore) {
+func sparkTestMaterializationUpdate(t *testing.T, store *SparkOfflineStore) {
 	type TestCase struct {
 		WriteRecords                           []ResourceRecord
 		UpdateRecords                          []ResourceRecord
@@ -2424,7 +2424,7 @@ func testMaterializationUpdate(t *testing.T, store *SparkOfflineStore) {
 
 }
 
-func testTrainingSetUpdate(t *testing.T, store *SparkOfflineStore) {
+func sparkTestTrainingSetUpdate(t *testing.T, store *SparkOfflineStore) {
 	type expectedTrainingRow struct {
 		Features []interface{}
 		Label    interface{}

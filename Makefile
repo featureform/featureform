@@ -60,6 +60,90 @@ test_online
 				make test_online provider=memory
 
 
+test_go_unit
+	Requirements:
+		- Golang 1.18
+
+	Description:
+		Runs golang unit tests
+
+test_metadata
+	Requirements:
+		- Golang 1.18
+		- ETCD installed and added to path (https://etcd.io/docs/v3.4/install/)
+
+	Description:
+		Runs metadata tests
+
+	Flags:
+		- ETCD_UNSUPPORTED_ARCH
+			Description:
+				This flag must be set to run on M1/M2 Macs
+			Usage:
+				make test_metadata flags=ETCD_UNSUPPORTED_ARCH=arm64
+
+
+test_helpers
+	Requirements:
+		- Golang 1.18
+
+	Description:
+		Runs helper tests
+
+test_serving
+	Requirements:
+		- Golang 1.18
+
+	Description:
+		Runs serving tests
+
+test_runner
+	Requirements:
+		- Golang 1.18
+		- ETCD installed and added to path (https://etcd.io/docs/v3.4/install/)
+
+	Description:
+		Runs coordinator runner tests
+
+	Flags:
+		- ETCD_UNSUPPORTED_ARCH
+			Description:
+				This flag must be set to run on M1/M2 Macs
+			Usage:
+				make test_metadata flags=ETCD_UNSUPPORTED_ARCH=arm64
+
+test_api
+	Requirements:
+		- Golang 1.18
+		- Python3.6-3.10
+
+	Description:
+		Starts an API Server instance and checks that the serving and metadata clients can connect
+
+test_typesense
+	Requirements:
+		- Golang 1.18
+		- Docker
+
+	Description:
+		Starts a typesense instance and tests the typesense package
+
+test_coordinator
+	Requirements:
+		- Golang 1.18
+		- ETCD installed and added to path (https://etcd.io/docs/v3.4/install/)
+		- Docker
+
+	Description:
+		Starts ETCD, Postgres, and Redis to test the coordinator
+
+	Flags:
+		- ETCD_UNSUPPORTED_ARCH
+			Description:
+				This flag must be set to run on M1/M2 Macs
+			Usage:
+				make test_metadata flags=ETCD_UNSUPPORTED_ARCH=arm64
+
 endef
 export HELP_BODY
 

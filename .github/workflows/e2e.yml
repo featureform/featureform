@@ -215,7 +215,7 @@ jobs:
           ls /tmp/api-server
 
       - name: Install grpc_tools
-        run: pip install grpcio-tools requests
+        run: pip install grpcio-tools requests python-dotenv
 
       - name: Install Protobuf
         run: sudo snap install protobuf --classic

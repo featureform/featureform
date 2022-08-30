@@ -21,7 +21,7 @@ import (
 
 type Config []byte
 
-func templateReplace(template string, replacements map[string]string) (string, error) {
+func templateReplace(template string, replacements map[string]string, offlineStore provider.OfflineStore) (string, error) {
 	formattedString := ""
 	numEscapes := strings.Count(template, "{{")
 	for i := 0; i < numEscapes; i++ {
@@ -32,7 +32,15 @@ func templateReplace(template string, replacements map[string]string) (string, e
 		if !has {
 			return "", fmt.Errorf("no key set")
 		}
-		formattedString += fmt.Sprintf("%s%s", split[0], sanitize(replacement))
+
+		if offlineStore.Type() == provider.BigQueryOffline {
+			bqConfig := provider.BigQueryConfig{}
+			bqConfig.Deserialize(offlineStore.Config())
+			replacement = fmt.Sprintf("`%s.%s.%s`", bqConfig.ProjectId, bqConfig.DatasetId, replacement)
+		} else {
+			replacement = sanitize(replacement)
+		}
+		formattedString += fmt.Sprintf("%s%s", split[0], replacement)
 		template = afterSplit[1]
 	}
 	formattedString += template
@@ -302,10 +310,10 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 	}
 	sourceMapping, err := getSourceMapping(templateString, sourceMap)
 	if err != nil {
-		return fmt.Errorf("template replace: %w source map: %v, template: %s", err, sourceMap, templateString)
+		return fmt.Errorf("getSourceMapping replace: %w source map: %v, template: %s", err, sourceMap, templateString)
 	}
 
-	query, err := templateReplace(templateString, sourceMap)
+	query, err := templateReplace(templateString, sourceMap, offlineStore)
 	if err != nil {
 		return fmt.Errorf("template replace: %w source map: %v, template: %s", err, sourceMap, templateString)
 	}

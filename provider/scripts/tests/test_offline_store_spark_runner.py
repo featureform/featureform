@@ -1,9 +1,14 @@
+import os
 import sys
-sys.path.insert(0, '../scripts')
+sys.path.insert(0, 'provider/scripts')
 
 import pytest
 
 from offline_store_spark_runner import main, parse_args, execute_df_job
+
+
+real_path = os.path.realpath(__file__)
+dir_path = os.path.dirname(real_path)
 
 @pytest.mark.parametrize(
     "arguments",
@@ -38,13 +43,13 @@ def test_parse_args(arguments, request):
 @pytest.mark.parametrize(
     "arguments,expected_output",
     [
-        ("df_local_all_arguments", "tests/test_files/expected/test_execute_df_job_success"),
-        pytest.param("df_local_pass_none_code_failure", "tests/test_files/expected/test_execute_df_job_success", marks=pytest.mark.xfail),
+        ("df_local_all_arguments", f"{dir_path}/test_files/input/transaction"),
+        pytest.param("df_local_pass_none_code_failure", f"{dir_path}/test_files/expected/test_execute_df_job_success", marks=pytest.mark.xfail),
     ]
 )
 def test_execute_df_job(arguments, expected_output, spark, request):
     args = request.getfixturevalue(arguments)
-    output_file = execute_df_job(args.output_uri, args.code, args.source)
+    output_file = execute_df_job(args.output_uri, args.code, args.aws_region, args.source)
 
     expected_df = spark.read.parquet(expected_output)
     output_df = spark.read.parquet(output_file)

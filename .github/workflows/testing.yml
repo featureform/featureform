@@ -574,6 +574,13 @@ jobs:
         working-directory: ./
         run: mkdir coverage
 
+      - name: create-json
+        id: create-json-2
+        uses: jsdaniell/create-json@1.1.2
+        with:
+          name: "./coordinator/bigquery_credentials.json"
+          json: ${{ secrets.BIGQUERY_CREDENTIALS_FILE }}
+
       - name: Testing
         env:
           SNOWFLAKE_USERNAME: ${{ secrets.SNOWFLAKE_USERNAME }}
@@ -582,6 +589,9 @@ jobs:
           SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
           ETCD_HOST: ${{ env.ETCD_HOST }}
           ETCD_PORT: ${{ env.ETCD_PORT }}
+          BIGQUERY_PROJECT_ID: ${{ secrets.BIGQUERY_PROJECT_ID }}
+          BIGQUERY_DATASET_ID: ${{ secrets.BIGQUERY_DATASET_ID }}
+          BIGQUERY_CREDENTIALS: "bigquery_credentials.json"
         working-directory: ./
         run: go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./coordinator/...
 
@@ -650,7 +660,7 @@ jobs:
       - name: Install python dependencies
         working-directory: ./
         run: |
-          python3 -m pip install build pytest
+          python3 -m pip install build pytest python-dotenv
           python3 -m build ./client/
           python3 -m pip install client/dist/*
 
@@ -681,8 +691,7 @@ jobs:
         run: python3 -m pip install -r requirements.txt
 
       - name: Testing
-        working-directory: ./provider/scripts
-        run: pytest -v --cov=offline_store_spark_runner tests/ --cov-report term-missing
+        run: make test_pyspark
 
   schedule:
     runs-on: ubuntu-latest
@@ -759,7 +768,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install pytest
-        run: pip install pytest protobuf==3.20.1
+        run: pip install pytest protobuf==3.20.1 python-dotenv
 
       - name: Install featureform
         run: pip install client/dist/featureform-0.0.0-py3-none-any.whl

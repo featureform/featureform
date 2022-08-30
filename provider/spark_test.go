@@ -45,7 +45,7 @@ func testCreateTrainingSet(store *SparkOfflineStore) error {
 	if err := store.Store.UploadParquetTable(path, exampleStructArray); err != nil {
 		return err
 	}
-	testFeatureResource := randomID(Feature)
+	testFeatureResource := sparkSafeRandomID(Feature)
 	testResourceSchema := ResourceSchema{"name", "age", "registered", path}
 	table, err := store.RegisterResourceFromSourceTable(testFeatureResource, testResourceSchema)
 	if err != nil {
@@ -58,7 +58,7 @@ func testCreateTrainingSet(store *SparkOfflineStore) error {
 	if !reflect.DeepEqual(fetchedTable, table) {
 		return fmt.Errorf("Did not properly register table")
 	}
-	testLabelResource := randomID(Label)
+	testLabelResource := sparkSafeRandomID(Label)
 	testLabelResourceSchema := ResourceSchema{"name", "winner", "registered", path}
 	labelTable, err := store.RegisterResourceFromSourceTable(testLabelResource, testLabelResourceSchema)
 	fetchedLabel, err := store.GetResourceTable(testLabelResource)
@@ -68,7 +68,7 @@ func testCreateTrainingSet(store *SparkOfflineStore) error {
 	if !reflect.DeepEqual(fetchedLabel, labelTable) {
 		return fmt.Errorf("Did not properly register label")
 	}
-	trainingSetResource := randomID(TrainingSet)
+	trainingSetResource := sparkSafeRandomID(TrainingSet)
 	testTrainingSetDef := TrainingSetDef{
 		ID:       trainingSetResource,
 		Label:    testLabelResource,
@@ -433,7 +433,7 @@ func sparkTestCreateDuplicatePrimaryTable(t *testing.T, store *SparkOfflineStore
 	if err := store.Store.UploadParquetTable(randomSourceTablePath, table); err != nil {
 		t.Fatalf("could not upload source table")
 	}
-	primaryID := randomID(Primary)
+	primaryID := sparkSafeRandomID(Primary)
 	_, err = store.RegisterPrimaryFromSourceTable(primaryID, randomSourceTablePath)
 	if err != nil {
 		t.Fatalf("Could not register from Source Table: %s", err)
@@ -458,7 +458,7 @@ func sparkTestCreatePrimaryFromSource(t *testing.T, store *SparkOfflineStore) {
 	if err := store.Store.UploadParquetTable(randomSourceTablePath, table); err != nil {
 		t.Fatalf("could not upload source table")
 	}
-	primaryID := randomID(Primary)
+	primaryID := sparkSafeRandomID(Primary)
 	_, err = store.RegisterPrimaryFromSourceTable(primaryID, randomSourceTablePath)
 	if err != nil {
 		t.Fatalf("Could not register from Source Table: %s", err)
@@ -470,7 +470,7 @@ func sparkTestCreatePrimaryFromSource(t *testing.T, store *SparkOfflineStore) {
 }
 
 func sparkTestGetTrainingSetInvalidResourceID(t *testing.T, store OfflineStore) {
-	id := randomID(Feature)
+	id := sparkSafeRandomID(Feature)
 	if _, err := store.GetTrainingSet(id); err == nil {
 		t.Fatalf("Succeeded in getting invalid training set ResourceID")
 	}
@@ -478,7 +478,7 @@ func sparkTestGetTrainingSetInvalidResourceID(t *testing.T, store OfflineStore) 
 
 func sparkTestGetUnknownTrainingSet(t *testing.T, store OfflineStore) {
 	// This should default to TrainingSet
-	id := randomID(NoType)
+	id := sparkSafeRandomID(NoType)
 	if _, err := store.GetTrainingSet(id); err == nil {
 		t.Fatalf("Succeeded in getting unknown training set ResourceID")
 	} else if _, valid := err.(*TrainingSetNotFound); !valid {
@@ -491,40 +491,41 @@ func sparkTestGetUnknownTrainingSet(t *testing.T, store OfflineStore) {
 func sparkTestInvalidTrainingSetDefs(t *testing.T, store OfflineStore) {
 	invalidDefs := map[string]TrainingSetDef{
 		"WrongTSType": TrainingSetDef{
-			ID:    randomID(Feature),
-			Label: randomID(Label),
+			ID:    sparkSafeRandomID(Feature),
+			Label: sparkSafeRandomID(Label),
 			Features: []ResourceID{
-				randomID(Feature),
-				randomID(Feature),
-				randomID(Feature),
+				sparkSafeRandomID(Feature),
+				sparkSafeRandomID(Feature),
+				sparkSafeRandomID(Feature),
 			},
 		},
 		"WrongLabelType": TrainingSetDef{
-			ID:    randomID(TrainingSet),
-			Label: randomID(Feature),
+			ID:    sparkSafeRandomID(TrainingSet),
+			Label: sparkSafeRandomID(Feature),
 			Features: []ResourceID{
-				randomID(Feature),
-				randomID(Feature),
-				randomID(Feature),
+				sparkSafeRandomID(Feature),
+				sparkSafeRandomID(Feature),
+				sparkSafeRandomID(Feature),
 			},
 		},
 		"WrongFeatureType": TrainingSetDef{
-			ID:    randomID(TrainingSet),
-			Label: randomID(Label),
+			ID:    sparkSafeRandomID(TrainingSet),
+			Label: sparkSafeRandomID(Label),
 			Features: []ResourceID{
-				randomID(Feature),
-				randomID(Label),
-				randomID(Feature),
+				sparkSafeRandomID(Feature),
+				sparkSafeRandomID(Label),
+				sparkSafeRandomID(Feature),
 			},
 		},
 		"NoFeatures": TrainingSetDef{
-			ID:       randomID(TrainingSet),
-			Label:    randomID(Label),
+			ID:       sparkSafeRandomID(TrainingSet),
+			Label:    sparkSafeRandomID(Label),
 			Features: []ResourceID{},
 		},
 	}
 	for name, def := range invalidDefs {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			if err := store.CreateTrainingSet(def); err == nil {
 				t.Fatalf("Succeeded to create invalid def")
 			}
@@ -533,13 +534,13 @@ func sparkTestInvalidTrainingSetDefs(t *testing.T, store OfflineStore) {
 }
 
 func sparkTestLabelTableNotFound(t *testing.T, store *SparkOfflineStore) {
-	featureID := randomID(Feature)
+	featureID := sparkSafeRandomID(Feature)
 	if err := registerRandomResource(featureID, store); err != nil {
 		t.Fatalf("could not register random resource")
 	}
 	def := TrainingSetDef{
-		ID:    randomID(TrainingSet),
-		Label: randomID(Label),
+		ID:    sparkSafeRandomID(TrainingSet),
+		Label: sparkSafeRandomID(Label),
 		Features: []ResourceID{
 			featureID,
 		},
@@ -550,15 +551,15 @@ func sparkTestLabelTableNotFound(t *testing.T, store *SparkOfflineStore) {
 }
 
 func sparkTestFeatureTableNotFound(t *testing.T, store *SparkOfflineStore) {
-	labelID := randomID(Label)
+	labelID := sparkSafeRandomID(Label)
 	if err := registerRandomResource(labelID, store); err != nil {
 		t.Fatalf("could not register random resource")
 	}
 	def := TrainingSetDef{
-		ID:    randomID(TrainingSet),
+		ID:    sparkSafeRandomID(TrainingSet),
 		Label: labelID,
 		Features: []ResourceID{
-			randomID(Feature),
+			sparkSafeRandomID(Feature),
 		},
 	}
 	if err := store.CreateTrainingSet(def); err == nil {
@@ -567,11 +568,11 @@ func sparkTestFeatureTableNotFound(t *testing.T, store *SparkOfflineStore) {
 }
 
 func sparkTestTrainingSetDefShorthand(t *testing.T, store *SparkOfflineStore) {
-	featureID := randomID(Feature)
+	featureID := sparkSafeRandomID(Feature)
 	if err := registerRandomResource(featureID, store); err != nil {
 		t.Fatalf("could not register random resource")
 	}
-	labelID := randomID(Label)
+	labelID := sparkSafeRandomID(Label)
 	if err := registerRandomResource(labelID, store); err != nil {
 		t.Fatalf("could not register random resource")
 	}
@@ -580,7 +581,7 @@ func sparkTestTrainingSetDefShorthand(t *testing.T, store *SparkOfflineStore) {
 	labelID.Type = NoType
 	featureID.Type = NoType
 	def := TrainingSetDef{
-		ID:       randomID(NoType),
+		ID:       sparkSafeRandomID(NoType),
 		Label:    labelID,
 		Features: []ResourceID{featureID},
 	}
@@ -590,7 +591,7 @@ func sparkTestTrainingSetDefShorthand(t *testing.T, store *SparkOfflineStore) {
 }
 
 func sparkTestOfflineTableNotFound(t *testing.T, store OfflineStore) {
-	id := randomID(Feature, Label)
+	id := sparkSafeRandomID(Feature, Label)
 	if _, err := store.GetResourceTable(id); err == nil {
 		t.Fatalf("Succeeded in getting non-existant table")
 	} else if casted, valid := err.(*TableNotFound); !valid {
@@ -658,7 +659,7 @@ func registerRandomResource(id ResourceID, store *SparkOfflineStore) error {
 }
 
 func sparkTestCreateGetOfflineTable(t *testing.T, store *SparkOfflineStore) {
-	id := randomID(Feature, Label)
+	id := sparkSafeRandomID(Feature, Label)
 	if err := registerRandomResource(id, store); err != nil {
 		t.Fatalf("could not register random resource: %v", err)
 	}
@@ -668,7 +669,7 @@ func sparkTestCreateGetOfflineTable(t *testing.T, store *SparkOfflineStore) {
 }
 
 func sparkTestOfflineTableAlreadyExists(t *testing.T, store *SparkOfflineStore) {
-	id := randomID(Feature, Label)
+	id := sparkSafeRandomID(Feature, Label)
 	if err := registerRandomResource(id, store); err != nil {
 		t.Fatalf("could not register random resource: %v", err)
 	}
@@ -830,7 +831,7 @@ func sparkTestMaterializations(t *testing.T, store *SparkOfflineStore) {
 		}
 	}
 	runTestCase := func(t *testing.T, test TestCase) {
-		id := randomID(Feature)
+		id := sparkSafeRandomID(Feature)
 		if err := registerRandomResourceGiveTable(id, store, test.WriteRecords, test.Timestamp); err != nil {
 			t.Fatalf("Failed to create table: %s", err)
 		}
@@ -852,13 +853,14 @@ func sparkTestMaterializations(t *testing.T, store *SparkOfflineStore) {
 	for name, test := range tests {
 		// just do individual ones at a time so it isn't super slow
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			runTestCase(t, test)
 		})
 	}
 
 }
 func sparkTestInvalidMaterialization(t *testing.T, store *SparkOfflineStore) {
-	id := randomID(Label)
+	id := sparkSafeRandomID(Label)
 	if err := registerRandomResource(id, store); err != nil {
 		t.Fatalf("could not register random resource: %v", err)
 	}
@@ -868,7 +870,7 @@ func sparkTestInvalidMaterialization(t *testing.T, store *SparkOfflineStore) {
 }
 
 func sparkTestMaterializeUnknown(t *testing.T, store OfflineStore) {
-	id := randomID(Feature)
+	id := sparkSafeRandomID(Feature)
 	if _, err := store.CreateMaterialization(id); err == nil {
 		t.Fatalf("Succeeded in materializing uninitialized resource")
 	}
@@ -893,7 +895,7 @@ func sparkTestMaterializationNotFound(t *testing.T, store *SparkOfflineStore) {
 	}
 }
 
-func randomID(types ...OfflineResourceType) ResourceID {
+func sparkSafesparkSafeRandomID(types ...OfflineResourceType) ResourceID {
 	var t OfflineResourceType
 	if len(types) == 0 {
 		t = NoType
@@ -1137,6 +1139,7 @@ func TestSparkSQLTransformation(t *testing.T) {
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := store.CreateTransformation(tt.config)
 			if !tt.expectedFailure && err != nil {
 				t.Fatalf("could not create transformation '%v' because %s", tt.config, err)
@@ -1274,6 +1277,7 @@ func TestUpdateQuery(t *testing.T) {
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			retreivedQuery, sources, err := store.updateQuery(tt.query, tt.sourceMap)
 
 			if !tt.expectedFailure && err != nil {
@@ -1313,6 +1317,7 @@ func TestGetTransformation(t *testing.T) {
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			table, err := store.GetTransformationTable(tt.id)
 			if err != nil {
 				t.Fatalf("Failed to get Transformation Table: %v", err)
@@ -1372,6 +1377,7 @@ func TestGetSourcePath(t *testing.T) {
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			retreivedPath, err := store.getSourcePath(tt.sourcePath)
 			if !tt.expectedFailure && err != nil {
 				t.Fatalf("getSourcePath could not get the path because %s.", err)
@@ -1813,19 +1819,19 @@ func sparkTestTrainingSet(t *testing.T, store *SparkOfflineStore) {
 		featureIDs := make([]ResourceID, len(test.FeatureRecords))
 
 		for i, recs := range test.FeatureRecords {
-			id := randomID(Feature)
+			id := sparkSafeRandomID(Feature)
 			featureIDs[i] = id
 			if err := registerRandomResourceGiveTable(id, store, recs, test.Timestamp); err != nil {
 				t.Fatalf("Failed to create table: %s", err)
 			}
 		}
-		labelID := randomID(Label)
+		labelID := sparkSafeRandomID(Label)
 		if err := registerRandomResourceGiveTable(labelID, store, test.LabelRecords, test.Timestamp); err != nil {
 			t.Fatalf("Failed to create table: %s", err)
 		}
 
 		def := TrainingSetDef{
-			ID:       randomID(TrainingSet),
+			ID:       sparkSafeRandomID(TrainingSet),
 			Label:    labelID,
 			Features: featureIDs,
 		}
@@ -1876,6 +1882,7 @@ func sparkTestTrainingSet(t *testing.T, store *SparkOfflineStore) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			runTestCase(t, test)
 		})
 
@@ -2167,7 +2174,7 @@ func sparkTestMaterializationUpdate(t *testing.T, store *SparkOfflineStore) {
 		}
 	}
 	runTestCase := func(t *testing.T, test TestCase) {
-		id := randomID(Feature)
+		id := sparkSafeRandomID(Feature)
 		randomPath := fmt.Sprintf("featureform/tests/source_table/%s/table.parquet", strings.ReplaceAll(uuid.NewString(), "-", ""))
 		if err := registerRandomResourceGiveTablePath(id, randomPath, store, test.WriteRecords, test.Timestamp); err != nil {
 			t.Fatalf("Failed to create table: %s", err)
@@ -2191,6 +2198,7 @@ func sparkTestMaterializationUpdate(t *testing.T, store *SparkOfflineStore) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			runTestCase(t, test)
 		})
 	}
@@ -2435,7 +2443,7 @@ func sparkTestTrainingSetUpdate(t *testing.T, store *SparkOfflineStore) {
 		featureIDs := make([]ResourceID, len(test.FeatureRecords))
 		featureSourceTables := make([]string, 0)
 		for i, recs := range test.FeatureRecords {
-			id := randomID(Feature)
+			id := sparkSafeRandomID(Feature)
 			randomSourceTablePath := fmt.Sprintf("featureform/tests/source_tables/%s/table.parquet", uuid.NewString())
 			featureSourceTables = append(featureSourceTables, randomSourceTablePath)
 			featureIDs[i] = id
@@ -2443,14 +2451,14 @@ func sparkTestTrainingSetUpdate(t *testing.T, store *SparkOfflineStore) {
 				t.Fatalf("Failed to create table: %s", err)
 			}
 		}
-		labelID := randomID(Label)
+		labelID := sparkSafeRandomID(Label)
 		labelSourceTable := fmt.Sprintf("featureform/tests/source_tables/%s/table.parquet", uuid.NewString())
 		if err := registerRandomResourceGiveTablePath(labelID, labelSourceTable, store, test.LabelRecords, test.Timestamp); err != nil {
 			t.Fatalf("Failed to create table: %s", err)
 		}
 
 		def := TrainingSetDef{
-			ID:       randomID(TrainingSet),
+			ID:       sparkSafeRandomID(TrainingSet),
 			Label:    labelID,
 			Features: featureIDs,
 		}
@@ -2546,6 +2554,7 @@ func sparkTestTrainingSetUpdate(t *testing.T, store *SparkOfflineStore) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			runTestCase(t, test)
 		})
 	}

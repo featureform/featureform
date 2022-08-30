@@ -90,6 +90,11 @@ def get_code_from_file(file_path, aws_region=None):
     prefix_len = len("s3://")
     code = None
     if "s3://" == file_path[:prefix_len]:
+        """
+        S3 paths are the following path: 's3://{bucket}/key/to/file'.
+        the split below separates the bucket name and the key that is 
+        used to read the object in the bucket. 
+        """
         split_path = file_path[prefix_len:].split("/")
         bucket = split_path[0]
         key = '/'.join(split_path[1:])

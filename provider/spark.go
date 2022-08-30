@@ -25,7 +25,6 @@ import (
 	emrTypes "github.com/aws/aws-sdk-go-v2/service/emr/types"
 	s3Types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	parquetGo "github.com/xitongsys/parquet-go-source/s3"
-	// parquet "github.com/xitongsys/parquet-go/parquet"
 	reader "github.com/xitongsys/parquet-go/reader"
 	source "github.com/xitongsys/parquet-go/source"
 	writer "github.com/xitongsys/parquet-go/writer"
@@ -283,7 +282,6 @@ type SparkExecutor interface {
 type SparkStore interface {
 	UploadSparkScript() error //initialization function
 	ResourceKey(id ResourceID) (string, error)
-	// ResourceStream(key string) (chan []byte, error)
 	ResourceStreamConv(key string) (chan interface{}, error)
 	ResourceRowCt(key string) (int, error)
 	ResourcePath(id ResourceID) string

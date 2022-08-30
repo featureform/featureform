@@ -11,10 +11,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/rand"
 	"os"
 	"reflect"
-	// "strconv"
-	"math/rand"
 	"strings"
 	"testing"
 	"time"
@@ -229,10 +228,6 @@ func testTableUploadCompare(store *SparkOfflineStore) error {
 		testData[i].Value = float32(float32(i) + 1.1)
 		testData[i].TS = time.Now()
 	}
-	// testData := make([]GenericRecord, 10)
-	// for i := range testData {
-	// 	testData[i] = []interface{}{1, int64(1), float32(1.1), float64(1.2), "string", time.Now(), false}
-	// }
 	exists, err := store.Store.FileExists(testTable)
 	if err != nil {
 		return err

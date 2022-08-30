@@ -84,7 +84,7 @@ We can load some demo data into BigQuery that we can transform and serve.
 curl  https://featureform-demo-files.s3.amazonaws.com/transactions.csv | gsutil cp - gs://$BUCKET_NAME/transactions.csv
 
 # Load the bucket data into BigQuery
-bq load --autodetect --source_format=CSV $DATASET_ID.transactions gs://$BUCKET_NAME/transactions.csv
+bq load --autodetect --source_format=CSV $DATASET_ID.Transactions gs://$BUCKET_NAME/transactions.csv
 ```
 
 ## Step 7: Install the Featureform SDK

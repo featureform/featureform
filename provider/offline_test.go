@@ -216,6 +216,7 @@ func TestOfflineStores(t *testing.T) {
 			}
 			testName := fmt.Sprintf("%s_%s", testItem.t, name)
 			t.Run(testName, func(t *testing.T) {
+				t.Parallel()
 				fn(t, store)
 			})
 			if err := store.Close(); err != nil {
@@ -237,6 +238,7 @@ func TestOfflineStores(t *testing.T) {
 			}
 			testName := fmt.Sprintf("%s_%s", testItem.t, name)
 			t.Run(testName, func(t *testing.T) {
+				t.Parallel()
 				fn(t, store)
 			})
 			if err := store.Close(); err != nil {
@@ -652,6 +654,7 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			runTestCase(t, test)
 		})
 	}
@@ -963,6 +966,7 @@ func testMaterializationUpdate(t *testing.T, store OfflineStore) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			runTestCase(t, test)
 		})
 	}
@@ -1314,6 +1318,7 @@ func testTrainingSet(t *testing.T, store OfflineStore) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			runTestCase(t, test)
 		})
 	}
@@ -1719,6 +1724,7 @@ func testTrainingSetUpdate(t *testing.T, store OfflineStore) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			runTestCase(t, test)
 		})
 	}
@@ -1780,6 +1786,7 @@ func testInvalidTrainingSetDefs(t *testing.T, store OfflineStore) {
 	}
 	for name, def := range invalidDefs {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			if err := store.CreateTrainingSet(def); err == nil {
 				t.Fatalf("Succeeded to create invalid def")
 			}
@@ -1948,6 +1955,7 @@ func testPrimaryCreateTable(t *testing.T, store OfflineStore) {
 	}
 	for name, test := range testCreate {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			testPrimary(t, test, store)
 		})
 	}
@@ -2035,6 +2043,7 @@ func testPrimaryTableWrite(t *testing.T, store OfflineStore) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			testTableWrite(t, test)
 		})
 	}
@@ -2207,6 +2216,7 @@ func testTransform(t *testing.T, store OfflineStore) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			testTransform(t, test)
 		})
 	}
@@ -2432,6 +2442,7 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			testTransform(t, test)
 		})
 	}
@@ -2526,6 +2537,7 @@ func testTransformCreateFeature(t *testing.T, store OfflineStore) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			testTransform(t, test)
 		})
 	}
@@ -3162,6 +3174,7 @@ func Test_snowflakeOfflineTable_checkTimestamp(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			if got := checkTimestamp(tt.args.rec); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("checkTimestamp() = %v, want %v", got, tt.want)
 			}
@@ -3263,6 +3276,7 @@ func TestReplaceSourceName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			retreivedQuery, err := replaceSourceName(tt.query, tt.sourceMap, tt.sanitize)
 			if !tt.expectedFailure && err != nil {
 				t.Fatalf("Could not replace the template query: %v", err)

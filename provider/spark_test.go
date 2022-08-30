@@ -981,7 +981,7 @@ func TestTransformation(t *testing.T) {
 }
 
 func getSparkOfflineStore(t *testing.T) (*SparkOfflineStore, error) {
-	err := godotenv.Load(".env")
+	err := godotenv.Load("../.env")
 	if err != nil {
 		fmt.Println(err)
 	}

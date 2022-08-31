@@ -29,12 +29,6 @@ import (
 
 var provider = flag.String("provider", "all", "provider to perform test on")
 
-type testMember struct {
-	t               Type
-	c               SerializedConfig
-	integrationTest bool
-}
-
 func TestOfflineStores(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
@@ -42,6 +36,12 @@ func TestOfflineStores(t *testing.T) {
 	err := godotenv.Load("../.env")
 	if err != nil {
 		fmt.Println(err)
+	}
+
+	type testMember struct {
+		t               Type
+		c               SerializedConfig
+		integrationTest bool
 	}
 
 	os.Setenv("TZ", "UTC")
@@ -194,76 +194,66 @@ func TestOfflineStores(t *testing.T) {
 		panic(err)
 	}
 	for _, testItem := range testList {
-		testItemConst := testItem
-		t.Run(string(testItem.t), func(t *testing.T) {
-			t.Parallel()
-			testWithProvider(t, testItemConst, testFns, testSQLFns, db)
-		})
-	}
-}
-
-func testWithProvider(t *testing.T, testItem testMember, testFns map[string]func(*testing.T, OfflineStore), testSQLFns map[string]func(*testing.T, OfflineStore), db *sql.DB) {
-	var err error
-	fmt.Println(testItem)
-	if testing.Short() && testItem.integrationTest {
-		t.Logf("Skipping %s, because it is an integration test", testItem.t)
-		return
-	}
-	var connections_start, connections_end int
-	if testItem.t == PostgresOffline {
-		err = db.QueryRow("SELECT Count(*) FROM pg_stat_activity WHERE pid!=pg_backend_pid()").Scan(&connections_start)
-		if err != nil {
-			panic(err)
-		}
-	}
-	for name, fn := range testFns {
-		provider, err := Get(testItem.t, testItem.c)
-		if err != nil {
-			t.Fatalf("Failed to get provider %s: %s", testItem.t, err)
-		}
-		store, err := provider.AsOfflineStore()
-		if err != nil {
-			t.Fatalf("Failed to use provider %s as OfflineStore: %s", testItem.t, err)
-		}
-		testName := fmt.Sprintf("%s_%s", testItem.t, name)
-		t.Run(testName, func(t *testing.T) {
-			fn(t, store)
-		})
-		if err := store.Close(); err != nil {
-			t.Errorf("%v:%v - %v\n", testItem.t, name, err)
-		}
-	}
-	for name, fn := range testSQLFns {
-		if testItem.t == MemoryOffline {
+		if testing.Short() && testItem.integrationTest {
+			t.Logf("Skipping %s, because it is an integration test", testItem.t)
 			continue
 		}
-		provider, err := Get(testItem.t, testItem.c)
-		if err != nil {
-			t.Fatalf("Failed to get provider %s: %s", testItem.t, err)
-		}
-		store, err := provider.AsOfflineStore()
-		if err != nil {
-			t.Logf("Cannot use provider %s as SQLOfflineStore: %s", testItem.t, err)
-			continue
-		}
-		testName := fmt.Sprintf("%s_%s", testItem.t, name)
-		t.Run(testName, func(t *testing.T) {
-			fn(t, store)
-		})
-		if err := store.Close(); err != nil {
-			t.Errorf("%v:%v - %v\n", testItem.t, name, err)
-		}
-	}
-	if testItem.t == PostgresOffline {
-		err = db.QueryRow("SELECT Count(*) FROM pg_stat_activity WHERE pid!=pg_backend_pid()").Scan(&connections_end)
-		if err != nil {
-			panic(err)
-		}
-		t.Run("POSTGRES_ConnectionCheck", func(t *testing.T) {
-			if connections_start+3 <= connections_end {
-				t.Errorf("Started with %d connections, ended with %d connections", connections_start, connections_end)
+		var connections_start, connections_end int
+		if testItem.t == PostgresOffline {
+			err = db.QueryRow("SELECT Count(*) FROM pg_stat_activity WHERE pid!=pg_backend_pid()").Scan(&connections_start)
+			if err != nil {
+				panic(err)
 			}
-		})
+		}
+		for name, fn := range testFns {
+			provider, err := Get(testItem.t, testItem.c)
+			if err != nil {
+				t.Fatalf("Failed to get provider %s: %s", testItem.t, err)
+			}
+			store, err := provider.AsOfflineStore()
+			if err != nil {
+				t.Fatalf("Failed to use provider %s as OfflineStore: %s", testItem.t, err)
+			}
+			testName := fmt.Sprintf("%s_%s", testItem.t, name)
+			t.Run(testName, func(t *testing.T) {
+				fn(t, store)
+			})
+			if err := store.Close(); err != nil {
+				t.Errorf("%v:%v - %v\n", testItem.t, name, err)
+			}
+		}
+		for name, fn := range testSQLFns {
+			if testItem.t == MemoryOffline {
+				continue
+			}
+			provider, err := Get(testItem.t, testItem.c)
+			if err != nil {
+				t.Fatalf("Failed to get provider %s: %s", testItem.t, err)
+			}
+			store, err := provider.AsOfflineStore()
+			if err != nil {
+				t.Logf("Cannot use provider %s as SQLOfflineStore: %s", testItem.t, err)
+				continue
+			}
+			testName := fmt.Sprintf("%s_%s", testItem.t, name)
+			t.Run(testName, func(t *testing.T) {
+				fn(t, store)
+			})
+			if err := store.Close(); err != nil {
+				t.Errorf("%v:%v - %v\n", testItem.t, name, err)
+			}
+		}
+		if testItem.t == PostgresOffline {
+			err = db.QueryRow("SELECT Count(*) FROM pg_stat_activity WHERE pid!=pg_backend_pid()").Scan(&connections_end)
+			if err != nil {
+				panic(err)
+			}
+			t.Run("POSTGRES_ConnectionCheck", func(t *testing.T) {
+				if connections_start+3 <= connections_end {
+					t.Errorf("Started with %d connections, ended with %d connections", connections_start, connections_end)
+				}
+			})
+		}
 	}
 }
 

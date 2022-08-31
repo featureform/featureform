@@ -16,6 +16,7 @@ import (
 
 	"github.com/alicebob/miniredis"
 	"github.com/google/uuid"
+	"github.com/joho/godotenv"
 )
 
 func mockRedis() *miniredis.Miniredis {
@@ -35,6 +36,11 @@ type OnlineResource struct {
 var provider = flag.String("provider", "all", "provider to perform test on")
 
 func TestOnlineStores(t *testing.T) {
+	err := godotenv.Load("../.env")
+	if err != nil {
+		fmt.Println(err)
+	}
+
 	testFns := map[string]func(*testing.T, OnlineStore){
 		"CreateGetTable":     testCreateGetTable,
 		"TableAlreadyExists": testTableAlreadyExists,

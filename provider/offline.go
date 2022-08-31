@@ -131,7 +131,7 @@ type TransformationType int
 const (
 	NoTransformationType TransformationType = iota
 	SQLTransformation
-	DataframeTransformation
+	DFTransformation
 )
 
 type SourceMapping struct {

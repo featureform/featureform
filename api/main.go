@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/joho/godotenv"
 	"io"
 	"net"
 	"net/http"
@@ -750,6 +751,7 @@ func startHttpsServer(port string) error {
 }
 
 func main() {
+	err := godotenv.Load(".env")
 	apiPort := help.GetEnv("API_PORT", "7878")
 	metadataHost := help.GetEnv("METADATA_HOST", "localhost")
 	metadataPort := help.GetEnv("METADATA_PORT", "8080")

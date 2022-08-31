@@ -1,6 +1,7 @@
 import os 
 from argparse import Namespace
 
+import dill
 import pytest
 from pyspark.sql import SparkSession
 
@@ -76,7 +77,14 @@ def df_local_pass_none_code_failure():
 
 @pytest.fixture(scope="module")
 def df_transformation():
-    return f"{dir_path}/test_files/transformations/same_df.pkl"
+    file_path = f"{dir_path}/test_files/transformations/same_df.pkl"
+
+    def transformation(transaction):
+        return transaction
+
+    with open(file_path, "wb") as f:
+        dill.dump(transformation.__code__, f)
+    return file_path
 
 
 @pytest.fixture(scope="module")

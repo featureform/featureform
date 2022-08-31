@@ -211,6 +211,7 @@ pytest:
 	pytest client/tests/local_test.py
 	pytest client/tests/localmode_quickstart_test.py
 	pytest client/tests/register_test.py
+	pytest client/tests/test_spark_provider.py
 	pip3 install jupyter nbconvert matplotlib pandas scikit-learn requests
 	jupyter nbconvert --to notebook --execute notebooks/Fraud_Detection_Example.ipynb
 	-rm -r .featureform
@@ -218,8 +219,8 @@ pytest:
 test_pyspark:
 	@echo "Requires Java to be installed"
 	pytest -v --cov=offline_store_spark_runner provider/scripts/tests/ --cov-report term-missing
-##############################################  GO TESTS ###############################################################
 
+##############################################  GO TESTS ###############################################################
 test_offline: gen_grpc 					## Run offline tests. Run with `make test_offline provider=(memory | postgres | snowflake | redshift | spark )`
 	@echo "These tests require a .env file. Please Check .env-template for possible variables"
 	-mkdir coverage

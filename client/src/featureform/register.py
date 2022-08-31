@@ -2,28 +2,31 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import marshal
-from distutils.command.config import config
-from typing_extensions import Self
-from numpy import byte
-from .resources import ResourceState, Provider, RedisConfig, FirestoreConfig, CassandraConfig, DynamodbConfig, \
-    PostgresConfig, SnowflakeConfig, LocalConfig, RedshiftConfig, BigQueryConfig, User, Location, Source, PrimaryData, SQLTable, \
-    SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet, ProviderReference, \
-    EntityReference, SourceReference
-from typing import Tuple, Callable, List, Union
-from typeguard import typechecked, check_type
-import grpc
 import os
+import time
+import marshal
+from typing_extensions import Self
+from distutils.command.config import config
+from typeguard import typechecked, check_type
+from typing import Tuple, Callable, List, Union
+
+import grpc
+import pyspark
+import pandas as pd
+from numpy import byte
 from featureform.proto import metadata_pb2
 from featureform.proto import metadata_pb2_grpc as ff_grpc
-from .sqlite_metadata import SQLiteMetadata
-from .tls import insecure_channel, secure_channel
-import time
-import pandas as pd
+
 from .get import *
+from .list import *
 from .get_local import *
 from .list_local import *
-from .list import *
+from .sqlite_metadata import SQLiteMetadata
+from .tls import insecure_channel, secure_channel
+from .resources import ResourceState, Provider, RedisConfig, FirestoreConfig, CassandraConfig, DynamodbConfig, \
+    PostgresConfig, SnowflakeConfig, LocalConfig, RedshiftConfig, BigQueryConfig, SparkAWSConfig, User, Location, Source, PrimaryData, SQLTable, \
+    SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet, ProviderReference, \
+    EntityReference, SourceReference
 
 NameVariant = Tuple[str, str]
 
@@ -105,6 +108,118 @@ class OfflineSQLProvider(OfflineProvider):
                                                    schedule=schedule,
                                                    provider=self.name(),
                                                    description=description)
+
+
+class OfflineSparkProvider(OfflineProvider):
+    def __init__(self, registrar, provider):
+        super().__init__(registrar, provider)
+        self.__registrar = registrar
+        self.__provider = provider
+
+    def register_parquet_file(self,
+                       name: str,
+                       variant: str,
+                       file_path: str,
+                       owner: Union[str, UserRegistrar] = "",
+                       description: str = ""):
+        """Register a Spark data source as a primary data source.
+
+        Args:
+            name (str): Name of table to be registered
+            variant (str): Name of variant to be registered
+            file_path (str): The path to s3 file
+            owner (Union[str, UserRegistrar]): Owner
+            description (str): Description of table to be registered
+
+        Returns:
+            source (ColumnSourceRegistrar): source
+        """
+        return self.__registrar.register_primary_data(name=name,
+                                                      variant=variant,
+                                                      location=SQLTable(file_path),
+                                                      owner=owner,
+                                                      provider=self.name(),
+                                                      description=description)
+
+    def sql_transformation(self,
+                           variant: str,
+                           owner: Union[str, UserRegistrar] = "",
+                           name: str = "",
+                           schedule: str = "",
+                           description: str = ""):
+        """
+        Register a SQL transformation source. The spark.sql_transformation decorator takes the returned string in the
+        following function and executes it as a SQL Query.
+
+        The name of the function is the name of the resulting source.
+
+        Sources for the transformation can be specified by adding the Name and Variant in brackets '{{ name.variant }}'.
+        The correct source is substituted when the query is run.
+
+        **Examples**:
+        ``` py
+        @spark.sql_transformation(variant="quickstart")
+        def average_user_transaction():
+            return "SELECT CustomerID as user_id, avg(TransactionAmount) as avg_transaction_amt from" \
+            " {{transactions.v1}} GROUP BY user_id"
+        ```
+
+        Args:
+            name (str): Name of source
+            variant (str): Name of variant
+            owner (Union[str, UserRegistrar]): Owner
+            description (str): Description of primary data to be registered
+
+
+        Returns:
+            source (ColumnSourceRegistrar): Source
+        """
+        return self.__registrar.sql_transformation(name=name,
+                                                   variant=variant,
+                                                   owner=owner,
+                                                   schedule=schedule,
+                                                   provider=self.name(),
+                                                   description=description)
+
+    def df_transformation(self,
+                        variant: str = "default",
+                        owner: Union[str, UserRegistrar] = "",
+                        name: str = "",
+                        description: str = "",
+                        inputs: list = []):
+        """
+        Register a Dataframe transformation source. The spark.df_transformation decorator takes the contents
+        of the following function and executes the code it contains at serving time.
+
+        The name of the function is used as the name of the source when being registered.
+
+        The specified inputs are loaded into dataframes that can be accessed using the function parameters.
+
+        **Examples**:
+        ``` py
+        @spark.df_transformation(inputs=[("source", "one")])        # Sources are added as inputs
+        def average_user_transaction(df):                           # Sources can be manipulated by adding them as params
+            from pyspark.sql.functions import avg
+            df.groupBy("CustomerID").agg(avg("TransactionAmount").alias("average_user_transaction"))
+            return df
+        ```
+
+        Args:
+            name (str): Name of source
+            variant (str): Name of variant
+            owner (Union[str, UserRegistrar]): Owner
+            description (str): Description of primary data to be registered
+            inputs (list[Tuple(str, str)]): A list of Source NameVariant Tuples to input into the transformation
+
+        Returns:
+            source (ColumnSourceRegistrar): Source
+        """
+        return self.__registrar.df_transformation(name=name,
+                                                    variant=variant,
+                                                    owner=owner,
+                                                    provider=self.name(),
+                                                    description=description,
+                                                    inputs=inputs)
 
 
 class OnlineProvider:
@@ -463,7 +578,7 @@ class DFTransformationDecorator:
         self.description = description
         self.inputs = inputs
 
-    def __call__(self, fn: Callable[[pd.DataFrame], pd.DataFrame]):
+    def __call__(self, fn: Callable[[Union[pd.DataFrame, pyspark.sql.DataFrame]], Union[pd.DataFrame, pyspark.sql.DataFrame]]):
         if self.description == "":
             self.description = fn.__doc__
         if self.name == "":
@@ -866,6 +981,29 @@ class Registrar:
         fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
         return OfflineSQLProvider(self, fakeProvider)      
 
+    def get_spark(self, name):
+        """Get a Spark provider. The returned object can be used to register additional resources.
+        **Examples**:
+        ``` py
+        spark = get_spark("spark-quickstart")
+        transactions = spark.register_table(
+            name="transactions",
+            variant="kaggle",
+            description="Fraud Dataset From Kaggle",
+            table="Transactions",  # This is the table's name in Postgres
+        )
+        ```
+        Args:
+            name (str): Name of Spark provider to be retrieved
+        Returns:
+            spark (OfflineSQLProvider): Provider
+        """
+        get = ProviderReference(name=name, provider_type="spark", obj=None)
+        self.__resources.append(get)
+        fakeConfig = SparkAWSConfig(emr_cluster_id="",bucket_path="",emr_cluster_region="",bucket_region="",aws_access_key_id="",aws_secret_access_key="")
+        fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
+        return OfflineSparkProvider(self, fakeProvider)
+
     def get_entity(self, name, local=False):
         """Get an entity. The returned object can be used to register additional resources.
 
@@ -1201,6 +1339,58 @@ class Registrar:
         self.__resources.append(provider)
         return OfflineSQLProvider(self, provider)
 
+    def register_spark(self,
+                          name: str,
+                          description: str = "",
+                          team: str = "",
+                          emr_cluster_id: str = "",
+                          bucket_path: str = "",
+                          emr_cluster_region: str = "",
+                          bucket_region: str = "",
+                          aws_access_key_id: str = "",
+                          aws_secret_access_key: str = "",):
+        """Register a Spark on AWS provider.
+        **Examples**:
+        ```   
+        spark = ff.register_spark_aws(
+            name="spark-quickstart",
+            description="A Spark deployment we created for the Featureform quickstart",
+            team="featureform-team"
+            emr_cluster_id="AAAAAA",
+            bucket_path="project_bucket",
+            emr_cluster_region="us-east-1",
+            bucket_region="us-east-2",
+            aws_access_key_id="<access key id>"
+            aws_secret_access_key="<secret access key>"
+        )
+        ```
+        Args:
+            name (str): Name of Spark AWS provider to be registered
+            description (str): Description of Spark AWS provider to be registered
+            team (str): Name of team
+            cluster_id (str): The id of the running EMR (Elastic Map Reduce) cluster with Spark enabled
+            bucket_path (str): The project's S3 path
+            emr_cluster_region (str): aws region of the cluster
+            bucket_region (str): aws region of the bucket
+            aws_access_key_id (str): aws access key id of a role with access to the bucket and emr cluster
+            aws_secret_access_key (str): secret key tied to the acces key
+            
+        Returns:
+            spark_aws (OfflineSQLProvider): Provider
+        """
+        config = SparkAWSConfig(emr_cluster_id=emr_cluster_id,
+                                bucket_path=bucket_path,
+                                emr_cluster_region=emr_cluster_region,
+                                bucket_region=bucket_region,
+                                aws_access_key_id=aws_access_key_id,
+                                aws_secret_access_key=aws_secret_access_key)
+        provider = Provider(name=name,
+                            function="OFFLINE",
+                            description=description,
+                            team=team,
+                            config=config)
+        self.__resources.append(provider)
+        return OfflineSparkProvider(self, provider)
 
     def register_local(self):
         """Register a Local provider.
@@ -2617,6 +2807,8 @@ register_dynamodb = global_registrar.register_dynamodb
 register_snowflake = global_registrar.register_snowflake
 register_postgres = global_registrar.register_postgres
 register_redshift = global_registrar.register_redshift
+register_bigquery = global_registrar.register_bigquery
+register_spark_aws = global_registrar.register_spark
 register_local = global_registrar.register_local
 register_entity = global_registrar.register_entity
 register_column_resources = global_registrar.register_column_resources
@@ -2629,3 +2821,6 @@ get_local_provider = global_registrar.get_local_provider
 get_redis = global_registrar.get_redis
 get_postgres = global_registrar.get_postgres
 get_snowflake = global_registrar.get_snowflake
+get_redshift = global_registrar.get_redshift
+get_bigquery = global_registrar.get_bigquery
+get_spark_aws = global_registrar.get_spark

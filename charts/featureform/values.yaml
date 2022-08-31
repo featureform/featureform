@@ -84,6 +84,7 @@ global:
   repo: "featureformcom"
   pullPolicy: "Always"
   publicCert: false
+  k8s_runner_enable: false
 
 
 metadata:

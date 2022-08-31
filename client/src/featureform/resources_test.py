@@ -4,7 +4,7 @@
 
 import pytest
 from resources import ResourceRedefinedError, ResourceState, Provider, RedisConfig, CassandraConfig, FirestoreConfig, \
-SnowflakeConfig, PostgresConfig, RedshiftConfig, BigQueryConfig, User, Provider, Entity, Feature, Label, TrainingSet, PrimaryData, SQLTable, \
+SnowflakeConfig, PostgresConfig, RedshiftConfig, BigQueryConfig, SparkAWSConfig, User, Provider, Entity, Feature, Label, TrainingSet, PrimaryData, SQLTable, \
 Source, ResourceColumnMapping, DynamodbConfig, Schedule
 
 
@@ -88,6 +88,18 @@ def bigquery_config():
 
 
 @pytest.fixture
+def spark_aws_config():
+    return SparkAWSConfig(
+        emr_cluster_id="spark-cluster-id"
+        bucket_path="project-bucket-path",
+        emr_cluster_region="us-east-1",
+        bucket_region="us-east-1"
+        aws_access_key_id="aws-access-key",
+        aws_secret_access_key="aws-secret-key",
+    )
+
+
+@pytest.fixture
 def postgres_provider(postgres_config):
     return Provider(
         name="postgres",
@@ -139,6 +151,17 @@ def bigquery_provider(bigquery_config):
         function="fn2",
         team="team2",
         config=bigquery_config,
+    )
+
+
+@pytest.fixture
+def spark_aws_provider(spark_aws_config):
+    return Provider(
+        name="spark_aws",
+        description="desc2",
+        function="fn2",
+        team="team2",
+        config=spark_aws_config,
     )
 
 
@@ -239,13 +262,14 @@ def all_resources_strange_order(redis_provider):
 
 
 def test_create_all_provider_types(redis_provider, snowflake_provider,
-                                   postgres_provider, redshift_provider, bigquery_provider):
+                                   postgres_provider, redshift_provider, bigquery_provider, spark_aws_provider):
     providers = [
         redis_provider,
         snowflake_provider,
         postgres_provider,
         redshift_provider,
-        bigquery_provider, 
+        bigquery_provider,
+        spark_aws_provider,
     ]
     state = ResourceState()
     for provider in providers:

@@ -378,6 +378,7 @@ func TestParquetUpload(t *testing.T) {
 	if testing.Short() {
 		return
 	}
+	t.Parallel()
 	sparkOfflineStore, err := getSparkOfflineStore(t)
 	if err != nil {
 		t.Fatalf("could not get SparkOfflineStore: %s", err)

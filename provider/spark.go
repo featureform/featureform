@@ -1500,6 +1500,8 @@ func (s *S3Store) ResourceStream(key string) (chan []byte, error) {
 	return out, nil
 }
 
+// read from the parquet file with the given key starting from begin
+// return the ouput of the reader as a generic struct stream
 func (s *S3Store) ResourceStreamConv(key string, begin int64) (chan interface{}, error) {
 	file, err := s.S3ParquetReader(key)
 	if err != nil {
@@ -1517,18 +1519,20 @@ func (s *S3Store) ResourceStreamConv(key string, begin int64) (chan interface{},
 	}
 	numRows := pr.GetNumRows()
 	rowChannel := make(chan interface{})
-	go func(rowChannel chan interface{}, numRows int64, pr *reader.ParquetReader) {
-		for i := int64(0); i < numRows; i++ {
-			res, err := pr.ReadByNumber(1)
-			if err != nil {
-				rowChannel <- err
-			}
-			row := reflect.ValueOf(res).Index(0).Interface()
-			rowChannel <- row
-		}
-		rowChannel <- fmt.Errorf("end of file")
-	}(rowChannel, numRows, pr)
+	go parquetReaderToStream(rowChannel, numRows, pr)
 	return rowChannel, nil
+}
+
+func parquetReaderToStream(rowChannel chan interface{}, numRows int64, pr *reader.ParquetReader) {
+	for i := int64(0); i < numRows; i++ {
+		res, err := pr.ReadByNumber(1)
+		if err != nil {
+			rowChannel <- err
+		}
+		row := reflect.ValueOf(res).Index(0).Interface()
+		rowChannel <- row
+	}
+	rowChannel <- fmt.Errorf("end of file")
 }
 
 func (s *S3Store) RowStreamFromSelectQuery(key string, query string) (chan []byte, error) {

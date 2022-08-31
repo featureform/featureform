@@ -2,20 +2,12 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import os
-import time
 import marshal
-from typing_extensions import Self
-from distutils.command.config import config
 from typeguard import typechecked, check_type
 from typing import Tuple, Callable, List, Union
 
-import grpc
 import pyspark
 import pandas as pd
-from numpy import byte
-from featureform.proto import metadata_pb2
-from featureform.proto import metadata_pb2_grpc as ff_grpc
 
 from .get import *
 from .list import *

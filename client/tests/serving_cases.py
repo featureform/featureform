@@ -528,13 +528,13 @@ training_set = {
                 'ts_col': "ts"
             },
             {
-                'columns': ['entity', 'value', "ts"],
+                'columns': ['entity', 'value', "time"],
                 'values': [
                     ['b', "first", datetime.fromtimestamp(3)],
                     ['b', "second", datetime.fromtimestamp(4)],
                     ['b', "third", datetime.fromtimestamp(8)],
                 ],
-                'ts_col': "ts"
+                'ts_col': "time"
             },
             {
                 'columns': ['entity', 'value', "ts"],

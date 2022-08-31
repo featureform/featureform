@@ -29,6 +29,12 @@ import (
 
 var provider = flag.String("provider", "all", "provider to perform test on")
 
+type testMember struct {
+	t               Type
+	c               SerializedConfig
+	integrationTest bool
+}
+
 func TestOfflineStores(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
@@ -126,11 +132,6 @@ func TestOfflineStores(t *testing.T) {
 		return serialBQConfig, bigQueryConfig
 	}
 
-	type testMember struct {
-		t               Type
-		c               SerializedConfig
-		integrationTest bool
-	}
 	testList := []testMember{}
 
 	if *provider == "memory" || *provider == "" {
@@ -194,7 +195,7 @@ func TestOfflineStores(t *testing.T) {
 	}
 
 	for _, testItem := range testList {
-		t.Run(testItem.t, func(t *testing.T) {
+		t.Run(string(testItem.t), func(t *testing.T) {
 			t.Parallel()
 			testWithProvider(t, testItem, testFns, testSQLFns, db)
 		})
@@ -202,6 +203,7 @@ func TestOfflineStores(t *testing.T) {
 }
 
 func testWithProvider(t *testing.T, testItem testMember, testFns map[string]func(*testing.T, OfflineStore), testSQLFns map[string]func(*testing.T, OfflineStore), db *sql.DB) {
+	var err error
 	if testing.Short() && testItem.integrationTest {
 		t.Logf("Skipping %s, because it is an integration test", testItem.t)
 		return

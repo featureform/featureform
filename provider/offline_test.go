@@ -193,17 +193,18 @@ func TestOfflineStores(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-
 	for _, testItem := range testList {
+		testItemConst := testItem
 		t.Run(string(testItem.t), func(t *testing.T) {
 			t.Parallel()
-			testWithProvider(t, testItem, testFns, testSQLFns, db)
+			testWithProvider(t, testItemConst, testFns, testSQLFns, db)
 		})
 	}
 }
 
 func testWithProvider(t *testing.T, testItem testMember, testFns map[string]func(*testing.T, OfflineStore), testSQLFns map[string]func(*testing.T, OfflineStore), db *sql.DB) {
 	var err error
+	fmt.Println(testItem)
 	if testing.Short() && testItem.integrationTest {
 		t.Logf("Skipping %s, because it is an integration test", testItem.t)
 		return

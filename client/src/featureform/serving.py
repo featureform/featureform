@@ -262,6 +262,7 @@ class LocalClientImpl:
                                            right_on=feature_row['source_timestamp'], left_by=label_row['source_entity'],
                                            right_by=feature_row['source_entity'])
             df.drop_duplicates(subset=[feature_row['source_entity']], keep="last", inplace=True)
+            df.drop(columns=feature_row['source_timestamp'], inplace=True)
         else:
             df.drop_duplicates(subset=[feature_row['source_entity']], keep="last", inplace=True)
             trainingset_df.reset_index(inplace=True)

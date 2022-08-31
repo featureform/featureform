@@ -116,10 +116,10 @@ class OfflineSparkProvider(OfflineProvider):
         self.__registrar = registrar
         self.__provider = provider
 
-    def register_table(self,
+    def register_parquet_file(self,
                        name: str,
                        variant: str,
-                       table: str,
+                       file_path: str,
                        owner: Union[str, UserRegistrar] = "",
                        description: str = ""):
         """Register a Spark data source as a primary data source.
@@ -127,7 +127,7 @@ class OfflineSparkProvider(OfflineProvider):
         Args:
             name (str): Name of table to be registered
             variant (str): Name of variant to be registered
-            table (str): Name of SQL table
+            file_path (str): The path to s3 file
             owner (Union[str, UserRegistrar]): Owner
             description (str): Description of table to be registered
 
@@ -136,7 +136,7 @@ class OfflineSparkProvider(OfflineProvider):
         """
         return self.__registrar.register_primary_data(name=name,
                                                       variant=variant,
-                                                      location=SQLTable(table),
+                                                      location=SQLTable(file_path),
                                                       owner=owner,
                                                       provider=self.name(),
                                                       description=description)

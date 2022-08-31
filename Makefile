@@ -211,6 +211,7 @@ pytest:
 	pytest client/tests/local_test.py
 	pytest client/tests/localmode_quickstart_test.py
 	pytest client/tests/register_test.py
+	pytest client/tests/test_spark_provider.py
 	pip3 install jupyter nbconvert matplotlib pandas scikit-learn requests
 	jupyter nbconvert --to notebook --execute notebooks/Fraud_Detection_Example.ipynb
 	-rm -r .featureform

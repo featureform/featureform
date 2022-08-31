@@ -32,8 +32,8 @@ Every registered feature and label is associated specific columns in a parquet t
 
 ## Configuration <a href="#configuration" id="configuration"></a>
 
-To configure a spark store via aws, you need an IAM (link) cluster with access to an account's EMR cluster and S3 bucket. To register you can input your aws access key id and your aws secret key.
-Your cluster must be running and support Spark.
+To configure a spark store via aws, you need an [IAM Role](https://aws.amazon.com/iam/) with access to an account's EMR cluster and S3 bucket. To register you can input your [aws access key id and your aws secret key](https://docs.aws.amazon.com/general/latest/gr/aws-sec-cred-types.html).
+Your cluster must be running and support [Spark](https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-spark.html).
 
 {% code title="spark_config.py" %}
 ```python
@@ -53,7 +53,7 @@ ff.register_snowflake(
 {% endcode %}
 
 ### Dataframe Transformations
-While you can also create SQL transformations as in the other offline stores (postgres, snowflake)(links), Spark uniquely allows you to perform dataframe transformations using your source tables as inputs.
+While you can also create SQL transformations as in the other offline stores like [Redis](providers/redis.md), Spark uniquely allows you to perform dataframe transformations using your source tables as inputs.
 with your registered spark store, you can perform
 {% code title="dataframe_registration.py" %}
 ```python

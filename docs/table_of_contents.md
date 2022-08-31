@@ -27,6 +27,7 @@
 * [Postgres](providers/postgres.md)
 * [Redis](providers/redis.md)
 * [Snowflake](providers/snowflake.md)
+* [Spark](providers/spark.md)
 
 
 ## Deployment

@@ -1429,6 +1429,7 @@ func TestGetResourceInformationFromFilePath(t *testing.T) {
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			resourceType, resourceName, resourceVariant := store.getResourceInformationFromFilePath(tt.sourcePath)
 			resourceInfo := []string{resourceType, resourceName, resourceVariant}
 
@@ -1500,6 +1501,7 @@ func TestGetDFArgs(t *testing.T) {
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			args, err := store.getDFArgs(tt.outputURI, tt.code, tt.region, tt.mapping)
 			if !tt.expectedFailure && err != nil {
 				t.Fatalf("could not get df args %s", err)
@@ -1579,6 +1581,7 @@ func TestTransformation(t *testing.T) {
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := store.transformation(tt.config, false)
 			if !tt.expectedFailure && err != nil {
 				t.Fatalf("could not run transformation %s", err)
@@ -2434,6 +2437,7 @@ func sparkTestMaterializationUpdate(t *testing.T, store *SparkOfflineStore) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			runTestCase(t, test)
 		})
 	}
@@ -2789,6 +2793,7 @@ func sparkTestTrainingSetUpdate(t *testing.T, store *SparkOfflineStore) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			runTestCase(t, test)
 		})
 	}

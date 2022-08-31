@@ -257,7 +257,7 @@ class LocalClientImpl:
 
     def merge_feature_into_ts(self, feature_row, label_row, df, trainingset_df):
         if feature_row['source_timestamp'] != "":
-            trainingset_df = pd.merge_asof(trainingset_df, df.sort_values(['ts']), direction='backward',
+            trainingset_df = pd.merge_asof(trainingset_df, df.sort_values(feature_row['source_timestamp']), direction='backward',
                                            left_on=label_row['source_timestamp'],
                                            right_on=feature_row['source_timestamp'], left_by=label_row['source_entity'],
                                            right_by=feature_row['source_entity'])

@@ -1974,7 +1974,7 @@ func sparkTestMaterializationUpdate(t *testing.T, store *SparkOfflineStore) {
 			UpdatedSegmentEnd:   3,
 			UpdatedRows:         3,
 			ExpectedSegment: []ResourceRecord{
-				{Entity: "a", Value: 4, TS: time.UnixMilli(0).UTC()},
+				{Entity: "a", Value: 1, TS: time.UnixMilli(0).UTC()},
 				{Entity: "b", Value: 2, TS: time.UnixMilli(0).UTC()},
 				{Entity: "c", Value: 3, TS: time.UnixMilli(0).UTC()},
 			},
@@ -2063,7 +2063,7 @@ func sparkTestMaterializationUpdate(t *testing.T, store *SparkOfflineStore) {
 				{Entity: "c", Value: 9, TS: time.UnixMilli(5).UTC()},
 				{Entity: "b", Value: 12, TS: time.UnixMilli(2).UTC()},
 				{Entity: "a", Value: 4, TS: time.UnixMilli(1).UTC()},
-				{Entity: "b", Value: 9, TS: time.UnixMilli(3).UTC()},
+				{Entity: "b", Value: 9, TS: time.UnixMilli(4).UTC()},
 			},
 			UpdateRecords: []ResourceRecord{
 				{Entity: "a", Value: 1, TS: time.UnixMilli(10).UTC()},
@@ -2074,7 +2074,7 @@ func sparkTestMaterializationUpdate(t *testing.T, store *SparkOfflineStore) {
 				{Entity: "a", Value: 4, TS: time.UnixMilli(1).UTC()},
 				{Entity: "b", Value: 9, TS: time.UnixMilli(3).UTC()},
 				{Entity: "a", Value: 5, TS: time.UnixMilli(20).UTC()},
-				{Entity: "b", Value: 2, TS: time.UnixMilli(4).UTC()},
+				{Entity: "b", Value: 2, TS: time.UnixMilli(5).UTC()},
 			},
 			Schema:              schemaInt,
 			ExpectedRows:        3,
@@ -2085,13 +2085,13 @@ func sparkTestMaterializationUpdate(t *testing.T, store *SparkOfflineStore) {
 			UpdatedRows:         3,
 			ExpectedSegment: []ResourceRecord{
 				{Entity: "a", Value: 1, TS: time.UnixMilli(10).UTC()},
-				{Entity: "b", Value: 9, TS: time.UnixMilli(3).UTC()},
+				{Entity: "b", Value: 9, TS: time.UnixMilli(4).UTC()},
 				{Entity: "c", Value: 3, TS: time.UnixMilli(7).UTC()},
 			},
 			ExpectedUpdate: []ResourceRecord{
 				{Entity: "c", Value: 3, TS: time.UnixMilli(7).UTC()},
 				{Entity: "a", Value: 5, TS: time.UnixMilli(20).UTC()},
-				{Entity: "b", Value: 2, TS: time.UnixMilli(4).UTC()},
+				{Entity: "b", Value: 2, TS: time.UnixMilli(5).UTC()},
 			},
 			Timestamp: true,
 		},
@@ -2208,7 +2208,6 @@ func sparkTestMaterializationUpdate(t *testing.T, store *SparkOfflineStore) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
 			runTestCase(t, test)
 		})
 	}
@@ -2564,7 +2563,6 @@ func sparkTestTrainingSetUpdate(t *testing.T, store *SparkOfflineStore) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
 			runTestCase(t, test)
 		})
 	}

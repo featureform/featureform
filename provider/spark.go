@@ -57,6 +57,11 @@ const (
 	CreateTrainingSet         = "Training Set"
 )
 
+const MATERIALIZATION_ID_SEGMENTS = 3
+const ENTITY_INDEX = 0
+const VALUE_INDEX = 1
+const TIMESTAMP_INDEX = 2
+
 type SparkConfig struct {
 	ExecutorType   SparkExecutorType
 	ExecutorConfig string
@@ -1022,10 +1027,10 @@ func featureStructToResource(row interface{}) (ResourceRecord, error) {
 	if rowVal.NumField() < 3 {
 		return ResourceRecord{}, fmt.Errorf("not enough fields in feature struct")
 	}
-	entity := *rowVal.Field(0).Interface().(*string)
-	value := convIndirectToVal(rowVal.Field(1).Interface())
+	entity := *rowVal.Field(ENTITY_INDEX).Interface().(*string)
+	value := convIndirectToVal(rowVal.Field(VALUE_INDEX).Interface())
 	//convert whatever time format is to time.Time
-	timestampValue := rowVal.Field(2).Interface()
+	timestampValue := rowVal.Field(TIMESTAMP_INDEX).Interface()
 	var ts time.Time
 	switch v := timestampValue.(type) {
 	case *string:
@@ -1151,7 +1156,7 @@ func (spark *SparkOfflineStore) UpdateMaterialization(id ResourceID) (Materializ
 
 func (spark *SparkOfflineStore) DeleteMaterialization(id MaterializationID) error {
 	s := strings.Split(string(id), "/")
-	if len(s) != 3 {
+	if len(s) != MATERIALIZATION_ID_SEGMENTS {
 		return &MaterializationNotFound{id}
 	}
 	materializationID := ResourceID{s[1], s[2], FeatureMaterialization}

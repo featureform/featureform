@@ -20,7 +20,7 @@ const (
 	PostgresOffline       = "POSTGRES_OFFLINE"
 	SnowflakeOffline      = "SNOWFLAKE_OFFLINE"
 	RedshiftOffline       = "REDSHIFT_OFFLINE"
-	SparkOffline          = "SPARK_OFFLINE"
+	SparkAWSOffline       = "SPARK_AWS_OFFLINE"
 	BigQueryOffline       = "BIGQUERY_OFFLINE"
 )
 

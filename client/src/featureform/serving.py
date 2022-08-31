@@ -19,6 +19,16 @@ from .sqlite_metadata import SQLiteMetadata
 from .resources import SourceType
 
 
+def check_feature_type(features):
+    checked_features = []
+    for feature in features:
+        if isinstance(feature, tuple):
+            checked_features.append(feature)
+        elif isinstance(feature, str):
+            checked_features.append((feature, "default"))
+    return checked_features
+
+
 class ServingClient:
     """
     The serving client is used to retrieve training sets and features for training and serving purposes.
@@ -90,6 +100,7 @@ class ServingClient:
         Returns:
             features (numpy.Array): An Numpy array of feature values in the order given by the inputs
         """
+        features = check_feature_type(features)
         return self.impl.features(features, entities)
 
 
@@ -119,10 +130,10 @@ class HostedClientImpl:
             entity_proto = req.entities.add()
             entity_proto.name = name
             entity_proto.value = value
-        for (name, version) in features:
+        for (name, variation) in features:
             feature_id = req.features.add()
             feature_id.name = name
-            feature_id.version = version
+            feature_id.version = variation
         resp = self._stub.FeatureServe(req)
         return [parse_proto_value(val) for val in resp.values]
 

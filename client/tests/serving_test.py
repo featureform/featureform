@@ -14,7 +14,17 @@ sys.path.insert(0, 'client/src/')
 from featureform import ResourceClient, ServingClient
 import serving_cases as cases
 import featureform as ff
-from featureform.serving import LocalClientImpl
+from featureform.serving import LocalClientImpl, check_feature_type
+
+@pytest.mark.parametrize("test_input,expected",
+                         [
+                             ([("name", "variant")], [("name", "variant")]),
+                             (["name"], [("name", "default")]),
+                             (["name1", "name2"], [("name1", "default"), ("name2", "default")]),
+                             (["name1", ("name2", "variant")], [("name1", "default"), ("name2", "variant")]),
+                         ])
+def test_check_feature_type(test_input, expected):
+    assert expected == check_feature_type(test_input)
 
 class TestIndividualFeatures(TestCase):
     def test_process_feature_no_ts(self):

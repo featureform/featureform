@@ -218,6 +218,7 @@ pytest:
 
 test_pyspark:
 	@echo "Requires Java to be installed"
+	-rm provider/scripts/.coverage
 	pytest -v --cov=offline_store_spark_runner provider/scripts/tests/ --cov-report term-missing
 
 ##############################################  GO TESTS ###############################################################

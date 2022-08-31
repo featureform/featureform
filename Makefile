@@ -300,6 +300,7 @@ containers: gen_grpc						## Build Docker containers for Minikube
 	minikube image build -f ./metadata/Dockerfile . -t local/metadata:stable & \
 	minikube image build -f ./metadata/dashboard/Dockerfile . -t local/metadata-dashboard:stable & \
 	minikube image build -f ./newserving/Dockerfile . -t local/serving:stable & \
+	minikube image build -f ./runner/Dockerfile . -t local/worker:stable & \
 	wait; \
 	echo "Build Complete"
 

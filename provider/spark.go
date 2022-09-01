@@ -390,7 +390,7 @@ func (e *EMRExecutor) RunSparkJob(args []string) error {
 		return err
 	}
 	stepId := resp.StepIds[0]
-	var waitDuration time.Duration = time.Second * 150
+	var waitDuration time.Duration = time.Second * 2000
 	time.Sleep(1 * time.Second)
 	stepCompleteWaiter := emr.NewStepCompleteWaiter(e.client)
 	_, err = stepCompleteWaiter.WaitForOutput(context.TODO(), &emr.DescribeStepInput{

@@ -91,14 +91,8 @@ type SparkAWSConfig struct {
 	BucketPath         string
 	EMRClusterRegion   string
 	BucketRegion       string
-	AWSAccessKeyId     SecretConfig
-	AWSSecretAccessKey SecretConfig
-}
-
-type SecretConfig []byte
-
-func (s SecretConfig) String() string {
-	return "<secret_configuration>"
+	AWSAccessKeyId     string
+	AWSSecretAccessKey string
 }
 
 func (s *SparkAWSConfig) Deserialize(config SerializedConfig) error {
@@ -118,8 +112,8 @@ func (s *SparkAWSConfig) Serialize() []byte {
 }
 
 type EMRConfig struct {
-	AWSAccessKeyId SecretConfig
-	AWSSecretKey   SecretConfig
+	AWSAccessKeyId string
+	AWSSecretKey   string
 	ClusterRegion  string
 	ClusterName    string
 }
@@ -141,8 +135,8 @@ func (e *EMRConfig) Serialize() []byte {
 }
 
 type S3Config struct {
-	AWSAccessKeyId SecretConfig
-	AWSSecretKey   SecretConfig
+	AWSAccessKeyId string
+	AWSSecretKey   string
 	BucketRegion   string
 	BucketPath     string
 }

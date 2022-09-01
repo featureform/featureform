@@ -1601,31 +1601,6 @@ func TestTransformation(t *testing.T) {
 	}
 }
 
-func TestRegisterSparkAWSStore(t *testing.T) {
-	sparkAWSConfig := SparkAWSConfig{
-		EMRClusterId:       os.Getenv("AWS_EMR_CLUSTER_ID"),
-		BucketPath:         os.Getenv("S3_BUCKET_PATH"),
-		EMRClusterRegion:   os.Getenv("AWS_EMR_CLUSTER_REGION"),
-		BucketRegion:       os.Getenv("S3_BUCKET_REGION"),
-		AWSAccessKeyId:     SecretConfig(os.Getenv("AWS_ACCESS_KEY_ID")),
-		AWSSecretAccessKey: SecretConfig(os.Getenv("AWS_SECRET_KEY")),
-	}
-	serialized := sparkAWSConfig.Serialize()
-	newSparkAWSStore, err := SparkAWSOfflineStoreFactory(serialized)
-	if err != nil {
-		t.Fatalf("could not create new AWS spark store: %v", err)
-	}
-	offlineSparkStore, err := newSparkAWSStore.AsOfflineStore()
-	if err != nil {
-		t.Fatalf("could not convert spark AWS store to offline store: %v", err)
-	}
-
-	_, ok := offlineSparkStore.(*SparkOfflineStore)
-	if !ok {
-		t.Fatalf("could not convert offline store to spark offline store")
-	}
-}
-
 func getSparkOfflineStore(t *testing.T) (*SparkOfflineStore, error) {
 	err := godotenv.Load(".env")
 	if err != nil {

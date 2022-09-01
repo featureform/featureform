@@ -38,6 +38,12 @@ func TestOfflineStores(t *testing.T) {
 		fmt.Println(err)
 	}
 
+	type testMember struct {
+		t               Type
+		c               SerializedConfig
+		integrationTest bool
+	}
+
 	os.Setenv("TZ", "UTC")
 
 	checkEnv := func(envVar string) string {
@@ -126,11 +132,6 @@ func TestOfflineStores(t *testing.T) {
 		return serialBQConfig, bigQueryConfig
 	}
 
-	type testMember struct {
-		t               Type
-		c               SerializedConfig
-		integrationTest bool
-	}
 	testList := []testMember{}
 
 	if *provider == "memory" || *provider == "" {
@@ -192,7 +193,6 @@ func TestOfflineStores(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-
 	for _, testItem := range testList {
 		if testing.Short() && testItem.integrationTest {
 			t.Logf("Skipping %s, because it is an integration test", testItem.t)

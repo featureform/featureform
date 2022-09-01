@@ -381,7 +381,7 @@ func (e *EMRExecutor) RunSparkJob(args []string) error {
 					Jar:  aws.String("command-runner.jar"), //jar file for running pyspark scripts
 					Args: args,
 				},
-				ActionOnFailure: emrTypes.ActionOnFailureCancelAndWait,
+				ActionOnFailure: emrTypes.ActionOnFailureContinue,
 			},
 		},
 	}

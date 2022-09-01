@@ -199,20 +199,20 @@ func TestOfflineStores(t *testing.T) {
 		testItemConst := testItem
 		t.Run(string(testItemConst.t), func(t *testing.T) {
 			t.Parallel()
-			testWithProvider(t, testItemConst, testFns, testSqlFns, completionChannel)
+			testWithProvider(t, testItemConst, testFns, testSQLFns, db, completionChannel)
 		})
 	}
 	numComplete := 0
 	for numComplete < numProviders {
 		providerFinished := <-completionChannel
 		if !providerFinished {
-			t.Fatalf("Provider failed")
+			t.Logf("provider failed")
 		}
 		numComplete += 1
 	}
 }
 
-func testWithProvider(t *testing.T, testItem testMember, testFns map[string]func(*testing.T, OfflineStore), testSQLFns map[string]func(*testing.T, OfflineStore), completionChannel chan bool) {
+func testWithProvider(t *testing.T, testItem testMember, testFns map[string]func(*testing.T, OfflineStore), testSQLFns map[string]func(*testing.T, OfflineStore), db *sql.DB, completionChannel chan bool) {
 	var err error
 	if testing.Short() && testItem.integrationTest {
 		t.Logf("Skipping %s, because it is an integration test", testItem.t)

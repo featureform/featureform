@@ -1,3 +1,5 @@
+boto3
+dill
 pyspark==3.3.0
 pytest==7.1.2
 pytest-cov==3.0.0

@@ -60,6 +60,90 @@ test_online
 				make test_online provider=memory
 
 
+test_go_unit
+	Requirements:
+		- Golang 1.18
+
+	Description:
+		Runs golang unit tests
+
+test_metadata
+	Requirements:
+		- Golang 1.18
+		- ETCD installed and added to path (https://etcd.io/docs/v3.4/install/)
+
+	Description:
+		Runs metadata tests
+
+	Flags:
+		- ETCD_UNSUPPORTED_ARCH
+			Description:
+				This flag must be set to run on M1/M2 Macs
+			Usage:
+				make test_metadata flags=ETCD_UNSUPPORTED_ARCH=arm64
+
+
+test_helpers
+	Requirements:
+		- Golang 1.18
+
+	Description:
+		Runs helper tests
+
+test_serving
+	Requirements:
+		- Golang 1.18
+
+	Description:
+		Runs serving tests
+
+test_runner
+	Requirements:
+		- Golang 1.18
+		- ETCD installed and added to path (https://etcd.io/docs/v3.4/install/)
+
+	Description:
+		Runs coordinator runner tests
+
+	Flags:
+		- ETCD_UNSUPPORTED_ARCH
+			Description:
+				This flag must be set to run on M1/M2 Macs
+			Usage:
+				make test_metadata flags=ETCD_UNSUPPORTED_ARCH=arm64
+
+test_api
+	Requirements:
+		- Golang 1.18
+		- Python3.6-3.10
+
+	Description:
+		Starts an API Server instance and checks that the serving and metadata clients can connect
+
+test_typesense
+	Requirements:
+		- Golang 1.18
+		- Docker
+
+	Description:
+		Starts a typesense instance and tests the typesense package
+
+test_coordinator
+	Requirements:
+		- Golang 1.18
+		- ETCD installed and added to path (https://etcd.io/docs/v3.4/install/)
+		- Docker
+
+	Description:
+		Starts ETCD, Postgres, and Redis to test the coordinator
+
+	Flags:
+		- ETCD_UNSUPPORTED_ARCH
+			Description:
+				This flag must be set to run on M1/M2 Macs
+			Usage:
+				make test_metadata flags=ETCD_UNSUPPORTED_ARCH=arm64
+
 endef
 export HELP_BODY
 
@@ -94,12 +178,28 @@ update_python: gen_grpc 				## Updates the python package locally
 	-rm -r client/dist/*
 	python3 -m build ./client/
 	pip3 install client/dist/*.whl
+	pip3 install -r provider/scripts/requirements.txt
 
 etcdctl: 						## Installs ETCDCTL. Required for reset_e2e
 	-git clone -b v3.4.16 https://github.com/etcd-io/etcd.git
 	cd etcd && ./build
 	export PATH=$PATH:"`pwd`/etcd/bin"
 	etcdctl version
+
+credentials:
+	-mkdir ~/credentials
+	aws secretsmanager get-secret-value --secret-id bigquery.json --region us-east-1 |   jq -r '.SecretString' > ~/credentials/bigquery.json
+	aws secretsmanager get-secret-value --secret-id firebase.json --region us-east-1 |   jq -r '.SecretString' > ~/credentials/firebase.json
+	aws secretsmanager get-secret-value --secret-id .env --region us-east-1 |   jq -r '.SecretString' |   jq -r "to_entries|map(\"\(.key)=\\\"\(.value|tostring)\\\"\")|.[]" > .env
+
+start_postgres:
+	-docker kill postgres
+	-docker rm postgres
+	docker run -d -p 5432:5432 --name postgres -e POSTGRES_PASSWORD=password postgres
+
+stop_postgres:
+	docker kill postgres
+	docker rm postgres
 
 ##############################################  PYTHON TESTS ###########################################################
 pytest:
@@ -111,23 +211,89 @@ pytest:
 	pytest client/tests/local_test.py
 	pytest client/tests/localmode_quickstart_test.py
 	pytest client/tests/register_test.py
+	pytest client/tests/test_spark_provider.py
 	pip3 install jupyter nbconvert matplotlib pandas scikit-learn requests
 	jupyter nbconvert --to notebook --execute notebooks/Fraud_Detection_Example.ipynb
 	-rm -r .featureform
 
+test_pyspark:
+	@echo "Requires Java to be installed"
+	pytest -v --cov=offline_store_spark_runner provider/scripts/tests/ --cov-report term-missing
+
 ##############################################  GO TESTS ###############################################################
-
-test_offline: gen_grpc						## Run offline tests. Run with `make test_offline provider=(memory | postgres | snowflake | redshift | spark )`
+test_offline: gen_grpc 					## Run offline tests. Run with `make test_offline provider=(memory | postgres | snowflake | redshift | spark )`
+	@echo "These tests require a .env file. Please Check .env-template for possible variables"
 	-mkdir coverage
-	go test -v -timeout 30m -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/... --tags=offline,spark --provider=$(provider)
+	go test -v -p 20 -timeout 60m -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/... --tags=offline --provider=$(provider)
 
-test_online: gen_grpc					## Run offline tests. Run with `make test_online provider=(memory | redis_mock | redis_insecure | redis_secure | cassandra | firestore | dynamo )`
+test_offline_spark: gen_grpc 					## Run spark tests. Run with `make test_offline provider=(memory | postgres | snowflake | redshift | spark )`
+	@echo "These tests require a .env file. Please Check .env-template for possible variables"
+	-mkdir coverage
+	go test -v -p 20 -timeout 60m -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/... --tags=spark
+
+test_online: gen_grpc 					## Run offline tests. Run with `make test_online provider=(memory | redis_mock | redis_insecure | redis_secure | cassandra | firestore | dynamo )`
+	@echo "These tests require a .env file. Please Check .env-template for possible variables"
 	-mkdir coverage
 	go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/... --tags=online,provider --provider=$(provider)
 
 test_go_unit:
 	-mkdir coverage
 	go test ./... -tags=*,offline,provider --short   -coverprofile coverage/cover.out.tmp
+
+test_metadata:							## Requires ETCD to be installed and added to path
+	-mkdir coverage
+	$(flags) etcd &
+	while ! echo exit | nc localhost 2379; do sleep 1; done
+	go test -coverpkg=./... -coverprofile coverage/cover.out.tmp ./metadata/
+
+test_helpers:
+	-mkdir coverage
+	go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./helpers/...
+
+test_serving:
+	-mkdir coverage
+	go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./newserving/...
+
+test_runner:							## Requires ETCD to be installed and added to path
+	-mkdir coverage
+	$(flags) etcd &
+	while ! echo exit | nc localhost 2379; do sleep 1; done
+	go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./runner/...
+
+test_api: update_python
+	pip3 install -U pip
+	pip3 install python-dotenv pytest
+	go run api/main.go & echo $$! > server.PID;
+	while ! echo exit | nc localhost 7878; do sleep 1; done
+	pytest client/tests/connection_test.py
+	kill -9 `cat server.PID`
+
+test_typesense:
+	-docker kill typesense
+	-docker rm typesense
+	-mkdir coverage
+	-mkdir /tmp/typesense-data
+	docker run -d --name typesense -p 8108:8108 -v/tmp/typesense-data:/data typesense/typesense:0.23.1 --data-dir /data --api-key=xyz --enable-cors
+	go test -v -coverpkg=./... -coverprofile ./coverage/cover.out.tmp ./metadata/search/...
+	docker kill typesense
+	docker rm typesense
+
+test_coordinator: cleanup_coordinator
+	-mkdir coverage
+	docker run -d --name postgres -p 5432:5432 -e POSTGRES_PASSWORD=password postgres
+	docker run -d --name redis -p 6379:6379 redis
+	$(flags) etcd &
+	while ! echo exit | nc localhost 2379; do sleep 1; done
+	while ! echo exit | nc localhost 5432; do sleep 1; done
+	while ! echo exit | nc localhost 6379; do sleep 1; done
+	go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./coordinator/...
+	$(MAKE) cleanup_coordinator
+
+cleanup_coordinator:
+	-docker kill postgres
+	-docker rm postgres
+	-docker kill redis
+	-docker rm redis
 
 
 ##############################################  MINIKUBE ###############################################################
@@ -139,6 +305,7 @@ containers: gen_grpc						## Build Docker containers for Minikube
 	minikube image build -f ./metadata/Dockerfile . -t local/metadata:stable & \
 	minikube image build -f ./metadata/dashboard/Dockerfile . -t local/metadata-dashboard:stable & \
 	minikube image build -f ./newserving/Dockerfile . -t local/serving:stable & \
+	minikube image build -f ./runner/Dockerfile . -t local/worker:stable & \
 	wait; \
 	echo "Build Complete"
 

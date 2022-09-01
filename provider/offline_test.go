@@ -33,9 +33,15 @@ func TestOfflineStores(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
-	err := godotenv.Load(".env")
+	err := godotenv.Load("../.env")
 	if err != nil {
 		fmt.Println(err)
+	}
+
+	type testMember struct {
+		t               Type
+		c               SerializedConfig
+		integrationTest bool
 	}
 
 	os.Setenv("TZ", "UTC")
@@ -126,11 +132,6 @@ func TestOfflineStores(t *testing.T) {
 		return serialBQConfig, bigQueryConfig
 	}
 
-	type testMember struct {
-		t               Type
-		c               SerializedConfig
-		integrationTest bool
-	}
 	testList := []testMember{}
 
 	if *provider == "memory" || *provider == "" {
@@ -192,7 +193,6 @@ func TestOfflineStores(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-
 	for _, testItem := range testList {
 		if testing.Short() && testItem.integrationTest {
 			t.Logf("Skipping %s, because it is an integration test", testItem.t)
@@ -249,7 +249,7 @@ func TestOfflineStores(t *testing.T) {
 				panic(err)
 			}
 			t.Run("POSTGRES_ConnectionCheck", func(t *testing.T) {
-				if connections_start+2 <= connections_end {
+				if connections_start+3 <= connections_end {
 					t.Errorf("Started with %d connections, ended with %d connections", connections_start, connections_end)
 				}
 			})
@@ -2862,9 +2862,6 @@ func testTransformToMaterialize(t *testing.T, store OfflineStore) {
 }
 
 func testCreateResourceFromSource(t *testing.T, store OfflineStore) {
-	if store.Type() == BigQueryOffline {
-		t.Skip()
-	}
 	primaryID := ResourceID{
 		Name: uuid.NewString(),
 		Type: Primary,
@@ -2951,9 +2948,6 @@ func testCreateResourceFromSource(t *testing.T, store OfflineStore) {
 }
 
 func testCreateResourceFromSourceNoTS(t *testing.T, store OfflineStore) {
-	if store.Type() == BigQueryOffline {
-		t.Skip()
-	}
 	type expectedTrainingRow struct {
 		Features []interface{}
 		Label    interface{}
@@ -3094,9 +3088,6 @@ func testCreateResourceFromSourceNoTS(t *testing.T, store OfflineStore) {
 }
 
 func testCreatePrimaryFromSource(t *testing.T, store OfflineStore) {
-	if store.Type() == BigQueryOffline {
-		t.Skip()
-	}
 	primaryID := ResourceID{
 		Name: uuid.NewString(),
 		Type: Primary,
@@ -3131,9 +3122,10 @@ func testCreatePrimaryFromSource(t *testing.T, store OfflineStore) {
 	}
 
 	t.Log("Primary Name: ", primaryCopyID.Name)
-	//Need to sanitize name here b/c the the xxx-xxx format of the uuid. Cannot do it within
+	// Need to sanitize name here b/c the the xxx-xxx format of the uuid. Cannot do it within
 	// register function because precreated tables do not necessarily use double quotes
-	_, err = store.RegisterPrimaryFromSourceTable(primaryCopyID, sanitize(table.GetName()))
+	tableName := sanitizeTableName(string(store.Type()), table.GetName())
+	_, err = store.RegisterPrimaryFromSourceTable(primaryCopyID, tableName)
 	if err != nil {
 		t.Fatalf("Could not register from Source Table: %s", err)
 	}
@@ -3281,6 +3273,13 @@ func getTableName(testName string, tableName string) string {
 		prefix := fmt.Sprintf("%s.%s", os.Getenv("BIGQUERY_PROJECT_ID"), os.Getenv("BIGQUERY_DATASET_ID"))
 		tableName = fmt.Sprintf("`%s.%s`", prefix, tableName)
 	} else {
+		tableName = sanitize(tableName)
+	}
+	return tableName
+}
+
+func sanitizeTableName(testName string, tableName string) string {
+	if !strings.Contains(testName, "BIGQUERY") {
 		tableName = sanitize(tableName)
 	}
 	return tableName

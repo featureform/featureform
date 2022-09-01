@@ -200,7 +200,6 @@ func TestOfflineStores(t *testing.T) {
 }
 
 func testWithProvider(t *testing.T, testItem testMember, testFns map[string]func(*testing.T, OfflineStore), testSQLFns map[string]func(*testing.T, OfflineStore), db *sql.DB) {
-	t.Parallel()
 	var err error
 	if testing.Short() && testItem.integrationTest {
 		t.Logf("Skipping %s, because it is an integration test", testItem.t)

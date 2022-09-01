@@ -862,6 +862,7 @@ func sparkTestMaterializations(t *testing.T, store *SparkOfflineStore) {
 		nameConst := name
 		testConst := test
 		t.Run(nameConst, func(t *testing.T) {
+			t.Parallel()
 			runTestCase(t, testConst)
 		})
 	}
@@ -2450,6 +2451,7 @@ func sparkTestMaterializationUpdate(t *testing.T, store *SparkOfflineStore) {
 		nameConst := name
 		testConst := test
 		t.Run(nameConst, func(t *testing.T) {
+			t.Parallel()
 			runTestCase(t, testConst)
 		})
 	}
@@ -2807,6 +2809,7 @@ func sparkTestTrainingSetUpdate(t *testing.T, store *SparkOfflineStore) {
 		nameConst := name
 		testConst := test
 		t.Run(nameConst, func(t *testing.T) {
+			t.Parallel()
 			runTestCase(t, testConst)
 		})
 	}

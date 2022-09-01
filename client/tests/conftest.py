@@ -1,5 +1,6 @@
 import pytest
-
+import sys
+sys.path.insert(0, 'client/src/')
 from featureform.register import Registrar, OfflineSparkProvider
 from featureform.resources import SparkAWSConfig, Provider
 

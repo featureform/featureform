@@ -375,6 +375,7 @@ func testRegisterPrimary(store *SparkOfflineStore) error {
 }
 
 func TestParquetUpload(t *testing.T) {
+	t.Parallel()
 	if testing.Short() {
 		return
 	}
@@ -394,34 +395,39 @@ func TestParquetUpload(t *testing.T) {
 	if err := testRegisterPrimary(sparkOfflineStore); err != nil {
 		t.Fatalf("resource primary test failed: %s", err)
 	}
-	// inherited from offline_test.go
-	sparkTestOfflineTableNotFound(t, sparkOfflineStore)
-	sparkTestCreateGetOfflineTable(t, sparkOfflineStore)
-	sparkTestOfflineTableAlreadyExists(t, sparkOfflineStore)
-	sparkTestInvalidResourceIDs(t, sparkOfflineStore)
-	sparkTestInvalidMaterialization(t, sparkOfflineStore)
-	sparkTestMaterializeUnknown(t, sparkOfflineStore)
-	sparkTestMaterializationNotFound(t, sparkOfflineStore)
-	sparkTestGetTrainingSetInvalidResourceID(t, sparkOfflineStore)
-	sparkTestGetUnknownTrainingSet(t, sparkOfflineStore)
-	sparkTestInvalidTrainingSetDefs(t, sparkOfflineStore)
-	sparkTestLabelTableNotFound(t, sparkOfflineStore)
-	sparkTestFeatureTableNotFound(t, sparkOfflineStore)
-	sparkTestCreatePrimaryFromSource(t, sparkOfflineStore)
-	sparkTestCreateDuplicatePrimaryTable(t, sparkOfflineStore)
-	// EMR tests (take a lot longer)
-	sparkTestTrainingSet(t, sparkOfflineStore)
-	sparkTestMaterializations(t, sparkOfflineStore)
-	sparkTestTrainingSetDefShorthand(t, sparkOfflineStore)
-	sparkTestMaterializationUpdate(t, sparkOfflineStore)
-	sparkTestTrainingSetUpdate(t, sparkOfflineStore)
-	// if err := testMaterializeResource(sparkOfflineStore); err != nil {
-	// 	t.Fatalf("resource materialize test failed: %s", err)
-	// }
-	// if err := testCreateTrainingSet(sparkOfflineStore); err != nil {
-	// 	t.Fatalf("resource training set test failed: %s", err)
-	// }
 
+	testFns := map[string]func(*testing.T, *SparkOfflineStore){
+		"sparkTestOfflineTableNotFound":            sparkTestOfflineTableNotFound,
+		"sparkTestCreateGetOfflineTable":           sparkTestCreateGetOfflineTable,
+		"sparkTestOfflineTableAlreadyExists":       sparkTestOfflineTableAlreadyExists,
+		"sparkTestInvalidResourceIDs":              sparkTestInvalidResourceIDs,
+		"sparkTestInvalidMaterialization":          sparkTestInvalidMaterialization,
+		"sparkTestMaterializeUnknown":              sparkTestMaterializeUnknown,
+		"sparkTestMaterializationNotFound":         sparkTestMaterializationNotFound,
+		"sparkTestGetTrainingSetInvalidResourceID": sparkTestGetTrainingSetInvalidResourceID,
+		"sparkTestGetUnknownTrainingSet":           sparkTestGetUnknownTrainingSet,
+		"sparkTestInvalidTrainingSetDefs":          sparkTestInvalidTrainingSetDefs,
+		"sparkTestLabelTableNotFound":              sparkTestLabelTableNotFound,
+		"sparkTestFeatureTableNotFound":            sparkTestFeatureTableNotFound,
+		"sparkTestCreatePrimaryFromSource":         sparkTestCreatePrimaryFromSource,
+		"sparkTestCreateDuplicatePrimaryTable":     sparkTestCreateDuplicatePrimaryTable,
+		"sparkTestTrainingSet":                     sparkTestTrainingSet,
+		"sparkTestMaterializations":                sparkTestMaterializations,
+		"sparkTestTrainingSetDefShorthand":         sparkTestTrainingSetDefShorthand,
+		"sparkTestMaterializationUpdate":           sparkTestMaterializationUpdate,
+		"sparkTestTrainingSetUpdate":               sparkTestTrainingSetUpdate,
+	}
+
+	t.Run("SPARK_STORE_FUNCTIONS", func(t *testing.T) {
+		for name, testFn := range testFns {
+			nameConst := name
+			testFnConst := testFn
+			t.Run(nameConst, func(t *testing.T) {
+				t.Parallel()
+				testFnConst(t, sparkOfflineStore)
+			})
+		}
+	})
 }
 
 func sparkTestCreateDuplicatePrimaryTable(t *testing.T, store *SparkOfflineStore) {
@@ -469,14 +475,14 @@ func sparkTestCreatePrimaryFromSource(t *testing.T, store *SparkOfflineStore) {
 	}
 }
 
-func sparkTestGetTrainingSetInvalidResourceID(t *testing.T, store OfflineStore) {
+func sparkTestGetTrainingSetInvalidResourceID(t *testing.T, store *SparkOfflineStore) {
 	id := sparkSafeRandomID(Feature)
 	if _, err := store.GetTrainingSet(id); err == nil {
 		t.Fatalf("Succeeded in getting invalid training set ResourceID")
 	}
 }
 
-func sparkTestGetUnknownTrainingSet(t *testing.T, store OfflineStore) {
+func sparkTestGetUnknownTrainingSet(t *testing.T, store *SparkOfflineStore) {
 	// This should default to TrainingSet
 	id := sparkSafeRandomID(NoType)
 	if _, err := store.GetTrainingSet(id); err == nil {
@@ -488,7 +494,7 @@ func sparkTestGetUnknownTrainingSet(t *testing.T, store OfflineStore) {
 	}
 }
 
-func sparkTestInvalidTrainingSetDefs(t *testing.T, store OfflineStore) {
+func sparkTestInvalidTrainingSetDefs(t *testing.T, store *SparkOfflineStore) {
 	invalidDefs := map[string]TrainingSetDef{
 		"WrongTSType": TrainingSetDef{
 			ID:    sparkSafeRandomID(Feature),
@@ -524,8 +530,11 @@ func sparkTestInvalidTrainingSetDefs(t *testing.T, store OfflineStore) {
 		},
 	}
 	for name, def := range invalidDefs {
-		t.Run(name, func(t *testing.T) {
-			if err := store.CreateTrainingSet(def); err == nil {
+		nameConst := name
+		defConst := def
+		t.Run(nameConst, func(t *testing.T) {
+			t.Parallel()
+			if err := store.CreateTrainingSet(defConst); err == nil {
 				t.Fatalf("Succeeded to create invalid def")
 			}
 		})
@@ -589,7 +598,7 @@ func sparkTestTrainingSetDefShorthand(t *testing.T, store *SparkOfflineStore) {
 	}
 }
 
-func sparkTestOfflineTableNotFound(t *testing.T, store OfflineStore) {
+func sparkTestOfflineTableNotFound(t *testing.T, store *SparkOfflineStore) {
 	id := sparkSafeRandomID(Feature, Label)
 	if _, err := store.GetResourceTable(id); err == nil {
 		t.Fatalf("Succeeded in getting non-existant table")
@@ -850,9 +859,10 @@ func sparkTestMaterializations(t *testing.T, store *SparkOfflineStore) {
 		}
 	}
 	for name, test := range tests {
-		// just do individual ones at a time so it isn't super slow
-		t.Run(name, func(t *testing.T) {
-			runTestCase(t, test)
+		nameConst := name
+		testConst := test
+		t.Run(nameConst, func(t *testing.T) {
+			runTestCase(t, testConst)
 		})
 	}
 
@@ -867,7 +877,7 @@ func sparkTestInvalidMaterialization(t *testing.T, store *SparkOfflineStore) {
 	}
 }
 
-func sparkTestMaterializeUnknown(t *testing.T, store OfflineStore) {
+func sparkTestMaterializeUnknown(t *testing.T, store *SparkOfflineStore) {
 	id := sparkSafeRandomID(Feature)
 	if _, err := store.CreateMaterialization(id); err == nil {
 		t.Fatalf("Succeeded in materializing uninitialized resource")
@@ -1086,6 +1096,7 @@ func TestGenerateSchemaNoData(t *testing.T) {
 }
 
 func TestSparkSQLTransformation(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name            string
 		config          TransformationConfig
@@ -1140,20 +1151,22 @@ func TestSparkSQLTransformation(t *testing.T) {
 	}
 
 	for _, tt := range cases {
-		t.Run(tt.name, func(t *testing.T) {
-			err := store.CreateTransformation(tt.config)
-			if !tt.expectedFailure && err != nil {
-				t.Fatalf("could not create transformation '%v' because %s", tt.config, err)
+		ttConst := tt
+		t.Run(ttConst.name, func(t *testing.T) {
+			t.Parallel()
+			err := store.CreateTransformation(ttConst.config)
+			if !ttConst.expectedFailure && err != nil {
+				t.Fatalf("could not create transformation '%v' because %s", ttConst.config, err)
 			}
 
 			sourceTable, err := store.GetPrimaryTable(tt.sourceID)
-			if !tt.expectedFailure && err != nil {
-				t.Fatalf("failed to get source table, %v,: %s", tt.sourceID, err)
+			if !ttConst.expectedFailure && err != nil {
+				t.Fatalf("failed to get source table, %v,: %s", ttConst.sourceID, err)
 			}
 
-			transformationTable, err := store.GetTransformationTable(tt.config.TargetTableID)
+			transformationTable, err := store.GetTransformationTable(ttConst.config.TargetTableID)
 			if err != nil {
-				if tt.expectedFailure {
+				if ttConst.expectedFailure {
 					return
 				}
 				t.Fatalf("failed to get the transformation, %s", err)
@@ -1167,7 +1180,7 @@ func TestSparkSQLTransformation(t *testing.T) {
 
 			// test transformation result rows are correct
 
-			sourcePath, err := store.Store.ResourceKey(tt.config.TargetTableID)
+			sourcePath, err := store.Store.ResourceKey(ttConst.config.TargetTableID)
 			if err != nil {
 				t.Fatalf("failed to retrieve source key %s", err)
 			}
@@ -1189,20 +1202,20 @@ func TestSparkSQLTransformation(t *testing.T) {
 			}
 
 			err = store.UpdateTransformation(updateConfig)
-			if !tt.expectedFailure && err != nil {
+			if !ttConst.expectedFailure && err != nil {
 				t.Fatalf("could not update transformation '%v' because %s", updateConfig, err)
 			}
 
 			updateTable, err := store.GetTransformationTable(updateConfig.TargetTableID)
 			if err != nil {
-				if tt.expectedFailure {
+				if ttConst.expectedFailure {
 					return
 				}
 				t.Fatalf("failed to get the updated transformation, %s", err)
 			}
 
 			updateCount, err := updateTable.NumRows()
-			if !tt.expectedFailure && updateCount != transformationCount {
+			if !ttConst.expectedFailure && updateCount != transformationCount {
 				t.Fatalf("the source table and expected did not match: %v:%v", updateCount, transformationCount)
 			}
 			// test transformation result rows are correct
@@ -1211,6 +1224,7 @@ func TestSparkSQLTransformation(t *testing.T) {
 }
 
 func TestUpdateQuery(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name            string
 		query           string
@@ -1277,23 +1291,26 @@ func TestUpdateQuery(t *testing.T) {
 	}
 
 	for _, tt := range cases {
-		t.Run(tt.name, func(t *testing.T) {
-			retreivedQuery, sources, err := store.updateQuery(tt.query, tt.sourceMap)
+		ttConst := tt
+		t.Run(ttConst.name, func(t *testing.T) {
+			t.Parallel()
+			retreivedQuery, sources, err := store.updateQuery(ttConst.query, ttConst.sourceMap)
 
-			if !tt.expectedFailure && err != nil {
+			if !ttConst.expectedFailure && err != nil {
 				t.Fatalf("Could not replace the template query: %v", err)
 			}
-			if !tt.expectedFailure && !reflect.DeepEqual(retreivedQuery, tt.expectedQuery) {
-				t.Fatalf("updateQuery did not replace the query correctly. Expected \" %v \", got \" %v \".", tt.expectedQuery, retreivedQuery)
+			if !ttConst.expectedFailure && !reflect.DeepEqual(retreivedQuery, ttConst.expectedQuery) {
+				t.Fatalf("updateQuery did not replace the query correctly. Expected \" %v \", got \" %v \".", ttConst.expectedQuery, retreivedQuery)
 			}
-			if !tt.expectedFailure && !reflect.DeepEqual(sources, tt.expectedSources) {
-				t.Fatalf("updateQuery did not get the correct sources. Expected \" %v \", got \" %v \".", tt.expectedSources, sources)
+			if !ttConst.expectedFailure && !reflect.DeepEqual(sources, ttConst.expectedSources) {
+				t.Fatalf("updateQuery did not get the correct sources. Expected \" %v \", got \" %v \".", ttConst.expectedSources, sources)
 			}
 		})
 	}
 }
 
 func TestGetTransformation(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name             string
 		id               ResourceID
@@ -1316,8 +1333,10 @@ func TestGetTransformation(t *testing.T) {
 	}
 
 	for _, tt := range cases {
-		t.Run(tt.name, func(t *testing.T) {
-			table, err := store.GetTransformationTable(tt.id)
+		ttConst := tt
+		t.Run(ttConst.name, func(t *testing.T) {
+			t.Parallel()
+			table, err := store.GetTransformationTable(ttConst.id)
 			if err != nil {
 				t.Fatalf("Failed to get Transformation Table: %v", err)
 			}
@@ -1337,6 +1356,7 @@ func TestGetTransformation(t *testing.T) {
 }
 
 func TestGetSourcePath(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name            string
 		sourcePath      string
@@ -1375,20 +1395,23 @@ func TestGetSourcePath(t *testing.T) {
 	}
 
 	for _, tt := range cases {
-		t.Run(tt.name, func(t *testing.T) {
-			retreivedPath, err := store.getSourcePath(tt.sourcePath)
-			if !tt.expectedFailure && err != nil {
+		ttConst := tt
+		t.Run(ttConst.name, func(t *testing.T) {
+			t.Parallel()
+			retreivedPath, err := store.getSourcePath(ttConst.sourcePath)
+			if !ttConst.expectedFailure && err != nil {
 				t.Fatalf("getSourcePath could not get the path because %s.", err)
 			}
 
-			if !tt.expectedFailure && !reflect.DeepEqual(tt.expectedPath, retreivedPath) {
-				t.Fatalf("getSourcePath could not find the expected path. Expected \"%s\", got \"%s\".", tt.expectedPath, retreivedPath)
+			if !ttConst.expectedFailure && !reflect.DeepEqual(tt.expectedPath, retreivedPath) {
+				t.Fatalf("getSourcePath could not find the expected path. Expected \"%s\", got \"%s\".", ttConst.expectedPath, retreivedPath)
 			}
 		})
 	}
 }
 
 func TestGetResourceInformationFromFilePath(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name         string
 		sourcePath   string
@@ -1422,18 +1445,21 @@ func TestGetResourceInformationFromFilePath(t *testing.T) {
 	}
 
 	for _, tt := range cases {
-		t.Run(tt.name, func(t *testing.T) {
-			resourceType, resourceName, resourceVariant := store.getResourceInformationFromFilePath(tt.sourcePath)
+		ttConst := tt
+		t.Run(ttConst.name, func(t *testing.T) {
+			t.Parallel()
+			resourceType, resourceName, resourceVariant := store.getResourceInformationFromFilePath(ttConst.sourcePath)
 			resourceInfo := []string{resourceType, resourceName, resourceVariant}
 
-			if !reflect.DeepEqual(tt.expectedInfo, resourceInfo) {
-				t.Fatalf("getSourcePath could not find the expected path. Expected \"%s\", got \"%s\".", tt.expectedInfo, resourceInfo)
+			if !reflect.DeepEqual(ttConst.expectedInfo, resourceInfo) {
+				t.Fatalf("getSourcePath could not find the expected path. Expected \"%s\", got \"%s\".", ttConst.expectedInfo, resourceInfo)
 			}
 		})
 	}
 }
 
 func TestGetDFArgs(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name            string
 		outputURI       string
@@ -1493,20 +1519,22 @@ func TestGetDFArgs(t *testing.T) {
 	}
 
 	for _, tt := range cases {
-		t.Run(tt.name, func(t *testing.T) {
-			args, err := store.getDFArgs(tt.outputURI, tt.code, tt.region, tt.mapping)
-			if !tt.expectedFailure && err != nil {
+		ttConst := tt
+		t.Run(ttConst.name, func(t *testing.T) {
+			args, err := store.getDFArgs(tt.outputURI, ttConst.code, ttConst.region, ttConst.mapping)
+			if !ttConst.expectedFailure && err != nil {
 				t.Fatalf("could not get df args %s", err)
 			}
 
-			if !tt.expectedFailure && !reflect.DeepEqual(tt.expectedArgs, args) {
-				t.Fatalf("getDFArgs could not generate the expected args. Expected \"%s\", got \"%s\".", tt.expectedArgs, args)
+			if !ttConst.expectedFailure && !reflect.DeepEqual(ttConst.expectedArgs, args) {
+				t.Fatalf("getDFArgs could not generate the expected args. Expected \"%s\", got \"%s\".", ttConst.expectedArgs, args)
 			}
 		})
 	}
 }
 
 func TestTransformation(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name            string
 		config          TransformationConfig
@@ -1572,20 +1600,22 @@ func TestTransformation(t *testing.T) {
 	}
 
 	for _, tt := range cases {
-		t.Run(tt.name, func(t *testing.T) {
-			err := store.transformation(tt.config, false)
-			if !tt.expectedFailure && err != nil {
+		ttConst := tt
+		t.Run(ttConst.name, func(t *testing.T) {
+			t.Parallel()
+			err := store.transformation(ttConst.config, false)
+			if !ttConst.expectedFailure && err != nil {
 				t.Fatalf("could not run transformation %s", err)
 			}
 
-			sourceTable, err := store.GetPrimaryTable(tt.sourceID)
-			if !tt.expectedFailure && err != nil {
-				t.Fatalf("failed to get source table, %v,: %s", tt.sourceID, err)
+			sourceTable, err := store.GetPrimaryTable(ttConst.sourceID)
+			if !ttConst.expectedFailure && err != nil {
+				t.Fatalf("failed to get source table, %v,: %s", ttConst.sourceID, err)
 			}
 
-			transformationTable, err := store.GetTransformationTable(tt.config.TargetTableID)
+			transformationTable, err := store.GetTransformationTable(ttConst.config.TargetTableID)
 			if err != nil {
-				if tt.expectedFailure {
+				if ttConst.expectedFailure {
 					return
 				}
 				t.Fatalf("failed to get the transformation, %s", err)
@@ -1593,7 +1623,7 @@ func TestTransformation(t *testing.T) {
 
 			sourceCount, err := sourceTable.NumRows()
 			transformationCount, err := transformationTable.NumRows()
-			if !tt.expectedFailure && sourceCount != transformationCount {
+			if !ttConst.expectedFailure && sourceCount != transformationCount {
 				t.Fatalf("the source table and expected did not match: %v:%v", sourceCount, transformationCount)
 			}
 		})
@@ -1700,6 +1730,7 @@ func TestS3ConfigDeserialize(t *testing.T) {
 }
 
 func TestMaterializationCreate(t *testing.T) {
+	t.Parallel()
 	exampleSchemaWithTS := ResourceSchema{
 		Entity: "entity",
 		Value:  "value",
@@ -1765,6 +1796,7 @@ func TestTrainingSetCreate(t *testing.T) {
 }
 
 func TestCompareStructsFail(t *testing.T) {
+	t.Parallel()
 	type testStruct struct {
 		Field string
 	}
@@ -2097,8 +2129,11 @@ func sparkTestTrainingSet(t *testing.T, store *SparkOfflineStore) {
 		}
 	}
 	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			runTestCase(t, test)
+		nameConst := name
+		testConst := test
+		t.Run(nameConst, func(t *testing.T) {
+			t.Parallel()
+			runTestCase(t, testConst)
 		})
 
 	}
@@ -2412,8 +2447,10 @@ func sparkTestMaterializationUpdate(t *testing.T, store *SparkOfflineStore) {
 		}
 	}
 	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			runTestCase(t, test)
+		nameConst := name
+		testConst := test
+		t.Run(nameConst, func(t *testing.T) {
+			runTestCase(t, testConst)
 		})
 	}
 
@@ -2767,8 +2804,10 @@ func sparkTestTrainingSetUpdate(t *testing.T, store *SparkOfflineStore) {
 		}
 	}
 	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			runTestCase(t, test)
+		nameConst := name
+		testConst := test
+		t.Run(nameConst, func(t *testing.T) {
+			runTestCase(t, testConst)
 		})
 	}
 }

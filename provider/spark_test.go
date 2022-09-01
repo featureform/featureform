@@ -1619,6 +1619,7 @@ func TestRegisterSparkAWSStore(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not convert spark AWS store to offline store: %v", err)
 	}
+
 	_, ok := offlineSparkStore.(*SparkOfflineStore)
 	if !ok {
 		t.Fatalf("could not convert offline store to spark offline store")

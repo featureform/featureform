@@ -235,26 +235,45 @@ func (store *SparkOfflineStore) Close() error {
 func sparkOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	sc := SparkConfig{}
 	if err := sc.Deserialize(config); err != nil {
-		return nil, fmt.Errorf("invalid spark config: %v", config)
+		return nil, fmt.Errorf("invalid spark aws config: %v", config)
 	}
-	exec, err := NewSparkExecutor(sc.ExecutorType, SerializedConfig(sc.ExecutorConfig))
-	if err != nil {
-		return nil, err
+
+	emrConfig := EMRConfig{
+		AWSAccessKeyId: sc.AWSAccessKeyId,
+		AWSSecretKey:   sc.AWSSecretAccessKey,
+		ClusterRegion:  sc.EMRClusterRegion,
+		ClusterName:    sc.EMRClusterId,
 	}
-	store, err := NewSparkStore(sc.StoreType, SerializedConfig(sc.StoreConfig))
+	serializedEMR := emrConfig.Serialize()
+
+	exec, err := NewSparkExecutor(SparkExecutorType("EMR"), serializedEMR)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not create new spark executor: %v", err)
+	}
+
+	s3Config := S3Config{
+		AWSAccessKeyId: sc.AWSAccessKeyId,
+		AWSSecretKey:   sc.AWSSecretAccessKey,
+		BucketRegion:   sc.BucketRegion,
+		BucketPath:     sc.BucketPath,
+	}
+	serializedS3 := s3Config.Serialize()
+
+	store, err := NewSparkStore(SparkStoreType("S3"), serializedS3)
+	if err != nil {
+		return nil, fmt.Errorf("could not create new spark store: %v", err)
 	}
 	if err := store.UploadSparkScript(); err != nil {
 		return nil, err
 	}
+
 	queries := defaultSparkOfflineQueries{}
 	sparkOfflineStore := SparkOfflineStore{
 		Executor: exec,
 		Store:    store,
 		query:    &queries,
 		BaseProvider: BaseProvider{
-			ProviderType:   "SPARK_OFFLINE",
+			ProviderType:   "SPARK_AWS_OFFLINE",
 			ProviderConfig: config,
 		},
 	}

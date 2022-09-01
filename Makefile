@@ -223,7 +223,7 @@ test_pyspark:
 test_offline: gen_grpc 					## Run offline tests. Run with `make test_offline provider=(memory | postgres | snowflake | redshift | spark )`
 	@echo "These tests require a .env file. Please Check .env-template for possible variables"
 	-mkdir coverage
-	go test -v -p 1000 -timeout 60m -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/... --tags=offline --provider=$(provider)
+	go test -v -parallel 1000 -timeout 60m -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/... --tags=offline --provider=$(provider)
 
 test_offline_spark: gen_grpc 					## Run spark tests. Run with `make test_offline provider=(memory | postgres | snowflake | redshift | spark )`
 	@echo "These tests require a .env file. Please Check .env-template for possible variables"

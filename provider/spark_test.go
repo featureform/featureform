@@ -526,7 +526,6 @@ func sparkTestInvalidTrainingSetDefs(t *testing.T, store OfflineStore) {
 	}
 	for name, def := range invalidDefs {
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
 			if err := store.CreateTrainingSet(def); err == nil {
 				t.Fatalf("Succeeded to create invalid def")
 			}
@@ -854,7 +853,6 @@ func sparkTestMaterializations(t *testing.T, store *SparkOfflineStore) {
 	for name, test := range tests {
 		// just do individual ones at a time so it isn't super slow
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
 			runTestCase(t, test)
 		})
 	}
@@ -1144,7 +1142,6 @@ func TestSparkSQLTransformation(t *testing.T) {
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
 			err := store.CreateTransformation(tt.config)
 			if !tt.expectedFailure && err != nil {
 				t.Fatalf("could not create transformation '%v' because %s", tt.config, err)
@@ -1282,7 +1279,6 @@ func TestUpdateQuery(t *testing.T) {
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
 			retreivedQuery, sources, err := store.updateQuery(tt.query, tt.sourceMap)
 
 			if !tt.expectedFailure && err != nil {
@@ -1322,7 +1318,6 @@ func TestGetTransformation(t *testing.T) {
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
 			table, err := store.GetTransformationTable(tt.id)
 			if err != nil {
 				t.Fatalf("Failed to get Transformation Table: %v", err)
@@ -1382,7 +1377,6 @@ func TestGetSourcePath(t *testing.T) {
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
 			retreivedPath, err := store.getSourcePath(tt.sourcePath)
 			if !tt.expectedFailure && err != nil {
 				t.Fatalf("getSourcePath could not get the path because %s.", err)
@@ -1430,7 +1424,6 @@ func TestGetResourceInformationFromFilePath(t *testing.T) {
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
 			resourceType, resourceName, resourceVariant := store.getResourceInformationFromFilePath(tt.sourcePath)
 			resourceInfo := []string{resourceType, resourceName, resourceVariant}
 
@@ -1502,7 +1495,6 @@ func TestGetDFArgs(t *testing.T) {
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
 			args, err := store.getDFArgs(tt.outputURI, tt.code, tt.region, tt.mapping)
 			if !tt.expectedFailure && err != nil {
 				t.Fatalf("could not get df args %s", err)
@@ -1582,7 +1574,6 @@ func TestTransformation(t *testing.T) {
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
 			err := store.transformation(tt.config, false)
 			if !tt.expectedFailure && err != nil {
 				t.Fatalf("could not run transformation %s", err)
@@ -2122,7 +2113,6 @@ func sparkTestTrainingSet(t *testing.T, store *SparkOfflineStore) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
 			runTestCase(t, test)
 		})
 
@@ -2438,7 +2428,6 @@ func sparkTestMaterializationUpdate(t *testing.T, store *SparkOfflineStore) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
 			runTestCase(t, test)
 		})
 	}
@@ -2794,7 +2783,6 @@ func sparkTestTrainingSetUpdate(t *testing.T, store *SparkOfflineStore) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
 			runTestCase(t, test)
 		})
 	}

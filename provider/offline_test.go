@@ -323,7 +323,7 @@ func destroyRedshiftDatabase(c RedshiftConfig) error {
 	}
 	var deleteErr error
 	retries := 5
-	databaseQuery := fmt.Sprintf("DROP DATABASE IF EXISTS %s", sanitize(c.Database))
+	databaseQuery := fmt.Sprintf("DROP DATABASE %s", sanitize(c.Database))
 	for {
 		if _, err := db.Exec(databaseQuery); err != nil {
 			deleteErr = err
@@ -689,11 +689,13 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 		}
 	}
 	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
+		nameConst := name
+		testConst := test
+		t.Run(nameConst, func(t *testing.T) {
 			if store.Type() != MemoryOffline {
 				t.Parallel()
 			}
-			runTestCase(t, test)
+			runTestCase(t, testConst)
 		})
 	}
 
@@ -1003,11 +1005,13 @@ func testMaterializationUpdate(t *testing.T, store OfflineStore) {
 		}
 	}
 	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
+		nameConst := name
+		testConst := test
+		t.Run(nameConst, func(t *testing.T) {
 			if store.Type() != MemoryOffline {
 				t.Parallel()
 			}
-			runTestCase(t, test)
+			runTestCase(t, testConst)
 		})
 	}
 
@@ -1357,11 +1361,13 @@ func testTrainingSet(t *testing.T, store OfflineStore) {
 		}
 	}
 	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
+		nameConst := name
+		testConst := test
+		t.Run(nameConst, func(t *testing.T) {
 			if store.Type() != MemoryOffline {
 				t.Parallel()
 			}
-			runTestCase(t, test)
+			runTestCase(t, testConst)
 		})
 	}
 }
@@ -1765,11 +1771,13 @@ func testTrainingSetUpdate(t *testing.T, store OfflineStore) {
 		}
 	}
 	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
+		nameConst := name
+		testConst := test
+		t.Run(nameConst, func(t *testing.T) {
 			if store.Type() != MemoryOffline {
 				t.Parallel()
 			}
-			runTestCase(t, test)
+			runTestCase(t, testConst)
 		})
 	}
 }
@@ -2256,9 +2264,11 @@ func testTransform(t *testing.T, store OfflineStore) {
 	}
 
 	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
+		nameConst := name
+		testConst := test
+		t.Run(nameConst, func(t *testing.T) {
 			t.Parallel()
-			testTransform(t, test)
+			testTransform(t, testConst)
 		})
 	}
 
@@ -2482,9 +2492,11 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 	}
 
 	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
+		nameConst := name
+		testConst := test
+		t.Run(nameConst, func(t *testing.T) {
 			t.Parallel()
-			testTransform(t, test)
+			testTransform(t, testConst)
 		})
 	}
 

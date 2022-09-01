@@ -22,6 +22,7 @@ const (
 	RedshiftOffline       = "REDSHIFT_OFFLINE"
 	SparkAWSOffline       = "SPARK_AWS_OFFLINE"
 	BigQueryOffline       = "BIGQUERY_OFFLINE"
+	SparkOffline          = "SPARK_OFFLINE"
 )
 
 type ValueType string

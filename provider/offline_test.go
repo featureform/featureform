@@ -137,6 +137,10 @@ func TestOfflineStores(t *testing.T) {
 	if *provider == "memory" || *provider == "" {
 		testList = append(testList, testMember{MemoryOffline, []byte{}, false})
 	}
+	if *provider == "bigquery" || *provider == "" {
+		serialBQConfig, _ := bqInit()
+		testList = append(testList, testMember{BigQueryOffline, serialBQConfig, true})
+	}
 	if *provider == "postgres" || *provider == "" {
 		testList = append(testList, testMember{PostgresOffline, postgresInit(), true})
 	}
@@ -148,11 +152,6 @@ func TestOfflineStores(t *testing.T) {
 		serialRSConfig, _ := redshiftInit()
 		testList = append(testList, testMember{RedshiftOffline, serialRSConfig, true})
 	}
-	if *provider == "bigquery" || *provider == "" {
-		serialBQConfig, _ := bqInit()
-		testList = append(testList, testMember{BigQueryOffline, serialBQConfig, true})
-	}
-
 	testFns := map[string]func(*testing.T, OfflineStore){
 		"CreateGetTable":          testCreateGetOfflineTable,
 		"TableAlreadyExists":      testOfflineTableAlreadyExists,
@@ -324,7 +323,7 @@ func destroyRedshiftDatabase(c RedshiftConfig) error {
 	}
 	var deleteErr error
 	retries := 5
-	databaseQuery := fmt.Sprintf("DROP DATABASE %s", sanitize(c.Database))
+	databaseQuery := fmt.Sprintf("DROP DATABASE IF EXISTS %s", sanitize(c.Database))
 	for {
 		if _, err := db.Exec(databaseQuery); err != nil {
 			deleteErr = err
@@ -691,6 +690,9 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
+			if store.Type() != MemoryOffline {
+				t.Parallel()
+			}
 			runTestCase(t, test)
 		})
 	}
@@ -1002,6 +1004,9 @@ func testMaterializationUpdate(t *testing.T, store OfflineStore) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
+			if store.Type() != MemoryOffline {
+				t.Parallel()
+			}
 			runTestCase(t, test)
 		})
 	}
@@ -1353,6 +1358,9 @@ func testTrainingSet(t *testing.T, store OfflineStore) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
+			if store.Type() != MemoryOffline {
+				t.Parallel()
+			}
 			runTestCase(t, test)
 		})
 	}
@@ -1758,6 +1766,9 @@ func testTrainingSetUpdate(t *testing.T, store OfflineStore) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
+			if store.Type() != MemoryOffline {
+				t.Parallel()
+			}
 			runTestCase(t, test)
 		})
 	}
@@ -2246,6 +2257,7 @@ func testTransform(t *testing.T, store OfflineStore) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			testTransform(t, test)
 		})
 	}
@@ -2471,6 +2483,7 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			testTransform(t, test)
 		})
 	}

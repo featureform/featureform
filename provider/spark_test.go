@@ -1159,7 +1159,7 @@ func TestSparkSQLTransformation(t *testing.T) {
 				t.Fatalf("could not create transformation '%v' because %s", ttConst.config, err)
 			}
 
-			sourceTable, err := store.GetPrimaryTable(tt.sourceID)
+			sourceTable, err := store.GetPrimaryTable(ttConst.sourceID)
 			if !ttConst.expectedFailure && err != nil {
 				t.Fatalf("failed to get source table, %v,: %s", ttConst.sourceID, err)
 			}
@@ -1174,7 +1174,7 @@ func TestSparkSQLTransformation(t *testing.T) {
 
 			sourceCount, err := sourceTable.NumRows()
 			transformationCount, err := transformationTable.NumRows()
-			if !tt.expectedFailure && sourceCount != transformationCount {
+			if !ttConst.expectedFailure && sourceCount != transformationCount {
 				t.Fatalf("the source table and expected did not match: %v:%v", sourceCount, transformationCount)
 			}
 
@@ -1188,14 +1188,14 @@ func TestSparkSQLTransformation(t *testing.T) {
 			updateConfig := TransformationConfig{
 				Type: SQLTransformation,
 				TargetTableID: ResourceID{
-					Name:    tt.config.TargetTableID.Name,
+					Name:    ttConst.config.TargetTableID.Name,
 					Type:    Transformation,
-					Variant: tt.config.TargetTableID.Variant,
+					Variant: ttConst.config.TargetTableID.Variant,
 				},
-				Query: tt.config.Query,
+				Query: ttConst.config.Query,
 				SourceMapping: []SourceMapping{
 					SourceMapping{
-						Template: tt.config.SourceMapping[0].Template,
+						Template: ttConst.config.SourceMapping[0].Template,
 						Source:   fmt.Sprintf("%s%s", store.Store.BucketPrefix(), sourcePath),
 					},
 				},
@@ -1346,8 +1346,8 @@ func TestGetTransformation(t *testing.T) {
 				t.Fatalf("Failed to get Transformation Table Num Rows: %v", err)
 			}
 
-			if caseNumRow != tt.expectedRowCount {
-				t.Fatalf("Row count do not match. Expected \" %v \", got \" %v \".", caseNumRow, tt.expectedRowCount)
+			if caseNumRow != ttConst.expectedRowCount {
+				t.Fatalf("Row count do not match. Expected \" %v \", got \" %v \".", caseNumRow, ttConst.expectedRowCount)
 			}
 
 			// test transformation result rows are correct
@@ -1403,7 +1403,7 @@ func TestGetSourcePath(t *testing.T) {
 				t.Fatalf("getSourcePath could not get the path because %s.", err)
 			}
 
-			if !ttConst.expectedFailure && !reflect.DeepEqual(tt.expectedPath, retreivedPath) {
+			if !ttConst.expectedFailure && !reflect.DeepEqual(ttConst.expectedPath, retreivedPath) {
 				t.Fatalf("getSourcePath could not find the expected path. Expected \"%s\", got \"%s\".", ttConst.expectedPath, retreivedPath)
 			}
 		})
@@ -1521,7 +1521,7 @@ func TestGetDFArgs(t *testing.T) {
 	for _, tt := range cases {
 		ttConst := tt
 		t.Run(ttConst.name, func(t *testing.T) {
-			args, err := store.getDFArgs(tt.outputURI, ttConst.code, ttConst.region, ttConst.mapping)
+			args, err := store.getDFArgs(ttConst.outputURI, ttConst.code, ttConst.region, ttConst.mapping)
 			if !ttConst.expectedFailure && err != nil {
 				t.Fatalf("could not get df args %s", err)
 			}

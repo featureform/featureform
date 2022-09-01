@@ -423,6 +423,7 @@ func TestParquetUpload(t *testing.T) {
 			nameConst := name
 			testFnConst := testFn
 			t.Run(nameConst, func(t *testing.T) {
+				time.Sleep(time.Second * 3)
 				t.Parallel()
 				testFnConst(t, sparkOfflineStore)
 			})

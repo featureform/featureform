@@ -21,6 +21,7 @@ import (
 	s3Types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
+	"go.uber.org/zap"
 )
 
 func testCreateTrainingSet(store *SparkOfflineStore) error {
@@ -1845,11 +1846,12 @@ func TestStreamRecordReadInt(t *testing.T) {
 func TestSparkExecutorFail(t *testing.T) {
 	invalidConfig := SerializedConfig("invalid")
 	invalidExecType := SparkExecutorType("invalid")
-	if executor, err := NewSparkExecutor(invalidExecType, invalidConfig); !(executor == nil && err == nil) {
+	logger := zap.NewExample().Sugar()
+	if executor, err := NewSparkExecutor(invalidExecType, invalidConfig, logger); !(executor == nil && err == nil) {
 		t.Fatalf("did not return nil on invalid exec type")
 	}
 	validExecType := SparkExecutorType("EMR")
-	if _, err := NewSparkExecutor(validExecType, invalidConfig); err == nil {
+	if _, err := NewSparkExecutor(validExecType, invalidConfig, logger); err == nil {
 		t.Fatalf("did not trigger error with invalid config")
 	}
 }
@@ -1857,11 +1859,12 @@ func TestSparkExecutorFail(t *testing.T) {
 func TestSparkStoreFail(t *testing.T) {
 	invalidConfig := SerializedConfig("invalid")
 	invalidExecType := SparkStoreType("invalid")
-	if executor, err := NewSparkStore(invalidExecType, invalidConfig); !(executor == nil && err == nil) {
+	logger := zap.NewExample().Sugar()
+	if executor, err := NewSparkStore(invalidExecType, invalidConfig, logger); !(executor == nil && err == nil) {
 		t.Fatalf("did not return nil on invalid exec type")
 	}
 	validExecType := SparkStoreType("S3")
-	if _, err := NewSparkStore(validExecType, invalidConfig); err == nil {
+	if _, err := NewSparkStore(validExecType, invalidConfig, logger); err == nil {
 		t.Fatalf("did not trigger error with invalid config")
 	}
 }

@@ -189,7 +189,7 @@ func (q defaultSparkOfflineQueries) trainingSetCreate(def TrainingSetDef, featur
 type SparkOfflineStore struct {
 	Executor SparkExecutor
 	Store    SparkStore
-	Logger     *zap.SugaredLogger
+	Logger   *zap.SugaredLogger
 	query    *defaultSparkOfflineQueries
 	BaseProvider
 }
@@ -227,7 +227,7 @@ func sparkOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	sparkOfflineStore := SparkOfflineStore{
 		Executor: exec,
 		Store:    store,
-		Logger: logger
+		Logger:   logger,
 		query:    &queries,
 		BaseProvider: BaseProvider{
 			ProviderType:   "SPARK_OFFLINE",
@@ -262,13 +262,13 @@ type SparkStore interface {
 type EMRExecutor struct {
 	client      *emr.Client
 	clusterName string
-	logger *zap.SugaredLogger
+	logger      *zap.SugaredLogger
 }
 
 type S3Store struct {
 	client      *s3.Client
 	uploader    *s3manager.Uploader
-	logger *zap.SugaredLogger	
+	logger      *zap.SugaredLogger
 	credentials *credentialsV1.Credentials
 	region      string
 	bucketPath  string
@@ -303,7 +303,7 @@ func (s *S3Store) UploadSparkScript() error {
 	return nil
 }
 
-func NewSparkExecutor(execType SparkExecutorType, config SerializedConfig, logger *zap.SugaredLogger) (*SparkExecutor, error) {
+func NewSparkExecutor(execType SparkExecutorType, config SerializedConfig, logger *zap.SugaredLogger) (SparkExecutor, error) {
 	if execType == EMR {
 		emrConf := EMRConfig{}
 		if err := emrConf.Deserialize(config); err != nil {
@@ -317,7 +317,7 @@ func NewSparkExecutor(execType SparkExecutorType, config SerializedConfig, logge
 		emrExecutor := EMRExecutor{
 			client:      client,
 			clusterName: emrConf.ClusterName,
-			logger: logger,
+			logger:      logger,
 		}
 		return &emrExecutor, nil
 	}
@@ -339,7 +339,7 @@ func NewSparkStore(storeType SparkStoreType, config SerializedConfig, logger *za
 		s3Store := S3Store{
 			client:      client,
 			uploader:    uploader,
-			logger: logger,
+			logger:      logger,
 			credentials: credentialsV1.NewStaticCredentials(s3Conf.AWSAccessKeyId, s3Conf.AWSSecretKey, ""),
 			region:      s3Conf.BucketRegion,
 			bucketPath:  s3Conf.BucketPath,
@@ -366,7 +366,7 @@ func (s *S3Store) ResourceKey(id ResourceID) (string, error) {
 	if len(objects.Contents) == 0 {
 		return "", fmt.Errorf("no resource exists")
 	}
-	s.Logger.Debugf("Found %d objects", len(objects.Contents))
+	s.logger.Debugf("Found %d objects", len(objects.Contents))
 	for _, object := range objects.Contents {
 		suffix := (*object.Key)[len(filePrefix):]
 		suffixParts := strings.Split(suffix, "/")
@@ -588,7 +588,6 @@ func (s *S3Store) DeleteFile(path string) error {
 	return nil
 }
 
-
 func (s *S3Store) FileExists(path string) (bool, error) {
 	objects, err := s.client.ListObjects(context.TODO(), &s3.ListObjectsInput{
 		Bucket: aws.String(s.bucketPath),
@@ -798,9 +797,11 @@ func (spark *SparkOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, so
 	}
 	primarySchema := PrimarySchema{sourceName}
 	schemaList := []PrimarySchema{primarySchema}
+	spark.Logger.Debugw("Registering primary table", id, "for source", sourceName)
 	if err := spark.Store.UploadParquetTable(resourcePath, schemaList); err != nil {
 		return nil, err
 	}
+	spark.Logger.Debugw("Succesfully registered primary table", id, "for source", sourceName)
 	return &S3PrimaryTable{spark.Store, sourceName}, nil
 }
 
@@ -829,9 +830,11 @@ func (spark *SparkOfflineStore) RegisterResourceFromSourceTable(id ResourceID, s
 		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}
 	schemaList := []ResourceSchema{schema}
+	spark.Logger.Debugw("Registering resource table", id, "for source", schema.SourceTable)
 	if err := spark.Store.UploadParquetTable(resourcePath, schemaList); err != nil {
 		return nil, err
 	}
+	spark.Logger.Debugw("Registered resource table", id, "for source", schema.SourceTable)
 	return &S3OfflineTable{schema}, nil
 }
 
@@ -866,11 +869,12 @@ func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, i
 	} else if isUpdate && !exists {
 		return fmt.Errorf("transformation %v doesn't exist at %s and you are trying to update", config.TargetTableID, transformationDestination)
 	}
-
+	spark.Logger.Debugw("Running SQL transformation", config)
 	sparkArgs := spark.Store.SparkSubmitArgs(transformationDestination, updatedQuery, sources, Transform)
 	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
 		return fmt.Errorf("spark submit job for transformation %v failed to run: %v", config.TargetTableID, err)
 	}
+	spark.Logger.Debugw("Succesfully ran SQL transformation", config)
 	return nil
 }
 
@@ -891,10 +895,11 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 	if err != nil {
 		return fmt.Errorf("error with getting df arguments %v", sparkArgs)
 	}
-
+	spark.Logger.Debugw("Running DF transformation", config)
 	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
 		return fmt.Errorf("spark submit job for transformation %v failed to run: %v", config.TargetTableID, err)
 	}
+	spark.Logger.Debugw("Succesfully ran DF transformation", config)
 	return nil
 }
 
@@ -987,10 +992,12 @@ func (spark *SparkOfflineStore) getDFArgs(outputURI string, code string, awsRegi
 }
 
 func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
+	spark.Logger.Debugw("Getting transformation table", id)
 	transformationPath, err := spark.Store.ResourceKey(id)
 	if err != nil {
 		return nil, fmt.Errorf("could not get transformation table (%v) because %s", id, err)
 	}
+	spark.Logger.Debugw("Succesfully retrieved transformation table", id)
 	return &S3PrimaryTable{spark.Store, transformationPath}, nil
 }
 
@@ -1004,6 +1011,7 @@ func (spark *SparkOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSc
 
 func (spark *SparkOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error) {
 	path := parquetResourcePath(id)
+	spark.Logger.Debugw("Getting primary table", id)
 	table, err := spark.Store.DownloadParquetTable(path)
 	if err != nil {
 		return nil, err
@@ -1013,6 +1021,7 @@ func (spark *SparkOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, er
 	for _, v := range tableList {
 		sourcePath = reflect.ValueOf(v).FieldByName("Source").String()
 	}
+	spark.Logger.Debugw("Succesfully retrieved primary table", id)
 	return &S3PrimaryTable{spark.Store, sourcePath}, nil
 }
 
@@ -1022,6 +1031,7 @@ func (spark *SparkOfflineStore) CreateResourceTable(id ResourceID, schema TableS
 
 func (spark *SparkOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, error) {
 	path := parquetResourcePath(id)
+	spark.Logger.Debugw("Getting resource table", id)
 	table, err := spark.Store.DownloadParquetTable(path)
 	if err != nil {
 		return nil, &TableNotFound{id.Name, id.Variant}
@@ -1036,6 +1046,7 @@ func (spark *SparkOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, e
 	if !ok {
 		return nil, fmt.Errorf("cant convert downloaded resource table")
 	}
+	spark.Logger.Debugw("Succesfully fetched resource table", id)
 	return &S3OfflineTable{ResourceSchema{
 		Entity:      resourceTableStruct.Entity,
 		Value:       resourceTableStruct.Value,
@@ -1190,6 +1201,7 @@ func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materializ
 	materializationQuery := spark.query.materializationCreate(sparkResourceTable.schema)
 	sourcePath := spark.Store.KeyPath(sparkResourceTable.schema.SourceTable)
 	sparkArgs := spark.Store.SparkSubmitArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize)
+	spark.Logger.Debugw("Creating materialization", id)
 	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
 		return nil, fmt.Errorf("spark submit job for materialization %v failed to run: %v", materializationID, err)
 	}
@@ -1197,6 +1209,7 @@ func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materializ
 	if err != nil {
 		return nil, fmt.Errorf("Materialization result does not exist in offline store: %v", err)
 	}
+	spark.Logger.Debugw("Succesfully created materialization", id)
 	return &S3Materialization{materializationID, spark.Store, key}, nil
 }
 
@@ -1206,10 +1219,12 @@ func (spark *SparkOfflineStore) GetMaterialization(id MaterializationID) (Materi
 		return nil, fmt.Errorf("invalid materialization id")
 	}
 	materializationID := ResourceID{s[1], s[2], FeatureMaterialization}
+	spark.Logger.Debugw("Getting materialization", id)
 	key, err := spark.Store.ResourceKey(materializationID)
 	if err != nil {
 		return nil, err
 	}
+	spark.Logger.Debugw("Succesfully retrieved materialization", id)
 	return &S3Materialization{materializationID, spark.Store, key}, nil
 }
 
@@ -1230,6 +1245,7 @@ func (spark *SparkOfflineStore) UpdateMaterialization(id ResourceID) (Materializ
 	materializationQuery := spark.query.materializationCreate(sparkResourceTable.schema)
 	sourcePath := spark.Store.KeyPath(sparkResourceTable.schema.SourceTable)
 	sparkArgs := spark.Store.SparkSubmitArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize)
+	spark.Logger.Debugw("Updating materialization", id)
 	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
 		return nil, fmt.Errorf("spark submit job for materialization %v failed to run: %v", materializationID, err)
 	}
@@ -1237,6 +1253,7 @@ func (spark *SparkOfflineStore) UpdateMaterialization(id ResourceID) (Materializ
 	if err != nil {
 		return nil, fmt.Errorf("Materialization result does not exist in offline store: %v", err)
 	}
+	spark.Logger.Debugw("Succesfully updated materialization", id)
 	return &S3Materialization{materializationID, spark.Store, key}, nil
 }
 
@@ -1255,9 +1272,11 @@ func (spark *SparkOfflineStore) DeleteMaterialization(id MaterializationID) erro
 	} else if !exists {
 		return &MaterializationNotFound{id}
 	}
+	spark.Logger.Debugw("Deleting materialization:", id)
 	if err := spark.Store.DeleteFile(key); err != nil {
 		return fmt.Errorf("failed to delete file: %v", err)
 	}
+	spark.Logger.Debugw("Succesfully deleted materialization", id)
 	return nil
 }
 
@@ -1323,6 +1342,7 @@ func (s *S3TrainingSet) Err() error {
 }
 
 func (spark *SparkOfflineStore) registeredResourceSchema(id ResourceID) (ResourceSchema, error) {
+	spark.Logger.Debugw("Getting resource schema:", id)
 	table, err := spark.GetResourceTable(id)
 	if err != nil {
 		return ResourceSchema{}, fmt.Errorf("resource not registered: %v", err)
@@ -1331,6 +1351,7 @@ func (spark *SparkOfflineStore) registeredResourceSchema(id ResourceID) (Resourc
 	if !ok {
 		return ResourceSchema{}, fmt.Errorf("could not convert offline table with id %v to sparkResourceTable", id)
 	}
+	spark.Logger.Debugw("Succesfully retrieved resource schema:", id)
 	return sparkResourceTable.schema, nil
 }
 
@@ -1365,6 +1386,7 @@ func (spark *SparkOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
 	}
 	trainingSetQuery := spark.query.trainingSetCreate(def, featureSchemas, labelSchema)
 	sparkArgs := spark.Store.SparkSubmitArgs(destinationPath, trainingSetQuery, sourcePaths, CreateTrainingSet)
+	spark.Logger.Debugw("Creating training set:", def)
 	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
 		return fmt.Errorf("spark submit job for training set %v failed to run: %v", def.ID, err)
 	}
@@ -1372,6 +1394,7 @@ func (spark *SparkOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
 	if err != nil {
 		return fmt.Errorf("Training Set result does not exist in offline store: %v", err)
 	}
+	spark.Logger.Debugw("Succesfully created training set:", def)
 	return nil
 }
 
@@ -1398,6 +1421,7 @@ func (spark *SparkOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {
 		featureSchemas = append(featureSchemas, featureSchema)
 	}
 	trainingSetQuery := spark.query.trainingSetCreate(def, featureSchemas, labelSchema)
+	spark.Logger.Debugw("Updating training set:", def)
 	sparkArgs := spark.Store.SparkSubmitArgs(destinationPath, trainingSetQuery, sourcePaths, CreateTrainingSet)
 	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
 		return fmt.Errorf("spark submit job for training set %v failed to run: %v", def.ID, err)
@@ -1406,6 +1430,7 @@ func (spark *SparkOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {
 	if err != nil {
 		return fmt.Errorf("Training Set result does not exist in offline store: %v", err)
 	}
+	spark.Logger.Debugw("Successfully updated training set:", def)
 	return nil
 }
 
@@ -1504,17 +1529,6 @@ func streamGetKeys(record *s3Types.SelectObjectContentEventStreamMemberRecords) 
 	return keys, nil
 }
 
-func (s *S3Store) ResourceStream(key string) (chan []byte, error) {
-	queryString := "SELECT * from S3Object"
-	outputStream, err := s.selectFromKey(key, queryString, CSV)
-	if err != nil {
-		return nil, err
-	}
-	out := make(chan []byte)
-	go resolveByteChannel(outputStream, out)
-	return out, nil
-}
-
 // read from the parquet file with the given key starting from begin
 // return the ouput of the reader as a generic struct stream
 func (s *S3Store) ResourceStreamConv(key string, begin int64) (chan interface{}, error) {
@@ -1548,27 +1562,6 @@ func parquetReaderToStream(rowChannel chan interface{}, numRows int64, pr *reade
 		rowChannel <- row
 	}
 	rowChannel <- fmt.Errorf("end of file")
-}
-
-func (s *S3Store) RowStreamFromSelectQuery(key string, query string) (chan []byte, error) {
-	outputStream, err := s.selectFromKey(key, query, CSV)
-	if err != nil {
-		return nil, err
-	}
-	out := make(chan []byte)
-	go resolveByteChannel(outputStream, out)
-	return out, nil
-}
-
-func resolveByteChannel(outputStream *s3.SelectObjectContentEventStreamReader, out chan []byte) {
-	outputEvents := (*outputStream).Events()
-	defer close(out)
-	for i := range outputEvents {
-		switch v := i.(type) {
-		case *s3Types.SelectObjectContentEventStreamMemberRecords:
-			splitRecordLinesOverStream(v, out)
-		}
-	}
 }
 
 func splitRecordLinesOverStream(record *s3Types.SelectObjectContentEventStreamMemberRecords, out chan []byte) {

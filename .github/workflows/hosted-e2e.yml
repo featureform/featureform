@@ -10,7 +10,7 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: 'Deploy'
-        uses: 'deliverybot/helm@v1'
+        uses: glopezep/helm@v1.7.1
         with:
           release: 'featureform'
           namespace: 'default'
@@ -31,7 +31,7 @@ jobs:
 
       - name: Cleanup Helm
         if: always()
-        uses: 'deliverybot/helm@v1'
+        uses: glopezep/helm@v1.7.1
         with:
           task: 'remove'
           release: 'featureform'

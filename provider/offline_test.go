@@ -36,7 +36,6 @@ type testMember struct {
 }
 
 func TestOfflineStores(t *testing.T) {
-	t.Parallel()
 	if testing.Short() {
 		t.Skip()
 	}
@@ -142,18 +141,15 @@ func TestOfflineStores(t *testing.T) {
 		testList = append(testList, testMember{PostgresOffline, postgresInit(), true})
 	}
 	if *provider == "snowflake" || *provider == "" {
-		serialSFConfig, snowflakeConfig := snowflakeInit()
-		defer destroySnowflakeDatabase(snowflakeConfig)
+		serialSFConfig, _ := snowflakeInit()
 		testList = append(testList, testMember{SnowflakeOffline, serialSFConfig, true})
 	}
 	if *provider == "redshift" || *provider == "" {
-		serialRSConfig, redshiftConfig := redshiftInit()
-		defer destroyRedshiftDatabase(redshiftConfig)
+		serialRSConfig, _ := redshiftInit()
 		testList = append(testList, testMember{RedshiftOffline, serialRSConfig, true})
 	}
 	if *provider == "bigquery" || *provider == "" {
-		serialBQConfig, bigQueryConfig := bqInit()
-		defer destroyBigQueryDataset(bigQueryConfig)
+		serialBQConfig, _ := bqInit()
 		testList = append(testList, testMember{BigQueryOffline, serialBQConfig, true})
 	}
 
@@ -194,50 +190,36 @@ func TestOfflineStores(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	numProviders := len(testList)
-	completionChannel := make(chan bool)
 	for _, testItem := range testList {
 		testItemConst := testItem
 		t.Run(string(testItemConst.t), func(t *testing.T) {
 			t.Parallel()
-			testWithProvider(t, testItemConst, testFns, testSQLFns, db, completionChannel)
+			testWithProvider(t, testItemConst, testFns, testSQLFns, db)
 		})
-	}
-	numComplete := 0
-	for numComplete < numProviders {
-		providerFinished := <-completionChannel
-		if !providerFinished {
-			t.Logf("provider failed")
-		}
-		numComplete += 1
 	}
 }
 
-func testWithProvider(t *testing.T, testItem testMember, testFns map[string]func(*testing.T, OfflineStore), testSQLFns map[string]func(*testing.T, OfflineStore), db *sql.DB, completionChannel chan bool) {
+func testWithProvider(t *testing.T, testItem testMember, testFns map[string]func(*testing.T, OfflineStore), testSQLFns map[string]func(*testing.T, OfflineStore), db *sql.DB) {
 	t.Parallel()
 	var err error
 	if testing.Short() && testItem.integrationTest {
 		t.Logf("Skipping %s, because it is an integration test", testItem.t)
-		completionChannel <- true
 		return
 	}
 	var connections_start, connections_end int
 	if testItem.t == PostgresOffline {
 		err = db.QueryRow("SELECT Count(*) FROM pg_stat_activity WHERE pid!=pg_backend_pid()").Scan(&connections_start)
 		if err != nil {
-			completionChannel <- false
 			panic(err)
 		}
 	}
 	for name, fn := range testFns {
 		provider, err := Get(testItem.t, testItem.c)
 		if err != nil {
-			completionChannel <- false
 			t.Fatalf("Failed to get provider %s: %s", testItem.t, err)
 		}
 		store, err := provider.AsOfflineStore()
 		if err != nil {
-			completionChannel <- false
 			t.Fatalf("Failed to use provider %s as OfflineStore: %s", testItem.t, err)
 		}
 		testName := fmt.Sprintf("%s_%s", testItem.t, name)
@@ -245,7 +227,6 @@ func testWithProvider(t *testing.T, testItem testMember, testFns map[string]func
 			fn(t, store)
 		})
 		if err := store.Close(); err != nil {
-			completionChannel <- false
 			t.Errorf("%v:%v - %v\n", testItem.t, name, err)
 		}
 	}
@@ -255,7 +236,6 @@ func testWithProvider(t *testing.T, testItem testMember, testFns map[string]func
 		}
 		provider, err := Get(testItem.t, testItem.c)
 		if err != nil {
-			completionChannel <- false
 			t.Fatalf("Failed to get provider %s: %s", testItem.t, err)
 		}
 		store, err := provider.AsOfflineStore()
@@ -268,24 +248,53 @@ func testWithProvider(t *testing.T, testItem testMember, testFns map[string]func
 			fn(t, store)
 		})
 		if err := store.Close(); err != nil {
-			completionChannel <- false
 			t.Errorf("%v:%v - %v\n", testItem.t, name, err)
 		}
 	}
 	if testItem.t == PostgresOffline {
 		err = db.QueryRow("SELECT Count(*) FROM pg_stat_activity WHERE pid!=pg_backend_pid()").Scan(&connections_end)
 		if err != nil {
-			completionChannel <- false
 			panic(err)
 		}
 		t.Run("POSTGRES_ConnectionCheck", func(t *testing.T) {
 			if connections_start+3 <= connections_end {
-				completionChannel <- false
 				t.Errorf("Started with %d connections, ended with %d connections", connections_start, connections_end)
 			}
 		})
 	}
-	completionChannel <- true
+	if err := destroyDatabase(testItem.t, testItem.c); err != nil {
+		t.Fatalf("could not destroy test database: %v", err)
+	}
+}
+
+func destroyDatabase(providerType Type, config SerializedConfig) error {
+	switch providerType {
+	case SnowflakeOffline:
+		snowflakeConfig := SnowflakeConfig{}
+		if err := snowflakeConfig.Deserialize(config); err != nil {
+			return fmt.Errorf("could not deserialize snowflake config: %v", err)
+		}
+		if err := destroySnowflakeDatabase(snowflakeConfig); err != nil {
+			return fmt.Errorf("could not destroy snowflake database: %v", err)
+		}
+	case RedshiftOffline:
+		redshiftConfig := RedshiftConfig{}
+		if err := redshiftConfig.Deserialize(config); err != nil {
+			return fmt.Errorf("could not deserialize redshift config: %v", err)
+		}
+		if err := destroyRedshiftDatabase(redshiftConfig); err != nil {
+			return fmt.Errorf("could not destroy redshift database: %v", err)
+		}
+	case BigQueryOffline:
+		bigQueryConfig := BigQueryConfig{}
+		if err := bigQueryConfig.Deserialize(config); err != nil {
+			return fmt.Errorf("could not deserialize bigquery config: %v", err)
+		}
+		if err := destroyBigQueryDataset(bigQueryConfig); err != nil {
+			return fmt.Errorf("could not destroy bigquery database: %v", err)
+		}
+	}
+	return nil
 }
 
 func createRedshiftDatabase(c RedshiftConfig) error {

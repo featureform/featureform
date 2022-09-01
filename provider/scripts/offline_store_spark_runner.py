@@ -4,7 +4,7 @@ import argparse
 from typing import List
 from datetime import datetime
 
-import marshal
+import dill
 import boto3
 from pyspark.sql import SparkSession
 
@@ -106,11 +106,11 @@ def get_code_from_file(file_path, aws_region=None):
             s3_object.download_fileobj(f)
 
             f.seek(0)
-            code = marshal.loads(f.read())
+            code = dill.loads(f.read())
     else:
 
         with open(file_path, "rb") as f:
-            code  = marshal.load(f)
+            code  = dill.load(f)
     
     return code
 

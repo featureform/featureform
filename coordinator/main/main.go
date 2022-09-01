@@ -18,6 +18,7 @@ func main() {
 	metadataHost := help.GetEnv("METADATA_HOST", "localhost")
 	metadataPort := help.GetEnv("METADATA_PORT", "8080")
 	metadataUrl := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
+	useK8sRunner := help.GetEnv("K8S_RUNNER_ENABLE", "false")
 	fmt.Printf("connecting to etcd: %s\n", etcdUrl)
 	fmt.Printf("connecting to metadata: %s\n", metadataUrl)
 	cli, err := clientv3.New(clientv3.Config{
@@ -51,7 +52,13 @@ func main() {
 		panic(err)
 	}
 	logger.Debug("Connected to Metadata")
-	coord, err := coordinator.NewCoordinator(client, logger, cli, &coordinator.MemoryJobSpawner{})
+	var spawner coordinator.JobSpawner
+	if useK8sRunner == "false" {
+		spawner = &coordinator.MemoryJobSpawner{}
+	} else {
+		spawner = &coordinator.KubernetesJobSpawner{}
+	}
+	coord, err := coordinator.NewCoordinator(client, logger, cli, spawner)
 	if err != nil {
 		logger.Errorw("Failed to set up coordinator: %v", err)
 		panic(err)

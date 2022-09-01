@@ -2144,7 +2144,6 @@ func sparkTestTrainingSet(t *testing.T, store *SparkOfflineStore) {
 		t.Run(nameConst, func(t *testing.T) {
 			t.Parallel()
 			time.Sleep(time.Second * 3)
-			time.Sleep(time.Second * 3)
 			runTestCase(t, testConst)
 		})
 
@@ -2462,8 +2461,6 @@ func sparkTestMaterializationUpdate(t *testing.T, store *SparkOfflineStore) {
 		nameConst := name
 		testConst := test
 		t.Run(nameConst, func(t *testing.T) {
-			t.Parallel()
-			time.Sleep(time.Second * 3)
 			runTestCase(t, testConst)
 		})
 	}
@@ -2821,8 +2818,6 @@ func sparkTestTrainingSetUpdate(t *testing.T, store *SparkOfflineStore) {
 		nameConst := name
 		testConst := test
 		t.Run(nameConst, func(t *testing.T) {
-			t.Parallel()
-			time.Sleep(time.Second * 3)
 			runTestCase(t, testConst)
 		})
 	}

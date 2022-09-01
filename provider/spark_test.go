@@ -534,6 +534,7 @@ func sparkTestInvalidTrainingSetDefs(t *testing.T, store *SparkOfflineStore) {
 		defConst := def
 		t.Run(nameConst, func(t *testing.T) {
 			t.Parallel()
+			time.Sleep(time.Second * 3)
 			if err := store.CreateTrainingSet(defConst); err == nil {
 				t.Fatalf("Succeeded to create invalid def")
 			}
@@ -863,6 +864,7 @@ func sparkTestMaterializations(t *testing.T, store *SparkOfflineStore) {
 		testConst := test
 		t.Run(nameConst, func(t *testing.T) {
 			t.Parallel()
+			time.Sleep(time.Second * 3)
 			runTestCase(t, testConst)
 		})
 	}
@@ -1155,6 +1157,7 @@ func TestSparkSQLTransformation(t *testing.T) {
 		ttConst := tt
 		t.Run(ttConst.name, func(t *testing.T) {
 			t.Parallel()
+			time.Sleep(time.Second * 3)
 			err := store.CreateTransformation(ttConst.config)
 			if !ttConst.expectedFailure && err != nil {
 				t.Fatalf("could not create transformation '%v' because %s", ttConst.config, err)
@@ -1295,6 +1298,7 @@ func TestUpdateQuery(t *testing.T) {
 		ttConst := tt
 		t.Run(ttConst.name, func(t *testing.T) {
 			t.Parallel()
+			time.Sleep(time.Second * 3)
 			retreivedQuery, sources, err := store.updateQuery(ttConst.query, ttConst.sourceMap)
 
 			if !ttConst.expectedFailure && err != nil {
@@ -1337,6 +1341,7 @@ func TestGetTransformation(t *testing.T) {
 		ttConst := tt
 		t.Run(ttConst.name, func(t *testing.T) {
 			t.Parallel()
+			time.Sleep(time.Second * 3)
 			table, err := store.GetTransformationTable(ttConst.id)
 			if err != nil {
 				t.Fatalf("Failed to get Transformation Table: %v", err)
@@ -1399,6 +1404,7 @@ func TestGetSourcePath(t *testing.T) {
 		ttConst := tt
 		t.Run(ttConst.name, func(t *testing.T) {
 			t.Parallel()
+			time.Sleep(time.Second * 3)
 			retreivedPath, err := store.getSourcePath(ttConst.sourcePath)
 			if !ttConst.expectedFailure && err != nil {
 				t.Fatalf("getSourcePath could not get the path because %s.", err)
@@ -1449,6 +1455,7 @@ func TestGetResourceInformationFromFilePath(t *testing.T) {
 		ttConst := tt
 		t.Run(ttConst.name, func(t *testing.T) {
 			t.Parallel()
+			time.Sleep(time.Second * 3)
 			resourceType, resourceName, resourceVariant := store.getResourceInformationFromFilePath(ttConst.sourcePath)
 			resourceInfo := []string{resourceType, resourceName, resourceVariant}
 
@@ -1604,6 +1611,7 @@ func TestTransformation(t *testing.T) {
 		ttConst := tt
 		t.Run(ttConst.name, func(t *testing.T) {
 			t.Parallel()
+			time.Sleep(time.Second * 3)
 			err := store.transformation(ttConst.config, false)
 			if !ttConst.expectedFailure && err != nil {
 				t.Fatalf("could not run transformation %s", err)
@@ -2134,6 +2142,8 @@ func sparkTestTrainingSet(t *testing.T, store *SparkOfflineStore) {
 		testConst := test
 		t.Run(nameConst, func(t *testing.T) {
 			t.Parallel()
+			time.Sleep(time.Second * 3)
+			time.Sleep(time.Second * 3)
 			runTestCase(t, testConst)
 		})
 
@@ -2452,6 +2462,7 @@ func sparkTestMaterializationUpdate(t *testing.T, store *SparkOfflineStore) {
 		testConst := test
 		t.Run(nameConst, func(t *testing.T) {
 			t.Parallel()
+			time.Sleep(time.Second * 3)
 			runTestCase(t, testConst)
 		})
 	}
@@ -2810,6 +2821,7 @@ func sparkTestTrainingSetUpdate(t *testing.T, store *SparkOfflineStore) {
 		testConst := test
 		t.Run(nameConst, func(t *testing.T) {
 			t.Parallel()
+			time.Sleep(time.Second * 3)
 			runTestCase(t, testConst)
 		})
 	}

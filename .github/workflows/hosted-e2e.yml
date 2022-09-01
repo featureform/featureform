@@ -1,0 +1,43 @@
+name: Hosted Testing
+on: [push]
+concurrency:
+  group: ${{ github.head_ref }}-e2e
+  cancel-in-progress: true
+jobs:
+  deploy:
+    runs-on: 'ubuntu-latest'
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: 'Deploy'
+        uses: 'deliverybot/helm@v1'
+        with:
+          release: 'featureform'
+          namespace: 'default'
+          chart: 'featureform/featureform'
+          repo: 'https://storage.googleapis.com/featureform-helm/'
+#          values: |
+#            name: foobar
+        env:
+          KUBECONFIG_FILE: '${{ secrets.KUBECONFIG }}'
+
+#      - name: Route Load Balancer
+#        run: |
+#          aws s3 sync ./build s3://test-bucket
+#        env:
+#          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#          AWS_DEFAULT_REGION: 'ap-south-1'
+
+      - name: Cleanup Helm
+        if: always()
+        uses: 'deliverybot/helm@v1'
+        with:
+          task: 'remove'
+          release: 'featureform'
+          namespace: 'default'
+          chart: './charts/featureform'
+          values: |
+            name: foobar
+        env:
+          KUBECONFIG_FILE: '${{ secrets.KUBECONFIG }}'

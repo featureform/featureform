@@ -211,43 +211,38 @@ func testWithProvider(t *testing.T, testItem testMember, testFns map[string]func
 			panic(err)
 		}
 	}
-	for name, fn := range testFns {
-		provider, err := Get(testItem.t, testItem.c)
-		if err != nil {
-			t.Fatalf("Failed to get provider %s: %s", testItem.t, err)
-		}
-		store, err := provider.AsOfflineStore()
-		if err != nil {
-			t.Fatalf("Failed to use provider %s as OfflineStore: %s", testItem.t, err)
-		}
-		testName := fmt.Sprintf("%s_%s", testItem.t, name)
-		t.Run(testName, func(t *testing.T) {
-			fn(t, store)
-		})
-		if err := store.Close(); err != nil {
-			t.Errorf("%v:%v - %v\n", testItem.t, name, err)
-		}
+	provider, err := Get(testItem.t, testItem.c)
+	if err != nil {
+		t.Fatalf("Failed to get provider %s: %s", testItem.t, err)
 	}
-	for name, fn := range testSQLFns {
-		if testItem.t == MemoryOffline {
-			continue
+	store, err := provider.AsOfflineStore()
+	if err != nil {
+		t.Fatalf("Failed to use provider %s as OfflineStore: %s", testItem.t, err)
+	}
+	t.Run("TEST_FUNCTION", func(t *testing.T) {
+		for name, fn := range testFns {
+			nameConst := name
+			fnConst := fn
+			t.Run(nameConst, func(t *testing.T) {
+				t.Parallel()
+				fnConst(t, store)
+			})
 		}
-		provider, err := Get(testItem.t, testItem.c)
-		if err != nil {
-			t.Fatalf("Failed to get provider %s: %s", testItem.t, err)
+		for name, fn := range testSQLFns {
+			if testItem.t == MemoryOffline {
+				continue
+			}
+			nameConst := name
+			fnConst := fn
+			t.Run(nameConst, func(t *testing.T) {
+				t.Parallel()
+				fnConst(t, store)
+			})
 		}
-		store, err := provider.AsOfflineStore()
-		if err != nil {
-			t.Logf("Cannot use provider %s as SQLOfflineStore: %s", testItem.t, err)
-			continue
-		}
-		testName := fmt.Sprintf("%s_%s", testItem.t, name)
-		t.Run(testName, func(t *testing.T) {
-			fn(t, store)
-		})
-		if err := store.Close(); err != nil {
-			t.Errorf("%v:%v - %v\n", testItem.t, name, err)
-		}
+
+	})
+	if err := store.Close(); err != nil {
+		t.Errorf("%v - %v\n", testItem.t, err)
 	}
 	if testItem.t == PostgresOffline {
 		err = db.QueryRow("SELECT Count(*) FROM pg_stat_activity WHERE pid!=pg_backend_pid()").Scan(&connections_end)
@@ -321,22 +316,22 @@ func destroyRedshiftDatabase(c RedshiftConfig) error {
 		fmt.Errorf(err.Error())
 		return err
 	}
-	var deleteErr error
-	retries := 5
-	databaseQuery := fmt.Sprintf("DROP DATABASE %s", sanitize(c.Database))
-	for {
-		if _, err := db.Exec(databaseQuery); err != nil {
-			deleteErr = err
-			time.Sleep(time.Second)
-			retries--
-			if retries == 0 {
-				fmt.Errorf(err.Error())
-				return deleteErr
-			}
-		} else {
-			continue
-		}
-	}
+	// var deleteErr error
+	// retries := 5
+	// databaseQuery := fmt.Sprintf("DROP DATABASE %s", sanitize(c.Database))
+	// for {
+	// 	if _, err := db.Exec(databaseQuery); err != nil {
+	// 		deleteErr = err
+	// 		time.Sleep(time.Second)
+	// 		retries--
+	// 		if retries == 0 {
+	// 			fmt.Errorf(err.Error())
+	// 			return deleteErr
+	// 		}
+	// 	} else {
+	// 		continue
+	// 	}
+	// }
 
 	return nil
 }

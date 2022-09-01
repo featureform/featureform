@@ -21,6 +21,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/emr"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"go.uber.org/zap"
 
 	emrTypes "github.com/aws/aws-sdk-go-v2/service/emr/types"
 	s3Types "github.com/aws/aws-sdk-go-v2/service/s3/types"
@@ -170,6 +171,7 @@ func (q defaultSparkOfflineQueries) trainingSetCreate(def TrainingSetDef, featur
 type SparkOfflineStore struct {
 	Executor SparkExecutor
 	Store    SparkStore
+	Logger     *zap.SugaredLogger
 	query    *defaultSparkOfflineQueries
 	BaseProvider
 }
@@ -184,24 +186,30 @@ func (store *SparkOfflineStore) Close() error {
 
 func SparkOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	sc := SparkConfig{}
+	logger := zap.NewExample().Sugar()
 	if err := sc.Deserialize(config); err != nil {
 		return nil, fmt.Errorf("invalid spark config: %v", config)
 	}
-	exec, err := NewSparkExecutor(sc.ExecutorType, SerializedConfig(sc.ExecutorConfig))
+	logger.Info("Creating Spark executor with type:", sc.ExecutorType)
+	exec, err := NewSparkExecutor(sc.ExecutorType, SerializedConfig(sc.ExecutorConfig), logger)
 	if err != nil {
 		return nil, err
 	}
-	store, err := NewSparkStore(sc.StoreType, SerializedConfig(sc.StoreConfig))
+	logger.Info("Creating Spark store with type:", sc.StoreType)
+	store, err := NewSparkStore(sc.StoreType, SerializedConfig(sc.StoreConfig), logger)
 	if err != nil {
 		return nil, err
 	}
+	logger.Info("Uploading Spark script to store")
 	if err := store.UploadSparkScript(); err != nil {
 		return nil, err
 	}
+	logger.Info("Created Spark Offline Store")
 	queries := defaultSparkOfflineQueries{}
 	sparkOfflineStore := SparkOfflineStore{
 		Executor: exec,
 		Store:    store,
+		Logger: logger
 		query:    &queries,
 		BaseProvider: BaseProvider{
 			ProviderType:   "SPARK_OFFLINE",
@@ -237,11 +245,13 @@ type SparkStore interface {
 type EMRExecutor struct {
 	client      *emr.Client
 	clusterName string
+	logger *zap.SugaredLogger
 }
 
 type S3Store struct {
 	client      *s3.Client
 	uploader    *s3manager.Uploader
+	logger *zap.SugaredLogger	
 	credentials *credentialsV1.Credentials
 	region      string
 	bucketPath  string
@@ -272,7 +282,7 @@ func (s *S3Store) UploadSparkScript() error {
 	return nil
 }
 
-func NewSparkExecutor(execType SparkExecutorType, config SerializedConfig) (SparkExecutor, error) {
+func NewSparkExecutor(execType SparkExecutorType, config SerializedConfig, logger *zap.SugaredLogger) (*SparkExecutor, error) {
 	if execType == EMR {
 		emrConf := EMRConfig{}
 		if err := emrConf.Deserialize(config); err != nil {
@@ -286,13 +296,14 @@ func NewSparkExecutor(execType SparkExecutorType, config SerializedConfig) (Spar
 		emrExecutor := EMRExecutor{
 			client:      client,
 			clusterName: emrConf.ClusterName,
+			logger: logger,
 		}
 		return &emrExecutor, nil
 	}
 	return nil, nil
 }
 
-func NewSparkStore(storeType SparkStoreType, config SerializedConfig) (SparkStore, error) {
+func NewSparkStore(storeType SparkStoreType, config SerializedConfig, logger *zap.SugaredLogger) (SparkStore, error) {
 	if storeType == S3 {
 		s3Conf := S3Config{}
 		if err := s3Conf.Deserialize(config); err != nil {
@@ -307,6 +318,7 @@ func NewSparkStore(storeType SparkStoreType, config SerializedConfig) (SparkStor
 		s3Store := S3Store{
 			client:      client,
 			uploader:    uploader,
+			logger: logger,
 			credentials: credentialsV1.NewStaticCredentials(s3Conf.AWSAccessKeyId, s3Conf.AWSSecretKey, ""),
 			region:      s3Conf.BucketRegion,
 			bucketPath:  s3Conf.BucketPath,
@@ -333,6 +345,7 @@ func (s *S3Store) ResourceKey(id ResourceID) (string, error) {
 	if len(objects.Contents) == 0 {
 		return "", fmt.Errorf("no resource exists")
 	}
+	s.Logger.Debugf("Found %d objects", len(objects.Contents))
 	for _, object := range objects.Contents {
 		suffix := (*object.Key)[len(filePrefix):]
 		suffixParts := strings.Split(suffix, "/")
@@ -371,6 +384,7 @@ func (e *EMRExecutor) RunSparkJob(args []string) error {
 	stepId := resp.StepIds[0]
 	var waitDuration time.Duration = time.Second * 150
 	time.Sleep(1 * time.Second)
+	e.logger.Debugw("Waiting for EMR job to complete")
 	stepCompleteWaiter := emr.NewStepCompleteWaiter(e.client)
 	_, err = stepCompleteWaiter.WaitForOutput(context.TODO(), &emr.DescribeStepInput{
 		ClusterId: aws.String(e.clusterName),
@@ -544,18 +558,6 @@ func (s *S3Store) DeleteFile(path string) error {
 		return err
 	}
 	return nil
-}
-
-//not working?
-func (s *S3Store) FileExists(path string) (bool, error) {
-	output, err := s.client.GetObjectAttributes(context.TODO(), &s3.GetObjectAttributesInput{Bucket: aws.String(s.bucketPath), Key: aws.String(path), ObjectAttributes: []s3Types.ObjectAttributes{s3Types.ObjectAttributesChecksum}})
-	if output == nil {
-		return false, nil
-	}
-	if err != nil {
-		return false, err
-	}
-	return false, nil
 }
 
 func (s *S3Store) ResourceExists(id ResourceID) (bool, error) {

@@ -293,22 +293,22 @@ func destroyRedshiftDatabase(c RedshiftConfig) error {
 		fmt.Errorf(err.Error())
 		return err
 	}
-	// var deleteErr error
-	// retries := 5
-	// databaseQuery := fmt.Sprintf("DROP DATABASE %s", sanitize(c.Database))
-	// for {
-	// 	if _, err := db.Exec(databaseQuery); err != nil {
-	// 		deleteErr = err
-	// 		time.Sleep(time.Second)
-	// 		retries--
-	// 		if retries == 0 {
-	// 			fmt.Errorf(err.Error())
-	// 			return deleteErr
-	// 		}
-	// 	} else {
-	// 		continue
-	// 	}
-	// }
+	var deleteErr error
+	retries := 5
+	databaseQuery := fmt.Sprintf("DROP DATABASE %s", sanitize(c.Database))
+	for {
+		if _, err := db.Exec(databaseQuery); err != nil {
+			deleteErr = err
+			time.Sleep(time.Second)
+			retries--
+			if retries == 0 {
+				fmt.Errorf(err.Error())
+				return deleteErr
+			}
+		} else {
+			continue
+		}
+	}
 
 	return nil
 }

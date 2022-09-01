@@ -1,7 +1,7 @@
 import os 
 from argparse import Namespace
 
-import dill
+import marshal
 import pytest
 from pyspark.sql import SparkSession
 
@@ -83,7 +83,7 @@ def df_transformation():
         return transaction
 
     with open(file_path, "wb") as f:
-        dill.dump(transformation.__code__, f)
+        marshal.dump(transformation.__code__, f)
     return file_path
 
 

@@ -4,7 +4,7 @@ import argparse
 from typing import List
 from datetime import datetime
 
-import dill
+import marshal
 import boto3
 from pyspark.sql import SparkSession
 
@@ -41,7 +41,7 @@ def execute_sql_query(job_type, output_uri, sql_query, source_list):
 
             output_dataframe.coalesce(1).write.option("header", "true").mode("overwrite").parquet(output_uri_with_timestamp)
             return output_uri_with_timestamp
-    except (IOError, OSError, Failure) as e:
+    except (IOError, OSError) as e:
         print(e)
         raise e
 
@@ -71,7 +71,7 @@ def execute_df_job(output_uri, code, aws_region, sources):
         output_uri_with_timestamp = f"{output_uri}{dt}"
         output_df.coalesce(1).write.mode("overwrite").parquet(output_uri_with_timestamp)
         return output_uri_with_timestamp
-    except (IOError, OSError, Failure) as e:
+    except (IOError, OSError) as e:
         print(f"Issue with execution of the transformation: {e}")
         raise e
 
@@ -106,11 +106,11 @@ def get_code_from_file(file_path, aws_region=None):
             s3_object.download_fileobj(f)
 
             f.seek(0)
-            code = dill.loads(f.read())
+            code = marshal.loads(f.read())
     else:
 
         with open(file_path, "rb") as f:
-            code  = dill.load(f)
+            code  = marshal.load(f)
     
     return code
 

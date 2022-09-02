@@ -44,6 +44,7 @@ func firestoreOnlineStoreFactory(serialized SerializedConfig) (Provider, error) 
 }
 
 func NewFirestoreOnlineStore(options *FirestoreConfig) (*firestoreOnlineStore, error) {
+	fmt.Println("Firestore NewFirestoreOnlineStore()")
 	credBytes, err := json.Marshal(options.Credentials)
 	if err != nil {
 		return nil, fmt.Errorf("could not serialized firestore config, %v", err)

@@ -96,7 +96,9 @@ func (m MaterializeRunner) Run() (CompletionWatcher, error) {
 	}
 	fmt.Println("Creating Table")
 	_, err = m.Online.CreateTable(m.ID.Name, m.ID.Variant, m.VType)
-	fmt.Printf("table not created: %v", err)
+	if err != nil {
+		fmt.Printf("table not created: %v", err)
+	}
 	_, exists := err.(*provider.TableAlreadyExists)
 
 	if err != nil && !exists {

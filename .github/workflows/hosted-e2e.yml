@@ -244,7 +244,7 @@ jobs:
                     ,"Type"             : "CNAME"
                     ,"TTL"              : 120
                     ,"ResourceRecords"  : [{
-                    "Value"         : "$FEATUREFORM_HOST"
+                    "Value"         : "${{ env.FEATUREFORM_HOST }}"
                   }]
                 }
               }]

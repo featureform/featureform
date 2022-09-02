@@ -179,54 +179,54 @@ jobs:
       - name: Check clusters
         run: aws eks list-clusters
 
-      - name: Install Kubectl
-        run: |
-          curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.23.6/bin/linux/amd64/kubectl
-          sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
-          kubectl version --client
-          kubectl version --client --output=yaml    
-
-      - name: Install Helm
-        run: |
-          curl https://baltocdn.com/helm/signing.asc | gpg --dearmor | sudo tee /usr/share/keyrings/helm.gpg > /dev/null
-          sudo apt-get install apt-transport-https --yes
-          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main" | sudo tee /etc/apt/sources.list.d/helm-stable-debian.list
-          sudo apt-get update
-          sudo apt-get install helm
-
-      - name: Install IAM Authenticator
-        run: |
-          curl -o aws-iam-authenticator https://s3.us-west-2.amazonaws.com/amazon-eks/1.21.2/2021-07-05/bin/linux/amd64/aws-iam-authenticator
-          chmod +x ./aws-iam-authenticator
-          ls $GITHUB_WORKSPACE
-          echo "$GITHUB_WORKSPACE"
-          echo "$GITHUB_WORKSPACE" >> $GITHUB_PATH
-          aws help
-
-      - name: Check auth
-        run: aws-iam-authenticator help
-
-      - name: Add kubeconfig
-        run: aws eks update-kubeconfig --name cicd-cluster
-
-      - name: Test Kubectl
-        run: kubectl get pods
-
-      - name: Create Cert Manager Namespace
-        run: kubectl create namespace cert-manager --dry-run=client -o yaml | kubectl apply -f -
-
-
-      - name: Helm Install Cert Manager
-        run: |
-          helm repo add jetstack https://charts.jetstack.io
-          helm repo update
-          helm install certmgr jetstack/cert-manager \
-            --set installCRDs=true \
-            --version v1.8.0 \
-            --namespace cert-manager 
-
-      - name: Helm Install Featureform
-        run: helm install featureform ./charts/featureform --set global.publicCert=true #--set global.version=test
+#      - name: Install Kubectl
+#        run: |
+#          curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.23.6/bin/linux/amd64/kubectl
+#          sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+#          kubectl version --client
+#          kubectl version --client --output=yaml
+#
+#      - name: Install Helm
+#        run: |
+#          curl https://baltocdn.com/helm/signing.asc | gpg --dearmor | sudo tee /usr/share/keyrings/helm.gpg > /dev/null
+#          sudo apt-get install apt-transport-https --yes
+#          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main" | sudo tee /etc/apt/sources.list.d/helm-stable-debian.list
+#          sudo apt-get update
+#          sudo apt-get install helm
+#
+#      - name: Install IAM Authenticator
+#        run: |
+#          curl -o aws-iam-authenticator https://s3.us-west-2.amazonaws.com/amazon-eks/1.21.2/2021-07-05/bin/linux/amd64/aws-iam-authenticator
+#          chmod +x ./aws-iam-authenticator
+#          ls $GITHUB_WORKSPACE
+#          echo "$GITHUB_WORKSPACE"
+#          echo "$GITHUB_WORKSPACE" >> $GITHUB_PATH
+#          aws help
+#
+#      - name: Check auth
+#        run: aws-iam-authenticator help
+#
+#      - name: Add kubeconfig
+#        run: aws eks update-kubeconfig --name cicd-cluster
+#
+#      - name: Test Kubectl
+#        run: kubectl get pods
+#
+#      - name: Create Cert Manager Namespace
+#        run: kubectl create namespace cert-manager --dry-run=client -o yaml | kubectl apply -f -
+#
+#
+#      - name: Helm Install Cert Manager
+#        run: |
+#          helm repo add jetstack https://charts.jetstack.io
+#          helm repo update
+#          helm install certmgr jetstack/cert-manager \
+#            --set installCRDs=true \
+#            --version v1.8.0 \
+#            --namespace cert-manager
+#
+#      - name: Helm Install Featureform
+#        run: helm install featureform ./charts/featureform --set global.publicCert=true #--set global.version=test
 
       - name: Create Record
         run: |

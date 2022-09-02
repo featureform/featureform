@@ -47,17 +47,19 @@ jobs:
       - name: Check auth
         run: aws-iam-authenticator help
 
-      - name: Load Kubeconfig
-        id: create-json-2
-        uses: jsdaniell/create-json@1.1.2
-        with:
-          name: "config"
-          json: ${{ secrets.KUBECONFIG }}
-
-      - name: Add Kubeconfig
-        run: |
-          mkdir $HOME/.kube
-          mv  config $HOME/.kube/config
+#      - name: Load Kubeconfig
+#        id: create-json-2
+#        uses: jsdaniell/create-json@1.1.2
+#        with:
+#          name: "config"
+#          json: ${{ secrets.KUBECONFIG }}
+#
+#      - name: Add Kubeconfig
+#        run: |
+#          mkdir $HOME/.kube
+#          mv  config $HOME/.kube/config
+      - name: Add kubeconfig
+        run: aws eks update-kubeconfig --name cicd-cluster
 
       - name: Test Kubectl
         run: kubectl get pods

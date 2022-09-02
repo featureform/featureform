@@ -15,11 +15,7 @@ import (
 )
 
 func (t firestoreTableKey) String() string {
-	marshalled, err := json.Marshal(t)
-	if err != nil {
-		return err.Error()
-	}
-	return string(marshalled)
+	return fmt.Sprintf("%s__%s__%s", t.Collection, t.Feature, t.Variant)
 }
 
 type firestoreOnlineStore struct {
@@ -122,9 +118,10 @@ func (store *firestoreOnlineStore) CreateTable(feature, variant string, valueTyp
 
 	_, err = store.collection.Doc(GetMetadataTable()).Set(ctx, map[string]interface{}{
 		tableName: valueType,
+		"test":    "test",
 	}, firestore.MergeAll)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not insert into metadata table: %v", err)
 	}
 	return &firestoreOnlineTable{
 		document:  store.collection.Doc(tableName),

@@ -236,13 +236,13 @@ jobs:
               {
                 "Comment": "Testing creating a record set"
                 ,"Changes": [{
-                  "Action"              : "CREATE"
+                  "Action"              : "UPSERT"
                   ,"ResourceRecordSet"  : {
                     "Name"              : "test.featureform.com"
                     ,"Type"             : "CNAME"
                     ,"TTL"              : 120
                     ,"ResourceRecords"  : [{
-                    "Value"         : "abcdefg"
+                    "Value"         : "abcdefgh"
                   }]
                 }
               }]

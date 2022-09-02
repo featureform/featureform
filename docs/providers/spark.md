@@ -33,7 +33,7 @@ Your EMR cluster must be running and support [Spark](https://docs.aws.amazon.com
 ```python
 import featureform as ff
 
-ff.register_snowflake(
+ff.register_Spark(
     name = "spark_offline_store"
     description = "A spark provider that can create transformations and training sets",
     team = "featureform data team",
@@ -43,7 +43,7 @@ ff.register_snowflake(
     bucket_region = "us-east-2",
     aws_access_key_id = "<access-key-id>",
     aws_secret_access_key = "<aws-secret-access-key>",
-    ):
+    )
 ```
 {% endcode %}
 
@@ -55,9 +55,8 @@ Using Spark with Featureform, a user can define transformations in SQL like with
 @spark.sql_transformation()
 def max_transaction_amount():
     """the average transaction amount for a user """
-    return "SELECT CustomerID as user_id, " \
-    "max(TransactionAmount) " "as max_transaction_amt " \
-    "from {{transactions.kaggle}} GROUP BY user_id"
+    return "SELECT CustomerID as user_id, max(TransactionAmount) " \
+        "as max_transaction_amt from {{transactions.kaggle}} GROUP BY user_id"
 ```
 {% endcode %}
 
@@ -66,13 +65,10 @@ In addition, registering a provider via Spark allows you to perform DataFrame tr
 {% code title="dataframe_transformation.py" %}
 ```python
 @spark.df_transformation(
-    inputs=[("transactions", "kaggle")], 
-    variant="default")
+    inputs=[("transactions", "kaggle")], variant="default")
 def average_user_transaction(df):
     from pyspark.sql.functions import avg
-        df.groupBy("CustomerID")
-        .agg(avg("TransactionAmount")
-        .alias("average_user_transaction"))
+    df.groupBy("CustomerID").agg(avg("TransactionAmount").alias("average_user_transaction"))
     return df
 ```
 {% endcode %}

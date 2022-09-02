@@ -228,7 +228,6 @@ jobs:
       - name: Helm Install Featureform
         run: |
           helm install featureform ./charts/featureform --set global.publicCert=true 
-          kubectl wait --for=condition=complete job/featureform-quickstart-loader --timeout=720s
           kubectl wait --for=condition=READY=true pod -l app.kubernetes.io/name=ingress-nginx --timeout=720s
           kubectl wait --for=condition=READY=true pod -l app.kubernetes.io/name=etcd --timeout=720s
           kubectl wait --for=condition=READY=true pod -l chart=featureform --timeout=720s

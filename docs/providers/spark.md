@@ -3,9 +3,9 @@
 Featureform supports [Spark on AWS](https://aws.amazon.com/emr/features/spark/) as an Offline Store.
 
 ## Implementation <a href="#implementation" id="implementation"></a>
-The AWS Spark Offline store implements [AWS Elastic Map Reduce (EMR)](https://aws.amazon.com/emr/) as a compute layer, and [S3](https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html) as a storage layer. The transformations, training sets, and feature definitions a user registers via the Featureform client are stored parquet tables in S3.
+The AWS Spark Offline store implements [AWS Elastic Map Reduce (EMR)](https://aws.amazon.com/emr/) as a compute layer, and [S3](https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html) as a storage layer. The transformations, training sets, and feature definitions a user registers via the Featureform client are stored as parquet tables in S3.
 
-Using Spark for computation, Featureform leverages EMR to compute user defined transformations and training sets. The user can author new tables and iterate through training sets directly via the [Featureform CLI](getting-started/interact-with-the-cli.md).
+Using Spark for computation, Featureform leverages EMR to compute user defined transformations and training sets. The user can author new tables and iterate through training sets sourced directly from S3 via the [Featureform CLI](getting-started/interact-with-the-cli.md).
 
 Features registered via the client can be materialized to an Inference Store (ex: [Redis](providers/redis.md)) for real-time feature serving.
 

@@ -5,13 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path"
 	"reflect"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
-	"runtime"
-	"path"
 
 	//for compatability with parquet-go
 	awsV1 "github.com/aws/aws-sdk-go/aws"
@@ -283,7 +283,7 @@ func (s *S3Store) UploadSparkScript() error {
 			return fmt.Errorf("cannot get the file name")
 		}
 
-		sparkScriptPath := path.Join(path.Dir(filename), "/scripts/offline_store_spark_runner.py")
+		sparkScriptPath = path.Join(path.Dir(filename), "/scripts/offline_store_spark_runner.py")
 	}
 	scriptFile, err := os.Open(sparkScriptPath)
 	if err != nil {

@@ -4,170 +4,170 @@ concurrency:
   group: ${{ github.head_ref }}-e2e
   cancel-in-progress: true
 jobs:
-  coordinator:
-    name: Build Coordinator
-    environment: Deployment
-    defaults:
-      run:
-        working-directory: ./
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Login to DockerHub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Build and export
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          file: ./coordinator/Dockerfile
-          tags: featureformcom/coordinator:test
-          push: true
-
-  dashboard:
-    name: Build Dashboard
-    environment: Deployment
-    defaults:
-      run:
-        working-directory: ./
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Login to DockerHub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Build and export
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          file: ./dashboard/Dockerfile
-          tags: featureformcom/dashboard:test
-          push: true
-
-  metadata:
-    name: Build Metadata
-    environment: Deployment
-    defaults:
-      run:
-        working-directory: ./
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Login to DockerHub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Build and export
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          file: ./metadata/Dockerfile
-          tags: featureformcom/metadata:test
-          push: true
-
-  dashboard-metadata:
-    name: Build Dashboard Metadata
-    environment: Deployment
-    defaults:
-      run:
-        working-directory: ./
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Login to DockerHub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Build and export
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          file: ./metadata/dashboard/Dockerfile
-          tags: featureformcom/metadata-dashboard:test
-          push: true
-
-
-  serving:
-    name: Build Serving
-    environment: Deployment
-    defaults:
-      run:
-        working-directory: ./
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Login to DockerHub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Build and export
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          file: ./newserving/Dockerfile
-          tags: featureformcom/serving:test
-          push: true
-
-  worker:
-    name: Build Worker
-    environment: Deployment
-    defaults:
-      run:
-        working-directory: ./
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Login to DockerHub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Build and export
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          file: ./runner/Dockerfile
-          tags: featureformcom/worker:test
-          push: true
+#  coordinator:
+#    name: Build Coordinator
+#    environment: Deployment
+#    defaults:
+#      run:
+#        working-directory: ./
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v2
+#
+#      - name: Set up Docker Buildx
+#        uses: docker/setup-buildx-action@v2
+#
+#      - name: Login to DockerHub
+#        uses: docker/login-action@v2
+#        with:
+#          username: ${{ secrets.DOCKERHUB_USERNAME }}
+#          password: ${{ secrets.DOCKERHUB_TOKEN }}
+#
+#      - name: Build and export
+#        uses: docker/build-push-action@v3
+#        with:
+#          context: .
+#          file: ./coordinator/Dockerfile
+#          tags: featureformcom/coordinator:test
+#          push: true
+#
+#  dashboard:
+#    name: Build Dashboard
+#    environment: Deployment
+#    defaults:
+#      run:
+#        working-directory: ./
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v2
+#
+#      - name: Set up Docker Buildx
+#        uses: docker/setup-buildx-action@v2
+#
+#      - name: Login to DockerHub
+#        uses: docker/login-action@v2
+#        with:
+#          username: ${{ secrets.DOCKERHUB_USERNAME }}
+#          password: ${{ secrets.DOCKERHUB_TOKEN }}
+#
+#      - name: Build and export
+#        uses: docker/build-push-action@v3
+#        with:
+#          context: .
+#          file: ./dashboard/Dockerfile
+#          tags: featureformcom/dashboard:test
+#          push: true
+#
+#  metadata:
+#    name: Build Metadata
+#    environment: Deployment
+#    defaults:
+#      run:
+#        working-directory: ./
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v2
+#
+#      - name: Set up Docker Buildx
+#        uses: docker/setup-buildx-action@v2
+#
+#      - name: Login to DockerHub
+#        uses: docker/login-action@v2
+#        with:
+#          username: ${{ secrets.DOCKERHUB_USERNAME }}
+#          password: ${{ secrets.DOCKERHUB_TOKEN }}
+#
+#      - name: Build and export
+#        uses: docker/build-push-action@v3
+#        with:
+#          context: .
+#          file: ./metadata/Dockerfile
+#          tags: featureformcom/metadata:test
+#          push: true
+#
+#  dashboard-metadata:
+#    name: Build Dashboard Metadata
+#    environment: Deployment
+#    defaults:
+#      run:
+#        working-directory: ./
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v2
+#
+#      - name: Set up Docker Buildx
+#        uses: docker/setup-buildx-action@v2
+#
+#      - name: Login to DockerHub
+#        uses: docker/login-action@v2
+#        with:
+#          username: ${{ secrets.DOCKERHUB_USERNAME }}
+#          password: ${{ secrets.DOCKERHUB_TOKEN }}
+#
+#      - name: Build and export
+#        uses: docker/build-push-action@v3
+#        with:
+#          context: .
+#          file: ./metadata/dashboard/Dockerfile
+#          tags: featureformcom/metadata-dashboard:test
+#          push: true
+#
+#
+#  serving:
+#    name: Build Serving
+#    environment: Deployment
+#    defaults:
+#      run:
+#        working-directory: ./
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v2
+#
+#      - name: Set up Docker Buildx
+#        uses: docker/setup-buildx-action@v2
+#
+#      - name: Login to DockerHub
+#        uses: docker/login-action@v2
+#        with:
+#          username: ${{ secrets.DOCKERHUB_USERNAME }}
+#          password: ${{ secrets.DOCKERHUB_TOKEN }}
+#
+#      - name: Build and export
+#        uses: docker/build-push-action@v3
+#        with:
+#          context: .
+#          file: ./newserving/Dockerfile
+#          tags: featureformcom/serving:test
+#          push: true
+#
+#  worker:
+#    name: Build Worker
+#    environment: Deployment
+#    defaults:
+#      run:
+#        working-directory: ./
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v2
+#
+#      - name: Set up Docker Buildx
+#        uses: docker/setup-buildx-action@v2
+#
+#      - name: Login to DockerHub
+#        uses: docker/login-action@v2
+#        with:
+#          username: ${{ secrets.DOCKERHUB_USERNAME }}
+#          password: ${{ secrets.DOCKERHUB_TOKEN }}
+#
+#      - name: Build and export
+#        uses: docker/build-push-action@v3
+#        with:
+#          context: .
+#          file: ./runner/Dockerfile
+#          tags: featureformcom/worker:test
+#          push: true
   deploy:
-    needs: [coordinator, dashboard, metadata, dashboard-metadata, serving, worker]
+    #needs: [coordinator, dashboard, metadata, dashboard-metadata, serving, worker]
     env:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID_FF }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_KEY_FF }}
@@ -226,7 +226,28 @@ jobs:
             --namespace cert-manager 
 
       - name: Helm Install Featureform
-        run: helm install featureform ./charts/featureform --set global.version=test
+        run: helm install featureform ./charts/featureform --set global.publicCert=true #--set global.version=test
+
+      - name: Create Record
+        run: |
+          aws route53 change-resource-record-sets \
+            --hosted-zone-id 1234567890ABC \
+              --change-batch '
+              {
+                "Comment": "Testing creating a record set"
+                ,"Changes": [{
+                  "Action"              : "CREATE"
+                  ,"ResourceRecordSet"  : {
+                    "Name"              : "test.featureform.com"
+                    ,"Type"             : "CNAME"
+                    ,"TTL"              : 120
+                    ,"ResourceRecords"  : [{
+                    "Value"         : "abcdefg"
+                  }]
+                }
+              }]
+            }
+          '
 
       - name: Helm Uninstall Featureform
         if: always()

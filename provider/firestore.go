@@ -54,7 +54,7 @@ func NewFirestoreOnlineStore(options *FirestoreConfig) (*firestoreOnlineStore, e
 	}
 
 	firestoreCollection := firestoreClient.Collection(options.Collection)
-	_, err = firestoreCollection.Doc(GetMetadataTable()).Set(ctx, map[string]interface{}{})
+	_, err = firestoreCollection.Doc(GetMetadataTable()).Set(ctx, map[string]interface{}{}, firestore.MergeAll)
 	if err != nil {
 		return nil, fmt.Errorf("could not create firestore document, %v", err)
 	}

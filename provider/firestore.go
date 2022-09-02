@@ -43,9 +43,7 @@ func firestoreOnlineStoreFactory(serialized SerializedConfig) (Provider, error) 
 	if err := firestoreConfig.Deserialize(serialized); err != nil {
 		return nil, err
 	}
-	if firestoreConfig.Collection == "" {
-		firestoreConfig.Collection = "Featureform_table__"
-	}
+
 	return NewFirestoreOnlineStore(firestoreConfig)
 }
 

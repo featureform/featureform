@@ -75,6 +75,8 @@ kubectl get ingress | grep "grpc-ingress" | awk {'print $4'} | column -t
 
 Creating an A record for your domain with the outputted IP address. 
 
+You also need to add a CAA record for letsencrypt.org to allow it to generate the public certificate
+
 
 ## Step 6: Load Demo Data
 We can load some demo data into BigQuery that we can transform and serve.

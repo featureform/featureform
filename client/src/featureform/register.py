@@ -1064,11 +1064,11 @@ class Registrar:
 
     def register_firestore(self,
                            name: str,
+                           collection: str,
+                           project_id: str,
+                           credentials_path: str,
                            description: str = "",
                            team: str = "",
-                           collection: str = "",
-                           project_id: str = "",
-                           credentials_path: str = ""
                            ):
         """Register a Firestore provider.
 
@@ -1426,7 +1426,7 @@ class Registrar:
         self.__resources.append(provider)
         local_provider = LocalProvider(self, provider)
         local_provider.insert_provider()
-        self.register_user("default_user").make_default_owner()
+      #  self.register_user("default_user").make_default_owner()
         return local_provider
 
     def register_primary_data(self,
@@ -1829,8 +1829,8 @@ class ResourceClient(Registrar):
             else:
                 channel = secure_channel(host, cert_path)
             self._stub = ff_grpc.ApiStub(channel)
-        elif local:
-            self.register_user("default_user").make_default_owner()
+      #  elif local:
+         #   self.register_user("default_user").make_default_owner()
 
     def apply(self):
         """Apply all definitions, creating and retrieving all specified resources.

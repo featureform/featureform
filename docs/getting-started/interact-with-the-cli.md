@@ -178,13 +178,18 @@ featureform list users –-local
 The **DASH** command is used to access the featureform dashboard. It returns a URL to the locally hosted dashboard. 
 
 Example of the dashboard’s URL:
+
 Running on http://127.0.0.1:3000 
 
 The Featureform dashboard: 
-![Featureform dashboard](../.gitbook/assets/dashboard.png)
 
-Each button on the dashboard redirects you to a list of resources of that resource type. 
+![Featureform dashboard](../.gitbook/assets/dashboard.png)
+*Featureform dashboard*
+
+Each button on the dashboard redirects you to a list of resources of that resource type.
+
 ![List of registered features](../.gitbook/assets/feature-list.png)
+*List of registered features*
 
 You can then click on each resource to know more about it. 
 

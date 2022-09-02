@@ -26,3 +26,18 @@ jobs:
           echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main" | sudo tee /etc/apt/sources.list.d/helm-stable-debian.list
           sudo apt-get update
           sudo apt-get install helm
+
+      - name: Load Kubeconfig
+        id: create-json-2
+        uses: jsdaniell/create-json@1.1.2
+        with:
+          name: "config"
+          json: ${{ secrets.KUBECONFIG }}
+
+      - name: Add Kubeconfig
+        run: |
+          mkdir $HOME/.kube
+          mv  config $HOME/.kube/config
+
+      - name: Test Kubectl
+        run: kubectl get pods

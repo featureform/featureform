@@ -27,14 +27,12 @@ The dashboard can be viewed at http://localhost:3000 in your browser
 The Featureform dashboard: 
 
 ![Featureform dashboard](../.gitbook/assets/dashboard.png)
-
-*Featureform dashboard*
+<center>Featureform dashboard</center>
 
 Each button on the dashboard redirects you to a list of resources of that resource type.
 
 ![List of registered features](../.gitbook/assets/feature-list.png)
-
-*List of registered features*
+<center>List of registered features</center>
 
 Each resource can then be clicked on to learn more. 
 
@@ -149,7 +147,7 @@ featureform list RESOURCE_TYPE --host $FEATUREFORM_HOST –cert $FEATUREFORM_CER
 * **provider -** registered 3rd party providers which store your data
 * **source -** files, tables, or transformations that features, labels and training sets source from
 
-NOTE: The **--cert $FEATUREFORM_CERT** is only required for self-assigned certs
+NOTE: The **--cert $FEATUREFORM_CERT** is only required for self-signed certs
 
 ### Example: Getting the list of users
 
@@ -158,7 +156,7 @@ featureform list users --host $FEATUREFORM_HOST --cert $FEATUREFORM_CERT
 featureform list users --insecure --host $FEATUREFORM_HOST
 ```
 
-The commands are both valid ways to retrieve a list of users. The first is when the user self-assigns a cert. 
+The commands are both valid ways to retrieve a list of users. The first is when the user uses a self-signed cert. 
 
 The following uses the local flag to access resources created and stored in localmode:
 ```

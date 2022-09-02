@@ -74,7 +74,7 @@ func GetMetadataTable() string {
 }
 
 func (store *firestoreOnlineStore) GetTable(feature, variant string) (OnlineStoreTable, error) {
-
+	fmt.Println("Firestore GetTable()")
 	key := firestoreTableKey{store.collection.ID, feature, variant}
 	tableName := key.String()
 
@@ -103,7 +103,7 @@ func (store *firestoreOnlineStore) GetTable(feature, variant string) (OnlineStor
 }
 
 func (store *firestoreOnlineStore) CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error) {
-
+	fmt.Println("Firestore CreateTable()")
 	getTable, _ := store.GetTable(feature, variant)
 	if getTable != nil {
 		return nil, &TableAlreadyExists{feature, variant}
@@ -132,6 +132,7 @@ func (store *firestoreOnlineStore) CreateTable(feature, variant string, valueTyp
 }
 
 func (store *firestoreOnlineStore) DeleteTable(feature, variant string) error {
+	fmt.Println("Firestore DeleteTable()")
 	key := firestoreTableKey{store.collection.ID, feature, variant}
 	tableName := key.String()
 	_, err := store.collection.Doc(tableName).Delete(ctx)
@@ -154,6 +155,7 @@ func (store *firestoreOnlineStore) DeleteTable(feature, variant string) error {
 }
 
 func (table firestoreOnlineTable) Set(entity string, value interface{}) error {
+	fmt.Println("Firestore Set()")
 	_, err := table.document.Set(ctx, map[string]interface{}{
 		entity: value,
 	}, firestore.MergeAll)
@@ -162,7 +164,7 @@ func (table firestoreOnlineTable) Set(entity string, value interface{}) error {
 }
 
 func (table firestoreOnlineTable) Get(entity string) (interface{}, error) {
-
+	fmt.Println("Firestore Get()")
 	dataSnap, err := table.document.Get(ctx)
 	if err != nil {
 		return nil, err

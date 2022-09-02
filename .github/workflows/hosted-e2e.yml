@@ -38,7 +38,7 @@ jobs:
           mkdir -p $HOME/bin && cp ./aws-iam-authenticator $HOME/bin/aws-iam-authenticator && export PATH=$PATH:$HOME/bin
           echo 'export PATH=$PATH:$HOME/bin' >> ~/.bashrc
           aws-iam-authenticator help
-          
+          aws help
 #      - name: Install AWS CLI
 #        run: |
 #          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"

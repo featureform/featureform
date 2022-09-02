@@ -227,6 +227,8 @@ jobs:
 #
 #      - name: Helm Install Featureform
 #        run: helm install featureform ./charts/featureform --set global.publicCert=true #--set global.version=test
+      - name: Set env
+        run: echo "FEATUREFORM_HOST=$(echo 'testdns')" >> $GITHUB_ENV
 
       - name: Create Record
         run: |
@@ -242,7 +244,7 @@ jobs:
                     ,"Type"             : "CNAME"
                     ,"TTL"              : 120
                     ,"ResourceRecords"  : [{
-                    "Value"         : "abcdefgh"
+                    "Value"         : "${FEATUREFORM_HOST}"
                   }]
                 }
               }]

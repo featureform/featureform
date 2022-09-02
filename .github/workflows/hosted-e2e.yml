@@ -60,7 +60,7 @@ jobs:
           helm install certmgr jetstack/cert-manager \
             --set installCRDs=true \
             --version v1.8.0 \
-            --namespace cert-manager \
+            --namespace cert-manager 
 
       - name: Helm Install Featureform
         run: helm install featureform ./charts/featureform

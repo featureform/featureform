@@ -227,7 +227,7 @@ jobs:
 
       - name: Helm Install Featureform
         run: |
-          helm install featureform ./charts/featureform --set global.publicCert=true 
+          helm install featureform ./charts/featureform --set global.publicCert=true --set global.version=test
           kubectl wait --for=condition=READY=true pod -l app.kubernetes.io/name=ingress-nginx --timeout=720s
           kubectl wait --for=condition=READY=true pod -l app.kubernetes.io/name=etcd --timeout=720s
           kubectl wait --for=condition=READY=true pod -l chart=featureform --timeout=720s
@@ -266,3 +266,11 @@ jobs:
         if: always()
         continue-on-error: true
         run: helm uninstall certmgr --namespace cert-manager
+
+      - name: Cleanup PVC
+        if: always()
+        continue-on-error: true
+        run: |
+          kubectl delete pvc data-featureform-etcd-0
+          kubectl delete pvc data-featureform-etcd-1
+          kubectl delete pvc data-featureform-etcd-2

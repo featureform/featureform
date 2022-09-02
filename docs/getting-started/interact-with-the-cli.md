@@ -14,6 +14,32 @@ Upon success, all definitions in the **definitions.py** (or whatever you choose 
 
 After applying new resource definitions, you can use the **GET** command to see the status of the resources you applied. A resource with the status **READY** is available for serving.
 
+## DASH Command
+
+```
+featureform dash
+```
+
+The **DASH** command is used to access the featureform dashboard. It returns a URL to the locally hosted dashboard. 
+
+Example of the dashboard’s URL:
+
+Running on http://localhost:3000/
+
+The Featureform dashboard: 
+
+
+![Featureform dashboard](../.gitbook/assets/dashboard.png)
+*Featureform dashboard*
+
+Each button on the dashboard redirects you to a list of resources of that resource type.
+
+
+![List of registered features](../.gitbook/assets/feature-list.png)
+*List of registered features*
+
+Each resource can then be clicked on to learn more. 
+
 ## GET Command
 
 The **GET** command displays status, variants, and other metadata on a resource.
@@ -125,6 +151,8 @@ featureform list RESOURCE_TYPE --host $FEATUREFORM_HOST –cert $FEATUREFORM_CER
 * **provider -** registered 3rd party providers which store your data
 * **source -** files, tables, or transformations that features, labels and training sets source from
 
+NOTE: The **--cert $FEATUREFORM_CERT** is only required for self-assigned certs
+
 ### Example: Getting the list of users
 
 ```
@@ -132,7 +160,7 @@ featureform list users --host $FEATUREFORM_HOST --cert $FEATUREFORM_CERT
 featureform list users --insecure --host $FEATUREFORM_HOST
 ```
 
-The commands are both valid ways to retrieve a list of users. The first is with certification. The second without; the --insecure flag disables the need for the --cert flag
+The commands are both valid ways to retrieve a list of users. The first is when the user self-assigns a cert. 
 
 The following uses the local flag to access resources created and stored in localmode:
 ```
@@ -149,8 +177,8 @@ featureformer 					ready
 ### Example: Getting the list of resources of a given type
 
 ```
-Featureform list features --host $FEATUREFORM_HOST --cert $FEATUREFORM_CERT
-Featureform list features --insecure --host $FEATUREFORM_HOST
+featureform list features --host $FEATUREFORM_HOST --cert $FEATUREFORM_CERT
+featureform list features --insecure --host $FEATUREFORM_HOST
 ```
 
 In local mode: 
@@ -163,33 +191,4 @@ The given commands return the list of registered features and their variants
 NAME 						VARIANT 						STATUS
 avg_transactions			quickstart(default)				ready
 ```
-
-## DASH Command
-
-```
-featureform dash--host $FEATUREFORM_HOST 
-```
-
-The following is an example of the command using the local flag to access resources created and stored in localmode:
-```
-featureform list users –-local
-```
-
-The **DASH** command is used to access the featureform dashboard. It returns a URL to the locally hosted dashboard. 
-
-Example of the dashboard’s URL:
-
-Running on http://127.0.0.1:3000 
-
-The Featureform dashboard: 
-
-![Featureform dashboard](../.gitbook/assets/dashboard.png)
-*Featureform dashboard*
-
-Each button on the dashboard redirects you to a list of resources of that resource type.
-
-![List of registered features](../.gitbook/assets/feature-list.png)
-*List of registered features*
-
-You can then click on each resource to know more about it. 
 

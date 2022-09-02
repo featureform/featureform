@@ -228,6 +228,8 @@ func sparkOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 
 	fmt.Sprintf("Store type: %s, Store config: %v", sc.StoreType, sc.StoreConfig)
 	logger.Info("Uploading Spark script to store")
+
+	logger.Debugf("Store type: %s, Store config: %v", sc.StoreType, sc.StoreConfig)
 	if err := store.UploadSparkScript(); err != nil {
 		logger.Errorw("Failure uploading spark script", err)
 		return nil, err

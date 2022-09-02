@@ -272,9 +272,17 @@ func (c *Coordinator) mapNameVariantsToTables(sources []metadata.NameVariant) (m
 			return nil, fmt.Errorf("source in query not ready")
 		}
 		providerResourceID := provider.ResourceID{Name: source.Name(), Variant: source.Variant()}
-		tableName, err := provider.GetPrimaryTableName(providerResourceID)
-		if err != nil {
-			return nil, err
+		var tableName string
+		if source.IsSQLTransformation() {
+			tableName, err = provider.GetTransformationTableName(providerResourceID)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			tableName, err = provider.GetPrimaryTableName(providerResourceID)
+			if err != nil {
+				return nil, err
+			}
 		}
 		sourceMap[nameVariant.ClientString()] = tableName
 		c.Logger.Infof("     ----> name_variant: %s, tableName: %s, sourceMap: %v", nameVariant.ClientString(), tableName, sourceMap)
@@ -319,7 +327,8 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 		return fmt.Errorf("getSourceMapping replace: %w source map: %v, template: %s", err, sourceMap, templateString)
 	}
 
-	query, err := templateReplace(templateString, sourceMap, offlineStore)
+	var query string
+	query, err = templateReplace(templateString, sourceMap, offlineStore)
 	if err != nil {
 		return fmt.Errorf("template replace: %w source map: %v, template: %s", err, sourceMap, templateString)
 	}

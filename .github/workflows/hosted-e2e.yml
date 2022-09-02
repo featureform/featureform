@@ -38,7 +38,6 @@ jobs:
           ls $GITHUB_WORKSPACE
           echo "$GITHUB_WORKSPACE"
           echo "$GITHUB_WORKSPACE" >> $GITHUB_PATH
-          aws-iam-authenticator help
           aws help
 #      - name: Install AWS CLI
 #        run: |

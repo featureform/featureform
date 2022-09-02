@@ -334,7 +334,7 @@ func NewSparkStore(storeType SparkStoreType, config SerializedConfig) (SparkStor
 		}
 		return &s3Store, nil
 	}
-	return nil, nil
+	return nil, fmt.Errorf("the %v Spark Store type is supported")
 }
 
 func ResourcePrefix(id ResourceID) string {

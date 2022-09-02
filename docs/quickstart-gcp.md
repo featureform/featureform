@@ -73,9 +73,10 @@ We can get the IP Address for the cluster using:
 kubectl get ingress | grep "grpc-ingress" | awk {'print $4'} | column -t
 ```
 
+You also need to add a CAA record for letsencrypt.org to allow it to generate the public certificate
+
 Creating an A record for your domain with the outputted IP address. 
 
-You also need to add a CAA record for letsencrypt.org to allow it to generate the public certificate
 
 
 ## Step 6: Load Demo Data

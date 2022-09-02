@@ -87,16 +87,16 @@ func (store *firestoreOnlineStore) GetTable(feature, variant string) (OnlineStor
 		return nil, &TableNotFound{feature, variant}
 	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not get table: %v", err)
 	}
 
 	metadata, err := store.collection.Doc(GetMetadataTable()).Get(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not get metadata table: %v", err)
 	}
 	valueType, err := metadata.DataAt(tableName)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not get data at: %v", err)
 	}
 
 	return &firestoreOnlineTable{

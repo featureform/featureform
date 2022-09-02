@@ -105,3 +105,86 @@ fraud_training                 quickstart
 ```
 
 Listed below are the metadata on that variant, as well as its source and the training sets it belongs to.
+
+## LIST Command
+
+The **LIST** command displays the name, variant and status of all the resources of that resource type. 
+
+```
+featureform list RESOURCE_TYPE --host $FEATUREFORM_HOST –cert $FEATUREFORM_CERT
+```
+
+**RESOURCE\_TYPE** (required) can be:
+
+* **feature -** machine learning features
+* **label -** machine learning labels
+* **training-set -** set of features and one label for training ML models
+* **user -** registered users in your instance
+* **entity -** identifier for a source of features or labels (akin to a primary key)
+* **model -** registered machine learning models which training sets and features are fed to
+* **provider -** registered 3rd party providers which store your data
+* **source -** files, tables, or transformations that features, labels and training sets source from
+
+### Example: Getting the list of users
+
+```
+featureform list users --host $FEATUREFORM_HOST --cert $FEATUREFORM_CERT
+featureform list users --insecure --host $FEATUREFORM_HOST
+```
+
+The commands are both valid ways to retrieve a list of users. The first is with certification. The second without; the --insecure flag disables the need for the --cert flag
+
+The following uses the local flag to access resources created and stored in localmode:
+```
+featureform list users –-local
+```
+
+The above commands return the following list of users which have been registered:
+```
+NAME 							STATUS
+default_user					ready
+featureformer 					ready
+```
+ 
+### Example: Getting the list of resources of a given type
+
+```
+Featureform list features --host $FEATUREFORM_HOST --cert $FEATUREFORM_CERT
+Featureform list features --insecure --host $FEATUREFORM_HOST
+```
+
+In local mode: 
+```
+featureform list features –-local
+```
+
+The given commands return the list of registered features and their variants
+```
+NAME 						VARIANT 						STATUS
+avg_transactions			quickstart(default)				ready
+```
+
+## DASH Command
+
+```
+featureform dash--host $FEATUREFORM_HOST 
+```
+
+The following is an example of the command using the local flag to access resources created and stored in localmode:
+```
+featureform list users –-local
+```
+
+The **DASH** command is used to access the featureform dashboard. It returns a URL to the locally hosted dashboard. 
+
+Example of the dashboard’s URL:
+Running on http://127.0.0.1:3000 
+
+The Featureform dashboard: 
+![Featureform dashboard](../.gitbook/assets/dashboard.png)
+
+Each button on the dashboard redirects you to a list of resources of that resource type. 
+![List of registered features](../.gitbook/assets/feature-list.png)
+
+You can then click on each resource to know more about it. 
+

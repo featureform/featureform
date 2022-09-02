@@ -47,6 +47,11 @@ spec:
               value: "8080"
             - name: METADATA_HOST
               value: featureform-metadata-server
+            - name: K8S_RUNNER_ENABLE
+              value: {{ .Values.global.k8s_runner_enable | quote }}
+            - name: WORKER_IMAGE
+              value: "{{ .Values.global.repo | default .Values.image.repository }}/worker:{{ .Values.global.version | default .Chart.AppVersion }}"
+
           ports:
             - name: http
               containerPort: 80

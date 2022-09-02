@@ -259,7 +259,35 @@ class BigQueryConfig:
         return bytes(json.dumps(config), "utf-8")
 
 
-Config = Union[RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig, BigQueryConfig]
+@typechecked
+@dataclass
+class SparkAWSConfig:
+    emr_cluster_id: str
+    bucket_path: str
+    emr_cluster_region: str
+    bucket_region: str
+    aws_access_key_id: str
+    aws_secret_access_key: str
+
+    def software(self) -> str:
+        return "spark"
+
+    def type(self) -> str:
+        return "SPARK_AWS_OFFLINE"
+
+    def serialize(self) -> bytes:
+        config = {
+            "EMRClusterId": self.emr_cluster_id,
+            "BucketPath": self.bucket_path,
+            "EMRClusterRegion": self.emr_cluster_region,
+            "BucketRegion": self.bucket_region,
+            "AWSAccessKeyId": self.aws_access_key_id,
+            "AWSSecretAccessKey": self.aws_secret_access_key,
+        }
+        return bytes(json.dumps(config), "utf-8")
+
+
+Config = Union[RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig, BigQueryConfig, SparkAWSConfig]
 
 @typechecked
 @dataclass

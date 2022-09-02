@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	help "github.com/featureform/helpers"
 	"os"
 	"strings"
 	"time"
@@ -137,7 +138,7 @@ func (k *KubernetesJobSpawner) GetJobRunner(jobName string, config runner.Config
 	}
 	kubeConfig := runner.KubernetesRunnerConfig{
 		EnvVars:  map[string]string{"NAME": jobName, "CONFIG": string(config), "ETCD_CONFIG": string(serializedETCD)},
-		Image:    os.Getenv("WORKER_IMAGE"),
+		Image:    help.GetEnv("WORKER_IMAGE", "local/worker:stable"),
 		NumTasks: 1,
 		Resource: id,
 	}

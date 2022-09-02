@@ -1,13 +1,13 @@
 # Spark
 
-Featureform supports [Spark on AWS](https://aws.amazon.com/emr/features/spark/) as an offline provider.
+Featureform supports [Spark on AWS](https://aws.amazon.com/emr/features/spark/) as an Offline Store.
 
 ## Implementation <a href="#implementation" id="implementation"></a>
 Featureform implements Spark as a compute layer. The transformations, training sets, and feature definitions a user registers via the Featureform client are stored as tables in [S3](https://aws.amazon.com/s3/). 
 
 Current support leverages [AWS Elastic Map Reduce (EMR)](https://aws.amazon.com/emr/) to perform the computation used to generate new transformations and training sets. The Featureform cluster manages the computation and storage of these user-generated tables. The user can author new tables and iterate through training sets directly via the [Featureform CLI](getting-started/interact-with-the-cli.md).
 
-Features registered via the client can be materialized to an inference store (ex: [Redis](providers/redis.md)) for real-time feature serving.
+Features registered via the client can be materialized to an Inference Store (ex: [Redis](providers/redis.md)) for real-time feature serving.
 
 #### Requirements
 * [AWS S3 Bucket](https://docs.aws.amazon.com/s3/?icmpid=docs_homepage_featuredsvcs)
@@ -15,19 +15,19 @@ Features registered via the client can be materialized to an inference store (ex
 
 ### Transformation Sources
 
-Using Spark as an offline provider, you can [define new transformations](getting-started/transforming-data.md) via [SQL and DataFrames](https://spark.apache.org/docs/latest/sql-programming-guide.html). Using either these transformations or other preexisting tables in S3, a user can chain transformations and register columns in the resulting tables as new features and labels.
+Using Spark as an Offline Store, you can [define new transformations](getting-started/transforming-data.md) via [SQL and DataFrames](https://spark.apache.org/docs/latest/sql-programming-guide.html). Using either these transformations or other preexisting tables in S3, a user can chain transformations and register columns in the resulting tables as new features and labels.
 
 ### Training Sets and Inference Store Materialization
 
-Any column in in a preexisting table or user-created transformation can be registered as a feature or label. These features and labels can be used, as with any other offline provider, for [creating training sets and inference serving.](getting-started/defining-features-labels-and-training-sets.md)
+Any column in in a preexisting table or user-created transformation can be registered as a feature or label. These features and labels can be used, as with any other Offline Store, for [creating training sets and inference serving.](getting-started/defining-features-labels-and-training-sets.md)
 
 ## Configuration <a href="#configuration" id="configuration"></a>
 
 To configure a Spark provider via AWS, you need an [IAM Role](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles.html) with access to account's EMR cluster and S3 bucket. 
 
-The [AWS access key id and your secret access key](https://docs.aws.amazon.com/general/latest/gr/aws-sec-cred-types.html) are used as credentials when registering your Spark provider.
+The [AWS access key id and your secret access key](https://docs.aws.amazon.com/general/latest/gr/aws-sec-cred-types.html) are used as credentials when registering your Spark Offline Store.
 
-Your cluster must be running and support [Spark](https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-spark.html).
+Your EMR cluster must be running and support [Spark](https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-spark.html).
 
 {% code title="spark_config.py" %}
 ```python
@@ -52,8 +52,8 @@ Using Spark with Featureform, a user can define transformations in SQL like with
 
 {% code title="sql_transformation.py" %}
 ```python
-@spark.sql_transformation()        # Sources are added as inputs
-def max_transaction_amount():                           # Sources can be manipulated by adding them as params
+@spark.sql_transformation()
+def max_transaction_amount():
     """the average transaction amount for a user """
     return "SELECT CustomerID as user_id, " \
     "max(TransactionAmount) " "as max_transaction_amt " \

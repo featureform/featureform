@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"runtime"
+	"path"
 
 	//for compatability with parquet-go
 	awsV1 "github.com/aws/aws-sdk-go/aws"
@@ -276,7 +278,12 @@ func (s *S3Store) UploadSparkScript() error {
 	var sparkScriptPath string
 	sparkScriptPath, ok := os.LookupEnv("SPARK_SCRIPT_PATH")
 	if !ok {
-		sparkScriptPath = "./scripts/offline_store_spark_runner.py"
+		_, filename, _, ok := runtime.Caller(0)
+		if ok != nil {
+			return fmt.Errorf("cannot get the file name")
+		}
+
+		sparkScriptPath := path.Join(path.Dir(filename), "/scripts/offline_store_spark_runner.py")
 	}
 	scriptFile, err := os.Open(sparkScriptPath)
 	if err != nil {

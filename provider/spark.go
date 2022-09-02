@@ -211,10 +211,14 @@ func sparkOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	fmt.Sprintf("Executor type: %s, Executor config: %v", sc.ExecutorType, sc.ExecutorConfig)
 	store, err := NewSparkStore(sc.StoreType, sc.StoreConfig)
 	if err != nil {
 		return nil, err
 	}
+
+	fmt.Sprintf("Store type: %s, Store config: %v", sc.StoreType, sc.StoreConfig)
 	if err := store.UploadSparkScript(); err != nil {
 		return nil, err
 	}

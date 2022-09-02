@@ -231,7 +231,7 @@ jobs:
       - name: Create Record
         run: |
           aws route53 change-resource-record-sets \
-            --hosted-zone-id 1234567890ABC \
+            --hosted-zone-id Z09940351UD84OM1DEZJB \
               --change-batch '
               {
                 "Comment": "Testing creating a record set"

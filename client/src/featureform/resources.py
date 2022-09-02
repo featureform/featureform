@@ -263,8 +263,8 @@ class BigQueryConfig:
 @dataclass
 class SparkAWSConfig:
     emr_cluster_id: str
-    bucket_path: str
     emr_cluster_region: str
+    bucket_path: str
     bucket_region: str
     aws_access_key_id: str
     aws_secret_access_key: str
@@ -277,13 +277,21 @@ class SparkAWSConfig:
 
     def serialize(self) -> bytes:
         config = {
-            "EMRClusterId": self.emr_cluster_id,
-            "BucketPath": self.bucket_path,
-            "EMRClusterRegion": self.emr_cluster_region,
-            "BucketRegion": self.bucket_region,
-            "AWSAccessKeyId": self.aws_access_key_id,
-            "AWSSecretAccessKey": self.aws_secret_access_key,
-        }
+            "ExecutorType": "EMR",
+            "StoreType": "S3",
+            "ExecutorConfig": {
+                    "AWSAccessKeyId": aws_access_key_id,
+                    "AWSSecretKey":   aws_secret_access_key,
+                    "ClusterRegion":  emr_cluster_region,
+                    "ClusterName":    emr_cluster_id,
+               },
+            "StoreConfig": {
+                    "AWSAccessKeyId": aws_access_key_id,
+                    "AWSSecretKey":   aws_secret_access_key,
+                    "BucketRegion":   bucket_region,
+                    "BucketPath":     bucket_path,
+                }
+            }
         return bytes(json.dumps(config), "utf-8")
 
 

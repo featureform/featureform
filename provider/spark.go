@@ -64,9 +64,9 @@ const TIMESTAMP_INDEX = 2
 
 type SparkConfig struct {
 	ExecutorType   SparkExecutorType
-	ExecutorConfig string
+	ExecutorConfig EMRConfig
 	StoreType      SparkStoreType
-	StoreConfig    string
+	StoreConfig    S3Config
 }
 
 func (s *SparkConfig) Deserialize(config SerializedConfig) error {
@@ -205,11 +205,11 @@ func sparkOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	if err := sc.Deserialize(config); err != nil {
 		return nil, fmt.Errorf("invalid spark config: %v", config)
 	}
-	exec, err := NewSparkExecutor(sc.ExecutorType, SerializedConfig(sc.ExecutorConfig))
+	exec, err := NewSparkExecutor(sc.ExecutorType, sc.ExecutorConfig)
 	if err != nil {
 		return nil, err
 	}
-	store, err := NewSparkStore(sc.StoreType, SerializedConfig(sc.StoreConfig))
+	store, err := NewSparkStore(sc.StoreType, sc.StoreConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -293,44 +293,36 @@ func (s *S3Store) UploadSparkScript() error {
 	return nil
 }
 
-func NewSparkExecutor(execType SparkExecutorType, config SerializedConfig) (SparkExecutor, error) {
+func NewSparkExecutor(execType SparkExecutorType, config EMRConfig) (SparkExecutor, error) {
 	if execType == EMR {
-		emrConf := EMRConfig{}
-		if err := emrConf.Deserialize(config); err != nil {
-			return nil, fmt.Errorf("invalid emr config: %v", config)
-		}
 		client := emr.New(emr.Options{
-			Region:      emrConf.ClusterRegion,
-			Credentials: aws.NewCredentialsCache(credentials.NewStaticCredentialsProvider(emrConf.AWSAccessKeyId, emrConf.AWSSecretKey, "")),
+			Region:      config.ClusterRegion,
+			Credentials: aws.NewCredentialsCache(credentials.NewStaticCredentialsProvider(config.AWSAccessKeyId, config.AWSSecretKey, "")),
 		})
 
 		emrExecutor := EMRExecutor{
 			client:      client,
-			clusterName: emrConf.ClusterName,
+			clusterName: config.ClusterName,
 		}
 		return &emrExecutor, nil
 	}
 	return nil, nil
 }
 
-func NewSparkStore(storeType SparkStoreType, config SerializedConfig) (SparkStore, error) {
+func NewSparkStore(storeType SparkStoreType, config S3Config) (SparkStore, error) {
 	if storeType == S3 {
-		s3Conf := S3Config{}
-		if err := s3Conf.Deserialize(config); err != nil {
-			return nil, fmt.Errorf("invalid s3 config: %v", config)
-		}
 		client := s3.New(s3.Options{
-			Region:      s3Conf.BucketRegion,
-			Credentials: aws.NewCredentialsCache(credentials.NewStaticCredentialsProvider(s3Conf.AWSAccessKeyId, s3Conf.AWSSecretKey, "")),
+			Region:      config.BucketRegion,
+			Credentials: aws.NewCredentialsCache(credentials.NewStaticCredentialsProvider(config.AWSAccessKeyId, config.AWSSecretKey, "")),
 		})
 		sess := session.Must(session.NewSession())
 		uploader := s3manager.NewUploader(sess)
 		s3Store := S3Store{
 			client:      client,
 			uploader:    uploader,
-			credentials: credentialsV1.NewStaticCredentials(s3Conf.AWSAccessKeyId, s3Conf.AWSSecretKey, ""),
-			region:      s3Conf.BucketRegion,
-			bucketPath:  s3Conf.BucketPath,
+			credentials: credentialsV1.NewStaticCredentials(config.AWSAccessKeyId, config.AWSSecretKey, ""),
+			region:      config.BucketRegion,
+			bucketPath:  config.BucketPath,
 		}
 		return &s3Store, nil
 	}

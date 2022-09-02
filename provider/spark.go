@@ -279,7 +279,7 @@ func (s *S3Store) UploadSparkScript() error {
 	sparkScriptPath, ok := os.LookupEnv("SPARK_SCRIPT_PATH")
 	if !ok {
 		_, filename, _, ok := runtime.Caller(0)
-		if ok != nil {
+		if ok != true {
 			return fmt.Errorf("cannot get the file name")
 		}
 

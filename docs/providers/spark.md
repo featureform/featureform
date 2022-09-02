@@ -1,38 +1,32 @@
 # Spark
 
-Featureform supports [Spark on AWS](https://aws.amazon.com/emr/features/spark/) as an Offline Store
+Featureform supports [Spark on AWS](https://aws.amazon.com/emr/features/spark/) as an offline provider.
 
 ## Implementation <a href="#implementation" id="implementation"></a>
-Featureform implements spark as a transformation layer. The results of the transformations and table creations are stored in S3.
+Featureform implements Spark as a compute layer. The transformations, training sets, and feature definitions a user registers via the Featureform client are stored as tables in [S3](https://aws.amazon.com/s3/). 
 
-Using the client, a user can define transformtions using dataframes, which transform into new tables. The function name and decorator variant label can be used as an identifier to further chain transformations, and use the new tables to create training sets.
+Current support leverages [AWS Elastic Map Reduce (EMR)](https://aws.amazon.com/emr/) to perform the computation used to generate new transformations and training sets. The Featureform cluster manages the computation and storage of these user-generated tables. The user can author new tables and iterate through training sets directly via the [Featureform CLI](getting-started/interact-with-the-cli.md).
 
-Current support requires an [AWS EMR](https://aws.amazon.com/emr/) cluster and an [S3](https://aws.amazon.com/s3/) bucket to store the featureform generated tables, feature definitions and training sets.
-Features can be copied from spark to an inference store (ex: Redis)(link to page) for real-time feature serving
-
-Data is stored in parquet tables in the bucket. The spark store executes a spark job on your cluster to transform the data and copy it to its relevant sources for training and serving
+Features registered via the client can be materialized to an inference store (ex: [Redis](providers/redis.md)) for real-time feature serving.
 
 #### Requirements
-	Amazon AWS account with:
-		AWS S3 Bucket
-		AWS EMR Cluster
-			Runs Spark version >2
+* [AWS S3 Bucket](https://docs.aws.amazon.com/s3/?icmpid=docs_homepage_featuredsvcs)
+* [AWS EMR Cluster running Spark >=2.4.8](https://docs.aws.amazon.com/emr/index.html)
 
 ### Transformation Sources
 
-SQL transformations are used to create a view. By default, those views are materialized and updated according to the schedule parameter. Deprecated transformations are converted to un-materialized views to save storage space.
+Using Spark as an offline provider, you can [define new transformations](getting-started/transforming-data.md) via [SQL and DataFrames](https://spark.apache.org/docs/latest/sql-programming-guide.html). Using either these transformations or other preexisting tables in S3, a user can chain transformations and register columns in the resulting tables as new features and labels.
 
-### Offline to Inference Store Materialization
+### Training Sets and Inference Store Materialization
 
-When a feature is registered, the featureform spark store creates an internal link to the relevant columns pertaining to that feature in its source. A kubernetes job transfers the latest values from these columns to sync to the inference store
-
-### Training Set Generation
-
-Every registered feature and label is associated specific columns in a parquet table. That view contains three columns, the entity, value, and timestamp. When a training set is registered, it is created new parquet table in the bucket, via a JOIN on the corresponding label and features from the source tables.
+Any column in in a preexisting table or user-created transformation can be registered as a feature or label. These features and labels can be used, as with any other offline provider, for [creating training sets and inference serving.](getting-started/defining-features-labels-and-training-sets.md)
 
 ## Configuration <a href="#configuration" id="configuration"></a>
 
-To configure a spark store via aws, you need an [IAM Role](https://aws.amazon.com/iam/) with access to an account's EMR cluster and S3 bucket. To register you can input your [aws access key id and your aws secret key](https://docs.aws.amazon.com/general/latest/gr/aws-sec-cred-types.html).
+To configure a Spark provider via AWS, you need an [IAM Role](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles.html) with access to account's EMR cluster and S3 bucket. 
+
+The [AWS access key id and your secret access key](https://docs.aws.amazon.com/general/latest/gr/aws-sec-cred-types.html) are used as credentials when registering your Spark provider.
+
 Your cluster must be running and support [Spark](https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-spark.html).
 
 {% code title="spark_config.py" %}
@@ -44,38 +38,54 @@ ff.register_snowflake(
     description = "A spark provider that can create transformations and training sets",
     team = "featureform data team",
     emr_cluster_id = "j-ExampleCluster",
-    bucket_path = "example-bucket-path", //excluding the "S3://" prefix
+    bucket_path = "example-bucket-path", #excluding the "S3://" prefix
     emr_cluster_region = "us-east-1",
     bucket_region = "us-east-2",
     aws_access_key_id = "<access-key-id>",
-    aws_secret_access_key = "<aws-secret-access-key>",):
+    aws_secret_access_key = "<aws-secret-access-key>",
+    ):
 ```
 {% endcode %}
 
 ### Dataframe Transformations
-While you can also create SQL transformations as in the other offline stores like [Redis](providers/redis.md), Spark uniquely allows you to perform dataframe transformations using your source tables as inputs.
-with your registered spark store, you can perform
-{% code title="dataframe_registration.py" %}
-```python
-@spark.df_transformation(inputs=[("transactions", "kaggle")], variant="default")        # Sources are added as inputs
-def average_user_transaction(df):                           # Sources can be manipulated by adding them as params
-    from pyspark.sql.functions import avg
-    df.groupBy("CustomerID").agg(avg("TransactionAmount").alias("average_user_transaction"))
-    return df
+Using Spark with Featureform, a user can define transformations in SQL like with other offline providers.
 
+{% code title="sql_transformation.py" %}
+```python
 @spark.sql_transformation()        # Sources are added as inputs
 def max_transaction_amount():                           # Sources can be manipulated by adding them as params
     """the average transaction amount for a user """
-    return "SELECT CustomerID as user_id, max(TransactionAmount) " \
-           "as max_transaction_amt from {{transactions.kaggle}} GROUP BY user_id"
+    return "SELECT CustomerID as user_id, " \
+    "max(TransactionAmount) " "as max_transaction_amt " \
+    "from {{transactions.kaggle}} GROUP BY user_id"
 ```
 {% endcode %}
-and use the result of your transformation as the input to another one
-{% code title="dataframe_registration.py" %}
+
+In addition, registering a provider via Spark allows you to perform DataFrame transformations using your source tables as inputs.
+
+{% code title="dataframe_transformation.py" %}
+```python
+@spark.df_transformation(
+    inputs=[("transactions", "kaggle")], 
+    variant="default")
+def average_user_transaction(df):
+    from pyspark.sql.functions import avg
+        df.groupBy("CustomerID")
+        .agg(avg("TransactionAmount")
+        .alias("average_user_transaction"))
+    return df
+```
+{% endcode %}
+
+These transformations are cross compatable. SQL and DataFrame transformations, identified via their name and variants, can be used as inputs to one another.
+
+{% code title="sql_with_dataframe_source.py" %}
 ```python
 @spark.sql_transformation()
-def average_user_transaction():                           # Sources can be manipulated by adding them as params
-    "SELECT * FROM {{average_user_transaction.default}} INNER JOIN {{max_transaction_amount}} ON " \
-    "{{average_user_transaction.default}}.CustomerID = {{max_transaction_amount.default}}.user_id"
+def average_user_transaction():
+    return "SELECT * FROM {{average_user_transaction.default}} " \
+        "INNER JOIN {{max_transaction_amount}} ON " \
+        "{{average_user_transaction.default}}.CustomerID = " \
+        "{{max_transaction_amount.default}}.user_id"
 ```
 {% endcode %}

@@ -295,6 +295,7 @@ func (c *Coordinator) WatchForScheduleChanges() error {
 
 func (c *Coordinator) mapNameVariantsToTables(sources []metadata.NameVariant) (map[string]string, error) {
 	sourceMap := make(map[string]string)
+	c.Logger.Infof("<----> sources: %v", sources)
 	for _, nameVariant := range sources {
 		source, err := c.Metadata.GetSourceVariant(context.Background(), nameVariant)
 		if err != nil {
@@ -323,6 +324,8 @@ func (c *Coordinator) mapNameVariantsToTables(sources []metadata.NameVariant) (m
 			}
 		}
 		sourceMap[nameVariant.ClientString()] = tableName
+		c.Logger.Infof("     ----> name_variant: %s, tableName: %s, sourceMap: %v", nameVariant.ClientString(), tableName, sourceMap)
+
 	}
 	return sourceMap, nil
 }

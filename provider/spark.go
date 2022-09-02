@@ -332,6 +332,7 @@ func NewSparkStore(storeType SparkStoreType, config SerializedConfig, logger *za
 	if storeType == S3 {
 		s3Conf := S3Config{}
 		if err := s3Conf.Deserialize(config); err != nil {
+			logger.Error("Could not deserialize S3 config", err)
 			return nil, fmt.Errorf("invalid s3 config: %v", config)
 		}
 		client := s3.New(s3.Options{
@@ -406,7 +407,7 @@ func (e *EMRExecutor) RunSparkJob(args []string) error {
 	}
 	resp, err := e.client.AddJobFlowSteps(context.TODO(), params)
 	if err != nil {
-		logger.Errorw("Could not add job flow steps to EMR cluster", err)
+		e.logger.Errorw("Could not add job flow steps to EMR cluster", err)
 		return err
 	}
 	stepId := resp.StepIds[0]
@@ -665,11 +666,13 @@ func compareStructs(local interface{}, fetched interface{}) error {
 func (s *S3Store) DownloadParquetTable(path string) (interface{}, error) {
 	fr, err := s.S3ParquetReader(path)
 	if err != nil {
+		s.logger.Errorw("Could not create new S3 reader", err)
 		return nil, err
 	}
 	defer fr.Close()
 	pr, err := reader.NewParquetReader(fr, nil, 4)
 	if err != nil {
+		s.logger.Errorw("Could not create parquet reader from S3 reader", err)
 		return nil, err
 	}
 	fetchedArray, err := pr.ReadByNumber(int(pr.GetNumRows()))
@@ -689,12 +692,14 @@ func (s *S3Store) CompareParquetTable(path string, data interface{}) error {
 	compareArray := reflect.ValueOf(data)
 	fetchedArray := reflect.ValueOf(fetchedArrayInterface)
 	if fetchedArray.Len() != compareArray.Len() {
+		s.logger.Errorw("Mismatch between compared table and downloaded table. Wrong number of rows", fetchedArray.Len(), compareArray.Len())
 		return fmt.Errorf("data do not have the same number of rows")
 	}
 	for i := 0; i < compareArray.Len(); i++ {
 		localStruct := compareArray.Index(i).Interface()
 		fetchedStruct := fetchedArray.Index(i).Interface()
 		if err := compareStructs(localStruct, fetchedStruct); err != nil {
+			s.logger.Errorw("Compared structs not the same:", err)
 			return err
 		}
 	}
@@ -881,18 +886,22 @@ func (spark *SparkOfflineStore) transformation(config TransformationConfig, isUp
 func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, isUpdate bool) error {
 	updatedQuery, sources, err := spark.updateQuery(config.Query, config.SourceMapping)
 	if err != nil {
+		spark.Logger.Errorw("Could not generate updated query for spark transformation", err)
 		return err
 	}
 
 	transformationDestination := spark.Store.ResourcePath(config.TargetTableID)
 	exists, err := spark.Store.ResourceExists(config.TargetTableID)
 	if err != nil {
+		spark.Logger.Errorw("Error checking existence of resource", config.TargetTableID, err)
 		return err
 	}
 
 	if !isUpdate && exists {
+		spark.Logger.Errorw("Creation when transformation already exists", config.TargetTableID, transformationDestination)
 		return fmt.Errorf("transformation %v already exists at %s", config.TargetTableID, transformationDestination)
 	} else if isUpdate && !exists {
+		spark.Logger.Errorw("Update job attempted when transformation does not exist", config.TargetTableID, transformationDestination)
 		return fmt.Errorf("transformation %v doesn't exist at %s and you are trying to update", config.TargetTableID, transformationDestination)
 	}
 	spark.Logger.Debugw("Running SQL transformation", config)
@@ -923,10 +932,12 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 
 	sparkArgs, err := spark.getDFArgs(transformationDestination, config.Query, spark.Store.Region(), config.SourceMapping)
 	if err != nil {
+		spark.Logger.Errorw("Problem creating spark dataframe arguments", err)
 		return fmt.Errorf("error with getting df arguments %v", sparkArgs)
 	}
 	spark.Logger.Debugw("Running DF transformation", config)
 	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
+		spark.Logger.Errorw("Error running Spark dataframe job", err)
 		return fmt.Errorf("spark submit job for transformation %v failed to run: %v", config.TargetTableID, err)
 	}
 	spark.Logger.Debugw("Succesfully ran DF transformation", config)
@@ -943,6 +954,7 @@ func (spark *SparkOfflineStore) updateQuery(query string, mapping []SourceMappin
 
 		sourcePath, err := spark.getSourcePath(m.Source)
 		if err != nil {
+			spark.Logger.Errorw("Error getting source path of spark source", m.Source, err)
 			return "", nil, fmt.Errorf("could not get the sourcePath for %s because %s", m.Source, err)
 		}
 
@@ -953,6 +965,7 @@ func (spark *SparkOfflineStore) updateQuery(query string, mapping []SourceMappin
 	updatedQuery := replacer.Replace(query)
 
 	if strings.Contains(updatedQuery, "{{") {
+		spark.Logger.Errorw("Template replace failed", updatedQuery)
 		return "", nil, fmt.Errorf("could not replace all the templates with the current mapping. Mapping: %v; Replaced Query: %s", mapping, updatedQuery)
 	}
 	return updatedQuery, sources, nil
@@ -966,6 +979,7 @@ func (spark *SparkOfflineStore) getSourcePath(path string) (string, error) {
 		fileResourceId := ResourceID{Name: fileName, Variant: fileVariant, Type: Primary}
 		fileTable, err := spark.GetPrimaryTable(fileResourceId)
 		if err != nil {
+			spark.Logger.Errorw("Issue getting primary table", fileResourceId, err)
 			return "", fmt.Errorf("could not get the primary table for {%v} because %s", fileResourceId, err)
 		}
 		filePath = fmt.Sprintf("%s%s", spark.Store.BucketPrefix(), fileTable.GetName())
@@ -974,6 +988,7 @@ func (spark *SparkOfflineStore) getSourcePath(path string) (string, error) {
 		transformationPath, err := spark.Store.ResourceKey(fileResourceId)
 
 		if err != nil {
+			spark.Logger.Errorw("Issue getting transformation table", fileResourceId, err)
 			return "", fmt.Errorf("could not get the transformation table for {%v} because %s", fileResourceId, err)
 		}
 		filePath = fmt.Sprintf("%s%s", spark.Store.BucketPrefix(), transformationPath)
@@ -1012,6 +1027,7 @@ func (spark *SparkOfflineStore) getDFArgs(outputURI string, code string, awsRegi
 	for _, m := range mapping {
 		sourcePath, err := spark.getSourcePath(m.Source)
 		if err != nil {
+			spark.Logger.Errorw("Error getting source path for spark source", m.Source, err)
 			return nil, fmt.Errorf("issue with retreiving the source path for %s because %s", m.Source, err)
 		}
 
@@ -1025,6 +1041,7 @@ func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (Transform
 	spark.Logger.Debugw("Getting transformation table", id)
 	transformationPath, err := spark.Store.ResourceKey(id)
 	if err != nil {
+		spark.Logger.Errorw("Could not get transformation table", err)
 		return nil, fmt.Errorf("could not get transformation table (%v) because %s", id, err)
 	}
 	spark.Logger.Debugw("Succesfully retrieved transformation table", id)
@@ -1044,6 +1061,7 @@ func (spark *SparkOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, er
 	spark.Logger.Debugw("Getting primary table", id)
 	table, err := spark.Store.DownloadParquetTable(path)
 	if err != nil {
+		spark.Logger.Errorw("Could not download Primary table parquet table", err)
 		return nil, err
 	}
 	tableList := table.([]interface{})
@@ -1064,6 +1082,7 @@ func (spark *SparkOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, e
 	spark.Logger.Debugw("Getting resource table", id)
 	table, err := spark.Store.DownloadParquetTable(path)
 	if err != nil {
+		spark.Logger.Errorw("Could not get parquet resource table", err)
 		return nil, &TableNotFound{id.Name, id.Variant}
 	}
 	storedResourceData := reflect.ValueOf(table).Index(0)
@@ -1074,6 +1093,7 @@ func (spark *SparkOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, e
 		Sourcetable string
 	})
 	if !ok {
+		spark.Logger.Errorw("Could not convert resource table to resource table format", storedResourceData)
 		return nil, fmt.Errorf("cant convert downloaded resource table")
 	}
 	spark.Logger.Debugw("Succesfully fetched resource table", id)
@@ -1209,23 +1229,28 @@ func (s *S3FeatureIterator) Close() error {
 
 func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materialization, error) {
 	if id.Type != Feature {
+		spark.Logger.Errorw("Attempted to create a materialization of a non feature resource", id.Type)
 		return nil, fmt.Errorf("only features can be materialized")
 	}
 	resourceTable, err := spark.GetResourceTable(id)
 	if err != nil {
+		spark.Logger.Errorw("Attempted to fetch resource table of non registered resource", err)
 		return nil, fmt.Errorf("resource not registered: %v", err)
 	}
 	sparkResourceTable, ok := resourceTable.(*S3OfflineTable)
 	if !ok {
+		spark.Logger.Errorw("Could not convert resource table to S3 offline table", id)
 		return nil, fmt.Errorf("could not convert offline table with id %v to sparkResourceTable", id)
 	}
 	materializationID := ResourceID{Name: id.Name, Variant: id.Variant, Type: FeatureMaterialization}
 	destinationPath := spark.Store.ResourcePath(materializationID)
 	materializationExists, err := spark.Store.ResourceExists(materializationID)
 	if err != nil {
+		spark.Logger.Errorw("Could not determine whether materialization exists", err)
 		return nil, fmt.Errorf("error checking if materialization exists: %v", err)
 	}
 	if materializationExists {
+		spark.Logger.Errorw("Attempted to materialize a materialization that already exists", id)
 		return nil, fmt.Errorf("materialization already exists")
 	}
 	materializationQuery := spark.query.materializationCreate(sparkResourceTable.schema)
@@ -1233,10 +1258,12 @@ func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materializ
 	sparkArgs := spark.Store.SparkSubmitArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize)
 	spark.Logger.Debugw("Creating materialization", id)
 	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
+		spark.Logger.Errorw("Spark submit job failed to run", err)
 		return nil, fmt.Errorf("spark submit job for materialization %v failed to run: %v", materializationID, err)
 	}
 	key, err := spark.Store.ResourceKey(materializationID)
 	if err != nil {
+		spark.Logger.Errorw("Created materialization not found in store", err)
 		return nil, fmt.Errorf("Materialization result does not exist in offline store: %v", err)
 	}
 	spark.Logger.Debugw("Succesfully created materialization", id)
@@ -1246,12 +1273,14 @@ func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materializ
 func (spark *SparkOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
 	s := strings.Split(string(id), "/")
 	if len(s) != 3 {
+		spark.Logger.Errorw("Invalid materialization id", id)
 		return nil, fmt.Errorf("invalid materialization id")
 	}
 	materializationID := ResourceID{s[1], s[2], FeatureMaterialization}
 	spark.Logger.Debugw("Getting materialization", id)
 	key, err := spark.Store.ResourceKey(materializationID)
 	if err != nil {
+		spark.Logger.Errorw("Could not fetch materialization resource key", err)
 		return nil, err
 	}
 	spark.Logger.Debugw("Succesfully retrieved materialization", id)
@@ -1260,14 +1289,17 @@ func (spark *SparkOfflineStore) GetMaterialization(id MaterializationID) (Materi
 
 func (spark *SparkOfflineStore) UpdateMaterialization(id ResourceID) (Materialization, error) {
 	if id.Type != Feature {
+		spark.Logger.Errorw("Attempted to materialize a non feature resource", id.Type)
 		return nil, fmt.Errorf("only features can be materialized")
 	}
 	resourceTable, err := spark.GetResourceTable(id)
 	if err != nil {
+		spark.Logger.Errorw("Attempted to materialize a non registered resource", err)
 		return nil, fmt.Errorf("resource not registered: %v", err)
 	}
 	sparkResourceTable, ok := resourceTable.(*S3OfflineTable)
 	if !ok {
+		spark.Logger.Errorw("could not convert offline table to sparkResourceTable", id)
 		return nil, fmt.Errorf("could not convert offline table with id %v to sparkResourceTable", id)
 	}
 	materializationID := ResourceID{Name: id.Name, Variant: id.Variant, Type: FeatureMaterialization}
@@ -1277,10 +1309,12 @@ func (spark *SparkOfflineStore) UpdateMaterialization(id ResourceID) (Materializ
 	sparkArgs := spark.Store.SparkSubmitArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize)
 	spark.Logger.Debugw("Updating materialization", id)
 	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
+		spark.Logger.Errorw("Could not run spark update materialization job", err)
 		return nil, fmt.Errorf("spark submit job for materialization %v failed to run: %v", materializationID, err)
 	}
 	key, err := spark.Store.ResourceKey(materializationID)
 	if err != nil {
+		spark.Logger.Errorw("Could not fetch materialization resource key", err)
 		return nil, fmt.Errorf("Materialization result does not exist in offline store: %v", err)
 	}
 	spark.Logger.Debugw("Succesfully updated materialization", id)
@@ -1290,20 +1324,25 @@ func (spark *SparkOfflineStore) UpdateMaterialization(id ResourceID) (Materializ
 func (spark *SparkOfflineStore) DeleteMaterialization(id MaterializationID) error {
 	s := strings.Split(string(id), "/")
 	if len(s) != MATERIALIZATION_ID_SEGMENTS {
+		spark.Logger.Errorw("Invalid materialization id", id)
 		return &MaterializationNotFound{id}
 	}
 	materializationID := ResourceID{s[1], s[2], FeatureMaterialization}
 	key, err := spark.Store.ResourceKey(materializationID)
 	if err != nil {
+		spark.Logger.Errorw("Could not fetch materialization resource key", err)
 		return err
 	}
 	if exists, err := spark.Store.FileExists(key); err != nil {
+		spark.Logger.Errorw("Error searchin for resource materialization file", err)
 		return err
 	} else if !exists {
+		spark.Logger.Errorw("Could not find resource materialization file", id)
 		return &MaterializationNotFound{id}
 	}
 	spark.Logger.Debugw("Deleting materialization:", id)
 	if err := spark.Store.DeleteFile(key); err != nil {
+		spark.Logger.Errorw("Failed to delete materialization file with key", key)
 		return fmt.Errorf("failed to delete file: %v", err)
 	}
 	spark.Logger.Debugw("Succesfully deleted materialization", id)
@@ -1375,10 +1414,12 @@ func (spark *SparkOfflineStore) registeredResourceSchema(id ResourceID) (Resourc
 	spark.Logger.Debugw("Getting resource schema:", id)
 	table, err := spark.GetResourceTable(id)
 	if err != nil {
+		spark.Logger.Errorw("Resource not registered in spark store", id, err)
 		return ResourceSchema{}, fmt.Errorf("resource not registered: %v", err)
 	}
 	sparkResourceTable, ok := table.(*S3OfflineTable)
 	if !ok {
+		spark.Logger.Errorw("could not convert offline table to sparkResourceTable", id)
 		return ResourceSchema{}, fmt.Errorf("could not convert offline table with id %v to sparkResourceTable", id)
 	}
 	spark.Logger.Debugw("Succesfully retrieved resource schema:", id)
@@ -1387,6 +1428,7 @@ func (spark *SparkOfflineStore) registeredResourceSchema(id ResourceID) (Resourc
 
 func (spark *SparkOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
 	if err := def.check(); err != nil {
+		spark.Logger.Errorw("Training set definition not valid", def, err)
 		return err
 	}
 	sourcePaths := make([]string, 0)
@@ -1394,13 +1436,16 @@ func (spark *SparkOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
 	destinationPath := spark.Store.ResourcePath(def.ID)
 	trainingSetExists, err := spark.Store.ResourceExists(def.ID)
 	if err != nil {
+		spark.Logger.Errorw("Error checking if training set exists", err)
 		return fmt.Errorf("error checking if training set exists: %v", err)
 	}
 	if trainingSetExists {
-		return fmt.Errorf("training set already exists")
+		spark.Logger.Errorw("Training set already exists", def.ID)
+		return fmt.Errorf("training set already exists: %v", def.ID)
 	}
 	labelSchema, err := spark.registeredResourceSchema(def.Label)
 	if err != nil {
+		spark.Logger.Errorw("Could not get schema of label in spark store", def.Label, err)
 		return fmt.Errorf("Could not get schema of label %s: %v", def.Label, err)
 	}
 	labelPath := spark.Store.KeyPath(labelSchema.SourceTable)
@@ -1408,6 +1453,7 @@ func (spark *SparkOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
 	for _, feature := range def.Features {
 		featureSchema, err := spark.registeredResourceSchema(feature)
 		if err != nil {
+			spark.Logger.Errorw("Could not get schema of feature in spark store", feature, err)
 			return fmt.Errorf("Could not get schema of feature %s: %v", feature, err)
 		}
 		featurePath := spark.Store.KeyPath(featureSchema.SourceTable)
@@ -1418,10 +1464,12 @@ func (spark *SparkOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
 	sparkArgs := spark.Store.SparkSubmitArgs(destinationPath, trainingSetQuery, sourcePaths, CreateTrainingSet)
 	spark.Logger.Debugw("Creating training set:", def)
 	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
+		spark.Logger.Errorw("Spark submit training set job failed to run", def.ID, err)
 		return fmt.Errorf("spark submit job for training set %v failed to run: %v", def.ID, err)
 	}
 	_, err = spark.Store.ResourceKey(def.ID)
 	if err != nil {
+		spark.Logger.Errorw("Could not get training set resource key in offline store", err)
 		return fmt.Errorf("Training Set result does not exist in offline store: %v", err)
 	}
 	spark.Logger.Debugw("Succesfully created training set:", def)

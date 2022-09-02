@@ -35,7 +35,8 @@ jobs:
         run: |
           curl -o aws-iam-authenticator https://s3.us-west-2.amazonaws.com/amazon-eks/1.21.2/2021-07-05/bin/linux/amd64/aws-iam-authenticator
           chmod +x ./aws-iam-authenticator
-          echo "${pwd}" >> $GITHUB_PATH
+          echo "$GITHUB_WORKSPACE"
+          echo "$GITHUB_WORKSPACE" >> $GITHUB_PATH
           aws-iam-authenticator help
           aws help
 #      - name: Install AWS CLI

@@ -375,7 +375,6 @@ func testRegisterPrimary(store *SparkOfflineStore) error {
 }
 
 func TestParquetUpload(t *testing.T) {
-	t.Parallel()
 	if testing.Short() {
 		return
 	}
@@ -423,8 +422,6 @@ func TestParquetUpload(t *testing.T) {
 			nameConst := name
 			testFnConst := testFn
 			t.Run(nameConst, func(t *testing.T) {
-				time.Sleep(time.Second * 15)
-				t.Parallel()
 				testFnConst(t, sparkOfflineStore)
 			})
 		}

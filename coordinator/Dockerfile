@@ -25,7 +25,7 @@ RUN go build ./coordinator/main/main.go
 FROM alpine
 
 COPY --from=0 ./app/main ./main
-COPY --from=0 ./provider/scripts/offline_store_spark_runner.py /app/provider/scripts/offline_store_spark_runner.py
+COPY --from=0 ./app/provider/scripts/offline_store_spark_runner.py /app/provider/scripts/offline_store_spark_runner.py
 
 EXPOSE 8080
 ENTRYPOINT ["./main"]

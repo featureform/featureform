@@ -7,7 +7,7 @@ The AWS Spark Offline store implements [AWS Elastic Map Reduce (EMR)](https://aw
 
 Using Spark for computation, Featureform leverages EMR to compute user defined transformations and training sets. The user can author new tables and iterate through training sets sourced directly from S3 via the [Featureform CLI](getting-started/interact-with-the-cli.md).
 
-Features registered via the client can be materialized to an Inference Store (ex: [Redis](providers/redis.md)) for real-time feature serving.
+Features registered on the Spark Offline Store can be materialized to an Inference Store (ex: [Redis](providers/redis.md)) for real-time feature serving.
 
 #### Requirements
 * [AWS S3 Bucket](https://docs.aws.amazon.com/s3/?icmpid=docs_homepage_featuredsvcs)
@@ -25,7 +25,7 @@ Any column in in a preexisting table or user-created transformation can be regis
 
 To configure a Spark provider via AWS, you need an [IAM Role](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles.html) with access to account's EMR cluster and S3 bucket. 
 
-The [AWS access key id and your secret access key](https://docs.aws.amazon.com/general/latest/gr/aws-sec-cred-types.html) are used as credentials when registering your Spark Offline Store.
+Your [AWS access key id and AWS secret access key](https://docs.aws.amazon.com/general/latest/gr/aws-sec-cred-types.html) are used as credentials when registering your Spark Offline Store.
 
 Your EMR cluster must be running and support [Spark](https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-spark.html).
 
@@ -77,7 +77,7 @@ def average_user_transaction(df):
 ```
 {% endcode %}
 
-These transformations are cross compatable. SQL and DataFrame transformations, identified via their name and variants, can be used as inputs to one another.
+These transformations are cross compatable: SQL and DataFrame transformations, identified via their name and variants, can be used as inputs to one another.
 
 {% code title="sql_with_dataframe_source.py" %}
 ```python

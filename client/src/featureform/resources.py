@@ -273,7 +273,7 @@ class SparkAWSConfig:
         return "spark"
 
     def type(self) -> str:
-        return "SPARK_AWS_OFFLINE"
+        return "SPARK_OFFLINE"
 
     def serialize(self) -> bytes:
         config = {

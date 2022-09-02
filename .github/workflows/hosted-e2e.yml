@@ -73,4 +73,4 @@ jobs:
       - name: Helm Uninstall Cert Manager
         if: always()
         continue-on-error: true
-        run: helm uninstall certmgr
+        run: helm uninstall certmgr --namespace cert-manager 

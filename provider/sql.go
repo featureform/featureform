@@ -126,7 +126,14 @@ func GetPrimaryTableName(id ResourceID) (string, error) {
 		return "", err
 	}
 
-	return fmt.Sprintf("featureform_primary_%s__%s", id.Name, id.Variant), nil
+	return fmt.Sprintf("featureform_primary__%s__%s", id.Name, id.Variant), nil
+}
+
+func GetTransformationTableName(id ResourceID) (string, error) {
+	if err := checkName(id); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("featureform_transformation__%s__%s", id.Name, id.Variant), nil
 }
 
 func (store *sqlOfflineStore) tableExists(id ResourceID) (bool, error) {

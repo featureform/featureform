@@ -270,9 +270,17 @@ func (c *Coordinator) mapNameVariantsToTables(sources []metadata.NameVariant) (m
 			return nil, fmt.Errorf("source in query not ready")
 		}
 		providerResourceID := provider.ResourceID{Name: source.Name(), Variant: source.Variant()}
-		tableName, err := provider.GetPrimaryTableName(providerResourceID)
-		if err != nil {
-			return nil, err
+		var tableName string
+		if source.IsSQLTransformation() {
+			tableName, err = provider.GetTransformationTableName(providerResourceID)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			tableName, err = provider.GetPrimaryTableName(providerResourceID)
+			if err != nil {
+				return nil, err
+			}
 		}
 		sourceMap[nameVariant.ClientString()] = tableName
 	}
@@ -313,10 +321,15 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 	if err != nil {
 		return fmt.Errorf("getSourceMapping replace: %w source map: %v, template: %s", err, sourceMap, templateString)
 	}
-
-	query, err := templateReplace(templateString, sourceMap, offlineStore)
-	if err != nil {
-		return fmt.Errorf("template replace: %w source map: %v, template: %s", err, sourceMap, templateString)
+	var query string
+	if sourceProvider.Type() != "SPARK_OFFLINE" {
+		query, err = templateReplace(templateString, sourceMap, offlineStore)
+		if err != nil {
+			return fmt.Errorf("template replace: %w source map: %v, template: %s", err, sourceMap, templateString)
+		}
+	} else {
+		// spark offline store replaces source names after the config is passed to the store
+		query = templateString
 	}
 	c.Logger.Debugw("Created transformation query", "query", query)
 	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Transformation}

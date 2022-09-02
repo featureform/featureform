@@ -339,6 +339,7 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 	templateString := transformSource.SQLTransformationQuery()
 	sources := transformSource.SQLTransformationSources()
 
+	c.Logger.Infof("----------->  transformaSource: %v, templateString: %s, sources: %v", transformSource, templateString, sources)
 	allReady := false
 	for !allReady {
 		sourceVariants, err := c.Metadata.GetSourceVariants(context.Background(), sources)

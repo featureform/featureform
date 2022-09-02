@@ -322,14 +322,9 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 		return fmt.Errorf("getSourceMapping replace: %w source map: %v, template: %s", err, sourceMap, templateString)
 	}
 	var query string
-	if sourceProvider.Type() != "SPARK_OFFLINE" {
-		query, err = templateReplace(templateString, sourceMap, offlineStore)
-		if err != nil {
-			return fmt.Errorf("template replace: %w source map: %v, template: %s", err, sourceMap, templateString)
-		}
-	} else {
-		// spark offline store replaces source names after the config is passed to the store
-		query = templateString
+	query, err = templateReplace(templateString, sourceMap, offlineStore)
+	if err != nil {
+		return fmt.Errorf("template replace: %w source map: %v, template: %s", err, sourceMap, templateString)
 	}
 	c.Logger.Debugw("Created transformation query", "query", query)
 	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Transformation}

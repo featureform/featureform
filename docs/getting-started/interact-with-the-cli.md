@@ -27,12 +27,10 @@ The dashboard can be viewed at http://localhost:3000 in your browser
 The Featureform dashboard: 
 
 ![Featureform dashboard](../.gitbook/assets/dashboard.png)
-<center>Featureform dashboard</center>
 
 Each button on the dashboard redirects you to a list of resources of that resource type.
 
 ![List of registered features](../.gitbook/assets/feature-list.png)
-<center>List of registered features</center>
 
 Each resource can then be clicked on to learn more. 
 

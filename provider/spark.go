@@ -936,7 +936,7 @@ func (spark *SparkOfflineStore) getSourcePath(path string) (string, error) {
 }
 
 func (spark *SparkOfflineStore) getResourceInformationFromFilePath(path string) (string, string, string) {
-	filePaths := strings.Split(path[len("featureform_"):], "/")
+	filePaths := strings.Split(path[len("featureform_"):], "__")
 	if len(filePaths) <= 4 {
 		return "", "", ""
 	}

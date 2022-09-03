@@ -7,10 +7,10 @@ package provider
 import (
 	"encoding/json"
 	"fmt"
+	"google.golang.org/grpc/status"
 
 	"cloud.google.com/go/firestore"
 	"google.golang.org/api/option"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
 
@@ -59,10 +59,12 @@ func NewFirestoreOnlineStore(options *FirestoreConfig) (*firestoreOnlineStore, e
 	if err != nil {
 		return nil, fmt.Errorf("could not create firestore document, %v", err)
 	}
-	return &firestoreOnlineStore{firestoreClient, firestoreCollection, BaseProvider{
-		ProviderType:   FirestoreOnline,
-		ProviderConfig: options.Serialize(),
-	},
+	return &firestoreOnlineStore{
+		firestoreClient,
+		firestoreCollection, BaseProvider{
+			ProviderType:   FirestoreOnline,
+			ProviderConfig: options.Serialize(),
+		},
 	}, nil
 }
 
@@ -80,7 +82,11 @@ func (store *firestoreOnlineStore) GetTable(feature, variant string) (OnlineStor
 	tableName := key.String()
 
 	table, err := store.collection.Doc(tableName).Get(ctx)
-	if grpc.Code(err) == codes.NotFound {
+	if status.Code(err) == codes.NotFound {
+		fmt.Println("table exists?")
+		fmt.Println(table.Exists())
+		fmt.Println(tableName)
+		fmt.Println(store.collection.ID)
 		return nil, &TableNotFound{feature, variant}
 	}
 	if err != nil {

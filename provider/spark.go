@@ -922,6 +922,7 @@ func (spark *SparkOfflineStore) getSourcePath(path string) (string, error) {
 			return "", fmt.Errorf("could not get the primary table for {%v} because %s", fileResourceId, err)
 		}
 		filePath = fmt.Sprintf("%s%s", spark.Store.BucketPrefix(), fileTable.GetName())
+		return filePath, nil
 	} else if fileType == "transformation" {
 		fileResourceId := ResourceID{Name: fileName, Variant: fileVariant, Type: Transformation}
 		transformationPath, err := spark.Store.ResourceKey(fileResourceId)
@@ -930,11 +931,10 @@ func (spark *SparkOfflineStore) getSourcePath(path string) (string, error) {
 			return "", fmt.Errorf("could not get the transformation table for {%v} because %s", fileResourceId, err)
 		}
 		filePath = fmt.Sprintf("%s%s", spark.Store.BucketPrefix(), transformationPath)
+		return filePath, nil
 	} else {
-		return "", fmt.Errorf("could not find path for %s; fileType: %s, fileName: %s, fileVariant: %s", path, fileType, fileName, fileVariant)
+		return filePath, fmt.Errorf("could not find path for %s; fileType: %s, fileName: %s, fileVariant: %s", path, fileType, fileName, fileVariant)
 	}
-
-	return filePath, nil
 }
 
 func (spark *SparkOfflineStore) getResourceInformationFromFilePath(path string) (string, string, string) {

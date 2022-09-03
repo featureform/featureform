@@ -33,7 +33,7 @@ Your EMR cluster must be running and support [Spark](https://docs.aws.amazon.com
 ```python
 import featureform as ff
 
-ff.register_Spark(
+ff.register_spark(
     name = "spark_offline_store"
     description = "A spark provider that can create transformations and training sets",
     team = "featureform data team",

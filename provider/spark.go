@@ -930,6 +930,8 @@ func (spark *SparkOfflineStore) getSourcePath(path string) (string, error) {
 			return "", fmt.Errorf("could not get the transformation table for {%v} because %s", fileResourceId, err)
 		}
 		filePath = fmt.Sprintf("%s%s", spark.Store.BucketPrefix(), transformationPath)
+	} else {
+		return "", fmt.Errorf("could not find path for %s; fileType: %s, fileName: %s, fileVariant: %s", path, fileType, fileName, fileVariant)
 	}
 
 	return filePath, nil

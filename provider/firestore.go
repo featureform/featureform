@@ -156,7 +156,6 @@ func (store *firestoreOnlineStore) DeleteTable(feature, variant string) error {
 }
 
 func (table firestoreOnlineTable) Set(entity string, value interface{}) error {
-	fmt.Println("Firestore Set()")
 	_, err := table.document.Set(ctx, map[string]interface{}{
 		entity: value,
 	}, firestore.MergeAll)
@@ -165,7 +164,6 @@ func (table firestoreOnlineTable) Set(entity string, value interface{}) error {
 }
 
 func (table firestoreOnlineTable) Get(entity string) (interface{}, error) {
-	fmt.Println("Firestore Get()")
 	dataSnap, err := table.document.Get(ctx)
 	if err != nil {
 		return nil, err

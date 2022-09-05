@@ -298,19 +298,22 @@ class LocalClientImpl:
         feature_df_list = []
         for feature_variant in feature_variant_list:
             feature = self.db.get_feature_variant(feature_variant[0], feature_variant[1])
+            name_variant = f"{feature['name']}.{feature['variant']}"
             source_name, source_variant = feature['source_name'], feature['source_variant']
             if self.db.is_transformation(source_name, source_variant) != SourceType.PRIMARY_SOURCE.value:
                 feature_df = self.process_transformation(source_name, source_variant)
                 if isinstance(feature_df, pd.Series):
                     feature_df = feature_df.to_frame()
                     feature_df.reset_index(inplace=True)
-                if not entity_id in feature_df.columns:
+                if not feature["source_entity"] in feature_df.columns:
                     raise ValueError(
-                        f"Could not set entity column. No column name {entity_id} exists in {source_name}-{source_variant}")
+                        f"Could not set entity column. No column name {feature['source_entity']} exists in {source_name}-{source_variant}")
                 if not feature['source_value'] in feature_df.columns:
                     raise ValueError(
                         f"Could not access feature value column. No column name {feature['source_value']} exists in {source_name}-{source_variant}")
-                feature_df = feature_df[[entity_id, feature['source_value']]]
+                feature_df = feature_df[[feature['source_entity'], feature['source_value']]]
+                feature_df.rename(columns={feature['source_entity']: entity_id, feature['source_value']: name_variant}, inplace=True)
+                feature_df.drop_duplicates(subset=[entity_id], keep="last", inplace=True)
                 feature_df.set_index(entity_id)
             else:
                 source = self.db.get_source_variant(source_name, source_variant)

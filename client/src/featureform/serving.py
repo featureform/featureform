@@ -300,6 +300,9 @@ class LocalClientImpl:
             feature = self.db.get_feature_variant(feature_variant[0], feature_variant[1])
             name_variant = f"{feature['name']}.{feature['variant']}"
             source_name, source_variant = feature['source_name'], feature['source_variant']
+            if feature["entity"] != entity_id:
+                raise ValueError(
+                    f"Invalid entity {entity_id} for feature {source_name}-{source_variant}")
             if self.db.is_transformation(source_name, source_variant) != SourceType.PRIMARY_SOURCE.value:
                 feature_df = self.process_transformation(source_name, source_variant)
                 if isinstance(feature_df, pd.Series):

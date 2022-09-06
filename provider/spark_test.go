@@ -422,6 +422,7 @@ func TestParquetUpload(t *testing.T) {
 			nameConst := name
 			testFnConst := testFn
 			t.Run(nameConst, func(t *testing.T) {
+				t.Parallel()
 				testFnConst(t, sparkOfflineStore)
 			})
 		}
@@ -2458,6 +2459,7 @@ func sparkTestMaterializationUpdate(t *testing.T, store *SparkOfflineStore) {
 		nameConst := name
 		testConst := test
 		t.Run(nameConst, func(t *testing.T) {
+			t.Parallel()
 			runTestCase(t, testConst)
 		})
 	}
@@ -2815,6 +2817,7 @@ func sparkTestTrainingSetUpdate(t *testing.T, store *SparkOfflineStore) {
 		nameConst := name
 		testConst := test
 		t.Run(nameConst, func(t *testing.T) {
+			t.Parallel()
 			runTestCase(t, testConst)
 		})
 	}

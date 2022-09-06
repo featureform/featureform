@@ -921,7 +921,7 @@ func (spark *SparkOfflineStore) getSourcePath(path string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("could not get the primary table for {%v} because %s", fileResourceId, err)
 		}
-		filePath = fmt.Sprintf("%s%s", spark.Store.BucketPrefix(), fileTable.GetName())
+		filePath = fileTable.GetName()
 		return filePath, nil
 	} else if fileType == "transformation" {
 		fileResourceId := ResourceID{Name: fileName, Variant: fileVariant, Type: Transformation}

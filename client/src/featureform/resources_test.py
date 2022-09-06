@@ -83,7 +83,7 @@ def bigquery_config():
     return BigQueryConfig(
         project_id="bigquery-project",
         dataset_id="bigquery-dataset",
-        credentials_path="/Users/sdreyer/credentials/bigquery.json",
+        credentials_path="bigquery-credentials-path",
     )
 
 def test_bigquery_config(bigquery_config):

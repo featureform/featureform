@@ -1074,7 +1074,7 @@ class Registrar:
 
         **Examples**:
         ```
-        bigquery = ff.register_firestore(
+        firestore = ff.register_firestore(
             name="firestore-quickstart",
             description="A Firestore deployment we created for the Featureform quickstart",
             project_id="quickstart-project",
@@ -1082,15 +1082,15 @@ class Registrar:
         )
         ```
         Args:
-            name (str): Name of BigQuery provider to be registered
-            description (str): Description of BigQuery provider to be registered
+            name (str): Name of Firestore provider to be registered
+            description (str): Description of Firestore provider to be registered
             team (str): Name of team
             project_id (str): The Project name in GCP
             collection (str): The Collection name in Firestore under the given project ID
-            credentials_path (str): A path to a Google Credentials file with access permissions for BigQuery
+            credentials_path (str): A path to a Google Credentials file with access permissions for Firestore
 
         Returns:
-            bigquery (OfflineSQLProvider): Provider
+            firestore (OfflineSQLProvider): Provider
         """
         config = FirestoreConfig(collection=collection, project_id=project_id, credentials_path=credentials_path)
         provider = Provider(name=name,
@@ -1426,7 +1426,6 @@ class Registrar:
         self.__resources.append(provider)
         local_provider = LocalProvider(self, provider)
         local_provider.insert_provider()
-      #  self.register_user("default_user").make_default_owner()
         return local_provider
 
     def register_primary_data(self,
@@ -1660,10 +1659,7 @@ class Registrar:
         feature_resources = []
         label_resources = []
         for feature in features:
-            if "variant" in feature:
-                variant = feature["variant"]
-            else:
-                variant = "default"
+            variant = feature["variant"] if "variant" in feature else "default"
             resource = Feature(
                 name=feature["name"],
                 variant=variant,
@@ -1684,10 +1680,7 @@ class Registrar:
             feature_resources.append(resource)
 
         for label in labels:
-            if "variant" in label:
-                variant = label["variant"]
-            else:
-                variant = "default"
+            variant = label["variant"] if "variant" in label else "default"
             resource = Label(
                 name=label["name"],
                 variant=variant,

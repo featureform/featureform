@@ -44,7 +44,6 @@ func firestoreOnlineStoreFactory(serialized SerializedConfig) (Provider, error) 
 }
 
 func NewFirestoreOnlineStore(options *FirestoreConfig) (*firestoreOnlineStore, error) {
-	fmt.Println("Firestore NewFirestoreOnlineStore()")
 	credBytes, err := json.Marshal(options.Credentials)
 	if err != nil {
 		return nil, fmt.Errorf("could not serialized firestore config, %v", err)
@@ -77,16 +76,11 @@ func GetMetadataTable() string {
 }
 
 func (store *firestoreOnlineStore) GetTable(feature, variant string) (OnlineStoreTable, error) {
-	fmt.Println("Firestore GetTable()")
 	key := firestoreTableKey{store.collection.ID, feature, variant}
 	tableName := key.String()
 
 	table, err := store.collection.Doc(tableName).Get(ctx)
 	if status.Code(err) == codes.NotFound {
-		fmt.Println("table exists?")
-		fmt.Println(table.Exists())
-		fmt.Println(tableName)
-		fmt.Println(store.collection.ID)
 		return nil, &TableNotFound{feature, variant}
 	}
 	if err != nil {
@@ -110,7 +104,6 @@ func (store *firestoreOnlineStore) GetTable(feature, variant string) (OnlineStor
 }
 
 func (store *firestoreOnlineStore) CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error) {
-	fmt.Println("Firestore CreateTable()")
 	getTable, _ := store.GetTable(feature, variant)
 	if getTable != nil {
 		return nil, &TableAlreadyExists{feature, variant}
@@ -139,7 +132,6 @@ func (store *firestoreOnlineStore) CreateTable(feature, variant string, valueTyp
 }
 
 func (store *firestoreOnlineStore) DeleteTable(feature, variant string) error {
-	fmt.Println("Firestore DeleteTable()")
 	key := firestoreTableKey{store.collection.ID, feature, variant}
 	tableName := key.String()
 	_, err := store.collection.Doc(tableName).Delete(ctx)

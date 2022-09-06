@@ -338,7 +338,6 @@ func (lookup etcdResourceLookup) Lookup(id ResourceID) (Resource, error) {
 	if err != nil {
 		return nil, fmt.Errorf("lookup parse: %w %s", err, id)
 	}
-	fmt.Printf("Lookup Resource: %v\n", resource)
 	return resource, nil
 }
 

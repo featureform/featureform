@@ -17,10 +17,14 @@ bigquery_location       = "US"
 ## Firestore Variables
 enable_firestore_api        = false
 firestore_location_id       = "US"
-create_firestore_collection = false
-firestore_collection_name   = "featureform-collection"
+create_firestore_collection = true
+firestore_collection_name   = "featureform_collection"
 
 ## GKE 
 gke_version      = "1.21.14-gke.2100" # do not modify
 gke_num_nodes    = 2
 gke_machine_type = "e2-standard-2"
+
+## Storage
+create_storage_bucket   = true
+storage_bucket_location = "US"

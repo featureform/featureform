@@ -982,7 +982,6 @@ func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (Transform
 	if err != nil {
 		return nil, fmt.Errorf("could not get transformation table (%v) because %s", id, err)
 	}
-	fmt.Println("--->", transformationPath)
 	return &S3PrimaryTable{spark.Store, transformationPath}, nil
 }
 

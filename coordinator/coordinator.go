@@ -274,11 +274,13 @@ func (c *Coordinator) mapNameVariantsToTables(sources []metadata.NameVariant) (m
 		providerResourceID := provider.ResourceID{Name: source.Name(), Variant: source.Variant()}
 		var tableName string
 		if source.IsSQLTransformation() {
+			providerResourceID.Type = provider.Transformation
 			tableName, err = provider.GetTransformationTableName(providerResourceID)
 			if err != nil {
 				return nil, err
 			}
 		} else {
+			providerResourceID.Type = provider.Primary
 			tableName, err = provider.GetPrimaryTableName(providerResourceID)
 			if err != nil {
 				return nil, err
@@ -398,7 +400,7 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 
 func (c *Coordinator) runPrimaryTableJob(transformSource *metadata.SourceVariant, resID metadata.ResourceID, offlineStore provider.OfflineStore, schedule string) error {
 	c.Logger.Info("Running primary table job on resource: ", resID)
-	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant}
+	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Primary}
 	sourceName := transformSource.PrimaryDataSQLTableName()
 	if sourceName == "" {
 		return fmt.Errorf("no source name set")
@@ -487,6 +489,7 @@ func (c *Coordinator) runLabelRegisterJob(resID metadata.ResourceID, schedule st
 	srcID := provider.ResourceID{
 		Name:    sourceNameVariant.Name,
 		Variant: sourceNameVariant.Variant,
+		Type:    provider.Primary, // Primary or Transformation
 	}
 	srcName, err := provider.GetPrimaryTableName(srcID)
 	if err != nil {
@@ -579,6 +582,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 	srcID := provider.ResourceID{
 		Name:    sourceNameVariant.Name,
 		Variant: sourceNameVariant.Variant,
+		Type:    provider.Primary,
 	}
 	srcName, err := provider.GetPrimaryTableName(srcID)
 	if err != nil {

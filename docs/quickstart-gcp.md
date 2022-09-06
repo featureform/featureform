@@ -212,9 +212,9 @@ import featureform as ff
 
 client = ff.ServingClient()
 dataset = client.training_set("fraud_training")
-training_dataset = dataset.repeat(10).shuffle(1000).batch(8)
-for feature_batch in training_dataset:
-    print(feature_batch)
+training_set = dataset.shuffle(10000)
+for batch in training_set:
+    print(batch)
 ```
 
 Example Output:
@@ -235,10 +235,10 @@ We can serve features in production once we deploy our trained model as well.
 import featureform as ff
 
 client = ff.ServingClient()
-fpf = client.features([("avg_transactions")], {"user": "C1410926"})
+fpf = client.features(["avg_transactions"], {"user": "C1011381"})
 print(fpf)
 ```
-Expected Output:
+Example Output:
 ```text
-[5000.0]
+[1500.0]
 ```

@@ -94,7 +94,7 @@ class ServingClient:
             # Run features through model
         ```
         Args:
-            features (list[(str, str)]): List of Name Variant Tuples
+            features (list[(str, str)], list[str]): List of Name Variant Tuples
             entities (dict): Dictionary of entity name/value pairs
 
         Returns:
@@ -121,8 +121,8 @@ class HostedClientImpl:
         else:
             return secure_channel(host, cert_path)
 
-    def training_set(self, name, version):
-        return Dataset(self._stub).from_stub(name, version)
+    def training_set(self, name, variation):
+        return Dataset(self._stub).from_stub(name, variation)
 
     def features(self, features, entities):
         req = serving_pb2.FeatureServeRequest()
@@ -268,7 +268,8 @@ class LocalClientImpl:
 
     def merge_feature_into_ts(self, feature_row, label_row, df, trainingset_df):
         if feature_row['source_timestamp'] != "":
-            trainingset_df = pd.merge_asof(trainingset_df, df.sort_values(feature_row['source_timestamp']), direction='backward',
+            trainingset_df = pd.merge_asof(trainingset_df, df.sort_values(feature_row['source_timestamp']),
+                                           direction='backward',
                                            left_on=label_row['source_timestamp'],
                                            right_on=feature_row['source_timestamp'], left_by=label_row['source_entity'],
                                            right_by=feature_row['source_entity'])

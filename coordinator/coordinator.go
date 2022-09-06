@@ -273,7 +273,11 @@ func (c *Coordinator) mapNameVariantsToTables(sources []metadata.NameVariant) (m
 		}
 		providerResourceID := provider.ResourceID{Name: source.Name(), Variant: source.Variant()}
 		var tableName string
-		if source.IsSQLTransformation() {
+		sourceProvider, err := source.FetchProvider(c.Metadata, context.Background())
+		if err != nil {
+			return nil, fmt.Errorf("Could not fetch source provider: %v", err)
+		}
+		if sourceProvider.Type() == "SPARK_OFFLINE" && source.IsSQLTransformation() {
 			providerResourceID.Type = provider.Transformation
 			tableName, err = provider.GetTransformationTableName(providerResourceID)
 			if err != nil {
@@ -486,16 +490,22 @@ func (c *Coordinator) runLabelRegisterJob(resID metadata.ResourceID, schedule st
 			c.Logger.Errorf("could not close offline store: %v", err)
 		}
 	}(sourceStore)
-	srcID := provider.ResourceID{
-		Name:    sourceNameVariant.Name,
-		Variant: sourceNameVariant.Variant,
-		Type:    provider.Primary, // Primary or Transformation
+	var sourceTableName string
+	if source.IsSQLTransformation() {
+		sourceResourceID := provider.ResourceID{sourceNameVariant.Name, sourceNameVariant.Variant, provider.Transformation}
+		sourceTable, err := sourceStore.GetTransformationTable(sourceResourceID)
+		if err != nil {
+			return err
+		}
+		sourceTableName = sourceTable.GetName()
+	} else if source.IsPrimaryDataSQLTable() {
+		sourceResourceID := provider.ResourceID{sourceNameVariant.Name, sourceNameVariant.Variant, provider.Primary}
+		sourceTable, err := sourceStore.GetPrimaryTable(sourceResourceID)
+		if err != nil {
+			return err
+		}
+		sourceTableName = sourceTable.GetName()
 	}
-	srcName, err := provider.GetPrimaryTableName(srcID)
-	if err != nil {
-		return fmt.Errorf("transform name err: %w", err)
-	}
-
 	labelID := provider.ResourceID{
 		Name:    resID.Name,
 		Variant: resID.Variant,
@@ -506,7 +516,7 @@ func (c *Coordinator) runLabelRegisterJob(resID metadata.ResourceID, schedule st
 		Entity:      tmpSchema.Entity,
 		Value:       tmpSchema.Value,
 		TS:          tmpSchema.TS,
-		SourceTable: srcName,
+		SourceTable: sourceTableName,
 	}
 	c.Logger.Debugw("Creating Label Resource Table", "id", labelID, "schema", schema)
 	_, err = sourceStore.RegisterResourceFromSourceTable(labelID, schema)
@@ -579,16 +589,22 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 	if err != nil {
 		return fmt.Errorf("could not get online provider config: %w", err)
 	}
-	srcID := provider.ResourceID{
-		Name:    sourceNameVariant.Name,
-		Variant: sourceNameVariant.Variant,
-		Type:    provider.Primary,
+	var sourceTableName string
+	if source.IsSQLTransformation() {
+		sourceResourceID := provider.ResourceID{sourceNameVariant.Name, sourceNameVariant.Variant, provider.Transformation}
+		sourceTable, err := sourceStore.GetTransformationTable(sourceResourceID)
+		if err != nil {
+			return err
+		}
+		sourceTableName = sourceTable.GetName()
+	} else if source.IsPrimaryDataSQLTable() {
+		sourceResourceID := provider.ResourceID{sourceNameVariant.Name, sourceNameVariant.Variant, provider.Primary}
+		sourceTable, err := sourceStore.GetPrimaryTable(sourceResourceID)
+		if err != nil {
+			return err
+		}
+		sourceTableName = sourceTable.GetName()
 	}
-	srcName, err := provider.GetPrimaryTableName(srcID)
-	if err != nil {
-		return fmt.Errorf("transform name err: %w", err)
-	}
-
 	featID := provider.ResourceID{
 		Name:    resID.Name,
 		Variant: resID.Variant,
@@ -599,7 +615,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 		Entity:      tmpSchema.Entity,
 		Value:       tmpSchema.Value,
 		TS:          tmpSchema.TS,
-		SourceTable: srcName,
+		SourceTable: sourceTableName,
 	}
 	c.Logger.Debugw("Creating Resource Table", "id", featID, "schema", schema)
 	_, err = sourceStore.RegisterResourceFromSourceTable(featID, schema)

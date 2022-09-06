@@ -73,18 +73,16 @@ We can get the IP Address for the cluster using:
 kubectl get ingress | grep "grpc-ingress" | awk {'print $4'} | column -t
 ```
 
-You also need to add a CAA record for letsencrypt.org to allow it to generate the public certificate
-
-Creating an A record for your domain with the outputted IP address. 
-
-
+You need to add 2 records to your DNS provider:
+1. A CAA record for letsencrypt.org value: `0 issuewild "letsencrypt.org"`. This allows letsencrypt to automatically generate a public certificate
+2. An A record with the value of the outputted value from above
 
 ## Step 6: Load Demo Data
 We can load some demo data into BigQuery that we can transform and serve.
 
 ```shell
 # Load sample data into a bucket in the same project
-curl  https://featureform-demo-files.s3.amazonaws.com/transactions.csv | gsutil cp - gs://$BUCKET_NAME/transactions.csv
+curl  https://featureform-demo-files.s3.amazonaws.com/transactions_short.csv | gsutil cp - gs://$BUCKET_NAME/transactions.csv
 
 # Load the bucket data into BigQuery
 bq load --autodetect --source_format=CSV $DATASET_ID.Transactions gs://$BUCKET_NAME/transactions.csv
@@ -166,10 +164,12 @@ Next, we'll register a passenger entity to associate with a feature and label.
 {% code title="definitions.py" %}
 ```python
 # Register a column from our transformation as a feature
+user = ff.register_entity("user")
+
 average_user_transaction.register_resources(
     entity=user,
     entity_column="user_id",
-    inference_store=firestore,
+    inference_store=redis,
     features=[
         {"name": "avg_transactions", "column": "avg_transaction_amt", "type": "float32"},
     ],
@@ -191,8 +191,8 @@ Finally, we'll join together the feature and label intro a training set.
 ```python
 ff.register_training_set(
     "fraud_training",
-    label=("fraudulent"),
-    features=[("avg_transactions")],
+    label="fraudulent",
+    features=["avg_transactions"],
 )
 ```
 {% endcode %}

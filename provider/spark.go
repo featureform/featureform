@@ -337,7 +337,7 @@ func NewSparkStore(storeType SparkStoreType, config S3Config) (SparkStore, error
 		}
 		return &s3Store, nil
 	}
-	return nil, fmt.Errorf("the %v Spark Store type is supported")
+	return nil, fmt.Errorf("the %v Spark Store type is supported", storeType)
 }
 
 func ResourcePrefix(id ResourceID) string {
@@ -877,7 +877,7 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 
 	sparkArgs, err := spark.getDFArgs(transformationDestination, config.Query, spark.Store.Region(), config.SourceMapping)
 	if err != nil {
-		return fmt.Errorf("error with getting df arguments %v", sparkArgs)
+		return fmt.Errorf("error with getting df arguments %v; error: %s", sparkArgs, err)
 	}
 
 	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
@@ -939,6 +939,7 @@ func (spark *SparkOfflineStore) getSourcePath(path string) (string, error) {
 
 func (spark *SparkOfflineStore) getResourceInformationFromFilePath(path string) (string, string, string) {
 	filePaths := strings.Split(path[len("featureform_"):], "__")
+
 	if len(filePaths) <= 2 {
 		return "", "", ""
 	}
@@ -981,6 +982,7 @@ func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (Transform
 	if err != nil {
 		return nil, fmt.Errorf("could not get transformation table (%v) because %s", id, err)
 	}
+	fmt.Println("--->", transformationPath)
 	return &S3PrimaryTable{spark.Store, transformationPath}, nil
 }
 

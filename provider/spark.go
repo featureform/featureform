@@ -1179,7 +1179,7 @@ func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materializ
 		return nil, fmt.Errorf("materialization already exists")
 	}
 	materializationQuery := spark.query.materializationCreate(sparkResourceTable.schema)
-	sourcePath := sparkResourceTable.schema.SourceTable // spark.Store.KeyPath(sparkResourceTable.schema.SourceTable)
+	sourcePath := spark.Store.KeyPath(sparkResourceTable.schema.SourceTable)
 	sparkArgs := spark.Store.SparkSubmitArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize)
 	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
 		return nil, fmt.Errorf("spark submit job for materialization %v failed to run: %v", materializationID, err)
@@ -1219,7 +1219,7 @@ func (spark *SparkOfflineStore) UpdateMaterialization(id ResourceID) (Materializ
 	materializationID := ResourceID{Name: id.Name, Variant: id.Variant, Type: FeatureMaterialization}
 	destinationPath := spark.Store.ResourcePath(materializationID)
 	materializationQuery := spark.query.materializationCreate(sparkResourceTable.schema)
-	sourcePath := sparkResourceTable.schema.SourceTable // spark.Store.KeyPath(sparkResourceTable.schema.SourceTable)
+	sourcePath := spark.Store.KeyPath(sparkResourceTable.schema.SourceTable)
 	sparkArgs := spark.Store.SparkSubmitArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize)
 	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
 		return nil, fmt.Errorf("spark submit job for materialization %v failed to run: %v", materializationID, err)

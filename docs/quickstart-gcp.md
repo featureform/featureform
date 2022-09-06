@@ -29,10 +29,10 @@ terraform.auto.tfvars)
 We need to set:
 ```shell
 export PROJECT_ID=<your-project-id>           # Your GCP Project ID
-export DATASET_ID="featureform"               # The BigQuery Dataset we'll use
-export BUCKET_NAME="<your-bucket-name>"       # A GCP Storage Bucket where we can store test data
-export COLLECTION_ID="featureform_collection" # A Firestore Collection ID
-export FEATUREFORM_HOST="<your-domain-name>"  # The domain name that you own
+export DATASET_ID=featureform                 # The BigQuery Dataset we'll use
+export BUCKET_NAME=<your-bucket-name>         # A GCP Storage Bucket where we can store test data
+export COLLECTION_ID=featureform_collection   # A Firestore Collection ID
+export FEATUREFORM_HOST=<your-domain-name>    # The domain name that you own
 ```
 ### Set our CLI to our current project
 ```shell
@@ -140,9 +140,9 @@ Now we'll register our  user fraud dataset in Featureform.
 {% code title="definitions.py" %}
 ```python
 transactions = bigquery.register_table(
-    name = "transactions",
-    description = "Fraud Dataset From Kaggle",
-    table = "Transactions", # This is the table's name in Postgres
+    name="transactions",
+    description="Fraud Dataset From Kaggle",
+    table="Transactions", # This is the table's name in Postgres
 )
 ```
 {% endcode %}
@@ -169,7 +169,7 @@ user = ff.register_entity("user")
 average_user_transaction.register_resources(
     entity=user,
     entity_column="user_id",
-    inference_store=redis,
+    inference_store=firestore,
     features=[
         {"name": "avg_transactions", "column": "avg_transaction_amt", "type": "float32"},
     ],
@@ -217,13 +217,15 @@ for feature_batch in training_dataset:
     print(feature_batch)
 ```
 
-Expected Output:
+Example Output:
 ```text
-Features: [25.] , Label: False
-Features: [27999.] , Label: False
-Features: [459.] , Label: False
-Features: [2060.] , Label: True
-Features: [1762.5] , Label: False
+Features: [279.76] , Label: False
+Features: [254.] , Label: False
+Features: [1000.] , Label: False
+Features: [5036.] , Label: False
+Features: [10.] , Label: False
+Features: [884.08] , Label: False
+Features: [56.] , Label: False
 ...
 ```
 

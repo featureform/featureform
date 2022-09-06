@@ -73,7 +73,7 @@ We can get the IP Address for the cluster using:
 kubectl get ingress | grep "grpc-ingress" | awk {'print $4'} | column -t
 ```
 
-You need to add 2 records to your DNS provider:
+You need to add 2 records to your DNS provider for the (sub)domain you intend to use:
 1. A CAA record for letsencrypt.org value: `0 issuewild "letsencrypt.org"`. This allows letsencrypt to automatically generate a public certificate
 2. An A record with the value of the outputted value from above
 

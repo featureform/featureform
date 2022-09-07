@@ -232,26 +232,26 @@ class TestTransformation(TestCase):
         )
 
         @local.sql_transformation(variant="quickstart")
-        def transformation():
+        def s_transformation():
             """the average transaction amount for a user """
             return "SELECT CustomerID as entity, avg(TransactionAmount) as feature_val from {{transactions.quickstart}} GROUP BY entity"
         
         @local.sql_transformation(variant="sql_to_sql")
-        def transformation1():
+        def s_transformation1():
             """the customerID for a user """
-            return "SELECT entity, feature_val from {{transformation.quickstart}} GROUP BY entity"
+            return "SELECT entity, feature_val from {{s_transformation.quickstart}} GROUP BY entity"
 
-        @local.df_transformation(variant="quickstart", inputs=[("transformation1", "sql_to_sql")])
-        def average_user_transaction(transactions):
+        @local.df_transformation(variant="quickstart", inputs=[("s_transformation1", "sql_to_sql")])
+        def s_average_user_transaction(transactions):
             """the average transaction amount for a user """
             return transactions.groupby("entity")["feature_val"].mean()
 
         @local.sql_transformation(variant="df_to_sql")
-        def transformation2():
+        def s_transformation2():
             """the customerID for a user """
-            return "SELECT entity, feature_val from {{average_user_transaction.quickstart}} GROUP BY entity"
+            return "SELECT entity, feature_val from {{s_average_user_transaction.quickstart}} GROUP BY entity"
 
-        res = self.sql_run_checks(transformation2, name, local)
+        res = self.sql_run_checks(s_transformation2, name, local)
         np.testing.assert_array_equal(res, np.array([2553.0]))
 
     def test_simple(self):

@@ -72,6 +72,7 @@ type Coordinator struct {
 	EtcdClient *clientv3.Client
 	KVClient   *clientv3.KV
 	Spawner    JobSpawner
+	Timeout    int
 }
 
 type ETCDConfig struct {
@@ -201,6 +202,7 @@ func NewCoordinator(meta *metadata.Client, logger *zap.SugaredLogger, cli *clien
 		EtcdClient: cli,
 		KVClient:   &kvc,
 		Spawner:    spawner,
+		Timeout:    600,
 	}, nil
 }
 

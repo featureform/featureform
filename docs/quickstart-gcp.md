@@ -4,7 +4,7 @@ description: A quick start guide for Featureform on GCP using Terraform.
 
 # Quickstart (GCP)
 
-This quickstart will walk through creating a few simple features, labels, and a training set using Bigquery and Firestore. 
+This quickstart will walk through creating a few simple features, labels, and a training set using BigQuery and Firestore. 
 We will use a transaction fraud training set.
 
 ### Requirements
@@ -43,7 +43,7 @@ terraform init; \
 terraform apply -auto-approve \
 -var="project_id=$PROJECT_ID" \
 -var="bigquery_dataset_id=$DATASET_ID" \
--var="storage_bucket_name=$BUCKET_NAME" # Run Terraform \
+-var="storage_bucket_name=$BUCKET_NAME" \
 -var="firestore_collection_name=$COLLECTION_ID"
 ```
 
@@ -112,7 +112,7 @@ firestore = ff.register_firestore(
     description="A Firestore deployment we created for the Featureform quickstart",
     project_id=project_id,
     collection=collection_id,
-    credentials_path="<path-to-bigquery-credentials-file>"
+    credentials_path="<path-to-firestore-credentials-file>"
 )
 
 bigquery = ff.register_bigquery(
@@ -142,7 +142,7 @@ Now we'll register our  user fraud dataset in Featureform.
 transactions = bigquery.register_table(
     name="transactions",
     description="Fraud Dataset From Kaggle",
-    table="Transactions", # This is the table's name in Postgres
+    table="Transactions", # This is the table's name in BigQuery
 )
 ```
 {% endcode %}
@@ -185,7 +185,7 @@ transactions.register_resources(
 ```
 {% endcode %}
 
-Finally, we'll join together the feature and label intro a training set.
+Finally, we'll join together the feature and label into a training set.
 
 {% code title="definitions.py" %}
 ```python

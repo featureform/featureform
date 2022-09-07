@@ -220,13 +220,11 @@ class TestTransformation(TestCase):
     def test_sql(self):
         local = ff.register_local()
         ff.register_user("featureformer").make_default_owner()
-        name = 'Simple'
-        case = cases.transform[name]
-        self.setup(case, name, local)
+        name = 'SQL'
 
         transactions = local.register_file(
             name="transactions",
-            variant="quickstart",
+            variant="SQL",
             description="A dataset of fraudulent transactions",
             path="transactions.csv"
         )
@@ -234,7 +232,7 @@ class TestTransformation(TestCase):
         @local.sql_transformation(variant="quickstart")
         def s_transformation():
             """the average transaction amount for a user """
-            return "SELECT CustomerID as entity, avg(TransactionAmount) as feature_val from {{transactions.quickstart}} GROUP BY entity"
+            return "SELECT CustomerID as entity, avg(TransactionAmount) as feature_val from {{transactions.SQL}} GROUP BY entity"
         
         @local.sql_transformation(variant="sql_to_sql")
         def s_transformation1():

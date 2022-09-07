@@ -1342,13 +1342,7 @@ func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materializ
 	}
 	materializationQuery := spark.query.materializationCreate(sparkResourceTable.schema)
 
-	var sourcePath string
-	if id.Type != Primary {
-		sourcePath = spark.Store.KeyPath(sparkResourceTable.schema.SourceTable)
-	} else {
-		sourcePath = sparkResourceTable.schema.SourceTable
-	}
-
+	sourcePath := spark.Store.KeyPath(sparkResourceTable.schema.SourceTable)
 	sparkArgs := spark.Store.SparkSubmitArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize)
 	spark.Logger.Debugw("Creating materialization", id)
 	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
@@ -1399,14 +1393,7 @@ func (spark *SparkOfflineStore) UpdateMaterialization(id ResourceID) (Materializ
 	materializationID := ResourceID{Name: id.Name, Variant: id.Variant, Type: FeatureMaterialization}
 	destinationPath := spark.Store.ResourcePath(materializationID)
 	materializationQuery := spark.query.materializationCreate(sparkResourceTable.schema)
-
-	var sourcePath string
-	if id.Type != Primary {
-		sourcePath = spark.Store.KeyPath(sparkResourceTable.schema.SourceTable)
-	} else {
-		sourcePath = sparkResourceTable.schema.SourceTable
-	}
-
+	sourcePath := spark.Store.KeyPath(sparkResourceTable.schema.SourceTable)
 	sparkArgs := spark.Store.SparkSubmitArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize)
 	spark.Logger.Debugw("Updating materialization", id)
 	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {

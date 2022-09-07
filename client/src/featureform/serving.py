@@ -350,11 +350,7 @@ class LocalClientImpl:
             print("Set is empty")
 
     def get_features_for_entity(self, entity_id, entity_value, all_feature_df):
-        print(all_feature_df)
-        print(entity_id)
-        print(entity_value)
         entity = all_feature_df.loc[all_feature_df[entity_id] == entity_value].copy()
-        print(entity)
         entity.drop(columns=entity_id, inplace=True)
         if len(entity.values) > 0:
             return entity.values[0]

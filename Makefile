@@ -214,7 +214,7 @@ pytest:
 	pytest client/tests/test_spark_provider.py
 	python3 -m venv pyvenv ; \
     source pyvenv/bin/activate ; \
-	pip3 install jupyter nbconvert matplotlib pandas scikit-learn requests ; \
+	pip3 install jupyter nbconvert matplotlib pandas scikit-learn==1.1.2 requests ; \
 	$(MAKE) update_python ; \
 	jupyter nbconvert --to notebook --execute notebooks/Fraud_Detection_Example.ipynb
 	-rm -r .featureform

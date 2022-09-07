@@ -411,7 +411,10 @@ func (s *S3Store) ResourcePath(id ResourceID) string {
 }
 
 func (s *S3Store) KeyPath(sourceKey string) string {
-	return fmt.Sprintf("%s%s", s.BucketPrefix(), sourceKey)
+	if sourceKey[:len("s3://")] != "s3://" {
+		return fmt.Sprintf("%s%s", s.BucketPrefix(), sourceKey)
+	}
+	return sourceKey
 }
 
 func stringifyValue(value interface{}) string {
@@ -1180,13 +1183,7 @@ func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materializ
 	}
 	materializationQuery := spark.query.materializationCreate(sparkResourceTable.schema)
 
-	var sourcePath string
-	if id.Type != Primary {
-		sourcePath = spark.Store.KeyPath(sparkResourceTable.schema.SourceTable)
-	} else {
-		sourcePath = sparkResourceTable.schema.SourceTable
-	}
-
+	sourcePath := spark.Store.KeyPath(sparkResourceTable.schema.SourceTable)
 	sparkArgs := spark.Store.SparkSubmitArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize)
 	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
 		return nil, fmt.Errorf("spark submit job for materialization %v failed to run: %v", materializationID, err)
@@ -1226,14 +1223,7 @@ func (spark *SparkOfflineStore) UpdateMaterialization(id ResourceID) (Materializ
 	materializationID := ResourceID{Name: id.Name, Variant: id.Variant, Type: FeatureMaterialization}
 	destinationPath := spark.Store.ResourcePath(materializationID)
 	materializationQuery := spark.query.materializationCreate(sparkResourceTable.schema)
-
-	var sourcePath string
-	if id.Type != Primary {
-		sourcePath = spark.Store.KeyPath(sparkResourceTable.schema.SourceTable)
-	} else {
-		sourcePath = sparkResourceTable.schema.SourceTable
-	}
-
+	sourcePath := spark.Store.KeyPath(sparkResourceTable.schema.SourceTable)
 	sparkArgs := spark.Store.SparkSubmitArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize)
 	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
 		return nil, fmt.Errorf("spark submit job for materialization %v failed to run: %v", materializationID, err)

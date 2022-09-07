@@ -1659,7 +1659,7 @@ class Registrar:
         feature_resources = []
         label_resources = []
         for feature in features:
-            variant = feature["variant"] if "variant" in feature else "default"
+            variant = feature.get("variant", "default")
             resource = Feature(
                 name=feature["name"],
                 variant=variant,
@@ -1680,7 +1680,7 @@ class Registrar:
             feature_resources.append(resource)
 
         for label in labels:
-            variant = label["variant"] if "variant" in label else "default"
+            variant = label.get("variant", "default")
             resource = Label(
                 name=label["name"],
                 variant=variant,
@@ -1822,8 +1822,6 @@ class ResourceClient(Registrar):
             else:
                 channel = secure_channel(host, cert_path)
             self._stub = ff_grpc.ApiStub(channel)
-      #  elif local:
-         #   self.register_user("default_user").make_default_owner()
 
     def apply(self):
         """Apply all definitions, creating and retrieving all specified resources.

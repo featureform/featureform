@@ -652,8 +652,8 @@ class BatchRow:
             self.append(row)
 
     def append(self, row):
-        self._features.append(row.features())
-        self._labels.append(row.label())
+        self._features.append(row.features()[0])
+        self._labels.append(row.label()[0])
         self._rows.append(row)
 
     def features(self):

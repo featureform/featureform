@@ -9,7 +9,8 @@ import pytest
 
 class Quickstart:
     file = './transactions.csv'
-    entity = 'CustomerID'
+    entity_col = 'CustomerID'
+    entity = 'user'
     feature_col = 'TransactionAmount'
     label_col = 'IsFraud'
     training_set_name = 'fraud_training'
@@ -22,7 +23,7 @@ class Quickstart:
     feature_value = 5000.0
 
     def test_training_set(self):
-        expected_tset = get_training_set_from_file(self.file, self.entity, self.feature_col, self.label_col,
+        expected_tset = get_training_set_from_file(self.file, self.entity_col, self.feature_col, self.label_col,
                                                    self.name_variant)
         client = ff.ServingClient(local=True)
         dataset = client.training_set(self.training_set_name, self.training_set_variant)
@@ -32,7 +33,7 @@ class Quickstart:
             assert feature_batch.label() == [expected_tset[i][1]]
 
     def test_training_set_repeat(self):
-        half_test = get_training_set_from_file(self.file, self.entity, self.feature_col, self.label_col,
+        half_test = get_training_set_from_file(self.file, self.entity_col, self.feature_col, self.label_col,
                                                self.name_variant)
         expected_tset = half_test + half_test
         client = ff.ServingClient(local=True)
@@ -43,7 +44,7 @@ class Quickstart:
             assert feature_batch.label() == [expected_tset[i][1]]
 
     def test_training_set_shuffle(self):
-        expected_tset = get_training_set_from_file(self.file, self.entity, self.feature_col, self.label_col,
+        expected_tset = get_training_set_from_file(self.file, self.entity_col, self.feature_col, self.label_col,
                                                    self.name_variant)
         client = ff.ServingClient(local=True)
         dataset = client.training_set(self.training_set_name, self.training_set_variant)
@@ -54,7 +55,7 @@ class Quickstart:
         assert rows == len(expected_tset)
 
     def test_training_set_batch(self):
-        expected_test = get_training_set_from_file(self.file, self.entity, self.feature_col, self.label_col,
+        expected_test = get_training_set_from_file(self.file, self.entity_col, self.feature_col, self.label_col,
                                                    self.name_variant)
         client = ff.ServingClient(local=True)
         dataset = client.training_set(self.training_set_name, self.training_set_variant)
@@ -118,12 +119,12 @@ def get_training_set(label: pd.DataFrame, feature: pd.DataFrame, entity):
     return training_set_df
 
 
-def get_training_set_from_file(file, entity, feature_col, label, name_variant):
+def get_training_set_from_file(file, entity_col, feature_col, label, name_variant):
     df = pd.read_csv(file)
-    transformation = run_transformation(df, entity, feature_col)
-    feature = get_feature(transformation, entity, feature_col, name_variant)
-    label = get_label(df, entity, label)
-    training_set_df = get_training_set(label, feature, entity)
+    transformation = run_transformation(df, entity_col, feature_col)
+    feature = get_feature(transformation, entity_col, feature_col, name_variant)
+    label = get_label(df, entity_col, label)
+    training_set_df = get_training_set(label, feature, entity_col)
     return training_set_df.values.tolist()
 
 class TestCLI:

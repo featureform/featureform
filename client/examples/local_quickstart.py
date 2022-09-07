@@ -1,8 +1,5 @@
 import featureform as ff
-
-ff.register_user("featureformer").make_default_owner()
-
-local = ff.register_local()
+from featureform import local
 
 transactions = local.register_file(
     name="transactions",

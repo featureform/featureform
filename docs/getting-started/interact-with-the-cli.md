@@ -14,6 +14,26 @@ Upon success, all definitions in the **definitions.py** (or whatever you choose 
 
 After applying new resource definitions, you can use the **GET** command to see the status of the resources you applied. A resource with the status **READY** is available for serving.
 
+## DASH Command
+
+```
+featureform dash
+```
+
+The **DASH** command is used to access the featureform dashboard. It returns a URL to the locally hosted dashboard. 
+
+The dashboard can be viewed at http://localhost:3000 in your browser
+
+The Featureform dashboard: 
+
+![Featureform dashboard](../.gitbook/assets/dashboard.png)
+
+Each button on the dashboard redirects you to a list of resources of that resource type.
+
+![List of registered features](../.gitbook/assets/feature-list.png)
+
+Each resource can then be clicked on to learn more. 
+
 ## GET Command
 
 The **GET** command displays status, variants, and other metadata on a resource.
@@ -105,3 +125,64 @@ fraud_training                 quickstart
 ```
 
 Listed below are the metadata on that variant, as well as its source and the training sets it belongs to.
+
+## LIST Command
+
+The **LIST** command displays the name, variant and status of all the resources of that resource type. 
+
+```
+featureform list RESOURCE_TYPE --host $FEATUREFORM_HOST –cert $FEATUREFORM_CERT
+```
+
+**RESOURCE\_TYPE** (required) can be:
+
+* **feature -** machine learning features
+* **label -** machine learning labels
+* **training-set -** set of features and one label for training ML models
+* **user -** registered users in your instance
+* **entity -** identifier for a source of features or labels (akin to a primary key)
+* **model -** registered machine learning models which training sets and features are fed to
+* **provider -** registered 3rd party providers which store your data
+* **source -** files, tables, or transformations that features, labels and training sets source from
+
+NOTE: The **--cert $FEATUREFORM_CERT** is only required for self-signed certs
+
+### Example: Getting the list of users
+
+```
+featureform list users --host $FEATUREFORM_HOST --cert $FEATUREFORM_CERT
+featureform list users --insecure --host $FEATUREFORM_HOST
+```
+
+The commands are both valid ways to retrieve a list of users. The first is when the user uses a self-signed cert. 
+
+The following uses the local flag to access resources created and stored in localmode:
+```
+featureform list users –-local
+```
+
+The above commands return the following list of users which have been registered:
+```
+NAME 							STATUS
+default_user					ready
+featureformer 					ready
+```
+ 
+### Example: Getting the list of resources of a given type
+
+```
+featureform list features --host $FEATUREFORM_HOST --cert $FEATUREFORM_CERT
+featureform list features --insecure --host $FEATUREFORM_HOST
+```
+
+In local mode: 
+```
+featureform list features –-local
+```
+
+The given commands return the list of registered features and their variants
+```
+NAME 						VARIANT 						STATUS
+avg_transactions			quickstart(default)				ready
+```
+

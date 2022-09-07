@@ -1341,7 +1341,14 @@ func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materializ
 		return nil, fmt.Errorf("materialization already exists")
 	}
 	materializationQuery := spark.query.materializationCreate(sparkResourceTable.schema)
-	sourcePath := spark.Store.KeyPath(sparkResourceTable.schema.SourceTable)
+
+	var sourcePath string
+	if id.Type != Primary {
+		sourcePath = spark.Store.KeyPath(sparkResourceTable.schema.SourceTable)
+	} else {
+		sourcePath = sparkResourceTable.schema.SourceTable
+	}
+
 	sparkArgs := spark.Store.SparkSubmitArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize)
 	spark.Logger.Debugw("Creating materialization", id)
 	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
@@ -1392,7 +1399,14 @@ func (spark *SparkOfflineStore) UpdateMaterialization(id ResourceID) (Materializ
 	materializationID := ResourceID{Name: id.Name, Variant: id.Variant, Type: FeatureMaterialization}
 	destinationPath := spark.Store.ResourcePath(materializationID)
 	materializationQuery := spark.query.materializationCreate(sparkResourceTable.schema)
-	sourcePath := spark.Store.KeyPath(sparkResourceTable.schema.SourceTable)
+
+	var sourcePath string
+	if id.Type != Primary {
+		sourcePath = spark.Store.KeyPath(sparkResourceTable.schema.SourceTable)
+	} else {
+		sourcePath = sparkResourceTable.schema.SourceTable
+	}
+
 	sparkArgs := spark.Store.SparkSubmitArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize)
 	spark.Logger.Debugw("Updating materialization", id)
 	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
@@ -1537,7 +1551,7 @@ func (spark *SparkOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
 		spark.Logger.Errorw("Could not get schema of label in spark store", def.Label, err)
 		return fmt.Errorf("Could not get schema of label %s: %v", def.Label, err)
 	}
-	labelPath := labelSchema.SourceTable // spark.Store.KeyPath(labelSchema.SourceTable)
+	labelPath := spark.Store.KeyPath(labelSchema.SourceTable)
 	sourcePaths = append(sourcePaths, labelPath)
 	for _, feature := range def.Features {
 		featureSchema, err := spark.registeredResourceSchema(feature)
@@ -1586,7 +1600,7 @@ func (spark *SparkOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {
 			spark.Logger.Errorw("Could not get feature schema", feature, err)
 			return fmt.Errorf("Could not get schema of feature %s: %v", feature, err)
 		}
-		featurePath := featureSchema.SourceTable // spark.Store.KeyPath(featureSchema.SourceTable)
+		featurePath := spark.Store.KeyPath(featureSchema.SourceTable)
 		sourcePaths = append(sourcePaths, featurePath)
 		featureSchemas = append(featureSchemas, featureSchema)
 	}

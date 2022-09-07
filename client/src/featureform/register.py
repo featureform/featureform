@@ -571,7 +571,7 @@ class DFTransformationDecorator:
         self.inputs = inputs
 
     def __call__(self, fn: Callable[[Union[pd.DataFrame, pyspark.sql.DataFrame]], Union[pd.DataFrame, pyspark.sql.DataFrame]]):
-        if self.description == "":
+        if self.description == "" and fn.__doc__ is not None:
             self.description = fn.__doc__
         if self.name == "":
             self.name = fn.__name__

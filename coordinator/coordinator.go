@@ -167,7 +167,7 @@ func NewCoordinator(meta *metadata.Client, logger *zap.SugaredLogger, cli *clien
 		EtcdClient: cli,
 		KVClient:   &kvc,
 		Spawner:    spawner,
-		Timeout:    60,
+		Timeout:    600,
 	}, nil
 }
 

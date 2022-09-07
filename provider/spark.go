@@ -679,7 +679,7 @@ func (s *S3Store) SparkSubmitArgs(destPath string, cleanQuery string, sourceList
 	argList := []string{
 		"spark-submit",
 		"--deploy-mode",
-		"cluster",
+		"client",
 		fmt.Sprintf("s3://%s/featureform/scripts/offline_store_spark_runner.py", s.bucketPath),
 		"sql",
 		"--output_uri",

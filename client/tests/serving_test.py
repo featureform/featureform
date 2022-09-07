@@ -329,7 +329,7 @@ class TestTransformation(TestCase):
 
     def run_checks(self, transformation, name, local):
         transformation.register_resources(
-            entity="user1",
+            entity="user",
             entity_column="entity",
             inference_store=local,
             features=[
@@ -339,13 +339,13 @@ class TestTransformation(TestCase):
         client = ff.ResourceClient(local=True)
         client.apply()
         serve = ServingClient(local=True)
-        res = serve.features([(f"feature-{name}", name)], {"entity": "a"})
+        res = serve.features([(f"feature-{name}", name)], {"user": "a"})
         serve.impl.db.close()
         return res
     
     def sql_run_checks(self, transformation, name, local):
         transformation.register_resources(
-            entity="user1",
+            entity="user",
             entity_column="entity",
             inference_store=local,
             features=[
@@ -355,7 +355,7 @@ class TestTransformation(TestCase):
         client = ff.ResourceClient(local=True)
         client.apply()
         serve = ServingClient(local=True)
-        res = serve.features([(f"feature-{name}", name)], {"entity": "C1010011"})
+        res = serve.features([(f"feature-{name}", name)], {"user": "C1010011"})
         serve.impl.db.close()
         return res
 

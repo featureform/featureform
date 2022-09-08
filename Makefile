@@ -214,10 +214,11 @@ pytest:
 	pytest client/tests/test_spark_provider.py
 	python3 -m venv pyvenv ; \
     source pyvenv/bin/activate ; \
-	pip3 install jupyter nbconvert matplotlib pandas scikit-learn requests ; \
-	$(MAKE) update_python ; \
-	jupyter nbconvert --to notebook --execute notebooks/Fraud_Detection_Example.ipynb
 	-rm -r .featureform
+
+jupyter: update_python
+	pip3 install jupyter nbconvert matplotlib pandas scikit-learn requests
+	jupyter nbconvert --to notebook --execute notebooks/Fraud_Detection_Example.ipynb
 
 test_pyspark:
 	@echo "Requires Java to be installed"

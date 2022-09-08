@@ -112,6 +112,7 @@ func TestOnlineStores(t *testing.T) {
 		}
 
 		firestoreConfig := &FirestoreConfig{
+			Collection:  "featureform_test",
 			ProjectID:   projectID,
 			Credentials: credentialsDict,
 		}

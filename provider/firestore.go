@@ -56,7 +56,7 @@ func NewFirestoreOnlineStore(options *FirestoreConfig) (*firestoreOnlineStore, e
 	firestoreCollection := firestoreClient.Collection(options.Collection)
 	_, err = firestoreCollection.Doc(GetMetadataTable()).Set(ctx, map[string]interface{}{}, firestore.MergeAll)
 	if err != nil {
-		return nil, fmt.Errorf("could not create firestore document, %v", err)
+		return nil, fmt.Errorf("could not create firestore document: %v", err)
 	}
 	return &firestoreOnlineStore{
 		firestoreClient,
@@ -118,7 +118,6 @@ func (store *firestoreOnlineStore) CreateTable(feature, variant string, valueTyp
 
 	_, err = store.collection.Doc(GetMetadataTable()).Set(ctx, map[string]interface{}{
 		tableName: valueType,
-		"test":    "test",
 	}, firestore.MergeAll)
 	if err != nil {
 		return nil, fmt.Errorf("could not insert into metadata table: %v", err)

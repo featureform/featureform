@@ -65,8 +65,8 @@ class OfflineSQLProvider(OfflineProvider):
 
     def register_table(self,
                        name: str,
-                       variant: str,
                        table: str,
+                       variant: str = "default",
                        owner: Union[str, UserRegistrar] = "",
                        description: str = ""):
         """Register a SQL table as a primary data source.
@@ -89,8 +89,8 @@ class OfflineSQLProvider(OfflineProvider):
                                                       description=description)
 
     def sql_transformation(self,
-                           variant: str,
                            owner: Union[str, UserRegistrar] = "",
+                           variant: str = "default",
                            name: str = "",
                            schedule: str = "",
                            description: str = ""):
@@ -1064,12 +1064,34 @@ class Registrar:
 
     def register_firestore(self,
                            name: str,
+                           collection: str,
+                           project_id: str,
+                           credentials_path: str,
                            description: str = "",
                            team: str = "",
-                           collection: str = "",
-                           project_id: str = "",
-                           credentials_path: str = ""
                            ):
+        """Register a Firestore provider.
+
+        **Examples**:
+        ```
+        firestore = ff.register_firestore(
+            name="firestore-quickstart",
+            description="A Firestore deployment we created for the Featureform quickstart",
+            project_id="quickstart-project",
+            collection="quickstart-collection",
+        )
+        ```
+        Args:
+            name (str): Name of Firestore provider to be registered
+            description (str): Description of Firestore provider to be registered
+            team (str): Name of team
+            project_id (str): The Project name in GCP
+            collection (str): The Collection name in Firestore under the given project ID
+            credentials_path (str): A path to a Google Credentials file with access permissions for Firestore
+
+        Returns:
+            firestore (OfflineSQLProvider): Provider
+        """
         config = FirestoreConfig(collection=collection, project_id=project_id, credentials_path=credentials_path)
         provider = Provider(name=name,
                             function="ONLINE",
@@ -1316,9 +1338,10 @@ class Registrar:
             team (str): Name of team
             project_id (str): The Project name in GCP
             dataset_id (str): The Dataset name in GCP under the Project Id
+            credentials_path (str): A path to a Google Credentials file with access permissions for BigQuery
             
         Returns:
-            redshift (OfflineSQLProvider): Provider
+            bigquery (OfflineSQLProvider): Provider
         """
         config = BigQueryConfig(project_id=project_id,
                                 dataset_id=dataset_id,
@@ -1403,7 +1426,6 @@ class Registrar:
         self.__resources.append(provider)
         local_provider = LocalProvider(self, provider)
         local_provider.insert_provider()
-        self.register_user("default_user").make_default_owner()
         return local_provider
 
     def register_primary_data(self,
@@ -1637,10 +1659,7 @@ class Registrar:
         feature_resources = []
         label_resources = []
         for feature in features:
-            if "variant" in feature:
-                variant = feature["variant"]
-            else:
-                variant = "default"
+            variant = feature.get("variant", "default")
             resource = Feature(
                 name=feature["name"],
                 variant=variant,
@@ -1661,10 +1680,7 @@ class Registrar:
             feature_resources.append(resource)
 
         for label in labels:
-            if "variant" in label:
-                variant = label["variant"]
-            else:
-                variant = "default"
+            variant = label.get("variant", "default")
             resource = Label(
                 name=label["name"],
                 variant=variant,
@@ -1747,6 +1763,7 @@ class Registrar:
             label = (label, "default")
         features = self.__get_feature_nv(features)
 
+
         if label == ():
             raise ValueError("Label must be set")
         if features == []:
@@ -1805,8 +1822,6 @@ class ResourceClient(Registrar):
             else:
                 channel = secure_channel(host, cert_path)
             self._stub = ff_grpc.ApiStub(channel)
-        elif local:
-            self.register_user("default_user").make_default_owner()
 
     def apply(self):
         """Apply all definitions, creating and retrieving all specified resources.
@@ -2806,6 +2821,7 @@ state = global_registrar.state
 clear_state = global_registrar.clear_state
 register_user = global_registrar.register_user
 register_redis = global_registrar.register_redis
+register_bigquery = global_registrar.register_bigquery
 register_firestore = global_registrar.register_firestore
 register_cassandra = global_registrar.register_cassandra
 register_dynamodb = global_registrar.register_dynamodb

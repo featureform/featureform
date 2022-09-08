@@ -2,6 +2,7 @@ package coordinator
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	help "github.com/featureform/helpers"
 	"github.com/google/uuid"
@@ -935,10 +936,16 @@ func getBigQueryConfig(t *testing.T) provider.BigQueryConfig {
 	os.Setenv("BIGQUERY_DATASET_ID", bigQueryDatasetId)
 	t.Log("BigQuery Dataset: ", bigQueryDatasetId)
 
+	var serializedCreds map[string]interface{}
+	err = json.Unmarshal(JSONCredentials, &serializedCreds)
+	if err != nil {
+		panic(fmt.Errorf("cannot deserialize big query credentials: %v", err))
+	}
+
 	var bigQueryConfig = provider.BigQueryConfig{
 		ProjectId:   os.Getenv("BIGQUERY_PROJECT_ID"),
 		DatasetId:   os.Getenv("BIGQUERY_DATASET_ID"),
-		Credentials: JSONCredentials,
+		Credentials: serializedCreds,
 	}
 
 	return bigQueryConfig

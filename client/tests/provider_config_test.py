@@ -9,7 +9,6 @@ from featureform.resources import BigQueryConfig, FirestoreConfig
 
 @pytest.fixture
 def connection_configs():
-    print(os.getcwd())
     return json.load(open("provider/connection/connection_configs.json"))
 
 

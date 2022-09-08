@@ -87,8 +87,7 @@ def bigquery_config():
     )
 
 def test_bigquery_config(bigquery_config):
-    print(bigquery_config.serialize())
-
+    return bigquery_config.serialize()
 
 @pytest.fixture
 def postgres_provider(postgres_config):

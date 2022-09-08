@@ -844,10 +844,7 @@ jobs:
     name: Test Notebook
     runs-on: ubuntu-latest
     steps:
-      - name: Download Working Compiled Directories
-        uses: actions/download-artifact@v3
-        with:
-          name: compiled-workdir
+      - uses: actions/checkout@v2
 
       - name: Set up Python
         uses: actions/setup-python@v4

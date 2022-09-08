@@ -212,8 +212,6 @@ pytest:
 	pytest client/tests/localmode_quickstart_test.py
 	pytest client/tests/register_test.py
 	pytest client/tests/test_spark_provider.py
-	python3 -m venv pyvenv ; \
-    source pyvenv/bin/activate ; \
 	-rm -r .featureform
 
 jupyter: update_python

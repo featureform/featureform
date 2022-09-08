@@ -8,7 +8,7 @@ RETRY_WAIT = 5
 
 users = [
     {
-        'name': 'featureformer',
+        'name': 'default_user',
         'type': 'User',
         'features': None,
         'labels': None,

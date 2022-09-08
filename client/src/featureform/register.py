@@ -571,7 +571,7 @@ class DFTransformationDecorator:
         self.inputs = inputs
 
     def __call__(self, fn: Callable[[Union[pd.DataFrame, pyspark.sql.DataFrame]], Union[pd.DataFrame, pyspark.sql.DataFrame]]):
-        if self.description == "":
+        if self.description == "" and fn.__doc__ is not None:
             self.description = fn.__doc__
         if self.name == "":
             self.name = fn.__name__
@@ -1637,9 +1637,13 @@ class Registrar:
         feature_resources = []
         label_resources = []
         for feature in features:
+            if "variant" in feature:
+                variant = feature["variant"]
+            else:
+                variant = "default"
             resource = Feature(
                 name=feature["name"],
-                variant=feature["variant"],
+                variant=variant,
                 source=source,
                 value_type=feature["type"],
                 entity=entity,
@@ -1657,9 +1661,13 @@ class Registrar:
             feature_resources.append(resource)
 
         for label in labels:
+            if "variant" in label:
+                variant = label["variant"]
+            else:
+                variant = "default"
             resource = Label(
                 name=label["name"],
-                variant=label["variant"],
+                variant=variant,
                 source=source,
                 value_type=label["type"],
                 entity=entity,
@@ -1679,7 +1687,10 @@ class Registrar:
     def __get_feature_nv(self, features):
         feature_nv_list = []
         for feature in features:
-            if isinstance(feature, dict):
+            if isinstance(feature, str):
+                feature_nv = (feature, "default")
+                feature_nv_list.append(feature_nv)
+            elif isinstance(feature, dict):
                 feature_nv = (feature["name"], feature["variant"])
                 feature_nv_list.append(feature_nv)
             elif isinstance(feature, list):
@@ -1690,7 +1701,7 @@ class Registrar:
 
     def register_training_set(self,
                               name: str,
-                              variant: str,
+                              variant: str = "default",
                               features: list = None,
                               label: NameVariant = (),
                               resources: list = None,
@@ -1732,6 +1743,8 @@ class Registrar:
             #Elif: If label was updated to store resource_label it will not check the following elif
             elif resource_label != ():
                 raise ValueError("A training set can only have one label")
+        if isinstance(label, str):
+            label = (label, "default")
         features = self.__get_feature_nv(features)
 
         if label == ():

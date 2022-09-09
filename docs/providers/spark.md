@@ -19,7 +19,7 @@ Using Spark as an Offline Store, you can [define new transformations](../getting
 
 ### Training Sets and Inference Store Materialization
 
-Any column in in a preexisting table or user-created transformation can be registered as a feature or label. These features and labels can be used, as with any other Offline Store, for [creating training sets and inference serving.](../getting-started/defining-features-labels-and-training-sets.md)
+Any column in a preexisting table or user-created transformation can be registered as a feature or label. These features and labels can be used, as with any other Offline Store, for [creating training sets and inference serving.](../getting-started/defining-features-labels-and-training-sets.md)
 
 ## Configuration <a href="#configuration" id="configuration"></a>
 
@@ -27,19 +27,24 @@ To configure a Spark provider via AWS, you need an [IAM Role](https://docs.aws.a
 
 Your [AWS access key id and AWS secret access key](https://docs.aws.amazon.com/general/latest/gr/aws-sec-cred-types.html) are used as credentials when registering your Spark Offline Store.
 
-Your EMR cluster must be running and support [Spark](https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-spark.html).
+Your EMR cluster must be running and support [Spark](https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-spark.html). 
 
-{% code title="spark_config.py" %}
+The EMR cluster, before being deployed, must run a bootstrap action to install the necessary python pacakges to run Featureform's Spark script. The following link contains the script that must be added as a bootstrap action for your cluster to be comptatible with Featureform.
+
+https://featureform-demo-files.s3.amazonaws.com/python_packages.sh
+
+
+{% code title="spark_quickstart.py" %}
 ```python
 import featureform as ff
 
-ff.register_spark(
+spark = ff.register_spark(
     name = "spark_offline_store"
     description = "A spark provider that can create transformations and training sets",
     team = "featureform data team",
     emr_cluster_id = "j-ExampleCluster",
-    bucket_path = "example-bucket-path", #excluding the "S3://" prefix
     emr_cluster_region = "us-east-1",
+    bucket_path = "my-spark-bucket", # excluding the "S3://" prefix
     bucket_region = "us-east-2",
     aws_access_key_id = "<access-key-id>",
     aws_secret_access_key = "<aws-secret-access-key>",
@@ -50,8 +55,15 @@ ff.register_spark(
 ### Dataframe Transformations
 Using Spark with Featureform, a user can define transformations in SQL like with other offline providers.
 
-{% code title="sql_transformation.py" %}
+{% code title="spark_quickstart.py" %}
 ```python
+transactions = spark.register_parquet_file(
+    name="transactions",
+    variant="kaggle",
+    owner="featureformer",
+    file_path="s3://my-spark-bucket/source_datasets/transaction_short/",
+)
+
 @spark.sql_transformation()
 def max_transaction_amount():
     """the average transaction amount for a user """
@@ -62,7 +74,7 @@ def max_transaction_amount():
 
 In addition, registering a provider via Spark allows you to perform DataFrame transformations using your source tables as inputs.
 
-{% code title="dataframe_transformation.py" %}
+{% code title="spark_quickstart.py" %}
 ```python
 @spark.df_transformation(
     inputs=[("transactions", "kaggle")], variant="default")
@@ -70,18 +82,5 @@ def average_user_transaction(df):
     from pyspark.sql.functions import avg
     df.groupBy("CustomerID").agg(avg("TransactionAmount").alias("average_user_transaction"))
     return df
-```
-{% endcode %}
-
-These transformations are cross compatable: SQL and DataFrame transformations, identified via their name and variants, can be used as inputs to one another.
-
-{% code title="sql_with_dataframe_source.py" %}
-```python
-@spark.sql_transformation()
-def average_user_transaction():
-    return "SELECT * FROM {{average_user_transaction.default}} " \
-        "INNER JOIN {{max_transaction_amount}} ON " \
-        "{{average_user_transaction.default}}.CustomerID = " \
-        "{{max_transaction_amount.default}}.user_id"
 ```
 {% endcode %}

@@ -3,6 +3,7 @@
 * [What is Featureform](overview.md)
 * [Quickstart (Local)](quickstart-local.md)
 * [Quickstart (Kubernetes)](quickstart-kubernetes.md)
+* [Quickstart (Google Cloud)](quickstart-gcp.md)
 
 ## Reference
 

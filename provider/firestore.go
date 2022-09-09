@@ -6,19 +6,16 @@ package provider
 
 import (
 	"encoding/json"
+	"fmt"
+	"google.golang.org/grpc/status"
 
 	"cloud.google.com/go/firestore"
 	"google.golang.org/api/option"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
 
 func (t firestoreTableKey) String() string {
-	marshalled, err := json.Marshal(t)
-	if err != nil {
-		return err.Error()
-	}
-	return string(marshalled)
+	return fmt.Sprintf("%s__%s__%s", t.Collection, t.Feature, t.Variant)
 }
 
 type firestoreOnlineStore struct {
@@ -42,27 +39,31 @@ func firestoreOnlineStoreFactory(serialized SerializedConfig) (Provider, error) 
 	if err := firestoreConfig.Deserialize(serialized); err != nil {
 		return nil, err
 	}
-	if firestoreConfig.Collection == "" {
-		firestoreConfig.Collection = "Featureform_table__"
-	}
+
 	return NewFirestoreOnlineStore(firestoreConfig)
 }
 
 func NewFirestoreOnlineStore(options *FirestoreConfig) (*firestoreOnlineStore, error) {
-	firestoreClient, err := firestore.NewClient(ctx, options.ProjectID, option.WithCredentialsJSON(options.Credentials))
+	credBytes, err := json.Marshal(options.Credentials)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not serialized firestore config, %v", err)
+	}
+	firestoreClient, err := firestore.NewClient(ctx, options.ProjectID, option.WithCredentialsJSON(credBytes))
+	if err != nil {
+		return nil, fmt.Errorf("could not create firestore connection, %v", err)
 	}
 
 	firestoreCollection := firestoreClient.Collection(options.Collection)
-	_, err = firestoreCollection.Doc(GetMetadataTable()).Set(ctx, map[string]interface{}{})
+	_, err = firestoreCollection.Doc(GetMetadataTable()).Set(ctx, map[string]interface{}{}, firestore.MergeAll)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not create firestore document: %v", err)
 	}
-	return &firestoreOnlineStore{firestoreClient, firestoreCollection, BaseProvider{
-		ProviderType:   FirestoreOnline,
-		ProviderConfig: options.Serialized(),
-	},
+	return &firestoreOnlineStore{
+		firestoreClient,
+		firestoreCollection, BaseProvider{
+			ProviderType:   FirestoreOnline,
+			ProviderConfig: options.Serialize(),
+		},
 	}, nil
 }
 
@@ -75,25 +76,24 @@ func GetMetadataTable() string {
 }
 
 func (store *firestoreOnlineStore) GetTable(feature, variant string) (OnlineStoreTable, error) {
-
 	key := firestoreTableKey{store.collection.ID, feature, variant}
 	tableName := key.String()
 
 	table, err := store.collection.Doc(tableName).Get(ctx)
-	if grpc.Code(err) == codes.NotFound {
+	if status.Code(err) == codes.NotFound {
 		return nil, &TableNotFound{feature, variant}
 	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not get table: %v", err)
 	}
 
 	metadata, err := store.collection.Doc(GetMetadataTable()).Get(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not get metadata table: %v", err)
 	}
 	valueType, err := metadata.DataAt(tableName)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not get data at: %v", err)
 	}
 
 	return &firestoreOnlineTable{
@@ -104,7 +104,6 @@ func (store *firestoreOnlineStore) GetTable(feature, variant string) (OnlineStor
 }
 
 func (store *firestoreOnlineStore) CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error) {
-
 	getTable, _ := store.GetTable(feature, variant)
 	if getTable != nil {
 		return nil, &TableAlreadyExists{feature, variant}
@@ -121,7 +120,7 @@ func (store *firestoreOnlineStore) CreateTable(feature, variant string, valueTyp
 		tableName: valueType,
 	}, firestore.MergeAll)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not insert into metadata table: %v", err)
 	}
 	return &firestoreOnlineTable{
 		document:  store.collection.Doc(tableName),
@@ -162,7 +161,6 @@ func (table firestoreOnlineTable) Set(entity string, value interface{}) error {
 }
 
 func (table firestoreOnlineTable) Get(entity string) (interface{}, error) {
-
 	dataSnap, err := table.document.Get(ctx)
 	if err != nil {
 		return nil, err

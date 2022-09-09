@@ -17,8 +17,6 @@ postgres = ff.register_postgres(
     description="A Postgres deployment we created for the Featureform quickstart"
 )
 
-ff.register_user("featureformer").make_default_owner()
-
 transactions = postgres.register_table(
     name="transactions",
     variant="kaggle",

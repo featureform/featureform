@@ -101,6 +101,7 @@ func (c *Coordinator) AwaitPendingSource(sourceNameVariant metadata.NameVariant)
 	sourceStatus := metadata.PENDING
 	start := time.Now()
 	elapsed := time.Since(start)
+	c.Logger.Infow("Waiting for source", sourceNameVariant, "to be ready")
 	for sourceStatus != metadata.READY && elapsed < time.Duration(c.Timeout)*time.Second {
 		source, err := c.Metadata.GetSourceVariant(context.Background(), sourceNameVariant)
 		if err != nil {
@@ -180,6 +181,7 @@ func (c *Coordinator) WatchForNewJobs() error {
 		return fmt.Errorf("get existing etcd jobs: %w", err)
 	}
 	for _, kv := range getResp.Kvs {
+		c.Logger.Infow("Executing coordinator job from range getter with key", string(kv.Key))
 		go func(kv *mvccpb.KeyValue) {
 			err := c.ExecuteJob(string(kv.Key))
 			if err != nil {
@@ -192,6 +194,7 @@ func (c *Coordinator) WatchForNewJobs() error {
 		for wresp := range rch {
 			for _, ev := range wresp.Events {
 				if ev.Type == 0 {
+					c.Logger.Infow("Executing coordinator job from watcher with key", string(ev.Kv.Key))
 					go func(ev *clientv3.Event) {
 						err := c.ExecuteJob(string(ev.Kv.Key))
 						if err != nil {
@@ -305,7 +308,7 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 	c.Logger.Info("Running SQL transformation job on resource: ", resID)
 	templateString := transformSource.SQLTransformationQuery()
 	sources := transformSource.SQLTransformationSources()
-	c.Logger.Infof("----------->  transformaSource: %v, templateString: %s, sources: %v", transformSource, templateString, sources)
+	c.Logger.Infof("----------->  TransformSource: %v, templateString: %s, sources: %v", transformSource, templateString, sources)
 	allReady := false
 	for !allReady {
 		sourceVariants, err := c.Metadata.GetSourceVariants(context.Background(), sources)
@@ -734,6 +737,7 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 		Label:    provider.ResourceID{Name: label.Name(), Variant: label.Variant(), Type: provider.Label},
 		Features: featureList,
 	}
+	c.Logger.Info("training set job step on resource", resID, "Created training set config with label", label, "and features", features)
 	tsRunnerConfig := runner.TrainingSetRunnerConfig{
 		OfflineType:   provider.Type(providerEntry.Type()),
 		OfflineConfig: providerEntry.SerializedConfig(),
@@ -745,6 +749,7 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 	if err != nil {
 		return fmt.Errorf("create training set job runner: %w", err)
 	}
+	c.Logger.Info("training set job step on resource", resID, "running job with jobrunner")
 	completionWatcher, err := jobRunner.Run()
 	if err != nil {
 		return fmt.Errorf("start training set job runner: %w", err)

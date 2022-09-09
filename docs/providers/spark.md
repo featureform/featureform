@@ -29,9 +29,9 @@ Your [AWS access key id and AWS secret access key](https://docs.aws.amazon.com/g
 
 Your EMR cluster must be running and support [Spark](https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-spark.html). 
 
-The EMR cluster, before being deployed, must run a bootstrap action to install the necessary python pacakges to run Featureform's Spark script. The following link contains the script that must be added as a bootstrap action for your cluster to be comptatible with Featureform.
+The EMR cluster, before being deployed, must run a bootstrap action to install the necessary python pacakges to run Featureform's Spark script. The following link contains the script that must be added as a bootstrap action for your cluster to be comptatible with Featureform:
 
-https://featureform-demo-files.s3.amazonaws.com/python_packages.sh
+[https://featureform-demo-files.s3.amazonaws.com/python_packages.sh](https://featureform-demo-files.s3.amazonaws.com/python_packages.sh)
 
 
 {% code title="spark_quickstart.py" %}

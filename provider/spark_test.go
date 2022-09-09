@@ -1650,19 +1650,17 @@ func getSparkOfflineStore(t *testing.T) (*SparkOfflineStore, error) {
 		ClusterRegion:  os.Getenv("AWS_EMR_CLUSTER_REGION"),
 		ClusterName:    os.Getenv("AWS_EMR_CLUSTER_ID"),
 	}
-	emrSerializedConfig := emrConf.Serialize()
 	s3Conf := S3Config{
 		AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
 		AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),
 		BucketRegion:   os.Getenv("S3_BUCKET_REGION"),
 		BucketPath:     os.Getenv("S3_BUCKET_PATH"),
 	}
-	s3SerializedConfig := s3Conf.Serialize()
 	SparkOfflineConfig := SparkConfig{
 		ExecutorType:   EMR,
-		ExecutorConfig: string(emrSerializedConfig),
+		ExecutorConfig: emrConf,
 		StoreType:      S3,
-		StoreConfig:    string(s3SerializedConfig),
+		StoreConfig:    s3Conf,
 	}
 	sparkSerializedConfig := SparkOfflineConfig.Serialize()
 	sparkProvider, err := Get("SPARK_OFFLINE", sparkSerializedConfig)
@@ -1683,9 +1681,9 @@ func getSparkOfflineStore(t *testing.T) (*SparkOfflineStore, error) {
 func TestSparkConfigDeserialize(t *testing.T) {
 	correctSparkConfig := SparkConfig{
 		ExecutorType:   "EMR",
-		ExecutorConfig: "",
+		ExecutorConfig: EMRConfig{},
 		StoreType:      "S3",
-		StoreConfig:    "",
+		StoreConfig:    S3Config{},
 	}
 	serializedConfig := correctSparkConfig.Serialize()
 	reserializedConfig := SparkConfig{}
@@ -1882,26 +1880,18 @@ func TestStreamRecordReadInt(t *testing.T) {
 }
 
 func TestSparkExecutorFail(t *testing.T) {
-	invalidConfig := SerializedConfig("invalid")
+	invalidConfig := EMRConfig{}
 	invalidExecType := SparkExecutorType("invalid")
 	if executor, err := NewSparkExecutor(invalidExecType, invalidConfig); !(executor == nil && err == nil) {
 		t.Fatalf("did not return nil on invalid exec type")
 	}
-	validExecType := SparkExecutorType("EMR")
-	if _, err := NewSparkExecutor(validExecType, invalidConfig); err == nil {
-		t.Fatalf("did not trigger error with invalid config")
-	}
 }
 
 func TestSparkStoreFail(t *testing.T) {
-	invalidConfig := SerializedConfig("invalid")
+	invalidConfig := S3Config{}
 	invalidExecType := SparkStoreType("invalid")
 	if executor, err := NewSparkStore(invalidExecType, invalidConfig); !(executor == nil && err == nil) {
 		t.Fatalf("did not return nil on invalid exec type")
-	}
-	validExecType := SparkStoreType("S3")
-	if _, err := NewSparkStore(validExecType, invalidConfig); err == nil {
-		t.Fatalf("did not trigger error with invalid config")
 	}
 }
 

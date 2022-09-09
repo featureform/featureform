@@ -839,3 +839,33 @@ jobs:
 
       - name: Run Tests
         run: make pytest
+
+  notebook:
+    name: Test Notebook
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.8"
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
+
+      - name: Install grpc_tools
+        run: pip install grpcio-tools build
+
+      - name: Install Protobuf
+        run: sudo snap install protobuf --classic
+
+      - name: Setup Proto
+        run: ./gen_grpc.sh
+
+      - name: Run Tests
+        run: make jupyter
+
+

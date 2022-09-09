@@ -30,7 +30,7 @@ const (
 type BigQueryConfig struct {
 	ProjectId   string
 	DatasetId   string
-	Credentials []byte
+	Credentials map[string]interface{}
 }
 
 func (bq *BigQueryConfig) Deserialize(config SerializedConfig) error {
@@ -715,7 +715,11 @@ func NewBQOfflineStore(config BQOfflineStoreConfig) (*bqOfflineStore, error) {
 		return nil, errors.New("invalid bigquery config")
 	}
 
-	client, err := bigquery.NewClient(ctx, config.ProjectId, option.WithCredentialsJSON(sc.Credentials))
+	creds, err := json.Marshal(sc.Credentials)
+	if err != nil {
+		return nil, fmt.Errorf("could not serialize bigquery credentials")
+	}
+	client, err := bigquery.NewClient(ctx, config.ProjectId, option.WithCredentialsJSON(creds))
 	if err != nil {
 		return nil, err
 	}

@@ -435,7 +435,7 @@ func (lookup etcdResourceLookup) Submap(ids []ResourceID) (ResourceLookup, error
 		}
 		etcdStore, err := lookup.deserialize(value)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("submap %v: %v", id, err)
 		}
 
 		resource, err := lookup.createEmptyResource(etcdStore.ResourceType)
@@ -461,7 +461,7 @@ func (lookup etcdResourceLookup) ListForType(t ResourceType) ([]Resource, error)
 	for _, res := range resp {
 		etcdStore, err := lookup.deserialize(res)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("listfortype %v: %v", resp, err)
 		}
 		resource, err := lookup.createEmptyResource(etcdStore.ResourceType)
 		if err != nil {
@@ -484,7 +484,7 @@ func (lookup etcdResourceLookup) List() ([]Resource, error) {
 	for _, res := range resp {
 		etcdStore, err := lookup.deserialize(res)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("list %v: %v", res, err)
 		}
 		resource, err := lookup.createEmptyResource(etcdStore.ResourceType)
 		if err != nil {

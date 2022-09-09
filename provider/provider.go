@@ -108,10 +108,10 @@ func (r *DynamodbConfig) Deserialize(config SerializedConfig) error {
 type FirestoreConfig struct {
 	Collection  string
 	ProjectID   string
-	Credentials []byte
+	Credentials map[string]interface{}
 }
 
-func (r FirestoreConfig) Serialized() SerializedConfig {
+func (r FirestoreConfig) Serialize() SerializedConfig {
 	config, err := json.Marshal(r)
 	if err != nil {
 		panic(err)

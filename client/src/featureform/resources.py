@@ -252,12 +252,11 @@ class BigQueryConfig:
 
     def serialize(self) -> bytes:
         config = {
-            "ProjectId": self.project_id,
-            "DatasetId": self.dataset_id,
+            "ProjectID": self.project_id,
+            "DatasetID": self.dataset_id,
             "Credentials": json.load(open(self.credentials_path)),
         }
         return bytes(json.dumps(config), "utf-8")
-
 
 @typechecked
 @dataclass
@@ -286,8 +285,7 @@ class SparkAWSConfig:
         }
         return bytes(json.dumps(config), "utf-8")
 
-
-Config = Union[RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig, BigQueryConfig, SparkAWSConfig]
+Config = Union[RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig, BigQueryConfig, FirestoreConfig, SparkAWSConfig]
 
 @typechecked
 @dataclass
@@ -970,8 +968,6 @@ class ResourceState:
 
     def create_all(self, stub) -> None:
         for resource in self.__create_list:
-            if resource.type() == "user" and resource.name == "default_user":
-                continue
             if resource.type() == "provider" and resource.name == "local-mode":
                 continue
             try:

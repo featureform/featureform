@@ -193,7 +193,7 @@ class SQLiteMetadata:
         variant_data = self.__conn.execute(query)
         self.__conn.commit()
         variant_data_list = variant_data.fetchall()
-        if len(variant_data_list) == 0:
+        if len(variant_data_list) == 0 and column != "owner":
           raise ValueError(f"{type} with {column}: {resource} not found")
         return variant_data_list
   

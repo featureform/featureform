@@ -15,7 +15,7 @@ The Terraform scripts install Featureform on GCP.
 4. Run ``terraform plan``
 5. Run ``terraform apply -`` then type ``yes`` when prompted
 
-## Configure the Kubectl
+## Configure Kubectl
 1. Run ``gcloud container clusters get-credentials $(terraform output -raw kubernetes_cluster_name) --region $(terraform output -raw region)`` in `gcp_services` folder
 
 ## Install Featureform

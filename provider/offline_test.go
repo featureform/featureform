@@ -200,6 +200,8 @@ func TestOfflineStores(t *testing.T) {
 	}
 
 	for _, testItem := range testList {
+		// for running go routines inside for loops in go, the iterated value needs to be redeclared
+		// this prevents the earlier go routines from referencing values in a later iteration of the for loop
 		testItemConst := testItem
 		t.Run(string(testItemConst.t), func(t *testing.T) {
 			t.Parallel()

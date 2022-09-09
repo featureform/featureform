@@ -262,7 +262,6 @@ func (c *Coordinator) WatchForScheduleChanges() error {
 
 func (c *Coordinator) mapNameVariantsToTables(sources []metadata.NameVariant) (map[string]string, error) {
 	sourceMap := make(map[string]string)
-	c.Logger.Infof("<----> sources-->: %v", sources)
 	for _, nameVariant := range sources {
 		source, err := c.Metadata.GetSourceVariant(context.Background(), nameVariant)
 		if err != nil {
@@ -291,8 +290,6 @@ func (c *Coordinator) mapNameVariantsToTables(sources []metadata.NameVariant) (m
 			}
 		}
 		sourceMap[nameVariant.ClientString()] = tableName
-		c.Logger.Infof("     ----> name_variant: %s, tableName: %s, sourceMap: %v", nameVariant.ClientString(), tableName, sourceMap)
-
 	}
 	return sourceMap, nil
 }
@@ -305,7 +302,7 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 	c.Logger.Info("Running SQL transformation job on resource: ", resID)
 	templateString := transformSource.SQLTransformationQuery()
 	sources := transformSource.SQLTransformationSources()
-	c.Logger.Infof("----------->  transformaSource: %v, templateString: %s, sources: %v", transformSource, templateString, sources)
+
 	allReady := false
 	for !allReady {
 		sourceVariants, err := c.Metadata.GetSourceVariants(context.Background(), sources)
@@ -339,7 +336,6 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 		return fmt.Errorf("template replace: %w source map: %v, template: %s", err, sourceMap, templateString)
 	}
 
-	c.Logger.Infof("TESTING: ----> SOURCE MAPPING: %v, QUERY: %v", sourceMapping, query)
 	c.Logger.Debugw("Created transformation query", "query", query)
 	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Transformation}
 	transformationConfig := provider.TransformationConfig{Type: provider.SQLTransformation, TargetTableID: providerResourceID, Query: query, SourceMapping: sourceMapping}

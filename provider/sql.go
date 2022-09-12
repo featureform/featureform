@@ -126,7 +126,7 @@ func GetPrimaryTableName(id ResourceID) (string, error) {
 		return "", err
 	}
 
-	return fmt.Sprintf("featureform_primary_%s__%s", id.Name, id.Variant), nil
+	return fmt.Sprintf("featureform_primary__%s__%s", id.Name, id.Variant), nil
 }
 
 func (store *sqlOfflineStore) tableExists(id ResourceID) (bool, error) {
@@ -1399,4 +1399,11 @@ func (q defaultOfflineSQLQueries) transformationUpdate(db *sql.DB, tableName str
 func (q defaultOfflineSQLQueries) transformationExists() string {
 	bind := q.newVariableBindingIterator()
 	return fmt.Sprintf("SELECT DISTINCT (table_name) FROM information_schema.tables WHERE table_name=%s", bind.Next())
+}
+
+func GetTransformationTableName(id ResourceID) (string, error) {
+	if err := checkName(id); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("featureform_transformation__%s__%s", id.Name, id.Variant), nil
 }

@@ -262,8 +262,8 @@ class BigQueryConfig:
 @dataclass
 class SparkAWSConfig:
     emr_cluster_id: str
-    bucket_path: str
     emr_cluster_region: str
+    bucket_path: str
     bucket_region: str
     aws_access_key_id: str
     aws_secret_access_key: str
@@ -272,17 +272,25 @@ class SparkAWSConfig:
         return "spark"
 
     def type(self) -> str:
-        return "SPARK_AWS_OFFLINE"
+        return "SPARK_OFFLINE"
 
     def serialize(self) -> bytes:
         config = {
-            "EMRClusterId": self.emr_cluster_id,
-            "BucketPath": self.bucket_path,
-            "EMRClusterRegion": self.emr_cluster_region,
-            "BucketRegion": self.bucket_region,
-            "AWSAccessKeyId": self.aws_access_key_id,
-            "AWSSecretAccessKey": self.aws_secret_access_key,
-        }
+            "ExecutorType": "EMR",
+            "StoreType": "S3",
+            "ExecutorConfig": {
+                    "AWSAccessKeyId": self.aws_access_key_id,
+                    "AWSSecretKey":   self.aws_secret_access_key,
+                    "ClusterRegion":  self.emr_cluster_region,
+                    "ClusterName":    self.emr_cluster_id,
+               },
+            "StoreConfig": {
+                    "AWSAccessKeyId": self.aws_access_key_id,
+                    "AWSSecretKey":   self.aws_secret_access_key,
+                    "BucketRegion":   self.bucket_region,
+                    "BucketPath":     self.bucket_path,
+                }
+            }
         return bytes(json.dumps(config), "utf-8")
 
 Config = Union[RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig, BigQueryConfig, FirestoreConfig, SparkAWSConfig]

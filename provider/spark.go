@@ -314,7 +314,7 @@ func (s *S3Store) UploadSparkScript() error {
 	return nil
 }
 
-func NewSparkExecutor(execType SparkExecutorType, config SerializedConfig, logger *zap.SugaredLogger) (SparkExecutor, error) {
+func NewSparkExecutor(execType SparkExecutorType, config EMRConfig, logger *zap.SugaredLogger) (SparkExecutor, error) {
 	if execType == EMR {
 		client := emr.New(emr.Options{
 			Region:      config.ClusterRegion,
@@ -331,8 +331,7 @@ func NewSparkExecutor(execType SparkExecutorType, config SerializedConfig, logge
 	return nil, nil
 }
 
-
-func NewSparkStore(storeType SparkStoreType, config S3Config) (SparkStore, error) {
+func NewSparkStore(storeType SparkStoreType, config S3Config, logger *zap.SugaredLogger) (SparkStore, error) {
 	if storeType == S3 {
 		client := s3.New(s3.Options{
 			Region:      config.BucketRegion,
@@ -343,6 +342,7 @@ func NewSparkStore(storeType SparkStoreType, config S3Config) (SparkStore, error
 		s3Store := S3Store{
 			client:      client,
 			uploader:    uploader,
+			logger:      logger,
 			credentials: credentialsV1.NewStaticCredentials(config.AWSAccessKeyId, config.AWSSecretKey, ""),
 			region:      config.BucketRegion,
 			bucketPath:  config.BucketPath,

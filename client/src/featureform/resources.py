@@ -280,16 +280,16 @@ class SparkAWSConfig:
             "ExecutorType": "EMR",
             "StoreType": "S3",
             "ExecutorConfig": {
-                    "AWSAccessKeyId": aws_access_key_id,
-                    "AWSSecretKey":   aws_secret_access_key,
-                    "ClusterRegion":  emr_cluster_region,
-                    "ClusterName":    emr_cluster_id,
+                    "AWSAccessKeyId": self.aws_access_key_id,
+                    "AWSSecretKey":   self.aws_secret_access_key,
+                    "ClusterRegion":  self.emr_cluster_region,
+                    "ClusterName":    self.emr_cluster_id,
                },
             "StoreConfig": {
-                    "AWSAccessKeyId": aws_access_key_id,
-                    "AWSSecretKey":   aws_secret_access_key,
-                    "BucketRegion":   bucket_region,
-                    "BucketPath":     bucket_path,
+                    "AWSAccessKeyId": self.aws_access_key_id,
+                    "AWSSecretKey":   self.aws_secret_access_key,
+                    "BucketRegion":   self.bucket_region,
+                    "BucketPath":     self.bucket_path,
                 }
             }
         return bytes(json.dumps(config), "utf-8")

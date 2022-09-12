@@ -1890,7 +1890,7 @@ func TestSparkExecutorFail(t *testing.T) {
 func TestSparkStoreFail(t *testing.T) {
 	invalidConfig := S3Config{}
 	invalidExecType := SparkStoreType("invalid")
-	if executor, err := NewSparkStore(invalidExecType, invalidConfig); !(executor == nil && err == nil) {
+	if executor, err := NewSparkStore(invalidExecType, invalidConfig); !(executor == nil && err != nil) {
 		t.Fatalf("did not return nil on invalid exec type")
 	}
 }

@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	help "github.com/featureform/helpers"
 	"os"
 	"strings"
 	"time"
+
+	help "github.com/featureform/helpers"
 
 	db "github.com/jackc/pgx/v4"
 	"go.uber.org/zap"
@@ -166,11 +167,11 @@ func NewCoordinator(meta *metadata.Client, logger *zap.SugaredLogger, cli *clien
 		EtcdClient: cli,
 		KVClient:   &kvc,
 		Spawner:    spawner,
-		Timeout:    60,
+		Timeout:    600,
 	}, nil
 }
 
-const MAX_ATTEMPTS = 20
+const MAX_ATTEMPTS = 2
 
 func (c *Coordinator) WatchForNewJobs() error {
 	c.Logger.Info("Watching for new jobs")
@@ -270,9 +271,23 @@ func (c *Coordinator) mapNameVariantsToTables(sources []metadata.NameVariant) (m
 			return nil, fmt.Errorf("source in query not ready")
 		}
 		providerResourceID := provider.ResourceID{Name: source.Name(), Variant: source.Variant()}
-		tableName, err := provider.GetPrimaryTableName(providerResourceID)
+		var tableName string
+		sourceProvider, err := source.FetchProvider(c.Metadata, context.Background())
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("Could not fetch source provider: %v", err)
+		}
+		if sourceProvider.Type() == "SPARK_OFFLINE" && source.IsSQLTransformation() {
+			providerResourceID.Type = provider.Transformation
+			tableName, err = provider.GetTransformationTableName(providerResourceID)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			providerResourceID.Type = provider.Primary
+			tableName, err = provider.GetPrimaryTableName(providerResourceID)
+			if err != nil {
+				return nil, err
+			}
 		}
 		sourceMap[nameVariant.ClientString()] = tableName
 	}
@@ -287,6 +302,7 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 	c.Logger.Info("Running SQL transformation job on resource: ", resID)
 	templateString := transformSource.SQLTransformationQuery()
 	sources := transformSource.SQLTransformationSources()
+
 	allReady := false
 	for !allReady {
 		sourceVariants, err := c.Metadata.GetSourceVariants(context.Background(), sources)
@@ -314,10 +330,12 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 		return fmt.Errorf("getSourceMapping replace: %w source map: %v, template: %s", err, sourceMap, templateString)
 	}
 
-	query, err := templateReplace(templateString, sourceMap, offlineStore)
+	var query string
+	query, err = templateReplace(templateString, sourceMap, offlineStore)
 	if err != nil {
 		return fmt.Errorf("template replace: %w source map: %v, template: %s", err, sourceMap, templateString)
 	}
+
 	c.Logger.Debugw("Created transformation query", "query", query)
 	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Transformation}
 	transformationConfig := provider.TransformationConfig{Type: provider.SQLTransformation, TargetTableID: providerResourceID, Query: query, SourceMapping: sourceMapping}
@@ -382,7 +400,7 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 
 func (c *Coordinator) runPrimaryTableJob(transformSource *metadata.SourceVariant, resID metadata.ResourceID, offlineStore provider.OfflineStore, schedule string) error {
 	c.Logger.Info("Running primary table job on resource: ", resID)
-	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant}
+	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Primary}
 	sourceName := transformSource.PrimaryDataSQLTableName()
 	if sourceName == "" {
 		return fmt.Errorf("no source name set")
@@ -468,15 +486,22 @@ func (c *Coordinator) runLabelRegisterJob(resID metadata.ResourceID, schedule st
 			c.Logger.Errorf("could not close offline store: %v", err)
 		}
 	}(sourceStore)
-	srcID := provider.ResourceID{
-		Name:    sourceNameVariant.Name,
-		Variant: sourceNameVariant.Variant,
+	var sourceTableName string
+	if source.IsSQLTransformation() {
+		sourceResourceID := provider.ResourceID{sourceNameVariant.Name, sourceNameVariant.Variant, provider.Transformation}
+		sourceTable, err := sourceStore.GetTransformationTable(sourceResourceID)
+		if err != nil {
+			return err
+		}
+		sourceTableName = sourceTable.GetName()
+	} else if source.IsPrimaryDataSQLTable() {
+		sourceResourceID := provider.ResourceID{sourceNameVariant.Name, sourceNameVariant.Variant, provider.Primary}
+		sourceTable, err := sourceStore.GetPrimaryTable(sourceResourceID)
+		if err != nil {
+			return err
+		}
+		sourceTableName = sourceTable.GetName()
 	}
-	srcName, err := provider.GetPrimaryTableName(srcID)
-	if err != nil {
-		return fmt.Errorf("transform name err: %w", err)
-	}
-
 	labelID := provider.ResourceID{
 		Name:    resID.Name,
 		Variant: resID.Variant,
@@ -487,7 +512,7 @@ func (c *Coordinator) runLabelRegisterJob(resID metadata.ResourceID, schedule st
 		Entity:      tmpSchema.Entity,
 		Value:       tmpSchema.Value,
 		TS:          tmpSchema.TS,
-		SourceTable: srcName,
+		SourceTable: sourceTableName,
 	}
 	c.Logger.Debugw("Creating Label Resource Table", "id", labelID, "schema", schema)
 	_, err = sourceStore.RegisterResourceFromSourceTable(labelID, schema)
@@ -560,15 +585,22 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 	if err != nil {
 		return fmt.Errorf("could not get online provider config: %w", err)
 	}
-	srcID := provider.ResourceID{
-		Name:    sourceNameVariant.Name,
-		Variant: sourceNameVariant.Variant,
+	var sourceTableName string
+	if source.IsSQLTransformation() {
+		sourceResourceID := provider.ResourceID{sourceNameVariant.Name, sourceNameVariant.Variant, provider.Transformation}
+		sourceTable, err := sourceStore.GetTransformationTable(sourceResourceID)
+		if err != nil {
+			return err
+		}
+		sourceTableName = sourceTable.GetName()
+	} else if source.IsPrimaryDataSQLTable() {
+		sourceResourceID := provider.ResourceID{sourceNameVariant.Name, sourceNameVariant.Variant, provider.Primary}
+		sourceTable, err := sourceStore.GetPrimaryTable(sourceResourceID)
+		if err != nil {
+			return err
+		}
+		sourceTableName = sourceTable.GetName()
 	}
-	srcName, err := provider.GetPrimaryTableName(srcID)
-	if err != nil {
-		return fmt.Errorf("transform name err: %w", err)
-	}
-
 	featID := provider.ResourceID{
 		Name:    resID.Name,
 		Variant: resID.Variant,
@@ -579,7 +611,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 		Entity:      tmpSchema.Entity,
 		Value:       tmpSchema.Value,
 		TS:          tmpSchema.TS,
-		SourceTable: srcName,
+		SourceTable: sourceTableName,
 	}
 	c.Logger.Debugw("Creating Resource Table", "id", featID, "schema", schema)
 	_, err = sourceStore.RegisterResourceFromSourceTable(featID, schema)

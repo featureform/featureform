@@ -14,7 +14,17 @@ sys.path.insert(0, 'client/src/')
 from featureform import ResourceClient, ServingClient
 import serving_cases as cases
 import featureform as ff
-from featureform.serving import LocalClientImpl
+from featureform.serving import LocalClientImpl, check_feature_type
+
+@pytest.mark.parametrize("test_input,expected",
+                         [
+                             ([("name", "variant")], [("name", "variant")]),
+                             (["name"], [("name", "default")]),
+                             (["name1", "name2"], [("name1", "default"), ("name2", "default")]),
+                             (["name1", ("name2", "variant")], [("name1", "default"), ("name2", "variant")]),
+                         ])
+def test_check_feature_type(test_input, expected):
+    assert expected == check_feature_type(test_input)
 
 class TestIndividualFeatures(TestCase):
     def test_process_feature_no_ts(self):
@@ -210,38 +220,36 @@ class TestTransformation(TestCase):
     def test_sql(self):
         local = ff.register_local()
         ff.register_user("featureformer").make_default_owner()
-        name = 'Simple'
-        case = cases.transform[name]
-        self.setup(case, name, local)
+        name = 'SQL'
 
         transactions = local.register_file(
             name="transactions",
-            variant="quickstart",
+            variant="SQL",
             description="A dataset of fraudulent transactions",
             path="transactions.csv"
         )
 
         @local.sql_transformation(variant="quickstart")
-        def transformation():
+        def s_transformation():
             """the average transaction amount for a user """
-            return "SELECT CustomerID as entity, avg(TransactionAmount) as feature_val from {{transactions.quickstart}} GROUP BY entity"
+            return "SELECT CustomerID as entity, avg(TransactionAmount) as feature_val from {{transactions.SQL}} GROUP BY entity"
         
         @local.sql_transformation(variant="sql_to_sql")
-        def transformation1():
+        def s_transformation1():
             """the customerID for a user """
-            return "SELECT entity, feature_val from {{transformation.quickstart}} GROUP BY entity"
+            return "SELECT entity, feature_val from {{s_transformation.quickstart}} GROUP BY entity"
 
-        @local.df_transformation(variant="quickstart", inputs=[("transformation1", "sql_to_sql")])
-        def average_user_transaction(transactions):
+        @local.df_transformation(variant="quickstart", inputs=[("s_transformation1", "sql_to_sql")])
+        def s_average_user_transaction(transactions):
             """the average transaction amount for a user """
             return transactions.groupby("entity")["feature_val"].mean()
 
         @local.sql_transformation(variant="df_to_sql")
-        def transformation2():
+        def s_transformation2():
             """the customerID for a user """
-            return "SELECT entity, feature_val from {{average_user_transaction.quickstart}} GROUP BY entity"
+            return "SELECT entity, feature_val from {{s_average_user_transaction.quickstart}} GROUP BY entity"
 
-        res = self.sql_run_checks(transformation2, name, local)
+        res = self.sql_run_checks(s_transformation2, name, local)
         np.testing.assert_array_equal(res, np.array([2553.0]))
 
     def test_simple(self):

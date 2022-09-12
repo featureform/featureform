@@ -10,6 +10,7 @@ package provider
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -115,6 +116,12 @@ func TestOfflineStores(t *testing.T) {
 			panic(fmt.Errorf("cannot find big query credentials: %v", err))
 		}
 
+		var credentialsDict map[string]interface{}
+		err = json.Unmarshal(JSONCredentials, &credentialsDict)
+		if err != nil {
+			panic(fmt.Errorf("cannot unmarshal big query credentials: %v", err))
+		}
+
 		bigQueryDatasetId := strings.Replace(strings.ToUpper(uuid.NewString()), "-", "_", -1)
 		os.Setenv("BIGQUERY_DATASET_ID", bigQueryDatasetId)
 		t.Log("BigQuery Dataset: ", bigQueryDatasetId)
@@ -122,7 +129,7 @@ func TestOfflineStores(t *testing.T) {
 		var bigQueryConfig = BigQueryConfig{
 			ProjectId:   os.Getenv("BIGQUERY_PROJECT_ID"),
 			DatasetId:   os.Getenv("BIGQUERY_DATASET_ID"),
-			Credentials: JSONCredentials,
+			Credentials: credentialsDict,
 		}
 		serialBQConfig := bigQueryConfig.Serialize()
 
@@ -334,7 +341,12 @@ func destroySnowflakeDatabase(c SnowflakeConfig) error {
 func createBigQueryDataset(c BigQueryConfig) error {
 	ctx := context.Background()
 
-	client, err := bigquery.NewClient(ctx, c.ProjectId, option.WithCredentialsJSON(c.Credentials))
+	sCreds, err := json.Marshal(c.Credentials)
+	if err != nil {
+		return err
+	}
+
+	client, err := bigquery.NewClient(ctx, c.ProjectId, option.WithCredentialsJSON(sCreds))
 	if err != nil {
 		return err
 	}
@@ -352,9 +364,14 @@ func createBigQueryDataset(c BigQueryConfig) error {
 func destroyBigQueryDataset(c BigQueryConfig) error {
 	ctx := context.Background()
 
+	sCreds, err := json.Marshal(c.Credentials)
+	if err != nil {
+		return err
+	}
+
 	time.Sleep(10 * time.Second)
 
-	client, err := bigquery.NewClient(ctx, c.ProjectId, option.WithCredentialsJSON(c.Credentials))
+	client, err := bigquery.NewClient(ctx, c.ProjectId, option.WithCredentialsJSON(sCreds))
 	if err != nil {
 		return err
 	}
@@ -3283,4 +3300,65 @@ func sanitizeTableName(testName string, tableName string) string {
 		tableName = sanitize(tableName)
 	}
 	return tableName
+}
+
+func TestBigQueryConfig_Deserialize(t *testing.T) {
+	content, err := ioutil.ReadFile("connection/connection_configs.json")
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	var payload map[string]interface{}
+	err = json.Unmarshal(content, &payload)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	testConfig := payload["BigQuery"].(map[string]interface{})
+
+	bgconfig := BigQueryConfig{
+		ProjectId:   testConfig["ProjectID"].(string),
+		DatasetId:   testConfig["DatasetID"].(string),
+		Credentials: testConfig["Credentials"].(map[string]interface{}),
+	}
+
+	serialized := bgconfig.Serialize()
+
+	type fields struct {
+		ProjectId   string
+		DatasetId   string
+		Credentials map[string]interface{}
+	}
+	type args struct {
+		config SerializedConfig
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "TestCredentials",
+			fields: fields{
+				ProjectId:   testConfig["ProjectID"].(string),
+				DatasetId:   testConfig["DatasetID"].(string),
+				Credentials: testConfig["Credentials"].(map[string]interface{}),
+			},
+			args: args{
+				config: serialized,
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bq := &BigQueryConfig{
+				ProjectId:   tt.fields.ProjectId,
+				DatasetId:   tt.fields.DatasetId,
+				Credentials: tt.fields.Credentials,
+			}
+			if err := bq.Deserialize(tt.args.config); (err != nil) != tt.wantErr {
+				t.Errorf("Deserialize() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
 }

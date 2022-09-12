@@ -1107,7 +1107,7 @@ func TestSparkSQLTransformation(t *testing.T) {
 				SourceMapping: []SourceMapping{
 					SourceMapping{
 						Template: "{{test_name.test_variant}}",
-						Source:   "s3://featureform-spark-testing/featureform/Primary/test_name/test_variant",
+						Source:   "featureform_primary__test_name__test_variant",
 					},
 				},
 			},
@@ -1127,7 +1127,7 @@ func TestSparkSQLTransformation(t *testing.T) {
 				SourceMapping: []SourceMapping{
 					SourceMapping{
 						Template: "{{test_name.test_variant}}",
-						Source:   "s3://featureform-spark-testing/featureform/Primary/test_fake_name/test_fake_variant",
+						Source:   "featureform_primary__test_fake_name__test_fake_variant",
 					},
 				},
 			},
@@ -1167,25 +1167,14 @@ func TestSparkSQLTransformation(t *testing.T) {
 				t.Fatalf("the source table and expected did not match: %v:%v", sourceCount, transformationCount)
 			}
 
-			// test transformation result rows are correct
-
-			sourcePath, err := store.Store.ResourceKey(tt.config.TargetTableID)
-			if err != nil {
-				t.Fatalf("failed to retrieve source key %s", err)
-			}
-
 			updateConfig := TransformationConfig{
-				Type: SQLTransformation,
-				TargetTableID: ResourceID{
-					Name:    tt.config.TargetTableID.Name,
-					Type:    Transformation,
-					Variant: tt.config.TargetTableID.Variant,
-				},
-				Query: tt.config.Query,
+				Type:          SQLTransformation,
+				TargetTableID: tt.config.TargetTableID,
+				Query:         tt.config.Query,
 				SourceMapping: []SourceMapping{
 					SourceMapping{
 						Template: tt.config.SourceMapping[0].Template,
-						Source:   fmt.Sprintf("%s%s", store.Store.BucketPrefix(), sourcePath),
+						Source:   fmt.Sprintf("featureform_transformation__%s__%s", tt.config.TargetTableID.Name, tt.config.TargetTableID.Variant),
 					},
 				},
 			}
@@ -1207,7 +1196,6 @@ func TestSparkSQLTransformation(t *testing.T) {
 			if !tt.expectedFailure && updateCount != transformationCount {
 				t.Fatalf("the source table and expected did not match: %v:%v", updateCount, transformationCount)
 			}
-			// test transformation result rows are correct
 		})
 	}
 }
@@ -1227,11 +1215,11 @@ func TestUpdateQuery(t *testing.T) {
 			[]SourceMapping{
 				SourceMapping{
 					Template: "{{name1.variant1}}",
-					Source:   "s3://featureform-spark-testing/featureform/Primary/test_name/test_variant",
+					Source:   "featureform_primary__test_name__test_variant",
 				},
 				SourceMapping{
 					Template: "{{name2.variant2}}",
-					Source:   "s3://featureform-spark-testing/featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant",
+					Source:   "featureform_transformation__028f6213-77a8-43bb-9d91-dd7e9ee96102__test_variant",
 				},
 			},
 			"SELECT * FROM source_0 and more source_1",
@@ -1243,11 +1231,11 @@ func TestUpdateQuery(t *testing.T) {
 		},
 		{
 			"OneReplacementPass",
-			"SELECT * FROM {{name1.variant1}}",
+			"SELECT * FROM {{028f6213-77a8-43bb-9d91-dd7e9ee96102.test_variant}}",
 			[]SourceMapping{
 				SourceMapping{
-					Template: "{{name1.variant1}}",
-					Source:   "s3://featureform-spark-testing/featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant",
+					Template: "{{028f6213-77a8-43bb-9d91-dd7e9ee96102.test_variant}}",
+					Source:   "featureform_transformation__028f6213-77a8-43bb-9d91-dd7e9ee96102__test_variant",
 				},
 			},
 			"SELECT * FROM source_0",
@@ -1262,7 +1250,7 @@ func TestUpdateQuery(t *testing.T) {
 			[]SourceMapping{
 				SourceMapping{
 					Template: "{{name1.variant1}}",
-					Source:   "s3://featureform-bucket/featureform/Transformation/name1/variant1/file",
+					Source:   "featureform_transformation__name1__variant1/",
 				},
 			},
 			"SELECT * FROM source_0",
@@ -1332,8 +1320,6 @@ func TestGetTransformation(t *testing.T) {
 			if caseNumRow != tt.expectedRowCount {
 				t.Fatalf("Row count do not match. Expected \" %v \", got \" %v \".", caseNumRow, tt.expectedRowCount)
 			}
-
-			// test transformation result rows are correct
 		})
 	}
 }
@@ -1347,25 +1333,25 @@ func TestGetSourcePath(t *testing.T) {
 	}{
 		{
 			"PrimaryPathSuccess",
-			"s3://featureform-spark-testing/featureform/Primary/test_name/test_variant",
+			"featureform_primary__test_name__test_variant",
 			"s3://featureform-spark-testing/featureform/testprimary/testFile.parquet",
 			false,
 		},
 		{
 			"TransformationPathSuccess",
-			"s3://featureform-spark-testing/featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant",
+			"featureform_transformation__028f6213-77a8-43bb-9d91-dd7e9ee96102__test_variant",
 			"s3://featureform-spark-testing/featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant/2022-08-19 17:37:36.546384/part-00000-c93fe1fb-4ab0-45df-9292-b139e4043181-c000.snappy.parquet",
 			false,
 		},
 		{
 			"PrimaryPathFailure",
-			"s3://featureform-spark-testing/featureform/Primary/fake_name/fake_variant",
+			"featureform_primary__fake_name__fake_variant",
 			"",
 			true,
 		},
 		{
 			"TransformationPathFailure",
-			"s3://featureform-spark-testing/featureform/Transformation/fake_028f6213-77a8-43bb-9d91-dd7e9ee96102/fake_variant",
+			"featureform_transformation__fake_028f6213-77a8-43bb-9d91-dd7e9ee96102__fake_variant",
 			"",
 			true,
 		},
@@ -1398,22 +1384,22 @@ func TestGetResourceInformationFromFilePath(t *testing.T) {
 	}{
 		{
 			"PrimaryPathSuccess",
-			"s3://featureform-spark-testing/featureform/Primary/test_name/test_variant",
-			[]string{"Primary", "test_name", "test_variant"},
+			"featureform_primary__test_name__test_variant",
+			[]string{"primary", "test_name", "test_variant"},
 		},
 		{
 			"TransformationPathSuccess",
-			"s3://featureform-spark-testing/featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant",
-			[]string{"Transformation", "028f6213-77a8-43bb-9d91-dd7e9ee96102", "test_variant"},
+			"featureform_transformation__028f6213-77a8-43bb-9d91-dd7e9ee96102__test_variant",
+			[]string{"transformation", "028f6213-77a8-43bb-9d91-dd7e9ee96102", "test_variant"},
 		},
 		{
 			"IncorrectPrimaryPath",
-			"s3://featureform-spark-testing/featureform/Primary/",
+			"featureform_primary",
 			[]string{"", "", ""},
 		},
 		{
 			"IncorrectTransformationPath",
-			"s3://featureform-spark-testing/featureform/Transformation/fake_028f6213",
+			"featureform_transformation__fake_028f6213",
 			[]string{"", "", ""},
 		},
 	}
@@ -1453,7 +1439,7 @@ func TestGetDFArgs(t *testing.T) {
 			[]SourceMapping{
 				SourceMapping{
 					Template: "transaction",
-					Source:   "s3://featureform-spark-testing/featureform/Primary/test_name/test_variant",
+					Source:   "featureform_primary__test_name__test_variant",
 				},
 			},
 			[]string{
@@ -1481,7 +1467,7 @@ func TestGetDFArgs(t *testing.T) {
 			[]SourceMapping{
 				SourceMapping{
 					Template: "transaction",
-					Source:   "s3://featureform-spark-testing/featureform/Primary",
+					Source:   "featureform_primary",
 				},
 			},
 			nil,
@@ -1528,7 +1514,7 @@ func TestTransformation(t *testing.T) {
 				SourceMapping: []SourceMapping{
 					SourceMapping{
 						Template: "{{test_name.test_variant}}",
-						Source:   "s3://featureform-spark-testing/featureform/Primary/test_name/test_variant",
+						Source:   "featureform_primary__test_name__test_variant",
 					},
 				},
 			},
@@ -1548,7 +1534,7 @@ func TestTransformation(t *testing.T) {
 				SourceMapping: []SourceMapping{
 					SourceMapping{
 						Template: "transaction",
-						Source:   "s3://featureform-spark-testing/featureform/Primary/test_name/test_variant",
+						Source:   "featureform_primary__test_name__test_variant",
 					},
 				},
 			},
@@ -1614,19 +1600,17 @@ func getSparkOfflineStore(t *testing.T) (*SparkOfflineStore, error) {
 		ClusterRegion:  os.Getenv("AWS_EMR_CLUSTER_REGION"),
 		ClusterName:    os.Getenv("AWS_EMR_CLUSTER_ID"),
 	}
-	emrSerializedConfig := emrConf.Serialize()
 	s3Conf := S3Config{
 		AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
 		AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),
 		BucketRegion:   os.Getenv("S3_BUCKET_REGION"),
 		BucketPath:     os.Getenv("S3_BUCKET_PATH"),
 	}
-	s3SerializedConfig := s3Conf.Serialize()
 	SparkOfflineConfig := SparkConfig{
 		ExecutorType:   EMR,
-		ExecutorConfig: string(emrSerializedConfig),
+		ExecutorConfig: emrConf,
 		StoreType:      S3,
-		StoreConfig:    string(s3SerializedConfig),
+		StoreConfig:    s3Conf,
 	}
 	sparkSerializedConfig := SparkOfflineConfig.Serialize()
 	sparkProvider, err := Get("SPARK_OFFLINE", sparkSerializedConfig)
@@ -1645,11 +1629,28 @@ func getSparkOfflineStore(t *testing.T) (*SparkOfflineStore, error) {
 // Unit tests
 
 func TestSparkConfigDeserialize(t *testing.T) {
+	err := godotenv.Load("../.env")
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	emrConf := EMRConfig{
+		AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
+		AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),
+		ClusterRegion:  os.Getenv("AWS_EMR_CLUSTER_REGION"),
+		ClusterName:    os.Getenv("AWS_EMR_CLUSTER_ID"),
+	}
+	s3Conf := S3Config{
+		AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
+		AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),
+		BucketRegion:   os.Getenv("S3_BUCKET_REGION"),
+		BucketPath:     os.Getenv("S3_BUCKET_PATH"),
+	}
 	correctSparkConfig := SparkConfig{
 		ExecutorType:   "EMR",
-		ExecutorConfig: "",
+		ExecutorConfig: emrConf,
 		StoreType:      "S3",
-		StoreConfig:    "",
+		StoreConfig:    s3Conf,
 	}
 	serializedConfig := correctSparkConfig.Serialize()
 	reserializedConfig := SparkConfig{}
@@ -1844,7 +1845,12 @@ func TestStreamRecordReadInt(t *testing.T) {
 }
 
 func TestSparkExecutorFail(t *testing.T) {
-	invalidConfig := SerializedConfig("invalid")
+	invalidConfig := EMRConfig{
+		AWSAccessKeyId: "",
+		AWSSecretKey:   "",
+		ClusterRegion:  "",
+		ClusterName:    "",
+	}
 	invalidExecType := SparkExecutorType("invalid")
 	logger := zap.NewExample().Sugar()
 	if executor, err := NewSparkExecutor(invalidExecType, invalidConfig, logger); !(executor == nil && err == nil) {
@@ -1857,7 +1863,12 @@ func TestSparkExecutorFail(t *testing.T) {
 }
 
 func TestSparkStoreFail(t *testing.T) {
-	invalidConfig := SerializedConfig("invalid")
+	invalidConfig := S3Config{
+		AWSAccessKeyId: "",
+		AWSSecretKey:   "",
+		BucketRegion:   "",
+		BucketPath:     "",
+	}
 	invalidExecType := SparkStoreType("invalid")
 	logger := zap.NewExample().Sugar()
 	if executor, err := NewSparkStore(invalidExecType, invalidConfig, logger); !(executor == nil && err == nil) {

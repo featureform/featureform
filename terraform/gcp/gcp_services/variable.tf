@@ -101,3 +101,20 @@ variable "firestore_location_id" {
   default = "US"
   description = "The location of the firestore"
 }
+
+variable "create_storage_bucket" {
+  type = bool
+  default = true
+  description = "If a storage bucket needs to be created"
+}
+
+variable "storage_bucket_name" {
+  type = string
+  description = "The name of a storage bucket to create"
+}
+
+variable "storage_bucket_location" {
+  type = string
+  default = "US"
+  description = "The location of a storage bucket to create"
+}

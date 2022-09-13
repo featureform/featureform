@@ -41,7 +41,7 @@ def execute_sql_query(job_type, output_uri, sql_query, source_list):
 
             output_dataframe.coalesce(1).write.option("header", "true").mode("overwrite").parquet(output_uri_with_timestamp)
             return output_uri_with_timestamp
-    except Exception as e:
+    except (IOError, OSError) as e:
         print(e)
         raise e
 
@@ -71,7 +71,7 @@ def execute_df_job(output_uri, code, aws_region, sources):
         output_uri_with_timestamp = f"{output_uri}{dt}"
         output_df.coalesce(1).write.mode("overwrite").parquet(output_uri_with_timestamp)
         return output_uri_with_timestamp
-    except Exception as e:
+    except (IOError, OSError) as e:
         print(f"Issue with execution of the transformation: {e}")
         raise e
 

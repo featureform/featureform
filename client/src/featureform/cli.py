@@ -9,6 +9,8 @@ from .get import *
 import os
 from flask import Flask
 from .dashboard_metadata import dashboard_app
+import validators
+import urllib.request
 
 resource_types = [
     "feature",
@@ -22,6 +24,7 @@ resource_types = [
 ]
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
+
 
 @click.group(context_settings=CONTEXT_SETTINGS)
 def cli():
@@ -59,7 +62,7 @@ def cli():
 @click.argument("variant", required=False)
 def get(host, cert, insecure, local, resource_type, name, variant):
     """Get resources of a given type.
-    """ 
+    """
     if local:
         if host != None:
             raise ValueError("Cannot be local and have a host")
@@ -93,6 +96,7 @@ def get(host, cert, insecure, local, resource_type, name, variant):
         rc_get_functions[resource_type](name=name, local=local)
     else:
         raise ValueError("Resource type not found")
+
 
 @cli.command()
 @click.option("--host",
@@ -140,15 +144,17 @@ def list(host, cert, insecure, local, resource_type):
     else:
         raise ValueError("Resource type not found")
 
+
 app = Flask(__name__)
 app.register_blueprint(dashboard_app)
+
 
 @cli.command()
 def dash():
     app.run(threaded=True, port=os.getenv("LOCALMODE_DASHBOARD_PORT", 3000))
 
 @cli.command()
-@click.argument("files", nargs=-1, required=True, type=click.Path(exists=True))
+@click.argument("files", required=True, nargs=-1)
 @click.option("--host",
               "host",
               required=False,
@@ -165,8 +171,17 @@ def dash():
               help="Enable local mode")
 def apply(host, cert, insecure, local, files):
     for file in files:
-        with open(file, "r") as py:
-            exec(py.read())
+        if os.path.isfile(file):
+            with open(file, "r") as py:
+                exec(py.read())
+        elif validators.url(file):
+            try:
+                with urllib.request.urlopen(file) as py:
+                    exec(py.read())
+            except Exception as e:
+                raise ValueError(f"Could not apply the provided URL: {e}: {file}")
+        else:
+            raise ValueError(f"Argument must be a path to a file or URL with a valid schema (http:// or https://): {file}")
 
     rc = ResourceClient(host=host, local=local, insecure=insecure, cert_path=cert)
     rc.apply()

@@ -862,13 +862,6 @@ func (c *Coordinator) createJobLock(jobKey string, s *concurrency.Session) (*con
 	return mtx, nil
 }
 
-func (c *Coordinator) markJobFailed(job *metadata.CoordinatorJob) error {
-	if err := c.Metadata.SetStatus(context.Background(), job.Resource, metadata.FAILED, ""); err != nil {
-		return fmt.Errorf("could not set job status to failed: %v", err)
-	}
-	return nil
-}
-
 func (c *Coordinator) ExecuteJob(jobKey string) error {
 	c.Logger.Info("Executing new job with key ", jobKey)
 	s, err := concurrency.NewSession(c.EtcdClient, concurrency.WithTTL(1))
@@ -891,7 +884,11 @@ func (c *Coordinator) ExecuteJob(jobKey string) error {
 	}
 	c.Logger.Debugf("Job %s is on attempt %d", jobKey, job.Attempts)
 	if job.Attempts > MAX_ATTEMPTS {
-		return c.markJobFailed(job)
+		if err := c.deleteJob(mtx, jobKey); err != nil {
+			c.Logger.Debugw("Error deleting job", "error", err)
+			return fmt.Errorf("job delete: %w", err)
+		}
+		return fmt.Errorf("job failed after %d attempts. Cancelling coordinator flow", MAX_ATTEMPTS)
 	}
 	if err := c.incrementJobAttempts(mtx, job, jobKey); err != nil {
 		return fmt.Errorf("increment attempt: %w", err)

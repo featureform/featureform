@@ -253,7 +253,8 @@ type SparkStore interface {
 	ResourceKeys(id ResourceID) ([]string, error)
 	ResourceStreamConv(key string, begin int64) (chan interface{}, error)
 	ResourceMultiPartStream(id ResourceID) (chan interface{}, error)
-	ResourceRowCt(key string) (int, error)
+	ResourceRowCt(id ResourceID) (int, error)
+	FileRowCt(key string) (int, error)
 	ResourcePath(id ResourceID) string
 	BucketPrefix() string
 	Region() string
@@ -834,7 +835,7 @@ func (s *S3PrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) {
 }
 
 func (s *S3PrimaryTable) NumRows() (int64, error) {
-	num, err := s.store.ResourceRowCt(s.sourcePath)
+	num, err := s.store.FileRowCt(s.sourcePath)
 	if err != nil {
 		return 0, err
 	}
@@ -1151,7 +1152,7 @@ func (s *S3Materialization) ID() MaterializationID {
 }
 
 func (s *S3Materialization) NumRows() (int64, error) {
-	numRows, err := s.store.ResourceRowCt(s.Key)
+	numRows, err := s.store.ResourceRowCt(s.id)
 	if err != nil {
 		return 0, err
 	}
@@ -1566,7 +1567,7 @@ func (spark *SparkOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterat
 		spark.Logger.Errorw("could not find training set", err)
 		return nil, &TrainingSetNotFound{id}
 	}
-	rowCount, err := spark.Store.ResourceRowCt(key)
+	rowCount, err := spark.Store.ResourceRowCt(id)
 	if err != nil {
 		spark.Logger.Errorw("could not get training set row count", err)
 		return nil, err
@@ -1604,7 +1605,23 @@ func (s *S3Store) selectFromKey(key string, query string, returnType SelectRetur
 
 }
 
-func (s *S3Store) ResourceRowCt(key string) (int, error) {
+func (s *S3Store) ResourceRowCt(id ResourceID) (int, error) {
+	partsList, err := s.ResourceKeys(id)
+	if err != nil {
+		return 0, err
+	}
+	total := 0
+	for _, part := range partsList {
+		partRowCount, err := s.FileRowCt(part)
+		if err != nil {
+			return 0, err
+		}
+		total += partRowCount
+	}
+	return total, nil
+}
+
+func (s *S3Store) FileRowCt(key string) (int, error) {
 	queryString := "SELECT COUNT(*) FROM S3Object"
 	outputStream, err := s.selectFromKey(key, queryString, CSV)
 	if err != nil {
@@ -1657,10 +1674,10 @@ func streamGetKeys(record *s3Types.SelectObjectContentEventStreamMemberRecords) 
 }
 
 // Takes id pointing to file path:
-//.../Type/Name/Variant/_SUCCESS
-//.../Type/Name/Variant/_xxxpart1.parquet
-//.../Type/Name/Variant/_xxxpart2.parquet
-//.../Type/Name/Variant/_xxxpart3.parquet
+//.../Type/Name/Variant/Timestamp/_SUCCESS
+//.../Type/Name/Variant/Timestamp/_xxxpart1.parquet
+//.../Type/Name/Variant/Timestamp/_xxxpart2.parquet
+//.../Type/Name/Variant/Timestamp/_xxxpart3.parquet
 // and creates a stream over every file
 func (s *S3Store) ResourceMultiPartStream(id ResourceID) (chan interface{}, error) {
 	partsList, err := s.ResourceKeys(id)
@@ -1683,7 +1700,7 @@ func (s *S3Store) partStreamReader(rowChannel chan interface{}, partsList []stri
 			value := <-partStream
 			err, isError := value.(error)
 			if isError && err.Error() == "end of file" {
-				break
+				continue
 			} else if isError {
 				rowChannel <- err
 			} else {

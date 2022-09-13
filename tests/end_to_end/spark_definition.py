@@ -39,7 +39,7 @@ spark = ff.register_spark(**args)
 ff.register_user(f"featureformer_{VERSION}").make_default_owner()
 
 file = spark.register_parquet_file(
-    name="transaction_short",
+    name=f"transaction_short",
     variant="test_variant",
     owner=f"featureformer_{VERSION}",
     file_path="s3://featureform-spark-testing/featureform/source_datasets/transaction_short/",
@@ -49,7 +49,7 @@ file = spark.register_parquet_file(
 @spark.sql_transformation(name=f"sql_transaction_transformation_{VERSION}", variant="quickstart")
 def average_user_score():
     """the average score for a user"""
-    return "SELECT CustomerID as user_id, avg(TransactionAmount) as avg_transaction_amt from {{{{ transaction_short.test_variant }}}} GROUP BY user_id"
+    return f"SELECT CustomerID as user_id, avg(TransactionAmount) as avg_transaction_amt from {{{{ transaction_short.test_variant }}}} GROUP BY user_id"
 
 user = ff.register_entity("user")
 

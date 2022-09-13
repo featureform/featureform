@@ -250,7 +250,9 @@ type SparkExecutor interface {
 type SparkStore interface {
 	UploadSparkScript() error //initialization function
 	ResourceKey(id ResourceID) (string, error)
+	ResourceKeys(id ResourceID) ([]string, error)
 	ResourceStreamConv(key string, begin int64) (chan interface{}, error)
+	ResourceMultiPartStream(id ResourceID) (chan interface{}, error)
 	ResourceRowCt(key string) (int, error)
 	ResourcePath(id ResourceID) string
 	BucketPrefix() string
@@ -356,6 +358,35 @@ func ResourcePrefix(id ResourceID) string {
 	return fmt.Sprintf("featureform/%s/%s/%s/", id.Type, id.Name, id.Variant)
 }
 
+func (s *S3Store) ResourceKeys(id ResourceID) ([]string, error) {
+	latestTimeResource, err := s.ResourceKey(id)
+	if err != nil {
+		return nil, err
+	}
+	latestFilePrefix := latestTimeResource[:strings.LastIndex(latestTimeResource, "/")]
+	objects, err := s.client.ListObjects(context.TODO(), &s3.ListObjectsInput{
+		Bucket: aws.String(s.bucketPath),
+		Prefix: aws.String(latestFilePrefix),
+	})
+	if err != nil {
+		s.logger.Errorw("Failure retrieving objects from S3 Store", err)
+		return nil, err
+	}
+	if len(objects.Contents) == 0 {
+		s.logger.Errorw("no objects with key prefix exist in S3", latestFilePrefix)
+		return nil, fmt.Errorf("no resource exists")
+	}
+	s.logger.Debugf("Found %d objects", len(objects.Contents))
+	returnList := make([]string, len(objects.Contents)-1)
+	for i, object := range objects.Contents {
+		suffix := (*object.Key)[len(latestFilePrefix):]
+		if suffix != "__SUCCESS" {
+			returnList[i] = *object.Key
+		}
+	}
+	return returnList, nil
+}
+
 func (s *S3Store) ResourceKey(id ResourceID) (string, error) {
 	filePrefix := ResourcePrefix(id)
 	objects, err := s.client.ListObjects(context.TODO(), &s3.ListObjectsInput{
@@ -387,6 +418,7 @@ func (s *S3Store) ResourceKey(id ResourceID) (string, error) {
 	latestTimestamp := keys[len(keys)-1]
 	lastSuffix := resourceTimestamps[latestTimestamp]
 	return fmt.Sprintf("featureform/%s/%s/%s/%s/%s", id.Type, id.Name, id.Variant, latestTimestamp, lastSuffix), nil
+
 }
 
 func (e *EMRExecutor) RunSparkJob(args []string) error {
@@ -992,7 +1024,7 @@ func (spark *SparkOfflineStore) getSourcePath(path string) (string, error) {
 			spark.Logger.Errorw("Issue getting transformation table", fileResourceId, err)
 			return "", fmt.Errorf("could not get the transformation table for {%v} because %s", fileResourceId, err)
 		}
-		filePath = fmt.Sprintf("%s%s", spark.Store.BucketPrefix(), transformationPath)
+		filePath = fmt.Sprintf("%s%s", spark.Store.BucketPrefix(), transformationPath[:strings.LastIndex(transformationPath, "/")])
 		return filePath, nil
 	} else {
 		return filePath, fmt.Errorf("could not find path for %s; fileType: %s, fileName: %s, fileVariant: %s", path, fileType, fileName, fileVariant)
@@ -1127,9 +1159,12 @@ func (s *S3Materialization) NumRows() (int64, error) {
 }
 
 func (s *S3Materialization) IterateSegment(begin, end int64) (FeatureIterator, error) {
-	stream, err := s.store.ResourceStreamConv(s.Key, begin)
+	stream, err := s.store.ResourceMultiPartStream(s.id)
 	if err != nil {
 		return nil, err
+	}
+	for i := 0; i < begin; i++ {
+		_ := <-stream
 	}
 	return &S3FeatureIterator{stream: stream, maxIdx: (end - begin)}, nil
 }
@@ -1382,7 +1417,7 @@ func (s *S3TrainingSet) Next() bool {
 		return false
 	}
 	if s.iter == nil {
-		iterator, err := s.store.ResourceStreamConv(s.Key, 0)
+		iterator, err := s.store.ResourceMultiPartStream(s.id)
 		if err != nil {
 			s.err = err
 			return false
@@ -1621,8 +1656,44 @@ func streamGetKeys(record *s3Types.SelectObjectContentEventStreamMemberRecords) 
 	return keys, nil
 }
 
-// read from the parquet file with the given key starting from begin
-// return the ouput of the reader as a generic struct stream
+// Takes id pointing to file path:
+//.../Type/Name/Variant/_SUCCESS
+//.../Type/Name/Variant/_xxxpart1.parquet
+//.../Type/Name/Variant/_xxxpart2.parquet
+//.../Type/Name/Variant/_xxxpart3.parquet
+// and creates a stream over every file
+func (s *S3Store) ResourceMultiPartStream(id ResourceID) (chan interface{}, error) {
+	partsList, err := s.ResourceKeys(id)
+	if err != nil {
+		return nil, err
+	}
+	partsChannel := make(chan interface{})
+	go s.partStreamReader(partsChannel, partsList)
+	return partsChannel, nil
+}
+
+func (s *S3Store) partStreamReader(rowChannel chan interface{}, partsList []string) {
+	for current := 0; current < len(partsList); current++ {
+		partStream, err := s.ResourceStreamConv(partsList[current], 0)
+		if err != nil {
+			rowChannel <- err
+			break
+		}
+		for {
+			value := <-partStream
+			err, isError := value.(error)
+			if isError && err.Error() == "end of file" {
+				break
+			} else if isError {
+				rowChannel <- err
+			} else {
+				rowChannel <- value
+			}
+		}
+	}
+	rowChannel <- fmt.Errorf("end of parts stream")
+}
+
 func (s *S3Store) ResourceStreamConv(key string, begin int64) (chan interface{}, error) {
 	file, err := s.S3ParquetReader(key)
 	if err != nil {
@@ -1646,6 +1717,13 @@ func (s *S3Store) ResourceStreamConv(key string, begin int64) (chan interface{},
 	go parquetReaderToStream(rowChannel, numRows, pr)
 	return rowChannel, nil
 }
+
+// bm22
+// type ResourcePartsIterator struct {
+//	parts []string
+//  currentPart int64
+//	curReader *reader.ParquetReader
+//}
 
 func parquetReaderToStream(rowChannel chan interface{}, numRows int64, pr *reader.ParquetReader) {
 	for i := int64(0); i < numRows; i++ {

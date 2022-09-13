@@ -32,14 +32,14 @@ def execute_sql_query(job_type, output_uri, sql_query, source_list):
         with SparkSession.builder.appName("Execute SQL Query").getOrCreate() as spark:
             if job_type == "Transformation" or job_type == "Materialization" or job_type == "Training Set":
                 for i, source in enumerate(source_list):          
-                    source_df = spark.read.option("header","true").parquet(source)  
+                    source_df = spark.read.option("header","true").option("recursiveFileLookup", "true").parquet(source)  
                     source_df.createOrReplaceTempView(f'source_{i}')
             output_dataframe = spark.sql(sql_query)
 
             dt = datetime.now()
             output_uri_with_timestamp = f'{output_uri}{dt}'
 
-            output_dataframe.coalesce(1).write.option("header", "true").mode("overwrite").parquet(output_uri_with_timestamp)
+            output_dataframe.write.option("header", "true").mode("overwrite").parquet(output_uri_with_timestamp)
             return output_uri_with_timestamp
     except (IOError, OSError) as e:
         print(e)
@@ -60,7 +60,7 @@ def execute_df_job(output_uri, code, aws_region, sources):
     
     func_parameters = {}
     for name, location in sources.items():
-        func_parameters[name] = spark.read.parquet(location)
+        func_parameters[name] = spark.read.option("recursiveFileLookup", "true").parquet(location)
     
     try:
         code = get_code_from_file(code, aws_region)
@@ -69,7 +69,7 @@ def execute_df_job(output_uri, code, aws_region, sources):
 
         dt = datetime.now()
         output_uri_with_timestamp = f"{output_uri}{dt}"
-        output_df.coalesce(1).write.mode("overwrite").parquet(output_uri_with_timestamp)
+        output_df.write.mode("overwrite").parquet(output_uri_with_timestamp)
         return output_uri_with_timestamp
     except (IOError, OSError) as e:
         print(f"Issue with execution of the transformation: {e}")

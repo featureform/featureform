@@ -165,7 +165,10 @@ def dash():
 @click.option("--local",
               is_flag=True,
               help="Enable local mode")
-def apply(host, cert, insecure, local, files):
+@click.option("--dry-run",
+              is_flag=True,
+              help="Enable local mode")
+def apply(host, cert, insecure, local, files, dry_run):
     for file in files:
         if os.path.isfile(file):
             with open(file, "r") as py:
@@ -179,7 +182,7 @@ def apply(host, cert, insecure, local, files):
         else:
             raise ValueError(f"Argument must be a path to a file or URL with a valid schema (http:// or https://): {file}")
 
-    rc = ResourceClient(host=host, local=local, insecure=insecure, cert_path=cert)
+    rc = ResourceClient(host=host, local=local, insecure=insecure, cert_path=cert, dry_run=dry_run)
     rc.apply()
 
 

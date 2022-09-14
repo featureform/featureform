@@ -1796,7 +1796,7 @@ class ResourceClient(Registrar):
     ```
     """
 
-    def __init__(self, host=None, local=False, insecure=False, cert_path=None):
+    def __init__(self, host=None, local=False, insecure=False, cert_path=None, dry_run=False):
         """Initialise a Resource Client object.
 
         Args:
@@ -1806,8 +1806,13 @@ class ResourceClient(Registrar):
             cert_path (str): The path to a public certificate if using a self-signed certificate.
         """
         super().__init__()
+        self._dry_run = dry_run
         self._stub = None
         self.local = local
+
+        if dry_run:
+            return
+
         if local and host:
             raise ValueError("Cannot be local and have a host")
         elif not local:
@@ -1826,6 +1831,10 @@ class ResourceClient(Registrar):
     def apply(self):
         """Apply all definitions, creating and retrieving all specified resources.
         """
+
+        if self._dry_run:
+            print(state().sorted_list())
+            return
 
         if self.local:
             state().create_all_local()

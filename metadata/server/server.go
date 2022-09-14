@@ -6,6 +6,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/featureform/metadata/search"
 	"os"
 
 	help "github.com/featureform/helpers"
@@ -19,6 +20,7 @@ func main() {
 	etcdPort := help.GetEnv("ETCD_PORT", "2379")
 	logger := zap.NewExample().Sugar()
 	addr := help.GetEnv("METADATA_PORT", "8080")
+	disableTypesense := help.GetEnv("DISABLE_TYPESENSE", "false")
 	storageProvider := metadata.EtcdStorageProvider{
 		metadata.EtcdConfig{
 			Nodes: []metadata.EtcdNode{
@@ -26,17 +28,27 @@ func main() {
 			},
 		},
 	}
-	fmt.Println("TS Port", os.Getenv("TYPESENSE_PORT"), "TS HOST", os.Getenv("TYPESENSE_HOST"), "TS KEY", os.Getenv("TYPESENSE_APIKEY"))
-	config := &metadata.Config{
-		Logger:  logger,
-		Address: fmt.Sprintf(":%s", addr),
-		//TypeSenseParams: &search.TypeSenseParams{
-		//	Port:   help.GetEnv("TYPESENSE_PORT", "8108"),
-		//	Host:   help.GetEnv("TYPESENSE_HOST", "localhost"),
-		//	ApiKey: help.GetEnv("TYPESENSE_APIKEY", "xyz"),
-		//},
-		StorageProvider: storageProvider,
+	var config *metadata.Config
+	if disableTypesense == "false" {
+		fmt.Println("TS Port", os.Getenv("TYPESENSE_PORT"), "TS HOST", os.Getenv("TYPESENSE_HOST"), "TS KEY", os.Getenv("TYPESENSE_APIKEY"))
+		config = &metadata.Config{
+			Logger:  logger,
+			Address: fmt.Sprintf(":%s", addr),
+			TypeSenseParams: &search.TypeSenseParams{
+				Port:   help.GetEnv("TYPESENSE_PORT", "8108"),
+				Host:   help.GetEnv("TYPESENSE_HOST", "localhost"),
+				ApiKey: help.GetEnv("TYPESENSE_APIKEY", "xyz"),
+			},
+			StorageProvider: storageProvider,
+		}
+	} else {
+		config = &metadata.Config{
+			Logger:          logger,
+			Address:         fmt.Sprintf(":%s", addr),
+			StorageProvider: storageProvider,
+		}
 	}
+
 	server, err := metadata.NewMetadataServer(config)
 	if err != nil {
 		logger.Panicw("Failed to create metadata server", "Err", err)

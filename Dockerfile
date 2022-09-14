@@ -58,5 +58,6 @@ RUN apt-get install -y nginx --option=Dpkg::Options::=--force-confdef
 
 WORKDIR /app
 
+ENV DISABLE_TYPESENSE="true"
 EXPOSE 7878
 CMD ["/usr/bin/supervisord"]

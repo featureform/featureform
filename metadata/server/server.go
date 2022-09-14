@@ -10,14 +10,13 @@ import (
 
 	help "github.com/featureform/helpers"
 	"github.com/featureform/metadata"
-	"github.com/featureform/metadata/search"
 	"go.uber.org/zap"
 )
 
 func main() {
 
 	etcdHost := help.GetEnv("ETCD_HOST", "localhost")
-	etcdPort := help.GetEnv("ETCD_PORT", "6379")
+	etcdPort := help.GetEnv("ETCD_PORT", "2379")
 	logger := zap.NewExample().Sugar()
 	addr := help.GetEnv("METADATA_PORT", "8080")
 	storageProvider := metadata.EtcdStorageProvider{
@@ -31,11 +30,11 @@ func main() {
 	config := &metadata.Config{
 		Logger:  logger,
 		Address: fmt.Sprintf(":%s", addr),
-		TypeSenseParams: &search.TypeSenseParams{
-			Port:   help.GetEnv("TYPESENSE_PORT", "8108"),
-			Host:   help.GetEnv("TYPESENSE_HOST", "localhost"),
-			ApiKey: help.GetEnv("TYPESENSE_APIKEY", "xyz"),
-		},
+		//TypeSenseParams: &search.TypeSenseParams{
+		//	Port:   help.GetEnv("TYPESENSE_PORT", "8108"),
+		//	Host:   help.GetEnv("TYPESENSE_HOST", "localhost"),
+		//	ApiKey: help.GetEnv("TYPESENSE_APIKEY", "xyz"),
+		//},
 		StorageProvider: storageProvider,
 	}
 	server, err := metadata.NewMetadataServer(config)

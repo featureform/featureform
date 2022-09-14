@@ -20,14 +20,15 @@ import (
 func main() {
 	logger := zap.NewExample().Sugar()
 
-	port := help.GetEnv("SERVING_PORT", "8080")
-	lis, err := net.Listen("tcp", port)
+	port := help.GetEnv("SERVING_PORT", "8082")
+	address := fmt.Sprintf("127.0.0.1:%s", port)
+	lis, err := net.Listen("tcp", address)
 	if err != nil {
 		logger.Panicw("Failed to listen on port", "Err", err)
 	}
 
 	promMetrics := metrics.NewMetrics("test")
-	metricsPort := help.GetEnv("METRICS_PORT", "")
+	metricsPort := help.GetEnv("METRICS_PORT", ":9090")
 
 	metadataHost := help.GetEnv("METADATA_HOST", "localhost")
 	metadataPort := help.GetEnv("METADATA_PORT", "8080")
@@ -39,11 +40,11 @@ func main() {
 	}
 
 	serv, err := newserving.NewFeatureServer(meta, promMetrics, logger)
-
-	grpcServer := grpc.NewServer()
 	if err != nil {
 		logger.Panicw("Failed to create training server", "Err", err)
 	}
+	grpcServer := grpc.NewServer()
+
 	pb.RegisterFeatureServer(grpcServer, serv)
 	logger.Infow("Serving metrics", "Port", metricsPort)
 	go promMetrics.ExposePort(metricsPort)

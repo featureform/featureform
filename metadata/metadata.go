@@ -1003,7 +1003,7 @@ func NewMetadataServer(config *Config) (*MetadataServer, error) {
 	lookup, err := config.StorageProvider.GetResourceLookup()
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not configure storage provider: %v", err)
 	}
 	if config.TypeSenseParams != nil {
 		searcher, errInitializeSearch := search.NewTypesenseSearch(config.TypeSenseParams)
@@ -1081,7 +1081,7 @@ type EtcdStorageProvider struct {
 func (sp EtcdStorageProvider) GetResourceLookup() (ResourceLookup, error) {
 	client, err := sp.Config.initClient()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not init etcd client: %v", err)
 	}
 	lookup := etcdResourceLookup{
 		connection: EtcdStorage{

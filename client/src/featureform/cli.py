@@ -167,7 +167,7 @@ def dash():
               help="Enable local mode")
 @click.option("--dry-run",
               is_flag=True,
-              help="Enable local mode")
+              help="Checks the definitions without applying them")
 def apply(host, cert, insecure, local, files, dry_run):
     for file in files:
         if os.path.isfile(file):

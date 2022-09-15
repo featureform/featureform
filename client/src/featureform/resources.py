@@ -449,7 +449,7 @@ class DFTransformation(Transformation):
         return {
             "transformation":
                 pb.Transformation(DFTransformation=pb.DFTransformation(
-                    query=self.query, inputs=self.inputs), ),
+                    query=self.query, inputs=[pb.NameVariant(name=v[0], variant=v[1]) for v in self.inputs], )),
         }
 
 

@@ -364,7 +364,7 @@ func (s *S3Store) ResourceKeys(id ResourceID) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	latestFilePrefix := latestTimeResource[:strings.LastIndex(latestTimeResource, "/")]
+	latestFilePrefix := latestTimeResource[:strings.LastIndex(latestTimeResource, "/")+1]
 	objects, err := s.client.ListObjects(context.TODO(), &s3.ListObjectsInput{
 		Bucket: aws.String(s.bucketPath),
 		Prefix: aws.String(latestFilePrefix),
@@ -378,11 +378,11 @@ func (s *S3Store) ResourceKeys(id ResourceID) ([]string, error) {
 		return nil, fmt.Errorf("no resource exists")
 	}
 	s.logger.Debugf("Found %d objects", len(objects.Contents))
-	returnList := make([]string, len(objects.Contents)-1)
-	for i, object := range objects.Contents {
+	returnList := make([]string, 0, len(objects.Contents)-1)
+	for _, object := range objects.Contents {
 		suffix := (*object.Key)[len(latestFilePrefix):]
-		if suffix != "__SUCCESS" {
-			returnList[i] = *object.Key
+		if suffix != "_SUCCESS" {
+			returnList = append(returnList, *object.Key)
 		}
 	}
 	return returnList, nil
@@ -1164,8 +1164,8 @@ func (s *S3Materialization) IterateSegment(begin, end int64) (FeatureIterator, e
 	if err != nil {
 		return nil, err
 	}
-	for i := 0; i < begin; i++ {
-		_ := <-stream
+	for i := int64(0); i < begin; i++ {
+		_ = <-stream
 	}
 	return &S3FeatureIterator{stream: stream, maxIdx: (end - begin)}, nil
 }
@@ -1293,7 +1293,7 @@ func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materializ
 		return nil, fmt.Errorf("materialization already exists")
 	}
 	materializationQuery := spark.query.materializationCreate(sparkResourceTable.schema)
-
+	//no issue if this source table is a permanent table, but what if it is a transformation?
 	sourcePath := spark.Store.KeyPath(sparkResourceTable.schema.SourceTable)
 	sparkArgs := spark.Store.SparkSubmitArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize)
 	spark.Logger.Debugw("Creating materialization", id)
@@ -1675,9 +1675,9 @@ func streamGetKeys(record *s3Types.SelectObjectContentEventStreamMemberRecords) 
 
 // Takes id pointing to file path:
 //.../Type/Name/Variant/Timestamp/_SUCCESS
-//.../Type/Name/Variant/Timestamp/_xxxpart1.parquet
-//.../Type/Name/Variant/Timestamp/_xxxpart2.parquet
-//.../Type/Name/Variant/Timestamp/_xxxpart3.parquet
+//.../Type/Name/Variant/Timestamp/part-00000xxxx.parquet
+//.../Type/Name/Variant/Timestamp/part-00001xxxx.parquet
+//.../Type/Name/Variant/Timestamp/part-00002xxxx.parquet
 // and creates a stream over every file
 func (s *S3Store) ResourceMultiPartStream(id ResourceID) (chan interface{}, error) {
 	partsList, err := s.ResourceKeys(id)
@@ -1700,15 +1700,16 @@ func (s *S3Store) partStreamReader(rowChannel chan interface{}, partsList []stri
 			value := <-partStream
 			err, isError := value.(error)
 			if isError && err.Error() == "end of file" {
-				continue
+				break
 			} else if isError {
 				rowChannel <- err
+				break
 			} else {
 				rowChannel <- value
 			}
 		}
 	}
-	rowChannel <- fmt.Errorf("end of parts stream")
+	close(rowChannel)
 }
 
 func (s *S3Store) ResourceStreamConv(key string, begin int64) (chan interface{}, error) {
@@ -1735,13 +1736,6 @@ func (s *S3Store) ResourceStreamConv(key string, begin int64) (chan interface{},
 	return rowChannel, nil
 }
 
-// bm22
-// type ResourcePartsIterator struct {
-//	parts []string
-//  currentPart int64
-//	curReader *reader.ParquetReader
-//}
-
 func parquetReaderToStream(rowChannel chan interface{}, numRows int64, pr *reader.ParquetReader) {
 	for i := int64(0); i < numRows; i++ {
 		res, err := pr.ReadByNumber(1)
@@ -1752,6 +1746,7 @@ func parquetReaderToStream(rowChannel chan interface{}, numRows int64, pr *reade
 		rowChannel <- row
 	}
 	rowChannel <- fmt.Errorf("end of file")
+	close(rowChannel)
 }
 
 func splitRecordLinesOverStream(record *s3Types.SelectObjectContentEventStreamMemberRecords, out chan []byte) {

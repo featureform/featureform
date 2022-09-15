@@ -397,6 +397,10 @@ func TestParquetUpload(t *testing.T) {
 		t.Fatalf("resource primary test failed: %s", err)
 	}
 	// inherited from offline_test.go
+	if err := testResourceMultipartStream(sparkOfflineStore); err != nil {
+		t.Fatalf("multi part stream test failed, %v", err)
+	}
+
 	sparkTestOfflineTableNotFound(t, sparkOfflineStore)
 	sparkTestCreateGetOfflineTable(t, sparkOfflineStore)
 	sparkTestOfflineTableAlreadyExists(t, sparkOfflineStore)
@@ -411,12 +415,12 @@ func TestParquetUpload(t *testing.T) {
 	sparkTestFeatureTableNotFound(t, sparkOfflineStore)
 	sparkTestCreatePrimaryFromSource(t, sparkOfflineStore)
 	sparkTestCreateDuplicatePrimaryTable(t, sparkOfflineStore)
-	// EMR tests (take a lot longer)
-	sparkTestTrainingSet(t, sparkOfflineStore)
-	sparkTestMaterializations(t, sparkOfflineStore)
-	sparkTestTrainingSetDefShorthand(t, sparkOfflineStore)
-	sparkTestMaterializationUpdate(t, sparkOfflineStore)
-	sparkTestTrainingSetUpdate(t, sparkOfflineStore)
+	// // EMR tests (take a lot longer)
+	// sparkTestTrainingSet(t, sparkOfflineStore)
+	// sparkTestMaterializations(t, sparkOfflineStore)
+	// sparkTestTrainingSetDefShorthand(t, sparkOfflineStore)
+	// sparkTestMaterializationUpdate(t, sparkOfflineStore)
+	// sparkTestTrainingSetUpdate(t, sparkOfflineStore)
 	// if err := testMaterializeResource(sparkOfflineStore); err != nil {
 	// 	t.Fatalf("resource materialize test failed: %s", err)
 	// }
@@ -424,6 +428,37 @@ func TestParquetUpload(t *testing.T) {
 	// 	t.Fatalf("resource training set test failed: %s", err)
 	// }
 
+}
+
+func testResourceMultipartStream(store *SparkOfflineStore) error {
+	actualValues := map[string]float64{
+		"HV0005": 12.211735974538161,
+		"HV0003": 14.060572113730137,
+		"HV0004": 0.4226761998316025,
+	}
+	testCreatedResourceID := ResourceID{Name: "multipart", Variant: "test", Type: Transformation}
+	stream, err := store.Store.ResourceMultiPartStream(testCreatedResourceID)
+	if err != nil {
+		return err
+	}
+	rowCount, err := store.Store.ResourceRowCt(testCreatedResourceID)
+	i := 0
+	for row := range stream {
+		i += 1
+		rowValue := reflect.ValueOf(row)
+		id := rowValue.Field(0).Elem().Interface().(string)
+		val := rowValue.Field(1).Elem().Interface().(float64)
+		if actualValues[id] != val {
+			return fmt.Errorf("Incorrect resource value retrieved")
+		}
+		if i > rowCount {
+			return fmt.Errorf("Resource row count returned fewer rows than actual")
+		}
+	}
+	if i != rowCount {
+		return fmt.Errorf("Resource row count returned more rows than actual")
+	}
+	return nil
 }
 
 func sparkTestCreateDuplicatePrimaryTable(t *testing.T, store *SparkOfflineStore) {
@@ -1593,7 +1628,6 @@ func getSparkOfflineStore(t *testing.T) (*SparkOfflineStore, error) {
 	if err != nil {
 		fmt.Println(err)
 	}
-
 	emrConf := EMRConfig{
 		AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
 		AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),

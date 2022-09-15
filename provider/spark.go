@@ -375,7 +375,7 @@ func (s *S3Store) ResourceKeys(id ResourceID) ([]string, error) {
 	}
 	if len(objects.Contents) == 0 {
 		s.logger.Errorw("no objects with key prefix exist in S3", latestFilePrefix)
-		return nil, fmt.Errorf("no resource exists")
+		return []string{}, nil
 	}
 	s.logger.Debugf("Found %d objects", len(objects.Contents))
 	returnList := make([]string, 0, len(objects.Contents)-1)
@@ -414,6 +414,9 @@ func (s *S3Store) ResourceKey(id ResourceID) (string, error) {
 	keys := make([]string, len(resourceTimestamps))
 	for k := range resourceTimestamps {
 		keys = append(keys, k)
+	}
+	if len(keys) == 0 {
+		return "", nil
 	}
 	sort.Strings(keys)
 	latestTimestamp := keys[len(keys)-1]
@@ -653,8 +656,14 @@ func (s *S3Store) FileExists(path string) (bool, error) {
 }
 
 func (s *S3Store) ResourceExists(id ResourceID) (bool, error) {
-	filePrefix := ResourcePrefix(id)
-	return s.FileExists(filePrefix)
+	keys, err := s.ResourceKeys(id)
+	if err != nil {
+		return false, nil
+	}
+	if len(keys) == 0 {
+		return false, nil
+	}
+	return true, nil
 }
 
 func (s *S3Store) S3ParquetReader(path string) (source.ParquetFile, error) {
@@ -844,7 +853,13 @@ func (s *S3PrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) {
 }
 
 func (s *S3PrimaryTable) NumRows() (int64, error) {
-	num, err := s.store.FileRowCt(s.sourcePath)
+	var num int
+	var err error
+	if s.isTransformation{
+		num, err = s.store.ResourceRowCt(s.id)
+	} else {
+		num, err = s.store.FileRowCt(s.sourcePath)
+	}
 	if err != nil {
 		return 0, err
 	}
@@ -906,7 +921,7 @@ func (spark *SparkOfflineStore) RegisterResourceFromSourceTable(id ResourceID, s
 		spark.Logger.Errorw("Could not upload Parquet table", err)
 		return nil, err
 	}
-	spark.Logger.Debugw("Registered resource table", id, "for source", schema.SourceTable)
+	spark.Logger.Debugw("Registered resource table", "resourceID", id, "for source", schema.SourceTable)
 	return &S3OfflineTable{schema}, nil
 }
 
@@ -1377,22 +1392,24 @@ func (spark *SparkOfflineStore) DeleteMaterialization(id MaterializationID) erro
 		return &MaterializationNotFound{id}
 	}
 	materializationID := ResourceID{s[1], s[2], FeatureMaterialization}
-	key, err := spark.Store.ResourceKey(materializationID)
+	keys, err := spark.Store.ResourceKeys(materializationID)
 	if err != nil {
 		spark.Logger.Errorw("Could not fetch materialization resource key", err)
 		return err
 	}
-	if exists, err := spark.Store.FileExists(key); err != nil {
-		spark.Logger.Errorw("Error searchin for resource materialization file", err)
-		return err
-	} else if !exists {
-		spark.Logger.Errorw("Could not find resource materialization file", id)
-		return &MaterializationNotFound{id}
-	}
-	spark.Logger.Debugw("Deleting materialization:", id)
-	if err := spark.Store.DeleteFile(key); err != nil {
-		spark.Logger.Errorw("Failed to delete materialization file with key", key)
-		return fmt.Errorf("failed to delete file: %v", err)
+	for _, key := range keys {
+		if exists, err := spark.Store.FileExists(key); err != nil {
+			spark.Logger.Errorw("Error searching for resource materialization file", err)
+			return err
+		} else if !exists {
+			spark.Logger.Errorw("Could not find resource materialization file", id)
+			return &MaterializationNotFound{id}
+		}
+		spark.Logger.Debugw("Deleting materialization:", id)
+		if err := spark.Store.DeleteFile(key); err != nil {
+			spark.Logger.Errorw("Failed to delete materialization file with key", key)
+			return fmt.Errorf("failed to delete file: %v", err)
+		}
 	}
 	spark.Logger.Debugw("Succesfully deleted materialization", id)
 	return nil

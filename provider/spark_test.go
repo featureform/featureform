@@ -414,7 +414,7 @@ func TestParquetUpload(t *testing.T) {
 	sparkTestFeatureTableNotFound(t, sparkOfflineStore)
 	sparkTestCreatePrimaryFromSource(t, sparkOfflineStore)
 	sparkTestCreateDuplicatePrimaryTable(t, sparkOfflineStore)
-	// // // EMR tests (take a lot longer)
+	// // // // // EMR tests (take a lot longer)
 	sparkTestTrainingSet(t, sparkOfflineStore)
 	sparkTestMaterializations(t, sparkOfflineStore)
 	sparkTestTrainingSetDefShorthand(t, sparkOfflineStore)

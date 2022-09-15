@@ -1,6 +1,4 @@
-
 import os
-
 from dotenv import load_dotenv
 
 import featureform as ff
@@ -14,7 +12,7 @@ def get_random_string():
 
 
 VERSION=get_random_string()
-os.environ["TEST_CASE_VERSION"] = VERSION
+os.environ["TEST_CASE_VERSION"]=VERSION
 
 redis = ff.register_redis(
     name = f"redis-quickstart_{VERSION}",
@@ -39,20 +37,29 @@ spark = ff.register_spark(**args)
 ff.register_user(f"featureformer_{VERSION}").make_default_owner()
 
 file = spark.register_parquet_file(
-    name=f"transaction_short",
+    name=f"transaction_short_{VERSION}",
     variant="test_variant",
     owner=f"featureformer_{VERSION}",
     file_path="s3://featureform-spark-testing/featureform/source_datasets/transaction_short/",
 )
 
 
-@spark.sql_transformation(name=f"sql_transaction_transformation_{VERSION}", variant="quickstart")
-def average_user_score():
+# @spark.sql_transformation(name=f"sql_transaction_transformation_{VERSION}", variant="quickstart")
+# def average_user_score():
+#     """the average score for a user"""
+#     VERSION="3_5"
+#     return f"SELECT CustomerID as user_id, avg(TransactionAmount) as avg_transaction_amt from {{{{ transaction_short_{VERSION}.test_variant }}}} GROUP BY user_id"
+
+@spark.df_transformation(name=f"sql_transaction_transformation_{VERSION}", variant="quickstart")
+def average_user_score(df):
     """the average score for a user"""
-    return f"SELECT CustomerID as user_id, avg(TransactionAmount) as avg_transaction_amt from {{{{ transaction_short.test_variant }}}} GROUP BY user_id"
+    from pyspark.sql.functions import avg, col
+    df = df.select(col("CustomerID").alias("user_id"), "TransactionAmount").groupBy("user_id").agg(avg("TransactionAmount").alias("avg_transaction_amt"))
+    return df
+
 
 user = ff.register_entity("user")
-
+average_user_score.VERSION = VERSION
 average_user_score.register_resources(
     entity=user,
     owner=f"featureformer_{VERSION}",

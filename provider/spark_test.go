@@ -420,12 +420,12 @@ func TestParquetUpload(t *testing.T) {
 	sparkTestTrainingSetDefShorthand(t, sparkOfflineStore)
 	sparkTestMaterializationUpdate(t, sparkOfflineStore)
 	sparkTestTrainingSetUpdate(t, sparkOfflineStore)
-	if err := testMaterializeResource(sparkOfflineStore); err != nil {
-		t.Fatalf("resource materialize test failed: %s", err)
-	}
-	if err := testCreateTrainingSet(sparkOfflineStore); err != nil {
-		t.Fatalf("resource training set test failed: %s", err)
-	}
+	// if err := testMaterializeResource(sparkOfflineStore); err != nil {
+	// 	t.Fatalf("resource materialize test failed: %s", err)
+	// }
+	// if err := testCreateTrainingSet(sparkOfflineStore); err != nil {
+	// 	t.Fatalf("resource training set test failed: %s", err)
+	// }
 }
 
 func testResourceMultipartStream(store *SparkOfflineStore) error {

@@ -20,8 +20,7 @@ import (
 func main() {
 	logger := zap.NewExample().Sugar()
 
-	port := help.GetEnv("SERVING_PORT", "8082")
-	address := fmt.Sprintf("127.0.0.1:%s", port)
+	address := help.GetEnv("SERVING_PORT", "0.0.0.0:8080")
 	lis, err := net.Listen("tcp", address)
 	if err != nil {
 		logger.Panicw("Failed to listen on port", "Err", err)
@@ -48,7 +47,7 @@ func main() {
 	pb.RegisterFeatureServer(grpcServer, serv)
 	logger.Infow("Serving metrics", "Port", metricsPort)
 	go promMetrics.ExposePort(metricsPort)
-	logger.Infow("Server starting", "Port", port)
+	logger.Infow("Server starting", "Port", address)
 	serveErr := grpcServer.Serve(lis)
 	if serveErr != nil {
 		logger.Errorw("Serve failed with error", "Err", serveErr)

@@ -28,6 +28,6 @@ FROM alpine
 
 COPY --from=0 ./app/main ./main
 
-ENV SERVING_PORT "8080"
+ENV SERVING_PORT "0.0.0.0:8080"
 EXPOSE 8080
 ENTRYPOINT ["./main"]

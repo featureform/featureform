@@ -435,12 +435,12 @@ func testResourceMultipartStream(store *SparkOfflineStore) error {
 		"HV0004": 0.4226761998316025,
 	}
 	testCreatedResourceID := ResourceID{Name: "multipart", Variant: "test", Type: Transformation}
-	stream, err := store.Store.ResourceMultiPartStream(testCreatedResourceID)
+	stream, err := store.Store.ResourceMultiPartStream(testCreatedResourceID, 0)
 	if err != nil {
 		return err
 	}
-	rowCount, err := store.Store.ResourceRowCt(testCreatedResourceID)
-	i := 0
+	rowCount, err := store.Store.ResourceRowCount(testCreatedResourceID)
+	i := int64(0)
 	for row := range stream {
 		i += 1
 		rowValue := reflect.ValueOf(row)
@@ -1919,39 +1919,6 @@ func TestUnimplimentedFailures(t *testing.T) {
 	}
 	if table, err := store.CreateResourceTable(ResourceID{}, TableSchema{}); !(table == nil && err == nil) {
 		t.Fatalf("did not return nil on calling unimplimented function")
-	}
-}
-
-func TestStreamGetKeys(t *testing.T) {
-	type testStruct struct {
-		Name   string
-		Value  int
-		Failed bool
-	}
-	correctFields := map[string]bool{
-		"Name":   true,
-		"Value":  true,
-		"Failed": true,
-	}
-	test := testStruct{"name", 1, true}
-	payload, err := json.Marshal(test)
-	if err != nil {
-		t.Fatalf("Could not marshal into json: %v", err)
-	}
-	record := s3Types.SelectObjectContentEventStreamMemberRecords{Value: s3Types.RecordsEvent{Payload: payload}}
-	records, err := streamGetKeys(&record)
-	if err != nil {
-		t.Fatalf("failed to parse json: %v", err)
-	}
-	for _, rec := range records {
-		if correctFields[rec] != true {
-			t.Fatalf("invalid record field returned")
-		}
-	}
-	invalidPayload := []byte("invalid payload")
-	invalidRecord := s3Types.SelectObjectContentEventStreamMemberRecords{Value: s3Types.RecordsEvent{Payload: invalidPayload}}
-	if _, err := streamGetKeys(&invalidRecord); err == nil {
-		t.Fatalf("failed to trigger error retrieving fields from invalid json byte string")
 	}
 }
 

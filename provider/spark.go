@@ -763,18 +763,21 @@ type PrimarySchema struct {
 }
 
 type S3PrimaryTable struct {
-	store      SparkStore
-	sourcePath string
+	store            SparkStore
+	sourcePath       string
+	isTransformation bool
+	id               ResourceID
 }
 
 type S3GenericTableIterator struct {
-	store         SparkStore
-	sourcePath    string
-	rows          int64
-	columns       []string
-	valuesChannel chan interface{}
-	currentValue  interface{}
-	currentIndex  int64
+	store            SparkStore
+	sourcePath       string
+	rows             int64
+	columns          []string
+	valuesChannel    chan interface{}
+	currentValue     interface{}
+	currentIndex     int64
+	isTransformation bool
 }
 
 func (s *S3GenericTableIterator) Next() bool {
@@ -816,7 +819,13 @@ func (s *S3PrimaryTable) GetName() string {
 }
 
 func (s *S3PrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) {
-	columnStream, err := s.store.ResourceStreamConv(s.sourcePath, 0)
+	var columnStream chan interface{}
+	var err error
+	if s.isTransformation {
+		columnStream, err = s.store.ResourceMultiPartStream(s.id)
+	} else {
+		columnStream, err = s.store.ResourceStreamConv(s.sourcePath, 0)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -831,7 +840,7 @@ func (s *S3PrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &S3GenericTableIterator{s.store, s.sourcePath, n, columns, channel, nil, 0}, nil
+	return &S3GenericTableIterator{s.store, s.sourcePath, n, columns, channel, nil, 0, s.isTransformation}, nil
 }
 
 func (s *S3PrimaryTable) NumRows() (int64, error) {
@@ -861,7 +870,7 @@ func (spark *SparkOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, so
 		return nil, err
 	}
 	spark.Logger.Debugw("Succesfully registered primary table", id, "for source", sourceName)
-	return &S3PrimaryTable{spark.Store, sourceName}, nil
+	return &S3PrimaryTable{spark.Store, sourceName, false, id}, nil
 }
 
 type S3OfflineTable struct {
@@ -1026,7 +1035,6 @@ func (spark *SparkOfflineStore) getSourcePath(path string) (string, error) {
 			return "", fmt.Errorf("could not get the transformation table for {%v} because %s", fileResourceId, err)
 		}
 		filePath = fmt.Sprintf("%s%s", spark.Store.BucketPrefix(), transformationPath[:strings.LastIndex(transformationPath, "/")+1])
-		fmt.Println(filePath)
 		return filePath, nil
 	} else {
 		return filePath, fmt.Errorf("could not find path for %s; fileType: %s, fileName: %s, fileVariant: %s", path, fileType, fileName, fileVariant)
@@ -1081,8 +1089,9 @@ func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (Transform
 		spark.Logger.Errorw("Could not get transformation table", "error", err)
 		return nil, fmt.Errorf("could not get transformation table (%v) because %s", id, err)
 	}
+	fixedPath := transformationPath[:strings.LastIndex(transformationPath, "/")+1]
 	spark.Logger.Debugw("Succesfully retrieved transformation table", "ResourceID", id)
-	return &S3PrimaryTable{spark.Store, transformationPath}, nil
+	return &S3PrimaryTable{spark.Store, fixedPath, true, id}, nil
 }
 
 func (spark *SparkOfflineStore) UpdateTransformation(config TransformationConfig) error {
@@ -1107,9 +1116,7 @@ func (spark *SparkOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, er
 		sourcePath = reflect.ValueOf(v).FieldByName("Source").String()
 	}
 	spark.Logger.Debugw("Succesfully retrieved primary table", id)
-	fmt.Println("retrieved primary table")
-	fmt.Println(sourcePath)
-	return &S3PrimaryTable{spark.Store, sourcePath}, nil
+	return &S3PrimaryTable{spark.Store, sourcePath, false, id}, nil
 }
 
 func (spark *SparkOfflineStore) CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error) {
@@ -1296,7 +1303,6 @@ func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materializ
 		return nil, fmt.Errorf("materialization already exists")
 	}
 	materializationQuery := spark.query.materializationCreate(sparkResourceTable.schema)
-	//no issue if this source table is a permanent table, but what if it is a transformation?
 	sourcePath := spark.Store.KeyPath(sparkResourceTable.schema.SourceTable)
 	sparkArgs := spark.Store.SparkSubmitArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize)
 	spark.Logger.Debugw("Creating materialization", id)

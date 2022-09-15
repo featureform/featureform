@@ -1668,7 +1668,7 @@ class Registrar:
                 entity=entity,
                 owner=owner,
                 provider=inference_store,
-                description=description,
+                description=feature["description"],
                 schedule=schedule,
                 location=ResourceColumnMapping(
                     entity=entity_column,
@@ -1689,7 +1689,7 @@ class Registrar:
                 entity=entity,
                 owner=owner,
                 provider=inference_store,
-                description=description,
+                description=label["description"],
                 location=ResourceColumnMapping(
                     entity=entity_column,
                     value=label["column"],

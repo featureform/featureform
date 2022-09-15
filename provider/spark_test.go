@@ -396,11 +396,10 @@ func TestParquetUpload(t *testing.T) {
 	if err := testRegisterPrimary(sparkOfflineStore); err != nil {
 		t.Fatalf("resource primary test failed: %s", err)
 	}
-	// inherited from offline_test.go
 	if err := testResourceMultipartStream(sparkOfflineStore); err != nil {
 		t.Fatalf("multi part stream test failed, %v", err)
 	}
-
+	// inherited from offline_test.go
 	sparkTestOfflineTableNotFound(t, sparkOfflineStore)
 	sparkTestCreateGetOfflineTable(t, sparkOfflineStore)
 	sparkTestOfflineTableAlreadyExists(t, sparkOfflineStore)
@@ -415,19 +414,18 @@ func TestParquetUpload(t *testing.T) {
 	sparkTestFeatureTableNotFound(t, sparkOfflineStore)
 	sparkTestCreatePrimaryFromSource(t, sparkOfflineStore)
 	sparkTestCreateDuplicatePrimaryTable(t, sparkOfflineStore)
-	// // EMR tests (take a lot longer)
-	// sparkTestTrainingSet(t, sparkOfflineStore)
-	// sparkTestMaterializations(t, sparkOfflineStore)
-	// sparkTestTrainingSetDefShorthand(t, sparkOfflineStore)
-	// sparkTestMaterializationUpdate(t, sparkOfflineStore)
-	// sparkTestTrainingSetUpdate(t, sparkOfflineStore)
-	// if err := testMaterializeResource(sparkOfflineStore); err != nil {
-	// 	t.Fatalf("resource materialize test failed: %s", err)
-	// }
-	// if err := testCreateTrainingSet(sparkOfflineStore); err != nil {
-	// 	t.Fatalf("resource training set test failed: %s", err)
-	// }
-
+	// // // EMR tests (take a lot longer)
+	sparkTestTrainingSet(t, sparkOfflineStore)
+	sparkTestMaterializations(t, sparkOfflineStore)
+	sparkTestTrainingSetDefShorthand(t, sparkOfflineStore)
+	sparkTestMaterializationUpdate(t, sparkOfflineStore)
+	sparkTestTrainingSetUpdate(t, sparkOfflineStore)
+	if err := testMaterializeResource(sparkOfflineStore); err != nil {
+		t.Fatalf("resource materialize test failed: %s", err)
+	}
+	if err := testCreateTrainingSet(sparkOfflineStore); err != nil {
+		t.Fatalf("resource training set test failed: %s", err)
+	}
 }
 
 func testResourceMultipartStream(store *SparkOfflineStore) error {
@@ -1260,7 +1258,7 @@ func TestUpdateQuery(t *testing.T) {
 			"SELECT * FROM source_0 and more source_1",
 			[]string{
 				"s3://featureform-spark-testing/featureform/testprimary/testFile.parquet",
-				"s3://featureform-spark-testing/featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant/2022-08-19 17:37:36.546384/part-00000-c93fe1fb-4ab0-45df-9292-b139e4043181-c000.snappy.parquet",
+				"s3://featureform-spark-testing/featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant/2022-08-19 17:37:36.546384/",
 			},
 			false,
 		},
@@ -1275,7 +1273,7 @@ func TestUpdateQuery(t *testing.T) {
 			},
 			"SELECT * FROM source_0",
 			[]string{
-				"s3://featureform-spark-testing/featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant/2022-08-19 17:37:36.546384/part-00000-c93fe1fb-4ab0-45df-9292-b139e4043181-c000.snappy.parquet",
+				"s3://featureform-spark-testing/featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant/2022-08-19 17:37:36.546384/",
 			},
 			false,
 		},
@@ -1375,7 +1373,7 @@ func TestGetSourcePath(t *testing.T) {
 		{
 			"TransformationPathSuccess",
 			"featureform_transformation__028f6213-77a8-43bb-9d91-dd7e9ee96102__test_variant",
-			"s3://featureform-spark-testing/featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant/2022-08-19 17:37:36.546384/part-00000-c93fe1fb-4ab0-45df-9292-b139e4043181-c000.snappy.parquet",
+			"s3://featureform-spark-testing/featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant/2022-08-19 17:37:36.546384/",
 			false,
 		},
 		{

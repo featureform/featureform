@@ -1015,7 +1015,7 @@ func (spark *SparkOfflineStore) getSourcePath(path string) (string, error) {
 			spark.Logger.Errorw("Issue getting primary table", fileResourceId, err)
 			return "", fmt.Errorf("could not get the primary table for {%v} because %s", fileResourceId, err)
 		}
-		filePath = fileTable.GetName()
+		filePath = spark.Store.KeyPath(fileTable.GetName())
 		return filePath, nil
 	} else if fileType == "transformation" {
 		fileResourceId := ResourceID{Name: fileName, Variant: fileVariant, Type: Transformation}
@@ -1025,7 +1025,8 @@ func (spark *SparkOfflineStore) getSourcePath(path string) (string, error) {
 			spark.Logger.Errorw("Issue getting transformation table", fileResourceId, err)
 			return "", fmt.Errorf("could not get the transformation table for {%v} because %s", fileResourceId, err)
 		}
-		filePath = fmt.Sprintf("%s%s", spark.Store.BucketPrefix(), transformationPath[:strings.LastIndex(transformationPath, "/")])
+		filePath = fmt.Sprintf("%s%s", spark.Store.BucketPrefix(), transformationPath[:strings.LastIndex(transformationPath, "/")+1])
+		fmt.Println(filePath)
 		return filePath, nil
 	} else {
 		return filePath, fmt.Errorf("could not find path for %s; fileType: %s, fileName: %s, fileVariant: %s", path, fileType, fileName, fileVariant)
@@ -1074,13 +1075,13 @@ func (spark *SparkOfflineStore) getDFArgs(outputURI string, code string, awsRegi
 }
 
 func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
-	spark.Logger.Debugw("Getting transformation table", id)
+	spark.Logger.Debugw("Getting transformation table", "ResourceID", id)
 	transformationPath, err := spark.Store.ResourceKey(id)
 	if err != nil {
-		spark.Logger.Errorw("Could not get transformation table", err)
+		spark.Logger.Errorw("Could not get transformation table", "error", err)
 		return nil, fmt.Errorf("could not get transformation table (%v) because %s", id, err)
 	}
-	spark.Logger.Debugw("Succesfully retrieved transformation table", id)
+	spark.Logger.Debugw("Succesfully retrieved transformation table", "ResourceID", id)
 	return &S3PrimaryTable{spark.Store, transformationPath}, nil
 }
 
@@ -1106,6 +1107,8 @@ func (spark *SparkOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, er
 		sourcePath = reflect.ValueOf(v).FieldByName("Source").String()
 	}
 	spark.Logger.Debugw("Succesfully retrieved primary table", id)
+	fmt.Println("retrieved primary table")
+	fmt.Println(sourcePath)
 	return &S3PrimaryTable{spark.Store, sourcePath}, nil
 }
 

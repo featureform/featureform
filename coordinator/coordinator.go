@@ -73,6 +73,7 @@ type Coordinator struct {
 	KVClient   *clientv3.KV
 	Spawner    JobSpawner
 	Timeout    int32
+	Storage    Store
 }
 
 type ETCDConfig struct {
@@ -168,42 +169,100 @@ func NewCoordinator(meta *metadata.Client, logger *zap.SugaredLogger, cli *clien
 		KVClient:   &kvc,
 		Spawner:    spawner,
 		Timeout:    600,
+		Storage: &ETCDStorage{
+			EtcdClient: cli,
+			KVClient:   &kvc,
+		},
 	}, nil
 }
 
 const MAX_ATTEMPTS = 2
 
-func (c *Coordinator) WatchForNewJobs() error {
-	c.Logger.Info("Watching for new jobs")
-	getResp, err := (*c.KVClient).Get(context.Background(), "JOB_", clientv3.WithPrefix())
-	if err != nil {
-		return fmt.Errorf("get existing etcd jobs: %w", err)
-	}
-	for _, kv := range getResp.Kvs {
-		go func(kv *mvccpb.KeyValue) {
-			err := c.ExecuteJob(string(kv.Key))
-			if err != nil {
-				c.Logger.Errorw("Error executing job: Initial search", "error", err)
-			}
-		}(kv)
-	}
-	for {
-		rch := c.EtcdClient.Watch(context.Background(), "JOB_", clientv3.WithPrefix())
-		for wresp := range rch {
-			for _, ev := range wresp.Events {
-				if ev.Type == 0 {
-					go func(ev *clientv3.Event) {
-						err := c.ExecuteJob(string(ev.Kv.Key))
-						if err != nil {
-							c.Logger.Errorw("Error executing job: Polling search", "error", err)
-						}
-					}(ev)
-				}
+// type Executor interface {
+// 	ExecuteJob(store Storage)
+// }
 
-			}
+type Store interface {
+	GetJobs() ([]string, error)
+	CreateJob(key string, job metadata.CoordinatorJob) error
+	GetJob(key string) (metadata.CoordinatorJob, error)
+	DeleteJob(key string) error
+	LockJob(key string) error
+	UnlockJob(key string) error
+	HasLock(key string) (bool, error)
+}
+
+type ETCDStorage struct {
+	EtcdClient *clientv3.Client
+	KVClient   *clientv3.KV
+}
+
+func (e *ETCDStorage) GetJobs() ([]string, error) {
+	getResp, err := (*e.KVClient).Get(context.Background(), "JOB_", clientv3.WithPrefix())
+	if err != nil {
+		return nil, fmt.Errorf("get existing etcd jobs: %w", err)
+	}
+	jobList := make([]string, 0)
+	for _, kv := range getResp.Kvs {
+		jobIsLocked, err := e.HasLock(string(kv.Key))
+		if err != nil {
+			return nil, err
+		}
+		if !jobIsLocked {
+			jobList = append(jobList, string(kv.Key))
 		}
 	}
+	return jobList, nil
+}
+
+func (e *ETCDStorage) HasLock(key string) (bool, error) {
+	lockKey := GetLockKey(key)
+	getResp, err := (*e.KVClient).Get(context.Background(), lockKey, clientv3.WithPrefix())
+	if err != nil {
+		return false, fmt.Errorf("get existing etcd jobs: %w", err)
+	}
+	if len(getResp.Kvs) > 0 {
+		return true, nil
+	}
+	return false, nil
+}
+
+func (e *ETCDStorage) CreateJob(key string, job metadata.CoordinatorJob) error {
 	return nil
+}
+
+func (e *ETCDStorage) GetJob(key string) (metadata.CoordinatorJob, error) {
+	return metadata.CoordinatorJob{}, nil
+}
+
+func (e *ETCDStorage) DeleteJob(key string) error {
+	return nil
+}
+
+func (e *ETCDStorage) LockJob(key string) error {
+	return nil
+}
+
+func (e *ETCDStorage) UnlockJob(key string) error {
+	return nil
+}
+
+func (c *Coordinator) WatchForNewJobs() error {
+	for {
+		jobsList, err := c.Storage.GetJobs()
+		if err != nil {
+			return err
+		}
+		for _, job := range jobsList {
+			go func(job string) {
+				err := c.ExecuteJob(job)
+				if err != nil {
+					c.Logger.Errorw("Error executing job: Initial search", "error", err)
+				}
+			}(job)
+		}
+		time.Sleep(1 * time.Second)
+	}
 }
 
 func (c *Coordinator) WatchForUpdateEvents() error {

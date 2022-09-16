@@ -6,7 +6,7 @@ description: A quick start guide for Featureform with Docker.
 This quickstart uses the standalone containered version of Featureform. It can be used to connect to the same providers 
 as the Kubernetes Hosted version, but lacks the scaling capabilities.
 
-This quickstart will walk through creating a few simple features, labels, and a training from a fraud
+This quickstart will walk through creating a few simple features, labels, and a training set from a fraud
 detection dataset using Postgres and Redis.
 
 ### Requirements
@@ -20,7 +20,7 @@ pip install featureform
 ```
 
 ## Step 2: Pull Containers
-We'll use postgres and redis as providers in this quickstart. We've created a Featureform Postgres container that
+We'll use Postgres and Redis as providers in this quickstart. We've created a Featureform Postgres container that
 has preloaded data. You can checkout the source data [here](https://featureform-demo-files.s3.amazonaws.com/transactions.csv), 
 we'll just be using a sample of it.
 
@@ -59,6 +59,12 @@ featureform apply https://featureform-demo-files.s3.amazonaws.com/definitions.py
 The dashboard is available at [localhost](http://localhost)
 
 In the dashboard you should be able to see that 2 Sources, 1 Feature, 1 Label, and 1 Training Set has been created. 
+
+You can check also check the status of the training set with:
+
+```shell
+featureform get training-set fraud_training default --insecure
+```
 
 When the status of these resources is READY, you can serve them with:
 ```shell
@@ -110,13 +116,11 @@ ff.register_user("featureform_user").make_default_owner()
 
 transactions = postgres.register_table(
     name="transactions",
-    description="Fraud Dataset From Kaggle",
     table="Transactions",  # This is the table's name in Postgres
 )
 
 @postgres.sql_transformation()
 def average_user_transaction():
-    """the average transaction amount for a user """
     return "SELECT CustomerID as user_id, avg(TransactionAmount) " \
            "as avg_transaction_amt from {{transactions.default}} GROUP BY user_id"
 ```
@@ -153,8 +157,8 @@ transactions.register_resources(
 
 ff.register_training_set(
     "fraud_training",
-    label=("fraudulent"),
-    features=[("avg_transactions")],
+    label="fraudulent",
+    features=["avg_transactions"],
 )
 ```
 {% endcode %}
@@ -168,7 +172,8 @@ and an entity that we want the value for.
 from featureform import ServingClient
 
 serving = ServingClient(insecure=True)
-user_feat = serving.features([("avg_transactions")], {"user": "C1214240"})
+
+user_feat = serving.features(["avg_transactions"], {"user": "C1214240"})
 print("User Result: ")
 print(user_feat)
 ```
@@ -184,6 +189,7 @@ from featureform import ServingClient
 
 client = ServingClient(insecure=True)
 dataset = client.training_set("fraud_training")
+
 for i, batch in enumerate(dataset):
     print(batch)
     if i > 25:

@@ -73,7 +73,7 @@ type Coordinator struct {
 	KVClient   *clientv3.KV
 	Spawner    JobSpawner
 	Timeout    int32
-	Storage    Store
+	Storage    JobStorage
 }
 
 type ETCDConfig struct {
@@ -182,7 +182,7 @@ const MAX_ATTEMPTS = 2
 // 	ExecuteJob(store Storage)
 // }
 
-type Store interface {
+type JobStorage interface {
 	GetJobs() ([]string, error)
 	CreateJob(key string, job metadata.CoordinatorJob) error
 	GetJob(key string) (metadata.CoordinatorJob, error)
@@ -206,7 +206,7 @@ func (e *ETCDStorage) GetJobs() ([]string, error) {
 	for _, kv := range getResp.Kvs {
 		jobIsLocked, err := e.HasLock(string(kv.Key))
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("Error checking if job with key %s has lock: %v", kv.Key, err)
 		}
 		if !jobIsLocked {
 			jobList = append(jobList, string(kv.Key))
@@ -219,7 +219,7 @@ func (e *ETCDStorage) HasLock(key string) (bool, error) {
 	lockKey := GetLockKey(key)
 	getResp, err := (*e.KVClient).Get(context.Background(), lockKey, clientv3.WithPrefix())
 	if err != nil {
-		return false, fmt.Errorf("get existing etcd jobs: %w", err)
+		return false, fmt.Errorf("Error fetching existing of job lock with key %v: %w", lockKey, err)
 	}
 	if len(getResp.Kvs) > 0 {
 		return true, nil
@@ -228,23 +228,23 @@ func (e *ETCDStorage) HasLock(key string) (bool, error) {
 }
 
 func (e *ETCDStorage) CreateJob(key string, job metadata.CoordinatorJob) error {
-	return nil
+	return fmt.Errorf("unimplimented")
 }
 
 func (e *ETCDStorage) GetJob(key string) (metadata.CoordinatorJob, error) {
-	return metadata.CoordinatorJob{}, nil
+	return metadata.CoordinatorJob{}, fmt.Errorf("unimplimented")
 }
 
 func (e *ETCDStorage) DeleteJob(key string) error {
-	return nil
+	return fmt.Errorf("unimplimented")
 }
 
 func (e *ETCDStorage) LockJob(key string) error {
-	return nil
+	return fmt.Errorf("unimplimented")
 }
 
 func (e *ETCDStorage) UnlockJob(key string) error {
-	return nil
+	return fmt.Errorf("unimplimented")
 }
 
 func (c *Coordinator) WatchForNewJobs() error {
@@ -254,14 +254,16 @@ func (c *Coordinator) WatchForNewJobs() error {
 			return err
 		}
 		for _, job := range jobsList {
-			go func(job string) {
-				err := c.ExecuteJob(job)
-				if err != nil {
-					c.Logger.Errorw("Error executing job: Initial search", "error", err)
-				}
-			}(job)
+			go c.executeJobAsync(job)
 		}
 		time.Sleep(1 * time.Second)
+	}
+}
+
+func (c *Coordinator) executeJobAsync(job string) {
+	err := c.ExecuteJob(job)
+	if err != nil {
+		c.Logger.Errorw("Error executing job: Initial search", "error", err)
 	}
 }
 

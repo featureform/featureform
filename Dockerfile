@@ -3,6 +3,7 @@ COPY ./dashboard ./dashboard
 WORKDIR ./dashboard
 RUN npm install --legacy-peer-deps
 RUN npm run build
+RUN rm -r node_modules
 
 FROM golang:1.17
 
@@ -10,11 +11,8 @@ WORKDIR /app
 
 COPY --from=0 ./dashboard ./dashboard
 
-RUN curl -sL https://deb.nodesource.com/setup_16.x |  bash -
-RUN apt-get update && apt-get install -y supervisor nodejs yarn
-RUN node --version
+RUN apt-get update && apt-get install -y supervisor
 RUN mkdir -p /var/lock/apache2 /var/run/apache2 /var/run/sshd /var/log/supervisor
-RUN apt-get install -y python3-pip && pip install supervisor-stdout
 
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY go.mod ./

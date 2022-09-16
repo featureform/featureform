@@ -637,7 +637,7 @@ func (serv *OnlineServer) TrainingData(req *srv.TrainingDataRequest, stream srv.
 	serv.Logger.Infow("Serving Training Data", "id", req.Id.String())
 	client, err := serv.client.TrainingData(context.Background(), req)
 	if err != nil {
-		return fmt.Errorf("training data: %w", err)
+		return fmt.Errorf("could not serve training data: %w", err)
 	}
 	for {
 		row, err := client.Recv()

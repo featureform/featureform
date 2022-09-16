@@ -1,7 +1,7 @@
 FROM node:16-alpine
 COPY ./dashboard ./dashboard
 WORKDIR ./dashboard
-RUN npm install --omit=dev --legacy-peer-deps
+RUN npm install --legacy-peer-deps
 RUN npm run build
 
 FROM golang:1.17
@@ -14,6 +14,7 @@ RUN curl -sL https://deb.nodesource.com/setup_16.x |  bash -
 RUN apt-get update && apt-get install -y supervisor nodejs yarn
 RUN node --version
 RUN mkdir -p /var/lock/apache2 /var/run/apache2 /var/run/sshd /var/log/supervisor
+RUN apt-get install -y python3-pip && pip install supervisor-stdout
 
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY go.mod ./
@@ -59,6 +60,7 @@ RUN apt-get install -y nginx --option=Dpkg::Options::=--force-confdef
 WORKDIR /app
 
 ENV DISABLE_TYPESENSE="true"
-ENV SERVING_PORT="0.0.0.0:8082"
+ENV SERVING_PORT="8082"
+ENV SERVING_HOST="0.0.0.0"
 EXPOSE 7878
 CMD ["/usr/bin/supervisord"]

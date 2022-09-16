@@ -15,8 +15,6 @@ redis = ff.register_redis(
     port=6379,
 )
 
-ff.register_user("featureform_user").make_default_owner()
-
 transactions = postgres.register_table(
     name="transactions",
     table="Transactions",  # This is the table's name in Postgres

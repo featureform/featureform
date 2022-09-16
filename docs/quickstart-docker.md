@@ -112,8 +112,6 @@ We can then create a Transformation source off of our Transactions table. This i
 executed in Postgres and saved in a table.
 {% code title="definitions.py" %}
 ```python
-ff.register_user("featureform_user").make_default_owner()
-
 transactions = postgres.register_table(
     name="transactions",
     table="Transactions",  # This is the table's name in Postgres

@@ -1,9 +1,5 @@
 {
-  "ignorePatterns": [
-    {
-      "pattern": "^http://localhost"
-    }
-  ],
+  "ignorePatterns": [],
   "replacementPatterns": [
     {
       "pattern": "^/",

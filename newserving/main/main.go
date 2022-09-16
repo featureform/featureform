@@ -20,7 +20,9 @@ import (
 func main() {
 	logger := zap.NewExample().Sugar()
 
-	address := help.GetEnv("SERVING_PORT", "0.0.0.0:8080")
+	host := help.GetEnv("SERVING_HOST", "0.0.0.0")
+	port := help.GetEnv("SERVING_PORT", "8080")
+	address := fmt.Sprintf("%s:%s", host, port)
 	lis, err := net.Listen("tcp", address)
 	if err != nil {
 		logger.Panicw("Failed to listen on port", "Err", err)

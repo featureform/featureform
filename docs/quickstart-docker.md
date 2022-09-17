@@ -130,8 +130,8 @@ The feature is registered off of the table we created with our SQL Transformatio
 
 The label is registered off of our base Transactions table.
 
-We can join them together to form a Training Set. A Training Set can be create with one or many features. joined with a 
-label. 
+A Training Set can be created by joining our feature and label together.
+
 {% code title="definitions.py" %}
 ```python
 user = ff.register_entity("user")
@@ -163,7 +163,7 @@ ff.register_training_set(
 
 ## Serving
 
-We can serve single features from Redis with the Serving Client. The Feature method takes the name of the feature
+We can serve single features from Redis with the Serving Client. The `features()` method takes the name of the feature
 and an entity that we want the value for.
 {% code title="serving.py" %}
 ```python

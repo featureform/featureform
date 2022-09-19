@@ -65,5 +65,8 @@ jobs:
           while ! echo exit | nc localhost 2379; do sleep 10; done
           ./etcd/bin/etcdctl --user=root:secretpassword del "" --prefix
 
+      - name: Reset Coordinator Pod
+        run: kubectl delete pod -l app=featureform-coordinator
+
 
 

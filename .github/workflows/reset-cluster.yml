@@ -35,6 +35,12 @@ jobs:
           echo "$GITHUB_WORKSPACE" >> $GITHUB_PATH
           aws help
 
+      - name: Install ETCD
+        run: |
+          git clone -b v3.4.16 https://github.com/etcd-io/etcd.git
+          cd etcd
+          ./build
+
       - name: Check auth
         run: aws-iam-authenticator help
 
@@ -53,6 +59,9 @@ jobs:
           helm repo add featureform https://storage.googleapis.com/featureform-helm/ 
           helm repo update
           helm install quickstart featureform/quickstart
+
+      - name: Clear ETCD
+        run: ./etcd/bin/etcd --version
 
 
 

@@ -119,6 +119,50 @@ func (c *Coordinator) AwaitPendingSource(sourceNameVariant metadata.NameVariant)
 	return nil, fmt.Errorf("waited too long for source to become ready")
 }
 
+func (c *Coordinator) AwaitPendingFeature(featureNameVariant metadata.NameVariant) (*metadata.FeatureVariant, error) {
+	featureStatus := metadata.PENDING
+	start := time.Now()
+	elapsed := time.Since(start)
+	for featureStatus != metadata.READY && elapsed < time.Duration(c.Timeout)*time.Second {
+		feature, err := c.Metadata.GetFeatureVariant(context.Background(), featureNameVariant)
+		if err != nil {
+			return nil, err
+		}
+		featureStatus := feature.Status()
+		if featureStatus == metadata.FAILED {
+			return nil, fmt.Errorf("source of feature not ready: name: %s, variant: %s", featureNameVariant.Name, featureNameVariant.Variant)
+		}
+		if featureStatus == metadata.READY {
+			return feature, nil
+		}
+		elapsed = time.Since(start)
+		time.Sleep(1 * time.Second)
+	}
+	return nil, fmt.Errorf("waited too long for feature to become ready")
+}
+
+func (c *Coordinator) AwaitPendingLabel(labelNameVariant metadata.NameVariant) (*metadata.LabelVariant, error) {
+	labelStatus := metadata.PENDING
+	start := time.Now()
+	elapsed := time.Since(start)
+	for labelStatus != metadata.READY && elapsed < time.Duration(c.Timeout)*time.Second {
+		label, err := c.Metadata.GetLabelVariant(context.Background(), labelNameVariant)
+		if err != nil {
+			return nil, err
+		}
+		labelStatus := label.Status()
+		if labelStatus == metadata.FAILED {
+			return nil, fmt.Errorf("source of label not ready: name: %s, variant: %s", labelNameVariant.Name, labelNameVariant.Variant)
+		}
+		if labelStatus == metadata.READY {
+			return label, nil
+		}
+		elapsed = time.Since(start)
+		time.Sleep(1 * time.Second)
+	}
+	return nil, fmt.Errorf("waited too long for label to become ready")
+}
+
 type JobSpawner interface {
 	GetJobRunner(jobName string, config runner.Config, etcdEndpoints []string, id metadata.ResourceID) (runner.Runner, error)
 }
@@ -715,6 +759,10 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 		if err != nil {
 			return fmt.Errorf("source of feature could not complete job: %v", err)
 		}
+		_, err = c.AwaitPendingFeature(metadata.NameVariant{feature.Name, feature.Variant})
+		if err != nil {
+			return fmt.Errorf("feature could not complete job: %v", err)
+		}
 	}
 	label, err := ts.FetchLabel(c.Metadata, context.Background())
 	if err != nil {
@@ -724,6 +772,10 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 	_, err = c.AwaitPendingSource(labelSourceNameVariant)
 	if err != nil {
 		return fmt.Errorf("source of label could not complete job: %v", err)
+	}
+	label, err = c.AwaitPendingLabel(metadata.NameVariant{label.Name(), label.Variant()})
+	if err != nil {
+		return fmt.Errorf("label could not complete job: %v", err)
 	}
 	trainingSetDef := provider.TrainingSetDef{
 		ID:       providerResID,
@@ -862,13 +914,6 @@ func (c *Coordinator) createJobLock(jobKey string, s *concurrency.Session) (*con
 	return mtx, nil
 }
 
-func (c *Coordinator) markJobFailed(job *metadata.CoordinatorJob) error {
-	if err := c.Metadata.SetStatus(context.Background(), job.Resource, metadata.FAILED, ""); err != nil {
-		return fmt.Errorf("could not set job status to failed: %v", err)
-	}
-	return nil
-}
-
 func (c *Coordinator) ExecuteJob(jobKey string) error {
 	c.Logger.Info("Executing new job with key ", jobKey)
 	s, err := concurrency.NewSession(c.EtcdClient, concurrency.WithTTL(1))
@@ -891,7 +936,11 @@ func (c *Coordinator) ExecuteJob(jobKey string) error {
 	}
 	c.Logger.Debugf("Job %s is on attempt %d", jobKey, job.Attempts)
 	if job.Attempts > MAX_ATTEMPTS {
-		return c.markJobFailed(job)
+		if err := c.deleteJob(mtx, jobKey); err != nil {
+			c.Logger.Debugw("Error deleting job", "error", err)
+			return fmt.Errorf("job delete: %w", err)
+		}
+		return fmt.Errorf("job failed after %d attempts. Cancelling coordinator flow", MAX_ATTEMPTS)
 	}
 	if err := c.incrementJobAttempts(mtx, job, jobKey); err != nil {
 		return fmt.Errorf("increment attempt: %w", err)

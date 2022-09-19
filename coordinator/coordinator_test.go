@@ -1230,13 +1230,6 @@ func testCoordinatorTrainingSet(addr string) error {
 		return fmt.Errorf("could not get provider as offline store: %v", err)
 	}
 	offline_feature := provider.ResourceID{Name: featureName, Variant: "", Type: provider.Feature}
-	schemaInt := provider.TableSchema{
-		Columns: []provider.TableColumn{
-			{Name: "entity", ValueType: provider.String},
-			{Name: "value", ValueType: provider.Int},
-			{Name: "ts", ValueType: provider.Timestamp},
-		},
-	}
 	originalTableName := createSafeUUID()
 	if err := CreateOriginalPostgresTable(originalTableName); err != nil {
 		return err

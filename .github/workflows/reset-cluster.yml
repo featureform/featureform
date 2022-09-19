@@ -45,6 +45,7 @@ jobs:
         run: kubectl get pods
 
       - name: Uninstall Quickstart
+        continue-on-error: true
         run: helm uninstall quickstart
 
       - name: Install Quickstart

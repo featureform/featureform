@@ -119,6 +119,50 @@ func (c *Coordinator) AwaitPendingSource(sourceNameVariant metadata.NameVariant)
 	return nil, fmt.Errorf("waited too long for source to become ready")
 }
 
+func (c *Coordinator) AwaitPendingFeature(featureNameVariant metadata.NameVariant) (*metadata.FeatureVariant, error) {
+	sourceStatus := metadata.PENDING
+	start := time.Now()
+	elapsed := time.Since(start)
+	for sourceStatus != metadata.READY && elapsed < time.Duration(c.Timeout)*time.Second {
+		source, err := c.Metadata.GetFeatureVariant(context.Background(), featureNameVariant)
+		if err != nil {
+			return nil, err
+		}
+		sourceStatus := source.Status()
+		if sourceStatus == metadata.FAILED {
+			return nil, fmt.Errorf("source of feature not ready: name: %s, variant: %s", featureNameVariant.Name, featureNameVariant.Variant)
+		}
+		if sourceStatus == metadata.READY {
+			return source, nil
+		}
+		elapsed = time.Since(start)
+		time.Sleep(1 * time.Second)
+	}
+	return nil, fmt.Errorf("waited too long for source to become ready")
+}
+
+func (c *Coordinator) AwaitPendingLabel(labelNameVariant metadata.NameVariant) (*metadata.LabelVariant, error) {
+	sourceStatus := metadata.PENDING
+	start := time.Now()
+	elapsed := time.Since(start)
+	for sourceStatus != metadata.READY && elapsed < time.Duration(c.Timeout)*time.Second {
+		source, err := c.Metadata.GetLabelVariant(context.Background(), labelNameVariant)
+		if err != nil {
+			return nil, err
+		}
+		sourceStatus := source.Status()
+		if sourceStatus == metadata.FAILED {
+			return nil, fmt.Errorf("source of feature not ready: name: %s, variant: %s", labelNameVariant.Name, labelNameVariant.Variant)
+		}
+		if sourceStatus == metadata.READY {
+			return source, nil
+		}
+		elapsed = time.Since(start)
+		time.Sleep(1 * time.Second)
+	}
+	return nil, fmt.Errorf("waited too long for source to become ready")
+}
+
 type JobSpawner interface {
 	GetJobRunner(jobName string, config runner.Config, etcdEndpoints []string, id metadata.ResourceID) (runner.Runner, error)
 }
@@ -715,6 +759,10 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 		if err != nil {
 			return fmt.Errorf("source of feature could not complete job: %v", err)
 		}
+		_, err = c.AwaitPendingFeature(metadata.NameVariant{feature.Name, feature.Variant})
+		if err != nil {
+			return fmt.Errorf("feature could not complete job: %v", err)
+		}
 	}
 	label, err := ts.FetchLabel(c.Metadata, context.Background())
 	if err != nil {
@@ -724,6 +772,10 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 	_, err = c.AwaitPendingSource(labelSourceNameVariant)
 	if err != nil {
 		return fmt.Errorf("source of label could not complete job: %v", err)
+	}
+	label, err = c.AwaitPendingLabel(metadata.NameVariant{label.Name(), label.Variant()})
+	if err != nil {
+		return fmt.Errorf("label could not complete job: %v", err)
 	}
 	trainingSetDef := provider.TrainingSetDef{
 		ID:       providerResID,

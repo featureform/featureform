@@ -105,7 +105,7 @@ func (c *Coordinator) AwaitPendingSource(sourceNameVariant metadata.NameVariant)
 		}
 		sourceStatus := source.Status()
 		if sourceStatus == metadata.FAILED {
-			return nil, fmt.Errorf("source of feature not ready: name: %s, variant: %s", sourceNameVariant.Name, sourceNameVariant.Variant)
+			return nil, fmt.Errorf("source registration failed: name: %s, variant: %s", sourceNameVariant.Name, sourceNameVariant.Variant)
 		}
 		if sourceStatus == metadata.READY {
 			return source, nil
@@ -124,7 +124,7 @@ func (c *Coordinator) AwaitPendingFeature(featureNameVariant metadata.NameVarian
 		}
 		featureStatus := feature.Status()
 		if featureStatus == metadata.FAILED {
-			return nil, fmt.Errorf("source of feature not ready: name: %s, variant: %s", featureNameVariant.Name, featureNameVariant.Variant)
+			return nil, fmt.Errorf("feature registration failed: name: %s, variant: %s", featureNameVariant.Name, featureNameVariant.Variant)
 		}
 		if featureStatus == metadata.READY {
 			return feature, nil
@@ -143,7 +143,7 @@ func (c *Coordinator) AwaitPendingLabel(labelNameVariant metadata.NameVariant) (
 		}
 		labelStatus := label.Status()
 		if labelStatus == metadata.FAILED {
-			return nil, fmt.Errorf("source of label not ready: name: %s, variant: %s", labelNameVariant.Name, labelNameVariant.Variant)
+			return nil, fmt.Errorf("label registration failed: name: %s, variant: %s", labelNameVariant.Name, labelNameVariant.Variant)
 		}
 		if labelStatus == metadata.READY {
 			return label, nil

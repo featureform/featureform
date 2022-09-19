@@ -1237,25 +1237,6 @@ func testCoordinatorTrainingSet(addr string) error {
 			{Name: "ts", ValueType: provider.Timestamp},
 		},
 	}
-	featureTable, err := my_offline.CreateResourceTable(offline_feature, schemaInt)
-	if err != nil {
-		return fmt.Errorf("could not create feature table: %v", err)
-	}
-	for _, value := range testOfflineTableValues {
-		if err := featureTable.Write(value); err != nil {
-			return fmt.Errorf("could not write to offline feature table")
-		}
-	}
-	offline_label := provider.ResourceID{Name: labelName, Variant: "", Type: provider.Label}
-	labelTable, err := my_offline.CreateResourceTable(offline_label, schemaInt)
-	if err != nil {
-		return fmt.Errorf("could not create label table: %v", err)
-	}
-	for _, value := range testOfflineTableValues {
-		if err := labelTable.Write(value); err != nil {
-			return fmt.Errorf("could not write to offline label table")
-		}
-	}
 	originalTableName := createSafeUUID()
 	if err := CreateOriginalPostgresTable(originalTableName); err != nil {
 		return err
@@ -1289,6 +1270,25 @@ func testCoordinatorTrainingSet(addr string) error {
 	labelID := metadata.ResourceID{Name: labelName, Variant: "", Type: metadata.LABEL_VARIANT}
 	if err := coord.ExecuteJob(metadata.GetJobKey(labelID)); err != nil {
 		return err
+	}
+	featureTable, err := my_offline.GetResourceTable(offline_feature)
+	if err != nil {
+		return fmt.Errorf("could not create feature table: %v", err)
+	}
+	for _, value := range testOfflineTableValues {
+		if err := featureTable.Write(value); err != nil {
+			return fmt.Errorf("could not write to offline feature table")
+		}
+	}
+	offline_label := provider.ResourceID{Name: labelName, Variant: "", Type: provider.Label}
+	labelTable, err := my_offline.GetResourceTable(offline_label)
+	if err != nil {
+		return fmt.Errorf("could not create label table: %v", err)
+	}
+	for _, value := range testOfflineTableValues {
+		if err := labelTable.Write(value); err != nil {
+			return fmt.Errorf("could not write to offline label table")
+		}
 	}
 	if err := coord.ExecuteJob(metadata.GetJobKey(tsID)); err != nil {
 		return err

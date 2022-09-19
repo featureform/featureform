@@ -234,16 +234,9 @@ func testScheduleTrainingSet() error {
 
 func initializeResourceTablesForTrainingSet(featureName string, labelName string) (provider.OfflineTable, provider.OfflineTable, error) {
 	offlineFeature := provider.ResourceID{Name: featureName, Variant: "", Type: provider.Feature}
-	schemaInt := provider.TableSchema{
-		Columns: []provider.TableColumn{
-			{Name: "entity", ValueType: provider.String},
-			{Name: "value", ValueType: provider.Int},
-			{Name: "ts", ValueType: provider.Timestamp},
-		},
-	}
-	featureTable, err := offlinePostgresStore.CreateResourceTable(offlineFeature, schemaInt)
+	featureTable, err := offlinePostgresStore.GetResourceTable(offlineFeature)
 	if err != nil {
-		return nil, nil, fmt.Errorf("could not create feature table: %v", err)
+		return nil, nil, fmt.Errorf("could not fetch feature table: %v", err)
 	}
 	for _, value := range testOfflineTableValues {
 		if err := featureTable.Write(value); err != nil {
@@ -251,9 +244,9 @@ func initializeResourceTablesForTrainingSet(featureName string, labelName string
 		}
 	}
 	offlineLabel := provider.ResourceID{Name: labelName, Variant: "", Type: provider.Label}
-	labelTable, err := offlinePostgresStore.CreateResourceTable(offlineLabel, schemaInt)
+	labelTable, err := offlinePostgresStore.GetResourceTable(offlineLabel)
 	if err != nil {
-		return nil, nil, fmt.Errorf("could not create label table: %v", err)
+		return nil, nil, fmt.Errorf("could not fetch label table: %v", err)
 	}
 	for _, value := range testOfflineTableValues {
 		if err := labelTable.Write(value); err != nil {

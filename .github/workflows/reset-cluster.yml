@@ -1,7 +1,6 @@
 name: Reset Cluster
-on: [push]
+on: [workflow_dispatch]
 env:
-  CLUSTER_URL: "demo.featureform.com"
   CLUSTER_NAME: "cluster-featureform-test"
 jobs:
   reset:

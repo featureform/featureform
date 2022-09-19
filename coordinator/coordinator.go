@@ -72,7 +72,6 @@ type Coordinator struct {
 	EtcdClient *clientv3.Client
 	KVClient   *clientv3.KV
 	Spawner    JobSpawner
-	Timeout    int32
 }
 
 type ETCDConfig struct {
@@ -99,9 +98,7 @@ func (c *ETCDConfig) Deserialize(config Config) error {
 
 func (c *Coordinator) AwaitPendingSource(sourceNameVariant metadata.NameVariant) (*metadata.SourceVariant, error) {
 	sourceStatus := metadata.PENDING
-	start := time.Now()
-	elapsed := time.Since(start)
-	for sourceStatus != metadata.READY && elapsed < time.Duration(c.Timeout)*time.Second {
+	for sourceStatus != metadata.READY {
 		source, err := c.Metadata.GetSourceVariant(context.Background(), sourceNameVariant)
 		if err != nil {
 			return nil, err
@@ -113,17 +110,14 @@ func (c *Coordinator) AwaitPendingSource(sourceNameVariant metadata.NameVariant)
 		if sourceStatus == metadata.READY {
 			return source, nil
 		}
-		elapsed = time.Since(start)
 		time.Sleep(1 * time.Second)
 	}
-	return nil, fmt.Errorf("waited too long for source to become ready")
+	return c.Metadata.GetSourceVariant(context.Background(), sourceNameVariant)
 }
 
 func (c *Coordinator) AwaitPendingFeature(featureNameVariant metadata.NameVariant) (*metadata.FeatureVariant, error) {
 	featureStatus := metadata.PENDING
-	start := time.Now()
-	elapsed := time.Since(start)
-	for featureStatus != metadata.READY && elapsed < time.Duration(c.Timeout)*time.Second {
+	for featureStatus != metadata.READY {
 		feature, err := c.Metadata.GetFeatureVariant(context.Background(), featureNameVariant)
 		if err != nil {
 			return nil, err
@@ -135,17 +129,14 @@ func (c *Coordinator) AwaitPendingFeature(featureNameVariant metadata.NameVarian
 		if featureStatus == metadata.READY {
 			return feature, nil
 		}
-		elapsed = time.Since(start)
 		time.Sleep(1 * time.Second)
 	}
-	return nil, fmt.Errorf("waited too long for feature to become ready")
+	return c.Metadata.GetFeatureVariant(context.Background(), featureNameVariant)
 }
 
 func (c *Coordinator) AwaitPendingLabel(labelNameVariant metadata.NameVariant) (*metadata.LabelVariant, error) {
 	labelStatus := metadata.PENDING
-	start := time.Now()
-	elapsed := time.Since(start)
-	for labelStatus != metadata.READY && elapsed < time.Duration(c.Timeout)*time.Second {
+	for labelStatus != metadata.READY {
 		label, err := c.Metadata.GetLabelVariant(context.Background(), labelNameVariant)
 		if err != nil {
 			return nil, err
@@ -157,10 +148,9 @@ func (c *Coordinator) AwaitPendingLabel(labelNameVariant metadata.NameVariant) (
 		if labelStatus == metadata.READY {
 			return label, nil
 		}
-		elapsed = time.Since(start)
 		time.Sleep(1 * time.Second)
 	}
-	return nil, fmt.Errorf("waited too long for label to become ready")
+	return c.Metadata.GetLabelVariant(context.Background(), labelNameVariant)
 }
 
 type JobSpawner interface {
@@ -211,7 +201,6 @@ func NewCoordinator(meta *metadata.Client, logger *zap.SugaredLogger, cli *clien
 		EtcdClient: cli,
 		KVClient:   &kvc,
 		Spawner:    spawner,
-		Timeout:    600,
 	}, nil
 }
 

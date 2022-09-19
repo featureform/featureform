@@ -1,0 +1,54 @@
+name: Reset Cluster
+on: [push]
+env:
+  CLUSTER_URL: "demo.featureform.com"
+  CLUSTER_NAME: "cluster-featureform-test"
+jobs:
+  reset:
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID_FF }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_KEY_FF }}
+      AWS_DEFAULT_REGION: us-east-1
+    runs-on: 'ubuntu-latest'
+    steps:
+      - name: Install Kubectl
+        run: |
+          curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.23.6/bin/linux/amd64/kubectl
+          sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+          kubectl version --client
+          kubectl version --client --output=yaml
+
+      - name: Install Helm
+        run: |
+          curl https://baltocdn.com/helm/signing.asc | gpg --dearmor | sudo tee /usr/share/keyrings/helm.gpg > /dev/null
+          sudo apt-get install apt-transport-https --yes
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main" | sudo tee /etc/apt/sources.list.d/helm-stable-debian.list
+          sudo apt-get update
+          sudo apt-get install helm
+
+      - name: Install IAM Authenticator
+        run: |
+          curl -o aws-iam-authenticator https://s3.us-west-2.amazonaws.com/amazon-eks/1.21.2/2021-07-05/bin/linux/amd64/aws-iam-authenticator
+          chmod +x ./aws-iam-authenticator
+          ls $GITHUB_WORKSPACE
+          echo "$GITHUB_WORKSPACE"
+          echo "$GITHUB_WORKSPACE" >> $GITHUB_PATH
+          aws help
+
+      - name: Check auth
+        run: aws-iam-authenticator help
+
+      - name: Add kubeconfig
+        run: aws eks update-kubeconfig --name $CLUSTER_NAME
+
+      - name: Test Kubectl
+        run: kubectl get pods
+
+      - name: Uninstall Quickstart
+        run: helm uninstall quickstart
+
+      - name: Install Quickstart
+        run: helm install quickstart featureform/quickstart
+
+
+

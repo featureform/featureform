@@ -61,7 +61,10 @@ jobs:
           helm install quickstart featureform/quickstart
 
       - name: Clear ETCD
-        run: ./etcd/bin/etcd --version
+        run: |
+          kubectl port-forward svc/featureform-etcd 2379:2379 &
+          while ! echo exit | nc localhost 2379; do sleep 10; done
+          ./etcd/bin/etcdctl --user=root:secretpassword del "" --prefix
 
 
 

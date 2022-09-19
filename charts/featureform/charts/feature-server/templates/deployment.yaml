@@ -29,7 +29,7 @@ spec:
             - containerPort: {{ .Values.metrics.port }}
           env:
             - name: SERVING_PORT
-              value: {{ .Values.serving.port }}
+              value: "{{ .Values.serving.port }}"
             - name: METRICS_PORT
               value: 0.0.0.0:{{ .Values.metrics.port }}
             - name: METADATA_HOST

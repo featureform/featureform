@@ -652,22 +652,25 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 		return fmt.Errorf("materialize feature register: %w", err)
 	}
 	c.Logger.Debugw("Resource Table Created", "id", featID, "schema", schema)
-	c.Logger.Info("Starting Materialize")
-	jobRunner, err := c.Spawner.GetJobRunner(runner.MATERIALIZE, serialized, c.EtcdClient.Endpoints(), resID)
-	if err != nil {
-		return fmt.Errorf("could not use store as online store: %w", err)
-	}
-	completionWatcher, err := jobRunner.Run()
-	if err != nil {
-		return fmt.Errorf("creating watcher for completion runner: %w", err)
-	}
-	if err := completionWatcher.Wait(); err != nil {
-		return fmt.Errorf("completion watcher running: %w", err)
+	needsOnlineMaterialization := strings.Split(string(featureProvider.Type()), "_")[1] == "ONLINE"
+	if needsOnlineMaterialization {
+		c.Logger.Info("Starting Materialize")
+		jobRunner, err := c.Spawner.GetJobRunner(runner.MATERIALIZE, serialized, c.EtcdClient.Endpoints(), resID)
+		if err != nil {
+			return fmt.Errorf("could not use store as online store: %w", err)
+		}
+		completionWatcher, err := jobRunner.Run()
+		if err != nil {
+			return fmt.Errorf("creating watcher for completion runner: %w", err)
+		}
+		if err := completionWatcher.Wait(); err != nil {
+			return fmt.Errorf("completion watcher running: %w", err)
+		}
 	}
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
 		return fmt.Errorf("materialize set success: %w", err)
 	}
-	if schedule != "" {
+	if schedule != "" && needsOnlineMaterialization {
 		scheduleMaterializeRunnerConfig := runner.MaterializedRunnerConfig{
 			OnlineType:    provider.Type(featureProvider.Type()),
 			OfflineType:   provider.Type(sourceProvider.Type()),

@@ -48,7 +48,10 @@ jobs:
         run: helm uninstall quickstart
 
       - name: Install Quickstart
-        run: helm install quickstart featureform/quickstart
+        run: |
+          helm repo add featureform https://storage.googleapis.com/featureform-helm/ 
+          helm repo update
+          helm install quickstart featureform/quickstart
 
 
 

@@ -28,24 +28,17 @@ func main() {
 			},
 		},
 	}
-	var config *metadata.Config
-	if disableTypesense == "false" {
+	config := &metadata.Config{
+		Logger:          logger,
+		Address:         fmt.Sprintf(":%s", addr),
+		StorageProvider: storageProvider,
+	}
+	if disableTypesense == "true" {
 		fmt.Println("TS Port", os.Getenv("TYPESENSE_PORT"), "TS HOST", os.Getenv("TYPESENSE_HOST"), "TS KEY", os.Getenv("TYPESENSE_APIKEY"))
-		config = &metadata.Config{
-			Logger:  logger,
-			Address: fmt.Sprintf(":%s", addr),
-			TypeSenseParams: &search.TypeSenseParams{
-				Port:   help.GetEnv("TYPESENSE_PORT", "8108"),
-				Host:   help.GetEnv("TYPESENSE_HOST", "localhost"),
-				ApiKey: help.GetEnv("TYPESENSE_APIKEY", "xyz"),
-			},
-			StorageProvider: storageProvider,
-		}
-	} else {
-		config = &metadata.Config{
-			Logger:          logger,
-			Address:         fmt.Sprintf(":%s", addr),
-			StorageProvider: storageProvider,
+		config.TypeSenseParams = &search.TypeSenseParams{
+			Port:   help.GetEnv("TYPESENSE_PORT", "8108"),
+			Host:   help.GetEnv("TYPESENSE_HOST", "localhost"),
+			ApiKey: help.GetEnv("TYPESENSE_APIKEY", "xyz"),
 		}
 	}
 

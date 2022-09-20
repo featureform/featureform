@@ -4,3 +4,10 @@ coverage:
     project:
       default:
         target: 0
+    patch:
+      default:
+        target: 0
+codecov:
+  require_ci_to_pass: true
+  notify:
+    wait_for_ci: true

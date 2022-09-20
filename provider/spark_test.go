@@ -396,6 +396,9 @@ func TestParquetUpload(t *testing.T) {
 	if err := testRegisterPrimary(sparkOfflineStore); err != nil {
 		t.Fatalf("resource primary test failed: %s", err)
 	}
+	if err := testResourceMultipartStream(sparkOfflineStore); err != nil {
+		t.Fatalf("multi part stream test failed, %v", err)
+	}
 	// inherited from offline_test.go
 	sparkTestOfflineTableNotFound(t, sparkOfflineStore)
 	sparkTestCreateGetOfflineTable(t, sparkOfflineStore)
@@ -411,7 +414,7 @@ func TestParquetUpload(t *testing.T) {
 	sparkTestFeatureTableNotFound(t, sparkOfflineStore)
 	sparkTestCreatePrimaryFromSource(t, sparkOfflineStore)
 	sparkTestCreateDuplicatePrimaryTable(t, sparkOfflineStore)
-	// EMR tests (take a lot longer)
+	// // // // // EMR tests (take a lot longer)
 	sparkTestTrainingSet(t, sparkOfflineStore)
 	sparkTestMaterializations(t, sparkOfflineStore)
 	sparkTestTrainingSetDefShorthand(t, sparkOfflineStore)
@@ -423,7 +426,37 @@ func TestParquetUpload(t *testing.T) {
 	// if err := testCreateTrainingSet(sparkOfflineStore); err != nil {
 	// 	t.Fatalf("resource training set test failed: %s", err)
 	// }
+}
 
+func testResourceMultipartStream(store *SparkOfflineStore) error {
+	actualValues := map[string]float64{
+		"HV0005": 12.211735974538161,
+		"HV0003": 14.060572113730137,
+		"HV0004": 0.4226761998316025,
+	}
+	testCreatedResourceID := ResourceID{Name: "multipart", Variant: "test", Type: Transformation}
+	stream, err := store.Store.ResourceMultiPartStream(testCreatedResourceID, 0)
+	if err != nil {
+		return err
+	}
+	rowCount, err := store.Store.ResourceRowCount(testCreatedResourceID)
+	i := int64(0)
+	for row := range stream {
+		i += 1
+		rowValue := reflect.ValueOf(row)
+		id := rowValue.Field(0).Elem().Interface().(string)
+		val := rowValue.Field(1).Elem().Interface().(float64)
+		if actualValues[id] != val {
+			return fmt.Errorf("Incorrect resource value retrieved")
+		}
+		if i > rowCount {
+			return fmt.Errorf("Resource row count returned fewer rows than actual")
+		}
+	}
+	if i != rowCount {
+		return fmt.Errorf("Resource row count returned more rows than actual")
+	}
+	return nil
 }
 
 func sparkTestCreateDuplicatePrimaryTable(t *testing.T, store *SparkOfflineStore) {
@@ -1225,7 +1258,7 @@ func TestUpdateQuery(t *testing.T) {
 			"SELECT * FROM source_0 and more source_1",
 			[]string{
 				"s3://featureform-spark-testing/featureform/testprimary/testFile.parquet",
-				"s3://featureform-spark-testing/featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant/2022-08-19 17:37:36.546384/part-00000-c93fe1fb-4ab0-45df-9292-b139e4043181-c000.snappy.parquet",
+				"s3://featureform-spark-testing/featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant/2022-08-19 17:37:36.546384/",
 			},
 			false,
 		},
@@ -1240,7 +1273,7 @@ func TestUpdateQuery(t *testing.T) {
 			},
 			"SELECT * FROM source_0",
 			[]string{
-				"s3://featureform-spark-testing/featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant/2022-08-19 17:37:36.546384/part-00000-c93fe1fb-4ab0-45df-9292-b139e4043181-c000.snappy.parquet",
+				"s3://featureform-spark-testing/featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant/2022-08-19 17:37:36.546384/",
 			},
 			false,
 		},
@@ -1340,7 +1373,7 @@ func TestGetSourcePath(t *testing.T) {
 		{
 			"TransformationPathSuccess",
 			"featureform_transformation__028f6213-77a8-43bb-9d91-dd7e9ee96102__test_variant",
-			"s3://featureform-spark-testing/featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant/2022-08-19 17:37:36.546384/part-00000-c93fe1fb-4ab0-45df-9292-b139e4043181-c000.snappy.parquet",
+			"s3://featureform-spark-testing/featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant/2022-08-19 17:37:36.546384/",
 			false,
 		},
 		{
@@ -1593,7 +1626,6 @@ func getSparkOfflineStore(t *testing.T) (*SparkOfflineStore, error) {
 	if err != nil {
 		fmt.Println(err)
 	}
-
 	emrConf := EMRConfig{
 		AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
 		AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),
@@ -1887,39 +1919,6 @@ func TestUnimplimentedFailures(t *testing.T) {
 	}
 	if table, err := store.CreateResourceTable(ResourceID{}, TableSchema{}); !(table == nil && err == nil) {
 		t.Fatalf("did not return nil on calling unimplimented function")
-	}
-}
-
-func TestStreamGetKeys(t *testing.T) {
-	type testStruct struct {
-		Name   string
-		Value  int
-		Failed bool
-	}
-	correctFields := map[string]bool{
-		"Name":   true,
-		"Value":  true,
-		"Failed": true,
-	}
-	test := testStruct{"name", 1, true}
-	payload, err := json.Marshal(test)
-	if err != nil {
-		t.Fatalf("Could not marshal into json: %v", err)
-	}
-	record := s3Types.SelectObjectContentEventStreamMemberRecords{Value: s3Types.RecordsEvent{Payload: payload}}
-	records, err := streamGetKeys(&record)
-	if err != nil {
-		t.Fatalf("failed to parse json: %v", err)
-	}
-	for _, rec := range records {
-		if correctFields[rec] != true {
-			t.Fatalf("invalid record field returned")
-		}
-	}
-	invalidPayload := []byte("invalid payload")
-	invalidRecord := s3Types.SelectObjectContentEventStreamMemberRecords{Value: s3Types.RecordsEvent{Payload: invalidPayload}}
-	if _, err := streamGetKeys(&invalidRecord); err == nil {
-		t.Fatalf("failed to trigger error retrieving fields from invalid json byte string")
 	}
 }
 

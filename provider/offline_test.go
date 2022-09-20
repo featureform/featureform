@@ -238,40 +238,43 @@ func testWithProvider(t *testing.T, testItem testMember, testFns map[string]func
 	if err != nil {
 		t.Fatalf("Failed to use provider %s as OfflineStore: %s", testItem.t, err)
 	}
-	t.Run("", func(t *testing.T) {
-		for name, fn := range testFns {
-			nameConst := name
-			fnConst := fn
-			t.Run(nameConst, func(t *testing.T) {
-				t.Parallel()
-				fnConst(t, store)
-			})
-		}
-		for name, fn := range testSQLFns {
-			if testItem.t == MemoryOffline {
-				continue
-			}
-			nameConst := name
-			fnConst := fn
-			t.Run(nameConst, func(t *testing.T) {
-				t.Parallel()
-				fnConst(t, store)
-			})
-		}
-
-	})
-	if err := store.Close(); err != nil {
-		t.Errorf("%v - %v\n", testItem.t, err)
+	for name, fn := range testFns {
+		nameConst := name
+		fnConst := fn
+		t.Run(nameConst, func(t *testing.T) {
+			t.Parallel()
+			fnConst(t, store)
+		})
 	}
-	if testItem.t == PostgresOffline {
-		err = db.QueryRow("SELECT Count(*) FROM pg_stat_activity WHERE pid!=pg_backend_pid()").Scan(&connections_end)
-		if err != nil {
-			panic(err)
+	for name, fn := range testSQLFns {
+		if testItem.t == MemoryOffline {
+			continue
 		}
-		t.Run("POSTGRES_ConnectionCheck", func(t *testing.T) {
-			if connections_start+3 <= connections_end {
-				t.Errorf("Started with %d connections, ended with %d connections", connections_start, connections_end)
+		nameConst := name
+		fnConst := fn
+		t.Run(nameConst, func(t *testing.T) {
+			t.Parallel()
+			fnConst(t, store)
+		})
+	}
+
+	t.Cleanup(func() {
+		if err := store.Close(); err != nil {
+			t.Errorf("%v - %v\n", testItem.t, err)
+		}
+	})
+
+	if testItem.t == PostgresOffline {
+		t.Cleanup(func() {
+			err = db.QueryRow("SELECT Count(*) FROM pg_stat_activity WHERE pid!=pg_backend_pid()").Scan(&connections_end)
+			if err != nil {
+				panic(err)
 			}
+			t.Run("POSTGRES_ConnectionCheck", func(t *testing.T) {
+				if connections_start+3 <= connections_end {
+					t.Errorf("Started with %d connections, ended with %d connections", connections_start, connections_end)
+				}
+			})
 		})
 	}
 }

@@ -72,7 +72,6 @@ type Coordinator struct {
 	EtcdClient *clientv3.Client
 	KVClient   *clientv3.KV
 	Spawner    JobSpawner
-	Timeout    int32
 }
 
 type ETCDConfig struct {
@@ -99,24 +98,59 @@ func (c *ETCDConfig) Deserialize(config Config) error {
 
 func (c *Coordinator) AwaitPendingSource(sourceNameVariant metadata.NameVariant) (*metadata.SourceVariant, error) {
 	sourceStatus := metadata.PENDING
-	start := time.Now()
-	elapsed := time.Since(start)
-	for sourceStatus != metadata.READY && elapsed < time.Duration(c.Timeout)*time.Second {
+	for sourceStatus != metadata.READY {
 		source, err := c.Metadata.GetSourceVariant(context.Background(), sourceNameVariant)
 		if err != nil {
 			return nil, err
 		}
 		sourceStatus := source.Status()
 		if sourceStatus == metadata.FAILED {
-			return nil, fmt.Errorf("source of feature not ready: name: %s, variant: %s", sourceNameVariant.Name, sourceNameVariant.Variant)
+			return nil, fmt.Errorf("source registration failed: name: %s, variant: %s", sourceNameVariant.Name, sourceNameVariant.Variant)
 		}
 		if sourceStatus == metadata.READY {
 			return source, nil
 		}
-		elapsed = time.Since(start)
 		time.Sleep(1 * time.Second)
 	}
-	return nil, fmt.Errorf("waited too long for source to become ready")
+	return c.Metadata.GetSourceVariant(context.Background(), sourceNameVariant)
+}
+
+func (c *Coordinator) AwaitPendingFeature(featureNameVariant metadata.NameVariant) (*metadata.FeatureVariant, error) {
+	featureStatus := metadata.PENDING
+	for featureStatus != metadata.READY {
+		feature, err := c.Metadata.GetFeatureVariant(context.Background(), featureNameVariant)
+		if err != nil {
+			return nil, err
+		}
+		featureStatus := feature.Status()
+		if featureStatus == metadata.FAILED {
+			return nil, fmt.Errorf("feature registration failed: name: %s, variant: %s", featureNameVariant.Name, featureNameVariant.Variant)
+		}
+		if featureStatus == metadata.READY {
+			return feature, nil
+		}
+		time.Sleep(1 * time.Second)
+	}
+	return c.Metadata.GetFeatureVariant(context.Background(), featureNameVariant)
+}
+
+func (c *Coordinator) AwaitPendingLabel(labelNameVariant metadata.NameVariant) (*metadata.LabelVariant, error) {
+	labelStatus := metadata.PENDING
+	for labelStatus != metadata.READY {
+		label, err := c.Metadata.GetLabelVariant(context.Background(), labelNameVariant)
+		if err != nil {
+			return nil, err
+		}
+		labelStatus := label.Status()
+		if labelStatus == metadata.FAILED {
+			return nil, fmt.Errorf("label registration failed: name: %s, variant: %s", labelNameVariant.Name, labelNameVariant.Variant)
+		}
+		if labelStatus == metadata.READY {
+			return label, nil
+		}
+		time.Sleep(1 * time.Second)
+	}
+	return c.Metadata.GetLabelVariant(context.Background(), labelNameVariant)
 }
 
 type JobSpawner interface {
@@ -167,7 +201,6 @@ func NewCoordinator(meta *metadata.Client, logger *zap.SugaredLogger, cli *clien
 		EtcdClient: cli,
 		KVClient:   &kvc,
 		Spawner:    spawner,
-		Timeout:    600,
 	}, nil
 }
 
@@ -619,22 +652,25 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 		return fmt.Errorf("materialize feature register: %w", err)
 	}
 	c.Logger.Debugw("Resource Table Created", "id", featID, "schema", schema)
-	c.Logger.Info("Starting Materialize")
-	jobRunner, err := c.Spawner.GetJobRunner(runner.MATERIALIZE, serialized, c.EtcdClient.Endpoints(), resID)
-	if err != nil {
-		return fmt.Errorf("could not use store as online store: %w", err)
-	}
-	completionWatcher, err := jobRunner.Run()
-	if err != nil {
-		return fmt.Errorf("creating watcher for completion runner: %w", err)
-	}
-	if err := completionWatcher.Wait(); err != nil {
-		return fmt.Errorf("completion watcher running: %w", err)
+	needsOnlineMaterialization := strings.Split(string(featureProvider.Type()), "_")[1] == "ONLINE"
+	if needsOnlineMaterialization {
+		c.Logger.Info("Starting Materialize")
+		jobRunner, err := c.Spawner.GetJobRunner(runner.MATERIALIZE, serialized, c.EtcdClient.Endpoints(), resID)
+		if err != nil {
+			return fmt.Errorf("could not use store as online store: %w", err)
+		}
+		completionWatcher, err := jobRunner.Run()
+		if err != nil {
+			return fmt.Errorf("creating watcher for completion runner: %w", err)
+		}
+		if err := completionWatcher.Wait(); err != nil {
+			return fmt.Errorf("completion watcher running: %w", err)
+		}
 	}
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
 		return fmt.Errorf("materialize set success: %w", err)
 	}
-	if schedule != "" {
+	if schedule != "" && needsOnlineMaterialization {
 		scheduleMaterializeRunnerConfig := runner.MaterializedRunnerConfig{
 			OnlineType:    provider.Type(featureProvider.Type()),
 			OfflineType:   provider.Type(sourceProvider.Type()),
@@ -715,6 +751,10 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 		if err != nil {
 			return fmt.Errorf("source of feature could not complete job: %v", err)
 		}
+		_, err = c.AwaitPendingFeature(metadata.NameVariant{feature.Name, feature.Variant})
+		if err != nil {
+			return fmt.Errorf("feature could not complete job: %v", err)
+		}
 	}
 	label, err := ts.FetchLabel(c.Metadata, context.Background())
 	if err != nil {
@@ -724,6 +764,10 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 	_, err = c.AwaitPendingSource(labelSourceNameVariant)
 	if err != nil {
 		return fmt.Errorf("source of label could not complete job: %v", err)
+	}
+	label, err = c.AwaitPendingLabel(metadata.NameVariant{label.Name(), label.Variant()})
+	if err != nil {
+		return fmt.Errorf("label could not complete job: %v", err)
 	}
 	trainingSetDef := provider.TrainingSetDef{
 		ID:       providerResID,
@@ -862,13 +906,6 @@ func (c *Coordinator) createJobLock(jobKey string, s *concurrency.Session) (*con
 	return mtx, nil
 }
 
-func (c *Coordinator) markJobFailed(job *metadata.CoordinatorJob) error {
-	if err := c.Metadata.SetStatus(context.Background(), job.Resource, metadata.FAILED, ""); err != nil {
-		return fmt.Errorf("could not set job status to failed: %v", err)
-	}
-	return nil
-}
-
 func (c *Coordinator) ExecuteJob(jobKey string) error {
 	c.Logger.Info("Executing new job with key ", jobKey)
 	s, err := concurrency.NewSession(c.EtcdClient, concurrency.WithTTL(1))
@@ -891,7 +928,11 @@ func (c *Coordinator) ExecuteJob(jobKey string) error {
 	}
 	c.Logger.Debugf("Job %s is on attempt %d", jobKey, job.Attempts)
 	if job.Attempts > MAX_ATTEMPTS {
-		return c.markJobFailed(job)
+		if err := c.deleteJob(mtx, jobKey); err != nil {
+			c.Logger.Debugw("Error deleting job", "error", err)
+			return fmt.Errorf("job delete: %w", err)
+		}
+		return fmt.Errorf("job failed after %d attempts. Cancelling coordinator flow", MAX_ATTEMPTS)
 	}
 	if err := c.incrementJobAttempts(mtx, job, jobKey); err != nil {
 		return fmt.Errorf("increment attempt: %w", err)

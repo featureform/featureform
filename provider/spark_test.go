@@ -21,6 +21,7 @@ import (
 	s3Types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
+	"go.uber.org/zap"
 )
 
 func testCreateTrainingSet(store *SparkOfflineStore) error {
@@ -1896,7 +1897,8 @@ func TestStreamRecordReadInt(t *testing.T) {
 func TestSparkExecutorFail(t *testing.T) {
 	invalidConfig := EMRConfig{}
 	invalidExecType := SparkExecutorType("invalid")
-	if executor, err := NewSparkExecutor(invalidExecType, invalidConfig); !(executor == nil && err == nil) {
+	logger := zap.NewExample().Sugar()
+	if executor, err := NewSparkExecutor(invalidExecType, invalidConfig, logger); !(executor == nil && err == nil) {
 		t.Fatalf("did not return nil on invalid exec type")
 	}
 }
@@ -1904,7 +1906,8 @@ func TestSparkExecutorFail(t *testing.T) {
 func TestSparkStoreFail(t *testing.T) {
 	invalidConfig := S3Config{}
 	invalidExecType := SparkStoreType("invalid")
-	if executor, err := NewSparkStore(invalidExecType, invalidConfig); !(executor == nil && err != nil) {
+	logger := zap.NewExample().Sugar()
+if executor, err := NewSparkStore(invalidExecType, invalidConfig, logger); !(executor == nil && err != nil) {
 		t.Fatalf("did not return nil on invalid exec type")
 	}
 }

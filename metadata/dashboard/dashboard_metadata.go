@@ -7,8 +7,8 @@ package main
 import (
 	"context"
 	"fmt"
+	help "github.com/featureform/helpers"
 	"net/http"
-	"os"
 	"reflect"
 	"time"
 
@@ -956,12 +956,12 @@ func (m *MetadataServer) Start(port string) {
 
 func main() {
 	logger := zap.NewExample().Sugar()
-	metadataHost := os.Getenv("METADATA_HOST")
-	metadataPort := os.Getenv("METADATA_PORT")
-	typesenseHost := os.Getenv("TYPESENSE_HOST")
-	typesensePort := os.Getenv("TYPESENSE_PORT")
+	metadataHost := help.GetEnv("METADATA_HOST", "localhost")
+	metadataPort := help.GetEnv("METADATA_PORT", "8080")
+	typesenseHost := help.GetEnv("TYPESENSE_HOST", "localhost")
+	typesensePort := help.GetEnv("TYPESENSE_PORT", "8108")
 	typesenseEndpoint := fmt.Sprintf("http://%s:%s", typesenseHost, typesensePort)
-	typesenseApiKey := os.Getenv("TYPESENSE_APIKEY")
+	typesenseApiKey := help.GetEnv("TYPESENSE_APIKEY", "xyz")
 	logger.Infof("Connecting to typesense at: %s\n", typesenseEndpoint)
 	typesenseClient = typesense.NewClient(
 		typesense.WithServer(typesenseEndpoint),
@@ -977,7 +977,7 @@ func main() {
 	if err != nil {
 		logger.Panicw("Failed to create server", "error", err)
 	}
-	metadataHTTPPort := os.Getenv("METADATA_HTTP_PORT")
+	metadataHTTPPort := help.GetEnv("METADATA_HTTP_PORT", "3001")
 	metadataServingPort := fmt.Sprintf(":%s", metadataHTTPPort)
 	logger.Infof("Serving HTTP Metadata on port: %s\n", metadataServingPort)
 	metadata_server.Start(metadataServingPort)

@@ -333,17 +333,12 @@ func sanitize(ident string) string {
 	return db.Identifier{ident}.Sanitize()
 }
 
-func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVariant, resID metadata.ResourceID, offlineStore provider.OfflineStore, schedule string, sourceProvider *metadata.Provider) error {
-	c.Logger.Info("Running SQL transformation job on resource: ", resID)
-	templateString := transformSource.SQLTransformationQuery()
-	sources := transformSource.SQLTransformationSources()
-
-	c.Logger.Infof("----------->  transformaSource: %v, templateString: %s, sources: %v", transformSource, templateString, sources)
+func (c *Coordinator) verifyCompletionOfSources(sources []metadata.NameVariant) error {
 	allReady := false
 	for !allReady {
 		sourceVariants, err := c.Metadata.GetSourceVariants(context.Background(), sources)
 		if err != nil {
-			return fmt.Errorf("get source variant: %w ", err)
+			return fmt.Errorf("could not get source variant: %w ", err)
 		}
 		total := len(sourceVariants)
 		totalReady := 0
@@ -357,24 +352,10 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 		}
 		allReady = total == totalReady
 	}
-	sourceMap, err := c.mapNameVariantsToTables(sources)
-	if err != nil {
-		return fmt.Errorf("map name: %w sources: %v", err, sources)
-	}
-	sourceMapping, err := getSourceMapping(templateString, sourceMap)
-	if err != nil {
-		return fmt.Errorf("getSourceMapping replace: %w source map: %v, template: %s", err, sourceMap, templateString)
-	}
+	return nil
+}
 
-	var query string
-	query, err = templateReplace(templateString, sourceMap, offlineStore)
-	if err != nil {
-		return fmt.Errorf("template replace: %w source map: %v, template: %s", err, sourceMap, templateString)
-	}
-
-	c.Logger.Debugw("Created transformation query", "query", query)
-	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Transformation}
-	transformationConfig := provider.TransformationConfig{Type: provider.SQLTransformation, TargetTableID: providerResourceID, Query: query, SourceMapping: sourceMapping}
+func (c *Coordinator) runTransformationJob(transformationConfig provider.TransformationConfig, resID metadata.ResourceID, schedule string, sourceProvider *metadata.Provider) error {
 	createTransformationConfig := runner.CreateTransformationConfig{
 		OfflineType:          provider.Type(sourceProvider.Type()),
 		OfflineConfig:        sourceProvider.SerializedConfig(),
@@ -434,6 +415,74 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 	return nil
 }
 
+func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVariant, resID metadata.ResourceID, offlineStore provider.OfflineStore, schedule string, sourceProvider *metadata.Provider) error {
+	c.Logger.Info("Running SQL transformation job on resource: ", resID)
+	templateString := transformSource.SQLTransformationQuery()
+	sources := transformSource.SQLTransformationSources()
+
+	err := c.verifyCompletionOfSources(sources)
+	if err != nil {
+		return fmt.Errorf("the sources were not completed: %s", err)
+	}
+
+	sourceMap, err := c.mapNameVariantsToTables(sources)
+	if err != nil {
+		return fmt.Errorf("map name: %w sources: %v", err, sources)
+	}
+	sourceMapping, err := getSourceMapping(templateString, sourceMap)
+	if err != nil {
+		return fmt.Errorf("getSourceMapping replace: %w source map: %v, template: %s", err, sourceMap, templateString)
+	}
+
+	var query string
+	query, err = templateReplace(templateString, sourceMap, offlineStore)
+	if err != nil {
+		return fmt.Errorf("template replace: %w source map: %v, template: %s", err, sourceMap, templateString)
+	}
+
+	c.Logger.Debugw("Created transformation query", "query", query)
+	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Transformation}
+	transformationConfig := provider.TransformationConfig{Type: provider.SQLTransformation, TargetTableID: providerResourceID, Query: query, SourceMapping: sourceMapping}
+
+	err = c.runTransformationJob(transformationConfig, resID, schedule, sourceProvider)
+	if err != nil {
+		return fmt.Errorf("could not run the transformation job resId=%s:%s", resID, err)
+	}
+
+	return nil
+}
+
+func (c *Coordinator) runDFTransformationJob(transformSource *metadata.SourceVariant, resID metadata.ResourceID, offlineStore provider.OfflineStore, schedule string, sourceProvider *metadata.Provider) error {
+	c.Logger.Info("Running DF transformation job on resource: ", resID)
+	code := transformSource.DFTransformationQuery()
+	sources := transformSource.DFTransformationSources()
+
+	err := c.verifyCompletionOfSources(sources)
+	if err != nil {
+		return fmt.Errorf("the sources were not completed: %s", err)
+	}
+
+	sourceMap, err := c.mapNameVariantsToTables(sources)
+	if err != nil {
+		return fmt.Errorf("map name: %w sources: %v", err, sources)
+	}
+	sourceMapping, err := getSourceMapping(templateString, sourceMap)
+	if err != nil {
+		return fmt.Errorf("getSourceMapping replace: %w source map: %v, template: %s", err, sourceMap, templateString)
+	}
+
+	c.Logger.Debugw("Created transformation query")
+	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Transformation}
+	transformationConfig := provider.TransformationConfig{Type: provider.SQLTransformation, TargetTableID: providerResourceID, Code: code, SourceMapping: sourceMapping}
+
+	err = c.runTransformationJob(transformationConfig, resID, schedule, sourceProvider)
+	if err != nil {
+		return fmt.Errorf("could not run the transformation job resId=%s:%s", resID, err)
+	}
+
+	return nil
+}
+
 func (c *Coordinator) runPrimaryTableJob(transformSource *metadata.SourceVariant, resID metadata.ResourceID, offlineStore provider.OfflineStore, schedule string) error {
 	c.Logger.Info("Running primary table job on resource: ", resID)
 	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Primary}
@@ -476,6 +525,8 @@ func (c *Coordinator) runRegisterSourceJob(resID metadata.ResourceID, schedule s
 	}(sourceStore)
 	if source.IsSQLTransformation() {
 		return c.runSQLTransformationJob(source, resID, sourceStore, schedule, sourceProvider)
+	} else if source.IsDFTransformation() {
+		return c.runDFTransformationJob(source, resID, sourceStore, schedule, sourceProvider)
 	} else if source.IsPrimaryDataSQLTable() {
 		return c.runPrimaryTableJob(source, resID, sourceStore, schedule)
 	} else {

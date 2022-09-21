@@ -5,7 +5,6 @@
 syntax = "proto3";
 
 import "google/protobuf/timestamp.proto";
-import "google/protobuf/struct.proto";
 
 option go_package = "github.com/featureform/metadata/proto";
 

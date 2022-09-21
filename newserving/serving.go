@@ -7,7 +7,6 @@ package newserving
 import (
 	"context"
 	"fmt"
-	"github.com/pkg/errors"
 
 	"github.com/featureform/metadata"
 	"github.com/featureform/metrics"
@@ -71,22 +70,22 @@ func (serv *FeatureServer) getTrainingSetIterator(name, variant string) (provide
 	serv.Logger.Infow("Getting Training Set Iterator", "name", name, "variant", variant)
 	ts, err := serv.Metadata.GetTrainingSetVariant(ctx, metadata.NameVariant{name, variant})
 	if err != nil {
-		return nil, errors.Wrap(err, "could not get training set variant")
+		return nil, err
 	}
 	serv.Logger.Debugw("Fetching Training Set Provider", "name", name, "variant", variant)
 	providerEntry, err := ts.FetchProvider(serv.Metadata, ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not get fetch provider")
+		return nil, err
 	}
 	p, err := provider.Get(provider.Type(providerEntry.Type()), providerEntry.SerializedConfig())
 	if err != nil {
-		return nil, errors.Wrap(err, "could not get provider")
+		return nil, err
 	}
 	store, err := p.AsOfflineStore()
 	if err != nil {
 		// This means that the provider of the training set isn't an offline store.
 		// That shouldn't be possible.
-		return nil, errors.Wrap(err, "could not open as offline store")
+		return nil, err
 	}
 	serv.Logger.Debugw("Get Training Set From Store", "name", name, "variant", variant)
 	return store.GetTrainingSet(provider.ResourceID{Name: name, Variant: variant})
@@ -105,7 +104,7 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 		serv.Logger.Infow("Serving feature", "Name", name, "Variant", variant)
 		val, err := serv.getFeatureValue(ctx, name, variant, entityMap)
 		if err != nil {
-			return nil, errors.Wrap(err, "could not get feature value")
+			return nil, err
 		}
 		vals[i] = val
 	}

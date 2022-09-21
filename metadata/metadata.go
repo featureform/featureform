@@ -7,7 +7,6 @@ package metadata
 import (
 	"context"
 	"fmt"
-	"github.com/pkg/errors"
 	"io"
 	"net"
 	"strings"
@@ -391,7 +390,7 @@ func (resource *sourceVariantResource) Dependencies(lookup ResourceLookup) (Reso
 	}
 	deps, err := lookup.Submap(depIds)
 	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("could not create submap for IDs: %v", depIds))
+		return nil, err
 	}
 	return deps, nil
 }
@@ -512,7 +511,7 @@ func (resource *featureVariantResource) Dependencies(lookup ResourceLookup) (Res
 	}
 	deps, err := lookup.Submap(depIds)
 	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("could not create submap for IDs: %v", depIds))
+		return nil, err
 	}
 	return deps, nil
 }
@@ -628,7 +627,7 @@ func (resource *labelVariantResource) Dependencies(lookup ResourceLookup) (Resou
 	}
 	deps, err := lookup.Submap(depIds)
 	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("could not create submap for IDs: %v", depIds))
+		return nil, err
 	}
 	return deps, nil
 }
@@ -745,7 +744,7 @@ func (resource *trainingSetVariantResource) Dependencies(lookup ResourceLookup) 
 	}
 	deps, err := lookup.Submap(depIds)
 	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("could not create submap for IDs: %v", depIds))
+		return nil, err
 	}
 	return deps, nil
 }
@@ -810,7 +809,7 @@ func (resource *modelResource) Dependencies(lookup ResourceLookup) (ResourceLook
 	}
 	deps, err := lookup.Submap(depIds)
 	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("could not create submap for IDs: %v", depIds))
+		return nil, err
 	}
 	return deps, nil
 }
@@ -1004,7 +1003,7 @@ func NewMetadataServer(config *Config) (*MetadataServer, error) {
 	lookup, err := config.StorageProvider.GetResourceLookup()
 
 	if err != nil {
-		return nil, fmt.Errorf("could not configure storage provider: %v", err)
+		return nil, err
 	}
 	if config.TypeSenseParams != nil {
 		searcher, errInitializeSearch := search.NewTypesenseSearch(config.TypeSenseParams)
@@ -1082,7 +1081,7 @@ type EtcdStorageProvider struct {
 func (sp EtcdStorageProvider) GetResourceLookup() (ResourceLookup, error) {
 	client, err := sp.Config.initClient()
 	if err != nil {
-		return nil, fmt.Errorf("could not init etcd client: %v", err)
+		return nil, err
 	}
 	lookup := etcdResourceLookup{
 		connection: EtcdStorage{
@@ -1355,8 +1354,6 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		}
 	}
 	if err := serv.propogateChange(res); err != nil {
-		err := errors.Wrap(err, fmt.Sprintf("could not propogate: %s", res))
-		serv.Logger.Error(errors.WithStack(err))
 		return nil, err
 	}
 	return &pb.Empty{}, nil
@@ -1369,11 +1366,11 @@ func (serv *MetadataServer) propogateChange(newRes Resource) error {
 	propogateChange = func(parent Resource) error {
 		deps, err := parent.Dependencies(serv.lookup)
 		if err != nil {
-			return errors.Wrap(err, fmt.Sprintf("could not get dependencies for parent: %s", parent))
+			return err
 		}
 		depList, err := deps.List()
 		if err != nil {
-			return errors.Wrap(err, fmt.Sprintf("could not get dependencies list for parent: %s", parent))
+			return err
 		}
 		for _, res := range depList {
 			id := res.ID()

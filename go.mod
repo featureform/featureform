@@ -17,7 +17,6 @@ require (
 	github.com/joho/godotenv v1.4.0
 	github.com/lib/pq v1.10.4
 	github.com/mrz1836/go-sanitize v1.1.5
-	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.12.1
 	github.com/prometheus/client_model v0.2.0
 	github.com/snowflakedb/gosnowflake v1.6.8

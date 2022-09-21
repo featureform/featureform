@@ -9,8 +9,6 @@ from .get import *
 import os
 from flask import Flask
 from .dashboard_metadata import dashboard_app
-import validators
-import urllib.request
 
 resource_types = [
     "feature",
@@ -150,7 +148,7 @@ def dash():
     app.run(threaded=True, port=os.getenv("LOCALMODE_DASHBOARD_PORT", 3000))
 
 @cli.command()
-@click.argument("files", required=True, nargs=-1)
+@click.argument("files", nargs=-1, required=True, type=click.Path(exists=True))
 @click.option("--host",
               "host",
               required=False,
@@ -165,24 +163,12 @@ def dash():
 @click.option("--local",
               is_flag=True,
               help="Enable local mode")
-@click.option("--dry-run",
-              is_flag=True,
-              help="Checks the definitions without applying them")
-def apply(host, cert, insecure, local, files, dry_run):
+def apply(host, cert, insecure, local, files):
     for file in files:
-        if os.path.isfile(file):
-            with open(file, "r") as py:
-                exec(py.read())
-        elif validators.url(file):
-            try:
-                with urllib.request.urlopen(file) as py:
-                    exec(py.read())
-            except Exception as e:
-                raise ValueError(f"Could not apply the provided URL: {e}: {file}")
-        else:
-            raise ValueError(f"Argument must be a path to a file or URL with a valid schema (http:// or https://): {file}")
+        with open(file, "r") as py:
+            exec(py.read())
 
-    rc = ResourceClient(host=host, local=local, insecure=insecure, cert_path=cert, dry_run=dry_run)
+    rc = ResourceClient(host=host, local=local, insecure=insecure, cert_path=cert)
     rc.apply()
 
 

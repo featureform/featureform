@@ -6,8 +6,6 @@ The Featureform CLI allows you to describe, list, and monitor your resources.
 
 The **apply** command submits resource definitions to the Featureform instance.&#x20;
 
-The argument can either be a path to a local file or the url of a hosted file. Multiple files can be included at a time.
-
 ```
 featureform apply --host $FEATUREFORM_HOST --cert $FEATUREFORM_CERT <definitions.py>
 ```

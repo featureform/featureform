@@ -10,7 +10,6 @@ import (
 	"fmt"
 	help "github.com/featureform/helpers"
 	pb "github.com/featureform/metadata/proto"
-	"github.com/pkg/errors"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/protobuf/proto"
 	"time"
@@ -310,7 +309,7 @@ func (lookup etcdResourceLookup) serializeResource(res Resource) ([]byte, error)
 func (lookup etcdResourceLookup) deserialize(value []byte) (EtcdRow, error) {
 	var tmp EtcdRowTemp
 	if err := json.Unmarshal(value, &tmp); err != nil {
-		return EtcdRow{}, errors.Wrap(err, fmt.Sprintf("failed To Parse Resource: %s", value))
+		return EtcdRow{}, fmt.Errorf("failed To Parse Resource: %w: %s", err, value)
 	}
 	msg := EtcdRow{
 		ResourceType: ResourceType(tmp.ResourceType),
@@ -329,15 +328,15 @@ func (lookup etcdResourceLookup) Lookup(id ResourceID) (Resource, error) {
 	}
 	msg, err := lookup.deserialize(resp)
 	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("lookup deserialize: %s", id))
+		return nil, fmt.Errorf("lookup deserialize err: %w id: %s", err, id)
 	}
 	resType, err := lookup.createEmptyResource(msg.ResourceType)
 	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("lookup create: %s", id))
+		return nil, fmt.Errorf("lookup create err: %w id: %s", err, id)
 	}
 	resource, err := lookup.connection.ParseResource(msg, resType)
 	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("lookup parse: %s", id))
+		return nil, fmt.Errorf("lookup parse: %w %s", err, id)
 	}
 	return resource, nil
 }
@@ -436,17 +435,17 @@ func (lookup etcdResourceLookup) Submap(ids []ResourceID) (ResourceLookup, error
 		}
 		etcdStore, err := lookup.deserialize(value)
 		if err != nil {
-			return nil, errors.Wrap(err, fmt.Sprintf("submap deserialize: %s", id))
+			return nil, fmt.Errorf("submap %v: %v", id, err)
 		}
 
 		resource, err := lookup.createEmptyResource(etcdStore.ResourceType)
 		if err != nil {
-			return nil, errors.Wrap(err, fmt.Sprintf("submap create empty resource: %s", id))
+			return nil, err
 		}
 
 		res, err := lookup.connection.ParseResource(etcdStore, resource)
 		if err != nil {
-			return nil, errors.Wrap(err, fmt.Sprintf("submap parse resource: %s", id))
+			return nil, err
 		}
 		resources[id] = res
 	}
@@ -457,16 +456,16 @@ func (lookup etcdResourceLookup) ListForType(t ResourceType) ([]Resource, error)
 	resources := make([]Resource, 0)
 	resp, err := lookup.connection.GetWithPrefix(t.String())
 	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("could not get prefix: %s", t))
+		return nil, err
 	}
 	for _, res := range resp {
 		etcdStore, err := lookup.deserialize(res)
 		if err != nil {
-			return nil, errors.Wrap(err, fmt.Sprintf("could not deserialize: %s", res))
+			return nil, fmt.Errorf("listfortype %v: %v", resp, err)
 		}
 		resource, err := lookup.createEmptyResource(etcdStore.ResourceType)
 		if err != nil {
-			return nil, errors.Wrap(err, fmt.Sprintf("could not create empty resource: %s", res))
+			return nil, err
 		}
 		resource, err = lookup.connection.ParseResource(etcdStore, resource)
 		if resource.ID().Type == t {
@@ -480,16 +479,16 @@ func (lookup etcdResourceLookup) List() ([]Resource, error) {
 	resources := make([]Resource, 0)
 	resp, err := lookup.connection.GetWithPrefix("")
 	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("could not get prefix: %v", resources))
+		return nil, err
 	}
 	for _, res := range resp {
 		etcdStore, err := lookup.deserialize(res)
 		if err != nil {
-			return nil, errors.Wrap(err, fmt.Sprintf("list deserialize: %s", res))
+			return nil, fmt.Errorf("list %v: %v", res, err)
 		}
 		resource, err := lookup.createEmptyResource(etcdStore.ResourceType)
 		if err != nil {
-			return nil, errors.Wrap(err, fmt.Sprintf("list create empty resource: %s", res))
+			return nil, err
 		}
 		resource, err = lookup.connection.ParseResource(etcdStore, resource)
 		resources = append(resources, resource)
@@ -500,13 +499,13 @@ func (lookup etcdResourceLookup) List() ([]Resource, error) {
 func (lookup etcdResourceLookup) SetStatus(id ResourceID, status pb.ResourceStatus) error {
 	res, err := lookup.Lookup(id)
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("could not lookup ID: %v", id))
+		return fmt.Errorf("etcd: could not lookup: %w", err)
 	}
 	if err := res.UpdateStatus(status); err != nil {
-		return errors.Wrap(err, fmt.Sprintf("could not update ID: %v", id))
+		return fmt.Errorf("etcd: could not update: %w", err)
 	}
 	if err := lookup.Set(id, res); err != nil {
-		return errors.Wrap(err, fmt.Sprintf("could not set ID: %v", id))
+		return fmt.Errorf("etcd: could not set: %w", err)
 	}
 	return nil
 }

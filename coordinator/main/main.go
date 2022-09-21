@@ -13,7 +13,7 @@ import (
 
 func main() {
 	etcdHost := help.GetEnv("ETCD_HOST", "localhost")
-	etcdPort := help.GetEnv("ETCD_PORT", "2379")
+	etcdPort := help.GetEnv("ETCD_PORT", "6379")
 	etcdUrl := fmt.Sprintf("%s:%s", etcdHost, etcdPort)
 	metadataHost := help.GetEnv("METADATA_HOST", "localhost")
 	metadataPort := help.GetEnv("METADATA_PORT", "8080")

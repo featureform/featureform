@@ -1,61 +1,22 @@
-## Deployment Steps
+# Featureform Helm Chart
 
-### Prerequisites
+This Helm chart will initialize Featureform on Kubernetes. Compatible on AWS EKS, 
+GCP GKE, Azure AKS, Minikube, and Bare Metal. 
 
-- kubectl
-- aws cli
-- terraform
-- helm
-
-### Create Cluster
-In the terraform/ directory, run:
-````
-terraform init
-terraform apply
-````
-### Setup kubeconfig
-In the terraform/ directory, run:
-
-``aws eks --region $(terraform output -raw region) update-kubeconfig --name $(terraform output -raw cluster_name)``
+This chart installs the Nginx Ingress controller by default.
 
 
-### Install Certificate Manager
-`helm repo add jetstack https://charts.jetstack.io`
+## Requirements
+- Kubernetes v1.19-v1.21
+- Certificate Manager >=v1.8.0
 
-`helm repo update`
-```
-helm install certmgr jetstack/cert-manager \
-    --set installCRDs=true \
-    --version v1.0.4 \
-    --namespace cert-manager \
-    --create-namespace
-```
+## Global parameters
+| Name                     | Description                                                                                                                                  |      Default       |
+|--------------------------|----------------------------------------------------------------------------------------------------------------------------------------------|:------------------:|
+| global.hostname          | The hostname where the cluster will be accessible. Required to terminate the TLS certificate for GRPC.                                       |    "localhost"     |
+| global.version           | The Docker container tag to pull. The default value is overwritten  with the latest deployment version when pulling from artifacthub         |      "0.0.0"       |
+| global.repo              | The Docker repo to pull the images from                                                                                                      |  "featureformcom"  |
+| global.pullPolicy        | The container pull policies                                                                                                                  |      "Always"      |
+| global.publicCert        | Whether to use a public TLS certificate or a self-signed on. If true, the public certificate is generated for the provided global.hostname.  |      "false"       |
+| global.k8s_runner_enable | If true, uses a Kubernetes Job to run Featureform jobs. If false, Featureform jobs are run in the coordinator container in a separate thread |      "false"       |
 
-### Install featureform
-Go to ff/serving/charts and run:
-
-`helm install <NAME> ./featureform/ --set global.hostname=<DOMAIN_NAME>` 
-
-Where <DOMAIN_NAME> is the desired domain name that you own
-and <NAME> is your choice of name for the helm release
-
-### Create DNS Record
-Run:
-``kubectl get ingress``
-
-and select the url in the "ADDRESS" field. Something like:
-xxxxxxxxxxxxxxxxxx-xxxxxxxxxx.us-east-1.elb.amazonaws.com
-
-Then create a cname record directing your <DOMAIN_NAME> to the ADDRESS in your domain provider
-
-Featureform with automatically create a public TLS certificate for your hostname. 
-The status can be checked with
-``kubectl get certificate``
-
-### Usage
-
-Wait until pods are ready by checking:
-
-`kubectl get pods`
-
-When everything is in a "Running" state, go to your <DOMAIN_NAME> to view the Featureform dashboard

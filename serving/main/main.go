@@ -9,7 +9,7 @@ import (
 	help "github.com/featureform/helpers"
 	"github.com/featureform/metadata"
 	"github.com/featureform/metrics"
-	"github.com/featureform/newserving"
+	"github.com/featureform/serving"
 	"net"
 
 	pb "github.com/featureform/proto"
@@ -40,7 +40,7 @@ func main() {
 		logger.Panicw("Failed to connect to metadata", "Err", err)
 	}
 
-	serv, err := newserving.NewFeatureServer(meta, promMetrics, logger)
+	serv, err := serving.NewFeatureServer(meta, promMetrics, logger)
 	if err != nil {
 		logger.Panicw("Failed to create training server", "Err", err)
 	}

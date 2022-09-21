@@ -1,4 +1,4 @@
-# docker build -f ./newserving/Dockerfile . -t serving in /serving
+# docker build -f ./serving/Dockerfile . -t serving in /serving
 # docker tag serving:latest featureformcom/serving:latest
 # docker push featureformcom/serving:latest
 FROM golang:1.17-alpine
@@ -15,14 +15,14 @@ ENV PATH /go/bin:$PATH
 RUN protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative ./metadata/proto/metadata.proto
 RUN protoc --go_out=. --go_opt=paths=source_relative     --go-grpc_out=. --go-grpc_opt=paths=source_relative     ./proto/serving.proto
 
-COPY newserving/*.go ./newserving/
+COPY serving/*.go ./serving/
 COPY ./metadata/ ./metadata/
 COPY ./helpers/ ./helpers/
 COPY ./metrics/ ./metrics/
 COPY ./provider/ ./provider/
-COPY newserving/main/main.go ./newserving/main/main.go
+COPY serving/main/main.go ./serving/main/main.go
 
-RUN go build ./newserving/main/main.go
+RUN go build ./serving/main/main.go
 
 FROM alpine
 

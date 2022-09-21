@@ -15,11 +15,13 @@ from enum import Enum
 
 NameVariant = Tuple[str, str]
 
+
 @typechecked
 @dataclass
 class OperationType(Enum):
     GET = 0
     CREATE = 1
+
 
 @typechecked
 @dataclass
@@ -28,9 +30,11 @@ class SourceType(Enum):
     DF_TRANSFORMATION = "DF"
     SQL_TRANSFORMATION = "SQL"
 
+
 @typechecked
 def valid_name_variant(nvar: NameVariant) -> bool:
     return nvar[0] != "" and nvar[1] != ""
+
 
 @typechecked
 @dataclass
@@ -48,8 +52,11 @@ class Schedule:
         return "schedule"
 
     def _create(self, stub) -> None:
-        serialized = pb.SetScheduleChangeRequest(resource=pb.ResourceId(pb.NameVariant(name=self.name, variant=self.variant), resource_type=self.resource_type), schedule=self.schedule_string)
+        serialized = pb.SetScheduleChangeRequest(
+            resource=pb.ResourceId(pb.NameVariant(name=self.name, variant=self.variant),
+                                   resource_type=self.resource_type), schedule=self.schedule_string)
         stub.RequestScheduleChange(serialized)
+
 
 @typechecked
 @dataclass
@@ -73,6 +80,7 @@ class RedisConfig:
         }
         return bytes(json.dumps(config), "utf-8")
 
+
 @typechecked
 @dataclass
 class FirestoreConfig:
@@ -93,6 +101,7 @@ class FirestoreConfig:
             "Credentials": json.load(open(self.credentials_path)),
         }
         return bytes(json.dumps(config), "utf-8")
+
 
 @typechecked
 @dataclass
@@ -122,6 +131,7 @@ class CassandraConfig:
         }
         return bytes(json.dumps(config), "utf-8")
 
+
 @typechecked
 @dataclass
 class DynamodbConfig:
@@ -143,6 +153,7 @@ class DynamodbConfig:
         }
         return bytes(json.dumps(config), "utf-8")
 
+
 @typechecked
 @dataclass
 class LocalConfig:
@@ -157,7 +168,8 @@ class LocalConfig:
         config = {
         }
         return bytes(json.dumps(config), "utf-8")
-        
+
+
 @typechecked
 @dataclass
 class SnowflakeConfig:
@@ -258,6 +270,7 @@ class BigQueryConfig:
         }
         return bytes(json.dumps(config), "utf-8")
 
+
 @typechecked
 @dataclass
 class SparkAWSConfig:
@@ -279,21 +292,24 @@ class SparkAWSConfig:
             "ExecutorType": "EMR",
             "StoreType": "S3",
             "ExecutorConfig": {
-                    "AWSAccessKeyId": self.aws_access_key_id,
-                    "AWSSecretKey":   self.aws_secret_access_key,
-                    "ClusterRegion":  self.emr_cluster_region,
-                    "ClusterName":    self.emr_cluster_id,
-               },
+                "AWSAccessKeyId": self.aws_access_key_id,
+                "AWSSecretKey": self.aws_secret_access_key,
+                "ClusterRegion": self.emr_cluster_region,
+                "ClusterName": self.emr_cluster_id,
+            },
             "StoreConfig": {
-                    "AWSAccessKeyId": self.aws_access_key_id,
-                    "AWSSecretKey":   self.aws_secret_access_key,
-                    "BucketRegion":   self.bucket_region,
-                    "BucketPath":     self.bucket_path,
-                }
+                "AWSAccessKeyId": self.aws_access_key_id,
+                "AWSSecretKey": self.aws_secret_access_key,
+                "BucketRegion": self.bucket_region,
+                "BucketPath": self.bucket_path,
             }
+        }
         return bytes(json.dumps(config), "utf-8")
 
-Config = Union[RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig, BigQueryConfig, FirestoreConfig, SparkAWSConfig]
+
+Config = Union[
+    RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig, BigQueryConfig, FirestoreConfig, SparkAWSConfig]
+
 
 @typechecked
 @dataclass
@@ -344,7 +360,6 @@ class Provider:
             if getattr(self, attribute) != getattr(other, attribute):
                 return False
         return True
-
 
 
 @typechecked
@@ -588,7 +603,7 @@ class Feature:
     variant: str = "default"
     schedule: str = ""
     schedule_obj: Schedule = None
-    
+
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=4, schedule_string=schedule)
         self.schedule = schedule
@@ -723,6 +738,7 @@ class Label:
                 return False
         return True
 
+
 @typechecked
 @dataclass
 class EntityReference:
@@ -744,12 +760,13 @@ class EntityReference:
                 self.obj = entity
         except grpc._channel._MultiThreadedRendezvous:
             raise ValueError(f"Entity {self.name} not found.")
-    
+
     def _get_local(self, db):
         local_entity = db.query_resource("entities", "name", self.name)
         if local_entity == []:
             raise ValueError(f"Entity {self.name} not found.")
         self.obj = local_entity
+
 
 @typechecked
 @dataclass
@@ -773,12 +790,13 @@ class ProviderReference:
                 self.obj = provider
         except grpc._channel._MultiThreadedRendezvous:
             raise ValueError(f"Provider {self.name} of type {self.provider_type} not found.")
-        
+
     def _get_local(self, db):
         local_provider = db.query_resource("providers", "name", self.name)
         if local_provider == []:
             raise ValueError("Local mode provider not found.")
         self.obj = local_provider
+
 
 @typechecked
 @dataclass
@@ -802,12 +820,13 @@ class SourceReference:
                 self.obj = source
         except grpc._channel._MultiThreadedRendezvous:
             raise ValueError(f"Source {self.name}, variant {self.variant} not found.")
-    
+
     def _get_local(self, db):
         local_source = db.get_source_variant(self.name, self.variant)
         if local_source == []:
             raise ValueError(f"Source {self.name}, variant {self.variant} not found.")
         self.obj = local_source
+
 
 @typechecked
 @dataclass
@@ -857,7 +876,7 @@ class TrainingSet:
         stub.CreateTrainingSetVariant(serialized)
 
     def _create_local(self, db) -> None:
-        self._check_insert_training_set_resources(db)   
+        self._check_insert_training_set_resources(db)
         db.insert("training_set_variant",
                   str(time.time()),
                   self.description,
@@ -893,7 +912,7 @@ class TrainingSet:
                 self.name,
                 self.variant,
                 feature_name,  # feature name
-                feature_variant # feature variant
+                feature_variant  # feature variant
             )
 
     def __eq__(self, other):
@@ -939,8 +958,8 @@ class ResourceState:
         self.__create_list.append(resource)
         if hasattr(resource, 'schedule_obj') and resource.schedule_obj != None:
             my_schedule = resource.schedule_obj
-            key = (my_schedule.type(),  my_schedule.name)
-            self.__state[key] =  my_schedule
+            key = (my_schedule.type(), my_schedule.name)
+            self.__state[key] = my_schedule
             self.__create_list.append(my_schedule)
 
     def sorted_list(self) -> List[Resource]:
@@ -961,6 +980,13 @@ class ResourceState:
             return (resource_num, res.name, variant)
 
         return sorted(self.__state.values(), key=to_sort_key)
+
+    def create_all_dryrun(self) -> None:
+        for resource in self.__create_list:
+            if resource.operation_type() is OperationType.GET:
+                print("Getting", resource.type(), resource.name)
+            if resource.operation_type() is OperationType.CREATE:
+                print("Creating", resource.type(), resource.name)
 
     def create_all_local(self) -> None:
         db = SQLiteMetadata()

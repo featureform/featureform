@@ -20,7 +20,7 @@ func main() {
 	etcdPort := help.GetEnv("ETCD_PORT", "2379")
 	logger := zap.NewExample().Sugar()
 	addr := help.GetEnv("METADATA_PORT", "8080")
-	disableTypesense := help.GetEnv("DISABLE_TYPESENSE", "false")
+	enableTypesense := help.GetEnv("ENABLE_TYPESENSE", "true")
 	storageProvider := metadata.EtcdStorageProvider{
 		metadata.EtcdConfig{
 			Nodes: []metadata.EtcdNode{
@@ -33,7 +33,7 @@ func main() {
 		Address:         fmt.Sprintf(":%s", addr),
 		StorageProvider: storageProvider,
 	}
-	if disableTypesense == "true" {
+	if enableTypesense == "true" {
 		fmt.Println("TS Port", os.Getenv("TYPESENSE_PORT"), "TS HOST", os.Getenv("TYPESENSE_HOST"), "TS KEY", os.Getenv("TYPESENSE_APIKEY"))
 		config.TypeSenseParams = &search.TypeSenseParams{
 			Port:   help.GetEnv("TYPESENSE_PORT", "8108"),

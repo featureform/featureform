@@ -395,7 +395,7 @@ func TestParquetUpload(t *testing.T) {
 	if err := testRegisterPrimary(sparkOfflineStore); err != nil {
 		t.Fatalf("resource primary test failed: %s", err)
 	}
-  if err := testResourceMultipartStream(sparkOfflineStore); err != nil {
+	if err := testResourceMultipartStream(sparkOfflineStore); err != nil {
 		t.Fatalf("multi part stream test failed, %v", err)
 	}
 	testFns := map[string]func(*testing.T, *SparkOfflineStore){
@@ -431,6 +431,7 @@ func TestParquetUpload(t *testing.T) {
 		}
 	})
 
+}
 
 func testResourceMultipartStream(store *SparkOfflineStore) error {
 	actualValues := map[string]float64{
@@ -1939,7 +1940,7 @@ func TestSparkStoreFail(t *testing.T) {
 	invalidConfig := S3Config{}
 	invalidExecType := SparkStoreType("invalid")
 	logger := zap.NewExample().Sugar()
-if executor, err := NewSparkStore(invalidExecType, invalidConfig, logger); !(executor == nil && err != nil) {
+	if executor, err := NewSparkStore(invalidExecType, invalidConfig, logger); !(executor == nil && err != nil) {
 		t.Fatalf("did not return nil on invalid exec type")
 	}
 }

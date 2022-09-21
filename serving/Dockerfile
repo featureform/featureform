@@ -15,12 +15,12 @@ ENV PATH /go/bin:$PATH
 RUN protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative ./metadata/proto/metadata.proto
 RUN protoc --go_out=. --go_opt=paths=source_relative     --go-grpc_out=. --go-grpc_opt=paths=source_relative     ./proto/serving.proto
 
-COPY /*.go ./serving/
+COPY serving/*.go ./serving/
 COPY ./metadata/ ./metadata/
 COPY ./helpers/ ./helpers/
 COPY ./metrics/ ./metrics/
 COPY ./provider/ ./provider/
-COPY /main/main.go ./serving/main/main.go
+COPY serving/main/main.go ./serving/main/main.go
 
 RUN go build ./serving/main/main.go
 

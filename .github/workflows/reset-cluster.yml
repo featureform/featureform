@@ -68,5 +68,8 @@ jobs:
       - name: Reset Coordinator Pod
         run: kubectl delete pod -l app=featureform-coordinator
 
+      - name: Wait For Quickstart To Ready
+        run: kubectl wait --for=condition=complete job/featureform-quickstart-loader --timeout=720s
+
 
 

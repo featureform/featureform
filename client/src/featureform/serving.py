@@ -576,7 +576,7 @@ class Dataset:
             raise Exception("Buffer size must be greater than or equal to 1")
         self._stream = Shuffle(buffer_size, self._stream)
         if self._dataframe is not None:
-            shuffle_section := self._dataframe.iloc[:buffer_size, :]
+            shuffle_section = self._dataframe.iloc[:buffer_size, :]
             self._dataframe = shuffle_section.sample(frac=1)
         return self
 

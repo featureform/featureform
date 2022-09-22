@@ -1820,7 +1820,18 @@ func (s *S3Store) GetTransformationFileLocation(id ResourceID) string {
 func (s *S3Store) UploadFile(fileLocation string, file io.Reader) error {
 	prefixLength := len(fmt.Sprintf("s3://%s", s.bucketPath))
 	filePath := fileLocation[prefixLength:]
-	_, err := s.uploader.Upload(&s3manager.UploadInput{
+
+	sess, err := session.NewSession(
+		&awsV1.Config{
+			Region: awsV1.String("us-east-2"),
+		},
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	uploader := s3manager.NewUploader(sess)
+	_, err = uploader.Upload(&s3manager.UploadInput{
 		Bucket: aws.String(s.bucketPath), // Bucket to be used
 		Key:    aws.String(filePath),     // Name of the file to be saved
 		Body:   file,                     // File

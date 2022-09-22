@@ -1660,6 +1660,9 @@ class Registrar:
         label_resources = []
         for feature in features:
             variant = feature.get("variant", "default")
+            desc = ""
+            if "description" in feature:
+                desc = feature["description"]
             resource = Feature(
                 name=feature["name"],
                 variant=variant,
@@ -1668,7 +1671,7 @@ class Registrar:
                 entity=entity,
                 owner=owner,
                 provider=inference_store,
-                description=feature["description"],
+                description=desc,
                 schedule=schedule,
                 location=ResourceColumnMapping(
                     entity=entity_column,
@@ -1681,6 +1684,9 @@ class Registrar:
 
         for label in labels:
             variant = label.get("variant", "default")
+            desc = ""
+            if "description" in label:
+                desc = label["description"]
             resource = Label(
                 name=label["name"],
                 variant=variant,
@@ -1689,7 +1695,7 @@ class Registrar:
                 entity=entity,
                 owner=owner,
                 provider=inference_store,
-                description=label["description"],
+                description=desc,
                 location=ResourceColumnMapping(
                     entity=entity_column,
                     value=label["column"],

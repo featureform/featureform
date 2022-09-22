@@ -1823,7 +1823,8 @@ func (s *S3Store) UploadFile(fileLocation string, file io.Reader) error {
 
 	sess, err := session.NewSession(
 		&awsV1.Config{
-			Region: awsV1.String("us-east-2"),
+			Region:      awsV1.String("us-east-2"),
+			Credentials: s.credentials,
 		},
 	)
 	if err != nil {

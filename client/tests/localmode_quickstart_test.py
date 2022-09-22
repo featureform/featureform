@@ -113,9 +113,9 @@ class Quickstart:
         for i, feature_batch in enumerate(training_dataset):
             features = feature_batch.iloc[:, :-1]
             labels = feature_batch.iloc[:, [-1]]
-            for i in range(len(features)):
-                assert features.iloc[i, 0] == expected_test[j + (i * 5)][0]
-                assert labels.iloc[i, 0] == expected_test[j + (i * 5)][1]
+            for j in range(len(features)):
+                assert features.iloc[j, 0] == expected_test[j + (i * 5)][0]
+                assert labels.iloc[j, 0] == expected_test[j + (i * 5)][1]
         
     def test_feature(self):
         client = ff.ServingClient(local=True)

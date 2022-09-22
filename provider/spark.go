@@ -486,7 +486,7 @@ func (s *S3Store) ResourcePath(id ResourceID) string {
 }
 
 func (s *S3Store) KeyPath(sourceKey string) string {
-	if sourceKey[:len("s3://")] != "s3://" {
+	if !strings.Contains(sourceKey, "s3://") {
 		return fmt.Sprintf("%s%s", s.BucketPrefix(), sourceKey)
 	}
 	return sourceKey

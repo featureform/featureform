@@ -294,7 +294,7 @@ class LocalClientImpl:
 
         label_col = trainingset_df.pop('label')
         trainingset_df = trainingset_df.assign(label=label_col)
-        return Dataset.from_dataframe(trainingset_df.values)
+        return Dataset.from_dataframe(trainingset_df)
 
     def features(self, feature_variant_list, entities):
         if len(feature_variant_list) == 0:

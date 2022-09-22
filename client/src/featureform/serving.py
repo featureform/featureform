@@ -294,7 +294,7 @@ class LocalClientImpl:
 
         label_col = trainingset_df.pop('label')
         trainingset_df = trainingset_df.assign(label=label_col)
-        return Dataset.from_list(trainingset_df.values.tolist())
+        return Dataset.from_dataframe(trainingset_df.values)
 
     def features(self, feature_variant_list, entities):
         if len(feature_variant_list) == 0:
@@ -506,7 +506,7 @@ class Batch:
 
 class Dataset:
 
-    def __init__(self, stream):
+    def __init__(self, stream, dataframe=None):
         """Repeats the Dataset for the specified number of times
 
         Args:
@@ -516,14 +516,18 @@ class Dataset:
             self (Dataset): Returns a Dataset created from the iterable object.
         """
         self._stream = stream
+        self._dataframe = dataframe
 
     def from_stub(self, name, version):
         stream = Stream(self._stream, name, version)
         return Dataset(stream)
+    
+    def from_dataframe(dataframe):
+        stream = LocalStream(dataframe.values.tolist())
+        return Dataset(stream, dataframe)
 
-    def from_list(datalist):
-        stream = LocalStream(datalist)
-        return Dataset(stream)
+    def pandas(self):
+        return self._dataframe
 
     def repeat(self, num):
         """Repeats the Dataset for the specified number of times
@@ -545,6 +549,10 @@ class Dataset:
         if num <= 0:
             raise Exception("Must repeat 1 or more times")
         self._stream = Repeat(num, self._stream)
+        if self._dataframe is not None:
+            self._dataframe = pd.DataFrame(
+                np.repeat(self._dataframe.to_numpy(), num, axis=0),
+                columns=self._dataframe.columns)
         return self
 
     def shuffle(self, buffer_size):
@@ -567,6 +575,9 @@ class Dataset:
         if buffer_size <= 0:
             raise Exception("Buffer size must be greater than or equal to 1")
         self._stream = Shuffle(buffer_size, self._stream)
+        if self._dataframe is not None:
+            shuffle_section := self._dataframe.iloc[:buffer_size, :]
+            self._dataframe = shuffle_section.sample(frac=1)
         return self
 
     def batch(self, batch_size):
@@ -589,6 +600,8 @@ class Dataset:
         if batch_size <= 0:
             raise Exception("Batch size must be greater than or equal to 1")
         self._stream = Batch(batch_size, self._stream)
+        if self._dataframe is not None:
+            self._dataframe = np.array_split(self._dataframe, (len(self_dataframe) // batch_size) + 1)
         return self
 
     def __iter__(self):

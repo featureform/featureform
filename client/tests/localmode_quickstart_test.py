@@ -31,6 +31,7 @@ class Quickstart:
         for i, feature_batch in enumerate(training_dataset):
             assert feature_batch.features()[0] == [expected_tset[i][0]]
             assert feature_batch.label() == [expected_tset[i][1]]
+        
 
     def test_training_set_repeat(self):
         half_test = get_training_set_from_file(self.file, self.entity_col, self.feature_col, self.label_col,
@@ -67,6 +68,55 @@ class Quickstart:
                 assert features[0] == expected_test[j + (i * 5)][0]
                 assert label == expected_test[j + (i * 5)][1]
 
+    def test_training_set_dataframe(self):
+        expected_tset = get_training_set_from_file(self.file, self.entity_col, self.feature_col, self.label_col,
+                                                   self.name_variant)
+        client = ff.ServingClient(local=True)
+        dataset = client.training_set(self.training_set_name, self.training_set_variant).pandas()
+        training_dataset = dataset
+        for i, feature_batch in enumerate(training_dataset):
+            features = feature_batch.iloc[:, [:-1]]
+            label = feature_batch.iloc[:, [-1]]
+            assert features[0] == [expected_tset[i][0]]
+            assert label == [expected_tset[i][1]]
+    
+    def test_training_set_dataframe_repeat(self):
+        half_test = get_training_set_from_file(self.file, self.entity_col, self.feature_col, self.label_col,
+                                               self.name_variant)
+        expected_tset = half_test + half_test
+        client = ff.ServingClient(local=True)
+        dataset = client.training_set(self.training_set_name, self.training_set_variant)
+        training_dataset = dataset.repeat(1).pandas()
+        for i, feature_batch in enumerate(training_dataset):
+            features = feature_batch.iloc[:, [:-1]]
+            label = feature_batch.iloc[:, [-1]]
+            assert features[0] == [expected_tset[i][0]]
+            assert label() == [expected_tset[i][1]]
+
+    def test_training_set_dataframe_shuffle(self):
+        expected_tset = get_training_set_from_file(self.file, self.entity_col, self.feature_col, self.label_col,
+                                                   self.name_variant)
+        client = ff.ServingClient(local=True)
+        dataset = client.training_set(self.training_set_name, self.training_set_variant)
+        training_dataset = dataset.shuffle(1).pandas()
+        rows = 0
+        for feature_batch in training_dataset:
+            rows += 1
+        assert rows == len(expected_tset)
+
+    def test_training_set_dataframe_batch(self):
+        expected_test = get_training_set_from_file(self.file, self.entity_col, self.feature_col, self.label_col,
+                                                   self.name_variant)
+        client = ff.ServingClient(local=True)
+        dataset = client.training_set(self.training_set_name, self.training_set_variant)
+        training_dataset = dataset.batch(5).pandas()
+        for i, feature_batch in enumerate(training_dataset):
+            features = feature_batch.iloc[:, [:-1]]
+            labels = feature_batch.iloc[:, [-1]]
+            for i in range(len(features))  
+                assert features.iloc[i, 0] == expected_test[j + (i * 5)][0]
+                assert labels[i] == expected_test[j + (i * 5)][1]
+        
     def test_feature(self):
         client = ff.ServingClient(local=True)
         feature = client.features([(self.feature_name, self.feature_variant)], {self.entity: self.entity_value})

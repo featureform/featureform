@@ -601,7 +601,7 @@ class Dataset:
             raise Exception("Batch size must be greater than or equal to 1")
         self._stream = Batch(batch_size, self._stream)
         if self._dataframe is not None:
-            self._dataframe = np.array_split(self._dataframe, (len(self_dataframe) // batch_size) + 1)
+            self._dataframe = np.array_split(self._dataframe, (len(self._dataframe) // batch_size) + 1)
         return self
 
     def __iter__(self):

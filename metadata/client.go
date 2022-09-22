@@ -1778,6 +1778,7 @@ func (variant *SourceVariant) DFTransformationSources() []NameVariant {
 		return nil
 	}
 	inputSources := variant.serialized.GetTransformation().GetDFTransformation().GetInputs()
+	fmt.Println("<--->", inputSources)
 	var variants []NameVariant
 	for _, nv := range inputSources {
 		variants = append(variants, NameVariant{Name: nv.Name, Variant: nv.Variant})

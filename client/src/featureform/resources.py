@@ -583,7 +583,7 @@ class Feature:
     entity: str
     owner: str
     provider: str
-    description: str
+    description: str = ""
     location: ResourceLocation
     variant: str = "default"
     schedule: str = ""
@@ -662,7 +662,7 @@ class Label:
     entity: str
     owner: str
     provider: str
-    description: str
+    description: str = ""
     location: ResourceLocation
     variant: str = "default"
 

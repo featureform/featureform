@@ -466,14 +466,15 @@ func (c *Coordinator) runDFTransformationJob(transformSource *metadata.SourceVar
 	if err != nil {
 		return fmt.Errorf("map name: %w sources: %v", err, sources)
 	}
-	sourceMapping, err := getSourceMapping(templateString, sourceMap)
-	if err != nil {
-		return fmt.Errorf("getSourceMapping replace: %w source map: %v, template: %s", err, sourceMap, templateString)
+
+	sourceMapping := []provider.SourceMapping{}
+	for nameVariantClient, transformationTableName := range sourceMap {
+		sourceMapping = append(sourceMapping, provider.SourceMapping{Template: nameVariantClient, Source: transformationTableName})
 	}
 
 	c.Logger.Debugw("Created transformation query")
 	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Transformation}
-	transformationConfig := provider.TransformationConfig{Type: provider.SQLTransformation, TargetTableID: providerResourceID, Code: code, SourceMapping: sourceMapping}
+	transformationConfig := provider.TransformationConfig{Type: provider.DFTransformation, TargetTableID: providerResourceID, Code: code, SourceMapping: sourceMapping}
 
 	err = c.runTransformationJob(transformationConfig, resID, schedule, sourceProvider)
 	if err != nil {

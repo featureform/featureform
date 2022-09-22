@@ -59,14 +59,14 @@ def execute_df_job(output_uri, code, aws_region, sources):
 
     spark = SparkSession.builder.appName("Dataframe Transformation").getOrCreate()
     
-    func_parameters = {}
-    for name, location in sources.items():
-        func_parameters[name] = spark.read.option("recursiveFileLookup", "true").parquet(location)
+    func_parameters = []
+    for location in sources:
+        func_parameters.append(spark.read.option("recursiveFileLookup", "true").parquet(location))
     
     try:
         code = get_code_from_file(code, aws_region)
         func = types.FunctionType(code, globals(), "df_transformation")
-        output_df = func(**func_parameters)
+        output_df = func(*func_parameters)
 
         dt = datetime.now()
         output_uri_with_timestamp = f"{output_uri}{dt}"
@@ -116,15 +116,6 @@ def get_code_from_file(file_path, aws_region=None):
     return code
 
 
-class KeyValue(argparse.Action):
-    def __call__( self , parser, namespace,
-                 values, option_string = None):
-        setattr(namespace, self.dest, dict())
-          
-        for value in values:
-            key, value = value.split('=')
-            getattr(namespace, self.dest)[key] = value
-
 def parse_args(args=None):
     parser = argparse.ArgumentParser()
     subparser = parser.add_subparsers(dest="transformation_type", required=True)
@@ -145,8 +136,7 @@ def parse_args(args=None):
         "--code", required=True, help="the path to transformation code file"
     )
     df_parser.add_argument(
-        "--source", required=True, nargs='*', action=KeyValue, help="""Add a number of source mapping key=value. 
-        Do not put spaces before or after the '=' sign."""
+        "--source", required=True, nargs='*', help="""Add a number of sources"""
     )
     df_parser.add_argument(
         "--aws_region", help="the aws s3 region were the code file is stored"

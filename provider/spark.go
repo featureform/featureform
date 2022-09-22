@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"os"
 	"path"
 	"reflect"
@@ -272,6 +274,8 @@ type SparkStore interface {
 	FileExists(path string) (bool, error)
 	ResourceExists(id ResourceID) (bool, error)
 	DeleteFile(path string) error
+	GetTransformationFileLocation(id ResourceID) string
+	UploadFile(fileLocation string, file io.Reader) error
 }
 
 type EMRExecutor struct {
@@ -1005,7 +1009,21 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 		return fmt.Errorf("transformation %v doesn't exist at %s and you are trying to update", config.TargetTableID, transformationDestination)
 	}
 
-	sparkArgs, err := spark.getDFArgs(transformationDestination, config.Query, spark.Store.Region(), config.SourceMapping)
+	transformationFilePath := spark.Store.GetTransformationFileLocation(config.TargetTableID)
+	transformationFileLocation := fmt.Sprintf("%s/transformation.pkl", transformationFilePath)
+	err = ioutil.WriteFile("read.pkl", config.Code, 0644)
+	if err != nil {
+		panic(err)
+	}
+
+	// Write byte to file
+	f, err := os.Open("write.pkl")
+	if err != nil {
+		panic(err)
+	}
+	err = spark.Store.UploadFile(transformationFileLocation, f)
+
+	sparkArgs, err := spark.getDFArgs(transformationDestination, transformationFileLocation, spark.Store.Region(), config.SourceMapping)
 	if err != nil {
 		spark.Logger.Errorw("Problem creating spark dataframe arguments", err)
 		return fmt.Errorf("error with getting df arguments %v", sparkArgs)
@@ -1117,7 +1135,7 @@ func (spark *SparkOfflineStore) getDFArgs(outputURI string, code string, awsRegi
 			return nil, fmt.Errorf("issue with retreiving the source path for %s because %s", m.Source, err)
 		}
 
-		argList = append(argList, fmt.Sprintf("%s=%s", m.Template, sourcePath))
+		argList = append(argList, sourcePath)
 	}
 
 	return argList, nil
@@ -1783,6 +1801,23 @@ func (s *S3Store) ResourceStreamSingleFile(key string, begin int64) (chan interf
 	rowChannel := make(chan interface{})
 	go parquetReaderToStream(rowChannel, numRows-begin, pr)
 	return rowChannel, nil
+}
+
+func (s *S3Store) GetTransformationFileLocation(id ResourceID) string {
+	return fmt.Sprintf("s3://%s/featureform/DFTransformations/%s/%s", s.bucketPath, id.Name, id.Variant)
+}
+
+func (s *S3Store) UploadFile(fileLocation string, file io.Reader) error {
+	prefixLength := len(fmt.Sprintf("s3://%s", s.bucketPath))
+	filePath := fileLocation[prefixLength:]
+	_, err := s.uploader.Upload(&s3manager.UploadInput{
+		Bucket: aws.String(s.bucketPath), // Bucket to be used
+		Key:    aws.String(filePath),     // Name of the file to be saved
+		Body:   file,                     // File
+	})
+	if err != nil {
+		panic(err)
+	}
 }
 
 func parquetReaderToStream(rowChannel chan interface{}, numRows int64, pr *reader.ParquetReader) {

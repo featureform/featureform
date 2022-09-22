@@ -584,7 +584,7 @@ class Feature:
     owner: str
     provider: str
     location: ResourceLocation
-    description: str = ""
+    description: str
     variant: str = "default"
     schedule: str = ""
     schedule_obj: Schedule = None
@@ -662,8 +662,8 @@ class Label:
     entity: str
     owner: str
     provider: str
+    description: str
     location: ResourceLocation
-    description: str = ""
     variant: str = "default"
 
     @staticmethod

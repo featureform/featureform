@@ -1371,7 +1371,10 @@ func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materializ
 	materializationQuery := spark.query.materializationCreate(sparkResourceTable.schema)
 
 	sourcePath := spark.Store.KeyPath(sparkResourceTable.schema.SourceTable)
+	fmt.Println("<!!!!> sourcePath", sourcePath)
 	sparkArgs := spark.Store.SparkSubmitArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize)
+
+	fmt.Println("<!!!!> sparkArgs", sparkArgs)
 	spark.Logger.Debugw("Creating materialization", id)
 	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
 		spark.Logger.Errorw("Spark submit job failed to run", err)

@@ -205,6 +205,7 @@ stop_postgres:
 pytest:
 	-rm -r .featureform
 	curl -C - https://featureform-demo-files.s3.amazonaws.com/transactions.csv -o transactions.csv
+	pytest client/tests/test_cli.py
 	pytest client/tests/provider_config_test.py
 	pytest client/tests/serving_test.py
 	pytest client/src/featureform/local_dash_test.py
@@ -227,12 +228,12 @@ test_pyspark:
 test_offline: gen_grpc 					## Run offline tests. Run with `make test_offline provider=(memory | postgres | snowflake | redshift | spark )`
 	@echo "These tests require a .env file. Please Check .env-template for possible variables"
 	-mkdir coverage
-	go test -v -p 20 -timeout 60m -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/... --tags=offline --provider=$(provider)
+	go test -v -parallel 1000 -timeout 60m -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/... --tags=offline --provider=$(provider)
 
 test_offline_spark: gen_grpc 					## Run spark tests. Run with `make test_offline provider=(memory | postgres | snowflake | redshift | spark )`
 	@echo "These tests require a .env file. Please Check .env-template for possible variables"
 	-mkdir coverage
-	go test -v -p 20 -timeout 60m -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/... --tags=spark
+	go test -v -parallel 1000 -timeout 60m -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/... --tags=spark
 
 test_online: gen_grpc 					## Run offline tests. Run with `make test_online provider=(memory | redis_mock | redis_insecure | redis_secure | cassandra | firestore | dynamo )`
 	@echo "These tests require a .env file. Please Check .env-template for possible variables"
@@ -255,7 +256,7 @@ test_helpers:
 
 test_serving:
 	-mkdir coverage
-	go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./newserving/...
+	go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./serving/...
 
 test_runner:							## Requires ETCD to be installed and added to path
 	-mkdir coverage
@@ -307,7 +308,7 @@ containers: gen_grpc						## Build Docker containers for Minikube
 	minikube image build -f ./coordinator/Dockerfile . -t local/coordinator:stable & \
 	minikube image build -f ./metadata/Dockerfile . -t local/metadata:stable & \
 	minikube image build -f ./metadata/dashboard/Dockerfile . -t local/metadata-dashboard:stable & \
-	minikube image build -f ./newserving/Dockerfile . -t local/serving:stable & \
+	minikube image build -f ./serving/Dockerfile . -t local/serving:stable & \
 	minikube image build -f ./runner/Dockerfile . -t local/worker:stable & \
 	wait; \
 	echo "Build Complete"

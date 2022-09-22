@@ -456,6 +456,7 @@ func (c *Coordinator) runDFTransformationJob(transformSource *metadata.SourceVar
 	c.Logger.Info("Running DF transformation job on resource: ", resID)
 	code := transformSource.DFTransformationQuery()
 	sources := transformSource.DFTransformationSources()
+	c.Logger.Infof("-----> Sources from DFTransformationSources(); %v", sources)
 
 	err := c.verifyCompletionOfSources(sources)
 	if err != nil {

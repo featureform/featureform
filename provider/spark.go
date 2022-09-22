@@ -391,7 +391,7 @@ func (s *S3Store) ResourceKeysMultiPart(id ResourceID) ([]string, error) {
 		return nil, err
 	}
 	if len(objects.Contents) == 0 {
-		s.logger.Errorw("no objects with key prefix exist in S3", latestFilePrefix)
+		s.logger.Errorw("no objects with key prefix exist in S3", latestFilePrefix, id)
 		return []string{}, nil
 	}
 	s.logger.Debugf("Found %d objects", len(objects.Contents))
@@ -422,7 +422,7 @@ func (s *S3Store) ResourceKeySinglePart(id ResourceID) (string, error) {
 	}
 	var resourceTimestamps = make(map[string]string)
 	if len(objects.Contents) == 0 {
-		s.logger.Errorw("no objects with key prefix exist in S3", filePrefix)
+		s.logger.Errorw("no objects with key prefix exist in S3", filePrefix, id)
 		return "", fmt.Errorf("no resource exists")
 	}
 	s.logger.Debugf("Found %d objects", len(objects.Contents))

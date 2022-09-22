@@ -1818,6 +1818,7 @@ func (s *S3Store) UploadFile(fileLocation string, file io.Reader) error {
 	if err != nil {
 		panic(err)
 	}
+	return nil
 }
 
 func parquetReaderToStream(rowChannel chan interface{}, numRows int64, pr *reader.ParquetReader) {

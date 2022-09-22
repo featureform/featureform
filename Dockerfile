@@ -25,7 +25,7 @@ COPY proto/ proto/
 COPY coordinator/ coordinator/
 COPY provider/ provider/
 COPY runner/ runner/
-COPY newserving/ newserving/
+COPY serving/ serving/
 COPY nginx.conf/ /etc/nginx/nginx.conf
 
 RUN apt install protobuf-compiler -y
@@ -43,7 +43,7 @@ RUN go build coordinator/main/main.go
 RUN mv main execs/coordinator
 RUN go build metadata/dashboard/dashboard_metadata.go
 RUN mv dashboard_metadata execs/dashboard_metadata
-RUN go build newserving/main/main.go
+RUN go build serving/main/main.go
 RUN mv main execs/serving
 
 RUN git clone -b v3.4.16 https://github.com/etcd-io/etcd.git

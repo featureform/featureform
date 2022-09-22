@@ -113,7 +113,7 @@ class Quickstart:
         for i, feature_batch in enumerate(training_dataset):
             features = feature_batch.iloc[:, :-1]
             labels = feature_batch.iloc[:, [-1]]
-            for i in range(len(features))  
+            for i in range(len(features)):
                 assert features.iloc[i, 0] == expected_test[j + (i * 5)][0]
                 assert labels.iloc[i, 0] == expected_test[j + (i * 5)][1]
         

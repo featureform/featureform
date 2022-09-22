@@ -992,7 +992,6 @@ func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, i
 	spark.Logger.Debugw("Succesfully ran SQL transformation", config)
 	return nil
 }
-
 func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, isUpdate bool) error {
 	transformationDestination := spark.Store.ResourcePath(config.TargetTableID)
 	exists, err := spark.Store.ResourceExists(config.TargetTableID)
@@ -1010,18 +1009,29 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 	}
 
 	transformationFilePath := spark.Store.GetTransformationFileLocation(config.TargetTableID)
-	transformationFileLocation := fmt.Sprintf("%s/transformation.pkl", transformationFilePath)
-	err = ioutil.WriteFile("read.pkl", config.Code, 0644)
+	fileName := "transformation.pkl"
+	transformationFileLocation := fmt.Sprintf("%s/%s", transformationFilePath, fileName)
+
+	f, err := os.Create(fileName)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("could not create file: %s", err)
+	}
+	defer f.Close()
+
+	err = ioutil.WriteFile(fileName, config.Code, 0644)
+	if err != nil {
+		return fmt.Errorf("could not write to file: %s", err)
 	}
 
 	// Write byte to file
-	f, err := os.Open("write.pkl")
+	f, err = os.Open(fileName)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("could not open file: %s", err)
 	}
 	err = spark.Store.UploadFile(transformationFileLocation, f)
+	if err != nil {
+		return fmt.Errorf("could not upload file: %s", err)
+	}
 
 	sparkArgs, err := spark.getDFArgs(transformationDestination, transformationFileLocation, spark.Store.Region(), config.SourceMapping)
 	if err != nil {

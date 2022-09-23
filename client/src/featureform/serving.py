@@ -550,9 +550,9 @@ class Dataset:
             raise Exception("Must repeat 1 or more times")
         self._stream = Repeat(num, self._stream)
         if self._dataframe is not None:
-            temp_df = df
+            temp_df = self._dataframe
             for i in range(num):
-                df = append(temp_df)
+                self._dataframe = append(temp_df)
         return self
 
     def shuffle(self, buffer_size):

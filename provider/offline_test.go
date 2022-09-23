@@ -30,6 +30,12 @@ import (
 
 var provider = flag.String("provider", "all", "provider to perform test on")
 
+type testMember struct {
+	t               Type
+	c               SerializedConfig
+	integrationTest bool
+}
+
 func TestOfflineStores(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
@@ -37,12 +43,6 @@ func TestOfflineStores(t *testing.T) {
 	err := godotenv.Load("../.env")
 	if err != nil {
 		fmt.Println(err)
-	}
-
-	type testMember struct {
-		t               Type
-		c               SerializedConfig
-		integrationTest bool
 	}
 
 	os.Setenv("TZ", "UTC")
@@ -144,25 +144,30 @@ func TestOfflineStores(t *testing.T) {
 	if *provider == "memory" || *provider == "" {
 		testList = append(testList, testMember{MemoryOffline, []byte{}, false})
 	}
+	if *provider == "bigquery" || *provider == "" {
+		serialBQConfig, bigQueryConfig := bqInit()
+		testList = append(testList, testMember{BigQueryOffline, serialBQConfig, true})
+		t.Cleanup(func() {
+			destroyBigQueryDataset(bigQueryConfig)
+		})
+	}
 	if *provider == "postgres" || *provider == "" {
 		testList = append(testList, testMember{PostgresOffline, postgresInit(), true})
 	}
 	if *provider == "snowflake" || *provider == "" {
 		serialSFConfig, snowflakeConfig := snowflakeInit()
-		defer destroySnowflakeDatabase(snowflakeConfig)
 		testList = append(testList, testMember{SnowflakeOffline, serialSFConfig, true})
+		t.Cleanup(func() {
+			destroySnowflakeDatabase(snowflakeConfig)
+		})
 	}
 	if *provider == "redshift" || *provider == "" {
 		serialRSConfig, redshiftConfig := redshiftInit()
-		defer destroyRedshiftDatabase(redshiftConfig)
 		testList = append(testList, testMember{RedshiftOffline, serialRSConfig, true})
+		t.Cleanup(func() {
+			destroyRedshiftDatabase(redshiftConfig)
+		})
 	}
-	if *provider == "bigquery" || *provider == "" {
-		serialBQConfig, bigQueryConfig := bqInit()
-		defer destroyBigQueryDataset(bigQueryConfig)
-		testList = append(testList, testMember{BigQueryOffline, serialBQConfig, true})
-	}
-
 	testFns := map[string]func(*testing.T, OfflineStore){
 		"CreateGetTable":          testCreateGetOfflineTable,
 		"TableAlreadyExists":      testOfflineTableAlreadyExists,
@@ -200,57 +205,67 @@ func TestOfflineStores(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
+
 	for _, testItem := range testList {
-		if testing.Short() && testItem.integrationTest {
-			t.Logf("Skipping %s, because it is an integration test", testItem.t)
+		// for running go routines inside for loops in go, the iterated value needs to be redeclared
+		// this prevents the earlier go routines from referencing values in a later iteration of the for loop
+		testItemConst := testItem
+		t.Run(string(testItemConst.t), func(t *testing.T) {
+			t.Parallel()
+			testWithProvider(t, testItemConst, testFns, testSQLFns, db)
+		})
+	}
+}
+
+func testWithProvider(t *testing.T, testItem testMember, testFns map[string]func(*testing.T, OfflineStore), testSQLFns map[string]func(*testing.T, OfflineStore), db *sql.DB) {
+	var err error
+	if testing.Short() && testItem.integrationTest {
+		t.Logf("Skipping %s, because it is an integration test", testItem.t)
+		return
+	}
+	var connections_start, connections_end int
+	if testItem.t == PostgresOffline {
+		err = db.QueryRow("SELECT Count(*) FROM pg_stat_activity WHERE pid!=pg_backend_pid()").Scan(&connections_start)
+		if err != nil {
+			panic(err)
+		}
+	}
+	provider, err := Get(testItem.t, testItem.c)
+	if err != nil {
+		t.Fatalf("Failed to get provider %s: %s", testItem.t, err)
+	}
+	store, err := provider.AsOfflineStore()
+	if err != nil {
+		t.Fatalf("Failed to use provider %s as OfflineStore: %s", testItem.t, err)
+	}
+	for name, fn := range testFns {
+		nameConst := name
+		fnConst := fn
+		t.Run(nameConst, func(t *testing.T) {
+			t.Parallel()
+			fnConst(t, store)
+		})
+	}
+	for name, fn := range testSQLFns {
+		if testItem.t == MemoryOffline {
 			continue
 		}
-		var connections_start, connections_end int
-		if testItem.t == PostgresOffline {
-			err = db.QueryRow("SELECT Count(*) FROM pg_stat_activity WHERE pid!=pg_backend_pid()").Scan(&connections_start)
-			if err != nil {
-				panic(err)
-			}
+		nameConst := name
+		fnConst := fn
+		t.Run(nameConst, func(t *testing.T) {
+			t.Parallel()
+			fnConst(t, store)
+		})
+	}
+
+	t.Cleanup(func() {
+		if err := store.Close(); err != nil {
+			t.Errorf("%v - %v\n", testItem.t, err)
 		}
-		for name, fn := range testFns {
-			provider, err := Get(testItem.t, testItem.c)
-			if err != nil {
-				t.Fatalf("Failed to get provider %s: %s", testItem.t, err)
-			}
-			store, err := provider.AsOfflineStore()
-			if err != nil {
-				t.Fatalf("Failed to use provider %s as OfflineStore: %s", testItem.t, err)
-			}
-			testName := fmt.Sprintf("%s_%s", testItem.t, name)
-			t.Run(testName, func(t *testing.T) {
-				fn(t, store)
-			})
-			if err := store.Close(); err != nil {
-				t.Errorf("%v:%v - %v\n", testItem.t, name, err)
-			}
-		}
-		for name, fn := range testSQLFns {
-			if testItem.t == MemoryOffline {
-				continue
-			}
-			provider, err := Get(testItem.t, testItem.c)
-			if err != nil {
-				t.Fatalf("Failed to get provider %s: %s", testItem.t, err)
-			}
-			store, err := provider.AsOfflineStore()
-			if err != nil {
-				t.Logf("Cannot use provider %s as SQLOfflineStore: %s", testItem.t, err)
-				continue
-			}
-			testName := fmt.Sprintf("%s_%s", testItem.t, name)
-			t.Run(testName, func(t *testing.T) {
-				fn(t, store)
-			})
-			if err := store.Close(); err != nil {
-				t.Errorf("%v:%v - %v\n", testItem.t, name, err)
-			}
-		}
-		if testItem.t == PostgresOffline {
+	})
+
+	if testItem.t == PostgresOffline {
+		t.Cleanup(func() {
 			err = db.QueryRow("SELECT Count(*) FROM pg_stat_activity WHERE pid!=pg_backend_pid()").Scan(&connections_end)
 			if err != nil {
 				panic(err)
@@ -260,7 +275,7 @@ func TestOfflineStores(t *testing.T) {
 					t.Errorf("Started with %d connections, ended with %d connections", connections_start, connections_end)
 				}
 			})
-		}
+		})
 	}
 }
 
@@ -668,8 +683,13 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 		}
 	}
 	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			runTestCase(t, test)
+		nameConst := name
+		testConst := test
+		t.Run(nameConst, func(t *testing.T) {
+			if store.Type() != MemoryOffline {
+				t.Parallel()
+			}
+			runTestCase(t, testConst)
 		})
 	}
 
@@ -979,8 +999,13 @@ func testMaterializationUpdate(t *testing.T, store OfflineStore) {
 		}
 	}
 	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			runTestCase(t, test)
+		nameConst := name
+		testConst := test
+		t.Run(nameConst, func(t *testing.T) {
+			if store.Type() != MemoryOffline {
+				t.Parallel()
+			}
+			runTestCase(t, testConst)
 		})
 	}
 
@@ -1330,8 +1355,13 @@ func testTrainingSet(t *testing.T, store OfflineStore) {
 		}
 	}
 	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			runTestCase(t, test)
+		nameConst := name
+		testConst := test
+		t.Run(nameConst, func(t *testing.T) {
+			if store.Type() != MemoryOffline {
+				t.Parallel()
+			}
+			runTestCase(t, testConst)
 		})
 	}
 }
@@ -1735,8 +1765,13 @@ func testTrainingSetUpdate(t *testing.T, store OfflineStore) {
 		}
 	}
 	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			runTestCase(t, test)
+		nameConst := name
+		testConst := test
+		t.Run(nameConst, func(t *testing.T) {
+			if store.Type() != MemoryOffline {
+				t.Parallel()
+			}
+			runTestCase(t, testConst)
 		})
 	}
 }
@@ -1796,8 +1831,13 @@ func testInvalidTrainingSetDefs(t *testing.T, store OfflineStore) {
 		},
 	}
 	for name, def := range invalidDefs {
-		t.Run(name, func(t *testing.T) {
-			if err := store.CreateTrainingSet(def); err == nil {
+		nameConst := name
+		defConst := def
+		t.Run(nameConst, func(t *testing.T) {
+			if store.Type() != MemoryOffline {
+				t.Parallel()
+			}
+			if err := store.CreateTrainingSet(defConst); err == nil {
 				t.Fatalf("Succeeded to create invalid def")
 			}
 		})
@@ -1964,8 +2004,13 @@ func testPrimaryCreateTable(t *testing.T, store OfflineStore) {
 		}
 	}
 	for name, test := range testCreate {
-		t.Run(name, func(t *testing.T) {
-			testPrimary(t, test, store)
+		nameConst := name
+		testConst := test
+		t.Run(nameConst, func(t *testing.T) {
+			if store.Type() != MemoryOffline {
+				t.Parallel()
+			}
+			testPrimary(t, testConst, store)
 		})
 	}
 }
@@ -2051,8 +2096,10 @@ func testPrimaryTableWrite(t *testing.T, store OfflineStore) {
 	}
 
 	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			testTableWrite(t, test)
+		nameConst := name
+		testConst := test
+		t.Run(nameConst, func(t *testing.T) {
+			testTableWrite(t, testConst)
 		})
 	}
 
@@ -2223,8 +2270,11 @@ func testTransform(t *testing.T, store OfflineStore) {
 	}
 
 	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			testTransform(t, test)
+		nameConst := name
+		testConst := test
+		t.Run(nameConst, func(t *testing.T) {
+			t.Parallel()
+			testTransform(t, testConst)
 		})
 	}
 
@@ -2448,8 +2498,11 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 	}
 
 	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			testTransform(t, test)
+		nameConst := name
+		testConst := test
+		t.Run(nameConst, func(t *testing.T) {
+			t.Parallel()
+			testTransform(t, testConst)
 		})
 	}
 

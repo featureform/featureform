@@ -523,7 +523,7 @@ class Dataset:
         stream = Stream(self._stream, name, version)
         return Dataset(stream)
     
-    def from_dataframe(dataframe):
+    def from_dataframe(self, dataframe):
         stream = LocalStream(dataframe.values.tolist())
         return Dataset(stream, dataframe)
 

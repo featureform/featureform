@@ -205,6 +205,14 @@ class SQLiteMetadata:
           raise ValueError(f"{type} with name: {name} and variant: {variant} not found")
         return variant_data_list
 
+    def fetch_data_safe(self, query, type, name, variant):
+        variant_data = self.__conn.execute(query)
+        self.__conn.commit()
+        variant_data_list = variant_data.fetchall()
+        if len(variant_data_list) == 0:
+          return []
+        return variant_data_list
+
     def get_user(self, name):
       return self.query_resource("users", "name", name)[0]
 
@@ -238,7 +246,7 @@ class SQLiteMetadata:
 
     def get_feature_variants_from_source(self, name, variant):
         query = f"SELECT * FROM feature_variant WHERE source_name = '{name}' AND source_variant = '{variant}';"
-        return self.fetch_data(query, "feature_variant", name, variant)
+        return self.fetch_data_safe(query, "feature_variant", name, variant)
 
     def get_feature_variants_from_feature(self, name):
       return self.query_resource("feature_variant", "name", name)
@@ -252,7 +260,7 @@ class SQLiteMetadata:
     
     def get_training_set_variant_from_label(self, name, variant):
         query = f"SELECT * FROM training_set_variant WHERE label_name = '{name}' AND label_variant = '{variant}';"
-        return self.fetch_data(query, "training_set_variant", name, variant)
+        return self.fetch_data_safe(query, "training_set_variant", name, variant)
     
     def get_label_variant(self, name, variant):
         query = f"SELECT * FROM label_variant WHERE name = '{name}' AND variant = '{variant}';"
@@ -267,7 +275,7 @@ class SQLiteMetadata:
     
     def get_label_variants_from_source(self, name, variant):
         query = f"SELECT * FROM label_variant WHERE source_name = '{name}' AND source_variant = '{variant}';"
-        return self.fetch_data(query, "label_variant", name, variant)
+        return self.fetch_data_safe(query, "label_variant", name, variant)
 
     def get_source_variant(self, name, variant):
         query = f"SELECT * FROM source_variant WHERE name = '{name}' AND variant = '{variant}';"
@@ -278,11 +286,11 @@ class SQLiteMetadata:
 
     def get_training_set_from_features(self, name, variant):
         query = f"SELECT * FROM training_set_features WHERE feature_name = '{name}' AND feature_variant = '{variant}';"
-        return self.fetch_data(query, "training_set_features", name, variant)
+        return self.fetch_data_safe(query, "training_set_features", name, variant)
 
     def get_training_set_from_labels(self, name, variant):
         query = f"SELECT * FROM training_set_variant WHERE label_name = '{name}' AND label_variant = '{variant}';"
-        return self.fetch_data(query, "training_set_variant", name, variant)
+        return self.fetch_data_safe(query, "training_set_variant", name, variant)
 
     def get_training_set_features(self, name, variant):
         query = f"SELECT * FROM training_set_features WHERE training_set_name = '{name}' AND training_set_variant = '{variant}';"

@@ -74,9 +74,9 @@ class Quickstart:
         client = ff.ServingClient(local=True)
         dataset = client.training_set(self.training_set_name, self.training_set_variant).pandas()
         training_dataset = dataset
-        for i, feature_batch in enumerate(training_dataset):
-            features = feature_batch.iloc[:, :-1]
-            label = feature_batch.iloc[:, [-1]]
+        for i in range(len(training_dataset)):
+            features = training_dataset.iloc[:, :-1]
+            label = training_dataset.iloc[:, [-1]]
             assert features.iloc[i, 0] == [expected_tset[i][0]]
             assert labels.iloc[i, 0] == [expected_tset[i][1]]
     
@@ -87,9 +87,9 @@ class Quickstart:
         client = ff.ServingClient(local=True)
         dataset = client.training_set(self.training_set_name, self.training_set_variant)
         training_dataset = dataset.repeat(1).pandas()
-        for i, feature_batch in enumerate(training_dataset):
-            features = feature_batch.iloc[:, :-1]
-            labels = feature_batch.iloc[:, [-1]]
+        for i in range(len(training_dataset)):
+            features = training_dataset.iloc[:, :-1]
+            labels = training_dataset.iloc[:, [-1]]
             assert features.iloc[i, 0] == [expected_tset[i][0]]
             assert labels.iloc[i, 0] == [expected_tset[i][1]]
 
@@ -100,7 +100,7 @@ class Quickstart:
         dataset = client.training_set(self.training_set_name, self.training_set_variant)
         training_dataset = dataset.shuffle(1).pandas()
         rows = 0
-        for feature_batch in training_dataset:
+        for feature_batch in range(len(training_dataset)_:
             rows += 1
         assert rows == len(expected_tset)
 

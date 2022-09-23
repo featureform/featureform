@@ -77,8 +77,8 @@ class Quickstart:
         for i in range(len(training_dataset)):
             features = training_dataset.iloc[:, :-1]
             labels = training_dataset.iloc[:, [-1]]
-            assert features.iloc[i, 0] == [expected_tset[i][0]]
-            assert labels.iloc[i, 0] == [expected_tset[i][1]]
+            assert features.iloc[i, 0] == expected_tset[i][0]
+            assert labels.iloc[i, 0] == expected_tset[i][1]
     
     def test_training_set_dataframe_repeat(self):
         half_test = get_training_set_from_file(self.file, self.entity_col, self.feature_col, self.label_col,
@@ -90,8 +90,8 @@ class Quickstart:
         for i in range(len(training_dataset)):
             features = training_dataset.iloc[:, :-1]
             labels = training_dataset.iloc[:, [-1]]
-            assert features.iloc[i, 0] == [expected_tset[i][0]]
-            assert labels.iloc[i, 0] == [expected_tset[i][1]]
+            assert features.iloc[i, 0] == expected_tset[i][0]
+            assert labels.iloc[i, 0] == expected_tset[i][1]
 
     def test_training_set_dataframe_shuffle(self):
         expected_tset = get_training_set_from_file(self.file, self.entity_col, self.feature_col, self.label_col,

@@ -9,7 +9,7 @@ import (
 	help "github.com/featureform/helpers"
 	"github.com/featureform/metadata"
 	"github.com/featureform/metrics"
-	"github.com/featureform/newserving"
+	"github.com/featureform/serving"
 	"net"
 
 	pb "github.com/featureform/proto"
@@ -20,14 +20,16 @@ import (
 func main() {
 	logger := zap.NewExample().Sugar()
 
+	host := help.GetEnv("SERVING_HOST", "0.0.0.0")
 	port := help.GetEnv("SERVING_PORT", "8080")
-	lis, err := net.Listen("tcp", port)
+	address := fmt.Sprintf("%s:%s", host, port)
+	lis, err := net.Listen("tcp", address)
 	if err != nil {
 		logger.Panicw("Failed to listen on port", "Err", err)
 	}
 
 	promMetrics := metrics.NewMetrics("test")
-	metricsPort := help.GetEnv("METRICS_PORT", "")
+	metricsPort := help.GetEnv("METRICS_PORT", ":9090")
 
 	metadataHost := help.GetEnv("METADATA_HOST", "localhost")
 	metadataPort := help.GetEnv("METADATA_PORT", "8080")
@@ -38,16 +40,16 @@ func main() {
 		logger.Panicw("Failed to connect to metadata", "Err", err)
 	}
 
-	serv, err := newserving.NewFeatureServer(meta, promMetrics, logger)
-
-	grpcServer := grpc.NewServer()
+	serv, err := serving.NewFeatureServer(meta, promMetrics, logger)
 	if err != nil {
 		logger.Panicw("Failed to create training server", "Err", err)
 	}
+	grpcServer := grpc.NewServer()
+
 	pb.RegisterFeatureServer(grpcServer, serv)
 	logger.Infow("Serving metrics", "Port", metricsPort)
 	go promMetrics.ExposePort(metricsPort)
-	logger.Infow("Server starting", "Port", port)
+	logger.Infow("Server starting", "Port", address)
 	serveErr := grpcServer.Serve(lis)
 	if serveErr != nil {
 		logger.Errorw("Serve failed with error", "Err", serveErr)

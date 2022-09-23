@@ -152,7 +152,7 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           context: .
-          file: ./newserving/Dockerfile
+          file: ./serving/Dockerfile
           tags: local/serving:stable
           push: false
           outputs: type=docker,dest=/tmp/serving.tar

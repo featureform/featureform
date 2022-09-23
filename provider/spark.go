@@ -217,12 +217,16 @@ func sparkOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 		logger.Errorw("Failure initializing Spark executor with type", sc.ExecutorType, err)
 		return nil, err
 	}
+
+	fmt.Sprintf("Executor type: %s, Executor config: %v", sc.ExecutorType, sc.ExecutorConfig)
 	logger.Info("Creating Spark store with type:", sc.StoreType)
 	store, err := NewSparkStore(sc.StoreType, sc.StoreConfig, logger)
 	if err != nil {
 		logger.Errorw("Failure initializing Spark store with type", sc.StoreType, err)
 		return nil, err
 	}
+
+	fmt.Sprintf("Store type: %s, Store config: %v", sc.StoreType, sc.StoreConfig)
 	logger.Info("Uploading Spark script to store")
 	if err := store.UploadSparkScript(); err != nil {
 		logger.Errorw("Failure uploading spark script", err)
@@ -1069,14 +1073,22 @@ func (spark *SparkOfflineStore) getSourcePath(path string) (string, error) {
 }
 
 func (spark *SparkOfflineStore) getResourceInformationFromFilePath(path string) (string, string, string) {
-	filePaths := strings.Split(path[len("featureform_"):], "__")
-
-	if len(filePaths) <= 2 {
-		return "", "", ""
+	var fileType string
+	var fileName string
+	var fileVariant string
+	if path[:5] == "s3://" {
+		filePaths := strings.Split(path[len("s3://"):], "/")
+		if len(filePaths) <= 4 {
+			return "", "", ""
+		}
+		fileType, fileName, fileVariant = strings.ToLower(filePaths[2]), filePaths[3], filePaths[4]
+	} else {
+		filePaths := strings.Split(path[len("featureform_"):], "__")
+		if len(filePaths) <= 2 {
+			return "", "", ""
+		}
+		fileType, fileName, fileVariant = filePaths[0], filePaths[1], filePaths[2]
 	}
-
-	fileType, fileName, fileVariant := filePaths[0], filePaths[1], filePaths[2]
-
 	return fileType, fileName, fileVariant
 }
 
@@ -1084,7 +1096,7 @@ func (spark *SparkOfflineStore) getDFArgs(outputURI string, code string, awsRegi
 	argList := []string{
 		"spark-submit",
 		"--deploy-mode",
-		"cluster",
+		"client",
 		fmt.Sprintf("%sfeatureform/scripts/offline_store_spark_runner.py", spark.Store.BucketPrefix()),
 		"df",
 		"--output_uri",

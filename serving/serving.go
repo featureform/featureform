@@ -2,11 +2,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-package newserving
+package serving
 
 import (
 	"context"
 	"fmt"
+	"github.com/pkg/errors"
 
 	"github.com/featureform/metadata"
 	"github.com/featureform/metrics"
@@ -70,22 +71,22 @@ func (serv *FeatureServer) getTrainingSetIterator(name, variant string) (provide
 	serv.Logger.Infow("Getting Training Set Iterator", "name", name, "variant", variant)
 	ts, err := serv.Metadata.GetTrainingSetVariant(ctx, metadata.NameVariant{name, variant})
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "could not get training set variant")
 	}
 	serv.Logger.Debugw("Fetching Training Set Provider", "name", name, "variant", variant)
 	providerEntry, err := ts.FetchProvider(serv.Metadata, ctx)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "could not get fetch provider")
 	}
 	p, err := provider.Get(provider.Type(providerEntry.Type()), providerEntry.SerializedConfig())
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "could not get provider")
 	}
 	store, err := p.AsOfflineStore()
 	if err != nil {
 		// This means that the provider of the training set isn't an offline store.
 		// That shouldn't be possible.
-		return nil, err
+		return nil, errors.Wrap(err, "could not open as offline store")
 	}
 	serv.Logger.Debugw("Get Training Set From Store", "name", name, "variant", variant)
 	return store.GetTrainingSet(provider.ResourceID{Name: name, Variant: variant})
@@ -104,7 +105,7 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 		serv.Logger.Infow("Serving feature", "Name", name, "Variant", variant)
 		val, err := serv.getFeatureValue(ctx, name, variant, entityMap)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "could not get feature value")
 		}
 		vals[i] = val
 	}

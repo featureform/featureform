@@ -456,7 +456,6 @@ func (c *Coordinator) runDFTransformationJob(transformSource *metadata.SourceVar
 	c.Logger.Info("Running DF transformation job on resource: ", resID)
 	code := transformSource.DFTransformationQuery()
 	sources := transformSource.DFTransformationSources()
-	c.Logger.Infof("-----> Sources from DFTransformationSources(); %v", sources)
 
 	err := c.verifyCompletionOfSources(sources)
 	if err != nil {
@@ -468,13 +467,10 @@ func (c *Coordinator) runDFTransformationJob(transformSource *metadata.SourceVar
 		return fmt.Errorf("map name: %w sources: %v", err, sources)
 	}
 
-	c.Logger.Infof("-----> sourceMap from mapNameVariantsToTables(sources); %v", sourceMap)
-
 	sourceMapping := []provider.SourceMapping{}
 	for nameVariantClient, transformationTableName := range sourceMap {
 		sourceMapping = append(sourceMapping, provider.SourceMapping{Template: nameVariantClient, Source: transformationTableName})
 	}
-	c.Logger.Infof("-----> sourceMapping: %v", sourceMapping)
 
 	c.Logger.Debugw("Created transformation query")
 	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Transformation}

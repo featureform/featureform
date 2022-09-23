@@ -100,7 +100,7 @@ class Quickstart:
         dataset = client.training_set(self.training_set_name, self.training_set_variant)
         training_dataset = dataset.shuffle(1).pandas()
         rows = 0
-        for feature_batch in range(len(training_dataset)_:
+        for feature_batch in range(len(training_dataset)):
             rows += 1
         assert rows == len(expected_tset)
 

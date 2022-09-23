@@ -76,7 +76,7 @@ class Quickstart:
         training_dataset = dataset
         for i in range(len(training_dataset)):
             features = training_dataset.iloc[:, :-1]
-            label = training_dataset.iloc[:, [-1]]
+            labels = training_dataset.iloc[:, [-1]]
             assert features.iloc[i, 0] == [expected_tset[i][0]]
             assert labels.iloc[i, 0] == [expected_tset[i][1]]
     

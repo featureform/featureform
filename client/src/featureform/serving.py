@@ -7,6 +7,7 @@ import os
 import random
 import re
 import types
+import math
 
 import grpc
 import numpy as np
@@ -600,7 +601,7 @@ class Dataset:
             raise Exception("Batch size must be greater than or equal to 1")
         self._stream = Batch(batch_size, self._stream)
         if self._dataframe is not None:
-            self._dataframe = np.array_split(self._dataframe, (len(self._dataframe) // batch_size) + 1)
+            self._dataframe = np.array_split(self._dataframe, math.ceil(len(self._dataframe) // batch_size))
         return self
 
     def __iter__(self):

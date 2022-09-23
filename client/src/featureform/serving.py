@@ -552,7 +552,7 @@ class Dataset:
         if self._dataframe is not None:
             temp_df = self._dataframe
             for i in range(num):
-                self._dataframe = append(temp_df)
+                self._dataframe = self._dataframe.append(temp_df)
         return self
 
     def shuffle(self, buffer_size):

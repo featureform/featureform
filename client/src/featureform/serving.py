@@ -550,9 +550,9 @@ class Dataset:
             raise Exception("Must repeat 1 or more times")
         self._stream = Repeat(num, self._stream)
         if self._dataframe is not None:
-            self._dataframe = pd.DataFrame(
-                np.repeat(self._dataframe.to_numpy(), num, axis=0),
-                columns=self._dataframe.columns)
+            temp_df = df
+            for i in range(num):
+                df = append(temp_df)
         return self
 
     def shuffle(self, buffer_size):
@@ -576,8 +576,19 @@ class Dataset:
             raise Exception("Buffer size must be greater than or equal to 1")
         self._stream = Shuffle(buffer_size, self._stream)
         if self._dataframe is not None:
-            shuffle_section = self._dataframe.iloc[:buffer_size, :]
-            self._dataframe = shuffle_section.sample(frac=1)
+            indices = set()
+            for i in range(buffer_size//2):
+                first_index = random.randint(0, len(self._dataframe)-1)
+                while first_index in indices:
+                    first_index = random.randint(0, len(self._dataframe)-1)
+                second_index = random.randint(0, len(self._dataframe)-1)
+                while second_index == first_index or second_index in indices:
+                    second_index = random.randint(0, len(self._dataframe)-1)
+                indices.add(first_index)
+                indices.add(second_index)
+                temp = df.iloc[first_index].copy()
+                self._dataframe.iloc[first_index] = self._dataframe.iloc[second_index]
+                self._dataframe.iloc[second_index] = temp   
         return self
 
     def batch(self, batch_size):

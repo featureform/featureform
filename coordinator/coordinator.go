@@ -593,6 +593,13 @@ func (c *Coordinator) runLabelRegisterJob(resID metadata.ResourceID, schedule st
 			return err
 		}
 		sourceTableName = sourceTable.GetName()
+	} else if source.IsDFTransformation() {
+		sourceResourceID := provider.ResourceID{sourceNameVariant.Name, sourceNameVariant.Variant, provider.Transformation}
+		sourceTable, err := sourceStore.GetTransformationTable(sourceResourceID)
+		if err != nil {
+			return err
+		}
+		sourceTableName = sourceTable.GetName()
 	}
 	labelID := provider.ResourceID{
 		Name:    resID.Name,
@@ -688,6 +695,13 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 	} else if source.IsPrimaryDataSQLTable() {
 		sourceResourceID := provider.ResourceID{sourceNameVariant.Name, sourceNameVariant.Variant, provider.Primary}
 		sourceTable, err := sourceStore.GetPrimaryTable(sourceResourceID)
+		if err != nil {
+			return err
+		}
+		sourceTableName = sourceTable.GetName()
+	} else if source.IsDFTransformation() {
+		sourceResourceID := provider.ResourceID{sourceNameVariant.Name, sourceNameVariant.Variant, provider.Transformation}
+		sourceTable, err := sourceStore.GetTransformationTable(sourceResourceID)
 		if err != nil {
 			return err
 		}

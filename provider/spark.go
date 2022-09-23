@@ -924,21 +924,22 @@ func (s *S3OfflineTable) Write(ResourceRecord) error {
 
 func (spark *SparkOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error) {
 	if err := id.check(Feature, Label); err != nil {
-		spark.Logger.Errorw("Failure checking ID", err)
+		spark.Logger.Errorw("Failure checking ID", "error", err)
 		return nil, fmt.Errorf("ID check failed: %v", err)
 	}
 	resourcePath := parquetResourcePath(id)
 	resourceExists, err := spark.Store.ResourceExists(id)
 	if err != nil {
-		spark.Logger.Errorw("Error checking if resource exists", err)
+		spark.Logger.Errorw("Error checking if resource exists", "error", err)
 		return nil, fmt.Errorf("error checking if resource registry exists: %v", err)
 	}
 	if resourceExists {
-		spark.Logger.Errorw("Resource already exists in Spark stoe", id)
+		spark.Logger.Errorw("Resource already exists in Spark store", "id", id)
 		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}
 	schemaList := []ResourceSchema{schema}
-	spark.Logger.Debugw("Registering resource table", id, "for source", schema.SourceTable)
+	spark.Logger.Debugw("Registering resource table", "id", id, "source", schema.SourceTable)
+
 	if err := spark.Store.UploadParquetTable(resourcePath, schemaList); err != nil {
 		spark.Logger.Errorw("Could not upload Parquet table", err)
 		return nil, err
@@ -1348,7 +1349,6 @@ func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materializ
 		return nil, fmt.Errorf("only features can be materialized")
 	}
 	resourceTable, err := spark.GetResourceTable(id)
-	fmt.Println("<!!!!!>", id, "resource table", resourceTable)
 	if err != nil {
 		spark.Logger.Errorw("Attempted to fetch resource table of non registered resource", err)
 		return nil, fmt.Errorf("resource not registered: %v", err)
@@ -1370,12 +1370,8 @@ func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materializ
 		return nil, fmt.Errorf("materialization already exists")
 	}
 	materializationQuery := spark.query.materializationCreate(sparkResourceTable.schema)
-
 	sourcePath := spark.Store.KeyPath(sparkResourceTable.schema.SourceTable)
-	fmt.Println("<!!!!> sourcePath", sourcePath, sparkResourceTable.schema.SourceTable)
 	sparkArgs := spark.Store.SparkSubmitArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize)
-
-	fmt.Println("<!!!!> sparkArgs", sparkArgs)
 	spark.Logger.Debugw("Creating materialization", id)
 	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
 		spark.Logger.Errorw("Spark submit job failed to run", err)
@@ -1578,7 +1574,7 @@ func (spark *SparkOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
 			spark.Logger.Errorw("Could not get schema of feature in spark store", feature, err)
 			return fmt.Errorf("Could not get schema of feature %s: %v", feature, err)
 		}
-		featurePath := featureSchema.SourceTable //spark.Store.KeyPath(featureSchema.SourceTable)
+		featurePath := spark.Store.KeyPath(featureSchema.SourceTable)
 		sourcePaths = append(sourcePaths, featurePath)
 		featureSchemas = append(featureSchemas, featureSchema)
 	}

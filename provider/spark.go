@@ -1212,7 +1212,7 @@ func (spark *SparkOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, e
 		spark.Logger.Errorw("Could not convert resource table to resource table format", storedResourceData)
 		return nil, fmt.Errorf("cant convert downloaded resource table")
 	}
-	spark.Logger.Debugw("Succesfully fetched resource table", id)
+	spark.Logger.Debugw("Succesfully fetched resource table", "id", id)
 	return &S3OfflineTable{ResourceSchema{
 		Entity:      resourceTableStruct.Entity,
 		Value:       resourceTableStruct.Value,
@@ -1372,7 +1372,7 @@ func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materializ
 	materializationQuery := spark.query.materializationCreate(sparkResourceTable.schema)
 	sourcePath := spark.Store.KeyPath(sparkResourceTable.schema.SourceTable)
 	sparkArgs := spark.Store.SparkSubmitArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize)
-	spark.Logger.Debugw("Creating materialization", id)
+	spark.Logger.Debugw("Creating materialization", "id", id)
 	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
 		spark.Logger.Errorw("Spark submit job failed to run", err)
 		return nil, fmt.Errorf("spark submit job for materialization %v failed to run: %v", materializationID, err)
@@ -1382,7 +1382,7 @@ func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materializ
 		spark.Logger.Errorw("Created materialization not found in store", err)
 		return nil, fmt.Errorf("Materialization result does not exist in offline store: %v", err)
 	}
-	spark.Logger.Debugw("Succesfully created materialization", id)
+	spark.Logger.Debugw("Succesfully created materialization", "id", id)
 	return &S3Materialization{materializationID, spark.Store, key}, nil
 }
 
@@ -1393,13 +1393,13 @@ func (spark *SparkOfflineStore) GetMaterialization(id MaterializationID) (Materi
 		return nil, fmt.Errorf("invalid materialization id")
 	}
 	materializationID := ResourceID{s[1], s[2], FeatureMaterialization}
-	spark.Logger.Debugw("Getting materialization", id)
+	spark.Logger.Debugw("Getting materialization", "id", id)
 	key, err := spark.Store.ResourceKeySinglePart(materializationID)
 	if err != nil {
 		spark.Logger.Errorw("Could not fetch materialization resource key", err)
 		return nil, err
 	}
-	spark.Logger.Debugw("Succesfully retrieved materialization", id)
+	spark.Logger.Debugw("Succesfully retrieved materialization", "id", id)
 	return &S3Materialization{materializationID, spark.Store, key}, nil
 }
 
@@ -1423,7 +1423,7 @@ func (spark *SparkOfflineStore) UpdateMaterialization(id ResourceID) (Materializ
 	materializationQuery := spark.query.materializationCreate(sparkResourceTable.schema)
 	sourcePath := spark.Store.KeyPath(sparkResourceTable.schema.SourceTable)
 	sparkArgs := spark.Store.SparkSubmitArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize)
-	spark.Logger.Debugw("Updating materialization", id)
+	spark.Logger.Debugw("Updating materialization", "id", id)
 	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
 		spark.Logger.Errorw("Could not run spark update materialization job", err)
 		return nil, fmt.Errorf("spark submit job for materialization %v failed to run: %v", materializationID, err)
@@ -1433,7 +1433,7 @@ func (spark *SparkOfflineStore) UpdateMaterialization(id ResourceID) (Materializ
 		spark.Logger.Errorw("Could not fetch materialization resource key", err)
 		return nil, fmt.Errorf("Materialization result does not exist in offline store: %v", err)
 	}
-	spark.Logger.Debugw("Succesfully updated materialization", id)
+	spark.Logger.Debugw("Succesfully updated materialization", "id", id)
 	return &S3Materialization{materializationID, spark.Store, key}, nil
 }
 
@@ -1446,24 +1446,24 @@ func (spark *SparkOfflineStore) DeleteMaterialization(id MaterializationID) erro
 	materializationID := ResourceID{s[1], s[2], FeatureMaterialization}
 	keys, err := spark.Store.ResourceKeysMultiPart(materializationID)
 	if err != nil {
-		spark.Logger.Errorw("Could not fetch materialization resource key", err)
+		spark.Logger.Errorw("Could not fetch materialization resource key", "error", err)
 		return err
 	}
 	for _, key := range keys {
 		if exists, err := spark.Store.FileExists(key); err != nil {
-			spark.Logger.Errorw("Error searching for resource materialization file", err)
+			spark.Logger.Errorw("Error searching for resource materialization file", "error", err)
 			return err
 		} else if !exists {
-			spark.Logger.Errorw("Could not find resource materialization file", id)
+			spark.Logger.Errorw("Could not find resource materialization file", "id", id)
 			return &MaterializationNotFound{id}
 		}
-		spark.Logger.Debugw("Deleting materialization:", id)
+		spark.Logger.Debugw("Deleting materialization:", "id", id)
 		if err := spark.Store.DeleteFile(key); err != nil {
-			spark.Logger.Errorw("Failed to delete materialization file with key", key)
+			spark.Logger.Errorw("Failed to delete materialization file with key", "key", key)
 			return fmt.Errorf("failed to delete file: %v", err)
 		}
 	}
-	spark.Logger.Debugw("Succesfully deleted materialization", id)
+	spark.Logger.Debugw("Succesfully deleted materialization", "id", id)
 	return nil
 }
 
@@ -1529,7 +1529,7 @@ func (s *S3TrainingSet) Err() error {
 }
 
 func (spark *SparkOfflineStore) registeredResourceSchema(id ResourceID) (ResourceSchema, error) {
-	spark.Logger.Debugw("Getting resource schema:", id)
+	spark.Logger.Debugw("Getting resource schema", "id", id)
 	table, err := spark.GetResourceTable(id)
 	if err != nil {
 		spark.Logger.Errorw("Resource not registered in spark store", id, err)
@@ -1540,7 +1540,7 @@ func (spark *SparkOfflineStore) registeredResourceSchema(id ResourceID) (Resourc
 		spark.Logger.Errorw("could not convert offline table to sparkResourceTable", id)
 		return ResourceSchema{}, fmt.Errorf("could not convert offline table with id %v to sparkResourceTable", id)
 	}
-	spark.Logger.Debugw("Succesfully retrieved resource schema:", id)
+	spark.Logger.Debugw("Succesfully retrieved resource schema", "id", id)
 	return sparkResourceTable.schema, nil
 }
 
@@ -1580,17 +1580,17 @@ func (spark *SparkOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
 	}
 	trainingSetQuery := spark.query.trainingSetCreate(def, featureSchemas, labelSchema)
 	sparkArgs := spark.Store.SparkSubmitArgs(destinationPath, trainingSetQuery, sourcePaths, CreateTrainingSet)
-	spark.Logger.Debugw("Creating training set:", def)
+	spark.Logger.Debugw("Creating training set", "definition", def)
 	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
-		spark.Logger.Errorw("Spark submit training set job failed to run", def.ID, err)
+		spark.Logger.Errorw("Spark submit training set job failed to run", "definition", def.ID, "error", err)
 		return fmt.Errorf("spark submit job for training set %v failed to run: %v", def.ID, err)
 	}
 	_, err = spark.Store.ResourceKeySinglePart(def.ID)
 	if err != nil {
-		spark.Logger.Errorw("Could not get training set resource key in offline store", err)
+		spark.Logger.Errorw("Could not get training set resource key in offline store", "error", err)
 		return fmt.Errorf("Training Set result does not exist in offline store: %v", err)
 	}
-	spark.Logger.Debugw("Succesfully created training set:", def)
+	spark.Logger.Debugw("Succesfully created training set:", "definition", def)
 	return nil
 }
 
@@ -1620,10 +1620,10 @@ func (spark *SparkOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {
 		featureSchemas = append(featureSchemas, featureSchema)
 	}
 	trainingSetQuery := spark.query.trainingSetCreate(def, featureSchemas, labelSchema)
-	spark.Logger.Debugw("Updating training set:", def)
+	spark.Logger.Debugw("Updating training set", "definition", def)
 	sparkArgs := spark.Store.SparkSubmitArgs(destinationPath, trainingSetQuery, sourcePaths, CreateTrainingSet)
 	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
-		spark.Logger.Errorw("Spark submit job failed to run", def.ID, err)
+		spark.Logger.Errorw("Spark submit job failed to run", "id", def.ID, "error", err)
 		return fmt.Errorf("spark submit job for training set %v failed to run: %v", def.ID, err)
 	}
 	_, err = spark.Store.ResourceKeySinglePart(def.ID)

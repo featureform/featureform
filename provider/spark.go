@@ -1348,6 +1348,7 @@ func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materializ
 		return nil, fmt.Errorf("only features can be materialized")
 	}
 	resourceTable, err := spark.GetResourceTable(id)
+	fmt.Println("<!!!!!>", id)
 	if err != nil {
 		spark.Logger.Errorw("Attempted to fetch resource table of non registered resource", err)
 		return nil, fmt.Errorf("resource not registered: %v", err)
@@ -1371,7 +1372,7 @@ func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materializ
 	materializationQuery := spark.query.materializationCreate(sparkResourceTable.schema)
 
 	sourcePath := spark.Store.KeyPath(sparkResourceTable.schema.SourceTable)
-	fmt.Println("<!!!!> sourcePath", sourcePath)
+	fmt.Println("<!!!!> sourcePath", sourcePath, sparkResourceTable.schema.SourceTable)
 	sparkArgs := spark.Store.SparkSubmitArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize)
 
 	fmt.Println("<!!!!> sparkArgs", sparkArgs)

@@ -569,7 +569,7 @@ jobs:
 
       - name: Testing
         working-directory: ./
-        run: go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./newserving/...
+        run: go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./serving/...
 
       - name: Convert Coverage Test Results
         if: always()
@@ -583,7 +583,7 @@ jobs:
         with:
           root_dir: ./
           files: ./coverage/cover.out
-          name: newserving-coverage
+          name: serving-coverage
           verbose: true
 
       - name: Archive code coverage results

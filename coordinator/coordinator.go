@@ -216,7 +216,12 @@ func (c *Coordinator) WatchForNewJobs() error {
 		go func(kv *mvccpb.KeyValue) {
 			err := c.ExecuteJob(string(kv.Key))
 			if err != nil {
-				c.Logger.Errorw("Error executing job: Initial search", "error", err)
+				re, ok := err.(*JobDoesNotExistError)
+				if ok {
+					c.Logger.Infow(re.Error())
+				} else {
+					c.Logger.Errorw("Error executing job: Initial search", "error", err)
+				}
 			}
 		}(kv)
 	}
@@ -228,7 +233,12 @@ func (c *Coordinator) WatchForNewJobs() error {
 					go func(ev *clientv3.Event) {
 						err := c.ExecuteJob(string(ev.Kv.Key))
 						if err != nil {
-							c.Logger.Errorw("Error executing job: Polling search", "error", err)
+							re, ok := err.(*JobDoesNotExistError)
+							if ok {
+								c.Logger.Infow(re.Error())
+							} else {
+								c.Logger.Errorw("Error executing job: Polling search", "error", err)
+							}
 						}
 					}(ev)
 				}
@@ -236,7 +246,6 @@ func (c *Coordinator) WatchForNewJobs() error {
 			}
 		}
 	}
-	return nil
 }
 
 func (c *Coordinator) WatchForUpdateEvents() error {
@@ -838,7 +847,7 @@ func (c *Coordinator) getJob(mtx *concurrency.Mutex, key string) (*metadata.Coor
 	responseData := response.Responses[0]
 	responseKVs := responseData.GetResponseRange().GetKvs()
 	if len(responseKVs) == 0 {
-		return nil, fmt.Errorf("coordinator job %s does not exist", key)
+		return nil, &JobDoesNotExistError{key: key}
 	}
 	responseValue := responseKVs[0].Value //Only single response for single key
 	job := &metadata.CoordinatorJob{}
@@ -924,7 +933,7 @@ func (c *Coordinator) ExecuteJob(jobKey string) error {
 	}()
 	job, err := c.getJob(mtx, jobKey)
 	if err != nil {
-		return fmt.Errorf("get job: %w", err)
+		return err
 	}
 	c.Logger.Debugf("Job %s is on attempt %d", jobKey, job.Attempts)
 	if job.Attempts > MAX_ATTEMPTS {

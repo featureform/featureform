@@ -586,7 +586,7 @@ class Dataset:
                     second_index = random.randint(0, len(self._dataframe)-1)
                 indices.add(first_index)
                 indices.add(second_index)
-                temp = df.iloc[first_index].copy()
+                temp = self._dataframe.iloc[first_index].copy()
                 self._dataframe.iloc[first_index] = self._dataframe.iloc[second_index]
                 self._dataframe.iloc[second_index] = temp   
         return self

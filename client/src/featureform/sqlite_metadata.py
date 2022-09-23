@@ -202,7 +202,7 @@ class SQLiteMetadata:
         self.__conn.commit()
         variant_data_list = variant_data.fetchall()
         if len(variant_data_list) == 0:
-          raise ValueError(f"{type} with name: {name} and variant: {variant} not found")
+          return []
         return variant_data_list
 
     def get_user(self, name):

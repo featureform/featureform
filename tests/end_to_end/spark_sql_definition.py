@@ -3,7 +3,10 @@ from dotenv import load_dotenv
 
 import featureform as ff
 
-load_dotenv("/Users/kempytoor/Documents/Featureform/repos/featureform/.env")
+
+featureform_location = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+env_file_path = os.path.join(featureform_location, ".env")
+load_dotenv(env_file_path)
 
 def get_random_string():
     import random

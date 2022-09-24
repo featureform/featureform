@@ -11,9 +11,6 @@ from featureform import ResourceClient
 @given("Featureform is installed")
 def step_impl(context):
     output = subprocess.check_output(["pip", "list"], text=True)
-
-    import os
-    print(os.getenv("AWS_EMR_CLUSTER_ID"))
     assert "featureform" in output
 
 

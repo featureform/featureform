@@ -1823,12 +1823,12 @@ func (s *S3Store) UploadFile(fileLocation string, file io.Reader) error {
 
 	sess, err := session.NewSession(
 		&awsV1.Config{
-			Region:      awsV1.String("us-east-2"),
+			Region:      awsV1.String(s.region),
 			Credentials: s.credentials,
 		},
 	)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("could not create a new session %v", err)
 	}
 
 	uploader := s3manager.NewUploader(sess)
@@ -1838,7 +1838,7 @@ func (s *S3Store) UploadFile(fileLocation string, file io.Reader) error {
 		Body:   file,                     // File
 	})
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("could not upload (%s) file to s3 %v", filePath, err)
 	}
 	return nil
 }

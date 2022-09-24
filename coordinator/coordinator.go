@@ -584,7 +584,7 @@ func (c *Coordinator) runLabelRegisterJob(resID metadata.ResourceID, schedule st
 		}
 	}(sourceStore)
 	var sourceTableName string
-	if source.IsSQLTransformation() {
+	if source.IsSQLTransformation() || source.IsDFTransformation() {
 		sourceResourceID := provider.ResourceID{sourceNameVariant.Name, sourceNameVariant.Variant, provider.Transformation}
 		sourceTable, err := sourceStore.GetTransformationTable(sourceResourceID)
 		if err != nil {
@@ -598,14 +598,8 @@ func (c *Coordinator) runLabelRegisterJob(resID metadata.ResourceID, schedule st
 			return err
 		}
 		sourceTableName = sourceTable.GetName()
-	} else if source.IsDFTransformation() {
-		sourceResourceID := provider.ResourceID{sourceNameVariant.Name, sourceNameVariant.Variant, provider.Transformation}
-		sourceTable, err := sourceStore.GetTransformationTable(sourceResourceID)
-		if err != nil {
-			return err
-		}
-		sourceTableName = sourceTable.GetName()
 	}
+
 	labelID := provider.ResourceID{
 		Name:    resID.Name,
 		Variant: resID.Variant,
@@ -690,7 +684,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 		return fmt.Errorf("could not get online provider config: %w", err)
 	}
 	var sourceTableName string
-	if source.IsSQLTransformation() {
+	if source.IsSQLTransformation() || source.IsDFTransformation() {
 		sourceResourceID := provider.ResourceID{sourceNameVariant.Name, sourceNameVariant.Variant, provider.Transformation}
 		sourceTable, err := sourceStore.GetTransformationTable(sourceResourceID)
 		if err != nil {
@@ -704,14 +698,8 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 			return err
 		}
 		sourceTableName = sourceTable.GetName()
-	} else if source.IsDFTransformation() {
-		sourceResourceID := provider.ResourceID{sourceNameVariant.Name, sourceNameVariant.Variant, provider.Transformation}
-		sourceTable, err := sourceStore.GetTransformationTable(sourceResourceID)
-		if err != nil {
-			return err
-		}
-		sourceTableName = sourceTable.GetName()
 	}
+
 	featID := provider.ResourceID{
 		Name:    resID.Name,
 		Variant: resID.Variant,

@@ -197,7 +197,7 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           context: .
-          file: ./newserving/Dockerfile
+          file: ./serving/Dockerfile
           tags: featureformcom/serving:${{ env.TAG }}
           push: true
 

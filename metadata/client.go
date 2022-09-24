@@ -1759,6 +1759,33 @@ func (variant *SourceVariant) SQLTransformationSources() []NameVariant {
 	return variants
 }
 
+func (variant *SourceVariant) IsDFTransformation() bool {
+	if !variant.IsTransformation() {
+		return false
+	}
+	return reflect.TypeOf(variant.serialized.GetTransformation().Type) == reflect.TypeOf(&pb.Transformation_DFTransformation{})
+}
+
+func (variant *SourceVariant) DFTransformationQuery() []byte {
+	if !variant.IsDFTransformation() {
+		return nil
+	}
+	return variant.serialized.GetTransformation().GetDFTransformation().GetQuery()
+}
+
+func (variant *SourceVariant) DFTransformationSources() []NameVariant {
+	if !variant.IsDFTransformation() {
+		return nil
+	}
+	inputSources := variant.serialized.GetTransformation().GetDFTransformation().GetInputs()
+
+	var variants []NameVariant
+	for _, nv := range inputSources {
+		variants = append(variants, NameVariant{Name: nv.Name, Variant: nv.Variant})
+	}
+	return variants
+}
+
 func (variant *SourceVariant) isPrimaryData() bool {
 	return reflect.TypeOf(variant.serialized.GetDefinition()) == reflect.TypeOf(&pb.SourceVariant_PrimaryData{})
 }

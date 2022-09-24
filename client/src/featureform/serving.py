@@ -2,7 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 import json
-import marshal
+import dill
 import os
 import random
 import re
@@ -187,7 +187,7 @@ class LocalClientImpl:
             query = source['definition']
             new_data = self.sql_transformation(query)
         else:
-            code = marshal.loads(bytearray(source['definition']))
+            code = dill.loads(bytearray(source['definition']))
             inputs = json.loads(source['inputs'])
             dataframes = []
             for input in inputs:

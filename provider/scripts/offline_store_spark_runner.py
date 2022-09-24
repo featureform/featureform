@@ -1,13 +1,13 @@
 import io
 import types
-import marshal
 import argparse
 from typing import List
 from datetime import datetime
 
+
+import dill
 import boto3
 from pyspark.sql import SparkSession
-from pyspark.conf import SparkConf
 
 
 def main(args):
@@ -16,6 +16,7 @@ def main(args):
     elif args.transformation_type == "df":
         output_location = execute_df_job(args.output_uri, args.code, args.aws_region, args.source)
     return output_location
+
 
 def execute_sql_query(job_type, output_uri, sql_query, source_list):
     """
@@ -46,6 +47,7 @@ def execute_sql_query(job_type, output_uri, sql_query, source_list):
         print(e)
         raise e
 
+
 def execute_df_job(output_uri, code, aws_region, sources):
     """
     Executes the DF transformation:
@@ -75,6 +77,7 @@ def execute_df_job(output_uri, code, aws_region, sources):
     except (IOError, OSError) as e:
         print(f"Issue with execution of the transformation: {e}")
         raise e
+
 
 def get_code_from_file(file_path, aws_region=None):
     """
@@ -107,11 +110,10 @@ def get_code_from_file(file_path, aws_region=None):
             s3_object.download_fileobj(f)
 
             f.seek(0)
-            code = marshal.loads(f.read())
+            code = dill.loads(f.read())
     else:
-
         with open(file_path, "rb") as f:
-            code  = marshal.load(f)
+            code = dill.load(f)
     
     return code
 

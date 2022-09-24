@@ -2,10 +2,10 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import marshal
 from typeguard import typechecked, check_type
 from typing import Tuple, Callable, List, Union
 
+import dill
 import pyspark
 import pandas as pd
 
@@ -579,7 +579,7 @@ class DFTransformationDecorator:
         for nv in self.inputs:
             if self.name is nv[0] and self.variant is nv[1]:
                 raise ValueError(f"Transformation cannot be input for itself: {self.name} {self.variant}")
-        self.query = marshal.dumps(fn.__code__)
+        self.query = dill.dumps(fn.__code__)
         fn.register_resources = self.register_resources
         fn.name_variant = self.name_variant
         return fn

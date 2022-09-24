@@ -1,4 +1,4 @@
-import marshal
+import dill
 
 import pytest
 
@@ -73,7 +73,7 @@ def test_df_transformation(name, variant, transformation, spark_provider, reques
     decorator = spark_provider.df_transformation(name=name, variant=variant, inputs=[(name, src_variant)])
     decorator(df_transformation)
 
-    query = marshal.dumps(df_transformation.__code__)
+    query = dill.dumps(df_transformation.__code__)
 
     decorator_src = decorator.to_source()
     expected_src = Source(

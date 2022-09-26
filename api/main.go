@@ -3,12 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/joho/godotenv"
 	"io"
 	"net"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/joho/godotenv"
 
 	"google.golang.org/grpc/credentials/insecure"
 
@@ -567,19 +568,23 @@ func (serv *MetadataServer) CreateSourceVariant(ctx context.Context, source *pb.
 	serv.Logger.Infow("Creating Source Variant", "name", source.Name, "variant", source.Variant)
 	switch casted := source.Definition.(type) {
 	case *pb.SourceVariant_Transformation:
-		transformation := casted.Transformation.Type.(*pb.Transformation_SQLTransformation).SQLTransformation
-		qry := transformation.Query
-		numEscapes := strings.Count(qry, "{{")
-		sources := make([]*pb.NameVariant, numEscapes)
-		for i := 0; i < numEscapes; i++ {
-			split := strings.SplitN(qry, "{{", 2)
-			afterSplit := strings.SplitN(split[1], "}}", 2)
-			key := strings.TrimSpace(afterSplit[0])
-			nameVariant := strings.SplitN(key, ".", 2)
-			sources[i] = &pb.NameVariant{Name: nameVariant[0], Variant: nameVariant[1]}
-			qry = afterSplit[1]
+		switch transformationType := casted.Transformation.Type.(type) {
+		case *pb.Transformation_SQLTransformation:
+			serv.Logger.Infow("Retreiving the sources from SQL Transformation", transformationType)
+			transformation := casted.Transformation.Type.(*pb.Transformation_SQLTransformation).SQLTransformation
+			qry := transformation.Query
+			numEscapes := strings.Count(qry, "{{")
+			sources := make([]*pb.NameVariant, numEscapes)
+			for i := 0; i < numEscapes; i++ {
+				split := strings.SplitN(qry, "{{", 2)
+				afterSplit := strings.SplitN(split[1], "}}", 2)
+				key := strings.TrimSpace(afterSplit[0])
+				nameVariant := strings.SplitN(key, ".", 2)
+				sources[i] = &pb.NameVariant{Name: nameVariant[0], Variant: nameVariant[1]}
+				qry = afterSplit[1]
+			}
+			source.Definition.(*pb.SourceVariant_Transformation).Transformation.Type.(*pb.Transformation_SQLTransformation).SQLTransformation.Source = sources
 		}
-		source.Definition.(*pb.SourceVariant_Transformation).Transformation.Type.(*pb.Transformation_SQLTransformation).SQLTransformation.Source = sources
 	}
 	return serv.meta.CreateSourceVariant(ctx, source)
 }

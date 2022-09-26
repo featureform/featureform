@@ -4,10 +4,10 @@ import argparse
 from typing import List
 from datetime import datetime
 
+
 import dill
 import boto3
 from pyspark.sql import SparkSession
-from pyspark.conf import SparkConf
 
 
 def main(args):
@@ -16,6 +16,7 @@ def main(args):
     elif args.transformation_type == "df":
         output_location = execute_df_job(args.output_uri, args.code, args.aws_region, args.source)
     return output_location
+
 
 def execute_sql_query(job_type, output_uri, sql_query, source_list):
     """
@@ -46,6 +47,7 @@ def execute_sql_query(job_type, output_uri, sql_query, source_list):
         print(e)
         raise e
 
+
 def execute_df_job(output_uri, code, aws_region, sources):
     """
     Executes the DF transformation:
@@ -59,14 +61,14 @@ def execute_df_job(output_uri, code, aws_region, sources):
 
     spark = SparkSession.builder.appName("Dataframe Transformation").getOrCreate()
     
-    func_parameters = {}
-    for name, location in sources.items():
-        func_parameters[name] = spark.read.option("recursiveFileLookup", "true").parquet(location)
+    func_parameters = []
+    for location in sources:
+        func_parameters.append(spark.read.option("recursiveFileLookup", "true").parquet(location))
     
     try:
         code = get_code_from_file(code, aws_region)
         func = types.FunctionType(code, globals(), "df_transformation")
-        output_df = func(**func_parameters)
+        output_df = func(*func_parameters)
 
         dt = datetime.now()
         output_uri_with_timestamp = f"{output_uri}{dt}"
@@ -75,6 +77,7 @@ def execute_df_job(output_uri, code, aws_region, sources):
     except (IOError, OSError) as e:
         print(f"Issue with execution of the transformation: {e}")
         raise e
+
 
 def get_code_from_file(file_path, aws_region=None):
     """
@@ -109,21 +112,11 @@ def get_code_from_file(file_path, aws_region=None):
             f.seek(0)
             code = dill.loads(f.read())
     else:
-
         with open(file_path, "rb") as f:
-            code  = dill.load(f)
+            code = dill.load(f)
     
     return code
 
-
-class KeyValue(argparse.Action):
-    def __call__( self , parser, namespace,
-                 values, option_string = None):
-        setattr(namespace, self.dest, dict())
-          
-        for value in values:
-            key, value = value.split('=')
-            getattr(namespace, self.dest)[key] = value
 
 def parse_args(args=None):
     parser = argparse.ArgumentParser()
@@ -145,8 +138,7 @@ def parse_args(args=None):
         "--code", required=True, help="the path to transformation code file"
     )
     df_parser.add_argument(
-        "--source", required=True, nargs='*', action=KeyValue, help="""Add a number of source mapping key=value. 
-        Do not put spaces before or after the '=' sign."""
+        "--source", required=True, nargs='*', help="""Add a number of sources"""
     )
     df_parser.add_argument(
         "--aws_region", help="the aws s3 region were the code file is stored"

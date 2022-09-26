@@ -276,13 +276,18 @@ message SourceVariant {
 message Transformation {
     oneof type {
         SQLTransformation SQLTransformation= 1;
+        DFTransformation DFTransformation= 2;
     }
 }
 
 message SQLTransformation {
     string query = 1;
     repeated NameVariant source = 2;
-    
+}
+
+message DFTransformation {
+    bytes query = 1;
+    repeated NameVariant inputs = 2; 
 }
 
 message PrimaryData {

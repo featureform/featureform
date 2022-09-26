@@ -143,6 +143,7 @@ type TransformationConfig struct {
 	Type          TransformationType
 	TargetTableID ResourceID
 	Query         string
+	Code          []byte
 	SourceMapping []SourceMapping
 }
 

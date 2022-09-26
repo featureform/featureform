@@ -39,8 +39,8 @@ def sql_invalid_local_arguments():
 
 @pytest.fixture(scope="module")
 def df_all_arguments():
-    input_args = ["df", "--output_uri", "s3://featureform-testing/fake-path", "--code", "code", "--source", "transaction=s3://featureform/transaction", "account=s3://featureform/account", "--aws_region", "us-east-1"]
-    expected_args = Namespace(transformation_type="df", output_uri="s3://featureform-testing/fake-path", code="code", source={"transaction": "s3://featureform/transaction", "account": "s3://featureform/account"}, aws_region="us-east-1")
+    input_args = ["df", "--output_uri", "s3://featureform-testing/fake-path", "--code", "code", "--source", "s3://featureform/transaction", "s3://featureform/account", "--aws_region", "us-east-1"]
+    expected_args = Namespace(transformation_type="df", output_uri="s3://featureform-testing/fake-path", code="code", source=["s3://featureform/transaction", "s3://featureform/account"], aws_region="us-east-1")
     return (input_args, expected_args)
 
 @pytest.fixture(scope="module")
@@ -65,13 +65,13 @@ def invalid_arguments():
 
 @pytest.fixture(scope="module")
 def df_local_all_arguments(df_transformation):
-    expected_args = Namespace(transformation_type="df", output_uri=f"{dir_path}/test_files/output/test_transformation", code=df_transformation, source={"transaction": f"{dir_path}/test_files/input/transaction"}, aws_region=None)
+    expected_args = Namespace(transformation_type="df", output_uri=f"{dir_path}/test_files/output/test_transformation", code=df_transformation, source=[f"{dir_path}/test_files/input/transaction"], aws_region=None)
     return expected_args
 
 
 @pytest.fixture(scope="module")
 def df_local_pass_none_code_failure():
-    expected_args = Namespace(transformation_type="df", output_uri=f"{dir_path}/test_files/output/test_transformation", code="s3://featureform-testing/fake-path/code", source={"transactions": f"{dir_path}/test_files/input/transaction"})
+    expected_args = Namespace(transformation_type="df", output_uri=f"{dir_path}/test_files/output/test_transformation", code="s3://featureform-testing/fake-path/code", source=[f"{dir_path}/test_files/input/transaction"])
     return expected_args
 
 

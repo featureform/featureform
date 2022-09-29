@@ -1660,9 +1660,7 @@ class Registrar:
         label_resources = []
         for feature in features:
             variant = feature.get("variant", "default")
-            desc = ""
-            if "description" in feature:
-                desc = feature["description"]
+            desc = feature.get("description", "")
             resource = Feature(
                 name=feature["name"],
                 variant=variant,
@@ -1684,9 +1682,7 @@ class Registrar:
 
         for label in labels:
             variant = label.get("variant", "default")
-            desc = ""
-            if "description" in label:
-                desc = label["description"]
+            desc = label.get("description", "")
             resource = Label(
                 name=label["name"],
                 variant=variant,

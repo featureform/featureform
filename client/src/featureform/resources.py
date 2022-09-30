@@ -599,8 +599,8 @@ class Feature:
     entity: str
     owner: str
     provider: str
-    description: str
     location: ResourceLocation
+    description: str
     variant: str = "default"
     schedule: str = ""
     schedule_obj: Schedule = None

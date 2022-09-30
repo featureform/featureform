@@ -79,7 +79,7 @@ type CronRunner interface {
 	ScheduleJob(schedule CronSchedule) error
 }
 
-func GenerateKubernetesEnvVars(envVars map[string]string) []v1.EnvVar {
+func generateKubernetesEnvVars(envVars map[string]string) []v1.EnvVar {
 	kubeEnvVars := make([]v1.EnvVar, len(envVars))
 	i := 0
 	for key, element := range envVars {
@@ -89,7 +89,7 @@ func GenerateKubernetesEnvVars(envVars map[string]string) []v1.EnvVar {
 	return kubeEnvVars
 }
 
-func NewJobSpec(config KubernetesRunnerConfig) batchv1.JobSpec {
+func newJobSpec(config KubernetesRunnerConfig) batchv1.JobSpec {
 	containerID := uuid.New().String()
 	envVars := generateKubernetesEnvVars(config.EnvVars)
 	//only indexed completion if copyRunner

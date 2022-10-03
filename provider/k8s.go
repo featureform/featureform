@@ -151,7 +151,7 @@ func NewKubernetesExecutor(image string) (Executor, error) {
 
 type BlobStore interface {
 	Write(key string, data []byte) error
-	Read(key string) ([]string, error)
+	Read(key string) ([]byte, error)
 	Serve(key string) (Iterator, error)
 	Exists(key string) (bool, error)
 }

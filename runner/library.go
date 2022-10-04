@@ -6,6 +6,7 @@ package runner
 
 import (
 	"fmt"
+	"github.com/featureform/types"
 )
 
 type RunnerName string
@@ -25,7 +26,7 @@ type RunnerConfig interface {
 	Deserialize(config Config) error
 }
 
-type RunnerFactory func(config Config) (Runner, error)
+type RunnerFactory func(config Config) (types.Runner, error)
 
 var factoryMap = make(map[string]RunnerFactory)
 
@@ -49,7 +50,7 @@ func UnregisterFactory(name string) error {
 	return nil
 }
 
-func Create(name string, config Config) (Runner, error) {
+func Create(name string, config Config) (types.Runner, error) {
 	factory, exists := factoryMap[name]
 	if !exists {
 		return nil, fmt.Errorf("factory does not exist: %s", name)

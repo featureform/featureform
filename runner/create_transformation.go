@@ -9,9 +9,10 @@ import (
 	"fmt"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
+	"github.com/featureform/types"
 )
 
-func (c *CreateTransformationRunner) Run() (CompletionWatcher, error) {
+func (c *CreateTransformationRunner) Run() (types.CompletionWatcher, error) {
 	done := make(chan interface{})
 	transformationWatcher := &SyncWatcher{
 		ResultSync:  &ResultSync{},
@@ -75,7 +76,7 @@ func (c *CreateTransformationConfig) Deserialize(config Config) error {
 	return nil
 }
 
-func CreateTransformationRunnerFactory(config Config) (Runner, error) {
+func CreateTransformationRunnerFactory(config Config) (types.Runner, error) {
 	transformationConfig := &CreateTransformationConfig{}
 	if err := transformationConfig.Deserialize(config); err != nil {
 		return nil, fmt.Errorf("failed to deserialize create transformation config")

@@ -14,17 +14,13 @@ func TestBlobInterfaces(t *testing.T) {
 	blobTests := map[string]func(*testing.T, BlobStore){
 		"Test Blob Read and Write": testBlobReadAndWrite,
 		"Test Blob CSV Serve":      testBlobCSVServe,
-		// "Test Blob Parquet Serve": testBlobParquetServe,
 	}
 	localBlobStore, err := NewMemoryBlobStore()
 	if err != nil {
 		t.Fatalf("Failed to create memory blob store")
 	}
-	//need test azure blob
-	// azureBlobStore, err :=
 	blobProviders := map[string]BlobStore{
 		"Local": localBlobStore,
-		//"Azure": azureBlobStore,
 	}
 	for testName, blobTest := range blobTests {
 		blobTest = blobTest
@@ -78,8 +74,4 @@ func testBlobCSVServe(t *testing.T, store BlobStore) {
 		fmt.Println(row)
 	}
 	fmt.Println(err)
-}
-
-func testBlobParquetServe(t *testing.T, store BlobStore) {
-	//write parquet file, then iterate all data types
 }

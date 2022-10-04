@@ -16,10 +16,6 @@ import (
 	_ "gocloud.dev/blob/memblob"
 )
 
-//parquet or csv
-//register file as source
-//register file as feature/label
-
 type K8sOfflineStore struct {
 	executor Executor
 	store    BlobStore

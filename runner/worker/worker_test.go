@@ -11,6 +11,7 @@ import (
 	"github.com/featureform/coordinator"
 	"github.com/featureform/metadata"
 	"github.com/featureform/runner"
+	"github.com/featureform/types"
 	"github.com/google/uuid"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"testing"

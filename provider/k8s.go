@@ -2,6 +2,7 @@ package provider
 
 import (
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -23,7 +24,7 @@ type K8sOfflineStore struct {
 	executor Executor
 	store    BlobStore
 	logger   *zap.SugaredLogger
-	query    *defaultSparkOfflineQueries
+	query    *defaultOfflineSQLQueries
 	BaseProvider
 }
 
@@ -36,43 +37,119 @@ func (k8s *K8sOfflineStore) Close() error {
 	return nil
 }
 
+type Config []byte
+
+type ExecutorFactory func(config Config) (Executor, error)
+
+var executorFactoryMap = make(map[string]ExecutorFactory)
+
+func RegisterExecutorFactory(name string, executorFactory ExecutorFactory) error {
+	if _, exists := executorFactoryMap[name]; exists {
+		return fmt.Errorf("factory already registered: %s", name)
+	}
+	executorFactoryMap[name] = executorFactory
+	return nil
+}
+
+func UnregisterExecutorFactory(name string) error {
+	if _, exists := executorFactoryMap[name]; !exists {
+		return fmt.Errorf("factory %s not registered", name)
+	}
+	delete(executorFactoryMap, name)
+	return nil
+}
+
+func CreateExecutor(name string, config Config) (Executor, error) {
+	factory, exists := executorFactoryMap[name]
+	if !exists {
+		return nil, fmt.Errorf("factory does not exist: %s", name)
+	}
+	executor, err := factory(config)
+	if err != nil {
+		return nil, err
+	}
+	return executor, nil
+}
+
+type BlobStoreFactory func(config Config) (BlobStore, error)
+
+var blobStoreFactoryMap = make(map[string]BlobStoreFactory)
+
+func RegisterBlobStoreFactory(name string, blobStoreFactory BlobStoreFactory) error {
+	if _, exists := blobStoreFactoryMap[name]; exists {
+		return fmt.Errorf("factory already registered: %s", name)
+	}
+	blobStoreFactoryMap[name] = blobStoreFactory
+	return nil
+}
+
+func UnregisterBlobStoreFactory(name string) error {
+	if _, exists := blobStoreFactoryMap[name]; !exists {
+		return fmt.Errorf("factory %s not registered", name)
+	}
+	delete(blobStoreFactoryMap, name)
+	return nil
+}
+
+func CreateBlobStore(name string, config Config) (BlobStore, error) {
+	factory, exists := blobStoreFactoryMap[name]
+	if !exists {
+		return nil, fmt.Errorf("factory does not exist: %s", name)
+	}
+	blobStore, err := factory(config)
+	if err != nil {
+		return nil, err
+	}
+	return blobStore, nil
+}
+
+func init() {
+	blobStoreFactoryMap := map[BlobStoreType]BlobStoreFactory{
+		Memory: NewMemoryBlobStore,
+	}
+	executorFactoryMap := map[ExecutorType]ExecutorFactory{
+		GoProc: NewLocalExecutor,
+	}
+	for storeType, factory := range blobStoreFactoryMap {
+		RegisterBlobStoreFactory(string(storeType), factory)
+	}
+	for executorType, factory := range executorFactoryMap {
+		RegisterExecutorFactory(string(executorType), factory)
+	}
+}
+
 func k8sOfflineStoreFactory(config SerializedConfig) (Provider, error) {
-	sc := SparkConfig{}
+	k8 := K8sConfig{}
 	logger := zap.NewExample().Sugar()
-	if err := sc.Deserialize(config); err != nil {
+	if err := k8.Deserialize(config); err != nil {
 		logger.Errorw("Invalid config to initialize k8s offline store", err)
 		return nil, fmt.Errorf("invalid k8s config: %v", config)
 	}
-	logger.Info("Creating K8s executor with type:", sc.ExecutorType)
-	exec, err := NewSparkExecutor(sc.ExecutorType, sc.ExecutorConfig, logger)
+	logger.Info("Creating executor with type:", k8.ExecutorType)
+	exec, err := CreateExecutor(string(k8.ExecutorType), Config(k8.ExecutorConfig))
 	if err != nil {
-		logger.Errorw("Failure initializing Spark executor with type", sc.ExecutorType, err)
+		logger.Errorw("Failure initializing executor with type", k8.ExecutorType, err)
 		return nil, err
 	}
-
-	logger.Info("Creating Spark store with type:", sc.StoreType)
-	store, err := NewSparkStore(sc.StoreType, sc.StoreConfig, logger)
+	logger.Info("Creating blob store with type:", k8.StoreType)
+	store, err := CreateBlobStore(string(k8.StoreType), Config(k8.StoreConfig))
 	if err != nil {
-		logger.Errorw("Failure initializing Spark store with type", sc.StoreType, err)
+		logger.Errorw("Failure initializing blob store with type", k8.StoreType, err)
 		return nil, err
 	}
-
-	logger.Info("Uploading Spark script to store")
-
-	logger.Debugf("Store type: %s, Store config: %v", sc.StoreType, sc.StoreConfig)
-	logger.Info("Created Spark Offline Store")
-	queries := defaultSparkOfflineQueries{}
-	sparkOfflineStore := SparkOfflineStore{
-		Executor: exec,
-		Store:    store,
-		Logger:   logger,
+	logger.Debugf("Store type: %s, Store config: %v", k8.StoreType, k8.StoreConfig)
+	queries := defaultOfflineSQLQueries{}
+	k8sOfflineStore := K8sOfflineStore{
+		executor: exec,
+		store:    store,
+		logger:   logger,
 		query:    &queries,
 		BaseProvider: BaseProvider{
 			ProviderType:   "K8S_OFFLINE",
 			ProviderConfig: config,
 		},
 	}
-	return &sparkOfflineStore, nil
+	return &k8sOfflineStore, nil
 }
 
 type ExecutorConfig []byte
@@ -96,6 +173,22 @@ type K8sConfig struct {
 	ExecutorConfig ExecutorConfig
 	StoreType      BlobStoreType
 	StoreConfig    BlobStoreConfig
+}
+
+func (config *K8sConfig) Serialize() ([]byte, error) {
+	data, err := json.Marshal(config)
+	if err != nil {
+		panic(err)
+	}
+	return data, nil
+}
+
+func (config *K8sConfig) Deserialize(data []byte) error {
+	err := json.Unmarshal(data, config)
+	if err != nil {
+		return fmt.Errorf("deserialize k8s config: %w", err)
+	}
+	return nil
 }
 
 type Executor interface {
@@ -123,13 +216,37 @@ func (local LocalExecutor) ExecuteScript(envVars map[string]string) error {
 	return nil
 }
 
-func NewLocalExecutor(scriptPath string) (Executor, error) {
-	_, err := os.Open(scriptPath)
+type LocalExecutorConfig struct {
+	ScriptPath string
+}
+
+func (config *LocalExecutorConfig) Serialize() ([]byte, error) {
+	data, err := json.Marshal(config)
+	if err != nil {
+		panic(err)
+	}
+	return data, nil
+}
+
+func (config *LocalExecutorConfig) Deserialize(data []byte) error {
+	err := json.Unmarshal(data, config)
+	if err != nil {
+		return fmt.Errorf("deserialize executor config: %w", err)
+	}
+	return nil
+}
+
+func NewLocalExecutor(config Config) (Executor, error) {
+	localConfig := LocalExecutorConfig{}
+	if err := localConfig.Deserialize([]byte(config)); err != nil {
+		return nil, fmt.Errorf("failed to deserialize config")
+	}
+	_, err := os.Open(localConfig.ScriptPath)
 	if err != nil {
 		return nil, fmt.Errorf("could not find script path: %v", err)
 	}
 	return LocalExecutor{
-		scriptPath: scriptPath,
+		scriptPath: localConfig.ScriptPath,
 	}, nil
 }
 
@@ -237,7 +354,7 @@ func csvIteratorFromReader(r io.Reader) (Iterator, error) {
 	}, nil
 }
 
-func NewMemoryBlobStore() (MemoryBlobStore, error) {
+func NewMemoryBlobStore(config Config) (BlobStore, error) {
 	bucket, err := blob.OpenBucket(ctx, "mem://")
 	if err != nil {
 		return MemoryBlobStore{}, err
@@ -285,7 +402,7 @@ func (k8s *K8sOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schem
 		return nil, fmt.Errorf("error checking if resource registry exists: %v", err)
 	}
 	if resourceExists {
-		k8s.logger.Errorw("Resource already exists in Spark store", "id", id)
+		k8s.logger.Errorw("Resource already exists in blob store", "id", id)
 		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}
 	serializedSchema, err := schema.Serialize()

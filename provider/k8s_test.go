@@ -13,7 +13,7 @@ import (
 func TestBlobInterfaces(t *testing.T) {
 	blobTests := map[string]func(*testing.T, BlobStore){
 		"Test Blob Read and Write": testBlobReadAndWrite,
-		// "Test Blob CSV Serve": testBlobCSVServe,
+		"Test Blob CSV Serve":      testBlobCSVServe,
 		// "Test Blob Parquet Serve": testBlobParquetServe,
 	}
 	localBlobStore, err := NewMemoryBlobStore()
@@ -74,13 +74,10 @@ func testBlobCSVServe(t *testing.T, store BlobStore) {
 	if err != nil {
 		t.Fatalf("Failure getting serving iterator with key %s: %v", testKey, err)
 	}
-	t.Log("yeaa", "yea")
-	fmt.Println("doin some stuff")
 	for row, err := iterator.Next(); err != nil; row, err = iterator.Next() {
 		fmt.Println(row)
 	}
 	fmt.Println(err)
-
 }
 
 func testBlobParquetServe(t *testing.T, store BlobStore) {

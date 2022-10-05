@@ -64,8 +64,6 @@ def test_execute_df_job(df_transformation, variables, expected_output, request):
 
     assert len(expected_df) == len(output_df)
 
-    set_environment_variables(env, delete=True)
-
 
 @pytest.mark.parametrize(
     "variables",

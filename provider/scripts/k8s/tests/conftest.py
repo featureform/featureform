@@ -3,6 +3,7 @@ import os
 import dill
 import pytest
 
+
 real_path = os.path.realpath(__file__)
 dir_path = os.path.dirname(real_path)
 
@@ -55,6 +56,7 @@ def k8s_variables_failure():
         "TRANSFORMATION_TYPE": "sql",
         "TRANSFORMATION": "SELECT * FROM source_0",
     }
+
 
 @pytest.fixture(scope="module")
 def df_transformation():

@@ -1,5 +1,6 @@
 import os 
 
+import dill
 import pytest
 
 real_path = os.path.realpath(__file__)
@@ -15,6 +16,18 @@ def local_variables_success():
         "TRANSFORMATION_TYPE": "sql",
         "TRANSFORMATION": "SELECT * FROM source_0",
     }
+
+
+@pytest.fixture(scope="module")
+def local_df_variables_success():
+    return {
+        "MODE": "local", 
+        "OUTPUT_URI": f"{dir_path}/test_files/output/local_test/", 
+        "SOURCES": f"{dir_path}/test_files/inputs/transaction",
+        "TRANSFORMATION_TYPE": "df",
+        "TRANSFORMATION": f"{dir_path}/test_files/transformations/same_df.pkl",
+    }
+
 
 @pytest.fixture(scope="module")
 def local_variables_failure():
@@ -42,3 +55,14 @@ def k8s_variables_failure():
         "TRANSFORMATION_TYPE": "sql",
         "TRANSFORMATION": "SELECT * FROM source_0",
     }
+
+@pytest.fixture(scope="module")
+def df_transformation():
+    file_path = f"{dir_path}/test_files/transformations/same_df.pkl"
+
+    def transformation(transaction):
+        return transaction
+
+    with open(file_path, "wb") as f:
+        dill.dump(transformation.__code__, f)
+    return file_path

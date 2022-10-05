@@ -7,12 +7,13 @@ package runner
 import (
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
+	"github.com/featureform/types"
 	"testing"
 )
 
 type mockChunkRunner struct{}
 
-func (m mockChunkRunner) Run() (CompletionWatcher, error) {
+func (m mockChunkRunner) Run() (types.CompletionWatcher, error) {
 	return mockCompletionWatcher{}, nil
 }
 
@@ -42,7 +43,7 @@ func (m mockCompletionWatcher) Complete() bool {
 	return true
 }
 
-func mockChunkRunnerFactory(config Config) (Runner, error) {
+func mockChunkRunnerFactory(config Config) (types.Runner, error) {
 	return &mockChunkRunner{}, nil
 }
 
@@ -84,7 +85,7 @@ func TestMockMaterializeRunner(t *testing.T) {
 }
 
 func TestWatcherMultiplex(t *testing.T) {
-	watcherList := make([]CompletionWatcher, 1)
+	watcherList := make([]types.CompletionWatcher, 1)
 	watcherList[0] = &mockCompletionWatcher{}
 	multiplex := WatcherMultiplex{watcherList}
 	if err := multiplex.Wait(); err != nil {

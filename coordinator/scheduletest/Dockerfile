@@ -18,6 +18,8 @@ COPY ./coordinator/*.go ./coordinator/
 COPY ./provider/ ./provider/
 COPY ./helpers/ ./helpers/
 COPY ./metadata/ ./metadata/
+COPY ./kubernetes/ ./kubernetes/
+COPY ./types/ ./types/
 COPY ./runner/ ./runner/
 COPY ./coordinator/scheduletest/*.go ./coordinator/scheduletest/
 

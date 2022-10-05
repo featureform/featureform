@@ -18,6 +18,8 @@ RUN protoc --go_out=. --go_opt=paths=source_relative     --go-grpc_out=. --go-gr
 COPY serving/*.go ./serving/
 COPY ./metadata/ ./metadata/
 COPY ./helpers/ ./helpers/
+COPY ./types/ ./types/
+COPY ./kubernetes/ ./kubernetes/
 COPY ./metrics/ ./metrics/
 COPY ./provider/ ./provider/
 COPY serving/main/main.go ./serving/main/main.go

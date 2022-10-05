@@ -26,6 +26,8 @@ COPY coordinator/ coordinator/
 COPY provider/ provider/
 COPY runner/ runner/
 COPY serving/ serving/
+COPY types/ types/
+COPY kubernetes/ kubernetes/
 COPY nginx.conf/ /etc/nginx/nginx.conf
 
 RUN apt install protobuf-compiler -y

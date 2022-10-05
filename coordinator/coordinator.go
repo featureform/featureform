@@ -9,10 +9,12 @@ import (
 	"time"
 
 	help "github.com/featureform/helpers"
+	"github.com/featureform/types"
 
 	db "github.com/jackc/pgx/v4"
 	"go.uber.org/zap"
 
+	"github.com/featureform/kubernetes"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	"github.com/featureform/runner"
@@ -155,7 +157,7 @@ func (c *Coordinator) AwaitPendingLabel(labelNameVariant metadata.NameVariant) (
 }
 
 type JobSpawner interface {
-	GetJobRunner(jobName string, config runner.Config, etcdEndpoints []string, id metadata.ResourceID) (runner.Runner, error)
+	GetJobRunner(jobName string, config runner.Config, etcdEndpoints []string, id metadata.ResourceID) (types.Runner, error)
 }
 
 type KubernetesJobSpawner struct{}
@@ -166,26 +168,26 @@ func GetLockKey(jobKey string) string {
 	return fmt.Sprintf("LOCK_%s", jobKey)
 }
 
-func (k *KubernetesJobSpawner) GetJobRunner(jobName string, config runner.Config, etcdEndpoints []string, id metadata.ResourceID) (runner.Runner, error) {
+func (k *KubernetesJobSpawner) GetJobRunner(jobName string, config runner.Config, etcdEndpoints []string, id metadata.ResourceID) (types.Runner, error) {
 	etcdConfig := &ETCDConfig{Endpoints: etcdEndpoints, Username: os.Getenv("ETCD_USERNAME"), Password: os.Getenv("ETCD_PASSWORD")}
 	serializedETCD, err := etcdConfig.Serialize()
 	if err != nil {
 		return nil, err
 	}
-	kubeConfig := runner.KubernetesRunnerConfig{
+	kubeConfig := kubernetes.KubernetesRunnerConfig{
 		EnvVars:  map[string]string{"NAME": jobName, "CONFIG": string(config), "ETCD_CONFIG": string(serializedETCD)},
 		Image:    help.GetEnv("WORKER_IMAGE", "local/worker:stable"),
 		NumTasks: 1,
 		Resource: id,
 	}
-	jobRunner, err := runner.NewKubernetesRunner(kubeConfig)
+	jobRunner, err := kubernetes.NewKubernetesRunner(kubeConfig)
 	if err != nil {
 		return nil, err
 	}
 	return jobRunner, nil
 }
 
-func (k *MemoryJobSpawner) GetJobRunner(jobName string, config runner.Config, etcdEndpoints []string, id metadata.ResourceID) (runner.Runner, error) {
+func (k *MemoryJobSpawner) GetJobRunner(jobName string, config runner.Config, etcdEndpoints []string, id metadata.ResourceID) (types.Runner, error) {
 	jobRunner, err := runner.Create(jobName, config)
 	if err != nil {
 		return nil, err
@@ -410,11 +412,11 @@ func (c *Coordinator) runTransformationJob(transformationConfig provider.Transfo
 		if err != nil {
 			return fmt.Errorf("run ransformation schedule job runner: %w", err)
 		}
-		cronRunner, isCronRunner := jobRunnerUpdate.(runner.CronRunner)
+		cronRunner, isCronRunner := jobRunnerUpdate.(kubernetes.CronRunner)
 		if !isCronRunner {
 			return fmt.Errorf("kubernetes runner does not implement schedule")
 		}
-		if err := cronRunner.ScheduleJob(runner.CronSchedule(schedule)); err != nil {
+		if err := cronRunner.ScheduleJob(kubernetes.CronSchedule(schedule)); err != nil {
 			return fmt.Errorf("schedule transformation job in kubernetes: %w", err)
 		}
 		if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
@@ -755,11 +757,11 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 		if err != nil {
 			return fmt.Errorf("creating materialize job schedule job runner: %w", err)
 		}
-		cronRunner, isCronRunner := jobRunnerUpdate.(runner.CronRunner)
+		cronRunner, isCronRunner := jobRunnerUpdate.(kubernetes.CronRunner)
 		if !isCronRunner {
 			return fmt.Errorf("kubernetes runner does not implement schedule")
 		}
-		if err := cronRunner.ScheduleJob(runner.CronSchedule(schedule)); err != nil {
+		if err := cronRunner.ScheduleJob(kubernetes.CronSchedule(schedule)); err != nil {
 			return fmt.Errorf("schedule materialize job in kubernetes: %w", err)
 		}
 		if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
@@ -876,11 +878,11 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 		if err != nil {
 			return fmt.Errorf("spawn training set job runner: %w", err)
 		}
-		cronRunner, isCronRunner := jobRunnerUpdate.(runner.CronRunner)
+		cronRunner, isCronRunner := jobRunnerUpdate.(kubernetes.CronRunner)
 		if !isCronRunner {
 			return fmt.Errorf("kubernetes runner does not implement schedule")
 		}
-		if err := cronRunner.ScheduleJob(runner.CronSchedule(schedule)); err != nil {
+		if err := cronRunner.ScheduleJob(kubernetes.CronSchedule(schedule)); err != nil {
 			return fmt.Errorf("schedule training set job in kubernetes: %w", err)
 		}
 		if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
@@ -1097,13 +1099,13 @@ func (c *Coordinator) changeJobSchedule(key string, value string) error {
 	if err := coordinatorScheduleJob.Deserialize(Config(value)); err != nil {
 		return fmt.Errorf("deserialize coordiantor schedule job: %w", err)
 	}
-	jobClient, err := runner.NewKubernetesJobClient(runner.GetCronJobName(coordinatorScheduleJob.Resource), runner.Namespace)
+	jobClient, err := kubernetes.NewKubernetesJobClient(kubernetes.GetCronJobName(coordinatorScheduleJob.Resource), kubernetes.Namespace)
 	if err != nil {
 		return fmt.Errorf("create new kubernetes job client: %w", err)
 	}
 	cronJob, err := jobClient.GetCronJob()
 	if err != nil {
-		return fmt.Errorf("fetch cron job from kuberentes with name %s: %w", runner.GetCronJobName(coordinatorScheduleJob.Resource), err)
+		return fmt.Errorf("fetch cron job from kuberentes with name %s: %w", kubernetes.GetCronJobName(coordinatorScheduleJob.Resource), err)
 	}
 	cronJob.Spec.Schedule = coordinatorScheduleJob.Schedule
 	if _, err := jobClient.UpdateCronJob(cronJob); err != nil {

@@ -20,6 +20,8 @@ COPY runner/*.go ./runner/
 COPY runner/worker/*.go ./runner/worker/
 COPY coordinator/*.go ./coordinator/
 COPY helpers/ ./helpers/
+COPY types/ ./types/
+COPY kubernetes/ ./kubernetes/
 COPY metadata/*.go ./metadata/
 COPY metadata/search/* ./metadata/search/
 COPY provider/* ./provider/

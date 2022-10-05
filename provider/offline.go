@@ -5,6 +5,7 @@
 package provider
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -22,6 +23,7 @@ const (
 	RedshiftOffline       = "REDSHIFT_OFFLINE"
 	SparkOffline          = "SPARK_OFFLINE"
 	BigQueryOffline       = "BIGQUERY_OFFLINE"
+	K8sOffline            = "K8S_OFFLINE"
 )
 
 type ValueType string
@@ -251,6 +253,22 @@ type ResourceSchema struct {
 	Value       string
 	TS          string
 	SourceTable string
+}
+
+func (schema *ResourceSchema) Serialize() ([]byte, error) {
+	config, err := json.Marshal(schema)
+	if err != nil {
+		panic(err)
+	}
+	return config, nil
+}
+
+func (schema *ResourceSchema) Deserialize(config []byte) error {
+	err := json.Unmarshal(config, schema)
+	if err != nil {
+		return fmt.Errorf("deserialize etcd config: %w", err)
+	}
+	return nil
 }
 
 type TableSchema struct {

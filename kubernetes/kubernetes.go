@@ -2,12 +2,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-package runner
+package kubernetes
 
 import (
 	"context"
 	"fmt"
 	"github.com/featureform/metadata"
+	"github.com/featureform/types"
 	"github.com/google/uuid"
 	"github.com/gorhill/cronexpr"
 	batchv1 "k8s.io/api/batch/v1"
@@ -75,7 +76,7 @@ func EveryNMonths(months int) (*CronSchedule, error) {
 }
 
 type CronRunner interface {
-	Runner
+	types.Runner
 	ScheduleJob(schedule CronSchedule) error
 }
 
@@ -203,7 +204,7 @@ func (k KubernetesRunner) IsUpdateJob() bool {
 	return false
 }
 
-func (k KubernetesRunner) Run() (CompletionWatcher, error) {
+func (k KubernetesRunner) Run() (types.CompletionWatcher, error) {
 	if _, err := k.jobClient.Create(k.jobSpec); err != nil {
 		return nil, err
 	}
@@ -219,7 +220,12 @@ func (k KubernetesRunner) ScheduleJob(schedule CronSchedule) error {
 
 func NewKubernetesRunner(config KubernetesRunnerConfig) (CronRunner, error) {
 	jobSpec := newJobSpec(config)
-	jobName := GetJobName(config.Resource)
+	var jobName string
+	if config.Resource.Name == "" {
+		jobName = GetJobName(config.Resource)
+	} else {
+		jobName = uuid.New().String()
+	}
 	jobClient, err := NewKubernetesJobClient(jobName, Namespace)
 	if err != nil {
 		return nil, err

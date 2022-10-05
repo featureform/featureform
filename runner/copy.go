@@ -9,17 +9,12 @@ import (
 	"fmt"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
+	"github.com/featureform/types"
 	"sync"
 )
 
-type Runner interface {
-	Run() (CompletionWatcher, error)
-	Resource() metadata.ResourceID
-	IsUpdateJob() bool
-}
-
 type IndexRunner interface {
-	Runner
+	types.Runner
 	SetIndex(index int) error
 }
 
@@ -28,13 +23,6 @@ type MaterializedChunkRunner struct {
 	Table        provider.OnlineStoreTable
 	ChunkSize    int64
 	ChunkIdx     int64
-}
-
-type CompletionWatcher interface {
-	Complete() bool
-	String() string
-	Wait() error
-	Err() error
 }
 
 type ResultSync struct {
@@ -51,7 +39,7 @@ func (m *MaterializedChunkRunner) IsUpdateJob() bool {
 	return false
 }
 
-func (m *MaterializedChunkRunner) Run() (CompletionWatcher, error) {
+func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
 	done := make(chan interface{})
 	jobWatcher := &SyncWatcher{
 		ResultSync:  &ResultSync{},
@@ -191,7 +179,7 @@ func (m *MaterializedChunkRunnerConfig) Deserialize(config Config) error {
 	return nil
 }
 
-func MaterializedChunkRunnerFactory(config Config) (Runner, error) {
+func MaterializedChunkRunnerFactory(config Config) (types.Runner, error) {
 	fmt.Println("Starting Chunk Factory")
 	runnerConfig := &MaterializedChunkRunnerConfig{}
 	if err := runnerConfig.Deserialize(config); err != nil {

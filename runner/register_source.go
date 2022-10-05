@@ -9,9 +9,10 @@ import (
 	"fmt"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
+	"github.com/featureform/types"
 )
 
-func (m *RegisterSourceRunner) Run() (CompletionWatcher, error) {
+func (m *RegisterSourceRunner) Run() (types.CompletionWatcher, error) {
 	done := make(chan interface{})
 	registerFileWatcher := &SyncWatcher{
 		ResultSync:  &ResultSync{},
@@ -68,7 +69,7 @@ func (c *RegisterSourceConfig) Deserialize(config Config) error {
 	return nil
 }
 
-func RegisterSourceRunnerFactory(config Config) (Runner, error) {
+func RegisterSourceRunnerFactory(config Config) (types.Runner, error) {
 	registerConfig := &RegisterSourceConfig{}
 	if err := registerConfig.Deserialize(config); err != nil {
 		return nil, fmt.Errorf("failed to deserialize register file config")

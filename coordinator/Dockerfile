@@ -18,6 +18,8 @@ COPY ./provider/ ./provider/
 COPY ./helpers/ ./helpers/
 COPY ./metadata/ ./metadata/
 COPY ./runner/ ./runner/
+COPY ./kubernetes ./kubernetes
+COPY ./types ./types
 COPY ./coordinator/main/main.go ./coordinator/main/main.go
 
 RUN go build ./coordinator/main/main.go

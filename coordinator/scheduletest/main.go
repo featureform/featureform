@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/featureform/coordinator"
+	"github.com/featureform/kubernetes"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
-	"github.com/featureform/runner"
 
 	"github.com/google/uuid"
 	db "github.com/jackc/pgx/v4"
@@ -290,7 +290,7 @@ func checkValuesCorrectlySet(tsID metadata.ResourceID, correctTable []provider.R
 }
 
 func kubernetesRanScheduledJob(resID metadata.ResourceID) error {
-	jobClient, err := runner.NewKubernetesJobClient(runner.GetCronJobName(resID), runner.Namespace)
+	jobClient, err := kubernetes.NewKubernetesJobClient(kubernetes.GetCronJobName(resID), kubernetes.Namespace)
 	if err != nil {
 		return fmt.Errorf("Could not initialize kubernetes job client: %v", err)
 	}
@@ -512,7 +512,7 @@ func testUpdateExistingSchedule() error {
 		return fmt.Errorf("Error executing feature job in coordinator: %v", err)
 	}
 	// Check the original set schedule in kubernetes
-	jobClient, err := runner.NewKubernetesJobClient(runner.GetCronJobName(featureID), runner.Namespace)
+	jobClient, err := kubernetes.NewKubernetesJobClient(kubernetes.GetCronJobName(featureID), kubernetes.Namespace)
 	if err != nil {
 		return fmt.Errorf("Could not get kubernetes job client: %v", err)
 	}

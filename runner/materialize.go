@@ -7,8 +7,10 @@ package runner
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/featureform/kubernetes"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
+	"github.com/featureform/types"
 )
 
 const MAXIMUM_CHUNK_ROWS int64 = 1024
@@ -43,7 +45,7 @@ func (m MaterializeRunner) IsUpdateJob() bool {
 }
 
 type WatcherMultiplex struct {
-	CompletionList []CompletionWatcher
+	CompletionList []types.CompletionWatcher
 }
 
 func (w WatcherMultiplex) Complete() bool {
@@ -79,7 +81,7 @@ func (w WatcherMultiplex) Err() error {
 	return nil
 }
 
-func (m MaterializeRunner) Run() (CompletionWatcher, error) {
+func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 	fmt.Println("Starting Runner")
 	var materialization provider.Materialization
 	var err error
@@ -138,16 +140,16 @@ func (m MaterializeRunner) Run() (CompletionWatcher, error) {
 	if err != nil {
 		return nil, fmt.Errorf("serialize : %w", err)
 	}
-	var cloudWatcher CompletionWatcher
+	var cloudWatcher types.CompletionWatcher
 	switch m.Cloud {
 	case KubernetesMaterializeRunner:
 		envVars := map[string]string{"NAME": string(COPY_TO_ONLINE), "CONFIG": string(serializedConfig)}
-		kubernetesConfig := KubernetesRunnerConfig{
+		kubernetesConfig := kubernetes.KubernetesRunnerConfig{
 			EnvVars:  envVars,
 			Image:    WORKER_IMAGE,
 			NumTasks: int32(numChunks),
 		}
-		kubernetesRunner, err := NewKubernetesRunner(kubernetesConfig)
+		kubernetesRunner, err := kubernetes.NewKubernetesRunner(kubernetesConfig)
 		if err != nil {
 			return nil, fmt.Errorf("kubernetes runner: %w", err)
 		}
@@ -157,7 +159,7 @@ func (m MaterializeRunner) Run() (CompletionWatcher, error) {
 		}
 	case LocalMaterializeRunner:
 		fmt.Println("Making Local Materialize Runner")
-		completionList := make([]CompletionWatcher, int(numChunks))
+		completionList := make([]types.CompletionWatcher, int(numChunks))
 		for i := 0; i < int(numChunks); i++ {
 			fmt.Println("Getting Number of Rows")
 			localRunner, err := Create(string(COPY_TO_ONLINE), serializedConfig)
@@ -216,7 +218,7 @@ func (m *MaterializedRunnerConfig) Deserialize(config Config) error {
 	return nil
 }
 
-func MaterializeRunnerFactory(config Config) (Runner, error) {
+func MaterializeRunnerFactory(config Config) (types.Runner, error) {
 	runnerConfig := &MaterializedRunnerConfig{}
 	if err := runnerConfig.Deserialize(config); err != nil {
 		return nil, fmt.Errorf("failed to deserialize materialize runner config: %v", err)

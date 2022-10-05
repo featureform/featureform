@@ -223,7 +223,11 @@ jupyter: update_python
 
 test_pyspark:
 	@echo "Requires Java to be installed"
-	pytest -v --cov=offline_store_spark_runner provider/scripts/tests/ --cov-report term-missing
+	pytest -v -s --cov=offline_store_spark_runner provider/scripts/tests/ --cov-report term-missing
+
+test_pandas:
+	pytest -v --cov=offline_store_pandas_runner provider/scripts/k8s/tests/ --cov-report term-missing
+
 
 ##############################################  GO TESTS ###############################################################
 test_offline: gen_grpc 					## Run offline tests. Run with `make test_offline provider=(memory | postgres | snowflake | redshift | spark )`

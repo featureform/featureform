@@ -31,10 +31,9 @@ def main(args):
         print(f"starting execution for SQL Transformation in {args.mode} mode")
         output_location = execute_sql_job(args.mode, args.output_uri, args.transformation, args.sources, blob_credentials)
     elif args.transformation_type == "df":
-        print(f"starting execution for DF Transformation in {args.mode} mode") 
+        print(f"starting execution for DF Transformation in {args.mode} mode")
         etcd_credentials = {"host": args.etcd_host, "ports": args.etcd_ports, "username": args.etcd_user, "password": args.etcd_password}
         output_location = execute_df_job(args.mode, args.output_uri, args.transformation, args.sources, etcd_credentials, blob_credentials)
-   
     return output_location
 
 
@@ -67,7 +66,7 @@ def execute_sql_job(mode, output_uri, transformation, source_list, blob_credenti
                 globals()[f"source_{i}"]= pd.read_csv(output_path)
             else:
                 globals()[f"source_{i}"]= pd.read_parquet(output_path)
-        
+
         mysql = lambda q: sqldf(q, globals())
         output_dataframe = mysql(transformation)
 
@@ -78,12 +77,12 @@ def execute_sql_job(mode, output_uri, transformation, source_list, blob_credenti
             local_output = f"{LOCAL_DATA_PATH}/output.parquet"
             output_dataframe.to_parquet(local_output)
             # upload blob to blob store
-            output_uri = upload_blob_to_blob_store(container_client, local_output, f"{output_uri_with_timestamp}.parquet") 
-        
+            output_uri = upload_blob_to_blob_store(container_client, local_output, f"{output_uri_with_timestamp}.parquet")
+
         elif blob_credentials.type == LOCAL:
             os.makedirs(output_uri)
             output_dataframe.to_parquet(f"{output_uri_with_timestamp}.parquet")
-    
+
         return output_uri_with_timestamp
     except (IOError, OSError) as e:
         print(e)
@@ -114,19 +113,18 @@ def execute_df_job(mode, output_uri, code, sources, etcd_credentials, blob_crede
             output_path = download_blobs_to_local(container_client, location, local_file)
         else:
             output_path = location
-        
+
         if ".csv" == output_path[-4:]:
             func_parameters.append(pd.read_csv(output_path))
         else:
             func_parameters.append(pd.read_parquet(output_path))
-    
+
     try:
         df_path = "transformation"
         code_path = download_blobs_to_local(container_client, code, df_path)
         code = get_code_from_file(mode, code_path + "/transformation.pkl", etcd_credentials)
         func = types.FunctionType(code, globals(), "df_transformation")
         output_df = pd.DataFrame(func(*func_parameters))
-
         dt = datetime.now()
         output_uri_with_timestamp = f"{output_uri}{dt}"
 
@@ -134,8 +132,8 @@ def execute_df_job(mode, output_uri, code, sources, etcd_credentials, blob_crede
             local_output = f"{LOCAL_DATA_PATH}/output.parquet"
             output_df.to_parquet(local_output)
             # upload blob to blob store
-            output_uri = upload_blob_to_blob_store(container_client, local_output, output_uri_with_timestamp + ".parquet") 
-        
+            output_uri = upload_blob_to_blob_store(container_client, local_output, output_uri_with_timestamp + ".parquet")
+
         elif blob_credentials.type == LOCAL:
             os.makedirs(output_uri)
             output_df.to_parquet(f"{output_uri_with_timestamp}.parquet")
@@ -149,7 +147,6 @@ def execute_df_job(mode, output_uri, code, sources, etcd_credentials, blob_crede
 def download_blobs_to_local(container_client, blob, local_filename):
     """
     Downloads a blob to local to be used by pandas.
-
     Parameters:
         client:         ContainerClient (used to interact with Azure container)
         blob:           str (path to blob store)
@@ -158,7 +155,7 @@ def download_blobs_to_local(container_client, blob, local_filename):
     Output:
         full_path:      str (path to local file that will be used to read by pandas)
     """
-    
+
     print(f"downloading {blob} to {local_filename}")
     if not os.path.isdir(LOCAL_DATA_PATH):
         os.makedirs(LOCAL_DATA_PATH)
@@ -177,7 +174,7 @@ def download_blobs_to_local(container_client, blob, local_filename):
         blob_list = container_client.list_blobs(name_starts_with=blob)
         for b in blob_list:
             blob_client = container_client.get_blob_client(b)
-            
+
             ## Download
             with open(f"{full_path}/{b.name.split('/')[-1]}", "wb") as my_blob:
                 download_stream = blob_client.download_blob()
@@ -188,7 +185,6 @@ def download_blobs_to_local(container_client, blob, local_filename):
 def upload_blob_to_blob_store(client, local_filename, blob_path):
     """
     Uploads a local file to azure blob store.
-
     Parameters:
         client:         ContainerClient (used to interact with Azure container)
         local_filename: str (path to local file)
@@ -198,15 +194,17 @@ def upload_blob_to_blob_store(client, local_filename, blob_path):
         blob_path:      str (path to blob store)
     """
 
-    print(f"uploading {local_filename} file to {blob_path}")
+
     if os.path.isfile(local_filename):
+        print(f"uploading {local_filename} file to {blob_path} as file")
         blob_upload = client.get_blob_client(blob_path)
         with open(local_filename, "rb") as data:
             blob_upload.upload_blob(data, blob_type="BlockBlob")
     elif os.path.isdir(local_filename):
+        print(f"uploading {local_filename} file to {blob_path} as partitioned files")
         for file in os.listdir(local_filename):
             blob_upload = client.get_blob_client(f"{blob_path}/{file}")
-            
+
             full_file_path = os.path.join(local_filename, file)
             with open(full_file_path, "rb") as data:
                 blob_upload.upload_blob(data, blob_type="BlockBlob")
@@ -227,7 +225,7 @@ def get_code_from_file(mode, file_path, etcd_credentials):
     Return:
         code: code object that could be executed
     """
-    
+
     print(f"Retrieving transformation code from '{file_path}' file in {mode} mode.")
     code = None
     # if mode == "k8s":
@@ -257,11 +255,10 @@ def get_blob_credentials(args):
     Retrieve credentials from the blob store. 
     Parameters:
         args: Namespace (input arguments that passed via environment variables)
-
     Output:
         credentials: Namespace(type="", ...) (includes credentials needed for each blob store.) 
     """
-    
+
     if args.azure_blob_credentials:
         return Namespace(
             type=AZURE,
@@ -283,7 +280,7 @@ def get_etcd_host(host, ports):
     Output:
         etcd_host: [(str, str)] ([("127.0.0.1", "2379")])
     """
-    
+
     etcd_host = []
     for port in ports:
         etcd_host.append((host, int(port)))
@@ -293,7 +290,6 @@ def get_etcd_host(host, ports):
 def get_args():
     """
     Gets input arguments from environment variables.
-
     Parameters:
         None
     
@@ -319,13 +315,13 @@ def get_args():
 
     if mode == K8S_MODE and transformation_type == "df":
         assert etcd_host and etcd_ports != [""] and etcd_user and etcd_password, "for k8s mode, df transformations require etcd host, port, and credentials."
-    
+
 
     args = Namespace(
-        mode=mode, 
-        transformation_type=transformation_type, 
-        transformation=transformation, 
-        output_uri=output_uri, 
+        mode=mode,
+        transformation_type=transformation_type,
+        transformation=transformation,
+        output_uri=output_uri,
         sources=sources,
         etcd_host=etcd_host,
         etcd_ports=etcd_ports,
@@ -333,7 +329,7 @@ def get_args():
         etcd_password=etcd_password,
         azure_blob_credentials=azure_connection_string,
         azure_container_name=azure_container_name,
-        )
+    )
     return args
 
 

@@ -12,11 +12,15 @@ import pandas as pd
 from pandasql import sqldf
 
 
+LOCAL_MODE = "local"
+K8S_MODE = "k8s"
+
 def main(args):
     if args.transformation_type == "sql": 
         output_location = execute_sql_job(args.mode, args.output_uri, args.transformation, args.sources)
     elif args.transformation_type == "df":
-        output_location = execute_df_job(args.mode, args.output_uri, args.transformation, args.sources)
+        etcd_credentials = {"username": args.etcd_user, "password": args.etcd_password}
+        output_location = execute_df_job(args.mode, args.output_uri, args.transformation, args.sources, etcd_credentials)
     return output_location
 
 
@@ -24,11 +28,12 @@ def execute_sql_job(mode, output_uri, transformation, source_list):
     """
     Executes the SQL Queries:
     Parameters:
-        output_uri: string (s3 paths)
+        mode:           string ("local", "k8s")
+        output_uri:     string (path to blob store)
         transformation: string (eg. "SELECT * FROM source_0)
-        source_list: List(string) (a list of s3 paths)
+        source_list:    List(string) (a list of input sources)
     Return:
-        output_uri_with_timestamp: string (output s3 path)
+        output_uri_with_timestamp: string (output path of blob storage)
     """
 
     try:
@@ -46,7 +51,7 @@ def execute_sql_job(mode, output_uri, transformation, source_list):
 
         output_dataframe.to_parquet(output_uri_with_timestamp)
 
-        if mode == "k8s":
+        if mode == K8S_MODE:
             # upload blob to blob store
             pass 
 
@@ -56,69 +61,60 @@ def execute_sql_job(mode, output_uri, transformation, source_list):
         raise e
 
 
-def execute_df_job(output_uri, code, sources):
+def execute_df_job(mode, output_uri, code, sources, etcd_credentials):
     """
     Executes the DF transformation:
     Parameters:
-        output_uri: string (s3 paths)
-        code: code (python code)
-        sources: {parameter: s3_path} (used for passing dataframe parameters)
+        mode:             string ("local", "k8s")
+        output_uri:       string (blob store path)
+        code:             code (python code)
+        sources:          List(string) (a list of input sources)
+        etcd_credentials: {"username": "", "password": ""} (used to pull the code
     Return:
         output_uri_with_timestamp: string (output s3 path)
     """
-
-    spark = SparkSession.builder.appName("Dataframe Transformation").getOrCreate()
     
     func_parameters = []
     for location in sources:
-        func_parameters.append(spark.read.option("recursiveFileLookup", "true").parquet(location))
+        func_parameters.append(pd.read_parquet(location))
     
     try:
-        code = get_code_from_file(code, aws_region)
+        if mode == LOCAL_MODE:
+            code = get_code_from_file(mode, code)
+        elif mode == K8S_MODE:
+            code = get_code_from_file(mode, code, etcd_credentials)
         func = types.FunctionType(code, globals(), "df_transformation")
         output_df = func(*func_parameters)
 
         dt = datetime.now()
         output_uri_with_timestamp = f"{output_uri}{dt}"
-        output_df.write.mode("overwrite").parquet(output_uri_with_timestamp)
+        output_df.to_parquet(output_uri_with_timestamp)
         return output_uri_with_timestamp
     except (IOError, OSError) as e:
         print(f"Issue with execution of the transformation: {e}")
         raise e
 
 
-def get_code_from_file(file_path, aws_region=None):
+def get_code_from_file(mode, file_path, etcd_credentials=None):
     """
     Reads the code from a pkl file into a python code object.
     Then this object will be used to execute the transformation. 
     
     Parameters:
-        file_path: string (path to file)
-        aws_region: string (aws region where s3 bucket is located)
+        mode:             string ("local", "k8s")
+        file_path:        string (path to file)
+        etcd_credentials: {"username": "", "password": ""} (used to pull the code)
     Return:
         code: code object that could be executed
     """
     
-    prefix_len = len("s3://")
     code = None
-    if "s3://" == file_path[:prefix_len]:
+    if mode == "k8s":
         """
-        S3 paths are the following path: 's3://{bucket}/key/to/file'.
-        the split below separates the bucket name and the key that is 
-        used to read the object in the bucket. 
+        When executing on kubernetes, we will need to pull the transformation
+        from etcd.
         """
-        split_path = file_path[prefix_len:].split("/")
-        bucket = split_path[0]
-        key = '/'.join(split_path[1:])
-
-        s3_resource = boto3.resource("s3", region_name=aws_region)
-        s3_object = s3_resource.Object(bucket, key)
-
-        with io.BytesIO() as f:
-            s3_object.download_fileobj(f)
-
-            f.seek(0)
-            code = dill.loads(f.read())
+        pass
     else:
         with open(file_path, "rb") as f:
             code = dill.load(f)

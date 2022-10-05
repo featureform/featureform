@@ -2,23 +2,26 @@ package provider
 
 import (
 	"bytes"
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"reflect"
-	"strings"
 	"time"
 
 	"github.com/featureform/helpers"
-	"github.com/featureform/kubernetes"
 
 	parquet "github.com/segmentio/parquet-go"
-	"go.uber.org/zap"
-	"gocloud.dev/blob"
 	azureblob "gocloud.dev/blob/azureblob"
 	_ "gocloud.dev/blob/fileblob"
+	"strings"
+
+	"github.com/featureform/kubernetes"
+
+	"go.uber.org/zap"
+	"gocloud.dev/blob"
 	_ "gocloud.dev/blob/memblob"
 )
 
@@ -207,8 +210,9 @@ type ExecutorType string
 type BlobStoreType string
 
 const (
-	GoProc ExecutorType = "GO_PROCESS"
-	K8s                 = "K8S"
+	GoProc         ExecutorType = "GO_PROCESS"
+	K8s                         = "K8S"
+	MemoryExecutor              = "MEMORY"
 )
 
 const (
@@ -470,6 +474,8 @@ func (store genericBlobStore) Serve(key string) (Iterator, error) {
 	switch fileType := keyParts[len(keyParts)-1]; fileType {
 	case "parquet":
 		return parquetIteratorFromReader(r)
+	case "csv":
+		return csvIteratorFromReader(r)
 	default:
 		return nil, fmt.Errorf("unsupported file type")
 	}
@@ -545,6 +551,21 @@ func (store genericBlobStore) Delete(key string) error {
 
 func (store genericBlobStore) Close() error {
 	return store.bucket.Close()
+}
+
+type csvIterator struct {
+	reader *csv.Reader
+}
+
+func (iter csvIterator) Next() ([]string, error) {
+	return iter.reader.Read()
+}
+
+func csvIteratorFromReader(r io.Reader) (Iterator, error) {
+	csvReader := csv.NewReader(r)
+	return csvIterator{
+		reader: csvReader,
+	}, nil
 }
 
 func NewMemoryBlobStore(config Config) (BlobStore, error) {

@@ -222,12 +222,16 @@ func NewKubernetesRunner(config KubernetesRunnerConfig) (CronRunner, error) {
 	jobSpec := newJobSpec(config)
 	var jobName string
 	if config.Resource.Name != "" {
-		jobName = GetJobName(config.Resource)
+		jobName = GetJobName(config.Resource, config.Image)
 	} else {
-		cleanUUID := strings.ReplaceAll(uuid.New().String(), "-", "")
-		jobName = fmt.Sprintf("job%s", cleanUUID)
+		jobName = generateCleanRandomJobName()
+
 	}
-	jobClient, err := NewKubernetesJobClient(jobName, Namespace)
+	namespace, err := GetCurrentNamespace()
+	if err != nil {
+		return nil, err
+	}
+	jobClient, err := NewKubernetesJobClient(jobName, namespace)
 	if err != nil {
 		return nil, err
 	}

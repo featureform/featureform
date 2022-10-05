@@ -12,8 +12,6 @@ import (
 	"github.com/featureform/kubernetes"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
-	"github.com/featureform/runner"
-	"github.com/featureform/types"
 
 	"github.com/google/uuid"
 	db "github.com/jackc/pgx/v4"

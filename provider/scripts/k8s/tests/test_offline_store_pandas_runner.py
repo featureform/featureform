@@ -22,8 +22,11 @@ dir_path = os.path.dirname(real_path)
 def test_main(variables, df_transformation, request):
     environment_variables = request.getfixturevalue(variables)
     set_environment_variables(environment_variables)
+    
     args = get_args()
     main(args)
+
+    set_environment_variables(environment_variables, delete=True)
 
 
 @pytest.mark.parametrize(
@@ -57,11 +60,13 @@ def test_execute_df_job(df_transformation, variables, expected_output, request):
     env = request.getfixturevalue(variables)
     set_environment_variables(env)
     args = get_args()
+
     output_file = execute_df_job(args.mode, args.output_uri, df_transformation, args.sources)
 
     expected_df = pandas.read_parquet(expected_output)
     output_df = pandas.read_parquet(output_file)
 
+    set_environment_variables(env, delete=True)
     assert len(expected_df) == len(output_df)
 
 
@@ -72,12 +77,13 @@ def test_execute_df_job(df_transformation, variables, expected_output, request):
         pytest.param("local_variables_failure", marks=pytest.mark.xfail),
         "k8s_variables_success",
         pytest.param("k8s_variables_failure", marks=pytest.mark.xfail),
+        pytest.param("k8s_variables_port_not_provided_failure", marks=pytest.mark.xfail),
     ]
 )
 def test_get_args(variables, request):
     environment_variables = request.getfixturevalue(variables)
     set_environment_variables(environment_variables)
-    args = get_args()
+    _ = get_args()
     set_environment_variables(environment_variables, delete=True)
 
 

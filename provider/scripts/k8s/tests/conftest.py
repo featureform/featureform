@@ -43,6 +43,8 @@ def k8s_variables_success():
         "SOURCES": f"{dir_path}/test_files/output/local_test",
         "TRANSFORMATION_TYPE": "sql",
         "TRANSFORMATION": "SELECT * FROM source_0",
+        "ETCD_HOST": "HOST_PATH",
+        "ETCD_PORT": "2379,2380",
         "ETCD_USERNAME": "username",
         "ETCD_PASSWORD": "password",
     }
@@ -55,6 +57,20 @@ def k8s_variables_failure():
         "SOURCES": f"{dir_path}/test_files/output/local_test",
         "TRANSFORMATION_TYPE": "sql",
         "TRANSFORMATION": "SELECT * FROM source_0",
+    }
+
+
+@pytest.fixture(scope="module")
+def k8s_variables_port_not_provided_failure():
+    return {
+        "MODE": "k8s", 
+        "OUTPUT_URI": f"{dir_path}/test_files/output/local_test", 
+        "SOURCES": f"{dir_path}/test_files/output/local_test",
+        "TRANSFORMATION_TYPE": "sql",
+        "TRANSFORMATION": "SELECT * FROM source_0",
+        "ETCD_HOST": "HOST_PATH",
+        "ETCD_USERNAME": "username",
+        "ETCD_PASSWORD": "password",
     }
 
 

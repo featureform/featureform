@@ -23,6 +23,7 @@ def main(args):
         print(f"starting execution for DF Transformation in {args.mode} mode") 
         etcd_credentials = {"username": args.etcd_user, "password": args.etcd_password}
         output_location = execute_df_job(args.mode, args.output_uri, args.transformation, args.sources, etcd_credentials)
+   
     return output_location
 
 
@@ -128,6 +129,8 @@ def get_args():
     sources = os.getenv("SOURCES", "").split(",")
     transformation_type = os.getenv("TRANSFORMATION_TYPE")
     transformation = os.getenv("TRANSFORMATION")
+    etcd_host = os.getenv("ETCD_HOST")
+    etcd_port = os.getenv("ETCD_PORT", "").split(",")
     etcd_user = os.getenv("ETCD_USERNAME")
     etcd_password = os.getenv("ETCD_PASSWORD")
 
@@ -136,7 +139,7 @@ def get_args():
     assert output_uri and sources != [""] and transformation, "the environment variables are not set properly"
 
     if mode == K8S_MODE:
-        assert etcd_user and etcd_password, "for k8s mode, etcd credentials are required"
+        assert etcd_host and etcd_port != [""] and etcd_user and etcd_password, "for k8s mode, etcd host, port, and credentials are required"
     
 
     args = Namespace(
@@ -145,6 +148,8 @@ def get_args():
         transformation=transformation, 
         output_uri=output_uri, 
         sources=sources,
+        etcd_host=etcd_host,
+        etcd_port=etcd_port,
         etcd_user=etcd_user,
         etcd_password=etcd_password,
         )

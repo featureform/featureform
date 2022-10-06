@@ -6,6 +6,7 @@ package provider
 import (
 	"fmt"
 	"testing"
+	"os"
 
 	"github.com/google/uuid"
 )
@@ -15,7 +16,7 @@ func TestBlobInterfaces(t *testing.T) {
 		"Test Blob Read and Write": testBlobReadAndWrite,
 		"Test Blob CSV Serve":      testBlobCSVServe,
 	}
-	localBlobStore, err := NewMemoryBlobStore()
+	localBlobStore, err := NewMemoryBlobStore(Config([]byte("")))
 	if err != nil {
 		t.Fatalf("Failed to create memory blob store")
 	}
@@ -74,4 +75,35 @@ func testBlobCSVServe(t *testing.T, store BlobStore) {
 		fmt.Println(row)
 	}
 	fmt.Println(err)
+}
+
+
+func TestExecutorRunLocal(t *testing.T) {
+	localConfig := LocalExecutorConfig{
+		ScriptPath: "./scripts/k8s/offline_store_pandas_runner.py",
+	}
+	serialized, err := localConfig.Serialize()
+	if err != nil {
+		t.Fatalf("Error serializing local executor configuration: %v", err)
+	}
+	executor, err := NewLocalExecutor(serialized)
+	if err != nil {
+		t.Fatalf("Error creating new Local Executor: %v", err)
+	}
+	mydir, err := os.Getwd()
+    if err != nil {
+        t.Fatalf("could not get working directory")
+    }
+	fmt.Println(mydir)
+	sqlEnvVars := map[string]string{
+		"MODE": "local",
+		
+		"OUTPUT_URI": fmt.Sprintf(`%s/scripts/k8s/tests/test_files/output/local_test/`, mydir),
+		"SOURCES": fmt.Sprintf("%s/scripts/k8s/tests/test_files/inputs/transaction", mydir),
+		"TRANSFORMATION_TYPE": "sql",
+		"TRANSFORMATION": "SELECT * FROM source_0",
+	}
+	if err := executor.ExecuteScript(sqlEnvVars); err != nil {
+		t.Fatalf("Failed to execute pandas script: %v", err)
+	}
 }

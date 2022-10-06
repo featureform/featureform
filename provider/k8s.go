@@ -457,15 +457,148 @@ func (k8s *K8sOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, source
 }
 
 func (k8s *K8sOfflineStore) CreateTransformation(config TransformationConfig) error {
+	return k8s.transformation(config, false)
+}
+
+func (k8s *K8sOfflineStore) transformation(config TransformationConfig, isUpdate bool) error {
+	if config.Type == SQLTransformation {
+		return k8s.sqlTransformation(config, isUpdate)
+	} else if config.Type == DFTransformation {
+		return k8s.dfTransformation(config, isUpdate)
+	} else {
+		k8s.logger.Errorw("Unsupported transformation type", config.Type)
+		return fmt.Errorf("the transformation type '%v' is not supported", config.Type)
+	}
+}
+
+func (k8s *K8sOfflineStore) sqlTransformation(config TransformationConfig, isUpdate bool) error {
+	updatedQuery, sources, err := k8s.updateQuery(config.Query, config.SourceMapping)
+	if err != nil {
+		spark.logger.Errorw("Could not generate updated query for k8s transformation", err)
+		return err
+	}
+
+	transformationDestination := k8s.store.ResourcePath(config.TargetTableID)
+	exists, err := k8s.store.resourceExists(config.TargetTableID)
+	if err != nil {
+		k8s.logger.Errorw("Error checking existence of resource", config.TargetTableID, err)
+		return err
+	}
+
+	if !isUpdate && exists {
+		k8s.logger.Errorw("Creation when transformation already exists", config.TargetTableID, transformationDestination)
+		return fmt.Errorf("transformation %v already exists at %s", config.TargetTableID, transformationDestination)
+	} else if isUpdate && !exists {
+		k8s.logger.Errorw("Update job attempted when transformation does not exist", config.TargetTableID, transformationDestination)
+		return fmt.Errorf("transformation %v doesn't exist at %s and you are trying to update", config.TargetTableID, transformationDestination)
+	}
+	k8s.logger.Debugw("Running SQL transformation", config)
+	runnerArgs := k8s.store.PandasRunnerArgs(transformationDestination, updatedQuery, sources, Transform)
+	if err := k8s.executor.ExecuteScript(runnerArgs; err != nil {
+		spark.Logger.Errorw("job for transformation failed to run", config.TargetTableID, err)
+		return fmt.Errorf("job for transformation %v failed to run: %v", config.TargetTableID, err)
+	}
+	k8s.logger.Debugw("Succesfully ran SQL transformation", config)
 	return nil
 }
 
+func (k8s *K8sOfflineStore) dfTransformation(config TransformationConfig, isUpdate bool) error {
+	transformationDestination := k8s.store.ResourcePath(config.TargetTableID)
+	exists, err := k8s.store.resourceExists(config.TargetTableID)
+	if err != nil {
+		k8s.logger.Errorw("Error checking if resource exists", err)
+		return err
+	}
+
+	if !isUpdate && exists {
+		k8s.logger.Errorw("Transformation already exists", config.TargetTableID, transformationDestination)
+		return fmt.Errorf("transformation %v already exists at %s", config.TargetTableID, transformationDestination)
+	} else if isUpdate && !exists {
+		k8s.logger.Errorw("Transformation doesn't exists at destination and you are trying to update", config.TargetTableID, transformationDestination)
+		return fmt.Errorf("transformation %v doesn't exist at %s and you are trying to update", config.TargetTableID, transformationDestination)
+	}
+
+	transformationFilePath := k8s.store.getTransformationFileLocation(config.TargetTableID)
+	fileName := "transformation.pkl"
+	transformationFileLocation := fmt.Sprintf("%s/%s", transformationFilePath, fileName)
+
+	f, err := os.Create(fileName)
+	if err != nil {
+		return fmt.Errorf("could not create file: %s", err)
+	}
+	defer f.Close()
+
+	err = ioutil.WriteFile(fileName, config.Code, 0644)
+	if err != nil {
+		return fmt.Errorf("could not write to file: %s", err)
+	}
+
+	// Write byte to file
+	f, err = os.Open(fileName)
+	if err != nil {
+		return fmt.Errorf("could not open file: %s", err)
+	}
+	err = k8s.store.Write(transformationFileLocation, f)
+	if err != nil {
+		return fmt.Errorf("could not upload file: %s", err)
+	}
+
+	k8sArgs, err := k8s.getDFArgs(transformationDestination, transformationFileLocation, k8s.store.Region(), config.SourceMapping)
+	if err != nil {
+		k8s.logger.Errorw("Problem creating spark dataframe arguments", err)
+		return fmt.Errorf("error with getting df arguments %v", sparkArgs)
+	}
+	k8s.logger.Debugw("Running DF transformation", config)
+	if err := k8s.executor.ExecuteScript(sparkArgs); err != nil {
+		k8s.logger.Errorw("Error running Spark dataframe job", err)
+		return fmt.Errorf("spark submit job for transformation %v failed to run: %v", config.TargetTableID, err)
+	}
+	k8s.logger.Debugw("Succesfully ran DF transformation", config)
+	return nil
+}
+
+func (k8s *K8sOfflineStore) updateQuery(query string, mapping []SourceMapping) (string, []string, error) {
+	sources := make([]string, len(mapping))
+	replacements := make([]string, len(mapping)*2) // It's times 2 because each replacement will be a pair; (original, replacedValue)
+
+	for i, m := range mapping {
+		replacements = append(replacements, m.Template)
+		replacements = append(replacements, fmt.Sprintf("source_%v", i))
+
+		sourcePath, err := spark.getSourcePath(m.Source)
+		if err != nil {
+			spark.Logger.Errorw("Error getting source path of source", m.Source, err)
+			return "", nil, fmt.Errorf("could not get the sourcePath for %s because %s", m.Source, err)
+		}
+
+		sources[i] = sourcePath
+	}
+
+	replacer := strings.NewReplacer(replacements...)
+	updatedQuery := replacer.Replace(query)
+
+	if strings.Contains(updatedQuery, "{{") {
+		k8s.logger.Errorw("Template replace failed", updatedQuery)
+		return "", nil, fmt.Errorf("could not replace all the templates with the current mapping. Mapping: %v; Replaced Query: %s", mapping, updatedQuery)
+	}
+	return updatedQuery, sources, nil
+}
+
+
+
 func (k8s *K8sOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
-	return nil, nil
+	k8s.logger.Debugw("Getting transformation table", "ResourceID", id)
+	transformationPath, err := k8s.store.ResourceKey(id)
+	if err != nil {
+		k8s.logger.Errorw("Could not get transformation table", "error", err)
+		return nil, fmt.Errorf("could not get transformation table (%v) because %s", id, err)
+	}
+	k8s.logger.Debugw("Succesfully retrieved transformation table", "ResourceID", id)
+	return &BlobPrimaryTable{k8s.store, transformationPath, true, id}, nil
 }
 
 func (k8s *K8sOfflineStore) UpdateTransformation(config TransformationConfig) error {
-	return nil
+	return k8s.transformation(config, true)
 }
 func (k8s *K8sOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error) {
 	return nil, nil
@@ -502,29 +635,103 @@ func (k8s *K8sOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, error
 }
 
 func (k8s *K8sOfflineStore) CreateMaterialization(id ResourceID) (Materialization, error) {
-	return nil, nil
+	if id.Type != Feature {
+		k8s.logger.Errorw("Attempted to create a materialization of a non feature resource", id.Type)
+		return nil, fmt.Errorf("only features can be materialized")
+	}
+	resourceTable, err := k8s.GetResourceTable(id)
+	if err != nil {
+		k8s.logger.Errorw("Attempted to fetch resource table of non registered resource", err)
+		return nil, fmt.Errorf("resource not registered: %v", err)
+	}
+	k8sResourceTable, ok := resourceTable.(*BlobOfflineTable)
+	if !ok {
+		spark.Logger.Errorw("Could not convert resource table to blob offline table", id)
+		return nil, fmt.Errorf("could not convert offline table with id %v to k8sResourceTable", id)
+	}
+	materializationID := ResourceID{Name: id.Name, Variant: id.Variant, Type: FeatureMaterialization}
+	destinationPath := k8s.store.ResourcePath(materializationID)
+	materializationExists, err := k8s.store.ResourceExists(materializationID)
+	if err != nil {
+		k8s.logger.Errorw("Could not determine whether materialization exists", err)
+		return nil, fmt.Errorf("error checking if materialization exists: %v", err)
+	}
+	if materializationExists {
+		k8s.logger.Errorw("Attempted to materialize a materialization that already exists", id)
+		return nil, fmt.Errorf("materialization already exists")
+	}
+	materializationQuery := k8s.query.materializationCreate(k8sResourceTable.schema)
+	sourcePath := k8s.store.KeyPath(k8sResourceTable.schema.SourceTable)
+	k8sArgs := k8s.store.PandasRunnerArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize)
+	k8s.logger.Debugw("Creating materialization", "id", id)
+	if err := k8s.executor.ExecuteScript(k8sArgs); err != nil {
+		k8s.logger.Errorw("Spark submit job failed to run", err)
+		return nil, fmt.Errorf("job for materialization %v failed to run: %v", materializationID, err)
+	}
+	key, err := k8s.store.ResourceKey(materializationID)
+	if err != nil {
+		k8s.logger.Errorw("Created materialization not found in store", err)
+		return nil, fmt.Errorf("Materialization result does not exist in offline store: %v", err)
+	}
+	k8s.logger.Debugw("Succesfully created materialization", "id", id)
+	return &BlobMaterialization{materializationID, k8s.store, key}, nil
 }
 
 func (k8s *K8sOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
-	return nil, nil
+	s := strings.Split(string(id), "/")
+	if len(s) != 3 {
+		k8s.logger.Errorw("Invalid materialization id", id)
+		return nil, fmt.Errorf("invalid materialization id")
+	}
+	materializationID := ResourceID{s[1], s[2], FeatureMaterialization}
+	k8s.logger.Debugw("Getting materialization", "id", id)
+	key, err := k8s.store.ResourceKey(materializationID)
+	if err != nil {
+		k8s.logger.Errorw("Could not fetch materialization resource key", err)
+		return nil, err
+	}
+	k8s.logger.Debugw("Succesfully retrieved materialization", "id", id)
+	return &BlobMaterialization{materializationID, k8s.store, key}, nil
 }
 
 func (k8s *K8sOfflineStore) UpdateMaterialization(id ResourceID) (Materialization, error) {
-	return nil, nil
+	return k8s.materialization(id, true)
 }
 
 func (k8s *K8sOfflineStore) DeleteMaterialization(id MaterializationID) error {
-	return nil
+	materializationKey, err := k8s.materializationKey(id)
+	if err != nil {
+		return err
+	}
+	exists, err := k8s.store.Exists(materializationKey)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return fmt.Errorf("materialization does not exist")
+	}
+	return store.Delete(materializationKey)
 }
 
-func (k8s *K8sOfflineStore) CreateTrainingSet(TrainingSetDef) error {
-	return nil
+func (k8s *K8sOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
+	return k8s.trainingSet(def, false)
 }
 
 func (k8s *K8sOfflineStore) UpdateTrainingSet(TrainingSetDef) error {
-	return nil
+	return k8s.trainingSet(def, false)
 }
 
 func (k8s *K8sOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
-	return nil, nil
+	trainingSetKey, err := k8s.trainingSetKey(id)
+	if err != nil {
+		return err
+	}
+	exists, err := k8s.store.Exists(trainingSetKey)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, fmt.Errorf("training set does not exist")
+	}
+	return &BlobTrainingSetIterator{k8s.store, trainingSetKey}
 }

@@ -16,11 +16,14 @@ LOCAL_MODE = "local"
 K8S_MODE = "k8s"
 
 def main(args):
-    if args.transformation_type == "sql": 
+    if args.transformation_type == "sql":
+        print(f"starting execution for SQL Transformation in {args.mode} mode") 
         output_location = execute_sql_job(args.mode, args.output_uri, args.transformation, args.sources)
     elif args.transformation_type == "df":
+        print(f"starting execution for DF Transformation in {args.mode} mode") 
         etcd_credentials = {"username": args.etcd_user, "password": args.etcd_password}
         output_location = execute_df_job(args.mode, args.output_uri, args.transformation, args.sources, etcd_credentials)
+   
     return output_location
 
 
@@ -61,7 +64,7 @@ def execute_sql_job(mode, output_uri, transformation, source_list):
         raise e
 
 
-def execute_df_job(mode, output_uri, code, sources, etcd_credentials):
+def execute_df_job(mode, output_uri, code, sources, etcd_credentials=None):
     """
     Executes the DF transformation:
     Parameters:
@@ -79,12 +82,9 @@ def execute_df_job(mode, output_uri, code, sources, etcd_credentials):
         func_parameters.append(pd.read_parquet(location))
     
     try:
-        if mode == LOCAL_MODE:
-            code = get_code_from_file(mode, code)
-        elif mode == K8S_MODE:
-            code = get_code_from_file(mode, code, etcd_credentials)
+        code = get_code_from_file(mode, code, etcd_credentials)
         func = types.FunctionType(code, globals(), "df_transformation")
-        output_df = func(*func_parameters)
+        output_df = pd.DataFrame(func(*func_parameters))
 
         dt = datetime.now()
         output_uri_with_timestamp = f"{output_uri}{dt}"
@@ -95,7 +95,7 @@ def execute_df_job(mode, output_uri, code, sources, etcd_credentials):
         raise e
 
 
-def get_code_from_file(mode, file_path, etcd_credentials=None):
+def get_code_from_file(mode, file_path, etcd_credentials):
     """
     Reads the code from a pkl file into a python code object.
     Then this object will be used to execute the transformation. 
@@ -108,6 +108,7 @@ def get_code_from_file(mode, file_path, etcd_credentials=None):
         code: code object that could be executed
     """
     
+    print(f"Retrieving transformation code from '{file_path}' file.")
     code = None
     if mode == "k8s":
         """
@@ -128,13 +129,17 @@ def get_args():
     sources = os.getenv("SOURCES", "").split(",")
     transformation_type = os.getenv("TRANSFORMATION_TYPE")
     transformation = os.getenv("TRANSFORMATION")
+    etcd_host = os.getenv("ETCD_HOST")
+    etcd_port = os.getenv("ETCD_PORT", "").split(",")
     etcd_user = os.getenv("ETCD_USERNAME")
     etcd_password = os.getenv("ETCD_PASSWORD")
 
-    assert mode and output_uri and sources != [""] and transformation_type and transformation, "the environment variables are not set properly"
+    assert mode in (LOCAL_MODE, K8S_MODE), f"the {mode} mode is not supported. supported modes are '{LOCAL_MODE}' and '{K8S_MODE}'."
+    assert transformation_type in ("sql", "df"), f"the {transformation_type} transformation type is not supported. supported types are 'sql', and 'df'."
+    assert output_uri and sources != [""] and transformation, "the environment variables are not set properly"
 
-    if mode == "k8s":
-        assert etcd_user and etcd_password, "for k8s mode, etcd credentials are required"
+    if mode == K8S_MODE:
+        assert etcd_host and etcd_port != [""] and etcd_user and etcd_password, "for k8s mode, etcd host, port, and credentials are required"
     
 
     args = Namespace(
@@ -143,6 +148,8 @@ def get_args():
         transformation=transformation, 
         output_uri=output_uri, 
         sources=sources,
+        etcd_host=etcd_host,
+        etcd_port=etcd_port,
         etcd_user=etcd_user,
         etcd_password=etcd_password,
         )

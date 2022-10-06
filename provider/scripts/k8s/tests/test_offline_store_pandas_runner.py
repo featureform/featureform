@@ -26,7 +26,6 @@ dir_path = os.path.dirname(real_path)
 def test_main(variables, df_transformation, request):
     environment_variables = request.getfixturevalue(variables)
     set_environment_variables(environment_variables)
-
     args = get_args()
     main(args)
 

@@ -36,18 +36,45 @@ def local_variables_failure():
 
 
 @pytest.fixture(scope="module")
-def k8s_variables_success():
+def k8s_sql_variables_success():
     return {
         "MODE": "k8s", 
         "OUTPUT_URI": f"{dir_path}/test_files/output/local_test", 
         "SOURCES": f"{dir_path}/test_files/output/local_test",
         "TRANSFORMATION_TYPE": "sql",
         "TRANSFORMATION": "SELECT * FROM source_0",
-        "ETCD_HOST": "HOST_PATH",
+    }
+
+
+@pytest.fixture(scope="module")
+def k8s_df_variables_success():
+    return {
+        "MODE": "k8s", 
+        "OUTPUT_URI": f"{dir_path}/test_files/output/local_test", 
+        "SOURCES": f"{dir_path}/test_files/output/local_test",
+        "TRANSFORMATION_TYPE": "df",
+        "TRANSFORMATION": "/path/to/transformation",
+        "ETCD_HOST": "127.0.0.1",
         "ETCD_PORT": "2379,2380",
         "ETCD_USERNAME": "username",
         "ETCD_PASSWORD": "password",
     }
+
+
+@pytest.fixture(scope="module")
+def k8s_df_variables_single_port_success():
+    return {
+        "MODE": "k8s", 
+        "OUTPUT_URI": f"{dir_path}/test_files/output/local_test", 
+        "SOURCES": f"{dir_path}/test_files/output/local_test",
+        "TRANSFORMATION_TYPE": "df",
+        "TRANSFORMATION": "/path/to/transformation",
+        "ETCD_HOST": "127.0.0.1",
+        "ETCD_PORT": "2379",
+        "ETCD_USERNAME": "username",
+        "ETCD_PASSWORD": "password",
+    }
+
 
 @pytest.fixture(scope="module")
 def k8s_variables_failure():

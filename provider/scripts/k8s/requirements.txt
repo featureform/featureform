@@ -3,3 +3,4 @@ pyarrow==9.0.0
 fastparquet==0.8.3
 pytest==7.1.2
 pytest-cov==3.0.0
+python-etcd==0.4.5

@@ -7,7 +7,7 @@ from datetime import datetime
 from argparse import Namespace
 
 import dill
-import boto3
+import etcd
 import pandas as pd
 from pandasql import sqldf
 
@@ -21,7 +21,7 @@ def main(args):
         output_location = execute_sql_job(args.mode, args.output_uri, args.transformation, args.sources)
     elif args.transformation_type == "df":
         print(f"starting execution for DF Transformation in {args.mode} mode") 
-        etcd_credentials = {"username": args.etcd_user, "password": args.etcd_password}
+        etcd_credentials = {"host": args.etcd_host, "ports": args.etcd_ports, "username": args.etcd_user, "password": args.etcd_password}
         output_location = execute_df_job(args.mode, args.output_uri, args.transformation, args.sources, etcd_credentials)
    
     return output_location
@@ -103,24 +103,48 @@ def get_code_from_file(mode, file_path, etcd_credentials):
     Parameters:
         mode:             string ("local", "k8s")
         file_path:        string (path to file)
-        etcd_credentials: {"username": "", "password": ""} (used to pull the code)
+        etcd_credentials: {"host": "", "port": [""], "username": "", "password": ""} (used to pull the code)
     Return:
         code: code object that could be executed
     """
     
-    print(f"Retrieving transformation code from '{file_path}' file.")
+    print(f"Retrieving transformation code from '{file_path}' file in {mode} mode.")
     code = None
     if mode == "k8s":
         """
         When executing on kubernetes, we will need to pull the transformation
         from etcd.
         """
-        pass
+        if len(etcd_credentials["ports"]) == 1:
+            etcd_port = int(etcd_credentials["ports"][0])
+            etcd_client = etcd.Client(host=etcd_credentials["host"], port=etcd_port)
+        else:
+            etcd_host = get_etcd_host(etcd_credentials["host"], etcd_credentials["ports"])
+            etcd_client = etcd.Client(host=etcd_host)
+
+        code_data = etcd_client.read(file_path).value
+        code = dill.loads(code_data)
     else:
         with open(file_path, "rb") as f:
             code = dill.load(f)
     
     return code
+
+
+def get_etcd_host(host, ports):
+    """
+    Converts the host and ports list into the expected for need for etcd client.
+    Parameters:
+        host: str   ("127.0.0.1")
+        port: [str] (["2379"])
+    Output:
+        etcd_host: [(str, str)] ([("127.0.0.1", "2379")])
+    """
+    
+    etcd_host = []
+    for port in ports:
+        etcd_host.append((host, int(port)))
+    return tuple(etcd_host)
 
 
 def get_args():
@@ -130,7 +154,7 @@ def get_args():
     transformation_type = os.getenv("TRANSFORMATION_TYPE")
     transformation = os.getenv("TRANSFORMATION")
     etcd_host = os.getenv("ETCD_HOST")
-    etcd_port = os.getenv("ETCD_PORT", "").split(",")
+    etcd_ports = os.getenv("ETCD_PORT", "").split(",")
     etcd_user = os.getenv("ETCD_USERNAME")
     etcd_password = os.getenv("ETCD_PASSWORD")
 
@@ -138,8 +162,8 @@ def get_args():
     assert transformation_type in ("sql", "df"), f"the {transformation_type} transformation type is not supported. supported types are 'sql', and 'df'."
     assert output_uri and sources != [""] and transformation, "the environment variables are not set properly"
 
-    if mode == K8S_MODE:
-        assert etcd_host and etcd_port != [""] and etcd_user and etcd_password, "for k8s mode, etcd host, port, and credentials are required"
+    if mode == K8S_MODE and transformation_type == "df":
+        assert etcd_host and etcd_ports != [""] and etcd_user and etcd_password, "for k8s mode, df transformations require etcd host, port, and credentials."
     
 
     args = Namespace(
@@ -149,7 +173,7 @@ def get_args():
         output_uri=output_uri, 
         sources=sources,
         etcd_host=etcd_host,
-        etcd_port=etcd_port,
+        etcd_ports=etcd_ports,
         etcd_user=etcd_user,
         etcd_password=etcd_password,
         )

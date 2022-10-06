@@ -5,11 +5,12 @@ sys.path.insert(0, 'provider/scripts/k8s')
 import pandas
 import pytest
 
-from offline_store_pandas_runner import main, get_args, execute_df_job, execute_sql_job
+from offline_store_pandas_runner import main, get_etcd_host, get_args, execute_df_job, execute_sql_job, K8S_MODE
 
 
 real_path = os.path.realpath(__file__)
 dir_path = os.path.dirname(real_path)
+
 
 @pytest.mark.parametrize(
     "variables",
@@ -54,6 +55,7 @@ def test_execute_sql_job(variables, expected_output, request):
     "variables,expected_output",
     [
         ("local_df_variables_success", f"{dir_path}/test_files/inputs/transaction"),
+        # ("k8s_df_variables_single_port_success", f"{dir_path}/test_files/inputs/transaction"),
     ]
 )
 def test_execute_df_job(df_transformation, variables, expected_output, request):
@@ -61,7 +63,11 @@ def test_execute_df_job(df_transformation, variables, expected_output, request):
     set_environment_variables(env)
     args = get_args()
 
-    output_file = execute_df_job(args.mode, args.output_uri, df_transformation, args.sources)
+    creds = None
+    if args.mode == K8S_MODE:
+        creds = {"host": args.etcd_host, "ports": args.etcd_ports, "username": args.etcd_user, "password": args.etcd_password}
+
+    output_file = execute_df_job(args.mode, args.output_uri, df_transformation, args.sources, creds)
 
     expected_df = pandas.read_parquet(expected_output)
     output_df = pandas.read_parquet(output_file)
@@ -71,11 +77,24 @@ def test_execute_df_job(df_transformation, variables, expected_output, request):
 
 
 @pytest.mark.parametrize(
+    "host,ports,expected_output",
+    [   
+        ("127.0.0.1", ["2379"], (("127.0.0.1", 2379),)),
+        ("127.0.0.1", ["2379", "2380"], (("127.0.0.1", 2379), ("127.0.0.1", 2380))),
+    ]
+)
+def test_get_etcd_host(host, ports, expected_output):
+    etcd_host = get_etcd_host(host, ports)
+    assert etcd_host == expected_output
+
+
+@pytest.mark.parametrize(
     "variables",
     [   
         "local_variables_success",
         pytest.param("local_variables_failure", marks=pytest.mark.xfail),
-        "k8s_variables_success",
+        "k8s_sql_variables_success",
+        "k8s_df_variables_success",
         pytest.param("k8s_variables_failure", marks=pytest.mark.xfail),
         pytest.param("k8s_variables_port_not_provided_failure", marks=pytest.mark.xfail),
     ]

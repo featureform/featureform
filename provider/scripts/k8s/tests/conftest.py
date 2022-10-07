@@ -2,6 +2,8 @@ import os
 
 import dill
 import pytest
+from dotenv import load_dotenv
+from azure.storage.blob import BlobServiceClient
 
 
 real_path = os.path.realpath(__file__)
@@ -58,6 +60,7 @@ def k8s_df_variables_success():
         "ETCD_PORT": "2379,2380",
         "ETCD_USERNAME": "username",
         "ETCD_PASSWORD": "password",
+        "AZURE_CONNECTION_STRING": "connection_string",
     }
 
 
@@ -73,6 +76,7 @@ def k8s_df_variables_single_port_success():
         "ETCD_PORT": "2379",
         "ETCD_USERNAME": "username",
         "ETCD_PASSWORD": "password",
+        "AZURE_CONNECTION_STRING": "connection_string",
     }
 
 
@@ -111,3 +115,16 @@ def df_transformation():
     with open(file_path, "wb") as f:
         dill.dump(transformation.__code__, f)
     return file_path
+
+
+@pytest.fixture(scope="module")
+def container_client():
+    # get the path to .env in root directory
+    env_file = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(real_path)))))
+    load_dotenv(f"{env_file}/.env")
+    
+    blob_service_client = BlobServiceClient.from_connection_string(os.getenv("AZURE_CONNECTION_STRING"))
+    container_client = blob_service_client.get_container_client(os.getenv("AZURE_CONTAINER_NAME"))
+    return container_client
+
+

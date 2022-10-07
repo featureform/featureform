@@ -61,7 +61,7 @@ def execute_sql_job(mode, output_uri, transformation, source_list, blob_credenti
                 output_path = download_blobs_to_local(container_client, source, f"source_{i}")
             else:
                 output_path = source 
-            globals()[f"source_{i}"]= pd.read_parquet(output_path)
+            globals()[f"source_{i}"]= pd.read_csv(output_path)
         
         mysql = lambda q: sqldf(q, globals())
         output_dataframe = mysql(transformation)
@@ -71,12 +71,12 @@ def execute_sql_job(mode, output_uri, transformation, source_list, blob_credenti
 
         if blob_credentials.type == AZURE:
             local_output = f"{LOCAL_DATA_PATH}/output.csv"
-            output_dataframe.to_parquet(local_output)
+            output_dataframe.to_csv(local_output)
             # upload blob to blob store
             output_uri = upload_blob_to_blob_store(container_client, local_output, output_uri_with_timestamp) 
         
         elif blob_credentials.type == LOCAL:
-            output_dataframe.to_parquet(output_uri_with_timestamp)
+            output_dataframe.to_csv(output_uri_with_timestamp)
     
         return output_uri_with_timestamp
     except (IOError, OSError) as e:
@@ -102,13 +102,13 @@ def execute_df_job(mode, output_uri, code, sources, etcd_credentials, blob_crede
         container_client = blob_service_client.get_container_client(blob_credentials.container)
 
     func_parameters = []
-    for location in sources:
+    for i, location in enumerate(sources):
         if blob_credentials.type == AZURE:
             # download blob to local & set source to local path
-            output_path = download_blobs_to_local(container_client, source, f"source_{i}")
+            output_path = download_blobs_to_local(container_client, location, f"source_{i}")
         else:
-            output_path = location 
-        func_parameters.append(pd.read_parquet(output_path))
+            output_path = location
+        func_parameters.append(pd.read_csv(output_path))
     
     try:
         code = get_code_from_file(mode, code, etcd_credentials)
@@ -120,12 +120,12 @@ def execute_df_job(mode, output_uri, code, sources, etcd_credentials, blob_crede
 
         if blob_credentials.type == AZURE:
             local_output = f"{LOCAL_DATA_PATH}/output.csv"
-            output_df.to_parquet(local_output)
+            output_df.to_csv(local_output)
             # upload blob to blob store
             output_uri = upload_blob_to_blob_store(container_client, local_output, output_uri_with_timestamp) 
         
         elif blob_credentials.type == LOCAL:
-            output_df.to_parquet(output_uri_with_timestamp)
+            output_df.to_csv(output_uri_with_timestamp)
 
         return output_uri_with_timestamp
     except (IOError, OSError) as e:
@@ -135,7 +135,15 @@ def execute_df_job(mode, output_uri, code, sources, etcd_credentials, blob_crede
 
 def download_blobs_to_local(container_client, blob, local_filename):
     """
+    Downloads a blob to local to be used by pandas.
 
+    Parameters:
+        client:         ContainerClient (used to interact with Azure container)
+        blob:           str (path to blob store)
+        local_filename: str (path to local file)
+    
+    Output:
+        full_path:      str (path to local file that will be used to read by pandas)
     """
     
     if not os.path.isdir(LOCAL_DATA_PATH):
@@ -153,7 +161,17 @@ def download_blobs_to_local(container_client, blob, local_filename):
 
 def upload_blob_to_blob_store(client, local_filename, blob_path):
     """
+    Uploads a local file to azure blob store.
+
+    Parameters:
+        client:         ContainerClient (used to interact with Azure container)
+        local_filename: str (path to local file)
+        blob_path:      str (path to blob store)
+    
+    Output:
+        blob_path:      str (path to blob store)
     """
+    
     blob_upload = client.get_blob_client(blob_path)
     with open(local_filename, "rb") as data:
         blob_upload.upload_blob(data, blob_type="BlockBlob")
@@ -197,6 +215,15 @@ def get_code_from_file(mode, file_path, etcd_credentials):
 
 
 def get_blob_credentials(args):
+    """
+    Retrieve credentials from the blob store. 
+    Parameters:
+        args: Namespace (input arguments that passed via environment variables)
+
+    Output:
+        credentials: Namespace(type="", ...) (includes credentials needed for each blob store.) 
+    """
+    
     if args.azure_blob_credentials:
         return Namespace(
             type=AZURE,
@@ -226,6 +253,16 @@ def get_etcd_host(host, ports):
 
 
 def get_args():
+    """
+    Gets input arguments from environment variables.
+
+    Parameters:
+        None
+    
+    Output:
+        Namespace
+    """
+
     mode = os.getenv("MODE")
     output_uri = os.getenv("OUTPUT_URI")
     sources = os.getenv("SOURCES", "").split(",")

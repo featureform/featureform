@@ -15,7 +15,7 @@ def local_variables_success():
     return {
         "MODE": "local", 
         "OUTPUT_URI": f"{dir_path}/test_files/output/local_test/", 
-        "SOURCES": f"{dir_path}/test_files/inputs/transaction",
+        "SOURCES": f"{dir_path}/test_files/inputs/transactions_short.csv",
         "TRANSFORMATION_TYPE": "sql",
         "TRANSFORMATION": "SELECT * FROM source_0",
     }
@@ -26,7 +26,7 @@ def local_df_variables_success():
     return {
         "MODE": "local", 
         "OUTPUT_URI": f"{dir_path}/test_files/output/local_test/", 
-        "SOURCES": f"{dir_path}/test_files/inputs/transaction",
+        "SOURCES": f"{dir_path}/test_files/inputs/transactions_short.csv",
         "TRANSFORMATION_TYPE": "df",
         "TRANSFORMATION": f"{dir_path}/test_files/transformations/same_df.pkl",
     }
@@ -42,7 +42,7 @@ def k8s_sql_variables_success():
     return {
         "MODE": "k8s", 
         "OUTPUT_URI": f"{dir_path}/test_files/output/local_test", 
-        "SOURCES": f"{dir_path}/test_files/output/local_test",
+        "SOURCES": f"{dir_path}/test_files/inputs/transactions_short.csv",
         "TRANSFORMATION_TYPE": "sql",
         "TRANSFORMATION": "SELECT * FROM source_0",
     }
@@ -53,7 +53,7 @@ def k8s_df_variables_success():
     return {
         "MODE": "k8s", 
         "OUTPUT_URI": f"{dir_path}/test_files/output/local_test", 
-        "SOURCES": f"{dir_path}/test_files/output/local_test",
+        "SOURCES": f"{dir_path}/test_files/inputs/transactions_short.csv",
         "TRANSFORMATION_TYPE": "df",
         "TRANSFORMATION": "/path/to/transformation",
         "ETCD_HOST": "127.0.0.1",
@@ -69,7 +69,7 @@ def k8s_df_variables_single_port_success():
     return {
         "MODE": "k8s", 
         "OUTPUT_URI": f"{dir_path}/test_files/output/local_test", 
-        "SOURCES": f"{dir_path}/test_files/output/local_test",
+        "SOURCES": f"{dir_path}/test_files/inputs/transactions_short.csv",
         "TRANSFORMATION_TYPE": "df",
         "TRANSFORMATION": "/path/to/transformation",
         "ETCD_HOST": "127.0.0.1",
@@ -85,7 +85,7 @@ def k8s_variables_failure():
     return {
         "MODE": "k8s", 
         "OUTPUT_URI": f"{dir_path}/test_files/output/local_test", 
-        "SOURCES": f"{dir_path}/test_files/output/local_test",
+        "SOURCES": f"{dir_path}/test_files/inputs/transactions_short.csv",
         "TRANSFORMATION_TYPE": "sql",
         "TRANSFORMATION": "SELECT * FROM source_0",
     }
@@ -96,7 +96,7 @@ def k8s_variables_port_not_provided_failure():
     return {
         "MODE": "k8s", 
         "OUTPUT_URI": f"{dir_path}/test_files/output/local_test", 
-        "SOURCES": f"{dir_path}/test_files/output/local_test",
+        "SOURCES": f"{dir_path}/test_files/inputs/transactions_short.csv",
         "TRANSFORMATION_TYPE": "sql",
         "TRANSFORMATION": "SELECT * FROM source_0",
         "ETCD_HOST": "HOST_PATH",

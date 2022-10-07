@@ -58,10 +58,15 @@ def execute_sql_job(mode, output_uri, transformation, source_list, blob_credenti
         for i, source in enumerate(source_list):
             if blob_credentials.type == AZURE:
                 # download blob to local & set source to local path
-                output_path = download_blobs_to_local(container_client, source, f"source_{i}")
+                local_file = f"source_{i}.csv" if ".csv" == source[-4:] else f"source_{i}"
+                output_path = download_blobs_to_local(container_client, source, local_file)
             else:
-                output_path = source 
-            globals()[f"source_{i}"]= pd.read_csv(output_path)
+                output_path = source
+
+            if ".csv" == output_path[-4:]:
+                globals()[f"source_{i}"]= pd.read_csv(output_path)
+            else:
+                globals()[f"source_{i}"]= pd.read_parquet(output_path)
         
         mysql = lambda q: sqldf(q, globals())
         output_dataframe = mysql(transformation)
@@ -70,13 +75,13 @@ def execute_sql_job(mode, output_uri, transformation, source_list, blob_credenti
         output_uri_with_timestamp = f'{output_uri}{dt}'
 
         if blob_credentials.type == AZURE:
-            local_output = f"{LOCAL_DATA_PATH}/output.csv"
-            output_dataframe.to_csv(local_output)
+            local_output = f"{LOCAL_DATA_PATH}/output"
+            output_dataframe.to_parquet(local_output)
             # upload blob to blob store
             output_uri = upload_blob_to_blob_store(container_client, local_output, output_uri_with_timestamp) 
         
         elif blob_credentials.type == LOCAL:
-            output_dataframe.to_csv(output_uri_with_timestamp)
+            output_dataframe.to_parquet(output_uri_with_timestamp)
     
         return output_uri_with_timestamp
     except (IOError, OSError) as e:
@@ -105,10 +110,15 @@ def execute_df_job(mode, output_uri, code, sources, etcd_credentials, blob_crede
     for i, location in enumerate(sources):
         if blob_credentials.type == AZURE:
             # download blob to local & set source to local path
-            output_path = download_blobs_to_local(container_client, location, f"source_{i}")
+            local_file = f"source_{i}.csv" if ".csv" == source[-4:] else f"source_{i}"
+            output_path = download_blobs_to_local(container_client, location, local_file)
         else:
             output_path = location
-        func_parameters.append(pd.read_csv(output_path))
+        
+        if ".csv" == output_path[-4:]:
+            func_parameters.append(pd.read_csv(output_path))
+        else:
+            func_parameters.append(pd.read_parquet(output_path))
     
     try:
         code = get_code_from_file(mode, code, etcd_credentials)
@@ -119,13 +129,13 @@ def execute_df_job(mode, output_uri, code, sources, etcd_credentials, blob_crede
         output_uri_with_timestamp = f"{output_uri}{dt}"
 
         if blob_credentials.type == AZURE:
-            local_output = f"{LOCAL_DATA_PATH}/output.csv"
-            output_df.to_csv(local_output)
+            local_output = f"{LOCAL_DATA_PATH}/output"
+            output_df.to_parquet(local_output)
             # upload blob to blob store
             output_uri = upload_blob_to_blob_store(container_client, local_output, output_uri_with_timestamp) 
         
         elif blob_credentials.type == LOCAL:
-            output_df.to_csv(output_uri_with_timestamp)
+            output_df.to_parquet(output_uri_with_timestamp)
 
         return output_uri_with_timestamp
     except (IOError, OSError) as e:

@@ -22,11 +22,33 @@ def local_variables_success():
 
 
 @pytest.fixture(scope="module")
+def local_variables_parquet_success():
+    return {
+        "MODE": "local", 
+        "OUTPUT_URI": f"{dir_path}/test_files/output/local_test/", 
+        "SOURCES": f"{dir_path}/test_files/inputs/transaction_short",
+        "TRANSFORMATION_TYPE": "sql",
+        "TRANSFORMATION": "SELECT * FROM source_0",
+    }
+
+
+@pytest.fixture(scope="module")
 def local_df_variables_success():
     return {
         "MODE": "local", 
         "OUTPUT_URI": f"{dir_path}/test_files/output/local_test/", 
         "SOURCES": f"{dir_path}/test_files/inputs/transactions_short.csv",
+        "TRANSFORMATION_TYPE": "df",
+        "TRANSFORMATION": f"{dir_path}/test_files/transformations/same_df.pkl",
+    }
+
+
+@pytest.fixture(scope="module")
+def local_df_parquet_variables_success():
+    return {
+        "MODE": "local", 
+        "OUTPUT_URI": f"{dir_path}/test_files/output/local_test/", 
+        "SOURCES": f"{dir_path}/test_files/inputs/transaction_short",
         "TRANSFORMATION_TYPE": "df",
         "TRANSFORMATION": f"{dir_path}/test_files/transformations/same_df.pkl",
     }

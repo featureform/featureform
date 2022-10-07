@@ -37,6 +37,7 @@ def test_main(variables, df_transformation, request):
     "variables,expected_output",
     [
         ("local_variables_success", f"{dir_path}/test_files/inputs/transactions_short.csv"),
+        ("local_variables_parquet_success", f"{dir_path}/test_files/inputs/transaction_short"),
         pytest.param("df_local_pass_none_code_failure", f"{dir_path}/test_files/expected/test_execute_df_job_success", marks=pytest.mark.xfail),
     ]
 )
@@ -47,8 +48,11 @@ def test_execute_sql_job(variables, expected_output, request):
     blob_credentials = get_blob_credentials(args) 
     output_file = execute_sql_job(args.mode, args.output_uri, args.transformation, args.sources, blob_credentials)
 
-    expected_df = pandas.read_csv(expected_output)
-    output_df = pandas.read_csv(output_file)
+    if expected_output[-4:] == ".csv":
+        expected_df = pandas.read_csv(expected_output)
+    else:
+        expected_df = pandas.read_parquet(expected_output)
+    output_df = pandas.read_parquet(output_file)
 
     assert len(expected_df) == len(output_df)
 
@@ -59,6 +63,7 @@ def test_execute_sql_job(variables, expected_output, request):
     "variables,expected_output",
     [
         ("local_df_variables_success", f"{dir_path}/test_files/inputs/transactions_short.csv"),
+        ("local_df_parquet_variables_success", f"{dir_path}/test_files/inputs/transaction_short"),
         # ("k8s_df_variables_single_port_success", f"{dir_path}/test_files/inputs/transactions_short.csv"),
     ]
 )
@@ -74,8 +79,11 @@ def test_execute_df_job(df_transformation, variables, expected_output, request):
 
     output_file = execute_df_job(args.mode, args.output_uri, df_transformation, args.sources, etcd_creds, blob_credentials)
 
-    expected_df = pandas.read_csv(expected_output)
-    output_df = pandas.read_csv(output_file)
+    if expected_output[-4:] == ".csv":
+        expected_df = pandas.read_csv(expected_output)
+    else:
+        expected_df = pandas.read_parquet(expected_output)
+    output_df = pandas.read_parquet(output_file)
 
     set_environment_variables(env, delete=True)
     assert len(expected_df) == len(output_df)

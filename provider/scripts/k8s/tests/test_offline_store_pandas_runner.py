@@ -151,18 +151,24 @@ def test_download_blobs_to_local(container_client):
     assert os.path.exists(output_file)
 
 
-def test_upload_blob_to_blob_store(container_client):
-    blob = f"featureform/testing/primary/name/variant/transactions_short_{uuid.uuid4()}.csv"
-    local_filename = f"{dir_path}/test_files/inputs/transactions_short.csv"
-    output_file = upload_blob_to_blob_store(container_client, local_filename, blob)
+@pytest.mark.parametrize(
+    "blob,file",
+    [   
+        (f"featureform/testing/primary/name/variant/transactions_short_{uuid.uuid4()}.csv", f"{dir_path}/test_files/inputs/transactions_short.csv"),
+        (f"featureform/testing/primary/name/variant/transactions_short_{uuid.uuid4()}", f"{dir_path}/test_files/inputs/transaction_short"),
+    ]
+)
+def test_upload_blob_to_blob_store(blob, file, container_client):
+    output_file = upload_blob_to_blob_store(container_client, file, blob)
 
     blob_list = container_client.list_blobs(name_starts_with=blob)
+    
+    blob_found = False if os.path.isfile(file) else True
     for blob in blob_list:
         if output_file == blob.name:
-            return
+            blob_found = True
     
-    set_environment_variables({"AZURE_CONNECTION_STRING": "", "AZURE_CONTAINER_NAME":""}, delete=True)
-    assert False, "blob wasn't uploaded successfully"
+    assert blob_found, "blob wasn't uploaded successfully"
 
 def set_environment_variables(variables, delete=False):
     for key, value in variables.items():

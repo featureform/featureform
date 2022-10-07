@@ -159,12 +159,26 @@ def download_blobs_to_local(container_client, blob, local_filename):
     if not os.path.isdir(LOCAL_DATA_PATH):
         os.makedirs(LOCAL_DATA_PATH)
 
-    blob_client = container_client.get_blob_client(blob)
-    
+
     full_path = f"{LOCAL_DATA_PATH}/{local_filename}"
-    with open(full_path, "wb") as my_blob:
-        download_stream = blob_client.download_blob()
-        my_blob.write(download_stream.readall())
+    if blob[-4:] == ".csv" or blob[-8:] == ".parquet":
+        blob_client = container_client.get_blob_client(blob)
+
+        with open(full_path, "wb") as my_blob:
+            download_stream = blob_client.download_blob()
+            my_blob.write(download_stream.readall())
+    else:
+        if not os.path.isdir(full_path):
+            os.mkdir(full_path)
+
+        blob_list = container_client.list_blobs(name_starts_with=blob)
+        for b in blob_list:
+            blob_client = container_client.get_blob_client(b)
+            
+            ## Download
+            with open(f"{full_path}/{b.name.split('/')[-1]}", "wb") as my_blob:
+                download_stream = blob_client.download_blob()
+                my_blob.write(download_stream.readall())
     
     return full_path
 
@@ -181,10 +195,20 @@ def upload_blob_to_blob_store(client, local_filename, blob_path):
     Output:
         blob_path:      str (path to blob store)
     """
-    
-    blob_upload = client.get_blob_client(blob_path)
-    with open(local_filename, "rb") as data:
-        blob_upload.upload_blob(data, blob_type="BlockBlob")
+
+    if os.path.isfile(local_filename):
+        blob_upload = client.get_blob_client(blob_path)
+        with open(local_filename, "rb") as data:
+            blob_upload.upload_blob(data, blob_type="BlockBlob")
+    elif os.path.isdir(local_filename):
+        for file in os.listdir(local_filename):
+            blob_upload = client.get_blob_client(f"{blob_path}/{file}")
+            
+            full_file_path = os.path.join(local_filename, file)
+            with open(full_file_path, "rb") as data:
+                blob_upload.upload_blob(data, blob_type="BlockBlob")
+
+
     return blob_path
 
 

@@ -74,14 +74,16 @@ def execute_sql_job(mode, output_uri, transformation, source_list, blob_credenti
         dt = datetime.now()
         output_uri_with_timestamp = f'{output_uri}{dt}'
 
+        os.makedirs(output_uri)
+
         if blob_credentials.type == AZURE:
             local_output = f"{LOCAL_DATA_PATH}/output"
-            output_dataframe.to_parquet(local_output)
+            output_dataframe.to_parquet(local_output + ".parquet")
             # upload blob to blob store
             output_uri = upload_blob_to_blob_store(container_client, local_output, output_uri_with_timestamp) 
         
         elif blob_credentials.type == LOCAL:
-            output_dataframe.to_parquet(output_uri_with_timestamp)
+            output_dataframe.to_parquet(output_uri_with_timestamp + ".parquet")
     
         return output_uri_with_timestamp
     except (IOError, OSError) as e:
@@ -128,14 +130,16 @@ def execute_df_job(mode, output_uri, code, sources, etcd_credentials, blob_crede
         dt = datetime.now()
         output_uri_with_timestamp = f"{output_uri}{dt}"
 
+        os.makedirs(output_uri)
+
         if blob_credentials.type == AZURE:
             local_output = f"{LOCAL_DATA_PATH}/output"
-            output_df.to_parquet(local_output)
+            output_df.to_parquet(local_output + ".parquet")
             # upload blob to blob store
             output_uri = upload_blob_to_blob_store(container_client, local_output, output_uri_with_timestamp) 
         
         elif blob_credentials.type == LOCAL:
-            output_df.to_parquet(output_uri_with_timestamp)
+            output_df.to_parquet(output_uri_with_timestamp + ".parquet")
 
         return output_uri_with_timestamp
     except (IOError, OSError) as e:

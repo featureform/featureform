@@ -7,11 +7,15 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
-	// parquet "github.com/segmentio/parquet-go"
 )
+
+func uuidWithoutDashes() string {
+	return fmt.Sprintf("a%s", strings.ReplaceAll(uuid.New().String(), "-", ""))
+}
 
 func TestBlobInterfaces(t *testing.T) {
 	blobTests := map[string]func(*testing.T, BlobStore){
@@ -76,7 +80,7 @@ func TestBlobInterfaces(t *testing.T) {
 
 func testBlobReadAndWrite(t *testing.T, store BlobStore) {
 	testWrite := []byte("example data")
-	testKey := uuid.New().String()
+	testKey := uuidWithoutDashes()
 	if err := store.Write(testKey, testWrite); err != nil {
 		t.Fatalf("Failure writing data %s to key %s: %v", string(testWrite), testKey, err)
 	}
@@ -103,7 +107,7 @@ func testBlobCSVServe(t *testing.T, store BlobStore) {
 	//write csv file, then iterate all data types
 	csvBytes := []byte(`1,2,3,4,5
 	6,7,8,9,10`)
-	testKey := fmt.Sprintf("%s.csv", uuid.New().String())
+	testKey := fmt.Sprintf("%s.csv", uuidWithoutDashes())
 	if err := store.Write(testKey, csvBytes); err != nil {
 		t.Fatalf("Failure writing csv data %s to key %s: %v", string(csvBytes), testKey, err)
 	}
@@ -159,4 +163,133 @@ func TestExecutorRunLocal(t *testing.T) {
 	if err := executor.ExecuteScript(sqlEnvVars); err != nil {
 		t.Fatalf("Failed to execute pandas script: %v", err)
 	}
+}
+
+func TestOfflineStoreBasic(t *testing.T) {
+	localConfig := LocalExecutorConfig{
+		ScriptPath: "./scripts/k8s/offline_store_pandas_runner.py",
+	}
+	serializedExecutorConfig, err := localConfig.Serialize()
+	if err != nil {
+		t.Fatalf("Error serializing local executor configuration: %v", err)
+	}
+	mydir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("could not get working directory")
+	}
+	fileStoreConfig := FileBlobStoreConfig{DirPath: fmt.Sprintf(`file:////%s/scripts/k8s/tests/test_files/`, mydir)}
+	serializedFileConfig, err := fileStoreConfig.Serialize()
+	if err != nil {
+		t.Fatalf("failed to serialize file store config: %v", err)
+	}
+	k8sConfig := K8sConfig{
+		ExecutorType:   GoProc,
+		ExecutorConfig: ExecutorConfig(serializedExecutorConfig),
+		StoreType:      FileSystem,
+		StoreConfig:    BlobStoreConfig(serializedFileConfig),
+	}
+	serializedK8sConfig, err := k8sConfig.Serialize()
+	if err != nil {
+		t.Fatalf("failed to serialize k8s config: %v", err)
+	}
+	provider, err := k8sOfflineStoreFactory(serializedK8sConfig)
+	if err != nil {
+		t.Fatalf("failed to create new k8s offline store: %v", err)
+	}
+	offlineStore, err := provider.AsOfflineStore()
+	if err != nil {
+		t.Fatalf("failed to convert store to offline store: %v", err)
+	}
+
+	// Register Primary
+	fmt.Println("Registering primary table")
+	primaryTableName := uuidWithoutDashes()
+	primaryID := ResourceID{Name: primaryTableName, Variant: "default", Type: Primary}
+	transactionsURI := "inputs/transaction_short/part-00000-9d3cb5a3-4b9c-4109-afa3-a75759bfcf89-c000.snappy.parquet"
+	primaryTable, err := offlineStore.RegisterPrimaryFromSourceTable(primaryID, transactionsURI)
+	if err != nil {
+		t.Fatalf("failed to register primary table: %v", err)
+	}
+	fmt.Println(primaryTable.GetName())
+	// Getting Primary
+	fmt.Println("Getting primary table")
+	fetchedPrimary, err := offlineStore.GetPrimaryTable(primaryID)
+	if err != nil {
+		t.Fatalf("failed to fetch primary table: %v", err)
+	}
+	fmt.Println(fetchedPrimary)
+	transformationName := uuidWithoutDashes()
+	transformationID := ResourceID{
+		Name:    transformationName,
+		Type:    Transformation,
+		Variant: "default",
+	}
+	transformConfig := TransformationConfig{
+		Type:          SQLTransformation,
+		TargetTableID: transformationID,
+		Query:         fmt.Sprintf("SELECT * FROM {{%s.default}}", primaryTableName),
+		SourceMapping: []SourceMapping{
+			SourceMapping{
+				Template: fmt.Sprintf("{{%s.default}}", primaryTableName),
+				Source:   fmt.Sprintf("featureform_primary__%s__default", primaryTableName),
+			},
+		},
+	}
+	if err := offlineStore.CreateTransformation(transformConfig); err != nil {
+		t.Fatalf("Could not create transformation: %v", err)
+	}
+	// Get transformation
+	tsTable, err := offlineStore.GetTransformationTable(transformationID)
+	if err != nil {
+		t.Fatalf("could not fetch transformation table: %v", err)
+	}
+	fmt.Println(tsTable)
+	firstResID := ResourceID{Name: uuidWithoutDashes(), Variant: "default", Type: Feature}
+	schema := ResourceSchema{"CustomerID", "CustAccountBalance", "Timestamp", transactionsURI}
+	firstResTable, err := offlineStore.RegisterResourceFromSourceTable(firstResID, schema)
+	if err != nil {
+		t.Fatalf("failed to register resource from source table: %v", err)
+	}
+	fmt.Println(firstResTable)
+	fetchedFirstResTable, err := offlineStore.GetResourceTable(firstResID)
+	if err != nil {
+		t.Fatalf("failed to fetch resource table: %v", err)
+	}
+	fmt.Println(fetchedFirstResTable)
+
+	secondResID := ResourceID{Name: uuidWithoutDashes(), Variant: "default", Type: Label}
+	secondSchema := ResourceSchema{"CustomerID", "IsFraud", "Timestamp", transactionsURI}
+	secondResTable, err := offlineStore.RegisterResourceFromSourceTable(secondResID, secondSchema)
+	if err != nil {
+		t.Fatalf("failed to register resource from source table: %v", err)
+	}
+	fmt.Println(secondResTable)
+
+	trainingSetID := ResourceID{Name: uuidWithoutDashes(), Variant: "default", Type: TrainingSet}
+	testTrainingSet := TrainingSetDef{
+		ID:       trainingSetID,
+		Label:    secondResID,
+		Features: []ResourceID{firstResID},
+	}
+	if err := offlineStore.CreateTrainingSet(testTrainingSet); err != nil {
+		t.Fatalf("failed to create trainingset: %v", err)
+	}
+
+	fmt.Println("fetching training set")
+	ts, err := offlineStore.GetTrainingSet(trainingSetID)
+	if err != nil {
+		t.Fatalf("failed to fetch training set: %v", err)
+	}
+	fmt.Println(ts)
+	for ts.Next() {
+		fmt.Println(ts.Features())
+		fmt.Println(ts.Label())
+	}
+	materialization, err := offlineStore.CreateMaterialization(firstResID)
+	if err != nil {
+		t.Fatalf("failed to create materialization: %v", err)
+	}
+	fmt.Println(materialization)
+	fmt.Println(materialization.NumRows())
+
 }

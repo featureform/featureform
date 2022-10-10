@@ -744,13 +744,13 @@ func (k8s *K8sOfflineStore) dfTransformation(config TransformationConfig, isUpda
 
 	k8sArgs, err := k8s.getDFArgs(transformationDestination, transformationFileLocation, config.SourceMapping)
 	if err != nil {
-		k8s.logger.Errorw("Problem creating spark dataframe arguments", err)
+		k8s.logger.Errorw("Problem creating dataframe arguments", err)
 		return fmt.Errorf("error with getting df arguments %v", k8sArgs)
 	}
 	k8s.logger.Debugw("Running DF transformation", config)
 	if err := k8s.executor.ExecuteScript(k8sArgs); err != nil {
-		k8s.logger.Errorw("Error running Spark dataframe job", err)
-		return fmt.Errorf("spark submit job for transformation %v failed to run: %v", config.TargetTableID, err)
+		k8s.logger.Errorw("Error running dataframe job", err)
+		return fmt.Errorf("submit job for transformation %v failed to run: %v", config.TargetTableID, err)
 	}
 	k8s.logger.Debugw("Succesfully ran DF transformation", config)
 	return nil
@@ -893,7 +893,7 @@ func (k8s *K8sOfflineStore) materialization(id ResourceID, isUpdate bool) (Mater
 	k8sArgs := k8s.store.PandasRunnerArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize)
 	k8s.logger.Debugw("Creating materialization", "id", id)
 	if err := k8s.executor.ExecuteScript(k8sArgs); err != nil {
-		k8s.logger.Errorw("Spark submit job failed to run", err)
+		k8s.logger.Errorw("Job failed to run", err)
 		return nil, fmt.Errorf("job for materialization %v failed to run: %v", materializationID, err)
 	}
 	key, err := k8s.store.ResourceKey(materializationID)
@@ -974,7 +974,7 @@ func (k8s *K8sOfflineStore) trainingSet(def TrainingSetDef, isUpdate bool) error
 	}
 	labelSchema, err := k8s.registeredResourceSchema(def.Label)
 	if err != nil {
-		k8s.logger.Errorw("Could not get schema of label in spark store", def.Label, err)
+		k8s.logger.Errorw("Could not get schema of label in store", def.Label, err)
 		return fmt.Errorf("Could not get schema of label %s: %v", def.Label, err)
 	}
 	labelPath := k8s.store.PathWithPrefix(labelSchema.SourceTable)
@@ -982,7 +982,7 @@ func (k8s *K8sOfflineStore) trainingSet(def TrainingSetDef, isUpdate bool) error
 	for _, feature := range def.Features {
 		featureSchema, err := k8s.registeredResourceSchema(feature)
 		if err != nil {
-			k8s.logger.Errorw("Could not get schema of feature in spark store", feature, err)
+			k8s.logger.Errorw("Could not get schema of feature in store", feature, err)
 			return fmt.Errorf("Could not get schema of feature %s: %v", feature, err)
 		}
 		featurePath := k8s.store.PathWithPrefix(featureSchema.SourceTable)

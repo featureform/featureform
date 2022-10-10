@@ -330,7 +330,7 @@ class K8sAzureConfig:
 
 
 Config = Union[
-    RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig, BigQueryConfig, FirestoreConfig, SparkAWSConfig, K8sConfig]
+    RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig, BigQueryConfig, FirestoreConfig, SparkAWSConfig, K8sAzureConfig]
 
 
 @typechecked

@@ -292,7 +292,7 @@ class OfflineK8sAzureProvider(OfflineProvider):
                         description: str = "",
                         inputs: list = []):
         """
-        Register a Dataframe transformation source. The spark.df_transformation decorator takes the contents
+        Register a Dataframe transformation source. The k8s_azure.df_transformation decorator takes the contents
         of the following function and executes the code it contains at serving time.
 
         The name of the function is used as the name of the source when being registered.
@@ -301,10 +301,8 @@ class OfflineK8sAzureProvider(OfflineProvider):
 
         **Examples**:
         ``` py
-        @spark.df_transformation(inputs=[("source", "one")])        # Sources are added as inputs
+        @k8s_azure.df_transformation(inputs=[("source", "one")])        # Sources are added as inputs
         def average_user_transaction(df):                           # Sources can be manipulated by adding them as params
-            from pyspark.sql.functions import avg
-            df.groupBy("CustomerID").agg(avg("TransactionAmount").alias("average_user_transaction"))
             return df
         ```
 

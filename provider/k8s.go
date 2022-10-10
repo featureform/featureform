@@ -6,21 +6,29 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
+	// "io/ioutil"
 	"os/exec"
 	"strings"
+	"reflect"
+	"bytes"
 
 	"github.com/featureform/kubernetes"
+	
 
 	"go.uber.org/zap"
 	"gocloud.dev/blob"
 	_ "gocloud.dev/blob/memblob"
+	_ "gocloud.dev/blob/fileblob"
+	azureblob "gocloud.dev/blob/azureblob"
+	parquet "github.com/segmentio/parquet-go"
 )
 
 type K8sOfflineStore struct {
 	executor Executor
 	store    BlobStore
 	logger   *zap.SugaredLogger
-	query    *defaultOfflineSQLQueries
+	query    *defaultSparkOfflineQueries
 	BaseProvider
 }
 
@@ -102,6 +110,7 @@ func CreateBlobStore(name string, config Config) (BlobStore, error) {
 func init() {
 	blobStoreFactoryMap := map[BlobStoreType]BlobStoreFactory{
 		Memory: NewMemoryBlobStore,
+		FileSystem: NewFileBlobStore,
 	}
 	executorFactoryMap := map[ExecutorType]ExecutorFactory{
 		GoProc: NewLocalExecutor,
@@ -134,7 +143,7 @@ func k8sOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 		return nil, err
 	}
 	logger.Debugf("Store type: %s, Store config: %v", k8.StoreType, k8.StoreConfig)
-	queries := defaultOfflineSQLQueries{}
+	queries := defaultSparkOfflineQueries{}
 	k8sOfflineStore := K8sOfflineStore{
 		executor: exec,
 		store:    store,
@@ -162,6 +171,7 @@ const (
 
 const (
 	Memory BlobStoreType = "MEMORY"
+	FileSystem           = "FILE_SYSTEM"
 )
 
 type K8sConfig struct {
@@ -274,14 +284,19 @@ func NewKubernetesExecutor(image string) (Executor, error) {
 
 type BlobStore interface {
 	Write(key string, data []byte) error
+	Writer(key string) (*blob.Writer, error)
 	Read(key string) ([]byte, error)
 	Serve(key string) (Iterator, error)
 	Exists(key string) (bool, error)
+	Delete(key string) error
+	NewestBlob(prefix string) string
+	ResourcePath(id ResourceID) string
+	PathWithPrefix(path string) string
 	Close() error
 }
 
 type Iterator interface {
-	Next() ([]string, error)
+	Next() (interface{}, error)
 }
 
 type MemoryBlobStore struct {
@@ -294,6 +309,32 @@ type AzureBlobStore struct {
 
 type genericBlobStore struct {
 	bucket *blob.Bucket
+	path string
+}
+
+func (store genericBlobStore) PathWithPrefix(path string) string {
+	return fmt.Sprintf("%s%s", store.path, path)
+}
+
+func (store genericBlobStore) ResourcePath(id ResourceID) string {
+	return ""
+}
+
+func (store genericBlobStore) NewestBlob(prefix string) string {
+	opts := blob.ListOptions{
+		Prefix: prefix,
+		Delimiter: "/",
+	}
+	listIterator := store.bucket.List(&opts)
+	mostRecentTime := time.UnixMilli(0)
+	mostRecentKey := ""
+	for listObj, err := listIterator.Next(ctx); err != nil; listObj, err = listIterator.Next(ctx){
+		if !listObj.IsDir && (listObj.ModTime.After(mostRecentTime) || listObj.ModTime.Equal(mostRecentTime)) {
+			mostRecentTime = listObj.ModTime
+			mostRecentKey = listObj.Key
+		}	
+	}
+	return mostRecentKey
 }
 
 func (store genericBlobStore) Write(key string, data []byte) error {
@@ -302,6 +343,10 @@ func (store genericBlobStore) Write(key string, data []byte) error {
 		return err
 	}
 	return nil
+}
+
+func (store genericBlobStore) Writer(key string) (*blob.Writer, error) {
+	return store.bucket.NewWriter(ctx, key, nil)
 }
 
 func (store genericBlobStore) Read(key string) ([]byte, error) {
@@ -321,14 +366,50 @@ func (store genericBlobStore) Serve(key string) (Iterator, error) {
 	switch fileType := keyParts[len(keyParts)-1]; fileType {
 	case "csv":
 		return csvIteratorFromReader(r)
+	case "parquet":
+		return parquetIteratorFromReader(r)
 	default:
 		return nil, fmt.Errorf("unsupported file type")
 	}
 
 }
 
+type ParquetIterator struct {
+	rows []interface{}
+	index int64
+}
+
+func (p *ParquetIterator) Next() (interface{}, error) {
+	if p.index+1 == int64(len(p.rows)) {
+		return nil, fmt.Errorf("end of iterator")
+	}
+	p.index += 1
+	return p.rows[p.index], nil
+}
+
+func parquetIteratorFromReader(r io.Reader) (Iterator, error) {
+	buff := bytes.NewBuffer([]byte{})
+	size, err := io.Copy(buff, r)
+	if err != nil {
+		return nil, err
+	}
+	file := bytes.NewReader(buff.Bytes())
+	rows, err := parquet.Read[any](file, size)
+	if err != nil {
+		return nil, err
+	}
+	return &ParquetIterator{
+		rows: rows,
+		index: int64(0),
+	}, nil
+}
+
 func (store genericBlobStore) Exists(key string) (bool, error) {
 	return store.bucket.Exists(ctx, key)
+}
+
+func (store genericBlobStore) Delete(key string) error {
+	return store.bucket.Delete(ctx, key)
 }
 
 func (store genericBlobStore) Close() error {
@@ -339,7 +420,7 @@ type csvIterator struct {
 	reader *csv.Reader
 }
 
-func (iter csvIterator) Next() ([]string, error) {
+func (iter csvIterator) Next() (interface{}, error) {
 	return iter.reader.Read()
 }
 
@@ -362,10 +443,85 @@ func NewMemoryBlobStore(config Config) (BlobStore, error) {
 	}, nil
 }
 
-func NewAzureBlobStore(bucketPath string) (AzureBlobStore, error) {
-	bucket, err := blob.OpenBucket(ctx, bucketPath)
+type FileBlobStoreConfig struct {
+	DirPath string
+}
+
+func (config *FileBlobStoreConfig) Serialize() ([]byte, error) {
+	data, err := json.Marshal(config)
 	if err != nil {
-		return AzureBlobStore{}, err
+		panic(err)
+	}
+	return data, nil
+}
+
+func (config *FileBlobStoreConfig) Deserialize(data []byte) error {
+	err := json.Unmarshal(data, config)
+	if err != nil {
+		return fmt.Errorf("deserialize file blob store config: %w", err)
+	}
+	return nil
+}
+
+type FileBlobStore struct {
+	genericBlobStore
+}
+
+func NewFileBlobStore(config Config) (BlobStore, error) {
+	fileStoreConfig := FileBlobStoreConfig{}
+	if err := fileStoreConfig.Deserialize(Config(config)); err != nil {
+		return nil, fmt.Errorf("could not deserialize file store config: %v", err)
+	}
+	bucket, err := blob.OpenBucket(ctx, fileStoreConfig.DirPath)
+	if err != nil {
+		return nil, err
+	}
+	return FileBlobStore{
+		genericBlobStore{
+			bucket: bucket,
+			path: fileStoreConfig.DirPath,
+		},
+	}, nil
+}
+
+type AzureBlobStoreConfig struct {
+	AccountName string
+	AccountKey string
+	BucketName string
+}
+
+func (config *AzureBlobStoreConfig) Serialize() ([]byte, error) {
+	data, err := json.Marshal(config)
+	if err != nil {
+		panic(err)
+	}
+	return data, nil
+}
+
+func (config *AzureBlobStoreConfig) Deserialize(data []byte) error {
+	err := json.Unmarshal(data, config)
+	if err != nil {
+		return fmt.Errorf("deserialize file blob store config: %w", err)
+	}
+	return nil
+}
+
+
+func NewAzureBlobStore(config Config) (BlobStore, error) {
+	azureStoreConfig := AzureBlobStoreConfig{}
+	if err := azureStoreConfig.Deserialize(Config(config)); err != nil {
+		return nil, fmt.Errorf("could not deserialize azure store config: %v", err)
+	}
+	os.Setenv("AZURE_STORAGE_ACCOUNT", azureStoreConfig.AccountName)
+	os.Setenv("AZURE_STORAGE_KEY", azureStoreConfig.AccountKey)
+	serviceURL := azureblob.ServiceURL(fmt.Sprintf("https://%s.blob.core.windows.net", azureStoreConfig.AccountName))
+	client, err := azureblob.NewDefaultServiceClient(serviceURL)
+	if err != nil {
+		return AzureBlobStore{}, fmt.Errorf("Could not create azure client: %v", err)
+	}
+	bucket, err := azureblob.OpenBucket(ctx, client, azureStoreConfig.BucketName, nil)
+	if err != nil {
+		return AzureBlobStore{}, fmt.Errorf("Could not open azure bucket: %v", err)
 	}
 	return AzureBlobStore{
 		genericBlobStore{
@@ -471,15 +627,23 @@ func (k8s *K8sOfflineStore) transformation(config TransformationConfig, isUpdate
 	}
 }
 
+func (k8s *K8sOfflineStore) pandasRunnerArgs(transformationDestination string, updatedQuery string, sources []string, jobType JobType) map[string]string {
+	return map[string]string{}
+}
+
+func (k8s K8sOfflineStore) getDFArgs(toutputURI string, code string, awsRegion string, mapping []SourceMapping) (map[string]string, error ){
+	return map[string]string{}, nil
+}
+
 func (k8s *K8sOfflineStore) sqlTransformation(config TransformationConfig, isUpdate bool) error {
 	updatedQuery, sources, err := k8s.updateQuery(config.Query, config.SourceMapping)
 	if err != nil {
-		spark.logger.Errorw("Could not generate updated query for k8s transformation", err)
+		k8s.logger.Errorw("Could not generate updated query for k8s transformation", err)
 		return err
 	}
 
 	transformationDestination := k8s.store.ResourcePath(config.TargetTableID)
-	exists, err := k8s.store.resourceExists(config.TargetTableID)
+	exists, err := k8s.store.Exists(transformationDestination)
 	if err != nil {
 		k8s.logger.Errorw("Error checking existence of resource", config.TargetTableID, err)
 		return err
@@ -493,9 +657,9 @@ func (k8s *K8sOfflineStore) sqlTransformation(config TransformationConfig, isUpd
 		return fmt.Errorf("transformation %v doesn't exist at %s and you are trying to update", config.TargetTableID, transformationDestination)
 	}
 	k8s.logger.Debugw("Running SQL transformation", config)
-	runnerArgs := k8s.store.PandasRunnerArgs(transformationDestination, updatedQuery, sources, Transform)
-	if err := k8s.executor.ExecuteScript(runnerArgs; err != nil {
-		spark.Logger.Errorw("job for transformation failed to run", config.TargetTableID, err)
+	runnerArgs := k8s.pandasRunnerArgs(transformationDestination, updatedQuery, sources, Transform)
+	if err := k8s.executor.ExecuteScript(runnerArgs); err != nil {
+		k8s.logger.Errorw("job for transformation failed to run", config.TargetTableID, err)
 		return fmt.Errorf("job for transformation %v failed to run: %v", config.TargetTableID, err)
 	}
 	k8s.logger.Debugw("Succesfully ran SQL transformation", config)
@@ -503,8 +667,9 @@ func (k8s *K8sOfflineStore) sqlTransformation(config TransformationConfig, isUpd
 }
 
 func (k8s *K8sOfflineStore) dfTransformation(config TransformationConfig, isUpdate bool) error {
-	transformationDestination := k8s.store.ResourcePath(config.TargetTableID)
-	exists, err := k8s.store.resourceExists(config.TargetTableID)
+	transformationDestination := blobResourcePath(config.TargetTableID)
+	// latestKey//bm22
+	exists, err := k8s.store.Exists(transformationDestination)
 	if err != nil {
 		k8s.logger.Errorw("Error checking if resource exists", err)
 		return err
@@ -518,38 +683,38 @@ func (k8s *K8sOfflineStore) dfTransformation(config TransformationConfig, isUpda
 		return fmt.Errorf("transformation %v doesn't exist at %s and you are trying to update", config.TargetTableID, transformationDestination)
 	}
 
-	transformationFilePath := k8s.store.getTransformationFileLocation(config.TargetTableID)
+	transformationFilePath := k8s.store.ResourcePath(config.TargetTableID) //*
 	fileName := "transformation.pkl"
 	transformationFileLocation := fmt.Sprintf("%s/%s", transformationFilePath, fileName)
 
-	f, err := os.Create(fileName)
-	if err != nil {
-		return fmt.Errorf("could not create file: %s", err)
-	}
-	defer f.Close()
+	// f, err := os.Create(fileName)
+	// if err != nil {
+	// 	return fmt.Errorf("could not create file: %s", err)
+	// }
+	// defer f.Close()
 
-	err = ioutil.WriteFile(fileName, config.Code, 0644)
-	if err != nil {
-		return fmt.Errorf("could not write to file: %s", err)
-	}
+	// err = ioutil.WriteFile(fileName, config.Code, 0644)
+	// if err != nil {
+	// 	return fmt.Errorf("could not write to file: %s", err)
+	// }
 
-	// Write byte to file
-	f, err = os.Open(fileName)
-	if err != nil {
-		return fmt.Errorf("could not open file: %s", err)
-	}
-	err = k8s.store.Write(transformationFileLocation, f)
+	// // Write byte to file
+	// f, err = os.Open(fileName)
+	// if err != nil {
+	// 	return fmt.Errorf("could not open file: %s", err)
+	// }
+	err = k8s.store.Write(transformationFileLocation, config.Code)
 	if err != nil {
 		return fmt.Errorf("could not upload file: %s", err)
 	}
 
-	k8sArgs, err := k8s.getDFArgs(transformationDestination, transformationFileLocation, k8s.store.Region(), config.SourceMapping)
+	k8sArgs, err := k8s.getDFArgs(transformationDestination, transformationFileLocation, "", config.SourceMapping)
 	if err != nil {
 		k8s.logger.Errorw("Problem creating spark dataframe arguments", err)
-		return fmt.Errorf("error with getting df arguments %v", sparkArgs)
+		return fmt.Errorf("error with getting df arguments %v", k8sArgs)
 	}
 	k8s.logger.Debugw("Running DF transformation", config)
-	if err := k8s.executor.ExecuteScript(sparkArgs); err != nil {
+	if err := k8s.executor.ExecuteScript(k8sArgs); err != nil {
 		k8s.logger.Errorw("Error running Spark dataframe job", err)
 		return fmt.Errorf("spark submit job for transformation %v failed to run: %v", config.TargetTableID, err)
 	}
@@ -565,11 +730,12 @@ func (k8s *K8sOfflineStore) updateQuery(query string, mapping []SourceMapping) (
 		replacements = append(replacements, m.Template)
 		replacements = append(replacements, fmt.Sprintf("source_%v", i))
 
-		sourcePath, err := spark.getSourcePath(m.Source)
-		if err != nil {
-			spark.Logger.Errorw("Error getting source path of source", m.Source, err)
-			return "", nil, fmt.Errorf("could not get the sourcePath for %s because %s", m.Source, err)
-		}
+		sourcePath := ""
+		// sourcePath, err := k8s.getSourcePath(m.Source)
+		// if err != nil {
+		// 	k8s.logger.Errorw("Error getting source path of source", m.Source, err)
+		// 	return "", nil, fmt.Errorf("could not get the sourcePath for %s because %s", m.Source, err)
+		// }
 
 		sources[i] = sourcePath
 	}
@@ -588,11 +754,12 @@ func (k8s *K8sOfflineStore) updateQuery(query string, mapping []SourceMapping) (
 
 func (k8s *K8sOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
 	k8s.logger.Debugw("Getting transformation table", "ResourceID", id)
-	transformationPath, err := k8s.store.ResourceKey(id)
-	if err != nil {
-		k8s.logger.Errorw("Could not get transformation table", "error", err)
-		return nil, fmt.Errorf("could not get transformation table (%v) because %s", id, err)
-	}
+	//bm22
+	transformationPath := k8s.store.ResourcePath(id)
+	// if err != nil {
+	// 	k8s.logger.Errorw("Could not get transformation table", "error", err)
+	// 	return nil, fmt.Errorf("could not get transformation table (%v) because %s", id, err)
+	// }
 	k8s.logger.Debugw("Succesfully retrieved transformation table", "ResourceID", id)
 	return &BlobPrimaryTable{k8s.store, transformationPath, true, id}, nil
 }
@@ -631,107 +798,265 @@ func (k8s *K8sOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, error
 		return nil, fmt.Errorf("Error deserializing resource table: %v", err)
 	}
 	k8s.logger.Debugw("Succesfully fetched resource table", "id", id)
-	return &S3OfflineTable{resourceSchema}, nil
+	return &BlobOfflineTable{resourceSchema}, nil
 }
 
 func (k8s *K8sOfflineStore) CreateMaterialization(id ResourceID) (Materialization, error) {
-	if id.Type != Feature {
-		k8s.logger.Errorw("Attempted to create a materialization of a non feature resource", id.Type)
-		return nil, fmt.Errorf("only features can be materialized")
-	}
-	resourceTable, err := k8s.GetResourceTable(id)
-	if err != nil {
-		k8s.logger.Errorw("Attempted to fetch resource table of non registered resource", err)
-		return nil, fmt.Errorf("resource not registered: %v", err)
-	}
-	k8sResourceTable, ok := resourceTable.(*BlobOfflineTable)
-	if !ok {
-		spark.Logger.Errorw("Could not convert resource table to blob offline table", id)
-		return nil, fmt.Errorf("could not convert offline table with id %v to k8sResourceTable", id)
-	}
-	materializationID := ResourceID{Name: id.Name, Variant: id.Variant, Type: FeatureMaterialization}
-	destinationPath := k8s.store.ResourcePath(materializationID)
-	materializationExists, err := k8s.store.ResourceExists(materializationID)
-	if err != nil {
-		k8s.logger.Errorw("Could not determine whether materialization exists", err)
-		return nil, fmt.Errorf("error checking if materialization exists: %v", err)
-	}
-	if materializationExists {
-		k8s.logger.Errorw("Attempted to materialize a materialization that already exists", id)
-		return nil, fmt.Errorf("materialization already exists")
-	}
-	materializationQuery := k8s.query.materializationCreate(k8sResourceTable.schema)
-	sourcePath := k8s.store.KeyPath(k8sResourceTable.schema.SourceTable)
-	k8sArgs := k8s.store.PandasRunnerArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize)
-	k8s.logger.Debugw("Creating materialization", "id", id)
-	if err := k8s.executor.ExecuteScript(k8sArgs); err != nil {
-		k8s.logger.Errorw("Spark submit job failed to run", err)
-		return nil, fmt.Errorf("job for materialization %v failed to run: %v", materializationID, err)
-	}
-	key, err := k8s.store.ResourceKey(materializationID)
-	if err != nil {
-		k8s.logger.Errorw("Created materialization not found in store", err)
-		return nil, fmt.Errorf("Materialization result does not exist in offline store: %v", err)
-	}
-	k8s.logger.Debugw("Succesfully created materialization", "id", id)
-	return &BlobMaterialization{materializationID, k8s.store, key}, nil
+	// if id.Type != Feature {
+	// 	k8s.logger.Errorw("Attempted to create a materialization of a non feature resource", id.Type)
+	// 	return nil, fmt.Errorf("only features can be materialized")
+	// }
+	// resourceTable, err := k8s.GetResourceTable(id)
+	// if err != nil {
+	// 	k8s.logger.Errorw("Attempted to fetch resource table of non registered resource", err)
+	// 	return nil, fmt.Errorf("resource not registered: %v", err)
+	// }
+	// k8sResourceTable, ok := resourceTable.(*BlobOfflineTable)
+	// if !ok {
+	// 	k8s.logger.Errorw("Could not convert resource table to blob offline table", id)
+	// 	return nil, fmt.Errorf("could not convert offline table with id %v to k8sResourceTable", id)
+	// }
+	// materializationID := ResourceID{Name: id.Name, Variant: id.Variant, Type: FeatureMaterialization}
+	// destinationPath := k8s.store.ResourcePath(materializationID)
+	// materializationExists, err := k8s.store.Exists(destinationPath)
+	// if err != nil {
+	// 	k8s.logger.Errorw("Could not determine whether materialization exists", err)
+	// 	return nil, fmt.Errorf("error checking if materialization exists: %v", err)
+	// }
+	// if materializationExists {
+	// 	k8s.logger.Errorw("Attempted to materialize a materialization that already exists", id)
+	// 	return nil, fmt.Errorf("materialization already exists")
+	// }
+	// materializationQuery := k8s.query.materializationCreate(k8sResourceTable.schema)
+	// sourcePath := k8s.store.KeyPath(k8sResourceTable.schema.SourceTable)
+	// k8sArgs := k8s.store.PandasRunnerArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize)
+	// k8s.logger.Debugw("Creating materialization", "id", id)
+	// if err := k8s.executor.ExecuteScript(k8sArgs); err != nil {
+	// 	k8s.logger.Errorw("Spark submit job failed to run", err)
+	// 	return nil, fmt.Errorf("job for materialization %v failed to run: %v", materializationID, err)
+	// }
+	// key, err := k8s.store.ResourceKey(materializationID)
+	// if err != nil {
+	// 	k8s.logger.Errorw("Created materialization not found in store", err)
+	// 	return nil, fmt.Errorf("Materialization result does not exist in offline store: %v", err)
+	// }
+	// k8s.logger.Debugw("Succesfully created materialization", "id", id)
+	// return &BlobMaterialization{materializationID, k8s.store, key}, nil
+	return nil, nil
 }
 
 func (k8s *K8sOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
-	s := strings.Split(string(id), "/")
-	if len(s) != 3 {
-		k8s.logger.Errorw("Invalid materialization id", id)
-		return nil, fmt.Errorf("invalid materialization id")
-	}
-	materializationID := ResourceID{s[1], s[2], FeatureMaterialization}
-	k8s.logger.Debugw("Getting materialization", "id", id)
-	key, err := k8s.store.ResourceKey(materializationID)
-	if err != nil {
-		k8s.logger.Errorw("Could not fetch materialization resource key", err)
-		return nil, err
-	}
-	k8s.logger.Debugw("Succesfully retrieved materialization", "id", id)
-	return &BlobMaterialization{materializationID, k8s.store, key}, nil
+	// s := strings.Split(string(id), "/")
+	// if len(s) != 3 {
+	// 	k8s.logger.Errorw("Invalid materialization id", id)
+	// 	return nil, fmt.Errorf("invalid materialization id")
+	// }
+	// materializationID := ResourceID{s[1], s[2], FeatureMaterialization}
+	// k8s.logger.Debugw("Getting materialization", "id", id)
+	// key, err := k8s.store.ResourceKey(materializationID)
+	// if err != nil {
+	// 	k8s.logger.Errorw("Could not fetch materialization resource key", err)
+	// 	return nil, err
+	// }
+	// k8s.logger.Debugw("Succesfully retrieved materialization", "id", id)
+	// return &BlobMaterialization{materializationID, k8s.store, key}, nil
+	return nil, nil
 }
 
 func (k8s *K8sOfflineStore) UpdateMaterialization(id ResourceID) (Materialization, error) {
-	return k8s.materialization(id, true)
+	// return k8s.materialization(id, true)
+	return nil, nil
 }
 
 func (k8s *K8sOfflineStore) DeleteMaterialization(id MaterializationID) error {
-	materializationKey, err := k8s.materializationKey(id)
-	if err != nil {
-		return err
-	}
-	exists, err := k8s.store.Exists(materializationKey)
-	if err != nil {
-		return err
-	}
-	if !exists {
-		return fmt.Errorf("materialization does not exist")
-	}
-	return store.Delete(materializationKey)
+	// materializationKey, err := k8s.materializationKey(id)
+	// if err != nil {
+	// 	return err
+	// }
+	// exists, err := k8s.store.Exists(materializationKey)
+	// if err != nil {
+	// 	return err
+	// }
+	// if !exists {
+	// 	return fmt.Errorf("materialization does not exist")
+	// }
+	// return store.Delete(materializationKey)
+	return nil
 }
 
 func (k8s *K8sOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
 	return k8s.trainingSet(def, false)
 }
 
-func (k8s *K8sOfflineStore) UpdateTrainingSet(TrainingSetDef) error {
+func (k8s *K8sOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {
 	return k8s.trainingSet(def, false)
 }
 
-func (k8s *K8sOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
-	trainingSetKey, err := k8s.trainingSetKey(id)
+func (k8s *K8sOfflineStore) registeredResourceSchema(id ResourceID) (ResourceSchema, error) {
+	k8s.logger.Debugw("Getting resource schema", "id", id)
+	table, err := k8s.GetResourceTable(id)
 	if err != nil {
+		k8s.logger.Errorw("Resource not registered in blob store", id, err)
+		return ResourceSchema{}, fmt.Errorf("resource not registered: %v", err)
+	}
+	blobResourceTable, ok := table.(*BlobOfflineTable)
+	if !ok {
+		k8s.logger.Errorw("could not convert offline table to blobResourceTable", id)
+		return ResourceSchema{}, fmt.Errorf("could not convert offline table with id %v to blobResourceTable", id)
+	}
+	k8s.logger.Debugw("Succesfully retrieved resource schema", "id", id)
+	return blobResourceTable.schema, nil
+}
+
+func (s *S3Store) BlobPath(sourceKey string) string {
+	if !strings.Contains(sourceKey, "s3://") {
+		return fmt.Sprintf("%s%s", s.BucketPrefix(), sourceKey)
+	}
+	return sourceKey
+}
+
+func (k8s *K8sOfflineStore) trainingSet(def TrainingSetDef, isUpdate bool) error {
+	if err := def.check(); err != nil {
+		k8s.logger.Errorw("Training set definition not valid", def, err)
 		return err
 	}
-	exists, err := k8s.store.Exists(trainingSetKey)
+	sourcePaths := make([]string, 0)
+	featureSchemas := make([]ResourceSchema, 0)
+	destinationPath := blobResourcePath(def.ID)
+	trainingSetExactPath := k8s.store.NewestBlob(destinationPath)
+	trainingSetExists := trainingSetExactPath == ""
+	if !isUpdate {
+		if trainingSetExists {
+			k8s.logger.Errorw("Training set already exists", def.ID)
+			return fmt.Errorf("training set already exists: %v", def.ID)
+		}
+	} else {
+		if !trainingSetExists {
+			k8s.logger.Errorw("Training set doesn't exist for update job", def.ID)
+			return fmt.Errorf("Training set doesn't exist for update job: %v", def.ID)
+		}
+	}
+	labelSchema, err := k8s.registeredResourceSchema(def.Label)
+	if err != nil {
+		k8s.logger.Errorw("Could not get schema of label in spark store", def.Label, err)
+		return fmt.Errorf("Could not get schema of label %s: %v", def.Label, err)
+	}
+	labelPath := k8s.store.PathWithPrefix(labelSchema.SourceTable)
+	sourcePaths = append(sourcePaths, labelPath)
+	for _, feature := range def.Features {
+		featureSchema, err := k8s.registeredResourceSchema(feature)
+		if err != nil {
+			k8s.logger.Errorw("Could not get schema of feature in spark store", feature, err)
+			return fmt.Errorf("Could not get schema of feature %s: %v", feature, err)
+		}
+		featurePath := k8s.store.PathWithPrefix(featureSchema.SourceTable)
+		sourcePaths = append(sourcePaths, featurePath)
+		featureSchemas = append(featureSchemas, featureSchema)
+	}
+	trainingSetQuery := k8s.query.trainingSetCreate(def, featureSchemas, labelSchema)
+	pandasArgs := k8s.pandasRunnerArgs(destinationPath, trainingSetQuery, sourcePaths, CreateTrainingSet)
+	k8s.logger.Debugw("Creating training set", "definition", def)
+	if err := k8s.executor.ExecuteScript(pandasArgs); err != nil { //
+		k8s.logger.Errorw("training set job failed to run", "definition", def.ID, "error", err)
+		return fmt.Errorf("job for training set %v failed to run: %v", def.ID, err)
+	}
+	// _, err = k8s.store.ResourceKeySinglePart(def.ID)
+	// if err != nil {
+	// 	k8s.logger.Errorw("Could not get training set resource key in offline store", "error", err)
+	// 	return fmt.Errorf("Training Set result does not exist in offline store: %v", err)
+	// }
+	k8s.logger.Debugw("Succesfully created training set:", "definition", def)
+	return nil
+}
+
+func (k8s *K8sOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
+	if err := id.check(TrainingSet); err != nil {
+		k8s.logger.Errorw("id is not of type training set", err)
+		return nil, err
+	}
+	resourceKeyPrefix := blobResourcePath(id)
+	trainingSetExactPath := k8s.store.NewestBlob(resourceKeyPrefix)
+	if trainingSetExactPath == "" {
+		return nil, fmt.Errorf("No training set resource found")
+	}
+	iterator, err := k8s.store.Serve(trainingSetExactPath)
 	if err != nil {
 		return nil, err
 	}
-	if !exists {
-		return nil, fmt.Errorf("training set does not exist")
-	}
-	return &BlobTrainingSetIterator{k8s.store, trainingSetKey}
+	return &BlobTrainingSet{id: id, store: k8s.store, key: trainingSetExactPath, iter: iterator}, nil
 }
+
+type BlobTrainingSet struct {
+	id ResourceID
+	store BlobStore
+	key string
+	iter Iterator
+	err error
+	row []interface{}
+}
+
+
+// type BlobStore interface {
+// 	Write(key string, data []byte) error
+// 	Writer(key string) (*blob.Writer, error)
+// 	Read(key string) ([]byte, error)
+// 	Serve(key string) (Iterator, error)
+// 	Exists(key string) (bool, error)
+// 	Delete(key string) error
+// 	NewestBlob(prefix string) string
+// 	ResourcePath(id ResourceID) string
+// 	Close() error
+// }
+
+// type Iterator interface {
+// 	Next() (interface{}, error)
+//}
+//bm222
+func (ts BlobTrainingSet) Next() bool {
+	row, err := ts.iter.Next()
+	if err != nil {
+		ts.err = err
+		return false
+	}
+	//assume map[string]interface{}
+	values := make([]interface{}, 0)
+	val := reflect.ValueOf(row)
+	for _, e := range val.MapKeys() {
+		v := val.MapIndex(e)
+		values = append(values, v)
+	}
+	ts.row = values
+	return true
+}
+
+func (ts BlobTrainingSet) Features() []interface{} {
+	return ts.row[:len(ts.row)-1]
+}
+
+func (ts BlobTrainingSet) Label() interface{} {
+	return ts.row[len(ts.row)-1]
+}
+
+func (ts BlobTrainingSet) Err() error {
+	return ts.err
+}
+
+// type FeatureIterator interface {
+// 	Next() bool
+// 	Value() ResourceRecord
+// 	Err() error
+// 	Close() error
+// }
+
+
+// initialize store using config (blob and executor)
+
+// register primary table
+
+// create transformation
+
+// register feature and label
+
+// create training set
+
+// iterate through training set

@@ -1545,12 +1545,12 @@ class Registrar:
 
     def register_k8s_azure(self,
                           name: str,
+                          account_name: str,
+                          account_key: str,
+                          container_name: str,
+                          path: str,
                           description: str = "",
-                          team: str = "",
-                          account_name: str = "",
-                          account_key: str = "",
-                          container_name: str = "",
-                          path: str = "featureform",):
+                          team: str = "",):
         """
         Register a k8s Provider with Azure Blob Store.
         **Examples**:
@@ -1568,10 +1568,10 @@ class Registrar:
                                 account_key=account_key,
                                 container_name=container_name,
                                 path=path)
-        provider = Provider(name="k8s-azure",
+        provider = Provider(name=name,
                             function="OFFLINE",
-                            description="K8s Azure Runner",
-                            team="featureform",
+                            description=description,
+                            team=team,
                             config=config)
         self.__resources.append(provider)
         return OfflineK8sAzureProvider(self, provider)

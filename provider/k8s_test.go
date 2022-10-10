@@ -5,9 +5,9 @@ package provider
 
 import (
 	"fmt"
-	"testing"
-	"reflect"
 	"os"
+	"reflect"
+	"testing"
 
 	"github.com/google/uuid"
 	// parquet "github.com/segmentio/parquet-go"
@@ -16,19 +16,18 @@ import (
 func TestBlobInterfaces(t *testing.T) {
 	blobTests := map[string]func(*testing.T, BlobStore){
 		"Test Blob Read and Write": testBlobReadAndWrite,
-		// "Test Blob CSV Serve":      testBlobCSVServe,
-		"Test Blob Parquet Serve": testBlobParquetServe,
+		"Test Blob CSV Serve":      testBlobCSVServe,
+		"Test Blob Parquet Serve":  testBlobParquetServe,
 	}
 	localBlobStore, err := NewMemoryBlobStore(Config([]byte("")))
 	if err != nil {
 		t.Fatalf("Failed to create memory blob store")
 	}
 	mydir, err := os.Getwd()
-    if err != nil {
-        t.Fatalf("could not get working directory")
-    }
+	if err != nil {
+		t.Fatalf("could not get working directory")
+	}
 	fmt.Println(mydir)
-
 
 	fileStoreConfig := FileBlobStoreConfig{DirPath: fmt.Sprintf(`file:////%s/tests/file_tests`, mydir)}
 	serializedFileConfig, err := fileStoreConfig.Serialize()
@@ -41,8 +40,8 @@ func TestBlobInterfaces(t *testing.T) {
 	}
 	azureStoreConfig := AzureBlobStoreConfig{
 		AccountName: "featureformtesting",
-		AccountKey: os.Getenv("AZURE_ACCOUNT_KEY"),
-		BucketName: "testcontainer",
+		AccountKey:  os.Getenv("AZURE_ACCOUNT_KEY"),
+		BucketName:  "testcontainer",
 	}
 	serializedAzureConfig, err := azureStoreConfig.Serialize()
 	if err != nil {
@@ -52,14 +51,11 @@ func TestBlobInterfaces(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create new azure blob store: %v", err)
 	}
-	fmt.Println(azureBlobStore)
-	fmt.Println(localBlobStore)
-	
 
 	blobProviders := map[string]BlobStore{
-		// "Local": localBlobStore,
-		"File": fileBlobStore,
-		// "Azure": azureBlobStore,
+		"Local": localBlobStore,
+		"File":  fileBlobStore,
+		"Azure": azureBlobStore,
 	}
 	for testName, blobTest := range blobTests {
 		blobTest = blobTest
@@ -103,24 +99,23 @@ func testBlobReadAndWrite(t *testing.T, store BlobStore) {
 	}
 }
 
-// func testBlobCSVServe(t *testing.T, store BlobStore) {
-// 	//write csv file, then iterate all data types
-// 	csvBytes := []byte(`1,2,3,4,5
-// 	6,7,8,9,10`)
-// 	testKey := fmt.Sprintf("%s.csv", uuid.New().String())
-// 	if err := store.Write(testKey, csvBytes); err != nil {
-// 		t.Fatalf("Failure writing csv data %s to key %s: %v", string(csvBytes), testKey, err)
-// 	}
-// 	iterator, err := store.Serve(testKey)
-// 	if err != nil {
-// 		t.Fatalf("Failure getting serving iterator with key %s: %v", testKey, err)
-// 	}
-// 	for row, err := iterator.Next(); err != nil; row, err = iterator.Next() {
-// 		fmt.Println(row)
-// 	}
-// 	fmt.Println(err)
-// }
-
+func testBlobCSVServe(t *testing.T, store BlobStore) {
+	//write csv file, then iterate all data types
+	csvBytes := []byte(`1,2,3,4,5
+	6,7,8,9,10`)
+	testKey := fmt.Sprintf("%s.csv", uuid.New().String())
+	if err := store.Write(testKey, csvBytes); err != nil {
+		t.Fatalf("Failure writing csv data %s to key %s: %v", string(csvBytes), testKey, err)
+	}
+	iterator, err := store.Serve(testKey)
+	if err != nil {
+		t.Fatalf("Failure getting serving iterator with key %s: %v", testKey, err)
+	}
+	for row, err := iterator.Next(); err != nil; row, err = iterator.Next() {
+		fmt.Println(row)
+	}
+	fmt.Println(err)
+}
 
 func testBlobParquetServe(t *testing.T, store BlobStore) {
 	testKey := fmt.Sprintf("input/transactions.snappy.parquet")
@@ -137,7 +132,6 @@ func testBlobParquetServe(t *testing.T, store BlobStore) {
 
 }
 
-
 func TestExecutorRunLocal(t *testing.T) {
 	localConfig := LocalExecutorConfig{
 		ScriptPath: "./scripts/k8s/offline_store_pandas_runner.py",
@@ -151,16 +145,16 @@ func TestExecutorRunLocal(t *testing.T) {
 		t.Fatalf("Error creating new Local Executor: %v", err)
 	}
 	mydir, err := os.Getwd()
-    if err != nil {
-        t.Fatalf("could not get working directory")
-    }
+	if err != nil {
+		t.Fatalf("could not get working directory")
+	}
 	fmt.Println(mydir)
 	sqlEnvVars := map[string]string{
-		"MODE": "local",
-		"OUTPUT_URI": fmt.Sprintf(`%s/scripts/k8s/tests/test_files/output/local_test/`, mydir),
-		"SOURCES": fmt.Sprintf("%s/scripts/k8s/tests/test_files/inputs/transaction", mydir),
+		"MODE":                "local",
+		"OUTPUT_URI":          fmt.Sprintf(`%s/scripts/k8s/tests/test_files/output/`, mydir),
+		"SOURCES":             fmt.Sprintf("%s/scripts/k8s/tests/test_files/inputs/transaction_short/part-00000-9d3cb5a3-4b9c-4109-afa3-a75759bfcf89-c000.snappy.parquet", mydir),
 		"TRANSFORMATION_TYPE": "sql",
-		"TRANSFORMATION": "SELECT * FROM source_0 LIMIT 1",
+		"TRANSFORMATION":      "SELECT * FROM source_0 LIMIT 1",
 	}
 	if err := executor.ExecuteScript(sqlEnvVars); err != nil {
 		t.Fatalf("Failed to execute pandas script: %v", err)

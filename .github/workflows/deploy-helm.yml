@@ -231,6 +231,36 @@ jobs:
           tags: featureformcom/worker:${{ env.TAG }}
           push: true
 
+k8s_runner:
+    name: Build k8s Runner
+    environment: Deployment
+    defaults:
+      run:
+        working-directory: ./
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set production tag
+        run: ./.github/helpers/set_release_type.sh ${{ inputs.type }} $GITHUB_ENV ${{ inputs.version }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and export
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./provider/scripts/k8s/Dockerfile
+          tags: featureformcom/k8s_runner:${{ env.TAG }}
+          push: true
+
   helm:
     name: Package Helm
     environment: Deployment

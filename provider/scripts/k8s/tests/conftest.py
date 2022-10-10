@@ -5,8 +5,6 @@ import pytest
 from dotenv import load_dotenv
 from azure.storage.blob import BlobServiceClient
 
-
-
 real_path = os.path.realpath(__file__)
 dir_path = os.path.dirname(real_path)
 

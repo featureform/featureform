@@ -136,7 +136,6 @@ def test_get_blob_credentials(variables, type, request):
     elif type == LOCAL:
         expected_output = Namespace(type=LOCAL)
 
-
     set_environment_variables(environment_variables, delete=True)
     assert credentials == expected_output
 
@@ -161,7 +160,6 @@ def test_upload_blob_to_blob_store(blob, file, container_client):
     output_file = upload_blob_to_blob_store(container_client, file, blob)
 
     blob_list = container_client.list_blobs(name_starts_with=blob)
-
     blob_found = False if os.path.isfile(file) else True
     for blob in blob_list:
         if output_file == blob.name:

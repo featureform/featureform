@@ -37,7 +37,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.17
+          go-version: 1.18
 
       - name: Install grpc_tools
         run: pip install grpcio-tools build
@@ -73,7 +73,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.17
+          go-version: 1.18
 
       # Installing Typesense manually b/c the base container uses input arguments that
       # Github Actions currently doesn't support (e.g. --data-dir, --api-key, --enable-cores).
@@ -152,7 +152,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.17
+          go-version: 1.18
 
       - name: Install Protobuf
         run: sudo snap install protobuf --classic
@@ -227,7 +227,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.17
+          go-version: 1.18
 
       - name: Install Protobuf
         run: sudo snap install protobuf --classic
@@ -286,69 +286,69 @@ jobs:
           name: provider-offline-coverage-reports
           path: ./coverage
 
-#  spark-offline:
-#    name: Offline Spark Testing
-#    timeout-minutes: 60
-#    environment: Integration testing
-#    needs: setup
-#    runs-on: ubuntu-latest
-#    steps:
-#      - name: Download Working Compiled Directories
-#        uses: actions/download-artifact@v3
-#        with:
-#          name: compiled-workdir
-#
-#      - name: Set up Go
-#        uses: actions/setup-go@v2
-#        with:
-#          go-version: 1.17
-#
-#      - name: Install Protobuf
-#        run: sudo snap install protobuf --classic
-#
-#      - name: Make Coverage Directory
-#        working-directory: ./
-#        run: mkdir coverage
-#
-#      - name: create-json
-#        id: create-json-2
-#        uses: jsdaniell/create-json@1.1.2
-#        with:
-#          name: "./provider/bigquery_credentials.json"
-#          json: ${{ secrets.BIGQUERY_CREDENTIALS_FILE }}
-#
-#      - name: Testing
-#        env:
-#          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-#          AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
-#          AWS_EMR_CLUSTER_REGION: ${{ secrets.AWS_EMR_CLUSTER_REGION }}
-#          AWS_EMR_CLUSTER_ID: ${{ secrets.AWS_EMR_CLUSTER_ID }}
-#          S3_BUCKET_PATH: ${{ secrets.S3_BUCKET_PATH }}
-#          S3_BUCKET_REGION: ${{ secrets.S3_BUCKET_REGION }}
-#        working-directory: ./
-#        run: make test_offline_spark
-#
-#      - name: Convert Coverage Test Results
-#        if: always()
-#        working-directory: ./coverage
-#        run: |
-#          cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
-#          go tool cover -html=cover.out -o cover.html
-#
-#      - uses: codecov/codecov-action@v2
-#        if: always()
-#        with:
-#          root_dir: ./
-#          files: ./coverage/cover.out
-#          name: provider-offline-coverage
-#          verbose: true
-#
-#      - name: Archive code coverage results
-#        if: always()
-#        uses: actions/upload-artifact@v3
-#        with:
-#          name: provider-offline-coverage-reports
-#          path: ./coverage
+  #  spark-offline:
+  #    name: Offline Spark Testing
+  #    timeout-minutes: 60
+  #    environment: Integration testing
+  #    needs: setup
+  #    runs-on: ubuntu-latest
+  #    steps:
+  #      - name: Download Working Compiled Directories
+  #        uses: actions/download-artifact@v3
+  #        with:
+  #          name: compiled-workdir
+  #
+  #      - name: Set up Go
+  #        uses: actions/setup-go@v2
+  #        with:
+  #          go-version: 1.18
+  #
+  #      - name: Install Protobuf
+  #        run: sudo snap install protobuf --classic
+  #
+  #      - name: Make Coverage Directory
+  #        working-directory: ./
+  #        run: mkdir coverage
+  #
+  #      - name: create-json
+  #        id: create-json-2
+  #        uses: jsdaniell/create-json@1.1.2
+  #        with:
+  #          name: "./provider/bigquery_credentials.json"
+  #          json: ${{ secrets.BIGQUERY_CREDENTIALS_FILE }}
+  #
+  #      - name: Testing
+  #        env:
+  #          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  #          AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
+  #          AWS_EMR_CLUSTER_REGION: ${{ secrets.AWS_EMR_CLUSTER_REGION }}
+  #          AWS_EMR_CLUSTER_ID: ${{ secrets.AWS_EMR_CLUSTER_ID }}
+  #          S3_BUCKET_PATH: ${{ secrets.S3_BUCKET_PATH }}
+  #          S3_BUCKET_REGION: ${{ secrets.S3_BUCKET_REGION }}
+  #        working-directory: ./
+  #        run: make test_offline_spark
+  #
+  #      - name: Convert Coverage Test Results
+  #        if: always()
+  #        working-directory: ./coverage
+  #        run: |
+  #          cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
+  #          go tool cover -html=cover.out -o cover.html
+  #
+  #      - uses: codecov/codecov-action@v2
+  #        if: always()
+  #        with:
+  #          root_dir: ./
+  #          files: ./coverage/cover.out
+  #          name: provider-offline-coverage
+  #          verbose: true
+  #
+  #      - name: Archive code coverage results
+  #        if: always()
+  #        uses: actions/upload-artifact@v3
+  #        with:
+  #          name: provider-offline-coverage-reports
+  #          path: ./coverage
 
   metadata:
     name: Metadata Testing (Excluding Typesense)
@@ -364,7 +364,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.17
+          go-version: 1.18
 
       # Should be switched to a container, but the available etcd containers
       # haven't been running easily locally yet. Will create a custom one
@@ -417,7 +417,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.17
+          go-version: 1.18
 
       - name: Make Coverage Directory
         working-directory: ./
@@ -462,7 +462,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.17
+          go-version: 1.18
 
       - name: Make Coverage Directory
         working-directory: ./
@@ -507,7 +507,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.17
+          go-version: 1.18
 
       - name: Install ETCD
         run: |
@@ -561,7 +561,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.17
+          go-version: 1.18
 
       - name: Make Coverage Directory
         working-directory: ./
@@ -622,7 +622,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.17
+          go-version: 1.18
 
       # Already installed in metadata tests, how to preserve it so we don't repeat?
       - name: Install ETCD
@@ -701,7 +701,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.17
+          go-version: 1.18
 
       - name: Make Coverage Directory
         working-directory: ./
@@ -854,7 +854,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.17
+          go-version: 1.18
 
       - name: Install grpc_tools
         run: pip install grpcio-tools build
@@ -867,5 +867,3 @@ jobs:
 
       - name: Run Tests
         run: make jupyter
-
-

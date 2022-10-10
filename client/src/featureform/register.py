@@ -16,7 +16,7 @@ from .list_local import *
 from .sqlite_metadata import SQLiteMetadata
 from .tls import insecure_channel, secure_channel
 from .resources import ResourceState, Provider, RedisConfig, FirestoreConfig, CassandraConfig, DynamodbConfig, \
-    PostgresConfig, SnowflakeConfig, LocalConfig, RedshiftConfig, BigQueryConfig, SparkAWSConfig, User, Location, Source, PrimaryData, SQLTable, \
+    PostgresConfig, SnowflakeConfig, LocalConfig, RedshiftConfig, BigQueryConfig, SparkAWSConfig, K8sAzureConfig, User, Location, Source, PrimaryData, SQLTable, \
     SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet, ProviderReference, \
     EntityReference, SourceReference
 
@@ -214,22 +214,16 @@ class OfflineSparkProvider(OfflineProvider):
                                                     inputs=inputs)
 
 
-class OfflineK8sProvider(OfflineProvider):
+class OfflineK8sAzureProvider(OfflineProvider):
     def __init__(self, registrar, provider):
         super().__init__(registrar, provider)
         self.__registrar = registrar
         self.__provider = provider
 
-    def register_data_store(self, 
-                        name: str, 
-                        path: str,
-                        credentials: dict()):
-        pass
-
     def register_file(self,
                        name: str,
                        variant: str,
-                       file_path: str,
+                       path: str,
                        owner: Union[str, UserRegistrar] = "",
                        description: str = ""):
         """Register a blob data source path as a primary data source.
@@ -246,7 +240,7 @@ class OfflineK8sProvider(OfflineProvider):
         """
         return self.__registrar.register_primary_data(name=name,
                                                       variant=variant,
-                                                      location=SQLTable(file_path),
+                                                      location=SQLTable(path),
                                                       owner=owner,
                                                       provider=self.name(),
                                                       description=description)
@@ -1114,6 +1108,30 @@ class Registrar:
         fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
         return OfflineSparkProvider(self, fakeProvider)
 
+    def get_k8s_azure(self, name):
+        """
+        Get a k8s Azure provider. The returned object can be used to register additional resources.
+        **Examples**:
+        ``` py
+        k8s_azure = get_k8s_azure("k8s-azure-quickstart")
+        transactions = k8s_azure.register_file(
+            name="transactions",
+            variant="kaggle",
+            description="Fraud Dataset From Kaggle",
+            path="path/to/blob",
+        )
+        ```
+        Args:
+            name (str): Name of k8s Azure provider to be retrieved
+        Returns:
+            k8s_azure (OfflineK8sAzureProvider): Provider
+        """
+        get = ProviderReference(name=name, provider_type="k8s-azure", obj=None)
+        self.__resources.append(get)
+        fakeConfig = K8sAzureConfig(account_name="", account_key="", container_name="", path="")
+        fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
+        return OfflineK8sAzureProvider(self, fakeProvider)
+
     def get_entity(self, name, local=False):
         """Get an entity. The returned object can be used to register additional resources.
 
@@ -1524,6 +1542,39 @@ class Registrar:
                             config=config)
         self.__resources.append(provider)
         return OfflineSparkProvider(self, provider)
+
+    def register_k8s_azure(self,
+                          name: str,
+                          description: str = "",
+                          team: str = "",
+                          account_name: str = "",
+                          account_key: str = "",
+                          container_name: str = "",
+                          path: str = "featureform",):
+        """
+        Register a k8s Provider with Azure Blob Store.
+        **Examples**:
+        ```
+        ```
+        Args:
+            name (str): Name of k8s Azure provider to be registered
+            description (str): Description of k8s Azure provider to be registered
+            team (str): Name of team
+            
+        Returns:
+            k8s_azure (OfflineK8sAzureProvider): Provider
+        """
+        config = K8sAzureConfig(account_name=account_name,
+                                account_key=account_key,
+                                container_name=container_name,
+                                path=path)
+        provider = Provider(name="k8s-azure",
+                            function="OFFLINE",
+                            description="K8s Azure Runner",
+                            team="featureform",
+                            config=config)
+        self.__resources.append(provider)
+        return OfflineK8sAzureProvider(self, provider)
 
     def register_local(self):
         """Register a Local provider.
@@ -2959,6 +3010,7 @@ register_postgres = global_registrar.register_postgres
 register_redshift = global_registrar.register_redshift
 register_bigquery = global_registrar.register_bigquery
 register_spark = global_registrar.register_spark
+register_k8s_azure = global_registrar.register_k8s_azure
 register_local = global_registrar.register_local
 register_entity = global_registrar.register_entity
 register_column_resources = global_registrar.register_column_resources
@@ -2974,3 +3026,4 @@ get_snowflake = global_registrar.get_snowflake
 get_redshift = global_registrar.get_redshift
 get_bigquery = global_registrar.get_bigquery
 get_spark_aws = global_registrar.get_spark
+get_k8s_azure = global_registrar.get_k8s_azure

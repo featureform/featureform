@@ -3,13 +3,13 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version of helm package to deploy'
+        description: "Version of helm package to deploy"
         required: true
         type: string
       type:
-        description: 'If this version is a release or pre-release'
+        description: "If this version is a release or pre-release"
         required: true
-        default: 'pre-release'
+        default: "pre-release"
         type: choice
         options:
           - release
@@ -170,7 +170,6 @@ jobs:
           tags: featureformcom/metadata-dashboard:${{ env.TAG }}
           push: true
 
-
   serving:
     name: Build Serving
     environment: Deployment
@@ -260,7 +259,6 @@ jobs:
           file: ./provider/scripts/k8s/Dockerfile
           tags: featureformcom/k8s_runner:${{ env.TAG }}
           push: true
-
   helm:
     name: Package Helm
     environment: Deployment

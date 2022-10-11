@@ -231,7 +231,7 @@ jobs:
           tags: featureformcom/worker:${{ env.TAG }}
           push: true
 
-k8s_runner:
+  k8s_runner:
     name: Build k8s Runner
     environment: Deployment
     defaults:

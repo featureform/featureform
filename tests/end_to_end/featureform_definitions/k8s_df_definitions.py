@@ -2,7 +2,6 @@ import os
 from dotenv import load_dotenv
 
 import featureform as ff
-from featureform import kubernetes_runner as k8s
 
 
 featureform_location = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
@@ -20,7 +19,14 @@ os.environ["TEST_CASE_VERSION"]=VERSION
 # Start of Featureform Definitions
 ff.register_user("featureformer").make_default_owner()
 
-k8s.register_data_store(path="featureformtesting.blob.core.windows.net/newcontainer")
+
+k8s = ff.register_k8s_azure(
+    name="k8s",
+    account_name=os.getenv("AZURE_ACCOUNT_NAME"),
+    account_key=os.getenv("AZURE_ACCOUNT_KEY"),
+    container_name=os.getenv("AZURE_CONTAINER_NAME"),
+    path="testing/ff",
+)
 
 transactions = k8s.register_file(
     name=f"transactions_{VERSION}",

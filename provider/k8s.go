@@ -2,7 +2,6 @@ package provider
 
 import (
 	"bytes"
-	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,17 +11,14 @@ import (
 	"time"
 
 	"github.com/featureform/helpers"
-
-	parquet "github.com/segmentio/parquet-go"
-	azureblob "gocloud.dev/blob/azureblob"
-	_ "gocloud.dev/blob/fileblob"
-	"strings"
-
 	"github.com/featureform/kubernetes"
-
+	"github.com/segmentio/parquet-go"
 	"go.uber.org/zap"
 	"gocloud.dev/blob"
+	"gocloud.dev/blob/azureblob"
+	_ "gocloud.dev/blob/fileblob"
 	_ "gocloud.dev/blob/memblob"
+	"strings"
 )
 
 type K8sOfflineStore struct {
@@ -210,9 +206,8 @@ type ExecutorType string
 type BlobStoreType string
 
 const (
-	GoProc         ExecutorType = "GO_PROCESS"
-	K8s                         = "K8S"
-	MemoryExecutor              = "MEMORY"
+	GoProc ExecutorType = "GO_PROCESS"
+	K8s                 = "K8S"
 )
 
 const (
@@ -551,21 +546,6 @@ func (store genericBlobStore) Delete(key string) error {
 
 func (store genericBlobStore) Close() error {
 	return store.bucket.Close()
-}
-
-type csvIterator struct {
-	reader *csv.Reader
-}
-
-func (iter csvIterator) Next() ([]string, error) {
-	return iter.reader.Read()
-}
-
-func csvIteratorFromReader(r io.Reader) (Iterator, error) {
-	csvReader := csv.NewReader(r)
-	return csvIterator{
-		reader: csvReader,
-	}, nil
 }
 
 func NewMemoryBlobStore(config Config) (BlobStore, error) {
@@ -1037,7 +1017,7 @@ func (k8s *K8sOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error)
 		return nil, fmt.Errorf("error fetching primary table: %v", err)
 	}
 	k8s.logger.Debugw("Succesfully retrieved primary table", id)
-	return &BlobPrimaryTable{k8s.store, string(table), false, id}, nil
+	return &BlobPrimaryTable{k8s.store, k8s.store.PathWithPrefix(string(table)), false, id}, nil
 }
 
 func (k8s *K8sOfflineStore) CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error) {

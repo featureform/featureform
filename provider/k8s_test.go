@@ -21,7 +21,7 @@ func uuidWithoutDashes() string {
 func TestBlobInterfaces(t *testing.T) {
 	blobTests := map[string]func(*testing.T, BlobStore){
 		"Test Blob Read and Write": testBlobReadAndWrite,
-		"Test Blob Parquet Serve":  testBlobParquetServe,
+		// "Test Blob Parquet Serve":  testBlobParquetServe,
 	}
 	localBlobStore, err := NewMemoryBlobStore(Config([]byte("")))
 	if err != nil {
@@ -79,10 +79,14 @@ func TestBlobInterfaces(t *testing.T) {
 func testBlobReadAndWrite(t *testing.T, store BlobStore) {
 	testWrite := []byte("example data")
 	testKey := uuidWithoutDashes()
+	exists, err := store.Exists(testKey)
+	if exists {
+		t.Fatalf("Exists when not yet written")
+	}
 	if err := store.Write(testKey, testWrite); err != nil {
 		t.Fatalf("Failure writing data %s to key %s: %v", string(testWrite), testKey, err)
 	}
-	exists, err := store.Exists(testKey)
+	exists, err = store.Exists(testKey)
 	if err != nil {
 		t.Fatalf("Failure checking existence of key %s: %v", testKey, err)
 	}
@@ -145,6 +149,10 @@ func TestExecutorRunLocal(t *testing.T) {
 }
 
 func TestOfflineStoreBasic(t *testing.T) {
+	mydir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("could not get working directory")
+	}
 	localConfig := LocalExecutorConfig{
 		ScriptPath: "./scripts/k8s/offline_store_pandas_runner.py",
 	}
@@ -228,7 +236,6 @@ func TestOfflineStoreBasic(t *testing.T) {
 		t.Fatalf("could not fetch transformation table: %v", err)
 	}
 
-
 	f, err := os.Open(fmt.Sprintf("%s/scripts/k8s/.featureform/transformation.pkl", mydir))
 	pkl_data := make([]byte, 1000)
 	_, err = f.Read(pkl_data)
@@ -271,7 +278,7 @@ func TestOfflineStoreBasic(t *testing.T) {
 	}
 
 	firstResID := ResourceID{Name: uuidWithoutDashes(), Variant: "default", Type: Feature}
-	schema := ResourceSchema{"CustomerID", "CustAccountBalance", "Timestamp", transactionsURI}
+	schema := ResourceSchema{Entity: "CustomerID", Value: "CustAccountBalance", SourceTable: transactionsURI}
 	_, err = offlineStore.RegisterResourceFromSourceTable(firstResID, schema)
 	if err != nil {
 		t.Fatalf("failed to register resource from source table: %v", err)
@@ -283,7 +290,7 @@ func TestOfflineStoreBasic(t *testing.T) {
 	}
 
 	secondResID := ResourceID{Name: uuidWithoutDashes(), Variant: "default", Type: Label}
-	secondSchema := ResourceSchema{"CustomerID", "IsFraud", "Timestamp", transactionsURI}
+	secondSchema := ResourceSchema{Entity: "CustomerID", Value: "IsFraud", TS: "Timestamp", SourceTable: transactionsURI}
 	_, err = offlineStore.RegisterResourceFromSourceTable(secondResID, secondSchema)
 	if err != nil {
 		t.Fatalf("failed to register resource from source table: %v", err)
@@ -304,9 +311,20 @@ func TestOfflineStoreBasic(t *testing.T) {
 		t.Fatalf("failed to fetch training set: %v", err)
 	}
 
-	_, err = offlineStore.CreateMaterialization(firstResID)
+	materialization, err := offlineStore.CreateMaterialization(firstResID)
 	if err != nil {
 		t.Fatalf("failed to create materialization: %v", err)
+	}
+	featureIterator, err := materialization.IterateSegment(0, 100)
+	if err != nil {
+		t.Fatalf("could not create materialization iterator")
+	}
+	i := 0
+	for featureIterator.Next() {
+		i += 1
+	}
+	if i != 100 {
+		t.Fatalf("incorrect number of rows iterated over")
 	}
 
 }

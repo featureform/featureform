@@ -228,25 +228,25 @@ def get_code_from_file(mode, file_path, etcd_credentials):
     
     print(f"Retrieving transformation code from '{file_path}' file in {mode} mode.")
     code = None
-    if mode == "k8s":
-        """
-        When executing on kubernetes, we will need to pull the transformation
-        from etcd.
-        """
-        if len(etcd_credentials["ports"]) == 1:
-            etcd_port = int(etcd_credentials["ports"][0])
-            etcd_client = etcd.Client(host=etcd_credentials["host"], port=etcd_port)
-        else:
-            etcd_host = get_etcd_host(etcd_credentials["host"], etcd_credentials["ports"])
-            etcd_client = etcd.Client(host=etcd_host)
+    # if mode == "k8s":
+    #     """
+    #     When executing on kubernetes, we will need to pull the transformation
+    #     from etcd.
+    #     """
+    #     if len(etcd_credentials["ports"]) == 1:
+    #         etcd_port = int(etcd_credentials["ports"][0])
+    #         etcd_client = etcd.Client(host=etcd_credentials["host"], port=etcd_port)
+    #     else:
+    #         etcd_host = get_etcd_host(etcd_credentials["host"], etcd_credentials["ports"])
+    #         etcd_client = etcd.Client(host=etcd_host)
 
-        code_data = etcd_client.read(file_path).value
-        code = dill.loads(code_data)
-    else:
-        with open(file_path, "rb") as f:
-            f.seek(0)
-            code = dill.load(f)
-    
+    #     code_data = etcd_client.read(file_path).value
+    #     code = dill.loads(code_data)
+    # else:
+    with open(file_path, "rb") as f:
+        f.seek(0)
+        code = dill.load(f)
+
     return code
 
 

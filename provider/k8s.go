@@ -1003,7 +1003,7 @@ func (k8s *K8sOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error)
 		return nil, fmt.Errorf("error fetching primary table: %v", err)
 	}
 	k8s.logger.Debugw("Succesfully retrieved primary table", id)
-	return &BlobPrimaryTable{k8s.store, k8s.store.PathWithPrefix(string(table)), false, id}, nil
+	return &BlobPrimaryTable{k8s.store, string(table), false, id}, nil
 }
 
 func (k8s *K8sOfflineStore) CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error) {

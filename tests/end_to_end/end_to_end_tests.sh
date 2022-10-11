@@ -14,7 +14,7 @@ featureform apply $TESTING_DIRECTORY/spark_df_definition.py
 python $TESTING_DIRECTORY/spark_serving.py
 echo "Spark DF Job Completed."
 
-echo "Running the k8s df definition $TESTING_DIRECTORY/featureform_definitions/k8s_df_definition.py script"
-featureform apply $TESTING_DIRECTORY/featureform_definitions/k8s_df_definition.py
+echo "Running the k8s df definition $TESTING_DIRECTORY/featureform_definitions/k8s_df_definitions.py script"
+featureform apply $TESTING_DIRECTORY/featureform_definitions/k8s_df_definitions.py
 python $TESTING_DIRECTORY/spark_serving.py
 echo "K8s DF Job Completed."

@@ -307,8 +307,38 @@ class SparkAWSConfig:
         return bytes(json.dumps(config), "utf-8")
 
 
+@typechecked
+@dataclass
+class K8sAzureConfig:
+    account_name: str
+    account_key: str
+    container_name: str
+    path: str = ""
+
+    def software(self) -> str:
+        return "k8s"
+
+    def type(self) -> str:
+        return "K8S_OFFLINE"
+
+    def serialize(self) -> bytes:
+        config = {
+            "ExecutorType": "K8S",
+            "ExecutorConfig": {},
+            "StoreType": "AZURE",
+            "StoreConfig": {
+                "AccountName": self.account_name,
+                "AccountKey": self.account_key,
+                "BucketName": self.container_name,
+                "Path": self.path,
+            }
+        }
+        return bytes(json.dumps(config), "utf-8")
+
+
+
 Config = Union[
-    RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig, BigQueryConfig, FirestoreConfig, SparkAWSConfig]
+    RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig, BigQueryConfig, FirestoreConfig, SparkAWSConfig, K8sAzureConfig]
 
 
 @typechecked

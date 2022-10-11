@@ -152,10 +152,6 @@ func TestOfflineStoreBasic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error serializing local executor configuration: %v", err)
 	}
-	mydir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("could not get working directory")
-	}
 
 	azureStoreConfig := AzureBlobStoreConfig{
 		AccountName:   helpers.GetEnv("AZURE_ACCOUNT_NAME", ""),
@@ -194,7 +190,6 @@ func TestOfflineStoreBasic(t *testing.T) {
 	primaryTableName := uuidWithoutDashes()
 	primaryID := ResourceID{Name: primaryTableName, Variant: "default", Type: Primary}
 	transactionsURI := "featureform/testing/primary/name/variant/transactions_short.csv"
-	// transactionsURI := "/input/transactions.snappy.parquet"
 	_, err = offlineStore.RegisterPrimaryFromSourceTable(primaryID, transactionsURI)
 	if err != nil {
 		t.Fatalf("failed to register primary table: %v", err)
@@ -233,7 +228,6 @@ func TestOfflineStoreBasic(t *testing.T) {
 		t.Fatalf("could not fetch transformation table: %v", err)
 	}
 
-	//load pkl file
 
 	f, err := os.Open(fmt.Sprintf("%s/scripts/k8s/.featureform/transformation.pkl", mydir))
 	pkl_data := make([]byte, 1000)
@@ -342,7 +336,3 @@ func TestNewConfig(t *testing.T) {
 	}
 	fmt.Println(offlineStore)
 }
-
-// func TestDeserialize() {
-// 	config := {"ExecutorType": "K8S", "ExecutorConfig": {}, "StoreType": "AZURE", "StoreConfig": {"AccountName": "featureformtesting", "AccountKey": "LzUGMYWMWzXLsA7kU9QjvxUn1VnBn3R/nfGPwPGlMwDcv9L1KZjiPDStbrNWzAwgKpPU8po7E1fE+AStnndYHA==", "BucketName": "newcontainer", "Path": "testing/ff"}`
-// }

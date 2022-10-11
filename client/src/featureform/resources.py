@@ -313,7 +313,7 @@ class K8sAzureConfig:
     account_name: str
     account_key: str
     container_name: str
-    path: str
+    path: str = ""
 
     def software(self) -> str:
         return "k8s"
@@ -323,10 +323,15 @@ class K8sAzureConfig:
 
     def serialize(self) -> bytes:
         config = {
-            "AccountName": self.account_name,
-            "AccountKey": self.account_key,
-            "BucketName": self.container_name,
-            "Path": self.path,
+            "ExecutorType": "K8S",
+            "ExecutorConfig": {},
+            "StoreType": "AZURE",
+            "StoreConfig": {
+                "AccountName": self.account_name,
+                "AccountKey": self.account_key,
+                "BucketName": self.container_name,
+                "Path": self.path,
+            }
         }
         return bytes(json.dumps(config), "utf-8")
 

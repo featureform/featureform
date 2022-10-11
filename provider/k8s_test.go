@@ -43,9 +43,9 @@ func TestBlobInterfaces(t *testing.T) {
 		t.Fatalf("failed to create new file blob store: %v", err)
 	}
 	azureStoreConfig := AzureBlobStoreConfig{
-		AccountName: "featureformtesting",
-		AccountKey:  os.Getenv("AZURE_ACCOUNT_KEY"),
-		BucketName:  "testcontainer",
+		AccountName:   "featureformtesting",
+		AccountKey:    os.Getenv("AZURE_ACCOUNT_KEY"),
+		ContainerName: "testcontainer",
 	}
 	serializedAzureConfig, err := azureStoreConfig.Serialize()
 	if err != nil {
@@ -184,9 +184,9 @@ func TestOfflineStoreBasic(t *testing.T) {
 	// 	t.Fatalf("failed to serialize file store config: %v", err)
 	// }
 	azureStoreConfig := AzureBlobStoreConfig{
-		AccountName: "featureformtesting",
-		AccountKey:  os.Getenv("AZURE_ACCOUNT_KEY"),
-		BucketName:  "newcontainer",
+		AccountName:   "featureformtesting",
+		AccountKey:    os.Getenv("AZURE_ACCOUNT_KEY"),
+		ContainerName: "newcontainer",
 	}
 	serializedAzureConfig, err := azureStoreConfig.Serialize()
 	if err != nil {

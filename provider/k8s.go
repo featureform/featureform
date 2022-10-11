@@ -509,9 +509,9 @@ func NewFileBlobStore(config Config) (BlobStore, error) {
 }
 
 type AzureBlobStoreConfig struct {
-	AccountName string
-	AccountKey  string
-	BucketName  string
+	AccountName   string
+	AccountKey    string
+	ContainerName string
 }
 
 func (config *AzureBlobStoreConfig) Serialize() ([]byte, error) {
@@ -542,14 +542,14 @@ func NewAzureBlobStore(config Config) (BlobStore, error) {
 	if err != nil {
 		return AzureBlobStore{}, fmt.Errorf("Could not create azure client: %v", err)
 	}
-	bucket, err := azureblob.OpenBucket(ctx, client, azureStoreConfig.BucketName, nil)
+	bucket, err := azureblob.OpenBucket(ctx, client, azureStoreConfig.ContainerName, nil)
 	if err != nil {
 		return AzureBlobStore{}, fmt.Errorf("Could not open azure bucket: %v", err)
 	}
 	connectionString := fmt.Sprintf("DefaultEndpointsProtocol=https;AccountName=%s;AccountKey=%s", azureStoreConfig.AccountName, azureStoreConfig.AccountKey)
 	return AzureBlobStore{
 		ConnectionString: connectionString,
-		ContainerName:    azureStoreConfig.BucketName,
+		ContainerName:    azureStoreConfig.ContainerName,
 		genericBlobStore: genericBlobStore{
 			bucket: bucket,
 		},

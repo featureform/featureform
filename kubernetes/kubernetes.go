@@ -221,10 +221,11 @@ func (k KubernetesRunner) ScheduleJob(schedule CronSchedule) error {
 func NewKubernetesRunner(config KubernetesRunnerConfig) (CronRunner, error) {
 	jobSpec := newJobSpec(config)
 	var jobName string
-	if config.Resource.Name == "" {
+	if config.Resource.Name != "" {
 		jobName = GetJobName(config.Resource)
 	} else {
-		jobName = uuid.New().String()
+		cleanUUID := strings.ReplaceAll(uuid.New().String(), "-", "")
+		jobName = fmt.Sprintf("job%s", cleanUUID)
 	}
 	jobClient, err := NewKubernetesJobClient(jobName, Namespace)
 	if err != nil {

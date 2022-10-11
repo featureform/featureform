@@ -159,6 +159,7 @@ def download_blobs_to_local(container_client, blob, local_filename):
         full_path:      str (path to local file that will be used to read by pandas)
     """
     
+    print(f"downloading {blob} to {local_filename}")
     if not os.path.isdir(LOCAL_DATA_PATH):
         os.makedirs(LOCAL_DATA_PATH)
 
@@ -197,6 +198,7 @@ def upload_blob_to_blob_store(client, local_filename, blob_path):
         blob_path:      str (path to blob store)
     """
 
+    print(f"uploading {local_filename} file to {blob_path}")
     if os.path.isfile(local_filename):
         blob_upload = client.get_blob_client(blob_path)
         with open(local_filename, "rb") as data:

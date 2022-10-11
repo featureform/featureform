@@ -16,7 +16,7 @@ from .list_local import *
 from .sqlite_metadata import SQLiteMetadata
 from .tls import insecure_channel, secure_channel
 from .resources import ResourceState, Provider, RedisConfig, FirestoreConfig, CassandraConfig, DynamodbConfig, \
-    PostgresConfig, SnowflakeConfig, LocalConfig, RedshiftConfig, BigQueryConfig, SparkAWSConfig, User, Location, Source, PrimaryData, SQLTable, \
+    PostgresConfig, SnowflakeConfig, LocalConfig, RedshiftConfig, BigQueryConfig, SparkAWSConfig, K8sAzureConfig, User, Location, Source, PrimaryData, SQLTable, \
     SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet, ProviderReference, \
     EntityReference, SourceReference
 
@@ -193,6 +193,116 @@ class OfflineSparkProvider(OfflineProvider):
         def average_user_transaction(df):                           # Sources can be manipulated by adding them as params
             from pyspark.sql.functions import avg
             df.groupBy("CustomerID").agg(avg("TransactionAmount").alias("average_user_transaction"))
+            return df
+        ```
+
+        Args:
+            name (str): Name of source
+            variant (str): Name of variant
+            owner (Union[str, UserRegistrar]): Owner
+            description (str): Description of primary data to be registered
+            inputs (list[Tuple(str, str)]): A list of Source NameVariant Tuples to input into the transformation
+
+        Returns:
+            source (ColumnSourceRegistrar): Source
+        """
+        return self.__registrar.df_transformation(name=name,
+                                                    variant=variant,
+                                                    owner=owner,
+                                                    provider=self.name(),
+                                                    description=description,
+                                                    inputs=inputs)
+
+
+class OfflineK8sAzureProvider(OfflineProvider):
+    def __init__(self, registrar, provider):
+        super().__init__(registrar, provider)
+        self.__registrar = registrar
+        self.__provider = provider
+
+    def register_file(self,
+                       name: str,
+                       variant: str,
+                       path: str,
+                       owner: Union[str, UserRegistrar] = "",
+                       description: str = ""):
+        """Register a blob data source path as a primary data source.
+
+        Args:
+            name (str): Name of table to be registered
+            variant (str): Name of variant to be registered
+            file_path (str): The path to blob store file
+            owner (Union[str, UserRegistrar]): Owner
+            description (str): Description of table to be registered
+
+        Returns:
+            source (ColumnSourceRegistrar): source
+        """
+        return self.__registrar.register_primary_data(name=name,
+                                                      variant=variant,
+                                                      location=SQLTable(path),
+                                                      owner=owner,
+                                                      provider=self.name(),
+                                                      description=description)
+
+    def sql_transformation(self,
+                           variant: str,
+                           owner: Union[str, UserRegistrar] = "",
+                           name: str = "",
+                           schedule: str = "",
+                           description: str = ""):
+        """
+        Register a SQL transformation source. The k8s.sql_transformation decorator takes the returned string in the
+        following function and executes it as a SQL Query.
+
+        The name of the function is the name of the resulting source.
+
+        Sources for the transformation can be specified by adding the Name and Variant in brackets '{{ name.variant }}'.
+        The correct source is substituted when the query is run.
+
+        **Examples**:
+        ``` py
+        @k8s.sql_transformation(variant="quickstart")
+        def average_user_transaction():
+            return "SELECT CustomerID as user_id, avg(TransactionAmount) as avg_transaction_amt from" \
+            " {{transactions.v1}} GROUP BY user_id"
+        ```
+
+        Args:
+            name (str): Name of source
+            variant (str): Name of variant
+            owner (Union[str, UserRegistrar]): Owner
+            description (str): Description of primary data to be registered
+
+
+        Returns:
+            source (ColumnSourceRegistrar): Source
+        """
+        return self.__registrar.sql_transformation(name=name,
+                                                   variant=variant,
+                                                   owner=owner,
+                                                   schedule=schedule,
+                                                   provider=self.name(),
+                                                   description=description)
+
+    def df_transformation(self,
+                        variant: str = "default",
+                        owner: Union[str, UserRegistrar] = "",
+                        name: str = "",
+                        description: str = "",
+                        inputs: list = []):
+        """
+        Register a Dataframe transformation source. The k8s_azure.df_transformation decorator takes the contents
+        of the following function and executes the code it contains at serving time.
+
+        The name of the function is used as the name of the source when being registered.
+
+        The specified inputs are loaded into dataframes that can be accessed using the function parameters.
+
+        **Examples**:
+        ``` py
+        @k8s_azure.df_transformation(inputs=[("source", "one")])        # Sources are added as inputs
+        def average_user_transaction(df):                           # Sources can be manipulated by adding them as params
             return df
         ```
 
@@ -996,6 +1106,30 @@ class Registrar:
         fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
         return OfflineSparkProvider(self, fakeProvider)
 
+    def get_k8s_azure(self, name):
+        """
+        Get a k8s Azure provider. The returned object can be used to register additional resources.
+        **Examples**:
+        ``` py
+        k8s_azure = get_k8s_azure("k8s-azure-quickstart")
+        transactions = k8s_azure.register_file(
+            name="transactions",
+            variant="kaggle",
+            description="Fraud Dataset From Kaggle",
+            path="path/to/blob",
+        )
+        ```
+        Args:
+            name (str): Name of k8s Azure provider to be retrieved
+        Returns:
+            k8s_azure (OfflineK8sAzureProvider): Provider
+        """
+        get = ProviderReference(name=name, provider_type="k8s-azure", obj=None)
+        self.__resources.append(get)
+        fakeConfig = K8sAzureConfig(account_name="", account_key="", container_name="", path="")
+        fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
+        return OfflineK8sAzureProvider(self, fakeProvider)
+
     def get_entity(self, name, local=False):
         """Get an entity. The returned object can be used to register additional resources.
 
@@ -1406,6 +1540,39 @@ class Registrar:
                             config=config)
         self.__resources.append(provider)
         return OfflineSparkProvider(self, provider)
+
+    def register_k8s_azure(self,
+                          name: str,
+                          account_name: str,
+                          account_key: str,
+                          container_name: str,
+                          path: str,
+                          description: str = "",
+                          team: str = "",):
+        """
+        Register a k8s Provider with Azure Blob Store.
+        **Examples**:
+        ```
+        ```
+        Args:
+            name (str): Name of k8s Azure provider to be registered
+            description (str): Description of k8s Azure provider to be registered
+            team (str): Name of team
+            
+        Returns:
+            k8s_azure (OfflineK8sAzureProvider): Provider
+        """
+        config = K8sAzureConfig(account_name=account_name,
+                                account_key=account_key,
+                                container_name=container_name,
+                                path=path)
+        provider = Provider(name=name,
+                            function="OFFLINE",
+                            description=description,
+                            team=team,
+                            config=config)
+        self.__resources.append(provider)
+        return OfflineK8sAzureProvider(self, provider)
 
     def register_local(self):
         """Register a Local provider.
@@ -2841,6 +3008,7 @@ register_postgres = global_registrar.register_postgres
 register_redshift = global_registrar.register_redshift
 register_bigquery = global_registrar.register_bigquery
 register_spark = global_registrar.register_spark
+register_k8s_azure = global_registrar.register_k8s_azure
 register_local = global_registrar.register_local
 register_entity = global_registrar.register_entity
 register_column_resources = global_registrar.register_column_resources
@@ -2856,3 +3024,4 @@ get_snowflake = global_registrar.get_snowflake
 get_redshift = global_registrar.get_redshift
 get_bigquery = global_registrar.get_bigquery
 get_spark_aws = global_registrar.get_spark
+get_k8s_azure = global_registrar.get_k8s_azure

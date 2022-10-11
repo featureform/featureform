@@ -274,10 +274,10 @@ func TestOfflineStoreBasic(t *testing.T) {
 		t.Fatalf("failed to fetch training set: %v", err)
 	}
 	fmt.Println(ts)
-	for ts.Next() {
-		fmt.Println(ts.Features())
-		fmt.Println(ts.Label())
-	}
+	// for ts.Next() {
+	// 	fmt.Println(ts.Features())
+	// 	fmt.Println(ts.Label())
+	// }
 	materialization, err := offlineStore.CreateMaterialization(firstResID)
 	if err != nil {
 		t.Fatalf("failed to create materialization: %v", err)

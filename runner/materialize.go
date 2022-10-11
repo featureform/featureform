@@ -11,6 +11,7 @@ import (
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	"github.com/featureform/types"
+	"github.com/featureform/helpers"
 )
 
 const MAXIMUM_CHUNK_ROWS int64 = 1024

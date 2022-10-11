@@ -326,6 +326,7 @@ class K8sAzureConfig:
             "AccountName": self.account_name,
             "AccountKey": self.account_key,
             "BucketName": self.container_name,
+            "Path": self.path,
         }
         return bytes(json.dumps(config), "utf-8")
 

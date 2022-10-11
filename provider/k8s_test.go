@@ -71,7 +71,6 @@ func TestBlobInterfaces(t *testing.T) {
 		}
 	}
 	for blobName, blobProvider := range blobProviders {
-		fmt.Printf("Closing %s blob store\n", blobName)
 		blobProvider.Close()
 	}
 }
@@ -111,7 +110,6 @@ func testBlobParquetServe(t *testing.T, store BlobStore) {
 		if err != nil {
 			break
 		}
-		fmt.Printf("%v, %T\n", reflect.ValueOf(row), row)
 	}
 
 }

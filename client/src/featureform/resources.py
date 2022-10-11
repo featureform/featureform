@@ -329,7 +329,7 @@ class K8sAzureConfig:
             "StoreConfig": {
                 "AccountName": self.account_name,
                 "AccountKey": self.account_key,
-                "BucketName": self.container_name,
+                "ContainerName": self.container_name,
                 "Path": self.path,
             }
         }

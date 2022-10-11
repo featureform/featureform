@@ -123,6 +123,47 @@ func init() {
 	}
 }
 
+func k8sAzureOfflineStoreFactory(config SerializedConfig) (Provider, error) {
+	k8 := K8sAzureConfig{}
+	logger := zap.NewExample().Sugar()
+	if err := k8.Deserialize(config); err != nil {
+		logger.Errorw("Invalid config to initialize k8s offline store", err)
+		return nil, fmt.Errorf("invalid k8s config: %v", config)
+	}
+	logger.Info("Creating executor with type:", k8.ExecutorType)
+
+	exec, err := CreateExecutor(string(k8.ExecutorType), Config([]byte("")))
+	if err != nil {
+		logger.Errorw("Failure initializing executor with type", k8.ExecutorType, err)
+		return nil, err
+	}
+
+	logger.Info("Creating blob store with type:", k8.StoreType)
+	serializedBlob, err := k8.StoreConfig.Serialize()
+	if err != nil {
+		return nil, fmt.Errorf("could not serialize blob store config")
+	}
+	store, err := CreateBlobStore(string(k8.StoreType), Config(serializedBlob))
+	if err != nil {
+		logger.Errorw("Failure initializing blob store with type", k8.StoreType, err)
+		return nil, err
+	}
+
+	logger.Debugf("Store type: %s, Store config: %v", k8.StoreType, k8.StoreConfig)
+	queries := defaultSparkOfflineQueries{}
+	k8sOfflineStore := K8sOfflineStore{
+		executor: exec,
+		store:    store,
+		logger:   logger,
+		query:    &queries,
+		BaseProvider: BaseProvider{
+			ProviderType:   "K8S_OFFLINE",
+			ProviderConfig: config,
+		},
+	}
+	return &k8sOfflineStore, nil
+}
+
 func k8sOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	k8 := K8sConfig{}
 	logger := zap.NewExample().Sugar()
@@ -176,6 +217,29 @@ const (
 	Azure                    = "AZURE"
 )
 
+type K8sAzureConfig struct {
+	ExecutorType   ExecutorType
+	ExecutorConfig KubernetesExecutorConfig
+	StoreType      BlobStoreType
+	StoreConfig    AzureBlobStoreConfig
+}
+
+func (config *K8sAzureConfig) Serialize() ([]byte, error) {
+	data, err := json.Marshal(config)
+	if err != nil {
+		panic(err)
+	}
+	return data, nil
+}
+
+func (config *K8sAzureConfig) Deserialize(data []byte) error {
+	err := json.Unmarshal(data, config)
+	if err != nil {
+		return fmt.Errorf("deserialize k8s config: %w", err)
+	}
+	return nil
+}
+
 type K8sConfig struct {
 	ExecutorType   ExecutorType
 	ExecutorConfig ExecutorConfig
@@ -205,6 +269,9 @@ type Executor interface {
 
 type LocalExecutor struct {
 	scriptPath string
+}
+
+type KubernetesExecutorConfig struct {
 }
 
 type KubernetesExecutor struct {
@@ -759,7 +826,7 @@ func (k8s *K8sOfflineStore) dfTransformation(config TransformationConfig, isUpda
 
 	transformationFilePath := k8s.store.PathWithPrefix(blobResourcePath(config.TargetTableID))
 	fileName := "transformation.pkl"
-	transformationFileLocation := fmt.Sprintf("%s/%s", transformationFilePath, fileName)
+	transformationFileLocation := fmt.Sprintf("%s%s", transformationFilePath, fileName)
 	err = k8s.store.Write(transformationFileLocation, config.Code)
 	if err != nil {
 		return fmt.Errorf("could not upload file: %s", err)

@@ -6,7 +6,6 @@ package provider
 import (
 	"fmt"
 	"os"
-	"reflect"
 	"strings"
 	"testing"
 
@@ -43,9 +42,9 @@ func TestBlobInterfaces(t *testing.T) {
 		t.Fatalf("failed to create new file blob store: %v", err)
 	}
 	azureStoreConfig := AzureBlobStoreConfig{
-		AccountName:   helpers.GetEnv("AZURE_ACCOUNT_NAME"),
-		AccountKey:    helpers.GetEnv("AZURE_ACCOUNT_KEY"),
-		ContainerName: helpers.GetEnv("AZURE_CONTAINER_NAME"),
+		AccountName:   helpers.GetEnv("AZURE_ACCOUNT_NAME", ""),
+		AccountKey:    helpers.GetEnv("AZURE_ACCOUNT_KEY", ""),
+		ContainerName: helpers.GetEnv("AZURE_CONTAINER_NAME", ""),
 	}
 	serializedAzureConfig, err := azureStoreConfig.Serialize()
 	if err != nil {
@@ -72,7 +71,7 @@ func TestBlobInterfaces(t *testing.T) {
 			})
 		}
 	}
-	for blobName, blobProvider := range blobProviders {
+	for _, blobProvider := range blobProviders {
 		blobProvider.Close()
 	}
 }
@@ -108,7 +107,7 @@ func testBlobParquetServe(t *testing.T, store BlobStore) {
 	if err != nil {
 		t.Fatalf("Failure getting serving iterator with key %s: %v", testKey, err)
 	}
-	for row, err := iterator.Next(); err == nil; row, err = iterator.Next() {
+	for _, err := iterator.Next(); err == nil; _, err = iterator.Next() {
 		if err != nil {
 			break
 		}
@@ -153,15 +152,11 @@ func TestOfflineStoreBasic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error serializing local executor configuration: %v", err)
 	}
-	mydir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("could not get working directory")
-	}
 
 	azureStoreConfig := AzureBlobStoreConfig{
-		AccountName:   helpers.GetEnv("AZURE_ACCOUNT_NAME"),
-		AccountKey:    helpers.GetEnv("AZURE_ACCOUNT_KEY"),
-		ContainerName: helpers.GetEnv("AZURE_CONTAINER_NAME"),
+		AccountName:   helpers.GetEnv("AZURE_ACCOUNT_NAME", ""),
+		AccountKey:    helpers.GetEnv("AZURE_ACCOUNT_KEY", ""),
+		ContainerName: helpers.GetEnv("AZURE_CONTAINER_NAME", ""),
 	}
 	serializedAzureConfig, err := azureStoreConfig.Serialize()
 	if err != nil {
@@ -190,17 +185,17 @@ func TestOfflineStoreBasic(t *testing.T) {
 	primaryTableName := uuidWithoutDashes()
 	primaryID := ResourceID{Name: primaryTableName, Variant: "default", Type: Primary}
 	transactionsURI := "featureform/testing/primary/name/variant/transactions_short.csv"
-	primaryTable, err := offlineStore.RegisterPrimaryFromSourceTable(primaryID, transactionsURI)
+	_, err = offlineStore.RegisterPrimaryFromSourceTable(primaryID, transactionsURI)
 	if err != nil {
 		t.Fatalf("failed to register primary table: %v", err)
 	}
 
 	// Getting Primary
-	fetchedPrimary, err := offlineStore.GetPrimaryTable(primaryID)
+	_, err = offlineStore.GetPrimaryTable(primaryID)
 	if err != nil {
 		t.Fatalf("failed to fetch primary table: %v", err)
 	}
-
+	// create transformation
 	transformationName := uuidWithoutDashes()
 	transformationID := ResourceID{
 		Name:    transformationName,
@@ -223,26 +218,55 @@ func TestOfflineStoreBasic(t *testing.T) {
 	}
 
 	// Get transformation
-	tsTable, err := offlineStore.GetTransformationTable(transformationID)
+	_, err = offlineStore.GetTransformationTable(transformationID)
 	if err != nil {
 		t.Fatalf("could not fetch transformation table: %v", err)
 	}
 
+	//dataframe transformation
+	dfTransformationName := uuidWithoutDashes()
+	dfTransformationID := ResourceID{
+		Name:    dfTransformationName,
+		Type:    Transformation,
+		Variant: "default",
+	}
+	dfTransformConfig := TransformationConfig{
+		Type:          DFTransformation,
+		TargetTableID: dfTransformationID,
+		Query:         "s3://featureform-spark-testing/featureform/DFTransformations/test_name/test_variant/transformation.pkl",
+		Code: []byte(`���`),
+		SourceMapping: []SourceMapping{
+			SourceMapping{
+				Template: "transaction",
+				Source:   "featureform_primary__test_name__test_variant",
+			},
+		},
+	}
+	if err := offlineStore.CreateTransformation(dfTransformConfig); err != nil {
+		t.Fatalf("Could not create df transformation: %v", err)
+	}
+
+	// Get df transformation
+	_, err = offlineStore.GetTransformationTable(dfTransformationID)
+	if err != nil {
+		t.Fatalf("could not fetch df transformation table: %v", err)
+	}
+
 	firstResID := ResourceID{Name: uuidWithoutDashes(), Variant: "default", Type: Feature}
 	schema := ResourceSchema{"CustomerID", "CustAccountBalance", "Timestamp", transactionsURI}
-	firstResTable, err := offlineStore.RegisterResourceFromSourceTable(firstResID, schema)
+	_, err = offlineStore.RegisterResourceFromSourceTable(firstResID, schema)
 	if err != nil {
 		t.Fatalf("failed to register resource from source table: %v", err)
 	}
 
-	fetchedFirstResTable, err := offlineStore.GetResourceTable(firstResID)
+	_, err = offlineStore.GetResourceTable(firstResID)
 	if err != nil {
 		t.Fatalf("failed to fetch resource table: %v", err)
 	}
 
 	secondResID := ResourceID{Name: uuidWithoutDashes(), Variant: "default", Type: Label}
 	secondSchema := ResourceSchema{"CustomerID", "IsFraud", "Timestamp", transactionsURI}
-	secondResTable, err := offlineStore.RegisterResourceFromSourceTable(secondResID, secondSchema)
+	_, err = offlineStore.RegisterResourceFromSourceTable(secondResID, secondSchema)
 	if err != nil {
 		t.Fatalf("failed to register resource from source table: %v", err)
 	}
@@ -253,17 +277,47 @@ func TestOfflineStoreBasic(t *testing.T) {
 		Label:    secondResID,
 		Features: []ResourceID{firstResID},
 	}
-	if err := offlineStore.CreateTrainingSet(testTrainingSet); err != nil {
+	if err = offlineStore.CreateTrainingSet(testTrainingSet); err != nil {
 		t.Fatalf("failed to create trainingset: %v", err)
 	}
 
-	ts, err := offlineStore.GetTrainingSet(trainingSetID)
+	_, err = offlineStore.GetTrainingSet(trainingSetID)
 	if err != nil {
 		t.Fatalf("failed to fetch training set: %v", err)
 	}
 
-	materialization, err := offlineStore.CreateMaterialization(firstResID)
+	_, err = offlineStore.CreateMaterialization(firstResID)
 	if err != nil {
 		t.Fatalf("failed to create materialization: %v", err)
 	}
+
 }
+func TestNewConfig(t *testing.T) {
+	k8sConfig := K8sAzureConfig{
+		ExecutorType:   K8s,
+		ExecutorConfig: KubernetesExecutorConfig{},
+		StoreType:      Azure,
+		StoreConfig: AzureBlobStoreConfig{
+			AccountName:   helpers.GetEnv("AZURE_ACCOUNT_NAME", ""),
+			AccountKey:    helpers.GetEnv("AZURE_ACCOUNT_KEY", ""),
+			ContainerName: helpers.GetEnv("AZURE_CONTAINER_NAME", ""),
+			Path:          "",
+		},
+	}
+	serialized, err := k8sConfig.Serialize()
+	if err != nil {
+		t.Fatalf("could not serialize: %v", err)
+	}
+	provider, err := k8sAzureOfflineStoreFactory(SerializedConfig(serialized))
+	if err != nil {
+		t.Fatalf("could not get provider")
+	}
+	offlineStore, err := provider.AsOfflineStore()
+	if err != nil {
+		t.Fatalf("failed to convert store to offline store: %v", err)
+	}
+}
+
+// func TestDeserialize() {
+// 	config := {"ExecutorType": "K8S", "ExecutorConfig": {}, "StoreType": "AZURE", "StoreConfig": {"AccountName": "featureformtesting", "AccountKey": "LzUGMYWMWzXLsA7kU9QjvxUn1VnBn3R/nfGPwPGlMwDcv9L1KZjiPDStbrNWzAwgKpPU8po7E1fE+AStnndYHA==", "BucketName": "newcontainer", "Path": "testing/ff"}`
+// }

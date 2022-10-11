@@ -144,8 +144,8 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 	var cloudWatcher types.CompletionWatcher
 	switch m.Cloud {
 	case KubernetesMaterializeRunner:
-		pandas_image := helpers.GetEnv("PANDAS_RUNNER_IMAGE", "local/pands_runner:stable")
-		envVars := map[string]string{"NAME": string(COPY_TO_ONLINE), "CONFIG": string(serializedConfig), "PANDAS_RUNNER_IMAGE": pandas_image}
+		pandas_image := helpers.GetEnv("K8S_RUNNER_IMAGE", "local/k8s_runner:stable")
+		envVars := map[string]string{"NAME": string(COPY_TO_ONLINE), "CONFIG": string(serializedConfig), "K8S_RUNNER_IMAGE": pandas_image}
 		kubernetesConfig := kubernetes.KubernetesRunnerConfig{
 			EnvVars:  envVars,
 			Image:    WORKER_IMAGE,

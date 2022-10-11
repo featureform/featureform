@@ -281,7 +281,7 @@ func (kube KubernetesExecutor) ExecuteScript(envVars map[string]string) error {
 }
 
 func NewKubernetesExecutor(config Config) (Executor, error) {
-	pandas_image := helpers.GetEnv("PANDAS_RUNNER_IMAGE", "local/pandas_runner:stable")
+	pandas_image := helpers.GetEnv("K8S_RUNNER_IMAGE", "local/k8s_runner:stable")
 	return KubernetesExecutor{image: pandas_image}, nil
 }
 

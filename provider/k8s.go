@@ -688,11 +688,62 @@ func (tbl *BlobPrimaryTable) GetName() string {
 }
 
 func (tbl *BlobPrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) {
-	return nil, fmt.Errorf("not implemented")
+	iterator, err := tbl.store.Serve(tbl.sourcePath)
+	if err != nil {
+		return nil, fmt.Errorf("Could not create iterator from source table: %v", err)
+	}
+	return &BlobIterator{iter: iterator, curIdx: 0, maxIdx: n}, nil
 }
 
 func (tbl *BlobPrimaryTable) NumRows() (int64, error) {
-	return 0, fmt.Errorf("not implemented")
+	return tbl.store.NumRows(tbl.sourcePath)
+}
+
+type BlobIterator struct {
+	iter    Iterator
+	err     error
+	curIdx  int64
+	maxIdx  int64
+	records []interface{}
+	columns []string
+}
+
+func (it *BlobIterator) Next() bool {
+	it.curIdx += 1
+	if it.curIdx > it.maxIdx {
+		it.err = fmt.Errorf("end of iteration")
+		return false
+	}
+	values, err := it.iter.Next()
+	if err != nil {
+		it.err = err
+		return false
+	}
+	records := make([]interface{}, 0)
+	columns := make([]string, 0)
+	for k, v := range values {
+		columns = append(columns, k)
+		records = append(records, v)
+	}
+	it.columns = columns
+	it.records = records
+	return true
+}
+
+func (it *BlobIterator) Columns() []string {
+	return it.columns
+}
+
+func (it *BlobIterator) Err() error {
+	return it.err
+}
+
+func (it *BlobIterator) Close() error {
+	return nil
+}
+
+func (it *BlobIterator) Values() GenericRecord {
+	return GenericRecord(it.records)
 }
 
 func (k8s *K8sOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error) {
@@ -758,12 +809,12 @@ func (k8s *K8sOfflineStore) pandasRunnerArgs(outputURI string, updatedQuery stri
 	return envVars
 }
 
-func (k8s K8sOfflineStore) getDFArgs(outputURI string, code string, mapping []SourceMapping) map[string]string {
-	mappingSources := make([]string, len(mapping))
-	for i, item := range mapping {
-		mappingSources[i] = item.Source
-	}
-	sourceList := strings.Join(mappingSources, ",")
+func (k8s K8sOfflineStore) getDFArgs(outputURI string, code string, mapping []SourceMapping, sources []string) map[string]string {
+	// mappingSources := make([]string, len(mapping))
+	// for i, item := range mapping {
+	// 	mappingSources[i] = item.Source
+	// }
+	sourceList := strings.Join(sources, ",")
 	envVars := map[string]string{
 		"OUTPUT_URI":          outputURI,
 		"SOURCES":             sourceList,
@@ -809,6 +860,13 @@ func (k8s *K8sOfflineStore) sqlTransformation(config TransformationConfig, isUpd
 }
 
 func (k8s *K8sOfflineStore) dfTransformation(config TransformationConfig, isUpdate bool) error {
+	updatedQuery, sources, err := k8s.updateQuery(config.Query, config.SourceMapping)
+	if err != nil {
+		return err
+	}
+	fmt.Println("df sources")
+	fmt.Println(updatedQuery)
+	fmt.Println(sources)
 	transformationDestination := k8s.store.PathWithPrefix(blobResourcePath(config.TargetTableID))
 	exists, err := k8s.store.Exists(transformationDestination)
 	if err != nil {
@@ -832,7 +890,7 @@ func (k8s *K8sOfflineStore) dfTransformation(config TransformationConfig, isUpda
 		return fmt.Errorf("could not upload file: %s", err)
 	}
 
-	k8sArgs := k8s.getDFArgs(transformationDestination, transformationFileLocation, config.SourceMapping)
+	k8sArgs := k8s.getDFArgs(transformationDestination, transformationFileLocation, config.SourceMapping, sources)
 	k8s.logger.Debugw("Running DF transformation", config)
 	if err := k8s.executor.ExecuteScript(k8sArgs); err != nil {
 		k8s.logger.Errorw("Error running dataframe job", err)
@@ -1012,16 +1070,26 @@ func (mat BlobMaterialization) IterateSegment(begin, end int64) (FeatureIterator
 	if err != nil {
 		return nil, err
 	}
-	return BlobFeatureIterator{iter: iter}, nil
+	for i := int64(0); i < begin; i++ {
+		_, _ = iter.Next()
+	}
+	return BlobFeatureIterator{iter: iter, curIdx: 0, maxIdx: end}, nil
 }
 
 type BlobFeatureIterator struct {
-	iter Iterator
-	err  error
-	cur  ResourceRecord
+	iter   Iterator
+	err    error
+	cur    ResourceRecord
+	curIdx int64
+	maxIdx int64
 }
 
 func (iter BlobFeatureIterator) Next() bool {
+	iter.curIdx += 1
+	if iter.curIdx > iter.maxIdx {
+		iter.err = fmt.Errorf("end of iteration")
+		return false
+	}
 	nextVal, err := iter.iter.Next()
 	if err != nil {
 		iter.err = err

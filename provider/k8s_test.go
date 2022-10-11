@@ -162,6 +162,11 @@ func TestOfflineStoreBasic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dailed to serialize azure store config: %v", err)
 	}
+	// fileStoreConfig := FileBlobStoreConfig{DirPath: fmt.Sprintf(`file:////%s/tests/file_tests`, mydir)}
+	// serializedFileConfig, err := fileStoreConfig.Serialize()
+	// if err != nil {
+	// 	t.Fatalf("failed to serialize file store config: %v", err)
+	// }
 	k8sConfig := K8sConfig{
 		ExecutorType:   GoProc,
 		ExecutorConfig: ExecutorConfig(serializedExecutorConfig),
@@ -223,6 +228,10 @@ func TestOfflineStoreBasic(t *testing.T) {
 		t.Fatalf("could not fetch transformation table: %v", err)
 	}
 
+
+	f, err := os.Open(fmt.Sprintf("%s/scripts/k8s/.featureform/transformation.pkl", mydir))
+	pkl_data := make([]byte, 1000)
+	_, err = f.Read(pkl_data)
 	//dataframe transformation
 	dfTransformationName := uuidWithoutDashes()
 	dfTransformationID := ResourceID{
@@ -233,12 +242,11 @@ func TestOfflineStoreBasic(t *testing.T) {
 	dfTransformConfig := TransformationConfig{
 		Type:          DFTransformation,
 		TargetTableID: dfTransformationID,
-		Query:         "s3://featureform-spark-testing/featureform/DFTransformations/test_name/test_variant/transformation.pkl",
-		Code: []byte(`���`),
+		Code:          pkl_data,
 		SourceMapping: []SourceMapping{
 			SourceMapping{
 				Template: "transaction",
-				Source:   "featureform_primary__test_name__test_variant",
+				Source:   fmt.Sprintf("featureform_primary__%s__default", primaryTableName),
 			},
 		},
 	}
@@ -247,9 +255,19 @@ func TestOfflineStoreBasic(t *testing.T) {
 	}
 
 	// Get df transformation
-	_, err = offlineStore.GetTransformationTable(dfTransformationID)
+	df_table, err := offlineStore.GetTransformationTable(dfTransformationID)
 	if err != nil {
 		t.Fatalf("could not fetch df transformation table: %v", err)
+	}
+	fmt.Println(df_table.NumRows())
+
+	segmentIterator, err := df_table.IterateSegment(10)
+	if err != nil {
+		t.Fatalf("could not create table iterator: %v", err)
+	}
+	fmt.Println(segmentIterator.Columns())
+	for segmentIterator.Next() {
+		fmt.Println(segmentIterator.Values())
 	}
 
 	firstResID := ResourceID{Name: uuidWithoutDashes(), Variant: "default", Type: Feature}
@@ -316,8 +334,5 @@ func TestNewConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to convert store to offline store: %v", err)
 	}
+	fmt.Println(offlineStore)
 }
-
-// func TestDeserialize() {
-// 	config := {"ExecutorType": "K8S", "ExecutorConfig": {}, "StoreType": "AZURE", "StoreConfig": {"AccountName": "featureformtesting", "AccountKey": "LzUGMYWMWzXLsA7kU9QjvxUn1VnBn3R/nfGPwPGlMwDcv9L1KZjiPDStbrNWzAwgKpPU8po7E1fE+AStnndYHA==", "BucketName": "newcontainer", "Path": "testing/ff"}`
-// }

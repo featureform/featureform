@@ -225,7 +225,6 @@ func NewKubernetesRunner(config KubernetesRunnerConfig) (CronRunner, error) {
 		jobName = GetJobName(config.Resource, config.Image)
 	} else {
 		jobName = generateCleanRandomJobName()
-
 	}
 	namespace, err := GetCurrentNamespace()
 	if err != nil {

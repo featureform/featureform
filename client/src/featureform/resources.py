@@ -323,7 +323,9 @@ class K8sAzureConfig:
 
     def serialize(self) -> bytes:
         config = {
-            "ExecutorType": "k8s",
+            "AccountName": self.account_name,
+            "AccountKey": self.account_key,
+            "BucketName": self.container_name,
         }
         return bytes(json.dumps(config), "utf-8")
 

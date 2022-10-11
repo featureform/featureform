@@ -658,7 +658,7 @@ func (k8s *K8sOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schem
 		return nil, fmt.Errorf("error checking if resource registry exists: %v", err)
 	}
 	if resourceExists {
-		k8s.logger.Errorw("Resource already exists in blob store", "id", id)
+		k8s.logger.Errorw("Resource already exists in blob store", "id", id, "ResourceKey", resourceKey)
 		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}
 	serializedSchema, err := schema.Serialize()

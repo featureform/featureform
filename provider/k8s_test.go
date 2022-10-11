@@ -20,8 +20,7 @@ func uuidWithoutDashes() string {
 func TestBlobInterfaces(t *testing.T) {
 	blobTests := map[string]func(*testing.T, BlobStore){
 		"Test Blob Read and Write": testBlobReadAndWrite,
-		// "Test Blob CSV Serve":      testBlobCSVServe,
-		"Test Blob Parquet Serve": testBlobParquetServe,
+		"Test Blob Parquet Serve":  testBlobParquetServe,
 	}
 	localBlobStore, err := NewMemoryBlobStore(Config([]byte("")))
 	if err != nil {
@@ -31,7 +30,6 @@ func TestBlobInterfaces(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not get working directory")
 	}
-	fmt.Println(mydir)
 
 	fileStoreConfig := FileBlobStoreConfig{DirPath: fmt.Sprintf(`file:////%s/tests/file_tests`, mydir)}
 	serializedFileConfig, err := fileStoreConfig.Serialize()
@@ -73,7 +71,6 @@ func TestBlobInterfaces(t *testing.T) {
 		}
 	}
 	for blobName, blobProvider := range blobProviders {
-		fmt.Printf("Closing %s blob store\n", blobName)
 		blobProvider.Close()
 	}
 }
@@ -113,7 +110,6 @@ func testBlobParquetServe(t *testing.T, store BlobStore) {
 		if err != nil {
 			break
 		}
-		fmt.Printf("%v, %T\n", reflect.ValueOf(row), row)
 	}
 
 }
@@ -134,7 +130,7 @@ func TestExecutorRunLocal(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not get working directory")
 	}
-	fmt.Println(mydir)
+
 	sqlEnvVars := map[string]string{
 		"MODE":                "local",
 		"OUTPUT_URI":          fmt.Sprintf(`%s/scripts/k8s/tests/test_files/output/`, mydir),
@@ -159,12 +155,7 @@ func TestOfflineStoreBasic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not get working directory")
 	}
-	fmt.Println(mydir)
-	// fileStoreConfig := FileBlobStoreConfig{DirPath: fmt.Sprintf(`file:////%s/scripts/k8s/tests/test_files/`, mydir)}
-	// serializedFileConfig, err := fileStoreConfig.Serialize()
-	// if err != nil {
-	// 	t.Fatalf("failed to serialize file store config: %v", err)
-	// }
+
 	azureStoreConfig := AzureBlobStoreConfig{
 		AccountName:   "featureformtesting",
 		AccountKey:    os.Getenv("AZURE_ACCOUNT_KEY"),
@@ -194,23 +185,20 @@ func TestOfflineStoreBasic(t *testing.T) {
 	}
 
 	// Register Primary
-	fmt.Println("Registering primary table")
 	primaryTableName := uuidWithoutDashes()
 	primaryID := ResourceID{Name: primaryTableName, Variant: "default", Type: Primary}
-	// transactionsURI := "inputs/transaction_short/part-00000-9d3cb5a3-4b9c-4109-afa3-a75759bfcf89-c000.snappy.parquet"
 	transactionsURI := "featureform/testing/primary/name/variant/transactions_short.csv"
 	primaryTable, err := offlineStore.RegisterPrimaryFromSourceTable(primaryID, transactionsURI)
 	if err != nil {
 		t.Fatalf("failed to register primary table: %v", err)
 	}
-	fmt.Println(primaryTable.GetName())
+
 	// Getting Primary
-	fmt.Println("Getting primary table")
 	fetchedPrimary, err := offlineStore.GetPrimaryTable(primaryID)
 	if err != nil {
 		t.Fatalf("failed to fetch primary table: %v", err)
 	}
-	fmt.Println(fetchedPrimary)
+
 	transformationName := uuidWithoutDashes()
 	transformationID := ResourceID{
 		Name:    transformationName,
@@ -231,24 +219,24 @@ func TestOfflineStoreBasic(t *testing.T) {
 	if err := offlineStore.CreateTransformation(transformConfig); err != nil {
 		t.Fatalf("Could not create transformation: %v", err)
 	}
+
 	// Get transformation
 	tsTable, err := offlineStore.GetTransformationTable(transformationID)
 	if err != nil {
 		t.Fatalf("could not fetch transformation table: %v", err)
 	}
-	fmt.Println(tsTable)
+
 	firstResID := ResourceID{Name: uuidWithoutDashes(), Variant: "default", Type: Feature}
 	schema := ResourceSchema{"CustomerID", "CustAccountBalance", "Timestamp", transactionsURI}
 	firstResTable, err := offlineStore.RegisterResourceFromSourceTable(firstResID, schema)
 	if err != nil {
 		t.Fatalf("failed to register resource from source table: %v", err)
 	}
-	fmt.Println(firstResTable)
+
 	fetchedFirstResTable, err := offlineStore.GetResourceTable(firstResID)
 	if err != nil {
 		t.Fatalf("failed to fetch resource table: %v", err)
 	}
-	fmt.Println(fetchedFirstResTable)
 
 	secondResID := ResourceID{Name: uuidWithoutDashes(), Variant: "default", Type: Label}
 	secondSchema := ResourceSchema{"CustomerID", "IsFraud", "Timestamp", transactionsURI}
@@ -256,7 +244,6 @@ func TestOfflineStoreBasic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to register resource from source table: %v", err)
 	}
-	fmt.Println(secondResTable)
 
 	trainingSetID := ResourceID{Name: uuidWithoutDashes(), Variant: "default", Type: TrainingSet}
 	testTrainingSet := TrainingSetDef{
@@ -268,21 +255,13 @@ func TestOfflineStoreBasic(t *testing.T) {
 		t.Fatalf("failed to create trainingset: %v", err)
 	}
 
-	fmt.Println("fetching training set")
 	ts, err := offlineStore.GetTrainingSet(trainingSetID)
 	if err != nil {
 		t.Fatalf("failed to fetch training set: %v", err)
 	}
-	fmt.Println(ts)
-	// for ts.Next() {
-	// 	fmt.Println(ts.Features())
-	// 	fmt.Println(ts.Label())
-	// }
+
 	materialization, err := offlineStore.CreateMaterialization(firstResID)
 	if err != nil {
 		t.Fatalf("failed to create materialization: %v", err)
 	}
-	fmt.Println(materialization)
-	fmt.Println(materialization.NumRows())
-
 }

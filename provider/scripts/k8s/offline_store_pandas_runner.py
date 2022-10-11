@@ -77,10 +77,10 @@ def execute_sql_job(mode, output_uri, transformation, source_list, blob_credenti
         os.makedirs(output_uri)
 
         if blob_credentials.type == AZURE:
-            local_output = f"{LOCAL_DATA_PATH}/output"
-            output_dataframe.to_parquet(local_output + ".parquet")
+            local_output = f"{LOCAL_DATA_PATH}/output.parquet"
+            output_dataframe.to_parquet(local_output)
             # upload blob to blob store
-            output_uri = upload_blob_to_blob_store(container_client, local_output, output_uri_with_timestamp) 
+            output_uri = upload_blob_to_blob_store(container_client, local_output, output_uri_with_timestamp + ".parquet") 
         
         elif blob_credentials.type == LOCAL:
             output_dataframe.to_parquet(output_uri_with_timestamp + ".parquet")
@@ -133,8 +133,8 @@ def execute_df_job(mode, output_uri, code, sources, etcd_credentials, blob_crede
         os.makedirs(output_uri)
 
         if blob_credentials.type == AZURE:
-            local_output = f"{LOCAL_DATA_PATH}/output"
-            output_df.to_parquet(local_output + ".parquet")
+            local_output = f"{LOCAL_DATA_PATH}/output.parquet"
+            output_df.to_parquet(local_output)
             # upload blob to blob store
             output_uri = upload_blob_to_blob_store(container_client, local_output, output_uri_with_timestamp) 
         
@@ -163,7 +163,7 @@ def download_blobs_to_local(container_client, blob, local_filename):
     if not os.path.isdir(LOCAL_DATA_PATH):
         os.makedirs(LOCAL_DATA_PATH)
 
-
+    print("downloading azure blobs")
     full_path = f"{LOCAL_DATA_PATH}/{local_filename}"
     if blob[-4:] == ".csv" or blob[-8:] == ".parquet":
         blob_client = container_client.get_blob_client(blob)
@@ -183,7 +183,7 @@ def download_blobs_to_local(container_client, blob, local_filename):
             with open(f"{full_path}/{b.name.split('/')[-1]}", "wb") as my_blob:
                 download_stream = blob_client.download_blob()
                 my_blob.write(download_stream.readall())
-    
+    print("downloaded azure blobs")
     return full_path
 
 
@@ -199,12 +199,16 @@ def upload_blob_to_blob_store(client, local_filename, blob_path):
     Output:
         blob_path:      str (path to blob store)
     """
-
+    print("uploading blob")
+    print(local_filename)
+    print(blob_path)
     if os.path.isfile(local_filename):
+        print("is file")
         blob_upload = client.get_blob_client(blob_path)
         with open(local_filename, "rb") as data:
             blob_upload.upload_blob(data, blob_type="BlockBlob")
     elif os.path.isdir(local_filename):
+        print("is dir")
         for file in os.listdir(local_filename):
             blob_upload = client.get_blob_client(f"{blob_path}/{file}")
             

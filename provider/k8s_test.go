@@ -20,8 +20,8 @@ func uuidWithoutDashes() string {
 func TestBlobInterfaces(t *testing.T) {
 	blobTests := map[string]func(*testing.T, BlobStore){
 		"Test Blob Read and Write": testBlobReadAndWrite,
-		"Test Blob CSV Serve":      testBlobCSVServe,
-		"Test Blob Parquet Serve":  testBlobParquetServe,
+		// "Test Blob CSV Serve":      testBlobCSVServe,
+		"Test Blob Parquet Serve": testBlobParquetServe,
 	}
 	localBlobStore, err := NewMemoryBlobStore(Config([]byte("")))
 	if err != nil {
@@ -103,23 +103,23 @@ func testBlobReadAndWrite(t *testing.T, store BlobStore) {
 	}
 }
 
-func testBlobCSVServe(t *testing.T, store BlobStore) {
-	//write csv file, then iterate all data types
-	csvBytes := []byte(`1,2,3,4,5
-	6,7,8,9,10`)
-	testKey := fmt.Sprintf("%s.csv", uuidWithoutDashes())
-	if err := store.Write(testKey, csvBytes); err != nil {
-		t.Fatalf("Failure writing csv data %s to key %s: %v", string(csvBytes), testKey, err)
-	}
-	iterator, err := store.Serve(testKey)
-	if err != nil {
-		t.Fatalf("Failure getting serving iterator with key %s: %v", testKey, err)
-	}
-	for row, err := iterator.Next(); err != nil; row, err = iterator.Next() {
-		fmt.Println(row)
-	}
-	fmt.Println(err)
-}
+// func testBlobCSVServe(t *testing.T, store BlobStore) {
+// 	//write csv file, then iterate all data types
+// 	csvBytes := []byte(`1,2,3,4,5
+// 	6,7,8,9,10`)
+// 	testKey := fmt.Sprintf("%s.csv", uuidWithoutDashes())
+// 	if err := store.Write(testKey, csvBytes); err != nil {
+// 		t.Fatalf("Failure writing csv data %s to key %s: %v", string(csvBytes), testKey, err)
+// 	}
+// 	iterator, err := store.Serve(testKey)
+// 	if err != nil {
+// 		t.Fatalf("Failure getting serving iterator with key %s: %v", testKey, err)
+// 	}
+// 	for row, err := iterator.Next(); err != nil; row, err = iterator.Next() {
+// 		fmt.Println(row)
+// 	}
+// 	fmt.Println(err)
+// }
 
 func testBlobParquetServe(t *testing.T, store BlobStore) {
 	testKey := fmt.Sprintf("input/transactions.snappy.parquet")
@@ -177,16 +177,26 @@ func TestOfflineStoreBasic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not get working directory")
 	}
-	fileStoreConfig := FileBlobStoreConfig{DirPath: fmt.Sprintf(`file:////%s/scripts/k8s/tests/test_files/`, mydir)}
-	serializedFileConfig, err := fileStoreConfig.Serialize()
+	fmt.Println(mydir)
+	// fileStoreConfig := FileBlobStoreConfig{DirPath: fmt.Sprintf(`file:////%s/scripts/k8s/tests/test_files/`, mydir)}
+	// serializedFileConfig, err := fileStoreConfig.Serialize()
+	// if err != nil {
+	// 	t.Fatalf("failed to serialize file store config: %v", err)
+	// }
+	azureStoreConfig := AzureBlobStoreConfig{
+		AccountName: "featureformtesting",
+		AccountKey:  os.Getenv("AZURE_ACCOUNT_KEY"),
+		BucketName:  "newcontainer",
+	}
+	serializedAzureConfig, err := azureStoreConfig.Serialize()
 	if err != nil {
-		t.Fatalf("failed to serialize file store config: %v", err)
+		t.Fatalf("dailed to serialize azure store config: %v", err)
 	}
 	k8sConfig := K8sConfig{
 		ExecutorType:   GoProc,
 		ExecutorConfig: ExecutorConfig(serializedExecutorConfig),
-		StoreType:      FileSystem,
-		StoreConfig:    BlobStoreConfig(serializedFileConfig),
+		StoreType:      Azure,
+		StoreConfig:    BlobStoreConfig(serializedAzureConfig),
 	}
 	serializedK8sConfig, err := k8sConfig.Serialize()
 	if err != nil {
@@ -205,7 +215,8 @@ func TestOfflineStoreBasic(t *testing.T) {
 	fmt.Println("Registering primary table")
 	primaryTableName := uuidWithoutDashes()
 	primaryID := ResourceID{Name: primaryTableName, Variant: "default", Type: Primary}
-	transactionsURI := "inputs/transaction_short/part-00000-9d3cb5a3-4b9c-4109-afa3-a75759bfcf89-c000.snappy.parquet"
+	// transactionsURI := "inputs/transaction_short/part-00000-9d3cb5a3-4b9c-4109-afa3-a75759bfcf89-c000.snappy.parquet"
+	transactionsURI := "featureform/testing/primary/name/variant/transactions_short.csv"
 	primaryTable, err := offlineStore.RegisterPrimaryFromSourceTable(primaryID, transactionsURI)
 	if err != nil {
 		t.Fatalf("failed to register primary table: %v", err)

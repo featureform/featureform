@@ -109,6 +109,7 @@ func init() {
 	blobStoreFactoryMap := map[BlobStoreType]BlobStoreFactory{
 		Memory:     NewMemoryBlobStore,
 		FileSystem: NewFileBlobStore,
+		Azure:      NewAzureBlobStore,
 	}
 	executorFactoryMap := map[ExecutorType]ExecutorFactory{
 		GoProc: NewLocalExecutor,
@@ -170,6 +171,7 @@ const (
 const (
 	Memory     BlobStoreType = "MEMORY"
 	FileSystem               = "FILE_SYSTEM"
+	Azure                    = "AZURE"
 )
 
 type K8sConfig struct {
@@ -321,7 +323,7 @@ type genericBlobStore struct {
 }
 
 func (store genericBlobStore) PathWithPrefix(path string) string {
-	if store.path[0:4] == "file" {
+	if len(store.path) > 4 && store.path[0:4] == "file" {
 		return fmt.Sprintf("%s%s", store.path[len("file:////"):], path)
 	} else {
 		return path //make something specific for azure
@@ -671,7 +673,7 @@ func (k8s *K8sOfflineStore) pandasRunnerArgs(outputURI string, updatedQuery stri
 		"TRANSFORMATION_TYPE": "sql",
 		"TRANSFORMATION":      updatedQuery,
 	}
-	azureStore, ok := k8s.store.(*AzureBlobStore)
+	azureStore, ok := k8s.store.(AzureBlobStore)
 	if ok {
 		envVars = azureStore.addAzureVars(envVars)
 	}

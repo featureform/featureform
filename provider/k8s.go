@@ -123,6 +123,47 @@ func init() {
 	}
 }
 
+func k8sAzureOfflineStoreFactory(config SerializedConfig) (Provider, error) {
+	k8 := K8sAzureConfig{}
+	logger := zap.NewExample().Sugar()
+	if err := k8.Deserialize(config); err != nil {
+		logger.Errorw("Invalid config to initialize k8s offline store", err)
+		return nil, fmt.Errorf("invalid k8s config: %v", config)
+	}
+	logger.Info("Creating executor with type:", k8.ExecutorType)
+
+	exec, err := CreateExecutor(string(k8.ExecutorType), Config([]byte("")))
+	if err != nil {
+		logger.Errorw("Failure initializing executor with type", k8.ExecutorType, err)
+		return nil, err
+	}
+
+	logger.Info("Creating blob store with type:", k8.StoreType)
+	serializedBlob, err := k8.StoreConfig.Serialize()
+	if err != nil {
+		return nil, fmt.Errorf("could not serialize blob store config")
+	}
+	store, err := CreateBlobStore(string(k8.StoreType), Config(serializedBlob))
+	if err != nil {
+		logger.Errorw("Failure initializing blob store with type", k8.StoreType, err)
+		return nil, err
+	}
+
+	logger.Debugf("Store type: %s, Store config: %v", k8.StoreType, k8.StoreConfig)
+	queries := defaultSparkOfflineQueries{}
+	k8sOfflineStore := K8sOfflineStore{
+		executor: exec,
+		store:    store,
+		logger:   logger,
+		query:    &queries,
+		BaseProvider: BaseProvider{
+			ProviderType:   "K8S_OFFLINE",
+			ProviderConfig: config,
+		},
+	}
+	return &k8sOfflineStore, nil
+}
+
 func k8sOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	k8 := K8sConfig{}
 	logger := zap.NewExample().Sugar()
@@ -176,6 +217,29 @@ const (
 	Azure                    = "AZURE"
 )
 
+type K8sAzureConfig struct {
+	ExecutorType   ExecutorType
+	ExecutorConfig KubernetesExecutorConfig
+	StoreType      BlobStoreType
+	StoreConfig    AzureBlobStoreConfig
+}
+
+func (config *K8sAzureConfig) Serialize() ([]byte, error) {
+	data, err := json.Marshal(config)
+	if err != nil {
+		panic(err)
+	}
+	return data, nil
+}
+
+func (config *K8sAzureConfig) Deserialize(data []byte) error {
+	err := json.Unmarshal(data, config)
+	if err != nil {
+		return fmt.Errorf("deserialize k8s config: %w", err)
+	}
+	return nil
+}
+
 type K8sConfig struct {
 	ExecutorType   ExecutorType
 	ExecutorConfig ExecutorConfig
@@ -205,6 +269,9 @@ type Executor interface {
 
 type LocalExecutor struct {
 	scriptPath string
+}
+
+type KubernetesExecutorConfig struct {
 }
 
 type KubernetesExecutor struct {
@@ -621,11 +688,62 @@ func (tbl *BlobPrimaryTable) GetName() string {
 }
 
 func (tbl *BlobPrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) {
-	return nil, fmt.Errorf("not implemented")
+	iterator, err := tbl.store.Serve(tbl.sourcePath)
+	if err != nil {
+		return nil, fmt.Errorf("Could not create iterator from source table: %v", err)
+	}
+	return &BlobIterator{iter: iterator, curIdx: 0, maxIdx: n}, nil
 }
 
 func (tbl *BlobPrimaryTable) NumRows() (int64, error) {
-	return 0, fmt.Errorf("not implemented")
+	return tbl.store.NumRows(tbl.sourcePath)
+}
+
+type BlobIterator struct {
+	iter    Iterator
+	err     error
+	curIdx  int64
+	maxIdx  int64
+	records []interface{}
+	columns []string
+}
+
+func (it *BlobIterator) Next() bool {
+	it.curIdx += 1
+	if it.curIdx > it.maxIdx {
+		it.err = fmt.Errorf("end of iteration")
+		return false
+	}
+	values, err := it.iter.Next()
+	if err != nil {
+		it.err = err
+		return false
+	}
+	records := make([]interface{}, 0)
+	columns := make([]string, 0)
+	for k, v := range values {
+		columns = append(columns, k)
+		records = append(records, v)
+	}
+	it.columns = columns
+	it.records = records
+	return true
+}
+
+func (it *BlobIterator) Columns() []string {
+	return it.columns
+}
+
+func (it *BlobIterator) Err() error {
+	return it.err
+}
+
+func (it *BlobIterator) Close() error {
+	return nil
+}
+
+func (it *BlobIterator) Values() GenericRecord {
+	return GenericRecord(it.records)
 }
 
 func (k8s *K8sOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error) {
@@ -691,12 +809,12 @@ func (k8s *K8sOfflineStore) pandasRunnerArgs(outputURI string, updatedQuery stri
 	return envVars
 }
 
-func (k8s K8sOfflineStore) getDFArgs(outputURI string, code string, mapping []SourceMapping) map[string]string {
-	mappingSources := make([]string, len(mapping))
-	for i, item := range mapping {
-		mappingSources[i] = item.Source
-	}
-	sourceList := strings.Join(mappingSources, ",")
+func (k8s K8sOfflineStore) getDFArgs(outputURI string, code string, mapping []SourceMapping, sources []string) map[string]string {
+	// mappingSources := make([]string, len(mapping))
+	// for i, item := range mapping {
+	// 	mappingSources[i] = item.Source
+	// }
+	sourceList := strings.Join(sources, ",")
 	envVars := map[string]string{
 		"OUTPUT_URI":          outputURI,
 		"SOURCES":             sourceList,
@@ -742,6 +860,13 @@ func (k8s *K8sOfflineStore) sqlTransformation(config TransformationConfig, isUpd
 }
 
 func (k8s *K8sOfflineStore) dfTransformation(config TransformationConfig, isUpdate bool) error {
+	updatedQuery, sources, err := k8s.updateQuery(config.Query, config.SourceMapping)
+	if err != nil {
+		return err
+	}
+	fmt.Println("df sources")
+	fmt.Println(updatedQuery)
+	fmt.Println(sources)
 	transformationDestination := k8s.store.PathWithPrefix(blobResourcePath(config.TargetTableID))
 	exists, err := k8s.store.Exists(transformationDestination)
 	if err != nil {
@@ -759,13 +884,13 @@ func (k8s *K8sOfflineStore) dfTransformation(config TransformationConfig, isUpda
 
 	transformationFilePath := k8s.store.PathWithPrefix(blobResourcePath(config.TargetTableID))
 	fileName := "transformation.pkl"
-	transformationFileLocation := fmt.Sprintf("%s/%s", transformationFilePath, fileName)
+	transformationFileLocation := fmt.Sprintf("%s%s", transformationFilePath, fileName)
 	err = k8s.store.Write(transformationFileLocation, config.Code)
 	if err != nil {
 		return fmt.Errorf("could not upload file: %s", err)
 	}
 
-	k8sArgs := k8s.getDFArgs(transformationDestination, transformationFileLocation, config.SourceMapping)
+	k8sArgs := k8s.getDFArgs(transformationDestination, transformationFileLocation, config.SourceMapping, sources)
 	k8s.logger.Debugw("Running DF transformation", config)
 	if err := k8s.executor.ExecuteScript(k8sArgs); err != nil {
 		k8s.logger.Errorw("Error running dataframe job", err)
@@ -945,16 +1070,26 @@ func (mat BlobMaterialization) IterateSegment(begin, end int64) (FeatureIterator
 	if err != nil {
 		return nil, err
 	}
-	return BlobFeatureIterator{iter: iter}, nil
+	for i := int64(0); i < begin; i++ {
+		_, _ = iter.Next()
+	}
+	return BlobFeatureIterator{iter: iter, curIdx: 0, maxIdx: end}, nil
 }
 
 type BlobFeatureIterator struct {
-	iter Iterator
-	err  error
-	cur  ResourceRecord
+	iter   Iterator
+	err    error
+	cur    ResourceRecord
+	curIdx int64
+	maxIdx int64
 }
 
 func (iter BlobFeatureIterator) Next() bool {
+	iter.curIdx += 1
+	if iter.curIdx > iter.maxIdx {
+		iter.err = fmt.Errorf("end of iteration")
+		return false
+	}
 	nextVal, err := iter.iter.Next()
 	if err != nil {
 		iter.err = err

@@ -102,7 +102,6 @@ def execute_df_job(mode, output_uri, code, sources, etcd_credentials, blob_crede
     Return:
         output_uri_with_timestamp: string (output s3 path)
     """
-    
     if blob_credentials.type == AZURE:
         blob_service_client = BlobServiceClient.from_connection_string(blob_credentials.connection_string)
         container_client = blob_service_client.get_container_client(blob_credentials.container)
@@ -111,7 +110,7 @@ def execute_df_job(mode, output_uri, code, sources, etcd_credentials, blob_crede
     for i, location in enumerate(sources):
         if blob_credentials.type == AZURE:
             # download blob to local & set source to local path
-            local_file = f"source_{i}.csv" if ".csv" == source[-4:] else f"source_{i}"
+            local_file = f"source_{i}.csv" if ".csv" == location[-4:] else f"source_{i}"
             output_path = download_blobs_to_local(container_client, location, local_file)
         else:
             output_path = location
@@ -122,7 +121,9 @@ def execute_df_job(mode, output_uri, code, sources, etcd_credentials, blob_crede
             func_parameters.append(pd.read_parquet(output_path))
     
     try:
-        code = get_code_from_file(mode, code, etcd_credentials)
+        df_path = "transformation"
+        code_path = download_blobs_to_local(container_client, code, df_path)
+        code = get_code_from_file(mode, code_path + "/transformation.pkl", etcd_credentials)
         func = types.FunctionType(code, globals(), "df_transformation")
         output_df = pd.DataFrame(func(*func_parameters))
 
@@ -133,7 +134,7 @@ def execute_df_job(mode, output_uri, code, sources, etcd_credentials, blob_crede
             local_output = f"{LOCAL_DATA_PATH}/output.parquet"
             output_df.to_parquet(local_output)
             # upload blob to blob store
-            output_uri = upload_blob_to_blob_store(container_client, local_output, output_uri_with_timestamp) 
+            output_uri = upload_blob_to_blob_store(container_client, local_output, output_uri_with_timestamp + ".parquet") 
         
         elif blob_credentials.type == LOCAL:
             os.makedirs(output_uri)
@@ -161,7 +162,6 @@ def download_blobs_to_local(container_client, blob, local_filename):
     if not os.path.isdir(LOCAL_DATA_PATH):
         os.makedirs(LOCAL_DATA_PATH)
 
-    print("downloading azure blobs")
     full_path = f"{LOCAL_DATA_PATH}/{local_filename}"
     if blob[-4:] == ".csv" or blob[-8:] == ".parquet":
         blob_client = container_client.get_blob_client(blob)
@@ -181,7 +181,6 @@ def download_blobs_to_local(container_client, blob, local_filename):
             with open(f"{full_path}/{b.name.split('/')[-1]}", "wb") as my_blob:
                 download_stream = blob_client.download_blob()
                 my_blob.write(download_stream.readall())
-    print("downloaded azure blobs")
     return full_path
 
 
@@ -229,24 +228,25 @@ def get_code_from_file(mode, file_path, etcd_credentials):
     
     print(f"Retrieving transformation code from '{file_path}' file in {mode} mode.")
     code = None
-    if mode == "k8s":
-        """
-        When executing on kubernetes, we will need to pull the transformation
-        from etcd.
-        """
-        if len(etcd_credentials["ports"]) == 1:
-            etcd_port = int(etcd_credentials["ports"][0])
-            etcd_client = etcd.Client(host=etcd_credentials["host"], port=etcd_port)
-        else:
-            etcd_host = get_etcd_host(etcd_credentials["host"], etcd_credentials["ports"])
-            etcd_client = etcd.Client(host=etcd_host)
+    # if mode == "k8s":
+    #     """
+    #     When executing on kubernetes, we will need to pull the transformation
+    #     from etcd.
+    #     """
+    #     if len(etcd_credentials["ports"]) == 1:
+    #         etcd_port = int(etcd_credentials["ports"][0])
+    #         etcd_client = etcd.Client(host=etcd_credentials["host"], port=etcd_port)
+    #     else:
+    #         etcd_host = get_etcd_host(etcd_credentials["host"], etcd_credentials["ports"])
+    #         etcd_client = etcd.Client(host=etcd_host)
 
-        code_data = etcd_client.read(file_path).value
-        code = dill.loads(code_data)
-    else:
-        with open(file_path, "rb") as f:
-            code = dill.load(f)
-    
+    #     code_data = etcd_client.read(file_path).value
+    #     code = dill.loads(code_data)
+    # else:
+    with open(file_path, "rb") as f:
+        f.seek(0)
+        code = dill.load(f)
+
     return code
 
 

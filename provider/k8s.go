@@ -149,7 +149,7 @@ func k8sAzureOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 		return nil, err
 	}
 
-	logger.Debugf("Store type: %s, Store config: %v", k8.StoreType, k8.StoreConfig)
+	logger.Debugf("Store type: %s", k8.StoreType)
 	queries := defaultSparkOfflineQueries{}
 	k8sOfflineStore := K8sOfflineStore{
 		executor: exec,
@@ -183,7 +183,7 @@ func k8sOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 		logger.Errorw("Failure initializing blob store with type", k8.StoreType, err)
 		return nil, err
 	}
-	logger.Debugf("Store type: %s, Store config: %v", k8.StoreType, k8.StoreConfig)
+	logger.Debugf("Store type: %s", k8.StoreType)
 	queries := defaultSparkOfflineQueries{}
 	k8sOfflineStore := K8sOfflineStore{
 		executor: exec,
@@ -738,12 +738,12 @@ func (it *BlobIterator) Err() error {
 	return it.err
 }
 
-func (it *BlobIterator) Close() error {
-	return nil
-}
-
 func (it *BlobIterator) Values() GenericRecord {
 	return GenericRecord(it.records)
+}
+
+func (it *BlobIterator) Close() error {
+	return nil
 }
 
 func (k8s *K8sOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error) {
@@ -860,13 +860,10 @@ func (k8s *K8sOfflineStore) sqlTransformation(config TransformationConfig, isUpd
 }
 
 func (k8s *K8sOfflineStore) dfTransformation(config TransformationConfig, isUpdate bool) error {
-	updatedQuery, sources, err := k8s.updateQuery(config.Query, config.SourceMapping)
+	_, sources, err := k8s.updateQuery(config.Query, config.SourceMapping)
 	if err != nil {
 		return err
 	}
-	fmt.Println("df sources")
-	fmt.Println(updatedQuery)
-	fmt.Println(sources)
 	transformationDestination := k8s.store.PathWithPrefix(blobResourcePath(config.TargetTableID))
 	exists, err := k8s.store.Exists(transformationDestination)
 	if err != nil {
@@ -1073,7 +1070,7 @@ func (mat BlobMaterialization) IterateSegment(begin, end int64) (FeatureIterator
 	for i := int64(0); i < begin; i++ {
 		_, _ = iter.Next()
 	}
-	return BlobFeatureIterator{iter: iter, curIdx: 0, maxIdx: end}, nil
+	return &BlobFeatureIterator{iter: iter, curIdx: 0, maxIdx: end}, nil
 }
 
 type BlobFeatureIterator struct {
@@ -1084,7 +1081,7 @@ type BlobFeatureIterator struct {
 	maxIdx int64
 }
 
-func (iter BlobFeatureIterator) Next() bool {
+func (iter *BlobFeatureIterator) Next() bool {
 	iter.curIdx += 1
 	if iter.curIdx > iter.maxIdx {
 		iter.err = fmt.Errorf("end of iteration")
@@ -1096,25 +1093,32 @@ func (iter BlobFeatureIterator) Next() bool {
 		return false
 	}
 	formatDate := "2006-01-02 15:04:05 UTC" // hardcoded golang format date
-	timestamp, err := time.Parse(formatDate, nextVal["ts"].(string))
-	if err != nil {
-		iter.err = fmt.Errorf("could not parse timestamp: %v: %v", nextVal["ts"], err)
-		return false
+	var timestamp time.Time
+	timeString, ok := nextVal["ts"].(string)
+	if !ok {
+		iter.cur = ResourceRecord{Entity: string(nextVal["entity"].(string)), Value: nextVal["value"]}
+	} else {
+		timestamp, err = time.Parse(formatDate, timeString)
+		if err != nil {
+			iter.err = fmt.Errorf("could not parse timestamp: %v: %v", nextVal["ts"], err)
+			return false
+		}
+		iter.cur = ResourceRecord{Entity: string(nextVal["entity"].(string)), Value: nextVal["value"], TS: timestamp}
 	}
-	iter.cur = ResourceRecord{Entity: string(nextVal["entity"].(string)), Value: nextVal["value"], TS: timestamp}
+
 	return true
 }
 
-func (iter BlobFeatureIterator) Value() ResourceRecord {
+func (iter *BlobFeatureIterator) Value() ResourceRecord {
 	return iter.cur
 }
 
-func (iter BlobFeatureIterator) Err() error {
+func (iter *BlobFeatureIterator) Err() error {
 	return iter.err
 }
 
-func (iter BlobFeatureIterator) Close() error {
-	return iter.Close()
+func (iter *BlobFeatureIterator) Close() error {
+	return nil
 }
 
 func (k8s *K8sOfflineStore) UpdateMaterialization(id ResourceID) (Materialization, error) {

@@ -949,7 +949,8 @@ func (iter BlobFeatureIterator) Next() bool {
 		iter.err = err
 		return false
 	}
-	timestamp, err := time.Parse("2006-01-02 15:04:05 UTC", nextVal["ts"].(string))
+	formatDate := "2006-01-02 15:04:05 UTC" // hardcoded golang format date
+	timestamp, err := time.Parse(formatDate, nextVal["ts"].(string))
 	if err != nil {
 		iter.err = fmt.Errorf("could not parse timestamp: %v: %v", nextVal["ts"], err)
 		return false

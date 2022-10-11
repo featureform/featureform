@@ -74,16 +74,15 @@ def execute_sql_job(mode, output_uri, transformation, source_list, blob_credenti
         dt = datetime.now()
         output_uri_with_timestamp = f'{output_uri}{dt}'
 
-        os.makedirs(output_uri)
-
         if blob_credentials.type == AZURE:
             local_output = f"{LOCAL_DATA_PATH}/output.parquet"
             output_dataframe.to_parquet(local_output)
             # upload blob to blob store
-            output_uri = upload_blob_to_blob_store(container_client, local_output, output_uri_with_timestamp + ".parquet") 
+            output_uri = upload_blob_to_blob_store(container_client, local_output, f"{output_uri_with_timestamp}.parquet") 
         
         elif blob_credentials.type == LOCAL:
-            output_dataframe.to_parquet(output_uri_with_timestamp + ".parquet")
+            os.makedirs(output_uri)
+            output_dataframe.to_parquet(f"{output_uri_with_timestamp}.parquet")
     
         return output_uri_with_timestamp
     except (IOError, OSError) as e:
@@ -130,8 +129,6 @@ def execute_df_job(mode, output_uri, code, sources, etcd_credentials, blob_crede
         dt = datetime.now()
         output_uri_with_timestamp = f"{output_uri}{dt}"
 
-        os.makedirs(output_uri)
-
         if blob_credentials.type == AZURE:
             local_output = f"{LOCAL_DATA_PATH}/output.parquet"
             output_df.to_parquet(local_output)
@@ -139,7 +136,8 @@ def execute_df_job(mode, output_uri, code, sources, etcd_credentials, blob_crede
             output_uri = upload_blob_to_blob_store(container_client, local_output, output_uri_with_timestamp) 
         
         elif blob_credentials.type == LOCAL:
-            output_df.to_parquet(output_uri_with_timestamp + ".parquet")
+            os.makedirs(output_uri)
+            output_df.to_parquet(f"{output_uri_with_timestamp}.parquet")
 
         return output_uri_with_timestamp
     except (IOError, OSError) as e:
@@ -199,16 +197,12 @@ def upload_blob_to_blob_store(client, local_filename, blob_path):
     Output:
         blob_path:      str (path to blob store)
     """
-    print("uploading blob")
-    print(local_filename)
-    print(blob_path)
+
     if os.path.isfile(local_filename):
-        print("is file")
         blob_upload = client.get_blob_client(blob_path)
         with open(local_filename, "rb") as data:
             blob_upload.upload_blob(data, blob_type="BlockBlob")
     elif os.path.isdir(local_filename):
-        print("is dir")
         for file in os.listdir(local_filename):
             blob_upload = client.get_blob_client(f"{blob_path}/{file}")
             

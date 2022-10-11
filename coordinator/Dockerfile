@@ -1,7 +1,7 @@
 # RUN docker build -f ./coordinator/Dockerfile . -t coordinator from /serving
 # docker tag coordinator:latest featureformcom/coordinator:latest
 # docker push featureformcom/coordinator:latest
-FROM golang:1.17-alpine
+FROM golang:1.18-alpine
 
 WORKDIR /app
 

@@ -103,24 +103,6 @@ func testBlobReadAndWrite(t *testing.T, store BlobStore) {
 	}
 }
 
-// func testBlobCSVServe(t *testing.T, store BlobStore) {
-// 	//write csv file, then iterate all data types
-// 	csvBytes := []byte(`1,2,3,4,5
-// 	6,7,8,9,10`)
-// 	testKey := fmt.Sprintf("%s.csv", uuidWithoutDashes())
-// 	if err := store.Write(testKey, csvBytes); err != nil {
-// 		t.Fatalf("Failure writing csv data %s to key %s: %v", string(csvBytes), testKey, err)
-// 	}
-// 	iterator, err := store.Serve(testKey)
-// 	if err != nil {
-// 		t.Fatalf("Failure getting serving iterator with key %s: %v", testKey, err)
-// 	}
-// 	for row, err := iterator.Next(); err != nil; row, err = iterator.Next() {
-// 		fmt.Println(row)
-// 	}
-// 	fmt.Println(err)
-// }
-
 func testBlobParquetServe(t *testing.T, store BlobStore) {
 	testKey := fmt.Sprintf("input/transactions.snappy.parquet")
 	iterator, err := store.Serve(testKey)

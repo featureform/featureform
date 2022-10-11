@@ -5,7 +5,7 @@ RUN npm install --legacy-peer-deps
 RUN npm run build
 RUN rm -r node_modules
 
-FROM golang:1.17
+FROM golang:1.18
 
 WORKDIR /app
 

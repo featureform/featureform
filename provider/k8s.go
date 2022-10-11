@@ -113,6 +113,7 @@ func init() {
 	}
 	executorFactoryMap := map[ExecutorType]ExecutorFactory{
 		GoProc: NewLocalExecutor,
+		K8s:    NewKubernetesExecutor,
 	}
 	for storeType, factory := range blobStoreFactoryMap {
 		RegisterBlobStoreFactory(string(storeType), factory)
@@ -166,6 +167,7 @@ type BlobStoreType string
 
 const (
 	GoProc ExecutorType = "GO_PROCESS"
+	K8s                 = "K8S"
 )
 
 const (
@@ -278,10 +280,8 @@ func (kube KubernetesExecutor) ExecuteScript(envVars map[string]string) error {
 	return nil
 }
 
-func NewKubernetesExecutor(image string) (Executor, error) {
-	return KubernetesExecutor{
-		image: image,
-	}, nil
+func NewKubernetesExecutor(config Config) (Executor, error) {
+	return KubernetesExecutor{}, nil
 }
 
 type BlobStore interface {

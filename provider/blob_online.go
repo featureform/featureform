@@ -183,13 +183,13 @@ func castBytesToValue(value []byte, valueType ValueType) (interface{}, error) {
 		return valueString, nil
 	case Int, Int32:
 		val, err = strconv.ParseInt(valueString, 10, 32)
-		return int(val.(int)), err
+		return int(val.(int64)), err
 	case Int64:
 		val, err = strconv.ParseInt(valueString, 10, 64)
 		return int64(val.(int64)), err
 	case Float32:
 		val, err = strconv.ParseFloat(valueString, 32)
-		return float32(val.(float32)), err
+		return float32(val.(float64)), err
 	case Float64:
 		val, err = strconv.ParseFloat(valueString, 64)
 		return float64(val.(float64)), err

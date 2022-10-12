@@ -130,6 +130,24 @@ func TestOnlineStores(t *testing.T) {
 		return *dynamoConfig
 	}
 
+	blobAzureInit := func() OnlineBlobConfig {
+		azureConfig := AzureBlobStoreConfig{
+			AccountName:   helpers.GetEnv("AZURE_ACCOUNT_NAME", ""),
+			AccountKey:    helpers.GetEnv("AZURE_ACCOUNT_KEY", ""),
+			ContainerName: helpers.GetEnv("AZURE_CONTAINER_NAME", ""),
+			Path:          "featureform/onlinetesting",
+		}
+		serializedAzureConfig, err := azureConfig.Serialize()
+		if err != nil {
+			panic(fmt.Errorf("cannot unmarshal azure credentials: %v", err))
+		}
+		blobConfig := &OnlineBlobConfig{
+			Type:   Azure,
+			Config: BlobStoreConfig(serializedAzureConfig),
+		}
+		return *blobConfig
+	}
+
 	type testMember struct {
 		t               Type
 		subType         string
@@ -161,6 +179,9 @@ func TestOnlineStores(t *testing.T) {
 	}
 	if *provider == "dynamo" || *provider == "" {
 		testList = append(testList, testMember{DynamoDBOnline, "", dynamoInit().Serialized(), true})
+	}
+	if *provider == "azure_blob" || *provider == "" {
+		testList = append(testList, testMember{BlobOnline, "_AZURE", blobAzureInit().Serialized(), true})
 	}
 
 	for _, testItem := range testList {

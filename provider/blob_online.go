@@ -20,7 +20,7 @@ func (online OnlineBlobConfig) Serialized() SerializedConfig {
 	return config
 }
 
-func (online OnlineBlobConfig) Deserialize(config SerializedConfig) error {
+func (online *OnlineBlobConfig) Deserialize(config SerializedConfig) error {
 	err := json.Unmarshal(config, online)
 	if err != nil {
 		return err

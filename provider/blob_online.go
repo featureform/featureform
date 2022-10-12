@@ -170,8 +170,7 @@ func (table OnlineBlobStoreTable) Get(entity string) (interface{}, error) {
 	} else if err != nil {
 		return nil, err
 	}
-	valueBytes := []byte(fmt.Sprintf("%v", value))
-	return castBytesToValue(valueBytes, table.valueType)
+	return castBytesToValue(value.([]byte), table.valueType)
 }
 
 func castBytesToValue(value []byte, valueType ValueType) (interface{}, error) {

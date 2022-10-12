@@ -15,6 +15,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/featureform/helpers"
+
 	"github.com/alicebob/miniredis"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"

@@ -12,7 +12,7 @@ type OnlineBlobConfig struct {
 	Config BlobStoreConfig
 }
 
-func (online *OnlineBlobConfig) Serialized() SerializedConfig {
+func (online OnlineBlobConfig) Serialized() SerializedConfig {
 	config, err := json.Marshal(online)
 	if err != nil {
 		panic(err)
@@ -20,7 +20,7 @@ func (online *OnlineBlobConfig) Serialized() SerializedConfig {
 	return config
 }
 
-func (online *OnlineBlobConfig) Deserialize(config SerializedConfig) error {
+func (online OnlineBlobConfig) Deserialize(config SerializedConfig) error {
 	err := json.Unmarshal(config, online)
 	if err != nil {
 		return err

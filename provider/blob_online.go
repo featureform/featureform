@@ -141,7 +141,6 @@ func (store OnlineBlobStore) DeleteTable(feature, variant string) error {
 		return &TableNotFound{feature, variant}
 	}
 	return store.deleteTable(feature, variant)
-	//TODO should this also cycle through all values and delete them too?
 }
 
 func entityDirectory(feature, variant) string {

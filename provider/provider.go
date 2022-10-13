@@ -23,6 +23,7 @@ func init() {
 		BigQueryOffline:  bigQueryOfflineStoreFactory,
 		SparkOffline:     sparkOfflineStoreFactory,
 		K8sOffline:       k8sAzureOfflineStoreFactory,
+		BlobOnline:       blobOnlineStoreFactory,
 	}
 	for name, factory := range unregisteredFactories {
 		if err := RegisterFactory(name, factory); err != nil {

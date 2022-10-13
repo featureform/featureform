@@ -80,6 +80,43 @@ class RedisConfig:
         }
         return bytes(json.dumps(config), "utf-8")
 
+@typechecked
+@dataclass
+class AzureBlobStoreConfig:
+    account_name: str
+    account_key: str
+    container_name: str
+    root_path: str
+
+    def serialize(self) -> bytes:
+        config = {
+            "AccountName": self.account_name,
+            "AccountKey": self.account_key,
+            "ContainerName": self.container_name,
+            "Path": self.root_path,
+        }
+        return bytes(json.dumps(config), "utf-8")
+
+
+@typechecked
+@dataclass
+class OnlineBlobConfig:
+    store_type: str
+    store_config: bytes
+
+    def software(self) -> str:
+        return self.store_type
+
+    def type(self) -> str:
+        return "BLOB_ONLINE"
+
+    def serialize(self) -> bytes:
+        config = {
+            "Type": self.store_type,
+            "Config": self.store_config,
+        }
+        return bytes(json.dumps(config), "utf-8")
+
 
 @typechecked
 @dataclass
@@ -289,7 +326,7 @@ class SparkAWSConfig:
 
     def serialize(self) -> bytes:
         config = {
-            "ExecutorType": "EMR",
+            "ExecutorType": "EMR",  
             "StoreType": "S3",
             "ExecutorConfig": {
                 "AWSAccessKeyId": self.aws_access_key_id,

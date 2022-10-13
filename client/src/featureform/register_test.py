@@ -33,7 +33,6 @@ def registrar():
 def test_register_snowflake(registrar, args):
     registrar.register_snowflake(**args)
 
-
 minimal_postgres_args = {
     "name": "postgres",
 }
@@ -55,6 +54,22 @@ minimal_postgres_args = {
 def test_register_postgres(registrar, args):
     registrar.register_postgres(**args)
 
+@pytest.mark.parametrize("args", [
+    {
+        "name": "azure_blob"
+    },
+    {
+        "name": "azure_blob",
+        "description": "test",
+        "team": "featureform",
+        "account_name": "<account_name>",
+        "account_key": "<account_key>",
+        "container_name": "container",
+        "root_path": "example/path",
+    }
+])
+def test_register_blob_store(registrar, args):
+    registrar.register_blob_store(**args)
 
 @pytest.mark.parametrize("args", [
     {

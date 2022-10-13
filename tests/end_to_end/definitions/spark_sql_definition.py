@@ -47,7 +47,7 @@ file = spark.register_parquet_file(
 )
 
 
-@spark.sql_transformation(name=f"sql_transaction_transformation_{VERSION}", variant="quickstart")
+@spark.sql_transformation(name=f"avg_transactions_{VERSION}", variant="quickstart")
 def average_user_score():
     """the average score for a user"""
     return f"SELECT CustomerID as user_id, avg(TransactionAmount) as avg_transaction_amt from {{{{ transaction_short.test_variant }}}} GROUP BY user_id"

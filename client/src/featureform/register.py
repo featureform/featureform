@@ -333,7 +333,7 @@ class OnlineProvider:
         return self.__provider.name
 
 class StoreProvider:
-    def __init__(self, registrary, provider, config, store_type):
+    def __init__(self, registrar, provider, config, store_type):
         self.__registrar = registrar
         self.__provider = provider
         self.__config = config

@@ -13,6 +13,8 @@ import json
 from .sqlite_metadata import SQLiteMetadata
 from enum import Enum
 
+from .resources import FileStoreProvider
+
 NameVariant = Tuple[str, str]
 
 

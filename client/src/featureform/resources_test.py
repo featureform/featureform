@@ -4,7 +4,7 @@
 
 import pytest
 from .resources import ResourceRedefinedError, ResourceState, Provider, RedisConfig, CassandraConfig, FirestoreConfig, \
-SnowflakeConfig, PostgresConfig, RedshiftConfig, BigQueryConfig, OnlineBlobConfig, AzureBlobStoreConfig, User, Provider, Entity, Feature, Label, TrainingSet, PrimaryData, SQLTable, \
+SnowflakeConfig, PostgresConfig, RedshiftConfig, BigQueryConfig, OnlineBlobConfig, AzureBlobStoreConfig, K8sConfig, User, Provider, Entity, Feature, Label, TrainingSet, PrimaryData, SQLTable, \
 Source, ResourceColumnMapping, DynamodbConfig, Schedule
 
 

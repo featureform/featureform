@@ -355,7 +355,7 @@ test_e2e: update_python					## Runs End-to-End tests on minikube
 	pytest client/tests/e2e.py
 
 	echo "Starting end to end tests"
-	./tests/end_to_end/end_to_end_tests.sh localhost:8000 ./tls.cert
+	./tests/end_to_end/end_to_end_tests.sh localhost:8000 ./tls.crt
 
 reset_e2e:  			 			## Resets Cluster. Requires install_etcd
 	-kubectl port-forward svc/featureform-etcd 2379:2379 &

@@ -372,6 +372,27 @@ class K8sAzureConfig:
         }
         return bytes(json.dumps(config), "utf-8")
 
+@typechecked
+@dataclass
+class K8sConfig:
+    store: FileStoreProvider
+
+    def software(self) -> str:
+        return "k8s"
+
+    def type(self) -> str:
+        return "K8S_OFFLINE"
+
+    def serialize(self) -> bytes:
+        config = {
+            "ExecutorType": "K8S",
+            "ExecutorConfig": {},
+            "StoreType": store.store_type(),
+            "StoreConfig": store.config().serialize(),
+        }
+        return bytes(json.dumps(config), "utf-8")
+
+
 
 
 Config = Union[

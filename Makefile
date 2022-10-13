@@ -355,6 +355,8 @@ test_e2e: update_python					## Runs End-to-End tests on minikube
 	pytest client/tests/e2e.py
 
 	echo "Starting end to end tests"
+	export FEATUREFORM_HOST="localhost:8000"
+	export FEATUREFORM_CERT="tls.cert"
 	./tests/end_to_end/end_to_end_tests.sh
 
 reset_e2e:  			 			## Resets Cluster. Requires install_etcd

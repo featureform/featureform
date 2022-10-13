@@ -558,7 +558,7 @@ class LocalSource:
             entity: Union[str, EntityRegistrar],
             entity_column: str,
             owner: Union[str, UserRegistrar] = "",
-            inference_store: Union[str, OnlineProvider, BlobProvider] = "",
+            inference_store: Union[str, OnlineProvider, StoreProvider] = "",
             features: List[ColumnMapping] = None,
             labels: List[ColumnMapping] = None,
             timestamp_column: str = ""
@@ -582,7 +582,7 @@ class LocalSource:
             entity (Union[str, EntityRegistrar]): The name to reference the entity by when serving features
             entity_column (str): The name of the column in the source to be used as the entity
             owner (Union[str, UserRegistrar]): The owner of the resource(s)
-            inference_store (Union[str, OnlineProvider, BlobProvider]): Where to store the materialized feature for serving. (Use the local provider in Localmode)
+            inference_store (Union[str, OnlineProvider, StoreProvider]): Where to store the materialized feature for serving. (Use the local provider in Localmode)
             features (List[ColumnMapping]): A list of column mappings to define the features
             labels (List[ColumnMapping]): A list of column mappings to define the labels
             timestamp_column: (str): The name of an optional timestamp column in the dataset. Will be used to match the features and labels with point-in-time correctness
@@ -656,7 +656,7 @@ class SQLTransformationDecorator:
             entity: Union[str, EntityRegistrar],
             entity_column: str,
             owner: Union[str, UserRegistrar] = "",
-            inference_store: Union[str, OnlineProvider, BlobProvider] = "",
+            inference_store: Union[str, OnlineProvider, StoreProvider] = "",
             features: List[ColumnMapping] = None,
             labels: List[ColumnMapping] = None,
             timestamp_column: str = "",
@@ -727,7 +727,7 @@ class DFTransformationDecorator:
             entity: Union[str, EntityRegistrar],
             entity_column: str,
             owner: Union[str, UserRegistrar] = "",
-            inference_store: Union[str, OnlineProvider, BlobProvider] = "",
+            inference_store: Union[str, OnlineProvider, StoreProvider] = "",
             features: List[ColumnMapping] = None,
             labels: List[ColumnMapping] = None,
             timestamp_column: str = "",
@@ -753,7 +753,7 @@ class ColumnSourceRegistrar(SourceRegistrar):
             entity: Union[str, EntityRegistrar],
             entity_column: str,
             owner: Union[str, UserRegistrar] = "",
-            inference_store: Union[str, OnlineProvider, BlobProvider] = "",
+            inference_store: Union[str, OnlineProvider, StoreProvider] = "",
             features: List[ColumnMapping] = None,
             labels: List[ColumnMapping] = None,
             timestamp_column: str = "",
@@ -779,7 +779,7 @@ class ColumnSourceRegistrar(SourceRegistrar):
             entity (Union[str, EntityRegistrar]): The name to reference the entity by when serving features
             entity_column (str): The name of the column in the source to be used as the entity
             owner (Union[str, UserRegistrar]): The owner of the resource(s)
-            inference_store (Union[str, OnlineProvider, BlobProvider]): Where to store the materialized feature for serving. (Use the local provider in Localmode)
+            inference_store (Union[str, OnlineProvider, StoreProvider]): Where to store the materialized feature for serving. (Use the local provider in Localmode)
             features (List[ColumnMapping]): A list of column mappings to define the features
             labels (List[ColumnMapping]): A list of column mappings to define the labels
             timestamp_column: (str): The name of an optional timestamp column in the dataset. Will be used to match the features and labels with point-in-time correctness
@@ -1018,7 +1018,7 @@ class Registrar:
             name (str): Name of Azure blob provider to be retrieved
 
         Returns:
-            azure_blob (BlobProvider): Provider
+            azure_blob (StoreProvider): Provider
             bm22
         """
 
@@ -1035,7 +1035,7 @@ class Registrar:
         fake_azure_config = AzureBlobConfig(account_name="", account_key="",container_name="",root_path="")
         fake_config = OnlineBlobConfig(store_type="AZURE",store_config=azure_config.serialize())
         fakeProvider = Provider(name=name, function="ONLINE", description="", team="", config=fakeConfig)
-        return BlobProvider(self, fakeProvider, fake_config)
+        return StoreProvider(self, fakeProvider, fake_config)
     
     def get_postgres(self, name):
         """Get a Postgres provider. The returned object can be used to register additional resources.
@@ -1296,7 +1296,7 @@ class Registrar:
                             team=team,
                             config=config)
         self.__resources.append(provider)
-        return BlobProvider(self, provider, config)
+        return StoreProvider(self, provider, config)
 
     def register_firestore(self,
                            name: str,
@@ -1884,7 +1884,7 @@ class Registrar:
             entity: Union[str, EntityRegistrar],
             entity_column: str,
             owner: Union[str, UserRegistrar] = "",
-            inference_store: Union[str, OnlineProvider, BlobProvider] = "",
+            inference_store: Union[str, OnlineProvider, StoreProvider] = "",
             features: List[ColumnMapping] = None,
             labels: List[ColumnMapping] = None,
             timestamp_column: str = "",

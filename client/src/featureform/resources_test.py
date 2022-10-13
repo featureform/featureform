@@ -41,21 +41,7 @@ def redis_config():
     )
 
 @pytest.fixture
-def online_blob_config(
-    azure_blob_config = AzureBlobStoreConfig(
-        account_name="<account_name>",
-        account_key="<account_key>",
-        container_name="examplecontainer",
-        root_path="example/path",
-    )
-    return OnlineBlobConfig(
-        store_type="AZURE",
-        store_config=azure_blob.serialize(),
-    )
-)
-
-@pytest.fixture
-def azure_blob_store_config(
+def blob_store_config(
     return AzureBlobStoreConfig(
         account_name="<account_name>",
         account_key="<account_key>",
@@ -63,6 +49,16 @@ def azure_blob_store_config(
         root_path="example/path",
     )
 )
+
+
+@pytest.fixture
+def online_blob_config(blob_store_config):
+    return OnlineBlobConfig(
+        store_type="AZURE",
+        store_config=blob_store_config.serialize(),
+    )
+
+
 
 @pytest.fixture
 def cassandra_config():

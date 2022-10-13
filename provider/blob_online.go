@@ -7,6 +7,8 @@ import (
 	"time"
 )
 
+const STORE_PREFIX = "/.featureform/inferencestore"
+
 type OnlineBlobConfig struct {
 	Type   BlobStoreType
 	Config BlobStoreConfig
@@ -60,7 +62,7 @@ func (store *OnlineBlobStore) AsOnlineStore() (OnlineStore, error) {
 }
 
 func blobTableKey(feature, variant string) string {
-	return fmt.Sprintf("tables/%s/%s", feature, variant)
+	return fmt.Sprintf("%s/tables/%s/%s", STORE_PREFIX, feature, variant)
 }
 
 func (store OnlineBlobStore) tableExists(feature, variant string) (bool, error) {
@@ -84,7 +86,14 @@ func (store OnlineBlobStore) writeTableValue(feature, variant string, valueType 
 
 func (store OnlineBlobStore) deleteTable(feature, variant string) error {
 	tableKey := blobTableKey(feature, variant)
-	return store.Delete(tableKey)
+	entityDirectory := entityDirectory(feature, variant)
+	if err := store.Delete(tableKey); err != nil; {
+		return fmt.Errorf("could not delete table index key %s: %v", tableKey, err)
+	}
+	if err := store.DeleteAll(entityDirectory); err != nil {
+		return fmt.Errorf("could not delete entity directory %s: %v", entityDirectory, err)
+	}
+	return nil
 }
 
 func (store OnlineBlobStore) GetTable(feature, variant string) (OnlineStoreTable, error) {
@@ -135,8 +144,12 @@ func (store OnlineBlobStore) DeleteTable(feature, variant string) error {
 	//TODO should this also cycle through all values and delete them too?
 }
 
+func entityDirectory(feature, variant) string {
+	return fmt.Sprintf("%s/values/%s/%s",STORE_PREFIX, feature, variant,)
+}
+
 func entityValueKey(feature, variant, entity string) string {
-	return fmt.Sprintf("values/%s/%s/%s", feature, variant, entity)
+	return fmt.Sprintf("%s/%s", entityDirectory(feature, variant), entity)
 }
 
 func (table OnlineBlobStoreTable) setEntityValue(feature, variant, entity string, value interface{}) error {

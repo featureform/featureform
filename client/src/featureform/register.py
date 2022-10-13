@@ -332,6 +332,21 @@ class OnlineProvider:
     def name(self) -> str:
         return self.__provider.name
 
+class StoreProvider:
+    def __init__(self, registrary, provider, config, store_type):
+        self.__registrar = registrar
+        self.__provider = provider
+        self.__config = config
+        self.__store_type = store_type
+    
+    def name(self) -> str:
+        return self.__provider.name
+    
+    def store_type(self) -> str:
+        return self.__store_type
+
+    def config(self):
+        return self.__config
 
 class LocalProvider:
     """
@@ -543,7 +558,7 @@ class LocalSource:
             entity: Union[str, EntityRegistrar],
             entity_column: str,
             owner: Union[str, UserRegistrar] = "",
-            inference_store: Union[str, OnlineProvider] = "",
+            inference_store: Union[str, OnlineProvider, BlobProvider] = "",
             features: List[ColumnMapping] = None,
             labels: List[ColumnMapping] = None,
             timestamp_column: str = ""
@@ -567,7 +582,7 @@ class LocalSource:
             entity (Union[str, EntityRegistrar]): The name to reference the entity by when serving features
             entity_column (str): The name of the column in the source to be used as the entity
             owner (Union[str, UserRegistrar]): The owner of the resource(s)
-            inference_store (Union[str, OnlineProvider]): Where to store the materialized feature for serving. (Use the local provider in Localmode)
+            inference_store (Union[str, OnlineProvider, BlobProvider]): Where to store the materialized feature for serving. (Use the local provider in Localmode)
             features (List[ColumnMapping]): A list of column mappings to define the features
             labels (List[ColumnMapping]): A list of column mappings to define the labels
             timestamp_column: (str): The name of an optional timestamp column in the dataset. Will be used to match the features and labels with point-in-time correctness
@@ -641,7 +656,7 @@ class SQLTransformationDecorator:
             entity: Union[str, EntityRegistrar],
             entity_column: str,
             owner: Union[str, UserRegistrar] = "",
-            inference_store: Union[str, OnlineProvider] = "",
+            inference_store: Union[str, OnlineProvider, BlobProvider] = "",
             features: List[ColumnMapping] = None,
             labels: List[ColumnMapping] = None,
             timestamp_column: str = "",
@@ -712,7 +727,7 @@ class DFTransformationDecorator:
             entity: Union[str, EntityRegistrar],
             entity_column: str,
             owner: Union[str, UserRegistrar] = "",
-            inference_store: Union[str, OnlineProvider] = "",
+            inference_store: Union[str, OnlineProvider, BlobProvider] = "",
             features: List[ColumnMapping] = None,
             labels: List[ColumnMapping] = None,
             timestamp_column: str = "",
@@ -738,7 +753,7 @@ class ColumnSourceRegistrar(SourceRegistrar):
             entity: Union[str, EntityRegistrar],
             entity_column: str,
             owner: Union[str, UserRegistrar] = "",
-            inference_store: Union[str, OnlineProvider] = "",
+            inference_store: Union[str, OnlineProvider, BlobProvider] = "",
             features: List[ColumnMapping] = None,
             labels: List[ColumnMapping] = None,
             timestamp_column: str = "",
@@ -764,7 +779,7 @@ class ColumnSourceRegistrar(SourceRegistrar):
             entity (Union[str, EntityRegistrar]): The name to reference the entity by when serving features
             entity_column (str): The name of the column in the source to be used as the entity
             owner (Union[str, UserRegistrar]): The owner of the resource(s)
-            inference_store (Union[str, OnlineProvider]): Where to store the materialized feature for serving. (Use the local provider in Localmode)
+            inference_store (Union[str, OnlineProvider, BlobProvider]): Where to store the materialized feature for serving. (Use the local provider in Localmode)
             features (List[ColumnMapping]): A list of column mappings to define the features
             labels (List[ColumnMapping]): A list of column mappings to define the labels
             timestamp_column: (str): The name of an optional timestamp column in the dataset. Will be used to match the features and labels with point-in-time correctness
@@ -983,6 +998,45 @@ class Registrar:
         fakeProvider = Provider(name=name, function="ONLINE", description="", team="", config=fakeConfig)
         return OnlineProvider(self, fakeProvider)
 
+    def get_azure_blob(self, name):
+        """Get a Azure Blob provider. The returned object can be used to register additional resources.
+
+        **Examples**:
+        ``` py
+        azure_blob = get_azure_blob("azure-blob-quickstart")
+        // Defining a new transformation source with retrieved Azure blob provider
+        average_user_transaction.register_resources(
+            entity=user,
+            entity_column="user_id",
+            inference_store=azure_blob,
+            features=[
+                {"name": "avg_transactions", "variant": "quickstart", "column": "avg_transaction_amt", "type": "float32"},
+            ],
+        )
+        ```
+        Args:
+            name (str): Name of Azure blob provider to be retrieved
+
+        Returns:
+            azure_blob (BlobProvider): Provider
+            bm22
+        """
+
+        # azure_config = AzureBlobConfig(account_name=account_name, account_key=account_key,container_name=container_name,root_path=root_path)
+        # config = OnlineBlobConfig(store_type="AZURE",store_config=azure_config.serialize())
+        # provider = Provider(name=name,
+        #                     function="ONLINE",
+        #                     description=description,
+        #                     team=team,
+        #                     config=config)
+        # self.__resources.append(provider)
+        get = ProviderReference(name=name, provider_type="AZURE", obj=None)
+        self.__resources.append(get)
+        fake_azure_config = AzureBlobConfig(account_name="", account_key="",container_name="",root_path="")
+        fake_config = OnlineBlobConfig(store_type="AZURE",store_config=azure_config.serialize())
+        fakeProvider = Provider(name=name, function="ONLINE", description="", team="", config=fakeConfig)
+        return BlobProvider(self, fakeProvider, fake_config)
+    
     def get_postgres(self, name):
         """Get a Postgres provider. The returned object can be used to register additional resources.
 
@@ -1195,6 +1249,54 @@ class Registrar:
                             config=config)
         self.__resources.append(provider)
         return OnlineProvider(self, provider)
+
+    def register_blob_store(self,
+                       name: str,
+                       account_name: str,
+                       account_key: str,
+                       container_name: str,
+                       root_path: str, 
+                       description: str = "",
+                       team: str = "",):
+        """Register an azure blob store provider.
+
+        This has the functionality of an online store and can be used as a parameter
+        to a k8s or spark provider
+
+        **Examples**:
+        ```   
+        blob = ff.register_blob_store(
+            name="azure-quickstart",
+            container_name="my_company_container"
+            path="custom/path/in/container"
+            account_name=<azure_account_name>
+            account_key=<azure_account_key> 
+            description="An azure blob store provider to store offline and inference data"
+        )
+        ```
+        Args:
+            name (str): Name of Azure blob store to be registered
+            container_name (str): Azure container name
+            root_path (str): custom path in container to store data
+            description (str): Description of Redis provider to be registered
+            team (str): team with permission to this storage layer
+            account_name (str): Azure account name
+            account_key (str): Secret azure account key
+            config (AzureConfig): an azure config object (can be used in place of container name and account name)
+        bm22
+        Returns:
+            blob (StorageProvider): Provider
+                has all the functionality of OnlineProvider
+        """
+        azure_config = AzureBlobConfig(account_name=account_name, account_key=account_key,container_name=container_name,root_path=root_path)
+        config = OnlineBlobConfig(store_type="AZURE",store_config=azure_config.serialize())
+        provider = Provider(name=name,
+                            function="ONLINE",
+                            description=description,
+                            team=team,
+                            config=config)
+        self.__resources.append(provider)
+        return BlobProvider(self, provider, config)
 
     def register_firestore(self,
                            name: str,
@@ -1574,6 +1676,7 @@ class Registrar:
         self.__resources.append(provider)
         return OfflineK8sAzureProvider(self, provider)
 
+ 
     def register_local(self):
         """Register a Local provider.
 
@@ -1781,7 +1884,7 @@ class Registrar:
             entity: Union[str, EntityRegistrar],
             entity_column: str,
             owner: Union[str, UserRegistrar] = "",
-            inference_store: Union[str, OnlineProvider] = "",
+            inference_store: Union[str, OnlineProvider, BlobProvider] = "",
             features: List[ColumnMapping] = None,
             labels: List[ColumnMapping] = None,
             timestamp_column: str = "",
@@ -2999,6 +3102,7 @@ state = global_registrar.state
 clear_state = global_registrar.clear_state
 register_user = global_registrar.register_user
 register_redis = global_registrar.register_redis
+register_blob_store = global_registrar.register_blob_store
 register_bigquery = global_registrar.register_bigquery
 register_firestore = global_registrar.register_firestore
 register_cassandra = global_registrar.register_cassandra

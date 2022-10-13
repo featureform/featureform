@@ -16,6 +16,10 @@ def get_random_string():
 VERSION=get_random_string()
 os.environ["TEST_CASE_VERSION"]=VERSION
 
+env_file = os.getenv('GITHUB_ENV', "env_file.txt")
+with open(env_file, "a") as myfile:
+    myfile.write(f"TEST_CASE_VERSION={VERSION}")
+
 # Start of Featureform Definitions
 ff.register_user("featureformer").make_default_owner()
 

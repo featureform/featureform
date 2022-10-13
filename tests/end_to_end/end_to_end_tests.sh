@@ -4,7 +4,7 @@ set -e
 
 TESTING_DIRECTORY="$( cd "$(dirname "$0")"/ ; pwd -P )"
 
-echo -e "Exporting FEATUREFORM_HOST=$1 and FEATUREFORM_CERT=$2\n"
+echo -e "Exporting FEATUREFORM_HOST='$1' and FEATUREFORM_CERT='$2'\n"
 export FEATUREFORM_HOST=$1
 export FEATUREFORM_CERT=$2
 
@@ -12,12 +12,12 @@ for f in $TESTING_DIRECTORY/definitions/*
 do
     printf -- '-%.0s' $(seq 100); echo ""
     filename="${f##*/}"
-    echo "Applying $filename definition"
+    echo "Applying '$filename' definition"
     featureform apply $f
 
-    echo -e "\nNow serving $filename for $TEST_CASE_VERSION version"
+    echo -e "\nNow serving '$filename' for '$TEST_CASE_VERSION' version"
     python $TESTING_DIRECTORY/serving.py
-    echo -e "Successfully completed $filename for $TEST_CASE_VERSION version."
+    echo -e "Successfully completed '$filename' for '$TEST_CASE_VERSION' version."
 done
 
 echo -e "\n\n"

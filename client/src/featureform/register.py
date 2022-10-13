@@ -1665,6 +1665,7 @@ class Registrar:
         self.__resources.append(provider)
         return OfflineK8sAzureProvider(self, provider)
 
+ 
     def register_local(self):
         """Register a Local provider.
 

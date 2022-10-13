@@ -4,7 +4,7 @@ set -e
 
 TESTING_DIRECTORY="$( cd "$(dirname "$0")"/ ; pwd -P )"
 
-echo -e "exporting FEATUREFORM_HOST=$1 and FEATUREFORM_CERT=$2\n"
+echo -e "Exporting FEATUREFORM_HOST=$1 and FEATUREFORM_CERT=$2\n"
 export FEATUREFORM_HOST=$1
 export FEATUREFORM_CERT=$2
 

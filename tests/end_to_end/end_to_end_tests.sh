@@ -4,6 +4,10 @@ set -e
 
 TESTING_DIRECTORY="$( cd "$(dirname "$0")"/ ; pwd -P )"
 
+echo -e "exporting FEATUREFORM_HOST=$1 and FEATUREFORM_CERT=$2\n"
+export FEATUREFORM_HOST=$1
+export FEATUREFORM_CERT=$2
+
 for f in $TESTING_DIRECTORY/definitions/*
 do
     printf -- '-%.0s' $(seq 100); echo ""

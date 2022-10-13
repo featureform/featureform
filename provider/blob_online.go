@@ -87,7 +87,7 @@ func (store OnlineBlobStore) writeTableValue(feature, variant string, valueType 
 func (store OnlineBlobStore) deleteTable(feature, variant string) error {
 	tableKey := blobTableKey(feature, variant)
 	entityDirectory := entityDirectory(feature, variant)
-	if err := store.Delete(tableKey); err != nil; {
+	if err := store.Delete(tableKey); err != nil {
 		return fmt.Errorf("could not delete table index key %s: %v", tableKey, err)
 	}
 	if err := store.DeleteAll(entityDirectory); err != nil {
@@ -143,7 +143,7 @@ func (store OnlineBlobStore) DeleteTable(feature, variant string) error {
 	return store.deleteTable(feature, variant)
 }
 
-func entityDirectory(feature, variant) string {
+func entityDirectory(feature, variant string) string {
 	return fmt.Sprintf("%s/values/%s/%s",STORE_PREFIX, feature, variant,)
 }
 

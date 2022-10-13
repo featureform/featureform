@@ -1171,7 +1171,7 @@ class Registrar:
         get = ProviderReference(name=name, provider_type="k8s-azure", obj=None)
         self.__resources.append(get)
         
-        fakeConfig = K8sConfig(store=FileStoreProvider(account_name="", account_key="", container_name="", path=""))
+        fakeConfig = K8sConfig(store_type="", store_config=bytes("fake config"))
         fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
         return OfflineK8sProvider(self, fakeProvider)
 
@@ -1658,7 +1658,8 @@ class Registrar:
             team="featureform-team"
         """
         config = K8sConfig(
-            store=store
+            store_type=store.store_type(),
+            store_config=store.serialize(),
         )
         provider = Provider(name=name,
                             function="OFFLINE",

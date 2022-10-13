@@ -13,8 +13,6 @@ import json
 from .sqlite_metadata import SQLiteMetadata
 from enum import Enum
 
-from .resources import FileStoreProvider
-
 NameVariant = Tuple[str, str]
 
 
@@ -377,7 +375,8 @@ class K8sAzureConfig:
 @typechecked
 @dataclass
 class K8sConfig:
-    store: FileStoreProvider
+    store_type: str
+    store_config: bytes
 
     def software(self) -> str:
         return "k8s"
@@ -389,8 +388,8 @@ class K8sConfig:
         config = {
             "ExecutorType": "K8S",
             "ExecutorConfig": {},
-            "StoreType": store.store_type(),
-            "StoreConfig": store.config().serialize(),
+            "StoreType": self.store_type,
+            "StoreConfig": self.store_config,
         }
         return bytes(json.dumps(config), "utf-8")
 

@@ -64,11 +64,11 @@ def test_register_postgres(registrar, args):
         "team": "featureform",
         "account_name": "<account_name>",
         "account_key": "<account_key>",
-        "container_name": "container"
-        "root_path": "example/path"
+        "container_name": "container",
+        "root_path": "example/path",
     }
 ])
-def test_register_blob_sture(registrar, args):
+def test_register_blob_store(registrar, args):
     registrar.register_blob_store(**args)
 
 @pytest.mark.parametrize("args", [

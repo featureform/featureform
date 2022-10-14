@@ -81,8 +81,8 @@ def setup():
 
 
 @pytest.mark.parametrize(
-    "training_set, training_set_variant, use_cache, expected_cache",
+    "training_set_name, training_set_variant, use_cache, expected_cache",
     []
 )
-def test_localmode_cache(training_set, training_set_variant, use_cache, expected_cache):
+def test_localmode_cache(training_set_name, training_set_variant, use_cache, expected_cache):
     assert False

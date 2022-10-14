@@ -28,9 +28,9 @@ ff.register_user("featureformer").make_default_owner()
 
 azure_blob = ff.register_blob_store(
     name="k8s_blob_store",
-    account_name= "featureformtesting", # os.getenv("AZURE_ACCOUNT_NAME", None),
-    account_key= "LzUGMYWMWzXLsA7kU9QjvxUn1VnBn3R/nfGPwPGlMwDcv9L1KZjiPDStbrNWzAwgKpPU8po7E1fE+AStnndYHA==", # os.getenv("AZURE_ACCOUNT_KEY", None),
-    container_name= "newcontainer", # os.getenv("AZURE_CONTAINER_NAME", None),
+    account_name= os.getenv("AZURE_ACCOUNT_NAME", None),
+    account_key= os.getenv("AZURE_ACCOUNT_KEY", None),
+    container_name= os.getenv("AZURE_CONTAINER_NAME", None),
     root_path="testing/ff",
 )
 

@@ -164,7 +164,7 @@ func k8sAzureOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	return &k8sOfflineStore, nil
 }
 
-func k8sOfflineStoreFactory(config Config) (Provider, error) {
+func k8sOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	k8 := K8sConfig{}
 	logger := zap.NewExample().Sugar()
 	if err := k8.Deserialize(config); err != nil {

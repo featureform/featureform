@@ -28,7 +28,7 @@ azure_blob = ff.register_blob_store(
     account_name=os.getenv("AZURE_ACCOUNT_NAME", ""),
     account_key=os.getenv("AZURE_ACCOUNT_KEY", ""),
     container_name=os.getenv("AZURE_CONTAINER_NAME", ""),
-    path="testing/ff",
+    root_path="testing/ff",
 )
 
 k8s = ff.register_kubernetes(

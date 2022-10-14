@@ -168,4 +168,5 @@ require (
 	github.com/segmentio/parquet-go v0.0.0-20221005185849-771b3e358a03 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
+	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.2.0 // indirect
 )

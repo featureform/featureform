@@ -30,6 +30,8 @@
 * [Redis](providers/redis.md)
 * [Snowflake](providers/snowflake.md)
 * [Spark](providers/spark.md)
+* [Kubernetes](providers/kubernetes.md)
+* [Azure Blobs](providers/azure.md)
 
 
 ## Deployment

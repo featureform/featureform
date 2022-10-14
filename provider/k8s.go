@@ -533,7 +533,6 @@ func parquetIteratorFromReader(r io.ReadCloser) (Iterator, error) {
 		return nil, err
 	}
 	file := bytes.NewReader(buff.Bytes())
-	defer file.Close()
 	rows, err := parquet.Read[any](file, size)
 	if err != nil {
 		return nil, err

@@ -88,6 +88,12 @@ class AzureBlobStoreConfig:
     container_name: str
     root_path: str
 
+    def software(self) -> str:
+        return "azure"
+
+    def type(self) -> str:
+        return "AZURE"
+
     def serialize(self) -> bytes:
         config = {
             "AccountName": self.account_name,
@@ -368,7 +374,7 @@ class K8sConfig:
 
 
 Config = Union[
-    RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig, BigQueryConfig, FirestoreConfig, SparkAWSConfig]
+    RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig, BigQueryConfig, FirestoreConfig, SparkAWSConfig, OnlineBlobConfig, AzureBlobStoreConfig]
 
 
 @typechecked

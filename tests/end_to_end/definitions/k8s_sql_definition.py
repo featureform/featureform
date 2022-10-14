@@ -25,6 +25,7 @@ save_version(VERSION)
 ff.register_user("featureformer").make_default_owner()
 
 azure_blob = ff.register_blob_store(
+    name="k8s_blob_store",
     account_name=os.getenv("AZURE_ACCOUNT_NAME", ""),
     account_key=os.getenv("AZURE_ACCOUNT_KEY", ""),
     container_name=os.getenv("AZURE_CONTAINER_NAME", ""),

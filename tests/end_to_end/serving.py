@@ -23,7 +23,7 @@ def read_version():
     return version
         
 
-VERSION=os.getenv("TEST_CASE_VERSION", read_version())
+VERSION=os.getenv("TEST_CASE_VERSIOaN", read_version())
 if VERSION == None:
     raise TypeError("VERSION is set to None.")
 

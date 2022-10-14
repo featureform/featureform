@@ -14,7 +14,7 @@ def get_random_string():
     return "".join(random.choice(string.ascii_lowercase) for _ in range(10))
 
 def save_version(version):
-    with open("version.txt", "w") as f:
+    with open("../version.txt", "w") as f:
         f.write(version)
 
 VERSION=get_random_string()

@@ -145,7 +145,7 @@ func TestOnlineStores(t *testing.T) {
 		}
 		blobConfig := &OnlineBlobConfig{
 			Type:   Azure,
-			Config: BlobStoreConfig(serializedAzureConfig),
+			Config: azureConfig,
 		}
 		return *blobConfig
 	}

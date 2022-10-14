@@ -188,7 +188,7 @@ func testParams(params JobTestParams) error {
 	job := &MaterializedChunkRunner{
 		Materialized: &params.Materialized,
 		Table:        table,
-		Store: online,
+		Store:        online,
 		ChunkSize:    params.ChunkSize,
 		ChunkIdx:     params.ChunkIdx,
 	}
@@ -229,7 +229,7 @@ func testBreakingParams(params ErrorJobTestParams) error {
 	job := &MaterializedChunkRunner{
 		Materialized: params.Materialized,
 		Table:        params.Table,
-		Store: online,
+		Store:        online,
 		ChunkSize:    params.ChunkSize,
 		ChunkIdx:     params.ChunkIdx,
 	}
@@ -639,7 +639,7 @@ func TestJobIncompleteStatus(t *testing.T) {
 	job := &MaterializedChunkRunner{
 		Materialized: &materialized,
 		Table:        table,
-		Store: online,
+		Store:        online,
 		ChunkSize:    0,
 		ChunkIdx:     0,
 	}
@@ -744,9 +744,6 @@ func (m MockOnlineStoreTable) Set(entity string, value interface{}) error {
 func (m MockOnlineStoreTable) Get(entity string) (interface{}, error) {
 	return nil, nil
 }
-
-
-
 
 func NewMockOfflineStore() *MockOfflineStore {
 	return &MockOfflineStore{

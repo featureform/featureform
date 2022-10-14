@@ -737,6 +737,9 @@ func (it *BlobIterator) Next() bool {
 		return false
 	}
 	values, err := it.iter.Next()
+	if values == nil {
+		return false
+	}
 	if err != nil {
 		it.err = err
 		return false

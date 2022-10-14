@@ -6,14 +6,26 @@ from dotenv import load_dotenv
 import featureform as ff
 
 
+SLEEP_DURATION = 30
+NUMBER_OF_SLEEPS = 20
+
 featureform_location = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 env_file_path = os.path.join(featureform_location, ".env")
 load_dotenv(env_file_path)
 
-VERSION=os.getenv("TEST_CASE_VERSION")
+def read_version():
+    try:
+        with open("version.txt", "r") as f:
+            version = f.read().strip()
+    except:
+        version = None
+    
+    return version
+        
 
-SLEEP_DURATION = 30
-NUMBER_OF_SLEEPS = 20
+VERSION=os.getenv("TEST_CASE_VERSION", read_version())
+if VERSION == None:
+    raise TypeError("VERSION is set to None.")
 
 
 client = ff.ServingClient()

@@ -66,10 +66,6 @@ func (store *OnlineBlobStore) AsOnlineStore() (OnlineStore, error) {
 	return store, nil
 }
 
-func (store *OnlineBlobStore) Close() error {
-	return (*store).Close()
-}
-
 func blobTableKey(feature, variant string) string {
 	return fmt.Sprintf("%s/tables/%s/%s", STORE_PREFIX, feature, variant)
 }

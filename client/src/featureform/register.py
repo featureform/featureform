@@ -16,7 +16,7 @@ from .list_local import *
 from .sqlite_metadata import SQLiteMetadata
 from .tls import insecure_channel, secure_channel
 from .resources import ResourceState, Provider, RedisConfig, FirestoreConfig, CassandraConfig, DynamodbConfig, \
-    PostgresConfig, SnowflakeConfig, LocalConfig, RedshiftConfig, BigQueryConfig, SparkAWSConfig, User, Location, Source, PrimaryData, SQLTable, \
+    PostgresConfig, SnowflakeConfig, LocalConfig, RedshiftConfig, BigQueryConfig, SparkAWSConfig, AzureBlobStoreConfig, OnlineBlobConfig, K8sConfig User, Location, Source, PrimaryData, SQLTable, \
     SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet, ProviderReference, \
     EntityReference, SourceReference
 
@@ -1259,7 +1259,7 @@ class Registrar:
         blob = ff.register_blob_store(
             name="azure-quickstart",
             container_name="my_company_container"
-            path="custom/path/in/container"
+            root_path="custom/path/in/container"
             account_name=<azure_account_name>
             account_key=<azure_account_key> 
             description="An azure blob store provider to store offline and inference data"

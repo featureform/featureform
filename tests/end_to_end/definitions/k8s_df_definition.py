@@ -24,19 +24,16 @@ save_version(VERSION)
 # Start of Featureform Definitions
 ff.register_user("featureformer").make_default_owner()
 
-redis = ff.register_redis(
-    name = "redis-quickstart",
-    host="quickstart-redis", # The internal dns name for redis
-    port=6379,
-    description = "A Redis deployment we created for the Featureform quickstart"
-)
-
-k8s = ff.register_k8s_azure(
-    name="k8s",
+azure_blob = ff.register_blob_store(
     account_name=os.getenv("AZURE_ACCOUNT_NAME", ""),
     account_key=os.getenv("AZURE_ACCOUNT_KEY", ""),
     container_name=os.getenv("AZURE_CONTAINER_NAME", ""),
     path="testing/ff",
+)
+
+k8s = ff.register_kubernetes(
+    name="k8s",
+    store=azure_blob
 )
 
 transactions = k8s.register_file(
@@ -60,7 +57,7 @@ user = ff.register_entity("user")
 average_user_transaction.register_resources(
     entity=user,
     entity_column="CustomerID",
-    inference_store=redis,
+    inference_store=azure_blob,
     features=[
         {"name": f"avg_transactions_{VERSION}", "variant": "quickstart", "column": "TransactionAmount", "type": "float32"},
     ],

@@ -4,7 +4,8 @@ from dotenv import load_dotenv
 import featureform as ff
 
 
-featureform_location = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+FILE_DIRECTORY = os.getenv("FEATUREFORM_TEST_PATH", "")
+featureform_location = os.path.dirname(os.path.dirname(FILE_DIRECTORY))
 env_file_path = os.path.join(featureform_location, ".env")
 load_dotenv(env_file_path)
 
@@ -14,7 +15,8 @@ def get_random_string():
     return "".join(random.choice(string.ascii_lowercase) for _ in range(10))
 
 def save_version(version):
-    with open("../version.txt", "w") as f:
+    global FILE_DIRECTORY
+    with open(f"{FILE_DIRECTORY}/version.txt", "w+") as f:
         f.write(version)
 
 VERSION=get_random_string()

@@ -164,7 +164,7 @@ func k8sAzureOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	return &k8sOfflineStore, nil
 }
 
-func k8sOfflineStoreFactory(config SerializedConfig) (Provider, error) {
+func k8sOfflineStoreFactory(config Config) (Provider, error) {
 	k8 := K8sConfig{}
 	logger := zap.NewExample().Sugar()
 	if err := k8.Deserialize(config); err != nil {
@@ -177,8 +177,14 @@ func k8sOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 		logger.Errorw("Failure initializing executor with type", k8.ExecutorType, err)
 		return nil, err
 	}
+
+	serializedBlob, err := k8.StoreConfig.Serialize()
+	if err != nil {
+		return nil, fmt.Errorf("could not serialize blob store config")
+	}
+
 	logger.Info("Creating blob store with type:", k8.StoreType)
-	store, err := CreateBlobStore(string(k8.StoreType), Config(k8.StoreConfig))
+	store, err := CreateBlobStore(string(k8.StoreType), Config(serializedBlob))
 	if err != nil {
 		logger.Errorw("Failure initializing blob store with type", k8.StoreType, err)
 		return nil, err
@@ -224,7 +230,6 @@ type K8sAzureConfig struct {
 	StoreConfig    AzureBlobStoreConfig
 }
 
-
 func (config *K8sAzureConfig) Serialize() ([]byte, error) {
 	data, err := json.Marshal(config)
 	if err != nil {
@@ -245,7 +250,7 @@ type K8sConfig struct {
 	ExecutorType   ExecutorType
 	ExecutorConfig ExecutorConfig
 	StoreType      BlobStoreType
-	StoreConfig    BlobStoreConfig
+	StoreConfig    AzureBlobStoreConfig
 }
 
 func (config *K8sConfig) Serialize() ([]byte, error) {
@@ -636,6 +641,7 @@ func NewAzureBlobStore(config Config) (BlobStore, error) {
 	if err != nil {
 		return AzureBlobStore{}, fmt.Errorf("Could not create azure client: %v", err)
 	}
+	fmt.Println("--->", azureStoreConfig.ContainerName)
 	bucket, err := azureblob.OpenBucket(ctx, client, azureStoreConfig.ContainerName, nil)
 	if err != nil {
 		return AzureBlobStore{}, fmt.Errorf("Could not open azure bucket: %v", err)

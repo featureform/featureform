@@ -16,7 +16,7 @@ from .list_local import *
 from .sqlite_metadata import SQLiteMetadata
 from .tls import insecure_channel, secure_channel
 from .resources import ResourceState, Provider, RedisConfig, FirestoreConfig, CassandraConfig, DynamodbConfig, \
-    PostgresConfig, SnowflakeConfig, LocalConfig, RedshiftConfig, BigQueryConfig, SparkAWSConfig, User, Location, Source, PrimaryData, SQLTable, \
+    PostgresConfig, SnowflakeConfig, LocalConfig, RedshiftConfig, BigQueryConfig, SparkAWSConfig, AzureBlobStoreConfig, OnlineBlobConfig, K8sConfig, User, Location, Source, PrimaryData, SQLTable, \
     SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet, ProviderReference, \
     EntityReference, SourceReference
 
@@ -1023,8 +1023,8 @@ class Registrar:
         get = ProviderReference(name=name, provider_type="AZURE", obj=None)
         self.__resources.append(get)
         fake_azure_config = AzureBlobStoreConfig(account_name="", account_key="",container_name="",root_path="")
-        fake_config = OnlineBlobConfig(store_type="AZURE",store_config=azure_config.serialize())
-        fakeProvider = Provider(name=name, function="ONLINE", description="", team="", config=fakeConfig)
+        fake_config = OnlineBlobConfig(store_type="AZURE",store_config=fake_azure_config.config())
+        fakeProvider = Provider(name=name, function="ONLINE", description="", team="", config=fake_config)
         return FileStoreProvider(self, fakeProvider, fake_config, "AZURE")
     
     def get_postgres(self, name):
@@ -1171,7 +1171,7 @@ class Registrar:
         get = ProviderReference(name=name, provider_type="k8s-azure", obj=None)
         self.__resources.append(get)
         
-        fakeConfig = K8sConfig(store_type="", store_config=bytes("fake config"))
+        fakeConfig = K8sConfig(store_type="", store_config={})
         fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
         return OfflineK8sProvider(self, fakeProvider)
 
@@ -1259,7 +1259,7 @@ class Registrar:
         blob = ff.register_blob_store(
             name="azure-quickstart",
             container_name="my_company_container"
-            path="custom/path/in/container"
+            root_path="custom/path/in/container"
             account_name=<azure_account_name>
             account_key=<azure_account_key> 
             description="An azure blob store provider to store offline and inference data"
@@ -1279,7 +1279,7 @@ class Registrar:
                 has all the functionality of OnlineProvider
         """
         azure_config = AzureBlobStoreConfig(account_name=account_name, account_key=account_key,container_name=container_name,root_path=root_path)
-        config = OnlineBlobConfig(store_type="AZURE",store_config=azure_config.serialize())
+        config = OnlineBlobConfig(store_type="AZURE",store_config=azure_config.config())
         provider = Provider(name=name,
                             function="ONLINE",
                             description=description,
@@ -1659,7 +1659,7 @@ class Registrar:
         """
         config = K8sConfig(
             store_type=store.store_type(),
-            store_config=store.config().serialize(),
+            store_config=store.config(),
         )
         provider = Provider(name=name,
                             function="OFFLINE",

@@ -3,29 +3,27 @@
 set -e
 
 TESTING_DIRECTORY="$( cd "$(dirname "$0")"/ ; pwd -P )"
+export FEATUREFORM_TEST_PATH=$TESTING_DIRECTORY
 
 echo -e "Exporting FEATUREFORM_HOST='$1' and FEATUREFORM_CERT='$2'\n"
-export FEATUREFORM_HOST=$1
-export FEATUREFORM_CERT=$2
+# export FEATUREFORM_HOST=$1
+# export FEATUREFORM_CERT=$2
 
 for f in $TESTING_DIRECTORY/definitions/*
 do
     printf -- '-%.0s' $(seq 100); echo ""
     filename="${f##*/}"
     echo "Applying '$filename' definition"
-    featureform apply $f
-
-    ls
-    ls definitions/
+    featureform apply $TESTING_DIRECTORY/definitions/k8s_df_definition.py
 
     echo -e "\nNow serving '$filename' for '$TEST_CASE_VERSION' version"
     python $TESTING_DIRECTORY/serving.py
     echo -e "Successfully completed '$filename' for '$TEST_CASE_VERSION' version."
 done
 
-echo -e "\n\n"
-printf -- '-%.0s' $(seq 100); echo ""
+# echo -e "\n\n"
+# printf -- '-%.0s' $(seq 100); echo ""
 
-numberOfDefinitions="$(ls -1q $TESTING_DIRECTORY/definitions/* | wc -l)"
-echo -e "COMPLETED $numberOfDefinitions definitions"
-printf -- '-%.0s' $(seq 100); echo ""
+# numberOfDefinitions="$(ls -1q $TESTING_DIRECTORY/definitions/* | wc -l)"
+# echo -e "COMPLETED $numberOfDefinitions definitions"
+# printf -- '-%.0s' $(seq 100); echo ""

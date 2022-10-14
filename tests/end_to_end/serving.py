@@ -9,13 +9,15 @@ import featureform as ff
 SLEEP_DURATION = 30
 NUMBER_OF_SLEEPS = 20
 
-featureform_location = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+FILE_DIRECTORY = os.getenv("FEATUREFORM_TEST_PATH", "")
+featureform_location = os.path.dirname(os.path.dirname(FILE_DIRECTORY))
 env_file_path = os.path.join(featureform_location, ".env")
 load_dotenv(env_file_path)
 
 def read_version():
+    global FILE_DIRECTORY
     try:
-        with open("version.txt", "r") as f:
+        with open(f"{FILE_DIRECTORY}/version.txt", "r") as f:
             version = f.read().strip()
     except:
         version = None
@@ -23,7 +25,7 @@ def read_version():
     return version
         
 
-VERSION=os.getenv("TEST_CASE_VERSIOaN", read_version())
+VERSION=os.getenv("TEST_CASE_VERSION", read_version())
 if VERSION == None:
     raise TypeError("VERSION is set to None.")
 

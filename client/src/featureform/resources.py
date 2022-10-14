@@ -2,16 +2,18 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import json
 import time
-from typing import List, Tuple, Union
+from enum import Enum
+from base64 import b64encode
 from typeguard import typechecked
 from dataclasses import dataclass
-from featureform.proto import metadata_pb2 as pb
-import grpc
-import json
+from typing import List, Tuple, Union
 
+import grpc
 from .sqlite_metadata import SQLiteMetadata
-from enum import Enum
+
+from featureform.proto import metadata_pb2 as pb
 
 NameVariant = Tuple[str, str]
 
@@ -88,6 +90,12 @@ class AzureBlobStoreConfig:
     container_name: str
     root_path: str
 
+    def software(self) -> str:
+        return "azure"
+
+    def type(self) -> str:
+        return "AZURE"
+
     def serialize(self) -> bytes:
         config = {
             "AccountName": self.account_name,
@@ -96,13 +104,21 @@ class AzureBlobStoreConfig:
             "Path": self.root_path,
         }
         return bytes(json.dumps(config), "utf-8")
+    
+    def config(self):
+        return {
+            "AccountName": self.account_name,
+            "AccountKey": self.account_key,
+            "ContainerName": self.container_name,
+            "Path": self.root_path,
+        }
 
 
 @typechecked
 @dataclass
 class OnlineBlobConfig:
     store_type: str
-    store_config: bytes
+    store_config: AzureBlobStoreConfig
 
     def software(self) -> str:
         return self.store_type
@@ -347,7 +363,7 @@ class SparkAWSConfig:
 @dataclass
 class K8sConfig:
     store_type: str
-    store_config: bytes
+    store_config: dict
 
     def software(self) -> str:
         return "k8s"
@@ -358,7 +374,7 @@ class K8sConfig:
     def serialize(self) -> bytes:
         config = {
             "ExecutorType": "K8S",
-            "ExecutorConfig": bytes(""),
+            "ExecutorConfig": "",
             "StoreType": self.store_type,
             "StoreConfig": self.store_config,
         }
@@ -368,7 +384,7 @@ class K8sConfig:
 
 
 Config = Union[
-    RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig, BigQueryConfig, FirestoreConfig, SparkAWSConfig]
+    RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig, BigQueryConfig, FirestoreConfig, SparkAWSConfig, OnlineBlobConfig, AzureBlobStoreConfig, K8sConfig]
 
 
 @typechecked

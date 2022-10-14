@@ -224,6 +224,7 @@ type K8sAzureConfig struct {
 	StoreConfig    AzureBlobStoreConfig
 }
 
+
 func (config *K8sAzureConfig) Serialize() ([]byte, error) {
 	data, err := json.Marshal(config)
 	if err != nil {

@@ -16,7 +16,7 @@ from .list_local import *
 from .sqlite_metadata import SQLiteMetadata
 from .tls import insecure_channel, secure_channel
 from .resources import ResourceState, Provider, RedisConfig, FirestoreConfig, CassandraConfig, DynamodbConfig, \
-    PostgresConfig, SnowflakeConfig, LocalConfig, RedshiftConfig, BigQueryConfig, SparkAWSConfig, K8sAzureConfig, User, Location, Source, PrimaryData, SQLTable, \
+    PostgresConfig, SnowflakeConfig, LocalConfig, RedshiftConfig, BigQueryConfig, SparkAWSConfig, User, Location, Source, PrimaryData, SQLTable, \
     SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet, ProviderReference, \
     EntityReference, SourceReference
 
@@ -214,7 +214,7 @@ class OfflineSparkProvider(OfflineProvider):
                                                     inputs=inputs)
 
 
-class OfflineK8sAzureProvider(OfflineProvider):
+class OfflineK8sProvider(OfflineProvider):
     def __init__(self, registrar, provider):
         super().__init__(registrar, provider)
         self.__registrar = registrar
@@ -1022,10 +1022,10 @@ class Registrar:
         """
         get = ProviderReference(name=name, provider_type="AZURE", obj=None)
         self.__resources.append(get)
-        fake_azure_config = AzureBlobConfig(account_name="", account_key="",container_name="",root_path="")
+        fake_azure_config = AzureBlobStoreConfig(account_name="", account_key="",container_name="",root_path="")
         fake_config = OnlineBlobConfig(store_type="AZURE",store_config=azure_config.serialize())
         fakeProvider = Provider(name=name, function="ONLINE", description="", team="", config=fakeConfig)
-        return FileStoreProvider(self, fakeProvider, fake_config)
+        return FileStoreProvider(self, fakeProvider, fake_config, "AZURE")
     
     def get_postgres(self, name):
         """Get a Postgres provider. The returned object can be used to register additional resources.
@@ -1150,12 +1150,12 @@ class Registrar:
         fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
         return OfflineSparkProvider(self, fakeProvider)
 
-    def get_k8s_azure(self, name):
+    def get_kubernetes(self, name):
         """
         Get a k8s Azure provider. The returned object can be used to register additional resources.
         **Examples**:
         ``` py
-        k8s_azure = get_k8s_azure("k8s-azure-quickstart")
+        k8s_azure = get_kubernetes("k8s-azure-quickstart")
         transactions = k8s_azure.register_file(
             name="transactions",
             variant="kaggle",
@@ -1166,13 +1166,14 @@ class Registrar:
         Args:
             name (str): Name of k8s Azure provider to be retrieved
         Returns:
-            k8s_azure (OfflineK8sAzureProvider): Provider
+            k8s_azure (OfflineK8sProvider): Provider
         """
         get = ProviderReference(name=name, provider_type="k8s-azure", obj=None)
         self.__resources.append(get)
-        fakeConfig = K8sAzureConfig(account_name="", account_key="", container_name="", path="")
+        
+        fakeConfig = K8sConfig(store_type="", store_config=bytes("fake config"))
         fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
-        return OfflineK8sAzureProvider(self, fakeProvider)
+        return OfflineK8sProvider(self, fakeProvider)
 
     def get_entity(self, name, local=False):
         """Get an entity. The returned object can be used to register additional resources.
@@ -1277,7 +1278,7 @@ class Registrar:
             blob (StorageProvider): Provider
                 has all the functionality of OnlineProvider
         """
-        azure_config = AzureBlobConfig(account_name=account_name, account_key=account_key,container_name=container_name,root_path=root_path)
+        azure_config = AzureBlobStoreConfig(account_name=account_name, account_key=account_key,container_name=container_name,root_path=root_path)
         config = OnlineBlobConfig(store_type="AZURE",store_config=azure_config.serialize())
         provider = Provider(name=name,
                             function="ONLINE",
@@ -1285,7 +1286,7 @@ class Registrar:
                             team=team,
                             config=config)
         self.__resources.append(provider)
-        return FileStoreProvider(self, provider, config)
+        return FileStoreProvider(self, provider, azure_config, "AZURE")
 
     def register_firestore(self,
                            name: str,
@@ -1632,39 +1633,41 @@ class Registrar:
         self.__resources.append(provider)
         return OfflineSparkProvider(self, provider)
 
-    def register_k8s_azure(self,
-                          name: str,
-                          account_name: str,
-                          account_key: str,
-                          container_name: str,
-                          path: str,
-                          description: str = "",
-                          team: str = "",):
+    def register_kubernetes(self,
+                            name: str,
+                            store: FileStoreProvider,
+                            description: str = "",
+                            team: str = "",):
         """
-        Register a k8s Provider with Azure Blob Store.
+        Register an offline store provider to run on featureform's own k8s deployment
+        
+        Args:
+            name (str): Name of provider
+            store (Union[str, FileStoreProvider]): name or reference to registered file store provider
+            location (Location): Location of primary data
+            provider (Union[str, OfflineProvider]): Provider
+            owner (Union[str, UserRegistrar]): Owner
+            description (str): Description of primary data to be registered
         **Examples**:
         ```
         ```
-        Args:
-            name (str): Name of k8s Azure provider to be registered
-            description (str): Description of k8s Azure provider to be registered
-            team (str): Name of team
-            
-        Returns:
-            k8s_azure (OfflineK8sAzureProvider): Provider
+        k8s = ff.register_kubernetes(
+            name="k8s",
+            description="Native featureform kubernetes compute",
+            store=azure_blob,
+            team="featureform-team"
         """
-        config = K8sAzureConfig(account_name=account_name,
-                                account_key=account_key,
-                                container_name=container_name,
-                                path=path)
+        config = K8sConfig(
+            store_type=store.store_type(),
+            store_config=store.config().serialize(),
+        )
         provider = Provider(name=name,
                             function="OFFLINE",
                             description=description,
                             team=team,
                             config=config)
         self.__resources.append(provider)
-        return OfflineK8sAzureProvider(self, provider)
-
+        return OfflineK8sProvider(self, provider)
  
     def register_local(self):
         """Register a Local provider.
@@ -3101,7 +3104,7 @@ register_postgres = global_registrar.register_postgres
 register_redshift = global_registrar.register_redshift
 register_bigquery = global_registrar.register_bigquery
 register_spark = global_registrar.register_spark
-register_k8s_azure = global_registrar.register_k8s_azure
+register_kubernetes = global_registrar.register_kubernetes
 register_local = global_registrar.register_local
 register_entity = global_registrar.register_entity
 register_column_resources = global_registrar.register_column_resources
@@ -3117,5 +3120,5 @@ get_snowflake = global_registrar.get_snowflake
 get_redshift = global_registrar.get_redshift
 get_bigquery = global_registrar.get_bigquery
 get_spark_aws = global_registrar.get_spark
-get_k8s_azure = global_registrar.get_k8s_azure
+get_kubernetes = global_registrar.get_kubernetes
 get_blob_store = global_registrar.get_blob_store

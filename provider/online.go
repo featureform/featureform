@@ -35,6 +35,7 @@ type OnlineStore interface {
 	GetTable(feature, variant string) (OnlineStoreTable, error)
 	CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error)
 	DeleteTable(feature, variant string) error
+	Close() error
 	Provider
 }
 

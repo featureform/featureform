@@ -183,10 +183,12 @@ func testParams(params JobTestParams) error {
 	table := &MockOnlineTable{
 		DataTable: make(map[string]interface{}),
 	}
+	online := NewMockOnlineStore()
 	featureRows := params.Materialized.Rows
 	job := &MaterializedChunkRunner{
 		Materialized: &params.Materialized,
 		Table:        table,
+		Store: online,
 		ChunkSize:    params.ChunkSize,
 		ChunkIdx:     params.ChunkIdx,
 	}
@@ -223,9 +225,11 @@ func testParams(params JobTestParams) error {
 }
 
 func testBreakingParams(params ErrorJobTestParams) error {
+	online := NewMockOnlineStore()
 	job := &MaterializedChunkRunner{
 		Materialized: params.Materialized,
 		Table:        params.Table,
+		Store: online,
 		ChunkSize:    params.ChunkSize,
 		ChunkIdx:     params.ChunkIdx,
 	}
@@ -402,6 +406,10 @@ func (b BrokenGetTableOnlineStore) CreateTable(feature, variant string, valueTyp
 }
 
 func (b BrokenGetTableOnlineStore) DeleteTable(feature, variant string) error {
+	return nil
+}
+
+func (b BrokenGetTableOnlineStore) Close() error {
 	return nil
 }
 
@@ -627,9 +635,11 @@ func TestJobIncompleteStatus(t *testing.T) {
 	mu.Lock()
 	materialized := MaterializedFeaturesNumRowsBroken{}
 	table := &BrokenOnlineTable{}
+	online := NewMockOnlineStore()
 	job := &MaterializedChunkRunner{
 		Materialized: &materialized,
 		Table:        table,
+		Store: online,
 		ChunkSize:    0,
 		ChunkIdx:     0,
 	}
@@ -723,6 +733,10 @@ func (m MockOnlineStore) DeleteTable(feature, variant string) error {
 	return nil
 }
 
+func (m MockOnlineStore) Close() error {
+	return nil
+}
+
 func (m MockOnlineStoreTable) Set(entity string, value interface{}) error {
 	return nil
 }
@@ -730,6 +744,9 @@ func (m MockOnlineStoreTable) Set(entity string, value interface{}) error {
 func (m MockOnlineStoreTable) Get(entity string) (interface{}, error) {
 	return nil, nil
 }
+
+
+
 
 func NewMockOfflineStore() *MockOfflineStore {
 	return &MockOfflineStore{

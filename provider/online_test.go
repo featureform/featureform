@@ -210,6 +210,10 @@ func TestOnlineStores(t *testing.T) {
 			t.Run(testName, func(t *testing.T) {
 				fn(t, store)
 			})
+			if err := store.Close(); err != nil {
+				t.Fatalf("Failed to close online store %s: %v", testItem.t, err)
+			}
+
 		}
 	}
 }

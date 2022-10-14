@@ -71,6 +71,10 @@ func (store *firestoreOnlineStore) AsOnlineStore() (OnlineStore, error) {
 	return store, nil
 }
 
+func (store *firestoreOnlineStore) Close() error {
+	return nil
+}
+
 func GetMetadataTable() string {
 	return "featureform_firestore_metadata"
 }

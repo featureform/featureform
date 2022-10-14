@@ -80,6 +80,10 @@ func (store *dynamodbOnlineStore) AsOnlineStore() (OnlineStore, error) {
 	return store, nil
 }
 
+func (store *dynamodbOnlineStore) Close() error {
+	return nil
+}
+
 func CreateMetadataTable(dynamodbClient *dynamodb.DynamoDB) error {
 	params := &dynamodb.CreateTableInput{
 		TableName: aws.String("Metadata"),

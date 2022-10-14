@@ -358,7 +358,7 @@ class K8sConfig:
     def serialize(self) -> bytes:
         config = {
             "ExecutorType": "K8S",
-            "ExecutorConfig": {},
+            "ExecutorConfig": bytes(""),
             "StoreType": self.store_type,
             "StoreConfig": self.store_config,
         }

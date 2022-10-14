@@ -224,6 +224,7 @@ type K8sAzureConfig struct {
 	StoreConfig    AzureBlobStoreConfig
 }
 
+
 func (config *K8sAzureConfig) Serialize() ([]byte, error) {
 	data, err := json.Marshal(config)
 	if err != nil {
@@ -359,6 +360,7 @@ type BlobStore interface {
 	Serve(key string) (Iterator, error)
 	Exists(key string) (bool, error)
 	Delete(key string) error
+	DeleteAll(dir string) error
 	NewestBlob(prefix string) string
 	PathWithPrefix(path string) string
 	NumRows(key string) (int64, error)
@@ -423,6 +425,21 @@ func (store genericBlobStore) NewestBlob(prefix string) string {
 		}
 	}
 	return mostRecentKey
+}
+
+func (store genericBlobStore) DeleteAll(dir string) error {
+	opts := blob.ListOptions{
+		Prefix: dir,
+	}
+	listIterator := store.bucket.List(&opts)
+	for listObj, err := listIterator.Next(ctx); err == nil; listObj, err = listIterator.Next(ctx) {
+		if !listObj.IsDir {
+			if err := store.bucket.Delete(ctx, listObj.Key); err != nil {
+				return fmt.Errorf("failed to delete object %s in directory %s: %v", listObj.Key, dir, err)
+			}
+		}
+	}
+	return nil
 }
 
 func (store genericBlobStore) Write(key string, data []byte) error {

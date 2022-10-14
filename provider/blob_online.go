@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-const STORE_PREFIX = "/.featureform/inferencestore"
+const STORE_PREFIX = ".featureform/inferencestore"
 
 type OnlineBlobConfig struct {
 	Type   BlobStoreType

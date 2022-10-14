@@ -12,8 +12,7 @@ do
     printf -- '-%.0s' $(seq 100); echo ""
     filename="${f##*/}"
     echo "Applying '$filename' definition"
-    featureform apply $TESTING_DIRECTORY/definitions/k8s_df_definition.py
-
+    featureform apply $f
     echo -e "\nNow serving '$filename'"
     python $TESTING_DIRECTORY/serving.py
     echo -e "Successfully completed '$filename'"

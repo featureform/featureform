@@ -644,7 +644,7 @@ func NewAzureBlobStore(config Config) (BlobStore, error) {
 	if err != nil {
 		return AzureBlobStore{}, fmt.Errorf("Could not create azure client: %v", err)
 	}
-	fmt.Println("--->", azureStoreConfig.ContainerName)
+
 	bucket, err := azureblob.OpenBucket(ctx, client, azureStoreConfig.ContainerName, nil)
 	if err != nil {
 		return AzureBlobStore{}, fmt.Errorf("Could not open azure bucket: %v", err)

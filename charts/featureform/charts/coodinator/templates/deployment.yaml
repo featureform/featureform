@@ -51,8 +51,8 @@ spec:
               value: {{ .Values.global.k8s_runner_enable | quote }}
             - name: WORKER_IMAGE
               value: "{{ .Values.global.repo | default .Values.image.repository }}/worker:{{ .Values.global.version | default .Chart.AppVersion }}"
-            - name: K8S_RUNNER_IMAGE
-              value: "{{ .Values.global.repo | default .Values.image.repository }}/k8s_runner:{{ .Values.global.version | default .Chart.AppVersion }}"
+            - name: PANDAS_RUNNER_IMAGE
+              value: "{{ .Values.global.repo | default .Values.image.repository }}/pandas_runner:{{ .Values.global.version | default .Chart.AppVersion }}"
 
           ports:
             - name: http

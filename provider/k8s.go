@@ -1116,6 +1116,9 @@ func (iter *BlobFeatureIterator) Next() bool {
 		iter.err = err
 		return false
 	}
+	if nextVal == nil {
+		return false
+	}
 	formatDate := "2006-01-02 15:04:05 UTC" // hardcoded golang format date
 	var timestamp time.Time
 	timeString, ok := nextVal["ts"].(string)
@@ -1317,6 +1320,9 @@ func (ts *BlobTrainingSet) Next() bool {
 	row, err := ts.iter.Next()
 	if err != nil {
 		ts.Error = err
+		return false
+	}
+	if row == nil {
 		return false
 	}
 	values := make([]interface{}, 0)

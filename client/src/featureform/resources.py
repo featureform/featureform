@@ -118,7 +118,7 @@ class AzureBlobStoreConfig:
 @dataclass
 class OnlineBlobConfig:
     store_type: str
-    store_config: AzureBlobStoreConfig
+    store_config: dict
 
     def software(self) -> str:
         return self.store_type

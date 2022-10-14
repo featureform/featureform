@@ -34,7 +34,6 @@ azure_blob = ff.register_blob_store(
     root_path="testing/ff",
 )
 
-
 k8s = ff.register_kubernetes(
     name="k8s",
     store=azure_blob

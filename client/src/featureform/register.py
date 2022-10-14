@@ -336,7 +336,7 @@ class FileStoreProvider:
     def __init__(self, registrar, provider, config, store_type):
         self.__registrar = registrar
         self.__provider = provider
-        self.__config = config
+        self.__config = config.config()
         self.__store_type = store_type
     
     def name(self) -> str:
@@ -1661,6 +1661,7 @@ class Registrar:
             store_type=store.store_type(),
             store_config=store.config(),
         )
+
         provider = Provider(name=name,
                             function="OFFLINE",
                             description=description,

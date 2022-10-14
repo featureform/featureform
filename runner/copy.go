@@ -225,7 +225,7 @@ func MaterializedChunkRunnerFactory(config Config) (types.Runner, error) {
 	return &MaterializedChunkRunner{
 		Materialized: materialization,
 		Table:        table,
-		Store:        store,
+		Store:        onlineStore,
 		ChunkSize:    runnerConfig.ChunkSize,
 		ChunkIdx:     runnerConfig.ChunkIdx,
 	}, nil

@@ -734,7 +734,6 @@ type BlobIterator struct {
 func (it *BlobIterator) Next() bool {
 	it.curIdx += 1
 	if it.curIdx > it.maxIdx {
-		it.err = fmt.Errorf("end of iteration")
 		return false
 	}
 	values, err := it.iter.Next()

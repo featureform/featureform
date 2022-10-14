@@ -125,6 +125,10 @@ func (store *localOnlineStore) DeleteTable(feaute, variant string) error {
 	return nil
 }
 
+func (store *localOnlineStore) Close() error {
+	return nil
+}
+
 type localOnlineTable map[string]interface{}
 
 type redisOnlineTable struct {

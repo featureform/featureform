@@ -67,7 +67,7 @@ func (store *OnlineBlobStore) AsOnlineStore() (OnlineStore, error) {
 }
 
 func (store *OnlineBlobStore) Close() error {
-	return store.Close()
+	return (*store).Close()
 }
 
 func blobTableKey(feature, variant string) string {

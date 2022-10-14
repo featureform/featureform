@@ -15,6 +15,9 @@ do
     echo "Applying '$filename' definition"
     featureform apply $f
 
+    ls
+    ls definitions/
+
     echo -e "\nNow serving '$filename' for '$TEST_CASE_VERSION' version"
     python $TESTING_DIRECTORY/serving.py
     echo -e "Successfully completed '$filename' for '$TEST_CASE_VERSION' version."

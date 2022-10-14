@@ -503,7 +503,7 @@ type ParquetIterator struct {
 
 func (p *ParquetIterator) Next() (map[string]interface{}, error) {
 	if p.index+1 == int64(len(p.rows)) {
-		return nil, fmt.Errorf("end of iterator")
+		return nil, nil
 	}
 	p.index += 1
 	currentRow := p.rows[p.index]

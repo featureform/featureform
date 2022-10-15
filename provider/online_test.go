@@ -139,10 +139,6 @@ func TestOnlineStores(t *testing.T) {
 			ContainerName: helpers.GetEnv("AZURE_CONTAINER_NAME", "newcontainer"),
 			Path:          "featureform/onlinetesting",
 		}
-		serializedAzureConfig, err := azureConfig.Serialize()
-		if err != nil {
-			panic(fmt.Errorf("cannot unmarshal azure credentials: %v", err))
-		}
 		blobConfig := &OnlineBlobConfig{
 			Type:   Azure,
 			Config: azureConfig,

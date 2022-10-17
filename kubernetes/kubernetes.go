@@ -25,8 +25,8 @@ var Namespace string = "default"
 
 type CronSchedule string
 
-func GetJobName(id metadata.ResourceID) string {
-	return strings.ReplaceAll(fmt.Sprintf("%s-%s-%d", strings.ToLower(id.Name), strings.ToLower(id.Variant), id.Type), "_", ".")
+func GetJobName(id metadata.ResourceID, image string) string {
+	return strings.ReplaceAll(fmt.Sprintf("%s-%s-%s-%s", strings.ToLower(id.Name), strings.ToLower(id.Variant), id.Type, image), "_", ".")
 
 }
 
@@ -222,10 +222,10 @@ func NewKubernetesRunner(config KubernetesRunnerConfig) (CronRunner, error) {
 	jobSpec := newJobSpec(config)
 	var jobName string
 	if config.Resource.Name != "" {
-		jobName = GetJobName(config.Resource)
+		jobName = GetJobName(config.Resource, config.Image)
 	} else {
 		cleanUUID := strings.ReplaceAll(uuid.New().String(), "-", "")
-		jobName = fmt.Sprintf("job%s", cleanUUID)
+		jobName = fmt.Sprintf("job_image_%s_%s", config.Image, cleanUUID)
 	}
 	jobClient, err := NewKubernetesJobClient(jobName, Namespace)
 	if err != nil {

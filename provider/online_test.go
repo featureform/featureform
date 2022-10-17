@@ -139,13 +139,9 @@ func TestOnlineStores(t *testing.T) {
 			ContainerName: helpers.GetEnv("AZURE_CONTAINER_NAME", "newcontainer"),
 			Path:          "featureform/onlinetesting",
 		}
-		serializedAzureConfig, err := azureConfig.Serialize()
-		if err != nil {
-			panic(fmt.Errorf("cannot unmarshal azure credentials: %v", err))
-		}
 		blobConfig := &OnlineBlobConfig{
 			Type:   Azure,
-			Config: BlobStoreConfig(serializedAzureConfig),
+			Config: azureConfig,
 		}
 		return *blobConfig
 	}
@@ -210,6 +206,10 @@ func TestOnlineStores(t *testing.T) {
 			t.Run(testName, func(t *testing.T) {
 				fn(t, store)
 			})
+			if err := store.Close(); err != nil {
+				t.Fatalf("Failed to close online store %s: %v", testItem.t, err)
+			}
+
 		}
 	}
 }

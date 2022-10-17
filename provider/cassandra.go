@@ -87,6 +87,14 @@ func (store *cassandraOnlineStore) AsOnlineStore() (OnlineStore, error) {
 	return store, nil
 }
 
+func (store *cassandraOnlineStore) Close() error {
+	store.session.Close()
+	if !store.session.Closed() {
+		return fmt.Errorf("Could not close cassandra online store session")
+	}
+	return nil
+}
+
 func GetTableName(keyspace, feature, variant string) string {
 	tableName := fmt.Sprintf("%s.featureform__%s__%s", sn.Custom(keyspace, "[^a-zA-Z0-9_]"), sn.Custom(feature, "[^a-zA-Z0-9_]"), sn.Custom(variant, "[^a-zA-Z0-9_]"))
 	return tableName

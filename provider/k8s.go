@@ -515,7 +515,8 @@ func (p *ParquetIterator) Next() (map[string]interface{}, error) {
 	return returnMap, nil
 }
 
-func getParquetNumRows(r io.Reader) (int64, error) {
+func getParquetNumRows(r io.ReadCloser) (int64, error) {
+	defer r.Close()
 	buff := bytes.NewBuffer([]byte{})
 	size, err := io.Copy(buff, r)
 	if err != nil {
@@ -524,7 +525,8 @@ func getParquetNumRows(r io.Reader) (int64, error) {
 	return int64(size), nil
 }
 
-func parquetIteratorFromReader(r io.Reader) (Iterator, error) {
+func parquetIteratorFromReader(r io.ReadCloser) (Iterator, error) {
+	defer r.Close()
 	buff := bytes.NewBuffer([]byte{})
 	size, err := io.Copy(buff, r)
 	if err != nil {

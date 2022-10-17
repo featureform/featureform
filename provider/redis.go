@@ -50,6 +50,15 @@ func (store *redisOnlineStore) AsOnlineStore() (OnlineStore, error) {
 	return store, nil
 }
 
+func (store *redisOnlineStore) Close() error {
+	// from the docs:
+	//
+	// "It is rare to Close a Client, as the Client is meant to be 
+	// long-lived and shared between many goroutines.""
+	//
+	return store.client.Close()
+}
+
 func (store *redisOnlineStore) GetTable(feature, variant string) (OnlineStoreTable, error) {
 	key := redisTableKey{store.prefix, feature, variant}
 	vType, err := store.client.HGet(ctx, fmt.Sprintf("%s__tables", store.prefix), key.String()).Result()

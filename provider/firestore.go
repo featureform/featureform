@@ -72,7 +72,7 @@ func (store *firestoreOnlineStore) AsOnlineStore() (OnlineStore, error) {
 }
 
 func (store *firestoreOnlineStore) Close() error {
-	return nil
+	return store.client.Close()
 }
 
 func GetMetadataTable() string {

@@ -81,6 +81,7 @@ func (store *dynamodbOnlineStore) AsOnlineStore() (OnlineStore, error) {
 }
 
 func (store *dynamodbOnlineStore) Close() error {
+	// dynamoDB client does not implement an equivalent to Close
 	return nil
 }
 

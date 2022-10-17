@@ -88,6 +88,10 @@ func (store *cassandraOnlineStore) AsOnlineStore() (OnlineStore, error) {
 }
 
 func (store *cassandraOnlineStore) Close() error {
+	store.session.Close()
+	if !store.session.Closed() {
+		return fmt.Errorf("Could not close cassandra online store session")
+	}
 	return nil
 }
 

@@ -338,7 +338,7 @@ func (kube KubernetesExecutor) ExecuteScript(envVars map[string]string) error {
 	envVars["MODE"] = "k8s"
 	resourceType, err := strconv.Atoi(envVars["RESOURCE_TYPE"])
 	if err != nil {
-		return err
+		resourceType = 0
 	}
 
 	config := kubernetes.KubernetesRunnerConfig{
@@ -870,7 +870,7 @@ func (k8s K8sOfflineStore) getDFArgs(outputURI string, code string, mapping []So
 func addResourceID(envVars map[string]string, id ResourceID) map[string]string {
 	envVars["RESOURCE_NAME"] = id.Name
 	envVars["RESOURCE_VARIANT"] = id.Name
-	envVars["RESOURCE_Type"] = string(id.Type)
+	envVars["RESOURCE_TYPE"] = fmt.Sprintf("%d", id.Type)
 	return envVars
 }
 

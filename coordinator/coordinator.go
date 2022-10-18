@@ -209,7 +209,7 @@ func NewCoordinator(meta *metadata.Client, logger *zap.SugaredLogger, cli *clien
 	}, nil
 }
 
-const MAX_ATTEMPTS = 1
+const MAX_ATTEMPTS = 2
 
 func (c *Coordinator) WatchForNewJobs() error {
 	c.Logger.Info("Watching for new jobs")
@@ -622,7 +622,7 @@ func (c *Coordinator) runLabelRegisterJob(resID metadata.ResourceID, schedule st
 	}
 	c.Logger.Debugw("Resource Table Created", "id", labelID, "schema", schema)
 
-	if err := c.Metadata.SetStatus(context.Background(), labelID, metadata.READY, ""); err != nil {
+	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
 		return fmt.Errorf("set ready status for label variant: %w", err)
 	}
 	return nil

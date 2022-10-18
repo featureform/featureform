@@ -1,19 +1,19 @@
-#{{ if not .Values.global.publicCert }}
-#apiVersion: cert-manager.io/v1
-#kind: Issuer
-#metadata:
-#  name: letsencrypt-prod
-#spec:
-#  selfSigned: {}
-#---
-#apiVersion: cert-manager.io/v1
-#kind: Certificate
-#metadata:
-#  name: featureform-ca-cert
-#spec:
-#  secretName: featureform-ca
-#  dnsNames:
-#    - {{ .Values.global.hostname }}
-#  issuerRef:
-#    name: letsencrypt-prod
-#{{ end }}
+{{ if .Values.global.localCert }}
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: featureform-ca-cert
+spec:
+  secretName: featureform-ca
+  dnsNames:
+    - {{ .Values.global.hostname }}
+  issuerRef:
+    name: letsencrypt-prod
+{{ end }}

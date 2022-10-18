@@ -28,7 +28,7 @@ spec:
               service:
                 name: featureform-dashboard-metadata
                 port:
-                  number: 8080
+                  number: 3001
           - path: /search/
             pathType: Prefix
             backend:

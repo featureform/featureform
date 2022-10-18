@@ -15,7 +15,7 @@ import (
 	"github.com/featureform/types"
 )
 
-const MAXIMUM_CHUNK_ROWS int64 = 1024
+const MAXIMUM_CHUNK_ROWS int64 = 102400
 const WORKER_IMAGE string = "featureformcom/worker"
 
 type JobCloud string
@@ -118,6 +118,7 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 	if err != nil {
 		return nil, fmt.Errorf("num rows: %w", err)
 	}
+	fmt.Println("Getting Number of Rows: %d", numRows)
 	if numRows <= MAXIMUM_CHUNK_ROWS {
 		chunkSize = numRows
 		numChunks = 1
@@ -129,6 +130,7 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 			numChunks += 1
 		}
 	}
+	fmt.Println("Number of chunks: %d", numChunks)
 	config := &MaterializedChunkRunnerConfig{
 		OnlineType:     m.Online.Type(),
 		OfflineType:    m.Offline.Type(),
@@ -156,6 +158,7 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 		if err != nil {
 			return nil, fmt.Errorf("kubernetes runner: %w", err)
 		}
+		fmt.Println("Kubernetes config env vars: %v", envVars)
 		cloudWatcher, err = kubernetesRunner.Run()
 		if err != nil {
 			return nil, fmt.Errorf("kubernetes run: %w", err)

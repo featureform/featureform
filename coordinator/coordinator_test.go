@@ -49,6 +49,35 @@ var redisHost = "localhost"
 var etcdHost = "localhost"
 var etcdPort = "2379"
 
+type failingRunner struct {
+	initialFails int
+}
+
+func (runner *failingRunner) Run() error {
+	if runner.initialFails == 0 {
+		return nil
+	}
+	runner.initialFails -= 1
+	return fmt.Errorf("failure")
+}
+
+func TestRetryWithDelays(t *testing.T) {
+
+	failsNever := failingRunner{0}
+	failsOnce := failingRunner{1}
+	alwaysFails := failingRunner{-1}
+
+	if err := retryWithDelays(5, time.Millisecond*1, failsNever.Run()); err != nil {
+		t.Fatalf("running retry with delays fails on never failing runner")
+	}
+	if err := retryWithDelays(5, time.Millisecond*1, failsOnce.Run()); err != nil {
+		t.Fatalf("running retry with delays on 5 retries fails on once failing runner")
+	}
+	if err := retryWithDelays(5, time.Millisecond*1, alwaysFails.Run()); err == nil {
+		t.Fatalf("running retry with doesn't fail on always failing runner")
+	}
+}
+
 func startServ(t *testing.T) (*metadata.MetadataServer, string) {
 	logger := zap.NewExample().Sugar()
 	storageProvider := metadata.EtcdStorageProvider{

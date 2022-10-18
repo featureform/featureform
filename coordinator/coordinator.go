@@ -679,7 +679,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 		OfflineConfig: sourceProvider.SerializedConfig(),
 		ResourceID:    provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Feature},
 		VType:         provider.ValueType(featureType),
-		Cloud:         runner.KubernetesMaterializeRunner,
+		Cloud:         runner.LocalMaterializeRunner,
 		IsUpdate:      false,
 	}
 	serialized, err := materializedRunnerConfig.Serialize()

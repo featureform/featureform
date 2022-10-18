@@ -16,6 +16,7 @@ import (
 )
 
 const MAXIMUM_CHUNK_ROWS int64 = 102400
+
 var WORKER_IMAGE string = helpers.GetEnv("WORKER_IMAGE", "featureformcom/worker:0.2.0-rc")
 
 type JobCloud string
@@ -153,6 +154,7 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 			EnvVars:  envVars,
 			Image:    WORKER_IMAGE,
 			NumTasks: int32(numChunks),
+			Resource: metadata.ResourceID{Name: m.ID.Name, Variant: m.ID.Variant, Type: ProviderToMetadataResourceType[m.ID.Type]},
 		}
 		kubernetesRunner, err := kubernetes.NewKubernetesRunner(kubernetesConfig)
 		if err != nil {

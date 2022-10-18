@@ -228,7 +228,8 @@ func NewKubernetesRunner(config KubernetesRunnerConfig) (CronRunner, error) {
 		jobName = GetJobName(config.Resource, config.Image)
 	} else {
 		cleanUUID := strings.ReplaceAll(uuid.New().String(), "-", "")
-		jobName = fmt.Sprintf("job_image_%s_%s", config.Image, cleanUUID)
+		jobName = fmt.Sprintf("job__%s", cleanUUID)
+		jobName = jobName[0:63]
 	}
 	jobClient, err := NewKubernetesJobClient(jobName, Namespace)
 	if err != nil {

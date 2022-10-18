@@ -8,7 +8,7 @@ metadata:
     nginx.ingress.kubernetes.io/backend-protocol: HTTP
     nginx.ingress.kubernetes.io/proxy-body-size: 64ms
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
-    cert-manager.io/issuer: letsencrypt-prod
+#    cert-manager.io/issuer: letsencrypt-prod
   name: http-ingress
   namespace: default
 spec:
@@ -36,7 +36,7 @@ spec:
               service:
                 name: featureform-dashboard-metadata
                 port:
-                  number: 8080
+                  number: 3001
           - path: /prometheus/
             pathType: Prefix
             backend:
@@ -50,7 +50,7 @@ spec:
               service:
                 name: featureform-dashboard
                 port:
-                  number: 3000
+                  number: 80
 
 
 

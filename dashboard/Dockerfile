@@ -15,4 +15,4 @@ FROM nginx
 WORKDIR /app
 
 COPY --from=0 ./dashboard ./dashboard
-COPY nginx.conf /etc/nginx/nginx.conf
+COPY ./dashboard/nginx.conf /etc/nginx/nginx.conf

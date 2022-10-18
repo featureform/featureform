@@ -67,13 +67,13 @@ func TestRetryWithDelays(t *testing.T) {
 	failsOnce := failingRunner{1}
 	alwaysFails := failingRunner{-1}
 
-	if err := retryWithDelays(5, time.Millisecond*1, failsNever.Run()); err != nil {
+	if err := retryWithDelays(5, time.Millisecond*1, failsNever.Run); err != nil {
 		t.Fatalf("running retry with delays fails on never failing runner")
 	}
-	if err := retryWithDelays(5, time.Millisecond*1, failsOnce.Run()); err != nil {
+	if err := retryWithDelays(5, time.Millisecond*1, failsOnce.Run); err != nil {
 		t.Fatalf("running retry with delays on 5 retries fails on once failing runner")
 	}
-	if err := retryWithDelays(5, time.Millisecond*1, alwaysFails.Run()); err == nil {
+	if err := retryWithDelays(5, time.Millisecond*1, alwaysFails.Run); err == nil {
 		t.Fatalf("running retry with doesn't fail on always failing runner")
 	}
 }

@@ -154,7 +154,7 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 			EnvVars:  envVars,
 			Image:    WORKER_IMAGE,
 			NumTasks: int32(numChunks),
-			Resource: metadata.ResourceID{Name: m.ID.Name, Variant: m.ID.Variant, Type: ProviderToMetadataResourceType[m.ID.Type]},
+			Resource: metadata.ResourceID{Name: m.ID.Name, Variant: m.ID.Variant, Type: provider.ProviderToMetadataResourceType[m.ID.Type]},
 		}
 		kubernetesRunner, err := kubernetes.NewKubernetesRunner(kubernetesConfig)
 		if err != nil {

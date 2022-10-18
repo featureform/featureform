@@ -86,6 +86,8 @@ global:
   publicCert: false
   localCert: true
   k8s_runner_enable: false
+  nginx:
+    enabled: true
 
 
 metadata:

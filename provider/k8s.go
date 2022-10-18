@@ -8,19 +8,13 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
-<<<<<<< HEAD
 	"strconv"
-=======
->>>>>>> d5eca1df5f1cd2ef6791b087dca7b503cbe33af7
 	"strings"
 	"time"
 
 	"github.com/featureform/helpers"
 	"github.com/featureform/kubernetes"
-<<<<<<< HEAD
 	"github.com/featureform/metadata"
-=======
->>>>>>> d5eca1df5f1cd2ef6791b087dca7b503cbe33af7
 
 	parquet "github.com/segmentio/parquet-go"
 	"go.uber.org/zap"
@@ -342,22 +336,15 @@ func NewLocalExecutor(config Config) (Executor, error) {
 
 func (kube KubernetesExecutor) ExecuteScript(envVars map[string]string) error {
 	envVars["MODE"] = "k8s"
-<<<<<<< HEAD
 	resourceType, err := strconv.Atoi(envVars["RESOURCE_TYPE"])
 	if err != nil {
 		resourceType = 0
 	}
-
-=======
->>>>>>> d5eca1df5f1cd2ef6791b087dca7b503cbe33af7
 	config := kubernetes.KubernetesRunnerConfig{
 		EnvVars:  envVars,
 		Image:    kube.image,
 		NumTasks: 1,
-<<<<<<< HEAD
 		Resource: metadata.ResourceID{Name: envVars["RESOURCE_NAME"], Variant: envVars["RESOURCE_VARIANT"], Type: ProviderToMetadataResourceType[OfflineResourceType(resourceType)]},
-=======
->>>>>>> d5eca1df5f1cd2ef6791b087dca7b503cbe33af7
 	}
 	jobRunner, err := kubernetes.NewKubernetesRunner(config)
 	if err != nil {
@@ -535,12 +522,8 @@ func (p *ParquetIterator) Next() (map[string]interface{}, error) {
 	return returnMap, nil
 }
 
-<<<<<<< HEAD
 func getParquetNumRows(r io.ReadCloser) (int64, error) {
 	defer r.Close()
-=======
-func getParquetNumRows(r io.Reader) (int64, error) {
->>>>>>> d5eca1df5f1cd2ef6791b087dca7b503cbe33af7
 	buff := bytes.NewBuffer([]byte{})
 	size, err := io.Copy(buff, r)
 	if err != nil {
@@ -549,12 +532,8 @@ func getParquetNumRows(r io.Reader) (int64, error) {
 	return int64(size), nil
 }
 
-<<<<<<< HEAD
 func parquetIteratorFromReader(r io.ReadCloser) (Iterator, error) {
 	defer r.Close()
-=======
-func parquetIteratorFromReader(r io.Reader) (Iterator, error) {
->>>>>>> d5eca1df5f1cd2ef6791b087dca7b503cbe33af7
 	buff := bytes.NewBuffer([]byte{})
 	size, err := io.Copy(buff, r)
 	if err != nil {
@@ -895,8 +874,6 @@ func addResourceID(envVars map[string]string, id ResourceID) map[string]string {
 	return envVars
 }
 
-=======
->>>>>>> d5eca1df5f1cd2ef6791b087dca7b503cbe33af7
 func (k8s *K8sOfflineStore) sqlTransformation(config TransformationConfig, isUpdate bool) error {
 	updatedQuery, sources, err := k8s.updateQuery(config.Query, config.SourceMapping)
 	if err != nil {
@@ -916,10 +893,7 @@ func (k8s *K8sOfflineStore) sqlTransformation(config TransformationConfig, isUpd
 	}
 	k8s.logger.Debugw("Running SQL transformation", config)
 	runnerArgs := k8s.pandasRunnerArgs(transformationDestination, updatedQuery, sources, Transform)
-<<<<<<< HEAD
 	runnerArgs = addResourceID(runnerArgs, config.TargetTableID)
-=======
->>>>>>> d5eca1df5f1cd2ef6791b087dca7b503cbe33af7
 	if err := k8s.executor.ExecuteScript(runnerArgs); err != nil {
 		k8s.logger.Errorw("job for transformation failed to run", config.TargetTableID, err)
 		return fmt.Errorf("job for transformation %v failed to run: %v", config.TargetTableID, err)
@@ -957,10 +931,7 @@ func (k8s *K8sOfflineStore) dfTransformation(config TransformationConfig, isUpda
 	}
 
 	k8sArgs := k8s.getDFArgs(transformationDestination, transformationFileLocation, config.SourceMapping, sources)
-<<<<<<< HEAD
 	k8sArgs = addResourceID(k8sArgs, config.TargetTableID)
-=======
->>>>>>> d5eca1df5f1cd2ef6791b087dca7b503cbe33af7
 	k8s.logger.Debugw("Running DF transformation", config)
 	if err := k8s.executor.ExecuteScript(k8sArgs); err != nil {
 		k8s.logger.Errorw("Error running dataframe job", err)
@@ -1232,10 +1203,7 @@ func (k8s *K8sOfflineStore) materialization(id ResourceID, isUpdate bool) (Mater
 	materializationQuery := k8s.query.materializationCreate(k8sResourceTable.schema)
 	sourcePath := k8s.store.PathWithPrefix(k8sResourceTable.schema.SourceTable)
 	k8sArgs := k8s.pandasRunnerArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize)
-<<<<<<< HEAD
 	k8sArgs = addResourceID(k8sArgs, id)
-=======
->>>>>>> d5eca1df5f1cd2ef6791b087dca7b503cbe33af7
 	k8s.logger.Debugw("Creating materialization", "id", id)
 	if err := k8s.executor.ExecuteScript(k8sArgs); err != nil {
 		k8s.logger.Errorw("Job failed to run", err)
@@ -1332,10 +1300,7 @@ func (k8s *K8sOfflineStore) trainingSet(def TrainingSetDef, isUpdate bool) error
 	}
 	trainingSetQuery := k8s.query.trainingSetCreate(def, featureSchemas, labelSchema)
 	pandasArgs := k8s.pandasRunnerArgs(k8s.store.PathWithPrefix(destinationPath), trainingSetQuery, sourcePaths, CreateTrainingSet)
-<<<<<<< HEAD
 	pandasArgs = addResourceID(pandasArgs, def.ID)
-=======
->>>>>>> d5eca1df5f1cd2ef6791b087dca7b503cbe33af7
 	k8s.logger.Debugw("Creating training set", "definition", def)
 	if err := k8s.executor.ExecuteScript(pandasArgs); err != nil { //
 		k8s.logger.Errorw("training set job failed to run", "definition", def.ID, "error", err)

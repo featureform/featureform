@@ -16,7 +16,7 @@ import (
 )
 
 const MAXIMUM_CHUNK_ROWS int64 = 102400
-const WORKER_IMAGE string = "featureformcom/worker"
+const WORKER_IMAGE string = helpers.GetEnv("WORKER_IMAGE", "featureformcom/worker:0.2.0-rc")
 
 type JobCloud string
 
@@ -118,7 +118,7 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 	if err != nil {
 		return nil, fmt.Errorf("num rows: %w", err)
 	}
-	fmt.Println("Getting Number of Rows: %d", numRows)
+	fmt.Printf("Getting Number of Rows: %d\n", numRows)
 	if numRows <= MAXIMUM_CHUNK_ROWS {
 		chunkSize = numRows
 		numChunks = 1
@@ -130,7 +130,7 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 			numChunks += 1
 		}
 	}
-	fmt.Println("Number of chunks: %d", numChunks)
+	fmt.Printf("Number of chunks: %d\n", numChunks)
 	config := &MaterializedChunkRunnerConfig{
 		OnlineType:     m.Online.Type(),
 		OfflineType:    m.Offline.Type(),
@@ -158,7 +158,7 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 		if err != nil {
 			return nil, fmt.Errorf("kubernetes runner: %w", err)
 		}
-		fmt.Println("Kubernetes config env vars: %v", envVars)
+		fmt.Printf("Kubernetes config env vars: %v\n", envVars)
 		cloudWatcher, err = kubernetesRunner.Run()
 		if err != nil {
 			return nil, fmt.Errorf("kubernetes run: %w", err)

@@ -24,7 +24,7 @@ serviceAccount:
   # If not set and create is true, a name is generated using the fullname template
   name: ""
 dashboard:
-  port: 3000
+  port: 80
 podAnnotations: {}
 
 podSecurityContext:

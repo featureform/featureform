@@ -3,13 +3,24 @@
 set -e
 
 TESTING_DIRECTORY="$( cd "$(dirname "$0")"/ ; pwd -P )"
+export FEATUREFORM_TEST_PATH=$TESTING_DIRECTORY
 
-echo "Running the spark sql definition $TESTING_DIRECTORY/spark_sql_definition.py script"
-featureform apply $TESTING_DIRECTORY/spark_sql_definition.py
-python $TESTING_DIRECTORY/spark_serving.py
-echo -e "Spark SQL Job Completed.\n\n"
+echo -e "Exporting FEATUREFORM_HOST='$1' and FEATUREFORM_CERT='$2'\n"
 
-echo "Running the spark sql definition $TESTING_DIRECTORY/spark_df_definition.py script"
-featureform apply $TESTING_DIRECTORY/spark_df_definition.py
-python $TESTING_DIRECTORY/spark_serving.py
-echo "Spark DF Job Completed."
+for f in $TESTING_DIRECTORY/definitions/*
+do
+    printf -- '-%.0s' $(seq 100); echo ""
+    filename="${f##*/}"
+    echo "Applying '$filename' definition"
+    featureform apply $f
+    echo -e "\nNow serving '$filename'"
+    python $TESTING_DIRECTORY/serving.py
+    echo -e "Successfully completed '$filename'"
+done
+
+echo -e "\n\n"
+printf -- '-%.0s' $(seq 100); echo ""
+
+numberOfDefinitions="$(ls -1q $TESTING_DIRECTORY/definitions/* | wc -l)"
+echo -e "COMPLETED $numberOfDefinitions definitions"
+printf -- '-%.0s' $(seq 100); echo ""

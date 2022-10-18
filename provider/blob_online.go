@@ -7,11 +7,11 @@ import (
 	"time"
 )
 
-const STORE_PREFIX = "/.featureform/inferencestore"
+const STORE_PREFIX = ".featureform/inferencestore"
 
 type OnlineBlobConfig struct {
 	Type   BlobStoreType
-	Config BlobStoreConfig
+	Config AzureBlobStoreConfig
 }
 
 func (online OnlineBlobConfig) Serialized() SerializedConfig {
@@ -44,7 +44,12 @@ func blobOnlineStoreFactory(serialized SerializedConfig) (Provider, error) {
 }
 
 func NewOnlineBlobStore(config *OnlineBlobConfig) (*OnlineBlobStore, error) {
-	blobStore, err := CreateBlobStore(string(config.Type), Config(config.Config))
+	serializedBlob, err := config.Config.Serialize()
+	if err != nil {
+		return nil, fmt.Errorf("could not serialize blob store config")
+	}
+
+	blobStore, err := CreateBlobStore(string(config.Type), Config(serializedBlob))
 	if err != nil {
 		return nil, fmt.Errorf("could not create blob store: %v", err)
 	}
@@ -144,7 +149,7 @@ func (store OnlineBlobStore) DeleteTable(feature, variant string) error {
 }
 
 func entityDirectory(feature, variant string) string {
-	return fmt.Sprintf("%s/values/%s/%s",STORE_PREFIX, feature, variant,)
+	return fmt.Sprintf("%s/values/%s/%s", STORE_PREFIX, feature, variant)
 }
 
 func entityValueKey(feature, variant, entity string) string {

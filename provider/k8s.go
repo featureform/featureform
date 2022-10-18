@@ -177,8 +177,14 @@ func k8sOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 		logger.Errorw("Failure initializing executor with type", k8.ExecutorType, err)
 		return nil, err
 	}
+
+	serializedBlob, err := k8.StoreConfig.Serialize()
+	if err != nil {
+		return nil, fmt.Errorf("could not serialize blob store config")
+	}
+
 	logger.Info("Creating blob store with type:", k8.StoreType)
-	store, err := CreateBlobStore(string(k8.StoreType), Config(k8.StoreConfig))
+	store, err := CreateBlobStore(string(k8.StoreType), Config(serializedBlob))
 	if err != nil {
 		logger.Errorw("Failure initializing blob store with type", k8.StoreType, err)
 		return nil, err
@@ -224,7 +230,6 @@ type K8sAzureConfig struct {
 	StoreConfig    AzureBlobStoreConfig
 }
 
-
 func (config *K8sAzureConfig) Serialize() ([]byte, error) {
 	data, err := json.Marshal(config)
 	if err != nil {
@@ -245,7 +250,7 @@ type K8sConfig struct {
 	ExecutorType   ExecutorType
 	ExecutorConfig ExecutorConfig
 	StoreType      BlobStoreType
-	StoreConfig    BlobStoreConfig
+	StoreConfig    AzureBlobStoreConfig
 }
 
 func (config *K8sConfig) Serialize() ([]byte, error) {
@@ -349,7 +354,7 @@ func (kube KubernetesExecutor) ExecuteScript(envVars map[string]string) error {
 }
 
 func NewKubernetesExecutor(config Config) (Executor, error) {
-	pandas_image := helpers.GetEnv("K8S_RUNNER_IMAGE", "local/k8s_runner:stable")
+	pandas_image := helpers.GetEnv("K8S_RUNNER_IMAGE", "featureformcom/k8s_runner:0.2.0-rc")
 	return KubernetesExecutor{image: pandas_image}, nil
 }
 
@@ -498,7 +503,7 @@ type ParquetIterator struct {
 
 func (p *ParquetIterator) Next() (map[string]interface{}, error) {
 	if p.index+1 == int64(len(p.rows)) {
-		return nil, fmt.Errorf("end of iterator")
+		return nil, nil
 	}
 	p.index += 1
 	currentRow := p.rows[p.index]
@@ -636,6 +641,7 @@ func NewAzureBlobStore(config Config) (BlobStore, error) {
 	if err != nil {
 		return AzureBlobStore{}, fmt.Errorf("Could not create azure client: %v", err)
 	}
+
 	bucket, err := azureblob.OpenBucket(ctx, client, azureStoreConfig.ContainerName, nil)
 	if err != nil {
 		return AzureBlobStore{}, fmt.Errorf("Could not open azure bucket: %v", err)
@@ -728,10 +734,12 @@ type BlobIterator struct {
 func (it *BlobIterator) Next() bool {
 	it.curIdx += 1
 	if it.curIdx > it.maxIdx {
-		it.err = fmt.Errorf("end of iteration")
 		return false
 	}
 	values, err := it.iter.Next()
+	if values == nil {
+		return false
+	}
 	if err != nil {
 		it.err = err
 		return false
@@ -1108,6 +1116,9 @@ func (iter *BlobFeatureIterator) Next() bool {
 		iter.err = err
 		return false
 	}
+	if nextVal == nil {
+		return false
+	}
 	formatDate := "2006-01-02 15:04:05 UTC" // hardcoded golang format date
 	var timestamp time.Time
 	timeString, ok := nextVal["ts"].(string)
@@ -1309,6 +1320,9 @@ func (ts *BlobTrainingSet) Next() bool {
 	row, err := ts.iter.Next()
 	if err != nil {
 		ts.Error = err
+		return false
+	}
+	if row == nil {
 		return false
 	}
 	values := make([]interface{}, 0)

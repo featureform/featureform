@@ -354,6 +354,9 @@ test_e2e: update_python					## Runs End-to-End tests on minikube
 	featureform apply client/examples/quickstart.py --host localhost:8000 --cert tls.crt
 	pytest client/tests/e2e.py
 
+	echo "Starting end to end tests"
+	./tests/end_to_end/end_to_end_tests.sh localhost:8000 ./tls.crt
+
 reset_e2e:  			 			## Resets Cluster. Requires install_etcd
 	-kubectl port-forward svc/featureform-etcd 2379:2379 &
 	while ! echo exit | nc localhost 2379; do sleep 10; done

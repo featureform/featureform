@@ -7,11 +7,12 @@ package runner
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/featureform/helpers"
 	"github.com/featureform/kubernetes"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	"github.com/featureform/types"
-	"github.com/featureform/helpers"
 )
 
 const MAXIMUM_CHUNK_ROWS int64 = 1024
@@ -144,7 +145,7 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 	var cloudWatcher types.CompletionWatcher
 	switch m.Cloud {
 	case KubernetesMaterializeRunner:
-		pandas_image := helpers.GetEnv("K8S_RUNNER_IMAGE", "local/k8s_runner:stable")
+		pandas_image := helpers.GetEnv("K8S_RUNNER_IMAGE", "featureformcom/k8s_runner:0.2.0-rc")
 		envVars := map[string]string{"NAME": string(COPY_TO_ONLINE), "CONFIG": string(serializedConfig), "K8S_RUNNER_IMAGE": pandas_image}
 		kubernetesConfig := kubernetes.KubernetesRunnerConfig{
 			EnvVars:  envVars,

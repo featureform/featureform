@@ -23,7 +23,7 @@ import (
 	"go.etcd.io/etcd/client/v3/concurrency"
 )
 
-func retryWithDelays(retries int, delay time.Duration, idempotentFunction func() error) error {
+func retryWithDelays(name string, retries int, delay time.Duration, idempotentFunction func() error) error {
 	var err error
 	for i := 0; i < retries; i++ {
 		if err = idempotentFunction(); err == nil {
@@ -31,7 +31,7 @@ func retryWithDelays(retries int, delay time.Duration, idempotentFunction func()
 		}
 		time.Sleep(delay)
 	}
-	return fmt.Errorf("retried %v %d times unsuccesfully. Latest error message: %v", idempotentFunction, retries, err)
+	return fmt.Errorf("retried %s %d times unsuccesfully. Latest error message: %v", name, idempotentFunction, retries, err)
 }
 
 type Config []byte
@@ -405,7 +405,7 @@ func (c *Coordinator) runTransformationJob(transformationConfig provider.Transfo
 		return fmt.Errorf("wait for transformation job runner completion: %w", err)
 	}
 	c.Logger.Debugw("Transformation Setting Status")
-	if err := retryWithDelays(5, time.Millisecond*10, func() error { return c.Metadata.SetStatus(context.Background(), resID, metadata.READY, "") }); err != nil {
+	if err := retryWithDelays("set status to ready", 5, time.Millisecond*10, func() error { return c.Metadata.SetStatus(context.Background(), resID, metadata.READY, "") }); err != nil {
 		return fmt.Errorf("set transformation job runner done status: %w", err)
 	}
 	c.Logger.Debugw("Transformation Complete")

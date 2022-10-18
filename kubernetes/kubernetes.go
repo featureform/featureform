@@ -13,6 +13,7 @@ import (
 	"github.com/gorhill/cronexpr"
 	batchv1 "k8s.io/api/batch/v1"
 	"strings"
+	"math"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,7 +31,7 @@ func GetJobName(id metadata.ResourceID, image string) string {
 	removedSlashes := strings.ReplaceAll(jobName, "/", "")
 	removedColons := strings.ReplaceAll(removedSlashes, ":", "")
 	lowerCase := strings.ToLower(removedColons)
-	return lowerCase[0:63]
+	return lowerCase[0:int(math.Min(float64(len(lowerCase)), 63))]
 }
 
 func GetCronJobName(id metadata.ResourceID) string {
@@ -229,7 +230,7 @@ func NewKubernetesRunner(config KubernetesRunnerConfig) (CronRunner, error) {
 	} else {
 		cleanUUID := strings.ReplaceAll(uuid.New().String(), "-", "")
 		jobName = fmt.Sprintf("job__%s", cleanUUID)
-		jobName = jobName[0:63]
+		jobName = jobName[0:int(math.Min(float64(len(jobName)), 63))]
 
 	}
 	jobClient, err := NewKubernetesJobClient(jobName, Namespace)

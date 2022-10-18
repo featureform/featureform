@@ -16,7 +16,7 @@ import (
 )
 
 const MAXIMUM_CHUNK_ROWS int64 = 102400
-const WORKER_IMAGE string = helpers.GetEnv("WORKER_IMAGE", "featureformcom/worker:0.2.0-rc")
+var WORKER_IMAGE string = helpers.GetEnv("WORKER_IMAGE", "featureformcom/worker:0.2.0-rc")
 
 type JobCloud string
 

@@ -10,7 +10,6 @@ metadata:
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
 #    cert-manager.io/issuer: letsencrypt-prod
   name: http-ingress
-  namespace: default
 spec:
   rules:
     - host: {{ .Values.global.hostname }}

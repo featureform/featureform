@@ -12,7 +12,6 @@ metadata:
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
 #    cert-manager.io/issuer: letsencrypt-prod
   name: grpc-ingress
-  namespace: default
 spec:
   rules:
     - host: {{ .Values.global.hostname }}

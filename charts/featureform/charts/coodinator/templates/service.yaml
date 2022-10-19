@@ -3,7 +3,7 @@ kind: Service
 metadata:
   name: featureform-coordinator
   labels:
-    {{- include "coodinator.labels" . | nindent 4 }}
+    {{- include "coordinator.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.service.type }}
   ports:
@@ -12,4 +12,4 @@ spec:
       protocol: TCP
       name: http
   selector:
-    {{- include "coodinator.selectorLabels" . | nindent 4 }}
+    {{- include "coordinator.selectorLabels" . | nindent 4 }}

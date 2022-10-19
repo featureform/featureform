@@ -1,13 +1,12 @@
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: {{ .Release.Name }}-coodinator-binding
-  namespace: default
+  name: {{ .Release.Name }}-coordinator-binding
 subjects:
   - kind: ServiceAccount
-    name: {{ .Release.Name }}-coodinator
+    name: {{ .Release.Name }}-coordinator
     apiGroup: ""
 roleRef:
   kind: Role
-  name: {{ .Release.Name }}-coodinator
+  name: {{ .Release.Name }}-coordinator
   apiGroup: ""

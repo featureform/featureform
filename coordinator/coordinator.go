@@ -185,7 +185,7 @@ func (k *KubernetesJobSpawner) GetJobRunner(jobName string, config runner.Config
 	if err != nil {
 		return nil, err
 	}
-	pandas_image := help.GetEnv("K8S_RUNNER_IMAGE", "featureformcom/k8s_runner:0.2.0-rc")
+	pandas_image := help.GetEnv("K8S_RUNNER_IMAGE", "featureformcom/k8s_runner:0.3.0-rc")
 	kubeConfig := kubernetes.KubernetesRunnerConfig{
 		EnvVars:  map[string]string{"NAME": jobName, "CONFIG": string(config), "ETCD_CONFIG": string(serializedETCD), "K8S_RUNNER_IMAGE": pandas_image},
 		Image:    help.GetEnv("WORKER_IMAGE", "local/worker:stable"),
@@ -1111,7 +1111,11 @@ func (c *Coordinator) changeJobSchedule(key string, value string) error {
 	if err := coordinatorScheduleJob.Deserialize(Config(value)); err != nil {
 		return fmt.Errorf("deserialize coordiantor schedule job: %w", err)
 	}
-	jobClient, err := kubernetes.NewKubernetesJobClient(kubernetes.GetCronJobName(coordinatorScheduleJob.Resource), kubernetes.Namespace)
+	namespace, err := kubernetes.GetCurrentNamespace()
+	if err != nil {
+		return fmt.Errorf("could not get kubernetes namespace: %v", err)
+	}
+	jobClient, err := kubernetes.NewKubernetesJobClient(kubernetes.GetCronJobName(coordinatorScheduleJob.Resource), namespace)
 	if err != nil {
 		return fmt.Errorf("create new kubernetes job client: %w", err)
 	}

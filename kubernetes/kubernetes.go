@@ -11,6 +11,7 @@ import (
 	"github.com/featureform/types"
 	"github.com/google/uuid"
 	"github.com/gorhill/cronexpr"
+	"io/ioutil"
 	batchv1 "k8s.io/api/batch/v1"
 	"strings"
 	"math"
@@ -21,8 +22,6 @@ import (
 	kubernetes "k8s.io/client-go/kubernetes"
 	rest "k8s.io/client-go/rest"
 )
-
-var Namespace string = "default"
 
 type CronSchedule string
 
@@ -222,6 +221,14 @@ func (k KubernetesRunner) ScheduleJob(schedule CronSchedule) error {
 	return nil
 }
 
+func GetCurrentNamespace() (string, error) {
+	contents, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+	if err != nil {
+		return "", err
+	}
+	return string(contents), nil
+}
+
 func NewKubernetesRunner(config KubernetesRunnerConfig) (CronRunner, error) {
 	jobSpec := newJobSpec(config)
 	var jobName string
@@ -233,7 +240,11 @@ func NewKubernetesRunner(config KubernetesRunnerConfig) (CronRunner, error) {
 		jobName = jobName[0:int(math.Min(float64(len(jobName)), 63))]
 
 	}
-	jobClient, err := NewKubernetesJobClient(jobName, Namespace)
+	namespace, err := GetCurrentNamespace()
+	if err != nil {
+		return nil, err
+	}
+	jobClient, err := NewKubernetesJobClient(jobName, namespace)
 	if err != nil {
 		return nil, err
 	}

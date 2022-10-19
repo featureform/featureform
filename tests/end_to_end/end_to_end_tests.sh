@@ -17,6 +17,10 @@ do
     filename="${f##*/}"
     echo "Applying '$filename' definition"
     featureform apply $f
+
+    echo -e "\nDumping ETCD keys"
+    etcdctl --user=root:secretpassword get "" --prefix
+
     echo -e "\nNow serving '$filename'"
     python $TESTING_DIRECTORY/serving.py
     echo -e "Successfully completed '$filename'"

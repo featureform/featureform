@@ -217,7 +217,7 @@ func (k KubernetesRunner) ScheduleJob(schedule CronSchedule) error {
 	return nil
 }
 
-func getCurrentNamespace() (string, error) {
+func GetCurrentNamespace() (string, error) {
 	contents, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
 	if err != nil {
 		return "", err
@@ -234,7 +234,7 @@ func NewKubernetesRunner(config KubernetesRunnerConfig) (CronRunner, error) {
 		cleanUUID := strings.ReplaceAll(uuid.New().String(), "-", "")
 		jobName = fmt.Sprintf("job%s", cleanUUID)
 	}
-	namespace, err := getCurrentNamespace()
+	namespace, err := GetCurrentNamespace()
 	if err != nil {
 		return nil, err
 	}

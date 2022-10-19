@@ -8,6 +8,7 @@ export FEATUREFORM_TEST_PATH=$TESTING_DIRECTORY
 if [ $# -eq 0 ]; then
     echo -e "Exporting FEATUREFORM_HOST='$FEATUREFORM_URL'"
     export FEATUREFORM_HOST=$FEATUREFORM_HOST_URL
+    unset FEATUREFORM_CERT
 elif [ $# -eq 2 ]; then
     echo -e "Exporting FEATUREFORM_HOST='$1' and FEATUREFORM_CERT='$2'\n"
     export FEATUREFORM_HOST=$1

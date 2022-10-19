@@ -234,7 +234,7 @@ func NewKubernetesRunner(config KubernetesRunnerConfig) (CronRunner, error) {
 		cleanUUID := strings.ReplaceAll(uuid.New().String(), "-", "")
 		jobName = fmt.Sprintf("job%s", cleanUUID)
 	}
-	namespace, err := getCurrentNamespace()
+	namespace, err := GetCurrentNamespace()
 	if err != nil {
 		return nil, err
 	}

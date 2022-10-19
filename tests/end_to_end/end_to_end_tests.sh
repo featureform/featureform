@@ -11,6 +11,19 @@ if [ $# -eq 2 ]; then
     export FEATUREFORM_CERT=$2
 fi
 
+export ETCD_VER="v3.4.19"
+export GOOGLE_URL="https://storage.googleapis.com/etcd"
+
+rm -f /tmp/etcd-${ETCD_VER}-linux-amd64.tar.gz
+rm -rf /tmp/etcd-download-test && mkdir -p /tmp/etcd-download-test
+
+curl -L ${GOOGLE_URL}/${ETCD_VER}/etcd-${ETCD_VER}-linux-amd64.tar.gz -o /tmp/etcd-${ETCD_VER}-linux-amd64.tar.gz
+tar xzvf /tmp/etcd-${ETCD_VER}-linux-amd64.tar.gz -C /tmp/etcd-download-test --strip-components=1
+rm -f /tmp/etcd-${ETCD_VER}-linux-amd64.tar.gz
+
+/tmp/etcd-download-test/etcd --version
+/tmp/etcd-download-test/etcdctl version
+
 for f in $TESTING_DIRECTORY/definitions/*
 do
     printf -- '-%.0s' $(seq 100); echo ""

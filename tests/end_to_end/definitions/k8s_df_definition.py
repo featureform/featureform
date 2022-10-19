@@ -50,7 +50,7 @@ transactions = k8s.register_file(
     name=f"transactions_{VERSION}",
     variant="quickstart",
     description="A dataset of fraudulent transactions",
-    path="featureform/testing/primary/name/variant/transactions_short.csv"
+    path="featureform/testing/primary/name/variant/transactions_short_short.csv"
 )
 
 @k8s.df_transformation(name=f"average_user_transaction_{VERSION}", 
@@ -67,7 +67,7 @@ user = ff.register_entity("user")
 average_user_transaction.register_resources(
     entity=user,
     entity_column="CustomerID",
-    inference_store=redis,
+    inference_store=azure_blob,
     features=[
         {"name": f"avg_transactions_{VERSION}", "variant": "quickstart", "column": "TransactionAmount", "type": "float32"},
     ],

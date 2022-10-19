@@ -74,6 +74,7 @@ func blobTableKey(prefix, feature, variant string) string {
 
 func (store OnlineBlobStore) tableExists(feature, variant string) (bool, error) {
 	tableKey := blobTableKey(store.Prefix, feature, variant)
+	fmt.Println("checking if table exists at %s", tableKey)
 	return store.Exists(tableKey)
 }
 
@@ -88,6 +89,7 @@ func (store OnlineBlobStore) readTableValue(feature, variant string) (ValueType,
 
 func (store OnlineBlobStore) writeTableValue(feature, variant string, valueType ValueType) error {
 	tableKey := blobTableKey(store.Prefix, feature, variant)
+	fmt.Println("writing table at %s", tableKey)
 	return store.Write(tableKey, []byte(valueType))
 }
 
@@ -104,6 +106,7 @@ func (store OnlineBlobStore) deleteTable(feature, variant string) error {
 }
 
 func (store OnlineBlobStore) GetTable(feature, variant string) (OnlineStoreTable, error) {
+	fmt.Println("Checking table for online store with prefix %s", store.Prefix)
 	exists, err := store.tableExists(feature, variant)
 	if err != nil {
 		return nil, err

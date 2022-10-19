@@ -15,7 +15,7 @@ import (
 	"github.com/featureform/types"
 )
 
-const MAXIMUM_CHUNK_ROWS int64 = 102400
+const MAXIMUM_CHUNK_ROWS int64 = 16384
 
 var WORKER_IMAGE string = helpers.GetEnv("WORKER_IMAGE", "featureformcom/worker:0.2.0-rc")
 

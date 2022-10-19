@@ -67,7 +67,7 @@ user = ff.register_entity("user")
 average_user_transaction.register_resources(
     entity=user,
     entity_column="CustomerID",
-    inference_store=redis,
+    inference_store=azure_blob,
     features=[
         {"name": f"avg_transactions_{VERSION}", "variant": "quickstart", "column": "TransactionAmount", "type": "float32"},
     ],

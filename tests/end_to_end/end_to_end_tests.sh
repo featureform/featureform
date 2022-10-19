@@ -6,7 +6,7 @@ TESTING_DIRECTORY="$( cd "$(dirname "$0")"/ ; pwd -P )"
 export FEATUREFORM_TEST_PATH=$TESTING_DIRECTORY
 
 
-if [ $# -eq 1 ]; then
+if [ $# -eq  ]; then
     echo -e "Exporting FEATUREFORM_HOST='$FEATUREFORM_URL'"
     export FEATUREFORM_HOST=$FEATUREFORM_HOST_URL
 elif [ $# -eq 2 ]; then

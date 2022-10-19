@@ -5,6 +5,7 @@ set -e
 TESTING_DIRECTORY="$( cd "$(dirname "$0")"/ ; pwd -P )"
 export FEATUREFORM_TEST_PATH=$TESTING_DIRECTORY
 
+echo "Hi $AZURE_ACCOUNT_NAME"
 
 if [ $# -eq  ]; then
     echo -e "Exporting FEATUREFORM_HOST='$FEATUREFORM_URL'"

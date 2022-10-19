@@ -295,12 +295,15 @@ func testEntityNotFound(t *testing.T, store OnlineStore) {
 }
 
 func testMassTableWrite(t *testing.T, store OnlineStore) {
+	for i := 0; i < 10; i++ {
+		fmt.Println("speed test", i)
+	}
 	tableList := make([]ResourceID, 10)
 	for i := range tableList {
 		mockFeature, mockVariant := randomFeatureVariant()
 		tableList[i] = ResourceID{mockFeature, mockVariant, Feature}
 	}
-	entityList := make([]string, 100)
+	entityList := make([]string, 10)
 	for i := range entityList {
 		entityList[i] = uuid.New().String()
 	}

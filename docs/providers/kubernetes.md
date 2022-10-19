@@ -34,7 +34,7 @@ azure_blob = ff.register_blob_store(
     account_key="<azure_account_key>" 
 )
 
-k8s_store = ff.register_kubernetes(
+k8s_store = ff.register_k8s(
     name="k8s",
     description="Native featureform kubernetes compute",
     store=azure_blob,

@@ -29,7 +29,6 @@ VERSION=os.getenv("TEST_CASE_VERSION", read_version())
 if VERSION == None:
     raise TypeError("VERSION is set to None.")
 
-
 client = ff.ServingClient()
 
 def serve_data():
@@ -49,7 +48,7 @@ def serve_data():
     raise Exception(f"Serving for {VERSION} could not be completed.")
 
 def serve_feature():
-    fpf = client.features([(f"avg_transactions_{VERSION}", "quickstart")], {"user": "C1334214"})
+    fpf = client.features([(f"avg_transactions_{VERSION}", "quickstart")], {"user": "C6717858"})
     print(fpf)
 
 print(f"Serving the training set (fraud_training_{VERSION})")

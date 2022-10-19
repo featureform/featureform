@@ -290,7 +290,7 @@ func checkValuesCorrectlySet(tsID metadata.ResourceID, correctTable []provider.R
 }
 
 func kubernetesRanScheduledJob(resID metadata.ResourceID) error {
-	jobClient, err := kubernetes.NewKubernetesJobClient(kubernetes.GetCronJobName(resID), kubernetes.get)
+	jobClient, err := kubernetes.NewKubernetesJobClient(kubernetes.GetCronJobName(resID), kubernetes.GetCurrentNamespace())
 	if err != nil {
 		return fmt.Errorf("Could not initialize kubernetes job client: %v", err)
 	}

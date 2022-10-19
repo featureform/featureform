@@ -1100,7 +1100,11 @@ func (c *Coordinator) changeJobSchedule(key string, value string) error {
 	if err := coordinatorScheduleJob.Deserialize(Config(value)); err != nil {
 		return fmt.Errorf("deserialize coordiantor schedule job: %w", err)
 	}
-	jobClient, err := kubernetes.NewKubernetesJobClient(kubernetes.GetCronJobName(coordinatorScheduleJob.Resource), kubernetes.Namespace)
+	namespace, err := kubernetes.GetCurrentNamespace()
+	if err != nil {
+		return fmt.Errorf("could not get kubernetes namespace: %v", err)
+	}
+	jobClient, err := kubernetes.NewKubernetesJobClient(kubernetes.GetCronJobName(coordinatorScheduleJob.Resource), namespace)
 	if err != nil {
 		return fmt.Errorf("create new kubernetes job client: %w", err)
 	}

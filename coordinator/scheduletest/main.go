@@ -290,7 +290,7 @@ func checkValuesCorrectlySet(tsID metadata.ResourceID, correctTable []provider.R
 }
 
 func kubernetesRanScheduledJob(resID metadata.ResourceID) error {
-	jobClient, err := kubernetes.NewKubernetesJobClient(kubernetes.GetCronJobName(resID), kubernetes.Namespace)
+	jobClient, err := kubernetes.NewKubernetesJobClient(kubernetes.GetCronJobName(resID), kubernetes.get)
 	if err != nil {
 		return fmt.Errorf("Could not initialize kubernetes job client: %v", err)
 	}
@@ -512,7 +512,11 @@ func testUpdateExistingSchedule() error {
 		return fmt.Errorf("Error executing feature job in coordinator: %v", err)
 	}
 	// Check the original set schedule in kubernetes
-	jobClient, err := kubernetes.NewKubernetesJobClient(kubernetes.GetCronJobName(featureID), kubernetes.Namespace)
+	namespace, err := kubernetes.GetCurrentNamespace()
+	if err != nil {
+		return fmt.Errorf("could not get kubernetes namespace: %v", err)
+	}
+	jobClient, err := kubernetes.NewKubernetesJobClient(kubernetes.GetCronJobName(featureID), namespace)
 	if err != nil {
 		return fmt.Errorf("Could not get kubernetes job client: %v", err)
 	}

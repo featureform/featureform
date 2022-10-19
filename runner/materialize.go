@@ -160,7 +160,6 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 		if err != nil {
 			return nil, fmt.Errorf("kubernetes runner: %w", err)
 		}
-		fmt.Printf("Kubernetes config env vars: %v\n", envVars)
 		cloudWatcher, err = kubernetesRunner.Run()
 		if err != nil {
 			return nil, fmt.Errorf("kubernetes run: %w", err)

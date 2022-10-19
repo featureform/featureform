@@ -56,7 +56,7 @@ func NewOnlineBlobStore(config *OnlineBlobConfig) (*OnlineBlobStore, error) {
 	}
 	return &OnlineBlobStore{
 		blobStore,
-		config.Path,
+		config.Config.Path,
 		BaseProvider{
 			ProviderType:   BlobOnline,
 			ProviderConfig: config.Serialized(),
@@ -93,7 +93,7 @@ func (store OnlineBlobStore) writeTableValue(feature, variant string, valueType 
 
 func (store OnlineBlobStore) deleteTable(feature, variant string) error {
 	tableKey := blobTableKey(store.Prefix, feature, variant)
-	entityDirectory := entityDirectory(feature, variant)
+	entityDirectory := entityDirectory(store.Prefix, feature, variant)
 	if err := store.Delete(tableKey); err != nil {
 		return fmt.Errorf("could not delete table index key %s: %v", tableKey, err)
 	}

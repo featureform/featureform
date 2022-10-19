@@ -1285,7 +1285,7 @@ func (k8s *K8sOfflineStore) trainingSet(def TrainingSetDef, isUpdate bool) error
 		k8s.logger.Errorw("Could not get schema of label in store", def.Label, err)
 		return fmt.Errorf("Could not get schema of label %s: %v", def.Label, err)
 	}
-	labelPath := k8s.store.PathWithPrefix(labelSchema.SourceTable)
+	labelPath := labelSchema.SourceTable
 	sourcePaths = append(sourcePaths, labelPath)
 	for _, feature := range def.Features {
 		featureSchema, err := k8s.registeredResourceSchema(feature)
@@ -1293,7 +1293,7 @@ func (k8s *K8sOfflineStore) trainingSet(def TrainingSetDef, isUpdate bool) error
 			k8s.logger.Errorw("Could not get schema of feature in store", feature, err)
 			return fmt.Errorf("Could not get schema of feature %s: %v", feature, err)
 		}
-		featurePath := k8s.store.PathWithPrefix(featureSchema.SourceTable)
+		featurePath := featureSchema.SourceTable
 		sourcePaths = append(sourcePaths, featurePath)
 		featureSchemas = append(featureSchemas, featureSchema)
 	}

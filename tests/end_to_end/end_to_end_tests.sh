@@ -5,7 +5,11 @@ set -e
 TESTING_DIRECTORY="$( cd "$(dirname "$0")"/ ; pwd -P )"
 export FEATUREFORM_TEST_PATH=$TESTING_DIRECTORY
 
-if [ $# -eq 2 ]; then
+
+if [ $# -eq 1 ]; then
+    echo -e "Exporting FEATUREFORM_HOST='$FEATUREFORM_URL'"
+    export FEATUREFORM_HOST=$FEATUREFORM_HOST_URL
+elif [ $# -eq 2 ]; then
     echo -e "Exporting FEATUREFORM_HOST='$1' and FEATUREFORM_CERT='$2'\n"
     export FEATUREFORM_HOST=$1
     export FEATUREFORM_CERT=$2
@@ -32,7 +36,7 @@ do
     featureform apply $f
 
     echo -e "\nDumping ETCD keys"
-    etcdctl --user=root:secretpassword get "" --prefix
+    /tmp/etcd-download-test/etcdctl --user=root:secretpassword get "" --prefix
 
     echo -e "\nNow serving '$filename'"
     python $TESTING_DIRECTORY/serving.py

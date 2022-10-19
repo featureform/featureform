@@ -217,7 +217,7 @@ func (k KubernetesRunner) ScheduleJob(schedule CronSchedule) error {
 	return nil
 }
 
-func getCurrentNamespace() (string, error) {
+func GetCurrentNamespace() (string, error) {
 	contents, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
 	if err != nil {
 		return "", err

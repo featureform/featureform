@@ -190,6 +190,7 @@ jobs:
           path: /tmp/worker.tar
   test:
     name: Run Tests
+    environment: Integration testing
     needs: [api-server, coordinator, dashboard, dashboard-metadata, metadata, serving, worker]
     defaults:
       run:

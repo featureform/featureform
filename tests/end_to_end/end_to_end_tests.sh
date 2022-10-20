@@ -5,9 +5,11 @@ set -e
 TESTING_DIRECTORY="$( cd "$(dirname "$0")"/ ; pwd -P )"
 export FEATUREFORM_TEST_PATH=$TESTING_DIRECTORY
 
-echo -e "Exporting FEATUREFORM_HOST='$1' and FEATUREFORM_CERT='$2'\n"
-export FEATUREFORM_HOST=$1
-export FEATUREFORM_CERT=$2
+if [ $# -eq 2 ]; then
+    echo -e "Exporting FEATUREFORM_HOST='$1' and FEATUREFORM_CERT='$2'\n"
+    export FEATUREFORM_HOST=$1
+    export FEATUREFORM_CERT=$2
+fi
 
 for f in $TESTING_DIRECTORY/definitions/*
 do
@@ -15,6 +17,7 @@ do
     filename="${f##*/}"
     echo "Applying '$filename' definition"
     featureform apply $f
+
     echo -e "\nNow serving '$filename'"
     python $TESTING_DIRECTORY/serving.py
     echo -e "Successfully completed '$filename'"

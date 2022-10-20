@@ -119,6 +119,7 @@ func TestOnlineStores(t *testing.T) {
 		return *firestoreConfig
 	}
 
+	// DynamoDB
 	dynamoInit := func() DynamodbConfig {
 		dynamoAccessKey := os.Getenv("DYNAMO_ACCESS_KEY")
 		dynamoSecretKey := os.Getenv("DYNAMO_SECRET_KEY")
@@ -128,6 +129,16 @@ func TestOnlineStores(t *testing.T) {
 			SecretKey: dynamoSecretKey,
 		}
 		return *dynamoConfig
+	}
+
+	// MongoDB
+	mongodbInit := func() MongodbConfig {
+		mongodbUri := os.Getenv("MONGODB_URI")
+		mongodbConfig := &MongodbConfig{
+			MongodbUri: mongodbUri,
+		}
+
+		return *mongodbConfig
 	}
 
 	type testMember struct {
@@ -161,6 +172,9 @@ func TestOnlineStores(t *testing.T) {
 	}
 	if *provider == "dynamo" || *provider == "" {
 		testList = append(testList, testMember{DynamoDBOnline, "", dynamoInit().Serialized(), true})
+	}
+	if *provider == "mongodb" || *provider == "" {
+		testList = append(testList, testMember{MongoDBOnline, "", mongodbInit().Serialized(), true})
 	}
 
 	for _, testItem := range testList {

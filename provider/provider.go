@@ -16,6 +16,7 @@ func init() {
 		CassandraOnline:  cassandraOnlineStoreFactory,
 		FirestoreOnline:  firestoreOnlineStoreFactory,
 		DynamoDBOnline:   dynamodbOnlineStoreFactory,
+		MongoDBOnline:    mongodbOnlineStoreFactory,
 		MemoryOffline:    memoryOfflineStoreFactory,
 		PostgresOffline:  postgresOfflineStoreFactory,
 		SnowflakeOffline: snowflakeOfflineStoreFactory,
@@ -98,6 +99,27 @@ func (r DynamodbConfig) Serialized() SerializedConfig {
 }
 
 func (r *DynamodbConfig) Deserialize(config SerializedConfig) error {
+	err := json.Unmarshal(config, r)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+type MongodbConfig struct {
+	MongodbUri string
+	Prefix     string
+}
+
+func (r MongodbConfig) Serialized() SerializedConfig {
+	config, err := json.Marshal(r)
+	if err != nil {
+		panic(err)
+	}
+	return config
+}
+
+func (r *MongodbConfig) Deserialize(config SerializedConfig) error {
 	err := json.Unmarshal(config, r)
 	if err != nil {
 		return err

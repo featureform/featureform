@@ -1633,7 +1633,7 @@ class Registrar:
         self.__resources.append(provider)
         return OfflineSparkProvider(self, provider)
 
-    def register_kubernetes(self,
+    def register_k8s(self,
                             name: str,
                             store: FileStoreProvider,
                             description: str = "",
@@ -1651,7 +1651,7 @@ class Registrar:
         **Examples**:
         ```
         ```
-        k8s = ff.register_kubernetes(
+        k8s = ff.register_k8s(
             name="k8s",
             description="Native featureform kubernetes compute",
             store=azure_blob,
@@ -3105,7 +3105,7 @@ register_postgres = global_registrar.register_postgres
 register_redshift = global_registrar.register_redshift
 register_bigquery = global_registrar.register_bigquery
 register_spark = global_registrar.register_spark
-register_kubernetes = global_registrar.register_kubernetes
+register_k8s = global_registrar.register_k8s
 register_local = global_registrar.register_local
 register_entity = global_registrar.register_entity
 register_column_resources = global_registrar.register_column_resources

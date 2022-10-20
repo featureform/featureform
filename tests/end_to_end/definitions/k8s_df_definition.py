@@ -41,7 +41,7 @@ redis = ff.register_redis(
     description = "A Redis deployment we created for the Featureform quickstart"
 )
 
-k8s = ff.register_kubernetes(
+k8s = ff.register_k8s(
     name=f"k8s_{VERSION}",
     store=azure_blob
 )
@@ -50,7 +50,7 @@ transactions = k8s.register_file(
     name=f"transactions_{VERSION}",
     variant="quickstart",
     description="A dataset of fraudulent transactions",
-    path="featureform/testing/primary/name/variant/transactions_short.csv"
+    path="featureform/testing/primary/name/variant/transactions_short_short.csv"
 )
 
 @k8s.df_transformation(name=f"average_user_transaction_{VERSION}", 

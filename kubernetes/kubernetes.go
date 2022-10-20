@@ -31,8 +31,8 @@ func GetJobName(id metadata.ResourceID, image string) string {
 	removedColons := strings.ReplaceAll(removedSlashes, ":", "")
 	MaxJobSize := 63
 	lowerCase := strings.ToLower(removedColons)
-	jobNameSize := int(math.Min(float64(len(lowerCase)), MaxJobSize))
-	lowerCase[0:jobNameSize]
+	jobNameSize := int(math.Min(float64(len(lowerCase)), float64(MaxJobSize)))
+	return lowerCase[0:jobNameSize]
 }
 
 func GetCronJobName(id metadata.ResourceID) string {

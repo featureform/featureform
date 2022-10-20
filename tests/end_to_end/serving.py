@@ -44,7 +44,6 @@ def serve_data():
                 
         except Exception as e:
             print(f"\twaiting for {SLEEP_DURATION} seconds")
-            print("---->", e)
             time.sleep(SLEEP_DURATION)
     
     raise Exception(f"Serving for {VERSION} could not be completed.")

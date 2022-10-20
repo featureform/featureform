@@ -39,7 +39,7 @@ We can re-verify that the provider is created by checking the [Providers tab of 
 {% code title="azure_blob_config.py" %}
 ```python
 import featureform as ff
-k8s_store = ff.register_kubernetes(
+k8s_store = ff.register_k8s(
     name="k8s",
     description="Native featureform kubernetes compute",
     store=azure_blob,

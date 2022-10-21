@@ -8,11 +8,13 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/featureform/helpers"
 	"github.com/featureform/kubernetes"
+	"github.com/featureform/metadata"
 
 	parquet "github.com/segmentio/parquet-go"
 	"go.uber.org/zap"
@@ -177,8 +179,13 @@ func k8sOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 		logger.Errorw("Failure initializing executor with type", k8.ExecutorType, err)
 		return nil, err
 	}
+	serializedBlob, err := k8.StoreConfig.Serialize()
+	if err != nil {
+		return nil, fmt.Errorf("could not serialize blob store config")
+	}
+
 	logger.Info("Creating blob store with type:", k8.StoreType)
-	store, err := CreateBlobStore(string(k8.StoreType), Config(k8.StoreConfig))
+	store, err := CreateBlobStore(string(k8.StoreType), Config(serializedBlob))
 	if err != nil {
 		logger.Errorw("Failure initializing blob store with type", k8.StoreType, err)
 		return nil, err
@@ -244,7 +251,7 @@ type K8sConfig struct {
 	ExecutorType   ExecutorType
 	ExecutorConfig ExecutorConfig
 	StoreType      BlobStoreType
-	StoreConfig    BlobStoreConfig
+	StoreConfig    AzureBlobStoreConfig
 }
 
 func (config *K8sConfig) Serialize() ([]byte, error) {
@@ -328,10 +335,15 @@ func NewLocalExecutor(config Config) (Executor, error) {
 
 func (kube KubernetesExecutor) ExecuteScript(envVars map[string]string) error {
 	envVars["MODE"] = "k8s"
+	resourceType, err := strconv.Atoi(envVars["RESOURCE_TYPE"])
+	if err != nil {
+		resourceType = 0
+	}
 	config := kubernetes.KubernetesRunnerConfig{
 		EnvVars:  envVars,
 		Image:    kube.image,
 		NumTasks: 1,
+		Resource: metadata.ResourceID{Name: envVars["RESOURCE_NAME"], Variant: envVars["RESOURCE_VARIANT"], Type: ProviderToMetadataResourceType[OfflineResourceType(resourceType)]},
 	}
 	jobRunner, err := kubernetes.NewKubernetesRunner(config)
 	if err != nil {
@@ -497,7 +509,7 @@ type ParquetIterator struct {
 
 func (p *ParquetIterator) Next() (map[string]interface{}, error) {
 	if p.index+1 == int64(len(p.rows)) {
-		return nil, fmt.Errorf("end of iterator")
+		return nil, nil
 	}
 	p.index += 1
 	currentRow := p.rows[p.index]
@@ -509,7 +521,8 @@ func (p *ParquetIterator) Next() (map[string]interface{}, error) {
 	return returnMap, nil
 }
 
-func getParquetNumRows(r io.Reader) (int64, error) {
+func getParquetNumRows(r io.ReadCloser) (int64, error) {
+	defer r.Close()
 	buff := bytes.NewBuffer([]byte{})
 	size, err := io.Copy(buff, r)
 	if err != nil {
@@ -518,7 +531,8 @@ func getParquetNumRows(r io.Reader) (int64, error) {
 	return int64(size), nil
 }
 
-func parquetIteratorFromReader(r io.Reader) (Iterator, error) {
+func parquetIteratorFromReader(r io.ReadCloser) (Iterator, error) {
+	defer r.Close()
 	buff := bytes.NewBuffer([]byte{})
 	size, err := io.Copy(buff, r)
 	if err != nil {
@@ -635,6 +649,7 @@ func NewAzureBlobStore(config Config) (BlobStore, error) {
 	if err != nil {
 		return AzureBlobStore{}, fmt.Errorf("Could not create azure client: %v", err)
 	}
+
 	bucket, err := azureblob.OpenBucket(ctx, client, azureStoreConfig.ContainerName, nil)
 	if err != nil {
 		return AzureBlobStore{}, fmt.Errorf("Could not open azure bucket: %v", err)
@@ -727,10 +742,12 @@ type BlobIterator struct {
 func (it *BlobIterator) Next() bool {
 	it.curIdx += 1
 	if it.curIdx > it.maxIdx {
-		it.err = fmt.Errorf("end of iteration")
 		return false
 	}
 	values, err := it.iter.Next()
+	if values == nil {
+		return false
+	}
 	if err != nil {
 		it.err = err
 		return false
@@ -848,6 +865,14 @@ func (k8s K8sOfflineStore) getDFArgs(outputURI string, code string, mapping []So
 	return envVars
 }
 
+
+func addResourceID(envVars map[string]string, id ResourceID) map[string]string {
+	envVars["RESOURCE_NAME"] = id.Name
+	envVars["RESOURCE_VARIANT"] = id.Name
+	envVars["RESOURCE_TYPE"] = fmt.Sprintf("%d", id.Type)
+	return envVars
+}
+
 func (k8s *K8sOfflineStore) sqlTransformation(config TransformationConfig, isUpdate bool) error {
 	updatedQuery, sources, err := k8s.updateQuery(config.Query, config.SourceMapping)
 	if err != nil {
@@ -867,6 +892,8 @@ func (k8s *K8sOfflineStore) sqlTransformation(config TransformationConfig, isUpd
 	}
 	k8s.logger.Debugw("Running SQL transformation", config)
 	runnerArgs := k8s.pandasRunnerArgs(transformationDestination, updatedQuery, sources, Transform)
+
+	runnerArgs = addResourceID(runnerArgs, config.TargetTableID)
 	if err := k8s.executor.ExecuteScript(runnerArgs); err != nil {
 		k8s.logger.Errorw("job for transformation failed to run", config.TargetTableID, err)
 		return fmt.Errorf("job for transformation %v failed to run: %v", config.TargetTableID, err)
@@ -904,6 +931,7 @@ func (k8s *K8sOfflineStore) dfTransformation(config TransformationConfig, isUpda
 	}
 
 	k8sArgs := k8s.getDFArgs(transformationDestination, transformationFileLocation, config.SourceMapping, sources)
+	k8sArgs = addResourceID(k8sArgs, config.TargetTableID)
 	k8s.logger.Debugw("Running DF transformation", config)
 	if err := k8s.executor.ExecuteScript(k8sArgs); err != nil {
 		k8s.logger.Errorw("Error running dataframe job", err)
@@ -1107,6 +1135,9 @@ func (iter *BlobFeatureIterator) Next() bool {
 		iter.err = err
 		return false
 	}
+	if nextVal == nil {
+		return false
+	}
 	formatDate := "2006-01-02 15:04:05 UTC" // hardcoded golang format date
 	var timestamp time.Time
 	timeString, ok := nextVal["ts"].(string)
@@ -1172,6 +1203,8 @@ func (k8s *K8sOfflineStore) materialization(id ResourceID, isUpdate bool) (Mater
 	materializationQuery := k8s.query.materializationCreate(k8sResourceTable.schema)
 	sourcePath := k8s.store.PathWithPrefix(k8sResourceTable.schema.SourceTable)
 	k8sArgs := k8s.pandasRunnerArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize)
+
+	k8sArgs = addResourceID(k8sArgs, id)
 	k8s.logger.Debugw("Creating materialization", "id", id)
 	if err := k8s.executor.ExecuteScript(k8sArgs); err != nil {
 		k8s.logger.Errorw("Job failed to run", err)
@@ -1254,7 +1287,7 @@ func (k8s *K8sOfflineStore) trainingSet(def TrainingSetDef, isUpdate bool) error
 		k8s.logger.Errorw("Could not get schema of label in store", def.Label, err)
 		return fmt.Errorf("Could not get schema of label %s: %v", def.Label, err)
 	}
-	labelPath := k8s.store.PathWithPrefix(labelSchema.SourceTable)
+	labelPath := labelSchema.SourceTable
 	sourcePaths = append(sourcePaths, labelPath)
 	for _, feature := range def.Features {
 		featureSchema, err := k8s.registeredResourceSchema(feature)
@@ -1262,12 +1295,13 @@ func (k8s *K8sOfflineStore) trainingSet(def TrainingSetDef, isUpdate bool) error
 			k8s.logger.Errorw("Could not get schema of feature in store", feature, err)
 			return fmt.Errorf("Could not get schema of feature %s: %v", feature, err)
 		}
-		featurePath := k8s.store.PathWithPrefix(featureSchema.SourceTable)
+		featurePath := featureSchema.SourceTable
 		sourcePaths = append(sourcePaths, featurePath)
 		featureSchemas = append(featureSchemas, featureSchema)
 	}
 	trainingSetQuery := k8s.query.trainingSetCreate(def, featureSchemas, labelSchema)
 	pandasArgs := k8s.pandasRunnerArgs(k8s.store.PathWithPrefix(destinationPath), trainingSetQuery, sourcePaths, CreateTrainingSet)
+	pandasArgs = addResourceID(pandasArgs, def.ID)
 	k8s.logger.Debugw("Creating training set", "definition", def)
 	if err := k8s.executor.ExecuteScript(pandasArgs); err != nil { //
 		k8s.logger.Errorw("training set job failed to run", "definition", def.ID, "error", err)
@@ -1308,6 +1342,9 @@ func (ts *BlobTrainingSet) Next() bool {
 	row, err := ts.iter.Next()
 	if err != nil {
 		ts.Error = err
+		return false
+	}
+	if row == nil {
 		return false
 	}
 	values := make([]interface{}, 0)

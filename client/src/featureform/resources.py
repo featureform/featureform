@@ -2,16 +2,18 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import json
 import time
-from typing import List, Tuple, Union
+from enum import Enum
+from base64 import b64encode
 from typeguard import typechecked
 from dataclasses import dataclass
-from featureform.proto import metadata_pb2 as pb
-import grpc
-import json
+from typing import List, Tuple, Union
 
+import grpc
 from .sqlite_metadata import SQLiteMetadata
-from enum import Enum
+
+from featureform.proto import metadata_pb2 as pb
 
 NameVariant = Tuple[str, str]
 
@@ -88,6 +90,15 @@ class AzureBlobStoreConfig:
     container_name: str
     root_path: str
 
+<<<<<<< HEAD
+=======
+    def software(self) -> str:
+        return "azure"
+
+    def type(self) -> str:
+        return "AZURE"
+
+>>>>>>> 3b74f76aa9a28826f707cbd11e905fec56d4bc49
     def serialize(self) -> bytes:
         config = {
             "AccountName": self.account_name,
@@ -96,13 +107,28 @@ class AzureBlobStoreConfig:
             "Path": self.root_path,
         }
         return bytes(json.dumps(config), "utf-8")
+<<<<<<< HEAD
+=======
+    
+    def config(self):
+        return {
+            "AccountName": self.account_name,
+            "AccountKey": self.account_key,
+            "ContainerName": self.container_name,
+            "Path": self.root_path,
+        }
+>>>>>>> 3b74f76aa9a28826f707cbd11e905fec56d4bc49
 
 
 @typechecked
 @dataclass
 class OnlineBlobConfig:
     store_type: str
+<<<<<<< HEAD
     store_config: bytes
+=======
+    store_config: dict
+>>>>>>> 3b74f76aa9a28826f707cbd11e905fec56d4bc49
 
     def software(self) -> str:
         return self.store_type
@@ -343,6 +369,29 @@ class SparkAWSConfig:
         }
         return bytes(json.dumps(config), "utf-8")
 
+@typechecked
+@dataclass
+class K8sConfig:
+    store_type: str
+    store_config: dict
+
+    def software(self) -> str:
+        return "k8s"
+
+    def type(self) -> str:
+        return "K8S_OFFLINE"
+
+    def serialize(self) -> bytes:
+        config = {
+            "ExecutorType": "K8S",
+            "ExecutorConfig": "",
+            "StoreType": self.store_type,
+            "StoreConfig": self.store_config,
+        }
+        return bytes(json.dumps(config), "utf-8")
+
+
+
 
 @typechecked
 @dataclass
@@ -375,7 +424,11 @@ class K8sAzureConfig:
 
 
 Config = Union[
+<<<<<<< HEAD
     RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig, BigQueryConfig, FirestoreConfig, SparkAWSConfig, K8sAzureConfig]
+=======
+    RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig, BigQueryConfig, FirestoreConfig, SparkAWSConfig, OnlineBlobConfig, AzureBlobStoreConfig, K8sConfig]
+>>>>>>> 3b74f76aa9a28826f707cbd11e905fec56d4bc49
 
 
 @typechecked

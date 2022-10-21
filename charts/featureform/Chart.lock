@@ -2,5 +2,8 @@ dependencies:
 - name: etcd
   repository: https://charts.bitnami.com/bitnami
   version: 8.0.1
-digest: sha256:9fe34575d80805f5c546f35791ff3edd9b15ffd482722b1defb308838c617fda
-generated: "2022-04-25T01:21:33.96408-07:00"
+- name: ingress-nginx
+  repository: https://kubernetes.github.io/ingress-nginx
+  version: 4.1.0
+digest: sha256:d739c1c912f31ca8491d552e98c11127e7af1575448fedcbbf231d21a047fe77
+generated: "2022-10-18T12:41:59.04477-07:00"

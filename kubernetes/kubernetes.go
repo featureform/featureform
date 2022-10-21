@@ -11,7 +11,9 @@ import (
 	"github.com/featureform/types"
 	"github.com/google/uuid"
 	"github.com/gorhill/cronexpr"
+	"io/ioutil"
 	batchv1 "k8s.io/api/batch/v1"
+	"math"
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
@@ -21,13 +23,16 @@ import (
 	rest "k8s.io/client-go/rest"
 )
 
-var Namespace string = "default"
-
 type CronSchedule string
 
-func GetJobName(id metadata.ResourceID) string {
-	return strings.ReplaceAll(fmt.Sprintf("%s-%s-%d", strings.ToLower(id.Name), strings.ToLower(id.Variant), id.Type), "_", ".")
-
+func GetJobName(id metadata.ResourceID, image string) string {
+	jobName := strings.ReplaceAll(fmt.Sprintf("%s-%s-%s-%s-%s", id.Name, id.Variant, id.Type, image, uuid.New().String()), "_", ".")
+	removedSlashes := strings.ReplaceAll(jobName, "/", "")
+	removedColons := strings.ReplaceAll(removedSlashes, ":", "")
+	MaxJobSize := 63
+	lowerCase := strings.ToLower(removedColons)
+	jobNameSize := int(math.Min(float64(len(lowerCase)), float64(MaxJobSize)))
+	return lowerCase[0:jobNameSize]
 }
 
 func GetCronJobName(id metadata.ResourceID) string {
@@ -218,16 +223,34 @@ func (k KubernetesRunner) ScheduleJob(schedule CronSchedule) error {
 	return nil
 }
 
+func GetCurrentNamespace() (string, error) {
+	contents, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+	if err != nil {
+		return "", err
+	}
+	return string(contents), nil
+}
+
+func generateCleanRandomJobName() string {
+	cleanUUID := strings.ReplaceAll(uuid.New().String(), "-", "")
+	jobName := fmt.Sprintf("job__%s", cleanUUID)
+	return jobName[0:int(math.Min(float64(len(jobName)), 63))]
+}
+
 func NewKubernetesRunner(config KubernetesRunnerConfig) (CronRunner, error) {
 	jobSpec := newJobSpec(config)
 	var jobName string
 	if config.Resource.Name != "" {
-		jobName = GetJobName(config.Resource)
+		jobName = GetJobName(config.Resource, config.Image)
 	} else {
-		cleanUUID := strings.ReplaceAll(uuid.New().String(), "-", "")
-		jobName = fmt.Sprintf("job%s", cleanUUID)
+		jobName = generateCleanRandomJobName()
+
 	}
-	jobClient, err := NewKubernetesJobClient(jobName, Namespace)
+	namespace, err := GetCurrentNamespace()
+	if err != nil {
+		return nil, err
+	}
+	jobClient, err := NewKubernetesJobClient(jobName, namespace)
 	if err != nil {
 		return nil, err
 	}

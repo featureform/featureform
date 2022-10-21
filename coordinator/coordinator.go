@@ -23,6 +23,17 @@ import (
 	"go.etcd.io/etcd/client/v3/concurrency"
 )
 
+func retryWithDelays(name string, retries int, delay time.Duration, idempotentFunction func() error) error {
+	var err error
+	for i := 0; i < retries; i++ {
+		if err = idempotentFunction(); err == nil {
+			return nil
+		}
+		time.Sleep(delay)
+	}
+	return fmt.Errorf("retried %s %d times unsuccesfully: Latest error message: %v", name, retries, err)
+}
+
 type Config []byte
 
 func templateReplace(template string, replacements map[string]string, offlineStore provider.OfflineStore) (string, error) {
@@ -394,7 +405,7 @@ func (c *Coordinator) runTransformationJob(transformationConfig provider.Transfo
 		return fmt.Errorf("wait for transformation job runner completion: %w", err)
 	}
 	c.Logger.Debugw("Transformation Setting Status")
-	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
+	if err := retryWithDelays("set status to ready", 5, time.Millisecond*10, func() error { return c.Metadata.SetStatus(context.Background(), resID, metadata.READY, "") }); err != nil {
 		return fmt.Errorf("set transformation job runner done status: %w", err)
 	}
 	c.Logger.Debugw("Transformation Complete")
@@ -1100,7 +1111,11 @@ func (c *Coordinator) changeJobSchedule(key string, value string) error {
 	if err := coordinatorScheduleJob.Deserialize(Config(value)); err != nil {
 		return fmt.Errorf("deserialize coordiantor schedule job: %w", err)
 	}
-	jobClient, err := kubernetes.NewKubernetesJobClient(kubernetes.GetCronJobName(coordinatorScheduleJob.Resource), kubernetes.Namespace)
+	namespace, err := kubernetes.GetCurrentNamespace()
+	if err != nil {
+		return fmt.Errorf("could not get kubernetes namespace: %v", err)
+	}
+	jobClient, err := kubernetes.NewKubernetesJobClient(kubernetes.GetCronJobName(coordinatorScheduleJob.Resource), namespace)
 	if err != nil {
 		return fmt.Errorf("create new kubernetes job client: %w", err)
 	}

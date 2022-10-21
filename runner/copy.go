@@ -21,6 +21,7 @@ type IndexRunner interface {
 type MaterializedChunkRunner struct {
 	Materialized provider.Materialization
 	Table        provider.OnlineStoreTable
+	Store        provider.OnlineStore
 	ChunkSize    int64
 	ChunkIdx     int64
 }
@@ -70,7 +71,12 @@ func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
 			jobWatcher.EndWatch(err)
 			return
 		}
+		i := 0
 		for it.Next() {
+			i += 1
+			if i%1000 == 0 {
+				fmt.Println("on row", i)
+			}
 			value := it.Value().Value
 			entity := it.Value().Entity
 			err := m.Table.Set(entity, value)
@@ -84,6 +90,10 @@ func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
 			return
 		}
 		err = it.Close()
+		if err != nil {
+			jobWatcher.EndWatch(err)
+		}
+		err = m.Store.Close()
 		if err != nil {
 			jobWatcher.EndWatch(err)
 		}
@@ -220,6 +230,7 @@ func MaterializedChunkRunnerFactory(config Config) (types.Runner, error) {
 	return &MaterializedChunkRunner{
 		Materialized: materialization,
 		Table:        table,
+		Store:        onlineStore,
 		ChunkSize:    runnerConfig.ChunkSize,
 		ChunkIdx:     runnerConfig.ChunkIdx,
 	}, nil

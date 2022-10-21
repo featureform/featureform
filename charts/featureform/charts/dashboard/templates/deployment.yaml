@@ -19,7 +19,7 @@ spec:
           image: "{{ .Values.global.repo | default .Values.image.repository }}/{{ .Values.image.name }}:{{ .Values.global.version | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.global.pullPolicy }}
           ports:
-            - containerPort: 3000
+            - containerPort: 80
           env:
             - name: REACT_APP_API_URL
               valueFrom:

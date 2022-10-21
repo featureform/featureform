@@ -8,5 +8,5 @@ spec:
     app: featureform-dashboard
   ports:
     - port: {{ .Values.dashboard.port }}
-      targetPort: 3000
+      targetPort: 80
       protocol: TCP

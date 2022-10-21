@@ -1,4 +1,4 @@
-{{ if not .Values.global.publicCert }}
+{{ if .Values.global.localCert }}
 apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:

@@ -65,7 +65,7 @@ class ServingClient:
         else:
             self.impl = HostedClientImpl(host, insecure, cert_path)
 
-    def training_set(self, name, variant="default"):
+    def training_set(self, name, variant="default", include_label_timestamp=False):
         """Return an iterator that iterates through the specified training set.
 
         **Examples**:
@@ -83,7 +83,7 @@ class ServingClient:
         Returns:
             training set (Dataset): A training set iterator
         """
-        return self.impl.training_set(name, variant)
+        return self.impl.training_set(name, variant, include_label_timestamp)
 
     def features(self, features, entities):
         """Returns the feature values for the specified entities.
@@ -122,7 +122,7 @@ class HostedClientImpl:
         else:
             return secure_channel(host, cert_path)
 
-    def training_set(self, name, variation):
+    def training_set(self, name, variation, include_label_timestamp):
         return Dataset(self._stub).from_stub(name, variation)
 
     def features(self, features, entities):
@@ -143,7 +143,7 @@ class LocalClientImpl:
     def __init__(self):
         self.db = SQLiteMetadata()
 
-    def training_set(self, training_set_name, training_set_variant):
+    def training_set(self, training_set_name, training_set_variant, include_label_timestamp):
         training_set = self.db.get_training_set_variant(training_set_name, training_set_variant)
         label = self.db.get_label_variant(training_set['label_name'], training_set['label_variant'])
         label_df = self.get_label_dataframe(label)
@@ -155,7 +155,7 @@ class LocalClientImpl:
             feature_df = self.get_feature_dataframe(feature)
             trainingset_df = self.merge_feature_into_ts(feature, label, feature_df, trainingset_df)
 
-        return self.convert_ts_df_to_dataset(label, trainingset_df)
+        return self.convert_ts_df_to_dataset(label, trainingset_df, include_label_timestamp)
 
     def get_input_df(self, source_name, source_variant):
         if self.db.is_transformation(source_name, source_variant) == SourceType.PRIMARY_SOURCE.value:
@@ -288,14 +288,17 @@ class LocalClientImpl:
                 trainingset_df.drop(columns='index', inplace=True)
         return trainingset_df
 
-    def convert_ts_df_to_dataset(self, label_row, trainingset_df):
-        if label_row['source_timestamp'] != "":
+    def convert_ts_df_to_dataset(self, label_row, trainingset_df, include_label_timestamp): 
+        if label_row['source_timestamp'] != "" and include_label_timestamp != True:
             trainingset_df.drop(columns=label_row['source_timestamp'], inplace=True)
+        elif label_row['source_timestamp'] != "" and include_label_timestamp:
+            source_timestamp_col = trainingset_df.pop(label_row['source_timestamp'])
+            trainingset_df = trainingset_df.assign(label_timestamp=source_timestamp_col)
         trainingset_df.drop(columns=label_row['source_entity'], inplace=True)
-
+            
         label_col = trainingset_df.pop('label')
         trainingset_df = trainingset_df.assign(label=label_col)
-        return Dataset.from_dataframe(trainingset_df)
+        return Dataset.from_dataframe(trainingset_df, include_label_timestamp)
 
     def features(self, feature_variant_list, entities):
         if len(feature_variant_list) == 0:
@@ -407,15 +410,16 @@ class Stream:
 
 class LocalStream:
 
-    def __init__(self, datalist):
+    def __init__(self, datalist, include_label_timestamp):
         self._datalist = datalist
         self._iter = iter(datalist)
+        self._include_label_timestamp = include_label_timestamp
 
     def __iter__(self):
         return iter(self._iter)
 
     def __next__(self):
-        return LocalRow(next(self._iter))
+        return LocalRow(next(self._iter), self._include_label_timestamp)
 
     def restart(self):
         self._iter = iter(self._datalist)
@@ -523,8 +527,8 @@ class Dataset:
         stream = Stream(self._stream, name, version)
         return Dataset(stream)
     
-    def from_dataframe(dataframe):
-        stream = LocalStream(dataframe.values.tolist())
+    def from_dataframe(dataframe, include_label_timestamp):
+        stream = LocalStream(dataframe.values.tolist(), include_label_timestamp)
         return Dataset(stream, dataframe)
 
     def pandas(self):
@@ -635,10 +639,15 @@ class Row:
 
 class LocalRow:
 
-    def __init__(self, row_list):
-        self._features = row_list[:-1]
+    def __init__(self, row_list, include_label_timestamp):
+        """
+        If include_label_timestamp is true then we want the label to equal to the 
+        last two columns in the list. Otherwise, just the label will be the last column only.
+        """
+
+        self._features = row_list[:-2] if include_label_timestamp else row_list[:-1]
         self._row = row_list
-        self._label = row_list[-1]
+        self._label = row_list[-2:] if include_label_timestamp else row_list[-1]
 
     def features(self):
         return [self._features]

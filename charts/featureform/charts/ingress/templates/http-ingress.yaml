@@ -10,7 +10,6 @@ metadata:
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
     cert-manager.io/issuer: letsencrypt-prod
   name: http-ingress
-  namespace: default
 spec:
   rules:
     - host: {{ .Values.global.hostname }}
@@ -29,14 +28,14 @@ spec:
               service:
                 name: featureform-dashboard-metadata
                 port:
-                  number: 8080
+                  number: 3001
           - path: /search/
             pathType: Prefix
             backend:
               service:
                 name: featureform-dashboard-metadata
                 port:
-                  number: 8080
+                  number: 3001
           - path: /prometheus/
             pathType: Prefix
             backend:
@@ -50,7 +49,7 @@ spec:
               service:
                 name: featureform-dashboard
                 port:
-                  number: 3000
+                  number: 80
 
 
 

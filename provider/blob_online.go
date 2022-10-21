@@ -7,11 +7,11 @@ import (
 	"time"
 )
 
-const STORE_PREFIX = "/.featureform/inferencestore"
+const STORE_PREFIX = ".featureform/inferencestore"
 
 type OnlineBlobConfig struct {
 	Type   BlobStoreType
-	Config BlobStoreConfig
+	Config AzureBlobStoreConfig
 }
 
 func (online OnlineBlobConfig) Serialized() SerializedConfig {
@@ -32,6 +32,7 @@ func (online *OnlineBlobConfig) Deserialize(config SerializedConfig) error {
 
 type OnlineBlobStore struct {
 	BlobStore
+	Prefix string
 	BaseProvider
 }
 
@@ -44,12 +45,18 @@ func blobOnlineStoreFactory(serialized SerializedConfig) (Provider, error) {
 }
 
 func NewOnlineBlobStore(config *OnlineBlobConfig) (*OnlineBlobStore, error) {
-	blobStore, err := CreateBlobStore(string(config.Type), Config(config.Config))
+	serializedBlob, err := config.Config.Serialize()
+	if err != nil {
+		return nil, fmt.Errorf("could not serialize blob store config")
+	}
+
+	blobStore, err := CreateBlobStore(string(config.Type), Config(serializedBlob))
 	if err != nil {
 		return nil, fmt.Errorf("could not create blob store: %v", err)
 	}
 	return &OnlineBlobStore{
 		blobStore,
+		config.Config.Path,
 		BaseProvider{
 			ProviderType:   BlobOnline,
 			ProviderConfig: config.Serialized(),
@@ -61,17 +68,18 @@ func (store *OnlineBlobStore) AsOnlineStore() (OnlineStore, error) {
 	return store, nil
 }
 
-func blobTableKey(feature, variant string) string {
-	return fmt.Sprintf("%s/tables/%s/%s", STORE_PREFIX, feature, variant)
+
+func blobTableKey(prefix, feature, variant string) string {
+	return fmt.Sprintf("%s/%s/tables/%s/%s", prefix, STORE_PREFIX, feature, variant)
 }
 
 func (store OnlineBlobStore) tableExists(feature, variant string) (bool, error) {
-	tableKey := blobTableKey(feature, variant)
+	tableKey := blobTableKey(store.Prefix, feature, variant)
 	return store.Exists(tableKey)
 }
 
 func (store OnlineBlobStore) readTableValue(feature, variant string) (ValueType, error) {
-	tableKey := blobTableKey(feature, variant)
+	tableKey := blobTableKey(store.Prefix, feature, variant)
 	value, err := store.Read(tableKey)
 	if err != nil {
 		return NilType, err
@@ -80,13 +88,13 @@ func (store OnlineBlobStore) readTableValue(feature, variant string) (ValueType,
 }
 
 func (store OnlineBlobStore) writeTableValue(feature, variant string, valueType ValueType) error {
-	tableKey := blobTableKey(feature, variant)
+	tableKey := blobTableKey(store.Prefix, feature, variant)
 	return store.Write(tableKey, []byte(valueType))
 }
 
 func (store OnlineBlobStore) deleteTable(feature, variant string) error {
-	tableKey := blobTableKey(feature, variant)
-	entityDirectory := entityDirectory(feature, variant)
+	tableKey := blobTableKey(store.Prefix, feature, variant)
+	entityDirectory := entityDirectory(store.Prefix, feature, variant)
 	if err := store.Delete(tableKey); err != nil {
 		return fmt.Errorf("could not delete table index key %s: %v", tableKey, err)
 	}
@@ -108,7 +116,7 @@ func (store OnlineBlobStore) GetTable(feature, variant string) (OnlineStoreTable
 	if err != nil {
 		return nil, err
 	}
-	return OnlineBlobStoreTable{store, feature, variant, tableType}, nil
+	return OnlineBlobStoreTable{store, feature, variant, store.Prefix, tableType}, nil
 }
 
 func (store OnlineBlobStore) CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error) {
@@ -122,13 +130,14 @@ func (store OnlineBlobStore) CreateTable(feature, variant string, valueType Valu
 	if err := store.writeTableValue(feature, variant, valueType); err != nil {
 		return nil, err
 	}
-	return OnlineBlobStoreTable{store, feature, variant, valueType}, nil
+	return OnlineBlobStoreTable{store, feature, variant, store.Prefix, valueType}, nil
 }
 
 type OnlineBlobStoreTable struct {
 	store     BlobStore
 	feature   string
 	variant   string
+	prefix    string
 	valueType ValueType
 }
 
@@ -143,22 +152,22 @@ func (store OnlineBlobStore) DeleteTable(feature, variant string) error {
 	return store.deleteTable(feature, variant)
 }
 
-func entityDirectory(feature, variant string) string {
-	return fmt.Sprintf("%s/values/%s/%s",STORE_PREFIX, feature, variant,)
+func entityDirectory(prefix, feature, variant string) string {
+	return fmt.Sprintf("%s/%s/values/%s/%s", prefix, STORE_PREFIX, feature, variant)
 }
 
-func entityValueKey(feature, variant, entity string) string {
-	return fmt.Sprintf("%s/%s", entityDirectory(feature, variant), entity)
+func entityValueKey(prefix, feature, variant, entity string) string {
+	return fmt.Sprintf("%s/%s", entityDirectory(prefix, feature, variant), entity)
 }
 
 func (table OnlineBlobStoreTable) setEntityValue(feature, variant, entity string, value interface{}) error {
-	entityValueKey := entityValueKey(feature, variant, entity)
+	entityValueKey := entityValueKey(table.prefix, feature, variant, entity)
 	valueBytes := []byte(fmt.Sprintf("%v", value.(interface{})))
 	return table.store.Write(entityValueKey, valueBytes)
 }
 
 func (table OnlineBlobStoreTable) getEntityValue(feature, variant, entity string) (interface{}, error) {
-	entityValueKey := entityValueKey(feature, variant, entity)
+	entityValueKey := entityValueKey(table.prefix, feature, variant, entity)
 	exists, err := table.store.Exists(entityValueKey)
 	if err != nil {
 		return nil, err

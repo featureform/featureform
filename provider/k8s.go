@@ -222,6 +222,7 @@ const (
 	Memory     BlobStoreType = "MEMORY"
 	FileSystem               = "FILE_SYSTEM"
 	Azure                    = "AZURE"
+	S3                       = "S3"
 )
 
 type K8sAzureConfig struct {
@@ -364,7 +365,7 @@ func NewKubernetesExecutor(config Config) (Executor, error) {
 	return KubernetesExecutor{image: pandas_image}, nil
 }
 
-type BlobStore interface {
+type BlobStore interface {	
 	Write(key string, data []byte) error
 	Writer(key string) (*blob.Writer, error)
 	Read(key string) ([]byte, error)
@@ -678,28 +679,33 @@ func (tbl *BlobOfflineTable) Write(ResourceRecord) error {
 }
 
 func (k8s *K8sOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error) {
+	return blobRegisterResource(id, schema, k8s.logger, k8s.store)
+	
+}
+
+func blobRegisterResource(id ResourceID, schema ResourceSchema, logger *zap.SugaredLogger, store BlobStore) (OfflineTable, error) {
 	if err := id.check(Feature, Label); err != nil {
-		k8s.logger.Errorw("Failure checking ID", "error", err)
+		logger.Errorw("Failure checking ID", "error", err)
 		return nil, fmt.Errorf("ID check failed: %v", err)
 	}
-	resourceKey := k8s.store.PathWithPrefix(blobResourcePath(id))
-	resourceExists, err := k8s.store.Exists(resourceKey)
+	resourceKey := store.PathWithPrefix(blobResourcePath(id))
+	resourceExists, err := store.Exists(resourceKey)
 	if err != nil {
-		k8s.logger.Errorw("Error checking if resource exists", "error", err)
+		logger.Errorw("Error checking if resource exists", "error", err)
 		return nil, fmt.Errorf("error checking if resource registry exists: %v", err)
 	}
 	if resourceExists {
-		k8s.logger.Errorw("Resource already exists in blob store", "id", id, "ResourceKey", resourceKey)
+		logger.Errorw("Resource already exists in blob store", "id", id, "ResourceKey", resourceKey)
 		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}
 	serializedSchema, err := schema.Serialize()
 	if err != nil {
 		return nil, fmt.Errorf("error serializing resource schema: %s: %s", schema, err)
 	}
-	if err := k8s.store.Write(resourceKey, serializedSchema); err != nil {
+	if err := store.Write(resourceKey, serializedSchema); err != nil {
 		return nil, fmt.Errorf("error writing resource schema: %s: %s", schema, err)
 	}
-	k8s.logger.Debugw("Registered resource table", "resourceID", id, "for source", schema.SourceTable)
+	logger.Debugw("Registered resource table", "resourceID", id, "for source", schema.SourceTable)
 	return &BlobOfflineTable{schema}, nil
 }
 
@@ -780,24 +786,28 @@ func (it *BlobIterator) Close() error {
 }
 
 func (k8s *K8sOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error) {
-	resourceKey := k8s.store.PathWithPrefix(blobResourcePath(id))
-	primaryExists, err := k8s.store.Exists(resourceKey)
+	return blobRegisterPrimary(id, sourceName, k8s.logger, k8s.store)
+}
+
+func blobRegisterPrimary(id ResourceID, sourceName string, logger *zap.SugaredLogger, store BlobStore) (PrimaryTable, error) {
+	resourceKey := store.PathWithPrefix(blobResourcePath(id))
+	primaryExists, err := store.Exists(resourceKey)
 	if err != nil {
-		k8s.logger.Errorw("Error checking if primary exists", err)
+		logger.Errorw("Error checking if primary exists", err)
 		return nil, fmt.Errorf("error checking if primary exists: %v", err)
 	}
 	if primaryExists {
-		k8s.logger.Errorw("Error checking if primary exists")
+		logger.Errorw("Error checking if primary exists")
 		return nil, fmt.Errorf("primary already exists")
 	}
 
-	k8s.logger.Debugw("Registering primary table", id, "for source", sourceName)
-	if err := k8s.store.Write(resourceKey, []byte(sourceName)); err != nil {
-		k8s.logger.Errorw("Could not write primary table", err)
+	logger.Debugw("Registering primary table", id, "for source", sourceName)
+	if err := store.Write(resourceKey, []byte(sourceName)); err != nil {
+		logger.Errorw("Could not write primary table", err)
 		return nil, err
 	}
-	k8s.logger.Debugw("Succesfully registered primary table", id, "for source", sourceName)
-	return &BlobPrimaryTable{k8s.store, sourceName, false, id}, nil
+	logger.Debugw("Succesfully registered primary table", id, "for source", sourceName)
+	return &BlobPrimaryTable{store, sourceName, false, id}, nil
 }
 
 func (k8s *K8sOfflineStore) CreateTransformation(config TransformationConfig) error {
@@ -1037,14 +1047,18 @@ func (k8s *K8sOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema
 }
 
 func (k8s *K8sOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error) {
-	resourceKey := k8s.store.PathWithPrefix(blobResourcePath(id))
-	k8s.logger.Debugw("Getting primary table", id)
-	table, err := k8s.store.Read(resourceKey)
+	return blobGetPrimary(id, k8s.store, k8s.logger)
+}
+
+func blobGetPrimary(id ResourceID, store BlobStore, logger *zap.SugaredLogger) (PrimaryTable, error) {
+	resourceKey := store.PathWithPrefix(blobResourcePath(id))
+	logger.Debugw("Getting primary table", id)
+	table, err := store.Read(resourceKey)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching primary table: %v", err)
 	}
-	k8s.logger.Debugw("Succesfully retrieved primary table", id)
-	return &BlobPrimaryTable{k8s.store, string(table), false, id}, nil
+	logger.Debugw("Succesfully retrieved primary table", id)
+	return &BlobPrimaryTable{store, string(table), false, id}, nil
 }
 
 func (k8s *K8sOfflineStore) CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error) {
@@ -1052,9 +1066,13 @@ func (k8s *K8sOfflineStore) CreateResourceTable(id ResourceID, schema TableSchem
 }
 
 func (k8s *K8sOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, error) {
-	resourcekey := k8s.store.PathWithPrefix(blobResourcePath(id))
-	k8s.logger.Debugw("Getting resource table", id)
-	serializedSchema, err := k8s.store.Read(resourcekey)
+	return blobGetResourceTable(id, k8s.store, k8s.logger)
+}
+
+func blobGetResourceTable(id ResourceID, store BlobStore, logger *zap.SugaredLogger) (OfflineTable, error) {
+	resourcekey := store.PathWithPrefix(blobResourcePath(id))
+	logger.Debugw("Getting resource table", id)
+	serializedSchema, err := store.Read(resourcekey)
 	if err != nil {
 		return nil, fmt.Errorf("Error reading schema bytes from blob storage: %v", err)
 	}
@@ -1062,7 +1080,7 @@ func (k8s *K8sOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, error
 	if err := resourceSchema.Deserialize(serializedSchema); err != nil {
 		return nil, fmt.Errorf("Error deserializing resource table: %v", err)
 	}
-	k8s.logger.Debugw("Succesfully fetched resource table", "id", id)
+	logger.Debugw("Succesfully fetched resource table", "id", id)
 	return &BlobOfflineTable{resourceSchema}, nil
 }
 
@@ -1071,21 +1089,25 @@ func (k8s *K8sOfflineStore) CreateMaterialization(id ResourceID) (Materializatio
 }
 
 func (k8s *K8sOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
+	return blobGetMaterialization(id, k8s.store, k8s.logger)
+}
+
+func blobGetMaterialization(id MaterializationID, store BlobStore, logger *zap.SugaredLogger) (Materialization, error) {
 	s := strings.Split(string(id), "/")
 	if len(s) != 3 {
-		k8s.logger.Errorw("Invalid materialization id", id)
+		logger.Errorw("Invalid materialization id", id)
 		return nil, fmt.Errorf("invalid materialization id")
 	}
 	materializationID := ResourceID{s[1], s[2], FeatureMaterialization}
-	k8s.logger.Debugw("Getting materialization", "id", id)
-	materializationPath := k8s.store.PathWithPrefix(blobResourcePath(materializationID))
-	materializationExactPath := k8s.store.NewestBlob(materializationPath)
+	logger.Debugw("Getting materialization", "id", id)
+	materializationPath := store.PathWithPrefix(blobResourcePath(materializationID))
+	materializationExactPath := store.NewestBlob(materializationPath)
 	if materializationExactPath == "" {
-		k8s.logger.Errorw("Could not fetch materialization resource key")
+		logger.Errorw("Could not fetch materialization resource key")
 		return nil, fmt.Errorf("Could not fetch materialization resource key")
 	}
-	k8s.logger.Debugw("Succesfully retrieved materialization", "id", id)
-	return &BlobMaterialization{materializationID, k8s.store, materializationExactPath}, nil
+	logger.Debugw("Succesfully retrieved materialization", "id", id)
+	return &BlobMaterialization{materializationID, store, materializationExactPath}, nil
 }
 
 type BlobMaterialization struct {
@@ -1220,6 +1242,10 @@ func (k8s *K8sOfflineStore) materialization(id ResourceID, isUpdate bool) (Mater
 }
 
 func (k8s *K8sOfflineStore) DeleteMaterialization(id MaterializationID) error {
+	return blobDeleteMaterialization(id, k8s.store, k8s.logger)
+}
+
+func blobDeleteMaterialization(id MaterializationID, store BlobStore, logger *zap.SugaredLogger) error {
 	s := strings.Split(string(id), "/")
 	if len(s) != 3 {
 		k8s.logger.Errorw("Invalid materialization id", id)
@@ -1312,20 +1338,24 @@ func (k8s *K8sOfflineStore) trainingSet(def TrainingSetDef, isUpdate bool) error
 }
 
 func (k8s *K8sOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
+	return blobGetTrainingSet(id, k8s.store, k8s.logger)
+}
+
+func blobGetTrainingSet(id ResourceID, store BlobStore, logger *zap.SugaredLogger) (TrainingSetIterator, error) {
 	if err := id.check(TrainingSet); err != nil {
-		k8s.logger.Errorw("id is not of type training set", err)
+		logger.Errorw("id is not of type training set", err)
 		return nil, err
 	}
-	resourceKeyPrefix := k8s.store.PathWithPrefix(blobResourcePath(id))
-	trainingSetExactPath := k8s.store.NewestBlob(resourceKeyPrefix)
+	resourceKeyPrefix := store.PathWithPrefix(blobResourcePath(id))
+	trainingSetExactPath := store.NewestBlob(resourceKeyPrefix)
 	if trainingSetExactPath == "" {
 		return nil, fmt.Errorf("No training set resource found")
 	}
-	iterator, err := k8s.store.Serve(trainingSetExactPath)
+	iterator, err := store.Serve(trainingSetExactPath)
 	if err != nil {
 		return nil, err
 	}
-	return &BlobTrainingSet{id: id, store: k8s.store, key: trainingSetExactPath, iter: iterator}, nil
+	return &BlobTrainingSet{id: id, store: store, key: trainingSetExactPath, iter: iterator}, nil
 }
 
 type BlobTrainingSet struct {

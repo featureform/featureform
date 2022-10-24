@@ -105,10 +105,14 @@ func newJobSpec(config KubernetesRunnerConfig) batchv1.JobSpec {
 	} else {
 		completionMode = batchv1.NonIndexedCompletion
 	}
+	backoffLimit := int32(1)
+	ttlLimit := int32(360)
 	return batchv1.JobSpec{
-		Completions:    &config.NumTasks,
-		Parallelism:    &config.NumTasks,
-		CompletionMode: &completionMode,
+		Completions:             &config.NumTasks,
+		Parallelism:             &config.NumTasks,
+		CompletionMode:          &completionMode,
+		BackoffLimit:            &backoffLimit,
+		TTLSecondsAfterFinished: &ttlLimit,
 		Template: v1.PodTemplateSpec{
 			Spec: v1.PodSpec{
 				Containers: []v1.Container{

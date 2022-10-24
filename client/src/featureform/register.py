@@ -214,7 +214,7 @@ class OfflineSparkProvider(OfflineProvider):
                                                     inputs=inputs)
 
 
-class OfflineK8sAzureProvider(OfflineProvider):
+class OfflineK8sProvider(OfflineProvider):
     def __init__(self, registrar, provider):
         super().__init__(registrar, provider)
         self.__registrar = registrar
@@ -1287,7 +1287,7 @@ class Registrar:
                             team=team,
                             config=config)
         self.__resources.append(provider)
-        return FileStoreProvider(self, provider, config)
+        return FileStoreProvider(self, provider, config, "AZURE")
 
     def register_firestore(self,
                            name: str,

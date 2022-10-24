@@ -514,6 +514,7 @@ func (p *ParquetIterator) Next() (map[string]interface{}, error) {
 	p.index += 1
 	currentRow := p.rows[p.index]
 	v := reflect.ValueOf(currentRow)
+	fmt.Println(v)
 	returnMap := make(map[string]interface{})
 	for _, key := range v.MapKeys() {
 		returnMap[key.String()] = v.MapIndex(key).Interface()
@@ -864,7 +865,6 @@ func (k8s K8sOfflineStore) getDFArgs(outputURI string, code string, mapping []So
 	}
 	return envVars
 }
-
 
 func addResourceID(envVars map[string]string, id ResourceID) map[string]string {
 	envVars["RESOURCE_NAME"] = id.Name

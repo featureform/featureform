@@ -101,5 +101,5 @@ etcd:
     rbac:
       rootPassword: "secretpassword"
     token:
-      ttl: 100h
+      ttl: 1m
   replicaCount: 3

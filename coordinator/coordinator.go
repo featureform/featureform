@@ -964,25 +964,45 @@ func (c *Coordinator) hasJob(id metadata.ResourceID) (bool, error) {
 	return false, nil
 }
 
-func (c *Coordinator) createJobLock(jobKey string, s *concurrency.Session) (*concurrency.Mutex, error) {
+func (c *Coordinator) createJobLock(jobKey string) (*concurrency.Mutex, *concurrency.Session, error) {
+	for {
+		mtx, s, err := c.createMutex(jobKey)
+		if err != nil {
+			if strings.Contains(err.Error(), "etcdserver: permission denied") {
+				c.Logger.Infow("Invalid ETCD Token. Retrying....")
+				continue
+			} else {
+				return nil, s, fmt.Errorf("could not create job lock in etcd with key %s: %w", GetLockKey(jobKey), err)
+			}
+		} else {
+			return mtx, s, nil
+		}
+	}
+}
+
+func (c *Coordinator) createMutex(jobKey string) (*concurrency.Mutex, *concurrency.Session, error) {
+	s, err := concurrency.NewSession(c.EtcdClient, concurrency.WithTTL(1))
+	if err != nil {
+		return nil, nil, fmt.Errorf("could not create new session: %w", err)
+	}
 	mtx := concurrency.NewMutex(s, GetLockKey(jobKey))
 	if err := mtx.Lock(context.Background()); err != nil {
-		return nil, fmt.Errorf("create job lock in etcd with key %s: %w", GetLockKey(jobKey), err)
+		err := s.Close()
+		if err != nil {
+			return nil, nil, fmt.Errorf("could not close session: %w", err)
+		}
+		return nil, nil, err
 	}
-	return mtx, nil
+	return mtx, s, nil
 }
 
 func (c *Coordinator) ExecuteJob(jobKey string) error {
 	c.Logger.Info("Executing new job with key ", jobKey)
-	s, err := concurrency.NewSession(c.EtcdClient, concurrency.WithTTL(1))
+	mtx, s, err := c.createJobLock(jobKey)
 	if err != nil {
-		return fmt.Errorf("new session: %w", err)
+		return fmt.Errorf("could not get job lock: %w", err)
 	}
 	defer s.Close()
-	mtx, err := c.createJobLock(jobKey, s)
-	if err != nil {
-		return fmt.Errorf("job lock: %w", err)
-	}
 	defer func() {
 		if err := mtx.Unlock(context.Background()); err != nil {
 			c.Logger.Debugw("Error unlocking mutex:", "error", err)
@@ -1049,12 +1069,8 @@ func (c *ResourceUpdatedEvent) Deserialize(config Config) error {
 
 func (c *Coordinator) signalResourceUpdate(key string, value string) error {
 	c.Logger.Info("Updating metdata with latest resource update status and time", key)
-	s, err := concurrency.NewSession(c.EtcdClient, concurrency.WithTTL(1))
-	if err != nil {
-		return fmt.Errorf("create new concurrency session for resource update job: %w", err)
-	}
+	mtx, s, err := c.createJobLock(key)
 	defer s.Close()
-	mtx, err := c.createJobLock(key, s)
 	if err != nil {
 		return fmt.Errorf("create lock on resource update job with key %s: %w", key, err)
 	}
@@ -1079,15 +1095,11 @@ func (c *Coordinator) signalResourceUpdate(key string, value string) error {
 
 func (c *Coordinator) changeJobSchedule(key string, value string) error {
 	c.Logger.Info("Updating schedule of currently made cronjob in kubernetes: ", key)
-	s, err := concurrency.NewSession(c.EtcdClient, concurrency.WithTTL(1))
-	if err != nil {
-		return fmt.Errorf("create new concurrency session for resource update job: %w", err)
-	}
-	defer s.Close()
-	mtx, err := c.createJobLock(key, s)
+	mtx, s, err := c.createJobLock(key)
 	if err != nil {
 		return fmt.Errorf("create lock on resource update job with key %s: %w", key, err)
 	}
+	defer s.Close()
 	defer func() {
 		if err := mtx.Unlock(context.Background()); err != nil {
 			c.Logger.Debugw("Error unlocking mutex:", "error", err)

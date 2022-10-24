@@ -1983,9 +1983,9 @@ class Registrar:
     def register_training_set(self,
                               name: str,
                               variant: str = "default",
-                              features: list = None,
+                              features: list = [],
                               label: NameVariant = (),
-                              resources: list = None,
+                              resources: list = [],
                               owner: Union[str, UserRegistrar] = "",
                               description: str = "",
                               schedule: str = ""):
@@ -1996,6 +1996,7 @@ class Registrar:
             variant (str): Name of variant to be registered
             label (NameVariant): Label of training set
             features (List[NameVariant]): Features of training set
+            resources (List[Resource]): A list of previously registered resources
             owner (Union[str, UserRegistrar]): Owner
             description (str): Description of training set to be registered
             schedule (str): Kubernetes CronJob schedule string ("* * * * *")
@@ -2007,14 +2008,13 @@ class Registrar:
             owner = owner.name()
         if owner == "":
             owner = self.must_get_default_owner()
-        if isinstance(features,tuple):
+        
+        if isinstance(features, tuple):
             raise ValueError("Features must be entered as a list")
+        
         if isinstance(label, list):
             raise ValueError("Label must be entered as a tuple")
-        if features == None:
-            features = []
-        if resources == None:
-            resources = []
+
         for resource in resources:
             features += resource.features()
             resource_label = resource.label()
@@ -2024,10 +2024,11 @@ class Registrar:
             #Elif: If label was updated to store resource_label it will not check the following elif
             elif resource_label != ():
                 raise ValueError("A training set can only have one label")
+        
         if isinstance(label, str):
             label = (label, "default")
+        
         features = self.__get_feature_nv(features)
-
 
         if label == ():
             raise ValueError("Label must be set")

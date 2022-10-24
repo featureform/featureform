@@ -123,7 +123,10 @@ class HostedClientImpl:
             return secure_channel(host, cert_path)
 
     def training_set(self, name, variation, include_label_timestamp):
-        return Dataset(self._stub).from_stub(name, variation)
+        try:
+            return Dataset(self._stub).from_stub(name, variation)
+        except grpc.RpcError as e:
+            raise Exception(e.details()) from None
 
     def features(self, features, entities):
         req = serving_pb2.FeatureServeRequest()
@@ -135,8 +138,12 @@ class HostedClientImpl:
             feature_id = req.features.add()
             feature_id.name = name
             feature_id.version = variation
-        resp = self._stub.FeatureServe(req)
-        return [parse_proto_value(val) for val in resp.values]
+        try:
+            resp = self._stub.FeatureServe(req)
+            return [parse_proto_value(val) for val in resp.values]
+        except grpc.RpcError as e:
+            raise Exception(e.details()) from None
+
 
 
 class LocalClientImpl:
@@ -402,11 +409,16 @@ class Stream:
         return self
 
     def __next__(self):
-        return Row(next(self._iter))
+        try:
+            return Row(next(self._iter))
+        except grpc.RpcError as e:
+            raise Exception(e.details()) from None
 
     def restart(self):
-        self._iter = self._stub.TrainingData(self._req)
-
+        try:
+            self._iter = self._stub.TrainingData(self._req)
+        except grpc.RpcError as e:
+            raise Exception(e.details()) from None
 
 class LocalStream:
 

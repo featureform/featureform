@@ -1016,5 +1016,8 @@ class ResourceState:
                 if e.code() == grpc.StatusCode.ALREADY_EXISTS:
                     print(resource.name, "already exists.")
                     continue
-
-                raise
+                elif e.code() == grpc.StatusCode.UNAVAILABLE:
+                    raise Exception(f"Could not connect to cluster. Check that hostname and certificates are correct.\n"
+                                    f"GRPC Details: {e.details()}") from None
+                else:
+                    raise Exception(f"code={e.code()} message={e.details()}") from None

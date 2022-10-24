@@ -90,15 +90,12 @@ class AzureBlobStoreConfig:
     container_name: str
     root_path: str
 
-<<<<<<< HEAD
-=======
     def software(self) -> str:
         return "azure"
 
     def type(self) -> str:
         return "AZURE"
 
->>>>>>> 3b74f76aa9a28826f707cbd11e905fec56d4bc49
     def serialize(self) -> bytes:
         config = {
             "AccountName": self.account_name,
@@ -107,8 +104,6 @@ class AzureBlobStoreConfig:
             "Path": self.root_path,
         }
         return bytes(json.dumps(config), "utf-8")
-<<<<<<< HEAD
-=======
     
     def config(self):
         return {
@@ -117,18 +112,13 @@ class AzureBlobStoreConfig:
             "ContainerName": self.container_name,
             "Path": self.root_path,
         }
->>>>>>> 3b74f76aa9a28826f707cbd11e905fec56d4bc49
 
 
 @typechecked
 @dataclass
 class OnlineBlobConfig:
     store_type: str
-<<<<<<< HEAD
-    store_config: bytes
-=======
     store_config: dict
->>>>>>> 3b74f76aa9a28826f707cbd11e905fec56d4bc49
 
     def software(self) -> str:
         return self.store_type
@@ -424,11 +414,7 @@ class K8sAzureConfig:
 
 
 Config = Union[
-<<<<<<< HEAD
-    RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig, BigQueryConfig, FirestoreConfig, SparkAWSConfig, K8sAzureConfig]
-=======
     RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig, BigQueryConfig, FirestoreConfig, SparkAWSConfig, OnlineBlobConfig, AzureBlobStoreConfig, K8sConfig]
->>>>>>> 3b74f76aa9a28826f707cbd11e905fec56d4bc49
 
 
 @typechecked

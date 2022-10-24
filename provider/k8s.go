@@ -513,6 +513,7 @@ func (p *ParquetIterator) Next() (map[string]interface{}, error) {
 	}
 	p.index += 1
 	currentRow := p.rows[p.index]
+	fmt.Println(currentRow)
 	v := reflect.ValueOf(currentRow)
 	fmt.Println(v)
 	returnMap := make(map[string]interface{})

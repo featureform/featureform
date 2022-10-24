@@ -1,8 +1,7 @@
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  namespace: default
-  name: {{ .Release.Name }}-coodinator
+  name: {{ .Release.Name }}-coordinator
 rules:
   - apiGroups: ["", "extensions", "apps", "batch"]
     resources: ["*"]

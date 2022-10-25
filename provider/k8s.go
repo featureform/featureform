@@ -520,6 +520,9 @@ func (p *ParquetIterator) Next() (map[string]interface{}, error) {
 	}
 	p.index += 1
 	currentRow := p.rows[p.index]
+	if currentRow == nil {
+		return nil, fmt.Errorf("could not read nil row line %d", p.index)
+	}
 	fmt.Printf("Row %d/%d\n", p.index, len(p.rows))
 	fmt.Println(currentRow)
 	v := reflect.ValueOf(currentRow)

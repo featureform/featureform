@@ -116,9 +116,9 @@ def execute_df_job(mode, output_uri, code, sources, etcd_credentials, blob_crede
             output_path = location
         
         if ".csv" == output_path[-4:]:
-            func_parameters.append(csv)
+            func_parameters.append(pd.read_csv(output_path))
         else:
-            func_parameters.append(parquet)
+            func_parameters.append(pd.read_parquet(output_path))
     
     try:
         df_path = "transformation"

@@ -35,7 +35,6 @@ def main(args):
         print(f"starting execution for DF Transformation in {args.mode} mode") 
         etcd_credentials = {"host": args.etcd_host, "ports": args.etcd_ports, "username": args.etcd_user, "password": args.etcd_password}
         output_location = execute_df_job(args.mode, args.output_uri, args.transformation, args.sources, etcd_credentials, blob_credentials)
-    time.sleep(360)
     return output_location
 
 
@@ -199,6 +198,7 @@ def upload_blob_to_blob_store(client, local_filename, blob_path):
     """
 
     print(f"uploading {local_filename} file to {blob_path}")
+    print(os.listdir("/usr/app/src/.featureform/data/"))
     if os.path.isfile(local_filename):
         print("IS FILE")
         blob_upload = client.get_blob_client(blob_path)

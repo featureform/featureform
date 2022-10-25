@@ -511,8 +511,12 @@ func (p *ParquetIterator) Next() (map[string]interface{}, error) {
 	if p.index+1 == int64(len(p.rows)) {
 		return nil, nil
 	}
+	if p.index == 0 {
+		fmt.Println(p.rows)
+	}
 	p.index += 1
 	currentRow := p.rows[p.index]
+	fmt.Printf("Row %d/%d\n", p.index, len(p.rows))
 	fmt.Println(currentRow)
 	v := reflect.ValueOf(currentRow)
 	fmt.Println(v)

@@ -212,8 +212,8 @@ func (store *dynamodbOnlineStore) CreateTable(feature, variant string, valueType
 			},
 		},
 		ProvisionedThroughput: &dynamodb.ProvisionedThroughput{
-			ReadCapacityUnits:  aws.Int64(10),
-			WriteCapacityUnits: aws.Int64(5),
+			ReadCapacityUnits:  aws.Int64(1000),
+			WriteCapacityUnits: aws.Int64(1000),
 		},
 	}
 	err = store.UpdateMetadataTable(GetTablename(store.prefix, feature, variant), valueType)

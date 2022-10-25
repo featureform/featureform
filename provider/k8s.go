@@ -343,7 +343,11 @@ func (kube KubernetesExecutor) ExecuteScript(envVars map[string]string) error {
 		EnvVars:  envVars,
 		Image:    kube.image,
 		NumTasks: 1,
-		Resource: metadata.ResourceID{Name: envVars["RESOURCE_NAME"], Variant: envVars["RESOURCE_VARIANT"], Type: ProviderToMetadataResourceType[OfflineResourceType(resourceType)]},
+		Resource: metadata.ResourceID{
+			Name:    envVars["RESOURCE_NAME"],
+			Variant: envVars["RESOURCE_VARIANT"],
+			Type:    ProviderToMetadataResourceType[OfflineResourceType(resourceType)],
+		},
 	}
 	jobRunner, err := kubernetes.NewKubernetesRunner(config)
 	if err != nil {

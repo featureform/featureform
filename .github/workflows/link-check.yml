@@ -38,8 +38,8 @@ jobs:
           # Required:
           url: "https://www.featureform.com/"
           # optional:
-          honorRobotExclusions: true
-          ignorePatterns: "*linkedin*" # Linkedin returns 999 error to web scrapers
+          honorRobotExclusions: false
+          ignorePatterns: "*linkedin*,*autodesk*,*crunchbase*" # Linkedin returns 999 error to web scrapers
           recursiveLinks: true
       - name: Print result
         run: echo "${{steps.link-report.outputs.result}}"

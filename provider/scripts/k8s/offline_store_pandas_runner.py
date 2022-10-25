@@ -116,12 +116,8 @@ def execute_df_job(mode, output_uri, code, sources, etcd_credentials, blob_crede
             output_path = location
         
         if ".csv" == output_path[-4:]:
-            print("-------------------------------------INPUT CSV---------------------------------")
-            csv = pd.read_csv(output_path)
             func_parameters.append(csv)
         else:
-            print("-------------------------------------INPUT PARQUET---------------------------------")
-            parquet = pd.read_parquet(output_path)
             func_parameters.append(parquet)
     
     try:
@@ -130,16 +126,12 @@ def execute_df_job(mode, output_uri, code, sources, etcd_credentials, blob_crede
         code = get_code_from_file(mode, code_path + "/transformation.pkl", etcd_credentials)
         func = types.FunctionType(code, globals(), "df_transformation")
         output_df = pd.DataFrame(func(*func_parameters))
-        with pd.option_context('display.max_rows', None, 'display.max_columns', None):  # more options can be specified also
-            print("-------------------------------------OUTPUT---------------------------------")
-            print(output_df)
         dt = datetime.now()
         output_uri_with_timestamp = f"{output_uri}{dt}"
 
         if blob_credentials.type == AZURE:
             local_output = f"{LOCAL_DATA_PATH}/output.parquet"
-            print("-------------------------------------PARQUET---------------------------------")
-            print(output_df.to_parquet(local_output))
+            output_df.to_parquet(local_output)
             # upload blob to blob store
             output_uri = upload_blob_to_blob_store(container_client, local_output, output_uri_with_timestamp + ".parquet") 
         

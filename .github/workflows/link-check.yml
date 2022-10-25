@@ -38,7 +38,7 @@ jobs:
           # Required:
           url: "https://www.featureform.com/"
           # optional:
-          honorRobotExclusions: false
+          honorRobotExclusions: true
           ignorePatterns: "*linkedin*" # Linkedin returns 999 error to web scrapers
           recursiveLinks: true
       - name: Print result

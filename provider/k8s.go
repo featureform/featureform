@@ -365,15 +365,17 @@ func NewKubernetesExecutor(config Config) (Executor, error) {
 	return KubernetesExecutor{image: pandas_image}, nil
 }
 
-type BlobStore interface {	
+type BlobStore interface {
 	Write(key string, data []byte) error
 	Writer(key string) (*blob.Writer, error)
 	Read(key string) ([]byte, error)
 	Serve(key string) (Iterator, error)
+	ServeDirectory(dir string) (Iterator, error)
 	Exists(key string) (bool, error)
 	Delete(key string) error
 	DeleteAll(dir string) error
 	NewestBlob(prefix string) string
+	SparkOutputPartList(prefix string) []string
 	PathWithPrefix(path string) string
 	NumRows(key string) (int64, error)
 	Close() error
@@ -439,6 +441,39 @@ func (store genericBlobStore) NewestBlob(prefix string) string {
 	return mostRecentKey
 }
 
+// TODO: needs unit test
+func (store genericBlobStore) SparkOutputPartList(prefix string) []string {
+	opts := blob.ListOptions{
+		Prefix: prefix,
+	}
+	listIterator := store.bucket.List(&opts)
+	mostRecentOutputPartTime := time.UnixMilli(0)
+	mostRecentOutputPartPath := ""
+	for listObj, err := listIterator.Next(ctx); err == nil; listObj, err = listIterator.Next(ctx) {
+		if listObj == nil {
+			return ""
+		}
+		if listObj.IsDir && (listObj.ModTime.After(mostRecentTime) || listObj.ModTime.Equal(mostRecentTime)) {
+			mostRecentOutputPartTime = listObj.ModTime
+			mostRecentOutputPartPath = listObj.Key
+		}
+	}
+	opts = blob.ListOptions{
+		Prefix: mostRecentOutputPartPath,
+	}
+	partsIterator := store.bucket.List(&opts)
+	partsList := make([]string, 0)
+	for listObj, err := partsIterator.Next(ctx); err == nil; listObj, err = partsIterator.Next(ctx) {
+		pathParts := strings.Split(listObj.Key, ".")
+		fileType := pathParts[len(pathParts)-1]
+		if fileType == "parquet" {
+			partsList = append(partsList, listObj.Key)
+		}
+	}
+	sort.Strings(partsList)
+	return partsList
+}
+
 func (store genericBlobStore) DeleteAll(dir string) error {
 	opts := blob.ListOptions{
 		Prefix: dir,
@@ -472,6 +507,64 @@ func (store genericBlobStore) Read(key string) ([]byte, error) {
 		return nil, err
 	}
 	return data, nil
+}
+
+func (store genericBlobStore) ServeDirectory(dir string) (Iterator, error) {
+	fileParts := store.SparkOutputPartList(dir)
+	if len(fileParts) == 0 {
+		return nil, fmt.Errorf("no files in given directory")
+	}
+	switch fileType := fileParts[0][len(fileParts[0])-1]; fileType {
+	case "parquet":
+		return parquetIteratorOverMultipleFiles(fileParts, store)
+	default:
+		return nil, fmt.Errorf("unsupported file type: %s", fileType)
+	}
+
+}
+
+type ParquetIteratorMultipleFiles struct {
+	fileList     []string
+	currentFile  int64
+	fileIterator Iterator
+	store        genericBlobStore
+}
+
+func parquetIteratorOverMultipleFiles(fileParts []string, store genericBlobStore) (Iterator, error) {
+	r, err := store.bucket.newReader(ctx, fileParts[0], nil)
+	if err != nil {
+		return nil, err
+	}
+	iterator, err := parquetIteratorFromReader(r)
+	if err != nil {
+		return nil, fmt.Errorf("could not open first parquet file: %v", err)
+	}
+	return &ParquetIteratorMultipleFiles{
+		fileList:     fileParts,
+		currentFile:  int64(0),
+		fileIterator: iterator,
+		store:        store,
+	}
+}
+
+func (p *ParquetIteratorMultipleFiles) Next() (map[string]interface{}, error) {
+	nextRow, err := p.iterator.Next()
+	if err != nil {
+		return nil, err
+	}
+	if nextRow == nil {
+		if p.currentFile == len(p.fileList) {
+			return nil, nil
+		}
+		p.currentFile += 1
+		r, err := p.store.bucket.newReader(ctx, fileParts[p.currentFile], nil)
+		if err != nil {
+			return nil, err
+		}
+		iterator, err := parquetIteratorFromReader(r)
+		p.iterator = iterator
+	}
+	return nextRow, nil
 }
 
 func (store genericBlobStore) Serve(key string) (Iterator, error) {
@@ -680,7 +773,7 @@ func (tbl *BlobOfflineTable) Write(ResourceRecord) error {
 
 func (k8s *K8sOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error) {
 	return blobRegisterResource(id, schema, k8s.logger, k8s.store)
-	
+
 }
 
 func blobRegisterResource(id ResourceID, schema ResourceSchema, logger *zap.SugaredLogger, store BlobStore) (OfflineTable, error) {
@@ -874,7 +967,6 @@ func (k8s K8sOfflineStore) getDFArgs(outputURI string, code string, mapping []So
 	}
 	return envVars
 }
-
 
 func addResourceID(envVars map[string]string, id ResourceID) map[string]string {
 	envVars["RESOURCE_NAME"] = id.Name

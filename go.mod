@@ -4,9 +4,11 @@ go 1.18
 
 require (
 	cloud.google.com/go/bigquery v1.36.0
+	github.com/Azure/databricks-sdk-golang v0.0.0-20210608055520-4eb3722bd3ea
 	github.com/alicebob/miniredis v2.5.0+incompatible
 	github.com/avast/retry-go/v4 v4.0.3
 	github.com/aws/aws-sdk-go v1.44.68
+	github.com/aws/aws-sdk-go-v2/config v1.15.15
 	github.com/gin-contrib/cors v1.3.1
 	github.com/gin-gonic/gin v1.7.7
 	github.com/go-redis/redis/v8 v8.11.5
@@ -148,7 +150,11 @@ require (
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
 	github.com/andybalholm/brotli v1.0.3 // indirect
 	github.com/apache/thrift v0.14.2 // indirect
+	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.12.9 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.11.21 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/ini v1.3.16 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sso v1.11.13 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sts v1.16.10 // indirect
 	github.com/benbjohnson/clock v1.1.0 // indirect
 	github.com/emicklei/go-restful v2.9.5+incompatible // indirect
 	github.com/go-openapi/jsonpointer v0.19.5 // indirect
@@ -156,6 +162,7 @@ require (
 	github.com/go-openapi/swag v0.21.1 // indirect
 	github.com/golang-jwt/jwt v3.2.1+incompatible // indirect
 	github.com/google/gnostic v0.5.7-v3refs // indirect
+	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/wire v0.5.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.1.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
@@ -166,10 +173,6 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
 	github.com/segmentio/encoding v0.3.5 // indirect
-<<<<<<< HEAD
-	github.com/segmentio/parquet-go v0.0.0-20221005185849-771b3e358a03 // indirect
-=======
->>>>>>> 3b74f76aa9a28826f707cbd11e905fec56d4bc49
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 )

@@ -68,7 +68,6 @@ func (store *OnlineBlobStore) AsOnlineStore() (OnlineStore, error) {
 	return store, nil
 }
 
-
 func blobTableKey(prefix, feature, variant string) string {
 	return fmt.Sprintf("%s/%s/tables/%s/%s", prefix, STORE_PREFIX, feature, variant)
 }

@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sort"
 	"time"
 
 	"github.com/featureform/helpers"
@@ -451,9 +452,9 @@ func (store genericBlobStore) SparkOutputPartList(prefix string) []string {
 	mostRecentOutputPartPath := ""
 	for listObj, err := listIterator.Next(ctx); err == nil; listObj, err = listIterator.Next(ctx) {
 		if listObj == nil {
-			return ""
+			return []string{}
 		}
-		if listObj.IsDir && (listObj.ModTime.After(mostRecentTime) || listObj.ModTime.Equal(mostRecentTime)) {
+		if listObj.IsDir && (listObj.ModTime.After(mostRecentOutputPartTime) || listObj.ModTime.Equal(mostRecentOutputPartTime)) {
 			mostRecentOutputPartTime = listObj.ModTime
 			mostRecentOutputPartPath = listObj.Key
 		}
@@ -514,7 +515,8 @@ func (store genericBlobStore) ServeDirectory(dir string) (Iterator, error) {
 	if len(fileParts) == 0 {
 		return nil, fmt.Errorf("no files in given directory")
 	}
-	switch fileType := fileParts[0][len(fileParts[0])-1]; fileType {
+	fileType := string(fileParts[0][len(fileParts[0])-1])
+	switch fileType {
 	case "parquet":
 		return parquetIteratorOverMultipleFiles(fileParts, store)
 	default:
@@ -531,7 +533,7 @@ type ParquetIteratorMultipleFiles struct {
 }
 
 func parquetIteratorOverMultipleFiles(fileParts []string, store genericBlobStore) (Iterator, error) {
-	r, err := store.bucket.newReader(ctx, fileParts[0], nil)
+	r, err := store.bucket.NewReader(ctx, fileParts[0], nil)
 	if err != nil {
 		return nil, err
 	}
@@ -544,25 +546,25 @@ func parquetIteratorOverMultipleFiles(fileParts []string, store genericBlobStore
 		currentFile:  int64(0),
 		fileIterator: iterator,
 		store:        store,
-	}
+	}, nil
 }
 
 func (p *ParquetIteratorMultipleFiles) Next() (map[string]interface{}, error) {
-	nextRow, err := p.iterator.Next()
+	nextRow, err := p.fileIterator.Next()
 	if err != nil {
 		return nil, err
 	}
 	if nextRow == nil {
-		if p.currentFile == len(p.fileList) {
+		if p.currentFile == int64(len(p.fileList)) {
 			return nil, nil
 		}
 		p.currentFile += 1
-		r, err := p.store.bucket.newReader(ctx, fileParts[p.currentFile], nil)
+		r, err := p.store.bucket.NewReader(ctx, p.fileList[p.currentFile], nil)
 		if err != nil {
 			return nil, err
 		}
 		iterator, err := parquetIteratorFromReader(r)
-		p.iterator = iterator
+		p.fileIterator = iterator
 	}
 	return nextRow, nil
 }
@@ -757,6 +759,10 @@ func NewAzureBlobStore(config Config) (BlobStore, error) {
 			bucket: bucket,
 		},
 	}, nil
+}
+
+func ResourcePrefix(id ResourceID) string {
+	return fmt.Sprintf("featureform/%s/%s/%s", id.Type, id.Name, id.Variant)
 }
 
 func blobResourcePath(id ResourceID) string {
@@ -1340,16 +1346,16 @@ func (k8s *K8sOfflineStore) DeleteMaterialization(id MaterializationID) error {
 func blobDeleteMaterialization(id MaterializationID, store BlobStore, logger *zap.SugaredLogger) error {
 	s := strings.Split(string(id), "/")
 	if len(s) != 3 {
-		k8s.logger.Errorw("Invalid materialization id", id)
+		logger.Errorw("Invalid materialization id", id)
 		return fmt.Errorf("invalid materialization id")
 	}
 	materializationID := ResourceID{s[1], s[2], FeatureMaterialization}
-	materializationPath := k8s.store.PathWithPrefix(blobResourcePath(materializationID))
-	materializationExactPath := k8s.store.NewestBlob(materializationPath)
+	materializationPath := store.PathWithPrefix(blobResourcePath(materializationID))
+	materializationExactPath := store.NewestBlob(materializationPath)
 	if materializationExactPath == "" {
 		return fmt.Errorf("materialization does not exist")
 	}
-	return k8s.store.Delete(materializationExactPath)
+	return store.Delete(materializationExactPath)
 }
 
 func (k8s *K8sOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
@@ -1376,10 +1382,10 @@ func (k8s *K8sOfflineStore) registeredResourceSchema(id ResourceID) (ResourceSch
 	return blobResourceTable.schema, nil
 }
 
-func (s *S3Store) BlobPath(sourceKey string) string {
-	if !strings.Contains(sourceKey, "s3://") {
-		return fmt.Sprintf("%s%s", s.BucketPrefix(), sourceKey)
-	}
+func (s *S3BlobStore) BlobPath(sourceKey string) string {
+	// if !strings.Contains(sourceKey, "s3://") {
+	// 	return fmt.Sprintf("%s%s", BucketPrefix(), sourceKey)
+	// }
 	return sourceKey
 }
 

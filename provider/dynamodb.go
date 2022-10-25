@@ -205,15 +205,12 @@ func (store *dynamodbOnlineStore) CreateTable(feature, variant string, valueType
 				AttributeType: aws.String("S"),
 			},
 		},
+		BillingMode: aws.String("PAY_PER_REQUEST"),
 		KeySchema: []*dynamodb.KeySchemaElement{
 			{
 				AttributeName: aws.String(feature),
 				KeyType:       aws.String("HASH"),
 			},
-		},
-		ProvisionedThroughput: &dynamodb.ProvisionedThroughput{
-			ReadCapacityUnits:  aws.Int64(1000),
-			WriteCapacityUnits: aws.Int64(1000),
 		},
 	}
 	err = store.UpdateMetadataTable(GetTablename(store.prefix, feature, variant), valueType)

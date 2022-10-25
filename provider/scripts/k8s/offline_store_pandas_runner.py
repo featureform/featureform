@@ -1,5 +1,6 @@
 import io
 import os
+import time
 import types
 
 from typing import List
@@ -34,7 +35,7 @@ def main(args):
         print(f"starting execution for DF Transformation in {args.mode} mode") 
         etcd_credentials = {"host": args.etcd_host, "ports": args.etcd_ports, "username": args.etcd_user, "password": args.etcd_password}
         output_location = execute_df_job(args.mode, args.output_uri, args.transformation, args.sources, etcd_credentials, blob_credentials)
-   
+    time.sleep(360)
     return output_location
 
 

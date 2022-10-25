@@ -198,7 +198,7 @@ def upload_blob_to_blob_store(client, local_filename, blob_path):
     """
 
     print(f"uploading {local_filename} file to {blob_path}")
-    print(os.listdir("/usr/app/src/.featureform/data/"))
+    print(os.listdir(local_filename))
     if os.path.isfile(local_filename):
         print("IS FILE")
         blob_upload = client.get_blob_client(blob_path)

@@ -534,11 +534,11 @@ type ParquetIteratorMultipleFiles struct {
 }
 
 func parquetIteratorOverMultipleFiles(fileParts []string, store genericBlobStore) (Iterator, error) {
-	r, err := store.bucket.NewReader(ctx, fileParts[0], nil)
+	b, err := store.bucket.ReadAll(ctx, fileParts[0])
 	if err != nil {
 		return nil, err
 	}
-	iterator, err := parquetIteratorFromReader(r)
+	iterator, err := parquetIteratorFromBytes(b)
 	if err != nil {
 		return nil, fmt.Errorf("could not open first parquet file: %v", err)
 	}
@@ -560,11 +560,11 @@ func (p *ParquetIteratorMultipleFiles) Next() (map[string]interface{}, error) {
 			return nil, nil
 		}
 		p.currentFile += 1
-		r, err := p.store.bucket.NewReader(ctx, p.fileList[p.currentFile], nil)
+		b, err := store.bucket.ReadAll(ctx, p.fileList[p.currentFile])
 		if err != nil {
 			return nil, err
 		}
-		iterator, err := parquetIteratorFromReader(r)
+		iterator, err := parquetIteratorFromBytes(b)
 		if err != nil {
 			return nil, err
 		}

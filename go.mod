@@ -173,7 +173,6 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
 	github.com/segmentio/encoding v0.3.5 // indirect
-	github.com/segmentio/parquet-go v0.0.0-20221005185849-771b3e358a03 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 )

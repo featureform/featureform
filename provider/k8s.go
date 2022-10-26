@@ -926,7 +926,7 @@ func (k8s *K8sOfflineStore) dfTransformation(config TransformationConfig, isUpda
 		k8s.logger.Errorw("Error running dataframe job", err)
 		return fmt.Errorf("submit job for transformation %v failed to run: %v", config.TargetTableID, err)
 	}
-	k8s.logger.Debugw("Succesfully ran DF transformation", config)
+	k8s.logger.Debugw("Successfully ran transformation", "type", config.Type, "name", config.TargetTableID.Name, "variant", config.TargetTableID.Variant)
 	return nil
 }
 
@@ -1032,7 +1032,7 @@ func (k8s *K8sOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching primary table: %v", err)
 	}
-	k8s.logger.Debugw("Succesfully retrieved primary table", id)
+	k8s.logger.Debugw("Successfully retrieved primary table", "name", id.Name, "variant", id.Variant)
 	return &BlobPrimaryTable{k8s.store, string(table), false, id}, nil
 }
 
@@ -1042,7 +1042,7 @@ func (k8s *K8sOfflineStore) CreateResourceTable(id ResourceID, schema TableSchem
 
 func (k8s *K8sOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, error) {
 	resourcekey := k8s.store.PathWithPrefix(blobResourcePath(id))
-	k8s.logger.Debugw("Getting resource table", id)
+	k8s.logger.Debugw("Getting resource table", "id", id)
 	serializedSchema, err := k8s.store.Read(resourcekey)
 	if err != nil {
 		return nil, fmt.Errorf("Error reading schema bytes from blob storage: %v", err)

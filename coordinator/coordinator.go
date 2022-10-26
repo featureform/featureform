@@ -232,10 +232,14 @@ func (c *Coordinator) WatchForNewJobs() error {
 		go func(kv *mvccpb.KeyValue) {
 			err := c.ExecuteJob(string(kv.Key))
 			if err != nil {
-				re, ok := err.(*JobDoesNotExistError)
-				if ok {
-					c.Logger.Infow(re.Error())
-				} else {
+				switch err.(type) {
+				case JobDoesNotExistError:
+					c.Logger.Info(err)
+				case ResourceAlreadyFailedError:
+					c.Logger.Infow("resource has failed previously. Ignoring....", "key", string(kv.Key))
+				case ResourceAlreadyCompleteError:
+					c.Logger.Infow("resource has already completed. Ignoring....", "key", string(kv.Key))
+				default:
 					c.Logger.Errorw("Error executing job: Initial search", "error", err)
 				}
 			}
@@ -379,6 +383,23 @@ func (c *Coordinator) verifyCompletionOfSources(sources []metadata.NameVariant) 
 }
 
 func (c *Coordinator) runTransformationJob(transformationConfig provider.TransformationConfig, resID metadata.ResourceID, schedule string, sourceProvider *metadata.Provider) error {
+	transformation, err := c.Metadata.GetSourceVariant(context.Background(), metadata.NameVariant{resID.Name, resID.Variant})
+	if err != nil {
+		return fmt.Errorf("get label variant: %w", err)
+	}
+	status := transformation.Status()
+
+	if status == metadata.READY {
+		return ResourceAlreadyCompleteError{
+			resourceID: resID,
+		}
+	}
+	if status == metadata.FAILED {
+		return ResourceAlreadyFailedError{
+			resourceID: resID,
+		}
+	}
+
 	createTransformationConfig := runner.CreateTransformationConfig{
 		OfflineType:          provider.Type(sourceProvider.Type()),
 		OfflineConfig:        sourceProvider.SerializedConfig(),
@@ -566,7 +587,14 @@ func (c *Coordinator) runLabelRegisterJob(resID metadata.ResourceID, schedule st
 	}
 	status := label.Status()
 	if status == metadata.READY {
-		return fmt.Errorf("feature already set to %s", status.String())
+		return ResourceAlreadyCompleteError{
+			resourceID: resID,
+		}
+	}
+	if status == metadata.FAILED {
+		return ResourceAlreadyFailedError{
+			resourceID: resID,
+		}
 	}
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.PENDING, ""); err != nil {
 		return fmt.Errorf("set pending status for label variant: %w", err)
@@ -648,7 +676,14 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 	status := feature.Status()
 	featureType := feature.Type()
 	if status == metadata.READY {
-		return fmt.Errorf("feature already set to %s", status.String())
+		return ResourceAlreadyCompleteError{
+			resourceID: resID,
+		}
+	}
+	if status == metadata.FAILED {
+		return ResourceAlreadyFailedError{
+			resourceID: resID,
+		}
 	}
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.PENDING, ""); err != nil {
 		return fmt.Errorf("set feature variant status to pending: %w", err)
@@ -791,7 +826,14 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 	}
 	status := ts.Status()
 	if status == metadata.READY {
-		return fmt.Errorf("training Set already set to %s", status.String())
+		return ResourceAlreadyCompleteError{
+			resourceID: resID,
+		}
+	}
+	if status == metadata.FAILED {
+		return ResourceAlreadyFailedError{
+			resourceID: resID,
+		}
 	}
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.PENDING, ""); err != nil {
 		return fmt.Errorf("set training set variant status to pending: %w", err)
@@ -1029,8 +1071,13 @@ func (c *Coordinator) ExecuteJob(jobKey string) error {
 		return fmt.Errorf("not a valid resource type for running jobs")
 	}
 	if err := jobFunc(job.Resource, job.Schedule); err != nil {
-		statusErr := c.Metadata.SetStatus(context.Background(), job.Resource, metadata.FAILED, err.Error())
-		return fmt.Errorf("%s job failed: %v: %v", job.Resource.Type, err, statusErr)
+		switch err.(type) {
+		case ResourceAlreadyFailedError:
+			return err
+		default:
+			statusErr := c.Metadata.SetStatus(context.Background(), job.Resource, metadata.FAILED, err.Error())
+			return fmt.Errorf("%s job failed: %v: %v", job.Resource.Type, err, statusErr)
+		}
 	}
 	c.Logger.Info("Succesfully executed job with key: ", jobKey)
 	if err := c.deleteJob(mtx, jobKey); err != nil {

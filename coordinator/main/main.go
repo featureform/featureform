@@ -43,7 +43,11 @@ func main() {
 		panic(err)
 	}
 	fmt.Println("connected to etcd")
-	logger := zap.NewExample().Sugar()
+	baseLogger, err := zap.NewDevelopment()
+	if err != nil {
+		panic(err)
+	}
+	logger := baseLogger.Sugar()
 	defer logger.Sync()
 	logger.Debug("Connected to ETCD")
 	client, err := metadata.NewClient(metadataUrl, logger)

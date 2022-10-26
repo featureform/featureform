@@ -1044,7 +1044,7 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 		spark.Logger.Errorw("Error running Spark dataframe job", err)
 		return fmt.Errorf("spark submit job for transformation %v failed to run: %v", config.TargetTableID, err)
 	}
-	spark.Logger.Debugw("Succesfully ran DF transformation", config)
+	spark.Logger.Debugw("Successfully ran transformation", "type", config.Type, "name", config.TargetTableID.Name, "variant", config.TargetTableID.Variant)
 	return nil
 }
 
@@ -1185,7 +1185,7 @@ func (spark *SparkOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, er
 	for _, v := range tableList {
 		sourcePath = reflect.ValueOf(v).FieldByName("Source").String()
 	}
-	spark.Logger.Debugw("Succesfully retrieved primary table", id)
+	spark.Logger.Debugw("Succesfully retrieved primary table", "name", id.Name, "variant", id.Variant)
 	return &S3PrimaryTable{spark.Store, sourcePath, false, id}, nil
 }
 
@@ -1195,7 +1195,7 @@ func (spark *SparkOfflineStore) CreateResourceTable(id ResourceID, schema TableS
 
 func (spark *SparkOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, error) {
 	path := parquetResourcePath(id)
-	spark.Logger.Debugw("Getting resource table", id)
+	spark.Logger.Debugw("Getting resource table", "id", id)
 	table, err := spark.Store.DownloadParquetTable(path)
 	if err != nil {
 		spark.Logger.Errorw("Could not get parquet resource table", err)

@@ -78,7 +78,7 @@ def execute_sql_job(mode, output_uri, transformation, source_list, blob_credenti
             local_output = f"{LOCAL_DATA_PATH}/output.parquet"
             output_dataframe.to_parquet(local_output)
             # upload blob to blob store
-            output_uri = upload_blob_to_blob_store(container_client, local_output, f"{output_uri_with_timestamp}.parquet") 
+            output_uri = upload_blob_to_blob_store(container_client, local_output, f"{output_uri_with_timestamp}.parquet")
         
         elif blob_credentials.type == LOCAL:
             os.makedirs(output_uri)
@@ -198,7 +198,6 @@ def upload_blob_to_blob_store(client, local_filename, blob_path):
     """
 
     print(f"uploading {local_filename} file to {blob_path}")
-    print(os.listdir(local_filename))
     if os.path.isfile(local_filename):
         print("IS FILE")
         blob_upload = client.get_blob_client(blob_path)

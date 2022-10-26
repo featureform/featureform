@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/featureform/logging"
 	"io"
 	"io/ioutil"
 	"os"
@@ -208,7 +209,7 @@ func (store *SparkOfflineStore) Close() error {
 
 func sparkOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	sc := SparkConfig{}
-	logger := zap.NewExample().Sugar()
+	logger := logging.NewLogger("spark")
 	if err := sc.Deserialize(config); err != nil {
 		logger.Errorw("Invalid config to initialize spark offline store", err)
 		return nil, fmt.Errorf("invalid spark config: %v", config)

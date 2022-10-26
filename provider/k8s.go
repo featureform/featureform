@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/featureform/logging"
 	"io"
 	"os"
 	"os/exec"
@@ -125,7 +126,7 @@ func init() {
 
 func k8sAzureOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	k8 := K8sAzureConfig{}
-	logger := zap.NewExample().Sugar()
+	logger := logging.NewLogger("kubernetes")
 	if err := k8.Deserialize(config); err != nil {
 		logger.Errorw("Invalid config to initialize k8s offline store", err)
 		return nil, fmt.Errorf("invalid k8s config: %v", config)

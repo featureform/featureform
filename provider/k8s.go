@@ -492,14 +492,14 @@ func (store genericBlobStore) Serve(key string) (Iterator, error) {
 }
 
 func (store genericBlobStore) NumRows(key string) (int64, error) {
-	r, err := store.bucket.NewReader(ctx, key, nil)
+	b, err := store.bucket.ReadAll(ctx, key)
 	if err != nil {
 		return 0, err
 	}
 	keyParts := strings.Split(key, ".")
 	switch fileType := keyParts[len(keyParts)-1]; fileType {
 	case "parquet":
-		return getParquetNumRows(r)
+		return getParquetNumRows(b)
 	default:
 		return 0, fmt.Errorf("unsupported file type")
 	}

@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -560,7 +559,7 @@ func (p *ParquetIteratorMultipleFiles) Next() (map[string]interface{}, error) {
 			return nil, nil
 		}
 		p.currentFile += 1
-		b, err := store.bucket.ReadAll(ctx, p.fileList[p.currentFile])
+		b, err := p.store.bucket.ReadAll(ctx, p.fileList[p.currentFile])
 		if err != nil {
 			return nil, err
 		}

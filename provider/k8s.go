@@ -16,7 +16,7 @@ import (
 	"github.com/featureform/kubernetes"
 	"github.com/featureform/metadata"
 
-	parquet "github.com/segmentio/parquet-go"
+	"github.com/segmentio/parquet-go"
 	"go.uber.org/zap"
 	"gocloud.dev/blob"
 	azureblob "gocloud.dev/blob/azureblob"
@@ -482,10 +482,11 @@ func (store genericBlobStore) Serve(key string) (Iterator, error) {
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("FILE SIZE", r.Size())
 	keyParts := strings.Split(key, ".")
 	switch fileType := keyParts[len(keyParts)-1]; fileType {
 	case "parquet":
-		return parquetIteratorFromReader(r)
+		return parquetIteratorFromReader(r, r.Size())
 	default:
 		return nil, fmt.Errorf("unsupported file type")
 	}
@@ -515,18 +516,12 @@ func (p *ParquetIterator) Next() (map[string]interface{}, error) {
 	if p.index+1 == int64(len(p.rows)) {
 		return nil, nil
 	}
-	if p.index == 0 {
-		fmt.Println(p.rows)
-	}
 	p.index += 1
 	currentRow := p.rows[p.index]
 	if currentRow == nil {
 		return nil, fmt.Errorf("could not read nil row line %d", p.index)
 	}
-	fmt.Printf("Row %d/%d\n", p.index, len(p.rows))
-	fmt.Println(currentRow)
 	v := reflect.ValueOf(currentRow)
-	fmt.Println(v)
 	returnMap := make(map[string]interface{})
 	for _, key := range v.MapKeys() {
 		returnMap[key.String()] = v.MapIndex(key).Interface()
@@ -544,13 +539,15 @@ func getParquetNumRows(r io.ReadCloser) (int64, error) {
 	return int64(size), nil
 }
 
-func parquetIteratorFromReader(r io.ReadCloser) (Iterator, error) {
+func parquetIteratorFromReader(r io.ReadCloser, size int64) (Iterator, error) {
 	defer r.Close()
-	buff := bytes.NewBuffer([]byte{})
+	buf := make([]byte, size)
+	buff := bytes.NewBuffer(buf)
 	size, err := io.Copy(buff, r)
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("COPY SIZE", size)
 	file := bytes.NewReader(buff.Bytes())
 	rows, err := parquet.Read[any](file, size)
 	if err != nil {

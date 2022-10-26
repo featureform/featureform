@@ -117,9 +117,10 @@ func newJobSpec(config KubernetesRunnerConfig) batchv1.JobSpec {
 			Spec: v1.PodSpec{
 				Containers: []v1.Container{
 					{
-						Name:  containerID,
-						Image: config.Image,
-						Env:   envVars,
+						Name:            containerID,
+						Image:           config.Image,
+						Env:             envVars,
+						ImagePullPolicy: v1.PullAlways,
 					},
 				},
 				RestartPolicy: v1.RestartPolicyNever,

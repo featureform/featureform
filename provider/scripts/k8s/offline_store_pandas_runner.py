@@ -78,7 +78,6 @@ def execute_sql_job(mode, output_uri, transformation, source_list, blob_credenti
             output_dataframe.to_parquet(local_output)
             # upload blob to blob store
             output_uri = upload_blob_to_blob_store(container_client, local_output, f"{output_uri_with_timestamp}.parquet")
-
         elif blob_credentials.type == LOCAL:
             os.makedirs(output_uri)
             output_dataframe.to_parquet(f"{output_uri_with_timestamp}.parquet")

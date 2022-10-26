@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -16,7 +15,6 @@ import (
 	"github.com/featureform/kubernetes"
 	"github.com/featureform/metadata"
 	"github.com/segmentio/parquet-go"
-
 	"go.uber.org/zap"
 	"gocloud.dev/blob"
 	"gocloud.dev/blob/azureblob"
@@ -344,7 +342,11 @@ func (kube KubernetesExecutor) ExecuteScript(envVars map[string]string) error {
 		EnvVars:  envVars,
 		Image:    kube.image,
 		NumTasks: 1,
-		Resource: metadata.ResourceID{Name: envVars["RESOURCE_NAME"], Variant: envVars["RESOURCE_VARIANT"], Type: ProviderToMetadataResourceType[OfflineResourceType(resourceType)]},
+		Resource: metadata.ResourceID{
+			Name:    envVars["RESOURCE_NAME"],
+			Variant: envVars["RESOURCE_VARIANT"],
+			Type:    ProviderToMetadataResourceType[OfflineResourceType(resourceType)],
+		},
 	}
 	jobRunner, err := kubernetes.NewKubernetesRunner(config)
 	if err != nil {
@@ -475,14 +477,14 @@ func (store genericBlobStore) Read(key string) ([]byte, error) {
 }
 
 func (store genericBlobStore) Serve(key string) (Iterator, error) {
-	r, err := store.bucket.NewReader(ctx, key, nil)
+	b, err := store.bucket.ReadAll(ctx, key)
 	if err != nil {
 		return nil, err
 	}
 	keyParts := strings.Split(key, ".")
 	switch fileType := keyParts[len(keyParts)-1]; fileType {
 	case "parquet":
-		return parquetIteratorFromReader(r)
+		return parquetIteratorFromBytes(b)
 	case "csv":
 		return csvIteratorFromReader(r)
 	default:
@@ -492,65 +494,49 @@ func (store genericBlobStore) Serve(key string) (Iterator, error) {
 }
 
 func (store genericBlobStore) NumRows(key string) (int64, error) {
-	r, err := store.bucket.NewReader(ctx, key, nil)
+	b, err := store.bucket.ReadAll(ctx, key)
 	if err != nil {
 		return 0, err
 	}
 	keyParts := strings.Split(key, ".")
 	switch fileType := keyParts[len(keyParts)-1]; fileType {
 	case "parquet":
-		return getParquetNumRows(r)
+		return getParquetNumRows(b)
 	default:
 		return 0, fmt.Errorf("unsupported file type")
 	}
 }
 
 type ParquetIterator struct {
-	rows  []interface{}
-	index int64
+	reader *parquet.Reader
+	index  int64
 }
 
 func (p *ParquetIterator) Next() (map[string]interface{}, error) {
-	if p.index+1 == int64(len(p.rows)) {
-		return nil, nil
+	value := make(map[string]interface{})
+	err := p.reader.Read(&value)
+	if err != nil {
+		if err == io.EOF {
+			return nil, nil
+		} else {
+			return nil, err
+		}
 	}
-	p.index += 1
-	currentRow := p.rows[p.index]
-	fmt.Println(currentRow)
-	v := reflect.ValueOf(currentRow)
-	fmt.Println(v)
-	returnMap := make(map[string]interface{})
-	for _, key := range v.MapKeys() {
-		returnMap[key.String()] = v.MapIndex(key).Interface()
-	}
-	return returnMap, nil
+	return value, nil
 }
 
-func getParquetNumRows(r io.ReadCloser) (int64, error) {
-	defer r.Close()
-	buff := bytes.NewBuffer([]byte{})
-	size, err := io.Copy(buff, r)
-	if err != nil {
-		return 0, err
-	}
-	return int64(size), nil
+func getParquetNumRows(b []byte) (int64, error) {
+	file := bytes.NewReader(b)
+	r := parquet.NewReader(file)
+	return r.NumRows(), nil
 }
 
-func parquetIteratorFromReader(r io.ReadCloser) (Iterator, error) {
-	defer r.Close()
-	buff := bytes.NewBuffer([]byte{})
-	size, err := io.Copy(buff, r)
-	if err != nil {
-		return nil, err
-	}
-	file := bytes.NewReader(buff.Bytes())
-	rows, err := parquet.Read[any](file, size)
-	if err != nil {
-		return nil, err
-	}
+func parquetIteratorFromBytes(b []byte) (Iterator, error) {
+	file := bytes.NewReader(b)
+	r := parquet.NewReader(file)
 	return &ParquetIterator{
-		rows:  rows,
-		index: int64(0),
+		reader: r,
+		index:  int64(0),
 	}, nil
 }
 

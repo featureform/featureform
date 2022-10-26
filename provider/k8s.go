@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -478,15 +477,14 @@ func (store genericBlobStore) Read(key string) ([]byte, error) {
 }
 
 func (store genericBlobStore) Serve(key string) (Iterator, error) {
-	r, err := store.bucket.NewReader(ctx, key, nil)
+	b, err := store.bucket.ReadAll(ctx, key)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("FILE SIZE", r.Size())
 	keyParts := strings.Split(key, ".")
 	switch fileType := keyParts[len(keyParts)-1]; fileType {
 	case "parquet":
-		return parquetIteratorFromReader(r, r.Size())
+		return parquetIteratorFromReader(b)
 	default:
 		return nil, fmt.Errorf("unsupported file type")
 	}
@@ -508,25 +506,22 @@ func (store genericBlobStore) NumRows(key string) (int64, error) {
 }
 
 type ParquetIterator struct {
-	rows  []interface{}
-	index int64
+	reader *parquet.Reader
+	rows   []interface{}
+	index  int64
 }
 
 func (p *ParquetIterator) Next() (map[string]interface{}, error) {
-	if p.index+1 == int64(len(p.rows)) {
-		return nil, nil
+	value := make(map[string]interface{})
+	err := p.reader.Read(&value)
+	if err != nil {
+		if err == io.EOF {
+			return nil, nil
+		} else {
+			return nil, err
+		}
 	}
-	p.index += 1
-	currentRow := p.rows[p.index]
-	if currentRow == nil {
-		return nil, fmt.Errorf("could not read nil row line %d", p.index)
-	}
-	v := reflect.ValueOf(currentRow)
-	returnMap := make(map[string]interface{})
-	for _, key := range v.MapKeys() {
-		returnMap[key.String()] = v.MapIndex(key).Interface()
-	}
-	return returnMap, nil
+	return value, nil
 }
 
 func getParquetNumRows(r io.ReadCloser) (int64, error) {
@@ -539,22 +534,12 @@ func getParquetNumRows(r io.ReadCloser) (int64, error) {
 	return int64(size), nil
 }
 
-func parquetIteratorFromReader(r io.ReadCloser, size int64) (Iterator, error) {
-	defer r.Close()
-	buf := make([]byte, size)
-	buff := bytes.NewBuffer(buf)
-	size, err := io.Copy(buff, r)
-	if err != nil {
-		return nil, err
-	}
-	fmt.Println("COPY SIZE", size)
-	file := bytes.NewReader(buff.Bytes())
-	rows, err := parquet.Read[any](file, size)
-	if err != nil {
-		return nil, err
-	}
+func parquetIteratorFromReader(b []byte) (Iterator, error) {
+	file := bytes.NewReader(b)
+	r := parquet.NewReader(file)
 	return &ParquetIterator{
-		rows:  rows,
+		reader: r,
+		//rows:  rows,
 		index: int64(0),
 	}, nil
 }

@@ -43,7 +43,7 @@ func main() {
 		panic(err)
 	}
 	fmt.Println("connected to etcd")
-	baseLogger, err := zap.NewDevelopment()
+	baseLogger, err := zap.NewDevelopment(zap.AddStacktrace(zap.ErrorLevel))
 	if err != nil {
 		panic(err)
 	}

@@ -52,7 +52,7 @@ spec:
             - name: WORKER_IMAGE
               value: "{{ .Values.global.repo | default .Values.image.repository }}/worker:{{ .Values.global.version | default .Chart.AppVersion }}"
             - name: PANDAS_RUNNER_IMAGE
-              value: "{{ .Values.global.repo | default .Values.image.repository }}/pandas_runner:{{ .Values.global.version | default .Chart.AppVersion }}"
+              value: "{{ .Values.global.repo | default .Values.image.repository }}/k8s_runner:{{ .Values.global.version | default .Chart.AppVersion }}"
 
           ports:
             - name: http

@@ -6,7 +6,7 @@ import (
 
 func NewLogger(service string) *zap.SugaredLogger {
 	baseLogger, err := zap.NewProduction(
-		zap.AddStacktrace(zap.ErrorLevel),
+	//zap.AddStacktrace(zap.ErrorLevel),
 	)
 	if err != nil {
 		panic(err)

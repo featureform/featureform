@@ -647,7 +647,6 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 	}
 	status := feature.Status()
 	featureType := feature.Type()
-
 	if status == metadata.READY {
 		return fmt.Errorf("feature already set to %s", status.String())
 	}
@@ -1030,14 +1029,8 @@ func (c *Coordinator) ExecuteJob(jobKey string) error {
 		return fmt.Errorf("not a valid resource type for running jobs")
 	}
 	if err := jobFunc(job.Resource, job.Schedule); err != nil {
-		if statusErr := c.Metadata.SetStatus(context.Background(), job.Resource, metadata.FAILED, err.Error()); err != nil {
-			return fmt.Errorf("could not set materialization job status: %w", statusErr)
-		}
-		if err := c.deleteJob(mtx, jobKey); err != nil {
-			c.Logger.Debugw("Error deleting job", "error", err)
-			return fmt.Errorf("job delete: %w", err)
-		}
-		return fmt.Errorf("%s job failed... deleting: %v", job.Resource.Type, err)
+		statusErr := c.Metadata.SetStatus(context.Background(), job.Resource, metadata.FAILED, err.Error())
+		return fmt.Errorf("%s job failed: %v: %v", job.Resource.Type, err, statusErr)
 	}
 	c.Logger.Info("Succesfully executed job with key: ", jobKey)
 	if err := c.deleteJob(mtx, jobKey); err != nil {

@@ -5,7 +5,7 @@ import (
 )
 
 func NewLogger(service string) *zap.SugaredLogger {
-	baseLogger, err := zap.NewDevelopment(
+	baseLogger, err := zap.NewProduction(
 		zap.AddStacktrace(zap.ErrorLevel),
 	)
 	if err != nil {

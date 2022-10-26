@@ -167,7 +167,7 @@ func k8sAzureOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 
 func k8sOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	k8 := K8sConfig{}
-	logger := zap.NewExample().Sugar()
+	logger := logging.NewLogger("kubernetes")
 	if err := k8.Deserialize(config); err != nil {
 		logger.Errorw("Invalid config to initialize k8s offline store", err)
 		return nil, fmt.Errorf("invalid k8s config: %v", config)

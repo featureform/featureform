@@ -41,6 +41,10 @@ func (k8s *K8sOfflineStore) Close() error {
 	return nil
 }
 
+func sanitizeSparkSQL(string query) string {
+	return query
+}
+
 type Config []byte
 
 type ExecutorFactory func(config Config) (Executor, error)

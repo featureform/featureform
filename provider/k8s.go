@@ -486,7 +486,7 @@ func (store genericBlobStore) Serve(key string) (Iterator, error) {
 	case "parquet":
 		return parquetIteratorFromBytes(b)
 	case "csv":
-		return csvIteratorFromReader(r)
+		return nil, fmt.Errorf("could not find CSV reader")
 	default:
 		return nil, fmt.Errorf("unsupported file type")
 	}

@@ -4,6 +4,7 @@
 package provider
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"strings"
@@ -12,6 +13,8 @@ import (
 	"github.com/featureform/helpers"
 
 	"github.com/google/uuid"
+	"github.com/mitchellh/mapstructure"
+	"github.com/segmentio/parquet-go"
 )
 
 func uuidWithoutDashes() string {
@@ -353,4 +356,45 @@ func TestNewConfig(t *testing.T) {
 		t.Fatalf("failed to convert store to offline store: %v", err)
 	}
 	fmt.Println(offlineStore)
+}
+
+func Test_parquetIteratorFromReader(t *testing.T) {
+	rows := 1000000
+	type RowType struct {
+		Index  int
+		SIndex string
+	}
+
+	var buf bytes.Buffer
+	w := parquet.NewWriter(&buf)
+	var testRows []RowType
+	for i := 1; i < rows; i++ {
+		row := RowType{
+			i,
+			fmt.Sprintf("%d", i),
+		}
+		testRows = append(testRows, row)
+		w.Write(row)
+	}
+	w.Close()
+	iter, err := parquetIteratorFromReader(buf.Bytes())
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	index := 0
+	for {
+		value, err := iter.Next()
+		if err != nil {
+			fmt.Println(err)
+			break
+		} else if value == nil && err == nil {
+			break
+		}
+		var result RowType
+		mapstructure.Decode(value, &result)
+		if result != testRows[index] {
+			t.Errorf("Rows not equal %v!=%v\n", value, testRows[index])
+		}
+		index += 1
+	}
 }

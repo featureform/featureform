@@ -490,7 +490,7 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 
 	err = c.runTransformationJob(transformationConfig, resID, schedule, sourceProvider)
 	if err != nil {
-		return fmt.Errorf("could not run the transformation job resId=%s:%s", resID, err)
+		return err
 	}
 
 	return nil
@@ -522,7 +522,7 @@ func (c *Coordinator) runDFTransformationJob(transformSource *metadata.SourceVar
 
 	err = c.runTransformationJob(transformationConfig, resID, schedule, sourceProvider)
 	if err != nil {
-		return fmt.Errorf("could not run the transformation job resId=%s:%s", resID, err)
+		return err
 	}
 
 	return nil

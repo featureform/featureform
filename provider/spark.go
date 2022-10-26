@@ -4,24 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	// "io"
-	// "io/ioutil"
-	// "os"
-	// "path"
-	// "reflect"
-	// "runtime"
-	// "sort"
-	// "strconv"
 	"os"
 	"strings"
 	"time"
-	// "bytes"
-
-	//for compatability with parquet-go
-	// awsV1 "github.com/aws/aws-sdk-go/aws"
-	// credentialsV1 "github.com/aws/aws-sdk-go/aws/credentials"
-	// session "github.com/aws/aws-sdk-go/aws/session"
-	// s3manager "github.com/aws/aws-sdk-go/service/s3/s3manager"
 
 	"github.com/featureform/helpers"
 
@@ -39,11 +24,6 @@ import (
 	azureModels "github.com/Azure/databricks-sdk-golang/azure/jobs/models"
 
 	emrTypes "github.com/aws/aws-sdk-go-v2/service/emr/types"
-	// s3Types "github.com/aws/aws-sdk-go-v2/service/s3/types"
-	// parquetGo "github.com/xitongsys/parquet-go-source/s3"
-	// reader "github.com/xitongsys/parquet-go/reader"
-	// source "github.com/xitongsys/parquet-go/source"
-	// writer "github.com/xitongsys/parquet-go/writer"
 )
 
 type SparkExecutorType string
@@ -425,21 +405,26 @@ func (e EMRExecutor) InitializeExecutor(store BlobStore) error {
 }
 
 func NewSparkExecutor(execType SparkExecutorType, config SparkExecutorConfig, logger *zap.SugaredLogger) (SparkExecutor, error) {
-	// if execType == EMR {
+	if execType == EMR {
 
-	// 	client := emr.New(emr.Options{
-	// 		Region:      config.ClusterRegion,
-	// 		Credentials: aws.NewCredentialsCache(credentials.NewStaticCredentialsProvider(config.AWSAccessKeyId, config.AWSSecretKey, "")),
-	// 	})
+		emrConfig := &EMRConfig{}
+		if err := emrConfig.Deserialize(SerializedConfig(config)); err != nil {
+			return nil, fmt.Errorf("Could not deserialize config: %v", err)
+		}
+		client := emr.New(emr.Options{
+			Region:      emrConfig.ClusterRegion,
+			Credentials: aws.NewCredentialsCache(credentials.NewStaticCredentialsProvider(emrConfig.AWSAccessKeyId, emrConfig.AWSSecretKey, "")),
+		})
 
-	// 	emrExecutor := EMRExecutor{
-	// 		client:      client,
-	// 		logger:      logger,
-	// 		clusterName: config.ClusterName,
-	// 	}
-	// 	return &emrExecutor, nil
-	// }
-	// return nil, nil
+		emrExecutor := EMRExecutor{
+			client:      client,
+			logger:      logger,
+			clusterName: emrConfig.ClusterName,
+		}
+		return &emrExecutor, nil
+	} else if execType == Databricks {
+		return NewDatabricksExecutor(Config(config))
+	}
 	return nil, nil
 }
 

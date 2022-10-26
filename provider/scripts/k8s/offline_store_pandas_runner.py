@@ -34,7 +34,6 @@ def main(args):
         print(f"starting execution for DF Transformation in {args.mode} mode") 
         etcd_credentials = {"host": args.etcd_host, "ports": args.etcd_ports, "username": args.etcd_user, "password": args.etcd_password}
         output_location = execute_df_job(args.mode, args.output_uri, args.transformation, args.sources, etcd_credentials, blob_credentials)
-   
     return output_location
 
 
@@ -78,7 +77,7 @@ def execute_sql_job(mode, output_uri, transformation, source_list, blob_credenti
             local_output = f"{LOCAL_DATA_PATH}/output.parquet"
             output_dataframe.to_parquet(local_output)
             # upload blob to blob store
-            output_uri = upload_blob_to_blob_store(container_client, local_output, f"{output_uri_with_timestamp}.parquet") 
+            output_uri = upload_blob_to_blob_store(container_client, local_output, f"{output_uri_with_timestamp}.parquet")
         
         elif blob_credentials.type == LOCAL:
             os.makedirs(output_uri)
@@ -126,7 +125,6 @@ def execute_df_job(mode, output_uri, code, sources, etcd_credentials, blob_crede
         code = get_code_from_file(mode, code_path + "/transformation.pkl", etcd_credentials)
         func = types.FunctionType(code, globals(), "df_transformation")
         output_df = pd.DataFrame(func(*func_parameters))
-
         dt = datetime.now()
         output_uri_with_timestamp = f"{output_uri}{dt}"
 
@@ -198,12 +196,14 @@ def upload_blob_to_blob_store(client, local_filename, blob_path):
         blob_path:      str (path to blob store)
     """
 
-    print(f"uploading {local_filename} file to {blob_path}")
+
     if os.path.isfile(local_filename):
+        print(f"uploading {local_filename} file to {blob_path} as file")
         blob_upload = client.get_blob_client(blob_path)
         with open(local_filename, "rb") as data:
             blob_upload.upload_blob(data, blob_type="BlockBlob")
     elif os.path.isdir(local_filename):
+        print(f"uploading {local_filename} file to {blob_path} as partitioned files")
         for file in os.listdir(local_filename):
             blob_upload = client.get_blob_client(f"{blob_path}/{file}")
             

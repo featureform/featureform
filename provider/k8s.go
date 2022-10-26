@@ -461,16 +461,12 @@ func (store genericBlobStore) SparkOutputPartList(prefix string) []string {
 			mostRecentOutputPartPath = listObj.Key
 		}
 	}
-	fmt.Println("most recent output part path is")
-	fmt.Println(mostRecentOutputPartPath)
 	opts = blob.ListOptions{
 		Prefix: mostRecentOutputPartPath,
 	}
 	partsIterator := store.bucket.List(&opts)
 	partsList := make([]string, 0)
-	fmt.Println("iterating over path")
 	for listObj, err := partsIterator.Next(ctx); err == nil; listObj, err = partsIterator.Next(ctx) {
-		// fmt.Println(listObj.Key)
 		pathParts := strings.Split(listObj.Key, ".")
 
 		fileType := pathParts[len(pathParts)-1]
@@ -538,7 +534,6 @@ func parquetIteratorOverMultipleFiles(fileParts []string, store genericBlobStore
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("getting iterator:", fileParts[0])
 	iterator, err := parquetIteratorFromReader(r)
 	if err != nil {
 		return nil, fmt.Errorf("could not open first parquet file: %v", err)
@@ -615,9 +610,7 @@ func (p *ParquetIterator) Next() (map[string]interface{}, error) {
 	}
 	p.index += 1
 	currentRow := p.rows[p.index]
-	fmt.Println(currentRow)
 	v := reflect.ValueOf(currentRow)
-	fmt.Println(v)
 	returnMap := make(map[string]interface{})
 	for _, key := range v.MapKeys() {
 		returnMap[key.String()] = v.MapIndex(key).Interface()

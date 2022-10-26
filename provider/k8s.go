@@ -523,14 +523,10 @@ func (p *ParquetIterator) Next() (map[string]interface{}, error) {
 	return value, nil
 }
 
-func getParquetNumRows(r io.ReadCloser) (int64, error) {
-	defer r.Close()
-	buff := bytes.NewBuffer([]byte{})
-	size, err := io.Copy(buff, r)
-	if err != nil {
-		return 0, err
-	}
-	return int64(size), nil
+func getParquetNumRows(b []byte) (int64, error) {
+	file := bytes.NewReader(b)
+	r := parquet.NewReader(file)
+	return r.NumRows(), nil
 }
 
 func parquetIteratorFromBytes(b []byte) (Iterator, error) {

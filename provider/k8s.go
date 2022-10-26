@@ -484,7 +484,7 @@ func (store genericBlobStore) Serve(key string) (Iterator, error) {
 	keyParts := strings.Split(key, ".")
 	switch fileType := keyParts[len(keyParts)-1]; fileType {
 	case "parquet":
-		return parquetIteratorFromReader(b)
+		return parquetIteratorFromBytes(b)
 	default:
 		return nil, fmt.Errorf("unsupported file type")
 	}
@@ -507,7 +507,6 @@ func (store genericBlobStore) NumRows(key string) (int64, error) {
 
 type ParquetIterator struct {
 	reader *parquet.Reader
-	rows   []interface{}
 	index  int64
 }
 
@@ -534,13 +533,12 @@ func getParquetNumRows(r io.ReadCloser) (int64, error) {
 	return int64(size), nil
 }
 
-func parquetIteratorFromReader(b []byte) (Iterator, error) {
+func parquetIteratorFromBytes(b []byte) (Iterator, error) {
 	file := bytes.NewReader(b)
 	r := parquet.NewReader(file)
 	return &ParquetIterator{
 		reader: r,
-		//rows:  rows,
-		index: int64(0),
+		index:  int64(0),
 	}, nil
 }
 

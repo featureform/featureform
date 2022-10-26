@@ -1,6 +1,5 @@
 import io
 import os
-import time
 import types
 
 from typing import List
@@ -197,14 +196,14 @@ def upload_blob_to_blob_store(client, local_filename, blob_path):
         blob_path:      str (path to blob store)
     """
 
-    print(f"uploading {local_filename} file to {blob_path}")
+
     if os.path.isfile(local_filename):
-        print("IS FILE")
+        print(f"uploading {local_filename} file to {blob_path} as file")
         blob_upload = client.get_blob_client(blob_path)
         with open(local_filename, "rb") as data:
             blob_upload.upload_blob(data, blob_type="BlockBlob")
     elif os.path.isdir(local_filename):
-        print("IS DIRECTORY")
+        print(f"uploading {local_filename} file to {blob_path} as partitioned files")
         for file in os.listdir(local_filename):
             blob_upload = client.get_blob_client(f"{blob_path}/{file}")
             

@@ -2,6 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+from multiprocessing.sharedctypes import Value
 from typeguard import typechecked, check_type
 from typing import Tuple, Callable, List, Union
 
@@ -1967,18 +1968,34 @@ class Registrar:
 
     def __get_feature_nv(self, features):
         feature_nv_list = []
+        feature_lags = []
         for feature in features:
             if isinstance(feature, str):
                 feature_nv = (feature, "default")
                 feature_nv_list.append(feature_nv)
             elif isinstance(feature, dict):
-                feature_nv = (feature["name"], feature["variant"])
-                feature_nv_list.append(feature_nv)
+                lag = feature.get("lag")
+                if lag:
+                    if set(["lag", "feature", "variant"]) in set(feature.keys()):
+                        raise ValueError(f"feature lags require 'lag', 'feature', 'variant' fields. Received: {feature.keys()}")
+                    
+                    feature_name_variant = (feature["feature"], feature["variant"])
+                    if feature_name_variant not in feature_nv_list:
+                        feature_nv_list.append(feature_name_variant)
+
+                    lag_name = f"{feature['feature']}_{feature['variant']}_lag_{feature['lag']}"
+                    sanitized_lag_name = lag_name.replace(" ", "").replace(",", "_").replace(":", "_")
+                    feature["name"] = feature.get("name", sanitized_lag_name)
+                    
+                    feature_lags.append(feature)
+                else:
+                    feature_nv = (feature["name"], feature["variant"])
+                    feature_nv_list.append(feature_nv)
             elif isinstance(feature, list):
                 feature_nv_list.extend(self.__get_feature_nv(feature))
             else:
                 feature_nv_list.append(feature)
-        return feature_nv_list
+        return feature_nv_list, feature_lags
 
     def register_training_set(self,
                               name: str,
@@ -2028,7 +2045,7 @@ class Registrar:
         if isinstance(label, str):
             label = (label, "default")
         
-        features = self.__get_feature_nv(features)
+        features, feature_lags = self.__get_feature_nv(features)
 
         if label == ():
             raise ValueError("Label must be set")
@@ -2043,6 +2060,7 @@ class Registrar:
             schedule=schedule,
             label=label,
             features=features,
+            feature_lags=feature_lags
         )
         self.__resources.append(resource)
 

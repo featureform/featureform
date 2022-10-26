@@ -12,14 +12,18 @@ import (
 	// "runtime"
 	// "sort"
 	// "strconv"
+	"os"
 	"strings"
 	"time"
+	// "bytes"
 
 	//for compatability with parquet-go
 	// awsV1 "github.com/aws/aws-sdk-go/aws"
 	// credentialsV1 "github.com/aws/aws-sdk-go/aws/credentials"
 	// session "github.com/aws/aws-sdk-go/aws/session"
 	// s3manager "github.com/aws/aws-sdk-go/service/s3/s3manager"
+
+	"github.com/featureform/helpers"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsv2cfg "github.com/aws/aws-sdk-go-v2/config"
@@ -153,6 +157,10 @@ type DatabricksExecutor struct {
 	config  DatabricksConfig
 }
 
+func (e *EMRExecutor) PythonFileURI() string {
+	return "scripts/spark_executor.py"
+}
+
 func (db *DatabricksExecutor) PythonFileURI() string {
 	return "scripts/spark_executor.py"
 }
@@ -160,7 +168,6 @@ func (db *DatabricksExecutor) PythonFileURI() string {
 func (db *DatabricksExecutor) InitializeExecutor(store BlobStore) error {
 	return nil
 }
-
 
 func NewDatabricksExecutor(config Config) (SparkExecutor, error) {
 	databricksConfig := DatabricksConfig{}
@@ -221,7 +228,7 @@ type S3BlobStoreConfig struct {
 	AWSSecretKey   string
 	BucketRegion   string
 	BucketPath     string
-	Path string
+	Path           string
 }
 
 func (s *S3BlobStoreConfig) Deserialize(config SerializedConfig) error {
@@ -393,6 +400,8 @@ type SparkExecutor interface {
 	RunSparkJob(args *[]string) error
 	InitializeExecutor(store BlobStore) error
 	PythonFileURI() string
+	SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType) []string
+	GetDFArgs(outputURI string, code string, mapping []SourceMapping) ([]string, error)
 }
 
 type EMRExecutor struct {
@@ -402,13 +411,17 @@ type EMRExecutor struct {
 }
 
 func (e EMRExecutor) InitializeExecutor(store BlobStore) error {
-	return nil
-	// s3BlobStore, isS3 := store.(*S3BlobStore)
-	// if isS3 {
-	// 	// load spark script to buffer
-	// 	// upload via the write function
-	// }
-	// here we handle the initialization for other blob stores (azure, etc)
+	sparkScriptPath := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/offline_store_spark_runner.py")
+	scriptFile, err := os.Open(sparkScriptPath)
+	if err != nil {
+		return err
+	}
+	buff := make([]byte, 4096)
+	_, err = scriptFile.Read(buff)
+	if err != nil {
+		return err
+	}
+	return store.Write(sparkScriptPath, buff)
 }
 
 func NewSparkExecutor(execType SparkExecutorType, config SparkExecutorConfig, logger *zap.SugaredLogger) (SparkExecutor, error) {
@@ -464,12 +477,31 @@ func (e *EMRExecutor) RunSparkJob(args *[]string) error {
 	return nil
 }
 
-func (s *S3BlobStore) sparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType) []string {
+func (e *EMRExecutor) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType) []string {
 	argList := []string{
 		"spark-submit",
 		"--deploy-mode",
 		"client",
-		fmt.Sprintf("s3://%s/%s/featureform/scripts/offline_store_spark_runner.py", s.Bucket, s.Path),
+		e.PythonFileURI(),
+		"sql",
+		"--output_uri",
+		destPath,
+		"--sql_query",
+		cleanQuery,
+		"--job_type",
+		string(jobType),
+		"--source_list",
+	}
+	argList = append(argList, sourceList...)
+	return argList
+}
+
+func (d *DatabricksExecutor) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType) []string {
+	argList := []string{
+		"spark-submit",
+		"--deploy-mode",
+		"client",
+		d.PythonFileURI(),
 		"sql",
 		"--output_uri",
 		destPath,
@@ -513,84 +545,68 @@ func (spark *SparkOfflineStore) transformation(config TransformationConfig, isUp
 
 func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, isUpdate bool) error {
 	return nil
-	// updatedQuery, sources, err := spark.updateQuery(config.Query, config.SourceMapping)
-	// if err != nil {
-	// 	spark.Logger.Errorw("Could not generate updated query for spark transformation", err)
-	// 	return err
-	// }
+	updatedQuery, sources, err := spark.updateQuery(config.Query, config.SourceMapping)
+	if err != nil {
+		spark.Logger.Errorw("Could not generate updated query for spark transformation", err)
+		return err
+	}
 
-	// transformationExists := spark.Store.NewestBlob(ResourcePath(id)) != ""
+	transformationDestination := ResourcePath(config.TargetTableID)
+	transformationExists := spark.Store.NewestBlob(transformationDestination) != ""
 
-	// if !isUpdate && transformationExists {
-	// 	spark.Logger.Errorw("Creation when transformation already exists", config.TargetTableID, transformationDestination)
-	// 	return fmt.Errorf("transformation %v already exists at %s", config.TargetTableID, transformationDestination)
-	// } else if isUpdate && !transformationExists {
-	// 	spark.Logger.Errorw("Update job attempted when transformation does not exist", config.TargetTableID, transformationDestination)
-	// 	return fmt.Errorf("transformation %v doesn't exist at %s and you are trying to update", config.TargetTableID, transformationDestination)
-	// }
-	// spark.Logger.Debugw("Running SQL transformation", config)
-	// sparkArgs := spark.Store.SparkSubmitArgs(transformationDestination, updatedQuery, sources, Transform)
-	// if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
-	// 	spark.Logger.Errorw("spark submit job for transformation failed to run", config.TargetTableID, err)
-	// 	return fmt.Errorf("spark submit job for transformation %v failed to run: %v", config.TargetTableID, err)
-	// }
-	// spark.Logger.Debugw("Succesfully ran SQL transformation", config)
-	// return nil
+	if !isUpdate && transformationExists {
+		spark.Logger.Errorw("Creation when transformation already exists", config.TargetTableID, transformationDestination)
+		return fmt.Errorf("transformation %v already exists at %s", config.TargetTableID, transformationDestination)
+	} else if isUpdate && !transformationExists {
+		spark.Logger.Errorw("Update job attempted when transformation does not exist", config.TargetTableID, transformationDestination)
+		return fmt.Errorf("transformation %v doesn't exist at %s and you are trying to update", config.TargetTableID, transformationDestination)
+	}
+	spark.Logger.Debugw("Running SQL transformation", config)
+	sparkArgs := spark.Executor.SparkSubmitArgs(transformationDestination, updatedQuery, sources, Transform)
+	if err := spark.Executor.RunSparkJob(&sparkArgs); err != nil {
+		spark.Logger.Errorw("spark submit job for transformation failed to run", config.TargetTableID, err)
+		return fmt.Errorf("spark submit job for transformation %v failed to run: %v", config.TargetTableID, err)
+	}
+	spark.Logger.Debugw("Succesfully ran SQL transformation", config)
+	return nil
 }
+
+func GetTransformationFileLocation(id ResourceID) string {
+	return fmt.Sprintf("DFTranformations/%s/%s/", id.Name, id.Variant)
+}
+
 func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, isUpdate bool) error {
 	return nil
-	// transformationDestination := spark.Store.ResourcePath(config.TargetTableID)
-	// exists, err := spark.Store.ResourceExists(config.TargetTableID)
-	// if err != nil {
-	// 	spark.Logger.Errorw("Error checking if resource exists", err)
-	// 	return err
-	// }
+	transformationDestination := ResourcePath(config.TargetTableID)
+	transformationExists := spark.Store.NewestBlob(transformationDestination) != ""
+	if !isUpdate && transformationExists {
+		spark.Logger.Errorw("Transformation already exists", config.TargetTableID, transformationDestination)
+		return fmt.Errorf("transformation %v already exists at %s", config.TargetTableID, transformationDestination)
+	} else if isUpdate && !transformationExists {
+		spark.Logger.Errorw("Transformation doesn't exists at destination and you are trying to update", config.TargetTableID, transformationDestination)
+		return fmt.Errorf("transformation %v doesn't exist at %s and you are trying to update", config.TargetTableID, transformationDestination)
+	}
 
-	// if !isUpdate && exists {
-	// 	spark.Logger.Errorw("Transformation already exists", config.TargetTableID, transformationDestination)
-	// 	return fmt.Errorf("transformation %v already exists at %s", config.TargetTableID, transformationDestination)
-	// } else if isUpdate && !exists {
-	// 	spark.Logger.Errorw("Transformation doesn't exists at destination and you are trying to update", config.TargetTableID, transformationDestination)
-	// 	return fmt.Errorf("transformation %v doesn't exist at %s and you are trying to update", config.TargetTableID, transformationDestination)
-	// }
+	transformationFilePath := GetTransformationFileLocation(config.TargetTableID)
+	fileName := "transformation.pkl"
+	transformationFileLocation := fmt.Sprintf("%s/%s", transformationFilePath, fileName)
 
-	// transformationFilePath := spark.Store.GetTransformationFileLocation(config.TargetTableID)
-	// fileName := "transformation.pkl"
-	// transformationFileLocation := fmt.Sprintf("%s/%s", transformationFilePath, fileName)
+	if err := spark.Store.Write(transformationFileLocation, config.Code); err != nil {
+		return fmt.Errorf("could not upload file: %s", err)
+	}
 
-	// f, err := os.Create(fileName)
-	// if err != nil {
-	// 	return fmt.Errorf("could not create file: %s", err)
-	// }
-	// defer f.Close()
-
-	// err = ioutil.WriteFile(fileName, config.Code, 0644)
-	// if err != nil {
-	// 	return fmt.Errorf("could not write to file: %s", err)
-	// }
-
-	// // Write byte to file
-	// f, err = os.Open(fileName)
-	// if err != nil {
-	// 	return fmt.Errorf("could not open file: %s", err)
-	// }
-	// err = spark.Store.UploadFile(transformationFileLocation, f)
-	// if err != nil {
-	// 	return fmt.Errorf("could not upload file: %s", err)
-	// }
-
-	// sparkArgs, err := spark.getDFArgs(transformationDestination, transformationFileLocation, spark.Store.Region(), config.SourceMapping)
-	// if err != nil {
-	// 	spark.Logger.Errorw("Problem creating spark dataframe arguments", err)
-	// 	return fmt.Errorf("error with getting df arguments %v", sparkArgs)
-	// }
-	// spark.Logger.Debugw("Running DF transformation", config)
-	// if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
-	// 	spark.Logger.Errorw("Error running Spark dataframe job", err)
-	// 	return fmt.Errorf("spark submit job for transformation %v failed to run: %v", config.TargetTableID, err)
-	// }
-	// spark.Logger.Debugw("Succesfully ran DF transformation", config)
-	// return nil
+	sparkArgs, err := spark.Executor.GetDFArgs(transformationDestination, transformationFileLocation, config.SourceMapping)
+	if err != nil {
+		spark.Logger.Errorw("Problem creating spark dataframe arguments", err)
+		return fmt.Errorf("error with getting df arguments %v", sparkArgs)
+	}
+	spark.Logger.Debugw("Running DF transformation", config)
+	if err := spark.Executor.RunSparkJob(&sparkArgs); err != nil {
+		spark.Logger.Errorw("Error running Spark dataframe job", err)
+		return fmt.Errorf("spark submit job for transformation %v failed to run: %v", config.TargetTableID, err)
+	}
+	spark.Logger.Debugw("Succesfully ran DF transformation", config)
+	return nil
 }
 
 func (spark *SparkOfflineStore) updateQuery(query string, mapping []SourceMapping) (string, []string, error) {
@@ -663,45 +679,55 @@ func (spark *SparkOfflineStore) getResourceInformationFromFilePath(path string) 
 	return fileType, fileName, fileVariant
 }
 
-func (spark *SparkOfflineStore) getDFArgs(outputURI string, code string, awsRegion string, mapping []SourceMapping) ([]string, error) {
+func (e *EMRExecutor) GetDFArgs(outputURI string, code string, mapping []SourceMapping) ([]string, error) {
 	argList := []string{
 		"spark-submit",
 		"--deploy-mode",
 		"client",
-		spark.Executor.PythonFileURI(),
+		e.PythonFileURI(),
 		"df",
 		"--output_uri",
 		outputURI,
 		"--code",
 		code,
-		"--aws_region",
-		awsRegion,
 		"--source",
 	}
 
 	for _, m := range mapping {
-		sourcePath, err := spark.getSourcePath(m.Source)
-		if err != nil {
-			spark.Logger.Errorw("Error getting source path for spark source", m.Source, err)
-			return nil, fmt.Errorf("issue with retreiving the source path for %s because %s", m.Source, err)
-		}
 
-		argList = append(argList, sourcePath)
+		argList = append(argList, m.Source)
+	}
+
+	return argList, nil
+}
+
+func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, mapping []SourceMapping) ([]string, error) {
+	argList := []string{
+		"spark-submit",
+		"--deploy-mode",
+		"client",
+		d.PythonFileURI(),
+		"df",
+		"--output_uri",
+		outputURI,
+		"--code",
+		code,
+		"--source",
+	}
+
+	for _, m := range mapping {
+		argList = append(argList, m.Source)
 	}
 
 	return argList, nil
 }
 
 func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
-	// spark.Logger.Debugw("Getting transformation table", "ResourceID", id)
-	// transformationPath, err := spark.Store.ResourceKeySinglePart(id)
-	// if err != nil {
-	// 	spark.Logger.Errorw("Could not get transformation table", "error", err)
-	// 	return nil, fmt.Errorf("could not get transformation table (%v) because %s", id, err)
-	// }
-	// fixedPath := transformationPath[:strings.LastIndex(transformationPath, "/")+1]
-	// spark.Logger.Debugw("Succesfully retrieved transformation table", "ResourceID", id)
-	// return &S3PrimaryTable{spark.Store, fixedPath, true, id}, nil
+	spark.Logger.Debugw("Getting transformation table", "ResourceID", id)
+	transformationPath := spark.Store.NewestBlob(ResourcePath(id))
+	fixedPath := transformationPath[:strings.LastIndex(transformationPath, "/")+1]
+	spark.Logger.Debugw("Succesfully retrieved transformation table", "ResourceID", id)
+	return &BlobPrimaryTable{spark.Store, fixedPath, true, id}, nil
 	return nil, nil
 }
 
@@ -725,48 +751,46 @@ func (spark *SparkOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, e
 	return blobGetResourceTable(id, spark.Store, spark.Logger)
 }
 
+func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate bool) (Materialization, error) {
+	if id.Type != Feature {
+		spark.Logger.Errorw("Attempted to create a materialization of a non feature resource", id.Type)
+		return nil, fmt.Errorf("only features can be materialized")
+	}
+	resourceTable, err := spark.GetResourceTable(id)
+	if err != nil {
+		spark.Logger.Errorw("Attempted to fetch resource table of non registered resource", err)
+		return nil, fmt.Errorf("resource not registered: %v", err)
+	}
+	sparkResourceTable, ok := resourceTable.(*BlobOfflineTable)
+	if !ok {
+		spark.Logger.Errorw("Could not convert resource table to S3 offline table", id)
+		return nil, fmt.Errorf("could not convert offline table with id %v to sparkResourceTable", id)
+	}
+	materializationID := ResourceID{Name: id.Name, Variant: id.Variant, Type: FeatureMaterialization}
+	destinationPath := ResourcePath(materializationID)
+	materializationExists := spark.Store.NewestBlob(destinationPath) != ""
+	if materializationExists && !isUpdate {
+		spark.Logger.Errorw("Attempted to materialize a materialization that already exists", id)
+		return nil, fmt.Errorf("materialization already exists")
+	} else if !materializationExists && isUpdate {
+		spark.Logger.Errorw("Attempted to materialize a materialization that already exists", id)
+		return nil, fmt.Errorf("materialization already exists")
+	}
+	materializationQuery := spark.query.materializationCreate(sparkResourceTable.schema)
+	sourcePath := spark.Store.PathWithPrefix(sparkResourceTable.schema.SourceTable)
+	sparkArgs := spark.Executor.SparkSubmitArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize)
+	spark.Logger.Debugw("Creating materialization", "id", id)
+	if err := spark.Executor.RunSparkJob(&sparkArgs); err != nil {
+		spark.Logger.Errorw("Spark submit job failed to run", err)
+		return nil, fmt.Errorf("spark submit job for materialization %v failed to run: %v", materializationID, err)
+	}
+	key := spark.Store.NewestBlob(ResourcePath(materializationID))
+	spark.Logger.Debugw("Succesfully created materialization", "id", id)
+	return &BlobMaterialization{materializationID, spark.Store, key}, nil
+}
+
 func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materialization, error) {
-	return nil, nil
-	// if id.Type != Feature {
-	// 	spark.Logger.Errorw("Attempted to create a materialization of a non feature resource", id.Type)
-	// 	return nil, fmt.Errorf("only features can be materialized")
-	// }
-	// resourceTable, err := spark.GetResourceTable(id)
-	// if err != nil {
-	// 	spark.Logger.Errorw("Attempted to fetch resource table of non registered resource", err)
-	// 	return nil, fmt.Errorf("resource not registered: %v", err)
-	// }
-	// sparkResourceTable, ok := resourceTable.(*S3OfflineTable)
-	// if !ok {
-	// 	spark.Logger.Errorw("Could not convert resource table to S3 offline table", id)
-	// 	return nil, fmt.Errorf("could not convert offline table with id %v to sparkResourceTable", id)
-	// }
-	// materializationID := ResourceID{Name: id.Name, Variant: id.Variant, Type: FeatureMaterialization}
-	// destinationPath := spark.Store.ResourcePath(materializationID)
-	// materializationExists, err := spark.Store.ResourceExists(materializationID)
-	// if err != nil {
-	// 	spark.Logger.Errorw("Could not determine whether materialization exists", err)
-	// 	return nil, fmt.Errorf("error checking if materialization exists: %v", err)
-	// }
-	// if materializationExists {
-	// 	spark.Logger.Errorw("Attempted to materialize a materialization that already exists", id)
-	// 	return nil, fmt.Errorf("materialization already exists")
-	// }
-	// materializationQuery := spark.query.materializationCreate(sparkResourceTable.schema)
-	// sourcePath := spark.Store.KeyPath(sparkResourceTable.schema.SourceTable)
-	// sparkArgs := spark.Store.SparkSubmitArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize)
-	// spark.Logger.Debugw("Creating materialization", "id", id)
-	// if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
-	// 	spark.Logger.Errorw("Spark submit job failed to run", err)
-	// 	return nil, fmt.Errorf("spark submit job for materialization %v failed to run: %v", materializationID, err)
-	// }
-	// key, err := spark.Store.ResourceKeySinglePart(materializationID)
-	// if err != nil {
-	// 	spark.Logger.Errorw("Created materialization not found in store", err)
-	// 	return nil, fmt.Errorf("Materialization result does not exist in offline store: %v", err)
-	// }
-	// spark.Logger.Debugw("Succesfully created materialization", "id", id)
-	// return &S3Materialization{materializationID, spark.Store, key}, nil
+	return blobSparkMaterialization(id, spark, false)
 }
 
 func (spark *SparkOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
@@ -774,38 +798,7 @@ func (spark *SparkOfflineStore) GetMaterialization(id MaterializationID) (Materi
 }
 
 func (spark *SparkOfflineStore) UpdateMaterialization(id ResourceID) (Materialization, error) {
-	return nil, nil
-	// if id.Type != Feature {
-	// 	spark.Logger.Errorw("Attempted to materialize a non feature resource", id.Type)
-	// 	return nil, fmt.Errorf("only features can be materialized")
-	// }
-	// resourceTable, err := spark.GetResourceTable(id)
-	// if err != nil {
-	// 	spark.Logger.Errorw("Attempted to materialize a non registered resource", err)
-	// 	return nil, fmt.Errorf("resource not registered: %v", err)
-	// }
-	// sparkResourceTable, ok := resourceTable.(*S3OfflineTable)
-	// if !ok {
-	// 	spark.Logger.Errorw("could not convert offline table to sparkResourceTable", id)
-	// 	return nil, fmt.Errorf("could not convert offline table with id %v to sparkResourceTable", id)
-	// }
-	// materializationID := ResourceID{Name: id.Name, Variant: id.Variant, Type: FeatureMaterialization}
-	// destinationPath := spark.Store.ResourcePath(materializationID)
-	// materializationQuery := spark.query.materializationCreate(sparkResourceTable.schema)
-	// sourcePath := spark.Store.KeyPath(sparkResourceTable.schema.SourceTable)
-	// sparkArgs := spark.Store.SparkSubmitArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize)
-	// spark.Logger.Debugw("Updating materialization", "id", id)
-	// if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
-	// 	spark.Logger.Errorw("Could not run spark update materialization job", err)
-	// 	return nil, fmt.Errorf("spark submit job for materialization %v failed to run: %v", materializationID, err)
-	// }
-	// key, err := spark.Store.ResourceKeySinglePart(materializationID)
-	// if err != nil {
-	// 	spark.Logger.Errorw("Could not fetch materialization resource key", err)
-	// 	return nil, fmt.Errorf("Materialization result does not exist in offline store: %v", err)
-	// }
-	// spark.Logger.Debugw("Succesfully updated materialization", "id", id)
-	// return &S3Materialization{materializationID, spark.Store, key}, nil
+	return blobSparkMaterialization(id, spark, true)
 }
 
 func (spark *SparkOfflineStore) DeleteMaterialization(id MaterializationID) error {
@@ -813,113 +806,77 @@ func (spark *SparkOfflineStore) DeleteMaterialization(id MaterializationID) erro
 }
 
 func (spark *SparkOfflineStore) registeredResourceSchema(id ResourceID) (ResourceSchema, error) {
-	// spark.Logger.Debugw("Getting resource schema", "id", id)
-	// table, err := spark.GetResourceTable(id)
-	// if err != nil {
-	// 	spark.Logger.Errorw("Resource not registered in spark store", id, err)
-	// 	return ResourceSchema{}, fmt.Errorf("resource not registered: %v", err)
-	// }
-	// sparkResourceTable, ok := table.(*S3OfflineTable)
-	// if !ok {
-	// 	spark.Logger.Errorw("could not convert offline table to sparkResourceTable", id)
-	// 	return ResourceSchema{}, fmt.Errorf("could not convert offline table with id %v to sparkResourceTable", id)
-	// }
-	// spark.Logger.Debugw("Succesfully retrieved resource schema", "id", id)
-	// return sparkResourceTable.schema, nil
-	return ResourceSchema{}, nil
+	spark.Logger.Debugw("Getting resource schema", "id", id)
+	table, err := spark.GetResourceTable(id)
+	if err != nil {
+		spark.Logger.Errorw("Resource not registered in spark store", id, err)
+		return ResourceSchema{}, fmt.Errorf("resource not registered: %v", err)
+	}
+	sparkResourceTable, ok := table.(*BlobOfflineTable)
+	if !ok {
+		spark.Logger.Errorw("could not convert offline table to sparkResourceTable", id)
+		return ResourceSchema{}, fmt.Errorf("could not convert offline table with id %v to sparkResourceTable", id)
+	}
+	spark.Logger.Debugw("Succesfully retrieved resource schema", "id", id)
+	return sparkResourceTable.schema, nil
+}
+
+func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate bool) error {
+	if err := def.check(); err != nil {
+		spark.Logger.Errorw("Training set definition not valid", def, err)
+		return err
+	}
+	sourcePaths := make([]string, 0)
+	featureSchemas := make([]ResourceSchema, 0)
+	destinationPath := ResourcePath(def.ID)
+	trainingSetExists := spark.Store.NewestBlob(destinationPath) != ""
+	if trainingSetExists && !isUpdate {
+		spark.Logger.Errorw("Training set already exists", def.ID)
+		return fmt.Errorf("training set already exists: %v", def.ID)
+	} else if !trainingSetExists && isUpdate {
+		spark.Logger.Errorw("Training set does not exist", def.ID)
+		return fmt.Errorf("training set does not exist: %v", def.ID)
+	}
+	labelSchema, err := spark.registeredResourceSchema(def.Label)
+	if err != nil {
+		spark.Logger.Errorw("Could not get schema of label in spark store", def.Label, err)
+		return fmt.Errorf("Could not get schema of label %s: %v", def.Label, err)
+	}
+	labelPath := spark.Store.PathWithPrefix(labelSchema.SourceTable)
+	sourcePaths = append(sourcePaths, labelPath)
+	for _, feature := range def.Features {
+		featureSchema, err := spark.registeredResourceSchema(feature)
+		if err != nil {
+			spark.Logger.Errorw("Could not get schema of feature in spark store", feature, err)
+			return fmt.Errorf("Could not get schema of feature %s: %v", feature, err)
+		}
+		featurePath := spark.Store.PathWithPrefix(featureSchema.SourceTable)
+		sourcePaths = append(sourcePaths, featurePath)
+		featureSchemas = append(featureSchemas, featureSchema)
+	}
+	trainingSetQuery := spark.query.trainingSetCreate(def, featureSchemas, labelSchema)
+	sparkArgs := spark.Executor.SparkSubmitArgs(destinationPath, trainingSetQuery, sourcePaths, CreateTrainingSet)
+	spark.Logger.Debugw("Creating training set", "definition", def)
+	if err := spark.Executor.RunSparkJob(&sparkArgs); err != nil {
+		spark.Logger.Errorw("Spark submit training set job failed to run", "definition", def.ID, "error", err)
+		return fmt.Errorf("spark submit job for training set %v failed to run: %v", def.ID, err)
+	}
+	written := spark.Store.NewestBlob(ResourcePath(def.ID)) != ""
+	if !written {
+		spark.Logger.Errorw("Could not get training set resource key in offline store")
+		return fmt.Errorf("Training Set result does not exist in offline store")
+	}
+	spark.Logger.Debugw("Succesfully created training set:", "definition", def)
+	return nil
 }
 
 func (spark *SparkOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
-	return nil
-	// if err := def.check(); err != nil {
-	// 	spark.Logger.Errorw("Training set definition not valid", def, err)
-	// 	return err
-	// }
-	// sourcePaths := make([]string, 0)
-	// featureSchemas := make([]ResourceSchema, 0)
-	// destinationPath := spark.Store.ResourcePath(def.ID)
-	// trainingSetExists, err := spark.Store.ResourceExists(def.ID)
-	// if err != nil {
-	// 	spark.Logger.Errorw("Error checking if training set exists", err)
-	// 	return fmt.Errorf("error checking if training set exists: %v", err)
-	// }
-	// if trainingSetExists {
-	// 	spark.Logger.Errorw("Training set already exists", def.ID)
-	// 	return fmt.Errorf("training set already exists: %v", def.ID)
-	// }
-	// labelSchema, err := spark.registeredResourceSchema(def.Label)
-	// if err != nil {
-	// 	spark.Logger.Errorw("Could not get schema of label in spark store", def.Label, err)
-	// 	return fmt.Errorf("Could not get schema of label %s: %v", def.Label, err)
-	// }
-	// labelPath := spark.Store.KeyPath(labelSchema.SourceTable)
-	// sourcePaths = append(sourcePaths, labelPath)
-	// for _, feature := range def.Features {
-	// 	featureSchema, err := spark.registeredResourceSchema(feature)
-	// 	if err != nil {
-	// 		spark.Logger.Errorw("Could not get schema of feature in spark store", feature, err)
-	// 		return fmt.Errorf("Could not get schema of feature %s: %v", feature, err)
-	// 	}
-	// 	featurePath := spark.Store.KeyPath(featureSchema.SourceTable)
-	// 	sourcePaths = append(sourcePaths, featurePath)
-	// 	featureSchemas = append(featureSchemas, featureSchema)
-	// }
-	// trainingSetQuery := spark.query.trainingSetCreate(def, featureSchemas, labelSchema)
-	// sparkArgs := spark.Store.SparkSubmitArgs(destinationPath, trainingSetQuery, sourcePaths, CreateTrainingSet)
-	// spark.Logger.Debugw("Creating training set", "definition", def)
-	// if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
-	// 	spark.Logger.Errorw("Spark submit training set job failed to run", "definition", def.ID, "error", err)
-	// 	return fmt.Errorf("spark submit job for training set %v failed to run: %v", def.ID, err)
-	// }
-	// _, err = spark.Store.ResourceKeySinglePart(def.ID)
-	// if err != nil {
-	// 	spark.Logger.Errorw("Could not get training set resource key in offline store", "error", err)
-	// 	return fmt.Errorf("Training Set result does not exist in offline store: %v", err)
-	// }
-	// spark.Logger.Debugw("Succesfully created training set:", "definition", def)
-	// return nil
+	return sparkTrainingSet(def, spark, false)
+
 }
 
 func (spark *SparkOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {
-	return nil
-	// if err := def.check(); err != nil {
-	// 	spark.Logger.Errorw("Training set definition not valid", def, err)
-	// 	return err
-	// }
-	// sourcePaths := make([]string, 0)
-	// featureSchemas := make([]ResourceSchema, 0)
-	// destinationPath := spark.Store.ResourcePath(def.ID)
-	// labelSchema, err := spark.registeredResourceSchema(def.Label)
-	// if err != nil {
-	// 	spark.Logger.Errorw("Could not get label schema", def.Label, err)
-	// 	return fmt.Errorf("Could not get schema of label %s: %v", def.Label, err)
-	// }
-	// labelPath := labelSchema.SourceTable // spark.Store.KeyPath(labelSchema.SourceTable)
-	// sourcePaths = append(sourcePaths, labelPath)
-	// for _, feature := range def.Features {
-	// 	featureSchema, err := spark.registeredResourceSchema(feature)
-	// 	if err != nil {
-	// 		spark.Logger.Errorw("Could not get feature schema", feature, err)
-	// 		return fmt.Errorf("Could not get schema of feature %s: %v", feature, err)
-	// 	}
-	// 	featurePath := spark.Store.KeyPath(featureSchema.SourceTable)
-	// 	sourcePaths = append(sourcePaths, featurePath)
-	// 	featureSchemas = append(featureSchemas, featureSchema)
-	// }
-	// trainingSetQuery := spark.query.trainingSetCreate(def, featureSchemas, labelSchema)
-	// spark.Logger.Debugw("Updating training set", "definition", def)
-	// sparkArgs := spark.Store.SparkSubmitArgs(destinationPath, trainingSetQuery, sourcePaths, CreateTrainingSet)
-	// if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
-	// 	spark.Logger.Errorw("Spark submit job failed to run", "id", def.ID, "error", err)
-	// 	return fmt.Errorf("spark submit job for training set %v failed to run: %v", def.ID, err)
-	// }
-	// _, err = spark.Store.ResourceKeySinglePart(def.ID)
-	// if err != nil {
-	// 	spark.Logger.Errorw("Created Training set does not exist", err)
-	// 	return fmt.Errorf("Training Set result does not exist in offline store: %v", err)
-	// }
-	// spark.Logger.Debugw("Successfully updated training set:", def)
-	// return nil
+	return sparkTrainingSet(def, spark, true)
 }
 
 func (spark *SparkOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {

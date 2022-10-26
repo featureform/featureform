@@ -8,9 +8,9 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
-	"sort"
 	"time"
 
 	"github.com/featureform/helpers"
@@ -442,30 +442,37 @@ func (store genericBlobStore) NewestBlob(prefix string) string {
 	return mostRecentKey
 }
 
-// TODO: needs unit test
 func (store genericBlobStore) SparkOutputPartList(prefix string) []string {
 	opts := blob.ListOptions{
-		Prefix: prefix,
+		Prefix:    prefix,
+		Delimiter: "/",
 	}
 	listIterator := store.bucket.List(&opts)
-	mostRecentOutputPartTime := time.UnixMilli(0)
+	mostRecentOutputPartTime := "0000-00-00 00:00:00.000000"
 	mostRecentOutputPartPath := ""
 	for listObj, err := listIterator.Next(ctx); err == nil; listObj, err = listIterator.Next(ctx) {
 		if listObj == nil {
 			return []string{}
 		}
-		if listObj.IsDir && (listObj.ModTime.After(mostRecentOutputPartTime) || listObj.ModTime.Equal(mostRecentOutputPartTime)) {
-			mostRecentOutputPartTime = listObj.ModTime
+		dirParts := strings.Split(listObj.Key[:len(listObj.Key)-1], "/")
+		timestamp := dirParts[len(dirParts)-1]
+		if listObj.IsDir && timestamp > mostRecentOutputPartTime {
+			mostRecentOutputPartTime = timestamp
 			mostRecentOutputPartPath = listObj.Key
 		}
 	}
+	fmt.Println("most recent output part path is")
+	fmt.Println(mostRecentOutputPartPath)
 	opts = blob.ListOptions{
 		Prefix: mostRecentOutputPartPath,
 	}
 	partsIterator := store.bucket.List(&opts)
 	partsList := make([]string, 0)
+	fmt.Println("iterating over path")
 	for listObj, err := partsIterator.Next(ctx); err == nil; listObj, err = partsIterator.Next(ctx) {
+		// fmt.Println(listObj.Key)
 		pathParts := strings.Split(listObj.Key, ".")
+
 		fileType := pathParts[len(pathParts)-1]
 		if fileType == "parquet" {
 			partsList = append(partsList, listObj.Key)
@@ -515,14 +522,8 @@ func (store genericBlobStore) ServeDirectory(dir string) (Iterator, error) {
 	if len(fileParts) == 0 {
 		return nil, fmt.Errorf("no files in given directory")
 	}
-	fileType := string(fileParts[0][len(fileParts[0])-1])
-	switch fileType {
-	case "parquet":
-		return parquetIteratorOverMultipleFiles(fileParts, store)
-	default:
-		return nil, fmt.Errorf("unsupported file type: %s", fileType)
-	}
-
+	// assume file type is parquet
+	return parquetIteratorOverMultipleFiles(fileParts, store)
 }
 
 type ParquetIteratorMultipleFiles struct {
@@ -537,6 +538,7 @@ func parquetIteratorOverMultipleFiles(fileParts []string, store genericBlobStore
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("getting iterator:", fileParts[0])
 	iterator, err := parquetIteratorFromReader(r)
 	if err != nil {
 		return nil, fmt.Errorf("could not open first parquet file: %v", err)
@@ -555,7 +557,7 @@ func (p *ParquetIteratorMultipleFiles) Next() (map[string]interface{}, error) {
 		return nil, err
 	}
 	if nextRow == nil {
-		if p.currentFile == int64(len(p.fileList)) {
+		if p.currentFile+1 == int64(len(p.fileList)) {
 			return nil, nil
 		}
 		p.currentFile += 1
@@ -564,7 +566,11 @@ func (p *ParquetIteratorMultipleFiles) Next() (map[string]interface{}, error) {
 			return nil, err
 		}
 		iterator, err := parquetIteratorFromReader(r)
+		if err != nil {
+			return nil, err
+		}
 		p.fileIterator = iterator
+		return p.fileIterator.Next()
 	}
 	return nextRow, nil
 }

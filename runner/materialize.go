@@ -11,7 +11,7 @@ import (
 	"github.com/featureform/provider"
 )
 
-const MAXIMUM_CHUNK_ROWS int64 = 1024
+const MAXIMUM_CHUNK_ROWS int64 = 100000
 const WORKER_IMAGE string = "featureformcom/worker"
 
 type JobCloud string

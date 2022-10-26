@@ -109,11 +109,11 @@ class OfflineSparkProvider(OfflineProvider):
         self.__provider = provider
 
     def register_parquet_file(self,
-                       name: str,
-                       variant: str,
-                       file_path: str,
-                       owner: Union[str, UserRegistrar] = "",
-                       description: str = ""):
+                              name: str,
+                              file_path: str,
+                              owner: Union[str, UserRegistrar] = "",
+                              description: str = "",
+                              variant: str = "default"):
         """Register a Spark data source as a primary data source.
 
         Args:

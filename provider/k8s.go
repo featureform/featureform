@@ -885,8 +885,9 @@ func (k8s *K8sOfflineStore) sqlTransformation(config TransformationConfig, isUpd
 	runnerArgs := k8s.pandasRunnerArgs(transformationDestination, updatedQuery, sources, Transform)
 	runnerArgs = addResourceID(runnerArgs, config.TargetTableID)
 	if err := k8s.executor.ExecuteScript(runnerArgs); err != nil {
-		k8s.logger.Errorw("job for transformation failed to run", config.TargetTableID, err)
-		return fmt.Errorf("job for transformation %v failed to run: %v", config.TargetTableID, err)
+		k8s.logger.Errorw("job for transformation failed to run", "name", config.TargetTableID.Name, "variant", config.TargetTableID.Variant, "error", err)
+		return fmt.Errorf("job for transformation failed to run: (name: %s variant:%s) %v", config.TargetTableID.Name, config.TargetTableID.Variant, err)
+
 	}
 	k8s.logger.Debugw("Succesfully ran SQL transformation", config)
 	return nil
@@ -925,7 +926,7 @@ func (k8s *K8sOfflineStore) dfTransformation(config TransformationConfig, isUpda
 	k8s.logger.Debugw("Running DF transformation", config)
 	if err := k8s.executor.ExecuteScript(k8sArgs); err != nil {
 		k8s.logger.Errorw("Error running dataframe job", err)
-		return fmt.Errorf("submit job for transformation %v failed to run: %v", config.TargetTableID, err)
+		return fmt.Errorf("job for transformation failed to run: (name: %s variant:%s) %v", config.TargetTableID.Name, config.TargetTableID.Variant, err)
 	}
 	k8s.logger.Debugw("Successfully ran transformation", "type", config.Type, "name", config.TargetTableID.Name, "variant", config.TargetTableID.Variant)
 	return nil

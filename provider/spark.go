@@ -988,8 +988,8 @@ func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, i
 	spark.Logger.Debugw("Running SQL transformation", config)
 	sparkArgs := spark.Store.SparkSubmitArgs(transformationDestination, updatedQuery, sources, Transform)
 	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
-		spark.Logger.Errorw("spark submit job for transformation failed to run", config.TargetTableID, err)
-		return fmt.Errorf("spark submit job for transformation %v failed to run: %v", config.TargetTableID, err)
+		spark.Logger.Errorw("spark submit job for transformation failed to run", "name", config.TargetTableID.Name, "variant", config.TargetTableID.Variant, "error", err)
+		return fmt.Errorf("spark submit job for transformation failed to run: (name: %s variant:%s) %v", config.TargetTableID.Name, config.TargetTableID.Variant, err)
 	}
 	spark.Logger.Debugw("Succesfully ran SQL transformation", config)
 	return nil
@@ -1043,7 +1043,7 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 	spark.Logger.Debugw("Running DF transformation", config)
 	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
 		spark.Logger.Errorw("Error running Spark dataframe job", err)
-		return fmt.Errorf("spark submit job for transformation %v failed to run: %v", config.TargetTableID, err)
+		return fmt.Errorf("spark submit job for transformation failed to run: (name: %s variant:%s) %v", config.TargetTableID.Name, config.TargetTableID.Variant, err)
 	}
 	spark.Logger.Debugw("Successfully ran transformation", "type", config.Type, "name", config.TargetTableID.Name, "variant", config.TargetTableID.Variant)
 	return nil

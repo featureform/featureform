@@ -36,7 +36,7 @@ func GetJobName(id metadata.ResourceID, image string) string {
 }
 
 func GetCronJobName(id metadata.ResourceID) string {
-	return strings.ReplaceAll(fmt.Sprintf("%s-%s-%d", strings.ToLower(id.Name), strings.ToLower(id.Variant), id.Type), "_", ".")
+	return strings.ReplaceAll(fmt.Sprintf("featureform-%s-%s-%s-%d", strings.ToLower(string(id.Type)), strings.ToLower(id.Name), strings.ToLower(id.Variant), id.Type), "_", ".")
 }
 
 func makeCronSchedule(schedule string) (*CronSchedule, error) {
@@ -187,7 +187,7 @@ func (k KubernetesCompletionWatcher) Wait() error {
 				return nil
 			}
 			if failed := jobEvent.Object.(*batchv1.Job).Status.Failed; failed > 0 {
-				return fmt.Errorf("job failed while running")
+				return fmt.Errorf("job failed while running: container: %s", jobEvent.Object.(*batchv1.Job).Name)
 			}
 		}
 
@@ -201,7 +201,7 @@ func (k KubernetesCompletionWatcher) Err() error {
 		return err
 	}
 	if job.Status.Failed > 0 {
-		return fmt.Errorf("job failed while running")
+		return fmt.Errorf("job failed while running: container: %s: %w", job.Name, err)
 	}
 	return nil
 }
@@ -313,7 +313,8 @@ func (k KubernetesJobClient) UpdateJobSchedule(schedule CronSchedule, jobSpec *b
 	cronJob := &batchv1.CronJob{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      k.JobName,
-			Namespace: k.Namespace},
+			Namespace: k.Namespace,
+		},
 		Spec: batchv1.CronJobSpec{
 			Schedule: string(schedule),
 			JobTemplate: batchv1.JobTemplateSpec{

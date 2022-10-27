@@ -819,7 +819,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 }
 
 func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule string) error {
-	c.Logger.Info("Running training set job on resource: ", resID)
+	c.Logger.Info("Running training set job on resource: ", "name", resID.Name, "variant", resID.Variant)
 	ts, err := c.Metadata.GetTrainingSetVariant(context.Background(), metadata.NameVariant{resID.Name, resID.Variant})
 	if err != nil {
 		return fmt.Errorf("fetch training set variant from metadata: %w", err)

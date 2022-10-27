@@ -103,16 +103,16 @@ func (id *ResourceID) check(expectedType OfflineResourceType, otherTypes ...Offl
 }
 
 type LagFeatureDef struct {
-	FeatureName string
-    FeatureVariant string
-	LagName string
-    LagDelta time.Time
+	FeatureName    string
+	FeatureVariant string
+	LagName        string
+	LagDelta       time.Time
 }
 
 type TrainingSetDef struct {
-	ID       ResourceID
-	Label    ResourceID
-	Features []ResourceID
+	ID          ResourceID
+	Label       ResourceID
+	Features    []ResourceID
 	LagFeatures []LagFeatureDef
 }
 

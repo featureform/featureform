@@ -1378,7 +1378,7 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 		ExpectedRows   []expectedTrainingRow
 		FeatureSchema  []TableSchema
 		LabelSchema    TableSchema
-		LagFeatures []TestLagFeature
+		LagFeatures    []TestLagFeature
 	}
 
 	tests := map[string]TestCase{
@@ -1406,19 +1406,18 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 					},
 				},
 			},
-			LagFeatures: []TestLagFeature {
+			LagFeatures: []TestLagFeature{
 				{
 					func(id ResourceID) LagFeatureDef {
 						return LagFeatureDef{
-							FeatureName: id.Name,
+							FeatureName:    id.Name,
 							FeatureVariant: id.Variant,
-							LagName: "",
-							LagDelta: time.UnixMilli(0),
+							LagName:        "",
+							LagDelta:       time.UnixMilli(0),
 						}
-					}
-				}
-				
-			}
+					},
+				},
+			},
 			LabelRecords: []ResourceRecord{
 				{Entity: "a", Value: true, TS: time.UnixMilli(1)},
 				{Entity: "b", Value: false, TS: time.UnixMilli(1)},
@@ -1465,7 +1464,6 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 					{Entity: "c", Value: 3, TS: time.UnixMilli(3)},
 					{Entity: "a", Value: 4, TS: time.UnixMilli(4)},
 				},
-
 			},
 			FeatureSchema: []TableSchema{
 				{
@@ -1475,29 +1473,28 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 					},
 				},
 			},
-			LagFeatures: []TestLagFeature {
+			LagFeatures: []TestLagFeature{
 				{
 					func(id ResourceID) LagFeatureDef {
 						return LagFeature{
-							FeatureName: id.Name,
+							FeatureName:    id.Name,
 							FeatureVariant: id.Variant,
-							LagName: "",
-							LagDelta: time.UnixMilli(1),
+							LagName:        "",
+							LagDelta:       time.UnixMilli(1),
 						}
-					}
+					},
 				},
 				{
 					func(id ResourceID) LagFeatureDef {
 						return LagFeature{
-							FeatureName: id.Name,
+							FeatureName:    id.Name,
 							FeatureVariant: id.Variant,
-							LagName: "",
-							LagDelta: time.UnixMilli(2),
+							LagName:        "",
+							LagDelta:       time.UnixMilli(2),
 						}
-					}
-				}
-				
-			}
+					},
+				},
+			},
 			LabelRecords: []ResourceRecord{
 				{Entity: "a", Value: 10, TS: time.UnixMilli(1)},
 				{Entity: "b", Value: 20, TS: time.UnixMilli(2)},
@@ -1513,7 +1510,7 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 			ExpectedRows: []expectedTrainingRow{
 				{
 					Features: []interface{}{
-						1, nil, nil
+						1, nil, nil,
 					},
 					Label: 10,
 				},
@@ -1537,7 +1534,6 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 				},
 			},
 		},
-
 	}
 	runTestCase := func(t *testing.T, test TestCase) {
 		featureIDs := make([]ResourceID, len(test.FeatureRecords))
@@ -1566,14 +1562,14 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 			}
 		}
 		lagFeatureList := make([]LagFeature, 0)
-		for _, lagFeatureDef := range(test.LagFeatures) {
+		for _, lagFeatureDef := range test.LagFeatures {
 			// tests implicitly create lag feature from first listed feature
 			lagFeatureList = append(lagFeatureList, lagFeatureDef(featureIDs[0]))
 		}
 		def := TrainingSetDef{
-			ID:       randomID(TrainingSet),
-			Label:    labelID,
-			Features: featureIDs,
+			ID:          randomID(TrainingSet),
+			Label:       labelID,
+			Features:    featureIDs,
 			LagFeatures: lagFeatureList,
 		}
 		if err := store.CreateTrainingSet(def); err != nil {

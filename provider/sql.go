@@ -1269,9 +1269,9 @@ func (q defaultOfflineSQLQueries) createValuePlaceholderString(columns []TableCo
 func (q defaultOfflineSQLQueries) trainingSetQuery(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string, isUpdate bool) error {
 	columns := make([]string, 0)
 	query := ""
-	lagFeturesOffset := 0
+	lagFeaturesOffset := 0
 	for i, feature := range def.Features {
-		lagFeturesOffset = i
+		lagFeaturesOffset = i
 		tableName, err := store.getResourceTableName(feature)
 		santizedName := sanitize(tableName)
 		if err != nil {

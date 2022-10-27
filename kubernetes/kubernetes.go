@@ -229,8 +229,8 @@ func (k KubernetesCompletionWatcher) Wait() error {
 				return nil
 			}
 			if failed := job.Status.Failed; failed > 0 {
-				return fmt.Errorf("job failed while running: container: %s: error: %s",
-					jobEvent.Object.(*batchv1.Job).Name, getPodLogs(job.Namespace, job.GetName()))
+				return fmt.Errorf("job failed while running: container: %s: error: %s UID: %s",
+					job.Name, getPodLogs(job.Namespace, job.GetName()), job.UID)
 			}
 		}
 

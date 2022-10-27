@@ -5,22 +5,25 @@
 package kubernetes
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"github.com/featureform/metadata"
 	"github.com/featureform/types"
 	"github.com/google/uuid"
 	"github.com/gorhill/cronexpr"
+	"io"
 	"io/ioutil"
 	batchv1 "k8s.io/api/batch/v1"
 	"math"
 	"strings"
 
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	watch "k8s.io/apimachinery/pkg/watch"
-	kubernetes "k8s.io/client-go/kubernetes"
-	rest "k8s.io/client-go/rest"
+	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 )
 
 type CronSchedule string
@@ -175,6 +178,34 @@ func (k KubernetesCompletionWatcher) String() string {
 	return fmt.Sprintf("%d jobs succeeded. %d jobs active. %d jobs failed", job.Status.Succeeded, job.Status.Active, job.Status.Failed)
 }
 
+func getPodLogs(namespace string, name string) string {
+	podLogOpts := corev1.PodLogOptions{}
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		return "error in getting config"
+	}
+	// creates the clientset
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return "error in getting access to K8S"
+	}
+	req := clientset.CoreV1().Pods(namespace).GetLogs(name, &podLogOpts)
+	podLogs, err := req.Stream(context.Background())
+	if err != nil {
+		return "error in opening stream"
+	}
+	defer podLogs.Close()
+
+	buf := new(bytes.Buffer)
+	_, err = io.Copy(buf, podLogs)
+	if err != nil {
+		return "error in copy information from podLogs to buf"
+	}
+	str := buf.String()
+
+	return str
+}
+
 func (k KubernetesCompletionWatcher) Wait() error {
 	watcher, err := k.jobClient.Watch()
 	if err != nil {
@@ -182,12 +213,14 @@ func (k KubernetesCompletionWatcher) Wait() error {
 	}
 	watchChannel := watcher.ResultChan()
 	for jobEvent := range watchChannel {
-		if active := jobEvent.Object.(*batchv1.Job).Status.Active; active == 0 {
-			if succeeded := jobEvent.Object.(*batchv1.Job).Status.Succeeded; succeeded > 0 {
+		job := jobEvent.Object.(*batchv1.Job)
+		if active := job.Status.Active; active == 0 {
+			if succeeded := job.Status.Succeeded; succeeded > 0 {
 				return nil
 			}
-			if failed := jobEvent.Object.(*batchv1.Job).Status.Failed; failed > 0 {
-				return fmt.Errorf("job failed while running: container: %s", jobEvent.Object.(*batchv1.Job).Name)
+			if failed := job.Status.Failed; failed > 0 {
+				return fmt.Errorf("job failed while running: container: %s: error: %s",
+					jobEvent.Object.(*batchv1.Job).Name, getPodLogs(job.Namespace, job.Name))
 			}
 		}
 

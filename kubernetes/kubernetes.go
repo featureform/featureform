@@ -29,13 +29,16 @@ import (
 type CronSchedule string
 
 func GetJobName(id metadata.ResourceID, image string) string {
+	fmt.Println("INITIAL NAME:", id)
 	jobName := strings.ReplaceAll(fmt.Sprintf("%s-%s-%s-%s-%s", id.Name, id.Variant, id.Type, image, uuid.New().String()), "_", ".")
 	removedSlashes := strings.ReplaceAll(jobName, "/", "")
 	removedColons := strings.ReplaceAll(removedSlashes, ":", "")
 	MaxJobSize := 63
 	lowerCase := strings.ToLower(removedColons)
 	jobNameSize := int(math.Min(float64(len(lowerCase)), float64(MaxJobSize)))
-	return lowerCase[0:jobNameSize]
+	lowerName := lowerCase[0:jobNameSize]
+	fmt.Println("FINAL NAME:", lowerName)
+	return lowerName
 }
 
 func GetCronJobName(id metadata.ResourceID) string {
@@ -220,7 +223,7 @@ func (k KubernetesCompletionWatcher) Wait() error {
 			}
 			if failed := job.Status.Failed; failed > 0 {
 				return fmt.Errorf("job failed while running: container: %s: error: %s",
-					jobEvent.Object.(*batchv1.Job).Name, getPodLogs(job.Namespace, job.Name))
+					jobEvent.Object.(*batchv1.Job).Name, getPodLogs(job.Namespace, job.GetName()))
 			}
 		}
 

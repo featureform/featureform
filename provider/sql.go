@@ -1283,22 +1283,21 @@ func (q defaultOfflineSQLQueries) trainingSetQuery(store *sqlOfflineStore, def T
 			query, santizedName, santizedName, tableJoinAlias, tableJoinAlias, tableJoinAlias)
 
 	}
-	if def.LagFeatures != nil {
-		for i, lagFeature := range def.LagFeatures {
-			tableName, err := store.getResourceTableName(ResourceID{lagFeature.FeatureName, lagFeature.FeatureVariant})
-			if err != nil {
-				return err
-			}
-			lagColumnName := sanitize(lagFeature.LagName)
-			if lagColumnName == "" {
-				lagColumnName := sanitize(fmt.Sprintf("%s_%s", tableName, lagFeature.LagDelta))
-			}
-			tableJoinAlias := fmt.Sprintf("t%d", lagFeaturesOffset+i+1)
-			timeDeltaSeconds := lagFeature.LagDelta.Seconds()
-			query = fmt.Sprintf("%s LEFT OUTER JOIN (SELECT entity, value as %s, ts FROM %s ORDER BY ts desc) as %s ON (%s.entity=t0.entity AND (%s.ts + INTERVAL '%d') <= t0.ts)",
-				query, lagColumnName, lagColumnName, tableJoinAlias, tableJoinAlias, tableJoinAlias, timeDeltaSeconds)
+	for i, lagFeature := range def.LagFeatures {
+		tableName, err := store.getResourceTableName(ResourceID{lagFeature.FeatureName, lagFeature.FeatureVariant})
+		if err != nil {
+			return err
 		}
+		lagColumnName := sanitize(lagFeature.LagName)
+		if lagColumnName == "" {
+			lagColumnName := sanitize(fmt.Sprintf("%s_%s", tableName, lagFeature.LagDelta))
+		}
+		tableJoinAlias := fmt.Sprintf("t%d", lagFeaturesOffset+i+1)
+		timeDeltaSeconds := lagFeature.LagDelta.Seconds()
+		query = fmt.Sprintf("%s LEFT OUTER JOIN (SELECT entity, value as %s, ts FROM %s ORDER BY ts desc) as %s ON (%s.entity=t0.entity AND (%s.ts + INTERVAL '%d') <= t0.ts)",
+			query, lagColumnName, lagColumnName, tableJoinAlias, tableJoinAlias, tableJoinAlias, timeDeltaSeconds)
 	}
+
 	query = fmt.Sprintf("%s )) WHERE rn=1", query)
 	columnStr := strings.Join(columns, ", ")
 	if !isUpdate {

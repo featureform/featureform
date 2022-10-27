@@ -32,12 +32,11 @@ const MaxNameLength = 53
 
 func GetJobName(id metadata.ResourceID, image string) string {
 	fmt.Println("INITIAL NAME:", id)
-	uniqueID := strings.ReplaceAll(fmt.Sprintf("%s%s", uuid.New().String(), uuid.New().String()), "-", "")
 	resourceName := fmt.Sprintf("%s-%s-%s", id.Type, id.Name, id.Variant)
 	if len(resourceName) > MaxNameLength {
 		resourceName = resourceName[:MaxNameLength]
 	}
-	jobName := strings.ReplaceAll(fmt.Sprintf("%s-%s", resourceName, uniqueID), "_", ".")
+	jobName := strings.ReplaceAll(resourceName, "_", ".")
 	removedSlashes := strings.ReplaceAll(jobName, "/", "")
 	removedColons := strings.ReplaceAll(removedSlashes, ":", "")
 	MaxJobSize := 63
@@ -199,11 +198,25 @@ func getPodLogs(namespace string, name string) string {
 	if err != nil {
 		return fmt.Sprintf("error in getting access to K8S: %s", err.Error())
 	}
-	req := clientset.CoreV1().Pods(namespace).GetLogs(name, &podLogOpts)
+	podList, err := clientset.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return fmt.Sprintf("could not get pod list: %s", err.Error())
+	}
+	podName := ""
+	for _, pod := range podList.Items {
+		currentPod := pod.GetName()
+		if strings.Contains(currentPod, name) {
+			podName = currentPod
+		}
+	}
+	if podName == "" {
+		return fmt.Sprintf("pod not found: %s", name)
+	}
+	req := clientset.CoreV1().Pods(namespace).GetLogs(podName, &podLogOpts)
 	podLogs, err := req.Stream(context.Background())
 	if err != nil {
 		fmt.Println(err.Error())
-		return "error in opening steam" //fmt.Sprintf("error in opening stream: %s", err.Error())
+		return fmt.Sprintf("error in opening stream: %s", err.Error())
 	}
 	defer podLogs.Close()
 
@@ -213,9 +226,8 @@ func getPodLogs(namespace string, name string) string {
 		return fmt.Sprintf("error in copy information from podLogs to buf: %s", err.Error())
 	}
 	str := buf.String()
-	fmt.Println(str)
 
-	return "Checked logs"
+	return str
 }
 
 func (k KubernetesCompletionWatcher) Wait() error {
@@ -260,9 +272,10 @@ func (k KubernetesRunner) IsUpdateJob() bool {
 }
 
 func (k KubernetesRunner) Run() (types.CompletionWatcher, error) {
-	if _, err := k.jobClient.Create(k.jobSpec); err != nil {
+	if job, err := k.jobClient.Create(k.jobSpec); err != nil {
 		return nil, err
 	}
+	job
 	return KubernetesCompletionWatcher{jobClient: k.jobClient}, nil
 }
 

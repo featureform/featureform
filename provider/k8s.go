@@ -783,12 +783,12 @@ func (k8s *K8sOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, source
 		return nil, fmt.Errorf("primary already exists")
 	}
 
-	k8s.logger.Debugw("Registering primary table", id, "for source", sourceName)
+	k8s.logger.Debugw("Registering primary table", "id", id, "source", sourceName)
 	if err := k8s.store.Write(resourceKey, []byte(sourceName)); err != nil {
 		k8s.logger.Errorw("Could not write primary table", err)
 		return nil, err
 	}
-	k8s.logger.Debugw("Succesfully registered primary table", id, "for source", sourceName)
+	k8s.logger.Debugw("Succesfully registered primary table", "id", id, "source", sourceName)
 	return &BlobPrimaryTable{k8s.store, sourceName, false, id}, nil
 }
 
@@ -1197,7 +1197,7 @@ func (k8s *K8sOfflineStore) materialization(id ResourceID, isUpdate bool) (Mater
 	k8sArgs = addResourceID(k8sArgs, id)
 	k8s.logger.Debugw("Creating materialization", "id", id)
 	if err := k8s.executor.ExecuteScript(k8sArgs); err != nil {
-		k8s.logger.Errorw("Job failed to run", err)
+		k8s.logger.Errorw("Job failed to run", "error", err)
 		return nil, fmt.Errorf("job for materialization %v failed to run: %v", materializationID, err)
 	}
 	matPath := k8s.store.PathWithPrefix(blobResourcePath(materializationID))

@@ -196,15 +196,16 @@ func getPodLogs(namespace string, name string) string {
 	if err != nil {
 		return fmt.Sprintf("error in getting access to K8S: %s", err.Error())
 	}
-	podList, err := clientset.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("name=%s", name),
-	})
+	podList, err := clientset.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return fmt.Sprintf("could not get pod list: %s", err.Error())
 	}
 	podName := ""
 	for _, pod := range podList.Items {
-		podName = pod.GetName()
+		currentPod := pod.GetName()
+		if strings.Contains(currentPod, name) {
+			podName = currentPod
+		}
 	}
 	if podName == "" {
 		return fmt.Sprintf("pod not found: %s", name)

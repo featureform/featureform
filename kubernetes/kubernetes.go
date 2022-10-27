@@ -32,7 +32,7 @@ const MaxNameLength = 53
 
 func GetJobName(id metadata.ResourceID, image string) string {
 	fmt.Println("INITIAL NAME:", id)
-	uniqueID := strings.Split(uuid.New().String(), "-")[0]
+	uniqueID := strings.ReplaceAll(fmt.Sprintf("%s%s", uuid.New().String(), uuid.New().String()), "-", "")
 	resourceName := fmt.Sprintf("%s-%s-%s", id.Type, id.Name, id.Variant)
 	if len(resourceName) > MaxNameLength {
 		resourceName = resourceName[:MaxNameLength]
@@ -230,7 +230,7 @@ func (k KubernetesCompletionWatcher) Wait() error {
 			}
 			if failed := job.Status.Failed; failed > 0 {
 				return fmt.Errorf("job failed while running: container: %s: error: %s UID: %s",
-					job.Name, getPodLogs(job.Namespace, job.GetName()), job.UID)
+					job.Name, getPodLogs(job.Namespace, job.GetName()), job)
 			}
 		}
 

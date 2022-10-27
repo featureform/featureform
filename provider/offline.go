@@ -102,10 +102,18 @@ func (id *ResourceID) check(expectedType OfflineResourceType, otherTypes ...Offl
 	return fmt.Errorf("Unexpected ResourceID Type")
 }
 
+type LagFeatureDef struct {
+	FeatureName    string
+	FeatureVariant string
+	LagName        string
+	LagDelta       time.Duration
+}
+
 type TrainingSetDef struct {
-	ID       ResourceID
-	Label    ResourceID
-	Features []ResourceID
+	ID          ResourceID
+	Label       ResourceID
+	Features    []ResourceID
+	LagFeatures []LagFeatureDef
 }
 
 func (def *TrainingSetDef) check() error {

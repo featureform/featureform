@@ -3427,7 +3427,7 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 		ExpectedRows   []expectedTrainingRow
 		FeatureSchema  []TableSchema
 		LabelSchema    TableSchema
-		LagFeatures    []TestLagFeature
+		LagFeatures    []func(ResourceID) LagFeatureDef
 	}
 
 	tests := map[string]TestCase{
@@ -3455,14 +3455,14 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 					},
 				},
 			},
-			LagFeatures: []func(id ResourceID) LagFeatureDef{
+			LagFeatures: []func(ResourceID) LagFeatureDef{
 				{
 					func(id ResourceID) LagFeatureDef {
 						return LagFeatureDef{
 							FeatureName:    id.Name,
 							FeatureVariant: id.Variant,
 							LagName:        "",
-							LagDelta:       time.UnixMilli(0),
+							LagDelta:       time.Millisecond,
 						}
 					},
 				},
@@ -3525,21 +3525,21 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 			LagFeatures: []func(id ResourceID) LagFeatureDef{
 				{
 					func(id ResourceID) LagFeatureDef {
-						return LagFeature{
+						return LagFeatureDef{
 							FeatureName:    id.Name,
 							FeatureVariant: id.Variant,
 							LagName:        "",
-							LagDelta:       time.UnixMilli(1),
+							LagDelta:       time.Millisecond,
 						}
 					},
 				},
 				{
 					func(id ResourceID) LagFeatureDef {
-						return LagFeature{
+						return LagFeatureDef{
 							FeatureName:    id.Name,
 							FeatureVariant: id.Variant,
 							LagName:        "",
-							LagDelta:       time.UnixMilli(2),
+							LagDelta:       time.Millisecond * 2,
 						}
 					},
 				},
@@ -3610,7 +3610,7 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 				t.Fatalf("Failed to write record %v", rec)
 			}
 		}
-		lagFeatureList := make([]func(id ResourceID) LagFeatureDef, 0)
+		lagFeatureList := make(LagFeatureDef, 0)
 		for _, lagFeatureDef := range test.LagFeatures {
 			// tests implicitly create lag feature from first listed feature
 			lagFeatureList = append(lagFeatureList, lagFeatureDef(featureIDs[0]))

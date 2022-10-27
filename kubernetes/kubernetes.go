@@ -202,7 +202,8 @@ func getPodLogs(namespace string, name string) string {
 	req := clientset.CoreV1().Pods(namespace).GetLogs(name, &podLogOpts)
 	podLogs, err := req.Stream(context.Background())
 	if err != nil {
-		return fmt.Sprintf("error in opening stream: %s", err.Error())
+		fmt.Errorf(err.Error())
+		return "error in opening steam" //fmt.Sprintf("error in opening stream: %s", err.Error())
 	}
 	defer podLogs.Close()
 

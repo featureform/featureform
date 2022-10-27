@@ -203,8 +203,10 @@ func getPodLogs(namespace string, name string) string {
 		return fmt.Sprintf("could not get pod list: %s", err.Error())
 	}
 	podName := ""
+	fmt.Println("LOOKING FOR:", name)
 	for _, pod := range podList.Items {
 		currentPod := pod.GetName()
+		fmt.Printf(currentPod)
 		if strings.Contains(currentPod, name) {
 			podName = currentPod
 		}

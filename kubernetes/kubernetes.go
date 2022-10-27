@@ -274,10 +274,9 @@ func (k KubernetesRunner) IsUpdateJob() bool {
 }
 
 func (k KubernetesRunner) Run() (types.CompletionWatcher, error) {
-	if job, err := k.jobClient.Create(k.jobSpec); err != nil {
+	if _, err := k.jobClient.Create(k.jobSpec); err != nil {
 		return nil, err
 	}
-	job
 	return KubernetesCompletionWatcher{jobClient: k.jobClient}, nil
 }
 

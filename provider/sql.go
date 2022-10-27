@@ -1285,7 +1285,7 @@ func (q defaultOfflineSQLQueries) trainingSetQuery(store *sqlOfflineStore, def T
 	}
 	if def.LagFeatures != nil {
 		for i, lagFeature := range def.LagFeatures {
-			tableName, err := store.getResourceTableName(ResourceID{lagFeature.FeatureName, lagFeatre.FeatureVariant})
+			tableName, err := store.getResourceTableName(ResourceID{lagFeature.FeatureName, lagFeature.FeatureVariant})
 			if err != nil {
 				return err
 			}

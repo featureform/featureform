@@ -1295,7 +1295,7 @@ func (q defaultOfflineSQLQueries) trainingSetQuery(store *sqlOfflineStore, def T
 			}
 			tableJoinAlias := fmt.Sprintf("t%d", lagFeaturesOffset+i+1)
 			timeDeltaSeconds := lagFeature.LagDelta.Seconds()
-			query = fmt.Sprintf("%s LEFT OUTER JOIN (SELECT entity, value as %s, ts FROM %s ORDER BY ts desc) as %s ON (%s.entity=t0.entity AND (%s.ts + INTERVAL %d) <= t0.ts)",
+			query = fmt.Sprintf("%s LEFT OUTER JOIN (SELECT entity, value as %s, ts FROM %s ORDER BY ts desc) as %s ON (%s.entity=t0.entity AND (%s.ts + INTERVAL '%d') <= t0.ts)",
 				query, lagColumnName, lagColumnName, tableJoinAlias, tableJoinAlias, tableJoinAlias, timeDeltaSeconds)
 		}
 	}

@@ -28,9 +28,13 @@ import (
 
 type CronSchedule string
 
+const MaxNameLength = 53
+
 func GetJobName(id metadata.ResourceID, image string) string {
 	fmt.Println("INITIAL NAME:", id)
-	jobName := strings.ReplaceAll(fmt.Sprintf("%s-%s-%s-%s", id.Type, id.Name, id.Variant, uuid.New().String()), "_", ".")
+	uniqueID := strings.Split(uuid.New().String(), "-")[0]
+	truncatedResource := fmt.Sprintf("%s-%s-%s", id.Type, id.Name, id.Variant)[:MaxNameLength]
+	jobName := strings.ReplaceAll(fmt.Sprintf("%s-%s", truncatedResource, uniqueID), "_", ".")
 	removedSlashes := strings.ReplaceAll(jobName, "/", "")
 	removedColons := strings.ReplaceAll(removedSlashes, ":", "")
 	MaxJobSize := 63

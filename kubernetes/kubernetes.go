@@ -212,8 +212,9 @@ func getPodLogs(namespace string, name string) string {
 		return fmt.Sprintf("error in copy information from podLogs to buf: %s", err.Error())
 	}
 	str := buf.String()
+	fmt.Println(str)
 
-	return str
+	return "Checked logs"
 }
 
 func (k KubernetesCompletionWatcher) Wait() error {

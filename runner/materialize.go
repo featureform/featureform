@@ -169,11 +169,9 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 			return nil, fmt.Errorf("kubernetes run: %w", err)
 		}
 	case LocalMaterializeRunner:
-		fmt.Println("Making Local Materialize Runner")
 		m.Logger.Infow("Making Local Runner", "name", m.ID.Name, "variant", m.ID.Variant)
 		completionList := make([]types.CompletionWatcher, int(numChunks))
 		for i := 0; i < int(numChunks); i++ {
-			fmt.Println("Getting Number of Rows")
 			localRunner, err := Create(string(COPY_TO_ONLINE), serializedConfig)
 			if err != nil {
 				return nil, fmt.Errorf("local runner create: %w", err)

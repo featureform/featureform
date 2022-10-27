@@ -202,7 +202,7 @@ func getPodLogs(namespace string, name string) string {
 	req := clientset.CoreV1().Pods(namespace).GetLogs(name, &podLogOpts)
 	podLogs, err := req.Stream(context.Background())
 	if err != nil {
-		fmt.Errorf(err.Error())
+		fmt.Println(err.Error())
 		return "error in opening steam" //fmt.Sprintf("error in opening stream: %s", err.Error())
 	}
 	defer podLogs.Close()
@@ -232,7 +232,7 @@ func (k KubernetesCompletionWatcher) Wait() error {
 			}
 			if failed := job.Status.Failed; failed > 0 {
 				return fmt.Errorf("job failed while running: container: %s: error: %s UID: %s",
-					job.Name, getPodLogs(job.Namespace, job.GetName()), job)
+					job.Name, getPodLogs(job.Namespace, job.GetName()), job.Name)
 			}
 		}
 

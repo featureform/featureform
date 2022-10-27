@@ -186,8 +186,14 @@ func (k *KubernetesJobSpawner) GetJobRunner(jobName string, config runner.Config
 		return nil, err
 	}
 	pandas_image := help.GetEnv("PANDAS_RUNNER_IMAGE", "featureformcom/k8s_runner:0.3.0-rc")
+	fmt.Println("GETJOBRUNNERID:", id)
 	kubeConfig := kubernetes.KubernetesRunnerConfig{
-		EnvVars:  map[string]string{"NAME": jobName, "CONFIG": string(config), "ETCD_CONFIG": string(serializedETCD), "K8S_RUNNER_IMAGE": pandas_image},
+		EnvVars: map[string]string{
+			"NAME":             jobName,
+			"CONFIG":           string(config),
+			"ETCD_CONFIG":      string(serializedETCD),
+			"K8S_RUNNER_IMAGE": pandas_image,
+		},
 		Image:    help.GetEnv("WORKER_IMAGE", "local/worker:stable"),
 		NumTasks: 1,
 		Resource: id,

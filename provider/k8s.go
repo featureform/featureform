@@ -859,7 +859,7 @@ func (k8s K8sOfflineStore) getDFArgs(outputURI string, code string, mapping []So
 
 func addResourceID(envVars map[string]string, id ResourceID) map[string]string {
 	envVars["RESOURCE_NAME"] = id.Name
-	envVars["RESOURCE_VARIANT"] = id.Name
+	envVars["RESOURCE_VARIANT"] = id.Variant
 	envVars["RESOURCE_TYPE"] = fmt.Sprintf("%d", id.Type)
 	return envVars
 }

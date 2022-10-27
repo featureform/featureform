@@ -1284,13 +1284,13 @@ func (q defaultOfflineSQLQueries) trainingSetQuery(store *sqlOfflineStore, def T
 
 	}
 	for i, lagFeature := range def.LagFeatures {
-		tableName, err := store.getResourceTableName(ResourceID{lagFeature.FeatureName, lagFeature.FeatureVariant})
+		tableName, err := store.getResourceTableName(ResourceID{lagFeature.FeatureName, lagFeature.FeatureVariant, Feature})
 		if err != nil {
 			return err
 		}
 		lagColumnName := sanitize(lagFeature.LagName)
 		if lagColumnName == "" {
-			lagColumnName := sanitize(fmt.Sprintf("%s_%s", tableName, lagFeature.LagDelta))
+			lagColumnName = sanitize(fmt.Sprintf("%s_%s", tableName, lagFeature.LagDelta))
 		}
 		tableJoinAlias := fmt.Sprintf("t%d", lagFeaturesOffset+i+1)
 		timeDeltaSeconds := lagFeature.LagDelta.Seconds()

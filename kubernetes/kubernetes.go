@@ -33,8 +33,11 @@ const MaxNameLength = 53
 func GetJobName(id metadata.ResourceID, image string) string {
 	fmt.Println("INITIAL NAME:", id)
 	uniqueID := strings.Split(uuid.New().String(), "-")[0]
-	truncatedResource := fmt.Sprintf("%s-%s-%s", id.Type, id.Name, id.Variant)[:MaxNameLength]
-	jobName := strings.ReplaceAll(fmt.Sprintf("%s-%s", truncatedResource, uniqueID), "_", ".")
+	resourceName := fmt.Sprintf("%s-%s-%s", id.Type, id.Name, id.Variant)[:MaxNameLength]
+	if len(resourceName) > MaxNameLength {
+		resourceName = resourceName[:MaxNameLength]
+	}
+	jobName := strings.ReplaceAll(fmt.Sprintf("%s-%s", resourceName, uniqueID), "_", ".")
 	removedSlashes := strings.ReplaceAll(jobName, "/", "")
 	removedColons := strings.ReplaceAll(removedSlashes, ":", "")
 	MaxJobSize := 63

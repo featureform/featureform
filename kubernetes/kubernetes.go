@@ -31,7 +31,6 @@ type CronSchedule string
 const MaxNameLength = 53
 
 func GetJobName(id metadata.ResourceID, image string) string {
-	fmt.Println("INITIAL NAME:", id)
 	resourceName := fmt.Sprintf("%s-%s-%s", id.Type, id.Name, id.Variant)
 	if len(resourceName) > MaxNameLength {
 		resourceName = resourceName[:MaxNameLength]
@@ -43,7 +42,6 @@ func GetJobName(id metadata.ResourceID, image string) string {
 	lowerCase := strings.ToLower(removedColons)
 	jobNameSize := int(math.Min(float64(len(lowerCase)), float64(MaxJobSize)))
 	lowerName := lowerCase[0:jobNameSize]
-	fmt.Println("FINAL NAME:", lowerName)
 	return lowerName
 }
 
@@ -203,10 +201,8 @@ func getPodLogs(namespace string, name string) string {
 		return fmt.Sprintf("could not get pod list: %s", err.Error())
 	}
 	podName := ""
-	fmt.Println("LOOKING FOR:", name)
 	for _, pod := range podList.Items {
 		currentPod := pod.GetName()
-		fmt.Printf(currentPod)
 		if strings.Contains(currentPod, name) {
 			podName = currentPod
 		}
@@ -217,7 +213,6 @@ func getPodLogs(namespace string, name string) string {
 	req := clientset.CoreV1().Pods(namespace).GetLogs(podName, &podLogOpts)
 	podLogs, err := req.Stream(context.Background())
 	if err != nil {
-		fmt.Println(err.Error())
 		return fmt.Sprintf("error in opening stream: %s", err.Error())
 	}
 	defer podLogs.Close()
@@ -245,8 +240,8 @@ func (k KubernetesCompletionWatcher) Wait() error {
 				return nil
 			}
 			if failed := job.Status.Failed; failed > 0 {
-				return fmt.Errorf("job failed while running: container: %s: error: %s UID: %s",
-					job.Name, getPodLogs(job.Namespace, job.GetName()), job.Name)
+				return fmt.Errorf("job failed while running: container: %s: error: %s",
+					job.Name, getPodLogs(job.Namespace, job.GetName()))
 			}
 		}
 

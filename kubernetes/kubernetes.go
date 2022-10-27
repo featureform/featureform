@@ -182,24 +182,24 @@ func getPodLogs(namespace string, name string) string {
 	podLogOpts := corev1.PodLogOptions{}
 	config, err := rest.InClusterConfig()
 	if err != nil {
-		return "error in getting config"
+		return fmt.Sprintf("error in getting config, %s", err.Error())
 	}
 	// creates the clientset
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		return "error in getting access to K8S"
+		return fmt.Sprintf("error in getting access to K8S: %s", err.Error())
 	}
 	req := clientset.CoreV1().Pods(namespace).GetLogs(name, &podLogOpts)
 	podLogs, err := req.Stream(context.Background())
 	if err != nil {
-		return "error in opening stream"
+		return fmt.Sprintf("error in opening stream: %s", err.Error())
 	}
 	defer podLogs.Close()
 
 	buf := new(bytes.Buffer)
 	_, err = io.Copy(buf, podLogs)
 	if err != nil {
-		return "error in copy information from podLogs to buf"
+		return fmt.Sprintf("error in copy information from podLogs to buf: %s", err.Error())
 	}
 	str := buf.String()
 

@@ -1291,6 +1291,7 @@ func (q defaultOfflineSQLQueries) trainingSetQuery(store *sqlOfflineStore, def T
 		if lagColumnName == "" {
 			lagColumnName = sanitize(fmt.Sprintf("%s_%s", tableName, lagFeature.LagDelta))
 		}
+		columns = append(columns, lagColumnName)
 		sanitizedName := sanitize(tableName)
 		tableJoinAlias := fmt.Sprintf("t%d", lagFeaturesOffset+i+1)
 		timeDeltaSeconds := lagFeature.LagDelta.Seconds()

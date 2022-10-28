@@ -3457,15 +3457,13 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 				},
 			},
 			LagFeatures: []func(ResourceID) LagFeatureDef{
-				{
-					func(id ResourceID) LagFeatureDef {
-						return LagFeatureDef{
-							FeatureName:    id.Name,
-							FeatureVariant: id.Variant,
-							LagName:        "",
-							LagDelta:       time.Millisecond,
-						}
-					},
+				func(id ResourceID) LagFeatureDef {
+					return LagFeatureDef{
+						FeatureName:    id.Name,
+						FeatureVariant: id.Variant,
+						LagName:        "",
+						LagDelta:       time.Millisecond,
+					}
 				},
 			},
 			LabelRecords: []ResourceRecord{
@@ -3523,26 +3521,22 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 					},
 				},
 			},
-			LagFeatures: []func(id ResourceID) LagFeatureDef{
-				{
-					func(id ResourceID) LagFeatureDef {
-						return LagFeatureDef{
-							FeatureName:    id.Name,
-							FeatureVariant: id.Variant,
-							LagName:        "",
-							LagDelta:       time.Millisecond,
-						}
-					},
+			LagFeatures: []func(ResourceID) LagFeatureDef{
+				func(id ResourceID) LagFeatureDef {
+					return LagFeatureDef{
+						FeatureName:    id.Name,
+						FeatureVariant: id.Variant,
+						LagName:        "",
+						LagDelta:       time.Millisecond,
+					}
 				},
-				{
-					func(id ResourceID) LagFeatureDef {
-						return LagFeatureDef{
-							FeatureName:    id.Name,
-							FeatureVariant: id.Variant,
-							LagName:        "",
-							LagDelta:       time.Millisecond * 2,
-						}
-					},
+				func(id ResourceID) LagFeatureDef {
+					return LagFeatureDef{
+						FeatureName:    id.Name,
+						FeatureVariant: id.Variant,
+						LagName:        "",
+						LagDelta:       time.Millisecond * 2,
+					}
 				},
 			},
 			LabelRecords: []ResourceRecord{
@@ -3611,7 +3605,7 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 				t.Fatalf("Failed to write record %v", rec)
 			}
 		}
-		lagFeatureList := make(LagFeatureDef, 0)
+		lagFeatureList := make([]LagFeatureDef, 0)
 		for _, lagFeatureDef := range test.LagFeatures {
 			// tests implicitly create lag feature from first listed feature
 			lagFeatureList = append(lagFeatureList, lagFeatureDef(featureIDs[0]))

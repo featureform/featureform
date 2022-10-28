@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"github.com/featureform/coordinator"
 	help "github.com/featureform/helpers"
+	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	"github.com/featureform/runner"
 	clientv3 "go.etcd.io/etcd/client/v3"
-	"go.uber.org/zap"
 	"time"
 )
 
@@ -43,7 +43,7 @@ func main() {
 		panic(err)
 	}
 	fmt.Println("connected to etcd")
-	logger := zap.NewExample().Sugar()
+	logger := logging.NewLogger("coordinator")
 	defer logger.Sync()
 	logger.Debug("Connected to ETCD")
 	client, err := metadata.NewClient(metadataUrl, logger)

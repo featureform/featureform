@@ -1269,9 +1269,7 @@ func (q defaultOfflineSQLQueries) createValuePlaceholderString(columns []TableCo
 func (q defaultOfflineSQLQueries) trainingSetQuery(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string, isUpdate bool) error {
 	columns := make([]string, 0)
 	query := ""
-	lagFeaturesOffset := 0
 	for i, feature := range def.Features {
-		lagFeaturesOffset = i
 		tableName, err := store.getResourceTableName(feature)
 		santizedName := sanitize(tableName)
 		if err != nil {
@@ -1284,6 +1282,7 @@ func (q defaultOfflineSQLQueries) trainingSetQuery(store *sqlOfflineStore, def T
 
 	}
 	for i, lagFeature := range def.LagFeatures {
+		lagFeaturesOffset := len(def.Features)
 		tableName, err := store.getResourceTableName(ResourceID{lagFeature.FeatureName, lagFeature.FeatureVariant, Feature})
 		if err != nil {
 			return err
@@ -1293,7 +1292,7 @@ func (q defaultOfflineSQLQueries) trainingSetQuery(store *sqlOfflineStore, def T
 			lagColumnName = sanitize(fmt.Sprintf("%s_%s", tableName, lagFeature.LagDelta))
 		}
 		sanitizedName := sanitize(tableName)
-		tableJoinAlias := fmt.Sprintf("t%d", lagFeaturesOffset+i+2)
+		tableJoinAlias := fmt.Sprintf("t%d", lagFeaturesOffset+i)
 		timeDeltaSeconds := lagFeature.LagDelta.Seconds()
 		query = fmt.Sprintf("%s LEFT OUTER JOIN (SELECT entity, value as %s, ts FROM %s ORDER BY ts desc) as %s ON (%s.entity=t0.entity AND (%s.ts + INTERVAL '%f') <= t0.ts)",
 			query, lagColumnName, sanitizedName, tableJoinAlias, tableJoinAlias, tableJoinAlias, timeDeltaSeconds)

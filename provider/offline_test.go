@@ -3448,13 +3448,6 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 						{Name: "label", ValueType: Bool},
 					},
 				},
-				{
-					Columns: []TableColumn{
-						{Name: "entity", ValueType: String},
-						{Name: "value", ValueType: String},
-						{Name: "label", ValueType: Bool},
-					},
-				},
 			},
 			LagFeatures: []func(ResourceID) LagFeatureDef{
 				func(id ResourceID) LagFeatureDef {
@@ -3481,7 +3474,6 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 				{
 					Features: []interface{}{
 						1,
-						"red",
 						1,
 					},
 					Label: true,
@@ -3489,7 +3481,6 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 				{
 					Features: []interface{}{
 						2,
-						"green",
 						2,
 					},
 					Label: false,
@@ -3497,7 +3488,6 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 				{
 					Features: []interface{}{
 						3,
-						"blue",
 						3,
 					},
 					Label: true,

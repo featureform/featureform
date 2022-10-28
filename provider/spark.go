@@ -175,6 +175,29 @@ func (q defaultSparkOfflineQueries) trainingSetCreate(def TrainingSetDef, featur
 		featureJoinQuery := fmt.Sprintf("LEFT OUTER JOIN (%s) t%d ON (t%d_entity = entity AND t%d_ts <= label_ts)", featureWindowQuery, i+1, i+1, i+1)
 		joinQueries = append(joinQueries, featureJoinQuery)
 	}
+	for i, lagFeature := range def.LagFeatures {
+		lagFeaturesOffset := len(def.Features)
+		idx := slices.IndexFunc(def.Features, func(id ResourceID) bool {
+			return id.Name == lagFeature.FeatureName && id.Variant == lagFeature.FeatureVariant
+		})
+		lagSource := fmt.Sprintf("source_%d", idx)
+		lagColumnName := sanitize(lagFeature.LagName)
+		if lagFeature.LagName == "" {
+			lagColumnName = sanitize(fmt.Sprintf("%s_lag_%s", tableName, lagFeature.LagDelta))
+		}
+		columns = append(columns, lagColumnName)
+		sanitizedName := sanitize(tableName)
+		timeDeltaSeconds := lagFeature.LagDelta.Seconds()
+		curIdx := lagFeaturesOffset + i + 1
+		var lagWindowQuery string
+		if featureSchemas[idx].TS == "" {
+			lagWindowQuery = fmt.Sprintf("SELECT * FROM (SELECT %s as t%d_entity, %s as %s, 0 as t%d_ts FROM %s) ORDER BY t%d_ts ASC", featureSchemas[idx].Entity, curIdx, featureSchemas[idx].Value, lagColumnName, curIdx, lagSource, curIdx)
+		} else {
+			lagWindowQuery = fmt.Sprintf("SELECT * FROM (SELECT %s as t%d_entity, %s as %s, %s as t%d_ts FROM %s) ORDER BY t%d_ts ASC", featureSchemas[idx].Entity, curIdx, featureSchemas[idx].Value, lagColumnName, featureSchemas[idx].TS, curIdx, lagSource, curIdx)
+		}
+		lagJoinQuery := fmt.Sprintf("LEFT OUTER JOIN (%s) t%d ON (t%d_entity = entity AND (t%d_ts + INTERVAL '%f') <= label_ts)", lagWindowQuery, curIdx, curIdx, curIdx, timeDeltaSeconds)
+		joinQueries = append(joinQueries, lagWindowQuery)
+	}
 	columnStr := strings.Join(columns, ", ")
 	joinQueryString := strings.Join(joinQueries, " ")
 	var labelWindowQuery string

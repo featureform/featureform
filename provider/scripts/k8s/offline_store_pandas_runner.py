@@ -11,6 +11,7 @@ import etcd
 import pandas as pd
 from pandasql import sqldf
 from azure.storage.blob import BlobServiceClient
+import inspect
 
 
 LOCAL_MODE = "local"
@@ -124,8 +125,10 @@ def execute_df_job(mode, output_uri, code, sources, etcd_credentials, blob_crede
         code = get_code_from_file(mode, code_path + "/transformation.pkl", etcd_credentials)
         func = types.FunctionType(code, globals(), "df_transformation")
         output_df = pd.DataFrame(func(*func_parameters))
+        print(output_df.columns)
         dt = datetime.now()
         output_uri_with_timestamp = f"{output_uri}{dt}"
+        print(inspect.getsource(func))
 
         if blob_credentials.type == AZURE:
             local_output = f"{LOCAL_DATA_PATH}/output.parquet"

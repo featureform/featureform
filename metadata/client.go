@@ -1644,6 +1644,10 @@ func (variant *TrainingSetVariant) Label() NameVariant {
 	return parseNameVariant(variant.serialized.GetLabel())
 }
 
+func (variant *TrainingSetVariant) LagFeatures() []*pb.FeatureLag {
+	return variant.serialized.GetFeatureLags()
+}
+
 func (variant *TrainingSetVariant) FetchLabel(client *Client, ctx context.Context) (*LabelVariant, error) {
 	labelList, err := client.GetLabelVariants(ctx, []NameVariant{variant.Label()})
 	if err != nil {

@@ -836,6 +836,18 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 			return fmt.Errorf("feature could not complete job: %v", err)
 		}
 	}
+
+	lagFeatures := ts.LagFeatures()
+	lagFeaturesList := make([]provider.LagFeatureDef, len(lagFeatures))
+	for i, lagFeature := range lagFeatures {
+		lagFeaturesList[i] = provider.LagFeatureDef{
+			FeatureName:    lagFeature.GetFeature(),
+			FeatureVariant: lagFeature.GetVariant(),
+			LagName:        lagFeature.GetName(),
+			LagDelta:       lagFeature.GetLag(), // see if need to convert it to time.Duration
+		}
+	}
+
 	label, err := ts.FetchLabel(c.Metadata, context.Background())
 	if err != nil {
 		return fmt.Errorf("fetch training set label: %w", err)
@@ -850,9 +862,10 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 		return fmt.Errorf("label could not complete job: %v", err)
 	}
 	trainingSetDef := provider.TrainingSetDef{
-		ID:       providerResID,
-		Label:    provider.ResourceID{Name: label.Name(), Variant: label.Variant(), Type: provider.Label},
-		Features: featureList,
+		ID:          providerResID,
+		Label:       provider.ResourceID{Name: label.Name(), Variant: label.Variant(), Type: provider.Label},
+		Features:    featureList,
+		LagFeatures: lagFeaturesList,
 	}
 	tsRunnerConfig := runner.TrainingSetRunnerConfig{
 		OfflineType:   provider.Type(providerEntry.Type()),

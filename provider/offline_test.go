@@ -3455,7 +3455,7 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 						FeatureName:    id.Name,
 						FeatureVariant: id.Variant,
 						LagName:        "",
-						LagDelta:       time.Millisecond,
+						LagDelta:       time.Millisecond * 0,
 					}
 				},
 			},
@@ -3498,9 +3498,8 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 			FeatureRecords: [][]ResourceRecord{
 				{
 					{Entity: "a", Value: 1, TS: time.UnixMilli(1)},
-					{Entity: "b", Value: 2, TS: time.UnixMilli(2)},
-					{Entity: "c", Value: 3, TS: time.UnixMilli(3)},
-					{Entity: "a", Value: 4, TS: time.UnixMilli(4)},
+					{Entity: "b", Value: 2, TS: time.UnixMilli(1)},
+					{Entity: "c", Value: 3, TS: time.UnixMilli(1)},
 				},
 			},
 			FeatureSchema: []TableSchema{
@@ -3533,7 +3532,6 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 				{Entity: "a", Value: 10, TS: time.UnixMilli(1)},
 				{Entity: "b", Value: 20, TS: time.UnixMilli(2)},
 				{Entity: "b", Value: 30, TS: time.UnixMilli(3)},
-				{Entity: "c", Value: 40, TS: time.UnixMilli(4)},
 			},
 			LabelSchema: TableSchema{
 				Columns: []TableColumn{

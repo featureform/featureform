@@ -2,6 +2,8 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+
+from datetime import timedelta
 from multiprocessing.sharedctypes import Value
 from typeguard import typechecked, check_type
 from typing import Tuple, Callable, List, Union
@@ -1979,11 +1981,14 @@ class Registrar:
                     if set(["lag", "feature", "variant"]) in set(feature.keys()):
                         raise ValueError(f"feature lags require 'lag', 'feature', 'variant' fields. Received: {feature.keys()}")
                     
+                    if not isinstance(lag, timedelta):
+                        raise ValueError(f"the lag, '{lag}', needs to be of type 'datetime.timedelta'. Received: {type(lag)}.")
+
                     feature_name_variant = (feature["feature"], feature["variant"])
                     if feature_name_variant not in feature_nv_list:
                         feature_nv_list.append(feature_name_variant)
 
-                    lag_name = f"{feature['feature']}_{feature['variant']}_lag_{feature['lag']}"
+                    lag_name = f"{feature['feature']}_{feature['variant']}_lag_{lag}"
                     sanitized_lag_name = lag_name.replace(" ", "").replace(",", "_").replace(":", "_")
                     feature["name"] = feature.get("name", sanitized_lag_name)
                     
@@ -1995,7 +2000,10 @@ class Registrar:
                 feature_nv_list.extend(self.__get_feature_nv(feature))
             else:
                 feature_nv_list.append(feature)
-        return feature_nv_list, feature_lags
+
+        unique_feature_nv_list = list(set(feature_nv_list))
+        unique_feature_lags = list(set(feature_lags))
+        return unique_feature_nv_list, unique_feature_lags
 
     def register_training_set(self,
                               name: str,

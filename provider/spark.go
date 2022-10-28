@@ -10,6 +10,7 @@ import (
 	"path"
 	"reflect"
 	"runtime"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -183,10 +184,9 @@ func (q defaultSparkOfflineQueries) trainingSetCreate(def TrainingSetDef, featur
 		lagSource := fmt.Sprintf("source_%d", idx)
 		lagColumnName := sanitize(lagFeature.LagName)
 		if lagFeature.LagName == "" {
-			lagColumnName = sanitize(fmt.Sprintf("%s_lag_%s", tableName, lagFeature.LagDelta))
+			lagColumnName = sanitize(fmt.Sprintf("%s_%s_lag_%s", lagFeature.FeatureName, lagFeature.FeatureVariant, lagFeature.LagDelta))
 		}
 		columns = append(columns, lagColumnName)
-		sanitizedName := sanitize(tableName)
 		timeDeltaSeconds := lagFeature.LagDelta.Seconds()
 		curIdx := lagFeaturesOffset + i + 1
 		var lagWindowQuery string
@@ -196,7 +196,7 @@ func (q defaultSparkOfflineQueries) trainingSetCreate(def TrainingSetDef, featur
 			lagWindowQuery = fmt.Sprintf("SELECT * FROM (SELECT %s as t%d_entity, %s as %s, %s as t%d_ts FROM %s) ORDER BY t%d_ts ASC", featureSchemas[idx].Entity, curIdx, featureSchemas[idx].Value, lagColumnName, featureSchemas[idx].TS, curIdx, lagSource, curIdx)
 		}
 		lagJoinQuery := fmt.Sprintf("LEFT OUTER JOIN (%s) t%d ON (t%d_entity = entity AND (t%d_ts + INTERVAL '%f') <= label_ts)", lagWindowQuery, curIdx, curIdx, curIdx, timeDeltaSeconds)
-		joinQueries = append(joinQueries, lagWindowQuery)
+		joinQueries = append(joinQueries, lagJoinQuery)
 	}
 	columnStr := strings.Join(columns, ", ")
 	joinQueryString := strings.Join(joinQueries, " ")

@@ -210,6 +210,8 @@ func getPodLogs(namespace string, name string) string {
 	if podName == "" {
 		return fmt.Sprintf("pod not found: %s", name)
 	}
+	lines := int64(1)
+	podLogOpts.TailLines = &lines
 	req := clientset.CoreV1().Pods(namespace).GetLogs(podName, &podLogOpts)
 	podLogs, err := req.Stream(context.Background())
 	if err != nil {

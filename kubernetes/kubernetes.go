@@ -30,8 +30,13 @@ type CronSchedule string
 
 const MaxNameLength = 53
 
-func GetJobName(id metadata.ResourceID, image string) string {
-	resourceName := fmt.Sprintf("%s-%s-%s", id.Type, id.Name, id.Variant)
+func GetJobName(id metadata.ResourceID, isCoordinator bool) string {
+	var resourceName string
+	if isCoordinator {
+		resourceName = fmt.Sprintf("worker-%s-%s-%s", id.Type, id.Name, id.Variant)
+	} else {
+		resourceName = fmt.Sprintf("%s-%s-%s", id.Type, id.Name, id.Variant)
+	}
 	if len(resourceName) > MaxNameLength {
 		resourceName = resourceName[:MaxNameLength]
 	}
@@ -141,10 +146,11 @@ func newJobSpec(config KubernetesRunnerConfig) batchv1.JobSpec {
 }
 
 type KubernetesRunnerConfig struct {
-	EnvVars  map[string]string
-	Resource metadata.ResourceID
-	Image    string
-	NumTasks int32
+	EnvVars             map[string]string
+	Resource            metadata.ResourceID
+	Image               string
+	NumTasks            int32
+	IsCoordinatorRunner bool
 }
 
 type JobClient interface {
@@ -300,7 +306,7 @@ func NewKubernetesRunner(config KubernetesRunnerConfig) (CronRunner, error) {
 	jobSpec := newJobSpec(config)
 	var jobName string
 	if config.Resource.Name != "" {
-		jobName = GetJobName(config.Resource, config.Image)
+		jobName = GetJobName(config.Resource, config.IsCoordinatorRunner)
 	} else {
 		jobName = generateCleanRandomJobName()
 	}

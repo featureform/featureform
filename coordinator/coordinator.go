@@ -194,9 +194,10 @@ func (k *KubernetesJobSpawner) GetJobRunner(jobName string, config runner.Config
 			"ETCD_CONFIG":      string(serializedETCD),
 			"K8S_RUNNER_IMAGE": pandas_image,
 		},
-		Image:    help.GetEnv("WORKER_IMAGE", "local/worker:stable"),
-		NumTasks: 1,
-		Resource: id,
+		Image:               help.GetEnv("WORKER_IMAGE", "local/worker:stable"),
+		NumTasks:            1,
+		Resource:            id,
+		IsCoordinatorRunner: true,
 	}
 	jobRunner, err := kubernetes.NewKubernetesRunner(kubeConfig)
 	if err != nil {

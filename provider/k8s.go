@@ -348,6 +348,7 @@ func (kube KubernetesExecutor) ExecuteScript(envVars map[string]string) error {
 			Variant: envVars["RESOURCE_VARIANT"],
 			Type:    ProviderToMetadataResourceType[OfflineResourceType(resourceType)],
 		},
+		IsCoordinatorRunner: false,
 	}
 	jobRunner, err := kubernetes.NewKubernetesRunner(config)
 	if err != nil {

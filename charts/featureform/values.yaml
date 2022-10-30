@@ -88,6 +88,7 @@ global:
   k8s_runner_enable: false
   nginx:
     enabled: true
+  tlsSecretName: "featureform-ca-secret"
 
 
 metadata:

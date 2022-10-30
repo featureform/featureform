@@ -115,8 +115,8 @@ func newJobSpec(config KubernetesRunnerConfig) batchv1.JobSpec {
 	} else {
 		completionMode = batchv1.NonIndexedCompletion
 	}
-	backoffLimit := int32(1)
-	ttlLimit := int32(360)
+	backoffLimit := int32(0)
+	ttlLimit := int32(3600)
 	return batchv1.JobSpec{
 		Completions:             &config.NumTasks,
 		Parallelism:             &config.NumTasks,
@@ -130,7 +130,7 @@ func newJobSpec(config KubernetesRunnerConfig) batchv1.JobSpec {
 						Name:            containerID,
 						Image:           config.Image,
 						Env:             envVars,
-						ImagePullPolicy: v1.PullAlways,
+						ImagePullPolicy: v1.PullIfNotPresent,
 					},
 				},
 				RestartPolicy: v1.RestartPolicyNever,

@@ -89,7 +89,7 @@ ff.register_training_set(
     label=(f"fraudulent_{VERSION}", "quickstart"),
     features=[
         (f"avg_transactions_{VERSION}", "quickstart"),
-        {"feature_name": f"avg_transactions_{VERSION}", "feature_variant": "quickstart", "name": "avg_transaction_new_name"},
-        {"feature_name": f"avg_transactions_{VERSION}", "feature_variant": "quickstart", "name": "avg_transaction_lag_1d", "lag": timedelta(days=1)},
+        {"feature": f"avg_transactions_{VERSION}", "variant": "quickstart", "name": "avg_transaction_new_name"},
+        {"feature": f"avg_transactions_{VERSION}", "variant": "quickstart", "name": "avg_transaction_lag_1d", "lag": timedelta(days=1)},
     ],
 )

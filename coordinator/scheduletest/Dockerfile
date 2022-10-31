@@ -1,4 +1,4 @@
-FROM golang:1.17-alpine
+FROM golang:1.18-alpine
 
 WORKDIR /app
 
@@ -16,14 +16,17 @@ COPY ./metadata/search/ ./metadata/search/
 COPY ./metadata/server/server.go ./metadata/main/server.go
 COPY ./coordinator/*.go ./coordinator/
 COPY ./provider/ ./provider/
+COPY ./logging/ ./logging/
 COPY ./helpers/ ./helpers/
 COPY ./metadata/ ./metadata/
+COPY ./kubernetes/ ./kubernetes/
+COPY ./types/ ./types/
 COPY ./runner/ ./runner/
 COPY ./coordinator/scheduletest/*.go ./coordinator/scheduletest/
 
 RUN go build ./coordinator/scheduletest/main.go
 
-FROM golang:1.17-alpine
+FROM golang:1.18-alpine
 
 COPY --from=0 ./app/main ./main
 

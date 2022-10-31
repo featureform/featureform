@@ -1,7 +1,7 @@
 # RUN docker build -f ./coordinator/Dockerfile . -t coordinator from /serving
 # docker tag coordinator:latest featureformcom/coordinator:latest
 # docker push featureformcom/coordinator:latest
-FROM golang:1.17-alpine
+FROM golang:1.18-alpine
 
 WORKDIR /app
 
@@ -16,8 +16,11 @@ RUN protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_o
 COPY ./coordinator/*.go ./coordinator/
 COPY ./provider/ ./provider/
 COPY ./helpers/ ./helpers/
+COPY ./logging/ ./logging/
 COPY ./metadata/ ./metadata/
 COPY ./runner/ ./runner/
+COPY ./kubernetes ./kubernetes
+COPY ./types ./types
 COPY ./coordinator/main/main.go ./coordinator/main/main.go
 
 RUN go build ./coordinator/main/main.go

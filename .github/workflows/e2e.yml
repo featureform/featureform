@@ -190,6 +190,7 @@ jobs:
           path: /tmp/worker.tar
   test:
     name: Run Tests
+    environment: Integration testing
     needs: [api-server, coordinator, dashboard, dashboard-metadata, metadata, serving, worker]
     defaults:
       run:
@@ -280,6 +281,10 @@ jobs:
           export FEATUREFORM_CERT="tls.crt"
 
       - name: Test End-to-End
+        env:
+          AZURE_ACCOUNT_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
+          AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
+          AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
         run: make test_e2e
 
       - name: Check That Dashboard Is Working

@@ -7,6 +7,7 @@ package runner
 import (
 	"errors"
 	"github.com/featureform/metadata"
+	"github.com/featureform/types"
 	"testing"
 )
 
@@ -14,7 +15,7 @@ type MockRunner struct{}
 
 type MockCompletionWatcher struct{}
 
-func (m *MockRunner) Run() (CompletionWatcher, error) {
+func (m *MockRunner) Run() (types.CompletionWatcher, error) {
 	return &MockCompletionWatcher{}, nil
 }
 
@@ -45,7 +46,7 @@ func (m *MockCompletionWatcher) Err() error {
 func TestRegisterAndCreate(t *testing.T) {
 	mockRunner := &MockRunner{}
 	mockConfig := []byte{}
-	mockFactory := func(config Config) (Runner, error) {
+	mockFactory := func(config Config) (types.Runner, error) {
 		return mockRunner, nil
 	}
 	if err := RegisterFactory("mock", mockFactory); err != nil {
@@ -63,7 +64,7 @@ func TestRegisterAndCreate(t *testing.T) {
 }
 
 func TestCreateRunnerError(t *testing.T) {
-	errorFactory := func(config Config) (Runner, error) {
+	errorFactory := func(config Config) (types.Runner, error) {
 		return nil, errors.New("creating runner triggered error")
 	}
 	mockConfig := []byte{}

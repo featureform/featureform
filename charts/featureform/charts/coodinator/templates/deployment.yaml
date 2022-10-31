@@ -4,7 +4,7 @@ metadata:
   name: featureform-coordinator
   labels:
     chart: featureform
-    {{- include "coodinator.labels" . | nindent 4 }}
+    {{- include "coordinator.labels" . | nindent 4 }}
 spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
@@ -13,7 +13,7 @@ spec:
     matchLabels:
       chart: featureform
       app: featureform-coordinator
-      {{- include "coodinator.selectorLabels" . | nindent 6 }}
+      {{- include "coordinator.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       {{- with .Values.podAnnotations }}
@@ -23,13 +23,13 @@ spec:
       labels:
         chart: featureform
         app: featureform-coordinator
-        {{- include "coodinator.selectorLabels" . | nindent 8 }}
+        {{- include "coordinator.selectorLabels" . | nindent 8 }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ include "coodinator.serviceAccountName" . }}
+      serviceAccountName: {{ include "coordinator.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
@@ -51,6 +51,8 @@ spec:
               value: {{ .Values.global.k8s_runner_enable | quote }}
             - name: WORKER_IMAGE
               value: "{{ .Values.global.repo | default .Values.image.repository }}/worker:{{ .Values.global.version | default .Chart.AppVersion }}"
+            - name: PANDAS_RUNNER_IMAGE
+              value: "{{ .Values.global.repo | default .Values.image.repository }}/k8s_runner:{{ .Values.global.version | default .Chart.AppVersion }}"
 
           ports:
             - name: http

@@ -14,7 +14,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.17
+          go-version: 1.18
 
         # Dependencies required for when golangci-lint checks imports
       - name: Install grpc_tools
@@ -31,8 +31,8 @@ jobs:
 
       - name: Setup Git Config
         run: |
-            git config user.name "GitHub Actions Bot"
-            git config user.email "<>"
+          git config user.name "GitHub Actions Bot"
+          git config user.email "<>"
 
       - name: Git Commit and Push
         continue-on-error: true
@@ -47,5 +47,3 @@ jobs:
       - name: Run Linter
         continue-on-error: true
         run: golangci-lint run ./...
-
-

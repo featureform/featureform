@@ -1,7 +1,7 @@
 # docker build -f ./serving/Dockerfile . -t serving in /serving
 # docker tag serving:latest featureformcom/serving:latest
 # docker push featureformcom/serving:latest
-FROM golang:1.17-alpine
+FROM golang:1.18-alpine
 
 WORKDIR /app
 
@@ -18,6 +18,9 @@ RUN protoc --go_out=. --go_opt=paths=source_relative     --go-grpc_out=. --go-gr
 COPY serving/*.go ./serving/
 COPY ./metadata/ ./metadata/
 COPY ./helpers/ ./helpers/
+COPY ./logging/ ./logging/
+COPY ./types/ ./types/
+COPY ./kubernetes/ ./kubernetes/
 COPY ./metrics/ ./metrics/
 COPY ./provider/ ./provider/
 COPY serving/main/main.go ./serving/main/main.go

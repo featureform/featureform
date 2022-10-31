@@ -4,7 +4,7 @@
 # docker build -f ./runner/Dockerfile . -t worker in /serving
 # docker tag worker:latest featureformcom/worker:latest
 # docker push featureformcom/worker:latest
-FROM golang:1.17-alpine
+FROM golang:1.18-alpine
 
 WORKDIR /app
 
@@ -20,6 +20,9 @@ COPY runner/*.go ./runner/
 COPY runner/worker/*.go ./runner/worker/
 COPY coordinator/*.go ./coordinator/
 COPY helpers/ ./helpers/
+COPY logging/ ./logging/
+COPY types/ ./types/
+COPY kubernetes/ ./kubernetes/
 COPY metadata/*.go ./metadata/
 COPY metadata/search/* ./metadata/search/
 COPY provider/* ./provider/

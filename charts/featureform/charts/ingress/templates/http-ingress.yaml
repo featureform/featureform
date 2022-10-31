@@ -11,6 +11,11 @@ metadata:
     cert-manager.io/issuer: letsencrypt-prod
   name: http-ingress
 spec:
+  defaultBackend:
+    service:
+      name: featureform-dashboard
+      port:
+        number: 80
   rules:
     - host: {{ .Values.global.hostname }}
       http:

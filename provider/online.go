@@ -17,6 +17,7 @@ const (
 	CassandraOnline      = "CASSANDRA_ONLINE"
 	FirestoreOnline      = "FIRESTORE_ONLINE"
 	DynamoDBOnline       = "DYNAMODB_ONLINE"
+	BlobOnline           = "BLOB_ONLINE"
 )
 
 var ctx = context.Background()
@@ -34,6 +35,7 @@ type OnlineStore interface {
 	GetTable(feature, variant string) (OnlineStoreTable, error)
 	CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error)
 	DeleteTable(feature, variant string) error
+	Close() error
 	Provider
 }
 
@@ -120,6 +122,10 @@ func (store *localOnlineStore) CreateTable(feature, variant string, valueType Va
 }
 
 func (store *localOnlineStore) DeleteTable(feaute, variant string) error {
+	return nil
+}
+
+func (store *localOnlineStore) Close() error {
 	return nil
 }
 

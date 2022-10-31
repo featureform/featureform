@@ -11,6 +11,7 @@ import (
 	"github.com/featureform/coordinator"
 	"github.com/featureform/metadata"
 	"github.com/featureform/runner"
+	"github.com/featureform/types"
 	"github.com/google/uuid"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"testing"
@@ -30,7 +31,7 @@ type MockUpdateRunner struct {
 
 type MockCompletionWatcher struct{}
 
-func (m *MockRunner) Run() (runner.CompletionWatcher, error) {
+func (m *MockRunner) Run() (types.CompletionWatcher, error) {
 	return &MockCompletionWatcher{}, nil
 }
 
@@ -42,7 +43,7 @@ func (m *MockRunner) IsUpdateJob() bool {
 	return false
 }
 
-func (m *MockIndexRunner) Run() (runner.CompletionWatcher, error) {
+func (m *MockIndexRunner) Run() (types.CompletionWatcher, error) {
 	return &MockCompletionWatcher{}, nil
 }
 
@@ -59,7 +60,7 @@ func (m *MockIndexRunner) SetIndex(index int) error {
 	return nil
 }
 
-func (m *MockUpdateRunner) Run() (runner.CompletionWatcher, error) {
+func (m *MockUpdateRunner) Run() (types.CompletionWatcher, error) {
 	return &MockCompletionWatcher{}, nil
 }
 
@@ -89,7 +90,7 @@ func (m *MockCompletionWatcher) Err() error {
 
 type RunnerWithFailingWatcher struct{}
 
-func (r *RunnerWithFailingWatcher) Run() (runner.CompletionWatcher, error) {
+func (r *RunnerWithFailingWatcher) Run() (types.CompletionWatcher, error) {
 	return &FailingWatcher{}, nil
 }
 
@@ -118,7 +119,7 @@ func (f *FailingWatcher) Err() error {
 
 type FailingRunner struct{}
 
-func (f *FailingRunner) Run() (runner.CompletionWatcher, error) {
+func (f *FailingRunner) Run() (types.CompletionWatcher, error) {
 	return nil, errors.New("Failed to run runner")
 }
 
@@ -132,7 +133,7 @@ func (f *FailingRunner) IsUpdateJob() bool {
 
 type FailingIndexRunner struct{}
 
-func (f *FailingIndexRunner) Run() (runner.CompletionWatcher, error) {
+func (f *FailingIndexRunner) Run() (types.CompletionWatcher, error) {
 	return &MockCompletionWatcher{}, nil
 }
 
@@ -150,7 +151,7 @@ func (f *FailingIndexRunner) SetIndex(index int) error {
 
 func registerMockRunnerFactoryFailingWatcher() error {
 	mockRunnerFailingWatcher := &RunnerWithFailingWatcher{}
-	mockFactory := func(config runner.Config) (runner.Runner, error) {
+	mockFactory := func(config runner.Config) (types.Runner, error) {
 		return mockRunnerFailingWatcher, nil
 	}
 	if err := runner.RegisterFactory("test", mockFactory); err != nil {
@@ -161,7 +162,7 @@ func registerMockRunnerFactoryFailingWatcher() error {
 
 func registerMockFailRunnerFactory() error {
 	failRunner := &FailingRunner{}
-	failRunnerFactory := func(config runner.Config) (runner.Runner, error) {
+	failRunnerFactory := func(config runner.Config) (types.Runner, error) {
 		return failRunner, nil
 	}
 	if err := runner.RegisterFactory("test", failRunnerFactory); err != nil {
@@ -172,7 +173,7 @@ func registerMockFailRunnerFactory() error {
 
 func registerMockRunnerFactory() error {
 	mockRunner := &MockRunner{}
-	mockFactory := func(config runner.Config) (runner.Runner, error) {
+	mockFactory := func(config runner.Config) (types.Runner, error) {
 		return mockRunner, nil
 	}
 	if err := runner.RegisterFactory("test", mockFactory); err != nil {
@@ -183,7 +184,7 @@ func registerMockRunnerFactory() error {
 
 func registerMockIndexRunnerFactory() error {
 	mockRunner := &MockIndexRunner{}
-	mockFactory := func(config runner.Config) (runner.Runner, error) {
+	mockFactory := func(config runner.Config) (types.Runner, error) {
 		return mockRunner, nil
 	}
 	if err := runner.RegisterFactory("test", mockFactory); err != nil {
@@ -194,7 +195,7 @@ func registerMockIndexRunnerFactory() error {
 
 func registerMockFailIndexRunnerFactory() error {
 	mockRunner := &FailingIndexRunner{}
-	mockFactory := func(config runner.Config) (runner.Runner, error) {
+	mockFactory := func(config runner.Config) (types.Runner, error) {
 		return mockRunner, nil
 	}
 	if err := runner.RegisterFactory("test", mockFactory); err != nil {
@@ -345,7 +346,7 @@ func TestRunnerRunFail(t *testing.T) {
 
 func registerUpdateMockRunnerFactory(resID metadata.ResourceID) error {
 	mockRunner := &MockUpdateRunner{ResourceID: resID}
-	mockFactory := func(config runner.Config) (runner.Runner, error) {
+	mockFactory := func(config runner.Config) (types.Runner, error) {
 		return mockRunner, nil
 	}
 	if err := runner.RegisterFactory("test", mockFactory); err != nil {

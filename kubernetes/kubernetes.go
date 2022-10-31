@@ -2,35 +2,51 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-package runner
+package kubernetes
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"github.com/featureform/metadata"
+	"github.com/featureform/types"
 	"github.com/google/uuid"
 	"github.com/gorhill/cronexpr"
+	"io"
+	"io/ioutil"
 	batchv1 "k8s.io/api/batch/v1"
+	"math"
 	"strings"
 
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	watch "k8s.io/apimachinery/pkg/watch"
-	kubernetes "k8s.io/client-go/kubernetes"
-	rest "k8s.io/client-go/rest"
+	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 )
-
-var Namespace string = "default"
 
 type CronSchedule string
 
-func GetJobName(id metadata.ResourceID) string {
-	return strings.ReplaceAll(fmt.Sprintf("%s-%s-%d", strings.ToLower(id.Name), strings.ToLower(id.Variant), id.Type), "_", ".")
+const MaxNameLength = 53
 
+func GetJobName(id metadata.ResourceID, image string) string {
+	resourceName := fmt.Sprintf("%s-%s-%s", id.Type, id.Name, id.Variant)
+	if len(resourceName) > MaxNameLength {
+		resourceName = resourceName[:MaxNameLength]
+	}
+	jobName := strings.ReplaceAll(resourceName, "_", ".")
+	removedSlashes := strings.ReplaceAll(jobName, "/", "")
+	removedColons := strings.ReplaceAll(removedSlashes, ":", "")
+	MaxJobSize := 63
+	lowerCase := strings.ToLower(removedColons)
+	jobNameSize := int(math.Min(float64(len(lowerCase)), float64(MaxJobSize)))
+	lowerName := lowerCase[0:jobNameSize]
+	return lowerName
 }
 
 func GetCronJobName(id metadata.ResourceID) string {
-	return strings.ReplaceAll(fmt.Sprintf("%s-%s-%d", strings.ToLower(id.Name), strings.ToLower(id.Variant), id.Type), "_", ".")
+	return strings.ReplaceAll(fmt.Sprintf("featureform-%s-%s-%s-%d", strings.ToLower(string(id.Type)), strings.ToLower(id.Name), strings.ToLower(id.Variant), id.Type), "_", ".")
 }
 
 func makeCronSchedule(schedule string) (*CronSchedule, error) {
@@ -75,7 +91,7 @@ func EveryNMonths(months int) (*CronSchedule, error) {
 }
 
 type CronRunner interface {
-	Runner
+	types.Runner
 	ScheduleJob(schedule CronSchedule) error
 }
 
@@ -99,17 +115,22 @@ func newJobSpec(config KubernetesRunnerConfig) batchv1.JobSpec {
 	} else {
 		completionMode = batchv1.NonIndexedCompletion
 	}
+	backoffLimit := int32(0)
+	ttlLimit := int32(3600)
 	return batchv1.JobSpec{
-		Completions:    &config.NumTasks,
-		Parallelism:    &config.NumTasks,
-		CompletionMode: &completionMode,
+		Completions:             &config.NumTasks,
+		Parallelism:             &config.NumTasks,
+		CompletionMode:          &completionMode,
+		BackoffLimit:            &backoffLimit,
+		TTLSecondsAfterFinished: &ttlLimit,
 		Template: v1.PodTemplateSpec{
 			Spec: v1.PodSpec{
 				Containers: []v1.Container{
 					{
-						Name:  containerID,
-						Image: config.Image,
-						Env:   envVars,
+						Name:            containerID,
+						Image:           config.Image,
+						Env:             envVars,
+						ImagePullPolicy: v1.PullIfNotPresent,
 					},
 				},
 				RestartPolicy: v1.RestartPolicyNever,
@@ -164,6 +185,48 @@ func (k KubernetesCompletionWatcher) String() string {
 	return fmt.Sprintf("%d jobs succeeded. %d jobs active. %d jobs failed", job.Status.Succeeded, job.Status.Active, job.Status.Failed)
 }
 
+func getPodLogs(namespace string, name string) string {
+	podLogOpts := corev1.PodLogOptions{}
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		return fmt.Sprintf("error in getting config, %s", err.Error())
+	}
+	// creates the clientset
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return fmt.Sprintf("error in getting access to K8S: %s", err.Error())
+	}
+	podList, err := clientset.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return fmt.Sprintf("could not get pod list: %s", err.Error())
+	}
+	podName := ""
+	for _, pod := range podList.Items {
+		currentPod := pod.GetName()
+		if strings.Contains(currentPod, name) {
+			podName = currentPod
+		}
+	}
+	if podName == "" {
+		return fmt.Sprintf("pod not found: %s", name)
+	}
+	req := clientset.CoreV1().Pods(namespace).GetLogs(podName, &podLogOpts)
+	podLogs, err := req.Stream(context.Background())
+	if err != nil {
+		return fmt.Sprintf("error in opening stream: %s", err.Error())
+	}
+	defer podLogs.Close()
+
+	buf := new(bytes.Buffer)
+	_, err = io.Copy(buf, podLogs)
+	if err != nil {
+		return fmt.Sprintf("error in copy information from podLogs to buf: %s", err.Error())
+	}
+	str := buf.String()
+
+	return str
+}
+
 func (k KubernetesCompletionWatcher) Wait() error {
 	watcher, err := k.jobClient.Watch()
 	if err != nil {
@@ -171,12 +234,14 @@ func (k KubernetesCompletionWatcher) Wait() error {
 	}
 	watchChannel := watcher.ResultChan()
 	for jobEvent := range watchChannel {
-		if active := jobEvent.Object.(*batchv1.Job).Status.Active; active == 0 {
-			if succeeded := jobEvent.Object.(*batchv1.Job).Status.Succeeded; succeeded > 0 {
+		job := jobEvent.Object.(*batchv1.Job)
+		if active := job.Status.Active; active == 0 {
+			if succeeded := job.Status.Succeeded; succeeded > 0 {
 				return nil
 			}
-			if failed := jobEvent.Object.(*batchv1.Job).Status.Failed; failed > 0 {
-				return fmt.Errorf("job failed while running")
+			if failed := job.Status.Failed; failed > 0 {
+				return fmt.Errorf("job failed while running: container: %s: error: %s",
+					job.Name, getPodLogs(job.Namespace, job.GetName()))
 			}
 		}
 
@@ -190,7 +255,7 @@ func (k KubernetesCompletionWatcher) Err() error {
 		return err
 	}
 	if job.Status.Failed > 0 {
-		return fmt.Errorf("job failed while running")
+		return fmt.Errorf("job failed while running: container: %s: %w", job.Name, err)
 	}
 	return nil
 }
@@ -203,7 +268,7 @@ func (k KubernetesRunner) IsUpdateJob() bool {
 	return false
 }
 
-func (k KubernetesRunner) Run() (CompletionWatcher, error) {
+func (k KubernetesRunner) Run() (types.CompletionWatcher, error) {
 	if _, err := k.jobClient.Create(k.jobSpec); err != nil {
 		return nil, err
 	}
@@ -217,10 +282,33 @@ func (k KubernetesRunner) ScheduleJob(schedule CronSchedule) error {
 	return nil
 }
 
+func GetCurrentNamespace() (string, error) {
+	contents, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+	if err != nil {
+		return "", err
+	}
+	return string(contents), nil
+}
+
+func generateCleanRandomJobName() string {
+	cleanUUID := strings.ReplaceAll(uuid.New().String(), "-", "")
+	jobName := fmt.Sprintf("job__%s", cleanUUID)
+	return jobName[0:int(math.Min(float64(len(jobName)), 63))]
+}
+
 func NewKubernetesRunner(config KubernetesRunnerConfig) (CronRunner, error) {
 	jobSpec := newJobSpec(config)
-	jobName := GetJobName(config.Resource)
-	jobClient, err := NewKubernetesJobClient(jobName, Namespace)
+	var jobName string
+	if config.Resource.Name != "" {
+		jobName = GetJobName(config.Resource, config.Image)
+	} else {
+		jobName = generateCleanRandomJobName()
+	}
+	namespace, err := GetCurrentNamespace()
+	if err != nil {
+		return nil, err
+	}
+	jobClient, err := NewKubernetesJobClient(jobName, namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -279,7 +367,8 @@ func (k KubernetesJobClient) UpdateJobSchedule(schedule CronSchedule, jobSpec *b
 	cronJob := &batchv1.CronJob{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      k.JobName,
-			Namespace: k.Namespace},
+			Namespace: k.Namespace,
+		},
 		Spec: batchv1.CronJobSpec{
 			Schedule: string(schedule),
 			JobTemplate: batchv1.JobTemplateSpec{

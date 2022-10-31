@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/featureform/logging"
 	"io"
 	"io/ioutil"
 	"os"
@@ -208,7 +209,7 @@ func (store *SparkOfflineStore) Close() error {
 
 func sparkOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	sc := SparkConfig{}
-	logger := zap.NewExample().Sugar()
+	logger := logging.NewLogger("spark")
 	if err := sc.Deserialize(config); err != nil {
 		logger.Errorw("Invalid config to initialize spark offline store", err)
 		return nil, fmt.Errorf("invalid spark config: %v", config)
@@ -987,8 +988,8 @@ func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, i
 	spark.Logger.Debugw("Running SQL transformation", config)
 	sparkArgs := spark.Store.SparkSubmitArgs(transformationDestination, updatedQuery, sources, Transform)
 	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
-		spark.Logger.Errorw("spark submit job for transformation failed to run", config.TargetTableID, err)
-		return fmt.Errorf("spark submit job for transformation %v failed to run: %v", config.TargetTableID, err)
+		spark.Logger.Errorw("spark submit job for transformation failed to run", "name", config.TargetTableID.Name, "variant", config.TargetTableID.Variant, "error", err)
+		return fmt.Errorf("spark submit job for transformation failed to run: (name: %s variant:%s) %v", config.TargetTableID.Name, config.TargetTableID.Variant, err)
 	}
 	spark.Logger.Debugw("Succesfully ran SQL transformation", config)
 	return nil
@@ -1042,9 +1043,9 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 	spark.Logger.Debugw("Running DF transformation", config)
 	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
 		spark.Logger.Errorw("Error running Spark dataframe job", err)
-		return fmt.Errorf("spark submit job for transformation %v failed to run: %v", config.TargetTableID, err)
+		return fmt.Errorf("spark submit job for transformation failed to run: (name: %s variant:%s) %v", config.TargetTableID.Name, config.TargetTableID.Variant, err)
 	}
-	spark.Logger.Debugw("Succesfully ran DF transformation", config)
+	spark.Logger.Debugw("Successfully ran transformation", "type", config.Type, "name", config.TargetTableID.Name, "variant", config.TargetTableID.Variant)
 	return nil
 }
 
@@ -1185,7 +1186,7 @@ func (spark *SparkOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, er
 	for _, v := range tableList {
 		sourcePath = reflect.ValueOf(v).FieldByName("Source").String()
 	}
-	spark.Logger.Debugw("Succesfully retrieved primary table", id)
+	spark.Logger.Debugw("Succesfully retrieved primary table", "name", id.Name, "variant", id.Variant)
 	return &S3PrimaryTable{spark.Store, sourcePath, false, id}, nil
 }
 
@@ -1195,7 +1196,7 @@ func (spark *SparkOfflineStore) CreateResourceTable(id ResourceID, schema TableS
 
 func (spark *SparkOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, error) {
 	path := parquetResourcePath(id)
-	spark.Logger.Debugw("Getting resource table", id)
+	spark.Logger.Debugw("Getting resource table", "id", id)
 	table, err := spark.Store.DownloadParquetTable(path)
 	if err != nil {
 		spark.Logger.Errorw("Could not get parquet resource table", err)

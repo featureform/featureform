@@ -9,32 +9,22 @@ import (
 	"fmt"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
+	"github.com/featureform/types"
+	"go.uber.org/zap"
 	"sync"
 )
 
-type Runner interface {
-	Run() (CompletionWatcher, error)
-	Resource() metadata.ResourceID
-	IsUpdateJob() bool
-}
-
 type IndexRunner interface {
-	Runner
+	types.Runner
 	SetIndex(index int) error
 }
 
 type MaterializedChunkRunner struct {
 	Materialized provider.Materialization
 	Table        provider.OnlineStoreTable
+	Store        provider.OnlineStore
 	ChunkSize    int64
 	ChunkIdx     int64
-}
-
-type CompletionWatcher interface {
-	Complete() bool
-	String() string
-	Wait() error
-	Err() error
 }
 
 type ResultSync struct {
@@ -51,7 +41,7 @@ func (m *MaterializedChunkRunner) IsUpdateJob() bool {
 	return false
 }
 
-func (m *MaterializedChunkRunner) Run() (CompletionWatcher, error) {
+func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
 	done := make(chan interface{})
 	jobWatcher := &SyncWatcher{
 		ResultSync:  &ResultSync{},
@@ -96,6 +86,10 @@ func (m *MaterializedChunkRunner) Run() (CompletionWatcher, error) {
 			return
 		}
 		err = it.Close()
+		if err != nil {
+			jobWatcher.EndWatch(err)
+		}
+		err = m.Store.Close()
 		if err != nil {
 			jobWatcher.EndWatch(err)
 		}
@@ -173,6 +167,7 @@ type MaterializedChunkRunnerConfig struct {
 	ChunkSize      int64
 	ChunkIdx       int64
 	IsUpdate       bool
+	Logger         *zap.SugaredLogger
 }
 
 func (m *MaterializedChunkRunnerConfig) Serialize() (Config, error) {
@@ -191,8 +186,7 @@ func (m *MaterializedChunkRunnerConfig) Deserialize(config Config) error {
 	return nil
 }
 
-func MaterializedChunkRunnerFactory(config Config) (Runner, error) {
-	fmt.Println("Starting Chunk Factory")
+func MaterializedChunkRunnerFactory(config Config) (types.Runner, error) {
 	runnerConfig := &MaterializedChunkRunnerConfig{}
 	if err := runnerConfig.Deserialize(config); err != nil {
 		return nil, fmt.Errorf("failed to deserialize materialize chunk runner config: %v", err)
@@ -232,6 +226,7 @@ func MaterializedChunkRunnerFactory(config Config) (Runner, error) {
 	return &MaterializedChunkRunner{
 		Materialized: materialization,
 		Table:        table,
+		Store:        onlineStore,
 		ChunkSize:    runnerConfig.ChunkSize,
 		ChunkIdx:     runnerConfig.ChunkIdx,
 	}, nil

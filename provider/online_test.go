@@ -15,6 +15,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/featureform/helpers"
+
 	"github.com/alicebob/miniredis"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
@@ -48,6 +50,7 @@ func TestOnlineStores(t *testing.T) {
 		"TableNotFound":      testTableNotFound,
 		"SetGetEntity":       testSetGetEntity,
 		"EntityNotFound":     testEntityNotFound,
+		"MassTableWrite":     testMassTableWrite,
 		"TypeCasting":        testTypeCasting,
 	}
 
@@ -130,6 +133,20 @@ func TestOnlineStores(t *testing.T) {
 		return *dynamoConfig
 	}
 
+	blobAzureInit := func() OnlineBlobConfig {
+		azureConfig := AzureBlobStoreConfig{
+			AccountName:   helpers.GetEnv("AZURE_ACCOUNT_NAME", ""),
+			AccountKey:    helpers.GetEnv("AZURE_ACCOUNT_KEY", ""),
+			ContainerName: helpers.GetEnv("AZURE_CONTAINER_NAME", "newcontainer"),
+			Path:          "featureform/onlinetesting",
+		}
+		blobConfig := &OnlineBlobConfig{
+			Type:   Azure,
+			Config: azureConfig,
+		}
+		return *blobConfig
+	}
+
 	type testMember struct {
 		t               Type
 		subType         string
@@ -162,6 +179,9 @@ func TestOnlineStores(t *testing.T) {
 	if *provider == "dynamo" || *provider == "" {
 		testList = append(testList, testMember{DynamoDBOnline, "", dynamoInit().Serialized(), true})
 	}
+	if *provider == "azure_blob" || *provider == "" {
+		testList = append(testList, testMember{BlobOnline, "_AZURE", blobAzureInit().Serialized(), true})
+	}
 
 	for _, testItem := range testList {
 		if testing.Short() && testItem.integrationTest {
@@ -187,6 +207,10 @@ func TestOnlineStores(t *testing.T) {
 			t.Run(testName, func(t *testing.T) {
 				fn(t, store)
 			})
+			if err := store.Close(); err != nil {
+				t.Fatalf("Failed to close online store %s: %v", testItem.t, err)
+			}
+
 		}
 	}
 }
@@ -267,6 +291,44 @@ func testEntityNotFound(t *testing.T, store OnlineStore) {
 		t.Fatalf("Wrong error for entity not found: %T", err)
 	} else if casted.Error() == "" {
 		t.Fatalf("EntityNotFound has empty error message")
+	}
+}
+
+func testMassTableWrite(t *testing.T, store OnlineStore) {
+	tableList := make([]ResourceID, 10)
+	for i := range tableList {
+		mockFeature, mockVariant := randomFeatureVariant()
+		tableList[i] = ResourceID{mockFeature, mockVariant, Feature}
+	}
+	entityList := make([]string, 10)
+	for i := range entityList {
+		entityList[i] = uuid.New().String()
+	}
+	for i := range tableList {
+		tab, err := store.CreateTable(tableList[i].Name, tableList[i].Variant, ValueType("int"))
+		if err != nil {
+			t.Fatalf("could not create table %v in online store: %v", tableList[i], err)
+		}
+		for j := range entityList {
+			if err := tab.Set(entityList[j], 1); err != nil {
+				t.Fatalf("could not set entity %v in table %v: %v", entityList[j], tableList[i], err)
+			}
+		}
+	}
+	for i := range tableList {
+		tab, err := store.GetTable(tableList[i].Name, tableList[i].Variant)
+		if err != nil {
+			t.Fatalf("could not get table %v in online store: %v", tableList[i], err)
+		}
+		for j := range entityList {
+			val, err := tab.Get(entityList[j])
+			if err != nil {
+				t.Fatalf("could not get entity %v in table %v: %v", entityList[j], tableList[i], err)
+			}
+			if val != 1 {
+				t.Fatalf("could not get correct value from entity list. Wanted %v, got %v", 1, val)
+			}
+		}
 	}
 }
 

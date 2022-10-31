@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
+	"github.com/featureform/types"
 )
 
 type TrainingSetRunner struct {
@@ -17,7 +18,7 @@ type TrainingSetRunner struct {
 	IsUpdate bool
 }
 
-func (m TrainingSetRunner) Run() (CompletionWatcher, error) {
+func (m TrainingSetRunner) Run() (types.CompletionWatcher, error) {
 	done := make(chan interface{})
 	trainingSetWatcher := &SyncWatcher{
 		ResultSync:  &ResultSync{},
@@ -76,7 +77,7 @@ func (c *TrainingSetRunnerConfig) Deserialize(config Config) error {
 	return nil
 }
 
-func TrainingSetRunnerFactory(config Config) (Runner, error) {
+func TrainingSetRunnerFactory(config Config) (types.Runner, error) {
 	runnerConfig := &TrainingSetRunnerConfig{}
 	if err := runnerConfig.Deserialize(config); err != nil {
 		return nil, fmt.Errorf("failed to deserialize materialize chunk runner config: %v", err)

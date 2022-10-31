@@ -5,7 +5,7 @@ RUN npm install --legacy-peer-deps
 RUN npm run build
 RUN rm -r node_modules
 
-FROM golang:1.17
+FROM golang:1.18
 
 WORKDIR /app
 
@@ -26,6 +26,8 @@ COPY coordinator/ coordinator/
 COPY provider/ provider/
 COPY runner/ runner/
 COPY serving/ serving/
+COPY types/ types/
+COPY kubernetes/ kubernetes/
 COPY nginx.conf/ /etc/nginx/nginx.conf
 
 RUN apt install protobuf-compiler -y

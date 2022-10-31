@@ -1978,7 +1978,7 @@ class Registrar:
             elif isinstance(feature, dict):
                 lag = feature.get("lag")
                 if lag:
-                    if set(["lag", "feature", "variant"]) in set(feature.keys()):
+                    if set(["lag", "feature", "variant"]) not in set(feature.keys()):
                         raise ValueError(f"feature lags require 'lag', 'feature', 'variant' fields. Received: {feature.keys()}")
                     
                     if not isinstance(lag, timedelta):

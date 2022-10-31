@@ -844,7 +844,7 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 			FeatureName:    lagFeature.GetFeature(),
 			FeatureVariant: lagFeature.GetVariant(),
 			LagName:        lagFeature.GetName(),
-			LagDelta:       lagFeature.GetLag(), // see if need to convert it to time.Duration
+			LagDelta:       lagFeature.GetLag().AsDuration(), // see if need to convert it to time.Duration
 		}
 	}
 

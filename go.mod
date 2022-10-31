@@ -30,6 +30,7 @@ require (
 	go.etcd.io/etcd/client/v3 v3.5.2
 	go.uber.org/zap v1.21.0
 	gocloud.dev v0.27.0
+	golang.org/x/exp v0.0.0-20221031165847-c99f073a8326
 	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4
 	google.golang.org/api v0.91.0
 	google.golang.org/grpc v1.48.0
@@ -168,5 +169,4 @@ require (
 	github.com/segmentio/encoding v0.3.5 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
-	golang.org/x/exp v0.0.0-20221031165847-c99f073a8326 // indirect
 )

@@ -10,7 +10,6 @@ import (
 	"path"
 	"reflect"
 	"runtime"
-	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -27,6 +26,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/emr"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"go.uber.org/zap"
+
+	"golang.org/x/exp/slices"
 
 	emrTypes "github.com/aws/aws-sdk-go-v2/service/emr/types"
 	s3Types "github.com/aws/aws-sdk-go-v2/service/s3/types"

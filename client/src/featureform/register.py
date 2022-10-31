@@ -1997,13 +1997,16 @@ class Registrar:
                     feature_nv = (feature["name"], feature["variant"])
                     feature_nv_list.append(feature_nv)
             elif isinstance(feature, list):
-                feature_nv_list.extend(self.__get_feature_nv(feature))
+                feature_nv, feature_lags_list = self.__get_feature_nv(feature)
+                if len(feature_nv) != 0:
+                    feature_nv_list.extend(feature_nv)
+
+                if len(feature_lags_list) != 0:
+                    feature_lags.extend(feature_lags_list)
             else:
                 feature_nv_list.append(feature)
 
-        unique_feature_nv_list = list(set(feature_nv_list))
-        unique_feature_lags = list(set(feature_lags))
-        return unique_feature_nv_list, unique_feature_lags
+        return feature_nv_list, feature_lags
 
     def register_training_set(self,
                               name: str,

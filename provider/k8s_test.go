@@ -22,9 +22,18 @@ func uuidWithoutDashes() string {
 }
 
 func TestBlobInterfaces(t *testing.T) {
-	blobTests := map[string]func(*testing.T, BlobStore){
-		"Test Blob Read and Write": testBlobReadAndWrite,
+	fileStoreTests := map[string]func(*testing.T, BlobStore){
+		"Test Filestore Read and Write": testFilestoreReadAndWrite,
 		// "Test Blob Parquet Serve":  testBlobParquetServe,
+		// Test Exists
+		// Test Not Exists
+		// Test Serve
+		// Test Serve Directory
+		// Test Delete
+		// Test Delete All
+		// Test Newest blob
+		// Test Path with prefix
+		// Test Num Rows
 	}
 	localBlobStore, err := NewMemoryBlobStore(Config([]byte("")))
 	if err != nil {
@@ -51,7 +60,7 @@ func TestBlobInterfaces(t *testing.T) {
 	}
 	serializedAzureConfig, err := azureStoreConfig.Serialize()
 	if err != nil {
-		t.Fatalf("dailed to serialize azure store config: %v", err)
+		t.Fatalf("failed to serialize azure store config: %v", err)
 	}
 	azureBlobStore, err := NewAzureBlobStore(serializedAzureConfig)
 	if err != nil {

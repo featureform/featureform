@@ -5,7 +5,6 @@
 package provider
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/go-redis/redis/v8"
@@ -19,8 +18,6 @@ const (
 	DynamoDBOnline       = "DYNAMODB_ONLINE"
 	BlobOnline           = "BLOB_ONLINE"
 )
-
-var ctx = context.Background()
 
 var cassandraTypeMap = map[string]string{
 	"string":  "text",

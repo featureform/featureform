@@ -51,7 +51,7 @@ type SparkExecutorConfig []byte
 type SparkConfig struct {
 	ExecutorType   SparkExecutorType
 	ExecutorConfig SparkExecutorConfig
-	StoreType      BlobStoreType
+	StoreType      FileStoreType
 	StoreConfig    BlobStoreConfig
 }
 
@@ -103,7 +103,7 @@ type DatabricksResultState string
 const (
 	Success   DatabricksResultState = "SUCCESS"
 	Failed                          = "FAILED"
-	Timedout                        = "TIMEDOUT"
+	Timeout                         = "TIMEOUT"
 	Cancelled                       = "CANCELLED"
 )
 
@@ -145,7 +145,7 @@ func (db *DatabricksExecutor) PythonFileURI() string {
 	return "scripts/spark_executor.py"
 }
 
-func (db *DatabricksExecutor) InitializeExecutor(store BlobStore) error {
+func (db *DatabricksExecutor) InitializeExecutor(store FileStore) error {
 	return nil
 }
 
@@ -154,7 +154,15 @@ func NewDatabricksExecutor(config Config) (SparkExecutor, error) {
 	if err := databricksConfig.Deserialize(SerializedConfig(config)); err != nil {
 		return nil, fmt.Errorf("could not deserialize s3 store config: %v", err)
 	}
-	opt := databricks.NewDBClientOption(databricksConfig.Username, databricksConfig.Password, databricksConfig.Host, databricksConfig.Token, nil, false, 0)
+	opt := databricks.NewDBClientOption(
+		databricksConfig.Username,
+		databricksConfig.Password,
+		databricksConfig.Host,
+		databricksConfig.Token,
+		nil,
+		false,
+		0,
+	)
 	client := dbAzure.NewDBClient(opt)
 	return &DatabricksExecutor{
 		client:  client,
@@ -230,10 +238,10 @@ func (s *S3BlobStoreConfig) Serialize() []byte {
 type S3BlobStore struct {
 	Bucket string
 	Path   string
-	genericBlobStore
+	genericFileStore
 }
 
-func NewS3BlobStore(config Config) (BlobStore, error) {
+func NewS3BlobStore(config Config) (FileStore, error) {
 	s3StoreConfig := S3BlobStoreConfig{}
 	if err := s3StoreConfig.Deserialize(SerializedConfig(config)); err != nil {
 		return nil, fmt.Errorf("could not deserialize s3 store config: %v", err)
@@ -249,14 +257,14 @@ func NewS3BlobStore(config Config) (BlobStore, error) {
 	}
 	cfg.Region = s3StoreConfig.BucketRegion
 	clientV2 := s3v2.NewFromConfig(cfg)
-	bucket, err := s3blob.OpenBucketV2(ctx, clientV2, s3StoreConfig.BucketPath, nil)
+	bucket, err := s3blob.OpenBucketV2(context.TODO(), clientV2, s3StoreConfig.BucketPath, nil)
 	if err != nil {
 		return nil, err
 	}
 	return &S3BlobStore{
 		Bucket: s3StoreConfig.BucketPath,
 		Path:   s3StoreConfig.Path,
-		genericBlobStore: genericBlobStore{
+		genericFileStore: genericFileStore{
 			bucket: bucket,
 		},
 	}, nil
@@ -318,7 +326,7 @@ func (q defaultSparkOfflineQueries) trainingSetCreate(def TrainingSetDef, featur
 
 type SparkOfflineStore struct {
 	Executor SparkExecutor
-	Store    BlobStore
+	Store    FileStore
 	Logger   *zap.SugaredLogger
 	query    *defaultSparkOfflineQueries
 	BaseProvider
@@ -348,7 +356,7 @@ func sparkOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 
 	fmt.Sprintf("Executor type: %s, Executor config: %v", sc.ExecutorType, sc.ExecutorConfig)
 	logger.Info("Creating Spark store with type:", sc.StoreType)
-	store, err := CreateBlobStore(string(sc.StoreType), Config(sc.StoreConfig))
+	store, err := CreateFileStore(string(sc.StoreType), Config(sc.StoreConfig))
 	if err != nil {
 		logger.Errorw("Failure initializing blob store with type", sc.StoreType, err)
 		return nil, err
@@ -378,7 +386,7 @@ func sparkOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 
 type SparkExecutor interface {
 	RunSparkJob(args *[]string) error
-	InitializeExecutor(store BlobStore) error
+	InitializeExecutor(store FileStore) error
 	PythonFileURI() string
 	SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType) []string
 	GetDFArgs(outputURI string, code string, mapping []SourceMapping) ([]string, error)
@@ -390,7 +398,7 @@ type EMRExecutor struct {
 	logger      *zap.SugaredLogger
 }
 
-func (e EMRExecutor) InitializeExecutor(store BlobStore) error {
+func (e EMRExecutor) InitializeExecutor(store FileStore) error {
 	sparkScriptPath := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/offline_store_spark_runner.py")
 	scriptFile, err := os.Open(sparkScriptPath)
 	if err != nil {
@@ -537,7 +545,7 @@ func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, i
 	}
 
 	transformationDestination := ResourcePath(config.TargetTableID)
-	transformationExists := spark.Store.NewestBlob(transformationDestination) != ""
+	transformationExists := spark.Store.NewestFile(transformationDestination) != ""
 
 	if !isUpdate && transformationExists {
 		spark.Logger.Errorw("Creation when transformation already exists", config.TargetTableID, transformationDestination)
@@ -563,7 +571,7 @@ func GetTransformationFileLocation(id ResourceID) string {
 func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, isUpdate bool) error {
 	return nil
 	transformationDestination := ResourcePath(config.TargetTableID)
-	transformationExists := spark.Store.NewestBlob(transformationDestination) != ""
+	transformationExists := spark.Store.NewestFile(transformationDestination) != ""
 	if !isUpdate && transformationExists {
 		spark.Logger.Errorw("Transformation already exists", config.TargetTableID, transformationDestination)
 		return fmt.Errorf("transformation %v already exists at %s", config.TargetTableID, transformationDestination)
@@ -636,7 +644,7 @@ func (spark *SparkOfflineStore) getSourcePath(path string) (string, error) {
 		return filePath, nil
 	} else if fileType == "transformation" {
 		fileResourceId := ResourceID{Name: fileName, Variant: fileVariant, Type: Transformation}
-		transformationPath := spark.Store.NewestBlob(spark.Store.PathWithPrefix(ResourcePath(fileResourceId)))
+		transformationPath := spark.Store.NewestFile(spark.Store.PathWithPrefix(ResourcePath(fileResourceId)))
 		filePath = spark.Store.PathWithPrefix(transformationPath[:strings.LastIndex(transformationPath, "/")])
 		return filePath, nil
 	} else {
@@ -709,10 +717,10 @@ func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, mapping []
 
 func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
 	spark.Logger.Debugw("Getting transformation table", "ResourceID", id)
-	transformationPath := spark.Store.NewestBlob(ResourcePath(id))
+	transformationPath := spark.Store.NewestFile(ResourcePath(id))
 	fixedPath := transformationPath[:strings.LastIndex(transformationPath, "/")+1]
 	spark.Logger.Debugw("Succesfully retrieved transformation table", "ResourceID", id)
-	return &BlobPrimaryTable{spark.Store, fixedPath, true, id}, nil
+	return &FileStorePrimaryTable{spark.Store, fixedPath, true, id}, nil
 	return nil, nil
 }
 
@@ -725,7 +733,7 @@ func (spark *SparkOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSc
 }
 
 func (spark *SparkOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error) {
-	return blobGetPrimary(id, spark.Store, spark.Logger)
+	return fileStoreGetPrimary(id, spark.Store, spark.Logger)
 }
 
 func (spark *SparkOfflineStore) CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error) {
@@ -733,7 +741,7 @@ func (spark *SparkOfflineStore) CreateResourceTable(id ResourceID, schema TableS
 }
 
 func (spark *SparkOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, error) {
-	return blobGetResourceTable(id, spark.Store, spark.Logger)
+	return fileStoreGetResourceTable(id, spark.Store, spark.Logger)
 }
 
 func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate bool) (Materialization, error) {
@@ -753,7 +761,7 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 	}
 	materializationID := ResourceID{Name: id.Name, Variant: id.Variant, Type: FeatureMaterialization}
 	destinationPath := ResourcePath(materializationID)
-	materializationExists := spark.Store.NewestBlob(destinationPath) != ""
+	materializationExists := spark.Store.NewestFile(destinationPath) != ""
 	if materializationExists && !isUpdate {
 		spark.Logger.Errorw("Attempted to materialize a materialization that already exists", id)
 		return nil, fmt.Errorf("materialization already exists")
@@ -769,9 +777,9 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 		spark.Logger.Errorw("Spark submit job failed to run", err)
 		return nil, fmt.Errorf("spark submit job for materialization %v failed to run: %v", materializationID, err)
 	}
-	key := spark.Store.NewestBlob(ResourcePath(materializationID))
+	key := spark.Store.NewestFile(ResourcePath(materializationID))
 	spark.Logger.Debugw("Succesfully created materialization", "id", id)
-	return &BlobMaterialization{materializationID, spark.Store, key}, nil
+	return &FileStoreMaterialization{materializationID, spark.Store, key}, nil
 }
 
 func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materialization, error) {
@@ -779,7 +787,7 @@ func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materializ
 }
 
 func (spark *SparkOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
-	return blobGetMaterialization(id, spark.Store, spark.Logger)
+	return fileStoreGetMaterialization(id, spark.Store, spark.Logger)
 }
 
 func (spark *SparkOfflineStore) UpdateMaterialization(id ResourceID) (Materialization, error) {
@@ -787,7 +795,7 @@ func (spark *SparkOfflineStore) UpdateMaterialization(id ResourceID) (Materializ
 }
 
 func (spark *SparkOfflineStore) DeleteMaterialization(id MaterializationID) error {
-	return blobDeleteMaterialization(id, spark.Store, spark.Logger)
+	return fileStoreDeleteMaterialization(id, spark.Store, spark.Logger)
 }
 
 func (spark *SparkOfflineStore) registeredResourceSchema(id ResourceID) (ResourceSchema, error) {
@@ -814,7 +822,7 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 	sourcePaths := make([]string, 0)
 	featureSchemas := make([]ResourceSchema, 0)
 	destinationPath := ResourcePath(def.ID)
-	trainingSetExists := spark.Store.NewestBlob(destinationPath) != ""
+	trainingSetExists := spark.Store.NewestFile(destinationPath) != ""
 	if trainingSetExists && !isUpdate {
 		spark.Logger.Errorw("Training set already exists", def.ID)
 		return fmt.Errorf("training set already exists: %v", def.ID)
@@ -846,7 +854,7 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 		spark.Logger.Errorw("Spark submit training set job failed to run", "definition", def.ID, "error", err)
 		return fmt.Errorf("spark submit job for training set %v failed to run: %v", def.ID, err)
 	}
-	written := spark.Store.NewestBlob(ResourcePath(def.ID)) != ""
+	written := spark.Store.NewestFile(ResourcePath(def.ID)) != ""
 	if !written {
 		spark.Logger.Errorw("Could not get training set resource key in offline store")
 		return fmt.Errorf("Training Set result does not exist in offline store")
@@ -865,5 +873,5 @@ func (spark *SparkOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {
 }
 
 func (spark *SparkOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
-	return blobGetTrainingSet(id, spark.Store, spark.Logger)
+	return fileStoreGetTrainingSet(id, spark.Store, spark.Logger)
 }

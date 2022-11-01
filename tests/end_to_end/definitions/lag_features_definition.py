@@ -16,14 +16,20 @@ def get_random_string():
     import string
     return "".join(random.choice(string.ascii_lowercase) for _ in range(10))
 
-def save_version(version):
+def save_version(feature_name, feature_variant, training_name, training_variant):
     global FILE_DIRECTORY
     with open(f"{FILE_DIRECTORY}/version.txt", "w+") as f:
-        f.write(version)
+        f.write(f"{feature_name},{feature_variant}:{training_name},{training_variant}")
 
 VERSION=get_random_string()
 os.environ["TEST_CASE_VERSION"]=VERSION
-save_version(VERSION)
+
+FEATURE_NAME = f"ice_cream_feature_{VERSION}"
+FEATURE_VARIANT = "canvass"
+TRAININGSET_NAME = f"ice_cream_training_{VERSION}"
+TRAININGSET_VARIANT = "canvass"
+
+save_version(FEATURE_NAME, FEATURE_VARIANT, TRAININGSET_NAME, TRAININGSET_VARIANT)
 
 # Start of Featureform Definitions
 # ff.register_user("featureformer").make_default_owner()
@@ -79,7 +85,7 @@ ice_cream_transformation.register_resources(
     timestamp_column="time_index",
     inference_store=azure_blob,
     features=[
-        {"name": f"ice_cream_feature_{VERSION}", "variant": "canvass", "column": "dairy_flow_rate", "type": "float32"},
+        {"name": FEATURE_NAME, "variant": FEATURE_VARIANT, "column": "dairy_flow_rate", "type": "float32"},
     ],
 )
 
@@ -94,7 +100,7 @@ ice_cream.register_resources(
 )
 
 ff.register_training_set(
-    f"ice_cream_training_{VERSION}", "canvass",
+    TRAININGSET_NAME, TRAININGSET_VARIANT,
     label=(f"ice_cream_label_{VERSION}", "canvass"),
     features=[
         (f"ice_cream_feature_{VERSION}", "canvass"),

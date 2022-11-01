@@ -1138,15 +1138,19 @@ func (iter *BlobFeatureIterator) Next() bool {
 		return false
 	}
 	formatDate := "2006-01-02 15:04:05 UTC" // hardcoded golang format date
-	var timestamp time.Time
 	timeString, ok := nextVal["ts"].(string)
 	if !ok {
 		iter.cur = ResourceRecord{Entity: string(nextVal["entity"].(string)), Value: nextVal["value"]}
 	} else {
-		timestamp, err = time.Parse(formatDate, timeString)
-		if err != nil {
-			iter.err = fmt.Errorf("could not parse timestamp: %v: %v", nextVal["ts"], err)
+		timestamp, err1 := time.Parse(formatDate, timeString)
+		formatDateWithoutUTC := "2006-01-02 15:04:05"
+		timestamp2, err2 := time.Parse(formatDateWithoutUTC, timeString)
+		if err1 != nil && err2 != nil {
+			iter.err = fmt.Errorf("could not parse timestamp: %v: %v, %v", nextVal["ts"], err1, err2)
 			return false
+		}
+		if err1 != nil {
+			timestamp = timestamp2
 		}
 		iter.cur = ResourceRecord{Entity: string(nextVal["entity"].(string)), Value: nextVal["value"], TS: timestamp}
 	}

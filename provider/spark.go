@@ -211,6 +211,8 @@ func (q defaultSparkOfflineQueries) trainingSetCreate(def TrainingSetDef, featur
 	labelJoinQuery := fmt.Sprintf("%s %s", labelPartitionQuery, joinQueryString)
 	fullQuery := fmt.Sprintf("SELECT %s, value AS %s, entity, label_ts, ROW_NUMBER() over (PARTITION BY entity, value, label_ts ORDER BY label_ts DESC) as row_number FROM (%s) tt", columnStr, featureColumnName(def.Label), labelJoinQuery)
 	finalQuery := fmt.Sprintf("SELECT %s, %s FROM (SELECT * FROM (SELECT *, row_number FROM (%s) WHERE row_number=1 ))", columnStr, featureColumnName(def.Label), fullQuery)
+	fmt.Println("final training set query:")
+	fmt.Println(finalQuery)
 	return finalQuery
 }
 

@@ -26,7 +26,7 @@ os.environ["TEST_CASE_VERSION"]=VERSION
 save_version(VERSION)
 
 # Start of Featureform Definitions
-ff.register_user("featureformer").make_default_owner()
+# ff.register_user("featureformer").make_default_owner()
 
 azure_blob = ff.register_blob_store(
     name=f"k8s_blob_store_{VERSION}",
@@ -48,48 +48,56 @@ k8s = ff.register_k8s(
     store=azure_blob
 )
 
-transactions = k8s.register_file(
-    name=f"transactions_{VERSION}",
-    variant="quickstart",
-    description="A dataset of fraudulent transactions",
-    path="featureform/testing/primary/name/variant/transactions_short_short.csv"
+ice_cream = k8s.register_file(
+    name=f"ice_cream_{VERSION}",
+    variant="canvass",
+    description="A dataset of ice cream",
+    path="testing/ff/data/canvass/ice_cream_100rows.csv"
 )
 
-@k8s.df_transformation(name=f"average_user_transaction_{VERSION}", 
-                        variant="quickstart",
-                        inputs=[(f"transactions_{VERSION}", "quickstart")])
-def average_user_transaction(transactions):
-    """the average transaction amount for a user """
-    user_tsc = transactions[["CustomerID","TransactionAmount","Timestamp"]]
-    return user_tsc.groupby("CustomerID").agg({'TransactionAmount':'mean','Timestamp':'max'})
+@k8s.df_transformation(name=f"ice_cream_entity_{VERSION}", 
+                        variant="canvass",
+                        inputs=[(f"ice_cream_{VERSION}", "canvass")])
+def ice_cream_entity_transformation(df):
+    """the ice cream dataset with entity """
+    df["entity"] = "farm"
+    return df
 
-user = ff.register_entity("user")
+@k8s.df_transformation(name=f"ice_cream_transformation_{VERSION}", 
+                        variant="canvass",
+                        inputs=[(f"ice_cream_entity_{VERSION}", "canvass")])
+def ice_cream_transformation(df):
+    """the ice cream dataset """
+    return df
+
+farm = ff.register_entity("farm")
 
 # Register a column from our transformation as a feature
-average_user_transaction.register_resources(
-    entity=user,
-    entity_column="CustomerID",
-    inference_store=redis,
+ice_cream_transformation.register_resources(
+    entity=farm,
+    entity_column="entity",
+    timestamp_column="time_index",
+    inference_store=azure_blob,
     features=[
-        {"name": f"avg_transactions_{VERSION}", "variant": "quickstart", "column": "TransactionAmount", "type": "float32"},
+        {"name": f"ice_cream_feature_{VERSION}", "variant": "canvass", "column": "dairy_flow_rate", "type": "float32"},
     ],
 )
 
 # Register label from our base Transactions table
-transactions.register_resources(
-    entity=user,
-    entity_column="CustomerID",
+ice_cream.register_resources(
+    entity=farm,
+    entity_column="entity",
+    timestamp_column="time_index",
     labels=[
-        {"name": f"fraudulent_{VERSION}", "variant": "quickstart", "column": "IsFraud", "type": "bool"},
+        {"name": f"ice_cream_label_{VERSION}", "variant": "canvass", "column": "quality_score", "type": "float32"},
     ],
 )
 
 ff.register_training_set(
-    f"fraud_training_{VERSION}", "quickstart",
-    label=(f"fraudulent_{VERSION}", "quickstart"),
+    f"ice_cream_training_{VERSION}", "canvass",
+    label=(f"ice_cream_label_{VERSION}", "canvass"),
     features=[
-        (f"avg_transactions_{VERSION}", "quickstart"),
-        {"feature": f"avg_transactions_{VERSION}", "variant": "quickstart", "name": "avg_transaction_new_name"},
-        {"feature": f"avg_transactions_{VERSION}", "variant": "quickstart", "name": "avg_transaction_lag_1d", "lag": timedelta(days=1)},
+        (f"ice_cream_feature_{VERSION}", "canvass"),
+        {"feature": f"ice_cream_feature_{VERSION}", "variant": "canvass", "name": "ice_cream_transformation_lag_1h", "lag": timedelta(hours=1)},
     ],
 )

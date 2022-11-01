@@ -34,7 +34,7 @@ client = ff.ServingClient()
 def serve_data():
     for _ in range(NUMBER_OF_SLEEPS):
         try: 
-            dataset = client.training_set(f"fraud_training_{VERSION}", "quickstart")
+            dataset = client.training_set(f"ice_cream_training_{VERSION}", "canvass")
             training_dataset = dataset.repeat(10).shuffle(1000).batch(8)
             for i, feature_batch in enumerate(training_dataset):
                 if i >= 1:
@@ -48,10 +48,16 @@ def serve_data():
     raise Exception(f"Serving for {VERSION} could not be completed.")
 
 def serve_feature():
-    fpf = client.features([(f"avg_transactions_{VERSION}", "quickstart")], {"user": "C6717858"})
-    print(fpf)
+    for _ in range(NUMBER_OF_SLEEPS):
+        try:
+            fpf = client.features([(f"ice_cream_feature_{VERSION}", "canvass")], {"farm": "farm_b"})
+            print(fpf)
+            return 
+        except Exception as e:
+            print(f"\twaiting for {SLEEP_DURATION} seconds")
+            time.sleep(SLEEP_DURATION)
 
-print(f"Serving the training set (fraud_training_{VERSION})")
+print(f"Serving the training set (ice_cream_training_{VERSION})")
 serve_data()
 
 print("\n")

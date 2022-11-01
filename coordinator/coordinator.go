@@ -341,10 +341,6 @@ func (c *Coordinator) mapNameVariantsToTables(sources []metadata.NameVariant) (m
 		}
 		providerResourceID := provider.ResourceID{Name: source.Name(), Variant: source.Variant()}
 		var tableName string
-		sourceProvider, err := source.FetchProvider(c.Metadata, context.Background())
-		if err != nil {
-			return nil, fmt.Errorf("Could not fetch source provider: %v", err)
-		}
 
 		if source.IsDFTransformation() || source.IsSQLTransformation() {
 			providerResourceID.Type = provider.Transformation

@@ -240,7 +240,7 @@ test_offline_spark: gen_grpc 					## Run spark tests.
 	-mkdir coverage
 	go test -v -parallel 1000 -timeout 60m -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/... --tags=spark
 
-test_offline_k8s: gen_grpc 					## Run k8s tests.
+test_offline_k8s:  					## Run k8s tests.
 	@echo "These tests require a .env file. Please Check .env-template for possible variables"
 	-mkdir coverage
 	go test -v -parallel 1000 -timeout 60m -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/... --tags=k8s

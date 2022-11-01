@@ -70,7 +70,7 @@ def execute_sql_job(mode, output_uri, transformation, source_list, blob_credenti
         
         mysql = lambda q: sqldf(q, globals())
         output_dataframe = mysql(transformation)
-
+        print(output_dataframe.head())
         dt = datetime.now()
         output_uri_with_timestamp = f'{output_uri}{dt}'
 

@@ -50,7 +50,7 @@ transactions = k8s.register_file(
     name=f"transactions_{VERSION}",
     variant="quickstart",
     description="A dataset of fraudulent transactions",
-    path="featureform/testing/primary/name/variant/transactions_short_short.csv"
+    path="testing/ff/featureform/testing/primary/name/variant/transactions_short_short.csv"
 )
 
 @k8s.df_transformation(name=f"average_user_transaction_{VERSION}", 

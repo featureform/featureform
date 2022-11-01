@@ -10,6 +10,7 @@ import (
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	"github.com/featureform/types"
+	"go.uber.org/zap"
 	"sync"
 )
 
@@ -171,6 +172,7 @@ type MaterializedChunkRunnerConfig struct {
 	ChunkSize      int64
 	ChunkIdx       int64
 	IsUpdate       bool
+	Logger         *zap.SugaredLogger
 }
 
 func (m *MaterializedChunkRunnerConfig) Serialize() (Config, error) {

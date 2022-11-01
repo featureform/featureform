@@ -8,6 +8,7 @@ import (
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	"github.com/featureform/types"
+	"go.uber.org/zap/zaptest"
 	"testing"
 )
 
@@ -56,8 +57,9 @@ func TestMockMaterializeRunner(t *testing.T) {
 			Variant: "test",
 			Type:    provider.Feature,
 		},
-		VType: provider.String,
-		Cloud: LocalMaterializeRunner,
+		VType:  provider.String,
+		Cloud:  LocalMaterializeRunner,
+		Logger: zaptest.NewLogger(t).Sugar(),
 	}
 	delete(factoryMap, string(COPY_TO_ONLINE))
 	if err := RegisterFactory(string(COPY_TO_ONLINE), mockChunkRunnerFactory); err != nil {

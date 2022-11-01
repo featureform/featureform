@@ -126,6 +126,9 @@ class OnlineBlobConfig:
     def type(self) -> str:
         return "BLOB_ONLINE"
 
+    def config(self):
+        return self.store_config
+    
     def serialize(self) -> bytes:
         config = {
             "Type": self.store_type,

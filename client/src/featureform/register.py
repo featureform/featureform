@@ -109,11 +109,11 @@ class OfflineSparkProvider(OfflineProvider):
         self.__provider = provider
 
     def register_parquet_file(self,
-                       name: str,
-                       variant: str,
-                       file_path: str,
-                       owner: Union[str, UserRegistrar] = "",
-                       description: str = ""):
+                              name: str,
+                              variant: str,
+                              file_path: str,
+                              owner: Union[str, UserRegistrar] = "",
+                              description: str = ""):
         """Register a Spark data source as a primary data source.
 
         Args:
@@ -174,11 +174,11 @@ class OfflineSparkProvider(OfflineProvider):
                                                    description=description)
 
     def df_transformation(self,
-                        variant: str = "default",
-                        owner: Union[str, UserRegistrar] = "",
-                        name: str = "",
-                        description: str = "",
-                        inputs: list = []):
+                          variant: str = "default",
+                          owner: Union[str, UserRegistrar] = "",
+                          name: str = "",
+                          description: str = "",
+                          inputs: list = []):
         """
         Register a Dataframe transformation source. The spark.df_transformation decorator takes the contents
         of the following function and executes the code it contains at serving time.
@@ -207,11 +207,121 @@ class OfflineSparkProvider(OfflineProvider):
             source (ColumnSourceRegistrar): Source
         """
         return self.__registrar.df_transformation(name=name,
-                                                    variant=variant,
-                                                    owner=owner,
-                                                    provider=self.name(),
-                                                    description=description,
-                                                    inputs=inputs)
+                                                  variant=variant,
+                                                  owner=owner,
+                                                  provider=self.name(),
+                                                  description=description,
+                                                  inputs=inputs)
+
+
+class OfflineK8sProvider(OfflineProvider):
+    def __init__(self, registrar, provider):
+        super().__init__(registrar, provider)
+        self.__registrar = registrar
+        self.__provider = provider
+
+    def register_file(self,
+                      name: str,
+                      variant: str,
+                      path: str,
+                      owner: Union[str, UserRegistrar] = "",
+                      description: str = ""):
+        """Register a blob data source path as a primary data source.
+
+        Args:
+            name (str): Name of table to be registered
+            variant (str): Name of variant to be registered
+            file_path (str): The path to blob store file
+            owner (Union[str, UserRegistrar]): Owner
+            description (str): Description of table to be registered
+
+        Returns:
+            source (ColumnSourceRegistrar): source
+        """
+        return self.__registrar.register_primary_data(name=name,
+                                                      variant=variant,
+                                                      location=SQLTable(path),
+                                                      owner=owner,
+                                                      provider=self.name(),
+                                                      description=description)
+
+    def sql_transformation(self,
+                           variant: str,
+                           owner: Union[str, UserRegistrar] = "",
+                           name: str = "",
+                           schedule: str = "",
+                           description: str = ""):
+        """
+        Register a SQL transformation source. The k8s.sql_transformation decorator takes the returned string in the
+        following function and executes it as a SQL Query.
+
+        The name of the function is the name of the resulting source.
+
+        Sources for the transformation can be specified by adding the Name and Variant in brackets '{{ name.variant }}'.
+        The correct source is substituted when the query is run.
+
+        **Examples**:
+        ``` py
+        @k8s.sql_transformation(variant="quickstart")
+        def average_user_transaction():
+            return "SELECT CustomerID as user_id, avg(TransactionAmount) as avg_transaction_amt from" \
+            " {{transactions.v1}} GROUP BY user_id"
+        ```
+
+        Args:
+            name (str): Name of source
+            variant (str): Name of variant
+            owner (Union[str, UserRegistrar]): Owner
+            description (str): Description of primary data to be registered
+
+
+        Returns:
+            source (ColumnSourceRegistrar): Source
+        """
+        return self.__registrar.sql_transformation(name=name,
+                                                   variant=variant,
+                                                   owner=owner,
+                                                   schedule=schedule,
+                                                   provider=self.name(),
+                                                   description=description)
+
+    def df_transformation(self,
+                          variant: str = "default",
+                          owner: Union[str, UserRegistrar] = "",
+                          name: str = "",
+                          description: str = "",
+                          inputs: list = []):
+        """
+        Register a Dataframe transformation source. The k8s_azure.df_transformation decorator takes the contents
+        of the following function and executes the code it contains at serving time.
+
+        The name of the function is used as the name of the source when being registered.
+
+        The specified inputs are loaded into dataframes that can be accessed using the function parameters.
+
+        **Examples**:
+        ``` py
+        @k8s_azure.df_transformation(inputs=[("source", "one")])        # Sources are added as inputs
+        def average_user_transaction(df):                           # Sources can be manipulated by adding them as params
+            return df
+        ```
+
+        Args:
+            name (str): Name of source
+            variant (str): Name of variant
+            owner (Union[str, UserRegistrar]): Owner
+            description (str): Description of primary data to be registered
+            inputs (list[Tuple(str, str)]): A list of Source NameVariant Tuples to input into the transformation
+
+        Returns:
+            source (ColumnSourceRegistrar): Source
+        """
+        return self.__registrar.df_transformation(name=name,
+                                                  variant=variant,
+                                                  owner=owner,
+                                                  provider=self.name(),
+                                                  description=description,
+                                                  inputs=inputs)
 
 
 class OfflineK8sProvider(OfflineProvider):
@@ -403,16 +513,16 @@ class LocalProvider:
         sqldb = SQLiteMetadata()
         # Store a new provider row
         sqldb.insert("providers",
-                          self.__provider.name,
-                          "Provider",
-                          self.__provider.description,
-                          self.__provider.config.type(),
-                          self.__provider.config.software(),
-                          self.__provider.team,
-                          "sources",
-                          "status",
-                          str(self.__provider.config.serialize(), 'utf-8')
-                          )
+                     self.__provider.name,
+                     "Provider",
+                     self.__provider.description,
+                     self.__provider.config.type(),
+                     self.__provider.config.software(),
+                     self.__provider.team,
+                     "sources",
+                     "status",
+                     str(self.__provider.config.serialize(), 'utf-8')
+                     )
         sqldb.close()
 
     def df_transformation(self,
@@ -454,10 +564,10 @@ class LocalProvider:
                                                   inputs=inputs)
 
     def sql_transformation(self,
-                          variant: str = "default",
-                          owner: Union[str, UserRegistrar] = "",
-                          name: str = "",
-                          description: str = ""):
+                           variant: str = "default",
+                           owner: Union[str, UserRegistrar] = "",
+                           name: str = "",
+                           description: str = ""):
         """
         Register a SQL transformation source. The local.sql_transformation decorator takes the returned string in the
         following function and executes it as a SQL Query.
@@ -486,10 +596,10 @@ class LocalProvider:
             source (ColumnSourceRegistrar): Source
         """
         return self.__registrar.sql_transformation(name=name,
-                                                  variant=variant,
-                                                  owner=owner,
-                                                  provider=self.name(),
-                                                  description=description)
+                                                   variant=variant,
+                                                   owner=owner,
+                                                   provider=self.name(),
+                                                   description=description)
 
 
 class SourceRegistrar:
@@ -851,10 +961,10 @@ class ResourceRegistrar:
             schedule=schedule,
             description=description,
         )
-    
+
     def features(self):
         return self.__features
-    
+
     def label(self):
         if isinstance(self.__labels, list):
             if len(self.__labels) > 1:
@@ -1026,7 +1136,7 @@ class Registrar:
         fake_config = OnlineBlobConfig(store_type="AZURE",store_config=fake_azure_config.config())
         fakeProvider = Provider(name=name, function="ONLINE", description="", team="", config=fake_config)
         return FileStoreProvider(self, fakeProvider, fake_config, "AZURE")
-    
+   
     def get_postgres(self, name):
         """Get a Postgres provider. The returned object can be used to register additional resources.
 
@@ -1076,7 +1186,7 @@ class Registrar:
         fakeConfig = SnowflakeConfig(account="", database="", organization="", username="", password="", schema="")
         fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
         return OfflineSQLProvider(self, fakeProvider)
-    
+
     def get_redshift(self, name):
         """Get a Redshift provider. The returned object can be used to register additional resources.
 
@@ -1101,7 +1211,7 @@ class Registrar:
         fakeConfig = RedshiftConfig(host="", port="", database="", user="", password="")
         fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
         return OfflineSQLProvider(self, fakeProvider)
-    
+
     def get_bigquery(self, name):
         """Get a BigQuery provider. The returned object can be used to register additional resources.
 
@@ -1125,7 +1235,7 @@ class Registrar:
         self.__resources.append(get)
         fakeConfig = BigQueryConfig(project_id="", dataset_id="", credentials_path="")
         fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
-        return OfflineSQLProvider(self, fakeProvider)      
+        return OfflineSQLProvider(self, fakeProvider)
 
     def get_spark(self, name):
         """Get a Spark provider. The returned object can be used to register additional resources.
@@ -1150,11 +1260,13 @@ class Registrar:
         fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
         return OfflineSparkProvider(self, fakeProvider)
 
+
     def get_kubernetes(self, name):
         """
         Get a k8s Azure provider. The returned object can be used to register additional resources.
         **Examples**:
         ``` py
+
         k8s_azure = get_kubernetes("k8s-azure-quickstart")
         transactions = k8s_azure.register_file(
             name="transactions",
@@ -1170,7 +1282,7 @@ class Registrar:
         """
         get = ProviderReference(name=name, provider_type="k8s-azure", obj=None)
         self.__resources.append(get)
-        
+
         fakeConfig = K8sConfig(store_type="", store_config={})
         fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
         return OfflineK8sProvider(self, fakeProvider)
@@ -1212,7 +1324,7 @@ class Registrar:
         """Register a Redis provider.
 
         **Examples**:
-        ```   
+        ```
         redis = ff.register_redis(
             name="redis-quickstart",
             host="quickstart-redis",  # The internal dns name for redis
@@ -1242,20 +1354,20 @@ class Registrar:
         return OnlineProvider(self, provider)
 
     def register_blob_store(self,
-                       name: str,
-                       account_name: str,
-                       account_key: str,
-                       container_name: str,
-                       root_path: str, 
-                       description: str = "",
-                       team: str = "",):
+                            name: str,
+                            account_name: str,
+                            account_key: str,
+                            container_name: str,
+                            root_path: str,
+                            description: str = "",
+                            team: str = "",):
         """Register an azure blob store provider.
 
         This has the functionality of an online store and can be used as a parameter
         to a k8s or spark provider
 
         **Examples**:
-        ```   
+        ```
         blob = ff.register_blob_store(
             name="azure-quickstart",
             container_name="my_company_container"
@@ -1358,7 +1470,7 @@ class Registrar:
         """Register a DynamoDB provider.
 
         **Examples**:
-        ```   
+        ```
         dynamodb = ff.register_dynamodb(
             name="dynamodb-quickstart",
             host="quickstart-dynamodb",  # The internal dns name for dynamodb
@@ -1403,7 +1515,7 @@ class Registrar:
         """Register a Snowflake provider.
 
         **Examples**:
-        ```   
+        ```
         snowflake = ff.register_snowflake(
             name="snowflake-quickstart",
             username="snowflake",
@@ -1454,7 +1566,7 @@ class Registrar:
         """Register a Postgres provider.
 
         **Examples**:
-        ```   
+        ```
         postgres = ff.register_postgres(
             name="postgres-quickstart",
             description="A Postgres deployment we created for the Featureform quickstart",
@@ -1474,7 +1586,7 @@ class Registrar:
             user (str): User
             password (str): Password
             database (str): Database
-            
+
         Returns:
             postgres (OfflineSQLProvider): Provider
         """
@@ -1503,7 +1615,7 @@ class Registrar:
         """Register a Redshift provider.
 
         **Examples**:
-        ```   
+        ```
         redshift = ff.register_redshift(
             name="redshift-quickstart",
             description="A Redshift deployment we created for the Featureform quickstart",
@@ -1523,7 +1635,7 @@ class Registrar:
             user (str): User
             password (str): Password
             database (str): Database
-            
+
         Returns:
             redshift (OfflineSQLProvider): Provider
         """
@@ -1550,11 +1662,11 @@ class Registrar:
         """Register a BigQuery provider.
 
         **Examples**:
-        ```   
+        ```
         bigquery = ff.register_bigquery(
             name="bigquery-quickstart",
             description="A BigQuery deployment we created for the Featureform quickstart",
-            project_id="quickstart-project", 
+            project_id="quickstart-project",
             dataset_id="quickstart-dataset",
         )
         ```
@@ -1565,7 +1677,7 @@ class Registrar:
             project_id (str): The Project name in GCP
             dataset_id (str): The Dataset name in GCP under the Project Id
             credentials_path (str): A path to a Google Credentials file with access permissions for BigQuery
-            
+
         Returns:
             bigquery (OfflineSQLProvider): Provider
         """
@@ -1581,18 +1693,18 @@ class Registrar:
         return OfflineSQLProvider(self, provider)
 
     def register_spark(self,
-                          name: str,
-                          description: str = "",
-                          team: str = "",
-                          emr_cluster_id: str = "",
-                          bucket_path: str = "",
-                          emr_cluster_region: str = "",
-                          bucket_region: str = "",
-                          aws_access_key_id: str = "",
-                          aws_secret_access_key: str = "",):
+                       name: str,
+                       description: str = "",
+                       team: str = "",
+                       emr_cluster_id: str = "",
+                       bucket_path: str = "",
+                       emr_cluster_region: str = "",
+                       bucket_region: str = "",
+                       aws_access_key_id: str = "",
+                       aws_secret_access_key: str = "",):
         """Register a Spark on AWS provider.
         **Examples**:
-        ```   
+        ```
         spark = ff.register_spark_aws(
             name="spark-quickstart",
             description="A Spark deployment we created for the Featureform quickstart",
@@ -1615,7 +1727,7 @@ class Registrar:
             bucket_region (str): aws region of the bucket
             aws_access_key_id (str): aws access key id of a role with access to the bucket and emr cluster
             aws_secret_access_key (str): secret key tied to the acces key
-            
+
         Returns:
             spark_aws (OfflineSQLProvider): Provider
         """
@@ -1669,12 +1781,12 @@ class Registrar:
                             config=config)
         self.__resources.append(provider)
         return OfflineK8sProvider(self, provider)
- 
+
     def register_local(self):
         """Register a Local provider.
 
         **Examples**:
-        ```   
+        ```
             local = register_local()
         ```
         Returns:
@@ -1894,7 +2006,7 @@ class Registrar:
             inference_store (Union[str, OnlineProvider]): Online provider
             features (List[ColumnMapping]): List of ColumnMapping objects (dictionaries containing the keys: name, variant, column, resource_type)
             labels (List[ColumnMapping]): List of ColumnMapping objects (dictionaries containing the keys: name, variant, column, resource_type)
-            description (str): Description 
+            description (str): Description
             schedule (str): Kubernetes CronJob schedule string ("* * * * *")
 
         Returns:
@@ -2018,7 +2130,7 @@ class Registrar:
         for resource in resources:
             features += resource.features()
             resource_label = resource.label()
-            #label == () if it is NOT manually entered 
+            #label == () if it is NOT manually entered
             if label == ():
                 label = resource_label
             #Elif: If label was updated to store resource_label it will not check the following elif
@@ -2033,7 +2145,7 @@ class Registrar:
             raise ValueError("Label must be set")
         if features == []:
             raise ValueError("A training-set must have atleast one feature")
-        
+
         resource = TrainingSet(
             name=name,
             variant=variant,
@@ -2128,7 +2240,7 @@ class ResourceClient(Registrar):
         average_user_transaction       quickstart                     source
         -----------------------------------------------
         ```
-        
+
         ``` py title="Input"
         print(featureformer)
         ```
@@ -2191,7 +2303,7 @@ class ResourceClient(Registrar):
         fraud_training                 quickstart                     training set
         -----------------------------------------------
         ```
-        
+
         ``` py title="Input"
         print(postgres)
         ```
@@ -2264,7 +2376,7 @@ class ResourceClient(Registrar):
         fraud_training                 quickstart
         -----------------------------------------------
         ```
-        
+
         ``` py title="Input"
         print(postgres)
         ```
@@ -2276,11 +2388,11 @@ class ResourceClient(Registrar):
         description: "A Postgres deployment we created for the Featureform quickstart"
         type: "POSTGRES_OFFLINE"
         software: "postgres"
-        serialized_config: "{\"Host\": \"quickstart-postgres\", 
-                            \"Port\": \"5432\", 
-                            \"Username\": \"postgres\", 
-                            \"Password\": \"password\", 
-                            \"Database\": \"postgres\"}"                
+        serialized_config: "{\"Host\": \"quickstart-postgres\",
+                            \"Port\": \"5432\",
+                            \"Username\": \"postgres\",
+                            \"Password\": \"password\",
+                            \"Database\": \"postgres\"}"
         sources {
         name: "transactions"
         variant: "kaggle"
@@ -2328,7 +2440,7 @@ class ResourceClient(Registrar):
         quickstart                     default
         -----------------------------------------------
         ```
-        
+
         ``` py title="Input"
         print(avg_transactions)
         ```
@@ -2365,7 +2477,7 @@ class ResourceClient(Registrar):
         fraud_training                 quickstart
         -----------------------------------------------
         ```
-        
+
         ``` py title="Input"
         print(avg_transactions_variant)
         ```
@@ -2399,7 +2511,7 @@ class ResourceClient(Registrar):
 
         Args:
             name (str): Name of feature to be retrieved
-            variant (str): Name of variant of feature 
+            variant (str): Name of variant of feature
 
         Returns:
             feature (Union[Feature, FeatureVariant]): Feature or FeatureVariant
@@ -2431,7 +2543,7 @@ class ResourceClient(Registrar):
         quickstart                     default
         -----------------------------------------------
         ```
-        
+
         ``` py title="Input"
         print(fraudulent)
         ```
@@ -2468,7 +2580,7 @@ class ResourceClient(Registrar):
         fraud_training                 quickstart
         -----------------------------------------------
         ```
-        
+
         ``` py title="Input"
         print(fraudulent_variant)
         ```
@@ -2502,7 +2614,7 @@ class ResourceClient(Registrar):
 
         Args:
             name (str): Name of label to be retrieved
-            variant (str): Name of variant of label 
+            variant (str): Name of variant of label
 
         Returns:
             label (Union[label, LabelVariant]): Label or LabelVariant
@@ -2534,7 +2646,7 @@ class ResourceClient(Registrar):
         quickstart                     default
         -----------------------------------------------
         ```
-        
+
         ``` py title="Input"
         print(fraud_training)
         ```
@@ -2569,7 +2681,7 @@ class ResourceClient(Registrar):
         avg_transactions               quickstart
         -----------------------------------------------
         ```
-        
+
         ``` py title="Input"
         print(fraudulent_variant)
         ```
@@ -2597,7 +2709,7 @@ class ResourceClient(Registrar):
 
         Args:
             name (str): Name of training set to be retrieved
-            variant (str): Name of variant of training set 
+            variant (str): Name of variant of training set
 
         Returns:
             training_set (Union[TrainingSet, TrainingSetVariant]): TrainingSet or TrainingSetVariant
@@ -2629,7 +2741,7 @@ class ResourceClient(Registrar):
         kaggle                         default
         -----------------------------------------------
         ```
-        
+
         ``` py title="Input"
         print(transactions)
         ```
@@ -2677,7 +2789,7 @@ class ResourceClient(Registrar):
         fraud_training                 quickstart
         -----------------------------------------------
         ```
-        
+
         ``` py title="Input"
         print(transactions_variant)
         ```
@@ -2740,7 +2852,7 @@ class ResourceClient(Registrar):
         avg_transactions               quickstart (default)           READY
         avg_transactions               production                     CREATED
         ```
-        
+
         ``` py title="Input"
         print(features_list)
         ```
@@ -2781,14 +2893,14 @@ class ResourceClient(Registrar):
         avg_transactions               quickstart (default)           READY
         avg_transactions               production                     CREATED
         ```
-        
+
         ``` py title="Input"
         print(label_list)
         ```
 
         ``` json title="Output"
         // list_features returns a list of Feature objects
-        
+
         [name: "user_age"
         default_variant: "quickstart"
         variants: "quickstart"
@@ -2821,14 +2933,14 @@ class ResourceClient(Registrar):
         featureformer                  NO_STATUS
         featureformers_friend          CREATED
         ```
-        
+
         ``` py title="Input"
         print(features_list)
         ```
 
         ``` json title="Output"
         // list_features returns a list of Feature objects
-        
+
         [name: "featureformer"
         features {
         name: "avg_transactions"
@@ -2884,14 +2996,14 @@ class ResourceClient(Registrar):
         user                           CREATED
         transaction                    CREATED
         ```
-        
+
         ``` py title="Input"
         print(features_list)
         ```
 
         ``` json title="Output"
         // list_entities returns a list of Entity objects
-        
+
         [name: "user"
         features {
         name: "avg_transactions"
@@ -2942,16 +3054,16 @@ class ResourceClient(Registrar):
 
         NAME                           VARIANT                        STATUS                         DESCRIPTION
         average_user_transaction       quickstart (default)           NO_STATUS                      the average transaction amount for a user
-        transactions                   kaggle (default)               NO_STATUS                      Fraud Dataset From Kaggle   
+        transactions                   kaggle (default)               NO_STATUS                      Fraud Dataset From Kaggle
         ```
-        
+
         ``` py title="Input"
         print(sources_list)
         ```
 
         ``` json title="Output"
         // list_sources returns a list of Source objects
-        
+
         [name: "average_user_transaction"
         default_variant: "quickstart"
         variants: "quickstart"
@@ -2984,14 +3096,14 @@ class ResourceClient(Registrar):
         fraud_training                 v2                             CREATED                        Improved training set for fraud detection.
         recommender                    v1 (default)                   CREATED                        Training set for recommender system.
         ```
-        
+
         ``` py title="Input"
         print(training_sets_list)
         ```
 
         ``` json title="Output"
         // list_training_sets returns a list of TrainingSet objects
-        
+
         [name: "fraud_training"
         default_variant: "quickstart"
         variants: "quickstart", "v2",
@@ -3033,14 +3145,14 @@ class ResourceClient(Registrar):
         redis-quickstart               CREATED                      A Redis deployment we created for the Featureform quickstart
         postgres-quickstart            CREATED                      A Postgres deployment we created for the Featureform quickst
         ```
-        
+
         ``` py title="Input"
         print(providers_list)
         ```
 
         ``` json title="Output"
         // list_providers returns a list of Providers objects
-        
+
         [name: "redis-quickstart"
         description: "A Redis deployment we created for the Featureform quickstart"
         type: "REDIS_ONLINE"
@@ -3103,7 +3215,6 @@ register_dynamodb = global_registrar.register_dynamodb
 register_snowflake = global_registrar.register_snowflake
 register_postgres = global_registrar.register_postgres
 register_redshift = global_registrar.register_redshift
-register_bigquery = global_registrar.register_bigquery
 register_spark = global_registrar.register_spark
 register_k8s = global_registrar.register_k8s
 register_local = global_registrar.register_local

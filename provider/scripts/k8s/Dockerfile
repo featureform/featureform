@@ -1,5 +1,6 @@
 #Deriving the latest base image
-FROM python:latest
+
+FROM python:3.8
 
 WORKDIR /usr/app/src
 

@@ -7,11 +7,11 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"reflect"
-	"github.com/featureform/logging"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/featureform/logging"
 
 	"github.com/featureform/helpers"
 	"github.com/featureform/kubernetes"

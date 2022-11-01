@@ -16,6 +16,7 @@ require (
 	github.com/jackc/pgx/v4 v4.16.1
 	github.com/joho/godotenv v1.4.0
 	github.com/lib/pq v1.10.6
+	github.com/mitchellh/mapstructure v1.4.3
 	github.com/mrz1836/go-sanitize v1.1.5
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.12.2

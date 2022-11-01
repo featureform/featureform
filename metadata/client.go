@@ -721,7 +721,6 @@ func (client *Client) CreateSourceVariant(ctx context.Context, def SourceDef) er
 }
 
 func (client *Client) GetSourceVariants(ctx context.Context, ids []NameVariant) ([]*SourceVariant, error) {
-	client.Logger.Infow("Getting Source Variant", "ids", ids)
 	stream, err := client.grpcConn.GetSourceVariants(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("grpc connect: %w", err)
@@ -738,7 +737,6 @@ func (client *Client) GetSourceVariants(ctx context.Context, ids []NameVariant) 
 			client.Logger.Errorw("Failed to close send", "Err", err)
 		}
 	}()
-	client.Logger.Debugw("Received Source Variant", "ids", ids)
 	variants, err := client.parseSourceVariantStream(stream)
 	if err != nil {
 		client.Logger.Errorw("Failed to parse source variant stream", "ids", ids)

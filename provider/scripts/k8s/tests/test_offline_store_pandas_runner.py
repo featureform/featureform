@@ -17,7 +17,7 @@ dir_path = os.path.dirname(real_path)
 
 @pytest.mark.parametrize(
     "variables",
-    [   
+    [
         "local_variables_success",
         pytest.param("local_variables_failure", marks=pytest.mark.xfail),
         "local_df_variables_success",
@@ -26,7 +26,6 @@ dir_path = os.path.dirname(real_path)
 def test_main(variables, df_transformation, request):
     environment_variables = request.getfixturevalue(variables)
     set_environment_variables(environment_variables)
-    
     args = get_args()
     main(args)
 
@@ -45,7 +44,7 @@ def test_execute_sql_job(variables, expected_output, request):
     env = request.getfixturevalue(variables)
     set_environment_variables(env)
     args = get_args()
-    blob_credentials = get_blob_credentials(args) 
+    blob_credentials = get_blob_credentials(args)
     output_file = execute_sql_job(args.mode, args.output_uri, args.transformation, args.sources, blob_credentials)
 
     if expected_output[-4:] == ".csv":
@@ -91,7 +90,7 @@ def test_execute_df_job(df_transformation, variables, expected_output, request):
 
 @pytest.mark.parametrize(
     "host,ports,expected_output",
-    [   
+    [
         ("127.0.0.1", ["2379"], (("127.0.0.1", 2379),)),
         ("127.0.0.1", ["2379", "2380"], (("127.0.0.1", 2379), ("127.0.0.1", 2380))),
     ]
@@ -103,7 +102,7 @@ def test_get_etcd_host(host, ports, expected_output):
 
 @pytest.mark.parametrize(
     "variables",
-    [   
+    [
         "local_variables_success",
         pytest.param("local_variables_failure", marks=pytest.mark.xfail),
         "k8s_sql_variables_success",
@@ -121,7 +120,7 @@ def test_get_args(variables, request):
 
 @pytest.mark.parametrize(
     "variables,type",
-    [   
+    [
         ("local_variables_success", LOCAL),
         ("k8s_df_variables_success", AZURE),
     ]
@@ -136,7 +135,6 @@ def test_get_blob_credentials(variables, type, request):
         expected_output = Namespace(type=AZURE, connection_string=args.azure_blob_credentials, container=args.azure_container_name)
     elif type == LOCAL:
         expected_output = Namespace(type=LOCAL)
-    
 
     set_environment_variables(environment_variables, delete=True)
     assert credentials == expected_output
@@ -153,7 +151,7 @@ def test_download_blobs_to_local(container_client):
 
 @pytest.mark.parametrize(
     "blob,file",
-    [   
+    [
         (f"featureform/testing/primary/name/variant/transactions_short_{uuid.uuid4()}.csv", f"{dir_path}/test_files/inputs/transactions_short.csv"),
         (f"featureform/testing/primary/name/variant/transactions_short_{uuid.uuid4()}", f"{dir_path}/test_files/inputs/transaction_short"),
     ]
@@ -162,12 +160,10 @@ def test_upload_blob_to_blob_store(blob, file, container_client):
     output_file = upload_blob_to_blob_store(container_client, file, blob)
 
     blob_list = container_client.list_blobs(name_starts_with=blob)
-    
     blob_found = False if os.path.isfile(file) else True
     for blob in blob_list:
         if output_file == blob.name:
             blob_found = True
-    
     assert blob_found, "blob wasn't uploaded successfully"
 
 def set_environment_variables(variables, delete=False):

@@ -1980,7 +1980,7 @@ class Registrar:
                 if lag:
                     required_lag_keys = set(["lag", "feature", "variant"])
                     received_lag_keys = set(feature.keys())
-                    if required_lag_keys.intersection(received_lag_keys) == required_lag_keys:
+                    if required_lag_keys.intersection(received_lag_keys) != required_lag_keys:
                         raise ValueError(f"feature lags require 'lag', 'feature', 'variant' fields. Received: {feature.keys()}")
                     
                     if not isinstance(lag, timedelta):

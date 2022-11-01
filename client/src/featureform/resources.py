@@ -12,8 +12,10 @@ from typing import List, Tuple, Union
 
 import grpc
 from .sqlite_metadata import SQLiteMetadata
+from google.protobuf.duration_pb2 import Duration
 
 from featureform.proto import metadata_pb2 as pb
+
 
 NameVariant = Tuple[str, str]
 
@@ -912,7 +914,7 @@ class TrainingSet:
     owner: str
     label: NameVariant
     features: List[NameVariant]
-    feature_lags: List[dict]
+    feature_lags: list
     description: str
     variant: str = "default"
     schedule: str = ""
@@ -955,7 +957,7 @@ class TrainingSet:
                     feature=lag["feature"],
                     variant=lag["variant"],
                     name=lag["name"],
-                    lag=lag["lag"],     
+                    lag=Duration().FromTimedelta(lag["lag"]),     
                 ) for lag in self.feature_lags
             ]
         )

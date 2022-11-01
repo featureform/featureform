@@ -6,6 +6,7 @@ package provider
 import (
 	"bytes"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -377,7 +378,7 @@ func Test_parquetIteratorFromReader(t *testing.T) {
 		w.Write(row)
 	}
 	w.Close()
-	iter, err := parquetIteratorFromReader(buf.Bytes())
+	iter, err := parquetIteratorFromBytes(buf.Bytes())
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
@@ -396,5 +397,31 @@ func Test_parquetIteratorFromReader(t *testing.T) {
 			t.Errorf("Rows not equal %v!=%v\n", value, testRows[index])
 		}
 		index += 1
+	}
+}
+
+func Test_parquetNoRowsIteratorFromReader(t *testing.T) {
+	b, err := ioutil.ReadFile("test_files/empty.parquet")
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	iter, err := parquetIteratorFromBytes(b)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	if value, err := iter.Next(); err != nil || value != nil {
+		t.Fatalf("Expected empty value and empty error")
+	}
+}
+
+func Test_invalidParquetIteratorFromReader(t *testing.T) {
+	var buf bytes.Buffer
+	w := parquet.NewWriter(&buf)
+	w.Close()
+	_, err := parquetIteratorFromBytes(buf.Bytes())
+	switch err := err.(type) {
+	case EmptyParquetFileError:
+	default:
+		t.Fatalf("Expected Type EmptyParquetFileError, got %v", err)
 	}
 }

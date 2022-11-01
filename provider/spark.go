@@ -188,7 +188,7 @@ func (q defaultSparkOfflineQueries) trainingSetCreate(def TrainingSetDef, featur
 			lagColumnName = sanitize(fmt.Sprintf("%s_%s_lag_%s", lagFeature.FeatureName, lagFeature.FeatureVariant, lagFeature.LagDelta))
 		}
 		columns = append(columns, lagColumnName)
-		timeDeltaMicroseconds := lagFeature.LagDelta.Microseconds() //parquet stores time as microseconds
+		timeDeltaSeconds := lagFeature.LagDelta.Seconds() //parquet stores time as microseconds
 		curIdx := lagFeaturesOffset + i + 1
 		var lagWindowQuery string
 		if featureSchemas[idx].TS == "" {
@@ -196,7 +196,7 @@ func (q defaultSparkOfflineQueries) trainingSetCreate(def TrainingSetDef, featur
 		} else {
 			lagWindowQuery = fmt.Sprintf("SELECT * FROM (SELECT %s as t%d_entity, %s as %s, %s as t%d_ts FROM %s) ORDER BY t%d_ts ASC", featureSchemas[idx].Entity, curIdx, featureSchemas[idx].Value, lagColumnName, featureSchemas[idx].TS, curIdx, lagSource, curIdx)
 		}
-		lagJoinQuery := fmt.Sprintf("LEFT OUTER JOIN (%s) t%d ON (t%d_entity = entity AND t%d_ts + %d <= label_ts)", lagWindowQuery, curIdx, curIdx, curIdx, timeDeltaMicroseconds)
+		lagJoinQuery := fmt.Sprintf("LEFT OUTER JOIN (%s) t%d ON (t%d_entity = entity AND DATETIME(t%d_ts, '+%f seconds') <= label_ts)", lagWindowQuery, curIdx, curIdx, curIdx, timeDeltaSeconds)
 		joinQueries = append(joinQueries, lagJoinQuery)
 	}
 	columnStr := strings.Join(columns, ", ")

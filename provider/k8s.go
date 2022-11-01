@@ -1345,12 +1345,17 @@ func (ts *BlobTrainingSet) Next() bool {
 	if row == nil {
 		return false
 	}
-	values := make([]interface{}, 0)
-	for _, val := range row {
-		values = append(values, val)
+	fmt.Println(row)
+	feature_values := make([]interface{}, 0)
+	for key, val := range row {
+		columnSections := strings.Split(key, "__")
+		if columnSections[0] == "Label" {
+			ts.label = val
+		} else {
+			feature_values = append(feature_values, val)
+		}
 	}
-	ts.features = values[0 : len(row)-1]
-	ts.label = values[len(row)-1]
+	ts.features = feature_values
 	return true
 }
 

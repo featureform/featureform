@@ -1298,6 +1298,8 @@ func (k8s *K8sOfflineStore) trainingSet(def TrainingSetDef, isUpdate bool) error
 		featureSchemas = append(featureSchemas, featureSchema)
 	}
 	trainingSetQuery := k8s.query.trainingSetCreate(def, featureSchemas, labelSchema)
+	k8s.logger.Debugw("Training set query", "query", sourcePaths)
+	k8s.logger.Debugw("Source list", "list", trainingSetQuery)
 	pandasArgs := k8s.pandasRunnerArgs(k8s.store.PathWithPrefix(destinationPath), trainingSetQuery, sourcePaths, CreateTrainingSet)
 	pandasArgs = addResourceID(pandasArgs, def.ID)
 	k8s.logger.Debugw("Creating training set", "definition", def)

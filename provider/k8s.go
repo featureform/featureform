@@ -976,7 +976,7 @@ func (k8s *K8sOfflineStore) getSourcePath(path string) (string, error) {
 		return filePath, nil
 	} else if fileType == "transformation" {
 		fileResourceId := ResourceID{Name: fileName, Variant: fileVariant, Type: Transformation}
-		fileResourcePath := blobResourcePath(fileResourceId)
+		fileResourcePath := k8s.store.PathWithPrefix(blobResourcePath(fileResourceId))
 		exactFileResourcePath := k8s.store.NewestBlob(fileResourcePath)
 		if exactFileResourcePath == "" {
 			k8s.logger.Errorw("Issue getting transformation table", "id", fileResourceId)

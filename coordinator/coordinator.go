@@ -345,7 +345,8 @@ func (c *Coordinator) mapNameVariantsToTables(sources []metadata.NameVariant) (m
 		if err != nil {
 			return nil, fmt.Errorf("Could not fetch source provider: %v", err)
 		}
-		if sourceProvider.Type() == "SPARK_OFFLINE" && source.IsSQLTransformation() {
+
+		if source.IsDFTransformation() || source.IsSQLTransformation() {
 			providerResourceID.Type = provider.Transformation
 			tableName, err = provider.GetTransformationTableName(providerResourceID)
 			if err != nil {

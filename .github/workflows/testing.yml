@@ -775,10 +775,10 @@ jobs:
         with:
           name: compiled-workdir
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Set up Go
+        uses: actions/setup-go@v2
         with:
-          python-version: "3.10"
+          go-version: 1.18
 
       - name: Testing
         run: make test_offline_k8s

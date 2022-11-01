@@ -783,6 +783,28 @@ jobs:
       - name: Testing
         run: make test_offline_k8s
 
+      - name: Convert Coverage Test Results
+        if: always()
+        working-directory: ./coverage
+        run: |
+          cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
+          go tool cover -html=cover.out -o cover.html
+
+      - uses: codecov/codecov-action@v2
+        if: always()
+        with:
+          root_dir: ./
+          files: ./coverage/cover.out
+          name: k8s-coverage
+          verbose: true
+
+      - name: Archive code coverage results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: k8s-coverage-reports
+          path: ./coverage
+
 #  schedule:
 #    runs-on: ubuntu-latest
 #    name: Schedule Jobs

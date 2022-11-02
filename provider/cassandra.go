@@ -5,8 +5,8 @@
 package provider
 
 import (
-	"encoding/json"
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/gocql/gocql"

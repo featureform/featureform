@@ -181,6 +181,7 @@ func TestOfflineStores(t *testing.T) {
 		"MaterializationNotFound": testMaterializationNotFound,
 		"TrainingSets":            testTrainingSet,
 		"TrainingSetUpdate":       testTrainingSetUpdate,
+		"TrainingSetLag":          testLagFeaturesTrainingSet,
 		"TrainingSetInvalidID":    testGetTrainingSetInvalidResourceID,
 		"GetUnknownTrainingSet":   testGetUnkonwnTrainingSet,
 		"InvalidTrainingSetDefs":  testInvalidTrainingSetDefs,
@@ -3412,6 +3413,250 @@ func TestBigQueryConfig_Deserialize(t *testing.T) {
 			if err := bq.Deserialize(tt.args.config); (err != nil) != tt.wantErr {
 				t.Errorf("Deserialize() error = %v, wantErr %v", err, tt.wantErr)
 			}
+		})
+	}
+}
+
+func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
+	type expectedTrainingRow struct {
+		Features []interface{}
+		Label    interface{}
+	}
+	type TestCase struct {
+		FeatureRecords [][]ResourceRecord
+		LabelRecords   []ResourceRecord
+		ExpectedRows   []expectedTrainingRow
+		FeatureSchema  []TableSchema
+		LabelSchema    TableSchema
+		LagFeatures    []func(ResourceID) LagFeatureDef
+	}
+
+	tests := map[string]TestCase{
+		"NoLag": {
+			FeatureRecords: [][]ResourceRecord{
+				{
+					{Entity: "a", Value: 1, TS: time.UnixMilli(1)},
+					{Entity: "b", Value: 2, TS: time.UnixMilli(1)},
+					{Entity: "c", Value: 3, TS: time.UnixMilli(1)},
+				},
+			},
+			FeatureSchema: []TableSchema{
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: Int},
+						{Name: "label", ValueType: Bool},
+					},
+				},
+			},
+			LagFeatures: []func(ResourceID) LagFeatureDef{
+				func(id ResourceID) LagFeatureDef {
+					return LagFeatureDef{
+						FeatureName:    id.Name,
+						FeatureVariant: id.Variant,
+						LagName:        "",
+						LagDelta:       time.Millisecond * 0,
+					}
+				},
+			},
+			LabelRecords: []ResourceRecord{
+				{Entity: "a", Value: true, TS: time.UnixMilli(1)},
+				{Entity: "b", Value: false, TS: time.UnixMilli(1)},
+				{Entity: "c", Value: true, TS: time.UnixMilli(1)},
+			},
+			LabelSchema: TableSchema{
+				Columns: []TableColumn{
+					{Name: "entity", ValueType: String},
+					{Name: "value", ValueType: Bool},
+				},
+			},
+			ExpectedRows: []expectedTrainingRow{
+				{
+					Features: []interface{}{
+						1,
+						1,
+					},
+					Label: true,
+				},
+				{
+					Features: []interface{}{
+						2,
+						2,
+					},
+					Label: false,
+				},
+				{
+					Features: []interface{}{
+						3,
+						3,
+					},
+					Label: true,
+				},
+			},
+		},
+		"SimpleLags": {
+			FeatureRecords: [][]ResourceRecord{
+				{
+					{Entity: "a", Value: 1, TS: time.UnixMilli(1)},
+					{Entity: "b", Value: 2, TS: time.UnixMilli(1)},
+					{Entity: "c", Value: 3, TS: time.UnixMilli(1)},
+				},
+			},
+			FeatureSchema: []TableSchema{
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: Int},
+					},
+				},
+			},
+			LagFeatures: []func(ResourceID) LagFeatureDef{
+				func(id ResourceID) LagFeatureDef {
+					return LagFeatureDef{
+						FeatureName:    id.Name,
+						FeatureVariant: id.Variant,
+						LagName:        "",
+						LagDelta:       time.Millisecond,
+					}
+				},
+				func(id ResourceID) LagFeatureDef {
+					return LagFeatureDef{
+						FeatureName:    id.Name,
+						FeatureVariant: id.Variant,
+						LagName:        "",
+						LagDelta:       time.Millisecond * 2,
+					}
+				},
+			},
+			LabelRecords: []ResourceRecord{
+				{Entity: "a", Value: 10, TS: time.UnixMilli(1)},
+				{Entity: "b", Value: 20, TS: time.UnixMilli(2)},
+				{Entity: "b", Value: 30, TS: time.UnixMilli(3)},
+			},
+			LabelSchema: TableSchema{
+				Columns: []TableColumn{
+					{Name: "entity", ValueType: String},
+					{Name: "value", ValueType: Int},
+				},
+			},
+			ExpectedRows: []expectedTrainingRow{
+				{
+					Features: []interface{}{
+						1, nil, nil,
+					},
+					Label: 10,
+				},
+				{
+					Features: []interface{}{
+						2, 1, nil,
+					},
+					Label: 20,
+				},
+				{
+					Features: []interface{}{
+						3, 2, 1,
+					},
+					Label: 30,
+				},
+				{
+					Features: []interface{}{
+						4, 3, 2,
+					},
+					Label: 40,
+				},
+			},
+		},
+	}
+	runTestCase := func(t *testing.T, test TestCase) {
+		featureIDs := make([]ResourceID, len(test.FeatureRecords))
+
+		for i, recs := range test.FeatureRecords {
+			id := randomID(Feature)
+			featureIDs[i] = id
+			table, err := store.CreateResourceTable(id, test.FeatureSchema[i])
+			if err != nil {
+				t.Fatalf("Failed to create table: %s", err)
+			}
+			for _, rec := range recs {
+				if err := table.Write(rec); err != nil {
+					t.Fatalf("Failed to write record %v: %v", rec, err)
+				}
+			}
+		}
+		labelID := randomID(Label)
+		labelTable, err := store.CreateResourceTable(labelID, test.LabelSchema)
+		if err != nil {
+			t.Fatalf("Failed to create table: %s", err)
+		}
+		for _, rec := range test.LabelRecords {
+			if err := labelTable.Write(rec); err != nil {
+				t.Fatalf("Failed to write record %v", rec)
+			}
+		}
+		lagFeatureList := make([]LagFeatureDef, 0)
+		for _, lagFeatureDef := range test.LagFeatures {
+			// tests implicitly create lag feature from first listed feature
+			lagFeatureList = append(lagFeatureList, lagFeatureDef(featureIDs[0]))
+		}
+		def := TrainingSetDef{
+			ID:          randomID(TrainingSet),
+			Label:       labelID,
+			Features:    featureIDs,
+			LagFeatures: lagFeatureList,
+		}
+		if err := store.CreateTrainingSet(def); err != nil {
+			t.Fatalf("Failed to create training set: %s", err)
+		}
+		iter, err := store.GetTrainingSet(def.ID)
+		if err != nil {
+			t.Fatalf("Failed to get training set: %s", err)
+		}
+		i := 0
+		expectedRows := test.ExpectedRows
+		for iter.Next() {
+			realRow := expectedTrainingRow{
+				Features: iter.Features(),
+				Label:    iter.Label(),
+			}
+
+			// Row order isn't guaranteed, we make sure one row is equivalent
+			// then we delete that row. This is ineffecient, but these test
+			// cases should all be small enough not to matter.
+			found := false
+			for i, expRow := range expectedRows {
+				if reflect.DeepEqual(realRow, expRow) {
+					found = true
+					lastIdx := len(expectedRows) - 1
+					// Swap the record that we've found to the end, then shrink the slice to not include it.
+					// This is essentially a delete operation expect that it re-orders the slice.
+					expectedRows[i], expectedRows[lastIdx] = expectedRows[lastIdx], expectedRows[i]
+					expectedRows = expectedRows[:lastIdx]
+					break
+				}
+			}
+			if !found {
+				for i, v := range realRow.Features {
+					fmt.Printf("Got %T Expected %T\n", v, expectedRows[0].Features[i])
+				}
+				t.Fatalf("Unexpected training row: %v, expected %v", realRow, expectedRows)
+			}
+			i++
+		}
+		if err := iter.Err(); err != nil {
+			t.Fatalf("Failed to iterate training set: %s", err)
+		}
+		if len(test.ExpectedRows) != i {
+			t.Fatalf("Training set has different number of rows %d %d", len(test.ExpectedRows), i)
+		}
+	}
+	for name, test := range tests {
+		nameConst := name
+		testConst := test
+		t.Run(nameConst, func(t *testing.T) {
+			if store.Type() != MemoryOffline {
+				t.Parallel()
+			}
+			runTestCase(t, testConst)
 		})
 	}
 }

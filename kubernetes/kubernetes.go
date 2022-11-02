@@ -8,27 +8,25 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"math"
+	"strings"
+
 	"github.com/featureform/metadata"
 	"github.com/featureform/types"
 	"github.com/google/uuid"
 	"github.com/gorhill/cronexpr"
-	"io"
-	"io/ioutil"
 	batchv1 "k8s.io/api/batch/v1"
-	"math"
-	"strings"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	watch "k8s.io/apimachinery/pkg/watch"
 	kubernetes "k8s.io/client-go/kubernetes"
 	rest "k8s.io/client-go/rest"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/kubernetes"
 )
 
 type CronSchedule string
-
 
 const MaxNameLength = 53
 
@@ -188,7 +186,6 @@ func (k KubernetesCompletionWatcher) String() string {
 	return fmt.Sprintf("%d jobs succeeded. %d jobs active. %d jobs failed", job.Status.Succeeded, job.Status.Active, job.Status.Failed)
 }
 
-
 func getPodLogs(namespace string, name string) string {
 	podLogOpts := corev1.PodLogOptions{}
 	config, err := rest.InClusterConfig()
@@ -230,7 +227,6 @@ func getPodLogs(namespace string, name string) string {
 
 	return str
 }
-
 
 func (k KubernetesCompletionWatcher) Wait() error {
 	watcher, err := k.jobClient.Watch()

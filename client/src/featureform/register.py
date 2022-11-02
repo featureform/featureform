@@ -2,6 +2,9 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+
+from datetime import timedelta
+from multiprocessing.sharedctypes import Value
 from typeguard import typechecked, check_type
 from typing import Tuple, Callable, List, Union
 
@@ -2079,25 +2082,52 @@ class Registrar:
 
     def __get_feature_nv(self, features):
         feature_nv_list = []
+        feature_lags = []
         for feature in features:
             if isinstance(feature, str):
                 feature_nv = (feature, "default")
                 feature_nv_list.append(feature_nv)
             elif isinstance(feature, dict):
-                feature_nv = (feature["name"], feature["variant"])
-                feature_nv_list.append(feature_nv)
+                lag = feature.get("lag")
+                if lag:
+                    required_lag_keys = set(["lag", "feature", "variant"])
+                    received_lag_keys = set(feature.keys())
+                    if required_lag_keys.intersection(received_lag_keys) != required_lag_keys:
+                        raise ValueError(f"feature lags require 'lag', 'feature', 'variant' fields. Received: {feature.keys()}")
+                    
+                    if not isinstance(lag, timedelta):
+                        raise ValueError(f"the lag, '{lag}', needs to be of type 'datetime.timedelta'. Received: {type(lag)}.")
+
+                    feature_name_variant = (feature["feature"], feature["variant"])
+                    if feature_name_variant not in feature_nv_list:
+                        feature_nv_list.append(feature_name_variant)
+
+                    lag_name = f"{feature['feature']}_{feature['variant']}_lag_{lag}"
+                    sanitized_lag_name = lag_name.replace(" ", "").replace(",", "_").replace(":", "_")
+                    feature["name"] = feature.get("name", sanitized_lag_name)
+                    
+                    feature_lags.append(feature)
+                else:
+                    feature_nv = (feature["name"], feature["variant"])
+                    feature_nv_list.append(feature_nv)
             elif isinstance(feature, list):
-                feature_nv_list.extend(self.__get_feature_nv(feature))
+                feature_nv, feature_lags_list = self.__get_feature_nv(feature)
+                if len(feature_nv) != 0:
+                    feature_nv_list.extend(feature_nv)
+
+                if len(feature_lags_list) != 0:
+                    feature_lags.extend(feature_lags_list)
             else:
                 feature_nv_list.append(feature)
-        return feature_nv_list
+
+        return feature_nv_list, feature_lags
 
     def register_training_set(self,
                               name: str,
                               variant: str = "default",
-                              features: list = None,
+                              features: list = [],
                               label: NameVariant = (),
-                              resources: list = None,
+                              resources: list = [],
                               owner: Union[str, UserRegistrar] = "",
                               description: str = "",
                               schedule: str = ""):
@@ -2108,6 +2138,7 @@ class Registrar:
             variant (str): Name of variant to be registered
             label (NameVariant): Label of training set
             features (List[NameVariant]): Features of training set
+            resources (List[Resource]): A list of previously registered resources
             owner (Union[str, UserRegistrar]): Owner
             description (str): Description of training set to be registered
             schedule (str): Kubernetes CronJob schedule string ("* * * * *")
@@ -2119,14 +2150,13 @@ class Registrar:
             owner = owner.name()
         if owner == "":
             owner = self.must_get_default_owner()
-        if isinstance(features,tuple):
+        
+        if isinstance(features, tuple):
             raise ValueError("Features must be entered as a list")
+        
         if isinstance(label, list):
             raise ValueError("Label must be entered as a tuple")
-        if features == None:
-            features = []
-        if resources == None:
-            resources = []
+
         for resource in resources:
             features += resource.features()
             resource_label = resource.label()
@@ -2136,10 +2166,11 @@ class Registrar:
             #Elif: If label was updated to store resource_label it will not check the following elif
             elif resource_label != ():
                 raise ValueError("A training set can only have one label")
+        
         if isinstance(label, str):
             label = (label, "default")
-        features = self.__get_feature_nv(features)
-
+        
+        features, feature_lags = self.__get_feature_nv(features)
 
         if label == ():
             raise ValueError("Label must be set")
@@ -2154,6 +2185,7 @@ class Registrar:
             schedule=schedule,
             label=label,
             features=features,
+            feature_lags=feature_lags
         )
         self.__resources.append(resource)
 

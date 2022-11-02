@@ -12,8 +12,10 @@ from typing import List, Tuple, Union
 
 import grpc
 from .sqlite_metadata import SQLiteMetadata
+from google.protobuf.duration_pb2 import Duration
 
 from featureform.proto import metadata_pb2 as pb
+
 
 NameVariant = Tuple[str, str]
 
@@ -128,7 +130,7 @@ class OnlineBlobConfig:
 
     def config(self):
         return self.store_config
-
+    
     def serialize(self) -> bytes:
         config = {
             "Type": self.store_type,
@@ -915,6 +917,7 @@ class TrainingSet:
     owner: str
     label: NameVariant
     features: List[NameVariant]
+    feature_lags: list
     description: str
     variant: str = "default"
     schedule: str = ""
@@ -942,6 +945,18 @@ class TrainingSet:
         return "training-set"
 
     def _create(self, stub) -> None:
+        feature_lags = []
+        for lag in self.feature_lags:
+            lag_duration = Duration()
+            _ = lag_duration.FromTimedelta(lag["lag"])
+            feature_lag = pb.FeatureLag(
+                    feature=lag["feature"],
+                    variant=lag["variant"],
+                    name=lag["name"],
+                    lag=lag_duration,     
+                )
+            feature_lags.append(feature_lag)
+
         serialized = pb.TrainingSetVariant(
             name=self.name,
             variant=self.variant,
@@ -952,6 +967,7 @@ class TrainingSet:
                 pb.NameVariant(name=v[0], variant=v[1]) for v in self.features
             ],
             label=pb.NameVariant(name=self.label[0], variant=self.label[1]),
+            feature_lags=feature_lags,
         )
         stub.CreateTrainingSetVariant(serialized)
 

@@ -8,22 +8,22 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"math"
+	"strings"
+
 	"github.com/featureform/metadata"
 	"github.com/featureform/types"
 	"github.com/google/uuid"
 	"github.com/gorhill/cronexpr"
-	"io"
-	"io/ioutil"
 	batchv1 "k8s.io/api/batch/v1"
-	"math"
-	"strings"
-
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
+	watch "k8s.io/apimachinery/pkg/watch"
+	kubernetes "k8s.io/client-go/kubernetes"
+	rest "k8s.io/client-go/rest"
 )
 
 type CronSchedule string
@@ -115,6 +115,7 @@ func newJobSpec(config KubernetesRunnerConfig) batchv1.JobSpec {
 	} else {
 		completionMode = batchv1.NonIndexedCompletion
 	}
+
 	backoffLimit := int32(0)
 	ttlLimit := int32(3600)
 	return batchv1.JobSpec{
@@ -234,6 +235,7 @@ func (k KubernetesCompletionWatcher) Wait() error {
 	}
 	watchChannel := watcher.ResultChan()
 	for jobEvent := range watchChannel {
+
 		job := jobEvent.Object.(*batchv1.Job)
 		if active := job.Status.Active; active == 0 {
 			if succeeded := job.Status.Succeeded; succeeded > 0 {

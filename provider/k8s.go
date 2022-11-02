@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/featureform/logging"
 	"io"
 	"os"
 	"os/exec"
@@ -12,9 +11,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/featureform/logging"
+
 	"github.com/featureform/helpers"
 	"github.com/featureform/kubernetes"
 	"github.com/featureform/metadata"
+
 	"github.com/segmentio/parquet-go"
 	"go.uber.org/zap"
 	"gocloud.dev/blob"
@@ -887,7 +889,6 @@ func (k8s *K8sOfflineStore) sqlTransformation(config TransformationConfig, isUpd
 	if err := k8s.executor.ExecuteScript(runnerArgs); err != nil {
 		k8s.logger.Errorw("job for transformation failed to run", "name", config.TargetTableID.Name, "variant", config.TargetTableID.Variant, "error", err)
 		return fmt.Errorf("job for transformation failed to run: (name: %s variant:%s) %v", config.TargetTableID.Name, config.TargetTableID.Variant, err)
-
 	}
 	k8s.logger.Debugw("Succesfully ran SQL transformation", config)
 	return nil
@@ -975,14 +976,13 @@ func (k8s *K8sOfflineStore) getSourcePath(path string) (string, error) {
 		return filePath, nil
 	} else if fileType == "transformation" {
 		fileResourceId := ResourceID{Name: fileName, Variant: fileVariant, Type: Transformation}
-		fileResourcePath := blobResourcePath(fileResourceId)
+		fileResourcePath := k8s.store.PathWithPrefix(blobResourcePath(fileResourceId))
 		exactFileResourcePath := k8s.store.NewestBlob(fileResourcePath)
 		if exactFileResourcePath == "" {
 			k8s.logger.Errorw("Issue getting transformation table", "id", fileResourceId)
 			return "", fmt.Errorf("could not get the transformation table for {%v}", fileResourceId)
 		}
-		filePath := k8s.store.PathWithPrefix(exactFileResourcePath[:strings.LastIndex(exactFileResourcePath, "/")+1])
-		return filePath, nil
+		return exactFileResourcePath, nil
 	} else {
 		return filePath, fmt.Errorf("could not find path for %s; fileType: %s, fileName: %s, fileVariant: %s", path, fileType, fileName, fileVariant)
 	}
@@ -1130,15 +1130,19 @@ func (iter *BlobFeatureIterator) Next() bool {
 		return false
 	}
 	formatDate := "2006-01-02 15:04:05 UTC" // hardcoded golang format date
-	var timestamp time.Time
 	timeString, ok := nextVal["ts"].(string)
 	if !ok {
 		iter.cur = ResourceRecord{Entity: string(nextVal["entity"].(string)), Value: nextVal["value"]}
 	} else {
-		timestamp, err = time.Parse(formatDate, timeString)
-		if err != nil {
-			iter.err = fmt.Errorf("could not parse timestamp: %v: %v", nextVal["ts"], err)
+		timestamp, err1 := time.Parse(formatDate, timeString)
+		formatDateWithoutUTC := "2006-01-02 15:04:05"
+		timestamp2, err2 := time.Parse(formatDateWithoutUTC, timeString)
+		if err1 != nil && err2 != nil {
+			iter.err = fmt.Errorf("could not parse timestamp: %v: %v, %v", nextVal["ts"], err1, err2)
 			return false
+		}
+		if err1 != nil {
+			timestamp = timestamp2
 		}
 		iter.cur = ResourceRecord{Entity: string(nextVal["entity"].(string)), Value: nextVal["value"], TS: timestamp}
 	}
@@ -1290,6 +1294,8 @@ func (k8s *K8sOfflineStore) trainingSet(def TrainingSetDef, isUpdate bool) error
 		featureSchemas = append(featureSchemas, featureSchema)
 	}
 	trainingSetQuery := k8s.query.trainingSetCreate(def, featureSchemas, labelSchema)
+	k8s.logger.Debugw("Training set query", "query", sourcePaths)
+	k8s.logger.Debugw("Source list", "list", trainingSetQuery)
 	pandasArgs := k8s.pandasRunnerArgs(k8s.store.PathWithPrefix(destinationPath), trainingSetQuery, sourcePaths, CreateTrainingSet)
 	pandasArgs = addResourceID(pandasArgs, def.ID)
 	k8s.logger.Debugw("Creating training set", "definition", def)
@@ -1337,12 +1343,17 @@ func (ts *BlobTrainingSet) Next() bool {
 	if row == nil {
 		return false
 	}
-	values := make([]interface{}, 0)
-	for _, val := range row {
-		values = append(values, val)
+	fmt.Println(row)
+	feature_values := make([]interface{}, 0)
+	for key, val := range row {
+		columnSections := strings.Split(key, "__")
+		if columnSections[0] == "Label" {
+			ts.label = val
+		} else {
+			feature_values = append(feature_values, val)
+		}
 	}
-	ts.features = values[0 : len(row)-1]
-	ts.label = values[len(row)-1]
+	ts.features = feature_values
 	return true
 }
 

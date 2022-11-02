@@ -22,6 +22,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"go.uber.org/zap"
+
+	"github.com/featureform/helpers"
 )
 
 func testCreateTrainingSet(store *SparkOfflineStore) error {
@@ -379,9 +381,17 @@ func TestParquetUpload(t *testing.T) {
 	if testing.Short() {
 		return
 	}
-	sparkOfflineStore, err := getSparkOfflineStore(t)
+	emrSparkOfflineStore, err := getSparkOfflineStore(t)
 	if err != nil {
 		t.Fatalf("could not get SparkOfflineStore: %s", err)
+	}
+	databricksSparkOfflineStore, err := getDatabricksOfflineStore(t)
+	if err != nil {
+		t.Fatalf("could not get databricks offline store: %s", err)
+	}
+	sparkStores := map[string]*SparkOfflineStore{
+		"EMR_SPARK_STORE":        emrSparkOfflineStore,
+		"DATABRICKS_SPARK_STORE": databricksSparkOfflineStore,
 	}
 	if err := testTableUploadCompare(sparkOfflineStore); err != nil {
 		t.Fatalf("Upload test failed: %s", err)
@@ -399,35 +409,45 @@ func TestParquetUpload(t *testing.T) {
 		t.Fatalf("multi part stream test failed, %v", err)
 	}
 	testFns := map[string]func(*testing.T, *SparkOfflineStore){
-		"sparkTestOfflineTableNotFound":            sparkTestOfflineTableNotFound,
-		"sparkTestCreateGetOfflineTable":           sparkTestCreateGetOfflineTable,
-		"sparkTestOfflineTableAlreadyExists":       sparkTestOfflineTableAlreadyExists,
-		"sparkTestInvalidResourceIDs":              sparkTestInvalidResourceIDs,
-		"sparkTestInvalidMaterialization":          sparkTestInvalidMaterialization,
-		"sparkTestMaterializeUnknown":              sparkTestMaterializeUnknown,
-		"sparkTestMaterializationNotFound":         sparkTestMaterializationNotFound,
-		"sparkTestGetTrainingSetInvalidResourceID": sparkTestGetTrainingSetInvalidResourceID,
-		"sparkTestGetUnknownTrainingSet":           sparkTestGetUnknownTrainingSet,
-		"sparkTestInvalidTrainingSetDefs":          sparkTestInvalidTrainingSetDefs,
-		"sparkTestLabelTableNotFound":              sparkTestLabelTableNotFound,
-		"sparkTestFeatureTableNotFound":            sparkTestFeatureTableNotFound,
-		"sparkTestCreatePrimaryFromSource":         sparkTestCreatePrimaryFromSource,
-		"sparkTestCreateDuplicatePrimaryTable":     sparkTestCreateDuplicatePrimaryTable,
-		"sparkTestTrainingSet":                     sparkTestTrainingSet,
-		"sparkTestMaterializations":                sparkTestMaterializations,
-		"sparkTestTrainingSetDefShorthand":         sparkTestTrainingSetDefShorthand,
-		"sparkTestMaterializationUpdate":           sparkTestMaterializationUpdate,
-		"sparkTestTrainingSetUpdate":               sparkTestTrainingSetUpdate,
+		"sparkTestOfflineTableNotFound":               sparkTestOfflineTableNotFound,
+		"sparkTestCreateGetOfflineTable":              sparkTestCreateGetOfflineTable,
+		"sparkTestOfflineTableAlreadyExists":          sparkTestOfflineTableAlreadyExists,
+		"sparkTestInvalidResourceIDs":                 sparkTestInvalidResourceIDs,
+		"sparkTestInvalidMaterialization":             sparkTestInvalidMaterialization,
+		"sparkTestMaterializeUnknown":                 sparkTestMaterializeUnknown,
+		"sparkTestMaterializationNotFound":            sparkTestMaterializationNotFound,
+		"sparkTestGetTrainingSetInvalidResourceID":    sparkTestGetTrainingSetInvalidResourceID,
+		"sparkTestGetUnknownTrainingSet":              sparkTestGetUnknownTrainingSet,
+		"sparkTestInvalidTrainingSetDefs":             sparkTestInvalidTrainingSetDefs,
+		"sparkTestLabelTableNotFound":                 sparkTestLabelTableNotFound,
+		"sparkTestFeatureTableNotFound":               sparkTestFeatureTableNotFound,
+		"sparkTestCreatePrimaryFromSource":            sparkTestCreatePrimaryFromSource,
+		"sparkTestCreateDuplicatePrimaryTable":        sparkTestCreateDuplicatePrimaryTable,
+		"sparkTestTrainingSet":                        sparkTestTrainingSet,
+		"sparkTestMaterializations":                   sparkTestMaterializations,
+		"sparkTestTrainingSetDefShorthand":            sparkTestTrainingSetDefShorthand,
+		"sparkTestMaterializationUpdate":              sparkTestMaterializationUpdate,
+		"sparkTestTrainingSetUpdate":                  sparkTestTrainingSetUpdate,
+		"sparkTestSQLTransformation":                  testSparkSQLTransformation,
+		"sparkTestUpdateQuery":                        testUpdateQuery,
+		"sparkTestGetDFArgs":                          testGetDFArgs,
+		"sparkTestGetResourceInformationFromFilePath": testGetResourceInformationFromFilePath,
+		"sparkTestGetSourcePath":                      testGetSourcePath,
+		"sparkTestGetTransformation":                  testGetTransformation,
 	}
 
 	t.Run("SPARK_STORE_FUNCTIONS", func(t *testing.T) {
 		for name, testFn := range testFns {
 			nameConst := name
 			testFnConst := testFn
-			t.Run(nameConst, func(t *testing.T) {
-				t.Parallel()
-				testFnConst(t, sparkOfflineStore)
-			})
+			for name, store := range sparkStores {
+				storeNameConst := name
+				storeConst := store
+				t.Run(storeNameConst, func(t *testing.T) {
+					t.Parallel()
+					testFnConst(t, storeConst)
+				})
+			}
 		}
 	})
 
@@ -1132,7 +1152,7 @@ func TestGenerateSchemaNoData(t *testing.T) {
 	}
 }
 
-func TestSparkSQLTransformation(t *testing.T) {
+func testSparkSQLTransformation(t *testing.T, store *SparkOfflineStore) {
 	t.Parallel()
 	cases := []struct {
 		name            string
@@ -1180,11 +1200,6 @@ func TestSparkSQLTransformation(t *testing.T) {
 			ResourceID{"test_name", "test_variant", Primary},
 			true,
 		},
-	}
-
-	store, err := getSparkOfflineStore(t)
-	if err != nil {
-		t.Fatalf("could not get SparkOfflineStore: %s", err)
 	}
 
 	for _, tt := range cases {
@@ -1260,7 +1275,7 @@ func TestSparkSQLTransformation(t *testing.T) {
 	}
 }
 
-func TestUpdateQuery(t *testing.T) {
+func testUpdateQuery(t *testing.T, store *SparkOfflineStore) {
 	t.Parallel()
 	cases := []struct {
 		name            string
@@ -1322,11 +1337,6 @@ func TestUpdateQuery(t *testing.T) {
 		},
 	}
 
-	store, err := getSparkOfflineStore(t)
-	if err != nil {
-		t.Fatalf("could not get SparkOfflineStore: %s", err)
-	}
-
 	for _, tt := range cases {
 		ttConst := tt
 		t.Run(ttConst.name, func(t *testing.T) {
@@ -1347,7 +1357,7 @@ func TestUpdateQuery(t *testing.T) {
 	}
 }
 
-func TestGetTransformation(t *testing.T) {
+func testGetTransformation(t *testing.T, store *SparkOfflineStore) {
 	t.Parallel()
 	cases := []struct {
 		name             string
@@ -1363,11 +1373,6 @@ func TestGetTransformation(t *testing.T) {
 			},
 			5,
 		},
-	}
-
-	store, err := getSparkOfflineStore(t)
-	if err != nil {
-		t.Fatalf("could not get SparkOfflineStore: %s", err)
 	}
 
 	for _, tt := range cases {
@@ -1392,7 +1397,7 @@ func TestGetTransformation(t *testing.T) {
 	}
 }
 
-func TestGetSourcePath(t *testing.T) {
+func testGetSourcePath(t *testing.T, store *SparkOfflineStore) {
 	t.Parallel()
 	cases := []struct {
 		name            string
@@ -1426,11 +1431,6 @@ func TestGetSourcePath(t *testing.T) {
 		},
 	}
 
-	store, err := getSparkOfflineStore(t)
-	if err != nil {
-		t.Fatalf("could not get SparkOfflineStore: %s", err)
-	}
-
 	for _, tt := range cases {
 		ttConst := tt
 		t.Run(ttConst.name, func(t *testing.T) {
@@ -1448,7 +1448,7 @@ func TestGetSourcePath(t *testing.T) {
 	}
 }
 
-func TestGetResourceInformationFromFilePath(t *testing.T) {
+func testGetResourceInformationFromFilePath(t *testing.T, store *SparkOfflineStore) {
 	t.Parallel()
 	cases := []struct {
 		name         string
@@ -1477,11 +1477,6 @@ func TestGetResourceInformationFromFilePath(t *testing.T) {
 		},
 	}
 
-	store, err := getSparkOfflineStore(t)
-	if err != nil {
-		t.Fatalf("could not get SparkOfflineStore: %s", err)
-	}
-
 	for _, tt := range cases {
 		ttConst := tt
 		t.Run(ttConst.name, func(t *testing.T) {
@@ -1497,7 +1492,7 @@ func TestGetResourceInformationFromFilePath(t *testing.T) {
 	}
 }
 
-func TestGetDFArgs(t *testing.T) {
+func testGetDFArgs(t *testing.T, store *SparkOfflineStore) {
 	t.Parallel()
 	cases := []struct {
 		name            string
@@ -1552,11 +1547,6 @@ func TestGetDFArgs(t *testing.T) {
 		},
 	}
 
-	store, err := getSparkOfflineStore(t)
-	if err != nil {
-		t.Fatalf("could not get SparkOfflineStore: %s", err)
-	}
-
 	for _, tt := range cases {
 		ttConst := tt
 		t.Run(ttConst.name, func(t *testing.T) {
@@ -1572,7 +1562,7 @@ func TestGetDFArgs(t *testing.T) {
 	}
 }
 
-func TestTransformation(t *testing.T) {
+func testTransformation(t *testing.T, store *SparkOfflineStore) {
 	t.Parallel()
 	cases := []struct {
 		name            string
@@ -1633,11 +1623,6 @@ func TestTransformation(t *testing.T) {
 		},
 	}
 
-	store, err := getSparkOfflineStore(t)
-	if err != nil {
-		t.Fatalf("could not get SparkOfflineStore: %s", err)
-	}
-
 	for _, tt := range cases {
 		ttConst := tt
 		t.Run(ttConst.name, func(t *testing.T) {
@@ -1692,6 +1677,46 @@ func getSparkOfflineStore(t *testing.T) (*SparkOfflineStore, error) {
 		ExecutorConfig: emrConf,
 		StoreType:      S3,
 		StoreConfig:    s3Conf,
+	}
+	sparkSerializedConfig := SparkOfflineConfig.Serialize()
+	sparkProvider, err := Get("SPARK_OFFLINE", sparkSerializedConfig)
+	if err != nil {
+		t.Fatalf("Could not create spark provider: %s", err)
+	}
+	sparkStore, err := sparkProvider.AsOfflineStore()
+	if err != nil {
+		t.Fatalf("Could not convert spark provider to offline store: %s", err)
+	}
+	sparkOfflineStore := sparkStore.(*SparkOfflineStore)
+
+	return sparkOfflineStore, nil
+}
+
+func getDatabricksOfflineStore(t *testing.T) (*SparkOfflineStore, error) {
+	err := godotenv.Load("../.env")
+	if err != nil {
+		fmt.Println(err)
+	}
+	databricksConfig := DatabricksConfig{
+		Username: helpers.GetEnv("DATABRICKS_USERNAME", ""),
+		Password: helpers.GetEnv("DATABRICKS_PASSWORD", ""),
+		Host:     helpers.GetEnv("DATABRICKS_HOST", ""),
+		Token:    helpers.GetEnv("DATABRICKS_TOKEN", ""),
+		Cluster:  helpers.GetEnv("DATABRICKS_CLUSTER", ""),
+	}
+	serializedDatabricksConfig := databricksConfig.Serialize()
+	azureConfig := AzureFileStoreConfig{
+		AccountName:   helpers.GetEnv("AZURE_ACCOUNT_NAME", ""),
+		AccountKey:    helpers.GetEnv("AZURE_ACCOUNT_KEY", ""),
+		ContainerName: helpers.GetEnv("AZURE_CONTAINER_NAME", ""),
+		Path:          helpers.GetEnv("AZURE_CONTAINER_PATH", ""),
+	}
+	serializedAzureConfig := AzureFileStoreConfig.Serialize()
+	SparkOfflineConfig := SparkConfig{
+		ExecutorType:   Databricks,
+		ExecutorConfig: serializedDatabricksConfig,
+		StoreType:      Azure,
+		StoreConfig:    serializedAzureConfig,
 	}
 	sparkSerializedConfig := SparkOfflineConfig.Serialize()
 	sparkProvider, err := Get("SPARK_OFFLINE", sparkSerializedConfig)

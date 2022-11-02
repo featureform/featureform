@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/featureform/logging"
 	"io"
 	"io/ioutil"
 	"os"
@@ -15,6 +14,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/featureform/logging"
 
 	//for compatability with parquet-go
 	awsV1 "github.com/aws/aws-sdk-go/aws"
@@ -165,6 +166,7 @@ func featureColumnName(id ResourceID) string {
 func (q defaultSparkOfflineQueries) trainingSetCreate(def TrainingSetDef, featureSchemas []ResourceSchema, labelSchema ResourceSchema) string {
 	columns := make([]string, 0)
 	joinQueries := make([]string, 0)
+	feature_timestamps := make([]string, 0)
 	for i, feature := range def.Features {
 		featureColumnName := featureColumnName(feature)
 		columns = append(columns, featureColumnName)
@@ -177,6 +179,7 @@ func (q defaultSparkOfflineQueries) trainingSetCreate(def TrainingSetDef, featur
 		}
 		featureJoinQuery := fmt.Sprintf("LEFT OUTER JOIN (%s) t%d ON (t%d_entity = entity AND t%d_ts <= label_ts)", featureWindowQuery, i+1, i+1, i+1)
 		joinQueries = append(joinQueries, featureJoinQuery)
+		feature_timestamps = append(feature_timestamps, fmt.Sprint("t%d_ts", i+1))
 	}
 	for i, lagFeature := range def.LagFeatures {
 		lagFeaturesOffset := len(def.Features)
@@ -199,6 +202,7 @@ func (q defaultSparkOfflineQueries) trainingSetCreate(def TrainingSetDef, featur
 		}
 		lagJoinQuery := fmt.Sprintf("LEFT OUTER JOIN (%s) t%d ON (t%d_entity = entity AND DATETIME(t%d_ts, '+%f seconds') <= label_ts)", lagWindowQuery, curIdx, curIdx, curIdx, timeDeltaSeconds)
 		joinQueries = append(joinQueries, lagJoinQuery)
+		feature_timestamps = append(feature_timestamps, fmt.Sprint("t%d_ts", curIdx))
 	}
 	columnStr := strings.Join(columns, ", ")
 	joinQueryString := strings.Join(joinQueries, " ")
@@ -210,7 +214,10 @@ func (q defaultSparkOfflineQueries) trainingSetCreate(def TrainingSetDef, featur
 	}
 	labelPartitionQuery := fmt.Sprintf("(SELECT * FROM (SELECT entity, value, label_ts FROM (%s) t ) t0)", labelWindowQuery)
 	labelJoinQuery := fmt.Sprintf("%s %s", labelPartitionQuery, joinQueryString)
-	fullQuery := fmt.Sprintf("SELECT %s, value AS %s, entity, label_ts, ROW_NUMBER() over (PARTITION BY entity, value, label_ts ORDER BY label_ts DESC) as row_number FROM (%s) tt", columnStr, featureColumnName(def.Label), labelJoinQuery)
+
+	timeStamps := strings.Join(feature_timestamps, ", ")
+	timeStampsDesc := strings.Join(feature_timestamps, " DESC,")
+	fullQuery := fmt.Sprintf("SELECT %s, value AS %s, entity, label_ts, %s, ROW_NUMBER() over (PARTITION BY entity, value, label_ts ORDER BY label_ts DESC, %s DESC) as row_number FROM (%s) tt", columnStr, featureColumnName(def.Label), timeStamps, timeStampsDesc, labelJoinQuery)
 	finalQuery := fmt.Sprintf("SELECT %s, %s FROM (SELECT * FROM (SELECT *, row_number FROM (%s) WHERE row_number=1 ))", columnStr, featureColumnName(def.Label), fullQuery)
 	return finalQuery
 }

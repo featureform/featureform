@@ -134,7 +134,7 @@ func TestOnlineStores(t *testing.T) {
 	}
 
 	blobAzureInit := func() OnlineBlobConfig {
-		azureConfig := AzureBlobStoreConfig{
+		azureConfig := AzureFileStoreConfig{
 			AccountName:   helpers.GetEnv("AZURE_ACCOUNT_NAME", ""),
 			AccountKey:    helpers.GetEnv("AZURE_ACCOUNT_KEY", ""),
 			ContainerName: helpers.GetEnv("AZURE_CONTAINER_NAME", "newcontainer"),

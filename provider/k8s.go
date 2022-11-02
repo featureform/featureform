@@ -80,11 +80,11 @@ type FileStoreFactory func(config Config) (FileStore, error)
 
 var fileStoreFactoryMap = make(map[string]FileStoreFactory)
 
-func RegisterFileStoreFactory(name string, blobStoreFactory FileStoreFactory) error {
+func RegisterFileStoreFactory(name string, FileStoreFactory FileStoreFactory) error {
 	if _, exists := fileStoreFactoryMap[name]; exists {
 		return fmt.Errorf("factory already registered: %s", name)
 	}
-	fileStoreFactoryMap[name] = blobStoreFactory
+	fileStoreFactoryMap[name] = FileStoreFactory
 	return nil
 }
 
@@ -101,24 +101,24 @@ func CreateFileStore(name string, config Config) (FileStore, error) {
 	if !exists {
 		return nil, fmt.Errorf("factory does not exist: %s", name)
 	}
-	blobStore, err := factory(config)
+	FileStore, err := factory(config)
 	if err != nil {
 		return nil, err
 	}
-	return blobStore, nil
+	return FileStore, nil
 }
 
 func init() {
-	blobStoreFactoryMap := map[FileStoreType]FileStoreFactory{
-		Memory:     NewMemoryBlobStore,
-		FileSystem: NewFileBlobStore,
-		Azure:      NewAzureBlobStore,
+	FileStoreFactoryMap := map[FileStoreType]FileStoreFactory{
+		Memory:     NewMemoryFileStore,
+		FileSystem: NewFileFileStore,
+		Azure:      NewAzureFileStore,
 	}
 	executorFactoryMap := map[ExecutorType]ExecutorFactory{
 		GoProc: NewLocalExecutor,
 		K8s:    NewKubernetesExecutor,
 	}
-	for storeType, factory := range blobStoreFactoryMap {
+	for storeType, factory := range FileStoreFactoryMap {
 		RegisterFileStoreFactory(string(storeType), factory)
 	}
 	for executorType, factory := range executorFactoryMap {
@@ -208,7 +208,7 @@ func k8sOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 
 type ExecutorConfig []byte
 
-type BlobStoreConfig []byte
+type FileStoreConfig []byte
 
 type ExecutorType string
 
@@ -230,7 +230,7 @@ type K8sAzureConfig struct {
 	ExecutorType   ExecutorType
 	ExecutorConfig KubernetesExecutorConfig
 	StoreType      FileStoreType
-	StoreConfig    AzureBlobStoreConfig
+	StoreConfig    AzureFileStoreConfig
 }
 
 func (config *K8sAzureConfig) Serialize() ([]byte, error) {
@@ -253,7 +253,7 @@ type K8sConfig struct {
 	ExecutorType   ExecutorType
 	ExecutorConfig ExecutorConfig
 	StoreType      FileStoreType
-	StoreConfig    AzureBlobStoreConfig
+	StoreConfig    AzureFileStoreConfig
 }
 
 func (config *K8sConfig) Serialize() ([]byte, error) {
@@ -388,18 +388,18 @@ type Iterator interface {
 	Next() (map[string]interface{}, error)
 }
 
-type MemoryBlobStore struct {
+type MemoryFileStore struct {
 	genericFileStore
 }
 
-type AzureBlobStore struct {
+type AzureFileStore struct {
 	ConnectionString string
 	ContainerName    string
 	Path             string
 	genericFileStore
 }
 
-func (azure *AzureBlobStore) addAzureVars(envVars map[string]string) map[string]string {
+func (azure *AzureFileStore) addAzureVars(envVars map[string]string) map[string]string {
 	envVars["AZURE_CONNECTION_STRING"] = azure.ConnectionString
 	envVars["AZURE_CONTAINER_NAME"] = azure.ContainerName
 	return envVars
@@ -418,7 +418,7 @@ func (store genericFileStore) PathWithPrefix(path string) string {
 	}
 }
 
-func (store AzureBlobStore) PathWithPrefix(path string) string {
+func (store AzureFileStore) PathWithPrefix(path string) string {
 	if len(path) != 0 && path[0:len(store.Path)] != store.Path && store.Path != "" {
 		return fmt.Sprintf("%s/%s", store.Path, path)
 	}
@@ -648,23 +648,23 @@ func (store genericFileStore) Close() error {
 	return store.bucket.Close()
 }
 
-func NewMemoryBlobStore(config Config) (FileStore, error) {
+func NewMemoryFileStore(config Config) (FileStore, error) {
 	bucket, err := blob.OpenBucket(context.TODO(), "mem://")
 	if err != nil {
-		return MemoryBlobStore{}, err
+		return MemoryFileStore{}, err
 	}
-	return MemoryBlobStore{
+	return MemoryFileStore{
 		genericFileStore{
 			bucket: bucket,
 		},
 	}, nil
 }
 
-type FileBlobStoreConfig struct {
+type FileFileStoreConfig struct {
 	DirPath string
 }
 
-func (config *FileBlobStoreConfig) Serialize() ([]byte, error) {
+func (config *FileFileStoreConfig) Serialize() ([]byte, error) {
 	data, err := json.Marshal(config)
 	if err != nil {
 		panic(err)
@@ -672,7 +672,7 @@ func (config *FileBlobStoreConfig) Serialize() ([]byte, error) {
 	return data, nil
 }
 
-func (config *FileBlobStoreConfig) Deserialize(data []byte) error {
+func (config *FileFileStoreConfig) Deserialize(data []byte) error {
 	err := json.Unmarshal(data, config)
 	if err != nil {
 		return fmt.Errorf("deserialize file blob store config: %w", err)
@@ -680,12 +680,12 @@ func (config *FileBlobStoreConfig) Deserialize(data []byte) error {
 	return nil
 }
 
-type FileBlobStore struct {
+type FileFileStore struct {
 	genericFileStore
 }
 
-func NewFileBlobStore(config Config) (FileStore, error) {
-	fileStoreConfig := FileBlobStoreConfig{}
+func NewFileFileStore(config Config) (FileStore, error) {
+	fileStoreConfig := FileFileStoreConfig{}
 	if err := fileStoreConfig.Deserialize(Config(config)); err != nil {
 		return nil, fmt.Errorf("could not deserialize file store config: %v", err)
 	}
@@ -693,7 +693,7 @@ func NewFileBlobStore(config Config) (FileStore, error) {
 	if err != nil {
 		return nil, err
 	}
-	return FileBlobStore{
+	return FileFileStore{
 		genericFileStore{
 			bucket: bucket,
 			path:   fileStoreConfig.DirPath,
@@ -701,14 +701,14 @@ func NewFileBlobStore(config Config) (FileStore, error) {
 	}, nil
 }
 
-type AzureBlobStoreConfig struct {
+type AzureFileStoreConfig struct {
 	AccountName   string
 	AccountKey    string
 	ContainerName string
 	Path          string
 }
 
-func (config *AzureBlobStoreConfig) Serialize() ([]byte, error) {
+func (config *AzureFileStoreConfig) Serialize() ([]byte, error) {
 	data, err := json.Marshal(config)
 	if err != nil {
 		panic(err)
@@ -716,7 +716,7 @@ func (config *AzureBlobStoreConfig) Serialize() ([]byte, error) {
 	return data, nil
 }
 
-func (config *AzureBlobStoreConfig) Deserialize(data []byte) error {
+func (config *AzureFileStoreConfig) Deserialize(data []byte) error {
 	err := json.Unmarshal(data, config)
 	if err != nil {
 		return fmt.Errorf("deserialize file blob store config: %w", err)
@@ -724,8 +724,8 @@ func (config *AzureBlobStoreConfig) Deserialize(data []byte) error {
 	return nil
 }
 
-func NewAzureBlobStore(config Config) (FileStore, error) {
-	azureStoreConfig := AzureBlobStoreConfig{}
+func NewAzureFileStore(config Config) (FileStore, error) {
+	azureStoreConfig := AzureFileStoreConfig{}
 	if err := azureStoreConfig.Deserialize(Config(config)); err != nil {
 		return nil, fmt.Errorf("could not deserialize azure store config: %v", err)
 	}
@@ -739,15 +739,15 @@ func NewAzureBlobStore(config Config) (FileStore, error) {
 	serviceURL := azureblob.ServiceURL(fmt.Sprintf("https://%s.blob.core.windows.net", azureStoreConfig.AccountName))
 	client, err := azureblob.NewDefaultServiceClient(serviceURL)
 	if err != nil {
-		return AzureBlobStore{}, fmt.Errorf("Could not create azure client: %v", err)
+		return AzureFileStore{}, fmt.Errorf("Could not create azure client: %v", err)
 	}
 
 	bucket, err := azureblob.OpenBucket(context.TODO(), client, azureStoreConfig.ContainerName, nil)
 	if err != nil {
-		return AzureBlobStore{}, fmt.Errorf("Could not open azure bucket: %v", err)
+		return AzureFileStore{}, fmt.Errorf("Could not open azure bucket: %v", err)
 	}
 	connectionString := fmt.Sprintf("DefaultEndpointsProtocol=https;AccountName=%s;AccountKey=%s", azureStoreConfig.AccountName, azureStoreConfig.AccountKey)
-	return AzureBlobStore{
+	return AzureFileStore{
 		ConnectionString: connectionString,
 		ContainerName:    azureStoreConfig.ContainerName,
 		Path:             azureStoreConfig.Path,
@@ -940,7 +940,7 @@ func (k8s *K8sOfflineStore) pandasRunnerArgs(outputURI string, updatedQuery stri
 		"TRANSFORMATION_TYPE": "sql",
 		"TRANSFORMATION":      updatedQuery,
 	}
-	azureStore, ok := k8s.store.(AzureBlobStore)
+	azureStore, ok := k8s.store.(AzureFileStore)
 	if ok {
 		envVars = azureStore.addAzureVars(envVars)
 	}
@@ -963,7 +963,7 @@ func (k8s K8sOfflineStore) getDFArgs(outputURI string, code string, mapping []So
 	if ok {
 		envVars = addETCDVars(envVars)
 	}
-	azureStore, ok := k8s.store.(AzureBlobStore)
+	azureStore, ok := k8s.store.(AzureFileStore)
 	if ok {
 		envVars = azureStore.addAzureVars(envVars)
 	}
@@ -1132,10 +1132,10 @@ func (k8s *K8sOfflineStore) getResourceInformationFromFilePath(path string) (str
 func (k8s *K8sOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
 	k8s.logger.Debugw("Getting transformation table", "ResourceID", id)
 	transformationPath := k8s.store.PathWithPrefix(fileStoreResourcePath(id))
-	transformationExactPath := k8s.store.NewestFile(transformationPath)
-	if transformationPath == "" {
-		k8s.logger.Errorw("Could not get transformation table")
-		return nil, fmt.Errorf("could not get transformation table (%v)", id)
+	transformationExactPath, err := k8s.store.NewestFile(transformationPath)
+	if err != nil {
+		k8s.logger.Errorw("Could not get transformation table", "error", err)
+		return nil, fmt.Errorf("could not get transformation table (%v): %v", id, err)
 	}
 	k8s.logger.Debugw("Succesfully retrieved transformation table", "ResourceID", id)
 	return &FileStorePrimaryTable{k8s.store, transformationExactPath, true, id}, nil
@@ -1203,10 +1203,10 @@ func fileStoreGetMaterialization(id MaterializationID, store FileStore, logger *
 	materializationID := ResourceID{s[1], s[2], FeatureMaterialization}
 	logger.Debugw("Getting materialization", "id", id)
 	materializationPath := store.PathWithPrefix(fileStoreResourcePath(materializationID))
-	materializationExactPath := store.NewestFile(materializationPath)
-	if materializationExactPath == "" {
-		logger.Errorw("Could not fetch materialization resource key")
-		return nil, fmt.Errorf("Could not fetch materialization resource key")
+	materializationExactPath, err := store.NewestFile(materializationPath)
+	if err != nil {
+		logger.Errorw("Could not fetch materialization resource key", "error", err)
+		return nil, fmt.Errorf("Could not fetch materialization resource key: %v", err)
 	}
 	logger.Debugw("Succesfully retrieved materialization", "id", id)
 	return &FileStoreMaterialization{materializationID, store, materializationExactPath}, nil
@@ -1224,13 +1224,19 @@ func (mat FileStoreMaterialization) ID() MaterializationID {
 
 func (mat FileStoreMaterialization) NumRows() (int64, error) {
 	materializationPath := mat.store.PathWithPrefix(fileStoreResourcePath(mat.id))
-	latestMaterializationPath := mat.store.NewestFile(materializationPath)
+	latestMaterializationPath, err := mat.store.NewestFile(materializationPath)
+	if err != nil {
+		return fmt.Errorf("Could not get materialization num rows; %v", err)
+	}
 	return mat.store.NumRows(latestMaterializationPath)
 }
 
 func (mat FileStoreMaterialization) IterateSegment(begin, end int64) (FeatureIterator, error) {
 	materializationPath := mat.store.PathWithPrefix(fileStoreResourcePath(mat.id))
-	latestMaterializationPath := mat.store.NewestFile(materializationPath)
+	latestMaterializationPath, err := mat.store.NewestFile(materializationPath)
+	if err != nil {
+		return nil, fmt.Errorf("Could not get materialization iterate segment: %v", err)
+	}
 	iter, err := mat.store.Serve(latestMaterializationPath)
 	if err != nil {
 		return nil, err
@@ -1339,9 +1345,9 @@ func (k8s *K8sOfflineStore) materialization(id ResourceID, isUpdate bool) (Mater
 		return nil, fmt.Errorf("job for materialization %v failed to run: %v", materializationID, err)
 	}
 	matPath := k8s.store.PathWithPrefix(fileStoreResourcePath(materializationID))
-	latestMatPath := k8s.store.NewestFile(matPath)
-	if latestMatPath == "" {
-		return nil, fmt.Errorf("Materialization does not exist")
+	latestMatPath, err := k8s.store.NewestFile(matPath)
+	if err != nil {
+		return nil, fmt.Errorf("Materialization does not exist; %v", err)
 	}
 	k8s.logger.Debugw("Succesfully created materialization", "id", id)
 	return &FileStoreMaterialization{materializationID, k8s.store, latestMatPath}, nil
@@ -1359,9 +1365,9 @@ func fileStoreDeleteMaterialization(id MaterializationID, store FileStore, logge
 	}
 	materializationID := ResourceID{s[1], s[2], FeatureMaterialization}
 	materializationPath := store.PathWithPrefix(fileStoreResourcePath(materializationID))
-	materializationExactPath := store.NewestFile(materializationPath)
-	if materializationExactPath == "" {
-		return fmt.Errorf("materialization does not exist")
+	materializationExactPath, err := store.NewestFile(materializationPath)
+	if err != nil {
+		return fmt.Errorf("materialization does not exist: %v", err)
 	}
 	return store.Delete(materializationExactPath)
 }
@@ -1390,7 +1396,7 @@ func (k8s *K8sOfflineStore) registeredResourceSchema(id ResourceID) (ResourceSch
 	return blobResourceTable.schema, nil
 }
 
-func (s *S3BlobStore) BlobPath(sourceKey string) string {
+func (s *S3FileStore) BlobPath(sourceKey string) string {
 	// if !strings.Contains(sourceKey, "s3://") {
 	// 	return fmt.Sprintf("%s%s", BucketPrefix(), sourceKey)
 	// }
@@ -1405,7 +1411,10 @@ func (k8s *K8sOfflineStore) trainingSet(def TrainingSetDef, isUpdate bool) error
 	sourcePaths := make([]string, 0)
 	featureSchemas := make([]ResourceSchema, 0)
 	destinationPath := k8s.store.PathWithPrefix(fileStoreResourcePath(def.ID))
-	trainingSetExactPath := k8s.store.NewestFile(destinationPath)
+	trainingSetExactPath, err := k8s.store.NewestFile(destinationPath)
+	if err != nil {
+		return fmt.Errorf("could not get training set path: %v", err)
+	}
 	trainingSetExists := !(trainingSetExactPath == "")
 	if !isUpdate && trainingSetExists {
 		k8s.logger.Errorw("Training set already exists", def.ID)
@@ -1453,9 +1462,9 @@ func fileStoreGetTrainingSet(id ResourceID, store FileStore, logger *zap.Sugared
 		return nil, err
 	}
 	resourceKeyPrefix := store.PathWithPrefix(fileStoreResourcePath(id))
-	trainingSetExactPath := store.NewestFile(resourceKeyPrefix)
-	if trainingSetExactPath == "" {
-		return nil, fmt.Errorf("No training set resource found")
+	trainingSetExactPath, err := store.NewestFile(resourceKeyPrefix)
+	if err != nil {
+		return nil, fmt.Errorf("Could not get training set: %v", err)
 	}
 	iterator, err := store.Serve(trainingSetExactPath)
 	if err != nil {

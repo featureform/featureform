@@ -6,6 +6,7 @@ package provider
 
 import (
 	"encoding/json"
+	"context"
 	"fmt"
 	"google.golang.org/grpc/status"
 
@@ -48,13 +49,13 @@ func NewFirestoreOnlineStore(options *FirestoreConfig) (*firestoreOnlineStore, e
 	if err != nil {
 		return nil, fmt.Errorf("could not serialized firestore config, %v", err)
 	}
-	firestoreClient, err := firestore.NewClient(ctx, options.ProjectID, option.WithCredentialsJSON(credBytes))
+	firestoreClient, err := firestore.NewClient(context.TODO(), options.ProjectID, option.WithCredentialsJSON(credBytes))
 	if err != nil {
 		return nil, fmt.Errorf("could not create firestore connection, %v", err)
 	}
 
 	firestoreCollection := firestoreClient.Collection(options.Collection)
-	_, err = firestoreCollection.Doc(GetMetadataTable()).Set(ctx, map[string]interface{}{}, firestore.MergeAll)
+	_, err = firestoreCollection.Doc(GetMetadataTable()).Set(context.TODO(), map[string]interface{}{}, firestore.MergeAll)
 	if err != nil {
 		return nil, fmt.Errorf("could not create firestore document: %v", err)
 	}
@@ -83,7 +84,7 @@ func (store *firestoreOnlineStore) GetTable(feature, variant string) (OnlineStor
 	key := firestoreTableKey{store.collection.ID, feature, variant}
 	tableName := key.String()
 
-	table, err := store.collection.Doc(tableName).Get(ctx)
+	table, err := store.collection.Doc(tableName).Get(context.TODO())
 	if status.Code(err) == codes.NotFound {
 		return nil, &TableNotFound{feature, variant}
 	}
@@ -91,7 +92,7 @@ func (store *firestoreOnlineStore) GetTable(feature, variant string) (OnlineStor
 		return nil, fmt.Errorf("could not get table: %v", err)
 	}
 
-	metadata, err := store.collection.Doc(GetMetadataTable()).Get(ctx)
+	metadata, err := store.collection.Doc(GetMetadataTable()).Get(context.TODO())
 	if err != nil {
 		return nil, fmt.Errorf("could not get metadata table: %v", err)
 	}
@@ -115,12 +116,12 @@ func (store *firestoreOnlineStore) CreateTable(feature, variant string, valueTyp
 
 	key := firestoreTableKey{store.collection.ID, feature, variant}
 	tableName := key.String()
-	_, err := store.collection.Doc(tableName).Set(ctx, map[string]interface{}{})
+	_, err := store.collection.Doc(tableName).Set(context.TODO(), map[string]interface{}{})
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = store.collection.Doc(GetMetadataTable()).Set(ctx, map[string]interface{}{
+	_, err = store.collection.Doc(GetMetadataTable()).Set(context.TODO(), map[string]interface{}{
 		tableName: valueType,
 	}, firestore.MergeAll)
 	if err != nil {
@@ -137,12 +138,12 @@ func (store *firestoreOnlineStore) CreateTable(feature, variant string, valueTyp
 func (store *firestoreOnlineStore) DeleteTable(feature, variant string) error {
 	key := firestoreTableKey{store.collection.ID, feature, variant}
 	tableName := key.String()
-	_, err := store.collection.Doc(tableName).Delete(ctx)
+	_, err := store.collection.Doc(tableName).Delete(context.TODO())
 	if err != nil {
 		return err
 	}
 
-	_, err = store.collection.Doc(GetMetadataTable()).Update(ctx, []firestore.Update{
+	_, err = store.collection.Doc(GetMetadataTable()).Update(context.TODO(), []firestore.Update{
 		{
 			Path:  tableName,
 			Value: firestore.Delete,
@@ -157,7 +158,7 @@ func (store *firestoreOnlineStore) DeleteTable(feature, variant string) error {
 }
 
 func (table firestoreOnlineTable) Set(entity string, value interface{}) error {
-	_, err := table.document.Set(ctx, map[string]interface{}{
+	_, err := table.document.Set(context.TODO(), map[string]interface{}{
 		entity: value,
 	}, firestore.MergeAll)
 
@@ -165,7 +166,7 @@ func (table firestoreOnlineTable) Set(entity string, value interface{}) error {
 }
 
 func (table firestoreOnlineTable) Get(entity string) (interface{}, error) {
-	dataSnap, err := table.document.Get(ctx)
+	dataSnap, err := table.document.Get(context.TODO())
 	if err != nil {
 		return nil, err
 	}

@@ -10,8 +10,8 @@ import (
 const STORE_PREFIX = ".featureform/inferencestore"
 
 type OnlineBlobConfig struct {
-	Type   BlobStoreType
-	Config AzureBlobStoreConfig
+	Type   FileStoreType
+	Config AzureFileStoreConfig
 }
 
 func (online OnlineBlobConfig) Serialized() SerializedConfig {
@@ -30,8 +30,8 @@ func (online *OnlineBlobConfig) Deserialize(config SerializedConfig) error {
 	return nil
 }
 
-type OnlineBlobStore struct {
-	BlobStore
+type OnlineFileStore struct {
+	FileStore
 	Prefix string
 	BaseProvider
 }
@@ -41,21 +41,21 @@ func blobOnlineStoreFactory(serialized SerializedConfig) (Provider, error) {
 	if err := onlineBlobConfig.Deserialize(serialized); err != nil {
 		return nil, err
 	}
-	return NewOnlineBlobStore(onlineBlobConfig)
+	return NewOnlineFileStore(onlineBlobConfig)
 }
 
-func NewOnlineBlobStore(config *OnlineBlobConfig) (*OnlineBlobStore, error) {
+func NewOnlineFileStore(config *OnlineBlobConfig) (*OnlineFileStore, error) {
 	serializedBlob, err := config.Config.Serialize()
 	if err != nil {
 		return nil, fmt.Errorf("could not serialize blob store config")
 	}
 
-	blobStore, err := CreateBlobStore(string(config.Type), Config(serializedBlob))
+	FileStore, err := CreateFileStore(string(config.Type), Config(serializedBlob))
 	if err != nil {
 		return nil, fmt.Errorf("could not create blob store: %v", err)
 	}
-	return &OnlineBlobStore{
-		blobStore,
+	return &OnlineFileStore{
+		FileStore,
 		config.Config.Path,
 		BaseProvider{
 			ProviderType:   BlobOnline,
@@ -64,7 +64,7 @@ func NewOnlineBlobStore(config *OnlineBlobConfig) (*OnlineBlobStore, error) {
 	}, nil
 }
 
-func (store *OnlineBlobStore) AsOnlineStore() (OnlineStore, error) {
+func (store *OnlineFileStore) AsOnlineStore() (OnlineStore, error) {
 	return store, nil
 }
 
@@ -72,12 +72,12 @@ func blobTableKey(prefix, feature, variant string) string {
 	return fmt.Sprintf("%s/%s/tables/%s/%s", prefix, STORE_PREFIX, feature, variant)
 }
 
-func (store OnlineBlobStore) tableExists(feature, variant string) (bool, error) {
+func (store OnlineFileStore) tableExists(feature, variant string) (bool, error) {
 	tableKey := blobTableKey(store.Prefix, feature, variant)
 	return store.Exists(tableKey)
 }
 
-func (store OnlineBlobStore) readTableValue(feature, variant string) (ValueType, error) {
+func (store OnlineFileStore) readTableValue(feature, variant string) (ValueType, error) {
 	tableKey := blobTableKey(store.Prefix, feature, variant)
 	value, err := store.Read(tableKey)
 	if err != nil {
@@ -86,12 +86,12 @@ func (store OnlineBlobStore) readTableValue(feature, variant string) (ValueType,
 	return ValueType(string(value)), nil
 }
 
-func (store OnlineBlobStore) writeTableValue(feature, variant string, valueType ValueType) error {
+func (store OnlineFileStore) writeTableValue(feature, variant string, valueType ValueType) error {
 	tableKey := blobTableKey(store.Prefix, feature, variant)
 	return store.Write(tableKey, []byte(valueType))
 }
 
-func (store OnlineBlobStore) deleteTable(feature, variant string) error {
+func (store OnlineFileStore) deleteTable(feature, variant string) error {
 	tableKey := blobTableKey(store.Prefix, feature, variant)
 	entityDirectory := entityDirectory(store.Prefix, feature, variant)
 	if err := store.Delete(tableKey); err != nil {
@@ -103,7 +103,7 @@ func (store OnlineBlobStore) deleteTable(feature, variant string) error {
 	return nil
 }
 
-func (store OnlineBlobStore) GetTable(feature, variant string) (OnlineStoreTable, error) {
+func (store OnlineFileStore) GetTable(feature, variant string) (OnlineStoreTable, error) {
 	exists, err := store.tableExists(feature, variant)
 	if err != nil {
 		return nil, err
@@ -115,10 +115,10 @@ func (store OnlineBlobStore) GetTable(feature, variant string) (OnlineStoreTable
 	if err != nil {
 		return nil, err
 	}
-	return OnlineBlobStoreTable{store, feature, variant, store.Prefix, tableType}, nil
+	return OnlineFileStoreTable{store, feature, variant, store.Prefix, tableType}, nil
 }
 
-func (store OnlineBlobStore) CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error) {
+func (store OnlineFileStore) CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error) {
 	exists, err := store.tableExists(feature, variant)
 	if err != nil {
 		return nil, err
@@ -129,18 +129,18 @@ func (store OnlineBlobStore) CreateTable(feature, variant string, valueType Valu
 	if err := store.writeTableValue(feature, variant, valueType); err != nil {
 		return nil, err
 	}
-	return OnlineBlobStoreTable{store, feature, variant, store.Prefix, valueType}, nil
+	return OnlineFileStoreTable{store, feature, variant, store.Prefix, valueType}, nil
 }
 
-type OnlineBlobStoreTable struct {
-	store     BlobStore
+type OnlineFileStoreTable struct {
+	store     FileStore
 	feature   string
 	variant   string
 	prefix    string
 	valueType ValueType
 }
 
-func (store OnlineBlobStore) DeleteTable(feature, variant string) error {
+func (store OnlineFileStore) DeleteTable(feature, variant string) error {
 	exists, err := store.tableExists(feature, variant)
 	if err != nil {
 		return err
@@ -159,13 +159,13 @@ func entityValueKey(prefix, feature, variant, entity string) string {
 	return fmt.Sprintf("%s/%s", entityDirectory(prefix, feature, variant), entity)
 }
 
-func (table OnlineBlobStoreTable) setEntityValue(feature, variant, entity string, value interface{}) error {
+func (table OnlineFileStoreTable) setEntityValue(feature, variant, entity string, value interface{}) error {
 	entityValueKey := entityValueKey(table.prefix, feature, variant, entity)
 	valueBytes := []byte(fmt.Sprintf("%v", value.(interface{})))
 	return table.store.Write(entityValueKey, valueBytes)
 }
 
-func (table OnlineBlobStoreTable) getEntityValue(feature, variant, entity string) (interface{}, error) {
+func (table OnlineFileStoreTable) getEntityValue(feature, variant, entity string) (interface{}, error) {
 	entityValueKey := entityValueKey(table.prefix, feature, variant, entity)
 	exists, err := table.store.Exists(entityValueKey)
 	if err != nil {
@@ -178,11 +178,11 @@ func (table OnlineBlobStoreTable) getEntityValue(feature, variant, entity string
 	return table.store.Read(entityValueKey)
 }
 
-func (table OnlineBlobStoreTable) Set(entity string, value interface{}) error {
+func (table OnlineFileStoreTable) Set(entity string, value interface{}) error {
 	return table.setEntityValue(table.feature, table.variant, entity, value)
 }
 
-func (table OnlineBlobStoreTable) Get(entity string) (interface{}, error) {
+func (table OnlineFileStoreTable) Get(entity string) (interface{}, error) {
 	value, err := table.getEntityValue(table.feature, table.variant, entity)
 	entityNotFoundError, ok := err.(*EntityNotFound)
 	if ok {

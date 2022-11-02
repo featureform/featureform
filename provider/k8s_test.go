@@ -22,7 +22,7 @@ func uuidWithoutDashes() string {
 }
 
 func TestBlobInterfaces(t *testing.T) {
-	fileStoreTests := map[string]func(*testing.T, BlobStore){
+	fileStoreTests := map[string]func(*testing.T, FileStore){
 		"Test Filestore Read and Write": testFilestoreReadAndWrite,
 		// "Test Blob Parquet Serve":  testBlobParquetServe,
 		// Test Exists
@@ -35,7 +35,7 @@ func TestBlobInterfaces(t *testing.T) {
 		// Test Path with prefix
 		// Test Num Rows
 	}
-	localBlobStore, err := NewMemoryBlobStore(Config([]byte("")))
+	localFileStore, err := NewMemoryFileStore(Config([]byte("")))
 	if err != nil {
 		t.Fatalf("Failed to create memory blob store")
 	}
@@ -44,16 +44,16 @@ func TestBlobInterfaces(t *testing.T) {
 		t.Fatalf("could not get working directory")
 	}
 
-	fileStoreConfig := FileBlobStoreConfig{DirPath: fmt.Sprintf(`file:////%s/tests/file_tests`, mydir)}
+	fileStoreConfig := FileFileStoreConfig{DirPath: fmt.Sprintf(`file:////%s/tests/file_tests`, mydir)}
 	serializedFileConfig, err := fileStoreConfig.Serialize()
 	if err != nil {
 		t.Fatalf("failed to serialize file store config: %v", err)
 	}
-	fileBlobStore, err := NewFileBlobStore(serializedFileConfig)
+	fileFileStore, err := NewFileFileStore(serializedFileConfig)
 	if err != nil {
 		t.Fatalf("failed to create new file blob store: %v", err)
 	}
-	azureStoreConfig := AzureBlobStoreConfig{
+	azureStoreConfig := AzureFileStoreConfig{
 		AccountName:   helpers.GetEnv("AZURE_ACCOUNT_NAME", ""),
 		AccountKey:    helpers.GetEnv("AZURE_ACCOUNT_KEY", ""),
 		ContainerName: helpers.GetEnv("AZURE_CONTAINER_NAME", ""),
@@ -62,15 +62,15 @@ func TestBlobInterfaces(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to serialize azure store config: %v", err)
 	}
-	azureBlobStore, err := NewAzureBlobStore(serializedAzureConfig)
+	azureFileStore, err := NewAzureFileStore(serializedAzureConfig)
 	if err != nil {
 		t.Fatalf("failed to create new azure blob store: %v", err)
 	}
 
-	blobProviders := map[string]BlobStore{
-		"Local": localBlobStore,
-		"File":  fileBlobStore,
-		"Azure": azureBlobStore,
+	blobProviders := map[string]FileStore{
+		"Local": localFileStore,
+		"File":  fileFileStore,
+		"Azure": azureFileStore,
 	}
 	for testName, blobTest := range blobTests {
 		blobTest = blobTest
@@ -88,7 +88,7 @@ func TestBlobInterfaces(t *testing.T) {
 	}
 }
 
-func testBlobReadAndWrite(t *testing.T, store BlobStore) {
+func testBlobReadAndWrite(t *testing.T, store FileStore) {
 	testWrite := []byte("example data")
 	testKey := uuidWithoutDashes()
 	exists, err := store.Exists(testKey)
@@ -117,7 +117,7 @@ func testBlobReadAndWrite(t *testing.T, store BlobStore) {
 	}
 }
 
-func testBlobParquetServe(t *testing.T, store BlobStore) {
+func testBlobParquetServe(t *testing.T, store FileStore) {
 	testKey := fmt.Sprintf("input/transactions.snappy.parquet")
 	iterator, err := store.Serve(testKey)
 	if err != nil {
@@ -173,7 +173,7 @@ func TestOfflineStoreBasic(t *testing.T) {
 		t.Fatalf("Error serializing local executor configuration: %v", err)
 	}
 
-	azureStoreConfig := AzureBlobStoreConfig{
+	azureStoreConfig := AzureFileStoreConfig{
 		AccountName:   helpers.GetEnv("AZURE_ACCOUNT_NAME", ""),
 		AccountKey:    helpers.GetEnv("AZURE_ACCOUNT_KEY", ""),
 		ContainerName: helpers.GetEnv("AZURE_CONTAINER_NAME", ""),
@@ -182,7 +182,7 @@ func TestOfflineStoreBasic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dailed to serialize azure store config: %v", err)
 	}
-	// fileStoreConfig := FileBlobStoreConfig{DirPath: fmt.Sprintf(`file:////%s/tests/file_tests`, mydir)}
+	// fileStoreConfig := FileFileStoreConfig{DirPath: fmt.Sprintf(`file:////%s/tests/file_tests`, mydir)}
 	// serializedFileConfig, err := fileStoreConfig.Serialize()
 	// if err != nil {
 	// 	t.Fatalf("failed to serialize file store config: %v", err)
@@ -191,7 +191,7 @@ func TestOfflineStoreBasic(t *testing.T) {
 		ExecutorType:   GoProc,
 		ExecutorConfig: ExecutorConfig(serializedExecutorConfig),
 		StoreType:      Azure,
-		StoreConfig:    BlobStoreConfig(serializedAzureConfig),
+		StoreConfig:    FileStoreConfig(serializedAzureConfig),
 	}
 	serializedK8sConfig, err := k8sConfig.Serialize()
 	if err != nil {
@@ -345,7 +345,7 @@ func TestNewConfig(t *testing.T) {
 		ExecutorType:   K8s,
 		ExecutorConfig: KubernetesExecutorConfig{},
 		StoreType:      Azure,
-		StoreConfig: AzureBlobStoreConfig{
+		StoreConfig: AzureFileStoreConfig{
 			AccountName:   helpers.GetEnv("AZURE_ACCOUNT_NAME", ""),
 			AccountKey:    helpers.GetEnv("AZURE_ACCOUNT_KEY", ""),
 			ContainerName: helpers.GetEnv("AZURE_CONTAINER_NAME", ""),

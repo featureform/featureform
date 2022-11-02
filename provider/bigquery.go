@@ -708,8 +708,6 @@ type bqOfflineStore struct {
 }
 
 func NewBQOfflineStore(config BQOfflineStoreConfig) (*bqOfflineStore, error) {
-	ctx := context.Background()
-
 	sc := BigQueryConfig{}
 	if err := sc.Deserialize(config.Config); err != nil {
 		return nil, errors.New("invalid bigquery config")
@@ -719,7 +717,7 @@ func NewBQOfflineStore(config BQOfflineStoreConfig) (*bqOfflineStore, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not serialize bigquery credentials")
 	}
-	client, err := bigquery.NewClient(ctx, config.ProjectId, option.WithCredentialsJSON(creds))
+	client, err := bigquery.NewClient(context.TODO(), config.ProjectId, option.WithCredentialsJSON(creds))
 	if err != nil {
 		return nil, err
 	}

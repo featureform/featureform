@@ -179,7 +179,7 @@ func (q defaultSparkOfflineQueries) trainingSetCreate(def TrainingSetDef, featur
 		}
 		featureJoinQuery := fmt.Sprintf("LEFT OUTER JOIN (%s) t%d ON (t%d_entity = entity AND t%d_ts <= label_ts)", featureWindowQuery, i+1, i+1, i+1)
 		joinQueries = append(joinQueries, featureJoinQuery)
-		feature_timestamps = append(feature_timestamps, fmt.Sprint("t%d_ts", i+1))
+		feature_timestamps = append(feature_timestamps, fmt.Sprintf("t%d_ts", i+1))
 	}
 	for i, lagFeature := range def.LagFeatures {
 		lagFeaturesOffset := len(def.Features)
@@ -202,7 +202,7 @@ func (q defaultSparkOfflineQueries) trainingSetCreate(def TrainingSetDef, featur
 		}
 		lagJoinQuery := fmt.Sprintf("LEFT OUTER JOIN (%s) t%d ON (t%d_entity = entity AND DATETIME(t%d_ts, '+%f seconds') <= label_ts)", lagWindowQuery, curIdx, curIdx, curIdx, timeDeltaSeconds)
 		joinQueries = append(joinQueries, lagJoinQuery)
-		feature_timestamps = append(feature_timestamps, fmt.Sprint("t%d_ts", curIdx))
+		feature_timestamps = append(feature_timestamps, fmt.Sprintf("t%d_ts", curIdx))
 	}
 	columnStr := strings.Join(columns, ", ")
 	joinQueryString := strings.Join(joinQueries, " ")
@@ -218,7 +218,7 @@ func (q defaultSparkOfflineQueries) trainingSetCreate(def TrainingSetDef, featur
 	timeStamps := strings.Join(feature_timestamps, ", ")
 	timeStampsDesc := strings.Join(feature_timestamps, " DESC,")
 	fullQuery := fmt.Sprintf("SELECT %s, value AS %s, entity, label_ts, %s, ROW_NUMBER() over (PARTITION BY entity, value, label_ts ORDER BY label_ts DESC, %s DESC) as row_number FROM (%s) tt", columnStr, featureColumnName(def.Label), timeStamps, timeStampsDesc, labelJoinQuery)
-	finalQuery := fmt.Sprintf("SELECT %s, %s FROM (SELECT * FROM (SELECT *, row_number FROM (%s) WHERE row_number=1 ))", columnStr, featureColumnName(def.Label), fullQuery)
+	finalQuery := fmt.Sprintf("SELECT %s, %s FROM (SELECT * FROM (SELECT *, row_number FROM (%s) WHERE row_number=1 ))  ORDER BY label_ts", columnStr, featureColumnName(def.Label), fullQuery)
 	return finalQuery
 }
 

@@ -16,10 +16,10 @@ def get_random_string():
     import string
     return "".join(random.choice(string.ascii_lowercase) for _ in range(10))
 
-def save_version(feature_name, feature_variant, training_name, training_variant):
+def save_to_file(filename, data):
     global FILE_DIRECTORY
-    with open(f"{FILE_DIRECTORY}/version.txt", "w+") as f:
-        f.write(f"{feature_name},{feature_variant}:{training_name},{training_variant}")
+    with open(f"{FILE_DIRECTORY}/{filename}", "w+") as f:
+        f.write(data)
 
 VERSION=get_random_string()
 os.environ["TEST_CASE_VERSION"]=VERSION
@@ -29,11 +29,14 @@ FEATURE_VARIANT = "canvass"
 TRAININGSET_NAME = f"ice_cream_training_{VERSION}"
 TRAININGSET_VARIANT = "canvass"
 
-save_version(FEATURE_NAME, FEATURE_VARIANT, TRAININGSET_NAME, TRAININGSET_VARIANT)
+FEATURE_SERVING = f"farm:farm"
+VERSIONS = f"{FEATURE_NAME},{FEATURE_VARIANT}:{TRAININGSET_NAME},{TRAININGSET_VARIANT}"
+
+save_to_file("feature.txt", FEATURE_SERVING)
+save_to_file("versions.txt", VERSIONS)
+
 
 # Start of Featureform Definitions
-# ff.register_user("featureformer").make_default_owner()
-
 azure_blob = ff.register_blob_store(
     name=f"k8s_blob_store_{VERSION}",
     account_name= os.getenv("AZURE_ACCOUNT_NAME", None),
@@ -65,7 +68,7 @@ ice_cream = k8s.register_file(
                         variant="canvass",
                         inputs=[(f"ice_cream_{VERSION}", "canvass")])
 def ice_cream_entity_transformation(df):
-    """the ice cream dataset with entity """
+    """ the ice cream dataset with entity """
     df["entity"] = "farm"
     return df
 
@@ -90,7 +93,7 @@ ice_cream_transformation.register_resources(
 )
 
 # Register label from our base Transactions table
-ice_cream.register_resources(
+ice_cream_entity_transformation.register_resources(
     entity=farm,
     entity_column="entity",
     timestamp_column="time_index",

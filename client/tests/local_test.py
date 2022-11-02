@@ -229,7 +229,8 @@ class TestPetalGuide:
         with pytest.raises(ValueError, match="A training-set must have atleast one feature"):
             ff.register_training_set(
                 "Missing_features", "v4",
-                resources = [label1v2]
+                resources = [label1v2],
+                features = []
             )
 
         with pytest.raises(ValueError, match="Label must be set"):

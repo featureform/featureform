@@ -2,7 +2,6 @@ package provider
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -15,6 +14,7 @@ import (
 
 	"github.com/featureform/helpers"
 	"github.com/featureform/kubernetes"
+	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 
 	"github.com/segmentio/parquet-go"
@@ -128,16 +128,16 @@ func init() {
 
 func k8sAzureOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	k8 := K8sAzureConfig{}
-	logger := zap.NewExample().Sugar()
+	logger := logging.NewLogger("kubernetes")
 	if err := k8.Deserialize(config); err != nil {
-		logger.Errorw("Invalid config to initialize k8s offline store", err)
+		logger.Errorw("Invalid config to initialize k8s offline store", "error", err)
 		return nil, fmt.Errorf("invalid k8s config: %v", config)
 	}
 	logger.Info("Creating executor with type:", k8.ExecutorType)
 
 	exec, err := CreateExecutor(string(k8.ExecutorType), Config([]byte("")))
 	if err != nil {
-		logger.Errorw("Failure initializing executor with type", k8.ExecutorType, err)
+		logger.Errorw("Failure initializing executor with type", "executor_type", k8.ExecutorType, "error", err)
 		return nil, err
 	}
 
@@ -169,17 +169,18 @@ func k8sAzureOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 
 func k8sOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	k8 := K8sConfig{}
-	logger := zap.NewExample().Sugar()
+	logger := logging.NewLogger("kubernetes")
 	if err := k8.Deserialize(config); err != nil {
-		logger.Errorw("Invalid config to initialize k8s offline store", err)
+		logger.Errorw("Invalid config to initialize k8s offline store", "error", err)
 		return nil, fmt.Errorf("invalid k8s config: %v", config)
 	}
 	logger.Info("Creating executor with type:", k8.ExecutorType)
 	exec, err := CreateExecutor(string(k8.ExecutorType), Config(k8.ExecutorConfig))
 	if err != nil {
-		logger.Errorw("Failure initializing executor with type", k8.ExecutorType, err)
+		logger.Errorw("Failure initializing executor with type", "executor_type", k8.ExecutorType, "error", err)
 		return nil, err
 	}
+
 	serializedBlob, err := k8.StoreConfig.Serialize()
 	if err != nil {
 		return nil, fmt.Errorf("could not serialize blob store config")
@@ -366,19 +367,19 @@ func (kube KubernetesExecutor) ExecuteScript(envVars map[string]string) error {
 }
 
 func NewKubernetesExecutor(config Config) (Executor, error) {
-	pandas_image := helpers.GetEnv("K8S_RUNNER_IMAGE", "local/k8s_runner:stable")
+	pandas_image := helpers.GetEnv("PANDAS_RUNNER_IMAGE", "featureformcom/k8s_runner:0.3.0-rc")
 	return KubernetesExecutor{image: pandas_image}, nil
 }
 
 type FileStore interface {
 	Write(key string, data []byte) error
+	Writer(key string) (*blob.Writer, error)
 	Read(key string) ([]byte, error)
 	Serve(key string) (Iterator, error)
-	ServeDirectory(dir string) (Iterator, error)
 	Exists(key string) (bool, error)
 	Delete(key string) error
 	DeleteAll(dir string) error
-	NewestFile(prefix string) (string, error)
+	NewestBlob(prefix string) string
 	PathWithPrefix(path string) string
 	NumRows(key string) (int64, error)
 	Close() error
@@ -583,6 +584,8 @@ func (store genericFileStore) Serve(key string) (Iterator, error) {
 	switch fileType := keyParts[len(keyParts)-1]; fileType {
 	case "parquet":
 		return parquetIteratorFromBytes(b)
+	case "csv":
+		return nil, fmt.Errorf("could not find CSV reader")
 	default:
 		return nil, fmt.Errorf("unsupported file type")
 	}
@@ -1060,7 +1063,7 @@ func (k8s *K8sOfflineStore) updateQuery(query string, mapping []SourceMapping) (
 		sourcePath := ""
 		sourcePath, err := k8s.getSourcePath(m.Source)
 		if err != nil {
-			k8s.logger.Errorw("Error getting source path of source", m.Source, err)
+			k8s.logger.Errorw("Error getting source path of source", "source", m.Source, "error", err)
 			return "", nil, fmt.Errorf("could not get the sourcePath for %s because %s", m.Source, err)
 		}
 
@@ -1071,7 +1074,7 @@ func (k8s *K8sOfflineStore) updateQuery(query string, mapping []SourceMapping) (
 	updatedQuery := replacer.Replace(query)
 
 	if strings.Contains(updatedQuery, "{{") {
-		k8s.logger.Errorw("Template replace failed", updatedQuery)
+		k8s.logger.Errorw("Template replace failed", "query", updatedQuery)
 		return "", nil, fmt.Errorf("could not replace all the templates with the current mapping. Mapping: %v; Replaced Query: %s", mapping, updatedQuery)
 	}
 	return updatedQuery, sources, nil
@@ -1085,7 +1088,7 @@ func (k8s *K8sOfflineStore) getSourcePath(path string) (string, error) {
 		fileResourceId := ResourceID{Name: fileName, Variant: fileVariant, Type: Primary}
 		fileTable, err := k8s.GetPrimaryTable(fileResourceId)
 		if err != nil {
-			k8s.logger.Errorw("Issue getting primary table", fileResourceId, err)
+			k8s.logger.Errorw("Issue getting primary table", "id", fileResourceId, "error", err)
 			return "", fmt.Errorf("could not get the primary table for {%v} because %s", fileResourceId, err)
 		}
 		filePath = fileTable.GetName()
@@ -1182,7 +1185,7 @@ func fileStoreGetResourceTable(id ResourceID, store FileStore, logger *zap.Sugar
 	if err := resourceSchema.Deserialize(serializedSchema); err != nil {
 		return nil, fmt.Errorf("Error deserializing resource table: %v", err)
 	}
-	logger.Debugw("Succesfully fetched resource table", "id", id)
+	k8s.logger.Debugw("Succesfully fetched resource table", "id", id)
 	return &BlobOfflineTable{resourceSchema}, nil
 }
 
@@ -1278,10 +1281,15 @@ func (iter *FileStoreFeatureIterator) Next() bool {
 	if !ok {
 		iter.cur = ResourceRecord{Entity: string(nextVal["entity"].(string)), Value: nextVal["value"]}
 	} else {
-		timestamp, err = time.Parse(formatDate, timeString)
-		if err != nil {
-			iter.err = fmt.Errorf("could not parse timestamp: %v: %v", nextVal["ts"], err)
+		timestamp, err1 := time.Parse(formatDate, timeString)
+		formatDateWithoutUTC := "2006-01-02 15:04:05"
+		timestamp2, err2 := time.Parse(formatDateWithoutUTC, timeString)
+		if err1 != nil && err2 != nil {
+			iter.err = fmt.Errorf("could not parse timestamp: %v: %v, %v", nextVal["ts"], err1, err2)
 			return false
+		}
+		if err1 != nil {
+			timestamp = timestamp2
 		}
 		iter.cur = ResourceRecord{Entity: string(nextVal["entity"].(string)), Value: nextVal["value"], TS: timestamp}
 	}
@@ -1307,12 +1315,12 @@ func (k8s *K8sOfflineStore) UpdateMaterialization(id ResourceID) (Materializatio
 
 func (k8s *K8sOfflineStore) materialization(id ResourceID, isUpdate bool) (Materialization, error) {
 	if id.Type != Feature {
-		k8s.logger.Errorw("Attempted to create a materialization of a non feature resource", id.Type)
+		k8s.logger.Errorw("Attempted to create a materialization of a non feature resource", "type", id.Type)
 		return nil, fmt.Errorf("only features can be materialized")
 	}
 	resourceTable, err := k8s.GetResourceTable(id)
 	if err != nil {
-		k8s.logger.Errorw("Attempted to fetch resource table of non registered resource", err)
+		k8s.logger.Errorw("Attempted to fetch resource table of non registered resource", "error", err)
 		return nil, fmt.Errorf("resource not registered: %v", err)
 	}
 	k8sResourceTable, ok := resourceTable.(*BlobOfflineTable)
@@ -1384,12 +1392,12 @@ func (k8s *K8sOfflineStore) registeredResourceSchema(id ResourceID) (ResourceSch
 	k8s.logger.Debugw("Getting resource schema", "id", id)
 	table, err := k8s.GetResourceTable(id)
 	if err != nil {
-		k8s.logger.Errorw("Resource not registered in blob store", id, err)
+		k8s.logger.Errorw("Resource not registered in blob store", "id", id, "error", err)
 		return ResourceSchema{}, fmt.Errorf("resource not registered: %v", err)
 	}
 	blobResourceTable, ok := table.(*BlobOfflineTable)
 	if !ok {
-		k8s.logger.Errorw("could not convert offline table to blobResourceTable", id)
+		k8s.logger.Errorw("could not convert offline table to blobResourceTable", "id", id)
 		return ResourceSchema{}, fmt.Errorf("could not convert offline table with id %v to blobResourceTable", id)
 	}
 	k8s.logger.Debugw("Succesfully retrieved resource schema", "id", id)
@@ -1425,7 +1433,7 @@ func (k8s *K8sOfflineStore) trainingSet(def TrainingSetDef, isUpdate bool) error
 	}
 	labelSchema, err := k8s.registeredResourceSchema(def.Label)
 	if err != nil {
-		k8s.logger.Errorw("Could not get schema of label in store", def.Label, err)
+		k8s.logger.Errorw("Could not get schema of label in store", "id", def.Label, "error", err)
 		return fmt.Errorf("Could not get schema of label %s: %v", def.Label, err)
 	}
 	labelPath := labelSchema.SourceTable
@@ -1433,7 +1441,7 @@ func (k8s *K8sOfflineStore) trainingSet(def TrainingSetDef, isUpdate bool) error
 	for _, feature := range def.Features {
 		featureSchema, err := k8s.registeredResourceSchema(feature)
 		if err != nil {
-			k8s.logger.Errorw("Could not get schema of feature in store", feature, err)
+			k8s.logger.Errorw("Could not get schema of feature in store", "feature", feature, "error", err)
 			return fmt.Errorf("Could not get schema of feature %s: %v", feature, err)
 		}
 		featurePath := featureSchema.SourceTable
@@ -1441,6 +1449,8 @@ func (k8s *K8sOfflineStore) trainingSet(def TrainingSetDef, isUpdate bool) error
 		featureSchemas = append(featureSchemas, featureSchema)
 	}
 	trainingSetQuery := k8s.query.trainingSetCreate(def, featureSchemas, labelSchema)
+	k8s.logger.Debugw("Training set query", "query", sourcePaths)
+	k8s.logger.Debugw("Source list", "list", trainingSetQuery)
 	pandasArgs := k8s.pandasRunnerArgs(k8s.store.PathWithPrefix(destinationPath), trainingSetQuery, sourcePaths, CreateTrainingSet)
 	pandasArgs = addResourceID(pandasArgs, def.ID)
 	k8s.logger.Debugw("Creating training set", "definition", def)

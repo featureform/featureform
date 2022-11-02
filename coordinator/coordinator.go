@@ -185,9 +185,16 @@ func (k *KubernetesJobSpawner) GetJobRunner(jobName string, config runner.Config
 	if err != nil {
 		return nil, err
 	}
-	pandas_image := help.GetEnv("K8S_RUNNER_IMAGE", "local/k8s_runner:stable")
+
+	pandas_image := help.GetEnv("PANDAS_RUNNER_IMAGE", "featureformcom/k8s_runner:0.3.0-rc")
+	fmt.Println("GETJOBRUNNERID:", id)
 	kubeConfig := kubernetes.KubernetesRunnerConfig{
-		EnvVars:  map[string]string{"NAME": jobName, "CONFIG": string(config), "ETCD_CONFIG": string(serializedETCD), "K8S_RUNNER_IMAGE": pandas_image},
+		EnvVars: map[string]string{
+			"NAME":             jobName,
+			"CONFIG":           string(config),
+			"ETCD_CONFIG":      string(serializedETCD),
+			"K8S_RUNNER_IMAGE": pandas_image,
+		},
 		Image:    help.GetEnv("WORKER_IMAGE", "local/worker:stable"),
 		NumTasks: 1,
 		Resource: id,
@@ -232,10 +239,14 @@ func (c *Coordinator) WatchForNewJobs() error {
 		go func(kv *mvccpb.KeyValue) {
 			err := c.ExecuteJob(string(kv.Key))
 			if err != nil {
-				re, ok := err.(*JobDoesNotExistError)
-				if ok {
-					c.Logger.Infow(re.Error())
-				} else {
+				switch err.(type) {
+				case JobDoesNotExistError:
+					c.Logger.Info(err)
+				case ResourceAlreadyFailedError:
+					c.Logger.Infow("resource has failed previously. Ignoring....", "key", string(kv.Key))
+				case ResourceAlreadyCompleteError:
+					c.Logger.Infow("resource has already completed. Ignoring....", "key", string(kv.Key))
+				default:
 					c.Logger.Errorw("Error executing job: Initial search", "error", err)
 				}
 			}
@@ -332,9 +343,10 @@ func (c *Coordinator) mapNameVariantsToTables(sources []metadata.NameVariant) (m
 		var tableName string
 		sourceProvider, err := source.FetchProvider(c.Metadata, context.Background())
 		if err != nil {
-			return nil, fmt.Errorf("Could not fetch source provider: %v", err)
+			return nil, fmt.Errorf("could not fetch source provider: %v", err)
 		}
-		if sourceProvider.Type() == "SPARK_OFFLINE" && source.IsSQLTransformation() {
+
+		if (sourceProvider.Type() == "SPARK_OFFLINE" || sourceProvider.Type() == "K8S_OFFLINE") && (source.IsDFTransformation() || source.IsSQLTransformation()) {
 			providerResourceID.Type = provider.Transformation
 			tableName, err = provider.GetTransformationTableName(providerResourceID)
 			if err != nil {
@@ -379,6 +391,23 @@ func (c *Coordinator) verifyCompletionOfSources(sources []metadata.NameVariant) 
 }
 
 func (c *Coordinator) runTransformationJob(transformationConfig provider.TransformationConfig, resID metadata.ResourceID, schedule string, sourceProvider *metadata.Provider) error {
+	transformation, err := c.Metadata.GetSourceVariant(context.Background(), metadata.NameVariant{resID.Name, resID.Variant})
+	if err != nil {
+		return fmt.Errorf("get label variant: %w", err)
+	}
+	status := transformation.Status()
+
+	if status == metadata.READY {
+		return ResourceAlreadyCompleteError{
+			resourceID: resID,
+		}
+	}
+	if status == metadata.FAILED {
+		return ResourceAlreadyFailedError{
+			resourceID: resID,
+		}
+	}
+
 	createTransformationConfig := runner.CreateTransformationConfig{
 		OfflineType:          provider.Type(sourceProvider.Type()),
 		OfflineConfig:        sourceProvider.SerializedConfig(),
@@ -469,7 +498,7 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 
 	err = c.runTransformationJob(transformationConfig, resID, schedule, sourceProvider)
 	if err != nil {
-		return fmt.Errorf("could not run the transformation job resId=%s:%s", resID, err)
+		return err
 	}
 
 	return nil
@@ -501,7 +530,7 @@ func (c *Coordinator) runDFTransformationJob(transformSource *metadata.SourceVar
 
 	err = c.runTransformationJob(transformationConfig, resID, schedule, sourceProvider)
 	if err != nil {
-		return fmt.Errorf("could not run the transformation job resId=%s:%s", resID, err)
+		return err
 	}
 
 	return nil
@@ -566,7 +595,14 @@ func (c *Coordinator) runLabelRegisterJob(resID metadata.ResourceID, schedule st
 	}
 	status := label.Status()
 	if status == metadata.READY {
-		return fmt.Errorf("feature already set to %s", status.String())
+		return ResourceAlreadyCompleteError{
+			resourceID: resID,
+		}
+	}
+	if status == metadata.FAILED {
+		return ResourceAlreadyFailedError{
+			resourceID: resID,
+		}
 	}
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.PENDING, ""); err != nil {
 		return fmt.Errorf("set pending status for label variant: %w", err)
@@ -648,7 +684,14 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 	status := feature.Status()
 	featureType := feature.Type()
 	if status == metadata.READY {
-		return fmt.Errorf("feature already set to %s", status.String())
+		return ResourceAlreadyCompleteError{
+			resourceID: resID,
+		}
+	}
+	if status == metadata.FAILED {
+		return ResourceAlreadyFailedError{
+			resourceID: resID,
+		}
 	}
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.PENDING, ""); err != nil {
 		return fmt.Errorf("set feature variant status to pending: %w", err)
@@ -784,14 +827,21 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 }
 
 func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule string) error {
-	c.Logger.Info("Running training set job on resource: ", resID)
+	c.Logger.Info("Running training set job on resource: ", "name", resID.Name, "variant", resID.Variant)
 	ts, err := c.Metadata.GetTrainingSetVariant(context.Background(), metadata.NameVariant{resID.Name, resID.Variant})
 	if err != nil {
 		return fmt.Errorf("fetch training set variant from metadata: %w", err)
 	}
 	status := ts.Status()
 	if status == metadata.READY {
-		return fmt.Errorf("training Set already set to %s", status.String())
+		return ResourceAlreadyCompleteError{
+			resourceID: resID,
+		}
+	}
+	if status == metadata.FAILED {
+		return ResourceAlreadyFailedError{
+			resourceID: resID,
+		}
 	}
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.PENDING, ""); err != nil {
 		return fmt.Errorf("set training set variant status to pending: %w", err)
@@ -836,6 +886,18 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 			return fmt.Errorf("feature could not complete job: %v", err)
 		}
 	}
+
+	lagFeatures := ts.LagFeatures()
+	lagFeaturesList := make([]provider.LagFeatureDef, len(lagFeatures))
+	for i, lagFeature := range lagFeatures {
+		lagFeaturesList[i] = provider.LagFeatureDef{
+			FeatureName:    lagFeature.GetFeature(),
+			FeatureVariant: lagFeature.GetVariant(),
+			LagName:        lagFeature.GetName(),
+			LagDelta:       lagFeature.GetLag().AsDuration(), // see if need to convert it to time.Duration
+		}
+	}
+
 	label, err := ts.FetchLabel(c.Metadata, context.Background())
 	if err != nil {
 		return fmt.Errorf("fetch training set label: %w", err)
@@ -850,9 +912,10 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 		return fmt.Errorf("label could not complete job: %v", err)
 	}
 	trainingSetDef := provider.TrainingSetDef{
-		ID:       providerResID,
-		Label:    provider.ResourceID{Name: label.Name(), Variant: label.Variant(), Type: provider.Label},
-		Features: featureList,
+		ID:          providerResID,
+		Label:       provider.ResourceID{Name: label.Name(), Variant: label.Variant(), Type: provider.Label},
+		Features:    featureList,
+		LagFeatures: lagFeaturesList,
 	}
 	tsRunnerConfig := runner.TrainingSetRunnerConfig{
 		OfflineType:   provider.Type(providerEntry.Type()),
@@ -1029,8 +1092,13 @@ func (c *Coordinator) ExecuteJob(jobKey string) error {
 		return fmt.Errorf("not a valid resource type for running jobs")
 	}
 	if err := jobFunc(job.Resource, job.Schedule); err != nil {
-		statusErr := c.Metadata.SetStatus(context.Background(), job.Resource, metadata.FAILED, err.Error())
-		return fmt.Errorf("%s job failed: %v: %v", job.Resource.Type, err, statusErr)
+		switch err.(type) {
+		case ResourceAlreadyFailedError:
+			return err
+		default:
+			statusErr := c.Metadata.SetStatus(context.Background(), job.Resource, metadata.FAILED, err.Error())
+			return fmt.Errorf("%s job failed: %v: %v", job.Resource.Type, err, statusErr)
+		}
 	}
 	c.Logger.Info("Succesfully executed job with key: ", jobKey)
 	if err := c.deleteJob(mtx, jobKey); err != nil {

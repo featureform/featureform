@@ -84,7 +84,7 @@ class RedisConfig:
 
 @typechecked
 @dataclass
-class AzureBlobStoreConfig:
+class AzureFileStoreConfig:
     account_name: str
     account_key: str
     container_name: str
@@ -125,9 +125,6 @@ class OnlineBlobConfig:
 
     def type(self) -> str:
         return "BLOB_ONLINE"
-
-    def config(self):
-        return self.store_config
 
     def serialize(self) -> bytes:
         config = {
@@ -386,38 +383,8 @@ class K8sConfig:
 
 
 
-@typechecked
-@dataclass
-class K8sAzureConfig:
-    account_name: str
-    account_key: str
-    container_name: str
-    path: str = ""
-
-    def software(self) -> str:
-        return "k8s"
-
-    def type(self) -> str:
-        return "K8S_OFFLINE"
-
-    def serialize(self) -> bytes:
-        config = {
-            "ExecutorType": "K8S",
-            "ExecutorConfig": {},
-            "StoreType": "AZURE",
-            "StoreConfig": {
-                "AccountName": self.account_name,
-                "AccountKey": self.account_key,
-                "ContainerName": self.container_name,
-                "Path": self.path,
-            }
-        }
-        return bytes(json.dumps(config), "utf-8")
-
-
-
 Config = Union[
-    RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig, BigQueryConfig, FirestoreConfig, SparkAWSConfig, OnlineBlobConfig, AzureBlobStoreConfig, K8sConfig]
+    RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig, BigQueryConfig, FirestoreConfig, SparkAWSConfig, OnlineBlobConfig, AzureFileStoreConfig, K8sConfig]
 
 
 @typechecked
@@ -945,6 +912,7 @@ class TrainingSet:
     owner: str
     label: NameVariant
     features: List[NameVariant]
+    feature_lags: list
     description: str
     variant: str = "default"
     schedule: str = ""
@@ -982,6 +950,14 @@ class TrainingSet:
                 pb.NameVariant(name=v[0], variant=v[1]) for v in self.features
             ],
             label=pb.NameVariant(name=self.label[0], variant=self.label[1]),
+            feature_lags=[
+                pb.FeatureLag(
+                    feature=lag["feature"],
+                    variant=lag["variant"],
+                    name=lag["name"],
+                    lag=lag["lag"],     
+                ) for lag in self.feature_lags
+            ]
         )
         stub.CreateTrainingSetVariant(serialized)
 

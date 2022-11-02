@@ -4,7 +4,7 @@
 
 import pytest
 from .resources import ResourceRedefinedError, ResourceState, Provider, RedisConfig, CassandraConfig, FirestoreConfig, \
-SnowflakeConfig, PostgresConfig, RedshiftConfig, BigQueryConfig, OnlineBlobConfig, AzureFileStoreConfig, K8sConfig, User, Provider, Entity, Feature, Label, TrainingSet, PrimaryData, SQLTable, \
+SnowflakeConfig, PostgresConfig, RedshiftConfig, BigQueryConfig, OnlineBlobConfig, AzureBlobStoreConfig, K8sConfig, User, Provider, Entity, Feature, Label, TrainingSet, PrimaryData, SQLTable, \
 Source, ResourceColumnMapping, DynamodbConfig, Schedule
 
 
@@ -50,14 +50,12 @@ def blob_store_config():
         root_path="example/path",
     )
 
-
 @pytest.fixture
 def online_blob_config(blob_store_config):
     return OnlineBlobConfig(
         store_type="AZURE",
         store_config=blob_store_config.serialize(),
     )
-
 
 @pytest.fixture
 def file_store_provider(blob_store_config):

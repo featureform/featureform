@@ -13,6 +13,7 @@ import (
 	"github.com/featureform/helpers"
 
 	"github.com/google/uuid"
+
 	"github.com/mitchellh/mapstructure"
 	"github.com/segmentio/parquet-go"
 )
@@ -35,7 +36,10 @@ func TestBlobInterfaces(t *testing.T) {
 		// Test Path with prefix
 		// Test Num Rows
 	}
-	localFileStore, err := NewMemoryFileStore(Config([]byte("")))
+	blobTests := map[string]func(*testing.T, BlobStore){
+		"Test Blob Read and Write": testBlobReadAndWrite,
+		// "Test Blob Parquet Serve":  testBlobParquetServe,
+	}
 	if err != nil {
 		t.Fatalf("Failed to create memory blob store")
 	}

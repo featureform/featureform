@@ -2,6 +2,7 @@ package provider
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"context"
 
 	"github.com/featureform/helpers"
 	"github.com/featureform/kubernetes"
@@ -521,6 +521,23 @@ func (store genericFileStore) ServeDirectory(dir string) (Iterator, error) {
 	}
 	// assume file type is parquet
 	return parquetIteratorOverMultipleFiles(fileParts, store)
+}
+
+func convertToParquetBytes(list []any) ([]byte, error) {
+	if len(list) == 0 {
+		return nil, fmt.Errorf("list is empty")
+	}
+	schema := parquet.SchemaOf(list[0])
+	buf := new(bytes.Buffer)
+	err := parquet.Write[any](
+		buf,
+		list,
+		schema,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("Could not write parquet file to bytes: %v", err)
+	}
+	return buf.Bytes(), nil
 }
 
 type ParquetIteratorMultipleFiles struct {

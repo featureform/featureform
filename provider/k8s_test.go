@@ -25,16 +25,16 @@ func uuidWithoutDashes() string {
 func TestBlobInterfaces(t *testing.T) {
 	fileStoreTests := map[string]func(*testing.T, FileStore){
 		"Test Filestore Read and Write": testFilestoreReadAndWrite,
-		// "Test Blob Parquet Serve":  testBlobParquetServe,
-		// Test Exists
-		// Test Not Exists
-		// Test Serve
-		// Test Serve Directory
-		// Test Delete
-		// Test Delete All
-		// Test Newest blob
-		// Test Path with prefix
-		// Test Num Rows
+		"Test Blob Parquet Serve":       testBlobParquetServe,
+		"Test Exists":                   testExists,
+		"Test Not Exists":               testNotExists,
+		"Test Serve":                    testServe,
+		"Test Serve Directory":          testServeDirectory,
+		"Test Delete":                   testDelete,
+		"Test Delete All":               testDeleteAll,
+		"Test Newest file":              testNewestFile,
+		"Test Path with prefix":         testPathWithPrefix,
+		"Test Num Rows":                 testNumRows,
 	}
 	blobTests := map[string]func(*testing.T, BlobStore){
 		"Test Blob Read and Write": testBlobReadAndWrite,
@@ -409,5 +409,316 @@ func Test_parquetIteratorFromReader(t *testing.T) {
 			t.Errorf("Rows not equal %v!=%v\n", value, testRows[index])
 		}
 		index += 1
+	}
+}
+
+func testExists(t *testing.T, store FileStore) {
+	randomKey := uuid.New().String()
+	randomData := uuid.New().String()
+	if err := store.Write(randomKey, randomData); err != nil {
+		t.Fatalf("Could not write key to filestore: %v", err)
+	}
+	exists, err := store.Exists(randomKey)
+	if err != nil {
+		t.Fatalf("Could not check that key exists in filestore: %v", err)
+	}
+	if !exists {
+		t.Fatalf("Key written to file store does not exist")
+	}
+	// cleanup test
+	if store.Delete(randomKey); err != nil {
+		t.Fatalf("error deleting random key: %v", err)
+	}
+}
+
+func testNotExists(t *testing.T, store FileStore) {
+	randomKey := uuid.New().String()
+	exists, err := store.Exists(randomKey)
+	if err != nil {
+		t.Fatalf("Could not check that key exists in filestore: %v", err)
+	}
+	if exists {
+		t.Fatalf("Key not written to file store exists")
+	}
+}
+
+func TestConvertToParquetBytes(t *testing.T) {
+	parquetNumRows := int64(5)
+	randomStructs := randomStructList(parquetNumRows)
+	parquetBytes, err := convertToParquetBytes(randomStructs)
+	if err != nil {
+		t.Fatalf("could not convert struct list to parquet bytes: %v", err)
+	}
+	file := bytes.NewReader(parquetBytes)
+	r := parquet.NewReader(file)
+	value := make(map[string]interface{})
+	//map will order the "columns" in alphabetical order
+	for {
+		err = r.Read(&value)
+		if err != nil {
+			if err == io.EOF {
+				fmt.Println("end of file")
+			} else {
+				panic(err)
+			}
+		}
+	}
+
+}
+
+func randomStructList(length int64) []any {
+	type PersonEntry struct {
+		ID         int64
+		Name       string
+		Points     float32
+		Score      float64
+		Registered bool
+		Age        int
+		Created    time.Time
+	}
+	personList := make([]any, length)
+	for i := int64(0); i < length; i++ {
+		personList[i] = PersonEntry{
+			ID:         i,
+			Name:       uuid.New().String(),
+			Points:     float32(i + 0.1),
+			Score:      float64(i + 0.0),
+			Registered: false,
+			Age:        int(i),
+			Created:    time.Now(),
+		}
+	}
+	return personList
+}
+
+func compareStructWithInterface(compareStruct any, compareInterface map[string]interface{}) (bool, error) {
+
+}
+
+func testServe(t *testing.T, store FileStore) {
+	parquetNumRows := int64(5)
+	randomStructs := randomStructList(parquetNumRows)
+	parquetBytes, err := convertToParquetBytes(randomStructs)
+	if err != nil {
+		t.Fatalf("could not convert struct list to parquet bytes: %v", err)
+	}
+	randomkey := uuid.New().String()
+	if err := store.Write(randomKey, parquetBytes); err != nil {
+		t.Fatalf("Could not write parquet bytes to random key: %v", err)
+	}
+	iterator, err := store.Serve(randomKey)
+	if err != nil {
+		t.Fatalf("Could not get parquet iterator: %v", err)
+	}
+	idx := int64(0)
+	for {
+		parquetRow, err := iterator.Next()
+		idx += 1
+		if err != nil && err != io.EOF {
+			t.Fatalf("Error iterating through parquet file: %v", err)
+		} else if err == io.EOF {
+			if idx != parquetNumRows {
+				t.Fatalf("Incorrect number of rows in parquet file")
+			}
+		}
+		identical, err := compareStructWithInterface(randomStructs[idx], parquetRow)
+		if err != nil {
+			t.Fatalf("Error comparing struct with interface: %v", err)
+		}
+		if !identical {
+			t.Fatalf("Submitted row and returned struct not identical. Got %v, expected %v", parquetRow, randomStruct[idx])
+		}
+	}
+	// TODO cleanup test
+	if err := store.Delete(randomKey); err != nil {
+		t.Fatalf("Could not delete parquet file: %v", err)
+	}
+}
+
+func testServeDirectory(t *testing.T, store FileStore) {
+	parquetNumRows := int64(5)
+	parquetNumFiles := int65(5)
+	randomDirectory := uuid.New().String()
+	randomStructs := make([]any, parquetNumFiles)
+	for i := int64(0); i < parquetNumFiles; i++ {
+		randomStructs[i] = randomStructList(parquetNumRows)
+		parquetBytes, err := convertToParquetBytes(randomStructs[i])
+		if err != nil {
+			t.Fatalf("error converting struct to parquet bytes")
+		}
+		randomKey := fmt.Sprintf("part000%d%s", i, uuid.New().String())
+		randomPath := fmt.Sprintf("%s/%s", randomDirectory, randomKey)
+		if err := store.Write(randomPath, parquetBytes); err != nil {
+			t.Fatalf("Could not write parquet bytes to path: %v", err)
+		}
+	}
+	storeGenericStore, ok := store.(genericFileStore)
+	if !ok {
+		t.Fatalf("Could not convert parquet store to generic file store")
+	}
+	iterator, err := storeGenericStore.ServeDirectory(randomDirectory)
+	if err != nil {
+		t.Fatalf("Could not get parquet iterator: %v", err)
+	}
+	totalRows := int64(parquetNumFiles * parquetNumRows)
+	idx := int64(0)
+	for {
+		parquetRow, err := iterator.Next()
+		idx += 1
+		if err != nil && err != io.EOF {
+			t.Fatalf("Error iterating through parquet file: %v", err)
+		} else if err == io.EOF {
+			if idx != totalRows {
+				t.Fatalf("Incorrect number of rows in parquet file")
+			}
+		}
+		numFile := int(idx / 5)
+		numRow := idx % 5
+		identical, err := compareStructWithInterface(randomStructs[numFile][numRow], parquetRow)
+		if err != nil {
+			t.Fatalf("Error comparing struct with interface: %v", err)
+		}
+		if !identical {
+			t.Fatalf("Submitted row and returned struct not identical. Got %v, expected %v", parquetRow, randomStruct[idx])
+		}
+	}
+	// TODO cleanup test
+	if err := store.DeleteAll(randomRirectory); err != nil {
+		t.Fatalf("Could not delete parquet directory: %v", err)
+	}
+}
+
+func testDelete(t *testing.T, store FileStore) {
+	randomKey := uuid.New().String()
+	randomData := uuid.New().String()
+	if err := store.Write(randomKey, randomData); err != nil {
+		t.Fatalf("Could not write key to filestore: %v", err)
+	}
+	exists, err := store.Exists(randomKey)
+	if err != nil {
+		t.Fatalf("Could not check that key exists in filestore: %v", err)
+	}
+	if !exists {
+		t.Fatalf("Key written to file store does not exist")
+	}
+	if err := store.Delete(randomKey); err != nil {
+		t.Fatalf("Could not delete key from filestore: %v")
+	}
+	exists, err := store.Exists(randomKey)
+	if err != nil {
+		t.Fatalf("Could not check that key exists in filestore: %v", err)
+	}
+	if exists {
+		t.Fatalf("Key deleted from file store exists")
+	}
+
+}
+
+func testDeleteAll(t *testing.T, store FileStore) {
+	randomListLength := 5
+	randomDirectory := uuid.New().String()
+	randomKeyList := make([]string, randomListLength)
+	for i := 0; i < randomListLength; i++ {
+		randomKeyList[i] = uuid.New().String()
+		randomPath := fmt.Sprintf("%s/%s", randomDirectory, randomKeyList[i])
+		randomData := uuid.New().String()
+		if err := store.Write(randomPath, randomData); err != nil {
+			t.Fatalf("Could not write key to filestore: %v", err)
+		}
+	}
+	for i := 0; i < randomListLength; i++ {
+		randomPath := fmt.Sprintf("%s/%s", randomDirectory, randomKeyList[i])
+		exists, err := store.Exists(randomPath)
+		if err != nil {
+			t.Fatalf("Could not check that key exists in filestore: %v", err)
+		}
+		if !exists {
+			t.Fatalf("Key written to file store does not exist")
+		}
+	}
+	if err := store.DeleteAll(randomDirectory); err != nil {
+		t.Fatalf("Could not delete directory: %v", err)
+	}
+	for i := 0; i < randomListLength; i++ {
+		randomPath := fmt.Sprintf("%s/%s", randomDirectory, randomKeyList[i])
+		exists, err := store.Exists(randomPath)
+		if err != nil {
+			t.Fatalf("Could not check that key exists in filestore: %v", err)
+		}
+		if exists {
+			t.Fatalf("Key deleted from filestore does exist")
+		}
+	}
+
+}
+
+func testNewestFile(t *testing.T, store FileStore) {
+	// write a bunch of blobs with different timestamps
+	randomListLength := 5
+	randomDirectory := uuid.New().String()
+	randomKeyList := make([]string, randomListLength)
+	for i := 0; i < randomListLength; i++ {
+		randomKeyList[i] = uuid.New().String()
+		randomPath := fmt.Sprintf("%s/%s", randomDirectory, randomKeyList[i])
+		randomData := uuid.New().String()
+		if err := store.Write(randomPath, randomData); err != nil {
+			t.Fatalf("Could not write key to filestore: %v", err)
+		}
+	}
+	newestFile, err := store.NewestFile(randomDirectory)
+	if err != nil {
+		t.Fatalf("Error getting newest file from directory: %v", err)
+	}
+	expectedNewestFile := fmt.Sprintf("%s/%s", randomDirectory, randomKeyList[randomListLength-1])
+	if newestFile != expectedNewestFile {
+		t.Fatalf("Newest file did not retrieve actual newest file. Expected %s, got %s", expectedNewestFile, newestFile)
+	}
+	// cleanup test
+	if err := store.DeleteAll(randomDirectory); err != nil {
+		t.Fatalf("Could not delete directory: %v", err)
+	}
+}
+
+// func testPathWithPrefix(t *testing.T, store FileStore) {
+//TODO implement
+// 	//test the path with prefix?????
+// 	//test these I guess?
+// 	// func (store genericFileStore) PathWithPrefix(path string) string {
+// 	// 	if len(store.path) > 4 && store.path[0:4] == "file" {
+// 	// 		return fmt.Sprintf("%s%s", store.path[len("file:////"):], path)
+// 	// 	} else {
+// 	// 		return path
+// 	// 	}
+// 	// }
+
+// 	// func (store AzureFileStore) PathWithPrefix(path string) string {
+// 	// 	if len(path) != 0 && path[0:len(store.Path)] != store.Path && store.Path != "" {
+// 	// 		return fmt.Sprintf("%s/%s", store.Path, path)
+// 	// 	}
+// 	// 	return path
+// 	// }
+// }
+
+func testNumRows(t *testing.T, store FileStore) {
+	parquetNumRows := int64(5)
+	randomStructList := randomStructList(parquetNumRows)
+	parquetBytes, err := convertToParquetBytes(randomStructList)
+	randomParquetPath := uuid.New().String()
+	if err != nil {
+		t.Fatalf("Could not convert struct list to parquet bytes: %v", err)
+	}
+	if err := store.Write(randomParquetPath, parquetBytes); err != nil {
+		t.Fatalf("Could not write parquet bytes to path: %v")
+	}
+	numRows, err := store.NumRows(randomParquetPath)
+	if err != nil {
+		t.Fatalf("Could not get num rows from parquet file")
+	}
+	if numRows != parquetNumRows {
+		t.Fatalf("Incorrect retrieved num rows from parquet file. Expected %d, got %d", numRows, parquetNumRows)
+	}
+	// cleanup test
+	if err := store.Delete(randomParquetPath); err != nil {
+		t.Fatalf("Could not delete parquet file: %v", err)
 	}
 }

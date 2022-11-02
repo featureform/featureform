@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"context"
 
 	"github.com/featureform/helpers"
 	"github.com/featureform/kubernetes"
@@ -110,7 +111,6 @@ func CreateFileStore(name string, config Config) (FileStore, error) {
 
 func init() {
 	FileStoreFactoryMap := map[FileStoreType]FileStoreFactory{
-		Memory:     NewMemoryFileStore,
 		FileSystem: NewFileFileStore,
 		Azure:      NewAzureFileStore,
 	}
@@ -379,7 +379,7 @@ type FileStore interface {
 	Exists(key string) (bool, error)
 	Delete(key string) error
 	DeleteAll(dir string) error
-	NewestBlob(prefix string) string
+	NewestFile(prefix string) (string, error)
 	PathWithPrefix(path string) string
 	NumRows(key string) (int64, error)
 	Close() error
@@ -387,10 +387,6 @@ type FileStore interface {
 
 type Iterator interface {
 	Next() (map[string]interface{}, error)
-}
-
-type MemoryFileStore struct {
-	genericFileStore
 }
 
 type AzureFileStore struct {
@@ -649,18 +645,6 @@ func (store genericFileStore) Delete(key string) error {
 
 func (store genericFileStore) Close() error {
 	return store.bucket.Close()
-}
-
-func NewMemoryFileStore(config Config) (FileStore, error) {
-	bucket, err := blob.OpenBucket(context.TODO(), "mem://")
-	if err != nil {
-		return MemoryFileStore{}, err
-	}
-	return MemoryFileStore{
-		genericFileStore{
-			bucket: bucket,
-		},
-	}, nil
 }
 
 type FileFileStoreConfig struct {
@@ -1185,7 +1169,7 @@ func fileStoreGetResourceTable(id ResourceID, store FileStore, logger *zap.Sugar
 	if err := resourceSchema.Deserialize(serializedSchema); err != nil {
 		return nil, fmt.Errorf("Error deserializing resource table: %v", err)
 	}
-	k8s.logger.Debugw("Succesfully fetched resource table", "id", id)
+	logger.Debugw("Succesfully fetched resource table", "id", id)
 	return &BlobOfflineTable{resourceSchema}, nil
 }
 
@@ -1229,7 +1213,7 @@ func (mat FileStoreMaterialization) NumRows() (int64, error) {
 	materializationPath := mat.store.PathWithPrefix(fileStoreResourcePath(mat.id))
 	latestMaterializationPath, err := mat.store.NewestFile(materializationPath)
 	if err != nil {
-		return fmt.Errorf("Could not get materialization num rows; %v", err)
+		return 0, fmt.Errorf("Could not get materialization num rows; %v", err)
 	}
 	return mat.store.NumRows(latestMaterializationPath)
 }
@@ -1276,7 +1260,6 @@ func (iter *FileStoreFeatureIterator) Next() bool {
 		return false
 	}
 	formatDate := "2006-01-02 15:04:05 UTC" // hardcoded golang format date
-	var timestamp time.Time
 	timeString, ok := nextVal["ts"].(string)
 	if !ok {
 		iter.cur = ResourceRecord{Entity: string(nextVal["entity"].(string)), Value: nextVal["value"]}

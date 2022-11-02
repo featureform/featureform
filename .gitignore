@@ -24,3 +24,4 @@ provider/scripts/tests/test_files/output*
 *.coverage
 etcd**
 provider/scripts/k8s/tests/test_files/output/local_test/*
+client/src/featureform/proto/metadata.proto

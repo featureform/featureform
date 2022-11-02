@@ -164,7 +164,6 @@ def test_upload_blob_to_blob_store(blob, file, container_client):
     for blob in blob_list:
         if output_file == blob.name:
             blob_found = True
-
     assert blob_found, "blob wasn't uploaded successfully"
 
 def set_environment_variables(variables, delete=False):

@@ -2,6 +2,9 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+
+from datetime import timedelta
+from multiprocessing.sharedctypes import Value
 from typeguard import typechecked, check_type
 from typing import Tuple, Callable, List, Union
 
@@ -324,6 +327,116 @@ class OfflineK8sProvider(OfflineProvider):
                                                   inputs=inputs)
 
 
+class OfflineK8sProvider(OfflineProvider):
+    def __init__(self, registrar, provider):
+        super().__init__(registrar, provider)
+        self.__registrar = registrar
+        self.__provider = provider
+
+    def register_file(self,
+                       name: str,
+                       variant: str,
+                       path: str,
+                       owner: Union[str, UserRegistrar] = "",
+                       description: str = ""):
+        """Register a blob data source path as a primary data source.
+
+        Args:
+            name (str): Name of table to be registered
+            variant (str): Name of variant to be registered
+            file_path (str): The path to blob store file
+            owner (Union[str, UserRegistrar]): Owner
+            description (str): Description of table to be registered
+
+        Returns:
+            source (ColumnSourceRegistrar): source
+        """
+        return self.__registrar.register_primary_data(name=name,
+                                                      variant=variant,
+                                                      location=SQLTable(path),
+                                                      owner=owner,
+                                                      provider=self.name(),
+                                                      description=description)
+
+    def sql_transformation(self,
+                           variant: str,
+                           owner: Union[str, UserRegistrar] = "",
+                           name: str = "",
+                           schedule: str = "",
+                           description: str = ""):
+        """
+        Register a SQL transformation source. The k8s.sql_transformation decorator takes the returned string in the
+        following function and executes it as a SQL Query.
+
+        The name of the function is the name of the resulting source.
+
+        Sources for the transformation can be specified by adding the Name and Variant in brackets '{{ name.variant }}'.
+        The correct source is substituted when the query is run.
+
+        **Examples**:
+        ``` py
+        @k8s.sql_transformation(variant="quickstart")
+        def average_user_transaction():
+            return "SELECT CustomerID as user_id, avg(TransactionAmount) as avg_transaction_amt from" \
+            " {{transactions.v1}} GROUP BY user_id"
+        ```
+
+        Args:
+            name (str): Name of source
+            variant (str): Name of variant
+            owner (Union[str, UserRegistrar]): Owner
+            description (str): Description of primary data to be registered
+
+
+        Returns:
+            source (ColumnSourceRegistrar): Source
+        """
+        return self.__registrar.sql_transformation(name=name,
+                                                   variant=variant,
+                                                   owner=owner,
+                                                   schedule=schedule,
+                                                   provider=self.name(),
+                                                   description=description)
+
+    def df_transformation(self,
+                        variant: str = "default",
+                        owner: Union[str, UserRegistrar] = "",
+                        name: str = "",
+                        description: str = "",
+                        inputs: list = []):
+        """
+        Register a Dataframe transformation source. The k8s_azure.df_transformation decorator takes the contents
+        of the following function and executes the code it contains at serving time.
+
+        The name of the function is used as the name of the source when being registered.
+
+        The specified inputs are loaded into dataframes that can be accessed using the function parameters.
+
+        **Examples**:
+        ``` py
+        @k8s_azure.df_transformation(inputs=[("source", "one")])        # Sources are added as inputs
+        def average_user_transaction(df):                           # Sources can be manipulated by adding them as params
+            return df
+        ```
+
+        Args:
+            name (str): Name of source
+            variant (str): Name of variant
+            owner (Union[str, UserRegistrar]): Owner
+            description (str): Description of primary data to be registered
+            inputs (list[Tuple(str, str)]): A list of Source NameVariant Tuples to input into the transformation
+
+        Returns:
+            source (ColumnSourceRegistrar): Source
+        """
+        return self.__registrar.df_transformation(name=name,
+                                                    variant=variant,
+                                                    owner=owner,
+                                                    provider=self.name(),
+                                                    description=description,
+                                                    inputs=inputs)
+
+
 class OnlineProvider:
     def __init__(self, registrar, provider):
         self.__registrar = registrar
@@ -338,10 +451,10 @@ class FileStoreProvider:
         self.__provider = provider
         self.__config = config.config()
         self.__store_type = store_type
-
+    
     def name(self) -> str:
         return self.__provider.name
-
+    
     def store_type(self) -> str:
         return self.__store_type
 
@@ -1026,7 +1139,7 @@ class Registrar:
         fake_config = OnlineBlobConfig(store_type="AZURE",store_config=fake_azure_config.config())
         fakeProvider = Provider(name=name, function="ONLINE", description="", team="", config=fake_config)
         return FileStoreProvider(self, fakeProvider, fake_config, "AZURE")
-
+   
     def get_postgres(self, name):
         """Get a Postgres provider. The returned object can be used to register additional resources.
 
@@ -1151,12 +1264,13 @@ class Registrar:
         return OfflineSparkProvider(self, fakeProvider)
 
 
-    def get_k8s(self, name):
+    def get_kubernetes(self, name):
         """
         Get a k8s Azure provider. The returned object can be used to register additional resources.
         **Examples**:
         ``` py
-        k8s_azure = get_k8s("k8s-azure-quickstart")
+
+        k8s_azure = get_kubernetes("k8s-azure-quickstart")
         transactions = k8s_azure.register_file(
             name="transactions",
             variant="kaggle",
@@ -1262,7 +1376,7 @@ class Registrar:
             container_name="my_company_container"
             root_path="custom/path/in/container"
             account_name=<azure_account_name>
-            account_key=<azure_account_key>
+            account_key=<azure_account_key> 
             description="An azure blob store provider to store offline and inference data"
         )
         ```
@@ -1287,7 +1401,7 @@ class Registrar:
                             team=team,
                             config=config)
         self.__resources.append(provider)
-        return FileStoreProvider(self, provider, config, "AZURE")
+        return FileStoreProvider(self, provider, azure_config, "AZURE")
 
     def register_firestore(self,
                            name: str,
@@ -1635,13 +1749,13 @@ class Registrar:
         return OfflineSparkProvider(self, provider)
 
     def register_k8s(self,
-                     name: str,
-                     store: FileStoreProvider,
-                     description: str = "",
-                     team: str = "",):
+                            name: str,
+                            store: FileStoreProvider,
+                            description: str = "",
+                            team: str = "",):
         """
         Register an offline store provider to run on featureform's own k8s deployment
-
+        
         Args:
             name (str): Name of provider
             store (Union[str, FileStoreProvider]): name or reference to registered file store provider
@@ -1662,7 +1776,6 @@ class Registrar:
             store_type=store.store_type(),
             store_config=store.config(),
         )
-
 
         provider = Provider(name=name,
                             function="OFFLINE",
@@ -1969,25 +2082,52 @@ class Registrar:
 
     def __get_feature_nv(self, features):
         feature_nv_list = []
+        feature_lags = []
         for feature in features:
             if isinstance(feature, str):
                 feature_nv = (feature, "default")
                 feature_nv_list.append(feature_nv)
             elif isinstance(feature, dict):
-                feature_nv = (feature["name"], feature["variant"])
-                feature_nv_list.append(feature_nv)
+                lag = feature.get("lag")
+                if lag:
+                    required_lag_keys = set(["lag", "feature", "variant"])
+                    received_lag_keys = set(feature.keys())
+                    if required_lag_keys.intersection(received_lag_keys) != required_lag_keys:
+                        raise ValueError(f"feature lags require 'lag', 'feature', 'variant' fields. Received: {feature.keys()}")
+                    
+                    if not isinstance(lag, timedelta):
+                        raise ValueError(f"the lag, '{lag}', needs to be of type 'datetime.timedelta'. Received: {type(lag)}.")
+
+                    feature_name_variant = (feature["feature"], feature["variant"])
+                    if feature_name_variant not in feature_nv_list:
+                        feature_nv_list.append(feature_name_variant)
+
+                    lag_name = f"{feature['feature']}_{feature['variant']}_lag_{lag}"
+                    sanitized_lag_name = lag_name.replace(" ", "").replace(",", "_").replace(":", "_")
+                    feature["name"] = feature.get("name", sanitized_lag_name)
+                    
+                    feature_lags.append(feature)
+                else:
+                    feature_nv = (feature["name"], feature["variant"])
+                    feature_nv_list.append(feature_nv)
             elif isinstance(feature, list):
-                feature_nv_list.extend(self.__get_feature_nv(feature))
+                feature_nv, feature_lags_list = self.__get_feature_nv(feature)
+                if len(feature_nv) != 0:
+                    feature_nv_list.extend(feature_nv)
+
+                if len(feature_lags_list) != 0:
+                    feature_lags.extend(feature_lags_list)
             else:
                 feature_nv_list.append(feature)
-        return feature_nv_list
+
+        return feature_nv_list, feature_lags
 
     def register_training_set(self,
                               name: str,
                               variant: str = "default",
-                              features: list = None,
+                              features: list = [],
                               label: NameVariant = (),
-                              resources: list = None,
+                              resources: list = [],
                               owner: Union[str, UserRegistrar] = "",
                               description: str = "",
                               schedule: str = ""):
@@ -1998,6 +2138,7 @@ class Registrar:
             variant (str): Name of variant to be registered
             label (NameVariant): Label of training set
             features (List[NameVariant]): Features of training set
+            resources (List[Resource]): A list of previously registered resources
             owner (Union[str, UserRegistrar]): Owner
             description (str): Description of training set to be registered
             schedule (str): Kubernetes CronJob schedule string ("* * * * *")
@@ -2009,14 +2150,13 @@ class Registrar:
             owner = owner.name()
         if owner == "":
             owner = self.must_get_default_owner()
-        if isinstance(features,tuple):
+        
+        if isinstance(features, tuple):
             raise ValueError("Features must be entered as a list")
+        
         if isinstance(label, list):
             raise ValueError("Label must be entered as a tuple")
-        if features == None:
-            features = []
-        if resources == None:
-            resources = []
+
         for resource in resources:
             features += resource.features()
             resource_label = resource.label()
@@ -2026,10 +2166,11 @@ class Registrar:
             #Elif: If label was updated to store resource_label it will not check the following elif
             elif resource_label != ():
                 raise ValueError("A training set can only have one label")
+        
         if isinstance(label, str):
             label = (label, "default")
-        features = self.__get_feature_nv(features)
-
+        
+        features, feature_lags = self.__get_feature_nv(features)
 
         if label == ():
             raise ValueError("Label must be set")
@@ -2044,6 +2185,7 @@ class Registrar:
             schedule=schedule,
             label=label,
             features=features,
+            feature_lags=feature_lags
         )
         self.__resources.append(resource)
 
@@ -3122,5 +3264,5 @@ get_snowflake = global_registrar.get_snowflake
 get_redshift = global_registrar.get_redshift
 get_bigquery = global_registrar.get_bigquery
 get_spark_aws = global_registrar.get_spark
-get_k8s = global_registrar.get_k8s
+get_kubernetes = global_registrar.get_kubernetes
 get_blob_store = global_registrar.get_blob_store

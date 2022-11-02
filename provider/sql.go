@@ -1279,27 +1279,29 @@ func (q defaultOfflineSQLQueries) trainingSetQuery(store *sqlOfflineStore, def T
 		columns = append(columns, santizedName)
 		query = fmt.Sprintf("%s LEFT OUTER JOIN (SELECT entity, value as %s, ts FROM %s ORDER BY ts desc) as %s ON (%s.entity=t0.entity AND %s.ts <= t0.ts)",
 			query, santizedName, santizedName, tableJoinAlias, tableJoinAlias, tableJoinAlias)
-
-	}
-	for i, lagFeature := range def.LagFeatures {
-		lagFeaturesOffset := len(def.Features)
-		tableName, err := store.getResourceTableName(ResourceID{lagFeature.FeatureName, lagFeature.FeatureVariant, Feature})
-		if err != nil {
-			return err
+		if i == len(def.Features)-1 {
+			query = fmt.Sprintf("%s )) WHERE rn=1", query)
 		}
-		lagColumnName := sanitize(lagFeature.LagName)
-		if lagFeature.LagName == "" {
-			lagColumnName = sanitize(fmt.Sprintf("%s_lag_%s", tableName, lagFeature.LagDelta))
-		}
-		columns = append(columns, lagColumnName)
-		sanitizedName := sanitize(tableName)
-		tableJoinAlias := fmt.Sprintf("t%d", lagFeaturesOffset+i+1)
-		timeDeltaSeconds := lagFeature.LagDelta.Seconds()
-		query = fmt.Sprintf("%s LEFT OUTER JOIN (SELECT entity, value as %s, ts FROM %s ORDER BY ts desc) as %s ON (%s.entity=t0.entity AND (%s.ts + INTERVAL '%f') <= t0.ts)",
-			query, lagColumnName, sanitizedName, tableJoinAlias, tableJoinAlias, tableJoinAlias, timeDeltaSeconds)
 	}
+	//for i, lagFeature := range def.LagFeatures {
+	//	lagFeaturesOffset := len(def.Features)
+	//	tableName, err := store.getResourceTableName(ResourceID{lagFeature.FeatureName, lagFeature.FeatureVariant, Feature})
+	//	if err != nil {
+	//		return err
+	//	}
+	//	lagColumnName := sanitize(lagFeature.LagName)
+	//	if lagFeature.LagName == "" {
+	//		lagColumnName = sanitize(fmt.Sprintf("%s_lag_%s", tableName, lagFeature.LagDelta))
+	//	}
+	//	columns = append(columns, lagColumnName)
+	//	sanitizedName := sanitize(tableName)
+	//	tableJoinAlias := fmt.Sprintf("t%d", lagFeaturesOffset+i+1)
+	//	timeDeltaSeconds := lagFeature.LagDelta.Seconds()
+	//	query = fmt.Sprintf("%s LEFT OUTER JOIN (SELECT entity, value as %s, ts FROM %s ORDER BY ts desc) as %s ON (%s.entity=t0.entity AND (%s.ts + INTERVAL '%f') <= t0.ts)",
+	//		query, lagColumnName, sanitizedName, tableJoinAlias, tableJoinAlias, tableJoinAlias, timeDeltaSeconds)
+	//}
 
-	query = fmt.Sprintf("%s )) WHERE rn=1", query)
+	//query = fmt.Sprintf("%s )) WHERE rn=1", query)
 	columnStr := strings.Join(columns, ", ")
 	if !isUpdate {
 		fullQuery := fmt.Sprintf(

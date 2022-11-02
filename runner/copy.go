@@ -72,12 +72,7 @@ func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
 			jobWatcher.EndWatch(err)
 			return
 		}
-		i := 0
 		for it.Next() {
-			i += 1
-			if i%1000 == 0 {
-				fmt.Println("on row", i)
-			}
 			value := it.Value().Value
 			entity := it.Value().Entity
 			err := m.Table.Set(entity, value)
@@ -192,7 +187,6 @@ func (m *MaterializedChunkRunnerConfig) Deserialize(config Config) error {
 }
 
 func MaterializedChunkRunnerFactory(config Config) (types.Runner, error) {
-	fmt.Println("Starting Chunk Factory")
 	runnerConfig := &MaterializedChunkRunnerConfig{}
 	if err := runnerConfig.Deserialize(config); err != nil {
 		return nil, fmt.Errorf("failed to deserialize materialize chunk runner config: %v", err)

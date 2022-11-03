@@ -41,8 +41,6 @@ def execute_sql_query(job_type, output_uri, sql_query, spark_configs, source_lis
         spark = SparkSession.builder.appName("Execute SQL Query").getOrCreate()
         set_spark_configs(spark, spark_configs)
 
-        print("-------<", job_type)
-
         if job_type == "Transformation" or job_type == "Materialization" or job_type == "Training Set":
             for i, source in enumerate(source_list):
                 source_df = spark.read.option("header","true").option("recursiveFileLookup", "true").parquet(source) 

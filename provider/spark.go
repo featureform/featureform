@@ -574,7 +574,11 @@ func GetTransformationFileLocation(id ResourceID) string {
 func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, isUpdate bool) error {
 	return nil
 	transformationDestination := ResourcePath(config.TargetTableID)
-	transformationExists := spark.Store.NewestFile(transformationDestination) != ""
+	transformationFile, err := spark.Store.NewestFile(transformationDestination)
+	if err != nil {
+		return fmt.Errorf("error checking if transformation file exists")
+	}
+	transformationExists := transformationFile != ""
 	if !isUpdate && transformationExists {
 		spark.Logger.Errorw("Transformation already exists", config.TargetTableID, transformationDestination)
 		return fmt.Errorf("transformation %v already exists at %s", config.TargetTableID, transformationDestination)
@@ -649,7 +653,7 @@ func (spark *SparkOfflineStore) getSourcePath(path string) (string, error) {
 		fileResourceId := ResourceID{Name: fileName, Variant: fileVariant, Type: Transformation}
 		transformationPath, err := spark.Store.NewestFile(spark.Store.PathWithPrefix(ResourcePath(fileResourceId)))
 		if err != nil {
-			return fmt.Errorf("Could not get transformation file path: %v", err)
+			return "", fmt.Errorf("Could not get transformation file path: %v", err)
 		}
 		filePath = spark.Store.PathWithPrefix(transformationPath[:strings.LastIndex(transformationPath, "/")])
 		return filePath, nil
@@ -790,7 +794,10 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 		spark.Logger.Errorw("Spark submit job failed to run", err)
 		return nil, fmt.Errorf("spark submit job for materialization %v failed to run: %v", materializationID, err)
 	}
-	key := spark.Store.NewestFile(ResourcePath(materializationID))
+	key, err := spark.Store.NewestFile(ResourcePath(materializationID))
+	if err != nil || key == "" {
+		return nil, fmt.Errorf("Could not get newest materialization file: %v", err)
+	}
 	spark.Logger.Debugw("Succesfully created materialization", "id", id)
 	return &FileStoreMaterialization{materializationID, spark.Store, key}, nil
 }

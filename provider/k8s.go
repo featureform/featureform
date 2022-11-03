@@ -2,6 +2,7 @@ package provider
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -110,7 +111,6 @@ func CreateFileStore(name string, config Config) (FileStore, error) {
 
 func init() {
 	FileStoreFactoryMap := map[FileStoreType]FileStoreFactory{
-		Memory:     NewMemoryFileStore,
 		FileSystem: NewFileFileStore,
 		Azure:      NewAzureFileStore,
 	}
@@ -379,7 +379,7 @@ type FileStore interface {
 	Exists(key string) (bool, error)
 	Delete(key string) error
 	DeleteAll(dir string) error
-	NewestBlob(prefix string) string
+	NewestFile(prefix string) (string, error)
 	PathWithPrefix(path string) string
 	NumRows(key string) (int64, error)
 	Close() error
@@ -387,10 +387,6 @@ type FileStore interface {
 
 type Iterator interface {
 	Next() (map[string]interface{}, error)
-}
-
-type MemoryFileStore struct {
-	genericFileStore
 }
 
 type AzureFileStore struct {
@@ -413,7 +409,7 @@ type genericFileStore struct {
 
 func (store genericFileStore) PathWithPrefix(path string) string {
 	if len(store.path) > 4 && store.path[0:4] == "file" {
-		return fmt.Sprintf("%s%s", store.path[len("file:////"):], path)
+		return fmt.Sprintf("%s%s", store.path[len("file:///"):], path)
 	} else {
 		return path
 	}
@@ -527,6 +523,23 @@ func (store genericFileStore) ServeDirectory(dir string) (Iterator, error) {
 	return parquetIteratorOverMultipleFiles(fileParts, store)
 }
 
+func convertToParquetBytes(list []any) ([]byte, error) {
+	if len(list) == 0 {
+		return nil, fmt.Errorf("list is empty")
+	}
+	schema := parquet.SchemaOf(list[0])
+	buf := new(bytes.Buffer)
+	err := parquet.Write[any](
+		buf,
+		list,
+		schema,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("Could not write parquet file to bytes: %v", err)
+	}
+	return buf.Bytes(), nil
+}
+
 type ParquetIteratorMultipleFiles struct {
 	fileList     []string
 	currentFile  int64
@@ -576,11 +589,14 @@ func (p *ParquetIteratorMultipleFiles) Next() (map[string]interface{}, error) {
 }
 
 func (store genericFileStore) Serve(key string) (Iterator, error) {
+	keyParts := strings.Split(key, ".")
+	if len(keyParts) == 1 {
+		return store.ServeDirectory(key)
+	}
 	b, err := store.bucket.ReadAll(context.TODO(), key)
 	if err != nil {
 		return nil, err
 	}
-	keyParts := strings.Split(key, ".")
 	switch fileType := keyParts[len(keyParts)-1]; fileType {
 	case "parquet":
 		return parquetIteratorFromBytes(b)
@@ -651,18 +667,6 @@ func (store genericFileStore) Close() error {
 	return store.bucket.Close()
 }
 
-func NewMemoryFileStore(config Config) (FileStore, error) {
-	bucket, err := blob.OpenBucket(context.TODO(), "mem://")
-	if err != nil {
-		return MemoryFileStore{}, err
-	}
-	return MemoryFileStore{
-		genericFileStore{
-			bucket: bucket,
-		},
-	}, nil
-}
-
 type FileFileStoreConfig struct {
 	DirPath string
 }
@@ -684,6 +688,7 @@ func (config *FileFileStoreConfig) Deserialize(data []byte) error {
 }
 
 type FileFileStore struct {
+	DirPath string
 	genericFileStore
 }
 
@@ -697,7 +702,8 @@ func NewFileFileStore(config Config) (FileStore, error) {
 		return nil, err
 	}
 	return FileFileStore{
-		genericFileStore{
+		DirPath: fileStoreConfig.DirPath[len("file:///"):],
+		genericFileStore: genericFileStore{
 			bucket: bucket,
 			path:   fileStoreConfig.DirPath,
 		},
@@ -1185,7 +1191,7 @@ func fileStoreGetResourceTable(id ResourceID, store FileStore, logger *zap.Sugar
 	if err := resourceSchema.Deserialize(serializedSchema); err != nil {
 		return nil, fmt.Errorf("Error deserializing resource table: %v", err)
 	}
-	k8s.logger.Debugw("Succesfully fetched resource table", "id", id)
+	logger.Debugw("Succesfully fetched resource table", "id", id)
 	return &BlobOfflineTable{resourceSchema}, nil
 }
 
@@ -1229,7 +1235,7 @@ func (mat FileStoreMaterialization) NumRows() (int64, error) {
 	materializationPath := mat.store.PathWithPrefix(fileStoreResourcePath(mat.id))
 	latestMaterializationPath, err := mat.store.NewestFile(materializationPath)
 	if err != nil {
-		return fmt.Errorf("Could not get materialization num rows; %v", err)
+		return 0, fmt.Errorf("Could not get materialization num rows; %v", err)
 	}
 	return mat.store.NumRows(latestMaterializationPath)
 }
@@ -1276,7 +1282,6 @@ func (iter *FileStoreFeatureIterator) Next() bool {
 		return false
 	}
 	formatDate := "2006-01-02 15:04:05 UTC" // hardcoded golang format date
-	var timestamp time.Time
 	timeString, ok := nextVal["ts"].(string)
 	if !ok {
 		iter.cur = ResourceRecord{Entity: string(nextVal["entity"].(string)), Value: nextVal["value"]}

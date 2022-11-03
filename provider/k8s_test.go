@@ -7,10 +7,9 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
-	// "io"
-	"reflect"
 	"time"
 
 	"github.com/featureform/helpers"
@@ -55,6 +54,7 @@ func TestBlobInterfaces(t *testing.T) {
 		AccountName:   helpers.GetEnv("AZURE_ACCOUNT_NAME", ""),
 		AccountKey:    helpers.GetEnv("AZURE_ACCOUNT_KEY", ""),
 		ContainerName: helpers.GetEnv("AZURE_CONTAINER_NAME", ""),
+		Path:          "testdirectory/testpath",
 	}
 	serializedAzureConfig, err := azureStoreConfig.Serialize()
 	if err != nil {
@@ -143,186 +143,6 @@ func TestExecutorRunLocal(t *testing.T) {
 	}
 }
 
-// func TestOfflineStoreBasic(t *testing.T) {
-// 	mydir, err := os.Getwd()
-// 	if err != nil {
-// 		t.Fatalf("could not get working directory")
-// 	}
-// 	localConfig := LocalExecutorConfig{
-// 		ScriptPath: "./scripts/k8s/offline_store_pandas_runner.py",
-// 	}
-// 	serializedExecutorConfig, err := localConfig.Serialize()
-// 	if err != nil {
-// 		t.Fatalf("Error serializing local executor configuration: %v", err)
-// 	}
-
-// 	azureStoreConfig := AzureFileStoreConfig{
-// 		AccountName:   helpers.GetEnv("AZURE_ACCOUNT_NAME", ""),
-// 		AccountKey:    helpers.GetEnv("AZURE_ACCOUNT_KEY", ""),
-// 		ContainerName: helpers.GetEnv("AZURE_CONTAINER_NAME", ""),
-// 	}
-// 	serializedAzureConfig, err := azureStoreConfig.Serialize()
-// 	if err != nil {
-// 		t.Fatalf("dailed to serialize azure store config: %v", err)
-// 	}
-// 	// fileStoreConfig := FileFileStoreConfig{DirPath: fmt.Sprintf(`file:////%s/tests/file_tests`, mydir)}
-// 	// serializedFileConfig, err := fileStoreConfig.Serialize()
-// 	// if err != nil {
-// 	// 	t.Fatalf("failed to serialize file store config: %v", err)
-// 	// }
-// 	k8sConfig := K8sConfig{
-// 		ExecutorType:   GoProc,
-// 		ExecutorConfig: ExecutorConfig(serializedExecutorConfig),
-// 		StoreType:      Azure,
-// 		StoreConfig:    FileStoreConfig(serializedAzureConfig),
-// 	}
-// 	serializedK8sConfig, err := k8sConfig.Serialize()
-// 	if err != nil {
-// 		t.Fatalf("failed to serialize k8s config: %v", err)
-// 	}
-// 	provider, err := k8sOfflineStoreFactory(serializedK8sConfig)
-// 	if err != nil {
-// 		t.Fatalf("failed to create new k8s offline store: %v", err)
-// 	}
-// 	offlineStore, err := provider.AsOfflineStore()
-// 	if err != nil {
-// 		t.Fatalf("failed to convert store to offline store: %v", err)
-// 	}
-
-// 	// Register Primary
-// 	primaryTableName := uuidWithoutDashes()
-// 	primaryID := ResourceID{Name: primaryTableName, Variant: "default", Type: Primary}
-// 	transactionsURI := "featureform/testing/primary/name/variant/transactions_short.csv"
-// 	_, err = offlineStore.RegisterPrimaryFromSourceTable(primaryID, transactionsURI)
-// 	if err != nil {
-// 		t.Fatalf("failed to register primary table: %v", err)
-// 	}
-
-// 	// Getting Primary
-// 	_, err = offlineStore.GetPrimaryTable(primaryID)
-// 	if err != nil {
-// 		t.Fatalf("failed to fetch primary table: %v", err)
-// 	}
-// 	// create transformation
-// 	transformationName := uuidWithoutDashes()
-// 	transformationID := ResourceID{
-// 		Name:    transformationName,
-// 		Type:    Transformation,
-// 		Variant: "default",
-// 	}
-// 	transformConfig := TransformationConfig{
-// 		Type:          SQLTransformation,
-// 		TargetTableID: transformationID,
-// 		Query:         fmt.Sprintf("SELECT * FROM {{%s.default}}", primaryTableName),
-// 		SourceMapping: []SourceMapping{
-// 			SourceMapping{
-// 				Template: fmt.Sprintf("{{%s.default}}", primaryTableName),
-// 				Source:   fmt.Sprintf("featureform_primary__%s__default", primaryTableName),
-// 			},
-// 		},
-// 	}
-// 	if err := offlineStore.CreateTransformation(transformConfig); err != nil {
-// 		t.Fatalf("Could not create transformation: %v", err)
-// 	}
-
-// 	// Get transformation
-// 	_, err = offlineStore.GetTransformationTable(transformationID)
-// 	if err != nil {
-// 		t.Fatalf("could not fetch transformation table: %v", err)
-// 	}
-
-// 	f, err := os.Open(fmt.Sprintf("%s/scripts/k8s/.featureform/transformation.pkl", mydir))
-// 	pkl_data := make([]byte, 1000)
-// 	_, err = f.Read(pkl_data)
-// 	//dataframe transformation
-// 	dfTransformationName := uuidWithoutDashes()
-// 	dfTransformationID := ResourceID{
-// 		Name:    dfTransformationName,
-// 		Type:    Transformation,
-// 		Variant: "default",
-// 	}
-// 	dfTransformConfig := TransformationConfig{
-// 		Type:          DFTransformation,
-// 		TargetTableID: dfTransformationID,
-// 		Code:          pkl_data,
-// 		SourceMapping: []SourceMapping{
-// 			SourceMapping{
-// 				Template: "transaction",
-// 				Source:   fmt.Sprintf("featureform_primary__%s__default", primaryTableName),
-// 			},
-// 		},
-// 	}
-// 	if err := offlineStore.CreateTransformation(dfTransformConfig); err != nil {
-// 		t.Fatalf("Could not create df transformation: %v", err)
-// 	}
-
-// 	// Get df transformation
-// 	df_table, err := offlineStore.GetTransformationTable(dfTransformationID)
-// 	if err != nil {
-// 		t.Fatalf("could not fetch df transformation table: %v", err)
-// 	}
-// 	fmt.Println(df_table.NumRows())
-
-// 	segmentIterator, err := df_table.IterateSegment(10)
-// 	if err != nil {
-// 		t.Fatalf("could not create table iterator: %v", err)
-// 	}
-// 	fmt.Println(segmentIterator.Columns())
-// 	for segmentIterator.Next() {
-// 		fmt.Println(segmentIterator.Values())
-// 	}
-
-// 	firstResID := ResourceID{Name: uuidWithoutDashes(), Variant: "default", Type: Feature}
-// 	schema := ResourceSchema{Entity: "CustomerID", Value: "CustAccountBalance", SourceTable: transactionsURI}
-// 	_, err = offlineStore.RegisterResourceFromSourceTable(firstResID, schema)
-// 	if err != nil {
-// 		t.Fatalf("failed to register resource from source table: %v", err)
-// 	}
-
-// 	_, err = offlineStore.GetResourceTable(firstResID)
-// 	if err != nil {
-// 		t.Fatalf("failed to fetch resource table: %v", err)
-// 	}
-
-// 	secondResID := ResourceID{Name: uuidWithoutDashes(), Variant: "default", Type: Label}
-// 	secondSchema := ResourceSchema{Entity: "CustomerID", Value: "IsFraud", TS: "Timestamp", SourceTable: transactionsURI}
-// 	_, err = offlineStore.RegisterResourceFromSourceTable(secondResID, secondSchema)
-// 	if err != nil {
-// 		t.Fatalf("failed to register resource from source table: %v", err)
-// 	}
-
-// 	trainingSetID := ResourceID{Name: uuidWithoutDashes(), Variant: "default", Type: TrainingSet}
-// 	testTrainingSet := TrainingSetDef{
-// 		ID:       trainingSetID,
-// 		Label:    secondResID,
-// 		Features: []ResourceID{firstResID},
-// 	}
-// 	if err = offlineStore.CreateTrainingSet(testTrainingSet); err != nil {
-// 		t.Fatalf("failed to create trainingset: %v", err)
-// 	}
-
-// 	_, err = offlineStore.GetTrainingSet(trainingSetID)
-// 	if err != nil {
-// 		t.Fatalf("failed to fetch training set: %v", err)
-// 	}
-
-// 	materialization, err := offlineStore.CreateMaterialization(firstResID)
-// 	if err != nil {
-// 		t.Fatalf("failed to create materialization: %v", err)
-// 	}
-// 	featureIterator, err := materialization.IterateSegment(0, 100)
-// 	if err != nil {
-// 		t.Fatalf("could not create materialization iterator")
-// 	}
-// 	i := 0
-// 	for featureIterator.Next() {
-// 		i += 1
-// 	}
-// 	if i != 100 {
-// 		t.Fatalf("incorrect number of rows iterated over")
-// 	}
-
-// }
 func TestNewConfig(t *testing.T) {
 	k8sConfig := K8sAzureConfig{
 		ExecutorType:   K8s,
@@ -419,10 +239,6 @@ func testNotExists(t *testing.T, store FileStore) {
 	}
 }
 
-func TestConvertToParquetBytes(t *testing.T) {
-	//TODO
-}
-
 func randomStructList(length int64) []any {
 	type PersonEntry struct {
 		ID         int64
@@ -501,7 +317,7 @@ func testServe(t *testing.T, store FileStore) {
 			t.Fatalf("Submitted row and returned struct not identical. Got %v, expected %v", parquetRow, randomStructs[idx-1])
 		}
 	}
-	// TODO cleanup test
+	// cleanup test
 	if err := store.Delete(randomParquetKey); err != nil {
 		t.Fatalf("Could not delete parquet file: %v", err)
 	}
@@ -552,7 +368,7 @@ func testServeDirectory(t *testing.T, store FileStore) {
 			t.Fatalf("Submitted row and returned struct not identical. Got %v, expected %v", parquetRow, randomStructs[numFile][numRow])
 		}
 	}
-	// TODO cleanup test
+	// cleanup test
 	if err := store.DeleteAll(randomDirectory); err != nil {
 		t.Fatalf("Could not delete parquet directory: %v", err)
 	}
@@ -634,7 +450,7 @@ func testNewestFile(t *testing.T, store FileStore) {
 		if err := store.Write(randomPath, randomData); err != nil {
 			t.Fatalf("Could not write key to filestore: %v", err)
 		}
-		time.Sleep(1 * time.Second)
+		time.Sleep(1 * time.Second) // To guarantee ordering of created in metadata follows struct ordering
 	}
 	newestFile, err := store.NewestFile(randomDirectory)
 	if err != nil {
@@ -651,26 +467,21 @@ func testNewestFile(t *testing.T, store FileStore) {
 }
 
 func testPathWithPrefix(t *testing.T, store FileStore) {
-	// TODO implement
-	// get the correct prefixes for each file store
-
-	//test the path with prefix?????
-	//test these I guess?
-	// func (store genericFileStore) PathWithPrefix(path string) string {
-	// 	if len(store.path) > 4 && store.path[0:4] == "file" {
-	// 		return fmt.Sprintf("%s%s", store.path[len("file:////"):], path)
-	// 	} else {
-	// 		return path
-	// 	}
-	// }
-
-	// func (store AzureFileStore) PathWithPrefix(path string) string {
-	// 	if len(path) != 0 && path[0:len(store.Path)] != store.Path && store.Path != "" {
-	// 		return fmt.Sprintf("%s/%s", store.Path, path)
-	// 	}
-	// 	return path
-	// }
-	fmt.Println("TODO")
+	randomKey := uuid.New().String()
+	azureStore, ok := store.(AzureFileStore)
+	if ok {
+		azurePathWithPrefix := azureStore.PathWithPrefix(randomKey)
+		if azurePathWithPrefix != fmt.Sprintf("%s/%s", azureStore.Path, randomKey) {
+			t.Fatalf("Incorrect path with prefix. Expected %s, got %s", fmt.Sprintf("%s/%s", azureStore.Path, randomKey), azurePathWithPrefix)
+		}
+	}
+	fileFileStore, ok := store.(FileFileStore)
+	if ok {
+		filePathWithPrefix := fileFileStore.PathWithPrefix(randomKey)
+		if filePathWithPrefix != fmt.Sprintf("%s%s", fileFileStore.DirPath, randomKey) {
+			t.Fatalf("Incorrect path with prefix. Expected %s, got %s", fmt.Sprintf("%s%s", fileFileStore.DirPath, randomKey), filePathWithPrefix)
+		}
+	}
 }
 
 func testNumRows(t *testing.T, store FileStore) {

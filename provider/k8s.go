@@ -688,6 +688,7 @@ func (config *FileFileStoreConfig) Deserialize(data []byte) error {
 }
 
 type FileFileStore struct {
+	DirPath string
 	genericFileStore
 }
 
@@ -701,7 +702,8 @@ func NewFileFileStore(config Config) (FileStore, error) {
 		return nil, err
 	}
 	return FileFileStore{
-		genericFileStore{
+		DirPath: fileStoreConfig.DirPath[len("file:///"):],
+		genericFileStore: genericFileStore{
 			bucket: bucket,
 			path:   fileStoreConfig.DirPath,
 		},

@@ -409,7 +409,7 @@ type genericFileStore struct {
 
 func (store genericFileStore) PathWithPrefix(path string) string {
 	if len(store.path) > 4 && store.path[0:4] == "file" {
-		return fmt.Sprintf("%s%s", store.path[len("file:////"):], path)
+		return fmt.Sprintf("%s%s", store.path[len("file:///"):], path)
 	} else {
 		return path
 	}
@@ -589,11 +589,14 @@ func (p *ParquetIteratorMultipleFiles) Next() (map[string]interface{}, error) {
 }
 
 func (store genericFileStore) Serve(key string) (Iterator, error) {
+	keyParts := strings.Split(key, ".")
+	if len(keyParts) == 1 {
+		return store.ServeDirectory(key)
+	}
 	b, err := store.bucket.ReadAll(context.TODO(), key)
 	if err != nil {
 		return nil, err
 	}
-	keyParts := strings.Split(key, ".")
 	switch fileType := keyParts[len(keyParts)-1]; fileType {
 	case "parquet":
 		return parquetIteratorFromBytes(b)

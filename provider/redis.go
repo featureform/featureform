@@ -1,9 +1,9 @@
 package provider
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"context"
 	"github.com/go-redis/redis/v8"
 )
 

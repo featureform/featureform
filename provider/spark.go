@@ -470,7 +470,6 @@ func (e EMRExecutor) InitializeExecutor(store FileStore) error {
 
 func NewSparkExecutor(execType SparkExecutorType, config SparkExecutorConfig, logger *zap.SugaredLogger) (SparkExecutor, error) {
 	if execType == EMR {
-
 		emrConfig := &EMRConfig{}
 		if err := emrConfig.Deserialize(SerializedConfig(config)); err != nil {
 			return nil, fmt.Errorf("Could not deserialize config: %v", err)
@@ -752,40 +751,34 @@ func (e *EMRExecutor) GetDFArgs(outputURI string, code string, mapping []SourceM
 		"spark-submit",
 		"--deploy-mode",
 		"client",
-		"scripts/offline_store_spark_runner.py",
+		store.PathWithPrefix("scripts/offline_store_spark_runner.py", true),
 		"df",
 		"--output_uri",
-		outputURI,
+		store.PathWithPrefix(outputURI, true),
 		"--code",
 		code,
 		"--source",
 	}
 
 	for _, m := range mapping {
-
-		argList = append(argList, m.Source)
+		argList = append(argList, store.PathWithPrefix(m.Source, true))
 	}
 
 	return argList, nil
 }
 
 func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, mapping []SourceMapping, store FileStore) ([]string, error) {
-
 	argList := []string{
-		"spark-submit",
-		"--deploy-mode",
-		"client",
-		d.PythonFileURI(store),
 		"df",
 		"--output_uri",
 		outputURI,
 		"--code",
 		code,
-		"--source",
 	}
 	var remoteConnectionArgs []string
-	azureStore, ok := store.(*AzureFileStore)
-	if ok {
+	azureStore := store.AsAzureStore()
+
+	if azureStore != nil {
 		remoteConnectionArgs = []string{
 			"--store_type",
 			"azure_blob_store",
@@ -793,14 +786,16 @@ func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, mapping []
 			azureStore.configString(),
 			"--credential",
 			fmt.Sprintf("azure_connection_string=%s", azureStore.connectionString()),
+			"--credential",
 			fmt.Sprintf("azure_container_name=%s", azureStore.containerName()),
 		}
 	}
-
-	for _, m := range mapping {
-		argList = append(argList, m.Source)
-	}
 	argList = append(argList, remoteConnectionArgs...)
+
+	argList = append(argList, "--source")
+	for _, m := range mapping {
+		argList = append(argList, store.PathWithPrefix(m.Source, true))
+	}
 
 	return argList, nil
 }

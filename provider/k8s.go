@@ -383,6 +383,7 @@ type FileStore interface {
 	PathWithPrefix(path string, remote bool) string
 	NumRows(key string) (int64, error)
 	Close() error
+	AsAzureStore() *AzureFileStore
 }
 
 type Iterator interface {
@@ -414,9 +415,17 @@ func (azure *AzureFileStore) addAzureVars(envVars map[string]string) map[string]
 	return envVars
 }
 
+func (azure AzureFileStore) AsAzureStore() *AzureFileStore {
+	return &azure
+}
+
 type genericFileStore struct {
 	bucket *blob.Bucket
 	path   string
+}
+
+func (store genericFileStore) AsAzureStore() *AzureFileStore {
+	return nil
 }
 
 func (store genericFileStore) PathWithPrefix(path string, remote bool) string {

@@ -53,7 +53,8 @@ def execute_sql_query(job_type, output_uri, sql_query, spark_configs, source_lis
         output_dataframe = spark.sql(sql_query)
 
         dt = datetime.now()
-        output_uri_with_timestamp = f'{output_uri}{dt}'
+        safe_datetime = dt.strftime("%Y-%m-%d-%H-%M-%S-%f")
+        output_uri_with_timestamp = f'{output_uri}{safe_datetime}/'
 
         output_dataframe.write.option("header", "true").mode("overwrite").parquet(output_uri_with_timestamp)
         return output_uri_with_timestamp
@@ -84,7 +85,7 @@ def execute_df_job(output_uri, code, store_type, spark_configs, credentials, sou
         output_df = func(*func_parameters)
 
         dt = datetime.now()
-        output_uri_with_timestamp = f"{output_uri}{dt}"
+        output_uri_with_timestamp = f"{output_uri}{dt}.parquet"
         output_df.write.mode("overwrite").parquet(output_uri_with_timestamp)
         return output_uri_with_timestamp
     except (IOError, OSError) as e:

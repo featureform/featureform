@@ -309,7 +309,23 @@ func testRegisterResource(store *SparkOfflineStore) error {
 	return nil
 }
 
-func unorderedEqual(first, second []string) bool {
+func unorderedEqual(first, second []any) bool {
+	if len(first) != len(second) {
+		return false
+	}
+	exists := make(map[any]bool)
+	for _, value := range first {
+		exists[value] = true
+	}
+	for _, value := range second {
+		if !exists[value] {
+			return false
+		}
+	}
+	return true
+}
+
+func unorderedEqualString(first, second []string) bool {
 	if len(first) != len(second) {
 		return false
 	}
@@ -367,7 +383,7 @@ func testRegisterPrimary(store *SparkOfflineStore) error {
 	}
 	expectedColumns := []string{"Name", "Age", "Score", "Winner", "Registered"}
 
-	if !unorderedEqual(iterator.Columns(), expectedColumns) {
+	if !unorderedEqualString(iterator.Columns(), expectedColumns) {
 		return fmt.Errorf("Not the correct columns returned")
 	}
 	idx := 0
@@ -438,7 +454,7 @@ func TestParquetUpload(t *testing.T) {
 		// "sparkTestTrainingSetDefShorthand":            sparkTestTrainingSetDefShorthand,
 		// "sparkTestMaterializationUpdate":              sparkTestMaterializationUpdate,
 		// "sparkTestTrainingSetUpdate":                  sparkTestTrainingSetUpdate,
-		"sparkTestSQLTransformation": testSparkSQLTransformation,
+		// "sparkTestSQLTransformation": testSparkSQLTransformation,
 		// "sparkTestUpdateQuery":                        testUpdateQuery,
 		// "sparkTestGetDFArgs":                          testGetDFArgs,
 		// "sparkTestGetResourceInformationFromFilePath": testGetResourceInformationFromFilePath,
@@ -1820,15 +1836,15 @@ func sparkTestTrainingSet(t *testing.T, store *SparkOfflineStore) {
 					{Entity: "c", Value: "3", TS: int64(0)},
 					{Entity: "a", Value: "4", TS: int64(0)},
 				},
-				// Feature didn't exist before label
+				// Feature didn't exist since created after label
 				{
 					{Entity: "a", Value: "doesnt exist", TS: int64(11)},
 				},
 				// Feature didn't change after label
 				{
-					{Entity: "c", Value: "real value first", TS: int64(5)},
+					{Entity: "c", Value: "real value first", TS: int64(3)},
+					{Entity: "c", Value: "overwritten", TS: int64(4)},
 					{Entity: "c", Value: "real value second", TS: int64(5)},
-					{Entity: "c", Value: "overwritten", TS: int64(6)},
 				},
 				// Different feature values for different TS.
 				{
@@ -1843,8 +1859,8 @@ func sparkTestTrainingSet(t *testing.T, store *SparkOfflineStore) {
 			},
 			LabelRecords: []TestRecordString{
 				{Entity: "a", Value: "1", TS: int64(10)},
-				{Entity: "b", Value: "9", TS: int64(3)},
 				{Entity: "b", Value: "5", TS: int64(5)},
+				{Entity: "b", Value: "9", TS: int64(3)},
 				{Entity: "c", Value: "3", TS: int64(7)},
 			},
 			ExpectedRows: []expectedTrainingRow{
@@ -1856,15 +1872,15 @@ func sparkTestTrainingSet(t *testing.T, store *SparkOfflineStore) {
 				},
 				{
 					Features: []interface{}{
-						"2", nil, nil, "first", nil,
-					},
-					Label: "9",
-				},
-				{
-					Features: []interface{}{
 						"2", nil, nil, "second", nil,
 					},
 					Label: "5",
+				},
+				{
+					Features: []interface{}{
+						"2", nil, nil, "first", nil,
+					},
+					Label: "9",
 				},
 				{
 					Features: []interface{}{
@@ -1917,7 +1933,7 @@ func sparkTestTrainingSet(t *testing.T, store *SparkOfflineStore) {
 			// cases should all be small enough not to matter.
 			found := false
 			for i, expRow := range expectedRows {
-				if reflect.DeepEqual(realRow, expRow) {
+				if unorderedEqual(realRow.Features, expRow.Features) && realRow.Label == expRow.Label {
 					found = true
 					lastIdx := len(expectedRows) - 1
 					// Swap the record that we've found to the end, then shrink the slice to not include it.
@@ -2272,359 +2288,365 @@ func sparkTestMaterializationUpdate(t *testing.T, store *SparkOfflineStore) {
 
 }
 
-// func sparkTestTrainingSetUpdate(t *testing.T, store *SparkOfflineStore) {
-// 	type expectedTrainingRow struct {
-// 		Features []interface{}
-// 		Label    interface{}
-// 	}
-// 	type TestCase struct {
-// 		FeatureRecords        [][]TestRecord
-// 		UpdatedFeatureRecords [][]TestRecord
-// 		LabelRecords          []TestRecord
-// 		UpdatedLabelRecords   []TestRecord
-// 		ExpectedRows          []expectedTrainingRow
-// 		UpdatedExpectedRows   []expectedTrainingRow
-// 		FeatureSchema         []TableSchema
-// 		LabelSchema           TableSchema
-// 		Timestamp             bool
-// 	}
+type TestRecord struct {
+	Entity string
+	Value  interface{}
+	TS     int64
+}
 
-// 	tests := map[string]TestCase{
-// 		"SimpleJoin": {
-// 			FeatureRecords: [][]TestRecord{
-// 				{
-// 					{Entity: "a", Value: 1},
-// 					{Entity: "b", Value: 2},
-// 					{Entity: "c", Value: 3},
-// 				},
-// 				{
-// 					{Entity: "a", Value: "red"},
-// 					{Entity: "b", Value: "green"},
-// 					{Entity: "c", Value: "blue"},
-// 				},
-// 			},
-// 			UpdatedFeatureRecords: [][]TestRecord{
-// 				{
-// 					{Entity: "a", Value: 1},
-// 					{Entity: "b", Value: 2},
-// 					{Entity: "c", Value: 3},
-// 					{Entity: "d", Value: 4},
-// 				},
-// 				{
-// 					{Entity: "a", Value: "red"},
-// 					{Entity: "b", Value: "green"},
-// 					{Entity: "c", Value: "blue"},
-// 					{Entity: "d", Value: "purple"},
-// 				},
-// 			},
-// 			LabelRecords: []TestRecord{
-// 				{Entity: "a", Value: true},
-// 				{Entity: "b", Value: false},
-// 				{Entity: "c", Value: true},
-// 			},
-// 			UpdatedLabelRecords: []TestRecord{
-// 				{Entity: "a", Value: true},
-// 				{Entity: "b", Value: false},
-// 				{Entity: "c", Value: true},
-// 				{Entity: "d", Value: false},
-// 			},
-// 			ExpectedRows: []expectedTrainingRow{
-// 				{
-// 					Features: []interface{}{
-// 						1,
-// 						"red",
-// 					},
-// 					Label: true,
-// 				},
-// 				{
-// 					Features: []interface{}{
-// 						2,
-// 						"green",
-// 					},
-// 					Label: false,
-// 				},
-// 				{
-// 					Features: []interface{}{
-// 						3,
-// 						"blue",
-// 					},
-// 					Label: true,
-// 				},
-// 			},
-// 			UpdatedExpectedRows: []expectedTrainingRow{
-// 				{
-// 					Features: []interface{}{
-// 						1,
-// 						"red",
-// 					},
-// 					Label: true,
-// 				},
-// 				{
-// 					Features: []interface{}{
-// 						2,
-// 						"green",
-// 					},
-// 					Label: false,
-// 				},
-// 				{
-// 					Features: []interface{}{
-// 						3,
-// 						"blue",
-// 					},
-// 					Label: true,
-// 				},
-// 				{
-// 					Features: []interface{}{
-// 						4,
-// 						"purple",
-// 					},
-// 					Label: false,
-// 				},
-// 			},
-// 			Timestamp: false,
-// 		},
-// 		"ComplexJoin": {
-// 			FeatureRecords: [][]TestRecord{
-// 				// Overwritten feature.
-// 				{
-// 					{Entity: "a", Value: 1, TS: int64(0)},
-// 					{Entity: "b", Value: 2, TS: int64(0)},
-// 					{Entity: "c", Value: 3, TS: int64(0)},
-// 					{Entity: "a", Value: 4, TS: int64(0)},
-// 				},
-// 				// Feature didn't exist before label
-// 				{
-// 					{Entity: "a", Value: "doesnt exist", TS: int64(11)},
-// 				},
-// 				// Feature didn't change after label
-// 				{
-// 					{Entity: "c", Value: "real value first", TS: int64(5)},
-// 					{Entity: "c", Value: "real value second", TS: int64(5)},
-// 					{Entity: "c", Value: "overwritten", TS: int64(4)},
-// 				},
-// 				// Different feature values for different TS.
-// 				{
-// 					{Entity: "b", Value: "first", TS: int64(3)},
-// 					{Entity: "b", Value: "second", TS: int64(4)},
-// 					{Entity: "b", Value: "third", TS: int64(8)},
-// 				},
-// 				// After feature
-// 				{
-// 					{Entity: "a", Value: 1, TS: int64(12)},
-// 				},
-// 			},
-// 			UpdatedFeatureRecords: [][]TestRecord{
-// 				{
-// 					{Entity: "a", Value: 1, TS: int64(0)},
-// 					{Entity: "b", Value: 2, TS: int64(0)},
-// 					{Entity: "c", Value: 3, TS: int64(0)},
-// 					{Entity: "a", Value: 4, TS: int64(0)},
-// 					{Entity: "a", Value: 5, TS: int64(0)},
-// 				},
-// 				{
-// 					{Entity: "a", Value: "doesnt exist", TS: int64(11)},
-// 				},
-// 				{
-// 					{Entity: "c", Value: "real value first", TS: int64(5)},
-// 					{Entity: "c", Value: "real value second", TS: int64(5)},
-// 					{Entity: "c", Value: "overwritten", TS: int64(4)},
-// 				},
-// 				{
-// 					{Entity: "b", Value: "first", TS: int64(3)},
-// 					{Entity: "b", Value: "second", TS: int64(4)},
-// 					{Entity: "b", Value: "third", TS: int64(8)},
-// 					{Entity: "b", Value: "zeroth", TS: int64(3)},
-// 				},
-// 				{
-// 					{Entity: "a", Value: 1, TS: int64(12)},
-// 				},
-// 			},
-// 			LabelRecords: []TestRecord{
-// 				{Entity: "a", Value: 1, TS: int64(10)},
-// 				{Entity: "b", Value: 9, TS: int64(3)},
-// 				{Entity: "b", Value: 5, TS: int64(5)},
-// 				{Entity: "c", Value: 3, TS: int64(7)},
-// 			},
-// 			UpdatedLabelRecords: []TestRecord{
-// 				{Entity: "a", Value: 1, TS: int64(10)},
-// 				{Entity: "b", Value: 9, TS: int64(3)},
-// 				{Entity: "b", Value: 5, TS: int64(5)},
-// 				{Entity: "c", Value: 3, TS: int64(7)},
-// 			},
-// 			ExpectedRows: []expectedTrainingRow{
-// 				{
-// 					Features: []interface{}{
-// 						4, nil, nil, nil, nil,
-// 					},
-// 					Label: 1,
-// 				},
-// 				{
-// 					Features: []interface{}{
-// 						2, nil, nil, "first", nil,
-// 					},
-// 					Label: 9,
-// 				},
-// 				{
-// 					Features: []interface{}{
-// 						2, nil, nil, "second", nil,
-// 					},
-// 					Label: 5,
-// 				},
-// 				{
-// 					Features: []interface{}{
-// 						3, nil, "real value second", nil, nil,
-// 					},
-// 					Label: 3,
-// 				},
-// 			},
-// 			UpdatedExpectedRows: []expectedTrainingRow{
-// 				{
-// 					Features: []interface{}{
-// 						5, nil, nil, nil, nil,
-// 					},
-// 					Label: 1,
-// 				},
-// 				{
-// 					Features: []interface{}{
-// 						2, nil, nil, "zeroth", nil,
-// 					},
-// 					Label: 9,
-// 				},
-// 				{
-// 					Features: []interface{}{
-// 						2, nil, nil, "second", nil,
-// 					},
-// 					Label: 5,
-// 				},
-// 				{
-// 					Features: []interface{}{
-// 						3, nil, "real value second", nil, nil,
-// 					},
-// 					Label: 3,
-// 				},
-// 			},
-// 			Timestamp: true,
-// 		},
-// 	}
-// 	runTestCase := func(t *testing.T, test TestCase) {
-// 		featureIDs := make([]ResourceID, len(test.FeatureRecords))
-// 		featureSourceTables := make([]string, 0)
-// 		for i, recs := range test.FeatureRecords {
-// 			id := sparkSafeRandomID(Feature)
-// 			randomSourceTablePath := fmt.Sprintf("featureform/tests/source_tables/%s/table.csv", uuid.NewString())
-// 			featureSourceTables = append(featureSourceTables, randomSourceTablePath)
-// 			featureIDs[i] = id
-// 			if err := registerRandomResourceGiveTablePath(id, randomSourceTablePath, store, recs, test.Timestamp); err != nil {
-// 				t.Fatalf("Failed to create table: %s", err)
-// 			}
-// 		}
-// 		labelID := sparkSafeRandomID(Label)
-// 		labelSourceTable := fmt.Sprintf("featureform/tests/source_tables/%s/table.csv", uuid.NewString())
-// 		if err := registerRandomResourceGiveTablePath(labelID, labelSourceTable, store, test.LabelRecords, test.Timestamp); err != nil {
-// 			t.Fatalf("Failed to create table: %s", err)
-// 		}
+func sparkTestTrainingSetUpdate(t *testing.T, store *SparkOfflineStore) {
+	type expectedTrainingRow struct {
+		Features []interface{}
+		Label    interface{}
+	}
+	type TestCase struct {
+		FeatureRecords        [][]TestRecord
+		UpdatedFeatureRecords [][]TestRecord
+		LabelRecords          []TestRecord
+		UpdatedLabelRecords   []TestRecord
+		ExpectedRows          []expectedTrainingRow
+		UpdatedExpectedRows   []expectedTrainingRow
+		FeatureSchema         []TableSchema
+		LabelSchema           TableSchema
+		Timestamp             bool
+	}
 
-// 		def := TrainingSetDef{
-// 			ID:       sparkSafeRandomID(TrainingSet),
-// 			Label:    labelID,
-// 			Features: featureIDs,
-// 		}
-// 		if err := store.CreateTrainingSet(def); err != nil {
-// 			t.Fatalf("Failed to create training set: %s", err)
-// 		}
-// 		iter, err := store.GetTrainingSet(def.ID)
-// 		if err != nil {
-// 			t.Fatalf("Failed to get training set: %s", err)
-// 		}
-// 		i := 0
-// 		expectedRows := test.ExpectedRows
-// 		for iter.Next() {
-// 			realRow := expectedTrainingRow{
-// 				Features: iter.Features(),
-// 				Label:    iter.Label(),
-// 			}
-// 			// Row order isn't guaranteed, we make sure one row is equivalent
-// 			// then we delete that row. This is ineffecient, but these test
-// 			// cases should all be small enough not to matter.
-// 			found := false
-// 			for i, expRow := range expectedRows {
-// 				if reflect.DeepEqual(realRow, expRow) {
-// 					found = true
-// 					lastIdx := len(expectedRows) - 1
-// 					// Swap the record that we've found to the end, then shrink the slice to not include it.
-// 					// This is essentially a delete operation expect that it re-orders the slice.
-// 					expectedRows[i], expectedRows[lastIdx] = expectedRows[lastIdx], expectedRows[i]
-// 					expectedRows = expectedRows[:lastIdx]
-// 					break
-// 				}
-// 			}
-// 			if !found {
-// 				for i, v := range realRow.Features {
-// 					fmt.Printf("Got %T Expected %T\n", v, expectedRows[0].Features[i])
-// 				}
-// 				t.Fatalf("Unexpected training row: %v, expected %v", realRow, expectedRows)
-// 			}
-// 			i++
-// 		}
-// 		if err := iter.Err(); err != nil {
-// 			t.Fatalf("Failed to iterate training set: %s", err)
-// 		}
-// 		if len(test.ExpectedRows) != i {
-// 			t.Fatalf("Training set has different number of rows %d %d", len(test.ExpectedRows), i)
-// 		}
-// 		for i, table := range featureSourceTables {
-// 			if err := uploadCSVTable(store.Store, table, test.UpdatedFeatureRecords[i]); err != nil {
-// 				t.Errorf("Could not update table: %v", table)
-// 			}
-// 		}
+	tests := map[string]TestCase{
+		"SimpleJoin": {
+			FeatureRecords: [][]TestRecord{
+				{
+					{Entity: "a", Value: "1"},
+					{Entity: "b", Value: "2"},
+					{Entity: "c", Value: "3"},
+				},
+				{
+					{Entity: "a", Value: "red"},
+					{Entity: "b", Value: "green"},
+					{Entity: "c", Value: "blue"},
+				},
+			},
+			UpdatedFeatureRecords: [][]TestRecord{
+				{
+					{Entity: "a", Value: "1"},
+					{Entity: "b", Value: "2"},
+					{Entity: "c", Value: "3"},
+					{Entity: "d", Value: "4"},
+				},
+				{
+					{Entity: "a", Value: "red"},
+					{Entity: "b", Value: "green"},
+					{Entity: "c", Value: "blue"},
+					{Entity: "d", Value: "purple"},
+				},
+			},
+			LabelRecords: []TestRecord{
+				{Entity: "a", Value: "true"},
+				{Entity: "b", Value: "false"},
+				{Entity: "c", Value: "true"},
+			},
+			UpdatedLabelRecords: []TestRecord{
+				{Entity: "a", Value: "true"},
+				{Entity: "b", Value: "false"},
+				{Entity: "c", Value: "true"},
+				{Entity: "d", Value: "false"},
+			},
+			ExpectedRows: []expectedTrainingRow{
+				{
+					Features: []interface{}{
+						"1",
+						"red",
+					},
+					Label: "true",
+				},
+				{
+					Features: []interface{}{
+						"2",
+						"green",
+					},
+					Label: "false",
+				},
+				{
+					Features: []interface{}{
+						"3",
+						"blue",
+					},
+					Label: "true",
+				},
+			},
+			UpdatedExpectedRows: []expectedTrainingRow{
+				{
+					Features: []interface{}{
+						"1",
+						"red",
+					},
+					Label: "true",
+				},
+				{
+					Features: []interface{}{
+						"2",
+						"green",
+					},
+					Label: "false",
+				},
+				{
+					Features: []interface{}{
+						"3",
+						"blue",
+					},
+					Label: "true",
+				},
+				{
+					Features: []interface{}{
+						"4",
+						"purple",
+					},
+					Label: "false",
+				},
+			},
+			Timestamp: false,
+		},
+		"ComplexJoin": {
+			FeatureRecords: [][]TestRecord{
+				// Overwritten feature.
+				{
+					{Entity: "a", Value: "1", TS: int64(0)},
+					{Entity: "b", Value: "2", TS: int64(0)},
+					{Entity: "c", Value: "3", TS: int64(0)},
+					{Entity: "a", Value: "4", TS: int64(0)},
+				},
+				// Feature didn't exist before label
+				{
+					{Entity: "a", Value: "doesnt exist", TS: int64(11)},
+				},
+				// Feature didn't change after label
+				{
+					{Entity: "c", Value: "real value first", TS: int64(5)},
+					{Entity: "c", Value: "overwritten", TS: int64(4)},
+					{Entity: "c", Value: "real value second", TS: int64(5)},
+				},
+				// Different feature values for different TS.
+				{
+					{Entity: "b", Value: "first", TS: int64(3)},
+					{Entity: "b", Value: "second", TS: int64(4)},
+					{Entity: "b", Value: "third", TS: int64(8)},
+				},
+				// After feature
+				{
+					{Entity: "a", Value: "1", TS: int64(12)},
+				},
+			},
+			UpdatedFeatureRecords: [][]TestRecord{
+				{
+					{Entity: "a", Value: "1", TS: int64(0)},
+					{Entity: "b", Value: "2", TS: int64(0)},
+					{Entity: "c", Value: "3", TS: int64(0)},
+					{Entity: "a", Value: "4", TS: int64(0)},
+					{Entity: "a", Value: "5", TS: int64(0)},
+				},
+				{
+					{Entity: "a", Value: "doesnt exist", TS: int64(11)},
+				},
+				{
+					{Entity: "c", Value: "real value first", TS: int64(3)},
+					{Entity: "c", Value: "overwritten", TS: int64(4)},
+					{Entity: "c", Value: "real value second", TS: int64(5)},
+				},
+				{
+					{Entity: "b", Value: "first", TS: int64(1)},
+					{Entity: "b", Value: "second", TS: int64(2)},
+					{Entity: "b", Value: "third", TS: int64(8)},
+					{Entity: "b", Value: "zeroth", TS: int64(5)},
+				},
+				{
+					{Entity: "a", Value: "1", TS: int64(12)},
+				},
+			},
+			LabelRecords: []TestRecord{
+				{Entity: "a", Value: "1", TS: int64(10)},
+				{Entity: "b", Value: "9", TS: int64(3)},
+				{Entity: "b", Value: "5", TS: int64(5)},
+				{Entity: "c", Value: "3", TS: int64(7)},
+			},
+			UpdatedLabelRecords: []TestRecord{
+				{Entity: "a", Value: "1", TS: int64(10)},
+				{Entity: "b", Value: "5", TS: int64(3)},
+				{Entity: "b", Value: "9", TS: int64(5)},
+				{Entity: "c", Value: "3", TS: int64(7)},
+			},
+			ExpectedRows: []expectedTrainingRow{
+				{
+					Features: []interface{}{
+						"4", nil, nil, nil, nil,
+					},
+					Label: "1",
+				},
+				{
+					Features: []interface{}{
+						"2", nil, nil, "first", nil,
+					},
+					Label: "9",
+				},
+				{
+					Features: []interface{}{
+						"2", nil, nil, "second", nil,
+					},
+					Label: "5",
+				},
+				{
+					Features: []interface{}{
+						"3", nil, "real value second", nil, nil,
+					},
+					Label: "3",
+				},
+			},
+			UpdatedExpectedRows: []expectedTrainingRow{
+				{
+					Features: []interface{}{
+						"5", nil, nil, nil, nil,
+					},
+					Label: "1",
+				},
+				{
+					Features: []interface{}{
+						"2", nil, nil, "zeroth", nil,
+					},
+					Label: "9",
+				},
+				{
+					Features: []interface{}{
+						"2", nil, nil, "second", nil,
+					},
+					Label: "5",
+				},
+				{
+					Features: []interface{}{
+						"3", nil, "real value second", nil, nil,
+					},
+					Label: "3",
+				},
+			},
+			Timestamp: true,
+		},
+	}
+	runTestCase := func(t *testing.T, test TestCase) {
+		featureIDs := make([]ResourceID, len(test.FeatureRecords))
+		featureSourceTables := make([]string, 0)
+		for i, recs := range test.FeatureRecords {
+			id := sparkSafeRandomID(Feature)
+			randomSourceTablePath := fmt.Sprintf("featureform/tests/source_tables/%s/table.csv", uuid.NewString())
+			featureSourceTables = append(featureSourceTables, randomSourceTablePath)
+			featureIDs[i] = id
+			if err := registerRandomResourceGiveTablePath(id, randomSourceTablePath, store, recs, test.Timestamp); err != nil {
+				t.Fatalf("Failed to create table: %s", err)
+			}
+		}
+		labelID := sparkSafeRandomID(Label)
+		labelSourceTable := fmt.Sprintf("featureform/tests/source_tables/%s/table.csv", uuid.NewString())
+		if err := registerRandomResourceGiveTablePath(labelID, labelSourceTable, store, test.LabelRecords, test.Timestamp); err != nil {
+			t.Fatalf("Failed to create table: %s", err)
+		}
 
-// 		if err := uploadCSVTable(store.Store, labelSourceTable, test.UpdatedLabelRecords); err != nil {
-// 			t.Errorf("Could not update table: %v", labelSourceTable)
-// 		}
-// 		if err := store.UpdateTrainingSet(def); err != nil {
-// 			t.Fatalf("Failed to update training set: %s", err)
-// 		}
-// 		iter, err = store.GetTrainingSet(def.ID)
-// 		if err != nil {
-// 			t.Fatalf("Failed to get updated training set: %s", err)
-// 		}
-// 		i = 0
-// 		expectedRows = test.UpdatedExpectedRows
-// 		for iter.Next() {
-// 			realRow := expectedTrainingRow{
-// 				Features: iter.Features(),
-// 				Label:    iter.Label(),
-// 			}
-// 			// Row order isn't guaranteed, we make sure one row is equivalent
-// 			// then we delete that row. This is ineffecient, but these test
-// 			// cases should all be small enough not to matter.
-// 			found := false
-// 			for i, expRow := range expectedRows {
-// 				if reflect.DeepEqual(realRow, expRow) {
-// 					found = true
-// 					lastIdx := len(expectedRows) - 1
-// 					// Swap the record that we've found to the end, then shrink the slice to not include it.
-// 					// This is essentially a delete operation expect that it re-orders the slice.
-// 					expectedRows[i], expectedRows[lastIdx] = expectedRows[lastIdx], expectedRows[i]
-// 					expectedRows = expectedRows[:lastIdx]
-// 					break
-// 				}
-// 			}
-// 			if !found {
-// 				for i, v := range realRow.Features {
-// 					fmt.Printf("Got %T Expected %T\n", v, expectedRows[0].Features[i])
-// 				}
-// 				t.Fatalf("Unexpected updated training row: %v, expected %v", realRow, expectedRows)
-// 			}
-// 			i++
-// 		}
-// 	}
-// 	for name, test := range tests {
-// 		nameConst := name
-// 		testConst := test
-// 		t.Run(nameConst, func(t *testing.T) {
-// 			t.Parallel()
-// 			runTestCase(t, testConst)
-// 		})
-// 	}
-// }
+		def := TrainingSetDef{
+			ID:       sparkSafeRandomID(TrainingSet),
+			Label:    labelID,
+			Features: featureIDs,
+		}
+		if err := store.CreateTrainingSet(def); err != nil {
+			t.Fatalf("Failed to create training set: %s", err)
+		}
+		iter, err := store.GetTrainingSet(def.ID)
+		if err != nil {
+			t.Fatalf("Failed to get training set: %s", err)
+		}
+		i := 0
+		expectedRows := test.ExpectedRows
+		for iter.Next() {
+			realRow := expectedTrainingRow{
+				Features: iter.Features(),
+				Label:    iter.Label(),
+			}
+			// Row order isn't guaranteed, we make sure one row is equivalent
+			// then we delete that row. This is ineffecient, but these test
+			// cases should all be small enough not to matter.
+			found := false
+			for i, expRow := range expectedRows {
+				if unorderedEqual(realRow.Features, expRow.Features) && realRow.Label == expRow.Label {
+					found = true
+					lastIdx := len(expectedRows) - 1
+					// Swap the record that we've found to the end, then shrink the slice to not include it.
+					// This is essentially a delete operation expect that it re-orders the slice.
+					expectedRows[i], expectedRows[lastIdx] = expectedRows[lastIdx], expectedRows[i]
+					expectedRows = expectedRows[:lastIdx]
+					break
+				}
+			}
+			if !found {
+				for i, v := range realRow.Features {
+					fmt.Printf("Got %T Expected %T\n", v, expectedRows[0].Features[i])
+				}
+				t.Fatalf("Unexpected training row: %v, expected %v", realRow, expectedRows)
+			}
+			i++
+		}
+		if err := iter.Err(); err != nil {
+			t.Fatalf("Failed to iterate training set: %s", err)
+		}
+		if len(test.ExpectedRows) != i {
+			t.Fatalf("Training set has different number of rows %d %d", len(test.ExpectedRows), i)
+		}
+		for i, table := range featureSourceTables {
+			if err := uploadCSVTable(store.Store, table, test.UpdatedFeatureRecords[i]); err != nil {
+				t.Errorf("Could not update table: %v", table)
+			}
+		}
+
+		if err := uploadCSVTable(store.Store, labelSourceTable, test.UpdatedLabelRecords); err != nil {
+			t.Errorf("Could not update table: %v", labelSourceTable)
+		}
+		if err := store.UpdateTrainingSet(def); err != nil {
+			t.Fatalf("Failed to update training set: %s", err)
+		}
+		iter, err = store.GetTrainingSet(def.ID)
+		if err != nil {
+			t.Fatalf("Failed to get updated training set: %s", err)
+		}
+		i = 0
+		expectedRows = test.UpdatedExpectedRows
+		for iter.Next() {
+			realRow := expectedTrainingRow{
+				Features: iter.Features(),
+				Label:    iter.Label(),
+			}
+			// Row order isn't guaranteed, we make sure one row is equivalent
+			// then we delete that row. This is ineffecient, but these test
+			// cases should all be small enough not to matter.
+			found := false
+			for i, expRow := range expectedRows {
+				if unorderedEqual(realRow.Features, expRow.Features) && realRow.Label == expRow.Label {
+					found = true
+					lastIdx := len(expectedRows) - 1
+					// Swap the record that we've found to the end, then shrink the slice to not include it.
+					// This is essentially a delete operation expect that it re-orders the slice.
+					expectedRows[i], expectedRows[lastIdx] = expectedRows[lastIdx], expectedRows[i]
+					expectedRows = expectedRows[:lastIdx]
+					break
+				}
+			}
+			if !found {
+				for i, v := range realRow.Features {
+					fmt.Printf("Got %T Expected %T\n", v, expectedRows[0].Features[i])
+				}
+				t.Fatalf("Unexpected updated training row: %v, expected %v", realRow, expectedRows)
+			}
+			i++
+		}
+	}
+	for name, test := range tests {
+		nameConst := name
+		testConst := test
+		t.Run(nameConst, func(t *testing.T) {
+			t.Parallel()
+			runTestCase(t, testConst)
+		})
+	}
+}

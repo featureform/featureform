@@ -922,7 +922,7 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 	sourcePaths := make([]string, 0)
 	featureSchemas := make([]ResourceSchema, 0)
 	destinationPath := spark.Store.PathWithPrefix(ResourcePrefix(def.ID), true)
-	trainingSetNewestFile, err := spark.Store.NewestFile(destinationPath)
+	trainingSetNewestFile, err := spark.Store.NewestFile(spark.Store.PathWithPrefix(fileStoreResourcePath(def.ID), false))
 	if err != nil {
 		return fmt.Errorf("Error getting training set newest file: %v", err)
 	}

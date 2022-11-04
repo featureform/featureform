@@ -30,7 +30,7 @@ RUN go build ./serving/main/main.go
 FROM alpine
 
 COPY --from=0 ./app/main ./main
-COPY --from=0 ./app/provider/scripts/offline_store_spark_runner.py /app/provider/scripts/offline_store_spark_runner.py
+COPY --from=0 ./app/provider/scripts/spark/offline_store_spark_runner.py /app/provider/scripts/spark/offline_store_spark_runner.py
 
 ENV SERVING_PORT "8080"
 EXPOSE 8080

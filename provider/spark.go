@@ -7,6 +7,8 @@ import (
 	"os"
 	"strings"
 	"time"
+	"net/http"
+
 
 	"github.com/featureform/helpers"
 
@@ -137,16 +139,30 @@ type DatabricksExecutor struct {
 	config  DatabricksConfig
 }
 
-func (e *EMRExecutor) PythonFileURI() string {
-	return "scripts/spark_executor.py"
+func (e *EMRExecutor) PythonFileURI(bucketPath string) string {
+	return ""
 }
 
-func (db *DatabricksExecutor) PythonFileURI() string {
-	return "scripts/spark_executor.py"
+func (db *DatabricksExecutor) PythonFileURI(store FileStore) string {
+	return store.PathWithPrefix("scripts/offline_store_spark_runner.py", true)
 }
 
 func (db *DatabricksExecutor) InitializeExecutor(store FileStore) error {
-	return nil
+	mydir, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("could not get working directory")
+	}
+	pyscriptPath := fmt.Sprintf("%s/scripts/spark/offline_store_spark_runner.py", mydir)
+	f, err := os.Open(pyscriptPath)
+
+	if err != nil {
+		return fmt.Errorf("could not open file: %v", err)
+	}
+    b1 := make([]byte, 4096)
+    _, err = f.Read(b1)
+	if err := store.Write("/scripts/spark/offline_store_spark_runner.py", b1); err != nil {
+		return fmt.Errorf("could not write to python script: %v", err)
+	}
 }
 
 func NewDatabricksExecutor(config Config) (SparkExecutor, error) {
@@ -171,23 +187,33 @@ func NewDatabricksExecutor(config Config) (SparkExecutor, error) {
 	}, nil
 }
 
-func (db *DatabricksExecutor) RunSparkJob(args *[]string) error {
+func (db *DatabricksExecutor) RunSparkJob(args *[]string, pythonURI string) error {
 	jobsClient := db.client.Jobs()
 	pythonTask := azureModels.SparkPythonTask{
-		PythonFile: db.PythonFileURI(),
+		PythonFile: pythonURI,
 		Parameters: args,
 	}
-	createJobRequest := azureHTTPModels.CreateReq{
+	type CustomCreateReq struct {
+		ExistingCluster        string                        `json:"existing_cluster_id,omitempty" url:"existing_cluster_id,omitempty"`
+		SparkPythonTask        *azureModels.SparkPythonTask       `json:"spark_python_task,omitempty" url:"spark_python_task,omitempty"`
+		Name                   string                        `json:"name,omitempty" url:"name,omitempty"`
+	}
+	createJobRequest := CustomCreateReq{
 		ExistingCluster: db.cluster,
 		SparkPythonTask: &pythonTask,
-		Name:            "databricks spark submit job",
+		Name:            "Databricks spark submit job",
 	}
-	createResp, err := jobsClient.Create(createJobRequest)
+	jsonResp, err := databricks.PerformQuery(jobsClient.Client.Option, http.MethodPost, "/jobs/create", createJobRequest, nil)
+	if err != nil {
+		return err
+	}
+	var resp azureHTTPModels.CreateResp
+	err = json.Unmarshal(jsonResp, &resp)
 	if err != nil {
 		return err
 	}
 	runJobRequest := azureHTTPModels.RunNowReq{
-		JobID: createResp.JobID,
+		JobID: resp.JobID,
 	}
 	runNowResp, err := jobsClient.RunNow(runJobRequest)
 	if err != nil {
@@ -387,7 +413,7 @@ func sparkOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 type SparkExecutor interface {
 	RunSparkJob(args *[]string) error
 	InitializeExecutor(store FileStore) error
-	PythonFileURI() string
+	PythonFileURI(store FileStore) string
 	SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType) []string
 	GetDFArgs(outputURI string, code string, mapping []SourceMapping) ([]string, error)
 }
@@ -489,12 +515,12 @@ func (e *EMRExecutor) SparkSubmitArgs(destPath string, cleanQuery string, source
 	return argList
 }
 
-func (d *DatabricksExecutor) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType) []string {
+func (d *DatabricksExecutor) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store FileStore) []string {
 	argList := []string{
 		"spark-submit",
 		"--deploy-mode",
 		"client",
-		d.PythonFileURI(),
+		d.PythonFileURI(store),
 		"sql",
 		"--output_uri",
 		destPath,
@@ -647,15 +673,15 @@ func (spark *SparkOfflineStore) getSourcePath(path string) (string, error) {
 			spark.Logger.Errorw("Issue getting primary table", fileResourceId, err)
 			return "", fmt.Errorf("could not get the primary table for {%v} because %s", fileResourceId, err)
 		}
-		filePath = spark.Store.PathWithPrefix(fileTable.GetName())
+		filePath = spark.Store.PathWithPrefix(fileTable.GetName(), true)
 		return filePath, nil
 	} else if fileType == "transformation" {
 		fileResourceId := ResourceID{Name: fileName, Variant: fileVariant, Type: Transformation}
-		transformationPath, err := spark.Store.NewestFile(spark.Store.PathWithPrefix(ResourcePath(fileResourceId)))
+		transformationPath, err := spark.Store.NewestFile(spark.Store.PathWithPrefix(ResourcePath(fileResourceId)), false)
 		if err != nil {
 			return "", fmt.Errorf("Could not get transformation file path: %v", err)
 		}
-		filePath = spark.Store.PathWithPrefix(transformationPath[:strings.LastIndex(transformationPath, "/")])
+		filePath = spark.Store.PathWithPrefix(transformationPath[:strings.LastIndex(transformationPath, "/")], true)
 		return filePath, nil
 	} else {
 		return filePath, fmt.Errorf("could not find path for %s; fileType: %s, fileName: %s, fileVariant: %s", path, fileType, fileName, fileVariant)
@@ -704,12 +730,12 @@ func (e *EMRExecutor) GetDFArgs(outputURI string, code string, mapping []SourceM
 	return argList, nil
 }
 
-func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, mapping []SourceMapping) ([]string, error) {
+func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, mapping []SourceMapping, store FileStore) ([]string, error) {
 	argList := []string{
 		"spark-submit",
 		"--deploy-mode",
 		"client",
-		d.PythonFileURI(),
+		d.PythonFileURI(store),
 		"df",
 		"--output_uri",
 		outputURI,
@@ -787,7 +813,7 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 		return nil, fmt.Errorf("materialization already exists")
 	}
 	materializationQuery := spark.query.materializationCreate(sparkResourceTable.schema)
-	sourcePath := spark.Store.PathWithPrefix(sparkResourceTable.schema.SourceTable)
+	sourcePath := spark.Store.PathWithPrefix(sparkResourceTable.schema.SourceTable, true)
 	sparkArgs := spark.Executor.SparkSubmitArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize)
 	spark.Logger.Debugw("Creating materialization", "id", id)
 	if err := spark.Executor.RunSparkJob(&sparkArgs); err != nil {
@@ -859,7 +885,7 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 		spark.Logger.Errorw("Could not get schema of label in spark store", def.Label, err)
 		return fmt.Errorf("Could not get schema of label %s: %v", def.Label, err)
 	}
-	labelPath := spark.Store.PathWithPrefix(labelSchema.SourceTable)
+	labelPath := spark.Store.PathWithPrefix(labelSchema.SourceTable, true)
 	sourcePaths = append(sourcePaths, labelPath)
 	for _, feature := range def.Features {
 		featureSchema, err := spark.registeredResourceSchema(feature)
@@ -867,7 +893,7 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 			spark.Logger.Errorw("Could not get schema of feature in spark store", feature, err)
 			return fmt.Errorf("Could not get schema of feature %s: %v", feature, err)
 		}
-		featurePath := spark.Store.PathWithPrefix(featureSchema.SourceTable)
+		featurePath := spark.Store.PathWithPrefix(featureSchema.SourceTable, true)
 		sourcePaths = append(sourcePaths, featurePath)
 		featureSchemas = append(featureSchemas, featureSchema)
 	}

@@ -26,6 +26,17 @@ import (
 	"github.com/featureform/helpers"
 )
 
+func uploadParquetTable(store FileStore, path string, tables interface{}) error {
+	parquetBytes, err := convertToParquetBytes(tables)
+	if err != nil {
+		return fmt.Errorf("could not convert struct list to parquet bytes: %v", err)
+	}
+	if err := store.Write(path, parquetBytes); err != nil {
+		return fmt.Errorf("could not write parquet file to path: %v", err)
+	}
+	return nil
+}
+
 func testCreateTrainingSet(store *SparkOfflineStore) error {
 	exampleStructArray := make([]exampleStruct, 5)
 	for i := 0; i < 5; i++ {
@@ -45,7 +56,7 @@ func testCreateTrainingSet(store *SparkOfflineStore) error {
 		34: false,
 	}
 	path := "featureform/tests/trainingSetTest.parquet"
-	if err := store.Store.UploadParquetTable(path, exampleStructArray); err != nil {
+	if err := uploadParquetTable(store.Store, path, exampleStructArray); err != nil {
 		return err
 	}
 	testFeatureResource := sparkSafeRandomID(Feature)
@@ -126,7 +137,7 @@ func testMaterializeResource(store *SparkOfflineStore) error {
 		}
 	}
 	path := "featureform/tests/testFile2.parquet"
-	if err := store.Store.UploadParquetTable(path, exampleStructArray); err != nil {
+	if err := uploadParquetTable(store.Store, path, exampleStructArray); err != nil {
 		return err
 	}
 	testResourceName := "test_name_materialize"
@@ -240,7 +251,7 @@ func testTableUploadCompare(store *SparkOfflineStore) error {
 			return err
 		}
 	}
-	if err := store.Store.UploadParquetTable(testTable, testData); err != nil {
+	if err := uploadParquetTable(store.Store, testTable, testData); err != nil {
 		return err
 	}
 	if err := store.Store.CompareParquetTable(testTable, testData); err != nil {
@@ -279,7 +290,7 @@ func testRegisterResource(store *SparkOfflineStore) error {
 		}
 	}
 	path := "featureform/tests/testFile.parquet"
-	if err := store.Store.UploadParquetTable(path, exampleStructArray); err != nil {
+	if err := uploadParquetTable(store.Store, path, exampleStructArray); err != nil {
 		return err
 	}
 	resourceVariantName := uuid.New().String()
@@ -328,7 +339,7 @@ func testRegisterPrimary(store *SparkOfflineStore) error {
 	}
 
 	path := "featureform/testprimary/testFile.parquet"
-	if err := store.Store.UploadParquetTable(path, exampleStructArray); err != nil {
+	if err := uploadParquetTable(store.Store, path, exampleStructArray); err != nil {
 		return err
 	}
 	primaryVariantName := uuid.New().String()
@@ -490,7 +501,7 @@ func sparkTestCreateDuplicatePrimaryTable(t *testing.T, store *SparkOfflineStore
 	table := []ResourceRecord{{
 		Entity: "a", Value: 1, TS: time.UnixMilli(0),
 	}}
-	if err := store.Store.UploadParquetTable(randomSourceTablePath, table); err != nil {
+	if err := uploadParquetTable(store.Store, randomSourceTablePath, table); err != nil {
 		t.Fatalf("could not upload source table")
 	}
 	primaryID := sparkSafeRandomID(Primary)
@@ -515,7 +526,7 @@ func sparkTestCreatePrimaryFromSource(t *testing.T, store *SparkOfflineStore) {
 	table := []ResourceRecord{{
 		Entity: "a", Value: 1, TS: time.UnixMilli(0),
 	}}
-	if err := store.Store.UploadParquetTable(randomSourceTablePath, table); err != nil {
+	if err := uploadParquetTable(store.Store, randomSouceTablePath, table); err != nil {
 		t.Fatalf("could not upload source table")
 	}
 	primaryID := sparkSafeRandomID(Primary)
@@ -671,7 +682,7 @@ type simpleTestStruct struct {
 }
 
 func registerRandomResourceGiveTablePath(id ResourceID, path string, store *SparkOfflineStore, table interface{}, timestamp bool) error {
-	if err := store.Store.UploadParquetTable(path, table); err != nil {
+	if err := uploadParquetTable(store.Store, path, table); err != nil {
 		return err
 	}
 	var schema ResourceSchema
@@ -689,7 +700,7 @@ func registerRandomResourceGiveTablePath(id ResourceID, path string, store *Spar
 
 func registerRandomResourceGiveTable(id ResourceID, store *SparkOfflineStore, table interface{}, timestamp bool) error {
 	randomSourceTablePath := fmt.Sprintf("featureform/tests/source_tables/%s/table.parquet", uuid.NewString())
-	if err := store.Store.UploadParquetTable(randomSourceTablePath, table); err != nil {
+	if err := uploadParquetTable(store.Store, randomSourceTablePath, table); err != nil {
 		return err
 	}
 	var schema ResourceSchema
@@ -710,7 +721,7 @@ func registerRandomResource(id ResourceID, store *SparkOfflineStore) error {
 	randomSourceData := []simpleTestStruct{{
 		"a", 1, time.UnixMilli(0).UTC(),
 	}}
-	if err := store.Store.UploadParquetTable(randomSourceTablePath, randomSourceData); err != nil {
+	if err := uploadParquetTable(store.Store, randomSourceTablePath, randomSourceData); err != nil {
 		return err
 	}
 	schema := ResourceSchema{"entity", "value", "ts", randomSourceTablePath}
@@ -2475,7 +2486,7 @@ func sparkTestMaterializationUpdate(t *testing.T, store *SparkOfflineStore) {
 			t.Fatalf("Failed to create materialization: %s", err)
 		}
 		testMaterialization(t, mat, test)
-		if err := store.Store.UploadParquetTable(randomPath, test.UpdateRecords); err != nil {
+		if err := uploadParquetTable(store.Store, randomPath, test.UpdateRecords); err != nil {
 			t.Fatalf("Failed to overwrite source table with new records")
 		}
 		mat, err = store.UpdateMaterialization(id)
@@ -2799,12 +2810,12 @@ func sparkTestTrainingSetUpdate(t *testing.T, store *SparkOfflineStore) {
 			t.Fatalf("Training set has different number of rows %d %d", len(test.ExpectedRows), i)
 		}
 		for i, table := range featureSourceTables {
-			if err := store.Store.UploadParquetTable(table, test.UpdatedFeatureRecords[i]); err != nil {
+			if err := uploadParquetTable(store.Store, table, test.UpdatedFeatureRecords[i]); err != nil {
 				t.Errorf("Could not update table: %v", table)
 			}
 		}
 
-		if err := store.Store.UploadParquetTable(labelSourceTable, test.UpdatedLabelRecords); err != nil {
+		if err := uploadParquetTable(store.Store, labelSourceTable, test.UpdatedLabelRecords); err != nil {
 			t.Errorf("Could not update table: %v", labelSourceTable)
 		}
 		if err := store.UpdateTrainingSet(def); err != nil {

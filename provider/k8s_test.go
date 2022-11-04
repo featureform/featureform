@@ -36,6 +36,7 @@ func TestBlobInterfaces(t *testing.T) {
 		"Test Newest file":              testNewestFile,
 		"Test Path with prefix":         testPathWithPrefix,
 		"Test Num Rows":                 testNumRows,
+		"Test Upload Script": testUploadScript,
 	}
 	mydir, err := os.Getwd()
 	if err != nil {
@@ -507,3 +508,54 @@ func testNumRows(t *testing.T, store FileStore) {
 		t.Fatalf("Could not delete parquet file: %v", err)
 	}
 }
+
+
+func testUploadScript(t *testing.T, store FileStore) {
+	mydir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("could not get working directory")
+	}
+	pyscriptPath := fmt.Sprintf("%s/scripts/spark/offline_store_spark_runner.py", mydir)
+	f, err := os.Open(pyscriptPath)
+
+	if err != nil {
+		t.Fatalf("could not open file: %v", err)
+	}
+    b1 := make([]byte, 4096)
+    _, err = f.Read(b1)
+	if err := store.Write("/scripts/spark/offline_store_spark_runner.py", b1); err != nil {
+		t.Fatalf("could not write to python script: %v", err)
+	}
+}
+
+
+func TestDatabricksInitialization(t *testing.T, store FileStore) {
+
+	host := helpers.GetEnv("DATABRICKS_HOST", "")
+	token := helpers.GetEnv("DATABRICKS_ACCESS_TOKEN", "")
+	cluster := helpers.GetEnv("DATABRICKS_CLUSTER", "")
+	databricksConfig := DatabricksConfig{
+		Host: host,
+		Token: token,
+		Cluster: cluster,
+	}
+	serializedConfig := databricksConfig.Serialize()
+	executor, err := NewDatabricksExecutor(serializedConfig)
+	if err != nil {
+		t.Fatalf("Could not create new databricks client: %v", err)
+	}
+	if err := executor.InializeExecutor(store); err != nil {
+		t.Fatalf("Error initializing executor: %v", err)
+	}
+	sparkArgs := []string{}
+	if err := executor.RunSparkJob(&sparkArgs); err != nil {
+		t.Fatalf("could not run spark job: %v", err)
+	}
+}
+
+//tests for spark executor
+// RunSparkJob(args *[]string) error
+// InitializeExecutor(store FileStore) error
+// PythonFileURI() string
+// SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType) []string
+// GetDFArgs(outputURI string, code string, mapping []SourceMapping) ([]string, error)

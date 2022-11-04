@@ -380,7 +380,7 @@ type FileStore interface {
 	Delete(key string) error
 	DeleteAll(dir string) error
 	NewestFile(prefix string) (string, error)
-	PathWithPrefix(path string) string
+	PathWithPrefix(path string, remote bool) string
 	NumRows(key string) (int64, error)
 	Close() error
 }
@@ -390,6 +390,7 @@ type Iterator interface {
 }
 
 type AzureFileStore struct {
+	AccountName string
 	ConnectionString string
 	ContainerName    string
 	Path             string
@@ -415,9 +416,14 @@ func (store genericFileStore) PathWithPrefix(path string) string {
 	}
 }
 
-func (store AzureFileStore) PathWithPrefix(path string) string {
-	if len(path) != 0 && path[0:len(store.Path)] != store.Path && store.Path != "" {
-		return fmt.Sprintf("%s/%s", store.Path, path)
+func (store AzureFileStore) PathWithPrefix(path string, remote bool) string {
+	if !remote {
+		if len(path) != 0 && path[0:len(store.Path)] != store.Path && store.Path != "" {
+			return fmt.Sprintf("%s/%s", store.Path, path)
+		}
+	}
+	if remote {
+		return fmt.Sprintf("abfss://%s@%s.dfs.core.windows.net/%s%s", store.ContainerName, store.AccountName, store.Path, path)
 	}
 	return path
 }
@@ -757,6 +763,7 @@ func NewAzureFileStore(config Config) (FileStore, error) {
 	}
 	connectionString := fmt.Sprintf("DefaultEndpointsProtocol=https;AccountName=%s;AccountKey=%s", azureStoreConfig.AccountName, azureStoreConfig.AccountKey)
 	return AzureFileStore{
+		AccountName: azureStoreConfig.AccountName,
 		ConnectionString: connectionString,
 		ContainerName:    azureStoreConfig.ContainerName,
 		Path:             azureStoreConfig.Path,

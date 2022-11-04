@@ -36,7 +36,7 @@ func TestBlobInterfaces(t *testing.T) {
 		"Test Newest file":              testNewestFile,
 		"Test Path with prefix":         testPathWithPrefix,
 		"Test Num Rows":                 testNumRows,
-		"Test Upload Script": testUploadScript,
+		"Test Upload Script":            testUploadScript,
 	}
 	mydir, err := os.Getwd()
 	if err != nil {
@@ -509,7 +509,6 @@ func testNumRows(t *testing.T, store FileStore) {
 	}
 }
 
-
 func testUploadScript(t *testing.T, store FileStore) {
 	mydir, err := os.Getwd()
 	if err != nil {
@@ -521,13 +520,12 @@ func testUploadScript(t *testing.T, store FileStore) {
 	if err != nil {
 		t.Fatalf("could not open file: %v", err)
 	}
-    b1 := make([]byte, 4096)
-    _, err = f.Read(b1)
+	b1 := make([]byte, 4096)
+	_, err = f.Read(b1)
 	if err := store.Write("/scripts/spark/offline_store_spark_runner.py", b1); err != nil {
 		t.Fatalf("could not write to python script: %v", err)
 	}
 }
-
 
 func TestDatabricksInitialization(t *testing.T, store FileStore) {
 
@@ -535,8 +533,8 @@ func TestDatabricksInitialization(t *testing.T, store FileStore) {
 	token := helpers.GetEnv("DATABRICKS_ACCESS_TOKEN", "")
 	cluster := helpers.GetEnv("DATABRICKS_CLUSTER", "")
 	databricksConfig := DatabricksConfig{
-		Host: host,
-		Token: token,
+		Host:    host,
+		Token:   token,
 		Cluster: cluster,
 	}
 	serializedConfig := databricksConfig.Serialize()

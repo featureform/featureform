@@ -4,11 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 	"time"
-	"net/http"
-
 
 	"github.com/featureform/helpers"
 
@@ -158,8 +157,8 @@ func (db *DatabricksExecutor) InitializeExecutor(store FileStore) error {
 	if err != nil {
 		return fmt.Errorf("could not open file: %v", err)
 	}
-    b1 := make([]byte, 4096)
-    _, err = f.Read(b1)
+	b1 := make([]byte, 4096)
+	_, err = f.Read(b1)
 	if err := store.Write("/scripts/spark/offline_store_spark_runner.py", b1); err != nil {
 		return fmt.Errorf("could not write to python script: %v", err)
 	}
@@ -194,9 +193,9 @@ func (db *DatabricksExecutor) RunSparkJob(args *[]string, pythonURI string) erro
 		Parameters: args,
 	}
 	type CustomCreateReq struct {
-		ExistingCluster        string                        `json:"existing_cluster_id,omitempty" url:"existing_cluster_id,omitempty"`
-		SparkPythonTask        *azureModels.SparkPythonTask       `json:"spark_python_task,omitempty" url:"spark_python_task,omitempty"`
-		Name                   string                        `json:"name,omitempty" url:"name,omitempty"`
+		ExistingCluster string                       `json:"existing_cluster_id,omitempty" url:"existing_cluster_id,omitempty"`
+		SparkPythonTask *azureModels.SparkPythonTask `json:"spark_python_task,omitempty" url:"spark_python_task,omitempty"`
+		Name            string                       `json:"name,omitempty" url:"name,omitempty"`
 	}
 	createJobRequest := CustomCreateReq{
 		ExistingCluster: db.cluster,
@@ -529,6 +528,13 @@ func (d *DatabricksExecutor) SparkSubmitArgs(destPath string, cleanQuery string,
 		"--job_type",
 		string(jobType),
 		"--source_list",
+		"--store_type",
+		"azure_blob_store",
+		"--spark_config",
+		store.ConfigString(),
+		"--credential",
+		fmt.Sprintf("azure_connection_string=%s", store.ConnectionString()),
+		fmt.Sprintf("azure_container_name=%s", store.ContainerName()),
 	}
 	argList = append(argList, sourceList...)
 	return argList
@@ -720,6 +726,13 @@ func (e *EMRExecutor) GetDFArgs(outputURI string, code string, mapping []SourceM
 		"--code",
 		code,
 		"--source",
+		"--store_type",
+		"azure_blob_store",
+		"--spark_config",
+		store.ConfigString(),
+		"--credential",
+		fmt.Sprintf("azure_connection_string=%s", store.ConnectionString()),
+		fmt.Sprintf("azure_container_name=%s", store.ContainerName()),
 	}
 
 	for _, m := range mapping {

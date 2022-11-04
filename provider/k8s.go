@@ -382,6 +382,9 @@ type FileStore interface {
 	NewestFile(prefix string) (string, error)
 	PathWithPrefix(path string, remote bool) string
 	NumRows(key string) (int64, error)
+	ConfigString() string
+	ConnectionString() string
+	ContainerName() string
 	Close() error
 }
 
@@ -390,11 +393,22 @@ type Iterator interface {
 }
 
 type AzureFileStore struct {
-	AccountName string
+	AccountName      string
+	AccountKey       string
 	ConnectionString string
 	ContainerName    string
 	Path             string
 	genericFileStore
+}
+
+func (azure *AzureFileStore) ConfigString() string {
+	return fmt.Sprintf("fs.azure.account.key.%s.dfs.core.windows.net=%s", azure.AccountName, azure.AccountKey)
+}
+func (azure *AzureFileStore) ConnectionString() string {
+	return azure.ConnectionString
+}
+func (azure *AzureFileStore) ContainerName() string {
+	return azure.ContainerName
 }
 
 func (azure *AzureFileStore) addAzureVars(envVars map[string]string) map[string]string {
@@ -530,6 +544,7 @@ func (store genericFileStore) ServeDirectory(dir string) (Iterator, error) {
 }
 
 func convertToParquetBytes(list []any) ([]byte, error) {
+	// TODO possibly accepts single struct instead of list, have to be able to accept either, or another function
 	if len(list) == 0 {
 		return nil, fmt.Errorf("list is empty")
 	}
@@ -763,7 +778,8 @@ func NewAzureFileStore(config Config) (FileStore, error) {
 	}
 	connectionString := fmt.Sprintf("DefaultEndpointsProtocol=https;AccountName=%s;AccountKey=%s", azureStoreConfig.AccountName, azureStoreConfig.AccountKey)
 	return AzureFileStore{
-		AccountName: azureStoreConfig.AccountName,
+		AccountName:      azureStoreConfig.AccountName,
+		AccountKey:       azureStoreConfig.AccountKey,
 		ConnectionString: connectionString,
 		ContainerName:    azureStoreConfig.ContainerName,
 		Path:             azureStoreConfig.Path,

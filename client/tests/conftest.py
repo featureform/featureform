@@ -1,8 +1,6 @@
 import pytest
 import sys
-
 sys.path.insert(0, 'client/src/')
-
 from featureform.register import Registrar, OfflineSparkProvider
 from featureform.resources import SparkConfig, Provider, DatabricksCredentials, AzureFileStoreConfig
 
@@ -14,10 +12,11 @@ pytest_plugins = [
 def spark_provider():
     r = Registrar()
     r.set_default_owner("tester")
+
     databricks = DatabricksCredentials(username="a", password="b")
     azure_blob = AzureFileStoreConfig(account_name="", account_key="", container_name="", root_path="")   
     
-    config = SparkConfig(executor=databricks, filestore=azure_blob)
+    config = SparkConfig(executor_type=databricks.type(), executor_config=databricks.config(), store_type=azure_blob.store_type(), store_config=azure_blob.config())
     provider = Provider(name="spark", function="OFFLINE", description="", team="", config=config)
     
     return OfflineSparkProvider(r, provider)

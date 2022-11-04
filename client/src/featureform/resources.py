@@ -116,17 +116,17 @@ class AzureFileStoreConfig:
 
 @typechecked
 @dataclass
-class AwsS3StoreConfig:
+class S3StoreConfig:
     bucket_path: str
     bucket_region: str
     aws_access_key_id: str
     aws_secret_access_key: str
 
     def software(self) -> str:
-        return "aws_s3"
+        return "S3"
 
     def type(self) -> str:
-        return "AWS_S3"
+        return "S3"
 
     def serialize(self) -> bytes:
         config = {
@@ -404,7 +404,7 @@ class K8sConfig:
 
 
 Config = Union[
-    RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig, BigQueryConfig, FirestoreConfig, SparkConfig, OnlineBlobConfig, AzureFileStoreConfig, AwsS3StoreConfig, K8sConfig]
+    RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig, BigQueryConfig, FirestoreConfig, SparkConfig, OnlineBlobConfig, AzureFileStoreConfig, S3StoreConfig, K8sConfig]
 
 
 @typechecked

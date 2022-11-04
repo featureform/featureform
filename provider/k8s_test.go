@@ -471,14 +471,14 @@ func testPathWithPrefix(t *testing.T, store FileStore) {
 	randomKey := uuid.New().String()
 	azureStore, ok := store.(AzureFileStore)
 	if ok {
-		azurePathWithPrefix := azureStore.PathWithPrefix(randomKey)
+		azurePathWithPrefix := azureStore.PathWithPrefix(randomKey, false)
 		if azurePathWithPrefix != fmt.Sprintf("%s/%s", azureStore.Path, randomKey) {
 			t.Fatalf("Incorrect path with prefix. Expected %s, got %s", fmt.Sprintf("%s/%s", azureStore.Path, randomKey), azurePathWithPrefix)
 		}
 	}
 	fileFileStore, ok := store.(FileFileStore)
 	if ok {
-		filePathWithPrefix := fileFileStore.PathWithPrefix(randomKey)
+		filePathWithPrefix := fileFileStore.PathWithPrefix(randomKey, false)
 		if filePathWithPrefix != fmt.Sprintf("%s%s", fileFileStore.DirPath, randomKey) {
 			t.Fatalf("Incorrect path with prefix. Expected %s, got %s", fmt.Sprintf("%s%s", fileFileStore.DirPath, randomKey), filePathWithPrefix)
 		}

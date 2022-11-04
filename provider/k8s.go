@@ -815,7 +815,7 @@ func blobRegisterResource(id ResourceID, schema ResourceSchema, logger *zap.Suga
 		logger.Errorw("Failure checking ID", "error", err)
 		return nil, fmt.Errorf("ID check failed: %v", err)
 	}
-	resourceKey := store.PathWithPrefix(fileStoreResourcePath(id))
+	resourceKey := store.PathWithPrefix(fileStoreResourcePath(id), false)
 	resourceExists, err := store.Exists(resourceKey)
 	if err != nil {
 		logger.Errorw("Error checking if resource exists", "error", err)
@@ -917,7 +917,7 @@ func (k8s *K8sOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, source
 }
 
 func blobRegisterPrimary(id ResourceID, sourceName string, logger *zap.SugaredLogger, store FileStore) (PrimaryTable, error) {
-	resourceKey := store.PathWithPrefix(fileStoreResourcePath(id))
+	resourceKey := store.PathWithPrefix(fileStoreResourcePath(id), false)
 	primaryExists, err := store.Exists(resourceKey)
 	if err != nil {
 		logger.Errorw("Error checking if primary exists", err)
@@ -1016,7 +1016,7 @@ func (k8s *K8sOfflineStore) sqlTransformation(config TransformationConfig, isUpd
 		return err
 	}
 
-	transformationDestination := k8s.store.PathWithPrefix(fileStoreResourcePath(config.TargetTableID))
+	transformationDestination := k8s.store.PathWithPrefix(fileStoreResourcePath(config.TargetTableID), false)
 	transformationDestinationExactPath, err := k8s.store.NewestFile(transformationDestination)
 	if err != nil {
 		k8s.logger.Errorw("Could not get newest blob", "location", transformationDestination, "error", err)
@@ -1047,7 +1047,7 @@ func (k8s *K8sOfflineStore) dfTransformation(config TransformationConfig, isUpda
 	if err != nil {
 		return err
 	}
-	transformationDestination := k8s.store.PathWithPrefix(fileStoreResourcePath(config.TargetTableID))
+	transformationDestination := k8s.store.PathWithPrefix(fileStoreResourcePath(config.TargetTableID), false)
 	exists, err := k8s.store.Exists(transformationDestination)
 	if err != nil {
 		k8s.logger.Errorw("Error checking if resource exists", err)
@@ -1062,7 +1062,7 @@ func (k8s *K8sOfflineStore) dfTransformation(config TransformationConfig, isUpda
 		return fmt.Errorf("transformation %v doesn't exist at %s and you are trying to update", config.TargetTableID, transformationDestination)
 	}
 
-	transformationFilePath := k8s.store.PathWithPrefix(fileStoreResourcePath(config.TargetTableID))
+	transformationFilePath := k8s.store.PathWithPrefix(fileStoreResourcePath(config.TargetTableID), false)
 	fileName := "transformation.pkl"
 	transformationFileLocation := fmt.Sprintf("%s%s", transformationFilePath, fileName)
 	err = k8s.store.Write(transformationFileLocation, config.Code)
@@ -1134,7 +1134,7 @@ func (k8s *K8sOfflineStore) getSourcePath(path string) (string, error) {
 			k8s.logger.Errorw("Issue getting transformation table", fileResourceId)
 			return "", fmt.Errorf("could not get the transformation table for {%v}", fileResourceId)
 		}
-		filePath := k8s.store.PathWithPrefix(exactFileResourcePath[:strings.LastIndex(exactFileResourcePath, "/")+1])
+		filePath := k8s.store.PathWithPrefix(exactFileResourcePath[:strings.LastIndex(exactFileResourcePath, "/")+1], false)
 		return filePath, nil
 	} else {
 		return filePath, fmt.Errorf("could not find path for %s; fileType: %s, fileName: %s, fileVariant: %s", path, fileType, fileName, fileVariant)
@@ -1163,7 +1163,7 @@ func (k8s *K8sOfflineStore) getResourceInformationFromFilePath(path string) (str
 
 func (k8s *K8sOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
 	k8s.logger.Debugw("Getting transformation table", "ResourceID", id)
-	transformationPath := k8s.store.PathWithPrefix(fileStoreResourcePath(id))
+	transformationPath := k8s.store.PathWithPrefix(fileStoreResourcePath(id), false)
 	transformationExactPath, err := k8s.store.NewestFile(transformationPath)
 	if err != nil {
 		k8s.logger.Errorw("Could not get transformation table", "error", err)
@@ -1185,7 +1185,7 @@ func (k8s *K8sOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error)
 }
 
 func fileStoreGetPrimary(id ResourceID, store FileStore, logger *zap.SugaredLogger) (PrimaryTable, error) {
-	resourceKey := store.PathWithPrefix(fileStoreResourcePath(id))
+	resourceKey := store.PathWithPrefix(fileStoreResourcePath(id), false)
 	logger.Debugw("Getting primary table", id)
 	table, err := store.Read(resourceKey)
 	if err != nil {
@@ -1204,7 +1204,7 @@ func (k8s *K8sOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, error
 }
 
 func fileStoreGetResourceTable(id ResourceID, store FileStore, logger *zap.SugaredLogger) (OfflineTable, error) {
-	resourcekey := store.PathWithPrefix(fileStoreResourcePath(id))
+	resourcekey := store.PathWithPrefix(fileStoreResourcePath(id), false)
 	logger.Debugw("Getting resource table", id)
 	serializedSchema, err := store.Read(resourcekey)
 	if err != nil {
@@ -1234,7 +1234,7 @@ func fileStoreGetMaterialization(id MaterializationID, store FileStore, logger *
 	}
 	materializationID := ResourceID{s[1], s[2], FeatureMaterialization}
 	logger.Debugw("Getting materialization", "id", id)
-	materializationPath := store.PathWithPrefix(fileStoreResourcePath(materializationID))
+	materializationPath := store.PathWithPrefix(fileStoreResourcePath(materializationID), false)
 	materializationExactPath, err := store.NewestFile(materializationPath)
 	if err != nil {
 		logger.Errorw("Could not fetch materialization resource key", "error", err)
@@ -1255,7 +1255,7 @@ func (mat FileStoreMaterialization) ID() MaterializationID {
 }
 
 func (mat FileStoreMaterialization) NumRows() (int64, error) {
-	materializationPath := mat.store.PathWithPrefix(fileStoreResourcePath(mat.id))
+	materializationPath := mat.store.PathWithPrefix(fileStoreResourcePath(mat.id), false)
 	latestMaterializationPath, err := mat.store.NewestFile(materializationPath)
 	if err != nil {
 		return 0, fmt.Errorf("Could not get materialization num rows; %v", err)
@@ -1264,7 +1264,7 @@ func (mat FileStoreMaterialization) NumRows() (int64, error) {
 }
 
 func (mat FileStoreMaterialization) IterateSegment(begin, end int64) (FeatureIterator, error) {
-	materializationPath := mat.store.PathWithPrefix(fileStoreResourcePath(mat.id))
+	materializationPath := mat.store.PathWithPrefix(fileStoreResourcePath(mat.id), false)
 	latestMaterializationPath, err := mat.store.NewestFile(materializationPath)
 	if err != nil {
 		return nil, fmt.Errorf("Could not get materialization iterate segment: %v", err)
@@ -1357,7 +1357,7 @@ func (k8s *K8sOfflineStore) materialization(id ResourceID, isUpdate bool) (Mater
 		return nil, fmt.Errorf("could not convert offline table with id %v to k8sResourceTable", id)
 	}
 	materializationID := ResourceID{Name: id.Name, Variant: id.Variant, Type: FeatureMaterialization}
-	destinationPath := k8s.store.PathWithPrefix(fileStoreResourcePath(materializationID))
+	destinationPath := k8s.store.PathWithPrefix(fileStoreResourcePath(materializationID), false)
 	materializationExists, err := k8s.store.Exists(destinationPath)
 	if err != nil {
 		k8s.logger.Errorw("Could not determine whether materialization exists", err)
@@ -1371,7 +1371,7 @@ func (k8s *K8sOfflineStore) materialization(id ResourceID, isUpdate bool) (Mater
 		return nil, fmt.Errorf("materialization does not exist")
 	}
 	materializationQuery := k8s.query.materializationCreate(k8sResourceTable.schema)
-	sourcePath := k8s.store.PathWithPrefix(k8sResourceTable.schema.SourceTable)
+	sourcePath := k8s.store.PathWithPrefix(k8sResourceTable.schema.SourceTable, false)
 	k8sArgs := k8s.pandasRunnerArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize)
 
 	k8sArgs = addResourceID(k8sArgs, id)
@@ -1380,7 +1380,7 @@ func (k8s *K8sOfflineStore) materialization(id ResourceID, isUpdate bool) (Mater
 		k8s.logger.Errorw("Job failed to run", err)
 		return nil, fmt.Errorf("job for materialization %v failed to run: %v", materializationID, err)
 	}
-	matPath := k8s.store.PathWithPrefix(fileStoreResourcePath(materializationID))
+	matPath := k8s.store.PathWithPrefix(fileStoreResourcePath(materializationID), false)
 	latestMatPath, err := k8s.store.NewestFile(matPath)
 	if err != nil {
 		return nil, fmt.Errorf("Materialization does not exist; %v", err)
@@ -1400,7 +1400,7 @@ func fileStoreDeleteMaterialization(id MaterializationID, store FileStore, logge
 		return fmt.Errorf("invalid materialization id")
 	}
 	materializationID := ResourceID{s[1], s[2], FeatureMaterialization}
-	materializationPath := store.PathWithPrefix(fileStoreResourcePath(materializationID))
+	materializationPath := store.PathWithPrefix(fileStoreResourcePath(materializationID), false)
 	materializationExactPath, err := store.NewestFile(materializationPath)
 	if err != nil {
 		return fmt.Errorf("materialization does not exist: %v", err)
@@ -1446,7 +1446,7 @@ func (k8s *K8sOfflineStore) trainingSet(def TrainingSetDef, isUpdate bool) error
 	}
 	sourcePaths := make([]string, 0)
 	featureSchemas := make([]ResourceSchema, 0)
-	destinationPath := k8s.store.PathWithPrefix(fileStoreResourcePath(def.ID))
+	destinationPath := k8s.store.PathWithPrefix(fileStoreResourcePath(def.ID), false)
 	trainingSetExactPath, err := k8s.store.NewestFile(destinationPath)
 	if err != nil {
 		return fmt.Errorf("could not get training set path: %v", err)
@@ -1479,7 +1479,7 @@ func (k8s *K8sOfflineStore) trainingSet(def TrainingSetDef, isUpdate bool) error
 	trainingSetQuery := k8s.query.trainingSetCreate(def, featureSchemas, labelSchema)
 	k8s.logger.Debugw("Training set query", "query", sourcePaths)
 	k8s.logger.Debugw("Source list", "list", trainingSetQuery)
-	pandasArgs := k8s.pandasRunnerArgs(k8s.store.PathWithPrefix(destinationPath), trainingSetQuery, sourcePaths, CreateTrainingSet)
+	pandasArgs := k8s.pandasRunnerArgs(k8s.store.PathWithPrefix(destinationPath), trainingSetQuery, sourcePaths, CreateTrainingSet, false)
 	pandasArgs = addResourceID(pandasArgs, def.ID)
 	k8s.logger.Debugw("Creating training set", "definition", def)
 	if err := k8s.executor.ExecuteScript(pandasArgs); err != nil { //
@@ -1499,7 +1499,7 @@ func fileStoreGetTrainingSet(id ResourceID, store FileStore, logger *zap.Sugared
 		logger.Errorw("id is not of type training set", err)
 		return nil, err
 	}
-	resourceKeyPrefix := store.PathWithPrefix(fileStoreResourcePath(id))
+	resourceKeyPrefix := store.PathWithPrefix(fileStoreResourcePath(id), false)
 	trainingSetExactPath, err := store.NewestFile(resourceKeyPrefix)
 	if err != nil {
 		return nil, fmt.Errorf("Could not get training set: %v", err)

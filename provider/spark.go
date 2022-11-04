@@ -528,15 +528,22 @@ func (d *DatabricksExecutor) SparkSubmitArgs(destPath string, cleanQuery string,
 		"--job_type",
 		string(jobType),
 		"--source_list",
-		"--store_type",
-		"azure_blob_store",
-		"--spark_config",
-		store.ConfigString(),
-		"--credential",
-		fmt.Sprintf("azure_connection_string=%s", store.ConnectionString()),
-		fmt.Sprintf("azure_container_name=%s", store.ContainerName()),
+	}
+	var remoteConnectionArgs []string
+	azureStore, ok := store.(*AzureFileStore)
+	if ok {
+		remoteConnectionArgs = []string{
+			"--store_type",
+			"azure_blob_store",
+			"--spark_config",
+			azureStore.configString(),
+			"--credential",
+			fmt.Sprintf("azure_connection_string=%s", azureStore.connectionString()),
+			fmt.Sprintf("azure_container_name=%s", azureStore.containerName()),
+		}
 	}
 	argList = append(argList, sourceList...)
+	argList = append(argList, remoteConnectionArgs...)
 	return argList
 }
 
@@ -726,13 +733,6 @@ func (e *EMRExecutor) GetDFArgs(outputURI string, code string, mapping []SourceM
 		"--code",
 		code,
 		"--source",
-		"--store_type",
-		"azure_blob_store",
-		"--spark_config",
-		store.ConfigString(),
-		"--credential",
-		fmt.Sprintf("azure_connection_string=%s", store.ConnectionString()),
-		fmt.Sprintf("azure_container_name=%s", store.ContainerName()),
 	}
 
 	for _, m := range mapping {
@@ -744,6 +744,7 @@ func (e *EMRExecutor) GetDFArgs(outputURI string, code string, mapping []SourceM
 }
 
 func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, mapping []SourceMapping, store FileStore) ([]string, error) {
+
 	argList := []string{
 		"spark-submit",
 		"--deploy-mode",
@@ -756,10 +757,24 @@ func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, mapping []
 		code,
 		"--source",
 	}
+	var remoteConnectionArgs []string
+	azureStore, ok := store.(*AzureFileStore)
+	if ok {
+		remoteConnectionArgs = []string{
+			"--store_type",
+			"azure_blob_store",
+			"--spark_config",
+			azureStore.configString(),
+			"--credential",
+			fmt.Sprintf("azure_connection_string=%s", azureStore.connectionString()),
+			fmt.Sprintf("azure_container_name=%s", azureStore.containerName()),
+		}
+	}
 
 	for _, m := range mapping {
 		argList = append(argList, m.Source)
 	}
+	argList = append(argList, remoteConnectionArgs...)
 
 	return argList, nil
 }

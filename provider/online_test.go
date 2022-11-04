@@ -147,6 +147,17 @@ func TestOnlineStores(t *testing.T) {
 		return *blobConfig
 	}
 
+	mongoDBInit := func() MongoDBConfig {
+		mongoConfig := &MongoDBConfig{
+			Host:     helpers.GetEnv("MONGODB_HOST", ""),
+			Port:     helpers.GetEnv("MONGODB_PORT", ""),
+			Username: helpers.GetEnv("MONGODB_USERNAME", ""),
+			Password: helpers.GetEnv("MONGODB_PASSWORD", ""),
+			Database: helpers.GetEnv("MONGODB_DATABASE", ""),
+		}
+		return *mongoConfig
+	}
+
 	type testMember struct {
 		t               Type
 		subType         string
@@ -181,6 +192,9 @@ func TestOnlineStores(t *testing.T) {
 	}
 	if *provider == "azure_blob" || *provider == "" {
 		testList = append(testList, testMember{BlobOnline, "_AZURE", blobAzureInit().Serialized(), true})
+	}
+	if *provider == "mongodb" || *provider == "" {
+		testList = append(testList, testMember{MongoDBOnline, "", mongoDBInit().Serialized(), true})
 	}
 
 	for _, testItem := range testList {
@@ -309,6 +323,7 @@ func testMassTableWrite(t *testing.T, store OnlineStore) {
 		if err != nil {
 			t.Fatalf("could not create table %v in online store: %v", tableList[i], err)
 		}
+		defer store.DeleteTable(tableList[i].Name, tableList[i].Variant)
 		for j := range entityList {
 			if err := tab.Set(entityList[j], 1); err != nil {
 				t.Fatalf("could not set entity %v in table %v: %v", entityList[j], tableList[i], err)

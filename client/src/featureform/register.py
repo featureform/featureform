@@ -15,7 +15,7 @@ from .get_local import *
 from .list_local import *
 from .sqlite_metadata import SQLiteMetadata
 from .tls import insecure_channel, secure_channel
-from .resources import ResourceState, Provider, RedisConfig, FirestoreConfig, CassandraConfig, DynamodbConfig, \
+from .resources import ResourceState, Provider, RedisConfig, FirestoreConfig, CassandraConfig, DynamodbConfig, MongoDBConfig, \
     PostgresConfig, SnowflakeConfig, LocalConfig, RedshiftConfig, BigQueryConfig, SparkAWSConfig, AzureBlobStoreConfig, OnlineBlobConfig, K8sConfig, User, Location, Source, PrimaryData, SQLTable, \
     SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet, ProviderReference, \
     EntityReference, SourceReference
@@ -998,6 +998,34 @@ class Registrar:
         fakeProvider = Provider(name=name, function="ONLINE", description="", team="", config=fakeConfig)
         return OnlineProvider(self, fakeProvider)
 
+    def get_mongodb(self, name):
+        """Get a MongoDB provider. The returned object can be used to register additional resources.
+
+        **Examples**:
+        ``` py
+        mongodb = get_mongodb("mongodb-quickstart")
+        // Defining a new transformation source with retrieved MongoDB provider
+        average_user_transaction.register_resources(
+            entity=user,
+            entity_column="user_id",
+            inference_store=mongodb,
+            features=[
+                {"name": "avg_transactions", "variant": "quickstart", "column": "avg_transaction_amt", "type": "float32"},
+            ],
+        )
+        ```
+        Args:
+            name (str): Name of MongoDB provider to be retrieved
+
+        Returns:
+            mongodb (OnlineProvider): Provider
+        """
+        get = ProviderReference(name=name, provider_type="mongodb", obj=None)
+        self.__resources.append(get)
+        mock_config = MongoDBConfig()
+        mock_provider = Provider(name=name, function="ONLINE", description="", team="", config=mock_config)
+        return OnlineProvider(self, mock_provider)
+
     def get_blob_store(self, name):
         """Get a Azure Blob provider. The returned object can be used to register additional resources.
 
@@ -1381,6 +1409,53 @@ class Registrar:
             dynamodb (OnlineProvider): Provider
         """
         config = DynamodbConfig(access_key=access_key, secret_key=secret_key, region=region)
+        provider = Provider(name=name,
+                            function="ONLINE",
+                            description=description,
+                            team=team,
+                            config=config)
+        self.__resources.append(provider)
+        return OnlineProvider(self, provider)
+
+    def register_mongodb(self,
+                             name: str,
+                             description: str = "",
+                             team: str = "",
+                             username: str = None,
+                             password: str = None,
+                             database: str = None,
+                             host: str = None,
+                             port: str = None
+                             ):
+        """Register a MongoDB provider.
+
+        **Examples**:
+        ```
+        mongodb = ff.register_mongodb(
+            name="mongodb-quickstart",
+            description="A MongoDB deployment",
+            team="myteam"
+            username="my_username",
+            password="myPassword",
+            database="featureform_database"
+            host="my-mongodb.host.com",
+            port="10225"
+        )
+        ```
+        Args:
+            name (str): Name of MongoDB provider to be registered
+            description (str): Description of MongoDB provider to be registered
+            team (str): Name of team
+            username (str): MongoDB username
+            password (str): MongoDB password
+            database (str): MongoDB database
+            host (str): MongoDB hostname
+            port (str): MongoDB port
+
+        Returns:
+            mongodb (OnlineProvider): Provider
+        """
+        config = MongoDBConfig(username=username, password=password, host=host, port=port, database=database)
         provider = Provider(name=name,
                             function="ONLINE",
                             description=description,
@@ -3102,10 +3177,10 @@ register_bigquery = global_registrar.register_bigquery
 register_firestore = global_registrar.register_firestore
 register_cassandra = global_registrar.register_cassandra
 register_dynamodb = global_registrar.register_dynamodb
+register_mongodb = global_registrar.register_mongodb
 register_snowflake = global_registrar.register_snowflake
 register_postgres = global_registrar.register_postgres
 register_redshift = global_registrar.register_redshift
-register_bigquery = global_registrar.register_bigquery
 register_spark = global_registrar.register_spark
 register_k8s = global_registrar.register_k8s
 register_local = global_registrar.register_local
@@ -3119,6 +3194,7 @@ get_source = global_registrar.get_source
 get_local_provider = global_registrar.get_local_provider
 get_redis = global_registrar.get_redis
 get_postgres = global_registrar.get_postgres
+get_mongodb = global_registrar.get_mongodb
 get_snowflake = global_registrar.get_snowflake
 get_redshift = global_registrar.get_redshift
 get_bigquery = global_registrar.get_bigquery

@@ -444,6 +444,7 @@ func TestParquetUpload(t *testing.T) {
 		// "sparkTestGetResourceInformationFromFilePath": testGetResourceInformationFromFilePath,
 		// "sparkTestGetSourcePath":                      testGetSourcePath,
 		// "sparkTestGetTransformation":                  testGetTransformation,
+		// "sparkTestTransformation": testTransformation,
 	}
 
 	t.Run("SPARK_STORE_FUNCTIONS", func(t *testing.T) {
@@ -1827,7 +1828,7 @@ func sparkTestTrainingSet(t *testing.T, store *SparkOfflineStore) {
 				{
 					{Entity: "c", Value: "real value first", TS: int64(5)},
 					{Entity: "c", Value: "real value second", TS: int64(5)},
-					{Entity: "c", Value: "overwritten", TS: int64(4)},
+					{Entity: "c", Value: "overwritten", TS: int64(6)},
 				},
 				// Different feature values for different TS.
 				{

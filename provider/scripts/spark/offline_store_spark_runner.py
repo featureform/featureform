@@ -12,9 +12,9 @@ from pyspark.sql import SparkSession
 from azure.storage.blob import BlobServiceClient
 
 
-real_path = os.path.realpath(__file__)
-dir_path = os.path.dirname(real_path)
-LOCAL_DATA_PATH = f"{dir_path}/.featureform/data"
+# real_path = os.path.realpath(__file__)
+# dir_path = os.path.dirname(real_path)
+LOCAL_DATA_PATH = f".featureform/data"
 
 def main(args):
     if args.transformation_type == "sql": 
@@ -25,17 +25,15 @@ def main(args):
 
 
 def execute_sql_query(job_type, output_uri, sql_query, spark_configs, source_list):
-    """
-    Executes the SQL Queries:
-    Parameters:
-        job_type: string ("Transformation", "Materialization", "Training Set")
-        output_uri: string (s3 paths)
-        sql_query: string (eg. "SELECT * FROM source_0)
-        spark_configs: dict (eg. {"fs.azure.account.key.account_name.dfs.core.windows.net": "aksdfkai=="})
-        source_list: List(string) (a list of s3 paths)
-    Return:
-        output_uri_with_timestamp: string (output s3 path)
-    """
+    # Executes the SQL Queries:
+    # Parameters:
+    #     job_type: string ("Transformation", "Materialization", "Training Set")
+    #     output_uri: string (s3 paths)
+    #     sql_query: string (eg. "SELECT * FROM source_0)
+    #     spark_configs: dict (eg. {"fs.azure.account.key.account_name.dfs.core.windows.net": "aksdfkai=="})
+    #     source_list: List(string) (a list of s3 paths)
+    # Return:
+    #     output_uri_with_timestamp: string (output s3 path)
 
     try:
         spark = SparkSession.builder.appName("Execute SQL Query").getOrCreate()
@@ -43,8 +41,12 @@ def execute_sql_query(job_type, output_uri, sql_query, spark_configs, source_lis
 
         if job_type == "Transformation" or job_type == "Materialization" or job_type == "Training Set":
             for i, source in enumerate(source_list):
-                source_df = spark.read.option("header","true").option("recursiveFileLookup", "true").parquet(source) 
-                source_df.createOrReplaceTempView(f'source_{i}')
+                if source.split(".")[-1] == "csv":
+                    source_df = spark.read.option("header","true").option("recursiveFileLookup", "true").csv(source) 
+                    source_df.createOrReplaceTempView(f'source_{i}')
+                else:
+                    source_df = spark.read.option("header","true").option("recursiveFileLookup", "true").parquet(source) 
+                    source_df.createOrReplaceTempView(f'source_{i}')
         else:
             raise Exception(f"the '{job_type}' is not supported. Supported types: 'Transformation', 'Materialization', 'Training Set'")
         
@@ -61,15 +63,13 @@ def execute_sql_query(job_type, output_uri, sql_query, spark_configs, source_lis
 
 
 def execute_df_job(output_uri, code, store_type, spark_configs, credentials, sources):
-    """
-    Executes the DF transformation:
-    Parameters:
-        output_uri: string (s3 paths)
-        code: code (python code)
-        sources: {parameter: s3_path} (used for passing dataframe parameters)
-    Return:
-        output_uri_with_timestamp: string (output s3 path)
-    """
+    # Executes the DF transformation:
+    # Parameters:
+    #     output_uri: string (s3 paths)
+    #     code: code (python code)
+    #     sources: {parameter: s3_path} (used for passing dataframe parameters)
+    # Return:
+    #     output_uri_with_timestamp: string (output s3 path)
 
     spark = SparkSession.builder.appName("Dataframe Transformation").getOrCreate()
     set_spark_configs(spark, spark_configs)
@@ -93,24 +93,20 @@ def execute_df_job(output_uri, code, store_type, spark_configs, credentials, sou
 
 
 def get_code_from_file(file_path, store_type=None, credentials=None):
-    """
-    Reads the code from a pkl file into a python code object.
-    Then this object will be used to execute the transformation. 
+    # Reads the code from a pkl file into a python code object.
+    # Then this object will be used to execute the transformation. 
     
-    Parameters:
-        file_path: string (path to file)
-        aws_region: string (aws region where s3 bucket is located)
-    Return:
-        code: code object that could be executed
-    """
+    # Parameters:
+    #     file_path: string (path to file)
+    #     aws_region: string (aws region where s3 bucket is located)
+    # Return:
+    #     code: code object that could be executed
     
     code = None
     if store_type == "s3":
-        """
-        S3 paths are the following path: 's3://{bucket}/key/to/file'.
-        the split below separates the bucket name and the key that is 
-        used to read the object in the bucket. 
-        """
+        # S3 paths are the following path: 's3://{bucket}/key/to/file'.
+        # the split below separates the bucket name and the key that is 
+        # used to read the object in the bucket. 
         
         aws_region = credentials.get("aws_region")
         if aws_region == None:
@@ -150,17 +146,15 @@ def get_code_from_file(file_path, store_type=None, credentials=None):
 
 
 def download_blobs_to_local(container_client, blob, local_filename):
-    """
-    Downloads a blob to local to be used by pandas.
+    # Downloads a blob to local to be used by pandas.
 
-    Parameters:
-        client:         ContainerClient (used to interact with Azure container)
-        blob:           str (path to blob store)
-        local_filename: str (path to local file)
+    # Parameters:
+    #     client:         ContainerClient (used to interact with Azure container)
+    #     blob:           str (path to blob store)
+    #     local_filename: str (path to local file)
     
-    Output:
-        full_path:      str (path to local file that will be used to read by pandas)
-    """
+    # Output:
+    #     full_path:      str (path to local file that will be used to read by pandas)
     
     print(f"downloading {blob} to {local_filename}")
     if not os.path.isdir(LOCAL_DATA_PATH):
@@ -177,10 +171,8 @@ def download_blobs_to_local(container_client, blob, local_filename):
 
 
 def set_spark_configs(spark, configs):
-    """
-    This method is used to set configs for Spark. It will be mostly
-    used to set access credentials for Spark to the store. 
-    """
+    # This method is used to set configs for Spark. It will be mostly
+    # used to set access credentials for Spark to the store. 
 
     for key, value in configs.items():
         spark.conf.set(key, value)

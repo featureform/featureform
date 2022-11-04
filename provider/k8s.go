@@ -434,7 +434,7 @@ func (store AzureFileStore) PathWithPrefix(path string, remote bool) string {
 		}
 	}
 	if remote {
-		return fmt.Sprintf("abfss://%s@%s.dfs.core.windows.net/%s/%s", store.ContainerName, store.AccountName, store.Path, path)
+		return fmt.Sprintf("abfss://%s@%s.dfs.core.windows.net%s/%s", store.ContainerName, store.AccountName, store.Path, path)
 	}
 	return path
 }
@@ -545,7 +545,10 @@ func convertToParquetBytes(list []any) ([]byte, error) {
 	if len(list) == 0 {
 		return nil, fmt.Errorf("list is empty")
 	}
+	fmt.Println(list)
 	schema := parquet.SchemaOf(list[0])
+	fmt.Println("Schema:")
+	fmt.Println(schema)
 	buf := new(bytes.Buffer)
 	err := parquet.Write[any](
 		buf,

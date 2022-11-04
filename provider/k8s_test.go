@@ -26,17 +26,17 @@ func uuidWithoutDashes() string {
 
 func TestBlobInterfaces(t *testing.T) {
 	fileStoreTests := map[string]func(*testing.T, FileStore){
-		"Test Filestore Read and Write": testFilestoreReadAndWrite,
-		"Test Exists":                   testExists,
-		"Test Not Exists":               testNotExists,
-		"Test Serve":                    testServe,
-		"Test Serve Directory":          testServeDirectory,
-		"Test Delete":                   testDelete,
-		"Test Delete All":               testDeleteAll,
-		"Test Newest file":              testNewestFile,
-		"Test Path with prefix":         testPathWithPrefix,
-		"Test Num Rows":                 testNumRows,
-		"Test Upload Script":            testUploadScript,
+		"Test Filestore Read and Write":  testFilestoreReadAndWrite,
+		"Test Exists":                    testExists,
+		"Test Not Exists":                testNotExists,
+		"Test Serve":                     testServe,
+		"Test Serve Directory":           testServeDirectory,
+		"Test Delete":                    testDelete,
+		"Test Delete All":                testDeleteAll,
+		"Test Newest file":               testNewestFile,
+		"Test Path with prefix":          testPathWithPrefix,
+		"Test Num Rows":                  testNumRows,
+		"Test Databricks Initialization": testDatabricksInitialization,
 	}
 	mydir, err := os.Getwd()
 	if err != nil {
@@ -509,26 +509,7 @@ func testNumRows(t *testing.T, store FileStore) {
 	}
 }
 
-func testUploadScript(t *testing.T, store FileStore) {
-	mydir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("could not get working directory")
-	}
-	pyscriptPath := fmt.Sprintf("%s/scripts/spark/offline_store_spark_runner.py", mydir)
-	f, err := os.Open(pyscriptPath)
-
-	if err != nil {
-		t.Fatalf("could not open file: %v", err)
-	}
-	b1 := make([]byte, 4096)
-	_, err = f.Read(b1)
-	if err := store.Write("/scripts/spark/offline_store_spark_runner.py", b1); err != nil {
-		t.Fatalf("could not write to python script: %v", err)
-	}
-}
-
-func TestDatabricksInitialization(t *testing.T, store FileStore) {
-
+func testDatabricksInitialization(t *testing.T, store FileStore) {
 	host := helpers.GetEnv("DATABRICKS_HOST", "")
 	token := helpers.GetEnv("DATABRICKS_ACCESS_TOKEN", "")
 	cluster := helpers.GetEnv("DATABRICKS_CLUSTER", "")
@@ -542,13 +523,13 @@ func TestDatabricksInitialization(t *testing.T, store FileStore) {
 	if err != nil {
 		t.Fatalf("Could not create new databricks client: %v", err)
 	}
-	if err := executor.InializeExecutor(store); err != nil {
+	if err := executor.InitializeExecutor(store); err != nil {
 		t.Fatalf("Error initializing executor: %v", err)
 	}
-	sparkArgs := []string{}
-	if err := executor.RunSparkJob(&sparkArgs); err != nil {
-		t.Fatalf("could not run spark job: %v", err)
-	}
+	// sparkArgs := []string{}
+	// if err := executor.RunSparkJob(&sparkArgs); err != nil {
+	// 	t.Fatalf("could not run spark job: %v", err)
+	// }
 }
 
 //tests for spark executor

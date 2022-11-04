@@ -138,7 +138,7 @@ type DatabricksExecutor struct {
 	config  DatabricksConfig
 }
 
-func (e *EMRExecutor) PythonFileURI(bucketPath string) string {
+func (e *EMRExecutor) PythonFileURI(store FileStore) string {
 	return ""
 }
 
@@ -147,21 +147,18 @@ func (db *DatabricksExecutor) PythonFileURI(store FileStore) string {
 }
 
 func (db *DatabricksExecutor) InitializeExecutor(store FileStore) error {
-	mydir, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("could not get working directory")
-	}
-	pyscriptPath := fmt.Sprintf("%s/scripts/spark/offline_store_spark_runner.py", mydir)
-	f, err := os.Open(pyscriptPath)
+	sparkScriptPath := helpers.GetEnv("SPARK_SCRIPT_PATH", "scripts/spark/offline_store_spark_runner.py")
+	f, err := os.Open(sparkScriptPath)
 
 	if err != nil {
 		return fmt.Errorf("could not open file: %v", err)
 	}
-	b1 := make([]byte, 4096)
-	_, err = f.Read(b1)
-	if err := store.Write("/scripts/spark/offline_store_spark_runner.py", b1); err != nil {
+	pythonScriptBytes := make([]byte, 4096)
+	_, err = f.Read(pythonScriptBytes)
+	if err := store.Write("scripts/spark/offline_store_spark_runner.py", pythonScriptBytes); err != nil {
 		return fmt.Errorf("could not write to python script: %v", err)
 	}
+	return nil
 }
 
 func NewDatabricksExecutor(config Config) (SparkExecutor, error) {
@@ -186,10 +183,10 @@ func NewDatabricksExecutor(config Config) (SparkExecutor, error) {
 	}, nil
 }
 
-func (db *DatabricksExecutor) RunSparkJob(args *[]string, pythonURI string) error {
+func (db *DatabricksExecutor) RunSparkJob(args *[]string, store FileStore) error {
 	jobsClient := db.client.Jobs()
 	pythonTask := azureModels.SparkPythonTask{
-		PythonFile: pythonURI,
+		PythonFile: db.PythonFileURI(store),
 		Parameters: args,
 	}
 	type CustomCreateReq struct {
@@ -410,11 +407,11 @@ func sparkOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 }
 
 type SparkExecutor interface {
-	RunSparkJob(args *[]string) error
+	RunSparkJob(args *[]string, store FileStore) error
 	InitializeExecutor(store FileStore) error
 	PythonFileURI(store FileStore) string
-	SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType) []string
-	GetDFArgs(outputURI string, code string, mapping []SourceMapping) ([]string, error)
+	SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store FileStore) []string
+	GetDFArgs(outputURI string, code string, mapping []SourceMapping, store FileStore) ([]string, error)
 }
 
 type EMRExecutor struct {
@@ -461,7 +458,7 @@ func NewSparkExecutor(execType SparkExecutorType, config SparkExecutorConfig, lo
 	return nil, nil
 }
 
-func (e *EMRExecutor) RunSparkJob(args *[]string) error {
+func (e *EMRExecutor) RunSparkJob(args *[]string, store FileStore) error {
 	params := &emr.AddJobFlowStepsInput{
 		JobFlowId: aws.String(e.clusterName), //returned by listclusters
 		Steps: []emrTypes.StepConfig{
@@ -495,12 +492,12 @@ func (e *EMRExecutor) RunSparkJob(args *[]string) error {
 	return nil
 }
 
-func (e *EMRExecutor) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType) []string {
+func (e *EMRExecutor) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store FileStore) []string {
 	argList := []string{
 		"spark-submit",
 		"--deploy-mode",
 		"client",
-		e.PythonFileURI(),
+		"script/offline_store_spark_runner.py",
 		"sql",
 		"--output_uri",
 		destPath,
@@ -597,8 +594,8 @@ func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, i
 		return fmt.Errorf("transformation %v doesn't exist at %s and you are trying to update", config.TargetTableID, transformationDestination)
 	}
 	spark.Logger.Debugw("Running SQL transformation", config)
-	sparkArgs := spark.Executor.SparkSubmitArgs(transformationDestination, updatedQuery, sources, Transform)
-	if err := spark.Executor.RunSparkJob(&sparkArgs); err != nil {
+	sparkArgs := spark.Executor.SparkSubmitArgs(transformationDestination, updatedQuery, sources, JobType(Transform), spark.Store)
+	if err := spark.Executor.RunSparkJob(&sparkArgs, spark.Store); err != nil {
 		spark.Logger.Errorw("spark submit job for transformation failed to run", config.TargetTableID, err)
 		return fmt.Errorf("spark submit job for transformation %v failed to run: %v", config.TargetTableID, err)
 	}
@@ -634,13 +631,13 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 		return fmt.Errorf("could not upload file: %s", err)
 	}
 
-	sparkArgs, err := spark.Executor.GetDFArgs(transformationDestination, transformationFileLocation, config.SourceMapping)
+	sparkArgs, err := spark.Executor.GetDFArgs(transformationDestination, transformationFileLocation, config.SourceMapping, spark.Store)
 	if err != nil {
 		spark.Logger.Errorw("Problem creating spark dataframe arguments", err)
 		return fmt.Errorf("error with getting df arguments %v", sparkArgs)
 	}
 	spark.Logger.Debugw("Running DF transformation", config)
-	if err := spark.Executor.RunSparkJob(&sparkArgs); err != nil {
+	if err := spark.Executor.RunSparkJob(&sparkArgs, spark.Store); err != nil {
 		spark.Logger.Errorw("Error running Spark dataframe job", err)
 		return fmt.Errorf("spark submit job for transformation %v failed to run: %v", config.TargetTableID, err)
 	}
@@ -690,7 +687,7 @@ func (spark *SparkOfflineStore) getSourcePath(path string) (string, error) {
 		return filePath, nil
 	} else if fileType == "transformation" {
 		fileResourceId := ResourceID{Name: fileName, Variant: fileVariant, Type: Transformation}
-		transformationPath, err := spark.Store.NewestFile(spark.Store.PathWithPrefix(ResourcePath(fileResourceId)), false)
+		transformationPath, err := spark.Store.NewestFile(spark.Store.PathWithPrefix(ResourcePath(fileResourceId), false))
 		if err != nil {
 			return "", fmt.Errorf("Could not get transformation file path: %v", err)
 		}
@@ -721,12 +718,12 @@ func (spark *SparkOfflineStore) getResourceInformationFromFilePath(path string) 
 	return fileType, fileName, fileVariant
 }
 
-func (e *EMRExecutor) GetDFArgs(outputURI string, code string, mapping []SourceMapping) ([]string, error) {
+func (e *EMRExecutor) GetDFArgs(outputURI string, code string, mapping []SourceMapping, store FileStore) ([]string, error) {
 	argList := []string{
 		"spark-submit",
 		"--deploy-mode",
 		"client",
-		e.PythonFileURI(),
+		"scripts/offline_store_spark_runner.py",
 		"df",
 		"--output_uri",
 		outputURI,
@@ -842,9 +839,9 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 	}
 	materializationQuery := spark.query.materializationCreate(sparkResourceTable.schema)
 	sourcePath := spark.Store.PathWithPrefix(sparkResourceTable.schema.SourceTable, true)
-	sparkArgs := spark.Executor.SparkSubmitArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize)
+	sparkArgs := spark.Executor.SparkSubmitArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize, spark.Store)
 	spark.Logger.Debugw("Creating materialization", "id", id)
-	if err := spark.Executor.RunSparkJob(&sparkArgs); err != nil {
+	if err := spark.Executor.RunSparkJob(&sparkArgs, spark.Store); err != nil {
 		spark.Logger.Errorw("Spark submit job failed to run", err)
 		return nil, fmt.Errorf("spark submit job for materialization %v failed to run: %v", materializationID, err)
 	}
@@ -926,9 +923,9 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 		featureSchemas = append(featureSchemas, featureSchema)
 	}
 	trainingSetQuery := spark.query.trainingSetCreate(def, featureSchemas, labelSchema)
-	sparkArgs := spark.Executor.SparkSubmitArgs(destinationPath, trainingSetQuery, sourcePaths, CreateTrainingSet)
+	sparkArgs := spark.Executor.SparkSubmitArgs(destinationPath, trainingSetQuery, sourcePaths, CreateTrainingSet, spark.Store)
 	spark.Logger.Debugw("Creating training set", "definition", def)
-	if err := spark.Executor.RunSparkJob(&sparkArgs); err != nil {
+	if err := spark.Executor.RunSparkJob(&sparkArgs, spark.Store); err != nil {
 		spark.Logger.Errorw("Spark submit training set job failed to run", "definition", def.ID, "error", err)
 		return fmt.Errorf("spark submit job for training set %v failed to run: %v", def.ID, err)
 	}

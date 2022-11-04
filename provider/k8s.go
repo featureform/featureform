@@ -382,9 +382,6 @@ type FileStore interface {
 	NewestFile(prefix string) (string, error)
 	PathWithPrefix(path string, remote bool) string
 	NumRows(key string) (int64, error)
-	ConfigString() string
-	ConnectionString() string
-	ContainerName() string
 	Close() error
 }
 
@@ -401,13 +398,13 @@ type AzureFileStore struct {
 	genericFileStore
 }
 
-func (azure *AzureFileStore) ConfigString() string {
+func (azure *AzureFileStore) configString() string {
 	return fmt.Sprintf("fs.azure.account.key.%s.dfs.core.windows.net=%s", azure.AccountName, azure.AccountKey)
 }
-func (azure *AzureFileStore) ConnectionString() string {
+func (azure *AzureFileStore) connectionString() string {
 	return azure.ConnectionString
 }
-func (azure *AzureFileStore) ContainerName() string {
+func (azure *AzureFileStore) containerName() string {
 	return azure.ContainerName
 }
 
@@ -422,7 +419,7 @@ type genericFileStore struct {
 	path   string
 }
 
-func (store genericFileStore) PathWithPrefix(path string) string {
+func (store genericFileStore) PathWithPrefix(path string, remote bool) string {
 	if len(store.path) > 4 && store.path[0:4] == "file" {
 		return fmt.Sprintf("%s%s", store.path[len("file:///"):], path)
 	} else {
@@ -437,7 +434,7 @@ func (store AzureFileStore) PathWithPrefix(path string, remote bool) string {
 		}
 	}
 	if remote {
-		return fmt.Sprintf("abfss://%s@%s.dfs.core.windows.net/%s%s", store.ContainerName, store.AccountName, store.Path, path)
+		return fmt.Sprintf("abfss://%s@%s.dfs.core.windows.net/%s/%s", store.ContainerName, store.AccountName, store.Path, path)
 	}
 	return path
 }
@@ -1479,7 +1476,7 @@ func (k8s *K8sOfflineStore) trainingSet(def TrainingSetDef, isUpdate bool) error
 	trainingSetQuery := k8s.query.trainingSetCreate(def, featureSchemas, labelSchema)
 	k8s.logger.Debugw("Training set query", "query", sourcePaths)
 	k8s.logger.Debugw("Source list", "list", trainingSetQuery)
-	pandasArgs := k8s.pandasRunnerArgs(k8s.store.PathWithPrefix(destinationPath), trainingSetQuery, sourcePaths, CreateTrainingSet, false)
+	pandasArgs := k8s.pandasRunnerArgs(k8s.store.PathWithPrefix(destinationPath, false), trainingSetQuery, sourcePaths, CreateTrainingSet)
 	pandasArgs = addResourceID(pandasArgs, def.ID)
 	k8s.logger.Debugw("Creating training set", "definition", def)
 	if err := k8s.executor.ExecuteScript(pandasArgs); err != nil { //

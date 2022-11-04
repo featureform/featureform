@@ -19,9 +19,9 @@ from .list_local import *
 from .sqlite_metadata import SQLiteMetadata
 from .tls import insecure_channel, secure_channel
 from .resources import ResourceState, Provider, RedisConfig, FirestoreConfig, CassandraConfig, DynamodbConfig, \
-    PostgresConfig, SnowflakeConfig, LocalConfig, RedshiftConfig, BigQueryConfig, SparkAWSConfig, AzureBlobStoreConfig, OnlineBlobConfig, K8sConfig, User, Location, Source, PrimaryData, SQLTable, \
+    PostgresConfig, SnowflakeConfig, LocalConfig, RedshiftConfig, BigQueryConfig, SparkConfig, AzureFileStoreConfig, OnlineBlobConfig, K8sConfig, User, Location, Source, PrimaryData, SQLTable, \
     SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet, ProviderReference, \
-    EntityReference, SourceReference
+    EntityReference, SourceReference, ExecutorCredentials
 
 NameVariant = Tuple[str, str]
 
@@ -1369,7 +1369,7 @@ class Registrar:
         """
         get = ProviderReference(name=name, provider_type="spark", obj=None)
         self.__resources.append(get)
-        fakeConfig = SparkAWSConfig(emr_cluster_id="",bucket_path="",emr_cluster_region="",bucket_region="",aws_access_key_id="",aws_secret_access_key="")
+        fakeConfig = SparkConfig(executor_type="", executor_config={}, store_type="", store_config={})
         fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
         return OfflineSparkProvider(self, fakeProvider)
 
@@ -1807,49 +1807,39 @@ class Registrar:
 
     def register_spark(self,
                        name: str,
+                       executor: ExecutorCredentials,
+                       store: FileStoreProvider,
                        description: str = "",
                        team: str = "",
-                       emr_cluster_id: str = "",
-                       bucket_path: str = "",
-                       emr_cluster_region: str = "",
-                       bucket_region: str = "",
-                       aws_access_key_id: str = "",
-                       aws_secret_access_key: str = "",):
+                    ):
         """Register a Spark on AWS provider.
         **Examples**:
         ```
-        spark = ff.register_spark_aws(
+        spark = ff.register_spark(
             name="spark-quickstart",
             description="A Spark deployment we created for the Featureform quickstart",
             team="featureform-team"
-            emr_cluster_id="AAAAAA",
-            bucket_path="project_bucket",
-            emr_cluster_region="us-east-1",
-            bucket_region="us-east-2",
-            aws_access_key_id="<access key id>"
-            aws_secret_access_key="<secret access key>"
+            executor=databricks
+            store=azure_blob_store
         )
         ```
         Args:
             name (str): Name of Spark AWS provider to be registered
+            executor (ExecutorCredentials): an Executor Provider used for the compute power
+            store: (FileStoreProvider): a FileStoreProvider used for storage of data
             description (str): Description of Spark AWS provider to be registered
             team (str): Name of team
-            cluster_id (str): The id of the running EMR (Elastic Map Reduce) cluster with Spark enabled
-            bucket_path (str): The project's S3 path
-            emr_cluster_region (str): aws region of the cluster
-            bucket_region (str): aws region of the bucket
-            aws_access_key_id (str): aws access key id of a role with access to the bucket and emr cluster
-            aws_secret_access_key (str): secret key tied to the acces key
 
         Returns:
-            spark_aws (OfflineSQLProvider): Provider
+            spark_aws (OfflineSparkProvider): Provider
         """
-        config = SparkAWSConfig(emr_cluster_id=emr_cluster_id,
-                                bucket_path=bucket_path,
-                                emr_cluster_region=emr_cluster_region,
-                                bucket_region=bucket_region,
-                                aws_access_key_id=aws_access_key_id,
-                                aws_secret_access_key=aws_secret_access_key)
+
+        config = SparkConfig(
+                            executor_type=executor.type(),
+                            executor_config=executor.config(),
+                            store_type=store.type(),
+                            store_config=store.config())
+
         provider = Provider(name=name,
                             function="OFFLINE",
                             description=description,
@@ -1875,12 +1865,12 @@ class Registrar:
             description (str): Description of primary data to be registered
         **Examples**:
         ```
-        ```
         k8s = ff.register_k8s(
             name="k8s",
             description="Native featureform kubernetes compute",
             store=azure_blob,
             team="featureform-team"
+        ```
         """
         config = K8sConfig(
             store_type=store.store_type(),

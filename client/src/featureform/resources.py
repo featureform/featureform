@@ -116,6 +116,38 @@ class AzureFileStoreConfig:
 
 @typechecked
 @dataclass
+class S3StoreConfig:
+    bucket_path: str
+    bucket_region: str
+    aws_access_key_id: str
+    aws_secret_access_key: str
+
+    def software(self) -> str:
+        return "S3"
+
+    def type(self) -> str:
+        return "S3"
+
+    def serialize(self) -> bytes:
+        config = {
+            "AWSAccessKeyId": self.aws_access_key_id,
+            "AWSSecretKey": self.aws_secret_access_key,
+            "BucketRegion": self.bucket_region,
+            "BucketPath": self.bucket_path,
+        }
+        return bytes(json.dumps(config), "utf-8")
+    
+    def config(self):
+        return {
+            "AWSAccessKeyId": self.aws_access_key_id,
+            "AWSSecretKey": self.aws_secret_access_key,
+            "BucketRegion": self.bucket_region,
+            "BucketPath": self.bucket_path,
+        }
+
+
+@typechecked
+@dataclass
 class OnlineBlobConfig:
     store_type: str
     store_config: dict
@@ -326,13 +358,11 @@ class BigQueryConfig:
 
 @typechecked
 @dataclass
-class SparkAWSConfig:
-    emr_cluster_id: str
-    emr_cluster_region: str
-    bucket_path: str
-    bucket_region: str
-    aws_access_key_id: str
-    aws_secret_access_key: str
+class SparkConfig:
+    executor_type: str
+    executor_config: dict
+    store_type: str
+    store_config: dict
 
     def software(self) -> str:
         return "spark"
@@ -344,18 +374,8 @@ class SparkAWSConfig:
         config = {
             "ExecutorType": "EMR",  
             "StoreType": "S3",
-            "ExecutorConfig": {
-                "AWSAccessKeyId": self.aws_access_key_id,
-                "AWSSecretKey": self.aws_secret_access_key,
-                "ClusterRegion": self.emr_cluster_region,
-                "ClusterName": self.emr_cluster_id,
-            },
-            "StoreConfig": {
-                "AWSAccessKeyId": self.aws_access_key_id,
-                "AWSSecretKey": self.aws_secret_access_key,
-                "BucketRegion": self.bucket_region,
-                "BucketPath": self.bucket_path,
-            }
+            "ExecutorConfig": self.executor_config,
+            "StoreConfig": self.store_config,
         }
         return bytes(json.dumps(config), "utf-8")
 
@@ -384,7 +404,7 @@ class K8sConfig:
 
 
 Config = Union[
-    RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig, BigQueryConfig, FirestoreConfig, SparkAWSConfig, OnlineBlobConfig, AzureFileStoreConfig, K8sConfig]
+    RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig, BigQueryConfig, FirestoreConfig, SparkConfig, OnlineBlobConfig, AzureFileStoreConfig, S3StoreConfig, K8sConfig]
 
 
 @typechecked
@@ -1103,3 +1123,67 @@ class ResourceState:
                     continue
 
                 raise
+
+
+## Executor Providers
+@typechecked
+class DatabricksCredentials:
+    def __init__(self,
+                username: str = "",
+                password: str = "",
+                host: str = "",
+                token: str = ""):
+        self.username = username
+        self.password = password
+        self.host = host
+        self.token = token
+
+        host_token_provided = username == "" and password == "" and host != "" and token != ""
+        username_password_provided = username != "" and password != "" and host == "" and token == ""
+
+        if not host_token_provided and not username_password_provided or host_token_provided and username_password_provided:
+            raise Exception("The DatabricksCredentials requires only one credentials set ('username' and 'password' or 'host' and 'token' set.)")
+
+    def type(self): 
+        return "databricks"
+    
+    def config(self):
+        return {
+            "username": self.username,
+            "password": self.password,
+            "host": self.host,
+            "token": self.token
+        }
+
+@typechecked
+@dataclass
+class EMRCredentials:
+    def __init__(self,
+                aws_access_key_id: str = "",
+                aws_secret_access_key: str = "",
+                emr_cluster_id: str = "",
+                emr_cluster_region: str = ""):
+
+        empty_strings = aws_access_key_id == "" or aws_secret_access_key == "" or emr_cluster_id == "" or emr_cluster_region == ""
+        assert not empty_strings, Exception("'EMRCredentials' requires all parameters: 'aws_access_key_id', 'aws_secret_access_key', 'emr_cluster_id', 'emr_cluster_region'")
+
+        self.aws_access_key_id = aws_access_key_id
+        self.aws_secret_access_key = aws_secret_access_key
+        self.emr_cluster_id = emr_cluster_id
+        self.emr_cluster_region = emr_cluster_region
+
+    def type(self): 
+        return "emr"
+    
+    def config(self):
+        return {
+            "AWSAccessKeyId": self.aws_access_key_id,
+            "AWSSecretKey": self.aws_secret_access_key,
+            "ClusterName": self.emr_cluster_id,
+            "ClusterRegion": self.emr_cluster_region
+        }
+
+
+ExecutorCredentials = Union[EMRCredentials, DatabricksCredentials]
+
+

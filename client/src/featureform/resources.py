@@ -112,6 +112,9 @@ class AzureFileStoreConfig:
             "ContainerName": self.container_name,
             "Path": self.root_path,
         }
+    
+    def store_type(self):
+        return self.type()
 
 
 @typechecked

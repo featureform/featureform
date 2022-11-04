@@ -26,7 +26,7 @@ def read_version():
         
 
 VERSION=os.getenv("TEST_CASE_VERSION", read_version())
-if VERSION == None:
+
 def read_file(filename):
     global FILE_DIRECTORY
     try:
@@ -71,9 +71,6 @@ def serve_data():
 def serve_feature():
     fpf = client.features([(f"avg_transactions_{VERSION}", "quickstart")], {"user": "C6717858"})
     print(fpf)
-
-print(f"Serving the training set (fraud_training_{VERSION})")
-    raise Exception(f"Serving for {TRAININGSET_NAME}:{TRAININGSET_VARIANT} could not be completed.")
 
 def serve_feature():
     for _ in range(NUMBER_OF_SLEEPS):

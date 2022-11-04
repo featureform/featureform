@@ -1808,7 +1808,7 @@ class Registrar:
     def register_spark(self,
                        name: str,
                        executor: ExecutorCredentials,
-                       store: FileStoreProvider,
+                       filestore: FileStoreProvider,
                        description: str = "",
                        team: str = "",
                     ):
@@ -1820,13 +1820,13 @@ class Registrar:
             description="A Spark deployment we created for the Featureform quickstart",
             team="featureform-team"
             executor=databricks
-            store=azure_blob_store
+            filestore=azure_blob_store
         )
         ```
         Args:
             name (str): Name of Spark AWS provider to be registered
             executor (ExecutorCredentials): an Executor Provider used for the compute power
-            store: (FileStoreProvider): a FileStoreProvider used for storage of data
+            filestore: (FileStoreProvider): a FileStoreProvider used for storage of data
             description (str): Description of Spark AWS provider to be registered
             team (str): Name of team
 
@@ -1837,8 +1837,8 @@ class Registrar:
         config = SparkConfig(
                             executor_type=executor.type(),
                             executor_config=executor.config(),
-                            store_type=store.type(),
-                            store_config=store.config())
+                            store_type=filestore.store_type(),
+                            store_config=filestore.config())
 
         provider = Provider(name=name,
                             function="OFFLINE",

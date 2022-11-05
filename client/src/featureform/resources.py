@@ -1135,27 +1135,33 @@ class DatabricksCredentials:
                 username: str = "",
                 password: str = "",
                 host: str = "",
-                token: str = ""):
+                token: str = "",
+                cluster_id: str = ""):
         self.username = username
         self.password = password
         self.host = host
         self.token = token
+        self.cluster_id = cluster_id
 
         host_token_provided = username == "" and password == "" and host != "" and token != ""
         username_password_provided = username != "" and password != "" and host == "" and token == ""
 
         if not host_token_provided and not username_password_provided or host_token_provided and username_password_provided:
             raise Exception("The DatabricksCredentials requires only one credentials set ('username' and 'password' or 'host' and 'token' set.)")
+        
+        if not cluster_id:
+            raise Exception("Cluster_id of existing cluster must be provided")
 
     def type(self): 
-        return "databricks"
-    
+        return "DATABRICKS"
+
     def config(self):
         return {
-            "username": self.username,
-            "password": self.password,
-            "host": self.host,
-            "token": self.token
+            "Username": self.username,
+            "Password": self.password,
+            "Host": self.host,
+            "Token": self.token,
+            "Cluster": self.cluster_id
         }
 
 @typechecked
@@ -1176,7 +1182,7 @@ class EMRCredentials:
         self.emr_cluster_region = emr_cluster_region
 
     def type(self): 
-        return "emr"
+        return "EMR"
     
     def config(self):
         return {

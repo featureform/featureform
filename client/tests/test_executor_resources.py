@@ -5,22 +5,25 @@ from featureform.resources import DatabricksCredentials, EMRCredentials
 
 
 @pytest.mark.parametrize(
-        "username,password,host,token",
+        "username,password,host,token,cluster_id",
     [   
-        ("a", "b", "", ""),
-        ("", "", "a", "b"),
-        pytest.param("a", "b", "a", "b", marks=pytest.mark.xfail),
-        pytest.param("", "", "", "", marks=pytest.mark.xfail)
+        ("a", "b", "", "","c"),
+        ("", "", "a", "b","c"),
+        pytest.param("a", "b", "a","b","c", marks=pytest.mark.xfail),
+        pytest.param("", "", "", "","c", marks=pytest.mark.xfail)
+        pytest.param("a", "b", "","","", marks=pytest.mark.xfail)
+
     ]
 )
 def test_databricks_credentials(username, password, host, token):
-    databricks = DatabricksCredentials(username=username, password=password, host=host, token=token)
+    databricks = DatabricksCredentials(username=username, password=password, host=host, token=token, cluster_id=cluster_id)
 
     expected_config = {
-        "username": username,
-        "password": password,
-        "host": host,
-        "token": token
+        "Username": username,
+        "Password": password,
+        "Host": host,
+        "Token": token,
+        "Cluster": cluster_id
     }
 
     assert databricks.type() == "databricks"

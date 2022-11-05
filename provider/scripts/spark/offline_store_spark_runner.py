@@ -12,9 +12,12 @@ from pyspark.sql import SparkSession
 from azure.storage.blob import BlobServiceClient
 
 
-# real_path = os.path.realpath(__file__)
-# dir_path = os.path.dirname(real_path)
-LOCAL_DATA_PATH = f".featureform/data"
+if os.getenv("FEATUREFORM_LOCAL_MODE"):
+    real_path = os.path.realpath(__file__)
+    dir_path = os.path.dirname(real_path)
+    LOCAL_DATA_PATH = f"{dir_path}/.featureform/data"
+else:
+    LOCAL_DATA_PATH = "dbfs:/transformation"
 
 def main(args):
     if args.transformation_type == "sql": 

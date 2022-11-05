@@ -68,8 +68,9 @@ func NewMongoDBOnlineStore(config *MongoDBConfig) (*mongoDBOnlineStore, error) {
 	}
 
 	return &mongoDBOnlineStore{
-		client:   client,
-		database: config.Database,
+		client:          client,
+		database:        config.Database,
+		tableThroughput: config.Throughput,
 		BaseProvider: BaseProvider{
 			ProviderType:   MongoDBOnline,
 			ProviderConfig: config.Serialized(),

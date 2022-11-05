@@ -217,6 +217,7 @@ class MongoDBConfig:
     host: str
     port: str
     database: str
+    throughput: int
 
     def software(self) -> str:
         return "mongodb"
@@ -230,7 +231,8 @@ class MongoDBConfig:
             "Password": self.password,
             "Host": self.host,
             "Port": self.port,
-            "Database": self.database
+            "Database": self.database,
+            "Throughput": self.throughput
         }
         return bytes(json.dumps(config), "utf-8")
 

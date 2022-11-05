@@ -6,7 +6,6 @@ package provider
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	sn "github.com/mrz1836/go-sanitize"
 	"go.mongodb.org/mongo-driver/bson"
@@ -20,21 +19,10 @@ type mongoDBMetadataRow struct {
 	T    string
 }
 
-type mongoDBTableKey struct {
-	Keyspace, Feature, Variant string
-}
-
-func (t mongoDBTableKey) String() string {
-	marshalled, err := json.Marshal(t)
-	if err != nil {
-		return err.Error()
-	}
-	return string(marshalled)
-}
-
 type mongoDBOnlineStore struct {
-	client   *mongo.Client
-	Database string
+	client          *mongo.Client
+	database        string
+	tableThroughput int
 	BaseProvider
 }
 
@@ -81,7 +69,7 @@ func NewMongoDBOnlineStore(config *MongoDBConfig) (*mongoDBOnlineStore, error) {
 
 	return &mongoDBOnlineStore{
 		client:   client,
-		Database: config.Database,
+		database: config.Database,
 		BaseProvider: BaseProvider{
 			ProviderType:   MongoDBOnline,
 			ProviderConfig: config.Serialized(),
@@ -121,21 +109,21 @@ func (store *mongoDBOnlineStore) CreateTable(feature, variant string, valueType 
 
 	metadataTableName := store.GetMetadataTableName()
 
-	_, err := store.client.Database(store.Database).Collection(metadataTableName).InsertOne(context.TODO(), mongoDBMetadataRow{tableName, vType})
+	_, err := store.client.Database(store.database).Collection(metadataTableName).InsertOne(context.TODO(), mongoDBMetadataRow{tableName, vType})
 	if err != nil {
 		return nil, fmt.Errorf("could not insert metadata table name: %w", err)
 	}
 
-	command := bson.D{{"customAction", "CreateCollection"}, {"collection", tableName}, {"autoScaleSettings", bson.D{{"maxThroughput", 1000}}}}
+	command := bson.D{{"customAction", "CreateCollection"}, {"collection", tableName}, {"autoScaleSettings", bson.D{{"maxThroughput", store.tableThroughput}}}}
 	var cmdResult interface{}
-	err = store.client.Database(store.Database).RunCommand(context.TODO(), command).Decode(&cmdResult)
+	err = store.client.Database(store.database).RunCommand(context.TODO(), command).Decode(&cmdResult)
 	if err != nil {
 		return nil, fmt.Errorf("could not set table throughput: %s, %w", tableName, err)
 	}
 
 	table := &mongoDBOnlineTable{
 		client:    store.client,
-		database:  store.Database,
+		database:  store.database,
 		name:      tableName,
 		valueType: valueType,
 	}
@@ -146,7 +134,7 @@ func (store *mongoDBOnlineStore) CreateTable(feature, variant string, valueType 
 
 func (store *mongoDBOnlineStore) GetTable(feature, variant string) (OnlineStoreTable, error) {
 	tableName := store.GetTableName(feature, variant)
-	cur, err := store.client.Database(store.Database).ListCollections(context.TODO(), bson.D{{"name", tableName}})
+	cur, err := store.client.Database(store.database).ListCollections(context.TODO(), bson.D{{"name", tableName}})
 	if err != nil {
 		return nil, fmt.Errorf("could not create check if metadata exists: %w", err)
 	}
@@ -160,13 +148,13 @@ func (store *mongoDBOnlineStore) GetTable(feature, variant string) (OnlineStoreT
 	}
 
 	var row mongoDBMetadataRow
-	err = store.client.Database(store.Database).Collection(store.GetMetadataTableName()).FindOne(context.TODO(), bson.D{{"name", tableName}}).Decode(&row)
+	err = store.client.Database(store.database).Collection(store.GetMetadataTableName()).FindOne(context.TODO(), bson.D{{"name", tableName}}).Decode(&row)
 	if err != nil {
 		return nil, fmt.Errorf("could not get metadata table value: %s, %w", tableName, err)
 	}
 	table := &mongoDBOnlineTable{
 		client:    store.client,
-		database:  store.Database,
+		database:  store.database,
 		name:      tableName,
 		valueType: ValueType(row.T),
 	}
@@ -175,11 +163,11 @@ func (store *mongoDBOnlineStore) GetTable(feature, variant string) (OnlineStoreT
 
 func (store *mongoDBOnlineStore) DeleteTable(feature, variant string) error {
 	tableName := store.GetTableName(feature, variant)
-	err := store.client.Database(store.Database).Collection(tableName).Drop(context.TODO())
+	err := store.client.Database(store.database).Collection(tableName).Drop(context.TODO())
 	if err != nil {
 		return fmt.Errorf("could not drop collection: %s: %w", tableName, err)
 	}
-	_, err = store.client.Database(store.Database).Collection(store.GetMetadataTableName()).DeleteOne(context.TODO(), bson.D{{"name", tableName}})
+	_, err = store.client.Database(store.database).Collection(store.GetMetadataTableName()).DeleteOne(context.TODO(), bson.D{{"name", tableName}})
 	if err != nil {
 		return fmt.Errorf("could not drop collection: %s: %w", tableName, err)
 	}

@@ -86,11 +86,12 @@ func (r *CassandraConfig) Deserialize(config SerializedConfig) error {
 }
 
 type MongoDBConfig struct {
-	Host     string
-	Port     string
-	Username string
-	Password string
-	Database string
+	Host       string
+	Port       string
+	Username   string
+	Password   string
+	Database   string
+	Throughput int
 }
 
 func (r MongoDBConfig) Serialized() SerializedConfig {

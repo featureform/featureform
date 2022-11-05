@@ -8,14 +8,14 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/featureform/helpers"
 	"github.com/featureform/kubernetes"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	"github.com/featureform/types"
-	"github.com/featureform/helpers"
 )
 
-const MAXIMUM_CHUNK_ROWS int64 = 16777216
+const MAXIMUM_CHUNK_ROWS int64 = 1024
 
 var WORKER_IMAGE string = helpers.GetEnv("WORKER_IMAGE", "featureformcom/worker:latest")
 

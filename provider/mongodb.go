@@ -113,7 +113,7 @@ func (store *mongoDBOnlineStore) GetMetadataTableName() string {
 
 func (store *mongoDBOnlineStore) CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error) {
 	tableName := store.GetTableName(feature, variant)
-	vType := cassandraTypeMap[string(valueType)]
+	vType := string(valueType) //cassandraTypeMap[string(valueType)]
 	getTable, _ := store.GetTable(feature, variant)
 	if getTable != nil {
 		return nil, &TableAlreadyExists{feature, variant}

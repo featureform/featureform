@@ -451,12 +451,13 @@ func TestParquetUpload(t *testing.T) {
 		// Databricks Test (use FileStore and spark executor)
 		"sparkTestTrainingSet":      sparkTestTrainingSet,
 		"sparkTestMaterializations": sparkTestMaterializations,
+		// "sparkTestMaterializations":                   sparkTestMaterializations,
 		// "sparkTestTrainingSetDefShorthand":            sparkTestTrainingSetDefShorthand,
 		// "sparkTestMaterializationUpdate":              sparkTestMaterializationUpdate,
-		// "sparkTestTrainingSetUpdate":                  sparkTestTrainingSetUpdate,
+		// "sparkTestTrainingSetUpdate": sparkTestTrainingSetUpdate,
 		// "sparkTestSQLTransformation": testSparkSQLTransformation,
 		// "sparkTestUpdateQuery":                        testUpdateQuery,
-		// "sparkTestGetDFArgs":                          testGetDFArgs,
+		"sparkTestGetDFArgs": testGetDFArgs,
 		// "sparkTestGetResourceInformationFromFilePath": testGetResourceInformationFromFilePath,
 		// "sparkTestGetSourcePath":                      testGetSourcePath,
 		// "sparkTestGetTransformation":                  testGetTransformation,
@@ -1333,75 +1334,79 @@ func testGetResourceInformationFromFilePath(t *testing.T, store *SparkOfflineSto
 	}
 }
 
-// func testGetDFArgs(t *testing.T, store *SparkOfflineStore) {
-// 	t.Parallel()
-// 	cases := []struct {
-// 		name            string
-// 		outputURI       string
-// 		code            string
-// 		region          string
-// 		mapping         []SourceMapping
-// 		expectedArgs    []string
-// 		expectedFailure bool
-// 	}{
-// 		{
-// 			"PrimaryPathSuccess",
-// 			"s3://featureform-spark-testing/featureform/Primary/test_name/test_variant",
-// 			"code",
-// 			"us-east-2",
-// 			[]SourceMapping{
-// 				SourceMapping{
-// 					Template: "transaction",
-// 					Source:   "featureform_primary__test_name__test_variant",
-// 				},
-// 			},
-// 			[]string{
-// 				"spark-submit",
-// 				"--deploy-mode",
-// 				"cluster",
-// 				"s3://featureform-spark-testing/featureform/scripts/offline_store_spark_runner.py",
-// 				"df",
-// 				"--output_uri",
-// 				"s3://featureform-spark-testing/featureform/Primary/test_name/test_variant",
-// 				"--code",
-// 				"code",
-// 				"--aws_region",
-// 				"us-east-2",
-// 				"--source",
-// 				"transaction=s3://featureform-spark-testing/featureform/testprimary/testFile.csv",
-// 			},
-// 			false,
-// 		},
-// 		{
-// 			"FakePrimaryPath",
-// 			"s3://featureform-spark-testing/featureform/Primary/test_name/test_variant",
-// 			"code",
-// 			"us-east-2",
-// 			[]SourceMapping{
-// 				SourceMapping{
-// 					Template: "transaction",
-// 					Source:   "featureform_primary",
-// 				},
-// 			},
-// 			nil,
-// 			true,
-// 		},
-// 	}
+func testGetDFArgs(t *testing.T, store *SparkOfflineStore) {
+	azureStore := store.Store.AsAzureStore()
 
-// 	for _, tt := range cases {
-// 		ttConst := tt
-// 		t.Run(ttConst.name, func(t *testing.T) {
-// 			args, err := store.Executor.GetDFArgs(ttConst.outputURI, ttConst.code, ttConst.region, ttConst.mapping, store.Store)
-// 			if !ttConst.expectedFailure && err != nil {
-// 				t.Fatalf("could not get df args %s", err)
-// 			}
+	cases := []struct {
+		name            string
+		outputURI       string
+		code            string
+		store_type      string
+		mapping         []SourceMapping
+		expectedArgs    []string
+		expectedFailure bool
+	}{
+		{
+			"PrimaryPathSuccess",
+			"featureform-spark-testing/featureform/Primary/test_name/test_variant",
+			"code",
+			"AzureBlobStore",
+			[]SourceMapping{
+				SourceMapping{
+					Template: "transaction",
+					Source:   "featureform-spark-testing/featureform/testprimary/testFile.csv",
+				},
+			},
+			[]string{
+				"df",
+				"--output_uri",
+				"featureform-spark-testing/featureform/Primary/test_name/test_variant",
+				"--code",
+				"code",
+				"--store_type",
+				"azure_blob_store",
+				"--spark_config",
+				azureStore.configString(),
+				"--credential",
+				fmt.Sprintf("azure_connection_string=%s", azureStore.connectionString()),
+				"--credential",
+				fmt.Sprintf("azure_container_name=%s", azureStore.containerName()),
+				"--source",
+				store.Store.PathWithPrefix("featureform-spark-testing/featureform/testprimary/testFile.csv", true),
+			},
+			false,
+		},
+		{
+			"FakePrimaryPath",
+			"s3://featureform-spark-testing/featureform/Primary/test_name/test_variant",
+			"code",
+			"AzureBlobStore",
+			[]SourceMapping{
+				SourceMapping{
+					Template: "transaction",
+					Source:   "featureform_primary",
+				},
+			},
+			nil,
+			true,
+		},
+	}
 
-// 			if !ttConst.expectedFailure && !reflect.DeepEqual(ttConst.expectedArgs, args) {
-// 				t.Fatalf("getDFArgs could not generate the expected args. Expected \"%s\", got \"%s\".", ttConst.expectedArgs, args)
-// 			}
-// 		})
-// 	}
-// }
+	for _, tt := range cases {
+		ttConst := tt
+		t.Run(ttConst.name, func(t *testing.T) {
+			args, err := store.Executor.GetDFArgs(ttConst.outputURI, ttConst.code, ttConst.mapping, store.Store)
+
+			if !ttConst.expectedFailure && err != nil {
+				t.Fatalf("could not get df args %s", err)
+			}
+
+			if !ttConst.expectedFailure && !reflect.DeepEqual(ttConst.expectedArgs, args) {
+				t.Fatalf("getDFArgs could not generate the expected args. Expected \"%s\", got \"%s\".", ttConst.expectedArgs, args)
+			}
+		})
+	}
+}
 
 func testTransformation(t *testing.T, store *SparkOfflineStore) {
 	t.Parallel()

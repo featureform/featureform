@@ -210,13 +210,12 @@ func (db *DatabricksExecutor) RunSparkJob(args *[]string, store FileStore) error
 			Value: helpers.GetEnv("AZURE_ACCOUNT_KEY", ""),
 		},
 	}
-	fmt.Println(setConfigReq) //TODO: resolve error: "Custom containers is turned off for your deployment. Please contact your workspace administrator to use this feature."
+	//TODO: resolve error: "Custom containers is turned off for your deployment. Please contact your workspace administrator to use this feature."
 	// need to specify spark version
 	// if err := clusterClient.Edit(setConfigReq); err != nil {
 	// 	return fmt.Errorf("Could not modify cluster to accept spark configs; %v", err)
 	// }
 	jobsClient := db.client.Jobs()
-	fmt.Println("python file uri is:", db.PythonFileURI(store))
 	pythonTask := azureModels.SparkPythonTask{
 		PythonFile: db.PythonFileURI(store),
 		Parameters: args,
@@ -602,8 +601,8 @@ func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, i
 		return err
 	}
 
-	transformationDestination := spark.Store.PathWithPrefix(ResourcePath(config.TargetTableID), true)
-	newestTransformationFile, err := spark.Store.NewestFile(ResourcePath(config.TargetTableID))
+	transformationDestination := spark.Store.PathWithPrefix(ResourcePrefix(config.TargetTableID), true)
+	newestTransformationFile, err := spark.Store.NewestFile(ResourcePrefix(config.TargetTableID))
 	if err != nil {
 		return fmt.Errorf("could not get newest transformation file: %v", err)
 	}
@@ -618,8 +617,6 @@ func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, i
 
 	spark.Logger.Debugw("Running SQL transformation", config)
 	sparkArgs := spark.Executor.SparkSubmitArgs(transformationDestination, updatedQuery, sources, JobType(Transform), spark.Store)
-	fmt.Println(sparkArgs)
-
 	if err := spark.Executor.RunSparkJob(&sparkArgs, spark.Store); err != nil {
 		spark.Logger.Errorw("spark submit job for transformation failed to run", config.TargetTableID, err)
 		return fmt.Errorf("spark submit job for transformation %v failed to run: %v", config.TargetTableID, err)
@@ -712,7 +709,7 @@ func (spark *SparkOfflineStore) getSourcePath(path string) (string, error) {
 	} else if fileType == "transformation" {
 		fileResourceId := ResourceID{Name: fileName, Variant: fileVariant, Type: Transformation}
 
-		transformationPath, err := spark.Store.NewestFile(spark.Store.PathWithPrefix(ResourcePath(fileResourceId), false))
+		transformationPath, err := spark.Store.NewestFile(spark.Store.PathWithPrefix(ResourcePrefix(fileResourceId), false))
 		if err != nil || transformationPath == "" {
 			return "", fmt.Errorf("Could not get transformation file path: %v", err)
 		}
@@ -728,12 +725,19 @@ func (spark *SparkOfflineStore) getResourceInformationFromFilePath(path string) 
 	var fileType string
 	var fileName string
 	var fileVariant string
+	containsSlashes := strings.Contains(path, "/")
 	if path[:5] == "s3://" {
 		filePaths := strings.Split(path[len("s3://"):], "/")
 		if len(filePaths) <= 4 {
 			return "", "", ""
 		}
 		fileType, fileName, fileVariant = strings.ToLower(filePaths[2]), filePaths[3], filePaths[4]
+	} else if containsSlashes {
+		filePaths := strings.Split(path[len("featureform/"):], "/")
+		if len(filePaths) <= 2 {
+			return "", "", ""
+		}
+		fileType, fileName, fileVariant = strings.ToLower(filePaths[0]), filePaths[1], filePaths[2]
 	} else {
 		filePaths := strings.Split(path[len("featureform_"):], "__")
 		if len(filePaths) <= 2 {
@@ -800,12 +804,13 @@ func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, mapping []
 
 func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
 	spark.Logger.Debugw("Getting transformation table", "ResourceID", id)
-	transformationPath, err := spark.Store.NewestFile(ResourcePrefix(id))
-	if err != nil || transformationPath == "" {
+	transformationPath := spark.Store.PathWithPrefix(fileStoreResourcePath(id), false)
+	transformationExactPath, err := spark.Store.NewestFile(transformationPath)
+	if err != nil || transformationExactPath == "" {
 		return nil, fmt.Errorf("Could not get transformation table: %v", err)
 	}
 	spark.Logger.Debugw("Succesfully retrieved transformation table", "ResourceID", id)
-	return &FileStorePrimaryTable{spark.Store, transformationPath, true, id}, nil
+	return &FileStorePrimaryTable{spark.Store, transformationExactPath, true, id}, nil
 }
 
 func (spark *SparkOfflineStore) UpdateTransformation(config TransformationConfig) error {

@@ -419,18 +419,7 @@ func TestParquetUpload(t *testing.T) {
 		// "EMR_SPARK_STORE":        emrSparkOfflineStore,
 		"DATABRICKS_SPARK_STORE": databricksSparkOfflineStore,
 	}
-	// if err := testResourcePath(sparkOfflineStore); err != nil {
-	// 	t.Fatalf("resource path test failed: %s", err)
-	// }
-	// if err := testRegisterResource(sparkOfflineStore); err != nil {
-	// 	t.Fatalf("register resource test failed: %s", err)
-	// }
-	// if err := testRegisterPrimary(sparkOfflineStore); err != nil {
-	// 	t.Fatalf("resource primary test failed: %s", err)
-	// }
-	// if err := testResourceMultipartStream(sparkOfflineStore); err != nil {
-	// 	t.Fatalf("multi part stream test failed, %v", err)
-	// }
+
 	testFns := map[string]func(*testing.T, *SparkOfflineStore){
 		// FileStore Tests (Do not use spark executor)
 		"sparkTestCreateGetOfflineTable":           sparkTestCreateGetOfflineTable,
@@ -1551,22 +1540,22 @@ func getDatabricksOfflineStore(t *testing.T) (*SparkOfflineStore, error) {
 		Token:    helpers.GetEnv("DATABRICKS_TOKEN", ""),
 		Cluster:  helpers.GetEnv("DATABRICKS_CLUSTER", ""),
 	}
-	serializedDatabricksConfig := databricksConfig.Serialize()
+	// serializedDatabricksConfig := databricksConfig.Serialize()
 	azureConfig := AzureFileStoreConfig{
 		AccountName:   helpers.GetEnv("AZURE_ACCOUNT_NAME", ""),
 		AccountKey:    helpers.GetEnv("AZURE_ACCOUNT_KEY", ""),
 		ContainerName: helpers.GetEnv("AZURE_CONTAINER_NAME", ""),
 		Path:          helpers.GetEnv("AZURE_CONTAINER_PATH", ""),
 	}
-	serializedAzureConfig, err := azureConfig.Serialize()
-	if err != nil {
-		return nil, fmt.Errorf("Could not serialize azure config: %s", err)
-	}
+	// serializedAzureConfig, err := azureConfig.Serialize()
+	// if err != nil {
+	// 	return nil, fmt.Errorf("Could not serialize azure config: %s", err)
+	// }
 	SparkOfflineConfig := SparkConfig{
 		ExecutorType:   Databricks,
-		ExecutorConfig: serializedDatabricksConfig,
+		ExecutorConfig: databricksConfig,
 		StoreType:      Azure,
-		StoreConfig:    serializedAzureConfig,
+		StoreConfig:    azureConfig,
 	}
 	sparkSerializedConfig := SparkOfflineConfig.Serialize()
 	sparkProvider, err := Get("SPARK_OFFLINE", sparkSerializedConfig)

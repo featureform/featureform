@@ -375,8 +375,8 @@ class SparkConfig:
 
     def serialize(self) -> bytes:
         config = {
-            "ExecutorType": "EMR",  
-            "StoreType": "S3",
+            "ExecutorType": self.executor_type,  
+            "StoreType": self.store_type,
             "ExecutorConfig": self.executor_config,
             "StoreConfig": self.store_config,
         }

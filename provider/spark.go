@@ -21,8 +21,8 @@ import (
 
 	databricks "github.com/Azure/databricks-sdk-golang"
 	dbAzure "github.com/Azure/databricks-sdk-golang/azure"
-	clusterHTTPModels "github.com/Azure/databricks-sdk-golang/azure/clusters/httpmodels"
-	clusterModels "github.com/Azure/databricks-sdk-golang/azure/clusters/models"
+	// clusterHTTPModels "github.com/Azure/databricks-sdk-golang/azure/clusters/httpmodels"
+	// clusterModels "github.com/Azure/databricks-sdk-golang/azure/clusters/models"
 	azureHTTPModels "github.com/Azure/databricks-sdk-golang/azure/jobs/httpmodels"
 	azureModels "github.com/Azure/databricks-sdk-golang/azure/jobs/models"
 
@@ -53,10 +53,10 @@ type SparkExecutorConfig []byte
 
 type SparkConfig struct {
 	ExecutorType   SparkExecutorType
-	ExecutorConfig SparkExecutorConfig
+	ExecutorConfig DatabricksConfig
 	StoreType      FileStoreType
-	StoreConfig    FileStoreConfig
-}
+	StoreConfig    AzureFileStoreConfig
+} //TODO, change these back to type agnostic after databricks tests
 
 func (s *SparkConfig) Deserialize(config SerializedConfig) error {
 	err := json.Unmarshal(config, s)
@@ -178,11 +178,11 @@ func (db *DatabricksExecutor) InitializeExecutor(store FileStore) error {
 	return nil
 }
 
-func NewDatabricksExecutor(config Config) (SparkExecutor, error) {
-	databricksConfig := DatabricksConfig{}
-	if err := databricksConfig.Deserialize(SerializedConfig(config)); err != nil {
-		return nil, fmt.Errorf("could not deserialize s3 store config: %v", err)
-	}
+func NewDatabricksExecutor(databricksConfig DatabricksConfig) (SparkExecutor, error) {
+	// databricksConfig := DatabricksConfig{}
+	// if err := databricksConfig.Deserialize(SerializedConfig(config)); err != nil {
+	// 	return nil, fmt.Errorf("could not deserialize s3 store config: %v", err)
+	// }
 	opt := databricks.NewDBClientOption(
 		databricksConfig.Username,
 		databricksConfig.Password,
@@ -203,13 +203,13 @@ func NewDatabricksExecutor(config Config) (SparkExecutor, error) {
 func (db *DatabricksExecutor) RunSparkJob(args *[]string, store FileStore) error {
 	//set spark configuration
 	// clusterClient := db.client.Clusters()
-	setConfigReq := clusterHTTPModels.EditReq{
-		ClusterID: db.cluster,
-		SparkConf: clusterModels.SparkConfPair{
-			Key:   "fs.azure.account.key.testingstoragegen.dfs.core.windows.net", //change to one based on account name
-			Value: helpers.GetEnv("AZURE_ACCOUNT_KEY", ""),
-		},
-	}
+	// setConfigReq := clusterHTTPModels.EditReq{
+	// 	ClusterID: db.cluster,
+	// 	SparkConf: clusterModels.SparkConfPair{
+	// 		Key:   "fs.azure.account.key.testingstoragegen.dfs.core.windows.net", //change to one based on account name
+	// 		Value: helpers.GetEnv("AZURE_ACCOUNT_KEY", ""),
+	// 	},
+	// }
 	//TODO: resolve error: "Custom containers is turned off for your deployment. Please contact your workspace administrator to use this feature."
 	// need to specify spark version
 	// if err := clusterClient.Edit(setConfigReq); err != nil {
@@ -409,7 +409,11 @@ func sparkOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 
 	fmt.Sprintf("Executor type: %s, Executor config: %v", sc.ExecutorType, sc.ExecutorConfig)
 	logger.Info("Creating Spark store with type:", sc.StoreType)
-	store, err := CreateFileStore(string(sc.StoreType), Config(sc.StoreConfig))
+	serializedDatabricksConfig, err := sc.StoreConfig.Serialize()
+	if err != nil {
+		return nil, fmt.Errorf("Could not serialize databricks Config, %v", err)
+	}
+	store, err := CreateFileStore(string(sc.StoreType), Config(serializedDatabricksConfig))
 	if err != nil {
 		logger.Errorw("Failure initializing blob store with type", sc.StoreType, err)
 		return nil, err
@@ -465,25 +469,26 @@ func (e EMRExecutor) InitializeExecutor(store FileStore) error {
 	return store.Write(sparkScriptPath, buff)
 }
 
-func NewSparkExecutor(execType SparkExecutorType, config SparkExecutorConfig, logger *zap.SugaredLogger) (SparkExecutor, error) {
-	if execType == EMR {
-		emrConfig := &EMRConfig{}
-		if err := emrConfig.Deserialize(SerializedConfig(config)); err != nil {
-			return nil, fmt.Errorf("Could not deserialize config: %v", err)
-		}
-		client := emr.New(emr.Options{
-			Region:      emrConfig.ClusterRegion,
-			Credentials: aws.NewCredentialsCache(credentials.NewStaticCredentialsProvider(emrConfig.AWSAccessKeyId, emrConfig.AWSSecretKey, "")),
-		})
+func NewSparkExecutor(execType SparkExecutorType, config DatabricksConfig, logger *zap.SugaredLogger) (SparkExecutor, error) {
+	// if execType == EMR {
+	// 	emrConfig := &EMRConfig{}
+	// 	if err := emrConfig.Deserialize(SerializedConfig(config)); err != nil {
+	// 		return nil, fmt.Errorf("Could not deserialize config: %v", err)
+	// 	}
+	// 	client := emr.New(emr.Options{
+	// 		Region:      emrConfig.ClusterRegion,
+	// 		Credentials: aws.NewCredentialsCache(credentials.NewStaticCredentialsProvider(emrConfig.AWSAccessKeyId, emrConfig.AWSSecretKey, "")),
+	// 	})
 
-		emrExecutor := EMRExecutor{
-			client:      client,
-			logger:      logger,
-			clusterName: emrConfig.ClusterName,
-		}
-		return &emrExecutor, nil
-	} else if execType == Databricks {
-		return NewDatabricksExecutor(Config(config))
+	// 	emrExecutor := EMRExecutor{
+	// 		client:      client,
+	// 		logger:      logger,
+	// 		clusterName: emrConfig.ClusterName,
+	// 	}
+	// 	return &emrExecutor, nil
+	// } else
+	if execType == Databricks {
+		return NewDatabricksExecutor(config)
 	}
 	return nil, nil
 }

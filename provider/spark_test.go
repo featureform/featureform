@@ -449,19 +449,19 @@ func TestParquetUpload(t *testing.T) {
 		// "sparkTestCreateDuplicatePrimaryTable":        sparkTestCreateDuplicatePrimaryTable,
 
 		// Databricks Test (use FileStore and spark executor)
-		"sparkTestTrainingSet":      sparkTestTrainingSet,
-		"sparkTestMaterializations": sparkTestMaterializations,
+		// "sparkTestTrainingSet":      sparkTestTrainingSet,
+		// "sparkTestMaterializations": sparkTestMaterializations,
 		// "sparkTestMaterializations":                   sparkTestMaterializations,
 		// "sparkTestTrainingSetDefShorthand":            sparkTestTrainingSetDefShorthand,
 		// "sparkTestMaterializationUpdate":              sparkTestMaterializationUpdate,
 		// "sparkTestTrainingSetUpdate": sparkTestTrainingSetUpdate,
 		// "sparkTestSQLTransformation": testSparkSQLTransformation,
 		// "sparkTestUpdateQuery":                        testUpdateQuery,
-		"sparkTestGetDFArgs": testGetDFArgs,
+		// "sparkTestGetDFArgs": testGetDFArgs,
 		// "sparkTestGetResourceInformationFromFilePath": testGetResourceInformationFromFilePath,
-		"sparkTestGetSourcePath":     testGetSourcePath,
-		"sparkTestGetTransformation": testGetTransformation,
-		// "sparkTestTransformation": testTransformation,
+		// "sparkTestGetSourcePath":     testGetSourcePath,
+		// "sparkTestGetTransformation": testGetTransformation,
+		"sparkTestTransformation": testTransformation,
 	}
 
 	t.Run("SPARK_STORE_FUNCTIONS", func(t *testing.T) {
@@ -1406,7 +1406,6 @@ func testGetDFArgs(t *testing.T, store *SparkOfflineStore) {
 }
 
 func testTransformation(t *testing.T, store *SparkOfflineStore) {
-	t.Parallel()
 	cases := []struct {
 		name            string
 		config          TransformationConfig
@@ -1426,44 +1425,44 @@ func testTransformation(t *testing.T, store *SparkOfflineStore) {
 				SourceMapping: []SourceMapping{
 					SourceMapping{
 						Template: "{{test_name.test_variant}}",
-						Source:   "featureform_primary__test_name__test_variant",
+						Source:   "featureform_primary__test_name__14e4cd5e183d44968a6cf22f2f61d945",
 					},
 				},
 			},
-			ResourceID{"test_name", "test_variant", Primary},
+			ResourceID{"test_name", "14e4cd5e183d44968a6cf22f2f61d945", Primary},
 			false,
 		},
-		{
-			"DFTransformationType",
-			TransformationConfig{
-				Type: DFTransformation,
-				TargetTableID: ResourceID{
-					Name:    uuid.NewString(),
-					Type:    Transformation,
-					Variant: "test_variant",
-				},
-				Query: "s3://featureform-spark-testing/featureform/DFTransformations/test_name/test_variant/transformation.pkl",
-				SourceMapping: []SourceMapping{
-					SourceMapping{
-						Template: "transaction",
-						Source:   "featureform_primary__test_name__test_variant",
-					},
-				},
-			},
-			ResourceID{"test_name", "test_variant", Primary},
-			false,
-		},
-		{
-			"NoTransformationType",
-			TransformationConfig{
-				Type:          NoTransformationType,
-				TargetTableID: ResourceID{},
-				Query:         "SELECT * FROM {{test_name.test_variant}}",
-				SourceMapping: []SourceMapping{},
-			},
-			ResourceID{},
-			true,
-		},
+		// {
+		// 	"DFTransformationType",
+		// 	TransformationConfig{
+		// 		Type: DFTransformation,
+		// 		TargetTableID: ResourceID{
+		// 			Name:    uuid.NewString(),
+		// 			Type:    Transformation,
+		// 			Variant: "test_variant",
+		// 		},
+		// 		Query: "s3://featureform-spark-testing/featureform/DFTransformations/test_name/test_variant/transformation.pkl",
+		// 		SourceMapping: []SourceMapping{
+		// 			SourceMapping{
+		// 				Template: "transaction",
+		// 				Source:   "featureform_primary__test_name__test_variant",
+		// 			},
+		// 		},
+		// 	},
+		// 	ResourceID{"test_name", "test_variant", Primary},
+		// 	false,
+		// },
+		// {
+		// 	"NoTransformationType",
+		// 	TransformationConfig{
+		// 		Type:          NoTransformationType,
+		// 		TargetTableID: ResourceID{},
+		// 		Query:         "SELECT * FROM {{test_name.test_variant}}",
+		// 		SourceMapping: []SourceMapping{},
+		// 	},
+		// 	ResourceID{},
+		// 	true,
+		// },
 	}
 
 	for _, tt := range cases {
@@ -1472,7 +1471,10 @@ func testTransformation(t *testing.T, store *SparkOfflineStore) {
 			t.Parallel()
 			time.Sleep(time.Second * 15)
 			err := store.transformation(ttConst.config, false)
-			if !ttConst.expectedFailure && err != nil {
+			if err != nil {
+				if ttConst.expectedFailure {
+					return
+				}
 				t.Fatalf("could not run transformation %s", err)
 			}
 

@@ -148,8 +148,8 @@ func (db *DatabricksExecutor) PythonFileURI(store FileStore) string {
 	return store.PathWithPrefix("scripts/spark/offline_store_spark_runner.py", true)
 }
 
-func readAndUploadFile(path string, store FileStore) error {
-	f, err := os.Open(path)
+func readAndUploadFile(filePath string, storePath string, store FileStore) error {
+	f, err := os.Open(filePath)
 
 	if err != nil {
 		return fmt.Errorf("could not open file: %v", err)
@@ -160,7 +160,7 @@ func readAndUploadFile(path string, store FileStore) error {
 	}
 	pythonScriptBytes := make([]byte, fileStats.Size())
 	_, err = f.Read(pythonScriptBytes)
-	if err := store.Write(path, pythonScriptBytes); err != nil {
+	if err := store.Write(storePath, pythonScriptBytes); err != nil {
 		return fmt.Errorf("could not write to python script: %v", err)
 	}
 	return nil
@@ -169,14 +169,13 @@ func readAndUploadFile(path string, store FileStore) error {
 func (db *DatabricksExecutor) InitializeExecutor(store FileStore) error {
 	sparkScriptPath := helpers.GetEnv("SPARK_SCRIPT_PATH", "scripts/spark/offline_store_spark_runner.py")
 	pythonInitScriptPath := helpers.GetEnv("PYTHON_INIT_PATH", "scripts/spark/python_packages.sh")
-	if err := readAndUploadFile(sparkScriptPath, store); err != nil {
+	if err := readAndUploadFile(sparkScriptPath, store.PathWithPrefix(sparkScriptPath, false), store); err != nil {
 		return fmt.Errorf("Could not upload spark script")
 	}
-	if err := readAndUploadFile(pythonInitScriptPath, store); err != nil {
+	if err := readAndUploadFile(pythonInitScriptPath, store.PathWithPrefix(pythonInitScriptPath, false), store); err != nil {
 		return fmt.Errorf("Could not upload python initialization script")
 	}
 	return nil
-	// TODO run initialization script
 }
 
 func NewDatabricksExecutor(config Config) (SparkExecutor, error) {
@@ -546,10 +545,6 @@ func (e *EMRExecutor) SparkSubmitArgs(destPath string, cleanQuery string, source
 
 func (d *DatabricksExecutor) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store FileStore) []string {
 	argList := []string{
-		// "spark-submit",
-		// "--deploy-mode",
-		// "client",
-		// d.PythonFileURI(store),
 		"sql",
 		"--output_uri",
 		destPath,
@@ -557,18 +552,19 @@ func (d *DatabricksExecutor) SparkSubmitArgs(destPath string, cleanQuery string,
 		cleanQuery,
 		"--job_type",
 		string(jobType),
-		"--source_list",
 	}
 	var remoteConnectionArgs []string
-	azureStore, ok := store.(*AzureFileStore)
-	if ok {
+	azureStore := store.AsAzureStore()
+	if azureStore != nil {
 		remoteConnectionArgs = []string{
 			"--spark_config",
 			azureStore.configString(),
 		}
 	}
-	argList = append(argList, sourceList...)
 	argList = append(argList, remoteConnectionArgs...)
+
+	argList = append(argList, "--source_list")
+	argList = append(argList, sourceList...)
 	return argList
 }
 

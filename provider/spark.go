@@ -715,10 +715,12 @@ func (spark *SparkOfflineStore) getSourcePath(path string) (string, error) {
 		return filePath, nil
 	} else if fileType == "transformation" {
 		fileResourceId := ResourceID{Name: fileName, Variant: fileVariant, Type: Transformation}
+
 		transformationPath, err := spark.Store.NewestFile(spark.Store.PathWithPrefix(ResourcePath(fileResourceId), false))
-		if err != nil {
+		if err != nil || transformationPath == "" {
 			return "", fmt.Errorf("Could not get transformation file path: %v", err)
 		}
+
 		filePath = spark.Store.PathWithPrefix(transformationPath[:strings.LastIndex(transformationPath, "/")], true)
 		return filePath, nil
 	} else {

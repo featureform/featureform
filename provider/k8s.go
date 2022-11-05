@@ -1195,10 +1195,12 @@ func (k8s *K8sOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error)
 func fileStoreGetPrimary(id ResourceID, store FileStore, logger *zap.SugaredLogger) (PrimaryTable, error) {
 	resourceKey := store.PathWithPrefix(fileStoreResourcePath(id), false)
 	logger.Debugw("Getting primary table", id)
+
 	table, err := store.Read(resourceKey)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching primary table: %v", err)
 	}
+
 	logger.Debugw("Succesfully retrieved primary table", id)
 	return &FileStorePrimaryTable{store, string(table), false, id}, nil
 }

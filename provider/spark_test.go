@@ -459,7 +459,7 @@ func TestParquetUpload(t *testing.T) {
 		// "sparkTestUpdateQuery":                        testUpdateQuery,
 		"sparkTestGetDFArgs": testGetDFArgs,
 		// "sparkTestGetResourceInformationFromFilePath": testGetResourceInformationFromFilePath,
-		// "sparkTestGetSourcePath":                      testGetSourcePath,
+		"sparkTestGetSourcePath": testGetSourcePath,
 		// "sparkTestGetTransformation":                  testGetTransformation,
 		// "sparkTestTransformation": testTransformation,
 	}
@@ -1240,7 +1240,6 @@ func testGetTransformation(t *testing.T, store *SparkOfflineStore) {
 }
 
 func testGetSourcePath(t *testing.T, store *SparkOfflineStore) {
-	t.Parallel()
 	cases := []struct {
 		name            string
 		sourcePath      string
@@ -1249,14 +1248,14 @@ func testGetSourcePath(t *testing.T, store *SparkOfflineStore) {
 	}{
 		{
 			"PrimaryPathSuccess",
-			"featureform_primary__test_name__test_variant",
-			"s3://featureform-spark-testing/featureform/testprimary/testFile.csv",
+			"featureform_primary__test_name__14e4cd5e183d44968a6cf22f2f61d945",
+			store.Store.PathWithPrefix("featureform/tests/source_tables/9d2a0c5a-4373-4c26-9838-990d79cd22ce/table.parquet", true),
 			false,
 		},
 		{
 			"TransformationPathSuccess",
 			"featureform_transformation__028f6213-77a8-43bb-9d91-dd7e9ee96102__test_variant",
-			"s3://featureform-spark-testing/featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant/2022-08-19 17:37:36.546384/",
+			store.Store.PathWithPrefix("featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant/2022-08-19 17:37:36.546384", true),
 			false,
 		},
 		{
@@ -1267,7 +1266,7 @@ func testGetSourcePath(t *testing.T, store *SparkOfflineStore) {
 		},
 		{
 			"TransformationPathFailure",
-			"featureform_transformation__fake_028f6213-77a8-43bb-9d91-dd7e9ee96102__fake_variant",
+			"featureform_transformation__fake_name__fake_variant",
 			"",
 			true,
 		},
@@ -1291,7 +1290,6 @@ func testGetSourcePath(t *testing.T, store *SparkOfflineStore) {
 }
 
 func testGetResourceInformationFromFilePath(t *testing.T, store *SparkOfflineStore) {
-	t.Parallel()
 	cases := []struct {
 		name         string
 		sourcePath   string

@@ -1311,12 +1311,16 @@ func (iter *FileStoreFeatureIterator) Next() bool {
 		timestamp, err1 := time.Parse(formatDate, timeString)
 		formatDateWithoutUTC := "2006-01-02 15:04:05"
 		timestamp2, err2 := time.Parse(formatDateWithoutUTC, timeString)
-		if err1 != nil && err2 != nil {
+		formatDateMilli := "2006-01-02 15:04:05 +0000 UTC" // hardcoded golang format date
+		timestamp3, err3 := time.Parse(formatDateMilli, timeString)
+		if err1 != nil && err2 != nil && err3 != nil {
 			iter.err = fmt.Errorf("could not parse timestamp: %v: %v, %v", nextVal["ts"], err1, err2)
 			return false
 		}
-		if err1 != nil {
+		if err2 == nil {
 			timestamp = timestamp2
+		} else if err3 == nil {
+			timestamp = timestamp3
 		}
 		iter.cur = ResourceRecord{Entity: string(nextVal["entity"].(string)), Value: nextVal["value"], TS: timestamp}
 	}

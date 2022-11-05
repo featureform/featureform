@@ -449,8 +449,8 @@ func TestParquetUpload(t *testing.T) {
 		// "sparkTestCreateDuplicatePrimaryTable":        sparkTestCreateDuplicatePrimaryTable,
 
 		// Databricks Test (use FileStore and spark executor)
-		// "sparkTestTrainingSet":                        sparkTestTrainingSet,
-		// "sparkTestMaterializations":                   sparkTestMaterializations,
+		"sparkTestTrainingSet":      sparkTestTrainingSet,
+		"sparkTestMaterializations": sparkTestMaterializations,
 		// "sparkTestTrainingSetDefShorthand":            sparkTestTrainingSetDefShorthand,
 		// "sparkTestMaterializationUpdate":              sparkTestMaterializationUpdate,
 		// "sparkTestTrainingSetUpdate":                  sparkTestTrainingSetUpdate,
@@ -771,6 +771,12 @@ func sparkTestInvalidResourceIDs(t *testing.T, store *SparkOfflineStore) {
 	}
 }
 
+type TestRecordTS struct {
+	Entity string
+	Value  string
+	TS     time.Time
+}
+
 func sparkTestMaterializations(t *testing.T, store *SparkOfflineStore) {
 	type TestCase struct {
 		WriteRecords             []any
@@ -791,9 +797,9 @@ func sparkTestMaterializations(t *testing.T, store *SparkOfflineStore) {
 	tests := map[string]TestCase{
 		"NoOverlap": {
 			WriteRecords: []any{
-				TestRecordInt{Entity: "a", Value: 1},
-				TestRecordInt{Entity: "b", Value: 2},
-				TestRecordInt{Entity: "c", Value: 3},
+				TestRecordTS{Entity: "a", Value: "1"},
+				TestRecordTS{Entity: "b", Value: "2"},
+				TestRecordTS{Entity: "c", Value: "3"},
 			},
 			Timestamp:    false,
 			Schema:       schemaInt,
@@ -803,34 +809,34 @@ func sparkTestMaterializations(t *testing.T, store *SparkOfflineStore) {
 			// Have to expect int64(0) as it is the default value
 			// if a resource does not have a set timestamp
 			ExpectedSegment: []any{
-				TestRecordInt{Entity: "a", Value: 1, TS: int64(0)},
-				TestRecordInt{Entity: "b", Value: 2, TS: int64(0)},
-				TestRecordInt{Entity: "c", Value: 3, TS: int64(0)},
+				ResourceRecord{Entity: "a", Value: "1"},
+				ResourceRecord{Entity: "b", Value: "2"},
+				ResourceRecord{Entity: "c", Value: "3"},
 			},
 		},
-		"SubSegmentNoOverlap": {
-			WriteRecords: []any{
-				TestRecordInt{Entity: "a", Value: 1},
-				TestRecordInt{Entity: "b", Value: 2},
-				TestRecordInt{Entity: "c", Value: 3},
-			},
-			Timestamp:    false,
-			Schema:       schemaInt,
-			ExpectedRows: 3,
-			SegmentStart: 1,
-			SegmentEnd:   2,
-			ExpectedSegment: []any{
-				TestRecordInt{Entity: "b", Value: 2, TS: int64(0)},
-			},
-		},
+		// "SubSegmentNoOverlap": {
+		// 	WriteRecords: []any{
+		// 		TestRecordTS{Entity: "a", Value: "1"},
+		// 		TestRecordTS{Entity: "b", Value: "2"},
+		// 		TestRecordTS{Entity: "c", Value: "3"},
+		// 	},
+		// 	Timestamp:    false,
+		// 	Schema:       schemaInt,
+		// 	ExpectedRows: 3,
+		// 	SegmentStart: 1,
+		// 	SegmentEnd:   2,
+		// 	ExpectedSegment: []any{
+		// 		ResourceRecord{Entity: "b", Value: "2"},
+		// 	},
+		// },
 		// Added .UTC() b/c DeepEqual checks the timezone field of time.Time which can vary, resulting in false failures
 		// during tests even if time is correct
 		"SimpleChanges": {
 			WriteRecords: []any{
-				TestRecordInt{Entity: "a", Value: 1, TS: int64(0)},
-				TestRecordInt{Entity: "b", Value: 2, TS: int64(0)},
-				TestRecordInt{Entity: "c", Value: 3, TS: int64(0)},
-				TestRecordInt{Entity: "a", Value: 4, TS: int64(1)},
+				TestRecordTS{Entity: "a", Value: "1", TS: time.UnixMilli(int64(0)).UTC()},
+				TestRecordTS{Entity: "b", Value: "2", TS: time.UnixMilli(int64(0)).UTC()},
+				TestRecordTS{Entity: "c", Value: "3", TS: time.UnixMilli(int64(0)).UTC()},
+				TestRecordTS{Entity: "a", Value: "4", TS: time.UnixMilli(int64(1)).UTC()},
 			},
 			Schema:       schemaInt,
 			Timestamp:    true,
@@ -838,18 +844,18 @@ func sparkTestMaterializations(t *testing.T, store *SparkOfflineStore) {
 			SegmentStart: 0,
 			SegmentEnd:   3,
 			ExpectedSegment: []any{
-				TestRecordInt{Entity: "a", Value: 4, TS: int64(1)},
-				TestRecordInt{Entity: "b", Value: 2, TS: int64(0)},
-				TestRecordInt{Entity: "c", Value: 3, TS: int64(0)},
+				ResourceRecord{Entity: "a", Value: "4", TS: time.UnixMilli(int64(1)).UTC()},
+				ResourceRecord{Entity: "b", Value: "2", TS: time.UnixMilli(int64(0)).UTC()},
+				ResourceRecord{Entity: "c", Value: "3", TS: time.UnixMilli(int64(0)).UTC()},
 			},
 		},
 		"OutOfOrderWrites": {
 			WriteRecords: []any{
-				TestRecordInt{Entity: "a", Value: 1, TS: int64(10)},
-				TestRecordInt{Entity: "b", Value: 2, TS: int64(3)},
-				TestRecordInt{Entity: "c", Value: 3, TS: int64(7)},
-				TestRecordInt{Entity: "c", Value: 9, TS: int64(5)},
-				TestRecordInt{Entity: "a", Value: 4, TS: int64(1)},
+				TestRecordTS{Entity: "a", Value: "1", TS: time.UnixMilli(int64(10)).UTC()},
+				TestRecordTS{Entity: "b", Value: "2", TS: time.UnixMilli(int64(3)).UTC()},
+				TestRecordTS{Entity: "c", Value: "3", TS: time.UnixMilli(int64(7)).UTC()},
+				TestRecordTS{Entity: "c", Value: "9", TS: time.UnixMilli(int64(5)).UTC()},
+				TestRecordTS{Entity: "a", Value: "4", TS: time.UnixMilli(int64(1)).UTC()},
 			},
 			Schema:       schemaInt,
 			Timestamp:    true,
@@ -857,9 +863,9 @@ func sparkTestMaterializations(t *testing.T, store *SparkOfflineStore) {
 			SegmentStart: 0,
 			SegmentEnd:   3,
 			ExpectedSegment: []any{
-				TestRecordInt{Entity: "a", Value: 1, TS: int64(10)},
-				TestRecordInt{Entity: "b", Value: 2, TS: int64(3)},
-				TestRecordInt{Entity: "c", Value: 3, TS: int64(7)},
+				ResourceRecord{Entity: "a", Value: "1", TS: time.UnixMilli(int64(10)).UTC()},
+				ResourceRecord{Entity: "b", Value: "2", TS: time.UnixMilli(int64(3)).UTC()},
+				ResourceRecord{Entity: "c", Value: "3", TS: time.UnixMilli(int64(7)).UTC()},
 			},
 		},
 	}
@@ -893,7 +899,7 @@ func sparkTestMaterializations(t *testing.T, store *SparkOfflineStore) {
 			}
 
 			if !found {
-				t.Fatalf("Value %v not found in materialization %v", actual, expectedRows)
+				t.Fatalf("Value %v %T not found in materialization %v %T", actual, actual, expectedRows, expectedRows)
 			}
 			i++
 		}

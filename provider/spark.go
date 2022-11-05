@@ -854,7 +854,7 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 	}
 	materializationID := ResourceID{Name: id.Name, Variant: id.Variant, Type: FeatureMaterialization}
 	destinationPath := spark.Store.PathWithPrefix(ResourcePrefix(materializationID), true)
-	materializationNewestFile, err := spark.Store.NewestFile(destinationPath)
+	materializationNewestFile, err := spark.Store.NewestFile(spark.Store.PathWithPrefix(fileStoreResourcePath(materializationID), false))
 	if err != nil {
 		return nil, fmt.Errorf("Could not get newest materialization file: %v", err)
 	}
@@ -874,7 +874,7 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 		spark.Logger.Errorw("Spark submit job failed to run", err)
 		return nil, fmt.Errorf("spark submit job for materialization %v failed to run: %v", materializationID, err)
 	}
-	key, err := spark.Store.NewestFile(ResourcePath(materializationID))
+	key, err := spark.Store.NewestFile(spark.Store.PathWithPrefix(fileStoreResourcePath(materializationID), false))
 	if err != nil || key == "" {
 		return nil, fmt.Errorf("Could not get newest materialization file: %v", err)
 	}

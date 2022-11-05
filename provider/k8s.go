@@ -443,7 +443,7 @@ func (store AzureFileStore) PathWithPrefix(path string, remote bool) string {
 		}
 	}
 	if remote {
-		return fmt.Sprintf("abfss://%s@%s.dfs.core.windows.net%s/%s", store.ContainerName, store.AccountName, store.Path, path)
+		return fmt.Sprintf("abfss://%s@%s.dfs.core.windows.net/%s/%s", store.ContainerName, store.AccountName, store.Path, path)
 	}
 	return path
 }
@@ -452,6 +452,7 @@ func (store genericFileStore) NewestFile(prefix string) (string, error) {
 	opts := blob.ListOptions{
 		Prefix: prefix,
 	}
+
 	listIterator := store.bucket.List(&opts)
 	mostRecentTime := time.UnixMilli(0)
 	mostRecentKey := ""
@@ -1195,10 +1196,12 @@ func (k8s *K8sOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error)
 func fileStoreGetPrimary(id ResourceID, store FileStore, logger *zap.SugaredLogger) (PrimaryTable, error) {
 	resourceKey := store.PathWithPrefix(fileStoreResourcePath(id), false)
 	logger.Debugw("Getting primary table", id)
+
 	table, err := store.Read(resourceKey)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching primary table: %v", err)
 	}
+
 	logger.Debugw("Succesfully retrieved primary table", id)
 	return &FileStorePrimaryTable{store, string(table), false, id}, nil
 }

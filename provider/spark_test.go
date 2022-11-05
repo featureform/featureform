@@ -459,9 +459,9 @@ func TestParquetUpload(t *testing.T) {
 		// "sparkTestUpdateQuery":                        testUpdateQuery,
 		// "sparkTestGetDFArgs": testGetDFArgs,
 		// "sparkTestGetResourceInformationFromFilePath": testGetResourceInformationFromFilePath,
-		// "sparkTestGetSourcePath":                      testGetSourcePath,
-		// "sparkTestGetTransformation":                  testGetTransformation,
-		// "sparkTestTransformation": testTransformation,
+		// "sparkTestGetSourcePath":     testGetSourcePath,
+		// "sparkTestGetTransformation": testGetTransformation,
+		"sparkTestTransformation": testTransformation,
 	}
 
 	t.Run("SPARK_STORE_FUNCTIONS", func(t *testing.T) {
@@ -1200,7 +1200,6 @@ func testUpdateQuery(t *testing.T, store *SparkOfflineStore) {
 }
 
 func testGetTransformation(t *testing.T, store *SparkOfflineStore) {
-	t.Parallel()
 	cases := []struct {
 		name             string
 		id               ResourceID
@@ -1209,11 +1208,11 @@ func testGetTransformation(t *testing.T, store *SparkOfflineStore) {
 		{
 			"testTransformation",
 			ResourceID{
-				Name:    "12fdd4f9-023c-4c0e-99ae-35bdabd0a465",
+				Name:    "028f6213-77a8-43bb-9d91-dd7e9ee96102",
 				Type:    Transformation,
 				Variant: "test_variant",
 			},
-			5,
+			10000,
 		},
 	}
 
@@ -1233,14 +1232,13 @@ func testGetTransformation(t *testing.T, store *SparkOfflineStore) {
 			}
 
 			if caseNumRow != ttConst.expectedRowCount {
-				t.Fatalf("Row count do not match. Expected \" %v \", got \" %v \".", caseNumRow, ttConst.expectedRowCount)
+				t.Fatalf("Row count do not match. Expected \" %v \", got \" %v \".", ttConst.expectedRowCount, caseNumRow)
 			}
 		})
 	}
 }
 
 func testGetSourcePath(t *testing.T, store *SparkOfflineStore) {
-	t.Parallel()
 	cases := []struct {
 		name            string
 		sourcePath      string
@@ -1249,14 +1247,14 @@ func testGetSourcePath(t *testing.T, store *SparkOfflineStore) {
 	}{
 		{
 			"PrimaryPathSuccess",
-			"featureform_primary__test_name__test_variant",
-			"s3://featureform-spark-testing/featureform/testprimary/testFile.csv",
+			"featureform_primary__test_name__14e4cd5e183d44968a6cf22f2f61d945",
+			store.Store.PathWithPrefix("featureform/tests/source_tables/9d2a0c5a-4373-4c26-9838-990d79cd22ce/table.parquet", true),
 			false,
 		},
 		{
 			"TransformationPathSuccess",
 			"featureform_transformation__028f6213-77a8-43bb-9d91-dd7e9ee96102__test_variant",
-			"s3://featureform-spark-testing/featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant/2022-08-19 17:37:36.546384/",
+			store.Store.PathWithPrefix("featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant/2022-08-19 17:37:36.546384", true),
 			false,
 		},
 		{
@@ -1267,7 +1265,7 @@ func testGetSourcePath(t *testing.T, store *SparkOfflineStore) {
 		},
 		{
 			"TransformationPathFailure",
-			"featureform_transformation__fake_028f6213-77a8-43bb-9d91-dd7e9ee96102__fake_variant",
+			"featureform_transformation__fake_name__fake_variant",
 			"",
 			true,
 		},
@@ -1291,7 +1289,6 @@ func testGetSourcePath(t *testing.T, store *SparkOfflineStore) {
 }
 
 func testGetResourceInformationFromFilePath(t *testing.T, store *SparkOfflineStore) {
-	t.Parallel()
 	cases := []struct {
 		name         string
 		sourcePath   string
@@ -1409,7 +1406,6 @@ func testGetDFArgs(t *testing.T, store *SparkOfflineStore) {
 }
 
 func testTransformation(t *testing.T, store *SparkOfflineStore) {
-	t.Parallel()
 	cases := []struct {
 		name            string
 		config          TransformationConfig
@@ -1429,11 +1425,11 @@ func testTransformation(t *testing.T, store *SparkOfflineStore) {
 				SourceMapping: []SourceMapping{
 					SourceMapping{
 						Template: "{{test_name.test_variant}}",
-						Source:   "featureform_primary__test_name__test_variant",
+						Source:   "featureform_primary__test_name__14e4cd5e183d44968a6cf22f2f61d945",
 					},
 				},
 			},
-			ResourceID{"test_name", "test_variant", Primary},
+			ResourceID{"test_name", "14e4cd5e183d44968a6cf22f2f61d945", Primary},
 			false,
 		},
 		{
@@ -1475,7 +1471,10 @@ func testTransformation(t *testing.T, store *SparkOfflineStore) {
 			t.Parallel()
 			time.Sleep(time.Second * 15)
 			err := store.transformation(ttConst.config, false)
-			if !ttConst.expectedFailure && err != nil {
+			if err != nil {
+				if ttConst.expectedFailure {
+					return
+				}
 				t.Fatalf("could not run transformation %s", err)
 			}
 

@@ -148,8 +148,8 @@ func (db *DatabricksExecutor) PythonFileURI(store FileStore) string {
 	return store.PathWithPrefix("scripts/spark/offline_store_spark_runner.py", true)
 }
 
-func readAndUploadFile(path string, store FileStore) error {
-	f, err := os.Open(path)
+func readAndUploadFile(filePath string, storePath string, store FileStore) error {
+	f, err := os.Open(filePath)
 
 	if err != nil {
 		return fmt.Errorf("could not open file: %v", err)
@@ -160,7 +160,7 @@ func readAndUploadFile(path string, store FileStore) error {
 	}
 	pythonScriptBytes := make([]byte, fileStats.Size())
 	_, err = f.Read(pythonScriptBytes)
-	if err := store.Write(path, pythonScriptBytes); err != nil {
+	if err := store.Write(storePath, pythonScriptBytes); err != nil {
 		return fmt.Errorf("could not write to python script: %v", err)
 	}
 	return nil
@@ -169,14 +169,13 @@ func readAndUploadFile(path string, store FileStore) error {
 func (db *DatabricksExecutor) InitializeExecutor(store FileStore) error {
 	sparkScriptPath := helpers.GetEnv("SPARK_SCRIPT_PATH", "scripts/spark/offline_store_spark_runner.py")
 	pythonInitScriptPath := helpers.GetEnv("PYTHON_INIT_PATH", "scripts/spark/python_packages.sh")
-	if err := readAndUploadFile(sparkScriptPath, store); err != nil {
+	if err := readAndUploadFile(sparkScriptPath, store.PathWithPrefix(sparkScriptPath, false), store); err != nil {
 		return fmt.Errorf("Could not upload spark script")
 	}
-	if err := readAndUploadFile(pythonInitScriptPath, store); err != nil {
+	if err := readAndUploadFile(pythonInitScriptPath, store.PathWithPrefix(pythonInitScriptPath, false), store); err != nil {
 		return fmt.Errorf("Could not upload python initialization script")
 	}
 	return nil
-	// TODO run initialization script
 }
 
 func NewDatabricksExecutor(config Config) (SparkExecutor, error) {
@@ -217,8 +216,7 @@ func (db *DatabricksExecutor) RunSparkJob(args *[]string, store FileStore) error
 	// 	return fmt.Errorf("Could not modify cluster to accept spark configs; %v", err)
 	// }
 	jobsClient := db.client.Jobs()
-	fmt.Println("python file uri is:")
-	fmt.Println(db.PythonFileURI(store))
+	fmt.Println("python file uri is:", db.PythonFileURI(store))
 	pythonTask := azureModels.SparkPythonTask{
 		PythonFile: db.PythonFileURI(store),
 		Parameters: args,
@@ -231,7 +229,7 @@ func (db *DatabricksExecutor) RunSparkJob(args *[]string, store FileStore) error
 	createJobRequest := CustomCreateReq{
 		ExistingCluster: db.cluster,
 		SparkPythonTask: &pythonTask,
-		Name:            "Databricks spark submit job",
+		Name:            "Databricks spark submit job 2",
 	}
 	jsonResp, err := databricks.PerformQuery(jobsClient.Client.Option, http.MethodPost, "/jobs/create", createJobRequest, nil)
 	if err != nil {
@@ -546,10 +544,6 @@ func (e *EMRExecutor) SparkSubmitArgs(destPath string, cleanQuery string, source
 
 func (d *DatabricksExecutor) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store FileStore) []string {
 	argList := []string{
-		// "spark-submit",
-		// "--deploy-mode",
-		// "client",
-		// d.PythonFileURI(store),
 		"sql",
 		"--output_uri",
 		destPath,
@@ -557,18 +551,19 @@ func (d *DatabricksExecutor) SparkSubmitArgs(destPath string, cleanQuery string,
 		cleanQuery,
 		"--job_type",
 		string(jobType),
-		"--source_list",
 	}
 	var remoteConnectionArgs []string
-	azureStore, ok := store.(*AzureFileStore)
-	if ok {
+	azureStore := store.AsAzureStore()
+	if azureStore != nil {
 		remoteConnectionArgs = []string{
 			"--spark_config",
 			azureStore.configString(),
 		}
 	}
-	argList = append(argList, sourceList...)
 	argList = append(argList, remoteConnectionArgs...)
+
+	argList = append(argList, "--source_list")
+	argList = append(argList, sourceList...)
 	return argList
 }
 
@@ -610,7 +605,7 @@ func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, i
 	transformationDestination := spark.Store.PathWithPrefix(ResourcePath(config.TargetTableID), true)
 	newestTransformationFile, err := spark.Store.NewestFile(ResourcePath(config.TargetTableID))
 	if err != nil {
-		return fmt.Errorf("Could not get newest transformation file: %v", err)
+		return fmt.Errorf("could not get newest transformation file: %v", err)
 	}
 	transformationExists := newestTransformationFile != ""
 	if !isUpdate && transformationExists {
@@ -620,10 +615,11 @@ func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, i
 		spark.Logger.Errorw("Update job attempted when transformation does not exist", config.TargetTableID, transformationDestination)
 		return fmt.Errorf("transformation %v doesn't exist at %s and you are trying to update", config.TargetTableID, transformationDestination)
 	}
+
 	spark.Logger.Debugw("Running SQL transformation", config)
 	sparkArgs := spark.Executor.SparkSubmitArgs(transformationDestination, updatedQuery, sources, JobType(Transform), spark.Store)
 	fmt.Println(sparkArgs)
-	return nil
+
 	if err := spark.Executor.RunSparkJob(&sparkArgs, spark.Store); err != nil {
 		spark.Logger.Errorw("spark submit job for transformation failed to run", config.TargetTableID, err)
 		return fmt.Errorf("spark submit job for transformation %v failed to run: %v", config.TargetTableID, err)
@@ -715,10 +711,12 @@ func (spark *SparkOfflineStore) getSourcePath(path string) (string, error) {
 		return filePath, nil
 	} else if fileType == "transformation" {
 		fileResourceId := ResourceID{Name: fileName, Variant: fileVariant, Type: Transformation}
+
 		transformationPath, err := spark.Store.NewestFile(spark.Store.PathWithPrefix(ResourcePath(fileResourceId), false))
-		if err != nil {
+		if err != nil || transformationPath == "" {
 			return "", fmt.Errorf("Could not get transformation file path: %v", err)
 		}
+
 		filePath = spark.Store.PathWithPrefix(transformationPath[:strings.LastIndex(transformationPath, "/")], true)
 		return filePath, nil
 	} else {
@@ -802,14 +800,12 @@ func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, mapping []
 
 func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
 	spark.Logger.Debugw("Getting transformation table", "ResourceID", id)
-	transformationPath, err := spark.Store.NewestFile(ResourcePath(id))
-	if err != nil {
+	transformationPath, err := spark.Store.NewestFile(ResourcePrefix(id))
+	if err != nil || transformationPath == "" {
 		return nil, fmt.Errorf("Could not get transformation table: %v", err)
 	}
-	fixedPath := transformationPath[:strings.LastIndex(transformationPath, "/")+1]
 	spark.Logger.Debugw("Succesfully retrieved transformation table", "ResourceID", id)
-	return &FileStorePrimaryTable{spark.Store, fixedPath, true, id}, nil
-	return nil, nil
+	return &FileStorePrimaryTable{spark.Store, transformationPath, true, id}, nil
 }
 
 func (spark *SparkOfflineStore) UpdateTransformation(config TransformationConfig) error {

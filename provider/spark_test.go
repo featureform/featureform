@@ -459,8 +459,8 @@ func TestParquetUpload(t *testing.T) {
 		// "sparkTestUpdateQuery":                        testUpdateQuery,
 		"sparkTestGetDFArgs": testGetDFArgs,
 		// "sparkTestGetResourceInformationFromFilePath": testGetResourceInformationFromFilePath,
-		"sparkTestGetSourcePath": testGetSourcePath,
-		// "sparkTestGetTransformation":                  testGetTransformation,
+		"sparkTestGetSourcePath":     testGetSourcePath,
+		"sparkTestGetTransformation": testGetTransformation,
 		// "sparkTestTransformation": testTransformation,
 	}
 
@@ -1200,7 +1200,6 @@ func testUpdateQuery(t *testing.T, store *SparkOfflineStore) {
 }
 
 func testGetTransformation(t *testing.T, store *SparkOfflineStore) {
-	t.Parallel()
 	cases := []struct {
 		name             string
 		id               ResourceID
@@ -1209,11 +1208,11 @@ func testGetTransformation(t *testing.T, store *SparkOfflineStore) {
 		{
 			"testTransformation",
 			ResourceID{
-				Name:    "12fdd4f9-023c-4c0e-99ae-35bdabd0a465",
+				Name:    "028f6213-77a8-43bb-9d91-dd7e9ee96102",
 				Type:    Transformation,
 				Variant: "test_variant",
 			},
-			5,
+			10000,
 		},
 	}
 
@@ -1233,7 +1232,7 @@ func testGetTransformation(t *testing.T, store *SparkOfflineStore) {
 			}
 
 			if caseNumRow != ttConst.expectedRowCount {
-				t.Fatalf("Row count do not match. Expected \" %v \", got \" %v \".", caseNumRow, ttConst.expectedRowCount)
+				t.Fatalf("Row count do not match. Expected \" %v \", got \" %v \".", ttConst.expectedRowCount, caseNumRow)
 			}
 		})
 	}

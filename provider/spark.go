@@ -804,14 +804,12 @@ func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, mapping []
 
 func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
 	spark.Logger.Debugw("Getting transformation table", "ResourceID", id)
-	transformationPath, err := spark.Store.NewestFile(ResourcePath(id))
-	if err != nil {
+	transformationPath, err := spark.Store.NewestFile(ResourcePrefix(id))
+	if err != nil || transformationPath == "" {
 		return nil, fmt.Errorf("Could not get transformation table: %v", err)
 	}
-	fixedPath := transformationPath[:strings.LastIndex(transformationPath, "/")+1]
 	spark.Logger.Debugw("Succesfully retrieved transformation table", "ResourceID", id)
-	return &FileStorePrimaryTable{spark.Store, fixedPath, true, id}, nil
-	return nil, nil
+	return &FileStorePrimaryTable{spark.Store, transformationPath, true, id}, nil
 }
 
 func (spark *SparkOfflineStore) UpdateTransformation(config TransformationConfig) error {

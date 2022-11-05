@@ -452,6 +452,7 @@ func (store genericFileStore) NewestFile(prefix string) (string, error) {
 	opts := blob.ListOptions{
 		Prefix: prefix,
 	}
+
 	listIterator := store.bucket.List(&opts)
 	mostRecentTime := time.UnixMilli(0)
 	mostRecentKey := ""

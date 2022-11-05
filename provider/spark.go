@@ -21,6 +21,7 @@ import (
 
 	databricks "github.com/Azure/databricks-sdk-golang"
 	dbAzure "github.com/Azure/databricks-sdk-golang/azure"
+
 	// clusterHTTPModels "github.com/Azure/databricks-sdk-golang/azure/clusters/httpmodels"
 	// clusterModels "github.com/Azure/databricks-sdk-golang/azure/clusters/models"
 	azureHTTPModels "github.com/Azure/databricks-sdk-golang/azure/jobs/httpmodels"
@@ -170,10 +171,10 @@ func (db *DatabricksExecutor) InitializeExecutor(store FileStore) error {
 	sparkScriptPath := helpers.GetEnv("SPARK_SCRIPT_PATH", "scripts/spark/offline_store_spark_runner.py")
 	pythonInitScriptPath := helpers.GetEnv("PYTHON_INIT_PATH", "scripts/spark/python_packages.sh")
 	if err := readAndUploadFile(sparkScriptPath, store.PathWithPrefix(sparkScriptPath, false), store); err != nil {
-		return fmt.Errorf("Could not upload spark script")
+		return fmt.Errorf("could not upload spark script: Path: %s, Error: %v", store.PathWithPrefix(sparkScriptPath, false), err)
 	}
 	if err := readAndUploadFile(pythonInitScriptPath, store.PathWithPrefix(pythonInitScriptPath, false), store); err != nil {
-		return fmt.Errorf("Could not upload python initialization script")
+		return fmt.Errorf("could not upload python initialization script: Path: %s, Error: %v", store.PathWithPrefix(pythonInitScriptPath, false), err)
 	}
 	return nil
 }

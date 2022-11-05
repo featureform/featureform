@@ -149,11 +149,12 @@ func TestOnlineStores(t *testing.T) {
 
 	mongoDBInit := func() MongoDBConfig {
 		mongoConfig := &MongoDBConfig{
-			Host:     helpers.GetEnv("MONGODB_HOST", ""),
-			Port:     helpers.GetEnv("MONGODB_PORT", ""),
-			Username: helpers.GetEnv("MONGODB_USERNAME", ""),
-			Password: helpers.GetEnv("MONGODB_PASSWORD", ""),
-			Database: helpers.GetEnv("MONGODB_DATABASE", ""),
+			Host:       helpers.GetEnv("MONGODB_HOST", ""),
+			Port:       helpers.GetEnv("MONGODB_PORT", ""),
+			Username:   helpers.GetEnv("MONGODB_USERNAME", ""),
+			Password:   helpers.GetEnv("MONGODB_PASSWORD", ""),
+			Database:   helpers.GetEnv("MONGODB_DATABASE", ""),
+			Throughput: 1000,
 		}
 		return *mongoConfig
 	}

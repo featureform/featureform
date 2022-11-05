@@ -216,8 +216,7 @@ func (db *DatabricksExecutor) RunSparkJob(args *[]string, store FileStore) error
 	// 	return fmt.Errorf("Could not modify cluster to accept spark configs; %v", err)
 	// }
 	jobsClient := db.client.Jobs()
-	fmt.Println("python file uri is:")
-	fmt.Println(db.PythonFileURI(store))
+	fmt.Println("python file uri is:", db.PythonFileURI(store))
 	pythonTask := azureModels.SparkPythonTask{
 		PythonFile: db.PythonFileURI(store),
 		Parameters: args,
@@ -230,7 +229,7 @@ func (db *DatabricksExecutor) RunSparkJob(args *[]string, store FileStore) error
 	createJobRequest := CustomCreateReq{
 		ExistingCluster: db.cluster,
 		SparkPythonTask: &pythonTask,
-		Name:            "Databricks spark submit job",
+		Name:            "Databricks spark submit job 2",
 	}
 	jsonResp, err := databricks.PerformQuery(jobsClient.Client.Option, http.MethodPost, "/jobs/create", createJobRequest, nil)
 	if err != nil {
@@ -606,7 +605,7 @@ func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, i
 	transformationDestination := spark.Store.PathWithPrefix(ResourcePath(config.TargetTableID), true)
 	newestTransformationFile, err := spark.Store.NewestFile(ResourcePath(config.TargetTableID))
 	if err != nil {
-		return fmt.Errorf("Could not get newest transformation file: %v", err)
+		return fmt.Errorf("could not get newest transformation file: %v", err)
 	}
 	transformationExists := newestTransformationFile != ""
 	if !isUpdate && transformationExists {
@@ -616,10 +615,11 @@ func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, i
 		spark.Logger.Errorw("Update job attempted when transformation does not exist", config.TargetTableID, transformationDestination)
 		return fmt.Errorf("transformation %v doesn't exist at %s and you are trying to update", config.TargetTableID, transformationDestination)
 	}
+
 	spark.Logger.Debugw("Running SQL transformation", config)
 	sparkArgs := spark.Executor.SparkSubmitArgs(transformationDestination, updatedQuery, sources, JobType(Transform), spark.Store)
 	fmt.Println(sparkArgs)
-	return nil
+
 	if err := spark.Executor.RunSparkJob(&sparkArgs, spark.Store); err != nil {
 		spark.Logger.Errorw("spark submit job for transformation failed to run", config.TargetTableID, err)
 		return fmt.Errorf("spark submit job for transformation %v failed to run: %v", config.TargetTableID, err)

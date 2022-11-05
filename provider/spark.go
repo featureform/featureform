@@ -171,6 +171,13 @@ func readAndUploadFile(filePath string, storePath string, store FileStore) error
 func (db *DatabricksExecutor) InitializeExecutor(store FileStore) error {
 	sparkScriptPath := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/spark/offline_store_spark_runner.py")[1:]
 	pythonInitScriptPath := helpers.GetEnv("PYTHON_INIT_PATH", "/scripts/spark/python_packages.sh")[1:]
+
+	sparkExists, _ := store.Exists(store.PathWithPrefix(sparkScriptPath, false))
+	initExists, _ := store.Exists(store.PathWithPrefix(pythonInitScriptPath, false))
+	if sparkExists && initExists {
+		return nil
+	}
+
 	if err := readAndUploadFile(sparkScriptPath, store.PathWithPrefix(sparkScriptPath, false), store); err != nil {
 		return fmt.Errorf("could not upload spark script: Path: %s, Error: %v", store.PathWithPrefix(sparkScriptPath, false), err)
 	}

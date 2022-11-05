@@ -146,7 +146,8 @@ func (e *EMRExecutor) PythonFileURI(store FileStore) string {
 }
 
 func (db *DatabricksExecutor) PythonFileURI(store FileStore) string {
-	return store.PathWithPrefix("scripts/spark/offline_store_spark_runner.py", true)
+	filePath := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/spark/offline_store_spark_runner.py")
+	return store.PathWithPrefix(filePath[1:], true)
 }
 
 func readAndUploadFile(filePath string, storePath string, store FileStore) error {

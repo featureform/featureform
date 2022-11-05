@@ -29,6 +29,10 @@ FROM alpine
 
 COPY --from=0 ./app/main ./main
 COPY --from=0 ./app/provider/scripts/spark/offline_store_spark_runner.py /app/provider/scripts/spark/offline_store_spark_runner.py
+COPY --from=0 ./app/provider/scripts/spark/python_packages.sh /app/provider/scripts/spark/python_packages.sh
+
+ENV SPARK_SCRIPT_PATH="/app/provider/scripts/spark/offline_store_spark_runner.py"
+ENV PYTHON_INIT_PATH="/app/provider/scripts/spark/python_packages.sh"
 
 EXPOSE 8080
 ENTRYPOINT ["./main"]

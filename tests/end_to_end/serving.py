@@ -49,7 +49,7 @@ def serve_data():
     raise Exception(f"Serving for {VERSION} could not be completed.")
 
 def serve_feature():
-    fpf = client.features([(f"review_text", VERSION)], {"order": "73fc7af87114b39712e6da79b0a377eb"})
+    fpf = client.features([(f"review_text", VERSION)], {"order": "8e6bfb81e283fa7e4f11123a3fb894f1"})
     print(fpf)
 
 print(f"Serving the training set (sentiment_prediction : variant({VERSION}))")

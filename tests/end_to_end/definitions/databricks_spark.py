@@ -59,7 +59,7 @@ spark = ff.register_spark(
 )
 
 mongo = ff.register_mongodb(
-    name="mongodb-quickstart",
+    name=f"mongodb-quickstart_{VERSION}",
     host=os.getenv("MONGODB_HOST"),
     port=os.getenv("MONGODB_PORT"),
     username=os.getenv("MONGODB_USERNAME"),
@@ -67,6 +67,7 @@ mongo = ff.register_mongodb(
     database=os.getenv("MONGODB_DATABASE"),
     throughput=10000
 )
+
 payments = spark.register_parquet_file(
     name="payments",
     variant="default",
@@ -174,7 +175,7 @@ reviews_by_order.register_resources(
     entity_column="order_id",
     inference_store=mongo,
     features=[
-        {"name": "review_text", "variant": f"{VERSION}", "column": "review_text", "type": "str"},
+        {"name": "review_text", "variant": f"{VERSION}", "column": "review_text", "type": "string"},
     ],
     labels=[
         {"name": "review_score", "variant": f"{VERSION}", "column": "review_score", "type": "int"},

@@ -1056,7 +1056,7 @@ class Registrar:
         """
         get = ProviderReference(name=name, provider_type="AZURE", obj=None)
         self.__resources.append(get)
-        fake_azure_config = AzureBlobStoreConfig(account_name="", account_key="", container_name="", root_path="")
+        fake_azure_config = AzureFileStoreConfig(account_name="", account_key="", container_name="", root_path="")
         fake_config = OnlineBlobConfig(store_type="AZURE", store_config=fake_azure_config.config())
         fakeProvider = Provider(name=name, function="ONLINE", description="", team="", config=fake_config)
         return FileStoreProvider(self, fakeProvider, fake_config, "AZURE")
@@ -1316,7 +1316,7 @@ class Registrar:
                 has all the functionality of OnlineProvider
         """
 
-        azure_config = AzureBlobStoreConfig(account_name=account_name, account_key=account_key,
+        azure_config = AzureFileStoreConfig(account_name=account_name, account_key=account_key,
                                             container_name=container_name, root_path=root_path)
         config = OnlineBlobConfig(store_type="AZURE", store_config=azure_config.config())
 

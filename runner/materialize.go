@@ -7,12 +7,14 @@ package runner
 import (
 	"encoding/json"
 	"fmt"
+	"go.uber.org/zap"
 
+	"github.com/featureform/helpers"
 	"github.com/featureform/kubernetes"
+	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	"github.com/featureform/types"
-	"github.com/featureform/helpers"
 )
 
 const MAXIMUM_CHUNK_ROWS int64 = 16777216
@@ -33,6 +35,7 @@ type MaterializeRunner struct {
 	VType    provider.ValueType
 	IsUpdate bool
 	Cloud    JobCloud
+	Logger   *zap.SugaredLogger
 }
 
 func (m MaterializeRunner) Resource() metadata.ResourceID {
@@ -85,24 +88,24 @@ func (w WatcherMultiplex) Err() error {
 }
 
 func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
-	fmt.Println("Starting Runner")
+	m.Logger.Infow("Starting Materialization Runner", "name", m.ID.Name, "variant", m.ID.Variant)
 	var materialization provider.Materialization
 	var err error
 
 	if m.IsUpdate {
-		fmt.Println("Updating Materialization")
+		m.Logger.Infow("Updating Materialization", "name", m.ID.Name, "variant", m.ID.Variant)
 		materialization, err = m.Offline.UpdateMaterialization(m.ID)
 	} else {
-		fmt.Println("Creating Materialization")
+		m.Logger.Infow("Creating Materialization", "name", m.ID.Name, "variant", m.ID.Variant)
 		materialization, err = m.Offline.CreateMaterialization(m.ID)
 	}
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("Creating Table")
+	m.Logger.Infow("Creating Table", "name", m.ID.Name, "variant", m.ID.Variant)
 	_, err = m.Online.CreateTable(m.ID.Name, m.ID.Variant, m.VType)
 	if err != nil {
-		fmt.Printf("table not created: %v", err)
+		return nil, fmt.Errorf("could not create table: %w", err)
 	}
 	_, exists := err.(*provider.TableAlreadyExists)
 
@@ -114,12 +117,12 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 	}
 	chunkSize := MAXIMUM_CHUNK_ROWS
 	var numChunks int64
-	fmt.Println("Getting Number of Rows")
+	m.Logger.Debugw("Getting number of rows", "name", m.ID.Name, "variant", m.ID.Variant)
 	numRows, err := materialization.NumRows()
 	if err != nil {
 		return nil, fmt.Errorf("num rows: %w", err)
 	}
-	fmt.Printf("Getting Number of Rows: %d\n", numRows)
+	m.Logger.Debugw("Got materialization rows", "name", m.ID.Name, "variant", m.ID.Variant, "count", numRows)
 	if numRows <= MAXIMUM_CHUNK_ROWS {
 		chunkSize = numRows
 		numChunks = 1
@@ -131,7 +134,7 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 			numChunks += 1
 		}
 	}
-	fmt.Printf("Number of chunks: %d\n", numChunks)
+	m.Logger.Infow("Creating chunks", "name", m.ID.Name, "variant", m.ID.Variant, "count", numChunks)
 	config := &MaterializedChunkRunnerConfig{
 		OnlineType:     m.Online.Type(),
 		OfflineType:    m.Offline.Type(),
@@ -140,16 +143,17 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 		MaterializedID: materialization.ID(),
 		ResourceID:     m.ID,
 		ChunkSize:      chunkSize,
+		Logger:         m.Logger,
 	}
 	serializedConfig, err := config.Serialize()
 	if err != nil {
-		return nil, fmt.Errorf("serialize : %w", err)
+		return nil, fmt.Errorf("could not serialize config : %w", err)
 	}
 	var cloudWatcher types.CompletionWatcher
 	switch m.Cloud {
 	case KubernetesMaterializeRunner:
-		pandas_image := helpers.GetEnv("K8S_RUNNER_IMAGE", "local/k8s_runner:stable")
-		envVars := map[string]string{"NAME": string(COPY_TO_ONLINE), "CONFIG": string(serializedConfig), "K8S_RUNNER_IMAGE": pandas_image}
+		pandas_image := helpers.GetEnv("PANDAS_RUNNER_IMAGE", "featureformcom/k8s_runner:0.3.0-rc")
+		envVars := map[string]string{"NAME": string(COPY_TO_ONLINE), "CONFIG": string(serializedConfig), "PANDAS_RUNNER_IMAGE": pandas_image}
 		kubernetesConfig := kubernetes.KubernetesRunnerConfig{
 			EnvVars:  envVars,
 			Image:    WORKER_IMAGE,
@@ -165,10 +169,9 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 			return nil, fmt.Errorf("kubernetes run: %w", err)
 		}
 	case LocalMaterializeRunner:
-		fmt.Println("Making Local Materialize Runner")
+		m.Logger.Infow("Making Local Runner", "name", m.ID.Name, "variant", m.ID.Variant)
 		completionList := make([]types.CompletionWatcher, int(numChunks))
 		for i := 0; i < int(numChunks); i++ {
-			fmt.Println("Getting Number of Rows")
 			localRunner, err := Create(string(COPY_TO_ONLINE), serializedConfig)
 			if err != nil {
 				return nil, fmt.Errorf("local runner create: %w", err)
@@ -253,5 +256,6 @@ func MaterializeRunnerFactory(config Config) (types.Runner, error) {
 		VType:    runnerConfig.VType,
 		IsUpdate: runnerConfig.IsUpdate,
 		Cloud:    runnerConfig.Cloud,
+		Logger:   logging.NewLogger("materializer"),
 	}, nil
 }

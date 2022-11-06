@@ -2,7 +2,7 @@ import pytest
 import sys
 sys.path.insert(0, 'client/src/')
 from featureform.register import Registrar, OfflineSparkProvider
-from featureform.resources import SparkAWSConfig, Provider
+from featureform.resources import SparkConfig, Provider, DatabricksCredentials, AzureFileStoreConfig
 
 pytest_plugins = [
     'connection_test',
@@ -12,7 +12,11 @@ pytest_plugins = [
 def spark_provider():
     r = Registrar()
     r.set_default_owner("tester")
-    config = SparkAWSConfig(emr_cluster_id="",bucket_path="",emr_cluster_region="",bucket_region="",aws_access_key_id="",aws_secret_access_key="")
+
+    databricks = DatabricksCredentials(username="a", password="b")
+    azure_blob = AzureFileStoreConfig(account_name="", account_key="", container_name="", root_path="")   
+    
+    config = SparkConfig(executor_type=databricks.type(), executor_config=databricks.config(), store_type=azure_blob.store_type(), store_config=azure_blob.config())
     provider = Provider(name="spark", function="OFFLINE", description="", team="", config=config)
     
     return OfflineSparkProvider(r, provider)

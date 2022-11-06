@@ -43,13 +43,12 @@ def redis_config():
 @pytest.fixture
 
 def blob_store_config():
-    return AzureBlobStoreConfig(
+    return AzureFileStoreConfig(
         account_name="<account_name>",
         account_key="<account_key>",
         container_name="examplecontainer",
         root_path="example/path",
     )
-
 
 @pytest.fixture
 def online_blob_config(blob_store_config):
@@ -57,7 +56,6 @@ def online_blob_config(blob_store_config):
         store_type="AZURE",
         store_config=blob_store_config.serialize(),
     )
-
 
 @pytest.fixture
 def file_store_provider(blob_store_config):

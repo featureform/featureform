@@ -5,6 +5,7 @@
 syntax = "proto3";
 
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
 
 option go_package = "github.com/featureform/metadata/proto";
 
@@ -160,6 +161,13 @@ message FeatureVariant {
     string schedule = 14;
 }
 
+message FeatureLag {
+    string feature = 1;
+    string variant = 2;
+    string name = 3;
+    google.protobuf.Duration lag = 4;
+}
+
 message Label {
     string name = 1;
     ResourceStatus status = 2;
@@ -217,6 +225,7 @@ message TrainingSetVariant {
     NameVariant label = 9;
     google.protobuf.Timestamp last_updated = 13;
     string schedule = 14;
+    repeated FeatureLag feature_lags = 15;
 }
 
 message Entity {

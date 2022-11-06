@@ -3,13 +3,17 @@ import dill
 import pytest
 
 from featureform.register import ColumnSourceRegistrar, OfflineSparkProvider, Registrar
-from featureform.resources import DFTransformation, Provider, Source, SparkAWSConfig, SQLTransformation
+from featureform.resources import DFTransformation, Provider, Source, SparkConfig, SQLTransformation, DatabricksCredentials, AzureFileStoreConfig
 
 
 def test_create_provider():
     provider_name = "test_offline_spark_provider"
     r = Registrar()
-    config = SparkAWSConfig(emr_cluster_id="",bucket_path="",emr_cluster_region="",bucket_region="",aws_access_key_id="",aws_secret_access_key="")
+
+    databricks = DatabricksCredentials(username="a", password="b")
+    azure_blob = AzureFileStoreConfig(account_name="", account_key="", container_name="", root_path="")   
+    
+    config = SparkConfig(executor_type=databricks.type(), executor_config=databricks.config(), store_type=azure_blob.store_type(), store_config=azure_blob.config())
     provider = Provider(name=provider_name, function="OFFLINE", description="", team="", config=config)
     
     offline_spark_provider = OfflineSparkProvider(r, provider)

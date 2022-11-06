@@ -16,6 +16,7 @@ COPY ./metadata/search/ ./metadata/search/
 COPY ./metadata/server/server.go ./metadata/main/server.go
 COPY ./coordinator/*.go ./coordinator/
 COPY ./provider/ ./provider/
+COPY ./logging/ ./logging/
 COPY ./helpers/ ./helpers/
 COPY ./metadata/ ./metadata/
 COPY ./kubernetes/ ./kubernetes/

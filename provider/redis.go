@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/go-redis/redis/v8"
@@ -61,7 +62,7 @@ func (store *redisOnlineStore) Close() error {
 
 func (store *redisOnlineStore) GetTable(feature, variant string) (OnlineStoreTable, error) {
 	key := redisTableKey{store.prefix, feature, variant}
-	vType, err := store.client.HGet(ctx, fmt.Sprintf("%s__tables", store.prefix), key.String()).Result()
+	vType, err := store.client.HGet(context.TODO(), fmt.Sprintf("%s__tables", store.prefix), key.String()).Result()
 	if err != nil {
 		return nil, &TableNotFound{feature, variant}
 	}
@@ -71,14 +72,14 @@ func (store *redisOnlineStore) GetTable(feature, variant string) (OnlineStoreTab
 
 func (store *redisOnlineStore) CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error) {
 	key := redisTableKey{store.prefix, feature, variant}
-	exists, err := store.client.HExists(ctx, fmt.Sprintf("%s__tables", store.prefix), key.String()).Result()
+	exists, err := store.client.HExists(context.TODO(), fmt.Sprintf("%s__tables", store.prefix), key.String()).Result()
 	if err != nil {
 		return nil, err
 	}
 	if exists {
 		return nil, &TableAlreadyExists{feature, variant}
 	}
-	if err := store.client.HSet(ctx, fmt.Sprintf("%s__tables", store.prefix), key.String(), string(valueType)).Err(); err != nil {
+	if err := store.client.HSet(context.TODO(), fmt.Sprintf("%s__tables", store.prefix), key.String(), string(valueType)).Err(); err != nil {
 		return nil, err
 	}
 	table := &redisOnlineTable{client: store.client, key: key, valueType: valueType}
@@ -90,7 +91,7 @@ func (store *redisOnlineStore) DeleteTable(feature, variant string) error {
 }
 
 func (table redisOnlineTable) Set(entity string, value interface{}) error {
-	val := table.client.HSet(ctx, table.key.String(), entity, value)
+	val := table.client.HSet(context.TODO(), table.key.String(), entity, value)
 	if val.Err() != nil {
 		return val.Err()
 	}
@@ -98,7 +99,7 @@ func (table redisOnlineTable) Set(entity string, value interface{}) error {
 }
 
 func (table redisOnlineTable) Get(entity string) (interface{}, error) {
-	val := table.client.HGet(ctx, table.key.String(), entity)
+	val := table.client.HGet(context.TODO(), table.key.String(), entity)
 	if val.Err() != nil {
 		return nil, &EntityNotFound{entity}
 	}

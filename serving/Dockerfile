@@ -18,6 +18,7 @@ RUN protoc --go_out=. --go_opt=paths=source_relative     --go-grpc_out=. --go-gr
 COPY serving/*.go ./serving/
 COPY ./metadata/ ./metadata/
 COPY ./helpers/ ./helpers/
+COPY ./logging/ ./logging/
 COPY ./types/ ./types/
 COPY ./kubernetes/ ./kubernetes/
 COPY ./metrics/ ./metrics/
@@ -29,7 +30,11 @@ RUN go build ./serving/main/main.go
 FROM alpine
 
 COPY --from=0 ./app/main ./main
-COPY --from=0 ./app/provider/scripts/offline_store_spark_runner.py /app/provider/scripts/offline_store_spark_runner.py
+COPY --from=0 ./app/provider/scripts/spark/offline_store_spark_runner.py /app/provider/scripts/spark/offline_store_spark_runner.py
+COPY --from=0 ./app/provider/scripts/spark/python_packages.sh /app/provider/scripts/spark/python_packages.sh
+
+ENV SPARK_SCRIPT_PATH="/app/provider/scripts/spark/offline_store_spark_runner.py"
+ENV PYTHON_INIT_PATH="/app/provider/scripts/spark/python_packages.sh"
 
 ENV SERVING_PORT "8080"
 EXPOSE 8080

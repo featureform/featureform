@@ -172,16 +172,15 @@ func (db *DatabricksExecutor) InitializeExecutor(store FileStore) error {
 	sparkScriptPath := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/spark/offline_store_spark_runner.py")[1:]
 	pythonInitScriptPath := helpers.GetEnv("PYTHON_INIT_PATH", "/scripts/spark/python_packages.sh")[1:]
 
+	err := readAndUploadFile(sparkScriptPath, store.PathWithPrefix(sparkScriptPath, false), store)
 	sparkExists, _ := store.Exists(store.PathWithPrefix(sparkScriptPath, false))
-	initExists, _ := store.Exists(store.PathWithPrefix(pythonInitScriptPath, false))
-	if sparkExists && initExists {
-		return nil
-	}
-
-	if err := readAndUploadFile(sparkScriptPath, store.PathWithPrefix(sparkScriptPath, false), store); err != nil {
+	if err != nil && !sparkExists {
 		return fmt.Errorf("could not upload spark script: Path: %s, Error: %v", store.PathWithPrefix(sparkScriptPath, false), err)
 	}
-	if err := readAndUploadFile(pythonInitScriptPath, store.PathWithPrefix(pythonInitScriptPath, false), store); err != nil {
+
+	err = readAndUploadFile(pythonInitScriptPath, store.PathWithPrefix(pythonInitScriptPath, false), store)
+	initExists, _ := store.Exists(store.PathWithPrefix(pythonInitScriptPath, false))
+	if err != nil && !initExists {
 		return fmt.Errorf("could not upload python initialization script: Path: %s, Error: %v", store.PathWithPrefix(pythonInitScriptPath, false), err)
 	}
 	return nil

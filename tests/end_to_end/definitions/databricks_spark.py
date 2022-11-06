@@ -58,13 +58,15 @@ spark = ff.register_spark(
     filestore=azure_blob
 )
 
-redis = ff.register_redis(
-    name=f"redis-quickstart",
-    host="quickstart-redis",  # The internal dns name for redis
-    port=6379,
-    description="A Redis deployment we created for the Featureform quickstart"
+mongo = ff.register_mongodb(
+    name="mongodb-quickstart",
+    host=os.getenv("MONGODB_HOST"),
+    port=os.getenv("MONGODB_PORT"),
+    username=os.getenv("MONGODB_USERNAME"),
+    password=os.getenv("MONGODB_PASSWORD"),
+    database=os.getenv("MONGODB_DATABASE"),
+    throughput=10000
 )
-
 payments = spark.register_parquet_file(
     name="payments",
     variant="default",
@@ -170,7 +172,7 @@ customer = ff.register_entity("customer")
 reviews_by_order.register_resources(
     entity=order,
     entity_column="order_id",
-    inference_store=redis,
+    inference_store=mongo,
     features=[
         {"name": "review_text", "variant": f"{VERSION}", "column": "review_text", "type": "str"},
     ],

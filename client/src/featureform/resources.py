@@ -241,6 +241,33 @@ class DynamodbConfig:
         }
         return bytes(json.dumps(config), "utf-8")
 
+@typechecked
+@dataclass
+class MongoDBConfig:
+    username: str
+    password: str
+    host: str
+    port: str
+    database: str
+    throughput: int
+
+    def software(self) -> str:
+        return "mongodb"
+
+    def type(self) -> str:
+        return "MONGODB_ONLINE"
+
+    def serialize(self) -> bytes:
+        config = {
+            "Username": self.username,
+            "Password": self.password,
+            "Host": self.host,
+            "Port": self.port,
+            "Database": self.database,
+            "Throughput": self.throughput
+        }
+        return bytes(json.dumps(config), "utf-8")
+
 
 @typechecked
 @dataclass

@@ -17,6 +17,7 @@ const (
 	FirestoreOnline      = "FIRESTORE_ONLINE"
 	DynamoDBOnline       = "DYNAMODB_ONLINE"
 	BlobOnline           = "BLOB_ONLINE"
+	MongoDBOnline        = "MONGODB_ONLINE"
 )
 
 var cassandraTypeMap = map[string]string{

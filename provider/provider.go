@@ -24,6 +24,7 @@ func init() {
 		SparkOffline:     sparkOfflineStoreFactory,
 		K8sOffline:       k8sOfflineStoreFactory,
 		BlobOnline:       blobOnlineStoreFactory,
+		MongoDBOnline:    mongoOnlineStoreFactory,
 	}
 	for name, factory := range unregisteredFactories {
 		if err := RegisterFactory(name, factory); err != nil {
@@ -77,6 +78,31 @@ func (r CassandraConfig) Serialized() SerializedConfig {
 }
 
 func (r *CassandraConfig) Deserialize(config SerializedConfig) error {
+	err := json.Unmarshal(config, r)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+type MongoDBConfig struct {
+	Host       string
+	Port       string
+	Username   string
+	Password   string
+	Database   string
+	Throughput int
+}
+
+func (r MongoDBConfig) Serialized() SerializedConfig {
+	config, err := json.Marshal(r)
+	if err != nil {
+		panic(err)
+	}
+	return config
+}
+
+func (r *MongoDBConfig) Deserialize(config SerializedConfig) error {
 	err := json.Unmarshal(config, r)
 	if err != nil {
 		return err

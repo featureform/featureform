@@ -444,7 +444,8 @@ func (store AzureFileStore) PathWithPrefix(path string, remote bool) string {
 	}
 	if remote {
 		prefix := ""
-		if store.Path != "" {
+		pathContainsPrefix := path[:len(store.Path)] == store.Path
+		if store.Path != "" && !pathContainsPrefix {
 			prefix = fmt.Sprintf("%s/", store.Path)
 		}
 		return fmt.Sprintf("abfss://%s@%s.dfs.core.windows.net/%s%s", store.ContainerName, store.AccountName, prefix, path)

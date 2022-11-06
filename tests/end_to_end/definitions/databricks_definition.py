@@ -32,9 +32,9 @@ ff.register_user("featureformer").make_default_owner()
 azure_blob = ff.register_blob_store(
     name="blob-store",
     account_name="testingstoragegen",
-    account_key="",
+    account_key=os.getenv("AZURE_ACCOUNT_KEY"),
     container_name="databricksdemo",
-    root_path="",
+    root_path=f"databricks_mongo_e2e_{VERSION}",
 )
 
 # Databricks/EMR just has credentials because it is just a means of processing
@@ -42,8 +42,9 @@ databricks = ff.DatabricksCredentials(
     # Can either use username/password or host/token. Add checks that only one pair is given
     username="",
     password="",
-    host="",
-    token=""
+    host=os.getenv("DATABRICKS_HOST"),
+    token=os.getenv("DATABRICKS_TOKEN")
+    cluster_id=os.getenv("DATABRICKS_CLUSTER")
 )
 
 # Register spark as the pair of a filestore + executor credentials

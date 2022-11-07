@@ -837,7 +837,7 @@ func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, sources []
 func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
 	spark.Logger.Debugw("Getting transformation table", "ResourceID", id)
 	transformationPath := spark.Store.PathWithPrefix(fileStoreResourcePath(id), false)
-	transformationExactPath, err := spark.Store.NewestFile(transformationPath)
+	transformationExactPath, err := spark.Store.NewestFile(spark.Store.PathWithPrefix(transformationPath, false))
 	fmt.Println("GetTransformation", transformationPath, transformationExactPath)
 	if err != nil || transformationExactPath == "" {
 		return nil, fmt.Errorf("Could not get transformation table: %v", err)

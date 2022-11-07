@@ -616,7 +616,8 @@ func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, i
 	}
 
 	transformationDestination := spark.Store.PathWithPrefix(ResourcePrefix(config.TargetTableID), true)
-	newestTransformationFile, err := spark.Store.NewestFile(ResourcePrefix(config.TargetTableID))
+	bucketTransformationDest := spark.Store.PathWithPrefix(ResourcePrefix(config.TargetTableID), false)
+	newestTransformationFile, err := spark.Store.NewestFile(bucketTransformationDest)
 	if err != nil {
 		return fmt.Errorf("could not get newest transformation file: %v", err)
 	}
@@ -644,10 +645,10 @@ func GetTransformationFileLocation(id ResourceID) string {
 }
 
 func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, isUpdate bool) error {
-	transformationDestination := spark.Store.PathWithPrefix(ResourcePath(config.TargetTableID), true)
+	transformationDestination := spark.Store.PathWithPrefix(ResourcePrefix(config.TargetTableID), true)
 	transformationDestinationWithSlash := strings.Join([]string{transformationDestination, ""}, "/")
 	fmt.Println("--->", transformationDestination, transformationDestinationWithSlash)
-	transformationFile, err := spark.Store.NewestFile(ResourcePath(config.TargetTableID))
+	transformationFile, err := spark.Store.NewestFile(spark.Store.PathWithPrefix(ResourcePrefix(config.TargetTableID), false))
 	if err != nil {
 		return fmt.Errorf("error checking if transformation file exists")
 	}
@@ -987,7 +988,7 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 		spark.Logger.Errorw("Spark submit training set job failed to run", "definition", def.ID, "error", err)
 		return fmt.Errorf("spark submit job for training set %v failed to run: %v", def.ID, err)
 	}
-	newestTrainingSet, err := spark.Store.NewestFile(ResourcePath(def.ID))
+	newestTrainingSet, err := spark.Store.NewestFile(spark.Store.PathWithPrefix(ResourcePrefix(def.ID), false))
 	if err != nil {
 		return fmt.Errorf("Could not check that training set was created: %v", err)
 	}

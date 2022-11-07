@@ -938,11 +938,11 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 	}
 	trainingSetExists := trainingSetNewestFile != ""
 	if trainingSetExists && !isUpdate {
-		spark.Logger.Errorw("Training set already exists", def.ID)
-		return fmt.Errorf("training set already exists: %v", def.ID)
+		spark.Logger.Errorw("Training set already exists", "id", def.ID)
+		return fmt.Errorf("spark training set already exists: %v", def.ID)
 	} else if !trainingSetExists && isUpdate {
-		spark.Logger.Errorw("Training set does not exist", def.ID)
-		return fmt.Errorf("training set does not exist: %v", def.ID)
+		spark.Logger.Errorw("Training set does not exist", "id", def.ID)
+		return fmt.Errorf("spark training set does not exist: %v", def.ID)
 	}
 	labelSchema, err := spark.registeredResourceSchema(def.Label)
 	if err != nil {

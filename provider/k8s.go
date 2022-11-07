@@ -1473,8 +1473,8 @@ func (k8s *K8sOfflineStore) trainingSet(def TrainingSetDef, isUpdate bool) error
 	}
 	trainingSetExists := !(trainingSetExactPath == "")
 	if !isUpdate && trainingSetExists {
-		k8s.logger.Errorw("Training set already exists", def.ID)
-		return fmt.Errorf("training set already exists: %v", def.ID)
+		k8s.logger.Errorw("Training set already exists", "id", def.ID)
+		return fmt.Errorf("k8s training set already exists: %v", def.ID)
 	} else if isUpdate && !trainingSetExists {
 		k8s.logger.Errorw("Training set doesn't exist for update job", def.ID)
 		return fmt.Errorf("Training set doesn't exist for update job: %v", def.ID)
@@ -1522,7 +1522,7 @@ func fileStoreGetTrainingSet(id ResourceID, store FileStore, logger *zap.Sugared
 	resourceKeyPrefix := store.PathWithPrefix(fileStoreResourcePath(id), false)
 	trainingSetExactPath, err := store.NewestFile(resourceKeyPrefix)
 	if err != nil {
-		return nil, fmt.Errorf("Could not get training set: %v", err)
+		return nil, fmt.Errorf("could not get training set: %v", err)
 	}
 	iterator, err := store.Serve(trainingSetExactPath)
 	if err != nil {

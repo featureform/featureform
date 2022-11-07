@@ -990,11 +990,11 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 	}
 	newestTrainingSet, err := spark.Store.NewestFile(spark.Store.PathWithPrefix(ResourcePrefix(def.ID), false))
 	if err != nil {
-		return fmt.Errorf("Could not check that training set was created: %v", err)
+		return fmt.Errorf("could not check that training set was created: %v", err)
 	}
-	if newestTrainingSet != "" {
+	if newestTrainingSet == "" {
 		spark.Logger.Errorw("Could not get training set resource key in offline store")
-		return fmt.Errorf("Training Set result does not exist in offline store")
+		return fmt.Errorf("training Set result does not exist in offline store")
 	}
 	spark.Logger.Debugw("Succesfully created training set:", "definition", def)
 	return nil

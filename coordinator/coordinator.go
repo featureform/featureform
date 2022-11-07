@@ -867,8 +867,9 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 		}
 	}(store)
 	providerResID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.TrainingSet}
+
 	if _, err := store.GetTrainingSet(providerResID); err == nil {
-		return fmt.Errorf("training set already exists: %v", err)
+		return fmt.Errorf("training set (%v) already exists: %v", resID, err)
 	}
 	features := ts.Features()
 	featureList := make([]provider.ResourceID, len(features))

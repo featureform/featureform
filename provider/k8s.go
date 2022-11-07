@@ -1522,8 +1522,12 @@ func fileStoreGetTrainingSet(id ResourceID, store FileStore, logger *zap.Sugared
 	resourceKeyPrefix := store.PathWithPrefix(fileStoreResourcePath(id), false)
 	trainingSetExactPath, err := store.NewestFile(resourceKeyPrefix)
 	if err != nil {
-		return nil, fmt.Errorf("Could not get training set: %v", err)
+		return nil, fmt.Errorf("could not get training set: %v", err)
 	}
+	if trainingSetExactPath == "" {
+		return nil, fmt.Errorf("the training set (%v at resource prefix: %s) does not exist", id, resourceKeyPrefix)
+	}
+
 	iterator, err := store.Serve(trainingSetExactPath)
 	if err != nil {
 		return nil, fmt.Errorf("could not serve training set: %w", err)

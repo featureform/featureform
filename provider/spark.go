@@ -240,19 +240,19 @@ func (db *DatabricksExecutor) RunSparkJob(args *[]string, store FileStore) error
 	}
 	jsonResp, err := databricks.PerformQuery(jobsClient.Client.Option, http.MethodPost, "/jobs/create", createJobRequest, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("could not create job: %w", err)
 	}
 	var resp azureHTTPModels.CreateResp
 	err = json.Unmarshal(jsonResp, &resp)
 	if err != nil {
-		return err
+		return fmt.Errorf("could not unmarshal job response: %w", err)
 	}
 	runJobRequest := azureHTTPModels.RunNowReq{
 		JobID: resp.JobID,
 	}
 	runNowResp, err := jobsClient.RunNow(runJobRequest)
 	if err != nil {
-		return err
+		return fmt.Errorf("could not run job request: %w", err)
 	}
 	runGetRequest := azureHTTPModels.RunsGetReq{
 		RunID: runNowResp.RunID,
@@ -260,7 +260,7 @@ func (db *DatabricksExecutor) RunSparkJob(args *[]string, store FileStore) error
 	for {
 		runsGetResp, err := jobsClient.RunsGet(runGetRequest)
 		if err != nil {
-			return err
+			return fmt.Errorf("could not get run: %w", err)
 		}
 		if runsGetResp.EndTime != int64(0) {
 			if string(runsGetResp.State.ResultState) != string(Success) {
@@ -268,6 +268,7 @@ func (db *DatabricksExecutor) RunSparkJob(args *[]string, store FileStore) error
 			}
 			break
 		}
+		time.Sleep(1 * time.Second)
 	}
 	return nil
 }

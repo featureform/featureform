@@ -455,7 +455,7 @@ type SparkExecutor interface {
 	InitializeExecutor(store FileStore) error
 	PythonFileURI(store FileStore) string
 	SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store FileStore) []string
-	GetDFArgs(outputURI string, code string, mapping []SourceMapping, store FileStore) ([]string, error)
+	GetDFArgs(outputURI string, code string, sources []string, store FileStore) ([]string, error)
 }
 
 type EMRExecutor struct {
@@ -666,7 +666,9 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 		return fmt.Errorf("could not upload file: %s", err)
 	}
 
-	sparkArgs, err := spark.Executor.GetDFArgs(transformationDestination, transformationFileLocation, config.SourceMapping, spark.Store)
+	sources, err := spark.getSources(config.SourceMapping)
+
+	sparkArgs, err := spark.Executor.GetDFArgs(transformationDestination, transformationFileLocation, sources, spark.Store)
 	if err != nil {
 		spark.Logger.Errorw("Problem creating spark dataframe arguments", err)
 		return fmt.Errorf("error with getting df arguments %v", sparkArgs)
@@ -678,6 +680,21 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 	}
 	spark.Logger.Debugw("Succesfully ran DF transformation", config)
 	return nil
+}
+
+func (spark *SparkOfflineStore) getSources(mapping []SourceMapping) ([]string, error) {
+	sources := []string{}
+
+	for _, m := range mapping {
+		sourcePath, err := spark.getSourcePath(m.Source)
+		if err != nil {
+			spark.Logger.Errorw("Error getting source path for spark source", m.Source, err)
+			return nil, fmt.Errorf("issue with retreiving the source path for %s because %s", m.Source, err)
+		}
+
+		sources = append(sources, sourcePath)
+	}
+	return sources, nil
 }
 
 func (spark *SparkOfflineStore) updateQuery(query string, mapping []SourceMapping) (string, []string, error) {
@@ -762,7 +779,7 @@ func (spark *SparkOfflineStore) getResourceInformationFromFilePath(path string) 
 	return fileType, fileName, fileVariant
 }
 
-func (e *EMRExecutor) GetDFArgs(outputURI string, code string, mapping []SourceMapping, store FileStore) ([]string, error) {
+func (e *EMRExecutor) GetDFArgs(outputURI string, code string, sources []string, store FileStore) ([]string, error) {
 	argList := []string{
 		"spark-submit",
 		"--deploy-mode",
@@ -776,14 +793,12 @@ func (e *EMRExecutor) GetDFArgs(outputURI string, code string, mapping []SourceM
 		"--source",
 	}
 
-	for _, m := range mapping {
-		argList = append(argList, store.PathWithPrefix(m.Source, true))
-	}
+	argList = append(argList, sources...)
 
 	return argList, nil
 }
 
-func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, mapping []SourceMapping, store FileStore) ([]string, error) {
+func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, sources []string, store FileStore) ([]string, error) {
 	argList := []string{
 		"df",
 		"--output_uri",
@@ -809,9 +824,7 @@ func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, mapping []
 	argList = append(argList, remoteConnectionArgs...)
 
 	argList = append(argList, "--source")
-	for _, m := range mapping {
-		argList = append(argList, store.PathWithPrefix(m.Source, true))
-	}
+	argList = append(argList, sources...)
 
 	return argList, nil
 }

@@ -585,11 +585,11 @@ type ParquetIteratorMultipleFiles struct {
 func parquetIteratorOverMultipleFiles(fileParts []string, store genericFileStore) (Iterator, error) {
 	b, err := store.bucket.ReadAll(context.TODO(), fileParts[0])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not read bucket: %w", err)
 	}
 	iterator, err := parquetIteratorFromBytes(b)
 	if err != nil {
-		return nil, fmt.Errorf("could not open first parquet file: %v", err)
+		return nil, fmt.Errorf("could not open first parquet file: %w", err)
 	}
 	return &ParquetIteratorMultipleFiles{
 		fileList:     fileParts,
@@ -630,7 +630,7 @@ func (store genericFileStore) Serve(key string) (Iterator, error) {
 	}
 	b, err := store.bucket.ReadAll(context.TODO(), key)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not read file: %w", err)
 	}
 	switch fileType := keyParts[len(keyParts)-1]; fileType {
 	case "parquet":
@@ -1517,7 +1517,7 @@ func (k8s *K8sOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, 
 func fileStoreGetTrainingSet(id ResourceID, store FileStore, logger *zap.SugaredLogger) (TrainingSetIterator, error) {
 	if err := id.check(TrainingSet); err != nil {
 		logger.Errorw("id is not of type training set", err)
-		return nil, err
+		return nil, fmt.Errorf("resource is not training set: %w", err)
 	}
 	resourceKeyPrefix := store.PathWithPrefix(fileStoreResourcePath(id), false)
 	trainingSetExactPath, err := store.NewestFile(resourceKeyPrefix)
@@ -1526,7 +1526,7 @@ func fileStoreGetTrainingSet(id ResourceID, store FileStore, logger *zap.Sugared
 	}
 	iterator, err := store.Serve(trainingSetExactPath)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not serve training set: %w", err)
 	}
 	return &FileStoreTrainingSet{id: id, store: store, key: trainingSetExactPath, iter: iterator}, nil
 }

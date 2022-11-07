@@ -645,6 +645,8 @@ func GetTransformationFileLocation(id ResourceID) string {
 
 func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, isUpdate bool) error {
 	transformationDestination := spark.Store.PathWithPrefix(ResourcePath(config.TargetTableID), true)
+	transformationDestinationWithSlash := strings.Join([]string{transformationDestination, ""}, "/")
+	fmt.Println("--->", transformationDestination, transformationDestinationWithSlash)
 	transformationFile, err := spark.Store.NewestFile(ResourcePath(config.TargetTableID))
 	if err != nil {
 		return fmt.Errorf("error checking if transformation file exists")
@@ -667,8 +669,11 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 	}
 
 	sources, err := spark.getSources(config.SourceMapping)
+	if err != nil {
+		return fmt.Errorf("could not get sources for df transformation. Error: %v", err)
+	}
 
-	sparkArgs, err := spark.Executor.GetDFArgs(transformationDestination, transformationFileLocation, sources, spark.Store)
+	sparkArgs, err := spark.Executor.GetDFArgs(transformationDestinationWithSlash, transformationFileLocation, sources, spark.Store)
 	if err != nil {
 		spark.Logger.Errorw("Problem creating spark dataframe arguments", err)
 		return fmt.Errorf("error with getting df arguments %v", sparkArgs)

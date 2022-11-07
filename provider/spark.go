@@ -838,6 +838,7 @@ func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (Transform
 	spark.Logger.Debugw("Getting transformation table", "ResourceID", id)
 	transformationPath := spark.Store.PathWithPrefix(fileStoreResourcePath(id), false)
 	transformationExactPath, err := spark.Store.NewestFile(transformationPath)
+	fmt.Println("GetTransformation", transformationPath, transformationExactPath)
 	if err != nil || transformationExactPath == "" {
 		return nil, fmt.Errorf("Could not get transformation table: %v", err)
 	}

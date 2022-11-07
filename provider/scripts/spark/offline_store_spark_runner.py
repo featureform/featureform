@@ -22,12 +22,12 @@ else:
 def main(args):
     print(f"Starting execution of {args.transformation_type}")
     
-    if args.transformation_type == "sql": 
+    if args.transformation_type == "sql":
         output_location = execute_sql_query(args.job_type, args.output_uri, args.sql_query, args.spark_config, args.source_list)
     elif args.transformation_type == "df":
         output_location = execute_df_job(args.output_uri, args.code, args.store_type, args.spark_config, args.credential, args.source)
     
-    print(f"Finised execution of {args.transformation_type}. Please check {output_location} for output file.")
+    print(f"Finished execution of {args.transformation_type}. Please check {output_location} for output file.")
     return output_location
 
 
@@ -92,7 +92,7 @@ def execute_df_job(output_uri, code, store_type, spark_configs, credentials, sou
         output_df = func(*func_parameters)
 
         dt = datetime.now()
-        output_uri_with_timestamp = f"{output_uri}{dt}.parquet"
+        output_uri_with_timestamp = f"{output_uri}{dt}" if output_uri[-1] == "/" else f"{output_uri}/{dt}"
         output_df.write.mode("overwrite").parquet(output_uri_with_timestamp)
         return output_uri_with_timestamp
     except (IOError, OSError) as e:

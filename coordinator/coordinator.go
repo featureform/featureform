@@ -124,7 +124,7 @@ func (c *Coordinator) AwaitPendingSource(sourceNameVariant metadata.NameVariant)
 		if sourceStatus == metadata.READY {
 			return source, nil
 		}
-		time.Sleep(1 * time.Second)
+		time.Sleep(3 * time.Second)
 	}
 	return c.Metadata.GetSourceVariant(context.Background(), sourceNameVariant)
 }

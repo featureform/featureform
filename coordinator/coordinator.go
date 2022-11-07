@@ -236,6 +236,7 @@ func (c *Coordinator) WatchForNewJobs() error {
 		return fmt.Errorf("get existing etcd jobs: %w", err)
 	}
 	for _, kv := range getResp.Kvs {
+		time.Sleep(1 * time.Second)
 		go func(kv *mvccpb.KeyValue) {
 			err := c.ExecuteJob(string(kv.Key))
 			if err != nil {
@@ -256,6 +257,7 @@ func (c *Coordinator) WatchForNewJobs() error {
 		rch := c.EtcdClient.Watch(context.Background(), "JOB_", clientv3.WithPrefix())
 		for wresp := range rch {
 			for _, ev := range wresp.Events {
+				time.Sleep(1 * time.Second)
 				if ev.Type == 0 {
 					go func(ev *clientv3.Event) {
 						err := c.ExecuteJob(string(ev.Kv.Key))

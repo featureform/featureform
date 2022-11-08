@@ -26,6 +26,7 @@
 * [Cassandra](providers/cassandra.md)
 * [DynamoDB](providers/dynamodb.md)
 * [Firestore](providers/firestore.md)
+* [MongoDB](providers/mongodb.md)
 * [Postgres](providers/postgres.md)
 * [Redis](providers/redis.md)
 * [Snowflake](providers/snowflake.md)

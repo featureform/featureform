@@ -1,4 +1,4 @@
-# Spark
+# Spark with EMR
 
 Featureform supports [Spark on AWS](https://aws.amazon.com/emr/features/spark/) as an Offline Store.
 

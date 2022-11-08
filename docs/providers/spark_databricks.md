@@ -1,4 +1,4 @@
-# Databricks
+# Spark with Databricks
 
 Featureform supports [Databricks](https://www.databricks.com) as an Offline Store.
 

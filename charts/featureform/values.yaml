@@ -89,6 +89,8 @@ global:
   nginx:
     enabled: true
   tlsSecretName: "featureform-ca-secret"
+  logging:
+    enabled: true
 
 
 metadata:
@@ -104,3 +106,19 @@ etcd:
     token:
       ttl: 100h
   replicaCount: 3
+
+
+# Logging:
+# For instructions to see the dashboard, check here:
+# https://artifacthub.io/packages/helm/grafana/loki-stack
+# To disable, do --set global.logging.enabled=false
+# To get the dashboard password, do: kubectl get secret  featureform-grafana -o jsonpath="{.data.admin-password}" | base64 --decode ; echo
+# To view dashboard, do: kubectl port-forward  service/featureform-grafana 3000:80
+# Go to localhost 3000. User is admin
+loki-stack:
+  fluent-bit:
+    enabled: true
+  promtail:
+      enabled: false
+  grafana:
+    enabled: true

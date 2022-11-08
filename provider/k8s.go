@@ -1323,7 +1323,7 @@ func (iter *FileStoreFeatureIterator) Next() bool {
 	formatDate := "2006-01-02 15:04:05 UTC" // hardcoded golang format date
 	timeString, ok := nextVal["ts"].(string)
 	if !ok {
-		iter.cur = ResourceRecord{Entity: string(nextVal["entity"].(string)), Value: nextVal["value"]}
+		iter.cur = ResourceRecord{Entity: fmt.Sprintf("%s", nextVal["entity"]), Value: nextVal["value"]}
 	} else {
 		timestamp, err1 := time.Parse(formatDate, timeString)
 		formatDateWithoutUTC := "2006-01-02 15:04:05"
@@ -1524,6 +1524,10 @@ func fileStoreGetTrainingSet(id ResourceID, store FileStore, logger *zap.Sugared
 	if err != nil {
 		return nil, fmt.Errorf("could not get training set: %v", err)
 	}
+	if trainingSetExactPath == "" {
+		return nil, fmt.Errorf("the training set (%v at resource prefix: %s) does not exist", id, resourceKeyPrefix)
+	}
+
 	iterator, err := store.Serve(trainingSetExactPath)
 	if err != nil {
 		return nil, fmt.Errorf("could not serve training set: %w", err)

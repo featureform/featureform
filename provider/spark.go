@@ -455,7 +455,7 @@ type SparkExecutor interface {
 	InitializeExecutor(store FileStore) error
 	PythonFileURI(store FileStore) string
 	SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store FileStore) []string
-	GetDFArgs(outputURI string, code string, mapping []SourceMapping, store FileStore) ([]string, error)
+	GetDFArgs(outputURI string, code string, sources []string, store FileStore) ([]string, error)
 }
 
 type EMRExecutor struct {
@@ -616,7 +616,8 @@ func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, i
 	}
 
 	transformationDestination := spark.Store.PathWithPrefix(ResourcePrefix(config.TargetTableID), true)
-	newestTransformationFile, err := spark.Store.NewestFile(ResourcePrefix(config.TargetTableID))
+	bucketTransformationDest := spark.Store.PathWithPrefix(ResourcePrefix(config.TargetTableID), false)
+	newestTransformationFile, err := spark.Store.NewestFile(bucketTransformationDest)
 	if err != nil {
 		return fmt.Errorf("could not get newest transformation file: %v", err)
 	}
@@ -644,8 +645,10 @@ func GetTransformationFileLocation(id ResourceID) string {
 }
 
 func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, isUpdate bool) error {
-	transformationDestination := spark.Store.PathWithPrefix(ResourcePath(config.TargetTableID), true)
-	transformationFile, err := spark.Store.NewestFile(ResourcePath(config.TargetTableID))
+	transformationDestination := spark.Store.PathWithPrefix(ResourcePrefix(config.TargetTableID), true)
+	transformationDestinationWithSlash := strings.Join([]string{transformationDestination, ""}, "/")
+	fmt.Println("--->", transformationDestination, transformationDestinationWithSlash)
+	transformationFile, err := spark.Store.NewestFile(spark.Store.PathWithPrefix(ResourcePrefix(config.TargetTableID), false))
 	if err != nil {
 		return fmt.Errorf("error checking if transformation file exists")
 	}
@@ -666,7 +669,12 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 		return fmt.Errorf("could not upload file: %s", err)
 	}
 
-	sparkArgs, err := spark.Executor.GetDFArgs(transformationDestination, transformationFileLocation, config.SourceMapping, spark.Store)
+	sources, err := spark.getSources(config.SourceMapping)
+	if err != nil {
+		return fmt.Errorf("could not get sources for df transformation. Error: %v", err)
+	}
+
+	sparkArgs, err := spark.Executor.GetDFArgs(transformationDestinationWithSlash, transformationFileLocation, sources, spark.Store)
 	if err != nil {
 		spark.Logger.Errorw("Problem creating spark dataframe arguments", err)
 		return fmt.Errorf("error with getting df arguments %v", sparkArgs)
@@ -678,6 +686,21 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 	}
 	spark.Logger.Debugw("Succesfully ran DF transformation", config)
 	return nil
+}
+
+func (spark *SparkOfflineStore) getSources(mapping []SourceMapping) ([]string, error) {
+	sources := []string{}
+
+	for _, m := range mapping {
+		sourcePath, err := spark.getSourcePath(m.Source)
+		if err != nil {
+			spark.Logger.Errorw("Error getting source path for spark source", m.Source, err)
+			return nil, fmt.Errorf("issue with retreiving the source path for %s because %s", m.Source, err)
+		}
+
+		sources = append(sources, sourcePath)
+	}
+	return sources, nil
 }
 
 func (spark *SparkOfflineStore) updateQuery(query string, mapping []SourceMapping) (string, []string, error) {
@@ -762,7 +785,7 @@ func (spark *SparkOfflineStore) getResourceInformationFromFilePath(path string) 
 	return fileType, fileName, fileVariant
 }
 
-func (e *EMRExecutor) GetDFArgs(outputURI string, code string, mapping []SourceMapping, store FileStore) ([]string, error) {
+func (e *EMRExecutor) GetDFArgs(outputURI string, code string, sources []string, store FileStore) ([]string, error) {
 	argList := []string{
 		"spark-submit",
 		"--deploy-mode",
@@ -776,14 +799,12 @@ func (e *EMRExecutor) GetDFArgs(outputURI string, code string, mapping []SourceM
 		"--source",
 	}
 
-	for _, m := range mapping {
-		argList = append(argList, store.PathWithPrefix(m.Source, true))
-	}
+	argList = append(argList, sources...)
 
 	return argList, nil
 }
 
-func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, mapping []SourceMapping, store FileStore) ([]string, error) {
+func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, sources []string, store FileStore) ([]string, error) {
 	argList := []string{
 		"df",
 		"--output_uri",
@@ -809,9 +830,7 @@ func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, mapping []
 	argList = append(argList, remoteConnectionArgs...)
 
 	argList = append(argList, "--source")
-	for _, m := range mapping {
-		argList = append(argList, store.PathWithPrefix(m.Source, true))
-	}
+	argList = append(argList, sources...)
 
 	return argList, nil
 }
@@ -819,7 +838,8 @@ func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, mapping []
 func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
 	spark.Logger.Debugw("Getting transformation table", "ResourceID", id)
 	transformationPath := spark.Store.PathWithPrefix(fileStoreResourcePath(id), false)
-	transformationExactPath, err := spark.Store.NewestFile(transformationPath)
+	transformationExactPath, err := spark.Store.NewestFile(spark.Store.PathWithPrefix(transformationPath, false))
+	fmt.Println("GetTransformation", transformationPath, transformationExactPath)
 	if err != nil || transformationExactPath == "" {
 		return nil, fmt.Errorf("Could not get transformation table: %v", err)
 	}
@@ -968,13 +988,13 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 		spark.Logger.Errorw("Spark submit training set job failed to run", "definition", def.ID, "error", err)
 		return fmt.Errorf("spark submit job for training set %v failed to run: %v", def.ID, err)
 	}
-	newestTrainingSet, err := spark.Store.NewestFile(ResourcePath(def.ID))
+	newestTrainingSet, err := spark.Store.NewestFile(spark.Store.PathWithPrefix(ResourcePrefix(def.ID), false))
 	if err != nil {
-		return fmt.Errorf("Could not check that training set was created: %v", err)
+		return fmt.Errorf("could not check that training set was created: %v", err)
 	}
-	if newestTrainingSet != "" {
+	if newestTrainingSet == "" {
 		spark.Logger.Errorw("Could not get training set resource key in offline store")
-		return fmt.Errorf("Training Set result does not exist in offline store")
+		return fmt.Errorf("training Set result does not exist in offline store")
 	}
 	spark.Logger.Debugw("Succesfully created training set:", "definition", def)
 	return nil

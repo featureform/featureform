@@ -780,8 +780,16 @@ jobs:
         with:
           go-version: 1.18
 
-      - name: Testing
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Testing Go
         run: make test_offline_k8s
+
+      - name: Testing Python
+        run: make test_pandas
 
       - name: Convert Coverage Test Results
         if: always()

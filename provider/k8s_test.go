@@ -422,3 +422,29 @@ func Test_invalidParquetIteratorFromReader(t *testing.T) {
 		t.Fatalf("Expected Type EmptyParquetFileError, got %v", err)
 	}
 }
+
+func Test_parquetNoRowCount(t *testing.T) {
+	b, err := ioutil.ReadFile("test_files/empty.parquet")
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	rows, err := getParquetNumRows(b)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	if rows != 0 {
+		t.Errorf("Expected 0 rows, got %d rows", rows)
+	}
+}
+
+func Test_invalidParquetRowCount(t *testing.T) {
+	var buf bytes.Buffer
+	w := parquet.NewWriter(&buf)
+	w.Close()
+	_, err := getParquetNumRows(buf.Bytes())
+	switch err := err.(type) {
+	case EmptyParquetFileError:
+	default:
+		t.Fatalf("Expected Type EmptyParquetFileError, got %v", err)
+	}
+}

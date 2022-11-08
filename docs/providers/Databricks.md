@@ -6,6 +6,7 @@ Featureform supports [Databricks](https://www.databricks.com) as an Offline Stor
 With Databricks, you can leverage your Databricks cluster to compute transformations and training sets. Featureform however does not handle storage in non-local mode, so it is necessary to seperately register a file store provider like [Azure](azure.md) to store the results of its computation.
 
 #### Requirements
+* Databricks Cluster
 * [Remote file storage (eg. Azure Blob Storage)](azure.md)
 
 ### Transformation Sources

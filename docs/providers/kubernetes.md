@@ -3,7 +3,7 @@
 Featureform supports [Kubernetes](https://kubernetes.io/) as an Offline Store.
 
 ## Implementation <a href="#implementation" id="implementation"></a>
-Since featureform is deployed natively on a Kubernetes cluster, it can leverage its own cluster to compute transformations and training sets. Featureform however does not handle storage in non-local mode, so it is necessary to seperately register a file store provider like [Azure](azure.md) to store the results of its computation.
+Since Featureform is deployed natively on a Kubernetes cluster, it can leverage its own cluster to compute transformations and training sets. Featureform however does not handle storage in non-local mode, so it is necessary to seperately register a file store provider like [Azure](azure.md) to store the results of its computation.
 
 #### Requirements
 * [Remote file storage (eg. Azure Blob Storage)](azure.md)
@@ -18,7 +18,7 @@ Any column in a preexisting table or user-created transformation can be register
 
 ## Configuration <a href="#configuration" id="configuration"></a>
 
-To configure a Kubernetes store as a provider, you merely need to have featureform running in your Kubernetes cluster, and register a compatible file store to store the ouput of the computation. Featureform automatically downloads and uploads the necessary files to handle all necessary functionality of a native offline store like Postgres or BigQuery.
+To configure a Kubernetes store as a provider, you merely need to have Featureform running in your Kubernetes cluster, and register a compatible file store to store the ouput of the computation. Featureform automatically downloads and uploads the necessary files to handle all necessary functionality of a native offline store like Postgres or BigQuery.
 
 
 {% code title="k8s_quickstart.py" %}
@@ -36,7 +36,7 @@ azure_blob = ff.register_blob_store(
 
 k8s_store = ff.register_k8s(
     name="k8s",
-    description="Native featureform kubernetes compute",
+    description="Native Featureform kubernetes compute",
     store=azure_blob,
     team="featureform-team"
 )

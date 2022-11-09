@@ -785,6 +785,9 @@ jobs:
         with:
           python-version: "3.10"
 
+      - name: Install Packages
+        run: pip install pytest pandas pandasql
+
       - name: Testing Go
         run: make test_offline_k8s
 

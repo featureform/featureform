@@ -12,6 +12,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/writeconcern"
 )
 
 type mongoDBMetadataRow struct {
@@ -48,7 +49,6 @@ func NewMongoDBOnlineStore(config *MongoDBConfig) (*mongoDBOnlineStore, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not connect to mongodb: %w", err)
 	}
-
 	cur, err := client.Database(config.Database).ListCollections(context.TODO(), bson.D{{"name", "featureform__metadata"}})
 	if err != nil {
 		return nil, fmt.Errorf("could not create check if metadata exists: %w", err)
@@ -61,7 +61,10 @@ func NewMongoDBOnlineStore(config *MongoDBConfig) (*mongoDBOnlineStore, error) {
 	if len(res) == 0 {
 		command := bson.D{{"customAction", "CreateCollection"}, {"collection", "featureform__metadata"}, {"autoScaleSettings", bson.D{{"maxThroughput", 1000}}}}
 		var cmdResult interface{}
-		err := client.Database(config.Database).RunCommand(context.TODO(), command).Decode(&cmdResult)
+		wConcern := writeconcern.New(writeconcern.J(true), writeconcern.WMajority())
+		err := client.Database(config.Database, &options.DatabaseOptions{
+			WriteConcern: wConcern,
+		}).RunCommand(context.TODO(), command).Decode(&cmdResult)
 		if err != nil {
 			return nil, fmt.Errorf("could not set metadata table throughput: %w", err)
 		}
@@ -109,8 +112,10 @@ func (store *mongoDBOnlineStore) CreateTable(feature, variant string, valueType 
 	}
 
 	metadataTableName := store.GetMetadataTableName()
-
-	_, err := store.client.Database(store.database).Collection(metadataTableName).InsertOne(context.TODO(), mongoDBMetadataRow{tableName, vType})
+	wConcern := writeconcern.New(writeconcern.J(true), writeconcern.WMajority())
+	_, err := store.client.Database(store.database, &options.DatabaseOptions{
+		WriteConcern: wConcern,
+	}).Collection(metadataTableName).InsertOne(context.TODO(), mongoDBMetadataRow{tableName, vType})
 	if err != nil {
 		return nil, fmt.Errorf("could not insert metadata table name: %w", err)
 	}

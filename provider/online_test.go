@@ -225,8 +225,10 @@ func TestOnlineStores(t *testing.T) {
 			if err := store.Close(); err != nil {
 				t.Fatalf("Failed to close online store %s: %v", testItem.t, err)
 			}
-
 		}
+		t.Run("TestConsistency", func(t *testing.T) {
+			testConsistency(testItem.t, testItem.c)
+		})
 	}
 }
 
@@ -398,6 +400,17 @@ func testTypeCasting(t *testing.T, store OnlineStore) {
 			t.Fatalf("Values are not the same %v, type %T. %v, type %T", resource.Value, resource.Value, gotVal, gotVal)
 		}
 		store.DeleteTable(featureName, "")
+	}
+}
+
+func testConsistency(t *testing.T, tp Type, config SerializedConfig) {
+	provider, err := Get(tp, config)
+	if err != nil {
+		t.Errorf("Could not get provider: %w", err)
+	}
+	store, err := provider.AsOnlineStore()
+	if err != nil {
+		t.Errorf("Could not get provider as online store: %w", err)
 	}
 }
 

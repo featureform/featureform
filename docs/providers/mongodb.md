@@ -4,11 +4,17 @@ Featureform supports [MongoDB](https://www.mongodb.com/) as an Inference Store.
 
 ## Implementation
 
-A MongoDB table is created for every feature. A metadata table exists within the Database as well to allow the provider to keep track of its own state. Featureform's scheduler aims to achieve consistency between MongoDBs's internal state with the user's desired state as specified in the metadata service.
+A MongoDB collection is created for every feature. 
+Each collection contains documents with the materialized values for each feature, making them readily accessible at serving time. 
 
 ## Configuration
 
-First we have to add a declarative MongoDB configuration in Python. In the following example, only name is required, but the other parameters are available.
+First we have to add a declarative MongoDB configuration in Python. 
+The required fields include a name for the provider, and connection information. The specified database will be created
+during the first feature materialization. 
+
+Optionally, maximum throughput can be set when using Cosmos DB for MongoDB with autoscaling.
+
 
 {% code title="mongodb_config.py" %}
 ```python
@@ -19,7 +25,8 @@ mongo = ff.register_mongodb(
     port="1000",
     username="my_mongo_user",
     password="secretpassword",
-    database="my_database"
+    database="my_database",
+    throughput=1000
 )
 ```
 {% endcode %}

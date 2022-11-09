@@ -487,7 +487,11 @@ func (store genericBlobStore) Serve(key string) (Iterator, error) {
 	keyParts := strings.Split(key, ".")
 	switch fileType := keyParts[len(keyParts)-1]; fileType {
 	case "parquet":
-		return parquetIteratorFromBytes(b)
+		if iter, err := parquetIteratorFromBytes(b); err != nil {
+			return nil, fmt.Errorf("could not serve file: %s: %w", key, err)
+		} else {
+			return iter, nil
+		}
 	case "csv":
 		return nil, fmt.Errorf("could not find CSV reader")
 	default:
@@ -504,7 +508,12 @@ func (store genericBlobStore) NumRows(key string) (int64, error) {
 	keyParts := strings.Split(key, ".")
 	switch fileType := keyParts[len(keyParts)-1]; fileType {
 	case "parquet":
-		return getParquetNumRows(b)
+		if rows, err := getParquetNumRows(b); err != nil {
+			return 0, fmt.Errorf("could not get row count for file: %s: %w", key, err)
+		} else {
+			return rows, nil
+		}
+
 	default:
 		return 0, fmt.Errorf("unsupported file type")
 	}
@@ -517,6 +526,9 @@ type ParquetIterator struct {
 
 func (p *ParquetIterator) Next() (map[string]interface{}, error) {
 	value := make(map[string]interface{})
+	if p.reader.NumRows() == 0 {
+		return nil, nil
+	}
 	err := p.reader.Read(&value)
 	if err != nil {
 		if err == io.EOF {
@@ -530,12 +542,18 @@ func (p *ParquetIterator) Next() (map[string]interface{}, error) {
 
 func getParquetNumRows(b []byte) (int64, error) {
 	file := bytes.NewReader(b)
+	if len(b) == 0 {
+		return 0, EmptyParquetFileError{}
+	}
 	r := parquet.NewReader(file)
 	return r.NumRows(), nil
 }
 
 func parquetIteratorFromBytes(b []byte) (Iterator, error) {
 	file := bytes.NewReader(b)
+	if len(b) == 0 {
+		return nil, EmptyParquetFileError{}
+	}
 	r := parquet.NewReader(file)
 	return &ParquetIterator{
 		reader: r,

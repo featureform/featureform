@@ -260,11 +260,15 @@ func (c *Coordinator) WatchForNewJobs() error {
 					go func(ev *clientv3.Event) {
 						err := c.ExecuteJob(string(ev.Kv.Key))
 						if err != nil {
-							re, ok := err.(*JobDoesNotExistError)
-							if ok {
-								c.Logger.Infow(re.Error())
-							} else {
-								c.Logger.Errorw("Error executing job: Polling search", "error", err)
+							switch err.(type) {
+							case JobDoesNotExistError:
+								c.Logger.Info(err)
+							case ResourceAlreadyFailedError:
+								c.Logger.Infow("resource has failed previously. Ignoring....", "key", string(ev.Kv.Key))
+							case ResourceAlreadyCompleteError:
+								c.Logger.Infow("resource has already completed. Ignoring....", "key", string(ev.Kv.Key))
+							default:
+								c.Logger.Errorw("Error executing job: Initial search", "error", err)
 							}
 						}
 					}(ev)

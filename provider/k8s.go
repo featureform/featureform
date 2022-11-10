@@ -941,7 +941,6 @@ func (err *PrimaryTableAlreadyExists) Error() string {
 	return fmt.Sprintf("Primary Table %s Variant %s already exists.", err.id.Name, err.id.Variant)
 }
 
-
 func blobRegisterPrimary(id ResourceID, sourceName string, logger *zap.SugaredLogger, store FileStore) (PrimaryTable, error) {
 	resourceKey := store.PathWithPrefix(fileStoreResourcePath(id), false)
 	primaryExists, err := store.Exists(resourceKey)
@@ -1220,7 +1219,7 @@ func fileStoreGetPrimary(id ResourceID, store FileStore, logger *zap.SugaredLogg
 	}
 
 	logger.Debugw("Succesfully retrieved primary table", id)
-	
+
 	return &FileStorePrimaryTable{store, string(table), false, id}, nil
 }
 

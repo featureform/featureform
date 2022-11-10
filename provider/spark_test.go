@@ -422,43 +422,34 @@ func TestParquetUpload(t *testing.T) {
 
 	testFns := map[string]func(*testing.T, *SparkOfflineStore){
 		// FileStore Tests (Do not use spark executor)
-		// "sparkTestCreateGetOfflineTable":           sparkTestCreateGetOfflineTable,
-		// "sparkTestOfflineTableAlreadyExists":       sparkTestOfflineTableAlreadyExists,
-		// "sparkTestInvalidResourceIDs":              sparkTestInvalidResourceIDs,
-		// "sparkTestInvalidMaterialization":          sparkTestInvalidMaterialization,
-		// "sparkTestMaterializeUnknown":              sparkTestMaterializeUnknown,
-		// "sparkTestGetTrainingSetInvalidResourceID": sparkTestGetTrainingSetInvalidResourceID,
-		// "sparkTestInvalidTrainingSetDefs":          sparkTestInvalidTrainingSetDefs,
-		// "sparkTestLabelTableNotFound":              sparkTestLabelTableNotFound,
-		// "sparkTestFeatureTableNotFound":            sparkTestFeatureTableNotFound,
-		// "sparkTestCreatePrimaryFromSource":         sparkTestCreatePrimaryFromSource,
-		// "sparkTestCreateDuplicatePrimaryTable":     sparkTestCreateDuplicatePrimaryTable,
-		// "sparkTestOfflineTableNotFound":               sparkTestOfflineTableNotFound,
-		// "sparkTestGetUnknownTrainingSet":              sparkTestGetUnknownTrainingSet,
-		// "sparkTestMaterializationNotFound":            sparkTestMaterializationNotFound,
-		// "sparkTestGetSourcePath":                      testGetSourcePath,
-		// "sparkTestGetTransformation":                  testGetTransformation,
-		// "sparkTestGetDFArgs":                          testGetDFArgs,
-		// "sparkTestUpdateQuery":                        testUpdateQuery,
-		
-
-
-
-
-
+		"sparkTestCreateGetOfflineTable":           sparkTestCreateGetOfflineTable,
+		"sparkTestOfflineTableAlreadyExists":       sparkTestOfflineTableAlreadyExists,
+		"sparkTestInvalidResourceIDs":              sparkTestInvalidResourceIDs,
+		"sparkTestInvalidMaterialization":          sparkTestInvalidMaterialization,
+		"sparkTestMaterializeUnknown":              sparkTestMaterializeUnknown,
+		"sparkTestGetTrainingSetInvalidResourceID": sparkTestGetTrainingSetInvalidResourceID,
+		"sparkTestInvalidTrainingSetDefs":          sparkTestInvalidTrainingSetDefs,
+		"sparkTestLabelTableNotFound":              sparkTestLabelTableNotFound,
+		"sparkTestFeatureTableNotFound":            sparkTestFeatureTableNotFound,
+		"sparkTestCreatePrimaryFromSource":         sparkTestCreatePrimaryFromSource,
+		"sparkTestCreateDuplicatePrimaryTable":     sparkTestCreateDuplicatePrimaryTable,
+		"sparkTestOfflineTableNotFound":            sparkTestOfflineTableNotFound,
+		"sparkTestGetUnknownTrainingSet":           sparkTestGetUnknownTrainingSet,
+		"sparkTestMaterializationNotFound":         sparkTestMaterializationNotFound,
+		"sparkTestGetSourcePath":                   testGetSourcePath,
+		"sparkTestGetTransformation":               testGetTransformation,
+		"sparkTestGetDFArgs":                       testGetDFArgs,
+		"sparkTestUpdateQuery":                     testUpdateQuery,
 
 		// Databricks Test (use FileStore and spark executor)
-		// "sparkTestTrainingSet":                        sparkTestTrainingSet,
-		// "sparkTestMaterializations":                   sparkTestMaterializations,
-		// "sparkTestTrainingSetDefShorthand":            sparkTestTrainingSetDefShorthand,
-		// "sparkTestTrainingSetUpdate":                  sparkTestTrainingSetUpdate,
-		// "sparkTestGetResourceInformationFromFilePath": testGetResourceInformationFromFilePath,
-		// "sparkTestMaterializationUpdate":              sparkTestMaterializationUpdate,
-		//"sparkTestSQLTransformation":                  testSparkSQLTransformation, 
-
-
-		"sparkTestTransformation":                     testTransformation, //needs initialization files
-
+		"sparkTestTrainingSet":                        sparkTestTrainingSet,
+		"sparkTestMaterializations":                   sparkTestMaterializations,
+		"sparkTestTrainingSetDefShorthand":            sparkTestTrainingSetDefShorthand,
+		"sparkTestTrainingSetUpdate":                  sparkTestTrainingSetUpdate,
+		"sparkTestGetResourceInformationFromFilePath": testGetResourceInformationFromFilePath,
+		"sparkTestMaterializationUpdate":              sparkTestMaterializationUpdate,
+		"sparkTestSQLTransformation":                  testSparkSQLTransformation,
+		"sparkTestTransformation":                     testTransformation,
 	}
 
 	t.Run("SPARK_STORE_FUNCTIONS", func(t *testing.T) {
@@ -943,7 +934,7 @@ func sparkTestMaterializeUnknown(t *testing.T, store *SparkOfflineStore) {
 }
 
 func sparkTestMaterializationNotFound(t *testing.T, store *SparkOfflineStore) {
-	id := MaterializationID(fmt.Sprintf("%s/%s/%s",uuid.NewString(),uuid.NewString(),uuid.NewString()))
+	id := MaterializationID(fmt.Sprintf("%s/%s/%s", uuid.NewString(), uuid.NewString(), uuid.NewString()))
 	_, err := store.GetMaterialization(id)
 	if err == nil {
 		t.Fatalf("Succeeded in getting uninitialized materialization")
@@ -1170,9 +1161,8 @@ func testUpdateQuery(t *testing.T, store *SparkOfflineStore) {
 	for _, tt := range cases {
 		ttConst := tt
 
-
 		//second
-		_, _ = store.RegisterPrimaryFromSourceTable(ResourceID{"028f6213-77a8-43bb-9d91-dd7e9ee96102","test_variant",Transformation},"s3://featureform-spark-testing/featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant/2022-08-19 17:37:36.546384/")
+		_, _ = store.RegisterPrimaryFromSourceTable(ResourceID{"028f6213-77a8-43bb-9d91-dd7e9ee96102", "test_variant", Transformation}, "s3://featureform-spark-testing/featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant/2022-08-19 17:37:36.546384/")
 
 		t.Run(ttConst.name, func(t *testing.T) {
 			t.Parallel()
@@ -1335,7 +1325,7 @@ func testGetDFArgs(t *testing.T, store *SparkOfflineStore) {
 		outputURI       string
 		code            string
 		store_type      string
-		sources        []string
+		sources         []string
 		expectedArgs    []string
 		expectedFailure bool
 	}{
@@ -1344,7 +1334,7 @@ func testGetDFArgs(t *testing.T, store *SparkOfflineStore) {
 			"featureform-spark-testing/featureform/Primary/test_name/test_variant",
 			"code",
 			"AzureBlobStore",
-			[]string{ "featureform-spark-testing/featureform/testprimary/testFile.csv"},
+			[]string{"featureform-spark-testing/featureform/testprimary/testFile.csv"},
 			[]string{
 				"df",
 				"--output_uri",
@@ -1397,7 +1387,7 @@ func testTransformation(t *testing.T, store *SparkOfflineStore) {
 		config          TransformationConfig
 		sourceID        ResourceID
 		expectedFailure bool
-	}{	
+	}{
 
 		{
 			"DFTransformationType",
@@ -1408,7 +1398,7 @@ func testTransformation(t *testing.T, store *SparkOfflineStore) {
 					Type:    Transformation,
 					Variant: "test_variant",
 				},
-				Code: []byte("abfss://test@testingstoragegen.dfs.core.windows.net/DFTransformations/same_df.pkl"),
+				Code: []byte("DFTransformations/same_df.pkl"),
 				SourceMapping: []SourceMapping{
 					SourceMapping{
 						Template: "transaction",
@@ -1419,17 +1409,17 @@ func testTransformation(t *testing.T, store *SparkOfflineStore) {
 			ResourceID{"a3471464552a4368802eb891e0049d07", "test-variant", Primary},
 			false,
 		},
-		// {
-		// 	"NoTransformationType",
-		// 	TransformationConfig{
-		// 		Type:          NoTransformationType,
-		// 		TargetTableID: ResourceID{},
-		// 		Query:         "SELECT * FROM {{test_name.test_variant}}",
-		// 		SourceMapping: []SourceMapping{},
-		// 	},
-		// 	ResourceID{},
-		// 	true,
-		// },
+		{
+			"NoTransformationType",
+			TransformationConfig{
+				Type:          NoTransformationType,
+				TargetTableID: ResourceID{},
+				Query:         "SELECT * FROM {{test_name.test_variant}}",
+				SourceMapping: []SourceMapping{},
+			},
+			ResourceID{},
+			true,
+		},
 	}
 
 	for _, tt := range cases {
@@ -1689,63 +1679,6 @@ func TestTrainingSetCreate(t *testing.T) {
 	}
 }
 
-// func TestCompareStructsFail(t *testing.T) {
-// 	t.Parallel()
-// 	type testStruct struct {
-// 		Field string
-// 	}
-// 	firstStruct := testStruct{"first"}
-// 	secondStruct := testStruct{"second"}
-// 	if err := compareStructs(firstStruct, secondStruct); err == nil {
-// 		t.Fatalf("failed to trigger error with unequal structs")
-// 	}
-// 	type similarStruct struct {
-// 		Field int
-// 	}
-// 	firstStructSimilar := testStruct{"1"}
-// 	secondStructSimilar := similarStruct{1}
-// 	if err := compareStructs(firstStructSimilar, secondStructSimilar); err == nil {
-// 		t.Fatalf("failed to trigger error when structs contain different types")
-// 	}
-// 	type testStructFields struct {
-// 		Field      string
-// 		OtherField int
-// 	}
-// 	firstStructFields := testStructFields{"1", 2}
-// 	secondStructFields := testStruct{"1"}
-// 	if err := compareStructs(firstStructFields, secondStructFields); err == nil {
-// 		t.Fatalf("failed to trigger error when structs contain different types")
-// 	}
-// }
-
-// func TestSparkExecutorFail(t *testing.T) {
-// 	invalidConfig := EMRConfig{}
-// 	invalidExecType := SparkExecutorType("invalid")
-// 	logger := zap.NewExample().Sugar()
-// 	if executor, err := NewSparkExecutor(invalidExecType, invalidConfig, logger); !(executor == nil && err == nil) {
-// 		t.Fatalf("did not return nil on invalid exec type")
-// 	}
-// }
-
-// func TestSparkStoreFail(t *testing.T) {
-// 	invalidConfig := S3Config{}
-// 	invalidExecType := SparkStoreType("invalid")
-// 	logger := zap.NewExample().Sugar()
-// 	if executor, err := NewSparkStore(invalidExecType, invalidConfig, logger); !(executor == nil && err != nil) {
-// 		t.Fatalf("did not return nil on invalid exec type")
-// 	}
-// }
-
-// func TestUnimplimentedFailures(t *testing.T) {
-// 	store := SparkOfflineStore{}
-// 	if table, err := store.CreatePrimaryTable(ResourceID{}, TableSchema{}); !(table == nil && err == nil) {
-// 		t.Fatalf("did not return nil on calling unimplimented function")
-// 	}
-// 	if table, err := store.CreateResourceTable(ResourceID{}, TableSchema{}); !(table == nil && err == nil) {
-// 		t.Fatalf("did not return nil on calling unimplimented function")
-// 	}
-// }
-
 func sparkTestTrainingSet(t *testing.T, store *SparkOfflineStore) {
 	type expectedTrainingRow struct {
 		Features []interface{}
@@ -1960,7 +1893,6 @@ func sparkTestMaterializationUpdate(t *testing.T, store *SparkOfflineStore) {
 		ExpectedUpdate                         []any
 		Timestamp                              bool
 	}
-	
 
 	schemaInt := TableSchema{
 		Columns: []TableColumn{

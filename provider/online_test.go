@@ -417,8 +417,6 @@ func testConsistency(t *testing.T, tp Type, config SerializedConfig) {
 	}
 
 	for i := 1; i < 10; i++ {
-		entity := "entity"
-		value := "value"
 		store := createConnection(t, tp, config)
 		featureName := fmt.Sprintf("feature_%s", uuid.NewString())
 		_, err := store.CreateTable(featureName, "default", String)
@@ -431,7 +429,7 @@ func testConsistency(t *testing.T, tp Type, config SerializedConfig) {
 		}
 
 		store = createConnection(t, tp, config)
-		table, err := store.GetTable(featureName, "default")
+		_, err = store.GetTable(featureName, "default")
 		if err != nil {
 			t.Errorf("could not get initial table: %s", err.Error())
 		}

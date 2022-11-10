@@ -1539,79 +1539,43 @@ func getDatabricksOfflineStore(t *testing.T) (*SparkOfflineStore, error) {
 
 // Unit tests
 
-// func TestSparkConfigDeserialize(t *testing.T) {
-// 	err := godotenv.Load("../.env")
-// 	if err != nil {
-// 		fmt.Println(err)
-// 	}
+func TestEMRConfigDeserialize(t *testing.T) {
+	correctEMRConfig := EMRConfig{
+		AWSAccessKeyId: "",
+		AWSSecretKey:   "",
+		ClusterRegion:  "us-east-1",
+		ClusterName:    "example",
+	}
+	serializedConfig := correctEMRConfig.Serialize()
+	reserializedConfig := EMRConfig{}
+	if err := reserializedConfig.Deserialize(SerializedConfig(serializedConfig)); err != nil {
+		t.Fatalf("error deserializing emr config")
+	}
+	invalidConfig := SerializedConfig("invalidConfig")
+	invalidDeserialized := EMRConfig{}
+	if err := invalidDeserialized.Deserialize(invalidConfig); err == nil {
+		t.Fatalf("did not return error on deserializing improper config")
+	}
+}
 
-// 	emrConf := EMRConfig{
-// 		AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
-// 		AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),
-// 		ClusterRegion:  os.Getenv("AWS_EMR_CLUSTER_REGION"),
-// 		ClusterName:    os.Getenv("AWS_EMR_CLUSTER_ID"),
-// 	}
-// 	s3Conf := S3Config{
-// 		AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
-// 		AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),
-// 		BucketRegion:   os.Getenv("S3_BUCKET_REGION"),
-// 		BucketPath:     os.Getenv("S3_BUCKET_PATH"),
-// 	}
-// 	correctSparkConfig := SparkConfig{
-// 		ExecutorType:   "EMR",
-// 		ExecutorConfig: EMRConfig{},
-// 		StoreType:      "S3",
-// 		StoreConfig:    S3Config{},
-// 	}
-// 	serializedConfig := correctSparkConfig.Serialize()
-// 	reserializedConfig := SparkConfig{}
-// 	if err := reserializedConfig.Deserialize(SerializedConfig(serializedConfig)); err != nil {
-// 		t.Fatalf("error deserializing spark config")
-// 	}
-// 	invalidConfig := SerializedConfig("invalidConfig")
-// 	invalidDeserialized := SparkConfig{}
-// 	if err := invalidDeserialized.Deserialize(invalidConfig); err == nil {
-// 		t.Fatalf("did not return error on deserializing improper config")
-// 	}
-// }
-
-// func TestEMRConfigDeserialize(t *testing.T) {
-// 	correctEMRConfig := EMRConfig{
-// 		AWSAccessKeyId: "",
-// 		AWSSecretKey:   "",
-// 		ClusterRegion:  "us-east-1",
-// 		ClusterName:    "example",
-// 	}
-// 	serializedConfig := correctEMRConfig.Serialize()
-// 	reserializedConfig := EMRConfig{}
-// 	if err := reserializedConfig.Deserialize(SerializedConfig(serializedConfig)); err != nil {
-// 		t.Fatalf("error deserializing emr config")
-// 	}
-// 	invalidConfig := SerializedConfig("invalidConfig")
-// 	invalidDeserialized := EMRConfig{}
-// 	if err := invalidDeserialized.Deserialize(invalidConfig); err == nil {
-// 		t.Fatalf("did not return error on deserializing improper config")
-// 	}
-// }
-
-// func TestS3ConfigDeserialize(t *testing.T) {
-// 	correctSparkConfig := S3Config{
-// 		AWSAccessKeyId: "",
-// 		AWSSecretKey:   "",
-// 		BucketRegion:   "us-east-1",
-// 		BucketPath:     "example",
-// 	}
-// 	serializedConfig := correctSparkConfig.Serialize()
-// 	reserializedConfig := S3Config{}
-// 	if err := reserializedConfig.Deserialize(SerializedConfig(serializedConfig)); err != nil {
-// 		t.Fatalf("error deserializing spark config")
-// 	}
-// 	invalidConfig := SerializedConfig("invalidConfig")
-// 	invalidDeserialized := S3Config{}
-// 	if err := invalidDeserialized.Deserialize(invalidConfig); err == nil {
-// 		t.Fatalf("did not return error on deserializing improper config")
-// 	}
-// }
+func TestS3ConfigDeserialize(t *testing.T) {
+	correctSparkConfig := S3Config{
+		AWSAccessKeyId: "",
+		AWSSecretKey:   "",
+		BucketRegion:   "us-east-1",
+		BucketPath:     "example",
+	}
+	serializedConfig := correctSparkConfig.Serialize()
+	reserializedConfig := S3Config{}
+	if err := reserializedConfig.Deserialize(SerializedConfig(serializedConfig)); err != nil {
+		t.Fatalf("error deserializing spark config")
+	}
+	invalidConfig := SerializedConfig("invalidConfig")
+	invalidDeserialized := S3Config{}
+	if err := invalidDeserialized.Deserialize(invalidConfig); err == nil {
+		t.Fatalf("did not return error on deserializing improper config")
+	}
+}
 
 func TestMaterializationCreate(t *testing.T) {
 	t.Parallel()

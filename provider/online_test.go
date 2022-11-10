@@ -227,7 +227,7 @@ func TestOnlineStores(t *testing.T) {
 			}
 		}
 		t.Run("TestConsistency", func(t *testing.T) {
-			testConsistency(testItem.t, testItem.c)
+			testConsistency(t, testItem.t, testItem.c)
 		})
 	}
 }
@@ -404,13 +404,71 @@ func testTypeCasting(t *testing.T, store OnlineStore) {
 }
 
 func testConsistency(t *testing.T, tp Type, config SerializedConfig) {
-	provider, err := Get(tp, config)
-	if err != nil {
-		t.Errorf("Could not get provider: %w", err)
+	createConnection := func(t *testing.T, tp Type, config SerializedConfig) OnlineStore {
+		provider, err := Get(tp, config)
+		if err != nil {
+			t.Errorf("Could not get provider: %s", err.Error())
+		}
+		store, err := provider.AsOnlineStore()
+		if err != nil {
+			t.Errorf("Could not get provider as online store: %s", err.Error())
+		}
+		return store
 	}
-	store, err := provider.AsOnlineStore()
-	if err != nil {
-		t.Errorf("Could not get provider as online store: %w", err)
+
+	for i := 1; i < 10; i++ {
+		entity := "entity"
+		value := "value"
+		store := createConnection(t, tp, config)
+		featureName := fmt.Sprintf("feature_%s", uuid.NewString())
+		_, err := store.CreateTable(featureName, "default", String)
+		if err != nil {
+			t.Errorf("could not create table: %s", err.Error())
+		}
+		store.Close()
+		if err != nil {
+			t.Errorf("could not close store after create: %s", err.Error())
+		}
+
+		store = createConnection(t, tp, config)
+		table, err := store.GetTable(featureName, "default")
+		if err != nil {
+			t.Errorf("could not get initial table: %s", err.Error())
+		}
+		err = table.Set(entity, "value")
+		if err != nil {
+			t.Errorf("could not set table value: %s", err.Error())
+		}
+		store.Close()
+		if err != nil {
+			t.Errorf("could not close store after set: %s", err.Error())
+		}
+
+		store = createConnection(t, tp, config)
+		table, err = store.GetTable(featureName, "default")
+		if err != nil {
+			t.Errorf("could not get table after set: %s", err.Error())
+		}
+		v, err := table.Get(entity)
+		if err != nil {
+			t.Errorf("could not get table value: %s", err.Error())
+		}
+		store.Close()
+		if err != nil {
+			t.Errorf("could not close store after get: %s", err.Error())
+		}
+		if v != value {
+			t.Errorf("Expected %s got %s", value, v)
+		}
+		store = createConnection(t, tp, config)
+		err = store.DeleteTable(featureName, "default")
+		if err != nil {
+			t.Errorf("could not delete table: %s", err.Error())
+		}
+		store.Close()
+		if err != nil {
+			t.Errorf("could not close store after delete: %s", err.Error())
+		}
 	}
 }
 

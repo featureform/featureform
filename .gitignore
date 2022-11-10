@@ -7,7 +7,7 @@ dist
 **.vscode
 ../.idea/
 **/.idea/
-.env
+**.env
 .terraform**
 terrafo
 rm.**

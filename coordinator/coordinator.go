@@ -1048,7 +1048,7 @@ func (c *Coordinator) hasJob(id metadata.ResourceID) (bool, error) {
 func (c *Coordinator) createJobLock(jobKey string, s *concurrency.Session) (*concurrency.Mutex, error) {
 	mtx := concurrency.NewMutex(s, GetLockKey(jobKey))
 	if err := mtx.Lock(context.Background()); err != nil {
-		return nil, fmt.Errorf("create job lock in etcd with key %s: %w", GetLockKey(jobKey), err)
+		panic(fmt.Errorf("could not create job lock: %w: restarting.....", err))
 	}
 	return mtx, nil
 }

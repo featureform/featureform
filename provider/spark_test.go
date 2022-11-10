@@ -422,38 +422,42 @@ func TestParquetUpload(t *testing.T) {
 
 	testFns := map[string]func(*testing.T, *SparkOfflineStore){
 		// FileStore Tests (Do not use spark executor)
-		"sparkTestCreateGetOfflineTable":           sparkTestCreateGetOfflineTable,
-		"sparkTestOfflineTableAlreadyExists":       sparkTestOfflineTableAlreadyExists,
-		"sparkTestInvalidResourceIDs":              sparkTestInvalidResourceIDs,
-		"sparkTestInvalidMaterialization":          sparkTestInvalidMaterialization,
-		"sparkTestMaterializeUnknown":              sparkTestMaterializeUnknown,
-		"sparkTestGetTrainingSetInvalidResourceID": sparkTestGetTrainingSetInvalidResourceID,
-		"sparkTestInvalidTrainingSetDefs":          sparkTestInvalidTrainingSetDefs,
-		"sparkTestLabelTableNotFound":              sparkTestLabelTableNotFound,
-		"sparkTestFeatureTableNotFound":            sparkTestFeatureTableNotFound,
-		"sparkTestCreatePrimaryFromSource":         sparkTestCreatePrimaryFromSource,
-		"sparkTestCreateDuplicatePrimaryTable":     sparkTestCreateDuplicatePrimaryTable,
+		// "sparkTestCreateGetOfflineTable":           sparkTestCreateGetOfflineTable,
+		// "sparkTestOfflineTableAlreadyExists":       sparkTestOfflineTableAlreadyExists,
+		// "sparkTestInvalidResourceIDs":              sparkTestInvalidResourceIDs,
+		// "sparkTestInvalidMaterialization":          sparkTestInvalidMaterialization,
+		// "sparkTestMaterializeUnknown":              sparkTestMaterializeUnknown,
+		// "sparkTestGetTrainingSetInvalidResourceID": sparkTestGetTrainingSetInvalidResourceID,
+		// "sparkTestInvalidTrainingSetDefs":          sparkTestInvalidTrainingSetDefs,
+		// "sparkTestLabelTableNotFound":              sparkTestLabelTableNotFound,
+		// "sparkTestFeatureTableNotFound":            sparkTestFeatureTableNotFound,
+		// "sparkTestCreatePrimaryFromSource":         sparkTestCreatePrimaryFromSource,
+		// "sparkTestCreateDuplicatePrimaryTable":     sparkTestCreateDuplicatePrimaryTable,
+		// "sparkTestOfflineTableNotFound":               sparkTestOfflineTableNotFound,
+		// "sparkTestGetUnknownTrainingSet":              sparkTestGetUnknownTrainingSet,
+		// "sparkTestMaterializationNotFound":            sparkTestMaterializationNotFound,
+		// "sparkTestGetSourcePath":                      testGetSourcePath,
+		// "sparkTestGetTransformation":                  testGetTransformation,
+		// "sparkTestGetDFArgs":                          testGetDFArgs,
+		// "sparkTestUpdateQuery":                        testUpdateQuery,
+		
+
+
+
+
+
 
 		// Databricks Test (use FileStore and spark executor)
-		"sparkTestTrainingSet":                        sparkTestTrainingSet,
-		"sparkTestMaterializations":                   sparkTestMaterializations,
-		"sparkTestTrainingSetDefShorthand":            sparkTestTrainingSetDefShorthand,
-		"sparkTestTrainingSetUpdate":                  sparkTestTrainingSetUpdate,
-		"sparkTestSQLTransformation":                  testSparkSQLTransformation,
-		"sparkTestGetDFArgs":                          testGetDFArgs,
-		"sparkTestGetResourceInformationFromFilePath": testGetResourceInformationFromFilePath,
-		"sparkTestGetSourcePath":                      testGetSourcePath,
-		"sparkTestGetTransformation":                  testGetTransformation,
-		"sparkTestTransformation":                     testTransformation, //Passing excpet dataframes
+		// "sparkTestTrainingSet":                        sparkTestTrainingSet,
+		// "sparkTestMaterializations":                   sparkTestMaterializations,
+		// "sparkTestTrainingSetDefShorthand":            sparkTestTrainingSetDefShorthand,
+		// "sparkTestTrainingSetUpdate":                  sparkTestTrainingSetUpdate,
+		// "sparkTestGetResourceInformationFromFilePath": testGetResourceInformationFromFilePath,
+		// "sparkTestMaterializationUpdate":              sparkTestMaterializationUpdate,
+		//"sparkTestSQLTransformation":                  testSparkSQLTransformation, 
 
-		// NON-passing tests
 
-		// "sparkTestOfflineTableNotFound":               sparkTestOfflineTableNotFound, //TODO error returns correct error struct
-		// "sparkTestMaterializationNotFound":            sparkTestMaterializationNotFound, //TODO error returns correct error type
-		// "sparkTestGetUnknownTrainingSet":              sparkTestGetUnknownTrainingSet, //TODO error returns correct error type
-
-		// "sparkTestUpdateQuery":                        testUpdateQuery, //TODO, change so not hardcoded for s3
-		// "sparkTestMaterializationUpdate":              sparkTestMaterializationUpdate, //TODO change upload timestamp formats
+		"sparkTestTransformation":                     testTransformation, //needs initialization files
 
 	}
 
@@ -808,23 +812,6 @@ func sparkTestMaterializations(t *testing.T, store *SparkOfflineStore) {
 				ResourceRecord{Entity: "c", Value: "3"},
 			},
 		},
-		// "SubSegmentNoOverlap": {
-		// 	WriteRecords: []any{
-		// 		TestRecordTS{Entity: "a", Value: "1"},
-		// 		TestRecordTS{Entity: "b", Value: "2"},
-		// 		TestRecordTS{Entity: "c", Value: "3"},
-		// 	},
-		// 	Timestamp:    false,
-		// 	Schema:       schemaInt,
-		// 	ExpectedRows: 3,
-		// 	SegmentStart: 1,
-		// 	SegmentEnd:   2,
-		// 	ExpectedSegment: []any{
-		// 		ResourceRecord{Entity: "b", Value: "2"},
-		// 	},
-		// },
-		// Added .UTC() b/c DeepEqual checks the timezone field of time.Time which can vary, resulting in false failures
-		// during tests even if time is correct
 		"SimpleChanges": {
 			WriteRecords: []any{
 				TestRecordTS{Entity: "a", Value: "1", TS: time.UnixMilli(int64(0)).UTC()},
@@ -956,7 +943,7 @@ func sparkTestMaterializeUnknown(t *testing.T, store *SparkOfflineStore) {
 }
 
 func sparkTestMaterializationNotFound(t *testing.T, store *SparkOfflineStore) {
-	id := MaterializationID(uuid.NewString())
+	id := MaterializationID(fmt.Sprintf("%s/%s/%s",uuid.NewString(),uuid.NewString(),uuid.NewString()))
 	_, err := store.GetMaterialization(id)
 	if err == nil {
 		t.Fatalf("Succeeded in getting uninitialized materialization")
@@ -1010,11 +997,11 @@ func testSparkSQLTransformation(t *testing.T, store *SparkOfflineStore) {
 				SourceMapping: []SourceMapping{
 					SourceMapping{
 						Template: "{{test_name.test_variant}}",
-						Source:   "featureform_primary__test_name__14e4cd5e183d44968a6cf22f2f61d945",
+						Source:   "featureform_primary__a3471464552a4368802eb891e0049d07__test-variant",
 					},
 				},
 			},
-			ResourceID{"test_name", "14e4cd5e183d44968a6cf22f2f61d945", Primary},
+			ResourceID{"a3471464552a4368802eb891e0049d07", "test-variant", Primary},
 			false,
 		},
 		{
@@ -1041,6 +1028,7 @@ func testSparkSQLTransformation(t *testing.T, store *SparkOfflineStore) {
 
 	for _, tt := range cases {
 		ttConst := tt
+
 		t.Run(ttConst.name, func(t *testing.T) {
 			t.Parallel()
 			time.Sleep(time.Second * 15)
@@ -1063,8 +1051,16 @@ func testSparkSQLTransformation(t *testing.T, store *SparkOfflineStore) {
 				t.Fatalf("failed to get the transformation, %s", err)
 			}
 
+			fmt.Println("source table is")
+			fmt.Println(sourceTable)
 			sourceCount, err := sourceTable.NumRows()
+			if err != nil {
+				t.Fatalf("could not get source num rows; %v", err)
+			}
 			transformationCount, err := transformationTable.NumRows()
+			if err != nil {
+				t.Fatalf("could not get transformation num rows; %v", err)
+			}
 			if !ttConst.expectedFailure && sourceCount != transformationCount {
 				t.Fatalf("the source table and expected did not match: %v:%v", sourceCount, transformationCount)
 			}
@@ -1125,7 +1121,7 @@ func testUpdateQuery(t *testing.T, store *SparkOfflineStore) {
 			[]SourceMapping{
 				SourceMapping{
 					Template: "{{name1.variant1}}",
-					Source:   "featureform_primary__test_name__test_variant",
+					Source:   "featureform_primary__a3471464552a4368802eb891e0049d07__565ef16e4b0f4718922bd182a6b21e71",
 				},
 				SourceMapping{
 					Template: "{{name2.variant2}}",
@@ -1134,8 +1130,8 @@ func testUpdateQuery(t *testing.T, store *SparkOfflineStore) {
 			},
 			"SELECT * FROM source_0 and more source_1",
 			[]string{
-				"s3://featureform-spark-testing/featureform/testprimary/testFile.csv",
-				"s3://featureform-spark-testing/featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant/2022-08-19 17:37:36.546384/",
+				"featureform/tests/source_tables/b69923d2-a0ba-44fa-9093-4d1439c45155/table.csv",
+				"abfss://test@testingstoragegen.dfs.core.windows.net/featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant/2022-08-19 17:37:36.546384",
 			},
 			false,
 		},
@@ -1150,7 +1146,7 @@ func testUpdateQuery(t *testing.T, store *SparkOfflineStore) {
 			},
 			"SELECT * FROM source_0",
 			[]string{
-				"s3://featureform-spark-testing/featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant/2022-08-19 17:37:36.546384/",
+				"abfss://test@testingstoragegen.dfs.core.windows.net/featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant/2022-08-19 17:37:36.546384",
 			},
 			false,
 		},
@@ -1173,6 +1169,11 @@ func testUpdateQuery(t *testing.T, store *SparkOfflineStore) {
 
 	for _, tt := range cases {
 		ttConst := tt
+
+
+		//second
+		_, _ = store.RegisterPrimaryFromSourceTable(ResourceID{"028f6213-77a8-43bb-9d91-dd7e9ee96102","test_variant",Transformation},"s3://featureform-spark-testing/featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant/2022-08-19 17:37:36.546384/")
+
 		t.Run(ttConst.name, func(t *testing.T) {
 			t.Parallel()
 			retreivedQuery, sources, err := store.updateQuery(ttConst.query, ttConst.sourceMap)
@@ -1203,7 +1204,7 @@ func testGetTransformation(t *testing.T, store *SparkOfflineStore) {
 				Type:    Transformation,
 				Variant: "test_variant",
 			},
-			10000,
+			1000,
 		},
 	}
 
@@ -1238,14 +1239,14 @@ func testGetSourcePath(t *testing.T, store *SparkOfflineStore) {
 	}{
 		{
 			"PrimaryPathSuccess",
-			"featureform_primary__test_name__14e4cd5e183d44968a6cf22f2f61d945",
-			store.Store.PathWithPrefix("featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant/2022-08-19 17:37:36.546384/part-00000-9d3cb5a3-4b9c-4109-afa3-a75759bfcf89-c000.snappy.parquet", true),
+			"featureform_primary__a3471464552a4368802eb891e0049d07__565ef16e4b0f4718922bd182a6b21e71",
+			"featureform/tests/source_tables/b69923d2-a0ba-44fa-9093-4d1439c45155/table.csv",
 			false,
 		},
 		{
 			"TransformationPathSuccess",
 			"featureform_transformation__028f6213-77a8-43bb-9d91-dd7e9ee96102__test_variant",
-			store.Store.PathWithPrefix("featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant/2022-08-19 17:37:36.546384", true),
+			"abfss://test@testingstoragegen.dfs.core.windows.net/featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant/2022-08-19 17:37:36.546384",
 			false,
 		},
 		{
@@ -1324,13 +1325,17 @@ func testGetResourceInformationFromFilePath(t *testing.T, store *SparkOfflineSto
 
 func testGetDFArgs(t *testing.T, store *SparkOfflineStore) {
 	azureStore := store.Store.AsAzureStore()
+	if azureStore != nil {
+		// azure store can't be tested for this, as verifying df args requires hardcoding credentials
+		return
+	}
 
 	cases := []struct {
 		name            string
 		outputURI       string
 		code            string
 		store_type      string
-		mapping         []SourceMapping
+		sources        []string
 		expectedArgs    []string
 		expectedFailure bool
 	}{
@@ -1339,12 +1344,7 @@ func testGetDFArgs(t *testing.T, store *SparkOfflineStore) {
 			"featureform-spark-testing/featureform/Primary/test_name/test_variant",
 			"code",
 			"AzureBlobStore",
-			[]SourceMapping{
-				SourceMapping{
-					Template: "transaction",
-					Source:   "featureform-spark-testing/featureform/testprimary/testFile.csv",
-				},
-			},
+			[]string{ "featureform-spark-testing/featureform/testprimary/testFile.csv"},
 			[]string{
 				"df",
 				"--output_uri",
@@ -1369,12 +1369,7 @@ func testGetDFArgs(t *testing.T, store *SparkOfflineStore) {
 			"s3://featureform-spark-testing/featureform/Primary/test_name/test_variant",
 			"code",
 			"AzureBlobStore",
-			[]SourceMapping{
-				SourceMapping{
-					Template: "transaction",
-					Source:   "featureform_primary",
-				},
-			},
+			[]string{"featureform_primary"},
 			nil,
 			true,
 		},
@@ -1383,7 +1378,7 @@ func testGetDFArgs(t *testing.T, store *SparkOfflineStore) {
 	for _, tt := range cases {
 		ttConst := tt
 		t.Run(ttConst.name, func(t *testing.T) {
-			args, err := store.Executor.GetDFArgs(ttConst.outputURI, ttConst.code, ttConst.mapping, store.Store)
+			args, err := store.Executor.GetDFArgs(ttConst.outputURI, ttConst.code, ttConst.sources, store.Store)
 
 			if !ttConst.expectedFailure && err != nil {
 				t.Fatalf("could not get df args %s", err)
@@ -1402,58 +1397,39 @@ func testTransformation(t *testing.T, store *SparkOfflineStore) {
 		config          TransformationConfig
 		sourceID        ResourceID
 		expectedFailure bool
-	}{
+	}{	
+
 		{
-			"SQLTransformation",
+			"DFTransformationType",
 			TransformationConfig{
-				Type: SQLTransformation,
+				Type: DFTransformation,
 				TargetTableID: ResourceID{
 					Name:    uuid.NewString(),
 					Type:    Transformation,
 					Variant: "test_variant",
 				},
-				Query: "SELECT * FROM {{test_name.test_variant}}",
+				Code: []byte("abfss://test@testingstoragegen.dfs.core.windows.net/DFTransformations/same_df.pkl"),
 				SourceMapping: []SourceMapping{
 					SourceMapping{
-						Template: "{{test_name.test_variant}}",
-						Source:   "featureform_primary__test_name__14e4cd5e183d44968a6cf22f2f61d945",
+						Template: "transaction",
+						Source:   "featureform_primary__a3471464552a4368802eb891e0049d07__test-variant",
 					},
 				},
 			},
-			ResourceID{"test_name", "14e4cd5e183d44968a6cf22f2f61d945", Primary},
+			ResourceID{"a3471464552a4368802eb891e0049d07", "test-variant", Primary},
 			false,
 		},
 		// {
-		// 	"DFTransformationType",
+		// 	"NoTransformationType",
 		// 	TransformationConfig{
-		// 		Type: DFTransformation,
-		// 		TargetTableID: ResourceID{
-		// 			Name:    uuid.NewString(),
-		// 			Type:    Transformation,
-		// 			Variant: "test_variant",
-		// 		},
-		// 		Query: "s3://featureform-spark-testing/featureform/DFTransformations/test_name/test_variant/transformation.pkl",
-		// 		SourceMapping: []SourceMapping{
-		// 			SourceMapping{
-		// 				Template: "transaction",
-		// 				Source:   "featureform_primary__test_name__test_variant",
-		// 			},
-		// 		},
+		// 		Type:          NoTransformationType,
+		// 		TargetTableID: ResourceID{},
+		// 		Query:         "SELECT * FROM {{test_name.test_variant}}",
+		// 		SourceMapping: []SourceMapping{},
 		// 	},
-		// 	ResourceID{"test_name", "test_variant", Primary},
-		// 	false,
+		// 	ResourceID{},
+		// 	true,
 		// },
-		{
-			"NoTransformationType",
-			TransformationConfig{
-				Type:          NoTransformationType,
-				TargetTableID: ResourceID{},
-				Query:         "SELECT * FROM {{test_name.test_variant}}",
-				SourceMapping: []SourceMapping{},
-			},
-			ResourceID{},
-			true,
-		},
 	}
 
 	for _, tt := range cases {
@@ -1984,26 +1960,27 @@ func sparkTestMaterializationUpdate(t *testing.T, store *SparkOfflineStore) {
 		ExpectedUpdate                         []any
 		Timestamp                              bool
 	}
+	
 
 	schemaInt := TableSchema{
 		Columns: []TableColumn{
 			{Name: "entity", ValueType: String},
-			{Name: "value", ValueType: Int},
+			{Name: "value", ValueType: String},
 			{Name: "ts", ValueType: Timestamp},
 		},
 	}
 	tests := map[string]TestCase{
 		"NoOverlap": {
 			WriteRecords: []any{
-				TestRecordInt{Entity: "a", Value: 1},
-				TestRecordInt{Entity: "b", Value: 2},
-				TestRecordInt{Entity: "c", Value: 3},
+				TestRecordTS{Entity: "a", Value: "1"},
+				TestRecordTS{Entity: "b", Value: "2"},
+				TestRecordTS{Entity: "c", Value: "3"},
 			},
 			UpdateRecords: []any{
-				TestRecordInt{Entity: "a", Value: 1},
-				TestRecordInt{Entity: "b", Value: 2},
-				TestRecordInt{Entity: "c", Value: 3},
-				TestRecordInt{Entity: "d", Value: 4},
+				TestRecordTS{Entity: "a", Value: "1"},
+				TestRecordTS{Entity: "b", Value: "2"},
+				TestRecordTS{Entity: "c", Value: "3"},
+				TestRecordTS{Entity: "d", Value: "4"},
 			},
 			Schema:              schemaInt,
 			ExpectedRows:        3,
@@ -2015,28 +1992,28 @@ func sparkTestMaterializationUpdate(t *testing.T, store *SparkOfflineStore) {
 			// Have to expect int64(0) as it is the default value
 			// if a resource does not have a set timestamp
 			ExpectedSegment: []any{
-				TestRecordInt{Entity: "a", Value: 1, TS: int64(0)},
-				TestRecordInt{Entity: "b", Value: 2, TS: int64(0)},
-				TestRecordInt{Entity: "c", Value: 3, TS: int64(0)},
+				ResourceRecord{Entity: "a", Value: "1"},
+				ResourceRecord{Entity: "b", Value: "2"},
+				ResourceRecord{Entity: "c", Value: "3"},
 			},
 			ExpectedUpdate: []any{
-				TestRecordInt{Entity: "a", Value: 1, TS: int64(0)},
-				TestRecordInt{Entity: "b", Value: 2, TS: int64(0)},
-				TestRecordInt{Entity: "c", Value: 3, TS: int64(0)},
-				TestRecordInt{Entity: "d", Value: 4, TS: int64(0)},
+				ResourceRecord{Entity: "a", Value: "1"},
+				ResourceRecord{Entity: "b", Value: "2"},
+				ResourceRecord{Entity: "c", Value: "3"},
+				ResourceRecord{Entity: "d", Value: "4"},
 			},
 			Timestamp: false,
 		},
 		"SimpleOverwrite": {
 			WriteRecords: []any{
-				TestRecordInt{Entity: "a", Value: 1},
-				TestRecordInt{Entity: "b", Value: 2},
-				TestRecordInt{Entity: "c", Value: 3},
+				TestRecordTS{Entity: "a", Value: "1"},
+				TestRecordTS{Entity: "b", Value: "2"},
+				TestRecordTS{Entity: "c", Value: "3"},
 			},
 			UpdateRecords: []any{
-				TestRecordInt{Entity: "a", Value: 3},
-				TestRecordInt{Entity: "b", Value: 4},
-				TestRecordInt{Entity: "c", Value: 3},
+				TestRecordTS{Entity: "a", Value: "3"},
+				TestRecordTS{Entity: "b", Value: "4"},
+				TestRecordTS{Entity: "c", Value: "3"},
 			},
 			Schema:              schemaInt,
 			ExpectedRows:        3,
@@ -2046,14 +2023,14 @@ func sparkTestMaterializationUpdate(t *testing.T, store *SparkOfflineStore) {
 			UpdatedSegmentEnd:   3,
 			UpdatedRows:         3,
 			ExpectedSegment: []any{
-				TestRecordInt{Entity: "a", Value: 1, TS: int64(0)},
-				TestRecordInt{Entity: "b", Value: 2, TS: int64(0)},
-				TestRecordInt{Entity: "c", Value: 3, TS: int64(0)},
+				ResourceRecord{Entity: "a", Value: "1"},
+				ResourceRecord{Entity: "b", Value: "2"},
+				ResourceRecord{Entity: "c", Value: "3"},
 			},
 			ExpectedUpdate: []any{
-				TestRecordInt{Entity: "a", Value: 3, TS: int64(0)},
-				TestRecordInt{Entity: "b", Value: 4, TS: int64(0)},
-				TestRecordInt{Entity: "c", Value: 3, TS: int64(0)},
+				ResourceRecord{Entity: "a", Value: "3"},
+				ResourceRecord{Entity: "b", Value: "4"},
+				ResourceRecord{Entity: "c", Value: "3"},
 			},
 			Timestamp: false,
 		},
@@ -2061,17 +2038,17 @@ func sparkTestMaterializationUpdate(t *testing.T, store *SparkOfflineStore) {
 		// during tests even if time is correct
 		"SimpleChanges": {
 			WriteRecords: []any{
-				TestRecordInt{Entity: "a", Value: 1, TS: int64(0)},
-				TestRecordInt{Entity: "b", Value: 2, TS: int64(0)},
-				TestRecordInt{Entity: "c", Value: 3, TS: int64(0)},
-				TestRecordInt{Entity: "a", Value: 4, TS: int64(1)},
+				TestRecordTS{Entity: "a", Value: "1", TS: time.UnixMilli(int64(0)).UTC()},
+				TestRecordTS{Entity: "b", Value: "2", TS: time.UnixMilli(int64(0)).UTC()},
+				TestRecordTS{Entity: "c", Value: "3", TS: time.UnixMilli(int64(0)).UTC()},
+				TestRecordTS{Entity: "a", Value: "4", TS: time.UnixMilli(int64(1)).UTC()},
 			},
 			UpdateRecords: []any{
-				TestRecordInt{Entity: "a", Value: 1, TS: int64(0)},
-				TestRecordInt{Entity: "b", Value: 2, TS: int64(0)},
-				TestRecordInt{Entity: "c", Value: 3, TS: int64(0)},
-				TestRecordInt{Entity: "a", Value: 4, TS: int64(1)},
-				TestRecordInt{Entity: "a", Value: 4, TS: int64(4)},
+				TestRecordTS{Entity: "a", Value: "1", TS: time.UnixMilli(int64(0)).UTC()},
+				TestRecordTS{Entity: "b", Value: "2", TS: time.UnixMilli(int64(0)).UTC()},
+				TestRecordTS{Entity: "c", Value: "3", TS: time.UnixMilli(int64(0)).UTC()},
+				TestRecordTS{Entity: "a", Value: "4", TS: time.UnixMilli(int64(1)).UTC()},
+				TestRecordTS{Entity: "a", Value: "4", TS: time.UnixMilli(int64(4)).UTC()},
 			},
 			Schema:              schemaInt,
 			ExpectedRows:        3,
@@ -2081,32 +2058,32 @@ func sparkTestMaterializationUpdate(t *testing.T, store *SparkOfflineStore) {
 			UpdatedSegmentEnd:   3,
 			UpdatedRows:         3,
 			ExpectedSegment: []any{
-				TestRecordInt{Entity: "a", Value: 4, TS: int64(1)},
-				TestRecordInt{Entity: "b", Value: 2, TS: int64(0)},
-				TestRecordInt{Entity: "c", Value: 3, TS: int64(0)},
+				ResourceRecord{Entity: "a", Value: "4", TS: time.UnixMilli(int64(1)).UTC()},
+				ResourceRecord{Entity: "b", Value: "2", TS: time.UnixMilli(int64(0)).UTC()},
+				ResourceRecord{Entity: "c", Value: "3", TS: time.UnixMilli(int64(0)).UTC()},
 			},
 			ExpectedUpdate: []any{
-				TestRecordInt{Entity: "b", Value: 2, TS: int64(0)},
-				TestRecordInt{Entity: "c", Value: 3, TS: int64(0)},
-				TestRecordInt{Entity: "a", Value: 4, TS: int64(4)},
+				ResourceRecord{Entity: "b", Value: "2", TS: time.UnixMilli(int64(0)).UTC()},
+				ResourceRecord{Entity: "c", Value: "3", TS: time.UnixMilli(int64(0)).UTC()},
+				ResourceRecord{Entity: "a", Value: "4", TS: time.UnixMilli(int64(4)).UTC()},
 			},
 			Timestamp: true,
 		},
 		"OutOfOrderWrites": {
 			WriteRecords: []any{
-				TestRecordInt{Entity: "a", Value: 1, TS: int64(10)},
-				TestRecordInt{Entity: "b", Value: 2, TS: int64(3)},
-				TestRecordInt{Entity: "c", Value: 3, TS: int64(7)},
-				TestRecordInt{Entity: "c", Value: 9, TS: int64(5)},
-				TestRecordInt{Entity: "a", Value: 4, TS: int64(1)},
+				TestRecordTS{Entity: "a", Value: "1", TS: time.UnixMilli(int64(10)).UTC()},
+				TestRecordTS{Entity: "b", Value: "2", TS: time.UnixMilli(int64(3)).UTC()},
+				TestRecordTS{Entity: "c", Value: "3", TS: time.UnixMilli(int64(7)).UTC()},
+				TestRecordTS{Entity: "c", Value: "9", TS: time.UnixMilli(int64(5)).UTC()},
+				TestRecordTS{Entity: "a", Value: "4", TS: time.UnixMilli(int64(1)).UTC()},
 			},
 			UpdateRecords: []any{
-				TestRecordInt{Entity: "a", Value: 1, TS: int64(10)},
-				TestRecordInt{Entity: "b", Value: 2, TS: int64(3)},
-				TestRecordInt{Entity: "c", Value: 3, TS: int64(7)},
-				TestRecordInt{Entity: "c", Value: 9, TS: int64(5)},
-				TestRecordInt{Entity: "a", Value: 4, TS: int64(1)},
-				TestRecordInt{Entity: "a", Value: 6, TS: int64(12)},
+				TestRecordTS{Entity: "a", Value: "1", TS: time.UnixMilli(int64(10)).UTC()},
+				TestRecordTS{Entity: "b", Value: "2", TS: time.UnixMilli(int64(3)).UTC()},
+				TestRecordTS{Entity: "c", Value: "3", TS: time.UnixMilli(int64(7)).UTC()},
+				TestRecordTS{Entity: "c", Value: "9", TS: time.UnixMilli(int64(5)).UTC()},
+				TestRecordTS{Entity: "a", Value: "4", TS: time.UnixMilli(int64(1)).UTC()},
+				TestRecordTS{Entity: "a", Value: "6", TS: time.UnixMilli(int64(12)).UTC()},
 			},
 			Schema:              schemaInt,
 			ExpectedRows:        3,
@@ -2116,37 +2093,37 @@ func sparkTestMaterializationUpdate(t *testing.T, store *SparkOfflineStore) {
 			UpdatedSegmentEnd:   3,
 			UpdatedRows:         3,
 			ExpectedSegment: []any{
-				TestRecordInt{Entity: "a", Value: 1, TS: int64(10)},
-				TestRecordInt{Entity: "b", Value: 2, TS: int64(3)},
-				TestRecordInt{Entity: "c", Value: 3, TS: int64(7)},
+				ResourceRecord{Entity: "a", Value: "1", TS: time.UnixMilli(int64(10)).UTC()},
+				ResourceRecord{Entity: "b", Value: "2", TS: time.UnixMilli(int64(3)).UTC()},
+				ResourceRecord{Entity: "c", Value: "3", TS: time.UnixMilli(int64(7)).UTC()},
 			},
 			ExpectedUpdate: []any{
-				TestRecordInt{Entity: "a", Value: 6, TS: int64(12)},
-				TestRecordInt{Entity: "b", Value: 2, TS: int64(3)},
-				TestRecordInt{Entity: "c", Value: 3, TS: int64(7)},
+				ResourceRecord{Entity: "a", Value: "6", TS: time.UnixMilli(int64(12)).UTC()},
+				ResourceRecord{Entity: "b", Value: "2", TS: time.UnixMilli(int64(3)).UTC()},
+				ResourceRecord{Entity: "c", Value: "3", TS: time.UnixMilli(int64(7)).UTC()},
 			},
 			Timestamp: true,
 		},
 		"OutOfOrderOverwrites": {
 			WriteRecords: []any{
-				TestRecordInt{Entity: "a", Value: 1, TS: int64(10)},
-				TestRecordInt{Entity: "b", Value: 2, TS: int64(3)},
-				TestRecordInt{Entity: "c", Value: 3, TS: int64(7)},
-				TestRecordInt{Entity: "c", Value: 9, TS: int64(5)},
-				TestRecordInt{Entity: "b", Value: 12, TS: int64(2)},
-				TestRecordInt{Entity: "a", Value: 4, TS: int64(1)},
-				TestRecordInt{Entity: "b", Value: 9, TS: int64(4)},
+				TestRecordTS{Entity: "a", Value: "1", TS: time.UnixMilli(int64(10)).UTC()},
+				TestRecordTS{Entity: "b", Value: "2", TS: time.UnixMilli(int64(3)).UTC()},
+				TestRecordTS{Entity: "c", Value: "3", TS: time.UnixMilli(int64(7)).UTC()},
+				TestRecordTS{Entity: "c", Value: "9", TS: time.UnixMilli(int64(5)).UTC()},
+				TestRecordTS{Entity: "b", Value: "12", TS: time.UnixMilli(int64(2)).UTC()},
+				TestRecordTS{Entity: "a", Value: "4", TS: time.UnixMilli(int64(1)).UTC()},
+				TestRecordTS{Entity: "b", Value: "9", TS: time.UnixMilli(int64(4)).UTC()},
 			},
 			UpdateRecords: []any{
-				TestRecordInt{Entity: "a", Value: 1, TS: int64(10)},
-				TestRecordInt{Entity: "b", Value: 2, TS: int64(3)},
-				TestRecordInt{Entity: "c", Value: 3, TS: int64(7)},
-				TestRecordInt{Entity: "c", Value: 9, TS: int64(5)},
-				TestRecordInt{Entity: "b", Value: 12, TS: int64(2)},
-				TestRecordInt{Entity: "a", Value: 4, TS: int64(1)},
-				TestRecordInt{Entity: "b", Value: 9, TS: int64(3)},
-				TestRecordInt{Entity: "a", Value: 5, TS: int64(20)},
-				TestRecordInt{Entity: "b", Value: 2, TS: int64(5)},
+				TestRecordTS{Entity: "a", Value: "1", TS: time.UnixMilli(int64(10)).UTC()},
+				TestRecordTS{Entity: "b", Value: "2", TS: time.UnixMilli(int64(3)).UTC()},
+				TestRecordTS{Entity: "c", Value: "3", TS: time.UnixMilli(int64(7)).UTC()},
+				TestRecordTS{Entity: "c", Value: "9", TS: time.UnixMilli(int64(5)).UTC()},
+				TestRecordTS{Entity: "b", Value: "12", TS: time.UnixMilli(int64(2)).UTC()},
+				TestRecordTS{Entity: "a", Value: "4", TS: time.UnixMilli(int64(1)).UTC()},
+				TestRecordTS{Entity: "b", Value: "9", TS: time.UnixMilli(int64(3)).UTC()},
+				TestRecordTS{Entity: "a", Value: "5", TS: time.UnixMilli(int64(20)).UTC()},
+				TestRecordTS{Entity: "b", Value: "2", TS: time.UnixMilli(int64(5)).UTC()},
 			},
 			Schema:              schemaInt,
 			ExpectedRows:        3,
@@ -2156,14 +2133,14 @@ func sparkTestMaterializationUpdate(t *testing.T, store *SparkOfflineStore) {
 			UpdatedSegmentEnd:   3,
 			UpdatedRows:         3,
 			ExpectedSegment: []any{
-				TestRecordInt{Entity: "a", Value: 1, TS: int64(10)},
-				TestRecordInt{Entity: "b", Value: 9, TS: int64(4)},
-				TestRecordInt{Entity: "c", Value: 3, TS: int64(7)},
+				ResourceRecord{Entity: "a", Value: "1", TS: time.UnixMilli(int64(10)).UTC()},
+				ResourceRecord{Entity: "b", Value: "9", TS: time.UnixMilli(int64(4)).UTC()},
+				ResourceRecord{Entity: "c", Value: "3", TS: time.UnixMilli(int64(7)).UTC()},
 			},
 			ExpectedUpdate: []any{
-				TestRecordInt{Entity: "c", Value: 3, TS: int64(7)},
-				TestRecordInt{Entity: "a", Value: 5, TS: int64(20)},
-				TestRecordInt{Entity: "b", Value: 2, TS: int64(5)},
+				ResourceRecord{Entity: "c", Value: "3", TS: time.UnixMilli(int64(7)).UTC()},
+				ResourceRecord{Entity: "a", Value: "5", TS: time.UnixMilli(int64(20)).UTC()},
+				ResourceRecord{Entity: "b", Value: "2", TS: time.UnixMilli(int64(5)).UTC()},
 			},
 			Timestamp: true,
 		},

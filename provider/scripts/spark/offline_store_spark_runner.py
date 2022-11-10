@@ -173,6 +173,8 @@ def download_blobs_to_local(container_client, blob, local_filename):
     full_path = f"{LOCAL_DATA_PATH}/{local_filename}"
     print(f"downloading {blob} to {full_path}")
 
+    print(blob)
+    
     blob_client = container_client.get_blob_client(blob)
 
     with open(full_path, "wb") as my_blob:

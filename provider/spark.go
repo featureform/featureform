@@ -647,7 +647,6 @@ func GetTransformationFileLocation(id ResourceID) string {
 func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, isUpdate bool) error {
 	transformationDestination := spark.Store.PathWithPrefix(ResourcePrefix(config.TargetTableID), true)
 	transformationDestinationWithSlash := strings.Join([]string{transformationDestination, ""}, "/")
-	fmt.Println("--->", transformationDestination, transformationDestinationWithSlash)
 	transformationFile, err := spark.Store.NewestFile(spark.Store.PathWithPrefix(ResourcePrefix(config.TargetTableID), false))
 	if err != nil {
 		return fmt.Errorf("error checking if transformation file exists")
@@ -674,6 +673,9 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 		return fmt.Errorf("could not get sources for df transformation. Error: %v", err)
 	}
 
+	if string(config.Code) != "" {
+		transformationFileLocation = string(config.Code)
+	}
 	sparkArgs, err := spark.Executor.GetDFArgs(transformationDestinationWithSlash, transformationFileLocation, sources, spark.Store)
 	if err != nil {
 		spark.Logger.Errorw("Problem creating spark dataframe arguments", err)
@@ -745,7 +747,6 @@ func (spark *SparkOfflineStore) getSourcePath(path string) (string, error) {
 		return filePath, nil
 	} else if fileType == "transformation" {
 		fileResourceId := ResourceID{Name: fileName, Variant: fileVariant, Type: Transformation}
-
 		transformationPath, err := spark.Store.NewestFile(spark.Store.PathWithPrefix(ResourcePrefix(fileResourceId), false))
 		if err != nil || transformationPath == "" {
 			return "", fmt.Errorf("Could not get transformation file path: %v", err)
@@ -839,7 +840,6 @@ func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (Transform
 	spark.Logger.Debugw("Getting transformation table", "ResourceID", id)
 	transformationPath := spark.Store.PathWithPrefix(fileStoreResourcePath(id), false)
 	transformationExactPath, err := spark.Store.NewestFile(spark.Store.PathWithPrefix(transformationPath, false))
-	fmt.Println("GetTransformation", transformationPath, transformationExactPath)
 	if err != nil || transformationExactPath == "" {
 		return nil, fmt.Errorf("Could not get transformation table: %v", err)
 	}

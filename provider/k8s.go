@@ -644,6 +644,9 @@ func (store genericFileStore) Serve(key string) (Iterator, error) {
 }
 
 func (store genericFileStore) NumRows(key string) (int64, error) {
+	if key[:len("abfss://")] == "abfss://" {
+		key = strings.Join(strings.Split(key, "/")[3:], "/")
+	}
 	b, err := store.bucket.ReadAll(context.TODO(), key)
 	if err != nil {
 		return 0, err
@@ -930,6 +933,15 @@ func (k8s *K8sOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, source
 	return blobRegisterPrimary(id, sourceName, k8s.logger, k8s.store)
 }
 
+type PrimaryTableAlreadyExists struct {
+	id ResourceID
+}
+
+func (err *PrimaryTableAlreadyExists) Error() string {
+	return fmt.Sprintf("Primary Table %s Variant %s already exists.", err.id.Name, err.id.Variant)
+}
+
+
 func blobRegisterPrimary(id ResourceID, sourceName string, logger *zap.SugaredLogger, store FileStore) (PrimaryTable, error) {
 	resourceKey := store.PathWithPrefix(fileStoreResourcePath(id), false)
 	primaryExists, err := store.Exists(resourceKey)
@@ -939,7 +951,7 @@ func blobRegisterPrimary(id ResourceID, sourceName string, logger *zap.SugaredLo
 	}
 	if primaryExists {
 		logger.Errorw("Error checking if primary exists")
-		return nil, fmt.Errorf("primary already exists")
+		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}
 
 	logger.Debugw("Registering primary table", id, "for source", sourceName)
@@ -1208,6 +1220,7 @@ func fileStoreGetPrimary(id ResourceID, store FileStore, logger *zap.SugaredLogg
 	}
 
 	logger.Debugw("Succesfully retrieved primary table", id)
+	
 	return &FileStorePrimaryTable{store, string(table), false, id}, nil
 }
 
@@ -1224,7 +1237,7 @@ func fileStoreGetResourceTable(id ResourceID, store FileStore, logger *zap.Sugar
 	logger.Debugw("Getting resource table", id)
 	serializedSchema, err := store.Read(resourcekey)
 	if err != nil {
-		return nil, fmt.Errorf("Error reading schema bytes from blob storage: %v", err)
+		return nil, &TableNotFound{id.Name, id.Variant}
 	}
 	resourceSchema := ResourceSchema{}
 	if err := resourceSchema.Deserialize(serializedSchema); err != nil {
@@ -1254,7 +1267,11 @@ func fileStoreGetMaterialization(id MaterializationID, store FileStore, logger *
 	materializationExactPath, err := store.NewestFile(materializationPath)
 	if err != nil {
 		logger.Errorw("Could not fetch materialization resource key", "error", err)
-		return nil, fmt.Errorf("Could not fetch materialization resource key: %v", err)
+		return nil, &MaterializationNotFound{id}
+	}
+	if materializationExactPath == "" {
+		logger.Errorw("Materialization not yet registered in offline store")
+		return nil, &MaterializationNotFound{id}
 	}
 	logger.Debugw("Succesfully retrieved materialization", "id", id)
 	return &FileStoreMaterialization{materializationID, store, materializationExactPath}, nil
@@ -1423,7 +1440,10 @@ func fileStoreDeleteMaterialization(id MaterializationID, store FileStore, logge
 	materializationPath := store.PathWithPrefix(fileStoreResourcePath(materializationID), false)
 	materializationExactPath, err := store.NewestFile(materializationPath)
 	if err != nil {
-		return fmt.Errorf("materialization does not exist: %v", err)
+		return &MaterializationNotFound{id}
+	}
+	if materializationExactPath == "" {
+		return &MaterializationNotFound{id}
 	}
 	return store.Delete(materializationExactPath)
 }
@@ -1525,7 +1545,7 @@ func fileStoreGetTrainingSet(id ResourceID, store FileStore, logger *zap.Sugared
 		return nil, fmt.Errorf("could not get training set: %v", err)
 	}
 	if trainingSetExactPath == "" {
-		return nil, fmt.Errorf("the training set (%v at resource prefix: %s) does not exist", id, resourceKeyPrefix)
+		return nil, &TrainingSetNotFound{id}
 	}
 
 	iterator, err := store.Serve(trainingSetExactPath)

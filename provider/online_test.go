@@ -435,32 +435,7 @@ func testConsistency(t *testing.T, tp Type, config SerializedConfig) {
 		if err != nil {
 			t.Errorf("could not get initial table: %s", err.Error())
 		}
-		err = table.Set(entity, "value")
-		if err != nil {
-			t.Errorf("could not set table value: %s", err.Error())
-		}
-		store.Close()
-		if err != nil {
-			t.Errorf("could not close store after set: %s", err.Error())
-		}
 
-		store = createConnection(t, tp, config)
-		table, err = store.GetTable(featureName, "default")
-		if err != nil {
-			t.Errorf("could not get table after set: %s", err.Error())
-		}
-		v, err := table.Get(entity)
-		if err != nil {
-			t.Errorf("could not get table value: %s", err.Error())
-		}
-		store.Close()
-		if err != nil {
-			t.Errorf("could not close store after get: %s", err.Error())
-		}
-		if v != value {
-			t.Errorf("Expected %s got %s", value, v)
-		}
-		store = createConnection(t, tp, config)
 		err = store.DeleteTable(featureName, "default")
 		if err != nil {
 			t.Errorf("could not delete table: %s", err.Error())

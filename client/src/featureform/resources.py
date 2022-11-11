@@ -1011,8 +1011,6 @@ class TrainingSet:
                 self.variant,
                 feature_name,  # feature name
                 feature_variant,  # feature variant
-                "NONE",
-                -1.0
             )
 
         for feature in self.feature_lags:
@@ -1027,7 +1025,7 @@ class TrainingSet:
                 raise ValueError(f"{feature_name} does not exist. Failed to register training set")
             
             db.insert(
-                "training_set_features",
+                "training_set_lag_features",
                 self.name,
                 self.variant,
                 feature_name,     # feature name

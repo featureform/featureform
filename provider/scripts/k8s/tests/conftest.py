@@ -142,6 +142,7 @@ def df_transformation():
 def container_client():
     # get the path to .env in root directory
     env_file = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(real_path)))))
+    
     load_dotenv(f"{env_file}/.env")
     blob_service_client = BlobServiceClient.from_connection_string(os.getenv("AZURE_CONNECTION_STRING"))
     container_client = blob_service_client.get_container_client(os.getenv("AZURE_CONTAINER_NAME"))

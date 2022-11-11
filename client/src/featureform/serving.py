@@ -1,23 +1,26 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
-import json
-import dill
+
 import os
-import random
 import re
-import types
+import dill
+import json
 import math
+import types
+import random
+from datetime import timedelta
 
 import grpc
 import numpy as np
-from featureform.proto import serving_pb2
-from featureform.proto import serving_pb2_grpc
-from .tls import insecure_channel, secure_channel
 import pandas as pd
 from pandasql import sqldf
+from featureform.proto import serving_pb2
 from .sqlite_metadata import SQLiteMetadata
+from featureform.proto import serving_pb2_grpc
+
 from .resources import SourceType
+from .tls import insecure_channel, secure_channel
 
 
 def check_feature_type(features):
@@ -147,6 +150,7 @@ class LocalClientImpl:
         training_set = self.db.get_training_set_variant(training_set_name, training_set_variant)
         label = self.db.get_label_variant(training_set['label_name'], training_set['label_variant'])
         label_df = self.get_label_dataframe(label)
+
         # We will build the training set DF by merging each feature one by one into it.
         trainingset_df = label_df
         features = self.db.get_training_set_features(training_set_name, training_set_variant)
@@ -154,15 +158,23 @@ class LocalClientImpl:
             feature = self.db.get_feature_variant(feature_variant['feature_name'], feature_variant['feature_variant'])
             feature_df = self.get_feature_dataframe(feature)
             trainingset_df = self.merge_feature_into_ts(feature, label, feature_df, trainingset_df)
-        
-        print("\n\n")
-        trainingset_df.head()
-        print("\n\n")
 
-        # lag_features = self.db.get_training_set_lag_features(training_set_name, training_set_variant)
-        # for lag_feature in lag_features:
-        #     print(type(lag_feature.keys()), lag_feature, lag_feature.keys())
-        #     print(lag_feature["feature_name"], lag_feature["feature_variant"], lag_feature["feature_new_name"], lag_feature["feature_lag"])
+        lag_features = self.db.get_training_set_lag_features(training_set_name, training_set_variant)
+        if len(lag_features) > 0:
+            timestamp_column = label["source_timestamp"]
+            trainingset_df[timestamp_column] = pd.to_datetime(trainingset_df[timestamp_column])
+            trainingset_df.set_index(timestamp_column, inplace=True)
+
+        for lag_feature in lag_features:
+            feature_column_name = f"{lag_feature['feature_name']}.{lag_feature['feature_variant']}"
+            lag_feature_column_name = lag_feature["feature_new_name"]
+            lag = timedelta(seconds=lag_feature["feature_lag"])
+
+            trainingset_df[lag_feature_column_name] = trainingset_df[feature_column_name].shift(freq=lag)
+    
+        if len(lag_features) > 0:
+            # Need to reset the index for `convert_ts_df_to_dataset` to work
+            trainingset_df.reset_index(inplace=True)
 
         return self.convert_ts_df_to_dataset(label, trainingset_df, include_label_timestamp)
 

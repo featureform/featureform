@@ -98,7 +98,7 @@ class SQLiteMetadata:
           feature_name text NOT NULL,
           feature_variant text NOT NULL,
           feature_new_name text,
-          feature_lag text,
+          feature_lag real,
           UNIQUE(training_set_name, training_set_variant, feature_name, feature_variant, feature_new_name, feature_lag));''')
 
         # source variant
@@ -295,12 +295,12 @@ class SQLiteMetadata:
         return self.fetch_data_safe(query, "training_set_variant", name, variant)
 
     def get_training_set_features(self, name, variant):
-        query = f"SELECT * FROM training_set_features WHERE training_set_name = '{name}' AND training_set_variant = '{variant}' AND feature_new_name = 'NONE' AND feature_lag = 'NONE';"
+        query = f"SELECT * FROM training_set_features WHERE training_set_name = '{name}' AND training_set_variant = '{variant}' AND feature_new_name = 'NONE' AND feature_lag = -1.0;"
         return self.fetch_data(query, "training_set_features", name, variant)
       
     def get_training_set_lag_features(self, name, variant):
-        query = f"SELECT * FROM training_set_features WHERE training_set_name = '{name}' AND training_set_variant = '{variant}' AND feature_new_name != 'NONE' AND feature_lag != 'NONE';"
-        return self.fetch_data(query, "training_set_features", name, variant)
+        query = f"SELECT * FROM training_set_features WHERE training_set_name = '{name}' AND training_set_variant = '{variant}' AND feature_new_name != 'NONE' AND feature_lag != -1.0;"
+        return self.fetch_data_safe(query, "training_set_features", name, variant)
 
     def get_resource_with_source(self, type, source_name, source_variant):
         query = f"SELECT * FROM {type} WHERE source_name ='{source_name}' AND source_variant ='{source_variant}';"

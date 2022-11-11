@@ -154,6 +154,15 @@ class LocalClientImpl:
             feature = self.db.get_feature_variant(feature_variant['feature_name'], feature_variant['feature_variant'])
             feature_df = self.get_feature_dataframe(feature)
             trainingset_df = self.merge_feature_into_ts(feature, label, feature_df, trainingset_df)
+        
+        print("\n\n")
+        trainingset_df.head()
+        print("\n\n")
+
+        # lag_features = self.db.get_training_set_lag_features(training_set_name, training_set_variant)
+        # for lag_feature in lag_features:
+        #     print(type(lag_feature.keys()), lag_feature, lag_feature.keys())
+        #     print(lag_feature["feature_name"], lag_feature["feature_variant"], lag_feature["feature_new_name"], lag_feature["feature_lag"])
 
         return self.convert_ts_df_to_dataset(label, trainingset_df, include_label_timestamp)
 

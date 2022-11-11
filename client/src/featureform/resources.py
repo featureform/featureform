@@ -1008,8 +1008,32 @@ class TrainingSet:
                 self.name,
                 self.variant,
                 feature_name,  # feature name
-                feature_variant  # feature variant
+                feature_variant,  # feature variant
+                "NONE",
+                "NONE"
             )
+
+        for feature in self.feature_lags:
+            feature_name = feature["feature"]
+            feature_variant = feature["variant"]
+            feature_new_name = feature["name"]
+            feature_lag = str(feature["lag"])
+
+            try:
+                db.get_feature_variant(feature_name, feature_variant)
+            except ValueError:
+                raise ValueError(f"{feature_name} does not exist. Failed to register training set")
+            
+            db.insert(
+                "training_set_features",
+                self.name,
+                self.variant,
+                feature_name,     # feature name
+                feature_variant,  # feature variant
+                feature_new_name, # feature new name
+                feature_lag       # feature_lag
+            )
+
 
     def __eq__(self, other):
         for attribute in vars(self):

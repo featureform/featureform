@@ -7,7 +7,7 @@ package runner
 import (
 	"encoding/json"
 	"fmt"
-  
+
 	"go.uber.org/zap"
 
 	"github.com/featureform/helpers"
@@ -154,10 +154,14 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 	switch m.Cloud {
 	case KubernetesMaterializeRunner:
 		pandas_image := helpers.GetEnv("PANDAS_RUNNER_IMAGE", "featureformcom/k8s_runner:0.3.0-rc")
-		envVars := map[string]string{"NAME": string(COPY_TO_ONLINE), "CONFIG": string(serializedConfig), "PANDAS_RUNNER_IMAGE": pandas_image}
+		envVars := map[string]string{
+			"NAME":                string(COPY_TO_ONLINE),
+			"CONFIG":              string(serializedConfig),
+			"PANDAS_RUNNER_IMAGE": pandas_image,
+		}
 		kubernetesConfig := kubernetes.KubernetesRunnerConfig{
 			EnvVars:  envVars,
-			Image:    WORKER_IMAGE,
+			Type:     kubernetes.WorkerImage,
 			NumTasks: int32(numChunks),
 			Resource: metadata.ResourceID{Name: m.ID.Name, Variant: m.ID.Variant, Type: provider.ProviderToMetadataResourceType[m.ID.Type]},
 		}

@@ -284,7 +284,7 @@ type KubernetesExecutorConfig struct {
 }
 
 type KubernetesExecutor struct {
-	image string
+	RunnerType kubernetes.RunnerImageType
 }
 
 func (local LocalExecutor) ExecuteScript(envVars map[string]string) error {
@@ -343,7 +343,7 @@ func (kube KubernetesExecutor) ExecuteScript(envVars map[string]string) error {
 	}
 	config := kubernetes.KubernetesRunnerConfig{
 		EnvVars:  envVars,
-		Image:    kube.image,
+		Type:     kube.RunnerType,
 		NumTasks: 1,
 		Resource: metadata.ResourceID{
 			Name:    envVars["RESOURCE_NAME"],
@@ -366,8 +366,7 @@ func (kube KubernetesExecutor) ExecuteScript(envVars map[string]string) error {
 }
 
 func NewKubernetesExecutor(config Config) (Executor, error) {
-	pandas_image := helpers.GetEnv("PANDAS_RUNNER_IMAGE", "featureformcom/k8s_runner:0.3.0-rc")
-	return KubernetesExecutor{image: pandas_image}, nil
+	return KubernetesExecutor{RunnerType: kubernetes.PandasImage}, nil
 }
 
 type BlobStore interface {

@@ -6,6 +6,7 @@ package kubernetes
 
 import (
 	"errors"
+	"fmt"
 	"github.com/google/uuid"
 	batchv1 "k8s.io/api/batch/v1"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -13,7 +14,10 @@ import (
 )
 
 func NewMockKubernetesRunner(config KubernetesRunnerConfig) (CronRunner, error) {
-	jobSpec := newJobSpec(config)
+	jobSpec, err := newJobSpec(config)
+	if err != nil {
+		return nil, fmt.Errorf("could not get new job spec: %w", err)
+	}
 	jobName := uuid.New().String()
 	namespace := "default"
 	jobClient := MockJobClient{
@@ -60,7 +64,11 @@ func (m MockJobClient) GetJobSchedule(jobName string) (CronSchedule, error) {
 }
 
 func TestKubernetesRunnerCreate(t *testing.T) {
-	runner, err := NewMockKubernetesRunner(KubernetesRunnerConfig{EnvVars: map[string]string{"test": "envVar"}, Image: "test", NumTasks: 1})
+	runner, err := NewMockKubernetesRunner(KubernetesRunnerConfig{
+		EnvVars:  map[string]string{"test": "envVar"},
+		Type:     WorkerImage,
+		NumTasks: 1,
+	})
 	if err != nil {
 		t.Fatalf("Failed to create Kubernetes runner")
 	}
@@ -233,7 +241,11 @@ func TestPodFailure(t *testing.T) {
 }
 
 func TestKubernetesRunnerSchedule(t *testing.T) {
-	runner, err := NewMockKubernetesRunner(KubernetesRunnerConfig{EnvVars: map[string]string{"test": "envVar"}, Image: "test", NumTasks: 1})
+	runner, err := NewMockKubernetesRunner(KubernetesRunnerConfig{
+		EnvVars:  map[string]string{"test": "envVar"},
+		Type:     PandasImage,
+		NumTasks: 1,
+	})
 	if err != nil {
 		t.Fatalf("Failed to create Kubernetes runner")
 	}

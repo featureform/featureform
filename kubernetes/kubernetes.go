@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	help "github.com/featureform/helpers"
 	"io"
 	"io/ioutil"
 	"math"
@@ -27,11 +28,25 @@ import (
 )
 
 type CronSchedule string
+type RunnerImageType string
 
 const MaxNameLength = 53
 
-func GetJobName(id metadata.ResourceID, image string) string {
-	resourceName := fmt.Sprintf("%s-%s-%s", id.Type, id.Name, id.Variant)
+const (
+	WorkerImage RunnerImageType = "WORKER"
+	PandasImage                 = "PANDAS"
+)
+
+func GetJobName(id metadata.ResourceID, t RunnerImageType) string {
+	var resourceName string
+	switch t {
+	case WorkerImage:
+		resourceName = fmt.Sprintf("worker-%s-%s-%s", id.Type, id.Name, id.Variant)
+	case PandasImage:
+		resourceName = fmt.Sprintf("%s-%s-%s", id.Type, id.Name, id.Variant)
+	default:
+		resourceName = fmt.Sprintf("%s-%s-%s", id.Type, id.Name, id.Variant)
+	}
 	if len(resourceName) > MaxNameLength {
 		resourceName = resourceName[:MaxNameLength]
 	}
@@ -105,9 +120,13 @@ func generateKubernetesEnvVars(envVars map[string]string) []v1.EnvVar {
 	return kubeEnvVars
 }
 
-func newJobSpec(config KubernetesRunnerConfig) batchv1.JobSpec {
+func newJobSpec(config KubernetesRunnerConfig) (batchv1.JobSpec, error) {
 	containerID := uuid.New().String()
 	envVars := generateKubernetesEnvVars(config.EnvVars)
+	image, err := getRunnerImageName(config.Type)
+	if err != nil {
+		return batchv1.JobSpec{}, fmt.Errorf("could not generate image name")
+	}
 	//only indexed completion if copyRunner
 	var completionMode batchv1.CompletionMode
 	if config.EnvVars["Name"] == "Copy to online" {
@@ -129,7 +148,7 @@ func newJobSpec(config KubernetesRunnerConfig) batchv1.JobSpec {
 				Containers: []v1.Container{
 					{
 						Name:            containerID,
-						Image:           config.Image,
+						Image:           image,
 						Env:             envVars,
 						ImagePullPolicy: v1.PullIfNotPresent,
 					},
@@ -137,14 +156,14 @@ func newJobSpec(config KubernetesRunnerConfig) batchv1.JobSpec {
 				RestartPolicy: v1.RestartPolicyNever,
 			},
 		},
-	}
+	}, nil
 
 }
 
 type KubernetesRunnerConfig struct {
 	EnvVars  map[string]string
+	Type     RunnerImageType
 	Resource metadata.ResourceID
-	Image    string
 	NumTasks int32
 }
 
@@ -298,11 +317,25 @@ func generateCleanRandomJobName() string {
 	return jobName[0:int(math.Min(float64(len(jobName)), 63))]
 }
 
+func getRunnerImageName(t RunnerImageType) (string, error) {
+	switch t {
+	case WorkerImage:
+		return help.GetEnv("WORKER_IMAGE", "local/worker:stable"), nil
+	case PandasImage:
+		return help.GetEnv("PANDAS_RUNNER_IMAGE", "local/worker:stable"), nil
+	default:
+		return "", fmt.Errorf("invalid kubernetes worker type")
+	}
+}
+
 func NewKubernetesRunner(config KubernetesRunnerConfig) (CronRunner, error) {
-	jobSpec := newJobSpec(config)
+	jobSpec, err := newJobSpec(config)
+	if err != nil {
+		return nil, fmt.Errorf("could not get new job spec: %w", err)
+	}
 	var jobName string
 	if config.Resource.Name != "" {
-		jobName = GetJobName(config.Resource, config.Image)
+		jobName = GetJobName(config.Resource, config.Type)
 	} else {
 		jobName = generateCleanRandomJobName()
 	}

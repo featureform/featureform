@@ -195,7 +195,7 @@ func (k *KubernetesJobSpawner) GetJobRunner(jobName string, config runner.Config
 			"ETCD_CONFIG":      string(serializedETCD),
 			"K8S_RUNNER_IMAGE": pandas_image,
 		},
-		Image:    help.GetEnv("WORKER_IMAGE", "local/worker:stable"),
+		Type:     kubernetes.WorkerImage,
 		NumTasks: 1,
 		Resource: id,
 	}

@@ -322,7 +322,7 @@ func getRunnerImageName(t RunnerImageType) (string, error) {
 	case WorkerImage:
 		return help.GetEnv("WORKER_IMAGE", "local/worker:stable"), nil
 	case PandasImage:
-		return help.GetEnv("PANDAS_RUNNER_IMAGE", "local/k8s_runner:stable"), nil
+		return help.GetEnv("K8S_RUNNER_IMAGE", "local/k8s_runner:stable"), nil
 	default:
 		return "", fmt.Errorf("invalid kubernetes worker type")
 	}

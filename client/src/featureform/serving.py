@@ -151,6 +151,8 @@ class LocalClientImpl:
         label = self.db.get_label_variant(training_set['label_name'], training_set['label_variant'])
         label_df = self.get_label_dataframe(label)
 
+        feature_columns = []
+
         # We will build the training set DF by merging each feature one by one into it.
         trainingset_df = label_df
         features = self.db.get_training_set_features(training_set_name, training_set_variant)
@@ -159,24 +161,76 @@ class LocalClientImpl:
             feature_df = self.get_feature_dataframe(feature)
             trainingset_df = self.merge_feature_into_ts(feature, label, feature_df, trainingset_df)
 
+            feature_columns.append(f"{feature_variant['feature_name']}.{feature_variant['feature_variant']}")
+
         lag_features = self.db.get_training_set_lag_features(training_set_name, training_set_variant)
         if len(lag_features) > 0:
             timestamp_column = label["source_timestamp"]
-            trainingset_df[timestamp_column] = pd.to_datetime(trainingset_df[timestamp_column])
-            trainingset_df.set_index(timestamp_column, inplace=True)
+            entity_column = label["source_entity"]
+            label_column = "label"
+            lag_sql_query = self.get_lag_features_sql_query(lag_features, feature_columns, entity_column, label_column, timestamp_column)
 
-        for lag_feature in lag_features:
+            globals()["source_0"] = trainingset_df
+            mysql = lambda q: sqldf(q, globals())
+            trainingset_df = mysql(lag_sql_query)
+        
+        return self.convert_ts_df_to_dataset(label, trainingset_df, include_label_timestamp)
+
+
+    def get_lag_features_sql_query(self, lag_features, feature_columns, entity, label, ts):
+        """
+        Returns the SQL query to compute the lag features. 
+        Input:
+        - lag_features: dict
+        
+        Returns:
+        - sql_query: string
+        """
+
+        if len(lag_features) == 0:
+            return "SELECT * FROM source_0"
+
+        
+        features = ""
+        for f in feature_columns:
+            features = f"{features}, \"{f}\"" if features != "" else f"\"{f}\""
+    
+        MAIN_SELECT = f"SELECT {entity}, {ts}, {features}"
+        SUBQUERY = "FROM (SELECT * FROM (SELECT *, row_number FROM ("
+        INNER_QUERY = "FROM (( SELECT * FROM source_0 )"
+        CLOSING_QUERY = f") tt ) WHERE row_number=1 ORDER BY {ts} ASC ))"
+
+        lag_columns = []
+        lag_timestamps = []
+
+        LAG_QUERIES = ""
+        for i, lag_feature in enumerate(lag_features):
             feature_column_name = f"{lag_feature['feature_name']}.{lag_feature['feature_variant']}"
             lag_feature_column_name = lag_feature["feature_new_name"]
-            lag = timedelta(seconds=lag_feature["feature_lag"])
+            lag = lag_feature["feature_lag"]
 
-            trainingset_df[lag_feature_column_name] = trainingset_df[feature_column_name].shift(freq=lag)
-    
-        if len(lag_features) > 0:
-            # Need to reset the index for `convert_ts_df_to_dataset` to work
-            trainingset_df.reset_index(inplace=True)
+            lag_query = f"""
+                         LEFT OUTER JOIN ( SELECT * FROM ( SELECT {entity} AS t{i}_entity, \"{feature_column_name}\" AS \"{lag_feature_column_name}\", {ts} AS t{i}_ts
+                         FROM source_0) 
+                         ORDER BY t{i}_ts ASC) t{i}
+                         ON (t{i}_entity = {entity} AND DATETIME(t{i}_ts, \"+{lag} seconds\") <= {ts})
+                        """
+            
+            LAG_QUERIES = f"{LAG_QUERIES} {lag_query}" if LAG_QUERIES != "" else lag_query
+            MAIN_SELECT = f"{MAIN_SELECT}, \"{lag_feature_column_name}\""
+            
+            lag_columns.append(f"\"{lag_feature_column_name}\"")
+            lag_timestamps.append(f"t{i}_ts")
 
-        return self.convert_ts_df_to_dataset(label, trainingset_df, include_label_timestamp)
+
+        lag_columns = ", ".join(lag_columns)
+        lag_timestamps = " DESC, ".join(lag_timestamps)
+
+        INNER_SELECT = f"SELECT {entity}, {ts}, {label}, {features}, {lag_columns}, ROW_NUMBER() over (PARTITION BY {entity}, {label}, {ts} ORDER BY {ts} DESC, {lag_timestamps} DESC) as row_number"
+        FULL_QUERY = f"{MAIN_SELECT}, {label} {SUBQUERY} {INNER_SELECT} {INNER_QUERY} {LAG_QUERIES} {CLOSING_QUERY}"
+
+        return FULL_QUERY
+
 
     def get_input_df(self, source_name, source_variant):
         if self.db.is_transformation(source_name, source_variant) == SourceType.PRIMARY_SOURCE.value:

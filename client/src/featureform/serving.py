@@ -190,7 +190,11 @@ class FeatureServer:
     def _all_ready(self):
         all_ready = True
         for (name, variant) in self._features:
-            all_ready = all_ready and self._resource_client.get_feature(name, variant, display=False).is_ready()
+            feature = self._resource_client.get_feature(name, variant, display=False)
+            if feature == None:
+                all_ready = False
+                break
+            all_ready = all_ready and feature.is_ready()
         return all_ready
 
         

@@ -215,6 +215,7 @@ pytest:
 	pytest client/tests/register_test.py
 	pytest client/tests/test_spark_provider.py
 	pytest client/tests/test_localmode_include_label_ts.py
+	pytest client/tests/test_localmode_lag_features.py
 	-rm -r .featureform
 
 jupyter: update_python
@@ -360,8 +361,8 @@ test_e2e: update_python					## Runs End-to-End tests on minikube
 	featureform apply client/examples/quickstart.py --host localhost:8000 --cert tls.crt
 	pytest client/tests/e2e.py
 
-	echo "Starting end to end tests"
-	./tests/end_to_end/end_to_end_tests.sh localhost:8000 ./tls.crt
+	# echo "Starting end to end tests"
+	# ./tests/end_to_end/end_to_end_tests.sh localhost:8000 ./tls.crt
 
 reset_e2e:  			 			## Resets Cluster. Requires install_etcd
 	-kubectl port-forward svc/featureform-etcd 2379:2379 &

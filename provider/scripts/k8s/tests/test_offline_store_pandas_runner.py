@@ -145,7 +145,6 @@ def test_download_blobs_to_local(container_client):
     local_filename = "transactions_short.csv"
     output_file = download_blobs_to_local(container_client, blob, local_filename)
 
-    set_environment_variables({"AZURE_CONNECTION_STRING": "", "AZURE_CONTAINER_NAME":""}, delete=True)
     assert os.path.exists(output_file)
 
 

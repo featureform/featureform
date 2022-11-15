@@ -17,23 +17,33 @@ def test_create_provider():
     assert offline_spark_provider.name() == provider_name
 
 @pytest.mark.parametrize(
-    "test_name,file_path",
+    "test_name,file_path,default_variant",
     [
-        ("file", "test_files/input/transaction")
+        ("file", "test_files/input/transaction", False),
+        ("file", "test_files/input/transaction", True),
     ]
 )
-def test_register_parquet_file(test_name, file_path, spark_provider):
-    s = spark_provider.register_parquet_file(
-        name=test_name,
-        variant="test_variant",
-        file_path=file_path,
-    )
+def test_register_parquet_file(test_name, file_path, default_variant, spark_provider):
+    if default_variant:
+        variant = "default"
+        s = spark_provider.register_parquet_file(
+            name=test_name,
+            file_path=file_path,
+        )
+    else:
+        variant = "test_variant"
+        s = spark_provider.register_parquet_file(
+            name=test_name,
+            variant=variant,
+            file_path=file_path,
+        )
 
     assert type(s) == ColumnSourceRegistrar
 
     src = s._SourceRegistrar__source
     assert src.owner == spark_provider._OfflineSparkProvider__registrar.default_owner()
     assert src.provider == spark_provider.name()
+    assert src.variant == variant 
 
 
 @pytest.mark.parametrize(

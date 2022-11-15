@@ -151,15 +151,21 @@ func (db *DatabricksExecutor) PythonFileURI(store FileStore) string {
 }
 
 func readAndUploadFile(filePath string, storePath string, store FileStore) error {
-	f, err := os.Open(filePath)
+	fileExists, _ := store.Exists(storePath)
+	if fileExists {
+		return nil
+	}
 
+	f, err := os.Open(filePath)
 	if err != nil {
 		return fmt.Errorf("could not open file: %v", err)
 	}
+
 	fileStats, err := f.Stat()
 	if err != nil {
-		return fmt.Errorf("Could not get file stats: %v", err)
+		return fmt.Errorf("could not get file stats: %v", err)
 	}
+
 	pythonScriptBytes := make([]byte, fileStats.Size())
 	_, err = f.Read(pythonScriptBytes)
 	if err := store.Write(storePath, pythonScriptBytes); err != nil {

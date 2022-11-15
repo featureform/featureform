@@ -766,9 +766,15 @@ jobs:
         run: make test_pyspark
 
   k8s:
-    name: K8s Pandas Testing
+    name: K8s Testing
     needs: setup
     environment: Integration testing
+    env:
+      AZURE_ACCOUNT_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
+      AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
+      AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
+      AZURE_CONTAINER_PATH: ${{ secrets.AZURE_CONTAINER_PATH }}
+      AZURE_CONNECTION_STRING: ${{ secrets.AZURE_CONNECTION_STRING }}
     runs-on: ubuntu-latest
 
     steps:

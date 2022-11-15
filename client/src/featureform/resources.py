@@ -41,6 +41,7 @@ class Status(Enum):
     Pending = "PENDING"
     Ready = "READY"
     Failed = "FAILED"
+    NoStatus = 'NO_STATUS'
 
 
 @typechecked
@@ -559,8 +560,11 @@ class Source:
     is_transformation = SourceType.PRIMARY_SOURCE.value
     inputs = []
 
-    def get_status(self): 
-        return self.status.status
+    def get_status(self) -> str: 
+        return self.status.status.getName()
+
+    def is_ready(self) -> bool:
+        return self.get_status() == Status.Ready
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=7, schedule_string=schedule)
@@ -697,8 +701,11 @@ class Feature:
     schedule: str = ""
     schedule_obj: Schedule = None
 
-    def get_status(self): 
-        return self.status.status
+    def get_status(self) -> str: 
+        return self.status.status.getName()
+
+    def is_ready(self) -> bool:
+        return self.get_status() == Status.Ready
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=4, schedule_string=schedule)
@@ -777,8 +784,11 @@ class Label:
     location: ResourceLocation
     variant: str = "default"
 
-    def get_status(self): 
-        return self.status.status
+    def get_status(self) -> str: 
+        return self.status.status.getName()
+
+    def is_ready(self) -> bool:
+        return self.get_status() == Status.Ready
 
     @staticmethod
     def operation_type() -> OperationType:
@@ -940,8 +950,11 @@ class TrainingSet:
     schedule: str = ""
     schedule_obj: Schedule = None
 
-    def get_status(self): 
-        return self.status.status
+    def get_status(self) -> str:
+        return self.status.status.getName()
+
+    def is_ready(self) -> bool:
+        return self.get_status() == Status.Ready
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=6, schedule_string=schedule)

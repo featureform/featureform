@@ -114,6 +114,7 @@ class HostedClientImpl:
                 ' variable FEATUREFORM_HOST must be set.'
             )
         channel = self._create_channel(host, insecure, cert_path)
+        self._resource_client = ResourceClient(host=host, insecure=insecure, cert_path=cert_path)
         self._stub = serving_pb2_grpc.FeatureStub(channel)
 
     def _create_channel(self, host, insecure, cert_path):
@@ -123,22 +124,61 @@ class HostedClientImpl:
             return secure_channel(host, cert_path)
 
     def training_set(self, name, variation, include_label_timestamp):
-        return Dataset(self._stub).from_stub(name, variation)
+        return Dataset(self._stub, resource_client=self._resource_client).from_stub(name, variation)
 
     def features(self, features, entities):
+        return FeatureServer(self._stub, self._resource_client, features, entities)
+
+
+class FeatureServer:
+    def __init__(self, stub, resource_client, features, entities):
+        self._stub = stub
+        self._resource_client = resource_client
+        self._features = features
+        self._entities = entities
+        self._feature_list = []
+        if self._all_ready():
+            self._get_features()
+    
+    def __getitem__(self, item):
+        self._feature_list[item]
+
+    def _get_features(self):
         req = serving_pb2.FeatureServeRequest()
-        for name, value in entities.items():
+        for name, value in self._entities.items():
             entity_proto = req.entities.add()
             entity_proto.name = name
             entity_proto.value = value
-        for (name, variation) in features:
+        for (name, variation) in self._features:
             feature_id = req.features.add()
             feature_id.name = name
             feature_id.version = variation
         resp = self._stub.FeatureServe(req)
-        return [parse_proto_value(val) for val in resp.values]
+        self._feature_list = [parse_proto_value(val) for val in resp.values]
+    
+    def wait(self):
+        for (name, variant) in self._features:
+            status = self._resource_client.get_feature_variant(name, variant).get_status()
+            time_waited = timedelta(seconds = 0)
+            time_started = datetime.now()
+            while status != "FAILED" and (timeout is None or time_waited < timeout):
+                status = self._resource_client.get_training_set(name, variant).get_status()
+                time.sleep(1)
+                time_waited += datetime.now().seconds - time_started.seconds
+            if status = "FAILED":
+                raise Error("Resource status set to failed while waiting")
+            if time_waited >= timeout:
+                raise Error("Waited too long for resource to be ready")
+        self._get_features()
+        return self
 
+    def _all_ready(self):
+        all_ready = True
+        for (name, variant) in self._features:
+            all_ready = all_ready and self._resource_client.get_feature_variant(name, variant).is_ready()
+        return all_ready
 
+        
 class LocalClientImpl:
     def __init__(self):
         self.db = SQLiteMetadata()
@@ -511,7 +551,7 @@ class Batch:
 
 class Dataset:
 
-    def __init__(self, stream, dataframe=None):
+    def __init__(self, stream, dataframe=None, resource_client=None):
         """Repeats the Dataset for the specified number of times
 
         Args:
@@ -522,8 +562,14 @@ class Dataset:
         """
         self._stream = stream
         self._dataframe = dataframe
+        self._resource_client = resource_client
+        self._name = None
+        self._version = None
+        
 
     def from_stub(self, name, version):
+        self._name = name
+        self._version = version
         stream = Stream(self._stream, name, version)
         return Dataset(stream)
     
@@ -533,6 +579,22 @@ class Dataset:
 
     def pandas(self):
         return self._dataframe
+
+    def wait(self, timeout=None):
+        if self._name is None or self._version is None:
+            raise Error("Local Dataset type does not implement wait")
+        status = self._resource_client.get_training_set(self._name, self._version).get_status()
+        time_waited = timedelta(seconds = 0)
+        time_started = datetime.now()
+        while status != "FAILED" and (timeout is None or time_waited < timeout):
+            status = self._resource_client.get_training_set(self._name, self._version).get_status()
+            time.sleep(1)
+            time_waited += datetime.now().seconds - time_started.seconds
+        if status = "FAILED":
+            raise Error("Resource status set to failed while waiting")
+        if time_waited >= timeout:
+            raise Error("Waited too long for resource to be ready")
+        return self
 
     def repeat(self, num):
         """Repeats the Dataset for the specified number of times

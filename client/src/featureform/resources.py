@@ -34,6 +34,14 @@ class SourceType(Enum):
     DF_TRANSFORMATION = "DF"
     SQL_TRANSFORMATION = "SQL"
 
+@typechecked
+@dataclass
+class Status(Enum):
+    Created = "CREATED"
+    Pending = "PENDING"
+    Ready = "READY"
+    Failed = "FAILED"
+
 
 @typechecked
 def valid_name_variant(nvar: NameVariant) -> bool:
@@ -551,6 +559,9 @@ class Source:
     is_transformation = SourceType.PRIMARY_SOURCE.value
     inputs = []
 
+    def get_status(self): 
+        return self.status.status
+
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=7, schedule_string=schedule)
         self.schedule = schedule
@@ -686,6 +697,9 @@ class Feature:
     schedule: str = ""
     schedule_obj: Schedule = None
 
+    def get_status(self): 
+        return self.status.status
+
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=4, schedule_string=schedule)
         self.schedule = schedule
@@ -762,6 +776,9 @@ class Label:
     description: str
     location: ResourceLocation
     variant: str = "default"
+
+    def get_status(self): 
+        return self.status.status
 
     @staticmethod
     def operation_type() -> OperationType:
@@ -922,6 +939,9 @@ class TrainingSet:
     variant: str = "default"
     schedule: str = ""
     schedule_obj: Schedule = None
+
+    def get_status(self): 
+        return self.status.status
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=6, schedule_string=schedule)

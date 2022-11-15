@@ -227,7 +227,7 @@ func NewCoordinator(meta *metadata.Client, logger *zap.SugaredLogger, cli *clien
 	}, nil
 }
 
-const MAX_ATTEMPTS = 1
+const MAX_ATTEMPTS = 3
 
 func (c *Coordinator) WatchForNewJobs() error {
 	c.Logger.Info("Watching for new jobs")

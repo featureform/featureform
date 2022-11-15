@@ -599,6 +599,7 @@ jobs:
         with:
           name: serving-coverage-reports
           path: ./coverage
+
   coordinator:
     name: Coordinator Testing
     environment: Integration testing
@@ -767,6 +768,7 @@ jobs:
   k8s:
     name: K8s Pandas Testing
     needs: setup
+    environment: Integration testing
     runs-on: ubuntu-latest
 
     steps:

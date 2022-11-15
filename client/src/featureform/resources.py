@@ -33,17 +33,7 @@ class SourceType(Enum):
     PRIMARY_SOURCE = "PRIMARY"
     DF_TRANSFORMATION = "DF"
     SQL_TRANSFORMATION = "SQL"
-
-@typechecked
-@dataclass
-class Status(Enum):
-    Created = "CREATED"
-    Pending = "PENDING"
-    Ready = "READY"
-    Failed = "FAILED"
-    NoStatus = 'NO_STATUS'
-
-
+    
 @typechecked
 def valid_name_variant(nvar: NameVariant) -> bool:
     return nvar[0] != "" and nvar[1] != ""
@@ -559,12 +549,13 @@ class Source:
     schedule_obj: Schedule = None
     is_transformation = SourceType.PRIMARY_SOURCE.value
     inputs = []
+    status: str = ""
 
     def get_status(self) -> str: 
-        return self.status.status.getName()
+        return self.status
 
     def is_ready(self) -> bool:
-        return self.get_status() == Status.Ready
+        return self.get_status() == "READY"
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=7, schedule_string=schedule)
@@ -699,13 +690,14 @@ class Feature:
     description: str
     variant: str = "default"
     schedule: str = ""
+    status: str = ""
     schedule_obj: Schedule = None
 
     def get_status(self) -> str: 
-        return self.status.status.getName()
+        return self.status
 
     def is_ready(self) -> bool:
-        return self.get_status() == Status.Ready
+        return self.get_status() == "READY"
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=4, schedule_string=schedule)
@@ -783,12 +775,13 @@ class Label:
     description: str
     location: ResourceLocation
     variant: str = "default"
+    status: str = ""
 
     def get_status(self) -> str: 
-        return self.status.status.getName()
+        return self.status
 
     def is_ready(self) -> bool:
-        return self.get_status() == Status.Ready
+        return self.get_status() == "READY"
 
     @staticmethod
     def operation_type() -> OperationType:
@@ -949,12 +942,14 @@ class TrainingSet:
     variant: str = "default"
     schedule: str = ""
     schedule_obj: Schedule = None
+    status: str = ""
+    entity: str = ""
 
     def get_status(self) -> str:
-        return self.status.status.getName()
+        return self.status
 
     def is_ready(self) -> bool:
-        return self.get_status() == Status.Ready
+        return self.get_status() == "READY"
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=6, schedule_string=schedule)

@@ -8,9 +8,13 @@ import random
 import re
 import types
 import math
+import time
+from datetime import datetime
+from enum import Enum
 
 import grpc
 import numpy as np
+from featureform.proto import metadata_pb2
 from featureform.proto import serving_pb2
 from featureform.proto import serving_pb2_grpc
 from .tls import insecure_channel, secure_channel
@@ -18,6 +22,16 @@ import pandas as pd
 from pandasql import sqldf
 from .sqlite_metadata import SQLiteMetadata
 from .resources import SourceType
+from datetime import timedelta
+
+from featureform import ResourceClient
+
+class Status(Enum):
+    NoStatus = 0
+    Created = 1
+    Pending = 2
+    Ready = 3
+    Failed = 4
 
 
 def check_feature_type(features):
@@ -156,26 +170,28 @@ class FeatureServer:
         resp = self._stub.FeatureServe(req)
         self._feature_list = [parse_proto_value(val) for val in resp.values]
     
-    def wait(self):
+    def wait(self, timeout=None):
         for (name, variant) in self._features:
-            status = self._resource_client.get_feature_variant(name, variant).get_status()
+            feature = self._resource_client.get_feature(name, variant, display=False)
+            status = feature.get_status()
             time_waited = timedelta(seconds = 0)
             time_started = datetime.now()
-            while status != "FAILED" and (timeout is None or time_waited < timeout):
-                status = self._resource_client.get_training_set(name, variant).get_status()
+            while (status != "FAILED" and status != "READY") and (timeout is None or time_waited < timeout):
+                feature = self._resource_client.get_feature(name, variant, display=False)
+                status = feature.get_status()
                 time.sleep(1)
-                time_waited += datetime.now().seconds - time_started.seconds
-            if status = "FAILED":
-                raise Error("Resource status set to failed while waiting")
+                time_waited = datetime.now() - time_started
+            if status == "FAILED":
+                raise ValueError("Resource status set to failed while waiting")
             if time_waited >= timeout:
-                raise Error("Waited too long for resource to be ready")
+                raise ValueError("Waited too long for resource to be ready")
         self._get_features()
         return self
 
     def _all_ready(self):
         all_ready = True
         for (name, variant) in self._features:
-            all_ready = all_ready and self._resource_client.get_feature_variant(name, variant).is_ready()
+            all_ready = all_ready and self._resource_client.get_feature(name, variant, display=False).is_ready()
         return all_ready
 
         
@@ -551,7 +567,7 @@ class Batch:
 
 class Dataset:
 
-    def __init__(self, stream, dataframe=None, resource_client=None):
+    def __init__(self, stream, dataframe=None, resource_client=None, name=None, variant=None):
         """Repeats the Dataset for the specified number of times
 
         Args:
@@ -563,15 +579,15 @@ class Dataset:
         self._stream = stream
         self._dataframe = dataframe
         self._resource_client = resource_client
-        self._name = None
-        self._version = None
+        self._name = name
+        self._version = variant
         
 
     def from_stub(self, name, version):
         self._name = name
         self._version = version
         stream = Stream(self._stream, name, version)
-        return Dataset(stream)
+        return Dataset(stream, resource_client=self._resource_client, name=name, variant=version)
     
     def from_dataframe(dataframe, include_label_timestamp):
         stream = LocalStream(dataframe.values.tolist(), include_label_timestamp)
@@ -582,18 +598,22 @@ class Dataset:
 
     def wait(self, timeout=None):
         if self._name is None or self._version is None:
-            raise Error("Local Dataset type does not implement wait")
-        status = self._resource_client.get_training_set(self._name, self._version).get_status()
+            raise ValueError("Local Dataset type does not implement wait")
+        training_set = self._resource_client.get_training_set(self._name, self._version, display=False)
+        print(training_set)
+        print(type(training_set))
+        status = training_set.get_status()
         time_waited = timedelta(seconds = 0)
         time_started = datetime.now()
-        while status != "FAILED" and (timeout is None or time_waited < timeout):
-            status = self._resource_client.get_training_set(self._name, self._version).get_status()
+        while (status != "FAILED" and status != "READY") and (timeout is None or time_waited < timeout):
+            training_set = self._resource_client.get_training_set(self._name, self._version, display=False)
+            status = training_set.get_status()
             time.sleep(1)
-            time_waited += datetime.now().seconds - time_started.seconds
-        if status = "FAILED":
-            raise Error("Resource status set to failed while waiting")
+            time_waited = datetime.now() - time_started
+        if status == "FAILED":
+            raise ValueError("Resource status set to failed while waiting")
         if time_waited >= timeout:
-            raise Error("Waited too long for resource to be ready")
+            raise ValueError("Waited too long for resource to be ready")
         return self
 
     def repeat(self, num):

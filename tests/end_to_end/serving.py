@@ -40,31 +40,21 @@ if FEATURE_NAME == None or FEATURE_VARIANT == None or TRAININGSET_NAME == None o
 client = ff.ServingClient()
 
 def serve_data():
-    for _ in range(NUMBER_OF_SLEEPS):
-        try: 
-            dataset = client.training_set(TRAININGSET_NAME, TRAININGSET_VARIANT)
-            training_dataset = dataset.repeat(10).shuffle(1000).batch(8)
-            for i, feature_batch in enumerate(training_dataset):
-                if i >= 1:
-                    return
-                print(feature_batch.to_list())
-                
-        except Exception as e:
-            print(f"\twaiting for {SLEEP_DURATION} seconds")
-            time.sleep(SLEEP_DURATION)
-    
+    dataset = client.training_set(TRAININGSET_NAME, TRAININGSET_VARIANT).wait()
+    training_dataset = dataset.repeat(10).shuffle(1000).batch(8)
+    for i, feature_batch in enumerate(training_dataset):
+        if i >= 1:
+            return
+        print(feature_batch.to_list())
+
     raise Exception(f"Serving for {TRAININGSET_NAME}:{TRAININGSET_VARIANT} could not be completed.")
 
 def serve_feature():
-    for _ in range(NUMBER_OF_SLEEPS):
-        try:
-            fpf = client.features([(FEATURE_NAME, FEATURE_VARIANT)], {FEATURE_ENTITY: FEATURE_VALUE})
-            print(fpf)
-            return 
-        except Exception as e:
-            print(f"\twaiting for {SLEEP_DURATION} seconds")
-            print(e)
-            time.sleep(SLEEP_DURATION)
+    fpf = client.features([(FEATURE_NAME, FEATURE_VARIANT)], {FEATURE_ENTITY: FEATURE_VALUE}).wait()
+    print(fpf)
+    return
+    raise Exception(f"Serving for {FEATURE_NAME}:{FEATURE_VARIANT} could not be completed.") 
+
 
 print(f"Serving the training set ({TRAININGSET_NAME}:{TRAININGSET_VARIANT})")
 serve_data()

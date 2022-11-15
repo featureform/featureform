@@ -2,6 +2,7 @@ from featureform.proto import metadata_pb2
 import grpc
 from featureform.proto import metadata_pb2_grpc as ff_grpc
 from .format import *
+import featureform as ff
 
 def get_user_info(stub, name):
     searchName = metadata_pb2.Name(name=name)
@@ -74,27 +75,40 @@ def get_resource_info(stub, resource_type, name):
     except grpc._channel._MultiThreadedRendezvous:
         print(f"{resource_type} not found.")
 
-def get_feature_variant_info(stub, name, variant):
+def get_feature_variant_info(stub, name, variant, display=True):
     searchNameVariant = metadata_pb2.NameVariant(name=name, variant=variant)
     try:
         for x in stub.GetFeatureVariants(iter([searchNameVariant])):
-            format_rows([("NAME: ", x.name), 
-            ("VARIANT: ", x.variant), 
-            ("TYPE:", x.type), 
-            ("ENTITY:", x.entity),
-            ("OWNER:", x.owner),
-            ("DESCRIPTION:", x.description),
-            ("PROVIDER:", x.provider),
-            ("STATUS: ", x.status.Status._enum_type.values[x.status.status].name)
-            ])
-            format_pg("SOURCE: ")
-            format_rows([("NAME", "VARIANT"), (x.source.name, x.source.variant)])
-            format_pg("TRAINING SETS:")
-            format_rows("NAME", "VARIANT")
-            for t in x.trainingsets:
-                format_rows(t.name, t.variant)
-            format_pg()
-            return x
+            if display:
+                format_rows([("NAME: ", x.name), 
+                ("VARIANT: ", x.variant), 
+                ("TYPE:", x.type), 
+                ("ENTITY:", x.entity),
+                ("OWNER:", x.owner),
+                ("DESCRIPTION:", x.description),
+                ("PROVIDER:", x.provider),
+                ("STATUS: ", x.status.Status._enum_type.values[x.status.status].name)
+                ])
+                format_pg("SOURCE: ")
+                format_rows([("NAME", "VARIANT"), (x.source.name, x.source.variant)])
+                format_pg("TRAINING SETS:")
+                format_rows("NAME", "VARIANT")
+                for t in x.trainingsets:
+                    format_rows(t.name, t.variant)
+                format_pg()
+            return ff.Feature(
+                name=x.name,
+                value_type=x.type,
+                variant=x.variant,
+                source=(x.source.name,x.source.variant),
+                entity=x.entity,
+                owner=x.owner,
+                provider=x.provider,
+                location=None,    
+                status=x.status.Status._enum_type.values[x.status.status].name,
+                description=x.description,
+            )
+            # return x
     except grpc._channel._MultiThreadedRendezvous:
         print("Feature variant not found.")
 
@@ -158,26 +172,42 @@ def get_source_variant_info(stub, name, variant):
     except grpc._channel._MultiThreadedRendezvous:
         print("Source variant not found.")
 
-def get_training_set_variant_info(stub, name, variant):
+def get_training_set_variant_info(stub, name, variant, display=True):
     searchNameVariant = metadata_pb2.NameVariant(name=name, variant=variant)
     try:
         for x in stub.GetTrainingSetVariants(iter([searchNameVariant])):
-            format_rows([("NAME: ", x.name),
-            ("VARIANT: ", x.variant),
-            ("OWNER:", x.owner),
-            ("DESCRIPTION:", x.description),
-            ("PROVIDER:", x.provider),
-            ("STATUS: ", x.status.Status._enum_type.values[x.status.status].name)])
-            format_pg("LABEL: ")
-            format_rows([("NAME", "VARIANT"), (x.label.name, x.label.variant)])
-            format_pg("FEATURES:")
-            format_rows("NAME", "VARIANT")
-            for f in x.features:
-                format_rows(f.name, f.variant)
-            format_pg()
-            return x
+            if display:
+                format_rows([("NAME: ", x.name),
+                ("VARIANT: ", x.variant),
+                ("OWNER:", x.owner),
+                ("DESCRIPTION:", x.description),
+                ("PROVIDER:", x.provider),
+                ("STATUS: ", x.status.Status._enum_type.values[x.status.status].name)])
+                format_pg("LABEL: ")
+                format_rows([("NAME", "VARIANT"), (x.label.name, x.label.variant)])
+                format_pg("FEATURES:")
+                format_rows("NAME", "VARIANT")
+                for f in x.features:
+                    format_rows(f.name, f.variant)
+                format_pg()
+            return ff.TrainingSet(
+                name=x.name,
+                variant=x.variant,
+                status=x.status.Status._enum_type.values[x.status.status].name,
+                description=x.description,
+                owner=x.owner,
+                schedule=x.schedule,
+                label=(x.label.name,x.label.variant),
+                features=[(f.name,f.variant) for f in x.features],
+                feature_lags=None,
+            )
     except grpc._channel._MultiThreadedRendezvous:
         print("Training set variant not found.")
+
+# wraps around training set proto and provides get_status() and other methods
+# is there an automatic way to do this?
+# class TrainingSetVariantProtoWrapper:
+
 
 def get_provider_info(stub, name):
     searchName = metadata_pb2.Name(name=name)

@@ -168,7 +168,7 @@ def test_upload_blob_to_blob_store(blob, file, container_client):
 def set_environment_variables(variables, delete=False):
     for key, value in variables.items():
         if key == "AZURE_CONNECTION_STRING":
-            pass 
+            continue 
 
         if delete:
             os.environ.pop(key)

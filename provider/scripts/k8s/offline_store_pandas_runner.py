@@ -167,7 +167,9 @@ def download_blobs_to_local(container_client, blob, local_filename):
         os.makedirs(LOCAL_DATA_PATH, exist_ok=True)
 
     full_path = f"{LOCAL_DATA_PATH}/{local_filename}"
-    if blob[-4:] == ".csv" or blob[-8:] == ".parquet" or blob[-4:] == ".pkl":
+
+    blob_extension = blob.split(".")[-1]
+    if blob_extension == ".csv" or blob_extension == ".parquet" or blob_extension == ".pkl":
         blob_client = container_client.get_blob_client(blob)
 
         with open(full_path, "wb") as my_blob:

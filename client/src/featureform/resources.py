@@ -1002,8 +1002,8 @@ class TrainingSet:
         for feature_name, feature_variant in self.features:
             try:
                 db.get_feature_variant(feature_name, feature_variant)
-            except ValueError:
-                raise ValueError(f"{feature_name} does not exist. Failed to register training set")
+            except Exception as e:
+                raise Exception(f"{feature_name} does not exist. Failed to register training set. Error: {e}")
             
             db.insert(
                 "training_set_features",
@@ -1021,8 +1021,8 @@ class TrainingSet:
 
             try:
                 db.get_feature_variant(feature_name, feature_variant)
-            except ValueError:
-                raise ValueError(f"{feature_name} does not exist. Failed to register training set")
+            except Exception as e:
+                raise Exception(f"{feature_name} does not exist. Failed to register training set. Error: {e}")
             
             db.insert(
                 "training_set_lag_features",

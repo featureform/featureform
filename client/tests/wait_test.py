@@ -6,7 +6,7 @@ from datetime import timedelta
 TRAININGSET_NAME = "test_training_set"
 TRAININGSET_VARIANT = "test_ts_variant"
 
-FEATURE_NAME = "test_feature_name"
+FEATURE_NAME = "test_feature"
 FEATURE_VARIANT = "test_feature_variant"
 
 
@@ -32,7 +32,7 @@ def test_not_ready_timeout_training_set(mocker):
     try:
         training_set = dataset = client.training_set(TRAININGSET_NAME, TRAININGSET_VARIANT).wait(timeout=2)
     except ValueError as actual_error:
-        assert actual_error.message == "Waited too long for resource to be ready"
+        assert actual_error.message == "Waited too long for resource test_training_set:test_ts_variant to be ready"
 
 
 #failed expect error
@@ -54,7 +54,7 @@ def test_failed_training_set(mocker):
     try:
         dataset = client.training_set(TRAININGSET_NAME, TRAININGSET_VARIANT).wait()
     except ValueError as actual_error:
-        assert actual_error.message == "Resource status set to failed while waiting"
+        assert actual_error.message == "Resource test_training_set:test_ts_variant status set to failed while waiting"
 
 def test_ready_training_set(mocker):
     mocker.patch(
@@ -104,7 +104,7 @@ def test_timeout_feature(mocker):
 
         features = client.features([(FEATURE_NAME, FEATURE_VARIANT)], {FEATURE_ENTITY: FEATURE_VALUE}).wait(timeout=2)
     except ValueError as actual_error:
-        assert actual_error.message == "Waited too long for resource to be ready"
+        assert actual_error.message == "Waited too long for resource test_feature:test_feature_variant to be ready"
 
 #failed expect error
 
@@ -126,7 +126,7 @@ def test_failed_feature(mocker):
     try:
         features = client.features([(FEATURE_NAME, FEATURE_VARIANT)], {FEATURE_ENTITY: FEATURE_VALUE}).wait(timeout=2)
     except ValueError as actual_error:
-        assert actual_error.message == "Resource status set to failed while waiting"
+        assert actual_error.message == "Resource test_feature:test_feature_variant status set to failed while waiting"
 
 def test_ready_feature(mocker):
     mocker.patch(

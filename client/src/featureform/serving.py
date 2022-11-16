@@ -192,7 +192,7 @@ class FeatureServer:
         all_ready = True
         for (name, variant) in self._features:
             feature = self._resource_client.get_feature(name, variant, display=False)
-            if feature == None:
+            if not feature:
                 all_ready = False
                 break
             all_ready = all_ready and feature.is_ready()
@@ -686,9 +686,9 @@ class Dataset:
             time.sleep(1)
             time_waited = datetime.now() - time_started
         if status == "FAILED":
-            raise ValueError(f'Resource {self._name}:{self._variant} status set to failed while waiting')
+            raise ValueError(f'Resource {self._name}:{self._version} status set to failed while waiting')
         if time_waited >= timeout_duration:
-            raise ValueError(f'Waited too long for resource {self._name}:{self._variant} to be ready')
+            raise ValueError(f'Waited too long for resource {self._name}:{self._version} to be ready')
         return self
 
     def repeat(self, num):

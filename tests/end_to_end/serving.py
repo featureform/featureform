@@ -57,7 +57,7 @@ def serve_feature():
 
 
 print(f"Serving the training set ({TRAININGSET_NAME}:{TRAININGSET_VARIANT})")
-serve_data()
+# serve_data()
 
 print("\n")
 

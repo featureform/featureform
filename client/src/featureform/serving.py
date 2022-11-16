@@ -173,16 +173,17 @@ class FeatureServer:
         for (name, variant) in self._features:
             feature = self._resource_client.get_feature(name, variant, display=False)
             status = feature.get_status()
+            timeout_duration = timedelta(seconds=timeout)
             time_waited = timedelta(seconds = 0)
             time_started = datetime.now()
-            while (status != "FAILED" and status != "READY") and (timeout is None or time_waited < timeout):
+            while (status != "FAILED" and status != "READY") and (timeout is None or time_waited < timeout_duration):
                 feature = self._resource_client.get_feature(name, variant, display=False)
                 status = feature.get_status()
                 time.sleep(1)
                 time_waited = datetime.now() - time_started
             if status == "FAILED":
                 raise ValueError("Resource status set to failed while waiting")
-            if time_waited >= timeout:
+            if time_waited >= timeout_duration:
                 raise ValueError("Waited too long for resource to be ready")
         self._get_features()
         return self
@@ -675,19 +676,18 @@ class Dataset:
         if self._name is None or self._version is None:
             raise ValueError("Local Dataset type does not implement wait")
         training_set = self._resource_client.get_training_set(self._name, self._version, display=False)
-        print(training_set)
-        print(type(training_set))
+        timeout_duration = timedelta(seconds=timeout)
         status = training_set.get_status()
         time_waited = timedelta(seconds = 0)
         time_started = datetime.now()
-        while (status != "FAILED" and status != "READY") and (timeout is None or time_waited < timeout):
+        while (status != "FAILED" and status != "READY") and (timeout is None or time_waited < timeout_duration):
             training_set = self._resource_client.get_training_set(self._name, self._version, display=False)
             status = training_set.get_status()
             time.sleep(1)
             time_waited = datetime.now() - time_started
         if status == "FAILED":
             raise ValueError("Resource status set to failed while waiting")
-        if time_waited >= timeout:
+        if time_waited >= timeout_duration:
             raise ValueError("Waited too long for resource to be ready")
         return self
 

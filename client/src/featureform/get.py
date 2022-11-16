@@ -131,7 +131,18 @@ def get_label_variant_info(stub, name, variant):
             for t in x.trainingsets:
                 format_rows(t.name, t.variant)
             format_pg()
-            return x
+            return Label(
+                name=x.name,
+                source=(x.source.name,x.source.variant),
+                value_type=x.type,
+                entity=x.entity,
+                owner=x.owner,
+                provider=x.provider,
+                description=x.description,
+                location=None,
+                variant=x.variant,
+                status=x.status.Status._enum_type.values[x.status.status].name
+            )
     except grpc._channel._MultiThreadedRendezvous:
         print("Label variant not found.")
 
@@ -168,7 +179,24 @@ def get_source_variant_info(stub, name, variant):
             for t in x.trainingsets:
                 format_rows(t.name, t.variant)
             format_pg()
-            return x
+            definition = None
+            is_transformation = None
+            if x.primaryData.table.name:
+                definition = PrimaryData(location=x.primaryData.table.name)
+                is_transformation = False
+            else if x.transformation.SQLTransformation.query:
+                definition = SQLTransformation(query=x.transformation.SQLTransformation.query)
+                is_transformation = True
+            return Source(
+                name=x.name,
+                definition=definition
+                description=x.description,
+                variant=x.variant,
+                provider=x.provider,
+                owner=x.owner,
+                status=x.status.Status._enum_type.values[x.status.status].name
+                is_transformation=is_transformation
+            )
     except grpc._channel._MultiThreadedRendezvous:
         print("Source variant not found.")
 

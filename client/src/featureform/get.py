@@ -184,7 +184,7 @@ def get_source_variant_info(stub, name, variant):
             if x.primaryData.table.name:
                 definition = PrimaryData(location=x.primaryData.table.name)
                 is_transformation = False
-            else if x.transformation.SQLTransformation.query:
+            elif x.transformation.SQLTransformation.query:
                 definition = SQLTransformation(query=x.transformation.SQLTransformation.query)
                 is_transformation = True
             return Source(

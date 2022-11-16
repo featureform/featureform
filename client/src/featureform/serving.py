@@ -112,7 +112,7 @@ class ServingClient:
             entities (dict): Dictionary of entity name/value pairs
 
         Returns:
-            features (numpy.Array): An Numpy array of feature values in the order given by the inputs
+            features Union(list, FeatureServer): An array of feature values in the order given by the inputs
         """
         features = check_feature_type(features)
         return self.impl.features(features, entities)
@@ -169,6 +169,20 @@ class FeatureServer:
         resp = self._stub.FeatureServe(req)
         self._feature_list = [parse_proto_value(val) for val in resp.values]
     
+    """Waits for all features to be ready before retrieving them.
+
+        **Examples**:
+        ``` py
+            client = ff.ServingClient(local=True)
+            fpf = client.features([("avg_transactions", "quickstart")], {"CustomerID": "C1410926"}).wait(timeout=10)
+            # Run features through model
+        ```
+        Args:
+            timeout int: the maximum number of seconds to wait before throwing an error
+
+        Returns:
+            self (FeatureServer object): an object that acts as a list containing every feature retrieved
+        """
     def wait(self, timeout=99999):
         for (name, variant) in self._features:
             feature = self._resource_client.get_feature(name, variant, display=False)
@@ -673,6 +687,24 @@ class Dataset:
         return self._dataframe
 
     def wait(self, timeout=99999):
+        """Pauses execution and waits for trainingset metadata status to be set to ready before fetching data
+
+        **Examples**:
+        ``` py
+            client = ff.ServingClient()
+            dataset = client.training_set("fraud_training", "quickstart").wait(timeout=10)
+            # Waits 10 seconds before continuing. If 10 seconds elapses without training set setting to ready
+            # raise error. Otherwise continue
+            training_dataset = dataset.repeat(10) # Repeats data 10 times
+            for feature_batch in training_dataset:
+                # Train model
+        ```
+        Args:
+            timeout (int): The maximum number of seconds to wait before throwing error
+
+        Returns:
+            self (Dataset): Returns the current Dataset
+        """
         if self._name is None or self._version is None:
             raise ValueError("Local Dataset type does not implement wait")
         training_set = self._resource_client.get_training_set(self._name, self._version, display=False)

@@ -131,7 +131,7 @@ def get_label_variant_info(stub, name, variant):
             for t in x.trainingsets:
                 format_rows(t.name, t.variant)
             format_pg()
-            return Label(
+            return ff.Label(
                 name=x.name,
                 source=(x.source.name,x.source.variant),
                 value_type=x.type,
@@ -187,7 +187,7 @@ def get_source_variant_info(stub, name, variant):
             elif x.transformation.SQLTransformation.query:
                 definition = SQLTransformation(query=x.transformation.SQLTransformation.query)
                 is_transformation = True
-            return Source(
+            return ff.Source(
                 name=x.name,
                 definition=definition,
                 description=x.description,

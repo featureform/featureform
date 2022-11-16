@@ -70,7 +70,7 @@ def fare_per_family_member(titanic):
     return titanic[["PassengerId", "Fare/Parch"]]
 ```
 
-## Chaining transformations
+### Chaining transformations
 
 Transformations can be chained together, where one transformation is the input into another transformation. 
 Transformations will wait for any dependent transformations to complete successfully before running.

@@ -42,7 +42,7 @@ titanic.register_resources(
 )
 ```
 
-## With Timestamp
+### With Timestamp
 This example is based off of a fraud training set with a CustomerID, TransactionID, Amount, and Transaction Time.
 
 ```python

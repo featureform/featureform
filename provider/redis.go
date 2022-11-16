@@ -100,6 +100,7 @@ func (table redisOnlineTable) Set(entity string, value interface{}) error {
 
 func (table redisOnlineTable) Get(entity string) (interface{}, error) {
 	val := table.client.HGet(context.TODO(), table.key.String(), entity)
+	fmt.Printf("Type: %s, Entity: %s, Value: %v\n")
 	if val.Err() != nil {
 		return nil, &EntityNotFound{entity}
 	}
@@ -122,5 +123,6 @@ func (table redisOnlineTable) Get(entity string) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
+	fmt.Printf("Type: %s, Entity: %s, Original Value: %v, Returned Value:%v\n", table.valueType, entity, val, result)
 	return result, nil
 }

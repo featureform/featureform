@@ -69,3 +69,22 @@ def fare_per_family_member(titanic):
     titanic["Fare/Parch"] = titanic["Fare"] / titanic["Parch"]
     return titanic[["PassengerId", "Fare/Parch"]]
 ```
+
+## Chaining transformations
+
+Transformations can be chained together, where one transformation is the input into another transformation. 
+Transformations will wait for any dependent transformations to complete successfully before running.
+
+```python
+@postgres.register_transformation(variant="quickstart")
+def survival_first_class():
+    """ The age and survival status of first class passengers
+    """
+    return "SELECT age, survival FROM {{titanic.kaggle}} WHERE pclass='1st'"
+
+@postgres.register_transformation(variant="quickstart")
+def average_age_survival_first_class():
+    """ The average survivability of first class passengers by age
+    """
+    return "SELECT age, AVG(survival) FROM {{survival_first_class.quickstart}} GROUP BY age"
+```

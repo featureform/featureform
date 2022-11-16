@@ -1,4 +1,5 @@
 import pytest
+import featureform as ff
 
 from datetime import timedelta
 

@@ -169,7 +169,7 @@ class FeatureServer:
         resp = self._stub.FeatureServe(req)
         self._feature_list = [parse_proto_value(val) for val in resp.values]
     
-    def wait(self, timeout=None):
+    def wait(self, timeout=99999):
         for (name, variant) in self._features:
             feature = self._resource_client.get_feature(name, variant, display=False)
             status = feature.get_status()
@@ -672,7 +672,7 @@ class Dataset:
     def pandas(self):
         return self._dataframe
 
-    def wait(self, timeout=None):
+    def wait(self, timeout=99999):
         if self._name is None or self._version is None:
             raise ValueError("Local Dataset type does not implement wait")
         training_set = self._resource_client.get_training_set(self._name, self._version, display=False)

@@ -232,11 +232,6 @@ def get_training_set_variant_info(stub, name, variant, display=True):
     except grpc._channel._MultiThreadedRendezvous:
         print("Training set variant not found.")
 
-# wraps around training set proto and provides get_status() and other methods
-# is there an automatic way to do this?
-# class TrainingSetVariantProtoWrapper:
-
-
 def get_provider_info(stub, name):
     searchName = metadata_pb2.Name(name=name)
     try:

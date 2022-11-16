@@ -33,6 +33,13 @@ class SourceType(Enum):
     PRIMARY_SOURCE = "PRIMARY"
     DF_TRANSFORMATION = "DF"
     SQL_TRANSFORMATION = "SQL"
+
+class ResourceStatus(Enum):
+    NoStatus = "NO_STATUS"
+    Created = "CREATED"
+    Pending = "PENDING"
+    Ready = "READY"
+    Failed = "FAILED"
     
 @typechecked
 def valid_name_variant(nvar: NameVariant) -> bool:

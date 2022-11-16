@@ -15,12 +15,8 @@ FEATURE_VARIANT = "test_feature_variant"
 FEATURE_ENTITY = "test_entity"
 FEATURE_VALUE = "test_value"
 
-#Training set
-
-# not ready, expect timeout
 def test_not_ready_timeout_training_set(mocker):
     mocker.patch(
-        # api_call is from slow.py but imported to main.py
         'featureform.register.ResourceClient.get_training_set',
         return_value=TrainingSet(
             name="",
@@ -38,12 +34,8 @@ def test_not_ready_timeout_training_set(mocker):
     except ValueError as actual_error:
         assert actual_error.args[0] == f'Waited too long for resource {TRAININGSET_NAME}:{TRAININGSET_VARIANT} to be ready'
 
-
-#failed expect error
-
 def test_failed_training_set(mocker):
     mocker.patch(
-        # api_call is from slow.py but imported to main.py
         'featureform.register.ResourceClient.get_training_set',
         return_value=TrainingSet(
             name="",
@@ -63,7 +55,6 @@ def test_failed_training_set(mocker):
 
 def test_ready_training_set(mocker):
     mocker.patch(
-        # api_call is from slow.py but imported to main.py
         'featureform.register.ResourceClient.get_training_set',
         return_value=TrainingSet(
             name="",
@@ -80,11 +71,8 @@ def test_ready_training_set(mocker):
     actual = client.training_set(TRAININGSET_NAME, TRAININGSET_VARIANT).wait()
     assert actual != None
 
-# #Feature
-
 def test_timeout_feature(mocker):
     mocker.patch(
-        # api_call is from slow.py but imported to main.py
         'featureform.register.ResourceClient.get_feature',
         return_value=Feature(
             name="",
@@ -105,11 +93,8 @@ def test_timeout_feature(mocker):
     except ValueError as actual_error:
         assert actual_error.args[0] == f'Waited too long for resource {FEATURE_NAME}:{FEATURE_VARIANT} to be ready'
 
-# #failed expect error
-
 def test_failed_feature(mocker):
     mocker.patch(
-        # api_call is from slow.py but imported to main.py
         'featureform.register.ResourceClient.get_feature',
         return_value=Feature(
             name="",
@@ -131,7 +116,6 @@ def test_failed_feature(mocker):
 
 def test_ready_feature(mocker):
     mocker.patch(
-        # api_call is from slow.py but imported to main.py
         'featureform.register.ResourceClient.get_feature',
         return_value=Feature(
             name="",

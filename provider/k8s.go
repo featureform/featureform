@@ -26,6 +26,11 @@ import (
 	_ "gocloud.dev/blob/memblob"
 )
 
+const (
+	AzurePrefix FileStoreURIPrefix = "abfss://"
+	S3Prefix = "s3://"
+)
+
 type K8sOfflineStore struct {
 	executor Executor
 	store    FileStore
@@ -644,7 +649,7 @@ func (store genericFileStore) Serve(key string) (Iterator, error) {
 }
 
 func (store genericFileStore) NumRows(key string) (int64, error) {
-	if key[:len("abfss://")] == "abfss://" {
+	if key[:len(AzurePrefix)] == AzurePrefix {
 		key = strings.Join(strings.Split(key, "/")[3:], "/")
 	}
 	b, err := store.bucket.ReadAll(context.TODO(), key)

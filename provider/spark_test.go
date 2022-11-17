@@ -1041,9 +1041,6 @@ func testSparkSQLTransformation(t *testing.T, store *SparkOfflineStore) {
 				}
 				t.Fatalf("failed to get the transformation, %s", err)
 			}
-
-			fmt.Println("source table is")
-			fmt.Println(sourceTable)
 			sourceCount, err := sourceTable.NumRows()
 			if err != nil {
 				t.Fatalf("could not get source num rows; %v", err)

@@ -23,3 +23,11 @@ type TransformationTypeError struct {
 func (e TransformationTypeError) Error() string {
 	return e.error
 }
+
+type PrimaryTableAlreadyExists struct {
+	id ResourceID
+}
+
+func (err *PrimaryTableAlreadyExists) Error() string {
+	return fmt.Sprintf("Primary Table %s Variant %s already exists.", err.id.Name, err.id.Variant)
+}

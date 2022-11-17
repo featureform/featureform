@@ -69,7 +69,7 @@ def test_ready_training_set(mocker):
 
     client=ServingClient(host="mock_host")
     actual = client.training_set(TRAININGSET_NAME, TRAININGSET_VARIANT).wait()
-    assert actual != None
+    assert actual != None, "Training set get returned None"
 
 def test_timeout_feature(mocker):
     mocker.patch(
@@ -88,7 +88,6 @@ def test_timeout_feature(mocker):
     )
     client=ServingClient(host="mock_host")
     try:
-
         features = client.features([(FEATURE_NAME, FEATURE_VARIANT)], {FEATURE_ENTITY: FEATURE_VALUE}).wait(timeout=2)
     except ValueError as actual_error:
         assert actual_error.args[0] == f'Waited too long for resource {FEATURE_NAME}:{FEATURE_VARIANT} to be ready'
@@ -147,5 +146,5 @@ def test_ready_feature(mocker):
         )
     client=ServingClient(host="mock_host")
     actual = client.features([(FEATURE_NAME, FEATURE_VARIANT)], {FEATURE_ENTITY: FEATURE_VALUE}).wait(timeout=2)
-    assert actual != None
+    assert actual != None, "Feature get returned None"
 

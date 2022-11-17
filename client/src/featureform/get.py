@@ -75,11 +75,11 @@ def get_resource_info(stub, resource_type, name):
     except grpc._channel._MultiThreadedRendezvous:
         print(f"{resource_type} not found.")
 
-def get_feature_variant_info(stub, name, variant, display=True):
+def get_feature_variant_info(stub, name, variant, verbose=True):
     searchNameVariant = metadata_pb2.NameVariant(name=name, variant=variant)
     try:
         for x in stub.GetFeatureVariants(iter([searchNameVariant])):
-            if display:
+            if verbose:
                 format_rows([("NAME: ", x.name), 
                 ("VARIANT: ", x.variant), 
                 ("TYPE:", x.type), 
@@ -108,7 +108,6 @@ def get_feature_variant_info(stub, name, variant, display=True):
                 status=x.status.Status._enum_type.values[x.status.status].name,
                 description=x.description,
             )
-            # return x
     except grpc._channel._MultiThreadedRendezvous:
         print("Feature variant not found.")
 
@@ -200,11 +199,11 @@ def get_source_variant_info(stub, name, variant):
     except grpc._channel._MultiThreadedRendezvous:
         print("Source variant not found.")
 
-def get_training_set_variant_info(stub, name, variant, display=True):
+def get_training_set_variant_info(stub, name, variant, verbose=True):
     searchNameVariant = metadata_pb2.NameVariant(name=name, variant=variant)
     try:
         for x in stub.GetTrainingSetVariants(iter([searchNameVariant])):
-            if display:
+            if verbose:
                 format_rows([("NAME: ", x.name),
                 ("VARIANT: ", x.variant),
                 ("OWNER:", x.owner),

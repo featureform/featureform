@@ -169,7 +169,9 @@ class FeatureServer:
         resp = self._stub.FeatureServe(req)
         self._feature_list = [parse_proto_value(val) for val in resp.values]
     
-    """Waits for all features to be ready before retrieving them.
+    
+    def wait(self, timeout=None):
+        """Waits for all features to be ready before retrieving them.
 
         **Examples**:
         ``` py
@@ -183,29 +185,33 @@ class FeatureServer:
         Returns:
             self (FeatureServer object): an object that acts as a list containing every feature retrieved
         """
-    def wait(self, timeout=99999):
         for (name, variant) in self._features:
-            feature = self._resource_client.get_feature(name, variant, display=False)
-            status = feature.get_status()
-            timeout_duration = timedelta(seconds=timeout)
-            time_waited = timedelta(seconds = 0)
-            time_started = datetime.now()
-            while (status != "FAILED" and status != "READY") and (timeout is None or time_waited < timeout_duration):
-                feature = self._resource_client.get_feature(name, variant, display=False)
-                status = feature.get_status()
-                time.sleep(1)
-                time_waited = datetime.now() - time_started
-            if status == "FAILED":
-                raise ValueError(f'Resource {name}:{variant} status set to failed while waiting')
-            if time_waited >= timeout_duration:
-                raise ValueError(f'Waited too long for resource {name}:{variant} to be ready')
+            self._wait_for_feature(name, variant, timeout)
         self._get_features()
         return self
 
+    def _wait_for_feature(name, variant, timeout):
+        feature = self._resource_client.get_feature(name, variant, verbose=False)
+        status = feature.get_status()
+        timeout_duration = timedelta(seconds=0)
+        if timeout is not None:
+            timeout_duration = timedelta(seconds=timeout)
+        time_waited = timedelta(seconds = 0)
+        time_started = datetime.now()
+        while (status != "FAILED" and status != "READY") and (timeout is None or time_waited < timeout_duration):
+            feature = self._resource_client.get_feature(name, variant, verbose=False)
+            status = feature.get_status()
+            time.sleep(1)
+            time_waited = datetime.now() - time_started
+        if status == "FAILED":
+            raise ValueError(f'Resource {name}:{variant} status set to failed while waiting')
+        if time_waited >= timeout_duration:
+            raise ValueError(f'Waited too long for resource {name}:{variant} to be ready')
+    
     def _all_ready(self):
         all_ready = True
         for (name, variant) in self._features:
-            feature = self._resource_client.get_feature(name, variant, display=False)
+            feature = self._resource_client.get_feature(name, variant, verbose=False)
             if not feature:
                 all_ready = False
                 break
@@ -707,13 +713,13 @@ class Dataset:
         """
         if self._name is None or self._version is None:
             raise ValueError("Local Dataset type does not implement wait")
-        training_set = self._resource_client.get_training_set(self._name, self._version, display=False)
+        training_set = self._resource_client.get_training_set(self._name, self._version, verbose=False)
         timeout_duration = timedelta(seconds=timeout)
         status = training_set.get_status()
         time_waited = timedelta(seconds = 0)
         time_started = datetime.now()
         while (status != "FAILED" and status != "READY") and (timeout is None or time_waited < timeout_duration):
-            training_set = self._resource_client.get_training_set(self._name, self._version, display=False)
+            training_set = self._resource_client.get_training_set(self._name, self._version, verbose=False)
             status = training_set.get_status()
             time.sleep(1)
             time_waited = datetime.now() - time_started

@@ -556,7 +556,7 @@ class Source:
     schedule_obj: Schedule = None
     is_transformation = SourceType.PRIMARY_SOURCE.value
     inputs = []
-    status: str = ""
+    status: str = "NO_STATUS"
 
     def get_status(self) -> str: 
         return self.status
@@ -697,7 +697,7 @@ class Feature:
     description: str
     variant: str = "default"
     schedule: str = ""
-    status: str = ""
+    status: str = "NO_STATUS"
     schedule_obj: Schedule = None
 
     def get_status(self) -> str: 
@@ -782,7 +782,7 @@ class Label:
     description: str
     location: ResourceLocation
     variant: str = "default"
-    status: str = ""
+    status: str = "NO_STATUS"
 
     def get_status(self) -> str: 
         return self.status
@@ -949,7 +949,7 @@ class TrainingSet:
     variant: str = "default"
     schedule: str = ""
     schedule_obj: Schedule = None
-    status: str = ""
+    status: str = "NO_STATUS"
     entity: str = ""
 
     def get_status(self) -> str:

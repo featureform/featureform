@@ -216,6 +216,7 @@ pytest:
 	pytest client/tests/test_spark_provider.py
 	pytest client/tests/test_localmode_include_label_ts.py
 	pytest client/tests/test_localmode_lag_features.py
+	pytest client/tests/wait_test.py
 	-rm -r .featureform
 
 jupyter: update_python

@@ -190,7 +190,7 @@ class FeatureServer:
         self._get_features()
         return self
 
-    def _wait_for_feature(name, variant, timeout):
+    def _wait_for_feature(self, name, variant, timeout):
         feature = self._resource_client.get_feature(name, variant, verbose=False)
         status = feature.get_status()
         timeout_duration = timedelta(seconds=0)

@@ -2453,7 +2453,7 @@ class ResourceClient(Registrar):
             return get_provider_info_local(name)
         return get_provider_info(self._stub, name)
 
-    def get_feature(self, name, variant=None, local=False, display=True):
+    def get_feature(self, name, variant=None, local=False, verbose=True):
         """Get a feature. Prints out information on feature, and all variants associated with the feature. If variant is included, print information on that specific variant and all resources associated with it.
 
         **Examples:**
@@ -2554,7 +2554,7 @@ class ResourceClient(Registrar):
             return get_feature_variant_info_local(name, variant)
         if not variant:
             return get_resource_info(self._stub, "feature", name)
-        return get_feature_variant_info(self._stub, name, variant, display=display)
+        return get_feature_variant_info(self._stub, name, variant, verbose=verbose)
 
     def get_label(self, name, variant=None, local=False):
         """Get a label. Prints out information on label, and all variants associated with the label. If variant is included, print information on that specific variant and all resources associated with it.
@@ -2659,7 +2659,7 @@ class ResourceClient(Registrar):
             return get_resource_info(self._stub, "label", name)
         return get_label_variant_info(self._stub, name, variant)
 
-    def get_training_set(self, name, variant=None, local=False, display=True):
+    def get_training_set(self, name, variant=None, local=False, verbose=True):
         """Get a training set. Prints out information on training set, and all variants associated with the training set. If variant is included, print information on that specific variant and all resources associated with it.
 
         **Examples:**
@@ -2684,7 +2684,7 @@ class ResourceClient(Registrar):
         ```
 
         ``` json title="Output"
-        // get_training_set returns the TrainingSet object
+        // get_training_set returns the TrainingSet object from featureform.Resources
 
         name: "fraud_training"
         default_variant: "quickstart"
@@ -2692,7 +2692,7 @@ class ResourceClient(Registrar):
         ```
 
         ``` py title="Input"
-        fraudulent_variant = ff.get_training set("fraudulent", "quickstart")
+        fraudulent_variant = ff.get_training_set("fraudulent", "quickstart")
         ```
 
         ``` json title="Output"
@@ -2719,7 +2719,7 @@ class ResourceClient(Registrar):
         ```
 
         ``` json title="Output"
-        // get_training_set returns the TrainingSetVariant object
+        // get_training_set returns the TrainingSet object from featureform.resources
 
         name: "fraud_training"
         variant: "quickstart"
@@ -2744,7 +2744,7 @@ class ResourceClient(Registrar):
             variant (str): Name of variant of training set
 
         Returns:
-            training_set (Union[TrainingSet, TrainingSetVariant]): TrainingSet or TrainingSetVariant
+            training_set: TrainingSet
         """
         if local:
             if not variant:
@@ -2752,7 +2752,7 @@ class ResourceClient(Registrar):
             return get_training_set_variant_info_local(name, variant)
         if not variant:
             return get_resource_info(self._stub, "training-set", name)
-        return get_training_set_variant_info(self._stub, name, variant, display=display)
+        return get_training_set_variant_info(self._stub, name, variant, verbose=verbose)
 
     def get_source(self, name, variant=None, local=False):
         """Get a source. Prints out information on source, and all variants associated with the source. If variant is included, print information on that specific variant and all resources associated with it.

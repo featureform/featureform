@@ -14,6 +14,7 @@ import (
 	"os"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/featureform/helpers"
 
@@ -338,121 +339,410 @@ func testMassTableWrite(t *testing.T, store OnlineStore) {
 	}
 }
 
-func testTypeCasting(t *testing.T, store OnlineStore) {
-	onlineResources := []OnlineResource{
+func testSimpleTypeCasting(t *testing.T, store OnlineStore) {
+	testCases := []struct {
+		OnlineResource
+		ExpectedType reflect.Type
+	}{
 		{
-			Entity: "a",
-			Value:  int(1),
-			Type:   Int,
+			OnlineResource{
+				Entity: "int",
+				Value:  int(1),
+			},
+			ExpectedType: reflect.Int,
 		},
 		{
-			Entity: "b",
-			Value:  int64(1),
-			Type:   Int64,
+			OnlineResource{
+				Entity: "int8",
+				Value:  int8(1),
+			},
+			ExpectedType: reflect.Int8,
 		},
 		{
-			Entity: "c",
-			Value:  float32(1.0),
-			Type:   Float32,
+			OnlineResource{
+				Entity: "int16",
+				Value:  int16(1),
+			},
+			ExpectedType: reflect.Int16,
 		},
 		{
-			Entity: "d",
-			Value:  float64(1.0),
-			Type:   Float64,
+			OnlineResource{
+				Entity: "int32",
+				Value:  int32(1),
+			},
+			ExpectedType: reflect.Int32,
 		},
 		{
-			Entity: "e",
-			Value:  "1.0",
-			Type:   String,
+			OnlineResource{
+				Entity: "int64",
+				Value:  int64(1),
+			},
+			ExpectedType: reflect.Int64,
 		},
 		{
-			Entity: "f",
-			Value:  false,
-			Type:   Bool,
+			OnlineResource{
+				Entity: "float32",
+				Value:  float32(1.0),
+			},
+			ExpectedType: reflect.Float32,
+		},
+		{
+			OnlineResource{
+				Entity: "float64",
+				Value:  float64(1.0),
+			},
+			ExpectedType: reflect.Float64,
+		},
+		{
+			OnlineResource{
+				Entity: "string",
+				Value:  "1",
+			},
+			ExpectedType: reflect.String,
+		},
+		{
+			OnlineResource{
+				Entity: "bool",
+				Value:  true,
+			},
+			ExpectedType: reflect.Bool,
+		},
+		{
+			OnlineResource{
+				Entity: "complex64",
+				Value:  complex(float32(23), float32(31)),
+			},
+			ExpectedType: reflect.Complex64,
+		},
+		{
+			OnlineResource{
+				Entity: "complex128",
+				Value:  complex(float64(23), float64(31)),
+			},
+			ExpectedType: reflect.Complex128,
+		},
+		{
+			OnlineResource{
+				Entity: "time",
+				Value:  time.Now(),
+			},
+			ExpectedType: reflect.TypeOf(time.Now()),
+		},
+		{
+			OnlineResource{
+				Entity: "time",
+				Value:  time.Now(),
+			},
+			ExpectedType: reflect.TypeOf(time.Now()),
 		},
 	}
-	for _, resource := range onlineResources {
+	for _, c := range testCases {
 		featureName := uuid.New().String()
-		tab, err := store.CreateTable(featureName, "", resource.Type)
+		tab, err := store.CreateTable(featureName, "", c.Resource.Type)
 		if err != nil {
 			t.Fatalf("Failed to create table: %s", err)
 		}
-		if err := tab.Set(resource.Entity, resource.Value); err != nil {
+		if err := tab.Set(c.Resource.Entity, c.Resource.Value); err != nil {
 			t.Fatalf("Failed to set entity: %s", err)
 		}
-		gotVal, err := tab.Get(resource.Entity)
+		gotVal, err := tab.Get(c.Resource.Entity)
 		if err != nil {
 			t.Fatalf("Failed to get entity: %s", err)
 		}
-		if !reflect.DeepEqual(resource.Value, gotVal) {
-			t.Fatalf("Values are not the same %v, type %T. %v, type %T", resource.Value, resource.Value, gotVal, gotVal)
+		if reflect.TypeOf(c.ExpectedValue) reflect.TypeOf(gotVal) {
+			t.Fatalf("Types are not the same %T != %T", c.ExpectedValue, gotVal)
 		}
 		store.DeleteTable(featureName, "")
 	}
 }
 
-func testInvalidTypes(t *testing.T, store OnlineStore) {
-	onlineResources := []OnlineResource{
+func testForcedTypeCasting(t *testing.T, store OnlineStore) {
+	dummy := struct {
+		Something string
+		Else      string
+	}{"some", "field"}
+
+	testCases := []struct {
+		Resource      OnlineResource
+		ExpectedType  reflect.Type
+		ExpectedValue interface{}
+		ShouldError   bool
+	}{
 		{
-			Entity: "a",
-			Value:  int(1),
-			Type:   "",
+			OnlineResource{
+				Entity: "int",
+				Value:  int(1),
+				Type:   Int,
+			},
+			ExpectedType:  reflect.Int,
+			ExpectedValue: 1,
+			ShouldError:   false,
 		},
 		{
-			Entity: "b",
-			Value:  int(2),
-			Type:   "integer",
+			OnlineResource{
+				Entity: "int",
+				Value:  int(1),
+				Type:   String,
+			},
+			ExpectedType:  reflect.Int,
+			ExpectedValue: "1",
+			ShouldError:   false,
 		},
 		{
-			Entity: "c",
-			Value:  "",
-			Type:   "str",
+			OnlineResource{
+				Entity: "int8",
+				Value:  int8(1),
+				Type:   Int,
+			},
+			ExpectedType:  reflect.Int,
+			ExpectedValue: 1,
+			ShouldError:   false,
+		},
+		{
+			OnlineResource{
+				Entity: "int16",
+				Value:  int16(1),
+				Type:   Int,
+			},
+			ExpectedType:  reflect.Int,
+			ExpectedValue: 1,
+			ShouldError:   false,
+		},
+		{
+			OnlineResource{
+				Entity: "int32",
+				Value:  int32(1),
+				Type:   Int,
+			},
+			ExpectedType:  reflect.Int,
+			ExpectedValue: 1,
+			ShouldError:   false,
+		},
+		{
+			OnlineResource{
+				Entity: "int64",
+				Value:  int64(1),
+				Type:   Int,
+			},
+			ExpectedType:  reflect.Int,
+			ExpectedValue: 1,
+			ShouldError:   false,
+		},
+		{
+			OnlineResource{
+				Entity: "float32",
+				Value:  float32(1.2),
+				Type:   Int,
+			},
+			ExpectedType:  reflect.Int,
+			ExpectedValue: 1,
+			ShouldError:   false,
+		},
+		{
+			OnlineResource{
+				Entity: "float64",
+				Value:  float64(1.2),
+				Type:   Int,
+			},
+			ExpectedType:  reflect.Int,
+			ExpectedValue: 1,
+			ShouldError:   false,
+		},
+		{
+			OnlineResource{
+				Entity: "string",
+				Value:  "somestring",
+				Type:   Int,
+			},
+			ExpectedType: reflect.String,
+			ShouldError:  true,
+		},
+		{
+			OnlineResource{
+				Entity: "bool",
+				Value:  true,
+				Type:   Int,
+			},
+			ExpectedType:  reflect.Bool,
+			ExpectedValue: 1,
+			ShouldError:   false,
+		},
+		{
+			OnlineResource{
+				Entity: "complex64",
+				Value:  complex(float32(23), float32(31)),
+				Type:   Int,
+			},
+			ExpectedType: reflect.Complex64,
+			ShouldError:  true,
+		},
+		{
+			OnlineResource{
+				Entity: "complex128",
+				Value:  complex(float64(23), float64(31)),
+				Type:   Int,
+			},
+			ExpectedType: reflect.Complex128,
+			ShouldError:  false,
+		},
+		{
+			OnlineResource{
+				Entity: "time",
+				Value:  time.Now(),
+				Type:   Int,
+			},
+			ExpectedType: reflect.TypeOf(time.Now()),
+			ShouldError:  true,
+		},
+		{
+			OnlineResource{
+				Entity: "time",
+				Value:  time.UnixMicro(0),
+				Type:   String,
+			},
+			ExpectedType:  reflect.TypeOf(time.Now()),
+			ExpectedValue: string(time.UnixMicro(0)),
+			ShouldError:   false,
+		},
+		{
+			// Test unknown type
+			OnlineResource{
+				Entity: "time",
+				Value:  dummy,
+				Type:   String,
+			},
+			ExpectedType:  reflect.string,
+			ExpectedValue: fmt.Sprintf("%v", dummy),
+			ShouldError:   false,
 		},
 	}
-	for _, resource := range onlineResources {
+	for _, c := range testCases {
 		featureName := uuid.New().String()
-		_, err := store.CreateTable(featureName, "", resource.Type)
-		if err == nil {
-			t.Errorf("Created table with invalid type: %s", resource.Type)
-		} else {
-			continue
+		tab, err := store.CreateTable(featureName, "", c.Resource.Type)
+		if err != nil {
+			t.Fatalf("Failed to create table: %s", err)
+		}
+		err := tab.Set(c.Resource.Entity, c.Resource.Value)
+		if err != nil && !c.ShouldError {
+			t.Errorf("Unable to set resource value: %v, Type: %v", c.Resource.Value, c.Resource.Type)
+		} else if err == nil && c.ShouldError {
+			t.Errorf("Invalid value set created with Value Type: %v, Value: %v, Table Type: %v", reflect.TypeOf(c.Resource.Value), c.Resource.Value, c.Resource.Type)
+		}
+		gotVal, err := tab.Get(c.Resource.Entity)
+		if err != nil {
+			t.Fatalf("Failed to get entity: %s", err)
+		}
+		if !reflect.DeepEqual(c.ExpectedValue, gotVal) {
+			t.Fatalf("Values are not the same %v, type %T. %v, type %T", c.ExpectedValue, c.ExpectedValue, gotVal, gotVal)
 		}
 		store.DeleteTable(featureName, "")
 	}
 }
 
-func testIncorrectTypes(t *testing.T, store OnlineStore) {
-	onlineResources := []OnlineResource{
+func testTypeOverride(t *testing.T, store OnlineStore) {
+	testCases := []struct {
+		Resource    OnlineResource
+		ShouldError bool
+	}{
 		{
-			Entity: "a",
-			Value:  int(1),
-			Type:   "",
+			// Test unknown type
+			OnlineResource{
+				Entity: "a",
+				Value:  1,
+				Type:   Int,
+			},
+			ShouldError: false,
 		},
 		{
-			Entity: "b",
-			Value:  int(2),
-			Type:   Bool,
+			// Test unknown type
+			OnlineResource{
+				Entity: "b",
+				Value:  1,
+				Type:   Int32,
+			},
+			ShouldError: false,
 		},
 		{
-			Entity: "c",
-			Value:  "string",
-			Type:   Int,
+			// Test unknown type
+			OnlineResource{
+				Entity: "c",
+				Value:  1,
+				Type:   Int64,
+			},
+			ShouldError: false,
 		},
 		{
-			Entity: "c",
-			Value:  true,
-			Type:   String,
+			// Test unknown type
+			OnlineResource{
+				Entity: "d",
+				Value:  1,
+				Type:   Float32,
+			},
+			ShouldError: false,
+		},
+		{
+			// Test unknown type
+			OnlineResource{
+				Entity: "e",
+				Value:  1,
+				Type:   Float64,
+			},
+			ShouldError: false,
+		},
+		{
+			// Test unknown type
+			OnlineResource{
+				Entity: "f",
+				Value:  true,
+				Type:   Bool,
+			},
+			ShouldError: false,
+		},
+		{
+			// Test unknown type
+			OnlineResource{
+				Entity: "g",
+				Value:  time.Now(),
+				Type:   Timestamp,
+			},
+			ShouldError: false,
+		},
+		{
+			// Test unknown type
+			OnlineResource{
+				Entity: "h",
+				Value:  1,
+				Type:   "str",
+			},
+			ShouldError: true,
+		},
+		{
+			// Test unknown type
+			OnlineResource{
+				Entity: "i",
+				Value:  1,
+				Type:   "",
+			},
+			ShouldError: true,
+		},
+		{
+			// Test unknown type
+			OnlineResource{
+				Entity: "j",
+				Value:  1,
+				Type:   "somenontype",
+			},
+			ShouldError: true,
 		},
 	}
-	for _, resource := range onlineResources {
+	for _, c := range testCases {
 		featureName := uuid.New().String()
-		_, err := store.CreateTable(featureName, "", resource.Type)
-		if err == nil {
-			t.Errorf("Created table with type: %s. Value is type: %T", resource.Type, resource.Value)
-		} else {
-			continue
+		_, err := store.CreateTable(featureName, "", c.Resource.Type)
+		if err != nil && !c.ShouldError {
+			t.Errorf("Unable to create resource value: %v, Type: %v", c.Resource.Value, c.Resource.Type)
+		} else if err == nil && c.ShouldError {
+			t.Errorf("Invalid table created with Type: %v", c.Resource.Type)
 		}
-		store.DeleteTable(featureName, "")
 	}
 }
 

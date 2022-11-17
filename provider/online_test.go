@@ -455,7 +455,7 @@ func testSimpleTypeCasting(t *testing.T, store OnlineStore) {
 	}
 }
 
-func testForcedTypeCasting(t *testing.T, store OnlineStore) {
+func testTypeCastingOverride(t *testing.T, store OnlineStore) {
 	dummy := struct {
 		Something string
 		Else      string
@@ -622,14 +622,11 @@ func testForcedTypeCasting(t *testing.T, store OnlineStore) {
 			t.Fatalf("Failed to create table: %s", err)
 		}
 		err := tab.Set(c.Resource.Entity, c.Resource.Value)
-		if err != nil && !c.ShouldError {
-			t.Errorf("Unable to set resource value: %v, Type: %v", c.Resource.Value, c.Resource.Type)
-		} else if err == nil && c.ShouldError {
-			t.Errorf("Invalid value set created with Value Type: %v, Value: %v, Table Type: %v", reflect.TypeOf(c.Resource.Value), c.Resource.Value, c.Resource.Type)
-		}
 		gotVal, err := tab.Get(c.Resource.Entity)
-		if err != nil {
-			t.Fatalf("Failed to get entity: %s", err)
+		if err != nil && !c.ShouldError {
+			t.Errorf("Unable to get resource value: %v, Type: %v", c.Resource.Value, c.Resource.Type)
+		} else if err == nil && c.ShouldError {
+			t.Errorf("Invalid value get created with Value Type: %v, Value: %v, Table Type: %v", reflect.TypeOf(c.Resource.Value), c.Resource.Value, c.Resource.Type)
 		}
 		if !reflect.DeepEqual(c.ExpectedValue, gotVal) {
 			t.Fatalf("Values are not the same %v, type %T. %v, type %T", c.ExpectedValue, c.ExpectedValue, gotVal, gotVal)
@@ -638,13 +635,13 @@ func testForcedTypeCasting(t *testing.T, store OnlineStore) {
 	}
 }
 
-func testTypeOverride(t *testing.T, store OnlineStore) {
+func testInvalidTypes(t *testing.T, store OnlineStore) {
 	testCases := []struct {
 		Resource    OnlineResource
 		ShouldError bool
 	}{
 		{
-			// Test unknown type
+
 			OnlineResource{
 				Entity: "a",
 				Value:  1,
@@ -653,7 +650,7 @@ func testTypeOverride(t *testing.T, store OnlineStore) {
 			ShouldError: false,
 		},
 		{
-			// Test unknown type
+
 			OnlineResource{
 				Entity: "b",
 				Value:  1,
@@ -662,7 +659,7 @@ func testTypeOverride(t *testing.T, store OnlineStore) {
 			ShouldError: false,
 		},
 		{
-			// Test unknown type
+
 			OnlineResource{
 				Entity: "c",
 				Value:  1,
@@ -671,7 +668,7 @@ func testTypeOverride(t *testing.T, store OnlineStore) {
 			ShouldError: false,
 		},
 		{
-			// Test unknown type
+
 			OnlineResource{
 				Entity: "d",
 				Value:  1,
@@ -680,7 +677,7 @@ func testTypeOverride(t *testing.T, store OnlineStore) {
 			ShouldError: false,
 		},
 		{
-			// Test unknown type
+
 			OnlineResource{
 				Entity: "e",
 				Value:  1,
@@ -689,7 +686,7 @@ func testTypeOverride(t *testing.T, store OnlineStore) {
 			ShouldError: false,
 		},
 		{
-			// Test unknown type
+
 			OnlineResource{
 				Entity: "f",
 				Value:  true,
@@ -698,7 +695,7 @@ func testTypeOverride(t *testing.T, store OnlineStore) {
 			ShouldError: false,
 		},
 		{
-			// Test unknown type
+
 			OnlineResource{
 				Entity: "g",
 				Value:  time.Now(),
@@ -707,7 +704,7 @@ func testTypeOverride(t *testing.T, store OnlineStore) {
 			ShouldError: false,
 		},
 		{
-			// Test unknown type
+
 			OnlineResource{
 				Entity: "h",
 				Value:  1,
@@ -716,7 +713,7 @@ func testTypeOverride(t *testing.T, store OnlineStore) {
 			ShouldError: true,
 		},
 		{
-			// Test unknown type
+
 			OnlineResource{
 				Entity: "i",
 				Value:  1,
@@ -725,7 +722,7 @@ func testTypeOverride(t *testing.T, store OnlineStore) {
 			ShouldError: true,
 		},
 		{
-			// Test unknown type
+
 			OnlineResource{
 				Entity: "j",
 				Value:  1,

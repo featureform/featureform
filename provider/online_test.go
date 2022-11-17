@@ -52,6 +52,8 @@ func TestOnlineStores(t *testing.T) {
 		"EntityNotFound":     testEntityNotFound,
 		"MassTableWrite":     testMassTableWrite,
 		"TypeCasting":        testTypeCasting,
+		"InvalidTypes":       testInvalidTypes,
+		"IncorrectTypes":     testIncorrectTypes,
 	}
 
 	// Redis (Mock)
@@ -101,6 +103,7 @@ func TestOnlineStores(t *testing.T) {
 
 	//Firestore
 	firestoreInit := func() FirestoreConfig {
+		fmt.Println(os.Getwd())
 		projectID := os.Getenv("FIRESTORE_PROJECT")
 		firestoreCredentials := os.Getenv("FIRESTORE_CRED")
 		JSONCredentials, err := ioutil.ReadFile(firestoreCredentials)
@@ -111,7 +114,7 @@ func TestOnlineStores(t *testing.T) {
 		var credentialsDict map[string]interface{}
 		err = json.Unmarshal(JSONCredentials, &credentialsDict)
 		if err != nil {
-			panic(fmt.Errorf("cannot unmarshal big query credentials: %v", err))
+			panic(fmt.Errorf("cannot unmarshal firestore credentials: %v", err))
 		}
 
 		firestoreConfig := &FirestoreConfig{
@@ -182,7 +185,7 @@ func TestOnlineStores(t *testing.T) {
 	if *provider == "azure_blob" || *provider == "" {
 		testList = append(testList, testMember{BlobOnline, "_AZURE", blobAzureInit().Serialized(), true})
 	}
-
+	fmt.Println("Test List: ", testList)
 	for _, testItem := range testList {
 		if testing.Short() && testItem.integrationTest {
 			t.Logf("Skipping %s, because it is an integration test", testItem.t)
@@ -191,11 +194,13 @@ func TestOnlineStores(t *testing.T) {
 		for name, fn := range testFns {
 			provider, err := Get(testItem.t, testItem.c)
 			if err != nil {
-				t.Fatalf("Failed to get provider %s: %s", testItem.t, err)
+				t.Errorf("Failed to get provider %s: %s", testItem.t, err)
+				continue
 			}
 			store, err := provider.AsOnlineStore()
 			if err != nil {
-				t.Fatalf("Failed to use provider %s as OnlineStore: %s", testItem.t, err)
+				t.Errorf("Failed to use provider %s as OnlineStore: %s", testItem.t, err)
+				continue
 			}
 			var prefix string
 			if testItem.integrationTest {
@@ -208,7 +213,8 @@ func TestOnlineStores(t *testing.T) {
 				fn(t, store)
 			})
 			if err := store.Close(); err != nil {
-				t.Fatalf("Failed to close online store %s: %v", testItem.t, err)
+				t.Errorf("Failed to close online store %s: %v", testItem.t, err)
+				continue
 			}
 
 		}
@@ -380,6 +386,71 @@ func testTypeCasting(t *testing.T, store OnlineStore) {
 		}
 		if !reflect.DeepEqual(resource.Value, gotVal) {
 			t.Fatalf("Values are not the same %v, type %T. %v, type %T", resource.Value, resource.Value, gotVal, gotVal)
+		}
+		store.DeleteTable(featureName, "")
+	}
+}
+
+func testInvalidTypes(t *testing.T, store OnlineStore) {
+	onlineResources := []OnlineResource{
+		{
+			Entity: "a",
+			Value:  int(1),
+			Type:   "",
+		},
+		{
+			Entity: "b",
+			Value:  int(2),
+			Type:   "integer",
+		},
+		{
+			Entity: "c",
+			Value:  "",
+			Type:   "str",
+		},
+	}
+	for _, resource := range onlineResources {
+		featureName := uuid.New().String()
+		_, err := store.CreateTable(featureName, "", resource.Type)
+		if err == nil {
+			t.Errorf("Created table with invalid type: %s", resource.Type)
+		} else {
+			continue
+		}
+		store.DeleteTable(featureName, "")
+	}
+}
+
+func testIncorrectTypes(t *testing.T, store OnlineStore) {
+	onlineResources := []OnlineResource{
+		{
+			Entity: "a",
+			Value:  int(1),
+			Type:   "",
+		},
+		{
+			Entity: "b",
+			Value:  int(2),
+			Type:   Bool,
+		},
+		{
+			Entity: "c",
+			Value:  "string",
+			Type:   Int,
+		},
+		{
+			Entity: "c",
+			Value:  true,
+			Type:   String,
+		},
+	}
+	for _, resource := range onlineResources {
+		featureName := uuid.New().String()
+		_, err := store.CreateTable(featureName, "", resource.Type)
+		if err == nil {
+			t.Errorf("Created table with type: %s. Value is type: %T", resource.Type, resource.Value)
+		} else {
+			continue
 		}
 		store.DeleteTable(featureName, "")
 	}

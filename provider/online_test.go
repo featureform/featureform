@@ -186,7 +186,6 @@ func TestOnlineStores(t *testing.T) {
 	if *provider == "azure_blob" || *provider == "" {
 		testList = append(testList, testMember{BlobOnline, "_AZURE", blobAzureInit().Serialized(), true})
 	}
-	fmt.Println("Test List: ", testList)
 	for _, testItem := range testList {
 		if testing.Short() && testItem.integrationTest {
 			t.Logf("Skipping %s, because it is an integration test", testItem.t)

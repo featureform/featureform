@@ -194,7 +194,6 @@ def get_source_variant_info(stub, name, variant):
                 provider=x.provider,
                 owner=x.owner,
                 status=x.status.Status._enum_type.values[x.status.status].name,
-                is_transformation=is_transformation,
             )
     except grpc._channel._MultiThreadedRendezvous:
         print("Source variant not found.")

@@ -27,14 +27,11 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-type PandasOfflineQueries interface {
-	materializationCreate(schema ResourceSchema) string
-	trainingSetCreate(def TrainingSetDef, featureSchemas []ResourceSchema, labelSchema ResourceSchema) string
+type pandasOfflineQueries struct {
+	defaultPythonOfflineQueries
 }
 
-type defaultPandasOfflineQueries struct{}
-
-func (q defaultPandasOfflineQueries) trainingSetCreate(def TrainingSetDef, featureSchemas []ResourceSchema, labelSchema ResourceSchema) string {
+func (q pandasOfflineQueries) trainingSetCreate(def TrainingSetDef, featureSchemas []ResourceSchema, labelSchema ResourceSchema) string {
 	columns := make([]string, 0)
 	joinQueries := make([]string, 0)
 	feature_timestamps := make([]string, 0)
@@ -97,7 +94,7 @@ type K8sOfflineStore struct {
 	executor Executor
 	store    FileStore
 	logger   *zap.SugaredLogger
-	query    *defaultPandasOfflineQueries
+	query    *pandasOfflineQueries
 	BaseProvider
 }
 
@@ -220,7 +217,7 @@ func k8sAzureOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	}
 
 	logger.Debugf("Store type: %s", k8.StoreType)
-	queries := defaultPandasOfflineQueries{}
+	queries := pandasOfflineQueries{}
 	k8sOfflineStore := K8sOfflineStore{
 		executor: exec,
 		store:    store,
@@ -260,7 +257,7 @@ func k8sOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 		return nil, err
 	}
 	logger.Debugf("Store type: %s", k8.StoreType)
-	queries := defaultPandasOfflineQueries{}
+	queries := pandasOfflineQueries{}
 	k8sOfflineStore := K8sOfflineStore{
 		executor: exec,
 		store:    store,

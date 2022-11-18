@@ -338,7 +338,7 @@ func NewS3FileStore(config Config) (FileStore, error) {
 	}, nil
 }
 
-type SparkOfflineQueries interface {
+type PythonOfflineQueries interface {
 	materializationCreate(schema ResourceSchema) string
 	trainingSetCreate(def TrainingSetDef, featureSchemas []ResourceSchema, labelSchema ResourceSchema) string
 }

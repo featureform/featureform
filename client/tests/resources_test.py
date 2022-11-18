@@ -4,7 +4,7 @@
 import os.path
 
 import pytest
-from .resources import ResourceRedefinedError, ResourceState, Provider, RedisConfig, CassandraConfig, FirestoreConfig, \
+from client.src.featureform.resources import ResourceRedefinedError, ResourceState, Provider, RedisConfig, CassandraConfig, FirestoreConfig, \
     SnowflakeConfig, PostgresConfig, RedshiftConfig, BigQueryConfig, OnlineBlobConfig, AzureBlobStoreConfig, K8sConfig, \
     User, Provider, Entity, Feature, Label, TrainingSet, PrimaryData, SQLTable, \
     Source, ResourceColumnMapping, DynamodbConfig, Schedule
@@ -122,10 +122,11 @@ def redshift_config():
 
 @pytest.fixture
 def bigquery_config():
+    path = os.path.abspath(os.getcwd()) + "/client/tests/test_files/bigquery_credentials.json"
     return BigQueryConfig(
         project_id="bigquery-project",
         dataset_id="bigquery-dataset",
-        credentials_path="dummy.json",
+        credentials_path=path,
     )
 
 

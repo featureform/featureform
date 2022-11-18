@@ -23,3 +23,9 @@ type TransformationTypeError struct {
 func (e TransformationTypeError) Error() string {
 	return e.error
 }
+
+type EmptyParquetFileError struct{}
+
+func (e EmptyParquetFileError) Error() string {
+	return "could not read empty parquet file"
+}

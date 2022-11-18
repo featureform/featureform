@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/featureform/helpers"
+	"github.com/featureform/logging"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsv2cfg "github.com/aws/aws-sdk-go-v2/config"
@@ -26,6 +27,8 @@ import (
 	// clusterModels "github.com/Azure/databricks-sdk-golang/azure/clusters/models"
 	azureHTTPModels "github.com/Azure/databricks-sdk-golang/azure/jobs/httpmodels"
 	azureModels "github.com/Azure/databricks-sdk-golang/azure/jobs/models"
+
+	"golang.org/x/exp/slices"
 
 	emrTypes "github.com/aws/aws-sdk-go-v2/service/emr/types"
 )
@@ -364,6 +367,7 @@ func featureColumnName(id ResourceID) string {
 func (q defaultSparkOfflineQueries) trainingSetCreate(def TrainingSetDef, featureSchemas []ResourceSchema, labelSchema ResourceSchema) string {
 	columns := make([]string, 0)
 	joinQueries := make([]string, 0)
+	feature_timestamps := make([]string, 0)
 	for i, feature := range def.Features {
 		featureColumnName := featureColumnName(feature)
 		columns = append(columns, featureColumnName)
@@ -376,6 +380,30 @@ func (q defaultSparkOfflineQueries) trainingSetCreate(def TrainingSetDef, featur
 		}
 		featureJoinQuery := fmt.Sprintf("LEFT OUTER JOIN (%s) t%d ON (t%d_entity = entity AND t%d_ts <= label_ts)", featureWindowQuery, i+1, i+1, i+1)
 		joinQueries = append(joinQueries, featureJoinQuery)
+		feature_timestamps = append(feature_timestamps, fmt.Sprintf("t%d_ts", i+1))
+	}
+	for i, lagFeature := range def.LagFeatures {
+		lagFeaturesOffset := len(def.Features)
+		idx := slices.IndexFunc(def.Features, func(id ResourceID) bool {
+			return id.Name == lagFeature.FeatureName && id.Variant == lagFeature.FeatureVariant
+		})
+		lagSource := fmt.Sprintf("source_%d", idx)
+		lagColumnName := sanitize(lagFeature.LagName)
+		if lagFeature.LagName == "" {
+			lagColumnName = sanitize(fmt.Sprintf("%s_%s_lag_%s", lagFeature.FeatureName, lagFeature.FeatureVariant, lagFeature.LagDelta))
+		}
+		columns = append(columns, lagColumnName)
+		timeDeltaSeconds := lagFeature.LagDelta.Seconds() //parquet stores time as microseconds
+		curIdx := lagFeaturesOffset + i + 1
+		var lagWindowQuery string
+		if featureSchemas[idx].TS == "" {
+			lagWindowQuery = fmt.Sprintf("SELECT * FROM (SELECT %s as t%d_entity, %s as %s, 0 as t%d_ts FROM %s) ORDER BY t%d_ts ASC", featureSchemas[idx].Entity, curIdx, featureSchemas[idx].Value, lagColumnName, curIdx, lagSource, curIdx)
+		} else {
+			lagWindowQuery = fmt.Sprintf("SELECT * FROM (SELECT %s as t%d_entity, %s as %s, %s as t%d_ts FROM %s) ORDER BY t%d_ts ASC", featureSchemas[idx].Entity, curIdx, featureSchemas[idx].Value, lagColumnName, featureSchemas[idx].TS, curIdx, lagSource, curIdx)
+		}
+		lagJoinQuery := fmt.Sprintf("LEFT OUTER JOIN (%s) t%d ON (t%d_entity = entity AND DATETIME(t%d_ts, '+%f seconds') <= label_ts)", lagWindowQuery, curIdx, curIdx, curIdx, timeDeltaSeconds)
+		joinQueries = append(joinQueries, lagJoinQuery)
+		feature_timestamps = append(feature_timestamps, fmt.Sprintf("t%d_ts", curIdx))
 	}
 	columnStr := strings.Join(columns, ", ")
 	joinQueryString := strings.Join(joinQueries, " ")
@@ -387,8 +415,11 @@ func (q defaultSparkOfflineQueries) trainingSetCreate(def TrainingSetDef, featur
 	}
 	labelPartitionQuery := fmt.Sprintf("(SELECT * FROM (SELECT entity, value, label_ts FROM (%s) t ) t0)", labelWindowQuery)
 	labelJoinQuery := fmt.Sprintf("%s %s", labelPartitionQuery, joinQueryString)
-	fullQuery := fmt.Sprintf("SELECT %s, value AS %s, entity, label_ts, ROW_NUMBER() over (PARTITION BY entity, value, label_ts ORDER BY label_ts DESC) as row_number FROM (%s) tt", columnStr, featureColumnName(def.Label), labelJoinQuery)
-	finalQuery := fmt.Sprintf("SELECT %s, %s FROM (SELECT * FROM (SELECT *, row_number FROM (%s) WHERE row_number=1 ))", columnStr, featureColumnName(def.Label), fullQuery)
+
+	timeStamps := strings.Join(feature_timestamps, ", ")
+	timeStampsDesc := strings.Join(feature_timestamps, " DESC,")
+	fullQuery := fmt.Sprintf("SELECT %s, value AS %s, entity, label_ts, %s, ROW_NUMBER() over (PARTITION BY entity, value, label_ts ORDER BY label_ts DESC, %s DESC) as row_number FROM (%s) tt", columnStr, featureColumnName(def.Label), timeStamps, timeStampsDesc, labelJoinQuery)
+	finalQuery := fmt.Sprintf("SELECT %s, %s FROM (SELECT * FROM (SELECT *, row_number FROM (%s) WHERE row_number=1 ))  ORDER BY label_ts", columnStr, featureColumnName(def.Label), fullQuery)
 	return finalQuery
 }
 
@@ -410,7 +441,7 @@ func (store *SparkOfflineStore) Close() error {
 
 func sparkOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	sc := SparkConfig{}
-	logger := zap.NewExample().Sugar()
+	logger := logging.NewLogger("spark")
 	if err := sc.Deserialize(config); err != nil {
 		logger.Errorw("Invalid config to initialize spark offline store", err)
 		return nil, fmt.Errorf("invalid spark config: %v", config)
@@ -653,7 +684,7 @@ func GetTransformationFileLocation(id ResourceID) string {
 func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, isUpdate bool) error {
 	transformationDestination := spark.Store.PathWithPrefix(ResourcePrefix(config.TargetTableID), true)
 	transformationDestinationWithSlash := strings.Join([]string{transformationDestination, ""}, "/")
-	fmt.Println("--->", transformationDestination, transformationDestinationWithSlash)
+
 	transformationFile, err := spark.Store.NewestFile(spark.Store.PathWithPrefix(ResourcePrefix(config.TargetTableID), false))
 	if err != nil {
 		return fmt.Errorf("error checking if transformation file exists")
@@ -688,9 +719,9 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 	spark.Logger.Debugw("Running DF transformation", config)
 	if err := spark.Executor.RunSparkJob(&sparkArgs, spark.Store); err != nil {
 		spark.Logger.Errorw("Error running Spark dataframe job", err)
-		return fmt.Errorf("spark submit job for transformation %v failed to run: %v", config.TargetTableID, err)
+		return fmt.Errorf("spark submit job for transformation failed to run: (name: %s variant:%s) %v", config.TargetTableID.Name, config.TargetTableID.Variant, err)
 	}
-	spark.Logger.Debugw("Succesfully ran DF transformation", config)
+	spark.Logger.Debugw("Successfully ran transformation", "type", config.Type, "name", config.TargetTableID.Name, "variant", config.TargetTableID.Variant)
 	return nil
 }
 

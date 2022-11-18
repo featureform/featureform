@@ -12,6 +12,14 @@ To serve a feature we initialize a serving client, specify the names and variant
 fpf = client.features([("fpf", "quickstart")], {"passenger": "1"})
 ```
 
+### Wait
+The `wait()` function can be used to wait until a feature table is fully materialized before attempting to lookup the feature.
+It has an optional timeout in second to wait until for the materialization completion.
+
+```python
+fpf = client.features([("fpf", "quickstart")], {"passenger": "1"}).wait(timeout=60)
+```
+
 ## Serving for Training
 
 When a [training set is defined](defining-features-labels-and-training-sets.md#registering-training-sets), it is materialized into the [offline store](registering-infrastructure-providers.md#offline-store) associated with the definition. The label from the training set is zipped with the features to form a [point-in-time correct](defining-features-labels-and-training-sets.md#point-in-time-correctness) dataset. Once that's complete we can initialize a ServingClient and loop through the our dataset
@@ -21,7 +29,8 @@ import featureform as ff
 
 client = ff.ServingClient(host)
 dataset = client.training_set(name, variant)
-for features, labels in dataset:
+for row in dataset:
+    # print(row.features(), row.label())
     # Train Model
 ```
 
@@ -35,7 +44,7 @@ The Dataset API takes inspiration from Tensorflow's Dataset API, and both can be
 import featureform as ff
 
 client = ff.ServingClient(host)
-for features, labels in client.training_set(name, variant).repeat(5):
+for row in client.training_set(name, variant).repeat(5):
     # Run through 5 epochs of the dataset
 ```
 
@@ -46,7 +55,7 @@ import featureform as ff
 
 client = ff.ServingClient(host)
 buffer_size = 1000
-for features, labels in client.training_set(name, variant).shuffle(buffer_size):
+for row in client.training_set(name, variant).shuffle(buffer_size):
     # Run through a shuffled dataset
 ```
 
@@ -56,7 +65,20 @@ for features, labels in client.training_set(name, variant).shuffle(buffer_size):
 import featureform as ff
 
 client = ff.ServingClient(host)
-for feature_batch, label_batch in client.training_set(name, variant).batch(8):
+for batch in client.training_set(name, variant).batch(8):
+    # Run batches of features and labels
+```
+
+#### Wait
+
+The `wait()` function can be used to wait until the specified training set is ready to be served before attempting to 
+call it. It has an optional timeout in seconds to wait for the training set to be complete.
+
+```python
+import featureform as ff
+
+client = ff.ServingClient(host)
+for row in client.training_set(name, variant).wait(timeout=60):
     # Run batches of features and labels
 ```
 

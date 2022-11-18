@@ -599,6 +599,7 @@ jobs:
         with:
           name: serving-coverage-reports
           path: ./coverage
+
   coordinator:
     name: Coordinator Testing
     environment: Integration testing
@@ -764,24 +765,46 @@ jobs:
       - name: Testing
         run: make test_pyspark
 
-  schedule:
-    runs-on: ubuntu-latest
-    name: Schedule Jobs
-    environment: Integration testing
+  k8s:
+    name: K8s Testing
     needs: setup
+    environment: Integration testing
+    runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v2
-      - name: Install grpc_tools
-        run: pip install grpcio-tools
+      - name: Download Working Compiled Directories
+        uses: actions/download-artifact@v3
+        with:
+          name: compiled-workdir
 
-      - name: Install Protobuf
-        run: sudo snap install protobuf --classic
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.18
 
-      - name: Setup Proto
-        run: ./gen_grpc.sh
-      - name: Start minikube
-        uses: medyagh/setup-minikube@master
-      - name: build docker images and add to minikube
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Install Packages
+        run: pip install -r ./provider/scripts/k8s/requirements.txt
+
+      - name: Testing Go
+        run: make test_offline_k8s
+
+      - name: Testing Python
+        env:
+          AZURE_ACCOUNT_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
+          AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
+          AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
+          AZURE_CONTAINER_PATH: ${{ secrets.AZURE_CONTAINER_PATH }}
+          AZURE_CONNECTION_STRING: ${{ secrets.AZURE_CONNECTION_STRING }}
+        run: make test_pandas
+
+      - name: Convert Coverage Test Results
+        if: always()
+        working-directory: ./coverage
         run: |
           eval $(minikube docker-env)
           docker build . --file runner/Dockerfile --tag local/worker:stable

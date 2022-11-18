@@ -66,21 +66,22 @@ def execute_sql_job(mode, output_uri, transformation, source_list, blob_credenti
                 globals()[f"source_{i}"]= pd.read_csv(output_path)
             else:
                 globals()[f"source_{i}"]= pd.read_parquet(output_path)
+        
         mysql = lambda q: sqldf(q, globals())
         output_dataframe = mysql(transformation)
         print(output_dataframe.head())
         dt = datetime.now()
-        output_uri_with_timestamp = f'{output_uri}{dt}'
+        output_uri_with_timestamp = f'{output_uri}{dt}.parquet'
 
         if blob_credentials.type == AZURE:
             local_output = f"{LOCAL_DATA_PATH}/output.parquet"
             output_dataframe.to_parquet(local_output)
             # upload blob to blob store
-            output_uri = upload_blob_to_blob_store(container_client, local_output, f"{output_uri_with_timestamp}.parquet")
-        
+            output_uri = upload_blob_to_blob_store(container_client, local_output, output_uri_with_timestamp)
         elif blob_credentials.type == LOCAL:
-            os.makedirs(output_uri)
-            output_dataframe.to_parquet(f"{output_uri_with_timestamp}.parquet")
+            os.makedirs(output_uri, exist_ok=True)
+            output_dataframe.to_parquet(output_uri_with_timestamp)
+
         return output_uri_with_timestamp
     except (IOError, OSError) as e:
         print(e)
@@ -111,28 +112,36 @@ def execute_df_job(mode, output_uri, code, sources, etcd_credentials, blob_crede
             output_path = download_blobs_to_local(container_client, location, local_file)
         else:
             output_path = location
+
         if ".csv" == output_path[-4:]:
             func_parameters.append(pd.read_csv(output_path))
         else:
             func_parameters.append(pd.read_parquet(output_path))
+
     try:
-        df_path = "transformation"
-        code_path = download_blobs_to_local(container_client, code, df_path)
-        code = get_code_from_file(mode, code_path + "/transformation.pkl", etcd_credentials)
+        df_path = "transformation.pkl"
+        
+        if blob_credentials.type == AZURE:
+            code_path = download_blobs_to_local(container_client, code, df_path)
+        else:
+            code_path = code
+
+        code = get_code_from_file(mode, code_path, etcd_credentials)
         func = types.FunctionType(code, globals(), "df_transformation")
         output_df = pd.DataFrame(func(*func_parameters))
+
         dt = datetime.now()
-        output_uri_with_timestamp = f"{output_uri}{dt}"
+        output_uri_with_timestamp = f"{output_uri}{dt}.parquet"
 
         if blob_credentials.type == AZURE:
             local_output = f"{LOCAL_DATA_PATH}/output.parquet"
             output_df.to_parquet(local_output)
             # upload blob to blob store
-            output_uri = upload_blob_to_blob_store(container_client, local_output, output_uri_with_timestamp + ".parquet")
+            output_uri = upload_blob_to_blob_store(container_client, local_output, output_uri_with_timestamp)
 
         elif blob_credentials.type == LOCAL:
-            os.makedirs(output_uri)
-            output_df.to_parquet(f"{output_uri_with_timestamp}.parquet")
+            os.makedirs(output_uri, exist_ok=True)
+            output_df.to_parquet(output_uri_with_timestamp)
 
         return output_uri_with_timestamp
     except (IOError, OSError) as e:
@@ -155,10 +164,12 @@ def download_blobs_to_local(container_client, blob, local_filename):
     
     print(f"downloading {blob} to {local_filename}")
     if not os.path.isdir(LOCAL_DATA_PATH):
-        os.makedirs(LOCAL_DATA_PATH)
+        os.makedirs(LOCAL_DATA_PATH, exist_ok=True)
 
     full_path = f"{LOCAL_DATA_PATH}/{local_filename}"
-    if blob[-4:] == ".csv" or blob[-8:] == ".parquet":
+
+    blob_extension = blob.split(".")[-1]
+    if blob_extension == ".csv" or blob_extension == ".parquet" or blob_extension == ".pkl":
         blob_client = container_client.get_blob_client(blob)
 
         with open(full_path, "wb") as my_blob:
@@ -254,7 +265,8 @@ def get_blob_credentials(args):
     Output:
         credentials: Namespace(type="", ...) (includes credentials needed for each blob store.) 
     """
-    if args.azure_blob_credentials:
+
+    if args.mode == K8S_MODE and args.azure_blob_credentials:
         return Namespace(
             type=AZURE,
             connection_string=args.azure_blob_credentials,
@@ -323,7 +335,7 @@ def get_args():
         etcd_password=etcd_password,
         azure_blob_credentials=azure_connection_string,
         azure_container_name=azure_container_name,
-        )
+    )
     return args
 
 

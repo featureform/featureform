@@ -341,13 +341,14 @@ func NewS3FileStore(config Config) (FileStore, error) {
 	}, nil
 }
 
-type SparkOfflineQueries interface {
+type PythonOfflineQueries interface {
 	materializationCreate(schema ResourceSchema) string
+	trainingSetCreate(def TrainingSetDef, featureSchemas []ResourceSchema, labelSchema ResourceSchema) string
 }
 
-type defaultSparkOfflineQueries struct{}
+type defaultPythonOfflineQueries struct{}
 
-func (q defaultSparkOfflineQueries) materializationCreate(schema ResourceSchema) string {
+func (q defaultPythonOfflineQueries) materializationCreate(schema ResourceSchema) string {
 	timestampColumn := schema.TS
 	// without timestamp, assumes each entity only has single entry
 	if schema.TS == "" {
@@ -364,7 +365,7 @@ func featureColumnName(id ResourceID) string {
 	return fmt.Sprintf("%s__%s__%s", id.Type, id.Name, id.Variant)
 }
 
-func (q defaultSparkOfflineQueries) trainingSetCreate(def TrainingSetDef, featureSchemas []ResourceSchema, labelSchema ResourceSchema) string {
+func (q defaultPythonOfflineQueries) trainingSetCreate(def TrainingSetDef, featureSchemas []ResourceSchema, labelSchema ResourceSchema) string {
 	columns := make([]string, 0)
 	joinQueries := make([]string, 0)
 	feature_timestamps := make([]string, 0)
@@ -427,7 +428,7 @@ type SparkOfflineStore struct {
 	Executor SparkExecutor
 	Store    FileStore
 	Logger   *zap.SugaredLogger
-	query    *defaultSparkOfflineQueries
+	query    *defaultPythonOfflineQueries
 	BaseProvider
 }
 
@@ -473,7 +474,7 @@ func sparkOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 		return nil, err
 	}
 	logger.Info("Created Spark Offline Store")
-	queries := defaultSparkOfflineQueries{}
+	queries := defaultPythonOfflineQueries{}
 	sparkOfflineStore := SparkOfflineStore{
 		Executor: exec,
 		Store:    store,

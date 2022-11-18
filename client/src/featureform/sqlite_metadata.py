@@ -99,6 +99,16 @@ class SQLiteMetadata:
           feature_variant text NOT NULL,
           UNIQUE(training_set_name, training_set_variant, feature_name, feature_variant));''')
 
+        # Training set lag features
+        self.__conn.execute('''CREATE TABLE IF NOT EXISTS training_set_lag_features(
+          training_set_name text NOT NULL,
+          training_set_variant text NOT NULL,
+          feature_name text NOT NULL,
+          feature_variant text NOT NULL,
+          feature_new_name text,
+          feature_lag real,
+          UNIQUE(training_set_name, training_set_variant, feature_name, feature_variant, feature_new_name, feature_lag));''')
+
         # source variant
         self.__conn.execute('''CREATE TABLE IF NOT EXISTS source_variant(
           created     text,
@@ -293,8 +303,12 @@ class SQLiteMetadata:
         return self.fetch_data_safe(query, "training_set_variant", name, variant)
 
     def get_training_set_features(self, name, variant):
-        query = f"SELECT * FROM training_set_features WHERE training_set_name = '{name}' AND training_set_variant = '{variant}';"
+        query = f"SELECT * FROM training_set_features WHERE training_set_name = '{name}' AND training_set_variant = '{variant}'"
         return self.fetch_data(query, "training_set_features", name, variant)
+      
+    def get_training_set_lag_features(self, name, variant):
+        query = f"SELECT * FROM training_set_lag_features WHERE training_set_name = '{name}' AND training_set_variant = '{variant}'"
+        return self.fetch_data_safe(query, "training_set_lag_features", name, variant)
 
     def get_resource_with_source(self, type, source_name, source_variant):
         query = f"SELECT * FROM {type} WHERE source_name ='{source_name}' AND source_variant ='{source_variant}';"

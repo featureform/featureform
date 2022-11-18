@@ -246,7 +246,7 @@ jobs:
 
       - name: Configure Docker Socket
         run: |
-          minikube start
+          minikube start --kubernetes-version=v1.23.12
           eval $(minikube docker-env)
 
       - name: Load image

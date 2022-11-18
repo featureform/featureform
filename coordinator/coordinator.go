@@ -262,11 +262,15 @@ func (c *Coordinator) WatchForNewJobs() error {
 					go func(ev *clientv3.Event) {
 						err := c.ExecuteJob(string(ev.Kv.Key))
 						if err != nil {
-							re, ok := err.(*JobDoesNotExistError)
-							if ok {
-								c.Logger.Infow(re.Error())
-							} else {
-								c.Logger.Errorw("Error executing job: Polling search", "error", err)
+							switch err.(type) {
+							case JobDoesNotExistError:
+								c.Logger.Info(err)
+							case ResourceAlreadyFailedError:
+								c.Logger.Infow("resource has failed previously. Ignoring....", "key", string(ev.Kv.Key))
+							case ResourceAlreadyCompleteError:
+								c.Logger.Infow("resource has already completed. Ignoring....", "key", string(ev.Kv.Key))
+							default:
+								c.Logger.Errorw("Error executing job: Initial search", "error", err)
 							}
 						}
 					}(ev)
@@ -1047,7 +1051,8 @@ func (c *Coordinator) hasJob(id metadata.ResourceID) (bool, error) {
 func (c *Coordinator) createJobLock(jobKey string, s *concurrency.Session) (*concurrency.Mutex, error) {
 	mtx := concurrency.NewMutex(s, GetLockKey(jobKey))
 	if err := mtx.Lock(context.Background()); err != nil {
-		return nil, fmt.Errorf("create job lock in etcd with key %s: %v", GetLockKey(jobKey), err)
+		c.Logger.Debugw("could not create job lock restarting.....", "error", err)
+		os.Exit(1)
 	}
 	return mtx, nil
 }

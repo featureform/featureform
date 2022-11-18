@@ -885,7 +885,6 @@ func (tbl *BlobOfflineTable) Write(ResourceRecord) error {
 
 func (k8s *K8sOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error) {
 	return blobRegisterResource(id, schema, k8s.logger, k8s.store)
-
 }
 
 func blobRegisterResource(id ResourceID, schema ResourceSchema, logger *zap.SugaredLogger, store FileStore) (OfflineTable, error) {
@@ -1082,7 +1081,7 @@ func (k8s K8sOfflineStore) getDFArgs(outputURI string, code string, mapping []So
 
 func addResourceID(envVars map[string]string, id ResourceID) map[string]string {
 	envVars["RESOURCE_NAME"] = id.Name
-	envVars["RESOURCE_VARIANT"] = id.Name
+	envVars["RESOURCE_VARIANT"] = id.Variant
 	envVars["RESOURCE_TYPE"] = fmt.Sprintf("%d", id.Type)
 	return envVars
 }

@@ -41,6 +41,21 @@ helm install <release-name> featureform/featureform \
     --set global.publicCert=true
 ```
 
+### Custom helm flags
+
+| Name                     | Description                                                                                                                                   |         Default         |
+|--------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|:-----------------------:|
+| global.hostname          | The hostname where the cluster will be accessible. Required to terminate the TLS certificate for GRPC.                                        |       "localhost"       |
+| global.version           | The Docker container tag to pull. The default value is overwritten  with the latest deployment version when pulling from artifacthub.         |         "0.0.0"         |
+| global.repo              | The Docker repo to pull the images from.                                                                                                      |    "featureformcom"     |
+| global.pullPolicy        | The container pull policies.                                                                                                                  |        "Always"         |
+| global.localCert         | Will create a self-signed certificate for the hostname. Either localCert or publicCert must be enabled if generating a certifiate.            |         "true"          |
+| global.publicCert        | Whether to use a public TLS certificate or a self-signed on. If true, the public certificate is generated for the provided global.hostname.   |         "false"         |
+| global.tlsSecretName     | Will set the name of the TLS secret for the ingress to use if manually adding a certificate.                                                  | "featureform-ca-secret" |
+| global.k8s_runner_enable | If true, uses a Kubernetes Job to run Featureform jobs. If false, Featureform jobs are run in the coordinator container in a separate thread. |         "false"         |
+| global.nginx.enabled     | Will install nginx along with Featureform if true.                                                                                            |         "true"          |
+| global.logging                  | Will enable logging fluentbit, loki, and graphana within the cluster.                                                                         |         "true"          |
+
 ## Step 3: Domain routing
 
 After Featureform has created its load balancer, you can create a CNAME record for your domain that points to the Featureform load balancer.&#x20;

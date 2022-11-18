@@ -69,3 +69,48 @@ def fare_per_family_member(titanic):
     titanic["Fare/Parch"] = titanic["Fare"] / titanic["Parch"]
     return titanic[["PassengerId", "Fare/Parch"]]
 ```
+
+### Chaining transformations
+
+Transformations can be chained together, where one transformation is the input into another transformation. 
+Transformations will wait for any dependent transformations to complete successfully before running.
+
+```python
+@postgres.register_transformation(variant="quickstart")
+def survival_first_class():
+    """ The age and survival status of first class passengers
+    """
+    return "SELECT age, survival FROM {{titanic.kaggle}} WHERE pclass='1st'"
+
+@postgres.register_transformation(variant="quickstart")
+def average_age_survival_first_class():
+    """ The average survivability of first class passengers by age
+    """
+    return "SELECT age, AVG(survival) FROM {{survival_first_class.quickstart}} GROUP BY age"
+```
+
+## Checking status
+Since some registrations may take longer than other depending on size of dataset and complexity of a query, the Featureform
+API has the ability to check the status of any resource programatically. 
+
+### Fetching the resource
+
+```python
+import featureform as ff
+client = ff.ResourceClient(host)
+
+source = client.get_source("name", "variant")
+training_set = client.get_training_set("name", "variant")
+label = client.get_label("name", "variant")
+feature = client.get_feature("name", "variant")
+```
+
+### Checking the resource status
+```python
+import featureform as ff
+
+training_set = client.get_training_set("name", "variant")
+print(training_set.get_status() == "READY")
+print(training_set.get_status() == ff.Status.Ready)
+print(training_set.is_ready())
+```

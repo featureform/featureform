@@ -12,7 +12,15 @@ passenger = ff.register_entity("passenger")
 
 ## Registering Features and Labels
 
-Once our entities are specified, we can begin to associate features and labels with them. Features and labels are each made up of at least two columns, an entity column and a value column. Features and labels that change value over time should be linked to a timestamp column as well. The timestamp column also allows us to create [point-in-time correct training data](defining-features-labels-and-training-sets.md#point-in-time-correctness).
+Once our entities are specified, we can begin to associate features and labels with them. 
+Features and labels are each made up of at least two columns, an entity column and a value column. 
+Features and labels that change value over time should be linked to a timestamp column as well. 
+The timestamp column also allows us to create [point-in-time correct training data](defining-features-labels-and-training-sets.md#point-in-time-correctness).
+
+Features and labels are registered from sources, which can be either be a [Primary table](transforming-data.md#tables) 
+or a [Transformation.](transforming-data.md#defining-transformations)
+
+### Without Timestamp
 
 ```python
 # Register a column from a transformation as a feature
@@ -31,6 +39,22 @@ titanic.register_resources(
     labels=[
         {"name": "survived", "variant": "quickstart", "column": "Survived", "type": "int"},
     ],
+)
+```
+
+### With Timestamp
+This example is based off of a fraud training set with a CustomerID, TransactionID, Amount, and Transaction Time.
+
+```python
+# Register a column from a transformation as a feature
+transactions.register_resources(
+    entity=customer,
+    entity_column="CustomerID",
+    inference_store=redis,
+    features=[
+        {"name": "transaction_amount", "variant": "quickstart", "column": "amount", "type": "float64"},
+    ],
+    timestamp_column="transaction_time"
 )
 ```
 

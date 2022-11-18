@@ -149,13 +149,13 @@ class FeatureServer:
         self._resource_client = resource_client
         self._features = features
         self._entities = entities
-        self._all_ready = False
+        self._all_features_ready = False
         self._feature_list = []
         if self._all_ready():
             self._get_features()
     
     def __getitem__(self, item):
-        if not self._all_ready and not self._all_ready():
+        if not self._all_features_ready and not self._all_ready():
             raise ValueError("Feature list not yet fetched")
         self._feature_list[item]
 
@@ -216,7 +216,7 @@ class FeatureServer:
         for (name, variant) in self._features:
             feature = self._resource_client.get_feature(name, variant)
             all_ready = all_ready and feature.is_ready()
-        self._all_ready = all_ready
+        self._all_features_ready = all_ready
         return all_ready
 
         

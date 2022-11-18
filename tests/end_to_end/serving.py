@@ -46,7 +46,7 @@ def serve_data():
         for i, feature_batch in enumerate(training_dataset):
             print(feature_batch.to_list())
         
-    except Exception as e
+    except Exception as e:
         print(f"Serving for {TRAININGSET_NAME}:{TRAININGSET_VARIANT} could not be completed: {e}")
 
 def serve_feature():
@@ -54,7 +54,7 @@ def serve_feature():
         fpf = client.features([(FEATURE_NAME, FEATURE_VARIANT)], {FEATURE_ENTITY: FEATURE_VALUE}).wait()
         print(fpf)
         return
-    except Exception as e
+    except Exception as e:
         print(f"Serving for {FEATURE_NAME}:{FEATURE_VARIANT} could not be completed: {e}")
 
 

@@ -114,11 +114,11 @@ def get_training_set_variant_info(stub, name, variant):
             return ff.TrainingSet(
                 name=x.name,
                 variant=x.variant,
+                label=(x.label.name,x.label.variant),
                 status=x.status.Status._enum_type.values[x.status.status].name,
                 description=x.description,
                 owner=x.owner,
                 schedule=x.schedule,
-                label=(x.label.name,x.label.variant),
                 features=[(f.name,f.variant) for f in x.features],
                 feature_lags=None,
             )

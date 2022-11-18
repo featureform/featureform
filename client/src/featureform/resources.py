@@ -432,19 +432,19 @@ class Provider:
         ("STATUS: ", self.status)])
         format_pg("SOURCES:")
         format_rows("NAME", "VARIANT")
-        for s in x.sources:
+        for s in self.sources:
             format_rows(s.name, s.variant)
         format_pg("FEATURES:")
         format_rows("NAME", "VARIANT")
-        for f in x.features:
+        for f in self.features:
             format_rows(f.name, f.variant)
         format_pg("LABELS:")
         format_rows("NAME", "VARIANT")
-        for l in x.labels:
+        for l in self.labels:
             format_rows(l.name, l.variant)
         format_pg("TRAINING SETS:")
         format_rows("NAME", "VARIANT")
-        for t in x.trainingsets:
+        for t in self.trainingsets:
             format_rows(t.name, t.variant)
         format_pg()
 
@@ -610,7 +610,7 @@ class Source:
     inputs = []
     status: str = "NO_STATUS"
     features: List[NameVariant] = None
-    labels List[NameVariant] = None
+    labels: List[NameVariant] = None
     trainingsets: List[NameVariant] = None
 
     def get_status(self) -> str: 
@@ -1088,7 +1088,6 @@ class TrainingSet:
     schedule_obj: Schedule = None
     status: str = "NO_STATUS"
     entity: str = ""
-    owner: str = ""
 
     def get_status(self) -> str:
         return self.status

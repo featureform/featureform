@@ -40,24 +40,26 @@ if FEATURE_NAME == None or FEATURE_VARIANT == None or TRAININGSET_NAME == None o
 client = ff.ServingClient()
 
 def serve_data():
-    dataset = client.training_set(TRAININGSET_NAME, TRAININGSET_VARIANT).wait()
-    training_dataset = dataset.repeat(10).shuffle(1000).batch(8)
-    for i, feature_batch in enumerate(training_dataset):
-        if i >= 1:
-            return
-        print(feature_batch.to_list())
-
-    raise Exception(f"Serving for {TRAININGSET_NAME}:{TRAININGSET_VARIANT} could not be completed.")
+    try:
+        dataset = client.training_set(TRAININGSET_NAME, TRAININGSET_VARIANT).wait()
+        training_dataset = dataset.repeat(10).shuffle(1000).batch(8)
+        for i, feature_batch in enumerate(training_dataset):
+            print(feature_batch.to_list())
+        
+    except Exception as e
+        print(f"Serving for {TRAININGSET_NAME}:{TRAININGSET_VARIANT} could not be completed: {e}")
 
 def serve_feature():
-    fpf = client.features([(FEATURE_NAME, FEATURE_VARIANT)], {FEATURE_ENTITY: FEATURE_VALUE}).wait()
-    print(fpf)
-    return
-    raise Exception(f"Serving for {FEATURE_NAME}:{FEATURE_VARIANT} could not be completed.") 
+    try:
+        fpf = client.features([(FEATURE_NAME, FEATURE_VARIANT)], {FEATURE_ENTITY: FEATURE_VALUE}).wait()
+        print(fpf)
+        return
+    except Exception as e
+        print(f"Serving for {FEATURE_NAME}:{FEATURE_VARIANT} could not be completed: {e}")
 
 
 print(f"Serving the training set ({TRAININGSET_NAME}:{TRAININGSET_VARIANT})")
-# serve_data()
+serve_data()
 
 print("\n")
 

@@ -406,6 +406,11 @@ class Provider:
     config: Config
     description: str
     team: str
+    status: str = ""
+    sources: List[NameVariant] = None
+    features: List[NameVariant] = None
+    labels: List[NameVariant] = None
+    training_sets: List[NameVariant] = None
 
     def __post_init__(self):
         self.software = self.config.software()
@@ -417,6 +422,31 @@ class Provider:
     @staticmethod
     def type() -> str:
         return "provider"
+
+    def print(self):
+        format_rows([("NAME: ", self.name),
+        ("DESCRIPTION: ", self.description),
+        ("TYPE: ", self.type),
+        ("SOFTWARE: ", self.software),
+        ("TEAM: ", self.team),
+        ("STATUS: ", self.status)])
+        format_pg("SOURCES:")
+        format_rows("NAME", "VARIANT")
+        for s in x.sources:
+            format_rows(s.name, s.variant)
+        format_pg("FEATURES:")
+        format_rows("NAME", "VARIANT")
+        for f in x.features:
+            format_rows(f.name, f.variant)
+        format_pg("LABELS:")
+        format_rows("NAME", "VARIANT")
+        for l in x.labels:
+            format_rows(l.name, l.variant)
+        format_pg("TRAINING SETS:")
+        format_rows("NAME", "VARIANT")
+        for t in x.trainingsets:
+            format_rows(t.name, t.variant)
+        format_pg()
 
     def _create(self, stub) -> None:
         serialized = pb.Provider(
@@ -453,6 +483,10 @@ class Provider:
 @dataclass
 class User:
     name: str
+    features: List[NameVariant] = None
+    labels: List[NameVariant] = None
+    trainingsets: List[NameVariant] = None
+    sources: List[NameVariant] = None
 
     @staticmethod
     def operation_type() -> OperationType:
@@ -460,6 +494,24 @@ class User:
 
     def type(self) -> str:
         return "user"
+
+    def print(self):
+        format_rows("USER NAME: ", self.name)
+        format_pg()
+        format_rows('NAME', 'VARIANT', 'TYPE')
+        for f in self.features:
+            format_rows(
+                f.name, f.variant, "feature")
+        for l in self.labels:
+            format_rows(
+                l.name, l.variant, "label")
+        for t in self.trainingsets:
+            format_rows(
+                t.name, t.variant, "training set")
+        for s in self.sources:
+            format_rows(
+                s.name, s.variant, "source")
+        format_pg()
 
     def _create(self, stub) -> None:
         serialized = pb.User(name=self.name)
@@ -557,6 +609,9 @@ class Source:
     is_transformation = SourceType.PRIMARY_SOURCE.value
     inputs = []
     status: str = "NO_STATUS"
+    features: List[NameVariant] = None
+    labels List[NameVariant] = None
+    trainingsets: List[NameVariant] = None
 
     def get_status(self) -> str: 
         return self.status
@@ -575,6 +630,32 @@ class Source:
     @staticmethod
     def type() -> str:
         return "source"
+
+    def print(self):
+        format_rows([("NAME: ", self.name),
+        ("VARIANT: ", self.variant), 
+        ("OWNER:", self.owner),
+        ("DESCRIPTION:", self.description),
+        ("PROVIDER:", self.provider),
+        # ("TABLE:", x.table),
+        ("STATUS: ", self.status)])
+        format_pg("DEFINITION:")
+        if not self.is_transformation:
+            print("PRIMARY DATA LOCATION")
+            print(self.definition.location)
+        print("FEATURES:")
+        format_rows("NAME", "VARIANT")
+        for t in self.features:
+            format_rows(t.name, t.variant)
+        format_pg("LABELS:")
+        format_rows("NAME", "VARIANT")
+        for t in self.labels:
+            format_rows(t.name, t.variant)
+        format_pg("TRAINING SETS:")
+        format_rows("NAME", "VARIANT")
+        for t in self.trainingsets:
+            format_rows(t.name, t.variant)
+        format_pg()
 
     def _create(self, stub) -> None:
         defArgs = self.definition.kwargs()
@@ -635,6 +716,10 @@ class Source:
 class Entity:
     name: str
     description: str
+    features: List[NameVariant] = None
+    labels: List[NameVariant] = None
+    trainingsets: List[NameVariant] = None
+
 
     @staticmethod
     def operation_type() -> OperationType:
@@ -643,6 +728,21 @@ class Entity:
     @staticmethod
     def type() -> str:
         return "entity"
+
+    def print(self):
+        format_rows([("ENTITY NAME: ", x.name)])
+        format_pg()
+        format_rows('NAME', 'VARIANT', 'TYPE')
+        for f in self.features:
+            format_rows(
+                f.name, f.variant, "feature")
+        for l in self.labels:
+            format_rows(
+                l.name, l.variant, "label")
+        for t in self.trainingsets:
+            format_rows(
+                t.name, t.variant, "training set")
+        format_pg()
 
     def _create(self, stub) -> None:
         serialized = pb.Entity(
@@ -699,6 +799,7 @@ class Feature:
     schedule: str = ""
     status: str = "NO_STATUS"
     schedule_obj: Schedule = None
+    trainingsets: List[NameVariant] = None
 
     def get_status(self) -> str: 
         return self.status
@@ -717,6 +818,24 @@ class Feature:
     @staticmethod
     def type() -> str:
         return "feature"
+
+    def print(self):
+        format_rows([("NAME: ", self.name), 
+        ("VARIANT: ", self.variant), 
+        ("TYPE:", self.value_type), 
+        ("ENTITY:", self.entity),
+        ("OWNER:", self.owner),
+        ("DESCRIPTION:", self.description),
+        ("PROVIDER:", self.provider),
+        ("STATUS: ", self.status)
+        ])
+        format_pg("SOURCE: ")
+        format_rows([("NAME", "VARIANT"), (self.source.name, self.source.variant)])
+        format_pg("TRAINING SETS:")
+        format_rows("NAME", "VARIANT")
+        for t in self.trainingsets:
+            format_rows(t.name, t.variant)
+        format_pg()
 
     def _create(self, stub) -> None:
         serialized = pb.FeatureVariant(
@@ -783,6 +902,7 @@ class Label:
     location: ResourceLocation
     variant: str = "default"
     status: str = "NO_STATUS"
+    trainingsets: List[NameVariant] = None
 
     def get_status(self) -> str: 
         return self.status
@@ -797,6 +917,23 @@ class Label:
     @staticmethod
     def type() -> str:
         return "label"
+
+    def print(self):
+        format_rows([("NAME: ", self.name),
+        ("VARIANT: ", self.variant), 
+        ("TYPE:", self.type), 
+        ("ENTITY:", self.entity), 
+        ("OWNER:", self.owner), 
+        ("DESCRIPTION:", self.description),
+        ("PROVIDER:", self.provider),
+        ("STATUS: ", self.status)])
+        format_pg("SOURCE: ")
+        format_rows([("NAME", "VARIANT"), (self.source.name, self.source.variant)])
+        format_pg("TRAINING SETS:")
+        format_rows("NAME", "VARIANT")
+        for t in self.trainingsets:
+            format_rows(t.name, t.variant)
+        format_pg()
 
     def _create(self, stub) -> None:
         serialized = pb.LabelVariant(
@@ -951,6 +1088,7 @@ class TrainingSet:
     schedule_obj: Schedule = None
     status: str = "NO_STATUS"
     entity: str = ""
+    owner: str = ""
 
     def get_status(self) -> str:
         return self.status
@@ -978,6 +1116,21 @@ class TrainingSet:
     @staticmethod
     def type() -> str:
         return "training-set"
+    
+    def print(self):
+        format_rows([("NAME: ", self.name),
+        ("VARIANT: ", self.variant),
+        ("OWNER:", self.owner),
+        ("DESCRIPTION:", self.description),
+        ("PROVIDER:", x.provider),
+        ("STATUS: ", self.status)])
+        format_pg("LABEL: ", self.label)
+        format_rows([("NAME", "VARIANT"), (self.label.name, self.label.variant)])
+        format_pg("FEATURES:")
+        format_rows("NAME", "VARIANT")
+        for f in self.features:
+            format_rows(f.name, f.variant)
+        format_pg()
 
     def _create(self, stub) -> None:
         feature_lags = []

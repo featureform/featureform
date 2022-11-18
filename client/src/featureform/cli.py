@@ -90,9 +90,9 @@ def get(host, cert, insecure, local, resource_type, name, variant):
     }
 
     if resource_type in rc_get_functions_variant:
-        rc_get_functions_variant[resource_type](name=name, variant=variant, local=local)
+        rc_get_functions_variant[resource_type](name=name, variant=variant, local=local).print()
     elif resource_type in rc_get_functions:
-        rc_get_functions[resource_type](name=name, local=local)
+        rc_get_functions[resource_type](name=name, local=local).print()
     else:
         raise ValueError("Resource type not found")
 

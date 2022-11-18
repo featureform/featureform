@@ -46,15 +46,15 @@ func TestOnlineStores(t *testing.T) {
 	}
 
 	testFns := map[string]func(*testing.T, OnlineStore){
-		"CreateGetTable":     testCreateGetTable,
-		"TableAlreadyExists": testTableAlreadyExists,
-		"TableNotFound":      testTableNotFound,
-		"SetGetEntity":       testSetGetEntity,
-		"EntityNotFound":     testEntityNotFound,
-		"MassTableWrite":     testMassTableWrite,
-		"TypeCasting":        testTypeCasting,
-		"InvalidTypes":       testInvalidTypes,
-		"IncorrectTypes":     testIncorrectTypes,
+		"CreateGetTable":      testCreateGetTable,
+		"TableAlreadyExists":  testTableAlreadyExists,
+		"TableNotFound":       testTableNotFound,
+		"SetGetEntity":        testSetGetEntity,
+		"EntityNotFound":      testEntityNotFound,
+		"MassTableWrite":      testMassTableWrite,
+		"SimpleTypeCasting":   testSimpleTypeCasting,
+		"InvalidTypes":        testInvalidTypes,
+		"TypeCastingOverride": testTypeCastingOverride,
 	}
 
 	// Redis (Mock)
@@ -340,127 +340,108 @@ func testMassTableWrite(t *testing.T, store OnlineStore) {
 
 func testSimpleTypeCasting(t *testing.T, store OnlineStore) {
 	testCases := []struct {
-		OnlineResource
+		Resource     OnlineResource
 		ExpectedType reflect.Type
 	}{
 		{
-			OnlineResource{
+			Resource: OnlineResource{
 				Entity: "int",
 				Value:  int(1),
+				Type:   Int,
 			},
-			ExpectedType: reflect.Int,
+			ExpectedType: reflect.TypeOf(int(1)),
 		},
 		{
-			OnlineResource{
-				Entity: "int8",
-				Value:  int8(1),
-			},
-			ExpectedType: reflect.Int8,
-		},
-		{
-			OnlineResource{
-				Entity: "int16",
-				Value:  int16(1),
-			},
-			ExpectedType: reflect.Int16,
-		},
-		{
-			OnlineResource{
+			Resource: OnlineResource{
 				Entity: "int32",
 				Value:  int32(1),
+				Type:   Int32,
 			},
-			ExpectedType: reflect.Int32,
+			ExpectedType: reflect.TypeOf(int32(1)),
 		},
 		{
-			OnlineResource{
+			Resource: OnlineResource{
 				Entity: "int64",
 				Value:  int64(1),
+				Type:   Int64,
 			},
-			ExpectedType: reflect.Int64,
+			ExpectedType: reflect.TypeOf(int64(1)),
 		},
 		{
-			OnlineResource{
+			Resource: OnlineResource{
 				Entity: "float32",
 				Value:  float32(1.0),
+				Type:   Float32,
 			},
-			ExpectedType: reflect.Float32,
+			ExpectedType: reflect.TypeOf(float32(1)),
 		},
 		{
-			OnlineResource{
+			Resource: OnlineResource{
 				Entity: "float64",
 				Value:  float64(1.0),
+				Type:   Float64,
 			},
-			ExpectedType: reflect.Float64,
+			ExpectedType: reflect.TypeOf(float64(1)),
 		},
 		{
-			OnlineResource{
+			Resource: OnlineResource{
 				Entity: "string",
 				Value:  "1",
+				Type:   String,
 			},
-			ExpectedType: reflect.String,
+			ExpectedType: reflect.TypeOf(""),
 		},
 		{
-			OnlineResource{
+			Resource: OnlineResource{
 				Entity: "bool",
 				Value:  true,
+				Type:   Bool,
 			},
-			ExpectedType: reflect.Bool,
+			ExpectedType: reflect.TypeOf(true),
 		},
 		{
-			OnlineResource{
-				Entity: "complex64",
-				Value:  complex(float32(23), float32(31)),
+			Resource: OnlineResource{
+				Entity: "timestamp",
+				Value:  time.UnixMicro(0),
+				Type:   Timestamp,
 			},
-			ExpectedType: reflect.Complex64,
+			ExpectedType: reflect.TypeOf(time.UnixMicro(0)),
 		},
 		{
-			OnlineResource{
-				Entity: "complex128",
-				Value:  complex(float64(23), float64(31)),
+			Resource: OnlineResource{
+				Entity: "datetime",
+				Value:  time.UnixMicro(0),
+				Type:   Datetime,
 			},
-			ExpectedType: reflect.Complex128,
-		},
-		{
-			OnlineResource{
-				Entity: "time",
-				Value:  time.Now(),
-			},
-			ExpectedType: reflect.TypeOf(time.Now()),
-		},
-		{
-			OnlineResource{
-				Entity: "time",
-				Value:  time.Now(),
-			},
-			ExpectedType: reflect.TypeOf(time.Now()),
+			ExpectedType: reflect.TypeOf(time.UnixMicro(0)),
 		},
 	}
 	for _, c := range testCases {
 		featureName := uuid.New().String()
 		tab, err := store.CreateTable(featureName, "", c.Resource.Type)
 		if err != nil {
-			t.Fatalf("Failed to create table: %s", err)
+			t.Errorf("Failed to create table: %s", err)
+			continue
 		}
 		if err := tab.Set(c.Resource.Entity, c.Resource.Value); err != nil {
-			t.Fatalf("Failed to set entity: %s", err)
+			t.Errorf("Failed to set entity: %s", err)
+			store.DeleteTable(featureName, "")
+			continue
 		}
 		gotVal, err := tab.Get(c.Resource.Entity)
 		if err != nil {
-			t.Fatalf("Failed to get entity: %s", err)
+			t.Errorf("Failed to get entity: %s", err)
+			store.DeleteTable(featureName, "")
+			continue
 		}
-		if reflect.TypeOf(c.ExpectedValue) reflect.TypeOf(gotVal) {
-			t.Fatalf("Types are not the same %T != %T", c.ExpectedValue, gotVal)
+		if !reflect.DeepEqual(c.Resource.Value, gotVal) {
+			t.Errorf("Values are not the same Entity: %s Values: %v (%T) != %v (%T)", c.Resource.Entity, c.Resource.Value, c.Resource.Value, gotVal, gotVal)
 		}
 		store.DeleteTable(featureName, "")
 	}
 }
 
 func testTypeCastingOverride(t *testing.T, store OnlineStore) {
-	dummy := struct {
-		Something string
-		Else      string
-	}{"some", "field"}
-
 	testCases := []struct {
 		Resource      OnlineResource
 		ExpectedType  reflect.Type
@@ -468,124 +449,86 @@ func testTypeCastingOverride(t *testing.T, store OnlineStore) {
 		ShouldError   bool
 	}{
 		{
-			OnlineResource{
+			Resource: OnlineResource{
 				Entity: "int",
 				Value:  int(1),
 				Type:   Int,
 			},
-			ExpectedType:  reflect.Int,
+			ExpectedType:  reflect.TypeOf(int(1)),
 			ExpectedValue: 1,
 			ShouldError:   false,
 		},
 		{
-			OnlineResource{
+			Resource: OnlineResource{
 				Entity: "int",
 				Value:  int(1),
 				Type:   String,
 			},
-			ExpectedType:  reflect.Int,
+			ExpectedType:  reflect.TypeOf(int(1)),
 			ExpectedValue: "1",
 			ShouldError:   false,
 		},
 		{
-			OnlineResource{
-				Entity: "int8",
-				Value:  int8(1),
-				Type:   Int,
-			},
-			ExpectedType:  reflect.Int,
-			ExpectedValue: 1,
-			ShouldError:   false,
-		},
-		{
-			OnlineResource{
-				Entity: "int16",
-				Value:  int16(1),
-				Type:   Int,
-			},
-			ExpectedType:  reflect.Int,
-			ExpectedValue: 1,
-			ShouldError:   false,
-		},
-		{
-			OnlineResource{
+			Resource: OnlineResource{
 				Entity: "int32",
 				Value:  int32(1),
 				Type:   Int,
 			},
-			ExpectedType:  reflect.Int,
+			ExpectedType:  reflect.TypeOf(int32(1)),
 			ExpectedValue: 1,
 			ShouldError:   false,
 		},
 		{
-			OnlineResource{
+			Resource: OnlineResource{
 				Entity: "int64",
 				Value:  int64(1),
 				Type:   Int,
 			},
-			ExpectedType:  reflect.Int,
+			ExpectedType:  reflect.TypeOf(int64(1)),
 			ExpectedValue: 1,
 			ShouldError:   false,
 		},
 		{
-			OnlineResource{
+			Resource: OnlineResource{
 				Entity: "float32",
 				Value:  float32(1.2),
 				Type:   Int,
 			},
-			ExpectedType:  reflect.Int,
+			ExpectedType:  reflect.TypeOf(float32(1)),
 			ExpectedValue: 1,
-			ShouldError:   false,
+			ShouldError:   true,
 		},
 		{
-			OnlineResource{
+			Resource: OnlineResource{
 				Entity: "float64",
 				Value:  float64(1.2),
 				Type:   Int,
 			},
-			ExpectedType:  reflect.Int,
+			ExpectedType:  reflect.TypeOf(float64(1)),
 			ExpectedValue: 1,
-			ShouldError:   false,
+			ShouldError:   true,
 		},
 		{
-			OnlineResource{
+			Resource: OnlineResource{
 				Entity: "string",
 				Value:  "somestring",
 				Type:   Int,
 			},
-			ExpectedType: reflect.String,
+			ExpectedType: reflect.TypeOf(""),
 			ShouldError:  true,
 		},
 		{
-			OnlineResource{
+			Resource: OnlineResource{
 				Entity: "bool",
 				Value:  true,
 				Type:   Int,
 			},
-			ExpectedType:  reflect.Bool,
+			ExpectedType:  reflect.TypeOf(true),
 			ExpectedValue: 1,
 			ShouldError:   false,
 		},
 		{
-			OnlineResource{
-				Entity: "complex64",
-				Value:  complex(float32(23), float32(31)),
-				Type:   Int,
-			},
-			ExpectedType: reflect.Complex64,
-			ShouldError:  true,
-		},
-		{
-			OnlineResource{
-				Entity: "complex128",
-				Value:  complex(float64(23), float64(31)),
-				Type:   Int,
-			},
-			ExpectedType: reflect.Complex128,
-			ShouldError:  false,
-		},
-		{
-			OnlineResource{
+			Resource: OnlineResource{
 				Entity: "time",
 				Value:  time.Now(),
 				Type:   Int,
@@ -593,43 +536,33 @@ func testTypeCastingOverride(t *testing.T, store OnlineStore) {
 			ExpectedType: reflect.TypeOf(time.Now()),
 			ShouldError:  true,
 		},
-		{
-			OnlineResource{
-				Entity: "time",
-				Value:  time.UnixMicro(0),
-				Type:   String,
-			},
-			ExpectedType:  reflect.TypeOf(time.Now()),
-			ExpectedValue: string(time.UnixMicro(0)),
-			ShouldError:   false,
-		},
-		{
-			// Test unknown type
-			OnlineResource{
-				Entity: "time",
-				Value:  dummy,
-				Type:   String,
-			},
-			ExpectedType:  reflect.string,
-			ExpectedValue: fmt.Sprintf("%v", dummy),
-			ShouldError:   false,
-		},
 	}
 	for _, c := range testCases {
 		featureName := uuid.New().String()
 		tab, err := store.CreateTable(featureName, "", c.Resource.Type)
 		if err != nil {
-			t.Fatalf("Failed to create table: %s", err)
+			t.Errorf("Failed to create table: %s", err)
 		}
-		err := tab.Set(c.Resource.Entity, c.Resource.Value)
+		err = tab.Set(c.Resource.Entity, c.Resource.Value)
+		if err != nil {
+			t.Errorf("Unable to set resource with entity: %s, value: %v, type: %s: %s", c.Resource.Entity, c.Resource.Value, c.Resource.Type, err.Error())
+			continue
+		}
 		gotVal, err := tab.Get(c.Resource.Entity)
 		if err != nil && !c.ShouldError {
-			t.Errorf("Unable to get resource value: %v, Type: %v", c.Resource.Value, c.Resource.Type)
+			t.Errorf("Unable to get resource value for entity %s: %v, Type: %v: %s", c.Resource.Entity, c.Resource.Value, c.Resource.Type, err.Error())
+			store.DeleteTable(featureName, "")
+			continue
 		} else if err == nil && c.ShouldError {
 			t.Errorf("Invalid value get created with Value Type: %v, Value: %v, Table Type: %v", reflect.TypeOf(c.Resource.Value), c.Resource.Value, c.Resource.Type)
+			store.DeleteTable(featureName, "")
+			continue
+		} else if err != nil && c.ShouldError {
+			store.DeleteTable(featureName, "")
+			continue
 		}
 		if !reflect.DeepEqual(c.ExpectedValue, gotVal) {
-			t.Fatalf("Values are not the same %v, type %T. %v, type %T", c.ExpectedValue, c.ExpectedValue, gotVal, gotVal)
+			t.Errorf("Values are not the same entity:%s, %v, type %T. %v, type %T", c.Resource.Entity, c.ExpectedValue, c.ExpectedValue, gotVal, gotVal)
 		}
 		store.DeleteTable(featureName, "")
 	}
@@ -642,7 +575,7 @@ func testInvalidTypes(t *testing.T, store OnlineStore) {
 	}{
 		{
 
-			OnlineResource{
+			Resource: OnlineResource{
 				Entity: "a",
 				Value:  1,
 				Type:   Int,
@@ -651,7 +584,7 @@ func testInvalidTypes(t *testing.T, store OnlineStore) {
 		},
 		{
 
-			OnlineResource{
+			Resource: OnlineResource{
 				Entity: "b",
 				Value:  1,
 				Type:   Int32,
@@ -660,7 +593,7 @@ func testInvalidTypes(t *testing.T, store OnlineStore) {
 		},
 		{
 
-			OnlineResource{
+			Resource: OnlineResource{
 				Entity: "c",
 				Value:  1,
 				Type:   Int64,
@@ -669,7 +602,7 @@ func testInvalidTypes(t *testing.T, store OnlineStore) {
 		},
 		{
 
-			OnlineResource{
+			Resource: OnlineResource{
 				Entity: "d",
 				Value:  1,
 				Type:   Float32,
@@ -678,7 +611,7 @@ func testInvalidTypes(t *testing.T, store OnlineStore) {
 		},
 		{
 
-			OnlineResource{
+			Resource: OnlineResource{
 				Entity: "e",
 				Value:  1,
 				Type:   Float64,
@@ -687,7 +620,7 @@ func testInvalidTypes(t *testing.T, store OnlineStore) {
 		},
 		{
 
-			OnlineResource{
+			Resource: OnlineResource{
 				Entity: "f",
 				Value:  true,
 				Type:   Bool,
@@ -696,7 +629,7 @@ func testInvalidTypes(t *testing.T, store OnlineStore) {
 		},
 		{
 
-			OnlineResource{
+			Resource: OnlineResource{
 				Entity: "g",
 				Value:  time.Now(),
 				Type:   Timestamp,
@@ -705,7 +638,7 @@ func testInvalidTypes(t *testing.T, store OnlineStore) {
 		},
 		{
 
-			OnlineResource{
+			Resource: OnlineResource{
 				Entity: "h",
 				Value:  1,
 				Type:   "str",
@@ -713,17 +646,17 @@ func testInvalidTypes(t *testing.T, store OnlineStore) {
 			ShouldError: true,
 		},
 		{
-
-			OnlineResource{
+			// Will default to string if left blank
+			Resource: OnlineResource{
 				Entity: "i",
 				Value:  1,
 				Type:   "",
 			},
-			ShouldError: true,
+			ShouldError: false,
 		},
 		{
 
-			OnlineResource{
+			Resource: OnlineResource{
 				Entity: "j",
 				Value:  1,
 				Type:   "somenontype",

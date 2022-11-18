@@ -19,6 +19,16 @@ from featureform.proto import metadata_pb2 as pb
 
 NameVariant = Tuple[str, str]
 
+class ColumnTypes(Enum):
+    NIL = ""
+    INT = "int"
+    INT32 = "int32"
+    INT64 = "int64"
+    FLOAT32 = "float32"
+    FLOAT64 = "float64"
+    STRING = "string"
+    BOOL = "bool"
+    DATETIME = "datetime"
 
 @typechecked
 @dataclass
@@ -686,6 +696,11 @@ class Feature:
     schedule: str = ""
     schedule_obj: Schedule = None
 
+    def __post_init__(self):
+        col_types = [member.value for member in ColumnTypes]
+        if self.value_type not in col_types:
+            raise ValueError(f"Feature type must be one of: {col_types}")
+
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=4, schedule_string=schedule)
         self.schedule = schedule
@@ -762,6 +777,11 @@ class Label:
     description: str
     location: ResourceLocation
     variant: str = "default"
+
+    def __post_init__(self):
+        col_types = [member.value for member in ColumnTypes]
+        if self.value_type not in col_types:
+            raise ValueError(f"Feature type must be one of: {col_types}")
 
     @staticmethod
     def operation_type() -> OperationType:

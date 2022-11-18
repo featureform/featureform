@@ -37,8 +37,17 @@ const (
 	Float64             = "float64"
 	String              = "string"
 	Bool                = "bool"
-	Timestamp           = "time.Time"
+	Timestamp           = "time.Time" //Leaving for backwards compaatibility
+	Datetime            = "datetime"
 )
+
+func (vt ValueType) isValid() error {
+	switch vt {
+	case NilType, Int, Int32, Int64, Float32, Float64, String, Bool, Timestamp, Datetime:
+		return nil
+	}
+	return fmt.Errorf("invalid table type: %v", vt)
+}
 
 type OfflineResourceType int
 

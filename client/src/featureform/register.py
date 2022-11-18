@@ -19,11 +19,15 @@ from .list_local import *
 from .sqlite_metadata import SQLiteMetadata
 from .tls import insecure_channel, secure_channel
 from .resources import ResourceState, Provider, RedisConfig, FirestoreConfig, CassandraConfig, DynamodbConfig, \
-    PostgresConfig, SnowflakeConfig, LocalConfig, RedshiftConfig, BigQueryConfig, SparkAWSConfig, AzureBlobStoreConfig, OnlineBlobConfig, K8sConfig, User, Location, Source, PrimaryData, SQLTable, \
+    PostgresConfig, SnowflakeConfig, LocalConfig, RedshiftConfig, BigQueryConfig, SparkAWSConfig, AzureBlobStoreConfig, \
+    OnlineBlobConfig, K8sConfig, User, Location, Source, PrimaryData, SQLTable, \
     SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet, ProviderReference, \
     EntityReference, SourceReference
 
 NameVariant = Tuple[str, str]
+
+
+
 
 
 class EntityRegistrar:
@@ -334,11 +338,11 @@ class OfflineK8sProvider(OfflineProvider):
         self.__provider = provider
 
     def register_file(self,
-                       name: str,
-                       variant: str,
-                       path: str,
-                       owner: Union[str, UserRegistrar] = "",
-                       description: str = ""):
+                      name: str,
+                      variant: str,
+                      path: str,
+                      owner: Union[str, UserRegistrar] = "",
+                      description: str = ""):
         """Register a blob data source path as a primary data source.
 
         Args:
@@ -399,11 +403,11 @@ class OfflineK8sProvider(OfflineProvider):
                                                    description=description)
 
     def df_transformation(self,
-                        variant: str = "default",
-                        owner: Union[str, UserRegistrar] = "",
-                        name: str = "",
-                        description: str = "",
-                        inputs: list = []):
+                          variant: str = "default",
+                          owner: Union[str, UserRegistrar] = "",
+                          name: str = "",
+                          description: str = "",
+                          inputs: list = []):
         """
         Register a Dataframe transformation source. The k8s_azure.df_transformation decorator takes the contents
         of the following function and executes the code it contains at serving time.
@@ -430,11 +434,11 @@ class OfflineK8sProvider(OfflineProvider):
             source (ColumnSourceRegistrar): Source
         """
         return self.__registrar.df_transformation(name=name,
-                                                    variant=variant,
-                                                    owner=owner,
-                                                    provider=self.name(),
-                                                    description=description,
-                                                    inputs=inputs)
+                                                  variant=variant,
+                                                  owner=owner,
+                                                  provider=self.name(),
+                                                  description=description,
+                                                  inputs=inputs)
 
 
 class OnlineProvider:
@@ -445,21 +449,23 @@ class OnlineProvider:
     def name(self) -> str:
         return self.__provider.name
 
+
 class FileStoreProvider:
     def __init__(self, registrar, provider, config, store_type):
         self.__registrar = registrar
         self.__provider = provider
         self.__config = config.config()
         self.__store_type = store_type
-    
+
     def name(self) -> str:
         return self.__provider.name
-    
+
     def store_type(self) -> str:
         return self.__store_type
 
     def config(self):
         return self.__config
+
 
 class LocalProvider:
     """
@@ -477,6 +483,7 @@ class LocalProvider:
     )
     ```
     """
+
     def __init__(self, registrar, provider):
         self.__registrar = registrar
         self.__provider = provider
@@ -629,6 +636,7 @@ class LocalSource:
     """
     LocalSource creates a reference to a source that can be accessed locally.
     """
+
     def __init__(self,
                  registrar,
                  name: str,
@@ -808,7 +816,8 @@ class DFTransformationDecorator:
         self.description = description
         self.inputs = inputs
 
-    def __call__(self, fn: Callable[[Union[pd.DataFrame, pyspark.sql.DataFrame]], Union[pd.DataFrame, pyspark.sql.DataFrame]]):
+    def __call__(self, fn: Callable[
+        [Union[pd.DataFrame, pyspark.sql.DataFrame]], Union[pd.DataFrame, pyspark.sql.DataFrame]]):
         if self.description == "" and fn.__doc__ is not None:
             self.description = fn.__doc__
         if self.name == "":
@@ -959,7 +968,7 @@ class ResourceRegistrar:
             variant=variant,
             label=label,
             features=features,
-            resources = resources,
+            resources=resources,
             owner=owner,
             schedule=schedule,
             description=description,
@@ -1135,11 +1144,11 @@ class Registrar:
         """
         get = ProviderReference(name=name, provider_type="AZURE", obj=None)
         self.__resources.append(get)
-        fake_azure_config = AzureBlobStoreConfig(account_name="", account_key="",container_name="",root_path="")
-        fake_config = OnlineBlobConfig(store_type="AZURE",store_config=fake_azure_config.config())
+        fake_azure_config = AzureBlobStoreConfig(account_name="", account_key="", container_name="", root_path="")
+        fake_config = OnlineBlobConfig(store_type="AZURE", store_config=fake_azure_config.config())
         fakeProvider = Provider(name=name, function="ONLINE", description="", team="", config=fake_config)
         return FileStoreProvider(self, fakeProvider, fake_config, "AZURE")
-   
+
     def get_postgres(self, name):
         """Get a Postgres provider. The returned object can be used to register additional resources.
 
@@ -1259,10 +1268,10 @@ class Registrar:
         """
         get = ProviderReference(name=name, provider_type="spark", obj=None)
         self.__resources.append(get)
-        fakeConfig = SparkAWSConfig(emr_cluster_id="",bucket_path="",emr_cluster_region="",bucket_region="",aws_access_key_id="",aws_secret_access_key="")
+        fakeConfig = SparkAWSConfig(emr_cluster_id="", bucket_path="", emr_cluster_region="", bucket_region="",
+                                    aws_access_key_id="", aws_secret_access_key="")
         fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
         return OfflineSparkProvider(self, fakeProvider)
-
 
     def get_kubernetes(self, name):
         """
@@ -1363,7 +1372,7 @@ class Registrar:
                             container_name: str,
                             root_path: str,
                             description: str = "",
-                            team: str = "",):
+                            team: str = "", ):
         """Register an azure blob store provider.
 
         This has the functionality of an online store and can be used as a parameter
@@ -1393,8 +1402,9 @@ class Registrar:
             blob (StorageProvider): Provider
                 has all the functionality of OnlineProvider
         """
-        azure_config = AzureBlobStoreConfig(account_name=account_name, account_key=account_key,container_name=container_name,root_path=root_path)
-        config = OnlineBlobConfig(store_type="AZURE",store_config=azure_config.config())
+        azure_config = AzureBlobStoreConfig(account_name=account_name, account_key=account_key,
+                                            container_name=container_name, root_path=root_path)
+        config = OnlineBlobConfig(store_type="AZURE", store_config=azure_config.config())
         provider = Provider(name=name,
                             function="ONLINE",
                             description=description,
@@ -1686,7 +1696,7 @@ class Registrar:
         """
         config = BigQueryConfig(project_id=project_id,
                                 dataset_id=dataset_id,
-                                credentials_path=credentials_path,)
+                                credentials_path=credentials_path, )
         provider = Provider(name=name,
                             function="OFFLINE",
                             description=description,
@@ -1704,7 +1714,7 @@ class Registrar:
                        emr_cluster_region: str = "",
                        bucket_region: str = "",
                        aws_access_key_id: str = "",
-                       aws_secret_access_key: str = "",):
+                       aws_secret_access_key: str = "", ):
         """Register a Spark on AWS provider.
         **Examples**:
         ```
@@ -1749,10 +1759,10 @@ class Registrar:
         return OfflineSparkProvider(self, provider)
 
     def register_k8s(self,
-                            name: str,
-                            store: FileStoreProvider,
-                            description: str = "",
-                            team: str = "",):
+                     name: str,
+                     store: FileStoreProvider,
+                     description: str = "",
+                     team: str = "", ):
         """
         Register an offline store provider to run on featureform's own k8s deployment
         
@@ -2093,10 +2103,12 @@ class Registrar:
                     required_lag_keys = set(["lag", "feature", "variant"])
                     received_lag_keys = set(feature.keys())
                     if required_lag_keys.intersection(received_lag_keys) != required_lag_keys:
-                        raise ValueError(f"feature lags require 'lag', 'feature', 'variant' fields. Received: {feature.keys()}")
-                    
+                        raise ValueError(
+                            f"feature lags require 'lag', 'feature', 'variant' fields. Received: {feature.keys()}")
+
                     if not isinstance(lag, timedelta):
-                        raise ValueError(f"the lag, '{lag}', needs to be of type 'datetime.timedelta'. Received: {type(lag)}.")
+                        raise ValueError(
+                            f"the lag, '{lag}', needs to be of type 'datetime.timedelta'. Received: {type(lag)}.")
 
                     feature_name_variant = (feature["feature"], feature["variant"])
                     if feature_name_variant not in feature_nv_list:
@@ -2105,7 +2117,7 @@ class Registrar:
                     lag_name = f"{feature['feature']}_{feature['variant']}_lag_{lag}"
                     sanitized_lag_name = lag_name.replace(" ", "").replace(",", "_").replace(":", "_")
                     feature["name"] = feature.get("name", sanitized_lag_name)
-                    
+
                     feature_lags.append(feature)
                 else:
                     feature_nv = (feature["name"], feature["variant"])
@@ -2150,26 +2162,26 @@ class Registrar:
             owner = owner.name()
         if owner == "":
             owner = self.must_get_default_owner()
-        
+
         if isinstance(features, tuple):
             raise ValueError("Features must be entered as a list")
-        
+
         if isinstance(label, list):
             raise ValueError("Label must be entered as a tuple")
 
         for resource in resources:
             features += resource.features()
             resource_label = resource.label()
-            #label == () if it is NOT manually entered
+            # label == () if it is NOT manually entered
             if label == ():
                 label = resource_label
-            #Elif: If label was updated to store resource_label it will not check the following elif
+            # Elif: If label was updated to store resource_label it will not check the following elif
             elif resource_label != ():
                 raise ValueError("A training set can only have one label")
-        
+
         if isinstance(label, str):
             label = (label, "default")
-        
+
         features, feature_lags = self.__get_feature_nv(features)
 
         if label == ():
@@ -3109,7 +3121,8 @@ class ResourceClient(Registrar):
             sources (List[Source]): List of Source Objects
         """
         if local:
-            return list_local("source", [ColumnName.NAME, ColumnName.VARIANT, ColumnName.STATUS, ColumnName.DESCRIPTION])
+            return list_local("source",
+                              [ColumnName.NAME, ColumnName.VARIANT, ColumnName.STATUS, ColumnName.DESCRIPTION])
         return list_name_variant_status_desc(self._stub, "source")
 
     def list_training_sets(self, local=False):

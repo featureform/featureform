@@ -70,6 +70,9 @@ func (store *redisOnlineStore) GetTable(feature, variant string) (OnlineStoreTab
 }
 
 func (store *redisOnlineStore) CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error) {
+	if err := valueType.isValid(); err != nil {
+		return nil, err
+	}
 	key := redisTableKey{store.prefix, feature, variant}
 	exists, err := store.client.HExists(ctx, fmt.Sprintf("%s__tables", store.prefix), key.String()).Result()
 	if err != nil {
@@ -109,6 +112,10 @@ func (table redisOnlineTable) Get(entity string) (interface{}, error) {
 		result, err = val.Result()
 	case Int:
 		result, err = val.Int()
+	case Int32:
+		if res, err := val.Int(); err == nil {
+			result = int32(res)
+		}
 	case Int64:
 		result, err = val.Int64()
 	case Float32:
@@ -117,6 +124,10 @@ func (table redisOnlineTable) Get(entity string) (interface{}, error) {
 		result, err = val.Float64()
 	case Bool:
 		result, err = val.Bool()
+	case Timestamp, Datetime:
+		result, err = val.Time()
+	default:
+		result, err = val.Result()
 	}
 	if err != nil {
 		return nil, err

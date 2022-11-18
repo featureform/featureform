@@ -693,7 +693,7 @@ class Dataset:
     def pandas(self):
         return self._dataframe
 
-    def wait(self, timeout=99999):
+    def wait(self, timeout=None):
         """Pauses execution and waits for trainingset metadata status to be set to ready before fetching data
 
         **Examples**:
@@ -715,7 +715,9 @@ class Dataset:
         if self._name is None or self._version is None:
             raise ValueError("Local Dataset type does not implement wait")
         training_set = self._resource_client.get_training_set(self._name, self._version)
-        timeout_duration = timedelta(seconds=timeout)
+        timeout_duration = 0
+        if timeout != None:
+            timeout_duration = timedelta(seconds=timeout)
         status = training_set.get_status()
         time_waited = timedelta(seconds = 0)
         time_started = datetime.now()

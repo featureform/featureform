@@ -81,7 +81,7 @@ def k8s_df_variables_success():
         "ETCD_PORT": "2379,2380",
         "ETCD_USERNAME": "username",
         "ETCD_PASSWORD": "password",
-        "AZURE_CONNECTION_STRING": "connection_string",
+        "AZURE_CONNECTION_STRING": os.getenv("AZURE_CONNECTION_STRING", "connection_string"),
     }
 
 
@@ -97,7 +97,7 @@ def k8s_df_variables_single_port_success():
         "ETCD_PORT": "2379",
         "ETCD_USERNAME": "username",
         "ETCD_PASSWORD": "password",
-        "AZURE_CONNECTION_STRING": "connection_string",
+        "AZURE_CONNECTION_STRING": os.getenv("AZURE_CONNECTION_STRING", "connection_string"),
     }
 
 

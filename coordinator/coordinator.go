@@ -1193,10 +1193,6 @@ func (c *Coordinator) changeJobSchedule(key string, value string) error {
 	}
 	jobClient, err := kubernetes.NewKubernetesJobClient(kubernetes.GetCronJobName(coordinatorScheduleJob.Resource), namespace)
 	if err != nil {
-		return fmt.Errorf("could not get kubernetes namespace: %v", err)
-	}
-	jobClient, err := kubernetes.NewKubernetesJobClient(kubernetes.GetCronJobName(coordinatorScheduleJob.Resource), namespace)
-	if err != nil {
 		return fmt.Errorf("create new kubernetes job client: %v", err)
 	}
 	cronJob, err := jobClient.GetCronJob()

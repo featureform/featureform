@@ -699,7 +699,7 @@ class Feature:
     def __post_init__(self):
         col_types = [member.value for member in ColumnTypes]
         if self.value_type not in col_types:
-            raise ValueError(f"Feature type must be one of: {col_types}")
+            raise ValueError(f"Invalid feature type ({self.value_type}) must be one of: {col_types}")
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=4, schedule_string=schedule)
@@ -781,7 +781,7 @@ class Label:
     def __post_init__(self):
         col_types = [member.value for member in ColumnTypes]
         if self.value_type not in col_types:
-            raise ValueError(f"Feature type must be one of: {col_types}")
+            raise ValueError(f"Invalid label type ({self.value_type}) must be one of: {col_types}")
 
     @staticmethod
     def operation_type() -> OperationType:

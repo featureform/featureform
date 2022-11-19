@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"google.golang.org/grpc/status"
+	"time"
 
 	"cloud.google.com/go/firestore"
 	"google.golang.org/api/option"
@@ -108,6 +109,9 @@ func (store *firestoreOnlineStore) GetTable(feature, variant string) (OnlineStor
 }
 
 func (store *firestoreOnlineStore) CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error) {
+	if err := valueType.isValid(); err != nil {
+		return nil, err
+	}
 	getTable, _ := store.GetTable(feature, variant)
 	if getTable != nil {
 		return nil, &TableAlreadyExists{feature, variant}
@@ -173,15 +177,55 @@ func (table firestoreOnlineTable) Get(entity string) (interface{}, error) {
 	if err != nil {
 		return nil, &EntityNotFound{entity}
 	}
-
 	switch table.valueType {
+	case NilType, String:
+		str := fmt.Sprintf("%v", value)
+		return str, nil
 	case Int:
-		var intVal int64 = value.(int64)
-		return int(intVal), nil
-	case Float32:
-		var floatVal float64 = value.(float64)
-		return float32(floatVal), nil
-	}
+		if val, ok := value.(int64); !ok {
+			return nil, fmt.Errorf("could not cast value %v to %s", value, Int)
+		} else {
+			return int(val), nil
+		}
 
-	return value, nil
+	case Int32:
+		if val, ok := value.(int64); !ok {
+			return nil, fmt.Errorf("could not cast value %v to %s", value, Int32)
+		} else {
+			return int32(val), nil
+		}
+	case Int64:
+		if val, ok := value.(int64); !ok {
+			return nil, fmt.Errorf("could not cast value %v to %s", value, Int64)
+		} else {
+			return int64(val), nil
+		}
+	case Float32:
+		if val, ok := value.(float64); !ok {
+			return nil, fmt.Errorf("could not cast value %v to %s", value, Float32)
+		} else {
+			return float32(val), nil
+		}
+	case Float64:
+		if val, ok := value.(float64); !ok {
+			return nil, fmt.Errorf("could not cast value %v to %s", value, Float64)
+		} else {
+			return float64(val), nil
+		}
+	case Bool:
+		if val, ok := value.(bool); !ok {
+			return nil, fmt.Errorf("could not cast value %v to %s", value, Bool)
+		} else {
+			return val, nil
+		}
+	case Timestamp, Datetime:
+		if val, ok := value.(time.Time); !ok {
+			return nil, fmt.Errorf("could not cast value %v to %s", value, Datetime)
+		} else {
+			return time.Time(val), nil
+		}
+	default:
+		val := fmt.Sprintf("%v", value)
+		return val, nil
+	}
 }

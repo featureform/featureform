@@ -154,7 +154,7 @@ help:
 
 init: update_python
 
-test: init pytest test_go_unit
+test: pytest test_go_unit
 
 ##############################################  SETUP ##################################################################
 

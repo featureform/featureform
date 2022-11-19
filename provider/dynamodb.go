@@ -197,6 +197,9 @@ func (store *dynamodbOnlineStore) GetTable(feature, variant string) (OnlineStore
 }
 
 func (store *dynamodbOnlineStore) CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error) {
+	if err := valueType.isValid(); err != nil {
+		return nil, err
+	}
 	key := dynamodbTableKey{store.prefix, feature, variant}
 	_, err := store.GetFromMetadataTable(GetTablename(store.prefix, feature, variant))
 	if err == nil {
@@ -304,6 +307,10 @@ func (table dynamodbOnlineTable) Get(entity string) (interface{}, error) {
 		result, err = dynamodb_item.Value, nil
 	case Int:
 		result, err = strconv.Atoi(dynamodb_item.Value)
+	case Int32:
+		var res int64
+		res, err = strconv.ParseInt(dynamodb_item.Value, 0, 64)
+		result = int32(res)
 	case Int64:
 		result, err = strconv.ParseInt(dynamodb_item.Value, 0, 64)
 	case Float32:
@@ -313,6 +320,10 @@ func (table dynamodbOnlineTable) Get(entity string) (interface{}, error) {
 		result, err = strconv.ParseFloat(dynamodb_item.Value, 64)
 	case Bool:
 		result, err = strconv.ParseBool(dynamodb_item.Value)
+	case Timestamp, Datetime:
+		result, err = time.Parse("2006-01-02 15:04:05 -0700 MST", dynamodb_item.Value)
+	default:
+		result, err = dynamodb_item.Value, nil
 	}
 	if err != nil {
 		return nil, err

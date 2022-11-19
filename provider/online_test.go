@@ -301,39 +301,33 @@ func testEntityNotFound(t *testing.T, store OnlineStore) {
 }
 
 func testMassTableWrite(t *testing.T, store OnlineStore) {
-	tableList := make([]ResourceID, 10)
-	for i := range tableList {
-		mockFeature, mockVariant := randomFeatureVariant()
-		tableList[i] = ResourceID{mockFeature, mockVariant, Feature}
-	}
-	entityList := make([]string, 10)
+	mockFeature, mockVariant := randomFeatureVariant()
+	table := ResourceID{mockFeature, mockVariant, Feature}
+	entityList := make([]string, 1000)
 	for i := range entityList {
 		entityList[i] = uuid.New().String()
 	}
-	for i := range tableList {
-		tab, err := store.CreateTable(tableList[i].Name, tableList[i].Variant, ValueType("int"))
-		if err != nil {
-			t.Fatalf("could not create table %v in online store: %v", tableList[i], err)
-		}
-		for j := range entityList {
-			if err := tab.Set(entityList[j], 1); err != nil {
-				t.Fatalf("could not set entity %v in table %v: %v", entityList[j], tableList[i], err)
-			}
+	tab, err := store.CreateTable(table.Name, table.Variant, ValueType("int"))
+	if err != nil {
+		t.Fatalf("could not create table %v in online store: %v", table, err)
+	}
+	defer store.DeleteTable(table.Name, table.Variant)
+	for i := range entityList {
+		if err := tab.Set(entityList[i], 1); err != nil {
+			t.Fatalf("could not set entity %v in table %v: %v", entityList[i], table, err)
 		}
 	}
-	for i := range tableList {
-		tab, err := store.GetTable(tableList[i].Name, tableList[i].Variant)
+	tab, err = store.GetTable(table.Name, table.Variant)
+	if err != nil {
+		t.Fatalf("could not get table %v in online store: %v", table, err)
+	}
+	for j := range entityList {
+		val, err := tab.Get(entityList[j])
 		if err != nil {
-			t.Fatalf("could not get table %v in online store: %v", tableList[i], err)
+			t.Fatalf("could not get entity %v in table %v: %v", entityList[j], table, err)
 		}
-		for j := range entityList {
-			val, err := tab.Get(entityList[j])
-			if err != nil {
-				t.Fatalf("could not get entity %v in table %v: %v", entityList[j], tableList[i], err)
-			}
-			if val != 1 {
-				t.Fatalf("could not get correct value from entity list. Wanted %v, got %v", 1, val)
-			}
+		if val != 1 {
+			t.Fatalf("could not get correct value from entity list. Wanted %v, got %v", 1, val)
 		}
 	}
 }
@@ -402,18 +396,18 @@ func testSimpleTypeCasting(t *testing.T, store OnlineStore) {
 		{
 			Resource: OnlineResource{
 				Entity: "timestamp",
-				Value:  time.UnixMicro(0),
+				Value:  time.Unix(100000000, 0).UTC(),
 				Type:   Timestamp,
 			},
-			ExpectedType: reflect.TypeOf(time.UnixMicro(0)),
+			ExpectedType: reflect.TypeOf(time.Unix(100000000, 0).UTC()),
 		},
 		{
 			Resource: OnlineResource{
 				Entity: "datetime",
-				Value:  time.UnixMicro(0),
+				Value:  time.Unix(100000000, 0).UTC(),
 				Type:   Datetime,
 			},
-			ExpectedType: reflect.TypeOf(time.UnixMicro(0)),
+			ExpectedType: reflect.TypeOf(time.Unix(100000000, 0).UTC()),
 		},
 	}
 	for _, c := range testCases {
@@ -525,15 +519,15 @@ func testTypeCastingOverride(t *testing.T, store OnlineStore) {
 			},
 			ExpectedType:  reflect.TypeOf(true),
 			ExpectedValue: 1,
-			ShouldError:   false,
+			ShouldError:   true,
 		},
 		{
 			Resource: OnlineResource{
 				Entity: "time",
-				Value:  time.Now(),
+				Value:  time.Now().UTC(),
 				Type:   Int,
 			},
-			ExpectedType: reflect.TypeOf(time.Now()),
+			ExpectedType: reflect.TypeOf(time.Now().UTC()),
 			ShouldError:  true,
 		},
 	}

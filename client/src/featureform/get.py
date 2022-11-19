@@ -3,6 +3,7 @@ import grpc
 from featureform.proto import metadata_pb2_grpc as ff_grpc
 from .format import *
 import featureform as ff
+from .resources import Model
 
 def get_user_info(stub, name):
     searchName = metadata_pb2.Name(name=name)
@@ -38,7 +39,7 @@ def get_resource_info(stub, resource_type, name):
         "source": ff.Source,
         "trainingset": ff.TrainingSet,
         "training-set": ff.TrainingSet,
-        "model": ff.Model,
+        "model": Model
     }
 
     searchName = metadata_pb2.Name(name=name)

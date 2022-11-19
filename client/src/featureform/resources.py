@@ -1268,7 +1268,7 @@ class TrainingSet:
 
 
 Resource = Union[PrimaryData, Provider, Entity, User, Feature, Label,
-                 TrainingSet, Source, Schedule, ProviderReference, SourceReference, EntityReference]
+                 TrainingSet, Source, Model, Schedule, ProviderReference, SourceReference, EntityReference]
 
 
 class ResourceRedefinedError(Exception):

@@ -215,6 +215,8 @@ class FeatureServer:
         all_ready = True
         for (name, variant) in self._features:
             feature = self._resource_client.get_feature(name, variant)
+            if feature is None:
+                raise ValueError(f"Resource {name}:{variant} does not exist")
             all_ready = all_ready and feature.is_ready()
         self._all_features_ready = all_ready
         return all_ready

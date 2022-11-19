@@ -46,8 +46,7 @@ def get_resource_info(stub, resource_type, name):
     try:
         for x in stub_get_functions[resource_type](iter([searchName])):
             return resource_classes[resource_type](
-                name=x.name,
-                description=x.description
+                name=x.name
             )
     except grpc._channel._MultiThreadedRendezvous:
         print(f"{resource_type} not found.")

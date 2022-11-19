@@ -62,7 +62,7 @@ def get_feature_variant_info(stub, name, variant):
                 description=x.description,
             )
     except grpc._channel._MultiThreadedRendezvous:
-        print("Feature variant not found.")
+        print(f"Feature variant {name}:{variant} not found.")
 
 def get_label_variant_info(stub, name, variant):
     searchNameVariant = metadata_pb2.NameVariant(name=name, variant=variant)

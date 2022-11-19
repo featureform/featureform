@@ -29,8 +29,8 @@ def test_serving_connection():
         client.features([("f1", "v1")], {"user": "a"})
     # Expect error since feature server behind api server is not running
     # Checks that the feature server hostname failed to resolve
-    except ValueError as e:
-        print("There it is")
+    except grpc.RpcError as e:
+        assert (serving_host in e.details())
 
 
 if __name__ == "__main__":

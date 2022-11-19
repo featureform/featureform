@@ -402,11 +402,11 @@ Config = Union[
 @dataclass
 class Provider:
     name: str
-    function: str
-    config: Config
     description: str
     team: str
+    config: Config = None
     status: str = ""
+    function: str = ""
     sources: List[NameVariant] = None
     features: List[NameVariant] = None
     labels: List[NameVariant] = None

@@ -16,7 +16,10 @@ def get_entity_info(stub, name):
     searchName = metadata_pb2.Name(name=name)
     try:
         for x in stub.GetEntities(iter([searchName])):
-            return x
+            return ff.Entity(
+                name=x.name,
+                description=x.description
+            )
     except grpc._channel._MultiThreadedRendezvous:
         print("Entity not found.")
 
@@ -29,19 +32,22 @@ def get_resource_info(stub, resource_type, name):
         "training-set": stub.GetTrainingSets,
         "model": stub.GetModels
     }
+    resource_classes = {
+        "feature": ff.Feature,
+        "label": ff.Label,
+        "source": ff.Source,
+        "trainingset": ff.TrainingSet,
+        "training-set": ff.TrainingSet,
+        "model": ff.Model,
+    }
 
     searchName = metadata_pb2.Name(name=name)
     try:
         for x in stub_get_functions[resource_type](iter([searchName])):
-            format_rows([("NAME: ", x.name),
-            ("STATUS: ", x.status.Status._enum_type.values[x.status.status].name)])
-            format_pg("VARIANTS:")
-            format_rows(x.default_variant, 'default')
-            for v in x.variants:
-                if v != x.default_variant:
-                    format_rows(v, '')
-            format_pg()
-            return x
+            return resource_classes[resource_type](
+                name=x.name,
+                description=x.description
+            )
     except grpc._channel._MultiThreadedRendezvous:
         print(f"{resource_type} not found.")
 
@@ -130,6 +136,10 @@ def get_provider_info(stub, name):
     searchName = metadata_pb2.Name(name=name)
     try:
         for x in stub.GetProviders(iter([searchName])):
-            return x
+            return ff.Provider(
+                name=x.name,
+                description=x.description,
+                team=x.team
+            )
     except grpc._channel._MultiThreadedRendezvous:
         print("Provider not found.")

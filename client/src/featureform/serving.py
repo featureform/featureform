@@ -214,9 +214,11 @@ class FeatureServer:
     def _all_ready(self):
         all_ready = True
         for (name, variant) in self._features:
-            feature = self._resource_client.get_feature(name, variant)
-            if feature is None:
-                raise ValueError(f"Resource {name}:{variant} does not exist")
+            try:
+                feature = self._resource_client.get_feature(name, variant)
+            except grpc.RpcError as e
+                print(f"Resource {name}:{variant} does not exist: {e}")
+                raise                
             all_ready = all_ready and feature.is_ready()
         self._all_features_ready = all_ready
         return all_ready

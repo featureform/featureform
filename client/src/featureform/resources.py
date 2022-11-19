@@ -637,7 +637,6 @@ class Source:
         ("OWNER:", self.owner),
         ("DESCRIPTION:", self.description),
         ("PROVIDER:", self.provider),
-        # ("TABLE:", x.table),
         ("STATUS: ", self.status)])
         format_pg("DEFINITION:")
         if not self.is_transformation:
@@ -730,7 +729,7 @@ class Entity:
         return "entity"
 
     def print(self):
-        format_rows([("ENTITY NAME: ", x.name)])
+        format_rows([("ENTITY NAME: ", self.name)])
         format_pg()
         format_rows('NAME', 'VARIANT', 'TYPE')
         for f in self.features:
@@ -755,6 +754,46 @@ class Entity:
         db.insert("entities",
                   self.name,
                   "Entity",
+                  self.description,
+                  "ready"
+                  )
+
+    def __eq__(self, other):
+        for attribute in vars(self):
+            if getattr(self, attribute) != getattr(other, attribute):
+                return False
+        return True
+
+@typechecked
+@dataclass
+class Model:
+    name: str
+    description: str
+
+    @staticmethod
+    def operation_type() -> OperationType:
+        return OperationType.CREATE
+
+    @staticmethod
+    def type() -> str:
+        return "model"
+
+    def print(self):
+        format_rows([("MODEL NAME: ", self.name), ("MODEL DESC: ", self.description)])
+
+        format_pg()
+
+    def _create(self, stub) -> None:
+        serialized = pb.Model(
+            name=self.name,
+            description=self.description,
+        )
+        stub.CreateModel(serialized)
+
+    def _create_local(self, db) -> None:
+        db.insert("models",
+                  self.name,
+                  "MODEL",
                   self.description,
                   "ready"
                   )
@@ -1121,7 +1160,6 @@ class TrainingSet:
         ("VARIANT: ", self.variant),
         ("OWNER:", self.owner),
         ("DESCRIPTION:", self.description),
-        ("PROVIDER:", x.provider),
         ("STATUS: ", self.status)])
         format_pg("LABEL: ", self.label)
         format_rows([("NAME", "VARIANT"), (self.label.name, self.label.variant)])

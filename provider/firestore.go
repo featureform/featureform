@@ -5,14 +5,13 @@
 package provider
 
 import (
+	"cloud.google.com/go/firestore"
 	"encoding/json"
 	"fmt"
-	"google.golang.org/grpc/status"
-	"time"
-
-	"cloud.google.com/go/firestore"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"time"
 )
 
 func (t firestoreTableKey) String() string {
@@ -161,6 +160,9 @@ func (store *firestoreOnlineStore) DeleteTable(feature, variant string) error {
 }
 
 func (table firestoreOnlineTable) Set(entity string, value interface{}) error {
+	if !table.valueType.doesMatch(value) {
+		return fmt.Errorf("value does not match table type: given %T, table type: %s", value, table.valueType)
+	}
 	_, err := table.document.Set(ctx, map[string]interface{}{
 		entity: value,
 	}, firestore.MergeAll)
@@ -177,7 +179,11 @@ func (table firestoreOnlineTable) Get(entity string) (interface{}, error) {
 	if err != nil {
 		return nil, &EntityNotFound{entity}
 	}
-	switch table.valueType {
+	return table.castValue(value, table.valueType)
+}
+
+func (table firestoreOnlineTable) castValue(value interface{}, vType ValueType) (interface{}, error) {
+	switch vType {
 	case NilType, String:
 		str := fmt.Sprintf("%v", value)
 		return str, nil

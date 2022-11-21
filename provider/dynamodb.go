@@ -261,6 +261,9 @@ func (store *dynamodbOnlineStore) DeleteTable(feature, variant string) error {
 }
 
 func (table dynamodbOnlineTable) Set(entity string, value interface{}) error {
+	if !table.valueType.doesMatch(value) {
+		return fmt.Errorf("value does not match table type: given %T, table type: %s", value, table.valueType)
+	}
 	input := &dynamodb.UpdateItemInput{
 		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
 			":val": {

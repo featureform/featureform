@@ -37,16 +37,34 @@ const (
 	Float64             = "float64"
 	String              = "string"
 	Bool                = "bool"
-	Timestamp           = "time.Time" //Leaving for backwards compaatibility
+	Timestamp           = "time.Time" //Leaving for backwards compatibility
 	Datetime            = "datetime"
 )
 
 func (vt ValueType) isValid() error {
+	// Check if value type is a valid type
 	switch vt {
 	case NilType, Int, Int32, Int64, Float32, Float64, String, Bool, Timestamp, Datetime:
 		return nil
+	default:
+		return fmt.Errorf("invalid table type: %v", vt)
 	}
-	return fmt.Errorf("invalid table type: %v", vt)
+}
+
+func (vt ValueType) doesMatch(value interface{}) bool {
+	// Check if value type matches given type
+	t := fmt.Sprintf("%T", value)
+	switch vt {
+	// Client can send "datetime", but internal golang type is "time.Time"
+	case Timestamp, Datetime:
+		return t == Timestamp
+	default:
+		return vt.toString() == t
+	}
+}
+
+func (vt ValueType) toString() string {
+	return fmt.Sprintf("%s", vt)
 }
 
 type OfflineResourceType int

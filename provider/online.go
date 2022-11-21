@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-redis/redis/v8"
+	"time"
 )
 
 const (
@@ -20,19 +21,6 @@ const (
 )
 
 var ctx = context.Background()
-
-var cassandraTypeMap = map[string]string{
-	"":          "text",
-	"string":    "text",
-	"int":       "int",
-	"int32":     "int",
-	"int64":     "bigint",
-	"float32":   "float",
-	"float64":   "double",
-	"bool":      "boolean",
-	"time.Time": "timestamp",
-	"datetime":  "timestamp",
-}
 
 type OnlineStore interface {
 	GetTable(feature, variant string) (OnlineStoreTable, error)
@@ -92,6 +80,11 @@ type localOnlineStore struct {
 	BaseProvider
 }
 
+//type localOnlineTable struct {
+//	values localOnlineTable
+//	vType  ValueType
+//}
+
 func NewLocalOnlineStore() *localOnlineStore {
 	return &localOnlineStore{
 		make(map[tableKey]localOnlineTable),
@@ -115,11 +108,17 @@ func (store *localOnlineStore) GetTable(feature, variant string) (OnlineStoreTab
 }
 
 func (store *localOnlineStore) CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error) {
+	if err := valueType.isValid(); err != nil {
+		return nil, err
+	}
 	key := tableKey{feature, variant}
 	if _, has := store.tables[key]; has {
 		return nil, &TableAlreadyExists{feature, variant}
 	}
-	table := make(localOnlineTable)
+	table := localOnlineTable{
+		make(localOnlineTableValues),
+		valueType,
+	}
 	store.tables[key] = table
 	return table, nil
 }
@@ -132,7 +131,12 @@ func (store *localOnlineStore) Close() error {
 	return nil
 }
 
-type localOnlineTable map[string]interface{}
+type localOnlineTableValues map[string]interface{}
+
+type localOnlineTable struct {
+	values map[string]interface{}
+	vType  ValueType
+}
 
 type redisOnlineTable struct {
 	client    *redis.Client
@@ -141,14 +145,70 @@ type redisOnlineTable struct {
 }
 
 func (table localOnlineTable) Set(entity string, value interface{}) error {
-	table[entity] = value
+	if !table.vType.doesMatch(value) {
+		return fmt.Errorf("value does not match table type: given %T, table type: %s", value, table.vType)
+	}
+	table.values[entity] = value
 	return nil
 }
 
 func (table localOnlineTable) Get(entity string) (interface{}, error) {
-	val, has := table[entity]
+	val, has := table.values[entity]
 	if !has {
 		return nil, &EntityNotFound{entity}
 	}
-	return val, nil
+	return table.castValue(val, table.vType)
+}
+
+func (table localOnlineTable) castValue(value interface{}, vType ValueType) (interface{}, error) {
+	switch vType {
+	case NilType, String:
+		str := fmt.Sprintf("%v", value)
+		return str, nil
+	case Int:
+		if val, ok := value.(int); !ok {
+			return nil, fmt.Errorf("could not cast value %v type: %T to %s", value, value, Int)
+		} else {
+			return val, nil
+		}
+	case Int32:
+		if val, ok := value.(int32); !ok {
+			return nil, fmt.Errorf("could not cast value %v type: %T to %s", value, value, Int32)
+		} else {
+			return val, nil
+		}
+	case Int64:
+		if val, ok := value.(int64); !ok {
+			return nil, fmt.Errorf("could not cast value %v type: %T to %s", value, value, Int64)
+		} else {
+			return int64(val), nil
+		}
+	case Float32:
+		if val, ok := value.(float32); !ok {
+			return nil, fmt.Errorf("could not cast value %v type: %T to %s", value, value, Float32)
+		} else {
+			return val, nil
+		}
+	case Float64:
+		if val, ok := value.(float64); !ok {
+			return nil, fmt.Errorf("could not cast value %v type: %T to %s", value, value, Float64)
+		} else {
+			return val, nil
+		}
+	case Bool:
+		if val, ok := value.(bool); !ok {
+			return nil, fmt.Errorf("could not cast value %v type: %T to %s", value, value, Bool)
+		} else {
+			return val, nil
+		}
+	case Timestamp, Datetime:
+		if val, ok := value.(time.Time); !ok {
+			return nil, fmt.Errorf("could not cast value %v type: %T to %s", value, value, Datetime)
+		} else {
+			return time.Time(val), nil
+		}
+	default:
+		val := fmt.Sprintf("%v", value)
+		return val, nil
+	}
 }

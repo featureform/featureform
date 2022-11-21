@@ -460,7 +460,7 @@ func testTypeCastingOverride(t *testing.T, store OnlineStore) {
 			},
 			ExpectedType:  reflect.TypeOf(int32(1)),
 			ExpectedValue: 1,
-			ShouldError:   false,
+			ShouldError:   true,
 		},
 		{
 			Resource: OnlineResource{
@@ -470,7 +470,7 @@ func testTypeCastingOverride(t *testing.T, store OnlineStore) {
 			},
 			ExpectedType:  reflect.TypeOf(int64(1)),
 			ExpectedValue: 1,
-			ShouldError:   false,
+			ShouldError:   true,
 		},
 		{
 			Resource: OnlineResource{

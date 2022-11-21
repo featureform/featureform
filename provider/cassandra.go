@@ -13,6 +13,19 @@ import (
 	sn "github.com/mrz1836/go-sanitize"
 )
 
+var cassandraTypeMap = map[string]string{
+	"":          "text",
+	"string":    "text",
+	"int":       "int",
+	"int32":     "int",
+	"int64":     "bigint",
+	"float32":   "float",
+	"float64":   "double",
+	"bool":      "boolean",
+	"time.Time": "timestamp",
+	"datetime":  "timestamp",
+}
+
 type cassandraTableKey struct {
 	Keyspace, Feature, Variant string
 }
@@ -183,9 +196,11 @@ func (store *cassandraOnlineStore) DeleteTable(feature, variant string) error {
 }
 
 func (table cassandraOnlineTable) Set(entity string, value interface{}) error {
+	if !table.valueType.doesMatch(value) {
+		return fmt.Errorf("value does not match table type: given %T, table type: %s", value, table.valueType)
+	}
 	key := table.key
 	tableName := GetTableName(key.Keyspace, key.Feature, key.Variant)
-
 	query := fmt.Sprintf("INSERT INTO %s (entity, value) VALUES (?, ?)", tableName)
 	err := table.session.Query(query, entity, value).WithContext(ctx).Exec()
 	if err != nil {
@@ -196,7 +211,6 @@ func (table cassandraOnlineTable) Set(entity string, value interface{}) error {
 }
 
 func (table cassandraOnlineTable) Get(entity string) (interface{}, error) {
-
 	key := table.key
 	tableName := GetTableName(key.Keyspace, key.Feature, key.Variant)
 	ptr, err := table.getTypePointer(table.valueType)

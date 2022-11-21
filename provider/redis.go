@@ -93,6 +93,9 @@ func (store *redisOnlineStore) DeleteTable(feature, variant string) error {
 }
 
 func (table redisOnlineTable) Set(entity string, value interface{}) error {
+	if !table.valueType.doesMatch(value) {
+		return fmt.Errorf("value does not match table type: given %T, table type: %s", value, table.valueType)
+	}
 	val := table.client.HSet(ctx, table.key.String(), entity, value)
 	if val.Err() != nil {
 		return val.Err()

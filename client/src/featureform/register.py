@@ -1844,7 +1844,7 @@ class Registrar:
         snowflake = ff.register_snowflake(
             name="snowflake-quickstart",
             username="snowflake",
-            password="password",
+            password="password", #pragma: allowlist secret
             account="account",
             database="snowflake",
             schema="PUBLIC",
@@ -1898,7 +1898,7 @@ class Registrar:
             host="quickstart-postgres",  # The internal dns name for postgres
             port="5432",
             user="postgres",
-            password="password",
+            password="password", #pragma: allowlist secret
             database="postgres"
         )
         ```
@@ -1947,7 +1947,7 @@ class Registrar:
             host="quickstart-redshift",  # The internal dns name for postgres
             port="5432",
             user="redshift",
-            password="password",
+            password="password", #pragma: allowlist secret
             database="dev"
         )
         ```

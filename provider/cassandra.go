@@ -199,9 +199,30 @@ func (table cassandraOnlineTable) Get(entity string) (interface{}, error) {
 
 	key := table.key
 	tableName := GetTableName(key.Keyspace, key.Feature, key.Variant)
+	ptr, err := table.getTypePointer(table.valueType)
+	if err != nil {
+		return nil, fmt.Errorf("could not get type: %w", err)
+	}
 
+	query := fmt.Sprintf("SELECT value FROM %s WHERE entity = '%s'", tableName, entity)
+	err = table.session.Query(query).WithContext(ctx).Scan(ptr)
+	if err == gocql.ErrNotFound {
+		return nil, &EntityNotFound{entity}
+	} else if err != nil {
+		return nil, fmt.Errorf("query failed: %w", err)
+	}
+	
+	value, err := table.castPointer(ptr)
+	if err != nil {
+		return nil, fmt.Errorf("could not cast value: %w", err)
+	}
+	return value, nil
+
+}
+
+func (table cassandraOnlineTable) getTypePointer(valueType ValueType) (interface{}, error) {
 	var ptr interface{}
-	switch table.valueType {
+	switch valueType {
 	case Int:
 		ptr = new(int)
 	case Int32:
@@ -219,18 +240,12 @@ func (table cassandraOnlineTable) Get(entity string) (interface{}, error) {
 	case String, NilType:
 		ptr = new(string)
 	default:
-		return nil, fmt.Errorf("data type not recognized: %s", table.valueType)
+		return nil, fmt.Errorf("data type not recognized: %s", valueType)
 	}
+	return ptr, nil
+}
 
-	query := fmt.Sprintf("SELECT value FROM %s WHERE entity = '%s'", tableName, entity)
-	err := table.session.Query(query).WithContext(ctx).Scan(ptr)
-	if err == gocql.ErrNotFound {
-		return nil, &EntityNotFound{entity}
-	}
-	if err != nil {
-		return nil, err
-	}
-
+func (table cassandraOnlineTable) castPointer(ptr interface{}) (interface{}, error) {
 	var val interface{}
 	switch casted := ptr.(type) {
 	case *int:
@@ -253,5 +268,4 @@ func (table cassandraOnlineTable) Get(entity string) (interface{}, error) {
 		return nil, fmt.Errorf("data type not recognized: %T", ptr)
 	}
 	return val, nil
-
 }

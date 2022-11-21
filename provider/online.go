@@ -80,11 +80,6 @@ type localOnlineStore struct {
 	BaseProvider
 }
 
-//type localOnlineTable struct {
-//	values localOnlineTable
-//	vType  ValueType
-//}
-
 func NewLocalOnlineStore() *localOnlineStore {
 	return &localOnlineStore{
 		make(map[tableKey]localOnlineTable),

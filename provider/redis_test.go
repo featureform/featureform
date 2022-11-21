@@ -5,20 +5,11 @@ package provider
 
 import (
 	"fmt"
-	"github.com/alicebob/miniredis"
 	"github.com/go-redis/redis/v8"
 	"reflect"
 	"testing"
 	"time"
 )
-
-func mockRedis() *miniredis.Miniredis {
-	s, err := miniredis.Run()
-	if err != nil {
-		panic(err)
-	}
-	return s
-}
 
 func Test_redisOnlineTable_Get(t *testing.T) {
 	miniRedis := mockRedis()

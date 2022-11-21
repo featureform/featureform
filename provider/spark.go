@@ -1050,3 +1050,7 @@ func (spark *SparkOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {
 func (spark *SparkOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
 	return fileStoreGetTrainingSet(id, spark.Store, spark.Logger)
 }
+
+func sanitizeSparkSQL(name string) string {
+	return name
+}

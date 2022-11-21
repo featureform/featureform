@@ -84,7 +84,7 @@ def kubernetes_config(file_store_provider):
 def cassandra_config():
     return CassandraConfig(
         host="localhost",
-        port=123,
+        port="123",
         username="abc",
         password="abc",
         keyspace="",
@@ -115,7 +115,7 @@ def dynamodb_config():
 def redshift_config():
     return RedshiftConfig(
         host="",
-        port=5439,
+        port="5439",
         database="dev",
         user="user",
         password="p4ssw0rd",

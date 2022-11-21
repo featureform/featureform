@@ -90,8 +90,8 @@ def test_set_spark_config(spark):
 
 
 def test_download_blobs_to_local(container_client):
-    blob = "ice_cream_100rows.csv"
-    local_filename = "ice_cream_100rows.csv"
+    blob = "scripts/spark/python_packages.sh"
+    local_filename = "python_packages.sh"
     output_file = download_blobs_to_local(container_client, blob, local_filename)
 
     assert os.path.exists(output_file)

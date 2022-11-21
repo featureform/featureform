@@ -16,7 +16,7 @@ from featureform.resources import ResourceRedefinedError, ResourceState, Provide
 def postgres_config():
     return PostgresConfig(
         host="localhost",
-        port=123,
+        port="123",
         database="db",
         user="user",
         password="p4ssw0rd",

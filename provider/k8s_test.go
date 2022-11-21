@@ -15,7 +15,6 @@ import (
 	"github.com/featureform/helpers"
 
 	"github.com/google/uuid"
-
 	"github.com/mitchellh/mapstructure"
 )
 

@@ -1654,7 +1654,7 @@ func TestMaterializationCreate(t *testing.T) {
 		Value:  "value",
 		TS:     "timestamp",
 	}
-	queries := defaultSparkOfflineQueries{}
+	queries := defaultPythonOfflineQueries{}
 	materializeQuery := queries.materializationCreate(exampleSchemaWithTS)
 	correctQuery := "SELECT entity, value, ts, ROW_NUMBER() over (ORDER BY (SELECT NULL)) AS row_number FROM (SELECT entity, value, ts, rn FROM (SELECT entity AS entity, value AS value, timestamp AS ts, ROW_NUMBER() OVER (PARTITION BY entity ORDER BY timestamp DESC) AS rn FROM source_0) t WHERE rn=1) t2"
 	if correctQuery != materializeQuery {
@@ -1698,7 +1698,7 @@ func TestTrainingSetCreate(t *testing.T) {
 		Value:  "label_value",
 		TS:     "ts",
 	}
-	queries := defaultSparkOfflineQueries{}
+	queries := defaultPythonOfflineQueries{}
 	trainingSetQuery := queries.trainingSetCreate(testTrainingSetDef, testFeatureSchemas, testLabelSchema)
 	correctQuery := "SELECT Feature__test_feature_1__default, Feature__test_feature_2__default, Label__test_label__default " +
 		"FROM (SELECT * FROM (SELECT *, row_number FROM (SELECT Feature__test_feature_1__default, Feature__test_feature_2__default, " +

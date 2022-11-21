@@ -124,7 +124,7 @@ def redshift_config():
 
 @pytest.fixture
 def bigquery_config():
-    path = os.path.abspath(os.getcwd()) + "/client/tests/test_files/bigquery_credentials.json"
+    path = os.path.abspath(os.getcwd()) + "/client/tests/test_files/bigquery_dummy_credentials.json"
     return BigQueryConfig(
         project_id="bigquery-project",
         dataset_id="bigquery-dataset",

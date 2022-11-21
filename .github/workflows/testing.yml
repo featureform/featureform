@@ -745,6 +745,7 @@ jobs:
   spark-script:
     name: PySpark Script Testing
     needs: setup
+    environment: Integration testing
     runs-on: ubuntu-latest
 
     steps:
@@ -763,6 +764,12 @@ jobs:
         run: python3 -m pip install -r requirements.txt
 
       - name: Testing
+        env:
+          AZURE_ACCOUNT_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
+          AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
+          AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
+          AZURE_CONTAINER_PATH: ${{ secrets.AZURE_CONTAINER_PATH }}
+          AZURE_CONNECTION_STRING: ${{ secrets.AZURE_CONNECTION_STRING }}
         run: make test_pyspark
 
   k8s:

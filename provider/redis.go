@@ -121,7 +121,7 @@ func (table redisOnlineTable) Get(entity string) (interface{}, error) {
 		result, err = val.Float64()
 	case Bool:
 		result, err = val.Bool()
-	case Timestamp, Datetime:
+	case Timestamp, Datetime: // Maintains compatibility with previously create timestamp tables
 		result, err = val.Time()
 	default:
 		result, err = val.Result()

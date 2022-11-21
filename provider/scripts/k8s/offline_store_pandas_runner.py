@@ -71,7 +71,7 @@ def execute_sql_job(mode, output_uri, transformation, source_list, blob_credenti
         output_dataframe = mysql(transformation)
 
         dt = datetime.now()
-        output_uri_with_timestamp = f'{output_uri}/{dt}/'
+        output_uri_with_timestamp = f'{output_uri}/{dt}.parquet'
 
         if blob_credentials.type == AZURE:
             local_output = f"{LOCAL_DATA_PATH}/output.parquet"
@@ -131,7 +131,7 @@ def execute_df_job(mode, output_uri, code, sources, etcd_credentials, blob_crede
         output_df = pd.DataFrame(func(*func_parameters))
 
         dt = datetime.now()
-        output_uri_with_timestamp = f"{output_uri}/{dt}/"
+        output_uri_with_timestamp = f"{output_uri}/{dt}.parquet"
 
         if blob_credentials.type == AZURE:
             local_output = f"{LOCAL_DATA_PATH}/output.parquet"

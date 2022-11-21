@@ -15,7 +15,9 @@ import (
 	"github.com/featureform/helpers"
 
 	"github.com/google/uuid"
+	"github.com/joho/godotenv"
 	"github.com/mitchellh/mapstructure"
+	"github.com/segmentio/parquet-go"
 )
 
 func uuidWithoutDashes() string {
@@ -36,11 +38,14 @@ func TestBlobInterfaces(t *testing.T) {
 		"Test Num Rows":                  testNumRows,
 		"Test Databricks Initialization": testDatabricksInitialization,
 	}
+
+	err := godotenv.Load("../.env")
+
 	mydir, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("could not get working directory")
 	}
-	fileStoreConfig := FileFileStoreConfig{DirPath: fmt.Sprintf(`file:///%s/tests/file_tests`, mydir)}
+	fileStoreConfig := FileFileStoreConfig{DirPath: fmt.Sprintf(`file:///%s/scripts/k8s/tests/test_files/output/go_tests`, mydir)}
 	serializedFileConfig, err := fileStoreConfig.Serialize()
 	if err != nil {
 		t.Fatalf("failed to serialize file store config: %v", err)
@@ -132,7 +137,7 @@ func TestExecutorRunLocal(t *testing.T) {
 
 	sqlEnvVars := map[string]string{
 		"MODE":                "local",
-		"OUTPUT_URI":          fmt.Sprintf(`%s/scripts/k8s/tests/test_files/output/`, mydir),
+		"OUTPUT_URI":          fmt.Sprintf(`%s/scripts/k8s/tests/test_files/output/local_test`, mydir),
 		"SOURCES":             fmt.Sprintf("%s/scripts/k8s/tests/test_files/inputs/transaction_short/part-00000-9d3cb5a3-4b9c-4109-afa3-a75759bfcf89-c000.snappy.parquet", mydir),
 		"TRANSFORMATION_TYPE": "sql",
 		"TRANSFORMATION":      "SELECT * FROM source_0 LIMIT 1",
@@ -143,6 +148,8 @@ func TestExecutorRunLocal(t *testing.T) {
 }
 
 func TestNewConfig(t *testing.T) {
+	err := godotenv.Load("../.env")
+
 	k8sConfig := K8sAzureConfig{
 		ExecutorType:   K8s,
 		ExecutorConfig: KubernetesExecutorConfig{},
@@ -444,7 +451,7 @@ func testNewestFile(t *testing.T, store FileStore) {
 	randomKeyList := make([]string, randomListLength)
 	for i := 0; i < randomListLength; i++ {
 		randomKeyList[i] = uuid.New().String()
-		randomPath := fmt.Sprintf("%s/%s", randomDirectory, randomKeyList[i])
+		randomPath := fmt.Sprintf("%s/%s.parquet", randomDirectory, randomKeyList[i])
 		randomData := []byte(uuid.New().String())
 		if err := store.Write(randomPath, randomData); err != nil {
 			t.Fatalf("Could not write key to filestore: %v", err)
@@ -455,9 +462,9 @@ func testNewestFile(t *testing.T, store FileStore) {
 	if err != nil {
 		t.Fatalf("Error getting newest file from directory: %v", err)
 	}
-	expectedNewestFile := fmt.Sprintf("%s/%s", randomDirectory, randomKeyList[randomListLength-1])
+	expectedNewestFile := fmt.Sprintf("%s/%s.parquet", randomDirectory, randomKeyList[randomListLength-1])
 	if newestFile != expectedNewestFile {
-		t.Fatalf("Newest file did not retrieve actual newest file. Expected %s, got %s", expectedNewestFile, newestFile)
+		t.Fatalf("Newest file did not retrieve actual newest file. Expected '%s', got '%s'", expectedNewestFile, newestFile)
 	}
 	// cleanup test
 	if err := store.DeleteAll(randomDirectory); err != nil {
@@ -516,8 +523,7 @@ func testDatabricksInitialization(t *testing.T, store FileStore) {
 		Token:   token,
 		Cluster: cluster,
 	}
-	serializedConfig := databricksConfig.Serialize()
-	executor, err := NewDatabricksExecutor(serializedConfig)
+	executor, err := NewDatabricksExecutor(databricksConfig)
 	if err != nil {
 		t.Fatalf("Could not create new databricks client: %v", err)
 	}

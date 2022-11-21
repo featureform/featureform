@@ -13,7 +13,7 @@ def spark_provider():
     r = Registrar()
     r.set_default_owner("tester")
 
-    databricks = DatabricksCredentials(username="a", password="b")
+    databricks = DatabricksCredentials(username="a", password="b", cluster_id="c_id")
     azure_blob = AzureFileStoreConfig(account_name="", account_key="", container_name="", root_path="")   
     
     config = SparkConfig(executor_type=databricks.type(), executor_config=databricks.config(), store_type=azure_blob.store_type(), store_config=azure_blob.config())

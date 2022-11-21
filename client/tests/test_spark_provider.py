@@ -10,7 +10,7 @@ def test_create_provider():
     provider_name = "test_offline_spark_provider"
     r = Registrar()
 
-    databricks = DatabricksCredentials(username="a", password="b")
+    databricks = DatabricksCredentials(username="a", password="b", cluster_id="c_id")
     azure_blob = AzureFileStoreConfig(account_name="", account_key="", container_name="", root_path="")   
     
     config = SparkConfig(executor_type=databricks.type(), executor_config=databricks.config(), store_type=azure_blob.store_type(), store_config=azure_blob.config())

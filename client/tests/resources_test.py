@@ -1,18 +1,22 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
+import os.path
+import sys
 
+sys.path.insert(0, 'client/src/')
 import pytest
-from .resources import ResourceRedefinedError, ResourceState, Provider, RedisConfig, CassandraConfig, FirestoreConfig, \
-SnowflakeConfig, PostgresConfig, RedshiftConfig, BigQueryConfig, OnlineBlobConfig, AzureBlobStoreConfig, K8sConfig, User, Provider, Entity, Feature, Label, TrainingSet, PrimaryData, SQLTable, \
-Source, ResourceColumnMapping, DynamodbConfig, Schedule
+from featureform.resources import ResourceRedefinedError, ResourceState, Provider, RedisConfig, CassandraConfig, FirestoreConfig, \
+    SnowflakeConfig, PostgresConfig, RedshiftConfig, BigQueryConfig, OnlineBlobConfig, AzureBlobStoreConfig, K8sConfig, \
+    User, Provider, Entity, Feature, Label, TrainingSet, PrimaryData, SQLTable, \
+    Source, ResourceColumnMapping, DynamodbConfig, Schedule
 
 
 @pytest.fixture
 def postgres_config():
     return PostgresConfig(
         host="localhost",
-        port=123,
+        port="123",
         database="db",
         user="user",
         password="p4ssw0rd",
@@ -40,6 +44,7 @@ def redis_config():
         db=3,
     )
 
+
 @pytest.fixture
 def blob_store_config():
     return AzureBlobStoreConfig(
@@ -50,13 +55,13 @@ def blob_store_config():
     )
 
 
-
 @pytest.fixture
 def online_blob_config(blob_store_config):
     return OnlineBlobConfig(
         store_type="AZURE",
         store_config=blob_store_config.serialize(),
     )
+
 
 @pytest.fixture
 def file_store_provider(blob_store_config):
@@ -66,6 +71,7 @@ def file_store_provider(blob_store_config):
         config=blob_store_config,
         store_type="AZURE"
     )
+
 
 @pytest.fixture
 def kubernetes_config(file_store_provider):
@@ -78,13 +84,14 @@ def kubernetes_config(file_store_provider):
 def cassandra_config():
     return CassandraConfig(
         host="localhost",
-        port=123,
+        port="123",
         username="abc",
         password="abc",
         keyspace="",
         consistency="THREE",
         replication=3,
     )
+
 
 @pytest.fixture
 def firesstore_config():
@@ -94,6 +101,7 @@ def firesstore_config():
         credentials_path="abc",
     )
 
+
 @pytest.fixture
 def dynamodb_config():
     return DynamodbConfig(
@@ -102,26 +110,31 @@ def dynamodb_config():
         secret_key="abc"
     )
 
+
 @pytest.fixture
 def redshift_config():
     return RedshiftConfig(
         host="",
-        port=5439,
+        port="5439",
         database="dev",
         user="user",
         password="p4ssw0rd",
     )
 
+
 @pytest.fixture
 def bigquery_config():
+    path = os.path.abspath(os.getcwd()) + "/client/tests/test_files/bigquery_credentials.json"
     return BigQueryConfig(
         project_id="bigquery-project",
         dataset_id="bigquery-dataset",
-        credentials_path="bigquery-credentials-path",
+        credentials_path=path,
     )
+
 
 def test_bigquery_config(bigquery_config):
     return bigquery_config.serialize()
+
 
 @pytest.fixture
 def postgres_provider(postgres_config):
@@ -178,6 +191,61 @@ def bigquery_provider(bigquery_config):
     )
 
 
+def init_feature(input):
+    Feature(name="feature",
+            variant="v1",
+            source=("a", "b"),
+            description="feature",
+            value_type=input,
+            entity="user",
+            owner="Owner",
+            location=ResourceColumnMapping(
+                entity="abc",
+                value="def",
+                timestamp="ts",
+            ),
+            provider="redis-name")
+
+
+@pytest.mark.parametrize("input,fail", [
+    ("int", False), ("int32", False), ("int64", False), ("float32", False), ("float64", False), ("string", False),
+    ("bool", False), ("datetime", False), ("datetime", False), ("none", True), ("str", True),
+])
+def test_valid_feature_column_types(input, fail):
+    if not fail:
+        init_feature(input)
+    if fail:
+        with pytest.raises(ValueError):
+            init_feature(input)
+
+def init_label(input):
+    Label(name="feature",
+          variant="v1",
+          source=("a", "b"),
+          description="feature",
+          value_type=input,
+          entity="user",
+          owner="Owner",
+          location=ResourceColumnMapping(
+              entity="abc",
+              value="def",
+              timestamp="ts",
+          ),
+          provider="redis-name")
+
+
+@pytest.mark.parametrize("input,fail", [
+    ("int", False), ("int32", False), ("int64", False), ("float32", False), ("float64", False), ("string", False),
+    ("bool", False), ("datetime", False), ("datetime", False), ("none", True), ("str", True),
+])
+def test_valid_label_column_types(input, fail):
+    if not fail:
+        init_label(input)
+    if fail:
+        with pytest.raises(ValueError):
+            init_label(input)
+
+
 @pytest.fixture
 def all_resources_set(redis_provider):
     return [
@@ -216,12 +284,14 @@ def all_resources_set(redis_provider):
             ),
             entity="user",
             owner="Owner",
+            provider="redis-name"
         ),
         TrainingSet(name="training-set",
                     variant="v1",
                     description="desc",
                     owner="featureform",
                     label=("label", "var"),
+                    feature_lags=[],
                     features=[("f1", "var")]),
     ]
 
@@ -233,6 +303,7 @@ def all_resources_strange_order(redis_provider):
                     variant="v1",
                     description="desc",
                     owner="featureform",
+                    feature_lags=[],
                     label=("label", "var"),
                     features=[("f1", "var")]),
         Label(
@@ -248,6 +319,7 @@ def all_resources_strange_order(redis_provider):
             value_type="float32",
             entity="user",
             owner="Owner",
+            provider="redis-name"
         ),
         Feature(name="feature",
                 variant="v1",
@@ -281,7 +353,7 @@ def test_create_all_provider_types(redis_provider, snowflake_provider,
         snowflake_provider,
         postgres_provider,
         redshift_provider,
-        bigquery_provider, 
+        bigquery_provider,
     ]
     state = ResourceState()
     for provider in providers:
@@ -305,6 +377,7 @@ def test_redefine_provider(redis_config, snowflake_config):
     state.add(providers[0])
     with pytest.raises(ResourceRedefinedError):
         state.add(providers[1])
+
 
 def test_add_all_resource_types(all_resources_strange_order, redis_config):
     state = ResourceState()
@@ -352,13 +425,15 @@ def test_add_all_resource_types(all_resources_strange_order, redis_config):
             ),
             entity="user",
             owner="Owner",
+            provider="redis-name"
         ),
         TrainingSet(name="training-set",
                     variant="v1",
                     description="desc",
                     owner="featureform",
                     label=("label", "var"),
-                    features=[("f1", "var")]),
+                    features=[("f1", "var")],
+                    feature_lags=[]),
     ]
 
 
@@ -457,6 +532,7 @@ def test_invalid_training_set(args):
     with pytest.raises((ValueError, TypeError)):
         TrainingSet(**args)
 
+
 def test_add_all_resources_with_schedule(all_resources_strange_order, redis_config):
     state = ResourceState()
     for resource in all_resources_strange_order:
@@ -479,7 +555,7 @@ def test_add_all_resources_with_schedule(all_resources_strange_order, redis_conf
                description="desc",
                provider="redis-name",
                schedule="* * * * *",
-               schedule_obj=Schedule(name="primary",variant="abc",resource_type=7,schedule_string="* * * * *")),
+               schedule_obj=Schedule(name="primary", variant="abc", resource_type=7, schedule_string="* * * * *")),
         Entity(name="user", description="A user"),
         Feature(name="feature",
                 variant="v1",
@@ -495,7 +571,7 @@ def test_add_all_resources_with_schedule(all_resources_strange_order, redis_conf
                 owner="Owner",
                 provider="redis-name",
                 schedule="* * * * *",
-                schedule_obj=Schedule(name="feature",variant="v1",resource_type=4,schedule_string="* * * * *")),
+                schedule_obj=Schedule(name="feature", variant="v1", resource_type=4, schedule_string="* * * * *")),
         Label(
             name="label",
             variant="v1",
@@ -509,6 +585,7 @@ def test_add_all_resources_with_schedule(all_resources_strange_order, redis_conf
             ),
             entity="user",
             owner="Owner",
+            provider="redis-name"
         ),
         TrainingSet(name="training-set",
                     variant="v1",
@@ -516,16 +593,18 @@ def test_add_all_resources_with_schedule(all_resources_strange_order, redis_conf
                     owner="featureform",
                     label=("label", "var"),
                     features=[("f1", "var")],
+                    feature_lags=[],
                     schedule="* * * * *",
-                    schedule_obj=Schedule(name="training-set",variant="v1",resource_type=6,schedule_string="* * * * *")),
+                    schedule_obj=Schedule(name="training-set", variant="v1", resource_type=6,
+                                          schedule_string="* * * * *")),
         Schedule(name="feature",
-                variant="v1",
-                resource_type=4,
-                schedule_string="* * * * *"),
+                 variant="v1",
+                 resource_type=4,
+                 schedule_string="* * * * *"),
         Schedule(name="primary",
-                variant="abc",
-                resource_type=7,
-                schedule_string="* * * * *"),
+                 variant="abc",
+                 resource_type=7,
+                 schedule_string="* * * * *"),
         Schedule(name="training-set",
                  variant="v1",
                  resource_type=6,

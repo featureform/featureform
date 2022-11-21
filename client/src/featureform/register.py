@@ -2070,7 +2070,7 @@ class Registrar:
         
         Args:
             name (str): Name of provider
-            store (Union[str, FileStoreProvider]): name or reference to registered file store provider
+            store (FileStoreProvider): Reference to registered file store provider
             description (str): Description of primary data to be registered
             team (str): A string parameter describing the team that owns the provider
         **Examples**:

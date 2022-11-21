@@ -7,12 +7,11 @@ package runner
 import (
 	"encoding/json"
 	"fmt"
-	"sync"
-
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	"github.com/featureform/types"
 	"go.uber.org/zap"
+	"sync"
 )
 
 type IndexRunner interface {
@@ -193,6 +192,7 @@ func (m *MaterializedChunkRunnerConfig) Deserialize(config Config) error {
 }
 
 func MaterializedChunkRunnerFactory(config Config) (types.Runner, error) {
+	fmt.Println("Starting Chunk Factory")
 	runnerConfig := &MaterializedChunkRunnerConfig{}
 	if err := runnerConfig.Deserialize(config); err != nil {
 		return nil, fmt.Errorf("failed to deserialize materialize chunk runner config: %v", err)

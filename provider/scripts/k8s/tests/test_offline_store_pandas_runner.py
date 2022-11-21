@@ -145,6 +145,7 @@ def test_download_blobs_to_local(container_client):
     local_filename = "transactions_short.csv"
     output_file = download_blobs_to_local(container_client, blob, local_filename)
 
+    set_environment_variables({"AZURE_CONNECTION_STRING": "", "AZURE_CONTAINER_NAME":""}, delete=True)
     assert os.path.exists(output_file)
 
 
@@ -159,6 +160,7 @@ def test_upload_blob_to_blob_store(blob, file, container_client):
     output_file = upload_blob_to_blob_store(container_client, file, blob)
 
     blob_list = container_client.list_blobs(name_starts_with=blob)
+
     blob_found = False if os.path.isfile(file) else True
     for blob in blob_list:
         if output_file == blob.name:
@@ -167,9 +169,6 @@ def test_upload_blob_to_blob_store(blob, file, container_client):
 
 def set_environment_variables(variables, delete=False):
     for key, value in variables.items():
-        if key == "AZURE_CONNECTION_STRING":
-            continue 
-
         if delete:
             os.environ.pop(key)
         else:

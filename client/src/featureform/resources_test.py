@@ -5,7 +5,7 @@
 import pytest
 from .resources import ResourceRedefinedError, ResourceState, Provider, RedisConfig, CassandraConfig, FirestoreConfig, \
 SnowflakeConfig, PostgresConfig, RedshiftConfig, BigQueryConfig, OnlineBlobConfig, AzureFileStoreConfig, K8sConfig, User, Provider, Entity, Feature, Label, TrainingSet, PrimaryData, SQLTable, \
-Source, ResourceColumnMapping, DynamodbConfig, Schedule, FileStoreProvider
+Source, ResourceColumnMapping, DynamodbConfig, Schedule
 
 
 @pytest.fixture
@@ -41,6 +41,7 @@ def redis_config():
     )
 
 @pytest.fixture
+
 def blob_store_config():
     return AzureFileStoreConfig(
         account_name="<account_name>",

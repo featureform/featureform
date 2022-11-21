@@ -12,10 +12,8 @@ from typing import List, Tuple, Union
 
 import grpc
 from .sqlite_metadata import SQLiteMetadata
-from google.protobuf.duration_pb2 import Duration
 
 from featureform.proto import metadata_pb2 as pb
-
 
 NameVariant = Tuple[str, str]
 
@@ -163,9 +161,6 @@ class OnlineBlobConfig:
     def type(self) -> str:
         return "BLOB_ONLINE"
 
-    def config(self):
-        return self.store_config
-    
     def serialize(self) -> bytes:
         config = {
             "Type": self.store_type,
@@ -434,6 +429,8 @@ class K8sConfig:
             "StoreConfig": self.store_config,
         }
         return bytes(json.dumps(config), "utf-8")
+
+
 
 
 Config = Union[
@@ -993,18 +990,6 @@ class TrainingSet:
         return "training-set"
 
     def _create(self, stub) -> None:
-        feature_lags = []
-        for lag in self.feature_lags:
-            lag_duration = Duration()
-            _ = lag_duration.FromTimedelta(lag["lag"])
-            feature_lag = pb.FeatureLag(
-                    feature=lag["feature"],
-                    variant=lag["variant"],
-                    name=lag["name"],
-                    lag=lag_duration,     
-                )
-            feature_lags.append(feature_lag)
-
         serialized = pb.TrainingSetVariant(
             name=self.name,
             variant=self.variant,
@@ -1053,42 +1038,18 @@ class TrainingSet:
             db.get_label_variant(self.label[0], self.label[1])
         except ValueError:
             raise ValueError(f"{self.label[0]} does not exist. Failed to register training set")
-        
         for feature_name, feature_variant in self.features:
             try:
                 db.get_feature_variant(feature_name, feature_variant)
-            except Exception as e:
-                raise Exception(f"{feature_name} does not exist. Failed to register training set. Error: {e}")
-            
+            except ValueError:
+                raise ValueError(f"{feature_name} does not exist. Failed to register training set")
             db.insert(
                 "training_set_features",
                 self.name,
                 self.variant,
                 feature_name,  # feature name
-                feature_variant,  # feature variant
+                feature_variant  # feature variant
             )
-
-        for feature in self.feature_lags:
-            feature_name = feature["feature"]
-            feature_variant = feature["variant"]
-            feature_new_name = feature["name"]
-            feature_lag = feature["lag"].total_seconds()
-
-            try:
-                db.get_feature_variant(feature_name, feature_variant)
-            except Exception as e:
-                raise Exception(f"{feature_name} does not exist. Failed to register training set. Error: {e}")
-            
-            db.insert(
-                "training_set_lag_features",
-                self.name,
-                self.variant,
-                feature_name,     # feature name
-                feature_variant,  # feature variant
-                feature_new_name, # feature new name
-                feature_lag       # feature_lag
-            )
-
 
     def __eq__(self, other):
         for attribute in vars(self):

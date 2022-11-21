@@ -7,7 +7,6 @@ package runner
 import (
 	"encoding/json"
 	"fmt"
-
 	"go.uber.org/zap"
 
 	"github.com/featureform/helpers"
@@ -18,7 +17,7 @@ import (
 	"github.com/featureform/types"
 )
 
-const MAXIMUM_CHUNK_ROWS int64 = 16777216
+const MAXIMUM_CHUNK_ROWS int64 = 1024
 
 var WORKER_IMAGE string = helpers.GetEnv("WORKER_IMAGE", "featureformcom/worker:latest")
 

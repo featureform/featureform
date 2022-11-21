@@ -81,7 +81,7 @@ def k8s_df_variables_success():
         "ETCD_PORT": "2379,2380",
         "ETCD_USERNAME": "username",
         "ETCD_PASSWORD": "password",
-        "AZURE_CONNECTION_STRING": os.getenv("AZURE_CONNECTION_STRING", "connection_string"),
+        "AZURE_CONNECTION_STRING": "connection_string",
     }
 
 
@@ -97,7 +97,7 @@ def k8s_df_variables_single_port_success():
         "ETCD_PORT": "2379",
         "ETCD_USERNAME": "username",
         "ETCD_PASSWORD": "password",
-        "AZURE_CONNECTION_STRING": os.getenv("AZURE_CONNECTION_STRING", "connection_string"),
+        "AZURE_CONNECTION_STRING": "connection_string",
     }
 
 
@@ -140,15 +140,9 @@ def df_transformation():
 
 @pytest.fixture(scope="module")
 def container_client():
-    connection_string = os.getenv("AZURE_CONNECTION_STRING")
-    if connection_string == None:
-        # get the path to .env in root directory
-        env_file = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(real_path)))))   
-        load_dotenv(f"{env_file}/.env")
-
-        connection_string = os.getenv("AZURE_CONNECTION_STRING")
-
-    blob_service_client = BlobServiceClient.from_connection_string(connection_string)
+    # get the path to .env in root directory
+    env_file = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(real_path)))))
+    load_dotenv(f"{env_file}/.env")
+    blob_service_client = BlobServiceClient.from_connection_string(os.getenv("AZURE_CONNECTION_STRING"))
     container_client = blob_service_client.get_container_client(os.getenv("AZURE_CONTAINER_NAME"))
     return container_client
-

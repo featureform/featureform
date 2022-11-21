@@ -16,7 +16,6 @@ from google.protobuf.duration_pb2 import Duration
 
 from featureform.proto import metadata_pb2 as pb
 
-
 NameVariant = Tuple[str, str]
 
 
@@ -84,6 +83,7 @@ class RedisConfig:
         }
         return bytes(json.dumps(config), "utf-8")
 
+
 @typechecked
 @dataclass
 class AzureFileStoreConfig:
@@ -106,7 +106,7 @@ class AzureFileStoreConfig:
             "Path": self.root_path,
         }
         return bytes(json.dumps(config), "utf-8")
-    
+
     def config(self):
         return {
             "AccountName": self.account_name,
@@ -114,7 +114,7 @@ class AzureFileStoreConfig:
             "ContainerName": self.container_name,
             "Path": self.root_path,
         }
-    
+
     def store_type(self):
         return self.type()
 
@@ -141,7 +141,7 @@ class S3StoreConfig:
             "BucketPath": self.bucket_path,
         }
         return bytes(json.dumps(config), "utf-8")
-    
+
     def config(self):
         return {
             "AWSAccessKeyId": self.aws_access_key_id,
@@ -165,7 +165,7 @@ class OnlineBlobConfig:
 
     def config(self):
         return self.store_config
-    
+
     def serialize(self) -> bytes:
         config = {
             "Type": self.store_type,
@@ -245,6 +245,7 @@ class DynamodbConfig:
             "SecretKey": self.secret_key
         }
         return bytes(json.dumps(config), "utf-8")
+
 
 @typechecked
 @dataclass
@@ -407,12 +408,35 @@ class SparkConfig:
 
     def serialize(self) -> bytes:
         config = {
-            "ExecutorType": self.executor_type,  
+            "ExecutorType": self.executor_type,
             "StoreType": self.store_type,
             "ExecutorConfig": self.executor_config,
             "StoreConfig": self.store_config,
         }
         return bytes(json.dumps(config), "utf-8")
+
+
+@typechecked
+@dataclass
+class K8sConfig:
+    store_type: str
+    store_config: dict
+
+    def software(self) -> str:
+        return "k8s"
+
+    def type(self) -> str:
+        return "K8S_OFFLINE"
+
+    def serialize(self) -> bytes:
+        config = {
+            "ExecutorType": "K8S",
+            "ExecutorConfig": "",
+            "StoreType": self.store_type,
+            "StoreConfig": self.store_config,
+        }
+        return bytes(json.dumps(config), "utf-8")
+
 
 @typechecked
 @dataclass
@@ -437,7 +461,10 @@ class K8sConfig:
 
 
 Config = Union[
-    RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig, BigQueryConfig, FirestoreConfig, SparkConfig, OnlineBlobConfig, AzureFileStoreConfig, S3StoreConfig, K8sConfig, MongoDBConfig]
+    RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig, BigQueryConfig,
+    FirestoreConfig, SparkConfig, OnlineBlobConfig, AzureFileStoreConfig, S3StoreConfig, K8sConfig,
+    MongoDBConfig
+]
 
 
 @typechecked
@@ -998,11 +1025,11 @@ class TrainingSet:
             lag_duration = Duration()
             _ = lag_duration.FromTimedelta(lag["lag"])
             feature_lag = pb.FeatureLag(
-                    feature=lag["feature"],
-                    variant=lag["variant"],
-                    name=lag["name"],
-                    lag=lag_duration,     
-                )
+                feature=lag["feature"],
+                variant=lag["variant"],
+                name=lag["name"],
+                lag=lag_duration,
+            )
             feature_lags.append(feature_lag)
 
         serialized = pb.TrainingSetVariant(
@@ -1020,7 +1047,7 @@ class TrainingSet:
                     feature=lag["feature"],
                     variant=lag["variant"],
                     name=lag["name"],
-                    lag=lag["lag"],     
+                    lag=lag["lag"],
                 ) for lag in self.feature_lags
             ]
         )
@@ -1053,13 +1080,13 @@ class TrainingSet:
             db.get_label_variant(self.label[0], self.label[1])
         except ValueError:
             raise ValueError(f"{self.label[0]} does not exist. Failed to register training set")
-        
+
         for feature_name, feature_variant in self.features:
             try:
                 db.get_feature_variant(feature_name, feature_variant)
             except Exception as e:
                 raise Exception(f"{feature_name} does not exist. Failed to register training set. Error: {e}")
-            
+
             db.insert(
                 "training_set_features",
                 self.name,
@@ -1078,17 +1105,16 @@ class TrainingSet:
                 db.get_feature_variant(feature_name, feature_variant)
             except Exception as e:
                 raise Exception(f"{feature_name} does not exist. Failed to register training set. Error: {e}")
-            
+
             db.insert(
                 "training_set_lag_features",
                 self.name,
                 self.variant,
-                feature_name,     # feature name
+                feature_name,  # feature name
                 feature_variant,  # feature variant
-                feature_new_name, # feature new name
-                feature_lag       # feature_lag
+                feature_new_name,  # feature new name
+                feature_lag  # feature_lag
             )
-
 
     def __eq__(self, other):
         for attribute in vars(self):
@@ -1198,11 +1224,11 @@ class ResourceState:
 @typechecked
 class DatabricksCredentials:
     def __init__(self,
-                username: str = "",
-                password: str = "",
-                host: str = "",
-                token: str = "",
-                cluster_id: str = ""):
+                 username: str = "",
+                 password: str = "",
+                 host: str = "",
+                 token: str = "",
+                 cluster_id: str = ""):
         self.username = username
         self.password = password
         self.host = host
@@ -1213,12 +1239,13 @@ class DatabricksCredentials:
         username_password_provided = username != "" and password != "" and host == "" and token == ""
 
         if not host_token_provided and not username_password_provided or host_token_provided and username_password_provided:
-            raise Exception("The DatabricksCredentials requires only one credentials set ('username' and 'password' or 'host' and 'token' set.)")
-        
+            raise Exception(
+                "The DatabricksCredentials requires only one credentials set ('username' and 'password' or 'host' and 'token' set.)")
+
         if not cluster_id:
             raise Exception("Cluster_id of existing cluster must be provided")
 
-    def type(self): 
+    def type(self):
         return "DATABRICKS"
 
     def config(self):
@@ -1230,26 +1257,27 @@ class DatabricksCredentials:
             "Cluster": self.cluster_id
         }
 
+
 @typechecked
 @dataclass
 class EMRCredentials:
     def __init__(self,
-                aws_access_key_id: str = "",
-                aws_secret_access_key: str = "",
-                emr_cluster_id: str = "",
-                emr_cluster_region: str = ""):
-
+                 aws_access_key_id: str = "",
+                 aws_secret_access_key: str = "",
+                 emr_cluster_id: str = "",
+                 emr_cluster_region: str = ""):
         empty_strings = aws_access_key_id == "" or aws_secret_access_key == "" or emr_cluster_id == "" or emr_cluster_region == ""
-        assert not empty_strings, Exception("'EMRCredentials' requires all parameters: 'aws_access_key_id', 'aws_secret_access_key', 'emr_cluster_id', 'emr_cluster_region'")
+        assert not empty_strings, Exception(
+            "'EMRCredentials' requires all parameters: 'aws_access_key_id', 'aws_secret_access_key', 'emr_cluster_id', 'emr_cluster_region'")
 
         self.aws_access_key_id = aws_access_key_id
         self.aws_secret_access_key = aws_secret_access_key
         self.emr_cluster_id = emr_cluster_id
         self.emr_cluster_region = emr_cluster_region
 
-    def type(self): 
+    def type(self):
         return "EMR"
-    
+
     def config(self):
         return {
             "AWSAccessKeyId": self.aws_access_key_id,
@@ -1260,5 +1288,3 @@ class EMRCredentials:
 
 
 ExecutorCredentials = Union[EMRCredentials, DatabricksCredentials]
-
-

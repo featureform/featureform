@@ -66,7 +66,7 @@ def execute_sql_job(mode, output_uri, transformation, source_list, blob_credenti
                 globals()[f"source_{i}"]= pd.read_csv(output_path)
             else:
                 globals()[f"source_{i}"]= pd.read_parquet(output_path)
-        
+
         mysql = lambda q: sqldf(q, globals())
         output_dataframe = mysql(transformation)
 
@@ -120,7 +120,7 @@ def execute_df_job(mode, output_uri, code, sources, etcd_credentials, blob_crede
 
     try:
         df_path = "transformation.pkl"
-        
+
         if blob_credentials.type == AZURE:
             code_path = download_blobs_to_local(container_client, code, df_path)
         else:
@@ -157,11 +157,11 @@ def download_blobs_to_local(container_client, blob, local_filename):
         client:         ContainerClient (used to interact with Azure container)
         blob:           str (path to blob store)
         local_filename: str (path to local file)
-    
+
     Output:
         full_path:      str (path to local file that will be used to read by pandas)
     """
-    
+
     print(f"downloading {blob} to {local_filename}")
     if not os.path.isdir(LOCAL_DATA_PATH):
         os.makedirs(LOCAL_DATA_PATH, exist_ok=True)
@@ -182,7 +182,7 @@ def download_blobs_to_local(container_client, blob, local_filename):
         blob_list = container_client.list_blobs(name_starts_with=blob)
         for b in blob_list:
             blob_client = container_client.get_blob_client(b)
-            
+
             ## Download
             with open(f"{full_path}/{b.name.split('/')[-1]}", "wb") as my_blob:
                 download_stream = blob_client.download_blob()
@@ -198,7 +198,7 @@ def upload_blob_to_blob_store(client, local_filename, blob_path):
         client:         ContainerClient (used to interact with Azure container)
         local_filename: str (path to local file)
         blob_path:      str (path to blob store)
-    
+
     Output:
         blob_path:      str (path to blob store)
     """
@@ -223,8 +223,8 @@ def upload_blob_to_blob_store(client, local_filename, blob_path):
 def get_code_from_file(mode, file_path, etcd_credentials):
     """
     Reads the code from a pkl file into a python code object.
-    Then this object will be used to execute the transformation. 
-    
+    Then this object will be used to execute the transformation.
+
     Parameters:
         mode:             string ("local", "k8s")
         file_path:        string (path to file)
@@ -258,12 +258,12 @@ def get_code_from_file(mode, file_path, etcd_credentials):
 
 def get_blob_credentials(args):
     """
-    Retrieve credentials from the blob store. 
+    Retrieve credentials from the blob store.
     Parameters:
         args: Namespace (input arguments that passed via environment variables)
 
     Output:
-        credentials: Namespace(type="", ...) (includes credentials needed for each blob store.) 
+        credentials: Namespace(type="", ...) (includes credentials needed for each blob store.)
     """
 
     if args.mode == K8S_MODE and args.azure_blob_credentials:
@@ -299,7 +299,7 @@ def get_args():
 
     Parameters:
         None
-    
+
     Output:
         Namespace
     """

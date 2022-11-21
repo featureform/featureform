@@ -440,7 +440,7 @@ func (c *Coordinator) runTransformationJob(transformationConfig provider.Transfo
 		return fmt.Errorf("wait for transformation job runner completion: %v", err)
 	}
 	c.Logger.Debugw("Transformation Setting Status")
-	if err := retryWithDelays("set status to ready", 5, time.Millisecond*1000, func() error { return c.Metadata.SetStatus(context.Background(), resID, metadata.READY, "") }); err != nil {
+	if err := retryWithDelays("set status to ready", 5, time.Millisecond*10, func() error { return c.Metadata.SetStatus(context.Background(), resID, metadata.READY, "") }); err != nil {
 		return fmt.Errorf("set transformation job runner done status: %v", err)
 	}
 	c.Logger.Debugw("Transformation Complete")

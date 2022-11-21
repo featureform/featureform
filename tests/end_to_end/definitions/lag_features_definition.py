@@ -72,7 +72,7 @@ def ice_cream_entity_transformation(df):
     df["entity"] = "farm"
     return df
 
-@k8s.df_transformation(name=f"ice_cream_transformation_{VERSION}", 
+@k8s.df_transformation(name=f"ice_cream_transformation_{VERSION}",
                         variant=VERSION,
                         inputs=[(f"ice_cream_entity_{VERSION}", VERSION)])
 def ice_cream_transformation(df):

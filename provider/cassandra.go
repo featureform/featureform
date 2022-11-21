@@ -211,7 +211,7 @@ func (table cassandraOnlineTable) Get(entity string) (interface{}, error) {
 	} else if err != nil {
 		return nil, fmt.Errorf("query failed: %w", err)
 	}
-	
+
 	value, err := table.castPointer(ptr)
 	if err != nil {
 		return nil, fmt.Errorf("could not cast value: %w", err)

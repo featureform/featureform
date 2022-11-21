@@ -435,16 +435,16 @@ func TestParquetUpload(t *testing.T) {
 		"sparkTestCreateDuplicatePrimaryTable":     sparkTestCreateDuplicatePrimaryTable,
 
 		// Databricks Test (use FileStore and spark executor)
-		"sparkTestTrainingSet":                        sparkTestTrainingSet,
-		"sparkTestMaterializations":                   sparkTestMaterializations,
-		"sparkTestTrainingSetDefShorthand":            sparkTestTrainingSetDefShorthand,
-		"sparkTestTrainingSetUpdate":                  sparkTestTrainingSetUpdate,
-		"sparkTestSQLTransformation":                  testSparkSQLTransformation,
-		"sparkTestGetDFArgs":                          testGetDFArgs,
+		// "sparkTestTrainingSet":             sparkTestTrainingSet,
+		// "sparkTestMaterializations":        sparkTestMaterializations,
+		// "sparkTestTrainingSetDefShorthand": sparkTestTrainingSetDefShorthand,
+		// "sparkTestTrainingSetUpdate":       sparkTestTrainingSetUpdate,
+		// "sparkTestSQLTransformation": testSparkSQLTransformation,
+		// "sparkTestGetDFArgs":                          testGetDFArgs,
 		"sparkTestGetResourceInformationFromFilePath": testGetResourceInformationFromFilePath,
-		"sparkTestGetSourcePath":                      testGetSourcePath,
-		"sparkTestGetTransformation":                  testGetTransformation,
-		"sparkTestTransformation":                     testTransformation, //Passing excpet dataframes
+		// "sparkTestGetSourcePath":                      testGetSourcePath,
+		// "sparkTestGetTransformation": testGetTransformation,
+		// "sparkTestTransformation":                     testTransformation, //Passing except dataframes
 
 		// NON-passing tests
 
@@ -1330,7 +1330,7 @@ func testGetDFArgs(t *testing.T, store *SparkOfflineStore) {
 		outputURI       string
 		code            string
 		store_type      string
-		mapping         []SourceMapping
+		mapping         []string
 		expectedArgs    []string
 		expectedFailure bool
 	}{
@@ -1339,11 +1339,8 @@ func testGetDFArgs(t *testing.T, store *SparkOfflineStore) {
 			"featureform-spark-testing/featureform/Primary/test_name/test_variant",
 			"code",
 			"AzureBlobStore",
-			[]SourceMapping{
-				SourceMapping{
-					Template: "transaction",
-					Source:   "featureform-spark-testing/featureform/testprimary/testFile.csv",
-				},
+			[]string{
+				"featureform-spark-testing/featureform/testprimary/testFile.csv",
 			},
 			[]string{
 				"df",
@@ -1369,11 +1366,8 @@ func testGetDFArgs(t *testing.T, store *SparkOfflineStore) {
 			"s3://featureform-spark-testing/featureform/Primary/test_name/test_variant",
 			"code",
 			"AzureBlobStore",
-			[]SourceMapping{
-				SourceMapping{
-					Template: "transaction",
-					Source:   "featureform_primary",
-				},
+			[]string{
+				"featureform_primary",
 			},
 			nil,
 			true,
@@ -1700,14 +1694,16 @@ func TestTrainingSetCreate(t *testing.T) {
 	}
 	queries := defaultPythonOfflineQueries{}
 	trainingSetQuery := queries.trainingSetCreate(testTrainingSetDef, testFeatureSchemas, testLabelSchema)
+
 	correctQuery := "SELECT Feature__test_feature_1__default, Feature__test_feature_2__default, Label__test_label__default " +
 		"FROM (SELECT * FROM (SELECT *, row_number FROM (SELECT Feature__test_feature_1__default, Feature__test_feature_2__default, " +
-		"value AS Label__test_label__default, entity, label_ts, ROW_NUMBER() over (PARTITION BY entity, value, label_ts ORDER BY " +
-		"label_ts DESC) as row_number FROM ((SELECT * FROM (SELECT entity, value, label_ts FROM (SELECT entity AS entity, label_value " +
+		"value AS Label__test_label__default, entity, label_ts, t1_ts, t2_ts, ROW_NUMBER() over (PARTITION BY entity, value, label_ts ORDER BY " +
+		"label_ts DESC, t1_ts DESC,t2_ts DESC) as row_number FROM ((SELECT * FROM (SELECT entity, value, label_ts FROM (SELECT entity AS entity, label_value " +
 		"AS value, ts AS label_ts FROM source_0) t ) t0) LEFT OUTER JOIN (SELECT * FROM (SELECT entity as t1_entity, feature_value_1 as " +
 		"Feature__test_feature_1__default, ts as t1_ts FROM source_1) ORDER BY t1_ts ASC) t1 ON (t1_entity = entity AND t1_ts <= label_ts) " +
 		"LEFT OUTER JOIN (SELECT * FROM (SELECT entity as t2_entity, feature_value_2 as Feature__test_feature_2__default, ts as t2_ts " +
-		"FROM source_2) ORDER BY t2_ts ASC) t2 ON (t2_entity = entity AND t2_ts <= label_ts)) tt) WHERE row_number=1 ))"
+		"FROM source_2) ORDER BY t2_ts ASC) t2 ON (t2_entity = entity AND t2_ts <= label_ts)) tt) WHERE row_number=1 ))  ORDER BY label_ts"
+
 	if trainingSetQuery != correctQuery {
 		t.Fatalf("training set query not correct")
 	}

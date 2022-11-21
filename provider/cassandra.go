@@ -7,6 +7,7 @@ package provider
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/gocql/gocql"
 	sn "github.com/mrz1836/go-sanitize"
@@ -56,24 +57,24 @@ func NewCassandraOnlineStore(options *CassandraConfig) (*cassandraOnlineStore, e
 	}
 	err := cassandraCluster.Consistency.UnmarshalText([]byte(options.Consistency))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not set consistency: %w", err)
 	}
 	newSession, err := cassandraCluster.CreateSession()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not create seesion: %w", err)
 	}
 
 	query := fmt.Sprintf("CREATE KEYSPACE IF NOT EXISTS %s WITH replication = {'class' : 'SimpleStrategy','replication_factor' : %d }", options.Keyspace, options.Replication)
 	err = newSession.Query(query).WithContext(ctx).Exec()
 	cassandraCluster.Keyspace = options.Keyspace
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not create keyspace: %w", err)
 	}
 
 	query = fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (tableName text PRIMARY KEY, tableType text)", fmt.Sprintf("%s.featureform__metadata", options.Keyspace))
 	err = newSession.Query(query).WithContext(ctx).Exec()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not create metadata table: %w", err)
 	}
 
 	return &cassandraOnlineStore{newSession, options.Keyspace, BaseProvider{
@@ -106,6 +107,9 @@ func GetMetadataTableName(keyspace string) string {
 }
 
 func (store *cassandraOnlineStore) CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error) {
+	if err := valueType.isValid(); err != nil {
+		return nil, err
+	}
 	tableName := GetTableName(store.keyspace, feature, variant)
 	vType := cassandraTypeMap[string(valueType)]
 	key := cassandraTableKey{store.keyspace, feature, variant}
@@ -118,13 +122,13 @@ func (store *cassandraOnlineStore) CreateTable(feature, variant string, valueTyp
 	query := fmt.Sprintf("INSERT INTO %s (tableName, tableType) VALUES (?, ?)", metadataTableName)
 	err := store.session.Query(query, tableName, string(valueType)).WithContext(ctx).Exec()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not create metadata entry: %w", err)
 	}
 
 	query = fmt.Sprintf("CREATE TABLE %s (entity text PRIMARY KEY, value %s)", tableName, vType)
 	err = store.session.Query(query).WithContext(ctx).Exec()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not create table %s with value type %s (%s): %w", tableName, vType, valueType, err)
 	}
 
 	table := &cassandraOnlineTable{
@@ -200,6 +204,8 @@ func (table cassandraOnlineTable) Get(entity string) (interface{}, error) {
 	switch table.valueType {
 	case Int:
 		ptr = new(int)
+	case Int32:
+		ptr = new(int32)
 	case Int64:
 		ptr = new(int64)
 	case Float32:
@@ -208,10 +214,12 @@ func (table cassandraOnlineTable) Get(entity string) (interface{}, error) {
 		ptr = new(float64)
 	case Bool:
 		ptr = new(bool)
+	case Datetime, Timestamp:
+		ptr = new(time.Time)
 	case String, NilType:
 		ptr = new(string)
 	default:
-		return nil, fmt.Errorf("data type not recognized")
+		return nil, fmt.Errorf("data type not recognized: %s", table.valueType)
 	}
 
 	query := fmt.Sprintf("SELECT value FROM %s WHERE entity = '%s'", tableName, entity)
@@ -227,6 +235,8 @@ func (table cassandraOnlineTable) Get(entity string) (interface{}, error) {
 	switch casted := ptr.(type) {
 	case *int:
 		val = *casted
+	case *int32:
+		val = *casted
 	case *int64:
 		val = *casted
 	case *float32:
@@ -237,8 +247,10 @@ func (table cassandraOnlineTable) Get(entity string) (interface{}, error) {
 		val = *casted
 	case *string:
 		val = *casted
+	case *time.Time:
+		val = *casted
 	default:
-		return nil, fmt.Errorf("data type not recognized")
+		return nil, fmt.Errorf("data type not recognized: %T", ptr)
 	}
 	return val, nil
 

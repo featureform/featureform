@@ -454,16 +454,6 @@ func testTypeCastingOverride(t *testing.T, store OnlineStore) {
 		},
 		{
 			Resource: OnlineResource{
-				Entity: "int",
-				Value:  int(1),
-				Type:   String,
-			},
-			ExpectedType:  reflect.TypeOf(int(1)),
-			ExpectedValue: "1",
-			ShouldError:   false,
-		},
-		{
-			Resource: OnlineResource{
 				Entity: "int32",
 				Value:  int32(1),
 				Type:   Int,
@@ -538,8 +528,11 @@ func testTypeCastingOverride(t *testing.T, store OnlineStore) {
 			t.Errorf("Failed to create table: %s", err)
 		}
 		err = tab.Set(c.Resource.Entity, c.Resource.Value)
-		if err != nil {
+		if err != nil && !c.ShouldError {
 			t.Errorf("Unable to set resource with entity: %s, value: %v, type: %s: %s", c.Resource.Entity, c.Resource.Value, c.Resource.Type, err.Error())
+			continue
+		} else if err != nil && c.ShouldError {
+			store.DeleteTable(featureName, "")
 			continue
 		}
 		gotVal, err := tab.Get(c.Resource.Entity)
@@ -662,7 +655,7 @@ func testInvalidTypes(t *testing.T, store OnlineStore) {
 		featureName := uuid.New().String()
 		_, err := store.CreateTable(featureName, "", c.Resource.Type)
 		if err != nil && !c.ShouldError {
-			t.Errorf("Unable to create resource value: %v, Type: %v", c.Resource.Value, c.Resource.Type)
+			t.Errorf("Unable to create resource value: %v, Type: %v: %s", c.Resource.Value, c.Resource.Type, err.Error())
 		} else if err == nil && c.ShouldError {
 			t.Errorf("Invalid table created with Type: %v", c.Resource.Type)
 		}

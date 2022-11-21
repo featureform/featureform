@@ -250,7 +250,7 @@ test_offline_k8s:  					## Run k8s tests.
 test_online: gen_grpc 					## Run offline tests. Run with `make test_online provider=(memory | redis_mock | redis_insecure | redis_secure | cassandra | firestore | dynamo )`
 	@echo "These tests require a .env file. Please Check .env-template for possible variables"
 	-mkdir coverage
-	go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/... --tags=online,provider --provider=$(provider)
+	go test -timeout 20m -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/... --tags=online,provider --provider=$(provider)
 
 test_go_unit:
 	-mkdir coverage

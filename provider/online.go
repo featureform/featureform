@@ -7,7 +7,6 @@ package provider
 import (
 	"context"
 	"fmt"
-
 	"github.com/go-redis/redis/v8"
 )
 
@@ -23,12 +22,16 @@ const (
 var ctx = context.Background()
 
 var cassandraTypeMap = map[string]string{
-	"string":  "text",
-	"int":     "int",
-	"int64":   "bigint",
-	"float32": "float",
-	"float64": "double",
-	"bool":    "boolean",
+	"":          "text",
+	"string":    "text",
+	"int":       "int",
+	"int32":     "int",
+	"int64":     "bigint",
+	"float32":   "float",
+	"float64":   "double",
+	"bool":      "boolean",
+	"time.Time": "timestamp",
+	"datetime":  "timestamp",
 }
 
 type OnlineStore interface {

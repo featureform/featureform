@@ -15,6 +15,7 @@ from .sqlite_metadata import SQLiteMetadata
 from google.protobuf.duration_pb2 import Duration
 
 from featureform.proto import metadata_pb2 as pb
+from featureform.format import *
 
 NameVariant = Tuple[str, str]
 
@@ -28,6 +29,14 @@ class ColumnTypes(Enum):
     STRING = "string"
     BOOL = "bool"
     DATETIME = "datetime"
+
+class ResourceStatus(Enum):
+    NO_STATUS = "NO_STATUS"
+    CREATED = "CREATED"
+    PENDING = "PENDING"
+    READY = "READY"
+    FAILED = "FAILED"
+
 
 @typechecked
 @dataclass
@@ -634,7 +643,8 @@ class Source:
     schedule: str = ""
     schedule_obj: Schedule = None
     is_transformation = SourceType.PRIMARY_SOURCE.value
-    inputs = []
+    inputs = [],
+    status: str = "NO_STATUS"
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=7, schedule_string=schedule)
@@ -694,6 +704,12 @@ class Source:
             self.variant,
             self.name
         )
+
+    def get_status(self):
+        return ResourceStatus(self.status)
+
+    def is_ready(self):
+        return self.status == ResourceStatus.READY.value
 
     def __eq__(self, other):
         for attribute in vars(self):
@@ -770,6 +786,7 @@ class Feature:
     variant: str = "default"
     schedule: str = ""
     schedule_obj: Schedule = None
+    status: str = "NO_STATUS"
 
     def __post_init__(self):
         col_types = [member.value for member in ColumnTypes]
@@ -833,6 +850,12 @@ class Feature:
             self.value_type
         )
 
+    def get_status(self):
+        return ResourceStatus(self.status)
+
+    def is_ready(self):
+        return self.status == ResourceStatus.READY.value
+
     def __eq__(self, other):
         for attribute in vars(self):
             if getattr(self, attribute) != getattr(other, attribute):
@@ -852,6 +875,7 @@ class Label:
     description: str
     location: ResourceLocation
     variant: str = "default"
+    status: str = "NO_STATUS"
 
     def __post_init__(self):
         col_types = [member.value for member in ColumnTypes]
@@ -908,6 +932,12 @@ class Label:
             self.variant,
             self.name
         )
+
+    def get_status(self):
+        return ResourceStatus(self.status)
+
+    def is_ready(self):
+        return self.status == ResourceStatus.READY.value
 
     def __eq__(self, other):
         for attribute in vars(self):
@@ -1014,9 +1044,11 @@ class TrainingSet:
     features: List[NameVariant]
     feature_lags: list
     description: str
+    status: str = "NO_STATUS"
     variant: str = "default"
     schedule: str = ""
     schedule_obj: Schedule = None
+    provider: str = ""
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=6, schedule_string=schedule)
@@ -1135,6 +1167,12 @@ class TrainingSet:
                 feature_new_name,  # feature new name
                 feature_lag  # feature_lag
             )
+
+    def get_status(self):
+        return ResourceStatus(self.status)
+
+    def is_ready(self):
+        return self.status == ResourceStatus.READY.value
 
     def __eq__(self, other):
         for attribute in vars(self):

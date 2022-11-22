@@ -146,7 +146,7 @@ class TestResourcesRedefined:
             entity=user,
             entity_column="CustomerID",
             labels=[
-                {"name": "fraudulent", "variant": "quickstart", "column": "IsFraud", "type": "boolean"},
+                {"name": "fraudulent", "variant": "quickstart", "column": "IsFraud", "type": "bool"},
             ],
         )
         with pytest.raises(ResourceRedefinedError):

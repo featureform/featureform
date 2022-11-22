@@ -20,6 +20,16 @@ from featureform.proto import metadata_pb2 as pb
 
 NameVariant = Tuple[str, str]
 
+class ColumnTypes(Enum):
+    NIL = ""
+    INT = "int"
+    INT32 = "int32"
+    INT64 = "int64"
+    FLOAT32 = "float32"
+    FLOAT64 = "float64"
+    STRING = "string"
+    BOOL = "bool"
+    DATETIME = "datetime"
 
 @typechecked
 @dataclass
@@ -113,7 +123,7 @@ class AzureBlobStoreConfig:
             "Path": self.root_path,
         }
         return bytes(json.dumps(config), "utf-8")
-    
+
     def config(self):
         return {
             "AccountName": self.account_name,
@@ -137,7 +147,7 @@ class OnlineBlobConfig:
 
     def config(self):
         return self.store_config
-    
+
     def serialize(self) -> bytes:
         config = {
             "Type": self.store_type,
@@ -354,7 +364,7 @@ class SparkAWSConfig:
 
     def serialize(self) -> bytes:
         config = {
-            "ExecutorType": "EMR",  
+            "ExecutorType": "EMR",
             "StoreType": "S3",
             "ExecutorConfig": {
                 "AWSAccessKeyId": self.aws_access_key_id,
@@ -849,6 +859,11 @@ class Feature:
     def is_ready(self) -> bool:
         return self.get_status() == "READY"
 
+    def __post_init__(self):
+        col_types = [member.value for member in ColumnTypes]
+        if self.value_type not in col_types:
+            raise ValueError(f"Invalid feature type ({self.value_type}) must be one of: {col_types}")
+
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=4, schedule_string=schedule)
         self.schedule = schedule
@@ -951,6 +966,11 @@ class Label:
 
     def is_ready(self) -> bool:
         return self.get_status() == "READY"
+
+    def __post_init__(self):
+        col_types = [member.value for member in ColumnTypes]
+        if self.value_type not in col_types:
+            raise ValueError(f"Invalid label type ({self.value_type}) must be one of: {col_types}")
 
     @staticmethod
     def operation_type() -> OperationType:
@@ -1178,11 +1198,11 @@ class TrainingSet:
             lag_duration = Duration()
             _ = lag_duration.FromTimedelta(lag["lag"])
             feature_lag = pb.FeatureLag(
-                    feature=lag["feature"],
-                    variant=lag["variant"],
-                    name=lag["name"],
-                    lag=lag_duration,     
-                )
+                feature=lag["feature"],
+                variant=lag["variant"],
+                name=lag["name"],
+                lag=lag_duration,
+            )
             feature_lags.append(feature_lag)
 
         serialized = pb.TrainingSetVariant(
@@ -1226,13 +1246,13 @@ class TrainingSet:
             db.get_label_variant(self.label[0], self.label[1])
         except ValueError:
             raise ValueError(f"{self.label[0]} does not exist. Failed to register training set")
-        
+
         for feature_name, feature_variant in self.features:
             try:
                 db.get_feature_variant(feature_name, feature_variant)
             except Exception as e:
                 raise Exception(f"{feature_name} does not exist. Failed to register training set. Error: {e}")
-            
+
             db.insert(
                 "training_set_features",
                 self.name,
@@ -1251,7 +1271,7 @@ class TrainingSet:
                 db.get_feature_variant(feature_name, feature_variant)
             except Exception as e:
                 raise Exception(f"{feature_name} does not exist. Failed to register training set. Error: {e}")
-            
+
             db.insert(
                 "training_set_lag_features",
                 self.name,

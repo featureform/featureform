@@ -11,6 +11,10 @@ def get_user_info(stub, name):
         for user in stub.GetUsers(iter([searchName])):
             return User(
                 name=user.name,
+                features=[(f.name,f.variant) for f in user.features],
+                labels=[(f.name,f.variant) for f in user.labels],
+                trainingsets=[(f.name,f.variant) for f in user.trainingsets],
+                sources=[(f.name,f.variant) for f in user.sources]
             )
     except grpc._channel._MultiThreadedRendezvous:
         print("User not found.")
@@ -46,7 +50,9 @@ class StubResource:
     def __init__(self, stub_resource):
         self.stub_resource = stub_resource
     def print(self):
-        print(self.stub_resource)
+        for field in self.stub_resource:
+            if not field.startswith("__")
+                print(f"{field}: {self.stub_resource[field]}")
 
 def get_feature_variant_info(stub, name, variant):
     searchNameVariant = metadata_pb2.NameVariant(name=name, variant=variant)

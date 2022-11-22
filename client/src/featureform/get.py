@@ -33,32 +33,18 @@ def get_resource_info(stub, resource_type, name):
         "training-set": stub.GetTrainingSets,
         "model": stub.GetModels
     }
-    # Todo: change the parameters submitted to each one base on type
     searchName = metadata_pb2.Name(name=name)
     try:
         for x in stub_get_functions[resource_type](iter([searchName])):
-            if resource_type == "feature":
-                return Feature(
-                    name=x.name
-                )
-            elif resource_type == "label":
-                return Label(
-                    name=x.name
-                )
-            elif resource_type == "source":
-                return Source(
-                    name=x.name
-                )
-            elif resource_type == "trainingset" or resource_type == "training-set":
-                return TrainingSet(
-                    name=x.name
-                )
-            elif resource_type == "model":
-                return Model(
-                    name=x.name
-                )
+            return StubResource(x)
     except grpc._channel._MultiThreadedRendezvous:
         print(f"{resource_type} not found.")
+
+class StubResource:
+    def __init__(self, stub_resource):
+        self.stub_resource = stub_resource
+    def print(self):
+        print(self.stub_resource)
 
 def get_feature_variant_info(stub, name, variant):
     searchNameVariant = metadata_pb2.NameVariant(name=name, variant=variant)

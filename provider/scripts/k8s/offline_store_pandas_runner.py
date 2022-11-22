@@ -266,8 +266,6 @@ def get_blob_credentials(args):
         credentials: Namespace(type="", ...) (includes credentials needed for each blob store.)
     """
 
-    print("---->", args.mode, args.azure_blob_credentials)
-
     if args.mode == K8S_MODE and args.azure_blob_credentials:
         return Namespace(
             type=AZURE,

@@ -78,6 +78,13 @@ class Schedule:
                                    resource_type=self.resource_type), schedule=self.schedule_string)
         stub.RequestScheduleChange(serialized)
 
+@typechecked
+@dataclass
+class SerializedConfig:
+    serialized: str
+
+    def type(self) -> str:
+        return "SERIALIZED"
 
 @typechecked
 @dataclass
@@ -406,7 +413,7 @@ class K8sConfig:
 
 
 Config = Union[
-    RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig, BigQueryConfig, FirestoreConfig, SparkAWSConfig, OnlineBlobConfig, AzureBlobStoreConfig, K8sConfig]
+    RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig, BigQueryConfig, FirestoreConfig, SparkAWSConfig, OnlineBlobConfig, AzureBlobStoreConfig, K8sConfig, SerializedConfig]
 
 
 @typechecked
@@ -621,7 +628,7 @@ class Source:
     schedule_obj: Schedule = None
     is_transformation = SourceType.PRIMARY_SOURCE.value
     inputs = []
-    status: str = "NO_STATUS"
+    status: str = ResourceStatus.NoStatus
     features: List[NameVariant] = None
     labels: List[NameVariant] = None
     trainingsets: List[NameVariant] = None
@@ -630,7 +637,7 @@ class Source:
         return self.status
 
     def is_ready(self) -> bool:
-        return self.get_status() == "READY"
+        return self.get_status() == ResourceStatus.Ready
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=7, schedule_string=schedule)
@@ -849,7 +856,7 @@ class Feature:
     description: str
     variant: str = "default"
     schedule: str = ""
-    status: str = "NO_STATUS"
+    status: str = ResourceStatus.NoStatus
     schedule_obj: Schedule = None
     trainingsets: List[NameVariant] = None
 
@@ -857,7 +864,7 @@ class Feature:
         return self.status
 
     def is_ready(self) -> bool:
-        return self.get_status() == "READY"
+        return self.get_status() == ResourceStatus.Ready
 
     def __post_init__(self):
         col_types = [member.value for member in ColumnTypes]
@@ -958,14 +965,14 @@ class Label:
     description: str
     location: ResourceLocation
     variant: str = "default"
-    status: str = "NO_STATUS"
+    status: str = ResourceStatus.NoStatus
     trainingsets: List[NameVariant] = None
 
     def get_status(self) -> str: 
         return self.status
 
     def is_ready(self) -> bool:
-        return self.get_status() == "READY"
+        return self.get_status() == ResourceStatus.Ready
 
     def __post_init__(self):
         col_types = [member.value for member in ColumnTypes]
@@ -1148,14 +1155,14 @@ class TrainingSet:
     variant: str = "default"
     schedule: str = ""
     schedule_obj: Schedule = None
-    status: str = "NO_STATUS"
+    status: str = Resource
     entity: str = ""
 
     def get_status(self) -> str:
         return self.status
 
     def is_ready(self) -> bool:
-        return self.get_status() == "READY"
+        return self.get_status() == ResourceStatus.Ready
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=6, schedule_string=schedule)

@@ -180,7 +180,11 @@ jobs:
           AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
           AZURE_ACCOUNT_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
           AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
-
+          MONGODB_HOST: ${{ secrets.MONGODB_HOST }}
+          MONGODB_PORT: ${{ secrets.MONGODB_PORT }}
+          MONGODB_USERNAME: ${{ secrets.MONGODB_USERNAME }}
+          MONGODB_PASSWORD: ${{ secrets.MONGODB_PASSWORD }}
+          MONGODB_DATABASE: ${{ secrets.MONGODB_DATABASE }}
         working-directory: ./
         run: make test_online
 

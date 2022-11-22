@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/go-redis/redis/v8"
+	"time"
 )
 
 type redisTableKey struct {
@@ -110,6 +111,10 @@ func (table redisOnlineTable) Get(entity string) (interface{}, error) {
 		result, err = val.Result()
 	case Int:
 		result, err = val.Int()
+	case Int32:
+		if res, err := val.Int(); err == nil {
+			result = int32(res)
+		}
 	case Int64:
 		result, err = val.Int64()
 	case Float32:
@@ -118,9 +123,17 @@ func (table redisOnlineTable) Get(entity string) (interface{}, error) {
 		result, err = val.Float64()
 	case Bool:
 		result, err = val.Bool()
+	case Timestamp, Datetime: // Maintains compatibility with previously create timestamp tables
+		var t time.Time
+		t, err = val.Time()
+		if err == nil {
+			result = t.Local()
+		}
+	default:
+		result, err = val.Result()
 	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not cast value: %s to %s: %w", val.String(), table.valueType, err)
 	}
 	return result, nil
 }

@@ -250,7 +250,7 @@ class TestTransformation(TestCase):
             return "SELECT entity, feature_val from {{s_average_user_transaction.quickstart}} GROUP BY entity"
 
         res = self.sql_run_checks(s_transformation2, name, local)
-        np.testing.assert_array_equal(res, np.array([2553.0]))
+        np.testing.assert_array_equal(res, np.array([1054.0]))
 
     def test_simple(self):
         local = ff.register_local()
@@ -363,7 +363,7 @@ class TestTransformation(TestCase):
         client = ff.ResourceClient(local=True)
         client.apply()
         serve = ServingClient(local=True)
-        res = serve.features([(f"feature-{name}", name)], {"user": "C1010011"})
+        res = serve.features([(f"feature-{name}", name)], {"user": "C1010876"})
         serve.impl.db.close()
         return res
 

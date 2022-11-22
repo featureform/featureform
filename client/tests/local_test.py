@@ -125,7 +125,7 @@ class TestPetalGuide:
             entity_column="Id",
             inference_store=local,
             features=[
-                {"name": "SepalLength", "variant": "transformation_test", "column": "SepalLengthCm", "type": "float"},
+                {"name": "SepalLength", "variant": "transformation_test", "column": "SepalLengthCm", "type": "float32"},
             ],
 
         )
@@ -135,13 +135,13 @@ class TestPetalGuide:
             entity_column="Id",
             inference_store=local,
             features=[
-                {"name": "SepalLength", "variant": "join", "column": "SepalLengthCm", "type": "float"},
-                {"name": "SepalWidth", "variant": "join", "column": "SepalWidthCm", "type": "float"},
-                {"name": "PetalLength", "variant": "join", "column": "PetalLengthCm", "type": "float"},
-                {"name": "PetalWidth", "variant": "join", "column": "PetalWidthCm", "type": "float"},
+                {"name": "SepalLength", "variant": "join", "column": "SepalLengthCm", "type": "float32"},
+                {"name": "SepalWidth", "variant": "join", "column": "SepalWidthCm", "type": "float32"},
+                {"name": "PetalLength", "variant": "join", "column": "PetalLengthCm", "type": "float32"},
+                {"name": "PetalWidth", "variant": "join", "column": "PetalWidthCm", "type": "float32"},
             ],
             labels=[
-                {"name": "SpeciesType", "variant": "join", "column": "Species", "type": "Label"},
+                {"name": "SpeciesType", "variant": "join", "column": "Species", "type": "string"},
             ],
 
         )
@@ -150,14 +150,14 @@ class TestPetalGuide:
             entity_column="Id",
             inference_store=local,
             features=[
-                {"name": "SepalLength", "variant": "centimeters", "column": "SepalLengthCm", "type": "float"},
-                {"name": "SepalWidth", "variant": "centimeters", "column": "SepalWidthCm", "type": "float"},
-                {"name": "PetalLength", "variant": "centimeters", "column": "PetalLengthCm", "type": "float"},
-                {"name": "PetalWidth", "variant": "centimeters", "column": "PetalWidthCm", "type": "float"},
+                {"name": "SepalLength", "variant": "centimeters", "column": "SepalLengthCm", "type": "float32"},
+                {"name": "SepalWidth", "variant": "centimeters", "column": "SepalWidthCm", "type": "float32"},
+                {"name": "PetalLength", "variant": "centimeters", "column": "PetalLengthCm", "type": "float32"},
+                {"name": "PetalWidth", "variant": "centimeters", "column": "PetalWidthCm", "type": "float32"},
             ],
 
             labels=[
-                {"name": "SpeciesType", "variant": "String", "column": "Species", "type": "Label"},
+                {"name": "SpeciesType", "variant": "String", "column": "Species", "type": "string"},
             ],
         )
 

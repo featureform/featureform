@@ -288,29 +288,29 @@ jobs:
           export FEATUREFORM_HOST="localhost:443"
           export FEATUREFORM_CERT="tls.crt"
 
-      # - name: Test End-to-End
-      #   env:
-      #     AZURE_ACCOUNT_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
-      #     AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
-      #     AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
-      #   run: make test_e2e
+      - name: Test End-to-End
+        env:
+          AZURE_ACCOUNT_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
+          AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
+          AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
+        run: make test_e2e
 
-      # - name: Check That Dashboard Is Working
-      #   id: link-report
-      #   uses: celinekurpershoek/link-checker@master
-      #   with:
-      #     # Required:
-      #     url: "http://localhost:7000"
-      #     # optional:
-      #     recursiveLinks: true
-      # - name: Print result
-      #   run: echo "${{steps.link-report.outputs.result}}"
+      - name: Check That Dashboard Is Working
+        id: link-report
+        uses: celinekurpershoek/link-checker@master
+        with:
+          # Required:
+          url: "http://localhost:7000"
+          # optional:
+          recursiveLinks: true
+      - name: Print result
+        run: echo "${{steps.link-report.outputs.result}}"
 
-      # - name: Reset Quickstart
-      #   run: |
-      #     helm uninstall quickstart
-      #     helm install quickstart ./charts/quickstart
-      #     /tmp/etcd-download-test/etcdctl --user=root:secretpassword del "" --prefix
+      - name: Reset Quickstart
+        run: |
+          helm uninstall quickstart
+          helm install quickstart ./charts/quickstart
+          /tmp/etcd-download-test/etcdctl --user=root:secretpassword del "" --prefix
 
       - name: Run CLI for Get and List Functions
         run: |

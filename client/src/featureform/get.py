@@ -9,7 +9,9 @@ def get_user_info(stub, name):
     searchName = metadata_pb2.Name(name=name)
     try:
         for user in stub.GetUsers(iter([searchName])):
-            return user
+            return User(
+                name=user.name,
+            )
     except grpc._channel._MultiThreadedRendezvous:
         print("User not found.")
 

@@ -5,7 +5,8 @@ import sys
 
 sys.path.insert(0, 'client/src/')
 import pytest
-from featureform.register import LocalProvider, Provider, Registrar, LocalConfig
+from featureform.register import LocalProvider, Provider, Registrar, LocalConfig, SQLTransformationDecorator, \
+    DFTransformationDecorator
 from featureform.resources import SQLTransformation, Source, DFTransformation
 
 @pytest.fixture
@@ -40,6 +41,25 @@ def test_sql_transformation_decorator_invalid_fn(local, fn):
     )
     with pytest.raises((TypeError, ValueError)):
         decorator(fn)
+
+
+
+def test_sql_transformation_empty_description(registrar):
+    def my_function():
+        return "SELECT * FROM X"
+
+    dec = SQLTransformationDecorator(registrar=registrar, owner="", provider="", variant="sql")
+    dec.__call__(my_function)
+    dec.to_source()
+
+def test_df_transformation_empty_description(registrar):
+    def my_function(df):
+        return df
+
+    dec = DFTransformationDecorator(registrar=registrar, owner="", provider="", variant="df")
+    dec.__call__(my_function)
+    dec.to_source()
+
 
 def del_rw(action, name, exc):
     os.chmod(name, stat.S_IWRITE)

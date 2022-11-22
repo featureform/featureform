@@ -50,8 +50,8 @@ class StubResource:
     def __init__(self, stub_resource):
         self.stub_resource = stub_resource
     def print(self):
-        for field in self.stub_resource:
-            if not field.startswith("__")
+        for field in dir(self.stub_resource):
+            if not field.startswith("__"):
                 print(f"{field}: {self.stub_resource[field]}")
 
 def get_feature_variant_info(stub, name, variant):

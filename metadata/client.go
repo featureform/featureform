@@ -1640,9 +1640,6 @@ func (variant *TrainingSetVariant) Error() string {
 	return variant.serialized.GetStatus().ErrorMessage
 }
 
-func (variant *TrainingSetVariant) LagFeatures() []*LagFeatures {
-	return variant.serialized.GetLagFeatures()
-}
 
 func (variant *TrainingSetVariant) Label() NameVariant {
 	return parseNameVariant(variant.serialized.GetLabel())

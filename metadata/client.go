@@ -354,7 +354,7 @@ func (client *Client) CreateLabelVariant(ctx context.Context, def LabelDef) erro
 		Source:      def.Source.Serialize(),
 		Entity:      def.Entity,
 		Owner:       def.Owner,
-		Status:      &pb.ResourceStatus{Status: pb.ResourceStatus_CREATED},
+		Status:      &pb.ResourceStatus{Status: pb.ResourceStatus_NO_STATUS},
 		Provider:    def.Provider,
 	}
 	switch x := def.Location.(type) {
@@ -1640,6 +1640,9 @@ func (variant *TrainingSetVariant) Error() string {
 	return variant.serialized.GetStatus().ErrorMessage
 }
 
+func (variant *TrainingSetVariant) LagFeatures() []*pb.FeatureLags {
+	return variant.serialized.GetFeatureLags()
+}
 
 func (variant *TrainingSetVariant) Label() NameVariant {
 	return parseNameVariant(variant.serialized.GetLabel())

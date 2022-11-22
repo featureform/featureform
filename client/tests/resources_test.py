@@ -459,11 +459,6 @@ def test_invalid_providers(snowflake_config):
             "team": "team",
             "config": snowflake_config
         },
-        {
-            "name": "name",
-            "description": "desc",
-            "function": "fn",
-        },
     ]
     for args in provider_args:
         with pytest.raises(TypeError):

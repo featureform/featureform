@@ -38,6 +38,7 @@ const (
 	String              = "string"
 	Bool                = "bool"
 	Timestamp           = "time.Time"
+	Datetime            = "datetime"
 )
 
 type OfflineResourceType int

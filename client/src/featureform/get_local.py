@@ -33,13 +33,13 @@ def get_entity_info_local(name):
 
     returned_training_sets_list = format_resource_list(training_set_list, "training_set_name", "training_set_variant")
     
-    # returned_entity = {
-    #     "name": name,
-    #     "status": entity["status"],
-    #     "features"=returned_features_list,
-    #     "labels"=returned_labels_list,
-    #     "trainingsets"=returned_training_sets_list
-    # }
+    returned_entity = {
+        "name": name,
+        "status": entity["status"],
+        "features":returned_features_list,
+        "labels":returned_labels_list,
+        "trainingsets":returned_training_sets_list
+    }
 
     format_rows([("ENTITY NAME: ", returned_entity["name"]),
     ("STATUS: ", returned_entity["status"])])

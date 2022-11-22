@@ -388,7 +388,6 @@ def test_invalid_providers(snowflake_config):
             "name": "name",
             "description": "desc",
             "function": "fn",
-            "team": "team"
         },
     ]
     for args in provider_args:

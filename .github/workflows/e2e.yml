@@ -191,7 +191,16 @@ jobs:
   test:
     name: Run Tests
     environment: Integration testing
-    needs: [api-server, coordinator, dashboard, dashboard-metadata, metadata, serving, worker]
+    needs:
+      [
+        api-server,
+        coordinator,
+        dashboard,
+        dashboard-metadata,
+        metadata,
+        serving,
+        worker,
+      ]
     defaults:
       run:
         working-directory: ./
@@ -208,7 +217,6 @@ jobs:
         with:
           python-version: "3.7"
           check-latest: true
-
 
       - name: Check Artifacts
         run: |
@@ -228,11 +236,11 @@ jobs:
         run: |
           rm -f /tmp/etcd-${ETCD_VER}-linux-amd64.tar.gz
           rm -rf /tmp/etcd-download-test && mkdir -p /tmp/etcd-download-test
-          
+
           curl -L ${GOOGLE_URL}/${ETCD_VER}/etcd-${ETCD_VER}-linux-amd64.tar.gz -o /tmp/etcd-${ETCD_VER}-linux-amd64.tar.gz
           tar xzvf /tmp/etcd-${ETCD_VER}-linux-amd64.tar.gz -C /tmp/etcd-download-test --strip-components=1
           rm -f /tmp/etcd-${ETCD_VER}-linux-amd64.tar.gz
-          
+
           /tmp/etcd-download-test/etcd --version
           /tmp/etcd-download-test/etcdctl version
 
@@ -280,58 +288,58 @@ jobs:
           export FEATUREFORM_HOST="localhost:443"
           export FEATUREFORM_CERT="tls.crt"
 
-      - name: Test End-to-End
-        env:
-          AZURE_ACCOUNT_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
-          AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
-          AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
-        run: make test_e2e
+      # - name: Test End-to-End
+      #   env:
+      #     AZURE_ACCOUNT_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
+      #     AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
+      #     AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
+      #   run: make test_e2e
 
-      - name: Check That Dashboard Is Working
-        id: link-report
-        uses: celinekurpershoek/link-checker@master
-        with:
-          # Required:
-          url: "http://localhost:7000"
-          # optional:
-          recursiveLinks: true
-      - name: Print result
-        run: echo "${{steps.link-report.outputs.result}}"
+      # - name: Check That Dashboard Is Working
+      #   id: link-report
+      #   uses: celinekurpershoek/link-checker@master
+      #   with:
+      #     # Required:
+      #     url: "http://localhost:7000"
+      #     # optional:
+      #     recursiveLinks: true
+      # - name: Print result
+      #   run: echo "${{steps.link-report.outputs.result}}"
 
-      - name: Reset Quickstart
-        run: |
-          helm uninstall quickstart
-          helm install quickstart ./charts/quickstart
-          /tmp/etcd-download-test/etcdctl --user=root:secretpassword del "" --prefix
+      # - name: Reset Quickstart
+      #   run: |
+      #     helm uninstall quickstart
+      #     helm install quickstart ./charts/quickstart
+      #     /tmp/etcd-download-test/etcdctl --user=root:secretpassword del "" --prefix
 
       - name: Run CLI for Get and List Functions
         run: |
-            kubectl get secret featureform-ca-secret -o=custom-columns=':.data.tls\.crt'| base64 -d > tls.crt
-            featureform apply client/examples/quickstart.py --host localhost:8000 --cert tls.crt
-            featureform get label fraudulent --host localhost:8000 --cert tls.crt
-            featureform get label fraudulent quickstart --host localhost:8000 --cert tls.crt
-            featureform list labels --host localhost:8000 --cert tls.crt
-            featureform get source transactions --host localhost:8000 --cert tls.crt
-            featureform get source transactions kaggle --host localhost:8000 --cert tls.crt
-            featureform list sources --host localhost:8000 --cert tls.crt
-            featureform get feature avg_transactions --host localhost:8000 --cert tls.crt
-            featureform get feature avg_transactions quickstart --host localhost:8000 --cert tls.crt
-            featureform list features --host localhost:8000 --cert tls.crt
-            featureform get provider redis-quickstart --host localhost:8000 --cert tls.crt
-            featureform list providers --host localhost:8000 --cert tls.crt
-            featureform get user featureformer --host localhost:8000 --cert tls.crt
-            featureform list users --host localhost:8000 --cert tls.crt
-            featureform get entity user --host localhost:8000 --cert tls.crt
-            featureform list entities --host localhost:8000 --cert tls.crt
-#
-#      - name: Set Cert as Env Variable
-#        run: export FEATUREFORM_CERT=$(pwd)/tls.crt
-#
-#      - name: Run Get Test
-#        run: pytest client/src/featureform/get_test.pya
-#
-#      - name: Run List Test
-#        run: pytest client/src/featureform/list_test.py
+          kubectl get secret featureform-ca-secret -o=custom-columns=':.data.tls\.crt'| base64 -d > tls.crt
+          featureform apply client/examples/quickstart.py --host localhost:8000 --cert tls.crt
+          featureform get label fraudulent --host localhost:8000 --cert tls.crt
+          featureform get label fraudulent quickstart --host localhost:8000 --cert tls.crt
+          featureform list labels --host localhost:8000 --cert tls.crt
+          featureform get source transactions --host localhost:8000 --cert tls.crt
+          featureform get source transactions kaggle --host localhost:8000 --cert tls.crt
+          featureform list sources --host localhost:8000 --cert tls.crt
+          featureform get feature avg_transactions --host localhost:8000 --cert tls.crt
+          featureform get feature avg_transactions quickstart --host localhost:8000 --cert tls.crt
+          featureform list features --host localhost:8000 --cert tls.crt
+          featureform get provider redis-quickstart --host localhost:8000 --cert tls.crt
+          featureform list providers --host localhost:8000 --cert tls.crt
+          featureform get user featureformer --host localhost:8000 --cert tls.crt
+          featureform list users --host localhost:8000 --cert tls.crt
+          featureform get entity user --host localhost:8000 --cert tls.crt
+          featureform list entities --host localhost:8000 --cert tls.crt
+      #
+      #      - name: Set Cert as Env Variable
+      #        run: export FEATUREFORM_CERT=$(pwd)/tls.crt
+      #
+      #      - name: Run Get Test
+      #        run: pytest client/src/featureform/get_test.pya
+      #
+      #      - name: Run List Test
+      #        run: pytest client/src/featureform/list_test.py
 
       - name: K8s Pods
         if: always()
@@ -392,7 +400,7 @@ jobs:
       - name: Cleanup Docker
         if: always()
         continue-on-error: true
-        run: | 
+        run: |
           docker system prune -a
           docker rmi $(docker images -a -q)
 

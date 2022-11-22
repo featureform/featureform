@@ -1,9 +1,9 @@
-#!/bin/bash
-
 POSITIONAL_ARGS=()
 
 pip3 uninstall featureform -y
 rm -r client/dist/*
+
+# -d or --dashboard parameter enables that the dashboard for localmode be rebuilt
 
 while [[ $# -gt 0 ]]; do
   case $1 in

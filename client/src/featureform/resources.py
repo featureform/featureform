@@ -415,7 +415,7 @@ class Provider:
     name: str
     description: str
     team: str
-    config: Config = None
+    config: Config
     provider_type: str = ""
     software: str = ""
     status: str = ""

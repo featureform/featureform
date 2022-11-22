@@ -143,6 +143,14 @@ def get_provider_info(stub, name):
                 name=x.name,
                 description=x.description,
                 team=x.team
+                software=x.software,
+                provider_type=x.type,
+                status=x.status.Status._enum_type.values[x.status.status].name,
+                sources=[(f.name,f.variant) for f in x.sources],
+                features=[(f.name,f.variant) for f in x.features],
+                trainingsets=[(f.name,f.variant) for f in x.trainingsets],
+                labels=[(f.name,f.variant) for f in x.labels],
+                config=ff.SerializedConfig(serialized=x.serialized_config),
             )
     except grpc._channel._MultiThreadedRendezvous:
         print("Provider not found.")

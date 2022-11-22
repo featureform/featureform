@@ -332,14 +332,14 @@ jobs:
           featureform get entity user --host localhost:8000 --cert tls.crt
           featureform list entities --host localhost:8000 --cert tls.crt
 
-           - name: Set Cert as Env Variable
-             run: export FEATUREFORM_CERT=$(pwd)/tls.crt
+      - name: Set Cert as Env Variable
+        run: export FEATUREFORM_CERT=$(pwd)/tls.crt
 
-           - name: Run Get Test
-             run: pytest client/src/featureform/get_test.py
+      - name: Run Get Test
+        run: pytest client/src/featureform/get_test.py
 
-           - name: Run List Test
-             run: pytest client/src/featureform/list_test.py
+      - name: Run List Test
+        run: pytest client/src/featureform/list_test.py
 
       - name: K8s Pods
         if: always()

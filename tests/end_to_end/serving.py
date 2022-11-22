@@ -53,7 +53,6 @@ def serve_feature():
     try:
         fpf = client.features([(FEATURE_NAME, FEATURE_VARIANT)], {FEATURE_ENTITY: FEATURE_VALUE}).wait()
         print(fpf)
-        return
     except Exception as e:
         print(f"Serving for {FEATURE_NAME}:{FEATURE_VARIANT} could not be completed: {e}")
 

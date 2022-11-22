@@ -58,10 +58,9 @@ def get_entity_info_local(name):
 
     return Entity(
         name=name,
-        features=[(f["name"], f["variant"] for f in returned_entity["features"])],
-        labels=[(f["name"], f["variant"] for f in returned_entity["features"])],
-        labels=[(f["name"], f["variant"] for f in returned_entity["labels"])],
-        trainingsets=[(f["name"], f["variant"] for f in returned_entity["trainingsets"])],
+        features=[(f["name"], f["variant"]) for f in returned_entity["features"]],
+        labels=[(f["name"], f["variant"]) for f in returned_entity["labels"]],
+        trainingsets=[(f["name"], f["variant"]) for f in returned_entity["trainingsets"]],
     )
 
 
@@ -118,7 +117,7 @@ def get_feature_variant_info_local(name, variant):
             "name": feature["source_name"],
             "variant": feature["source_variant"]
         },
-        "trainingsets"=returned_training_sets_list
+        "trainingsets": returned_training_sets_list
     }
     format_rows([("NAME: ", returned_feature["name"]), 
     ("VARIANT: ", returned_feature["variant"]), 
@@ -146,7 +145,7 @@ def get_feature_variant_info_local(name, variant):
         provider=returned_feature["provider"],
         status=returned_feature["status"],
         source=(returned_feature["source"]["name"], returned_feature["source"]["variant"]),
-        trainingsets=[(f["name"], f["variant"] for f in returned_feature["trainingsets"])],
+        trainingsets=[(f["name"], f["variant"]) for f in returned_feature["trainingsets"]],
     )
 
 def get_label_variant_info_local(name, variant):
@@ -173,7 +172,7 @@ def get_label_variant_info_local(name, variant):
             "name": label["source_name"],
             "variant": label["source_variant"]
         },
-        "trainingsets"=returned_training_sets_list
+        "trainingsets": returned_training_sets_list
     }
     format_rows([("NAME: ", returned_label["name"]), 
     ("VARIANT: ", returned_label["variant"]), 
@@ -201,7 +200,7 @@ def get_label_variant_info_local(name, variant):
         provider=returned_label["provider"],
         status=returned_label["status"],
         source=(returned_label["source"]["name"], returned_label["source"]["variant"]),
-        trainingsets=[(f["name"], f["variant"] for f in returned_label["trainingsets"])],
+        trainingsets=[(f["name"], f["variant"]) for f in returned_label["trainingsets"]],
     )
 
 def get_source_variant_info_local(name, variant):
@@ -248,9 +247,9 @@ def get_source_variant_info_local(name, variant):
         "provider": source["provider"],
         "status": source["status"],
         "definition": source["definition"],
-        "features"=returned_features_list,
-        "labels"=returned_labels_list,
-        "trainingsets"=returned_training_sets_list
+        "features": returned_features_list,
+        "labels": returned_labels_list,
+        "trainingsets": returned_training_sets_list
     }
 
     format_rows([("NAME: ", returned_source["name"]),
@@ -282,9 +281,9 @@ def get_source_variant_info_local(name, variant):
         provider=returned_source["provider"],
         status=returned_source["status"],
         # definition,
-        features=[(f["name"], f["variant"] for f in returned_source["features"])],
-        labels=[(f["name"], f["variant"] for f in returned_source["labels"])],
-        trainingsets=[(f["name"], f["variant"] for f in returned_source["trainingsets"])],
+        features=[(f["name"], f["variant"]) for f in returned_source["features"]],
+        labels=[(f["name"], f["variant"]) for f in returned_source["labels"]],
+        trainingsets=[(f["name"], f["variant"]) for f in returned_source["trainingsets"]],
     )
 
 
@@ -308,7 +307,7 @@ def get_training_set_variant_info_local(name, variant):
             "name": training_set["label_name"],
             "variant": training_set["label_variant"]
         },
-        "features"=returned_features_list
+        "features": returned_features_list
     }
 
     format_rows([("NAME: ", returned_training_set["name"]),
@@ -329,8 +328,8 @@ def get_training_set_variant_info_local(name, variant):
         owner=returned_training_set["owner"],
         description=returned_training_set["description"],
         status=returned_training_set["status"],
-        label=(returned_training_set["label"]["name"], returned_training_set["label"]["variant"])
-        features=[(f["name"], f["variant"] for f in returned_training_set["features"])],
+        label=(returned_training_set["label"]["name"], returned_training_set["label"]["variant"]),
+        features=[(f["name"], f["variant"]) for f in returned_training_set["features"]],
     )
 
 def get_provider_info_local(name):
@@ -359,8 +358,8 @@ def get_provider_info_local(name):
         "status": provider["status"],
         "serializedConfig": provider["serialized_config"],
         "sources": provider["sources"],
-        "features"=returned_features_list,
-        "labels"=returned_labels_list
+        "features": returned_features_list,
+        "labels": returned_labels_list
     }
 
     format_rows([("NAME: ", returned_provider["name"]),
@@ -386,10 +385,10 @@ def get_provider_info_local(name):
         software=returned_provider["software"],
         team=returned_provider["team"],
         status=returned_provider["status"],
-        sources=[(f["name"], f["variant"] for f in returned_provider["sources"])],
-        features=[(f["name"], f["variant"] for f in returned_provider["features"])],
-        labels=[(f["name"], f["variant"] for f in returned_provider["labels"])],
-        training_sets=[(f["name"], f["variant"] for f in returned_provider["trainingsets"])],
+        sources=[(f["name"], f["variant"]) for f in returned_provider["sources"]],
+        features=[(f["name"], f["variant"]) for f in returned_provider["features"]],
+        labels=[(f["name"], f["variant"]) for f in returned_provider["labels"]],
+        training_sets=[(f["name"], f["variant"]) for f in returned_provider["trainingsets"]],
     )
 
 

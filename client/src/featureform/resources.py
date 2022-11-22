@@ -9,6 +9,7 @@ from base64 import b64encode
 from typeguard import typechecked
 from dataclasses import dataclass
 from typing import List, Tuple, Union
+from .format import *
 
 import grpc
 from .sqlite_metadata import SQLiteMetadata
@@ -405,6 +406,8 @@ class Provider:
     description: str
     team: str
     config: Config = None
+    provider_type: str = ""
+    software: str = ""
     status: str = ""
     function: str = ""
     sources: List[NameVariant] = None

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/go-redis/redis/v8"
+	"time"
 )
 
 type redisTableKey struct {
@@ -122,7 +123,11 @@ func (table redisOnlineTable) Get(entity string) (interface{}, error) {
 	case Bool:
 		result, err = val.Bool()
 	case Timestamp, Datetime: // Maintains compatibility with previously create timestamp tables
-		result, err = val.Time()
+		var t time.Time
+		t, err = val.Time()
+		if err == nil {
+			result = t.Local()
+		}
 	default:
 		result, err = val.Result()
 	}

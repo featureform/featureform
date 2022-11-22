@@ -44,7 +44,7 @@ func Test_redisOnlineTable_Get(t *testing.T) {
 		{"Float32 Success", fields{redisClient, redisTableKey{}, Float32}, args{"entity5"}, 1, float32(1), false},
 		{"Float64 Success", fields{redisClient, redisTableKey{}, Float64}, args{"entity6"}, 1, float64(1), false},
 		{"Bool Success", fields{redisClient, redisTableKey{}, Bool}, args{"entity7"}, true, true, false},
-		{"Timestamp Success", fields{redisClient, redisTableKey{}, Timestamp}, args{"entity8"}, time.UnixMilli(0), time.UnixMilli(0), false},
+		{"Timestamp Success", fields{redisClient, redisTableKey{}, Timestamp}, args{"entity8"}, time.UnixMilli(0), time.UnixMilli(0).Local(), false},
 		// These will allow any previously created tables with incorrect valueTypes to be called as a string
 		// if the valueType is not recognized
 		{"String Default", fields{redisClient, redisTableKey{}, "Invalid"}, args{"entity9"}, "somestring", "somestring", false},

@@ -6,17 +6,10 @@ import sys
 
 sys.path.insert(0, 'client/src/')
 import pytest
-<<<<<<< HEAD:client/src/featureform/resources_test.py
-from .resources import ResourceRedefinedError, ResourceState, Provider, RedisConfig, CassandraConfig, FirestoreConfig, \
-SnowflakeConfig, PostgresConfig, RedshiftConfig, BigQueryConfig, OnlineBlobConfig, AzureFileStoreConfig, K8sConfig, \
-    User, Provider, Entity, Feature, Label, TrainingSet, PrimaryData, SQLTable, Source, ResourceColumnMapping, \
-    DynamodbConfig, Schedule, FileStoreProvider
-=======
 from featureform.resources import ResourceRedefinedError, ResourceState, Provider, RedisConfig, CassandraConfig, FirestoreConfig, \
     SnowflakeConfig, PostgresConfig, RedshiftConfig, BigQueryConfig, OnlineBlobConfig, AzureBlobStoreConfig, K8sConfig, \
     User, Provider, Entity, Feature, Label, TrainingSet, PrimaryData, SQLTable, \
     Source, ResourceColumnMapping, DynamodbConfig, Schedule
->>>>>>> origin:client/tests/resources_test.py
 
 
 @pytest.fixture
@@ -61,10 +54,6 @@ def blob_store_config():
         root_path="example/path",
     )
 
-<<<<<<< HEAD:client/src/featureform/resources_test.py
-=======
-
->>>>>>> origin:client/tests/resources_test.py
 @pytest.fixture
 def online_blob_config(blob_store_config):
     return OnlineBlobConfig(

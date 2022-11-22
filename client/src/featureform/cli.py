@@ -96,7 +96,11 @@ def get(host, cert, insecure, local, resource_type, name, variant):
         except AttributeError as e:
             print(f"Print not implemented for resource and api type: {e}")
     elif resource_type in rc_get_functions:
-        rc_get_functions[resource_type](name=name, local=local)
+        resource = rc_get_functions[resource_type](name=name, local=local).print()
+        try:
+            resource.print()
+        except AttributeError as e:
+            print(f"Print not implemented for resource and api type: {e}")
     else:
         raise ValueError("Resource type not found")
 

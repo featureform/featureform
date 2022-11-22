@@ -157,7 +157,7 @@ class FeatureServer:
     def __getitem__(self, item):
         if not self._all_features_ready and not self._all_ready():
             raise ValueError("Feature list not yet fetched")
-        self._feature_list[item]
+        return self._feature_list[item]
 
     def _get_features(self):
         req = serving_pb2.FeatureServeRequest()

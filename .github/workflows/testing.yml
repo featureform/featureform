@@ -332,6 +332,11 @@ jobs:
           AWS_EMR_CLUSTER_ID: ${{ secrets.AWS_EMR_CLUSTER_ID }}
           S3_BUCKET_PATH: ${{ secrets.S3_BUCKET_PATH }}
           S3_BUCKET_REGION: ${{ secrets.S3_BUCKET_REGION }}
+          AZURE_ACCOUNT_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
+          AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
+          AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
+          AZURE_CONTAINER_PATH: ${{ secrets.AZURE_CONTAINER_PATH }}
+          AZURE_CONNECTION_STRING: ${{ secrets.AZURE_CONNECTION_STRING }}
         working-directory: ./
         run: make test_offline_spark
 

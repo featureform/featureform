@@ -226,9 +226,9 @@ func TestOnlineStores(t *testing.T) {
 				t.Fatalf("Failed to close online store %s: %v", testItem.t, err)
 			}
 		}
-		t.Run("TestConsistency", func(t *testing.T) {
-			testConsistency(t, testItem.t, testItem.c)
-		})
+		// t.Run("TestConsistency", func(t *testing.T) {
+		// 	testConsistency(t, testItem.t, testItem.c)
+		// })
 	}
 }
 
@@ -403,47 +403,47 @@ func testTypeCasting(t *testing.T, store OnlineStore) {
 	}
 }
 
-func testConsistency(t *testing.T, tp Type, config SerializedConfig) {
-	createConnection := func(t *testing.T, tp Type, config SerializedConfig) OnlineStore {
-		provider, err := Get(tp, config)
-		if err != nil {
-			t.Errorf("Could not get provider: %s", err.Error())
-		}
-		store, err := provider.AsOnlineStore()
-		if err != nil {
-			t.Errorf("Could not get provider as online store: %s", err.Error())
-		}
-		return store
-	}
+// func testConsistency(t *testing.T, tp Type, config SerializedConfig) {
+// 	createConnection := func(t *testing.T, tp Type, config SerializedConfig) OnlineStore {
+// 		provider, err := Get(tp, config)
+// 		if err != nil {
+// 			t.Errorf("Could not get provider: %s", err.Error())
+// 		}
+// 		store, err := provider.AsOnlineStore()
+// 		if err != nil {
+// 			t.Errorf("Could not get provider as online store: %s", err.Error())
+// 		}
+// 		return store
+// 	}
 
-	for i := 1; i < 10; i++ {
-		store := createConnection(t, tp, config)
-		featureName := fmt.Sprintf("feature_%s", uuid.NewString())
-		_, err := store.CreateTable(featureName, "default", String)
-		if err != nil {
-			t.Errorf("could not create table: %s", err.Error())
-		}
-		store.Close()
-		if err != nil {
-			t.Errorf("could not close store after create: %s", err.Error())
-		}
+// 	for i := 1; i < 10; i++ {
+// 		store := createConnection(t, tp, config)
+// 		featureName := fmt.Sprintf("feature_%s", uuid.NewString())
+// 		_, err := store.CreateTable(featureName, "default", String)
+// 		if err != nil {
+// 			t.Errorf("could not create table: %s", err.Error())
+// 		}
+// 		store.Close()
+// 		if err != nil {
+// 			t.Errorf("could not close store after create: %s", err.Error())
+// 		}
 
-		store = createConnection(t, tp, config)
-		_, err = store.GetTable(featureName, "default")
-		if err != nil {
-			t.Errorf("could not get initial table: %s", err.Error())
-		}
+// 		store = createConnection(t, tp, config)
+// 		_, err = store.GetTable(featureName, "default")
+// 		if err != nil {
+// 			t.Errorf("could not get initial table: %s", err.Error())
+// 		}
 
-		err = store.DeleteTable(featureName, "default")
-		if err != nil {
-			t.Errorf("could not delete table: %s", err.Error())
-		}
-		store.Close()
-		if err != nil {
-			t.Errorf("could not close store after delete: %s", err.Error())
-		}
-	}
-}
+// 		err = store.DeleteTable(featureName, "default")
+// 		if err != nil {
+// 			t.Errorf("could not delete table: %s", err.Error())
+// 		}
+// 		store.Close()
+// 		if err != nil {
+// 			t.Errorf("could not close store after delete: %s", err.Error())
+// 		}
+// 	}
+// }
 
 func TestFirestoreConfig_Deserialize(t *testing.T) {
 	content, err := ioutil.ReadFile("connection/connection_configs.json")

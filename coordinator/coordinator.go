@@ -438,9 +438,12 @@ func (c *Coordinator) runTransformationJob(transformationConfig provider.Transfo
 		return fmt.Errorf("wait for transformation job runner completion: %w", err)
 	}
 	c.Logger.Debugw("Transformation Setting Status")
-	if err := retryWithDelays("set status to ready", 5, time.Millisecond*10, func() error { return c.Metadata.SetStatus(context.Background(), resID, metadata.READY, "") }); err != nil {
+	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
 		return fmt.Errorf("set transformation job runner done status: %w", err)
 	}
+	// if err := retryWithDelays("set status to ready", 5, time.Millisecond*10, func() error { return c.Metadata.SetStatus(context.Background(), resID, metadata.READY, "") }); err != nil {
+	// 	return fmt.Errorf("set transformation job runner done status: %w", err)
+	// }
 	c.Logger.Debugw("Transformation Complete")
 	if schedule != "" {
 		scheduleCreateTransformationConfig := runner.CreateTransformationConfig{

@@ -611,7 +611,7 @@ class Source:
     schedule_obj: Schedule = None
     is_transformation = SourceType.PRIMARY_SOURCE.value
     inputs = []
-    status: str = "CREATED"
+    status: str = "NO_STATUS"
     features: List[NameVariant] = None
     labels: List[NameVariant] = None
     trainingsets: List[NameVariant] = None

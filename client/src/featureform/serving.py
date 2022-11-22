@@ -216,13 +216,17 @@ class FeatureServer:
         for (name, variant) in self._features:
             try:
                 feature = self._resource_client.get_feature(name, variant)
-            except grpc.RpcError as e:
+            except grpc._channel._MultiThreadedRendezvous as e:
                 print(f"Resource {name}:{variant} does not exist: {e}")
                 raise                
             all_ready = all_ready and feature.is_ready()
         self._all_features_ready = all_ready
         return all_ready
 
+    def __eq__(self, other):
+        if self._feature_list == other:
+            return True
+        return False
         
 class LocalClientImpl:
     def __init__(self):

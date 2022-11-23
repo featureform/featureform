@@ -24,6 +24,8 @@ from .resources import ResourceState, Provider, RedisConfig, FirestoreConfig, Ca
     SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet, ProviderReference, \
     EntityReference, SourceReference, ExecutorCredentials, ResourceRedefinedError, ResourceStatus
 
+from .proto import metadata_pb2_grpc as ff_grpc
+
 NameVariant = Tuple[str, str]
 
 

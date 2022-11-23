@@ -4,58 +4,40 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"io/ioutil"
+	"net/http"
 	"os"
-	"path"
-	"reflect"
-	"runtime"
-	"sort"
-	"strconv"
 	"strings"
 	"time"
 
+	"github.com/featureform/helpers"
 	"github.com/featureform/logging"
 
-	//for compatability with parquet-go
-	awsV1 "github.com/aws/aws-sdk-go/aws"
-	credentialsV1 "github.com/aws/aws-sdk-go/aws/credentials"
-	session "github.com/aws/aws-sdk-go/aws/session"
-	s3manager "github.com/aws/aws-sdk-go/service/s3/s3manager"
-
 	"github.com/aws/aws-sdk-go-v2/aws"
+	awsv2cfg "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/emr"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
+	s3v2 "github.com/aws/aws-sdk-go-v2/service/s3"
 	"go.uber.org/zap"
+	"gocloud.dev/blob/s3blob"
+
+	databricks "github.com/Azure/databricks-sdk-golang"
+	dbAzure "github.com/Azure/databricks-sdk-golang/azure"
+
+	// clusterHTTPModels "github.com/Azure/databricks-sdk-golang/azure/clusters/httpmodels"
+	// clusterModels "github.com/Azure/databricks-sdk-golang/azure/clusters/models"
+	azureHTTPModels "github.com/Azure/databricks-sdk-golang/azure/jobs/httpmodels"
+	azureModels "github.com/Azure/databricks-sdk-golang/azure/jobs/models"
 
 	"golang.org/x/exp/slices"
 
 	emrTypes "github.com/aws/aws-sdk-go-v2/service/emr/types"
-	s3Types "github.com/aws/aws-sdk-go-v2/service/s3/types"
-	parquetGo "github.com/xitongsys/parquet-go-source/s3"
-	reader "github.com/xitongsys/parquet-go/reader"
-	source "github.com/xitongsys/parquet-go/source"
-	writer "github.com/xitongsys/parquet-go/writer"
 )
 
 type SparkExecutorType string
 
 const (
-	EMR SparkExecutorType = "EMR"
-)
-
-type SparkStoreType string
-
-const (
-	S3 SparkStoreType = "S3"
-)
-
-type SelectReturnType string
-
-const (
-	CSV  SelectReturnType = "CSV"
-	JSON                  = "JSON"
+	EMR        SparkExecutorType = "EMR"
+	Databricks                   = "DATABRICKS"
 )
 
 type JobType string
@@ -71,12 +53,14 @@ const ENTITY_INDEX = 0
 const VALUE_INDEX = 1
 const TIMESTAMP_INDEX = 2
 
+type SparkExecutorConfig []byte
+
 type SparkConfig struct {
 	ExecutorType   SparkExecutorType
-	ExecutorConfig EMRConfig
-	StoreType      SparkStoreType
-	StoreConfig    S3Config
-}
+	ExecutorConfig DatabricksConfig
+	StoreType      FileStoreType
+	StoreConfig    AzureFileStoreConfig
+} //TODO, change these back to type agnostic after databricks tests
 
 func (s *SparkConfig) Deserialize(config SerializedConfig) error {
 	err := json.Unmarshal(config, s)
@@ -92,6 +76,10 @@ func (s *SparkConfig) Serialize() []byte {
 		panic(err)
 	}
 	return conf
+}
+
+func ResourcePath(id ResourceID) string {
+	return fmt.Sprintf("%s/%s/%s", id.Type, id.Name, id.Variant)
 }
 
 type EMRConfig struct {
@@ -117,14 +105,192 @@ func (e *EMRConfig) Serialize() []byte {
 	return conf
 }
 
-type S3Config struct {
+type DatabricksResultState string
+
+const (
+	Success   DatabricksResultState = "SUCCESS"
+	Failed                          = "FAILED"
+	Timeout                         = "TIMEOUT"
+	Cancelled                       = "CANCELLED"
+)
+
+type DatabricksConfig struct {
+	Username string
+	Password string
+	Host     string
+	Token    string
+	Cluster  string
+}
+
+func (d *DatabricksConfig) Deserialize(config SerializedConfig) error {
+	err := json.Unmarshal(config, d)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (d *DatabricksConfig) Serialize() []byte {
+	conf, err := json.Marshal(d)
+	if err != nil {
+		panic(err)
+	}
+	return conf
+}
+
+type DatabricksExecutor struct {
+	client  *dbAzure.DBClient
+	cluster string
+	config  DatabricksConfig
+}
+
+func (e *EMRExecutor) PythonFileURI(store FileStore) string {
+	return ""
+}
+
+func (db *DatabricksExecutor) PythonFileURI(store FileStore) string {
+	filePath := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/spark/offline_store_spark_runner.py")
+	return store.PathWithPrefix(filePath[1:], true)
+}
+
+func readAndUploadFile(filePath string, storePath string, store FileStore) error {
+	fileExists, _ := store.Exists(storePath)
+	if fileExists {
+		return nil
+	}
+
+	f, err := os.Open(filePath)
+	if err != nil {
+		return fmt.Errorf("could not open file: %v", err)
+	}
+
+	fileStats, err := f.Stat()
+	if err != nil {
+		return fmt.Errorf("could not get file stats: %v", err)
+	}
+
+	pythonScriptBytes := make([]byte, fileStats.Size())
+	_, err = f.Read(pythonScriptBytes)
+	if err := store.Write(storePath, pythonScriptBytes); err != nil {
+		return fmt.Errorf("could not write to python script: %v", err)
+	}
+	return nil
+}
+
+func (db *DatabricksExecutor) InitializeExecutor(store FileStore) error {
+	sparkScriptPath := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/spark/offline_store_spark_runner.py")[1:]
+	pythonInitScriptPath := helpers.GetEnv("PYTHON_INIT_PATH", "/scripts/spark/python_packages.sh")[1:]
+
+	err := readAndUploadFile(sparkScriptPath, store.PathWithPrefix(sparkScriptPath, false), store)
+	sparkExists, _ := store.Exists(store.PathWithPrefix(sparkScriptPath, false))
+	if err != nil && !sparkExists {
+		return fmt.Errorf("could not upload spark script: Path: %s, Error: %v", store.PathWithPrefix(sparkScriptPath, false), err)
+	}
+
+	err = readAndUploadFile(pythonInitScriptPath, store.PathWithPrefix(pythonInitScriptPath, false), store)
+	initExists, _ := store.Exists(store.PathWithPrefix(pythonInitScriptPath, false))
+	if err != nil && !initExists {
+		return fmt.Errorf("could not upload python initialization script: Path: %s, Error: %v", store.PathWithPrefix(pythonInitScriptPath, false), err)
+	}
+	return nil
+}
+
+func NewDatabricksExecutor(databricksConfig DatabricksConfig) (SparkExecutor, error) {
+	// databricksConfig := DatabricksConfig{}
+	// if err := databricksConfig.Deserialize(SerializedConfig(config)); err != nil {
+	// 	return nil, fmt.Errorf("could not deserialize s3 store config: %v", err)
+	// }
+	opt := databricks.NewDBClientOption(
+		databricksConfig.Username,
+		databricksConfig.Password,
+		databricksConfig.Host,
+		databricksConfig.Token,
+		nil,
+		false,
+		0,
+	)
+	client := dbAzure.NewDBClient(opt)
+	return &DatabricksExecutor{
+		client:  client,
+		cluster: databricksConfig.Cluster,
+		config:  databricksConfig,
+	}, nil
+}
+
+func (db *DatabricksExecutor) RunSparkJob(args *[]string, store FileStore) error {
+	//set spark configuration
+	// clusterClient := db.client.Clusters()
+	// setConfigReq := clusterHTTPModels.EditReq{
+	// 	ClusterID: db.cluster,
+	// 	SparkConf: clusterModels.SparkConfPair{
+	// 		Key:   "fs.azure.account.key.testingstoragegen.dfs.core.windows.net", //change to one based on account name
+	// 		Value: helpers.GetEnv("AZURE_ACCOUNT_KEY", ""),
+	// 	},
+	// }
+	//TODO: resolve error: "Custom containers is turned off for your deployment. Please contact your workspace administrator to use this feature."
+	// need to specify spark version
+	// if err := clusterClient.Edit(setConfigReq); err != nil {
+	// 	return fmt.Errorf("Could not modify cluster to accept spark configs; %v", err)
+	// }
+	jobsClient := db.client.Jobs()
+	pythonTask := azureModels.SparkPythonTask{
+		PythonFile: db.PythonFileURI(store),
+		Parameters: args,
+	}
+	type CustomCreateReq struct {
+		ExistingCluster string                       `json:"existing_cluster_id,omitempty" url:"existing_cluster_id,omitempty"`
+		SparkPythonTask *azureModels.SparkPythonTask `json:"spark_python_task,omitempty" url:"spark_python_task,omitempty"`
+		Name            string                       `json:"name,omitempty" url:"name,omitempty"`
+	}
+	createJobRequest := CustomCreateReq{
+		ExistingCluster: db.cluster,
+		SparkPythonTask: &pythonTask,
+		Name:            "Databricks spark submit job 2",
+	}
+	jsonResp, err := databricks.PerformQuery(jobsClient.Client.Option, http.MethodPost, "/jobs/create", createJobRequest, nil)
+	if err != nil {
+		return fmt.Errorf("could not create job: %w", err)
+	}
+	var resp azureHTTPModels.CreateResp
+	err = json.Unmarshal(jsonResp, &resp)
+	if err != nil {
+		return fmt.Errorf("could not unmarshal job response: %w", err)
+	}
+	runJobRequest := azureHTTPModels.RunNowReq{
+		JobID: resp.JobID,
+	}
+	runNowResp, err := jobsClient.RunNow(runJobRequest)
+	if err != nil {
+		return fmt.Errorf("could not run job request: %w", err)
+	}
+	runGetRequest := azureHTTPModels.RunsGetReq{
+		RunID: runNowResp.RunID,
+	}
+	for {
+		runsGetResp, err := jobsClient.RunsGet(runGetRequest)
+		if err != nil {
+			return fmt.Errorf("could not get run: %w", err)
+		}
+		if runsGetResp.EndTime != int64(0) {
+			if string(runsGetResp.State.ResultState) != string(Success) {
+				return fmt.Errorf("could not execute databricks spark job: %s", runsGetResp.State.StateMessage)
+			}
+			break
+		}
+		time.Sleep(1 * time.Second)
+	}
+	return nil
+}
+
+type S3FileStoreConfig struct {
 	AWSAccessKeyId string
 	AWSSecretKey   string
 	BucketRegion   string
 	BucketPath     string
+	Path           string
 }
 
-func (s *S3Config) Deserialize(config SerializedConfig) error {
+func (s *S3FileStoreConfig) Deserialize(config SerializedConfig) error {
 	err := json.Unmarshal(config, s)
 	if err != nil {
 		return err
@@ -132,7 +298,7 @@ func (s *S3Config) Deserialize(config SerializedConfig) error {
 	return nil
 }
 
-func (s *S3Config) Serialize() []byte {
+func (s *S3FileStoreConfig) Serialize() []byte {
 	conf, err := json.Marshal(s)
 	if err != nil {
 		panic(err)
@@ -140,13 +306,49 @@ func (s *S3Config) Serialize() []byte {
 	return conf
 }
 
-type SparkOfflineQueries interface {
-	materializationCreate(schema ResourceSchema) string
+type S3FileStore struct {
+	Bucket string
+	Path   string
+	genericFileStore
 }
 
-type defaultSparkOfflineQueries struct{}
+func NewS3FileStore(config Config) (FileStore, error) {
+	s3StoreConfig := S3FileStoreConfig{}
+	if err := s3StoreConfig.Deserialize(SerializedConfig(config)); err != nil {
+		return nil, fmt.Errorf("could not deserialize s3 store config: %v", err)
+	}
+	cfg, err := awsv2cfg.LoadDefaultConfig(context.TODO(),
+		awsv2cfg.WithCredentialsProvider(credentials.StaticCredentialsProvider{
+			Value: aws.Credentials{
+				AccessKeyID: s3StoreConfig.AWSAccessKeyId, SecretAccessKey: s3StoreConfig.AWSSecretKey,
+			},
+		}))
+	if err != nil {
+		return nil, err
+	}
+	cfg.Region = s3StoreConfig.BucketRegion
+	clientV2 := s3v2.NewFromConfig(cfg)
+	bucket, err := s3blob.OpenBucketV2(context.TODO(), clientV2, s3StoreConfig.BucketPath, nil)
+	if err != nil {
+		return nil, err
+	}
+	return &S3FileStore{
+		Bucket: s3StoreConfig.BucketPath,
+		Path:   s3StoreConfig.Path,
+		genericFileStore: genericFileStore{
+			bucket: bucket,
+		},
+	}, nil
+}
 
-func (q defaultSparkOfflineQueries) materializationCreate(schema ResourceSchema) string {
+type PythonOfflineQueries interface {
+	materializationCreate(schema ResourceSchema) string
+	trainingSetCreate(def TrainingSetDef, featureSchemas []ResourceSchema, labelSchema ResourceSchema) string
+}
+
+type defaultPythonOfflineQueries struct{}
+
+func (q defaultPythonOfflineQueries) materializationCreate(schema ResourceSchema) string {
 	timestampColumn := schema.TS
 	// without timestamp, assumes each entity only has single entry
 	if schema.TS == "" {
@@ -163,7 +365,7 @@ func featureColumnName(id ResourceID) string {
 	return fmt.Sprintf("%s__%s__%s", id.Type, id.Name, id.Variant)
 }
 
-func (q defaultSparkOfflineQueries) trainingSetCreate(def TrainingSetDef, featureSchemas []ResourceSchema, labelSchema ResourceSchema) string {
+func (q defaultPythonOfflineQueries) trainingSetCreate(def TrainingSetDef, featureSchemas []ResourceSchema, labelSchema ResourceSchema) string {
 	columns := make([]string, 0)
 	joinQueries := make([]string, 0)
 	feature_timestamps := make([]string, 0)
@@ -224,9 +426,9 @@ func (q defaultSparkOfflineQueries) trainingSetCreate(def TrainingSetDef, featur
 
 type SparkOfflineStore struct {
 	Executor SparkExecutor
-	Store    SparkStore
+	Store    FileStore
 	Logger   *zap.SugaredLogger
-	query    *defaultSparkOfflineQueries
+	query    *defaultPythonOfflineQueries
 	BaseProvider
 }
 
@@ -254,22 +456,25 @@ func sparkOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 
 	fmt.Sprintf("Executor type: %s, Executor config: %v", sc.ExecutorType, sc.ExecutorConfig)
 	logger.Info("Creating Spark store with type:", sc.StoreType)
-	store, err := NewSparkStore(sc.StoreType, sc.StoreConfig, logger)
+	serializedDatabricksConfig, err := sc.StoreConfig.Serialize()
 	if err != nil {
-		logger.Errorw("Failure initializing Spark store with type", sc.StoreType, err)
+		return nil, fmt.Errorf("Could not serialize databricks Config, %v", err)
+	}
+	store, err := CreateFileStore(string(sc.StoreType), Config(serializedDatabricksConfig))
+	if err != nil {
+		logger.Errorw("Failure initializing blob store with type", sc.StoreType, err)
 		return nil, err
 	}
-
 	fmt.Sprintf("Store type: %s, Store config: %v", sc.StoreType, sc.StoreConfig)
 	logger.Info("Uploading Spark script to store")
 
 	logger.Debugf("Store type: %s, Store config: %v", sc.StoreType, sc.StoreConfig)
-	if err := store.UploadSparkScript(); err != nil {
-		logger.Errorw("Failure uploading spark script", err)
+	if err := exec.InitializeExecutor(store); err != nil {
+		logger.Errorw("Failure initializing executor", err)
 		return nil, err
 	}
 	logger.Info("Created Spark Offline Store")
-	queries := defaultSparkOfflineQueries{}
+	queries := defaultPythonOfflineQueries{}
 	sparkOfflineStore := SparkOfflineStore{
 		Executor: exec,
 		Store:    store,
@@ -284,30 +489,11 @@ func sparkOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 }
 
 type SparkExecutor interface {
-	RunSparkJob(args []string) error
-}
-
-type SparkStore interface {
-	UploadSparkScript() error //initialization function
-	ResourceKeySinglePart(id ResourceID) (string, error)
-	ResourceKeysMultiPart(id ResourceID) ([]string, error)
-	ResourceStreamSingleFile(key string, begin int64) (chan interface{}, error)
-	ResourceMultiPartStream(id ResourceID, begin int64) (chan interface{}, error)
-	ResourceRowCount(id ResourceID) (int64, error)
-	FileRowCount(key string) (int64, error)
-	ResourcePath(id ResourceID) string
-	BucketPrefix() string
-	Region() string
-	KeyPath(sourceKey string) string
-	SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType) []string
-	UploadParquetTable(path string, data interface{}) error
-	DownloadParquetTable(path string) (interface{}, error)
-	CompareParquetTable(path string, data interface{}) error
-	FileExists(path string) (bool, error)
-	ResourceExists(id ResourceID) (bool, error)
-	DeleteFile(path string) error
-	GetTransformationFileLocation(id ResourceID) string
-	UploadFile(fileLocation string, file io.Reader) error
+	RunSparkJob(args *[]string, store FileStore) error
+	InitializeExecutor(store FileStore) error
+	PythonFileURI(store FileStore) string
+	SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store FileStore) []string
+	GetDFArgs(outputURI string, code string, sources []string, store FileStore) ([]string, error)
 }
 
 type EMRExecutor struct {
@@ -316,170 +502,45 @@ type EMRExecutor struct {
 	logger      *zap.SugaredLogger
 }
 
-type S3Store struct {
-	client      *s3.Client
-	uploader    *s3manager.Uploader
-	logger      *zap.SugaredLogger
-	credentials *credentialsV1.Credentials
-	region      string
-	bucketPath  string
-}
-
-func (s *S3Store) BucketPrefix() string {
-	return fmt.Sprintf("s3://%s/", s.bucketPath)
-}
-
-func (s *S3Store) Region() string {
-	return s.region
-}
-
-func (s *S3Store) UploadSparkScript() error {
-	var sparkScriptPath string
-	sparkScriptPath, ok := os.LookupEnv("SPARK_SCRIPT_PATH")
-	if !ok {
-		_, filename, _, ok := runtime.Caller(0)
-		if !ok {
-			return fmt.Errorf("cannot get the file name")
-		}
-
-		sparkScriptPath = path.Join(path.Dir(filename), "/scripts/offline_store_spark_runner.py")
-	}
+func (e EMRExecutor) InitializeExecutor(store FileStore) error {
+	sparkScriptPath := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/offline_store_spark_runner.py")
 	scriptFile, err := os.Open(sparkScriptPath)
 	if err != nil {
 		return err
 	}
-	_, err = s.client.PutObject(context.TODO(), &s3.PutObjectInput{
-		Bucket: aws.String(s.bucketPath),
-		Key:    aws.String("featureform/scripts/offline_store_spark_runner.py"),
-		Body:   scriptFile,
-	})
+	buff := make([]byte, 4096)
+	_, err = scriptFile.Read(buff)
 	if err != nil {
 		return err
 	}
-	return nil
+	return store.Write(sparkScriptPath, buff)
 }
 
-func NewSparkExecutor(execType SparkExecutorType, config EMRConfig, logger *zap.SugaredLogger) (SparkExecutor, error) {
-	if execType == EMR {
-		client := emr.New(emr.Options{
-			Region:      config.ClusterRegion,
-			Credentials: aws.NewCredentialsCache(credentials.NewStaticCredentialsProvider(config.AWSAccessKeyId, config.AWSSecretKey, "")),
-		})
+func NewSparkExecutor(execType SparkExecutorType, config DatabricksConfig, logger *zap.SugaredLogger) (SparkExecutor, error) {
+	// if execType == EMR {
+	// 	emrConfig := &EMRConfig{}
+	// 	if err := emrConfig.Deserialize(SerializedConfig(config)); err != nil {
+	// 		return nil, fmt.Errorf("Could not deserialize config: %v", err)
+	// 	}
+	// 	client := emr.New(emr.Options{
+	// 		Region:      emrConfig.ClusterRegion,
+	// 		Credentials: aws.NewCredentialsCache(credentials.NewStaticCredentialsProvider(emrConfig.AWSAccessKeyId, emrConfig.AWSSecretKey, "")),
+	// 	})
 
-		emrExecutor := EMRExecutor{
-			client:      client,
-			logger:      logger,
-			clusterName: config.ClusterName,
-		}
-		return &emrExecutor, nil
+	// 	emrExecutor := EMRExecutor{
+	// 		client:      client,
+	// 		logger:      logger,
+	// 		clusterName: emrConfig.ClusterName,
+	// 	}
+	// 	return &emrExecutor, nil
+	// } else
+	if execType == Databricks {
+		return NewDatabricksExecutor(config)
 	}
 	return nil, nil
 }
 
-func NewSparkStore(storeType SparkStoreType, config S3Config, logger *zap.SugaredLogger) (SparkStore, error) {
-	if storeType == S3 {
-		client := s3.New(s3.Options{
-			Region:      config.BucketRegion,
-			Credentials: aws.NewCredentialsCache(credentials.NewStaticCredentialsProvider(config.AWSAccessKeyId, config.AWSSecretKey, "")),
-		})
-		sess := session.Must(session.NewSession())
-		uploader := s3manager.NewUploader(sess)
-		s3Store := S3Store{
-			client:      client,
-			uploader:    uploader,
-			logger:      logger,
-			credentials: credentialsV1.NewStaticCredentials(config.AWSAccessKeyId, config.AWSSecretKey, ""),
-			region:      config.BucketRegion,
-			bucketPath:  config.BucketPath,
-		}
-		return &s3Store, nil
-	}
-	return nil, fmt.Errorf("the %v Spark Store type is supported", storeType)
-}
-
-func ResourcePrefix(id ResourceID) string {
-	return fmt.Sprintf("featureform/%s/%s/%s/", id.Type, id.Name, id.Variant)
-}
-
-// given ResourceID{Name, Variant, Type}, will return
-// []string {
-//	"featureform/Type/Name/Variant/LatestTimeStamp/part_0000xxx.parquet"
-//	"featureform/Type/Name/Variant/LatestTimeStamp/part_0001xxx.parquet"
-//	"featureform/Type/Name/Variant/LatestTimeStamp/part_0002xxx.parquet"
-//  ...
-// }
-func (s *S3Store) ResourceKeysMultiPart(id ResourceID) ([]string, error) {
-	latestTimeResource, err := s.ResourceKeySinglePart(id)
-	if err != nil {
-		return nil, err
-	}
-	latestFilePrefix := latestTimeResource[:strings.LastIndex(latestTimeResource, "/")+1]
-	objects, err := s.client.ListObjects(context.TODO(), &s3.ListObjectsInput{
-		Bucket: aws.String(s.bucketPath),
-		Prefix: aws.String(latestFilePrefix),
-	})
-	if err != nil {
-		s.logger.Errorw("Failure retrieving objects from S3 Store", err)
-		return nil, err
-	}
-	if len(objects.Contents) == 0 {
-		s.logger.Errorw("no objects with key prefix exist in S3", latestFilePrefix, id)
-		return []string{}, nil
-	}
-	s.logger.Debugw("ResourceKeysMultiPart found objects", "count", len(objects.Contents))
-	returnList := make([]string, 0, len(objects.Contents)-1)
-	// lists every object found with given prefix, and adds them to return list
-	// excludes the automatically added _SUCCESS file generated by EMR
-	for _, object := range objects.Contents {
-		suffix := (*object.Key)[len(latestFilePrefix):]
-		if suffix != "_SUCCESS" {
-			returnList = append(returnList, *object.Key)
-		}
-	}
-	return returnList, nil
-}
-
-// given ResourceID{Name, Variant, Type}, will return
-// "featureform/Type/Name/Variant/LatestTimeStamp/part_0000xxx.parquet"
-// used to check latest timestamp and that at least one part exists
-func (s *S3Store) ResourceKeySinglePart(id ResourceID) (string, error) {
-	filePrefix := ResourcePrefix(id)
-	objects, err := s.client.ListObjects(context.TODO(), &s3.ListObjectsInput{
-		Bucket: aws.String(s.bucketPath),
-		Prefix: aws.String(filePrefix),
-	})
-	if err != nil {
-		s.logger.Errorw("Failure retrieving objects from S3 Store", err)
-		return "", err
-	}
-	var resourceTimestamps = make(map[string]string)
-	if len(objects.Contents) == 0 {
-		s.logger.Errorw("no objects with key prefix exist in S3", filePrefix, id)
-		return "", fmt.Errorf("no resource exists")
-	}
-	s.logger.Debugw("ResourceKeySinglePart found objects", "count", len(objects.Contents))
-	for _, object := range objects.Contents {
-		suffix := (*object.Key)[len(filePrefix):]
-		suffixParts := strings.Split(suffix, "/")
-		if len(suffixParts) > 1 {
-			resourceTimestamps[suffixParts[0]] = suffixParts[1]
-		}
-	}
-	keys := make([]string, len(resourceTimestamps))
-	for k := range resourceTimestamps {
-		keys = append(keys, k)
-	}
-	if len(keys) == 0 {
-		return "", nil
-	}
-	sort.Strings(keys)
-	latestTimestamp := keys[len(keys)-1]
-	lastSuffix := resourceTimestamps[latestTimestamp]
-	return fmt.Sprintf("featureform/%s/%s/%s/%s/%s", id.Type, id.Name, id.Variant, latestTimestamp, lastSuffix), nil
-
-}
-
-func (e *EMRExecutor) RunSparkJob(args []string) error {
+func (e *EMRExecutor) RunSparkJob(args *[]string, store FileStore) error {
 	params := &emr.AddJobFlowStepsInput{
 		JobFlowId: aws.String(e.clusterName), //returned by listclusters
 		Steps: []emrTypes.StepConfig{
@@ -487,7 +548,7 @@ func (e *EMRExecutor) RunSparkJob(args []string) error {
 				Name: aws.String("Featureform execution step"),
 				HadoopJarStep: &emrTypes.HadoopJarStepConfig{
 					Jar:  aws.String("command-runner.jar"), //jar file for running pyspark scripts
-					Args: args,
+					Args: *args,
 				},
 				ActionOnFailure: emrTypes.ActionOnFailureContinue,
 			},
@@ -513,301 +574,12 @@ func (e *EMRExecutor) RunSparkJob(args []string) error {
 	return nil
 }
 
-func (s *S3Store) ResourcePath(id ResourceID) string {
-	return fmt.Sprintf("s3://%s/%s", s.bucketPath, ResourcePrefix(id))
-}
-
-func (s *S3Store) KeyPath(sourceKey string) string {
-	if !strings.Contains(sourceKey, "s3://") {
-		return fmt.Sprintf("%s%s", s.BucketPrefix(), sourceKey)
-	}
-	return sourceKey
-}
-
-func stringifyValue(value interface{}) string {
-	switch reflect.TypeOf(value).String() {
-	case "string":
-		return fmt.Sprintf(`"%s"`, value.(string))
-	case "int":
-		return fmt.Sprintf(`%d`, value.(int))
-	case "float64":
-		return strconv.FormatFloat(value.(float64), 'f', -1, 64)
-	case "float32":
-		return strconv.FormatFloat(float64(value.(float32)), 'f', -1, 32)
-	case "int32":
-		return fmt.Sprintf(`%d`, value.(int32))
-	case "bool":
-		return fmt.Sprintf(`%t`, value.(bool))
-	case "time.Time":
-		//convert to int64
-		return fmt.Sprintf(`%d`, value.(time.Time).UnixMilli())
-	}
-	return ""
-}
-
-func stringifyStruct(data interface{}) string {
-	curStruct := reflect.ValueOf(data)
-	structType := curStruct.Type()
-	structString := `
-	{`
-	for j := 0; j < curStruct.NumField(); j++ {
-		structString += fmt.Sprintf(`"%s":`, strings.ToLower(structType.Field(j).Name))
-		value := curStruct.Field(j).Interface()
-		structString += stringifyValue(value)
-		if j != curStruct.NumField()-1 {
-			structString += ",\n"
-		} else {
-			structString += "\n}"
-		}
-	}
-	return structString
-}
-
-func stringifyStructArray(data interface{}) ([]string, error) {
-	array := reflect.ValueOf(data)
-	structStringArray := make([]string, array.Len())
-	for i := 0; i < array.Len(); i++ {
-		structStringArray[i] = stringifyStruct(array.Index(i).Interface())
-	}
-	return structStringArray, nil
-}
-
-func stringifyStructField(data interface{}, idx int) string {
-	schemaStruct := reflect.ValueOf(data)
-	typeOfS := schemaStruct.Type()
-	fieldDataType := reflect.TypeOf(schemaStruct.Field(idx).Interface()).String()
-	jsonFriendlyFieldName := strings.ToLower(typeOfS.Field(idx).Name)
-	switch fieldDataType {
-	case "string":
-		return fmt.Sprintf(`{"Tag": "name=%s, type=BYTE_ARRAY, convertedtype=UTF8"}`, jsonFriendlyFieldName)
-	case "int":
-		return fmt.Sprintf(`{"Tag": "name=%s, type=INT32"}`, jsonFriendlyFieldName)
-	case "int64":
-		return fmt.Sprintf(`{"Tag": "name=%s, type=INT64"}`, jsonFriendlyFieldName)
-	case "float32":
-		return fmt.Sprintf(`{"Tag": "name=%s, type=FLOAT"}`, jsonFriendlyFieldName)
-	case "float64":
-		return fmt.Sprintf(`{"Tag": "name=%s, type=DOUBLE"}`, jsonFriendlyFieldName)
-	case "int32":
-		return fmt.Sprintf(`{"Tag": "name=%s, type=INT32"}`, jsonFriendlyFieldName)
-	case "bool":
-		return fmt.Sprintf(`{"Tag": "name=%s, type=BOOLEAN"}`, jsonFriendlyFieldName)
-	case "time.Time":
-		return fmt.Sprintf(`{"Tag": "name=%s, type=INT64"}`, jsonFriendlyFieldName)
-	}
-	return ""
-}
-
-var parquetSchemaHeader = `
-    {
-        "Tag":"name=parquet-go-root",
-        "Fields":[
-		    `
-
-var emptyParquetSchema = `
-{
-	"Tag":"name=parquet-go-root",
-	"Fields":[
-	]
-}`
-
-func generateSchemaFromInterface(data interface{}) (string, error) {
-	array := reflect.ValueOf(data)
-	if array.Len() < 1 {
-		return emptyParquetSchema, nil
-	}
-	schemaStruct := array.Index(0)
-	schemaString := parquetSchemaHeader
-	for i := 0; i < schemaStruct.NumField(); i++ {
-		schemaString += stringifyStructField(schemaStruct.Interface(), i)
-		if i != schemaStruct.NumField()-1 {
-			schemaString += `,
-					`
-		} else {
-			schemaString += `
-				]
-			}`
-		}
-	}
-	return schemaString, nil
-}
-
-func (s *S3Store) parquetJSONWriter(path string, schema string) (*writer.JSONWriter, source.ParquetFile, error) {
-	file, err := parquetGo.NewS3FileWriter(context.TODO(), s.bucketPath, path, "bucket-owner-full-control", nil, &awsV1.Config{
-		Credentials: s.credentials,
-		Region:      awsV1.String(s.region),
-	})
-	if err != nil {
-		s.logger.Errorw("Could not create writer to S3", err)
-		return nil, nil, err
-	}
-	pw, err := writer.NewJSONWriter(schema, file, 4)
-	if err != nil {
-		s.logger.Errorw("Could not create with schema", schema, err)
-		return nil, nil, err
-	}
-	return pw, file, nil
-}
-
-func writeStringArrayToParquet(pw *writer.JSONWriter, dataString []string) error {
-	for i := 0; i < len(dataString); i++ {
-		if err := pw.Write(dataString[i]); err != nil {
-			return err
-		}
-	}
-	if err := pw.WriteStop(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *S3Store) UploadParquetTable(path string, data interface{}) error {
-	schemaString, err := generateSchemaFromInterface(data)
-	if err != nil {
-		s.logger.Errorw("Could not generate schema", err)
-		return err
-	}
-	dataString, err := stringifyStructArray(data)
-	if err != nil {
-		s.logger.Errorw("Could not convert data to JSON", err)
-		return err
-	}
-	pw, file, err := s.parquetJSONWriter(path, schemaString)
-	if err != nil {
-		s.logger.Errorw("Could not create writer", err)
-		return err
-	}
-	defer file.Close()
-	if err := writeStringArrayToParquet(pw, dataString); err != nil {
-		s.logger.Errorw("Could not write data to file in S3", err)
-		return err
-	}
-	return nil
-}
-
-func (s *S3Store) DeleteFile(path string) error {
-	_, err := s.client.DeleteObject(context.TODO(), &s3.DeleteObjectInput{Bucket: aws.String(s.bucketPath), Key: aws.String(path)})
-	if err != nil {
-		s.logger.Errorw("Could not delete object in S3", err)
-		return err
-	}
-	return nil
-}
-
-func (s *S3Store) FileExists(path string) (bool, error) {
-	objects, err := s.client.ListObjects(context.TODO(), &s3.ListObjectsInput{
-		Bucket: aws.String(s.bucketPath),
-		Prefix: aws.String(path),
-	})
-	if err != nil {
-		s.logger.Errorw("Error retrieving object list from S3", err)
-		return false, err
-	}
-	if len(objects.Contents) > 0 {
-		return true, nil
-	}
-	return false, nil
-}
-
-func (s *S3Store) ResourceExists(id ResourceID) (bool, error) {
-	keys, err := s.ResourceKeysMultiPart(id)
-	if err != nil {
-		return false, nil
-	}
-	if len(keys) == 0 {
-		return false, nil
-	}
-	return true, nil
-}
-
-func (s *S3Store) S3ParquetReader(path string) (source.ParquetFile, error) {
-	fr, err := parquetGo.NewS3FileReader(ctx, s.bucketPath, path, &awsV1.Config{
-		Credentials: s.credentials,
-		Region:      awsV1.String(s.region),
-	})
-	if err != nil {
-		s.logger.Errorw("Could not create new Parquet reader", err)
-		return nil, err
-	}
-	return fr, nil
-}
-
-func typeConvertValue(value interface{}) interface{} {
-	switch reflect.TypeOf(value).String() {
-	case "time.Time":
-		return value.(time.Time).UnixMilli()
-	case "int":
-		return int32(value.(int))
-	default:
-		return value
-	}
-}
-
-func compareStructs(local interface{}, fetched interface{}) error {
-	localStruct := reflect.ValueOf(local)
-	fetchedStruct := reflect.ValueOf(fetched)
-	if localStruct.NumField() != fetchedStruct.NumField() {
-		return fmt.Errorf("structs do not have the same number of fields")
-	}
-	for i := 0; i < localStruct.NumField(); i++ {
-		localValue := typeConvertValue(localStruct.Field(i).Interface())
-		fetchedValue := typeConvertValue(fetchedStruct.Field(i).Interface())
-		if !reflect.DeepEqual(fetchedValue, localValue) {
-			return fmt.Errorf("%v does not equal %v", fetchedValue, localValue)
-		}
-	}
-	return nil
-}
-
-func (s *S3Store) DownloadParquetTable(path string) (interface{}, error) {
-	fr, err := s.S3ParquetReader(path)
-	if err != nil {
-		s.logger.Errorw("Could not create new S3 reader", err)
-		return nil, err
-	}
-	defer fr.Close()
-	pr, err := reader.NewParquetReader(fr, nil, 4)
-	if err != nil {
-		s.logger.Errorw("Could not create parquet reader from S3 reader", err)
-		return nil, err
-	}
-	fetchedArray, err := pr.ReadByNumber(int(pr.GetNumRows()))
-	if err != nil {
-		s.logger.Errorw("Could not read Parquet table", err)
-		return nil, err
-	}
-	pr.ReadStop()
-	return reflect.ValueOf(fetchedArray).Interface(), nil
-}
-
-func (s *S3Store) CompareParquetTable(path string, data interface{}) error {
-	fetchedArrayInterface, err := s.DownloadParquetTable(path)
-	if err != nil {
-		return err
-	}
-	compareArray := reflect.ValueOf(data)
-	fetchedArray := reflect.ValueOf(fetchedArrayInterface)
-	if fetchedArray.Len() != compareArray.Len() {
-		s.logger.Errorw("Mismatch between compared table and downloaded table. Wrong number of rows", fetchedArray.Len(), compareArray.Len())
-		return fmt.Errorf("data do not have the same number of rows")
-	}
-	for i := 0; i < compareArray.Len(); i++ {
-		localStruct := compareArray.Index(i).Interface()
-		fetchedStruct := fetchedArray.Index(i).Interface()
-		if err := compareStructs(localStruct, fetchedStruct); err != nil {
-			s.logger.Errorw("Compared structs not the same:", err)
-			return err
-		}
-	}
-	return nil
-}
-
-func (s *S3Store) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType) []string {
+func (e *EMRExecutor) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store FileStore) []string {
 	argList := []string{
 		"spark-submit",
 		"--deploy-mode",
 		"client",
-		fmt.Sprintf("s3://%s/featureform/scripts/offline_store_spark_runner.py", s.bucketPath),
+		"script/offline_store_spark_runner.py",
 		"sql",
 		"--output_uri",
 		destPath,
@@ -821,163 +593,42 @@ func (s *S3Store) SparkSubmitArgs(destPath string, cleanQuery string, sourceList
 	return argList
 }
 
-type PrimarySchema struct {
-	Source string
-}
-
-type S3PrimaryTable struct {
-	store            SparkStore
-	sourcePath       string
-	isTransformation bool
-	id               ResourceID
-}
-
-type S3GenericTableIterator struct {
-	store            SparkStore
-	sourcePath       string
-	rows             int64
-	columns          []string
-	valuesChannel    chan interface{}
-	currentValue     interface{}
-	currentIndex     int64
-	isTransformation bool
-}
-
-func (s *S3GenericTableIterator) Next() bool {
-	if s.rows == s.currentIndex {
-		return false
+func (d *DatabricksExecutor) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store FileStore) []string {
+	argList := []string{
+		"sql",
+		"--output_uri",
+		destPath,
+		"--sql_query",
+		cleanQuery,
+		"--job_type",
+		string(jobType),
 	}
-	s.currentValue = <-s.valuesChannel
-	s.currentIndex += 1
-	return true
-}
-
-func (s *S3GenericTableIterator) Values() GenericRecord {
-	v := reflect.ValueOf(s.currentValue)
-	values := make([]interface{}, v.NumField())
-	for i := 0; i < v.NumField(); i++ {
-		values[i] = v.Field(i).Interface()
+	var remoteConnectionArgs []string
+	azureStore := store.AsAzureStore()
+	if azureStore != nil {
+		remoteConnectionArgs = []string{
+			"--spark_config",
+			azureStore.configString(),
+		}
 	}
-	return values
+	argList = append(argList, remoteConnectionArgs...)
+
+	argList = append(argList, "--source_list")
+	argList = append(argList, sourceList...)
+	return argList
 }
 
-func (s *S3GenericTableIterator) Columns() []string {
-	return s.columns
-}
-
-func (s *S3GenericTableIterator) Err() error {
-	return nil
-}
-
-func (s *S3GenericTableIterator) Close() error {
-	return nil
-}
-
-func (s *S3PrimaryTable) Write(GenericRecord) error {
-	return fmt.Errorf("not implemented")
-}
-
-func (s *S3PrimaryTable) GetName() string {
-	return s.sourcePath
-}
-
-func (s *S3PrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) {
-	var columnStream chan interface{}
-	var err error
-	if s.isTransformation {
-		columnStream, err = s.store.ResourceMultiPartStream(s.id, 0)
-	} else {
-		columnStream, err = s.store.ResourceStreamSingleFile(s.sourcePath, 0)
-	}
-	if err != nil {
-		return nil, err
-	}
-	v := <-columnStream
-	rowStruct := reflect.ValueOf(v)
-	numColumns := rowStruct.NumField()
-	columns := make([]string, numColumns)
-	for i := 0; i < rowStruct.NumField(); i++ {
-		columns[i] = rowStruct.Type().Field(i).Name
-	}
-	channel, err := s.store.ResourceStreamSingleFile(s.sourcePath, 0)
-	if err != nil {
-		return nil, err
-	}
-	return &S3GenericTableIterator{s.store, s.sourcePath, n, columns, channel, nil, 0, s.isTransformation}, nil
-}
-
-func (s *S3PrimaryTable) NumRows() (int64, error) {
-	var num int64
-	var err error
-	if s.isTransformation {
-		num, err = s.store.ResourceRowCount(s.id)
-	} else {
-		num, err = s.store.FileRowCount(s.sourcePath)
-	}
-	if err != nil {
-		return 0, err
-	}
-	return int64(num), nil
+func (spark *SparkOfflineStore) pysparkArgs(destinationURI string, templatedQuery string, sourceList []string, jobType JobType) *[]string {
+	args := []string{}
+	return &args
 }
 
 func (spark *SparkOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error) {
-	resourcePath := parquetResourcePath(id)
-	primaryExists, err := spark.Store.ResourceExists(id)
-	if err != nil {
-		spark.Logger.Errorw("Error checking if primary exists", err)
-		return nil, fmt.Errorf("error checking if primary exists: %v", err)
-	}
-	if primaryExists {
-		spark.Logger.Errorw("Error checking if primary exists")
-		return nil, fmt.Errorf("primary already exists")
-	}
-	primarySchema := PrimarySchema{sourceName}
-	schemaList := []PrimarySchema{primarySchema}
-	spark.Logger.Debugw("Registering primary table", id, "for source", sourceName)
-	if err := spark.Store.UploadParquetTable(resourcePath, schemaList); err != nil {
-		spark.Logger.Errorw("Could not upload Parquet table", err)
-		return nil, err
-	}
-	spark.Logger.Debugw("Succesfully registered primary table", id, "for source", sourceName)
-	return &S3PrimaryTable{spark.Store, sourceName, false, id}, nil
-}
-
-type S3OfflineTable struct {
-	schema ResourceSchema
-}
-
-func parquetResourcePath(id ResourceID) string {
-	return fmt.Sprintf("%sresource.parquet", ResourcePrefix(id))
-}
-
-func (s *S3OfflineTable) Write(ResourceRecord) error {
-	return fmt.Errorf("not implemented")
+	return blobRegisterPrimary(id, sourceName, spark.Logger, spark.Store)
 }
 
 func (spark *SparkOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error) {
-	if err := id.check(Feature, Label); err != nil {
-		spark.Logger.Errorw("Failure checking ID", "error", err)
-		return nil, fmt.Errorf("ID check failed: %v", err)
-	}
-	resourcePath := parquetResourcePath(id)
-	resourceExists, err := spark.Store.ResourceExists(id)
-	if err != nil {
-		spark.Logger.Errorw("Error checking if resource exists", "error", err)
-		return nil, fmt.Errorf("error checking if resource registry exists: %v", err)
-	}
-	if resourceExists {
-		spark.Logger.Errorw("Resource already exists in Spark store", "id", id)
-		return nil, &TableAlreadyExists{id.Name, id.Variant}
-	}
-	schemaList := []ResourceSchema{schema}
-	spark.Logger.Debugw("Registering resource table", "id", id, "source", schema.SourceTable)
-
-	if err := spark.Store.UploadParquetTable(resourcePath, schemaList); err != nil {
-		spark.Logger.Errorw("Could not upload Parquet table", err)
-		return nil, err
-	}
-	spark.Logger.Debugw("Registered resource table", "resourceID", id, "for source", schema.SourceTable)
-	return &S3OfflineTable{schema}, nil
+	return blobRegisterResource(id, schema, spark.Logger, spark.Store)
 }
 
 func (spark *SparkOfflineStore) CreateTransformation(config TransformationConfig) error {
@@ -1002,82 +653,92 @@ func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, i
 		return err
 	}
 
-	transformationDestination := spark.Store.ResourcePath(config.TargetTableID)
-	exists, err := spark.Store.ResourceExists(config.TargetTableID)
+	transformationDestination := spark.Store.PathWithPrefix(ResourcePrefix(config.TargetTableID), true)
+	bucketTransformationDest := spark.Store.PathWithPrefix(ResourcePrefix(config.TargetTableID), false)
+	newestTransformationFile, err := spark.Store.NewestFile(bucketTransformationDest)
 	if err != nil {
-		spark.Logger.Errorw("Error checking existence of resource", config.TargetTableID, err)
-		return err
+		return fmt.Errorf("could not get newest transformation file: %v", err)
 	}
-
-	if !isUpdate && exists {
+	transformationExists := newestTransformationFile != ""
+	if !isUpdate && transformationExists {
 		spark.Logger.Errorw("Creation when transformation already exists", config.TargetTableID, transformationDestination)
 		return fmt.Errorf("transformation %v already exists at %s", config.TargetTableID, transformationDestination)
-	} else if isUpdate && !exists {
+	} else if isUpdate && !transformationExists {
 		spark.Logger.Errorw("Update job attempted when transformation does not exist", config.TargetTableID, transformationDestination)
 		return fmt.Errorf("transformation %v doesn't exist at %s and you are trying to update", config.TargetTableID, transformationDestination)
 	}
+
 	spark.Logger.Debugw("Running SQL transformation", config)
-	sparkArgs := spark.Store.SparkSubmitArgs(transformationDestination, updatedQuery, sources, Transform)
-	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
-		spark.Logger.Errorw("spark submit job for transformation failed to run", "name", config.TargetTableID.Name, "variant", config.TargetTableID.Variant, "error", err)
-		return fmt.Errorf("spark submit job for transformation failed to run: (name: %s variant:%s) %v", config.TargetTableID.Name, config.TargetTableID.Variant, err)
+	sparkArgs := spark.Executor.SparkSubmitArgs(transformationDestination, updatedQuery, sources, JobType(Transform), spark.Store)
+	if err := spark.Executor.RunSparkJob(&sparkArgs, spark.Store); err != nil {
+		spark.Logger.Errorw("spark submit job for transformation failed to run", config.TargetTableID, err)
+		return fmt.Errorf("spark submit job for transformation %v failed to run: %v", config.TargetTableID, err)
 	}
 	spark.Logger.Debugw("Succesfully ran SQL transformation", config)
 	return nil
 }
-func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, isUpdate bool) error {
-	transformationDestination := spark.Store.ResourcePath(config.TargetTableID)
-	exists, err := spark.Store.ResourceExists(config.TargetTableID)
-	if err != nil {
-		spark.Logger.Errorw("Error checking if resource exists", err)
-		return err
-	}
 
-	if !isUpdate && exists {
+func GetTransformationFileLocation(id ResourceID) string {
+	return fmt.Sprintf("DFTranformations/%s/%s/", id.Name, id.Variant)
+}
+
+func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, isUpdate bool) error {
+	transformationDestination := spark.Store.PathWithPrefix(ResourcePrefix(config.TargetTableID), true)
+	transformationDestinationWithSlash := strings.Join([]string{transformationDestination, ""}, "/")
+
+	transformationFile, err := spark.Store.NewestFile(spark.Store.PathWithPrefix(ResourcePrefix(config.TargetTableID), false))
+	if err != nil {
+		return fmt.Errorf("error checking if transformation file exists")
+	}
+	transformationExists := transformationFile != ""
+	if !isUpdate && transformationExists {
 		spark.Logger.Errorw("Transformation already exists", config.TargetTableID, transformationDestination)
 		return fmt.Errorf("transformation %v already exists at %s", config.TargetTableID, transformationDestination)
-	} else if isUpdate && !exists {
+	} else if isUpdate && !transformationExists {
 		spark.Logger.Errorw("Transformation doesn't exists at destination and you are trying to update", config.TargetTableID, transformationDestination)
 		return fmt.Errorf("transformation %v doesn't exist at %s and you are trying to update", config.TargetTableID, transformationDestination)
 	}
 
-	transformationFilePath := spark.Store.GetTransformationFileLocation(config.TargetTableID)
+	transformationFilePath := GetTransformationFileLocation(config.TargetTableID)
 	fileName := "transformation.pkl"
 	transformationFileLocation := fmt.Sprintf("%s/%s", transformationFilePath, fileName)
 
-	f, err := os.Create(fileName)
-	if err != nil {
-		return fmt.Errorf("could not create file: %s", err)
-	}
-	defer f.Close()
-
-	err = ioutil.WriteFile(fileName, config.Code, 0644)
-	if err != nil {
-		return fmt.Errorf("could not write to file: %s", err)
-	}
-
-	// Write byte to file
-	f, err = os.Open(fileName)
-	if err != nil {
-		return fmt.Errorf("could not open file: %s", err)
-	}
-	err = spark.Store.UploadFile(transformationFileLocation, f)
-	if err != nil {
+	if err := spark.Store.Write(transformationFileLocation, config.Code); err != nil {
 		return fmt.Errorf("could not upload file: %s", err)
 	}
 
-	sparkArgs, err := spark.getDFArgs(transformationDestination, transformationFileLocation, spark.Store.Region(), config.SourceMapping)
+	sources, err := spark.getSources(config.SourceMapping)
+	if err != nil {
+		return fmt.Errorf("could not get sources for df transformation. Error: %v", err)
+	}
+
+	sparkArgs, err := spark.Executor.GetDFArgs(transformationDestinationWithSlash, transformationFileLocation, sources, spark.Store)
 	if err != nil {
 		spark.Logger.Errorw("Problem creating spark dataframe arguments", err)
 		return fmt.Errorf("error with getting df arguments %v", sparkArgs)
 	}
 	spark.Logger.Debugw("Running DF transformation", config)
-	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
+	if err := spark.Executor.RunSparkJob(&sparkArgs, spark.Store); err != nil {
 		spark.Logger.Errorw("Error running Spark dataframe job", err)
 		return fmt.Errorf("spark submit job for transformation failed to run: (name: %s variant:%s) %v", config.TargetTableID.Name, config.TargetTableID.Variant, err)
 	}
 	spark.Logger.Debugw("Successfully ran transformation", "type", config.Type, "name", config.TargetTableID.Name, "variant", config.TargetTableID.Variant)
 	return nil
+}
+
+func (spark *SparkOfflineStore) getSources(mapping []SourceMapping) ([]string, error) {
+	sources := []string{}
+
+	for _, m := range mapping {
+		sourcePath, err := spark.getSourcePath(m.Source)
+		if err != nil {
+			spark.Logger.Errorw("Error getting source path for spark source", m.Source, err)
+			return nil, fmt.Errorf("issue with retreiving the source path for %s because %s", m.Source, err)
+		}
+
+		sources = append(sources, sourcePath)
+	}
+	return sources, nil
 }
 
 func (spark *SparkOfflineStore) updateQuery(query string, mapping []SourceMapping) (string, []string, error) {
@@ -1118,17 +779,17 @@ func (spark *SparkOfflineStore) getSourcePath(path string) (string, error) {
 			spark.Logger.Errorw("Issue getting primary table", fileResourceId, err)
 			return "", fmt.Errorf("could not get the primary table for {%v} because %s", fileResourceId, err)
 		}
-		filePath = spark.Store.KeyPath(fileTable.GetName())
+		filePath = fileTable.GetName()
 		return filePath, nil
 	} else if fileType == "transformation" {
 		fileResourceId := ResourceID{Name: fileName, Variant: fileVariant, Type: Transformation}
-		transformationPath, err := spark.Store.ResourceKeySinglePart(fileResourceId)
 
-		if err != nil {
-			spark.Logger.Errorw("Issue getting transformation table", fileResourceId, err)
-			return "", fmt.Errorf("could not get the transformation table for {%v} because %s", fileResourceId, err)
+		transformationPath, err := spark.Store.NewestFile(spark.Store.PathWithPrefix(ResourcePrefix(fileResourceId), false))
+		if err != nil || transformationPath == "" {
+			return "", fmt.Errorf("Could not get transformation file path: %v", err)
 		}
-		filePath = fmt.Sprintf("%s%s", spark.Store.BucketPrefix(), transformationPath[:strings.LastIndex(transformationPath, "/")+1])
+
+		filePath = spark.Store.PathWithPrefix(transformationPath[:strings.LastIndex(transformationPath, "/")], true)
 		return filePath, nil
 	} else {
 		return filePath, fmt.Errorf("could not find path for %s; fileType: %s, fileName: %s, fileVariant: %s", path, fileType, fileName, fileVariant)
@@ -1139,12 +800,19 @@ func (spark *SparkOfflineStore) getResourceInformationFromFilePath(path string) 
 	var fileType string
 	var fileName string
 	var fileVariant string
+	containsSlashes := strings.Contains(path, "/")
 	if path[:5] == "s3://" {
 		filePaths := strings.Split(path[len("s3://"):], "/")
 		if len(filePaths) <= 4 {
 			return "", "", ""
 		}
 		fileType, fileName, fileVariant = strings.ToLower(filePaths[2]), filePaths[3], filePaths[4]
+	} else if containsSlashes {
+		filePaths := strings.Split(path[len("featureform/"):], "/")
+		if len(filePaths) <= 2 {
+			return "", "", ""
+		}
+		fileType, fileName, fileVariant = strings.ToLower(filePaths[0]), filePaths[1], filePaths[2]
 	} else {
 		filePaths := strings.Split(path[len("featureform_"):], "__")
 		if len(filePaths) <= 2 {
@@ -1155,45 +823,66 @@ func (spark *SparkOfflineStore) getResourceInformationFromFilePath(path string) 
 	return fileType, fileName, fileVariant
 }
 
-func (spark *SparkOfflineStore) getDFArgs(outputURI string, code string, awsRegion string, mapping []SourceMapping) ([]string, error) {
+func (e *EMRExecutor) GetDFArgs(outputURI string, code string, sources []string, store FileStore) ([]string, error) {
 	argList := []string{
 		"spark-submit",
 		"--deploy-mode",
 		"client",
-		fmt.Sprintf("%sfeatureform/scripts/offline_store_spark_runner.py", spark.Store.BucketPrefix()),
+		store.PathWithPrefix("scripts/offline_store_spark_runner.py", true),
+		"df",
+		"--output_uri",
+		store.PathWithPrefix(outputURI, true),
+		"--code",
+		code,
+		"--source",
+	}
+
+	argList = append(argList, sources...)
+
+	return argList, nil
+}
+
+func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, sources []string, store FileStore) ([]string, error) {
+	argList := []string{
 		"df",
 		"--output_uri",
 		outputURI,
 		"--code",
 		code,
-		"--aws_region",
-		awsRegion,
-		"--source",
 	}
+	var remoteConnectionArgs []string
+	azureStore := store.AsAzureStore()
 
-	for _, m := range mapping {
-		sourcePath, err := spark.getSourcePath(m.Source)
-		if err != nil {
-			spark.Logger.Errorw("Error getting source path for spark source", m.Source, err)
-			return nil, fmt.Errorf("issue with retreiving the source path for %s because %s", m.Source, err)
+	if azureStore != nil {
+		remoteConnectionArgs = []string{
+			"--store_type",
+			"azure_blob_store",
+			"--spark_config",
+			azureStore.configString(),
+			"--credential",
+			fmt.Sprintf("azure_connection_string=%s", azureStore.connectionString()),
+			"--credential",
+			fmt.Sprintf("azure_container_name=%s", azureStore.containerName()),
 		}
-
-		argList = append(argList, sourcePath)
 	}
+	argList = append(argList, remoteConnectionArgs...)
+
+	argList = append(argList, "--source")
+	argList = append(argList, sources...)
 
 	return argList, nil
 }
 
 func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
 	spark.Logger.Debugw("Getting transformation table", "ResourceID", id)
-	transformationPath, err := spark.Store.ResourceKeySinglePart(id)
-	if err != nil {
-		spark.Logger.Errorw("Could not get transformation table", "error", err)
-		return nil, fmt.Errorf("could not get transformation table (%v) because %s", id, err)
+	transformationPath := spark.Store.PathWithPrefix(fileStoreResourcePath(id), false)
+	transformationExactPath, err := spark.Store.NewestFile(spark.Store.PathWithPrefix(transformationPath, false))
+	fmt.Println("GetTransformation", transformationPath, transformationExactPath)
+	if err != nil || transformationExactPath == "" {
+		return nil, fmt.Errorf("Could not get transformation table: %v", err)
 	}
-	fixedPath := transformationPath[:strings.LastIndex(transformationPath, "/")+1]
 	spark.Logger.Debugw("Succesfully retrieved transformation table", "ResourceID", id)
-	return &S3PrimaryTable{spark.Store, fixedPath, true, id}, nil
+	return &FileStorePrimaryTable{spark.Store, transformationExactPath, true, id}, nil
 }
 
 func (spark *SparkOfflineStore) UpdateTransformation(config TransformationConfig) error {
@@ -1205,20 +894,7 @@ func (spark *SparkOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSc
 }
 
 func (spark *SparkOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error) {
-	path := parquetResourcePath(id)
-	spark.Logger.Debugw("Getting primary table", id)
-	table, err := spark.Store.DownloadParquetTable(path)
-	if err != nil {
-		spark.Logger.Errorw("Could not download Primary table parquet table", err)
-		return nil, err
-	}
-	tableList := table.([]interface{})
-	var sourcePath string
-	for _, v := range tableList {
-		sourcePath = reflect.ValueOf(v).FieldByName("Source").String()
-	}
-	spark.Logger.Debugw("Succesfully retrieved primary table", "name", id.Name, "variant", id.Variant)
-	return &S3PrimaryTable{spark.Store, sourcePath, false, id}, nil
+	return fileStoreGetPrimary(id, spark.Store, spark.Logger)
 }
 
 func (spark *SparkOfflineStore) CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error) {
@@ -1226,156 +902,10 @@ func (spark *SparkOfflineStore) CreateResourceTable(id ResourceID, schema TableS
 }
 
 func (spark *SparkOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, error) {
-	path := parquetResourcePath(id)
-	spark.Logger.Debugw("Getting resource table", "id", id)
-	table, err := spark.Store.DownloadParquetTable(path)
-	if err != nil {
-		spark.Logger.Errorw("Could not get parquet resource table", err)
-		return nil, &TableNotFound{id.Name, id.Variant}
-	}
-	storedResourceData := reflect.ValueOf(table).Index(0)
-	resourceTableStruct, ok := storedResourceData.Interface().(struct {
-		Entity      string
-		Value       string
-		Ts          string
-		Sourcetable string
-	})
-	if !ok {
-		spark.Logger.Errorw("Could not convert resource table to resource table format", storedResourceData)
-		return nil, fmt.Errorf("cant convert downloaded resource table")
-	}
-	spark.Logger.Debugw("Succesfully fetched resource table", "id", id)
-	return &S3OfflineTable{ResourceSchema{
-		Entity:      resourceTableStruct.Entity,
-		Value:       resourceTableStruct.Value,
-		TS:          resourceTableStruct.Ts,
-		SourceTable: resourceTableStruct.Sourcetable,
-	}}, nil
+	return fileStoreGetResourceTable(id, spark.Store, spark.Logger)
 }
 
-type S3Materialization struct {
-	id    ResourceID
-	store SparkStore
-	Key   string
-}
-
-func (s *S3Materialization) ID() MaterializationID {
-	return MaterializationID(fmt.Sprintf("%s/%s/%s", FeatureMaterialization, s.id.Name, s.id.Variant))
-}
-
-func (s *S3Materialization) NumRows() (int64, error) {
-	numRows, err := s.store.ResourceRowCount(s.id)
-	if err != nil {
-		return 0, err
-	}
-	return int64(numRows), nil
-}
-
-func (s *S3Materialization) IterateSegment(begin, end int64) (FeatureIterator, error) {
-	stream, err := s.store.ResourceMultiPartStream(s.id, begin)
-	if err != nil {
-		return nil, err
-	}
-	return &S3FeatureIterator{stream: stream, maxIdx: (end - begin)}, nil
-}
-
-type S3FeatureIterator struct {
-	stream chan interface{}
-	cur    ResourceRecord
-	err    error
-	curIdx int64
-	maxIdx int64
-}
-
-func convIndirectToVal(value interface{}) interface{} {
-
-	if value == nil {
-		return nil
-	}
-	switch v := value.(type) {
-	case *string:
-		if v == nil {
-			return nil
-		}
-		return *v
-	case *int:
-		return *v
-	case *int32:
-		if v == nil {
-			return nil
-		}
-		return int(*v)
-	case *int64:
-		return *v
-	case *float32:
-		return *v
-	case *float64:
-		return *v
-	case *bool:
-		return *v
-	}
-	return nil
-}
-
-func featureStructToResource(row interface{}) (ResourceRecord, error) {
-	rowVal := reflect.ValueOf(row)
-	if rowVal.NumField() < 3 {
-		return ResourceRecord{}, fmt.Errorf("not enough fields in feature struct")
-	}
-	entity := *rowVal.Field(ENTITY_INDEX).Interface().(*string)
-	value := convIndirectToVal(rowVal.Field(VALUE_INDEX).Interface())
-	//convert whatever time format is to time.Time
-	timestampValue := rowVal.Field(TIMESTAMP_INDEX).Interface()
-	var ts time.Time
-	switch v := timestampValue.(type) {
-	case *string:
-		//need to get non-converted value
-		timestampLayout := time.RFC3339
-		var err error
-		ts, err = time.Parse(timestampLayout, *v)
-		if err != nil {
-			return ResourceRecord{}, fmt.Errorf("could not parse timestmap: %v", err)
-		}
-	case *int64, *int32, *int:
-		directValue, ok := reflect.ValueOf(v).Elem().Interface().(int64)
-		if !ok {
-			return ResourceRecord{}, fmt.Errorf("cannot convert timestamp value to int64")
-		}
-		ts = time.UnixMilli(directValue).UTC()
-	case int32:
-		ts = time.UnixMilli(int64(v)).UTC()
-	}
-	return ResourceRecord{entity, value, ts}, nil
-}
-
-func (s *S3FeatureIterator) Next() bool {
-	if s.curIdx == s.maxIdx {
-		return false
-	}
-	val := <-s.stream
-	currentRecord, err := featureStructToResource(val)
-	if err != nil {
-		s.err = err
-		return false
-	}
-	s.cur = currentRecord
-	s.curIdx += 1
-	return true
-}
-
-func (s *S3FeatureIterator) Value() ResourceRecord {
-	return s.cur
-}
-
-func (s *S3FeatureIterator) Err() error {
-	return s.err
-}
-
-func (s *S3FeatureIterator) Close() error {
-	return nil
-}
-
-func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materialization, error) {
+func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate bool) (Materialization, error) {
 	if id.Type != Feature {
 		spark.Logger.Errorw("Attempted to create a materialization of a non feature resource", id.Type)
 		return nil, fmt.Errorf("only features can be materialized")
@@ -1385,179 +915,55 @@ func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materializ
 		spark.Logger.Errorw("Attempted to fetch resource table of non registered resource", err)
 		return nil, fmt.Errorf("resource not registered: %v", err)
 	}
-	sparkResourceTable, ok := resourceTable.(*S3OfflineTable)
+	sparkResourceTable, ok := resourceTable.(*BlobOfflineTable)
 	if !ok {
 		spark.Logger.Errorw("Could not convert resource table to S3 offline table", id)
 		return nil, fmt.Errorf("could not convert offline table with id %v to sparkResourceTable", id)
 	}
 	materializationID := ResourceID{Name: id.Name, Variant: id.Variant, Type: FeatureMaterialization}
-	destinationPath := spark.Store.ResourcePath(materializationID)
-	materializationExists, err := spark.Store.ResourceExists(materializationID)
+	destinationPath := spark.Store.PathWithPrefix(ResourcePrefix(materializationID), true)
+	materializationNewestFile, err := spark.Store.NewestFile(spark.Store.PathWithPrefix(fileStoreResourcePath(materializationID), false))
 	if err != nil {
-		spark.Logger.Errorw("Could not determine whether materialization exists", err)
-		return nil, fmt.Errorf("error checking if materialization exists: %v", err)
+		return nil, fmt.Errorf("Could not get newest materialization file: %v", err)
 	}
-	if materializationExists {
+	materializationExists := materializationNewestFile != ""
+	if materializationExists && !isUpdate {
+		spark.Logger.Errorw("Attempted to materialize a materialization that already exists", id)
+		return nil, fmt.Errorf("materialization already exists")
+	} else if !materializationExists && isUpdate {
 		spark.Logger.Errorw("Attempted to materialize a materialization that already exists", id)
 		return nil, fmt.Errorf("materialization already exists")
 	}
 	materializationQuery := spark.query.materializationCreate(sparkResourceTable.schema)
-	sourcePath := spark.Store.KeyPath(sparkResourceTable.schema.SourceTable)
-	sparkArgs := spark.Store.SparkSubmitArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize)
+	sourcePath := spark.Store.PathWithPrefix(sparkResourceTable.schema.SourceTable, true)
+	sparkArgs := spark.Executor.SparkSubmitArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize, spark.Store)
 	spark.Logger.Debugw("Creating materialization", "id", id)
-	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
+	if err := spark.Executor.RunSparkJob(&sparkArgs, spark.Store); err != nil {
 		spark.Logger.Errorw("Spark submit job failed to run", err)
 		return nil, fmt.Errorf("spark submit job for materialization %v failed to run: %v", materializationID, err)
 	}
-	key, err := spark.Store.ResourceKeySinglePart(materializationID)
-	if err != nil {
-		spark.Logger.Errorw("Created materialization not found in store", err)
-		return nil, fmt.Errorf("Materialization result does not exist in offline store: %v", err)
+	key, err := spark.Store.NewestFile(spark.Store.PathWithPrefix(fileStoreResourcePath(materializationID), false))
+	if err != nil || key == "" {
+		return nil, fmt.Errorf("Could not get newest materialization file: %v", err)
 	}
 	spark.Logger.Debugw("Succesfully created materialization", "id", id)
-	return &S3Materialization{materializationID, spark.Store, key}, nil
+	return &FileStoreMaterialization{materializationID, spark.Store, key}, nil
+}
+
+func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materialization, error) {
+	return blobSparkMaterialization(id, spark, false)
 }
 
 func (spark *SparkOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
-	s := strings.Split(string(id), "/")
-	if len(s) != 3 {
-		spark.Logger.Errorw("Invalid materialization id", id)
-		return nil, fmt.Errorf("invalid materialization id")
-	}
-	materializationID := ResourceID{s[1], s[2], FeatureMaterialization}
-	spark.Logger.Debugw("Getting materialization", "id", id)
-	key, err := spark.Store.ResourceKeySinglePart(materializationID)
-	if err != nil {
-		spark.Logger.Errorw("Could not fetch materialization resource key", err)
-		return nil, err
-	}
-	spark.Logger.Debugw("Succesfully retrieved materialization", "id", id)
-	return &S3Materialization{materializationID, spark.Store, key}, nil
+	return fileStoreGetMaterialization(id, spark.Store, spark.Logger)
 }
 
 func (spark *SparkOfflineStore) UpdateMaterialization(id ResourceID) (Materialization, error) {
-	if id.Type != Feature {
-		spark.Logger.Errorw("Attempted to materialize a non feature resource", id.Type)
-		return nil, fmt.Errorf("only features can be materialized")
-	}
-	resourceTable, err := spark.GetResourceTable(id)
-	if err != nil {
-		spark.Logger.Errorw("Attempted to materialize a non registered resource", err)
-		return nil, fmt.Errorf("resource not registered: %v", err)
-	}
-	sparkResourceTable, ok := resourceTable.(*S3OfflineTable)
-	if !ok {
-		spark.Logger.Errorw("could not convert offline table to sparkResourceTable", id)
-		return nil, fmt.Errorf("could not convert offline table with id %v to sparkResourceTable", id)
-	}
-	materializationID := ResourceID{Name: id.Name, Variant: id.Variant, Type: FeatureMaterialization}
-	destinationPath := spark.Store.ResourcePath(materializationID)
-	materializationQuery := spark.query.materializationCreate(sparkResourceTable.schema)
-	sourcePath := spark.Store.KeyPath(sparkResourceTable.schema.SourceTable)
-	sparkArgs := spark.Store.SparkSubmitArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize)
-	spark.Logger.Debugw("Updating materialization", "id", id)
-	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
-		spark.Logger.Errorw("Could not run spark update materialization job", err)
-		return nil, fmt.Errorf("spark submit job for materialization %v failed to run: %v", materializationID, err)
-	}
-	key, err := spark.Store.ResourceKeySinglePart(materializationID)
-	if err != nil {
-		spark.Logger.Errorw("Could not fetch materialization resource key", err)
-		return nil, fmt.Errorf("Materialization result does not exist in offline store: %v", err)
-	}
-	spark.Logger.Debugw("Succesfully updated materialization", "id", id)
-	return &S3Materialization{materializationID, spark.Store, key}, nil
+	return blobSparkMaterialization(id, spark, true)
 }
 
 func (spark *SparkOfflineStore) DeleteMaterialization(id MaterializationID) error {
-	s := strings.Split(string(id), "/")
-	if len(s) != MATERIALIZATION_ID_SEGMENTS {
-		spark.Logger.Errorw("Invalid materialization id", id)
-		return &MaterializationNotFound{id}
-	}
-	materializationID := ResourceID{s[1], s[2], FeatureMaterialization}
-	keys, err := spark.Store.ResourceKeysMultiPart(materializationID)
-	if err != nil {
-		spark.Logger.Errorw("Could not fetch materialization resource key", "error", err)
-		return err
-	}
-	for _, key := range keys {
-		if exists, err := spark.Store.FileExists(key); err != nil {
-			spark.Logger.Errorw("Error searching for resource materialization file", "error", err)
-			return err
-		} else if !exists {
-			spark.Logger.Errorw("Could not find resource materialization file", "id", id)
-			return &MaterializationNotFound{id}
-		}
-		spark.Logger.Debugw("Deleting materialization:", "id", id)
-		if err := spark.Store.DeleteFile(key); err != nil {
-			spark.Logger.Errorw("Failed to delete materialization file with key", "key", key)
-			return fmt.Errorf("failed to delete file: %v", err)
-		}
-	}
-	spark.Logger.Debugw("Succesfully deleted materialization", "id", id)
-	return nil
-}
-
-type S3TrainingSet struct {
-	id       ResourceID
-	store    SparkStore
-	Key      string
-	err      error
-	label    interface{}
-	features []interface{}
-	iter     chan interface{}
-	rows     int64
-	idx      int64
-}
-
-func trainingSetValuesFromStruct(row interface{}) ([]interface{}, interface{}) {
-	rowVal := reflect.ValueOf(row)
-	numFeatures := rowVal.NumField() - 1
-	features := make([]interface{}, numFeatures)
-	for i := 0; i < numFeatures; i++ {
-		features[i] = convIndirectToVal(rowVal.Field(i).Interface())
-	}
-	lastIndex := numFeatures
-	label := convIndirectToVal(rowVal.Field(lastIndex).Interface())
-	return features, label
-}
-
-func (s *S3TrainingSet) Next() bool {
-	if s.idx >= s.rows {
-		return false
-	}
-	if s.iter == nil {
-		iterator, err := s.store.ResourceMultiPartStream(s.id, 0)
-		if err != nil {
-			s.err = err
-			return false
-		}
-		s.iter = iterator
-	}
-	val := <-s.iter
-	valError, valIsError := val.(error)
-	if valIsError {
-		s.err = valError
-		return false
-	}
-	features, label := trainingSetValuesFromStruct(val)
-	s.features = features
-	s.label = label
-	s.idx += 1
-	return true
-}
-
-func (s *S3TrainingSet) Features() []interface{} {
-	return s.features
-}
-
-func (s *S3TrainingSet) Label() interface{} {
-	return s.label
-}
-
-func (s *S3TrainingSet) Err() error {
-	return s.err
+	return fileStoreDeleteMaterialization(id, spark.Store, spark.Logger)
 }
 
 func (spark *SparkOfflineStore) registeredResourceSchema(id ResourceID) (ResourceSchema, error) {
@@ -1567,7 +973,7 @@ func (spark *SparkOfflineStore) registeredResourceSchema(id ResourceID) (Resourc
 		spark.Logger.Errorw("Resource not registered in spark store", id, err)
 		return ResourceSchema{}, fmt.Errorf("resource not registered: %v", err)
 	}
-	sparkResourceTable, ok := table.(*S3OfflineTable)
+	sparkResourceTable, ok := table.(*BlobOfflineTable)
 	if !ok {
 		spark.Logger.Errorw("could not convert offline table to sparkResourceTable", id)
 		return ResourceSchema{}, fmt.Errorf("could not convert offline table with id %v to sparkResourceTable", id)
@@ -1576,29 +982,32 @@ func (spark *SparkOfflineStore) registeredResourceSchema(id ResourceID) (Resourc
 	return sparkResourceTable.schema, nil
 }
 
-func (spark *SparkOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
+func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate bool) error {
 	if err := def.check(); err != nil {
 		spark.Logger.Errorw("Training set definition not valid", def, err)
 		return err
 	}
 	sourcePaths := make([]string, 0)
 	featureSchemas := make([]ResourceSchema, 0)
-	destinationPath := spark.Store.ResourcePath(def.ID)
-	trainingSetExists, err := spark.Store.ResourceExists(def.ID)
+	destinationPath := spark.Store.PathWithPrefix(ResourcePrefix(def.ID), true)
+	trainingSetNewestFile, err := spark.Store.NewestFile(spark.Store.PathWithPrefix(fileStoreResourcePath(def.ID), false))
 	if err != nil {
-		spark.Logger.Errorw("Error checking if training set exists", err)
-		return fmt.Errorf("error checking if training set exists: %v", err)
+		return fmt.Errorf("Error getting training set newest file: %v", err)
 	}
-	if trainingSetExists {
-		spark.Logger.Errorw("Training set already exists", def.ID)
-		return fmt.Errorf("training set already exists: %v", def.ID)
+	trainingSetExists := trainingSetNewestFile != ""
+	if trainingSetExists && !isUpdate {
+		spark.Logger.Errorw("Training set already exists", "id", def.ID)
+		return fmt.Errorf("spark training set already exists: %v", def.ID)
+	} else if !trainingSetExists && isUpdate {
+		spark.Logger.Errorw("Training set does not exist", "id", def.ID)
+		return fmt.Errorf("spark training set does not exist: %v", def.ID)
 	}
 	labelSchema, err := spark.registeredResourceSchema(def.Label)
 	if err != nil {
 		spark.Logger.Errorw("Could not get schema of label in spark store", def.Label, err)
 		return fmt.Errorf("Could not get schema of label %s: %v", def.Label, err)
 	}
-	labelPath := spark.Store.KeyPath(labelSchema.SourceTable)
+	labelPath := spark.Store.PathWithPrefix(labelSchema.SourceTable, true)
 	sourcePaths = append(sourcePaths, labelPath)
 	for _, feature := range def.Features {
 		featureSchema, err := spark.registeredResourceSchema(feature)
@@ -1606,293 +1015,40 @@ func (spark *SparkOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
 			spark.Logger.Errorw("Could not get schema of feature in spark store", feature, err)
 			return fmt.Errorf("Could not get schema of feature %s: %v", feature, err)
 		}
-		featurePath := spark.Store.KeyPath(featureSchema.SourceTable)
+		featurePath := spark.Store.PathWithPrefix(featureSchema.SourceTable, true)
 		sourcePaths = append(sourcePaths, featurePath)
 		featureSchemas = append(featureSchemas, featureSchema)
 	}
 	trainingSetQuery := spark.query.trainingSetCreate(def, featureSchemas, labelSchema)
-	sparkArgs := spark.Store.SparkSubmitArgs(destinationPath, trainingSetQuery, sourcePaths, CreateTrainingSet)
+	sparkArgs := spark.Executor.SparkSubmitArgs(destinationPath, trainingSetQuery, sourcePaths, CreateTrainingSet, spark.Store)
 	spark.Logger.Debugw("Creating training set", "definition", def)
-	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
+	if err := spark.Executor.RunSparkJob(&sparkArgs, spark.Store); err != nil {
 		spark.Logger.Errorw("Spark submit training set job failed to run", "definition", def.ID, "error", err)
 		return fmt.Errorf("spark submit job for training set %v failed to run: %v", def.ID, err)
 	}
-	_, err = spark.Store.ResourceKeySinglePart(def.ID)
+	newestTrainingSet, err := spark.Store.NewestFile(spark.Store.PathWithPrefix(ResourcePrefix(def.ID), false))
 	if err != nil {
-		spark.Logger.Errorw("Could not get training set resource key in offline store", "error", err)
-		return fmt.Errorf("Training Set result does not exist in offline store: %v", err)
+		return fmt.Errorf("could not check that training set was created: %v", err)
+	}
+	if newestTrainingSet == "" {
+		spark.Logger.Errorw("Could not get training set resource key in offline store")
+		return fmt.Errorf("training Set result does not exist in offline store")
 	}
 	spark.Logger.Debugw("Succesfully created training set:", "definition", def)
 	return nil
 }
 
+func (spark *SparkOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
+	return sparkTrainingSet(def, spark, false)
+
+}
+
 func (spark *SparkOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {
-	if err := def.check(); err != nil {
-		spark.Logger.Errorw("Training set definition not valid", def, err)
-		return err
-	}
-	sourcePaths := make([]string, 0)
-	featureSchemas := make([]ResourceSchema, 0)
-	destinationPath := spark.Store.ResourcePath(def.ID)
-	labelSchema, err := spark.registeredResourceSchema(def.Label)
-	if err != nil {
-		spark.Logger.Errorw("Could not get label schema", def.Label, err)
-		return fmt.Errorf("Could not get schema of label %s: %v", def.Label, err)
-	}
-	labelPath := labelSchema.SourceTable // spark.Store.KeyPath(labelSchema.SourceTable)
-	sourcePaths = append(sourcePaths, labelPath)
-	for _, feature := range def.Features {
-		featureSchema, err := spark.registeredResourceSchema(feature)
-		if err != nil {
-			spark.Logger.Errorw("Could not get feature schema", feature, err)
-			return fmt.Errorf("Could not get schema of feature %s: %v", feature, err)
-		}
-		featurePath := spark.Store.KeyPath(featureSchema.SourceTable)
-		sourcePaths = append(sourcePaths, featurePath)
-		featureSchemas = append(featureSchemas, featureSchema)
-	}
-	trainingSetQuery := spark.query.trainingSetCreate(def, featureSchemas, labelSchema)
-	spark.Logger.Debugw("Updating training set", "definition", def)
-	sparkArgs := spark.Store.SparkSubmitArgs(destinationPath, trainingSetQuery, sourcePaths, CreateTrainingSet)
-	if err := spark.Executor.RunSparkJob(sparkArgs); err != nil {
-		spark.Logger.Errorw("Spark submit job failed to run", "id", def.ID, "error", err)
-		return fmt.Errorf("spark submit job for training set %v failed to run: %v", def.ID, err)
-	}
-	_, err = spark.Store.ResourceKeySinglePart(def.ID)
-	if err != nil {
-		spark.Logger.Errorw("Created Training set does not exist", err)
-		return fmt.Errorf("Training Set result does not exist in offline store: %v", err)
-	}
-	spark.Logger.Debugw("Successfully updated training set:", def)
-	return nil
+	return sparkTrainingSet(def, spark, true)
 }
 
 func (spark *SparkOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
-	if err := id.check(TrainingSet); err != nil {
-		spark.Logger.Errorw("id is not of type training set", err)
-		return nil, err
-	}
-	key, err := spark.Store.ResourceKeySinglePart(id)
-	if err != nil {
-		spark.Logger.Errorw("could not find training set", err)
-		return nil, &TrainingSetNotFound{id}
-	}
-	rowCount, err := spark.Store.ResourceRowCount(id)
-	if err != nil {
-		spark.Logger.Errorw("could not get training set row count", err)
-		return nil, err
-	}
-	return &S3TrainingSet{id: id, store: spark.Store, Key: key, rows: int64(rowCount)}, nil
-}
-
-func (s *S3Store) selectFromKey(key string, query string, returnType SelectReturnType) (*s3.SelectObjectContentEventStreamReader, error) {
-	var outputSerialization s3Types.OutputSerialization
-	if returnType == CSV {
-		outputSerialization = s3Types.OutputSerialization{
-			CSV: &s3Types.CSVOutput{},
-		}
-	} else if returnType == JSON {
-		outputSerialization = s3Types.OutputSerialization{
-			JSON: &s3Types.JSONOutput{},
-		}
-	}
-	selectOutput, err := s.client.SelectObjectContent(context.TODO(), &s3.SelectObjectContentInput{
-		Bucket:         aws.String(s.bucketPath),
-		ExpressionType: "SQL",
-		InputSerialization: &s3Types.InputSerialization{
-			Parquet: &s3Types.ParquetInput{},
-		},
-		OutputSerialization: &outputSerialization,
-		Expression:          &query,
-		Key:                 aws.String(key),
-	})
-	if err != nil {
-		s.logger.Errorw("could not make specific select statement on resource", query, key, err)
-		return nil, err
-	}
-	outputStream := selectOutput.GetStream().Reader
-	return &outputStream, nil
-
-}
-
-func (s *S3Store) ResourceRowCount(id ResourceID) (int64, error) {
-	partsList, err := s.ResourceKeysMultiPart(id)
-	if err != nil {
-		return 0, err
-	}
-	total := int64(0)
-	for _, part := range partsList {
-		partRowCount, err := s.FileRowCount(part)
-		if err != nil {
-			return 0, err
-		}
-		total += partRowCount
-	}
-	return total, nil
-}
-
-func (s *S3Store) FileRowCount(key string) (int64, error) {
-	queryString := "SELECT COUNT(*) FROM S3Object"
-	outputStream, err := s.selectFromKey(key, queryString, CSV)
-	if err != nil {
-		s.logger.Errorw("S3 object with key has no rows", key, err)
-		return 0, err
-	}
-	return streamResolveIntegerValue(outputStream)
-}
-
-func streamResolveIntegerValue(outputStream *s3.SelectObjectContentEventStreamReader) (int64, error) {
-	outputEvents := (*outputStream).Events()
-	for i := range outputEvents {
-		switch v := i.(type) {
-		case *s3Types.SelectObjectContentEventStreamMemberRecords:
-			return streamRecordReadInteger(v)
-		}
-	}
-	return 0, nil
-}
-
-func streamRecordReadInteger(record *s3Types.SelectObjectContentEventStreamMemberRecords) (int64, error) {
-	intVar, err := strconv.Atoi(strings.TrimSuffix(string(record.Value.Payload), "\n"))
-	if err != nil {
-		return 0, err
-	}
-	return int64(intVar), nil
-}
-
-// Takes id pointing to file path:
-//.../Type/Name/Variant/Timestamp/_SUCCESS
-//.../Type/Name/Variant/Timestamp/part-00000xxxx.parquet
-//.../Type/Name/Variant/Timestamp/part-00001xxxx.parquet
-//.../Type/Name/Variant/Timestamp/part-00002xxxx.parquet
-// and creates a stream over every file
-func (s *S3Store) ResourceMultiPartStream(id ResourceID, begin int64) (chan interface{}, error) {
-	partsList, err := s.ResourceKeysMultiPart(id)
-	if err != nil {
-		return nil, err
-	}
-	startingFileIndex := 0
-	for begin > 0 {
-		if startingFileIndex >= len(partsList) {
-			return nil, fmt.Errorf("beginning of iterator exceeds num rows")
-		}
-		rowNum, err := s.FileRowCount(partsList[startingFileIndex])
-		if err != nil {
-			return nil, err
-		}
-		if rowNum < begin {
-			begin -= rowNum
-			startingFileIndex += 1
-		} else {
-			break
-		}
-	}
-	partsChannel := make(chan interface{})
-	go s.partStreamReader(partsChannel, partsList[startingFileIndex:], begin)
-	return partsChannel, nil
-}
-
-func (s *S3Store) partStreamReader(rowChannel chan interface{}, partsList []string, begin int64) {
-	for current := 0; current < len(partsList); current++ {
-		var partStream chan interface{}
-		var err error
-		if current == 0 && begin != 0 {
-			partStream, err = s.ResourceStreamSingleFile(partsList[current], begin)
-		} else {
-			partStream, err = s.ResourceStreamSingleFile(partsList[current], 0)
-		}
-		if err != nil {
-			rowChannel <- err
-			break
-		}
-		for {
-			value := <-partStream
-			err, isError := value.(error)
-			if isError && err.Error() == "end of file" {
-				break
-			} else if isError {
-				rowChannel <- err
-				break
-			} else {
-				rowChannel <- value
-			}
-		}
-	}
-	close(rowChannel)
-}
-
-func (s *S3Store) ResourceStreamSingleFile(key string, begin int64) (chan interface{}, error) {
-	file, err := s.S3ParquetReader(key)
-	if err != nil {
-		s.logger.Errorw("could not create S3 parquet reader", err)
-		return nil, err
-	}
-	defer file.Close()
-	pr, err := reader.NewParquetReader(file, nil, 4)
-	if err != nil {
-		s.logger.Errorw("make new basic parquet reader", err)
-		return nil, err
-	}
-	if begin > 0 {
-		if err := pr.SkipRows(begin); err != nil {
-			s.logger.Errorw("could not skip rows to beginning of stream", err)
-			return nil, err
-		}
-	}
-	numRows := pr.GetNumRows()
-	rowChannel := make(chan interface{})
-	go parquetReaderToStream(rowChannel, numRows-begin, pr)
-	return rowChannel, nil
-}
-
-func (s *S3Store) GetTransformationFileLocation(id ResourceID) string {
-	return fmt.Sprintf("s3://%s/featureform/DFTransformations/%s/%s", s.bucketPath, id.Name, id.Variant)
-}
-
-func (s *S3Store) UploadFile(fileLocation string, file io.Reader) error {
-	prefixLength := len(fmt.Sprintf("s3://%s", s.bucketPath))
-	filePath := fileLocation[prefixLength:]
-
-	sess, err := session.NewSession(
-		&awsV1.Config{
-			Region:      awsV1.String(s.region),
-			Credentials: s.credentials,
-		},
-	)
-	if err != nil {
-		return fmt.Errorf("could not create a new session %v", err)
-	}
-
-	uploader := s3manager.NewUploader(sess)
-	_, err = uploader.Upload(&s3manager.UploadInput{
-		Bucket: aws.String(s.bucketPath), // Bucket to be used
-		Key:    aws.String(filePath),     // Name of the file to be saved
-		Body:   file,                     // File
-	})
-	if err != nil {
-		return fmt.Errorf("could not upload (%s) file to s3 %v", filePath, err)
-	}
-	return nil
-}
-
-func parquetReaderToStream(rowChannel chan interface{}, numRows int64, pr *reader.ParquetReader) {
-	for i := int64(0); i < numRows; i++ {
-		res, err := pr.ReadByNumber(1)
-		if err != nil {
-			rowChannel <- err
-		}
-		row := reflect.ValueOf(res).Index(0).Interface()
-		rowChannel <- row
-	}
-	rowChannel <- fmt.Errorf("end of file")
-	close(rowChannel)
-}
-
-func splitRecordLinesOverStream(record *s3Types.SelectObjectContentEventStreamMemberRecords, out chan []byte) {
-	lines := strings.Split(string(record.Value.Payload), "\n")
-	for _, line := range lines {
-		out <- []byte(line)
-	}
+	return fileStoreGetTrainingSet(id, spark.Store, spark.Logger)
 }
 
 func sanitizeSparkSQL(name string) string {

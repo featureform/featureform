@@ -7,7 +7,7 @@ import sys
 sys.path.insert(0, 'client/src/')
 import pytest
 from featureform.resources import ResourceRedefinedError, ResourceState, Provider, RedisConfig, CassandraConfig, FirestoreConfig, \
-    SnowflakeConfig, PostgresConfig, RedshiftConfig, BigQueryConfig, OnlineBlobConfig, AzureBlobStoreConfig, K8sConfig, \
+    SnowflakeConfig, PostgresConfig, RedshiftConfig, BigQueryConfig, OnlineBlobConfig, K8sConfig, \
     User, Provider, Entity, Feature, Label, TrainingSet, PrimaryData, SQLTable, \
     Source, ResourceColumnMapping, DynamodbConfig, Schedule
 
@@ -47,13 +47,12 @@ def redis_config():
 
 @pytest.fixture
 def blob_store_config():
-    return AzureBlobStoreConfig(
+    return AzureFileStoreConfig(
         account_name="<account_name>",
         account_key="<account_key>",
         container_name="examplecontainer",
         root_path="example/path",
     )
-
 
 @pytest.fixture
 def online_blob_config(blob_store_config):

@@ -355,14 +355,12 @@ func destroySnowflakeDatabase(c SnowflakeConfig) error {
 }
 
 func createBigQueryDataset(c BigQueryConfig) error {
-	ctx := context.Background()
-
 	sCreds, err := json.Marshal(c.Credentials)
 	if err != nil {
 		return err
 	}
 
-	client, err := bigquery.NewClient(ctx, c.ProjectId, option.WithCredentialsJSON(sCreds))
+	client, err := bigquery.NewClient(context.TODO(), c.ProjectId, option.WithCredentialsJSON(sCreds))
 	if err != nil {
 		return err
 	}
@@ -372,14 +370,12 @@ func createBigQueryDataset(c BigQueryConfig) error {
 		Location:               "US",
 		DefaultTableExpiration: 24 * time.Hour,
 	}
-	err = client.Dataset(c.DatasetId).Create(ctx, meta)
+	err = client.Dataset(c.DatasetId).Create(context.TODO(), meta)
 
 	return err
 }
 
 func destroyBigQueryDataset(c BigQueryConfig) error {
-	ctx := context.Background()
-
 	sCreds, err := json.Marshal(c.Credentials)
 	if err != nil {
 		return err
@@ -387,13 +383,13 @@ func destroyBigQueryDataset(c BigQueryConfig) error {
 
 	time.Sleep(10 * time.Second)
 
-	client, err := bigquery.NewClient(ctx, c.ProjectId, option.WithCredentialsJSON(sCreds))
+	client, err := bigquery.NewClient(context.TODO(), c.ProjectId, option.WithCredentialsJSON(sCreds))
 	if err != nil {
 		return err
 	}
 	defer client.Close()
 
-	err = client.Dataset(c.DatasetId).DeleteWithContents(ctx)
+	err = client.Dataset(c.DatasetId).DeleteWithContents(context.TODO())
 
 	return err
 }

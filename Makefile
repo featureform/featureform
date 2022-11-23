@@ -178,7 +178,7 @@ update_python: gen_grpc 				## Updates the python package locally
 	-rm -r client/dist/*
 	python3 -m build ./client/
 	pip3 install client/dist/*.whl
-	pip3 install -r provider/scripts/requirements.txt
+	pip3 install -r provider/scripts/spark/requirements.txt
 
 etcdctl: 						## Installs ETCDCTL. Required for reset_e2e
 	-git clone -b v3.4.16 https://github.com/etcd-io/etcd.git
@@ -225,7 +225,7 @@ jupyter: update_python
 
 test_pyspark:
 	@echo "Requires Java to be installed"
-	pytest -v -s --cov=offline_store_spark_runner provider/scripts/tests/ --cov-report term-missing
+	pytest -v -s --cov=offline_store_spark_runner provider/scripts/spark/tests/ --cov-report term-missing
 
 test_pandas:
 	pytest -v -s --cov=offline_store_pandas_runner provider/scripts/k8s/tests/ --cov-report term-missing

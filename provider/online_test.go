@@ -134,7 +134,7 @@ func TestOnlineStores(t *testing.T) {
 	}
 
 	blobAzureInit := func() OnlineBlobConfig {
-		azureConfig := AzureBlobStoreConfig{
+		azureConfig := AzureFileStoreConfig{
 			AccountName:   helpers.GetEnv("AZURE_ACCOUNT_NAME", ""),
 			AccountKey:    helpers.GetEnv("AZURE_ACCOUNT_KEY", ""),
 			ContainerName: helpers.GetEnv("AZURE_CONTAINER_NAME", "newcontainer"),
@@ -145,6 +145,18 @@ func TestOnlineStores(t *testing.T) {
 			Config: azureConfig,
 		}
 		return *blobConfig
+	}
+
+	mongoDBInit := func() MongoDBConfig {
+		mongoConfig := &MongoDBConfig{
+			Host:       helpers.GetEnv("MONGODB_HOST", ""),
+			Port:       helpers.GetEnv("MONGODB_PORT", ""),
+			Username:   helpers.GetEnv("MONGODB_USERNAME", ""),
+			Password:   helpers.GetEnv("MONGODB_PASSWORD", ""),
+			Database:   helpers.GetEnv("MONGODB_DATABASE", ""),
+			Throughput: 1000,
+		}
+		return *mongoConfig
 	}
 
 	type testMember struct {
@@ -182,6 +194,9 @@ func TestOnlineStores(t *testing.T) {
 	if *provider == "azure_blob" || *provider == "" {
 		testList = append(testList, testMember{BlobOnline, "_AZURE", blobAzureInit().Serialized(), true})
 	}
+	if *provider == "mongodb" || *provider == "" {
+		testList = append(testList, testMember{MongoDBOnline, "", mongoDBInit().Serialized(), true})
+	}
 
 	for _, testItem := range testList {
 		if testing.Short() && testItem.integrationTest {
@@ -210,8 +225,10 @@ func TestOnlineStores(t *testing.T) {
 			if err := store.Close(); err != nil {
 				t.Fatalf("Failed to close online store %s: %v", testItem.t, err)
 			}
-
 		}
+		// t.Run("TestConsistency", func(t *testing.T) {
+		// 	testConsistency(t, testItem.t, testItem.c)
+		// })
 	}
 }
 
@@ -309,6 +326,7 @@ func testMassTableWrite(t *testing.T, store OnlineStore) {
 		if err != nil {
 			t.Fatalf("could not create table %v in online store: %v", tableList[i], err)
 		}
+		defer store.DeleteTable(tableList[i].Name, tableList[i].Variant)
 		for j := range entityList {
 			if err := tab.Set(entityList[j], 1); err != nil {
 				t.Fatalf("could not set entity %v in table %v: %v", entityList[j], tableList[i], err)
@@ -384,6 +402,48 @@ func testTypeCasting(t *testing.T, store OnlineStore) {
 		store.DeleteTable(featureName, "")
 	}
 }
+
+// func testConsistency(t *testing.T, tp Type, config SerializedConfig) {
+// 	createConnection := func(t *testing.T, tp Type, config SerializedConfig) OnlineStore {
+// 		provider, err := Get(tp, config)
+// 		if err != nil {
+// 			t.Errorf("Could not get provider: %s", err.Error())
+// 		}
+// 		store, err := provider.AsOnlineStore()
+// 		if err != nil {
+// 			t.Errorf("Could not get provider as online store: %s", err.Error())
+// 		}
+// 		return store
+// 	}
+
+// 	for i := 1; i < 10; i++ {
+// 		store := createConnection(t, tp, config)
+// 		featureName := fmt.Sprintf("feature_%s", uuid.NewString())
+// 		_, err := store.CreateTable(featureName, "default", String)
+// 		if err != nil {
+// 			t.Errorf("could not create table: %s", err.Error())
+// 		}
+// 		store.Close()
+// 		if err != nil {
+// 			t.Errorf("could not close store after create: %s", err.Error())
+// 		}
+
+// 		store = createConnection(t, tp, config)
+// 		_, err = store.GetTable(featureName, "default")
+// 		if err != nil {
+// 			t.Errorf("could not get initial table: %s", err.Error())
+// 		}
+
+// 		err = store.DeleteTable(featureName, "default")
+// 		if err != nil {
+// 			t.Errorf("could not delete table: %s", err.Error())
+// 		}
+// 		store.Close()
+// 		if err != nil {
+// 			t.Errorf("could not close store after delete: %s", err.Error())
+// 		}
+// 	}
+// }
 
 func TestFirestoreConfig_Deserialize(t *testing.T) {
 	content, err := ioutil.ReadFile("connection/connection_configs.json")

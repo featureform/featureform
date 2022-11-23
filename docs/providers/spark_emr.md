@@ -1,4 +1,4 @@
-# Spark
+# Spark with EMR
 
 Featureform supports [Spark on AWS](https://aws.amazon.com/emr/features/spark/) as an Offline Store.
 
@@ -38,17 +38,27 @@ The EMR cluster, before being deployed, must run a bootstrap action to install t
 ```python
 import featureform as ff
 
+emr = EMRCredentials(
+    aws_access_key_id="<aws_access_key_id>",
+    aws_secret_access_key="<aws_secret_access_key>",
+    emr_cluster_id="<emr_cluster_id>",
+    emr_cluster_region="<emr_cluster_id>"
+)
+
+azure_blob = ff.register_blob_store(
+    name="azure-quickstart",
+    description="An azure blob store provider to store offline and inference data" # Optional
+    container_name="my_company_container"
+    root_path="custom/path/in/container"
+    account_name="<azure_account_name>"
+    account_key="<azure_account_key>" 
+)
+
 spark = ff.register_spark(
-    name = "spark_offline_store"
-    description = "A spark provider that can create transformations and training sets",
-    team = "featureform data team",
-    emr_cluster_id = "j-ExampleCluster",
-    emr_cluster_region = "us-east-1",
-    bucket_path = "my-spark-bucket", # excluding the "S3://" prefix
-    bucket_region = "us-east-2",
-    aws_access_key_id = "<access-key-id>",
-    aws_secret_access_key = "<aws-secret-access-key>",
-    )
+    name="spark_provider",
+    executor=emr,
+    filestore=azure_blob
+)
 ```
 {% endcode %}
 

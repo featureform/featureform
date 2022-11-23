@@ -1844,7 +1844,7 @@ class Registrar:
         snowflake = ff.register_snowflake(
             name="snowflake-quickstart",
             username="snowflake",
-            password="password",
+            password="password", #pragma: allowlist secret
             account="account",
             database="snowflake",
             schema="PUBLIC",
@@ -1898,7 +1898,7 @@ class Registrar:
             host="quickstart-postgres",  # The internal dns name for postgres
             port="5432",
             user="postgres",
-            password="password",
+            password="password", #pragma: allowlist secret
             database="postgres"
         )
         ```
@@ -1947,7 +1947,7 @@ class Registrar:
             host="quickstart-redshift",  # The internal dns name for postgres
             port="5432",
             user="redshift",
-            password="password",
+            password="password", #pragma: allowlist secret
             database="dev"
         )
         ```
@@ -2064,17 +2064,15 @@ class Registrar:
                      name: str,
                      store: FileStoreProvider,
                      description: str = "",
-                     team: str = "", ):
+                     team: str = ""):
         """
         Register an offline store provider to run on featureform's own k8s deployment
         
         Args:
             name (str): Name of provider
-            store (Union[str, FileStoreProvider]): name or reference to registered file store provider
-            location (Location): Location of primary data
-            provider (Union[str, OfflineProvider]): Provider
-            owner (Union[str, UserRegistrar]): Owner
+            store (FileStoreProvider): Reference to registered file store provider
             description (str): Description of primary data to be registered
+            team (str): A string parameter describing the team that owns the provider
         **Examples**:
         ```
         k8s = ff.register_k8s(
@@ -2082,6 +2080,7 @@ class Registrar:
             description="Native featureform kubernetes compute",
             store=azure_blob,
             team="featureform-team"
+        )
         ```
         """
         config = K8sConfig(

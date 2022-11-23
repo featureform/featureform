@@ -22,7 +22,7 @@ from .resources import ResourceState, Provider, RedisConfig, FirestoreConfig, Ca
     MongoDBConfig, PostgresConfig, SnowflakeConfig, LocalConfig, RedshiftConfig, BigQueryConfig, SparkConfig, \
     AzureFileStoreConfig, OnlineBlobConfig, K8sConfig, User, Location, Source, PrimaryData, SQLTable, \
     SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet, ProviderReference, \
-    EntityReference, SourceReference, ExecutorCredentials
+    EntityReference, SourceReference, ExecutorCredentials, ResourceRedefinedError
 
 NameVariant = Tuple[str, str]
 
@@ -958,9 +958,9 @@ class SQLTransformationDecorator:
 
     def __init__(self,
                  registrar,
-                 variant: str,
                  owner: str,
                  provider: str,
+                 variant: str = "default",
                  name: str = "",
                  schedule: str = "",
                  description: str = ""):
@@ -973,7 +973,7 @@ class SQLTransformationDecorator:
         self.description = description
 
     def __call__(self, fn: Callable[[], str]):
-        if self.description == "":
+        if self.description == "" and fn.__doc__ is not None:
             self.description = fn.__doc__
         if self.name == "":
             self.name = fn.__name__
@@ -1032,9 +1032,9 @@ class DFTransformationDecorator:
 
     def __init__(self,
                  registrar,
-                 variant: str,
                  owner: str,
                  provider: str,
+                 variant: str = "default",
                  name: str = "",
                  description: str = "",
                  inputs: list = []):
@@ -2275,9 +2275,14 @@ class Registrar:
 
     def state(self):
         for resource in self.__resources:
-            if isinstance(resource, SQLTransformationDecorator) or isinstance(resource, DFTransformationDecorator):
-                resource = resource.to_source()
-            self.__state.add(resource)
+            try:
+                if isinstance(resource, SQLTransformationDecorator) or isinstance(resource, DFTransformationDecorator):
+                    resource = resource.to_source()
+                self.__state.add(resource)
+            except ResourceRedefinedError:
+                    raise
+            except Exception as e:
+                raise Exception(f"Could not add apply {resource.name} ({resource.variant}): {e}")
         self.__resources = []
         return self.__state
 

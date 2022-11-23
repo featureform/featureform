@@ -110,7 +110,7 @@ feature = client.get_feature("name", "variant")
 import featureform as ff
 
 training_set = client.get_training_set("name", "variant")
-print(training_set.get_status() == "READY")
-print(training_set.get_status() == ff.Status.Ready)
+print(training_set.status == "READY")
+print(training_set.get_status() == ff.ResourceStatus.READY)
 print(training_set.is_ready())
 ```

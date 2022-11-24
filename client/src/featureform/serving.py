@@ -201,13 +201,13 @@ class FeatureServer:
             timeout_duration = timedelta(seconds=timeout)
         time_waited = timedelta(seconds = 0)
         time_started = datetime.now()
-        while (status != "FAILED" and status != "READY") and (timeout is None or time_waited < timeout_duration):
+        while (status != ResourceStatus.Failed and status != ResourceStatus.Ready) and (timeout is None or time_waited < timeout_duration):
             feature = self._resource_client.get_feature(name, variant)
             status = feature.get_status()
             time.sleep(1)
             time_waited = datetime.now() - time_started
-        if status == "FAILED":
-            raise ValueError(f'Resource {name}:{variant} status set to failed while waiting')
+        if status == ResourceStatus.Failed:
+            raise ValueError(f'Resource {name}:{variant} status set to failed while waiting: {feature.error_message()}')
         if time_waited >= timeout_duration:
             raise ValueError(f'Waited too long for resource {name}:{variant} to be ready')
     
@@ -729,13 +729,13 @@ class Dataset:
         status = training_set.get_status()
         time_waited = timedelta(seconds = 0)
         time_started = datetime.now()
-        while (status != "FAILED" and status != "READY") and (timeout is None or time_waited < timeout_duration):
+        while (status != ResourceStatus.Failed and status != ResourceStatus.Ready) and (timeout is None or time_waited < timeout_duration):
             training_set = self._resource_client.get_training_set(self._name, self._version)
             status = training_set.get_status()
             time.sleep(1)
             time_waited = datetime.now() - time_started
-        if status == "FAILED":
-            raise ValueError(f'Resource {self._name}:{self._version} status set to failed while waiting')
+        if status == ResourceStatus.Failed:
+            raise ValueError(f'Resource {self._name}:{self._version} status set to failed while waiting: {training_set.error_message()}')
         if time_waited >= timeout_duration:
             raise ValueError(f'Waited too long for resource {self._name}:{self._version} to be ready')
         return self

@@ -3,7 +3,7 @@ import grpc
 from featureform.proto import metadata_pb2_grpc as ff_grpc
 from .format import *
 import featureform as ff
-from .resources import Model
+from .resources import Model, Status, ResourceStatus
 
 def get_user_info(stub, name):
     searchName = metadata_pb2.Name(name=name)
@@ -67,7 +67,7 @@ def get_feature_variant_info(stub, name, variant):
                 owner=x.owner,
                 provider=x.provider,
                 location=None,    
-                status=x.status.Status._enum_type.values[x.status.status].name,
+                status=Status(status=ResourceStatus(x.status.Status._enum_type.values[x.status.status].name), message=x.status.error_message),
                 description=x.description,
             )
     except grpc._channel._MultiThreadedRendezvous as e:
@@ -88,7 +88,7 @@ def get_label_variant_info(stub, name, variant):
                 description=x.description,
                 location=None,
                 variant=x.variant,
-                status=x.status.Status._enum_type.values[x.status.status].name
+                status=Status(status=ResourceStatus(x.status.Status._enum_type.values[x.status.status].name), message=x.status.error_message),
             )
     except grpc._channel._MultiThreadedRendezvous:
         print("Label variant not found.")
@@ -112,7 +112,8 @@ def get_source_variant_info(stub, name, variant):
                 variant=x.variant,
                 provider=x.provider,
                 owner=x.owner,
-                status=x.status.Status._enum_type.values[x.status.status].name,
+                status=Status(status=ResourceStatus(x.status.Status._enum_type.values[x.status.status].name), message=x.status.error_message),
+
             )
     except grpc._channel._MultiThreadedRendezvous:
         print("Source variant not found.")
@@ -125,7 +126,7 @@ def get_training_set_variant_info(stub, name, variant):
                 name=x.name,
                 variant=x.variant,
                 label=(x.label.name,x.label.variant),
-                status=x.status.Status._enum_type.values[x.status.status].name,
+                status=Status(status=ResourceStatus(x.status.Status._enum_type.values[x.status.status].name), message=x.status.error_message),
                 description=x.description,
                 owner=x.owner,
                 schedule=x.schedule,
@@ -145,7 +146,7 @@ def get_provider_info(stub, name):
                 team=x.team,
                 software=x.software,
                 provider_type=x.type,
-                status=x.status.Status._enum_type.values[x.status.status].name,
+                status=Status(status=ResourceStatus(x.status.Status._enum_type.values[x.status.status].name), message=x.status.error_message),
                 sources=[(f.name,f.variant) for f in x.sources],
                 features=[(f.name,f.variant) for f in x.features],
                 trainingsets=[(f.name,f.variant) for f in x.trainingsets],

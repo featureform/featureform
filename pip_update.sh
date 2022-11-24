@@ -3,23 +3,28 @@ POSITIONAL_ARGS=()
 pip3 uninstall featureform -y
 rm -r client/dist/*
 
-# -d or --dashboard parameter enables that the dashboard for localmode be rebuilt
-
+# -c or --client parameter has the rebuild only rebuild the client
+CLIENT_ONLY=false
 while [[ $# -gt 0 ]]; do
   case $1 in
-    -d|--dashboard)
+    -c|--client)   
       shift # past argument
       shift # past value
-      cd dashboard && npm run build
-      cd ../
-      mkdir -p client/src/featureform/dashboard/
-      cp -r dashboard/out client/src/featureform/dashboard/
+      CLIENT_ONLY=true
       ;;
     -*|--*)
       echo "Unknown option $1"
       exit 1
+      ;;
   esac
 done
+
+if [ "$CLIENT_ONLY" = false ] ; then
+    cd dashboard && npm run build
+    cd ../
+    mkdir -p client/src/featureform/dashboard/
+    cp -r dashboard/out client/src/featureform/dashboard/
+fi
 
 python3 -m build ./client/
 pip3 install client/dist/*.whl

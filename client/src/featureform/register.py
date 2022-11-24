@@ -2684,7 +2684,7 @@ class ResourceClient(Registrar):
         ```
 
         ``` json title="Output"
-        // get_training_set returns the TrainingSet object from featureform.Resources
+        // get_training_set returns the TrainingSet object
 
         name: "fraud_training"
         default_variant: "quickstart"

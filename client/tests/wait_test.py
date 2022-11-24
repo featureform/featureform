@@ -28,7 +28,7 @@ def test_not_ready_timeout_training_set(mocker):
             status="PENDING"
         )
     )
-    client=ServingClient(host="mock_host")
+    client=ServingClient(host="mock_host", insecure=True)
     try:
         training_set = dataset = client.training_set(TRAININGSET_NAME, TRAININGSET_VARIANT).wait(timeout=2)
     except ValueError as actual_error:
@@ -47,7 +47,7 @@ def test_failed_training_set(mocker):
             status="FAILED"
         )
     )
-    client=ServingClient(host="mock_host")
+    client=ServingClient(host="mock_host", insecure=True)
     try:
         dataset = client.training_set(TRAININGSET_NAME, TRAININGSET_VARIANT).wait()
     except ValueError as actual_error:
@@ -86,7 +86,7 @@ def test_timeout_feature(mocker):
             status="PENDING"
         )
     )
-    client=ServingClient(host="mock_host")
+    client=ServingClient(host="mock_host", insecure=True)
     try:
         features = client.features([(FEATURE_NAME, FEATURE_VARIANT)], {FEATURE_ENTITY: FEATURE_VALUE}).wait(timeout=2)
     except ValueError as actual_error:
@@ -107,7 +107,7 @@ def test_failed_feature(mocker):
             status="FAILED"
         )
     )
-    client=ServingClient(host="mock_host")
+    client=ServingClient(host="mock_host", insecure=True)
     try:
         features = client.features([(FEATURE_NAME, FEATURE_VARIANT)], {FEATURE_ENTITY: FEATURE_VALUE}).wait(timeout=2)
     except ValueError as actual_error:
@@ -144,7 +144,7 @@ def test_ready_feature(mocker):
             description="",
             status="READY"
         )
-    client=ServingClient(host="mock_host")
+    client=ServingClient(host="mock_host", insecure=True)
     actual = client.features([(FEATURE_NAME, FEATURE_VARIANT)], {FEATURE_ENTITY: FEATURE_VALUE}).wait(timeout=2)
     assert actual != None, "Feature get returned None"
 

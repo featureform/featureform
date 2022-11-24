@@ -204,7 +204,6 @@ stop_postgres:
 ##############################################  PYTHON TESTS ###########################################################
 pytest:
 	-rm -r .featureform
-	touch tls.crt
 	curl -C - https://featureform-demo-files.s3.amazonaws.com/transactions_short.csv -o transactions.csv
 	pytest client/tests/test_cli.py
 	pytest client/tests/resources_test.py

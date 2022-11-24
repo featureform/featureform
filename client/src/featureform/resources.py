@@ -410,7 +410,18 @@ class K8sConfig:
         return bytes(json.dumps(config), "utf-8")
 
 
+class Status:
+    status: ResourceStatus
+    error: str
 
+    def get_status(self):
+        return self.status
+    
+    def error_message(self):
+        return error
+
+    def __str__(self):
+        return f"{self.status}: {self.error}"
 
 Config = Union[
     RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig, BigQueryConfig, FirestoreConfig, SparkAWSConfig, OnlineBlobConfig, AzureBlobStoreConfig, K8sConfig, SerializedConfig]
@@ -425,7 +436,7 @@ class Provider:
     config: Config
     provider_type: str = ""
     software: str = ""
-    status: str = ""
+    status: Status = None
     function: str = ""
     sources: List[NameVariant] = None
     features: List[NameVariant] = None
@@ -628,16 +639,25 @@ class Source:
     schedule_obj: Schedule = None
     is_transformation = SourceType.PRIMARY_SOURCE.value
     inputs = []
-    status: str = ResourceStatus.NoStatus
+    status: Status = None
     features: List[NameVariant] = None
     labels: List[NameVariant] = None
     trainingsets: List[NameVariant] = None
 
-    def get_status(self) -> str: 
-        return self.status
+    def get_status(self) -> ResourceStatus:
+        if self.status is not None:
+            return self.status.get_status()
+        return ResourceStatus.NoStatus
 
     def is_ready(self) -> bool:
-        return self.get_status() == ResourceStatus.Ready
+        if self.status is not None:
+            return self.status.get_status() == ResourceStatus.Ready
+        return False
+
+    def error_message(self) -> str:
+        if self.status is not None:
+            return self.status.error_message()
+        return ""
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=7, schedule_string=schedule)
@@ -856,15 +876,24 @@ class Feature:
     description: str
     variant: str = "default"
     schedule: str = ""
-    status: str = ResourceStatus.NoStatus
+    status: Status = None
     schedule_obj: Schedule = None
     trainingsets: List[NameVariant] = None
 
-    def get_status(self) -> str: 
-        return self.status
+    def get_status(self) -> ResourceStatus:
+        if self.status is not None:
+            return self.status.get_status()
+        return ResourceStatus.NoStatus
 
     def is_ready(self) -> bool:
-        return self.get_status() == ResourceStatus.Ready
+        if self.status is not None:
+            return self.status.get_status() == ResourceStatus.Ready
+        return False
+
+    def error_message(self) -> str:
+        if self.status is not None:
+            return self.status.error_message()
+        return ""
 
     def __post_init__(self):
         col_types = [member.value for member in ColumnTypes]
@@ -965,14 +994,23 @@ class Label:
     description: str
     location: ResourceLocation
     variant: str = "default"
-    status: str = ResourceStatus.NoStatus
+    status: Status = None
     trainingsets: List[NameVariant] = None
 
-    def get_status(self) -> str: 
-        return self.status
+    def get_status(self) -> ResourceStatus:
+        if self.status is not None:
+            return self.status.get_status()
+        return ResourceStatus.NoStatus
 
     def is_ready(self) -> bool:
-        return self.get_status() == ResourceStatus.Ready
+        if self.status is not None:
+            return self.status.get_status() == ResourceStatus.Ready
+        return False
+
+    def error_message(self) -> str:
+        if self.status is not None:
+            return self.status.error_message()
+        return ""
 
     def __post_init__(self):
         col_types = [member.value for member in ColumnTypes]
@@ -1155,14 +1193,23 @@ class TrainingSet:
     variant: str = "default"
     schedule: str = ""
     schedule_obj: Schedule = None
-    status: str = ResourceStatus.NoStatus
+    status: Status = None
     entity: str = ""
 
-    def get_status(self) -> str:
-        return self.status
+    def get_status(self) -> ResourceStatus:
+        if self.status is not None:
+            return self.status.get_status()
+        return ResourceStatus.NoStatus
 
     def is_ready(self) -> bool:
-        return self.get_status() == ResourceStatus.Ready
+        if self.status is not None:
+            return self.status.get_status() == ResourceStatus.Ready
+        return False
+
+    def error_message(self) -> str:
+        if self.status is not None:
+            return self.status.error_message()
+        return ""
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=6, schedule_string=schedule)

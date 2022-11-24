@@ -86,9 +86,6 @@ class TrainingSetVariantResource:
 
     def toJsonLiteral(self):
         return json.dumps(self.__dictionary)
-    
-    def get_status(self):
-        return self.status
 
 class TrainingSetResource:
     def __init__(self,

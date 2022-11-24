@@ -22,7 +22,7 @@ from .resources import ResourceState, Provider, RedisConfig, FirestoreConfig, Ca
     MongoDBConfig, PostgresConfig, SnowflakeConfig, LocalConfig, RedshiftConfig, BigQueryConfig, SparkConfig, \
     AzureFileStoreConfig, OnlineBlobConfig, K8sConfig, User, Location, Source, PrimaryData, SQLTable, \
     SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet, ProviderReference, \
-    EntityReference, SourceReference, ExecutorCredentials, ResourceRedefinedError, ResourceStatus
+    EntityReference, SourceReference, ExecutorCredentials, ResourceRedefinedError, ResourceStatus, Transformation
 
 from .proto import metadata_pb2_grpc as ff_grpc
 
@@ -335,11 +335,11 @@ class OfflineK8sProvider(OfflineProvider):
         self.__provider = provider
 
     def register_file(self,
-                       name: str,
-                       variant: str,
-                       path: str,
-                       owner: Union[str, UserRegistrar] = "",
-                       description: str = ""):
+                      name: str,
+                      variant: str,
+                      path: str,
+                      owner: Union[str, UserRegistrar] = "",
+                      description: str = ""):
         """Register a blob data source path as a primary data source.
 
         Args:
@@ -400,11 +400,11 @@ class OfflineK8sProvider(OfflineProvider):
                                                    description=description)
 
     def df_transformation(self,
-                        variant: str = "default",
-                        owner: Union[str, UserRegistrar] = "",
-                        name: str = "",
-                        description: str = "",
-                        inputs: list = []):
+                          variant: str = "default",
+                          owner: Union[str, UserRegistrar] = "",
+                          name: str = "",
+                          description: str = "",
+                          inputs: list = []):
         """
         Register a Dataframe transformation source. The k8s_azure.df_transformation decorator takes the contents
         of the following function and executes the code it contains at serving time.
@@ -682,6 +682,7 @@ class FileStoreProvider:
 
     def config(self):
         return self.__config
+
 
 class FileStoreProvider:
     def __init__(self, registrar, provider, config, store_type):
@@ -1818,7 +1819,8 @@ class Registrar:
         Returns:
             mongodb (OnlineProvider): Provider
         """
-        config = MongoDBConfig(username=username, password=password, host=host, port=port, database=database, throughput=throughput)
+        config = MongoDBConfig(username=username, password=password, host=host, port=port, database=database,
+                               throughput=throughput)
         provider = Provider(name=name,
                             function="ONLINE",
                             description=description,
@@ -2025,7 +2027,7 @@ class Registrar:
                        filestore: FileStoreProvider,
                        description: str = "",
                        team: str = "",
-                    ):
+                       ):
         """Register a Spark on AWS provider.
         **Examples**:
         ```
@@ -2049,10 +2051,10 @@ class Registrar:
         """
 
         config = SparkConfig(
-                            executor_type=executor.type(),
-                            executor_config=executor.config(),
-                            store_type=filestore.store_type(),
-                            store_config=filestore.config())
+            executor_type=executor.type(),
+            executor_config=executor.config(),
+            store_type=filestore.store_type(),
+            store_config=filestore.config())
 
         provider = Provider(name=name,
                             function="OFFLINE",
@@ -2281,7 +2283,7 @@ class Registrar:
                     resource = resource.to_source()
                 self.__state.add(resource)
             except ResourceRedefinedError:
-                    raise
+                raise
             except Exception as e:
                 raise Exception(f"Could not add apply {resource.name} ({resource.variant}): {e}")
         self.__resources = []
@@ -3140,15 +3142,41 @@ class ResourceClient(Registrar):
             source = x
             break
 
+        definition = self._get_source_definition(source)
+
         return Source(
             name=source.name,
-            definition=source.transformation.SQLTransformation.query,
+            definition=definition,
             owner=source.owner,
             provider=source.provider,
             description=source.description,
             variant=source.variant,
             status=source.status.Status._enum_type.values[source.status.status].name,
         )
+
+    def _get_source_definition(self, source):
+        if source.primaryData.table.name:
+            return PrimaryData(
+                Location(source.primaryData.table.name)
+            )
+        elif source.transformation:
+            return self._get_transformation_definition(source)
+        else:
+            raise Exception(f"Invalid source type {source}")
+
+    def _get_transformation_definition(self, source):
+        if source.transformation.DFTransformation.query != bytes():
+            transformation = source.transformation.DFTransformation
+            return DFTransformation(
+                query=transformation.query,
+                inputs=[(input.name, input.variant) for input in transformation.inputs]
+            )
+        elif source.transformation.SQLTransformation.query != "":
+            return SQLTransformation(
+                source.transformation.SQLTransformation.query
+            )
+        else:
+            raise Exception(f"Invalid transformation type {source}")
 
     def print_source(self, name, variant=None, local=False):
         """Get a source. Prints out information on source, and all variants associated with the source. If variant is included, print information on that specific variant and all resources associated with it.

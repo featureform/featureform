@@ -457,6 +457,10 @@ def test_invalid_providers(snowflake_config):
             "name": "name",
             "description": "desc",
             "team": "team",
+        },
+         {
+            "name": "name",
+            "description": "desc",
             "config": snowflake_config
         },
     ]

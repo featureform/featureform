@@ -142,7 +142,7 @@ def get_provider_info(stub, name):
             return ff.Provider(
                 name=x.name,
                 description=x.description,
-                team=x.team
+                team=x.team,
                 software=x.software,
                 provider_type=x.type,
                 status=x.status.Status._enum_type.values[x.status.status].name,

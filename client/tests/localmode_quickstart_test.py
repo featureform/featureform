@@ -18,7 +18,7 @@ class Quickstart:
     feature_name = 'avg_transactions'
     feature_variant = 'quickstart'
     name_variant = f"{feature_name}.{feature_variant}"
-    entity_value = 'C1010876'
+    entity_value = 'C5841053'
     entity_index = 43653
     feature_value = 5000.0
 

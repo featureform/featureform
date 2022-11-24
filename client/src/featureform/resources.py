@@ -1155,7 +1155,7 @@ class TrainingSet:
     variant: str = "default"
     schedule: str = ""
     schedule_obj: Schedule = None
-    status: str = Resource
+    status: str = ResourceStatus.NoStatus
     entity: str = ""
 
     def get_status(self) -> str:

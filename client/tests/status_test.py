@@ -5,29 +5,62 @@ import sys
 import pytest
 
 sys.path.insert(0, 'client/src/')
-from featureform.register import ResourceClient
-from featureform.resources import Feature, Label, TrainingSet, Source, Transformation, ResourceColumnMapping, ResourceStatus
+from featureform.register import ResourceClient, DFTransformation, SQLTransformation, PrimaryData, Location
+from featureform.resources import Feature, Label, TrainingSet, Source, Transformation, ResourceColumnMapping, \
+    ResourceStatus
 from featureform.proto import metadata_pb2 as pb
 
 
-def pb_no_status():
-    return pb.ResourceStatus.Status.NO_STATUS
+pb_no_status = pb.ResourceStatus.Status.NO_STATUS
+pb_created = pb.ResourceStatus.Status.CREATED
+pb_pending = pb.ResourceStatus.Status.PENDING
+pb_ready = pb.ResourceStatus.Status.READY
+pb_failed = pb.ResourceStatus.Status.FAILED
+sql_query = "SELECT * FROM NONE"
+df_query = bytes(b'somebytes')
+df_name_variants = [("name", "variant")]
+primary_table_name="my_table"
 
+sql_definition_proto = pb.SourceVariant(
+    name="",
+    transformation=pb.Transformation(
+        SQLTransformation=pb.SQLTransformation(
+            query=sql_query
+        )
+    )
+)
 
-def pb_created():
-    return pb.ResourceStatus.Status.CREATED
+df_definition_proto = pb.SourceVariant(
+    name="",
+    transformation=pb.Transformation(
+        DFTransformation=pb.DFTransformation(
+            query=df_query,
+            inputs=[pb.NameVariant(name=nv[0], variant=nv[1]) for nv in df_name_variants]
+        )
+    )
+)
 
+primary_definition_proto = pb.SourceVariant(
+    name="",
+    primaryData=pb.PrimaryData(
+        table=pb.PrimarySQLTable(
+            name=primary_table_name
+        )
+    )
+)
 
-def pb_pending():
-    return pb.ResourceStatus.Status.PENDING
+sql_definition_obj = SQLTransformation(
+    sql_query
+)
 
+df_definition_obj = DFTransformation(
+    query=df_query,
+    inputs=df_name_variants
+)
 
-def pb_ready():
-    return pb.ResourceStatus.Status.READY
-
-
-def pb_failed():
-    return pb.ResourceStatus.Status.FAILED
+primary_definition_obj = PrimaryData(
+    Location(primary_table_name)
+)
 
 # Fetches status from proto for same response that client would give
 def get_pb_status(status):
@@ -35,11 +68,11 @@ def get_pb_status(status):
 
 
 @pytest.mark.parametrize("status,expected,ready", [
-    (pb_no_status(), ResourceStatus.NO_STATUS, False),
-    (pb_created(), ResourceStatus.CREATED, False),
-    (pb_pending(), ResourceStatus.PENDING, False),
-    (pb_ready(), ResourceStatus.READY, True),
-    (pb_failed(), ResourceStatus.FAILED, False),
+    (pb_no_status, ResourceStatus.NO_STATUS, False),
+    (pb_created, ResourceStatus.CREATED, False),
+    (pb_pending, ResourceStatus.PENDING, False),
+    (pb_ready, ResourceStatus.READY, True),
+    (pb_failed, ResourceStatus.FAILED, False),
 ])
 def test_feature_status(mocker, status, expected, ready):
     # Environment variable is getting set somewhere when using Makefile
@@ -67,11 +100,11 @@ def test_feature_status(mocker, status, expected, ready):
 
 
 @pytest.mark.parametrize("status,expected,ready", [
-    (pb_no_status(), ResourceStatus.NO_STATUS, False),
-    (pb_created(), ResourceStatus.CREATED, False),
-    (pb_pending(), ResourceStatus.PENDING, False),
-    (pb_ready(), ResourceStatus.READY, True),
-    (pb_failed(), ResourceStatus.FAILED, False),
+    (pb_no_status, ResourceStatus.NO_STATUS, False),
+    (pb_created, ResourceStatus.CREATED, False),
+    (pb_pending, ResourceStatus.PENDING, False),
+    (pb_ready, ResourceStatus.READY, True),
+    (pb_failed, ResourceStatus.FAILED, False),
 ])
 def test_label_status(mocker, status, expected, ready):
     mocker.patch.object(
@@ -96,11 +129,11 @@ def test_label_status(mocker, status, expected, ready):
 
 
 @pytest.mark.parametrize("status,expected,ready", [
-    (pb_no_status(), ResourceStatus.NO_STATUS, False),
-    (pb_created(), ResourceStatus.CREATED, False),
-    (pb_pending(), ResourceStatus.PENDING, False),
-    (pb_ready(), ResourceStatus.READY, True),
-    (pb_failed(), ResourceStatus.FAILED, False),
+    (pb_no_status, ResourceStatus.NO_STATUS, False),
+    (pb_created, ResourceStatus.CREATED, False),
+    (pb_pending, ResourceStatus.PENDING, False),
+    (pb_ready, ResourceStatus.READY, True),
+    (pb_failed, ResourceStatus.FAILED, False),
 ])
 def test_training_set_status(mocker, status, expected, ready):
     mocker.patch.object(
@@ -123,11 +156,11 @@ def test_training_set_status(mocker, status, expected, ready):
 
 
 @pytest.mark.parametrize("status,expected,ready", [
-    (pb_no_status(), ResourceStatus.NO_STATUS, False),
-    (pb_created(), ResourceStatus.CREATED, False),
-    (pb_pending(), ResourceStatus.PENDING, False),
-    (pb_ready(), ResourceStatus.READY, True),
-    (pb_failed(), ResourceStatus.FAILED, False),
+    (pb_no_status, ResourceStatus.NO_STATUS, False),
+    (pb_created, ResourceStatus.CREATED, False),
+    (pb_pending, ResourceStatus.PENDING, False),
+    (pb_ready, ResourceStatus.READY, True),
+    (pb_failed, ResourceStatus.FAILED, False),
 ])
 def test_source_status(mocker, status, expected, ready):
     mocker.patch.object(
@@ -146,3 +179,29 @@ def test_source_status(mocker, status, expected, ready):
     assert source.get_status() == expected
     assert source.status == expected.name
     assert source.is_ready() == ready
+
+
+@pytest.mark.parametrize("source,expected", [
+    (sql_definition_proto, sql_definition_obj),
+])
+def test_sql_source_definition_parse(source, expected):
+    client = ResourceClient("host")
+    source_obj = client._get_source_definition(source)
+    assert source_obj.query == expected.query
+
+@pytest.mark.parametrize("source,expected", [
+    (df_definition_proto, df_definition_obj),
+])
+def test_df_source_definition_parse(source, expected):
+    client = ResourceClient("host")
+    source_obj = client._get_source_definition(source)
+    assert source_obj.query == expected.query
+    assert source_obj.inputs == expected.inputs
+
+@pytest.mark.parametrize("source,expected", [
+    (primary_definition_proto, primary_definition_obj),
+])
+def test_primary_source_definition_parse(source, expected):
+    client = ResourceClient("host")
+    source_obj = client._get_source_definition(source)
+    assert source_obj.location.name == expected.location.name

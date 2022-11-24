@@ -505,7 +505,7 @@ class K8sConfig:
         return f"{self.status}: {self.error}"
 
 Config = Union[
-    RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig, BigQueryConfig, FirestoreConfig, SparkConfig, OnlineBlobConfig, AzureBlobStoreConfig, K8sConfig, SerializedConfig]
+    RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig, BigQueryConfig, FirestoreConfig, SparkConfig, OnlineBlobConfig, AzureFileStoreConfig, K8sConfig, SerializedConfig]
 
 
 

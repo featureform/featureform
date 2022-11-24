@@ -25,9 +25,9 @@ VERSION=get_random_string()
 os.environ["TEST_CASE_VERSION"]=VERSION
 
 FEATURE_NAME = f"ice_cream_feature_{VERSION}"
-FEATURE_VARIANT = "canvass"
+FEATURE_VARIANT = "lag_features"
 TRAININGSET_NAME = f"ice_cream_training_{VERSION}"
-TRAININGSET_VARIANT = "canvass"
+TRAININGSET_VARIANT = "lag_features"
 
 FEATURE_SERVING = f"farm:farm"
 VERSIONS = f"{FEATURE_NAME},{FEATURE_VARIANT}:{TRAININGSET_NAME},{TRAININGSET_VARIANT}"
@@ -59,22 +59,22 @@ k8s = ff.register_k8s(
 
 ice_cream = k8s.register_file(
     name=f"ice_cream_{VERSION}",
-    variant="canvass",
+    variant=VERSION,
     description="A dataset of ice cream",
-    path="testing/ff/data/canvass/ice_cream_100rows.csv"
+    path="testing/ff/data/ice_cream_100rows.csv"
 )
 
 @k8s.df_transformation(name=f"ice_cream_entity_{VERSION}", 
-                        variant="canvass",
-                        inputs=[(f"ice_cream_{VERSION}", "canvass")])
+                        variant=VERSION,
+                        inputs=[(f"ice_cream_{VERSION}", VERSION)])
 def ice_cream_entity_transformation(df):
     """ the ice cream dataset with entity """
     df["entity"] = "farm"
     return df
 
-@k8s.df_transformation(name=f"ice_cream_transformation_{VERSION}", 
-                        variant="canvass",
-                        inputs=[(f"ice_cream_entity_{VERSION}", "canvass")])
+@k8s.df_transformation(name=f"ice_cream_transformation_{VERSION}",
+                        variant=VERSION,
+                        inputs=[(f"ice_cream_entity_{VERSION}", VERSION)])
 def ice_cream_transformation(df):
     """the ice cream dataset """
     return df
@@ -98,15 +98,15 @@ ice_cream_entity_transformation.register_resources(
     entity_column="entity",
     timestamp_column="time_index",
     labels=[
-        {"name": f"ice_cream_label_{VERSION}", "variant": "canvass", "column": "quality_score", "type": "float32"},
+        {"name": f"ice_cream_label_{VERSION}", "variant": FEATURE_VARIANT, "column": "quality_score", "type": "float32"},
     ],
 )
 
 ff.register_training_set(
     TRAININGSET_NAME, TRAININGSET_VARIANT,
-    label=(f"ice_cream_label_{VERSION}", "canvass"),
+    label=(f"ice_cream_label_{VERSION}", FEATURE_VARIANT),
     features=[
-        (f"ice_cream_feature_{VERSION}", "canvass"),
-        {"feature": f"ice_cream_feature_{VERSION}", "variant": "canvass", "name": "ice_cream_transformation_lag_1h", "lag": timedelta(hours=1)},
+        (f"ice_cream_feature_{VERSION}", FEATURE_VARIANT),
+        {"feature": f"ice_cream_feature_{VERSION}", "variant": FEATURE_VARIANT, "name": "ice_cream_transformation_lag_1h", "lag": timedelta(hours=1)},
     ],
 )

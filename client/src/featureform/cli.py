@@ -75,11 +75,11 @@ def get(host, cert, insecure, local, resource_type, name, variant):
     rc = ResourceClient(host=host, local=local, insecure=insecure, cert_path=cert)
 
     rc_get_functions_variant = {
-        "feature": rc.get_feature,
-        "label": rc.get_label,
-        "source": rc.get_source,
-        "trainingset": rc.get_training_set,
-        "training-set": rc.get_training_set
+        "feature": rc.print_feature,
+        "label": rc.print_label,
+        "source": rc.print_source,
+        "trainingset": rc.print_training_set,
+        "training-set": rc.print_training_set
     }
 
     rc_get_functions = {

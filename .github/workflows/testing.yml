@@ -180,7 +180,11 @@ jobs:
           AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
           AZURE_ACCOUNT_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
           AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
-
+          MONGODB_HOST: ${{ secrets.MONGODB_HOST }}
+          MONGODB_PORT: ${{ secrets.MONGODB_PORT }}
+          MONGODB_USERNAME: ${{ secrets.MONGODB_USERNAME }}
+          MONGODB_PASSWORD: ${{ secrets.MONGODB_PASSWORD }}
+          MONGODB_DATABASE: ${{ secrets.MONGODB_DATABASE }}
         working-directory: ./
         run: make test_online
 
@@ -293,69 +297,74 @@ jobs:
           name: provider-offline-coverage-reports
           path: ./coverage
 
-  #  spark-offline:
-  #    name: Offline Spark Testing
-  #    timeout-minutes: 60
-  #    environment: Integration testing
-  #    needs: setup
-  #    runs-on: ubuntu-latest
-  #    steps:
-  #      - name: Download Working Compiled Directories
-  #        uses: actions/download-artifact@v3
-  #        with:
-  #          name: compiled-workdir
-  #
-  #      - name: Set up Go
-  #        uses: actions/setup-go@v2
-  #        with:
-  #          go-version: 1.18
-  #
-  #      - name: Install Protobuf
-  #        run: sudo snap install protobuf --classic
-  #
-  #      - name: Make Coverage Directory
-  #        working-directory: ./
-  #        run: mkdir coverage
-  #
-  #      - name: create-json
-  #        id: create-json-2
-  #        uses: jsdaniell/create-json@1.1.2
-  #        with:
-  #          name: "./provider/bigquery_credentials.json"
-  #          json: ${{ secrets.BIGQUERY_CREDENTIALS_FILE }}
-  #
-  #      - name: Testing
-  #        env:
-  #          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-  #          AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
-  #          AWS_EMR_CLUSTER_REGION: ${{ secrets.AWS_EMR_CLUSTER_REGION }}
-  #          AWS_EMR_CLUSTER_ID: ${{ secrets.AWS_EMR_CLUSTER_ID }}
-  #          S3_BUCKET_PATH: ${{ secrets.S3_BUCKET_PATH }}
-  #          S3_BUCKET_REGION: ${{ secrets.S3_BUCKET_REGION }}
-  #        working-directory: ./
-  #        run: make test_offline_spark
-  #
-  #      - name: Convert Coverage Test Results
-  #        if: always()
-  #        working-directory: ./coverage
-  #        run: |
-  #          cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
-  #          go tool cover -html=cover.out -o cover.html
-  #
-  #      - uses: codecov/codecov-action@v2
-  #        if: always()
-  #        with:
-  #          root_dir: ./
-  #          files: ./coverage/cover.out
-  #          name: provider-offline-coverage
-  #          verbose: true
-  #
-  #      - name: Archive code coverage results
-  #        if: always()
-  #        uses: actions/upload-artifact@v3
-  #        with:
-  #          name: provider-offline-coverage-reports
-  #          path: ./coverage
+  spark-offline:
+    name: Offline Spark Testing
+    timeout-minutes: 60
+    environment: Integration testing
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Working Compiled Directories
+        uses: actions/download-artifact@v3
+        with:
+          name: compiled-workdir
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.18
+
+      - name: Install Protobuf
+        run: sudo snap install protobuf --classic
+
+      - name: Make Coverage Directory
+        working-directory: ./
+        run: mkdir coverage
+
+      - name: create-json
+        id: create-json-2
+        uses: jsdaniell/create-json@1.1.2
+        with:
+          name: "./provider/bigquery_credentials.json"
+          json: ${{ secrets.BIGQUERY_CREDENTIALS_FILE }}
+
+      - name: Testing
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
+          AWS_EMR_CLUSTER_REGION: ${{ secrets.AWS_EMR_CLUSTER_REGION }}
+          AWS_EMR_CLUSTER_ID: ${{ secrets.AWS_EMR_CLUSTER_ID }}
+          S3_BUCKET_PATH: ${{ secrets.S3_BUCKET_PATH }}
+          S3_BUCKET_REGION: ${{ secrets.S3_BUCKET_REGION }}
+          AZURE_ACCOUNT_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
+          AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
+          AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
+          AZURE_CONTAINER_PATH: ${{ secrets.AZURE_CONTAINER_PATH }}
+          AZURE_CONNECTION_STRING: ${{ secrets.AZURE_CONNECTION_STRING }}
+        working-directory: ./
+        run: make test_offline_spark
+
+      - name: Convert Coverage Test Results
+        if: always()
+        working-directory: ./coverage
+        run: |
+          cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
+          go tool cover -html=cover.out -o cover.html
+
+      - uses: codecov/codecov-action@v2
+        if: always()
+        with:
+          root_dir: ./
+          files: ./coverage/cover.out
+          name: provider-offline-coverage
+          verbose: true
+
+      - name: Archive code coverage results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: provider-offline-coverage-reports
+          path: ./coverage
 
   metadata:
     name: Metadata Testing (Excluding Typesense)
@@ -745,6 +754,7 @@ jobs:
   spark-script:
     name: PySpark Script Testing
     needs: setup
+    environment: Integration testing
     runs-on: ubuntu-latest
 
     steps:
@@ -759,10 +769,16 @@ jobs:
           python-version: "3.10"
 
       - name: Install python dependencies
-        working-directory: ./provider/scripts
+        working-directory: ./provider/scripts/spark
         run: python3 -m pip install -r requirements.txt
 
       - name: Testing
+        env:
+          AZURE_ACCOUNT_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
+          AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
+          AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
+          AZURE_CONTAINER_PATH: ${{ secrets.AZURE_CONTAINER_PATH }}
+          AZURE_CONNECTION_STRING: ${{ secrets.AZURE_CONNECTION_STRING }}
         run: make test_pyspark
 
   k8s:
@@ -791,6 +807,12 @@ jobs:
         run: pip install -r ./provider/scripts/k8s/requirements.txt
 
       - name: Testing Go
+        env:
+          AZURE_ACCOUNT_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
+          AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
+          AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
+          AZURE_CONTAINER_PATH: ${{ secrets.AZURE_CONTAINER_PATH }}
+          AZURE_CONNECTION_STRING: ${{ secrets.AZURE_CONNECTION_STRING }}
         run: make test_offline_k8s
 
       - name: Testing Python
@@ -808,7 +830,7 @@ jobs:
         run: |
           cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
           go tool cover -html=cover.out -o cover.html
-
+          
       - uses: codecov/codecov-action@v2
         if: always()
         with:
@@ -879,6 +901,7 @@ jobs:
   #        run: kubectl get services -A
   #      - name: Get job pods and print logs
   #        run: kubectl logs -l job-name=example
+
 
   localmode:
     name: Test Localmode

@@ -7,7 +7,6 @@ package runner
 import (
 	"encoding/json"
 	"fmt"
-  
 	"go.uber.org/zap"
 
 	"github.com/featureform/helpers"

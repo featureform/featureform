@@ -126,6 +126,15 @@ def test_get_args(variables, request):
     ]
 )
 def test_get_blob_credentials(variables, type, request):
+    connection_string = os.getenv("AZURE_CONNECTION_STRING")
+    if connection_string == None:
+        # get the path to .env in root directory
+        env_file = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(real_path)))))   
+        load_dotenv(f"{env_file}/.env")
+
+        connection_string = os.getenv("AZURE_CONNECTION_STRING")
+
+
     environment_variables = request.getfixturevalue(variables)
     set_environment_variables(environment_variables)
     args = get_args()

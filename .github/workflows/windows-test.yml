@@ -1,0 +1,56 @@
+name: Windows Testing
+on: [push]
+concurrency:
+  group: ${{ github.head_ref }}-windows-testing
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test
+    env:
+      FEATUREFORM_HOST: "localhost:7878"
+    defaults:
+      run:
+        working-directory: ./
+    runs-on: windows-latest
+    services:
+      postgres:
+        image: featureformcom/postgres:latest
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:latest
+        ports:
+          - 6379:6379
+      featureformcom/featureform:
+        image: redis:latest
+        ports:
+          - 7878:7878
+          - 80:80
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Install Featureform
+        run: pip install featureform
+
+      - name: Run CLI
+        run: featureform apply https://featureform-demo-files.s3.amazonaws.com/definitions.py --insecure
+
+      - name: Get Resources
+        run: |
+          featureform get source transactions default --insecure
+          featureform get source average_user_transaction default --insecure
+          featureform get training-set fraud_training default --insecure
+
+      - name: Test Serving
+        run: |
+          curl https://featureform-demo-files.s3.amazonaws.com/serving.py -o serving.py && python serving.py
+          curl https://featureform-demo-files.s3.amazonaws.com/training.py -o training.py && python training.py
+          
+

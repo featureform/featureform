@@ -25,7 +25,7 @@ func uuidWithoutDashes() string {
 	return fmt.Sprintf("a%s", strings.ReplaceAll(uuid.New().String(), "-", ""))
 }
 
-func Test_Deserialize(t *testing.T) {
+func TestDeserialize(t *testing.T) {
 	storeType := "AZURE"
 	accountKey := "my key"
 	accountName := "my account name"
@@ -74,9 +74,9 @@ func Test_Deserialize(t *testing.T) {
 	}
 }
 
-func Test_K8sAzureOfflineStoreFactory(t *testing.T) {
+func TestK8sAzureOfflineStoreFactory(t *testing.T) {
 	dockerImage := "my-docker-image:latest"
-	KCFConfig := pb.KCFConfig{
+	kcfConfig := pb.KCFConfig{
 		StoreType: Memory,
 		StoreConfig: pb.AzureBlobStoreConfig{
 			AccountKey:    "",
@@ -90,7 +90,8 @@ func Test_K8sAzureOfflineStoreFactory(t *testing.T) {
 		},
 	}
 
-	store, err := k8sAzureOfflineStoreFactory()
+	serializedKCF := kcfConfig.String()
+	store, err := k8sAzureOfflineStoreFactory(serializedKCF)
 	if err != nil {
 		t.Fatalf("Could not register AzureOfflineStoreFactory: %s", err.Error())
 	}

@@ -14,6 +14,7 @@ import (
 
 	"github.com/featureform/helpers"
 
+	pb "github.com/featureform/metadata/proto"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"github.com/mitchellh/mapstructure"
@@ -22,6 +23,83 @@ import (
 
 func uuidWithoutDashes() string {
 	return fmt.Sprintf("a%s", strings.ReplaceAll(uuid.New().String(), "-", ""))
+}
+
+func TestDeserialize(t *testing.T) {
+	storeType := "AZURE"
+	accountKey := "my key"
+	accountName := "my account name"
+	containerName := "my container name"
+	containerPath := "my container path"
+	executorType := "K8S"
+	dockerimage := "my-test-image:latest"
+
+	KCFConfig := pb.KCFConfig{
+		StoreType: storeType,
+		StoreConfig: pb.AzureBlobStoreConfig{
+			AccountKey:    accountKey,
+			AccountName:   accountName,
+			ContainerName: containerName,
+			ContainerPath: containerPath,
+		},
+		ExecutorType: executorType,
+		ExecutorConfig: pb.ExecutorConfig{
+			DockerImage: dockerimage,
+		},
+	}
+
+	expectedConfig := K8sConfig{
+		ExecutorType: executorType,
+		ExecutorConfig: ExecutorConfig{
+			DockerImage: dockerimage,
+		},
+		StoreType: storeType,
+		StoreConfig: AzureFileStoreConfig{
+			AccountName:   accountName,
+			AccountKey:    accountKey,
+			ContainerName: containerName,
+			Path:          containerPath,
+		},
+	}
+
+	serializedKCF := KCFConfig.String()
+	var config K8sConfig
+	err := config.Deserialize(serializedKCF)
+	if err != nil {
+		return t.Fatalf("Could not deserialize config: %s", err.Error())
+	}
+
+	if !reflect.DeepEqual(config, expectedConfig) {
+		t.Fatalf("Configs do not match: got %v, expected %v", config, expectedConfig)
+	}
+}
+
+func TestK8sAzureOfflineStoreFactory(t *testing.T) {
+	dockerImage := "my-docker-image:latest"
+	kcfConfig := pb.KCFConfig{
+		StoreType: Memory,
+		StoreConfig: pb.AzureBlobStoreConfig{
+			AccountKey:    "",
+			AccountName:   "",
+			ContainerName: "",
+			ContainerPath: "",
+		},
+		ExecutorType: K8s,
+		ExecutorConfig: pb.ExecutorConfig{
+			DockerImage: dockerImage,
+		},
+	}
+
+	serializedKCF := kcfConfig.String()
+	store, err := k8sAzureOfflineStoreFactory(serializedKCF)
+	if err != nil {
+		t.Fatalf("Could not register AzureOfflineStoreFactory: %s", err.Error())
+	}
+	k8sStore := store.(*K8sOfflineStore)
+	k8sExecutor := k8sStore.executor.(*KubernetesExecutor)
+	if !k8sStore.executor.Dockerfile == dockerImage {
+		t.Fatalf("Executor docker image does not match: got %s, expected %s", k8sStore.executor.Dockerfile, dockerImage)
+	}
 }
 
 func TestBlobInterfaces(t *testing.T) {

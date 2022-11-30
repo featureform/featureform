@@ -2068,7 +2068,8 @@ class Registrar:
                      name: str,
                      store: FileStoreProvider,
                      description: str = "",
-                     team: str = ""):
+                     team: str = "",
+                     docker_image: str = ""):
         """
         Register an offline store provider to run on featureform's own k8s deployment
         

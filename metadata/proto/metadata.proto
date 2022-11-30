@@ -308,3 +308,23 @@ message PrimaryData {
 message PrimarySQLTable {
     string name = 1;
 }
+
+message KCFConfig {
+    string executor_type = 1;
+    ExecutorConfig executor_config = 2;
+    string store_type = 3;
+    oneof store_config {
+        AzureBlobStoreConfig azure_blob_store_config = 4;
+    }
+}
+
+message ExecutorConfig {
+    string docker_image = 1;
+}
+
+message AzureBlobStoreConfig {
+    string account_name = 1;
+    string account_key = 2;
+    string container_name = 3;
+    string container_path = 4;
+}

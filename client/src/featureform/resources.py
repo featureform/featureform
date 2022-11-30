@@ -456,29 +456,6 @@ class K8sConfig:
         }
         return bytes(json.dumps(config), "utf-8")
 
-
-@typechecked
-@dataclass
-class K8sConfig:
-    store_type: str
-    store_config: dict
-
-    def software(self) -> str:
-        return "k8s"
-
-    def type(self) -> str:
-        return "K8S_OFFLINE"
-
-    def serialize(self) -> bytes:
-        config = {
-            "ExecutorType": "K8S",
-            "ExecutorConfig": "",
-            "StoreType": self.store_type,
-            "StoreConfig": self.store_config,
-        }
-        return bytes(json.dumps(config), "utf-8")
-
-
 Config = Union[
     RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig, BigQueryConfig,
     FirestoreConfig, SparkConfig, OnlineBlobConfig, AzureFileStoreConfig, S3StoreConfig, K8sConfig,

@@ -6,10 +6,13 @@ import sys
 
 sys.path.insert(0, 'client/src/')
 import pytest
-from featureform.resources import ResourceRedefinedError, ResourceState, Provider, RedisConfig, CassandraConfig, FirestoreConfig, \
+from featureform.resources import ResourceRedefinedError, ResourceState, Provider, RedisConfig, CassandraConfig, \
+    FirestoreConfig, \
     SnowflakeConfig, PostgresConfig, RedshiftConfig, BigQueryConfig, OnlineBlobConfig, K8sConfig, \
     User, Provider, Entity, Feature, Label, TrainingSet, PrimaryData, SQLTable, \
     Source, ResourceColumnMapping, DynamodbConfig, Schedule
+
+from featureform.proto import metadata_pb2 as pb
 
 
 @pytest.fixture
@@ -54,6 +57,7 @@ def blob_store_config():
         root_path="example/path",
     )
 
+
 @pytest.fixture
 def online_blob_config(blob_store_config):
     return OnlineBlobConfig(
@@ -73,10 +77,55 @@ def file_store_provider(blob_store_config):
 
 
 @pytest.fixture
-def kubernetes_config(file_store_provider):
-    return K8sConfig(
-        store=file_store_provider
+def docker_image():
+    return "my-docker-image:latest"
+
+@pytest.fixture
+def k8s_store_type():
+    return "AZURE"
+
+@pytest.fixture()
+def executor_proto(docker_image):
+    return pb.ExecutorConfig(
+        docker_image=docker_image
     )
+
+
+@pytest.fixture()
+def store_config_proto():
+    return pb.AzureBlobStoreConfig(
+        account_name="account name",
+        account_key="account key",
+        container_name="container name",
+        container_path="container path"
+    )
+
+
+@pytest.fixture()
+def kubernetes_proto(executor_proto, store_config_proto, k8s_store_type):
+    return pb.KCFConfig(
+        executor_type="K8S",
+        executor_config=executor_proto,
+        store_type=k8s_store_type,
+        store_config=store_config_proto
+    )
+
+@pytest.fixture()
+def serialized_kubernetes_proto(kubernetes_proto):
+    return kubernetes_proto.SerializeToString()
+
+
+@pytest.fixture
+def kubernetes_config(executor_proto, store_config_proto, docker_image, k8s_store_type):
+    return K8sConfig(
+        store_type=k8s_store_type,
+        store=store_config_proto,
+        docker_image=docker_image
+    )
+
+
+def test_kubernetes_serialize(kubernetes_config, serialized_kubernetes_proto):
+    assert kubernetes_config.serialize() == serialized_kubernetes_proto
 
 
 @pytest.fixture
@@ -216,6 +265,7 @@ def test_valid_feature_column_types(input, fail):
     if fail:
         with pytest.raises(ValueError):
             init_feature(input)
+
 
 def init_label(input):
     Label(name="feature",

@@ -95,6 +95,7 @@ func Test_K8sAzureOfflineStoreFactory(t *testing.T) {
 		t.Fatalf("Could not register AzureOfflineStoreFactory: %s", err.Error())
 	}
 	k8sStore := store.(*K8sOfflineStore)
+	k8sExecutor := k8sStore.executor.(*KubernetesExecutor)
 	if !k8sStore.executor.Dockerfile == dockerImage {
 		t.Fatalf("Executor docker image does not match: got %s, expected %s", k8sStore.executor.Dockerfile, dockerImage)
 	}

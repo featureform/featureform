@@ -13,6 +13,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/featureform/helpers"
+	"github.com/featureform/kubernetes"
+	"github.com/featureform/logging"
+	"github.com/featureform/metadata"
+
 	"github.com/segmentio/parquet-go"
 	"go.uber.org/zap"
 	"gocloud.dev/blob"
@@ -20,12 +25,6 @@ import (
 	_ "gocloud.dev/blob/fileblob"
 	_ "gocloud.dev/blob/memblob"
 	"golang.org/x/exp/slices"
-
-	cfg "github.com/featureform/config"
-	"github.com/featureform/helpers"
-	"github.com/featureform/kubernetes"
-	"github.com/featureform/logging"
-	"github.com/featureform/metadata"
 )
 
 type pandasOfflineQueries struct {
@@ -432,7 +431,7 @@ func (kube KubernetesExecutor) ExecuteScript(envVars map[string]string) error {
 }
 
 func NewKubernetesExecutor(config Config) (Executor, error) {
-	pandas_image := cfg.GetPandasRunnerImage()
+	pandas_image := helpers.GetEnv("PANDAS_RUNNER_IMAGE", "featureformcom/k8s_runner:0.3.0-rc")
 	return KubernetesExecutor{image: pandas_image}, nil
 }
 

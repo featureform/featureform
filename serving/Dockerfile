@@ -17,7 +17,6 @@ RUN protoc --go_out=. --go_opt=paths=source_relative     --go-grpc_out=. --go-gr
 
 COPY serving/*.go ./serving/
 COPY ./metadata/ ./metadata/
-COPY ./config/ ./config/
 COPY ./helpers/ ./helpers/
 COPY ./logging/ ./logging/
 COPY ./types/ ./types/

@@ -8,19 +8,19 @@ import (
 	"strings"
 	"time"
 
-	help "github.com/featureform/helpers"
-	"github.com/featureform/types"
-
 	db "github.com/jackc/pgx/v4"
+	"go.etcd.io/etcd/api/v3/mvccpb"
+	clientv3 "go.etcd.io/etcd/client/v3"
+	"go.etcd.io/etcd/client/v3/concurrency"
 	"go.uber.org/zap"
 
+	cfg "github.com/featureform/config"
+	help "github.com/featureform/helpers"
 	"github.com/featureform/kubernetes"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	"github.com/featureform/runner"
-	mvccpb "go.etcd.io/etcd/api/v3/mvccpb"
-	clientv3 "go.etcd.io/etcd/client/v3"
-	"go.etcd.io/etcd/client/v3/concurrency"
+	"github.com/featureform/types"
 )
 
 func retryWithDelays(name string, retries int, delay time.Duration, idempotentFunction func() error) error {
@@ -185,8 +185,7 @@ func (k *KubernetesJobSpawner) GetJobRunner(jobName string, config runner.Config
 	if err != nil {
 		return nil, err
 	}
-
-	pandas_image := help.GetEnv("PANDAS_RUNNER_IMAGE", "featureformcom/k8s_runner:stable")
+	pandas_image := cfg.GetPandasRunnerImage()
 	fmt.Println("GETJOBRUNNERID:", id)
 	kubeConfig := kubernetes.KubernetesRunnerConfig{
 		EnvVars: map[string]string{

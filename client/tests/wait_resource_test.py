@@ -10,12 +10,48 @@ def wait_function_success(timeout=None):
 
 def wait_function_failure(timeout=None):
     raise ValueError("Resource took to long to return")
-    
+
 test_resources = {
-    "feature": Feature(),
-    "label": Label(),
-    "training_set": TrainingSet(),
-    "source": Source(),
+    "feature": Feature(
+        name="test",
+        variant="test",
+        value_type="test",
+        source=("test","test"),
+        entity="test",
+        owner="test",
+        provider="test",
+        location=None,
+        description="test"
+    ),
+    "label": Label(
+        name="test",
+        variant="test",
+        value_type="test",
+        source=("test","test"),
+        entity="test",
+        owner="test",
+        provider="test",
+        location=None,
+        description="test"
+    ),
+    "training_set": TrainingSet(
+        name="test",
+        variant="test",
+        label=("test","test"),
+        owner="test",
+        provider="test",
+        description="test"
+        features=None,
+    ),
+    "source": Source(
+        name="test",
+        definition=None,
+        variant="test",
+        source=("test","test"),
+        owner="test",
+        provider="test",
+        description="test"
+    ),
 }
 
 wait_functions = {
@@ -28,7 +64,6 @@ def test_wait_success(resource):
     resource.wait_function = wait_function_success
     try:
         resource.wait()
-    
 
 @pytest.mark.parametrize("resource", [resource for resource in test_resources.values()])
 def test_wait_failure(resource):
@@ -37,5 +72,3 @@ def test_wait_failure(resource):
         resource.wait()
     except ValueError as actual_error:
         assert actual_error.args[0] == f'Resource took to long to return'
-
-

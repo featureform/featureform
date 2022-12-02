@@ -25,10 +25,10 @@ import (
 
 const TIME_FORMAT = time.RFC1123
 
-type operation int
+type Operation int
 
 const (
-	create_op operation = iota
+	create_op Operation = iota
 )
 
 type ResourceType int32
@@ -185,7 +185,7 @@ func (err *ResourceExists) GRPCStatus() *status.Status {
 }
 
 type Resource interface {
-	Notify(ResourceLookup, operation, Resource) error
+	Notify(ResourceLookup, Operation, Resource) error
 	ID() ResourceID
 	Schedule() string
 	Dependencies(ResourceLookup) (ResourceLookup, error)
@@ -338,7 +338,7 @@ func (resource *sourceResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *sourceResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *sourceResource) Notify(lookup ResourceLookup, op Operation, that Resource) error {
 	otherId := that.ID()
 	isVariant := otherId.Type == SOURCE_VARIANT && otherId.Name == this.serialized.Name
 	if !isVariant {
@@ -400,7 +400,7 @@ func (resource *sourceVariantResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *sourceVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *sourceVariantResource) Notify(lookup ResourceLookup, op Operation, that Resource) error {
 	id := that.ID()
 	t := id.Type
 	key := id.Proto()
@@ -450,7 +450,7 @@ func (resource *featureResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *featureResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *featureResource) Notify(lookup ResourceLookup, op Operation, that Resource) error {
 	otherId := that.ID()
 	isVariant := otherId.Type == FEATURE_VARIANT && otherId.Name == this.serialized.Name
 	if !isVariant {
@@ -521,7 +521,7 @@ func (resource *featureVariantResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *featureVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *featureVariantResource) Notify(lookup ResourceLookup, op Operation, that Resource) error {
 	id := that.ID()
 	releventOp := op == create_op && id.Type == TRAINING_SET_VARIANT
 	if !releventOp {
@@ -566,7 +566,7 @@ func (resource *labelResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *labelResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *labelResource) Notify(lookup ResourceLookup, op Operation, that Resource) error {
 	otherId := that.ID()
 	isVariant := otherId.Type == LABEL_VARIANT && otherId.Name == this.serialized.Name
 	if !isVariant {
@@ -637,7 +637,7 @@ func (resource *labelVariantResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *labelVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *labelVariantResource) Notify(lookup ResourceLookup, op Operation, that Resource) error {
 	id := that.ID()
 	releventOp := op == create_op && id.Type == TRAINING_SET_VARIANT
 	if !releventOp {
@@ -680,7 +680,7 @@ func (resource *trainingSetResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *trainingSetResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *trainingSetResource) Notify(lookup ResourceLookup, op Operation, that Resource) error {
 	otherId := that.ID()
 	isVariant := otherId.Type == TRAINING_SET_VARIANT && otherId.Name == this.serialized.Name
 	if !isVariant {
@@ -754,7 +754,7 @@ func (resource *trainingSetVariantResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *trainingSetVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *trainingSetVariantResource) Notify(lookup ResourceLookup, op Operation, that Resource) error {
 	return nil
 }
 
@@ -819,7 +819,7 @@ func (resource *modelResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *modelResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *modelResource) Notify(lookup ResourceLookup, op Operation, that Resource) error {
 	return nil
 }
 
@@ -855,7 +855,7 @@ func (resource *userResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *userResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *userResource) Notify(lookup ResourceLookup, op Operation, that Resource) error {
 	if isDep, err := isDirectDependency(lookup, this, that); err != nil {
 		return err
 	} else if !isDep {
@@ -910,7 +910,7 @@ func (resource *providerResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *providerResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *providerResource) Notify(lookup ResourceLookup, op Operation, that Resource) error {
 	if isDep, err := isDirectDependency(lookup, this, that); err != nil {
 		return err
 	} else if !isDep {
@@ -965,7 +965,7 @@ func (resource *entityResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *entityResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *entityResource) Notify(lookup ResourceLookup, op Operation, that Resource) error {
 	id := that.ID()
 	key := id.Proto()
 	t := id.Type

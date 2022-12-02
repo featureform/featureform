@@ -110,7 +110,7 @@ func (k8s *K8sOfflineStore) Close() error {
 
 type Config []byte
 
-type ExecutorFactory func(config Config) (Executor, error)
+type ExecutorFactory func(config Config, logger *zap.SugaredLogger) (Executor, error)
 
 var executorFactoryMap = make(map[string]ExecutorFactory)
 
@@ -130,12 +130,12 @@ func UnregisterExecutorFactory(name string) error {
 	return nil
 }
 
-func CreateExecutor(name string, config Config) (Executor, error) {
+func CreateExecutor(name string, config Config, logger *zap.SugaredLogger) (Executor, error) {
 	factory, exists := executorFactoryMap[name]
 	if !exists {
 		return nil, fmt.Errorf("factory does not exist: %s", name)
 	}
-	executor, err := factory(config)
+	executor, err := factory(config, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -199,7 +199,8 @@ func k8sOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 		return nil, fmt.Errorf("invalid k8s config: %v", config)
 	}
 	logger.Info("Creating executor with type:", k8.ExecutorType)
-	exec, err := CreateExecutor(string(k8.ExecutorType), Config(k8.ExecutorConfig))
+	serializedExecutor, err := k8.ExecutorConfig.Serialize()
+	exec, err := CreateExecutor(string(k8.ExecutorType), serializedExecutor, logger)
 	if err != nil {
 		logger.Errorw("Failure initializing executor with type", "executor_type", k8.ExecutorType, "error", err)
 		return nil, err
@@ -231,7 +232,17 @@ func k8sOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	return &k8sOfflineStore, nil
 }
 
-type ExecutorConfig []byte
+type ExecutorConfig struct {
+	DockerImage string `json:"docker_image"`
+}
+
+func (c *ExecutorConfig) Serialize() ([]byte, error) {
+	serialized, err := json.Marshal(c)
+	if err != nil {
+		return nil, fmt.Errorf("could not serialize K8s Config: %w", err)
+	}
+	return serialized, nil
+}
 
 type FileStoreConfig []byte
 
@@ -286,7 +297,8 @@ type KubernetesExecutorConfig struct {
 }
 
 type KubernetesExecutor struct {
-	image string
+	logger *zap.SugaredLogger
+	image  string
 }
 
 func (local LocalExecutor) ExecuteScript(envVars map[string]string) error {
@@ -323,7 +335,7 @@ func (config *LocalExecutorConfig) Deserialize(data []byte) error {
 	return nil
 }
 
-func NewLocalExecutor(config Config) (Executor, error) {
+func NewLocalExecutor(config Config, logger *zap.SugaredLogger) (Executor, error) {
 	localConfig := LocalExecutorConfig{}
 	if err := localConfig.Deserialize([]byte(config)); err != nil {
 		return nil, fmt.Errorf("failed to deserialize config")
@@ -337,11 +349,14 @@ func NewLocalExecutor(config Config) (Executor, error) {
 	}, nil
 }
 
-func (kube KubernetesExecutor) checkImage() {
-	if strings.Contains(kube.image, ) bool
+func (kube KubernetesExecutor) isDefaultImage() bool {
+	return strings.Contains(kube.image, cfg.PandasBaseImage)
 }
 
 func (kube KubernetesExecutor) ExecuteScript(envVars map[string]string) error {
+	if !kube.isDefaultImage() {
+		kube.logger.Warnf("You are using a custom Docker Image (%s) for a Kubernetes job. This may have unintended behavior.", kube.image)
+	}
 	envVars["MODE"] = "k8s"
 	resourceType, err := strconv.Atoi(envVars["RESOURCE_TYPE"])
 	if err != nil {
@@ -383,19 +398,21 @@ func (c *K8sExecutorConfig) Deserialize(config []byte) error {
 	return nil
 }
 
-func NewKubernetesExecutor(config Config) (Executor, error) {
+func (c *K8sExecutorConfig) getImage() string {
+	if c.DockerImage == "" {
+		return cfg.GetPandasRunnerImage()
+	} else {
+		return c.DockerImage
+	}
+}
+
+func NewKubernetesExecutor(config Config, logger *zap.SugaredLogger) (Executor, error) {
 	var c K8sExecutorConfig
 	err := c.Deserialize(config)
 	if err != nil {
 		return nil, fmt.Errorf("could not create Kubernetes Executor: %w", err)
 	}
-	var pandasImage string
-	if c.DockerImage != "" {
-		pandasImage = cfg.GetPandasRunnerImage()
-	} else {
-		pandasImage = c.DockerImage
-	}
-	return KubernetesExecutor{image: pandasImage}, nil
+	return KubernetesExecutor{image: c.getImage()}, nil
 }
 
 type FileStore interface {

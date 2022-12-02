@@ -6,6 +6,7 @@ package provider
 import (
 	"bytes"
 	"fmt"
+	"github.com/featureform/config"
 	"os"
 	"reflect"
 	"strings"
@@ -546,3 +547,57 @@ func testDatabricksInitialization(t *testing.T, store FileStore) {
 // PythonFileURI() string
 // SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType) []string
 // GetDFArgs(outputURI string, code string, mapping []SourceMapping) ([]string, error)
+
+func TestKubernetesExecutor_isDefaultImage(t *testing.T) {
+	logger := zaptest.NewLogger().Sugar()
+	type fields struct {
+		logger *zap.SugaredLogger
+		image  string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   bool
+	}{
+		{"Valid Base", {logger, config.PandasBaseImage}, true},
+		{"Valid Version", {logger, fmt.Sprintf("%s:%s", config.PandasBaseImage, "latest")}, true},
+		{"Invalid Base", {logger, "my-docker/image"}, false},
+		{"Invalid Base", {logger, fmt.Sprintf("%s:%s", "my-docker/image", "latest")}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			kube := KubernetesExecutor{
+				logger: tt.fields.logger,
+				image:  tt.fields.image,
+			}
+			if got := kube.isDefaultImage(); got != tt.want {
+				t.Errorf("isDefaultImage() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestK8sExecutorConfig_getImage(t *testing.T) {
+	type fields struct {
+		DockerImage string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{"No Image", fields{""}, config.PandasBaseImage},
+		{"Custom Image", fields{"my-custom/image"}, "my-custom/image"},
+		{"Base Image", fields{config.PandasBaseImage}, config.PandasBaseImage},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &K8sExecutorConfig{
+				DockerImage: tt.fields.DockerImage,
+			}
+			if got := c.getImage(); got != tt.want {
+				t.Errorf("getImage() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

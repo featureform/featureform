@@ -2572,6 +2572,50 @@ class ResourceClient(Registrar):
         else:
             state().create_all(self._stub)
 
+    def wait(self, resource_type, name, variant=None, timeout=None):
+        # gets a resource and waits until status is set to ready
+        resource_functions = {
+            "user": self.get_user,
+            "model": self.get_model,
+            "entity": self.get_entity,
+            "provider": self.get_provider
+        }
+
+        resource_variant_functions = {
+            "feature": self.get_feature,
+            "label": self.get_label,
+            "source": self.get_source,
+            "trainingset": self.get_training_set,
+            "training-set": self.get_training_set,
+        }
+        
+        resource = None
+        if variant is None:
+            resource = resource_functions[resource_type](name, local=self.local)
+        else:
+            resource = resource_variant_functions[resource_type](name, variant, local=self.local)
+        status = resource.get_status()
+        
+        timeout_duration = timedelta(seconds=0)
+        if timeout is not None:
+            timeout_duration = timedelta(seconds=timeout)
+        time_waited = timedelta(seconds = 0)
+        time_started = datetime.now()
+
+        while (status != ResourceStatus.Failed and status != ResourceStatus.Ready) and (timeout is None or time_waited < timeout_duration):
+            if variant is None:
+                resource = resource_functions[resource_type](name, local=self.local)
+            else:
+                resource = resource_variant_functions[resource_type](name, variant, local=self.local)
+            status = resource.get_status()
+            time.sleep(1)
+            time_waited = datetime.now() - time_started
+        if status == ResourceStatus.Failed:
+            raise ValueError(f'Resource {name}:{variant} status set to failed while waiting: {feature.error_message()}')
+        if time_waited >= timeout_duration:
+            raise ValueError(f'Waited too long for resource {name}:{variant} to be ready')
+        
+
     def get_user(self, name, local=False):
         """Get a user. Prints out name of user, and all resources associated with the user.
 
@@ -2775,9 +2819,10 @@ class ResourceClient(Registrar):
             return get_provider_info_local(name)
         return get_provider_info(self._stub, name)
 
-    def get_feature(self, name, variant):
+    def get_feature(self, name, variant, local=False):
         name_variant = metadata_pb2.NameVariant(name=name, variant=variant)
         feature = None
+        
         for x in self._stub.GetFeatureVariants(iter([name_variant])):
             feature = x
             break
@@ -2898,7 +2943,7 @@ class ResourceClient(Registrar):
             return get_resource_info(self._stub, "feature", name)
         return get_feature_variant_info(self._stub, name, variant)
 
-    def get_label(self, name, variant):
+    def get_label(self, name, variant, local=False):
         name_variant = metadata_pb2.NameVariant(name=name, variant=variant)
         label = None
         for x in self._stub.GetLabelVariants(iter([name_variant])):
@@ -3021,7 +3066,7 @@ class ResourceClient(Registrar):
             return get_resource_info(self._stub, "label", name)
         return get_label_variant_info(self._stub, name, variant)
 
-    def get_training_set(self, name, variant):
+    def get_training_set(self, name, variant, local=False):
         name_variant = metadata_pb2.NameVariant(name=name, variant=variant)
         ts = None
         for x in self._stub.GetTrainingSetVariants(iter([name_variant])):
@@ -3135,7 +3180,7 @@ class ResourceClient(Registrar):
             return get_resource_info(self._stub, "training-set", name)
         return get_training_set_variant_info(self._stub, name, variant)
 
-    def get_source(self, name, variant):
+    def get_source(self, name, variant, local=False):
         name_variant = metadata_pb2.NameVariant(name=name, variant=variant)
         source = None
         for x in self._stub.GetSourceVariants(iter([name_variant])):
@@ -3225,7 +3270,7 @@ class ResourceClient(Registrar):
         STATUS:                        NO_STATUS
         -----------------------------------------------
         DEFINITION:
-        TRANSFORMATION
+        TRANSFORMATION  
 
         -----------------------------------------------
         SOURCES

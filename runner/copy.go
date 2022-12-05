@@ -12,7 +12,11 @@ import (
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	"github.com/featureform/types"
+<<<<<<< HEAD
 	"go.uber.org/zap"
+=======
+	"sync"
+>>>>>>> 53dce59a (Initial setup and kubernetes changes (#473))
 )
 
 type IndexRunner interface {
@@ -193,6 +197,10 @@ func (m *MaterializedChunkRunnerConfig) Deserialize(config Config) error {
 }
 
 func MaterializedChunkRunnerFactory(config Config) (types.Runner, error) {
+<<<<<<< HEAD
+=======
+	fmt.Println("Starting Chunk Factory")
+>>>>>>> 53dce59a (Initial setup and kubernetes changes (#473))
 	runnerConfig := &MaterializedChunkRunnerConfig{}
 	if err := runnerConfig.Deserialize(config); err != nil {
 		return nil, fmt.Errorf("failed to deserialize materialize chunk runner config: %v", err)

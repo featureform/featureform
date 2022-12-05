@@ -301,6 +301,7 @@ func generateCleanRandomJobName() string {
 func NewKubernetesRunner(config KubernetesRunnerConfig) (CronRunner, error) {
 	jobSpec := newJobSpec(config)
 	var jobName string
+<<<<<<< HEAD:kubernetes/kubernetes.go
 	if config.Resource.Name != "" {
 		jobName = GetJobName(config.Resource, config.Image)
 	} else {
@@ -311,6 +312,14 @@ func NewKubernetesRunner(config KubernetesRunnerConfig) (CronRunner, error) {
 		return nil, err
 	}
 	jobClient, err := NewKubernetesJobClient(jobName, namespace)
+=======
+	if config.Resource.Name == "" {
+		jobName = GetJobName(config.Resource)
+	} else {
+		jobName = uuid.New().String()
+	}
+	jobClient, err := NewKubernetesJobClient(jobName, Namespace)
+>>>>>>> 53dce59a (Initial setup and kubernetes changes (#473)):runner/kubernetes.go
 	if err != nil {
 		return nil, err
 	}

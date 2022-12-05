@@ -18,7 +18,10 @@ RUN protoc --go_out=. --go_opt=paths=source_relative     --go-grpc_out=. --go-gr
 COPY serving/*.go ./serving/
 COPY ./metadata/ ./metadata/
 COPY ./helpers/ ./helpers/
+<<<<<<< HEAD
 COPY ./logging/ ./logging/
+=======
+>>>>>>> 53dce59a (Initial setup and kubernetes changes (#473))
 COPY ./types/ ./types/
 COPY ./kubernetes/ ./kubernetes/
 COPY ./metrics/ ./metrics/

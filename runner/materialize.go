@@ -7,11 +7,15 @@ package runner
 import (
 	"encoding/json"
 	"fmt"
+<<<<<<< HEAD
 	"go.uber.org/zap"
 
 	"github.com/featureform/helpers"
 	"github.com/featureform/kubernetes"
 	"github.com/featureform/logging"
+=======
+	"github.com/featureform/kubernetes"
+>>>>>>> 53dce59a (Initial setup and kubernetes changes (#473))
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	"github.com/featureform/types"
@@ -88,7 +92,11 @@ func (w WatcherMultiplex) Err() error {
 }
 
 func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
+<<<<<<< HEAD
 	m.Logger.Infow("Starting Materialization Runner", "name", m.ID.Name, "variant", m.ID.Variant)
+=======
+	fmt.Println("Starting Runner")
+>>>>>>> 53dce59a (Initial setup and kubernetes changes (#473))
 	var materialization provider.Materialization
 	var err error
 
@@ -152,8 +160,12 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 	var cloudWatcher types.CompletionWatcher
 	switch m.Cloud {
 	case KubernetesMaterializeRunner:
+<<<<<<< HEAD
 		pandas_image := helpers.GetEnv("PANDAS_RUNNER_IMAGE", "featureformcom/k8s_runner:0.3.0-rc")
 		envVars := map[string]string{"NAME": string(COPY_TO_ONLINE), "CONFIG": string(serializedConfig), "PANDAS_RUNNER_IMAGE": pandas_image}
+=======
+		envVars := map[string]string{"NAME": string(COPY_TO_ONLINE), "CONFIG": string(serializedConfig)}
+>>>>>>> 53dce59a (Initial setup and kubernetes changes (#473))
 		kubernetesConfig := kubernetes.KubernetesRunnerConfig{
 			EnvVars:  envVars,
 			Image:    WORKER_IMAGE,
@@ -169,7 +181,11 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 			return nil, fmt.Errorf("kubernetes run: %w", err)
 		}
 	case LocalMaterializeRunner:
+<<<<<<< HEAD
 		m.Logger.Infow("Making Local Runner", "name", m.ID.Name, "variant", m.ID.Variant)
+=======
+		fmt.Println("Making Local Materialize Runner")
+>>>>>>> 53dce59a (Initial setup and kubernetes changes (#473))
 		completionList := make([]types.CompletionWatcher, int(numChunks))
 		for i := 0; i < int(numChunks); i++ {
 			localRunner, err := Create(string(COPY_TO_ONLINE), serializedConfig)

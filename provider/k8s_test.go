@@ -4,6 +4,7 @@
 package provider
 
 import (
+<<<<<<< HEAD
 	"bytes"
 	"fmt"
 	"os"
@@ -79,11 +80,34 @@ func TestBlobInterfaces(t *testing.T) {
 	}
 	for testName, fileTest := range fileStoreTests {
 		fileTest = fileTest
+=======
+	"fmt"
+	"testing"
+
+	"github.com/google/uuid"
+)
+
+func TestBlobInterfaces(t *testing.T) {
+	blobTests := map[string]func(*testing.T, BlobStore){
+		"Test Blob Read and Write": testBlobReadAndWrite,
+		"Test Blob CSV Serve":      testBlobCSVServe,
+	}
+	localBlobStore, err := NewMemoryBlobStore()
+	if err != nil {
+		t.Fatalf("Failed to create memory blob store")
+	}
+	blobProviders := map[string]BlobStore{
+		"Local": localBlobStore,
+	}
+	for testName, blobTest := range blobTests {
+		blobTest = blobTest
+>>>>>>> 53dce59a (Initial setup and kubernetes changes (#473))
 		testName = testName
 		for blobName, blobProvider := range blobProviders {
 			blobName = blobName
 			blobProvider = blobProvider
 			t.Run(fmt.Sprintf("%s: %s", testName, blobName), func(t *testing.T) {
+<<<<<<< HEAD
 				fileTest(t, blobProvider)
 			})
 		}
@@ -104,6 +128,22 @@ func testFilestoreReadAndWrite(t *testing.T, store FileStore) {
 		t.Fatalf("Failure writing data %s to key %s: %v", string(testWrite), testKey, err)
 	}
 	exists, err = store.Exists(testKey)
+=======
+				t.Parallel()
+				blobTest(t, blobProvider)
+			})
+		}
+	}
+}
+
+func testBlobReadAndWrite(t *testing.T, store BlobStore) {
+	testWrite := []byte("example data")
+	testKey := uuid.New().String()
+	if err := store.Write(testKey, testWrite); err != nil {
+		t.Fatalf("Failure writing data %s to key %s: %v", string(testWrite), testKey, err)
+	}
+	exists, err := store.Exists(testKey)
+>>>>>>> 53dce59a (Initial setup and kubernetes changes (#473))
 	if err != nil {
 		t.Fatalf("Failure checking existence of key %s: %v", testKey, err)
 	}
@@ -117,6 +157,7 @@ func testFilestoreReadAndWrite(t *testing.T, store FileStore) {
 	if string(readData) != string(testWrite) {
 		t.Fatalf("Read data does not match written data: %s != %s", readData, testWrite)
 	}
+<<<<<<< HEAD
 	if err := store.Delete(testKey); err != nil {
 		t.Fatalf("Failed to delete test file with key %s: %v", testKey, err)
 	}
@@ -546,3 +587,24 @@ func testDatabricksInitialization(t *testing.T, store FileStore) {
 // PythonFileURI() string
 // SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType) []string
 // GetDFArgs(outputURI string, code string, mapping []SourceMapping) ([]string, error)
+=======
+}
+
+func testBlobCSVServe(t *testing.T, store BlobStore) {
+	//write csv file, then iterate all data types
+	csvBytes := []byte(`1,2,3,4,5
+	6,7,8,9,10`)
+	testKey := fmt.Sprintf("%s.csv", uuid.New().String())
+	if err := store.Write(testKey, csvBytes); err != nil {
+		t.Fatalf("Failure writing csv data %s to key %s: %v", string(csvBytes), testKey, err)
+	}
+	iterator, err := store.Serve(testKey)
+	if err != nil {
+		t.Fatalf("Failure getting serving iterator with key %s: %v", testKey, err)
+	}
+	for row, err := iterator.Next(); err != nil; row, err = iterator.Next() {
+		fmt.Println(row)
+	}
+	fmt.Println(err)
+}
+>>>>>>> 53dce59a (Initial setup and kubernetes changes (#473))

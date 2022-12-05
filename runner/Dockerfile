@@ -20,7 +20,10 @@ COPY runner/*.go ./runner/
 COPY runner/worker/*.go ./runner/worker/
 COPY coordinator/*.go ./coordinator/
 COPY helpers/ ./helpers/
+<<<<<<< HEAD
 COPY logging/ ./logging/
+=======
+>>>>>>> 53dce59a (Initial setup and kubernetes changes (#473))
 COPY types/ ./types/
 COPY kubernetes/ ./kubernetes/
 COPY metadata/*.go ./metadata/

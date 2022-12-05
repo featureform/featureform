@@ -23,8 +23,11 @@ func init() {
 		BigQueryOffline:  bigQueryOfflineStoreFactory,
 		SparkOffline:     sparkOfflineStoreFactory,
 		K8sOffline:       k8sOfflineStoreFactory,
+<<<<<<< HEAD
 		BlobOnline:       blobOnlineStoreFactory,
 		MongoDBOnline:    mongoOnlineStoreFactory,
+=======
+>>>>>>> 53dce59a (Initial setup and kubernetes changes (#473))
 	}
 	for name, factory := range unregisteredFactories {
 		if err := RegisterFactory(name, factory); err != nil {

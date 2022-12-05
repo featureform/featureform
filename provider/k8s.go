@@ -1,13 +1,18 @@
 package provider
 
 import (
+<<<<<<< HEAD
 	"bytes"
 	"context"
+=======
+	"encoding/csv"
+>>>>>>> 53dce59a (Initial setup and kubernetes changes (#473))
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
+<<<<<<< HEAD
 	"sort"
 	"strconv"
 	"strings"
@@ -95,6 +100,22 @@ type K8sOfflineStore struct {
 	store    FileStore
 	logger   *zap.SugaredLogger
 	query    *pandasOfflineQueries
+=======
+	"strings"
+
+	"github.com/featureform/kubernetes"
+
+	"go.uber.org/zap"
+	"gocloud.dev/blob"
+	_ "gocloud.dev/blob/memblob"
+)
+
+type K8sOfflineStore struct {
+	executor Executor
+	store    BlobStore
+	logger   *zap.SugaredLogger
+	query    *defaultOfflineSQLQueries
+>>>>>>> 53dce59a (Initial setup and kubernetes changes (#473))
 	BaseProvider
 }
 
@@ -141,6 +162,7 @@ func CreateExecutor(name string, config Config) (Executor, error) {
 	return executor, nil
 }
 
+<<<<<<< HEAD
 type FileStoreFactory func(config Config) (FileStore, error)
 
 var fileStoreFactoryMap = make(map[string]FileStoreFactory)
@@ -184,12 +206,56 @@ func init() {
 	}
 	for storeType, factory := range FileStoreFactoryMap {
 		RegisterFileStoreFactory(string(storeType), factory)
+=======
+type BlobStoreFactory func(config Config) (BlobStore, error)
+
+var blobStoreFactoryMap = make(map[string]BlobStoreFactory)
+
+func RegisterBlobStoreFactory(name string, blobStoreFactory BlobStoreFactory) error {
+	if _, exists := blobStoreFactoryMap[name]; exists {
+		return fmt.Errorf("factory already registered: %s", name)
+	}
+	blobStoreFactoryMap[name] = blobStoreFactory
+	return nil
+}
+
+func UnregisterBlobStoreFactory(name string) error {
+	if _, exists := blobStoreFactoryMap[name]; !exists {
+		return fmt.Errorf("factory %s not registered", name)
+	}
+	delete(blobStoreFactoryMap, name)
+	return nil
+}
+
+func CreateBlobStore(name string, config Config) (BlobStore, error) {
+	factory, exists := blobStoreFactoryMap[name]
+	if !exists {
+		return nil, fmt.Errorf("factory does not exist: %s", name)
+	}
+	blobStore, err := factory(config)
+	if err != nil {
+		return nil, err
+	}
+	return blobStore, nil
+}
+
+func init() {
+	blobStoreFactoryMap := map[BlobStoreType]BlobStoreFactory{
+		Memory: NewMemoryBlobStore,
+	}
+	executorFactoryMap := map[ExecutorType]ExecutorFactory{
+		GoProc: NewLocalExecutor,
+	}
+	for storeType, factory := range blobStoreFactoryMap {
+		RegisterBlobStoreFactory(string(storeType), factory)
+>>>>>>> 53dce59a (Initial setup and kubernetes changes (#473))
 	}
 	for executorType, factory := range executorFactoryMap {
 		RegisterExecutorFactory(string(executorType), factory)
 	}
 }
 
+<<<<<<< HEAD
 func k8sAzureOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	k8 := K8sAzureConfig{}
 	logger := logging.NewLogger("kubernetes")
@@ -236,11 +302,19 @@ func k8sOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	logger := logging.NewLogger("kubernetes")
 	if err := k8.Deserialize(config); err != nil {
 		logger.Errorw("Invalid config to initialize k8s offline store", "error", err)
+=======
+func k8sOfflineStoreFactory(config SerializedConfig) (Provider, error) {
+	k8 := K8sConfig{}
+	logger := zap.NewExample().Sugar()
+	if err := k8.Deserialize(config); err != nil {
+		logger.Errorw("Invalid config to initialize k8s offline store", err)
+>>>>>>> 53dce59a (Initial setup and kubernetes changes (#473))
 		return nil, fmt.Errorf("invalid k8s config: %v", config)
 	}
 	logger.Info("Creating executor with type:", k8.ExecutorType)
 	exec, err := CreateExecutor(string(k8.ExecutorType), Config(k8.ExecutorConfig))
 	if err != nil {
+<<<<<<< HEAD
 		logger.Errorw("Failure initializing executor with type", "executor_type", k8.ExecutorType, "error", err)
 		return nil, err
 	}
@@ -252,12 +326,24 @@ func k8sOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 
 	logger.Info("Creating blob store with type:", k8.StoreType)
 	store, err := CreateFileStore(string(k8.StoreType), Config(serializedBlob))
+=======
+		logger.Errorw("Failure initializing executor with type", k8.ExecutorType, err)
+		return nil, err
+	}
+	logger.Info("Creating blob store with type:", k8.StoreType)
+	store, err := CreateBlobStore(string(k8.StoreType), Config(k8.StoreConfig))
+>>>>>>> 53dce59a (Initial setup and kubernetes changes (#473))
 	if err != nil {
 		logger.Errorw("Failure initializing blob store with type", k8.StoreType, err)
 		return nil, err
 	}
+<<<<<<< HEAD
 	logger.Debugf("Store type: %s", k8.StoreType)
 	queries := pandasOfflineQueries{}
+=======
+	logger.Debugf("Store type: %s, Store config: %v", k8.StoreType, k8.StoreConfig)
+	queries := defaultOfflineSQLQueries{}
+>>>>>>> 53dce59a (Initial setup and kubernetes changes (#473))
 	k8sOfflineStore := K8sOfflineStore{
 		executor: exec,
 		store:    store,
@@ -273,6 +359,7 @@ func k8sOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 
 type ExecutorConfig []byte
 
+<<<<<<< HEAD
 type FileStoreConfig []byte
 
 type ExecutorType string
@@ -319,6 +406,27 @@ type K8sConfig struct {
 	ExecutorConfig ExecutorConfig
 	StoreType      FileStoreType
 	StoreConfig    AzureFileStoreConfig
+=======
+type BlobStoreConfig []byte
+
+type ExecutorType string
+
+type BlobStoreType string
+
+const (
+	GoProc ExecutorType = "GO_PROCESS"
+)
+
+const (
+	Memory BlobStoreType = "MEMORY"
+)
+
+type K8sConfig struct {
+	ExecutorType   ExecutorType
+	ExecutorConfig ExecutorConfig
+	StoreType      BlobStoreType
+	StoreConfig    BlobStoreConfig
+>>>>>>> 53dce59a (Initial setup and kubernetes changes (#473))
 }
 
 func (config *K8sConfig) Serialize() ([]byte, error) {
@@ -345,15 +453,21 @@ type LocalExecutor struct {
 	scriptPath string
 }
 
+<<<<<<< HEAD
 type KubernetesExecutorConfig struct {
 }
 
+=======
+>>>>>>> 53dce59a (Initial setup and kubernetes changes (#473))
 type KubernetesExecutor struct {
 	image string
 }
 
 func (local LocalExecutor) ExecuteScript(envVars map[string]string) error {
+<<<<<<< HEAD
 	envVars["MODE"] = "local"
+=======
+>>>>>>> 53dce59a (Initial setup and kubernetes changes (#473))
 	for key, value := range envVars {
 		os.Setenv(key, value)
 	}
@@ -401,20 +515,26 @@ func NewLocalExecutor(config Config) (Executor, error) {
 }
 
 func (kube KubernetesExecutor) ExecuteScript(envVars map[string]string) error {
+<<<<<<< HEAD
 	envVars["MODE"] = "k8s"
 	resourceType, err := strconv.Atoi(envVars["RESOURCE_TYPE"])
 	if err != nil {
 		resourceType = 0
 	}
+=======
+>>>>>>> 53dce59a (Initial setup and kubernetes changes (#473))
 	config := kubernetes.KubernetesRunnerConfig{
 		EnvVars:  envVars,
 		Image:    kube.image,
 		NumTasks: 1,
+<<<<<<< HEAD
 		Resource: metadata.ResourceID{
 			Name:    envVars["RESOURCE_NAME"],
 			Variant: envVars["RESOURCE_VARIANT"],
 			Type:    ProviderToMetadataResourceType[OfflineResourceType(resourceType)],
 		},
+=======
+>>>>>>> 53dce59a (Initial setup and kubernetes changes (#473))
 	}
 	jobRunner, err := kubernetes.NewKubernetesRunner(config)
 	if err != nil {
@@ -430,6 +550,7 @@ func (kube KubernetesExecutor) ExecuteScript(envVars map[string]string) error {
 	return nil
 }
 
+<<<<<<< HEAD
 func NewKubernetesExecutor(config Config) (Executor, error) {
 	pandas_image := helpers.GetEnv("PANDAS_RUNNER_IMAGE", "featureformcom/k8s_runner:0.3.0-rc")
 	return KubernetesExecutor{image: pandas_image}, nil
@@ -594,24 +715,64 @@ func (store genericFileStore) DeleteAll(dir string) error {
 
 func (store genericFileStore) Write(key string, data []byte) error {
 	err := store.bucket.WriteAll(context.TODO(), key, data, nil)
+=======
+func NewKubernetesExecutor(image string) (Executor, error) {
+	return KubernetesExecutor{
+		image: image,
+	}, nil
+}
+
+type BlobStore interface {
+	Write(key string, data []byte) error
+	Read(key string) ([]byte, error)
+	Serve(key string) (Iterator, error)
+	Exists(key string) (bool, error)
+	Close() error
+}
+
+type Iterator interface {
+	Next() ([]string, error)
+}
+
+type MemoryBlobStore struct {
+	genericBlobStore
+}
+
+type AzureBlobStore struct {
+	genericBlobStore
+}
+
+type genericBlobStore struct {
+	bucket *blob.Bucket
+}
+
+func (store genericBlobStore) Write(key string, data []byte) error {
+	err := store.bucket.WriteAll(ctx, key, data, nil)
+>>>>>>> 53dce59a (Initial setup and kubernetes changes (#473))
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
+<<<<<<< HEAD
 func (store genericFileStore) Writer(key string) (*blob.Writer, error) {
 	return store.bucket.NewWriter(context.TODO(), key, nil)
 }
 
 func (store genericFileStore) Read(key string) ([]byte, error) {
 	data, err := store.bucket.ReadAll(context.TODO(), key)
+=======
+func (store genericBlobStore) Read(key string) ([]byte, error) {
+	data, err := store.bucket.ReadAll(ctx, key)
+>>>>>>> 53dce59a (Initial setup and kubernetes changes (#473))
 	if err != nil {
 		return nil, err
 	}
 	return data, nil
 }
 
+<<<<<<< HEAD
 func (store genericFileStore) ServeDirectory(dir string) (Iterator, error) {
 	fileParts := store.outputFileList(dir)
 	if len(fileParts) == 0 {
@@ -701,12 +862,24 @@ func (store genericFileStore) Serve(key string) (Iterator, error) {
 		return parquetIteratorFromBytes(b)
 	case "csv":
 		return nil, fmt.Errorf("could not find CSV reader")
+=======
+func (store genericBlobStore) Serve(key string) (Iterator, error) {
+	r, err := store.bucket.NewReader(ctx, key, nil)
+	if err != nil {
+		return nil, err
+	}
+	keyParts := strings.Split(key, ".")
+	switch fileType := keyParts[len(keyParts)-1]; fileType {
+	case "csv":
+		return csvIteratorFromReader(r)
+>>>>>>> 53dce59a (Initial setup and kubernetes changes (#473))
 	default:
 		return nil, fmt.Errorf("unsupported file type")
 	}
 
 }
 
+<<<<<<< HEAD
 func (store genericFileStore) NumRows(key string) (int64, error) {
 	b, err := store.bucket.ReadAll(context.TODO(), key)
 	if err != nil {
@@ -805,10 +978,44 @@ func NewFileFileStore(config Config) (FileStore, error) {
 		genericFileStore: genericFileStore{
 			bucket: bucket,
 			path:   fileStoreConfig.DirPath,
+=======
+func (store genericBlobStore) Exists(key string) (bool, error) {
+	return store.bucket.Exists(ctx, key)
+}
+
+func (store genericBlobStore) Close() error {
+	return store.bucket.Close()
+}
+
+type csvIterator struct {
+	reader *csv.Reader
+}
+
+func (iter csvIterator) Next() ([]string, error) {
+	return iter.reader.Read()
+}
+
+func csvIteratorFromReader(r io.Reader) (Iterator, error) {
+	csvReader := csv.NewReader(r)
+	return csvIterator{
+		reader: csvReader,
+	}, nil
+}
+
+func NewMemoryBlobStore(config Config) (BlobStore, error) {
+	bucket, err := blob.OpenBucket(ctx, "mem://")
+	if err != nil {
+		return MemoryBlobStore{}, err
+	}
+	return MemoryBlobStore{
+		genericBlobStore{
+			bucket: bucket,
+>>>>>>> 53dce59a (Initial setup and kubernetes changes (#473))
 		},
 	}, nil
 }
 
+<<<<<<< HEAD
 type AzureFileStoreConfig struct {
 	AccountName   string
 	AccountKey    string
@@ -862,16 +1069,29 @@ func NewAzureFileStore(config Config) (FileStore, error) {
 		ContainerName:    azureStoreConfig.ContainerName,
 		Path:             azureStoreConfig.Path,
 		genericFileStore: genericFileStore{
+=======
+func NewAzureBlobStore(bucketPath string) (AzureBlobStore, error) {
+	bucket, err := blob.OpenBucket(ctx, bucketPath)
+	if err != nil {
+		return AzureBlobStore{}, err
+	}
+	return AzureBlobStore{
+		genericBlobStore{
+>>>>>>> 53dce59a (Initial setup and kubernetes changes (#473))
 			bucket: bucket,
 		},
 	}, nil
 }
 
+<<<<<<< HEAD
 func ResourcePrefix(id ResourceID) string {
 	return fmt.Sprintf("featureform/%s/%s/%s", id.Type, id.Name, id.Variant)
 }
 
 func fileStoreResourcePath(id ResourceID) string {
+=======
+func blobResourcePath(id ResourceID) string {
+>>>>>>> 53dce59a (Initial setup and kubernetes changes (#473))
 	return ResourcePrefix(id)
 }
 
@@ -884,6 +1104,7 @@ func (tbl *BlobOfflineTable) Write(ResourceRecord) error {
 }
 
 func (k8s *K8sOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error) {
+<<<<<<< HEAD
 	return blobRegisterResource(id, schema, k8s.logger, k8s.store)
 }
 
@@ -900,12 +1121,27 @@ func blobRegisterResource(id ResourceID, schema ResourceSchema, logger *zap.Suga
 	}
 	if resourceExists {
 		logger.Errorw("Resource already exists in blob store", "id", id, "ResourceKey", resourceKey)
+=======
+	if err := id.check(Feature, Label); err != nil {
+		k8s.logger.Errorw("Failure checking ID", "error", err)
+		return nil, fmt.Errorf("ID check failed: %v", err)
+	}
+	resourceKey := blobResourcePath(id)
+	resourceExists, err := k8s.store.Exists(resourceKey)
+	if err != nil {
+		k8s.logger.Errorw("Error checking if resource exists", "error", err)
+		return nil, fmt.Errorf("error checking if resource registry exists: %v", err)
+	}
+	if resourceExists {
+		k8s.logger.Errorw("Resource already exists in blob store", "id", id)
+>>>>>>> 53dce59a (Initial setup and kubernetes changes (#473))
 		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}
 	serializedSchema, err := schema.Serialize()
 	if err != nil {
 		return nil, fmt.Errorf("error serializing resource schema: %s: %s", schema, err)
 	}
+<<<<<<< HEAD
 	if err := store.Write(resourceKey, serializedSchema); err != nil {
 		return nil, fmt.Errorf("error writing resource schema: %s: %s", schema, err)
 	}
@@ -915,11 +1151,23 @@ func blobRegisterResource(id ResourceID, schema ResourceSchema, logger *zap.Suga
 
 type FileStorePrimaryTable struct {
 	store            FileStore
+=======
+	if err := k8s.store.Write(resourceKey, serializedSchema); err != nil {
+		return nil, fmt.Errorf("error writing resource schema: %s: %s", schema, err)
+	}
+	k8s.logger.Debugw("Registered resource table", "resourceID", id, "for source", schema.SourceTable)
+	return &BlobOfflineTable{schema}, nil
+}
+
+type BlobPrimaryTable struct {
+	store            BlobStore
+>>>>>>> 53dce59a (Initial setup and kubernetes changes (#473))
 	sourcePath       string
 	isTransformation bool
 	id               ResourceID
 }
 
+<<<<<<< HEAD
 func (tbl *FileStorePrimaryTable) Write(GenericRecord) error {
 	return fmt.Errorf("not implemented")
 }
@@ -1286,6 +1534,79 @@ func fileStoreGetResourceTable(id ResourceID, store FileStore, logger *zap.Sugar
 	resourcekey := store.PathWithPrefix(fileStoreResourcePath(id), false)
 	logger.Debugw("Getting resource table", id)
 	serializedSchema, err := store.Read(resourcekey)
+=======
+func (tbl *BlobPrimaryTable) Write(GenericRecord) error {
+	return fmt.Errorf("not implemented")
+}
+
+func (tbl *BlobPrimaryTable) GetName() string {
+	return tbl.sourcePath
+}
+
+func (tbl *BlobPrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) {
+	return nil, fmt.Errorf("not yet implemented")
+}
+
+func (tbl *BlobPrimaryTable) NumRows() (int64, error) {
+	return 0, fmt.Errorf("not yet implemented")
+}
+
+func (k8s *K8sOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error) {
+	resourceKey := blobResourcePath(id)
+	primaryExists, err := k8s.store.Exists(resourceKey)
+	if err != nil {
+		k8s.logger.Errorw("Error checking if primary exists", err)
+		return nil, fmt.Errorf("error checking if primary exists: %v", err)
+	}
+	if primaryExists {
+		k8s.logger.Errorw("Error checking if primary exists")
+		return nil, fmt.Errorf("primary already exists")
+	}
+
+	k8s.logger.Debugw("Registering primary table", id, "for source", sourceName)
+	if err := k8s.store.Write(resourceKey, []byte(sourceName)); err != nil {
+		k8s.logger.Errorw("Could not write primary table", err)
+		return nil, err
+	}
+	k8s.logger.Debugw("Succesfully registered primary table", id, "for source", sourceName)
+	return &BlobPrimaryTable{k8s.store, sourceName, false, id}, nil
+}
+
+func (k8s *K8sOfflineStore) CreateTransformation(config TransformationConfig) error {
+	return nil
+}
+
+func (k8s *K8sOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
+	return nil, nil
+}
+
+func (k8s *K8sOfflineStore) UpdateTransformation(config TransformationConfig) error {
+	return nil
+}
+func (k8s *K8sOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error) {
+	return nil, nil
+}
+
+func (k8s *K8sOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error) {
+	resourceKey := blobResourcePath(id)
+	k8s.logger.Debugw("Getting primary table", id)
+	table, err := k8s.store.Read(resourceKey)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching primary table: %v", err)
+	}
+	k8s.logger.Debugw("Succesfully retrieved primary table", id)
+	return &BlobPrimaryTable{k8s.store, string(table), false, id}, nil
+}
+
+func (k8s *K8sOfflineStore) CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error) {
+	return nil, nil
+}
+
+func (k8s *K8sOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, error) {
+	resourcekey := blobResourcePath(id)
+	k8s.logger.Debugw("Getting resource table", id)
+	serializedSchema, err := k8s.store.Read(resourcekey)
+>>>>>>> 53dce59a (Initial setup and kubernetes changes (#473))
 	if err != nil {
 		return nil, fmt.Errorf("Error reading schema bytes from blob storage: %v", err)
 	}
@@ -1293,6 +1614,7 @@ func fileStoreGetResourceTable(id ResourceID, store FileStore, logger *zap.Sugar
 	if err := resourceSchema.Deserialize(serializedSchema); err != nil {
 		return nil, fmt.Errorf("Error deserializing resource table: %v", err)
 	}
+<<<<<<< HEAD
 	logger.Debugw("Succesfully fetched resource table", "id", id)
 	return &BlobOfflineTable{resourceSchema}, nil
 }
@@ -1570,10 +1892,38 @@ func (k8s *K8sOfflineStore) trainingSet(def TrainingSetDef, isUpdate bool) error
 		return fmt.Errorf("job for training set %v failed to run: %v", def.ID, err)
 	}
 	k8s.logger.Debugw("Succesfully created training set:", "definition", def)
+=======
+	k8s.logger.Debugw("Succesfully fetched resource table", "id", id)
+	return &S3OfflineTable{resourceSchema}, nil
+}
+
+func (k8s *K8sOfflineStore) CreateMaterialization(id ResourceID) (Materialization, error) {
+	return nil, nil
+}
+
+func (k8s *K8sOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
+	return nil, nil
+}
+
+func (k8s *K8sOfflineStore) UpdateMaterialization(id ResourceID) (Materialization, error) {
+	return nil, nil
+}
+
+func (k8s *K8sOfflineStore) DeleteMaterialization(id MaterializationID) error {
+	return nil
+}
+
+func (k8s *K8sOfflineStore) CreateTrainingSet(TrainingSetDef) error {
+	return nil
+}
+
+func (k8s *K8sOfflineStore) UpdateTrainingSet(TrainingSetDef) error {
+>>>>>>> 53dce59a (Initial setup and kubernetes changes (#473))
 	return nil
 }
 
 func (k8s *K8sOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
+<<<<<<< HEAD
 	return fileStoreGetTrainingSet(id, k8s.store, k8s.logger)
 }
 
@@ -1640,4 +1990,7 @@ func (ts *FileStoreTrainingSet) Label() interface{} {
 
 func (ts *FileStoreTrainingSet) Err() error {
 	return ts.Error
+=======
+	return nil, nil
+>>>>>>> 53dce59a (Initial setup and kubernetes changes (#473))
 }

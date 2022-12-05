@@ -98,23 +98,18 @@ def get_feature_variant_info_local(name, variant):
         },
         "trainingsets": returned_training_sets_list
     }
-    format_rows([("NAME: ", returned_feature["name"]), 
-    ("VARIANT: ", returned_feature["variant"]), 
-    ("TYPE:", returned_feature["type"]), 
-    ("ENTITY:", returned_feature["entity"]),
-    ("OWNER:", returned_feature["owner"]),
-    ("DESCRIPTION:", returned_feature["description"]),
-    ("PROVIDER:", returned_feature["provider"]),
-    ("STATUS: ", returned_feature["status"])
-    ])
-    format_pg("SOURCE: ")
-    format_rows([("NAME", "VARIANT"), (returned_feature["source"]["name"], returned_feature["source"]["variant"])])
-    format_pg("TRAINING SETS:")
-    format_rows("NAME", "VARIANT")
-    for t in returned_feature["trainingsets"]:
-        format_rows(t["name"], t["variant"])
-    format_pg()
-    return returned_feature
+     return Feature(
+        name=returned_feature["name"],
+        variant=returned_feature["variant"],
+        value_type=returned_feature["type"],
+        entity=returned_feature["entity"],
+        owner=returned_feature["owner"],
+        description=returned_feature["description"],
+        provider=returned_feature["provider"],
+        status=returned_feature["status"],
+        source=(returned_feature["source"]["name"], returned_feature["source"]["variant"]),
+        trainingsets=[(f["name"], f["variant"]) for f in returned_feature["trainingsets"]],
+    )
 
 def get_label_variant_info_local(name, variant):
     db = SQLiteMetadata()
@@ -142,23 +137,18 @@ def get_label_variant_info_local(name, variant):
         },
         "trainingsets": returned_training_sets_list
     }
-    format_rows([("NAME: ", returned_label["name"]), 
-    ("VARIANT: ", returned_label["variant"]), 
-    ("TYPE:", returned_label["type"]), 
-    ("ENTITY:", returned_label["entity"]),
-    ("OWNER:", returned_label["owner"]),
-    ("DESCRIPTION:", returned_label["description"]),
-    ("PROVIDER:", returned_label["provider"]),
-    ("STATUS: ", returned_label["status"])
-    ])
-    format_pg("SOURCE: ")
-    format_rows([("NAME", "VARIANT"), (returned_label["source"]["name"], returned_label["source"]["variant"])])
-    format_pg("TRAINING SETS:")
-    format_rows("NAME", "VARIANT")
-    for t in returned_label["trainingsets"]:
-        format_rows(t["name"], t["variant"])
-    format_pg()
-    return returned_label
+    return Label(
+        name=returned_label["name"],
+        variant=returned_label["variant"],
+        value_type=returned_label["value_type"],
+        entity=returned_label["entity"],
+        owner=returned_label["owner"],
+        description=returned_label["description"],
+        provider=returned_label["provider"],
+        status=returned_label["status"],
+        source=(returned_label["source"]["name"], returned_label["source"]["variant"]),
+        trainingsets=[(f["name"], f["variant"]) for f in returned_label["trainingsets"]],
+    )
 
 def get_source_variant_info_local(name, variant):
     db = SQLiteMetadata()
@@ -209,28 +199,18 @@ def get_source_variant_info_local(name, variant):
         "trainingsets": returned_training_sets_list
     }
 
-    format_rows([("NAME: ", returned_source["name"]),
-    ("VARIANT: ", returned_source["variant"]), 
-    ("OWNER:", returned_source["owner"]),
-    ("DESCRIPTION:", returned_source["description"]),
-    ("PROVIDER:", returned_source["provider"]),
-    ("STATUS: ", returned_source["status"])])
-    format_pg("DEFINITION:")
-    print(returned_source["definition"])
-    print("FEATURES:")
-    format_rows("NAME", "VARIANT")
-    for f in returned_source["features"]:
-        format_rows(f["name"], f["variant"])
-    format_pg("LABELS:")
-    format_rows("NAME", "VARIANT")
-    for l in returned_source["labels"]:
-        format_rows(l["name"], l["variant"])
-    format_pg("TRAINING SETS:")
-    format_rows("NAME", "VARIANT")
-    for t in returned_source["trainingsets"]:
-        format_rows(t["name"], t["variant"])
-    format_pg()
-    return returned_source
+    return Source(
+        name=returned_source["name"],
+        variant=returned_source["variant"],
+        owner=returned_source["owner"],
+        description=returned_source["description"],
+        provider=returned_source["provider"],
+        status=returned_source["status"],
+        # definition,
+        features=[(f["name"], f["variant"]) for f in returned_source["features"]],
+        labels=[(f["name"], f["variant"]) for f in returned_source["labels"]],
+        trainingsets=[(f["name"], f["variant"]) for f in returned_source["trainingsets"]],
+    )
 
 def get_training_set_variant_info_local(name, variant):
     db = SQLiteMetadata()
@@ -255,19 +235,15 @@ def get_training_set_variant_info_local(name, variant):
         "features": returned_features_list
     }
 
-    format_rows([("NAME: ", returned_training_set["name"]),
-    ("VARIANT: ", returned_training_set["variant"]),
-    ("OWNER:", returned_training_set["owner"]),
-    ("DESCRIPTION:", returned_training_set["description"]),
-    ("STATUS: ", returned_training_set["status"])])
-    format_pg("LABEL: ")
-    format_rows([("NAME", "VARIANT"), (returned_training_set["label"]["name"], returned_training_set["label"]["variant"])])
-    format_pg("FEATURES:")
-    format_rows("NAME", "VARIANT")
-    for f in returned_training_set["features"]:
-        format_rows(f["name"], f["variant"])
-    format_pg()
-    return returned_training_set
+    return TrainingSet(
+        name=returned_training_set["name"],
+        variant=returned_training_set["variant"],
+        owner=returned_training_set["owner"],
+        description=returned_training_set["description"],
+        status=returned_training_set["status"],
+        label=(returned_training_set["label"]["name"], returned_training_set["label"]["variant"]),
+        features=[(f["name"], f["variant"]) for f in returned_training_set["features"]],
+    )
 
 def get_provider_info_local(name):
     db = SQLiteMetadata()
@@ -299,23 +275,18 @@ def get_provider_info_local(name):
         "labels": returned_labels_list
     }
 
-    format_rows([("NAME: ", returned_provider["name"]),
-    ("DESCRIPTION: ", returned_provider["description"]),
-    ("TYPE: ", returned_provider["type"]),
-    ("SOFTWARE: ", returned_provider["software"]),
-    ("TEAM: ", returned_provider["team"]),
-    ("STATUS: ", returned_provider["status"])])
-    format_rows("SOURCE:", returned_provider["sources"])
-    format_pg("FEATURES:")
-    format_rows("NAME", "VARIANT")
-    for f in returned_provider["features"]:
-        format_rows(f["name"], f["variant"])
-    format_pg("LABELS:")
-    format_rows("NAME", "VARIANT")
-    for l in returned_provider["labels"]:
-        format_rows(l["name"], l["variant"])
-    format_pg()
-    return returned_provider
+    return Provider(
+        name=returned_provider["name"],
+        description=returned_provider["description"],
+        provider_type=returned_provider["type"],
+        software=returned_provider["software"],
+        team=returned_provider["team"],
+        status=returned_provider["status"],
+        sources=[(f["name"], f["variant"]) for f in returned_provider["sources"]],
+        features=[(f["name"], f["variant"]) for f in returned_provider["features"]],
+        labels=[(f["name"], f["variant"]) for f in returned_provider["labels"]],
+        training_sets=[(f["name"], f["variant"]) for f in returned_provider["trainingsets"]],
+    )
 
 def get_related_resources(table, column, name):
     db = SQLiteMetadata()

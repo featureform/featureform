@@ -8,7 +8,10 @@ import (
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	"github.com/featureform/types"
+<<<<<<< HEAD
 	"go.uber.org/zap/zaptest"
+=======
+>>>>>>> 53dce59a (Initial setup and kubernetes changes (#473))
 	"testing"
 )
 

@@ -185,6 +185,7 @@ func (k *KubernetesJobSpawner) GetJobRunner(jobName string, config runner.Config
 	if err != nil {
 		return nil, err
 	}
+<<<<<<< HEAD
 
 	pandas_image := help.GetEnv("PANDAS_RUNNER_IMAGE", "featureformcom/k8s_runner:0.3.0-rc")
 	fmt.Println("GETJOBRUNNERID:", id)
@@ -195,6 +196,10 @@ func (k *KubernetesJobSpawner) GetJobRunner(jobName string, config runner.Config
 			"ETCD_CONFIG":      string(serializedETCD),
 			"K8S_RUNNER_IMAGE": pandas_image,
 		},
+=======
+	kubeConfig := kubernetes.KubernetesRunnerConfig{
+		EnvVars:  map[string]string{"NAME": jobName, "CONFIG": string(config), "ETCD_CONFIG": string(serializedETCD)},
+>>>>>>> 53dce59a (Initial setup and kubernetes changes (#473))
 		Image:    help.GetEnv("WORKER_IMAGE", "local/worker:stable"),
 		NumTasks: 1,
 		Resource: id,
@@ -464,7 +469,11 @@ func (c *Coordinator) runTransformationJob(transformationConfig provider.Transfo
 			return fmt.Errorf("kubernetes runner does not implement schedule")
 		}
 		if err := cronRunner.ScheduleJob(kubernetes.CronSchedule(schedule)); err != nil {
+<<<<<<< HEAD
 			return fmt.Errorf("schedule transformation job in kubernetes: %v", err)
+=======
+			return fmt.Errorf("schedule transformation job in kubernetes: %w", err)
+>>>>>>> 53dce59a (Initial setup and kubernetes changes (#473))
 		}
 		if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
 			return fmt.Errorf("set transformation succesful schedule status: %v", err)
@@ -823,7 +832,11 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 			return fmt.Errorf("kubernetes runner does not implement schedule")
 		}
 		if err := cronRunner.ScheduleJob(kubernetes.CronSchedule(schedule)); err != nil {
+<<<<<<< HEAD
 			return fmt.Errorf("schedule materialize job in kubernetes: %v", err)
+=======
+			return fmt.Errorf("schedule materialize job in kubernetes: %w", err)
+>>>>>>> 53dce59a (Initial setup and kubernetes changes (#473))
 		}
 		if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
 			return fmt.Errorf("set succesful update status for materialize job in kubernetes: %v", err)
@@ -965,7 +978,11 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 			return fmt.Errorf("kubernetes runner does not implement schedule")
 		}
 		if err := cronRunner.ScheduleJob(kubernetes.CronSchedule(schedule)); err != nil {
+<<<<<<< HEAD
 			return fmt.Errorf("schedule training set job in kubernetes: %v", err)
+=======
+			return fmt.Errorf("schedule training set job in kubernetes: %w", err)
+>>>>>>> 53dce59a (Initial setup and kubernetes changes (#473))
 		}
 		if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
 			return fmt.Errorf("update training set scheduler job status: %v", err)
@@ -1191,13 +1208,21 @@ func (c *Coordinator) changeJobSchedule(key string, value string) error {
 	if err != nil {
 		return fmt.Errorf("could not get kubernetes namespace: %v", err)
 	}
+<<<<<<< HEAD
 	jobClient, err := kubernetes.NewKubernetesJobClient(kubernetes.GetCronJobName(coordinatorScheduleJob.Resource), namespace)
+=======
+	jobClient, err := kubernetes.NewKubernetesJobClient(kubernetes.GetCronJobName(coordinatorScheduleJob.Resource), kubernetes.Namespace)
+>>>>>>> 53dce59a (Initial setup and kubernetes changes (#473))
 	if err != nil {
 		return fmt.Errorf("create new kubernetes job client: %v", err)
 	}
 	cronJob, err := jobClient.GetCronJob()
 	if err != nil {
+<<<<<<< HEAD
 		return fmt.Errorf("fetch cron job from kuberentes with name %s: %v", kubernetes.GetCronJobName(coordinatorScheduleJob.Resource), err)
+=======
+		return fmt.Errorf("fetch cron job from kuberentes with name %s: %w", kubernetes.GetCronJobName(coordinatorScheduleJob.Resource), err)
+>>>>>>> 53dce59a (Initial setup and kubernetes changes (#473))
 	}
 	cronJob.Spec.Schedule = coordinatorScheduleJob.Schedule
 	if _, err := jobClient.UpdateCronJob(cronJob); err != nil {

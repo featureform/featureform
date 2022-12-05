@@ -228,9 +228,9 @@ calculate_month_1_month_6_dates.register_resources(
     entity_column="customer_unique_id",
     inference_store=mongo,
     features=[
-        {"name": "earliest_datetime_purchase", "variant":  VERSION, "column": "earliest_datetime_purchase", "type": "date"},
-        {"name": "month_1_datetime", "variant":  VERSION, "column": "month_1_datetime", "type": "date"},
-        {"name": "month_6_datetime", "variant": VERSION, "column": "month_6_datetime", "type": "date"},
+        {"name": "earliest_datetime_purchase", "variant":  VERSION, "column": "earliest_datetime_purchase", "type": "datetime"},
+        {"name": "month_1_datetime", "variant":  VERSION, "column": "month_1_datetime", "type": "datetime"},
+        {"name": "month_6_datetime", "variant": VERSION, "column": "month_6_datetime", "type": "datetime"},
     ],
 )
 

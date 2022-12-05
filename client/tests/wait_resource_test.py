@@ -62,8 +62,9 @@ wait_functions = {
 @pytest.mark.parametrize("resource", [resource for resource in test_resources.values()])
 def test_wait_success(resource):
     resource.wait_function = wait_function_success
-    try:
-        resource.wait()
+    copy_resource = resource.wait()
+    assert copy_resource == resource
+
 
 @pytest.mark.parametrize("resource", [resource for resource in test_resources.values()])
 def test_wait_failure(resource):

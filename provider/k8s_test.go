@@ -655,7 +655,7 @@ func TestKubernetesExecutor_isDefaultImage(t *testing.T) {
 	}
 }
 
-func TestK8sExecutorConfig_getImage(t *testing.T) {
+func TestKExecutorConfig_getImage(t *testing.T) {
 	type fields struct {
 		DockerImage string
 	}
@@ -670,7 +670,7 @@ func TestK8sExecutorConfig_getImage(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := &K8sExecutorConfig{
+			c := &ExecutorConfig{
 				DockerImage: tt.fields.DockerImage,
 			}
 			if got := c.getImage(); got != tt.want {

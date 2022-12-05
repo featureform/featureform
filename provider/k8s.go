@@ -244,6 +244,22 @@ func (c *ExecutorConfig) Serialize() ([]byte, error) {
 	return serialized, nil
 }
 
+func (c *ExecutorConfig) Deserialize(config []byte) error {
+	err := json.Unmarshal(config, &c)
+	if err != nil {
+		return fmt.Errorf("could not deserialize K8s Executor Config: %w", err)
+	}
+	return nil
+}
+
+func (c *ExecutorConfig) getImage() string {
+	if c.DockerImage == "" {
+		return cfg.GetPandasRunnerImage()
+	} else {
+		return c.DockerImage
+	}
+}
+
 type FileStoreConfig []byte
 
 type ExecutorType string
@@ -291,9 +307,6 @@ type Executor interface {
 
 type LocalExecutor struct {
 	scriptPath string
-}
-
-type KubernetesExecutorConfig struct {
 }
 
 type KubernetesExecutor struct {
@@ -386,28 +399,8 @@ func (kube KubernetesExecutor) ExecuteScript(envVars map[string]string) error {
 	return nil
 }
 
-type K8sExecutorConfig struct {
-	DockerImage string `json:"docker_image"`
-}
-
-func (c *K8sExecutorConfig) Deserialize(config []byte) error {
-	err := json.Unmarshal(config, &c)
-	if err != nil {
-		return fmt.Errorf("could not deserialize K8s Executor Config: %w", err)
-	}
-	return nil
-}
-
-func (c *K8sExecutorConfig) getImage() string {
-	if c.DockerImage == "" {
-		return cfg.GetPandasRunnerImage()
-	} else {
-		return c.DockerImage
-	}
-}
-
 func NewKubernetesExecutor(config Config, logger *zap.SugaredLogger) (Executor, error) {
-	var c K8sExecutorConfig
+	var c ExecutorConfig
 	err := c.Deserialize(config)
 	if err != nil {
 		return nil, fmt.Errorf("could not create Kubernetes Executor: %w", err)

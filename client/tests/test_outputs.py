@@ -68,29 +68,6 @@ print_outputs = {
                                 fraud_training                 quickstart
                                 -----------------------------------------------\n
                                 """,
-                "return":r"""name: "avg_transactions"
-                                  variant: "quickstart"
-                                  source {
-                                    name: "average_user_transaction"
-                                    variant: "quickstart"
-                                  }
-                                  type: "float32"
-                                  entity: "user"
-                                  created {
-                                    seconds: [0-9]+
-                                    nanos: [0-9]+
-                                  }
-                                  owner: "featureformer"
-                                  provider: "redis-quickstart"
-                                  trainingsets {
-                                    name: "fraud_training"
-                                    variant: "quickstart"
-                                  }
-                                  columns {
-                                    entity: "user_id"
-                                    value: "avg_transaction_amt"
-                                  }
-                                  """
             }
 
         }
@@ -161,29 +138,6 @@ print_outputs = {
                                   fraud_training                 quickstart
                                   -----------------------------------------------\n
                                 """
-                "return":r"""name: "fraudulent"
-                                  variant: "quickstart"
-                                  type: "bool"
-                                  source {
-                                    name: "transactions"
-                                    variant: "kaggle"
-                                  }
-                                  entity: "user"
-                                  created {
-                                    seconds: [0-9]+
-                                    nanos: [0-9]+
-                                  }
-                                  owner: "featureformer"
-                                  provider: "postgres-quickstart"
-                                  trainingsets {
-                                    name: "fraud_training"
-                                    variant: "quickstart"
-                                  }
-                                  columns {
-                                    entity: "customerid"
-                                    value: "isfraud"
-                                  }
-                                  """
 
             }
 
@@ -250,23 +204,6 @@ print_outputs = {
                                       avg_transactions               quickstart
                                       -----------------------------------------------\n
                                 """
-                "return":r"""name: "fraud_training"
-                                        variant: "quickstart"
-                                        owner: "featureformer"
-                                        created {
-                                          seconds: [0-9]+
-                                          nanos: [0-9]+
-                                        }
-                                        provider: "postgres-quickstart"
-                                        features {
-                                          name: "avg_transactions"
-                                          variant: "quickstart"
-                                        }
-                                        label {
-                                          name: "fraudulent"
-                                          variant: "quickstart"
-                                        }
-                                        """
 
             }
 
@@ -326,10 +263,6 @@ print_outputs = {
                           kaggle                         default
                           -----------------------------------------------\n
                           """,
-            "return":r"""name: "transactions"
-                            default_variant: "kaggle"
-                            variants: "kaggle"
-                            """
 
 
             },
@@ -362,29 +295,6 @@ print_outputs = {
                                 fraud_training                 quickstart
                                 -----------------------------------------------\n
                                 """
-                "return":r"""name: "transactions"
-                                  variant: "kaggle"
-                                  owner: "featureformer"
-                                  description: "Fraud Dataset From Kaggle"
-                                  provider: "postgres-quickstart"
-                                  created {
-                                    seconds: [0-9]+
-                                    nanos: [0-9]+
-                                  }
-                                  trainingsets {
-                                    name: "fraud_training"
-                                    variant: "quickstart"
-                                  }
-                                  labels {
-                                    name: "fraudulent"
-                                    variant: "quickstart"
-                                  }
-                                  primaryData {
-                                    table {
-                                      name: "Transactions"
-                                    }
-                                  }
-                                  """
             }
             
         }
@@ -420,20 +330,6 @@ print_outputs = {
                           fraud_training                 quickstart                     training set
                           -----------------------------------------------\n
                           """,
-            "return":r"""name: "user"
-                            features {
-                              name: "avg_transactions"
-                              variant: "quickstart"
-                            }
-                            labels {
-                              name: "fraudulent"
-                              variant: "quickstart"
-                            }
-                            trainingsets {
-                              name: "fraud_training"
-                              variant: "quickstart"
-                            }
-                            """
 
         }
     },
@@ -498,16 +394,6 @@ print_outputs = {
                               NAME                           VARIANT
                               -----------------------------------------------\n
                               """
-            "return":r"""name: "redis-quickstart"
-                                description: "A Redis deployment we created for the Featureform quickstart"
-                                type: "REDIS_ONLINE"
-                                software: "redis"
-                                serialized_config: "{\\"Addr\\":\\"quickstart-redis:6379\\", \\"Password\\": \\"\\", \\"DB\\": 0}"
-                                features {
-                                  name: "avg_transactions"
-                                  variant: "quickstart"
-                                }
-                                """
 
         }
     },
@@ -567,27 +453,6 @@ print_outputs = {
                           average_user_transaction       quickstart                     source
                           -----------------------------------------------\n
                           """
-            "return":r"""name: "featureformer"
-                            features {
-                              name: "avg_transactions"
-                              variant: "quickstart"
-                            }
-                            labels {
-                              name: "fraudulent"
-                              variant: "quickstart"
-                            }
-                            trainingsets {
-                              name: "fraud_training"
-                              variant: "quickstart"
-                            }
-                            sources {
-                              name: "transactions"
-                              variant: "kaggle"
-                            }
-                            sources {
-                              name: "average_user_transaction"
-                              variant: "quickstart"
-                            }\n"""
 
         }
     },

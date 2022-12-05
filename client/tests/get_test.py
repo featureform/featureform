@@ -43,56 +43,45 @@ def check_print_return(expected_print, expected_return, resource_type):
 
 def test_get_provider():
   expected_print_provider = print_outputs["provider"]["e2e_test"]["output"]
-  expected_return_provider = print_outputs["provider"]["e2e_test"]["return"]
   check_print_return(expected_print_provider, expected_return_provider, "provider")
   
 
 def test_get_entity():
   expected_print_entity = print_outputs["entity"]["e2e_test"]["output"]
-  expected_return_entity = print_outputs["entity"]["e2e_test"]["return"]
   check_print_return(expected_print_entity, expected_return_entity, "entity")
 
 def test_get_user():
   expected_print_user = print_outputs["user"]["e2e_test"]["output"]
-  expected_return_user = print_outputs["user"]["e2e_test"]["return"]
   check_print_return(expected_print_user, expected_return_user, "user")
 
 def test_get_source():
   expected_print_source = print_outputs["source"]["e2e_test"]["resource"]["output"]
-  expected_return_source = print_outputs["source"]["e2e_test"]["resource"]["return"]
-  check_print_return(expected_print_source, expected_return_source, "source")
+  check_print_return(expected_print_source, "source")
 
 def test_get_source_var():
   expected_print_source_var = print_outputs["source"]["e2e_test"]["variant"]["output"]
-  expected_return_source_var = print_outputs["source"]["e2e_test"]["variant"]["return"]
-  check_print_return(expected_print_source_var, expected_return_source_var, "source_var")
+  check_print_return(expected_print_source_var, "source_var")
 
 def test_get_feature():
   expected_print_feature = print_outputs["feature"]["e2e_test"]["resource"]["output"]
-  expected_return_feature = print_outputs["feature"]["e2e_test"]["resource"]["return"]
-  check_print_return(expected_print_feature, expected_return_feature, "feature")
+  check_print_return(expected_print_feature, "feature")
 
 def test_get_feature_var():
   expected_print_feature_var = print_outputs["feature"]["e2e_test"]["variant"]["output"]
-  expected_return_feature_var = print_outputs["feature"]["e2e_test"]["variant"]["return"]
-  check_print_return(expected_print_feature_var, expected_return_feature_var, "feature_var")
+  check_print_return(expected_print_feature_var, "feature_var")
 
 def test_get_label():
   expected_print_label = print_outputs["label"]["e2e_test"]["resource"]["output"]
-  expected_return_label = print_outputs["label"]["e2e_test"]["resource"]["return"]
-  check_print_return(expected_print_label, expected_return_label, "label")
+  check_print_return(expected_print_label, "label")
 
 def test_get_label_var():
   expected_print_label_var = print_outputs["label"]["e2e_test"]["variant"]["output"]
-  expected_return_label_var = print_outputs["label"]["e2e_test"]["variant"]["return"]
-  check_print_return(expected_print_label_var, expected_return_label_var, "label_var")
+  check_print_return(expected_print_label_var, "label_var")
 
 def test_get_training_set():
   expected_print_training_set = print_outputs["trainingset"]["e2e_test"]["resource"]["output"]
-  expected_return_training_set = print_outputs["trainingset"]["e2e_test"]["resource"]["return"]
-  check_print_return(expected_print_training_set, expected_return_training_set, "training_set")
+  check_print_return(expected_print_training_set, "training_set")
 
 def test_get_training_set_var():
   expected_print_training_set_var = print_outputs["trainingset"]["e2e_test"]["variant"]["output"]
-  expected_return_training_set_var = print_outputs["trainingset"]["e2e_test"]["variant"]["return"]
-  check_print_return(expected_print_training_set_var, expected_return_training_set_var, "training_set_var")
+  check_print_return(expected_print_training_set_var, "training_set_var")

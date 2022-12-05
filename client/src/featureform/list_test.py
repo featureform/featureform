@@ -5,7 +5,7 @@ import os
 
 rc = Client("localhost:8000", False, False, './tls.crt')
 
-def check_print_return(expected_print, expected_return, resource_type):
+def check_print_return(expected_print, resource_type):
   rc_list_functions = {
     "provider": rc.list_providers,
     "entity": rc.list_entities,
@@ -22,7 +22,6 @@ def check_print_return(expected_print, expected_return, resource_type):
     else:
         raise ValueError("resource type not in Resource Client list functions")
     assert (fake_out.getvalue().replace(" ","") == expected_print.replace(" ", ""))
-  assert (str(value).replace(" ", "") ==  expected_return.replace(" ", ""))
 
 def test_list_provider():
   expected_print_provider = """NAME                           STATUS                         DESCRIPTION

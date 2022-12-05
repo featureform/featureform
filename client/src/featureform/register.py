@@ -684,23 +684,6 @@ class FileStoreProvider:
         return self.__config
 
 
-class FileStoreProvider:
-    def __init__(self, registrar, provider, config, store_type):
-        self.__registrar = registrar
-        self.__provider = provider
-        self.__config = config.config()
-        self.__store_type = store_type
-
-    def name(self) -> str:
-        return self.__provider.name
-
-    def store_type(self) -> str:
-        return self.__store_type
-
-    def config(self):
-        return self.__config
-
-
 class LocalProvider:
     """
     The LocalProvider exposes the registration functions for LocalMode

@@ -188,8 +188,8 @@ jobs:
         with:
           name: worker
           path: /tmp/worker.tar
-  pandas:
-    name: Build Pandas Runner
+  k8s_runner:
+    name: Build K8s Runner
     defaults:
       run:
         working-directory: ./
@@ -207,16 +207,16 @@ jobs:
           file: ./runner/Dockerfile
           tags: local/k8s_runner:stable
           push: false
-          outputs: type=docker,dest=/tmp/pandas.tar
+          outputs: type=docker,dest=/tmp/k8s_runner.tar
       - name: Upload image
         uses: actions/upload-artifact@v3
         with:
-          name: pandas
-          path: /tmp/pandas.tar
+          name: k8s_runner
+          path: /tmp/k8s_runner.tar
   test:
     name: Run Tests
     environment: Integration testing
-    needs: [api-server, coordinator, dashboard, dashboard-metadata, metadata, serving, worker, pandas]
+    needs: [api-server, coordinator, dashboard, dashboard-metadata, metadata, serving, worker, k8s_runner]
     defaults:
       run:
         working-directory: ./
@@ -226,7 +226,7 @@ jobs:
       - name: Download artifact
         uses: actions/download-artifact@v3
         with:
-          names: api-server coordinator dashboard dashboard-metadata metadata serving worker pandas
+          names: api-server coordinator dashboard dashboard-metadata metadata serving worker k8s_runner
           path: /tmp
 
       - uses: actions/setup-python@v4
@@ -283,7 +283,7 @@ jobs:
           docker load --input /tmp/metadata/metadata.tar
           docker load --input /tmp/serving/serving.tar
           docker load --input /tmp/worker/worker.tar
-          docker load --input /tmp/pandas/pandas.tar
+          docker load --input /tmp/k8s_runner/k8s_runner.tar
           minikube image load local/api-server:stable
           minikube image load local/coordinator:stable
           minikube image load local/dashboard:stable
@@ -291,7 +291,7 @@ jobs:
           minikube image load local/metadata:stable
           minikube image load local/serving:stable
           minikube image load local/worker:stable
-          minikube image load local/pandas:stable
+          minikube image load local/k8s_runner:stable
           minikube image ls
 
       - name: Helm Install

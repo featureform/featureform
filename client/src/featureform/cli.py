@@ -189,19 +189,19 @@ def apply(host, cert, insecure, local, files, dry_run):
 
 def read_file(file):
     with open(file, "r") as py:
-        exec_file(py)
+        exec_file(py, file)
 
 
 def read_url(url):
     try:
         with urllib.request.urlopen(url) as py:
-            exec_file(py)
+            exec_file(py, url)
     except Exception as e:
         raise ValueError(f"Could not apply the provided URL: {e}: {url}")
 
 
-def exec_file(file):
-    code = compile(file.read(), file.name, "exec")
+def exec_file(file, name):
+    code = compile(file.read(), name, "exec")
     exec(code)
 
 

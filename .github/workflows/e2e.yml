@@ -285,6 +285,8 @@ jobs:
           AZURE_ACCOUNT_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
           AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
           AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
+          FEATUREFORM_HOST: "localhost:8000"
+          FEATUREFORM_CERT: "tls.crt"
         run: make test_e2e
 
       - name: Check That Dashboard Is Working

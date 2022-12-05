@@ -800,7 +800,7 @@ class Source:
     def get_status(self):
         return ResourceStatus(self.status)
 
-    def wait(self, timeout=None) -> self:
+    def wait(self, timeout=None):
         self.wait_function(self.name, self.variant, "source", timeout)
         return self
 
@@ -987,7 +987,7 @@ class Feature:
     def get_status(self):
         return ResourceStatus(self.status)
 
-    def wait(self, timeout=None) -> self:
+    def wait(self, timeout=None):
         self.wait_function(self.name, self.variant, "feature", timeout)
         return self
 
@@ -1089,7 +1089,7 @@ class Label:
     def get_status(self):
         return ResourceStatus(self.status)
 
-    def wait(self, timeout=None) -> self:
+    def wait(self, timeout=None):
         self.wait_function(self.name, self.variant, "label", timeout)
         return self
 
@@ -1343,7 +1343,7 @@ class TrainingSet:
     def get_status(self):
         return ResourceStatus(self.status)
 
-    def wait(self, timeout=None) -> self:
+    def wait(self, timeout=None):
         self.wait_function(self.name, self.variant, "trainingset", timeout)
         return self
 

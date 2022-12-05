@@ -16,7 +16,7 @@ do
     printf -- '-%.0s' $(seq 100); echo ""
     filename="${f##*/}"
     echo "Applying '$filename' definition"
-    featureform apply $f
+    featureform apply $f --host=$1 --cert=$2
 
     echo -e "\nNow serving '$filename'"
     python $TESTING_DIRECTORY/serving.py

@@ -13,7 +13,7 @@ def resource_with_status(resource, status):
 
 expected_list = [("PENDING", ff.ResourceStatus.PENDING), ("READY", ff.ResourceStatus.READY), ("CREATED", ff.ResourceStatus.CREATED), ("FAILED", ff.ResourceStatus.FAILED)]
 
-@pytest.mark.paramaterize(input, expected, expected_list)
+@pytest.mark.paramaterize("input,expected" expected_list)
 def test_feature(mocker, input, expected):
     mocker.patch(
         'metadata_pb2_grpc.ApiStub.GetFeatures'
@@ -26,7 +26,7 @@ def test_feature(mocker, input, expected):
     status = client.get_feature("", "").get_status()
     assert status == expected
 
-@pytest.mark.paramaterize(input, expected, expected_list)
+@pytest.mark.paramaterize("input,expected" expected_list)
 def test_training_set(mocker, input, expected):
     mocker.patch(
         'metadata_pb2_grpc.ApiStub.GetTrainingSets'
@@ -40,7 +40,7 @@ def test_training_set(mocker, input, expected):
     assert status == expected
 
 
-@pytest.mark.paramaterize(input, expected, expected_list)
+@pytest.mark.paramaterize("input,expected" expected_list)
 def test_label(mocker, input, expected):
     mocker.patch(
         'metadata_pb2_grpc.ApiStub.GetLabels'
@@ -53,7 +53,7 @@ def test_label(mocker, input, expected):
     status = client.get_label("", "").get_status()
     assert status == expected
 
-@pytest.mark.paramaterize(input, expected, expected_list)
+@pytest.mark.paramaterize("input,expected" expected_list)
 def test_source(mocker, input, expected):
     mocker.patch(
         'metadata_pb2_grpc.ApiStub.GetSources'

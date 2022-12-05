@@ -35,7 +35,6 @@ def cli():
     |  _/ _ \/ _` | __| | | | '__/ _ \  _/ _ \| '__| '_ ` _ \ 
     | ||  __/ (_| | |_| |_| | | |  __/ || (_) | |  | | | | | |
     \_| \___|\__,_|\__|\__,_|_|  \___|_| \___/|_|  |_| |_| |_|
-
     Interact with Featureform's Feature Store via the official command line interface.
     """
     pass
@@ -74,27 +73,54 @@ def get(host, cert, insecure, local, resource_type, name, variant):
 
     rc = ResourceClient(host=host, local=local, insecure=insecure, cert_path=cert)
 
-    rc_get_functions_variant = {
-        "feature": rc.print_feature,
-        "label": rc.print_label,
-        "source": rc.print_source,
-        "trainingset": rc.print_training_set,
-        "training-set": rc.print_training_set
-    }
-
-    rc_get_functions = {
+    resource_functions = {
         "user": rc.get_user,
         "model": rc.get_model,
         "entity": rc.get_entity,
         "provider": rc.get_provider
     }
 
-    if resource_type in rc_get_functions_variant:
-        rc_get_functions_variant[resource_type](name=name, variant=variant, local=local)
-    elif resource_type in rc_get_functions:
-        rc_get_functions[resource_type](name=name, local=local)
+    resource_variant_functions = {
+        "feature": {
+            "list_variants_function": rc.print_feature,
+            "get_function": rc.get_feature,
+        },
+        "label": {
+            "list_variants_function": rc.print_label,
+            "get_function": rc.get_label,
+        },
+        "source": {
+            "list_variants_function": rc.print_source,
+            "get_function": rc.get_source,
+        }
+        "trainingset": {
+            "list_variants_function": rc.print_training_set,
+            "get_function": rc.get_training_set,
+        },
+        "training-set": {
+            "list_variants_function": rc.print_training_set,
+            "get_function": rc.get_training_set,
+        }
+    }
+    
+    if resource_type in resource_functions:
+        print_resource(resource_functions[resource_type])
+    elif resource_type in resource_variant_functions:
+        print_variant_resource(resource_variant_functions[resource_type])
     else:
         raise ValueError("Resource type not found")
+
+    def print_resource(get_function)
+        if variant is None:
+            print(get_function(name=name, local=local))
+        else:
+            raise ValueError(f"Resource {resource_type} does not have variants")
+            
+    def print_variant_resource(variant_functions):
+        if variant is None:
+            variant_functions["list_variants_function"](name=name, local=local)
+        else:
+            print(variant_functions["get_function"](name=name, local=local, variant=variant))
 
 @cli.command()
 @click.option("--host",

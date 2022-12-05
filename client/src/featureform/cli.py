@@ -39,7 +39,6 @@ def cli():
     """
     pass
 
-
 @cli.command()
 @click.option("--host",
               "host",

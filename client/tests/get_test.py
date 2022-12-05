@@ -30,11 +30,16 @@ def check_print_return(expected_print, expected_return, resource_type):
 
   with patch('sys.stdout', new = StringIO()) as fake_out:
     if resource_type in rc_get_functions:
-      value = rc_get_functions[resource_type][0](rc_get_functions[resource_type][1])
+        get_function = rc_get_functions[resource_type][0]
+        desired_resource = rc_get_functions[resource_type][1]
+        resource_return = get_function(desired_resource)
     if resource_type in rc_get_functions_var:
-      value = rc_get_functions_var[resource_type][0](rc_get_functions_var[resource_type][1], rc_get_functions_var[resource_type][2])
+        get_function = rc_get_functions_var[resource_type][0]
+        desired_resource_name = rc_get_functions_var[resource_type][1]
+        desired_resource_variant = rc_get_functions_var[resource_type][2]
+        resource_return = get_function(desired_resource)
     assert (fake_out.getvalue().replace(" ","") == expected_print.replace(" ", ""))
-  assert re.match(expected_return.replace(" ", ""), str(value).replace(" ", ""))
+  assert re.match(expected_return.replace(" ", ""), str(resource_return).replace(" ", ""))
 
 def test_get_provider():
   expected_print_provider = print_outputs["provider"]["e2e_test"]["output"]

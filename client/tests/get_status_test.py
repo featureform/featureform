@@ -11,13 +11,6 @@ def resource_with_status(resource, status):
     resource.status = status
     return resource
 
-status_map = {
-    ResourceStatus.CREATED: metadata_pb2.ResourceStatus(status=metadata_pb2.CREATED),
-    ResourceStatus.PENDING: metadata_pb2.ResourceStatus(status=metadata_pb2.PENDING),
-    ResourceStatus.READY: metadata_pb2.ResourceStatus(status=metadata_pb2.READY),
-    ResourceStatus.FAILED: metadata_pb2.ResourceStatus(status=metadata_pb2.FAILED)
-}
-
 expected_list = [("PENDING", ff.ResourceStatus.PENDING), ("READY", ff.ResourceStatus.READY), ("CREATED", ff.ResourceStatus.CREATED), ("FAILED", ff.ResourceStatus.FAILED)]
 
 @pytest.mark.paramaterize(input, expected, expected_list)

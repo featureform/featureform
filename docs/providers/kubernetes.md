@@ -74,3 +74,55 @@ def average_user_transaction(transactions):
     return user_tsc.groupby("CustomerID").agg({'TransactionAmount':'mean','Timestamp':'max'})
 ```
 {% endcode %}
+
+## Custom Build Images
+
+By default, the Docker image used to run the compute for the transformations only has Pandas pre-installed. However, 
+custom images can be built using Featureforms base image to enable use of other 3rd party libraries. 
+
+### Building A Custom Image
+
+Custom images can be built and stored in your own repository, as long as the Kubernetes cluster has permission to access
+that repository.
+
+You can install additional python packages on top of the base Featureform image.
+
+{% code title="Dockerfile" %}
+```dockerfile
+FROM featureformcom/k8s_runner:latest
+RUN pip install scikit-learn
+```
+{% endcode %}
+
+### Using A Custom Image
+
+Once you've built your custom image and pushed it to your docker repository, you can use it in your Featureform cluster.
+
+To use the custom-built image, you can add it to the Kubernetes Provider registration. This will override the default
+image for all jobs run with this provider. 
+
+{% code title="k8s_quickstart.py" %}
+```python
+k8s_custom = ff.register_k8s(
+    name="k8s-custom",
+    description="Native featureform kubernetes compute",
+    store=azure_blob,
+    team="featureform-team",
+    docker_image="my-repo/my-image:latest"
+)
+```
+{% endcode %}
+
+To use these libraries in a transformation, you can import them within the transformation definition. 
+
+{% code title="k8s_quickstart.py" %}
+```python
+@k8s_custom.df_transformation(inputs=[("encode_product_category", "default")])
+def add_kmeans_clustering(df):
+    from sklearn.cluster import KMeans
+    kmeans = KMeans(n_clusters=6)
+    df["Cluster"] = kmeans.fit_predict(df)
+    df["Cluster"] = X["Cluster"].astype("category")
+    return df
+```
+{% endcode %}

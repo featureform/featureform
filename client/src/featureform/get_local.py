@@ -98,7 +98,7 @@ def get_feature_variant_info_local(name, variant):
         },
         "trainingsets": returned_training_sets_list
     }
-     return Feature(
+    return Feature(
         name=returned_feature["name"],
         variant=returned_feature["variant"],
         value_type=returned_feature["type"],

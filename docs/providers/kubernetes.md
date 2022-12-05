@@ -75,9 +75,9 @@ def average_user_transaction(transactions):
 ```
 {% endcode %}
 
-## Custom Build Images
+## Custom Compute Images
 
-By default, the Docker image used to run the compute for the transformations only has Pandas pre-installed. However, 
+By default, the Docker image used to run compute for the transformations only has Pandas pre-installed. However, 
 custom images can be built using Featureforms base image to enable use of other 3rd party libraries. 
 
 ### Building A Custom Image

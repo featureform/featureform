@@ -1095,14 +1095,7 @@ class TrainingSet:
                 pb.NameVariant(name=v[0], variant=v[1]) for v in self.features
             ],
             label=pb.NameVariant(name=self.label[0], variant=self.label[1]),
-            feature_lags=[
-                pb.FeatureLag(
-                    feature=lag["feature"],
-                    variant=lag["variant"],
-                    name=lag["name"],
-                    lag=lag["lag"],
-                ) for lag in self.feature_lags
-            ]
+            feature_lags=feature_lags
         )
         stub.CreateTrainingSetVariant(serialized)
 

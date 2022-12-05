@@ -2737,6 +2737,8 @@ class ResourceClient(Registrar):
         Returns:
             model (Model): Model
         """
+        if local:
+            return get_resource_info_local(name, "model")
         return get_resource_info(self._stub, "model", name)
 
     def get_provider(self, name, local=False):
@@ -2820,25 +2822,12 @@ class ResourceClient(Registrar):
         return get_provider_info(self._stub, name)
 
     def get_feature(self, name, variant, local=False):
-        name_variant = metadata_pb2.NameVariant(name=name, variant=variant)
-        feature = None
         
-        for x in self._stub.GetFeatureVariants(iter([name_variant])):
-            feature = x
-            break
-
-        return Feature(
-            name=feature.name,
-            variant=feature.variant,
-            source=(feature.source.name, feature.source.variant),
-            value_type=feature.type,
-            entity=feature.entity,
-            owner=feature.owner,
-            provider=feature.provider,
-            location=ResourceColumnMapping("", "", ""),
-            description=feature.description,
-            status=feature.status.Status._enum_type.values[feature.status.status].name
-        )
+        if local:
+            return get_feature_variant_info_local(name, variant)
+        feature = get_feature_variant_info(self._stub, name, variant)
+        feature.wait_function = self.wait
+        return feature
 
     def print_feature(self, name, variant=None, local=False):
         """Get a feature. Prints out information on feature, and all variants associated with the feature. If variant is included, print information on that specific variant and all resources associated with it.
@@ -2944,24 +2933,11 @@ class ResourceClient(Registrar):
         return get_feature_variant_info(self._stub, name, variant)
 
     def get_label(self, name, variant, local=False):
-        name_variant = metadata_pb2.NameVariant(name=name, variant=variant)
-        label = None
-        for x in self._stub.GetLabelVariants(iter([name_variant])):
-            label = x
-            break
-
-        return Label(
-            name=label.name,
-            variant=label.variant,
-            source=(label.source.name, label.source.variant),
-            value_type=label.type,
-            entity=label.entity,
-            owner=label.owner,
-            provider=label.provider,
-            location=ResourceColumnMapping("", "", ""),
-            description=label.description,
-            status=label.status.Status._enum_type.values[label.status.status].name
-        )
+        if local:
+            return get_label_variant_info_local(name, variant)
+        label = get_label_variant_info(self._stub, name, variant)
+        label.wait_function = self.wait
+        return label
 
     def print_label(self, name, variant=None, local=False):
         """Get a label. Prints out information on label, and all variants associated with the label. If variant is included, print information on that specific variant and all resources associated with it.
@@ -3067,23 +3043,11 @@ class ResourceClient(Registrar):
         return get_label_variant_info(self._stub, name, variant)
 
     def get_training_set(self, name, variant, local=False):
-        name_variant = metadata_pb2.NameVariant(name=name, variant=variant)
-        ts = None
-        for x in self._stub.GetTrainingSetVariants(iter([name_variant])):
-            ts = x
-            break
-
-        return TrainingSet(
-            name=ts.name,
-            variant=ts.variant,
-            owner=ts.owner,
-            description=ts.description,
-            status=ts.status.Status._enum_type.values[ts.status.status].name,
-            label=(ts.label.name, ts.label.variant),
-            features=[(f.name, f.variant) for f in ts.features],
-            feature_lags=[],
-            provider=ts.provider,
-        )
+        if local:
+            return get_training_set_variant_info_local(name, variant)
+        training_set = get_training_set_variant_info(self._stub, name, variant)
+        training_set.wait_function = self.wait
+        return training_set
 
     def print_training_set(self, name, variant=None, local=False):
         """Get a training set. Prints out information on training set, and all variants associated with the training set. If variant is included, print information on that specific variant and all resources associated with it.
@@ -3181,23 +3145,11 @@ class ResourceClient(Registrar):
         return get_training_set_variant_info(self._stub, name, variant)
 
     def get_source(self, name, variant, local=False):
-        name_variant = metadata_pb2.NameVariant(name=name, variant=variant)
-        source = None
-        for x in self._stub.GetSourceVariants(iter([name_variant])):
-            source = x
-            break
-
-        definition = self._get_source_definition(source)
-
-        return Source(
-            name=source.name,
-            definition=definition,
-            owner=source.owner,
-            provider=source.provider,
-            description=source.description,
-            variant=source.variant,
-            status=source.status.Status._enum_type.values[source.status.status].name,
-        )
+        if local:
+            return get_source_variant_info_local(name, variant)
+        source = get_source_variant_info(self._stub, name, variant)
+        source.wait_function = self.wait
+        return source
 
     def _get_source_definition(self, source):
         if source.primaryData.table.name:

@@ -2,12 +2,9 @@ from .format import *
 from .sqlite_metadata import *
 
 def get_user_info_local(name):
-    user = get_resource("user", name)
-
-    format_rows("USER NAME: ", user["name"])
-    format_rows("TYPE: ", user["type"])
-    format_rows("STATUS: ", user["status"])
-    return user
+    return User(
+        name = name,
+    )
 
 def get_entity_info_local(name):
     db = SQLiteMetadata()

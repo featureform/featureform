@@ -31,11 +31,19 @@ class ColumnTypes(Enum):
     DATETIME = "datetime"
 
 class ResourceStatus(Enum):
-    NO_STATUS = "NO_STATUS"
     CREATED = "CREATED"
     PENDING = "PENDING"
     READY = "READY"
     FAILED = "FAILED"
+	def from_proto(proto_status):
+		proto_map = {
+			pb.ResourceStatus.Status.CREATED: ResourceStatus.CREATED,
+            pb.ResourceStatus.Status.PENDING: ResourceStatus.PENDING,
+            pb.ResourceStatus.Status.READY: ResourceStatus.READY,
+            pb.ResourceStatus.Status.FAILED: ResourceStatus.FAILED,
+        }
+        return proto_map[proto_status]
+
 
 
 @typechecked
@@ -536,6 +544,31 @@ class Provider:
                 return False
         return True
 
+    def __str__(self):
+        format_rows([("NAME: ", self.name),
+        ("DESCRIPTION: ", self.description),
+        ("TYPE: ", self.type),
+        ("SOFTWARE: ", self.software),
+        ("TEAM: ", self.team),
+        ("STATUS: ", self.status)])
+        format_pg("SOURCES:")
+        format_rows("NAME", "VARIANT")
+        for s in self.sources:
+            format_rows(s.name, s.variant)
+        format_pg("FEATURES:")
+        format_rows("NAME", "VARIANT")
+        for f in self.features:
+            format_rows(f.name, f.variant)
+        format_pg("LABELS:")
+        format_rows("NAME", "VARIANT")
+        for l in self.labels:
+            format_rows(l.name, l.variant)
+        format_pg("TRAINING SETS:")
+        format_rows("NAME", "VARIANT")
+        for t in self.trainingsets:
+            format_rows(t.name, t.variant)
+        format_pg()
+
 
 @typechecked
 @dataclass
@@ -565,6 +598,64 @@ class User:
             if getattr(self, attribute) != getattr(other, attribute):
                 return False
         return True
+    def print(self):
+        format_rows("USER NAME: ", self.name)
+        format_pg()
+        format_rows('NAME', 'VARIANT', 'TYPE')
+        for f in self.features:
+            format_rows(
+                f.name, f.variant, "feature")
+        for l in self.labels:
+            format_rows(
+                l.name, l.variant, "label")
+        for t in self.trainingsets:
+            format_rows(
+                t.name, t.variant, "training set")
+        for s in self.sources:
+            format_rows(
+                s.name, s.variant, "source")
+        format_pg()
+
+@typechecked
+@dataclass
+class Model:
+    name: str
+    description: str
+
+    @staticmethod
+    def operation_type() -> OperationType:
+        return OperationType.CREATE
+
+    @staticmethod
+    def type() -> str:
+        return "model"
+
+    
+
+    def _create(self, stub) -> None:
+        serialized = pb.Model(
+            name=self.name,
+            description=self.description,
+        )
+        stub.CreateModel(serialized)
+
+    def _create_local(self, db) -> None:
+        db.insert("models",
+                  self.name,
+                  "MODEL",
+                  self.description,
+                  "ready"
+                  )
+
+    def __eq__(self, other):
+        for attribute in vars(self):
+            if getattr(self, attribute) != getattr(other, attribute):
+                return False
+        return True
+
+    def __str__(self):
+        format_rows([("MODEL NAME: ", self.name), ("MODEL DESC: ", self.description)])
+        format_pg()
 
 
 @typechecked
@@ -644,7 +735,8 @@ class Source:
     schedule_obj: Schedule = None
     is_transformation = SourceType.PRIMARY_SOURCE.value
     inputs = [],
-    status: str = "NO_STATUS"
+    status: ResourceStatus = None
+    wait_function = None
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=7, schedule_string=schedule)
@@ -708,14 +800,40 @@ class Source:
     def get_status(self):
         return ResourceStatus(self.status)
 
-    def is_ready(self):
-        return self.status == ResourceStatus.READY.value
+    def wait(self, timeout=None) -> self:
+        self.wait_function(self.name, self.variant, "source", timeout)
+	    return self
 
     def __eq__(self, other):
         for attribute in vars(self):
             if getattr(self, attribute) != getattr(other, attribute):
                 return False
         return True
+    
+    def __str__(self):
+        format_rows([("NAME: ", self.name),
+        ("VARIANT: ", self.variant), 
+        ("OWNER:", self.owner),
+        ("DESCRIPTION:", self.description),
+        ("PROVIDER:", self.provider),
+        ("STATUS: ", self.status)])
+        format_pg("DEFINITION:")
+        if not self.is_transformation:
+            print("PRIMARY DATA LOCATION")
+            print(self.definition.location)
+        print("FEATURES:")
+        format_rows("NAME", "VARIANT")
+        for t in self.features:
+            format_rows(t.name, t.variant)
+        format_pg("LABELS:")
+        format_rows("NAME", "VARIANT")
+        for t in self.labels:
+            format_rows(t.name, t.variant)
+        format_pg("TRAINING SETS:")
+        format_rows("NAME", "VARIANT")
+        for t in self.trainingsets:
+            format_rows(t.name, t.variant)
+        format_pg()
 
 
 @typechecked
@@ -753,6 +871,21 @@ class Entity:
                 return False
         return True
 
+    def __str__(self):
+        format_rows([("ENTITY NAME: ", self.name)])
+        format_pg()
+        format_rows('NAME', 'VARIANT', 'TYPE')
+        for f in self.features:
+            format_rows(
+                f.name, f.variant, "feature")
+        for l in self.labels:
+            format_rows(
+                l.name, l.variant, "label")
+        for t in self.trainingsets:
+            format_rows(
+                t.name, t.variant, "training set")
+        format_pg()
+
 
 @typechecked
 @dataclass
@@ -786,7 +919,8 @@ class Feature:
     variant: str = "default"
     schedule: str = ""
     schedule_obj: Schedule = None
-    status: str = "NO_STATUS"
+    status: ResourceStatus = None
+    wait_function = None
 
     def __post_init__(self):
         col_types = [member.value for member in ColumnTypes]
@@ -853,14 +987,32 @@ class Feature:
     def get_status(self):
         return ResourceStatus(self.status)
 
-    def is_ready(self):
-        return self.status == ResourceStatus.READY.value
+    def wait(self, timeout=None) -> self:
+        self.wait_function(self.name, self.variant, "feature", timeout)
+	    return self
 
     def __eq__(self, other):
         for attribute in vars(self):
             if getattr(self, attribute) != getattr(other, attribute):
                 return False
         return True
+    def __str__(self):
+        format_rows([("NAME: ", self.name), 
+        ("VARIANT: ", self.variant), 
+        ("TYPE:", self.value_type), 
+        ("ENTITY:", self.entity),
+        ("OWNER:", self.owner),
+        ("DESCRIPTION:", self.description),
+        ("PROVIDER:", self.provider),
+        ("STATUS: ", self.status)
+        ])
+        format_pg("SOURCE: ")
+        format_rows([("NAME", "VARIANT"), (self.source.name, self.source.variant)])
+        format_pg("TRAINING SETS:")
+        format_rows("NAME", "VARIANT")
+        for t in self.trainingsets:
+            format_rows(t.name, t.variant)
+        format_pg()
 
 
 @typechecked
@@ -875,7 +1027,8 @@ class Label:
     description: str
     location: ResourceLocation
     variant: str = "default"
-    status: str = "NO_STATUS"
+    status: ResourceStatus = None
+    wait_function = None
 
     def __post_init__(self):
         col_types = [member.value for member in ColumnTypes]
@@ -936,14 +1089,32 @@ class Label:
     def get_status(self):
         return ResourceStatus(self.status)
 
-    def is_ready(self):
-        return self.status == ResourceStatus.READY.value
+    def wait(self, timeout=None) -> self:
+        self.wait_function(self.name, self.variant, "label", timeout)
+	    return self
 
     def __eq__(self, other):
         for attribute in vars(self):
             if getattr(self, attribute) != getattr(other, attribute):
                 return False
         return True
+
+    def __str__(self):
+        format_rows([("NAME: ", self.name),
+        ("VARIANT: ", self.variant), 
+        ("TYPE:", self.type), 
+        ("ENTITY:", self.entity), 
+        ("OWNER:", self.owner), 
+        ("DESCRIPTION:", self.description),
+        ("PROVIDER:", self.provider),
+        ("STATUS: ", self.status)])
+        format_pg("SOURCE: ")
+        format_rows([("NAME", "VARIANT"), (self.source.name, self.source.variant)])
+        format_pg("TRAINING SETS:")
+        format_rows("NAME", "VARIANT")
+        for t in self.trainingsets:
+            format_rows(t.name, t.variant)
+        format_pg()
 
 
 @typechecked
@@ -1044,11 +1215,12 @@ class TrainingSet:
     features: List[NameVariant]
     feature_lags: list
     description: str
-    status: str = "NO_STATUS"
+    status: ResourceStatus
     variant: str = "default"
     schedule: str = ""
     schedule_obj: Schedule = None
     provider: str = ""
+    wait_function = None
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=6, schedule_string=schedule)
@@ -1171,8 +1343,9 @@ class TrainingSet:
     def get_status(self):
         return ResourceStatus(self.status)
 
-    def is_ready(self):
-        return self.status == ResourceStatus.READY.value
+    def wait(self, timeout=None) -> self:
+        self.wait_function(self.name, self.variant, "trainingset", timeout)
+	    return self
 
     def __eq__(self, other):
         for attribute in vars(self):
@@ -1180,8 +1353,22 @@ class TrainingSet:
                 return False
         return True
 
+    def __str__(self):
+        format_rows([("NAME: ", self.name),
+        ("VARIANT: ", self.variant),
+        ("OWNER:", self.owner),
+        ("DESCRIPTION:", self.description),
+        ("STATUS: ", self.status)])
+        format_pg("LABEL: ", self.label)
+        format_rows([("NAME", "VARIANT"), (self.label.name, self.label.variant)])
+        format_pg("FEATURES:")
+        format_rows("NAME", "VARIANT")
+        for f in self.features:
+            format_rows(f.name, f.variant)
+        format_pg()
 
-Resource = Union[PrimaryData, Provider, Entity, User, Feature, Label,
+
+Resource = Union[PrimaryData, Provider, Entity, User, Feature, Label, Model,
                  TrainingSet, Source, Schedule, ProviderReference, SourceReference, EntityReference]
 
 

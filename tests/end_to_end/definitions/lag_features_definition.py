@@ -33,7 +33,7 @@ FEATURE_SERVING = f"farm:farm"
 VERSIONS = f"{FEATURE_NAME},{FEATURE_VARIANT}:{TRAININGSET_NAME},{TRAININGSET_VARIANT}"
 
 save_to_file("feature.txt", FEATURE_SERVING)
-save_to_file("versions.txt", VERSIONS)
+save_to_file("version.txt", VERSIONS)
 
 
 # Start of Featureform Definitions

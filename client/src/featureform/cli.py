@@ -35,6 +35,7 @@ def cli():
     |  _/ _ \/ _` | __| | | | '__/ _ \  _/ _ \| '__| '_ ` _ \ 
     | ||  __/ (_| | |_| |_| | | |  __/ || (_) | |  | | | | | |
     \_| \___|\__,_|\__|\__,_|_|  \___|_| \___/|_|  |_| |_| |_|
+    
     Interact with Featureform's Feature Store via the official command line interface.
     """
     pass

@@ -11,33 +11,6 @@ def resource_with_status(resource, status):
     resource.status = status
     return resource
 
-proto_get_functions = {
-    "training_set": {
-        "proto_stub": 'metadata_pb2_grpc.ApiStub.GetTrainingSetVariants',
-        "proto_resource", metadata_pb2.TrainingSet(name="name", variant="variant", description="description")
-        "mock_return": resource_with_status,
-        "client_function": ResourceClient(host="mock_host", local=False, insecure=True, cert_path="").get_training_set("",""),
-    },
-    "feature": {
-        "proto_stub": 'metadata_pb2_grpc.ApiStub.GetFeatureVariants',
-        "proto_resource", metadata_pb2.Feature(name="name", variant="variant", description="description")
-        "mock_return": resource_with_status,
-        "client_function": ResourceClient(host="mock_host", local=False, insecure=True, cert_path="").get_feature("",""),
-    },
-    "source": {
-        "proto_stub": 'metadata_pb2_grpc.ApiStub.GetSourceVariants',
-        "proto_resource", metadata_pb2.Source(name="name", variant="variant", description="description")
-        "mock_return": resource_with_status,
-        "client_function": ResourceClient(host="mock_host", local=False, insecure=True, cert_path="").get_source("",""),
-    },
-    "label": {
-        "proto_stub": 'metadata_pb2_grpc.ApiStub.GetLabelVariants',
-        "proto_resource", metadata_pb2.Label(name="name", variant="variant", description="description")
-        "mock_return": resource_with_status,
-        "client_function": ResourceClient(host="mock_host", local=False, insecure=True, cert_path="").get_label("",""),
-    }
-}
-
 status_map = {
     ResourceStatus.CREATED: metadata_pb2.ResourceStatus(status=metadata_pb2.CREATED),
     ResourceStatus.PENDING: metadata_pb2.ResourceStatus(status=metadata_pb2.PENDING),
@@ -45,12 +18,57 @@ status_map = {
     ResourceStatus.FAILED: metadata_pb2.ResourceStatus(status=metadata_pb2.FAILED)
 }
 
-@pytest.mark.parametrize("mocker,functions"
-    [(mocker, value) for value in proto_get_functions.values()])
-@pytest.mark.parametrize("status", [(key, status_map[key]) for key in status_map.key()])
-def test_expected_status(mocker, functions, status):
+expected_list = [("PENDING", ff.ResourceStatus.PENDING), ("READY", ff.ResourceStatus.READY), ("CREATED", ff.ResourceStatus.CREATED), ("FAILED", ff.ResourceStatus.FAILED)]
+
+@pytest.mark.paramaterize(input, expected, expected_list)
+def test_feature(mocker, input, expected):
     mocker.patch(
-        functions["proto_stub"],
-        return_value=[functions["mock_return"](functions["proto_resource"],status[1])]
+        'metadata_pb2_grpc.ApiStub.GetFeatures'
+        return_value=metadata_pb2.FeatureVariant(
+            name="",
+            status=input
+        )
     )
-    assert status[0] == functions["client_function"].get_status()
+    client=ResourceClient(host="mock_host", local=False, insecure=True, cert_path="")
+    status = client.get_feature("", "").get_status()
+    assert status == expected
+
+@pytest.mark.paramaterize(input, expected, expected_list)
+def test_training_set(mocker, input, expected):
+    mocker.patch(
+        'metadata_pb2_grpc.ApiStub.GetTrainingSets'
+        return_value=metadata_pb2.TrainingSetVariant(
+            name="",
+            status=input
+        )
+    )
+    client=ResourceClient(host="mock_host", local=False, insecure=True, cert_path="")
+    status = client.get_feature("", "").get_status()
+    assert status == expected
+
+
+@pytest.mark.paramaterize(input, expected, expected_list)
+def test_label(mocker, input, expected):
+    mocker.patch(
+        'metadata_pb2_grpc.ApiStub.GetLabels'
+        return_value=metadata_pb2.LabelVariant(
+            name="",
+            status=input
+        )
+    )
+    client=ResourceClient(host="mock_host", local=False, insecure=True, cert_path="")
+    status = client.get_label("", "").get_status()
+    assert status == expected
+
+@pytest.mark.paramaterize(input, expected, expected_list)
+def test_source(mocker, input, expected):
+    mocker.patch(
+        'metadata_pb2_grpc.ApiStub.GetSources'
+        return_value=metadata_pb2.SourceVariant(
+            name="",
+            status=input
+        )
+    )
+    client=ResourceClient(host="mock_host", local=False, insecure=True, cert_path="")
+    status = client.get_source("", "").get_status()
+    assert status == expected

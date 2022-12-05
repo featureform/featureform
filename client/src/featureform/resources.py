@@ -1042,8 +1042,8 @@ class TrainingSet:
     owner: str
     label: NameVariant
     features: List[NameVariant]
-    feature_lags: list
     description: str
+    feature_lags: list = []
     status: str = "NO_STATUS"
     variant: str = "default"
     schedule: str = ""

@@ -35,9 +35,9 @@ class ResourceStatus(Enum):
     PENDING = "PENDING"
     READY = "READY"
     FAILED = "FAILED"
-	def from_proto(proto_status):
-		proto_map = {
-			pb.ResourceStatus.Status.CREATED: ResourceStatus.CREATED,
+    def from_proto(proto_status):
+        proto_map = {
+            pb.ResourceStatus.Status.CREATED: ResourceStatus.CREATED,
             pb.ResourceStatus.Status.PENDING: ResourceStatus.PENDING,
             pb.ResourceStatus.Status.READY: ResourceStatus.READY,
             pb.ResourceStatus.Status.FAILED: ResourceStatus.FAILED,
@@ -802,7 +802,7 @@ class Source:
 
     def wait(self, timeout=None) -> self:
         self.wait_function(self.name, self.variant, "source", timeout)
-	    return self
+        return self
 
     def __eq__(self, other):
         for attribute in vars(self):
@@ -989,7 +989,7 @@ class Feature:
 
     def wait(self, timeout=None) -> self:
         self.wait_function(self.name, self.variant, "feature", timeout)
-	    return self
+        return self
 
     def __eq__(self, other):
         for attribute in vars(self):
@@ -1091,7 +1091,7 @@ class Label:
 
     def wait(self, timeout=None) -> self:
         self.wait_function(self.name, self.variant, "label", timeout)
-	    return self
+        return self
 
     def __eq__(self, other):
         for attribute in vars(self):
@@ -1345,7 +1345,7 @@ class TrainingSet:
 
     def wait(self, timeout=None) -> self:
         self.wait_function(self.name, self.variant, "trainingset", timeout)
-	    return self
+        return self
 
     def __eq__(self, other):
         for attribute in vars(self):

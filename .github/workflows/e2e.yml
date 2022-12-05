@@ -188,10 +188,35 @@ jobs:
         with:
           name: worker
           path: /tmp/worker.tar
+  pandas:
+    name: Build Pandas Runner
+    defaults:
+      run:
+        working-directory: ./
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build and export
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./runner/Dockerfile
+          tags: local/k8s_runner:stable
+          push: false
+          outputs: type=docker,dest=/tmp/pandas.tar
+      - name: Upload image
+        uses: actions/upload-artifact@v3
+        with:
+          name: pandas
+          path: /tmp/pandas.tar
   test:
     name: Run Tests
     environment: Integration testing
-    needs: [api-server, coordinator, dashboard, dashboard-metadata, metadata, serving, worker]
+    needs: [api-server, coordinator, dashboard, dashboard-metadata, metadata, serving, worker, pandas]
     defaults:
       run:
         working-directory: ./
@@ -201,7 +226,7 @@ jobs:
       - name: Download artifact
         uses: actions/download-artifact@v3
         with:
-          names: api-server coordinator dashboard dashboard-metadata metadata serving worker
+          names: api-server coordinator dashboard dashboard-metadata metadata serving worker pandas
           path: /tmp
 
       - uses: actions/setup-python@v4
@@ -258,6 +283,7 @@ jobs:
           docker load --input /tmp/metadata/metadata.tar
           docker load --input /tmp/serving/serving.tar
           docker load --input /tmp/worker/worker.tar
+          docker load --input /tmp/pandas/pandas.tar
           minikube image load local/api-server:stable
           minikube image load local/coordinator:stable
           minikube image load local/dashboard:stable
@@ -265,6 +291,7 @@ jobs:
           minikube image load local/metadata:stable
           minikube image load local/serving:stable
           minikube image load local/worker:stable
+          minikube image load local/pandas:stable
           minikube image ls
 
       - name: Helm Install

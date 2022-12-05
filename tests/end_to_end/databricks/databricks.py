@@ -5,7 +5,7 @@ import featureform as ff
 
 FILE_DIRECTORY = os.getenv("FEATUREFORM_TEST_PATH", "")
 featureform_location = os.path.dirname(os.path.dirname(FILE_DIRECTORY))
-env_file_path = os.path.join(featureform_location, "../../../../.env")
+env_file_path = os.path.join(featureform_location, "../../../.env")
 load_dotenv(env_file_path)
 
 

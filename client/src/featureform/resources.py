@@ -753,6 +753,7 @@ class Source:
     wait_function = None
     trainingsets: List[NameVariant] = None
     labels: List[NameVariant] = None
+    features: List[NameVariant] = None
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=7, schedule_string=schedule)

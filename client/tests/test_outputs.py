@@ -28,11 +28,11 @@ print_outputs = {
         -----------------------------------------------
         SOURCE:
         NAME                           VARIANT
-        test_source                   test_variant
+        test_source                    test_variant
         -----------------------------------------------
         TRAINING SETS:
         NAME                           VARIANT
-        test_training_set                 test_variant
+        test_training_set              test_variant
         -----------------------------------------------
     """
 
@@ -224,7 +224,8 @@ print_outputs = {
         provider="test_provider",
         status=ResourceStatus.CREATED,
         trainingsets=[("test_training_set","test_variant")],
-        labels=[("test_label","test_variant")]
+        labels=[("test_label","test_variant")],
+        features=[("test_feature","test_variant")]
     ),
         "output":"""
         NAME:                          test_name
@@ -247,6 +248,10 @@ print_outputs = {
         FEATURES:
         NAME                           VARIANT
         test_feature                   test_variant
+        -----------------------------------------------
+        FEATURES:
+        NAME                           VARIANT
+        test_feature                     test_variant
         -----------------------------------------------
         LABELS:
         NAME                           VARIANT

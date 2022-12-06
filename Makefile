@@ -205,23 +205,23 @@ stop_postgres:
 pytest:
 	-rm -r .featureform
 	curl -C - https://featureform-demo-files.s3.amazonaws.com/transactions_short.csv -o transactions.csv
-	pytest client/tests/status_test.py
-	pytest client/tests/test_cli.py
-	pytest client/tests/resources_test.py
-	pytest client/tests/register_test.py
-	pytest client/tests/provider_config_test.py
-	pytest client/tests/serving_test.py
-	pytest client/src/featureform/local_dash_test.py
-	pytest client/tests/redefined_test.py
-	pytest client/tests/local_test.py
-	pytest client/tests/localmode_quickstart_test.py
-	pytest client/tests/register_test.py
-	pytest client/tests/test_spark_provider.py
-	pytest client/tests/test_localmode_include_label_ts.py
-	pytest client/tests/test_localmode_lag_features.py
-	pytest client/tests/wait_resource_test.py
+	# pytest client/tests/status_test.py
+	# pytest client/tests/test_cli.py
+	# pytest client/tests/resources_test.py
+	# pytest client/tests/register_test.py
+	# pytest client/tests/provider_config_test.py
+	# pytest client/tests/serving_test.py
+	# pytest client/src/featureform/local_dash_test.py
+	# pytest client/tests/redefined_test.py
+	# pytest client/tests/local_test.py
+	# pytest client/tests/localmode_quickstart_test.py
+	# pytest client/tests/register_test.py
+	# pytest client/tests/test_spark_provider.py
+	# pytest client/tests/test_localmode_include_label_ts.py
+	# pytest client/tests/test_localmode_lag_features.py
+	# pytest client/tests/wait_resource_test.py
 	pytest client/tests/print_resource_test.py
-	pytest client/tests/get_status_test.py
+	# pytest client/tests/get_status_test.py
 	-rm -r .featureform
 
 jupyter: update_python

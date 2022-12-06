@@ -18,7 +18,6 @@ def feature_expected_print():
 def test_feature_print(feature_object, feature_expected_print):
        assert feature_expected_print == f"{feature_object}"
 
-#Training set
 @pytest.fixture
 def training_set_object():
       return print_outputs["trainingset"]["unit_test"]["resource"]
@@ -29,8 +28,6 @@ def training_set_expected_print():
 
 def test_training_set_print(training_set_object, training_set_expected_print):
        assert training_set_expected_print == f"{training_set_object}"
-
-#Label
 
 @pytest.fixture
 def label_object():
@@ -43,8 +40,6 @@ def label_expected_print():
 def test_label_print(label_object, label_expected_print):
        assert label_expected_print == f"{label_object}"
 
-#Source
-
 @pytest.fixture
 def source_object():
       return print_outputs["source"]["unit_test"]["resource"]
@@ -55,8 +50,6 @@ def source_expected_print():
 
 def test_source_print(source_object, source_expected_print):
        assert label_expected_print == f"{source_object}"
-
-#User
 
 @pytest.fixture
 def user_object():
@@ -69,8 +62,6 @@ def user_expected_print():
 def test_user_print(user_object, user_expected_print):
        assert user_expected_print == f"{user_object}"
 
-#Entity
-
 @pytest.fixture
 def entity_object():
       return print_outputs["entity"]["unit_test"]["resource"]
@@ -82,8 +73,6 @@ def entity_expected_print():
 def test_entity_print(entity_object, entity_expected_print):
        assert entity_expected_print == f"{entity_object}"
 
-#Model
-
 @pytest.fixture
 def model_object():
       return print_outputs["model"]["unit_test"]["resource"]
@@ -94,8 +83,6 @@ def model_expected_print():
 
 def test_model_print(model_object, model_expected_print):
        assert model_expected_print == f"{model_object}"
-
-#Provider
 
 @pytest.fixture
 def provider_object():

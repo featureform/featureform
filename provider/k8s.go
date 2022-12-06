@@ -1201,7 +1201,7 @@ func (k8s *K8sOfflineStore) getSourcePath(path string) (string, error) {
 		return filePath, nil
 	} else if fileType == "transformation" {
 		fileResourceId := ResourceID{Name: fileName, Variant: fileVariant, Type: Transformation}
-		fileResourcePath := fileStoreResourcePath(fileResourceId)
+		fileResourcePath := k8s.store.PathWithPrefix(fileStoreResourcePath(fileResourceId), false)
 		exactFileResourcePath, err := k8s.store.NewestFile(fileResourcePath)
 		if err != nil {
 			k8s.logger.Errorw("Could not get newest blob", "location", fileResourcePath, "error", err)
@@ -1212,6 +1212,7 @@ func (k8s *K8sOfflineStore) getSourcePath(path string) (string, error) {
 			return "", fmt.Errorf("could not get the transformation table for {%v} at {%s}", fileResourceId, fileResourcePath)
 		}
 		filePath := k8s.store.PathWithPrefix(exactFileResourcePath[:strings.LastIndex(exactFileResourcePath, "/")+1], false)
+		fmt.Println("--->", exactFileResourcePath, filePath)
 		return filePath, nil
 	} else {
 		return filePath, fmt.Errorf("could not find path for %s; fileType: %s, fileName: %s, fileVariant: %s", path, fileType, fileName, fileVariant)

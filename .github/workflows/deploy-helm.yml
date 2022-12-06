@@ -47,7 +47,7 @@ jobs:
         with:
           context: .
           file: ./api/Dockerfile
-          tags: featureformcom/api-server:${{ env.TAG }}
+          tags: featureformcom/api-server:${{ env.TAG }},featureformcom/api-server:latest
           push: true
 
   coordinator:
@@ -77,7 +77,7 @@ jobs:
         with:
           context: .
           file: ./coordinator/Dockerfile
-          tags: featureformcom/coordinator:${{ env.TAG }}
+          tags: featureformcom/coordinator:${{ env.TAG }},featureformcom/coordinator:latest
           push: true
 
   dashboard:
@@ -107,7 +107,7 @@ jobs:
         with:
           context: .
           file: ./dashboard/Dockerfile
-          tags: featureformcom/dashboard:${{ env.TAG }}
+          tags: featureformcom/dashboard:${{ env.TAG }},featureformcom/dashboard:latest
           push: true
 
   metadata:
@@ -137,7 +137,7 @@ jobs:
         with:
           context: .
           file: ./metadata/Dockerfile
-          tags: featureformcom/metadata:${{ env.TAG }}
+          tags: featureformcom/metadata:${{ env.TAG }},featureformcom/metadata:latest
           push: true
 
   dashboard-metadata:
@@ -167,7 +167,7 @@ jobs:
         with:
           context: .
           file: ./metadata/dashboard/Dockerfile
-          tags: featureformcom/metadata-dashboard:${{ env.TAG }}
+          tags: featureformcom/metadata-dashboard:${{ env.TAG }},featureformcom/metadata-dashboard:latest
           push: true
 
   serving:
@@ -197,7 +197,7 @@ jobs:
         with:
           context: .
           file: ./serving/Dockerfile
-          tags: featureformcom/serving:${{ env.TAG }}
+          tags: featureformcom/serving:${{ env.TAG }},featureformcom/serving:latest
           push: true
 
   worker:
@@ -227,7 +227,7 @@ jobs:
         with:
           context: .
           file: ./runner/Dockerfile
-          tags: featureformcom/worker:${{ env.TAG }}
+          tags: featureformcom/worker:${{ env.TAG }},featureformcom/worker:latest
           push: true
 
   k8s_runner:
@@ -257,7 +257,7 @@ jobs:
         with:
           context: .
           file: ./provider/scripts/k8s/Dockerfile
-          tags: featureformcom/k8s_runner:${{ env.TAG }}
+          tags: featureformcom/k8s_runner:${{ env.TAG }},featureformcom/k8s_runner:latest
           push: true
   helm:
     name: Package Helm

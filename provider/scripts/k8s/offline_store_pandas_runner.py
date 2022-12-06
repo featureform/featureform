@@ -175,7 +175,7 @@ def download_blobs_to_local(container_client, blob, local_filename):
 
     blob_extension = blob.split(".")[-1]
     print("Blob Extension", blob_extension)
-    if blob_extension == ".csv" or blob_extension == ".parquet" or blob_extension == ".pkl":
+    if blob_extension == "csv" or blob_extension == "parquet" or blob_extension == "pkl":
         print("Running on CSV, parquet, or pkl")
         blob_client = container_client.get_blob_client(blob)
 

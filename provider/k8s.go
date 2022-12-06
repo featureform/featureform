@@ -431,7 +431,7 @@ func (kube KubernetesExecutor) ExecuteScript(envVars map[string]string) error {
 }
 
 func NewKubernetesExecutor(config Config) (Executor, error) {
-	pandas_image := helpers.GetEnv("PANDAS_RUNNER_IMAGE", "featureformcom/k8s_runner:0.3.0-rc")
+	pandas_image := helpers.GetEnv("PANDAS_RUNNER_IMAGE", "featureformcom/k8s_runner:stable")
 	return KubernetesExecutor{image: pandas_image}, nil
 }
 
@@ -1201,7 +1201,7 @@ func (k8s *K8sOfflineStore) getSourcePath(path string) (string, error) {
 		return filePath, nil
 	} else if fileType == "transformation" {
 		fileResourceId := ResourceID{Name: fileName, Variant: fileVariant, Type: Transformation}
-		fileResourcePath := fileStoreResourcePath(fileResourceId)
+		fileResourcePath := k8s.store.PathWithPrefix(fileStoreResourcePath(fileResourceId), false)
 		exactFileResourcePath, err := k8s.store.NewestFile(fileResourcePath)
 		if err != nil {
 			k8s.logger.Errorw("Could not get newest blob", "location", fileResourcePath, "error", err)
@@ -1209,7 +1209,7 @@ func (k8s *K8sOfflineStore) getSourcePath(path string) (string, error) {
 		}
 		if exactFileResourcePath == "" {
 			k8s.logger.Errorw("Issue getting transformation table", fileResourceId)
-			return "", fmt.Errorf("could not get the transformation table for {%v}", fileResourceId)
+			return "", fmt.Errorf("could not get the transformation table for {%v} at {%s}", fileResourceId, fileResourcePath)
 		}
 		filePath := k8s.store.PathWithPrefix(exactFileResourcePath[:strings.LastIndex(exactFileResourcePath, "/")+1], false)
 		return filePath, nil

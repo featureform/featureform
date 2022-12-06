@@ -33,7 +33,7 @@ FEATURE_SERVING = f"farm:farm"
 VERSIONS = f"{FEATURE_NAME},{FEATURE_VARIANT}:{TRAININGSET_NAME},{TRAININGSET_VARIANT}"
 
 save_to_file("feature.txt", FEATURE_SERVING)
-save_to_file("versions.txt", VERSIONS)
+save_to_file("version.txt", VERSIONS)
 
 
 # Start of Featureform Definitions
@@ -107,6 +107,5 @@ ff.register_training_set(
     label=(f"ice_cream_label_{VERSION}", FEATURE_VARIANT),
     features=[
         (f"ice_cream_feature_{VERSION}", FEATURE_VARIANT),
-        {"feature": f"ice_cream_feature_{VERSION}", "variant": FEATURE_VARIANT, "name": "ice_cream_transformation_lag_1h", "lag": timedelta(hours=1)},
     ],
 )

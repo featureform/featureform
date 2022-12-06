@@ -188,10 +188,35 @@ jobs:
         with:
           name: worker
           path: /tmp/worker.tar
+  k8s_runner:
+    name: Build K8s Runner
+    defaults:
+      run:
+        working-directory: ./
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build and export
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./provider/scripts/k8s/Dockerfile
+          tags: local/k8s_runner:stable
+          push: false
+          outputs: type=docker,dest=/tmp/k8s_runner.tar
+      - name: Upload image
+        uses: actions/upload-artifact@v3
+        with:
+          name: k8s_runner
+          path: /tmp/k8s_runner.tar
   test:
     name: Run Tests
     environment: Integration testing
-    needs: [api-server, coordinator, dashboard, dashboard-metadata, metadata, serving, worker]
+    needs: [api-server, coordinator, dashboard, dashboard-metadata, metadata, serving, worker, k8s_runner]
     defaults:
       run:
         working-directory: ./
@@ -201,7 +226,7 @@ jobs:
       - name: Download artifact
         uses: actions/download-artifact@v3
         with:
-          names: api-server coordinator dashboard dashboard-metadata metadata serving worker
+          names: api-server coordinator dashboard dashboard-metadata metadata serving worker k8s_runner
           path: /tmp
 
       - uses: actions/setup-python@v4
@@ -258,6 +283,7 @@ jobs:
           docker load --input /tmp/metadata/metadata.tar
           docker load --input /tmp/serving/serving.tar
           docker load --input /tmp/worker/worker.tar
+          docker load --input /tmp/k8s_runner/k8s_runner.tar
           minikube image load local/api-server:stable
           minikube image load local/coordinator:stable
           minikube image load local/dashboard:stable
@@ -265,6 +291,7 @@ jobs:
           minikube image load local/metadata:stable
           minikube image load local/serving:stable
           minikube image load local/worker:stable
+          minikube image load local/k8s_runner:stable
           minikube image ls
 
       - name: Helm Install
@@ -285,6 +312,15 @@ jobs:
           AZURE_ACCOUNT_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
           AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
           AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_CLUSTER: ${{ secrets.DATABRICKS_CLUSTER }}
+          MONGODB_HOST: ${{ secrets.MONGODB_HOST }}
+          MONGODB_PORT: ${{ secrets.MONGODB_PORT }}
+          MONGODB_USERNAME: ${{ secrets.MONGODB_USERNAME }}
+          MONGODB_PASSWORD: ${{ secrets.MONGODB_PASSWORD }}
+          MONGODB_DATABASE: ${{ secrets.MONGODB_PASSWORD }}
+
         run: make test_e2e
 
       - name: Check That Dashboard Is Working

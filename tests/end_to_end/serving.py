@@ -32,7 +32,7 @@ def parse_versions(data):
 def parse_feature(data):
     return data.split(":")
 
-FEATURE_NAME, FEATURE_VARIANT, TRAININGSET_NAME, TRAININGSET_VARIANT = parse_versions(read_file("versions.txt"))
+FEATURE_NAME, FEATURE_VARIANT, TRAININGSET_NAME, TRAININGSET_VARIANT = parse_versions(read_file("version.txt"))
 FEATURE_ENTITY, FEATURE_VALUE = parse_feature(read_file("feature.txt"))
 if FEATURE_NAME == None or FEATURE_VARIANT == None or TRAININGSET_NAME == None or TRAININGSET_VARIANT == None:
     raise TypeError("VERSION is set to None.")

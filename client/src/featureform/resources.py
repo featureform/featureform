@@ -15,6 +15,7 @@ from .sqlite_metadata import SQLiteMetadata
 from google.protobuf.duration_pb2 import Duration
 
 from featureform.proto import metadata_pb2 as pb
+from dataclasses import dataclass, field
 from featureform.format import *
 
 NameVariant = Tuple[str, str]
@@ -1042,8 +1043,8 @@ class TrainingSet:
     owner: str
     label: NameVariant
     features: List[NameVariant]
-    feature_lags: list
     description: str
+    feature_lags: list = field(default_factory=list)
     status: str = "NO_STATUS"
     variant: str = "default"
     schedule: str = ""
@@ -1094,14 +1095,7 @@ class TrainingSet:
                 pb.NameVariant(name=v[0], variant=v[1]) for v in self.features
             ],
             label=pb.NameVariant(name=self.label[0], variant=self.label[1]),
-            feature_lags=[
-                pb.FeatureLag(
-                    feature=lag["feature"],
-                    variant=lag["variant"],
-                    name=lag["name"],
-                    lag=lag["lag"],
-                ) for lag in self.feature_lags
-            ]
+            feature_lags=feature_lags
         )
         stub.CreateTrainingSetVariant(serialized)
 

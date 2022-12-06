@@ -114,6 +114,11 @@ def execute_df_job(mode, output_uri, code, sources, etcd_credentials, blob_crede
             output_path = location
 
         if ".csv" == output_path[-4:]:
+            print("PATH", output_path)
+            if os.path.isdir(output_path):
+                print("\nIt is a directory")
+            elif os.path.isfile(output_path):
+                print("\nIt is a normal file")
             func_parameters.append(pd.read_csv(output_path))
         else:
             func_parameters.append(pd.read_parquet(output_path))
@@ -169,13 +174,17 @@ def download_blobs_to_local(container_client, blob, local_filename):
     full_path = f"{LOCAL_DATA_PATH}/{local_filename}"
 
     blob_extension = blob.split(".")[-1]
+    print("Blob Extension", blob_extension)
     if blob_extension == ".csv" or blob_extension == ".parquet" or blob_extension == ".pkl":
+        print("Running on CSV, parquet, or pkl")
         blob_client = container_client.get_blob_client(blob)
 
         with open(full_path, "wb") as my_blob:
+            print("Starting download...")
             download_stream = blob_client.download_blob()
             my_blob.write(download_stream.readall())
     else:
+        print("Not running on CSV, parquet, or pkl")
         if not os.path.isdir(full_path):
             os.mkdir(full_path)
 

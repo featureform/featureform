@@ -405,7 +405,10 @@ func NewKubernetesExecutor(config Config, logger *zap.SugaredLogger) (Executor, 
 	if err != nil {
 		return nil, fmt.Errorf("could not create Kubernetes Executor: %w", err)
 	}
-	return KubernetesExecutor{image: c.getImage()}, nil
+	return KubernetesExecutor{
+		image:  c.getImage(),
+		logger: logger,
+	}, nil
 }
 
 type FileStore interface {

@@ -107,6 +107,5 @@ ff.register_training_set(
     label=(f"ice_cream_label_{VERSION}", FEATURE_VARIANT),
     features=[
         (f"ice_cream_feature_{VERSION}", FEATURE_VARIANT),
-        {"feature": f"ice_cream_feature_{VERSION}", "variant": FEATURE_VARIANT},
     ],
 )

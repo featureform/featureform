@@ -196,7 +196,7 @@ func k8sOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	logger := logging.NewLogger("kubernetes")
 	if err := k8.Deserialize(config); err != nil {
 		logger.Errorw("Invalid config to initialize k8s offline store", "error", err)
-		return nil, fmt.Errorf("invalid k8s config")
+		return nil, fmt.Errorf("invalid k8s config: %w", err)
 	}
 	logger.Info("Creating executor with type:", k8.ExecutorType)
 	serializedExecutor, err := k8.ExecutorConfig.Serialize()

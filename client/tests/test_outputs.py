@@ -1,4 +1,4 @@
-from .resources import Feature, Label, Source, TrainingSet, Entity, Model, Provider, User, ResourceStatus
+from featureform.resources import Feature, Label, Source, TrainingSet, Entity, Model, Provider, User, ResourceStatus, ResourceColumnMapping, PrimaryData, SQLTable, Location, LocalConfig
 
 print_outputs = {
     "feature": {
@@ -11,8 +11,9 @@ print_outputs = {
         description="test_description",
         entity="test_entity",
         provider="test_provider",
-        status=ResourceStatus.NO_STATUS,
-        source=("test_source","test_variant")
+        status=ResourceStatus.CREATED,
+        location=ResourceColumnMapping(entity="",value="",timestamp=""),
+        source=("test_source","test_variant"),
         trainingsets=[("test_training_set","test_variant")]
     ),
             "output":"""
@@ -23,7 +24,7 @@ print_outputs = {
         OWNER:                         test_owner
         PROVIDER:                      test_provider
         DESCRIPTION:                   test_description
-        STATUS:                        NO_STATUS
+        STATUS:                        CREATED
         -----------------------------------------------
         SOURCE:
         NAME                           VARIANT
@@ -39,7 +40,7 @@ print_outputs = {
         "e2e_test": {
             "resource":{
                 "output":"""NAME:                          avg_transactions
-                              STATUS:                        NO_STATUS
+                              STATUS:                        CREATED
                               -----------------------------------------------
                               VARIANTS:
                               quickstart                     default
@@ -57,7 +58,7 @@ print_outputs = {
                                 ENTITY:                        user
                                 OWNER:                         featureformer
                                 PROVIDER:                      redis-quickstart
-                                STATUS:                        NO_STATUS
+                                STATUS:                        CREATED
                                 -----------------------------------------------
                                 SOURCE:
                                 NAME                           VARIANT
@@ -77,12 +78,14 @@ print_outputs = {
             "resource":Label(
         name="test_name",
         variant="test_variant",
+        value_type="float32",
         owner="test_owner",
         description="test_description",
         entity="test_entity",
         provider="test_provider",
-        status=ResourceStatus.NO_STATUS,
-        source=("test_source","test_variant")
+        status=ResourceStatus.CREATED,
+        location=ResourceColumnMapping(entity="",value="",timestamp=""),
+        source=("test_source","test_variant"),
         trainingsets=[("test_training_set","test_variant")]
     ),
         "output":"""
@@ -93,7 +96,7 @@ print_outputs = {
         OWNER:                         test_owner
         PROVIDER:                      test_provider
         DESCRIPTION:                   test_description
-        STATUS:                        NO_STATUS
+        STATUS:                        CREATED
         -----------------------------------------------
         SOURCE:
         NAME                           VARIANT
@@ -109,12 +112,12 @@ print_outputs = {
         "e2e_test": {
             "resource":{
                 "output":"""NAME:                          fraudulent
-                            STATUS:                        NO_STATUS
+                            STATUS:                        CREATED
                             -----------------------------------------------
                             VARIANTS:
                             quickstart                     default
                             -----------------------------------------------\n
-                          """
+                          """,
                 "return":"""name: "fraudulent"
                               default_variant: "quickstart"
                               variants: "quickstart"
@@ -127,7 +130,7 @@ print_outputs = {
                                   ENTITY:                        user
                                   OWNER:                         featureformer
                                   PROVIDER:                      postgres-quickstart
-                                  STATUS:                        NO_STATUS
+                                  STATUS:                        CREATED
                                   -----------------------------------------------
                                   SOURCE:
                                   NAME                           VARIANT
@@ -152,8 +155,9 @@ print_outputs = {
         description="test_description",
         label=("test_label","test_variant"),
         provider="test_provider",
-        status=ResourceStatus.NO_STATUS,
-        features=[("test_feature","test_variant")]
+        status=ResourceStatus.CREATED,
+        features=[("test_feature","test_variant")],
+        feature_lags=[],
     ),
         "output":"""
         NAME:                          test_name
@@ -161,7 +165,7 @@ print_outputs = {
         OWNER:                         test_owner
         PROVIDER:                      test_provider
         DESCRIPTION:                   test_description
-        STATUS:                        NO_STATUS
+        STATUS:                        CREATED
         -----------------------------------------------
         LABEL:
         NAME                           VARIANT
@@ -174,14 +178,14 @@ print_outputs = {
     """
         },
         "e2e_test": {
-            "resource"{
+            "resource":{
                 "output":"""NAME:                          fraud_training
-                                  STATUS:                        NO_STATUS
+                                  STATUS:                        CREATED
                                   -----------------------------------------------
                                   VARIANTS:
                                   quickstart                     default
                                   -----------------------------------------------\n
-                                  """
+                                  """,
                 "return":"""name: "fraud_training"
                                     default_variant: "quickstart"
                                     variants: "quickstart"
@@ -193,7 +197,7 @@ print_outputs = {
                                       VARIANT:                       quickstart
                                       OWNER:                         featureformer
                                       PROVIDER:                      postgres-quickstart
-                                      STATUS:                        NO_STATUS
+                                      STATUS:                        CREATED
                                       -----------------------------------------------
                                       LABEL:
                                       NAME                           VARIANT
@@ -216,9 +220,9 @@ print_outputs = {
         variant="test_variant",
         owner="test_owner",
         description="test_description",
+        definition=PrimaryData(location=SQLTable(name="test_table")),
         provider="test_provider",
-        status=ResourceStatus.NO_STATUS,
-        sources=[("test_source","test_variant")]
+        status=ResourceStatus.CREATED,
         trainingsets=[("test_training_set","test_variant")],
         labels=[("test_label","test_variant")]
     ),
@@ -228,7 +232,7 @@ print_outputs = {
         OWNER:                         test_owner
         DESCRIPTION:                   test_description
         PROVIDER:                      test_provider
-        STATUS:                        NO_STATUS
+        STATUS:                        CREATED
         -----------------------------------------------
         DEFINITION:
         TRANSFORMATION  
@@ -257,7 +261,7 @@ print_outputs = {
         "e2e_test": {
             "resource":{
                 "output":"""NAME:                          transactions
-                          STATUS:                        NO_STATUS
+                          STATUS:                        CREATED
                           -----------------------------------------------
                           VARIANTS:
                           kaggle                         default
@@ -272,7 +276,7 @@ print_outputs = {
                                 OWNER:                         featureformer
                                 DESCRIPTION:                   Fraud Dataset From Kaggle
                                 PROVIDER:                      postgres-quickstart
-                                STATUS:                        NO_STATUS
+                                STATUS:                        CREATED
                                 -----------------------------------------------
                                 DEFINITION:
                                 TRANSFORMATION
@@ -303,6 +307,7 @@ print_outputs = {
         "unit_test": {
             "resource":Entity(
         name="test_entity",
+        description="",
         features=[("test_training_set","test_variant")],
         labels=[("test_training_set","test_variant")],
         trainingsets=[("test_training_set","test_variant")]
@@ -321,7 +326,7 @@ print_outputs = {
         },
         "e2e_test": {
             "output":"""ENTITY NAME:                   user
-                          STATUS:                        NO_STATUS
+                          STATUS:                        CREATED
                           -----------------------------------------------
 
                           NAME                           VARIANT                        TYPE
@@ -337,12 +342,11 @@ print_outputs = {
         "unit_test": {
             "resource":Provider(
         name="test_name",
-        variant="test_variant",
-        owner="test_owner",
         description="test_description",
-        provider="test_provider",
-        status=ResourceStatus.NO_STATUS,
-        sources=[("test_source","test_variant")]
+        function="",
+        config=LocalConfig(),
+        team="",
+        sources=[("test_source","test_variant")],
         trainingsets=[("test_training_set","test_variant")],
         labels=[("test_label","test_variant")],
         features=[("test_feature","test_variant")]
@@ -352,7 +356,7 @@ print_outputs = {
         DESCRIPTION:                   test_description
         TYPE:                          POSTGRES_OFFLINE
         SOFTWARE:                      postgres
-        STATUS:                        NO_STATUS
+        STATUS:                        CREATED
         -----------------------------------------------
         SOURCES:
         NAME                           VARIANT
@@ -378,7 +382,7 @@ print_outputs = {
                               DESCRIPTION:                   A Redis deployment we created for the Featureform quickstart
                               TYPE:                          REDIS_ONLINE
                               SOFTWARE:                      redis
-                              STATUS:                        NO_STATUS
+                              STATUS:                        CREATED
                               -----------------------------------------------
                               SOURCES:
                               NAME                           VARIANT
@@ -401,6 +405,7 @@ print_outputs = {
         "unit_test": {
             "resource":Model(
         name="test_name",
+        description="test_model",
         features=[("test_training_set","test_variant")],
         labels=[("test_training_set","test_variant")],
         trainingsets=[("test_training_set","test_variant")]

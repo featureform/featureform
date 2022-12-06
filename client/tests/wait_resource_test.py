@@ -1,37 +1,38 @@
 import pytest
+import time
 import featureform as ff
-from featureform.resources import TrainingSet, Feature, ResourceColumnMapping
+from featureform.resources import TrainingSet, Feature, Label, Source, ResourceColumnMapping, PrimaryData, SQLTable, Location
 from featureform.serving import ServingClient
 
 from datetime import timedelta
 
-def wait_function_success(timeout=None):
+def wait_function_success(name, variant, resource_type, timeout=None):
     time.sleep(1)
 
-def wait_function_failure(timeout=None):
+def wait_function_failure(name, variant, resource_type, timeout=None):
     raise ValueError("Resource took to long to return")
 
 test_resources = {
     "feature": Feature(
         name="test",
         variant="test",
-        value_type="test",
+        value_type="int",
         source=("test","test"),
         entity="test",
         owner="test",
         provider="test",
-        location=None,
+        location=ResourceColumnMapping(entity="",value="",timestamp=""),
         description="test"
     ),
     "label": Label(
         name="test",
         variant="test",
-        value_type="test",
+        value_type="int",
         source=("test","test"),
         entity="test",
         owner="test",
         provider="test",
-        location=None,
+        location=ResourceColumnMapping(entity="",value="",timestamp=""),
         description="test"
     ),
     "training_set": TrainingSet(
@@ -40,14 +41,14 @@ test_resources = {
         label=("test","test"),
         owner="test",
         provider="test",
-        description="test"
-        features=None,
+        description="test",
+        features=[("test_feature","variant")],
+        feature_lags=[],
     ),
     "source": Source(
         name="test",
-        definition=None,
+        definition=PrimaryData(location=SQLTable(name="test_table")),
         variant="test",
-        source=("test","test"),
         owner="test",
         provider="test",
         description="test"

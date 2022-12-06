@@ -81,23 +81,23 @@ def get(host, cert, insecure, local, resource_type, name, variant):
     }
 
     resource_variant_functions = {
-        "feature": {
+        "feature":{
             "list_variants_function": rc.print_feature,
             "get_function": rc.get_feature,
         },
-        "label": {
+        "label":{
             "list_variants_function": rc.print_label,
             "get_function": rc.get_label,
         },
-        "source": {
+        "source":{
             "list_variants_function": rc.print_source,
             "get_function": rc.get_source,
-        }
-        "trainingset": {
+        },
+        "trainingset":{
             "list_variants_function": rc.print_training_set,
             "get_function": rc.get_training_set,
         },
-        "training-set": {
+        "training-set":{
             "list_variants_function": rc.print_training_set,
             "get_function": rc.get_training_set,
         }
@@ -110,7 +110,7 @@ def get(host, cert, insecure, local, resource_type, name, variant):
     else:
         raise ValueError("Resource type not found")
 
-    def print_resource(get_function)
+    def print_resource(get_function):
         if variant is None:
             print(get_function(name=name, local=local))
         else:

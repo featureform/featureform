@@ -11,7 +11,6 @@ from featureform.resources import Feature, Label, TrainingSet, Source, Transform
 from featureform.proto import metadata_pb2 as pb
 
 
-pb_no_status = pb.ResourceStatus.Status.NO_STATUS
 pb_created = pb.ResourceStatus.Status.CREATED
 pb_pending = pb.ResourceStatus.Status.PENDING
 pb_ready = pb.ResourceStatus.Status.READY
@@ -68,7 +67,6 @@ def get_pb_status(status):
 
 
 @pytest.mark.parametrize("status,expected,ready", [
-    (pb_no_status, ResourceStatus.NO_STATUS, False),
     (pb_created, ResourceStatus.CREATED, False),
     (pb_pending, ResourceStatus.PENDING, False),
     (pb_ready, ResourceStatus.READY, True),
@@ -90,17 +88,14 @@ def test_feature_status(mocker, status, expected, ready):
             provider="provider",
             location=ResourceColumnMapping("", "", ""),
             description="",
-            status=get_pb_status(status),
+            status=ResourceStatus.from_proto(status),
         ))
     client = ResourceClient("host")
     feature = client.get_feature("", "")
     assert feature.get_status() == expected
-    assert feature.status == expected.name
-    assert feature.is_ready() == ready
 
 
 @pytest.mark.parametrize("status,expected,ready", [
-    (pb_no_status, ResourceStatus.NO_STATUS, False),
     (pb_created, ResourceStatus.CREATED, False),
     (pb_pending, ResourceStatus.PENDING, False),
     (pb_ready, ResourceStatus.READY, True),
@@ -119,17 +114,13 @@ def test_label_status(mocker, status, expected, ready):
             provider="provider",
             location=ResourceColumnMapping("", "", ""),
             description="",
-            status=get_pb_status(status),
+            status=ResourceStatus.from_proto(status),
         ))
     client = ResourceClient("host")
     label = client.get_label("", "")
     assert label.get_status() == expected
-    assert label.status == expected.name
-    assert label.is_ready() == ready
-
 
 @pytest.mark.parametrize("status,expected,ready", [
-    (pb_no_status, ResourceStatus.NO_STATUS, False),
     (pb_created, ResourceStatus.CREATED, False),
     (pb_pending, ResourceStatus.PENDING, False),
     (pb_ready, ResourceStatus.READY, True),
@@ -146,17 +137,13 @@ def test_training_set_status(mocker, status, expected, ready):
             features=[("some", "feature")],
             feature_lags=[],
             description="",
-            status=get_pb_status(status),
+            status=ResourceStatus.from_proto(status),
         ))
     client = ResourceClient("host")
     ts = client.get_training_set("", "")
     assert ts.get_status() == expected
-    assert ts.status == expected.name
-    assert ts.is_ready() == ready
-
 
 @pytest.mark.parametrize("status,expected,ready", [
-    (pb_no_status, ResourceStatus.NO_STATUS, False),
     (pb_created, ResourceStatus.CREATED, False),
     (pb_pending, ResourceStatus.PENDING, False),
     (pb_ready, ResourceStatus.READY, True),
@@ -172,14 +159,11 @@ def test_source_status(mocker, status, expected, ready):
             owner="me",
             provider="provider",
             description="",
-            status=get_pb_status(status),
+            status=ResourceStatus.from_proto(status),
         ))
     client = ResourceClient("host")
     source = client.get_source("", "")
     assert source.get_status() == expected
-    assert source.status == expected.name
-    assert source.is_ready() == ready
-
 
 @pytest.mark.parametrize("source,expected", [
     (sql_definition_proto, sql_definition_obj),

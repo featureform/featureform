@@ -502,6 +502,10 @@ class Provider:
     config: Config
     description: str
     team: str
+    features: List[NameVariant] = None
+    labels: List[NameVariant] = None
+    sources: List[NameVariant] = None
+    trainingsets: List[NameVariant] = None
 
     def __post_init__(self):
         self.software = self.config.software()
@@ -545,35 +549,39 @@ class Provider:
         return True
 
     def __str__(self):
-        format_rows([("NAME: ", self.name),
+        obj_string = ""
+        obj_string += format_rows_string([("NAME: ", self.name),
         ("DESCRIPTION: ", self.description),
         ("TYPE: ", self.type),
         ("SOFTWARE: ", self.software),
-        ("TEAM: ", self.team),
-        ("STATUS: ", self.status)])
-        format_pg("SOURCES:")
-        format_rows("NAME", "VARIANT")
+        ("TEAM: ", self.team)])
+        obj_string += format_pg_string("SOURCES:")
+        obj_string += format_rows_string("NAME", "VARIANT")
         for s in self.sources:
-            format_rows(s.name, s.variant)
-        format_pg("FEATURES:")
-        format_rows("NAME", "VARIANT")
+            obj_string += format_rows_string(s[0], s[1])
+        obj_string += format_pg_string("FEATURES:")
+        obj_string += format_rows_string("NAME", "VARIANT")
         for f in self.features:
-            format_rows(f.name, f.variant)
-        format_pg("LABELS:")
-        format_rows("NAME", "VARIANT")
+            obj_string += format_rows_string(f[0], f[1])
+        obj_string += format_pg_string("LABELS:")
+        obj_string += format_rows_string("NAME", "VARIANT")
         for l in self.labels:
-            format_rows(l.name, l.variant)
-        format_pg("TRAINING SETS:")
-        format_rows("NAME", "VARIANT")
+            obj_string += format_rows_string(l[0], l[1])
+        obj_string += format_pg_string("TRAINING SETS:")
+        obj_string += format_rows_string("NAME", "VARIANT")
         for t in self.trainingsets:
-            format_rows(t.name, t.variant)
-        format_pg()
+            obj_string += format_rows_string(t[0], t[1])
+        obj_string += format_pg_string()
+        return obj_string
 
 
 @typechecked
 @dataclass
 class User:
     name: str
+    features: List[NameVariant] = None
+    labels: List[NameVariant] = None
+    trainingsets: List[NameVariant] = None
 
     @staticmethod
     def operation_type() -> OperationType:
@@ -599,28 +607,32 @@ class User:
                 return False
         return True
     def print(self):
-        format_rows("USER NAME: ", self.name)
-        format_pg()
-        format_rows('NAME', 'VARIANT', 'TYPE')
+        obj_string += format_rows_string("USER NAME: ", self.name)
+        obj_string += format_pg_string()
+        obj_string += format_rows_string('NAME', 'VARIANT', 'TYPE')
         for f in self.features:
-            format_rows(
+            obj_string += format_rows_string(
                 f.name, f.variant, "feature")
         for l in self.labels:
-            format_rows(
+            obj_string += format_rows_string(
                 l.name, l.variant, "label")
         for t in self.trainingsets:
-            format_rows(
+            obj_string += format_rows_string(
                 t.name, t.variant, "training set")
         for s in self.sources:
-            format_rows(
+            obj_string += format_rows_string(
                 s.name, s.variant, "source")
-        format_pg()
+        obj_string += format_pg_string()
+        return obj_string
 
 @typechecked
 @dataclass
 class Model:
     name: str
     description: str
+    features: List[NameVariant] = None
+    labels: List[NameVariant] = None
+    trainingsets: List[NameVariant] = None
 
     @staticmethod
     def operation_type() -> OperationType:
@@ -654,8 +666,10 @@ class Model:
         return True
 
     def __str__(self):
-        format_rows([("MODEL NAME: ", self.name), ("MODEL DESC: ", self.description)])
-        format_pg()
+        obj_string = ""
+        obj_string += format_rows_string([("MODEL NAME: ", self.name), ("MODEL DESC: ", self.description)])
+        obj_string += format_pg_string()
+        return obj_string
 
 
 @typechecked
@@ -737,6 +751,8 @@ class Source:
     inputs = [],
     status: ResourceStatus = None
     wait_function = None
+    trainingsets: List[NameVariant] = None
+    labels: List[NameVariant] = None
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=7, schedule_string=schedule)
@@ -811,29 +827,31 @@ class Source:
         return True
     
     def __str__(self):
-        format_rows([("NAME: ", self.name),
+        obj_string = ""
+        obj_string += format_rows_string([("NAME: ", self.name),
         ("VARIANT: ", self.variant), 
         ("OWNER:", self.owner),
         ("DESCRIPTION:", self.description),
         ("PROVIDER:", self.provider),
         ("STATUS: ", self.status)])
-        format_pg("DEFINITION:")
+        obj_string += format_pg_string("DEFINITION:")
         if not self.is_transformation:
-            print("PRIMARY DATA LOCATION")
-            print(self.definition.location)
-        print("FEATURES:")
-        format_rows("NAME", "VARIANT")
+            obj_string += "PRIMARY DATA LOCATION"
+            obj_string += self.definition.location
+        obj_string += "FEATURES:"
+        obj_string += format_rows_string("NAME", "VARIANT")
         for t in self.features:
-            format_rows(t.name, t.variant)
-        format_pg("LABELS:")
-        format_rows("NAME", "VARIANT")
+            obj_string += format_rows_string(t[0], t[1])
+        obj_string += format_pg_string("LABELS:")
+        obj_string += format_rows_string("NAME", "VARIANT")
         for t in self.labels:
-            format_rows(t.name, t.variant)
-        format_pg("TRAINING SETS:")
-        format_rows("NAME", "VARIANT")
+            obj_string += format_rows_string(t[0], t[1])
+        obj_string += format_pg_string("TRAINING SETS:")
+        obj_string += format_rows_string("NAME", "VARIANT")
         for t in self.trainingsets:
-            format_rows(t.name, t.variant)
-        format_pg()
+            obj_string += format_rows_string(t[0], t[1])
+        obj_string += format_pg_string()
+        return obj_string
 
 
 @typechecked
@@ -841,6 +859,9 @@ class Source:
 class Entity:
     name: str
     description: str
+    features: List[NameVariant] = None,
+    labels: List[NameVariant] = None,
+    trainingsets: List[NameVariant] = None,
 
     @staticmethod
     def operation_type() -> OperationType:
@@ -872,19 +893,21 @@ class Entity:
         return True
 
     def __str__(self):
-        format_rows([("ENTITY NAME: ", self.name)])
-        format_pg()
-        format_rows('NAME', 'VARIANT', 'TYPE')
+        obj_string = ""
+        obj_string += format_rows_string([("ENTITY NAME: ", self.name)])
+        obj_string += format_pg_string()
+        obj_string += format_rows_string('NAME', 'VARIANT', 'TYPE')
         for f in self.features:
-            format_rows(
-                f.name, f.variant, "feature")
+            obj_string += format_rows_string(
+                f[0], f[1], "feature")
         for l in self.labels:
-            format_rows(
-                l.name, l.variant, "label")
+            obj_string += format_rows_string(
+                l[0], l[1], "label")
         for t in self.trainingsets:
-            format_rows(
-                t.name, t.variant, "training set")
-        format_pg()
+            obj_string += format_rows_string(
+                t[0], t[1], "training set")
+        obj_string += format_pg_string()
+        return obj_string
 
 
 @typechecked
@@ -921,6 +944,7 @@ class Feature:
     schedule_obj: Schedule = None
     status: ResourceStatus = None
     wait_function = None
+    trainingsets: List[NameVariant] = None
 
     def __post_init__(self):
         col_types = [member.value for member in ColumnTypes]
@@ -997,7 +1021,8 @@ class Feature:
                 return False
         return True
     def __str__(self):
-        format_rows([("NAME: ", self.name), 
+        obj_string = ""
+        obj_string += format_rows_string([("NAME: ", self.name), 
         ("VARIANT: ", self.variant), 
         ("TYPE:", self.value_type), 
         ("ENTITY:", self.entity),
@@ -1006,13 +1031,14 @@ class Feature:
         ("PROVIDER:", self.provider),
         ("STATUS: ", self.status)
         ])
-        format_pg("SOURCE: ")
-        format_rows([("NAME", "VARIANT"), (self.source.name, self.source.variant)])
-        format_pg("TRAINING SETS:")
-        format_rows("NAME", "VARIANT")
+        obj_string += format_pg_string("SOURCE: ")
+        obj_string += format_rows_string([("NAME", "VARIANT"), (self.source[0], self.source[1])])
+        obj_string += format_pg_string("TRAINING SETS:")
+        obj_string += format_rows_string("NAME", "VARIANT")
         for t in self.trainingsets:
-            format_rows(t.name, t.variant)
-        format_pg()
+            obj_string += format_rows_string(t[0], t[1])
+        obj_string += format_pg_string()
+        return obj_string
 
 
 @typechecked
@@ -1029,6 +1055,7 @@ class Label:
     variant: str = "default"
     status: ResourceStatus = None
     wait_function = None
+    trainingsets: List[NameVariant] = None
 
     def __post_init__(self):
         col_types = [member.value for member in ColumnTypes]
@@ -1100,7 +1127,8 @@ class Label:
         return True
 
     def __str__(self):
-        format_rows([("NAME: ", self.name),
+        obj_string = ""
+        obj_string += format_rows_string([("NAME: ", self.name),
         ("VARIANT: ", self.variant), 
         ("TYPE:", self.type), 
         ("ENTITY:", self.entity), 
@@ -1108,13 +1136,14 @@ class Label:
         ("DESCRIPTION:", self.description),
         ("PROVIDER:", self.provider),
         ("STATUS: ", self.status)])
-        format_pg("SOURCE: ")
-        format_rows([("NAME", "VARIANT"), (self.source.name, self.source.variant)])
-        format_pg("TRAINING SETS:")
-        format_rows("NAME", "VARIANT")
+        obj_string += format_pg_string("SOURCE: ")
+        obj_string += format_rows_string([("NAME", "VARIANT"), (self.source[0], self.source[1])])
+        obj_string += format_pg_string("TRAINING SETS:")
+        obj_string += format_rows_string("NAME", "VARIANT")
         for t in self.trainingsets:
-            format_rows(t.name, t.variant)
-        format_pg()
+            obj_string += format_rows_string(t[0], t[1])
+        obj_string += format_pg_string()
+        return obj_string
 
 
 @typechecked
@@ -1215,7 +1244,7 @@ class TrainingSet:
     features: List[NameVariant]
     feature_lags: list
     description: str
-    status: ResourceStatus
+    status: ResourceStatus = None
     variant: str = "default"
     schedule: str = ""
     schedule_obj: Schedule = None
@@ -1354,18 +1383,20 @@ class TrainingSet:
         return True
 
     def __str__(self):
-        format_rows([("NAME: ", self.name),
+        obj_string = ""
+        obj_string += format_rows_string([("NAME: ", self.name),
         ("VARIANT: ", self.variant),
         ("OWNER:", self.owner),
         ("DESCRIPTION:", self.description),
         ("STATUS: ", self.status)])
-        format_pg("LABEL: ", self.label)
-        format_rows([("NAME", "VARIANT"), (self.label.name, self.label.variant)])
-        format_pg("FEATURES:")
-        format_rows("NAME", "VARIANT")
+        obj_string += format_pg_string("LABEL: ", self.label)
+        obj_string += format_rows_string([("NAME", "VARIANT"), (self.label[0], self.label[1])])
+        obj_string += format_pg_string("FEATURES:")
+        obj_string += format_rows_string("NAME", "VARIANT")
         for f in self.features:
-            format_rows(f.name, f.variant)
-        format_pg()
+            obj_string += format_rows_string(f[0], f[1])
+        obj_string += format_pg_string()
+        return obj_string
 
 
 Resource = Union[PrimaryData, Provider, Entity, User, Feature, Label, Model,

@@ -1209,7 +1209,7 @@ func (k8s *K8sOfflineStore) getSourcePath(path string) (string, error) {
 		}
 		if exactFileResourcePath == "" {
 			k8s.logger.Errorw("Issue getting transformation table", fileResourceId)
-			return "", fmt.Errorf("could not get the transformation table for {%v}", fileResourceId)
+			return "", fmt.Errorf("could not get the transformation table for {%v} at {%s}", fileResourceId, fileResourcePath)
 		}
 		filePath := k8s.store.PathWithPrefix(exactFileResourcePath[:strings.LastIndex(exactFileResourcePath, "/")+1], false)
 		return filePath, nil

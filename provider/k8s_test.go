@@ -5,7 +5,9 @@ package provider
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"github.com/featureform/config"
 	"os"
 	"reflect"
 	"strings"
@@ -18,10 +20,86 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/mitchellh/mapstructure"
 	"github.com/segmentio/parquet-go"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest"
 )
 
 func uuidWithoutDashes() string {
 	return fmt.Sprintf("a%s", strings.ReplaceAll(uuid.New().String(), "-", ""))
+}
+
+// Tests that both Legacy and new ExecutorConfig can be properly deserialized
+func TestDeserializeExecutorConfig(t *testing.T) {
+	expectedConfig := K8sConfig{
+		ExecutorType: "k8s",
+		ExecutorConfig: ExecutorConfig{
+			DockerImage: "",
+		},
+		StoreType: "blob",
+		StoreConfig: AzureFileStoreConfig{
+			AccountName:   "account name",
+			AccountKey:    "account key",
+			ContainerName: "container name",
+			Path:          "container path",
+		},
+	}
+	testConfig := map[string]interface{}{
+		"ExecutorType":   expectedConfig.ExecutorType,
+		"ExecutorConfig": "",
+		"StoreType":      expectedConfig.StoreType,
+		"StoreConfig": map[string]interface{}{
+			"AccountName":   expectedConfig.StoreConfig.AccountName,
+			"AccountKey":    expectedConfig.StoreConfig.AccountKey,
+			"ContainerName": expectedConfig.StoreConfig.ContainerName,
+			"Path":          expectedConfig.StoreConfig.Path,
+		},
+	}
+
+	type testCase struct {
+		GivenExecutorConfig    interface{}
+		ExpectedExecutorConfig ExecutorConfig
+	}
+
+	testCases := map[string]testCase{
+		"Legacy Config": testCase{
+			"",
+			ExecutorConfig{
+				DockerImage: "",
+			},
+		},
+		"Empty Image": testCase{
+			map[string]interface{}{
+				"docker_image": "",
+			},
+			ExecutorConfig{
+				DockerImage: "",
+			},
+		},
+		"Named Image": testCase{
+			map[string]interface{}{
+				"docker_image": "repo/image:tag",
+			},
+			ExecutorConfig{
+				DockerImage: "repo/image:tag",
+			},
+		},
+	}
+
+	for name, c := range testCases {
+		t.Run(name, func(t *testing.T) {
+			testConfig["ExecutorConfig"] = c.GivenExecutorConfig
+			expectedConfig.ExecutorConfig = c.ExpectedExecutorConfig
+			serializedConfig, err := json.Marshal(testConfig)
+			if err != nil {
+				t.Errorf("Could not serialize config %s", err.Error())
+			}
+			receivedConfig := K8sConfig{}
+			receivedConfig.Deserialize(serializedConfig)
+			if !reflect.DeepEqual(expectedConfig, receivedConfig) {
+				t.Errorf("Expected %#v, Got %#v\n", expectedConfig, receivedConfig)
+			}
+		})
+	}
 }
 
 func TestBlobInterfaces(t *testing.T) {
@@ -123,6 +201,7 @@ func testFilestoreReadAndWrite(t *testing.T, store FileStore) {
 }
 
 func TestExecutorRunLocal(t *testing.T) {
+	logger := zaptest.NewLogger(t).Sugar()
 	localConfig := LocalExecutorConfig{
 		ScriptPath: "./scripts/k8s/offline_store_pandas_runner.py",
 	}
@@ -130,7 +209,7 @@ func TestExecutorRunLocal(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error serializing local executor configuration: %v", err)
 	}
-	executor, err := NewLocalExecutor(serialized)
+	executor, err := NewLocalExecutor(Config(serialized), logger)
 	if err != nil {
 		t.Fatalf("Error creating new Local Executor: %v", err)
 	}
@@ -154,9 +233,9 @@ func TestExecutorRunLocal(t *testing.T) {
 func TestNewConfig(t *testing.T) {
 	err := godotenv.Load("../.env")
 
-	k8sConfig := K8sAzureConfig{
+	k8sConfig := K8sConfig{
 		ExecutorType:   K8s,
-		ExecutorConfig: KubernetesExecutorConfig{},
+		ExecutorConfig: ExecutorConfig{},
 		StoreType:      Azure,
 		StoreConfig: AzureFileStoreConfig{
 			AccountName:   helpers.GetEnv("AZURE_ACCOUNT_NAME", ""),
@@ -169,7 +248,7 @@ func TestNewConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not serialize: %v", err)
 	}
-	provider, err := k8sAzureOfflineStoreFactory(SerializedConfig(serialized))
+	provider, err := k8sOfflineStoreFactory(SerializedConfig(serialized))
 	if err != nil {
 		t.Fatalf("could not get provider")
 	}
@@ -546,3 +625,57 @@ func testDatabricksInitialization(t *testing.T, store FileStore) {
 // PythonFileURI() string
 // SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType) []string
 // GetDFArgs(outputURI string, code string, mapping []SourceMapping) ([]string, error)
+
+func TestKubernetesExecutor_isDefaultImage(t *testing.T) {
+	logger := zaptest.NewLogger(t).Sugar()
+	type fields struct {
+		logger *zap.SugaredLogger
+		image  string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   bool
+	}{
+		{"Valid Base", fields{logger, config.PandasBaseImage}, true},
+		{"Valid Version", fields{logger, fmt.Sprintf("%s:%s", config.PandasBaseImage, "latest")}, true},
+		{"Invalid Base", fields{logger, "my-docker/image"}, false},
+		{"Invalid Base", fields{logger, fmt.Sprintf("%s:%s", "my-docker/image", "latest")}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			kube := KubernetesExecutor{
+				logger: tt.fields.logger,
+				image:  tt.fields.image,
+			}
+			if got := kube.isDefaultImage(); got != tt.want {
+				t.Errorf("isDefaultImage() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestKExecutorConfig_getImage(t *testing.T) {
+	type fields struct {
+		DockerImage string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{"No Image", fields{""}, config.PandasBaseImage},
+		{"Custom Image", fields{"my-custom/image"}, "my-custom/image"},
+		{"Base Image", fields{config.PandasBaseImage}, config.PandasBaseImage},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &ExecutorConfig{
+				DockerImage: tt.fields.DockerImage,
+			}
+			if got := c.getImage(); got != tt.want {
+				t.Errorf("getImage() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

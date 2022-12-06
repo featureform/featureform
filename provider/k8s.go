@@ -13,11 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/featureform/helpers"
-	"github.com/featureform/kubernetes"
-	"github.com/featureform/logging"
-	"github.com/featureform/metadata"
-
 	"github.com/segmentio/parquet-go"
 	"go.uber.org/zap"
 	"gocloud.dev/blob"
@@ -25,6 +20,12 @@ import (
 	_ "gocloud.dev/blob/fileblob"
 	_ "gocloud.dev/blob/memblob"
 	"golang.org/x/exp/slices"
+
+	cfg "github.com/featureform/config"
+	"github.com/featureform/helpers"
+	"github.com/featureform/kubernetes"
+	"github.com/featureform/logging"
+	"github.com/featureform/metadata"
 )
 
 type pandasOfflineQueries struct {
@@ -109,7 +110,7 @@ func (k8s *K8sOfflineStore) Close() error {
 
 type Config []byte
 
-type ExecutorFactory func(config Config) (Executor, error)
+type ExecutorFactory func(config Config, logger *zap.SugaredLogger) (Executor, error)
 
 var executorFactoryMap = make(map[string]ExecutorFactory)
 
@@ -129,12 +130,12 @@ func UnregisterExecutorFactory(name string) error {
 	return nil
 }
 
-func CreateExecutor(name string, config Config) (Executor, error) {
+func CreateExecutor(name string, config Config, logger *zap.SugaredLogger) (Executor, error) {
 	factory, exists := executorFactoryMap[name]
 	if !exists {
 		return nil, fmt.Errorf("factory does not exist: %s", name)
 	}
-	executor, err := factory(config)
+	executor, err := factory(config, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -190,47 +191,6 @@ func init() {
 	}
 }
 
-func k8sAzureOfflineStoreFactory(config SerializedConfig) (Provider, error) {
-	k8 := K8sAzureConfig{}
-	logger := logging.NewLogger("kubernetes")
-	if err := k8.Deserialize(config); err != nil {
-		logger.Errorw("Invalid config to initialize k8s offline store", "error", err)
-		return nil, fmt.Errorf("invalid k8s config: %v", config)
-	}
-	logger.Info("Creating executor with type:", k8.ExecutorType)
-
-	exec, err := CreateExecutor(string(k8.ExecutorType), Config([]byte("")))
-	if err != nil {
-		logger.Errorw("Failure initializing executor with type", "executor_type", k8.ExecutorType, "error", err)
-		return nil, err
-	}
-
-	logger.Info("Creating blob store with type:", k8.StoreType)
-	serializedBlob, err := k8.StoreConfig.Serialize()
-	if err != nil {
-		return nil, fmt.Errorf("could not serialize blob store config")
-	}
-	store, err := CreateFileStore(string(k8.StoreType), Config(serializedBlob))
-	if err != nil {
-		logger.Errorw("Failure initializing blob store with type", k8.StoreType, err)
-		return nil, err
-	}
-
-	logger.Debugf("Store type: %s", k8.StoreType)
-	queries := pandasOfflineQueries{}
-	k8sOfflineStore := K8sOfflineStore{
-		executor: exec,
-		store:    store,
-		logger:   logger,
-		query:    &queries,
-		BaseProvider: BaseProvider{
-			ProviderType:   "K8S_OFFLINE",
-			ProviderConfig: config,
-		},
-	}
-	return &k8sOfflineStore, nil
-}
-
 func k8sOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	k8 := K8sConfig{}
 	logger := logging.NewLogger("kubernetes")
@@ -239,7 +199,8 @@ func k8sOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 		return nil, fmt.Errorf("invalid k8s config: %v", config)
 	}
 	logger.Info("Creating executor with type:", k8.ExecutorType)
-	exec, err := CreateExecutor(string(k8.ExecutorType), Config(k8.ExecutorConfig))
+	serializedExecutor, err := k8.ExecutorConfig.Serialize()
+	exec, err := CreateExecutor(string(k8.ExecutorType), serializedExecutor, logger)
 	if err != nil {
 		logger.Errorw("Failure initializing executor with type", "executor_type", k8.ExecutorType, "error", err)
 		return nil, err
@@ -271,7 +232,33 @@ func k8sOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	return &k8sOfflineStore, nil
 }
 
-type ExecutorConfig []byte
+type ExecutorConfig struct {
+	DockerImage string `json:"docker_image"`
+}
+
+func (c *ExecutorConfig) Serialize() ([]byte, error) {
+	serialized, err := json.Marshal(c)
+	if err != nil {
+		return nil, fmt.Errorf("could not serialize K8s Config: %w", err)
+	}
+	return serialized, nil
+}
+
+func (c *ExecutorConfig) Deserialize(config []byte) error {
+	err := json.Unmarshal(config, &c)
+	if err != nil {
+		return fmt.Errorf("could not deserialize K8s Executor Config: %w", err)
+	}
+	return nil
+}
+
+func (c *ExecutorConfig) getImage() string {
+	if c.DockerImage == "" {
+		return cfg.GetPandasRunnerImage()
+	} else {
+		return c.DockerImage
+	}
+}
 
 type FileStoreConfig []byte
 
@@ -290,29 +277,6 @@ const (
 	Azure                    = "AZURE"
 	S3                       = "S3"
 )
-
-type K8sAzureConfig struct {
-	ExecutorType   ExecutorType
-	ExecutorConfig KubernetesExecutorConfig
-	StoreType      FileStoreType
-	StoreConfig    AzureFileStoreConfig
-}
-
-func (config *K8sAzureConfig) Serialize() ([]byte, error) {
-	data, err := json.Marshal(config)
-	if err != nil {
-		panic(err)
-	}
-	return data, nil
-}
-
-func (config *K8sAzureConfig) Deserialize(data []byte) error {
-	err := json.Unmarshal(data, config)
-	if err != nil {
-		return fmt.Errorf("deserialize k8s config: %w", err)
-	}
-	return nil
-}
 
 type K8sConfig struct {
 	ExecutorType   ExecutorType
@@ -345,11 +309,9 @@ type LocalExecutor struct {
 	scriptPath string
 }
 
-type KubernetesExecutorConfig struct {
-}
-
 type KubernetesExecutor struct {
-	image string
+	logger *zap.SugaredLogger
+	image  string
 }
 
 func (local LocalExecutor) ExecuteScript(envVars map[string]string) error {
@@ -386,7 +348,7 @@ func (config *LocalExecutorConfig) Deserialize(data []byte) error {
 	return nil
 }
 
-func NewLocalExecutor(config Config) (Executor, error) {
+func NewLocalExecutor(config Config, logger *zap.SugaredLogger) (Executor, error) {
 	localConfig := LocalExecutorConfig{}
 	if err := localConfig.Deserialize([]byte(config)); err != nil {
 		return nil, fmt.Errorf("failed to deserialize config")
@@ -400,7 +362,14 @@ func NewLocalExecutor(config Config) (Executor, error) {
 	}, nil
 }
 
+func (kube KubernetesExecutor) isDefaultImage() bool {
+	return strings.Contains(kube.image, cfg.PandasBaseImage)
+}
+
 func (kube KubernetesExecutor) ExecuteScript(envVars map[string]string) error {
+	if !kube.isDefaultImage() {
+		kube.logger.Warnf("You are using a custom Docker Image (%s) for a Kubernetes job. This may have unintended behavior.", kube.image)
+	}
 	envVars["MODE"] = "k8s"
 	resourceType, err := strconv.Atoi(envVars["RESOURCE_TYPE"])
 	if err != nil {
@@ -430,9 +399,16 @@ func (kube KubernetesExecutor) ExecuteScript(envVars map[string]string) error {
 	return nil
 }
 
-func NewKubernetesExecutor(config Config) (Executor, error) {
-	pandas_image := helpers.GetEnv("PANDAS_RUNNER_IMAGE", "featureformcom/k8s_runner:stable")
-	return KubernetesExecutor{image: pandas_image}, nil
+func NewKubernetesExecutor(config Config, logger *zap.SugaredLogger) (Executor, error) {
+	var c ExecutorConfig
+	err := c.Deserialize(config)
+	if err != nil {
+		return nil, fmt.Errorf("could not create Kubernetes Executor: %w", err)
+	}
+	return KubernetesExecutor{
+		image:  c.getImage(),
+		logger: logger,
+	}, nil
 }
 
 type FileStore interface {

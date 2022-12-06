@@ -204,7 +204,7 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           context: .
-          file: ./runner/Dockerfile
+          file: ./provider/scripts/k8s/Dockerfile
           tags: local/k8s_runner:stable
           push: false
           outputs: type=docker,dest=/tmp/k8s_runner.tar

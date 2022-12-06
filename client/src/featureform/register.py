@@ -684,23 +684,6 @@ class FileStoreProvider:
         return self.__config
 
 
-class FileStoreProvider:
-    def __init__(self, registrar, provider, config, store_type):
-        self.__registrar = registrar
-        self.__provider = provider
-        self.__config = config.config()
-        self.__store_type = store_type
-
-    def name(self) -> str:
-        return self.__provider.name
-
-    def store_type(self) -> str:
-        return self.__store_type
-
-    def config(self):
-        return self.__config
-
-
 class LocalProvider:
     """
     The LocalProvider exposes the registration functions for LocalMode
@@ -2068,7 +2051,9 @@ class Registrar:
                      name: str,
                      store: FileStoreProvider,
                      description: str = "",
-                     team: str = ""):
+                     team: str = "",
+                     docker_image: str = ""
+                     ):
         """
         Register an offline store provider to run on featureform's own k8s deployment
         
@@ -2077,19 +2062,22 @@ class Registrar:
             store (FileStoreProvider): Reference to registered file store provider
             description (str): Description of primary data to be registered
             team (str): A string parameter describing the team that owns the provider
+            docker_image (str): A custom docker image using the base image featureformcom/k8s_runner
         **Examples**:
         ```
         k8s = ff.register_k8s(
             name="k8s",
             description="Native featureform kubernetes compute",
             store=azure_blob,
-            team="featureform-team"
+            team="featureform-team",
+            docker_image="my-repo/image:version"
         )
         ```
         """
         config = K8sConfig(
             store_type=store.store_type(),
             store_config=store.config(),
+            docker_image=docker_image
         )
 
         provider = Provider(name=name,

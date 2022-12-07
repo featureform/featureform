@@ -10,7 +10,7 @@ from featureform.proto import metadata_pb2_grpc, metadata_pb2
 
 expected_list = [(metadata_pb2.ResourceStatus.PENDING, ff.ResourceStatus.PENDING), (metadata_pb2.ResourceStatus.READY, ff.ResourceStatus.READY), (metadata_pb2.ResourceStatus.CREATED, ff.ResourceStatus.CREATED), (metadata_pb2.ResourceStatus.FAILED, ff.ResourceStatus.FAILED)]
 
-class StubFeatureVariantGetter:
+class MockFeatureVariantStub:
         def __init__(self, status):
             self.status = status
         def GetFeatureVariants(self, input):
@@ -18,7 +18,7 @@ class StubFeatureVariantGetter:
             name="",
             status=metadata_pb2.ResourceStatus(status=self.status, error_message=""))]
 
-class StubTrainingSetVariantGetter:
+class MockTrainingSetVariantStub:
         def __init__(self, status):
             self.status = status
         def GetTrainingSetVariants(self, input):
@@ -29,7 +29,7 @@ class StubTrainingSetVariantGetter:
             status=metadata_pb2.ResourceStatus(status=self.status, error_message=""))]
             
 
-class StubLabelVariantGetter:
+class MockLabelVariantStub:
         def __init__(self, status):
             self.status = status
         def GetLabelVariants(self, input):
@@ -37,7 +37,7 @@ class StubLabelVariantGetter:
             name="",
             status=metadata_pb2.ResourceStatus(status=self.status, error_message=""))]
 
-class StubSourceVariantGetter:
+class MockSourceVariantStub:
         def __init__(self, status):
             self.status = status
         def GetSourceVariants(self, input):
@@ -50,7 +50,7 @@ class StubSourceVariantGetter:
 @pytest.mark.parametrize("input,expected", expected_list)
 def test_feature(input, expected):
     client=ResourceClient(host="mock_host", local=False, insecure=True, cert_path="")
-    client._stub = StubFeatureVariantGetter(input)
+    client._stub = MockFeatureVariantStub(input)
     status = client.get_feature("", "").get_status()
     assert status == expected
 
@@ -58,7 +58,7 @@ def test_feature(input, expected):
 @pytest.mark.parametrize("input,expected", expected_list)
 def test_training_set(input, expected):
     client=ResourceClient(host="mock_host", local=False, insecure=True, cert_path="")
-    client._stub = StubTrainingSetVariantGetter(input)
+    client._stub = MockTrainingSetVariantStub(input)
     status = client.get_training_set("", "").get_status()
     assert status == expected
 
@@ -66,13 +66,13 @@ def test_training_set(input, expected):
 @pytest.mark.parametrize("input,expected", expected_list)
 def test_label(input, expected):
     client=ResourceClient(host="mock_host", local=False, insecure=True, cert_path="")
-    client._stub = StubLabelVariantGetter(input)
+    client._stub = MockLabelVariantStub(input)
     status = client.get_label("", "").get_status()
     assert status == expected
 
 @pytest.mark.parametrize("input,expected", expected_list)
 def test_source(input, expected):
     client=ResourceClient(host="mock_host", local=False, insecure=True, cert_path="")
-    client._stub = StubSourceVariantGetter(input)
+    client._stub = MockSourceVariantStub(input)
     status = client.get_source("", "").get_status()
     assert status == expected

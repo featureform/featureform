@@ -97,20 +97,24 @@ def get_label_variant_info(stub, name, variant):
     except grpc._channel._MultiThreadedRendezvous:
         print("Label variant not found.")
 
+def source_type_object(source_variant_proto):
+    is_transformation = None
+    if source_variant_proto.primaryData.table.name:
+        definition = PrimaryData(location=SQLTable(name=source_variant_proto.primaryData.table.name))
+        is_transformation = "PRIMARY"
+    elif x.transformation.SQLTransformation.query:
+        definition = SQLTransformation(query=source_variant_proto.transformation.SQLTransformation.query)
+        is_transformation = "SQL"
+    elif x.transformation.DFTransformation.query:
+        definition = DFTransformation(query=source_variant_proto.transformation.DFTransformation.query, inputs=[(f.name, f.variant) for f in source_variant_proto.transformation.DFTransformation.inputs])
+        is_transformation="DF"
+    return definition, is_transformation
+
 def get_source_variant_info(stub, name, variant):
     searchNameVariant = metadata_pb2.NameVariant(name=name, variant=variant)
     try:
         for x in stub.GetSourceVariants(iter([searchNameVariant])):
-            is_transformation = None
-            if x.primaryData.table.name:
-                definition = PrimaryData(location=SQLTable(name=x.primaryData.table.name))
-                is_transformation = "PRIMARY"
-            elif x.transformation.SQLTransformation.query:
-                definition = SQLTransformation(query=x.transformation.SQLTransformation.query)
-                is_transformation = "SQL"
-            elif x.transformation.DFTransformation.query:
-                definition = DFTransformation(query=x.transformation.DFTransformation.query, inputs=[(f.name, f.variant) for f in x.transformation.DFTransformation.inputs])
-                is_transformation="DF"
+            is_transformation, definition = source_type_object(x)
             source = Source(
                 name=x.name,
                 definition=definition,

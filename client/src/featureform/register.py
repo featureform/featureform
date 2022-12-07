@@ -2572,7 +2572,7 @@ class ResourceClient(Registrar):
         else:
             state().create_all(self._stub)
 
-    def continue_waiting(status, timeout, time_waited):
+    def should_wait(status, timeout, time_waited):
         if (status != ResourceStatus.Failed and status != ResourceStatus.Ready) and (timeout is None or time_waited < timeout_duration):
             return True
         return False
@@ -2598,7 +2598,7 @@ class ResourceClient(Registrar):
         time_waited = timedelta(seconds = 0)
         time_started = datetime.now()
 
-        while continue_waiting(status, timeout, time_waited):
+        while should_wait(status, timeout, time_waited):
             resource = resource_variant_functions[resource_type](name, variant, local=self.local)
             status = resource.get_status()
             time.sleep(1)

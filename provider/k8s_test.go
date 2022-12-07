@@ -96,7 +96,7 @@ func TestDeserializeExecutorConfig(t *testing.T) {
 			receivedConfig := K8sConfig{}
 			receivedConfig.Deserialize(serializedConfig)
 			if !reflect.DeepEqual(expectedConfig, receivedConfig) {
-				t.Errorf("Expected %#v, Got %#v\n", expectedConfig, receivedConfig)
+				t.Errorf("\nExpected %#v\nGot %#v\n", expectedConfig, receivedConfig)
 			}
 		})
 	}

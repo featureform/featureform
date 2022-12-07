@@ -1,6 +1,7 @@
 from featureform.proto import metadata_pb2
 import grpc
 from featureform.proto import metadata_pb2_grpc as ff_grpc
+from featureform.resources import Feature, Label, TrainingSet, Source, Model, Entity, User, Provider, ResourceStatus, ResourceColumnMapping, PrimaryData, SQLTransformation, DFTransformation, SQLTable
 from .format import *
 
 def get_user_info(stub, name):
@@ -23,7 +24,7 @@ def get_entity_info(stub, name):
         for entity in stub.GetEntities(iter([searchName])):
             return Entity(
                 name=x.name,
-                description=x.description
+                description=x.description,
                 features=[(f.name,f.variant) for f in entity.features],
                 labels=[(f.name,f.variant) for f in entity.labels],
                 trainingsets=[(f.name,f.variant) for f in entity.trainingsets],
@@ -68,8 +69,8 @@ def get_feature_variant_info(stub, name, variant):
                 entity=x.entity,
                 owner=x.owner,
                 provider=x.provider,
-                location=None,    
-                status=Status(status=ResourceStatus(x.status.Status._enum_type.values[x.status.status].name), message=x.status.error_message),
+                location=ResourceColumnMapping("","",""),    
+                status=ResourceStatus.from_proto(x.status.status),
                 description=x.description,
                 trainingsets=[(f.name,f.variant) for f in x.trainingsets],
             )
@@ -80,18 +81,18 @@ def get_label_variant_info(stub, name, variant):
     searchNameVariant = metadata_pb2.NameVariant(name=name, variant=variant)
     try:
         for x in stub.GetLabelVariants(iter([searchNameVariant])):
-            return ff.Label(
+            return Label(
                 name=x.name,
                 source=(x.source.name,x.source.variant),
                 value_type=x.type,
-                entity=x.entity,
                 owner=x.owner,
+                entity=x.entity,
                 provider=x.provider,
                 description=x.description,
-                location=None,
+                location=ResourceColumnMapping("","",""),
                 variant=x.variant,
-                status=Status(status=ResourceStatus(x.status.Status._enum_type.values[x.status.status].name), message=x.status.error_message),
-                trainingsets=[(f.name,f.variant) for f in entity.trainingsets],
+                status=ResourceStatus.from_proto(x.status.status),
+                trainingsets=[(f.name,f.variant) for f in x.trainingsets],
             )
     except grpc._channel._MultiThreadedRendezvous:
         print("Label variant not found.")
@@ -100,28 +101,28 @@ def get_source_variant_info(stub, name, variant):
     searchNameVariant = metadata_pb2.NameVariant(name=name, variant=variant)
     try:
         for x in stub.GetSourceVariants(iter([searchNameVariant])):
-            definition = None
             is_transformation = None
             if x.primaryData.table.name:
-                definition = ff.PrimaryData(location=x.primaryData.table.name)
+                definition = PrimaryData(location=SQLTable(name=x.primaryData.table.name))
                 is_transformation = "PRIMARY"
             elif x.transformation.SQLTransformation.query:
-                definition = ff.SQLTransformation(query=x.transformation.SQLTransformation.query)
+                definition = SQLTransformation(query=x.transformation.SQLTransformation.query)
                 is_transformation = "SQL"
             elif x.transformation.DFTransformation.query:
-                definition = ff.DFTransformation(query=x.transformation.DFTransformation.query, inputs=[(f.name, f.variant) for f in x.transformation.DFTransformation.inputs])
+                definition = DFTransformation(query=x.transformation.DFTransformation.query, inputs=[(f.name, f.variant) for f in x.transformation.DFTransformation.inputs])
                 is_transformation="DF"
-            return ff.Source(
+            source = Source(
                 name=x.name,
                 definition=definition,
                 description=x.description,
-                is_transformation=is_transformation
                 variant=x.variant,
                 provider=x.provider,
                 owner=x.owner,
-                status=Status(status=ResourceStatus(x.status.Status._enum_type.values[x.status.status].name), message=x.status.error_message),
-
+                status=ResourceStatus.from_proto(x.status.status),
             )
+            if is_transformation is not None:
+                source.is_transformation = is_transformation
+            return source
     except grpc._channel._MultiThreadedRendezvous:
         print("Source variant not found.")
 
@@ -129,17 +130,17 @@ def get_training_set_variant_info(stub, name, variant):
     searchNameVariant = metadata_pb2.NameVariant(name=name, variant=variant)
     try:
         for x in stub.GetTrainingSetVariants(iter([searchNameVariant])):
-            return ff.TrainingSet(
+            return TrainingSet(
                 name=x.name,
                 variant=x.variant,
                 label=(x.label.name,x.label.variant),
-                status=Status(status=ResourceStatus(x.status.Status._enum_type.values[x.status.status].name), message=x.status.error_message),
+                status=ResourceStatus.from_proto(x.status.status),
                 description=x.description,
                 owner=x.owner,
                 schedule=x.schedule,
                 features=[(f.name,f.variant) for f in x.features],
                 provider=x.provider,
-                feature_lags=None,
+                feature_lags=[(lag.feature, lag.variant) for lag in x.feature_lags],
             )
     except grpc._channel._MultiThreadedRendezvous:
         print("Training set variant not found.")

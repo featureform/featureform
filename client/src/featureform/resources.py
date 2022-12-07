@@ -552,7 +552,7 @@ class Provider:
         obj_string = ""
         obj_string += format_rows_string([("NAME: ", self.name),
         ("DESCRIPTION: ", self.description),
-        ("TYPE: ", self.type),
+        ("TYPE: ", self.config.type()),
         ("SOFTWARE: ", self.software),
         ("TEAM: ", self.team)])
         obj_string += format_pg_string("SOURCES:")
@@ -606,22 +606,20 @@ class User:
             if getattr(self, attribute) != getattr(other, attribute):
                 return False
         return True
-    def print(self):
+    def __str__(self):
+        obj_string = ""
         obj_string += format_rows_string("USER NAME: ", self.name)
         obj_string += format_pg_string()
         obj_string += format_rows_string('NAME', 'VARIANT', 'TYPE')
         for f in self.features:
             obj_string += format_rows_string(
-                f.name, f.variant, "feature")
+                f[0], f[1], "feature")
         for l in self.labels:
             obj_string += format_rows_string(
-                l.name, l.variant, "label")
+                l[0], l[1], "label")
         for t in self.trainingsets:
             obj_string += format_rows_string(
-                t.name, t.variant, "training set")
-        for s in self.sources:
-            obj_string += format_rows_string(
-                s.name, s.variant, "source")
+                t[0], t[1], "training set")
         obj_string += format_pg_string()
         return obj_string
 
@@ -668,6 +666,17 @@ class Model:
     def __str__(self):
         obj_string = ""
         obj_string += format_rows_string([("MODEL NAME: ", self.name), ("MODEL DESC: ", self.description)])
+        obj_string += format_pg_string()
+        obj_string += format_rows_string('NAME', 'VARIANT', 'TYPE')
+        for f in self.features:
+            obj_string += format_rows_string(
+                f[0], f[1], "feature")
+        for l in self.labels:
+            obj_string += format_rows_string(
+                l[0], l[1], "label")
+        for t in self.trainingsets:
+            obj_string += format_rows_string(
+                t[0], t[1], "training set")
         obj_string += format_pg_string()
         return obj_string
 
@@ -836,10 +845,9 @@ class Source:
         ("PROVIDER:", self.provider),
         ("STATUS: ", self.status.name)])
         obj_string += format_pg_string("DEFINITION:")
-        if not self.is_transformation:
-            obj_string += "PRIMARY DATA LOCATION"
-            obj_string += self.definition.location
-        obj_string += "FEATURES:"
+        if self.is_transformation == "PRIMARY":
+            obj_string += format_rows_string([("PRIMARY DATA LOCATION",self.definition.location.name)])
+        obj_string += format_pg_string("FEATURES:")
         obj_string += format_rows_string("NAME", "VARIANT")
         for t in self.features:
             obj_string += format_rows_string(t[0], t[1])
@@ -1032,7 +1040,7 @@ class Feature:
         ("PROVIDER:", self.provider),
         ("STATUS: ", self.status.name)
         ])
-        obj_string += format_pg_string("SOURCE: ")
+        obj_string += format_pg_string("SOURCE:")
         obj_string += format_rows_string([("NAME", "VARIANT"), (self.source[0], self.source[1])])
         obj_string += format_pg_string("TRAINING SETS:")
         obj_string += format_rows_string("NAME", "VARIANT")
@@ -1131,13 +1139,13 @@ class Label:
         obj_string = ""
         obj_string += format_rows_string([("NAME: ", self.name),
         ("VARIANT: ", self.variant), 
-        ("TYPE:", self.type), 
+        ("TYPE:", self.value_type), 
         ("ENTITY:", self.entity), 
         ("OWNER:", self.owner), 
         ("DESCRIPTION:", self.description),
         ("PROVIDER:", self.provider),
         ("STATUS: ", self.status.name)])
-        obj_string += format_pg_string("SOURCE: ")
+        obj_string += format_pg_string("SOURCE:")
         obj_string += format_rows_string([("NAME", "VARIANT"), (self.source[0], self.source[1])])
         obj_string += format_pg_string("TRAINING SETS:")
         obj_string += format_rows_string("NAME", "VARIANT")
@@ -1390,7 +1398,7 @@ class TrainingSet:
         ("OWNER:", self.owner),
         ("DESCRIPTION:", self.description),
         ("STATUS: ", self.status.name)])
-        obj_string += format_pg_string("LABEL: ", self.label)
+        obj_string += format_pg_string("LABEL:")
         obj_string += format_rows_string([("NAME", "VARIANT"), (self.label[0], self.label[1])])
         obj_string += format_pg_string("FEATURES:")
         obj_string += format_rows_string("NAME", "VARIANT")

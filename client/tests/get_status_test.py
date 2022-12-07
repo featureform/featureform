@@ -2,66 +2,77 @@ import pytest
 import featureform as ff
 from featureform.resources import TrainingSet, Feature, ResourceColumnMapping, ResourceStatus
 from featureform.serving import ServingClient
+from featureform.register import ResourceClient
 
 from datetime import timedelta
 
-from .proto import metadata_pb2_grpc, metadata_pb2
+from featureform.proto import metadata_pb2_grpc, metadata_pb2
 
-def resource_with_status(resource, status):
-    resource.status = status
-    return resource
+expected_list = [(metadata_pb2.ResourceStatus.PENDING, ff.ResourceStatus.PENDING), (metadata_pb2.ResourceStatus.READY, ff.ResourceStatus.READY), (metadata_pb2.ResourceStatus.CREATED, ff.ResourceStatus.CREATED), (metadata_pb2.ResourceStatus.FAILED, ff.ResourceStatus.FAILED)]
 
-expected_list = [("PENDING", ff.ResourceStatus.PENDING), ("READY", ff.ResourceStatus.READY), ("CREATED", ff.ResourceStatus.CREATED), ("FAILED", ff.ResourceStatus.FAILED)]
-
-@pytest.mark.paramaterize("input,expected" expected_list)
-def test_feature(mocker, input, expected):
-    mocker.patch(
-        'metadata_pb2_grpc.ApiStub.GetFeatures'
-        return_value=metadata_pb2.FeatureVariant(
+class StubFeatureVariantGetter:
+        def __init__(self, status):
+            self.status = status
+        def GetFeatureVariants(self, input):
+            return [metadata_pb2.FeatureVariant(
             name="",
-            status=input
-        )
-    )
+            status=metadata_pb2.ResourceStatus(status=self.status, error_message=""))]
+
+class StubTrainingSetVariantGetter:
+        def __init__(self, status):
+            self.status = status
+        def GetTrainingSetVariants(self, input):
+            return [metadata_pb2.TrainingSetVariant(
+            name="",
+            label=metadata_pb2.NameVariant(name="name",variant="variant"),
+            features=[metadata_pb2.NameVariant(name="name",variant="variant")],
+            status=metadata_pb2.ResourceStatus(status=self.status, error_message=""))]
+            
+
+class StubLabelVariantGetter:
+        def __init__(self, status):
+            self.status = status
+        def GetLabelVariants(self, input):
+            return [metadata_pb2.LabelVariant(
+            name="",
+            status=metadata_pb2.ResourceStatus(status=self.status, error_message=""))]
+
+class StubSourceVariantGetter:
+        def __init__(self, status):
+            self.status = status
+        def GetSourceVariants(self, input):
+            return [metadata_pb2.SourceVariant(
+            name="",
+            primaryData=metadata_pb2.PrimaryData(table=metadata_pb2.PrimarySQLTable(name="table")),
+            status=metadata_pb2.ResourceStatus(status=self.status, error_message=""))]
+          
+
+@pytest.mark.parametrize("input,expected", expected_list)
+def test_feature(input, expected):
     client=ResourceClient(host="mock_host", local=False, insecure=True, cert_path="")
+    client._stub = StubFeatureVariantGetter(input)
     status = client.get_feature("", "").get_status()
     assert status == expected
 
-@pytest.mark.paramaterize("input,expected" expected_list)
-def test_training_set(mocker, input, expected):
-    mocker.patch(
-        'metadata_pb2_grpc.ApiStub.GetTrainingSets'
-        return_value=metadata_pb2.TrainingSetVariant(
-            name="",
-            status=input
-        )
-    )
+
+@pytest.mark.parametrize("input,expected", expected_list)
+def test_training_set(input, expected):
     client=ResourceClient(host="mock_host", local=False, insecure=True, cert_path="")
-    status = client.get_feature("", "").get_status()
+    client._stub = StubTrainingSetVariantGetter(input)
+    status = client.get_training_set("", "").get_status()
     assert status == expected
 
 
-@pytest.mark.paramaterize("input,expected" expected_list)
-def test_label(mocker, input, expected):
-    mocker.patch(
-        'metadata_pb2_grpc.ApiStub.GetLabels'
-        return_value=metadata_pb2.LabelVariant(
-            name="",
-            status=input
-        )
-    )
+@pytest.mark.parametrize("input,expected", expected_list)
+def test_label(input, expected):
     client=ResourceClient(host="mock_host", local=False, insecure=True, cert_path="")
+    client._stub = StubLabelVariantGetter(input)
     status = client.get_label("", "").get_status()
     assert status == expected
 
-@pytest.mark.paramaterize("input,expected" expected_list)
-def test_source(mocker, input, expected):
-    mocker.patch(
-        'metadata_pb2_grpc.ApiStub.GetSources'
-        return_value=metadata_pb2.SourceVariant(
-            name="",
-            status=input
-        )
-    )
+@pytest.mark.parametrize("input,expected", expected_list)
+def test_source(input, expected):
     client=ResourceClient(host="mock_host", local=False, insecure=True, cert_path="")
+    client._stub = StubSourceVariantGetter(input)
     status = client.get_source("", "").get_status()
     assert status == expected

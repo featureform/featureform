@@ -2598,7 +2598,7 @@ class ResourceClient(Registrar):
         time_waited = timedelta(seconds = 0)
         time_started = datetime.now()
 
-        while continue_waiting(status, timeout, time_waited)
+        while continue_waiting(status, timeout, time_waited):
             resource = resource_variant_functions[resource_type](name, variant, local=self.local)
             status = resource.get_status()
             time.sleep(1)

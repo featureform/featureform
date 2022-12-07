@@ -1,4 +1,4 @@
-from .resources import Feature, Label, Source, TrainingSet, Entity, Model, Provider, User, ResourceStatus, ResourceColumnMapping, PrimaryData, SQLTable, Location, LocalConfig
+from featureform.resources import Feature, Label, Source, TrainingSet, Entity, Model, Provider, User, ResourceStatus, ResourceColumnMapping, PrimaryData, SQLTable, Location, LocalConfig
 
 print_outputs = {
     "feature": {
@@ -16,8 +16,7 @@ print_outputs = {
         source=("test_source","test_variant"),
         trainingsets=[("test_training_set","test_variant")]
     ),
-            "output":"""
-            NAME:                          test_name
+            "output":"""NAME:                          test_name
 VARIANT:                       test_variant
 TYPE:                          float32
 ENTITY:                        test_entity
@@ -26,12 +25,15 @@ DESCRIPTION:                   test_description
 PROVIDER:                      test_provider
 STATUS:                        CREATED
 -----------------------------------------------
+SOURCE:
 NAME                           VARIANT
 test_source                    test_variant
 -----------------------------------------------
+TRAINING SETS:
 NAME                           VARIANT
 test_training_set              test_variant
------------------------------------------------"""
+-----------------------------------------------
+"""
 
         },
         "e2e_test": {
@@ -85,25 +87,24 @@ test_training_set              test_variant
         source=("test_source","test_variant"),
         trainingsets=[("test_training_set","test_variant")]
     ),
-        "output":"""
-        NAME:                          test_name
-        VARIANT:                       test_variant
-        TYPE:                          float32
-        ENTITY:                        user
-        OWNER:                         test_owner
-        PROVIDER:                      test_provider
-        DESCRIPTION:                   test_description
-        STATUS:                        CREATED
-        -----------------------------------------------
-        SOURCE:
-        NAME                           VARIANT
-        test_source                   test_variant
-        -----------------------------------------------
-        TRAINING SETS:
-        NAME                           VARIANT
-        test_training_set                 test_variant
-        -----------------------------------------------
-    """
+        "output":"""NAME:                          test_name
+VARIANT:                       test_variant
+TYPE:                          float32
+ENTITY:                        test_entity
+OWNER:                         test_owner
+DESCRIPTION:                   test_description
+PROVIDER:                      test_provider
+STATUS:                        CREATED
+-----------------------------------------------
+SOURCE:
+NAME                           VARIANT
+test_source                    test_variant
+-----------------------------------------------
+TRAINING SETS:
+NAME                           VARIANT
+test_training_set              test_variant
+-----------------------------------------------
+"""
 
         },
         "e2e_test": {
@@ -156,23 +157,21 @@ test_training_set              test_variant
         features=[("test_feature","test_variant")],
         feature_lags=[],
     ),
-        "output":"""
-        NAME:                          test_name
-        VARIANT:                       test_variant
-        OWNER:                         test_owner
-        PROVIDER:                      test_provider
-        DESCRIPTION:                   test_description
-        STATUS:                        CREATED
-        -----------------------------------------------
-        LABEL:
-        NAME                           VARIANT
-        test_label                   test_variant
-        -----------------------------------------------
-        FEATURES:
-        NAME                           VARIANT
-        test_feature                 test_variant
-        -----------------------------------------------
-    """
+        "output":"""NAME:                          test_name
+VARIANT:                       test_variant
+OWNER:                         test_owner
+DESCRIPTION:                   test_description
+STATUS:                        CREATED
+-----------------------------------------------
+LABEL:
+NAME                           VARIANT
+test_label                     test_variant
+-----------------------------------------------
+FEATURES:
+NAME                           VARIANT
+test_feature                   test_variant
+-----------------------------------------------
+"""
         },
         "e2e_test": {
             "resource":{
@@ -224,41 +223,29 @@ test_training_set              test_variant
         labels=[("test_label","test_variant")],
         features=[("test_feature","test_variant")]
     ),
-        "output":"""
-        NAME:                          test_name
-        VARIANT:                       test_variant
-        OWNER:                         test_owner
-        DESCRIPTION:                   test_description
-        PROVIDER:                      test_provider
-        STATUS:                        CREATED
-        -----------------------------------------------
-        DEFINITION:
-        TRANSFORMATION  
-
-        -----------------------------------------------
-        SOURCES
-        NAME                           VARIANT
-        test_source                    test_variant
-        -----------------------------------------------
-        PRIMARY DATA
-        Transactions
-        FEATURES:
-        NAME                           VARIANT
-        test_feature                   test_variant
-        -----------------------------------------------
-        FEATURES:
-        NAME                           VARIANT
-        test_feature                     test_variant
-        -----------------------------------------------
-        LABELS:
-        NAME                           VARIANT
-        test_label                     test_variant
-        -----------------------------------------------
-        TRAINING SETS:
-        NAME                           VARIANT
-        test_training_set              test_variant
-        -----------------------------------------------
-    """
+        "output":"""NAME:                          test_name
+VARIANT:                       test_variant
+OWNER:                         test_owner
+DESCRIPTION:                   test_description
+PROVIDER:                      test_provider
+STATUS:                        CREATED
+-----------------------------------------------
+DEFINITION:
+PRIMARY DATA LOCATION          test_table
+-----------------------------------------------
+FEATURES:
+NAME                           VARIANT
+test_feature                   test_variant
+-----------------------------------------------
+LABELS:
+NAME                           VARIANT
+test_label                     test_variant
+-----------------------------------------------
+TRAINING SETS:
+NAME                           VARIANT
+test_training_set              test_variant
+-----------------------------------------------
+"""
         },
         "e2e_test": {
             "resource":{
@@ -314,16 +301,14 @@ test_training_set              test_variant
         labels=[("test_training_set","test_variant")],
         trainingsets=[("test_training_set","test_variant")]
     ),
-            "output":"""
-        ENTITY NAME:                   test_entity
-        -----------------------------------------------
-
-        NAME                           VARIANT                        TYPE
-        test_feature                   test_variant                     feature
-        test_label                     test_variant                     label
-        test_training_set              test_variant                    training set
-        -----------------------------------------------
-    """
+            "output":"""ENTITY NAME:                   test_entity
+-----------------------------------------------
+NAME                           VARIANT                        TYPE
+test_training_set              test_variant                   feature
+test_training_set              test_variant                   label
+test_training_set              test_variant                   training set
+-----------------------------------------------
+"""
 
         },
         "e2e_test": {
@@ -347,36 +332,35 @@ test_training_set              test_variant
         description="test_description",
         function="",
         config=LocalConfig(),
-        team="",
+        team="featureform team",
         sources=[("test_source","test_variant")],
         trainingsets=[("test_training_set","test_variant")],
         labels=[("test_label","test_variant")],
         features=[("test_feature","test_variant")]
     ),
-        "output":"""
-        NAME:                          test_provider
-        DESCRIPTION:                   test_description
-        TYPE:                          POSTGRES_OFFLINE
-        SOFTWARE:                      postgres
-        STATUS:                        CREATED
-        -----------------------------------------------
-        SOURCES:
-        NAME                           VARIANT
-        test_source                    test_variant
-        -----------------------------------------------
-        FEATURES:
-        NAME                           VARIANT
-        test_feature                   test_variant
-        -----------------------------------------------
-        LABELS:
-        NAME                           VARIANT
-        test_label                     test_variant
-        -----------------------------------------------
-        TRAINING SETS:
-        NAME                           VARIANT
-        test_training_set              test_variant
-        -----------------------------------------------
-    """
+        "output":"""NAME:                          test_name
+DESCRIPTION:                   test_description
+TYPE:                          LOCAL_ONLINE
+SOFTWARE:                      localmode
+TEAM:                          featureform team
+-----------------------------------------------
+SOURCES:
+NAME                           VARIANT
+test_source                    test_variant
+-----------------------------------------------
+FEATURES:
+NAME                           VARIANT
+test_feature                   test_variant
+-----------------------------------------------
+LABELS:
+NAME                           VARIANT
+test_label                     test_variant
+-----------------------------------------------
+TRAINING SETS:
+NAME                           VARIANT
+test_training_set              test_variant
+-----------------------------------------------
+"""
 
         },
         "e2e_test": {
@@ -412,16 +396,15 @@ test_training_set              test_variant
         labels=[("test_training_set","test_variant")],
         trainingsets=[("test_training_set","test_variant")]
     ),
-        "output":"""
-        USER NAME:                     featureformer
-        -----------------------------------------------
-
-        NAME                           VARIANT                        TYPE
-        test_feature                   test_variant                     feature
-        test_label                     test_variant                     label
-        test_training_set              test_variant                    training set
-        -----------------------------------------------
-    """
+        "output":"""MODEL NAME:                    test_name
+MODEL DESC:                    test_model
+-----------------------------------------------
+NAME                           VARIANT                        TYPE
+test_training_set              test_variant                   feature
+test_training_set              test_variant                   label
+test_training_set              test_variant                   training set
+-----------------------------------------------
+"""
 
         },
         "e2e_test": {
@@ -436,16 +419,14 @@ test_training_set              test_variant
         labels=[("test_training_set","test_variant")],
         trainingsets=[("test_training_set","test_variant")]
     ),
-            "output":"""
-        USER NAME:                     featureformer
-        -----------------------------------------------
-
-        NAME                           VARIANT                        TYPE
-        test_feature                   test_variant                     feature
-        test_label                     test_variant                     label
-        test_training_set              test_variant                    training set
-        -----------------------------------------------
-    """
+            "output":"""USER NAME:                     test_name
+-----------------------------------------------
+NAME                           VARIANT                        TYPE
+test_training_set              test_variant                   feature
+test_training_set              test_variant                   label
+test_training_set              test_variant                   training set
+-----------------------------------------------
+"""
 
         },
         "e2e_test": {

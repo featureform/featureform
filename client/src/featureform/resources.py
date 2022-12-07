@@ -834,7 +834,7 @@ class Source:
         ("OWNER:", self.owner),
         ("DESCRIPTION:", self.description),
         ("PROVIDER:", self.provider),
-        ("STATUS: ", self.status)])
+        ("STATUS: ", self.status.name)])
         obj_string += format_pg_string("DEFINITION:")
         if not self.is_transformation:
             obj_string += "PRIMARY DATA LOCATION"
@@ -1030,7 +1030,7 @@ class Feature:
         ("OWNER:", self.owner),
         ("DESCRIPTION:", self.description),
         ("PROVIDER:", self.provider),
-        ("STATUS: ", self.status)
+        ("STATUS: ", self.status.name)
         ])
         obj_string += format_pg_string("SOURCE: ")
         obj_string += format_rows_string([("NAME", "VARIANT"), (self.source[0], self.source[1])])
@@ -1136,7 +1136,7 @@ class Label:
         ("OWNER:", self.owner), 
         ("DESCRIPTION:", self.description),
         ("PROVIDER:", self.provider),
-        ("STATUS: ", self.status)])
+        ("STATUS: ", self.status.name)])
         obj_string += format_pg_string("SOURCE: ")
         obj_string += format_rows_string([("NAME", "VARIANT"), (self.source[0], self.source[1])])
         obj_string += format_pg_string("TRAINING SETS:")
@@ -1389,7 +1389,7 @@ class TrainingSet:
         ("VARIANT: ", self.variant),
         ("OWNER:", self.owner),
         ("DESCRIPTION:", self.description),
-        ("STATUS: ", self.status)])
+        ("STATUS: ", self.status.name)])
         obj_string += format_pg_string("LABEL: ", self.label)
         obj_string += format_rows_string([("NAME", "VARIANT"), (self.label[0], self.label[1])])
         obj_string += format_pg_string("FEATURES:")

@@ -2572,14 +2572,13 @@ class ResourceClient(Registrar):
         else:
             state().create_all(self._stub)
 
-    def wait(self, resource_type, name, variant=None, timeout=None):
+    def continue_waiting(status, timeout, time_waited):
+        if (status != ResourceStatus.Failed and status != ResourceStatus.Ready) and (timeout is None or time_waited < timeout_duration):
+            return True
+        return False
+
+    def wait(self, resource_type, name, variant, timeout=None):
         # gets a resource and waits until status is set to ready
-        resource_functions = {
-            "user": self.get_user,
-            "model": self.get_model,
-            "entity": self.get_entity,
-            "provider": self.get_provider
-        }
 
         resource_variant_functions = {
             "feature": self.get_feature,
@@ -2589,11 +2588,8 @@ class ResourceClient(Registrar):
             "training-set": self.get_training_set,
         }
         
-        resource = None
-        if variant is None:
-            resource = resource_functions[resource_type](name, local=self.local)
-        else:
-            resource = resource_variant_functions[resource_type](name, variant, local=self.local)
+
+        resource = resource_variant_functions[resource_type](name, variant, local=self.local)
         status = resource.get_status()
         
         timeout_duration = timedelta(seconds=0)
@@ -2602,11 +2598,8 @@ class ResourceClient(Registrar):
         time_waited = timedelta(seconds = 0)
         time_started = datetime.now()
 
-        while (status != ResourceStatus.Failed and status != ResourceStatus.Ready) and (timeout is None or time_waited < timeout_duration):
-            if variant is None:
-                resource = resource_functions[resource_type](name, local=self.local)
-            else:
-                resource = resource_variant_functions[resource_type](name, variant, local=self.local)
+        while continue_waiting(status, timeout, time_waited)
+            resource = resource_variant_functions[resource_type](name, variant, local=self.local)
             status = resource.get_status()
             time.sleep(1)
             time_waited = datetime.now() - time_started

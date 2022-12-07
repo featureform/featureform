@@ -22,7 +22,7 @@ def format_rows_string(format_obj, format_obj_2=None, format_obj_3=None, format_
     return_string = ""
     if format_obj_2 is None:
         for s in format_obj:
-            return_string += format_rows_string(*s) + "\n"
+            return_string += format_rows_string(*s)
     elif format_obj_2 is not None and format_obj_3 is None:
         return_string += two_row_spacing.format(format_obj, format_obj_2) + "\n"
     elif format_obj_2 is not None and format_obj_3 is not None and format_obj_4 is None:

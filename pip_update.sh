@@ -3,11 +3,11 @@ POSITIONAL_ARGS=()
 pip3 uninstall featureform -y
 rm -r client/dist/*
 
-# -c or --client parameter has the rebuild only rebuild the client
+# -n or --nodash parameter has the rebuild only rebuild the client
 CLIENT_ONLY=false
 while [[ $# -gt 0 ]]; do
   case $1 in
-    -c|--client)   
+    -n|--nodash)   
       shift # past argument
       shift # past value
       CLIENT_ONLY=true

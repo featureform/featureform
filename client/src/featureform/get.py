@@ -20,10 +20,13 @@ def get_user_info(stub, name):
 def get_entity_info(stub, name):
     searchName = metadata_pb2.Name(name=name)
     try:
-        for x in stub.GetEntities(iter([searchName])):
+        for entity in stub.GetEntities(iter([searchName])):
             return Entity(
                 name=x.name,
                 description=x.description
+                features=[(f.name,f.variant) for f in entity.features],
+                labels=[(f.name,f.variant) for f in entity.labels],
+                trainingsets=[(f.name,f.variant) for f in entity.trainingsets],
             )
     except grpc._channel._MultiThreadedRendezvous:
         print("Entity not found.")
@@ -68,6 +71,7 @@ def get_feature_variant_info(stub, name, variant):
                 location=None,    
                 status=Status(status=ResourceStatus(x.status.Status._enum_type.values[x.status.status].name), message=x.status.error_message),
                 description=x.description,
+                trainingsets=[(f.name,f.variant) for f in x.trainingsets],
             )
     except grpc._channel._MultiThreadedRendezvous:
         print("Feature variant not found.")
@@ -87,6 +91,7 @@ def get_label_variant_info(stub, name, variant):
                 location=None,
                 variant=x.variant,
                 status=Status(status=ResourceStatus(x.status.Status._enum_type.values[x.status.status].name), message=x.status.error_message),
+                trainingsets=[(f.name,f.variant) for f in entity.trainingsets],
             )
     except grpc._channel._MultiThreadedRendezvous:
         print("Label variant not found.")
@@ -99,14 +104,18 @@ def get_source_variant_info(stub, name, variant):
             is_transformation = None
             if x.primaryData.table.name:
                 definition = ff.PrimaryData(location=x.primaryData.table.name)
-                is_transformation = False
+                is_transformation = "PRIMARY"
             elif x.transformation.SQLTransformation.query:
                 definition = ff.SQLTransformation(query=x.transformation.SQLTransformation.query)
-                is_transformation = True
+                is_transformation = "SQL"
+            elif x.transformation.DFTransformation.query:
+                definition = ff.DFTransformation(query=x.transformation.DFTransformation.query, inputs=[(f.name, f.variant) for f in x.transformation.DFTransformation.inputs])
+                is_transformation="DF"
             return ff.Source(
                 name=x.name,
                 definition=definition,
                 description=x.description,
+                is_transformation=is_transformation
                 variant=x.variant,
                 provider=x.provider,
                 owner=x.owner,
@@ -129,6 +138,7 @@ def get_training_set_variant_info(stub, name, variant):
                 owner=x.owner,
                 schedule=x.schedule,
                 features=[(f.name,f.variant) for f in x.features],
+                provider=x.provider,
                 feature_lags=None,
             )
     except grpc._channel._MultiThreadedRendezvous:

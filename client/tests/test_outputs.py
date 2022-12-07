@@ -1,4 +1,4 @@
-from featureform.resources import Feature, Label, Source, TrainingSet, Entity, Model, Provider, User, ResourceStatus, ResourceColumnMapping, PrimaryData, SQLTable, Location, LocalConfig
+from .resources import Feature, Label, Source, TrainingSet, Entity, Model, Provider, User, ResourceStatus, ResourceColumnMapping, PrimaryData, SQLTable, Location, LocalConfig
 
 print_outputs = {
     "feature": {
@@ -17,24 +17,21 @@ print_outputs = {
         trainingsets=[("test_training_set","test_variant")]
     ),
             "output":"""
-        NAME:                          test_name
-        VARIANT:                       test_variant
-        TYPE:                          float32
-        ENTITY:                        user
-        OWNER:                         test_owner
-        PROVIDER:                      test_provider
-        DESCRIPTION:                   test_description
-        STATUS:                        CREATED
-        -----------------------------------------------
-        SOURCE:
-        NAME                           VARIANT
-        test_source                    test_variant
-        -----------------------------------------------
-        TRAINING SETS:
-        NAME                           VARIANT
-        test_training_set              test_variant
-        -----------------------------------------------
-    """
+            NAME:                          test_name
+VARIANT:                       test_variant
+TYPE:                          float32
+ENTITY:                        test_entity
+OWNER:                         test_owner
+DESCRIPTION:                   test_description
+PROVIDER:                      test_provider
+STATUS:                        CREATED
+-----------------------------------------------
+NAME                           VARIANT
+test_source                    test_variant
+-----------------------------------------------
+NAME                           VARIANT
+test_training_set              test_variant
+-----------------------------------------------"""
 
         },
         "e2e_test": {

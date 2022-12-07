@@ -18,80 +18,81 @@ def feature_expected_print():
 def test_feature_print(feature_object, feature_expected_print):
        assert feature_expected_print == f"{feature_object}"
 
-@pytest.fixture
-def training_set_object():
-      return print_outputs["trainingset"]["unit_test"]["resource"]
 
-@pytest.fixture
-def training_set_expected_print():
-      return print_outputs["trainingset"]["unit_test"]["output"]
+# @pytest.fixture
+# def training_set_object():
+#       return print_outputs["trainingset"]["unit_test"]["resource"]
 
-def test_training_set_print(training_set_object, training_set_expected_print):
-       assert training_set_expected_print == f"{training_set_object}"
+# @pytest.fixture
+# def training_set_expected_print():
+#       return print_outputs["trainingset"]["unit_test"]["output"]
 
-@pytest.fixture
-def label_object():
-      return print_outputs["label"]["unit_test"]["resource"]
+# def test_training_set_print(training_set_object, training_set_expected_print):
+#        assert training_set_expected_print == f"{training_set_object}"
 
-@pytest.fixture
-def label_expected_print():
-      return print_outputs["label"]["unit_test"]["output"]
+# @pytest.fixture
+# def label_object():
+#       return print_outputs["label"]["unit_test"]["resource"]
 
-def test_label_print(label_object, label_expected_print):
-       assert label_expected_print == f"{label_object}"
+# @pytest.fixture
+# def label_expected_print():
+#       return print_outputs["label"]["unit_test"]["output"]
 
-@pytest.fixture
-def source_object():
-      return print_outputs["source"]["unit_test"]["resource"]
+# def test_label_print(label_object, label_expected_print):
+#        assert label_expected_print == f"{label_object}"
 
-@pytest.fixture
-def source_expected_print():
-      return print_outputs["source"]["unit_test"]["output"]
+# @pytest.fixture
+# def source_object():
+#       return print_outputs["source"]["unit_test"]["resource"]
 
-def test_source_print(source_object, source_expected_print):
-       assert label_expected_print == f"{source_object}"
+# @pytest.fixture
+# def source_expected_print():
+#       return print_outputs["source"]["unit_test"]["output"]
 
-@pytest.fixture
-def user_object():
-      return print_outputs["user"]["unit_test"]["resource"]
+# def test_source_print(source_object, source_expected_print):
+#        assert label_expected_print == f"{source_object}"
 
-@pytest.fixture
-def user_expected_print():
-      return print_outputs["user"]["unit_test"]["output"]
+# @pytest.fixture
+# def user_object():
+#       return print_outputs["user"]["unit_test"]["resource"]
 
-def test_user_print(user_object, user_expected_print):
-       assert user_expected_print == f"{user_object}"
+# @pytest.fixture
+# def user_expected_print():
+#       return print_outputs["user"]["unit_test"]["output"]
 
-@pytest.fixture
-def entity_object():
-      return print_outputs["entity"]["unit_test"]["resource"]
+# def test_user_print(user_object, user_expected_print):
+#        assert user_expected_print == f"{user_object}"
 
-@pytest.fixture
-def entity_expected_print():
-      return print_outputs["entity"]["unit_test"]["output"]
+# @pytest.fixture
+# def entity_object():
+#       return print_outputs["entity"]["unit_test"]["resource"]
 
-def test_entity_print(entity_object, entity_expected_print):
-       assert entity_expected_print == f"{entity_object}"
+# @pytest.fixture
+# def entity_expected_print():
+#       return print_outputs["entity"]["unit_test"]["output"]
 
-@pytest.fixture
-def model_object():
-      return print_outputs["model"]["unit_test"]["resource"]
+# def test_entity_print(entity_object, entity_expected_print):
+#        assert entity_expected_print == f"{entity_object}"
 
-@pytest.fixture
-def model_expected_print():
-      return print_outputs["model"]["unit_test"]["output"]
+# @pytest.fixture
+# def model_object():
+#       return print_outputs["model"]["unit_test"]["resource"]
 
-def test_model_print(model_object, model_expected_print):
-       assert model_expected_print == f"{model_object}"
+# @pytest.fixture
+# def model_expected_print():
+#       return print_outputs["model"]["unit_test"]["output"]
 
-@pytest.fixture
-def provider_object():
-      return print_outputs["provider"]["unit_test"]["resource"]
+# def test_model_print(model_object, model_expected_print):
+#        assert model_expected_print == f"{model_object}"
 
-@pytest.fixture
-def provider_expected_print():
-      return print_outputs["provider"]["unit_test"]["output"]
+# @pytest.fixture
+# def provider_object():
+#       return print_outputs["provider"]["unit_test"]["resource"]
 
-def test_provider_print(provider_object, provider_expected_print):
-       assert provider_expected_print == f"{provider_object}"
+# @pytest.fixture
+# def provider_expected_print():
+#       return print_outputs["provider"]["unit_test"]["output"]
+
+# def test_provider_print(provider_object, provider_expected_print):
+#        assert provider_expected_print == f"{provider_object}"
 

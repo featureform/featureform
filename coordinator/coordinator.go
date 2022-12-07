@@ -228,6 +228,19 @@ func NewCoordinator(meta *metadata.Client, logger *zap.SugaredLogger, cli *clien
 
 const MAX_ATTEMPTS = 3
 
+func (c *Coordinator) checkError(err error, jobName string) {
+	switch err.(type) {
+	case JobDoesNotExistError:
+		c.Logger.Info(err)
+	case ResourceAlreadyFailedError:
+		c.Logger.Infow("resource has failed previously. Ignoring....", "key", jobName)
+	case ResourceAlreadyCompleteError:
+		c.Logger.Infow("resource has already completed. Ignoring....", "key", jobName)
+	default:
+		c.Logger.Errorw("Error executing job", "job_name", jobName, "error", err)
+	}
+}
+
 func (c *Coordinator) WatchForNewJobs() error {
 	c.Logger.Info("Watching for new jobs")
 	getResp, err := (*c.KVClient).Get(context.Background(), "JOB_", clientv3.WithPrefix())
@@ -239,16 +252,7 @@ func (c *Coordinator) WatchForNewJobs() error {
 		go func(kv *mvccpb.KeyValue) {
 			err := c.ExecuteJob(string(kv.Key))
 			if err != nil {
-				switch err.(type) {
-				case JobDoesNotExistError:
-					c.Logger.Info(err)
-				case ResourceAlreadyFailedError:
-					c.Logger.Infow("resource has failed previously. Ignoring....", "key", string(kv.Key))
-				case ResourceAlreadyCompleteError:
-					c.Logger.Infow("resource has already completed. Ignoring....", "key", string(kv.Key))
-				default:
-					c.Logger.Errorw("Error executing job: Initial search", "error", err)
-				}
+				c.checkError(err, string(kv.Key))
 			}
 		}(kv)
 	}
@@ -261,16 +265,7 @@ func (c *Coordinator) WatchForNewJobs() error {
 					go func(ev *clientv3.Event) {
 						err := c.ExecuteJob(string(ev.Kv.Key))
 						if err != nil {
-							switch err.(type) {
-							case JobDoesNotExistError:
-								c.Logger.Info(err)
-							case ResourceAlreadyFailedError:
-								c.Logger.Infow("resource has failed previously. Ignoring....", "key", string(ev.Kv.Key))
-							case ResourceAlreadyCompleteError:
-								c.Logger.Infow("resource has already completed. Ignoring....", "key", string(ev.Kv.Key))
-							default:
-								c.Logger.Errorw("Error executing job: Initial search", "error", err)
-							}
+							c.checkError(err, string(ev.Kv.Key))
 						}
 					}(ev)
 				}

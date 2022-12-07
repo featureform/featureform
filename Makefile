@@ -221,7 +221,7 @@ pytest:
 	pytest client/tests/test_localmode_lag_features.py
 	pytest client/tests/wait_resource_test.py
 	pytest client/tests/print_resource_test.py
-	pytest -vv client/tests/get_status_test.py
+	pytest client/tests/get_status_test.py
 	-rm -r .featureform
 
 jupyter: update_python

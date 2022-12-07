@@ -303,10 +303,6 @@ func (config *K8sConfig) Deserialize(data []byte) error {
 	if err != nil {
 		return fmt.Errorf("deserialize k8s config: %w", err)
 	}
-	conf, ok := config.ExecutorConfig.(ExecutorConfig)
-	if ok {
-		config.ExecutorConfig = conf
-	}
 	if config.ExecutorConfig == "" {
 		config.ExecutorConfig = ExecutorConfig{}
 	} else {

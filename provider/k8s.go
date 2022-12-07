@@ -199,10 +199,15 @@ func k8sOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 		return nil, fmt.Errorf("invalid k8s config: %w", err)
 	}
 	logger.Info("Creating executor with type:", k8.ExecutorType)
-	serializedExecutor, err := k8.ExecutorConfig.Serialize()
+	executor := k8.ExecutorConfig.(ExecutorConfig)
+	serializedExecutor, err := executor.Serialize()
+	if err != nil {
+		logger.Errorw("Failure serializing executor", "executor_type", k8.ExecutorType, "error", err)
+		return nil, err
+	}
 	exec, err := CreateExecutor(string(k8.ExecutorType), serializedExecutor, logger)
 	if err != nil {
-		logger.Errorw("Failure initializing executor with type", "executor_type", k8.ExecutorType, "error", err)
+		logger.Errorw("Failure initializing executor", "executor_type", k8.ExecutorType, "error", err)
 		return nil, err
 	}
 
@@ -280,7 +285,7 @@ const (
 
 type K8sConfig struct {
 	ExecutorType   ExecutorType
-	ExecutorConfig ExecutorConfig
+	ExecutorConfig interface{}
 	StoreType      FileStoreType
 	StoreConfig    AzureFileStoreConfig
 }
@@ -298,6 +303,29 @@ func (config *K8sConfig) Deserialize(data []byte) error {
 	if err != nil {
 		return fmt.Errorf("deserialize k8s config: %w", err)
 	}
+	if config.ExecutorConfig == "" {
+		config.ExecutorConfig = ExecutorConfig{}
+	} else {
+		return config.executorConfigFromMap()
+	}
+	return nil
+}
+
+func (config *K8sConfig) executorConfigFromMap() error {
+	cfgMap, ok := config.ExecutorConfig.(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("could not get ExecutorConfig values")
+	}
+	serializedExecutor, err := json.Marshal(cfgMap)
+	if err != nil {
+		return fmt.Errorf("could not marshal executor config: %w", err)
+	}
+	excConfig := ExecutorConfig{}
+	err = excConfig.Deserialize(serializedExecutor)
+	if err != nil {
+		return fmt.Errorf("could not deserialize config into ExecutorConfig: %w", err)
+	}
+	config.ExecutorConfig = excConfig
 	return nil
 }
 

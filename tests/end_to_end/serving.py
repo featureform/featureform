@@ -51,6 +51,7 @@ def serve_data():
                 
         except Exception as e:
             print(f"\twaiting for {SLEEP_DURATION} seconds")
+            print(e)
             time.sleep(SLEEP_DURATION)
     
     raise Exception(f"Serving for {TRAININGSET_NAME}:{TRAININGSET_VARIANT} could not be completed.")
@@ -65,6 +66,7 @@ def serve_feature():
             print(f"\twaiting for {SLEEP_DURATION} seconds")
             print(e)
             time.sleep(SLEEP_DURATION)
+    raise Exception(f"Serving for {FEATURE_NAME}:{FEATURE_VARIANT}-{FEATURE_ENTITY}:{FEATURE_VALUE} could not be completed.")
 
 print(f"Serving the training set ({TRAININGSET_NAME}:{TRAININGSET_VARIANT})")
 serve_data()

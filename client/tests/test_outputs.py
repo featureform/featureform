@@ -3,7 +3,7 @@ from featureform.resources import Feature, Label, Source, TrainingSet, Entity, M
 print_outputs = {
     "feature": {
         "unit_test": {
-            "resource":Feature(
+            "object":Feature(
         name="test_name",
         variant="test_variant",
         owner="test_owner",
@@ -37,7 +37,7 @@ test_training_set              test_variant
 
         },
         "e2e_test": {
-            "resource":{
+            "object":{
                 "output":"""NAME:                          avg_transactions
                               STATUS:                        CREATED
                               -----------------------------------------------
@@ -74,7 +74,7 @@ test_training_set              test_variant
     },
     "label": {
         "unit_test": {
-            "resource":Label(
+            "object":Label(
         name="test_name",
         variant="test_variant",
         value_type="float32",
@@ -108,7 +108,7 @@ test_training_set              test_variant
 
         },
         "e2e_test": {
-            "resource":{
+            "object":{
                 "output":"""NAME:                          fraudulent
                             STATUS:                        CREATED
                             -----------------------------------------------
@@ -146,7 +146,7 @@ test_training_set              test_variant
     },
     "trainingset": {
         "unit_test": {
-            "resource":TrainingSet(
+            "object":TrainingSet(
         name="test_name",
         variant="test_variant",
         owner="test_owner",
@@ -174,7 +174,7 @@ test_feature                   test_variant
 """
         },
         "e2e_test": {
-            "resource":{
+            "object":{
                 "output":"""NAME:                          fraud_training
                                   STATUS:                        CREATED
                                   -----------------------------------------------
@@ -211,7 +211,7 @@ test_feature                   test_variant
     },
     "source": {
         "unit_test": {
-            "resource":Source(
+            "object":Source(
         name="test_name",
         variant="test_variant",
         owner="test_owner",
@@ -248,7 +248,7 @@ test_training_set              test_variant
 """
         },
         "e2e_test": {
-            "resource":{
+            "object":{
                 "output":"""NAME:                          transactions
                           STATUS:                        CREATED
                           -----------------------------------------------
@@ -294,7 +294,7 @@ test_training_set              test_variant
     },
     "entity": {
         "unit_test": {
-            "resource":Entity(
+            "object":Entity(
         name="test_entity",
         description="",
         features=[("test_training_set","test_variant")],
@@ -327,7 +327,7 @@ test_training_set              test_variant                   training set
     },
     "provider": {
         "unit_test": {
-            "resource":Provider(
+            "object":Provider(
         name="test_name",
         description="test_description",
         function="",
@@ -389,7 +389,7 @@ test_training_set              test_variant
     },
     "model": {
         "unit_test": {
-            "resource":Model(
+            "object":Model(
         name="test_name",
         description="test_model",
         features=[("test_training_set","test_variant")],
@@ -413,7 +413,7 @@ test_training_set              test_variant                   training set
     },
     "user": {
         "unit_test": {
-            "resource":User(
+            "object":User(
         name="test_name",
         features=[("test_training_set","test_variant")],
         labels=[("test_training_set","test_variant")],

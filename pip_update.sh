@@ -3,7 +3,7 @@ POSITIONAL_ARGS=()
 pip3 uninstall featureform -y
 rm -r client/dist/*
 
-# -n or --nodash parameter has the rebuild only rebuild the client
+# -n or --nodash will build the client without the dashboard
 CLIENT_ONLY=false
 while [[ $# -gt 0 ]]; do
   case $1 in

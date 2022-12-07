@@ -869,8 +869,8 @@ class Entity:
     name: str
     description: str
     features: List[NameVariant] = None,
-    labels: List[NameVariant] = None,
-    trainingsets: List[NameVariant] = None,
+    labels: List[NameVariant] = None
+    trainingsets: List[NameVariant] = None
 
     @staticmethod
     def operation_type() -> OperationType:

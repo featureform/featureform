@@ -3,7 +3,7 @@ import dill
 import pytest
 
 from featureform.register import ColumnSourceRegistrar, OfflineSparkProvider, Registrar
-from featureform.resources import DFTransformation, Provider, Source, SparkConfig, SQLTransformation, DatabricksCredentials, AzureFileStoreConfig, AWSCredentials, S3StoreConfig
+from featureform.resources import DFTransformation, Provider, Source, SparkConfig, SQLTransformation, DatabricksCredentials, AzureFileStoreConfig
 
 
 def test_create_provider():
@@ -19,6 +19,7 @@ def test_create_provider():
     offline_spark_provider = OfflineSparkProvider(r, provider)
     assert type(offline_spark_provider) == OfflineSparkProvider
     assert offline_spark_provider.name() == provider_name
+
 
 @pytest.mark.parametrize(
     "test_name,file_path,default_variant",

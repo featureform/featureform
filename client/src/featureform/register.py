@@ -932,7 +932,7 @@ class LocalSource:
         Returns:
             registrar (ResourceRegister): Registrar
         """
-        assert inference_store.store_type() in NON_INFERENCE_STORES, f"cannot use '{inference_store.store_type()}' as an inference store"
+        assert type(inference_store) == FileStoreProvider and inference_store.store_type() in NON_INFERENCE_STORES, f"cannot use '{inference_store.store_type()}' as an inference store"
 
         return self.registrar.register_column_resources(
             source=(self.name, self.variant),
@@ -1007,7 +1007,7 @@ class SQLTransformationDecorator:
             description: str = "",
             schedule: str = "",
     ):
-        assert inference_store.store_type() in NON_INFERENCE_STORES, f"cannot use '{inference_store.store_type()}' as an inference store"
+        assert type(inference_store) == FileStoreProvider and inference_store.store_type() in NON_INFERENCE_STORES, f"cannot use '{inference_store.store_type()}' as an inference store"
         return self.registrar[0].register_column_resources(
             source=(self.name, self.variant),
             entity=entity,
@@ -1079,7 +1079,7 @@ class DFTransformationDecorator:
             timestamp_column: str = "",
             description: str = "",
     ):
-        assert inference_store.store_type() in NON_INFERENCE_STORES, f"cannot use '{inference_store.store_type()}' as an inference store"
+        assert type(inference_store) == FileStoreProvider and inference_store.store_type() in NON_INFERENCE_STORES, f"cannot use '{inference_store.store_type()}' as an inference store"
         return self.registrar[0].register_column_resources(
             source=(self.name, self.variant),
             entity=entity,
@@ -1134,7 +1134,7 @@ class ColumnSourceRegistrar(SourceRegistrar):
         Returns:
             registrar (ResourceRegister): Registrar
         """
-        assert inference_store.store_type() in NON_INFERENCE_STORES, f"cannot use '{inference_store.store_type()}' as an inference store"
+        assert type(inference_store) == FileStoreProvider and inference_store.store_type() in NON_INFERENCE_STORES, f"cannot use '{inference_store.store_type()}' as an inference store"
         return self.registrar().register_column_resources(
             source=self,
             entity=entity,

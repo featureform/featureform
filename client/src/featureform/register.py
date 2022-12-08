@@ -932,9 +932,6 @@ class LocalSource:
         Returns:
             registrar (ResourceRegister): Registrar
         """
-        if type(inference_store) == FileStoreProvider:
-            assert inference_store.store_type() in NON_INFERENCE_STORES, f"cannot use '{inference_store.store_type()}' as an inference store"
-
         return self.registrar.register_column_resources(
             source=(self.name, self.variant),
             entity=entity,
@@ -1008,8 +1005,6 @@ class SQLTransformationDecorator:
             description: str = "",
             schedule: str = "",
     ):
-        if type(inference_store) == FileStoreProvider:
-            assert inference_store.store_type() in NON_INFERENCE_STORES, f"cannot use '{inference_store.store_type()}' as an inference store"
         return self.registrar[0].register_column_resources(
             source=(self.name, self.variant),
             entity=entity,
@@ -1081,8 +1076,6 @@ class DFTransformationDecorator:
             timestamp_column: str = "",
             description: str = "",
     ):
-        if type(inference_store) == FileStoreProvider:
-            assert inference_store.store_type() in NON_INFERENCE_STORES, f"cannot use '{inference_store.store_type()}' as an inference store"
         return self.registrar[0].register_column_resources(
             source=(self.name, self.variant),
             entity=entity,
@@ -1137,8 +1130,6 @@ class ColumnSourceRegistrar(SourceRegistrar):
         Returns:
             registrar (ResourceRegister): Registrar
         """
-        if type(inference_store) == FileStoreProvider:
-            assert inference_store.store_type() in NON_INFERENCE_STORES, f"cannot use '{inference_store.store_type()}' as an inference store"
         return self.registrar().register_column_resources(
             source=self,
             entity=entity,
@@ -2391,7 +2382,7 @@ class Registrar:
         """
 
         if type(inference_store) == FileStoreProvider:
-            assert inference_store.store_type() in NON_INFERENCE_STORES, f"cannot use '{inference_store.store_type()}' as an inference store"
+            assert inference_store.store_type() in NON_INFERENCE_STORES, f"cannot use '{inference_store.store_type()}' as an inference store. {NON_INFERENCE_STORES}"
 
         if features is None:
             features = []

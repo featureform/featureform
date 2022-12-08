@@ -99,8 +99,8 @@ def get_label_variant_info(stub, name, variant):
 
 def source_type_object(source_variant_proto):
     is_transformation = None
+    definition = None
     if source_variant_proto.primaryData.table.name:
-        print("primary data")
         definition = PrimaryData(location=SQLTable(name=source_variant_proto.primaryData.table.name))
         is_transformation = "PRIMARY"
     elif x.transformation.SQLTransformation.query:
@@ -109,7 +109,7 @@ def source_type_object(source_variant_proto):
     elif x.transformation.DFTransformation.query:
         definition = DFTransformation(query=source_variant_proto.transformation.DFTransformation.query, inputs=[(f.name, f.variant) for f in source_variant_proto.transformation.DFTransformation.inputs])
         is_transformation="DF"
-    return definition, is_transformation
+    return is_transformation, definition
 
 def get_source_variant_info(stub, name, variant):
     searchNameVariant = metadata_pb2.NameVariant(name=name, variant=variant)

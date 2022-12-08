@@ -2577,6 +2577,9 @@ class ResourceClient(Registrar):
             return True
         return False
 
+    def wait_exponential(iteration):
+        time.sleep(0.1*(2**iteration))
+
     def wait(self, resource_type, name, variant, timeout=None):
         # gets a resource and waits until status is set to ready
 
@@ -2587,8 +2590,7 @@ class ResourceClient(Registrar):
             "trainingset": self.get_training_set,
             "training-set": self.get_training_set,
         }
-        
-
+    
         resource = resource_variant_functions[resource_type](name, variant, local=self.local)
         status = resource.get_status()
         
@@ -2597,11 +2599,12 @@ class ResourceClient(Registrar):
             timeout_duration = timedelta(seconds=timeout)
         time_waited = timedelta(seconds = 0)
         time_started = datetime.now()
+        iteration = 0
 
         while should_wait(status, timeout, time_waited):
-            resource = resource_variant_functions[resource_type](name, variant, local=self.local)
-            status = resource.get_status()
-            time.sleep(1)
+            wait_exponential(iteration)
+            iteration += 1
+            status = resource_variant_functions[resource_type](name, variant, local=self.local).get_status()
             time_waited = datetime.now() - time_started
         if status == ResourceStatus.Failed:
             raise ValueError(f'Resource {name}:{variant} status set to failed while waiting: {feature.error_message()}')

@@ -100,6 +100,7 @@ def get_label_variant_info(stub, name, variant):
 def source_type_object(source_variant_proto):
     is_transformation = None
     if source_variant_proto.primaryData.table.name:
+        print("primary data")
         definition = PrimaryData(location=SQLTable(name=source_variant_proto.primaryData.table.name))
         is_transformation = "PRIMARY"
     elif x.transformation.SQLTransformation.query:

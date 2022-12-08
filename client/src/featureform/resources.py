@@ -31,12 +31,14 @@ class ColumnTypes(Enum):
     DATETIME = "datetime"
 
 class ResourceStatus(Enum):
+    NO_STATUS = "NO_STATUS"
     CREATED = "CREATED"
     PENDING = "PENDING"
     READY = "READY"
     FAILED = "FAILED"
     def from_proto(proto_status):
         proto_map = {
+            pb.ResourceStatus.Status.NO_STATUS: ResourceStatus.NO_STATUS,
             pb.ResourceStatus.Status.CREATED: ResourceStatus.CREATED,
             pb.ResourceStatus.Status.PENDING: ResourceStatus.PENDING,
             pb.ResourceStatus.Status.READY: ResourceStatus.READY,

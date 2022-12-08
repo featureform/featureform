@@ -103,14 +103,8 @@ def get(host, cert, insecure, local, resource_type, name, variant):
             "get_function": rc.get_training_set,
         }
     }
-    
-    if resource_type in resource_functions:
-        print_resource(resource_functions[resource_type])
-    elif resource_type in resource_variant_functions:
-        print_variant_resource(resource_variant_functions[resource_type])
-    else:
-        raise ValueError("Resource type not found")
 
+    
     def print_resource(get_function):
         if variant is None:
             print(get_function(name=name, local=local))
@@ -122,6 +116,13 @@ def get(host, cert, insecure, local, resource_type, name, variant):
             variant_functions["list_variants_function"](name=name, local=local)
         else:
             print(variant_functions["get_function"](name=name, local=local, variant=variant))
+    
+    if resource_type in resource_functions:
+        print_resource(resource_functions[resource_type])
+    elif resource_type in resource_variant_functions:
+        print_variant_resource(resource_variant_functions[resource_type])
+    else:
+        raise ValueError("Resource type not found")
 
 @cli.command()
 @click.option("--host",

@@ -2382,7 +2382,7 @@ class Registrar:
         """
 
         if type(inference_store) == FileStoreProvider:
-            assert inference_store.store_type() in NON_INFERENCE_STORES, f"cannot use '{inference_store.store_type()}' as an inference store. {NON_INFERENCE_STORES}"
+            assert inference_store.store_type() not in NON_INFERENCE_STORES, f"cannot use '{inference_store.store_type()}' as an inference store. {NON_INFERENCE_STORES}"
 
         if features is None:
             features = []

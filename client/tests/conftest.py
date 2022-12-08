@@ -89,3 +89,21 @@ def emr_config(aws_credentials):
     }
 
     return config, expected_config
+
+@pytest.fixture(scope="module")
+def databricks():
+    return DatabricksCredentials(username="a", password="b", cluster_id="c_id")
+
+
+@pytest.fixture(scope="module")
+def emr(aws_credentials):
+    return EMRCredentials("emr_cluster_id", "emr_cluster_region", aws_credentials)
+
+
+@pytest.fixture(scope="module")
+def azure_blob():
+    return AzureFileStoreConfig(account_name="", account_key="", container_name="", root_path="")
+
+@pytest.fixture(scope="module")
+def s3(aws_credentials):
+    return S3StoreConfig("bucket_path", "bucket_region", aws_credentials)

@@ -6,14 +6,23 @@ from featureform.register import ColumnSourceRegistrar, OfflineSparkProvider, Re
 from featureform.resources import DFTransformation, Provider, Source, SparkConfig, SQLTransformation, DatabricksCredentials, AzureFileStoreConfig
 
 
-def test_create_provider():
-    provider_name = "test_offline_spark_provider"
-    r = Registrar()
+@pytest.mark.parametrize(
+    "executor_fixture, filestore_fixture",
+    [
+        ("databricks", "azure_blob"),
+        ("databricks", "s3"),
+        ("emr", "azure_blob"),
+        ("emr", "s3"),
+    ]
+)
+def test_create_provider(executor_fixture, filestore_fixture, request):
+    executor = request.getfixturevalue(executor_fixture)
+    filestore = request.getfixturevalue(filestore_fixture)
 
-    databricks = DatabricksCredentials(username="a", password="b", cluster_id="c_id")
-    azure_blob = AzureFileStoreConfig(account_name="", account_key="", container_name="", root_path="")   
+    provider_name = "test_offline_spark_provider"
+    r = Registrar() 
     
-    config = SparkConfig(executor_type=databricks.type(), executor_config=databricks.config(), store_type=azure_blob.store_type(), store_config=azure_blob.config())
+    config = SparkConfig(executor_type=executor.type(), executor_config=executor.config(), store_type=filestore.store_type(), store_config=filestore.config())
     provider = Provider(name=provider_name, function="OFFLINE", description="", team="", config=config)
     
     offline_spark_provider = OfflineSparkProvider(r, provider)

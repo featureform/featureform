@@ -189,6 +189,9 @@ class S3StoreConfig:
             "BucketRegion": self.bucket_region,
             "BucketPath": self.bucket_path,
         }
+    
+    def store_type(self):
+        return self.type()
 
 
 @typechecked

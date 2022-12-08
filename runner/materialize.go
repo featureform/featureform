@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"go.uber.org/zap"
 
+	cfg "github.com/featureform/config"
 	"github.com/featureform/helpers"
 	"github.com/featureform/kubernetes"
 	"github.com/featureform/logging"
@@ -152,7 +153,7 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 	var cloudWatcher types.CompletionWatcher
 	switch m.Cloud {
 	case KubernetesMaterializeRunner:
-		pandas_image := helpers.GetEnv("PANDAS_RUNNER_IMAGE", "featureformcom/k8s_runner:stable")
+		pandas_image := cfg.GetPandasRunnerImage()
 		envVars := map[string]string{"NAME": string(COPY_TO_ONLINE), "CONFIG": string(serializedConfig), "PANDAS_RUNNER_IMAGE": pandas_image}
 		kubernetesConfig := kubernetes.KubernetesRunnerConfig{
 			EnvVars:  envVars,

@@ -20,13 +20,17 @@ from .sqlite_metadata import SQLiteMetadata
 from .tls import insecure_channel, secure_channel
 from .resources import ResourceState, Provider, RedisConfig, FirestoreConfig, CassandraConfig, DynamodbConfig, \
     MongoDBConfig, PostgresConfig, SnowflakeConfig, LocalConfig, RedshiftConfig, BigQueryConfig, SparkConfig, \
-    AzureFileStoreConfig, OnlineBlobConfig, K8sConfig, User, Location, Source, PrimaryData, SQLTable, \
+    AzureFileStoreConfig, OnlineBlobConfig, K8sConfig, S3StoreConfig, User, Location, Source, PrimaryData, SQLTable, \
     SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet, ProviderReference, \
-    EntityReference, SourceReference, ExecutorCredentials, ResourceRedefinedError, ResourceStatus, Transformation
+    EntityReference, SourceReference, ExecutorCredentials, ResourceRedefinedError, ResourceStatus, Transformation, AWSCredentials
 
 from .proto import metadata_pb2_grpc as ff_grpc
 
+
 NameVariant = Tuple[str, str]
+
+s3_config = S3StoreConfig("", "", AWSCredentials("id", "secret"))
+NON_INFERENCE_STORES = [s3_config.type()]
 
 
 class EntityRegistrar:
@@ -928,6 +932,8 @@ class LocalSource:
         Returns:
             registrar (ResourceRegister): Registrar
         """
+        assert inference_store.store_type() in NON_INFERENCE_STORES, f"cannot use '{inference_store.store_type()}' as an inference store"
+
         return self.registrar.register_column_resources(
             source=(self.name, self.variant),
             entity=entity,
@@ -1001,6 +1007,7 @@ class SQLTransformationDecorator:
             description: str = "",
             schedule: str = "",
     ):
+        assert inference_store.store_type() in NON_INFERENCE_STORES, f"cannot use '{inference_store.store_type()}' as an inference store"
         return self.registrar[0].register_column_resources(
             source=(self.name, self.variant),
             entity=entity,
@@ -1072,6 +1079,7 @@ class DFTransformationDecorator:
             timestamp_column: str = "",
             description: str = "",
     ):
+        assert inference_store.store_type() in NON_INFERENCE_STORES, f"cannot use '{inference_store.store_type()}' as an inference store"
         return self.registrar[0].register_column_resources(
             source=(self.name, self.variant),
             entity=entity,
@@ -1126,6 +1134,7 @@ class ColumnSourceRegistrar(SourceRegistrar):
         Returns:
             registrar (ResourceRegister): Registrar
         """
+        assert inference_store.store_type() in NON_INFERENCE_STORES, f"cannot use '{inference_store.store_type()}' as an inference store"
         return self.registrar().register_column_resources(
             source=self,
             entity=entity,
@@ -1543,6 +1552,15 @@ class Registrar:
         fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
         return OfflineK8sProvider(self, fakeProvider)
 
+    def get_s3(self, name):
+        get = ProviderReference(name=name, provider_type="S3", obj=None)
+        self.__resources.append(get)
+
+        fake_creds = AWSCredentials("id", "secret")
+        fakeConfig = S3StoreConfig(bucket_path="", bucket_region="", credentials=fake_creds)
+        fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
+        return OfflineK8sProvider(self, fakeProvider)
+
     def get_entity(self, name, local=False):
         """Get an entity. The returned object can be used to register additional resources.
 
@@ -1659,6 +1677,50 @@ class Registrar:
                             config=config)
         self.__resources.append(provider)
         return FileStoreProvider(self, provider, azure_config, "AZURE")
+    
+    def register_s3(self,
+                    name: str,
+                    credentials: AWSCredentials,
+                    bucket_path: str,
+                    bucket_region: str,
+                    description: str = "",
+                    team: str = "", ):
+        """Register a S3 store provider.
+
+        This has the functionality of an offline store and can be used as a parameter
+        to a k8s or spark provider
+
+        **Examples**:
+        ```
+        s3 = ff.register_s3(
+            name="s3-quickstart",
+            credentials="my_company_container"
+            bucket_path="bucket_name/path"
+            bucket_region=<bucket_region>
+            description="An s3 store provider to store offline"
+        )
+        ```
+        Args:
+            name (str): Name of S3 store to be registered
+            credentials (AWSCredentials): Azure container name
+            bucket_path (str): custom path including the bucket name
+            bucket_region (str): aws region the bucket is located in
+            description (str): Description of Redis provider to be registered
+            team (str): team with permission to this storage layer
+        Returns:
+            s3 (FileStoreProvider): Provider
+                has all the functionality of OfflineProvider
+        """
+
+        s3_config = S3StoreConfig(bucket_path=bucket_path, bucket_region=bucket_region, credentials=credentials)
+
+        provider = Provider(name=name,
+                            function="OFFLINE",
+                            description=description,
+                            team=team,
+                            config=s3_config)
+        self.__resources.append(provider)
+        return FileStoreProvider(self, provider, s3_config, s3_config.type())
 
     def register_firestore(self,
                            name: str,
@@ -2318,6 +2380,9 @@ class Registrar:
         Returns:
             resource (ResourceRegistrar): resource
         """
+
+        assert inference_store.store_type() in NON_INFERENCE_STORES, f"cannot use '{inference_store.store_type()}' as an inference store"
+
         if features is None:
             features = []
         if labels is None:
@@ -3658,6 +3723,7 @@ register_postgres = global_registrar.register_postgres
 register_redshift = global_registrar.register_redshift
 register_spark = global_registrar.register_spark
 register_k8s = global_registrar.register_k8s
+register_s3 = global_registrar.register_s3
 register_local = global_registrar.register_local
 register_entity = global_registrar.register_entity
 register_column_resources = global_registrar.register_column_resources
@@ -3676,4 +3742,5 @@ get_bigquery = global_registrar.get_bigquery
 get_spark_aws = global_registrar.get_spark
 get_kubernetes = global_registrar.get_kubernetes
 get_blob_store = global_registrar.get_blob_store
+get_s3 = global_registrar.get_s3
 ResourceStatus = ResourceStatus

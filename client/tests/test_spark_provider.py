@@ -3,7 +3,7 @@ import dill
 import pytest
 
 from featureform.register import ColumnSourceRegistrar, OfflineSparkProvider, Registrar
-from featureform.resources import DFTransformation, Provider, Source, SparkConfig, SQLTransformation, DatabricksCredentials, AzureFileStoreConfig
+from featureform.resources import DFTransformation, Provider, Source, SparkConfig, SQLTransformation, DatabricksCredentials, AzureFileStoreConfig, AWSCredentials, S3StoreConfig
 
 
 def test_create_provider():
@@ -105,3 +105,30 @@ def test_df_transformation(name, variant, transformation, spark_provider, reques
     assert decorator_src.description == expected_src.description
     assert decorator_src.definition.type() == expected_src.definition.type()
     assert decorator_src.definition.kwargs() == expected_src.definition.kwargs()
+
+
+
+@pytest.mark.parametrize(
+    "store_config",
+    [
+        "s3_config",
+        "azure_file_config",
+    ]
+)
+def test_store_config(store_config, request):
+    store, expected_config = request.getfixturevalue(store_config)
+
+    assert store.config() == expected_config
+
+
+@pytest.mark.parametrize(
+    "executor_config",
+    [
+        "databricks_config",
+        "emr_config",
+    ]
+)
+def test_executor_config(executor_config, request):
+    executor, expected_config = request.getfixturevalue(executor_config)
+
+    assert executor.config() == expected_config

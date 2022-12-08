@@ -2381,8 +2381,8 @@ class Registrar:
             resource (ResourceRegistrar): resource
         """
 
-        if type(inference_store) == FileStoreProvider:
-            assert inference_store.store_type() not in NON_INFERENCE_STORES, f"cannot use '{inference_store.store_type()}' as an inference store. {NON_INFERENCE_STORES}"
+        if type(inference_store) == FileStoreProvider and inference_store.store_type() in NON_INFERENCE_STORES:
+            raise Exception(f"cannot use '{inference_store.store_type()}' as an inference store.")
 
         if features is None:
             features = []

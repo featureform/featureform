@@ -111,8 +111,8 @@ class AWSCredentials:
                  aws_access_key_id: str = "",
                  aws_secret_access_key: str = "",):
         empty_strings = aws_access_key_id == "" or aws_secret_access_key == ""
-        assert not empty_strings, Exception(
-            "'AWSCredentials' requires all parameters: 'aws_access_key_id', 'aws_secret_access_key'")
+        if empty_strings:
+            raise Exception("'AWSCredentials' requires all parameters: 'aws_access_key_id', 'aws_secret_access_key'")
 
         self.aws_access_key_id = aws_access_key_id
         self.aws_secret_access_key = aws_secret_access_key

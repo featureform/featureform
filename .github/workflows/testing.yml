@@ -743,7 +743,7 @@ jobs:
         run: |
           python3 -m pip install build pytest python-dotenv
           python3 -m build ./client/
-          python3 -m pip install client/dist/*
+          python3 -m pip install client/dist/*.whl
 
       - name: Testing
         env:
@@ -830,7 +830,7 @@ jobs:
         run: |
           cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
           go tool cover -html=cover.out -o cover.html
-          
+
       - uses: codecov/codecov-action@v2
         if: always()
         with:

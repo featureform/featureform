@@ -7,7 +7,7 @@ import time
 from enum import Enum
 from base64 import b64encode
 from typeguard import typechecked
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Tuple, Union
 
 import grpc

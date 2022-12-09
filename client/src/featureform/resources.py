@@ -504,10 +504,10 @@ class Provider:
     config: Config
     description: str
     team: str
-    features: List[NameVariant] = []
-    labels: List[NameVariant] = []
-    sources: List[NameVariant] = []
-    trainingsets: List[NameVariant] = []
+    features: List[NameVariant] = field(default_factory=list)
+    labels: List[NameVariant] = field(default_factory=list)
+    sources: List[NameVariant] = field(default_factory=list)
+    trainingsets: List[NameVariant] = field(default_factory=list)
 
     def __post_init__(self):
         self.software = self.config.software()
@@ -581,9 +581,9 @@ class Provider:
 @dataclass
 class User:
     name: str
-    features: List[NameVariant] = []
-    labels: List[NameVariant] = []
-    trainingsets: List[NameVariant] = []
+    features: List[NameVariant] = field(default_factory=list)
+    labels: List[NameVariant] = field(default_factory=list)
+    trainingsets: List[NameVariant] = field(default_factory=list)
 
     @staticmethod
     def operation_type() -> OperationType:
@@ -630,9 +630,9 @@ class User:
 class Model:
     name: str
     description: str
-    features: List[NameVariant] = []
-    labels: List[NameVariant] = []
-    trainingsets: List[NameVariant] = []
+    features: List[NameVariant] = field(default_factory=list)
+    labels: List[NameVariant] = field(default_factory=list)
+    trainingsets: List[NameVariant] = field(default_factory=list)
 
     @staticmethod
     def operation_type() -> OperationType:
@@ -762,9 +762,9 @@ class Source:
     inputs = [],
     status: ResourceStatus = None
     wait_function = None
-    trainingsets: List[NameVariant] = []
-    labels: List[NameVariant] = []
-    features: List[NameVariant] = []
+    trainingsets: List[NameVariant] = field(default_factory=list)
+    labels: List[NameVariant] = field(default_factory=list)
+    features: List[NameVariant] = field(default_factory=list)
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=7, schedule_string=schedule)
@@ -870,9 +870,9 @@ class Source:
 class Entity:
     name: str
     description: str
-    features: List[NameVariant] = []
-    labels: List[NameVariant] = []
-    trainingsets: List[NameVariant] = []
+    features: List[NameVariant] = field(default_factory=list)
+    labels: List[NameVariant] = field(default_factory=list)
+    trainingsets: List[NameVariant] = field(default_factory=list)
 
     @staticmethod
     def operation_type() -> OperationType:
@@ -955,7 +955,7 @@ class Feature:
     schedule_obj: Schedule = None
     status: ResourceStatus = None
     wait_function = None
-    trainingsets: List[NameVariant] = []
+    trainingsets: List[NameVariant] = field(default_factory=list)
 
     def __post_init__(self):
         col_types = [member.value for member in ColumnTypes]
@@ -1066,7 +1066,7 @@ class Label:
     variant: str = "default"
     status: ResourceStatus = None
     wait_function = None
-    trainingsets: List[NameVariant] = []
+    trainingsets: List[NameVariant] = field(default_factory=list)
 
     def __post_init__(self):
         col_types = [member.value for member in ColumnTypes]

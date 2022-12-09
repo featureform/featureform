@@ -1341,9 +1341,13 @@ func (mat FileStoreMaterialization) NumRows() (int64, error) {
 	materializationPath := mat.store.PathWithPrefix(fileStoreResourcePath(mat.id), false)
 	latestMaterializationPath, err := mat.store.NewestFile(materializationPath)
 	if err != nil {
-		return 0, fmt.Errorf("Could not get materialization num rows; %v", err)
+		return 0, fmt.Errorf("could not get newest file for path: %s: %v", materializationPath, err)
 	}
-	return mat.store.NumRows(latestMaterializationPath)
+	rows, err := mat.store.NumRows(latestMaterializationPath)
+	if err != nil {
+		return 0, fmt.Errorf("could not get rows for path: %s: %v", latestMaterializationPath, err)
+	}
+	return rows, nil
 }
 
 func (mat FileStoreMaterialization) IterateSegment(begin, end int64) (FeatureIterator, error) {

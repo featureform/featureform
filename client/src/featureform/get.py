@@ -158,7 +158,6 @@ def get_provider_info(stub, name):
                 name=x.name,
                 description=x.description,
                 team=x.team,
-                provider_type=x.type,
                 sources=[(f.name,f.variant) for f in x.sources],
                 features=[(f.name,f.variant) for f in x.features],
                 trainingsets=[(f.name,f.variant) for f in x.trainingsets],

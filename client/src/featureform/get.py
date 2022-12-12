@@ -1,7 +1,7 @@
 from featureform.proto import metadata_pb2
 import grpc
 from featureform.proto import metadata_pb2_grpc as ff_grpc
-from featureform.resources import Feature, Label, TrainingSet, Source, Model, Entity, User, Provider, ResourceStatus, ResourceColumnMapping, PrimaryData, SQLTransformation, DFTransformation, SQLTable
+from featureform.resources import Feature, Label, TrainingSet, Source, Model, Entity, User, Provider, ResourceStatus, ResourceColumnMapping, PrimaryData, SQLTransformation, DFTransformation, SQLTable, NoneConfig
 from .format import *
 
 def get_user_info(stub, name):
@@ -159,6 +159,7 @@ def get_provider_info(stub, name):
                 description=x.description,
                 team=x.team,
                 function=x.type,
+                config=NoneConfig(),
                 sources=[(f.name,f.variant) for f in x.sources],
                 features=[(f.name,f.variant) for f in x.features],
                 trainingsets=[(f.name,f.variant) for f in x.trainingsets],

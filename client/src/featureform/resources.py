@@ -513,10 +513,10 @@ Config = Union[
 @dataclass
 class Provider:
     name: str
+    function: str
     description: str
     team: str
     config: Config = NoneConfig
-    function: str = ""
     features: List[NameVariant] = field(default_factory=list)
     labels: List[NameVariant] = field(default_factory=list)
     sources: List[NameVariant] = field(default_factory=list)

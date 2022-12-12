@@ -490,7 +490,7 @@ class K8sConfig:
 
 @typechecked
 @dataclass
-class NoneConfig
+class NoneConfig:
 
     def software(self) -> str:
         return "none"

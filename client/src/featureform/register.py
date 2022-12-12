@@ -1697,7 +1697,7 @@ class Registrar:
         ```
         Args:
             name (str): Name of S3 store to be registered
-            credentials (AWSCredentials): Azure container name
+            credentials (AWSCredentials): AWS credentials to access the bucket
             bucket_path (str): custom path including the bucket name
             bucket_region (str): aws region the bucket is located in
             description (str): Description of Redis provider to be registered
@@ -2068,7 +2068,7 @@ class Registrar:
                        description: str = "",
                        team: str = "",
                        ):
-        """Register a Spark on AWS provider.
+        """Register a Spark on Executor provider.
         **Examples**:
         ```
         spark = ff.register_spark(
@@ -2080,14 +2080,14 @@ class Registrar:
         )
         ```
         Args:
-            name (str): Name of Spark AWS provider to be registered
+            name (str): Name of Spark provider to be registered
             executor (ExecutorCredentials): an Executor Provider used for the compute power
             filestore: (FileStoreProvider): a FileStoreProvider used for storage of data
-            description (str): Description of Spark AWS provider to be registered
+            description (str): Description of Spark provider to be registered
             team (str): Name of team
 
         Returns:
-            spark_aws (OfflineSparkProvider): Provider
+            spark (OfflineSparkProvider): Provider
         """
 
         config = SparkConfig(

@@ -516,7 +516,7 @@ class Provider:
     function: str
     description: str
     team: str
-    config: Config = NoneConfig
+    config: Config = NoneConfig()
     features: List[NameVariant] = field(default_factory=list)
     labels: List[NameVariant] = field(default_factory=list)
     sources: List[NameVariant] = field(default_factory=list)

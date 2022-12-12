@@ -488,11 +488,24 @@ class K8sConfig:
         }
         return bytes(json.dumps(config), "utf-8")
 
+@typechecked
+@dataclass
+class NoneConfig
+
+    def software(self) -> str:
+        return "none"
+    
+    def type(self) -> str:
+        return "NONE_CONFIG"
+    
+    def serialize(self) -> bytes:
+        config = {}
+        return bytes(json.dumps(config), "utf-8")
 
 Config = Union[
     RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig, BigQueryConfig,
     FirestoreConfig, SparkConfig, OnlineBlobConfig, AzureFileStoreConfig, S3StoreConfig, K8sConfig,
-    MongoDBConfig
+    MongoDBConfig, NoneConfig
 ]
 
 
@@ -503,7 +516,7 @@ class Provider:
     function: str
     description: str
     team: str
-    config: Config = None
+    config: Config = NoneConfig
     features: List[NameVariant] = field(default_factory=list)
     labels: List[NameVariant] = field(default_factory=list)
     sources: List[NameVariant] = field(default_factory=list)

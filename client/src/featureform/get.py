@@ -23,8 +23,8 @@ def get_entity_info(stub, name):
     try:
         for entity in stub.GetEntities(iter([searchName])):
             return Entity(
-                name=x.name,
-                description=x.description,
+                name=entity.name,
+                description=entity.description,
                 features=[(f.name,f.variant) for f in entity.features],
                 labels=[(f.name,f.variant) for f in entity.labels],
                 trainingsets=[(f.name,f.variant) for f in entity.trainingsets],

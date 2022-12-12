@@ -160,7 +160,7 @@ def get_provider_info(stub, name):
                 team=x.team,
                 software=x.software,
                 provider_type=x.type,
-                status=Status(status=ResourceStatus(x.status.Status._enum_type.values[x.status.status].name), message=x.status.error_message),
+                status=ResourceStatus.from_proto(x.status.status),
                 sources=[(f.name,f.variant) for f in x.sources],
                 features=[(f.name,f.variant) for f in x.features],
                 trainingsets=[(f.name,f.variant) for f in x.trainingsets],

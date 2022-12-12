@@ -501,9 +501,9 @@ Config = Union[
 class Provider:
     name: str
     function: str
-    config: Config
     description: str
     team: str
+    config: Config = None
     features: List[NameVariant] = field(default_factory=list)
     labels: List[NameVariant] = field(default_factory=list)
     sources: List[NameVariant] = field(default_factory=list)

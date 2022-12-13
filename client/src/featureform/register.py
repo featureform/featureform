@@ -22,7 +22,8 @@ from .resources import ResourceState, Provider, RedisConfig, FirestoreConfig, Ca
     MongoDBConfig, PostgresConfig, SnowflakeConfig, LocalConfig, RedshiftConfig, BigQueryConfig, SparkConfig, \
     AzureFileStoreConfig, OnlineBlobConfig, K8sConfig, User, Location, Source, PrimaryData, SQLTable, \
     SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet, ProviderReference, \
-    EntityReference, SourceReference, ExecutorCredentials, ResourceRedefinedError, ResourceStatus, Transformation
+    EntityReference, SourceReference, ExecutorCredentials, ResourceRedefinedError, ResourceStatus, Transformation, \
+    K8sArgs
 
 from .proto import metadata_pb2_grpc as ff_grpc
 
@@ -226,8 +227,8 @@ class OfflineK8sProvider(OfflineProvider):
 
     def register_file(self,
                       name: str,
-                      variant: str,
                       path: str,
+                      variant: str = "default",
                       owner: Union[str, UserRegistrar] = "",
                       description: str = ""):
         """Register a blob data source path as a primary data source.
@@ -235,7 +236,7 @@ class OfflineK8sProvider(OfflineProvider):
         Args:
             name (str): Name of table to be registered
             variant (str): Name of variant to be registered
-            file_path (str): The path to blob store file
+            path (str): The path to blob store file
             owner (Union[str, UserRegistrar]): Owner
             description (str): Description of table to be registered
 
@@ -250,11 +251,13 @@ class OfflineK8sProvider(OfflineProvider):
                                                       description=description)
 
     def sql_transformation(self,
-                           variant: str,
+                           variant: str = "",
                            owner: Union[str, UserRegistrar] = "",
                            name: str = "",
                            schedule: str = "",
-                           description: str = ""):
+                           description: str = "",
+                           docker_image: str = ""
+                           ):
         """
         Register a SQL transformation source. The k8s.sql_transformation decorator takes the returned string in the
         following function and executes it as a SQL Query.
@@ -277,6 +280,7 @@ class OfflineK8sProvider(OfflineProvider):
             variant (str): Name of variant
             owner (Union[str, UserRegistrar]): Owner
             description (str): Description of primary data to be registered
+            docker_image (str): A custom Docker image to run the transformation
 
 
         Returns:
@@ -287,14 +291,18 @@ class OfflineK8sProvider(OfflineProvider):
                                                    owner=owner,
                                                    schedule=schedule,
                                                    provider=self.name(),
-                                                   description=description)
+                                                   description=description,
+                                                   args=K8sArgs(docker_image=docker_image)
+                                                   )
 
     def df_transformation(self,
                           variant: str = "default",
                           owner: Union[str, UserRegistrar] = "",
                           name: str = "",
                           description: str = "",
-                          inputs: list = []):
+                          inputs: list = [],
+                          docker_image: str = ""
+                          ):
         """
         Register a Dataframe transformation source. The k8s_azure.df_transformation decorator takes the contents
         of the following function and executes the code it contains at serving time.
@@ -316,6 +324,7 @@ class OfflineK8sProvider(OfflineProvider):
             owner (Union[str, UserRegistrar]): Owner
             description (str): Description of primary data to be registered
             inputs (list[Tuple(str, str)]): A list of Source NameVariant Tuples to input into the transformation
+            docker_image (str): A custom Docker image to run the transformation
 
         Returns:
             source (ColumnSourceRegistrar): Source
@@ -325,337 +334,9 @@ class OfflineK8sProvider(OfflineProvider):
                                                   owner=owner,
                                                   provider=self.name(),
                                                   description=description,
-                                                  inputs=inputs)
-
-
-class OfflineK8sProvider(OfflineProvider):
-    def __init__(self, registrar, provider):
-        super().__init__(registrar, provider)
-        self.__registrar = registrar
-        self.__provider = provider
-
-    def register_file(self,
-                      name: str,
-                      variant: str,
-                      path: str,
-                      owner: Union[str, UserRegistrar] = "",
-                      description: str = ""):
-        """Register a blob data source path as a primary data source.
-
-        Args:
-            name (str): Name of table to be registered
-            variant (str): Name of variant to be registered
-            file_path (str): The path to blob store file
-            owner (Union[str, UserRegistrar]): Owner
-            description (str): Description of table to be registered
-
-        Returns:
-            source (ColumnSourceRegistrar): source
-        """
-        return self.__registrar.register_primary_data(name=name,
-                                                      variant=variant,
-                                                      location=SQLTable(path),
-                                                      owner=owner,
-                                                      provider=self.name(),
-                                                      description=description)
-
-    def sql_transformation(self,
-                           variant: str,
-                           owner: Union[str, UserRegistrar] = "",
-                           name: str = "",
-                           schedule: str = "",
-                           description: str = ""):
-        """
-        Register a SQL transformation source. The k8s.sql_transformation decorator takes the returned string in the
-        following function and executes it as a SQL Query.
-
-        The name of the function is the name of the resulting source.
-
-        Sources for the transformation can be specified by adding the Name and Variant in brackets '{{ name.variant }}'.
-        The correct source is substituted when the query is run.
-
-        **Examples**:
-        ``` py
-        @k8s.sql_transformation(variant="quickstart")
-        def average_user_transaction():
-            return "SELECT CustomerID as user_id, avg(TransactionAmount) as avg_transaction_amt from" \
-            " {{transactions.v1}} GROUP BY user_id"
-        ```
-
-        Args:
-            name (str): Name of source
-            variant (str): Name of variant
-            owner (Union[str, UserRegistrar]): Owner
-            description (str): Description of primary data to be registered
-
-
-        Returns:
-            source (ColumnSourceRegistrar): Source
-        """
-        return self.__registrar.sql_transformation(name=name,
-                                                   variant=variant,
-                                                   owner=owner,
-                                                   schedule=schedule,
-                                                   provider=self.name(),
-                                                   description=description)
-
-    def df_transformation(self,
-                          variant: str = "default",
-                          owner: Union[str, UserRegistrar] = "",
-                          name: str = "",
-                          description: str = "",
-                          inputs: list = []):
-        """
-        Register a Dataframe transformation source. The k8s_azure.df_transformation decorator takes the contents
-        of the following function and executes the code it contains at serving time.
-
-        The name of the function is used as the name of the source when being registered.
-
-        The specified inputs are loaded into dataframes that can be accessed using the function parameters.
-
-        **Examples**:
-        ``` py
-        @k8s_azure.df_transformation(inputs=[("source", "one")])        # Sources are added as inputs
-        def average_user_transaction(df):                           # Sources can be manipulated by adding them as params
-            return df
-        ```
-
-        Args:
-            name (str): Name of source
-            variant (str): Name of variant
-            owner (Union[str, UserRegistrar]): Owner
-            description (str): Description of primary data to be registered
-            inputs (list[Tuple(str, str)]): A list of Source NameVariant Tuples to input into the transformation
-
-        Returns:
-            source (ColumnSourceRegistrar): Source
-        """
-        return self.__registrar.df_transformation(name=name,
-                                                  variant=variant,
-                                                  owner=owner,
-                                                  provider=self.name(),
-                                                  description=description,
-                                                  inputs=inputs)
-
-
-class OfflineK8sProvider(OfflineProvider):
-    def __init__(self, registrar, provider):
-        super().__init__(registrar, provider)
-        self.__registrar = registrar
-        self.__provider = provider
-
-    def register_file(self,
-                      name: str,
-                      variant: str,
-                      path: str,
-                      owner: Union[str, UserRegistrar] = "",
-                      description: str = ""):
-        """Register a blob data source path as a primary data source.
-
-        Args:
-            name (str): Name of table to be registered
-            variant (str): Name of variant to be registered
-            file_path (str): The path to blob store file
-            owner (Union[str, UserRegistrar]): Owner
-            description (str): Description of table to be registered
-
-        Returns:
-            source (ColumnSourceRegistrar): source
-        """
-        return self.__registrar.register_primary_data(name=name,
-                                                      variant=variant,
-                                                      location=SQLTable(path),
-                                                      owner=owner,
-                                                      provider=self.name(),
-                                                      description=description)
-
-    def sql_transformation(self,
-                           variant: str,
-                           owner: Union[str, UserRegistrar] = "",
-                           name: str = "",
-                           schedule: str = "",
-                           description: str = ""):
-        """
-        Register a SQL transformation source. The k8s.sql_transformation decorator takes the returned string in the
-        following function and executes it as a SQL Query.
-
-        The name of the function is the name of the resulting source.
-
-        Sources for the transformation can be specified by adding the Name and Variant in brackets '{{ name.variant }}'.
-        The correct source is substituted when the query is run.
-
-        **Examples**:
-        ``` py
-        @k8s.sql_transformation(variant="quickstart")
-        def average_user_transaction():
-            return "SELECT CustomerID as user_id, avg(TransactionAmount) as avg_transaction_amt from" \
-            " {{transactions.v1}} GROUP BY user_id"
-        ```
-
-        Args:
-            name (str): Name of source
-            variant (str): Name of variant
-            owner (Union[str, UserRegistrar]): Owner
-            description (str): Description of primary data to be registered
-
-
-        Returns:
-            source (ColumnSourceRegistrar): Source
-        """
-        return self.__registrar.sql_transformation(name=name,
-                                                   variant=variant,
-                                                   owner=owner,
-                                                   schedule=schedule,
-                                                   provider=self.name(),
-                                                   description=description)
-
-    def df_transformation(self,
-                          variant: str = "default",
-                          owner: Union[str, UserRegistrar] = "",
-                          name: str = "",
-                          description: str = "",
-                          inputs: list = []):
-        """
-        Register a Dataframe transformation source. The k8s_azure.df_transformation decorator takes the contents
-        of the following function and executes the code it contains at serving time.
-
-        The name of the function is used as the name of the source when being registered.
-
-        The specified inputs are loaded into dataframes that can be accessed using the function parameters.
-
-        **Examples**:
-        ``` py
-        @k8s_azure.df_transformation(inputs=[("source", "one")])        # Sources are added as inputs
-        def average_user_transaction(df):                           # Sources can be manipulated by adding them as params
-            return df
-        ```
-
-        Args:
-            name (str): Name of source
-            variant (str): Name of variant
-            owner (Union[str, UserRegistrar]): Owner
-            description (str): Description of primary data to be registered
-            inputs (list[Tuple(str, str)]): A list of Source NameVariant Tuples to input into the transformation
-
-        Returns:
-            source (ColumnSourceRegistrar): Source
-        """
-        return self.__registrar.df_transformation(name=name,
-                                                  variant=variant,
-                                                  owner=owner,
-                                                  provider=self.name(),
-                                                  description=description,
-                                                  inputs=inputs)
-
-
-class OfflineK8sProvider(OfflineProvider):
-    def __init__(self, registrar, provider):
-        super().__init__(registrar, provider)
-        self.__registrar = registrar
-        self.__provider = provider
-
-    def register_file(self,
-                      name: str,
-                      variant: str,
-                      path: str,
-                      owner: Union[str, UserRegistrar] = "",
-                      description: str = ""):
-        """Register a blob data source path as a primary data source.
-
-        Args:
-            name (str): Name of table to be registered
-            variant (str): Name of variant to be registered
-            file_path (str): The path to blob store file
-            owner (Union[str, UserRegistrar]): Owner
-            description (str): Description of table to be registered
-
-        Returns:
-            source (ColumnSourceRegistrar): source
-        """
-        return self.__registrar.register_primary_data(name=name,
-                                                      variant=variant,
-                                                      location=SQLTable(path),
-                                                      owner=owner,
-                                                      provider=self.name(),
-                                                      description=description)
-
-    def sql_transformation(self,
-                           variant: str,
-                           owner: Union[str, UserRegistrar] = "",
-                           name: str = "",
-                           schedule: str = "",
-                           description: str = ""):
-        """
-        Register a SQL transformation source. The k8s.sql_transformation decorator takes the returned string in the
-        following function and executes it as a SQL Query.
-
-        The name of the function is the name of the resulting source.
-
-        Sources for the transformation can be specified by adding the Name and Variant in brackets '{{ name.variant }}'.
-        The correct source is substituted when the query is run.
-
-        **Examples**:
-        ``` py
-        @k8s.sql_transformation(variant="quickstart")
-        def average_user_transaction():
-            return "SELECT CustomerID as user_id, avg(TransactionAmount) as avg_transaction_amt from" \
-            " {{transactions.v1}} GROUP BY user_id"
-        ```
-
-        Args:
-            name (str): Name of source
-            variant (str): Name of variant
-            owner (Union[str, UserRegistrar]): Owner
-            description (str): Description of primary data to be registered
-
-
-        Returns:
-            source (ColumnSourceRegistrar): Source
-        """
-        return self.__registrar.sql_transformation(name=name,
-                                                   variant=variant,
-                                                   owner=owner,
-                                                   schedule=schedule,
-                                                   provider=self.name(),
-                                                   description=description)
-
-    def df_transformation(self,
-                          variant: str = "default",
-                          owner: Union[str, UserRegistrar] = "",
-                          name: str = "",
-                          description: str = "",
-                          inputs: list = []):
-        """
-        Register a Dataframe transformation source. The k8s_azure.df_transformation decorator takes the contents
-        of the following function and executes the code it contains at serving time.
-
-        The name of the function is used as the name of the source when being registered.
-
-        The specified inputs are loaded into dataframes that can be accessed using the function parameters.
-
-        **Examples**:
-        ``` py
-        @k8s_azure.df_transformation(inputs=[("source", "one")])        # Sources are added as inputs
-        def average_user_transaction(df):                           # Sources can be manipulated by adding them as params
-            return df
-        ```
-
-        Args:
-            name (str): Name of source
-            variant (str): Name of variant
-            owner (Union[str, UserRegistrar]): Owner
-            description (str): Description of primary data to be registered
-            inputs (list[Tuple(str, str)]): A list of Source NameVariant Tuples to input into the transformation
-
-        Returns:
-            source (ColumnSourceRegistrar): Source
-        """
-        return self.__registrar.df_transformation(name=name,
-                                                  variant=variant,
-                                                  owner=owner,
-                                                  provider=self.name(),
-                                                  description=description,
-                                                  inputs=inputs)
+                                                  inputs=inputs,
+                                                  args=K8sArgs(docker_image=docker_image)
+                                                  )
 
 
 class OnlineProvider:
@@ -950,7 +631,8 @@ class SQLTransformationDecorator:
                  variant: str = "default",
                  name: str = "",
                  schedule: str = "",
-                 description: str = ""):
+                 description: str = "",
+                 args: K8sArgs = None):
         self.registrar = registrar,
         self.name = name
         self.variant = variant
@@ -958,6 +640,7 @@ class SQLTransformationDecorator:
         self.schedule = schedule
         self.provider = provider
         self.description = description
+        self.args = args
 
     def __call__(self, fn: Callable[[], str]):
         if self.description == "" and fn.__doc__ is not None:
@@ -979,7 +662,7 @@ class SQLTransformationDecorator:
         return Source(
             name=self.name,
             variant=self.variant,
-            definition=SQLTransformation(self.query),
+            definition=SQLTransformation(self.query, self.args),
             owner=self.owner,
             schedule=self.schedule,
             provider=self.provider,
@@ -1024,7 +707,8 @@ class DFTransformationDecorator:
                  variant: str = "default",
                  name: str = "",
                  description: str = "",
-                 inputs: list = []):
+                 inputs: list = [],
+                 args: K8sArgs = None):
         self.registrar = registrar,
         self.name = name
         self.variant = variant
@@ -1032,6 +716,7 @@ class DFTransformationDecorator:
         self.provider = provider
         self.description = description
         self.inputs = inputs
+        self.args = args
 
     def __call__(self, fn: Callable[
         [Union[pd.DataFrame, pyspark.sql.DataFrame]], Union[pd.DataFrame, pyspark.sql.DataFrame]]):
@@ -1052,7 +737,7 @@ class DFTransformationDecorator:
         return Source(
             name=self.name,
             variant=self.variant,
-            definition=DFTransformation(self.query, self.inputs),
+            definition=DFTransformation(self.query, self.inputs, self.args),
             owner=self.owner,
             provider=self.provider,
             description=self.description,
@@ -1228,6 +913,9 @@ class Registrar:
 
     def add_resource(self, resource):
         self.__resources.append(resource)
+
+    def get_resources(self):
+        return self.__resources
 
     def register_user(self, name: str) -> UserRegistrar:
         """Register a user.
@@ -2151,7 +1839,9 @@ class Registrar:
                                     provider: Union[str, OfflineProvider],
                                     owner: Union[str, UserRegistrar] = "",
                                     description: str = "",
-                                    schedule: str = ""):
+                                    schedule: str = "",
+                                    args: K8sArgs = None
+                                    ):
         """Register a SQL transformation source.
 
         Args:
@@ -2162,6 +1852,7 @@ class Registrar:
             owner (Union[str, UserRegistrar]): Owner
             description (str): Description of primary data to be registered
             schedule (str): Kubernetes CronJob schedule string ("* * * * *")
+            args (K8sArgs): Additional transformation arguments
 
         Returns:
             source (ColumnSourceRegistrar): Source
@@ -2175,7 +1866,7 @@ class Registrar:
         source = Source(
             name=name,
             variant=variant,
-            definition=SQLTransformation(query),
+            definition=SQLTransformation(query, args),
             owner=owner,
             schedule=schedule,
             provider=provider,
@@ -2190,7 +1881,9 @@ class Registrar:
                            name: str = "",
                            schedule: str = "",
                            owner: Union[str, UserRegistrar] = "",
-                           description: str = ""):
+                           description: str = "",
+                           args: K8sArgs = None
+                           ):
         """SQL transformation decorator.
 
         Args:
@@ -2200,6 +1893,7 @@ class Registrar:
             schedule (str): Kubernetes CronJob schedule string ("* * * * *")
             owner (Union[str, UserRegistrar]): Owner
             description (str): Description of SQL transformation
+            args (K8sArgs): Additional transformation arguments
 
         Returns:
             decorator (SQLTransformationDecorator): decorator
@@ -2218,9 +1912,59 @@ class Registrar:
             schedule=schedule,
             owner=owner,
             description=description,
+            args=args,
         )
         self.__resources.append(decorator)
         return decorator
+
+    def register_df_transformation(self,
+                                   name: str,
+                                   query: str,
+                                   provider: Union[str, OfflineProvider],
+                                   variant: str = "default",
+                                   owner: Union[str, UserRegistrar] = "",
+                                   description: str = "",
+                                   inputs: list = [],
+                                   schedule: str = "",
+                                   args: K8sArgs = None
+                                   ):
+        """Register a Dataframe transformation source.
+
+        Args:
+            name (str): Name of source
+            variant (str): Name of variant
+            query (str): SQL query
+            provider (Union[str, OfflineProvider]): Provider
+            name (str): Name of source
+            owner (Union[str, UserRegistrar]): Owner
+            description (str): Description of SQL transformation
+            inputs (list): Inputs to transformation
+            schedule (str): Kubernetes CronJob schedule string ("* * * * *")
+            args (K8sArgs): Additional transformation arguments
+
+        Returns:
+            source (ColumnSourceRegistrar): Source
+        """
+        if not isinstance(owner, str):
+            owner = owner.name()
+        if owner == "":
+            owner = self.must_get_default_owner()
+        if not isinstance(provider, str):
+            provider = provider.name()
+        for i, nv in enumerate(inputs):
+            if not isinstance(nv, tuple):
+                inputs[i] = nv.name_variant()
+        source = Source(
+            name=name,
+            variant=variant,
+            definition=DFTransformation(query, inputs, args),
+            owner=owner,
+            schedule=schedule,
+            provider=provider,
+            description=description,
+        )
+        self.__resources.append(source)
+        return ColumnSourceRegistrar(self, source)
 
     def df_transformation(self,
                           provider: Union[str, OfflineProvider],
@@ -2228,7 +1972,9 @@ class Registrar:
                           name: str = "",
                           owner: Union[str, UserRegistrar] = "",
                           description: str = "",
-                          inputs: list = []):
+                          inputs: list = [],
+                          args: K8sArgs = None
+                          ):
         """Dataframe transformation decorator.
 
         Args:
@@ -2238,6 +1984,7 @@ class Registrar:
             owner (Union[str, UserRegistrar]): Owner
             description (str): Description of SQL transformation
             inputs (list): Inputs to transformation
+            args (K8sArgs): Additional transformation arguments
 
         Returns:
             decorator (DFTransformationDecorator): decorator
@@ -2260,6 +2007,7 @@ class Registrar:
             owner=owner,
             description=description,
             inputs=inputs,
+            args=args
         )
         self.__resources.append(decorator)
         return decorator

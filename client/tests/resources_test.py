@@ -6,10 +6,13 @@ import sys
 
 sys.path.insert(0, 'client/src/')
 import pytest
-from featureform.resources import ResourceRedefinedError, ResourceState, Provider, RedisConfig, CassandraConfig, FirestoreConfig, \
+from featureform.resources import ResourceRedefinedError, ResourceState, Provider, RedisConfig, CassandraConfig, \
+    FirestoreConfig, \
     SnowflakeConfig, PostgresConfig, RedshiftConfig, BigQueryConfig, OnlineBlobConfig, K8sConfig, \
     User, Provider, Entity, Feature, Label, TrainingSet, PrimaryData, SQLTable, \
-    Source, ResourceColumnMapping, DynamodbConfig, Schedule
+    Source, ResourceColumnMapping, DynamodbConfig, Schedule, SQLTransformation, DFTransformation, K8sArgs
+
+from featureform.register import OfflineK8sProvider, Registrar
 
 
 @pytest.fixture
@@ -53,6 +56,7 @@ def blob_store_config():
         container_name="examplecontainer",
         root_path="example/path",
     )
+
 
 @pytest.fixture
 def online_blob_config(blob_store_config):
@@ -190,6 +194,131 @@ def bigquery_provider(bigquery_config):
     )
 
 
+@pytest.mark.parametrize('query,image', [
+    ("SELECT * FROM X", ""),
+    ("SELECT * FROM X", "my/docker:image")
+
+])
+def test_sql_k8s_image(query, image):
+    transformation = SQLTransformation(query, K8sArgs(image))
+    recv_query = transformation.kwargs()["transformation"].SQLTransformation.query
+    recv_image = transformation.kwargs()["transformation"].kubernetes_args.docker_image
+    assert recv_query == query
+    assert recv_image == image
+
+
+def test_sql_k8s_image_none():
+    query = "SELECT * FROM X"
+    transformation = SQLTransformation(query)
+    recv_query = transformation.kwargs()["transformation"].SQLTransformation.query
+    recv_image = transformation.kwargs()["transformation"].kubernetes_args.docker_image
+    assert recv_query == query
+    assert recv_image == ""
+
+
+@pytest.mark.parametrize('query,image', [
+    (bytes(), ""),
+    (bytes(), "my/docker:image")
+
+])
+def test_df_k8s_image(query, image):
+    transformation = DFTransformation(query, [], K8sArgs(image))
+    recv_query = transformation.kwargs()["transformation"].DFTransformation.query
+    recv_image = transformation.kwargs()["transformation"].kubernetes_args.docker_image
+    assert recv_query == query
+    assert recv_image == image
+
+
+def test_df_k8s_image_none():
+    query = bytes()
+    transformation = DFTransformation(query, [])
+    recv_query = transformation.kwargs()["transformation"].DFTransformation.query
+    recv_image = transformation.kwargs()["transformation"].kubernetes_args.docker_image
+    assert recv_query == query
+    assert recv_image == ""
+
+
+@pytest.fixture
+def mock_config():
+    class MockConfig:
+        def software(self):
+            return ""
+
+    return MockConfig()
+
+
+@pytest.fixture
+def mock_provider(mock_config):
+    return Provider(
+        name="provider-name",
+        function="OFFLINE",
+        description="provider-description",
+        team="team",
+        config=mock_config
+    )
+
+
+@pytest.fixture
+def registrar():
+    return Registrar()
+
+
+def get_transformation_config(registrar):
+    provider_source = registrar.get_resources()[0].to_source()
+    config = provider_source.definition.kwargs()["transformation"]
+    return config
+
+
+@pytest.mark.parametrize('image', ['', 'docker/image:latest'])
+def test_k8s_sql_provider(registrar, mock_provider, image):
+    k8s = OfflineK8sProvider(registrar, mock_provider)
+
+    @k8s.sql_transformation(owner="mock-owner", docker_image=image)
+    def mock_transform():
+        return "SELECT * FROM X"
+
+    config = get_transformation_config(registrar)
+    docker_image = config.kubernetes_args.docker_image
+    assert image == docker_image
+
+
+def test_k8s_sql_provider_empty(registrar, mock_provider):
+    k8s = OfflineK8sProvider(registrar, mock_provider)
+
+    @k8s.sql_transformation(owner="mock-owner")
+    def mock_transform():
+        return "SELECT * FROM X"
+
+    config = get_transformation_config(registrar)
+    docker_image = config.kubernetes_args.docker_image
+    assert docker_image == ""
+
+
+@pytest.mark.parametrize('image', ['', 'docker/image:latest'])
+def test_k8s_df_provider(registrar, mock_provider, image):
+    k8s = OfflineK8sProvider(registrar, mock_provider)
+
+    @k8s.df_transformation(owner="mock-owner", docker_image=image)
+    def mock_transform(df):
+        return df
+
+    config = get_transformation_config(registrar)
+    docker_image = config.kubernetes_args.docker_image
+    assert image == docker_image
+
+
+def test_k8s_df_provider_empty(registrar, mock_provider):
+    k8s = OfflineK8sProvider(registrar, mock_provider)
+
+    @k8s.df_transformation(owner="mock-owner")
+    def mock_transform():
+        return "SELECT * FROM X"
+
+    config = get_transformation_config(registrar)
+    docker_image = config.kubernetes_args.docker_image
+    assert docker_image == ""
+
+
 def init_feature(input):
     Feature(name="feature",
             variant="v1",
@@ -216,6 +345,7 @@ def test_valid_feature_column_types(input, fail):
     if fail:
         with pytest.raises(ValueError):
             init_feature(input)
+
 
 def init_label(input):
     Label(name="feature",

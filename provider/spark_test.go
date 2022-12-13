@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/featureform/provider/filestore"
 	"math/rand"
 	// "os"
 	"bytes"
@@ -29,7 +30,7 @@ import (
 )
 
 // will replace all the upload parquet table functions
-func uploadCSVTable(store FileStore, path string, tables interface{}) error {
+func uploadCSVTable(store filestore.FileStore, path string, tables interface{}) error {
 	maxSlice := make([][]string, 0)
 	array := reflect.ValueOf(tables)
 	fieldSlice := make([]string, 0)
@@ -62,7 +63,7 @@ func uploadCSVTable(store FileStore, path string, tables interface{}) error {
 
 }
 
-func uploadParquetTable(store FileStore, path string, tables interface{}) error {
+func uploadParquetTable(store filestore.FileStore, path string, tables interface{}) error {
 	//reflect the interface into an []any list and pass it
 	array := reflect.ValueOf(tables)
 	anyArray := make([]any, 0)

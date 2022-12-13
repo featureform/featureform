@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/featureform/provider/filestore"
 	"net/http"
 	"os"
 	"strings"
@@ -12,16 +13,11 @@ import (
 	"github.com/featureform/helpers"
 	"github.com/featureform/logging"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	awsv2cfg "github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/credentials"
-	"github.com/aws/aws-sdk-go-v2/service/emr"
-	s3v2 "github.com/aws/aws-sdk-go-v2/service/s3"
-	"go.uber.org/zap"
-	"gocloud.dev/blob/s3blob"
-
 	databricks "github.com/Azure/databricks-sdk-golang"
 	dbAzure "github.com/Azure/databricks-sdk-golang/azure"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/emr"
+	"go.uber.org/zap"
 
 	// clusterHTTPModels "github.com/Azure/databricks-sdk-golang/azure/clusters/httpmodels"
 	// clusterModels "github.com/Azure/databricks-sdk-golang/azure/clusters/models"
@@ -58,8 +54,8 @@ type SparkExecutorConfig []byte
 type SparkConfig struct {
 	ExecutorType   SparkExecutorType
 	ExecutorConfig DatabricksConfig
-	StoreType      FileStoreType
-	StoreConfig    AzureFileStoreConfig
+	StoreType      filestore.FileStoreType
+	StoreConfig    filestore.AzureFileStoreConfig
 } //TODO, change these back to type agnostic after databricks tests
 
 func (s *SparkConfig) Deserialize(config SerializedConfig) error {
@@ -144,16 +140,16 @@ type DatabricksExecutor struct {
 	config  DatabricksConfig
 }
 
-func (e *EMRExecutor) PythonFileURI(store FileStore) string {
+func (e *EMRExecutor) PythonFileURI(store filestore.FileStore) string {
 	return ""
 }
 
-func (db *DatabricksExecutor) PythonFileURI(store FileStore) string {
+func (db *DatabricksExecutor) PythonFileURI(store filestore.FileStore) string {
 	filePath := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/spark/offline_store_spark_runner.py")
 	return store.PathWithPrefix(filePath[1:], true)
 }
 
-func readAndUploadFile(filePath string, storePath string, store FileStore) error {
+func readAndUploadFile(filePath string, storePath string, store filestore.FileStore) error {
 	fileExists, _ := store.Exists(storePath)
 	if fileExists {
 		return nil
@@ -177,7 +173,7 @@ func readAndUploadFile(filePath string, storePath string, store FileStore) error
 	return nil
 }
 
-func (db *DatabricksExecutor) InitializeExecutor(store FileStore) error {
+func (db *DatabricksExecutor) InitializeExecutor(store filestore.FileStore) error {
 	sparkScriptPath := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/spark/offline_store_spark_runner.py")[1:]
 	pythonInitScriptPath := helpers.GetEnv("PYTHON_INIT_PATH", "/scripts/spark/python_packages.sh")[1:]
 
@@ -217,7 +213,7 @@ func NewDatabricksExecutor(databricksConfig DatabricksConfig) (SparkExecutor, er
 	}, nil
 }
 
-func (db *DatabricksExecutor) RunSparkJob(args *[]string, store FileStore) error {
+func (db *DatabricksExecutor) RunSparkJob(args *[]string, store filestore.FileStore) error {
 	//set spark configuration
 	// clusterClient := db.client.Clusters()
 	// setConfigReq := clusterHTTPModels.EditReq{
@@ -280,65 +276,6 @@ func (db *DatabricksExecutor) RunSparkJob(args *[]string, store FileStore) error
 		time.Sleep(1 * time.Second)
 	}
 	return nil
-}
-
-type S3FileStoreConfig struct {
-	AWSAccessKeyId string
-	AWSSecretKey   string
-	BucketRegion   string
-	BucketPath     string
-	Path           string
-}
-
-func (s *S3FileStoreConfig) Deserialize(config SerializedConfig) error {
-	err := json.Unmarshal(config, s)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *S3FileStoreConfig) Serialize() []byte {
-	conf, err := json.Marshal(s)
-	if err != nil {
-		panic(err)
-	}
-	return conf
-}
-
-type S3FileStore struct {
-	Bucket string
-	Path   string
-	genericFileStore
-}
-
-func NewS3FileStore(config Config) (FileStore, error) {
-	s3StoreConfig := S3FileStoreConfig{}
-	if err := s3StoreConfig.Deserialize(SerializedConfig(config)); err != nil {
-		return nil, fmt.Errorf("could not deserialize s3 store config: %v", err)
-	}
-	cfg, err := awsv2cfg.LoadDefaultConfig(context.TODO(),
-		awsv2cfg.WithCredentialsProvider(credentials.StaticCredentialsProvider{
-			Value: aws.Credentials{
-				AccessKeyID: s3StoreConfig.AWSAccessKeyId, SecretAccessKey: s3StoreConfig.AWSSecretKey,
-			},
-		}))
-	if err != nil {
-		return nil, err
-	}
-	cfg.Region = s3StoreConfig.BucketRegion
-	clientV2 := s3v2.NewFromConfig(cfg)
-	bucket, err := s3blob.OpenBucketV2(context.TODO(), clientV2, s3StoreConfig.BucketPath, nil)
-	if err != nil {
-		return nil, err
-	}
-	return &S3FileStore{
-		Bucket: s3StoreConfig.BucketPath,
-		Path:   s3StoreConfig.Path,
-		genericFileStore: genericFileStore{
-			bucket: bucket,
-		},
-	}, nil
 }
 
 type PythonOfflineQueries interface {
@@ -426,7 +363,7 @@ func (q defaultPythonOfflineQueries) trainingSetCreate(def TrainingSetDef, featu
 
 type SparkOfflineStore struct {
 	Executor SparkExecutor
-	Store    FileStore
+	Store    filestore.FileStore
 	Logger   *zap.SugaredLogger
 	query    *defaultPythonOfflineQueries
 	BaseProvider
@@ -489,11 +426,11 @@ func sparkOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 }
 
 type SparkExecutor interface {
-	RunSparkJob(args *[]string, store FileStore) error
-	InitializeExecutor(store FileStore) error
-	PythonFileURI(store FileStore) string
-	SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store FileStore) []string
-	GetDFArgs(outputURI string, code string, sources []string, store FileStore) ([]string, error)
+	RunSparkJob(args *[]string, store filestore.FileStore) error
+	InitializeExecutor(store filestore.FileStore) error
+	PythonFileURI(store filestore.FileStore) string
+	SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store filestore.FileStore) []string
+	GetDFArgs(outputURI string, code string, sources []string, store filestore.FileStore) ([]string, error)
 }
 
 type EMRExecutor struct {
@@ -502,7 +439,7 @@ type EMRExecutor struct {
 	logger      *zap.SugaredLogger
 }
 
-func (e EMRExecutor) InitializeExecutor(store FileStore) error {
+func (e EMRExecutor) InitializeExecutor(store filestore.FileStore) error {
 	sparkScriptPath := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/offline_store_spark_runner.py")
 	scriptFile, err := os.Open(sparkScriptPath)
 	if err != nil {
@@ -540,7 +477,7 @@ func NewSparkExecutor(execType SparkExecutorType, config DatabricksConfig, logge
 	return nil, nil
 }
 
-func (e *EMRExecutor) RunSparkJob(args *[]string, store FileStore) error {
+func (e *EMRExecutor) RunSparkJob(args *[]string, store filestore.FileStore) error {
 	params := &emr.AddJobFlowStepsInput{
 		JobFlowId: aws.String(e.clusterName), //returned by listclusters
 		Steps: []emrTypes.StepConfig{
@@ -574,7 +511,7 @@ func (e *EMRExecutor) RunSparkJob(args *[]string, store FileStore) error {
 	return nil
 }
 
-func (e *EMRExecutor) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store FileStore) []string {
+func (e *EMRExecutor) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store filestore.FileStore) []string {
 	argList := []string{
 		"spark-submit",
 		"--deploy-mode",
@@ -593,7 +530,7 @@ func (e *EMRExecutor) SparkSubmitArgs(destPath string, cleanQuery string, source
 	return argList
 }
 
-func (d *DatabricksExecutor) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store FileStore) []string {
+func (d *DatabricksExecutor) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store filestore.FileStore) []string {
 	argList := []string{
 		"sql",
 		"--output_uri",
@@ -604,11 +541,11 @@ func (d *DatabricksExecutor) SparkSubmitArgs(destPath string, cleanQuery string,
 		string(jobType),
 	}
 	var remoteConnectionArgs []string
-	azureStore := store.AsAzureStore()
-	if azureStore != nil {
+	azureStore, ok := store.(filestore.AzureFileStore)
+	if ok {
 		remoteConnectionArgs = []string{
 			"--spark_config",
-			azureStore.configString(),
+			azureStore.ConfigString(),
 		}
 	}
 	argList = append(argList, remoteConnectionArgs...)
@@ -624,11 +561,15 @@ func (spark *SparkOfflineStore) pysparkArgs(destinationURI string, templatedQuer
 }
 
 func (spark *SparkOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error) {
-	return blobRegisterPrimary(id, sourceName, spark.Logger, spark.Store)
+	return filestore.RegisterPrimary(id, sourceName, spark.Logger, spark.Store)
 }
 
 func (spark *SparkOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error) {
-	return blobRegisterResource(id, schema, spark.Logger, spark.Store)
+	if err := id.check(Feature, Label); err != nil {
+		spark.Logger.Errorw("Failure checking ID", "error", err)
+		return nil, fmt.Errorf("ID check failed: %v", err)
+	}
+	return filestore.RegisterResource(id, schema, spark.Logger, spark.Store)
 }
 
 func (spark *SparkOfflineStore) CreateTransformation(config TransformationConfig) error {
@@ -823,7 +764,7 @@ func (spark *SparkOfflineStore) getResourceInformationFromFilePath(path string) 
 	return fileType, fileName, fileVariant
 }
 
-func (e *EMRExecutor) GetDFArgs(outputURI string, code string, sources []string, store FileStore) ([]string, error) {
+func (e *EMRExecutor) GetDFArgs(outputURI string, code string, sources []string, store filestore.FileStore) ([]string, error) {
 	argList := []string{
 		"spark-submit",
 		"--deploy-mode",
@@ -842,7 +783,7 @@ func (e *EMRExecutor) GetDFArgs(outputURI string, code string, sources []string,
 	return argList, nil
 }
 
-func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, sources []string, store FileStore) ([]string, error) {
+func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, sources []string, store filestore.FileStore) ([]string, error) {
 	argList := []string{
 		"df",
 		"--output_uri",
@@ -851,18 +792,18 @@ func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, sources []
 		code,
 	}
 	var remoteConnectionArgs []string
-	azureStore := store.AsAzureStore()
+	azureStore, ok := store.(filestore.AzureFileStore)
 
-	if azureStore != nil {
+	if ok {
 		remoteConnectionArgs = []string{
 			"--store_type",
 			"azure_blob_store",
 			"--spark_config",
-			azureStore.configString(),
+			azureStore.ConfigString(),
 			"--credential",
-			fmt.Sprintf("azure_connection_string=%s", azureStore.connectionString()),
+			fmt.Sprintf("azure_connection_string=%s", azureStore.GetConnectionString()),
 			"--credential",
-			fmt.Sprintf("azure_container_name=%s", azureStore.containerName()),
+			fmt.Sprintf("azure_container_name=%s", azureStore.GetContainerName()),
 		}
 	}
 	argList = append(argList, remoteConnectionArgs...)
@@ -875,14 +816,14 @@ func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, sources []
 
 func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
 	spark.Logger.Debugw("Getting transformation table", "ResourceID", id)
-	transformationPath := spark.Store.PathWithPrefix(fileStoreResourcePath(id), false)
+	transformationPath := spark.Store.PathWithPrefix(filestore.ResourcePath(id), false)
 	transformationExactPath, err := spark.Store.NewestFile(spark.Store.PathWithPrefix(transformationPath, false))
 	fmt.Println("GetTransformation", transformationPath, transformationExactPath)
 	if err != nil || transformationExactPath == "" {
 		return nil, fmt.Errorf("Could not get transformation table: %v", err)
 	}
 	spark.Logger.Debugw("Succesfully retrieved transformation table", "ResourceID", id)
-	return &FileStorePrimaryTable{spark.Store, transformationExactPath, true, id}, nil
+	return &filestore.PrimaryTable{spark.Store, transformationExactPath, true, id}, nil
 }
 
 func (spark *SparkOfflineStore) UpdateTransformation(config TransformationConfig) error {
@@ -894,7 +835,7 @@ func (spark *SparkOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSc
 }
 
 func (spark *SparkOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error) {
-	return fileStoreGetPrimary(id, spark.Store, spark.Logger)
+	return filestore.GetPrimaryTable(id, spark.Store, spark.Logger)
 }
 
 func (spark *SparkOfflineStore) CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error) {
@@ -902,7 +843,7 @@ func (spark *SparkOfflineStore) CreateResourceTable(id ResourceID, schema TableS
 }
 
 func (spark *SparkOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, error) {
-	return fileStoreGetResourceTable(id, spark.Store, spark.Logger)
+	return filestore.GetResourceTable(id, spark.Store, spark.Logger)
 }
 
 func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate bool) (Materialization, error) {
@@ -915,14 +856,14 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 		spark.Logger.Errorw("Attempted to fetch resource table of non registered resource", err)
 		return nil, fmt.Errorf("resource not registered: %v", err)
 	}
-	sparkResourceTable, ok := resourceTable.(*BlobOfflineTable)
+	sparkResourceTable, ok := resourceTable.(*filestore.FilestoreOfflineTable)
 	if !ok {
 		spark.Logger.Errorw("Could not convert resource table to S3 offline table", id)
 		return nil, fmt.Errorf("could not convert offline table with id %v to sparkResourceTable", id)
 	}
 	materializationID := ResourceID{Name: id.Name, Variant: id.Variant, Type: FeatureMaterialization}
 	destinationPath := spark.Store.PathWithPrefix(ResourcePrefix(materializationID), true)
-	materializationNewestFile, err := spark.Store.NewestFile(spark.Store.PathWithPrefix(fileStoreResourcePath(materializationID), false))
+	materializationNewestFile, err := spark.Store.NewestFile(spark.Store.PathWithPrefix(filestore.ResourcePath(materializationID), false))
 	if err != nil {
 		return nil, fmt.Errorf("Could not get newest materialization file: %v", err)
 	}
@@ -934,20 +875,20 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 		spark.Logger.Errorw("Attempted to materialize a materialization that already exists", id)
 		return nil, fmt.Errorf("materialization already exists")
 	}
-	materializationQuery := spark.query.materializationCreate(sparkResourceTable.schema)
-	sourcePath := spark.Store.PathWithPrefix(sparkResourceTable.schema.SourceTable, true)
+	materializationQuery := spark.query.materializationCreate(sparkResourceTable.Schema)
+	sourcePath := spark.Store.PathWithPrefix(sparkResourceTable.Schema.SourceTable, true)
 	sparkArgs := spark.Executor.SparkSubmitArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize, spark.Store)
 	spark.Logger.Debugw("Creating materialization", "id", id)
 	if err := spark.Executor.RunSparkJob(&sparkArgs, spark.Store); err != nil {
 		spark.Logger.Errorw("Spark submit job failed to run", err)
 		return nil, fmt.Errorf("spark submit job for materialization %v failed to run: %v", materializationID, err)
 	}
-	key, err := spark.Store.NewestFile(spark.Store.PathWithPrefix(fileStoreResourcePath(materializationID), false))
+	key, err := spark.Store.NewestFile(spark.Store.PathWithPrefix(filestore.ResourcePath(materializationID), false))
 	if err != nil || key == "" {
 		return nil, fmt.Errorf("Could not get newest materialization file: %v", err)
 	}
 	spark.Logger.Debugw("Succesfully created materialization", "id", id)
-	return &FileStoreMaterialization{materializationID, spark.Store, key}, nil
+	return &filestore.Materialization{materializationID, spark.Store, key}, nil
 }
 
 func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materialization, error) {
@@ -955,7 +896,7 @@ func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materializ
 }
 
 func (spark *SparkOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
-	return fileStoreGetMaterialization(id, spark.Store, spark.Logger)
+	return filestore.GetMaterialization(id, spark.Store, spark.Logger)
 }
 
 func (spark *SparkOfflineStore) UpdateMaterialization(id ResourceID) (Materialization, error) {
@@ -963,7 +904,7 @@ func (spark *SparkOfflineStore) UpdateMaterialization(id ResourceID) (Materializ
 }
 
 func (spark *SparkOfflineStore) DeleteMaterialization(id MaterializationID) error {
-	return fileStoreDeleteMaterialization(id, spark.Store, spark.Logger)
+	return filestore.DeleteMaterialization(id, spark.Store, spark.Logger)
 }
 
 func (spark *SparkOfflineStore) registeredResourceSchema(id ResourceID) (ResourceSchema, error) {
@@ -973,13 +914,13 @@ func (spark *SparkOfflineStore) registeredResourceSchema(id ResourceID) (Resourc
 		spark.Logger.Errorw("Resource not registered in spark store", id, err)
 		return ResourceSchema{}, fmt.Errorf("resource not registered: %v", err)
 	}
-	sparkResourceTable, ok := table.(*BlobOfflineTable)
+	sparkResourceTable, ok := table.(*filestore.FilestoreOfflineTable)
 	if !ok {
 		spark.Logger.Errorw("could not convert offline table to sparkResourceTable", id)
 		return ResourceSchema{}, fmt.Errorf("could not convert offline table with id %v to sparkResourceTable", id)
 	}
 	spark.Logger.Debugw("Succesfully retrieved resource schema", "id", id)
-	return sparkResourceTable.schema, nil
+	return sparkResourceTable.Schema, nil
 }
 
 func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate bool) error {
@@ -990,7 +931,7 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 	sourcePaths := make([]string, 0)
 	featureSchemas := make([]ResourceSchema, 0)
 	destinationPath := spark.Store.PathWithPrefix(ResourcePrefix(def.ID), true)
-	trainingSetNewestFile, err := spark.Store.NewestFile(spark.Store.PathWithPrefix(fileStoreResourcePath(def.ID), false))
+	trainingSetNewestFile, err := spark.Store.NewestFile(spark.Store.PathWithPrefix(filestore.ResourcePath(def.ID), false))
 	if err != nil {
 		return fmt.Errorf("Error getting training set newest file: %v", err)
 	}
@@ -1048,7 +989,11 @@ func (spark *SparkOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {
 }
 
 func (spark *SparkOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
-	return fileStoreGetTrainingSet(id, spark.Store, spark.Logger)
+	if err := id.check(TrainingSet); err != nil {
+		spark.Logger.Errorw("id is not of type training set", err)
+		return nil, fmt.Errorf("resource is not training set: %w", err)
+	}
+	return filestore.GetTrainingSet(id, spark.Store, spark.Logger)
 }
 
 func sanitizeSparkSQL(name string) string {

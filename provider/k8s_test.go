@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/featureform/config"
+	"github.com/featureform/provider/filestore"
 	"os"
 	"reflect"
 	"strings"
@@ -103,7 +104,7 @@ func TestDeserializeExecutorConfig(t *testing.T) {
 }
 
 func TestBlobInterfaces(t *testing.T) {
-	fileStoreTests := map[string]func(*testing.T, FileStore){
+	fileStoreTests := map[string]func(*testing.T, filestore.FileStore){
 		"Test Filestore Read and Write":  testFilestoreReadAndWrite,
 		"Test Exists":                    testExists,
 		"Test Not Exists":                testNotExists,
@@ -127,12 +128,12 @@ func TestBlobInterfaces(t *testing.T) {
 	directoryPath := fmt.Sprintf("%s/scripts/k8s/tests/test_files/output/go_tests", mydir)
 	_ = os.MkdirAll(directoryPath, os.ModePerm)
 
-	fileStoreConfig := FileFileStoreConfig{DirPath: fmt.Sprintf(`file:///%s`, directoryPath)}
+	fileStoreConfig := LocalFileStoreConfig{DirPath: fmt.Sprintf(`file:///%s`, directoryPath)}
 	serializedFileConfig, err := fileStoreConfig.Serialize()
 	if err != nil {
 		t.Fatalf("failed to serialize file store config: %v", err)
 	}
-	fileFileStore, err := NewFileFileStore(serializedFileConfig)
+	fileFileStore, err := NewLocalFileStore(serializedFileConfig)
 	if err != nil {
 		t.Fatalf("failed to create new file blob store: %v", err)
 	}
@@ -151,7 +152,7 @@ func TestBlobInterfaces(t *testing.T) {
 		t.Fatalf("failed to create new azure blob store: %v", err)
 	}
 
-	blobProviders := map[string]FileStore{
+	blobProviders := map[string]filestore.FileStore{
 		"File":  fileFileStore,
 		"Azure": azureFileStore,
 	}
@@ -171,7 +172,7 @@ func TestBlobInterfaces(t *testing.T) {
 	}
 }
 
-func testFilestoreReadAndWrite(t *testing.T, store FileStore) {
+func testFilestoreReadAndWrite(t *testing.T, store filestore.FileStore) {
 	testWrite := []byte("example data")
 	testKey := uuidWithoutDashes()
 	exists, err := store.Exists(testKey)
@@ -298,7 +299,7 @@ func Test_parquetIteratorFromReader(t *testing.T) {
 	}
 }
 
-func testExists(t *testing.T, store FileStore) {
+func testExists(t *testing.T, store filestore.FileStore) {
 	randomKey := uuid.New().String()
 	randomData := []byte(uuid.New().String())
 	if err := store.Write(randomKey, randomData); err != nil {
@@ -317,7 +318,7 @@ func testExists(t *testing.T, store FileStore) {
 	}
 }
 
-func testNotExists(t *testing.T, store FileStore) {
+func testNotExists(t *testing.T, store filestore.FileStore) {
 	randomKey := uuid.New().String()
 	exists, err := store.Exists(randomKey)
 	if err != nil {
@@ -367,7 +368,7 @@ func compareStructWithInterface(compareStruct any, compareInterface map[string]i
 	return true, nil
 }
 
-func testServe(t *testing.T, store FileStore) {
+func testServe(t *testing.T, store filestore.FileStore) {
 	parquetNumRows := int64(5)
 	randomStructs := randomStructList(parquetNumRows)
 	parquetBytes, err := convertToParquetBytes(randomStructs)
@@ -412,7 +413,7 @@ func testServe(t *testing.T, store FileStore) {
 	}
 }
 
-func testServeDirectory(t *testing.T, store FileStore) {
+func testServeDirectory(t *testing.T, store filestore.FileStore) {
 	parquetNumRows := int64(5)
 	parquetNumFiles := int64(5)
 	randomDirectory := uuid.New().String()
@@ -463,7 +464,7 @@ func testServeDirectory(t *testing.T, store FileStore) {
 	}
 }
 
-func testDelete(t *testing.T, store FileStore) {
+func testDelete(t *testing.T, store filestore.FileStore) {
 	randomKey := uuid.New().String()
 	randomData := []byte(uuid.New().String())
 	if err := store.Write(randomKey, randomData); err != nil {
@@ -489,7 +490,7 @@ func testDelete(t *testing.T, store FileStore) {
 
 }
 
-func testDeleteAll(t *testing.T, store FileStore) {
+func testDeleteAll(t *testing.T, store filestore.FileStore) {
 	randomListLength := 5
 	randomDirectory := uuid.New().String()
 	randomKeyList := make([]string, randomListLength)
@@ -527,7 +528,7 @@ func testDeleteAll(t *testing.T, store FileStore) {
 
 }
 
-func testNewestFile(t *testing.T, store FileStore) {
+func testNewestFile(t *testing.T, store filestore.FileStore) {
 	// write a bunch of blobs with different timestamps
 	randomListLength := 5
 	randomDirectory := uuid.New().String()
@@ -555,16 +556,16 @@ func testNewestFile(t *testing.T, store FileStore) {
 	}
 }
 
-func testPathWithPrefix(t *testing.T, store FileStore) {
+func testPathWithPrefix(t *testing.T, store filestore.FileStore) {
 	randomKey := uuid.New().String()
-	azureStore, ok := store.(AzureFileStore)
+	azureStore, ok := store.(filestore.AzureFileStore)
 	if ok {
 		azurePathWithPrefix := azureStore.PathWithPrefix(randomKey, false)
 		if azurePathWithPrefix != fmt.Sprintf("%s/%s", azureStore.Path, randomKey) {
 			t.Fatalf("Incorrect path with prefix. Expected %s, got %s", fmt.Sprintf("%s/%s", azureStore.Path, randomKey), azurePathWithPrefix)
 		}
 	}
-	fileFileStore, ok := store.(FileFileStore)
+	fileFileStore, ok := store.(LocalFileStore)
 	if ok {
 		filePathWithPrefix := fileFileStore.PathWithPrefix(randomKey, false)
 		if filePathWithPrefix != fmt.Sprintf("%s%s", fileFileStore.DirPath, randomKey) {
@@ -573,7 +574,7 @@ func testPathWithPrefix(t *testing.T, store FileStore) {
 	}
 }
 
-func testNumRows(t *testing.T, store FileStore) {
+func testNumRows(t *testing.T, store filestore.FileStore) {
 	parquetNumRows := int64(5)
 	randomStructList := randomStructList(parquetNumRows)
 	parquetBytes, err := convertToParquetBytes(randomStructList)
@@ -597,7 +598,7 @@ func testNumRows(t *testing.T, store FileStore) {
 	}
 }
 
-func testDatabricksInitialization(t *testing.T, store FileStore) {
+func testDatabricksInitialization(t *testing.T, store filestore.FileStore) {
 	host := helpers.GetEnv("DATABRICKS_HOST", "")
 	token := helpers.GetEnv("DATABRICKS_ACCESS_TOKEN", "")
 	cluster := helpers.GetEnv("DATABRICKS_CLUSTER", "")

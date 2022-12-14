@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/featureform/config"
-	"github.com/featureform/provider/filestore"
 	"os"
 	"reflect"
 	"strings"

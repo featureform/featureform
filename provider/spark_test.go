@@ -11,7 +11,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/featureform/provider/filestore"
 	"math/rand"
 	// "os"
 	"bytes"

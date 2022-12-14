@@ -200,7 +200,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      - name: Build and export
+      - name: Build and export base
         uses: docker/build-push-action@v3
         with:
           context: .
@@ -208,11 +208,27 @@ jobs:
           tags: local/k8s_runner:stable
           push: false
           outputs: type=docker,dest=/tmp/k8s_runner.tar
+
       - name: Upload image
         uses: actions/upload-artifact@v3
         with:
           name: k8s_runner
           path: /tmp/k8s_runner.tar
+
+      - name: Build and export scikit
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./provider/scripts/k8s/Dockerfile.scikit
+          tags: local/k8s_runner:stable-scikit
+          push: false
+          outputs: type=docker,dest=/tmp/k8s_runner-scikit.tar
+
+      - name: Upload image
+        uses: actions/upload-artifact@v3
+        with:
+          name: k8s_runner-scikit
+          path: /tmp/k8s_runner-scikit.tar
   test:
     name: Run Tests
     environment: Integration testing
@@ -226,7 +242,7 @@ jobs:
       - name: Download artifact
         uses: actions/download-artifact@v3
         with:
-          names: api-server coordinator dashboard dashboard-metadata metadata serving worker k8s_runner
+          names: api-server coordinator dashboard dashboard-metadata metadata serving worker k8s_runner k8s_runner-scikit
           path: /tmp
 
       - uses: actions/setup-python@v4
@@ -284,6 +300,7 @@ jobs:
           docker load --input /tmp/serving/serving.tar
           docker load --input /tmp/worker/worker.tar
           docker load --input /tmp/k8s_runner/k8s_runner.tar
+          docker load --input /tmp/k8s_runner/k8s_runner-scikit.tar
           minikube image load local/api-server:stable
           minikube image load local/coordinator:stable
           minikube image load local/dashboard:stable
@@ -292,6 +309,7 @@ jobs:
           minikube image load local/serving:stable
           minikube image load local/worker:stable
           minikube image load local/k8s_runner:stable
+          minikube image load local/k8s_runner:stable-scikit
           minikube image ls
 
       - name: Helm Install

@@ -45,6 +45,14 @@ azure_blob = ff.register_blob_store(
     root_path="testing/ff",
 )
 
+azure_blob_root = ff.register_blob_store(
+    name=f"k8s_blob_store_{VERSION}",
+    account_name= os.getenv("AZURE_ACCOUNT_NAME", None),
+    account_key= os.getenv("AZURE_ACCOUNT_KEY", None),
+    container_name= os.getenv("AZURE_CONTAINER_NAME", None),
+    root_path="",
+)
+
 redis = ff.register_redis(
     name = f"redis-quickstart_{VERSION}",
     host="quickstart-redis", # The internal dns name for redis
@@ -57,6 +65,24 @@ k8s = ff.register_k8s(
     store=azure_blob
 )
 
+k8s_root = ff.register_k8s(
+    name=f"k8s_{VERSION}",
+    store=azure_blob_root
+)
+
+k8s_scikit = ff.register_k8s(
+    name=f"k8s_{VERSION}",
+    store=azure_blob,
+    docker_image="local/k8s_runner:stable-scikit"
+)
+
+k8s_scikit_root = ff.register_k8s(
+    name=f"k8s_{VERSION}",
+    store=azure_blob_root,
+    docker_image="local/k8s_runner:stable-scikit"
+)
+
+
 ice_cream = k8s.register_file(
     name=f"ice_cream_{VERSION}",
     variant=VERSION,
@@ -64,6 +90,28 @@ ice_cream = k8s.register_file(
     path="testing/ff/data/ice_cream_100rows.csv"
 )
 
+root_file = k8s_root.register_file(
+    name=f"ice_cream_root_{VERSION}",
+    variant=VERSION,
+    description="A dataset of ice cream",
+    path="ice_cream_100rows.csv"
+)
+
+ice_cream_sk = k8s_scikit.register_file(
+    name=f"ice_cream_sk_{VERSION}",
+    variant=VERSION,
+    description="A dataset of ice cream",
+    path="testing/ff/data/ice_cream_100rows.csv"
+)
+
+root_file_sk = k8s_scikit_root.register_file(
+    name=f"ice_cream_root_sk_{VERSION}",
+    variant=VERSION,
+    description="A dataset of ice cream",
+    path="ice_cream_100rows.csv"
+)
+
+## Check Base
 @k8s.df_transformation(name=f"ice_cream_entity_{VERSION}", 
                         variant=VERSION,
                         inputs=[(f"ice_cream_{VERSION}", VERSION)])
@@ -76,6 +124,31 @@ def ice_cream_entity_transformation(df):
                         variant=VERSION,
                         inputs=[(f"ice_cream_entity_{VERSION}", VERSION)])
 def ice_cream_transformation(df):
+    """the ice cream dataset """
+    return df
+
+
+## Check Root
+@k8s_root.df_transformation(name=f"ice_cream_transformation_root_{VERSION}",
+                       variant=VERSION,
+                       inputs=[(f"ice_cream_root_{VERSION}", VERSION)])
+def ice_cream_transformation_root(df):
+    """the ice cream dataset """
+    return df
+
+## Check Scikit
+@k8s_root.df_transformation(name=f"ice_cream_transformation_sk_{VERSION}",
+                            variant=VERSION,
+                            inputs=[(f"ice_cream_sk_{VERSION}", VERSION)])
+def ice_cream_transformation_sk(df):
+    """the ice cream dataset """
+    return df
+
+## Check Scikit Root
+@k8s_root.df_transformation(name=f"ice_cream_transformation_scikit_root_{VERSION}",
+                            variant=VERSION,
+                            inputs=[(f"ice_cream_root_sk_{VERSION}", VERSION)])
+def ice_cream_transformation_sk_root(df):
     """the ice cream dataset """
     return df
 
@@ -99,6 +172,36 @@ ice_cream_entity_transformation.register_resources(
     timestamp_column="time_index",
     labels=[
         {"name": f"ice_cream_label_{VERSION}", "variant": FEATURE_VARIANT, "column": "quality_score", "type": "float32"},
+    ],
+)
+
+ice_cream_transformation_root.register_resources(
+    entity=farm,
+    entity_column="entity",
+    timestamp_column="time_index",
+    inference_store=azure_blob,
+    features=[
+        {"name": f"{FEATURE_NAME}_root", "variant": FEATURE_VARIANT, "column": "dairy_flow_rate", "type": "float32"},
+    ],
+)
+
+ice_cream_transformation_sk.register_resources(
+    entity=farm,
+    entity_column="entity",
+    timestamp_column="time_index",
+    inference_store=azure_blob,
+    features=[
+        {"name": f"{FEATURE_NAME}_sk", "variant": FEATURE_VARIANT, "column": "dairy_flow_rate", "type": "float32"},
+    ],
+)
+
+ice_cream_transformation_sk_root.register_resources(
+    entity=farm,
+    entity_column="entity",
+    timestamp_column="time_index",
+    inference_store=azure_blob,
+    features=[
+        {"name": f"{FEATURE_NAME}_sk_root", "variant": FEATURE_VARIANT, "column": "dairy_flow_rate", "type": "float32"},
     ],
 )
 

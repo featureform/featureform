@@ -4,15 +4,16 @@
 import os.path
 import sys
 
+
 sys.path.insert(0, 'client/src/')
 import pytest
 from featureform.resources import ResourceRedefinedError, ResourceState, Provider, RedisConfig, CassandraConfig, \
-    FirestoreConfig, \
+    FirestoreConfig, AzureFileStoreConfig, \
     SnowflakeConfig, PostgresConfig, RedshiftConfig, BigQueryConfig, OnlineBlobConfig, K8sConfig, \
     User, Provider, Entity, Feature, Label, TrainingSet, PrimaryData, SQLTable, \
     Source, ResourceColumnMapping, DynamodbConfig, Schedule, SQLTransformation, DFTransformation, K8sArgs
 
-from featureform.register import OfflineK8sProvider, Registrar
+from featureform.register import OfflineK8sProvider, Registrar, FileStoreProvider
 
 
 @pytest.fixture
@@ -69,7 +70,7 @@ def online_blob_config(blob_store_config):
 @pytest.fixture
 def file_store_provider(blob_store_config):
     return FileStoreProvider(
-        regitrar=None,
+        registrar=None,
         provider=None,
         config=blob_store_config,
         store_type="AZURE"
@@ -79,7 +80,8 @@ def file_store_provider(blob_store_config):
 @pytest.fixture
 def kubernetes_config(file_store_provider):
     return K8sConfig(
-        store=file_store_provider
+        store_type="K8s",
+        store_config=file_store_provider
     )
 
 
@@ -239,22 +241,13 @@ def test_df_k8s_image_none():
 
 
 @pytest.fixture
-def mock_config():
-    class MockConfig:
-        def software(self):
-            return ""
-
-    return MockConfig()
-
-
-@pytest.fixture
-def mock_provider(mock_config):
+def mock_provider(kubernetes_config):
     return Provider(
         name="provider-name",
         function="OFFLINE",
         description="provider-description",
         team="team",
-        config=mock_config
+        config=kubernetes_config
     )
 
 

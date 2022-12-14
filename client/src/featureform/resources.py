@@ -449,7 +449,7 @@ class K8sArgs:
 class K8sConfig:
     store_type: str
     store_config: dict
-    docker_image: str
+    docker_image: str = ""
 
     def software(self) -> str:
         return "k8s"

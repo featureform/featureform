@@ -205,7 +205,7 @@ jobs:
         with:
           context: .
           file: ./provider/scripts/k8s/Dockerfile
-          tags: local/k8s_runner:stable
+          tags: local/k8s_runner:stable,k8s_runner:stable
           push: false
           outputs: type=docker,dest=/tmp/k8s_runner.tar
 

@@ -81,7 +81,7 @@ def file_store_provider(blob_store_config):
 def kubernetes_config(file_store_provider):
     return K8sConfig(
         store_type="K8s",
-        store_config=file_store_provider
+        store_config={}
     )
 
 

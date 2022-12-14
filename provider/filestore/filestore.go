@@ -1,4 +1,4 @@
-package filestore
+package provider
 
 import (
 	"bytes"

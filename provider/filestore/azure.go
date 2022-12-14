@@ -1,4 +1,4 @@
-package filestore
+package provider
 
 import (
 	"context"
@@ -8,6 +8,8 @@ import (
 	"gocloud.dev/blob/azureblob"
 	"os"
 )
+
+type Config []byte
 
 type AzureFileStoreConfig struct {
 	AccountName   string

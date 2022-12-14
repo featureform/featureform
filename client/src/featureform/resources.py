@@ -620,7 +620,7 @@ class SQLTransformation(Transformation):
 @typechecked
 @dataclass
 class DFTransformation(Transformation):
-    query: str
+    query: bytes
     inputs: list
     args: K8sArgs = None
 

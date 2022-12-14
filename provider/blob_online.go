@@ -3,7 +3,6 @@ package provider
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/featureform/provider/filestore"
 	"strconv"
 	"time"
 )
@@ -11,8 +10,8 @@ import (
 const STORE_PREFIX = ".featureform/inferencestore"
 
 type OnlineBlobConfig struct {
-	Type   filestore.FileStoreType
-	Config filestore.AzureFileStoreConfig
+	Type   FileStoreType
+	Config AzureFileStoreConfig
 }
 
 func (online OnlineBlobConfig) Serialized() SerializedConfig {
@@ -32,7 +31,7 @@ func (online *OnlineBlobConfig) Deserialize(config SerializedConfig) error {
 }
 
 type OnlineFileStore struct {
-	filestore.FileStore
+	FileStore
 	Prefix string
 	BaseProvider
 }
@@ -134,7 +133,7 @@ func (store OnlineFileStore) CreateTable(feature, variant string, valueType Valu
 }
 
 type OnlineFileStoreTable struct {
-	store     filestore.FileStore
+	store     FileStore
 	feature   string
 	variant   string
 	prefix    string

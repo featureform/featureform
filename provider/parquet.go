@@ -3,7 +3,6 @@ package provider
 import (
 	"context"
 	"fmt"
-	"github.com/featureform/provider"
 	"github.com/segmentio/parquet-go"
 	"io"
 )
@@ -29,11 +28,11 @@ func (p *ParquetIterator) Next() (map[string]interface{}, error) {
 type ParquetIteratorMultipleFiles struct {
 	fileList     []string
 	currentFile  int64
-	fileIterator provider.Iterator
+	fileIterator Iterator
 	store        GenericFileStore
 }
 
-func parquetIteratorOverMultipleFiles(fileParts []string, store GenericFileStore) (provider.Iterator, error) {
+func parquetIteratorOverMultipleFiles(fileParts []string, store GenericFileStore) (Iterator, error) {
 	b, err := store.bucket.ReadAll(context.TODO(), fileParts[0])
 	if err != nil {
 		return nil, fmt.Errorf("could not read bucket: %w", err)

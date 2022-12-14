@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/featureform/provider"
 	"gocloud.dev/blob"
 )
 
@@ -33,7 +32,7 @@ type LocalFileStore struct {
 	GenericFileStore
 }
 
-func NewLocalFileStore(config provider.Config) (FileStore, error) {
+func NewLocalFileStore(config Config) (FileStore, error) {
 	fileStoreConfig := LocalFileStoreConfig{}
 	if err := fileStoreConfig.Deserialize(config); err != nil {
 		return nil, fmt.Errorf("could not deserialize file store config: %v", err)

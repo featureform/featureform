@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/featureform/provider"
 	"github.com/segmentio/parquet-go"
 	"go.uber.org/zap"
 	"gocloud.dev/blob"
@@ -28,7 +27,7 @@ const (
 type FileStore interface {
 	Write(key string, data []byte) error
 	Read(key string) ([]byte, error)
-	Serve(key string) (provider.Iterator, error)
+	Serve(key string) (Iterator, error)
 	Exists(key string) (bool, error)
 	Delete(key string) error
 	DeleteAll(dir string) error
@@ -142,7 +141,7 @@ func (store GenericFileStore) Read(key string) ([]byte, error) {
 	return data, nil
 }
 
-func (store GenericFileStore) ServeDirectory(dir string) (provider.Iterator, error) {
+func (store GenericFileStore) ServeDirectory(dir string) (Iterator, error) {
 	fileParts := store.outputFileList(dir)
 	if len(fileParts) == 0 {
 		return nil, fmt.Errorf("no files in given directory")
@@ -151,7 +150,7 @@ func (store GenericFileStore) ServeDirectory(dir string) (provider.Iterator, err
 	return parquetIteratorOverMultipleFiles(fileParts, store)
 }
 
-func (store GenericFileStore) Serve(key string) (provider.Iterator, error) {
+func (store GenericFileStore) Serve(key string) (Iterator, error) {
 	keyParts := strings.Split(key, ".")
 	if len(keyParts) == 1 {
 		return store.ServeDirectory(key)
@@ -198,29 +197,29 @@ func (store GenericFileStore) Close() error {
 }
 
 type FilestoreOfflineTable struct {
-	Schema provider.ResourceSchema
+	Schema ResourceSchema
 }
 
-func (tbl *FilestoreOfflineTable) Write(provider.ResourceRecord) error {
+func (tbl *FilestoreOfflineTable) Write(ResourceRecord) error {
 	return fmt.Errorf("not yet implemented")
 }
 
-type PrimaryTable struct {
+type FSPrimaryTable struct {
 	Store            FileStore
 	SourcePath       string
 	IsTransformation bool
-	Id               provider.ResourceID
+	Id               ResourceID
 }
 
-func (tbl *PrimaryTable) Write(provider.GenericRecord) error {
+func (tbl *FSPrimaryTable) Write(GenericRecord) error {
 	return fmt.Errorf("not implemented")
 }
 
-func (tbl *PrimaryTable) GetName() string {
+func (tbl *FSPrimaryTable) GetName() string {
 	return tbl.SourcePath
 }
 
-func (tbl *PrimaryTable) IterateSegment(n int64) (provider.GenericTableIterator, error) {
+func (tbl *FSPrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) {
 	iterator, err := tbl.Store.Serve(tbl.SourcePath)
 	if err != nil {
 		return nil, fmt.Errorf("Could not create iterator from source table: %v", err)
@@ -228,12 +227,12 @@ func (tbl *PrimaryTable) IterateSegment(n int64) (provider.GenericTableIterator,
 	return &FileStoreIterator{iter: iterator, curIdx: 0, maxIdx: n}, nil
 }
 
-func (tbl *PrimaryTable) NumRows() (int64, error) {
+func (tbl *FSPrimaryTable) NumRows() (int64, error) {
 	return tbl.Store.NumRows(tbl.SourcePath)
 }
 
 type FileStoreIterator struct {
-	iter    provider.Iterator
+	iter    Iterator
 	err     error
 	curIdx  int64
 	maxIdx  int64
@@ -273,7 +272,7 @@ func (it *FileStoreIterator) Err() error {
 	return it.err
 }
 
-func (it *FileStoreIterator) Values() provider.GenericRecord {
+func (it *FileStoreIterator) Values() GenericRecord {
 	return it.records
 }
 
@@ -281,17 +280,17 @@ func (it *FileStoreIterator) Close() error {
 	return nil
 }
 
-type Materialization struct {
-	Id    provider.ResourceID
+type FSMaterialization struct {
+	Id    ResourceID
 	Store FileStore
 	Key   string
 }
 
-func (mat Materialization) ID() provider.MaterializationID {
-	return provider.MaterializationID(fmt.Sprintf("%s/%s/%s", provider.FeatureMaterialization, mat.Id.Name, mat.Id.Variant))
+func (mat FSMaterialization) ID() MaterializationID {
+	return MaterializationID(fmt.Sprintf("%s/%s/%s", FeatureMaterialization, mat.Id.Name, mat.Id.Variant))
 }
 
-func (mat Materialization) NumRows() (int64, error) {
+func (mat FSMaterialization) NumRows() (int64, error) {
 	materializationPath := mat.Store.PathWithPrefix(ResourcePath(mat.Id), false)
 	latestMaterializationPath, err := mat.Store.NewestFile(materializationPath)
 	if err != nil {
@@ -300,7 +299,7 @@ func (mat Materialization) NumRows() (int64, error) {
 	return mat.Store.NumRows(latestMaterializationPath)
 }
 
-func (mat Materialization) IterateSegment(begin, end int64) (provider.FeatureIterator, error) {
+func (mat FSMaterialization) IterateSegment(begin, end int64) (FeatureIterator, error) {
 	materializationPath := mat.Store.PathWithPrefix(ResourcePath(mat.Id), false)
 	latestMaterializationPath, err := mat.Store.NewestFile(materializationPath)
 	if err != nil {
@@ -321,9 +320,9 @@ func (mat Materialization) IterateSegment(begin, end int64) (provider.FeatureIte
 }
 
 type FileStoreFeatureIterator struct {
-	iter   provider.Iterator
+	iter   Iterator
 	err    error
-	cur    provider.ResourceRecord
+	cur    ResourceRecord
 	curIdx int64
 	maxIdx int64
 }
@@ -344,7 +343,7 @@ func (iter *FileStoreFeatureIterator) Next() bool {
 	formatDate := "2006-01-02 15:04:05 UTC" // hardcoded golang format date
 	timeString, ok := nextVal["ts"].(string)
 	if !ok {
-		iter.cur = provider.ResourceRecord{Entity: fmt.Sprintf("%s", nextVal["entity"]), Value: nextVal["value"]}
+		iter.cur = ResourceRecord{Entity: fmt.Sprintf("%s", nextVal["entity"]), Value: nextVal["value"]}
 	} else {
 		timestamp, err1 := time.Parse(formatDate, timeString)
 		formatDateWithoutUTC := "2006-01-02 15:04:05"
@@ -360,13 +359,13 @@ func (iter *FileStoreFeatureIterator) Next() bool {
 		} else if err3 == nil {
 			timestamp = timestamp3
 		}
-		iter.cur = provider.ResourceRecord{Entity: string(nextVal["entity"].(string)), Value: nextVal["value"], TS: timestamp}
+		iter.cur = ResourceRecord{Entity: string(nextVal["entity"].(string)), Value: nextVal["value"], TS: timestamp}
 	}
 
 	return true
 }
 
-func (iter *FileStoreFeatureIterator) Value() provider.ResourceRecord {
+func (iter *FileStoreFeatureIterator) Value() ResourceRecord {
 	return iter.cur
 }
 
@@ -379,10 +378,10 @@ func (iter *FileStoreFeatureIterator) Close() error {
 }
 
 type FileStoreTrainingSet struct {
-	id       provider.ResourceID
+	id       ResourceID
 	store    FileStore
 	key      string
-	iter     provider.Iterator
+	iter     Iterator
 	Error    error
 	features []interface{}
 	label    interface{}
@@ -446,7 +445,7 @@ func getParquetNumRows(b []byte) (int64, error) {
 	return r.NumRows(), nil
 }
 
-func parquetIteratorFromBytes(b []byte) (provider.Iterator, error) {
+func parquetIteratorFromBytes(b []byte) (Iterator, error) {
 	file := bytes.NewReader(b)
 	r := parquet.NewReader(file)
 	return &ParquetIterator{
@@ -455,12 +454,8 @@ func parquetIteratorFromBytes(b []byte) (provider.Iterator, error) {
 	}, nil
 }
 
-func ResourcePath(id provider.ResourceID) string {
-	return provider.ResourcePrefix(id)
-}
-
-func RegisterResource(id provider.ResourceID, schema provider.ResourceSchema, logger *zap.SugaredLogger, store FileStore) (provider.OfflineTable, error) {
-	resourceKey := store.PathWithPrefix(ResourcePath(id), false)
+func RegisterResource(id ResourceID, schema ResourceSchema, logger *zap.SugaredLogger, store FileStore) (OfflineTable, error) {
+	resourceKey := store.PathWithPrefix(ResourcePrefix(id), false)
 	resourceExists, err := store.Exists(resourceKey)
 	if err != nil {
 		logger.Errorw("Error checking if resource exists", "error", err)
@@ -468,7 +463,7 @@ func RegisterResource(id provider.ResourceID, schema provider.ResourceSchema, lo
 	}
 	if resourceExists {
 		logger.Errorw("Resource already exists in blob store", "id", id, "ResourceKey", resourceKey)
-		return nil, &provider.TableAlreadyExists{id.Name, id.Variant}
+		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}
 	serializedSchema, err := schema.Serialize()
 	if err != nil {
@@ -481,8 +476,8 @@ func RegisterResource(id provider.ResourceID, schema provider.ResourceSchema, lo
 	return &FilestoreOfflineTable{schema}, nil
 }
 
-func RegisterPrimary(id provider.ResourceID, sourceName string, logger *zap.SugaredLogger, store FileStore) (provider.PrimaryTable, error) {
-	resourceKey := store.PathWithPrefix(ResourcePath(id), false)
+func FSRegisterPrimary(id ResourceID, sourceName string, logger *zap.SugaredLogger, store FileStore) (PrimaryTable, error) {
+	resourceKey := store.PathWithPrefix(ResourcePrefix(id), false)
 	primaryExists, err := store.Exists(resourceKey)
 	if err != nil {
 		logger.Errorw("Error checking if primary exists", err)
@@ -499,11 +494,11 @@ func RegisterPrimary(id provider.ResourceID, sourceName string, logger *zap.Suga
 		return nil, err
 	}
 	logger.Debugw("Succesfully registered primary table", id, "for source", sourceName)
-	return &PrimaryTable{store, sourceName, false, id}, nil
+	return &FSPrimaryTable{store, sourceName, false, id}, nil
 }
 
-func GetPrimaryTable(id provider.ResourceID, store FileStore, logger *zap.SugaredLogger) (provider.PrimaryTable, error) {
-	resourceKey := store.PathWithPrefix(ResourcePath(id), false)
+func GetPrimaryTable(id ResourceID, store FileStore, logger *zap.SugaredLogger) (PrimaryTable, error) {
+	resourceKey := store.PathWithPrefix(ResourcePrefix(id), false)
 	logger.Debugw("Getting primary table", id)
 
 	table, err := store.Read(resourceKey)
@@ -512,17 +507,17 @@ func GetPrimaryTable(id provider.ResourceID, store FileStore, logger *zap.Sugare
 	}
 
 	logger.Debugw("Succesfully retrieved primary table", id)
-	return &PrimaryTable{store, string(table), false, id}, nil
+	return &FSPrimaryTable{store, string(table), false, id}, nil
 }
 
-func GetResourceTable(id provider.ResourceID, store FileStore, logger *zap.SugaredLogger) (provider.OfflineTable, error) {
-	resourcekey := store.PathWithPrefix(ResourcePath(id), false)
+func GetResourceTable(id ResourceID, store FileStore, logger *zap.SugaredLogger) (OfflineTable, error) {
+	resourcekey := store.PathWithPrefix(ResourcePrefix(id), false)
 	logger.Debugw("Getting resource table", id)
 	serializedSchema, err := store.Read(resourcekey)
 	if err != nil {
 		return nil, fmt.Errorf("Error reading schema bytes from blob storage: %v", err)
 	}
-	resourceSchema := provider.ResourceSchema{}
+	resourceSchema := ResourceSchema{}
 	if err := resourceSchema.Deserialize(serializedSchema); err != nil {
 		return nil, fmt.Errorf("Error deserializing resource table: %v", err)
 	}
@@ -530,32 +525,32 @@ func GetResourceTable(id provider.ResourceID, store FileStore, logger *zap.Sugar
 	return &FilestoreOfflineTable{resourceSchema}, nil
 }
 
-func GetMaterialization(id provider.MaterializationID, store FileStore, logger *zap.SugaredLogger) (provider.Materialization, error) {
+func GetMaterialization(id MaterializationID, store FileStore, logger *zap.SugaredLogger) (Materialization, error) {
 	s := strings.Split(string(id), "/")
 	if len(s) != 3 {
 		logger.Errorw("Invalid materialization id", id)
 		return nil, fmt.Errorf("invalid materialization id")
 	}
-	materializationID := provider.ResourceID{s[1], s[2], provider.FeatureMaterialization}
+	materializationID := ResourceID{s[1], s[2], FeatureMaterialization}
 	logger.Debugw("Getting materialization", "id", id)
-	materializationPath := store.PathWithPrefix(ResourcePath(materializationID), false)
+	materializationPath := store.PathWithPrefix(ResourcePrefix(materializationID), false)
 	materializationExactPath, err := store.NewestFile(materializationPath)
 	if err != nil {
 		logger.Errorw("Could not fetch materialization resource key", "error", err)
 		return nil, fmt.Errorf("Could not fetch materialization resource key: %v", err)
 	}
 	logger.Debugw("Succesfully retrieved materialization", "id", id)
-	return &Materialization{materializationID, store, materializationExactPath}, nil
+	return &FSMaterialization{materializationID, store, materializationExactPath}, nil
 }
 
-func DeleteMaterialization(id provider.MaterializationID, store FileStore, logger *zap.SugaredLogger) error {
+func DeleteMaterialization(id MaterializationID, store FileStore, logger *zap.SugaredLogger) error {
 	s := strings.Split(string(id), "/")
 	if len(s) != 3 {
 		logger.Errorw("Invalid materialization id", id)
 		return fmt.Errorf("invalid materialization id")
 	}
-	materializationID := provider.ResourceID{s[1], s[2], provider.FeatureMaterialization}
-	materializationPath := store.PathWithPrefix(ResourcePath(materializationID), false)
+	materializationID := ResourceID{s[1], s[2], FeatureMaterialization}
+	materializationPath := store.PathWithPrefix(ResourcePrefix(materializationID), false)
 	materializationExactPath, err := store.NewestFile(materializationPath)
 	if err != nil {
 		return fmt.Errorf("materialization does not exist: %v", err)
@@ -563,8 +558,8 @@ func DeleteMaterialization(id provider.MaterializationID, store FileStore, logge
 	return store.Delete(materializationExactPath)
 }
 
-func GetTrainingSet(id provider.ResourceID, store FileStore, logger *zap.SugaredLogger) (provider.TrainingSetIterator, error) {
-	resourceKeyPrefix := store.PathWithPrefix(ResourcePath(id), false)
+func GetTrainingSet(id ResourceID, store FileStore, logger *zap.SugaredLogger) (TrainingSetIterator, error) {
+	resourceKeyPrefix := store.PathWithPrefix(ResourcePrefix(id), false)
 	trainingSetExactPath, err := store.NewestFile(resourceKeyPrefix)
 	if err != nil {
 		return nil, fmt.Errorf("could not get training set: %v", err)

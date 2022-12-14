@@ -8,7 +8,6 @@ import (
 	awsv2cfg "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	s3v2 "github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/featureform/provider"
 	"gocloud.dev/blob/s3blob"
 )
 
@@ -20,7 +19,7 @@ type S3FileStoreConfig struct {
 	Path           string
 }
 
-func (s *S3FileStoreConfig) Deserialize(config provider.SerializedConfig) error {
+func (s *S3FileStoreConfig) Deserialize(config SerializedConfig) error {
 	err := json.Unmarshal(config, s)
 	if err != nil {
 		return err
@@ -46,9 +45,9 @@ func (s *S3FileStore) BlobPath(sourceKey string) string {
 	return sourceKey
 }
 
-func NewS3FileStore(config provider.Config) (FileStore, error) {
+func NewS3FileStore(config Config) (FileStore, error) {
 	s3StoreConfig := S3FileStoreConfig{}
-	if err := s3StoreConfig.Deserialize(provider.SerializedConfig(config)); err != nil {
+	if err := s3StoreConfig.Deserialize(SerializedConfig(config)); err != nil {
 		return nil, fmt.Errorf("could not deserialize s3 store config: %v", err)
 	}
 	cfg, err := awsv2cfg.LoadDefaultConfig(context.TODO(),

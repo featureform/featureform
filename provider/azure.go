@@ -4,12 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/featureform/provider"
 	"gocloud.dev/blob/azureblob"
 	"os"
 )
-
-type Config []byte
 
 type AzureFileStoreConfig struct {
 	AccountName   string
@@ -80,7 +77,7 @@ func (store AzureFileStore) PathWithPrefix(path string, remote bool) string {
 	return path
 }
 
-func NewAzureFileStore(config provider.Config) (FileStore, error) {
+func NewAzureFileStore(config Config) (FileStore, error) {
 	azureStoreConfig := AzureFileStoreConfig{}
 	if err := azureStoreConfig.Deserialize(config); err != nil {
 		return nil, fmt.Errorf("could not deserialize azure store config: %v", err)

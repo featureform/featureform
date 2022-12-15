@@ -785,14 +785,14 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 		c.Logger.Info("Starting Materialize")
 		jobRunner, err := c.Spawner.GetJobRunner(runner.MATERIALIZE, serialized, c.EtcdClient.Endpoints(), resID)
 		if err != nil {
-			return fmt.Errorf("could not use store as online store: %v", err)
+			return fmt.Errorf("could not use store as online store: %w", err)
 		}
 		completionWatcher, err := jobRunner.Run()
 		if err != nil {
-			return fmt.Errorf("creating watcher for completion runner: %v", err)
+			return fmt.Errorf("creating watcher for completion runner: %w", err)
 		}
 		if err := completionWatcher.Wait(); err != nil {
-			return fmt.Errorf("completion watcher running: %v", err)
+			return fmt.Errorf("completion watcher running: %w", err)
 		}
 	}
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
@@ -1104,10 +1104,10 @@ func (c *Coordinator) ExecuteJob(jobKey string) error {
 			return err
 		default:
 			statusErr := c.Metadata.SetStatus(context.Background(), job.Resource, metadata.FAILED, err.Error())
-			return fmt.Errorf("%s job failed: %v: %v", job.Resource.Type, err, statusErr)
+			return fmt.Errorf("%s job failed: %w: %v", job.Resource.Type, err, statusErr)
 		}
 	}
-	c.Logger.Info("Succesfully executed job with key: ", jobKey)
+	c.Logger.Info("Successfully executed job with key: ", jobKey)
 	if err := c.deleteJob(mtx, jobKey); err != nil {
 		c.Logger.Debugw("Error deleting job", "error", err)
 		return fmt.Errorf("job delete: %v", err)

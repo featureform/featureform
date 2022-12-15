@@ -156,6 +156,7 @@ type TransformationConfig struct {
 	Query         string
 	Code          []byte
 	SourceMapping []SourceMapping
+	Args          metadata.TransformationArgs
 }
 
 type OfflineStore interface {

@@ -6,6 +6,7 @@ package metadata
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"reflect"
@@ -1683,6 +1684,22 @@ type SourceVariant struct {
 	protoStringer
 }
 
+type TransformationArgs interface {
+	Format() ([]byte, error)
+}
+
+type KubernetesArgs struct {
+	DockerImage string `json:"Docker Image"`
+}
+
+func (arg KubernetesArgs) Format() ([]byte, error) {
+	b, err := json.Marshal(arg)
+	if err != nil {
+		return nil, fmt.Errorf("could not format Kubernetes Arguments: %w", err)
+	}
+	return b, nil
+}
+
 func wrapProtoSourceVariant(serialized *pb.SourceVariant) *SourceVariant {
 	return &SourceVariant{
 		serialized:           serialized,
@@ -1786,6 +1803,26 @@ func (variant *SourceVariant) DFTransformationSources() []NameVariant {
 		variants = append(variants, NameVariant{Name: nv.Name, Variant: nv.Variant})
 	}
 	return variants
+}
+
+func (variant *SourceVariant) TransformationArgs() TransformationArgs {
+	if !variant.IsTransformation() {
+		return nil
+	}
+
+	args := variant.serialized.GetTransformation().GetArgs()
+	switch args.(type) {
+	case *pb.Transformation_KubernetesArgs:
+		return variant.parseKubernetesArgs()
+	default:
+		return nil
+	}
+}
+
+func (variant *SourceVariant) parseKubernetesArgs() KubernetesArgs {
+	return KubernetesArgs{
+		DockerImage: variant.serialized.GetTransformation().GetKubernetesArgs().GetDockerImage(),
+	}
 }
 
 func (variant *SourceVariant) isPrimaryData() bool {

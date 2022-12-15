@@ -330,19 +330,14 @@ func (config *K8sConfig) executorConfigFromMap() error {
 }
 
 type Executor interface {
-	ExecuteScript(envVars map[string]string) error
+	ExecuteScript(envVars map[string]string, args *metadata.KubernetesArgs) error
 }
 
 type LocalExecutor struct {
 	scriptPath string
 }
 
-type KubernetesExecutor struct {
-	logger *zap.SugaredLogger
-	image  string
-}
-
-func (local LocalExecutor) ExecuteScript(envVars map[string]string) error {
+func (local LocalExecutor) ExecuteScript(envVars map[string]string, args *metadata.KubernetesArgs) error {
 	envVars["MODE"] = "local"
 	for key, value := range envVars {
 		os.Setenv(key, value)
@@ -390,11 +385,25 @@ func NewLocalExecutor(config Config, logger *zap.SugaredLogger) (Executor, error
 	}, nil
 }
 
-func (kube KubernetesExecutor) isDefaultImage() bool {
+type KubernetesExecutor struct {
+	logger *zap.SugaredLogger
+	image  string
+}
+
+func (kube *KubernetesExecutor) isDefaultImage() bool {
 	return strings.Contains(kube.image, cfg.PandasBaseImage)
 }
 
-func (kube KubernetesExecutor) ExecuteScript(envVars map[string]string) error {
+func (kube *KubernetesExecutor) setCustomImage(image string) {
+	if image != "" {
+		kube.image = image
+	}
+}
+
+func (kube *KubernetesExecutor) ExecuteScript(envVars map[string]string, args *metadata.KubernetesArgs) error {
+	if args != nil {
+		kube.setCustomImage(args.DockerImage)
+	}
 	if !kube.isDefaultImage() {
 		kube.logger.Warnf("You are using a custom Docker Image (%s) for a Kubernetes job. This may have unintended behavior.", kube.image)
 	}
@@ -433,7 +442,7 @@ func NewKubernetesExecutor(config Config, logger *zap.SugaredLogger) (Executor, 
 	if err != nil {
 		return nil, fmt.Errorf("could not create Kubernetes Executor: %w", err)
 	}
-	return KubernetesExecutor{
+	return &KubernetesExecutor{
 		image:  c.getImage(),
 		logger: logger,
 	}, nil
@@ -1061,10 +1070,6 @@ func (k8s *K8sOfflineStore) pandasRunnerArgs(outputURI string, updatedQuery stri
 }
 
 func (k8s K8sOfflineStore) getDFArgs(outputURI string, code string, mapping []SourceMapping, sources []string) map[string]string {
-	// mappingSources := make([]string, len(mapping))
-	// for i, item := range mapping {
-	// 	mappingSources[i] = item.Source
-	// }
 	sourceList := strings.Join(sources, ",")
 	envVars := map[string]string{
 		"OUTPUT_URI":          outputURI,
@@ -1072,7 +1077,7 @@ func (k8s K8sOfflineStore) getDFArgs(outputURI string, code string, mapping []So
 		"TRANSFORMATION_TYPE": "df",
 		"TRANSFORMATION":      code,
 	}
-	_, ok := k8s.executor.(KubernetesExecutor)
+	_, ok := k8s.executor.(*KubernetesExecutor)
 	if ok {
 		envVars = addETCDVars(envVars)
 	}
@@ -1115,12 +1120,24 @@ func (k8s *K8sOfflineStore) sqlTransformation(config TransformationConfig, isUpd
 	runnerArgs := k8s.pandasRunnerArgs(transformationDestination, updatedQuery, sources, Transform)
 
 	runnerArgs = addResourceID(runnerArgs, config.TargetTableID)
-	if err := k8s.executor.ExecuteScript(runnerArgs); err != nil {
+	args, err := k8s.checkArgs(config.Args)
+	if err != nil {
+		return fmt.Errorf("could not check args: %w", err)
+	}
+	if err := k8s.executor.ExecuteScript(runnerArgs, &args); err != nil {
 		k8s.logger.Errorw("job for transformation failed to run", config.TargetTableID, err)
 		return fmt.Errorf("job for transformation %v failed to run: %v", config.TargetTableID, err)
 	}
 	k8s.logger.Debugw("Succesfully ran SQL transformation", config)
 	return nil
+}
+
+func (k8s *K8sOfflineStore) checkArgs(args metadata.TransformationArgs) (metadata.KubernetesArgs, error) {
+	k8sArgs, ok := args.(metadata.KubernetesArgs)
+	if !ok {
+		return metadata.KubernetesArgs{}, fmt.Errorf("invalid type used for Kubernetes Arguments")
+	}
+	return k8sArgs, nil
 }
 
 func (k8s *K8sOfflineStore) dfTransformation(config TransformationConfig, isUpdate bool) error {
@@ -1151,10 +1168,14 @@ func (k8s *K8sOfflineStore) dfTransformation(config TransformationConfig, isUpda
 		return fmt.Errorf("could not upload file: %s", err)
 	}
 
-	k8sArgs := k8s.getDFArgs(transformationDestination, transformationFileLocation, config.SourceMapping, sources)
-	k8sArgs = addResourceID(k8sArgs, config.TargetTableID)
+	dfArgs := k8s.getDFArgs(transformationDestination, transformationFileLocation, config.SourceMapping, sources)
+	dfArgs = addResourceID(dfArgs, config.TargetTableID)
 	k8s.logger.Debugw("Running DF transformation", config)
-	if err := k8s.executor.ExecuteScript(k8sArgs); err != nil {
+	args, err := k8s.checkArgs(config.Args)
+	if err != nil {
+		return fmt.Errorf("could not check args: %w", err)
+	}
+	if err := k8s.executor.ExecuteScript(dfArgs, &args); err != nil {
 		k8s.logger.Errorw("Error running dataframe job", err)
 		return fmt.Errorf("submit job for transformation %v failed to run: %v", config.TargetTableID, err)
 	}
@@ -1463,7 +1484,7 @@ func (k8s *K8sOfflineStore) materialization(id ResourceID, isUpdate bool) (Mater
 
 	k8sArgs = addResourceID(k8sArgs, id)
 	k8s.logger.Debugw("Creating materialization", "id", id)
-	if err := k8s.executor.ExecuteScript(k8sArgs); err != nil {
+	if err := k8s.executor.ExecuteScript(k8sArgs, nil); err != nil {
 		k8s.logger.Errorw("Job failed to run", err)
 		return nil, fmt.Errorf("job for materialization %v failed to run: %v", materializationID, err)
 	}
@@ -1569,7 +1590,7 @@ func (k8s *K8sOfflineStore) trainingSet(def TrainingSetDef, isUpdate bool) error
 	pandasArgs := k8s.pandasRunnerArgs(k8s.store.PathWithPrefix(destinationPath, false), trainingSetQuery, sourcePaths, CreateTrainingSet)
 	pandasArgs = addResourceID(pandasArgs, def.ID)
 	k8s.logger.Debugw("Creating training set", "definition", def)
-	if err := k8s.executor.ExecuteScript(pandasArgs); err != nil { //
+	if err := k8s.executor.ExecuteScript(pandasArgs, nil); err != nil { //
 		k8s.logger.Errorw("training set job failed to run", "definition", def.ID, "error", err)
 		return fmt.Errorf("job for training set %v failed to run: %v", def.ID, err)
 	}

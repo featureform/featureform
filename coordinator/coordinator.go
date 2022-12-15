@@ -499,7 +499,13 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 
 	c.Logger.Debugw("Created transformation query", "query", query)
 	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Transformation}
-	transformationConfig := provider.TransformationConfig{Type: provider.SQLTransformation, TargetTableID: providerResourceID, Query: query, SourceMapping: sourceMapping}
+	transformationConfig := provider.TransformationConfig{
+		Type:          provider.SQLTransformation,
+		TargetTableID: providerResourceID,
+		Query:         query,
+		SourceMapping: sourceMapping,
+		Args:          transformSource.TransformationArgs(),
+	}
 
 	err = c.runTransformationJob(transformationConfig, resID, schedule, sourceProvider)
 	if err != nil {
@@ -531,7 +537,13 @@ func (c *Coordinator) runDFTransformationJob(transformSource *metadata.SourceVar
 
 	c.Logger.Debugw("Created transformation query")
 	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Transformation}
-	transformationConfig := provider.TransformationConfig{Type: provider.DFTransformation, TargetTableID: providerResourceID, Code: code, SourceMapping: sourceMapping}
+	transformationConfig := provider.TransformationConfig{
+		Type:          provider.DFTransformation,
+		TargetTableID: providerResourceID,
+		Code:          code,
+		SourceMapping: sourceMapping,
+		Args:          transformSource.TransformationArgs(),
+	}
 
 	err = c.runTransformationJob(transformationConfig, resID, schedule, sourceProvider)
 	if err != nil {

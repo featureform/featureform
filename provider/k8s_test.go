@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/featureform/helpers"
-
+	"github.com/featureform/metadata"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"github.com/mitchellh/mapstructure"
@@ -225,7 +225,7 @@ func TestExecutorRunLocal(t *testing.T) {
 		"TRANSFORMATION_TYPE": "sql",
 		"TRANSFORMATION":      "SELECT * FROM source_0 LIMIT 1",
 	}
-	if err := executor.ExecuteScript(sqlEnvVars); err != nil {
+	if err := executor.ExecuteScript(sqlEnvVars, nil); err != nil {
 		t.Fatalf("Failed to execute pandas script: %v", err)
 	}
 }
@@ -675,6 +675,95 @@ func TestKExecutorConfig_getImage(t *testing.T) {
 			}
 			if got := c.getImage(); got != tt.want {
 				t.Errorf("getImage() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+type dummyArgs struct{}
+
+func (arg dummyArgs) Format() ([]byte, error) {
+	return nil, nil
+}
+
+func TestK8sOfflineStore_checkArgs(t *testing.T) {
+
+	type fields struct {
+		executor     Executor
+		store        FileStore
+		logger       *zap.SugaredLogger
+		query        *pandasOfflineQueries
+		BaseProvider BaseProvider
+	}
+	f := fields{
+		&KubernetesExecutor{},
+		AzureFileStore{},
+		zaptest.NewLogger(t).Sugar(),
+		nil,
+		BaseProvider{},
+	}
+	type args struct {
+		args metadata.TransformationArgs
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    metadata.KubernetesArgs
+		wantErr bool
+	}{
+		{"Empty Args", f, args{metadata.KubernetesArgs{}}, metadata.KubernetesArgs{}, false},
+		{"Empty With Docker Image", f, args{metadata.KubernetesArgs{DockerImage: "my/docker:image"}}, metadata.KubernetesArgs{DockerImage: "my/docker:image"}, false},
+		{"Invalid Args", f, args{dummyArgs{}}, metadata.KubernetesArgs{}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			k8s := &K8sOfflineStore{
+				executor:     tt.fields.executor,
+				store:        tt.fields.store,
+				logger:       tt.fields.logger,
+				query:        tt.fields.query,
+				BaseProvider: tt.fields.BaseProvider,
+			}
+			got, err := k8s.checkArgs(tt.args.args)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("checkArgs() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("checkArgs() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestKubernetesExecutor_setCustomImage(t *testing.T) {
+	type fields struct {
+		logger *zap.SugaredLogger
+		image  string
+	}
+	type args struct {
+		image string
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		expected string
+	}{
+		{"Empty Image", fields{nil, ""}, args{""}, ""},
+		{"Default Image", fields{nil, "test/image"}, args{""}, "test/image"},
+		{"Override Image", fields{nil, "test/image"}, args{"override/image"}, "override/image"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			kube := &KubernetesExecutor{
+				logger: tt.fields.logger,
+				image:  tt.fields.image,
+			}
+			kube.setCustomImage(tt.args.image)
+			if kube.image != tt.expected {
+				t.Errorf("Expected image %s, got %s", tt.expected, kube.image)
 			}
 		})
 	}

@@ -4,7 +4,6 @@
 import os.path
 import sys
 
-
 sys.path.insert(0, 'client/src/')
 import pytest
 from featureform.resources import ResourceRedefinedError, ResourceState, Provider, RedisConfig, CassandraConfig, \
@@ -14,6 +13,8 @@ from featureform.resources import ResourceRedefinedError, ResourceState, Provide
     Source, ResourceColumnMapping, DynamodbConfig, Schedule, SQLTransformation, DFTransformation, K8sArgs
 
 from featureform.register import OfflineK8sProvider, Registrar, FileStoreProvider
+
+from featureform.proto import metadata_pb2 as pb
 
 
 @pytest.fixture
@@ -194,6 +195,13 @@ def bigquery_provider(bigquery_config):
         team="team2",
         config=bigquery_config,
     )
+
+@pytest.mark.parametrize('image', ["", "my/docker_image:latest"])
+def test_k8s_args_apply(image):
+    transformation = pb.Transformation()
+    args = K8sArgs(image)
+    transformation = args.apply(transformation)
+    assert image == transformation.kubernetes_args.docker_image
 
 
 @pytest.mark.parametrize('query,image', [

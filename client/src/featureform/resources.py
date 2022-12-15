@@ -443,6 +443,10 @@ class SparkConfig:
 class K8sArgs:
     docker_image: str
 
+    def apply(self, transformation: pb.Transformation):
+        transformation.kubernetes_args.docker_image = self.docker_image
+        return transformation
+
 
 @typechecked
 @dataclass
@@ -583,14 +587,7 @@ class PrimaryData:
 
 
 class Transformation:
-    args: K8sArgs = None
-
-    def _set_args(self, transformation):
-        if type(self.args) is K8sArgs:
-            transformation.kubernetes_args.docker_image = self.args.docker_image
-        else:
-            raise ValueError(f"Invalid Transformation argument type {type(self.args)}")
-        return transformation
+    pass
 
 
 @typechecked
@@ -609,8 +606,8 @@ class SQLTransformation(Transformation):
             )
         )
 
-        if self.args:
-            transformation = self._set_args(transformation)
+        if self.args is not None:
+            transformation = self.args.apply(transformation)
 
         return {
             "transformation": transformation
@@ -634,9 +631,9 @@ class DFTransformation(Transformation):
                 inputs=[pb.NameVariant(name=v[0], variant=v[1]) for v in self.inputs]
             )
         )
-
-        if self.args:
-            transformation = self._set_args(transformation)
+        
+        if self.args is not None:
+            transformation = self.args.apply(transformation)
 
         return {
             "transformation": transformation

@@ -3,6 +3,7 @@ import shutil
 import stat
 import sys
 import pytest
+import dill
 
 sys.path.insert(0, 'client/src/')
 from featureform.register import ResourceClient, DFTransformation, SQLTransformation, PrimaryData, Location
@@ -11,15 +12,19 @@ from featureform.resources import Feature, Label, TrainingSet, Source, Transform
 from featureform.proto import metadata_pb2 as pb
 
 
+def my_func(df):
+    return df
+
+
 pb_no_status = pb.ResourceStatus.Status.NO_STATUS
 pb_created = pb.ResourceStatus.Status.CREATED
 pb_pending = pb.ResourceStatus.Status.PENDING
 pb_ready = pb.ResourceStatus.Status.READY
 pb_failed = pb.ResourceStatus.Status.FAILED
 sql_query = "SELECT * FROM NONE"
-df_query = bytes(b'somebytes')
+df_query = dill.dumps(my_func)
 df_name_variants = [("name", "variant")]
-primary_table_name="my_table"
+primary_table_name = "my_table"
 
 sql_definition_proto = pb.SourceVariant(
     name="",
@@ -61,6 +66,7 @@ df_definition_obj = DFTransformation(
 primary_definition_obj = PrimaryData(
     Location(primary_table_name)
 )
+
 
 # Fetches status from proto for same response that client would give
 def get_pb_status(status):
@@ -189,6 +195,7 @@ def test_sql_source_definition_parse(source, expected):
     source_obj = client._get_source_definition(source)
     assert source_obj.query == expected.query
 
+
 @pytest.mark.parametrize("source,expected", [
     (df_definition_proto, df_definition_obj),
 ])
@@ -197,6 +204,7 @@ def test_df_source_definition_parse(source, expected):
     source_obj = client._get_source_definition(source)
     assert source_obj.query == expected.query
     assert source_obj.inputs == expected.inputs
+
 
 @pytest.mark.parametrize("source,expected", [
     (primary_definition_proto, primary_definition_obj),

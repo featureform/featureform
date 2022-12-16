@@ -5,8 +5,8 @@
 package runner
 
 import (
-	"encoding/json"
 	"fmt"
+	"github.com/brimdata/zed/zson"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	"github.com/featureform/types"
@@ -42,6 +42,29 @@ type CreateTransformationConfig struct {
 	IsUpdate             bool
 }
 
+func (c *CreateTransformationConfig) Serialize() (Config, error) {
+	m := zson.NewMarshaler()
+	m.Decorate(zson.StylePackage)
+	config, err := m.Marshal(c)
+	if err != nil {
+		return nil, fmt.Errorf("could not marshal transformation config: %w", err)
+	}
+	return []byte(config), nil
+}
+
+func (c *CreateTransformationConfig) Deserialize(config Config) error {
+	m := zson.NewUnmarshaler()
+	err := m.Bind(metadata.KubernetesArgs{})
+	if err != nil {
+		return err
+	}
+	err = m.Unmarshal(string(config), c)
+	if err != nil {
+		return fmt.Errorf("could not unmarshal transformation config: %w", err)
+	}
+	return nil
+}
+
 type CreateTransformationRunner struct {
 	Offline              provider.OfflineStore
 	TransformationConfig provider.TransformationConfig
@@ -60,24 +83,12 @@ func (c CreateTransformationRunner) IsUpdateJob() bool {
 	return c.IsUpdate
 }
 
-func (c *CreateTransformationConfig) Serialize() (Config, error) {
-	config, err := json.Marshal(c)
-	if err != nil {
-		panic(err)
-	}
-	return config, nil
-}
-
-func (c *CreateTransformationConfig) Deserialize(config Config) error {
-	err := json.Unmarshal(config, c)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 func CreateTransformationRunnerFactory(config Config) (types.Runner, error) {
-	transformationConfig := &CreateTransformationConfig{}
+	transformationConfig := &CreateTransformationConfig{
+		TransformationConfig: provider.TransformationConfig{
+			Args: metadata.KubernetesArgs{},
+		},
+	}
 	if err := transformationConfig.Deserialize(config); err != nil {
 		return nil, fmt.Errorf("failed to deserialize create transformation config: %w", err)
 	}

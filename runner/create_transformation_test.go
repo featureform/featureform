@@ -6,6 +6,7 @@ package runner
 
 import (
 	"fmt"
+	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	"testing"
 )
@@ -184,4 +185,46 @@ func TestTransformationFactory(t *testing.T) {
 		t.Fatalf("Could not create create transformation runner")
 	}
 	delete(factoryMap, "TEST_CREATE_TRANSFORMATION")
+}
+
+func TestCreateTransformationConfigDeserializeInterface(t *testing.T) {
+	config := CreateTransformationConfig{
+		OfflineType:   provider.K8s,
+		OfflineConfig: []byte{},
+		TransformationConfig: provider.TransformationConfig{
+			Type: 1,
+			TargetTableID: provider.ResourceID{
+				Type: provider.Transformation,
+			},
+			Code:          []byte{},
+			SourceMapping: []provider.SourceMapping{},
+			Args: metadata.KubernetesArgs{
+				DockerImage: "my_image",
+			},
+		},
+	}
+	serialized, err := config.Serialize()
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	type args struct {
+		config Config
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			"Deserialize", args{serialized}, false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &CreateTransformationConfig{}
+			if err := c.Deserialize(tt.args.config); (err != nil) != tt.wantErr {
+				t.Errorf("Deserialize() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
 }

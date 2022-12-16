@@ -633,14 +633,17 @@ func TestKubernetesExecutor_isDefaultImage(t *testing.T) {
 		image  string
 	}
 	tests := []struct {
-		name   string
-		fields fields
-		want   bool
+		name    string
+		fields  fields
+		want    bool
+		wantErr bool
 	}{
-		{"Valid Base", fields{logger, config.PandasBaseImage}, true},
-		{"Valid Version", fields{logger, fmt.Sprintf("%s:%s", config.PandasBaseImage, "latest")}, true},
-		{"Invalid Base", fields{logger, "my-docker/image"}, false},
-		{"Invalid Base", fields{logger, fmt.Sprintf("%s:%s", "my-docker/image", "latest")}, false},
+		{"Valid Base", fields{logger, config.PandasBaseImage}, true, false},
+		{"Valid Version", fields{logger, fmt.Sprintf("%s:%s", config.PandasBaseImage, "latest")}, true, false},
+		{"Invalid Base", fields{logger, "my-docker/image"}, false, false},
+		{"Invalid Base With Tag", fields{logger, fmt.Sprintf("%s:%s", "my-docker/image", "latest")}, false, false},
+		{"Invalid Extended Name", fields{logger, fmt.Sprintf("%s%s", config.PandasBaseImage, "xyz")}, false, false},
+		{"Invalid Name Format", fields{logger, "abc...fsdf"}, false, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -648,8 +651,13 @@ func TestKubernetesExecutor_isDefaultImage(t *testing.T) {
 				logger: tt.fields.logger,
 				image:  tt.fields.image,
 			}
-			if got := kube.isDefaultImage(); got != tt.want {
-				t.Errorf("isDefaultImage() = %v, want %v", got, tt.want)
+			got, err := kube.isDefaultImage()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("checkArgs() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("isDefaultImage() = %v, want %v\n image: %s", got, tt.want, tt.fields.image)
 			}
 		})
 	}

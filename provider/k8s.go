@@ -5,14 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"os"
-	"os/exec"
-	"sort"
-	"strconv"
-	"strings"
-	"time"
-
+	dp "github.com/novln/docker-parser"
 	"github.com/segmentio/parquet-go"
 	"go.uber.org/zap"
 	"gocloud.dev/blob"
@@ -20,6 +13,13 @@ import (
 	_ "gocloud.dev/blob/fileblob"
 	_ "gocloud.dev/blob/memblob"
 	"golang.org/x/exp/slices"
+	"io"
+	"os"
+	"os/exec"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
 
 	cfg "github.com/featureform/config"
 	"github.com/featureform/helpers"
@@ -390,8 +390,14 @@ type KubernetesExecutor struct {
 	image  string
 }
 
-func (kube *KubernetesExecutor) isDefaultImage() bool {
-	return strings.Contains(kube.image, cfg.PandasBaseImage)
+// isDefaultImage checks that the current image name (excluding the tag) is the same as the default image
+// name config.PandasBaseImage. It also validates that the name is a valid docker image name
+func (kube *KubernetesExecutor) isDefaultImage() (bool, error) {
+	parse, err := dp.Parse(kube.image)
+	if err != nil {
+		return false, fmt.Errorf("invalid image name: %w", err)
+	}
+	return parse.ShortName() == cfg.PandasBaseImage, nil
 }
 
 func (kube *KubernetesExecutor) setCustomImage(image string) {
@@ -404,7 +410,9 @@ func (kube *KubernetesExecutor) ExecuteScript(envVars map[string]string, args *m
 	if args != nil {
 		kube.setCustomImage(args.DockerImage)
 	}
-	if !kube.isDefaultImage() {
+	if isDefault, err := kube.isDefaultImage(); err != nil {
+		return fmt.Errorf("image check failed: %w", err)
+	} else if !isDefault {
 		kube.logger.Warnf("You are using a custom Docker Image (%s) for a Kubernetes job. This may have unintended behavior.", kube.image)
 	}
 	envVars["MODE"] = "k8s"
@@ -1077,12 +1085,10 @@ func (k8s K8sOfflineStore) getDFArgs(outputURI string, code string, mapping []So
 		"TRANSFORMATION_TYPE": "df",
 		"TRANSFORMATION":      code,
 	}
-	_, ok := k8s.executor.(*KubernetesExecutor)
-	if ok {
+	if _, ok := k8s.executor.(*KubernetesExecutor); ok {
 		envVars = addETCDVars(envVars)
 	}
-	azureStore, ok := k8s.store.(AzureFileStore)
-	if ok {
+	if azureStore, ok := k8s.store.(AzureFileStore); ok {
 		envVars = azureStore.addAzureVars(envVars)
 	}
 	return envVars

@@ -20,6 +20,7 @@ require (
 	github.com/lib/pq v1.10.6
 	github.com/mitchellh/mapstructure v1.4.3
 	github.com/mrz1836/go-sanitize v1.1.5
+	github.com/novln/docker-parser v1.0.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.12.2
 	github.com/prometheus/client_model v0.2.0

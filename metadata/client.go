@@ -1700,6 +1700,12 @@ func (arg KubernetesArgs) Format() ([]byte, error) {
 	return b, nil
 }
 
+func (variant *SourceVariant) parseKubernetesArgs() KubernetesArgs {
+	return KubernetesArgs{
+		DockerImage: variant.serialized.GetTransformation().GetKubernetesArgs().GetDockerImage(),
+	}
+}
+
 func wrapProtoSourceVariant(serialized *pb.SourceVariant) *SourceVariant {
 	return &SourceVariant{
 		serialized:           serialized,
@@ -1816,12 +1822,6 @@ func (variant *SourceVariant) TransformationArgs() TransformationArgs {
 		return variant.parseKubernetesArgs()
 	default:
 		return nil
-	}
-}
-
-func (variant *SourceVariant) parseKubernetesArgs() KubernetesArgs {
-	return KubernetesArgs{
-		DockerImage: variant.serialized.GetTransformation().GetKubernetesArgs().GetDockerImage(),
 	}
 }
 

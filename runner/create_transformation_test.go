@@ -207,6 +207,22 @@ func TestCreateTransformationConfigDeserializeInterface(t *testing.T) {
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
+	configEmpty := CreateTransformationConfig{
+		OfflineType:   provider.K8s,
+		OfflineConfig: []byte{},
+		TransformationConfig: provider.TransformationConfig{
+			Type: 1,
+			TargetTableID: provider.ResourceID{
+				Type: provider.Transformation,
+			},
+			Code:          []byte{},
+			SourceMapping: []provider.SourceMapping{},
+		},
+	}
+	serializedEmpty, err := configEmpty.Serialize()
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
 	type args struct {
 		config Config
 	}
@@ -215,9 +231,8 @@ func TestCreateTransformationConfigDeserializeInterface(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-		{
-			"Deserialize", args{serialized}, false,
-		},
+		{"Deserialize With Kubernetes Args", args{serialized}, false},
+		{"Deserialize Empty", args{serializedEmpty}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

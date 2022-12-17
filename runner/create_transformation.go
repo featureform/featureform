@@ -58,7 +58,8 @@ func (c *CreateTransformationConfig) Deserialize(config Config) error {
 	if err != nil {
 		return err
 	}
-	err = m.Unmarshal(string(config), c)
+	fmt.Println(string(config))
+	err = m.Unmarshal(string(config), &c)
 	if err != nil {
 		return fmt.Errorf("could not unmarshal transformation config: %w", err)
 	}

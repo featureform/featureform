@@ -5,8 +5,8 @@
 package runner
 
 import (
+	"encoding/json"
 	"fmt"
-	"github.com/brimdata/zed/zson"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	"github.com/featureform/types"
@@ -43,23 +43,15 @@ type CreateTransformationConfig struct {
 }
 
 func (c *CreateTransformationConfig) Serialize() (Config, error) {
-	m := zson.NewMarshaler()
-	m.Decorate(zson.StylePackage)
-	config, err := m.Marshal(c)
+	config, err := json.Marshal(c)
 	if err != nil {
 		return nil, fmt.Errorf("could not marshal transformation config: %w", err)
 	}
-	return []byte(config), nil
+	return config, nil
 }
 
 func (c *CreateTransformationConfig) Deserialize(config Config) error {
-	m := zson.NewUnmarshaler()
-	err := m.Bind(metadata.KubernetesArgs{})
-	if err != nil {
-		return err
-	}
-	fmt.Println(string(config))
-	err = m.Unmarshal(string(config), &c)
+	err := json.Unmarshal(config, c)
 	if err != nil {
 		return fmt.Errorf("could not unmarshal transformation config: %w", err)
 	}

@@ -159,6 +159,21 @@ type TransformationConfig struct {
 	Args          metadata.TransformationArgs
 }
 
+func (m *TransformationConfig) UnmarshalJSON(data []byte) error {
+	temp := make(map[string]interface{})
+	err := json.Unmarshal(data, &temp)
+	if err != nil {
+		return err
+	}
+	if value, ok := temp["Args"].(metadata.KubernetesArgs); ok {
+		m.Args = value
+	} else {
+		m.Args = nil
+	}
+
+	return nil
+}
+
 type OfflineStore interface {
 	RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error)
 	RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error)

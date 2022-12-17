@@ -192,7 +192,7 @@ func TestCreateTransformationConfigDeserializeInterface(t *testing.T) {
 		OfflineType:   provider.K8s,
 		OfflineConfig: []byte{},
 		TransformationConfig: provider.TransformationConfig{
-			Type: 1,
+			Type: provider.DFTransformation,
 			TargetTableID: provider.ResourceID{
 				Type: provider.Transformation,
 			},
@@ -209,7 +209,7 @@ func TestCreateTransformationConfigDeserializeInterface(t *testing.T) {
 	}
 	configEmpty := CreateTransformationConfig{
 		OfflineType:   provider.K8s,
-		OfflineConfig: []byte{},
+		OfflineConfig: conf,
 		TransformationConfig: provider.TransformationConfig{
 			Type: 1,
 			TargetTableID: provider.ResourceID{

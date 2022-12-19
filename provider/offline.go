@@ -168,16 +168,12 @@ func (m *TransformationConfig) MarshalJSON() ([]byte, error) {
 	} else {
 		argType = metadata.NoArgs
 	}
+	m.ArgType = argType
+
+	// Prevents recursion in marshal
 	type config TransformationConfig
-	marshal, err := json.Marshal(&config{
-		Type:          m.Type,
-		TargetTableID: m.TargetTableID,
-		Query:         m.Query,
-		Code:          m.Code,
-		SourceMapping: m.SourceMapping,
-		Args:          m.Args,
-		ArgType:       argType,
-	})
+	c := config(*m)
+	marshal, err := json.Marshal(&c)
 	if err != nil {
 		return nil, err
 	}
@@ -200,7 +196,7 @@ func (m *TransformationConfig) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return fmt.Errorf("unmarshal: %w", err)
 	}
-	
+
 	m.Type = temp.Type
 	m.TargetTableID = temp.TargetTableID
 	m.Query = temp.Query

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
+	"reflect"
 	"testing"
 )
 
@@ -231,20 +232,24 @@ func TestCreateTransformationConfigDeserializeInterface(t *testing.T) {
 		config Config
 	}
 	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
+		name          string
+		args          args
+		expected      CreateTransformationConfig
+		transformType metadata.TransformationArgType
+		wantErr       bool
 	}{
-		{"Deserialize With Kubernetes Args", args{serialized}, false},
-		{"Deserialize Empty", args{serializedEmpty}, false},
+		{"Deserialize With Kubernetes Args", args{serialized}, config, metadata.K8sArgs, false},
+		{"Deserialize Empty", args{serializedEmpty}, configEmpty, metadata.NoArgs, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := &CreateTransformationConfig{}
+			c := CreateTransformationConfig{}
 			if err := c.Deserialize(tt.args.config); (err != nil) != tt.wantErr {
 				t.Errorf("Deserialize() error = %v, wantErr %v", err, tt.wantErr)
-			} else {
-				fmt.Println(c)
+			}
+			c.TransformationConfig.ArgType = tt.transformType
+			if !reflect.DeepEqual(tt.expected, c) {
+				t.Errorf("Deserialize() \nexpected = %#v \ngot = %#v", tt.expected, c)
 			}
 		})
 	}

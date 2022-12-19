@@ -694,6 +694,10 @@ func (arg dummyArgs) Format() ([]byte, error) {
 	return nil, nil
 }
 
+func (arg dummyArgs) Type() TransformationArgType {
+	return metadata.NoArgs
+}
+
 func TestK8sOfflineStore_checkArgs(t *testing.T) {
 
 	type fields struct {

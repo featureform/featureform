@@ -1684,12 +1684,20 @@ type SourceVariant struct {
 	protoStringer
 }
 
+type TransformationArgType string
+
+const (
+	NoArgs  TransformationArgType = "NONE"
+	K8sArgs                       = "K8S"
+)
+
 type TransformationArgs interface {
 	Format() ([]byte, error)
+	Type() TransformationArgType
 }
 
 type KubernetesArgs struct {
-	DockerImage string `json:"Docker Image"`
+	DockerImage string `json:"Docker Image" mapstructure:"Docker Image"`
 }
 
 func (arg KubernetesArgs) Format() ([]byte, error) {
@@ -1698,6 +1706,10 @@ func (arg KubernetesArgs) Format() ([]byte, error) {
 		return nil, fmt.Errorf("could not format Kubernetes Arguments: %w", err)
 	}
 	return b, nil
+}
+
+func (arg KubernetesArgs) Type() TransformationArgType {
+	return K8sArgs
 }
 
 func (variant *SourceVariant) parseKubernetesArgs() KubernetesArgs {

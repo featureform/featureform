@@ -190,14 +190,18 @@ func TestTransformationFactory(t *testing.T) {
 func TestCreateTransformationConfigDeserializeInterface(t *testing.T) {
 	config := CreateTransformationConfig{
 		OfflineType:   provider.K8s,
-		OfflineConfig: []byte{},
+		OfflineConfig: []byte("My config"),
 		TransformationConfig: provider.TransformationConfig{
 			Type: provider.DFTransformation,
 			TargetTableID: provider.ResourceID{
-				Type: provider.Transformation,
+				Type:    provider.Transformation,
+				Name:    "Name",
+				Variant: "variant",
 			},
-			Code:          []byte{},
-			SourceMapping: []provider.SourceMapping{},
+			Code: []byte("My code"),
+			SourceMapping: []provider.SourceMapping{
+				{"template", "source"},
+			},
 			Args: metadata.KubernetesArgs{
 				DockerImage: "my_image",
 			},
@@ -209,7 +213,7 @@ func TestCreateTransformationConfigDeserializeInterface(t *testing.T) {
 	}
 	configEmpty := CreateTransformationConfig{
 		OfflineType:   provider.K8s,
-		OfflineConfig: conf,
+		OfflineConfig: []byte{},
 		TransformationConfig: provider.TransformationConfig{
 			Type: 1,
 			TargetTableID: provider.ResourceID{
@@ -239,6 +243,8 @@ func TestCreateTransformationConfigDeserializeInterface(t *testing.T) {
 			c := &CreateTransformationConfig{}
 			if err := c.Deserialize(tt.args.config); (err != nil) != tt.wantErr {
 				t.Errorf("Deserialize() error = %v, wantErr %v", err, tt.wantErr)
+			} else {
+				fmt.Println(c)
 			}
 		})
 	}

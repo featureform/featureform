@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/mitchellh/mapstructure"
 	"sort"
 	"strings"
 	"time"
@@ -157,6 +158,30 @@ type TransformationConfig struct {
 	Code          []byte
 	SourceMapping []SourceMapping
 	Args          metadata.TransformationArgs
+	ArgType       metadata.TransformationArgType
+}
+
+func (m *TransformationConfig) MarshalJSON() ([]byte, error) {
+	var argType metadata.TransformationArgType
+	if m.Args != nil {
+		argType = m.Args.Type()
+	} else {
+		argType = metadata.NoArgs
+	}
+	type config TransformationConfig
+	marshal, err := json.Marshal(&config{
+		Type:          m.Type,
+		TargetTableID: m.TargetTableID,
+		Query:         m.Query,
+		Code:          m.Code,
+		SourceMapping: m.SourceMapping,
+		Args:          m.Args,
+		ArgType:       argType,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return marshal, nil
 }
 
 func (m *TransformationConfig) UnmarshalJSON(data []byte) error {
@@ -165,12 +190,47 @@ func (m *TransformationConfig) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	if value, ok := temp["Args"].(metadata.KubernetesArgs); ok {
-		m.Args = value
-	} else {
-		m.Args = nil
+	m.Type = TransformationType(temp["Type"].(float64))
+	m.Query = temp["Query"].(string)
+	m.Code = []byte(temp["Code"].(string))
+
+	err = mapstructure.Decode(temp["TargetTableID"], &m.TargetTableID)
+	if err != nil {
+		return err
+	}
+	err = mapstructure.Decode(temp["SourceMapping"], &m.SourceMapping)
+	if err != nil {
+		return err
 	}
 
+	err = m.decodeArgs(temp)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *TransformationConfig) decodeArgs(temp map[string]interface{}) error {
+	argType, ok := temp["ArgType"].(string)
+	if !ok {
+		return fmt.Errorf("transformation arg type cannot be cast to string")
+	}
+	var args metadata.TransformationArgs
+	switch metadata.TransformationArgType(argType) {
+	case metadata.K8sArgs:
+		args = metadata.KubernetesArgs{}
+	case metadata.NoArgs:
+		args = nil
+	default:
+		return fmt.Errorf("invalid transformation arg type")
+	}
+	err := mapstructure.Decode(temp["Args"], &args)
+	if err != nil {
+		return err
+	}
+
+	m.Args = args
 	return nil
 }
 

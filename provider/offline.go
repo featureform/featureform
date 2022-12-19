@@ -185,51 +185,52 @@ func (m *TransformationConfig) MarshalJSON() ([]byte, error) {
 }
 
 func (m *TransformationConfig) UnmarshalJSON(data []byte) error {
-	temp := make(map[string]interface{})
+	type tempConfig struct {
+		Type          TransformationType
+		TargetTableID ResourceID
+		Query         string
+		Code          []byte
+		SourceMapping []SourceMapping
+		Args          map[string]interface{}
+		ArgType       metadata.TransformationArgType
+	}
+
+	var temp tempConfig
 	err := json.Unmarshal(data, &temp)
 	if err != nil {
-		return err
+		return fmt.Errorf("unmarshal: %w", err)
 	}
-	m.Type = TransformationType(temp["Type"].(float64))
-	m.Query = temp["Query"].(string)
-	m.Code = []byte(temp["Code"].(string))
+	
+	m.Type = temp.Type
+	m.TargetTableID = temp.TargetTableID
+	m.Query = temp.Query
+	m.Code = temp.Code
+	m.SourceMapping = temp.SourceMapping
 
-	err = mapstructure.Decode(temp["TargetTableID"], &m.TargetTableID)
+	err = m.decodeArgs(temp.ArgType, temp.Args)
 	if err != nil {
-		return err
-	}
-	err = mapstructure.Decode(temp["SourceMapping"], &m.SourceMapping)
-	if err != nil {
-		return err
-	}
-
-	err = m.decodeArgs(temp)
-	if err != nil {
-		return err
+		return fmt.Errorf("decode: %w", err)
 	}
 
 	return nil
 }
 
-func (m *TransformationConfig) decodeArgs(temp map[string]interface{}) error {
-	argType, ok := temp["ArgType"].(string)
-	if !ok {
-		return fmt.Errorf("transformation arg type cannot be cast to string")
-	}
+func (m *TransformationConfig) decodeArgs(t metadata.TransformationArgType, argMap map[string]interface{}) error {
+
 	var args metadata.TransformationArgs
-	switch metadata.TransformationArgType(argType) {
+	switch t {
 	case metadata.K8sArgs:
 		args = metadata.KubernetesArgs{}
 	case metadata.NoArgs:
-		args = nil
+		m.Args = nil
+		return nil
 	default:
 		return fmt.Errorf("invalid transformation arg type")
 	}
-	err := mapstructure.Decode(temp["Args"], &args)
+	err := mapstructure.Decode(argMap, &args)
 	if err != nil {
-		return err
+		return fmt.Errorf("could not decode map: %w", err)
 	}
-
 	m.Args = args
 	return nil
 }

@@ -424,6 +424,21 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                       <b>Source Type:</b> {metadata["source-type"]}
                     </Typography>
                   )}
+                  {metadata["specifications"] && (
+                      <div>
+                        <Typography variant="body1">
+                          <b>Specifications:</b>
+                        </Typography>
+                        <Typography variant="body1" component={"h2"}>
+                          {Object.keys(metadata["specifications"]).map((k) => (
+                              <div style={{ marginLeft: 16 }}>
+                                <b>{k}: </b> {metadata["specifications"][k]}
+                              </div>
+                          ))}
+                        </Typography>
+                      </div>
+                  )
+                  }
                   {metadata["definition"] && (
                     <div>
                       <Typography variant="body1">
@@ -444,22 +459,6 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                       )}
                     </div>
                   )}
-                  {metadata["specifications"] && (
-                      <div>
-                      <Typography variant="body1">
-                        <b>Specifications:</b>
-                      </Typography>
-                        <Typography variant="body1" component={"h2"}>
-                          {Object.keys(metadata["specifications"]).map((k) => (
-                              <div style={{ marginLeft: 16 }}>
-                                <b>{k}: </b> {metadata["specifications"][k]}
-                              </div>
-                          ))}
-                        </Typography>
-                      </div>
-                  )
-
-                  }
                   {metadata["serialized-config"] && (
                     <Typography variant="body1">
                       <b>Serialized Config:</b> {metadata["serialized-config"]}

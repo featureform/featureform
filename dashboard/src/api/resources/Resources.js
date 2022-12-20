@@ -35,7 +35,7 @@ export const testDetailsData = {
   "sources":
     {
       my_transformation: {
-        "all-variants": ["default"],
+        "all-variants": ["default", "empty_specs"],
         "type": "Source",
         "default-variant": "default",
         "name": "my_transformation",
@@ -56,6 +56,24 @@ export const testDetailsData = {
             "definition": "",
             "specifications": {
               "Docker Image": "featureformcom/k8s_runner:latest"
+            }
+          },
+          "empty_specs": {
+            "created": "2022-12-15T00:41:10.247138911Z",
+            "description": "A dummy transformation",
+            "name": "my_transformation",
+            "source-type": "Transformation",
+            "owner": "default_user",
+            "provider": "k8s",
+            "variant": "default",
+            "labels": {},
+            "features": {},
+            "training-sets": {},
+            "status": "READY",
+            "error": "",
+            "definition": "",
+            "specifications": {
+              "Docker Image": ""
             }
           }
         }

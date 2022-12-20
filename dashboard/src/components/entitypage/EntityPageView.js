@@ -249,6 +249,16 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
     });
   };
 
+  const numValidKeys = (dict) => {
+    let validKeys = 0;
+    Object.keys(dict).forEach(function(key) {
+      if (metadata["specifications"][key] !== "") {
+        validKeys++
+      }
+    })
+    return validKeys
+  }
+
   let allVariants = resources["all-variants"];
 
   const classes = useStyles();
@@ -424,7 +434,7 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                       <b>Source Type:</b> {metadata["source-type"]}
                     </Typography>
                   )}
-                  {Object.keys(metadata["specifications"]).length > 0 && (
+                  {numValidKeys(metadata["specifications"]) > 0 && (
                       <div>
                         <Typography variant="body1">
                           <b>Specifications:</b>

@@ -132,11 +132,11 @@ func TestKubernetesArgs_Format(t *testing.T) {
 	tests := []struct {
 		name    string
 		fields  fields
-		want    []byte
+		want    map[string]string
 		wantErr bool
 	}{
-		{"Empty", fields{""}, createJson(t, map[string]string{"Docker Image": ""}), false},
-		{"With Image", fields{"my/test:image"}, createJson(t, map[string]string{"Docker Image": "my/test:image"}), false},
+		{"Empty", fields{""}, map[string]string{"Docker Image": ""}, false},
+		{"With Image", fields{"my/test:image"}, map[string]string{"Docker Image": "my/test:image"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

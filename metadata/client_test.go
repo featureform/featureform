@@ -164,3 +164,51 @@ func TestKubernetesArgs_Format(t *testing.T) {
 		})
 	}
 }
+
+func TestSourceVariant_HasKubernetesArgs(t *testing.T) {
+	type fields struct {
+		serialized *pb.SourceVariant
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   bool
+	}{
+		{"Has Kubernetes Args",
+			fields{
+				serialized: &pb.SourceVariant{
+					Definition: &pb.SourceVariant_Transformation{
+						Transformation: &pb.Transformation{
+							Args: &pb.Transformation_KubernetesArgs{
+								KubernetesArgs: &pb.KubernetesArgs{
+									DockerImage: "",
+								},
+							},
+						},
+					},
+				},
+			},
+			true,
+		},
+		{"Does Not Have Kubernetes Args",
+			fields{
+				serialized: &pb.SourceVariant{
+					Definition: &pb.SourceVariant_Transformation{
+						Transformation: &pb.Transformation{},
+					},
+				},
+			},
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			variant := &SourceVariant{
+				serialized: tt.fields.serialized,
+			}
+			if got := variant.HasKubernetesArgs(); got != tt.want {
+				t.Errorf("HasKubernetesArgs() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

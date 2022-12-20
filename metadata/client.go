@@ -1823,18 +1823,19 @@ func (variant *SourceVariant) DFTransformationSources() []NameVariant {
 	return variants
 }
 
+func (variant *SourceVariant) HasKubernetesArgs() bool {
+	return variant.serialized.GetTransformation().GetKubernetesArgs() != nil
+}
+
 func (variant *SourceVariant) TransformationArgs() TransformationArgs {
 	if !variant.IsTransformation() {
 		return nil
 	}
 
-	args := variant.serialized.GetTransformation().GetArgs()
-	switch args.(type) {
-	case *pb.Transformation_KubernetesArgs:
+	if variant.HasKubernetesArgs() {
 		return variant.parseKubernetesArgs()
-	default:
-		return nil
 	}
+	return nil
 }
 
 func (variant *SourceVariant) isPrimaryData() bool {

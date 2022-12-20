@@ -424,17 +424,17 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                       <b>Source Type:</b> {metadata["source-type"]}
                     </Typography>
                   )}
-                  {metadata["specifications"] && (
+                  {Object.keys(metadata["specifications"]).length > 0 && (
                       <div>
                         <Typography variant="body1">
                           <b>Specifications:</b>
                         </Typography>
                         <Typography variant="body1" component={"h2"}>
                           {Object.keys(metadata["specifications"]).map((k) => (
-                              {metadata["specifications"][k]} &&
+                              metadata["specifications"][k] !== "" && (
                               <div style={{ marginLeft: 16 }}>
                                 <b>{k}: </b> {metadata["specifications"][k]}
-                              </div>
+                              </div>)
                           ))}
                         </Typography>
                       </div>

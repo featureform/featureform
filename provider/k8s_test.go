@@ -694,7 +694,7 @@ func (arg dummyArgs) Format() ([]byte, error) {
 	return nil, nil
 }
 
-func (arg dummyArgs) Type() TransformationArgType {
+func (arg dummyArgs) Type() metadata.TransformationArgType {
 	return metadata.NoArgs
 }
 

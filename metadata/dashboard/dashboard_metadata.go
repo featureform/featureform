@@ -259,19 +259,19 @@ func sourceShallowMap(variant *metadata.SourceVariant) SourceVariantResource {
 
 func getSourceString(variant *metadata.SourceVariant) string {
 	if variant.IsSQLTransformation() {
-		return "SQL Transformation"
-	} else if variant.IsDFTransformation() {
-		return "Dataframe Transformation"
+		return variant.SQLTransformationQuery()
 	} else {
-		return "Primary Table"
+		return variant.PrimaryDataSQLTableName()
 	}
 }
 
 func getSourceType(variant *metadata.SourceVariant) string {
 	if variant.IsSQLTransformation() {
-		return variant.SQLTransformationQuery()
+		return "SQL Transformation"
+	} else if variant.IsDFTransformation() {
+		return "Dataframe Transformation"
 	} else {
-		return variant.PrimaryDataSQLTableName()
+		return "Primary Table"
 	}
 }
 

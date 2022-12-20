@@ -7,6 +7,7 @@ import { makeStyles } from "@material-ui/core/styles";
 import Typography from "@material-ui/core/Typography";
 import MaterialTable, { MTableBody, MTableHeader } from "material-table";
 import Box from "@material-ui/core/Box";
+import styled, { css } from 'styled-components'
 import Grid from "@material-ui/core/Grid";
 import Container from "@material-ui/core/Container";
 import Icon from "@material-ui/core/Icon";
@@ -443,6 +444,22 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                       )}
                     </div>
                   )}
+                  {metadata["specifications"] && (
+                      <div>
+                      <Typography variant="body1">
+                        <b>Specifications:</b>
+                      </Typography>
+                        <Typography variant="body1" component={"h2"}>
+                          {Object.keys(metadata["specifications"]).map((k) => (
+                              <div style={{ marginLeft: 16 }}>
+                                <b>{k}: </b> {metadata["specifications"][k]}
+                              </div>
+                          ))}
+                        </Typography>
+                      </div>
+                  )
+
+                  }
                   {metadata["serialized-config"] && (
                     <Typography variant="body1">
                       <b>Serialized Config:</b> {metadata["serialized-config"]}

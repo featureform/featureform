@@ -1,36 +1,68 @@
 import Resource from "./Resource.js";
 import TypesenseClient from "./Search.js";
 
-export const testData = [
-  {
-    name: "User sample preferences",
-    "default-variant": "first-variant",
-    type: "Feature",
-    "all-variants": ["first-variant", "normalized variant"],
-    variants: {
-      "first-variant": {
-        "variant-name": "first-variant",
-        dimensions: 3,
-        created: "2020-08-09-0290499",
-        owner: "Simba Khadder",
-        visibility: "private",
-        revision: "2020-08-10-39402409",
-        tags: ["model2vec", "compressed"],
-        description: "Vector generated based on user preferences",
-      },
-      "normalized variant": {
-        "variant-name": "normalized variant",
-        dimensions: 3,
-        created: "2020-08-09-0290499",
-        owner: "Simba Khadder",
-        visibility: "private",
-        revision: "2020-08-10-39402409",
-        tags: ["model2vec", "compressed"],
-        description: "Vector generated based on user preferences, normalized",
-      },
-    },
-  },
-];
+// Set to true run locally
+const local = false;
+
+export const testListData = {
+  "Source": [
+    {
+      "all-variants": ["default"],
+      "type": "Source",
+      "default-variant": "default",
+      "name": "my_transformation",
+      "variants": {
+        "default": {
+          "created": "2022-12-15T00:41:10.247138911Z",
+          "description": "A dummy transformation",
+          "name": "my_transformation",
+          "source-type": "Transformation",
+          "owner": "default_user",
+          "provider": "k8s",
+          "variant": "default",
+          "labels": null,
+          "features": null,
+          "training-sets": null,
+          "status": "READY",
+          "error": "",
+          "definition": ""
+        }
+      }
+    }
+    ]
+}
+export const testDetailsData = {
+  "sources":
+    {
+      my_transformation: {
+        "all-variants": ["default"],
+        "type": "Source",
+        "default-variant": "default",
+        "name": "my_transformation",
+        "variants": {
+          "default": {
+            "created": "2022-12-15T00:41:10.247138911Z",
+            "description": "A dummy transformation",
+            "name": "my_transformation",
+            "source-type": "Transformation",
+            "owner": "default_user",
+            "provider": "k8s",
+            "variant": "default",
+            "labels": {},
+            "features": {},
+            "training-sets": {},
+            "status": "READY",
+            "error": "",
+            "definition": "",
+            "specifications": {
+              "Docker Image": "featureformcom/k8s_runner:latest"
+            }
+          }
+        }
+      }
+    }
+}
+
 
 export const providerLogos = Object.freeze({
   REDIS: "static/Redis_Logo.svg",
@@ -73,7 +105,7 @@ if (typeof process.env.REACT_APP_TYPESENSE_API_KEY != "undefined") {
   TYPESENSE_API_KEY = process.env.REACT_APP_TYPESENSE_API_KEY.trim();
 }
 
-const local = false;
+
 
 export default class ResourcesAPI {
   static typeSenseClient = new TypesenseClient(
@@ -97,7 +129,7 @@ export default class ResourcesAPI {
     var fetchAddress;
     let resourceType = Resource[type];
     if (local) {
-      fetchAddress = `/data/lists/wine-data.json`;
+      return { data: testListData[type] }
     } else {
       fetchAddress = `${API_URL + "/data"}${resourceType.urlPath}`;
     }
@@ -112,7 +144,7 @@ export default class ResourcesAPI {
       .then((res) =>
         res.json().then((json_data) => {
           if (local) {
-            return { data: json_data[type] };
+            return { data: testData[type] };
           } else {
             return { data: json_data };
           }
@@ -124,9 +156,10 @@ export default class ResourcesAPI {
   }
 
   fetchEntity(type, title) {
+    console.log(type, title)
     var fetchAddress;
     if (local) {
-      fetchAddress = "/data/" + type + "/" + title + ".json";
+      return { data: testDetailsData[type][title] }
     } else {
       fetchAddress = `${API_URL + "/data"}/${type}/${title}`;
     }

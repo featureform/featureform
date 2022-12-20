@@ -82,19 +82,20 @@ type TrainingSetResource struct {
 }
 
 type SourceVariantResource struct {
-	Created      time.Time                               `json:"created"`
-	Description  string                                  `json:"description"`
-	Name         string                                  `json:"name"`
-	SourceType   string                                  `json:"source-type"`
-	Owner        string                                  `json:"owner"`
-	Provider     string                                  `json:"provider"`
-	Variant      string                                  `json:"variant"`
-	Labels       map[string][]LabelVariantResource       `json:"labels"`
-	Features     map[string][]FeatureVariantResource     `json:"features"`
-	TrainingSets map[string][]TrainingSetVariantResource `json:"training-sets"`
-	Status       string                                  `json:"status"`
-	Error        string                                  `json:"error"`
-	Definition   string                                  `json:"definition"`
+	Created        time.Time                               `json:"created"`
+	Description    string                                  `json:"description"`
+	Name           string                                  `json:"name"`
+	SourceType     string                                  `json:"source-type"`
+	Owner          string                                  `json:"owner"`
+	Provider       string                                  `json:"provider"`
+	Variant        string                                  `json:"variant"`
+	Labels         map[string][]LabelVariantResource       `json:"labels"`
+	Features       map[string][]FeatureVariantResource     `json:"features"`
+	TrainingSets   map[string][]TrainingSetVariantResource `json:"training-sets"`
+	Status         string                                  `json:"status"`
+	Error          string                                  `json:"error"`
+	Definition     string                                  `json:"definition"`
+	Specifications map[string]string                       `json:"specifications"`
 }
 
 type SourceResource struct {
@@ -241,27 +242,42 @@ func trainingSetShallowMap(variant *metadata.TrainingSetVariant) TrainingSetVari
 }
 
 func sourceShallowMap(variant *metadata.SourceVariant) SourceVariantResource {
-	var sourceType string
-	var sourceString string
-	if variant.PrimaryDataSQLTableName() == "" {
-		sourceType = "Transformation"
-		sourceString = variant.SQLTransformationQuery()
-	} else {
-		sourceType = "Primary Table"
-		sourceString = variant.PrimaryDataSQLTableName()
-	}
 	return SourceVariantResource{
-		Created:     variant.Created(),
-		Description: variant.Description(),
-		Name:        variant.Name(),
-		SourceType:  sourceType,
-		Variant:     variant.Variant(),
-		Owner:       variant.Owner(),
-		Provider:    variant.Provider(),
-		Status:      variant.Status().String(),
-		Error:       variant.Error(),
-		Definition:  sourceString,
+		Created:        variant.Created(),
+		Description:    variant.Description(),
+		Name:           variant.Name(),
+		SourceType:     getSourceType(variant),
+		Variant:        variant.Variant(),
+		Owner:          variant.Owner(),
+		Provider:       variant.Provider(),
+		Status:         variant.Status().String(),
+		Error:          variant.Error(),
+		Definition:     getSourceString(variant),
+		Specifications: getSourceArgs(variant),
 	}
+}
+
+func getSourceString(variant *metadata.SourceVariant) string {
+	if variant.IsSQLTransformation() {
+		return "SQL Transformation"
+	} else {
+		return "Primary Table"
+	}
+}
+
+func getSourceType(variant *metadata.SourceVariant) string {
+	if variant.IsSQLTransformation() {
+		return variant.SQLTransformationQuery()
+	} else {
+		return variant.PrimaryDataSQLTableName()
+	}
+}
+
+func getSourceArgs(variant *metadata.SourceVariant) map[string]string {
+	if variant.HasKubernetesArgs() {
+		return variant.TransformationArgs().Format()
+	}
+	return map[string]string{}
 }
 
 func (m *MetadataServer) getTrainingSets(nameVariants []metadata.NameVariant) (map[string][]TrainingSetVariantResource, error) {

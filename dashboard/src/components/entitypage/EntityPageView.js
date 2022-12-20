@@ -431,6 +431,7 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                         </Typography>
                         <Typography variant="body1" component={"h2"}>
                           {Object.keys(metadata["specifications"]).map((k) => (
+                              {metadata["specifications"][k]} &&
                               <div style={{ marginLeft: 16 }}>
                                 <b>{k}: </b> {metadata["specifications"][k]}
                               </div>

@@ -9,6 +9,7 @@ require (
 	github.com/avast/retry-go/v4 v4.0.3
 	github.com/aws/aws-sdk-go v1.44.68
 	github.com/aws/aws-sdk-go-v2/config v1.15.15
+	github.com/brimdata/zed v1.3.0
 	github.com/gin-contrib/cors v1.3.1
 	github.com/gin-gonic/gin v1.7.7
 	github.com/go-redis/redis/v8 v8.11.5
@@ -20,6 +21,7 @@ require (
 	github.com/lib/pq v1.10.6
 	github.com/mitchellh/mapstructure v1.4.3
 	github.com/mrz1836/go-sanitize v1.1.5
+	github.com/novln/docker-parser v1.0.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.12.2
 	github.com/prometheus/client_model v0.2.0
@@ -30,7 +32,7 @@ require (
 	go.etcd.io/etcd/api/v3 v3.5.2
 	go.etcd.io/etcd/client/v3 v3.5.2
 	go.mongodb.org/mongo-driver v1.8.3
-	go.uber.org/zap v1.21.0
+	go.uber.org/zap v1.23.0
 	gocloud.dev v0.27.0
 	golang.org/x/exp v0.0.0-20221031165847-c99f073a8326
 	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4
@@ -170,14 +172,15 @@ require (
 	github.com/klauspost/compress v1.15.9 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
-	github.com/mattn/go-runewidth v0.0.9 // indirect
+	github.com/mattn/go-runewidth v0.0.10 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
+	github.com/rivo/uniseg v0.1.0 // indirect
 	github.com/segmentio/encoding v0.3.5 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
 	github.com/xdg-go/scram v1.0.2 // indirect
 	github.com/xdg-go/stringprep v1.0.2 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20181117223130-1be2e3e5546d // indirect
-	go.uber.org/atomic v1.9.0 // indirect
+	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 )

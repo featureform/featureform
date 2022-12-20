@@ -42,6 +42,22 @@ type CreateTransformationConfig struct {
 	IsUpdate             bool
 }
 
+func (c *CreateTransformationConfig) Serialize() (Config, error) {
+	config, err := json.Marshal(c)
+	if err != nil {
+		return nil, fmt.Errorf("could not marshal transformation config: %w", err)
+	}
+	return config, nil
+}
+
+func (c *CreateTransformationConfig) Deserialize(config Config) error {
+	err := json.Unmarshal(config, c)
+	if err != nil {
+		return fmt.Errorf("could not unmarshal transformation config: %w", err)
+	}
+	return nil
+}
+
 type CreateTransformationRunner struct {
 	Offline              provider.OfflineStore
 	TransformationConfig provider.TransformationConfig
@@ -60,34 +76,22 @@ func (c CreateTransformationRunner) IsUpdateJob() bool {
 	return c.IsUpdate
 }
 
-func (c *CreateTransformationConfig) Serialize() (Config, error) {
-	config, err := json.Marshal(c)
-	if err != nil {
-		panic(err)
-	}
-	return config, nil
-}
-
-func (c *CreateTransformationConfig) Deserialize(config Config) error {
-	err := json.Unmarshal(config, c)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 func CreateTransformationRunnerFactory(config Config) (types.Runner, error) {
-	transformationConfig := &CreateTransformationConfig{}
+	transformationConfig := &CreateTransformationConfig{
+		TransformationConfig: provider.TransformationConfig{
+			Args: metadata.KubernetesArgs{},
+		},
+	}
 	if err := transformationConfig.Deserialize(config); err != nil {
-		return nil, fmt.Errorf("failed to deserialize create transformation config")
+		return nil, fmt.Errorf("failed to deserialize create transformation config: %w", err)
 	}
 	offlineProvider, err := provider.Get(transformationConfig.OfflineType, transformationConfig.OfflineConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to configure offline provider: %v", err)
+		return nil, fmt.Errorf("failed to configure offline provider: %w", err)
 	}
 	offlineStore, err := offlineProvider.AsOfflineStore()
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert provider to offline store: %v", err)
+		return nil, fmt.Errorf("failed to convert provider to offline store: %w", err)
 	}
 	return &CreateTransformationRunner{
 		Offline:              offlineStore,

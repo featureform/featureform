@@ -6,7 +6,9 @@ package runner
 
 import (
 	"fmt"
+	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
+	"reflect"
 	"testing"
 )
 
@@ -184,4 +186,71 @@ func TestTransformationFactory(t *testing.T) {
 		t.Fatalf("Could not create create transformation runner")
 	}
 	delete(factoryMap, "TEST_CREATE_TRANSFORMATION")
+}
+
+func TestCreateTransformationConfigDeserializeInterface(t *testing.T) {
+	config := CreateTransformationConfig{
+		OfflineType:   provider.K8s,
+		OfflineConfig: []byte("My config"),
+		TransformationConfig: provider.TransformationConfig{
+			Type: provider.DFTransformation,
+			TargetTableID: provider.ResourceID{
+				Type:    provider.Transformation,
+				Name:    "Name",
+				Variant: "variant",
+			},
+			Code: []byte("My code"),
+			SourceMapping: []provider.SourceMapping{
+				{"template", "source"},
+			},
+			Args: metadata.KubernetesArgs{
+				DockerImage: "my_image",
+			},
+		},
+	}
+	serialized, err := config.Serialize()
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	configEmpty := CreateTransformationConfig{
+		OfflineType:   provider.K8s,
+		OfflineConfig: []byte{},
+		TransformationConfig: provider.TransformationConfig{
+			Type: 1,
+			TargetTableID: provider.ResourceID{
+				Type: provider.Transformation,
+			},
+			Code:          []byte{},
+			SourceMapping: []provider.SourceMapping{},
+		},
+	}
+	serializedEmpty, err := configEmpty.Serialize()
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	type args struct {
+		config Config
+	}
+	tests := []struct {
+		name          string
+		args          args
+		expected      CreateTransformationConfig
+		transformType metadata.TransformationArgType
+		wantErr       bool
+	}{
+		{"Deserialize With Kubernetes Args", args{serialized}, config, metadata.K8sArgs, false},
+		{"Deserialize Empty", args{serializedEmpty}, configEmpty, metadata.NoArgs, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := CreateTransformationConfig{}
+			if err := c.Deserialize(tt.args.config); (err != nil) != tt.wantErr {
+				t.Errorf("Deserialize() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			c.TransformationConfig.ArgType = tt.transformType
+			if !reflect.DeepEqual(tt.expected, c) {
+				t.Errorf("Deserialize() \nexpected = %#v \ngot = %#v", tt.expected, c)
+			}
+		})
+	}
 }

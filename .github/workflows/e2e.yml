@@ -415,6 +415,41 @@ jobs:
         continue-on-error: true
         run: kubectl logs -l job-name=featureform-quickstart-loader
 
+      - name: Users
+        if: always()
+        continue-on-error: true
+        run: curl http://localhost:7000/data/users
+
+      - name: Providers
+        if: always()
+        continue-on-error: true
+        run: curl http://localhost:7000/data/providers
+
+      - name: Entities
+        if: always()
+        continue-on-error: true
+        run: curl http://localhost:7000/data/entities
+
+      - name: Sources
+        if: always()
+        continue-on-error: true
+        run: curl http://localhost:7000/data/sources
+
+      - name: Features
+        if: always()
+        continue-on-error: true
+        run: curl http://localhost:7000/data/features
+
+      - name: Labels
+        if: always()
+        continue-on-error: true
+        run: curl http://localhost:7000/data/labels
+
+      - name: Training Sets
+        if: always()
+        continue-on-error: true
+        run: curl http://localhost:7000/data/training-sets
+
       - name: Cleanup Featureform
         if: always()
         continue-on-error: true

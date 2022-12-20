@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/mitchellh/mapstructure"
 	"sort"
 	"strings"
 	"time"
@@ -156,6 +157,78 @@ type TransformationConfig struct {
 	Query         string
 	Code          []byte
 	SourceMapping []SourceMapping
+	Args          metadata.TransformationArgs
+	ArgType       metadata.TransformationArgType
+}
+
+func (m *TransformationConfig) MarshalJSON() ([]byte, error) {
+	var argType metadata.TransformationArgType
+	if m.Args != nil {
+		argType = m.Args.Type()
+	} else {
+		argType = metadata.NoArgs
+	}
+	m.ArgType = argType
+
+	// Prevents recursion in marshal
+	type config TransformationConfig
+	c := config(*m)
+	marshal, err := json.Marshal(&c)
+	if err != nil {
+		return nil, err
+	}
+	return marshal, nil
+}
+
+func (m *TransformationConfig) UnmarshalJSON(data []byte) error {
+	type tempConfig struct {
+		Type          TransformationType
+		TargetTableID ResourceID
+		Query         string
+		Code          []byte
+		SourceMapping []SourceMapping
+		Args          map[string]interface{}
+		ArgType       metadata.TransformationArgType
+	}
+
+	var temp tempConfig
+	err := json.Unmarshal(data, &temp)
+	if err != nil {
+		return fmt.Errorf("unmarshal: %w", err)
+	}
+
+	m.Type = temp.Type
+	m.TargetTableID = temp.TargetTableID
+	m.Query = temp.Query
+	m.Code = temp.Code
+	m.SourceMapping = temp.SourceMapping
+
+	err = m.decodeArgs(temp.ArgType, temp.Args)
+	if err != nil {
+		return fmt.Errorf("decode: %w", err)
+	}
+
+	return nil
+}
+
+func (m *TransformationConfig) decodeArgs(t metadata.TransformationArgType, argMap map[string]interface{}) error {
+
+	var args metadata.TransformationArgs
+	switch t {
+	case metadata.K8sArgs:
+		args = metadata.KubernetesArgs{}
+	case metadata.NoArgs:
+		m.Args = nil
+		return nil
+	default:
+		return fmt.Errorf("invalid transformation arg type")
+	}
+	err := mapstructure.Decode(argMap, &args)
+	if err != nil {
+		return fmt.Errorf("could not decode map: %w", err)
+	}
+	m.Args = args
+	return nil
 }
 
 type OfflineStore interface {

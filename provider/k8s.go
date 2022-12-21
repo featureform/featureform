@@ -992,20 +992,21 @@ func blobRegisterPrimary(id ResourceID, sourceName string, logger *zap.SugaredLo
 	resourceKey := store.PathWithPrefix(fileStoreResourcePath(id), false)
 	primaryExists, err := store.Exists(resourceKey)
 	if err != nil {
-		logger.Errorw("Error checking if primary exists", err)
+		logger.Errorw("Error checking if primary exists", "error", err)
 		return nil, fmt.Errorf("error checking if primary exists: %v", err)
 	}
 	if primaryExists {
-		logger.Errorw("Error checking if primary exists")
+		logger.Errorw("Error checking if primary exists", "source", sourceName)
 		return nil, fmt.Errorf("primary already exists")
 	}
 
-	logger.Debugw("Registering primary table", id, "for source", sourceName)
+	logger.Debugw("Registering primary table", "id", id, "source", sourceName)
 	if err := store.Write(resourceKey, []byte(sourceName)); err != nil {
 		logger.Errorw("Could not write primary table", err)
 		return nil, err
 	}
-	logger.Debugw("Successfully registered primary table", id, "for source", sourceName)
+
+	logger.Debugw("Successfully registered primary table", "id", id, "source", sourceName)
 	return &FileStorePrimaryTable{store, sourceName, false, id}, nil
 }
 
@@ -1096,21 +1097,22 @@ func (k8s *K8sOfflineStore) sqlTransformation(config TransformationConfig, isUpd
 	}
 	exists := transformationDestinationExactPath != ""
 	if !isUpdate && exists {
-		k8s.logger.Errorw("Creation when transformation already exists", config.TargetTableID, transformationDestination)
+		k8s.logger.Errorw("Creation when transformation already exists", "target_table", config.TargetTableID, "destination", transformationDestination)
 		return fmt.Errorf("transformation %v already exists at %s", config.TargetTableID, transformationDestination)
 	} else if isUpdate && !exists {
-		k8s.logger.Errorw("Update job attempted when transformation does not exist", config.TargetTableID, transformationDestination)
+		k8s.logger.Errorw("Update job attempted when transformation does not exist", "target_table", config.TargetTableID, "destination", transformationDestination)
 		return fmt.Errorf("transformation %v doesn't exist at %s and you are trying to update", config.TargetTableID, transformationDestination)
 	}
-	k8s.logger.Debugw("Running SQL transformation", config)
+	k8s.logger.Debugw("Running SQL transformation", "target_table", config.TargetTableID, "query", config.Query)
 	runnerArgs := k8s.pandasRunnerArgs(transformationDestination, updatedQuery, sources, Transform)
 
 	runnerArgs = addResourceID(runnerArgs, config.TargetTableID)
 	if err := k8s.executor.ExecuteScript(runnerArgs); err != nil {
-		k8s.logger.Errorw("job for transformation failed to run", config.TargetTableID, err)
+		k8s.logger.Errorw("job for transformation failed to run", "target_table", config.TargetTableID, "error", err)
 		return fmt.Errorf("job for transformation %v failed to run: %v", config.TargetTableID, err)
 	}
-	k8s.logger.Debugw("Successfully ran SQL transformation", config)
+
+	k8s.logger.Debugw("Successfully ran SQL transformation", "target_table", config.TargetTableID, "query", config.Query)
 	return nil
 }
 
@@ -1122,15 +1124,15 @@ func (k8s *K8sOfflineStore) dfTransformation(config TransformationConfig, isUpda
 	transformationDestination := k8s.store.PathWithPrefix(fileStoreResourcePath(config.TargetTableID), false)
 	exists, err := k8s.store.Exists(transformationDestination)
 	if err != nil {
-		k8s.logger.Errorw("Error checking if resource exists", err)
+		k8s.logger.Errorw("Error checking if resource exists", "error", err)
 		return err
 	}
 
 	if !isUpdate && exists {
-		k8s.logger.Errorw("Transformation already exists", config.TargetTableID, transformationDestination)
+		k8s.logger.Errorw("Transformation already exists", "target_table", config.TargetTableID, "destination", transformationDestination)
 		return fmt.Errorf("transformation %v already exists at %s", config.TargetTableID, transformationDestination)
 	} else if isUpdate && !exists {
-		k8s.logger.Errorw("Transformation doesn't exists at destination and you are trying to update", config.TargetTableID, transformationDestination)
+		k8s.logger.Errorw("Transformation doesn't exists at destination and you are trying to update", "target_table", config.TargetTableID, "destination", transformationDestination)
 		return fmt.Errorf("transformation %v doesn't exist at %s and you are trying to update", config.TargetTableID, transformationDestination)
 	}
 
@@ -1139,17 +1141,18 @@ func (k8s *K8sOfflineStore) dfTransformation(config TransformationConfig, isUpda
 	transformationFileLocation := fmt.Sprintf("%s%s", transformationFilePath, fileName)
 	err = k8s.store.Write(transformationFileLocation, config.Code)
 	if err != nil {
-		return fmt.Errorf("could not upload file: %s", err)
+		return fmt.Errorf("could not upload file: %v", err)
 	}
 
 	k8sArgs := k8s.getDFArgs(transformationDestination, transformationFileLocation, config.SourceMapping, sources)
 	k8sArgs = addResourceID(k8sArgs, config.TargetTableID)
-	k8s.logger.Debugw("Running DF transformation", config)
+	k8s.logger.Debugw("Running DF transformation", "target_table", config.TargetTableID)
 	if err := k8s.executor.ExecuteScript(k8sArgs); err != nil {
-		k8s.logger.Errorw("Error running dataframe job", err)
+		k8s.logger.Errorw("Error running dataframe job", "error", err)
 		return fmt.Errorf("submit job for transformation %v failed to run: %v", config.TargetTableID, err)
 	}
-	k8s.logger.Debugw("Successfully ran DF transformation", config)
+
+	k8s.logger.Debugw("Successfully ran DF transformation", "target_table", config.TargetTableID)
 	return nil
 }
 
@@ -1203,7 +1206,7 @@ func (k8s *K8sOfflineStore) getSourcePath(path string) (string, error) {
 			return "", fmt.Errorf("could not get newest blob: %s: %v", fileResourcePath, err)
 		}
 		if exactFileResourcePath == "" {
-			k8s.logger.Errorw("Issue getting transformation table", fileResourceId)
+			k8s.logger.Errorw("Issue getting transformation table", "id", fileResourceId)
 			return "", fmt.Errorf("could not get the transformation table for {%v} at {%s}", fileResourceId, fileResourcePath)
 		}
 		filePath := k8s.store.PathWithPrefix(exactFileResourcePath[:strings.LastIndex(exactFileResourcePath, "/")+1], false)
@@ -1234,14 +1237,15 @@ func (k8s *K8sOfflineStore) getResourceInformationFromFilePath(path string) (str
 }
 
 func (k8s *K8sOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
-	k8s.logger.Debugw("Getting transformation table", "ResourceID", id)
+	k8s.logger.Debugw("Getting transformation table", "id", id)
 	transformationPath := k8s.store.PathWithPrefix(fileStoreResourcePath(id), false)
 	transformationExactPath, err := k8s.store.NewestFile(transformationPath)
 	if err != nil {
 		k8s.logger.Errorw("Could not get transformation table", "error", err)
 		return nil, fmt.Errorf("could not get transformation table (%v): %v", id, err)
 	}
-	k8s.logger.Debugw("Successfully retrieved transformation table", "ResourceID", id)
+
+	k8s.logger.Debugw("Successfully retrieved transformation table", "id", id)
 	return &FileStorePrimaryTable{k8s.store, transformationExactPath, true, id}, nil
 }
 
@@ -1258,14 +1262,14 @@ func (k8s *K8sOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error)
 
 func fileStoreGetPrimary(id ResourceID, store FileStore, logger *zap.SugaredLogger) (PrimaryTable, error) {
 	resourceKey := store.PathWithPrefix(fileStoreResourcePath(id), false)
-	logger.Debugw("Getting primary table", id)
+	logger.Debugw("Getting primary table", "id", id)
 
 	table, err := store.Read(resourceKey)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching primary table: %v", err)
 	}
 
-	logger.Debugw("Successfully retrieved primary table", id)
+	logger.Debugw("Successfully retrieved primary table", "id", id)
 	return &FileStorePrimaryTable{store, string(table), false, id}, nil
 }
 
@@ -1303,8 +1307,8 @@ func (k8s *K8sOfflineStore) GetMaterialization(id MaterializationID) (Materializ
 func fileStoreGetMaterialization(id MaterializationID, store FileStore, logger *zap.SugaredLogger) (Materialization, error) {
 	s := strings.Split(string(id), "/")
 	if len(s) != 3 {
-		logger.Errorw("Invalid materialization id", id)
-		return nil, fmt.Errorf("invalid materialization id")
+		logger.Errorw("Invalid materialization", "id", id)
+		return nil, fmt.Errorf("invalid materialization id: %v", id)
 	}
 	materializationID := ResourceID{s[1], s[2], FeatureMaterialization}
 	logger.Debugw("Getting materialization", "id", id)

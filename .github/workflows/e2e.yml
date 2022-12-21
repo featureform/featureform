@@ -1,5 +1,10 @@
 name: End to End Testing
-on: [pull_request]
+on:
+  pull_request:
+    branches: '**'
+  push:
+    branches: 'release/**'
+
 concurrency:
   group: ${{ github.head_ref }}-e2e
   cancel-in-progress: true

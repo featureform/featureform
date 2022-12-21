@@ -311,7 +311,7 @@ jobs:
           docker load --input /tmp/serving/serving.tar
           docker load --input /tmp/worker/worker.tar
           docker load --input /tmp/k8s_runner/k8s_runner.tar
-          docker load --input /tmp/k8s_runner/k8s_runner_scikit.tar
+          docker load --input /tmp/k8s_runner_scikit/k8s_runner_scikit.tar
           minikube image load local/api-server:stable
           minikube image load local/coordinator:stable
           minikube image load local/dashboard:stable

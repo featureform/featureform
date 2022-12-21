@@ -16,22 +16,12 @@ jobs:
 
       - name: Build Base
         run: docker build . -t local/k8s_runner:stable -f ./provider/scripts/k8s/Dockerfile
+
       - name: Build scikit
         run: docker build . -t local/k8s_runner_scikit:stable -f ./provider/scripts/k8s/Dockerfile.scikit
 
+      - name: Save
+        run: docker save local/k8s_runner_scikit:stable > /tmp/scikit.tar
 
-#      - name: Build business-layer container
-#        uses: docker/build-push-action@v2
-#        with:
-#          load: true
-#          tags: local/k8s_runner:stable
-#          context: .
-#          file: ./provider/scripts/k8s/Dockerfile
-#
-#      - name: Build service
-#        uses: docker/build-push-action@v2
-#        with:
-#          load: true
-#          tags: local/k8s_runner_scikit:stable
-#          context: .
-#          file: ./provider/scripts/k8s/Dockerfile.scikit
+      - run: ls /tmp
+

@@ -244,13 +244,13 @@ jobs:
           file: ./provider/scripts/k8s/Dockerfile.scikit
           tags: local/k8s_runner:scikit-stable
           load: true
-          outputs: type=docker,dest=/tmp/k8s_runner_scikit.tar
+#          outputs: type=docker,dest=/tmp/k8s_runner_scikit.tar
 
-      - name: Upload image scikit
-        uses: actions/upload-artifact@v3
-        with:
-          name: k8s_runner_scikit
-          path: /tmp/k8s_runner_scikit.tar
+#      - name: Upload image scikit
+#        uses: actions/upload-artifact@v3
+#        with:
+#          name: k8s_runner_scikit
+#          path: /tmp/k8s_runner_scikit.tar
 
 
   test:

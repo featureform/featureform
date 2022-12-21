@@ -1,9 +1,9 @@
 name: End to End Testing
 on:
   pull_request:
-    branches: *
+    branches: '**'
   push:
-    branches: release/*
+    branches: 'release/**'
 
 concurrency:
   group: ${{ github.head_ref }}-e2e

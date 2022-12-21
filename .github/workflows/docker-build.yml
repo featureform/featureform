@@ -14,8 +14,10 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      run: docker build . -t local/k8s_runner:stable -f ./provider/scripts/k8s/Dockerfile
-      run: docker build . -t local/k8s_runner_scikit:stable -f ./provider/scripts/k8s/Dockerfile.scikit
+      - name: Build Base
+        run: docker build . -t local/k8s_runner:stable -f ./provider/scripts/k8s/Dockerfile
+      - name: Build scikit
+        run: docker build . -t local/k8s_runner_scikit:stable -f ./provider/scripts/k8s/Dockerfile.scikit
 
 
 #      - name: Build business-layer container

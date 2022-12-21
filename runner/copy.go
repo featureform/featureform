@@ -55,7 +55,7 @@ func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
 		}
 		numRows, err := m.Materialized.NumRows()
 		if err != nil {
-			jobWatcher.EndWatch(err)
+			jobWatcher.EndWatch(fmt.Errorf("failed to get number of rows: %w", err))
 			return
 		}
 		if numRows == 0 {
@@ -70,34 +70,31 @@ func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
 		}
 		it, err := m.Materialized.IterateSegment(rowStart, rowEnd)
 		if err != nil {
-			jobWatcher.EndWatch(err)
+			jobWatcher.EndWatch(fmt.Errorf("failed to create iterator: %w", err))
 			return
 		}
 		i := 0
 		for it.Next() {
 			i += 1
-			if i%1000 == 0 {
-				fmt.Println("on row", i)
-			}
 			value := it.Value().Value
 			entity := it.Value().Entity
 			err := m.Table.Set(entity, value)
 			if err != nil {
-				jobWatcher.EndWatch(err)
+				jobWatcher.EndWatch(fmt.Errorf("could not set table: %w", err))
 				return
 			}
 		}
 		if err = it.Err(); err != nil {
-			jobWatcher.EndWatch(err)
+			jobWatcher.EndWatch(fmt.Errorf("iteration failed with error: %w", err))
 			return
 		}
 		err = it.Close()
 		if err != nil {
-			jobWatcher.EndWatch(err)
+			jobWatcher.EndWatch(fmt.Errorf("failed to close iterator: %w", err))
 		}
 		err = m.Store.Close()
 		if err != nil {
-			jobWatcher.EndWatch(err)
+			jobWatcher.EndWatch(fmt.Errorf("failed to close Online Store: %w", err))
 		}
 		jobWatcher.EndWatch(nil)
 	}()

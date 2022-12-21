@@ -205,7 +205,7 @@ jobs:
         run: docker build . -t local/k8s_runner:stable -f ./provider/scripts/k8s/Dockerfile
 
       - name: Build scikit
-        run: docker build . -t local/k8s_runner_scikit:stable -f ./provider/scripts/k8s/Dockerfile.scikit
+        run: docker build . -t local/k8s_runner:scikit-stable -f ./provider/scripts/k8s/Dockerfile.scikit
 
       - name: Save Base
         run: docker save local/k8s_runner:stable > /tmp/k8s_runner.tar

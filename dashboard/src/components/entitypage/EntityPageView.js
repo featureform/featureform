@@ -7,6 +7,7 @@ import { makeStyles } from "@material-ui/core/styles";
 import Typography from "@material-ui/core/Typography";
 import MaterialTable, { MTableBody, MTableHeader } from "material-table";
 import Box from "@material-ui/core/Box";
+import styled, { css } from 'styled-components'
 import Grid from "@material-ui/core/Grid";
 import Container from "@material-ui/core/Container";
 import Icon from "@material-ui/core/Icon";
@@ -248,6 +249,16 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
     });
   };
 
+  const numValidKeys = (dict) => {
+    let validKeys = 0;
+    Object.keys(dict).forEach(function(key) {
+      if (metadata["specifications"][key] !== "") {
+        validKeys++
+      }
+    })
+    return validKeys
+  }
+
   let allVariants = resources["all-variants"];
 
   const classes = useStyles();
@@ -423,6 +434,22 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                       <b>Source Type:</b> {metadata["source-type"]}
                     </Typography>
                   )}
+                  {numValidKeys(metadata["specifications"]) > 0 && (
+                      <div>
+                        <Typography variant="body1">
+                          <b>Specifications:</b>
+                        </Typography>
+                        <Typography variant="body1" component={"h2"}>
+                          {Object.keys(metadata["specifications"]).map((k) => (
+                              metadata["specifications"][k] !== "" && (
+                              <div style={{ marginLeft: 16 }}>
+                                <b>{k}: </b> {metadata["specifications"][k]}
+                              </div>)
+                          ))}
+                        </Typography>
+                      </div>
+                  )
+                  }
                   {metadata["definition"] && (
                     <div>
                       <Typography variant="body1">

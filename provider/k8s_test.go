@@ -690,8 +690,8 @@ func TestKExecutorConfig_getImage(t *testing.T) {
 
 type dummyArgs struct{}
 
-func (arg dummyArgs) Format() ([]byte, error) {
-	return nil, nil
+func (arg dummyArgs) Format() map[string]string {
+	return nil
 }
 
 func (arg dummyArgs) Type() metadata.TransformationArgType {

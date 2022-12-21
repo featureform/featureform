@@ -132,34 +132,20 @@ func TestKubernetesArgs_Format(t *testing.T) {
 	tests := []struct {
 		name    string
 		fields  fields
-		want    []byte
+		want    map[string]string
 		wantErr bool
 	}{
-		{"Empty", fields{""}, createJson(t, map[string]string{"Docker Image": ""}), false},
-		{"With Image", fields{"my/test:image"}, createJson(t, map[string]string{"Docker Image": "my/test:image"}), false},
+		{"Empty", fields{""}, map[string]string{"Docker Image": ""}, false},
+		{"With Image", fields{"my/test:image"}, map[string]string{"Docker Image": "my/test:image"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			arg := KubernetesArgs{
 				DockerImage: tt.fields.DockerImage,
 			}
-			got, err := arg.Format()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Format() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
+			got := arg.Format()
 			if !reflect.DeepEqual(got, tt.want) {
-				var gotMap map[string]string
-				var wantMap map[string]string
-				err := json.Unmarshal(got, &gotMap)
-				if err != nil {
-					t.Fatalf("could not unmarshal gotten bytes: %s", err.Error())
-				}
-				err = json.Unmarshal(tt.want, &wantMap)
-				if err != nil {
-					t.Fatalf("could not unmarshal gotten bytes: %s", err.Error())
-				}
-				t.Errorf("Format() got = %v, want %v", gotMap, wantMap)
+				t.Errorf("Format() got = %v, want %v", got, tt.want)
 			}
 		})
 	}

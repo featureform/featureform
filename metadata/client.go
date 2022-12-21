@@ -6,7 +6,6 @@ package metadata
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"reflect"
@@ -1692,7 +1691,7 @@ const (
 )
 
 type TransformationArgs interface {
-	Format() ([]byte, error)
+	Format() map[string]string
 	Type() TransformationArgType
 }
 
@@ -1700,12 +1699,10 @@ type KubernetesArgs struct {
 	DockerImage string `json:"Docker Image" mapstructure:"Docker Image"`
 }
 
-func (arg KubernetesArgs) Format() ([]byte, error) {
-	b, err := json.Marshal(arg)
-	if err != nil {
-		return nil, fmt.Errorf("could not format Kubernetes Arguments: %w", err)
+func (arg KubernetesArgs) Format() map[string]string {
+	return map[string]string{
+		"Docker Image": arg.DockerImage,
 	}
-	return b, nil
 }
 
 func (arg KubernetesArgs) Type() TransformationArgType {

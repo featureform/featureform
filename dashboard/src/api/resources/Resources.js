@@ -174,7 +174,6 @@ export default class ResourcesAPI {
   }
 
   fetchEntity(type, title) {
-    console.log(type, title)
     var fetchAddress;
     if (local) {
       return { data: testDetailsData[type][title] }

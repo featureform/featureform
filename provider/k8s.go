@@ -820,20 +820,24 @@ type AzureFileStoreConfig struct {
 	Path          string
 }
 
-func (config *AzureFileStoreConfig) Serialize() ([]byte, error) {
-	data, err := json.Marshal(config)
+func (azureConfig *AzureFileStoreConfig) Serialize() ([]byte, error) {
+	data, err := json.Marshal(azureConfig)
 	if err != nil {
 		panic(err)
 	}
 	return data, nil
 }
 
-func (config *AzureFileStoreConfig) Deserialize(data []byte) error {
-	err := json.Unmarshal(data, config)
+func (azureConfig *AzureFileStoreConfig) Deserialize(config SerializedConfig) error {
+	err := json.Unmarshal(config, azureConfig)
 	if err != nil {
 		return fmt.Errorf("deserialize file blob store config: %w", err)
 	}
 	return nil
+}
+
+func (azureConfig *AzureFileStoreConfig) IsFileStoreConfig() bool {
+	return true
 }
 
 func NewAzureFileStore(config Config) (FileStore, error) {

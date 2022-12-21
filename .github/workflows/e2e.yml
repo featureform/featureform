@@ -233,7 +233,7 @@ jobs:
           context: .
           file: ./provider/scripts/k8s/Dockerfile
           tags: k8s_runner:stable,local/k8s_runner:stable
-          outputs: type=image,name=k8s_runner:stable,push=false
+          load: true
 
       - name: Build and export scikit
         uses: docker/build-push-action@v3

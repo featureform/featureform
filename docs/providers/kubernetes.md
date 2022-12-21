@@ -94,8 +94,7 @@ RUN pip install scikit-learn
 ```
 {% endcode %}
 
-### Using A Custom Image
-
+### Using A Custom Image (Provider-Wide)
 Once you've built your custom image and pushed it to your docker repository, you can use it in your Featureform cluster.
 
 To use the custom-built image, you can add it to the Kubernetes Provider registration. This will override the default
@@ -118,6 +117,25 @@ To use these libraries in a transformation, you can import them within the trans
 {% code title="k8s_quickstart.py" %}
 ```python
 @k8s_custom.df_transformation(inputs=[("encode_product_category", "default")])
+def add_kmeans_clustering(df):
+    from sklearn.cluster import KMeans
+    kmeans = KMeans(n_clusters=6)
+    df["Cluster"] = kmeans.fit_predict(df)
+    df["Cluster"] = X["Cluster"].astype("category")
+    return df
+```
+{% endcode %}
+
+### Using A Custom Image (Per-Transformation)
+Custom images can also be used per-transformation. The specified image will override the default image or provider-wide
+image for only the transformation it is specified in.
+
+{% code title="k8s_quickstart.py" %}
+```python
+@k8s_custom.df_transformation(
+    inputs=[("encode_product_category", "default")],
+    docker_image="my-repo/my-image:latest"
+)
 def add_kmeans_clustering(df):
     from sklearn.cluster import KMeans
     kmeans = KMeans(n_clusters=6)

@@ -235,6 +235,8 @@ jobs:
           tags: k8s_runner:stable,local/k8s_runner:stable
           load: true
 
+      - run: docker image ls
+
       - name: Build and export scikit
         uses: docker/build-push-action@v3
         with:

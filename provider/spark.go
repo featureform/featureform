@@ -37,15 +37,15 @@ type SparkExecutorType string
 
 const (
 	EMR        SparkExecutorType = "EMR"
-	Databricks SparkExecutorType = "DATABRICKS"
+	Databricks                   = "DATABRICKS"
 )
 
 type JobType string
 
 const (
 	Materialize       JobType = "Materialization"
-	Transform         JobType = "Transformation"
-	CreateTrainingSet JobType = "Training Set"
+	Transform                 = "Transformation"
+	CreateTrainingSet         = "Training Set"
 )
 
 const MATERIALIZATION_ID_SEGMENTS = 3
@@ -59,13 +59,13 @@ type AWSCredentials struct {
 }
 
 type SparkExecutorConfig interface {
-	Serialize() []byte
+	Serialize() ([]byte, error)
 	Deserialize(config SerializedConfig) error
 	IsExecutorConfig() bool
 }
 
 type SparkFileStoreConfig interface {
-	Serialize() []byte
+	Serialize() ([]byte, error)
 	Deserialize(config SerializedConfig) error
 	IsFileStoreConfig() bool
 }
@@ -85,12 +85,12 @@ func (s *SparkConfig) Deserialize(config SerializedConfig) error {
 	return nil
 }
 
-func (s *SparkConfig) Serialize() []byte {
+func (s *SparkConfig) Serialize() ([]byte, error) {
 	conf, err := json.Marshal(s)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return conf
+	return conf, nil
 }
 
 func ResourcePath(id ResourceID) string {
@@ -111,12 +111,12 @@ func (e *EMRConfig) Deserialize(config SerializedConfig) error {
 	return nil
 }
 
-func (e *EMRConfig) Serialize() []byte {
+func (e *EMRConfig) Serialize() ([]byte, error) {
 	conf, err := json.Marshal(e)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return conf
+	return conf, nil
 }
 
 func (e *EMRConfig) IsExecutorConfig() bool {
@@ -148,12 +148,12 @@ func (d *DatabricksConfig) Deserialize(config SerializedConfig) error {
 	return nil
 }
 
-func (d *DatabricksConfig) Serialize() []byte {
+func (d *DatabricksConfig) Serialize() ([]byte, error) {
 	conf, err := json.Marshal(d)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return conf
+	return conf, nil
 }
 
 func (d *DatabricksConfig) IsExecutorConfig() bool {
@@ -322,12 +322,12 @@ func (s *S3FileStoreConfig) Deserialize(config SerializedConfig) error {
 	return nil
 }
 
-func (s *S3FileStoreConfig) Serialize() []byte {
+func (s *S3FileStoreConfig) Serialize() ([]byte, error) {
 	conf, err := json.Marshal(s)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return conf
+	return conf, nil
 }
 
 func (s *S3FileStoreConfig) IsFileStoreConfig() bool {
@@ -483,7 +483,7 @@ func sparkOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	}
 
 	logger.Info("Creating Spark store with type:", sc.StoreType)
-	serializedFilestoreConfig := sc.StoreConfig.Serialize()
+	serializedFilestoreConfig, err := sc.StoreConfig.Serialize()
 	if err != nil {
 		return nil, fmt.Errorf("could not serialize databricks Config, %v", err)
 	}
@@ -650,6 +650,11 @@ func (d *DatabricksExecutor) SparkSubmitArgs(destPath string, cleanQuery string,
 
 func (spark *SparkOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error) {
 	return blobRegisterPrimary(id, sourceName, spark.Logger, spark.Store)
+}
+
+func (spark *SparkOfflineStore) pysparkArgs(destinationURI string, templatedQuery string, sourceList []string, jobType JobType) *[]string {
+	args := []string{}
+	return &args
 }
 
 func (spark *SparkOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error) {
@@ -1074,4 +1079,8 @@ func (spark *SparkOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {
 
 func (spark *SparkOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
 	return fileStoreGetTrainingSet(id, spark.Store, spark.Logger)
+}
+
+func sanitizeSparkSQL(name string) string {
+	return name
 }

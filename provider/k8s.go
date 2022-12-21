@@ -293,7 +293,7 @@ type K8sConfig struct {
 func (config *K8sConfig) Serialize() ([]byte, error) {
 	data, err := json.Marshal(config)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	return data, nil
 }
@@ -363,7 +363,7 @@ type LocalExecutorConfig struct {
 func (config *LocalExecutorConfig) Serialize() ([]byte, error) {
 	data, err := json.Marshal(config)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	return data, nil
 }
@@ -777,7 +777,7 @@ type FileFileStoreConfig struct {
 func (config *FileFileStoreConfig) Serialize() ([]byte, error) {
 	data, err := json.Marshal(config)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	return data, nil
 }
@@ -823,7 +823,7 @@ type AzureFileStoreConfig struct {
 func (azureConfig *AzureFileStoreConfig) Serialize() ([]byte, error) {
 	data, err := json.Marshal(azureConfig)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	return data, nil
 }

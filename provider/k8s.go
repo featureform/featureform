@@ -104,11 +104,7 @@ func (k8s *K8sOfflineStore) AsOfflineStore() (OfflineStore, error) {
 }
 
 func (k8s *K8sOfflineStore) Close() error {
-	err := k8s.store.Close()
-	if err != nil {
-		return err
-	}
-	return nil
+	return k8s.store.Close()
 }
 
 type Config []byte

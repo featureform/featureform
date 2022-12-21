@@ -842,7 +842,7 @@ func (azureConfig *AzureFileStoreConfig) IsFileStoreConfig() bool {
 
 func NewAzureFileStore(config Config) (FileStore, error) {
 	azureStoreConfig := AzureFileStoreConfig{}
-	if err := azureStoreConfig.Deserialize(Config(config)); err != nil {
+	if err := azureStoreConfig.Deserialize(SerializedConfig(config)); err != nil {
 		return nil, fmt.Errorf("could not deserialize azure store config: %v", err)
 	}
 	if err := os.Setenv("AZURE_STORAGE_ACCOUNT", azureStoreConfig.AccountName); err != nil {

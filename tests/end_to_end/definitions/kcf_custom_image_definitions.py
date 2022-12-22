@@ -76,7 +76,7 @@ def ice_cream_entity_transformation(df):
 @k8s.df_transformation(name=f"ice_cream_transformation_{VERSION}",
                        variant=VERSION,
                        inputs=[(f"ice_cream_entity_{VERSION}", VERSION)],
-                       docker_image=os.getenv("K8S_RUNNER_SCIKIT", "featureformcom/k8s_runner:scikit-latest"))
+                       docker_image=os.getenv("K8S_RUNNER_SCIKIT", "featureformcom/k8s_runner:latest-scikit"))
 def scikit_test(df):
     """the ice cream dataset """
     from sklearn import datasets

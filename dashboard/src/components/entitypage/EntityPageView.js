@@ -434,7 +434,7 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                       <b>Source Type:</b> {metadata["source-type"]}
                     </Typography>
                   )}
-                  {numValidKeys(metadata["specifications"]) > 0 && (
+                  {metadata["specifications"] && (numValidKeys(metadata["specifications"]) > 0) && (
                       <div>
                         <Typography variant="body1">
                           <b>Specifications:</b>

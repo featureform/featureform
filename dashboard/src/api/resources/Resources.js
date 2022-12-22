@@ -4,6 +4,37 @@ import TypesenseClient from "./Search.js";
 // Set to true run locally
 const local = false;
 
+export const testData = [
+  {
+    name: "User sample preferences",
+    "default-variant": "first-variant",
+    type: "Feature",
+    "all-variants": ["first-variant", "normalized variant"],
+    variants: {
+      "first-variant": {
+        "variant-name": "first-variant",
+        dimensions: 3,
+        created: "2020-08-09-0290499",
+        owner: "Simba Khadder",
+        visibility: "private",
+        revision: "2020-08-10-39402409",
+        tags: ["model2vec", "compressed"],
+        description: "Vector generated based on user preferences",
+      },
+      "normalized variant": {
+        "variant-name": "normalized variant",
+        dimensions: 3,
+        created: "2020-08-09-0290499",
+        owner: "Simba Khadder",
+        visibility: "private",
+        revision: "2020-08-10-39402409",
+        tags: ["model2vec", "compressed"],
+        description: "Vector generated based on user preferences, normalized",
+      },
+    },
+  },
+];
+
 export const testListData = {
   "Source": [
     {

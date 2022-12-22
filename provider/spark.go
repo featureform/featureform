@@ -617,17 +617,7 @@ func NewSparkExecutor(execType SparkExecutorType, config SparkExecutorConfig, lo
 		if !ok {
 			return nil, fmt.Errorf("cannot convert config into 'EMRConfig'")
 		}
-		client := emr.New(emr.Options{
-			Region:      emrConfig.ClusterRegion,
-			Credentials: aws.NewCredentialsCache(credentials.NewStaticCredentialsProvider(emrConfig.Credentials.AWSAccessKeyId, emrConfig.Credentials.AWSSecretKey, "")),
-		})
-
-		emrExecutor := EMRExecutor{
-			client:      client,
-			logger:      logger,
-			clusterName: emrConfig.ClusterName,
-		}
-		return &emrExecutor, nil
+		return NewEMRExecutor(*emrConfig, logger)
 	} else if execType == Databricks {
 		databricksConfig, ok := config.(*DatabricksConfig)
 		if !ok {
@@ -637,6 +627,20 @@ func NewSparkExecutor(execType SparkExecutorType, config SparkExecutorConfig, lo
 	} else {
 		return nil, fmt.Errorf("the executor type ('%s') is not supported", execType)
 	}
+}
+
+func NewEMRExecutor(emrConfig EMRConfig, logger *zap.SugaredLogger) (SparkExecutor, error) {
+	client := emr.New(emr.Options{
+		Region:      emrConfig.ClusterRegion,
+		Credentials: aws.NewCredentialsCache(credentials.NewStaticCredentialsProvider(emrConfig.Credentials.AWSAccessKeyId, emrConfig.Credentials.AWSSecretKey, "")),
+	})
+
+	emrExecutor := EMRExecutor{
+		client:      client,
+		logger:      logger,
+		clusterName: emrConfig.ClusterName,
+	}
+	return &emrExecutor, nil
 }
 
 func (e *EMRExecutor) RunSparkJob(args *[]string, store FileStore) error {

@@ -1,0 +1,4 @@
+FROM local/k8s_runner:stable
+
+RUN pip install scikit-learn
+

@@ -54,7 +54,8 @@ sources = [
             'quickstart': {
                 'description': 'the average transaction amount for a user ',
                 'name': 'average_user_transaction',
-                'source-type': 'Transformation',
+                'source-type': 'SQL Transformation',
+                'specifications': {},
                 'owner': 'default_user',
                 'provider': 'postgres-quickstart',
                 'variant': 'quickstart',
@@ -77,6 +78,7 @@ sources = [
                 'description': 'Fraud Dataset From Kaggle',
                 'name': 'transactions',
                 'source-type': 'Primary Table',
+                'specifications': {},
                 'owner': 'default_user',
                 'provider': 'postgres-quickstart',
                 'variant': 'kaggle',

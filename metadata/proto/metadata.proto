@@ -287,6 +287,13 @@ message Transformation {
         SQLTransformation SQLTransformation= 1;
         DFTransformation DFTransformation= 2;
     }
+    oneof args {
+        KubernetesArgs kubernetes_args = 3;
+    }
+}
+
+message KubernetesArgs {
+    string docker_image= 1;
 }
 
 message SQLTransformation {

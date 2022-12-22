@@ -20,6 +20,7 @@ from featureform.format import *
 
 NameVariant = Tuple[str, str]
 
+
 class ColumnTypes(Enum):
     NIL = ""
     INT = "int"
@@ -30,6 +31,7 @@ class ColumnTypes(Enum):
     STRING = "string"
     BOOL = "bool"
     DATETIME = "datetime"
+
 
 class ResourceStatus(Enum):
     NO_STATUS = "NO_STATUS"
@@ -438,11 +440,20 @@ class SparkConfig:
 
 @typechecked
 @dataclass
+class K8sArgs:
+    docker_image: str
+
+    def apply(self, transformation: pb.Transformation):
+        transformation.kubernetes_args.docker_image = self.docker_image
+        return transformation
+
+
+@typechecked
+@dataclass
 class K8sConfig:
     store_type: str
     store_config: dict
-    docker_image: str
-
+    docker_image: str = ""
 
     def software(self) -> str:
         return "k8s"
@@ -460,7 +471,6 @@ class K8sConfig:
             "StoreConfig": self.store_config,
         }
         return bytes(json.dumps(config), "utf-8")
-
 
 
 Config = Union[
@@ -584,31 +594,49 @@ class Transformation:
 @dataclass
 class SQLTransformation(Transformation):
     query: str
+    args: K8sArgs = None
 
-    def type():
-        "SQL"
+    def type(self):
+        return SourceType.SQL_TRANSFORMATION.value
 
     def kwargs(self):
+        transformation = pb.Transformation(
+            SQLTransformation=pb.SQLTransformation(
+                query=self.query,
+            )
+        )
+
+        if self.args is not None:
+            transformation = self.args.apply(transformation)
+
         return {
-            "transformation":
-                pb.Transformation(SQLTransformation=pb.SQLTransformation(
-                    query=self.query, ), ),
+            "transformation": transformation
         }
 
 
+@typechecked
+@dataclass
 class DFTransformation(Transformation):
-    def __init__(self, query: str, inputs: list):
-        self.query = query
-        self.inputs = inputs
+    query: bytes
+    inputs: list
+    args: K8sArgs = None
 
     def type(self):
-        "DF"
+        return SourceType.DF_TRANSFORMATION.value
 
     def kwargs(self):
+        transformation = pb.Transformation(
+            DFTransformation=pb.DFTransformation(
+                query=self.query,
+                inputs=[pb.NameVariant(name=v[0], variant=v[1]) for v in self.inputs]
+            )
+        )
+        
+        if self.args is not None:
+            transformation = self.args.apply(transformation)
+
         return {
-            "transformation":
-                pb.Transformation(DFTransformation=pb.DFTransformation(
-                    query=self.query, inputs=[pb.NameVariant(name=v[0], variant=v[1]) for v in self.inputs], )),
+            "transformation": transformation
         }
 
 

@@ -154,7 +154,7 @@ func (s *SparkConfig) decodeFileStore(fileStoreType FileStoreType, configMap map
 		return fmt.Errorf("the file store type '%s' is not supported ", fileStoreType)
 	}
 
-	err := mapstructure.Decode(configMap, &fileStoreConfig)
+	err := mapstructure.Decode(configMap, fileStoreConfig)
 	if err != nil {
 		return fmt.Errorf("could not decode file store map: %w", err)
 	}

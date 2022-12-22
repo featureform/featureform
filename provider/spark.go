@@ -128,14 +128,14 @@ func (s *SparkConfig) decodeExecutor(executorType SparkExecutorType, configMap m
 	var executorConfig SparkExecutorConfig
 	switch executorType {
 	case EMR:
-		executorConfig = EMRConfig{}
+		executorConfig = &EMRConfig{}
 	case Databricks:
-		executorConfig = DatabricksConfig{}
+		executorConfig = &DatabricksConfig{}
 	default:
 		return fmt.Errorf("the executor type '%s' is not supported ", executorType)
 	}
 
-	err := mapstructure.Decode(configMap, &executorConfig)
+	err := mapstructure.Decode(configMap, executorConfig)
 	if err != nil {
 		return fmt.Errorf("could not decode executor map: %w", err)
 	}
@@ -147,9 +147,9 @@ func (s *SparkConfig) decodeFileStore(fileStoreType FileStoreType, configMap map
 	var fileStoreConfig SparkFileStoreConfig
 	switch fileStoreType {
 	case Azure:
-		fileStoreConfig = AzureFileStoreConfig{}
+		fileStoreConfig = &AzureFileStoreConfig{}
 	case S3:
-		fileStoreConfig = S3FileStoreConfig{}
+		fileStoreConfig = &S3FileStoreConfig{}
 	default:
 		return fmt.Errorf("the file store type '%s' is not supported ", fileStoreType)
 	}

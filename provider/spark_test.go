@@ -1542,9 +1542,9 @@ func getDatabricksOfflineStore(t *testing.T) (*SparkOfflineStore, error) {
 	}
 	SparkOfflineConfig := SparkConfig{
 		ExecutorType:   Databricks,
-		ExecutorConfig: databricksConfig,
+		ExecutorConfig: &databricksConfig,
 		StoreType:      Azure,
-		StoreConfig:    azureConfig,
+		StoreConfig:    &azureConfig,
 	}
 
 	fmt.Println(SparkOfflineConfig)

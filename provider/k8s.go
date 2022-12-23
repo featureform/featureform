@@ -183,7 +183,6 @@ func init() {
 	executorFactoryMap := map[ExecutorType]ExecutorFactory{
 		GoProc: NewLocalExecutor,
 		K8s:    NewKubernetesExecutor,
-		EMR:    NewEMRExecutor,
 	}
 	for storeType, factory := range FileStoreFactoryMap {
 		RegisterFileStoreFactory(string(storeType), factory)
@@ -276,7 +275,6 @@ type FileStoreType string
 const (
 	GoProc ExecutorType = "GO_PROCESS"
 	K8s                 = "K8S"
-	EMR                 = "EMR"
 )
 
 const (

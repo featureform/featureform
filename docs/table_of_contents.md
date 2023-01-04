@@ -4,6 +4,7 @@
 * [Quickstart (Local)](quickstart-local.md)
 * [Quickstart (Docker)](quickstart-docker.md)
 * [Quickstart (AWS)](quickstart-aws.md)
+* [Quickstart (Azure)](quickstart-azure.md)
 * [Quickstart (Google Cloud)](quickstart-gcp.md)
 
 ## Reference

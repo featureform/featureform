@@ -438,6 +438,14 @@ func NewS3FileStore(config Config) (FileStore, error) {
 	}, nil
 }
 
+func (s3 *S3FileStore) PathWithPrefix(path string, remote bool) string {
+	if remote {
+		return fmt.Sprintf("s3://%s/%s/%s", s3.Bucket, s3.Path, path)
+	} else {
+		return path
+	}
+}
+
 type PythonOfflineQueries interface {
 	materializationCreate(schema ResourceSchema) string
 	trainingSetCreate(def TrainingSetDef, featureSchemas []ResourceSchema, labelSchema ResourceSchema) string

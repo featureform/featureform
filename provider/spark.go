@@ -440,7 +440,11 @@ func NewS3FileStore(config Config) (FileStore, error) {
 
 func (s3 *S3FileStore) PathWithPrefix(path string, remote bool) string {
 	if remote {
-		return fmt.Sprintf("s3://%s/%s/%s", s3.Bucket, s3.Path, path)
+		s3Path := ""
+		if s3.Path != "" {
+			s3Path = fmt.Sprintf("/%s", s3.Path)
+		}
+		return fmt.Sprintf("s3://%s%s/%s", s3.Bucket, s3Path, path)
 	} else {
 		return path
 	}
@@ -942,9 +946,9 @@ func (e *EMRExecutor) GetDFArgs(outputURI string, code string, sources []string,
 		store.PathWithPrefix("scripts/offline_store_spark_runner.py", true),
 		"df",
 		"--output_uri",
-		store.PathWithPrefix(outputURI, true),
+		outputURI,
 		"--code",
-		code,
+		store.PathWithPrefix(code, true),
 		"--source",
 	}
 

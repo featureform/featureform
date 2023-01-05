@@ -59,7 +59,7 @@ helm install certmgr jetstack/cert-manager \
     --namespace cert-manager \
     --create-namespace
     
-helm install featureform featureform/featureform \ 
+helm install featureform featureform/featureform \
     --set global.publicCert=true \
     --set global.localCert=false \
     --set global.hostname=$FEATUREFORM_HOST

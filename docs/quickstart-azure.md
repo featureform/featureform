@@ -65,7 +65,8 @@ kubectl get nodes
 ```
 You should get a result like:
 ```shell
-No resources found in default namespace.
+NAME                                STATUS   ROLES   AGE     VERSION
+aks-nodepool1-25554489-vmss000000   Ready    agent   7m56s   v1.24.6
 ```
 
 
@@ -90,7 +91,7 @@ helm install certmgr jetstack/cert-manager \
     --namespace cert-manager \
     --create-namespace
     
-helm install featureform featureform/featureform \ 
+helm install featureform featureform/featureform \
     --set global.publicCert=true \
     --set global.localCert=false \
     --set global.hostname=$FEATUREFORM_HOST
@@ -101,6 +102,7 @@ helm install quickstart featureform/quickstart
 ## Step 5: Setup Domain Name
 
 ### Get the ingress IP address
+Get the IP address of the ingress. It may take a minute or so to show.
 ```
 kubectl get ingress
 ```
@@ -109,7 +111,7 @@ In your DNS provider create two records:
 
 | Key                | Value                         | Record Type |
 |--------------------|-------------------------------|-------------|
-| <your_domain_name> | <ingress IP address>          | A           |
+| <your_domain_name> | <ingress_ip_address>          | A           |
 | <your_domain_name> | 0 issuewild "letsencrypt.org" | CAA         |
 
 This will allow the client to securely connect to the cluster by allowing the cluster to provision its

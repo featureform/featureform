@@ -794,7 +794,7 @@ func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, i
 }
 
 func GetTransformationFileLocation(id ResourceID) string {
-	return fmt.Sprintf("DFTranformations/%s/%s/", id.Name, id.Variant)
+	return fmt.Sprintf("featureform/DFTranformations/%s/%s", id.Name, id.Variant)
 }
 
 func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, isUpdate bool) error {

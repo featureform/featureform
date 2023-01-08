@@ -439,7 +439,10 @@ func NewS3FileStore(config Config) (FileStore, error) {
 }
 
 func (s3 *S3FileStore) PathWithPrefix(path string, remote bool) string {
-	if remote {
+	s3PrefixLength := len("s3://")
+	noS3Prefix := path[:s3PrefixLength] != "s3://"
+
+	if remote && noS3Prefix {
 		s3Path := ""
 		if s3.Path != "" {
 			s3Path = fmt.Sprintf("/%s", s3.Path)
@@ -694,7 +697,7 @@ func (e *EMRExecutor) SparkSubmitArgs(destPath string, cleanQuery string, source
 		"spark-submit",
 		"--deploy-mode",
 		"client",
-		store.PathWithPrefix("scripts/offline_store_spark_runner.py", true),
+		store.PathWithPrefix("featureform/scripts/offline_store_spark_runner.py", true),
 		"sql",
 		"--output_uri",
 		store.PathWithPrefix(destPath, true),

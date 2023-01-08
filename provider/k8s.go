@@ -133,7 +133,7 @@ func UnregisterExecutorFactory(name string) error {
 func CreateExecutor(name string, config Config, logger *zap.SugaredLogger) (Executor, error) {
 	factory, exists := executorFactoryMap[name]
 	if !exists {
-		return nil, fmt.Errorf("factory does not exist: %s", name)
+		return nil, fmt.Errorf("factory does not exist: %s in factories: %v", name, executorFactoryMap)
 	}
 	executor, err := factory(config, logger)
 	if err != nil {
@@ -165,7 +165,7 @@ func UnregisterFileStoreFactory(name string) error {
 func CreateFileStore(name string, config Config) (FileStore, error) {
 	factory, exists := fileStoreFactoryMap[name]
 	if !exists {
-		return nil, fmt.Errorf("factory does not exist: %s", name)
+		return nil, fmt.Errorf("factory does not exist: %s in factories: %v", name, fileStoreFactoryMap)
 	}
 	FileStore, err := factory(config)
 	if err != nil {

@@ -1547,7 +1547,6 @@ func getDatabricksOfflineStore(t *testing.T) (*SparkOfflineStore, error) {
 		StoreConfig:    &azureConfig,
 	}
 
-	fmt.Println(SparkOfflineConfig)
 	sparkSerializedConfig, err := SparkOfflineConfig.Serialize()
 	if err != nil {
 		t.Fatalf("could not serialize the SparkOfflineConfig")

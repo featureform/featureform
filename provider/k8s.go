@@ -5,6 +5,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
+
 	dp "github.com/novln/docker-parser"
 	"github.com/segmentio/parquet-go"
 	"go.uber.org/zap"
@@ -13,13 +21,6 @@ import (
 	_ "gocloud.dev/blob/fileblob"
 	_ "gocloud.dev/blob/memblob"
 	"golang.org/x/exp/slices"
-	"io"
-	"os"
-	"os/exec"
-	"sort"
-	"strconv"
-	"strings"
-	"time"
 
 	cfg "github.com/featureform/config"
 	"github.com/featureform/helpers"
@@ -124,7 +125,7 @@ func RegisterExecutorFactory(name string, executorFactory ExecutorFactory) error
 func CreateExecutor(name string, config Config, logger *zap.SugaredLogger) (Executor, error) {
 	factory, exists := executorFactoryMap[name]
 	if !exists {
-		return nil, fmt.Errorf("factory does not exist: %s in factories: %v", name, executorFactoryMap)
+		return nil, fmt.Errorf("factory does not exist: %s", name)
 	}
 	executor, err := factory(config, logger)
 	if err != nil {
@@ -148,7 +149,7 @@ func RegisterFileStoreFactory(name string, FileStoreFactory FileStoreFactory) er
 func CreateFileStore(name string, config Config) (FileStore, error) {
 	factory, exists := fileStoreFactoryMap[name]
 	if !exists {
-		return nil, fmt.Errorf("factory does not exist: %s in factories: %v", name, fileStoreFactoryMap)
+		return nil, fmt.Errorf("factory does not exist: %s", name)
 	}
 	FileStore, err := factory(config)
 	if err != nil {

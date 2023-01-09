@@ -1377,9 +1377,9 @@ class Registrar:
         ```
         s3 = ff.register_s3(
             name="s3-quickstart",
-            credentials="my_company_container"
-            bucket_path="bucket_name/path"
-            bucket_region=<bucket_region>
+            credentials=aws_creds,
+            bucket_path="bucket_name/path",
+            bucket_region=<bucket_region>,
             description="An s3 store provider to store offline"
         )
         ```
@@ -1762,8 +1762,8 @@ class Registrar:
         spark = ff.register_spark(
             name="spark-quickstart",
             description="A Spark deployment we created for the Featureform quickstart",
-            team="featureform-team"
-            executor=databricks
+            team="featureform-team",
+            executor=databricks,
             filestore=azure_blob_store
         )
         ```

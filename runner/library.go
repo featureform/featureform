@@ -6,6 +6,7 @@ package runner
 
 import (
 	"fmt"
+
 	"github.com/featureform/types"
 )
 
@@ -53,7 +54,7 @@ func UnregisterFactory(name string) error {
 func Create(name string, config Config) (types.Runner, error) {
 	factory, exists := factoryMap[name]
 	if !exists {
-		return nil, fmt.Errorf("factory does not exist: %s", name)
+		return nil, fmt.Errorf("factory does not exist: %s; in factories: a %v", name, factoryMap)
 	}
 	runner, err := factory(config)
 	if err != nil {

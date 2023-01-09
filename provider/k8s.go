@@ -133,7 +133,7 @@ func UnregisterExecutorFactory(name string) error {
 func CreateExecutor(name string, config Config, logger *zap.SugaredLogger) (Executor, error) {
 	factory, exists := executorFactoryMap[name]
 	if !exists {
-		return nil, fmt.Errorf("factory does not exist: %s", name)
+		return nil, fmt.Errorf("factory does not exist: %s in factories: %v", name, executorFactoryMap)
 	}
 	executor, err := factory(config, logger)
 	if err != nil {
@@ -165,7 +165,7 @@ func UnregisterFileStoreFactory(name string) error {
 func CreateFileStore(name string, config Config) (FileStore, error) {
 	factory, exists := fileStoreFactoryMap[name]
 	if !exists {
-		return nil, fmt.Errorf("factory does not exist: %s", name)
+		return nil, fmt.Errorf("factory does not exist: %s in factories: %v", name, fileStoreFactoryMap)
 	}
 	FileStore, err := factory(config)
 	if err != nil {
@@ -178,6 +178,7 @@ func init() {
 	FileStoreFactoryMap := map[FileStoreType]FileStoreFactory{
 		FileSystem: NewFileFileStore,
 		Azure:      NewAzureFileStore,
+		S3:         NewS3FileStore,
 	}
 	executorFactoryMap := map[ExecutorType]ExecutorFactory{
 		GoProc: NewLocalExecutor,
@@ -293,7 +294,7 @@ type K8sConfig struct {
 func (config *K8sConfig) Serialize() ([]byte, error) {
 	data, err := json.Marshal(config)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	return data, nil
 }
@@ -363,7 +364,7 @@ type LocalExecutorConfig struct {
 func (config *LocalExecutorConfig) Serialize() ([]byte, error) {
 	data, err := json.Marshal(config)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	return data, nil
 }
@@ -777,7 +778,7 @@ type FileFileStoreConfig struct {
 func (config *FileFileStoreConfig) Serialize() ([]byte, error) {
 	data, err := json.Marshal(config)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	return data, nil
 }
@@ -820,25 +821,29 @@ type AzureFileStoreConfig struct {
 	Path          string
 }
 
-func (config *AzureFileStoreConfig) Serialize() ([]byte, error) {
-	data, err := json.Marshal(config)
+func (azureConfig *AzureFileStoreConfig) Serialize() ([]byte, error) {
+	data, err := json.Marshal(azureConfig)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	return data, nil
 }
 
-func (config *AzureFileStoreConfig) Deserialize(data []byte) error {
-	err := json.Unmarshal(data, config)
+func (azureConfig *AzureFileStoreConfig) Deserialize(config SerializedConfig) error {
+	err := json.Unmarshal(config, azureConfig)
 	if err != nil {
 		return fmt.Errorf("deserialize file blob store config: %w", err)
 	}
 	return nil
 }
 
+func (azureConfig *AzureFileStoreConfig) IsFileStoreConfig() bool {
+	return true
+}
+
 func NewAzureFileStore(config Config) (FileStore, error) {
 	azureStoreConfig := AzureFileStoreConfig{}
-	if err := azureStoreConfig.Deserialize(Config(config)); err != nil {
+	if err := azureStoreConfig.Deserialize(SerializedConfig(config)); err != nil {
 		return nil, fmt.Errorf("could not deserialize azure store config: %v", err)
 	}
 	if err := os.Setenv("AZURE_STORAGE_ACCOUNT", azureStoreConfig.AccountName); err != nil {

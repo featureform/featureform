@@ -228,6 +228,19 @@ func NewCoordinator(meta *metadata.Client, logger *zap.SugaredLogger, cli *clien
 
 const MAX_ATTEMPTS = 3
 
+func (c *Coordinator) checkError(err error, jobName string) {
+	switch err.(type) {
+	case JobDoesNotExistError:
+		c.Logger.Info(err)
+	case ResourceAlreadyFailedError:
+		c.Logger.Infow("resource has failed previously. Ignoring....", "key", jobName)
+	case ResourceAlreadyCompleteError:
+		c.Logger.Infow("resource has already completed. Ignoring....", "key", jobName)
+	default:
+		c.Logger.Errorw("Error executing job", "job_name", jobName, "error", err)
+	}
+}
+
 func (c *Coordinator) WatchForNewJobs() error {
 	c.Logger.Info("Watching for new jobs")
 	getResp, err := (*c.KVClient).Get(context.Background(), "JOB_", clientv3.WithPrefix())
@@ -239,16 +252,7 @@ func (c *Coordinator) WatchForNewJobs() error {
 		go func(kv *mvccpb.KeyValue) {
 			err := c.ExecuteJob(string(kv.Key))
 			if err != nil {
-				switch err.(type) {
-				case JobDoesNotExistError:
-					c.Logger.Info(err)
-				case ResourceAlreadyFailedError:
-					c.Logger.Infow("resource has failed previously. Ignoring....", "key", string(kv.Key))
-				case ResourceAlreadyCompleteError:
-					c.Logger.Infow("resource has already completed. Ignoring....", "key", string(kv.Key))
-				default:
-					c.Logger.Errorw("Error executing job: Initial search", "error", err)
-				}
+				c.checkError(err, string(kv.Key))
 			}
 		}(kv)
 	}
@@ -261,16 +265,7 @@ func (c *Coordinator) WatchForNewJobs() error {
 					go func(ev *clientv3.Event) {
 						err := c.ExecuteJob(string(ev.Kv.Key))
 						if err != nil {
-							switch err.(type) {
-							case JobDoesNotExistError:
-								c.Logger.Info(err)
-							case ResourceAlreadyFailedError:
-								c.Logger.Infow("resource has failed previously. Ignoring....", "key", string(ev.Kv.Key))
-							case ResourceAlreadyCompleteError:
-								c.Logger.Infow("resource has already completed. Ignoring....", "key", string(ev.Kv.Key))
-							default:
-								c.Logger.Errorw("Error executing job: Initial search", "error", err)
-							}
+							c.checkError(err, string(ev.Kv.Key))
 						}
 					}(ev)
 				}
@@ -499,7 +494,13 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 
 	c.Logger.Debugw("Created transformation query", "query", query)
 	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Transformation}
-	transformationConfig := provider.TransformationConfig{Type: provider.SQLTransformation, TargetTableID: providerResourceID, Query: query, SourceMapping: sourceMapping}
+	transformationConfig := provider.TransformationConfig{
+		Type:          provider.SQLTransformation,
+		TargetTableID: providerResourceID,
+		Query:         query,
+		SourceMapping: sourceMapping,
+		Args:          transformSource.TransformationArgs(),
+	}
 
 	err = c.runTransformationJob(transformationConfig, resID, schedule, sourceProvider)
 	if err != nil {
@@ -531,7 +532,13 @@ func (c *Coordinator) runDFTransformationJob(transformSource *metadata.SourceVar
 
 	c.Logger.Debugw("Created transformation query")
 	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Transformation}
-	transformationConfig := provider.TransformationConfig{Type: provider.DFTransformation, TargetTableID: providerResourceID, Code: code, SourceMapping: sourceMapping}
+	transformationConfig := provider.TransformationConfig{
+		Type:          provider.DFTransformation,
+		TargetTableID: providerResourceID,
+		Code:          code,
+		SourceMapping: sourceMapping,
+		Args:          transformSource.TransformationArgs(),
+	}
 
 	err = c.runTransformationJob(transformationConfig, resID, schedule, sourceProvider)
 	if err != nil {
@@ -785,14 +792,14 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 		c.Logger.Info("Starting Materialize")
 		jobRunner, err := c.Spawner.GetJobRunner(runner.MATERIALIZE, serialized, c.EtcdClient.Endpoints(), resID)
 		if err != nil {
-			return fmt.Errorf("could not use store as online store: %v", err)
+			return fmt.Errorf("could not use store as online store: %w", err)
 		}
 		completionWatcher, err := jobRunner.Run()
 		if err != nil {
-			return fmt.Errorf("creating watcher for completion runner: %v", err)
+			return fmt.Errorf("creating watcher for completion runner: %w", err)
 		}
 		if err := completionWatcher.Wait(); err != nil {
-			return fmt.Errorf("completion watcher running: %v", err)
+			return fmt.Errorf("completion watcher running: %w", err)
 		}
 	}
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
@@ -1104,10 +1111,10 @@ func (c *Coordinator) ExecuteJob(jobKey string) error {
 			return err
 		default:
 			statusErr := c.Metadata.SetStatus(context.Background(), job.Resource, metadata.FAILED, err.Error())
-			return fmt.Errorf("%s job failed: %v: %v", job.Resource.Type, err, statusErr)
+			return fmt.Errorf("%s job failed: %w: %v", job.Resource.Type, err, statusErr)
 		}
 	}
-	c.Logger.Info("Succesfully executed job with key: ", jobKey)
+	c.Logger.Info("Successfully executed job with key: ", jobKey)
 	if err := c.deleteJob(mtx, jobKey); err != nil {
 		c.Logger.Debugw("Error deleting job", "error", err)
 		return fmt.Errorf("job delete: %v", err)

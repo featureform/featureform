@@ -1,5 +1,10 @@
 name: End to End Testing
-on: [pull_request]
+on:
+  pull_request:
+    branches: '**'
+  push:
+    branches: 'release/**'
+
 concurrency:
   group: ${{ github.head_ref }}-e2e
   cancel-in-progress: true
@@ -200,19 +205,32 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      - name: Build and export
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          file: ./provider/scripts/k8s/Dockerfile
-          tags: local/k8s_runner:stable
-          push: false
-          outputs: type=docker,dest=/tmp/k8s_runner.tar
-      - name: Upload image
+      # Manual build and save b/c Github Actions not setting docker env properly
+      - name: Build Base
+        run: docker build . -t local/k8s_runner:stable -f ./provider/scripts/k8s/Dockerfile
+
+      - name: Build scikit
+        run: docker build . -t local/k8s_runner:scikit-stable -f ./provider/scripts/k8s/Dockerfile.scikit
+
+      - name: Save Base
+        run: docker save local/k8s_runner:stable > /tmp/k8s_runner.tar
+
+      - name: Save Scikit
+        run: docker save local/k8s_runner:scikit-stable > /tmp/k8s_runner_scikit.tar
+
+      - name: Upload Base Image
         uses: actions/upload-artifact@v3
         with:
           name: k8s_runner
           path: /tmp/k8s_runner.tar
+
+      - name: Upload Scikit Image
+        uses: actions/upload-artifact@v3
+        with:
+          name: k8s_runner_scikit
+          path: /tmp/k8s_runner_scikit.tar
+
+
   test:
     name: Run Tests
     environment: Integration testing
@@ -226,7 +244,7 @@ jobs:
       - name: Download artifact
         uses: actions/download-artifact@v3
         with:
-          names: api-server coordinator dashboard dashboard-metadata metadata serving worker k8s_runner
+          names: api-server coordinator dashboard dashboard-metadata metadata serving worker k8s_runner k8s_runner_scikit
           path: /tmp
 
       - uses: actions/setup-python@v4
@@ -284,6 +302,7 @@ jobs:
           docker load --input /tmp/serving/serving.tar
           docker load --input /tmp/worker/worker.tar
           docker load --input /tmp/k8s_runner/k8s_runner.tar
+          docker load --input /tmp/k8s_runner_scikit/k8s_runner_scikit.tar
           minikube image load local/api-server:stable
           minikube image load local/coordinator:stable
           minikube image load local/dashboard:stable
@@ -292,6 +311,7 @@ jobs:
           minikube image load local/serving:stable
           minikube image load local/worker:stable
           minikube image load local/k8s_runner:stable
+          minikube image load local/k8s_runner:scikit-stable
           minikube image ls
 
       - name: Helm Install
@@ -320,6 +340,8 @@ jobs:
           MONGODB_USERNAME: ${{ secrets.MONGODB_USERNAME }}
           MONGODB_PASSWORD: ${{ secrets.MONGODB_PASSWORD }}
           MONGODB_DATABASE: ${{ secrets.MONGODB_PASSWORD }}
+          K8s_RUNNER_BASE_IMAGE: "local/k8s_runner:stable"
+          K8S_RUNNER_SCIKIT: "local/k8s_runner:scikit-stable"
 
         run: make test_e2e
 
@@ -409,6 +431,41 @@ jobs:
         if: always()
         continue-on-error: true
         run: kubectl logs -l job-name=featureform-quickstart-loader
+
+      - name: Users
+        if: always()
+        continue-on-error: true
+        run: curl http://localhost:7000/data/users
+
+      - name: Providers
+        if: always()
+        continue-on-error: true
+        run: curl http://localhost:7000/data/providers
+
+      - name: Entities
+        if: always()
+        continue-on-error: true
+        run: curl http://localhost:7000/data/entities
+
+      - name: Sources
+        if: always()
+        continue-on-error: true
+        run: curl http://localhost:7000/data/sources
+
+      - name: Features
+        if: always()
+        continue-on-error: true
+        run: curl http://localhost:7000/data/features
+
+      - name: Labels
+        if: always()
+        continue-on-error: true
+        run: curl http://localhost:7000/data/labels
+
+      - name: Training Sets
+        if: always()
+        continue-on-error: true
+        run: curl http://localhost:7000/data/training-sets
 
       - name: Cleanup Featureform
         if: always()

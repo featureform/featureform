@@ -115,6 +115,7 @@ func TestBlobInterfaces(t *testing.T) {
 		"Test Path with prefix":          testPathWithPrefix,
 		"Test Num Rows":                  testNumRows,
 		"Test Databricks Initialization": testDatabricksInitialization,
+		"Test File Upload and Download":  testFileUploadAndDownload,
 	}
 
 	err := godotenv.Load("../.env")
@@ -168,6 +169,49 @@ func TestBlobInterfaces(t *testing.T) {
 	}
 	for _, blobProvider := range blobProviders {
 		blobProvider.Close()
+	}
+}
+
+func testFileUploadAndDownload(t *testing.T, store FileStore) {
+	testId := uuidWithoutDashes()
+	fileContent := "testing file upload"
+	sourceFile := fmt.Sprintf("fileUploadTest_%s.txt", testId)
+	destPath := fmt.Sprintf("fileUploadTest_%s.txt", testId)
+	localDestPath := fmt.Sprintf("fileDownloadTest_%s.txt", testId)
+
+	f, err := os.Create(sourceFile)
+	if err != nil {
+		t.Fatalf("could not create file to upload because %v", err)
+	}
+	defer f.Close()
+
+	f.Write([]byte(fileContent))
+
+	err := store.Upload(sourceFile, destPath)
+	if err != nil {
+		t.Fatalf("could not upload file because %v", err)
+	}
+
+	exists, err := store.Exists(destPath)
+	if err != nil {
+		t.Fatalf("could not determine if file exists because %v", err)
+	}
+	if !exists {
+		t.Fatalf("could not upload file to %s", destPath)
+	}
+
+	err := store.Download(destPath, localDestPath)
+	if err != nil {
+		t.Fatalf("could not download %s file to %s because %v", destPath, localDestPath, err)
+	}
+
+	content, err := ioutil.ReadFile(localDestPath)
+	if err != nil {
+		t.Fatalf("could not read local file at %s because %v", localDestPath, err)
+	}
+
+	if string(content) != fileContent {
+		t.Fatalf("the file contents are not the same. Got %s but expected %s", string(content), fileContent)
 	}
 }
 

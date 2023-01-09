@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/featureform/config"
+	"io/ioutil"
 	"os"
 	"reflect"
 	"strings"
@@ -187,7 +188,7 @@ func testFileUploadAndDownload(t *testing.T, store FileStore) {
 
 	f.Write([]byte(fileContent))
 
-	err := store.Upload(sourceFile, destPath)
+	err = store.Upload(sourceFile, destPath)
 	if err != nil {
 		t.Fatalf("could not upload file because %v", err)
 	}
@@ -200,7 +201,7 @@ func testFileUploadAndDownload(t *testing.T, store FileStore) {
 		t.Fatalf("could not upload file to %s", destPath)
 	}
 
-	err := store.Download(destPath, localDestPath)
+	err = store.Download(destPath, localDestPath)
 	if err != nil {
 		t.Fatalf("could not download %s file to %s because %v", destPath, localDestPath, err)
 	}

@@ -640,12 +640,12 @@ func (store genericFileStore) ServeDirectory(dir string) (Iterator, error) {
 func (store genericFileStore) Upload(sourcePath string, destPath string) error {
 	content, err := ioutil.ReadFile(sourcePath)
 	if err != nil {
-		return fmt.Errorf("cannot read %s file because %v", sourcePath, err)
+		return fmt.Errorf("cannot read %s file: %v", sourcePath, err)
 	}
 
 	err = store.Write(destPath, content)
 	if err != nil {
-		return fmt.Errorf("cannot upload %s file to %s destination because %v", sourcePath, destPath, err)
+		return fmt.Errorf("cannot upload %s file to %s destination: %v", sourcePath, destPath, err)
 	}
 
 	return nil
@@ -654,12 +654,12 @@ func (store genericFileStore) Upload(sourcePath string, destPath string) error {
 func (store genericFileStore) Download(sourcePath string, destPath string) error {
 	content, err := store.Read(sourcePath)
 	if err != nil {
-		return fmt.Errorf("cannot read %s file because %v", sourcePath, err)
+		return fmt.Errorf("cannot read %s file: %v", sourcePath, err)
 	}
 
 	f, err := os.Create(destPath)
 	if err != nil {
-		return fmt.Errorf("cannot create %s file because %v", destPath, err)
+		return fmt.Errorf("cannot create %s file: %v", destPath, err)
 	}
 	defer f.Close()
 

@@ -53,7 +53,6 @@ func main() {
 	for k, v := range data {
 		fmt.Println("Inserting", k, v)
 		_, err := c.Put(context.Background(), k, v)
-		fmt.Println("Inserted", k, v)
 		if err != nil {
 			panic(fmt.Errorf("could not insert k/v pair (%s:%s): %v", k, v, err))
 		}

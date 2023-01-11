@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"sort"
@@ -461,6 +462,8 @@ type FileStore interface {
 	PathWithPrefix(path string, remote bool) string
 	NumRows(key string) (int64, error)
 	Close() error
+	Upload(sourcePath string, destPath string) error
+	Download(sourcePath string, destPath string) error
 	AsAzureStore() *AzureFileStore
 }
 
@@ -635,6 +638,37 @@ func (store genericFileStore) ServeDirectory(dir string) (Iterator, error) {
 	}
 	// assume file type is parquet
 	return parquetIteratorOverMultipleFiles(fileParts, store)
+}
+
+func (store genericFileStore) Upload(sourcePath string, destPath string) error {
+	content, err := ioutil.ReadFile(sourcePath)
+	if err != nil {
+		return fmt.Errorf("cannot read %s file: %v", sourcePath, err)
+	}
+
+	err = store.Write(destPath, content)
+	if err != nil {
+		return fmt.Errorf("cannot upload %s file to %s destination: %v", sourcePath, destPath, err)
+	}
+
+	return nil
+}
+
+func (store genericFileStore) Download(sourcePath string, destPath string) error {
+	content, err := store.Read(sourcePath)
+	if err != nil {
+		return fmt.Errorf("cannot read %s file: %v", sourcePath, err)
+	}
+
+	f, err := os.Create(destPath)
+	if err != nil {
+		return fmt.Errorf("cannot create %s file: %v", destPath, err)
+	}
+	defer f.Close()
+
+	f.Write(content)
+
+	return nil
 }
 
 func convertToParquetBytes(list []any) ([]byte, error) {

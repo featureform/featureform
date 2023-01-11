@@ -32,7 +32,7 @@ func TestReadETCD(t *testing.T) {
 		value := string(k.Value)
 		expectedVal, ok := data[key]
 		if !ok {
-			t.Errorf("Expected key not in results: %s", key)
+			t.Errorf("Recieved key not in expected data: %s", key)
 		}
 		if expectedVal != value {
 			t.Errorf("Expected value (%s), got (%s) for key %s", expectedVal, value, key)

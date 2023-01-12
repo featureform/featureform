@@ -7,7 +7,8 @@ import (
 
 	help "github.com/featureform/helpers"
 	"github.com/featureform/provider"
-	snapshot "go.etcd.io/etcd/etcdutl/v3/snapshot"
+	clientv3 "go.etcd.io/etcd/client/v3"
+	"go.etcd.io/etcd/etcdutl/v3/snapshot"
 	"go.uber.org/zap"
 )
 
@@ -21,22 +22,24 @@ func main() {
 	etcdPort := help.GetEnv("ETCD_PORT", "2379")
 	etcdUsername := help.GetEnv("ETCD_USERNAME", "")
 	etcdPassword := help.GetEnv("ETCD_PASSWORD", "")
-	snapshotName := generateSnapshotName()
+
+	currentTimestamp := time.Now()
+	snapshotName := generateSnapshotName(currentTimestamp)
 
 	address := fmt.Sprintf("%s:%s", etcdHost, etcdPort)
 
-	etcdAuth := snapshot.AuthConfig{
-		Username: etcdUsername,
-		Password: etcdPassword,
-	}
-
-	etcdConfig := snapshot.ConfigSpec{
+	etcdConfig := clientv3.Config{
 		Endpoints:   []string{address},
 		DialTimeout: time.Second * 1,
-		Auth:        etcdAuth,
+		Username:    etcdUsername,
+		Password:    etcdPassword,
 	}
 
-	version, err := sp.Save(context.TODO(), etcdConfig, snapshotName)
+	err := sp.Save(context.TODO(), etcdConfig, snapshotName)
+	if err != nil {
+		msg := fmt.Sprintf("cannot save snapshot: %v", err)
+		panic(msg)
+	}
 
 	filestore, err := getFilestore()
 	if err != nil {
@@ -51,20 +54,19 @@ func main() {
 	}
 }
 
-func generateSnapshotName() string {
+func generateSnapshotName(currentTime time.Time) string {
 	prefix := "featureform_etcd_snapshot"
-	currentTime := time.Now()
 	formattedTime := currentTime.Format("2006-01-02 15:04:05")
 
 	return fmt.Sprintf("%s__%s.db", prefix, formattedTime)
 }
 
-func getFilestore() (*provider.FileStore, error) {
+func getFilestore() (provider.FileStore, error) {
 	cloudProvider := help.GetEnv("CLOUD_PROVIDER", "LOCAL")
 	if cloudProvider == "AZURE" {
 		storageAccount := help.GetEnv("AZURE_STORAGE_ACCOUNT", "")
 		storageToken := help.GetEnv("AZURE_STORAGE_TOKEN", "")
-		container := help.GetEnv("AZURE_CONTAINER", "")
+		container := help.GetEnv("AZURE_CONTAINER_NAME", "")
 		storagePath := help.GetEnv("AZURE_STORAGE_PATH", "")
 
 		filestoreConfig := provider.AzureFileStoreConfig{
@@ -73,8 +75,12 @@ func getFilestore() (*provider.FileStore, error) {
 			ContainerName: container,
 			Path:          storagePath,
 		}
+		config, err := filestoreConfig.Serialize()
+		if err != nil {
+			return nil, fmt.Errorf("cannot serialize the AzureFileStoreConfig: %v", err)
+		}
 
-		filestore, err := provider.NewAzureFileStore(filestoreConfig)
+		filestore, err := provider.NewAzureFileStore(config)
 		if err != nil {
 			return nil, fmt.Errorf("cannot create Azure Filestore: %v", err)
 		}

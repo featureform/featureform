@@ -609,7 +609,7 @@ func testPathWithPrefix(t *testing.T, store FileStore) {
 			t.Fatalf("Incorrect path with prefix. Expected %s, got %s", fmt.Sprintf("%s/%s", azureStore.Path, randomKey), azurePathWithPrefix)
 		}
 	}
-	fileFileStore, ok := store.(FileFileStore)
+	fileFileStore, ok := store.(LocalFileStore)
 	if ok {
 		filePathWithPrefix := fileFileStore.PathWithPrefix(randomKey, false)
 		if filePathWithPrefix != fmt.Sprintf("%s%s", fileFileStore.DirPath, randomKey) {

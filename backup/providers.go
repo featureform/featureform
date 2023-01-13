@@ -53,7 +53,7 @@ type Local struct {
 }
 
 func (fs *Local) Init() error {
-	filestoreConfig := provider.FileFileStoreConfig{
+	filestoreConfig := provider.LocalFileStoreConfig{
 		DirPath: fs.Path,
 	}
 	config, err := filestoreConfig.Serialize()

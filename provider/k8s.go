@@ -813,11 +813,11 @@ func (store genericFileStore) Close() error {
 	return store.bucket.Close()
 }
 
-type FileFileStoreConfig struct {
+type LocalFileStoreConfig struct {
 	DirPath string
 }
 
-func (config *FileFileStoreConfig) Serialize() ([]byte, error) {
+func (config *LocalFileStoreConfig) Serialize() ([]byte, error) {
 	data, err := json.Marshal(config)
 	if err != nil {
 		panic(err)
@@ -825,7 +825,7 @@ func (config *FileFileStoreConfig) Serialize() ([]byte, error) {
 	return data, nil
 }
 
-func (config *FileFileStoreConfig) Deserialize(data []byte) error {
+func (config *LocalFileStoreConfig) Deserialize(data []byte) error {
 	err := json.Unmarshal(data, config)
 	if err != nil {
 		return fmt.Errorf("deserialize file blob store config: %w", err)
@@ -839,7 +839,7 @@ type FileFileStore struct {
 }
 
 func NewFileFileStore(config Config) (FileStore, error) {
-	fileStoreConfig := FileFileStoreConfig{}
+	fileStoreConfig := LocalFileStoreConfig{}
 	if err := fileStoreConfig.Deserialize(config); err != nil {
 		return nil, fmt.Errorf("could not deserialize file store config: %v", err)
 	}

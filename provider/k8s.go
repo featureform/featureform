@@ -161,7 +161,7 @@ func CreateFileStore(name string, config Config) (FileStore, error) {
 
 func init() {
 	FileStoreFactoryMap := map[FileStoreType]FileStoreFactory{
-		FileSystem: NewFileFileStore,
+		FileSystem: NewLocalFileStore,
 		Azure:      NewAzureFileStore,
 	}
 	executorFactoryMap := map[ExecutorType]ExecutorFactory{
@@ -838,7 +838,7 @@ type FileFileStore struct {
 	genericFileStore
 }
 
-func NewFileFileStore(config Config) (FileStore, error) {
+func NewLocalFileStore(config Config) (FileStore, error) {
 	fileStoreConfig := LocalFileStoreConfig{}
 	if err := fileStoreConfig.Deserialize(config); err != nil {
 		return nil, fmt.Errorf("could not deserialize file store config: %v", err)

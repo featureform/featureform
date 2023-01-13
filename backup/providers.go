@@ -61,7 +61,7 @@ func (fs *Local) Init() error {
 		return fmt.Errorf("cannot serialize the AzureFileStoreConfig: %v", err)
 	}
 
-	filestore, err := provider.NewFileFileStore(config)
+	filestore, err := provider.NewLocalFileStore(config)
 	if err != nil {
 		return fmt.Errorf("cannot create Azure Filestore: %v", err)
 	}

@@ -30,18 +30,11 @@ func main() {
 	}
 
 	currentTimestamp := time.Now()
-	snapshotName := generateSnapshotName(currentTimestamp)
+	snapshotName := backup.GenerateSnapshotName(currentTimestamp)
 
 	err := backupExecutor.Save(snapshotName)
 	if err != nil {
 		panic(err)
 	}
 
-}
-
-func generateSnapshotName(currentTime time.Time) string {
-	prefix := "featureform_etcd_snapshot"
-	formattedTime := currentTime.Format("2006-01-02 15:04:05")
-
-	return fmt.Sprintf("%s__%s.db", prefix, formattedTime)
 }

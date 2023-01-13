@@ -1,10 +1,22 @@
 package backup
 
 import (
+	"fmt"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"reflect"
 	"testing"
+	"time"
 )
+
+func TestGenerateSnapshotName(t *testing.T) {
+	currentTimestamp, _ := time.Parse(time.RFC3339, "2020-11-12T10:05:01Z")
+	expectedName := fmt.Sprintf("%s__%s.db", "featureform_etcd_snapshot", "2020-11-12 10:05:01")
+	snapshot := GenerateSnapshotName(currentTimestamp)
+
+	if snapshot != expectedName {
+		t.Fatalf("the snapshot names do not match. Expected '%s', received '%s'", expectedName, snapshot)
+	}
+}
 
 func TestBackupGetBackupProvider(t *testing.T) {
 	type fields struct {

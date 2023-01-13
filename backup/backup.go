@@ -6,6 +6,7 @@ import (
 	help "github.com/featureform/helpers"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/etcdutl/v3/snapshot"
+	"time"
 )
 
 type ProviderType string
@@ -58,4 +59,11 @@ func (b *Backup) getBackupProvider() (Provider, error) {
 	}
 
 	return backupProvider, nil
+}
+
+func GenerateSnapshotName(currentTime time.Time) string {
+	prefix := "featureform_etcd_snapshot"
+	formattedTime := currentTime.Format("2006-01-02 15:04:05")
+
+	return fmt.Sprintf("%s__%s.db", prefix, formattedTime)
 }

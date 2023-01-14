@@ -19,10 +19,15 @@ type Client interface {
 type BackupManager struct {
 	ETCDClient Client
 	Provider   provider.FileStoreType
-	as         provider.Provider
 }
 
-func (b *BackupManager) Save(filename string) error {
+func (b *BackupManager) Save() error {
+	currentTimestamp := time.Now()
+	snapshotName := GenerateSnapshotName(currentTimestamp)
+	return b.SaveTo(snapshotName)
+}
+
+func (b *BackupManager) SaveTo(filename string) error {
 	err := b.takeSnapshot(filename)
 	if err != nil {
 		return fmt.Errorf("could not take snapshot: %v", err)
@@ -67,7 +72,7 @@ type backupRow struct {
 	Value []byte
 }
 
-type backupFile []backupRow
+type backup []backupRow
 
 func (b *BackupManager) takeSnapshot(filename string) error {
 	resp, err := b.ETCDClient.Get(context.Background(), "", clientv3.WithPrefix())
@@ -75,16 +80,15 @@ func (b *BackupManager) takeSnapshot(filename string) error {
 		return fmt.Errorf("could get snapshot values: %v", err)
 	}
 
-	values := b.convertEtcdToBackupFile(resp.Kvs)
-	values.writeTo(filename)
+	err = b.convertEtcdToBackup(resp.Kvs).writeTo(filename)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (b *BackupManager) convertEtcdToBackupFile(resp []*mvccpb.KeyValue) backupFile {
-	values := make(backupFile, len(resp))
+func (b *BackupManager) convertEtcdToBackup(resp []*mvccpb.KeyValue) backup {
+	values := make(backup, len(resp))
 	for i, row := range resp {
 		values[i] = backupRow{
 			Key:   row.Key,
@@ -94,7 +98,7 @@ func (b *BackupManager) convertEtcdToBackupFile(resp []*mvccpb.KeyValue) backupF
 	return values
 }
 
-func (f *backupFile) writeTo(filename string) error {
+func (f backup) writeTo(filename string) error {
 	file, err := json.Marshal(f)
 	if err != nil {
 		return fmt.Errorf("could not marshal snapshot: %v", err)

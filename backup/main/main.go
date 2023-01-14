@@ -35,10 +35,7 @@ func main() {
 		Provider:   provider.FileStoreType(help.GetEnv("CLOUD_PROVIDER", "LOCAL")),
 	}
 
-	currentTimestamp := time.Now()
-	snapshotName := backup.GenerateSnapshotName(currentTimestamp)
-
-	err = backupExecutor.Save(snapshotName)
+	err = backupExecutor.Save()
 	if err != nil {
 		panic(err)
 	}

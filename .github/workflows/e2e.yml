@@ -52,7 +52,7 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           context: .
-          file: ./etcd/Dockerfile
+          file: ./backup/Dockerfile
           tags: local/backup:stable
           push: false
           outputs: type=docker,dest=/tmp/backup.tar

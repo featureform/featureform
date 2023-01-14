@@ -2,14 +2,14 @@ FROM golang:1.18-alpine
 
 WORKDIR /app
 
-COPY ./go.mod ./
-COPY ./go.sum ./
+COPY ../go.mod ./
+COPY ../go.sum ./
 
 ENV PATH /go/bin:$PATH
 
-COPY etcd/main.go ./etcd/main.go
+COPY backup/main/main.go ./backup/main/main.go
 
-RUN go build ./etcd/main.go
+RUN go build ./backup/main/main.go
 
 FROM golang:1.18-alpine
 

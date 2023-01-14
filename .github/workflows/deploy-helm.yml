@@ -77,7 +77,7 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           context: .
-          file: ./etcd/Dockerfile
+          file: ./backup/Dockerfile
           tags: featureformcom/backup:${{ env.TAG }}
           push: true
 
@@ -86,7 +86,7 @@ jobs:
           uses: docker/build-push-action@v3
           with:
             context: .
-            file: ./etcd/Dockerfile
+            file: ./backup/Dockerfile
             tags: featureformcom/backup:${{ env.TAG }},featureformcom/backup:latest
             push: true
 

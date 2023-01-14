@@ -11,7 +11,6 @@ import (
 
 func TestLocalInit(t *testing.T) {
 	type fields struct {
-		Path  string
 		store provider.FileStore
 	}
 	tests := []struct {
@@ -19,13 +18,11 @@ func TestLocalInit(t *testing.T) {
 		fields  fields
 		wantErr bool
 	}{
-		{"Fail Path", fields{"", nil}, true},
-		{"Root Path", fields{"file:///", nil}, false},
+		{"Root Path", fields{nil}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fs := &Local{
-				Path:  tt.fields.Path,
 				store: tt.fields.store,
 			}
 			if err := fs.Init(); (err != nil) != tt.wantErr {
@@ -37,7 +34,6 @@ func TestLocalInit(t *testing.T) {
 
 func TestLocalUpload(t *testing.T) {
 	type fields struct {
-		Path  string
 		store provider.FileStore
 	}
 	type args struct {
@@ -50,12 +46,11 @@ func TestLocalUpload(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-		{"Simple Upload", fields{"file://./", nil}, args{"src.json", "dest.json"}, false},
+		{"Simple Upload", fields{nil}, args{"src.json", "dest.json"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fs := &Local{
-				Path:  tt.fields.Path,
 				store: tt.fields.store,
 			}
 			if f, err := os.Create(tt.args.name); err != nil {
@@ -107,11 +102,7 @@ func TestAzure_Init(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			az := &Azure{
-				AzureStorageAccount: tt.fields.AzureStorageAccount,
-				AzureStorageKey:     tt.fields.AzureStorageKey,
-				AzureContainerName:  tt.fields.AzureContainerName,
-				AzureStoragePath:    tt.fields.AzureStoragePath,
-				store:               tt.fields.store,
+				store: tt.fields.store,
 			}
 			if err := az.Init(); (err != nil) != tt.wantErr {
 				t.Errorf("Init() error = %v, wantErr %v", err, tt.wantErr)
@@ -159,11 +150,7 @@ func TestAzure_Upload(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			az := &Azure{
-				AzureStorageAccount: tt.fields.AzureStorageAccount,
-				AzureStorageKey:     tt.fields.AzureStorageKey,
-				AzureContainerName:  tt.fields.AzureContainerName,
-				AzureStoragePath:    tt.fields.AzureStoragePath,
-				store:               tt.fields.store,
+				store: tt.fields.store,
 			}
 			if f, err := os.Create(tt.args.name); err != nil {
 				t.Fatalf("Create error = %v", err)

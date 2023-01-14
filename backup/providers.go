@@ -2,6 +2,7 @@ package backup
 
 import (
 	"fmt"
+	help "github.com/featureform/helpers"
 	"github.com/featureform/provider"
 )
 
@@ -12,19 +13,15 @@ type Provider interface {
 }
 
 type Azure struct {
-	AzureStorageAccount string
-	AzureStorageKey     string
-	AzureContainerName  string
-	AzureStoragePath    string
-	store               provider.FileStore
+	store provider.FileStore
 }
 
 func (az *Azure) Init() error {
 	filestoreConfig := provider.AzureFileStoreConfig{
-		AccountName:   az.AzureStorageAccount,
-		AccountKey:    az.AzureStorageKey,
-		ContainerName: az.AzureContainerName,
-		Path:          az.AzureStoragePath,
+		AccountName:   help.GetEnv("AZURE_STORAGE_ACCOUNT", ""),
+		AccountKey:    help.GetEnv("AZURE_STORAGE_KEY", ""),
+		ContainerName: help.GetEnv("AZURE_CONTAINER_NAME", ""),
+		Path:          help.GetEnv("AZURE_STORAGE_PATH", ""),
 	}
 	config, err := filestoreConfig.Serialize()
 	if err != nil {
@@ -48,13 +45,12 @@ func (az *Azure) Restore() error {
 }
 
 type Local struct {
-	Path  string
 	store provider.FileStore
 }
 
 func (fs *Local) Init() error {
 	filestoreConfig := provider.LocalFileStoreConfig{
-		DirPath: fs.Path,
+		DirPath: help.GetEnv("LOCAL_FILESTORE_PATH", "file://./"),
 	}
 	config, err := filestoreConfig.Serialize()
 	if err != nil {
@@ -63,7 +59,7 @@ func (fs *Local) Init() error {
 
 	filestore, err := provider.NewLocalFileStore(config)
 	if err != nil {
-		return fmt.Errorf("cannot create Azure Filestore: %v", err)
+		return fmt.Errorf("cannot create Local Filestore: %v", err)
 	}
 	fs.store = filestore
 	return nil

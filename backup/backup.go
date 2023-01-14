@@ -4,18 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	help "github.com/featureform/helpers"
+	"github.com/featureform/provider"
 	"go.etcd.io/etcd/api/v3/mvccpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"io/ioutil"
 	"time"
-)
-
-type ProviderType string
-
-const (
-	AZURE ProviderType = "AZURE"
-	LOCAL              = "LOCAL"
 )
 
 // Client Allows ETCD to be tested with mock values
@@ -23,12 +16,13 @@ type Client interface {
 	Get(ctx context.Context, key string, opts ...clientv3.OpOption) (*clientv3.GetResponse, error)
 }
 
-type Backup struct {
-	ETCDClient   Client
-	ProviderType ProviderType
+type BackupManager struct {
+	ETCDClient Client
+	Provider   provider.FileStoreType
+	as         provider.Provider
 }
 
-func (b *Backup) Save(filename string) error {
+func (b *BackupManager) Save(filename string) error {
 	err := b.takeSnapshot(filename)
 	if err != nil {
 		return fmt.Errorf("could not take snapshot: %v", err)
@@ -49,63 +43,59 @@ func (b *Backup) Save(filename string) error {
 	return nil
 }
 
-func (b *Backup) Restore() error {
+func (b *BackupManager) Restore() error {
+	panic(fmt.Errorf("Restore() unimplemented"))
 	return nil
 }
 
-func (b *Backup) getBackupProvider() (Provider, error) {
+func (b *BackupManager) getBackupProvider() (Provider, error) {
 	var backupProvider Provider
-	switch b.ProviderType {
-	case AZURE:
-		backupProvider = &Azure{
-			AzureStorageAccount: help.GetEnv("AZURE_STORAGE_ACCOUNT", ""),
-			AzureStorageKey:     help.GetEnv("AZURE_STORAGE_KEY", ""),
-			AzureContainerName:  help.GetEnv("AZURE_CONTAINER_NAME", ""),
-			AzureStoragePath:    help.GetEnv("AZURE_STORAGE_PATH", ""),
-		}
-	case LOCAL:
-		backupProvider = &Local{
-			Path: "file://./",
-		}
+	switch b.Provider {
+	case provider.Azure:
+		backupProvider = &Azure{}
+	case provider.FileSystem:
+		backupProvider = &Local{}
 	default:
-		return nil, fmt.Errorf("the cloud provider '%s' is not supported", b.ProviderType)
+		return nil, fmt.Errorf("the cloud provider '%s' is not supported", b.Provider)
 	}
 
 	return backupProvider, nil
 }
 
-type BackupFile struct {
+type backupRow struct {
 	Key   []byte
 	Value []byte
 }
 
-func (b *Backup) takeSnapshot(filename string) error {
+type backupFile []backupRow
+
+func (b *BackupManager) takeSnapshot(filename string) error {
 	resp, err := b.ETCDClient.Get(context.Background(), "", clientv3.WithPrefix())
 	if err != nil {
 		return fmt.Errorf("could get snapshot values: %v", err)
 	}
 
-	values := b.convertValues(resp.Kvs)
-	err = b.writeValues(filename, values)
+	values := b.convertEtcdToBackupFile(resp.Kvs)
+	values.writeTo(filename)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (b *Backup) convertValues(resp []*mvccpb.KeyValue) []BackupFile {
-	values := []BackupFile{}
-	for _, row := range resp {
-		values = append(values, BackupFile{
+func (b *BackupManager) convertEtcdToBackupFile(resp []*mvccpb.KeyValue) backupFile {
+	values := make(backupFile, len(resp))
+	for i, row := range resp {
+		values[i] = backupRow{
 			Key:   row.Key,
 			Value: row.Value,
-		})
+		}
 	}
 	return values
 }
 
-func (b *Backup) writeValues(filename string, values []BackupFile) error {
-	file, err := json.Marshal(values)
+func (f *backupFile) writeTo(filename string) error {
+	file, err := json.Marshal(f)
 	if err != nil {
 		return fmt.Errorf("could not marshal snapshot: %v", err)
 	}
@@ -117,7 +107,7 @@ func (b *Backup) writeValues(filename string, values []BackupFile) error {
 
 func GenerateSnapshotName(currentTime time.Time) string {
 	prefix := "featureform_etcd_snapshot"
-	formattedTime := currentTime.Format("2006-01-02 15:04:05")
+	formattedTime := currentTime.Format("2006-01-02_15:04:05")
 
 	return fmt.Sprintf("%s__%s.db", prefix, formattedTime)
 }

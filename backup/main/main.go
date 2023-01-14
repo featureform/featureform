@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/featureform/provider"
 	"time"
 
 	"github.com/featureform/backup"
@@ -19,7 +20,7 @@ func main() {
 
 	etcdConfig := clientv3.Config{
 		Endpoints:   []string{address},
-		DialTimeout: time.Second * 1,
+		DialTimeout: time.Second * 10,
 		Username:    etcdUsername,
 		Password:    etcdPassword,
 	}
@@ -29,9 +30,9 @@ func main() {
 		panic(err)
 	}
 
-	backupExecutor := backup.Backup{
-		ETCDClient:   client,
-		ProviderType: backup.ProviderType(help.GetEnv("CLOUD_PROVIDER", "LOCAL")),
+	backupExecutor := backup.BackupManager{
+		ETCDClient: client,
+		Provider:   provider.FileStoreType(help.GetEnv("CLOUD_PROVIDER", "LOCAL")),
 	}
 
 	currentTimestamp := time.Now()

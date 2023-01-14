@@ -28,8 +28,8 @@ type Backup struct {
 	ProviderType ProviderType
 }
 
-func (b *Backup) Save(name string) error {
-	err := b.takeSnapshot(name)
+func (b *Backup) Save(filename string) error {
+	err := b.takeSnapshot(filename)
 	if err != nil {
 		return fmt.Errorf("could not take snapshot: %v", err)
 	}
@@ -42,7 +42,7 @@ func (b *Backup) Save(name string) error {
 	if err != nil {
 		return fmt.Errorf("could not initialize provider: %v", err)
 	}
-	err = backupProvider.Upload(name, name)
+	err = backupProvider.Upload(filename, filename)
 	if err != nil {
 		return fmt.Errorf("cannot upload snapshot to filestore: %v", err)
 	}

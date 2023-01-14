@@ -21,7 +21,7 @@ COPY metadata/proto/ ./metadata/proto/
 COPY types/ ./types/
 COPY proto/ ./proto/
 
-RUN go build ./backup/save/main.go 
+RUN go build ./backup/save/main.go
 
 FROM golang:1.18-alpine
 

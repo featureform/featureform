@@ -1,0 +1,20 @@
+{{ if .Values.backup.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: featureform-backup
+spec:
+  schedule: "{{ .Values.backup.schedule }}"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - image: "{{ .Values.global.repo | default .Values.image.repository }}/backup:{{ .Values.global.version | default .Chart.AppVersion }}"
+              imagePullPolicy: {{ .Values.global.pullPolicy }}
+              name: featureform-backup
+              envFrom:
+                - secretRef:
+                    name: backup-secret
+          restartPolicy: Never
+{{ end }}

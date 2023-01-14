@@ -129,12 +129,12 @@ func TestBlobInterfaces(t *testing.T) {
 	directoryPath := fmt.Sprintf("%s/scripts/k8s/tests/test_files/output/go_tests", mydir)
 	_ = os.MkdirAll(directoryPath, os.ModePerm)
 
-	fileStoreConfig := FileFileStoreConfig{DirPath: fmt.Sprintf(`file:///%s`, directoryPath)}
+	fileStoreConfig := LocalFileStoreConfig{DirPath: fmt.Sprintf(`file:///%s`, directoryPath)}
 	serializedFileConfig, err := fileStoreConfig.Serialize()
 	if err != nil {
 		t.Fatalf("failed to serialize file store config: %v", err)
 	}
-	fileFileStore, err := NewFileFileStore(serializedFileConfig)
+	fileFileStore, err := NewLocalFileStore(serializedFileConfig)
 	if err != nil {
 		t.Fatalf("failed to create new file blob store: %v", err)
 	}
@@ -609,7 +609,7 @@ func testPathWithPrefix(t *testing.T, store FileStore) {
 			t.Fatalf("Incorrect path with prefix. Expected %s, got %s", fmt.Sprintf("%s/%s", azureStore.Path, randomKey), azurePathWithPrefix)
 		}
 	}
-	fileFileStore, ok := store.(FileFileStore)
+	fileFileStore, ok := store.(LocalFileStore)
 	if ok {
 		filePathWithPrefix := fileFileStore.PathWithPrefix(randomKey, false)
 		if filePathWithPrefix != fmt.Sprintf("%s%s", fileFileStore.DirPath, randomKey) {

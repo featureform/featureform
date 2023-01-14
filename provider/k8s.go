@@ -161,7 +161,7 @@ func CreateFileStore(name string, config Config) (FileStore, error) {
 
 func init() {
 	FileStoreFactoryMap := map[FileStoreType]FileStoreFactory{
-		FileSystem: NewFileFileStore,
+		FileSystem: NewLocalFileStore,
 		Azure:      NewAzureFileStore,
 	}
 	executorFactoryMap := map[ExecutorType]ExecutorFactory{
@@ -813,11 +813,11 @@ func (store genericFileStore) Close() error {
 	return store.bucket.Close()
 }
 
-type FileFileStoreConfig struct {
+type LocalFileStoreConfig struct {
 	DirPath string
 }
 
-func (config *FileFileStoreConfig) Serialize() ([]byte, error) {
+func (config *LocalFileStoreConfig) Serialize() ([]byte, error) {
 	data, err := json.Marshal(config)
 	if err != nil {
 		panic(err)
@@ -825,7 +825,7 @@ func (config *FileFileStoreConfig) Serialize() ([]byte, error) {
 	return data, nil
 }
 
-func (config *FileFileStoreConfig) Deserialize(data []byte) error {
+func (config *LocalFileStoreConfig) Deserialize(data []byte) error {
 	err := json.Unmarshal(data, config)
 	if err != nil {
 		return fmt.Errorf("deserialize file blob store config: %w", err)
@@ -833,13 +833,13 @@ func (config *FileFileStoreConfig) Deserialize(data []byte) error {
 	return nil
 }
 
-type FileFileStore struct {
+type LocalFileStore struct {
 	DirPath string
 	genericFileStore
 }
 
-func NewFileFileStore(config Config) (FileStore, error) {
-	fileStoreConfig := FileFileStoreConfig{}
+func NewLocalFileStore(config Config) (FileStore, error) {
+	fileStoreConfig := LocalFileStoreConfig{}
 	if err := fileStoreConfig.Deserialize(config); err != nil {
 		return nil, fmt.Errorf("could not deserialize file store config: %v", err)
 	}
@@ -847,7 +847,7 @@ func NewFileFileStore(config Config) (FileStore, error) {
 	if err != nil {
 		return nil, err
 	}
-	return FileFileStore{
+	return LocalFileStore{
 		DirPath: fileStoreConfig.DirPath[len("file:///"):],
 		genericFileStore: genericFileStore{
 			bucket: bucket,

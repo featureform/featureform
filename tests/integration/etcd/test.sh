@@ -6,7 +6,7 @@ set -e
 go run ./tests/integration/etcd/load.go
 
 # Backup (Change name to backup script name)
-go run backup/main.go
+go run backup/save/main.go
 
 ## Clear etcd
 etcdctl del "" --prefix
@@ -21,7 +21,7 @@ else
 fi
 
 # Restore (change to restore script with args)
-./backup/restore
+go run backup/restore/main.go
 
 # Check Values
 go test ./tests/integration/etcd/

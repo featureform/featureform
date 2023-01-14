@@ -2,10 +2,12 @@ package backup
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	help "github.com/featureform/helpers"
+	"go.etcd.io/etcd/api/v3/mvccpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
-	"go.etcd.io/etcd/etcdutl/v3/snapshot"
+	"io/ioutil"
 	"time"
 )
 
@@ -16,19 +18,30 @@ const (
 	LOCAL              = "LOCAL"
 )
 
+// Client Allows ETCD to be tested with mock values
+type Client interface {
+	Get(ctx context.Context, key string, opts ...clientv3.OpOption) (*clientv3.GetResponse, error)
+}
+
 type Backup struct {
-	ETCDConfig   clientv3.Config
+	ETCDClient   Client
 	ProviderType ProviderType
 }
 
 func (b *Backup) Save(name string) error {
-	sp := snapshot.NewV3(nil)
-	err := sp.Save(context.TODO(), b.ETCDConfig, name)
+	err := b.takeSnapshot(name)
 	if err != nil {
-		return fmt.Errorf("cannot save snapshot: %v", err)
+		return fmt.Errorf("could not take snapshot: %v", err)
 	}
 
 	backupProvider, err := b.getBackupProvider()
+	if err != nil {
+		return err
+	}
+	err = backupProvider.Init()
+	if err != nil {
+		return fmt.Errorf("could not initialize provider: %v", err)
+	}
 	err = backupProvider.Upload(name, name)
 	if err != nil {
 		return fmt.Errorf("cannot upload snapshot to filestore: %v", err)
@@ -59,6 +72,47 @@ func (b *Backup) getBackupProvider() (Provider, error) {
 	}
 
 	return backupProvider, nil
+}
+
+type BackupFile struct {
+	Key   []byte
+	Value []byte
+}
+
+func (b *Backup) takeSnapshot(filename string) error {
+	resp, err := b.ETCDClient.Get(context.Background(), "", clientv3.WithPrefix())
+	if err != nil {
+		return fmt.Errorf("could get snapshot values: %v", err)
+	}
+
+	values := b.convertValues(resp.Kvs)
+	err = b.writeValues(filename, values)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (b *Backup) convertValues(resp []*mvccpb.KeyValue) []BackupFile {
+	values := []BackupFile{}
+	for _, row := range resp {
+		values = append(values, BackupFile{
+			Key:   row.Key,
+			Value: row.Value,
+		})
+	}
+	return values
+}
+
+func (b *Backup) writeValues(filename string, values []BackupFile) error {
+	file, err := json.Marshal(values)
+	if err != nil {
+		return fmt.Errorf("could not marshal snapshot: %v", err)
+	}
+	if err = ioutil.WriteFile(filename, file, 0644); err != nil {
+		return fmt.Errorf("could not write snapshot to file: %v", err)
+	}
+	return nil
 }
 
 func GenerateSnapshotName(currentTime time.Time) string {

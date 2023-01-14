@@ -77,6 +77,9 @@ func TestLocalUpload(t *testing.T) {
 }
 
 func TestAzure_Init(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	_ = godotenv.Load(".env")
 	type fields struct {
 		AzureStorageAccount string
@@ -118,6 +121,10 @@ func TestAzure_Init(t *testing.T) {
 }
 
 func TestAzure_Upload(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+	_ = godotenv.Load(".env")
 	type fields struct {
 		AzureStorageAccount string
 		AzureStorageKey     string
@@ -157,6 +164,14 @@ func TestAzure_Upload(t *testing.T) {
 				AzureContainerName:  tt.fields.AzureContainerName,
 				AzureStoragePath:    tt.fields.AzureStoragePath,
 				store:               tt.fields.store,
+			}
+			if f, err := os.Create(tt.args.name); err != nil {
+				t.Fatalf("Create error = %v", err)
+			} else {
+				f.Close()
+			}
+			if err := az.Init(); (err != nil) != tt.wantErr {
+				t.Fatalf("Init() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if err := az.Upload(tt.args.name, tt.args.dest); (err != nil) != tt.wantErr {
 				t.Errorf("Upload() error = %v, wantErr %v", err, tt.wantErr)

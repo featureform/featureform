@@ -24,15 +24,20 @@ func main() {
 		Password:    etcdPassword,
 	}
 
+	client, err := clientv3.New(etcdConfig)
+	if err != nil {
+		panic(err)
+	}
+
 	backupExecutor := backup.Backup{
-		ETCDConfig:   etcdConfig,
+		ETCDClient:   client,
 		ProviderType: backup.ProviderType(help.GetEnv("CLOUD_PROVIDER", "LOCAL")),
 	}
 
 	currentTimestamp := time.Now()
 	snapshotName := backup.GenerateSnapshotName(currentTimestamp)
 
-	err := backupExecutor.Save(snapshotName)
+	err = backupExecutor.Save(snapshotName)
 	if err != nil {
 		panic(err)
 	}

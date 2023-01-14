@@ -10,9 +10,12 @@ import (
 	"time"
 )
 
+const SnapshotFilename = "snapshot.json"
+
 // Client Allows ETCD to be tested with mock values
 type Client interface {
 	Get(ctx context.Context, key string, opts ...clientv3.OpOption) (*clientv3.GetResponse, error)
+	Put(ctx context.Context, key string, val string, opts ...clientv3.OpOption) (*clientv3.PutResponse, error)
 }
 
 type BackupManager struct {
@@ -44,7 +47,38 @@ func (b *BackupManager) SaveTo(filename string) error {
 }
 
 func (b *BackupManager) Restore() error {
-	panic(fmt.Errorf("Restore() unimplemented"))
+	err := b.Provider.Init()
+	if err != nil {
+		return fmt.Errorf("could not initialize provider: %v", err)
+	}
+
+	filename, err := b.Provider.LatestBackupName()
+	if err != nil {
+		return err
+	}
+
+	err = b.RestoreFrom(filename)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (b *BackupManager) RestoreFrom(filename string) error {
+	err := b.Provider.Init()
+	if err != nil {
+		return fmt.Errorf("could not initialize provider: %v", err)
+	}
+
+	err = b.Provider.Download(filename, SnapshotFilename)
+	if err != nil {
+		return fmt.Errorf("could not download snapshot file %s: %v", filename, err)
+	}
+
+	err = b.loadSnapshot(filename)
+	if err != nil {
+		return fmt.Errorf("could not load snapshot: %v", err)
+	}
 	return nil
 }
 
@@ -54,6 +88,29 @@ type backupRow struct {
 }
 
 type backup []backupRow
+
+func (f backup) writeTo(filename string) error {
+	file, err := json.Marshal(f)
+	if err != nil {
+		return fmt.Errorf("could not marshal snapshot: %v", err)
+	}
+	if err = ioutil.WriteFile(filename, file, 0644); err != nil {
+		return fmt.Errorf("could not write snapshot to file: %v", err)
+	}
+	return nil
+}
+
+func (f backup) readFrom(filename string) error {
+	file, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return fmt.Errorf("could not read file %s: %v", filename, err)
+	}
+	err = json.Unmarshal(file, &f)
+	if err != nil {
+		return fmt.Errorf("could not unmarshal file %s: %v", filename, err)
+	}
+	return nil
+}
 
 func (b *BackupManager) takeSnapshot(filename string) error {
 	resp, err := b.ETCDClient.Get(context.Background(), "", clientv3.WithPrefix())
@@ -79,13 +136,26 @@ func (b *BackupManager) convertEtcdToBackup(resp []*mvccpb.KeyValue) backup {
 	return values
 }
 
-func (f backup) writeTo(filename string) error {
-	file, err := json.Marshal(f)
+func (b *BackupManager) loadSnapshot(filename string) error {
+	backupData := backup{}
+	err := backupData.readFrom(filename)
 	if err != nil {
-		return fmt.Errorf("could not marshal snapshot: %v", err)
+		return fmt.Errorf("could not read from file %s: %v", filename, err)
 	}
-	if err = ioutil.WriteFile(filename, file, 0644); err != nil {
-		return fmt.Errorf("could not write snapshot to file: %v", err)
+
+	err = b.writeToEtcd(backupData)
+	if err != nil {
+		return fmt.Errorf("could not write to ETCD: %v", err)
+	}
+	return nil
+}
+
+func (b *BackupManager) writeToEtcd(data backup) error {
+	for _, row := range data {
+		_, err := b.ETCDClient.Put(context.Background(), string(row.Key), string(row.Value))
+		if err != nil {
+			return fmt.Errorf("could not Put K/V (%s:%s): %v", row.Key, row.Value, err)
+		}
 	}
 	return nil
 }

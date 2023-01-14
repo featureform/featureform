@@ -8,7 +8,8 @@ import (
 type Provider interface {
 	Init() error
 	Upload(name, dest string) error
-	Restore() error
+	Download(src, dest string) error
+	LatestBackupName() (string, error)
 }
 
 type Azure struct {
@@ -43,8 +44,12 @@ func (az *Azure) Upload(name, dest string) error {
 	return az.store.Upload(name, dest)
 }
 
-func (az *Azure) Restore() error {
-	return nil
+func (az *Azure) Download(src, dest string) error {
+	return az.store.Download(src, dest)
+}
+
+func (az *Azure) LatestBackupName() (string, error) {
+	return az.store.NewestFile("")
 }
 
 type Local struct {
@@ -73,6 +78,10 @@ func (fs *Local) Upload(name, dest string) error {
 	return fs.store.Upload(name, dest)
 }
 
-func (fs *Local) Restore() error {
-	return nil
+func (fs *Local) Download(src, dest string) error {
+	return fs.store.Download(src, dest)
+}
+
+func (fs *Local) LatestBackupName() (string, error) {
+	return fs.store.NewestFile("")
 }

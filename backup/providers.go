@@ -2,7 +2,6 @@ package backup
 
 import (
 	"fmt"
-	help "github.com/featureform/helpers"
 	"github.com/featureform/provider"
 )
 
@@ -13,15 +12,19 @@ type Provider interface {
 }
 
 type Azure struct {
-	store provider.FileStore
+	AccountName   string
+	AccountKey    string
+	ContainerName string
+	Path          string
+	store         provider.FileStore
 }
 
 func (az *Azure) Init() error {
 	filestoreConfig := provider.AzureFileStoreConfig{
-		AccountName:   help.GetEnv("AZURE_STORAGE_ACCOUNT", ""),
-		AccountKey:    help.GetEnv("AZURE_STORAGE_KEY", ""),
-		ContainerName: help.GetEnv("AZURE_CONTAINER_NAME", ""),
-		Path:          help.GetEnv("AZURE_STORAGE_PATH", ""),
+		AccountName:   az.AccountName,
+		AccountKey:    az.AccountKey,
+		ContainerName: az.ContainerName,
+		Path:          az.Path,
 	}
 	config, err := filestoreConfig.Serialize()
 	if err != nil {
@@ -45,12 +48,13 @@ func (az *Azure) Restore() error {
 }
 
 type Local struct {
+	Path  string
 	store provider.FileStore
 }
 
 func (fs *Local) Init() error {
 	filestoreConfig := provider.LocalFileStoreConfig{
-		DirPath: help.GetEnv("LOCAL_FILESTORE_PATH", "file://./"),
+		DirPath: fs.Path,
 	}
 	config, err := filestoreConfig.Serialize()
 	if err != nil {

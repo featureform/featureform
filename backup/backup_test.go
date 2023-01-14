@@ -5,12 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/featureform/provider"
 	pb "go.etcd.io/etcd/api/v3/etcdserverpb"
 	"go.etcd.io/etcd/api/v3/mvccpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"io/ioutil"
-	"reflect"
 	"testing"
 	"time"
 )
@@ -25,47 +23,12 @@ func TestGenerateSnapshotName(t *testing.T) {
 	}
 }
 
-func TestBackupGetBackupProvider(t *testing.T) {
-	emptyClient := myClient{}
-
-	type fields struct {
-		ETCDClient Client
-		Provider   provider.FileStoreType
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		want    Provider
-		wantErr bool
-	}{
-		{"Get Empty Error", fields{emptyClient, ""}, nil, true},
-		{"Get Invalid Error", fields{emptyClient, "Postgres"}, nil, true},
-		{"Get Azure", fields{emptyClient, provider.Azure}, &Azure{}, false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			b := &BackupManager{
-				ETCDClient: tt.fields.ETCDClient,
-				Provider:   tt.fields.Provider,
-			}
-			got, err := b.getBackupProvider()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("getBackupProvider() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("getBackupProvider() got = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestBackup_Save(t *testing.T) {
 	emptyClient := myClient{}
 
 	type fields struct {
 		ETCDClient Client
-		Provider   provider.FileStoreType
+		Provider   Provider
 	}
 	type args struct {
 		name string
@@ -76,8 +39,8 @@ func TestBackup_Save(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-		{"Error Invalid Provider", fields{emptyClient, ""}, args{""}, true},
-		{"Local Provider", fields{emptyClient, provider.FileSystem}, args{"src.json"}, false},
+		{"Error Invalid Provider", fields{emptyClient, nil}, args{""}, true},
+		{"Local Provider", fields{emptyClient, &Local{Path: "file://./"}}, args{"src.json"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -85,7 +48,7 @@ func TestBackup_Save(t *testing.T) {
 				ETCDClient: tt.fields.ETCDClient,
 				Provider:   tt.fields.Provider,
 			}
-			if err := b.Save(tt.args.name); (err != nil) != tt.wantErr {
+			if err := b.SaveTo(tt.args.name); (err != nil) != tt.wantErr {
 				t.Errorf("Save() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -123,7 +86,7 @@ func TestBackup_takeSnapshot(t *testing.T) {
 
 	type fields struct {
 		ETCDClient Client
-		Provider   provider.FileStoreType
+		Provider   Provider
 	}
 	type args struct {
 		filename string
@@ -138,7 +101,7 @@ func TestBackup_takeSnapshot(t *testing.T) {
 			"",
 			fields{
 				ETCDClient: client,
-				Provider:   provider.FileSystem,
+				Provider:   &Local{Path: "file://./"},
 			},
 			args{
 				"Test.json",

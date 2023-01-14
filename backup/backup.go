@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/featureform/provider"
 	"go.etcd.io/etcd/api/v3/mvccpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"io/ioutil"
@@ -18,7 +17,7 @@ type Client interface {
 
 type BackupManager struct {
 	ETCDClient Client
-	Provider   provider.FileStoreType
+	Provider   Provider
 }
 
 func (b *BackupManager) Save() error {
@@ -33,15 +32,11 @@ func (b *BackupManager) SaveTo(filename string) error {
 		return fmt.Errorf("could not take snapshot: %v", err)
 	}
 
-	backupProvider, err := b.getBackupProvider()
-	if err != nil {
-		return err
-	}
-	err = backupProvider.Init()
+	err = b.Provider.Init()
 	if err != nil {
 		return fmt.Errorf("could not initialize provider: %v", err)
 	}
-	err = backupProvider.Upload(filename, filename)
+	err = b.Provider.Upload(filename, filename)
 	if err != nil {
 		return fmt.Errorf("cannot upload snapshot to filestore: %v", err)
 	}
@@ -51,20 +46,6 @@ func (b *BackupManager) SaveTo(filename string) error {
 func (b *BackupManager) Restore() error {
 	panic(fmt.Errorf("Restore() unimplemented"))
 	return nil
-}
-
-func (b *BackupManager) getBackupProvider() (Provider, error) {
-	var backupProvider Provider
-	switch b.Provider {
-	case provider.Azure:
-		backupProvider = &Azure{}
-	case provider.FileSystem:
-		backupProvider = &Local{}
-	default:
-		return nil, fmt.Errorf("the cloud provider '%s' is not supported", b.Provider)
-	}
-
-	return backupProvider, nil
 }
 
 type backupRow struct {

@@ -11,6 +11,7 @@ import (
 
 func TestLocalInit(t *testing.T) {
 	type fields struct {
+		Path  string
 		store provider.FileStore
 	}
 	tests := []struct {
@@ -18,11 +19,12 @@ func TestLocalInit(t *testing.T) {
 		fields  fields
 		wantErr bool
 	}{
-		{"Root Path", fields{nil}, false},
+		{"Root Path", fields{"file://./", nil}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fs := &Local{
+				Path:  tt.fields.Path,
 				store: tt.fields.store,
 			}
 			if err := fs.Init(); (err != nil) != tt.wantErr {
@@ -34,6 +36,7 @@ func TestLocalInit(t *testing.T) {
 
 func TestLocalUpload(t *testing.T) {
 	type fields struct {
+		Path  string
 		store provider.FileStore
 	}
 	type args struct {
@@ -46,11 +49,12 @@ func TestLocalUpload(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-		{"Simple Upload", fields{nil}, args{"src.json", "dest.json"}, false},
+		{"Simple Upload", fields{"file://./", nil}, args{"src.json", "dest.json"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fs := &Local{
+				Path:  tt.fields.Path,
 				store: tt.fields.store,
 			}
 			if f, err := os.Create(tt.args.name); err != nil {

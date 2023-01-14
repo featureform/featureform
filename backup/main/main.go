@@ -30,9 +30,28 @@ func main() {
 		panic(err)
 	}
 
+	p := provider.FileStoreType(help.GetEnv("CLOUD_PROVIDER", "LOCAL"))
+
+	var backupProvider backup.Provider
+	switch p {
+	case provider.Azure:
+		backupProvider = &backup.Azure{
+			AccountName:   help.GetEnv("AZURE_STORAGE_ACCOUNT", ""),
+			AccountKey:    help.GetEnv("AZURE_STORAGE_KEY", ""),
+			ContainerName: help.GetEnv("AZURE_CONTAINER_NAME", ""),
+			Path:          help.GetEnv("AZURE_STORAGE_PATH", ""),
+		}
+	case provider.FileSystem:
+		backupProvider = &backup.Local{
+			Path: help.GetEnv("LOCAL_FILESTORE_PATH", "file://./"),
+		}
+	default:
+		panic(fmt.Errorf("the cloud provider '%s' is not supported", p))
+	}
+
 	backupExecutor := backup.BackupManager{
 		ETCDClient: client,
-		Provider:   provider.FileStoreType(help.GetEnv("CLOUD_PROVIDER", "LOCAL")),
+		Provider:   backupProvider,
 	}
 
 	err = backupExecutor.Save()

@@ -36,6 +36,32 @@ jobs:
           name: api-server
           path: /tmp/api-server.tar
 
+  backup:
+    name: Build Backup
+    defaults:
+      run:
+        working-directory: ./
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build and export
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./backup/Dockerfile
+          tags: local/backup:stable
+          push: false
+          outputs: type=docker,dest=/tmp/backup.tar
+      - name: Upload image
+        uses: actions/upload-artifact@v3
+        with:
+          name: backup
+          path: /tmp/backup.tar
+
   coordinator:
     name: Build Coordinator
     defaults:
@@ -193,6 +219,7 @@ jobs:
         with:
           name: worker
           path: /tmp/worker.tar
+
   k8s_runner:
     name: Build K8s Runner
     defaults:
@@ -234,7 +261,7 @@ jobs:
   test:
     name: Run Tests
     environment: Integration testing
-    needs: [api-server, coordinator, dashboard, dashboard-metadata, metadata, serving, worker, k8s_runner]
+    needs: [api-server, coordinator, dashboard, dashboard-metadata, metadata, serving, worker, k8s_runner, backup]
     defaults:
       run:
         working-directory: ./
@@ -244,7 +271,7 @@ jobs:
       - name: Download artifact
         uses: actions/download-artifact@v3
         with:
-          names: api-server coordinator dashboard dashboard-metadata metadata serving worker k8s_runner k8s_runner_scikit
+          names: api-server coordinator dashboard dashboard-metadata metadata serving worker k8s_runner k8s_runner_scikit backup
           path: /tmp
 
       - uses: actions/setup-python@v4
@@ -303,6 +330,7 @@ jobs:
           docker load --input /tmp/worker/worker.tar
           docker load --input /tmp/k8s_runner/k8s_runner.tar
           docker load --input /tmp/k8s_runner_scikit/k8s_runner_scikit.tar
+          docker load --input /tmp/backup/backup.tar
           minikube image load local/api-server:stable
           minikube image load local/coordinator:stable
           minikube image load local/dashboard:stable
@@ -312,6 +340,7 @@ jobs:
           minikube image load local/worker:stable
           minikube image load local/k8s_runner:stable
           minikube image load local/k8s_runner:scikit-stable
+          minikube image load local/backup:stable
           minikube image ls
 
       - name: Helm Install

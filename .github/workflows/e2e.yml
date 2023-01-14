@@ -348,7 +348,19 @@ jobs:
           helm repo add jetstack https://charts.jetstack.io
           helm repo update
           helm install certmgr jetstack/cert-manager --set installCRDs=true --version v1.8.0 --namespace cert-manager --create-namespace
-          helm install featureform ./charts/featureform --set global.repo=local --set global.pullPolicy=Never --set global.version=stable
+          helm install featureform ./charts/featureform --set global.repo=local --set global.pullPolicy=Never \ 
+          --set global.version=stable --set backup.enabled=true --set backup.interval=1m
+
+      - name: Create Secret
+        env:
+          CLOUD_PROVIDER: "AZURE"
+          AZURE_STORAGE_ACCOUNT: ${{ secrets.AZURE_STORAGE_ACCOUNT }}
+          AZURE_STORAGE_TOKEN: ${{ secrets.AZURE_STORAGE_TOKEN }}
+          AZURE_CONTAINER: ${{ secrets.AZURE_CONTAINER_NAME }}
+          STORAGE_PATH: ${{ secrets.STORAGE_PATH }}
+        run: |
+          ./tests/end_to_end/etcd/fill_template $CLOUD_PROVIDER $AZURE_STORAGE_ACCOUNT $AZURE_STORAGE_TOKEN $AZURE_CONTAINER $STORAGE_PATH
+          kubectl apply -f tests/end_to_end/etcd/backup_secret.yaml
 
       - name: Run CLI
         run: |
@@ -384,6 +396,31 @@ jobs:
           recursiveLinks: true
       - name: Print result
         run: echo "${{steps.link-report.outputs.result}}"
+
+      - name: Clear ETCD
+        run: |
+          /tmp/etcd-download-test/etcdctl --user=root:secretpassword del "" --prefix
+
+      - name: Check ETCD Empty
+        run: >-
+          if [$(/tmp/etcd-download-test/etcdctl get "" --prefix | wc -l) -eq 0 ];
+          then
+            echo "ETCD is empty";
+          else
+            echo "ETCD is not empty"
+            exit 1
+          fi
+
+      - name: Check If File Exists
+        env:
+          AZURE_CONTAINER: ${{ secrets.AZURE_CONTAINER_NAME }}
+        run: az storage blob exists --container-name $AZURE_CONTAINER $(./backup/get_latest.sh)
+
+      - name: Restore
+        run: ./backup/restore
+
+      - name: Test Restored Data
+        run: ./tests/end_to_end/end_to_end_tests.sh localhost:8000 ./tls.crt
 
       - name: Reset Quickstart
         run: |

@@ -438,6 +438,37 @@ jobs:
           name: metadata-coverage
           verbose: true
 
+  backup:
+    name: Backup Test
+    needs: setup
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download Working Compiled Directories
+        uses: actions/download-artifact@v3
+        with:
+          name: compiled-workdir
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.18
+
+      # Should be switched to a container, but the available etcd containers
+      # haven't been running easily locally yet. Will create a custom one
+      # in the future
+      - name: Install ETCD
+        run: |
+          git clone -b v3.4.16 https://github.com/etcd-io/etcd.git
+          cd etcd
+          ./build
+          export PATH="$PATH:`pwd`/bin"
+          etcd --version
+          etcd --logger=zap &
+
+      - name: Run Backup Test
+        run: ./tests/integration/etcd/test.sh
+
   metrics:
     name: Metrics Testing
     needs: setup

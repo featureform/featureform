@@ -7,9 +7,9 @@ COPY ../go.sum ./
 
 ENV PATH /go/bin:$PATH
 
-COPY backup/main/main.go ./backup/main/main.go
+COPY backup/save/main.go ./backup/save/main.go
 
-RUN go build ./backup/main/main.go
+RUN go build ./backup/save/main.go
 
 FROM golang:1.18-alpine
 

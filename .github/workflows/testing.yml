@@ -444,7 +444,7 @@ jobs:
           git clone -b v3.4.16 https://github.com/etcd-io/etcd.git
           cd etcd
           ./build
-          export PATH="$PATH:`pwd`/bin"
+          echo "`pwd`/bin" >> $GITHUB_PATH
           etcd --version
           etcd --logger=zap &
 

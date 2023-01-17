@@ -10,6 +10,11 @@ ENV PATH /go/bin:$PATH
 COPY backup/ ./backup/
 COPY helpers/ ./helpers/
 COPY provider/ ./provider/
+COPY config/ ./config/
+COPY kubernetes/ ./kubernetes/
+COPY logging/ ./logging/
+COPY metadata/ ./metadata/
+COPY types/ ./types/
 
 RUN go build ./backup/save/main.go
 

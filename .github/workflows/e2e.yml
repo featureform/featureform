@@ -417,7 +417,8 @@ jobs:
         run: az storage blob exists --container-name $AZURE_CONTAINER $(./backup/get_latest.sh)
 
       - name: Restore
-        run: ./backup/restore
+        working-directory: ./backup/restore
+        run: ./restore.sh --force
 
       - name: Test Restored Data
         run: ./tests/end_to_end/end_to_end_tests.sh localhost:8000 ./tls.crt

@@ -11,12 +11,13 @@ import (
 )
 
 const SnapshotFilename = "snapshot.json"
-const SnapshotPrefix = "featureform_etcd_snapshot"
+const SnapshotPrefix = "featureform_snapshot"
 
 // Client Allows ETCD to be tested with mock values
 type Client interface {
 	Get(ctx context.Context, key string, opts ...clientv3.OpOption) (*clientv3.GetResponse, error)
 	Put(ctx context.Context, key string, val string, opts ...clientv3.OpOption) (*clientv3.PutResponse, error)
+	Delete(ctx context.Context, key string, opts ...clientv3.OpOption) (*clientv3.DeleteResponse, error)
 }
 
 type BackupManager struct {
@@ -143,6 +144,10 @@ func (b *BackupManager) loadSnapshot(filename string) error {
 	if err != nil {
 		return fmt.Errorf("could not read from file %s: %v", filename, err)
 	}
+	err = b.clearEtcd()
+	if err != nil {
+		return fmt.Errorf("could not clear ETCD: %v", err)
+	}
 	err = b.writeToEtcd(backupData)
 	if err != nil {
 		return fmt.Errorf("could not write to ETCD: %v", err)
@@ -156,6 +161,14 @@ func (b *BackupManager) writeToEtcd(data backup) error {
 		if err != nil {
 			return fmt.Errorf("could not Put K/V (%s:%s): %v", row.Key, row.Value, err)
 		}
+	}
+	return nil
+}
+
+func (b *BackupManager) clearEtcd() error {
+	_, err := b.ETCDClient.Delete(context.Background(), "", clientv3.WithPrefix())
+	if err != nil {
+		return fmt.Errorf("delete: %v", err)
 	}
 	return nil
 }

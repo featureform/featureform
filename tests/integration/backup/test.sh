@@ -4,7 +4,7 @@ set -e
 
 # Load
 echo "Loading Data...."
-go run ./tests/integration/etcd/load.go
+go run ./tests/integration/backup/load.go
 echo ""
 
 # Backup (Change name to backup script name)
@@ -35,5 +35,5 @@ echo ""
 
 # Check Values
 echo "Checking Values...."
-go test ./tests/integration/etcd/
+go test ./tests/integration/backup/
 echo ""

@@ -16,5 +16,5 @@ if [[ $* != *--force* ]]; then
 fi
 
 kubectl port-forward svc/featureform-etcd 2379:2379 &
-./restore
+go run main.go
 

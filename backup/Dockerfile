@@ -14,6 +14,7 @@ COPY config/ ./config/
 COPY kubernetes/ ./kubernetes/
 COPY logging/ ./logging/
 COPY metadata/ ./metadata/
+COPY metadata/proto/ ./metadata/proto/
 COPY types/ ./types/
 COPY proto/ ./proto/
 

@@ -446,6 +446,9 @@ jobs:
           ./build
           echo "`pwd`/bin"
           echo "`pwd`/bin" >> $GITHUB_PATH
+
+      - name: Check Path
+        run: |
           echo $GITHUB_PATH
           etcd --version
           etcd --logger=zap &

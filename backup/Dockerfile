@@ -15,6 +15,7 @@ COPY kubernetes/ ./kubernetes/
 COPY logging/ ./logging/
 COPY metadata/ ./metadata/
 COPY types/ ./types/
+COPY proto/ ./proto/
 
 RUN go build ./backup/save/main.go
 

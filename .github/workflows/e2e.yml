@@ -329,6 +329,10 @@ jobs:
 
       - name: Test End-to-End
         env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
+          AWS_EMR_CLUSTER_ID: ${{ AWS_EMR_CLUSTER_ID }}
+          AWS_EMR_CLUSTER_REGION: ${{ AWS_EMR_CLUSTER_REGION }}
           AZURE_ACCOUNT_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
           AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
           AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
@@ -342,6 +346,8 @@ jobs:
           MONGODB_DATABASE: ${{ secrets.MONGODB_PASSWORD }}
           K8s_RUNNER_BASE_IMAGE: "local/k8s_runner:stable"
           K8S_RUNNER_SCIKIT: "local/k8s_runner:scikit-stable"
+          S3_BUCKET_PATH: ${{ secrets.S3_BUCKET_PATH }}
+          S3_BUCKET_REGION: ${{ secrets.S3_BUCKET_REGION }}
 
         run: make test_e2e
 

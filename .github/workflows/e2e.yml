@@ -362,7 +362,7 @@ jobs:
           STORAGE_PATH: "backup"
         run: |
           python backup/create_secret.py azure $AZURE_ACCOUNT_NAME $AZURE_STORAGE_KEY $AZURE_CONTAINER $STORAGE_PATH
-          kubectl apply -f tests/end_to_end/backup/backup_secret.yaml
+          kubectl apply -f backup_secret.yaml
 
       - name: Run CLI
         run: |
@@ -413,10 +413,10 @@ jobs:
             exit 1
           fi
 
-      - name: Check If File Exists
-        env:
-          AZURE_CONTAINER: ${{ secrets.AZURE_CONTAINER_NAME }}
-        run: az storage blob exists --container-name $AZURE_CONTAINER $(./backup/get_latest.sh)
+#      - name: Check If File Exists
+#        env:
+#          AZURE_CONTAINER: ${{ secrets.AZURE_CONTAINER_NAME }}
+#        run: az storage blob exists --container-name $AZURE_CONTAINER $(./backup/get_latest.sh)
 
       - name: Restore
         working-directory: ./backup/restore

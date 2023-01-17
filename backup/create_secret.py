@@ -48,7 +48,7 @@ def azure(storage_account, storage_key, container_name, container_path):
         "AZURE_CONTAINER_NAME": container_name,
         "AZURE_STORAGE_PATH": container_path
     }
-    with open("../backup_secret.yaml", 'w+') as f:
+    with open("./backup_secret.yaml", 'w+') as f:
         yaml.dump(secretBase, f)
 
 

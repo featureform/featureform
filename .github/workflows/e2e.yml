@@ -399,6 +399,10 @@ jobs:
       - name: Print result
         run: echo "${{steps.link-report.outputs.result}}"
 
+      # Backup runs every 60 seconds
+      - name: Wait for backup to complete
+        run: sleep 60
+
       - name: Clear ETCD
         run: |
           /tmp/etcd-download-test/etcdctl --user=root:secretpassword del "" --prefix
@@ -419,6 +423,11 @@ jobs:
 #        run: az storage blob exists --container-name $AZURE_CONTAINER $(./backup/get_latest.sh)
 
       - name: Restore
+        env:
+          AZURE_STORAGE_ACCOUNT: ${{ secrets.AZURE_ACCOUNT_NAME }}
+          AZURE_STORAGE_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
+          AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
+          AZURE_STORAGE_PATH: "backup"
         working-directory: ./backup/restore
         run: ./restore.sh --force
 

@@ -11,10 +11,7 @@ import (
 )
 
 func main() {
-	err := godotenv.Load(".env")
-	if err != nil {
-		panic(err)
-	}
+	godotenv.Load(".env")
 	etcdHost := help.GetEnv("ETCD_HOSTNAME", "localhost")
 	etcdPort := help.GetEnv("ETCD_PORT", "2379")
 	etcdUsername := help.GetEnv("ETCD_USERNAME", "")

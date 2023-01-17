@@ -11,6 +11,7 @@ import (
 )
 
 const SnapshotFilename = "snapshot.json"
+const SnapshotPrefix = "featureform_etcd_snapshot"
 
 // Client Allows ETCD to be tested with mock values
 type Client interface {
@@ -46,20 +47,20 @@ func (b *BackupManager) SaveTo(filename string) error {
 	return nil
 }
 
-func (b *BackupManager) Restore() error {
+func (b *BackupManager) Restore(prefix string) error {
 	err := b.Provider.Init()
 	if err != nil {
 		return fmt.Errorf("could not initialize provider: %v", err)
 	}
 
-	filename, err := b.Provider.LatestBackupName()
+	filename, err := b.Provider.LatestBackupName(prefix)
 	if err != nil {
-		return err
+		return fmt.Errorf("could not get latest backup: %v", err)
 	}
 
 	err = b.RestoreFrom(filename)
 	if err != nil {
-		return err
+		return fmt.Errorf("could not restore file %s: %v", filename, err)
 	}
 	return nil
 }
@@ -75,7 +76,7 @@ func (b *BackupManager) RestoreFrom(filename string) error {
 		return fmt.Errorf("could not download snapshot file %s: %v", filename, err)
 	}
 
-	err = b.loadSnapshot(filename)
+	err = b.loadSnapshot(SnapshotFilename)
 	if err != nil {
 		return fmt.Errorf("could not load snapshot: %v", err)
 	}
@@ -100,7 +101,7 @@ func (f backup) writeTo(filename string) error {
 	return nil
 }
 
-func (f backup) readFrom(filename string) error {
+func (f *backup) readFrom(filename string) error {
 	file, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return fmt.Errorf("could not read file %s: %v", filename, err)
@@ -142,7 +143,6 @@ func (b *BackupManager) loadSnapshot(filename string) error {
 	if err != nil {
 		return fmt.Errorf("could not read from file %s: %v", filename, err)
 	}
-
 	err = b.writeToEtcd(backupData)
 	if err != nil {
 		return fmt.Errorf("could not write to ETCD: %v", err)
@@ -161,7 +161,7 @@ func (b *BackupManager) writeToEtcd(data backup) error {
 }
 
 func GenerateSnapshotName(currentTime time.Time) string {
-	prefix := "featureform_etcd_snapshot"
+	prefix := SnapshotPrefix
 	formattedTime := currentTime.Format("2006-01-02_15:04:05")
 
 	return fmt.Sprintf("%s__%s.db", prefix, formattedTime)

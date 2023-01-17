@@ -9,7 +9,7 @@ type Provider interface {
 	Init() error
 	Upload(name, dest string) error
 	Download(src, dest string) error
-	LatestBackupName() (string, error)
+	LatestBackupName(prefix string) (string, error)
 }
 
 type Azure struct {
@@ -48,8 +48,8 @@ func (az *Azure) Download(src, dest string) error {
 	return az.store.Download(src, dest)
 }
 
-func (az *Azure) LatestBackupName() (string, error) {
-	return az.store.NewestFile("")
+func (az *Azure) LatestBackupName(prefix string) (string, error) {
+	return az.store.NewestFile(prefix)
 }
 
 type Local struct {
@@ -82,6 +82,6 @@ func (fs *Local) Download(src, dest string) error {
 	return fs.store.Download(src, dest)
 }
 
-func (fs *Local) LatestBackupName() (string, error) {
-	return fs.store.NewestFile("")
+func (fs *Local) LatestBackupName(prefix string) (string, error) {
+	return fs.store.NewestFile(prefix)
 }

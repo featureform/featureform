@@ -34,7 +34,7 @@ func main() {
 		panic(err)
 	}
 
-	p := provider.FileStoreType(help.GetEnv("CLOUD_PROVIDER", "LOCAL"))
+	p := provider.FileStoreType(help.GetEnv("CLOUD_PROVIDER", "FILE_SYSTEM"))
 
 	var backupProvider backup.Provider
 	switch p {
@@ -58,7 +58,7 @@ func main() {
 		Provider:   backupProvider,
 	}
 
-	err = backupExecutor.Restore()
+	err = backupExecutor.Restore(backup.SnapshotPrefix)
 	if err != nil {
 		panic(err)
 	}

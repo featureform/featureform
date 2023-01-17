@@ -30,7 +30,7 @@ func main() {
 		panic(err)
 	}
 
-	p := provider.FileStoreType(help.GetEnv("CLOUD_PROVIDER", "LOCAL"))
+	p := provider.FileStoreType(help.GetEnv("CLOUD_PROVIDER", "FILE_SYSTEM"))
 
 	var backupProvider backup.Provider
 	switch p {

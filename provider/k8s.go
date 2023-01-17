@@ -543,9 +543,7 @@ func (store genericFileStore) NewestFile(prefix string) (string, error) {
 	mostRecentKey := ""
 	for {
 		if listObj, err := listIterator.Next(context.TODO()); err == nil {
-			pathParts := strings.Split(listObj.Key, ".")
-			fileType := pathParts[len(pathParts)-1]
-			if fileType == "parquet" && !listObj.IsDir && (listObj.ModTime.After(mostRecentTime) || listObj.ModTime.Equal(mostRecentTime)) {
+			if !listObj.IsDir && (listObj.ModTime.After(mostRecentTime) || listObj.ModTime.Equal(mostRecentTime)) {
 				mostRecentTime = listObj.ModTime
 				mostRecentKey = listObj.Key
 			}

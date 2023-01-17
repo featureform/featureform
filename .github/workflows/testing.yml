@@ -451,7 +451,7 @@ jobs:
       - name: Run Backup Test Local
         env:
           CLOUD_PROVIDER: "FILE_SYSTEM"
-        run: ./tests/integration/etcd/test.sh
+        run: ./tests/integration/backup/test.sh
 
       - name: Run Backup Test Azure
         env:
@@ -460,7 +460,7 @@ jobs:
           AZURE_STORAGE_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
           AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
           AZURE_STORAGE_PATH: "backup"
-        run: ./tests/integration/etcd/test.sh
+        run: ./tests/integration/backup/test.sh
 
   metrics:
     name: Metrics Testing

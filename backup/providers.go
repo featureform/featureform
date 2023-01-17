@@ -52,6 +52,45 @@ func (az *Azure) LatestBackupName(prefix string) (string, error) {
 	return az.store.NewestFile(prefix)
 }
 
+type S3 struct {
+	AWSAccessKeyId string
+	AWSSecretKey   string
+	BucketRegion   string
+	BucketPath     string
+	Path           string
+	store          provider.FileStore
+}
+
+func (s3 *S3) Init() error {
+	filestoreConfig := provider.S3FileStoreConfig{
+		AWSAccessKeyId: s3.AWSAccessKeyId,
+		AWSSecretKey:   s3.AWSSecretKey,
+		BucketRegion:   s3.BucketRegion,
+		BucketPath:     s3.BucketPath,
+		Path:           s3.Path,
+	}
+	config := filestoreConfig.Serialize()
+
+	filestore, err := provider.NewS3FileStore(config)
+	if err != nil {
+		return fmt.Errorf("cannot create Azure Filestore: %v", err)
+	}
+	s3.store = filestore
+	return nil
+}
+
+func (s3 *S3) Upload(name, dest string) error {
+	return s3.store.Upload(name, dest)
+}
+
+func (s3 *S3) Download(src, dest string) error {
+	return s3.store.Download(src, dest)
+}
+
+func (s3 *S3) LatestBackupName(prefix string) (string, error) {
+	return s3.store.NewestFile(prefix)
+}
+
 type Local struct {
 	Path  string
 	store provider.FileStore

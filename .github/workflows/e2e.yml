@@ -279,6 +279,11 @@ jobs:
           python-version: "3.7"
           check-latest: true
 
+      - name: Set up Go
+          uses: actions/setup-go@v2
+          with:
+            go-version: 1.18
+
       - name: Install Python Dependencies
         run: |
           pip install pyyaml click

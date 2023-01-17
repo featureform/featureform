@@ -446,8 +446,6 @@ func (s3 *S3FileStore) PathWithPrefix(path string, remote bool) string {
 		s3Path := ""
 		if s3.Path != "" {
 			s3Path = fmt.Sprintf("/%s", s3.Path)
-		} else if s3.Path == "/" {
-			s3Path = ""
 		}
 		return fmt.Sprintf("s3://%s%s/%s", s3.Bucket, s3Path, path)
 	} else {

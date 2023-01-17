@@ -167,9 +167,18 @@ class AzureFileStoreConfig:
 @typechecked
 @dataclass
 class S3StoreConfig:
-    bucket_path: str
-    bucket_region: str
-    credentials: AWSCredentials
+    def __init__(self, 
+                 bucket_path: str,
+                 bucket_region: str,
+                 credentials: AWSCredentials):
+        bucket_path_ends_with_slash = len(bucket_path) != 0 and bucket_path[-1] == "/"
+
+        if bucket_path_ends_with_slash:
+            raise Exception("The 'bucket_path' cannot end with '/'.")
+                 
+        self.bucket_path = bucket_path
+        self.bucket_region = bucket_region
+        self.credentials = credentials
 
     def software(self) -> str:
         return "S3"

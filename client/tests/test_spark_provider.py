@@ -123,6 +123,8 @@ def test_df_transformation(name, variant, transformation, spark_provider, reques
     [
         "s3_config",
         "azure_file_config",
+        pytest.param("s3_config_slash", marks=pytest.mark.xfail),
+        pytest.param("s3_config_slash_ending", marks=pytest.mark.xfail),
     ]
 )
 def test_store_config(store_config, request):

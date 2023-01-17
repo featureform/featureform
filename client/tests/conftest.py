@@ -50,6 +50,19 @@ def s3_config(aws_credentials):
     return config, expected_config
 
 
+@pytest.fixture()
+def s3_config_slash_ending(aws_credentials):
+    config = S3StoreConfig("bucket_path/", "bucket_region", aws_credentials)
+
+    return config, {}
+
+@pytest.fixture()
+def s3_config_slash(aws_credentials):
+    config = S3StoreConfig("/", "bucket_region", aws_credentials)
+
+    return config, {}
+
+
 @pytest.fixture(scope="module")
 def azure_file_config():
     config = AzureFileStoreConfig("account_name", "account_key", "container_name", "root_path")

@@ -52,9 +52,9 @@ databricks = ff.DatabricksCredentials(
 
 azure_blob = ff.register_blob_store(
     name=f"k8s_blob_store_{VERSION}",
-    account_name= os.getenv("AZURE_ACCOUNT_NAME", None),
-    account_key= os.getenv("AZURE_ACCOUNT_KEY", None),
-    container_name= os.getenv("AZURE_CONTAINER_NAME", None),
+    account_name=os.getenv("AZURE_ACCOUNT_NAME", None),
+    account_key=os.getenv("AZURE_ACCOUNT_KEY", None),
+    container_name=os.getenv("AZURE_CONTAINER_NAME", None),
     root_path="testing/ff",
 )
 

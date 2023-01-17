@@ -446,6 +446,8 @@ func (s3 *S3FileStore) PathWithPrefix(path string, remote bool) string {
 		s3Path := ""
 		if s3.Path != "" {
 			s3Path = fmt.Sprintf("/%s", s3.Path)
+		} else if s3.Path == "/" {
+			s3Path = ""
 		}
 		return fmt.Sprintf("s3://%s%s/%s", s3.Bucket, s3Path, path)
 	} else {
@@ -627,19 +629,21 @@ func (e EMRExecutor) InitializeExecutor(store FileStore) error {
 }
 
 func NewSparkExecutor(execType SparkExecutorType, config SparkExecutorConfig, logger *zap.SugaredLogger) (SparkExecutor, error) {
-	if execType == EMR {
+
+	switch execType {
+	case EMR:
 		emrConfig, ok := config.(*EMRConfig)
 		if !ok {
 			return nil, fmt.Errorf("cannot convert config into 'EMRConfig'")
 		}
 		return NewEMRExecutor(*emrConfig, logger)
-	} else if execType == Databricks {
+	case Databricks:
 		databricksConfig, ok := config.(*DatabricksConfig)
 		if !ok {
 			return nil, fmt.Errorf("cannot convert config into 'DatabricksConfig'")
 		}
 		return NewDatabricksExecutor(*databricksConfig)
-	} else {
+	default:
 		return nil, fmt.Errorf("the executor type ('%s') is not supported", execType)
 	}
 }

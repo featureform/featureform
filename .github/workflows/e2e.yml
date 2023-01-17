@@ -309,6 +309,7 @@ jobs:
           
           /tmp/etcd-download-test/etcd --version
           /tmp/etcd-download-test/etcdctl version
+          echo "/tmp/etcd-download-test/" >> $GITHUB_PATH
 
       - name: Install minikube and helm
         run: |
@@ -408,15 +409,9 @@ jobs:
           /tmp/etcd-download-test/etcdctl --user=root:secretpassword del "" --prefix
 
       - name: Check ETCD Empty
-        run: >-
-          lines=$(/tmp/etcd-download-test/etcdctl get "" --prefix | wc -l)
-          if [[ "lines" -eq 0 ]] ;
-          then
-            echo "ETCD is empty";
-          else
-            echo "ETCD is not empty"
-            exit 1
-          fi
+        run: |
+          chmod +x ./tests/end_to_end/backup/check_etcd_empty.sh
+          ./tests/end_to_end/backup/check_etcd_empty.sh
 
 #      - name: Check If File Exists
 #        env:

@@ -279,6 +279,10 @@ jobs:
           python-version: "3.7"
           check-latest: true
 
+      - name: Install Python Dependencies
+        run: |
+          pip install pyyaml click
+
 
       - name: Check Artifacts
         run: |
@@ -352,13 +356,12 @@ jobs:
 
       - name: Create Secret
         env:
-          CLOUD_PROVIDER: "AZURE"
-          AZURE_STORAGE_ACCOUNT: ${{ secrets.AZURE_STORAGE_ACCOUNT }}
-          AZURE_STORAGE_TOKEN: ${{ secrets.AZURE_STORAGE_TOKEN }}
+          AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
+          AZURE_STORAGE_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
           AZURE_CONTAINER: ${{ secrets.AZURE_CONTAINER_NAME }}
-          STORAGE_PATH: ${{ secrets.STORAGE_PATH }}
+          STORAGE_PATH: "backup"
         run: |
-          ./tests/end_to_end/backup/fill_template.sh $CLOUD_PROVIDER $AZURE_STORAGE_ACCOUNT $AZURE_STORAGE_TOKEN $AZURE_CONTAINER $STORAGE_PATH
+          python backup/create_secret.py azure $AZURE_ACCOUNT_NAME $AZURE_STORAGE_KEY $AZURE_CONTAINER $STORAGE_PATH
           kubectl apply -f tests/end_to_end/backup/backup_secret.yaml
 
       - name: Run CLI

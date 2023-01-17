@@ -348,7 +348,7 @@ jobs:
           helm repo add jetstack https://charts.jetstack.io
           helm repo update
           helm install certmgr jetstack/cert-manager --set installCRDs=true --version v1.8.0 --namespace cert-manager --create-namespace
-          helm install featureform ./charts/featureform --set global.repo=local --set global.pullPolicy=Never --set global.version=stable --set backup.enabled=true --set backup.interval="* * * * *"
+          helm install featureform ./charts/featureform --set global.repo=local --set global.pullPolicy=Never --set global.version=stable --set backup.enabled=true --set backup.schedule="* * * * *"
 
       - name: Create Secret
         env:
@@ -358,8 +358,8 @@ jobs:
           AZURE_CONTAINER: ${{ secrets.AZURE_CONTAINER_NAME }}
           STORAGE_PATH: ${{ secrets.STORAGE_PATH }}
         run: |
-          ./tests/end_to_end/etcd/fill_template $CLOUD_PROVIDER $AZURE_STORAGE_ACCOUNT $AZURE_STORAGE_TOKEN $AZURE_CONTAINER $STORAGE_PATH
-          kubectl apply -f tests/end_to_end/etcd/backup_secret.yaml
+          ./tests/end_to_end/backup/fill_template.sh $CLOUD_PROVIDER $AZURE_STORAGE_ACCOUNT $AZURE_STORAGE_TOKEN $AZURE_CONTAINER $STORAGE_PATH
+          kubectl apply -f tests/end_to_end/backup/backup_secret.yaml
 
       - name: Run CLI
         run: |

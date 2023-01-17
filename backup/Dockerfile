@@ -27,5 +27,4 @@ FROM golang:1.18-alpine
 
 COPY --from=0 ./app/main ./main
 
-EXPOSE 5432
 ENTRYPOINT ["./main"]

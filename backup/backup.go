@@ -58,7 +58,7 @@ func (b *BackupManager) Restore(prefix string) error {
 	if err != nil {
 		return fmt.Errorf("could not get latest backup: %v", err)
 	}
-
+	fmt.Println("Restoring with file:", filename)
 	err = b.RestoreFrom(filename)
 	if err != nil {
 		return fmt.Errorf("could not restore file %s: %v", filename, err)
@@ -76,7 +76,7 @@ func (b *BackupManager) RestoreFrom(filename string) error {
 	if err != nil {
 		return fmt.Errorf("could not download snapshot file %s: %v", filename, err)
 	}
-
+	fmt.Println("Loading Snapshot")
 	err = b.loadSnapshot(SnapshotFilename)
 	if err != nil {
 		return fmt.Errorf("could not load snapshot: %v", err)
@@ -144,10 +144,12 @@ func (b *BackupManager) loadSnapshot(filename string) error {
 	if err != nil {
 		return fmt.Errorf("could not read from file %s: %v", filename, err)
 	}
-	err = b.clearEtcd()
-	if err != nil {
-		return fmt.Errorf("could not clear ETCD: %v", err)
-	}
+	//fmt.Println("Clearing ETCD")
+	//err = b.clearEtcd()
+	//if err != nil {
+	//	return fmt.Errorf("could not clear ETCD: %v", err)
+	//}
+	fmt.Println("Writing to ETCD")
 	err = b.writeToEtcd(backupData)
 	if err != nil {
 		return fmt.Errorf("could not write to ETCD: %v", err)

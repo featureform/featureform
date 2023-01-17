@@ -32,7 +32,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-
+	
 	p := provider.FileStoreType(help.GetEnv("CLOUD_PROVIDER", provider.FileSystem))
 
 	var backupProvider backup.Provider

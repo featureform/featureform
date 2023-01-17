@@ -18,4 +18,3 @@ fi
 
 kubectl port-forward svc/featureform-etcd 2379:2379 &
 go run main.go
-

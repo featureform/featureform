@@ -448,6 +448,9 @@ jobs:
           etcd --version
           etcd --logger=zap &
 
+      - name: Set Permissions
+        run: chmod +x ./tests/integration/backup/test.sh
+
       - name: Run Backup Test Local
         env:
           CLOUD_PROVIDER: "FILE_SYSTEM"

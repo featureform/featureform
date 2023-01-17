@@ -7,7 +7,9 @@ COPY ../go.sum ./
 
 ENV PATH /go/bin:$PATH
 
-COPY backup/save/main.go ./backup/save/main.go
+COPY backup/ ./backup/
+COPY helpers/ ./helpers/
+COPY provider/ ./provider/
 
 RUN go build ./backup/save/main.go
 

@@ -348,8 +348,7 @@ jobs:
           helm repo add jetstack https://charts.jetstack.io
           helm repo update
           helm install certmgr jetstack/cert-manager --set installCRDs=true --version v1.8.0 --namespace cert-manager --create-namespace
-          helm install featureform ./charts/featureform --set global.repo=local --set global.pullPolicy=Never \
-          --set global.version=stable --set backup.enabled=true --set backup.interval=1m
+          helm install featureform ./charts/featureform --set global.repo=local --set global.pullPolicy=Never --set global.version=stable --set backup.enabled=true --set backup.interval="* * * * *"
 
       - name: Create Secret
         env:

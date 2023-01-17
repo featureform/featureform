@@ -144,11 +144,11 @@ func (b *BackupManager) loadSnapshot(filename string) error {
 	if err != nil {
 		return fmt.Errorf("could not read from file %s: %v", filename, err)
 	}
-	//fmt.Println("Clearing ETCD")
-	//err = b.clearEtcd()
-	//if err != nil {
-	//	return fmt.Errorf("could not clear ETCD: %v", err)
-	//}
+	fmt.Println("Clearing ETCD")
+	err = b.clearEtcd()
+	if err != nil {
+		return fmt.Errorf("could not clear ETCD: %v", err)
+	}
 	fmt.Println("Writing to ETCD")
 	err = b.writeToEtcd(backupData)
 	if err != nil {

@@ -431,6 +431,7 @@ jobs:
           AZURE_STORAGE_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
           AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
           AZURE_STORAGE_PATH: "backup"
+
         working-directory: ./backup/restore
         run: ./restore.sh --force
 

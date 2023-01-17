@@ -19,7 +19,7 @@ echo ""
 
 # Check empty
 echo "Checking if ETCD Empty...."
-if [$(etcdctl get "" --prefix | wc -l) -eq 0 ];
+if [$(etcdctl get "" --prefix | wc -l) -eq "0" ];
 then
   echo "ETCD is empty";
 else

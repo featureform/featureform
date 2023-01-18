@@ -56,8 +56,8 @@ type S3 struct {
 	AWSAccessKeyId string
 	AWSSecretKey   string
 	BucketRegion   string
+	BucketName     string
 	BucketPath     string
-	Path           string
 	store          provider.FileStore
 }
 
@@ -66,8 +66,8 @@ func (s3 *S3) Init() error {
 		AWSAccessKeyId: s3.AWSAccessKeyId,
 		AWSSecretKey:   s3.AWSSecretKey,
 		BucketRegion:   s3.BucketRegion,
-		BucketPath:     s3.BucketPath,
-		Path:           s3.Path,
+		BucketPath:     s3.BucketName,
+		Path:           s3.BucketPath,
 	}
 	config := filestoreConfig.Serialize()
 

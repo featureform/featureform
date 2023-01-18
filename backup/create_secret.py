@@ -51,6 +51,37 @@ def azure(storage_account, storage_key, container_name, container_path):
     with open("./backup_secret.yaml", 'w+') as f:
         yaml.dump(secretBase, f)
 
+@cli.command()
+@click.argument("aws_access_key", required=True)
+@click.argument("aws_secret_key", required=True)
+@click.argument("bucket_region", required=True)
+@click.argument("bucket_path", required=True)
+@click.argument("path", required=True)
+def s3(aws_access_key, aws_secret_key, bucket_region, bucket_path, path):
+    """
+    Create secret for S3 buckets
+
+    AWS_ACCESS_KEY is the access key for the AWS account. Requires Read/Write permissions
+
+    AWS_SECRET_KEY is the secret key for the AWS account
+
+    BUCKET_REGION is the region of the bucket
+
+    BUCKET_PATH is the bucket path
+
+    PATH is a subpath within the given bucket
+    """
+    secretBase["stringData"] = {
+        "CLOUD_PROVIDER": "S3",
+        "AWS_ACCESS_KEY": aws_access_key,
+        "AWS_SECRET_KEY": aws_secret_key,
+        "AWS_BUCKET_REGION": bucket_region,
+        "AWS_BUCKET_PATH": bucket_path,
+        "AWS_PATH": path,
+    }
+    with open("./backup_secret.yaml", 'w+') as f:
+        yaml.dump(secretBase, f)
+
 
 if __name__ == '__main__':
     cli()

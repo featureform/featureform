@@ -46,8 +46,8 @@ func main() {
 			AWSAccessKeyId: help.GetEnv("AWS_ACCESS_KEY", ""),
 			AWSSecretKey:   help.GetEnv("AWS_SECRET_KEY", ""),
 			BucketRegion:   help.GetEnv("AWS_BUCKET_REGION", ""),
-			BucketPath:     help.GetEnv("AWS_BUCKET_PATH", ""),
-			Path:           help.GetEnv("AWS_PATH", ""),
+			BucketName:     help.GetEnv("AWS_BUCKET_PATH", ""),
+			BucketPath:     help.GetEnv("AWS_PATH", ""),
 		}
 	case provider.FileSystem:
 		backupProvider = &backup.Local{

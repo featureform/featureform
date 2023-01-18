@@ -12,6 +12,7 @@ import (
 
 func main() {
 	godotenv.Load(".env")
+	snapshotName := help.GetEnv("SNAPSHOT_NAME", backup.SnapshotPrefix)
 	etcdHost := help.GetEnv("ETCD_HOSTNAME", "localhost")
 	etcdPort := help.GetEnv("ETCD_PORT", "2379")
 	etcdUsername := help.GetEnv("ETCD_USERNAME", "")
@@ -63,7 +64,11 @@ func main() {
 		Provider:   backupProvider,
 	}
 
-	err = backupExecutor.Restore(backup.SnapshotPrefix)
+	if snapshotName == "" {
+		snapshotName = backup.SnapshotPrefix
+	}
+
+	err = backupExecutor.Restore(snapshotName)
 	if err != nil {
 		panic(err)
 	}

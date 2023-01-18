@@ -37,11 +37,18 @@ Restoring a snapshot will delete all data currently in Featureform and replace i
 the data in the snapshot. You can specify to restore from the latest snapshot or
 restore from a specific snapshot.
 
-Before restoring, ensure that the secret created in the "Backup Location" step exists, or 
-recreate it.
-
 ### Restore From Latest
-To restore from latest you can run:
+To restore from latest you can download the [Github Repo](https://github.com/featureform/featureform).
 ```shell
-kubectl apply -f 
+cd backup/restore
 ```
+
+Edit the `.env-template` file with your cloud provider name and credentials, then
+rename to `.env`
+
+To restore, run
+```shell
+./restore.sh
+```
+and confirm that the cluster being restored is the correct one. Press `y` to
+complete the restore.

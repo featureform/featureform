@@ -464,6 +464,8 @@ type FileStore interface {
 
 type Iterator interface {
 	Next() (map[string]interface{}, error)
+	FeatureColumns() []string
+	LabelColumn() string
 }
 
 type AzureFileStore struct {
@@ -652,10 +654,12 @@ func convertToParquetBytes(list []any) ([]byte, error) {
 }
 
 type ParquetIteratorMultipleFiles struct {
-	fileList     []string
-	currentFile  int64
-	fileIterator Iterator
-	store        genericFileStore
+	fileList       []string
+	currentFile    int64
+	fileIterator   Iterator
+	featureColumns []string
+	labelColumn    string
+	store          genericFileStore
 }
 
 func parquetIteratorOverMultipleFiles(fileParts []string, store genericFileStore) (Iterator, error) {
@@ -673,6 +677,14 @@ func parquetIteratorOverMultipleFiles(fileParts []string, store genericFileStore
 		fileIterator: iterator,
 		store:        store,
 	}, nil
+}
+
+func (p *ParquetIteratorMultipleFiles) FeatureColumns() []string {
+	return p.featureColumns
+}
+
+func (p *ParquetIteratorMultipleFiles) LabelColumn() string {
+	return p.labelColumn
 }
 
 func (p *ParquetIteratorMultipleFiles) Next() (map[string]interface{}, error) {
@@ -734,8 +746,10 @@ func (store genericFileStore) NumRows(key string) (int64, error) {
 }
 
 type ParquetIterator struct {
-	reader *parquet.Reader
-	index  int64
+	reader         *parquet.Reader
+	index          int64
+	featureColumns []string
+	labelColumn    string
 }
 
 func (p *ParquetIterator) Next() (map[string]interface{}, error) {
@@ -751,18 +765,63 @@ func (p *ParquetIterator) Next() (map[string]interface{}, error) {
 	return value, nil
 }
 
+func (p *ParquetIterator) FeatureColumns() []string {
+	return p.featureColumns
+}
+
+func (p *ParquetIterator) LabelColumn() string {
+	return p.labelColumn
+}
+
 func getParquetNumRows(b []byte) (int64, error) {
 	file := bytes.NewReader(b)
 	r := parquet.NewReader(file)
 	return r.NumRows(), nil
 }
 
+type columnType string
+
+const (
+	labelType   columnType = "Label"
+	featureType            = "Feature"
+)
+
+type parquetSchema struct {
+	featureColumns []string
+	labelColumn    string
+}
+
+func (s *parquetSchema) parseParquetColumnName(r *parquet.Reader) {
+	columnList := r.Schema().Columns()
+	for _, column := range columnList {
+		columnName := column[0]
+		colType := s.getColumnType(columnName)
+		s.setColumn(colType, columnName)
+	}
+}
+func (s *parquetSchema) getColumnType(name string) columnType {
+	columnSections := strings.Split(name, "__")
+	return columnType(columnSections[0])
+}
+
+func (s *parquetSchema) setColumn(colType columnType, name string) {
+	if colType == labelType {
+		s.labelColumn = name
+	} else if colType == featureType {
+		s.featureColumns = append(s.featureColumns, name)
+	}
+}
+
 func parquetIteratorFromBytes(b []byte) (Iterator, error) {
 	file := bytes.NewReader(b)
 	r := parquet.NewReader(file)
+	schema := parquetSchema{}
+	schema.parseParquetColumnName(r)
 	return &ParquetIterator{
-		reader: r,
-		index:  int64(0),
+		reader:         r,
+		index:          int64(0),
+		featureColumns: schema.featureColumns,
+		labelColumn:    schema.labelColumn,
 	}, nil
 }
 
@@ -1641,16 +1700,12 @@ func (ts *FileStoreTrainingSet) Next() bool {
 	if row == nil {
 		return false
 	}
-	featureValues := make([]interface{}, 0)
-	for key, val := range row {
-		columnSections := strings.Split(key, "__")
-		if columnSections[0] == "Label" {
-			ts.label = val
-		} else {
-			featureValues = append(featureValues, val)
-		}
+	featureValues := make([]interface{}, len(ts.iter.FeatureColumns()))
+	for i, key := range ts.iter.FeatureColumns() {
+		featureValues[i] = row[key]
 	}
 	ts.features = featureValues
+	ts.label = row[ts.iter.LabelColumn()]
 	return true
 }
 

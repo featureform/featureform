@@ -793,15 +793,15 @@ type parquetSchema struct {
 	labelColumn    string
 }
 
-func (s *parquetSchema) setParquetColumns(r *parquet.Reader) {
+func (s *parquetSchema) parseParquetColumnName(r *parquet.Reader) {
 	columnList := r.Schema().Columns()
 	for _, column := range columnList {
 		columnName := column[0]
-		colType := s.parseParquetColumnName(columnName)
+		colType := s.getColumnType(columnName)
 		s.setColumn(colType, columnName)
 	}
 }
-func (s *parquetSchema) parseParquetColumnName(name string) columnType {
+func (s *parquetSchema) getColumnType(name string) columnType {
 	columnSections := strings.Split(name, "__")
 	return columnType(columnSections[0])
 }

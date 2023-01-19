@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/featureform/config"
+	"math/rand"
 	"os"
 	"reflect"
 	"strings"
@@ -778,5 +779,75 @@ func TestKubernetesExecutor_setCustomImage(t *testing.T) {
 				t.Errorf("Expected image %s, got %s", tt.expected, kube.image)
 			}
 		})
+	}
+}
+
+func TestTrainingSetOrder(t *testing.T) {
+
+	type RowType struct {
+		Feature1     string
+		Feature2     string
+		Feature3     string
+		Feature4     string
+		Label__field string
+	}
+	rows := 1000
+
+	featureColNames := []string{"Feature1", "Feature2", "Feature3", "Feature4"}
+	labelColName := "Label__field" // Parquet Label name format
+
+	getStructValueByName := func(s interface{}, f string) interface{} {
+		r := reflect.ValueOf(s)
+		return reflect.Indirect(r).FieldByName(f).String()
+	}
+
+	featuresInOrder := func(index int, features []interface{}, testRows []RowType) bool {
+		for j, v := range features {
+			if getStructValueByName(testRows[index], featureColNames[j]) != v {
+				return false
+			}
+		}
+		return true
+	}
+
+	createTestRows := func(w *parquet.Writer) []RowType {
+		var testRows []RowType
+		for i := 1; i < rows; i++ {
+			row := RowType{
+				fmt.Sprintf("feat1 %d", rand.Int()),
+				fmt.Sprintf("feat2 %d", rand.Int()),
+				fmt.Sprintf("feat3 %d", rand.Int()),
+				fmt.Sprintf("feat4 %d", rand.Int()),
+				fmt.Sprintf("label %d", rand.Int()),
+			}
+			testRows = append(testRows, row)
+			w.Write(row)
+		}
+		w.Close()
+		return testRows
+	}
+
+	var buf bytes.Buffer
+	w := parquet.NewWriter(&buf)
+
+	testRows := createTestRows(w)
+
+	iter, err := parquetIteratorFromBytes(buf.Bytes())
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	tsIterator := FileStoreTrainingSet{
+		iter: iter,
+	}
+
+	i := 0
+	for tsIterator.Next() {
+		if !featuresInOrder(i, tsIterator.Features(), testRows) {
+			t.Errorf("Expected features: %v, got %v", testRows[i], tsIterator.Features())
+		}
+		if getStructValueByName(testRows[i], labelColName) != tsIterator.Label() {
+			t.Errorf("Expected label: %v, got %v", getStructValueByName(testRows[i], labelColName), tsIterator.Label())
+		}
+		i++
 	}
 }

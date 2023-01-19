@@ -781,6 +781,13 @@ func getParquetNumRows(b []byte) (int64, error) {
 	return r.NumRows(), nil
 }
 
+type columnType string
+
+const (
+	labelType   columnType = "Label"
+	featureType            = "Feature"
+)
+
 type parquetSchema struct {
 	featureColumns []string
 	labelColumn    string
@@ -790,14 +797,19 @@ func (s *parquetSchema) setParquetColumns(r *parquet.Reader) {
 	columnList := r.Schema().Columns()
 	for _, column := range columnList {
 		columnName := column[0]
-		s.assignColumnType(columnName)
+		colType := s.parseParquetColumnName(columnName)
+		s.setColumn(colType, columnName)
 	}
 }
-func (s *parquetSchema) assignColumnType(name string) {
+func (s *parquetSchema) parseParquetColumnName(name string) columnType {
 	columnSections := strings.Split(name, "__")
-	if columnSections[0] == "Label" {
+	return columnType(columnSections[0])
+}
+
+func (s *parquetSchema) setColumn(colType columnType, name string) {
+	if colType == labelType {
 		s.labelColumn = name
-	} else {
+	} else if colType == featureType {
 		s.featureColumns = append(s.featureColumns, name)
 	}
 }

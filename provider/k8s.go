@@ -552,6 +552,11 @@ func (store genericFileStore) NewestFile(prefix string) (string, error) {
 			return "", err
 		}
 	}
+	return mostRecentKey, nil
+}
+
+func (store genericFileStore) isMostRecentFile(listObj *blob.ListObject, time time.Time) bool {
+	return listObj.ModTime.After(time) || listObj.ModTime.Equal(time)
 }
 
 func (store genericFileStore) getMoreRecentFile(newObj *blob.ListObject, oldTime time.Time, oldKey string) (time.Time, string) {

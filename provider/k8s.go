@@ -818,7 +818,7 @@ func parquetIteratorFromBytes(b []byte) (Iterator, error) {
 	file := bytes.NewReader(b)
 	r := parquet.NewReader(file)
 	schema := parquetSchema{}
-	schema.setParquetColumns(r)
+	schema.parseParquetColumnName(r)
 	return &ParquetIterator{
 		reader:         r,
 		index:          int64(0),

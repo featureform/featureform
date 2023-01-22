@@ -39,7 +39,7 @@ def main(args):
 
 def column_is_bool(df: pd.DataFrame, column: str):
     for elem in df[column]:
-        if elem is not 0 or elem is not 1:
+        if elem != 0 and elem != 1:
             return False
     return True
 
@@ -62,7 +62,6 @@ def execute_sql_job(mode, output_uri, transformation, source_list, blob_credenti
     Return:
         output_uri_with_timestamp: string (output path of blob storage)
     """
-
     try:
         if blob_credentials.type == AZURE:
             blob_service_client = BlobServiceClient.from_connection_string(blob_credentials.connection_string)
@@ -80,6 +79,7 @@ def execute_sql_job(mode, output_uri, transformation, source_list, blob_credenti
                 globals()[f"source_{i}"]= pd.read_csv(output_path)
             else:
                 globals()[f"source_{i}"]= pd.read_parquet(output_path)
+
 
         pysqldf = lambda q: sqldf(q, globals())
         transformation_df = pysqldf(transformation)

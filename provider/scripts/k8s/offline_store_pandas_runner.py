@@ -37,6 +37,20 @@ def main(args):
     return output_location
 
 
+def column_is_bool(df: pd.DataFrame, column: str):
+    for elem in df[column]:
+        if elem is not 0 or elem is not 1:
+            return False
+    return True
+
+
+def set_bool_columns(df: pd.DataFrame):
+    for col in df.columns:
+        if column_is_bool(df, col):
+            df[col] = df[col].astype("bool")
+    return df
+
+
 def execute_sql_job(mode, output_uri, transformation, source_list, blob_credentials):
     """
     Executes the SQL Queries:
@@ -67,8 +81,9 @@ def execute_sql_job(mode, output_uri, transformation, source_list, blob_credenti
             else:
                 globals()[f"source_{i}"]= pd.read_parquet(output_path)
 
-        mysql = lambda q: sqldf(q, globals())
-        output_dataframe = mysql(transformation)
+        pysqldf = lambda q: sqldf(q, globals())
+        transformation_df = pysqldf(transformation)
+        output_dataframe = set_bool_columns(transformation_df)
 
         dt = datetime.now()
         output_uri_with_timestamp = f'{output_uri}/{dt}.parquet'

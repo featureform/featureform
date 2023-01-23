@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"go.etcd.io/etcd/api/v3/mvccpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
+	"go.uber.org/zap"
 	"io/ioutil"
 	"time"
 )
@@ -23,6 +24,7 @@ type Client interface {
 type BackupManager struct {
 	ETCDClient Client
 	Provider   Provider
+	Logger     *zap.SugaredLogger
 }
 
 func (b *BackupManager) Save() error {
@@ -49,6 +51,7 @@ func (b *BackupManager) SaveTo(filename string) error {
 }
 
 func (b *BackupManager) Restore(prefix string) error {
+	b.Logger.Info("Starting Restore")
 	err := b.Provider.Init()
 	if err != nil {
 		return fmt.Errorf("could not initialize provider: %v", err)
@@ -58,7 +61,7 @@ func (b *BackupManager) Restore(prefix string) error {
 	if err != nil {
 		return fmt.Errorf("could not get latest backup: %v", err)
 	}
-	fmt.Println("Restoring with file:", filename)
+	b.Logger.Infof("Restoring with file: %s", filename)
 	err = b.RestoreFrom(filename)
 	if err != nil {
 		return fmt.Errorf("could not restore file %s: %v", filename, err)
@@ -71,12 +74,14 @@ func (b *BackupManager) RestoreFrom(filename string) error {
 	if err != nil {
 		return fmt.Errorf("could not initialize provider: %v", err)
 	}
+	b.Logger.Info("Downloading Restore File")
 
 	err = b.Provider.Download(filename, SnapshotFilename)
 	if err != nil {
 		return fmt.Errorf("could not download snapshot file %s: %v", filename, err)
 	}
-	fmt.Println("Loading Snapshot")
+
+	b.Logger.Info("Loading Snapshot")
 	err = b.loadSnapshot(SnapshotFilename)
 	if err != nil {
 		return fmt.Errorf("could not load snapshot: %v", err)
@@ -140,20 +145,25 @@ func (b *BackupManager) convertEtcdToBackup(resp []*mvccpb.KeyValue) backup {
 
 func (b *BackupManager) loadSnapshot(filename string) error {
 	backupData := backup{}
+	b.Logger.Info("Reading From Snapshot File")
 	err := backupData.readFrom(filename)
 	if err != nil {
 		return fmt.Errorf("could not read from file %s: %v", filename, err)
 	}
-	fmt.Println("Clearing ETCD")
+	b.Logger.Info("Clearing ETCD")
 	err = b.clearEtcd()
 	if err != nil {
 		return fmt.Errorf("could not clear ETCD: %v", err)
 	}
-	fmt.Println("Writing to ETCD")
-	err = b.writeToEtcd(backupData)
-	if err != nil {
+	b.Logger.Info("Writing Snapshot to ETCD")
+	if err := b.writeToEtcd(backupData); err != nil {
+		b.Logger.Error("ETCD Write Failed. Clearing ETCD")
+		if err := b.clearEtcd(); err != nil {
+			return fmt.Errorf("failed to clear ETCD after failed restore: %v", err)
+		}
 		return fmt.Errorf("could not write to ETCD: %v", err)
 	}
+
 	return nil
 }
 

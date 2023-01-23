@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/featureform/backup"
 	help "github.com/featureform/helpers"
+	"github.com/featureform/logging"
 	"github.com/featureform/provider"
 	"github.com/joho/godotenv"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -32,7 +33,7 @@ func main() {
 		panic(err)
 	}
 
-	p := provider.FileStoreType(help.GetEnv("CLOUD_PROVIDER", "FILE_SYSTEM"))
+	p := provider.FileStoreType(help.GetEnv("CLOUD_PROVIDER", provider.FileSystem))
 
 	var backupProvider backup.Provider
 	switch p {
@@ -59,9 +60,12 @@ func main() {
 		panic(fmt.Errorf("the cloud provider '%s' is not supported", p))
 	}
 
+	logger := logging.NewLogger("Restore")
+
 	backupExecutor := backup.BackupManager{
 		ETCDClient: client,
 		Provider:   backupProvider,
+		Logger:     logger,
 	}
 
 	if snapshotName == "" {

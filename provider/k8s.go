@@ -269,7 +269,7 @@ const (
 
 const (
 	Memory     FileStoreType = "MEMORY"
-	FileSystem               = "FILE_SYSTEM"
+	FileSystem               = "LOCAL_FILESYSTEM"
 	Azure                    = "AZURE"
 	S3                       = "S3"
 )

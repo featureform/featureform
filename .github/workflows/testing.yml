@@ -444,7 +444,7 @@ jobs:
           git clone -b v3.4.16 https://github.com/etcd-io/etcd.git
           cd etcd
           ./build
-          echo "`pwd`/bin"
+          echo "Adding etcd to github actions path"
           echo "`pwd`/bin" >> $GITHUB_PATH
 
       - name: Check Path
@@ -458,7 +458,7 @@ jobs:
 
       - name: Run Backup Test Local
         env:
-          CLOUD_PROVIDER: "FILE_SYSTEM"
+          CLOUD_PROVIDER: "LOCAL_FILESYSTEM"
         run: ./tests/integration/backup/test.sh
 
       - name: Run Backup Test Azure

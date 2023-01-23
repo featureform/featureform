@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/featureform/logging"
 	"github.com/featureform/provider"
 	"time"
 
@@ -30,7 +31,7 @@ func main() {
 		panic(err)
 	}
 
-	p := provider.FileStoreType(help.GetEnv("CLOUD_PROVIDER", "FILE_SYSTEM"))
+	p := provider.FileStoreType(help.GetEnv("CLOUD_PROVIDER", provider.FileSystem))
 
 	var backupProvider backup.Provider
 	switch p {
@@ -57,9 +58,12 @@ func main() {
 		panic(fmt.Errorf("the cloud provider '%s' is not supported", p))
 	}
 
+	logger := logging.NewLogger("Restore")
+
 	backupExecutor := backup.BackupManager{
 		ETCDClient: client,
 		Provider:   backupProvider,
+		Logger:     logger,
 	}
 
 	err = backupExecutor.Save()

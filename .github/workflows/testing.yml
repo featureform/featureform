@@ -444,7 +444,8 @@ jobs:
           git clone -b v3.4.16 https://github.com/etcd-io/etcd.git
           cd etcd
           ./build
-          echo "Adding etcd to github actions path"
+          echo "Adding etcd to github actions path:"
+          echo "`pwd`/bin"
           echo "`pwd`/bin" >> $GITHUB_PATH
 
       - name: Check Path

@@ -429,7 +429,7 @@ jobs:
         run: ./restore.sh --force
 
       - name: Test Restored Data
-        run: ./tests/end_to_end/end_to_end_tests.sh localhost:8000 ./tls.crt
+        run: pytest client/tests/e2e.py
 
       - name: Reset Quickstart
         run: |

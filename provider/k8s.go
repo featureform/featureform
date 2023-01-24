@@ -541,17 +541,21 @@ func (store genericFileStore) NewestFile(prefix string) (string, error) {
 	mostRecentTime := time.UnixMilli(0)
 	mostRecentKey := ""
 	for {
-		if listObj, err := listIterator.Next(context.TODO()); err == nil {
-			if !listObj.IsDir && store.isMostRecentFile(listObj, mostRecentTime) {
-				mostRecentTime = listObj.ModTime
-				mostRecentKey = listObj.Key
-			}
+		if newObj, err := listIterator.Next(context.TODO()); err == nil {
+			mostRecentTime, mostRecentKey = store.getMoreRecentFile(newObj, mostRecentTime, mostRecentKey)
 		} else if err == io.EOF {
 			return mostRecentKey, nil
 		} else {
 			return "", err
 		}
 	}
+}
+
+func (store genericFileStore) getMoreRecentFile(newObj *blob.ListObject, oldTime time.Time, oldKey string) (time.Time, string) {
+	if !newObj.IsDir && store.isMostRecentFile(newObj, oldTime) {
+		return newObj.ModTime, newObj.Key
+	}
+	return oldTime, oldKey
 }
 
 func (store genericFileStore) isMostRecentFile(listObj *blob.ListObject, time time.Time) bool {

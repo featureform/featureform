@@ -367,7 +367,7 @@ jobs:
           AZURE_CONTAINER: ${{ secrets.AZURE_CONTAINER_NAME }}
           STORAGE_PATH: "backup"
         run: |
-          python backup/create_secret.py azure $AZURE_ACCOUNT_NAME $AZURE_STORAGE_KEY $AZURE_CONTAINER $STORAGE_PATH
+          python backup/create_secret.py azure $AZURE_ACCOUNT_NAME "$AZURE_STORAGE_KEY" $AZURE_CONTAINER $STORAGE_PATH
           kubectl apply -f backup_secret.yaml
 
       - name: Run CLI

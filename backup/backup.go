@@ -57,10 +57,12 @@ func (b *BackupManager) Restore(prefix string) error {
 		return fmt.Errorf("could not initialize provider: %v", err)
 	}
 
+	b.Logger.Infof("Getting Latest Backup With Prefix `%s`", prefix)
 	filename, err := b.Provider.LatestBackupName(prefix)
 	if err != nil {
 		return fmt.Errorf("could not get latest backup: %v", err)
 	}
+
 	b.Logger.Infof("Restoring with file: %s", filename)
 	err = b.RestoreFrom(filename)
 	if err != nil {
@@ -157,10 +159,7 @@ func (b *BackupManager) loadSnapshot(filename string) error {
 	}
 	b.Logger.Info("Writing Snapshot to ETCD")
 	if err := b.writeToEtcd(backupData); err != nil {
-		b.Logger.Error("ETCD Write Failed. Clearing ETCD")
-		if err := b.clearEtcd(); err != nil {
-			return fmt.Errorf("failed to clear ETCD after failed restore: %v", err)
-		}
+		b.Logger.Error("BACKUP FAILED: Backup was unable to complete. Partial snapshot has been restored")
 		return fmt.Errorf("could not write to ETCD: %v", err)
 	}
 

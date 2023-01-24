@@ -44,7 +44,8 @@ cd backup/restore
 ```
 
 Edit the `.env-template` file with your cloud provider name and credentials, then
-rename to `.env`
+rename to `.env`. A specific snapshot can be used by filling in the `SNAPSHOT_NAME` variable 
+in the `.env` file.
 
 To restore, run
 ```shell

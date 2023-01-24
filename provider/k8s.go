@@ -537,15 +537,15 @@ func (store genericFileStore) NewestFile(prefix string) (string, error) {
 	opts := blob.ListOptions{
 		Prefix: prefix,
 	}
-
 	listIterator := store.bucket.List(&opts)
 	mostRecentTime := time.UnixMilli(0)
 	mostRecentKey := ""
 	for {
-		listObj, err := listIterator.Next(context.TODO())
-		if !listObj.IsDir && store.isMostRecentFile(listObj, mostRecentTime) {
-			mostRecentTime = listObj.ModTime
-			mostRecentKey = listObj.Key
+		if listObj, err := listIterator.Next(context.TODO()); err == nil {
+			if !listObj.IsDir && store.isMostRecentFile(listObj, mostRecentTime) {
+				mostRecentTime = listObj.ModTime
+				mostRecentKey = listObj.Key
+			}
 		} else if err == io.EOF {
 			return mostRecentKey, nil
 		} else {

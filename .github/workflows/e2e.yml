@@ -420,6 +420,8 @@ jobs:
 
       - name: Restore
         env:
+          ETCD_USERNAME: "root"
+          ETCD_PASSWORD: "secretpassword"
           CLOUD_PROVIDER: "AZURE"
           AZURE_STORAGE_ACCOUNT: ${{ secrets.AZURE_ACCOUNT_NAME }}
           AZURE_STORAGE_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}

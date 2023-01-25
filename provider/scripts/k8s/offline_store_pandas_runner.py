@@ -38,7 +38,7 @@ def main(args):
 
 
 def column_is_bool(df: pd.DataFrame, column: str):
-    for elem in df[column]:
+    for elem in df[column].all():
         if elem != 0 and elem != 1:
             return False
     return True

@@ -17,6 +17,8 @@ load_dotenv(env_file_path)
 def read_file(filename):
     global FILE_DIRECTORY
     try:
+        print(f"Current Directory: {os.getcwd()}:{os.listdir('.')}")
+        print(f"Opening File: {FILE_DIRECTORY}/{filename}")
         with open(f"{FILE_DIRECTORY}/{filename}", "r") as f:
             data = f.read().strip()
             return data

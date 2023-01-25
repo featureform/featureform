@@ -431,6 +431,8 @@ jobs:
         run: ./restore.sh --force
 
       - name: Test Restored Data
+        env:
+          FEATUREFORM_TEST_PATH: "tests/end_to_end/"
         run: python tests/end_to_end/serving.py
 
       - name: Reset Quickstart

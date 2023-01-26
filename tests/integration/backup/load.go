@@ -47,7 +47,7 @@ func main() {
 	fmt.Println("Creating Client")
 	c := NewClient(address)
 	fmt.Println("Reading File")
-	data := ReadFile("./tests/integration/etcd/testcases.json")
+	data := ReadFile("./tests/integration/backup/testcases.json")
 
 	fmt.Println("Inserting Data")
 	for k, v := range data {

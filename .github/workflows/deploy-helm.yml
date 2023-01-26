@@ -123,13 +123,13 @@ jobs:
           push: true
 
       - name: Build and export release
-          if: ${{ inputs.type == "release" }}
-          uses: docker/build-push-action@v3
-          with:
-            context: .
-            file: ./backup/Dockerfile
-            tags: featureformcom/backup:${{ env.TAG }},featureformcom/backup:latest
-            push: true
+        if: ${{ inputs.type == "release" }}
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./backup/Dockerfile
+          tags: featureformcom/backup:${{ env.TAG }},featureformcom/backup:latest
+          push: true
 
   coordinator:
     name: Build Coordinator

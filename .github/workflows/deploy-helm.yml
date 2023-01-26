@@ -51,9 +51,9 @@ jobs:
           push: true
 
       - name: Build and export
+        if: ${{ inputs.type == 'release' }}
         uses: docker/build-push-action@v3
         with:
-        if: ${{ inputs.type == 'release' }}
           context: .
           file: ./api/Dockerfile
           tags: featureformcom/featureform:latest

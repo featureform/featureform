@@ -409,6 +409,9 @@ jobs:
       - name: Wait for backup to complete
         run: sleep 90
 
+      - name: Disable Backup
+        run: helm upgrade featureform ./charts/featureform --reuse-values --set backup.enabled=false
+
       - name: Clear ETCD
         run: |
           /tmp/etcd-download-test/etcdctl --user=root:secretpassword del "" --prefix

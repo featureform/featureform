@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/featureform/logging"
 	"github.com/featureform/provider"
 	"time"
 
@@ -30,7 +31,7 @@ func main() {
 		panic(err)
 	}
 
-	p := provider.FileStoreType(help.GetEnv("CLOUD_PROVIDER", "LOCAL"))
+	p := provider.FileStoreType(help.GetEnv("CLOUD_PROVIDER", provider.FileSystem))
 
 	var backupProvider backup.Provider
 	switch p {
@@ -41,6 +42,14 @@ func main() {
 			ContainerName: help.GetEnv("AZURE_CONTAINER_NAME", ""),
 			Path:          help.GetEnv("AZURE_STORAGE_PATH", ""),
 		}
+	case provider.S3:
+		backupProvider = &backup.S3{
+			AWSAccessKeyId: help.GetEnv("AWS_ACCESS_KEY", ""),
+			AWSSecretKey:   help.GetEnv("AWS_SECRET_KEY", ""),
+			BucketRegion:   help.GetEnv("AWS_BUCKET_REGION", ""),
+			BucketName:     help.GetEnv("AWS_BUCKET_PATH", ""),
+			BucketPath:     help.GetEnv("AWS_PATH", ""),
+		}
 	case provider.FileSystem:
 		backupProvider = &backup.Local{
 			Path: help.GetEnv("LOCAL_FILESTORE_PATH", "file://./"),
@@ -49,9 +58,12 @@ func main() {
 		panic(fmt.Errorf("the cloud provider '%s' is not supported", p))
 	}
 
+	logger := logging.NewLogger("Restore")
+
 	backupExecutor := backup.BackupManager{
 		ETCDClient: client,
 		Provider:   backupProvider,
+		Logger:     logger,
 	}
 
 	err = backupExecutor.Save()

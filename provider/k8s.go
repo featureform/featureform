@@ -534,7 +534,6 @@ func (store AzureFileStore) PathWithPrefix(path string, remote bool) string {
 }
 
 func (store genericFileStore) NewestFile(prefix string) (string, error) {
-	fmt.Printf("Getting most recent file")
 	opts := blob.ListOptions{
 		Prefix: prefix,
 	}
@@ -550,10 +549,6 @@ func (store genericFileStore) NewestFile(prefix string) (string, error) {
 			return "", err
 		}
 	}
-}
-
-func (store genericFileStore) isMostRecentFile(listObj *blob.ListObject, time time.Time) bool {
-	return listObj.ModTime.After(time) || listObj.ModTime.Equal(time)
 }
 
 func (store genericFileStore) getMoreRecentFile(newObj *blob.ListObject, oldTime time.Time, oldKey string) (time.Time, string) {

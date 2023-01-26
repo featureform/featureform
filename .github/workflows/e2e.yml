@@ -414,6 +414,7 @@ jobs:
 
       - name: Clear ETCD
         run: |
+          kubectl port-forward svc/featureform-etcd 2379:2379 &
           /tmp/etcd-download-test/etcdctl --user=root:secretpassword del "" --prefix
 
       - name: Check ETCD Empty

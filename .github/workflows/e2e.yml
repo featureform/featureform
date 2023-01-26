@@ -433,6 +433,7 @@ jobs:
       - name: Test Restored Data
         env:
           FEATUREFORM_TEST_PATH: "tests/end_to_end/"
+          FEATUREFORM_HOST: "localhost:8000"
         run: python tests/end_to_end/serving.py
 
       - name: Reset Quickstart

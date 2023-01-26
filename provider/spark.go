@@ -559,28 +559,28 @@ func sparkOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 		logger.Errorw("Invalid config to initialize spark offline store", err)
 		return nil, fmt.Errorf("invalid spark config: %v", config)
 	}
-	logger.Info("Creating Spark executor with type:", sc.ExecutorType)
+	logger.Infow("Creating Spark executor:", "type", sc.ExecutorType)
 	exec, err := NewSparkExecutor(sc.ExecutorType, sc.ExecutorConfig, logger)
 	if err != nil {
-		logger.Errorw("Failure initializing Spark executor with type", sc.ExecutorType, err)
+		logger.Errorw("Failure initializing Spark executor", "type", sc.ExecutorType, "error", err)
 		return nil, err
 	}
 
-	logger.Info("Creating Spark store with type:", sc.StoreType)
+	logger.Infow("Creating Spark store:", "type", sc.StoreType)
 	serializedFilestoreConfig, err := sc.StoreConfig.Serialize()
 	if err != nil {
 		return nil, fmt.Errorf("could not serialize databricks Config, %v", err)
 	}
 	store, err := CreateFileStore(string(sc.StoreType), Config(serializedFilestoreConfig))
 	if err != nil {
-		logger.Errorw("Failure initializing blob store with type", sc.StoreType, err)
+		logger.Errorw("Failure initializing blob store", "type", sc.StoreType, "error", err)
 		return nil, err
 	}
 	logger.Info("Uploading Spark script to store")
 
 	logger.Debugf("Store type: %s, Store config: %v", sc.StoreType, sc.StoreConfig)
 	if err := exec.InitializeExecutor(store); err != nil {
-		logger.Errorw("Failure initializing executor", err)
+		logger.Errorw("Failure initializing executor", "error", err)
 		return nil, err
 	}
 	logger.Info("Created Spark Offline Store")

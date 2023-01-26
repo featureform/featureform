@@ -59,7 +59,7 @@ azure_blob = ff.register_blob_store(
 )
 
 spark = ff.register_spark(
-            name=f"spark-emr-azure_{VERSION}",
+            name=f"spark-databricks-azure_{VERSION}",
             description="A Spark deployment we created for the Featureform quickstart",
             team="featureform-team",
             executor=databricks,

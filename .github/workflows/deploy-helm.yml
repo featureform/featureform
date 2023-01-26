@@ -46,7 +46,7 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           context: .
-          file: ./api/Dockerfile
+          file: ./Dockerfile
           tags: featureformcom/featureform:${{ env.TAG }}
           push: true
 
@@ -55,7 +55,7 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           context: .
-          file: ./api/Dockerfile
+          file: ./Dockerfile
           tags: featureformcom/featureform:latest
           push: true
 

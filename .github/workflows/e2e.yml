@@ -279,6 +279,15 @@ jobs:
           python-version: "3.7"
           check-latest: true
 
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.18
+
+      - name: Install Python Dependencies
+        run: |
+          pip install pyyaml click
+
 
       - name: Check Artifacts
         run: |
@@ -305,6 +314,7 @@ jobs:
           
           /tmp/etcd-download-test/etcd --version
           /tmp/etcd-download-test/etcdctl version
+          echo "/tmp/etcd-download-test/" >> $GITHUB_PATH
 
       - name: Install minikube and helm
         run: |
@@ -348,19 +358,17 @@ jobs:
           helm repo add jetstack https://charts.jetstack.io
           helm repo update
           helm install certmgr jetstack/cert-manager --set installCRDs=true --version v1.8.0 --namespace cert-manager --create-namespace
-          helm install featureform ./charts/featureform --set global.repo=local --set global.pullPolicy=Never \ 
-          --set global.version=stable --set backup.enabled=true --set backup.interval=1m
+          helm install featureform ./charts/featureform --set global.repo=local --set global.pullPolicy=Never --set global.version=stable --set backup.enabled=true --set backup.schedule="* * * * *"
 
       - name: Create Secret
         env:
-          CLOUD_PROVIDER: "AZURE"
-          AZURE_STORAGE_ACCOUNT: ${{ secrets.AZURE_STORAGE_ACCOUNT }}
-          AZURE_STORAGE_TOKEN: ${{ secrets.AZURE_STORAGE_TOKEN }}
+          AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
+          AZURE_STORAGE_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
           AZURE_CONTAINER: ${{ secrets.AZURE_CONTAINER_NAME }}
-          STORAGE_PATH: ${{ secrets.STORAGE_PATH }}
+          STORAGE_PATH: "backup"
         run: |
-          ./tests/end_to_end/etcd/fill_template $CLOUD_PROVIDER $AZURE_STORAGE_ACCOUNT $AZURE_STORAGE_TOKEN $AZURE_CONTAINER $STORAGE_PATH
-          kubectl apply -f tests/end_to_end/etcd/backup_secret.yaml
+          python backup/create_secret.py azure $AZURE_ACCOUNT_NAME "$AZURE_STORAGE_KEY" $AZURE_CONTAINER $STORAGE_PATH
+          kubectl apply -f backup_secret.yaml
 
       - name: Run CLI
         run: |
@@ -397,30 +405,41 @@ jobs:
       - name: Print result
         run: echo "${{steps.link-report.outputs.result}}"
 
+      # Backup runs every 60 seconds
+      - name: Wait for backup to complete
+        run: sleep 90
+
+      - name: Disable Backup
+        run: helm upgrade featureform ./charts/featureform --reuse-values --set backup.enabled=false
+
       - name: Clear ETCD
         run: |
+          kubectl port-forward svc/featureform-etcd 2379:2379 &
           /tmp/etcd-download-test/etcdctl --user=root:secretpassword del "" --prefix
 
       - name: Check ETCD Empty
-        run: >-
-          if [$(/tmp/etcd-download-test/etcdctl get "" --prefix | wc -l) -eq 0 ];
-          then
-            echo "ETCD is empty";
-          else
-            echo "ETCD is not empty"
-            exit 1
-          fi
-
-      - name: Check If File Exists
-        env:
-          AZURE_CONTAINER: ${{ secrets.AZURE_CONTAINER_NAME }}
-        run: az storage blob exists --container-name $AZURE_CONTAINER $(./backup/get_latest.sh)
+        run: |
+          chmod +x ./tests/end_to_end/backup/check_etcd_empty.sh
+          ./tests/end_to_end/backup/check_etcd_empty.sh
 
       - name: Restore
-        run: ./backup/restore
+        env:
+          ETCD_USERNAME: "root"
+          ETCD_PASSWORD: "secretpassword"
+          CLOUD_PROVIDER: "AZURE"
+          AZURE_STORAGE_ACCOUNT: ${{ secrets.AZURE_ACCOUNT_NAME }}
+          AZURE_STORAGE_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
+          AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
+          AZURE_STORAGE_PATH: "backup"
+        working-directory: ./backup/restore
+        run: ./restore.sh --force
 
       - name: Test Restored Data
-        run: ./tests/end_to_end/end_to_end_tests.sh localhost:8000 ./tls.crt
+        env:
+          FEATUREFORM_TEST_PATH: "tests/end_to_end/"
+          FEATUREFORM_HOST: "localhost:8000"
+          FEATUREFORM_CERT: "tls.crt"
+        run: python tests/end_to_end/serving.py
 
       - name: Reset Quickstart
         run: |

@@ -1,5 +1,8 @@
+import json
+
 import click
 import yaml
+from google.oauth2 import service_account
 
 secretBase = {
     "apiVersion": "v1",
@@ -78,6 +81,33 @@ def s3(aws_access_key, aws_secret_key, bucket_region, bucket_name, bucket_path):
         "AWS_BUCKET_REGION": bucket_region,
         "AWS_BUCKET_NAME": bucket_name,
         "AWS_BUCKET_PATH": bucket_path,
+    }
+    with open("./backup_secret.yaml", 'w+') as f:
+        yaml.dump(secretBase, f)
+
+@cli.command()
+@click.argument("bucket_name", required=True)
+@click.argument("bucket_path", required=True)
+@click.argument("json_credentials_path", required=True)
+def gcs(bucket_name, bucket_path, json_credentials_path):
+    """
+    Create secret for GCS buckets
+
+    BUCKET_NAME is the name of the bucket
+
+    BUCKET_PATH is a subpath within the given bucket
+
+    JSON_CREDENTIALS_PATH is the path to GCP Credentials File
+    """
+
+    f = open(json_credentials_path)
+    service_account_info = json.load(f)
+
+    secretBase["stringData"] = {
+        "CLOUD_PROVIDER": "GCS",
+        "GCS_BUCKET_NAME": bucket_name,
+        "GCS_BUCKET_PATH": bucket_path,
+        "GCS_CREDENTIALS": json.dumps(service_account_info)
     }
     with open("./backup_secret.yaml", 'w+') as f:
         yaml.dump(secretBase, f)

@@ -12,7 +12,6 @@ import pandas as pd
 from pandasql import sqldf
 from azure.storage.blob import BlobServiceClient
 
-
 LOCAL_MODE = "local"
 K8S_MODE = "k8s"
 
@@ -25,16 +24,34 @@ dir_path = os.path.dirname(real_path)
 
 LOCAL_DATA_PATH = f"{dir_path}/.featureform/data"
 
+
 def main(args):
     blob_credentials = get_blob_credentials(args)
     if args.transformation_type == "sql":
         print(f"starting execution for SQL Transformation in {args.mode} mode")
-        output_location = execute_sql_job(args.mode, args.output_uri, args.transformation, args.sources, blob_credentials)
+        output_location = execute_sql_job(args.mode, args.output_uri, args.transformation, args.sources,
+                                          blob_credentials)
     elif args.transformation_type == "df":
         print(f"starting execution for DF Transformation in {args.mode} mode")
-        etcd_credentials = {"host": args.etcd_host, "ports": args.etcd_ports, "username": args.etcd_user, "password": args.etcd_password}
-        output_location = execute_df_job(args.mode, args.output_uri, args.transformation, args.sources, etcd_credentials, blob_credentials)
+        etcd_credentials = {"host": args.etcd_host, "ports": args.etcd_ports, "username": args.etcd_user,
+                            "password": args.etcd_password}
+        output_location = execute_df_job(args.mode, args.output_uri, args.transformation, args.sources,
+                                         etcd_credentials, blob_credentials)
     return output_location
+
+
+def column_is_bool(df: pd.DataFrame, column: str):
+    for _, row in df.iterrows():
+        if row[column] != 0 and row[column] != 1:
+            return False
+    return True
+
+
+def set_bool_columns(df: pd.DataFrame):
+    for col in df.columns:
+        if column_is_bool(df, col):
+            df[col] = df[col].astype("bool")
+    return df
 
 
 def execute_sql_job(mode, output_uri, transformation, source_list, blob_credentials):
@@ -48,7 +65,6 @@ def execute_sql_job(mode, output_uri, transformation, source_list, blob_credenti
     Return:
         output_uri_with_timestamp: string (output path of blob storage)
     """
-
     try:
         if blob_credentials.type == AZURE:
             blob_service_client = BlobServiceClient.from_connection_string(blob_credentials.connection_string)
@@ -63,12 +79,13 @@ def execute_sql_job(mode, output_uri, transformation, source_list, blob_credenti
                 output_path = source
 
             if ".csv" == output_path[-4:]:
-                globals()[f"source_{i}"]= pd.read_csv(output_path)
+                globals()[f"source_{i}"] = pd.read_csv(output_path)
             else:
-                globals()[f"source_{i}"]= pd.read_parquet(output_path)
+                globals()[f"source_{i}"] = pd.read_parquet(output_path)
 
-        mysql = lambda q: sqldf(q, globals())
-        output_dataframe = mysql(transformation)
+        pysqldf = lambda q: sqldf(q, globals())
+        transformation_df = pysqldf(transformation)
+        output_dataframe = set_bool_columns(transformation_df)
 
         dt = datetime.now()
         output_uri_with_timestamp = f'{output_uri}/{dt}.parquet'
@@ -225,7 +242,6 @@ def upload_blob_to_blob_store(client, local_filename, blob_path):
             with open(full_file_path, "rb") as data:
                 blob_upload.upload_blob(data, blob_type="BlockBlob")
 
-
     return blob_path
 
 
@@ -325,12 +341,15 @@ def get_args():
     azure_connection_string = os.getenv("AZURE_CONNECTION_STRING")
     azure_container_name = os.getenv("AZURE_CONTAINER_NAME")
 
-    assert mode in (LOCAL_MODE, K8S_MODE), f"the {mode} mode is not supported. supported modes are '{LOCAL_MODE}' and '{K8S_MODE}'."
-    assert transformation_type in ("sql", "df"), f"the {transformation_type} transformation type is not supported. supported types are 'sql', and 'df'."
+    assert mode in (
+    LOCAL_MODE, K8S_MODE), f"the {mode} mode is not supported. supported modes are '{LOCAL_MODE}' and '{K8S_MODE}'."
+    assert transformation_type in ("sql",
+                                   "df"), f"the {transformation_type} transformation type is not supported. supported types are 'sql', and 'df'."
     assert output_uri and sources != [""] and transformation, "the environment variables are not set properly"
 
     if mode == K8S_MODE and transformation_type == "df":
-        assert etcd_host and etcd_ports != [""] and etcd_user and etcd_password, "for k8s mode, df transformations require etcd host, port, and credentials."
+        assert etcd_host and etcd_ports != [
+            ""] and etcd_user and etcd_password, "for k8s mode, df transformations require etcd host, port, and credentials."
 
     args = Namespace(
         mode=mode,

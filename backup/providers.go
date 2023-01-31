@@ -1,8 +1,11 @@
 package backup
 
 import (
+	"bytes"
+	"context"
 	"fmt"
 	"github.com/featureform/provider"
+	"gocloud.dev/gcp"
 )
 
 type Provider interface {
@@ -73,7 +76,7 @@ func (s3 *S3) Init() error {
 
 	filestore, err := provider.NewS3FileStore(config)
 	if err != nil {
-		return fmt.Errorf("cannot create Azure Filestore: %v", err)
+		return fmt.Errorf("cannot create S3 Filestore: %v", err)
 	}
 	s3.store = filestore
 	return nil
@@ -102,7 +105,7 @@ func (fs *Local) Init() error {
 	}
 	config, err := filestoreConfig.Serialize()
 	if err != nil {
-		return fmt.Errorf("cannot serialize the AzureFileStoreConfig: %v", err)
+		return fmt.Errorf("cannot serialize the LocalFileStoreConfig: %v", err)
 	}
 
 	filestore, err := provider.NewLocalFileStore(config)
@@ -123,4 +126,61 @@ func (fs *Local) Download(src, dest string) error {
 
 func (fs *Local) LatestBackupName(prefix string) (string, error) {
 	return fs.store.NewestFile(prefix)
+}
+
+type GCS struct {
+	BucketName             string
+	BucketPath             string
+	CredentialFileLocation string
+	Credentials            []byte
+	store                  provider.FileStore
+}
+
+func (g *GCS) getDefaultCredentials() ([]byte, error) {
+	if creds, err := gcp.DefaultCredentials(context.Background()); err != nil {
+		return nil, err
+	} else {
+		return creds.JSON, nil
+	}
+}
+
+func (g *GCS) checkCredentials() ([]byte, error) {
+	if bytes.Equal(g.Credentials, []byte("")) {
+		return g.getDefaultCredentials()
+	} else {
+		return g.Credentials, nil
+	}
+}
+
+func (g *GCS) Init() error {
+	credentials, err := g.checkCredentials()
+	if err != nil {
+		return err
+	}
+
+	filestoreConfig := provider.GCSFileStoreConfig{
+		BucketName:  g.BucketName,
+		BucketPath:  g.BucketPath,
+		Credentials: credentials,
+	}
+	config := filestoreConfig.Serialize()
+
+	filestore, err := provider.NewGCSFileStore(config)
+	if err != nil {
+		return fmt.Errorf("cannot create GCS Filestore: %v", err)
+	}
+	g.store = filestore
+	return nil
+}
+
+func (g *GCS) Upload(name, dest string) error {
+	return g.store.Upload(name, dest)
+}
+
+func (g *GCS) Download(src, dest string) error {
+	return g.store.Download(src, dest)
+}
+
+func (g *GCS) LatestBackupName(prefix string) (string, error) {
+	return g.store.NewestFile(prefix)
 }

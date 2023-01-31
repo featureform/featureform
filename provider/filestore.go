@@ -10,7 +10,10 @@ import (
 	s3v2 "github.com/aws/aws-sdk-go-v2/service/s3"
 	"gocloud.dev/blob"
 	"gocloud.dev/blob/azureblob"
+	"gocloud.dev/blob/gcsblob"
 	"gocloud.dev/blob/s3blob"
+	"gocloud.dev/gcp"
+	"golang.org/x/oauth2/google"
 	"os"
 )
 
@@ -19,6 +22,7 @@ const (
 	FileSystem               = "LOCAL_FILESYSTEM"
 	Azure                    = "AZURE"
 	S3                       = "S3"
+	GCS                      = "GCS"
 )
 
 type LocalFileStoreConfig struct {
@@ -210,6 +214,64 @@ func NewS3FileStore(config Config) (FileStore, error) {
 		Path:   s3StoreConfig.Path,
 		genericFileStore: genericFileStore{
 			bucket: bucket,
+		},
+	}, nil
+}
+
+type GCSFileStore struct {
+	genericFileStore
+}
+
+type GCSFileStoreConfig struct {
+	BucketName  string
+	BucketPath  string
+	Credentials []byte
+}
+
+func (s *GCSFileStoreConfig) Deserialize(config SerializedConfig) error {
+	err := json.Unmarshal(config, s)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GCSFileStoreConfig) Serialize() []byte {
+	conf, err := json.Marshal(s)
+	if err != nil {
+		panic(err)
+	}
+	return conf
+}
+
+func NewGCSFileStore(config Config) (FileStore, error) {
+	GCSConfig := GCSFileStoreConfig{}
+
+	err := GCSConfig.Deserialize(SerializedConfig(config))
+	if err != nil {
+		return nil, err
+	}
+
+	creds, err := google.CredentialsFromJSON(context.TODO(), GCSConfig.Credentials)
+	if err != nil {
+		return nil, err
+	}
+
+	client, err := gcp.NewHTTPClient(
+		gcp.DefaultTransport(),
+		gcp.CredentialsTokenSource(creds))
+	if err != nil {
+		return nil, err
+	}
+
+	bucket, err := gcsblob.OpenBucket(context.TODO(), client, GCSConfig.BucketName, nil)
+	if err != nil {
+		return nil, err
+	}
+	return &GCSFileStore{
+		genericFileStore{
+			bucket: bucket,
+			path:   GCSConfig.BucketPath,
 		},
 	}, nil
 }

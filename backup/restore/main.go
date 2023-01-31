@@ -44,6 +44,12 @@ func main() {
 			ContainerName: help.GetEnv("AZURE_CONTAINER_NAME", ""),
 			Path:          help.GetEnv("AZURE_STORAGE_PATH", ""),
 		}
+	case provider.GCS:
+		backupProvider = &backup.GCS{
+			BucketName:  help.GetEnv("GCS_BUCKET_NAME", ""),
+			BucketPath:  help.GetEnv("GCS_BUCKET_PATH", ""),
+			Credentials: []byte(help.GetEnv("GCS_CREDENTIALS", "")),
+		}
 	case provider.S3:
 		backupProvider = &backup.S3{
 			AWSAccessKeyId: help.GetEnv("AWS_ACCESS_KEY", ""),

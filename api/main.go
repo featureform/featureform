@@ -785,7 +785,7 @@ func main() {
 	apiPort := help.GetEnv("API_PORT", "7878")
 	metadataHost := help.GetEnv("METADATA_HOST", "localhost")
 	metadataPort := help.GetEnv("METADATA_PORT", "8080")
-	servingHost := help.GetEnv("SERVING_HOST", "locahost")
+	servingHost := help.GetEnv("SERVING_HOST", "localhost")
 	servingPort := help.GetEnv("SERVING_PORT", "8080")
 	apiConn := fmt.Sprintf("0.0.0.0:%s", apiPort)
 	metadataConn := fmt.Sprintf("%s:%s", metadataHost, metadataPort)

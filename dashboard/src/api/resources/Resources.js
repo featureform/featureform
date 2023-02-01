@@ -118,6 +118,7 @@ export const providerLogos = Object.freeze({
   "APACHE SPARK": "static/Apache_Spark_logo.svg",
   POSTGRES: "static/Postgresql_elephant.svg",
   SNOWFLAKE: "static/Snowflake_Logo.svg",
+  LOCALMODE: "static/Featureform_logo_pink.svg",
 });
 
 var hostname = "localhost";

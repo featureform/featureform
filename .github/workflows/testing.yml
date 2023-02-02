@@ -60,6 +60,24 @@ jobs:
           path: ./
           retention-days: 1
 
+  unit-go:
+    name: Golang Unit Tests
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Working Compiled Directories
+        uses: actions/download-artifact@v3
+        with:
+          name: compiled-workdir
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.18
+
+      - name: Run Golang Unit Tests
+        run: make test_go_unit
+
   typesense:
     name: Typesense Testing
     needs: setup

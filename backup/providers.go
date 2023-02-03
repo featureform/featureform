@@ -158,7 +158,7 @@ func (g *GCS) checkCredentials() ([]byte, error) {
 func (g *GCS) Init() error {
 	credentials, err := g.checkCredentials()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to check credentials: %v", err)
 	}
 
 	filestoreConfig := provider.GCSFileStoreConfig{

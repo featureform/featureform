@@ -257,24 +257,24 @@ func NewGCSFileStore(config Config) (FileStore, error) {
 
 	err := GCSConfig.Deserialize(SerializedConfig(config))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not deserialize config: %v", err)
 	}
 
-	creds, err := google.CredentialsFromJSON(context.TODO(), GCSConfig.Credentials)
+	creds, err := google.CredentialsFromJSON(context.TODO(), GCSConfig.Credentials, "https://www.googleapis.com/auth/cloud-platform")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not get credentials from JSON: %v", err)
 	}
 
 	client, err := gcp.NewHTTPClient(
 		gcp.DefaultTransport(),
 		gcp.CredentialsTokenSource(creds))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not create client: %v", err)
 	}
 
 	bucket, err := gcsblob.OpenBucket(context.TODO(), client, GCSConfig.BucketName, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not open bucket: %v", err)
 	}
 	return &GCSFileStore{
 		genericFileStore{

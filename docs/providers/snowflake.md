@@ -30,6 +30,7 @@ Every registered feature and label is associated with a view table. That view co
 
 First we have to add a declarative Snowflake configuration in Python.
 
+### Credentials with Account and Organization
 {% code title="snowflake_config.py" %}
 ```python
 import featureform as ff
@@ -42,6 +43,29 @@ ff.register_snowflake(
     password: snowflake_password,
     account: snowflake_account,
     organization: snowflake_org,
+    database: snowflake_database,
+    schema: snowflake_schema,
+)
+```
+{% endcode %}
+
+### Legacy Credentials
+
+[Older Snowflake accounts](https://docs.snowflake.com/en/user-guide/admin-account-identifier.html#using-an-account-locator-as-an-identifier) may have credentials that use an `Account Locator` rather than
+an `account` and `organization` to connect. Featureform provides a separate registration
+function to support these credentials.
+
+{% code title="snowflake_config.py" %}
+```python
+import featureform as ff
+
+ff.register_snowflake_legacy(
+    name = "snowflake_docs",
+    description = "Example inference store",
+    team = "Featureform",
+    username = snowflake_username,
+    password: snowflake_password,
+    account_locator: snowflake_account_locator,
     database: snowflake_database,
     schema: snowflake_schema,
 )

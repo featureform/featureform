@@ -2,8 +2,8 @@ FROM golang:1.18-alpine
 
 WORKDIR /app
 
-COPY ../go.mod ./
-COPY ../go.sum ./
+COPY ./go.mod ./
+COPY ./go.sum ./
 
 COPY ./metadata/proto/metadata.proto ./metadata/proto/metadata.proto
 RUN apk update && apk add protobuf-dev && go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest && go install google.golang.org/protobuf/cmd/protoc-gen-go@latest

@@ -72,7 +72,10 @@ func (s3 *S3) Init() error {
 		BucketPath:     s3.BucketName,
 		Path:           s3.BucketPath,
 	}
-	config := filestoreConfig.Serialize()
+	config, err := filestoreConfig.Serialize()
+	if err != nil {
+		return fmt.Errorf("cannot serialize S3 Config: %v", err)
+	}
 
 	filestore, err := provider.NewS3FileStore(config)
 	if err != nil {

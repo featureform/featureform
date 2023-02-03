@@ -104,6 +104,10 @@ type AzureFileStoreConfig struct {
 	Path          string
 }
 
+func (config *AzureFileStoreConfig) IsFileStoreConfig() bool {
+	return true
+}
+
 func (config *AzureFileStoreConfig) Serialize() ([]byte, error) {
 	data, err := json.Marshal(config)
 	if err != nil {
@@ -112,7 +116,7 @@ func (config *AzureFileStoreConfig) Serialize() ([]byte, error) {
 	return data, nil
 }
 
-func (config *AzureFileStoreConfig) Deserialize(data []byte) error {
+func (config *AzureFileStoreConfig) Deserialize(data SerializedConfig) error {
 	err := json.Unmarshal(data, config)
 	if err != nil {
 		return fmt.Errorf("deserialize file blob store config: %w", err)
@@ -122,7 +126,7 @@ func (config *AzureFileStoreConfig) Deserialize(data []byte) error {
 
 func NewAzureFileStore(config Config) (FileStore, error) {
 	azureStoreConfig := AzureFileStoreConfig{}
-	if err := azureStoreConfig.Deserialize(config); err != nil {
+	if err := azureStoreConfig.Deserialize(SerializedConfig(config)); err != nil {
 		return nil, fmt.Errorf("could not deserialize azure store config: %v", err)
 	}
 	if err := os.Setenv("AZURE_STORAGE_ACCOUNT", azureStoreConfig.AccountName); err != nil {
@@ -163,6 +167,10 @@ type S3FileStoreConfig struct {
 	Path           string
 }
 
+func (s *S3FileStoreConfig) IsFileStoreConfig() bool {
+	return true
+}
+
 func (s *S3FileStoreConfig) Deserialize(config SerializedConfig) error {
 	err := json.Unmarshal(config, s)
 	if err != nil {
@@ -171,12 +179,12 @@ func (s *S3FileStoreConfig) Deserialize(config SerializedConfig) error {
 	return nil
 }
 
-func (s *S3FileStoreConfig) Serialize() []byte {
+func (s *S3FileStoreConfig) Serialize() ([]byte, error) {
 	conf, err := json.Marshal(s)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return conf
+	return conf, nil
 }
 
 type S3FileStore struct {

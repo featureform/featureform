@@ -1500,6 +1500,57 @@ class Registrar:
         self.__resources.append(provider)
         return OnlineProvider(self, provider)
 
+    def register_snowflake_legacy(
+                self,
+                name: str,
+                username: str,
+                password: str,
+                account_locator: str,
+                database: str,
+                schema: str = "PUBLIC",
+                description: str = "",
+                team: str = "",
+    ):
+        """Register a Snowflake provider using legacy credentials.
+
+        **Examples**:
+        ```
+        snowflake = ff.register_snowflake_legacy(
+            name="snowflake-quickstart",
+            username="snowflake",
+            password="password", #pragma: allowlist secret
+            account_locator="account-locator",
+            database="snowflake",
+            schema="PUBLIC",
+            description="A Snowflake deployment we created for the Featureform quickstart"
+        )
+        ```
+        Args:
+            name (str): Name of Snowflake provider to be registered
+            username (str): Username
+            password (str): Password
+            account_locator (str): Account Locator
+            database (str): Database
+            schema (str): Schema
+            description (str): Description of Snowflake provider to be registered
+            team (str): Name of team
+
+        Returns:
+            snowflake (OfflineSQLProvider): Provider
+        """
+        config = SnowflakeConfig(account_locator=account_locator,
+                                 database=database,
+                                 username=username,
+                                 password=password,
+                                 schema=schema)
+        provider = Provider(name=name,
+                            function="OFFLINE",
+                            description=description,
+                            team=team,
+                            config=config)
+        self.__resources.append(provider)
+        return OfflineSQLProvider(self, provider)
+
     def register_snowflake(
             self,
             name: str,
@@ -1521,9 +1572,10 @@ class Registrar:
             username="snowflake",
             password="password", #pragma: allowlist secret
             account="account",
+            organization="organization",
             database="snowflake",
             schema="PUBLIC",
-            description="A Dynamodb deployment we created for the Featureform quickstart"
+            description="A Snowflake deployment we created for the Featureform quickstart"
         )
         ```
         Args:

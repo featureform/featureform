@@ -6,8 +6,28 @@ import sys
 sys.path.insert(0, 'client/src/')
 import pytest
 from featureform.register import LocalProvider, Provider, Registrar, LocalConfig, SQLTransformationDecorator, \
-    DFTransformationDecorator
-from featureform.resources import SQLTransformation, Source, DFTransformation
+    DFTransformationDecorator, SnowflakeConfig
+
+
+@pytest.mark.parametrize(
+    "account,organization,account_locator,should_error",
+    [
+        ["", "", "", True],
+        ["account", "", "", True],
+        ["", "org", "", True],
+        ["account", "org", "", False],
+        ["", "", "account_locator", False],
+        ["account", "org", "account_locator", True],
+    ]
+)
+def test_snowflake_config_credentials(account, organization, account_locator, should_error):
+    if should_error:
+        with pytest.raises(ValueError):
+            SnowflakeConfig(account=account, organization=organization, account_locator=account_locator, username="",
+                            password="", schema="")
+    else:  # Creating Obj should not error with proper credentials
+        SnowflakeConfig(account=account, organization=organization, account_locator=account_locator, username="",
+                        password="", schema="")
 
 
 @pytest.fixture

@@ -348,12 +348,31 @@ class LocalConfig:
 @typechecked
 @dataclass
 class SnowflakeConfig:
-    account: str
-    database: str
     organization: str
     username: str
     password: str
     schema: str
+    account: str = ""
+    database: str = ""
+    account_locator: str = ""
+
+    def __post_init__(self):
+        if self.__has_legacy_credentials() and self.__has_current_credentials():
+            raise ValueError("Cannot create configure Snowflake with both current and legacy credentials")
+
+        if not self.__has_legacy_credentials() and not self.__has_current_credentials():
+            raise ValueError("Cannot create configure Snowflake without credentials")
+
+    def __has_legacy_credentials(self) -> bool:
+        return self.account_locator != ""
+
+    def __has_current_credentials(self) -> bool:
+        if (self.account != "" and self.organization == "") or (self.account == "" and self.organization != ""):
+            raise ValueError("Both Snowflake organization and account must be included")
+        elif self.account != "" and self.organization != "":
+            return True
+        else:
+            return False
 
     def software(self) -> str:
         return "Snowflake"
@@ -366,6 +385,7 @@ class SnowflakeConfig:
             "Username": self.username,
             "Password": self.password,
             "Organization": self.organization,
+            "AccountLocator": self.account_locator,
             "Account": self.account,
             "Database": self.database,
         }

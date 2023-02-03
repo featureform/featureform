@@ -348,11 +348,11 @@ class LocalConfig:
 @typechecked
 @dataclass
 class SnowflakeConfig:
-    organization: str
     username: str
     password: str
     schema: str
     account: str = ""
+    organization: str = ""
     database: str = ""
     account_locator: str = ""
 

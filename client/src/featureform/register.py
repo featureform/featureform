@@ -3459,6 +3459,7 @@ register_cassandra = global_registrar.register_cassandra
 register_dynamodb = global_registrar.register_dynamodb
 register_mongodb = global_registrar.register_mongodb
 register_snowflake = global_registrar.register_snowflake
+register_snowflake_legacy = global_registrar.register_snowflake_legacy
 register_postgres = global_registrar.register_postgres
 register_redshift = global_registrar.register_redshift
 register_spark = global_registrar.register_spark

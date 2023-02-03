@@ -355,6 +355,7 @@ class SnowflakeConfig:
             "Organization": self.organization,
             "AccountLocator": self.account_locator,
             "Account": self.account,
+            "Schema": self.schema,
             "Database": self.database,
         }
         return bytes(json.dumps(config), "utf-8")

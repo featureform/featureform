@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/featureform/logging"
 	"github.com/featureform/provider"
+	"github.com/joho/godotenv"
 	"time"
 
 	"github.com/featureform/backup"
@@ -12,6 +13,8 @@ import (
 )
 
 func main() {
+	godotenv.Load(".env")
+
 	etcdHost := help.GetEnv("ETCD_HOSTNAME", "localhost")
 	etcdPort := help.GetEnv("ETCD_PORT", "2379")
 	etcdUsername := help.GetEnv("ETCD_USERNAME", "")

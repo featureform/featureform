@@ -489,6 +489,24 @@ jobs:
           AZURE_STORAGE_PATH: "backup"
         run: ./tests/integration/backup/test.sh
 
+      - name: Run Backup Test S3
+        env:
+          CLOUD_PROVIDER: "S3"
+          AWS_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
+          AWS_BUCKET_REGION: "us-east-1"
+          AWS_BUCKET_NAME: "featureform-testing"
+          AWS_BUCKET_PATH: "backup"
+        run: ./tests/integration/backup/test.sh
+
+      - name: Run Backup Test GCS
+        env:
+          CLOUD_PROVIDER: "GCS"
+          GCS_BUCKET_NAME: "featureform-test"
+          GCS_BUCKET_PATH: "backup"
+          GCS_CREDENTIALS: ${{ secrets.GCS_CREDENTIALS }}
+        run: ./tests/integration/backup/test.sh
+
   metrics:
     name: Metrics Testing
     needs: setup

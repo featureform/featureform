@@ -27,7 +27,6 @@ require (
 	github.com/prometheus/client_model v0.2.0
 	github.com/segmentio/parquet-go v0.0.0-20221005185849-771b3e358a03
 	github.com/snowflakedb/gosnowflake v1.6.8
-	github.com/spf13/cobra v1.1.3
 	github.com/stretchr/testify v1.8.0
 	github.com/typesense/typesense-go v0.4.0
 	go.etcd.io/etcd/api/v3 v3.5.6
@@ -170,7 +169,6 @@ require (
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/wire v0.5.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.1.0 // indirect
-	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/klauspost/compress v1.15.9 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
@@ -180,7 +178,6 @@ require (
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
 	github.com/rivo/uniseg v0.1.0 // indirect
 	github.com/segmentio/encoding v0.3.5 // indirect
-	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
 	github.com/xdg-go/scram v1.0.2 // indirect
 	github.com/xdg-go/stringprep v1.0.2 // indirect

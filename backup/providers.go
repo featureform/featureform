@@ -72,6 +72,7 @@ func (s3 *S3) Init() error {
 		BucketPath:     s3.BucketName,
 		Path:           s3.BucketPath,
 	}
+  
 	config, err := filestoreConfig.Serialize()
 	if err != nil {
 		return fmt.Errorf("cannot serialize S3 Config: %v", err)
@@ -187,3 +188,4 @@ func (g *GCS) Download(src, dest string) error {
 func (g *GCS) LatestBackupName(prefix string) (string, error) {
 	return g.store.NewestFile(prefix)
 }
+

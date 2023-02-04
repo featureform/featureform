@@ -20,14 +20,18 @@ from .sqlite_metadata import SQLiteMetadata
 from .tls import insecure_channel, secure_channel
 from .resources import ResourceState, Provider, RedisConfig, FirestoreConfig, CassandraConfig, DynamodbConfig, \
     MongoDBConfig, PostgresConfig, SnowflakeConfig, LocalConfig, RedshiftConfig, BigQueryConfig, SparkConfig, \
-    AzureFileStoreConfig, OnlineBlobConfig, K8sConfig, User, Location, Source, PrimaryData, SQLTable, \
+    AzureFileStoreConfig, OnlineBlobConfig, K8sConfig, S3StoreConfig, User, Location, Source, PrimaryData, SQLTable, \
     SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet, ProviderReference, \
     EntityReference, SourceReference, ExecutorCredentials, ResourceRedefinedError, ResourceStatus, Transformation, \
-    K8sArgs
+    K8sArgs, AWSCredentials
 
 from .proto import metadata_pb2_grpc as ff_grpc
 
+
 NameVariant = Tuple[str, str]
+
+s3_config = S3StoreConfig("", "", AWSCredentials("id", "secret"))
+NON_INFERENCE_STORES = [s3_config.type()]
 
 
 class EntityRegistrar:
@@ -1231,6 +1235,15 @@ class Registrar:
         fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
         return OfflineK8sProvider(self, fakeProvider)
 
+    def get_s3(self, name):
+        get = ProviderReference(name=name, provider_type="S3", obj=None)
+        self.__resources.append(get)
+
+        fake_creds = AWSCredentials("id", "secret")
+        fakeConfig = S3StoreConfig(bucket_path="", bucket_region="", credentials=fake_creds)
+        fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
+        return OfflineK8sProvider(self, fakeProvider)
+
     def get_entity(self, name, local=False):
         """Get an entity. The returned object can be used to register additional resources.
 
@@ -1347,6 +1360,50 @@ class Registrar:
                             config=config)
         self.__resources.append(provider)
         return FileStoreProvider(self, provider, azure_config, "AZURE")
+    
+    def register_s3(self,
+                    name: str,
+                    credentials: AWSCredentials,
+                    bucket_path: str,
+                    bucket_region: str,
+                    description: str = "",
+                    team: str = "", ):
+        """Register a S3 store provider.
+
+        This has the functionality of an offline store and can be used as a parameter
+        to a k8s or spark provider
+
+        **Examples**:
+        ```
+        s3 = ff.register_s3(
+            name="s3-quickstart",
+            credentials=aws_creds,
+            bucket_path="bucket_name/path",
+            bucket_region=<bucket_region>,
+            description="An s3 store provider to store offline"
+        )
+        ```
+        Args:
+            name (str): Name of S3 store to be registered
+            credentials (AWSCredentials): AWS credentials to access the bucket
+            bucket_path (str): custom path including the bucket name
+            bucket_region (str): aws region the bucket is located in
+            description (str): Description of Redis provider to be registered
+            team (str): team with permission to this storage layer
+        Returns:
+            s3 (FileStoreProvider): Provider
+                has all the functionality of OfflineProvider
+        """
+
+        s3_config = S3StoreConfig(bucket_path=bucket_path, bucket_region=bucket_region, credentials=credentials)
+
+        provider = Provider(name=name,
+                            function="OFFLINE",
+                            description=description,
+                            team=team,
+                            config=s3_config)
+        self.__resources.append(provider)
+        return FileStoreProvider(self, provider, s3_config, s3_config.type())
 
     def register_firestore(self,
                            name: str,
@@ -1500,6 +1557,57 @@ class Registrar:
         self.__resources.append(provider)
         return OnlineProvider(self, provider)
 
+    def register_snowflake_legacy(
+                self,
+                name: str,
+                username: str,
+                password: str,
+                account_locator: str,
+                database: str,
+                schema: str = "PUBLIC",
+                description: str = "",
+                team: str = "",
+    ):
+        """Register a Snowflake provider using legacy credentials.
+
+        **Examples**:
+        ```
+        snowflake = ff.register_snowflake_legacy(
+            name="snowflake-quickstart",
+            username="snowflake",
+            password="password", #pragma: allowlist secret
+            account_locator="account-locator",
+            database="snowflake",
+            schema="PUBLIC",
+            description="A Snowflake deployment we created for the Featureform quickstart"
+        )
+        ```
+        Args:
+            name (str): Name of Snowflake provider to be registered
+            username (str): Username
+            password (str): Password
+            account_locator (str): Account Locator
+            database (str): Database
+            schema (str): Schema
+            description (str): Description of Snowflake provider to be registered
+            team (str): Name of team
+
+        Returns:
+            snowflake (OfflineSQLProvider): Provider
+        """
+        config = SnowflakeConfig(account_locator=account_locator,
+                                 database=database,
+                                 username=username,
+                                 password=password,
+                                 schema=schema)
+        provider = Provider(name=name,
+                            function="OFFLINE",
+                            description=description,
+                            team=team,
+                            config=config)
+        self.__resources.append(provider)
+        return OfflineSQLProvider(self, provider)
+
     def register_snowflake(
             self,
             name: str,
@@ -1521,9 +1629,10 @@ class Registrar:
             username="snowflake",
             password="password", #pragma: allowlist secret
             account="account",
+            organization="organization",
             database="snowflake",
             schema="PUBLIC",
-            description="A Dynamodb deployment we created for the Featureform quickstart"
+            description="A Snowflake deployment we created for the Featureform quickstart"
         )
         ```
         Args:
@@ -1699,26 +1808,26 @@ class Registrar:
                        description: str = "",
                        team: str = "",
                        ):
-        """Register a Spark on AWS provider.
+        """Register a Spark on Executor provider.
         **Examples**:
         ```
         spark = ff.register_spark(
             name="spark-quickstart",
             description="A Spark deployment we created for the Featureform quickstart",
-            team="featureform-team"
-            executor=databricks
+            team="featureform-team",
+            executor=databricks,
             filestore=azure_blob_store
         )
         ```
         Args:
-            name (str): Name of Spark AWS provider to be registered
+            name (str): Name of Spark provider to be registered
             executor (ExecutorCredentials): an Executor Provider used for the compute power
             filestore: (FileStoreProvider): a FileStoreProvider used for storage of data
-            description (str): Description of Spark AWS provider to be registered
+            description (str): Description of Spark provider to be registered
             team (str): Name of team
 
         Returns:
-            spark_aws (OfflineSparkProvider): Provider
+            spark (OfflineSparkProvider): Provider
         """
 
         config = SparkConfig(
@@ -2071,6 +2180,10 @@ class Registrar:
         Returns:
             resource (ResourceRegistrar): resource
         """
+
+        if type(inference_store) == FileStoreProvider and inference_store.store_type() in NON_INFERENCE_STORES:
+            raise Exception(f"cannot use '{inference_store.store_type()}' as an inference store.")
+
         if features is None:
             features = []
         if labels is None:
@@ -3407,10 +3520,12 @@ register_cassandra = global_registrar.register_cassandra
 register_dynamodb = global_registrar.register_dynamodb
 register_mongodb = global_registrar.register_mongodb
 register_snowflake = global_registrar.register_snowflake
+register_snowflake_legacy = global_registrar.register_snowflake_legacy
 register_postgres = global_registrar.register_postgres
 register_redshift = global_registrar.register_redshift
 register_spark = global_registrar.register_spark
 register_k8s = global_registrar.register_k8s
+register_s3 = global_registrar.register_s3
 register_local = global_registrar.register_local
 register_entity = global_registrar.register_entity
 register_column_resources = global_registrar.register_column_resources
@@ -3426,7 +3541,8 @@ get_mongodb = global_registrar.get_mongodb
 get_snowflake = global_registrar.get_snowflake
 get_redshift = global_registrar.get_redshift
 get_bigquery = global_registrar.get_bigquery
-get_spark_aws = global_registrar.get_spark
+get_spark = global_registrar.get_spark
 get_kubernetes = global_registrar.get_kubernetes
 get_blob_store = global_registrar.get_blob_store
+get_s3 = global_registrar.get_s3
 ResourceStatus = ResourceStatus

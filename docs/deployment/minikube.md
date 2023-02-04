@@ -94,5 +94,5 @@ Since we're using a self-signed certificate, we can run the CLI using the certif
 
 ```
 export FEATUREFORM_HOST="localhost:443"
-featureform apply <file> --cert tls.cert
+featureform apply <file> --cert tls.crt
 ```

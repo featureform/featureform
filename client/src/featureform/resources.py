@@ -108,6 +108,29 @@ class RedisConfig:
 
 @typechecked
 @dataclass
+class AWSCredentials:
+    def __init__(self,
+                 aws_access_key_id: str = "",
+                 aws_secret_access_key: str = "",):
+        empty_strings = aws_access_key_id == "" or aws_secret_access_key == ""
+        if empty_strings:
+            raise Exception("'AWSCredentials' requires all parameters: 'aws_access_key_id', 'aws_secret_access_key'")
+
+        self.aws_access_key_id = aws_access_key_id
+        self.aws_secret_access_key = aws_secret_access_key
+
+    def type(self):
+        return "AWS_CREDENTIALS"
+
+    def config(self):
+        return {
+            "AWSAccessKeyId": self.aws_access_key_id,
+            "AWSSecretKey": self.aws_secret_access_key,
+        }
+
+
+@typechecked
+@dataclass
 class AzureFileStoreConfig:
     account_name: str
     account_key: str
@@ -144,10 +167,18 @@ class AzureFileStoreConfig:
 @typechecked
 @dataclass
 class S3StoreConfig:
-    bucket_path: str
-    bucket_region: str
-    aws_access_key_id: str
-    aws_secret_access_key: str
+    def __init__(self, 
+                 bucket_path: str,
+                 bucket_region: str,
+                 credentials: AWSCredentials):
+        bucket_path_ends_with_slash = len(bucket_path) != 0 and bucket_path[-1] == "/"
+
+        if bucket_path_ends_with_slash:
+            raise Exception("The 'bucket_path' cannot end with '/'.")
+                 
+        self.bucket_path = bucket_path
+        self.bucket_region = bucket_region
+        self.credentials = credentials
 
     def software(self) -> str:
         return "S3"
@@ -157,8 +188,7 @@ class S3StoreConfig:
 
     def serialize(self) -> bytes:
         config = {
-            "AWSAccessKeyId": self.aws_access_key_id,
-            "AWSSecretKey": self.aws_secret_access_key,
+            "Credentials": self.credentials.config(),
             "BucketRegion": self.bucket_region,
             "BucketPath": self.bucket_path,
         }
@@ -166,11 +196,13 @@ class S3StoreConfig:
 
     def config(self):
         return {
-            "AWSAccessKeyId": self.aws_access_key_id,
-            "AWSSecretKey": self.aws_secret_access_key,
+            "Credentials": self.credentials.config(),
             "BucketRegion": self.bucket_region,
             "BucketPath": self.bucket_path,
         }
+    
+    def store_type(self):
+        return self.type()
 
 
 @typechecked
@@ -316,12 +348,31 @@ class LocalConfig:
 @typechecked
 @dataclass
 class SnowflakeConfig:
-    account: str
-    database: str
-    organization: str
     username: str
     password: str
     schema: str
+    account: str = ""
+    organization: str = ""
+    database: str = ""
+    account_locator: str = ""
+
+    def __post_init__(self):
+        if self.__has_legacy_credentials() and self.__has_current_credentials():
+            raise ValueError("Cannot create configure Snowflake with both current and legacy credentials")
+
+        if not self.__has_legacy_credentials() and not self.__has_current_credentials():
+            raise ValueError("Cannot create configure Snowflake without credentials")
+
+    def __has_legacy_credentials(self) -> bool:
+        return self.account_locator != ""
+
+    def __has_current_credentials(self) -> bool:
+        if (self.account != "" and self.organization == "") or (self.account == "" and self.organization != ""):
+            raise ValueError("Both Snowflake organization and account must be included")
+        elif self.account != "" and self.organization != "":
+            return True
+        else:
+            return False
 
     def software(self) -> str:
         return "Snowflake"
@@ -334,7 +385,9 @@ class SnowflakeConfig:
             "Username": self.username,
             "Password": self.password,
             "Organization": self.organization,
+            "AccountLocator": self.account_locator,
             "Account": self.account,
+            "Schema": self.schema,
             "Database": self.database,
         }
         return bytes(json.dumps(config), "utf-8")
@@ -1321,32 +1374,27 @@ class DatabricksCredentials:
         }
 
 
+
 @typechecked
 @dataclass
 class EMRCredentials:
     def __init__(self,
-                 aws_access_key_id: str = "",
-                 aws_secret_access_key: str = "",
-                 emr_cluster_id: str = "",
-                 emr_cluster_region: str = ""):
-        empty_strings = aws_access_key_id == "" or aws_secret_access_key == "" or emr_cluster_id == "" or emr_cluster_region == ""
-        assert not empty_strings, Exception(
-            "'EMRCredentials' requires all parameters: 'aws_access_key_id', 'aws_secret_access_key', 'emr_cluster_id', 'emr_cluster_region'")
-
-        self.aws_access_key_id = aws_access_key_id
-        self.aws_secret_access_key = aws_secret_access_key
+                 emr_cluster_id: str,
+                 emr_cluster_region: str,
+                 credentials: AWSCredentials):
+        
         self.emr_cluster_id = emr_cluster_id
         self.emr_cluster_region = emr_cluster_region
+        self.credentials = credentials
 
     def type(self):
         return "EMR"
 
     def config(self):
         return {
-            "AWSAccessKeyId": self.aws_access_key_id,
-            "AWSSecretKey": self.aws_secret_access_key,
             "ClusterName": self.emr_cluster_id,
-            "ClusterRegion": self.emr_cluster_region
+            "ClusterRegion": self.emr_cluster_region,
+            "Credentials": self.credentials.config(),
         }
 
 

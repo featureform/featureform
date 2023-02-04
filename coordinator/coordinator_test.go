@@ -873,6 +873,9 @@ func TestRegisterSourceJobErrors(t *testing.T) {
 }
 
 func TestTemplateReplace(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	err := godotenv.Load(".env")
 	if err != nil {
 		fmt.Println(err)

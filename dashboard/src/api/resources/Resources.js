@@ -1,5 +1,4 @@
 import Resource from "./Resource.js";
-import TypesenseClient from "./Search.js";
 
 // Set to true run locally
 const local = false;
@@ -119,6 +118,7 @@ export const providerLogos = Object.freeze({
   "APACHE SPARK": "static/Apache_Spark_logo.svg",
   POSTGRES: "static/Postgresql_elephant.svg",
   SNOWFLAKE: "static/Snowflake_Logo.svg",
+  LOCALMODE: "static/Featureform_logo_pink.svg",
 });
 
 var hostname = "localhost";
@@ -140,26 +140,8 @@ export var PROMETHEUS_URL = API_URL + "/prometheus";
 if (typeof process.env.REACT_APP_PROMETHEUS_URL != "undefined") {
   PROMETHEUS_URL = process.env.REACT_APP_PROMETHEUS_URL.trim();
 }
-var TYPESENSE_PORT = "443";
-if (typeof process.env.REACT_APP_TYPESENSE_PORT != "undefined") {
-  TYPESENSE_PORT = process.env.REACT_APP_TYPESENSE_PORT.trim();
-}
-var TYPESENSE_URL = "localhost";
-// var TYPESENSE_URL = window.location.hostname
-if (typeof process.env.REACT_APP_TYPESENSE_URL != "undefined") {
-  TYPESENSE_URL = process.env.REACT_APP_TYPESENSE_URL.trim();
-}
-var TYPESENSE_API_KEY = "xyz";
-if (typeof process.env.REACT_APP_TYPESENSE_API_KEY != "undefined") {
-  TYPESENSE_API_KEY = process.env.REACT_APP_TYPESENSE_API_KEY.trim();
-}
-
-
 
 export default class ResourcesAPI {
-  static typeSenseClient = new TypesenseClient(
-    API_URL + "/search/",
-  );
   checkStatus() {
     return fetch(API_URL, {
       headers: {
@@ -228,10 +210,9 @@ export default class ResourcesAPI {
   }
 
   fetchSearch(query) {
-    let typeSenseResults = this.constructor.typeSenseClient.search(query);
-    return typeSenseResults.then((results) => {
-      return results.results();
-    });
+    return new Promise(() => {
+       return {"hits":[]}
+    })
   }
 
   fetchVariantSearchStub(query) {

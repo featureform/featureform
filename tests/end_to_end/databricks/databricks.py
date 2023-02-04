@@ -5,7 +5,7 @@ import featureform as ff
 
 FILE_DIRECTORY = os.getenv("FEATUREFORM_TEST_PATH", "")
 featureform_location = os.path.dirname(os.path.dirname(FILE_DIRECTORY))
-env_file_path = os.path.join(featureform_location, "../../../.env")
+env_file_path = os.path.join(featureform_location, ".env")
 load_dotenv(env_file_path)
 
 
@@ -132,7 +132,7 @@ def total_paid_per_customer_per_day():
                           variant="default",
                           description="Get the daily total value of payments.")
 def total_paid_per_day():
-    return "select date_trunc('day', to_timestamp(order_approved_at)) as day_date, sum(p.payment_value) as total_order_paid " \
+    return "select trunc(order_approved_at,'day') as day_date, sum(p.payment_value) as total_order_paid " \
            "from {{payments.default}} p " \
            "join {{orders.default}} o on (o.order_id = p.order_id) " \
            "group by 1 order by 1 asc "
@@ -186,7 +186,7 @@ def get_month_6_customer_spend():
            "join {{customers.default}} c on (c.customer_id = o.customer_id) " \
            "join {{calculate_month_1_month_6_dates.default}} cm on (cm.customer_unique_id = c.customer_unique_id) " \
            "join {{payments.default}} p on (p.order_id = o.order_id) " \
-           "where (to_date(o.order_approved_at) < month_6_datetime) and (to_date(o.order_approved_at) > month_1_datetime) " \
+           "where (to_date(o.order_approved_at) < month_6_datetime) " \
            "group by 1"
 
 order = ff.register_entity("order")

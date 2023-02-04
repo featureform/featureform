@@ -3,6 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/reflection"
 	"io"
 	"net"
 	"net/http"
@@ -661,7 +666,7 @@ func (serv *OnlineServer) TrainingData(req *srv.TrainingDataRequest, stream srv.
 
 func (serv *ApiServer) Serve() error {
 	if serv.grpcServer != nil {
-		return fmt.Errorf("Server already running")
+		return fmt.Errorf("server already running")
 	}
 	lis, err := net.Listen("tcp", serv.address)
 	if err != nil {
@@ -690,7 +695,27 @@ func (serv *ApiServer) Serve() error {
 
 func (serv *ApiServer) ServeOnListener(lis net.Listener) error {
 	serv.listener = lis
-	grpcServer := grpc.NewServer()
+	var (
+		logrusLogger = logrus.New()
+		customFunc   = func(code codes.Code) logrus.Level {
+			if code == codes.OK {
+				return logrus.DebugLevel
+			}
+			return logrus.DebugLevel
+		}
+	)
+	logrusEntry := logrus.NewEntry(logrusLogger)
+	lorgusOpts := []grpc_logrus.Option{
+		grpc_logrus.WithLevels(customFunc),
+	}
+	grpc_logrus.ReplaceGrpcLogger(logrusEntry)
+	opt := []grpc.ServerOption{
+		grpc_middleware.WithUnaryServerChain(
+			grpc_logrus.UnaryServerInterceptor(logrusEntry, lorgusOpts...),
+		),
+	}
+	grpcServer := grpc.NewServer(opt...)
+	reflection.Register(grpcServer)
 	pb.RegisterApiServer(grpcServer, &serv.metadata)
 	srv.RegisterFeatureServer(grpcServer, &serv.online)
 	serv.grpcServer = grpcServer
@@ -760,7 +785,7 @@ func main() {
 	apiPort := help.GetEnv("API_PORT", "7878")
 	metadataHost := help.GetEnv("METADATA_HOST", "localhost")
 	metadataPort := help.GetEnv("METADATA_PORT", "8080")
-	servingHost := help.GetEnv("SERVING_HOST", "locahost")
+	servingHost := help.GetEnv("SERVING_HOST", "localhost")
 	servingPort := help.GetEnv("SERVING_PORT", "8080")
 	apiConn := fmt.Sprintf("0.0.0.0:%s", apiPort)
 	metadataConn := fmt.Sprintf("%s:%s", metadataHost, metadataPort)

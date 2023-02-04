@@ -4,6 +4,7 @@ import click
 import yaml
 from google.oauth2 import service_account
 
+
 secretBase = {
     "apiVersion": "v1",
     "kind": "Secret",

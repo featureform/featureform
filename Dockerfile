@@ -28,6 +28,11 @@ COPY runner/ runner/
 COPY serving/ serving/
 COPY types/ types/
 COPY kubernetes/ kubernetes/
+COPY config/ config/
+COPY logging/ logging/
+COPY provider/scripts/spark/offline_store_spark_runner.py scripts/spark/offline_store_spark_runner.py
+COPY provider/scripts/spark/python_packages.sh scripts/spark/python_packages.sh
+COPY provider/scripts/spark/requirements.txt scripts/spark/requirements.txt
 COPY nginx.conf/ /etc/nginx/nginx.conf
 
 RUN apt install protobuf-compiler -y
@@ -63,6 +68,8 @@ ENV ENABLE_TYPESENSE="false"
 ENV SERVING_PORT="8082"
 ENV SERVING_HOST="0.0.0.0"
 ENV ETCD_ARCH=""
+ENV GRPC_GO_LOG_VERBOSITY_LEVEL=99
+ENV GRPC_GO_LOG_SEVERITY_LEVEL=info
 
 EXPOSE 7878
 CMD ["/usr/bin/supervisord"]

@@ -52,8 +52,8 @@ def test_execute_sql_job(variables, expected_output, request):
     else:
         expected_df = pandas.read_parquet(expected_output)
     output_df = pandas.read_parquet(output_file)
+    pandas.testing.assert_frame_equal(expected_df, output_df)
 
-    assert len(expected_df) == len(output_df)
 
     set_environment_variables(env, delete=True)
 

@@ -9,7 +9,6 @@ from typeguard import typechecked, check_type
 from typing import Tuple, Callable, List, Union
 
 import dill
-import pyspark
 import pandas as pd
 
 from .get import *
@@ -722,8 +721,7 @@ class DFTransformationDecorator:
         self.inputs = inputs
         self.args = args
 
-    def __call__(self, fn: Callable[
-        [Union[pd.DataFrame, pyspark.sql.DataFrame]], Union[pd.DataFrame, pyspark.sql.DataFrame]]):
+    def __call__(self, fn):
         if self.description == "" and fn.__doc__ is not None:
             self.description = fn.__doc__
         if self.name == "":

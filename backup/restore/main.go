@@ -8,6 +8,7 @@ import (
 	"github.com/featureform/provider"
 	"github.com/joho/godotenv"
 	clientv3 "go.etcd.io/etcd/client/v3"
+	"os"
 	"time"
 )
 
@@ -39,18 +40,24 @@ func main() {
 	switch p {
 	case provider.Azure:
 		backupProvider = &backup.Azure{
-			AccountName:   help.GetEnv("AZURE_STORAGE_ACCOUNT", ""),
-			AccountKey:    help.GetEnv("AZURE_STORAGE_KEY", ""),
-			ContainerName: help.GetEnv("AZURE_CONTAINER_NAME", ""),
-			Path:          help.GetEnv("AZURE_STORAGE_PATH", ""),
+			AccountName:   os.Getenv("AZURE_STORAGE_ACCOUNT"),
+			AccountKey:    os.Getenv("AZURE_STORAGE_KEY"),
+			ContainerName: os.Getenv("AZURE_CONTAINER_NAME"),
+			Path:          os.Getenv("AZURE_STORAGE_PATH"),
+		}
+	case provider.GCS:
+		backupProvider = &backup.GCS{
+			BucketName:  os.Getenv("GCS_BUCKET_NAME"),
+			BucketPath:  os.Getenv("GCS_BUCKET_PATH"),
+			Credentials: []byte(help.GetEnv("GCS_CREDENTIALS", "")), // Uses local creds if empty
 		}
 	case provider.S3:
 		backupProvider = &backup.S3{
-			AWSAccessKeyId: help.GetEnv("AWS_ACCESS_KEY", ""),
-			AWSSecretKey:   help.GetEnv("AWS_SECRET_KEY", ""),
-			BucketRegion:   help.GetEnv("AWS_BUCKET_REGION", ""),
-			BucketName:     help.GetEnv("AWS_BUCKET_NAME", ""),
-			BucketPath:     help.GetEnv("AWS_BUCKET_PATH", ""),
+			AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY"),
+			AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),
+			BucketRegion:   os.Getenv("AWS_BUCKET_REGION"),
+			BucketName:     os.Getenv("AWS_BUCKET_NAME"),
+			BucketPath:     os.Getenv("AWS_BUCKET_PATH"),
 		}
 	case provider.FileSystem:
 		backupProvider = &backup.Local{

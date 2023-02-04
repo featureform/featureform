@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"github.com/featureform/config"
 	"io/ioutil"
-	"math/rand"
 	"os"
 	"reflect"
 	"strings"

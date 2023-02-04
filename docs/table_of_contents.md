@@ -44,6 +44,7 @@
 * [Kubernetes](deployment/kubernetes.md)
 * [AWS](deployment/aws.md)
 * [Local Mode](deployment/local-mode.md)
+* [Backup and Restore](deployment/backup-and-restore.md)
 
 ***
 

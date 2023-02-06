@@ -160,11 +160,10 @@ func NewAzureFileStore(config Config) (FileStore, error) {
 }
 
 type S3FileStoreConfig struct {
-	AWSAccessKeyId string
-	AWSSecretKey   string
-	BucketRegion   string
-	BucketPath     string
-	Path           string
+	Credentials  AWSCredentials
+	BucketRegion string
+	BucketPath   string
+	Path         string
 }
 
 func (s *S3FileStoreConfig) IsFileStoreConfig() bool {
@@ -205,7 +204,7 @@ func NewS3FileStore(config Config) (FileStore, error) {
 	cfg, err := awsv2cfg.LoadDefaultConfig(context.TODO(),
 		awsv2cfg.WithCredentialsProvider(credentials.StaticCredentialsProvider{
 			Value: aws.Credentials{
-				AccessKeyID: s3StoreConfig.AWSAccessKeyId, SecretAccessKey: s3StoreConfig.AWSSecretKey,
+				AccessKeyID: s3StoreConfig.Credentials.AWSAccessKeyId, SecretAccessKey: s3StoreConfig.Credentials.AWSSecretKey,
 			},
 		}))
 	if err != nil {

@@ -80,6 +80,14 @@ func (c myClient) Get(ctx context.Context, key string, opts ...clientv3.OpOption
 	return &getResp, nil
 }
 
+func (c myClient) Put(ctx context.Context, key string, val string, opts ...clientv3.OpOption) (*clientv3.PutResponse, error) {
+	return nil, nil
+}
+
+func (c myClient) Delete(ctx context.Context, key string, opts ...clientv3.OpOption) (*clientv3.DeleteResponse, error) {
+	return nil, nil
+}
+
 func TestBackup_takeSnapshot(t *testing.T) {
 
 	client := myClient{}

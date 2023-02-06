@@ -2,7 +2,7 @@ import pytest
 import sys
 sys.path.insert(0, 'client/src/')
 from featureform.register import Registrar, OfflineSparkProvider
-from featureform.resources import SparkConfig, Provider, DatabricksCredentials, AzureFileStoreConfig, AWSCredentials, S3StoreConfig, EMRCredentials
+from featureform.resources import SparkConfig, Provider, DatabricksCredentials, AzureFileStoreConfig, AWSCredentials, S3StoreConfig, EMRCredentials, SparkCredentials
 
 pytest_plugins = [
     'connection_test',
@@ -102,6 +102,37 @@ def emr_config(aws_credentials):
     }
 
     return config, expected_config
+
+
+@pytest.fixture(scope="module")
+def spark_executor():
+    master = "local"
+    deploy_mode = "cluster"
+
+    config = SparkCredentials(master, deploy_mode)
+
+    expected_config = {
+        "Master": master,
+        "DeployMode": deploy_mode,
+    }
+
+    return config, expected_config
+
+
+@pytest.fixture(scope="module")
+def spark_executor_incorrect_deploy_mode():
+    master = "local"
+    deploy_mode = "featureform"
+
+    config = SparkCredentials(master, deploy_mode)
+
+    expected_config = {
+        "Master": master,
+        "DeployMode": deploy_mode,
+    }
+
+    return config, expected_config
+
 
 @pytest.fixture(scope="module")
 def databricks():

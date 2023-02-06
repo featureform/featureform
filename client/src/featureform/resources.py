@@ -1397,5 +1397,27 @@ class EMRCredentials:
             "Credentials": self.credentials.config(),
         }
 
+@typechecked
+@dataclass
+class SparkCredentials:
+    def __init__(self,
+                 master: str,
+                 deploy_mode: str,
+                ):
 
-ExecutorCredentials = Union[EMRCredentials, DatabricksCredentials]
+        if deploy_mode != "cluster" and deploy_mode != "client":
+            raise Exception(f"Spark does not support '{deploy_mode}' deploy mode. It only supports 'cluster' and 'client'.")
+
+        self.master = master
+        self.deploy_mode = deploy_mode
+
+    def type(self):
+        return "SPARK"
+
+    def config(self):
+        return {
+            "Master": self.master,
+            "DeployMode": self.deploy_mode,
+        }
+
+ExecutorCredentials = Union[EMRCredentials, DatabricksCredentials, SparkCredentials]

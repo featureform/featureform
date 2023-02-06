@@ -1396,5 +1396,23 @@ class EMRCredentials:
             "Credentials": self.credentials.config(),
         }
 
+@typechecked
+@dataclass
+class SparkExecutor:
+    def __init__(self,
+                 master: str,
+                 deploy_mode: str,
+                ):
+        self.master = master
+        self.deploy_mode = deploy_mode
 
-ExecutorCredentials = Union[EMRCredentials, DatabricksCredentials]
+    def type(self):
+        return "SPARK"
+
+    def config(self):
+        return {
+            "Master": self.master,
+            "DeployMode": self.deploy_mode,
+        }
+
+ExecutorCredentials = Union[EMRCredentials, DatabricksCredentials, SparkExecutor]

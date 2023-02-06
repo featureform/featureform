@@ -1399,7 +1399,7 @@ class EMRCredentials:
 
 @typechecked
 @dataclass
-class SparkExecutor:
+class SparkCredentials:
     def __init__(self,
                  master: str,
                  deploy_mode: str,
@@ -1420,4 +1420,4 @@ class SparkExecutor:
             "DeployMode": self.deploy_mode,
         }
 
-ExecutorCredentials = Union[EMRCredentials, DatabricksCredentials, SparkExecutor]
+ExecutorCredentials = Union[EMRCredentials, DatabricksCredentials, SparkCredentials]

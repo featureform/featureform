@@ -90,6 +90,35 @@ def test_df_transformation_empty_description(registrar):
     # Checks that Transformation definition does not error when converting to source
     dec.to_source()
 
+@pytest.mark.parametrize(
+    "resource_serving_client_fxt,is_local",
+    [
+        ('resource_serving_clients', True),
+        ('resource_serving_clients', False),
+    ]
+)
+def test_valid_model_registration(resource_serving_client_fxt, is_local, request):
+    resource_client = request.getfixturevalue(resource_serving_client_fxt)(is_local)[0];
+    model_name = "model_a"
+
+    model = resource_client.register_model(model_name)
+
+    assert isinstance(model, ModelRegistrar) and model.name() == model_name
+
+
+@pytest.mark.parametrize(
+    "resource_serving_client_fxt,is_local",
+    [
+        ('resource_serving_clients', True),
+        ('resource_serving_clients', False),
+    ]
+)
+def test_invalid_model_registration(resource_serving_client_fxt, is_local, request):
+    resource_client = request.getfixturevalue(resource_serving_client_fxt)(is_local)[0];
+
+    with pytest.raises(TypeError, match="missing 1 required positional argument: 'name'"):
+        model = resource_client.register_model()
+
 
 def del_rw(action, name, exc):
     os.chmod(name, stat.S_IWRITE)

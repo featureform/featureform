@@ -1,8 +1,27 @@
+import csv
+import os
 import pytest
 import sys
+import shutil
+import stat
+from tempfile import NamedTemporaryFile
 sys.path.insert(0, 'client/src/')
-from featureform.register import Registrar, OfflineSparkProvider
-from featureform.resources import SparkConfig, Provider, DatabricksCredentials, AzureFileStoreConfig, AWSCredentials, S3StoreConfig, EMRCredentials
+from featureform.register import Registrar, OfflineSparkProvider, LocalProvider, OfflineSQLProvider
+from featureform.resources import (
+    AWSCredentials,
+    AzureFileStoreConfig,
+    DatabricksCredentials,
+    EMRCredentials,
+    LocalConfig,
+    S3StoreConfig,
+    SparkConfig,
+    PostgresConfig,
+    Provider,
+)
+import featureform as ff
+
+real_path = os.path.realpath(__file__)
+dir_path = os.path.dirname(real_path)
 
 pytest_plugins = [
     'connection_test',
@@ -120,3 +139,63 @@ def azure_blob():
 @pytest.fixture(scope="module")
 def s3(aws_credentials):
     return S3StoreConfig("bucket_path", "bucket_region", aws_credentials)
+
+@pytest.fixture(scope="module")
+def local_provider():
+    ff.register_user("test_user").make_default_owner()
+    return ff.register_local()
+
+@pytest.fixture(scope="module")
+def local_provider_and_source(local_provider):
+    local_source = local_provider.register_file(
+                name="transactions",
+                variant="quickstart",
+                description="A dataset of fraudulent transactions.",
+                path=f"{dir_path}/test_files/input_files/transactions.csv"
+            )
+    return (local_provider, local_source)
+
+@pytest.fixture(scope="module")
+def resource_serving_clients():
+    def get_clients_for_context(is_local):
+            resource_client = ff.ResourceClient(local=is_local)
+            serving_client = ff.ServingClient(local=is_local)
+
+            return (resource_client, serving_client)
+    
+    return get_clients_for_context
+
+
+@pytest.fixture(scope="module")
+def setup_teardown():
+    def clear_state_and_reset():
+        ff.clear_state()
+        shutil.rmtree('.featureform', onerror=del_rw)
+
+    return clear_state_and_reset
+
+def del_rw(action, name, exc):
+    if os.path.exists(name):
+        os.chmod(name, stat.S_IWRITE)
+        os.remove(name)
+
+@pytest.fixture(scope="module")
+def hosted_sql_provider_and_source():
+    provider = ff.register_postgres(
+        name = "postgres-quickstart",
+        host="0.0.0.0",
+        port="5432",
+        user="postgres",
+        password="password",
+        database="postgres",
+        description = "A Postgres deployment we created for the Featureform quickstart"
+    )
+
+    source = provider.register_table(
+        name = "transactions",
+        variant = "kaggle",
+        description = "Fraud Dataset From Kaggle",
+        table = "Transactions", # This is the table's name in Postgres
+    )
+
+    return (provider, source)

@@ -36,5 +36,5 @@ echo ""
 
 # Check Values
 echo "Checking Values...."
-go test ./tests/integration/backup/
+go test ./tests/integration/backup/ -tags=backup
 echo ""

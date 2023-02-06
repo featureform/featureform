@@ -1,3 +1,6 @@
+//go:build backup
+// +build backup
+
 package main
 
 import (

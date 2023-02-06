@@ -15,7 +15,7 @@ import (
 
 func TestGenerateSnapshotName(t *testing.T) {
 	currentTimestamp, _ := time.Parse(time.RFC3339, "2020-11-12T10:05:01Z")
-	expectedName := fmt.Sprintf("%s__%s.db", "featureform_etcd_snapshot", "2020-11-12_10:05:01")
+	expectedName := fmt.Sprintf("%s__%s.db", "featureform_snapshot", "2020-11-12_10:05:01")
 	snapshot := GenerateSnapshotName(currentTimestamp)
 
 	if snapshot != expectedName {

@@ -120,6 +120,21 @@ def spark_executor():
 
 
 @pytest.fixture(scope="module")
+def spark_executor_incorrect_deploy_mode():
+    master = "local"
+    deploy_mode = "featureform"
+
+    config = SparkExecutor(master, deploy_mode)
+
+    expected_config = {
+        "Master": master,
+        "DeployMode": deploy_mode,
+    }
+
+    return config, expected_config
+
+
+@pytest.fixture(scope="module")
 def databricks():
     return DatabricksCredentials(username="a", password="b", cluster_id="c_id")
 

@@ -139,6 +139,7 @@ def test_store_config(store_config, request):
         "databricks_config",
         "emr_config",
         "spark_executor",
+        pytest.param("spark_executor_incorrect_deploy_mode", marks=pytest.mark.xfail),
     ]
 )
 def test_executor_config(executor_config, request):

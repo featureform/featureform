@@ -1403,6 +1403,10 @@ class SparkExecutor:
                  master: str,
                  deploy_mode: str,
                 ):
+
+        if deploy_mode != "cluster" and deploy_mode != "client":
+            raise Exception(f"Spark does not support '{deploy_mode}' deploy mode. It only supports 'cluster' and 'client'.")
+
         self.master = master
         self.deploy_mode = deploy_mode
 

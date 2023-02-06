@@ -626,8 +626,91 @@ func (e EMRExecutor) InitializeExecutor(store FileStore) error {
 	return store.Write(sparkScriptPath, buff)
 }
 
-func NewSparkExecutor(execType SparkExecutorType, config SparkExecutorConfig, logger *zap.SugaredLogger) (SparkExecutor, error) {
+// type SparkExecutor interface {
+// 	RunSparkJob(args *[]string, store FileStore) error
+// 	InitializeExecutor(store FileStore) error
+// 	PythonFileURI(store FileStore) string
+// 	SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store FileStore) []string
+// 	GetDFArgs(outputURI string, code string, sources []string, store FileStore) ([]string, error)
+// }
 
+type SparkGenericExecutor struct {
+	master     string
+	deployMode string
+	logger     *zap.SugaredLogger
+}
+
+func (s *SparkGenericExecutor) InitializeExecutor(store FileStore) error {
+	s.logger.Info("uploading pyspark script to filestore")
+	sparkScriptPath := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/offline_store_spark_runner.py")
+	scriptFile, err := os.Open(sparkScriptPath)
+	if err != nil {
+		return err
+	}
+	buff := make([]byte, 4096)
+	_, err = scriptFile.Read(buff)
+	if err != nil {
+		return err
+	}
+	return store.Write(sparkScriptPath, buff)
+}
+
+func (s *SparkGenericExecutor) RunSparkJob(args *[]string, store FileStore) error {
+	// TODO
+	sparkSubmitCommand := fmt.Sprintf("spark-submit --master %s --deploy-mode %s", s.master, s.deployMode)
+	s.logger.Infow("created spark-submit: ", sparkSubmitCommand)
+
+	return nil
+}
+
+func (s *SparkGenericExecutor) PythonFileURI(store FileStore) string {
+	// TODO
+	return ""
+}
+
+func (s *SparkGenericExecutor) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store FileStore) []string {
+	argList := []string{
+		"spark-submit",
+		"--master",
+		s.master,
+		"--deploy-mode",
+		s.deployMode,
+		store.PathWithPrefix("featureform/scripts/offline_store_spark_runner.py", true),
+		"sql",
+		"--output_uri",
+		store.PathWithPrefix(destPath, true),
+		"--sql_query",
+		cleanQuery,
+		"--job_type",
+		string(jobType),
+		"--source_list",
+	}
+	argList = append(argList, sourceList...)
+	return argList
+}
+
+func (s *SparkGenericExecutor) GetDFArgs(outputURI string, code string, sources []string, store FileStore) ([]string, error) {
+	argList := []string{
+		"spark-submit",
+		"--master",
+		s.master,
+		"--deploy-mode",
+		s.deployMode,
+		store.PathWithPrefix("featureform/scripts/offline_store_spark_runner.py", true),
+		"df",
+		"--output_uri",
+		outputURI,
+		"--code",
+		store.PathWithPrefix(code, true),
+		"--source",
+	}
+
+	argList = append(argList, sources...)
+
+	return argList, nil
+}
+
+func NewSparkExecutor(execType SparkExecutorType, config SparkExecutorConfig, logger *zap.SugaredLogger) (SparkExecutor, error) {
 	switch execType {
 	case EMR:
 		emrConfig, ok := config.(*EMRConfig)

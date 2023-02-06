@@ -152,6 +152,53 @@ def test_registering_same_model_twice_while_serving_features(provider_source_fxt
     assert [model_name] == models
 
 
+@pytest.mark.parametrize(
+    "provider_source_fxt,resource_serving_client_fxt,is_local",
+    [
+        ('local_provider_and_source', 'resource_serving_clients', True),
+        ('hosted_sql_provider_and_source','resource_serving_clients', False),
+    ]
+)
+def test_registering_two_models_while_serving_features(provider_source_fxt,resource_serving_client_fxt, is_local, request):
+    provider, source = request.getfixturevalue(provider_source_fxt);
+    resource_client, serving_client = request.getfixturevalue(resource_serving_client_fxt)(is_local);
+
+    # Arranges the resources context following the Quickstart pattern
+    arrange_resources(provider, source, resource_client, is_local)
+
+    model_name_a = 'fraud_model_a';
+    model_name_b = 'fraud_model_b';
+
+    serving_client.features([("avg_transactions", "quickstart")], {"user": "C1410926"}, model=model_name_a)
+    serving_client.features([("avg_transactions", "quickstart")], {"user": "C1410926"}, model=model_name_b)
+
+    models = resource_client.list_models(is_local)
+
+    assert [model_name_a, model_name_b] == models
+
+
+@pytest.mark.parametrize(
+    "provider_source_fxt,resource_serving_client_fxt,is_local",
+    [
+        ('local_provider_and_source', 'resource_serving_clients', True),
+        ('hosted_sql_provider_and_source','resource_serving_clients', False),
+    ]
+)
+def test_no_models_registered_while_serving_training_set(provider_source_fxt,resource_serving_client_fxt, is_local, request):
+    provider, source = request.getfixturevalue(provider_source_fxt);
+    resource_client, serving_client = request.getfixturevalue(resource_serving_client_fxt)(is_local);
+
+    # Arranges the resources context following the Quickstart pattern
+    arrange_resources(provider, source, resource_client, is_local)
+
+    serving_client.features([("avg_transactions", "quickstart")], {"user": "C1410926"})
+    serving_client.features([("avg_transactions", "quickstart")], {"user": "C1410926"})
+
+    models = resource_client.list_models(is_local)
+
+    assert len(models) == 0
+
+
 @pytest.fixture(autouse=True)
 def before_and_after_each(setup_teardown):
     setup_teardown()
@@ -170,9 +217,11 @@ def arrange_resources(provider, source, resource_client, is_local):
             return "SELECT CustomerID as user_id, avg(TransactionAmount) as avg_transaction_amt from {{transactions.kaggle}} GROUP BY user_id"
 
     user = ff.register_entity("user")
+    entity_column = "CustomerID" if is_local else "user_id"
+
     average_user_transaction.register_resources(
         entity=user,
-        entity_column="CustomerID",
+        entity_column=entity_column,
         inference_store=provider,
         features=[
             {"name": "avg_transactions", "variant": "quickstart", "column": "TransactionAmount", "type": "float32"},
@@ -181,7 +230,7 @@ def arrange_resources(provider, source, resource_client, is_local):
 
     source.register_resources(
         entity=user,
-        entity_column="CustomerID",
+        entity_column=entity_column,
         labels=[
             {"name": "fraudulent", "variant": "quickstart", "column": "IsFraud", "type": "bool"},
         ],

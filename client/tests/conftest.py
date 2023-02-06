@@ -158,24 +158,13 @@ def local_provider_and_source(local_provider):
 @pytest.fixture(scope="module")
 def resource_serving_clients():
     def get_clients_for_context(is_local):
-            resource_client = ff.ResourceClient(local=True)
-            serving_client = ff.ServingClient(local=True)
+            resource_client = ff.ResourceClient(local=is_local)
+            serving_client = ff.ServingClient(local=is_local)
 
             return (resource_client, serving_client)
     
     return get_clients_for_context
 
-@pytest.fixture(scope="module")
-def create_temp_file(contents):
-    file = NamedTemporaryFile(delete=False)
-    with open(file.name, 'w') as csvfile:
-        writer = csv.writer(csvfile, delimiter=',', quotechar='|')
-        writer.writerow(contents['columns'])
-        for row in contents['values']:
-            writer.writerow(row)
-        csvfile.close()
-
-    return file.name
 
 @pytest.fixture(scope="module")
 def setup_teardown():

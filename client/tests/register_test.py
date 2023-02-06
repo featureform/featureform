@@ -103,8 +103,6 @@ def test_valid_model_registration(resource_serving_client_fxt, is_local, request
 
     model = resource_client.register_model(model_name)
 
-    resource_client.apply()
-
     assert isinstance(model, ModelRegistrar) and model.name() == model_name
 
 

@@ -565,7 +565,7 @@ func (s *SparkGenericExecutor) InitializeExecutor(store FileStore) error {
 	return nil
 }
 
-func (s *SparkGenericExecutor) RunSparkJob(args *[]string, store FileStore) error {
+func (s *SparkGenericExecutor) RunSparkJob(args []string, store FileStore) error {
 	bashCommand := "bash"
 	sparkArgs := *args
 	sparkArgsString := strings.Join(sparkArgs, " ")

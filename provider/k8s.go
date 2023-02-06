@@ -482,23 +482,6 @@ func (store genericFileStore) PathWithPrefix(path string, remote bool) string {
 	}
 }
 
-func (store AzureFileStore) PathWithPrefix(path string, remote bool) string {
-	if !remote {
-		if len(path) != 0 && path[0:len(store.Path)] != store.Path && store.Path != "" {
-			return fmt.Sprintf("%s/%s", store.Path, path)
-		}
-	}
-	if remote {
-		prefix := ""
-		pathContainsPrefix := path[:len(store.Path)] == store.Path
-		if store.Path != "" && !pathContainsPrefix {
-			prefix = fmt.Sprintf("%s/", store.Path)
-		}
-		return fmt.Sprintf("abfss://%s@%s.dfs.core.windows.net/%s%s", store.ContainerName, store.AccountName, prefix, path)
-	}
-	return path
-}
-
 func (store genericFileStore) NewestFile(prefix string) (string, error) {
 	opts := blob.ListOptions{
 		Prefix: prefix,

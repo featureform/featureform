@@ -97,6 +97,23 @@ func (store AzureFileStore) AsAzureStore() *AzureFileStore {
 	return &store
 }
 
+func (store AzureFileStore) PathWithPrefix(path string, remote bool) string {
+	if !remote {
+		if len(path) != 0 && path[0:len(store.Path)] != store.Path && store.Path != "" {
+			return fmt.Sprintf("%s/%s", store.Path, path)
+		}
+	}
+	if remote {
+		prefix := ""
+		pathContainsPrefix := path[:len(store.Path)] == store.Path
+		if store.Path != "" && !pathContainsPrefix {
+			prefix = fmt.Sprintf("%s/", store.Path)
+		}
+		return fmt.Sprintf("abfss://%s@%s.dfs.core.windows.net/%s%s", store.ContainerName, store.AccountName, prefix, path)
+	}
+	return path
+}
+
 type AzureFileStoreConfig struct {
 	AccountName   string
 	AccountKey    string
@@ -192,8 +209,23 @@ type S3FileStore struct {
 	genericFileStore
 }
 
-func (s *S3FileStore) BlobPath(sourceKey string) string {
+func (s3 *S3FileStore) BlobPath(sourceKey string) string {
 	return sourceKey
+}
+
+func (s3 *S3FileStore) PathWithPrefix(path string, remote bool) string {
+	s3PrefixLength := len("s3://")
+	noS3Prefix := path[:s3PrefixLength] != "s3://"
+
+	if remote && noS3Prefix {
+		s3Path := ""
+		if s3.Path != "" {
+			s3Path = fmt.Sprintf("/%s", s3.Path)
+		}
+		return fmt.Sprintf("s3://%s%s/%s", s3.Bucket, s3Path, path)
+	} else {
+		return path
+	}
 }
 
 func NewS3FileStore(config Config) (FileStore, error) {

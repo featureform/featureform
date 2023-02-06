@@ -287,6 +287,7 @@ jobs:
       - name: Install Python Dependencies
         run: |
           pip install pyyaml click
+          pip install -r ./backup/requirements.txt
 
 
       - name: Check Artifacts

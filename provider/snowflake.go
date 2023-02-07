@@ -24,7 +24,6 @@ var snowflakeParameters = map[string]string{
 	"Region":    "region",
 	"Warehouse": "warehouse",
 	"Role":      "role",
-	"Token":     "token",
 }
 
 type snowflakeConnectionString struct {
@@ -67,7 +66,7 @@ func (sc *snowflakeConnectionString) getConnectionArgs(config *SnowflakeConfig) 
 		if base != "?" {
 			base += ","
 		}
-		if val, ok := snowflakeParameters[typeOfS.Field(i).Name]; ok {
+		if val, ok := snowflakeParameters[typeOfS.Field(i).Name]; ok && v.Field(i).Interface() != "" {
 			base += fmt.Sprintf("%s=%s", val, v.Field(i).Interface())
 		}
 	}
@@ -122,10 +121,8 @@ type SnowflakeConfig struct {
 	Account        string
 	Database       string
 	Schema         string
-	Region         string
 	Warehouse      string
 	Role           string
-	Token          string
 }
 
 func (sf *SnowflakeConfig) Deserialize(config SerializedConfig) error {

@@ -1617,6 +1617,10 @@ class Registrar:
             schema: str = "PUBLIC",
             description: str = "",
             team: str = "",
+            warehouse: str = "",
+            role: str = "",
+
+
     ):
         """Register a Snowflake provider.
 
@@ -1643,6 +1647,8 @@ class Registrar:
             schema (str): Schema
             description (str): Description of Snowflake provider to be registered
             team (str): Name of team
+            warehouse (str): Specifies the virtual warehouse to use by default for queries, loading, etc.
+            role (str): Specifies the role to use by default for accessing Snowflake objects in the client session
 
         Returns:
             snowflake (OfflineSQLProvider): Provider
@@ -1652,7 +1658,9 @@ class Registrar:
                                  organization=organization,
                                  username=username,
                                  password=password,
-                                 schema=schema)
+                                 schema=schema,
+                                 warehouse=warehouse,
+                                 role=role)
         provider = Provider(name=name,
                             function="OFFLINE",
                             description=description,

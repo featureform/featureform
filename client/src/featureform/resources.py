@@ -355,6 +355,8 @@ class SnowflakeConfig:
     organization: str = ""
     database: str = ""
     account_locator: str = ""
+    warehouse: str = "",
+    role: str = ""
 
     def __post_init__(self):
         if self.__has_legacy_credentials() and self.__has_current_credentials():
@@ -389,6 +391,8 @@ class SnowflakeConfig:
             "Account": self.account,
             "Schema": self.schema,
             "Database": self.database,
+            "Warehouse": self.warehouse,
+            "Role": self.role
         }
         return bytes(json.dumps(config), "utf-8")
 

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	_ "github.com/snowflakedb/gosnowflake"
+	"reflect"
 )
 
 // sqlColumnType is used to specify the column type of a resource value.
@@ -19,6 +20,100 @@ const (
 	sfTimestamp                     = "TIMESTAMP_NTZ"
 )
 
+var snowflakeParameters = map[string]string{
+	"Region":    "region",
+	"Warehouse": "warehouse",
+	"Role":      "role",
+	"Token":     "token",
+}
+
+type snowflakeConnectionString struct {
+	Username       string
+	Password       string
+	AccountLocator string
+	Organization   string
+	Account        string
+	Database       string
+	Schema         string
+	connection     string
+	baseConnection string
+}
+
+func (sc *snowflakeConnectionString) String() string {
+	return sc.connection
+}
+
+func (sc *snowflakeConnectionString) UseConfig(config *SnowflakeConfig) error {
+	sc.Username = config.Username
+	sc.Password = config.Password
+	sc.AccountLocator = config.AccountLocator
+	sc.Organization = config.Organization
+	sc.Account = config.Account
+	sc.Database = config.Database
+	sc.Schema = config.Schema
+	if err := sc.setBaseConnection(); err != nil {
+		return err
+	}
+	sc.connection = fmt.Sprintf("%s%s", sc.baseConnection, sc.getConnectionArgs(config))
+	return nil
+}
+
+func (sc *snowflakeConnectionString) getConnectionArgs(config *SnowflakeConfig) string {
+	base := "?"
+	v := reflect.ValueOf(config)
+	typeOfS := v.Type()
+
+	for i := 0; i < v.NumField(); i++ {
+		if base != "?" {
+			base += ","
+		}
+		if val, ok := snowflakeParameters[typeOfS.Field(i).Name]; ok {
+			base += fmt.Sprintf("%s=%s", val, v.Field(i).Interface())
+		}
+	}
+	if base == "?" {
+		return ""
+	}
+	return base
+}
+
+func (sc *snowflakeConnectionString) setBaseConnection() error {
+	isLegacy := sc.hasLegacyCredentials()
+	isCurrent, err := sc.hasCurrentCredentials()
+	if err != nil {
+		return fmt.Errorf("could not check credentials: %v", err)
+	}
+	if isLegacy && isCurrent {
+		return fmt.Errorf("cannot use both legacy and current credentials")
+	} else if isLegacy && !isCurrent {
+		sc.baseConnection = fmt.Sprintf("%s:%s@%s/%s/%s", sc.Username, sc.Password, sc.AccountLocator, sc.Database, sc.schema())
+	} else if !isLegacy && isCurrent {
+		sc.baseConnection = fmt.Sprintf("%s:%s@%s-%s/%s/%s", sc.Username, sc.Password, sc.Organization, sc.Account, sc.Database, sc.schema())
+	} else {
+		return fmt.Errorf("credentials not found")
+	}
+	return nil
+}
+
+func (sc *snowflakeConnectionString) hasLegacyCredentials() bool {
+	return sc.AccountLocator != ""
+}
+
+func (sc *snowflakeConnectionString) hasCurrentCredentials() (bool, error) {
+	if (sc.Account != "" && sc.Organization == "") || (sc.Account == "" && sc.Organization != "") {
+		return false, fmt.Errorf("credentials must include both Account and Organization")
+	} else {
+		return sc.Account != "" && sc.Organization != "", nil
+	}
+}
+
+func (sc *snowflakeConnectionString) schema() string {
+	if sc.Schema == "" {
+		return "PUBLIC"
+	}
+	return sc.Schema
+}
+
 type SnowflakeConfig struct {
 	Username       string
 	Password       string
@@ -27,6 +122,10 @@ type SnowflakeConfig struct {
 	Account        string
 	Database       string
 	Schema         string
+	Region         string
+	Warehouse      string
+	Role           string
+	Token          string
 }
 
 func (sf *SnowflakeConfig) Deserialize(config SerializedConfig) error {
@@ -46,39 +145,12 @@ func (sf *SnowflakeConfig) Serialize() []byte {
 }
 
 func (sf *SnowflakeConfig) ConnectionString() (string, error) {
-	isLegacy := sf.hasLegacyCredentials()
-	isCurrent, err := sf.hasCurrentCredentials()
+	connectionString := snowflakeConnectionString{}
+	err := connectionString.UseConfig(sf)
 	if err != nil {
-		return "", fmt.Errorf("could not check credentials: %v", err)
+		return "", err
 	}
-	if isLegacy && isCurrent {
-		return "", fmt.Errorf("cannot use both legacy and current credentials")
-	} else if isLegacy && !isCurrent {
-		return fmt.Sprintf("%s:%s@%s/%s/%s", sf.Username, sf.Password, sf.AccountLocator, sf.Database, sf.schema()), nil
-	} else if !isLegacy && isCurrent {
-		return fmt.Sprintf("%s:%s@%s-%s/%s/%s", sf.Username, sf.Password, sf.Organization, sf.Account, sf.Database, sf.schema()), nil
-	} else {
-		return "", fmt.Errorf("credentials not found")
-	}
-}
-
-func (sf *SnowflakeConfig) hasLegacyCredentials() bool {
-	return sf.AccountLocator != ""
-}
-
-func (sf *SnowflakeConfig) hasCurrentCredentials() (bool, error) {
-	if (sf.Account != "" && sf.Organization == "") || (sf.Account == "" && sf.Organization != "") {
-		return false, fmt.Errorf("credentials must include both Account and Organization")
-	} else {
-		return sf.Account != "" && sf.Organization != "", nil
-	}
-}
-
-func (sf *SnowflakeConfig) schema() string {
-	if sf.Schema == "" {
-		return "PUBLIC"
-	}
-	return sf.Schema
+	return connectionString.String(), nil
 }
 
 type snowflakeSQLQueries struct {

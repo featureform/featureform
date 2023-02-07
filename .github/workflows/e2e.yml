@@ -36,6 +36,32 @@ jobs:
           name: api-server
           path: /tmp/api-server.tar
 
+  backup:
+    name: Build Backup
+    defaults:
+      run:
+        working-directory: ./
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build and export
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./backup/Dockerfile
+          tags: local/backup:stable
+          push: false
+          outputs: type=docker,dest=/tmp/backup.tar
+      - name: Upload image
+        uses: actions/upload-artifact@v3
+        with:
+          name: backup
+          path: /tmp/backup.tar
+
   coordinator:
     name: Build Coordinator
     defaults:
@@ -193,6 +219,7 @@ jobs:
         with:
           name: worker
           path: /tmp/worker.tar
+
   k8s_runner:
     name: Build K8s Runner
     defaults:
@@ -234,7 +261,7 @@ jobs:
   test:
     name: Run Tests
     environment: Integration testing
-    needs: [api-server, coordinator, dashboard, dashboard-metadata, metadata, serving, worker, k8s_runner]
+    needs: [api-server, coordinator, dashboard, dashboard-metadata, metadata, serving, worker, k8s_runner, backup]
     defaults:
       run:
         working-directory: ./
@@ -244,13 +271,23 @@ jobs:
       - name: Download artifact
         uses: actions/download-artifact@v3
         with:
-          names: api-server coordinator dashboard dashboard-metadata metadata serving worker k8s_runner k8s_runner_scikit
+          names: api-server coordinator dashboard dashboard-metadata metadata serving worker k8s_runner k8s_runner_scikit backup
           path: /tmp
 
       - uses: actions/setup-python@v4
         with:
           python-version: "3.7"
           check-latest: true
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.18
+
+      - name: Install Python Dependencies
+        run: |
+          pip install pyyaml click
+          pip install -r ./backup/requirements.txt
 
 
       - name: Check Artifacts
@@ -278,6 +315,7 @@ jobs:
           
           /tmp/etcd-download-test/etcd --version
           /tmp/etcd-download-test/etcdctl version
+          echo "/tmp/etcd-download-test/" >> $GITHUB_PATH
 
       - name: Install minikube and helm
         run: |
@@ -303,6 +341,7 @@ jobs:
           docker load --input /tmp/worker/worker.tar
           docker load --input /tmp/k8s_runner/k8s_runner.tar
           docker load --input /tmp/k8s_runner_scikit/k8s_runner_scikit.tar
+          docker load --input /tmp/backup/backup.tar
           minikube image load local/api-server:stable
           minikube image load local/coordinator:stable
           minikube image load local/dashboard:stable
@@ -312,6 +351,7 @@ jobs:
           minikube image load local/worker:stable
           minikube image load local/k8s_runner:stable
           minikube image load local/k8s_runner:scikit-stable
+          minikube image load local/backup:stable
           minikube image ls
 
       - name: Helm Install
@@ -319,7 +359,17 @@ jobs:
           helm repo add jetstack https://charts.jetstack.io
           helm repo update
           helm install certmgr jetstack/cert-manager --set installCRDs=true --version v1.8.0 --namespace cert-manager --create-namespace
-          helm install featureform ./charts/featureform --set global.repo=local --set global.pullPolicy=Never --set global.version=stable
+          helm install featureform ./charts/featureform --set global.repo=local --set global.pullPolicy=Never --set global.version=stable --set backup.enabled=true --set backup.schedule="* * * * *"
+
+      - name: Create Secret
+        env:
+          AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
+          AZURE_STORAGE_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
+          AZURE_CONTAINER: ${{ secrets.AZURE_CONTAINER_NAME }}
+          STORAGE_PATH: "backup"
+        run: |
+          python backup/create_secret.py azure $AZURE_ACCOUNT_NAME "$AZURE_STORAGE_KEY" $AZURE_CONTAINER $STORAGE_PATH
+          kubectl apply -f backup_secret.yaml
 
       - name: Run CLI
         run: |
@@ -361,6 +411,42 @@ jobs:
           recursiveLinks: true
       - name: Print result
         run: echo "${{steps.link-report.outputs.result}}"
+
+      # Backup runs every 60 seconds
+      - name: Wait for backup to complete
+        run: sleep 90
+
+      - name: Disable Backup
+        run: helm upgrade featureform ./charts/featureform --reuse-values --set backup.enabled=false
+
+      - name: Clear ETCD
+        run: |
+          kubectl port-forward svc/featureform-etcd 2379:2379 &
+          /tmp/etcd-download-test/etcdctl --user=root:secretpassword del "" --prefix
+
+      - name: Check ETCD Empty
+        run: |
+          chmod +x ./tests/end_to_end/backup/check_etcd_empty.sh
+          ./tests/end_to_end/backup/check_etcd_empty.sh
+
+      - name: Restore
+        env:
+          ETCD_USERNAME: "root"
+          ETCD_PASSWORD: "secretpassword"
+          CLOUD_PROVIDER: "AZURE"
+          AZURE_STORAGE_ACCOUNT: ${{ secrets.AZURE_ACCOUNT_NAME }}
+          AZURE_STORAGE_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
+          AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
+          AZURE_STORAGE_PATH: "backup"
+        working-directory: ./backup/restore
+        run: ./restore.sh --force
+
+      - name: Test Restored Data
+        env:
+          FEATUREFORM_TEST_PATH: "tests/end_to_end/"
+          FEATUREFORM_HOST: "localhost:8000"
+          FEATUREFORM_CERT: "tls.crt"
+        run: python tests/end_to_end/serving.py
 
       - name: Reset Quickstart
         run: |

@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/featureform/config"
+	"io/ioutil"
 	"math/rand"
 	"os"
 	"reflect"
@@ -116,6 +117,7 @@ func TestBlobInterfaces(t *testing.T) {
 		"Test Path with prefix":          testPathWithPrefix,
 		"Test Num Rows":                  testNumRows,
 		"Test Databricks Initialization": testDatabricksInitialization,
+		"Test File Upload and Download":  testFileUploadAndDownload,
 	}
 
 	err := godotenv.Load("../.env")
@@ -128,12 +130,12 @@ func TestBlobInterfaces(t *testing.T) {
 	directoryPath := fmt.Sprintf("%s/scripts/k8s/tests/test_files/output/go_tests", mydir)
 	_ = os.MkdirAll(directoryPath, os.ModePerm)
 
-	fileStoreConfig := FileFileStoreConfig{DirPath: fmt.Sprintf(`file:///%s`, directoryPath)}
+	fileStoreConfig := LocalFileStoreConfig{DirPath: fmt.Sprintf(`file:///%s`, directoryPath)}
 	serializedFileConfig, err := fileStoreConfig.Serialize()
 	if err != nil {
 		t.Fatalf("failed to serialize file store config: %v", err)
 	}
-	fileFileStore, err := NewFileFileStore(serializedFileConfig)
+	fileFileStore, err := NewLocalFileStore(serializedFileConfig)
 	if err != nil {
 		t.Fatalf("failed to create new file blob store: %v", err)
 	}
@@ -169,6 +171,49 @@ func TestBlobInterfaces(t *testing.T) {
 	}
 	for _, blobProvider := range blobProviders {
 		blobProvider.Close()
+	}
+}
+
+func testFileUploadAndDownload(t *testing.T, store FileStore) {
+	testId := uuidWithoutDashes()
+	fileContent := "testing file upload"
+	sourceFile := fmt.Sprintf("fileUploadTest_%s.txt", testId)
+	destPath := fmt.Sprintf("fileUploadTest_%s.txt", testId)
+	localDestPath := fmt.Sprintf("fileDownloadTest_%s.txt", testId)
+
+	f, err := os.Create(sourceFile)
+	if err != nil {
+		t.Fatalf("could not create file to upload because %v", err)
+	}
+	defer f.Close()
+
+	f.Write([]byte(fileContent))
+
+	err = store.Upload(sourceFile, destPath)
+	if err != nil {
+		t.Fatalf("could not upload file because %v", err)
+	}
+
+	exists, err := store.Exists(destPath)
+	if err != nil {
+		t.Fatalf("could not determine if file exists because %v", err)
+	}
+	if !exists {
+		t.Fatalf("could not upload file to %s", destPath)
+	}
+
+	err = store.Download(destPath, localDestPath)
+	if err != nil {
+		t.Fatalf("could not download %s file to %s because %v", destPath, localDestPath, err)
+	}
+
+	content, err := ioutil.ReadFile(localDestPath)
+	if err != nil {
+		t.Fatalf("could not read local file at %s because %v", localDestPath, err)
+	}
+
+	if string(content) != fileContent {
+		t.Fatalf("the file contents are not the same. Got %s but expected %s", string(content), fileContent)
 	}
 }
 
@@ -542,7 +587,7 @@ func testNewestFile(t *testing.T, store FileStore) {
 		}
 		time.Sleep(1 * time.Second) // To guarantee ordering of created in metadata follows struct ordering
 	}
-	newestFile, err := store.NewestFile(randomDirectory)
+	newestFile, err := store.NewestFileOfType(randomDirectory, Parquet)
 	if err != nil {
 		t.Fatalf("Error getting newest file from directory: %v", err)
 	}
@@ -565,7 +610,7 @@ func testPathWithPrefix(t *testing.T, store FileStore) {
 			t.Fatalf("Incorrect path with prefix. Expected %s, got %s", fmt.Sprintf("%s/%s", azureStore.Path, randomKey), azurePathWithPrefix)
 		}
 	}
-	fileFileStore, ok := store.(FileFileStore)
+	fileFileStore, ok := store.(LocalFileStore)
 	if ok {
 		filePathWithPrefix := fileFileStore.PathWithPrefix(randomKey, false)
 		if filePathWithPrefix != fmt.Sprintf("%s%s", fileFileStore.DirPath, randomKey) {

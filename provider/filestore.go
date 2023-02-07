@@ -183,10 +183,6 @@ type S3FileStoreConfig struct {
 	Path         string
 }
 
-func (s *S3FileStoreConfig) IsFileStoreConfig() bool {
-	return true
-}
-
 func (s *S3FileStoreConfig) Deserialize(config SerializedConfig) error {
 	err := json.Unmarshal(config, s)
 	if err != nil {
@@ -203,29 +199,18 @@ func (s *S3FileStoreConfig) Serialize() ([]byte, error) {
 	return conf, nil
 }
 
+func (s *S3FileStoreConfig) IsFileStoreConfig() bool {
+	return true
+}
+
 type S3FileStore struct {
 	Bucket string
 	Path   string
 	genericFileStore
 }
 
-func (s3 *S3FileStore) BlobPath(sourceKey string) string {
+func (s *S3FileStore) BlobPath(sourceKey string) string {
 	return sourceKey
-}
-
-func (s3 *S3FileStore) PathWithPrefix(path string, remote bool) string {
-	s3PrefixLength := len("s3://")
-	noS3Prefix := path[:s3PrefixLength] != "s3://"
-
-	if remote && noS3Prefix {
-		s3Path := ""
-		if s3.Path != "" {
-			s3Path = fmt.Sprintf("/%s", s3.Path)
-		}
-		return fmt.Sprintf("s3://%s%s/%s", s3.Bucket, s3Path, path)
-	} else {
-		return path
-	}
 }
 
 func NewS3FileStore(config Config) (FileStore, error) {
@@ -255,6 +240,21 @@ func NewS3FileStore(config Config) (FileStore, error) {
 			bucket: bucket,
 		},
 	}, nil
+}
+
+func (s3 *S3FileStore) PathWithPrefix(path string, remote bool) string {
+	s3PrefixLength := len("s3://")
+	noS3Prefix := path[:s3PrefixLength] != "s3://"
+
+	if remote && noS3Prefix {
+		s3Path := ""
+		if s3.Path != "" {
+			s3Path = fmt.Sprintf("/%s", s3.Path)
+		}
+		return fmt.Sprintf("s3://%s%s/%s", s3.Bucket, s3Path, path)
+	} else {
+		return path
+	}
 }
 
 type GCSFileStore struct {

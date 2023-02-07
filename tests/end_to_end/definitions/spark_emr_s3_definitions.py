@@ -1,5 +1,5 @@
 import os
-from datetime import timedelta 
+from datetime import timedelta
 
 from dotenv import load_dotenv
 
@@ -52,7 +52,7 @@ aws_creds = ff.AWSCredentials(
 emr = ff.EMRCredentials(
     emr_cluster_id=os.getenv("AWS_EMR_CLUSTER_ID", None),
     emr_cluster_region=os.getenv("AWS_EMR_CLUSTER_REGION", None),
-    credentials=aws_creds, 
+    credentials=aws_creds,
 )
 
 s3 = ff.register_s3(
@@ -63,12 +63,12 @@ s3 = ff.register_s3(
 )
 
 spark = ff.register_spark(
-            name=f"spark-emr-s3_{VERSION}",
-            description="A Spark deployment we created for the Featureform quickstart",
-            team="featureform-team",
-            executor=emr,
-            filestore=s3,
-        )
+    name=f"spark-emr-s3_{VERSION}",
+    description="A Spark deployment we created for the Featureform quickstart",
+    team="featureform-team",
+    executor=emr,
+    filestore=s3,
+)
 
 ice_cream_dataset = spark.register_parquet_file(
     name=f"ice_cream_{VERSION}",
@@ -78,8 +78,8 @@ ice_cream_dataset = spark.register_parquet_file(
 )
 
 @spark.df_transformation(name=f"ice_cream_transformation_{VERSION}",
-                        variant=VERSION,
-                        inputs=[(f"ice_cream_{VERSION}", VERSION)])
+                         variant=VERSION,
+                         inputs=[(f"ice_cream_{VERSION}", VERSION)])
 def ice_cream_transformation(df):
     """the ice cream dataset """
     return df

@@ -486,12 +486,18 @@ func (store genericFileStore) NewestFile(prefix string) (string, error) {
 	opts := blob.ListOptions{
 		Prefix: prefix,
 	}
+
 	listIterator := store.bucket.List(&opts)
 	mostRecentTime := time.UnixMilli(0)
 	mostRecentKey := ""
 	for {
-		if newObj, err := listIterator.Next(context.TODO()); err == nil {
-			mostRecentTime, mostRecentKey = store.getMoreRecentFile(newObj, mostRecentTime, mostRecentKey)
+		if listObj, err := listIterator.Next(context.TODO()); err == nil {
+			pathParts := strings.Split(listObj.Key, ".")
+			fileType := pathParts[len(pathParts)-1]
+			if fileType == "parquet" && !listObj.IsDir && (listObj.ModTime.After(mostRecentTime) || listObj.ModTime.Equal(mostRecentTime)) {
+				mostRecentTime = listObj.ModTime
+				mostRecentKey = listObj.Key
+			}
 		} else if err == io.EOF {
 			return mostRecentKey, nil
 		} else {
@@ -500,16 +506,34 @@ func (store genericFileStore) NewestFile(prefix string) (string, error) {
 	}
 }
 
-func (store genericFileStore) getMoreRecentFile(newObj *blob.ListObject, oldTime time.Time, oldKey string) (time.Time, string) {
-	if !newObj.IsDir && store.isMostRecentFile(newObj, oldTime) {
-		return newObj.ModTime, newObj.Key
-	}
-	return oldTime, oldKey
-}
-
-func (store genericFileStore) isMostRecentFile(listObj *blob.ListObject, time time.Time) bool {
-	return listObj.ModTime.After(time) || listObj.ModTime.Equal(time)
-}
+//func (store genericFileStore) NewestFile(prefix string) (string, error) {
+//	opts := blob.ListOptions{
+//		Prefix: prefix,
+//	}
+//	listIterator := store.bucket.List(&opts)
+//	mostRecentTime := time.UnixMilli(0)
+//	mostRecentKey := ""
+//	for {
+//		if newObj, err := listIterator.Next(context.TODO()); err == nil {
+//			mostRecentTime, mostRecentKey = store.getMoreRecentFile(newObj, mostRecentTime, mostRecentKey)
+//		} else if err == io.EOF {
+//			return mostRecentKey, nil
+//		} else {
+//			return "", err
+//		}
+//	}
+//}
+//
+//func (store genericFileStore) getMoreRecentFile(newObj *blob.ListObject, oldTime time.Time, oldKey string) (time.Time, string) {
+//	if !newObj.IsDir && store.isMostRecentFile(newObj, oldTime) {
+//		return newObj.ModTime, newObj.Key
+//	}
+//	return oldTime, oldKey
+//}
+//
+//func (store genericFileStore) isMostRecentFile(listObj *blob.ListObject, time time.Time) bool {
+//	return listObj.ModTime.After(time) || listObj.ModTime.Equal(time)
+//}
 
 func (store genericFileStore) outputFileList(prefix string) []string {
 	opts := blob.ListOptions{

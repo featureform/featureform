@@ -497,7 +497,7 @@ func sparkOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	}
 	logger.Info("Uploading Spark script to store")
 
-	logger.Debugf("Store type: %s, Store config: %v", sc.StoreType, sc.StoreConfig)
+	logger.Debugf("Store type: %s", sc.StoreType)
 	if err := exec.InitializeExecutor(store); err != nil {
 		logger.Errorw("Failure initializing executor", "error", err)
 		return nil, err
@@ -756,7 +756,7 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 		spark.Logger.Errorw("Problem creating spark dataframe arguments", err)
 		return fmt.Errorf("error with getting df arguments %v", sparkArgs)
 	}
-	spark.Logger.Debugw("Running DF transformation", config)
+	spark.Logger.Debugw("Running DF transformation")
 	if err := spark.Executor.RunSparkJob(&sparkArgs, spark.Store); err != nil {
 		spark.Logger.Errorw("Error running Spark dataframe job", err)
 		return fmt.Errorf("spark submit job for transformation failed to run: (name: %s variant:%s) %v", config.TargetTableID.Name, config.TargetTableID.Variant, err)
@@ -978,14 +978,14 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 	sparkArgs := spark.Executor.SparkSubmitArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize, spark.Store)
 	spark.Logger.Debugw("Creating materialization", "id", id)
 	if err := spark.Executor.RunSparkJob(&sparkArgs, spark.Store); err != nil {
-		spark.Logger.Errorw("Spark submit job failed to run", err)
+		spark.Logger.Errorw("Spark submit job failed to run", "error", err)
 		return nil, fmt.Errorf("spark submit job for materialization %v failed to run: %v", materializationID, err)
 	}
 	key, err := spark.Store.NewestFile(spark.Store.PathWithPrefix(fileStoreResourcePath(materializationID), false))
 	if err != nil || key == "" {
 		return nil, fmt.Errorf("could not get newest materialization file: %v", err)
 	}
-	spark.Logger.Debugw("Succesfully created materialization", "id", id)
+	spark.Logger.Debugw("Successfully created materialization", "id", id)
 	return &FileStoreMaterialization{materializationID, spark.Store, key}, nil
 }
 

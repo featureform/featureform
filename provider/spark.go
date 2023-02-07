@@ -694,7 +694,7 @@ func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, i
 
 	transformationDestination := spark.Store.PathWithPrefix(ResourcePrefix(config.TargetTableID), true)
 	bucketTransformationDest := spark.Store.PathWithPrefix(ResourcePrefix(config.TargetTableID), false)
-	newestTransformationFile, err := spark.Store.NewestFile(bucketTransformationDest)
+	newestTransformationFile, err := spark.Store.NewestFileOfType(bucketTransformationDest, Parquet)
 	if err != nil {
 		return fmt.Errorf("could not get newest transformation file: %v", err)
 	}
@@ -725,7 +725,7 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 	transformationDestination := spark.Store.PathWithPrefix(ResourcePrefix(config.TargetTableID), true)
 	transformationDestinationWithSlash := strings.Join([]string{transformationDestination, ""}, "/")
 
-	transformationFile, err := spark.Store.NewestFile(spark.Store.PathWithPrefix(ResourcePrefix(config.TargetTableID), false))
+	transformationFile, err := spark.Store.NewestFileOfType(spark.Store.PathWithPrefix(ResourcePrefix(config.TargetTableID), false), Parquet)
 	if err != nil {
 		return fmt.Errorf("error checking if transformation file exists")
 	}
@@ -823,7 +823,7 @@ func (spark *SparkOfflineStore) getSourcePath(path string) (string, error) {
 	} else if fileType == "transformation" {
 		fileResourceId := ResourceID{Name: fileName, Variant: fileVariant, Type: Transformation}
 
-		transformationPath, err := spark.Store.NewestFile(spark.Store.PathWithPrefix(ResourcePrefix(fileResourceId), false))
+		transformationPath, err := spark.Store.NewestFileOfType(spark.Store.PathWithPrefix(ResourcePrefix(fileResourceId), false), Parquet)
 		if err != nil || transformationPath == "" {
 			return "", fmt.Errorf("could not get transformation file path: %v", err)
 		}
@@ -915,7 +915,7 @@ func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, sources []
 func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
 	spark.Logger.Debugw("Getting transformation table", "ResourceID", id)
 	transformationPath := spark.Store.PathWithPrefix(fileStoreResourcePath(id), false)
-	transformationExactPath, err := spark.Store.NewestFile(spark.Store.PathWithPrefix(transformationPath, false))
+	transformationExactPath, err := spark.Store.NewestFileOfType(spark.Store.PathWithPrefix(transformationPath, false), Parquet)
 	fmt.Println("GetTransformation", transformationPath, transformationExactPath)
 	if err != nil || transformationExactPath == "" {
 		return nil, fmt.Errorf("could not get transformation table: %v", err)
@@ -961,7 +961,7 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 	}
 	materializationID := ResourceID{Name: id.Name, Variant: id.Variant, Type: FeatureMaterialization}
 	destinationPath := spark.Store.PathWithPrefix(ResourcePrefix(materializationID), true)
-	materializationNewestFile, err := spark.Store.NewestFile(spark.Store.PathWithPrefix(fileStoreResourcePath(materializationID), false))
+	materializationNewestFile, err := spark.Store.NewestFileOfType(spark.Store.PathWithPrefix(fileStoreResourcePath(materializationID), false), Parquet)
 	if err != nil {
 		return nil, fmt.Errorf("could not get newest materialization file: %v", err)
 	}
@@ -981,7 +981,7 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 		spark.Logger.Errorw("Spark submit job failed to run", "error", err)
 		return nil, fmt.Errorf("spark submit job for materialization %v failed to run: %v", materializationID, err)
 	}
-	key, err := spark.Store.NewestFile(spark.Store.PathWithPrefix(fileStoreResourcePath(materializationID), false))
+	key, err := spark.Store.NewestFileOfType(spark.Store.PathWithPrefix(fileStoreResourcePath(materializationID), false), Parquet)
 	if err != nil || key == "" {
 		return nil, fmt.Errorf("could not get newest materialization file: %v", err)
 	}
@@ -1029,7 +1029,7 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 	sourcePaths := make([]string, 0)
 	featureSchemas := make([]ResourceSchema, 0)
 	destinationPath := spark.Store.PathWithPrefix(ResourcePrefix(def.ID), true)
-	trainingSetNewestFile, err := spark.Store.NewestFile(spark.Store.PathWithPrefix(fileStoreResourcePath(def.ID), false))
+	trainingSetNewestFile, err := spark.Store.NewestFileOfType(spark.Store.PathWithPrefix(fileStoreResourcePath(def.ID), false), Parquet)
 	if err != nil {
 		return fmt.Errorf("Error getting training set newest file: %v", err)
 	}
@@ -1065,7 +1065,7 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 		spark.Logger.Errorw("Spark submit training set job failed to run", "definition", def.ID, "error", err)
 		return fmt.Errorf("spark submit job for training set %v failed to run: %v", def.ID, err)
 	}
-	newestTrainingSet, err := spark.Store.NewestFile(spark.Store.PathWithPrefix(ResourcePrefix(def.ID), false))
+	newestTrainingSet, err := spark.Store.NewestFileOfType(spark.Store.PathWithPrefix(ResourcePrefix(def.ID), false), Parquet)
 	if err != nil {
 		return fmt.Errorf("could not check that training set was created: %v", err)
 	}

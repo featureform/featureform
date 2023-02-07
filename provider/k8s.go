@@ -450,7 +450,7 @@ type FileStore interface {
 	Exists(key string) (bool, error)
 	Delete(key string) error
 	DeleteAll(dir string) error
-	NewestFile(prefix string) (string, error)
+	NewestFileOfType(prefix string, fileType FileType) (string, error)
 	PathWithPrefix(path string, remote bool) string
 	NumRows(key string) (int64, error)
 	Close() error
@@ -482,22 +482,16 @@ func (store genericFileStore) PathWithPrefix(path string, remote bool) string {
 	}
 }
 
-func (store genericFileStore) NewestFile(prefix string) (string, error) {
+func (store genericFileStore) NewestFileOfType(prefix string, fileType FileType) (string, error) {
 	opts := blob.ListOptions{
 		Prefix: prefix,
 	}
-
 	listIterator := store.bucket.List(&opts)
 	mostRecentTime := time.UnixMilli(0)
 	mostRecentKey := ""
 	for {
-		if listObj, err := listIterator.Next(context.TODO()); err == nil {
-			pathParts := strings.Split(listObj.Key, ".")
-			fileType := pathParts[len(pathParts)-1]
-			if fileType == "parquet" && !listObj.IsDir && (listObj.ModTime.After(mostRecentTime) || listObj.ModTime.Equal(mostRecentTime)) {
-				mostRecentTime = listObj.ModTime
-				mostRecentKey = listObj.Key
-			}
+		if newObj, err := listIterator.Next(context.TODO()); err == nil {
+			mostRecentTime, mostRecentKey = store.getMoreRecentFile(newObj, fileType, mostRecentTime, mostRecentKey)
 		} else if err == io.EOF {
 			return mostRecentKey, nil
 		} else {
@@ -506,34 +500,18 @@ func (store genericFileStore) NewestFile(prefix string) (string, error) {
 	}
 }
 
-//func (store genericFileStore) NewestFile(prefix string) (string, error) {
-//	opts := blob.ListOptions{
-//		Prefix: prefix,
-//	}
-//	listIterator := store.bucket.List(&opts)
-//	mostRecentTime := time.UnixMilli(0)
-//	mostRecentKey := ""
-//	for {
-//		if newObj, err := listIterator.Next(context.TODO()); err == nil {
-//			mostRecentTime, mostRecentKey = store.getMoreRecentFile(newObj, mostRecentTime, mostRecentKey)
-//		} else if err == io.EOF {
-//			return mostRecentKey, nil
-//		} else {
-//			return "", err
-//		}
-//	}
-//}
-//
-//func (store genericFileStore) getMoreRecentFile(newObj *blob.ListObject, oldTime time.Time, oldKey string) (time.Time, string) {
-//	if !newObj.IsDir && store.isMostRecentFile(newObj, oldTime) {
-//		return newObj.ModTime, newObj.Key
-//	}
-//	return oldTime, oldKey
-//}
-//
-//func (store genericFileStore) isMostRecentFile(listObj *blob.ListObject, time time.Time) bool {
-//	return listObj.ModTime.After(time) || listObj.ModTime.Equal(time)
-//}
+func (store genericFileStore) getMoreRecentFile(newObj *blob.ListObject, expectedFileType FileType, oldTime time.Time, oldKey string) (time.Time, string) {
+	pathParts := strings.Split(newObj.Key, ".")
+	fileType := pathParts[len(pathParts)-1]
+	if fileType == string(expectedFileType) && !newObj.IsDir && store.isMostRecentFile(newObj, oldTime) {
+		return newObj.ModTime, newObj.Key
+	}
+	return oldTime, oldKey
+}
+
+func (store genericFileStore) isMostRecentFile(listObj *blob.ListObject, time time.Time) bool {
+	return listObj.ModTime.After(time) || listObj.ModTime.Equal(time)
+}
 
 func (store genericFileStore) outputFileList(prefix string) []string {
 	opts := blob.ListOptions{
@@ -1070,7 +1048,7 @@ func (k8s *K8sOfflineStore) sqlTransformation(config TransformationConfig, isUpd
 	}
 
 	transformationDestination := k8s.store.PathWithPrefix(fileStoreResourcePath(config.TargetTableID), false)
-	transformationDestinationExactPath, err := k8s.store.NewestFile(transformationDestination)
+	transformationDestinationExactPath, err := k8s.store.NewestFileOfType(transformationDestination, Parquet)
 	if err != nil {
 		k8s.logger.Errorw("Could not get newest blob", "location", transformationDestination, "error", err)
 		return fmt.Errorf("could not get newest blob: %s: %v", transformationDestination, err)
@@ -1196,7 +1174,7 @@ func (k8s *K8sOfflineStore) getSourcePath(path string) (string, error) {
 	} else if fileType == "transformation" {
 		fileResourceId := ResourceID{Name: fileName, Variant: fileVariant, Type: Transformation}
 		fileResourcePath := k8s.store.PathWithPrefix(fileStoreResourcePath(fileResourceId), false)
-		exactFileResourcePath, err := k8s.store.NewestFile(fileResourcePath)
+		exactFileResourcePath, err := k8s.store.NewestFileOfType(fileResourcePath, Parquet)
 		if err != nil {
 			k8s.logger.Errorw("Could not get newest blob", "location", fileResourcePath, "error", err)
 			return "", fmt.Errorf("could not get newest blob: %s: %v", fileResourcePath, err)
@@ -1235,7 +1213,7 @@ func (k8s *K8sOfflineStore) getResourceInformationFromFilePath(path string) (str
 func (k8s *K8sOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
 	k8s.logger.Debugw("Getting transformation table", "id", id)
 	transformationPath := k8s.store.PathWithPrefix(fileStoreResourcePath(id), false)
-	transformationExactPath, err := k8s.store.NewestFile(transformationPath)
+	transformationExactPath, err := k8s.store.NewestFileOfType(transformationPath, Parquet)
 	if err != nil {
 		k8s.logger.Errorw("Could not get transformation table", "error", err)
 		return nil, fmt.Errorf("could not get transformation table (%v): %v", id, err)
@@ -1309,7 +1287,7 @@ func fileStoreGetMaterialization(id MaterializationID, store FileStore, logger *
 	materializationID := ResourceID{s[1], s[2], FeatureMaterialization}
 	logger.Debugw("Getting materialization", "id", id)
 	materializationPath := store.PathWithPrefix(fileStoreResourcePath(materializationID), false)
-	materializationExactPath, err := store.NewestFile(materializationPath)
+	materializationExactPath, err := store.NewestFileOfType(materializationPath, Parquet)
 	if err != nil {
 		logger.Errorw("Could not fetch materialization resource key", "error", err)
 		return nil, fmt.Errorf("could not fetch materialization resource key: %v", err)
@@ -1330,7 +1308,7 @@ func (mat FileStoreMaterialization) ID() MaterializationID {
 
 func (mat FileStoreMaterialization) NumRows() (int64, error) {
 	materializationPath := mat.store.PathWithPrefix(fileStoreResourcePath(mat.id), false)
-	latestMaterializationPath, err := mat.store.NewestFile(materializationPath)
+	latestMaterializationPath, err := mat.store.NewestFileOfType(materializationPath, Parquet)
 	if err != nil {
 		return 0, fmt.Errorf("could not get materialization num rows; %v", err)
 	}
@@ -1339,7 +1317,7 @@ func (mat FileStoreMaterialization) NumRows() (int64, error) {
 
 func (mat FileStoreMaterialization) IterateSegment(begin, end int64) (FeatureIterator, error) {
 	materializationPath := mat.store.PathWithPrefix(fileStoreResourcePath(mat.id), false)
-	latestMaterializationPath, err := mat.store.NewestFile(materializationPath)
+	latestMaterializationPath, err := mat.store.NewestFileOfType(materializationPath, Parquet)
 	if err != nil {
 		return nil, fmt.Errorf("could not get materialization iterate segment: %v", err)
 	}
@@ -1459,7 +1437,7 @@ func (k8s *K8sOfflineStore) materialization(id ResourceID, isUpdate bool) (Mater
 		return nil, fmt.Errorf("job for materialization %v failed to run: %v", materializationID, err)
 	}
 	matPath := k8s.store.PathWithPrefix(fileStoreResourcePath(materializationID), false)
-	latestMatPath, err := k8s.store.NewestFile(matPath)
+	latestMatPath, err := k8s.store.NewestFileOfType(matPath, Parquet)
 	if err != nil {
 		return nil, fmt.Errorf("materialization does not exist; %v", err)
 	}
@@ -1479,7 +1457,7 @@ func fileStoreDeleteMaterialization(id MaterializationID, store FileStore, logge
 	}
 	materializationID := ResourceID{s[1], s[2], FeatureMaterialization}
 	materializationPath := store.PathWithPrefix(fileStoreResourcePath(materializationID), false)
-	materializationExactPath, err := store.NewestFile(materializationPath)
+	materializationExactPath, err := store.NewestFileOfType(materializationPath, Parquet)
 	if err != nil {
 		return fmt.Errorf("materialization does not exist: %v", err)
 	}
@@ -1518,7 +1496,7 @@ func (k8s *K8sOfflineStore) trainingSet(def TrainingSetDef, isUpdate bool) error
 	sourcePaths := make([]string, 0)
 	featureSchemas := make([]ResourceSchema, 0)
 	destinationPath := k8s.store.PathWithPrefix(fileStoreResourcePath(def.ID), false)
-	trainingSetExactPath, err := k8s.store.NewestFile(destinationPath)
+	trainingSetExactPath, err := k8s.store.NewestFileOfType(destinationPath, Parquet)
 	if err != nil {
 		return fmt.Errorf("could not get training set path: %v", err)
 	}
@@ -1572,7 +1550,7 @@ func fileStoreGetTrainingSet(id ResourceID, store FileStore, logger *zap.Sugared
 		return nil, fmt.Errorf("resource is not training set: %w", err)
 	}
 	resourceKeyPrefix := store.PathWithPrefix(fileStoreResourcePath(id), false)
-	trainingSetExactPath, err := store.NewestFile(resourceKeyPrefix)
+	trainingSetExactPath, err := store.NewestFileOfType(resourceKeyPrefix, Parquet)
 	if err != nil {
 		return nil, fmt.Errorf("could not get training set: %v", err)
 	}

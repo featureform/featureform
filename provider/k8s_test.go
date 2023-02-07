@@ -587,7 +587,7 @@ func testNewestFile(t *testing.T, store FileStore) {
 		}
 		time.Sleep(1 * time.Second) // To guarantee ordering of created in metadata follows struct ordering
 	}
-	newestFile, err := store.NewestFile(randomDirectory)
+	newestFile, err := store.NewestFileOfType(randomDirectory, Parquet)
 	if err != nil {
 		t.Fatalf("Error getting newest file from directory: %v", err)
 	}

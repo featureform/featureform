@@ -52,7 +52,7 @@ func (az *Azure) Download(src, dest string) error {
 }
 
 func (az *Azure) LatestBackupName(prefix string) (string, error) {
-	return az.store.NewestFile(prefix)
+	return az.store.NewestFileOfType(prefix, provider.DB)
 }
 
 type S3 struct {
@@ -97,7 +97,7 @@ func (s3 *S3) Download(src, dest string) error {
 }
 
 func (s3 *S3) LatestBackupName(prefix string) (string, error) {
-	return s3.store.NewestFile(prefix)
+	return s3.store.NewestFileOfType(prefix, provider.DB)
 }
 
 type Local struct {
@@ -131,7 +131,7 @@ func (fs *Local) Download(src, dest string) error {
 }
 
 func (fs *Local) LatestBackupName(prefix string) (string, error) {
-	return fs.store.NewestFile(prefix)
+	return fs.store.NewestFileOfType(prefix, provider.DB)
 }
 
 type GCS struct {
@@ -188,5 +188,5 @@ func (g *GCS) Download(src, dest string) error {
 }
 
 func (g *GCS) LatestBackupName(prefix string) (string, error) {
-	return g.store.NewestFile(prefix)
+	return g.store.NewestFileOfType(prefix, provider.DB)
 }

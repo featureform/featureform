@@ -25,6 +25,14 @@ const (
 	GCS                      = "GCS"
 )
 
+type FileType string
+
+const (
+	Parquet FileType = "parquet"
+	CSV              = "csv"
+	DB               = "db"
+)
+
 type LocalFileStoreConfig struct {
 	DirPath string
 }

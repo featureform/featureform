@@ -6,7 +6,7 @@ import sys
 sys.path.insert(0, 'client/src/')
 import pytest
 from featureform.register import LocalProvider, Provider, Registrar, LocalConfig, SQLTransformationDecorator, \
-    DFTransformationDecorator, SnowflakeConfig
+    DFTransformationDecorator, SnowflakeConfig, ModelRegistrar
 
 
 @pytest.mark.parametrize(
@@ -91,14 +91,14 @@ def test_df_transformation_empty_description(registrar):
     dec.to_source()
 
 @pytest.mark.parametrize(
-    "resource_serving_client_fxt,is_local",
+    "client_provider_source_fxt,is_local",
     [
-        ('resource_serving_clients', True),
-        ('resource_serving_clients', False),
+        ('local_client_provider_source', True),
+        ('hosted_sql_provider_and_source', False),
     ]
 )
-def test_valid_model_registration(resource_serving_client_fxt, is_local, request):
-    resource_client = request.getfixturevalue(resource_serving_client_fxt)(is_local)[0];
+def test_valid_model_registration(client_provider_source_fxt, is_local, request):
+    resource_client = request.getfixturevalue(client_provider_source_fxt)(is_local)[0];
     model_name = "model_a"
 
     model = resource_client.register_model(model_name)
@@ -107,14 +107,14 @@ def test_valid_model_registration(resource_serving_client_fxt, is_local, request
 
 
 @pytest.mark.parametrize(
-    "resource_serving_client_fxt,is_local",
+    "client_provider_source_fxt,is_local",
     [
-        ('resource_serving_clients', True),
-        ('resource_serving_clients', False),
+        ('local_client_provider_source', True),
+        ('hosted_sql_provider_and_source', False),
     ]
 )
-def test_invalid_model_registration(resource_serving_client_fxt, is_local, request):
-    resource_client = request.getfixturevalue(resource_serving_client_fxt)(is_local)[0];
+def test_invalid_model_registration(client_provider_source_fxt, is_local, request):
+    resource_client = request.getfixturevalue(client_provider_source_fxt)(is_local)[0];
 
     with pytest.raises(TypeError, match="missing 1 required positional argument: 'name'"):
         model = resource_client.register_model()

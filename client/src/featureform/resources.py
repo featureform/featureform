@@ -1243,8 +1243,38 @@ class TrainingSet:
         return True
 
 
+@typechecked
+@dataclass
+class Model:
+    name: str
+
+    @staticmethod
+    def operation_type() -> OperationType:
+        return OperationType.CREATE
+
+    def type(self) -> str:
+        return "model"
+
+    def _create(self, stub) -> None:
+        serialized = pb.Model(name=self.name)
+        stub.CreateModel(serialized)
+
+    def _create_local(self, db) -> None:
+        db.insert("models",
+                  self.name,
+                  "Model",
+                  "ready"
+                  )
+
+    def __eq__(self, other):
+        for attribute in vars(self):
+            if getattr(self, attribute) != getattr(other, attribute):
+                return False
+        return True
+
+
 Resource = Union[PrimaryData, Provider, Entity, User, Feature, Label,
-                 TrainingSet, Source, Schedule, ProviderReference, SourceReference, EntityReference]
+                 TrainingSet, Source, Schedule, ProviderReference, SourceReference, EntityReference, Model]
 
 
 class ResourceRedefinedError(Exception):

@@ -17,12 +17,13 @@ from .get_local import *
 from .list_local import *
 from .sqlite_metadata import SQLiteMetadata
 from .tls import insecure_channel, secure_channel
-from .resources import ResourceState, Provider, RedisConfig, FirestoreConfig, CassandraConfig, DynamodbConfig, \
+from .resources import Model, ResourceState, Provider, RedisConfig, FirestoreConfig, CassandraConfig, DynamodbConfig, \
     MongoDBConfig, PostgresConfig, SnowflakeConfig, LocalConfig, RedshiftConfig, BigQueryConfig, SparkConfig, \
     AzureFileStoreConfig, OnlineBlobConfig, K8sConfig, S3StoreConfig, User, Location, Source, PrimaryData, SQLTable, \
     SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet, ProviderReference, \
     EntityReference, SourceReference, ExecutorCredentials, ResourceRedefinedError, ResourceStatus, Transformation, \
     K8sArgs, AWSCredentials
+from .format import CliFormatter
 
 from .proto import metadata_pb2_grpc as ff_grpc
 
@@ -892,8 +893,18 @@ class ResourceRegistrar:
         return self.__labels
 
 
+class ModelRegistrar:
+
+    def __init__(self, registrar, model):
+        self.__registrar = registrar
+        self.__model = model
+
+    def name(self) -> str:
+        return self.__model.name
+
+
 class Registrar:
-    """These functions are used to registed new resources and retrieving existing resources. Retrieved resources can be used to register additional resources. If information on these resources is needed (e.g. retrieve the names of all variants of a feature), use the [Resource Client](resource_client.md) instead.
+    """These functions are used to registered new resources and retrieving existing resources. Retrieved resources can be used to register additional resources. If information on these resources is needed (e.g. retrieve the names of all variants of a feature), use the [Resource Client](resource_client.md) instead.
 
     ``` py title="definitions.py"
     import featureform as ff
@@ -2142,7 +2153,8 @@ class Registrar:
             except ResourceRedefinedError:
                 raise
             except Exception as e:
-                raise Exception(f"Could not add apply {resource.name} ({resource.variant}): {e}")
+                resource_variant = f" ({resource.variant})" if hasattr(resource, 'variant') else ""
+                raise Exception(f"Could not add apply {resource.name}{resource_variant}: {e}")
         self.__resources = []
         return self.__state
 
@@ -2376,6 +2388,19 @@ class Registrar:
         )
         self.__resources.append(resource)
 
+    def register_model(self, name: str) -> ModelRegistrar:
+        """Register a model.
+
+        Args:
+            name (str): Model to be registered
+
+        Returns:
+            ModelRegistrar: Model
+        """
+        model = Model(name)
+        self.__resources.append(model)
+        return ModelRegistrar(self, model)
+
 
 class ResourceClient(Registrar):
     """The resource client is used to retrieve information on specific resources (entities, providers, features, labels, training sets, models, users). If retrieved resources are needed to register additional resources (e.g. registering a feature from a source), use the [Client](client.md) functions instead.
@@ -2433,9 +2458,9 @@ class ResourceClient(Registrar):
             return
 
         if self.local:
-            state().create_all_local()
+            self.state().create_all_local()
         else:
-            state().create_all(self._stub)
+            self.state().create_all(self._stub)
 
     def get_user(self, name, local=False):
         """Get a user. Prints out name of user, and all resources associated with the user.
@@ -2549,7 +2574,7 @@ class ResourceClient(Registrar):
             return get_entity_info_local(name)
         return get_entity_info(self._stub, name)
 
-    def get_model(self, name):
+    def get_model(self, name, local=False) -> Model:
         """Get a model. Prints out information on model, and all resources associated with the model.
 
         Args:
@@ -2558,7 +2583,11 @@ class ResourceClient(Registrar):
         Returns:
             model (Model): Model
         """
-        return get_resource_info(self._stub, "model", name)
+        model = get_model_info_local(name) if local else get_resource_info(self._stub, "model", name)
+
+        CliFormatter.print_to_table([model])
+
+        return model
 
     def get_provider(self, name, local=False):
         """Get a provider. Prints out information on provider, and all resources associated with the provider.
@@ -3442,15 +3471,20 @@ class ResourceClient(Registrar):
             return list_local("training-set", [ColumnName.NAME, ColumnName.VARIANT, ColumnName.STATUS])
         return list_name_variant_status_desc(self._stub, "training-set")
 
-    def list_models(self, local=False):
+    def list_models(self, local=False) -> List[Model]:
         """List all models. Prints a list of all models.
 
         Returns:
             models (List[Model]): List of Model Objects
         """
+        models = []
         if local:
-            return list_local("model", [ColumnName.NAME, ColumnName.STATUS, ColumnName.DESCRIPTION])
-        return list_name_status_desc(self._stub, "model")
+            rows = list_local("model", [ColumnName.NAME, ColumnName.STATUS])
+            models = [Model(row["name"]) for row in rows]
+        else:
+            models = list_name_status_desc(self._stub, "model")
+
+        return models
 
     def list_providers(self, local=False):
         """List all providers. Prints a list of all providers.
@@ -3546,6 +3580,7 @@ register_local = global_registrar.register_local
 register_entity = global_registrar.register_entity
 register_column_resources = global_registrar.register_column_resources
 register_training_set = global_registrar.register_training_set
+register_model = global_registrar.register_model
 sql_transformation = global_registrar.sql_transformation
 register_sql_transformation = global_registrar.register_sql_transformation
 get_entity = global_registrar.get_entity

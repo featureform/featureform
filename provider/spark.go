@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -37,8 +38,9 @@ import (
 type SparkExecutorType string
 
 const (
-	EMR        SparkExecutorType = "EMR"
-	Databricks                   = "DATABRICKS"
+	EMR          SparkExecutorType = "EMR"
+	Databricks                     = "DATABRICKS"
+	SparkGeneric                   = "SPARK"
 )
 
 type JobType string
@@ -626,13 +628,30 @@ func (e EMRExecutor) InitializeExecutor(store FileStore) error {
 	return store.Write(sparkScriptPath, buff)
 }
 
-// type SparkExecutor interface {
-// 	RunSparkJob(args *[]string, store FileStore) error
-// 	InitializeExecutor(store FileStore) error
-// 	PythonFileURI(store FileStore) string
-// 	SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store FileStore) []string
-// 	GetDFArgs(outputURI string, code string, sources []string, store FileStore) ([]string, error)
-// }
+type SparkGenericConfig struct {
+	Master     string
+	DeployMode string
+}
+
+func (sc *SparkGenericConfig) Deserialize(config SerializedConfig) error {
+	err := json.Unmarshal(config, sc)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (sc *SparkGenericConfig) Serialize() ([]byte, error) {
+	conf, err := json.Marshal(sc)
+	if err != nil {
+		return nil, err
+	}
+	return conf, nil
+}
+
+func (sc *SparkGenericConfig) IsExecutorConfig() bool {
+	return true
+}
 
 type SparkGenericExecutor struct {
 	master     string
@@ -656,26 +675,29 @@ func (s *SparkGenericExecutor) InitializeExecutor(store FileStore) error {
 }
 
 func (s *SparkGenericExecutor) RunSparkJob(args *[]string, store FileStore) error {
-	// TODO
-	sparkSubmitCommand := fmt.Sprintf("spark-submit --master %s --deploy-mode %s", s.master, s.deployMode)
-	s.logger.Infow("created spark-submit: ", sparkSubmitCommand)
-
+	sparkArgs := *args
+	cmd := exec.Command(sparkArgs[0], sparkArgs[1:]...)
+	err := cmd.Start()
+	if err != nil {
+		return fmt.Errorf("could not run spark job: %v", err)
+	}
 	return nil
 }
 
 func (s *SparkGenericExecutor) PythonFileURI(store FileStore) string {
-	// TODO
 	return ""
 }
 
 func (s *SparkGenericExecutor) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store FileStore) []string {
+	sparkScriptPath := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/offline_store_spark_runner.py")
+
 	argList := []string{
 		"spark-submit",
 		"--master",
 		s.master,
 		"--deploy-mode",
 		s.deployMode,
-		store.PathWithPrefix("featureform/scripts/offline_store_spark_runner.py", true),
+		sparkScriptPath,
 		"sql",
 		"--output_uri",
 		store.PathWithPrefix(destPath, true),
@@ -690,13 +712,15 @@ func (s *SparkGenericExecutor) SparkSubmitArgs(destPath string, cleanQuery strin
 }
 
 func (s *SparkGenericExecutor) GetDFArgs(outputURI string, code string, sources []string, store FileStore) ([]string, error) {
+	sparkScriptPath := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/offline_store_spark_runner.py")
+
 	argList := []string{
 		"spark-submit",
 		"--master",
 		s.master,
 		"--deploy-mode",
 		s.deployMode,
-		store.PathWithPrefix("featureform/scripts/offline_store_spark_runner.py", true),
+		sparkScriptPath,
 		"df",
 		"--output_uri",
 		outputURI,
@@ -708,6 +732,15 @@ func (s *SparkGenericExecutor) GetDFArgs(outputURI string, code string, sources 
 	argList = append(argList, sources...)
 
 	return argList, nil
+}
+
+func NewSparkGenericExecutor(sparkGenericConfig SparkGenericConfig, logger *zap.SugaredLogger) (SparkExecutor, error) {
+	sparkGenericExecutor := SparkGenericExecutor{
+		master:     sparkGenericConfig.Master,
+		deployMode: sparkGenericConfig.DeployMode,
+		logger:     logger,
+	}
+	return &sparkGenericExecutor, nil
 }
 
 func NewSparkExecutor(execType SparkExecutorType, config SparkExecutorConfig, logger *zap.SugaredLogger) (SparkExecutor, error) {
@@ -724,6 +757,12 @@ func NewSparkExecutor(execType SparkExecutorType, config SparkExecutorConfig, lo
 			return nil, fmt.Errorf("cannot convert config into 'DatabricksConfig'")
 		}
 		return NewDatabricksExecutor(*databricksConfig)
+	case SparkGeneric:
+		sparkGenericConfig, ok := config.(*SparkGenericConfig)
+		if !ok {
+			return nil, fmt.Errorf("cannot convert config into 'SparkGenericConfig'")
+		}
+		return NewSparkGenericExecutor(*sparkGenericConfig, logger)
 	default:
 		return nil, fmt.Errorf("the executor type ('%s') is not supported", execType)
 	}

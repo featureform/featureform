@@ -67,11 +67,11 @@ func (sf *SnowflakeConfig) BuildConnectionString() error {
 	if err := sf.setBaseConnection(); err != nil {
 		return err
 	}
-	args, err := sf.getConnectionParameters()
+	parameters, err := sf.getConnectionParameters()
 	if err != nil {
 		return fmt.Errorf("could not build parameters: %v", err)
 	}
-	sf.connection = fmt.Sprintf("%s%s", sf.baseConnection, args)
+	sf.connection = fmt.Sprintf("%s%s", sf.baseConnection, parameters)
 	return nil
 }
 

@@ -20,11 +20,6 @@ const (
 	sfTimestamp                     = "TIMESTAMP_NTZ"
 )
 
-var snowflakeParameterAlias = map[string]string{
-	"Warehouse": "warehouse",
-	"Role":      "role",
-}
-
 type SnowflakeConfig struct {
 	Username       string
 	Password       string

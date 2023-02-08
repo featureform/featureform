@@ -26,16 +26,27 @@ func (si *StructIterator) inRange() bool {
 	return si.idx < si.numField
 }
 
-func (si *StructIterator) ItemName() string {
+func (si *StructIterator) Key() string {
 	return si.val.Type().Field(si.idx).Name
 }
 
-func (si *StructIterator) ItemValue() interface{} {
+func (si *StructIterator) Value() interface{} {
 	return si.val.Field(si.idx).Interface()
 }
 
+// Tag Fetches the struct tag for the current key. If the
+// specified tag does not exist, returns nil
+func (si *StructIterator) Tag(tagKey string) string {
+	tag := si.val.Type().Field(si.idx).Tag
+	if alias, ok := tag.Lookup(tagKey); ok {
+		return alias
+	} else {
+		return ""
+	}
+}
+
 func (si *StructIterator) isPublic() bool {
-	firstLetter := []rune(si.ItemName())[0]
+	firstLetter := []rune(si.Key())[0]
 	if unicode.IsLower(firstLetter) && unicode.IsLetter(firstLetter) {
 		return false
 	}

@@ -108,7 +108,7 @@ func TestStructIteratorIterate(t *testing.T) {
 				t.Errorf("could not create iterator: %v", err)
 			}
 			for iterator.Next() {
-				checkValues(iterator.ItemName(), iterator.ItemValue(), c.expected, t)
+				checkValues(iterator.Key(), iterator.Value(), c.expected, t)
 			}
 		})
 	}

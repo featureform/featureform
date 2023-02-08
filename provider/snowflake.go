@@ -33,8 +33,8 @@ type SnowflakeConfig struct {
 	Account        string
 	Database       string
 	Schema         string
-	Warehouse      string
-	Role           string
+	Warehouse      string `snowflake:"warehouse"`
+	Role           string `snowflake:"role"`
 }
 
 func (sf *SnowflakeConfig) Deserialize(config SerializedConfig) error {
@@ -87,7 +87,9 @@ func (sf *SnowflakeConfig) getConnectionParameters() (string, error) {
 		return "", err
 	}
 	for iter.Next() {
-		base = sf.addParameter(base, iter.ItemName(), iter.ItemValue())
+		if tag := iter.Tag("snowflake"); tag != "" {
+			base = sf.addParameter(base, tag, iter.Value())
+		}
 	}
 
 	if base == emptyParameters {
@@ -103,9 +105,7 @@ func (sf *SnowflakeConfig) addParameter(base, key string, val interface{}) strin
 	if base != emptyParameters {
 		base += "&"
 	}
-	if alias, ok := snowflakeParameterAlias[key]; ok {
-		base += fmt.Sprintf("%s=%s", alias, val)
-	}
+	base += fmt.Sprintf("%s=%s", key, val)
 	return base
 }
 

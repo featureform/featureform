@@ -103,6 +103,8 @@ func TestSnowflakeConfigConnectionString(t *testing.T) {
 		Account        string
 		Database       string
 		Schema         string
+		Role           string
+		Warehouse      string
 	}
 	tests := []struct {
 		name    string
@@ -121,6 +123,24 @@ func TestSnowflakeConfigConnectionString(t *testing.T) {
 			"Has Current",
 			fields{Username: "u", Password: "p", Account: "account", Organization: "org", Database: "d", Schema: "s"},
 			"u:p@org-account/d/s",
+			false,
+		},
+		{
+			"Has Role Parameter",
+			fields{Username: "u", Password: "p", Account: "account", Organization: "org", Database: "d", Schema: "s", Role: "myrole"},
+			"u:p@org-account/d/s?role=myrole",
+			false,
+		},
+		{
+			"Has Warehouse Parameter",
+			fields{Username: "u", Password: "p", Account: "account", Organization: "org", Database: "d", Schema: "s", Warehouse: "wh"},
+			"u:p@org-account/d/s?warehouse=wh",
+			false,
+		},
+		{
+			"Has Warehouse and Role Parameter",
+			fields{Username: "u", Password: "p", Account: "account", Organization: "org", Database: "d", Schema: "s", Warehouse: "wh", Role: "myrole"},
+			"u:p@org-account/d/s?warehouse=wh&role=myrole",
 			false,
 		},
 		{
@@ -158,6 +178,8 @@ func TestSnowflakeConfigConnectionString(t *testing.T) {
 				Account:        tt.fields.Account,
 				Database:       tt.fields.Database,
 				Schema:         tt.fields.Schema,
+				Role:           tt.fields.Role,
+				Warehouse:      tt.fields.Warehouse,
 			}
 			got, err := sf.ConnectionString()
 			if (err != nil) != tt.wantErr {

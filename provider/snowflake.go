@@ -54,15 +54,15 @@ func (sf *SnowflakeConfig) Serialize() []byte {
 }
 
 func (sf *SnowflakeConfig) ConnectionString() (string, error) {
-	connString, err := sf.BuildConnectionString()
+	connString, err := sf.buildConnectionString()
 	if err != nil {
 		return "", fmt.Errorf("could not build connecting string: %v", err)
 	}
 	return connString, nil
 }
 
-func (sf *SnowflakeConfig) BuildConnectionString() (string, error) {
-	base, err := sf.setBaseConnection()
+func (sf *SnowflakeConfig) buildConnectionString() (string, error) {
+	base, err := sf.getBaseConnection()
 	if err != nil {
 		return "", err
 	}
@@ -105,7 +105,7 @@ func (sf *SnowflakeConfig) addParameter(base, key string, val interface{}) strin
 	return base
 }
 
-func (sf *SnowflakeConfig) setBaseConnection() (string, error) {
+func (sf *SnowflakeConfig) getBaseConnection() (string, error) {
 	isLegacy := sf.hasLegacyCredentials()
 	isCurrent, err := sf.hasCurrentCredentials()
 	if err != nil {

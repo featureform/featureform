@@ -70,7 +70,11 @@ func (sf *SnowflakeConfig) buildConnectionString() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("could not build parameters: %v", err)
 	}
-	return fmt.Sprintf("%s%s", base, parameters), nil
+	return sf.makeFullConnection(base, parameters), nil
+}
+
+func (sf *SnowflakeConfig) makeFullConnection(base, parameters string) string {
+	return fmt.Sprintf("%s%s", base, parameters)
 }
 
 const emptyParameters = "?"

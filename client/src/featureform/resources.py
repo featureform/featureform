@@ -355,7 +355,7 @@ class SnowflakeConfig:
     organization: str = ""
     database: str = ""
     account_locator: str = ""
-    warehouse: str = "",
+    warehouse: str = ""
     role: str = ""
 
     def __post_init__(self):

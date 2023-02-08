@@ -35,8 +35,6 @@ type SnowflakeConfig struct {
 	Schema         string
 	Warehouse      string
 	Role           string
-	connection     string
-	baseConnection string
 }
 
 func (sf *SnowflakeConfig) Deserialize(config SerializedConfig) error {
@@ -56,23 +54,23 @@ func (sf *SnowflakeConfig) Serialize() []byte {
 }
 
 func (sf *SnowflakeConfig) ConnectionString() (string, error) {
-	err := sf.BuildConnectionString()
+	connString, err := sf.BuildConnectionString()
 	if err != nil {
 		return "", fmt.Errorf("could not build connecting string: %v", err)
 	}
-	return sf.connection, nil
+	return connString, nil
 }
 
-func (sf *SnowflakeConfig) BuildConnectionString() error {
-	if err := sf.setBaseConnection(); err != nil {
-		return err
+func (sf *SnowflakeConfig) BuildConnectionString() (string, error) {
+	base, err := sf.setBaseConnection()
+	if err != nil {
+		return "", err
 	}
 	parameters, err := sf.getConnectionParameters()
 	if err != nil {
-		return fmt.Errorf("could not build parameters: %v", err)
+		return "", fmt.Errorf("could not build parameters: %v", err)
 	}
-	sf.connection = fmt.Sprintf("%s%s", sf.baseConnection, parameters)
-	return nil
+	return fmt.Sprintf("%s%s", base, parameters), nil
 }
 
 const emptyParameters = "?"
@@ -107,22 +105,21 @@ func (sf *SnowflakeConfig) addParameter(base, key string, val interface{}) strin
 	return base
 }
 
-func (sf *SnowflakeConfig) setBaseConnection() error {
+func (sf *SnowflakeConfig) setBaseConnection() (string, error) {
 	isLegacy := sf.hasLegacyCredentials()
 	isCurrent, err := sf.hasCurrentCredentials()
 	if err != nil {
-		return fmt.Errorf("could not check credentials: %v", err)
+		return "", fmt.Errorf("could not check credentials: %v", err)
 	}
 	if isLegacy && isCurrent {
-		return fmt.Errorf("cannot use both legacy and current credentials")
+		return "", fmt.Errorf("cannot use both legacy and current credentials")
 	} else if isLegacy && !isCurrent {
-		sf.baseConnection = fmt.Sprintf("%s:%s@%s/%s/%s", sf.Username, sf.Password, sf.AccountLocator, sf.Database, sf.schema())
+		return fmt.Sprintf("%s:%s@%s/%s/%s", sf.Username, sf.Password, sf.AccountLocator, sf.Database, sf.schema()), nil
 	} else if !isLegacy && isCurrent {
-		sf.baseConnection = fmt.Sprintf("%s:%s@%s-%s/%s/%s", sf.Username, sf.Password, sf.Organization, sf.Account, sf.Database, sf.schema())
+		return fmt.Sprintf("%s:%s@%s-%s/%s/%s", sf.Username, sf.Password, sf.Organization, sf.Account, sf.Database, sf.schema()), nil
 	} else {
-		return fmt.Errorf("credentials not found")
+		return "", fmt.Errorf("credentials not found")
 	}
-	return nil
 }
 
 func (sf *SnowflakeConfig) hasLegacyCredentials() bool {

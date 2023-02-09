@@ -23,7 +23,7 @@ import (
 	// s3Types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
-	// "go.uber.org/zap"
+	"go.uber.org/zap"
 
 	"github.com/featureform/helpers"
 )
@@ -2644,6 +2644,44 @@ func sparkTestTrainingSetUpdate(t *testing.T, store *SparkOfflineStore) {
 		t.Run(nameConst, func(t *testing.T) {
 			t.Parallel()
 			runTestCase(t, testConst)
+		})
+	}
+}
+
+func TestExecutors(t *testing.T) {
+	logger := zap.NewExample().Sugar()
+
+	testCases := []struct {
+		name             string
+		executorType     SparkExecutorType
+		executorConfig   SparkExecutorConfig
+		expectedExecutor SparkExecutor
+	}{
+		{
+			"SparkGenericExecutor",
+			SparkGeneric,
+			&SparkGenericConfig{
+				Master:     "local",
+				DeployMode: "client",
+			},
+			&SparkGenericExecutor{
+				master:     "local",
+				deployMode: "client",
+				logger:     logger,
+			},
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			executor, err := NewSparkExecutor(tt.executorType, tt.executorConfig, logger)
+			if err != nil {
+				t.Fatalf("Could not replace the template query: %v", err)
+			}
+
+			if !reflect.DeepEqual(executor, tt.expectedExecutor) {
+				t.Fatalf("ReplaceSourceName did not replace the query correctly.")
+			}
 		})
 	}
 }

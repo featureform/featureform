@@ -455,7 +455,7 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                       <Typography variant="body1">
                         <b>Origin:</b>
                       </Typography>
-                      {metadata["source-type"] === "Transformation" ? (
+                      {metadata["source-type"] === "SQL Transformation" ? (
                         <SyntaxHighlighter
                           className={classes.syntax}
                           language={"sql"}

@@ -2152,6 +2152,10 @@ class Registrar:
     def register_entity(self, name: str, description: str = ""):
         """Register an entity.
 
+        **Examples**:
+        ``` py
+            user = ff.register_entity("user")
+        ```
         Args:
             name (str): Name of entity to be registered
             description (str): Description of entity to be registered

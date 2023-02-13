@@ -9,7 +9,7 @@ Featureform’s Python client is a SDK for defining, managing and serving resour
 
 ## Requirements
 
-* Python 3.7+
+* Python 3.7-3.10 (Untested with version 3.11)
 
 ## Setting Up Your Local Development Environment
 

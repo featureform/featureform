@@ -174,8 +174,7 @@ class SQLiteMetadata:
         # models table
         self.__conn.execute('''CREATE TABLE IF NOT EXISTS models(
           name        text PRIMARY KEY NOT NULL,
-          type        text,
-          status      text);''')
+          type        text);''')
 
         # models training sets table
         self.__conn.execute('''CREATE TABLE IF NOT EXISTS model_training_sets(

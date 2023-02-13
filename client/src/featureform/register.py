@@ -903,7 +903,7 @@ class ModelRegistrar:
 
 
 class Registrar:
-    """These functions are used to registered new resources and retrieving existing resources. Retrieved resources can be used to register additional resources. If information on these resources is needed (e.g. retrieve the names of all variants of a feature), use the [Resource Client](resource_client.md) instead.
+    """These functions are used to register new resources and retrieving existing resources. Retrieved resources can be used to register additional resources. If information on these resources is needed (e.g. retrieve the names of all variants of a feature), use the [Resource Client](resource_client.md) instead.
 
     ``` py title="definitions.py"
     import featureform as ff
@@ -2387,7 +2387,7 @@ class Registrar:
         )
         self.__resources.append(resource)
 
-    def register_model(self, name: str) -> ModelRegistrar:
+    def register_model(self, name: str) -> Model:
         """Register a model.
 
         Args:
@@ -2398,7 +2398,7 @@ class Registrar:
         """
         model = Model(name)
         self.__resources.append(model)
-        return ModelRegistrar(self, model)
+        return model
 
 
 class ResourceClient(Registrar):
@@ -3476,7 +3476,7 @@ class ResourceClient(Registrar):
         """
         models = []
         if local:
-            rows = list_local("model", [ColumnName.NAME, ColumnName.STATUS])
+            rows = list_local("model", [ColumnName.NAME])
             models = [Model(row["name"]) for row in rows]
         else:
             models = list_name_status_desc(self._stub, "model")

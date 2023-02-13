@@ -486,7 +486,7 @@ class LocalClientImpl:
         name = model if isinstance(model, str) else model.name
         type = "Model" if isinstance(model, str) else model.type()
 
-        self.db.insert("models", name, type, "ready")
+        self.db.insert("models", name, type)
         self.db.insert(look_up_table, name, association_name, association_variant)
 
 

@@ -1263,7 +1263,6 @@ class Model:
         db.insert("models",
                   self.name,
                   "Model",
-                  "ready"
                   )
 
     def __eq__(self, other):

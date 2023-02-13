@@ -6,7 +6,7 @@ import sys
 sys.path.insert(0, 'client/src/')
 import pytest
 from featureform.register import LocalProvider, Provider, Registrar, LocalConfig, SQLTransformationDecorator, \
-    DFTransformationDecorator, SnowflakeConfig, ModelRegistrar
+    DFTransformationDecorator, SnowflakeConfig, Model
 
 
 @pytest.mark.parametrize(
@@ -103,7 +103,7 @@ def test_valid_model_registration(client_provider_source_fxt, is_local, request)
 
     model = resource_client.register_model(model_name)
 
-    assert isinstance(model, ModelRegistrar) and model.name() == model_name
+    assert isinstance(model, Model) and model.name == model_name
 
 
 @pytest.mark.parametrize(

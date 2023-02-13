@@ -7,6 +7,7 @@ package serving
 import (
 	"context"
 	"fmt"
+
 	"github.com/pkg/errors"
 
 	"github.com/featureform/metadata"
@@ -33,13 +34,20 @@ func NewFeatureServer(meta *metadata.Client, promMetrics metrics.MetricsHandler,
 	}, nil
 }
 
-func (serv *FeatureServer) TrainingData(req *pb.TrainingDataRequest, stream pb.Feature_TrainingDataServer) error {
+func (serv *FeatureServer) TrainingData(ctx context.Context, req *pb.TrainingDataRequest, stream pb.Feature_TrainingDataServer) error {
 	id := req.GetId()
 	name, variant := id.GetName(), id.GetVersion()
 	featureObserver := serv.Metrics.BeginObservingTrainingServe(name, variant)
 	defer featureObserver.Finish()
 	logger := serv.Logger.With("Name", name, "Variant", variant)
 	logger.Info("Serving training data")
+	if model := req.GetModel(); model != nil {
+		trainingSets := []metadata.NameVariant{{Name: name, Variant: variant}}
+		err := serv.Metadata.CreateModel(ctx, metadata.ModelDef{Name: model.GetName(), Trainingsets: trainingSets})
+		if err != nil {
+			return err
+		}
+	}
 	iter, err := serv.getTrainingSetIterator(name, variant)
 	if err != nil {
 		logger.Errorw("Failed to get training set iterator", "Error", err)
@@ -98,6 +106,16 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 	entityMap := make(map[string]string)
 	for _, entity := range entities {
 		entityMap[entity.GetName()] = entity.GetValue()
+	}
+	if model := req.GetModel(); model != nil {
+		modelFeatures := make([]metadata.NameVariant, len(features))
+		for i, feature := range req.GetFeatures() {
+			modelFeatures[i] = metadata.NameVariant{Name: feature.Name, Variant: feature.Version}
+		}
+		err := serv.Metadata.CreateModel(ctx, metadata.ModelDef{Name: model.GetName(), Features: modelFeatures})
+		if err != nil {
+			return nil, err
+		}
 	}
 	vals := make([]*pb.Value, len(features))
 	for i, feature := range req.GetFeatures() {

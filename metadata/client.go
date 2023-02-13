@@ -1038,8 +1038,10 @@ func (client *Client) GetModels(ctx context.Context, models []string) ([]*Model,
 }
 
 type ModelDef struct {
-	Name        string
-	Description string
+	Name         string
+	Description  string
+	Features     NameVariants
+	Trainingsets NameVariants
 }
 
 func (def ModelDef) ResourceType() ResourceType {
@@ -1048,9 +1050,11 @@ func (def ModelDef) ResourceType() ResourceType {
 
 func (client *Client) CreateModel(ctx context.Context, def ModelDef) error {
 	serialized := &pb.Model{
-		Name:        def.Name,
-		Status:      &pb.ResourceStatus{Status: pb.ResourceStatus_NO_STATUS},
-		Description: def.Description,
+		Name:         def.Name,
+		Status:       &pb.ResourceStatus{Status: pb.ResourceStatus_NO_STATUS},
+		Description:  def.Description,
+		Features:     def.Features.Serialize(),
+		Trainingsets: def.Trainingsets.Serialize(),
 	}
 	_, err := client.grpcConn.CreateModel(ctx, serialized)
 	return err

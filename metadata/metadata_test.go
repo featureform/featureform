@@ -175,8 +175,10 @@ func filledResourceDefs() []ResourceDef {
 			Owner: "Featureform",
 		},
 		ModelDef{
-			Name:        "fraud",
-			Description: "fraud model",
+			Name:         "fraud",
+			Description:  "fraud model",
+			Features:     NameVariants{},
+			Trainingsets: NameVariants{},
 		},
 	}
 }
@@ -264,6 +266,38 @@ func get(client *Client, t ResourceType, nameVar NameVariant) (interface{}, erro
 		return client.GetModel(ctx, nameVar.Name)
 	case PROVIDER:
 		return client.GetProvider(ctx, nameVar.Name)
+	default:
+		panic("ResourceType not handled")
+	}
+}
+
+func update(client *Client, t ResourceType, def ResourceDef) error {
+	ctx := context.Background()
+	switch t {
+	case FEATURE_VARIANT:
+		casted := def.(FeatureDef)
+		return client.CreateFeatureVariant(ctx, casted)
+	case LABEL_VARIANT:
+		casted := def.(LabelDef)
+		return client.CreateLabelVariant(ctx, casted)
+	case SOURCE_VARIANT:
+		casted := def.(SourceDef)
+		return client.CreateSourceVariant(ctx, casted)
+	case TRAINING_SET_VARIANT:
+		casted := def.(TrainingSetDef)
+		return client.CreateTrainingSetVariant(ctx, casted)
+	case USER:
+		casted := def.(UserDef)
+		return client.CreateUser(ctx, casted)
+	case ENTITY:
+		casted := def.(EntityDef)
+		return client.CreateEntity(ctx, casted)
+	case MODEL:
+		casted := def.(ModelDef)
+		return client.CreateModel(ctx, casted)
+	case PROVIDER:
+		casted := def.(ProviderDef)
+		return client.CreateProvider(ctx, casted)
 	default:
 		panic("ResourceType not handled")
 	}
@@ -1243,9 +1277,102 @@ func expectedModels() ResourceTests {
 	}
 }
 
+func expectedUpdatedModels() ResourceTests {
+	return ResourceTests{
+		ModelTest{
+			Name:        "fraud",
+			Description: "fraud model",
+			Labels:      []NameVariant{},
+			Features:    []NameVariant{},
+			TrainingSets: []NameVariant{
+				{Name: "training-set", Variant: "variant"},
+			},
+		},
+		ModelTest{
+			Name:        "fraud",
+			Description: "fraud model",
+			Labels:      []NameVariant{},
+			Features:    []NameVariant{},
+			TrainingSets: []NameVariant{
+				{Name: "training-set", Variant: "variant"},
+				{Name: "training-set", Variant: "variant2"},
+			},
+		},
+		ModelTest{
+			Name:        "fraud",
+			Description: "fraud model",
+			Labels:      []NameVariant{},
+			Features:    []NameVariant{},
+			TrainingSets: []NameVariant{
+				{Name: "training-set", Variant: "variant"},
+				{Name: "training-set", Variant: "variant2"},
+			},
+		},
+	}
+}
+
+func modelUpdates() []ResourceDef {
+	return []ResourceDef{
+		ModelDef{
+			Name:        "fraud",
+			Description: "fraud model",
+			Features:    []NameVariant{},
+			Trainingsets: []NameVariant{
+				{Name: "training-set", Variant: "variant"},
+			},
+		},
+		ModelDef{
+			Name:        "fraud",
+			Description: "fraud model",
+			Features:    []NameVariant{},
+			Trainingsets: []NameVariant{
+				{Name: "training-set", Variant: "variant2"},
+			},
+		},
+		ModelDef{
+			Name:        "fraud",
+			Description: "fraud model",
+			Features:    []NameVariant{},
+			Trainingsets: []NameVariant{
+				{Name: "training-set", Variant: "variant2"},
+			},
+		},
+	}
+}
+
+func testModelUpdates(t *testing.T, typ ResourceType, tests ResourceTests, updates []ResourceDef) {
+	ctx := testContext{
+		Defs: filledResourceDefs(),
+	}
+	client, err := ctx.Create(t)
+	defer ctx.Destroy()
+	if err != nil {
+		t.Fatalf("Failed to create resources: %s", err)
+	}
+	names := tests.NameVariants()
+	resources, err := getAll(client, typ, names)
+	if err != nil {
+		t.Fatalf("Failed to get resources: %v", names)
+	}
+	tests.Test(t, client, resources, true)
+
+	tests = expectedUpdatedModels()
+	for i, u := range updates {
+		if err := update(client, typ, u); err != nil {
+			t.Fatalf("Failed to update resource: %v", err)
+		}
+		resource, err := get(client, typ, names[0])
+		if err != nil {
+			t.Fatalf("Failed to get resource: %v", names[0])
+		}
+		tests[i].Test(t, client, resource, true)
+	}
+}
+
 func TestModel(t *testing.T) {
 	testListResources(t, MODEL, expectedModels())
 	testGetResources(t, MODEL, expectedModels())
+	testModelUpdates(t, MODEL, expectedModels(), modelUpdates())
 }
 
 type ParentResourceTest struct {

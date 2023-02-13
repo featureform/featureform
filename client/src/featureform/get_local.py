@@ -376,4 +376,8 @@ def format_resource_list(res_list, name_col="name", var_col="variant"):
 def get_model_info_local(name) -> Model:
     model = get_resource("model", name)
 
+    format_rows("MODEL NAME: ", model["name"])
+    format_rows("TYPE: ", model["type"])
+    format_rows("STATUS: ", model["status"])
+
     return Model(model["name"])

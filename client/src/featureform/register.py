@@ -23,7 +23,6 @@ from .resources import Model, ResourceState, Provider, RedisConfig, FirestoreCon
     SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet, ProviderReference, \
     EntityReference, SourceReference, ExecutorCredentials, ResourceRedefinedError, ResourceStatus, Transformation, \
     K8sArgs, AWSCredentials
-from .format import CliFormatter
 
 from .proto import metadata_pb2_grpc as ff_grpc
 
@@ -2584,8 +2583,6 @@ class ResourceClient(Registrar):
             model (Model): Model
         """
         model = get_model_info_local(name) if local else get_resource_info(self._stub, "model", name)
-
-        CliFormatter.print_to_table([model])
 
         return model
 

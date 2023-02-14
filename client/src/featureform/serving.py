@@ -4,6 +4,7 @@
 
 import os
 import re
+from typing import Union
 import dill
 import json
 import math
@@ -19,7 +20,7 @@ from featureform.proto import serving_pb2
 from .sqlite_metadata import SQLiteMetadata
 from featureform.proto import serving_pb2_grpc
 
-from .resources import SourceType
+from .resources import Model, SourceType
 from .tls import insecure_channel, secure_channel
 
 
@@ -68,7 +69,7 @@ class ServingClient:
         else:
             self.impl = HostedClientImpl(host, insecure, cert_path)
 
-    def training_set(self, name, variant="default", include_label_timestamp=False):
+    def training_set(self, name, variant="default", include_label_timestamp=False, model: Union[str, Model] = None):
         """Return an iterator that iterates through the specified training set.
 
         **Examples**:
@@ -86,9 +87,9 @@ class ServingClient:
         Returns:
             training set (Dataset): A training set iterator
         """
-        return self.impl.training_set(name, variant, include_label_timestamp)
+        return self.impl.training_set(name, variant, include_label_timestamp, model)
 
-    def features(self, features, entities):
+    def features(self, features, entities, model: Union[str, Model] = None):
         """Returns the feature values for the specified entities.
 
         **Examples**:
@@ -105,7 +106,7 @@ class ServingClient:
             features (numpy.Array): An Numpy array of feature values in the order given by the inputs
         """
         features = check_feature_type(features)
-        return self.impl.features(features, entities)
+        return self.impl.features(features, entities, model)
 
 
 class HostedClientImpl:
@@ -146,8 +147,17 @@ class LocalClientImpl:
     def __init__(self):
         self.db = SQLiteMetadata()
 
-    def training_set(self, training_set_name, training_set_variant, include_label_timestamp):
+    def training_set(self, training_set_name, training_set_variant, include_label_timestamp, model: Union[str, Model] = None):
         training_set = self.db.get_training_set_variant(training_set_name, training_set_variant)
+
+        if model is not None:
+            self._register_model(
+                model,
+                look_up_table="model_training_sets",
+                association_name=training_set_name,
+                association_variant=training_set_variant
+            )
+
         label = self.db.get_label_variant(training_set['label_name'], training_set['label_variant'])
         label_df = self.get_label_dataframe(label)
 
@@ -375,7 +385,7 @@ class LocalClientImpl:
         trainingset_df = trainingset_df.assign(label=label_col)
         return Dataset.from_dataframe(trainingset_df, include_label_timestamp)
 
-    def features(self, feature_variant_list, entities):
+    def features(self, feature_variant_list, entities, model: Union[str, Model] = None):
         if len(feature_variant_list) == 0:
             raise Exception("No features provided")
         # This code assumes that the entities dictionary only has one entity
@@ -383,7 +393,18 @@ class LocalClientImpl:
         entity_value = entities[entity_id]
         all_features_list = self.add_feature_dfs_to_list(feature_variant_list, entity_id)
         all_features_df = self.list_to_combined_df(all_features_list, entity_id)
-        return self.get_features_for_entity(entity_id, entity_value, all_features_df)
+        features = self.get_features_for_entity(entity_id, entity_value, all_features_df)
+
+        if model is not None:
+            for feature_name, feature_variant in feature_variant_list:
+                self._register_model(
+                    model,
+                    look_up_table="model_features",
+                    association_name=feature_name,
+                    association_variant=feature_variant
+                )
+
+        return features
 
     def add_feature_dfs_to_list(self, feature_variant_list, entity_id):
         feature_df_list = []
@@ -459,6 +480,14 @@ class LocalClientImpl:
             raise KeyError(f"Value column does not exist: {resource['source_value']}")
         if resource['source_timestamp'] not in df.columns and resource['source_timestamp'] != "":
             raise KeyError(f"Timestamp column does not exist: {resource['source_timestamp']}")
+
+
+    def _register_model(self, model: Union[str, Model], look_up_table: str, association_name: str, association_variant: str):
+        name = model if isinstance(model, str) else model.name
+        type = "Model" if isinstance(model, str) else model.type()
+
+        self.db.insert("models", name, type)
+        self.db.insert(look_up_table, name, association_name, association_variant)
 
 
 class Stream:

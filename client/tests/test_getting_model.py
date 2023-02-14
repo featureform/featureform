@@ -1,55 +1,57 @@
 import pytest
+from featureform.register import ModelRegistrar
+from featureform.resources import Model
 
 @pytest.mark.parametrize(
-    "resource_serving_client_fxt,is_local",
+    "client_provider_source_fxt,is_local",
     [
-        ('resource_serving_clients', True),
-        ('resource_serving_clients', False),
+        ('local_client_provider_source', True),
+        ('hosted_sql_provider_and_source', False),
     ]
 )
-def test_getting_model_successfully(resource_serving_client_fxt, is_local, request):
-    resource_client = request.getfixturevalue(resource_serving_client_fxt)(is_local)[0];
+def test_getting_model_successfully(client_provider_source_fxt, is_local, request):
+    resource_client = request.getfixturevalue(client_provider_source_fxt)(is_local)[0];
     model_name = "model_a"
 
     arrange_resources(resource_client, model_name)
 
-    model = resource_client.get_model(model_name)
+    model = resource_client.get_model(model_name, is_local)
 
-    assert isinstance(model, ModelRegistrar) and model.name() == model_name
+    assert isinstance(model, Model) and model.name == model_name and model.type() == "model"
 
 
 @pytest.mark.parametrize(
-    "resource_serving_client_fxt,is_local",
+    "client_provider_source_fxt,is_local",
     [
-        ('resource_serving_clients', True),
-        ('resource_serving_clients', False),
+        ('local_client_provider_source', True),
+        ('hosted_sql_provider_and_source', False),
     ]
 )
-def test_getting_model_by_unregistered_name(resource_serving_client_fxt, is_local, request):
-    resource_client = request.getfixturevalue(resource_serving_client_fxt)(is_local)[0];
+def test_getting_model_by_unregistered_name(client_provider_source_fxt, is_local, request):
+    resource_client = request.getfixturevalue(client_provider_source_fxt)(is_local)[0];
     model_name = "model_a"
 
     arrange_resources(resource_client, model_name)
 
     with pytest.raises(ValueError, match="not found"):
-        resource_client.get_model("model_b")
+        resource_client.get_model("model_b", is_local)
 
 
 @pytest.mark.parametrize(
-    "resource_serving_client_fxt,is_local",
+    "client_provider_source_fxt,is_local",
     [
-        ('resource_serving_clients', True),
-        ('resource_serving_clients', False),
+        ('local_client_provider_source', True),
+        ('hosted_sql_provider_and_source', False),
     ]
 )
-def test_getting_model_no_name(resource_serving_client_fxt, is_local, request):
-    resource_client = request.getfixturevalue(resource_serving_client_fxt)(is_local)[0];
+def test_getting_model_no_name(client_provider_source_fxt, is_local, request):
+    resource_client = request.getfixturevalue(client_provider_source_fxt)(is_local)[0];
     model_name = "model_a"
 
     arrange_resources(resource_client, model_name)
 
     with pytest.raises(TypeError, match="missing 1 required positional argument: 'name'"):
-        resource_client.get_model("model_b")
+        resource_client.get_model(local=is_local)
 
 
 @pytest.fixture(autouse=True)

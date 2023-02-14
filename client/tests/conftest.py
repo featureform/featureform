@@ -6,7 +6,14 @@ import shutil
 import stat
 from tempfile import NamedTemporaryFile
 sys.path.insert(0, 'client/src/')
-from featureform.register import Registrar, OfflineSparkProvider, LocalProvider, OfflineSQLProvider
+from featureform.register import (
+    Registrar,
+    OfflineSparkProvider,
+    LocalProvider,
+    OfflineSQLProvider,
+    ResourceClient,
+)
+from featureform.serving import ServingClient
 from featureform.resources import (
     AWSCredentials,
     AzureFileStoreConfig,
@@ -140,28 +147,28 @@ def azure_blob():
 def s3(aws_credentials):
     return S3StoreConfig("bucket_path", "bucket_region", aws_credentials)
 
-@pytest.fixture(scope="module")
-def local_provider():
-    ff.register_user("test_user").make_default_owner()
-    return ff.register_local()
 
 @pytest.fixture(scope="module")
-def local_provider_and_source(local_provider):
-    local_source = local_provider.register_file(
-                name="transactions",
-                variant="quickstart",
-                description="A dataset of fraudulent transactions.",
-                path=f"{dir_path}/test_files/input_files/transactions.csv"
-            )
-    return (local_provider, local_source)
+def local_client_provider_source():
+    def get_local(is_local):
+        resource_client = ResourceClient(local=is_local)
+        resource_client.register_user("test_user").make_default_owner()
+        provider = resource_client.register_local()
+        source = provider.register_file(
+            name="transactions",
+            variant="quickstart",
+            description="A dataset of fraudulent transactions.",
+            path=f"{dir_path}/test_files/input_files/transactions.csv"
+        )
+        return (resource_client, provider, source)
+
+    return get_local
+
 
 @pytest.fixture(scope="module")
-def resource_serving_clients():
+def serving_client():
     def get_clients_for_context(is_local):
-            resource_client = ff.ResourceClient(local=is_local)
-            serving_client = ff.ServingClient(local=is_local)
-
-            return (resource_client, serving_client)
+            return ServingClient(local=is_local)
     
     return get_clients_for_context
 
@@ -181,21 +188,26 @@ def del_rw(action, name, exc):
 
 @pytest.fixture(scope="module")
 def hosted_sql_provider_and_source():
-    provider = ff.register_postgres(
-        name = "postgres-quickstart",
-        host="0.0.0.0",
-        port="5432",
-        user="postgres",
-        password="password",
-        database="postgres",
-        description = "A Postgres deployment we created for the Featureform quickstart"
-    )
+    def get_hosted(is_local):
+            ff.register_user("test_user").make_default_owner()
 
-    source = provider.register_table(
-        name = "transactions",
-        variant = "kaggle",
-        description = "Fraud Dataset From Kaggle",
-        table = "Transactions", # This is the table's name in Postgres
-    )
+            provider = ff.register_postgres(
+                name = "postgres-quickstart",
+                host="0.0.0.0",
+                port="5432",
+                user="postgres",
+                password="password",
+                database="postgres",
+                description = "A Postgres deployment we created for the Featureform quickstart"
+            )
 
-    return (provider, source)
+            source = provider.register_table(
+                name = "transactions",
+                variant = "kaggle",
+                description = "Fraud Dataset From Kaggle",
+                table = "Transactions", # This is the table's name in Postgres
+            )
+
+            return (ff.ResourceClient(), provider, source)
+
+    return get_hosted

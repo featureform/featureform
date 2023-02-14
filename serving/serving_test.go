@@ -910,7 +910,7 @@ func TestSimpleTrainingSetServe(t *testing.T) {
 	stream := newMockTrainingStream()
 	errChan := make(chan error)
 	go func() {
-		if err := serv.TrainingData(context.Background(), req, stream); err != nil {
+		if err := serv.TrainingData(req, stream); err != nil {
 			errChan <- err
 		}
 		close(errChan)
@@ -964,7 +964,7 @@ func TestTrainingSetNotFound(t *testing.T) {
 	stream := newMockTrainingStream()
 	errChan := make(chan error)
 	go func() {
-		if err := serv.TrainingData(context.Background(), req, stream); err != nil {
+		if err := serv.TrainingData(req, stream); err != nil {
 			errChan <- err
 		}
 		close(errChan)
@@ -990,7 +990,7 @@ func TestTrainingSetNoProviderFactory(t *testing.T) {
 	stream := newMockTrainingStream()
 	errChan := make(chan error)
 	go func() {
-		if err := serv.TrainingData(context.Background(), req, stream); err != nil {
+		if err := serv.TrainingData(req, stream); err != nil {
 			errChan <- err
 		}
 		close(errChan)
@@ -1016,7 +1016,7 @@ func TestTrainingSetInOnlineStore(t *testing.T) {
 	stream := newMockTrainingStream()
 	errChan := make(chan error)
 	go func() {
-		if err := serv.TrainingData(context.Background(), req, stream); err != nil {
+		if err := serv.TrainingData(req, stream); err != nil {
 			errChan <- err
 		}
 		close(errChan)
@@ -1043,7 +1043,7 @@ func TestTrainingSetStreamFailure(t *testing.T) {
 	stream.ShouldFail = true
 	errChan := make(chan error)
 	go func() {
-		if err := serv.TrainingData(context.Background(), req, stream); err != nil {
+		if err := serv.TrainingData(req, stream); err != nil {
 			errChan <- err
 		}
 		close(errChan)
@@ -1070,7 +1070,7 @@ func TestTrainingSetInvalidLabel(t *testing.T) {
 	stream.ShouldFail = true
 	errChan := make(chan error)
 	go func() {
-		if err := serv.TrainingData(context.Background(), req, stream); err != nil {
+		if err := serv.TrainingData(req, stream); err != nil {
 			errChan <- err
 		}
 		close(errChan)
@@ -1096,7 +1096,7 @@ func TestTrainingSetInvalidFeature(t *testing.T) {
 	stream := newMockTrainingStream()
 	errChan := make(chan error)
 	go func() {
-		if err := serv.TrainingData(context.Background(), req, stream); err != nil {
+		if err := serv.TrainingData(req, stream); err != nil {
 			errChan <- err
 		}
 		close(errChan)
@@ -1127,7 +1127,7 @@ func TestSimpleModelRegistrationTrainingSetServe(t *testing.T) {
 	stream := newMockTrainingStream()
 	errChan := make(chan error)
 	go func() {
-		if err := serv.TrainingData(context.Background(), req, stream); err != nil {
+		if err := serv.TrainingData(req, stream); err != nil {
 			errChan <- err
 		}
 		close(errChan)

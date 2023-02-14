@@ -34,7 +34,7 @@ func NewFeatureServer(meta *metadata.Client, promMetrics metrics.MetricsHandler,
 	}, nil
 }
 
-func (serv *FeatureServer) TrainingData(ctx context.Context, req *pb.TrainingDataRequest, stream pb.Feature_TrainingDataServer) error {
+func (serv *FeatureServer) TrainingData(req *pb.TrainingDataRequest, stream pb.Feature_TrainingDataServer) error {
 	id := req.GetId()
 	name, variant := id.GetName(), id.GetVersion()
 	featureObserver := serv.Metrics.BeginObservingTrainingServe(name, variant)
@@ -43,7 +43,7 @@ func (serv *FeatureServer) TrainingData(ctx context.Context, req *pb.TrainingDat
 	logger.Info("Serving training data")
 	if model := req.GetModel(); model != nil {
 		trainingSets := []metadata.NameVariant{{Name: name, Variant: variant}}
-		err := serv.Metadata.CreateModel(ctx, metadata.ModelDef{Name: model.GetName(), Trainingsets: trainingSets})
+		err := serv.Metadata.CreateModel(stream.Context(), metadata.ModelDef{Name: model.GetName(), Trainingsets: trainingSets})
 		if err != nil {
 			return err
 		}

@@ -34,5 +34,25 @@ RUN go build -o worker ./runner/worker/main
 FROM alpine
 
 COPY --from=0 ./app/worker ./worker
+COPY --from=0 ./app/provider/scripts/spark/requirements.txt /app/provider/scripts/spark/requirements.txt
+
+# Installing pyenv
+RUN apk --update add libffi-dev ncurses-dev openssl-dev readline-dev \
+tk-dev xz-dev zlib-dev curl git bash build-base bzip2-dev sqlite-dev \
+openjdk11 coreutils procps
+
+ENV ENV=/root/.ashrc
+ENV PYENV_ROOT='/.pyenv'
+ENV PATH="$PYENV_ROOT/bin:/app/OME/.pyenv/versions/3.7.16/bin:$PATH"
+
+RUN curl https://pyenv.run | bash
+
+# Install Python versions
+RUN pyenv install 3.7.16 && pyenv global 3.7.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt
+RUN pyenv install 3.8.16 && pyenv global 3.8.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt
+RUN pyenv install 3.9.16 && pyenv global 3.9.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt
+RUN pyenv install 3.10.10 && pyenv global 3.10.10 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt
+
+
 
 CMD [ "./worker" ]

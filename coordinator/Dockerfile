@@ -31,6 +31,24 @@ FROM alpine
 COPY --from=0 ./app/main ./main
 COPY --from=0 ./app/provider/scripts/spark/offline_store_spark_runner.py /app/provider/scripts/spark/offline_store_spark_runner.py
 COPY --from=0 ./app/provider/scripts/spark/python_packages.sh /app/provider/scripts/spark/python_packages.sh
+COPY --from=0 ./app/provider/scripts/spark/requirements.txt /app/provider/scripts/spark/requirements.txt
+
+# Installing pyenv
+RUN apk --update add libffi-dev ncurses-dev openssl-dev readline-dev \
+tk-dev xz-dev zlib-dev curl git bash build-base bzip2-dev sqlite-dev \
+openjdk11 coreutils procps
+
+ENV ENV=/root/.ashrc
+ENV PYENV_ROOT='/.pyenv'
+ENV PATH="$PYENV_ROOT/bin:/app/OME/.pyenv/versions/3.7.16/bin:$PATH"
+
+RUN curl https://pyenv.run | bash
+
+# Install Python versions
+RUN pyenv install 3.7.16 && pyenv global 3.7.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt
+RUN pyenv install 3.8.16 && pyenv global 3.8.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt
+RUN pyenv install 3.9.16 && pyenv global 3.9.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt
+RUN pyenv install 3.10.10 && pyenv global 3.10.10 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt
 
 ENV SPARK_SCRIPT_PATH="/app/provider/scripts/spark/offline_store_spark_runner.py"
 ENV PYTHON_INIT_PATH="/app/provider/scripts/spark/python_packages.sh"

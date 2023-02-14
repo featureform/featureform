@@ -3,16 +3,17 @@ package main
 import (
 	"context"
 	"fmt"
-	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
-	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
-	"github.com/sirupsen/logrus"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/reflection"
 	"io"
 	"net"
 	"net/http"
 	"strings"
 	"time"
+
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/reflection"
 
 	"github.com/joho/godotenv"
 
@@ -349,6 +350,7 @@ func (serv *MetadataServer) GetProviders(stream pb.Api_GetProvidersServer) error
 		}
 	}
 }
+
 func (serv *MetadataServer) GetEntities(stream pb.Api_GetEntitiesServer) error {
 	for {
 		name, err := stream.Recv()
@@ -376,6 +378,7 @@ func (serv *MetadataServer) GetEntities(stream pb.Api_GetEntitiesServer) error {
 		}
 	}
 }
+
 func (serv *MetadataServer) GetModels(stream pb.Api_GetModelsServer) error {
 	for {
 		name, err := stream.Recv()
@@ -636,6 +639,11 @@ func (serv *MetadataServer) CreateTrainingSetVariant(ctx context.Context, train 
 	}
 	train.Provider = label.Provider()
 	return serv.meta.CreateTrainingSetVariant(ctx, train)
+}
+
+func (serv *MetadataServer) CreateModel(ctx context.Context, model *pb.Model) (*pb.Empty, error) {
+	serv.Logger.Infow("Creating Model", "model", model.Name)
+	return serv.meta.CreateModel(ctx, model)
 }
 
 func (serv *OnlineServer) FeatureServe(ctx context.Context, req *srv.FeatureServeRequest) (*srv.FeatureRow, error) {

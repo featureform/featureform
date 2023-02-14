@@ -317,6 +317,11 @@ func (lookup localResourceLookup) HasJob(id ResourceID) (bool, error) {
 	return false, nil
 }
 
+type NameVariantKey struct {
+	Name    string
+	Variant string
+}
+
 type sourceResource struct {
 	serialized *pb.Source
 }
@@ -888,14 +893,16 @@ func (resource *modelResource) Update(lookup ResourceLookup, updateRes Resource)
 }
 
 func unionNameVariants(source, destination []*pb.NameVariant) ([]*pb.NameVariant, error) {
-	set := make(map[string]bool)
+	set := make(map[NameVariantKey]bool)
 
 	for _, nameVariant := range destination {
-		set[fmt.Sprintf("%s|%s", nameVariant.Name, nameVariant.Variant)] = true
+		key := NameVariantKey{Name: nameVariant.Name, Variant: nameVariant.Variant}
+		set[key] = true
 	}
 
 	for _, nameVariant := range source {
-		if _, has := set[fmt.Sprintf("%s|%s", nameVariant.Name, nameVariant.Variant)]; !has {
+		key := NameVariantKey{Name: nameVariant.Name, Variant: nameVariant.Variant}
+		if _, has := set[key]; !has {
 			destination = append(destination, nameVariant)
 		}
 	}

@@ -52,6 +52,7 @@ service Api {
     rpc CreateFeatureVariant(FeatureVariant) returns (Empty);
     rpc CreateLabelVariant(LabelVariant) returns (Empty);
     rpc CreateTrainingSetVariant(TrainingSetVariant) returns (Empty);
+    rpc CreateModel(Model) returns (Empty);
     rpc RequestScheduleChange(ScheduleChangeRequest) returns (Empty);
     rpc GetUsers(stream Name) returns (stream User);
     rpc GetFeatures(stream Name) returns (stream Feature);

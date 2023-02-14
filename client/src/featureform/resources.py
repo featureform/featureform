@@ -1403,13 +1403,35 @@ class SparkCredentials:
     def __init__(self,
                  master: str,
                  deploy_mode: str,
+                 python_version: str,
                 ):
 
         if deploy_mode != "cluster" and deploy_mode != "client":
             raise Exception(f"Spark does not support '{deploy_mode}' deploy mode. It only supports 'cluster' and 'client'.")
 
+        python_version = self._verify_python_version(python_version)
+
         self.master = master
         self.deploy_mode = deploy_mode
+        self.python_version = python_version
+    
+    def _verify_python_version(self, version):
+        if version.count(".") == 2:
+            major, minor, _ = version.split(".")
+        elif version.count(".") == 1:
+            major, minor = version.split(".")    
+        else:
+            raise Exception("Please specify your Python version on the Spark cluster. Accepted formats: Major.Minor or Major.Minor.Patch; ex. '3.7' or '3.7.16")
+
+        if major != "3" or minor not in ["7", "8", "9", "10"]:
+            raise Exception(f"The Python version {version} is not supported. Currently, supported versions are 3.7-3.10.")
+        
+        if minor == "10":
+            patch = "10"
+        else:
+            patch = "16"
+        
+        return f"{major}.{minor}.{patch}"
 
     def type(self):
         return "SPARK"
@@ -1418,6 +1440,7 @@ class SparkCredentials:
         return {
             "Master": self.master,
             "DeployMode": self.deploy_mode,
+            "PythonVersion": self.python_version
         }
 
 ExecutorCredentials = Union[EMRCredentials, DatabricksCredentials, SparkCredentials]

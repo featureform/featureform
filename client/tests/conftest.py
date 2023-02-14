@@ -108,12 +108,14 @@ def emr_config(aws_credentials):
 def spark_executor():
     master = "local"
     deploy_mode = "cluster"
+    python_version = "3.7.16"
 
-    config = SparkCredentials(master, deploy_mode)
+    config = SparkCredentials(master, deploy_mode, python_version)
 
     expected_config = {
         "Master": master,
         "DeployMode": deploy_mode,
+        "PythonVersion": python_version,
     }
 
     return config, expected_config
@@ -123,12 +125,14 @@ def spark_executor():
 def spark_executor_incorrect_deploy_mode():
     master = "local"
     deploy_mode = "featureform"
+    python_version = "3.7.16"
 
-    config = SparkCredentials(master, deploy_mode)
+    config = SparkCredentials(master, deploy_mode, python_version)
 
     expected_config = {
         "Master": master,
         "DeployMode": deploy_mode,
+        "PythonVersion": python_version,
     }
 
     return config, expected_config

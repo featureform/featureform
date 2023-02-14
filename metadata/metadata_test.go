@@ -1277,6 +1277,45 @@ func expectedModels() ResourceTests {
 	}
 }
 
+/*
+Currently, the testing pattern assumes immutability, which made writing
+test for model updates a bit awkward. As we roll out updates to other
+resource types, we should consider refactoring the top-level interfaces
+so we can more neatly encapsulate data/logic/etc. for updates.
+
+For now, the below two functions work in tandem:
+* `modelUpdates` holds 3 payloads that are applied in order
+* `expectedUpdatedModels` holds the expected state after each payload is persisted
+*/
+func modelUpdates() []ResourceDef {
+	return []ResourceDef{
+		ModelDef{
+			Name:        "fraud",
+			Description: "fraud model",
+			Features:    []NameVariant{},
+			Trainingsets: []NameVariant{
+				{Name: "training-set", Variant: "variant"},
+			},
+		},
+		ModelDef{
+			Name:        "fraud",
+			Description: "fraud model",
+			Features:    []NameVariant{},
+			Trainingsets: []NameVariant{
+				{Name: "training-set", Variant: "variant2"},
+			},
+		},
+		ModelDef{
+			Name:        "fraud",
+			Description: "fraud model",
+			Features:    []NameVariant{},
+			Trainingsets: []NameVariant{
+				{Name: "training-set", Variant: "variant2"},
+			},
+		},
+	}
+}
+
 func expectedUpdatedModels() ResourceTests {
 	return ResourceTests{
 		ModelTest{
@@ -1305,35 +1344,6 @@ func expectedUpdatedModels() ResourceTests {
 			Features:    []NameVariant{},
 			TrainingSets: []NameVariant{
 				{Name: "training-set", Variant: "variant"},
-				{Name: "training-set", Variant: "variant2"},
-			},
-		},
-	}
-}
-
-func modelUpdates() []ResourceDef {
-	return []ResourceDef{
-		ModelDef{
-			Name:        "fraud",
-			Description: "fraud model",
-			Features:    []NameVariant{},
-			Trainingsets: []NameVariant{
-				{Name: "training-set", Variant: "variant"},
-			},
-		},
-		ModelDef{
-			Name:        "fraud",
-			Description: "fraud model",
-			Features:    []NameVariant{},
-			Trainingsets: []NameVariant{
-				{Name: "training-set", Variant: "variant2"},
-			},
-		},
-		ModelDef{
-			Name:        "fraud",
-			Description: "fraud model",
-			Features:    []NameVariant{},
-			Trainingsets: []NameVariant{
 				{Name: "training-set", Variant: "variant2"},
 			},
 		},

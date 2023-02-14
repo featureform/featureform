@@ -1051,7 +1051,6 @@ func (def ModelDef) ResourceType() ResourceType {
 func (client *Client) CreateModel(ctx context.Context, def ModelDef) error {
 	serialized := &pb.Model{
 		Name:         def.Name,
-		Status:       &pb.ResourceStatus{Status: pb.ResourceStatus_NO_STATUS},
 		Description:  def.Description,
 		Features:     def.Features.Serialize(),
 		Trainingsets: def.Trainingsets.Serialize(),
@@ -1467,16 +1466,10 @@ func (model *Model) Description() string {
 }
 
 func (model *Model) Status() ResourceStatus {
-	if model.serialized.GetStatus() != nil {
-		return ResourceStatus(model.serialized.GetStatus().Status)
-	}
 	return ResourceStatus(0)
 }
 
 func (model *Model) Error() string {
-	if model.serialized.GetStatus() != nil {
-		return model.serialized.GetStatus().ErrorMessage
-	}
 	return ""
 }
 

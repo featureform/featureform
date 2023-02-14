@@ -186,7 +186,7 @@ def apply(host, cert, insecure, local, files, dry_run):
     rc = ResourceClient(host=host, local=local, insecure=insecure, cert_path=cert, dry_run=dry_run)
     rc.apply()
 
-
+# useless comment
 def read_file(file):
     with open(file, "r") as py:
         exec_file(py, file)

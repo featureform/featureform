@@ -149,20 +149,16 @@ def s3(aws_credentials):
 
 
 @pytest.fixture(scope="module")
-def local_client_provider_source():
-    def get_local(is_local):
-        resource_client = ResourceClient(local=is_local)
-        resource_client.register_user("test_user").make_default_owner()
-        provider = resource_client.register_local()
+def local_registrar_provider_source():
+        ff.register_user("test_user").make_default_owner()
+        provider = ff.register_local()
         source = provider.register_file(
             name="transactions",
             variant="quickstart",
             description="A dataset of fraudulent transactions.",
             path=f"{dir_path}/test_files/input_files/transactions.csv"
         )
-        return (resource_client, provider, source)
-
-    return get_local
+        return (ff, provider, source)
 
 
 @pytest.fixture(scope="module")
@@ -188,26 +184,23 @@ def del_rw(action, name, exc):
 
 @pytest.fixture(scope="module")
 def hosted_sql_provider_and_source():
-    def get_hosted(is_local):
-            ff.register_user("test_user").make_default_owner()
+    ff.register_user("test_user").make_default_owner()
 
-            provider = ff.register_postgres(
-                name = "postgres-quickstart",
-                host="0.0.0.0",
-                port="5432",
-                user="postgres",
-                password="password",
-                database="postgres",
-                description = "A Postgres deployment we created for the Featureform quickstart"
-            )
+    provider = ff.register_postgres(
+        name = "postgres-quickstart",
+        host="0.0.0.0",
+        port="5432",
+        user="postgres",
+        password="password",
+        database="postgres",
+        description = "A Postgres deployment we created for the Featureform quickstart"
+    )
 
-            source = provider.register_table(
-                name = "transactions",
-                variant = "kaggle",
-                description = "Fraud Dataset From Kaggle",
-                table = "Transactions", # This is the table's name in Postgres
-            )
+    source = provider.register_table(
+        name = "transactions",
+        variant = "kaggle",
+        description = "Fraud Dataset From Kaggle",
+        table = "Transactions", # This is the table's name in Postgres
+    )
 
-            return (ff.ResourceClient(), provider, source)
-
-    return get_hosted
+    return (ff, provider, source)

@@ -2457,9 +2457,9 @@ class ResourceClient(Registrar):
             return
 
         if self.local:
-            self.state().create_all_local()
+            state().create_all_local()
         else:
-            self.state().create_all(self._stub)
+            state().create_all(self._stub)
 
     def get_user(self, name, local=False):
         """Get a user. Prints out name of user, and all resources associated with the user.

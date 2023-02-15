@@ -1,7 +1,7 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
-
+import datetime
 import json
 import time
 from enum import Enum
@@ -14,8 +14,7 @@ from google.protobuf.duration_pb2 import Duration
 
 from featureform.proto import metadata_pb2 as pb
 from dataclasses import dataclass, field
-from .tls import check_up_to_date
-import asyncio
+from .version import check_up_to_date
 
 NameVariant = Tuple[str, str]
 
@@ -1310,7 +1309,7 @@ class ResourceState:
 
     def create_all_local(self) -> None:
         db = SQLiteMetadata()
-        asyncio.run(check_up_to_date(True, "register"))
+        check_up_to_date(True, "register")
         for resource in self.__create_list:
             if resource.operation_type() is OperationType.GET:
                 print("Getting", resource.type(), resource.name)
@@ -1322,7 +1321,7 @@ class ResourceState:
         return
 
     def create_all(self, stub) -> None:
-        asyncio.run(check_up_to_date(False, "register"))
+        check_up_to_date(False, "register")
         for resource in self.__create_list:
             if resource.type() == "provider" and resource.name == "local-mode":
                 continue

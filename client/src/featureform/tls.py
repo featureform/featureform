@@ -1,9 +1,5 @@
 import grpc
 import os
-import pkg_resources
-import http3
-
-version_check_url = "https://version.featureform.com"
 
 
 def insecure_channel(host):
@@ -19,12 +15,3 @@ def secure_channel(host, cert_path):
         credentials = grpc.ssl_channel_credentials()
     channel = grpc.secure_channel(host, credentials)
     return channel
-
-
-async def check_up_to_date(local, client):
-    try:
-        c = http3.AsyncClient()
-        version = pkg_resources.get_distribution("featureform").version
-        await c.get(version_check_url, params={"local": local, "client": client, "version": version})
-    except:
-        pass

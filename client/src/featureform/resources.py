@@ -15,6 +15,7 @@ from google.protobuf.duration_pb2 import Duration
 from featureform.proto import metadata_pb2 as pb
 from dataclasses import dataclass, field
 from .tls import check_up_to_date
+import asyncio
 
 NameVariant = Tuple[str, str]
 
@@ -1309,7 +1310,7 @@ class ResourceState:
 
     def create_all_local(self) -> None:
         db = SQLiteMetadata()
-        check_up_to_date(True, "register")
+        asyncio.run(check_up_to_date(True, "register"))
         for resource in self.__create_list:
             if resource.operation_type() is OperationType.GET:
                 print("Getting", resource.type(), resource.name)
@@ -1321,7 +1322,7 @@ class ResourceState:
         return
 
     def create_all(self, stub) -> None:
-        check_up_to_date(False, "register")
+        asyncio.run(check_up_to_date(False, "register"))
         for resource in self.__create_list:
             if resource.type() == "provider" and resource.name == "local-mode":
                 continue

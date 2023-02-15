@@ -9,6 +9,7 @@ import json
 import math
 import types
 import random
+import asyncio
 
 import numpy as np
 import pandas as pd
@@ -114,7 +115,7 @@ class HostedClientImpl:
                 'If not in local mode then `host` must be passed or the environment'
                 ' variable FEATUREFORM_HOST must be set.'
             )
-        check_up_to_date(False, "serving")
+        asyncio.run(check_up_to_date(False, "serving"))
         channel = self._create_channel(host, insecure, cert_path)
         self._stub = serving_pb2_grpc.FeatureStub(channel)
 
@@ -144,7 +145,7 @@ class HostedClientImpl:
 class LocalClientImpl:
     def __init__(self):
         self.db = SQLiteMetadata()
-        check_up_to_date(True, "serving")
+        asyncio.run(check_up_to_date(True, "serving"))
 
     def training_set(self, training_set_name, training_set_variant, include_label_timestamp):
         training_set = self.db.get_training_set_variant(training_set_name, training_set_variant)

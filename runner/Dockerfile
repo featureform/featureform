@@ -26,7 +26,7 @@ COPY types/ ./types/
 COPY kubernetes/ ./kubernetes/
 COPY metadata/*.go ./metadata/
 COPY metadata/search/* ./metadata/search/
-COPY provider/* ./provider/
+COPY ./provider/ ./provider/
 COPY runner/worker/main/main.go ./runner/worker/main/main.go
 
 RUN go build -o worker ./runner/worker/main
@@ -34,7 +34,7 @@ RUN go build -o worker ./runner/worker/main
 FROM alpine
 
 COPY --from=0 ./app/worker ./worker
-COPY --from=0 ./app/provider/scripts/spark/requirements.txt /app/provider/scripts/spark/requirements.txt
+COPY ./app/provider/scripts/spark/requirements.txt /app/provider/scripts/spark/requirements.txt
 
 # Installing pyenv
 RUN apk --update add libffi-dev ncurses-dev openssl-dev readline-dev \
@@ -52,7 +52,5 @@ RUN pyenv install 3.7.16 && pyenv global 3.7.16 && pyenv exec pip install --upgr
 RUN pyenv install 3.8.16 && pyenv global 3.8.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt
 RUN pyenv install 3.9.16 && pyenv global 3.9.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt
 RUN pyenv install 3.10.10 && pyenv global 3.10.10 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt
-
-
 
 CMD [ "./worker" ]

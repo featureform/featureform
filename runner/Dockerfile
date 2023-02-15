@@ -34,7 +34,7 @@ RUN go build -o worker ./runner/worker/main
 FROM alpine
 
 COPY --from=0 ./app/worker ./worker
-COPY ./app/provider/scripts/spark/requirements.txt /app/provider/scripts/spark/requirements.txt
+COPY ./provider/scripts/spark/requirements.txt /app/provider/scripts/spark/requirements.txt
 
 # Installing pyenv
 RUN apk --update add libffi-dev ncurses-dev openssl-dev readline-dev \

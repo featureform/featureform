@@ -29,9 +29,9 @@ RUN go build ./coordinator/main/main.go
 FROM alpine
 
 COPY --from=0 ./app/main ./main
-COPY ./app/provider/scripts/spark/offline_store_spark_runner.py /app/provider/scripts/spark/offline_store_spark_runner.py
-COPY ./app/provider/scripts/spark/python_packages.sh /app/provider/scripts/spark/python_packages.sh
-COPY ./app/provider/scripts/spark/requirements.txt /app/provider/scripts/spark/requirements.txt
+COPY ./provider/scripts/spark/offline_store_spark_runner.py /app/provider/scripts/spark/offline_store_spark_runner.py
+COPY ./provider/scripts/spark/python_packages.sh /app/provider/scripts/spark/python_packages.sh
+COPY ./provider/scripts/spark/requirements.txt /app/provider/scripts/spark/requirements.txt
 
 # Installing pyenv
 RUN apk --update add libffi-dev ncurses-dev openssl-dev readline-dev \

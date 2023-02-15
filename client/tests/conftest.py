@@ -13,7 +13,6 @@ from featureform.register import (
     OfflineSQLProvider,
     ResourceClient,
 )
-from featureform.serving import ServingClient
 from featureform.resources import (
     AWSCredentials,
     AzureFileStoreConfig,
@@ -149,22 +148,25 @@ def s3(aws_credentials):
 
 
 @pytest.fixture(scope="module")
-def local_registrar_provider_source():
-        ff.register_user("test_user").make_default_owner()
-        provider = ff.register_local()
-        source = provider.register_file(
-            name="transactions",
-            variant="quickstart",
-            description="A dataset of fraudulent transactions.",
-            path=f"{dir_path}/test_files/input_files/transactions.csv"
-        )
-        return (ff, provider, source)
+def local_provider_source():
+        def get_local():
+            ff.register_user("test_user").make_default_owner()
+            provider = ff.register_local()
+            source = provider.register_file(
+                name="transactions",
+                variant="quickstart",
+                description="A dataset of fraudulent transactions.",
+                path=f"{dir_path}/test_files/input_files/transactions.csv"
+            )
+            return (provider, source)
+        
+        return get_local
 
 
 @pytest.fixture(scope="module")
 def serving_client():
     def get_clients_for_context(is_local):
-            return ServingClient(local=is_local)
+            return ff.ServingClient(local=is_local)
     
     return get_clients_for_context
 
@@ -203,4 +205,4 @@ def hosted_sql_provider_and_source():
         table = "Transactions", # This is the table's name in Postgres
     )
 
-    return (ff, provider, source)
+    return (provider, source)

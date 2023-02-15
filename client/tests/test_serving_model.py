@@ -1,3 +1,4 @@
+import featureform as ff
 from featureform.resources import Model
 import os
 import pytest
@@ -8,18 +9,18 @@ dir_path = os.path.dirname(real_path)
 
 # TRAINING SET TESTS
 @pytest.mark.parametrize(
-    "ff_provider_source_fxt,serving_client_fxt,is_local",
+    "provider_source_fxt,serving_client_fxt,is_local",
     [
-        ('local_registrar_provider_source', 'serving_client', True),
+        ('local_provider_source', 'serving_client', True),
         ('hosted_sql_provider_and_source','serving_client', False),
     ]
 )
-def test_registering_model_while_serving_training_set(ff_provider_source_fxt,serving_client_fxt, is_local, request):
-    ff, provider, source = request.getfixturevalue(ff_provider_source_fxt);
+def test_registering_model_while_serving_training_set(provider_source_fxt,serving_client_fxt, is_local, request):
+    provider, source = request.getfixturevalue(provider_source_fxt)();
     serving_client = request.getfixturevalue(serving_client_fxt)(is_local);
 
     # Arranges the resources context following the Quickstart pattern
-    resource_client = arrange_resources(ff, provider, source, is_local)
+    resource_client = arrange_resources(provider, source, is_local)
 
     model_name = 'fraud_model_a'
 
@@ -31,18 +32,18 @@ def test_registering_model_while_serving_training_set(ff_provider_source_fxt,ser
 
 
 @pytest.mark.parametrize(
-    "ff_provider_source_fxt,serving_client_fxt,is_local",
+    "provider_source_fxt,serving_client_fxt,is_local",
     [
-        ('local_registrar_provider_source', 'serving_client', True),
+        ('local_provider_source', 'serving_client', True),
         ('hosted_sql_provider_and_source','serving_client', False),
     ]
 )
-def test_registering_two_models_while_serving_training_set(ff_provider_source_fxt,serving_client_fxt, is_local, request):
-    ff, provider, source = request.getfixturevalue(ff_provider_source_fxt);
+def test_registering_two_models_while_serving_training_set(provider_source_fxt,serving_client_fxt, is_local, request):
+    provider, source = request.getfixturevalue(provider_source_fxt)();
     serving_client = request.getfixturevalue(serving_client_fxt)(is_local);
 
     # Arranges the resources context following the Quickstart pattern
-    resource_client = arrange_resources(ff, provider, source, is_local)
+    resource_client = arrange_resources(provider, source, is_local)
 
     model_name_a = 'fraud_model_a';
     model_name_b = 'fraud_model_b';
@@ -56,18 +57,18 @@ def test_registering_two_models_while_serving_training_set(ff_provider_source_fx
 
 
 @pytest.mark.parametrize(
-    "ff_provider_source_fxt,serving_client_fxt,is_local",
+    "provider_source_fxt,serving_client_fxt,is_local",
     [
-        ('local_registrar_provider_source', 'serving_client', True),
+        ('local_provider_source', 'serving_client', True),
         ('hosted_sql_provider_and_source','serving_client', False),
     ]
 )
-def test_registering_same_model_twice_while_serving_training_set(ff_provider_source_fxt,serving_client_fxt, is_local, request):
-    ff, provider, source = request.getfixturevalue(ff_provider_source_fxt);
+def test_registering_same_model_twice_while_serving_training_set(provider_source_fxt,serving_client_fxt, is_local, request):
+    provider, source = request.getfixturevalue(provider_source_fxt)();
     serving_client = request.getfixturevalue(serving_client_fxt)(is_local);
 
     # Arranges the resources context following the Quickstart pattern
-    resource_client = arrange_resources(ff, provider, source, is_local)
+    resource_client = arrange_resources(provider, source, is_local)
 
     model_name = 'fraud_model';
 
@@ -81,18 +82,18 @@ def test_registering_same_model_twice_while_serving_training_set(ff_provider_sou
 
 # FEATURE TESTS
 @pytest.mark.parametrize(
-    "ff_provider_source_fxt,serving_client_fxt,is_local",
+    "provider_source_fxt,serving_client_fxt,is_local",
     [
-        ('local_registrar_provider_source', 'serving_client', True),
+        ('local_provider_source', 'serving_client', True),
         ('hosted_sql_provider_and_source','serving_client', False),
     ]
 )
-def test_registering_model_while_serving_features(ff_provider_source_fxt,serving_client_fxt, is_local, request):
-    ff, provider, source = request.getfixturevalue(ff_provider_source_fxt);
+def test_registering_model_while_serving_features(provider_source_fxt,serving_client_fxt, is_local, request):
+    provider, source = request.getfixturevalue(provider_source_fxt)();
     serving_client = request.getfixturevalue(serving_client_fxt)(is_local);
 
     # Arranges the resources context following the Quickstart pattern
-    resource_client = arrange_resources(ff, provider, source, is_local)
+    resource_client = arrange_resources(provider, source, is_local)
 
     model_name = 'fraud_model_a';
 
@@ -104,18 +105,18 @@ def test_registering_model_while_serving_features(ff_provider_source_fxt,serving
 
 
 @pytest.mark.parametrize(
-    "ff_provider_source_fxt,serving_client_fxt,is_local",
+    "provider_source_fxt,serving_client_fxt,is_local",
     [
-        ('local_registrar_provider_source', 'serving_client', True),
+        ('local_provider_source', 'serving_client', True),
         ('hosted_sql_provider_and_source','serving_client', False),
     ]
 )
-def test_registering_two_models_while_serving_features(ff_provider_source_fxt,serving_client_fxt, is_local, request):
-    ff, provider, source = request.getfixturevalue(ff_provider_source_fxt);
+def test_registering_two_models_while_serving_features(provider_source_fxt,serving_client_fxt, is_local, request):
+    provider, source = request.getfixturevalue(provider_source_fxt)();
     serving_client = request.getfixturevalue(serving_client_fxt)(is_local);
 
     # Arranges the resources context following the Quickstart pattern
-    resource_client = arrange_resources(ff, provider, source, is_local)
+    resource_client = arrange_resources(provider, source, is_local)
 
     model_name_a = 'fraud_model_a';
     model_name_b = 'fraud_model_b';
@@ -129,18 +130,18 @@ def test_registering_two_models_while_serving_features(ff_provider_source_fxt,se
 
 
 @pytest.mark.parametrize(
-    "ff_provider_source_fxt,serving_client_fxt,is_local",
+    "provider_source_fxt,serving_client_fxt,is_local",
     [
-        ('local_registrar_provider_source', 'serving_client', True),
+        ('local_provider_source', 'serving_client', True),
         ('hosted_sql_provider_and_source','serving_client', False),
     ]
 )
-def test_registering_same_model_twice_while_serving_features(ff_provider_source_fxt,serving_client_fxt, is_local, request):
-    ff, provider, source = request.getfixturevalue(ff_provider_source_fxt);
+def test_registering_same_model_twice_while_serving_features(provider_source_fxt,serving_client_fxt, is_local, request):
+    provider, source = request.getfixturevalue(provider_source_fxt)();
     serving_client = request.getfixturevalue(serving_client_fxt)(is_local);
 
     # Arranges the resources context following the Quickstart pattern
-    resource_client = arrange_resources(ff, provider, source, is_local)
+    resource_client = arrange_resources(provider, source, is_local)
 
     model_name = 'fraud_model';
 
@@ -153,18 +154,18 @@ def test_registering_same_model_twice_while_serving_features(ff_provider_source_
 
 
 @pytest.mark.parametrize(
-    "ff_provider_source_fxt,serving_client_fxt,is_local",
+    "provider_source_fxt,serving_client_fxt,is_local",
     [
-        ('local_registrar_provider_source', 'serving_client', True),
+        ('local_provider_source', 'serving_client', True),
         ('hosted_sql_provider_and_source','serving_client', False),
     ]
 )
-def test_no_models_registered_while_serving_training_set(ff_provider_source_fxt,serving_client_fxt, is_local, request):
-    ff, provider, source = request.getfixturevalue(ff_provider_source_fxt);
+def test_no_models_registered_while_serving_training_set(provider_source_fxt,serving_client_fxt, is_local, request):
+    provider, source = request.getfixturevalue(provider_source_fxt)();
     serving_client = request.getfixturevalue(serving_client_fxt)(is_local);
 
     # Arranges the resources context following the Quickstart pattern
-    resource_client = arrange_resources(ff, provider, source, is_local)
+    resource_client = arrange_resources(provider, source, is_local)
 
     serving_client.features([("avg_transactions", "quickstart")], {"user": "C1410926"})
     serving_client.features([("avg_transactions", "quickstart")], {"user": "C1410926"})
@@ -181,7 +182,7 @@ def before_and_after_each(setup_teardown):
     setup_teardown()
 
 
-def arrange_resources(ff, provider, source, is_local):
+def arrange_resources(provider, source, is_local):
     if is_local:
         @provider.df_transformation(variant="quickstart", inputs=[("transactions", "quickstart")])
         def average_user_transaction(transactions):

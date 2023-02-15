@@ -2661,13 +2661,15 @@ func TestExecutors(t *testing.T) {
 			"SparkGenericExecutor",
 			SparkGeneric,
 			&SparkGenericConfig{
-				Master:     "local",
-				DeployMode: "client",
+				Master:        "local",
+				DeployMode:    "client",
+				PythonVersion: "3.7.16",
 			},
 			&SparkGenericExecutor{
-				master:     "local",
-				deployMode: "client",
-				logger:     logger,
+				master:        "local",
+				deployMode:    "client",
+				pythonVersion: "3.7.16",
+				logger:        logger,
 			},
 		},
 	}

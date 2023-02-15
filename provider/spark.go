@@ -629,8 +629,9 @@ func (e EMRExecutor) InitializeExecutor(store FileStore) error {
 }
 
 type SparkGenericConfig struct {
-	Master     string
-	DeployMode string
+	Master        string
+	DeployMode    string
+	PythonVersion string
 }
 
 func (sc *SparkGenericConfig) Deserialize(config SerializedConfig) error {
@@ -654,9 +655,10 @@ func (sc *SparkGenericConfig) IsExecutorConfig() bool {
 }
 
 type SparkGenericExecutor struct {
-	master     string
-	deployMode string
-	logger     *zap.SugaredLogger
+	master        string
+	deployMode    string
+	pythonVersion string
+	logger        *zap.SugaredLogger
 }
 
 func (s *SparkGenericExecutor) InitializeExecutor(store FileStore) error {
@@ -675,8 +677,9 @@ func (s *SparkGenericExecutor) InitializeExecutor(store FileStore) error {
 }
 
 func (s *SparkGenericExecutor) RunSparkJob(args *[]string, store FileStore) error {
+	pyenvCommand := fmt.Sprintf("pyenv global %s && pyenv exec", s.pythonVersion)
 	sparkArgs := *args
-	cmd := exec.Command(sparkArgs[0], sparkArgs[1:]...)
+	cmd := exec.Command(pyenvCommand, sparkArgs...)
 	err := cmd.Start()
 	if err != nil {
 		return fmt.Errorf("could not run spark job: %v", err)
@@ -736,9 +739,10 @@ func (s *SparkGenericExecutor) GetDFArgs(outputURI string, code string, sources 
 
 func NewSparkGenericExecutor(sparkGenericConfig SparkGenericConfig, logger *zap.SugaredLogger) (SparkExecutor, error) {
 	sparkGenericExecutor := SparkGenericExecutor{
-		master:     sparkGenericConfig.Master,
-		deployMode: sparkGenericConfig.DeployMode,
-		logger:     logger,
+		master:        sparkGenericConfig.Master,
+		deployMode:    sparkGenericConfig.DeployMode,
+		pythonVersion: sparkGenericConfig.PythonVersion,
+		logger:        logger,
 	}
 	return &sparkGenericExecutor, nil
 }

@@ -1,13 +1,11 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
-
+import datetime
 import json
 import time
 from enum import Enum
-from base64 import b64encode
 from typeguard import typechecked
-from dataclasses import dataclass
 from typing import List, Tuple, Union
 
 import grpc
@@ -16,7 +14,7 @@ from google.protobuf.duration_pb2 import Duration
 
 from featureform.proto import metadata_pb2 as pb
 from dataclasses import dataclass, field
-from featureform.format import *
+from .version import check_up_to_date
 
 NameVariant = Tuple[str, str]
 
@@ -1311,6 +1309,7 @@ class ResourceState:
 
     def create_all_local(self) -> None:
         db = SQLiteMetadata()
+        check_up_to_date(True, "register")
         for resource in self.__create_list:
             if resource.operation_type() is OperationType.GET:
                 print("Getting", resource.type(), resource.name)
@@ -1322,6 +1321,7 @@ class ResourceState:
         return
 
     def create_all(self, stub) -> None:
+        check_up_to_date(False, "register")
         for resource in self.__create_list:
             if resource.type() == "provider" and resource.name == "local-mode":
                 continue

@@ -6,8 +6,8 @@ import featureform as ff
 @pytest.mark.parametrize(
     "is_local",
     [
-        (True),
-        (False),
+        pytest.param(True, marks=pytest.mark.local),
+        pytest.param(False, marks=pytest.mark.hosted),
     ]
 )
 def test_getting_model_successfully(is_local):
@@ -23,8 +23,8 @@ def test_getting_model_successfully(is_local):
 @pytest.mark.parametrize(
     "is_local",
     [
-        (True),
-        (False),
+        pytest.param(True, marks=pytest.mark.local),
+        pytest.param(False, marks=pytest.mark.hosted),
     ]
 )
 def test_getting_model_by_unregistered_name(is_local):
@@ -39,8 +39,8 @@ def test_getting_model_by_unregistered_name(is_local):
 @pytest.mark.parametrize(
     "is_local",
     [
-        (True),
-        (False),
+        pytest.param(True, marks=pytest.mark.local),
+        pytest.param(False, marks=pytest.mark.hosted),
     ]
 )
 def test_getting_model_no_name(is_local):

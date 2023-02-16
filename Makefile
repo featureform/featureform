@@ -219,9 +219,10 @@ pytest:
 	pytest client/tests/test_spark_provider.py
 	pytest client/tests/test_localmode_include_label_ts.py
 	pytest client/tests/test_localmode_lag_features.py
-	pytest client/tests/test_serving_model.py
-	pytest client/tests/test_getting_model.py
+	pytest -m 'local' client/tests/test_serving_model.py
+	pytest -m 'local' client/tests/test_getting_model.py
 	-rm -r .featureform
+	-rm -f transactions.csv
 
 jupyter: update_python
 	pip3 install jupyter nbconvert matplotlib pandas scikit-learn requests

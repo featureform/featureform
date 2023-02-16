@@ -11,8 +11,8 @@ dir_path = os.path.dirname(real_path)
 @pytest.mark.parametrize(
     "provider_source_fxt,serving_client_fxt,is_local",
     [
-        ('local_provider_source', 'serving_client', True),
-        ('hosted_sql_provider_and_source','serving_client', False),
+        pytest.param('local_provider_source', 'serving_client', True, marks=pytest.mark.local),
+        pytest.param('hosted_sql_provider_and_source','serving_client', False, marks=pytest.mark.hosted),
     ]
 )
 def test_registering_model_while_serving_training_set(provider_source_fxt,serving_client_fxt, is_local, request):
@@ -34,8 +34,8 @@ def test_registering_model_while_serving_training_set(provider_source_fxt,servin
 @pytest.mark.parametrize(
     "provider_source_fxt,serving_client_fxt,is_local",
     [
-        ('local_provider_source', 'serving_client', True),
-        ('hosted_sql_provider_and_source','serving_client', False),
+        pytest.param('local_provider_source', 'serving_client', True, marks=pytest.mark.local),
+        pytest.param('hosted_sql_provider_and_source','serving_client', False, marks=pytest.mark.hosted),
     ]
 )
 def test_registering_two_models_while_serving_training_set(provider_source_fxt,serving_client_fxt, is_local, request):
@@ -59,8 +59,8 @@ def test_registering_two_models_while_serving_training_set(provider_source_fxt,s
 @pytest.mark.parametrize(
     "provider_source_fxt,serving_client_fxt,is_local",
     [
-        ('local_provider_source', 'serving_client', True),
-        ('hosted_sql_provider_and_source','serving_client', False),
+        pytest.param('local_provider_source', 'serving_client', True, marks=pytest.mark.local),
+        pytest.param('hosted_sql_provider_and_source','serving_client', False, marks=pytest.mark.hosted),
     ]
 )
 def test_registering_same_model_twice_while_serving_training_set(provider_source_fxt,serving_client_fxt, is_local, request):
@@ -84,8 +84,8 @@ def test_registering_same_model_twice_while_serving_training_set(provider_source
 @pytest.mark.parametrize(
     "provider_source_fxt,serving_client_fxt,is_local",
     [
-        ('local_provider_source', 'serving_client', True),
-        ('hosted_sql_provider_and_source','serving_client', False),
+        pytest.param('local_provider_source', 'serving_client', True, marks=pytest.mark.local),
+        pytest.param('hosted_sql_provider_and_source','serving_client', False, marks=pytest.mark.hosted),
     ]
 )
 def test_registering_model_while_serving_features(provider_source_fxt,serving_client_fxt, is_local, request):
@@ -107,8 +107,8 @@ def test_registering_model_while_serving_features(provider_source_fxt,serving_cl
 @pytest.mark.parametrize(
     "provider_source_fxt,serving_client_fxt,is_local",
     [
-        ('local_provider_source', 'serving_client', True),
-        ('hosted_sql_provider_and_source','serving_client', False),
+        pytest.param('local_provider_source', 'serving_client', True, marks=pytest.mark.local),
+        pytest.param('hosted_sql_provider_and_source','serving_client', False, marks=pytest.mark.hosted),
     ]
 )
 def test_registering_two_models_while_serving_features(provider_source_fxt,serving_client_fxt, is_local, request):
@@ -132,8 +132,8 @@ def test_registering_two_models_while_serving_features(provider_source_fxt,servi
 @pytest.mark.parametrize(
     "provider_source_fxt,serving_client_fxt,is_local",
     [
-        ('local_provider_source', 'serving_client', True),
-        ('hosted_sql_provider_and_source','serving_client', False),
+        pytest.param('local_provider_source', 'serving_client', True, marks=pytest.mark.local),
+        pytest.param('hosted_sql_provider_and_source','serving_client', False, marks=pytest.mark.hosted),
     ]
 )
 def test_registering_same_model_twice_while_serving_features(provider_source_fxt,serving_client_fxt, is_local, request):
@@ -156,8 +156,8 @@ def test_registering_same_model_twice_while_serving_features(provider_source_fxt
 @pytest.mark.parametrize(
     "provider_source_fxt,serving_client_fxt,is_local",
     [
-        ('local_provider_source', 'serving_client', True),
-        ('hosted_sql_provider_and_source','serving_client', False),
+        pytest.param('local_provider_source', 'serving_client', True, marks=pytest.mark.local),
+        pytest.param('hosted_sql_provider_and_source','serving_client', False, marks=pytest.mark.hosted),
     ]
 )
 def test_no_models_registered_while_serving_training_set(provider_source_fxt,serving_client_fxt, is_local, request):

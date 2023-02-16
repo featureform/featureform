@@ -149,24 +149,24 @@ def s3(aws_credentials):
 
 @pytest.fixture(scope="module")
 def local_provider_source():
-        def get_local():
-            ff.register_user("test_user").make_default_owner()
-            provider = ff.register_local()
-            source = provider.register_file(
-                name="transactions",
-                variant="quickstart",
-                description="A dataset of fraudulent transactions.",
-                path=f"{dir_path}/test_files/input_files/transactions.csv"
-            )
-            return (provider, source)
-        
-        return get_local
+    def get_local(_):
+        ff.register_user("test_user").make_default_owner()
+        provider = ff.register_local()
+        source = provider.register_file(
+            name="transactions",
+            variant="quickstart",
+            description="A dataset of fraudulent transactions.",
+            path=f"{dir_path}/test_files/input_files/transactions.csv"
+        )
+        return (provider, source, None)
+    
+    return get_local
 
 
 @pytest.fixture(scope="module")
 def serving_client():
-    def get_clients_for_context(is_local):
-            return ff.ServingClient(local=is_local)
+    def get_clients_for_context(is_local, is_insecure):
+            return ff.ServingClient(local=is_local, insecure=is_insecure)
     
     return get_clients_for_context
 
@@ -186,23 +186,36 @@ def del_rw(action, name, exc):
 
 @pytest.fixture(scope="module")
 def hosted_sql_provider_and_source():
-    ff.register_user("test_user").make_default_owner()
+    def get_hosted(custom_marks):
+        ff.register_user("test_user").make_default_owner()
 
-    provider = ff.register_postgres(
-        name = "postgres-quickstart",
-        host="0.0.0.0",
-        port="5432",
-        user="postgres",
-        password="password",
-        database="postgres",
-        description = "A Postgres deployment we created for the Featureform quickstart"
-    )
+        postgres_host = "host.docker.internal" if "docker" in custom_marks else "quickstart-postgres"
+        redis_host = "host.docker.internal" if "docker" in custom_marks else "quickstart-redis"
 
-    source = provider.register_table(
-        name = "transactions",
-        variant = "kaggle",
-        description = "Fraud Dataset From Kaggle",
-        table = "Transactions", # This is the table's name in Postgres
-    )
+        provider = ff.register_postgres(
+            name = "postgres-quickstart",
+            # The host name for postgres is different between Docker and Minikube
+            host= "host.docker.internal" if "docker" in custom_marks else "quickstart-postgres",
+            port="5432",
+            user="postgres",
+            password="password",
+            database="postgres",
+            description = "A Postgres deployment we created for the Featureform quickstart"
+        )
 
-    return (provider, source)
+        redis = ff.register_redis(
+            name = "redis-quickstart",
+            # The host name for postgres is different between Docker and Minikube
+            host="host.docker.internal" if "docker" in custom_marks else "quickstart-redis",
+            port=6379,
+        )
+
+        source = provider.register_table(
+            name = "transactions",
+            table = "Transactions", # This is the table's name in Postgres
+            variant="quickstart"
+        )
+
+        return (provider, source, redis)
+
+    return get_hosted

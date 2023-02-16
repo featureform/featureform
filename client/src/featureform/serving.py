@@ -127,7 +127,7 @@ class HostedClientImpl:
             return secure_channel(host, cert_path)
 
     def training_set(self, name, variation, include_label_timestamp, model: Union[str, Model] = None):
-        return Dataset(self._stub).from_stub(name, variation)
+        return Dataset(self._stub).from_stub(name, variation, model)
 
     def features(self, features, entities, model: Union[str, Model] = None):
         req = serving_pb2.FeatureServeRequest()
@@ -139,6 +139,8 @@ class HostedClientImpl:
             feature_id = req.features.add()
             feature_id.name = name
             feature_id.version = variation
+        if model is not None:
+            req.model.name = model if isinstance(model, str) else model.name
         resp = self._stub.FeatureServe(req)
         return [parse_proto_value(val) for val in resp.values]
 
@@ -492,10 +494,12 @@ class LocalClientImpl:
 
 class Stream:
 
-    def __init__(self, stub, name, version):
+    def __init__(self, stub, name, version, model: Union[str, Model] = None):
         req = serving_pb2.TrainingDataRequest()
         req.id.name = name
         req.id.version = version
+        if model is not None:
+            req.model.name = model if isinstance(model, str) else model.name
         self.name = name
         self.version = version
         self._stub = stub
@@ -627,8 +631,8 @@ class Dataset:
         self._stream = stream
         self._dataframe = dataframe
 
-    def from_stub(self, name, version):
-        stream = Stream(self._stream, name, version)
+    def from_stub(self, name, version, model: Union[str, Model] = None):
+        stream = Stream(self._stream, name, version, model)
         return Dataset(stream)
     
     def from_dataframe(dataframe, include_label_timestamp):

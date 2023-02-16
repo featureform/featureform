@@ -2,6 +2,7 @@ import os
 import shutil
 import stat
 import sys
+import featureform as ff
 
 sys.path.insert(0, 'client/src/')
 import pytest
@@ -90,34 +91,19 @@ def test_df_transformation_empty_description(registrar):
     # Checks that Transformation definition does not error when converting to source
     dec.to_source()
 
-@pytest.mark.parametrize(
-    "client_provider_source_fxt,is_local",
-    [
-        ('local_client_provider_source', True),
-        ('hosted_sql_provider_and_source', False),
-    ]
-)
-def test_valid_model_registration(client_provider_source_fxt, is_local, request):
-    resource_client = request.getfixturevalue(client_provider_source_fxt)(is_local)[0];
+
+def test_valid_model_registration():
     model_name = "model_a"
 
-    model = resource_client.register_model(model_name)
+    model = ff.register_model(model_name)
 
     assert isinstance(model, Model) and model.name == model_name
 
 
-@pytest.mark.parametrize(
-    "client_provider_source_fxt,is_local",
-    [
-        ('local_client_provider_source', True),
-        ('hosted_sql_provider_and_source', False),
-    ]
-)
-def test_invalid_model_registration(client_provider_source_fxt, is_local, request):
-    resource_client = request.getfixturevalue(client_provider_source_fxt)(is_local)[0];
+def test_invalid_model_registration():
 
     with pytest.raises(TypeError, match="missing 1 required positional argument: 'name'"):
-        model = resource_client.register_model()
+        model = ff.register_model()
 
 
 def del_rw(action, name, exc):

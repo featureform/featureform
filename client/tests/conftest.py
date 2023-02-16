@@ -13,7 +13,6 @@ from featureform.register import (
     OfflineSQLProvider,
     ResourceClient,
 )
-from featureform.serving import ServingClient
 from featureform.resources import (
     AWSCredentials,
     AzureFileStoreConfig,
@@ -149,26 +148,25 @@ def s3(aws_credentials):
 
 
 @pytest.fixture(scope="module")
-def local_client_provider_source():
-    def get_local(is_local):
-        resource_client = ResourceClient(local=is_local)
-        resource_client.register_user("test_user").make_default_owner()
-        provider = resource_client.register_local()
-        source = provider.register_file(
-            name="transactions",
-            variant="quickstart",
-            description="A dataset of fraudulent transactions.",
-            path=f"{dir_path}/test_files/input_files/transactions.csv"
-        )
-        return (resource_client, provider, source)
-
-    return get_local
+def local_provider_source():
+        def get_local():
+            ff.register_user("test_user").make_default_owner()
+            provider = ff.register_local()
+            source = provider.register_file(
+                name="transactions",
+                variant="quickstart",
+                description="A dataset of fraudulent transactions.",
+                path=f"{dir_path}/test_files/input_files/transactions.csv"
+            )
+            return (provider, source)
+        
+        return get_local
 
 
 @pytest.fixture(scope="module")
 def serving_client():
     def get_clients_for_context(is_local):
-            return ServingClient(local=is_local)
+            return ff.ServingClient(local=is_local)
     
     return get_clients_for_context
 
@@ -188,26 +186,23 @@ def del_rw(action, name, exc):
 
 @pytest.fixture(scope="module")
 def hosted_sql_provider_and_source():
-    def get_hosted(is_local):
-            ff.register_user("test_user").make_default_owner()
+    ff.register_user("test_user").make_default_owner()
 
-            provider = ff.register_postgres(
-                name = "postgres-quickstart",
-                host="0.0.0.0",
-                port="5432",
-                user="postgres",
-                password="password",
-                database="postgres",
-                description = "A Postgres deployment we created for the Featureform quickstart"
-            )
+    provider = ff.register_postgres(
+        name = "postgres-quickstart",
+        host="0.0.0.0",
+        port="5432",
+        user="postgres",
+        password="password",
+        database="postgres",
+        description = "A Postgres deployment we created for the Featureform quickstart"
+    )
 
-            source = provider.register_table(
-                name = "transactions",
-                variant = "kaggle",
-                description = "Fraud Dataset From Kaggle",
-                table = "Transactions", # This is the table's name in Postgres
-            )
+    source = provider.register_table(
+        name = "transactions",
+        variant = "kaggle",
+        description = "Fraud Dataset From Kaggle",
+        table = "Transactions", # This is the table's name in Postgres
+    )
 
-            return (ff.ResourceClient(), provider, source)
-
-    return get_hosted
+    return (provider, source)

@@ -871,10 +871,8 @@ func (resource *modelResource) Update(lookup ResourceLookup, updateRes Resource)
 	if !ok {
 		return errors.New("failed to deserialize existing model record")
 	}
-	updated := unionNameVariants(resource.serialized.Features, updateModel.Features)
-	resource.serialized.Features = updated
-	updated = unionNameVariants(resource.serialized.Trainingsets, updateModel.Trainingsets)
-	resource.serialized.Trainingsets = updated
+	resource.serialized.Features = unionNameVariants(resource.serialized.Features, updateModel.Features)
+	resource.serialized.Trainingsets = unionNameVariants(resource.serialized.Trainingsets, updateModel.Trainingsets)
 	return nil
 }
 
@@ -887,12 +885,12 @@ func unionNameVariants(source, destination []*pb.NameVariant) []*pb.NameVariant 
 	set := make(map[nameVariantKey]bool)
 
 	for _, nameVariant := range destination {
-		key := nameVariantKey{Name: nameVariant.Name, Variant: nameVariant.Variant}
+		key := nameVariantKey{nameVariant.Name, nameVariant.Variant}
 		set[key] = true
 	}
 
 	for _, nameVariant := range source {
-		key := nameVariantKey{Name: nameVariant.Name, Variant: nameVariant.Variant}
+		key := nameVariantKey{nameVariant.Name, nameVariant.Variant}
 		if _, has := set[key]; !has {
 			destination = append(destination, nameVariant)
 		}

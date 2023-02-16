@@ -317,11 +317,6 @@ func (lookup localResourceLookup) HasJob(id ResourceID) (bool, error) {
 	return false, nil
 }
 
-type NameVariantKey struct {
-	Name    string
-	Variant string
-}
-
 type sourceResource struct {
 	serialized *pb.Source
 }
@@ -876,38 +871,34 @@ func (resource *modelResource) Update(lookup ResourceLookup, updateRes Resource)
 	if !ok {
 		return errors.New("failed to deserialize existing model record")
 	}
-	updated, err := unionNameVariants(resource.serialized.Features, updateModel.Features)
-	if err != nil {
-		return err
-	}
+	updated := unionNameVariants(resource.serialized.Features, updateModel.Features)
 	resource.serialized.Features = updated
-	updated, err = unionNameVariants(resource.serialized.Trainingsets, updateModel.Trainingsets)
-	if err != nil {
-		return err
-	}
+	updated = unionNameVariants(resource.serialized.Trainingsets, updateModel.Trainingsets)
 	resource.serialized.Trainingsets = updated
-	if err = lookup.Set(resource.ID(), resource); err != nil {
-		return err
-	}
 	return nil
 }
 
-func unionNameVariants(source, destination []*pb.NameVariant) ([]*pb.NameVariant, error) {
-	set := make(map[NameVariantKey]bool)
+func unionNameVariants(source, destination []*pb.NameVariant) []*pb.NameVariant {
+	type nameVariantKey struct {
+		Name    string
+		Variant string
+	}
+
+	set := make(map[nameVariantKey]bool)
 
 	for _, nameVariant := range destination {
-		key := NameVariantKey{Name: nameVariant.Name, Variant: nameVariant.Variant}
+		key := nameVariantKey{Name: nameVariant.Name, Variant: nameVariant.Variant}
 		set[key] = true
 	}
 
 	for _, nameVariant := range source {
-		key := NameVariantKey{Name: nameVariant.Name, Variant: nameVariant.Variant}
+		key := nameVariantKey{Name: nameVariant.Name, Variant: nameVariant.Variant}
 		if _, has := set[key]; !has {
 			destination = append(destination, nameVariant)
 		}
 	}
 
-	return destination, nil
+	return destination
 }
 
 type userResource struct {
@@ -1418,13 +1409,7 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 	if err := resourceNamedSafely(id); err != nil {
 		return nil, err
 	}
-	if has, err := serv.lookup.Has(id); err != nil {
-		return nil, err
-	} else if has {
-		existing, err := serv.lookup.Lookup(id)
-		if err != nil {
-			return nil, err
-		}
+	if existing, err := serv.lookup.Lookup(id); err == nil {
 		if err := res.Update(serv.lookup, existing); err != nil {
 			return nil, err
 		}

@@ -7,11 +7,12 @@ package metadata
 import (
 	"context"
 	"fmt"
-	"github.com/pkg/errors"
 	"io"
 	"net"
 	"strings"
 	"time"
+
+	"github.com/pkg/errors"
 
 	pb "github.com/featureform/metadata/proto"
 	"github.com/featureform/metadata/search"
@@ -192,6 +193,7 @@ type Resource interface {
 	Proto() proto.Message
 	UpdateStatus(pb.ResourceStatus) error
 	UpdateSchedule(string) error
+	Update(ResourceLookup, Resource) error
 }
 
 func isDirectDependency(lookup ResourceLookup, dependency, parent Resource) (bool, error) {
@@ -357,6 +359,10 @@ func (resource *sourceResource) UpdateSchedule(schedule string) error {
 	return fmt.Errorf("not implemented")
 }
 
+func (resource *sourceResource) Update(lookup ResourceLookup, updateRes Resource) error {
+	return &ResourceExists{updateRes.ID()}
+}
+
 type sourceVariantResource struct {
 	serialized *pb.SourceVariant
 }
@@ -427,6 +433,10 @@ func (resource *sourceVariantResource) UpdateSchedule(schedule string) error {
 	return nil
 }
 
+func (resource *sourceVariantResource) Update(lookup ResourceLookup, updateRes Resource) error {
+	return &ResourceExists{updateRes.ID()}
+}
+
 type featureResource struct {
 	serialized *pb.Feature
 }
@@ -467,6 +477,10 @@ func (resource *featureResource) UpdateStatus(status pb.ResourceStatus) error {
 
 func (resource *featureResource) UpdateSchedule(schedule string) error {
 	return fmt.Errorf("not implemented")
+}
+
+func (resource *featureResource) Update(lookup ResourceLookup, updateRes Resource) error {
+	return &ResourceExists{updateRes.ID()}
 }
 
 type featureVariantResource struct {
@@ -543,6 +557,10 @@ func (resource *featureVariantResource) UpdateSchedule(schedule string) error {
 	return nil
 }
 
+func (resource *featureVariantResource) Update(lookup ResourceLookup, updateRes Resource) error {
+	return &ResourceExists{updateRes.ID()}
+}
+
 type labelResource struct {
 	serialized *pb.Label
 }
@@ -583,6 +601,10 @@ func (resource *labelResource) UpdateStatus(status pb.ResourceStatus) error {
 
 func (resource *labelResource) UpdateSchedule(schedule string) error {
 	return fmt.Errorf("not implemented")
+}
+
+func (resource *labelResource) Update(lookup ResourceLookup, updateRes Resource) error {
+	return &ResourceExists{updateRes.ID()}
 }
 
 type labelVariantResource struct {
@@ -657,6 +679,10 @@ func (resource *labelVariantResource) UpdateSchedule(schedule string) error {
 	return fmt.Errorf("not implemented")
 }
 
+func (resource *labelVariantResource) Update(lookup ResourceLookup, updateRes Resource) error {
+	return &ResourceExists{updateRes.ID()}
+}
+
 type trainingSetResource struct {
 	serialized *pb.TrainingSet
 }
@@ -697,6 +723,10 @@ func (resource *trainingSetResource) UpdateStatus(status pb.ResourceStatus) erro
 
 func (resource *trainingSetResource) UpdateSchedule(schedule string) error {
 	return fmt.Errorf("not implemented")
+}
+
+func (resource *trainingSetResource) Update(lookup ResourceLookup, updateRes Resource) error {
+	return &ResourceExists{updateRes.ID()}
 }
 
 type trainingSetVariantResource struct {
@@ -769,6 +799,10 @@ func (resource *trainingSetVariantResource) UpdateSchedule(schedule string) erro
 	return nil
 }
 
+func (resource *trainingSetVariantResource) Update(lookup ResourceLookup, updateRes Resource) error {
+	return &ResourceExists{updateRes.ID()}
+}
+
 type modelResource struct {
 	serialized *pb.Model
 }
@@ -824,12 +858,45 @@ func (this *modelResource) Notify(lookup ResourceLookup, op operation, that Reso
 }
 
 func (resource *modelResource) UpdateStatus(status pb.ResourceStatus) error {
-	resource.serialized.Status = &status
 	return nil
 }
 
 func (resource *modelResource) UpdateSchedule(schedule string) error {
 	return fmt.Errorf("not implemented")
+}
+
+func (resource *modelResource) Update(lookup ResourceLookup, updateRes Resource) error {
+	deserialized := updateRes.Proto()
+	updateModel, ok := deserialized.(*pb.Model)
+	if !ok {
+		return errors.New("failed to deserialize existing model record")
+	}
+	resource.serialized.Features = unionNameVariants(resource.serialized.Features, updateModel.Features)
+	resource.serialized.Trainingsets = unionNameVariants(resource.serialized.Trainingsets, updateModel.Trainingsets)
+	return nil
+}
+
+func unionNameVariants(source, destination []*pb.NameVariant) []*pb.NameVariant {
+	type nameVariantKey struct {
+		Name    string
+		Variant string
+	}
+
+	set := make(map[nameVariantKey]bool)
+
+	for _, nameVariant := range destination {
+		key := nameVariantKey{nameVariant.Name, nameVariant.Variant}
+		set[key] = true
+	}
+
+	for _, nameVariant := range source {
+		key := nameVariantKey{nameVariant.Name, nameVariant.Variant}
+		if _, has := set[key]; !has {
+			destination = append(destination, nameVariant)
+		}
+	}
+
+	return destination
 }
 
 type userResource struct {
@@ -887,6 +954,10 @@ func (resource *userResource) UpdateSchedule(schedule string) error {
 	return fmt.Errorf("not implemented")
 }
 
+func (resource *userResource) Update(lookup ResourceLookup, updateRes Resource) error {
+	return &ResourceExists{updateRes.ID()}
+}
+
 type providerResource struct {
 	serialized *pb.Provider
 }
@@ -942,6 +1013,10 @@ func (resource *providerResource) UpdateSchedule(schedule string) error {
 	return fmt.Errorf("not implemented")
 }
 
+func (resource *providerResource) Update(lookup ResourceLookup, updateRes Resource) error {
+	return &ResourceExists{updateRes.ID()}
+}
+
 type entityResource struct {
 	serialized *pb.Entity
 }
@@ -988,6 +1063,10 @@ func (resource *entityResource) UpdateStatus(status pb.ResourceStatus) error {
 
 func (resource *entityResource) UpdateSchedule(schedule string) error {
 	return fmt.Errorf("not implemented")
+}
+
+func (resource *entityResource) Update(lookup ResourceLookup, updateRes Resource) error {
+	return &ResourceExists{updateRes.ID()}
 }
 
 type MetadataServer struct {
@@ -1328,10 +1407,10 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 	if err := resourceNamedSafely(id); err != nil {
 		return nil, err
 	}
-	if has, err := serv.lookup.Has(id); err != nil {
-		return nil, err
-	} else if has {
-		return nil, &ResourceExists{id}
+	if existing, err := serv.lookup.Lookup(id); err == nil {
+		if err := res.Update(serv.lookup, existing); err != nil {
+			return nil, err
+		}
 	}
 	if err := serv.lookup.Set(id, res); err != nil {
 		return nil, err

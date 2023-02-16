@@ -241,10 +241,9 @@ message Entity {
 message Model {
     string name = 1;
     string description = 2;
-    ResourceStatus status = 3;
-    repeated NameVariant features = 4;
-    repeated NameVariant labels = 5;
-    repeated NameVariant trainingsets = 6;
+    repeated NameVariant features = 3;
+    repeated NameVariant labels = 4;
+    repeated NameVariant trainingsets = 5;
 }
 
 message User {

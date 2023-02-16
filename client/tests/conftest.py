@@ -149,18 +149,18 @@ def s3(aws_credentials):
 
 @pytest.fixture(scope="module")
 def local_provider_source():
-        def get_local():
-            ff.register_user("test_user").make_default_owner()
-            provider = ff.register_local()
-            source = provider.register_file(
-                name="transactions",
-                variant="quickstart",
-                description="A dataset of fraudulent transactions.",
-                path=f"{dir_path}/test_files/input_files/transactions.csv"
-            )
-            return (provider, source)
-        
-        return get_local
+    def get_local():
+        ff.register_user("test_user").make_default_owner()
+        provider = ff.register_local()
+        source = provider.register_file(
+            name="transactions",
+            variant="quickstart",
+            description="A dataset of fraudulent transactions.",
+            path=f"{dir_path}/test_files/input_files/transactions.csv"
+        )
+        return (provider, source)
+    
+    return get_local
 
 
 @pytest.fixture(scope="module")
@@ -186,23 +186,26 @@ def del_rw(action, name, exc):
 
 @pytest.fixture(scope="module")
 def hosted_sql_provider_and_source():
-    ff.register_user("test_user").make_default_owner()
+    def get_hosted():
+        ff.register_user("test_user").make_default_owner()
 
-    provider = ff.register_postgres(
-        name = "postgres-quickstart",
-        host="0.0.0.0",
-        port="5432",
-        user="postgres",
-        password="password",
-        database="postgres",
-        description = "A Postgres deployment we created for the Featureform quickstart"
-    )
+        provider = ff.register_postgres(
+            name = "postgres-quickstart",
+            host="host.docker.internal",
+            port="5432",
+            user="postgres",
+            password="password",
+            database="postgres",
+            description = "A Postgres deployment we created for the Featureform quickstart"
+        )
 
-    source = provider.register_table(
-        name = "transactions",
-        variant = "kaggle",
-        description = "Fraud Dataset From Kaggle",
-        table = "Transactions", # This is the table's name in Postgres
-    )
+        source = provider.register_table(
+            name = "transactions",
+            variant = "kaggle",
+            description = "Fraud Dataset From Kaggle",
+            table = "Transactions", # This is the table's name in Postgres
+        )
 
-    return (provider, source)
+        return (provider, source)
+
+    return get_hosted

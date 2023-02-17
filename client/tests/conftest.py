@@ -158,7 +158,7 @@ def local_provider_source():
             description="A dataset of fraudulent transactions.",
             path=f"{dir_path}/test_files/input_files/transactions.csv"
         )
-        return (provider, source)
+        return (provider, source, None)
     
     return get_local
 
@@ -166,7 +166,7 @@ def local_provider_source():
 @pytest.fixture(scope="module")
 def serving_client():
     def get_clients_for_context(is_local):
-            return ff.ServingClient(local=is_local)
+            return ff.ServingClient(local=is_local, insecure=True)
     
     return get_clients_for_context
 
@@ -191,7 +191,7 @@ def hosted_sql_provider_and_source():
 
         provider = ff.register_postgres(
             name = "postgres-quickstart",
-            host="host.docker.internal",
+            host="host.docker.internal", # The docker dns name for postgres
             port="5432",
             user="postgres",
             password="password",
@@ -199,13 +199,18 @@ def hosted_sql_provider_and_source():
             description = "A Postgres deployment we created for the Featureform quickstart"
         )
 
-        source = provider.register_table(
-            name = "transactions",
-            variant = "kaggle",
-            description = "Fraud Dataset From Kaggle",
-            table = "Transactions", # This is the table's name in Postgres
+        redis = ff.register_redis(
+            name = "redis-quickstart",
+            host="host.docker.internal", # The docker dns name for redis
+            port=6379,
         )
 
-        return (provider, source)
+        source = provider.register_table(
+            name = "transactions",
+            table = "Transactions", # This is the table's name in Postgres
+            variant="quickstart"
+        )
+
+        return (provider, source, redis)
 
     return get_hosted

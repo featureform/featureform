@@ -140,8 +140,7 @@ class HostedClientImpl:
             feature_id.name = name
             feature_id.version = variation
         if model is not None:
-            name = model if isinstance(model, str) else model.name
-            req.model = name
+            req.model.name = model if isinstance(model, str) else model.name
         resp = self._stub.FeatureServe(req)
         return [parse_proto_value(val) for val in resp.values]
 
@@ -500,8 +499,7 @@ class Stream:
         req.id.name = name
         req.id.version = version
         if model is not None:
-            name = model if isinstance(model, str) else model.name
-            req.model.name = name
+            req.model.name = model if isinstance(model, str) else model.name
         self.name = name
         self.version = version
         self._stub = stub

@@ -11,7 +11,7 @@ import featureform as ff
     ]
 )
 def test_getting_model_successfully(is_local):
-    model_name = "model_a"
+    model_name = "model_i"
 
     resource_client = arrange_resources(model_name, is_local)
 
@@ -28,12 +28,16 @@ def test_getting_model_successfully(is_local):
     ]
 )
 def test_getting_model_by_unregistered_name(is_local):
-    model_name = "model_a"
+    model_name = "model_j"
 
     resource_client = arrange_resources(model_name, is_local)
 
-    with pytest.raises(ValueError, match="not found"):
-        resource_client.get_model("model_b", is_local)
+    if is_local:
+        with pytest.raises(ValueError, match="not found"):
+            resource_client.get_model("model_z", is_local)
+    else:
+        model = resource_client.get_model("model_z", is_local)
+        assert model is None
 
 
 @pytest.mark.parametrize(
@@ -44,7 +48,7 @@ def test_getting_model_by_unregistered_name(is_local):
     ]
 )
 def test_getting_model_no_name(is_local):
-    model_name = "model_a"
+    model_name = "model_k"
 
     resource_client = arrange_resources(model_name, is_local)
 
@@ -60,7 +64,7 @@ def before_and_after_each(setup_teardown):
 
 def arrange_resources(model_name, is_local):
     ff.register_model(model_name)
-    resource_client = ff.ResourceClient(local=is_local)
+    resource_client = ff.ResourceClient(local=is_local, insecure=is_local)
     resource_client.apply()
 
     return resource_client

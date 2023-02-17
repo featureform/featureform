@@ -473,6 +473,15 @@ jobs:
             featureform list users --host localhost:8000 --cert tls.crt
             featureform get entity user --host localhost:8000 --cert tls.crt
             featureform list entities --host localhost:8000 --cert tls.crt
+
+      - name: Run Model Tests
+        env:
+          FEATUREFORM_HOST: "localhost:8000"
+          FEATUREFORM_CERT: "tls.crt"
+        run: |
+            pytest -m 'hosted' client/tests/test_serving_model.py
+            pytest -m 'hosted' client/tests/test_getting_model.py
+
 #
 #      - name: Set Cert as Env Variable
 #        run: export FEATUREFORM_CERT=$(pwd)/tls.crt

@@ -3,6 +3,16 @@ from .format import *
 
 cutoff_length = 60
 
+def list_name(stub, resource_type):
+    stub_list_functions = {
+        "model": stub.ListModels,
+    }
+    format_rows("NAME")
+    res = sorted([received for received in stub_list_functions[resource_type](metadata_pb2.Empty())], key=lambda x:x.name)
+    for f in res:
+        format_rows(f.name)
+    return res
+
 def list_name_status(stub, resource_type):
     stub_list_functions = {
         "entity": stub.ListEntities,

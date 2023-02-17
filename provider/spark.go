@@ -133,6 +133,8 @@ func (s *SparkConfig) decodeExecutor(executorType SparkExecutorType, configMap m
 		executorConfig = &EMRConfig{}
 	case Databricks:
 		executorConfig = &DatabricksConfig{}
+	case SparkGeneric:
+		executorConfig = &SparkGenericConfig{}
 	default:
 		return fmt.Errorf("the executor type '%s' is not supported ", executorType)
 	}
@@ -677,9 +679,10 @@ func (s *SparkGenericExecutor) InitializeExecutor(store FileStore) error {
 }
 
 func (s *SparkGenericExecutor) RunSparkJob(args *[]string, store FileStore) error {
-	pyenvCommand := fmt.Sprintf("pyenv global %s && pyenv exec", s.pythonVersion)
+	bashCommand := "bash -c" // used to execute
 	sparkArgs := *args
-	cmd := exec.Command(pyenvCommand, sparkArgs...)
+	sparkArgs[0] = fmt.Sprintf("pyenv global %s && pyenv exec %s", s.pythonVersion, sparkArgs[0])
+	cmd := exec.Command(bashCommand, sparkArgs...)
 	err := cmd.Start()
 	if err != nil {
 		return fmt.Errorf("could not run spark job: %v", err)

@@ -38,9 +38,10 @@ RUN apk --update add libffi-dev ncurses-dev openssl-dev readline-dev \
 tk-dev xz-dev zlib-dev curl git bash build-base bzip2-dev sqlite-dev \
 openjdk11 coreutils procps
 
-ENV ENV=/root/.ashrc
-ENV PYENV_ROOT='/.pyenv'
-ENV PATH="$PYENV_ROOT/bin:/app/OME/.pyenv/versions/3.7.16/bin:$PATH"
+ENV ENV="/root/.ashrc"
+ENV PYENV_ROOT="/.pyenv"
+ENV PATH="$PYENV_ROOT/bin:$PATH"
+RUN echo "PATH=${PATH}" > "${ENV}"
 
 RUN curl https://pyenv.run | bash
 

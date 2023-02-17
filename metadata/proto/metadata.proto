@@ -301,7 +301,7 @@ message KubernetesResourceSpecs {
 
 message KubernetesArgs {
     string docker_image= 1;
-    KubernetesResourceSpecs spec = 2;
+    KubernetesResourceSpecs specs = 2;
 }
 
 message SQLTransformation {

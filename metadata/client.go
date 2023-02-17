@@ -1720,7 +1720,7 @@ func (arg KubernetesArgs) Type() TransformationArgType {
 
 func (variant *SourceVariant) parseKubernetesArgs() KubernetesArgs {
 	args := variant.serialized.GetTransformation().GetKubernetesArgs()
-	specs := args.GetSpec()
+	specs := args.GetSpecs()
 	return KubernetesArgs{
 		DockerImage: args.GetDockerImage(),
 		Specs: KubernetesResourceSpecs{

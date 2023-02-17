@@ -10,7 +10,8 @@ from featureform.resources import ResourceRedefinedError, ResourceState, Provide
     FirestoreConfig, AzureFileStoreConfig, \
     SnowflakeConfig, PostgresConfig, RedshiftConfig, BigQueryConfig, OnlineBlobConfig, K8sConfig, \
     User, Provider, Entity, Feature, Label, TrainingSet, PrimaryData, SQLTable, \
-    Source, ResourceColumnMapping, DynamodbConfig, Schedule, SQLTransformation, DFTransformation, K8sArgs
+    Source, ResourceColumnMapping, DynamodbConfig, Schedule, SQLTransformation, DFTransformation, K8sArgs, \
+    K8sResourceSpecs
 
 from featureform.register import OfflineK8sProvider, Registrar, FileStoreProvider
 
@@ -199,7 +200,8 @@ def bigquery_provider(bigquery_config):
 @pytest.mark.parametrize('image', ["", "my/docker_image:latest"])
 def test_k8s_args_apply(image):
     transformation = pb.Transformation()
-    args = K8sArgs(image)
+    specs = K8sResourceSpecs()
+    args = K8sArgs(image, specs)
     transformation = args.apply(transformation)
     assert image == transformation.kubernetes_args.docker_image
 
@@ -210,7 +212,7 @@ def test_k8s_args_apply(image):
 
 ])
 def test_sql_k8s_image(query, image):
-    transformation = SQLTransformation(query, K8sArgs(image))
+    transformation = SQLTransformation(query, K8sArgs(image, K8sResourceSpecs()))
     recv_query = transformation.kwargs()["transformation"].SQLTransformation.query
     recv_image = transformation.kwargs()["transformation"].kubernetes_args.docker_image
     assert recv_query == query
@@ -232,7 +234,7 @@ def test_sql_k8s_image_none():
 
 ])
 def test_df_k8s_image(query, image):
-    transformation = DFTransformation(query, [], K8sArgs(image))
+    transformation = DFTransformation(query, [], K8sArgs(image, K8sResourceSpecs()))
     recv_query = transformation.kwargs()["transformation"].DFTransformation.query
     recv_image = transformation.kwargs()["transformation"].kubernetes_args.docker_image
     assert recv_query == query

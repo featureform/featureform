@@ -307,7 +307,7 @@ class OfflineK8sProvider(OfflineProvider):
                                                    schedule=schedule,
                                                    provider=self.name(),
                                                    description=description,
-                                                   args=K8sArgs(docker_image=docker_image, spec=resource_specs)
+                                                   args=K8sArgs(docker_image=docker_image, specs=resource_specs)
                                                    )
 
     def df_transformation(self,

@@ -568,7 +568,7 @@ class K8sResourceSpecs:
 @dataclass
 class K8sArgs:
     docker_image: str
-    specs: K8sResourceSpecs
+    specs: Union[K8sResourceSpecs, None] = None
 
     def apply(self, transformation: pb.Transformation):
         transformation.kubernetes_args.docker_image = self.docker_image

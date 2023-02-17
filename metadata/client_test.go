@@ -74,7 +74,7 @@ func TestSourceVariant_TransformationArgs(t *testing.T) {
 							Args: &pb.Transformation_KubernetesArgs{
 								KubernetesArgs: &pb.KubernetesArgs{
 									DockerImage: "",
-									Spec: &pb.KubernetesResourceSpecs{
+									Specs: &pb.KubernetesResourceSpecs{
 										CpuLimit:      "1",
 										CpuRequest:    "0.5",
 										MemoryLimit:   "500M",

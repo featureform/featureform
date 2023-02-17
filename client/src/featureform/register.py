@@ -270,7 +270,7 @@ class OfflineK8sProvider(OfflineProvider):
                            schedule: str = "",
                            description: str = "",
                            docker_image: str = "",
-                           resource_specs: K8sResourceSpecs = None
+                           resource_specs: Union[K8sResourceSpecs, None] = None
                            ):
         """
         Register a SQL transformation source. The k8s.sql_transformation decorator takes the returned string in the
@@ -317,7 +317,7 @@ class OfflineK8sProvider(OfflineProvider):
                           description: str = "",
                           inputs: list = [],
                           docker_image: str = "",
-                          resource_specs: K8sResourceSpecs = None
+                          resource_specs: Union[K8sResourceSpecs, None] = None
                           ):
         """
         Register a Dataframe transformation source. The k8s_azure.df_transformation decorator takes the contents

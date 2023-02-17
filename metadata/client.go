@@ -1710,7 +1710,7 @@ func (arg KubernetesArgs) Format() map[string]string {
 		"CPU Request":    arg.Specs.CPURequest,
 		"CPU Limit":      arg.Specs.CPULimit,
 		"Memory Request": arg.Specs.MemoryRequest,
-		"Memory Limit":   arg.Specs.CPURequest,
+		"Memory Limit":   arg.Specs.MemoryLimit,
 	}
 }
 

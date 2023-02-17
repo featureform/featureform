@@ -74,6 +74,12 @@ func TestSourceVariant_TransformationArgs(t *testing.T) {
 							Args: &pb.Transformation_KubernetesArgs{
 								KubernetesArgs: &pb.KubernetesArgs{
 									DockerImage: "",
+									Spec: &pb.KubernetesResourceSpecs{
+										CpuLimit:      "1",
+										CpuRequest:    "0.5",
+										MemoryLimit:   "500M",
+										MemoryRequest: "1G",
+									},
 								},
 							},
 						},
@@ -82,6 +88,12 @@ func TestSourceVariant_TransformationArgs(t *testing.T) {
 			},
 			KubernetesArgs{
 				DockerImage: "",
+				Specs: KubernetesResourceSpecs{
+					CPULimit:      "1",
+					CPURequest:    "0.5",
+					MemoryLimit:   "500M",
+					MemoryRequest: "1G",
+				},
 			},
 		},
 		{
@@ -128,6 +140,7 @@ func createJson(t *testing.T, m map[string]string) []byte {
 func TestKubernetesArgs_Format(t *testing.T) {
 	type fields struct {
 		DockerImage string
+		Specs       KubernetesResourceSpecs
 	}
 	tests := []struct {
 		name    string
@@ -135,13 +148,20 @@ func TestKubernetesArgs_Format(t *testing.T) {
 		want    map[string]string
 		wantErr bool
 	}{
-		{"Empty", fields{""}, map[string]string{"Docker Image": ""}, false},
-		{"With Image", fields{"my/test:image"}, map[string]string{"Docker Image": "my/test:image"}, false},
+		{"Empty", fields{},
+			map[string]string{"Docker Image": "", "CPU Request": "", "CPU Limit": "", "Memory Request": "", "Memory Limit": ""}, false},
+		{"With Image", fields{
+			DockerImage: "my/test:image"},
+			map[string]string{"Docker Image": "my/test:image", "CPU Request": "", "CPU Limit": "", "Memory Request": "", "Memory Limit": ""}, false},
+		{"With Specs", fields{
+			Specs: KubernetesResourceSpecs{"1", "2", "3", "4"}},
+			map[string]string{"Docker Image": "", "CPU Request": "1", "CPU Limit": "2", "Memory Request": "3", "Memory Limit": "4"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			arg := KubernetesArgs{
 				DockerImage: tt.fields.DockerImage,
+				Specs:       tt.fields.Specs,
 			}
 			got := arg.Format()
 			if !reflect.DeepEqual(got, tt.want) {
@@ -194,6 +214,32 @@ func TestSourceVariant_HasKubernetesArgs(t *testing.T) {
 			}
 			if got := variant.HasKubernetesArgs(); got != tt.want {
 				t.Errorf("HasKubernetesArgs() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestEmptyKubernetesArgsSpecs(t *testing.T) {
+	type fields struct {
+		serialized *pb.SourceVariant
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   KubernetesArgs
+	}{
+		{"Empty", fields{
+			serialized: &pb.SourceVariant{},
+		}, KubernetesArgs{},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			variant := &SourceVariant{
+				serialized: tt.fields.serialized,
+			}
+			if got := variant.parseKubernetesArgs(); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("parseKubernetesArgs() = %v, want %v", got, tt.want)
 			}
 		})
 	}

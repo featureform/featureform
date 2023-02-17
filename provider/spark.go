@@ -679,10 +679,11 @@ func (s *SparkGenericExecutor) InitializeExecutor(store FileStore) error {
 }
 
 func (s *SparkGenericExecutor) RunSparkJob(args *[]string, store FileStore) error {
-	bashCommand := "bash -c" // used to execute
+	bashCommand := "bash"
+	pyenvCommand := []string{"-c", fmt.Sprintf("pyenv global %s && pyenv exec", s.pythonVersion)}
 	sparkArgs := *args
-	sparkArgs[0] = fmt.Sprintf("pyenv global %s && pyenv exec %s", s.pythonVersion, sparkArgs[0])
-	cmd := exec.Command(bashCommand, sparkArgs...)
+	bashCommandArgs := append(pyenvCommand, sparkArgs...)
+	cmd := exec.Command(bashCommand, bashCommandArgs...)
 	err := cmd.Start()
 	if err != nil {
 		return fmt.Errorf("could not run spark job: %v", err)

@@ -292,8 +292,16 @@ message Transformation {
     }
 }
 
+message KubernetesResourceSpecs {
+    string cpu_request = 1;
+    string cpu_limit = 2;
+    string memory_request = 3;
+    string memory_limit = 4;
+}
+
 message KubernetesArgs {
     string docker_image= 1;
+    KubernetesResourceSpecs spec = 2;
 }
 
 message SQLTransformation {

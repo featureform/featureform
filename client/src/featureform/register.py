@@ -22,7 +22,7 @@ from .resources import Model, ResourceState, Provider, RedisConfig, FirestoreCon
     AzureFileStoreConfig, OnlineBlobConfig, K8sConfig, S3StoreConfig, GCSFileStoreConfig, User, Location, Source, PrimaryData, SQLTable, \
     SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet, ProviderReference, \
     EntityReference, SourceReference, ExecutorCredentials, ResourceRedefinedError, ResourceStatus, Transformation, \
-    K8sArgs, AWSCredentials, GCPCredentials
+    K8sArgs, AWSCredentials, GCPCredentials, K8sResourceSpecs
 
 from .proto import metadata_pb2_grpc as ff_grpc
 from .search_local import search_local
@@ -269,7 +269,8 @@ class OfflineK8sProvider(OfflineProvider):
                            name: str = "",
                            schedule: str = "",
                            description: str = "",
-                           docker_image: str = ""
+                           docker_image: str = "",
+                           resource_specs: K8sResourceSpecs = None
                            ):
         """
         Register a SQL transformation source. The k8s.sql_transformation decorator takes the returned string in the
@@ -294,6 +295,7 @@ class OfflineK8sProvider(OfflineProvider):
             owner (Union[str, UserRegistrar]): Owner
             description (str): Description of primary data to be registered
             docker_image (str): A custom Docker image to run the transformation
+            resource_specs (K8sResourceSpecs): Custom resource requests and limits
 
 
         Returns:
@@ -305,7 +307,7 @@ class OfflineK8sProvider(OfflineProvider):
                                                    schedule=schedule,
                                                    provider=self.name(),
                                                    description=description,
-                                                   args=K8sArgs(docker_image=docker_image)
+                                                   args=K8sArgs(docker_image=docker_image, spec=resource_specs)
                                                    )
 
     def df_transformation(self,
@@ -314,7 +316,8 @@ class OfflineK8sProvider(OfflineProvider):
                           name: str = "",
                           description: str = "",
                           inputs: list = [],
-                          docker_image: str = ""
+                          docker_image: str = "",
+                          resource_specs: K8sResourceSpecs = None
                           ):
         """
         Register a Dataframe transformation source. The k8s_azure.df_transformation decorator takes the contents
@@ -338,6 +341,7 @@ class OfflineK8sProvider(OfflineProvider):
             description (str): Description of primary data to be registered
             inputs (list[Tuple(str, str)]): A list of Source NameVariant Tuples to input into the transformation
             docker_image (str): A custom Docker image to run the transformation
+            resource_specs (K8sResourceSpecs): Custom resource requests and limits
 
         Returns:
             source (ColumnSourceRegistrar): Source
@@ -348,7 +352,7 @@ class OfflineK8sProvider(OfflineProvider):
                                                   provider=self.name(),
                                                   description=description,
                                                   inputs=inputs,
-                                                  args=K8sArgs(docker_image=docker_image)
+                                                  args=K8sArgs(docker_image=docker_image, specs=resource_specs)
                                                   )
 
 

@@ -20,6 +20,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
+	resource "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	watch "k8s.io/apimachinery/pkg/watch"
 	kubernetes "k8s.io/client-go/kubernetes"
@@ -132,6 +133,16 @@ func newJobSpec(config KubernetesRunnerConfig) batchv1.JobSpec {
 						Image:           config.Image,
 						Env:             envVars,
 						ImagePullPolicy: v1.PullIfNotPresent,
+						Resources: v1.ResourceRequirements{
+							Limits: v1.ResourceList{
+								v1.ResourceCPU:    resource.MustParse(config.Specs.CPULimit),
+								v1.ResourceMemory: resource.MustParse(config.Specs.MemoryLimit),
+							},
+							Requests: v1.ResourceList{
+								v1.ResourceCPU:    resource.MustParse(config.Specs.CPURequest),
+								v1.ResourceMemory: resource.MustParse(config.Specs.MemoryRequest),
+							},
+						},
 					},
 				},
 				RestartPolicy: v1.RestartPolicyNever,
@@ -146,6 +157,7 @@ type KubernetesRunnerConfig struct {
 	Resource metadata.ResourceID
 	Image    string
 	NumTasks int32
+	Specs    metadata.KubernetesResourceSpecs
 }
 
 type JobClient interface {

@@ -1692,13 +1692,25 @@ type TransformationArgs interface {
 	Type() TransformationArgType
 }
 
+type KubernetesResourceSpecs struct {
+	CPURequest    string
+	CPULimit      string
+	MemoryRequest string
+	MemoryLimit   string
+}
+
 type KubernetesArgs struct {
 	DockerImage string `json:"Docker Image" mapstructure:"Docker Image"`
+	Specs       KubernetesResourceSpecs
 }
 
 func (arg KubernetesArgs) Format() map[string]string {
 	return map[string]string{
-		"Docker Image": arg.DockerImage,
+		"Docker Image":   arg.DockerImage,
+		"CPU Request":    arg.Specs.CPURequest,
+		"CPU Limit":      arg.Specs.CPULimit,
+		"Memory Request": arg.Specs.MemoryRequest,
+		"Memory Limit":   arg.Specs.CPURequest,
 	}
 }
 
@@ -1707,8 +1719,16 @@ func (arg KubernetesArgs) Type() TransformationArgType {
 }
 
 func (variant *SourceVariant) parseKubernetesArgs() KubernetesArgs {
+	args := variant.serialized.GetTransformation().GetKubernetesArgs()
+	specs := args.GetSpec()
 	return KubernetesArgs{
-		DockerImage: variant.serialized.GetTransformation().GetKubernetesArgs().GetDockerImage(),
+		DockerImage: args.GetDockerImage(),
+		Specs: KubernetesResourceSpecs{
+			CPURequest:    specs.GetCpuRequest(),
+			CPULimit:      specs.GetCpuLimit(),
+			MemoryRequest: specs.GetMemoryRequest(),
+			MemoryLimit:   specs.GetMemoryLimit(),
+		},
 	}
 }
 

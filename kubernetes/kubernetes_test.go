@@ -13,7 +13,11 @@ import (
 )
 
 func NewMockKubernetesRunner(config KubernetesRunnerConfig) (CronRunner, error) {
-	jobSpec := newJobSpec(config)
+	rsrcReqs, err := validateJobLimits(config.Specs)
+	if err != nil {
+		return nil, err
+	}
+	jobSpec := newJobSpec(config, rsrcReqs)
 	jobName := uuid.New().String()
 	namespace := "default"
 	jobClient := MockJobClient{

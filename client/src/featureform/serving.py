@@ -20,6 +20,7 @@ from featureform.proto import serving_pb2
 from featureform.proto import serving_pb2_grpc
 from featureform.providers import get_provider, Scalar, VectorType
 from pandas.core.generic import NDFrame
+import grpc
 from pandasql import sqldf
 
 from . import progress_bar
@@ -32,10 +33,15 @@ from .local_cache import LocalCache
 from .local_utils import (
     get_sql_transformation_sources,
     feature_df_with_entity,
+    list_to_combined_df,
+    get_features_for_entity,
     feature_df_from_csv,
     label_df_from_csv,
     merge_feature_into_ts,
 )
+from .sqlite_metadata import SQLiteMetadata
+from featureform.proto import serving_pb2_grpc
+
 from .resources import Model, SourceType, ComputationMode
 from .sqlite_metadata import SQLiteMetadata
 from .tls import insecure_channel, secure_channel
@@ -181,9 +187,13 @@ class HostedClientImpl:
             feature_id = req.features.add()
             feature_id.name = name
             feature_id.version = variation
+
         if model is not None:
             req.model.name = model if isinstance(model, str) else model.name
-        resp = self._stub.FeatureServe(req)
+        try:
+            resp = self._stub.FeatureServe(req)
+        except grpc.RpcError as e:
+            raise Exception(f"Code: {e.code()}: {e.details()}") from None
 
         feature_values = []
         for val in resp.values:
@@ -570,6 +580,7 @@ class LocalClientImpl:
         if isinstance(df, pd.Series):
             df = df.to_frame()
             df.reset_index(inplace=True)
+
         if feature["source_timestamp"] != "" and feature["source_timestamp"] not in df:
             raise ValueError(
                 f"Provided timestamp column '{feature['source_timestamp']}' for feature "
@@ -788,6 +799,24 @@ class LocalClientImpl:
         feature_df.set_index(entity_id)
         return feature_df
 
+    def calculate_ondemand_feature(self, f_name, f_variant, entity_id):
+        query = self.db.get_ondemand_feature_query(f_name, f_variant)
+        base64_bytes = query.encode("ascii")
+        query = base64.b64decode(base64_bytes)
+
+        code = dill.loads(bytearray(query))
+        func = types.FunctionType(code, globals(), "transformation")
+        output_value = func(self, self.params, self.entities)
+
+        feature_col_name = f"{f_name}.{f_variant}"
+        df = pd.DataFrame.from_dict(
+            {
+                entity_id: [self.entities.get(entity_id, "")],
+                feature_col_name: [output_value],
+            }
+        )
+        return df
+
     @staticmethod
     def convert_ts_df_to_dataset(label_row, trainingset_df, include_label_timestamp):
         if label_row["source_timestamp"] != "" and include_label_timestamp != True:
@@ -857,7 +886,10 @@ class Stream:
         return self
 
     def __next__(self):
-        return Row(next(self._iter))
+        try:
+            return Row(next(self._iter))
+        except grpc.RpcError as e:
+            raise Exception(f"Code: {e.code()}: {e.details()}") from None
 
     def restart(self):
         self._iter = self._stub.TrainingData(self._req)

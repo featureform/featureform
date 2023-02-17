@@ -50,11 +50,6 @@ spark_creds = ff.SparkCredentials(
     python_version="3.7.16",
 )
 
-aws_creds = ff.AWSCredentials(
-    aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID", None),
-    aws_secret_access_key=os.getenv("AWS_SECRET_KEY", None),
-)
-
 azure_blob = ff.register_blob_store(
     name=f"k8s_blob_store_{VERSION}",
     account_name=os.getenv("AZURE_ACCOUNT_NAME", None),

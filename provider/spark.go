@@ -688,6 +688,12 @@ func (s *SparkGenericExecutor) RunSparkJob(args *[]string, store FileStore) erro
 	if err != nil {
 		return fmt.Errorf("could not run spark job: %v", err)
 	}
+
+	err = cmd.Wait()
+	if err != nil {
+		return fmt.Errorf("spark job failed: %v", err)
+	}
+
 	return nil
 }
 

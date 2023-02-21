@@ -9,6 +9,7 @@ require (
 	github.com/aws/aws-sdk-go v1.44.68
 	github.com/aws/aws-sdk-go-v2/config v1.15.15
 	github.com/databricks/databricks-sdk-go v0.3.3
+	github.com/colinmarc/hdfs v1.1.3
 	github.com/gin-contrib/cors v1.3.1
 	github.com/gin-gonic/gin v1.7.7
 	github.com/go-redis/redis/v8 v8.11.5

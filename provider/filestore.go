@@ -11,12 +11,23 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	s3v2 "github.com/aws/aws-sdk-go-v2/service/s3"
 	pc "github.com/featureform/provider/provider_config"
+
+	"github.com/colinmarc/hdfs"
 	"gocloud.dev/blob"
 	"gocloud.dev/blob/azureblob"
 	"gocloud.dev/blob/gcsblob"
 	"gocloud.dev/blob/s3blob"
 	"gocloud.dev/gcp"
 	"golang.org/x/oauth2/google"
+)
+
+const (
+	Memory     FileStoreType = "MEMORY"
+	FileSystem               = "LOCAL_FILESYSTEM"
+	Azure                    = "AZURE"
+	S3                       = "S3"
+	GCS                      = "GCS"
+	HDFS                     = "HDFS"
 )
 
 type FileType string
@@ -242,4 +253,146 @@ func NewGCSFileStore(config Config) (FileStore, error) {
 			bucket: bucket,
 		},
 	}, nil
+}
+
+type HDFSFileStoreConfig struct {
+	Host string
+	Port string
+}
+
+func (s *HDFSFileStoreConfig) Deserialize(config SerializedConfig) error {
+	err := json.Unmarshal(config, s)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *HDFSFileStoreConfig) Serialize() ([]byte, error) {
+	conf, err := json.Marshal(s)
+	if err != nil {
+		return nil, err
+	}
+	return conf, nil
+}
+
+func (s *HDFSFileStoreConfig) IsFileStoreConfig() bool {
+	return true
+}
+
+func NewHDFSFileStore(config Config) (FileStore, error) {
+	HDFSConfig := HDFSFileStoreConfig{}
+
+	err := HDFSConfig.Deserialize(SerializedConfig(config))
+	if err != nil {
+		return nil, fmt.Errorf("could not deserialize config: %v", err)
+	}
+
+	address := fmt.Sprintf("%s:%s", HDFSConfig.Host, HDFSConfig.Port)
+	fmt.Println("Connecting HDFS to", address)
+	ops := hdfs.ClientOptions{
+		Addresses: []string{address},
+		User:      "hduser",
+	}
+	client, err := hdfs.NewClient(ops)
+	//client, err := hdfs.New(address)
+	if err != nil {
+		panic(err)
+	}
+
+	return &HDFSFileStore{
+		client,
+	}, nil
+}
+
+type HDFSFileStore struct {
+	Client *hdfs.Client
+}
+
+func (fs *HDFSFileStore) addPrefix(key string) string {
+	return fmt.Sprintf("/%s", key)
+}
+
+func (fs *HDFSFileStore) Write(key string, data []byte) error {
+
+	file, err := fs.Client.Create(fs.addPrefix(key))
+	if err != nil {
+		return fmt.Errorf("could not create file: %v", err)
+	}
+	fmt.Println("Created file")
+	_, err = file.Write(data)
+	if err != nil {
+		return fmt.Errorf("could not write: %v", err)
+	}
+	err = file.Close()
+	if err != nil {
+		return fmt.Errorf("could not close file: %v", err)
+	}
+	return nil
+}
+
+func (fs *HDFSFileStore) Writer(key string) (*blob.Writer, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (fs *HDFSFileStore) Read(key string) ([]byte, error) {
+	return fs.Client.ReadFile(fs.addPrefix(key))
+}
+
+func (fs *HDFSFileStore) Serve(key string) (Iterator, error) {
+	//keyParts := strings.Split(key, ".")
+	//if len(keyParts) == 1 {
+	//	return fs.ServeDirectory(key)
+	//}
+	//b, err := store.bucket.ReadAll(context.TODO(), key)
+	//if err != nil {
+	//	return nil, fmt.Errorf("could not read file: %w", err)
+	//}
+	//switch fileType := keyParts[len(keyParts)-1]; fileType {
+	//case "parquet":
+	//	return parquetIteratorFromBytes(b)
+	//case "csv":
+	//	return nil, fmt.Errorf("could not find CSV reader")
+	//default:
+	//	return nil, fmt.Errorf("unsupported file type")
+	//}
+	return &ParquetIteratorMultipleFiles{}, fmt.Errorf("unimplemented")
+
+}
+func (fs *HDFSFileStore) Exists(key string) (bool, error) {
+	_, err := fs.Client.Stat(fs.addPrefix(key))
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (fs *HDFSFileStore) Delete(key string) error {
+	return fs.Client.Remove(fs.addPrefix(key))
+}
+
+func (fs *HDFSFileStore) DeleteAll(dir string) error {
+	return fmt.Errorf("unimplemented")
+}
+
+func (fs *HDFSFileStore) NewestFileOfType(prefix string, fileType FileType) (string, error) {
+	return "", fmt.Errorf("unimplemented")
+}
+func (fs *HDFSFileStore) PathWithPrefix(path string, remote bool) string {
+	return ""
+}
+func (fs *HDFSFileStore) NumRows(key string) (int64, error) {
+	return 0, fmt.Errorf("unimplemented")
+}
+func (fs *HDFSFileStore) Close() error {
+	return fs.Client.Close()
+}
+func (fs *HDFSFileStore) Upload(sourcePath string, destPath string) error {
+	return fmt.Errorf("unimplemented")
+}
+func (fs *HDFSFileStore) Download(sourcePath string, destPath string) error {
+	return fmt.Errorf("unimplemented")
+}
+func (fs *HDFSFileStore) AsAzureStore() *AzureFileStore {
+	return nil
 }

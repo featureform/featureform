@@ -666,16 +666,12 @@ type SparkGenericExecutor struct {
 func (s *SparkGenericExecutor) InitializeExecutor(store FileStore) error {
 	s.logger.Info("uploading pyspark script to filestore")
 	sparkScriptPath := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/offline_store_spark_runner.py")
-	scriptFile, err := os.Open(sparkScriptPath)
-	if err != nil {
-		return err
+	err := readAndUploadFile(sparkScriptPath, store.PathWithPrefix(sparkScriptPath, false), store)
+	sparkExists, _ := store.Exists(store.PathWithPrefix(sparkScriptPath, false))
+	if err != nil && !sparkExists {
+		return fmt.Errorf("could not upload spark script: Path: %s, Error: %v", store.PathWithPrefix(sparkScriptPath, false), err)
 	}
-	buff := make([]byte, 4096)
-	_, err = scriptFile.Read(buff)
-	if err != nil {
-		return err
-	}
-	return store.Write(sparkScriptPath, buff)
+	return nil
 }
 
 func (s *SparkGenericExecutor) RunSparkJob(args *[]string, store FileStore) error {

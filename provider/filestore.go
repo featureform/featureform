@@ -20,6 +20,7 @@ import (
 	"gocloud.dev/gcp"
 	"golang.org/x/oauth2/google"
 	"io/fs"
+	"path/filepath"
 	"time"
 )
 
@@ -39,6 +40,12 @@ const (
 	CSV     FileType = "csv"
 	DB      FileType = "db"
 )
+
+func (ft FileType) Matches(file string) bool {
+	ext := filepath.Ext(file)
+	ext = strings.ReplaceAll(ext, ".", "")
+	return FileType(ext) == ft
+}
 
 const (
 	gsPrefix        = "gs://"
@@ -422,7 +429,7 @@ func (hdfs *HDFSFileStore) NewestFileOfType(prefix string, fileType FileType) (s
 			return nil
 		}
 		if strings.Contains(path, prefix) {
-			if info.ModTime().After(lastModTime) || info.ModTime().Equal(lastModTime) {
+			if (info.ModTime().After(lastModTime) || info.ModTime().Equal(lastModTime)) && fileType.Matches(path) {
 				lastModTime = info.ModTime()
 				lastModName = info.Name()
 			}

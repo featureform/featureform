@@ -682,7 +682,7 @@ func (s *SparkGenericExecutor) RunSparkJob(args *[]string, store FileStore) erro
 
 	s.logger.Infow("Executing the command", bashCommand, bashCommandArgs)
 	cmd := exec.Command(bashCommand, bashCommandArgs...)
-	cmd.Env = os.Environ()
+	cmd.Env = append(os.Environ(), "FEATUREFORM_LOCAL_MODE=true")
 
 	err := cmd.Start()
 	if err != nil {
@@ -710,6 +710,8 @@ func (s *SparkGenericExecutor) SparkSubmitArgs(destPath string, cleanQuery strin
 		s.master,
 		"--deploy-mode",
 		s.deployMode,
+		"--packages",
+		"\"org.apache.hadoop:hadoop-azure:3.2.0\"",
 		sparkScriptPath,
 		"sql",
 		"--output_uri",
@@ -725,7 +727,7 @@ func (s *SparkGenericExecutor) SparkSubmitArgs(destPath string, cleanQuery strin
 	if azureStore != nil {
 		remoteConnectionArgs = []string{
 			"--spark_config",
-			azureStore.configString(),
+			fmt.Sprintf("\"%s\"", azureStore.configString()),
 		}
 	}
 	argList = append(argList, remoteConnectionArgs...)
@@ -744,12 +746,14 @@ func (s *SparkGenericExecutor) GetDFArgs(outputURI string, code string, sources 
 		s.master,
 		"--deploy-mode",
 		s.deployMode,
+		"--packages",
+		"\"org.apache.hadoop:hadoop-azure:3.2.0\"",
 		sparkScriptPath,
 		"df",
 		"--output_uri",
 		outputURI,
 		"--code",
-		store.PathWithPrefix(code, true),
+		code,
 	}
 
 	var remoteConnectionArgs []string
@@ -760,11 +764,11 @@ func (s *SparkGenericExecutor) GetDFArgs(outputURI string, code string, sources 
 			"--store_type",
 			"azure_blob_store",
 			"--spark_config",
-			azureStore.configString(),
+			fmt.Sprint("\"%s\"", azureStore.configString()),
 			"--credential",
-			fmt.Sprintf("azure_connection_string=%s", azureStore.connectionString()),
+			fmt.Sprintf("\"azure_connection_string=%s\"", azureStore.connectionString()),
 			"--credential",
-			fmt.Sprintf("azure_container_name=%s", azureStore.containerName()),
+			fmt.Sprintf("\"azure_container_name=%s\"", azureStore.containerName()),
 		}
 	}
 	argList = append(argList, remoteConnectionArgs...)

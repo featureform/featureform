@@ -679,6 +679,8 @@ func (s *SparkGenericExecutor) RunSparkJob(args *[]string, store FileStore) erro
 	pyenvCommand := []string{"-c", fmt.Sprintf("pyenv global %s && pyenv exec", s.pythonVersion)}
 	sparkArgs := *args
 	bashCommandArgs := append(pyenvCommand, sparkArgs...)
+
+	s.logger.Infow("Executing the command", bashCommand, bashCommandArgs)
 	cmd := exec.Command(bashCommand, bashCommandArgs...)
 	err := cmd.Start()
 	if err != nil {

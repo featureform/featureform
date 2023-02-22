@@ -682,6 +682,8 @@ func (s *SparkGenericExecutor) RunSparkJob(args *[]string, store FileStore) erro
 
 	s.logger.Infow("Executing the command", bashCommand, bashCommandArgs)
 	cmd := exec.Command(bashCommand, bashCommandArgs...)
+	cmd.Env = os.Environ()
+
 	err := cmd.Start()
 	if err != nil {
 		return fmt.Errorf("could not run spark job: %v", err)
@@ -716,8 +718,19 @@ func (s *SparkGenericExecutor) SparkSubmitArgs(destPath string, cleanQuery strin
 		cleanQuery,
 		"--job_type",
 		string(jobType),
-		"--source_list",
 	}
+
+	var remoteConnectionArgs []string
+	azureStore := store.AsAzureStore()
+	if azureStore != nil {
+		remoteConnectionArgs = []string{
+			"--spark_config",
+			azureStore.configString(),
+		}
+	}
+	argList = append(argList, remoteConnectionArgs...)
+
+	argList = append(argList, "--source_list")
 	argList = append(argList, sourceList...)
 	return argList
 }
@@ -737,9 +750,26 @@ func (s *SparkGenericExecutor) GetDFArgs(outputURI string, code string, sources 
 		outputURI,
 		"--code",
 		store.PathWithPrefix(code, true),
-		"--source",
 	}
 
+	var remoteConnectionArgs []string
+	azureStore := store.AsAzureStore()
+
+	if azureStore != nil {
+		remoteConnectionArgs = []string{
+			"--store_type",
+			"azure_blob_store",
+			"--spark_config",
+			azureStore.configString(),
+			"--credential",
+			fmt.Sprintf("azure_connection_string=%s", azureStore.connectionString()),
+			"--credential",
+			fmt.Sprintf("azure_container_name=%s", azureStore.containerName()),
+		}
+	}
+	argList = append(argList, remoteConnectionArgs...)
+
+	argList = append(argList, "--source")
 	argList = append(argList, sources...)
 
 	return argList, nil

@@ -78,3 +78,6 @@ A label is a value that a model should predict at training time. It is linked wi
 
 A training set is composed of one label and one or more features. The labels and features are joined together by their entity fields. If they are linked with timestamp fields, [point-in-time correct training sets](defining-features-labels-and-training-sets.md#point-in-time-correctness) will be created.
 
+### Model
+
+A model name is a logical grouping mechanism for features and training sets. Models can be registered independently of features or training sets _or_ they can be [registered at the time of serving these resources for training or inference](serving-for-inference-and-training.md#model-registration).

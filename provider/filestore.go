@@ -19,6 +19,7 @@ import (
 	"gocloud.dev/blob/s3blob"
 	"gocloud.dev/gcp"
 	"golang.org/x/oauth2/google"
+	"io/fs"
 	"path/filepath"
 	"time"
 )
@@ -450,12 +451,9 @@ func (fs *HDFSFileStore) ServeDirectory(dir string) (Iterator, error) {
 		return nil, err
 	}
 	var fileParts []string
-	fmt.Println("FILES IN DIRECTORY")
 	for _, file := range files {
-		fmt.Println(file.Name())
 		fileParts = append(fileParts, fmt.Sprintf("%s/%s", dir, file.Name()))
 	}
-	fmt.Println("END FILES IN DIRECTORY")
 	// assume file type is parquet
 	return parquetIteratorOverMultipleFiles(fileParts, fs)
 }
@@ -497,83 +495,29 @@ func (fs *HDFSFileStore) DeleteAll(dir string) error {
 	return fs.Client.Remove(fs.addPrefix(dir))
 }
 
-func (fs *HDFSFileStore) findNewestFile(files []os.FileInfo, fileType FileType) (string, error) {
-	var lastModName string
+func (hdfs *HDFSFileStore) NewestFileOfType(prefix string, fileType FileType) (string, error) {
 	var lastModTime time.Time
-	for _, file := range files {
-		if strings.Contains(file.Name(), string(fileType)) && (file.ModTime().After(lastModTime) || file.ModTime().Equal(lastModTime)) {
-			lastModName = file.Name()
-			lastModTime = file.ModTime()
-			fmt.Println("More Recent", lastModName, lastModTime)
+	var lastModName string
+	err := hdfs.Client.Walk("/", func(path string, info fs.FileInfo, err error) error {
+		//if !strings.Contains(path, prefix) && !strings.Contains(prefix, path) && path != "/" && !info.IsDir() {
+		//	return fs.SkipDir
+		//}
+		//// prefix: /abc/123 path: /abc
+		if strings.Contains(prefix, path) {
+			return nil
 		}
-		fmt.Println("Less Recent", file.Name(), file.ModTime())
-	}
-	return lastModName, nil
-}
-
-func (fs *HDFSFileStore) NewestFileOfType(prefix string, fileType FileType) (string, error) {
-	fmt.Println("Prefix", prefix)
-	splitPath := strings.Split(prefix, "/")
-	var dir string
-	if len(splitPath) == 1 {
-		fmt.Println("Is single path")
-		var filtered []os.FileInfo
-		files, err := fs.Client.ReadDir("/")
-		if err != nil {
-			return "", err
-		}
-		for _, file := range files {
-			if strings.Contains(file.Name(), prefix) {
-				if file.IsDir() {
-					fmt.Println("Is DIR")
-					dir = fmt.Sprintf("%s/", file.Name())
-					files, err := fs.Client.ReadDir(fs.addPrefix(file.Name()))
-					if err != nil {
-						return "", err
-					}
-					filtered = files
-					break
-				} else {
-					dir = ""
-					fmt.Println("APPEND")
-					filtered = append(filtered, file)
-				}
+		if strings.Contains(path, prefix) {
+			if info.ModTime().After(lastModTime) || info.ModTime().Equal(lastModTime) {
+				lastModTime = info.ModTime()
+				lastModName = info.Name()
 			}
 		}
-		fmt.Println("CHECKING FILES")
-		for _, f := range filtered {
-			fmt.Println(f.Name())
-		}
-		fmt.Println("END OF FILTERED")
-		f, err := fs.findNewestFile(filtered, fileType)
-		if err != nil {
-			return "", err
-		}
-		return fmt.Sprintf("%s%s", dir, f), nil
-	}
-	files, err := fs.Client.ReadDir(fs.addPrefix(strings.Join(splitPath[:len(splitPath)-1], "/")))
+		return nil
+	})
 	if err != nil {
 		return "", err
 	}
-	var filtered []os.FileInfo
-	for _, file := range files {
-		if strings.Contains(file.Name(), prefix) {
-			if file.IsDir() {
-				fmt.Println("Is DIR")
-				dir = fmt.Sprintf("%s/", strings.Join(splitPath[:len(splitPath)-1], "/"))
-				files, err := fs.Client.ReadDir(fs.addPrefix(file.Name()))
-				if err != nil {
-					return "", err
-				}
-				filtered = files
-				break
-			} else {
-				fmt.Println("APPEND")
-				filtered = append(filtered, file)
-			}
-		}
-	}
-	return fs.findNewestFile(filtered, fileType)
+	return fmt.Sprintf("%s/%s", prefix, lastModName), nil
 }
 
 func (fs *HDFSFileStore) PathWithPrefix(path string, remote bool) string {

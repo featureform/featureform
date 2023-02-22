@@ -507,7 +507,7 @@ func (hdfs *HDFSFileStore) NewestFileOfType(prefix string, fileType FileType) (s
 			return nil
 		}
 		if strings.Contains(path, prefix) {
-			if info.ModTime().After(lastModTime) || info.ModTime().Equal(lastModTime) {
+			if (info.ModTime().After(lastModTime) || info.ModTime().Equal(lastModTime)) && fileType.Matches(path) {
 				lastModTime = info.ModTime()
 				lastModName = info.Name()
 			}

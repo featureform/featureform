@@ -568,11 +568,12 @@ type ParquetIteratorMultipleFiles struct {
 	fileIterator   Iterator
 	featureColumns []string
 	labelColumn    string
-	store          genericFileStore
+	store          FileStore
 }
 
-func parquetIteratorOverMultipleFiles(fileParts []string, store genericFileStore) (Iterator, error) {
-	b, err := store.bucket.ReadAll(context.TODO(), fileParts[0])
+func parquetIteratorOverMultipleFiles(fileParts []string, store FileStore) (Iterator, error) {
+	b, err := store.Read(fileParts[0])
+	//b, err := store.bucket.ReadAll(context.TODO(), fileParts[0])
 	if err != nil {
 		return nil, fmt.Errorf("could not read bucket: %w", err)
 	}
@@ -606,7 +607,8 @@ func (p *ParquetIteratorMultipleFiles) Next() (map[string]interface{}, error) {
 			return nil, nil
 		}
 		p.currentFile += 1
-		b, err := p.store.bucket.ReadAll(context.TODO(), p.fileList[p.currentFile])
+		b, err := p.store.Read(p.fileList[p.currentFile])
+		//b, err := p.store.bucket.ReadAll(context.TODO(), p.fileList[p.currentFile])
 		if err != nil {
 			return nil, err
 		}

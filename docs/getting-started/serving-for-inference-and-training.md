@@ -13,6 +13,7 @@ fpf = client.features([("fpf", "quickstart")], {"passenger": "1"})
 ```
 
 ### Wait
+
 The `wait()` function can be used to wait until a feature table is fully materialized before attempting to lookup the feature.
 It has an optional timeout in second to wait until for the materialization completion.
 
@@ -94,3 +95,13 @@ dataset = client.training_set(name, variant).repeat(5).shuffle(1000).batch(64)
 for feature_batch, label_batch in dataset:
     # Run through a shuffled dataset 5x in batches of 64
 ```
+
+## Model Registration
+
+We can optionally include a model name at the time of serving features or training sets to create a logical grouping of models and their dependencies.
+
+```python
+fpf = client.features([("fpf", "quickstart")], {"passenger": "1"}, model="passengers_random_forest")
+```
+
+In the background, Featureform stores the model name and its associated feature(s) in metadata. The `training_set` method on the serving client accepts the same options `model` param. We can see a list of [models in the dashboard](exploring-the-feature-registry.md#models) and drill down into a specific model to see the features and/or training sets that are associated with it.

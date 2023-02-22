@@ -104,4 +104,4 @@ We can optionally include a model name at the time of serving features or traini
 fpf = client.features([("fpf", "quickstart")], {"passenger": "1"}, model="passengers_random_forest")
 ```
 
-In the background, Featureform stores the model name and its associated feature(s) in metadata. The `training_set` method on the serving client accepts the same options `model` param. We can see a list of [models in the dashboard](exploring-the-feature-registry.md#models) and drill down into a specific model to see the features and/or training sets that are associated with it.
+Featureform tracks which features and training sets are associated with models registered at serving time. Both `features` and `training_set` methods accept the same optional `model` param, which is typically a string. We can see a list of [models in the dashboard](exploring-the-feature-registry.md#models) and drill down into a specific model to see the features and/or training sets that are associated with it.

@@ -112,6 +112,7 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 		for i, feature := range req.GetFeatures() {
 			modelFeatures[i] = metadata.NameVariant{Name: feature.Name, Variant: feature.Version}
 		}
+		serv.Logger.Infow("Creating model", "Name", model.GetName())
 		err := serv.Metadata.CreateModel(ctx, metadata.ModelDef{Name: model.GetName(), Features: modelFeatures})
 		if err != nil {
 			return nil, err

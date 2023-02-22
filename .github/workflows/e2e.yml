@@ -374,8 +374,8 @@ jobs:
       - name: Run CLI
         run: |
           kubectl get secret featureform-ca-secret -o=custom-columns=':.data.tls\.crt'| base64 -d > tls.crt
-          export FEATUREFORM_HOST="localhost:443"
-          export FEATUREFORM_CERT="tls.crt"
+          export FEATUREFORM_HOST=localhost:443
+          export FEATUREFORM_CERT=tls.crt
 
       - name: Test End-to-End
         env:
@@ -398,6 +398,8 @@ jobs:
           K8S_RUNNER_SCIKIT: "local/k8s_runner:scikit-stable"
           S3_BUCKET_PATH: ${{ secrets.S3_BUCKET_PATH }}
           S3_BUCKET_REGION: ${{ secrets.S3_BUCKET_REGION }}
+          FEATUREFORM_HOST: localhost:8000
+          FEATUREFORM_CERT: tls.crt
 
         run: make test_e2e
 
@@ -473,6 +475,7 @@ jobs:
             featureform list users --host localhost:8000 --cert tls.crt
             featureform get entity user --host localhost:8000 --cert tls.crt
             featureform list entities --host localhost:8000 --cert tls.crt
+
 #
 #      - name: Set Cert as Env Variable
 #        run: export FEATUREFORM_CERT=$(pwd)/tls.crt

@@ -2582,7 +2582,14 @@ class ResourceClient(Registrar):
         Returns:
             model (Model): Model
         """
-        model = get_model_info_local(name) if local else get_resource_info(self._stub, "model", name)
+        if local:
+            model = get_model_info_local(name)
+        else:
+            model_proto = get_resource_info(self._stub, "model", name)
+            if model_proto is None:
+                model = None
+            else:
+                model = Model(model_proto.name)
 
         return model
 
@@ -3479,7 +3486,8 @@ class ResourceClient(Registrar):
             rows = list_local("model", [ColumnName.NAME])
             models = [Model(row["name"]) for row in rows]
         else:
-            models = list_name_status_desc(self._stub, "model")
+            model_protos = list_name(self._stub, "model")
+            models = [Model(proto.name) for proto in model_protos]
 
         return models
 

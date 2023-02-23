@@ -1,5 +1,6 @@
 from .format import *
 from .sqlite_metadata import *
+from .resources import Model
 
 def get_user_info_local(name):
     user = get_resource("user", name)
@@ -371,3 +372,11 @@ def get_variant(resource_type, name, variant):
 def format_resource_list(res_list, name_col="name", var_col="variant"):
     formatted_res = [{ "name": r[name_col], "variant": r[var_col]} for r in res_list]
     return formatted_res
+
+def get_model_info_local(name) -> Model:
+    model = get_resource("model", name)
+
+    format_rows("MODEL NAME: ", model["name"])
+    format_rows("TYPE: ", model["type"])
+
+    return Model(model["name"])

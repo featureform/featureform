@@ -52,6 +52,7 @@ service Api {
     rpc CreateFeatureVariant(FeatureVariant) returns (Empty);
     rpc CreateLabelVariant(LabelVariant) returns (Empty);
     rpc CreateTrainingSetVariant(TrainingSetVariant) returns (Empty);
+    rpc CreateModel(Model) returns (Empty);
     rpc RequestScheduleChange(ScheduleChangeRequest) returns (Empty);
     rpc GetUsers(stream Name) returns (stream User);
     rpc GetFeatures(stream Name) returns (stream Feature);
@@ -240,10 +241,9 @@ message Entity {
 message Model {
     string name = 1;
     string description = 2;
-    ResourceStatus status = 3;
-    repeated NameVariant features = 4;
-    repeated NameVariant labels = 5;
-    repeated NameVariant trainingsets = 6;
+    repeated NameVariant features = 3;
+    repeated NameVariant labels = 4;
+    repeated NameVariant trainingsets = 5;
 }
 
 message User {

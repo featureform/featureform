@@ -219,7 +219,10 @@ pytest:
 	pytest client/tests/test_spark_provider.py
 	pytest client/tests/test_localmode_include_label_ts.py
 	pytest client/tests/test_localmode_lag_features.py
+	pytest -m 'local' client/tests/test_serving_model.py
+	pytest -m 'local' client/tests/test_getting_model.py
 	-rm -r .featureform
+	-rm -f transactions.csv
 
 jupyter: update_python
 	pip3 install jupyter nbconvert matplotlib pandas scikit-learn requests
@@ -344,8 +347,8 @@ install_featureform: start_minikube containers		## Configures Featureform on Min
         --create-namespace
 	helm install featureform ./charts/featureform --set global.repo=local --set global.pullPolicy=Never --set global.version=stable
 	kubectl get secret featureform-ca-secret -o=custom-columns=':.data.tls\.crt'| base64 -d > tls.crt
-	export FEATUREFORM_HOST="localhost:443"
-    export FEATUREFORM_CERT="tls.crt"
+	export FEATUREFORM_HOST=localhost:443
+    export FEATUREFORM_CERT=tls.crt
 
 test_e2e: update_python					## Runs End-to-End tests on minikube
 	pip3 install requests
@@ -363,6 +366,8 @@ test_e2e: update_python					## Runs End-to-End tests on minikube
 
 	featureform apply client/examples/quickstart.py --host localhost:8000 --cert tls.crt
 	pytest client/tests/e2e.py
+	pytest -m 'hosted' client/tests/test_serving_model.py
+	pytest -m 'hosted' client/tests/test_getting_model.py
 
 	 echo "Starting end to end tests"
 	 ./tests/end_to_end/end_to_end_tests.sh localhost:8000 ./tls.crt

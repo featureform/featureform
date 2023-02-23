@@ -801,6 +801,57 @@ func TestAllFeatureTypes(t *testing.T) {
 	}
 }
 
+func TestSimpleModelRegistrationFeatureServe(t *testing.T) {
+	ctx := onlineTestContext{
+		ResourceDefsFn: simpleResourceDefsFn,
+		FactoryFn:      createMockOnlineStoreFactory(simpleFeatureRecords()),
+	}
+	serv := ctx.Create(t)
+	defer ctx.Destroy()
+	modelName := "model"
+	feature := &pb.FeatureID{
+		Name:    "feature",
+		Version: "variant",
+	}
+	req := &pb.FeatureServeRequest{
+		Features: []*pb.FeatureID{
+			feature,
+		},
+		Entities: []*pb.Entity{
+			{
+				Name:  "mockEntity",
+				Value: "a",
+			},
+		},
+		Model: &pb.Model{
+			Name: modelName,
+		},
+	}
+	resp, err := serv.FeatureServe(context.Background(), req)
+	if err != nil {
+		t.Fatalf("Failed to serve feature: %s", err)
+	}
+	vals := resp.Values
+	if len(vals) != len(req.Features) {
+		t.Fatalf("Wrong number of values: %d\nExpected: %d", len(vals), len(req.Features))
+	}
+	dblVal := unwrapVal(vals[0])
+	if dblVal != 12.5 {
+		t.Fatalf("Wrong feature value: %v\nExpected: %v", dblVal, 12.5)
+	}
+	modelResp, err := serv.Metadata.GetModel(context.Background(), modelName)
+	if err != nil {
+		t.Fatalf("Failed to get model: %s", err)
+	}
+	if len(modelResp.Features()) != 1 {
+		t.Fatalf("Failed to associate model with feature")
+	}
+	modelFeature := modelResp.Features()[0]
+	if !(modelFeature.Name == feature.Name && modelFeature.Variant == feature.Version) {
+		t.Fatalf("Wrong feature associated with registered model: %v\nExpected %v", modelFeature, feature)
+	}
+}
+
 type mockTrainingStream struct {
 	RowChan    chan *pb.TrainingDataRow
 	ShouldFail bool
@@ -1052,5 +1103,75 @@ func TestTrainingSetInvalidFeature(t *testing.T) {
 	}()
 	if err := <-errChan; err == nil {
 		t.Fatalf("Succeeded in serving invalid feature: %s", err)
+	}
+}
+
+func TestSimpleModelRegistrationTrainingSetServe(t *testing.T) {
+	ctx := onlineTestContext{
+		ResourceDefsFn: simpleResourceDefsFn,
+		FactoryFn:      createMockOfflineStoreFactory(simpleFeatureRecords(), simpleTrainingSetDefs()),
+	}
+	serv := ctx.Create(t)
+	defer ctx.Destroy()
+	modelName := "model"
+	trainingData := &pb.TrainingDataID{
+		Name:    "training-set",
+		Version: "variant",
+	}
+	req := &pb.TrainingDataRequest{
+		Id: trainingData,
+		Model: &pb.Model{
+			Name: modelName,
+		},
+	}
+	stream := newMockTrainingStream()
+	errChan := make(chan error)
+	go func() {
+		if err := serv.TrainingData(req, stream); err != nil {
+			errChan <- err
+		}
+		close(errChan)
+	}()
+	type Row struct {
+		Feature interface{}
+		Label   interface{}
+	}
+	// We use a map since the order is not guaranteed.
+	expectedRows := map[Row]bool{
+		{12.5, true}:   true,
+		{"def", false}: true,
+	}
+	actualRows := make(map[Row]bool)
+	moreVals := true
+	for moreVals {
+		select {
+		case row := <-stream.RowChan:
+			if len(row.Features) != 1 {
+				t.Fatalf("Row has too many features: %v", row)
+			}
+			actualRows[Row{
+				Feature: unwrapVal(row.Features[0]),
+				Label:   unwrapVal(row.Label),
+			}] = true
+		case err := <-errChan:
+			if err != nil {
+				t.Fatalf("Failed to get training data: %s", err)
+			}
+			moreVals = false
+		}
+	}
+	if !reflect.DeepEqual(expectedRows, actualRows) {
+		t.Fatalf("Rows aren't equal: %v\n%v", expectedRows, actualRows)
+	}
+	modelResp, err := serv.Metadata.GetModel(context.Background(), modelName)
+	if err != nil {
+		t.Fatalf("Failed to get model: %s", err)
+	}
+	if len(modelResp.TrainingSets()) != 1 {
+		t.Fatalf("Failed to associate model with feature")
+	}
+	modelTrainingSet := modelResp.TrainingSets()[0]
+	if !(modelTrainingSet.Name == trainingData.Name && modelTrainingSet.Variant == trainingData.Version) {
+		t.Fatalf("Wrong training set associated with registered model: %v\nExpected %v", modelTrainingSet, trainingData)
 	}
 }

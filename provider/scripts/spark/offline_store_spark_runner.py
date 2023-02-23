@@ -16,7 +16,7 @@ from google.oauth2 import service_account
 from azure.storage.blob import BlobServiceClient
 
 
-FILESTORES = ["local", "s3", "azure_blob_store", "google_cloud_storage"]
+FILESTORES = ["local", "s3", "azure_blob_store", "google_cloud_storage", "hdfs"]
 
 if os.getenv("FEATUREFORM_LOCAL_MODE"):
     real_path = os.path.realpath(__file__)
@@ -142,6 +142,15 @@ def get_code_from_file(file_path, store_type=None, credentials=None):
 
             f.seek(0)
             code = dill.loads(f.read())
+    elif store_type == "hdfs":
+        # S3 paths are the following path: 's3://{bucket}/key/to/file'.
+        # the split below separates the bucket name and the key that is
+        # used to read the object in the bucket.
+
+        with open(file_path) as f:
+            f.seek(0)
+            code = dill.loads(f.read())
+
     elif store_type == "azure_blob_store":
         connection_string = credentials.get("azure_connection_string")
         container = credentials.get("azure_container_name")
@@ -264,9 +273,6 @@ def parse_args(args=None):
     df_parser.add_argument(
         "--source", required=True, nargs='*', help="""Add a number of sources"""
     )
-    df_parser.add_argument("--store_type", choices=FILESTORES)
-    df_parser.add_argument("--spark_config", "-sc", action="append", default=[], help="spark config thats will be set by default")
-    df_parser.add_argument("--credential", "-c", action="append", default=[], help="any credentials that would be need to used")
     
     arguments = parser.parse_args(args)
 

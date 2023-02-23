@@ -160,9 +160,14 @@ func TestBlobInterfaces(t *testing.T) {
 	//	t.Fatalf("failed to create new azure blob store: %v", err)
 	//}
 
+	//hdfsConfig := HDFSFileStoreConfig{
+	//	Host: "localhost",
+	//	Port: "9000",
+	//}
 	hdfsConfig := HDFSFileStoreConfig{
-		Host: "localhost",
-		Port: "9000",
+		Host:     "ec2-3-237-232-146.compute-1.amazonaws.com",
+		Port:     "8020",
+		Username: "hadoop",
 	}
 
 	serializedHDFSConfig, err := hdfsConfig.Serialize()
@@ -636,6 +641,13 @@ func testPathWithPrefix(t *testing.T, store FileStore) {
 	if ok {
 		filePathWithPrefix := fileFileStore.PathWithPrefix(randomKey, false)
 		if filePathWithPrefix != fmt.Sprintf("%s%s", fileFileStore.DirPath, randomKey) {
+			t.Fatalf("Incorrect path with prefix. Expected %s, got %s", fmt.Sprintf("%s%s", fileFileStore.DirPath, randomKey), filePathWithPrefix)
+		}
+	}
+	hdfsStore, ok := store.(*HDFSFileStore)
+	if ok {
+		filePathWithPrefix := hdfsStore.PathWithPrefix(randomKey, false)
+		if filePathWithPrefix != fmt.Sprintf("%s%s", hdfsStore.Path, randomKey) {
 			t.Fatalf("Incorrect path with prefix. Expected %s, got %s", fmt.Sprintf("%s%s", fileFileStore.DirPath, randomKey), filePathWithPrefix)
 		}
 	}

@@ -22,10 +22,10 @@ from .resources import Model, ResourceState, Provider, RedisConfig, FirestoreCon
     AzureFileStoreConfig, OnlineBlobConfig, K8sConfig, S3StoreConfig, GCSFileStoreConfig, User, Location, Source, PrimaryData, SQLTable, \
     SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet, ProviderReference, \
     EntityReference, SourceReference, ExecutorCredentials, ResourceRedefinedError, ResourceStatus, Transformation, \
-    K8sArgs, AWSCredentials, GCPCredentials
+    K8sArgs, AWSCredentials, GCPCredentials, HDFSConfig
+
 
 from .proto import metadata_pb2_grpc as ff_grpc
-
 
 NameVariant = Tuple[str, str]
 
@@ -129,7 +129,7 @@ class OfflineSparkProvider(OfflineProvider):
         Args:
             name (str): Name of table to be registered
             variant (str): Name of variant to be registered
-            file_path (str): The path to s3 file
+            file_path (str): The path to file
             owner (Union[str, UserRegistrar]): Owner
             description (str): Description of table to be registered
 
@@ -1416,7 +1416,7 @@ class Registrar:
                             config=config)
         self.__resources.append(provider)
         return FileStoreProvider(self, provider, azure_config, "AZURE")
-    
+
     def register_s3(self,
                     name: str,
                     credentials: AWSCredentials,
@@ -1461,6 +1461,7 @@ class Registrar:
         self.__resources.append(provider)
         return FileStoreProvider(self, provider, s3_config, s3_config.type())
 
+
     def register_gcs(self,
                     name: str,
                     credentials: GCPCredentials,
@@ -1469,11 +1470,7 @@ class Registrar:
                     description: str = "",
                     team: str = "", ):
         """Register a GCS store provider.
-
-        This has the functionality of an offline store and can be used as a parameter
-        to a k8s or spark provider
-
-        **Examples**:
+                **Examples**:
         ```
         gcs = ff.register_gcs(
             name="gcs-quickstart",
@@ -1496,7 +1493,6 @@ class Registrar:
         """
 
         gcs_config = GCSFileStoreConfig(bucket_name=bucket_name, bucket_path=bucket_path, credentials=credentials)
-
         provider = Provider(name=name,
                             function="OFFLINE",
                             description=description,
@@ -1505,6 +1501,51 @@ class Registrar:
         self.__resources.append(provider)
         return FileStoreProvider(self, provider, gcs_config, gcs_config.type())
 
+    def register_hdfs(self,
+                      name: str,
+                      host: str,
+                      port: str,
+                      username: str = "",
+                      path: str = "",
+                      description: str = "",
+                      team: str = "", ):
+        """Register a HDFS store provider.
+
+
+        This has the functionality of an offline store and can be used as a parameter
+        to a k8s or spark provider
+
+        hdfs = ff.register_hdfs(
+            name="hdfs-quickstart",
+            host=<port>,
+            port=<port>,
+            path=<path>,
+            username=<username>
+            description="An hdfs store provider to store offline"
+        )
+        ```
+        Args:
+            name (str): Name of S3 store to be registered
+            host (str):
+            port (str):
+            path (str):
+            username (str):
+            description (str): Description of Redis provider to be registered
+            team (str): team with permission to this storage layer
+        Returns:
+            hdfs (FileStoreProvider): Provider
+                has all the functionality of OfflineProvider
+        """
+
+        hdfs_config = HDFSConfig(host=host, port=port, path=path, username=username)
+
+        provider = Provider(name=name,
+                            function="OFFLINE",
+                            description=description,
+                            team=team,
+                            config=hdfs_config)
+        self.__resources.append(provider)
+        return FileStoreProvider(self, provider, hdfs_config, hdfs_config.type())
 
     def register_firestore(self,
                            name: str,
@@ -1658,17 +1699,17 @@ class Registrar:
         return OnlineProvider(self, provider)
 
     def register_snowflake_legacy(
-                self,
-                name: str,
-                username: str,
-                password: str,
-                account_locator: str,
-                database: str,
-                schema: str = "PUBLIC",
-                description: str = "",
-                team: str = "",
-                warehouse: str = "",
-                role: str = "",
+            self,
+            name: str,
+            username: str,
+            password: str,
+            account_locator: str,
+            database: str,
+            schema: str = "PUBLIC",
+            description: str = "",
+            team: str = "",
+            warehouse: str = "",
+            role: str = "",
     ):
         """Register a Snowflake provider using legacy credentials.
 
@@ -1727,7 +1768,6 @@ class Registrar:
             team: str = "",
             warehouse: str = "",
             role: str = "",
-
 
     ):
         """Register a Snowflake provider.

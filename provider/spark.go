@@ -604,7 +604,7 @@ func (d *DatabricksExecutor) SparkSubmitArgs(destPath string, cleanQuery string,
 		string(jobType),
 	}
 	var remoteConnectionArgs []string
-	azureStore := store.AsAzureStore()
+	azureStore := store.(*AzureFileStore)
 	if azureStore != nil {
 		remoteConnectionArgs = []string{
 			"--spark_config",
@@ -807,6 +807,12 @@ func (spark *SparkOfflineStore) getResourceInformationFromFilePath(path string) 
 			return "", "", ""
 		}
 		fileType, fileName, fileVariant = strings.ToLower(filePaths[2]), filePaths[3], filePaths[4]
+	} else if path[:5] == "hdfs://" {
+		filePaths := strings.Split(path[len("hdfs://"):], "/")
+		if len(filePaths) <= 4 {
+			return "", "", ""
+		}
+		fileType, fileName, fileVariant = strings.ToLower(filePaths[2]), filePaths[3], filePaths[4]
 	} else if containsSlashes {
 		filePaths := strings.Split(path[len("featureform/"):], "/")
 		if len(filePaths) <= 2 {
@@ -851,7 +857,7 @@ func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, sources []
 		code,
 	}
 	var remoteConnectionArgs []string
-	azureStore := store.AsAzureStore()
+	azureStore := store.(*AzureFileStore)
 
 	if azureStore != nil {
 		remoteConnectionArgs = []string{

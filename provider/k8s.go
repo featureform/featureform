@@ -376,7 +376,6 @@ type FileStore interface {
 	Close() error
 	Upload(sourcePath string, destPath string) error
 	Download(sourcePath string, destPath string) error
-	AsAzureStore() *AzureFileStore
 }
 
 type Iterator interface {
@@ -390,11 +389,8 @@ type genericFileStore struct {
 	path   string
 }
 
-func (store genericFileStore) AsAzureStore() *AzureFileStore {
-	return nil
-}
-
 func (store genericFileStore) PathWithPrefix(path string, remote bool) string {
+	// What does this mean? Change this as check for local file
 	if len(store.path) > 4 && store.path[0:4] == "file" {
 		return fmt.Sprintf("%s%s", store.path[len("file:///"):], path)
 	} else {
@@ -1118,6 +1114,12 @@ func (k8s *K8sOfflineStore) getResourceInformationFromFilePath(path string) (str
 	var fileVariant string
 	if path[:5] == "s3://" {
 		filePaths := strings.Split(path[len("s3://"):], "/")
+		if len(filePaths) <= 4 {
+			return "", "", ""
+		}
+		fileType, fileName, fileVariant = strings.ToLower(filePaths[2]), filePaths[3], filePaths[4]
+	} else if path[:5] == "hdfs://" {
+		filePaths := strings.Split(path[len("hdfs://"):], "/")
 		if len(filePaths) <= 4 {
 			return "", "", ""
 		}

@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"github.com/colinmarc/hdfs"
 	"os"
 	"strings"
 
@@ -12,7 +13,6 @@ import (
 	s3v2 "github.com/aws/aws-sdk-go-v2/service/s3"
 	pc "github.com/featureform/provider/provider_config"
 
-	"github.com/colinmarc/hdfs"
 	"gocloud.dev/blob"
 	"gocloud.dev/blob/azureblob"
 	"gocloud.dev/blob/gcsblob"
@@ -265,8 +265,10 @@ func NewGCSFileStore(config Config) (FileStore, error) {
 }
 
 type HDFSFileStoreConfig struct {
-	Host string
-	Port string
+	Host     string
+	Port     string
+	Path     string
+	Username string
 }
 
 func (s *HDFSFileStoreConfig) Deserialize(config SerializedConfig) error {
@@ -298,10 +300,17 @@ func NewHDFSFileStore(config Config) (FileStore, error) {
 	}
 
 	address := fmt.Sprintf("%s:%s", HDFSConfig.Host, HDFSConfig.Port)
+	var username string
+	if HDFSConfig.Username == "" {
+		username = "hduser"
+	} else {
+		username = HDFSConfig.Username
+	}
 	fmt.Println("Connecting HDFS to", address)
 	ops := hdfs.ClientOptions{
-		Addresses: []string{address},
-		User:      "hduser",
+		Addresses:           []string{address},
+		User:                username,
+		UseDatanodeHostname: true,
 	}
 	client, err := hdfs.NewClient(ops)
 	//client, err := hdfs.New(address)
@@ -310,12 +319,14 @@ func NewHDFSFileStore(config Config) (FileStore, error) {
 	}
 
 	return &HDFSFileStore{
-		client,
+		Client: client,
+		Path:   HDFSConfig.Path,
 	}, nil
 }
 
 type HDFSFileStore struct {
 	Client *hdfs.Client
+	Path   string
 }
 
 func (fs *HDFSFileStore) addPrefix(key string) string {
@@ -439,12 +450,27 @@ func (hdfs *HDFSFileStore) NewestFileOfType(prefix string, fileType FileType) (s
 	if err != nil {
 		return "", err
 	}
+	if lastModName == "" {
+		return lastModName, nil
+	}
 	return fmt.Sprintf("%s/%s", prefix, lastModName), nil
 }
 
 func (fs *HDFSFileStore) PathWithPrefix(path string, remote bool) string {
-	return path
+	s3PrefixLength := len("hdfs://")
+	nofsPrefix := path[:s3PrefixLength] != "hdfs://"
+
+	if remote && nofsPrefix {
+		fsPath := ""
+		if fs.Path != "" {
+			fsPath = fmt.Sprintf("/%s", fs.Path)
+		}
+		return fmt.Sprintf("s3://%s/%s", fsPath, path)
+	} else {
+		return path
+	}
 }
+
 func (fs *HDFSFileStore) NumRows(key string) (int64, error) {
 	file, err := fs.Read(key)
 	if err != nil {

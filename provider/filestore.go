@@ -3,7 +3,6 @@ package provider
 import (
 	"context"
 	"fmt"
-	"github.com/colinmarc/hdfs"
 	"os"
 	"strings"
 
@@ -517,11 +516,25 @@ func (hdfs *HDFSFileStore) NewestFileOfType(prefix string, fileType FileType) (s
 	if err != nil {
 		return "", err
 	}
+	if lastModName == "" {
+		return lastModName, nil
+	}
 	return fmt.Sprintf("%s/%s", prefix, lastModName), nil
 }
 
 func (fs *HDFSFileStore) PathWithPrefix(path string, remote bool) string {
-	return path
+	s3PrefixLength := len("hdfs://")
+	nofsPrefix := path[:s3PrefixLength] != "hdfs://"
+
+	if remote && nofsPrefix {
+		fsPath := ""
+		if fs.Path != "" {
+			fsPath = fmt.Sprintf("/%s", fs.Path)
+		}
+		return fmt.Sprintf("s3://%s/%s", fsPath, path)
+	} else {
+		return path
+	}
 }
 
 func (fs *HDFSFileStore) NumRows(key string) (int64, error) {

@@ -24,7 +24,6 @@ from .resources import Model, ResourceState, Provider, RedisConfig, FirestoreCon
     EntityReference, SourceReference, ExecutorCredentials, ResourceRedefinedError, ResourceStatus, Transformation, \
     K8sArgs, AWSCredentials, GCPCredentials, HDFSConfig
 
-
 from .proto import metadata_pb2_grpc as ff_grpc
 
 NameVariant = Tuple[str, str]
@@ -1511,10 +1510,11 @@ class Registrar:
                       team: str = "", ):
         """Register a HDFS store provider.
 
-
         This has the functionality of an offline store and can be used as a parameter
         to a k8s or spark provider
 
+        **Examples**:
+        ```
         hdfs = ff.register_hdfs(
             name="hdfs-quickstart",
             host=<port>,

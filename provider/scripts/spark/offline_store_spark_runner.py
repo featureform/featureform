@@ -152,7 +152,6 @@ def get_code_from_file(file_path, spark, store_type=None, credentials=None):
         output = subprocess.check_output(f"hdfs dfs -cat {file_path}", shell=True)
         code = dill.loads(bytes(output))
 
-
     elif store_type == "azure_blob_store":
         connection_string = credentials.get("azure_connection_string")
         container = credentials.get("azure_container_name")

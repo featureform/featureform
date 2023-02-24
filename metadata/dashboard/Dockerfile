@@ -15,6 +15,9 @@ COPY ./metadata/*.go ./metadata/
 COPY ./helpers/ ./helpers/
 COPY ./metadata/dashboard/ ./metadata/dashboard/
 COPY ./metadata/search/ ./metadata/search/
+COPY ./provider/provider_config/ ./provider/provider_config/
+COPY ./provider/provider_type/ ./provider/provider_type/
+COPY ./config/ ./config/
 
 RUN go build ./metadata/dashboard/dashboard_metadata.go
 

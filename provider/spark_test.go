@@ -2654,14 +2654,14 @@ func TestExecutors(t *testing.T) {
 
 	testCases := []struct {
 		name             string
-		executorType     SparkExecutorType
-		executorConfig   SparkExecutorConfig
+		executorType     pc.SparkExecutorType
+		executorConfig   pc.SparkExecutorConfig
 		expectedExecutor SparkExecutor
 	}{
 		{
 			"SparkGenericExecutor",
-			SparkGeneric,
-			&SparkGenericConfig{
+			pc.SparkGeneric,
+			&pc.SparkGenericConfig{
 				Master:        "local",
 				DeployMode:    "client",
 				PythonVersion: "3.7.16",

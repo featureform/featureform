@@ -715,7 +715,7 @@ func (s *SparkGenericExecutor) SparkSubmitArgs(destPath string, cleanQuery strin
 		sparkScriptPath,
 		"sql",
 		"--output_uri",
-		store.PathWithPrefix(destPath, true),
+		fmt.Sprintf("\n%s\n", destPath),
 		"--sql_query",
 		cleanQuery,
 		"--job_type",
@@ -733,7 +733,9 @@ func (s *SparkGenericExecutor) SparkSubmitArgs(destPath string, cleanQuery strin
 	argList = append(argList, remoteConnectionArgs...)
 
 	argList = append(argList, "--source_list")
-	argList = append(argList, sourceList...)
+	for _, source := range sourceList {
+		argList = append(argList, fmt.Sprintf("\n%s\n", source))
+	}
 	return argList
 }
 
@@ -751,7 +753,7 @@ func (s *SparkGenericExecutor) GetDFArgs(outputURI string, code string, sources 
 		sparkScriptPath,
 		"df",
 		"--output_uri",
-		outputURI,
+		fmt.Sprintf("\n%s\n", outputURI),
 		"--code",
 		code, // TODO: Need to use the prefix
 	}
@@ -774,7 +776,9 @@ func (s *SparkGenericExecutor) GetDFArgs(outputURI string, code string, sources 
 	argList = append(argList, remoteConnectionArgs...)
 
 	argList = append(argList, "--source")
-	argList = append(argList, sources...)
+	for _, source := range sources {
+		argList = append(argList, fmt.Sprintf("\n%s\n", source))
+	}
 
 	return argList, nil
 }

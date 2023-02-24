@@ -1,6 +1,10 @@
 package provider_config
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	ss "github.com/featureform/helpers/string_set"
+)
 
 type PostgresConfig struct {
 	Host     string `json:"Host"`
@@ -24,4 +28,16 @@ func (pg *PostgresConfig) Serialize() []byte {
 		panic(err)
 	}
 	return conf
+}
+
+func (pg PostgresConfig) MutableFields() ss.StringSet {
+	return ss.StringSet{
+		"Username": true,
+		"Password": true,
+		"Port":     true,
+	}
+}
+
+func (a PostgresConfig) DifferingFields(b PostgresConfig) (ss.StringSet, error) {
+	return differingFields(a, b)
 }

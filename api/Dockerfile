@@ -19,6 +19,9 @@ COPY ./metadata/proto/ ./metadata/proto/
 COPY ./proto/ ./proto/
 COPY ./helpers/ ./helpers/
 COPY ./api/main.go ./api/main.go
+COPY ./provider/provider_config/ ./provider/provider_config/
+COPY ./provider/provider_type/ ./provider/provider_type/
+COPY ./config/ ./config/
 
 RUN go build ./api/main.go
 

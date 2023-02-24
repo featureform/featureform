@@ -32,7 +32,7 @@ COPY runner/worker/main/main.go ./runner/worker/main/main.go
 ENV CGO_ENABLED=0
 RUN go build -o worker ./runner/worker/main
 
-FROM ibmjava:8
+FROM alpine
 
 COPY --from=0 ./app/worker ./worker
 COPY ./provider/scripts/spark/offline_store_spark_runner.py /app/provider/scripts/spark/offline_store_spark_runner.py
@@ -73,6 +73,4 @@ RUN pyenv install 3.10.10 && pyenv global 3.10.10 && pyenv exec pip install --up
 ENV SPARK_SCRIPT_PATH="/app/provider/scripts/spark/offline_store_spark_runner.py"
 ENV PYTHON_INIT_PATH="/app/provider/scripts/spark/python_packages.sh"
 
-EXPOSE 8080
-ENTRYPOINT ["/app/main"]
 CMD [ "./worker" ]

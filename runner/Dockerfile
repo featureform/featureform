@@ -34,7 +34,7 @@ RUN go build -o worker ./runner/worker/main
 
 FROM ibmjava:8
 
-COPY --from=0 ./app/main /app/main
+COPY --from=0 ./app/worker ./worker
 COPY ./provider/scripts/spark/offline_store_spark_runner.py /app/provider/scripts/spark/offline_store_spark_runner.py
 COPY ./provider/scripts/spark/python_packages.sh /app/provider/scripts/spark/python_packages.sh
 COPY ./provider/scripts/spark/requirements.txt /app/provider/scripts/spark/requirements.txt

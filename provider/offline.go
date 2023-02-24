@@ -8,12 +8,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/mitchellh/mapstructure"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/mitchellh/mapstructure"
+
 	"github.com/featureform/metadata"
+	pc "github.com/featureform/provider/provider_config"
 	"github.com/google/uuid"
 )
 
@@ -369,7 +371,7 @@ type memoryOfflineStore struct {
 	BaseProvider
 }
 
-func memoryOfflineStoreFactory(serializedConfig SerializedConfig) (Provider, error) {
+func memoryOfflineStoreFactory(serializedConfig pc.SerializedConfig) (Provider, error) {
 	return NewMemoryOfflineStore(), nil
 }
 

@@ -8,13 +8,14 @@ package provider
 
 import (
 	"fmt"
+	pc "github.com/featureform/provider/provider_config"
 	"reflect"
 	"testing"
 )
 
-var mockConfig SerializedConfig = SerializedConfig("abc")
+var mockConfig pc.SerializedConfig = pc.SerializedConfig("abc")
 
-func mockFactory(c SerializedConfig) (Provider, error) {
+func mockFactory(c pc.SerializedConfig) (Provider, error) {
 	if !reflect.DeepEqual(c, mockConfig) {
 		return nil, fmt.Errorf("Not mock config")
 	}

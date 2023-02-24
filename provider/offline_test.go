@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/bigquery"
+	pc "github.com/featureform/provider/provider_config"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"google.golang.org/api/option"
@@ -32,7 +33,7 @@ var provider = flag.String("provider", "all", "provider to perform test on")
 
 type testMember struct {
 	t               Type
-	c               SerializedConfig
+	c               pc.SerializedConfig
 	integrationTest bool
 }
 
@@ -55,11 +56,11 @@ func TestOfflineStores(t *testing.T) {
 		return value
 	}
 
-	postgresInit := func() SerializedConfig {
+	postgresInit := func() pc.SerializedConfig {
 		db := checkEnv("POSTGRES_DB")
 		user := checkEnv("POSTGRES_USER")
 		password := checkEnv("POSTGRES_PASSWORD")
-		var postgresConfig = PostgresConfig{
+		var postgresConfig = pc.PostgresConfig{
 			Host:     "localhost",
 			Port:     "5432",
 			Database: db,
@@ -69,14 +70,14 @@ func TestOfflineStores(t *testing.T) {
 		return postgresConfig.Serialize()
 	}
 
-	snowflakeInit := func() (SerializedConfig, SnowflakeConfig) {
+	snowflakeInit := func() (pc.SerializedConfig, pc.SnowflakeConfig) {
 		snowFlakeDatabase := strings.ToUpper(uuid.NewString())
 		t.Log("Snowflake Database: ", snowFlakeDatabase)
 		username := checkEnv("SNOWFLAKE_USERNAME")
 		password := checkEnv("SNOWFLAKE_PASSWORD")
 		org := checkEnv("SNOWFLAKE_ORG")
 		account := checkEnv("SNOWFLAKE_ACCOUNT")
-		var snowflakeConfig = SnowflakeConfig{
+		var snowflakeConfig = pc.SnowflakeConfig{
 			Username:     username,
 			Password:     password,
 			Organization: org,
@@ -89,13 +90,13 @@ func TestOfflineStores(t *testing.T) {
 		return snowflakeConfig.Serialize(), snowflakeConfig
 	}
 
-	redshiftInit := func() (SerializedConfig, RedshiftConfig) {
+	redshiftInit := func() (pc.SerializedConfig, pc.RedshiftConfig) {
 		redshiftDatabase := fmt.Sprintf("ff%s", strings.ToLower(uuid.NewString()))
 		endpoint := checkEnv("REDSHIFT_ENDPOINT")
 		port := checkEnv("REDSHIFT_PORT")
 		username := checkEnv("REDSHIFT_USERNAME")
 		password := checkEnv("REDSHIFT_PASSWORD")
-		var redshiftConfig = RedshiftConfig{
+		var redshiftConfig = pc.RedshiftConfig{
 			Endpoint: endpoint,
 			Port:     port,
 			Database: redshiftDatabase,
@@ -109,7 +110,7 @@ func TestOfflineStores(t *testing.T) {
 		return serialRSConfig, redshiftConfig
 	}
 
-	bqInit := func() (SerializedConfig, BigQueryConfig) {
+	bqInit := func() (pc.SerializedConfig, pc.BigQueryConfig) {
 		bigqueryCredentials := os.Getenv("BIGQUERY_CREDENTIALS")
 		JSONCredentials, err := ioutil.ReadFile(bigqueryCredentials)
 		if err != nil {
@@ -126,7 +127,7 @@ func TestOfflineStores(t *testing.T) {
 		os.Setenv("BIGQUERY_DATASET_ID", bigQueryDatasetId)
 		t.Log("BigQuery Dataset: ", bigQueryDatasetId)
 
-		var bigQueryConfig = BigQueryConfig{
+		var bigQueryConfig = pc.BigQueryConfig{
 			ProjectId:   os.Getenv("BIGQUERY_PROJECT_ID"),
 			DatasetId:   os.Getenv("BIGQUERY_DATASET_ID"),
 			Credentials: credentialsDict,
@@ -280,7 +281,7 @@ func testWithProvider(t *testing.T, testItem testMember, testFns map[string]func
 	}
 }
 
-func createRedshiftDatabase(c RedshiftConfig) error {
+func createRedshiftDatabase(c pc.RedshiftConfig) error {
 	url := fmt.Sprintf("sslmode=require user=%v password=%s host=%v port=%v dbname=%v", c.Username, c.Password, c.Endpoint, c.Port, "dev")
 	db, err := sql.Open("postgres", url)
 	if err != nil {
@@ -294,7 +295,7 @@ func createRedshiftDatabase(c RedshiftConfig) error {
 	return nil
 }
 
-func destroyRedshiftDatabase(c RedshiftConfig) error {
+func destroyRedshiftDatabase(c pc.RedshiftConfig) error {
 	url := fmt.Sprintf("sslmode=require user=%v password=%s host=%v port=%v dbname=%v", c.Username, c.Password, c.Endpoint, c.Port, "dev")
 	db, err := sql.Open("postgres", url)
 	if err != nil {
@@ -326,7 +327,7 @@ func destroyRedshiftDatabase(c RedshiftConfig) error {
 	return nil
 }
 
-func createSnowflakeDatabase(c SnowflakeConfig) error {
+func createSnowflakeDatabase(c pc.SnowflakeConfig) error {
 	url := fmt.Sprintf("%s:%s@%s-%s", c.Username, c.Password, c.Organization, c.Account)
 	db, err := sql.Open("snowflake", url)
 	if err != nil {
@@ -339,7 +340,7 @@ func createSnowflakeDatabase(c SnowflakeConfig) error {
 	return nil
 }
 
-func destroySnowflakeDatabase(c SnowflakeConfig) error {
+func destroySnowflakeDatabase(c pc.SnowflakeConfig) error {
 	url := fmt.Sprintf("%s:%s@%s-%s", c.Username, c.Password, c.Organization, c.Account)
 	db, err := sql.Open("snowflake", url)
 	if err != nil {
@@ -354,7 +355,7 @@ func destroySnowflakeDatabase(c SnowflakeConfig) error {
 	return nil
 }
 
-func createBigQueryDataset(c BigQueryConfig) error {
+func createBigQueryDataset(c pc.BigQueryConfig) error {
 	sCreds, err := json.Marshal(c.Credentials)
 	if err != nil {
 		return err
@@ -375,7 +376,7 @@ func createBigQueryDataset(c BigQueryConfig) error {
 	return err
 }
 
-func destroyBigQueryDataset(c BigQueryConfig) error {
+func destroyBigQueryDataset(c pc.BigQueryConfig) error {
 	sCreds, err := json.Marshal(c.Credentials)
 	if err != nil {
 		return err
@@ -3364,7 +3365,7 @@ func TestBigQueryConfig_Deserialize(t *testing.T) {
 	}
 	testConfig := payload["BigQuery"].(map[string]interface{})
 
-	bgconfig := BigQueryConfig{
+	bgconfig := pc.BigQueryConfig{
 		ProjectId:   testConfig["ProjectID"].(string),
 		DatasetId:   testConfig["DatasetID"].(string),
 		Credentials: testConfig["Credentials"].(map[string]interface{}),
@@ -3378,7 +3379,7 @@ func TestBigQueryConfig_Deserialize(t *testing.T) {
 		Credentials map[string]interface{}
 	}
 	type args struct {
-		config SerializedConfig
+		config pc.SerializedConfig
 	}
 	tests := []struct {
 		name    string
@@ -3401,7 +3402,7 @@ func TestBigQueryConfig_Deserialize(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			bq := &BigQueryConfig{
+			bq := &pc.BigQueryConfig{
 				ProjectId:   tt.fields.ProjectId,
 				DatasetId:   tt.fields.DatasetId,
 				Credentials: tt.fields.Credentials,

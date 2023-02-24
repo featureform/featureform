@@ -18,6 +18,7 @@ import (
 	"github.com/featureform/helpers"
 
 	"github.com/alicebob/miniredis"
+	pc "github.com/featureform/provider/provider_config"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 )
@@ -55,29 +56,29 @@ func TestOnlineStores(t *testing.T) {
 	}
 
 	// Redis (Mock)
-	redisMockInit := func(mRedis *miniredis.Miniredis) RedisConfig {
+	redisMockInit := func(mRedis *miniredis.Miniredis) pc.RedisConfig {
 		mockRedisAddr := mRedis.Addr()
-		redisMockConfig := &RedisConfig{
+		redisMockConfig := &pc.RedisConfig{
 			Addr: mockRedisAddr,
 		}
 		return *redisMockConfig
 	}
 
 	//Redis (Live)
-	redisInsecureInit := func() RedisConfig {
+	redisInsecureInit := func() pc.RedisConfig {
 		redisInsecurePort := os.Getenv("REDIS_INSECURE_PORT")
 		insecureAddr := fmt.Sprintf("%s:%s", "localhost", redisInsecurePort)
-		redisInsecureConfig := &RedisConfig{
+		redisInsecureConfig := &pc.RedisConfig{
 			Addr: insecureAddr,
 		}
 		return *redisInsecureConfig
 	}
 
-	redisSecureInit := func() RedisConfig {
+	redisSecureInit := func() pc.RedisConfig {
 		redisSecurePort := os.Getenv("REDIS_SECURE_PORT")
 		redisPassword := os.Getenv("REDIS_PASSWORD")
 		secureAddr := fmt.Sprintf("%s:%s", "localhost", redisSecurePort)
-		redisSecureConfig := &RedisConfig{
+		redisSecureConfig := &pc.RedisConfig{
 			Addr:     secureAddr,
 			Password: redisPassword,
 		}
@@ -85,11 +86,11 @@ func TestOnlineStores(t *testing.T) {
 	}
 
 	//Cassandra
-	cassandraInit := func() CassandraConfig {
+	cassandraInit := func() pc.CassandraConfig {
 		cassandraAddr := "localhost:9042"
 		cassandraUsername := os.Getenv("CASSANDRA_USER")
 		cassandraPassword := os.Getenv("CASSANDRA_PASSWORD")
-		cassandraConfig := &CassandraConfig{
+		cassandraConfig := &pc.CassandraConfig{
 			Addr:        cassandraAddr,
 			Username:    cassandraUsername,
 			Consistency: "ONE",
@@ -100,7 +101,7 @@ func TestOnlineStores(t *testing.T) {
 	}
 
 	//Firestore
-	firestoreInit := func() FirestoreConfig {
+	firestoreInit := func() pc.FirestoreConfig {
 		projectID := os.Getenv("FIRESTORE_PROJECT")
 		firestoreCredentials := os.Getenv("FIRESTORE_CRED")
 		JSONCredentials, err := ioutil.ReadFile(firestoreCredentials)
@@ -114,7 +115,7 @@ func TestOnlineStores(t *testing.T) {
 			panic(fmt.Errorf("cannot unmarshal big query credentials: %v", err))
 		}
 
-		firestoreConfig := &FirestoreConfig{
+		firestoreConfig := &pc.FirestoreConfig{
 			Collection:  "featureform_test",
 			ProjectID:   projectID,
 			Credentials: credentialsDict,
@@ -122,10 +123,10 @@ func TestOnlineStores(t *testing.T) {
 		return *firestoreConfig
 	}
 
-	dynamoInit := func() DynamodbConfig {
+	dynamoInit := func() pc.DynamodbConfig {
 		dynamoAccessKey := os.Getenv("DYNAMO_ACCESS_KEY")
 		dynamoSecretKey := os.Getenv("DYNAMO_SECRET_KEY")
-		dynamoConfig := &DynamodbConfig{
+		dynamoConfig := &pc.DynamodbConfig{
 			Region:    "us-east-1",
 			AccessKey: dynamoAccessKey,
 			SecretKey: dynamoSecretKey,
@@ -133,22 +134,22 @@ func TestOnlineStores(t *testing.T) {
 		return *dynamoConfig
 	}
 
-	blobAzureInit := func() OnlineBlobConfig {
-		azureConfig := AzureFileStoreConfig{
+	blobAzureInit := func() pc.OnlineBlobConfig {
+		azureConfig := pc.AzureFileStoreConfig{
 			AccountName:   helpers.GetEnv("AZURE_ACCOUNT_NAME", ""),
 			AccountKey:    helpers.GetEnv("AZURE_ACCOUNT_KEY", ""),
 			ContainerName: helpers.GetEnv("AZURE_CONTAINER_NAME", "newcontainer"),
 			Path:          "featureform/onlinetesting",
 		}
-		blobConfig := &OnlineBlobConfig{
-			Type:   Azure,
+		blobConfig := &pc.OnlineBlobConfig{
+			Type:   pc.Azure,
 			Config: azureConfig,
 		}
 		return *blobConfig
 	}
 
-	mongoDBInit := func() MongoDBConfig {
-		mongoConfig := &MongoDBConfig{
+	mongoDBInit := func() pc.MongoDBConfig {
+		mongoConfig := &pc.MongoDBConfig{
 			Host:       helpers.GetEnv("MONGODB_HOST", ""),
 			Port:       helpers.GetEnv("MONGODB_PORT", ""),
 			Username:   helpers.GetEnv("MONGODB_USERNAME", ""),
@@ -162,7 +163,7 @@ func TestOnlineStores(t *testing.T) {
 	type testMember struct {
 		t               Type
 		subType         string
-		c               SerializedConfig
+		c               pc.SerializedConfig
 		integrationTest bool
 	}
 
@@ -457,7 +458,7 @@ func TestFirestoreConfig_Deserialize(t *testing.T) {
 	}
 	testConfig := payload["Firestore"].(map[string]interface{})
 
-	fsconfig := FirestoreConfig{
+	fsconfig := pc.FirestoreConfig{
 		ProjectID:   testConfig["ProjectID"].(string),
 		Collection:  testConfig["Collection"].(string),
 		Credentials: testConfig["Credentials"].(map[string]interface{}),
@@ -471,7 +472,7 @@ func TestFirestoreConfig_Deserialize(t *testing.T) {
 		Credentials map[string]interface{}
 	}
 	type args struct {
-		config SerializedConfig
+		config pc.SerializedConfig
 	}
 	tests := []struct {
 		name    string
@@ -494,7 +495,7 @@ func TestFirestoreConfig_Deserialize(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r := &FirestoreConfig{
+			r := &pc.FirestoreConfig{
 				Collection:  tt.fields.Collection,
 				ProjectID:   tt.fields.ProjectID,
 				Credentials: tt.fields.Credentials,

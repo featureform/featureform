@@ -4,26 +4,28 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsv2cfg "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	s3v2 "github.com/aws/aws-sdk-go-v2/service/s3"
+	pc "github.com/featureform/provider/provider_config"
 	"gocloud.dev/blob"
 	"gocloud.dev/blob/azureblob"
 	"gocloud.dev/blob/gcsblob"
 	"gocloud.dev/blob/s3blob"
 	"gocloud.dev/gcp"
 	"golang.org/x/oauth2/google"
-	"os"
 )
 
-const (
-	Memory     FileStoreType = "MEMORY"
-	FileSystem               = "LOCAL_FILESYSTEM"
-	Azure                    = "AZURE"
-	S3                       = "S3"
-	GCS                      = "GCS"
-)
+// const (
+// 	Memory     FileStoreType = "MEMORY"
+// 	FileSystem                  = "LOCAL_FILESYSTEM"
+// 	Azure                       = "AZURE"
+// 	S3                          = "S3"
+// 	GCS                         = "GCS"
+// )
 
 type FileType string
 
@@ -122,36 +124,9 @@ func (store AzureFileStore) PathWithPrefix(path string, remote bool) string {
 	return path
 }
 
-type AzureFileStoreConfig struct {
-	AccountName   string
-	AccountKey    string
-	ContainerName string
-	Path          string
-}
-
-func (config *AzureFileStoreConfig) IsFileStoreConfig() bool {
-	return true
-}
-
-func (config *AzureFileStoreConfig) Serialize() ([]byte, error) {
-	data, err := json.Marshal(config)
-	if err != nil {
-		panic(err)
-	}
-	return data, nil
-}
-
-func (config *AzureFileStoreConfig) Deserialize(data SerializedConfig) error {
-	err := json.Unmarshal(data, config)
-	if err != nil {
-		return fmt.Errorf("deserialize file blob store config: %w", err)
-	}
-	return nil
-}
-
 func NewAzureFileStore(config Config) (FileStore, error) {
-	azureStoreConfig := AzureFileStoreConfig{}
-	if err := azureStoreConfig.Deserialize(SerializedConfig(config)); err != nil {
+	azureStoreConfig := pc.AzureFileStoreConfig{}
+	if err := azureStoreConfig.Deserialize(pc.SerializedConfig(config)); err != nil {
 		return nil, fmt.Errorf("could not deserialize azure store config: %v", err)
 	}
 	if err := os.Setenv("AZURE_STORAGE_ACCOUNT", azureStoreConfig.AccountName); err != nil {
@@ -184,33 +159,6 @@ func NewAzureFileStore(config Config) (FileStore, error) {
 	}, nil
 }
 
-type S3FileStoreConfig struct {
-	Credentials  AWSCredentials
-	BucketRegion string
-	BucketPath   string
-	Path         string
-}
-
-func (s *S3FileStoreConfig) Deserialize(config SerializedConfig) error {
-	err := json.Unmarshal(config, s)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *S3FileStoreConfig) Serialize() ([]byte, error) {
-	conf, err := json.Marshal(s)
-	if err != nil {
-		return nil, err
-	}
-	return conf, nil
-}
-
-func (s *S3FileStoreConfig) IsFileStoreConfig() bool {
-	return true
-}
-
 type S3FileStore struct {
 	Bucket string
 	Path   string
@@ -222,8 +170,8 @@ func (s *S3FileStore) BlobPath(sourceKey string) string {
 }
 
 func NewS3FileStore(config Config) (FileStore, error) {
-	s3StoreConfig := S3FileStoreConfig{}
-	if err := s3StoreConfig.Deserialize(SerializedConfig(config)); err != nil {
+	s3StoreConfig := pc.S3FileStoreConfig{}
+	if err := s3StoreConfig.Deserialize(pc.SerializedConfig(config)); err != nil {
 		return nil, fmt.Errorf("could not deserialize s3 store config: %v", err)
 	}
 	cfg, err := awsv2cfg.LoadDefaultConfig(context.TODO(),
@@ -269,32 +217,10 @@ type GCSFileStore struct {
 	genericFileStore
 }
 
-type GCSFileStoreConfig struct {
-	BucketName  string
-	BucketPath  string
-	Credentials []byte
-}
-
-func (s *GCSFileStoreConfig) Deserialize(config SerializedConfig) error {
-	err := json.Unmarshal(config, s)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *GCSFileStoreConfig) Serialize() []byte {
-	conf, err := json.Marshal(s)
-	if err != nil {
-		panic(err)
-	}
-	return conf
-}
-
 func NewGCSFileStore(config Config) (FileStore, error) {
-	GCSConfig := GCSFileStoreConfig{}
+	GCSConfig := pc.GCSFileStoreConfig{}
 
-	err := GCSConfig.Deserialize(SerializedConfig(config))
+	err := GCSConfig.Deserialize(pc.SerializedConfig(config))
 	if err != nil {
 		return nil, fmt.Errorf("could not deserialize config: %v", err)
 	}

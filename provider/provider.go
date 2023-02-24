@@ -5,8 +5,9 @@
 package provider
 
 import (
-	"encoding/json"
 	"fmt"
+
+	pc "github.com/featureform/provider/provider_config"
 )
 
 func init() {
@@ -33,138 +34,18 @@ func init() {
 	}
 }
 
-type SerializedConfig []byte
-
 type SerializedTableSchema []byte
-
-type RedisConfig struct {
-	Prefix   string
-	Addr     string
-	Password string
-	DB       int
-}
-
-func (r RedisConfig) Serialized() SerializedConfig {
-	config, err := json.Marshal(r)
-	if err != nil {
-		panic(err)
-	}
-	return config
-}
-
-func (r *RedisConfig) Deserialize(config SerializedConfig) error {
-	err := json.Unmarshal(config, r)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-type CassandraConfig struct {
-	Keyspace    string
-	Addr        string
-	Username    string
-	Password    string
-	Consistency string
-	Replication int
-}
-
-func (r CassandraConfig) Serialized() SerializedConfig {
-	config, err := json.Marshal(r)
-	if err != nil {
-		panic(err)
-	}
-	return config
-}
-
-func (r *CassandraConfig) Deserialize(config SerializedConfig) error {
-	err := json.Unmarshal(config, r)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-type MongoDBConfig struct {
-	Host       string
-	Port       string
-	Username   string
-	Password   string
-	Database   string
-	Throughput int
-}
-
-func (r MongoDBConfig) Serialized() SerializedConfig {
-	config, err := json.Marshal(r)
-	if err != nil {
-		panic(err)
-	}
-	return config
-}
-
-func (r *MongoDBConfig) Deserialize(config SerializedConfig) error {
-	err := json.Unmarshal(config, r)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-type DynamodbConfig struct {
-	Prefix    string
-	Region    string
-	AccessKey string
-	SecretKey string
-}
-
-func (r DynamodbConfig) Serialized() SerializedConfig {
-	config, err := json.Marshal(r)
-	if err != nil {
-		panic(err)
-	}
-	return config
-}
-
-func (r *DynamodbConfig) Deserialize(config SerializedConfig) error {
-	err := json.Unmarshal(config, r)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-type FirestoreConfig struct {
-	Collection  string
-	ProjectID   string
-	Credentials map[string]interface{}
-}
-
-func (r FirestoreConfig) Serialize() SerializedConfig {
-	config, err := json.Marshal(r)
-	if err != nil {
-		panic(err)
-	}
-	return config
-}
-
-func (r *FirestoreConfig) Deserialize(config SerializedConfig) error {
-	err := json.Unmarshal(config, r)
-	if err != nil {
-		return err
-	}
-	return nil
-}
 
 type Provider interface {
 	AsOnlineStore() (OnlineStore, error)
 	AsOfflineStore() (OfflineStore, error)
 	Type() Type
-	Config() SerializedConfig
+	Config() pc.SerializedConfig
 }
 
 type BaseProvider struct {
 	ProviderType   Type
-	ProviderConfig SerializedConfig
+	ProviderConfig pc.SerializedConfig
 }
 
 func (provider BaseProvider) AsOnlineStore() (OnlineStore, error) {
@@ -179,11 +60,11 @@ func (provider BaseProvider) Type() Type {
 	return provider.ProviderType
 }
 
-func (provider BaseProvider) Config() SerializedConfig {
+func (provider BaseProvider) Config() pc.SerializedConfig {
 	return provider.ProviderConfig
 }
 
-type Factory func(SerializedConfig) (Provider, error)
+type Factory func(pc.SerializedConfig) (Provider, error)
 
 type Type string
 
@@ -197,7 +78,7 @@ func RegisterFactory(t Type, f Factory) error {
 	return nil
 }
 
-func Get(t Type, config SerializedConfig) (Provider, error) {
+func Get(t Type, config pc.SerializedConfig) (Provider, error) {
 	f, has := factories[t]
 	if !has {
 		return nil, fmt.Errorf("no provider of type: %s", t)

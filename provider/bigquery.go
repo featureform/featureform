@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/bigquery"
+	pc "github.com/featureform/provider/provider_config"
 	_ "github.com/lib/pq"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
@@ -27,30 +28,8 @@ const (
 	sleepTime = 1 * time.Second
 )
 
-type BigQueryConfig struct {
-	ProjectId   string
-	DatasetId   string
-	Credentials map[string]interface{}
-}
-
-func (bq *BigQueryConfig) Deserialize(config SerializedConfig) error {
-	err := json.Unmarshal(config, bq)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (bq *BigQueryConfig) Serialize() []byte {
-	conf, err := json.Marshal(bq)
-	if err != nil {
-		panic(err)
-	}
-	return conf
-}
-
 type BQOfflineStoreConfig struct {
-	Config       SerializedConfig
+	Config       pc.SerializedConfig
 	ProjectId    string
 	ProviderType Type
 	QueryImpl    BQOfflineTableQueries
@@ -708,7 +687,7 @@ type bqOfflineStore struct {
 }
 
 func NewBQOfflineStore(config BQOfflineStoreConfig) (*bqOfflineStore, error) {
-	sc := BigQueryConfig{}
+	sc := pc.BigQueryConfig{}
 	if err := sc.Deserialize(config.Config); err != nil {
 		return nil, errors.New("invalid bigquery config")
 	}
@@ -734,8 +713,8 @@ func NewBQOfflineStore(config BQOfflineStoreConfig) (*bqOfflineStore, error) {
 	}, nil
 }
 
-func bigQueryOfflineStoreFactory(config SerializedConfig) (Provider, error) {
-	sc := BigQueryConfig{}
+func bigQueryOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
+	sc := pc.BigQueryConfig{}
 	if err := sc.Deserialize(config); err != nil {
 		return nil, errors.New("invalid bigquery config")
 	}

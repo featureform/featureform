@@ -8,9 +8,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	"google.golang.org/grpc/status"
 
 	"cloud.google.com/go/firestore"
+	pc "github.com/featureform/provider/provider_config"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc/codes"
 )
@@ -35,8 +37,8 @@ type firestoreTableKey struct {
 	Collection, Feature, Variant string
 }
 
-func firestoreOnlineStoreFactory(serialized SerializedConfig) (Provider, error) {
-	firestoreConfig := &FirestoreConfig{}
+func firestoreOnlineStoreFactory(serialized pc.SerializedConfig) (Provider, error) {
+	firestoreConfig := &pc.FirestoreConfig{}
 	if err := firestoreConfig.Deserialize(serialized); err != nil {
 		return nil, err
 	}
@@ -44,7 +46,7 @@ func firestoreOnlineStoreFactory(serialized SerializedConfig) (Provider, error) 
 	return NewFirestoreOnlineStore(firestoreConfig)
 }
 
-func NewFirestoreOnlineStore(options *FirestoreConfig) (*firestoreOnlineStore, error) {
+func NewFirestoreOnlineStore(options *pc.FirestoreConfig) (*firestoreOnlineStore, error) {
 	credBytes, err := json.Marshal(options.Credentials)
 	if err != nil {
 		return nil, fmt.Errorf("could not serialized firestore config, %v", err)

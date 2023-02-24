@@ -2,12 +2,12 @@ package provider
 
 import (
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
 
+	pc "github.com/featureform/provider/provider_config"
 	_ "github.com/lib/pq"
 )
 
@@ -22,32 +22,8 @@ const (
 	rsTimestamp                    = "timestamp with time zone"
 )
 
-type RedshiftConfig struct {
-	Endpoint string
-	Port     string
-	Database string
-	Username string
-	Password string
-}
-
-func (rs *RedshiftConfig) Deserialize(config SerializedConfig) error {
-	err := json.Unmarshal(config, rs)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (rs *RedshiftConfig) Serialize() []byte {
-	conf, err := json.Marshal(rs)
-	if err != nil {
-		panic(err)
-	}
-	return conf
-}
-
-func redshiftOfflineStoreFactory(config SerializedConfig) (Provider, error) {
-	sc := RedshiftConfig{}
+func redshiftOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
+	sc := pc.RedshiftConfig{}
 	if err := sc.Deserialize(config); err != nil {
 		return nil, errors.New("invalid redshift config")
 	}

@@ -7,6 +7,7 @@ package provider
 import (
 	"fmt"
 
+	pc "github.com/featureform/provider/provider_config"
 	"github.com/go-redis/redis/v8"
 )
 
@@ -78,7 +79,7 @@ func (err *CustomError) Error() string {
 	return err.ErrorMessage
 }
 
-func localOnlineStoreFactory(SerializedConfig) (Provider, error) {
+func localOnlineStoreFactory(pc.SerializedConfig) (Provider, error) {
 	return NewLocalOnlineStore(), nil
 }
 

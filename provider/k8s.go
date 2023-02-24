@@ -523,6 +523,9 @@ func (store AzureFileStore) PathWithPrefix(path string, remote bool) string {
 		}
 	}
 	if remote {
+		if path[:len("abfss://")] == "abfss://" {
+			return path
+		}
 		prefix := ""
 		pathContainsPrefix := path[:len(store.Path)] == store.Path
 		if store.Path != "" && !pathContainsPrefix {

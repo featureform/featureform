@@ -29,19 +29,35 @@ COPY metadata/search/* ./metadata/search/
 COPY ./provider/ ./provider/
 COPY runner/worker/main/main.go ./runner/worker/main/main.go
 
+ENV CGO_ENABLED=0
 RUN go build -o worker ./runner/worker/main
 
-FROM alpine
+FROM ibmjava:8
 
 COPY --from=0 ./app/worker ./worker
+COPY ./provider/scripts/spark/offline_store_spark_runner.py /app/provider/scripts/spark/offline_store_spark_runner.py
+COPY ./provider/scripts/spark/python_packages.sh /app/provider/scripts/spark/python_packages.sh
 COPY ./provider/scripts/spark/requirements.txt /app/provider/scripts/spark/requirements.txt
 
 # Installing pyenv
-RUN apk --update add libffi-dev ncurses-dev openssl-dev readline-dev \
-tk-dev xz-dev zlib-dev curl git bash build-base bzip2-dev sqlite-dev \
-openjdk11 coreutils procps
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    checkinstall \
+    libreadline-gplv2-dev \
+    libncursesw5-dev \
+    libssl-dev \
+    libsqlite3-dev \
+    libgdbm-dev \
+    libc6-dev \
+    libbz2-dev \
+    libffi-dev \
+    zlib1g-dev \
+    liblzma-dev \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/*
 
-ENV ENV="/root/.ashrc"
+ENV ENV="/root/.bashrc"
 ENV PYENV_ROOT="/.pyenv"
 ENV PATH="$PYENV_ROOT/bin:$PATH"
 RUN echo "PATH=${PATH}" > "${ENV}"
@@ -54,4 +70,9 @@ RUN pyenv install 3.8.16 && pyenv global 3.8.16 && pyenv exec pip install --upgr
 RUN pyenv install 3.9.16 && pyenv global 3.9.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt
 RUN pyenv install 3.10.10 && pyenv global 3.10.10 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt
 
+ENV SPARK_SCRIPT_PATH="/app/provider/scripts/spark/offline_store_spark_runner.py"
+ENV PYTHON_INIT_PATH="/app/provider/scripts/spark/python_packages.sh"
+
+EXPOSE 8080
+ENTRYPOINT ["/app/main"]
 CMD [ "./worker" ]

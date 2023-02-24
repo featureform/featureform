@@ -24,21 +24,35 @@ COPY ./kubernetes ./kubernetes
 COPY ./types ./types
 COPY ./coordinator/main/main.go ./coordinator/main/main.go
 
+ENV CGO_ENABLED=0
 RUN go build ./coordinator/main/main.go
 
-FROM alpine
+FROM ibmjava:8
 
-COPY --from=0 ./app/main ./main
+COPY --from=0 ./app/main /app/main
 COPY ./provider/scripts/spark/offline_store_spark_runner.py /app/provider/scripts/spark/offline_store_spark_runner.py
 COPY ./provider/scripts/spark/python_packages.sh /app/provider/scripts/spark/python_packages.sh
 COPY ./provider/scripts/spark/requirements.txt /app/provider/scripts/spark/requirements.txt
 
 # Installing pyenv
-RUN apk --update add libffi-dev ncurses-dev openssl-dev readline-dev \
-tk-dev xz-dev zlib-dev curl git bash build-base bzip2-dev sqlite-dev \
-openjdk11 coreutils procps
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    checkinstall \
+    libreadline-gplv2-dev \
+    libncursesw5-dev \
+    libssl-dev \
+    libsqlite3-dev \
+    libgdbm-dev \
+    libc6-dev \
+    libbz2-dev \
+    libffi-dev \
+    zlib1g-dev \
+    liblzma-dev \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/*
 
-ENV ENV="/root/.ashrc"
+ENV ENV="/root/.bashrc"
 ENV PYENV_ROOT="/.pyenv"
 ENV PATH="$PYENV_ROOT/bin:$PATH"
 RUN echo "PATH=${PATH}" > "${ENV}"
@@ -55,4 +69,4 @@ ENV SPARK_SCRIPT_PATH="/app/provider/scripts/spark/offline_store_spark_runner.py
 ENV PYTHON_INIT_PATH="/app/provider/scripts/spark/python_packages.sh"
 
 EXPOSE 8080
-ENTRYPOINT ["./main"]
+ENTRYPOINT ["/app/main"]

@@ -753,7 +753,7 @@ func (s *SparkGenericExecutor) GetDFArgs(outputURI string, code string, sources 
 		"--output_uri",
 		outputURI,
 		"--code",
-		code,
+		code, // TODO: Need to use the prefix
 	}
 
 	var remoteConnectionArgs []string
@@ -764,7 +764,7 @@ func (s *SparkGenericExecutor) GetDFArgs(outputURI string, code string, sources 
 			"--store_type",
 			"azure_blob_store",
 			"--spark_config",
-			fmt.Sprint("\"%s\"", azureStore.configString()),
+			fmt.Sprintf("\"%s\"", azureStore.configString()),
 			"--credential",
 			fmt.Sprintf("\"azure_connection_string=%s\"", azureStore.connectionString()),
 			"--credential",
@@ -987,6 +987,7 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 		return fmt.Errorf("transformation %v doesn't exist at %s and you are trying to update", config.TargetTableID, transformationDestination)
 	}
 
+	// TODO: fix the path to include the prefix
 	transformationFilePath := GetTransformationFileLocation(config.TargetTableID)
 	fileName := "transformation.pkl"
 	transformationFileLocation := fmt.Sprintf("%s/%s", transformationFilePath, fileName)
@@ -1136,7 +1137,7 @@ func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, sources []
 		"--output_uri",
 		outputURI,
 		"--code",
-		code,
+		code, // TODO: Need to use the prefix
 	}
 	var remoteConnectionArgs []string
 	azureStore := store.AsAzureStore()

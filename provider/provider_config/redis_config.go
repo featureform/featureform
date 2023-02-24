@@ -1,6 +1,10 @@
 package provider_config
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	ss "github.com/featureform/helpers/string_set"
+)
 
 type RedisConfig struct {
 	Prefix   string
@@ -23,4 +27,14 @@ func (r *RedisConfig) Deserialize(config SerializedConfig) error {
 		return err
 	}
 	return nil
+}
+
+func (r RedisConfig) MutableFields() ss.StringSet {
+	return ss.StringSet{
+		"Password": true,
+	}
+}
+
+func (a RedisConfig) DifferingFields(b RedisConfig) (ss.StringSet, error) {
+	return differingFields(a, b)
 }

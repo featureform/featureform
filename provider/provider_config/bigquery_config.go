@@ -1,6 +1,10 @@
 package provider_config
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	ss "github.com/featureform/helpers/string_set"
+)
 
 type BigQueryConfig struct {
 	ProjectId   string
@@ -22,4 +26,14 @@ func (bq *BigQueryConfig) Serialize() []byte {
 		panic(err)
 	}
 	return conf
+}
+
+func (pg BigQueryConfig) MutableFields() ss.StringSet {
+	return ss.StringSet{
+		"Credentials": true,
+	}
+}
+
+func (a BigQueryConfig) DifferingFields(b BigQueryConfig) (ss.StringSet, error) {
+	return differingFields(a, b)
 }

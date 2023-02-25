@@ -1,6 +1,10 @@
 package provider_config
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	ss "github.com/featureform/helpers/string_set"
+)
 
 type CassandraConfig struct {
 	Keyspace    string
@@ -25,4 +29,17 @@ func (r *CassandraConfig) Deserialize(config SerializedConfig) error {
 		return err
 	}
 	return nil
+}
+
+func (pg CassandraConfig) MutableFields() ss.StringSet {
+	return ss.StringSet{
+		"Username":    true,
+		"Password":    true,
+		"Consistency": true,
+		"Replication": true,
+	}
+}
+
+func (a CassandraConfig) DifferingFields(b CassandraConfig) (ss.StringSet, error) {
+	return differingFields(a, b)
 }

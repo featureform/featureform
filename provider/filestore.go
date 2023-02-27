@@ -343,7 +343,6 @@ func (fs *HDFSFileStore) getFile(key string) (*hdfs.FileWriter, error) {
 			return nil, fmt.Errorf("could not remove file %s: %v", key, err)
 		}
 		return fs.getFile(key)
-
 	} else if err != nil {
 		return nil, fmt.Errorf("could not get file: %v", err)
 	} else {
@@ -381,10 +380,7 @@ func (fs *HDFSFileStore) Write(key string, data []byte) error {
 	if err != nil {
 		return fmt.Errorf("could not write: %v", err)
 	}
-	err = file.Close()
-	if err != nil {
-		return fmt.Errorf("could not close file: %v", err)
-	}
+	file.Close()
 	return nil
 }
 
